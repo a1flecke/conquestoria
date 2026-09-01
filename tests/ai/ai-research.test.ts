@@ -14,6 +14,8 @@ import type {
 import { createTechState } from '@/systems/tech-system';
 import { TRAINABLE_UNITS, foundCity } from '@/systems/city-system';
 import { prepareMajorCivStrategicPlan } from '@/ai/ai-prepared-turn';
+import { calculateCivResearchOutput } from '@/systems/research-output-system';
+import { simulateResearchQueueTiming } from '@/systems/tech-progression';
 
 const neutral: PersonalityTraits = {
   traits: [],
@@ -58,6 +60,17 @@ function context(
 }
 
 describe('AI strategic research planning', () => {
+  it('uses canonical one-completion-per-turn queue timing for downstream research targets', () => {
+    const result = planAIResearch(context([
+      tech('first', 'science', [], { cost: 20 }),
+      tech('target', 'science', ['first'], { cost: 20, unlocksBuildings: ['library'] }),
+    ], { sciencePerTurn: 100 }));
+
+    expect(result?.frontierTechId).toBe('first');
+    expect(result?.downstreamTargetTechId).toBe('target');
+    expect(result?.scoreComponents.estimatedResearchTurns).toBe(2);
+  });
+
   it('values the final conjunctive prerequisite without claiming the first tech already enables the unit', () => {
     const archer = TRAINABLE_UNITS.find(unit => unit.type === 'archer')!;
     const original = archer.requiredTechs;
@@ -265,6 +278,30 @@ describe('AI strategic research planning', () => {
       .not.toBeNull();
   });
 
+  it('keeps AI research targets and final research output identical across opponent challenge modes', () => {
+    const base = createNewGame(undefined, 'research-challenge-symmetry', 'small');
+    const outcomes = (['explorer', 'standard', 'veteran'] as const).map(opponentChallenge => {
+      const state = { ...structuredClone(base), opponentChallenge };
+      const result = applyAIResearch(
+        state,
+        'ai-1',
+        prepareMajorCivStrategicPlan(state, 'ai-1'),
+        neutral,
+      );
+      const civ = result.state.civilizations['ai-1'];
+      const science = calculateCivResearchOutput(result.state, civ.id).finalScience;
+      return {
+        currentResearch: civ.techState.currentResearch,
+        science,
+        eta: civ.techState.currentResearch
+          ? simulateResearchQueueTiming(civ.techState, science).get(civ.techState.currentResearch)?.finishTurns
+          : null,
+      };
+    });
+
+    expect(outcomes).toEqual([outcomes[0], outcomes[0], outcomes[0]]);
+  });
+
   it('preserves valid active research, progress, and queue', () => {
     const state = createNewGame(undefined, 'research-commitment', 'small');
     const civ = state.civilizations['ai-1'];
@@ -350,9 +387,10 @@ describe('#919 MR2 — unrest pressure lifts magistracy in AI research planning'
     // 0.6 * UNREST_TRIGGER_PRESSURE (24) AND carry an Empire-overextension row -> count = 15.
     expect(firstMagistracyTurn(buildEmpire(15, 'mr2-research-wide'))).toBeLessThanOrEqual(3);
     // 3 clustered cities, no wars -> no overextension / distance row -> count 0 -> no bonus.
-    expect(firstMagistracyTurn(buildEmpire(3, 'mr2-research-tall'))).toBe(Infinity);
+    // It must not match the wide empire's early beeline; later generic selection remains valid.
+    expect(firstMagistracyTurn(buildEmpire(3, 'mr2-research-tall'))).toBeGreaterThan(3);
     // 3 clustered cities at war x3 -> every city IS pressured (war 24) but has NO
     // distance/overextension row -> a courthouse would not help -> count 0 -> no bonus.
-    expect(firstMagistracyTurn(buildEmpire(3, 'mr2-research-waronly', 3))).toBe(Infinity);
+    expect(firstMagistracyTurn(buildEmpire(3, 'mr2-research-waronly', 3))).toBeGreaterThan(3);
   });
 });

@@ -1,4 +1,4 @@
-import type { PacingBand } from '@/core/types';
+import type { PacingBand, Tech } from '@/core/types';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import {
   getRecommendedTechTurnWindow,
@@ -64,22 +64,38 @@ function currentCostFor(techId: string): number {
   return tech.cost;
 }
 
-function proposedCostFor(techId: string, outputs: readonly ResearchPacingScenarioOutput[]): number {
-  const tech = TECH_TREE.find(candidate => candidate.id === techId);
-  if (!tech) throw new Error(`Missing technology ${techId}`);
-  const standard = scenarioByEra(outputs, tech.era, 'standard');
-  const tall = scenarioByEra(outputs, tech.era, 'tall');
-  const wide = scenarioByEra(outputs, tech.era, 'wide');
-  return recommendResearchCost(tech, {
-    standardNetScience: standard.netScience,
-    tallNetScience: tall.netScience,
-    wideNetScience: wide.netScience,
-  }).recommendedCost;
+function getCurrentCostById(): Record<string, number> {
+  return Object.fromEntries(TECH_TREE.map(tech => [tech.id, tech.cost]));
 }
 
+function createCostedCatalog(costById: Readonly<Record<string, number>>): Tech[] {
+  return TECH_TREE.map(tech => ({ ...tech, cost: costById[tech.id] ?? tech.cost }));
+}
+
+function recommendCostsFrom(costById: Readonly<Record<string, number>>): Record<string, number> {
+  const catalog = createCostedCatalog(costById);
+  const outputs = getResearchScenarioOutputs({ costById });
+  return Object.fromEntries(catalog.map(tech => {
+    const standard = scenarioByEra(outputs, tech.era, 'standard');
+    const tall = scenarioByEra(outputs, tech.era, 'tall');
+    const wide = scenarioByEra(outputs, tech.era, 'wide');
+    return [tech.id, recommendResearchCost(tech, {
+      standardNetScience: standard.netScience,
+      tallNetScience: tall.netScience,
+      wideNetScience: wide.netScience,
+    }, catalog).recommendedCost];
+  }));
+}
+
+/** Resolves the cost/output feedback loop rather than validating a one-pass snapshot. */
 export function getProposedResearchCostById(): Readonly<Record<string, number>> {
-  const outputs = getResearchScenarioOutputs();
-  return Object.freeze(Object.fromEntries(TECH_TREE.map(tech => [tech.id, proposedCostFor(tech.id, outputs)])));
+  let candidate = getCurrentCostById();
+  for (let iteration = 0; iteration < 32; iteration += 1) {
+    const next = recommendCostsFrom(candidate);
+    if (TECH_TREE.every(tech => candidate[tech.id] === next[tech.id])) return Object.freeze(next);
+    candidate = next;
+  }
+  throw new Error('Research pacing cost feedback did not converge within 32 deterministic iterations.');
 }
 
 function validateTech(
@@ -113,12 +129,13 @@ function validateTech(
 }
 
 export function buildResearchPacingReport(options: ResearchPacingReportOptions = {}): ResearchPacingReport {
-  const outputs = getResearchScenarioOutputs();
   const proposedCosts = getProposedResearchCostById();
   const currentCosts = new Map(TECH_TREE.map(tech => [tech.id, currentCostFor(tech.id)]));
-  const costs = new Map(TECH_TREE.map(tech => [tech.id, options.proposedCosts ? proposedCosts[tech.id] : currentCosts.get(tech.id)!]));
+  const selectedCosts = Object.fromEntries(TECH_TREE.map(tech => [tech.id, options.proposedCosts ? proposedCosts[tech.id] : currentCosts.get(tech.id)!]));
+  const costs = new Map(Object.entries(selectedCosts));
+  const outputs = getResearchScenarioOutputs({ costById: selectedCosts });
   const failures = TECH_TREE.flatMap(tech => validateTech(tech.id, costs.get(tech.id)!, outputs));
-  const issue917 = buildResearchPacingScenario({ scenario: 'issue-917', era: 2, infrastructureShare: 0.6 });
+  const issue917 = buildResearchPacingScenario({ scenario: 'issue-917', era: 2, infrastructureShare: 0.6, costById: selectedCosts });
   const issue917OneTurnTechs = TECH_TREE
     .filter(tech => tech.era === 2)
     .filter(tech => eta(costs.get(tech.id)!, issue917.netScience) === 1)

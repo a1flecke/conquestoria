@@ -31,6 +31,7 @@ import { isSuperweaponsEnabled } from '@/systems/superweapons-flag';
 import { getNetworkPanelModel } from '@/ui/network-panel';
 import { getPirateWatersPresentation } from '@/systems/pirate-presentation';
 import { getUnmovedUnits } from '@/systems/unit-system';
+import { createResearchBreakdown } from '@/ui/research-breakdown';
 
 /** The narrow slice of `RenderLoop` this controller needs. */
 export type HudRenderer = Pick<RenderLoop, 'isAirDefenseOverlayEnabled' | 'toggleAirDefenseOverlay' | 'resizeCanvas'>;
@@ -58,6 +59,22 @@ export interface HudControllerDeps {
 
 export function createHudController(deps: HudControllerDeps): HudController {
   let drawer: TreasuryDrawer | undefined;
+  let researchBreakdown: HTMLElement | undefined;
+  let researchBreakdownCivId: string | undefined;
+  let researchBreakdownSignature: string | undefined;
+
+  const dismissResearchBreakdown = (): void => {
+    researchBreakdown?.remove();
+    researchBreakdown = undefined;
+    researchBreakdownCivId = undefined;
+    researchBreakdownSignature = undefined;
+  };
+
+  const getResearchBreakdownSignature = (
+    civId: string,
+    output: ReturnType<typeof calculateCivResearchOutput>,
+  ): string =>
+    JSON.stringify([civId, output.rows, output.penaltyMultiplier]);
 
   const airDefenseButton = createGameButton('🛡 Anti-aircraft coverage', 'secondary');
   airDefenseButton.id = 'btn-air-defense-overlay';
@@ -102,7 +119,19 @@ export function createHudController(deps: HudControllerDeps): HudController {
         totalFood += y.food;
         totalProd += y.production;
       }
-      const totalScience = calculateCivResearchOutput(state, civ.id).finalScience;
+      const researchOutput = calculateCivResearchOutput(state, civ.id);
+      const totalScience = researchOutput.finalScience;
+      const researchSignature = getResearchBreakdownSignature(civ.id, researchOutput);
+      // Refreshes occur during normal rendering as well as after turn changes.
+      // Keep an open dialog visible while its owner and canonical output stay
+      // unchanged; otherwise remove it before the HUD can show stale or
+      // hot-seat-private research details.
+      if (researchBreakdown && (
+        researchBreakdownCivId !== civ.id
+        || researchBreakdownSignature !== researchSignature
+      )) {
+        dismissResearchBreakdown();
+      }
       const economyStatus = calculateCivEconomy(state, civ.id);
 
       const techName = civ.techState.currentResearch ?? 'None';
@@ -129,10 +158,30 @@ export function createHudController(deps: HudControllerDeps): HudController {
       yieldsRow.appendChild(goldBtn);
       drawer?.update(economyStatus, civ.gold);
 
-      const sciSpan = document.createElement('span');
-      sciSpan.style.cssText = 'min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:1;';
-      sciSpan.textContent = `🔬 ${techName !== 'None' ? techName : 'None'} (+${totalScience})`;
-      yieldsRow.appendChild(sciSpan);
+      const scienceButton = createGameButton(`🔬 ${techName !== 'None' ? techName : 'None'} (+${totalScience})`, 'secondary');
+      scienceButton.dataset.action = 'open-research-breakdown';
+      scienceButton.title = 'Show research details';
+      scienceButton.addEventListener('click', () => {
+        dismissResearchBreakdown();
+        const latestState = deps.session.getState();
+        const latestCiv = latestState.civilizations[latestState.currentPlayer];
+        if (!latestCiv) return;
+        researchBreakdown = createResearchBreakdown(
+          calculateCivResearchOutput(latestState, latestCiv.id),
+          {
+            returnFocusTo: scienceButton,
+            onClose: () => { researchBreakdown = undefined; },
+          },
+        );
+        researchBreakdownCivId = latestCiv.id;
+        researchBreakdownSignature = getResearchBreakdownSignature(
+          latestCiv.id,
+          calculateCivResearchOutput(latestState, latestCiv.id),
+        );
+        deps.getDrawerMountRoot().appendChild(researchBreakdown);
+        researchBreakdown.querySelector<HTMLButtonElement>('[data-action="close-research-breakdown"]')?.focus();
+      });
+      yieldsRow.appendChild(scienceButton);
 
       if (isAutonomyActivated(state, civ.id)) {
         const networkButton = document.createElement('button');

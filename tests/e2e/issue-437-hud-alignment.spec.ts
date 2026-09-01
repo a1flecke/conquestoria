@@ -62,7 +62,7 @@ test('Tauri-sized HUD keeps every yield on one visual baseline', async ({ page }
   }));
   expect(rowStyles).toEqual({ alignItems: 'center', flexWrap: 'nowrap' });
 
-  const goldButton = yieldsRow.getByRole('button');
+  const goldButton = yieldsRow.getByRole('button', { name: /^💰/ });
   const goldBox = await goldButton.boundingBox();
   expect(goldBox?.height).toBeGreaterThanOrEqual(44);
 
@@ -76,4 +76,21 @@ test('Tauri-sized HUD keeps every yield on one visual baseline', async ({ page }
   const replayedTextTops = await readTextTops(page);
   expect(Math.max(...replayedTextTops) - Math.min(...replayedTextTops))
     .toBeLessThanOrEqual(1);
+});
+
+test('research details stays open until the player dismisses it', async ({ page }) => {
+  await installFixture(page);
+  await continueFixture(page);
+
+  const scienceButton = page.locator('[data-action="open-research-breakdown"]');
+  await scienceButton.click();
+  const dialog = page.getByRole('dialog', { name: 'Research details' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText('Final research');
+
+  await page.waitForTimeout(100);
+  await expect(dialog).toBeVisible();
+
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
 });

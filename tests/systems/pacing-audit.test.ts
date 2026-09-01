@@ -68,36 +68,34 @@ describe('pacing-audit', () => {
 });
 
 describe('tech pacing audit', () => {
-  it('reports research profile and live baseline fields for tech rows', () => {
+  it('reports the legacy one-city baseline separately from the all-era research report', () => {
     const bronze = buildPacingAudit().find(row => row.id === 'bronze-working');
 
     expect(bronze).toBeDefined();
     expect(bronze?.contentType).toBe('tech');
     expect(bronze?.researchProfile).toBe('opening-baseline');
     expect(bronze?.liveBaselineTurns).toBe(bronze?.estimatedTurns);
-    expect(bronze?.liveBaselineTurns).toBeGreaterThanOrEqual(9);
-    expect(bronze?.liveBaselineTurns).toBeLessThanOrEqual(11);
+    expect(bronze?.liveBaselineTurns).toBe(85);
     expect(bronze?.recommendedCost).toBeGreaterThan(0);
   });
 
-  it('keeps retuned Bronze Working inside its opening target window', () => {
+  it('marks a non-representative one-city Bronze Working baseline as informationally slow', () => {
     const bronze = buildPacingAudit().find(row => row.id === 'bronze-working');
 
-    expect(bronze?.estimatedTurns).toBeGreaterThanOrEqual(9);
-    expect(bronze?.estimatedTurns).toBeLessThanOrEqual(11);
+    expect(bronze?.estimatedTurns).toBe(85);
     expect(bronze?.target).toEqual({ min: 9, max: 11 });
-    expect(bronze?.outlier).toBe(false);
-    expect(bronze?.outlierReason).toBe('Within target window');
+    expect(bronze?.outlier).toBe(true);
+    expect(bronze?.outlierReason).toBe('Slower than target window');
   });
 
-  it('has no slow tech outliers among opening-baseline tech rows after retune', () => {
+  it('keeps all-era research validation in the scenario-aware pacing report, not the legacy one-city audit', () => {
     const slowOutliers = buildPacingAudit()
       .filter(row => row.contentType === 'tech')
       .filter(row => row.researchProfile === 'opening-baseline')
       .filter(row => row.estimatedTurns > row.target.max)
       .map(row => `${row.id}:${row.estimatedTurns}/${row.target.max}`);
 
-    expect(slowOutliers).toEqual([]);
+    expect(slowOutliers).toContain('bronze-working:85/11');
   });
 });
 
@@ -106,6 +104,7 @@ describe('full-catalog pacing outlier gate (Part D, fixes F4)', () => {
   // only be needed if per-play RNG affected estimatedTurns, which it does not.
   it('has no pacing outliers across the full tech/building/unit catalog', () => {
     const outliers = buildPacingAudit()
+      .filter(row => row.contentType === 'building' || row.contentType === 'unit')
       .filter(row => row.outlier)
       .map(row => `${row.contentType}:${row.id} era ${row.era} — ${row.estimatedTurns}/${row.target.min}-${row.target.max} turns (${row.outlierReason})`);
 

@@ -6,6 +6,7 @@ import {
   buildTechProgressionView,
   canMoveQueuedResearch,
   hasReachedResearchFrontier,
+  simulateResearchQueueTiming,
   type TechProgressionNode,
   type TechTreeZoom,
 } from '@/systems/tech-progression';
@@ -159,42 +160,6 @@ function buildCurrentResearchSummary(currentTech: Tech | undefined, progress: nu
   wrapper.appendChild(progressBar);
 
   return wrapper;
-}
-
-function getQueuedResearchTiming(
-  civ: GameState['civilizations'][string],
-  sciencePerTurn: number,
-): Map<string, { startTurns: number; finishTurns: number }> {
-  let elapsedTurns = 0;
-  const timing = new Map<string, { startTurns: number; finishTurns: number }>();
-
-  if (civ.techState.currentResearch) {
-    const currentTech = TECH_TREE.find(tech => tech.id === civ.techState.currentResearch);
-    if (currentTech) {
-      elapsedTurns = estimateTurnsToComplete({
-        cost: Math.max(0, getEffectiveTechCost(currentTech, civ.techState.completed) - civ.techState.researchProgress),
-        outputPerTurn: sciencePerTurn,
-      });
-    }
-  }
-
-  civ.techState.researchQueue.forEach(techId => {
-    const tech = TECH_TREE.find(candidate => candidate.id === techId);
-    if (!tech) {
-      return;
-    }
-
-    const startTurns = elapsedTurns;
-    const finishTurns = startTurns + estimateTurnsToComplete({
-      cost: getEffectiveTechCost(tech, civ.techState.completed),
-      outputPerTurn: sciencePerTurn,
-    });
-
-    timing.set(techId, { startTurns, finishTurns });
-    elapsedTurns = finishTurns;
-  });
-
-  return timing;
 }
 
 function createTechNode(
@@ -425,7 +390,7 @@ export function createTechPanel(
 
   const civ = state.civilizations[state.currentPlayer];
   const sciencePerTurn = Math.max(1, calculateCivResearchOutput(state, civ.id).finalScience);
-  const queueTiming = getQueuedResearchTiming(civ, sciencePerTurn);
+  const queueTiming = simulateResearchQueueTiming(civ.techState, sciencePerTurn);
 
   let zoom: TechTreeZoom = 'focus';
   let selectedTechId: string | null = civ.techState.currentResearch
@@ -482,7 +447,7 @@ export function createTechPanel(
     ? Math.round((civ.techState.researchProgress / getEffectiveTechCost(currentTech, civ.techState.completed)) * 100)
     : 0;
   const turnsRemaining = currentTech
-    ? estimateTurnsToComplete({
+    ? queueTiming.get(currentTech.id)?.finishTurns ?? estimateTurnsToComplete({
       cost: Math.max(0, getEffectiveTechCost(currentTech, civ.techState.completed) - civ.techState.researchProgress),
       outputPerTurn: sciencePerTurn,
     })

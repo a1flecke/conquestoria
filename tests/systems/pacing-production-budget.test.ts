@@ -138,7 +138,8 @@ describe('representative production budget', () => {
       + result.discardedObsoleteProgress
       + result.unspentInfrastructureProduction;
 
-    expect(Math.abs(accounted - result.infrastructureProductionAllocated)).toBeLessThanOrEqual(1e-9);
+    // Match the simulator's own EPSILON-scale floating point accounting.
+    expect(Math.abs(accounted - result.infrastructureProductionAllocated)).toBeLessThanOrEqual(1e-8);
     expect(result.activeBuildingCount).toBeLessThanOrEqual(1);
     expect(result.cappedProductionEarned).toBeLessThanOrEqual(result.actualProductionEarned);
   }, 25_000);

@@ -1,7 +1,7 @@
 import { calculateCoordinatedCityScience, DIMINISHING_RESEARCH_POLICY } from '@/systems/research-coordination-system';
 import { requireResearchPacingScenario } from '@/systems/research-pacing-model';
 import { BUILDINGS } from '@/systems/city-system';
-import { TECH_TREE, getEraAdvancementFraction, getEraAdvancementTechs } from '@/systems/tech-definitions';
+import { TECH_TREE, getEraAdvancementFraction } from '@/systems/tech-definitions';
 
 export const RESEARCH_SCENARIOS = {
   tall: { cityCounts: [1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5], infrastructureShare: 0.7 },
@@ -11,6 +11,7 @@ export const RESEARCH_SCENARIOS = {
 
 export type ResearchScenarioName = keyof typeof RESEARCH_SCENARIOS | 'issue-917';
 export type ResearchInfrastructureShare = 0.5 | 0.6 | 0.7;
+export type ResearchPacingCostById = Readonly<Record<string, number>>;
 
 export interface ResearchPacingScenarioOutput {
   scenario: ResearchScenarioName;
@@ -55,6 +56,11 @@ interface CachedFeedbackOutput {
 
 const feedbackOutputCache = new Map<string, CachedFeedbackOutput>();
 
+function getCostFingerprint(costById: ResearchPacingCostById | undefined): string {
+  if (!costById) return 'live';
+  return TECH_TREE.map(tech => `${tech.id}:${costById[tech.id] ?? tech.cost}`).join('|');
+}
+
 function buildCityScienceFromFeedback(
   era: number,
   cityCount: number,
@@ -86,8 +92,9 @@ function getCachedFeedbackOutput(
   scenario: keyof typeof RESEARCH_SCENARIOS,
   era: number,
   infrastructureShare: ResearchInfrastructureShare,
+  costById?: ResearchPacingCostById,
 ): CachedFeedbackOutput {
-  const key = `${scenario}:${era}:${infrastructureShare}`;
+  const key = `${scenario}:${era}:${infrastructureShare}:${getCostFingerprint(costById)}`;
   const cached = feedbackOutputCache.get(key);
   if (cached) return cached;
   const completedTechIds: string[] = [];
@@ -107,7 +114,9 @@ function getCachedFeedbackOutput(
     for (const prerequisite of tech.prerequisites) addPrerequisiteClosure(prerequisite, currentEra, nextVisiting);
 
     const researchRate = getScenarioNetScience(scenario, currentEra, infrastructureShare, scienceBuildingYield);
-    arrivalTurn += Math.ceil(tech.cost / researchRate);
+    const cost = costById?.[tech.id] ?? tech.cost;
+    if (!Number.isFinite(cost) || cost <= 0) throw new Error(`Research pacing scenario has invalid cost for ${tech.id}.`);
+    arrivalTurn += Math.ceil(cost / researchRate);
     completed.add(tech.id);
     completedTechIds.push(tech.id);
     scienceBuildingYield += (tech.unlocksBuildings ?? [])
@@ -116,8 +125,9 @@ function getCachedFeedbackOutput(
   };
 
   for (let currentEra = 1; currentEra <= era; currentEra++) {
-    const eraTechs = getEraAdvancementTechs(currentEra)
-      .sort((left, right) => left.cost - right.cost || left.id.localeCompare(right.id));
+    const eraTechs = TECH_TREE
+      .filter(tech => tech.era === currentEra && tech.countsForEraAdvancement !== false)
+      .sort((left, right) => (costById?.[left.id] ?? left.cost) - (costById?.[right.id] ?? right.cost) || left.id.localeCompare(right.id));
     const required = Math.ceil(eraTechs.length * getEraAdvancementFraction(currentEra));
     for (const tech of eraTechs.slice(0, required)) addPrerequisiteClosure(tech.id, currentEra);
   }
@@ -135,11 +145,12 @@ function buildCityScience(
   era: number,
   cityCount: number,
   infrastructureShare: ResearchInfrastructureShare,
+  costById?: ResearchPacingCostById,
 ): number[] {
   // This deliberately small laboratory routes a research arrival through each unlocked science
   // building before calculating the next era's rate. It therefore changes later output when
   // the route or infrastructure share changes, unlike the retired one-way per-era profile.
-  const feedback = getCachedFeedbackOutput(scenario, era, infrastructureShare);
+  const feedback = getCachedFeedbackOutput(scenario, era, infrastructureShare, costById);
   return buildCityScienceFromFeedback(era, cityCount, infrastructureShare, feedback.scienceBuildingYield);
 }
 
@@ -147,6 +158,7 @@ export function buildResearchPacingScenario(input: {
   scenario: ResearchScenarioName;
   era: number;
   infrastructureShare: ResearchInfrastructureShare;
+  costById?: ResearchPacingCostById;
 }): ResearchPacingScenarioOutput {
   assertInfrastructureShare(input.infrastructureShare);
   requireResearchPacingScenario(input.era);
@@ -169,12 +181,12 @@ export function buildResearchPacingScenario(input: {
   }
 
   const cityCount = getResearchScenarioCityCount(input.scenario, input.era);
-  const cityScience = buildCityScience(input.scenario, input.era, cityCount, input.infrastructureShare);
+  const cityScience = buildCityScience(input.scenario, input.era, cityCount, input.infrastructureShare, input.costById);
   const coordinated = calculateCoordinatedCityScience(
     cityScience.map((science, index) => ({ cityId: `${input.scenario}-${String(index).padStart(2, '0')}`, science })),
     DIMINISHING_RESEARCH_POLICY,
   );
-  const feedback = getCachedFeedbackOutput(input.scenario, input.era, input.infrastructureShare);
+  const feedback = getCachedFeedbackOutput(input.scenario, input.era, input.infrastructureShare, input.costById);
 
   return {
     scenario: input.scenario,
@@ -189,7 +201,7 @@ export function buildResearchPacingScenario(input: {
   };
 }
 
-export function getResearchScenarioOutputs(): ResearchPacingScenarioOutput[] {
+export function getResearchScenarioOutputs(options: { costById?: ResearchPacingCostById } = {}): ResearchPacingScenarioOutput[] {
   return (Object.keys(RESEARCH_SCENARIOS) as Array<keyof typeof RESEARCH_SCENARIOS>)
     .flatMap(scenario => Array.from({ length: 13 }, (_, index) => {
       const era = index + 1;
@@ -197,6 +209,7 @@ export function getResearchScenarioOutputs(): ResearchPacingScenarioOutput[] {
         scenario,
         era,
         infrastructureShare: RESEARCH_SCENARIOS[scenario].infrastructureShare,
+        costById: options.costById,
       });
     }));
 }

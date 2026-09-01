@@ -39,6 +39,7 @@ import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import { isAIHostileOwner } from './ai-hostility';
 import { buildMajorCivPerception } from './ai-perception';
 import { getChallengeProfileForCiv } from '@/core/opponent-challenge';
+import { getMarginalCivResearchGain } from '@/systems/research-output-system';
 
 export interface AIProductionCandidate {
   itemId: string;
@@ -48,6 +49,7 @@ export interface AIProductionCandidate {
   maintenanceImpact: number;
   roleDemandScore: number;
   economyScore: number;
+  researchValueScore: number;
   personalityScore: number;
   emergencyDefenseScore: number;
   citySpecializationScore: number;
@@ -210,7 +212,7 @@ function projectedBuildingMaintenanceImpact(
 // reasonably without a new branch here.
 const MILESTONE_NP_ECONOMY_VALUE = 4;
 
-export function economyValue(buildingId: string): number {
+export function economyValue(buildingId: string, researchValueScore?: number): number {
   const building = BUILDINGS[buildingId];
   if (building?.nationalProject?.milestone) return MILESTONE_NP_ECONOMY_VALUE;
   const yields = building?.nationalProject
@@ -220,7 +222,7 @@ export function economyValue(buildingId: string): number {
     ? (yields.food ?? 0)
       + (yields.production ?? 0) * 1.25
       + (yields.gold ?? 0) * 1.5
-      + (yields.science ?? 0) * 1.25
+      + (researchValueScore ?? (yields.science ?? 0) * 1.25)
     : 0;
   // Happiness (#552): weighted flat, same scalar as +1 gold — there is no
   // per-city "need" signal already threaded through this scoring function to
@@ -559,6 +561,7 @@ function generateWithResidual(
       maintenanceImpact,
       roleDemandScore,
       economyScore: 0,
+      researchValueScore: 0,
       personalityScore,
       emergencyDefenseScore,
       citySpecializationScore,
@@ -617,6 +620,7 @@ function generateWithResidual(
           maintenanceImpact,
           roleDemandScore: 0,
           economyScore: 0,
+          researchValueScore: 0,
           personalityScore,
           emergencyDefenseScore: 0,
           citySpecializationScore: 0,
@@ -644,7 +648,8 @@ function generateWithResidual(
     civId,
     arsenalStatus,
   )) {
-    const economyScore = economyValue(building.id);
+    const researchValueScore = getMarginalCivResearchGain(state, civId, cityId, building.id) * 1.25;
+    const economyScore = economyValue(building.id, researchValueScore);
     const maintenanceImpact = projectedBuildingMaintenanceImpact(
       state,
       civId,
@@ -690,6 +695,7 @@ function generateWithResidual(
       maintenanceImpact,
       roleDemandScore: 0,
       economyScore,
+      researchValueScore,
       personalityScore,
       emergencyDefenseScore: 0,
       citySpecializationScore,

@@ -807,6 +807,29 @@ describe('AI strategic production', () => {
 });
 
 describe('happiness building AI scoring (#552)', () => {
+  it('values a library by its non-negative marginal net research in the city that builds it', () => {
+    const state = setupState(['writing'], ['city-a', 'city-b']);
+    // Keep city-a securely first in the coordinated-science ordering so the
+    // same library has a larger net empire effect there than in city-b.
+    state.cities['city-a']!.buildings.push('shrine', 'archive', 'observatory');
+
+    const strongestCityLibrary = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
+      .find(candidate => candidate.itemId === 'library')!;
+    const marginalCityLibrary = generateAIProductionCandidates(state, 'ai-1', 'city-b', [], aggressive)
+      .find(candidate => candidate.itemId === 'library')!;
+
+    expect(strongestCityLibrary.researchValueScore).toBeGreaterThan(marginalCityLibrary.researchValueScore);
+    expect(marginalCityLibrary.researchValueScore).toBeGreaterThanOrEqual(0);
+
+    const eraTwoTechs = TECH_TREE
+      .filter(tech => tech.era <= 2 && tech.countsForEraAdvancement !== false)
+      .map(tech => tech.id);
+    const projectState = setupState([...eraTwoTechs, 'mathematics']);
+    const scribesHall = generateAIProductionCandidates(projectState, 'ai-1', 'city-a', [], aggressive)
+      .find(candidate => candidate.itemId === 'scribes_hall')!;
+    expect(scribesHall.researchValueScore).toBeGreaterThan(0);
+  });
+
   it('economyValue scores a temple higher than an otherwise-identical zero-happiness building', () => {
     // temple: yields { science: 1 }, happiness: 1 → economyValue = 1*1.25 + 1*1.5 = 2.75
     // shrine: yields { science: 1 }, no happiness → economyValue = 1*1.25 = 1.25

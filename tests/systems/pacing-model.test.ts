@@ -188,6 +188,14 @@ describe('research pacing model', () => {
 });
 
 describe('era-relative pacing bands (F1 regression)', () => {
+  it('does not change an inferred band merely because a recommendation changes its cost', () => {
+    const original = tech('constitutional-law');
+    const cheaper = { ...original, cost: 50 };
+    const pricier = { ...original, cost: 5_000 };
+
+    expect(resolveEraRelativeCostBand(cheaper, TECH_TREE)).toBe(resolveEraRelativeCostBand(pricier, TECH_TREE));
+  });
+
   it('does not collapse every era-5+ tech into marquee', () => {
     const eraGte5 = TECH_TREE.filter(t => t.era >= 5);
     const bands = new Set(eraGte5.map(t => resolveTechPacingBand(t)));

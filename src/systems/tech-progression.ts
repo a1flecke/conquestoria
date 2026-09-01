@@ -44,6 +44,11 @@ export interface TechProgressionView {
   nextStepId: string | null;
 }
 
+export interface ResearchQueueTiming {
+  startTurns: number;
+  finishTurns: number;
+}
+
 export function getDerivedTechTracks(techs: Tech[] = TECH_TREE): TechTrack[] {
   const tracks: TechTrack[] = [];
   for (const tech of techs) {
@@ -143,6 +148,45 @@ export function canMoveQueuedResearch(state: TechState, fromIndex: number, toInd
   return isQueueOrderValid(state, moveQueuedId(state.researchQueue, fromIndex, toIndex));
 }
 
+/**
+ * Simulates the research queue with the same one-completion-per-turn rule as
+ * research processing. Excess science never carries into the next queued
+ * technology, so queued ETA labels remain honest at every research rate.
+ */
+export function simulateResearchQueueTiming(
+  state: TechState,
+  sciencePerTurn: number,
+  techs: readonly Tech[] = TECH_TREE,
+): Map<string, ResearchQueueTiming> {
+  const timing = new Map<string, ResearchQueueTiming>();
+  const completed = [...state.completed];
+  const queuedIds = [
+    ...(state.currentResearch ? [state.currentResearch] : []),
+    ...state.researchQueue,
+  ];
+  const perTurnScience = Math.max(1, sciencePerTurn);
+  let elapsedTurns = 0;
+  let progress = Math.max(0, state.researchProgress);
+
+  for (const techId of queuedIds) {
+    const tech = techs.find(candidate => candidate.id === techId);
+    if (!tech || completed.includes(techId)) {
+      progress = 0;
+      continue;
+    }
+
+    const startTurns = elapsedTurns;
+    const remainingScience = Math.max(0, getEffectiveTechCost(tech, completed) - progress);
+    const turnsToComplete = Math.max(1, Math.ceil(remainingScience / perTurnScience));
+    elapsedTurns += turnsToComplete;
+    timing.set(techId, { startTurns, finishTurns: elapsedTurns });
+    completed.push(techId);
+    progress = 0;
+  }
+
+  return timing;
+}
+
 export function buildTechProgressionView(
   state: TechState,
   options: { sciencePerTurn?: number; zoom?: TechTreeZoom; initialFocusTechId?: string; selectedTechId?: string | null; techs?: readonly Tech[] } = {},
@@ -162,6 +206,7 @@ export function buildTechProgressionView(
   const knownVisibleIds = new Set<string>();
   const visibleIds = new Set<string>();
   const sciencePerTurn = Math.max(1, options.sciencePerTurn ?? 1);
+  const queueTiming = simulateResearchQueueTiming(state, sciencePerTurn, techs);
   const completedOrPlannedOrAvailable = new Set([
     ...planned,
     ...queueableIds,
@@ -220,14 +265,10 @@ export function buildTechProgressionView(
     const visibleByDefault = visibleInFocus;
     const queuedIndex = state.researchQueue.indexOf(tech.id);
     const effectiveCost = getEffectiveTechCost(tech, state.completed);
-    const turnsToResearch = state.currentResearch === tech.id
-      ? estimateTurnsToComplete({
-        cost: Math.max(0, effectiveCost - state.researchProgress),
-        outputPerTurn: sciencePerTurn,
-      })
-      : queuedIndex >= 0 || queueableIds.has(tech.id)
+    const turnsToResearch = queueTiming.get(tech.id)?.finishTurns
+      ?? (queuedIndex >= 0 || queueableIds.has(tech.id)
         ? estimateTurnsToComplete({ cost: effectiveCost, outputPerTurn: sciencePerTurn })
-        : null;
+        : null);
 
     if (visibleByDefault) defaultVisibleIds.add(tech.id);
     if (visibleInKnown) knownVisibleIds.add(tech.id);

@@ -6,6 +6,7 @@ import { createGameSession } from '@/app/game-session';
 import { createPanelHost } from '@/app/panel-host';
 import { createPanelRouter } from '@/app/panel-router';
 import type { PanelContext, PanelRegistry } from '@/app/panel-registry';
+import { calculateCivResearchOutput } from '@/systems/research-output-system';
 import {
   createHudController,
   type HudController,
@@ -72,6 +73,87 @@ describe('HudController', () => {
     });
     hud.update();
     expect(hudEl.textContent).toContain('9999');
+  });
+
+  it('opens a fresh canonical research breakdown after a research-output change', () => {
+    const state = makeFixture();
+    const deps = baseDeps(state);
+    const hud = createHudController(deps);
+    const initialScience = calculateCivResearchOutput(state, 'player').finalScience;
+
+    hud.update();
+    (document.querySelector('[data-action="open-research-breakdown"]') as HTMLButtonElement).click();
+    expect(document.querySelector('[data-research-output-kind="final"]')?.textContent).toBe(`Final research+${initialScience}`);
+
+    const current = deps.session.getState();
+    deps.session.commit({
+      ...current,
+      civilizations: {
+        ...current.civilizations,
+        player: {
+          ...current.civilizations.player,
+          researchPenaltyTurns: 1,
+          researchPenaltyMultiplier: 0.5,
+        },
+      },
+    });
+    hud.update();
+    expect(document.querySelector('[data-role="research-breakdown"]')).toBeNull();
+
+    const updated = deps.session.getState();
+    const updatedScience = calculateCivResearchOutput(updated, 'player').finalScience;
+    (document.querySelector('[data-action="open-research-breakdown"]') as HTMLButtonElement).click();
+    expect(document.querySelector('[data-research-output-kind="final"]')?.textContent).toBe(`Final research+${updatedScience}`);
+  });
+
+  it('keeps the research breakdown open across an unchanged HUD refresh', () => {
+    const state = makeFixture();
+    const deps = baseDeps(state);
+    const hud = createHudController(deps);
+
+    hud.update();
+    (document.querySelector('[data-action="open-research-breakdown"]') as HTMLButtonElement).click();
+    expect(document.querySelector('[data-role="research-breakdown"]')).not.toBeNull();
+
+    hud.update();
+
+    expect(document.querySelector('[data-role="research-breakdown"]')).not.toBeNull();
+  });
+
+  it('shows only the incoming hot-seat player\'s research in the HUD and breakdown', () => {
+    const state = makeFixture();
+    addPlayerAirDefenseCity(state);
+    state.hotSeat = {
+      playerCount: 2,
+      mapSize: 'small',
+      players: [
+        { name: 'Alice', slotId: 'player', civType: 'rome', isHuman: true },
+        { name: 'Bob', slotId: 'player-2', civType: 'rome', isHuman: true },
+      ],
+    };
+    state.civilizations.player.techState.currentResearch = 'fire';
+    state.civilizations['player-2'] = {
+      ...structuredClone(state.civilizations.player),
+      id: 'player-2',
+      name: 'Bob',
+      cities: [],
+      techState: { ...state.civilizations.player.techState, currentResearch: 'writing' },
+    };
+    const deps = baseDeps(state);
+    const hud = createHudController(deps);
+
+    hud.update();
+    expect(document.getElementById('hud')?.textContent).toContain('fire');
+    (document.querySelector('[data-action="open-research-breakdown"]') as HTMLButtonElement).click();
+    const outgoingScience = document.querySelector('[data-research-output-kind="final"]')?.textContent;
+
+    deps.session.commit({ ...deps.session.getState(), currentPlayer: 'player-2' });
+    hud.update();
+    expect(document.querySelector('[data-role="research-breakdown"]')).toBeNull();
+    expect(document.getElementById('hud')?.textContent).toContain('writing');
+    (document.querySelector('[data-action="open-research-breakdown"]') as HTMLButtonElement).click();
+
+    expect(document.querySelector('[data-research-output-kind="final"]')?.textContent).not.toBe(outgoingScience);
   });
 
   it('starts hidden and stays hidden after update() when the civ has no air-defense coverage', () => {

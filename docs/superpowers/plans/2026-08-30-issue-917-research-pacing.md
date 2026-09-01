@@ -430,7 +430,7 @@ Do not mark later MRs complete. Commit the status update in the same MR.
 
 ---
 
-## MR2 — All-Era Balance Laboratory 🟡 Tasks 7–11 complete locally; pending review and merge
+## MR2 — All-Era Balance Laboratory ✅ merged (#936)
 
 MR2 has isolated research calibration, added deterministic tall/standard/wide and #917
 feedback scenarios, report tooling, useful-lifetime/future-era gates, and proposed-only
@@ -644,7 +644,7 @@ git commit -m "test(pacing): pin all-era research retune"
 
 ---
 
-## MR3 — Atomic All-Era Launch
+## MR3 — Atomic All-Era Launch 🟡 verified and committed locally; awaiting review and merge
 
 ### Task 12: Write the schema-24 migration before changing costs
 
@@ -652,14 +652,14 @@ git commit -m "test(pacing): pin all-era research retune"
 
 - Modify: `src/storage/save-migrations.ts`
 - Read: `src/storage/research-cost-migration-v24.ts`
-- Create: `tests/storage/save-migrations-v23.test.ts`
+- Create: `tests/storage/save-migrations-v24.test.ts`
 - Modify: `tests/storage/save-migrations.test.ts`
 
-- [ ] **Step 0: Verify the schema allocation is still free**
+- [x] **Step 0: Verify the schema allocation is still free**
 
 Confirm `CURRENT_SAVE_SCHEMA_VERSION` is still 23 on the freshly rebased MR3 base. If it has advanced, stop before editing, allocate the next free version, rename the migration data/test files consistently, and update this plan plus the design document in the same commit. Never overwrite or renumber a merged migration.
 
-- [ ] **Step 1: Write failing 0%, 50%, 99%, complete, malformed, discount, and idempotence tests**
+- [x] **Step 1: Write failing 0%, 50%, 99%, complete, malformed, discount, and idempotence tests**
 
 For each changed active tech:
 
@@ -672,19 +672,19 @@ expectedProgress = fraction < 1
 
 Test that displayed completion percentage changes by at most one percentage point and unfinished research never completes only because of rounding. Also test Cloud Computing's old/new 15% effective-cost discount, empty current research, unknown IDs, queue preservation, already-current saves, and future-schema rejection.
 
-- [ ] **Step 2: Add the schema-24 migration**
+- [x] **Step 2: Add the schema-24 migration**
 
 Increment `CURRENT_SAVE_SCHEMA_VERSION` from 23 to 24. Import the reviewed old-cost delta from `src/storage/research-cost-migration-v24.ts`; production must not import tests. Normalize an already-complete legacy active tech and advance its queue without event/audio emission.
 
-- [ ] **Step 3: Run storage tests**
+- [x] **Step 3: Run storage tests**
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/storage/save-migrations-v23.test.ts tests/storage/save-migrations.test.ts tests/storage/save-manager.test.ts tests/storage/save-persistence.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/storage/save-migrations-v24.test.ts tests/storage/save-migrations.test.ts tests/storage/save-manager.test.ts tests/storage/save-persistence.test.ts
 ```
 
 Expected: PASS before source cost changes because tests supply explicit old/new tables.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit with the MR3 atomic launch**
 
 ```bash
 git add src/storage/research-cost-migration-v24.ts src/storage/save-migrations.ts tests/storage/save-migrations-v24.test.ts tests/storage/save-migrations.test.ts
@@ -707,15 +707,15 @@ git commit -m "feat(storage): preserve research progress through retune"
 - Modify: `tests/integration/pacing-simulation.test.ts`
 - Modify: `tests/systems/research-pacing-scenarios.test.ts`
 
-- [ ] **Step 1: Change the default runtime policy**
+- [x] **Step 1: Change the default runtime policy**
 
 `calculateCivResearchOutput` defaults to `DIMINISHING_RESEARCH_POLICY`. No gameplay caller passes a policy override. Full-contribution policy remains available only to migration/report characterization tests.
 
-- [ ] **Step 2: Apply the generated cost table mechanically**
+- [x] **Step 2: Apply the generated cost table mechanically**
 
 Update every changed `Tech.cost` to its pinned proposed value. Do not change IDs, prerequisites, bands, unlocks, descriptions, or effects in this task.
 
-- [ ] **Step 3: Flip the #917 fixture expectation**
+- [x] **Step 3: Flip the #917 fixture expectation**
 
 ```ts
 expect(breakdown.grossCityScience).toBe(58);
@@ -732,7 +732,7 @@ expect(Object.values(selectedEtas).every(turns => turns === 1)).toBe(false);
 
 Calculate every exact ETA from the pinned new cost map; do not hardcode values copied from the old screenshot.
 
-- [ ] **Step 4: Run all pacing and progression suites**
+- [x] **Step 4: Run all pacing and progression suites**
 
 ```bash
 scripts/check-src-rule-violations.sh src/systems/tech-definitions-eras1-4.ts src/systems/tech-definitions-eras5-7.ts src/systems/tech-definitions-eras8.ts src/systems/tech-definitions-eras9.ts src/systems/tech-definitions-eras10.ts src/systems/tech-definitions-eras11.ts src/systems/tech-definitions-eras12.ts src/systems/tech-definitions-eras13.ts src/systems/research-output-system.ts
@@ -742,7 +742,7 @@ scripts/check-src-rule-violations.sh src/systems/tech-definitions-eras1-4.ts src
 
 Expected: report and tests pass across Eras 1–13, including Bronze Working and #917.
 
-- [ ] **Step 5: Commit the atomic data/policy activation**
+- [x] **Step 5: Commit the atomic data/policy activation**
 
 ```bash
 git add src/systems/tech-definitions-eras1-4.ts src/systems/tech-definitions-eras5-7.ts src/systems/tech-definitions-eras8.ts src/systems/tech-definitions-eras9.ts src/systems/tech-definitions-eras10.ts src/systems/tech-definitions-eras11.ts src/systems/tech-definitions-eras12.ts src/systems/tech-definitions-eras13.ts src/systems/research-output-system.ts tests/integration/pacing-simulation.test.ts tests/systems/research-pacing-scenarios.test.ts
@@ -792,26 +792,26 @@ git commit -m "fix(research): rebalance every authored era"
 - switch hot-seat viewer and reopen;
 - save, load, and reopen.
 
-- [ ] **Step 1: Write failing rendered-experience tests**
+- [x] **Step 1: Write failing rendered-experience tests**
 
 Assert exact visible row labels, whole numbers, explanatory copy, 44px control size, keyboard activation, focus restoration, accessible dialog/name, and immediate fresh-state rerender.
 
-- [ ] **Step 2: Write queue timing tests before changing UI**
+- [x] **Step 2: Write queue timing tests before changing UI**
 
 Create `simulateResearchQueueTiming` using active progress, effective costs, final science, ordered queue, and the one-completion-per-turn floor. MR3 still discards overflow; MR4 changes the simulation and production semantics together.
 
-- [ ] **Step 3: Implement the renderer and controller wiring**
+- [x] **Step 3: Implement the renderer and controller wiring**
 
 The UI receives `ResearchOutputBreakdown`; it contains no yield or coordination formulas. The HUD item is a button with an accessible label, not a span with an attached click handler.
 
-- [ ] **Step 4: Run UI and timing tests**
+- [x] **Step 4: Run UI and timing tests**
 
 ```bash
 scripts/check-src-rule-violations.sh src/ui/research-breakdown.ts src/app/controllers/hud-controller.ts src/ui/tech-panel.ts src/systems/tech-progression.ts
 ./scripts/run-with-mise.sh yarn test --run tests/ui/research-breakdown.test.ts tests/app/controllers/hud-controller.test.ts tests/ui/tech-panel.test.ts tests/systems/tech-progression.test.ts
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit in the MR3 atomic launch**
 
 ```bash
 git add src/ui/research-breakdown.ts tests/ui/research-breakdown.test.ts src/app/controllers/hud-controller.ts src/ui/tech-panel.ts src/systems/tech-progression.ts tests/app/controllers/hud-controller.test.ts tests/ui/tech-panel.test.ts tests/systems/tech-progression.test.ts
@@ -828,19 +828,19 @@ git commit -m "feat(ui): explain canonical research pacing"
 - Modify: `tests/ai/ai-production.test.ts`
 - Modify: `tests/core/opponent-challenge.test.ts`
 
-- [ ] **Step 1: Write failing marginal-value and difficulty-symmetry tests**
+- [x] **Step 1: Write failing marginal-value and difficulty-symmetry tests**
 
 Assert a library in the strongest science city receives a larger research-value component than the same raw library in a low-ranked marginal city, while both remain non-negative. For identical state, Explorer/Standard/Veteran must return identical output and ETA.
 
-- [ ] **Step 2: Preserve existing difficulty behavior**
+- [x] **Step 2: Preserve existing difficulty behavior**
 
 AI candidate breadth, stable tie-breaking, and seeded mistakes continue through existing challenge logic. Do not add `researchMultiplier`, `techCostMultiplier`, or challenge branches to research systems.
 
-- [ ] **Step 3: Implement marginal net scoring**
+- [x] **Step 3: Implement marginal net scoring**
 
 Replace raw `(yields.science ?? 0) * 1.25` valuation with `getMarginalCivResearchGain` multiplied by the existing strategic science weight. Research target scoring consumes canonical queue timing.
 
-- [ ] **Step 4: Run AI suites and commit**
+- [x] **Step 4: Run AI suites and commit in the MR3 atomic launch**
 
 ```bash
 scripts/check-src-rule-violations.sh src/ai/ai-research.ts src/ai/ai-production.ts
@@ -859,25 +859,25 @@ git commit -m "feat(ai): plan against net research value"
 - Modify: `tests/audio/audio-system.integration.test.ts`
 - Modify: `src/audio/audio-system.ts` only if the test exposes a routing defect
 
-- [ ] **Step 1: Add two-human owner-turn parity**
+- [x] **Step 1: Add two-human owner-turn parity**
 
 Give both players different city science, bonuses, penalties, queues, and personal difficulty. Process each owner turn and assert only that owner advances by their canonical final science.
 
-- [ ] **Step 2: Add viewer-isolation tests**
+- [x] **Step 2: Add viewer-isolation tests**
 
 After handoff, HUD, breakdown, and tech panel must contain the new player values and none of the previous player's tech IDs, bonus labels, penalty values, or queue entries.
 
-- [ ] **Step 3: Add exactly-once SFX tests**
+- [x] **Step 3: Add exactly-once SFX tests**
 
 Normal human completion plays once; AI/hidden hot-seat completion plays zero for the current viewer; migration plays zero. Do not add a coordination/open-panel sound.
 
-- [ ] **Step 4: Run integration suites**
+- [x] **Step 4: Run integration suites**
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/core/turn-manager.test.ts tests/core/hotseat-outcome.test.ts tests/ui/tech-panel.test.ts tests/audio/audio-system.integration.test.ts tests/storage/save-migrations-v23.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/core/turn-manager.test.ts tests/core/hotseat-outcome.test.ts tests/app/controllers/hud-controller.test.ts tests/ui/tech-panel.test.ts tests/audio/audio-system.integration.test.ts tests/storage/save-migrations-v24.test.ts
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit in the MR3 atomic launch**
 
 ```bash
 git add tests/core/turn-manager.test.ts tests/core/hotseat-outcome.test.ts tests/ui/tech-panel.test.ts tests/audio/audio-system.integration.test.ts src/audio/audio-system.ts
@@ -890,20 +890,20 @@ git commit -m "test(research): prove multiplayer and audio parity"
 
 - Modify: `docs/superpowers/plans/2026-08-30-issue-917-research-pacing.md`
 
-- [ ] **Step 1: Run source checks for every changed source file**
+- [x] **Step 1: Run source checks for every changed source file**
 
 ```bash
 scripts/check-src-rule-violations.sh src/core/turn-manager.ts src/systems/research-coordination-system.ts src/systems/research-output-system.ts src/systems/research-pacing-model.ts src/systems/tech-system.ts src/systems/tech-progression.ts src/app/controllers/hud-controller.ts src/app/controllers/turn-flow-controller.ts src/ui/research-breakdown.ts src/ui/tech-panel.ts src/ai/ai-research.ts src/ai/ai-production.ts src/storage/save-migrations.ts src/audio/audio-system.ts
 ```
 
-- [ ] **Step 2: Run focused domains**
+- [x] **Step 2: Run focused domains**
 
 ```bash
 ./scripts/run-with-mise.sh yarn research:pacing-report
-./scripts/run-with-mise.sh yarn test --run tests/systems/research-coordination-system.test.ts tests/systems/research-output-system.test.ts tests/systems/research-pacing-scenarios.test.ts tests/integration/pacing-simulation.test.ts tests/systems/tech-system.test.ts tests/systems/tech-progression.test.ts tests/ui/research-breakdown.test.ts tests/ui/tech-panel.test.ts tests/ai/ai-research.test.ts tests/ai/ai-production.test.ts tests/storage/save-migrations-v23.test.ts tests/audio/audio-system.integration.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/systems/research-coordination-system.test.ts tests/systems/research-output-system.test.ts tests/systems/research-pacing-scenarios.test.ts tests/integration/pacing-simulation.test.ts tests/systems/tech-system.test.ts tests/systems/tech-progression.test.ts tests/ui/research-breakdown.test.ts tests/ui/tech-panel.test.ts tests/ai/ai-research.test.ts tests/ai/ai-production.test.ts tests/storage/save-migrations-v24.test.ts tests/audio/audio-system.integration.test.ts
 ```
 
-- [ ] **Step 3: Run build and durable proof separately**
+- [x] **Step 3: Run build and durable proof separately**
 
 ```bash
 ./scripts/run-with-mise.sh yarn build
@@ -913,15 +913,15 @@ scripts/check-src-rule-violations.sh src/core/turn-manager.ts src/systems/resear
 ./scripts/run-with-mise.sh yarn build:tauri
 ```
 
-- [ ] **Step 4: Perform browser interaction replay**
+- [x] **Step 4: Perform browser interaction replay**
 
 On a deterministic #917 fixture and a two-player hot-seat fixture, replay the Task 14 checklist with mouse, keyboard, and narrow/mobile viewport. Capture screenshots of closed and expanded HUD plus reordered queue for the PR.
 
-- [ ] **Step 5: Confirm dual-release asset paths**
+- [x] **Step 5: Confirm dual-release asset paths**
 
 Inspect build output/config evidence that the web build still uses `/conquestoria/` and the Tauri frontend uses relative asset paths. Research behavior, save migration, UI, and audio routing must remain shared; no Tauri-specific branch is permitted.
 
-- [ ] **Step 6: Inspect committed and uncommitted diffs**
+- [x] **Step 6: Inspect committed and uncommitted diffs**
 
 ```bash
 git diff --stat origin/main...HEAD
@@ -930,7 +930,7 @@ git diff --stat
 git diff
 ```
 
-- [ ] **Step 7: Mark MR3 status honestly and commit**
+- [x] **Step 7: Mark MR3 status honestly and commit**
 
 Use `✅ merged` with the real merged PR number only when the full atomic launch merged. Never mark it complete for a partial branch.
 

@@ -10,9 +10,11 @@ import { getOccupiedCityYieldMultiplier } from './city-occupation-system';
 import { getCrisisYieldMultiplier } from './crisis-system';
 import { getCivResourceYieldBonus } from './resource-acquisition-system';
 import { calculateCityYields } from './resource-system';
+import { BUILDINGS } from './city-system';
+import { resolveCivilizationEra } from './tech-definitions';
 import {
   calculateCoordinatedCityScience,
-  FULL_CONTRIBUTION_RESEARCH_POLICY,
+  DIMINISHING_RESEARCH_POLICY,
   type CoordinatedResearchCityContribution,
   type ResearchCoordinationPolicy,
 } from './research-coordination-system';
@@ -155,7 +157,7 @@ export function calculateCivResearchOutput(
   const cityScience = options.authoritativeCityScience ?? getProjectedCityScience(state, civId);
   const coordinated = calculateCoordinatedCityScience(
     Object.entries(cityScience).map(([cityId, science]) => ({ cityId, science })),
-    options.policy ?? FULL_CONTRIBUTION_RESEARCH_POLICY,
+    options.policy ?? DIMINISHING_RESEARCH_POLICY,
   );
   const empireBonusScience = getEmpireBonusScience(state, civId);
   const penaltyMultiplier = state.civilizations[civId]?.researchPenaltyTurns && state.civilizations[civId]!.researchPenaltyTurns! > 0
@@ -183,4 +185,41 @@ export function calculateCivResearchOutput(
     finalScience,
     rows,
   };
+}
+
+/**
+ * Returns the player/AI-visible final-science increase from constructing a
+ * city building. This deliberately projects through the canonical output
+ * path: a raw building yield is not necessarily spendable research once city
+ * coordination, empire bonuses, and temporary penalties are applied.
+ */
+export function getMarginalCivResearchGain(
+  state: GameState,
+  civId: string,
+  cityId: string,
+  buildingId: string,
+): number {
+  const civ = state.civilizations[civId];
+  const city = state.cities[cityId];
+  if (!civ || !city || city.owner !== civId || city.buildings.includes(buildingId)) return 0;
+
+  const before = calculateCivResearchOutput(state, civId).finalScience;
+  const building = BUILDINGS[buildingId];
+  const projectKey = `${civId}:${buildingId}`;
+  const projectedState: GameState = {
+    ...state,
+    cities: {
+      ...state.cities,
+      [cityId]: { ...city, buildings: [...city.buildings, buildingId] },
+    },
+    ...(building?.nationalProject && building.uniquePerEmpire
+      ? {
+          builtNationalProjects: {
+            ...(state.builtNationalProjects ?? {}),
+            [projectKey]: { civId, cityId, eraBuilt: resolveCivilizationEra(civ.techState.completed) },
+          },
+        }
+      : {}),
+  };
+  return Math.max(0, calculateCivResearchOutput(projectedState, civId).finalScience - before);
 }

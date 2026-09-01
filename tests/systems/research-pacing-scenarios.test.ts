@@ -46,6 +46,28 @@ describe('research pacing scenarios', () => {
     expect(wide.arrivalTurn).toBeLessThan(tall.arrivalTurn);
   });
 
+  it('recomputes research-arrival feedback from an explicit cost snapshot', () => {
+    const baseline = buildResearchPacingScenario({ scenario: 'standard', era: 6, infrastructureShare: 0.6 });
+    const inflatedCosts = Object.fromEntries(TECH_TREE.map(tech => [tech.id, tech.cost * 10]));
+    const delayed = buildResearchPacingScenario({
+      scenario: 'standard', era: 6, infrastructureShare: 0.6, costById: inflatedCosts,
+    });
+
+    expect(delayed.arrivalTurn).toBeGreaterThan(baseline.arrivalTurn);
+    expect(delayed.netScience).toBeLessThanOrEqual(baseline.netScience);
+  });
+
+  it('uses an explicit cost snapshot to choose the simulated advancement frontier', () => {
+    const costById = Object.fromEntries(TECH_TREE.map(tech => [tech.id, 100_000]));
+    costById.fire = 1;
+
+    const scenario = buildResearchPacingScenario({
+      scenario: 'standard', era: 2, infrastructureShare: 0.6, costById,
+    });
+
+    expect(scenario.completedTechIds[0]).toBe('fire');
+  });
+
   it('uses the #917 regression distribution only for its named reproduction', () => {
     const scenario = buildResearchPacingScenario({ scenario: 'issue-917', era: 2, infrastructureShare: 0.6 });
 

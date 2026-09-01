@@ -31,6 +31,7 @@ import type { AIForceDemand } from './ai-unit-assignment';
 import type { PreparedMajorCivPlan } from './ai-prepared-turn';
 import { evaluateAITechCapabilities } from './ai-tech-evaluation';
 import { weightTechChoice } from './ai-personality';
+import { simulateResearchQueueTiming } from '@/systems/tech-progression';
 
 export interface AIResearchPlanningContext {
   techState: TechState;
@@ -116,6 +117,7 @@ interface SearchTarget {
   pathCost: number;
   preliminary: number;
   completedAfterPath: ReadonlySet<string>;
+  pathTechIds: readonly string[];
 }
 
 function descendantsWithinLimit(
@@ -132,6 +134,7 @@ function descendantsWithinLimit(
     depth: 0,
     pathCost: frontier.cost,
     pathIds: new Set([frontier.id]),
+    pathTechIds: [frontier.id],
   }];
   const bestDepth = new Map<string, number>();
   while (queue.length > 0) {
@@ -155,6 +158,7 @@ function descendantsWithinLimit(
       pathCost: current.pathCost,
       preliminary,
       completedAfterPath,
+      pathTechIds: current.pathTechIds,
     });
     if (current.depth === 4) continue;
     for (const child of techs
@@ -170,10 +174,34 @@ function descendantsWithinLimit(
         depth: current.depth + 1,
         pathCost: current.pathCost + child.cost,
         pathIds: new Set([...current.pathIds, child.id]),
+        pathTechIds: [...current.pathTechIds, child.id],
       });
     }
   }
   return targets;
+}
+
+function estimateResearchPathTurns(
+  context: AIResearchPlanningContext,
+  target: SearchTarget,
+  techs: readonly Tech[],
+): number {
+  const currentResearch = context.techState.currentResearch ?? target.pathTechIds[0] ?? null;
+  const planned = new Set([
+    ...(currentResearch ? [currentResearch] : []),
+    ...context.techState.researchQueue,
+  ]);
+  const researchQueue = [
+    ...context.techState.researchQueue,
+    ...target.pathTechIds.filter(techId => !planned.has(techId)),
+  ];
+  const timing = simulateResearchQueueTiming({
+    ...context.techState,
+    currentResearch,
+    researchQueue,
+  }, context.sciencePerTurn, techs);
+  return timing.get(target.target.id)?.finishTurns
+    ?? Math.ceil(target.pathCost / Math.max(1, context.sciencePerTurn));
 }
 
 function resourceMismatch(
@@ -239,9 +267,7 @@ export function planAIResearch(
     const unlockBreadth = (entry.target.unlocksUnits?.length ?? 0)
       + (entry.target.unlocksBuildings?.length ?? 0)
       + capabilities.resourcesRevealed.length;
-    const estimatedResearchTurns = Math.ceil(
-      entry.pathCost / Math.max(1, context.sciencePerTurn),
-    );
+    const estimatedResearchTurns = estimateResearchPathTurns(context, entry, techs);
     const scoreComponents: AIResearchScoreComponents = {
       modernizationFit,
       activePlanFit,
