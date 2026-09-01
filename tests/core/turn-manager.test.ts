@@ -1,4 +1,4 @@
-import { finalizeOpponentRoundState, processTurn } from '@/core/turn-manager';
+import { deriveGeneralCandidateSeed, finalizeOpponentRoundState, processTurn } from '@/core/turn-manager';
 import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import type { CustomCivDefinition, GameState, HexCoord, Unit, UnitType } from '@/core/types';
@@ -1968,5 +1968,53 @@ describe('journey automation', () => {
 
       expect(onRetired).toHaveBeenCalledWith(expect.objectContaining({ civId: 'player' }));
     });
+  });
+});
+
+describe('deriveGeneralCandidateSeed — candidate-draw isolation across playthroughs (#932)', () => {
+  it('is deterministic for a fixed (gameId, turn, civId) tuple', () => {
+    expect(deriveGeneralCandidateSeed('game-abc', 5, 'player'))
+      .toBe(deriveGeneralCandidateSeed('game-abc', 5, 'player'));
+  });
+
+  it('folds in gameId: two playthroughs at the same turn for the same civ get different seeds', () => {
+    const a = deriveGeneralCandidateSeed('game-abc', 5, 'player');
+    const b = deriveGeneralCandidateSeed('game-xyz', 5, 'player');
+    expect(a).not.toBe(b);
+  });
+
+  it('still varies with turn and with civId', () => {
+    expect(deriveGeneralCandidateSeed('game-abc', 5, 'player'))
+      .not.toBe(deriveGeneralCandidateSeed('game-abc', 6, 'player'));
+    expect(deriveGeneralCandidateSeed('game-abc', 5, 'player'))
+      .not.toBe(deriveGeneralCandidateSeed('game-abc', 5, 'ai-1'));
+  });
+
+  it('a missing gameId (legacy save) still produces a stable non-negative integer seed', () => {
+    const legacy = deriveGeneralCandidateSeed(undefined, 5, 'player');
+    expect(Number.isInteger(legacy)).toBe(true);
+    expect(legacy).toBeGreaterThanOrEqual(0);
+    expect(deriveGeneralCandidateSeed(undefined, 5, 'player')).toBe(legacy);
+  });
+
+  it('end-to-end: different game seeds no longer draw the identical authored candidate set at the same turn', () => {
+    const idSequences = ['pt-alpha', 'pt-bravo', 'pt-charlie', 'pt-delta', 'pt-echo'].map(seed => {
+      const state = createNewGame('rome', seed, 'small');
+      state.civilizations.player.generalProgress = { points: 999, generalsEarned: 0 };
+      const next = processTurn(state, new EventBus());
+      return next.pendingGeneralCandidateChoices![0]!.candidateDefinitionIds.join(',');
+    });
+
+    // Before #932 every one of these would be byte-identical (seed derived from
+    // (turn, civId) only). Deterministic per game, distinct across games.
+    expect(new Set(idSequences).size).toBeGreaterThan(1);
+
+    const repeat = (() => {
+      const state = createNewGame('rome', 'pt-alpha', 'small');
+      state.civilizations.player.generalProgress = { points: 999, generalsEarned: 0 };
+      return processTurn(state, new EventBus())
+        .pendingGeneralCandidateChoices![0]!.candidateDefinitionIds.join(',');
+    })();
+    expect(repeat).toBe(idSequences[0]);
   });
 });

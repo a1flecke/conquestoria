@@ -136,12 +136,17 @@ import { checkAndQueueGeneralCandidateChoice, chooseBestGeneralCandidate, retire
 import { resolveGeneralDefinition, type GeneralDefinition } from '@/systems/great-general-definitions';
 
 // #544 MR3: same char-folding convention combat-reward-system.ts's seededRoll and
-// city-capture-system.ts's assault seed already use -- turns a (turn, civId) pair into
-// a deterministic numeric seed without a shared cross-file seed-hashing utility (several
-// systems in this codebase each keep their own small local variant of this fold).
-function deriveGeneralCandidateSeed(turn: number, civId: string): number {
+// city-capture-system.ts's assault seed already use -- turns a (gameId, turn, civId)
+// tuple into a deterministic numeric seed without a shared cross-file seed-hashing
+// utility (several systems in this codebase each keep their own small local variant).
+// #932: `gameId` (the canonical determinism base for combat, barbarians, pirates,
+// crises, minor civs, city-capture assaults) is now folded in so two different
+// playthroughs no longer draw the identical authored candidate set at the same turn.
+// `gameId` is optional only on pre-field legacy saves; fall back the same way
+// turn-manager's beasts-migration seed does (`?? 'legacy'`).
+export function deriveGeneralCandidateSeed(gameId: string | undefined, turn: number, civId: string): number {
   let seed = Math.abs(turn * 7919);
-  for (const char of civId) {
+  for (const char of `${gameId ?? 'legacy'}:${civId}`) {
     seed = (seed * 48271 + char.charCodeAt(0)) % 2147483647;
   }
   return seed;
@@ -831,7 +836,7 @@ export function processTurn(
       newState,
       civId,
       'round-end',
-      deriveGeneralCandidateSeed(newState.turn, civId),
+      deriveGeneralCandidateSeed(newState.gameId, newState.turn, civId),
     );
     if (!civ.isHuman) {
       const pending = (newState.pendingGeneralCandidateChoices ?? [])
