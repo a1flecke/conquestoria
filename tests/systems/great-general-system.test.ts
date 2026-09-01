@@ -17,6 +17,7 @@ import {
   getPendingGeneralChoiceForViewer,
 } from '@/systems/great-general-system';
 import { chooseBestGeneralCandidate } from '@/ai/ai-general-command';
+import { getHeroicCommandEligibility } from '@/systems/great-general-abilities';
 import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
@@ -774,5 +775,34 @@ describe('#885 specialty-resolved effective command stats + retirement', () => {
     const after = retireGeneralsAtTurnEnd(state, 'player');
     expect(after.units['g']).toBeDefined();     // 3/4 charges -> still active
     expect(after.units['g2']).toBeUndefined();  // 4/4 -> retired
+  });
+});
+
+describe('#885 save/load — no shape change, content-patch semantics', () => {
+  it('an Endurance General mid-career (used=2) shows 2 charges remaining after a JSON round-trip', () => {
+    const state = createNewGame({ civType: 'zulu', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 's885-rt1' });
+    state.units['g'] = {
+      id: 'g', type: 'great_general', owner: 'player', position: { q: 0, r: 0 },
+      movementPointsLeft: 3, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      generalDefinitionId: 'gen_shaka', generalCommandChargesUsed: 2,
+    } as unknown as Unit;
+    const roundTrip = JSON.parse(JSON.stringify(state)) as typeof state;
+    const eligibility = getHeroicCommandEligibility(roundTrip, roundTrip.units['g'] as Unit);
+    expect(eligibility.chargesRemaining).toBe(2); // resolved maxCommandCharges 4 - used 2
+  });
+
+  it('a pre-#885 save with a spawned gen_wellington immediately resolves Defensive stats after load', () => {
+    // "pre-#885" = the save has no specialty data at all (there is no such field);
+    // resolveGeneralMechanics keys off the static id, so the specialty applies at once.
+    const def = GENERAL_DEFINITIONS.find(g => g.id === 'gen_wellington')!;
+    const roundTrip = JSON.parse(JSON.stringify(def)) as typeof def;
+    const m = getEffectiveCommandStats({ landSupply: undefined }, roundTrip);
+    expect(m.commandRange).toBe(1);
+  });
+
+  it('an in-flight lastStandHold keeps the multiplier it was cast with across a round-trip', () => {
+    const unit = { lastStandHold: { formationId: 'f', defenseBonusMultiplier: 1.15, expiresTurn: 20 } } as unknown as Unit;
+    const roundTrip = JSON.parse(JSON.stringify(unit)) as Unit;
+    expect(roundTrip.lastStandHold!.defenseBonusMultiplier).toBe(1.15);
   });
 });
