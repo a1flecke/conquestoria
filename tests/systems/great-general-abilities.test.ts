@@ -19,7 +19,7 @@ export function makeGeneral(overrides: Partial<Unit> = {}): Unit {
     hasMoved: false,
     hasActed: false,
     isResting: false,
-    generalDefinitionId: 'gen_caesar',
+    generalDefinitionId: 'gen_hannibal',
     ...overrides,
   } as Unit;
 }
@@ -416,5 +416,132 @@ describe('resolveLastStandDefenseBonus', () => {
   it('returns multiplier 1 once expired', () => {
     const unit = makeUnit({ lastStandHold: { formationId: 'f1', defenseBonusMultiplier: 1.15, expiresTurn: 10 } });
     expect(resolveLastStandDefenseBonus(unit, 11).multiplier).toBe(1);
+  });
+});
+
+// ===========================================================================
+// #885 — per-specialty ability magnitudes
+// ===========================================================================
+
+const G = (overrides = {}) => createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 's885', ...overrides });
+
+describe('#885 specialty-resolved command stats / charges / cooldown', () => {
+  it('a Tireless (endurance) General has 4 charges remaining at full', () => {
+    const r = getHeroicCommandEligibility(G(), makeGeneral({ generalDefinitionId: 'gen_shaka' }));
+    expect(r.chargesRemaining).toBe(4);
+    expect(r.isFinalCharge).toBe(false);
+  });
+
+  it('a Tireless General is on its final charge only at used=3', () => {
+    const r = getHeroicCommandEligibility(G(), makeGeneral({ generalDefinitionId: 'gen_shaka', generalCommandChargesUsed: 3 }));
+    expect(r.eligible).toBe(true);
+    expect(r.isFinalCharge).toBe(true);
+  });
+
+  it('a Bold (initiative) General starts a 7-turn cooldown when it spends a charge', () => {
+    const state = { ...G(), turn: 8 };
+    state.units['gen-1'] = makeGeneral({ generalDefinitionId: 'gen_caesar' });
+    const after = spendHeroicCommandCharge(state, 'gen-1');
+    expect(after.units['gen-1']!.generalCommandCooldownUntilTurn).toBe(15); // 8 + 7
+  });
+
+  it('a Supply Master (logistician) General starts a 13-turn cooldown', () => {
+    const state = { ...G(), turn: 2 };
+    state.units['gen-1'] = makeGeneral({ generalDefinitionId: 'gen_yuefei' });
+    const after = spendHeroicCommandCharge(state, 'gen-1');
+    expect(after.units['gen-1']!.generalCommandCooldownUntilTurn).toBe(15); // 2 + 13
+  });
+});
+
+function stateWithHurtUnit(seed: string, generalId: string, hp = 40) {
+  const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed });
+  state.units['gen-1'] = makeGeneral({ generalDefinitionId: generalId });
+  state.units['u1'] = {
+    id: 'u1', type: 'warrior', owner: 'player', position: { q: 1, r: 0 },
+    movementPointsLeft: 1, health: hp, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    landSupply: { state: 'degraded', hostileUnsupportedTurns: 3, suppliedTurnsSinceRecovery: 0 },
+  } as Unit;
+  state.civilizations.player.units = ['gen-1', 'u1'];
+  return state;
+}
+
+describe('#885 Rally heal scales with specialty', () => {
+  it('baseline (generalist) heals +30', () => {
+    expect(getRallyPreview(stateWithHurtUnit('r-base', 'gen_hannibal'), 'gen-1').targets[0]!.healthAfter).toBe(70);
+  });
+  it('Supply Master (logistician) heals +50', () => {
+    expect(getRallyPreview(stateWithHurtUnit('r-log', 'gen_yuefei'), 'gen-1').targets[0]!.healthAfter).toBe(90);
+  });
+  it('Tireless (endurance) heals +20', () => {
+    expect(getRallyPreview(stateWithHurtUnit('r-end', 'gen_shaka'), 'gen-1').targets[0]!.healthAfter).toBe(60);
+  });
+  it('never exceeds 100', () => {
+    expect(getRallyPreview(stateWithHurtUnit('r-cap', 'gen_yuefei', 80), 'gen-1').targets[0]!.healthAfter).toBe(100);
+  });
+});
+
+function stateWithFormation(seed: string, generalId: string) {
+  const state = createNewGame({ civType: 'england', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed });
+  state.units['gen-1'] = makeGeneral({ generalDefinitionId: generalId });
+  state.units['u1'] = {
+    id: 'u1', type: 'swordsman', owner: 'player', position: { q: 1, r: 0 },
+    movementPointsLeft: 1, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+  } as Unit;
+  state.civilizations.player.units = ['gen-1', 'u1'];
+  return state;
+}
+
+describe('#885 Last Stand scales with specialty', () => {
+  it('baseline (generalist): +15% for 2 turns', () => {
+    const p = getLastStandPreview(stateWithFormation('ls-base', 'gen_hannibal'), 'gen-1', { q: 1, r: 0 });
+    expect(p.defenseBonusPercent).toBe(15);
+    expect(p.durationTurns).toBe(2);
+  });
+  it('Defensive Commander: +25% for 3 turns; the issued hold carries 1.25', () => {
+    const s = stateWithFormation('ls-def', 'gen_wellington');
+    const p = getLastStandPreview(s, 'gen-1', { q: 1, r: 0 });
+    expect(p.defenseBonusPercent).toBe(25);
+    expect(p.durationTurns).toBe(3);
+    const after = issueLastStand(s, 'gen-1', { q: 1, r: 0 });
+    expect(after.units['u1']!.lastStandHold!.defenseBonusMultiplier).toBe(1.25);
+    expect(after.units['u1']!.lastStandHold!.expiresTurn).toBe(s.turn + 3);
+  });
+  it('Bold Commander: weaker +10% Last Stand', () => {
+    const p = getLastStandPreview(stateWithFormation('ls-init', 'gen_caesar'), 'gen-1', { q: 1, r: 0 });
+    expect(p.defenseBonusPercent).toBe(10);
+  });
+});
+
+function stateWithActedUnits(seed: string, generalId: string, n: number) {
+  const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed });
+  state.units['gen-1'] = makeGeneral({ generalDefinitionId: generalId });
+  const ids: string[] = ['gen-1'];
+  for (let i = 0; i < n; i++) {
+    const id = `w${i}`;
+    state.units[id] = {
+      id, type: 'warrior', owner: 'player', position: { q: 1, r: 0 },
+      movementPointsLeft: 0, health: 100, experience: 0, hasMoved: true, hasActed: true, isResting: false,
+    } as Unit;
+    ids.push(id);
+  }
+  state.civilizations.player.units = ids;
+  return { state, ids: ids.slice(1) };
+}
+
+describe('#885 Seize the Moment extra-target for Bold Commander', () => {
+  it('baseline (generalist) activates at most commandCapacity (3) units', () => {
+    const { state, ids } = stateWithActedUnits('sz-base', 'gen_hannibal', 5);
+    const after = issueSeizeTheMoment(state, 'gen-1', ids);
+    expect(ids.filter(id => after.units[id]!.hasActed === false)).toHaveLength(3);
+  });
+  it('Bold Commander activates commandCapacity + 1 (4) units', () => {
+    const { state, ids } = stateWithActedUnits('sz-init', 'gen_caesar', 5);
+    const after = issueSeizeTheMoment(state, 'gen-1', ids);
+    expect(ids.filter(id => after.units[id]!.hasActed === false)).toHaveLength(4);
+  });
+  it('Bold Commander still does NOT refund movement points', () => {
+    const { state, ids } = stateWithActedUnits('sz-mov', 'gen_caesar', 2);
+    const after = issueSeizeTheMoment(state, 'gen-1', ids);
+    expect(after.units[ids[0]!]!.movementPointsLeft).toBe(0);
   });
 });

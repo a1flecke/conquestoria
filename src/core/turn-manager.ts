@@ -132,7 +132,8 @@ import { processPiratesForCompletedRound } from '@/systems/pirate-system';
 import { classifyOwner } from './owner-kind';
 import { consumeHerdingInsight, getStampedeLifecycleTransition, hasActiveHerdingInsight, processStampedeScheduling, processStampedeTurn } from '@/systems/stampede-system';
 import { consumeRecoveredHarnesses, getRogueElephantHostLifecycleTransition, hasActiveRecoveredHarnesses, processRogueElephantHostScheduling, processRogueElephantHostTurn } from '@/systems/rogue-elephant-host-system';
-import { checkAndQueueGeneralCandidateChoice, chooseBestGeneralCandidate, retireGeneralsAtTurnEnd, spawnGeneralForCiv } from '@/systems/great-general-system';
+import { checkAndQueueGeneralCandidateChoice, retireGeneralsAtTurnEnd, spawnGeneralForCiv } from '@/systems/great-general-system';
+import { chooseBestGeneralCandidate } from '@/ai/ai-general-command';
 import { resolveGeneralDefinition, type GeneralDefinition } from '@/systems/great-general-definitions';
 
 // #544 MR3: same char-folding convention combat-reward-system.ts's seededRoll and
@@ -850,7 +851,7 @@ export function processTurn(
           .map(id => resolveGeneralDefinition(newState, id))
           .filter((g): g is GeneralDefinition => g !== undefined);
         if (candidates.length > 0) {
-          newState = spawnGeneralForCiv(newState, civId, chooseBestGeneralCandidate(candidates).id);
+          newState = spawnGeneralForCiv(newState, civId, chooseBestGeneralCandidate(newState, civId, candidates).id);
         }
       }
     }
