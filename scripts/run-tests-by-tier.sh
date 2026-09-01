@@ -26,6 +26,7 @@ tests/ai/basic-ai-worker-roads.test.ts
 tests/app/determinism-guard.test.ts
 tests/core/turn-manager-beasts.test.ts
 tests/integration/save-load-mass-discovery.test.ts
+tests/integration/pacing-simulation.test.ts
 tests/ui/tech-panel.test.ts
 tests/systems/pacing-production-budget.test.ts
 tests/systems/pacing-reference-economy.test.ts
