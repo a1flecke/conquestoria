@@ -13,7 +13,7 @@ import {
   meetsCaptureMargin,
 } from '@/systems/combat-reward-system';
 import { createEmptyPirateState, type PirateFactionState } from '@/core/pirate-state';
-import type { CombatResult, GameState } from '@/core/types';
+import type { CombatResult, GameState, GeneralCareerEvent } from '@/core/types';
 import { selectDefenderForAttack } from '@/systems/combat-system';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
@@ -1594,5 +1594,222 @@ describe('escort protection (civilian capture precondition)', () => {
     const defender = selectDefenderForAttack([civilian], map);
 
     expect(defender?.id).toBe('civilian');
+  });
+});
+
+describe('#887 MR1 — combat career events (unit-saved, battle-influenced, city-defended)', () => {
+  const activeHold = (generalDefinitionId?: string) => ({
+    formationId: 'f1', defenseBonusMultiplier: 1.15, expiresTurn: 3, generalDefinitionId,
+  });
+  const eventsFor = (s: GameState, civId: string, defId: string): GeneralCareerEvent[] => {
+    const entry = s.civilizations[civId].generalHistory?.find(e => e.generalDefinitionId === defId);
+    return entry?.careerEvents ?? [];
+  };
+  const historyEntry = (unitId: string, generalDefinitionId: string) => ({
+    unitId, generalDefinitionId, spawnedTurn: 1, careerEvents: [] as GeneralCareerEvent[],
+  });
+  const LETHAL: CombatResult = {
+    attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+    attackerSurvived: true, defenderSurvived: false, attackerStrength: 30, defenderStrength: 20,
+    attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+  };
+  const GLANCING: CombatResult = {
+    attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 10,
+    attackerSurvived: true, defenderSurvived: true, attackerStrength: 20, defenderStrength: 20,
+    attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+  };
+
+  it('records exactly one unit-saved for the issuing General when a Last Stand hold clamps an otherwise-lethal hit', () => {
+    const state = makeRewardState();
+    state.units.defender = { ...state.units.defender, lastStandHold: activeHold('gen_ramesses') };
+    state.civilizations['ai-1'].generalHistory = [historyEntry('general-1', 'gen_ramesses')];
+
+    const applied = applyCombatOutcomeToState(state, LETHAL, 64);
+
+    expect(applied.state.units.defender.health).toBe(1);
+    expect(eventsFor(applied.state, 'ai-1', 'gen_ramesses').filter(e => e.type === 'unit-saved')).toEqual([
+      {
+        type: 'unit-saved', turn: 3, via: 'last-stand', unitId: 'defender',
+        unitType: 'warrior', remainingHp: 1, location: { q: 1, r: 0 },
+      },
+    ]);
+  });
+
+  it('records no unit-saved for a non-lethal protected hit, but still records the battle influence', () => {
+    const state = makeRewardState();
+    state.units.defender = { ...state.units.defender, lastStandHold: activeHold('gen_ramesses') };
+    state.civilizations['ai-1'].generalHistory = [historyEntry('general-1', 'gen_ramesses')];
+
+    const applied = applyCombatOutcomeToState(state, GLANCING, 64);
+
+    const events = eventsFor(applied.state, 'ai-1', 'gen_ramesses');
+    expect(events.filter(e => e.type === 'unit-saved')).toHaveLength(0);
+    expect(events.filter(e => e.type === 'battle-influenced')).toHaveLength(1);
+  });
+
+  it('records one battle-influenced with reasons ["last-stand"] when a participant carries an active issuer hold', () => {
+    const state = makeRewardState();
+    state.units.attacker = { ...state.units.attacker, lastStandHold: activeHold('gen_sun_tzu') };
+    state.civilizations['player'].generalHistory = [historyEntry('gen-p', 'gen_sun_tzu')];
+
+    const applied = applyCombatOutcomeToState(state, GLANCING, 64);
+
+    expect(eventsFor(applied.state, 'player', 'gen_sun_tzu').filter(e => e.type === 'battle-influenced')).toEqual([
+      {
+        type: 'battle-influenced', turn: 3, combatId: 'attacker:defender:3',
+        reasons: ['last-stand'], location: { q: 1, r: 0 },
+      },
+    ]);
+  });
+
+  it('records reasons ["seize"] when a participant carries a same-turn Seize grant', () => {
+    const state = makeRewardState();
+    state.units.attacker = { ...state.units.attacker, seizeGrantedBy: { generalDefinitionId: 'gen_sun_tzu', turn: 3 } };
+    state.civilizations['player'].generalHistory = [historyEntry('gen-p', 'gen_sun_tzu')];
+
+    const applied = applyCombatOutcomeToState(state, GLANCING, 64);
+
+    const influenced = eventsFor(applied.state, 'player', 'gen_sun_tzu').filter(e => e.type === 'battle-influenced');
+    expect(influenced).toHaveLength(1);
+    expect(influenced[0]).toMatchObject({ reasons: ['seize'] });
+  });
+
+  it('merges both reasons into one sorted battle-influenced when a participant carries an active hold and a Seize grant from the same General', () => {
+    const state = makeRewardState();
+    state.units.attacker = {
+      ...state.units.attacker,
+      lastStandHold: activeHold('gen_sun_tzu'),
+      seizeGrantedBy: { generalDefinitionId: 'gen_sun_tzu', turn: 3 },
+    };
+    state.civilizations['player'].generalHistory = [historyEntry('gen-p', 'gen_sun_tzu')];
+
+    const applied = applyCombatOutcomeToState(state, GLANCING, 64);
+
+    const influenced = eventsFor(applied.state, 'player', 'gen_sun_tzu').filter(e => e.type === 'battle-influenced');
+    expect(influenced).toHaveLength(1);
+    expect(influenced[0]).toMatchObject({ reasons: ['last-stand', 'seize'] });
+  });
+
+  it('gives no battle-influenced credit for a Seize grant from a prior turn', () => {
+    const state = makeRewardState();
+    state.units.attacker = { ...state.units.attacker, seizeGrantedBy: { generalDefinitionId: 'gen_sun_tzu', turn: 2 } };
+    state.civilizations['player'].generalHistory = [historyEntry('gen-p', 'gen_sun_tzu')];
+
+    const applied = applyCombatOutcomeToState(state, GLANCING, 64);
+
+    expect(eventsFor(applied.state, 'player', 'gen_sun_tzu')).toEqual([]);
+  });
+
+  it('gives no battle-influenced credit for an expired Last Stand hold', () => {
+    const state = makeRewardState();
+    state.units.attacker = {
+      ...state.units.attacker,
+      lastStandHold: { formationId: 'f1', defenseBonusMultiplier: 1.15, expiresTurn: 2, generalDefinitionId: 'gen_sun_tzu' },
+    };
+    state.civilizations['player'].generalHistory = [historyEntry('gen-p', 'gen_sun_tzu')];
+
+    const applied = applyCombatOutcomeToState(state, GLANCING, 64);
+
+    expect(eventsFor(applied.state, 'player', 'gen_sun_tzu')).toEqual([]);
+  });
+
+  it('gives no career event to a General merely co-located with the fight but holding no hold or Seize grant (no proximity credit)', () => {
+    const state = makeRewardState();
+    state.units['general-1'] = {
+      ...createUnit('great_general', 'player', { q: 0, r: 0 }, mkC()),
+      id: 'general-1', generalDefinitionId: 'gen_sun_tzu',
+    };
+    state.civilizations['player'].units = ['attacker', 'general-1'];
+    state.civilizations['player'].generalHistory = [historyEntry('general-1', 'gen_sun_tzu')];
+
+    const applied = applyCombatOutcomeToState(state, LETHAL, 64);
+
+    expect(eventsFor(applied.state, 'player', 'gen_sun_tzu')).toEqual([]);
+  });
+
+  it('records city-defended for an influencing General when the defender holds an owned city tile, survives, and the attacker does not', () => {
+    const state = makeRewardState();
+    state.units.defender = { ...state.units.defender, lastStandHold: activeHold('gen_ramesses') };
+    state.cities['c1'] = {
+      id: 'c1', name: 'Thebes', owner: 'ai-1', position: { q: 1, r: 0 },
+    } as unknown as GameState['cities'][string];
+    state.civilizations['ai-1'].generalHistory = [historyEntry('general-1', 'gen_ramesses')];
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 100, defenderDamage: 10,
+      attackerSurvived: false, defenderSurvived: true, attackerStrength: 20, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    const events = eventsFor(applied.state, 'ai-1', 'gen_ramesses');
+    expect(events.filter(e => e.type === 'city-defended')).toEqual([
+      { type: 'city-defended', turn: 3, cityId: 'c1', cityName: 'Thebes' },
+    ]);
+    expect(events.filter(e => e.type === 'battle-influenced')).toHaveLength(1);
+  });
+
+  it('records no city-defended when the attacker also survives the assault on the city tile', () => {
+    const state = makeRewardState();
+    state.units.defender = { ...state.units.defender, lastStandHold: activeHold('gen_ramesses') };
+    state.cities['c1'] = {
+      id: 'c1', name: 'Thebes', owner: 'ai-1', position: { q: 1, r: 0 },
+    } as unknown as GameState['cities'][string];
+    state.civilizations['ai-1'].generalHistory = [historyEntry('general-1', 'gen_ramesses')];
+
+    const applied = applyCombatOutcomeToState(state, GLANCING, 64);
+
+    const events = eventsFor(applied.state, 'ai-1', 'gen_ramesses');
+    expect(events.filter(e => e.type === 'city-defended')).toHaveLength(0);
+    expect(events.filter(e => e.type === 'battle-influenced')).toHaveLength(1);
+  });
+
+  it('records no city-defended when the tile is a city the defender does not own', () => {
+    const state = makeRewardState();
+    state.units.defender = { ...state.units.defender, lastStandHold: activeHold('gen_ramesses') };
+    state.cities['c1'] = {
+      id: 'c1', name: 'Thebes', owner: 'player', position: { q: 1, r: 0 },
+    } as unknown as GameState['cities'][string];
+    state.civilizations['ai-1'].generalHistory = [historyEntry('general-1', 'gen_ramesses')];
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 100, defenderDamage: 10,
+      attackerSurvived: false, defenderSurvived: true, attackerStrength: 20, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(eventsFor(applied.state, 'ai-1', 'gen_ramesses').filter(e => e.type === 'city-defended')).toHaveLength(0);
+  });
+
+  it('credits two different Generals on opposite sides, each on their own civ ledger', () => {
+    const state = makeRewardState();
+    state.units.attacker = { ...state.units.attacker, seizeGrantedBy: { generalDefinitionId: 'gen_sun_tzu', turn: 3 } };
+    state.units.defender = { ...state.units.defender, lastStandHold: activeHold('gen_ramesses') };
+    state.civilizations['player'].generalHistory = [historyEntry('gen-p', 'gen_sun_tzu')];
+    state.civilizations['ai-1'].generalHistory = [historyEntry('gen-a', 'gen_ramesses')];
+
+    const applied = applyCombatOutcomeToState(state, GLANCING, 64);
+
+    expect(eventsFor(applied.state, 'player', 'gen_sun_tzu').filter(e => e.type === 'battle-influenced')).toEqual([
+      { type: 'battle-influenced', turn: 3, combatId: 'attacker:defender:3', reasons: ['seize'], location: { q: 1, r: 0 } },
+    ]);
+    expect(eventsFor(applied.state, 'ai-1', 'gen_ramesses').filter(e => e.type === 'battle-influenced')).toEqual([
+      { type: 'battle-influenced', turn: 3, combatId: 'attacker:defender:3', reasons: ['last-stand'], location: { q: 1, r: 0 } },
+    ]);
+  });
+
+  it('still performs the lethal-save but records no attribution for a pre-#887 hold that carries no generalDefinitionId', () => {
+    const state = makeRewardState();
+    state.units.defender = {
+      ...state.units.defender,
+      lastStandHold: { formationId: 'f1', defenseBonusMultiplier: 1.15, expiresTurn: 3 },
+    };
+    state.civilizations['ai-1'].generalHistory = [historyEntry('general-1', 'gen_ramesses')];
+
+    const applied = applyCombatOutcomeToState(state, LETHAL, 64);
+
+    expect(applied.state.units.defender.health).toBe(1);
+    expect(eventsFor(applied.state, 'ai-1', 'gen_ramesses')).toEqual([]);
   });
 });
