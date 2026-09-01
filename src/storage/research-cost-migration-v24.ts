@@ -1,5 +1,9 @@
-/** Checked-in pre-retune base costs for the schema-23 migration; do not derive from live Tech.cost. */
-export const PRE_V23_TECH_COST_BY_ID: Readonly<Record<string, number>> = Object.freeze({
+/**
+ * Proposed input for the next research-cost migration; do not derive this snapshot from live
+ * Tech.cost. MR2 does not import it from save-migrations or activate a schema change.
+ */
+export const RESEARCH_COST_MIGRATION_TARGET_SCHEMA_VERSION = 24;
+export const PRE_V24_TECH_COST_BY_ID: Readonly<Record<string, number>> = Object.freeze({
   "stone-weapons": 4,
   "archery": 10,
   "bronze-working": 10,

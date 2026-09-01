@@ -38,8 +38,8 @@ MR3 must not merge a cost-only, coordination-only, migration-only, AI-only, or U
 - `tests/systems/helpers/research-pacing-scenarios.ts` — deterministic tall/standard/wide/#917 scenario data.
 - `tests/systems/research-pacing-scenarios.test.ts` — all-era scenario and future-era coverage.
 - `tests/ui/research-breakdown.test.ts` — accessible visible breakdown behavior.
-- `src/storage/research-cost-migration-v23.ts` — the single production-owned pre-retune cost map consumed by migration and tests.
-- `tests/storage/save-migrations-v23.test.ts` — one-time percentage-preserving cost migration.
+- `src/storage/research-cost-migration-v24.ts` — the single production-owned pre-retune cost map reserved for the next free migration and consumed by its future migration/tests.
+- `tests/storage/save-migrations-v24.test.ts` — one-time percentage-preserving cost migration.
 - `scripts/report-research-pacing.ts` — deterministic Markdown/JSON all-era report.
 - `tests/scripts/research-pacing-report.test.ts` — report schema and deterministic-output tests.
 
@@ -57,7 +57,7 @@ MR3 must not merge a cost-only, coordination-only, migration-only, AI-only, or U
 - `src/ui/tech-panel.ts` — canonical current/queue ETAs and breakdown affordance.
 - `src/ai/ai-research.ts` — canonical net rate for target timing.
 - `src/ai/ai-production.ts` — marginal net value for science-producing choices.
-- `src/storage/save-migrations.ts` — schema 23 migration and legacy cost map.
+- `src/storage/save-migrations.ts` — schema 24 migration and legacy cost map, after verifying schema 23 remains allocated on the MR3 base.
 - `src/audio/audio-system.ts` — no new cue; verify viewer-scoped exactly-once completion routing.
 - `scripts/check-src-rule-violations.sh` — prohibit direct `researchProgress` assignment/increment outside allowed modules/migration.
 - `package.json` — add `research:pacing-report` command.
@@ -434,8 +434,10 @@ Do not mark later MRs complete. Commit the status update in the same MR.
 
 MR2 has isolated research calibration, added deterministic tall/standard/wide and #917
 feedback scenarios, report tooling, useful-lifetime/future-era gates, and proposed-only
-cost/migration data. It deliberately does not activate coordination, `Tech.cost` changes,
-schema migration, UI, AI, audio, or save behavior; those remain the MR3 atomic launch.
+cost/migration data. Its review also confirms 12 seeded solo openings on every map size and
+that the laboratory is viewer-independent in hot-seat games. It deliberately does not activate
+coordination, `Tech.cost` changes, schema migration, UI, AI, audio, or save behavior; those
+remain the MR3 atomic launch.
 
 ### Task 7: Separate research pacing from production pacing
 
@@ -447,25 +449,25 @@ schema migration, UI, AI, audio, or save behavior; those remain the MR3 atomic l
 - Modify: `tests/systems/pacing-model.test.ts`
 - Modify: `tests/systems/pacing-audit.test.ts`
 
-- [ ] **Step 1: Write compatibility and missing-era tests**
+- [x] **Step 1: Write compatibility and missing-era tests**
 
 Assert every existing research export returns identical values through the old and new modules before scenario changes. Add a new failing test proving an authored Era 14 tech without an Era 14 research scenario throws `Missing research pacing scenario for authored era 14`.
 
-- [ ] **Step 2: Run and observe missing module/failure**
+- [x] **Step 2: Run and observe missing module/failure**
 
 ```bash
 ./scripts/run-with-mise.sh yarn test --run tests/systems/pacing-model.test.ts tests/systems/pacing-audit.test.ts
 ```
 
-- [ ] **Step 3: Move only research responsibilities**
+- [x] **Step 3: Move only research responsibilities**
 
 Move `ResearchOutputProfile`, research turn windows, metadata cost multiplier, recommended tech cost, and research profile validation. Keep production helpers in `pacing-model.ts` and re-export research functions for compatibility.
 
-- [ ] **Step 4: Remove silent authored-era fallback**
+- [x] **Step 4: Remove silent authored-era fallback**
 
 Catalog validation must require an explicit research scenario/profile for every `TECH_TREE` era. Open-ended non-authored frontier display may retain a separately named UI fallback that is never consumed by cost recommendation or audit.
 
-- [ ] **Step 5: Validate and commit**
+- [x] **Step 5: Validate and commit**
 
 ```bash
 scripts/check-src-rule-violations.sh src/systems/research-pacing-model.ts src/systems/pacing-model.ts src/systems/pacing-audit.ts
@@ -483,7 +485,7 @@ git commit -m "refactor(pacing): isolate research calibration"
 - Modify: `tests/systems/helpers/pacing-production-budget.ts`
 - Modify: `tests/systems/helpers/pacing-reference-economy.ts`
 
-- [ ] **Step 1: Define explicit Era 1–13 scenario data**
+- [x] **Step 1: Define explicit Era 1–13 scenario data**
 
 ```ts
 export const RESEARCH_SCENARIOS = {
@@ -504,15 +506,15 @@ export const RESEARCH_SCENARIOS = {
 
 Index `0` is Era 1. Keep the #917 scenario separate with its exact twelve city yields, turn 117, personal Era 2, gross 58, and coordinated 24; do not pretend it is the standard Era-2 cohort.
 
-- [ ] **Step 2: Write failing scenario invariants**
+- [x] **Step 2: Write failing scenario invariants**
 
 For every era and scenario, assert deterministic city count, valid completed-tech frontier, no future-era building leakage, gross/net totals, standard median in-band feasibility, tall maximum feasibility, wide floors, and adjacent-era continuity.
 
-- [ ] **Step 3: Replace the one-way diagnostic timeline with feedback simulation**
+- [x] **Step 3: Replace the one-way diagnostic timeline with feedback simulation**
 
 The research timeline must advance using that scenario's canonical net science rather than `completionistSciencePerTurn`. City production continues to use deterministic infrastructure budgets. A scenario's research arrival changes which buildings can exist later in the same scenario.
 
-- [ ] **Step 4: Run scenario tests**
+- [x] **Step 4: Run scenario tests**
 
 ```bash
 ./scripts/run-with-mise.sh yarn test --run tests/systems/research-pacing-scenarios.test.ts tests/systems/pacing-production-budget.test.ts tests/systems/pacing-reference-economy.test.ts
@@ -520,11 +522,11 @@ The research timeline must advance using that scenario's canonical net science r
 
 Expected: PASS with snapshot values reviewed in the test diff; no snapshot update may be accepted without the corresponding report rationale.
 
-- [ ] **Step 5: Add infrastructure sensitivity and seeded map-size sampling**
+- [x] **Step 5: Add infrastructure sensitivity and seeded map-size sampling**
 
 For the standard cohort, run 50%, 60%, and 70% infrastructure shares and assert no acceptance result depends on only the 60% point. Separately run at least 12 deterministic seeds for each of `small`, `medium`, and `large`; assert average and p90 ETAs satisfy the scenario gates. Print failing seeds in the assertion message. Keep the exact synthetic fixtures as the fast diagnostic layer and the seeded sample as the balance-regression layer.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add tests/systems/helpers/research-pacing-scenarios.ts tests/systems/research-pacing-scenarios.test.ts tests/systems/helpers/pacing-production-budget.ts tests/systems/helpers/pacing-reference-economy.ts tests/systems/pacing-production-budget.test.ts tests/systems/pacing-reference-economy.test.ts
@@ -541,7 +543,7 @@ git commit -m "test(pacing): simulate multi-city research feedback"
 - Modify: `src/systems/research-pacing-model.ts`
 - Modify: `tests/systems/pacing-audit.test.ts`
 
-- [ ] **Step 1: Specify the deterministic recommendation formula in tests**
+- [x] **Step 1: Specify the deterministic recommendation formula in tests**
 
 For non-opening techs:
 
@@ -554,11 +556,11 @@ recommended = roundReadable(clamp(base, wideMinimum, tallMaximum));
 
 If `wideMinimum > tallMaximum`, fail with an actionable infeasible-policy error naming era, band, and both bounds. Opening structural exceptions continue to use their explicit one-city profiles.
 
-- [ ] **Step 2: Add report schema tests**
+- [x] **Step 2: Add report schema tests**
 
 The JSON report must contain `era`, `band`, scenario gross/net values, cost percentiles, ETA percentiles, one-turn count, adjacent-era ratio, and useful-lifetime warnings. The Markdown render must be byte-for-byte deterministic for the same tree.
 
-- [ ] **Step 3: Implement script and package command**
+- [x] **Step 3: Implement script and package command**
 
 ```json
 "research:pacing-report": "tsx scripts/report-research-pacing.ts"
@@ -566,7 +568,7 @@ The JSON report must contain `era`, `band`, scenario gross/net values, cost perc
 
 Default output is Markdown to stdout. `--json` emits machine-readable JSON. The script is read-only and exits nonzero on any acceptance failure.
 
-- [ ] **Step 4: Run report and audit**
+- [x] **Step 4: Run report and audit**
 
 ```bash
 ./scripts/run-with-mise.sh yarn research:pacing-report
@@ -576,7 +578,7 @@ Default output is Markdown to stdout. `--json` emits machine-readable JSON. The 
 
 Expected before cost activation: report exits nonzero and lists current Era 1–13 violations, including #917, Era 8/9 one-turn collapse, and the Era 9→10 discontinuity. Capture the report in the MR description; do not weaken gates to make legacy data pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add scripts/report-research-pacing.ts tests/scripts/research-pacing-report.test.ts package.json src/systems/research-pacing-model.ts tests/systems/pacing-audit.test.ts
@@ -592,19 +594,19 @@ git commit -m "feat(pacing): report all-era research health"
 - Modify: `tests/systems/research-pacing-scenarios.test.ts`
 - Modify: `.claude/rules/game-balance.md`
 
-- [ ] **Step 1: Write failing explicit-upgrade-chain lifetime tests**
+- [x] **Step 1: Write failing explicit-upgrade-chain lifetime tests**
 
 Derive trainable units and successors from typed `upgradesTo`; never infer by shared technology. For standard scenarios, compare the successor frontier arrival with representative build/travel time. Assert ordinary units have at least two build windows and marquee units at least three or one build plus representative travel.
 
-- [ ] **Step 2: Add negative and terminal tests**
+- [x] **Step 2: Add negative and terminal tests**
 
 Prove a terminal unit with `terminalReason` is excluded, a domain-transition exception requires typed metadata, and unrelated same-era units are not treated as successors.
 
-- [ ] **Step 3: Add the future-era author checklist to game-balance rules**
+- [x] **Step 3: Add the future-era author checklist to game-balance rules**
 
 Require a new era to add scenario city counts, infrastructure assumptions, aggregate output pins, cost audit, continuity report, useful-lifetime report, and migration analysis if existing costs change.
 
-- [ ] **Step 4: Run and commit**
+- [x] **Step 4: Run and commit**
 
 ```bash
 ./scripts/run-with-mise.sh yarn test --run tests/systems/pacing-audit.test.ts tests/systems/research-pacing-scenarios.test.ts
@@ -616,27 +618,27 @@ git commit -m "test(pacing): guard unlock usefulness and future eras"
 
 **Files:**
 
-- Create: `src/storage/research-cost-migration-v23.ts`
-- Create: `tests/fixtures/research-cost-retune-v23.ts`
+- Create: `src/storage/research-cost-migration-v24.ts` (schema 23 is already allocated on the rebased base)
+- Create: `tests/fixtures/research-cost-retune-v24.ts`
 - Modify: `tests/scripts/research-pacing-report.test.ts`
 - Modify: `docs/superpowers/plans/2026-08-30-issue-917-research-pacing.md`
 
-- [ ] **Step 1: Generate the deterministic recommendation table**
+- [x] **Step 1: Generate the deterministic recommendation table**
 
-Export `PRE_V23_TECH_COST_BY_ID` from `src/storage/research-cost-migration-v23.ts` using current `origin/main` values. Tests import that production-owned map; they do not duplicate it. Export `RECOMMENDED_TECH_COST_BY_ID` from the test fixture using the exact Task 9 formula. Assert both maps contain every changed ID exactly once and unchanged IDs are omitted from the migration delta.
+Export `PRE_V24_TECH_COST_BY_ID` from `src/storage/research-cost-migration-v24.ts` using current `origin/main` values. Tests import that production-owned map; they do not duplicate it. Export `RECOMMENDED_TECH_COST_BY_ID` from the test fixture using the exact Task 9 formula. Assert both maps contain every changed ID exactly once and unchanged IDs are omitted from the migration delta.
 
-- [ ] **Step 2: Review all Era 1–13 output**
+- [x] **Step 2: Review all Era 1–13 output**
 
 The MR description must include, per era: old/new median cost, standard median ETA, tall p90 ETA, wide minimum ETA, one-turn current-frontier count, and adjacent-era ratio. The generated table is not activated in source definitions in MR2.
 
-- [ ] **Step 3: Make the report pass against proposed costs**
+- [x] **Step 3: Make the report pass against proposed costs**
 
 Add `--proposed-costs` to the report. Legacy mode must still expose current failures; proposed mode must satisfy every design gate.
 
-- [ ] **Step 4: Commit data and MR2 status**
+- [x] **Step 4: Commit data and MR2 status**
 
 ```bash
-git add src/storage/research-cost-migration-v23.ts tests/fixtures/research-cost-retune-v23.ts tests/scripts/research-pacing-report.test.ts docs/superpowers/plans/2026-08-30-issue-917-research-pacing.md
+git add src/storage/research-cost-migration-v24.ts tests/fixtures/research-cost-retune-v24.ts tests/scripts/research-pacing-report.test.ts docs/superpowers/plans/2026-08-30-issue-917-research-pacing.md
 git commit -m "test(pacing): pin all-era research retune"
 ```
 
@@ -644,18 +646,18 @@ git commit -m "test(pacing): pin all-era research retune"
 
 ## MR3 — Atomic All-Era Launch
 
-### Task 12: Write the schema-23 migration before changing costs
+### Task 12: Write the schema-24 migration before changing costs
 
 **Files:**
 
 - Modify: `src/storage/save-migrations.ts`
-- Read: `src/storage/research-cost-migration-v23.ts`
+- Read: `src/storage/research-cost-migration-v24.ts`
 - Create: `tests/storage/save-migrations-v23.test.ts`
 - Modify: `tests/storage/save-migrations.test.ts`
 
 - [ ] **Step 0: Verify the schema allocation is still free**
 
-Confirm `CURRENT_SAVE_SCHEMA_VERSION` is still 22 on the freshly rebased MR3 base. If it has advanced, stop before editing, allocate the next free version, rename the migration data/test files consistently, and update this plan plus the design document in the same commit. Never overwrite or renumber a merged migration.
+Confirm `CURRENT_SAVE_SCHEMA_VERSION` is still 23 on the freshly rebased MR3 base. If it has advanced, stop before editing, allocate the next free version, rename the migration data/test files consistently, and update this plan plus the design document in the same commit. Never overwrite or renumber a merged migration.
 
 - [ ] **Step 1: Write failing 0%, 50%, 99%, complete, malformed, discount, and idempotence tests**
 
@@ -670,9 +672,9 @@ expectedProgress = fraction < 1
 
 Test that displayed completion percentage changes by at most one percentage point and unfinished research never completes only because of rounding. Also test Cloud Computing's old/new 15% effective-cost discount, empty current research, unknown IDs, queue preservation, already-current saves, and future-schema rejection.
 
-- [ ] **Step 2: Add the schema-23 migration**
+- [ ] **Step 2: Add the schema-24 migration**
 
-Increment `CURRENT_SAVE_SCHEMA_VERSION` from 22 to 23. Import the reviewed old-cost delta from `src/storage/research-cost-migration-v23.ts`; production must not import tests. Normalize an already-complete legacy active tech and advance its queue without event/audio emission.
+Increment `CURRENT_SAVE_SCHEMA_VERSION` from 23 to 24. Import the reviewed old-cost delta from `src/storage/research-cost-migration-v24.ts`; production must not import tests. Normalize an already-complete legacy active tech and advance its queue without event/audio emission.
 
 - [ ] **Step 3: Run storage tests**
 
@@ -685,7 +687,7 @@ Expected: PASS before source cost changes because tests supply explicit old/new 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/storage/research-cost-migration-v23.ts src/storage/save-migrations.ts tests/storage/save-migrations-v23.test.ts tests/storage/save-migrations.test.ts
+git add src/storage/research-cost-migration-v24.ts src/storage/save-migrations.ts tests/storage/save-migrations-v24.test.ts tests/storage/save-migrations.test.ts
 git commit -m "feat(storage): preserve research progress through retune"
 ```
 
@@ -1065,7 +1067,7 @@ This review was performed after the complete roadmap was drafted. Findings were 
 | Live-output parity (review finding) | The proposed authoritative handoff named only `yields.science`, but the live turn also adds `idleScienceBonus`; the existing projected helper also omits several turn-only science modifiers. Either omission would make MR1 change science behavior or keep HUD/ETA dishonest. | Canonical output now accepts full per-city turn contributions (`yields.science + idleScienceBonus`) and owns a shared projected-research-city helper. MR1 parity coverage includes idle science, city wonder/resource/network/lowest-city bonuses, multipliers, and tech percentages against the real turn loop. |
 | Scenario data integrity (review finding) | The literal #917 fixture listed twelve values that sum to 58, while the plan and design claimed 65. That would make the golden test, future pacing report, and player-facing example disagree with the actual input. | Keep the supplied distribution and use its verified gross 58 everywhere; the existing diminishing-policy result remains 24, so the illustrated research-network difference is -34. |
 | SOLID/extensibility | Runtime costs or era-specific branches would violate open/closed design and make future eras fragile. | Typed policies/scenarios, explicit authored data, compatibility re-exports, generic cost algorithm, and loud missing-era failure instead of Era-13 fallback. |
-| Data integrity | Draft duplicated old-cost maps between tests and migration code. | One production-owned `src/storage/research-cost-migration-v23.ts`; tests import it, production never imports tests. |
+| Data integrity | Draft duplicated old-cost maps between tests and migration code. | One production-owned `src/storage/research-cost-migration-v24.ts`; tests import it, production never imports tests. |
 | SFX | Bonus/overflow completion could double-fire the existing cue; a new passive sound would be noisy. | Exactly-once viewer-scoped completion event/SFX tests and explicit no-sound rules for coordination, panel opening, migration, AI, and hidden hot-seat owners. No new asset. |
 | Saved games | Absolute progress plus larger costs would erase player investment; draft `floor` could visibly lower completion. | One atomic schema migration preserves rounded percentage within one point, caps unfinished work below completion, handles discounts/malformed 100%, and is idempotent. |
 | Automated testing | Exact synthetic fixtures alone did not satisfy statistical balance guidance. | Property tests plus deterministic fixtures plus seeded averages/p90 across all map sizes; failure messages name era, band, scenario, and seed. |

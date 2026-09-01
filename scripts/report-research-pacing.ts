@@ -1,3 +1,4 @@
+import type { PacingBand } from '@/core/types';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import {
   getRecommendedTechTurnWindow,
@@ -13,8 +14,9 @@ import {
 
 export interface ResearchPacingEraReport {
   era: number;
+  bands: Record<PacingBand, number>;
   scenarios: Record<'tall' | 'standard' | 'wide', { grossScience: number; netScience: number }>;
-  costPercentiles: { p50: number; p90: number };
+  costPercentiles: { currentP50: number; currentP90: number; proposedP50: number; proposedP90: number };
   etaPercentiles: { standardP50: number; tallP90: number; wideMinimum: number };
   oneTurnCurrentFrontierCount: number;
   adjacentEraRatio: number;
@@ -30,6 +32,8 @@ export interface ResearchPacingReport {
 export interface ResearchPacingReportOptions {
   proposedCosts?: boolean;
 }
+
+const PACING_BANDS: readonly PacingBand[] = ['starter', 'core', 'specialist', 'infrastructure', 'power-spike', 'marquee'];
 
 function percentile(values: readonly number[], fraction: number): number {
   const sorted = [...values].sort((left, right) => left - right);
@@ -110,8 +114,9 @@ function validateTech(
 
 export function buildResearchPacingReport(options: ResearchPacingReportOptions = {}): ResearchPacingReport {
   const outputs = getResearchScenarioOutputs();
-  const proposedCosts = options.proposedCosts ? getProposedResearchCostById() : undefined;
-  const costs = new Map(TECH_TREE.map(tech => [tech.id, proposedCosts?.[tech.id] ?? currentCostFor(tech.id)]));
+  const proposedCosts = getProposedResearchCostById();
+  const currentCosts = new Map(TECH_TREE.map(tech => [tech.id, currentCostFor(tech.id)]));
+  const costs = new Map(TECH_TREE.map(tech => [tech.id, options.proposedCosts ? proposedCosts[tech.id] : currentCosts.get(tech.id)!]));
   const failures = TECH_TREE.flatMap(tech => validateTech(tech.id, costs.get(tech.id)!, outputs));
   const issue917 = buildResearchPacingScenario({ scenario: 'issue-917', era: 2, infrastructureShare: 0.6 });
   const issue917OneTurnTechs = TECH_TREE
@@ -133,12 +138,18 @@ export function buildResearchPacingReport(options: ResearchPacingReportOptions =
     const currentFrontierOneTurns = techs.filter(tech => eta(costs.get(tech.id)!, wide.netScience) === 1).length;
     return {
       era,
+      bands: Object.fromEntries(PACING_BANDS.map(band => [band, techs.filter(tech => resolveTechPacingBand(tech) === band).length])) as Record<PacingBand, number>,
       scenarios: {
         tall: { grossScience: tall.grossScience, netScience: tall.netScience },
         standard: { grossScience: standard.grossScience, netScience: standard.netScience },
         wide: { grossScience: wide.grossScience, netScience: wide.netScience },
       },
-      costPercentiles: { p50: percentile(techs.map(tech => costs.get(tech.id)!), 0.5), p90: percentile(techs.map(tech => costs.get(tech.id)!), 0.9) },
+      costPercentiles: {
+        currentP50: percentile(techs.map(tech => currentCosts.get(tech.id)!), 0.5),
+        currentP90: percentile(techs.map(tech => currentCosts.get(tech.id)!), 0.9),
+        proposedP50: percentile(techs.map(tech => proposedCosts[tech.id]!), 0.5),
+        proposedP90: percentile(techs.map(tech => proposedCosts[tech.id]!), 0.9),
+      },
       etaPercentiles: { standardP50: percentile(standardEtas, 0.5), tallP90: percentile(tallEtas, 0.9), wideMinimum: Math.min(...wideEtas) },
       oneTurnCurrentFrontierCount: currentFrontierOneTurns,
       adjacentEraRatio: era === 1 ? 1 : normalizedMedianEta(techs, costs, standard.netScience) / Math.max(0.01, normalizedMedianEta(
@@ -161,7 +172,7 @@ export function buildResearchPacingReport(options: ResearchPacingReportOptions =
   return {
     eras,
     failures: [...new Set(failures)].sort(),
-    changedCostIds: TECH_TREE.filter(tech => costs.get(tech.id) !== tech.cost).map(tech => tech.id).sort(),
+    changedCostIds: TECH_TREE.filter(tech => proposedCosts[tech.id] !== tech.cost).map(tech => tech.id).sort(),
     unitUsefulLifetimeWarnings,
   };
 }
@@ -170,9 +181,9 @@ export function renderResearchPacingMarkdown(report: ResearchPacingReport): stri
   const lines = [
     '# Research pacing report',
     '',
-    '| Era | Standard median ETA | Tall p90 ETA | Wide minimum ETA | One-turn frontier | Adjacent ratio |',
-    '| --- | ---: | ---: | ---: | ---: | ---: |',
-    ...report.eras.map(era => `| ${era.era} | ${era.etaPercentiles.standardP50} | ${era.etaPercentiles.tallP90} | ${era.etaPercentiles.wideMinimum} | ${era.oneTurnCurrentFrontierCount} | ${era.adjacentEraRatio.toFixed(2)} |`),
+    '| Era | Current median cost | Proposed median cost | Standard median ETA | Tall p90 ETA | Wide minimum ETA | One-turn frontier | Adjacent ratio |',
+    '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+    ...report.eras.map(era => `| ${era.era} | ${era.costPercentiles.currentP50} | ${era.costPercentiles.proposedP50} | ${era.etaPercentiles.standardP50} | ${era.etaPercentiles.tallP90} | ${era.etaPercentiles.wideMinimum} | ${era.oneTurnCurrentFrontierCount} | ${era.adjacentEraRatio.toFixed(2)} |`),
   ];
   if (report.failures.length > 0) lines.push('', '## Failures', '', ...report.failures.map(failure => `- ${failure}`));
   if (report.unitUsefulLifetimeWarnings.length > 0) lines.push('', '## Useful-lifetime warnings', '', ...report.unitUsefulLifetimeWarnings.map(warning => `- ${warning}`));
