@@ -6,6 +6,8 @@ import { canCaptureDefeatedUnits, canReceiveCivilizationCombatRewards, CRISIS_FO
 import { awardGeneralProgress, GENERAL_PROGRESS_AWARDS, GENERAL_PROGRESS_XP_RATIO, STRONGER_FORCE_MARGIN, describeGeneralCareerEnd } from '@/systems/great-general-system';
 import { resolveGeneralDefinition } from '@/systems/great-general-definitions';
 import { consumeLastStandHoldFormationWide } from '@/systems/great-general-abilities';
+import { appendGeneralCareerEvent } from '@/systems/great-general-career';
+import type { GeneralCareerEventReason } from '@/core/types';
 import { recordHuntKillerIfApplicable } from '@/systems/hunt-crisis-linkage';
 import {
   breakPirateTributeOnAttack,
@@ -380,6 +382,81 @@ function recordGeneralDeaths(beforeUnits: Record<string, Unit>, state: GameState
   return { ...state, civilizations };
 }
 
+/**
+ * #887 MR1: transition-owned Great General career events for one combat —
+ * `unit-saved` (from the clamp sites), `battle-influenced` and `city-defended`.
+ * "Influenced" = an active issuer Last Stand hold on, or a same-turn Seize grant
+ * to, the attacker or defender. Mere command-range proximity is NOT influence.
+ * One `battle-influenced` per distinct General; `city-defended` only when the
+ * defender's tile is an owned city, the defender survived and the attacker did
+ * not. Reads pre-combat holds/markers from `preState`; appends onto `nextState`.
+ */
+function recordGeneralCareerCombatEvents(
+  preState: GameState,
+  result: CombatResult,
+  saves: Array<{ unit: Unit; hold: NonNullable<Unit['lastStandHold']> }>,
+  nextState: GameState,
+): GameState {
+  let out = nextState;
+  const turn = preState.turn;
+
+  // 1. unit-saved (one per actual Last Stand clamp this combat)
+  for (const { unit, hold } of saves) {
+    out = appendGeneralCareerEvent(out, unit.owner, hold.generalDefinitionId, {
+      type: 'unit-saved',
+      turn,
+      via: 'last-stand',
+      unitId: unit.id,
+      unitType: unit.type,
+      remainingHp: 1,
+      location: { ...unit.position },
+    });
+  }
+
+  // 2. gather influence per participant. A General only casts Last Stand / Seize
+  // on its OWN civ's units, so the influencing General's owner is that unit's owner.
+  const combatId = `${result.attackerId}:${result.defenderId}:${turn}`;
+  const influence = new Map<string, { civId: string; reasons: Set<GeneralCareerEventReason> }>();
+  const add = (generalId: string | undefined, civId: string, reason: GeneralCareerEventReason) => {
+    if (!generalId) return;
+    let e = influence.get(generalId);
+    if (!e) { e = { civId, reasons: new Set() }; influence.set(generalId, e); }
+    e.reasons.add(reason);
+  };
+  for (const id of [result.attackerId, result.defenderId]) {
+    const u = preState.units[id];
+    if (!u) continue;
+    if (u.lastStandHold && turn <= u.lastStandHold.expiresTurn) add(u.lastStandHold.generalDefinitionId, u.owner, 'last-stand');
+    if (u.seizeGrantedBy && u.seizeGrantedBy.turn === turn) add(u.seizeGrantedBy.generalDefinitionId, u.owner, 'seize');
+  }
+  if (influence.size === 0) return out;
+
+  // 3. battle-influenced — one per distinct General
+  const location = { ...result.defenderPosition };
+  for (const [generalId, { civId, reasons }] of influence) {
+    out = appendGeneralCareerEvent(out, civId, generalId, {
+      type: 'battle-influenced', turn, combatId, reasons: [...reasons].sort(), location,
+    });
+  }
+
+  // 4. city-defended — the defender's tile is a city owned by the defender, the
+  // defender still exists and the attacker does not.
+  const cityAtTile = Object.values(preState.cities)
+    .find(c => hexKey(c.position) === hexKey(result.defenderPosition));
+  const defenderOwner = preState.units[result.defenderId]?.owner;
+  if (
+    cityAtTile && defenderOwner && cityAtTile.owner === defenderOwner
+    && out.units[result.defenderId] && !out.units[result.attackerId]
+  ) {
+    for (const [generalId, { civId }] of influence) {
+      out = appendGeneralCareerEvent(out, civId, generalId, {
+        type: 'city-defended', turn, cityId: cityAtTile.id, cityName: cityAtTile.name,
+      });
+    }
+  }
+  return out;
+}
+
 export function applyCombatOutcomeToState(
   state: GameState,
   result: CombatResult,
@@ -395,6 +472,10 @@ export function applyCombatOutcomeToState(
   let civilizations = { ...state.civilizations };
   let minorCivs = { ...state.minorCivs };
   let espionage = state.espionage ? { ...state.espionage } : state.espionage;
+  // #887 MR1: units whose otherwise-lethal outcome was clamped by a Last Stand
+  // Hold this resolution. Collected at the 3 clamp sites; turned into
+  // `unit-saved` career events after the outcome. Precise (no post-hoc guessing).
+  const lastStandSaves: Array<{ unit: Unit; hold: NonNullable<Unit['lastStandHold']> }> = [];
 
   const defenderCiv = civilizations[defenderBefore.owner];
   if (
@@ -466,6 +547,7 @@ export function applyCombatOutcomeToState(
       hasActed: true,
       ...submarineRevealPatch(attackerBefore.type),
     };
+    lastStandSaves.push({ unit: attackerBefore, hold: attackerBefore.lastStandHold! });
     units = consumeLastStandHoldFormationWide(units, attackerBefore.lastStandHold!.formationId);
     attackerActuallyDefeated = false;
   } else if (
@@ -570,6 +652,7 @@ export function applyCombatOutcomeToState(
       hasMoved: true,
       hasActed: true,
     };
+    lastStandSaves.push({ unit: defenderBefore, hold: defenderBefore.lastStandHold! });
     units = consumeLastStandHoldFormationWide(units, defenderBefore.lastStandHold!.formationId);
     defenderActuallyDefeated = false;
   } else if (
@@ -645,6 +728,7 @@ export function applyCombatOutcomeToState(
     // never did (that's a separate, pre-existing gap, not extended here).
     if (checkLastStandHold(target, state.turn)) {
       units[hit.unitId] = { ...target, health: 1 };
+      lastStandSaves.push({ unit: target, hold: target.lastStandHold! });
       units = consumeLastStandHoldFormationWide(units, target.lastStandHold!.formationId);
       continue;
     }
@@ -786,6 +870,7 @@ export function applyCombatOutcomeToState(
     defeatedUnitIds,
   ));
   nextState = recordGeneralDeaths(state.units, nextState);
+  nextState = recordGeneralCareerCombatEvents(state, result, lastStandSaves, nextState);
   const militaryFacts = [];
   if ((defenderActuallyDefeated || defenderCaptured)
     && nextState.units[attackerBefore.id]
