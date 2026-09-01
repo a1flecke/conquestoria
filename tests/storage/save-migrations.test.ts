@@ -1236,7 +1236,7 @@ describe('#888 — generated General identity persistence', () => {
 describe('#887 MR1 — migration 24: General career ledger normalization', () => {
   it('backfills careerEvents: [] on a legacy generalHistory entry without fabricating any history', () => {
     const save = createNewGame('rome', '887-legacy-career-ledger', 'small');
-    save.saveSchemaVersion = 23;
+    save.saveSchemaVersion = 22; // one step behind current
     save.civilizations.player!.generalHistory = [
       { unitId: 'g-1', generalDefinitionId: 'gen_caesar', spawnedTurn: 2, outcome: 'died', diedTurn: 9 },
     ];
@@ -1316,7 +1316,7 @@ describe('#887 MR1 — migration 24: General career ledger normalization', () =>
 
   it('handles a generated-identity General entry identically', () => {
     const save = createNewGame('rome', '887-generated-career-ledger', 'small');
-    save.saveSchemaVersion = 23;
+    save.saveSchemaVersion = 22;
     const id = 'generated:rome:3:abcd1234';
     save.civilizations.player!.generalHistory = [
       { unitId: 'g-1', generalDefinitionId: id, spawnedTurn: 3 },

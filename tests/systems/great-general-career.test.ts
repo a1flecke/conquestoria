@@ -135,6 +135,57 @@ describe('#887 describeGeneralCareerHighlights', () => {
   });
 });
 
+describe('#887 Phase 34 — career ledger volume stays bounded', () => {
+  // Synthetic worst case: a 4-charge General fights hard for a 60-turn career —
+  // every charge issued, a battle influenced most turns it was active, saves and
+  // city events layered on, then both terminal events. This over-states reality
+  // (no real General influences a battle every turn for 60 turns) and must still
+  // land well under the sanity ceiling.
+  const KNOWN_TYPES = new Set<GeneralCareerEvent['type']>([
+    'spawned', 'rally-used', 'seize-used', 'last-stand-issued', 'unit-saved',
+    'battle-influenced', 'city-defended', 'city-captured', 'final-command', 'retired', 'killed',
+  ]);
+
+  function syntheticLongCareer(): GeneralCareerEvent[] {
+    const out: GeneralCareerEvent[] = [{ type: 'spawned', turn: 1 }];
+    for (let charge = 0; charge < 4; charge += 1) {
+      const t = 5 + charge * 12;
+      out.push({ type: 'rally-used', turn: t, unitsAffected: 3, totalHpRestored: 40 });
+      out.push({ type: 'seize-used', turn: t + 1, unitsRefreshed: 3 });
+      out.push({ type: 'last-stand-issued', turn: t + 2, unitsProtected: 3 });
+    }
+    for (let turn = 5; turn < 60; turn += 1) {
+      out.push({ type: 'battle-influenced', turn, combatId: `x:y:${turn}`, reasons: ['last-stand'], location: { q: 0, r: 0 } });
+      if (turn % 3 === 0) {
+        out.push({ type: 'unit-saved', turn, via: 'last-stand', unitId: `u${turn}`, unitType: 'warrior', remainingHp: 1, location: { q: 0, r: 0 } });
+      }
+      if (turn % 10 === 0) out.push({ type: 'city-defended', turn, cityId: `c${turn}`, cityName: `City ${turn}` });
+      if (turn % 15 === 0) out.push({ type: 'city-captured', turn, cityId: `k${turn}`, cityName: `Keep ${turn}` });
+    }
+    out.push({ type: 'final-command', turn: 58 });
+    out.push({ type: 'retired', turn: 60, reason: 'charges-expended' });
+    return out;
+  }
+
+  it('an extreme synthetic career stays well under 200 events and emits no unknown (per-turn-risk) type', () => {
+    const events = syntheticLongCareer();
+    expect(events.length).toBeLessThan(200);
+    for (const e of events) expect(KNOWN_TYPES.has(e.type)).toBe(true);
+  });
+
+  it('summarizeGeneralCareer digests that career with internally consistent counts', () => {
+    const summary = summarizeGeneralCareer(entry({ careerEvents: syntheticLongCareer(), outcome: 'retired', retiredTurn: 60 }));
+    expect(summary.status).toBe('retired');
+    expect(summary.battlesInfluenced).toBe(55); // one distinct combatId per turn 5..59
+    expect(summary.rallyUses).toBe(4);
+    expect(summary.seizeUses).toBe(4);
+    expect(summary.lastStandUses).toBe(4);
+    expect(summary.finalCommandUsed).toBe(true);
+    expect(summary.citiesCaptured).toBeGreaterThan(0);
+    expect(summary.uniqueCitiesDefended).toBeGreaterThan(0);
+  });
+});
+
 describe('#887 the AI never reads the career ledger', () => {
   function tsFiles(dir: string): string[] {
     return readdirSync(dir, { withFileTypes: true }).flatMap(e =>
