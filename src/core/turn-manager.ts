@@ -141,9 +141,13 @@ import { resolveGeneralDefinition, type GeneralDefinition } from '@/systems/grea
 // utility (several systems in this codebase each keep their own small local variant).
 // #932: `gameId` (the canonical determinism base for combat, barbarians, pirates,
 // crises, minor civs, city-capture assaults) is now folded in so two different
-// playthroughs no longer draw the identical authored candidate set at the same turn.
-// `gameId` is optional only on pre-field legacy saves; fall back the same way
-// turn-manager's beasts-migration seed does (`?? 'legacy'`).
+// playthroughs no longer draw the identical authored candidate set at the same
+// turn. `state.gameId` is always populated for any state reaching turn processing
+// -- `createNewGame` sets it, and `save-migrations` backfills a per-save
+// `stableLegacyGameId` for pre-field saves -- so old saves get their own distinct
+// draw sequence too, not a shared collision. The `?? 'legacy'` is belt-and-braces
+// parity with `deterministicCombatSeed`'s own guard, not a real code path. The
+// `${gameId}:${civId}` separator prevents ("ab","c") aliasing to ("a","bc").
 export function deriveGeneralCandidateSeed(gameId: string | undefined, turn: number, civId: string): number {
   let seed = Math.abs(turn * 7919);
   for (const char of `${gameId ?? 'legacy'}:${civId}`) {

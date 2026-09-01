@@ -1990,6 +1990,20 @@ describe('deriveGeneralCandidateSeed — candidate-draw isolation across playthr
       .not.toBe(deriveGeneralCandidateSeed('game-abc', 5, 'ai-1'));
   });
 
+  it('folds in gameId for the AI (non-human) path too, not just the human civ', () => {
+    // turn-manager runs this per-civ for every civ (MR5 AI parity), so an AI
+    // civ must get game-isolated draws as well.
+    expect(deriveGeneralCandidateSeed('game-abc', 5, 'ai-1'))
+      .not.toBe(deriveGeneralCandidateSeed('game-xyz', 5, 'ai-1'));
+  });
+
+  it('gameId does not blur two civs together within one game (hot-seat / AI stay distinct)', () => {
+    expect(deriveGeneralCandidateSeed('game-abc', 5, 'player'))
+      .not.toBe(deriveGeneralCandidateSeed('game-abc', 5, 'ai-1'));
+    expect(deriveGeneralCandidateSeed('game-abc', 5, 'player-2'))
+      .not.toBe(deriveGeneralCandidateSeed('game-abc', 5, 'player-3'));
+  });
+
   it('a missing gameId (legacy save) still produces a stable non-negative integer seed', () => {
     const legacy = deriveGeneralCandidateSeed(undefined, 5, 'player');
     expect(Number.isInteger(legacy)).toBe(true);
