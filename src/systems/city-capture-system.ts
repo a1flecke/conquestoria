@@ -6,10 +6,12 @@ import type {
   GameState,
   HexCoord,
   LegendaryWonderProject,
+  Unit,
 } from '@/core/types';
 import { getUnitAttackProfile } from '@/systems/attack-targeting';
 import { reconquerBreakawayCity } from '@/systems/breakaway-system';
 import { awardGeneralProgress, GENERAL_PROGRESS_AWARDS } from '@/systems/great-general-system';
+import { appendGeneralCareerEvent } from '@/systems/great-general-career';
 import { BUILDINGS } from '@/systems/city-system';
 import {
   buildTerritoryTileFlippedEvents,
@@ -464,6 +466,59 @@ function buildUnchangedCaptureResult(
   goldAwarded: number,
 ): MajorCityCaptureResult {
   return { state, outcome, goldAwarded, territoryEvents: [] };
+}
+
+/**
+ * #887 MR1: transition-owned `city-captured` Great General career events.
+ *
+ * Called by each *real* capture caller right after `resolveMajorCityCapture`
+ * resolves — the human assault flow (`finalizePlayerCityAssaultChoice`) and the
+ * AI major-turn path (`occupyMajorCity`). It is deliberately NOT invoked from
+ * inside `resolveMajorCityCapture`, which also has scratch/lookahead callers
+ * (`ai-tactics.ts`'s `applyPredictedAction`) whose state is discarded.
+ *
+ * Credits only the `newOwnerId` Generals who influenced the capturing
+ * `attackerId` — an active issuer Last Stand hold, or a same-turn Seize grant —
+ * or who influenced the garrison-breaking `precedingCombat`'s participants.
+ * Never every General of the capturing civ. One event per distinct General
+ * (a General who both held and Seize-granted the attacker still gets one).
+ * `cityName` is passed in because a razed city is already gone from
+ * `state.cities` by the time this runs.
+ */
+export function recordCityCaptureCareerEvents(
+  state: GameState,
+  cityId: string,
+  cityName: string,
+  newOwnerId: string,
+  attackerId: string,
+  precedingCombat?: CombatResult,
+): GameState {
+  const turn = state.turn;
+  const influencing = new Set<string>();
+  const consider = (unit: Unit | undefined): void => {
+    if (!unit || unit.owner !== newOwnerId) return;
+    const hold = unit.lastStandHold;
+    if (hold?.generalDefinitionId && turn <= hold.expiresTurn) {
+      influencing.add(hold.generalDefinitionId);
+    }
+    if (unit.seizeGrantedBy?.generalDefinitionId && unit.seizeGrantedBy.turn === turn) {
+      influencing.add(unit.seizeGrantedBy.generalDefinitionId);
+    }
+  };
+  consider(state.units[attackerId]);
+  if (precedingCombat) {
+    consider(state.units[precedingCombat.attackerId]);
+    consider(state.units[precedingCombat.defenderId]);
+  }
+  if (influencing.size === 0) return state;
+
+  let out = state;
+  for (const generalDefinitionId of influencing) {
+    out = appendGeneralCareerEvent(out, newOwnerId, generalDefinitionId, {
+      type: 'city-captured', turn, cityId, cityName,
+    });
+  }
+  return out;
 }
 
 export function resolveMajorCityCapture(

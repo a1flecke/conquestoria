@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { EventBus } from '@/core/event-bus';
 import { createNewGame } from '@/core/game-state';
-import type { GameEvents, GameState } from '@/core/types';
+import type { CombatResult, GameEvents, GameState, GeneralCareerEvent } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 import { foundCity } from '@/systems/city-system';
 import { resolveCombat } from '@/systems/combat-system';
@@ -11,6 +11,7 @@ import { makeBreakawayFixture } from './helpers/breakaway-fixture';
 import {
   beginMajorCityAssault,
   emitMajorCityCaptureEvents,
+  recordCityCaptureCareerEvents,
   resolveMajorCityCapture,
   transferCapturedCityOwnership,
 } from '@/systems/city-capture-system';
@@ -802,5 +803,126 @@ describe('city-capture-system', () => {
         if (result.ok) expect(result.state.units.attacker!.hasCapturedCityThisTurn).toBe(true);
       });
     });
+  });
+});
+
+describe('#887 MR1 — recordCityCaptureCareerEvents (city-captured attribution)', () => {
+  const activeHold = (generalDefinitionId?: string) => ({
+    formationId: 'f1', defenseBonusMultiplier: 1.15, expiresTurn: 5, generalDefinitionId,
+  });
+  const historyEntry = (unitId: string, generalDefinitionId: string) => ({
+    unitId, generalDefinitionId, spawnedTurn: 1, careerEvents: [] as GeneralCareerEvent[],
+  });
+  const eventsFor = (s: GameState, civId: string, defId: string): GeneralCareerEvent[] =>
+    s.civilizations[civId].generalHistory?.find(e => e.generalDefinitionId === defId)?.careerEvents ?? [];
+
+  const baseState = (): GameState => ({
+    turn: 5,
+    units: {
+      captor: { id: 'captor', owner: 'player', type: 'swordsman', position: { q: 1, r: 0 } },
+    },
+    cities: {},
+    civilizations: {
+      player: { id: 'player', generalHistory: [historyEntry('g-p', 'gen_sun_tzu')] },
+      'ai-1': { id: 'ai-1', generalHistory: [historyEntry('g-a', 'gen_ramesses')] },
+    },
+  } as unknown as GameState);
+
+  it('credits a General whose same-turn Seize grant is on the capturing unit', () => {
+    const state = baseState();
+    state.units.captor = { ...state.units.captor, seizeGrantedBy: { generalDefinitionId: 'gen_sun_tzu', turn: 5 } };
+
+    const out = recordCityCaptureCareerEvents(state, 'athens', 'Athens', 'player', 'captor');
+
+    expect(eventsFor(out, 'player', 'gen_sun_tzu')).toEqual([
+      { type: 'city-captured', turn: 5, cityId: 'athens', cityName: 'Athens' },
+    ]);
+  });
+
+  it('credits a General whose active Last Stand hold is on the capturing unit', () => {
+    const state = baseState();
+    state.units.captor = { ...state.units.captor, lastStandHold: activeHold('gen_sun_tzu') };
+
+    const out = recordCityCaptureCareerEvents(state, 'athens', 'Athens', 'player', 'captor');
+
+    expect(eventsFor(out, 'player', 'gen_sun_tzu')).toEqual([
+      { type: 'city-captured', turn: 5, cityId: 'athens', cityName: 'Athens' },
+    ]);
+  });
+
+  it('records one event, not two, for a General who both held and Seize-granted the capturing unit', () => {
+    const state = baseState();
+    state.units.captor = {
+      ...state.units.captor,
+      lastStandHold: activeHold('gen_sun_tzu'),
+      seizeGrantedBy: { generalDefinitionId: 'gen_sun_tzu', turn: 5 },
+    };
+    const preceding: CombatResult = {
+      attackerId: 'captor', defenderId: 'garrison', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false, attackerStrength: 30, defenderStrength: 10,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const out = recordCityCaptureCareerEvents(state, 'athens', 'Athens', 'player', 'captor', preceding);
+
+    expect(eventsFor(out, 'player', 'gen_sun_tzu').filter(e => e.type === 'city-captured')).toHaveLength(1);
+  });
+
+  it('does not credit an uninvolved General of the capturing civ', () => {
+    const state = baseState();
+    // captor carries no hold and no seize marker at all
+
+    const out = recordCityCaptureCareerEvents(state, 'athens', 'Athens', 'player', 'captor');
+
+    expect(eventsFor(out, 'player', 'gen_sun_tzu')).toEqual([]);
+    expect(out).toBe(state);
+  });
+
+  it('records the historical city name even for a razed city already gone from state.cities', () => {
+    const state = baseState();
+    state.units.captor = { ...state.units.captor, seizeGrantedBy: { generalDefinitionId: 'gen_sun_tzu', turn: 5 } };
+    // state.cities has no 'carthage' entry — the caller passes the pre-raze name
+
+    const out = recordCityCaptureCareerEvents(state, 'carthage', 'Carthage', 'player', 'captor');
+
+    expect(eventsFor(out, 'player', 'gen_sun_tzu')).toEqual([
+      { type: 'city-captured', turn: 5, cityId: 'carthage', cityName: 'Carthage' },
+    ]);
+  });
+
+  it('is actor-agnostic — an AI capture credits the AI civ General identically', () => {
+    const state = baseState();
+    state.units.captor = {
+      ...state.units.captor, owner: 'ai-1',
+      lastStandHold: activeHold('gen_ramesses'),
+    };
+
+    const out = recordCityCaptureCareerEvents(state, 'athens', 'Athens', 'ai-1', 'captor');
+
+    expect(eventsFor(out, 'ai-1', 'gen_ramesses')).toEqual([
+      { type: 'city-captured', turn: 5, cityId: 'athens', cityName: 'Athens' },
+    ]);
+    expect(eventsFor(out, 'player', 'gen_sun_tzu')).toEqual([]);
+  });
+
+  it('does not credit a marker from a prior turn or an expired hold', () => {
+    const state = baseState();
+    state.units.captor = {
+      ...state.units.captor,
+      seizeGrantedBy: { generalDefinitionId: 'gen_sun_tzu', turn: 4 },
+      lastStandHold: { formationId: 'f1', defenseBonusMultiplier: 1.15, expiresTurn: 4, generalDefinitionId: 'gen_sun_tzu' },
+    };
+
+    const out = recordCityCaptureCareerEvents(state, 'athens', 'Athens', 'player', 'captor');
+
+    expect(eventsFor(out, 'player', 'gen_sun_tzu')).toEqual([]);
+  });
+
+  it('no-ops without throwing when the crediting civ has no matching generalHistory entry', () => {
+    const state = baseState();
+    state.civilizations.player.generalHistory = [];
+    state.units.captor = { ...state.units.captor, seizeGrantedBy: { generalDefinitionId: 'gen_sun_tzu', turn: 5 } };
+
+    expect(() => recordCityCaptureCareerEvents(state, 'athens', 'Athens', 'player', 'captor')).not.toThrow();
   });
 });

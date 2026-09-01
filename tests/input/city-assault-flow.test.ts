@@ -118,6 +118,43 @@ describe('city-assault-flow', () => {
     });
   });
 
+  it('#887 MR1: records a city-captured career event for the General whose Last Stand hold is on the capturing unit', () => {
+    const state = makePlayerAssaultState({ population: 1 });
+    state.units['unit-1'] = {
+      ...state.units['unit-1'],
+      lastStandHold: {
+        formationId: 'f1', defenseBonusMultiplier: 1.15,
+        expiresTurn: state.turn, generalDefinitionId: 'gen_sun_tzu',
+      },
+    };
+    state.civilizations.player.generalHistory = [
+      { unitId: 'general-1', generalDefinitionId: 'gen_sun_tzu', spawnedTurn: 1, careerEvents: [] },
+    ];
+
+    const begun = beginPlayerCityAssaultChoice(state, 'unit-1', 'athens');
+    expect(begun.ok).toBe(true);
+    if (!begun.ok) return;
+    const result = finalizePlayerCityAssaultChoice(begun.state, begun.pending, 'occupy', begun.state.turn);
+
+    expect(result.state.civilizations.player.generalHistory?.[0].careerEvents).toContainEqual({
+      type: 'city-captured', turn: state.turn, cityId: 'athens', cityName: 'Athens',
+    });
+  });
+
+  it('#887 MR1: does not record a city-captured event when no General influenced the capturing unit', () => {
+    const state = makePlayerAssaultState({ population: 1 });
+    state.civilizations.player.generalHistory = [
+      { unitId: 'general-1', generalDefinitionId: 'gen_sun_tzu', spawnedTurn: 1, careerEvents: [] },
+    ];
+
+    const begun = beginPlayerCityAssaultChoice(state, 'unit-1', 'athens');
+    expect(begun.ok).toBe(true);
+    if (!begun.ok) return;
+    const result = finalizePlayerCityAssaultChoice(begun.state, begun.pending, 'occupy', begun.state.turn);
+
+    expect(result.state.civilizations.player.generalHistory?.[0].careerEvents).toEqual([]);
+  });
+
   it('preserves territory flip events when finalizing an occupied city', () => {
     const state = makePlayerAssaultState({ population: 1 });
     const farmCoord = { q: 1, r: 0 };

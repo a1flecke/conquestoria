@@ -423,6 +423,29 @@ describe('processMajorCivStrategicTurn', () => {
     expect(moved).toHaveBeenCalledOnce();
   });
 
+  it('#887 MR1: records a city-captured career event for the AI General who Seize-enabled the capture (parity with the human path)', () => {
+    const state = makeState();
+    addUnit(state, 'captor', 'swordsman', AI, { q: 0, r: 0 }, {
+      seizeGrantedBy: { generalDefinitionId: 'gen_ramesses', turn: state.turn },
+    });
+    const target = addCity(state, 'target-city', HUMAN, { q: 1, r: 0 });
+    state.civilizations[AI].generalHistory = [
+      { unitId: 'general-1', generalDefinitionId: 'gen_ramesses', spawnedTurn: 3, careerEvents: [] },
+    ];
+    const plan = makePlan(
+      { kind: 'city', id: target.id, lastKnownPosition: target.position },
+      ['captor'],
+      { requiredRoles: { capture: 1 } },
+    );
+
+    const result = processMajorCivStrategicTurn(state, prepared(state, plan), new EventBus());
+
+    expect(result.state.cities[target.id].owner).toBe(AI);
+    expect(result.state.civilizations[AI].generalHistory?.[0].careerEvents).toContainEqual({
+      type: 'city-captured', turn: state.turn, cityId: 'target-city', cityName: target.name,
+    });
+  });
+
   it('applies combat rewards and camp-destruction history through canonical systems', () => {
     const state = makeState();
     addUnit(state, 'attacker', 'swordsman', AI, { q: 0, r: 0 });
