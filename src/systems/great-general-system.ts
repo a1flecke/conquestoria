@@ -6,6 +6,11 @@ import { seededLcg, weightedPick } from '@/systems/seeded-lcg';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { createUnit } from '@/systems/unit-system';
 import { mapDistance } from '@/systems/hex-utils';
+import {
+  describeGeneralCareerHighlights,
+  summarizeGeneralCareer,
+  type GeneralCareerSummary,
+} from '@/systems/great-general-career';
 import type { EventBus } from '@/core/event-bus';
 
 /**
@@ -370,10 +375,18 @@ export function getPassiveStabilizationTargets(state: GameState, civId: string):
  * General biographies" (issue E) is the explicit deferred richer-narrative
  * follow-up this defers to.
  */
-export function describeGeneralCareerEnd(definition: Pick<GeneralDefinition, 'name'>, outcome: 'retired' | 'died'): string {
-  return outcome === 'died'
+export function describeGeneralCareerEnd(
+  definition: Pick<GeneralDefinition, 'name'>,
+  outcome: 'retired' | 'died',
+  /** #887 MR1: when supplied, a terse factual campaign-stat clause is appended
+   * (`describeGeneralCareerHighlights` — empty, so byte-identical to the pre-#887
+   * line, for a General that never captured/defended/saved/influenced). */
+  summary?: GeneralCareerSummary,
+): string {
+  const base = outcome === 'died'
     ? `${definition.name} fell in battle.`
     : `${definition.name} retired after a distinguished career.`;
+  return summary ? `${base}${describeGeneralCareerHighlights(summary)}` : base;
 }
 
 /**
@@ -402,9 +415,16 @@ export function retireGeneralsAtTurnEnd(state: GameState, civId: string, bus?: E
   let generalHistory = civ.generalHistory ?? [];
   for (const general of retiring) {
     const definition = resolveGeneralDefinition(state, general.generalDefinitionId)!;
-    const endOfCareerLine = describeGeneralCareerEnd(definition, 'retired');
     delete units[general.id];
     civUnits = civUnits.filter(id => id !== general.id);
+    // #887 MR1: enrich the end-of-career line with a factual campaign-stat
+    // clause, and append the terminal `retired` event. The summary is computed
+    // from the pre-terminal entry — the `retired` event itself carries no
+    // highlight counts, so pre/post makes no difference to the text.
+    const priorEntry = generalHistory.find(entry => entry.unitId === general.id);
+    const endOfCareerLine = priorEntry
+      ? describeGeneralCareerEnd(definition, 'retired', summarizeGeneralCareer(priorEntry))
+      : describeGeneralCareerEnd(definition, 'retired');
     generalHistory = generalHistory.map(entry =>
       entry.unitId === general.id
         ? {
@@ -413,6 +433,10 @@ export function retireGeneralsAtTurnEnd(state: GameState, civId: string, bus?: E
             retiredTurn: state.turn,
             endOfCareerLine,
             heroicCommandsUsed: general.generalCommandChargesUsed ?? 0,
+            careerEvents: [
+              ...(entry.careerEvents ?? []),
+              { type: 'retired' as const, reason: 'charges-expended' as const, turn: state.turn },
+            ],
           }
         : entry,
     );

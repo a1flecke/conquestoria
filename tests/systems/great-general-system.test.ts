@@ -19,9 +19,10 @@ import {
 import { chooseBestGeneralCandidate } from '@/ai/ai-general-command';
 import { getHeroicCommandEligibility } from '@/systems/great-general-abilities';
 import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
+import { summarizeGeneralCareer } from '@/systems/great-general-career';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
-import type { Unit } from '@/core/types';
+import type { GeneralHistoryEntry, Unit } from '@/core/types';
 
 describe('getGeneralThreshold', () => {
   it('the first General costs less than the second', () => {
@@ -553,6 +554,31 @@ describe('describeGeneralCareerEnd', () => {
     expect(describeGeneralCareerEnd(def, 'retired')).toContain(def.name);
     expect(describeGeneralCareerEnd(def, 'died')).not.toBe(describeGeneralCareerEnd(def, 'retired'));
   });
+
+  it('#887 MR1: a spawn-only career summary leaves the line byte-identical to the no-summary form', () => {
+    const def = GENERAL_DEFINITIONS[0];
+    const summary = summarizeGeneralCareer({
+      unitId: 'g', generalDefinitionId: def.id, spawnedTurn: 1,
+      careerEvents: [{ type: 'spawned', turn: 1 }],
+    });
+    expect(describeGeneralCareerEnd(def, 'retired', summary)).toBe(describeGeneralCareerEnd(def, 'retired'));
+    expect(describeGeneralCareerEnd(def, 'died', summary)).toBe(describeGeneralCareerEnd(def, 'died'));
+  });
+
+  it('#887 MR1: a career with real deeds appends a terse factual clause', () => {
+    const def = GENERAL_DEFINITIONS[0];
+    const entry: GeneralHistoryEntry = {
+      unitId: 'g', generalDefinitionId: def.id, spawnedTurn: 1,
+      careerEvents: [
+        { type: 'spawned', turn: 1 },
+        { type: 'city-captured', turn: 5, cityId: 'c1', cityName: 'Athens' },
+        { type: 'unit-saved', turn: 6, via: 'last-stand', unitId: 'u1', unitType: 'warrior', remainingHp: 1, location: { q: 0, r: 0 } },
+        { type: 'battle-influenced', turn: 6, combatId: 'a:b:6', reasons: ['last-stand'], location: { q: 0, r: 0 } },
+      ],
+    };
+    const line = describeGeneralCareerEnd(def, 'died', summarizeGeneralCareer(entry));
+    expect(line).toBe(`${def.name} fell in battle. — 1 city captured, 1 unit saved, 1 battle influenced.`);
+  });
 });
 
 describe('#544 MR4 — retireGeneralsAtTurnEnd', () => {
@@ -592,6 +618,21 @@ describe('#544 MR4 — retireGeneralsAtTurnEnd', () => {
   it('is a no-op for a civ with no Generals', () => {
     const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'retire-2' });
     expect(retireGeneralsAtTurnEnd(state, 'player')).toBe(state);
+  });
+
+  it('#887 MR1: appends a terminal `retired` career event (charges-expended) exactly once', () => {
+    const state = { ...setup(3), turn: 9 };
+    state.civilizations.player.generalHistory = [
+      { unitId: 'gen-1', generalDefinitionId: 'gen_caesar', spawnedTurn: 1, careerEvents: [{ type: 'spawned', turn: 1 }] },
+    ];
+
+    const result = retireGeneralsAtTurnEnd(state, 'player');
+
+    const entry = result.civilizations.player.generalHistory!.find(e => e.unitId === 'gen-1')!;
+    expect(entry.careerEvents).toEqual([
+      { type: 'spawned', turn: 1 },
+      { type: 'retired', reason: 'charges-expended', turn: 9 },
+    ]);
   });
 
   it('#544 MR4 review fix: emits general:retired with the General\'s name when bus is provided', () => {
