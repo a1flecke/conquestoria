@@ -1,4 +1,4 @@
-import type { ActiveCrisis, AirBaseRef, CombatRole, GameState, GeneratedGeneralIdentity, HexCoord, LegendaryWonderMilitaryFact, LegendaryWonderTacticalEffectState, TradeRoute, Unit } from '@/core/types';
+import type { ActiveCrisis, AirBaseRef, CombatRole, GameState, GeneralCareerEvent, GeneratedGeneralIdentity, HexCoord, LegendaryWonderMilitaryFact, LegendaryWonderTacticalEffectState, TradeRoute, Unit } from '@/core/types';
 import { createRng } from '@/systems/map-generator';
 import { placeLateResources } from '@/systems/late-resource-placement';
 import { createMarketplaceState } from '@/systems/trade-system';
@@ -21,7 +21,7 @@ import { normalizeStampedes } from '@/systems/stampede-system';
 import { normalizeRogueElephantHosts } from '@/systems/rogue-elephant-host-system';
 import { UNIT_ROLE_DEFINITIONS } from '@/systems/combat-role-definitions';
 
-export const CURRENT_SAVE_SCHEMA_VERSION = 23;
+export const CURRENT_SAVE_SCHEMA_VERSION = 24;
 
 export type SaveMigration = (state: GameState) => GameState;
 
@@ -337,6 +337,58 @@ export function normalizeGeneratedGenerals(state: GameState): GameState {
     }
   }
   return changed ? { ...state, generatedGenerals: next } : state;
+}
+
+// #887 MR1: `GeneralHistoryEntry.careerEvents` is a new optional field. A save
+// written before it has entries with no `careerEvents` at all -- normalize each
+// to a clean array WITHOUT fabricating any history (a legacy General's deeds are
+// simply unrecorded -- persist facts, don't invent them). Also drops any
+// structurally-malformed event so a corrupt file can't crash summarization.
+// Unconditional + idempotent, same additive-safety rationale as
+// normalizeGeneratedGenerals; also wired as numbered migration 24. The
+// known-type set below is the MR1 set -- a future MR that adds career-event
+// types adds its own migration rather than widening this one.
+const MR1_CAREER_EVENT_TYPES: ReadonlySet<string> = new Set([
+  'spawned', 'rally-used', 'seize-used', 'last-stand-issued', 'unit-saved',
+  'battle-influenced', 'city-defended', 'city-captured', 'final-command',
+  'retired', 'killed',
+]);
+
+function isValidCareerEvent(value: unknown): value is GeneralCareerEvent {
+  if (!value || typeof value !== 'object') return false;
+  const event = value as Record<string, unknown>;
+  return typeof event.type === 'string' && MR1_CAREER_EVENT_TYPES.has(event.type)
+    && typeof event.turn === 'number' && Number.isFinite(event.turn);
+}
+
+export function normalizeGeneralCareerLedger(state: GameState): GameState {
+  let changed = false;
+  const civilizations: GameState['civilizations'] = {};
+  for (const [civId, civ] of Object.entries(state.civilizations)) {
+    const history = civ.generalHistory;
+    if (!Array.isArray(history)) {
+      civilizations[civId] = civ;
+      continue;
+    }
+    let historyChanged = false;
+    const nextHistory = history.map(entry => {
+      const clean = Array.isArray(entry.careerEvents)
+        ? entry.careerEvents.filter(isValidCareerEvent)
+        : [];
+      if (Array.isArray(entry.careerEvents) && clean.length === entry.careerEvents.length) {
+        return entry;
+      }
+      historyChanged = true;
+      return { ...entry, careerEvents: clean };
+    });
+    if (historyChanged) {
+      changed = true;
+      civilizations[civId] = { ...civ, generalHistory: nextHistory };
+    } else {
+      civilizations[civId] = civ;
+    }
+  }
+  return changed ? { ...state, civilizations } : state;
 }
 
 // #592 MR5: CityFaith.conversionProgress changed shape from a single
@@ -898,6 +950,9 @@ export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   // #888: default the fallback-generated-officer registry to {} on saves that
   // predate it, and scrub any malformed entries (see normalizeGeneratedGenerals).
   23: normalizeGeneratedGenerals,
+  // #887 MR1: normalize every GeneralHistoryEntry.careerEvents to a clean array
+  // (missing -> [], malformed entries dropped). Never fabricates history.
+  24: normalizeGeneralCareerLedger,
 };
 
 function readSchemaVersion(raw: Record<string, unknown>): number {
@@ -969,7 +1024,8 @@ export function migrateSaveToCurrent(raw: unknown): GameState {
   const crises = normalizeCrisisArchetypes(techGrace);
   const religions = withReligionDefaults(crises);
   const generatedGenerals = normalizeGeneratedGenerals(religions);
+  const careerLedger = normalizeGeneralCareerLedger(generatedGenerals);
   return normalizeLegendaryWonderTacticalEffects(normalizeLegendaryWonderMilitaryFacts(normalizeBarbarianCampPressure(normalizeImprovementValues(normalizeCoastalBatteryCounterfireTurns(
-    normalizeRetimedBiplaneQueues(normalizeCityFaithConversionProgress(generatedGenerals)),
+    normalizeRetimedBiplaneQueues(normalizeCityFaithConversionProgress(careerLedger)),
   )))));
 }

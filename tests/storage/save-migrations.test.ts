@@ -1225,6 +1225,107 @@ describe('#888 — generated General identity persistence', () => {
     const migrated = migrateSaveToCurrent(structuredClone(save));
     expect(migrated.units['g-1']!.generalDefinitionId).toBe(id);
     expect(migrated.generatedGenerals?.[id]?.name).toBe('Servius Longinus');
-    expect(migrated.civilizations.player!.generalHistory).toEqual([{ unitId: 'g-1', generalDefinitionId: id, spawnedTurn: 4 }]);
+    // #887 MR1 migration 24 backfills careerEvents: [] on the legacy entry
+    // (no history is fabricated -- an empty ledger).
+    expect(migrated.civilizations.player!.generalHistory).toEqual([
+      { unitId: 'g-1', generalDefinitionId: id, spawnedTurn: 4, careerEvents: [] },
+    ]);
+  });
+});
+
+describe('#887 MR1 — migration 24: General career ledger normalization', () => {
+  it('backfills careerEvents: [] on a legacy generalHistory entry without fabricating any history', () => {
+    const save = createNewGame('rome', '887-legacy-career-ledger', 'small');
+    save.saveSchemaVersion = 23;
+    save.civilizations.player!.generalHistory = [
+      { unitId: 'g-1', generalDefinitionId: 'gen_caesar', spawnedTurn: 2, outcome: 'died', diedTurn: 9 },
+    ];
+
+    const migrated = migrateSaveToCurrent(save);
+
+    expect(migrated.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
+    expect(migrated.civilizations.player!.generalHistory).toEqual([
+      { unitId: 'g-1', generalDefinitionId: 'gen_caesar', spawnedTurn: 2, outcome: 'died', diedTurn: 9, careerEvents: [] },
+    ]);
+  });
+
+  it('round-trips an already-populated careerEvents array unchanged and is idempotent', () => {
+    const save = createNewGame('rome', '887-populated-career-ledger', 'small');
+    save.saveSchemaVersion = CURRENT_SAVE_SCHEMA_VERSION;
+    const careerEvents = [
+      { type: 'spawned', turn: 1 },
+      { type: 'rally-used', turn: 4, unitsAffected: 3, totalHpRestored: 12 },
+      { type: 'city-captured', turn: 8, cityId: 'c1', cityName: 'Athens' },
+    ];
+    save.civilizations.player!.generalHistory = [
+      { unitId: 'g-1', generalDefinitionId: 'gen_caesar', spawnedTurn: 1, careerEvents: structuredClone(careerEvents) as never },
+    ];
+
+    const migrated = migrateSaveToCurrent(structuredClone(save));
+    expect(migrated.civilizations.player!.generalHistory![0]!.careerEvents).toEqual(careerEvents);
+    expect(migrateSaveToCurrent(migrated)).toEqual(migrated);
+  });
+
+  it('drops structurally-malformed career events (not an object, missing/NaN turn, unknown type)', () => {
+    const save = createNewGame('rome', '887-malformed-career-ledger', 'small');
+    save.saveSchemaVersion = CURRENT_SAVE_SCHEMA_VERSION;
+    save.civilizations.player!.generalHistory = [
+      {
+        unitId: 'g-1', generalDefinitionId: 'gen_caesar', spawnedTurn: 1,
+        careerEvents: [
+          { type: 'spawned', turn: 1 },
+          'not-an-object',
+          { type: 'battle-influenced', turn: Number.NaN, combatId: 'a:b:2', reasons: [], location: { q: 0, r: 0 } },
+          { type: 'invented-future-event', turn: 3 },
+          { type: 'killed' },
+          { type: 'killed', turn: 5 },
+        ] as never,
+      },
+    ];
+
+    const migrated = migrateSaveToCurrent(save);
+
+    expect(migrated.civilizations.player!.generalHistory![0]!.careerEvents).toEqual([
+      { type: 'spawned', turn: 1 },
+      { type: 'killed', turn: 5 },
+    ]);
+    expect(migrateSaveToCurrent(migrated)).toEqual(migrated);
+  });
+
+  it('normalizes a non-array careerEvents to []', () => {
+    const save = createNewGame('rome', '887-nonarray-career-ledger', 'small');
+    save.saveSchemaVersion = CURRENT_SAVE_SCHEMA_VERSION;
+    save.civilizations.player!.generalHistory = [
+      { unitId: 'g-1', generalDefinitionId: 'gen_caesar', spawnedTurn: 1, careerEvents: { bogus: true } as never },
+    ];
+
+    const migrated = migrateSaveToCurrent(save);
+
+    expect(migrated.civilizations.player!.generalHistory![0]!.careerEvents).toEqual([]);
+  });
+
+  it('leaves a civ with no generalHistory untouched (no fabricated array)', () => {
+    const save = createNewGame('rome', '887-no-history-career-ledger', 'small');
+    save.saveSchemaVersion = CURRENT_SAVE_SCHEMA_VERSION;
+    delete (save.civilizations.player as { generalHistory?: unknown }).generalHistory;
+
+    const migrated = migrateSaveToCurrent(save);
+
+    expect(migrated.civilizations.player!.generalHistory).toBeUndefined();
+  });
+
+  it('handles a generated-identity General entry identically', () => {
+    const save = createNewGame('rome', '887-generated-career-ledger', 'small');
+    save.saveSchemaVersion = 23;
+    const id = 'generated:rome:3:abcd1234';
+    save.civilizations.player!.generalHistory = [
+      { unitId: 'g-1', generalDefinitionId: id, spawnedTurn: 3 },
+    ];
+
+    const migrated = migrateSaveToCurrent(save);
+
+    expect(migrated.civilizations.player!.generalHistory).toEqual([
+      { unitId: 'g-1', generalDefinitionId: id, spawnedTurn: 3, careerEvents: [] },
+    ]);
   });
 });
