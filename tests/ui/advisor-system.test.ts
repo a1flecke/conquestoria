@@ -970,6 +970,20 @@ describe('#544 MR4 — general_last_stand_crisis_hint', () => {
     expect(fires(state)).toBe(false);
   });
 
+  it('#885 — honours a Swift Commander\'s resolved command range 3 (a baseline range-2 General would not fire)', () => {
+    const baseline = stateWithCity();
+    baseline.units['gen-1'] = makeGeneralUnit({ generalDefinitionId: 'gen_hannibal' }); // generalist, range 2
+    baseline.units['unit-1'] = makeWoundedUnit({ position: { q: 3, r: 0 } });
+    baseline.civilizations.player.units.push('gen-1', 'unit-1');
+    expect(fires(baseline)).toBe(false);
+
+    const swift = stateWithCity();
+    swift.units['gen-1'] = makeGeneralUnit({ generalDefinitionId: 'gen_genghis' }); // mobile, range 3
+    swift.units['unit-1'] = makeWoundedUnit({ position: { q: 3, r: 0 } });
+    swift.civilizations.player.units.push('gen-1', 'unit-1');
+    expect(fires(swift)).toBe(true);
+  });
+
   it('#888 — fires for a General whose command range comes from a generated (registry) identity', () => {
     const state = stateWithCity();
     const genId = 'generated:rome:3:abcd1234';

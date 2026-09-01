@@ -1,4 +1,5 @@
 import type { GeneralDefinition } from '@/systems/great-general-definitions';
+import { getGeneralSpecialtyPresentation } from '@/systems/great-general-specialties';
 import { createGameButton } from '@/ui/ui-kit';
 
 export function createGeneralCandidatePanel(
@@ -43,6 +44,16 @@ export function createGeneralCandidatePanel(
     detail.textContent = candidate.descriptor;
     detail.style.cssText = 'font-size:12px;opacity:0.75;margin-top:6px;';
     card.appendChild(detail);
+
+    // #885: one-line specialty summary so the choice is informed. Absent for a
+    // Field Commander / generated officer.
+    const specialty = getGeneralSpecialtyPresentation(candidate);
+    if (specialty) {
+      const specLine = document.createElement('div');
+      specLine.textContent = `${specialty.displayName}: ${specialty.summary}`;
+      specLine.style.cssText = 'font-size:11px;opacity:0.85;margin-top:4px;color:#f0c674;';
+      card.appendChild(specLine);
+    }
 
     panel.appendChild(card);
   }

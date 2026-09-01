@@ -4,6 +4,7 @@ import { resolveSuperweaponContentDescription } from '@/systems/superweapon-cont
 import { isSuperweaponsEnabled } from '@/systems/superweapons-flag';
 import { resolveGeneralDefinition } from '@/systems/great-general-definitions';
 import { getGeneralProfile } from '@/systems/great-general-profiles';
+import { getGeneralSpecialtyPresentation, resolveGeneralMechanics } from '@/systems/great-general-specialties';
 import { getHeroicCommandEligibility } from '@/systems/great-general-abilities';
 import { getEffectiveCommandStats } from '@/systems/great-general-system';
 import { createGameButton } from '@/ui/ui-kit';
@@ -368,6 +369,17 @@ export function renderSelectedUnitInfo(
       descriptorLine.textContent = generalDef.descriptor;
       wrapper.appendChild(descriptorLine);
 
+      // #885: a one-line specialty summary (text only, no color-coding for
+      // meaning). `undefined` for a Field Commander / generated officer, so
+      // nothing misleading is shown for those.
+      const specialty = getGeneralSpecialtyPresentation(generalDef);
+      if (specialty) {
+        const specialtyLine = document.createElement('div');
+        specialtyLine.style.cssText = 'font-size:11px;margin-top:3px;color:#f0c674;';
+        specialtyLine.textContent = `Specialty: ${specialty.displayName} — ${specialty.summary}`;
+        wrapper.appendChild(specialtyLine);
+      }
+
       // #886: authored Generals carry a rich biography/facts profile. Render it
       // as a collapsed <details> (opt-in depth, no forced reading, no overflow)
       // mirroring this file's existing "Role details" pattern. Generated
@@ -420,7 +432,7 @@ export function renderSelectedUnitInfo(
       statsLine.style.cssText = 'font-size:12px;opacity:0.85;margin:6px 0;';
       statsLine.textContent =
         `Command range ${commandRange} · Command capacity ${commandCapacity} · `
-        + `Charges ${eligibility.chargesRemaining}/${generalDef.maxCommandCharges}`
+        + `Charges ${eligibility.chargesRemaining}/${resolveGeneralMechanics(generalDef).maxCommandCharges}`
         + (eligibility.cooldownTurnsRemaining > 0 ? ` · Cooldown ${eligibility.cooldownTurnsRemaining} turn(s)` : '');
       wrapper.appendChild(statsLine);
 
