@@ -99,4 +99,46 @@ describe('pacing simulation', () => {
     expect(turns).toBeGreaterThanOrEqual(5);
     expect(turns).toBeLessThanOrEqual(7);
   });
+
+  function turnsToCompleteSeededOpeningBronze(
+    mapSize: 'small' | 'medium' | 'large',
+    seed: string,
+  ): number {
+    const state = createNewGame(undefined, seed, mapSize);
+    const player = state.civilizations.player;
+    const settlerId = player.units.find(unitId => state.units[unitId]?.type === 'settler');
+    expect(settlerId).toBeDefined();
+
+    const city = foundCity('player', state.units[settlerId!].position, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    player.cities.push(city.id);
+    for (const coord of city.ownedTiles) state.map.tiles[hexKey(coord)].owner = 'player';
+    player.techState.completed = ['stone-weapons'];
+    player.techState.currentResearch = 'bronze-working';
+    player.techState.researchProgress = 0;
+    player.techState.researchQueue = [];
+
+    let next = state;
+    for (let turn = 1; turn <= 20; turn++) {
+      next = processTurn(next, new EventBus());
+      if (next.civilizations.player.techState.completed.includes('bronze-working')) return turn;
+    }
+    return Number.POSITIVE_INFINITY;
+  }
+
+  it.each(['small', 'medium', 'large'] as const)(
+    'keeps the seeded %s-map opening readable across twelve deterministic solo starts',
+    mapSize => {
+      const etas = Array.from({ length: 12 }, (_, index) =>
+        turnsToCompleteSeededOpeningBronze(mapSize, `research-pacing-${mapSize}-${index}`),
+      );
+      const average = etas.reduce((sum, eta) => sum + eta, 0) / etas.length;
+      const p90 = [...etas].sort((left, right) => left - right)[Math.ceil(etas.length * 0.9) - 1]!;
+
+      expect(average, `${mapSize} seeded opening ETAs: ${etas.join(', ')}`).toBeGreaterThanOrEqual(9);
+      expect(average, `${mapSize} seeded opening ETAs: ${etas.join(', ')}`).toBeLessThanOrEqual(11);
+      expect(p90, `${mapSize} seeded opening ETAs: ${etas.join(', ')}`).toBeLessThanOrEqual(11);
+    },
+    20_000,
+  );
 });

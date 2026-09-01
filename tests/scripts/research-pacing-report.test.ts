@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { createHotSeatGame } from '@/core/game-state';
 import { TECH_TREE } from '@/systems/tech-definitions';
-import { PRE_V23_TECH_COST_BY_ID } from '@/storage/research-cost-migration-v23';
-import { RECOMMENDED_TECH_COST_BY_ID } from '../fixtures/research-cost-retune-v23';
+import { CURRENT_SAVE_SCHEMA_VERSION } from '@/storage/save-migrations';
+import {
+  PRE_V24_TECH_COST_BY_ID,
+  RESEARCH_COST_MIGRATION_TARGET_SCHEMA_VERSION,
+} from '@/storage/research-cost-migration-v24';
+import { RECOMMENDED_TECH_COST_BY_ID } from '../fixtures/research-cost-retune-v24';
 import {
   buildResearchPacingReport,
   getProposedResearchCostById,
@@ -16,7 +21,13 @@ describe('research pacing report', () => {
 
     expect(first).toBe(second);
     expect(report.eras).toHaveLength(13);
-    expect(report.eras[0]).toMatchObject({ era: 1, scenarios: expect.any(Object), costPercentiles: expect.any(Object), etaPercentiles: expect.any(Object) });
+    expect(report.eras[0]).toMatchObject({
+      era: 1,
+      bands: expect.objectContaining({ starter: expect.any(Number), core: expect.any(Number), marquee: expect.any(Number) }),
+      scenarios: expect.any(Object),
+      costPercentiles: expect.objectContaining({ currentP50: expect.any(Number), proposedP50: expect.any(Number) }),
+      etaPercentiles: expect.any(Object),
+    });
     expect(report.eras.every(era => Number.isFinite(era.adjacentEraRatio))).toBe(true);
     expect(report.unitUsefulLifetimeWarnings).toEqual([]);
     expect(report.failures).toEqual([]);
@@ -38,13 +49,33 @@ describe('research pacing report', () => {
     expect(report.changedCostIds.length).toBeGreaterThan(0);
     expect(new Set(report.changedCostIds).size).toBe(report.changedCostIds.length);
     expect(report.changedCostIds.every(id => currentCosts.has(id))).toBe(true);
-    expect(Object.keys(PRE_V23_TECH_COST_BY_ID).sort()).toEqual(report.changedCostIds);
+    expect(RESEARCH_COST_MIGRATION_TARGET_SCHEMA_VERSION).toBe(CURRENT_SAVE_SCHEMA_VERSION + 1);
+    expect(Object.keys(PRE_V24_TECH_COST_BY_ID).sort()).toEqual(report.changedCostIds);
     expect(Object.keys(RECOMMENDED_TECH_COST_BY_ID).sort()).toEqual(report.changedCostIds);
     const formulaCosts = getProposedResearchCostById();
     for (const id of report.changedCostIds) {
-      expect(PRE_V23_TECH_COST_BY_ID[id]).toBe(currentCosts.get(id));
+      expect(PRE_V24_TECH_COST_BY_ID[id]).toBe(currentCosts.get(id));
       expect(RECOMMENDED_TECH_COST_BY_ID[id]).not.toBe(currentCosts.get(id));
       expect(RECOMMENDED_TECH_COST_BY_ID[id]).toBe(formulaCosts[id]);
     }
+  });
+
+  it('remains a viewer-independent, non-mutating laboratory in hot-seat games', () => {
+    const state = createHotSeatGame({
+      playerCount: 2,
+      mapSize: 'small',
+      players: [
+        { slotId: 'p1', name: 'Alice', civType: 'rome', isHuman: true },
+        { slotId: 'p2', name: 'Bob', civType: 'zulu', isHuman: true },
+      ],
+    }, 'research-pacing-hot-seat');
+    const before = structuredClone(state);
+
+    const firstViewer = buildResearchPacingReport({ proposedCosts: true });
+    state.currentPlayer = 'p2';
+    const secondViewer = buildResearchPacingReport({ proposedCosts: true });
+
+    expect(firstViewer.eras).toEqual(secondViewer.eras);
+    expect({ ...state, currentPlayer: before.currentPlayer }).toEqual(before);
   });
 });

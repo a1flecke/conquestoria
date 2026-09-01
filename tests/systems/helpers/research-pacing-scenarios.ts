@@ -55,8 +55,39 @@ interface CachedFeedbackOutput {
 
 const feedbackOutputCache = new Map<string, CachedFeedbackOutput>();
 
-function getCachedFeedbackOutput(era: number, infrastructureShare: ResearchInfrastructureShare): CachedFeedbackOutput {
-  const key = `${era}:${infrastructureShare}`;
+function buildCityScienceFromFeedback(
+  era: number,
+  cityCount: number,
+  infrastructureShare: ResearchInfrastructureShare,
+  scienceBuildingYield: number,
+): number[] {
+  const baseCityScience = Math.max(1, 1 + era + Math.floor(scienceBuildingYield * infrastructureShare));
+  return Array.from({ length: cityCount }, (_, index) => {
+    const maturityWeight = Math.max(0.35, 1.25 - (index / Math.max(1, cityCount - 1)) * 0.5);
+    return Math.max(1, Math.floor(baseCityScience * maturityWeight));
+  });
+}
+
+function getScenarioNetScience(
+  scenario: keyof typeof RESEARCH_SCENARIOS,
+  era: number,
+  infrastructureShare: ResearchInfrastructureShare,
+  scienceBuildingYield: number,
+): number {
+  const cityCount = getResearchScenarioCityCount(scenario, era);
+  const cityScience = buildCityScienceFromFeedback(era, cityCount, infrastructureShare, scienceBuildingYield);
+  return calculateCoordinatedCityScience(
+    cityScience.map((science, index) => ({ cityId: `${scenario}-${String(index).padStart(2, '0')}`, science })),
+    DIMINISHING_RESEARCH_POLICY,
+  ).final;
+}
+
+function getCachedFeedbackOutput(
+  scenario: keyof typeof RESEARCH_SCENARIOS,
+  era: number,
+  infrastructureShare: ResearchInfrastructureShare,
+): CachedFeedbackOutput {
+  const key = `${scenario}:${era}:${infrastructureShare}`;
   const cached = feedbackOutputCache.get(key);
   if (cached) return cached;
   const completedTechIds: string[] = [];
@@ -75,7 +106,7 @@ function getCachedFeedbackOutput(era: number, infrastructureShare: ResearchInfra
     nextVisiting.add(techId);
     for (const prerequisite of tech.prerequisites) addPrerequisiteClosure(prerequisite, currentEra, nextVisiting);
 
-    const researchRate = Math.max(1, 1 + currentEra + Math.floor(scienceBuildingYield * infrastructureShare));
+    const researchRate = getScenarioNetScience(scenario, currentEra, infrastructureShare, scienceBuildingYield);
     arrivalTurn += Math.ceil(tech.cost / researchRate);
     completed.add(tech.id);
     completedTechIds.push(tech.id);
@@ -99,16 +130,17 @@ function getCachedFeedbackOutput(era: number, infrastructureShare: ResearchInfra
   return output;
 }
 
-function buildCityScience(era: number, cityCount: number, infrastructureShare: ResearchInfrastructureShare): number[] {
+function buildCityScience(
+  scenario: keyof typeof RESEARCH_SCENARIOS,
+  era: number,
+  cityCount: number,
+  infrastructureShare: ResearchInfrastructureShare,
+): number[] {
   // This deliberately small laboratory routes a research arrival through each unlocked science
   // building before calculating the next era's rate. It therefore changes later output when
   // the route or infrastructure share changes, unlike the retired one-way per-era profile.
-  const feedback = getCachedFeedbackOutput(era, infrastructureShare);
-  const baseCityScience = Math.max(1, 1 + era + Math.floor(feedback.scienceBuildingYield * infrastructureShare));
-  return Array.from({ length: cityCount }, (_, index) => {
-    const maturityWeight = Math.max(0.35, 1.25 - (index / Math.max(1, cityCount - 1)) * 0.5);
-    return Math.max(1, Math.floor(baseCityScience * maturityWeight));
-  });
+  const feedback = getCachedFeedbackOutput(scenario, era, infrastructureShare);
+  return buildCityScienceFromFeedback(era, cityCount, infrastructureShare, feedback.scienceBuildingYield);
 }
 
 export function buildResearchPacingScenario(input: {
@@ -137,12 +169,12 @@ export function buildResearchPacingScenario(input: {
   }
 
   const cityCount = getResearchScenarioCityCount(input.scenario, input.era);
-  const cityScience = buildCityScience(input.era, cityCount, input.infrastructureShare);
+  const cityScience = buildCityScience(input.scenario, input.era, cityCount, input.infrastructureShare);
   const coordinated = calculateCoordinatedCityScience(
     cityScience.map((science, index) => ({ cityId: `${input.scenario}-${String(index).padStart(2, '0')}`, science })),
     DIMINISHING_RESEARCH_POLICY,
   );
-  const feedback = getCachedFeedbackOutput(input.era, input.infrastructureShare);
+  const feedback = getCachedFeedbackOutput(input.scenario, input.era, input.infrastructureShare);
 
   return {
     scenario: input.scenario,

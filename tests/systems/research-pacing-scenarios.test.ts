@@ -38,6 +38,14 @@ describe('research pacing scenarios', () => {
     expect(later.netScience).toBeGreaterThanOrEqual(earlier.netScience);
   });
 
+  it('uses each scenario\'s own coordinated net science when advancing its frontier', () => {
+    const tall = buildResearchPacingScenario({ scenario: 'tall', era: 6, infrastructureShare: 0.7 });
+    const wide = buildResearchPacingScenario({ scenario: 'wide', era: 6, infrastructureShare: 0.5 });
+
+    expect(wide.netScience).toBeGreaterThan(tall.netScience);
+    expect(wide.arrivalTurn).toBeLessThan(tall.arrivalTurn);
+  });
+
   it('uses the #917 regression distribution only for its named reproduction', () => {
     const scenario = buildResearchPacingScenario({ scenario: 'issue-917', era: 2, infrastructureShare: 0.6 });
 
