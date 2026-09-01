@@ -139,6 +139,12 @@ describe('pacing simulation', () => {
       expect(average, `${mapSize} seeded opening ETAs: ${etas.join(', ')}`).toBeLessThanOrEqual(11);
       expect(p90, `${mapSize} seeded opening ETAs: ${etas.join(', ')}`).toBeLessThanOrEqual(11);
     },
-    20_000,
+    // #608: 12 full createNewGame + up-to-20 processTurn runs per variant.
+    // Uncontended locally: small ~1.1s / medium ~2.9s / large ~6.3s. Under CI
+    // contention that scales ~5-6x — large hit ~32s and blew the old 20_000
+    // limit (deterministic seeds/asserts, so this is a wall-clock headroom
+    // problem, not a flake). Sized ~2x the worst contended large observation;
+    // also added to SLOW_TEST_FILES so the local fast push gate skips it.
+    120_000,
   );
 });
