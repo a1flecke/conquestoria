@@ -3,6 +3,7 @@ import { UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, canHeal } from '@/systems/unit-sys
 import { resolveSuperweaponContentDescription } from '@/systems/superweapon-content-honesty';
 import { isSuperweaponsEnabled } from '@/systems/superweapons-flag';
 import { resolveGeneralDefinition } from '@/systems/great-general-definitions';
+import { getGeneralProfile } from '@/systems/great-general-profiles';
 import { getHeroicCommandEligibility } from '@/systems/great-general-abilities';
 import { getEffectiveCommandStats } from '@/systems/great-general-system';
 import { createGameButton } from '@/ui/ui-kit';
@@ -366,6 +367,50 @@ export function renderSelectedUnitInfo(
       descriptorLine.style.cssText = 'font-size:11px;opacity:0.8;margin-top:2px;';
       descriptorLine.textContent = generalDef.descriptor;
       wrapper.appendChild(descriptorLine);
+
+      // #886: authored Generals carry a rich biography/facts profile. Render it
+      // as a collapsed <details> (opt-in depth, no forced reading, no overflow)
+      // mirroring this file's existing "Role details" pattern. Generated
+      // officers (#888) have no profile and this block is simply skipped.
+      // `sources` are provenance for audit and are deliberately not shown here.
+      const profile = getGeneralProfile(generalDef.id);
+      if (profile) {
+        const bio = document.createElement('details');
+        bio.style.cssText = 'margin-top:4px;font-size:11px;opacity:0.85;';
+        const bioSummary = document.createElement('summary');
+        bioSummary.style.cssText = 'cursor:pointer;opacity:0.8;';
+        bioSummary.textContent =
+          profile.kind === 'historical' ? `Who was ${generalDef.name}?` : `About ${generalDef.name}`;
+        bio.appendChild(bioSummary);
+
+        const bioSummaryText = document.createElement('div');
+        bioSummaryText.style.cssText = 'margin-top:4px;';
+        bioSummaryText.textContent = profile.summary;
+        bio.appendChild(bioSummaryText);
+
+        for (const fact of profile.facts) {
+          const row = document.createElement('div');
+          row.style.cssText = 'margin-top:3px;';
+          row.textContent = `• ${fact}`;
+          bio.appendChild(row);
+        }
+
+        if (profile.context) {
+          const ctx = document.createElement('div');
+          ctx.style.cssText = 'margin-top:4px;opacity:0.7;';
+          ctx.textContent = profile.context;
+          bio.appendChild(ctx);
+        }
+
+        if (profile.loreWork) {
+          const work = document.createElement('div');
+          work.style.cssText = 'margin-top:4px;opacity:0.6;font-style:italic;';
+          work.textContent = `From: ${profile.loreWork}`;
+          bio.appendChild(work);
+        }
+
+        wrapper.appendChild(bio);
+      }
 
       // #544 MR4: exact command stats, ability buttons, and reopenable tutorial.
       const eligibility = getHeroicCommandEligibility(state, unit);

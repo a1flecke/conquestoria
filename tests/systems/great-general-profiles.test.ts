@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   GENERAL_PROFILES,
@@ -111,7 +113,7 @@ describe('#886 — profile prose shape (readable for ages ~7–43)', () => {
     it(`${id}: summary is a clean, bounded sentence block`, () => {
       expect(profile.summary).toBe(profile.summary.trim());
       expect(profile.summary.length).toBeGreaterThan(0);
-      expect(profile.summary.length).toBeLessThanOrEqual(400);
+      expect(profile.summary.length).toBeLessThanOrEqual(340);
       expect(CONTROL_CHARS.test(profile.summary)).toBe(false);
       expect(profile.summary).not.toMatch(/\s{2,}/);
       expect(profile.summary).not.toMatch(/https?:\/\//);
@@ -125,7 +127,7 @@ describe('#886 — profile prose shape (readable for ages ~7–43)', () => {
       for (const fact of profile.facts) {
         expect(fact).toBe(fact.trim());
         expect(fact.length).toBeGreaterThan(0);
-        expect(fact.length).toBeLessThanOrEqual(240);
+        expect(fact.length).toBeLessThanOrEqual(200);
         expect(CONTROL_CHARS.test(fact)).toBe(false);
         expect(fact).not.toMatch(/\s{2,}/);
         expect(fact).not.toMatch(/https?:\/\//);
@@ -137,7 +139,7 @@ describe('#886 — profile prose shape (readable for ages ~7–43)', () => {
       if (profile.context === undefined) return;
       expect(profile.context).toBe(profile.context.trim());
       expect(profile.context.length).toBeGreaterThan(0);
-      expect(profile.context.length).toBeLessThanOrEqual(400);
+      expect(profile.context.length).toBeLessThanOrEqual(320);
       expect(CONTROL_CHARS.test(profile.context)).toBe(false);
       expect(profile.context).not.toMatch(/\s{2,}/);
       expect(profile.context).not.toMatch(/https?:\/\//);
@@ -232,6 +234,29 @@ describe('#886 — lore profiles do not masquerade as history', () => {
   });
 });
 
+describe('#886 — no accidental copy-paste across the whole catalog', () => {
+  it('no two profiles share a summary', () => {
+    const summaries = profileEntries.map(([, p]) => p.summary);
+    expect(new Set(summaries).size).toBe(summaries.length);
+  });
+
+  it('no fact string is reused by two different Generals', () => {
+    const seen = new Map<string, string>();
+    for (const [id, p] of profileEntries) {
+      for (const f of p.facts) {
+        const prev = seen.get(f);
+        expect(prev, `fact reused by "${id}" and "${prev}": ${JSON.stringify(f)}`).toBeUndefined();
+        seen.set(f, id);
+      }
+    }
+  });
+
+  it('no context string is reused by two different Generals', () => {
+    const contexts = profileEntries.map(([, p]) => p.context).filter((c): c is string => c !== undefined);
+    expect(new Set(contexts).size).toBe(contexts.length);
+  });
+});
+
 describe('#886 — #888 generated-officer compatibility', () => {
   it('a generated-officer id has no historical/lore profile', () => {
     const identity = makeGeneratedIdentity();
@@ -260,5 +285,42 @@ describe('#886 — #888 generated-officer compatibility', () => {
   it('#886 does not disturb resolveGeneralDefinition', () => {
     expect(resolveGeneralDefinition({}, 'gen_caesar')?.name).toBe('Julius Caesar');
     expect(resolveGeneralDefinition({}, 'no-such-general')).toBeUndefined();
+  });
+});
+
+describe('#886 — profile content stays out of AI and persistence paths', () => {
+  const IMPORT_SPECIFIER = 'great-general-profiles';
+
+  function tsFilesUnder(dir: string): string[] {
+    const out: string[] = [];
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) out.push(...tsFilesUnder(full));
+      else if (entry.name.endsWith('.ts')) out.push(full);
+    }
+    return out;
+  }
+
+  it('no file under src/ai references the profiles module (#888 Phase 22: AI must not read profile content)', () => {
+    for (const file of tsFilesUnder('src/ai')) {
+      expect(readFileSync(file, 'utf8'), file).not.toContain(IMPORT_SPECIFIER);
+    }
+  });
+
+  it('no file under src/storage references the profiles module (no save/migration coupling)', () => {
+    for (const file of tsFilesUnder('src/storage')) {
+      expect(readFileSync(file, 'utf8'), file).not.toContain(IMPORT_SPECIFIER);
+    }
+  });
+
+  it('turn processing does not reference the profiles module', () => {
+    expect(readFileSync('src/core/turn-manager.ts', 'utf8')).not.toContain(IMPORT_SPECIFIER);
+  });
+
+  it('getGeneralProfile has at least one real consumer in src/ (not dead code)', () => {
+    const consumers = tsFilesUnder('src')
+      .filter(f => !f.endsWith('great-general-profiles.ts'))
+      .filter(f => readFileSync(f, 'utf8').includes(`from '@/systems/${IMPORT_SPECIFIER}'`));
+    expect(consumers.length).toBeGreaterThan(0);
   });
 });

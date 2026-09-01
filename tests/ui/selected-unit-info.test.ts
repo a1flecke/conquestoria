@@ -324,6 +324,82 @@ describe('Great General identity display (#544 MR3)', () => {
 
     expect(() => renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {})).not.toThrow();
   });
+
+  it('#886 — renders an authored historical General\'s biography in a collapsed <details>', () => {
+    const state = createNewGame(undefined, 'general-profile-hist', 'small');
+    const unit = {
+      ...createUnit('great_general', 'player', { q: 15, r: 15 }, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 }),
+      id: 'u1',
+      generalDefinitionId: 'gen_caesar',
+    };
+    state.currentPlayer = 'player';
+    state.units = { u1: unit };
+    state.civilizations.player.units = ['u1'];
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+
+    const details = findDetails(container);
+    expect(details).toBeDefined();
+    expect(details!.tagName).toBe('DETAILS');
+    const text = collectAllText(details).join(' ');
+    expect(text).toContain('Who was Julius Caesar?');
+    expect(text).toContain('conquest of Gaul');       // from the summary
+    expect(text).toContain('across the Rubicon river'); // from a fact
+    // provenance URLs are never rendered to the player
+    expect(text).not.toContain('http');
+  });
+
+  it('#886 — renders an authored lore General with a "From:" work line and no fake citation', () => {
+    const state = createNewGame(undefined, 'general-profile-lore', 'small');
+    const unit = {
+      ...createUnit('great_general', 'player', { q: 15, r: 15 }, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 }),
+      id: 'u1',
+      generalDefinitionId: 'gen_boromir',
+    };
+    state.currentPlayer = 'player';
+    state.units = { u1: unit };
+    state.civilizations.player.units = ['u1'];
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+
+    const text = collectAllText(container).join(' ');
+    expect(text).toContain('About Boromir, Captain of the White Tower');
+    expect(text).toContain('From: J.R.R. Tolkien');
+    expect(text).not.toContain('http');
+  });
+
+  it('#886/#888 — a generated officer shows name + descriptor but no biography <details>', () => {
+    const state = createNewGame(undefined, 'general-profile-generated', 'small');
+    const id = 'generated:rome:3:deadbeef';
+    (state as unknown as { generatedGenerals: Record<string, unknown> }).generatedGenerals = {
+      [id]: {
+        id, name: 'Marcus Valerius, the Steadfast', civTypeEligibility: ['rome'], era: 3,
+        descriptor: 'Legatus. A Roman field commander, risen through the ranks of the host.',
+        portraitIcon: '🦅', origin: 'generated', commandRange: 2, commandCapacity: 3,
+        abilityIds: ['rally', 'seize_the_moment', 'last_stand'], maxCommandCharges: 3, cooldownTurns: 10,
+      },
+    };
+    const unit = {
+      ...createUnit('great_general', 'player', { q: 15, r: 15 }, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 }),
+      id: 'u1',
+      generalDefinitionId: id,
+    };
+    state.currentPlayer = 'player';
+    state.units = { u1: unit };
+    state.civilizations.player.units = ['u1'];
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+
+    const text = collectAllText(container).join(' ');
+    expect(text).toContain('Marcus Valerius, the Steadfast');
+    expect(text).toContain('Legatus. A Roman field commander');
+    expect(text).not.toContain('Who was');
+    expect(text).not.toContain('About Marcus Valerius');
+    expect(findDetails(container)).toBeUndefined();
+  });
 });
 
 describe('#544 MR4 — General command panel', () => {
