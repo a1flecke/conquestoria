@@ -1355,6 +1355,31 @@ describe('applyCombatOutcomeToState — Great General escort/transport/death rul
     expect(entry.heroicCommandsUsed).toBe(1);
   });
 
+  it('#887 MR1: a killed General gets a terminal `killed` career event appended (outcome stays "died")', () => {
+    const state = makeRewardState();
+    state.turn = 11;
+    const general = { ...createUnit('great_general', 'ai-1', { q: 1, r: 0 }, mkC()), id: 'general-1', generalDefinitionId: 'gen_ramesses' };
+    state.units['general-1'] = general;
+    state.civilizations['ai-1'].units = ['defender', 'general-1'];
+    state.civilizations['ai-1'].generalHistory = [
+      { unitId: 'general-1', generalDefinitionId: 'gen_ramesses', spawnedTurn: 2, careerEvents: [{ type: 'spawned', turn: 2 }] },
+    ];
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false, attackerStrength: 20, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    const entry = applied.state.civilizations['ai-1'].generalHistory!.find(e => e.unitId === 'general-1')!;
+    expect(entry.outcome).toBe('died');
+    expect(entry.careerEvents).toEqual([
+      { type: 'spawned', turn: 2 },
+      { type: 'killed', turn: 11 },
+    ]);
+  });
+
   it('#888: a killed General backed by a generated identity records outcome + an endOfCareerLine naming it, and stays excluded from re-draw', () => {
     const state = makeRewardState();
     state.turn = 9;

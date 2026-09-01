@@ -6,7 +6,7 @@ import { canCaptureDefeatedUnits, canReceiveCivilizationCombatRewards, CRISIS_FO
 import { awardGeneralProgress, GENERAL_PROGRESS_AWARDS, GENERAL_PROGRESS_XP_RATIO, STRONGER_FORCE_MARGIN, describeGeneralCareerEnd } from '@/systems/great-general-system';
 import { resolveGeneralDefinition } from '@/systems/great-general-definitions';
 import { consumeLastStandHoldFormationWide } from '@/systems/great-general-abilities';
-import { appendGeneralCareerEvent } from '@/systems/great-general-career';
+import { appendGeneralCareerEvent, summarizeGeneralCareer } from '@/systems/great-general-career';
 import type { GeneralCareerEventReason } from '@/core/types';
 import { recordHuntKillerIfApplicable } from '@/systems/hunt-crisis-linkage';
 import {
@@ -371,8 +371,14 @@ function recordGeneralDeaths(beforeUnits: Record<string, Unit>, state: GameState
                 ...entry,
                 diedTurn: state.turn,
                 outcome: 'died' as const,
-                endOfCareerLine: definition ? describeGeneralCareerEnd(definition, 'died') : undefined,
+                endOfCareerLine: definition
+                  ? describeGeneralCareerEnd(definition, 'died', summarizeGeneralCareer(entry))
+                  : undefined,
                 heroicCommandsUsed: general.generalCommandChargesUsed ?? 0,
+                // #887 MR1: terminal career event. Distinct from `retired` —
+                // retireGeneralsAtTurnEnd skips a General whose unit is already
+                // gone, so a killed General never also gets a `retired` event.
+                careerEvents: [...(entry.careerEvents ?? []), { type: 'killed' as const, turn: state.turn }],
               }
             : entry,
         ),
