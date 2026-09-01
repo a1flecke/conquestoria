@@ -256,6 +256,11 @@ export interface LastStandHoldState {
   formationId: string;
   defenseBonusMultiplier: number;
   expiresTurn: number; // inclusive: still active while state.turn <= expiresTurn
+  /** #887 MR1: the stable id of the General who issued this hold (gen_* or
+   * generated:*), so a `unit-saved` / `battle-influenced` career event can be
+   * attributed even after the General unit itself is gone. Absent on a
+   * pre-#887 in-flight hold — that one hold then yields no attribution. */
+  generalDefinitionId?: string;
 }
 
 export interface GeneralProgressState {
@@ -315,7 +320,34 @@ export interface GeneralHistoryEntry {
    * the unit's own generalCommandChargesUsed at the moment its career ends,
    * since the live Unit record is gone after removal. */
   heroicCommandsUsed?: number;
+  /** #887 MR1: the campaign chronicle — meaningful career moments recorded at
+   * canonical gameplay mutation sources (never reconstructed from later state).
+   * Appended in mutation order; same-turn order = array order. Absent on a
+   * pre-#887 entry (migration 24 backfills `[]` without fabricating history). */
+  careerEvents?: GeneralCareerEvent[];
 }
+
+/** #887 MR1: why a General is credited with influencing a battle. */
+export type GeneralCareerEventReason = 'last-stand' | 'seize';
+
+/**
+ * #887 MR1: one recorded moment in a Great General's career. Plain serializable
+ * facts only — no display strings, no #886 profile prose, no #885 specialty
+ * copy. Presentation resolves names/profile/specialty from the definition later.
+ * Stored inside the owning `GeneralHistoryEntry.careerEvents`.
+ */
+export type GeneralCareerEvent =
+  | { type: 'spawned'; turn: number }
+  | { type: 'rally-used'; turn: number; unitsAffected: number; totalHpRestored: number }
+  | { type: 'seize-used'; turn: number; unitsRefreshed: number }
+  | { type: 'last-stand-issued'; turn: number; unitsProtected: number }
+  | { type: 'unit-saved'; turn: number; via: 'last-stand'; unitId: string; unitType: UnitType; remainingHp: number; location: HexCoord }
+  | { type: 'battle-influenced'; turn: number; combatId: string; reasons: GeneralCareerEventReason[]; location: HexCoord }
+  | { type: 'city-defended'; turn: number; cityId: string; cityName: string }
+  | { type: 'city-captured'; turn: number; cityId: string; cityName: string }
+  | { type: 'final-command'; turn: number }
+  | { type: 'retired'; turn: number; reason: 'charges-expended' }
+  | { type: 'killed'; turn: number };
 
 export interface PendingGeneralCandidateChoice {
   civId: string;             // slayer civ; only this civ may resolve it
@@ -756,6 +788,12 @@ export interface Unit {
    * input for the remainder of this round, then cleared by resetUnitTurn at
    * this unit's owner's next turn. */
   rallyProtectedThisRound?: boolean;
+  /** #887 MR1: recording-only. Set by issueSeizeTheMoment on each unit whose
+   * action it refreshed; read (only when `turn === state.turn`) by combat/
+   * capture career attribution to credit that General with "battle influenced
+   * (seize)". Cleared by resetUnitTurn alongside rallyProtectedThisRound. Does
+   * NOT affect any gameplay resolution. */
+  seizeGrantedBy?: { generalDefinitionId: string; turn: number };
   /** #544 MR4 contract §20: Last Stand's defense bonus + one-time Hold save
    * for this unit's formation. Absent = not under Last Stand. */
   lastStandHold?: LastStandHoldState;
