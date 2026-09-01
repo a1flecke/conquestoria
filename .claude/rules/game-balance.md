@@ -165,6 +165,45 @@ MR12 added a second class of national-project effect distinct from `civYieldBonu
 - Discounts are fade-scaled by the project's `fadeMultiplier` (same 1.0 / 0.5 / 0.0 curve as yields) and are **multiplicative** with building discounts and tech discounts — not `Math.min`'d like same-class building discounts are. See `tests/systems/city-system.test.ts` "MR12 — national-project production discounts" for the exact-value regression.
 - `getProductionCostForItem` only computes this when callers pass `activeNationalProjects: ActiveNationalProjectRef[]` (from `getActiveNationalProjectsForCiv`). As of MR12 this is threaded through: `economy-system.ts` (rush-buy), `planning-system.ts` (idle-city recommendation), `quest-objective-system.ts` (caravan-queue-cost estimate), `ai-production.ts` (AI candidate scoring), and `city-panel.ts` (displayed cost). **Any new call site of `getProductionCostForItem` that can see a real city/civ must also pass `activeNationalProjects`, or a discount NP will silently not apply there** — there is no compiler or test error for a caller that simply omits the option, since it defaults to `[]`. When adding a new caller, check this list and add it, and prefer verifying the new caller's discounted cost in a test rather than assuming the default-`[]` path is fine.
 
+## Great General Specialty Bounds (#885)
+
+`src/systems/great-general-specialties.ts` gives authored Generals a bounded
+mechanical identity via a reusable typed specialty catalog.
+`resolveGeneralMechanics(def)` is the ONLY place divergence is applied; every
+ability / AI / UI consumer reads it (never a raw `GeneralDefinition` field or a
+magnitude constant). Enforced by `tests/systems/great-general-specialties.test.ts`
+and `tests/systems/great-general-specialty-balance.test.ts`.
+
+| Dimension | Baseline | Min | Max |
+|---|---|---:|---:|
+| commandRange | 2 | 1 | 3 |
+| commandCapacity | 3 | 2 | 4 |
+| maxCommandCharges | 3 | 2 | 4 |
+| cooldownTurns | 10 | 7 | 13 |
+| rally.healAmount | 30 | 20 | 50 |
+| lastStand.defenseMultiplier | 1.15 | 1.10 | 1.30 |
+| lastStand.durationTurns | 2 | 2 | 3 |
+| seize.extraTargets | 0 | 0 | 1 |
+
+**Rules for a new specialty or a change to an existing one:**
+
+- Every non-`generalist` specialty MUST have >= 1 dimension better AND >= 1 worse
+  than baseline (no strict upgrade), and MUST NOT Pareto-dominate another
+  specialty or `generalist`. `great-general-specialties.test.ts` enforces both.
+- Last Stand **radius** and passive-stabilization magnitude are NOT specialty
+  dimensions (radius 2 is too swingy; passive stabilization has no magnitude and
+  is a *supply* mechanic, unrelated to #919's unrest-relief ceilings).
+- `cooldownTurns` documented floor is 7; the resolver also hard-clamps every
+  field (range/capacity/charges/cooldown >= 1, heal >= 0). Never `cooldown 0`.
+- Generated officers (#888) and the universal fallback commanders
+  (`gen_universal_*`, `gen_hannibal`, `gen_thessaly`) stay `generalist`.
+- Adding a specialty = one `GENERAL_SPECIALTIES` entry + `GENERAL_SPECIALTY_ASSIGNMENTS`
+  edits + (optionally) one situational term in `chooseBestGeneralCandidate`
+  (`ai-general-command.ts`). NEVER a change to an ability consumer, NEVER a
+  General-ID branch.
+- Re-run `great-general-specialty-balance.test.ts` — each specialist must still
+  win its intended scenario and no specialty may win all six.
+
 ## Special Building Rules
 
 Special buildings (those with `requiresBuildings` chain prereqs or `coastalRequired`) may have **two yield types** — the condition is the balancing constraint. No ceiling applies beyond common sense (compare to similar-era wonders for reference).
