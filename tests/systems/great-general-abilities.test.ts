@@ -5,7 +5,7 @@ import {
   getLastStandPreview, issueLastStand, resolveLastStandDefenseBonus,
 } from '@/systems/great-general-abilities';
 import { createNewGame } from '@/core/game-state';
-import type { Unit } from '@/core/types';
+import type { GeneralCareerEvent, Unit } from '@/core/types';
 
 export function makeGeneral(overrides: Partial<Unit> = {}): Unit {
   return {
@@ -543,5 +543,91 @@ describe('#885 Seize the Moment extra-target for Bold Commander', () => {
     const { state, ids } = stateWithActedUnits('sz-mov', 'gen_caesar', 2);
     const after = issueSeizeTheMoment(state, 'gen-1', ids);
     expect(after.units[ids[0]!]!.movementPointsLeft).toBe(0);
+  });
+});
+
+// ===========================================================================
+// #887 MR1 — career events at ability issuance points
+// ===========================================================================
+
+function withHistory(state: ReturnType<typeof createNewGame>, generalId = 'gen_hannibal') {
+  state.civilizations.player.generalHistory = [
+    { unitId: 'gen-1', generalDefinitionId: generalId, spawnedTurn: 1, careerEvents: [{ type: 'spawned', turn: 1 }] },
+  ];
+  return state;
+}
+function events(state: ReturnType<typeof createNewGame>): GeneralCareerEvent[] {
+  return state.civilizations.player.generalHistory![0]!.careerEvents ?? [];
+}
+
+describe('#887 Rally records exactly one rally-used with counts', () => {
+  function hurtState(seed: string, generalId = 'gen_hannibal') {
+    const state = withHistory(createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed }), generalId);
+    state.units['gen-1'] = makeGeneral({ generalDefinitionId: generalId });
+    state.units['u1'] = {
+      id: 'u1', type: 'warrior', owner: 'player', position: { q: 1, r: 0 },
+      movementPointsLeft: 1, health: 40, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      landSupply: { state: 'degraded', hostileUnsupportedTurns: 3, suppliedTurnsSinceRecovery: 0 },
+    } as Unit;
+    state.civilizations.player.units = ['gen-1', 'u1'];
+    return state;
+  }
+  it('successful Rally → one rally-used (unitsAffected 1, totalHpRestored 30)', () => {
+    const after = issueRally(hurtState('c887-r1'), 'gen-1');
+    const ev = events(after).filter(e => e.type === 'rally-used');
+    expect(ev).toEqual([{ type: 'rally-used', turn: 1, unitsAffected: 1, totalHpRestored: 30 }]);
+  });
+  it('ineligible Rally (nothing in range) → no rally-used', () => {
+    const s = withHistory(createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'c887-r2' }));
+    s.units['gen-1'] = makeGeneral();
+    s.civilizations.player.units = ['gen-1'];
+    const after = issueRally(s, 'gen-1');
+    expect(events(after).some(e => e.type === 'rally-used')).toBe(false);
+  });
+});
+
+describe('#887 Seize records seize-used + tags units with seizeGrantedBy', () => {
+  function actedState(seed: string) {
+    const state = withHistory(createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed }));
+    state.units['gen-1'] = makeGeneral();
+    state.units['w0'] = { id: 'w0', type: 'warrior', owner: 'player', position: { q: 1, r: 0 },
+      movementPointsLeft: 0, health: 100, experience: 0, hasMoved: true, hasActed: true, isResting: false } as Unit;
+    state.civilizations.player.units = ['gen-1', 'w0'];
+    return state;
+  }
+  it('successful Seize → one seize-used; the refreshed unit carries seizeGrantedBy for this turn', () => {
+    const after = issueSeizeTheMoment(actedState('c887-s1'), 'gen-1', ['w0']);
+    expect(events(after).filter(e => e.type === 'seize-used')).toEqual([{ type: 'seize-used', turn: 1, unitsRefreshed: 1 }]);
+    expect(after.units['w0']!.seizeGrantedBy).toEqual({ generalDefinitionId: 'gen_hannibal', turn: 1 });
+  });
+  it('empty selection → no seize-used', () => {
+    const after = issueSeizeTheMoment(actedState('c887-s2'), 'gen-1', []);
+    expect(events(after).some(e => e.type === 'seize-used')).toBe(false);
+  });
+});
+
+describe('#887 Last Stand records last-stand-issued + stamps the hold with the issuer id', () => {
+  it('successful Last Stand → last-stand-issued; every protected unit hold.generalDefinitionId is the General id', () => {
+    const state = withHistory(createNewGame({ civType: 'england', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'c887-ls' }));
+    state.units['gen-1'] = makeGeneral();
+    state.units['u1'] = { id: 'u1', type: 'swordsman', owner: 'player', position: { q: 1, r: 0 },
+      movementPointsLeft: 1, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false } as Unit;
+    state.civilizations.player.units = ['gen-1', 'u1'];
+    const after = issueLastStand(state, 'gen-1', { q: 1, r: 0 });
+    expect(events(after).filter(e => e.type === 'last-stand-issued')).toEqual([{ type: 'last-stand-issued', turn: 1, unitsProtected: 1 }]);
+    expect(after.units['u1']!.lastStandHold!.generalDefinitionId).toBe('gen_hannibal');
+  });
+});
+
+describe('#887 Final Command is recorded on the last charge only', () => {
+  it('spending the charge that reaches the resolved max records final-command; earlier charges do not', () => {
+    const base = withHistory(createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'c887-fc' }));
+    base.units['gen-1'] = makeGeneral({ generalCommandChargesUsed: 0 });
+    const after1 = spendHeroicCommandCharge(base, 'gen-1'); // used 1 of 3
+    expect(events(after1).some(e => e.type === 'final-command')).toBe(false);
+    const s2 = { ...after1 };
+    s2.units = { ...s2.units, 'gen-1': { ...s2.units['gen-1']!, generalCommandChargesUsed: 2 } };
+    const after3 = spendHeroicCommandCharge(s2, 'gen-1'); // used 3 of 3
+    expect(events(after3).filter(e => e.type === 'final-command')).toEqual([{ type: 'final-command', turn: 1 }]);
   });
 });

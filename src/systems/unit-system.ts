@@ -821,6 +821,9 @@ export function resetUnitTurn(unit: Unit): Unit {
     generalNoCommandThisTurn: _generalNoCommandThisTurn,
     rallyProtectedThisRound: _rallyProtectedThisRound,
     hasCapturedCityThisTurn: _hasCapturedCityThisTurn,
+    // #887 MR1: Seize's recording-only battle-influence marker is per-owner-turn,
+    // like rallyProtectedThisRound above.
+    seizeGrantedBy: _seizeGrantedBy,
     ...rest
   } = unit;
   // #544: severe overextension reduces movement by 1, never below 1 (contract §3.3/§29).

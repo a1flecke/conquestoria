@@ -351,6 +351,13 @@ describe('spawnGeneralForCiv', () => {
     expect(result.civilizations.player.generalProgress!.points).toBe(50); // points carry over unchanged
   });
 
+  it('#887 — the new generalHistory entry opens with a spawned career event', () => {
+    const { state } = makeStateWithCapital('gen-spawn-887');
+    const result = spawnGeneralForCiv(state, 'player', 'gen_caesar');
+    expect(result.civilizations.player.generalHistory![0]!.careerEvents)
+      .toEqual([{ type: 'spawned', turn: state.turn }]);
+  });
+
   it('is a total no-op when the civ itself does not exist', () => {
     const state = makeGeneralsTestState('gen-spawn-5');
 

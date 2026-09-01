@@ -271,7 +271,13 @@ export function spawnGeneralForCiv(
         },
         generalHistory: [
           ...(civ.generalHistory ?? []),
-          { unitId: newUnit.id, generalDefinitionId, spawnedTurn: state.turn },
+          {
+            unitId: newUnit.id,
+            generalDefinitionId,
+            spawnedTurn: state.turn,
+            // #887 MR1: the chronicle opens with the spawn moment.
+            careerEvents: [{ type: 'spawned', turn: state.turn }],
+          },
         ],
       },
     },
