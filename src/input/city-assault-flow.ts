@@ -2,6 +2,7 @@ import type { EventBus } from '@/core/event-bus';
 import type { CombatResult, GameState } from '@/core/types';
 import {
   beginMajorCityAssault,
+  recordCityCaptureCareerEvents,
   resolveMajorCityCapture,
   type MajorCityAssaultFailureReason,
   type MajorCityCaptureDisposition,
@@ -50,5 +51,21 @@ export function finalizePlayerCityAssaultChoice(
   turn: number,
   bus?: EventBus,
 ): MajorCityCaptureResult {
-  return resolveMajorCityCapture(state, pending.cityId, state.currentPlayer, disposition, turn, bus);
+  // #887 MR1: capture the historical city name before resolve (a razed city is
+  // gone from state.cities afterwards). No precedingCombat is available here —
+  // it was consumed at beginMajorCityAssault time — but the capturing unit still
+  // carries its own same-turn lastStandHold / seizeGrantedBy markers, which is
+  // the attribution signal recordCityCaptureCareerEvents reads.
+  const cityName = state.cities[pending.cityId]?.name ?? '';
+  const result = resolveMajorCityCapture(state, pending.cityId, state.currentPlayer, disposition, turn, bus);
+  return {
+    ...result,
+    state: recordCityCaptureCareerEvents(
+      result.state,
+      pending.cityId,
+      cityName,
+      state.currentPlayer,
+      pending.attackerId,
+    ),
+  };
 }

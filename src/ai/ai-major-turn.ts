@@ -24,6 +24,7 @@ import {
   beginMajorCityAssault,
   canUnitOccupyCity,
   emitMajorCityCaptureEvents,
+  recordCityCaptureCareerEvents,
   resolveMajorCityCapture,
 } from '@/systems/city-capture-system';
 import { foundCityInState } from '@/systems/city-founding-system';
@@ -170,7 +171,19 @@ function occupyMajorCity(
     previousOwnerId,
     bus,
   );
-  return { state: capture.state, captured: true };
+  // #887 MR1: same transition-owned city-captured attribution as the human
+  // finalizePlayerCityAssaultChoice path — here precedingCombat (the
+  // garrison-breaking fight) is still in hand. Applied after event emission,
+  // which does not depend on careerEvents.
+  const withCareerEvents = recordCityCaptureCareerEvents(
+    capture.state,
+    cityId,
+    city.name,
+    civId,
+    attackerId,
+    precedingCombat,
+  );
+  return { state: withCareerEvents, captured: true };
 }
 
 function executeAttack(
