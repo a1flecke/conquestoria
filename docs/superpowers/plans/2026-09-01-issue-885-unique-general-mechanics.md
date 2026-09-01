@@ -1,5 +1,9 @@
 # Unique Great General Mechanics — Implementation Plan
 
+> **Status: ✅ implemented 2026-09-01.** All 17 tasks landed (some catalog/test
+> tasks folded together during inline execution). `yarn build` + full `yarn test`
+> green (558 files, 9725 passed / 3 skipped). See the #885 PR.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: this repo forbids subagents
 > (`CLAUDE.md` Agent Policy). Use `superpowers:executing-plans` to implement this
 > plan task-by-task, inline, in this session. Steps use checkbox (`- [ ]`) syntax.
