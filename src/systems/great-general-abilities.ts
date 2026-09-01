@@ -2,6 +2,7 @@ import type { GameState, HexCoord, LandSupplyState, LastStandHoldState, Unit } f
 import { resolveGeneralDefinition, type GeneralDefinition } from '@/systems/great-general-definitions';
 import { BASELINE_GENERAL_MECHANICS, resolveGeneralMechanics } from '@/systems/great-general-specialties';
 import { getEffectiveCommandStats } from '@/systems/great-general-system';
+import { appendGeneralCareerEvent } from '@/systems/great-general-career';
 import { mapDistance, mapHexesInRange } from '@/systems/hex-utils';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
@@ -69,17 +70,28 @@ export function spendHeroicCommandCharge(state: GameState, generalUnitId: string
   const definition = general ? resolveGeneralDefinition(state, general.generalDefinitionId) : undefined;
   if (!general || !definition) return state;
 
-  return {
+  const used = (general.generalCommandChargesUsed ?? 0) + 1;
+  const withSpend: GameState = {
     ...state,
     units: {
       ...state.units,
       [generalUnitId]: {
         ...general,
-        generalCommandChargesUsed: (general.generalCommandChargesUsed ?? 0) + 1,
+        generalCommandChargesUsed: used,
         generalCommandCooldownUntilTurn: state.turn + resolveGeneralMechanics(definition).cooldownTurns,
       },
     },
   };
+
+  // #887 MR1: the charge that reaches the (specialty-resolved) lifetime max IS
+  // the Final Command; retirement follows at end of this owner's turn.
+  if (used === resolveGeneralMechanics(definition).maxCommandCharges) {
+    return appendGeneralCareerEvent(withSpend, general.owner, general.generalDefinitionId, {
+      type: 'final-command',
+      turn: state.turn,
+    });
+  }
+  return withSpend;
 }
 
 // #885: Rally heal amount is now specialty-resolved (Supply Master 50, Tireless
@@ -168,9 +180,11 @@ export function issueRally(state: GameState, generalUnitId: string): GameState {
   if (!preview.eligibility.eligible || preview.targets.length === 0) return state;
 
   let units = { ...state.units };
+  let totalHpRestored = 0;
   for (const target of preview.targets) {
     const unit = units[target.unitId];
     if (!unit || !unit.landSupply) continue;
+    totalHpRestored += target.healthAfter - target.healthBefore;
     units[target.unitId] = {
       ...unit,
       health: target.healthAfter,
@@ -179,7 +193,16 @@ export function issueRally(state: GameState, generalUnitId: string): GameState {
     };
   }
 
-  return spendHeroicCommandCharge({ ...state, units }, generalUnitId);
+  const general = state.units[generalUnitId]!;
+  const afterSpend = spendHeroicCommandCharge({ ...state, units }, generalUnitId);
+  // #887 MR1: canonical "Rally used" career moment — counts + total HP only,
+  // no unit-id list, no snapshots.
+  return appendGeneralCareerEvent(afterSpend, general.owner, general.generalDefinitionId, {
+    type: 'rally-used',
+    turn: state.turn,
+    unitsAffected: preview.targets.length,
+    totalHpRestored,
+  });
 }
 
 // contract §20: "moderate defensive bonus... exact defense/area/duration are
@@ -261,13 +284,16 @@ export function issueLastStand(state: GameState, generalUnitId: string, targetHe
   const formationId = `${generalUnitId}-${state.turn}-${targetHex.q},${targetHex.r}`;
   // #885: the hold carries the *resolved* multiplier/duration this General had
   // when it was cast, so an in-flight hold never retro-changes on a content patch.
-  const lastStand = resolveGeneralMechanics(
-    resolveGeneralDefinition(state, state.units[generalUnitId]!.generalDefinitionId)!,
-  ).lastStand;
+  const general = state.units[generalUnitId]!;
+  const definition = resolveGeneralDefinition(state, general.generalDefinitionId)!;
+  const lastStand = resolveGeneralMechanics(definition).lastStand;
   const hold: LastStandHoldState = {
     formationId,
     defenseBonusMultiplier: lastStand.defenseMultiplier,
     expiresTurn: state.turn + lastStand.durationTurns,
+    // #887 MR1: stable issuer id so a unit-saved / battle-influenced career
+    // event resolves even after the General unit itself is gone.
+    generalDefinitionId: definition.id,
   };
 
   let units = { ...state.units };
@@ -277,7 +303,13 @@ export function issueLastStand(state: GameState, generalUnitId: string, targetHe
     units[target.unitId] = { ...unit, lastStandHold: hold };
   }
 
-  return spendHeroicCommandCharge({ ...state, units }, generalUnitId);
+  const afterSpend = spendHeroicCommandCharge({ ...state, units }, generalUnitId);
+  // #887 MR1: canonical "Last Stand issued" career moment.
+  return appendGeneralCareerEvent(afterSpend, general.owner, general.generalDefinitionId, {
+    type: 'last-stand-issued',
+    turn: state.turn,
+    unitsProtected: preview.targets.length,
+  });
 }
 
 /** Mirrors resolveLandSupplyCombatPenalty's { multiplier, label? } shape
@@ -387,11 +419,26 @@ export function issueSeizeTheMoment(
   if (toActivate.length === 0) return state;
 
   let units = { ...state.units };
+  let refreshed = 0;
   for (const unitId of toActivate) {
     const unit = units[unitId];
     if (!unit) continue;
-    units[unitId] = { ...unit, hasActed: false, hasMoved: false };
+    refreshed += 1;
+    units[unitId] = {
+      ...unit,
+      hasActed: false,
+      hasMoved: false,
+      // #887 MR1: recording-only marker so a battle this unit fights THIS turn
+      // can be credited to this General as "influenced (seize)". Read only when
+      // `.turn === state.turn`; cleared by resetUnitTurn.
+      seizeGrantedBy: { generalDefinitionId: definition.id, turn: state.turn },
+    };
   }
 
-  return spendHeroicCommandCharge({ ...state, units }, generalUnitId);
+  const afterSpend = spendHeroicCommandCharge({ ...state, units }, generalUnitId);
+  return appendGeneralCareerEvent(afterSpend, general.owner, general.generalDefinitionId, {
+    type: 'seize-used',
+    turn: state.turn,
+    unitsRefreshed: refreshed,
+  });
 }
