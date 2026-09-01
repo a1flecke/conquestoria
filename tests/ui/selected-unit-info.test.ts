@@ -449,6 +449,27 @@ describe('Great General identity display (#544 MR3)', () => {
     });
     expect(text).not.toContain('Specialty:');
   });
+
+  it('#885 hot-seat — player 2 selecting their own Swift Commander sees its specialty, not any rival state', () => {
+    const state = createNewGame(undefined, 's885-ui-hotseat', 'small');
+    const p2 = Object.keys(state.civilizations).find(id => id !== 'player')!;
+    const unit = {
+      ...createUnit('great_general', p2, { q: 15, r: 15 }, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 }),
+      id: 'u1', generalDefinitionId: 'gen_genghis',
+    };
+    state.currentPlayer = p2;
+    state.units = { u1: unit } as never;
+    state.civilizations[p2]!.units = ['u1'];
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+    const text = collectAllText(container).join(' ');
+    expect(text).toContain('Specialty: Swift Commander');
+    expect(text).toContain('Command range 3');
+    // the specialty line is derived only from the selected unit's own
+    // generalDefinitionId — no other General's name appears
+    expect(text).not.toContain('Field Commander');
+    expect(text).not.toContain('Defensive Commander');
+  });
 });
 
 describe('#544 MR4 — General command panel', () => {
