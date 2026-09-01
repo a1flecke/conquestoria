@@ -16,7 +16,12 @@ static specialties), #932 (candidate seed). Does not recreate any of them.
   **persists forever** (this is how "used General never returns" works —
   `generateGeneralCandidates` reads the ids).
 - Save schema `CURRENT_SAVE_SCHEMA_VERSION = 23` (migration 23 = `normalizeGeneratedGenerals`).
-  This MR adds **migration 24**.
+  This MR adds an unconditional additive normalization pass (`normalizeGeneralCareerLedger`)
+  in the `migrateSaveToCurrent` tail. **It does not take a numbered slot: schema
+  version 24 is already reserved for the pending research-cost retune**
+  (`research-cost-migration-v24.ts`, pinned by `research-pacing-report.test.ts`).
+  The tail pass is idempotent and fabricates no history, so it gives the same
+  guarantee a numbered migration would.
 
 ## Phase 1 — canonical event-source map
 
@@ -132,8 +137,8 @@ name is stored. Generated identities stay resolvable via #888's persisted
 **Review fix D:** `LastStandHoldState` gains **only** `generalDefinitionId`
 (dropped the `generalUnitId` — YAGNI; a future message resolves the name via
 `resolveGeneralDefinition`). Set at `issueLastStand` time so unit-saved /
-battle-influenced attribution survives the General unit dying. Bounded addition,
-covered by migration 24. A legacy save's in-flight hold has no
+battle-influenced attribution survives the General unit dying. Bounded addition.
+A legacy save's in-flight hold has no
 `generalDefinitionId` → that one hold yields no attribution (bounded, acceptable;
 the next issuance has it).
 
@@ -312,7 +317,7 @@ helper, not iterate all civs.
   file under `src/ai/` imports `great-general-career.ts`. The AI writes events
   (via shared domain sources) but never reads career history for a decision.
 
-## Phase 26 — migration 24 (`normalizeGeneralCareerLedger`)
+## Phase 26 — ledger normalization (`normalizeGeneralCareerLedger`, additive tail pass)
 
 For every civ's every `GeneralHistoryEntry`: `careerEvents = Array.isArray(x) ? x.filter(isValidCareerEvent) : []`.
 `isValidCareerEvent` = object with a string `type` in the known set and a numeric
@@ -347,8 +352,8 @@ immutable-append implementation.
    No duplicate mutable counters.
 6. **Same-turn order** — append order within the per-General `careerEvents[]`
    array (JSON-positional, save-format-guaranteed). No global seq in Phase A.
-7. **Legacy migration** — migration 24 sets `careerEvents: []` on old entries;
-   never fabricates history.
+7. **Legacy migration** — the `normalizeGeneralCareerLedger` tail pass sets
+   `careerEvents: []` on old entries; never fabricates history.
 8. **Retired/fallen generated General resolves** — yes; its `GeneralHistoryEntry`
    persists with `generalDefinitionId: 'generated:*'` and #888's registry entry
    persists; `resolveGeneralDefinition` still returns it.

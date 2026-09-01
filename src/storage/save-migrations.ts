@@ -21,7 +21,7 @@ import { normalizeStampedes } from '@/systems/stampede-system';
 import { normalizeRogueElephantHosts } from '@/systems/rogue-elephant-host-system';
 import { UNIT_ROLE_DEFINITIONS } from '@/systems/combat-role-definitions';
 
-export const CURRENT_SAVE_SCHEMA_VERSION = 24;
+export const CURRENT_SAVE_SCHEMA_VERSION = 23;
 
 export type SaveMigration = (state: GameState) => GameState;
 
@@ -344,10 +344,12 @@ export function normalizeGeneratedGenerals(state: GameState): GameState {
 // to a clean array WITHOUT fabricating any history (a legacy General's deeds are
 // simply unrecorded -- persist facts, don't invent them). Also drops any
 // structurally-malformed event so a corrupt file can't crash summarization.
-// Unconditional + idempotent, same additive-safety rationale as
-// normalizeGeneratedGenerals; also wired as numbered migration 24. The
-// known-type set below is the MR1 set -- a future MR that adds career-event
-// types adds its own migration rather than widening this one.
+// Runs unconditionally in the additive tail of migrateSaveToCurrent (NOT as a
+// numbered SAVE_MIGRATIONS slot -- version 24 is reserved for the research-cost
+// retune, see the note in SAVE_MIGRATIONS). Idempotent + additive, same
+// safety rationale as withReligionDefaults / normalizeCityFaithConversionProgress.
+// The known-type set below is the MR1 set -- a future MR that adds career-event
+// types adds its own pass rather than widening this one.
 const MR1_CAREER_EVENT_TYPES: ReadonlySet<string> = new Set([
   'spawned', 'rally-used', 'seize-used', 'last-stand-issued', 'unit-saved',
   'battle-influenced', 'city-defended', 'city-captured', 'final-command',
@@ -950,9 +952,14 @@ export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   // #888: default the fallback-generated-officer registry to {} on saves that
   // predate it, and scrub any malformed entries (see normalizeGeneratedGenerals).
   23: normalizeGeneratedGenerals,
-  // #887 MR1: normalize every GeneralHistoryEntry.careerEvents to a clean array
-  // (missing -> [], malformed entries dropped). Never fabricates history.
-  24: normalizeGeneralCareerLedger,
+  // NOTE: schema version 24 is reserved for the pending research-cost retune
+  // (`research-cost-migration-v24.ts` +
+  // `tests/scripts/research-pacing-report.test.ts`, which pins
+  // RESEARCH_COST_MIGRATION_TARGET_SCHEMA_VERSION === CURRENT_SAVE_SCHEMA_VERSION + 1).
+  // #887 MR1's career-ledger normalization therefore does NOT take a numbered
+  // slot -- it runs unconditionally in the additive tail of migrateSaveToCurrent
+  // (same pattern as withReligionDefaults / normalizeCityFaithConversionProgress),
+  // which is sufficient because it is idempotent and fabricates no history.
 };
 
 function readSchemaVersion(raw: Record<string, unknown>): number {

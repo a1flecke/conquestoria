@@ -359,6 +359,18 @@ describe('spawnGeneralForCiv', () => {
       .toEqual([{ type: 'spawned', turn: state.turn }]);
   });
 
+  it('#887 Phase 34 — an idle General accrues NO per-turn career events across many turns (only `spawned`)', () => {
+    const { state } = makeStateWithCapital('gen-spawn-887-idle');
+    let next = spawnGeneralForCiv(state, 'player', 'gen_caesar');
+    // A General that only sits and passively stabilizes must never grow its
+    // ledger — passive stabilization is deliberately not a recorded event.
+    for (let i = 0; i < 15; i += 1) {
+      next = processTurn(next, new EventBus());
+    }
+    const events = next.civilizations.player!.generalHistory![0]!.careerEvents ?? [];
+    expect(events).toEqual([{ type: 'spawned', turn: state.turn }]);
+  });
+
   it('is a total no-op when the civ itself does not exist', () => {
     const state = makeGeneralsTestState('gen-spawn-5');
 

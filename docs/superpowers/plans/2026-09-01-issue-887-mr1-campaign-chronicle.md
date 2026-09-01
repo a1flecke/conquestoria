@@ -15,10 +15,37 @@ with a pure aggregation helper and a viewer-safe boundary. **No Hall of Fame UI.
 - Attribution is conservative: only an active G-issued `lastStandHold` on, or G's
   same-turn `seizeGrantedBy` to, a combat participant counts as "influenced".
 - One `battle-influenced` / `city-defended` / `city-captured` per `(General, event)`.
-- Migration 24 never fabricates events for legacy saves.
+- The save-load ledger normalization never fabricates events for legacy saves.
 - No new bus events, no new notifications/SFX, no UI. The only player-facing
   change: the existing end-of-career line gains a terse career-stat clause.
 - Commit trailer: `Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>`.
+
+---
+
+## Status — all tasks complete (branch `claude/general-biographies-facts-106826`)
+
+- ✅ **Task 1** — types + `great-general-career.ts` (append + summary + viewer helpers).
+- ✅ **Task 2** — `spawned` at `spawnGeneralForCiv`; ability events (`rally-used`,
+  `seize-used`, `last-stand-issued`, `final-command`) in `great-general-abilities.ts`;
+  `LastStandHoldState.generalDefinitionId` + `Unit.seizeGrantedBy`; `resetUnitTurn`
+  strips `seizeGrantedBy`.
+- ✅ **Task 4** — `unit-saved` / `battle-influenced` / `city-defended` in
+  `applyCombatOutcomeToState` (`recordGeneralCareerCombatEvents`).
+- ✅ **Task 5** — `recordCityCaptureCareerEvents` wired at the two real capture
+  sites (`finalizePlayerCityAssaultChoice`, `occupyMajorCity`) with parity tests.
+  Human seam is the flow module, not `main.ts` (stale plan reference).
+- ✅ **Task 6** — terminal `killed` / `retired` events; `describeGeneralCareerEnd`
+  gains optional `summary` → factual highlight clause (byte-identical for a
+  spawn-only career).
+- ✅ **Task 7** — `normalizeGeneralCareerLedger`. **Deviation:** schema version 24
+  is already reserved for the pending research-cost retune
+  (`research-cost-migration-v24.ts` + `research-pacing-report.test.ts` pins
+  `TARGET === CURRENT + 1`), so the normalization runs unconditionally in the
+  additive tail of `migrateSaveToCurrent` rather than as numbered migration 24.
+  Idempotent, fabricates no history — equivalent guarantee.
+- ✅ **Task 8** — AI-import guard, Phase 34 bounded-volume + no-per-turn-growth
+  regressions, full targeted regression + `yarn build` + `yarn test` green, docs
+  synced. **No Hall of Fame UI — that is #887 MR2.**
 
 ---
 
