@@ -19,6 +19,8 @@ import { getStrategicArsenal, getStrategicArsenalCapacity } from '@/systems/stra
 import { isSuperweaponsEnabled } from '@/systems/superweapons-flag';
 import { getEligibleStrategicLaunchPlatforms } from '@/systems/strategic-launch-system';
 import { hasArmsControlTreaty } from '@/systems/diplomacy-system';
+import { getEffectiveTechCost, getTechById } from '@/systems/tech-system';
+import { PRE_V24_TECH_COST_BY_ID } from '@/storage/research-cost-migration-v24';
 
 describe('save migrations', () => {
   it('#701 initializes and normalizes crisis-force records idempotently', () => {
@@ -477,11 +479,13 @@ describe('save migrations', () => {
     const prose = 'Quantum Computing is now Cloud Computing.';
 
     const migrated = migrateSaveToCurrent(legacySave);
+    const oldCost = PRE_V24_TECH_COST_BY_ID['cloud-computing']!;
+    const newCost = getEffectiveTechCost(getTechById('cloud-computing')!, []);
 
     expect(migrated.civilizations.player.techState).toMatchObject({
       currentResearch: 'cloud-computing',
       researchQueue: ['genomics'],
-      researchProgress: 420,
+      researchProgress: Math.min(newCost - 1, Math.round((420 / oldCost) * newCost)),
     });
     expect(migrated.civilizations['ai-1'].techState.completed).toEqual(['cloud-computing']);
     expect(migrated.opponentAI?.majorCivs['ai-1'].researchTargetTechId).toBe('cloud-computing');

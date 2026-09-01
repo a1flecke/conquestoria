@@ -1,5 +1,5 @@
 import { deriveGeneralCandidateSeed, finalizeOpponentRoundState, processTurn } from '@/core/turn-manager';
-import { createNewGame } from '@/core/game-state';
+import { createHotSeatGame, createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import type { CustomCivDefinition, GameState, HexCoord, Unit, UnitType } from '@/core/types';
 import { TECH_TREE } from '@/systems/tech-definitions';
@@ -21,6 +21,7 @@ import { createTechState } from '@/systems/tech-system';
 import { processIndependentThreatPressure } from '@/systems/threat-pressure-system';
 import { resolveCombatEra } from '@/systems/era-resolution';
 import { isWithinRangeOfNeuralRehabilitationCenter } from '@/systems/unit-modifier-system';
+import { calculateCivResearchOutput } from '@/systems/research-output-system';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -637,6 +638,46 @@ describe('processTurn', () => {
 
     const newState = processTurn(state, bus);
     expect(newState.civilizations.player.techState.researchProgress).toBeGreaterThan(0);
+  });
+
+  it('advances each human hot-seat owner by that owner\'s canonical final research only', () => {
+    const state = createHotSeatGame({
+      playerCount: 2,
+      mapSize: 'small',
+      players: [
+        { name: 'Alice', slotId: 'player-1', civType: 'england', isHuman: true },
+        { name: 'Bob', slotId: 'player-2', civType: 'germany', isHuman: true },
+        { name: 'Rome', slotId: 'ai-1', civType: 'rome', isHuman: false },
+      ],
+    }, 'research-hot-seat-owner-parity');
+    state.currentPlayer = 'player-1';
+
+    for (const [civId, techId, buildings] of [
+      ['player-1', 'fire', ['shrine']],
+      ['player-2', 'gathering', []],
+    ] as const) {
+      const civ = state.civilizations[civId]!;
+      const city = foundCity(civId, state.units[civ.units[0]!]!.position, state.map, state.idCounters);
+      city.buildings = [...buildings];
+      state.cities[city.id] = city;
+      civ.cities = [city.id];
+      civ.techState.currentResearch = techId;
+      civ.techState.researchProgress = 0;
+      civ.techState.researchQueue = [];
+    }
+    state.civilizations['player-2']!.researchPenaltyTurns = 1;
+    state.civilizations['player-2']!.researchPenaltyMultiplier = 0.5;
+
+    const before = new Map(['player-1', 'player-2'].map(civId => [
+      civId,
+      calculateCivResearchOutput(state, civId).finalScience,
+    ]));
+    const result = processTurn(state, new EventBus());
+
+    for (const civId of ['player-1', 'player-2']) {
+      expect(result.civilizations[civId]!.techState.researchProgress).toBe(before.get(civId));
+    }
+    expect(before.get('player-1')).not.toBe(before.get('player-2'));
   });
 
   it('updates city maturity and grid size from population plus qualifying techs during turn processing', () => {

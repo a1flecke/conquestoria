@@ -22,14 +22,12 @@ describe('era 12 tech tree', () => {
     }
   });
 
-  // Range widened by MR13/#481 Part E: era 10-12 research output baselines were re-grounded
-  // against a real reference-economy fixture (tests/systems/pacing-reference-economy.test.ts),
-  // which came out substantially higher than the old guessed constants — era 12 tech costs
-  // were retuned upward to match so turns-to-research stays in the same target window.
-  it('all era 12 techs cost in 1300–2800 range', () => {
+  // MR3's fixed-point retune keeps its marquee ceiling below 3,100 while the
+  // scenario report verifies the actual turns-to-research targets.
+  it('all era 12 techs cost in 1300–3100 range', () => {
     for (const t of era12Techs) {
       expect(t.cost, `${t.id} cost out of range`).toBeGreaterThanOrEqual(1300);
-      expect(t.cost, `${t.id} cost out of range`).toBeLessThanOrEqual(2800);
+      expect(t.cost, `${t.id} cost out of range`).toBeLessThanOrEqual(3100);
     }
   });
 

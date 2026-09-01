@@ -28,6 +28,21 @@ describe('calculateCivResearchOutput', () => {
     });
   });
 
+  it('uses diminishing coordination by default for the #917 distribution', () => {
+    const state = createNewGame('rome', 'issue-917-default-coordination', 'small');
+    const authoritativeCityScience = Object.fromEntries(
+      ISSUE_917_CITY_SCIENCE.map((science, index) => [`city-${index + 1}`, science]),
+    );
+
+    const breakdown = calculateCivResearchOutput(state, 'player', { authoritativeCityScience });
+
+    expect(breakdown).toMatchObject({
+      grossCityScience: 58,
+      coordinatedCityScience: 24,
+      finalScience: 24,
+    });
+  });
+
   it('does not invent optional bonus or penalty rows when their contributors are absent', () => {
     const state = createNewGame('rome', 'issue-917-no-optional-contributors', 'small');
 

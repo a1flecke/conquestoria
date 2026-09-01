@@ -33,30 +33,28 @@ describe('research pacing report', () => {
     expect(report.failures).toEqual([]);
   });
 
-  it('keeps legacy costs diagnostic while proposed costs satisfy the authored gates', () => {
-    const legacy = buildResearchPacingReport();
+  it('keeps the activated cost catalog and its fixed-point proposal inside the authored gates', () => {
+    const current = buildResearchPacingReport();
     const proposed = buildResearchPacingReport({ proposedCosts: true });
 
-    expect(legacy.failures.length).toBeGreaterThan(0);
-    expect(legacy.failures.join('\n')).toMatch(/#917|one-turn|continuity/i);
+    expect(current.failures).toEqual([]);
     expect(proposed.failures).toEqual([]);
   });
 
-  it('covers every changed cost once and leaves live tech definitions untouched', () => {
+  it('makes the activated catalog equal the feedback fixed point and preserves one migration source map', () => {
     const report = buildResearchPacingReport({ proposedCosts: true });
     const currentCosts = new Map(TECH_TREE.map(tech => [tech.id, tech.cost]));
 
-    expect(report.changedCostIds.length).toBeGreaterThan(0);
+    expect(report.changedCostIds).toEqual([]);
     expect(new Set(report.changedCostIds).size).toBe(report.changedCostIds.length);
     expect(report.changedCostIds.every(id => currentCosts.has(id))).toBe(true);
-    expect(RESEARCH_COST_MIGRATION_TARGET_SCHEMA_VERSION).toBe(CURRENT_SAVE_SCHEMA_VERSION + 1);
-    expect(Object.keys(PRE_V24_TECH_COST_BY_ID).sort()).toEqual(report.changedCostIds);
-    expect(Object.keys(RECOMMENDED_TECH_COST_BY_ID).sort()).toEqual(report.changedCostIds);
+    expect(RESEARCH_COST_MIGRATION_TARGET_SCHEMA_VERSION).toBe(CURRENT_SAVE_SCHEMA_VERSION);
+    expect(Object.keys(PRE_V24_TECH_COST_BY_ID).sort()).toEqual(Object.keys(RECOMMENDED_TECH_COST_BY_ID).sort());
     const formulaCosts = getProposedResearchCostById();
-    for (const id of report.changedCostIds) {
-      expect(PRE_V24_TECH_COST_BY_ID[id]).toBe(currentCosts.get(id));
-      expect(RECOMMENDED_TECH_COST_BY_ID[id]).not.toBe(currentCosts.get(id));
-      expect(RECOMMENDED_TECH_COST_BY_ID[id]).toBe(formulaCosts[id]);
+    for (const [id, currentCost] of currentCosts) {
+      expect(PRE_V24_TECH_COST_BY_ID[id]).not.toBeUndefined();
+      expect(RECOMMENDED_TECH_COST_BY_ID[id]).toBe(currentCost);
+      expect(formulaCosts[id]).toBe(currentCost);
     }
   });
 

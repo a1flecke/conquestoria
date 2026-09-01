@@ -2,6 +2,8 @@ import {
   TECH_TREE,
   createTechState,
   getAvailableTechs,
+  getEffectiveTechCost,
+  getTechById,
   applyResearchBonus,
   startResearch,
   processResearch,
@@ -163,7 +165,7 @@ describe('processResearch', () => {
     const updated = {
       ...startResearch(state, 'fire'),
       researchQueue: ['writing'],
-      researchProgress: 7,
+      researchProgress: getEffectiveTechCost(getTechById('fire')!, []) - 1,
     };
 
     const result = processResearch(updated, 1);
@@ -175,7 +177,10 @@ describe('processResearch', () => {
 
   it('completes active research through a bonus instead of leaving full progress active', () => {
     const state = startResearch(createTechState(), 'fire');
-    const result = applyResearchBonus({ ...state, researchProgress: 7 }, 1);
+    const result = applyResearchBonus({
+      ...state,
+      researchProgress: getEffectiveTechCost(getTechById('fire')!, []) - 1,
+    }, 1);
 
     expect(result.completedTech).toBe('fire');
     expect(result.state.completed).toContain('fire');

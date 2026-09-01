@@ -6,6 +6,7 @@ import {
   canMoveQueuedResearch,
   getDerivedTechTracks,
   getQueueableResearchIds,
+  simulateResearchQueueTiming,
 } from '@/systems/tech-progression';
 
 describe('tech progression view model', () => {
@@ -104,9 +105,21 @@ describe('tech progression view model', () => {
       researchQueue: ['fire'],
     }, { sciencePerTurn: 3, zoom: 'all' });
 
-    expect(view.nodesById.get('stone-weapons')?.turnsToResearch).toBe(1);
-    expect(view.nodesById.get('fire')?.turnsToResearch).toBe(2);
+    expect(view.nodesById.get('stone-weapons')?.turnsToResearch).toBe(6);
+    expect(view.nodesById.get('fire')?.turnsToResearch).toBe(13);
     expect(view.nodesById.get('banking')?.turnsToResearch).toBeNull();
+  });
+
+  it('simulates queued research one completion per turn and discards overflow', () => {
+    const timing = simulateResearchQueueTiming({
+      ...createTechState(),
+      currentResearch: 'fire',
+      researchProgress: 0,
+      researchQueue: ['writing'],
+    }, 100);
+
+    expect(timing.get('fire')).toEqual({ startTurns: 0, finishTurns: 1 });
+    expect(timing.get('writing')).toEqual({ startTurns: 1, finishTurns: 2 });
   });
 
   it('returns the dependency path for a selected goal without including unrelated same-track techs', () => {

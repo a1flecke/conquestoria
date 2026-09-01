@@ -193,7 +193,10 @@ describe('visitVillage', () => {
 
     expect(result.outcome).toBe('science');
     expect(state.civilizations.player.techState.completed).not.toContain('fire');
-    expect(state.civilizations.player.techState.researchProgress).toBe(fire.cost - 1);
+    // The deterministic reward roll is 8.  Under the former 9-cost Fire
+    // table the completion cap bound it to cost - 1; the MR3 cost is higher,
+    // so the same reward remains a partial grant without completing research.
+    expect(state.civilizations.player.techState.researchProgress).toBe(Math.min(8, fire.cost - 1));
     expect(result.message).toContain('getting closer to understanding Fire');
   });
 

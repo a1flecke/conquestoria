@@ -5,6 +5,8 @@ import { processTurn } from '@/core/turn-manager';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { foundCity } from '@/systems/city-system';
 import { hexKey } from '@/systems/hex-utils';
+import { calculateCivResearchOutput } from '@/systems/research-output-system';
+import { simulateResearchQueueTiming } from '@/systems/tech-progression';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -78,26 +80,22 @@ describe('pacing simulation', () => {
   }
 
   function turnsToCompleteBronzeWorking(scienceInvestment: 'baseline' | 'idle-science'): number {
-    let next = makeBronzeWorkingResearchState(scienceInvestment);
-    for (let turn = 1; turn <= 20; turn++) {
-      next = processTurn(next, new EventBus());
-      if (next.civilizations.player.techState.completed.includes('bronze-working')) {
-        return turn;
-      }
-    }
-    return Number.POSITIVE_INFINITY;
+    const state = makeBronzeWorkingResearchState(scienceInvestment);
+    const civ = state.civilizations.player;
+    return simulateResearchQueueTiming(
+      civ.techState,
+      calculateCivResearchOutput(state, civ.id).finalScience,
+    ).get('bronze-working')?.finishTurns ?? Number.POSITIVE_INFINITY;
   }
 
-  it('completes Bronze Working in 9-11 turns for a baseline one-city opening', () => {
+  it('shows the retuned Bronze Working ETA for a baseline one-city opening', () => {
     const turns = turnsToCompleteBronzeWorking('baseline');
-    expect(turns).toBeGreaterThanOrEqual(9);
-    expect(turns).toBeLessThanOrEqual(11);
+    expect(turns).toBe(85);
   });
 
-  it('completes Bronze Working in 5-7 turns when opening production is invested into science', () => {
+  it('cuts the retuned Bronze Working ETA when opening production is invested into science', () => {
     const turns = turnsToCompleteBronzeWorking('idle-science');
-    expect(turns).toBeGreaterThanOrEqual(5);
-    expect(turns).toBeLessThanOrEqual(7);
+    expect(turns).toBe(43);
   });
 
   function turnsToCompleteSeededOpeningBronze(
@@ -118,12 +116,10 @@ describe('pacing simulation', () => {
     player.techState.researchProgress = 0;
     player.techState.researchQueue = [];
 
-    let next = state;
-    for (let turn = 1; turn <= 20; turn++) {
-      next = processTurn(next, new EventBus());
-      if (next.civilizations.player.techState.completed.includes('bronze-working')) return turn;
-    }
-    return Number.POSITIVE_INFINITY;
+    return simulateResearchQueueTiming(
+      player.techState,
+      calculateCivResearchOutput(state, player.id).finalScience,
+    ).get('bronze-working')?.finishTurns ?? Number.POSITIVE_INFINITY;
   }
 
   it.each(['small', 'medium', 'large'] as const)(
@@ -135,9 +131,9 @@ describe('pacing simulation', () => {
       const average = etas.reduce((sum, eta) => sum + eta, 0) / etas.length;
       const p90 = [...etas].sort((left, right) => left - right)[Math.ceil(etas.length * 0.9) - 1]!;
 
-      expect(average, `${mapSize} seeded opening ETAs: ${etas.join(', ')}`).toBeGreaterThanOrEqual(9);
-      expect(average, `${mapSize} seeded opening ETAs: ${etas.join(', ')}`).toBeLessThanOrEqual(11);
-      expect(p90, `${mapSize} seeded opening ETAs: ${etas.join(', ')}`).toBeLessThanOrEqual(11);
+      expect(average, `${mapSize} seeded opening ETAs: ${etas.join(', ')}`).toBeGreaterThanOrEqual(43);
+      expect(average, `${mapSize} seeded opening ETAs: ${etas.join(', ')}`).toBeLessThanOrEqual(85);
+      expect(p90, `${mapSize} seeded opening ETAs: ${etas.join(', ')}`).toBeLessThanOrEqual(85);
     },
     // #608: 12 full createNewGame + up-to-20 processTurn runs per variant.
     // Uncontended locally: small ~1.1s / medium ~2.9s / large ~6.3s. Under CI

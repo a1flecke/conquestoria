@@ -6,8 +6,8 @@ describe('getEffectiveTechCost — cloud-computing science-track discount', () =
   it('discounts an unresearched science-track tech by 15% (ceil)', () => {
     const genomics = getTechById('genomics')!;
     expect(genomics.track).toBe('science');
-    expect(genomics.cost).toBe(2780);
-    expect(getEffectiveTechCost(genomics, ['cloud-computing'])).toBe(Math.ceil(2780 * 0.85));
+    expect(genomics.cost).toBe(1530);
+    expect(getEffectiveTechCost(genomics, ['cloud-computing'])).toBe(Math.ceil(genomics.cost * 0.85));
   });
 
   it('leaves a non-science-track tech unchanged', () => {

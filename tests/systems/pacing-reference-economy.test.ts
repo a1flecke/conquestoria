@@ -178,13 +178,13 @@ describe('representative multi-city reference economy', () => {
     });
 
     expect(outputs).toEqual([
-      { era: 10, cityCount: 5, total: { science: 590, production: 520 }, averagePerCity: { science: 117.9, production: 103.92 } },
-      { era: 11, cityCount: 5, total: { science: 734, production: 607 }, averagePerCity: { science: 146.7, production: 121.4 } },
-      { era: 12, cityCount: 5, total: { science: 829, production: 607 }, averagePerCity: { science: 165.8, production: 121.4 } },
-      // MR5's live Era-13 city effects, research/building follow-ups, and
-      // production-budgeted 7-turn costs deliberately raise this diagnostic
-      // reference. This is a gameplay target update, not a snapshot workaround.
-      { era: 13, cityCount: 5, total: { science: 1220, production: 775 }, averagePerCity: { science: 243.9, production: 155 } },
+      // MR3's deterministic all-era cost table changes when representative
+      // infrastructure becomes available, so this timeline-derived diagnostic
+      // is deliberately repinned alongside the report's scenario gates.
+      { era: 10, cityCount: 5, total: { science: 594, production: 504 }, averagePerCity: { science: 118.8, production: 100.8 } },
+      { era: 11, cityCount: 5, total: { science: 723, production: 589 }, averagePerCity: { science: 144.5, production: 117.8 } },
+      { era: 12, cityCount: 5, total: { science: 948, production: 607 }, averagePerCity: { science: 189.6, production: 121.4 } },
+      { era: 13, cityCount: 5, total: { science: 1192, production: 685 }, averagePerCity: { science: 238.4, production: 137 } },
     ]);
   }, 60_000);
 

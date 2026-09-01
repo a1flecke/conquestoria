@@ -764,9 +764,9 @@ describe('tech-panel', () => {
     });
 
     expect(panel.textContent).toContain('Researching: Bronze Working');
-    expect(panel.textContent).toMatch(/Turns remaining: (9|10|11)/);
+    expect(panel.textContent).toContain('Turns remaining: 85');
     expect(panel.querySelector('[data-tech-id="bronze-working"]')?.textContent).not.toContain('50 turns');
-    expect(panel.querySelector('[data-tech-id="bronze-working"]')?.textContent).toMatch(/(9|10|11) turns/);
+    expect(panel.querySelector('[data-tech-id="bronze-working"]')?.textContent).toContain('85 turns');
   });
 
   it('updates visible Bronze Working ETA when opening production is invested into science', () => {
@@ -780,9 +780,9 @@ describe('tech-panel', () => {
     });
 
     expect(panel.textContent).toContain('Researching: Bronze Working');
-    expect(panel.textContent).toMatch(/Turns remaining: (5|6|7)/);
-    expect(panel.textContent).not.toMatch(/Turns remaining: (9|10|11)/);
-    expect(panel.querySelector('[data-tech-id="bronze-working"]')?.textContent).toMatch(/(5|6|7) turns/);
+    expect(panel.textContent).toContain('Turns remaining: 43');
+    expect(panel.textContent).not.toContain('Turns remaining: 85');
+    expect(panel.querySelector('[data-tech-id="bronze-working"]')?.textContent).toContain('43 turns');
   });
 
   // --- MR-A: formatTechNodeEta and createTechNode detail text ---

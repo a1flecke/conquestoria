@@ -123,6 +123,20 @@ describe('AudioSystem integration', () => {
     expect(ctx.transcript.length).toBe(before);
   });
 
+  it('plays one research-completion stinger for the current viewer and none for hidden opponents', async () => {
+    const state = makeState({ currentPlayer: 'rome' });
+    ctx.state = 'running';
+    system.start(state, busHelper.bus, () => state);
+    await flushPromises();
+    ctx.clearTranscript();
+
+    busHelper.emit('tech:completed', { civId: 'rome', techId: 'writing' });
+    busHelper.emit('tech:completed', { civId: 'egypt', techId: 'writing' });
+    await flushPromises();
+
+    expect(ctx.transcript.filter(entry => entry.op === 'start')).toHaveLength(1);
+  });
+
   it('plays one strategic warning cue for the current viewer and turn', async () => {
     const state = makeState({ turn: 7 });
     ctx.state = 'running';

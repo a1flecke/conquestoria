@@ -42,21 +42,21 @@ export function validateAuthoredResearchPacing(techs: readonly Tech[] = TECH_TRE
 }
 
 function findTech(techId: string, techs: Tech[]): Tech | undefined { return techs.find(candidate => candidate.id === techId); }
-export function isStarterPrerequisiteTech(tech: Tech): boolean {
-  return tech.era === 1 && tech.prerequisites.length === 0 && resolveTechPacingBand(tech) === 'starter';
+export function isStarterPrerequisiteTech(tech: Tech, techs: Tech[] = TECH_TREE): boolean {
+  return tech.era === 1 && tech.prerequisites.length === 0 && resolveTechPacingBand(tech, techs) === 'starter';
 }
 export function isFirstRealUnlockTech(tech: Tech, techs: Tech[] = TECH_TREE): boolean {
   if (tech.era > 2 || tech.prerequisites.length !== 1) return false;
   const prerequisite = findTech(tech.prerequisites[0], techs);
-  return Boolean(prerequisite && isStarterPrerequisiteTech(prerequisite));
+  return Boolean(prerequisite && isStarterPrerequisiteTech(prerequisite, techs));
 }
 export function getResearchOutputProfileForTech(tech: Tech, techs: Tech[] = TECH_TREE): ResearchOutputProfile {
-  if (isStarterPrerequisiteTech(tech) || isFirstRealUnlockTech(tech, techs)) return requireResearchPacingScenario(1);
+  if (isStarterPrerequisiteTech(tech, techs) || isFirstRealUnlockTech(tech, techs)) return requireResearchPacingScenario(1);
   return requireResearchPacingScenario(tech.era <= 1 ? 2 : tech.era);
 }
 export function getRecommendedTechTurnWindow(tech: Tech, techs: Tech[] = TECH_TREE): { min: number; max: number } {
   if (tech.id === 'bronze-working') return { min: 9, max: 11 };
-  if (isStarterPrerequisiteTech(tech)) return { min: 2, max: 5 };
+  if (isStarterPrerequisiteTech(tech, techs)) return { min: 2, max: 5 };
   if (isFirstRealUnlockTech(tech, techs)) return { min: 8, max: 12 };
   const [min, max] = tech.era <= 1 ? RESEARCH_BAND_WINDOWS[resolveTechPacingBand(tech)].early : RESEARCH_BAND_WINDOWS[resolveTechPacingBand(tech)].late;
   return { min, max };
@@ -95,8 +95,9 @@ export function recommendResearchCost(
   const window = getRecommendedTechTurnWindow(tech, techs);
   const multiplier = getMetadataComplexityMultiplier(metadataForTech(tech));
   const base = roundReadableResearchCost(scenario.standardNetScience * ((window.min + window.max) / 2) * multiplier);
+  const band = resolveTechPacingBand(tech, techs);
   const wideMinimum = roundReadableResearchCost(
-    scenario.wideNetScience * (resolveTechPacingBand(tech) === 'power-spike' || resolveTechPacingBand(tech) === 'marquee' ? 2 : 1) + 1,
+    scenario.wideNetScience * (band === 'power-spike' || band === 'marquee' ? 2 : 1) + 1,
   );
   const tallMaximum = roundReadableResearchCost(
     scenario.tallNetScience * Math.ceil(1.5 * window.max),
@@ -182,14 +183,17 @@ function buildingChainsFrom(buildingId: string): boolean {
   return chainedBuildingIdsCache.has(buildingId);
 }
 export function resolveEraRelativeCostBand(tech: Tech, techs: Tech[] = TECH_TREE): PacingBand {
-  const peers = techs.filter(candidate => candidate.era === tech.era); const percentile = peers.length ? peers.filter(candidate => candidate.cost <= tech.cost).length / peers.length : 1; const prereqs = tech.prerequisites.length;
-  if (tech.countsForEraAdvancement === false || (tech.unlocksUnits?.length ?? 0) > 0 || (prereqs >= 2 && percentile >= .85)) return 'marquee';
-  if ((tech.unlocksBuildings ?? []).some(buildingChainsFrom) || (prereqs >= 2 && percentile >= .6)) return 'power-spike';
-  if (prereqs >= 2 || percentile >= .6) return 'specialist'; if (percentile >= .35) return 'infrastructure'; return percentile >= .15 ? 'core' : 'starter';
+  void techs;
+  const prereqs = tech.prerequisites.length;
+  if (tech.countsForEraAdvancement === false || (tech.unlocksUnits?.length ?? 0)) return 'marquee';
+  if ((tech.unlocksBuildings ?? []).some(buildingChainsFrom)) return 'power-spike';
+  if (prereqs >= 2) return 'specialist';
+  if (prereqs === 1) return 'infrastructure';
+  return 'core';
 }
-export function resolveTechPacingBand(tech: Tech): PacingBand {
+export function resolveTechPacingBand(tech: Tech, techs: Tech[] = TECH_TREE): PacingBand {
   if (tech.pacing) return tech.pacing.band;
   if (tech.era === 1 && tech.prerequisites.length === 0 && tech.cost <= 25) return 'starter';
   if (tech.era <= 4) { if (tech.prerequisites.length >= 2 && tech.cost >= 90) return 'power-spike'; if (tech.prerequisites.length >= 2 || tech.cost >= 80) return 'specialist'; if (tech.era >= 4 && tech.cost >= 70) return 'power-spike'; return tech.cost >= 55 ? 'infrastructure' : 'core'; }
-  return resolveEraRelativeCostBand(tech, TECH_TREE);
+  return resolveEraRelativeCostBand(tech, techs);
 }

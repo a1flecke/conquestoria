@@ -22,11 +22,12 @@ describe('era 10 tech tree', () => {
     }
   });
 
-  // Range widened by MR13/#481 Part E: see the matching comment in tests/systems/era-12.test.ts.
-  it('all era 10 techs have cost in 900–1900 range', () => {
+  // MR3's fixed-point retune preserves the era envelope while allowing marquee
+  // unlocks to be longer than the core branch pace.
+  it('all era 10 techs have cost in 900–2100 range', () => {
     for (const t of era10Techs) {
       expect(t.cost, `${t.id} cost out of range`).toBeGreaterThanOrEqual(900);
-      expect(t.cost, `${t.id} cost out of range`).toBeLessThanOrEqual(1900);
+      expect(t.cost, `${t.id} cost out of range`).toBeLessThanOrEqual(2100);
     }
   });
 

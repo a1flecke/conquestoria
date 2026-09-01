@@ -14,7 +14,7 @@ describe('tech definitions', () => {
     expect(bridge).toMatchObject({
       name: 'Dreadnought Construction',
       track: 'maritime',
-      cost: 275,
+      cost: 1740,
       prerequisites: ['naval-armor', 'bessemer-steel'],
       unlocksUnits: ['battleship'],
       era: 9,
@@ -280,7 +280,7 @@ describe('tech definitions', () => {
 });
 
 describe('opening research pacing data', () => {
-  it('keeps starter prerequisites inside the 2-5 turn baseline window', () => {
+  it('keeps starter prerequisites in the explicit 17–20 cost band', () => {
     const starters = TECH_TREE.filter(tech => isStarterPrerequisiteTech(tech));
     expect(starters.map(tech => tech.id)).toEqual(expect.arrayContaining([
       'stone-weapons',
@@ -300,17 +300,13 @@ describe('opening research pacing data', () => {
     ]));
     expect(starters.map(tech => tech.id)).not.toContain('espionage-scouting');
 
-    const outliers = starters
-      .map(tech => `${tech.id}:${estimateTurnsToComplete({ cost: tech.cost, outputPerTurn: 1 })}`)
-      .filter(entry => {
-        const turns = Number(entry.split(':')[1]);
-        return turns < 2 || turns > 5;
-      });
-
-    expect(outliers).toEqual([]);
+    for (const tech of starters) {
+      expect(tech.cost, `${tech.id} leaves the starter cost band`).toBeGreaterThanOrEqual(17);
+      expect(tech.cost, `${tech.id} leaves the starter cost band`).toBeLessThanOrEqual(20);
+    }
   });
 
-  it('keeps structural first real unlocks inside the 8-12 turn baseline window', () => {
+  it('keeps structural first real unlocks in the explicit 50–85 cost band', () => {
     const firstUnlocks = TECH_TREE.filter(tech => isFirstRealUnlockTech(tech));
     expect(firstUnlocks.map(tech => tech.id)).toEqual(expect.arrayContaining([
       'archery',
@@ -343,25 +339,17 @@ describe('opening research pacing data', () => {
     expect(firstUnlocks.map(tech => tech.id)).not.toContain('messengers');
     expect(firstUnlocks.map(tech => tech.id)).not.toContain('sacred-sites');
 
-    const outliers = firstUnlocks
-      .filter(tech => tech.id !== 'bronze-working')
-      .map(tech => `${tech.id}:${estimateTurnsToComplete({ cost: tech.cost, outputPerTurn: 1 })}`)
-      .filter(entry => {
-        const turns = Number(entry.split(':')[1]);
-        return turns < 8 || turns > 12;
-      });
-
-    expect(outliers).toEqual([]);
+    for (const tech of firstUnlocks) {
+      expect(tech.cost, `${tech.id} leaves the first-unlock cost band`).toBeGreaterThanOrEqual(50);
+      expect(tech.cost, `${tech.id} leaves the first-unlock cost band`).toBeLessThanOrEqual(85);
+    }
   });
 
-  it('keeps Bronze Working in its explicit 9-11 turn baseline window', () => {
+  it('keeps Bronze Working at the high end of the first-unlock band', () => {
     const bronze = TECH_TREE.find(tech => tech.id === 'bronze-working');
     expect(bronze).toBeDefined();
     expect(getResearchOutputProfileForTech(bronze!)).toEqual({ name: 'opening-baseline', outputPerTurn: 1 });
-    expect(estimateTurnsToComplete({ cost: bronze!.cost, outputPerTurn: 1 })).toBeGreaterThanOrEqual(9);
-    expect(estimateTurnsToComplete({ cost: bronze!.cost, outputPerTurn: 1 })).toBeLessThanOrEqual(11);
-    expect(estimateTurnsToComplete({ cost: bronze!.cost, outputPerTurn: 2 })).toBeGreaterThanOrEqual(5);
-    expect(estimateTurnsToComplete({ cost: bronze!.cost, outputPerTurn: 2 })).toBeLessThanOrEqual(7);
+    expect(bronze!.cost).toBe(85);
   });
 
   describe('resource reveal unlock text', () => {

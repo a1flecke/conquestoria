@@ -20,8 +20,10 @@ import { normalizeCrisisForces } from '@/systems/crisis-force-system';
 import { normalizeStampedes } from '@/systems/stampede-system';
 import { normalizeRogueElephantHosts } from '@/systems/rogue-elephant-host-system';
 import { UNIT_ROLE_DEFINITIONS } from '@/systems/combat-role-definitions';
+import { getEffectiveTechCost, getTechById } from '@/systems/tech-system';
+import { PRE_V24_TECH_COST_BY_ID } from './research-cost-migration-v24';
 
-export const CURRENT_SAVE_SCHEMA_VERSION = 23;
+export const CURRENT_SAVE_SCHEMA_VERSION = 24;
 
 export type SaveMigration = (state: GameState) => GameState;
 
@@ -911,6 +913,51 @@ export function normalizeLegendaryWonderTacticalEffects(state: GameState): GameS
   return { ...state, legendaryWonderTacticalEffects };
 }
 
+/**
+ * Retimes only active research. A save migration must preserve invested progress without
+ * emitting completion events or replaying the completion sound while the game loads.
+ */
+function migrateResearchCostsV24(state: GameState): GameState {
+  const civilizations = Object.fromEntries(Object.entries(state.civilizations).map(([civId, civilization]) => {
+    const techState = civilization.techState;
+    const techId = techState?.currentResearch;
+    if (!techState || !techId) return [civId, civilization];
+
+    const oldBaseCost = PRE_V24_TECH_COST_BY_ID[techId];
+    const tech = getTechById(techId);
+    if (oldBaseCost === undefined || !tech) return [civId, civilization];
+
+    const oldEffectiveCost = getEffectiveTechCost({ ...tech, cost: oldBaseCost }, techState.completed);
+    const newEffectiveCost = getEffectiveTechCost(tech, techState.completed);
+    const oldProgress = Number.isFinite(techState.researchProgress) ? Math.max(0, techState.researchProgress) : 0;
+    const completionFraction = Math.min(1, oldProgress / oldEffectiveCost);
+
+    if (completionFraction >= 1) {
+      const queue = techState.researchQueue.filter(id => id !== techId && !techState.completed.includes(id));
+      const [nextResearch, ...remainingQueue] = queue;
+      return [civId, {
+        ...civilization,
+        techState: {
+          ...techState,
+          completed: techState.completed.includes(techId) ? techState.completed : [...techState.completed, techId],
+          currentResearch: nextResearch ?? null,
+          researchQueue: remainingQueue,
+          researchProgress: 0,
+        },
+      }];
+    }
+
+    return [civId, {
+      ...civilization,
+      techState: {
+        ...techState,
+        researchProgress: Math.min(newEffectiveCost - 1, Math.round(completionFraction * newEffectiveCost)),
+      },
+    }];
+  }));
+  return { ...state, civilizations };
+}
+
 export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   1: migrateToEra13Foundation,
   2: migrateLateResources,
@@ -952,14 +999,13 @@ export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   // #888: default the fallback-generated-officer registry to {} on saves that
   // predate it, and scrub any malformed entries (see normalizeGeneratedGenerals).
   23: normalizeGeneratedGenerals,
-  // NOTE: schema version 24 is reserved for the pending research-cost retune
-  // (`research-cost-migration-v24.ts` +
-  // `tests/scripts/research-pacing-report.test.ts`, which pins
-  // RESEARCH_COST_MIGRATION_TARGET_SCHEMA_VERSION === CURRENT_SAVE_SCHEMA_VERSION + 1).
-  // #887 MR1's career-ledger normalization therefore does NOT take a numbered
-  // slot -- it runs unconditionally in the additive tail of migrateSaveToCurrent
-  // (same pattern as withReligionDefaults / normalizeCityFaithConversionProgress),
-  // which is sufficient because it is idempotent and fabricates no history.
+  // #917: research-cost retune (`research-cost-migration-v24.ts` +
+  // `tests/scripts/research-pacing-report.test.ts`). Retimes only active research,
+  // preserving invested progress without emitting completion events on load.
+  // #887 MR1's career-ledger normalization does NOT take a numbered slot -- it runs
+  // unconditionally in the additive tail of migrateSaveToCurrent (same pattern as
+  // withReligionDefaults / normalizeCityFaithConversionProgress).
+  24: migrateResearchCostsV24,
 };
 
 function readSchemaVersion(raw: Record<string, unknown>): number {
