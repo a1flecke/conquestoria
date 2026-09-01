@@ -406,8 +406,8 @@ describe('Great General identity display (#544 MR3)', () => {
   // -------------------------------------------------------------------------
 
   function selectGeneral(seed: string, generalId: string, gen?: Record<string, unknown>) {
-    const state = createNewGame(undefined, seed, 'small') as GameState & { generatedGenerals?: Record<string, unknown> };
-    if (gen) state.generatedGenerals = gen;
+    const state = createNewGame(undefined, seed, 'small');
+    if (gen) (state as unknown as { generatedGenerals: unknown }).generatedGenerals = gen;
     const unit = {
       ...createUnit('great_general', 'player', { q: 15, r: 15 }, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 }),
       id: 'u1', generalDefinitionId: generalId,

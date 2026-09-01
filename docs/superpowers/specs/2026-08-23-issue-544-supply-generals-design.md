@@ -317,8 +317,8 @@ done — not left as code comments. Filed at the point noted:
 | A. Naval logistics/endurance | before #544 closes | Ports, replenishment, fleet endurance |
 | B. Air logistics/basing | before #544 closes | Aircraft base logistics, readiness |
 | C. Treaty-gated logistics/military access — filed as [#870](https://github.com/a1flecke/conquestoria/issues/870) | **at MR1**, informed by Finding 2 | Explicit access rights distinct from alliance |
-| D. Unique General mechanics | before #544 closes | Divergent abilities/traits per definition |
-| E. Rich General biographies | before #544 closes | Historical/educational content expansion |
+| D. Unique General mechanics — ✅ shipped [#885](https://github.com/a1flecke/conquestoria/issues/885) | before #544 closes | Divergent abilities/traits per definition |
+| E. Rich General biographies — ✅ shipped [#886](https://github.com/a1flecke/conquestoria/issues/886) | before #544 closes | Historical/educational content expansion |
 | F. Campaign chronicle / Hall of Fame | before #544 closes | Career timeline, battles influenced |
 | G. Candidate-pool exhaustion / fallback | before #544 closes | Richer culturally-coherent fallback generation |
 | H. Diplomacy/movement mismatch — filed as [#871](https://github.com/a1flecke/conquestoria/issues/871) | **at MR1**, this is Finding 2 verbatim | The `open_borders` treaty exists but gates no movement/access logic anywhere; logistics treats all non-allied foreign territory as hostile |
