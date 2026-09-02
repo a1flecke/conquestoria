@@ -644,7 +644,7 @@ git commit -m "test(pacing): pin all-era research retune"
 
 ---
 
-## MR3 — Atomic All-Era Launch 🟡 verified and committed locally; awaiting review and merge
+## MR3 — Atomic All-Era Launch ✅ merged (#941)
 
 ### Task 12: Write the schema-24 migration before changing costs
 
