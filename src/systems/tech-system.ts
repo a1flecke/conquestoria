@@ -39,16 +39,24 @@ export function startResearch(state: TechState, techId: string): TechState {
 export interface ResearchResult {
   state: TechState;
   completedTech: string | null;
+  /**
+   * Science left over after `completedTech` finished, moved into the queued
+   * successor's `researchProgress` (MR4, #917). `0` when nothing completed or
+   * when there was no queued successor to receive the overflow. At most one
+   * technology completes per call, so a successor can briefly hold progress at
+   * or above its own effective cost until the next `processResearch` call.
+   */
+  carriedProgress: number;
 }
 
 export function processResearch(state: TechState, sciencePoints: number): ResearchResult {
   if (!state.currentResearch) {
-    return { state, completedTech: null };
+    return { state, completedTech: null, carriedProgress: 0 };
   }
 
   const tech = TECH_TREE.find(t => t.id === state.currentResearch);
   if (!tech) {
-    return { state, completedTech: null };
+    return { state, completedTech: null, carriedProgress: 0 };
   }
 
   const newProgress = state.researchProgress + sciencePoints;
@@ -56,15 +64,18 @@ export function processResearch(state: TechState, sciencePoints: number): Resear
 
   if (newProgress >= effectiveCost) {
     const [nextQueuedResearch, ...remainingQueue] = state.researchQueue;
+    const overflow = newProgress - effectiveCost;
+    const carriedProgress = nextQueuedResearch ? overflow : 0;
     return {
       state: {
         ...state,
         completed: [...state.completed, tech.id],
         currentResearch: nextQueuedResearch ?? null,
         researchQueue: remainingQueue,
-        researchProgress: 0,
+        researchProgress: carriedProgress,
       },
       completedTech: tech.id,
+      carriedProgress,
     };
   }
 
@@ -74,6 +85,7 @@ export function processResearch(state: TechState, sciencePoints: number): Resear
       researchProgress: newProgress,
     },
     completedTech: null,
+    carriedProgress: 0,
   };
 }
 
@@ -94,6 +106,7 @@ export function applyResearchBonus(state: TechState, scienceBonus: number): Rese
         researchProgress: state.researchProgress + scienceBonus,
       },
       completedTech: null,
+      carriedProgress: 0,
     };
   }
   return processResearch(state, scienceBonus);

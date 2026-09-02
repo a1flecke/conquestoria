@@ -189,6 +189,110 @@ describe('processResearch', () => {
   });
 });
 
+describe('processResearch — MR4 bounded queue overflow (#917)', () => {
+  it('reports zero carried progress when no completion happens', () => {
+    const state = startResearch(createTechState(), 'fire');
+    const result = processResearch(state, 5);
+
+    expect(result.completedTech).toBeNull();
+    expect(result.state.researchProgress).toBe(5);
+    expect(result.carriedProgress).toBe(0);
+  });
+
+  it('reports zero carried progress on an exact completion', () => {
+    const fireCost = getEffectiveTechCost(getTechById('fire')!, []);
+    const state = { ...startResearch(createTechState(), 'fire'), researchProgress: fireCost - 1 };
+
+    const result = processResearch(state, 1);
+
+    expect(result.completedTech).toBe('fire');
+    expect(result.carriedProgress).toBe(0);
+    expect(result.state.researchProgress).toBe(0);
+  });
+
+  it('carries leftover science into the queued successor when research overshoots', () => {
+    const fireCost = getEffectiveTechCost(getTechById('fire')!, []);
+    const state = {
+      ...startResearch(createTechState(), 'fire'),
+      researchQueue: ['writing'],
+      researchProgress: fireCost - 2,
+    };
+
+    const result = processResearch(state, 10); // 8 science left over after finishing fire
+
+    expect(result.completedTech).toBe('fire');
+    expect(result.state.currentResearch).toBe('writing');
+    expect(result.state.researchQueue).toEqual([]);
+    expect(result.carriedProgress).toBe(8);
+    expect(result.state.researchProgress).toBe(8);
+  });
+
+  it('discards overflow when the completed tech has no queued successor', () => {
+    const fireCost = getEffectiveTechCost(getTechById('fire')!, []);
+    const state = {
+      ...startResearch(createTechState(), 'fire'),
+      researchQueue: [],
+      researchProgress: fireCost - 2,
+    };
+
+    const result = processResearch(state, 10);
+
+    expect(result.completedTech).toBe('fire');
+    expect(result.state.currentResearch).toBeNull();
+    expect(result.carriedProgress).toBe(0);
+    expect(result.state.researchProgress).toBe(0);
+  });
+
+  it('carries overflow measured against discounted effective costs', () => {
+    // Cloud Computing discounts unresearched science-track techs by 15%.
+    const completed = ['cloud-computing'];
+    const discountedFireCost = getEffectiveTechCost(getTechById('fire')!, completed);
+    expect(discountedFireCost).toBeLessThan(getEffectiveTechCost(getTechById('fire')!, []));
+
+    const state = {
+      ...startResearch(createTechState(), 'fire'),
+      completed,
+      researchQueue: ['writing'],
+      researchProgress: discountedFireCost - 5,
+    };
+
+    const result = processResearch(state, 12); // 7 science left over after finishing fire
+
+    expect(result.completedTech).toBe('fire');
+    expect(result.state.currentResearch).toBe('writing');
+    expect(result.carriedProgress).toBe(7);
+    expect(result.state.researchProgress).toBe(7);
+    // The successor has NOT completed on carried progress alone.
+    expect(result.state.completed).not.toContain('writing');
+  });
+
+  it('completes only the first tech even when carried overflow exceeds the successor cost', () => {
+    const fireCost = getEffectiveTechCost(getTechById('fire')!, []);
+    const writingCost = getEffectiveTechCost(getTechById('writing')!, ['fire']);
+    const state = {
+      ...startResearch(createTechState(), 'fire'),
+      researchQueue: ['writing', 'wheel'],
+      researchProgress: fireCost - 1,
+    };
+
+    const result = processResearch(state, writingCost + 100); // massive overshoot
+
+    expect(result.completedTech).toBe('fire'); // exactly one completion this invocation
+    expect(result.state.completed).toEqual(['fire']);
+    expect(result.state.currentResearch).toBe('writing'); // successor is active, not completed
+    expect(result.state.researchQueue).toEqual(['wheel']);
+    expect(result.carriedProgress).toBe(writingCost + 99);
+    expect(result.state.researchProgress).toBe(writingCost + 99);
+  });
+
+  it('reports zero carried progress from applyResearchBonus with no active research', () => {
+    const result = applyResearchBonus(createTechState(), 25);
+
+    expect(result.completedTech).toBeNull();
+    expect(result.carriedProgress).toBe(0);
+  });
+});
+
 describe('isTechCompleted', () => {
   it('returns false for uncompleted tech', () => {
     const state = createTechState();
