@@ -936,7 +936,7 @@ Use `✅ merged` with the real merged PR number only when the full atomic launch
 
 ---
 
-## MR4 — Overflow and Completion Polish 🟡 verified and committed locally; awaiting review and merge
+## MR4 — Overflow and Completion Polish ✅ merged (#942)
 
 ### Task 18: Carry overflow to one queued successor
 
