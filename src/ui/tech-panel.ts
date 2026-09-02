@@ -444,7 +444,9 @@ export function createTechPanel(
     ? TECH_TREE.find(tech => tech.id === civ.techState.currentResearch)
     : undefined;
   const currentProgress = currentTech
-    ? Math.round((civ.techState.researchProgress / getEffectiveTechCost(currentTech, civ.techState.completed)) * 100)
+    // MR4 (#917): carried queue overflow can transiently push researchProgress
+    // above the tech's own effective cost — never show more than 100%.
+    ? Math.min(100, Math.round((civ.techState.researchProgress / getEffectiveTechCost(currentTech, civ.techState.completed)) * 100))
     : 0;
   const turnsRemaining = currentTech
     ? queueTiming.get(currentTech.id)?.finishTurns ?? estimateTurnsToComplete({

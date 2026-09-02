@@ -6,13 +6,23 @@
  */
 import { SFX } from '@/audio/sfx';
 import { BUILDINGS } from '@/systems/city-system';
+import { getTechById } from '@/systems/tech-system';
 import { routeDroppedProductionItem, routeTerritoryTileFlipped } from '@/ui/notification-routing';
 import type { PresentationRegistrar } from '@/presentation/register-all';
 
 export const registerCityPresentation: PresentationRegistrar = (bus, ctx) => {
   const unsubscribers = [
-    bus.on('tech:completed', ({ civId, techId }) => {
-      ctx.notifier.deliver(civId, `Research complete: ${techId}!`, 'success');
+    bus.on('tech:completed', ({ civId, techId, carriedProgress, carriedIntoTechId }) => {
+      const techName = getTechById(techId)?.name ?? techId;
+      const successorName = carriedIntoTechId
+        ? getTechById(carriedIntoTechId)?.name ?? carriedIntoTechId
+        : null;
+      // MR4 (#917): surface the recovered overflow inline so the player sees the
+      // leftover science was not wasted. No extra notification, no new sound.
+      const carryNote = carriedProgress && carriedProgress > 0 && successorName
+        ? ` +${carriedProgress} science carried into ${successorName}.`
+        : '';
+      ctx.notifier.deliver(civId, `Research complete: ${techName}!${carryNote}`, 'success');
       if (techId === 'fishing') {
         ctx.notifier.deliver(civId, 'Fishing unlocked — build a Dock in your coastal cities to boost food and trade.', 'info');
       }

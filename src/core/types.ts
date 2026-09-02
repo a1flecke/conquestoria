@@ -2439,7 +2439,15 @@ export interface GameEvents {
     defenderOwnerId: string;
   };
   'combat:reward-earned': { reward: CombatRewardNotification };
-  'tech:completed': { civId: string; techId: string };
+  'tech:completed': {
+    civId: string;
+    techId: string;
+    /** MR4 (#917): science that overshot `techId` and was moved into the queued
+     * successor's progress. Omitted/0 when nothing carried (no successor). */
+    carriedProgress?: number;
+    /** The queued technology that received `carriedProgress`, if any. */
+    carriedIntoTechId?: string | null;
+  };
   'tech:started': { civId: string; techId: string };
   'fog:revealed': { tiles: HexCoord[] };
   'improvement:started': { unitId: string; coord: HexCoord; type: ImprovementType };

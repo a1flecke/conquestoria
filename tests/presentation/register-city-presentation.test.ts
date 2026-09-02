@@ -25,6 +25,43 @@ describe('city presentation', () => {
     research.mockRestore();
   });
 
+  it('uses the technology display name, not the raw id, in the completion notice', () => {
+    const bus = new EventBus();
+    const ctx = makePresentationContext({ state: { currentPlayer: 'p1' } });
+    vi.spyOn(SFX, 'research').mockImplementation(() => {});
+
+    registerCityPresentation(bus, ctx);
+    bus.emit('tech:completed', { civId: 'p1', techId: 'bronze-working' });
+
+    expect(ctx.deliver).toHaveBeenCalledWith('p1', expect.stringContaining('Bronze Working'), 'success');
+    expect(ctx.deliver).not.toHaveBeenCalledWith('p1', expect.stringContaining('bronze-working'), 'success');
+    vi.restoreAllMocks();
+  });
+
+  it('names the carried-over science and its successor when queue overflow occurred (MR4, #917)', () => {
+    const bus = new EventBus();
+    const ctx = makePresentationContext({ state: { currentPlayer: 'p1' } });
+    vi.spyOn(SFX, 'research').mockImplementation(() => {});
+
+    registerCityPresentation(bus, ctx);
+    bus.emit('tech:completed', { civId: 'p1', techId: 'fire', carriedProgress: 8, carriedIntoTechId: 'writing' });
+
+    expect(ctx.deliver).toHaveBeenCalledWith('p1', expect.stringContaining('+8 science carried into Writing'), 'success');
+    vi.restoreAllMocks();
+  });
+
+  it('adds no carry clause when the completion carried nothing', () => {
+    const bus = new EventBus();
+    const ctx = makePresentationContext({ state: { currentPlayer: 'p1' } });
+    vi.spyOn(SFX, 'research').mockImplementation(() => {});
+
+    registerCityPresentation(bus, ctx);
+    bus.emit('tech:completed', { civId: 'p1', techId: 'fire', carriedProgress: 0, carriedIntoTechId: null });
+
+    expect(ctx.deliver).toHaveBeenCalledWith('p1', expect.not.stringContaining('carried'), 'success');
+    vi.restoreAllMocks();
+  });
+
   it('does not play the research cue for a non-active civ', () => {
     const bus = new EventBus();
     const ctx = makePresentationContext({ state: { currentPlayer: 'p2' } });

@@ -353,6 +353,8 @@ describe('tech-panel', () => {
       onClose: () => {},
     });
 
+    // `currentProgress` is clamped at source (tech-panel.ts), so every rendered
+    // percentage width — not just the bar's own inline Math.min — stays <= 100.
     const barWidths = Array.from(panel.querySelectorAll<HTMLElement>('div'))
       .map(el => el.style.width)
       .filter(width => width.endsWith('%'))
@@ -362,6 +364,8 @@ describe('tech-panel', () => {
       expect(width).toBeLessThanOrEqual(100);
     }
 
+    // No surface renders a > 100% figure for the transient over-cost state.
+    expect(panel.textContent).not.toMatch(/\b[1-9]\d\d+%/);
     // It reads as about to complete, never "500 turns".
     expect(panel.textContent).toContain('Turns remaining: 1');
   });
