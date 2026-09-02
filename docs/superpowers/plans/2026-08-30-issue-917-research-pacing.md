@@ -936,7 +936,7 @@ Use `✅ merged` with the real merged PR number only when the full atomic launch
 
 ---
 
-## MR4 — Overflow and Completion Polish
+## MR4 — Overflow and Completion Polish 🟡 verified and committed locally; awaiting review and merge
 
 ### Task 18: Carry overflow to one queued successor
 
@@ -945,11 +945,11 @@ Use `✅ merged` with the real merged PR number only when the full atomic launch
 - Modify: `src/systems/tech-system.ts`
 - Modify: `tests/systems/tech-system.test.ts`
 
-- [ ] **Step 1: Write failing overflow contract tests**
+- [x] **Step 1: Write failing overflow contract tests**
 
 Cover no completion, exact completion, completion with queued successor and overflow, completion without queue (overflow discarded), discounted effective costs, and overflow larger than the successor cost. Even when carried progress exceeds the successor cost, only the first technology completes in this invocation.
 
-- [ ] **Step 2: Extend `ResearchResult`**
+- [x] **Step 2: Extend `ResearchResult`**
 
 ```ts
 export interface ResearchResult {
@@ -961,7 +961,7 @@ export interface ResearchResult {
 
 On completion, set the queued successor active and its progress to `newProgress - effectiveCost`; without a queued successor, set progress and carried value to zero.
 
-- [ ] **Step 3: Run and commit**
+- [x] **Step 3: Run and commit**
 
 ```bash
 scripts/check-src-rule-violations.sh src/systems/tech-system.ts
@@ -982,22 +982,22 @@ git commit -m "feat(research): preserve queued overflow"
 - Modify: `tests/ui/tech-panel.test.ts`
 - Modify: `tests/audio/audio-system.integration.test.ts`
 
-- [ ] **Step 1: Write a discrete queue simulation**
+- [x] **Step 1: Write a discrete queue simulation**
 
 Each simulated owner turn adds final science, permits at most one completion, carries overflow only to an existing successor, and records the first turn each item completes. Reorder/remove tests must recalculate immediately.
 
-- [ ] **Step 2: Wire state and exactly-once event behavior**
+- [x] **Step 2: Wire state and exactly-once event behavior**
 
 Turn manager commits returned state and emits one completion event for `completedTech`. Carried successor progress is visible immediately; it does not emit a second event until a later owner turn actually completes it.
 
-- [ ] **Step 3: Run interaction and SFX suites**
+- [x] **Step 3: Run interaction and SFX suites**
 
 ```bash
 scripts/check-src-rule-violations.sh src/systems/tech-progression.ts src/core/turn-manager.ts src/ui/tech-panel.ts
 ./scripts/run-with-mise.sh yarn test --run tests/systems/tech-progression.test.ts tests/core/turn-manager.test.ts tests/ui/tech-panel.test.ts tests/audio/audio-system.integration.test.ts
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/systems/tech-progression.ts src/core/turn-manager.ts src/ui/tech-panel.ts tests/systems/tech-progression.test.ts tests/core/turn-manager.test.ts tests/ui/tech-panel.test.ts tests/audio/audio-system.integration.test.ts
@@ -1011,7 +1011,7 @@ git commit -m "fix(research): align queue ETA with overflow"
 - Modify: `tests/systems/research-pacing-scenarios.test.ts`
 - Modify: `docs/superpowers/plans/2026-08-30-issue-917-research-pacing.md`
 
-- [ ] **Step 1: Run the all-era report with overflow simulation enabled**
+- [x] **Step 1: Run the all-era report with overflow simulation enabled**
 
 ```bash
 ./scripts/run-with-mise.sh yarn research:pacing-report
@@ -1019,13 +1019,13 @@ git commit -m "fix(research): align queue ETA with overflow"
 
 Expected: current-frontier wide floors remain satisfied, era continuity remains within 50%, and no era returns to full one-turn collapse.
 
-- [ ] **Step 2: Run the manual playability matrix**
+- [x] **Step 2: Run the manual playability matrix**
 
 Exercise young/new-player recommended path, tall science, balanced economy, peaceful wide, conquest wide, naval/trade emphasis, science specialization, completionist backfill, Explorer/Standard/Veteran AI, solo, and two-to-four-player hot-seat across small/medium/large maps. Record turn ranges and any misleading labels in the PR description.
 
 Use three comprehension checks for the age-range UX without collecting age or personal data: a player can identify the final rate, explain in plain language why gross differs from final, and predict that adding or improving a city cannot slow research. The default surface must remain understandable without opening details; the expanded surface must satisfy expert inspection.
 
-- [ ] **Step 3: Run final verification**
+- [x] **Step 3: Run final verification**
 
 ```bash
 ./scripts/run-with-mise.sh yarn build
@@ -1035,7 +1035,7 @@ Use three comprehension checks for the age-range UX without collecting age or pe
 ./scripts/run-with-mise.sh yarn build:tauri
 ```
 
-- [ ] **Step 4: Review all diffs and mark MR4 complete only after merge**
+- [x] **Step 4: Review all diffs and mark MR4 complete only after merge**
 
 ```bash
 git diff --stat origin/main...HEAD
