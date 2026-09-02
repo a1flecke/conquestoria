@@ -12,8 +12,8 @@ const preview = pathToFileURL(resolve(root, 'docs/reviews/assets/issue-711/sprit
 const output = resolve(root, 'docs/reviews/assets/issue-711');
 const states = ['idle', 'walk', 'attack', 'hurt', 'death'];
 const units = [
-  { id: 'trebuchet', filename: 'trebuchet', attackSelector: '.cq-trebuchet-beam' },
-  { id: 'rocket_artillery', filename: 'rocket-artillery', attackSelector: '.cq-rocket-artillery-rack' },
+  { id: 'trebuchet', filename: 'trebuchet', attackSelector: '.cq-trebuchet-stone' },
+  { id: 'rocket_artillery', filename: 'rocket-artillery', attackSelector: '.cq-rocket-artillery-rocket' },
   { id: 'battleship', filename: 'battleship', attackSelector: '.cq-battleship-turret-fore' },
   { id: 'missile_cruiser', filename: 'missile-cruiser', attackSelector: '.cq-missile-cruiser-vls-lid' },
 ];

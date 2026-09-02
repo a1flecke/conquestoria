@@ -25,4 +25,14 @@ describe('Issue 711 remote sprite review', () => {
       expect(gif.byteLength).toBeGreaterThan(1_000);
     }
   });
+
+  it('validates the actual siege payload layers before it captures review evidence', () => {
+    const remoteCapture = readFileSync(resolve(root, 'scripts/capture-issue-711-remote-review.mjs'), 'utf8');
+    const staticCapture = readFileSync(resolve(root, 'scripts/capture-issue-711-sprite-review.mjs'), 'utf8');
+
+    for (const capture of [remoteCapture, staticCapture]) {
+      expect(capture).toContain("'.cq-trebuchet-stone'");
+      expect(capture).toContain("'.cq-rocket-artillery-rocket'");
+    }
+  });
 });

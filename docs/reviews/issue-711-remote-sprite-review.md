@@ -11,8 +11,10 @@ shows the same sprite at its actual 40px, 64px, and 128px map scales.
 ## Trebuchet
 
 The siege engine reads as a wheeled A-frame with counterweight, beam, and an
-empty sling. Its attack isolates motion to the beam and counterweight rather
-than moving the carriage or adding a persistent projectile.
+empty sling at rest. Its attack isolates motion to the beam and counterweight,
+then releases one dark stone through a short up-right arc. The stone disappears
+before the loop and stays well inside the native 128px frame; the carriage never
+moves. It is hidden in idle, walk, hurt, death, and reduced-motion states.
 
 ![Trebuchet identity sheet](assets/issue-711/trebuchet-identity-sheet.png)
 
@@ -20,8 +22,11 @@ than moving the carriage or adding a persistent projectile.
 
 ## Rocket Artillery
 
-The six-wheel launcher uses a compact tube bank, stabilizers, and local tube
-flash/recoil. It never uses a humanoid gait or a whole-vehicle attack lunge.
+The six-wheel launcher uses a compact tube bank, stabilizers, and local
+recoil. Its attack emits two staggered rockets from the forward tubes, each
+with a brief exhaust flare and a short bounded up-right flight. It never uses a
+humanoid gait or a whole-vehicle attack lunge; rockets and exhaust are hidden in
+idle, walk, hurt, death, and reduced-motion states.
 
 ![Rocket Artillery identity sheet](assets/issue-711/rocket-artillery-identity-sheet.png)
 

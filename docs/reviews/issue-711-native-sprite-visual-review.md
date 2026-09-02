@@ -20,8 +20,8 @@ This review is completed from the generated, file-safe #711 preview page and its
 - [x] Battleship reads as a three-turret capital ship rather than a pre-dreadnought recolor.
 - [x] Missile Cruiser reads as closed VLS cells and paired radar arrays rather than another gun battleship.
 - [x] Wheel and naval movement remain physically connected; no unit uses humanoid gait or attack lunge.
-- [x] Attack feedback is local to beam/counterweight, rack/tubes, turrets, or VLS lids; no projectile persists as map art.
+- [x] Attack feedback is local to beam/counterweight plus one bounded stone, rack/tubes plus two staggered bounded rockets, turrets, or VLS lids; no payload persists as map art.
 - [x] Faction paint stays a small identifier over grounded wood, stone, steel, and water materials.
 - [x] Reduced motion preserves the complete static silhouette and fogged/unexplored units remain absent from the overlay.
 
-Captured against the production CSS and generated six-faction V2 payloads on 2026-08-30. The first review exposed an idle VLS-launch glyph; its default visibility is now zero, and the corrected contact sheet confirms it appears only in the attack window. A second review removed the Trebuchet's persistently loaded stone, leaving the sling visibly empty at rest and through recovery.
+Captured against the production CSS and generated six-faction V2 payloads on 2026-08-30; the corrected projectile review was recaptured on 2026-09-01. The first review exposed an idle VLS-launch glyph; its default visibility is now zero, and the corrected contact sheet confirms it appears only in the attack window. The latest review keeps the Trebuchet sling empty outside attack, shortens its right-side geometry, and confines the released stone plus Rocket Artillery's two rockets to their attack timelines.
