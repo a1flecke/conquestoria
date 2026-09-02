@@ -132,9 +132,11 @@ describe('#711 siege and capital-ship motion contract', () => {
     '.cq-v2[data-kind="ranged"][data-kind-variant="trebuchet"][data-state="walk"] .cq-trebuchet-wheel',
     '.cq-v2[data-kind="ranged"][data-kind-variant="trebuchet"][data-state="attack"] .cq-trebuchet-beam',
     '.cq-v2[data-kind="ranged"][data-kind-variant="trebuchet"][data-state="attack"] .cq-trebuchet-counterweight',
+    '.cq-v2[data-kind="ranged"][data-kind-variant="trebuchet"][data-state="attack"] .cq-trebuchet-stone',
     '.cq-v2[data-kind="ranged"][data-kind-variant="rocket-artillery"][data-state="walk"] .cq-rocket-artillery-wheel',
     '.cq-v2[data-kind="ranged"][data-kind-variant="rocket-artillery"][data-state="attack"] .cq-rocket-artillery-rack',
     '.cq-v2[data-kind="ranged"][data-kind-variant="rocket-artillery"][data-state="attack"] .cq-rocket-artillery-tubes',
+    '.cq-v2[data-kind="ranged"][data-kind-variant="rocket-artillery"][data-state="attack"] .cq-rocket-artillery-rocket',
     '.cq-v2[data-kind="naval"][data-kind-variant="battleship"][data-state="attack"] .cq-battleship-turret-fore',
     '.cq-v2[data-kind="naval"][data-kind-variant="battleship"][data-state="attack"] .cq-battleship-turret-mid',
     '.cq-v2[data-kind="naval"][data-kind-variant="battleship"][data-state="attack"] .cq-battleship-turret-aft',
@@ -168,6 +170,22 @@ describe('#711 siege and capital-ship motion contract', () => {
   it('keeps the missile-cruiser launch indicator hidden until its attack timeline runs', () => {
     const selector = '.cq-v2[data-kind="naval"][data-kind-variant="missile-cruiser"] .cq-missile-cruiser-launch';
     expect(css, 'the local VLS launch indicator must not persist outside attack').toContain(`${selector} { opacity: 0; }`);
+  });
+
+  it('keeps siege payload layers hidden outside attack and in reduced motion', () => {
+    const trebuchetSelector = '.cq-v2[data-kind="ranged"][data-kind-variant="trebuchet"] .cq-trebuchet-stone';
+    const rocketSelector = '.cq-v2[data-kind="ranged"][data-kind-variant="rocket-artillery"] .cq-rocket-artillery-rocket';
+    expect(css).toContain(`${trebuchetSelector} { opacity: 0; }`);
+    expect(css).toContain(`${rocketSelector} { opacity: 0; }`);
+    expect(css).toContain('cq711-trebuchet-stone-flight');
+    expect(css).toContain('cq711-rocket-flight');
+    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.cq-trebuchet-stone, \.cq-rocket-artillery-rocket[\s\S]*opacity: 0 !important;/);
+  });
+
+  it('tracks the Trebuchet sling through release before the stone takes its bounded arc', () => {
+    const stoneTimeline = css.match(/@keyframes cq711-trebuchet-stone-flight \{[\s\S]*?\n\}/)?.[0];
+    expect(stoneTimeline).toContain('31% { opacity: 1; transform: translate(-6px, -14px) scale(1); }');
+    expect(stoneTimeline).toContain('45% { opacity: 1; transform: translate(3px, -18px) scale(1.02); }');
   });
 });
 

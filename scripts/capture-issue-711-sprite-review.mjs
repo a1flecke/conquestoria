@@ -8,8 +8,8 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const preview = pathToFileURL(resolve(root, 'docs/reviews/assets/issue-711/sprite-preview.html')).href;
 const output = resolve(root, 'docs/reviews/assets/issue-711');
 const units = [
-  ['trebuchet', 'trebuchet', '.cq-trebuchet-beam', 'attack'],
-  ['rocket_artillery', 'rocket-artillery', '.cq-rocket-artillery-rack', 'attack'],
+  ['trebuchet', 'trebuchet', '.cq-trebuchet-stone', 'attack'],
+  ['rocket_artillery', 'rocket-artillery', '.cq-rocket-artillery-rocket', 'attack'],
   ['battleship', 'battleship', '.cq-battleship-turret-fore', 'attack'],
   ['missile_cruiser', 'missile-cruiser', '.cq-missile-cruiser-vls-lid', 'attack'],
 ];

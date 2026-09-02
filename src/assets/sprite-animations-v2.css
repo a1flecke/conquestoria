@@ -1676,14 +1676,23 @@
   transform-box: fill-box;
   transform-origin: center;
 }
+.cq-v2[data-kind="ranged"][data-kind-variant="trebuchet"] .cq-trebuchet-stone,
+.cq-v2[data-kind="ranged"][data-kind-variant="rocket-artillery"] .cq-rocket-artillery-rocket,
+.cq-v2[data-kind="ranged"][data-kind-variant="rocket-artillery"] .cq-rocket-artillery-exhaust {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.cq-v2[data-kind="ranged"][data-kind-variant="trebuchet"] .cq-trebuchet-stone { opacity: 0; }
+.cq-v2[data-kind="ranged"][data-kind-variant="rocket-artillery"] .cq-rocket-artillery-rocket { opacity: 0; }
+.cq-v2[data-kind="ranged"][data-kind-variant="rocket-artillery"] .cq-rocket-artillery-exhaust { opacity: 0; }
 .cq-v2[data-kind="naval"][data-kind-variant="missile-cruiser"] .cq-missile-cruiser-launch { opacity: 0; }
 
 @keyframes cq711-wheel-roll { 0% { transform: rotate(0); } 100% { transform: rotate(360deg); } }
 @keyframes cq711-static-settle { 0%, 100% { opacity: 1; } 50% { opacity: .97; } }
 @keyframes cq711-trebuchet-beam {
   0%, 18%, 100% { transform: rotate(0); }
-  31%, 47% { transform: rotate(-54deg); }
-  67% { transform: rotate(-9deg); }
+  31%, 47% { transform: rotate(-38deg); }
+  67% { transform: rotate(-7deg); }
 }
 @keyframes cq711-trebuchet-weight {
   0%, 18%, 100% { transform: translateY(0); }
@@ -1698,6 +1707,26 @@
 @keyframes cq711-tube-flash {
   0%, 22%, 54%, 100% { opacity: 1; filter: none; }
   30%, 42% { opacity: .55; filter: brightness(1.75); }
+}
+@keyframes cq711-trebuchet-stone-flight {
+  0%, 17% { opacity: 0; transform: translate(0) scale(.72); }
+  21% { opacity: 1; transform: translate(0) scale(1); }
+  31% { opacity: 1; transform: translate(-6px, -14px) scale(1); }
+  45% { opacity: 1; transform: translate(3px, -18px) scale(1.02); }
+  62% { opacity: .88; transform: translate(10px, -14px) scale(.92); }
+  72%, 100% { opacity: 0; transform: translate(11px, -11px) scale(.76); }
+}
+@keyframes cq711-rocket-flight {
+  0%, 22% { opacity: 0; transform: translate(0) scale(.72); }
+  27%, 39% { opacity: 1; transform: translate(0) scale(1); }
+  55% { opacity: .96; transform: translate(7px, -10px) scale(.96); }
+  69% { opacity: .58; transform: translate(12px, -18px) scale(.82); }
+  78%, 100% { opacity: 0; transform: translate(14px, -21px) scale(.7); }
+}
+@keyframes cq711-rocket-exhaust {
+  0%, 23%, 58%, 100% { opacity: 0; transform: scale(.45); }
+  29%, 43% { opacity: 1; transform: scale(1.15); }
+  52% { opacity: .42; transform: scale(.8); }
 }
 @keyframes cq711-heavy-turret {
   0%, 19%, 100% { transform: translateX(0) rotate(0); }
@@ -1749,15 +1778,21 @@
   animation-delay: calc(var(--phase, 0) * -.72s);
 }
 
-/* Counterweight fall, beam swing, then reset: the sling rides the beam rather than
-   emitting a disconnected projectile. */
+/* Counterweight fall, beam swing, and a single released stone. The beam pivot is the
+   actual axle (not its left bounding edge), and both sling and flight arc stop well
+   inside the 128px viewBox. */
 .cq-v2[data-kind="ranged"][data-kind-variant="trebuchet"][data-state="attack"] .cq-trebuchet-beam {
-  transform-origin: 0% 50%;
+  transform-box: fill-box;
+  transform-origin: 13% 68%;
   animation: cq711-trebuchet-beam 1.65s cubic-bezier(.3,.7,.4,1) infinite;
   animation-delay: calc(var(--phase, 0) * -1.65s);
 }
 .cq-v2[data-kind="ranged"][data-kind-variant="trebuchet"][data-state="attack"] .cq-trebuchet-counterweight {
   animation: cq711-trebuchet-weight 1.65s cubic-bezier(.3,.7,.4,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1.65s);
+}
+.cq-v2[data-kind="ranged"][data-kind-variant="trebuchet"][data-state="attack"] .cq-trebuchet-stone {
+  animation: cq711-trebuchet-stone-flight 1.65s cubic-bezier(.3,.7,.4,1) infinite;
   animation-delay: calc(var(--phase, 0) * -1.65s);
 }
 .cq-v2[data-kind="ranged"][data-kind-variant="rocket-artillery"][data-state="attack"] .cq-rocket-artillery-rack {
@@ -1767,6 +1802,20 @@
 .cq-v2[data-kind="ranged"][data-kind-variant="rocket-artillery"][data-state="attack"] .cq-rocket-artillery-tubes {
   animation: cq711-tube-flash 1.3s ease-out infinite;
   animation-delay: calc(var(--phase, 0) * -1.3s);
+}
+.cq-v2[data-kind="ranged"][data-kind-variant="rocket-artillery"][data-state="attack"] .cq-rocket-artillery-rocket {
+  animation: cq711-rocket-flight 1.3s cubic-bezier(.3,.7,.4,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1.3s);
+}
+.cq-v2[data-kind="ranged"][data-kind-variant="rocket-artillery"][data-state="attack"] .cq-rocket-artillery-rocket--b {
+  animation-delay: calc(var(--phase, 0) * -1.3s - .22s);
+}
+.cq-v2[data-kind="ranged"][data-kind-variant="rocket-artillery"][data-state="attack"] .cq-rocket-artillery-exhaust {
+  animation: cq711-rocket-exhaust 1.3s ease-out infinite;
+  animation-delay: calc(var(--phase, 0) * -1.3s);
+}
+.cq-v2[data-kind="ranged"][data-kind-variant="rocket-artillery"][data-state="attack"] .cq-rocket-artillery-rocket--b .cq-rocket-artillery-exhaust {
+  animation-delay: calc(var(--phase, 0) * -1.3s - .22s);
 }
 
 /* A battleship fires three independently mounted turrets; a cruiser scans at idle,
@@ -1817,6 +1866,7 @@
   .cq-patrol-fuselage, .cq-patrol-wing, .cq-patrol-nacelle-l, .cq-patrol-nacelle-r, .cq-patrol-prop-l, .cq-patrol-prop-r, .cq-patrol-radar-dome,
   .cq-supercarrier-wake, .cq-supercarrier-hull, .cq-supercarrier-bow, .cq-supercarrier-deck, .cq-supercarrier-aircraft, .cq-supercarrier-launch-aircraft, .cq-supercarrier-island, .cq-supercarrier-mast,
   .cq-general-standard, .cq-general-body, .cq-general-leg-l, .cq-general-leg-r, .cq-general-arm-l, .cq-general-arm-r, .cq-general-map { animation: none !important; }
+  .cq-trebuchet-stone, .cq-rocket-artillery-rocket, .cq-rocket-artillery-exhaust { animation: none !important; opacity: 0 !important; }
 }
 
 /* Pause when the sprite is offscreen (set by IntersectionObserver in the runtime) */

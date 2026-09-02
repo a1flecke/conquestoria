@@ -362,8 +362,8 @@ describe('#710 corrective native sprite contract', () => {
 
 describe('#711 siege and capital-ship native sprite contract', () => {
   const ISSUE_711_NATIVE = {
-    trebuchet: ['ranged', 'trebuchet', ['cq-trebuchet-a-frame', 'cq-trebuchet-counterweight', 'cq-trebuchet-beam', 'cq-trebuchet-sling', 'cq-trebuchet-carriage', 'cq-trebuchet-wheel']],
-    rocket_artillery: ['ranged', 'rocket-artillery', ['cq-rocket-artillery-chassis', 'cq-rocket-artillery-rack', 'cq-rocket-artillery-tubes', 'cq-rocket-artillery-stabilizer', 'cq-rocket-artillery-crate', 'cq-rocket-artillery-wheel']],
+    trebuchet: ['ranged', 'trebuchet', ['cq-trebuchet-a-frame', 'cq-trebuchet-counterweight', 'cq-trebuchet-beam', 'cq-trebuchet-sling', 'cq-trebuchet-stone', 'cq-trebuchet-carriage', 'cq-trebuchet-wheel']],
+    rocket_artillery: ['ranged', 'rocket-artillery', ['cq-rocket-artillery-chassis', 'cq-rocket-artillery-rack', 'cq-rocket-artillery-tubes', 'cq-rocket-artillery-rocket--a', 'cq-rocket-artillery-rocket--b', 'cq-rocket-artillery-stabilizer', 'cq-rocket-artillery-crate', 'cq-rocket-artillery-wheel']],
     battleship: ['naval', 'battleship', ['cq-battleship-hull', 'cq-battleship-turret-fore', 'cq-battleship-turret-mid', 'cq-battleship-turret-aft', 'cq-battleship-bridge', 'cq-battleship-rangefinder', 'cq-battleship-wake', 'cq-muzzle-flash']],
     missile_cruiser: ['naval', 'missile-cruiser', ['cq-missile-cruiser-hull', 'cq-missile-cruiser-vls', 'cq-missile-cruiser-bridge', 'cq-missile-cruiser-radar-forward', 'cq-missile-cruiser-radar-aft', 'cq-missile-cruiser-wake', 'cq-missile-cruiser-vls-lid', 'cq-missile-cruiser-launch']],
   } as const;
@@ -384,9 +384,31 @@ describe('#711 siege and capital-ship native sprite contract', () => {
     });
   }
 
-  it('keeps the trebuchet sling empty outside its local beam motion', () => {
+  it('keeps the trebuchet sling empty while its detached stone is released only by CSS', () => {
     const result = getUnitSpriteV2('trebuchet', 'imperials')!;
-    expect(result).not.toMatch(/class="cq-trebuchet-sling"[^>]*>[\s\S]*?<circle/);
+    const sling = result.match(/<g class="cq-trebuchet-sling">([\s\S]*?)<\/g>/)?.[1];
+    expect(sling).toBeDefined();
+    expect(sling).not.toContain('<circle');
+    expect(result).toContain('class="cq-trebuchet-stone"');
+  });
+
+  it('keeps the Trebuchet sling geometry inside the safe right-side release area', () => {
+    const result = getUnitSpriteV2('trebuchet', 'imperials')!;
+    expect(result).toContain('M42,-14 Q49,-7 48,4 M46,-11 Q54,-6 54,0');
+  });
+
+  it('anchors every animated siege payload under a static weapon-local placement group', () => {
+    const trebuchet = getUnitSpriteV2('trebuchet', 'imperials')!;
+    const rocketArtillery = getUnitSpriteV2('rocket_artillery', 'imperials')!;
+
+    expect(trebuchet).toContain('transform="translate(93 -8)"><g class="cq-trebuchet-stone"');
+    expect(rocketArtillery).toContain('transform="translate(80 20)"><g class="cq-rocket-artillery-rocket cq-rocket-artillery-rocket--a"');
+    expect(rocketArtillery).toContain('transform="translate(68 20)"><g class="cq-rocket-artillery-rocket cq-rocket-artillery-rocket--b"');
+  });
+
+  it('positions the Trebuchet stone at the tracked high release point rather than the idle sling', () => {
+    const trebuchet = getUnitSpriteV2('trebuchet', 'imperials')!;
+    expect(trebuchet).toContain('transform="translate(93 -8)"><g class="cq-trebuchet-stone"');
   });
 });
 
