@@ -645,8 +645,11 @@ describe('processTurn', () => {
     state.currentPlayer = 'player';
     const bus = new EventBus();
     const completions: string[] = [];
+    const events: Array<{ techId: string; carriedProgress?: number; carriedIntoTechId?: string | null }> = [];
     bus.on('tech:completed', p => {
-      if (p.civId === 'player') completions.push(p.techId);
+      if (p.civId !== 'player') return;
+      completions.push(p.techId);
+      events.push({ techId: p.techId, carriedProgress: p.carriedProgress, carriedIntoTechId: p.carriedIntoTechId });
     });
 
     const playerCiv = state.civilizations.player;
@@ -670,6 +673,11 @@ describe('processTurn', () => {
     expect(techState.researchQueue).toEqual(['wheel']);
     expect(techState.researchProgress).toBeGreaterThanOrEqual(10); // carried overflow visible now
     expect(completions).not.toContain('writing');
+    // The completion event reports where the overflow went, so presentation can
+    // tell the player their science was not wasted.
+    expect(events[0].carriedProgress).toBe(techState.researchProgress);
+    expect(events[0].carriedProgress).toBeGreaterThan(0);
+    expect(events[0].carriedIntoTechId).toBe('writing');
 
     // Simulate many turns of accumulated progress on writing, then run one turn:
     // exactly one more completion fires, for writing only — never a second event.
@@ -684,6 +692,32 @@ describe('processTurn', () => {
     // Steady state: wheel is nowhere near done — no completion event may recur.
     state = processTurn(state, bus);
     expect(completions).toEqual(['fire', 'writing']);
+  });
+
+  it('reports no carry on the completion event when the finished tech has no queued successor (MR4, #917)', () => {
+    let state = createNewGame(undefined, 'turn-research-no-carry', 'small');
+    state.currentPlayer = 'player';
+    const bus = new EventBus();
+    const events: Array<{ carriedProgress?: number; carriedIntoTechId?: string | null }> = [];
+    bus.on('tech:completed', p => {
+      if (p.civId === 'player') events.push({ carriedProgress: p.carriedProgress, carriedIntoTechId: p.carriedIntoTechId });
+    });
+
+    const playerCiv = state.civilizations.player;
+    const city = foundCity('player', state.units[playerCiv.units[0]].position, state.map, mkC());
+    state.cities[city.id] = city;
+    playerCiv.cities.push(city.id);
+
+    playerCiv.techState.currentResearch = 'fire';
+    playerCiv.techState.researchProgress = getEffectiveTechCost(getTechById('fire')!, []) + 25; // overshoot, but…
+    playerCiv.techState.researchQueue = []; // …nothing queued to receive it.
+
+    state = processTurn(state, bus);
+
+    expect(state.civilizations.player.techState.completed).toContain('fire');
+    expect(state.civilizations.player.techState.currentResearch).toBeNull();
+    expect(state.civilizations.player.techState.researchProgress).toBe(0); // overflow discarded
+    expect(events).toEqual([{ carriedProgress: 0, carriedIntoTechId: null }]);
   });
 
   it('advances each human hot-seat owner by that owner\'s canonical final research only', () => {
@@ -724,6 +758,52 @@ describe('processTurn', () => {
       expect(result.civilizations[civId]!.techState.researchProgress).toBe(before.get(civId));
     }
     expect(before.get('player-1')).not.toBe(before.get('player-2'));
+  });
+
+  it('keeps one hot-seat owner\'s queue overflow from touching another owner (MR4, #917)', () => {
+    const state = createHotSeatGame({
+      playerCount: 2,
+      mapSize: 'small',
+      players: [
+        { name: 'Alice', slotId: 'player-1', civType: 'england', isHuman: true },
+        { name: 'Bob', slotId: 'player-2', civType: 'germany', isHuman: true },
+        { name: 'Rome', slotId: 'ai-1', civType: 'rome', isHuman: false },
+      ],
+    }, 'research-hot-seat-overflow-isolation');
+    state.currentPlayer = 'player-1';
+
+    for (const civId of ['player-1', 'player-2'] as const) {
+      const civ = state.civilizations[civId]!;
+      const city = foundCity(civId, state.units[civ.units[0]!]!.position, state.map, state.idCounters);
+      state.cities[city.id] = city;
+      civ.cities = [city.id];
+    }
+    // Alice finishes 'fire' with a big overshoot and 'writing' queued.
+    const p1 = state.civilizations['player-1']!;
+    p1.techState.currentResearch = 'fire';
+    p1.techState.researchProgress = getEffectiveTechCost(getTechById('fire')!, []) + 40;
+    p1.techState.researchQueue = ['writing'];
+    // Bob is mid-'gathering' with 'pottery' queued and untouched progress.
+    const p2 = state.civilizations['player-2']!;
+    p2.techState.currentResearch = 'gathering';
+    p2.techState.researchProgress = 5;
+    p2.techState.researchQueue = ['pottery'];
+
+    const events: string[] = [];
+    const bus = new EventBus();
+    bus.on('tech:completed', p => events.push(p.civId));
+
+    const result = processTurn(state, bus);
+
+    // Alice advanced into her queued successor with carried overflow.
+    expect(result.civilizations['player-1']!.techState.currentResearch).toBe('writing');
+    expect(result.civilizations['player-1']!.techState.researchProgress).toBeGreaterThan(0);
+    // Bob's research is exactly his own +finalScience — no leaked overflow, no queue change.
+    const p2Rate = calculateCivResearchOutput(state, 'player-2').finalScience;
+    expect(result.civilizations['player-2']!.techState.currentResearch).toBe('gathering');
+    expect(result.civilizations['player-2']!.techState.researchProgress).toBe(5 + p2Rate);
+    expect(result.civilizations['player-2']!.techState.researchQueue).toEqual(['pottery']);
+    expect(events).not.toContain('player-2');
   });
 
   it('updates city maturity and grid size from population plus qualifying techs during turn processing', () => {

@@ -575,7 +575,12 @@ export function processTurn(
     newState.civilizations[civId].techState = researchResult.state;
     if (researchResult.completedTech) {
       const techId = researchResult.completedTech;
-      bus.emit('tech:completed', { civId, techId });
+      bus.emit('tech:completed', {
+        civId,
+        techId,
+        carriedProgress: researchResult.carriedProgress,
+        carriedIntoTechId: researchResult.carriedProgress > 0 ? researchResult.state.currentResearch : null,
+      });
       newState = applyResearchCompletionConsequences(newState, civId, techId, bus);
     }
 
@@ -1349,7 +1354,12 @@ export function processTurn(
               },
             };
             if (researchResult.completedTech) {
-              bus.emit('tech:completed', { civId: captorId, techId: researchResult.completedTech });
+              bus.emit('tech:completed', {
+                civId: captorId,
+                techId: researchResult.completedTech,
+                carriedProgress: researchResult.carriedProgress,
+                carriedIntoTechId: researchResult.carriedProgress > 0 ? researchResult.state.currentResearch : null,
+              });
               newState = applyResearchCompletionConsequences(newState, captorId, researchResult.completedTech, bus);
             }
           }

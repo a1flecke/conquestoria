@@ -291,6 +291,22 @@ describe('processResearch — MR4 bounded queue overflow (#917)', () => {
     expect(result.completedTech).toBeNull();
     expect(result.carriedProgress).toBe(0);
   });
+
+  it('carries overflow through applyResearchBonus when a bonus completes active research', () => {
+    const fireCost = getEffectiveTechCost(getTechById('fire')!, []);
+    const state = {
+      ...startResearch(createTechState(), 'fire'),
+      researchQueue: ['writing'],
+      researchProgress: fireCost - 3,
+    };
+
+    const result = applyResearchBonus(state, 20); // 17 left over after finishing fire
+
+    expect(result.completedTech).toBe('fire');
+    expect(result.state.currentResearch).toBe('writing');
+    expect(result.carriedProgress).toBe(17);
+    expect(result.state.researchProgress).toBe(17);
+  });
 });
 
 describe('isTechCompleted', () => {
