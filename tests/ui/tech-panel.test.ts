@@ -6,7 +6,7 @@ import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { foundCity, TRAINABLE_UNITS } from '@/systems/city-system';
 import { hexKey } from '@/systems/hex-utils';
 import { enqueueResearch } from '@/systems/planning-system';
-import { startResearch, TECH_TREE } from '@/systems/tech-system';
+import { getEffectiveTechCost, getTechById, startResearch, TECH_TREE } from '@/systems/tech-system';
 import { createTechPanel, formatTechNodeEta } from '@/ui/tech-panel';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
@@ -331,6 +331,39 @@ describe('tech-panel', () => {
     expect(panel.textContent).toContain('Research Queue');
     expect(panel.querySelector('[data-queue-action="remove"]')).toBeTruthy();
     expect(panel.textContent).toContain('Starts in');
+  });
+
+  it('keeps the active-research progress bar clamped when carried overflow exceeds the tech cost (MR4, #917)', () => {
+    const state = createNewGame(undefined, 'tech-panel-overflow-clamp');
+    const civ = state.civilizations.player;
+    const writingCost = getEffectiveTechCost(getTechById('writing')!, civ.techState.completed);
+    civ.techState = {
+      ...civ.techState,
+      currentResearch: 'writing',
+      // Transient carried-overflow state: progress sits above the tech's own
+      // effective cost until the next processResearch call completes it.
+      researchProgress: writingCost + 500,
+      researchQueue: ['wheel'],
+    };
+
+    const panel = createTechPanel(document.body, state, {
+      onQueueResearch: () => {},
+      onMoveQueuedResearch: () => {},
+      onRemoveQueuedResearch: () => {},
+      onClose: () => {},
+    });
+
+    const barWidths = Array.from(panel.querySelectorAll<HTMLElement>('div'))
+      .map(el => el.style.width)
+      .filter(width => width.endsWith('%'))
+      .map(width => Number.parseFloat(width));
+    expect(barWidths.length).toBeGreaterThan(0);
+    for (const width of barWidths) {
+      expect(width).toBeLessThanOrEqual(100);
+    }
+
+    // It reads as about to complete, never "500 turns".
+    expect(panel.textContent).toContain('Turns remaining: 1');
   });
 
   it('keeps queued ETAs visible after queue reorder and remove actions', () => {

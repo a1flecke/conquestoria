@@ -137,6 +137,27 @@ describe('AudioSystem integration', () => {
     expect(ctx.transcript.filter(entry => entry.op === 'start')).toHaveLength(1);
   });
 
+  it('plays exactly one stinger per real completion when queued overflow spans turns (MR4, #917)', async () => {
+    const state = makeState({ currentPlayer: 'rome' });
+    ctx.state = 'running';
+    system.start(state, busHelper.bus, () => state);
+    await flushPromises();
+    ctx.clearTranscript();
+
+    // First tech completes and carries overflow into the queued successor.
+    busHelper.emit('tech:completed', { civId: 'rome', techId: 'fire' });
+    await flushPromises();
+    // Steady-state turns while the successor accumulates carried progress: no
+    // event fires, so no stinger may recur.
+    await flushPromises();
+    await flushPromises();
+    // A later owner turn actually finishes the successor: one more stinger.
+    busHelper.emit('tech:completed', { civId: 'rome', techId: 'writing' });
+    await flushPromises();
+
+    expect(ctx.transcript.filter(entry => entry.op === 'start')).toHaveLength(2);
+  });
+
   it('plays one strategic warning cue for the current viewer and turn', async () => {
     const state = makeState({ turn: 7 });
     ctx.state = 'running';

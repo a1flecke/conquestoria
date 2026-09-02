@@ -149,9 +149,11 @@ export function canMoveQueuedResearch(state: TechState, fromIndex: number, toInd
 }
 
 /**
- * Simulates the research queue with the same one-completion-per-turn rule as
- * research processing. Excess science never carries into the next queued
- * technology, so queued ETA labels remain honest at every research rate.
+ * Simulates the research queue with the same overflow rules as live research
+ * processing (MR4, #917): each simulated owner turn adds the full science rate,
+ * completes at most one technology, and carries any leftover science into the
+ * next queued technology — but never past the final queued item. Queued ETA
+ * labels therefore match what the player actually sees turn by turn.
  */
 export function simulateResearchQueueTiming(
   state: TechState,
@@ -168,7 +170,8 @@ export function simulateResearchQueueTiming(
   let elapsedTurns = 0;
   let progress = Math.max(0, state.researchProgress);
 
-  for (const techId of queuedIds) {
+  for (let index = 0; index < queuedIds.length; index += 1) {
+    const techId = queuedIds[index];
     const tech = techs.find(candidate => candidate.id === techId);
     if (!tech || completed.includes(techId)) {
       progress = 0;
@@ -176,12 +179,21 @@ export function simulateResearchQueueTiming(
     }
 
     const startTurns = elapsedTurns;
-    const remainingScience = Math.max(0, getEffectiveTechCost(tech, completed) - progress);
-    const turnsToComplete = Math.max(1, Math.ceil(remainingScience / perTurnScience));
+    const effectiveCost = getEffectiveTechCost(tech, completed);
+    const remainingScience = effectiveCost - progress;
+    // One completion per turn: carried overflow that already meets the cost
+    // still consumes the turn the technology completes on.
+    const turnsToComplete = remainingScience > 0
+      ? Math.ceil(remainingScience / perTurnScience)
+      : 1;
     elapsedTurns += turnsToComplete;
     timing.set(techId, { startTurns, finishTurns: elapsedTurns });
     completed.push(techId);
-    progress = 0;
+
+    const hasSuccessor = index + 1 < queuedIds.length;
+    progress = hasSuccessor
+      ? progress + turnsToComplete * perTurnScience - effectiveCost
+      : 0;
   }
 
   return timing;

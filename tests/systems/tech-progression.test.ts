@@ -110,7 +110,7 @@ describe('tech progression view model', () => {
     expect(view.nodesById.get('banking')?.turnsToResearch).toBeNull();
   });
 
-  it('simulates queued research one completion per turn and discards overflow', () => {
+  it('simulates queued research at one completion per turn', () => {
     const timing = simulateResearchQueueTiming({
       ...createTechState(),
       currentResearch: 'fire',
@@ -120,6 +120,67 @@ describe('tech progression view model', () => {
 
     expect(timing.get('fire')).toEqual({ startTurns: 0, finishTurns: 1 });
     expect(timing.get('writing')).toEqual({ startTurns: 1, finishTurns: 2 });
+  });
+
+  it('carries queue overflow into an existing successor and shortens its ETA (MR4, #917)', () => {
+    const techs: Tech[] = [
+      { id: 'a', name: 'A', track: 'science', cost: 20, prerequisites: [], unlocks: [], era: 1 },
+      { id: 'b', name: 'B', track: 'science', cost: 35, prerequisites: ['a'], unlocks: [], era: 1 },
+      { id: 'c', name: 'C', track: 'science', cost: 200, prerequisites: ['b'], unlocks: [], era: 1 },
+    ];
+
+    const timing = simulateResearchQueueTiming({
+      ...createTechState(),
+      currentResearch: 'a',
+      researchProgress: 0,
+      researchQueue: ['b', 'c'],
+    }, 30, techs);
+
+    // Turn 1: +30 finishes A (cost 20); 10 leftover carries into B.
+    expect(timing.get('a')).toEqual({ startTurns: 0, finishTurns: 1 });
+    // B holds 10 carried, so +30 on turn 2 reaches 40 >= 35 and it completes on
+    // turn 2 — without carry it would need two more turns and finish on turn 3.
+    expect(timing.get('b')).toEqual({ startTurns: 1, finishTurns: 2 });
+    // B overflow (5) carries into C: remaining 195, ceil(195/30) = 7 → finish 9.
+    expect(timing.get('c')).toEqual({ startTurns: 2, finishTurns: 9 });
+  });
+
+  it('discards overflow from the final queued technology (no successor to receive it)', () => {
+    const techs: Tech[] = [
+      { id: 'a', name: 'A', track: 'science', cost: 20, prerequisites: [], unlocks: [], era: 1 },
+      { id: 'b', name: 'B', track: 'science', cost: 500, prerequisites: ['a'], unlocks: [], era: 1 },
+    ];
+
+    const timing = simulateResearchQueueTiming({
+      ...createTechState(),
+      currentResearch: 'a',
+      researchProgress: 0,
+      researchQueue: ['b'],
+    }, 40, techs);
+
+    // A finishes turn 1 with 20 overflow carried into B.
+    expect(timing.get('a')).toEqual({ startTurns: 0, finishTurns: 1 });
+    // B: remaining 500 - 20 = 480, ceil(480/40) = 12 → finish turn 13.
+    expect(timing.get('b')).toEqual({ startTurns: 1, finishTurns: 13 });
+  });
+
+  it('still spends one turn on a successor even when carried overflow already covers its cost', () => {
+    const techs: Tech[] = [
+      { id: 'a', name: 'A', track: 'science', cost: 20, prerequisites: [], unlocks: [], era: 1 },
+      { id: 'b', name: 'B', track: 'science', cost: 10, prerequisites: ['a'], unlocks: [], era: 1 },
+      { id: 'c', name: 'C', track: 'science', cost: 10, prerequisites: ['b'], unlocks: [], era: 1 },
+    ];
+
+    const timing = simulateResearchQueueTiming({
+      ...createTechState(),
+      currentResearch: 'a',
+      researchProgress: 0,
+      researchQueue: ['b', 'c'],
+    }, 1000, techs);
+
+    expect(timing.get('a')).toEqual({ startTurns: 0, finishTurns: 1 });
+    expect(timing.get('b')).toEqual({ startTurns: 1, finishTurns: 2 });
+    expect(timing.get('c')).toEqual({ startTurns: 2, finishTurns: 3 });
   });
 
   it('returns the dependency path for a selected goal without including unrelated same-track techs', () => {
