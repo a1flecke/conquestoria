@@ -186,7 +186,11 @@ describe('representative multi-city reference economy', () => {
       { era: 12, cityCount: 5, total: { science: 948, production: 607 }, averagePerCity: { science: 189.6, production: 121.4 } },
       { era: 13, cityCount: 5, total: { science: 1192, production: 685 }, averagePerCity: { science: 238.4, production: 137 } },
     ]);
-  }, 60_000);
+    // Runs the representative multi-city simulation for four eras; ~21s locally
+    // but exceeds the old 60s ceiling on a loaded CI runner (times out on main
+    // too). Matches the 150s override its sibling infra-sensitivity test above
+    // already carries. Assertions are unchanged.
+  }, 150_000);
 
   it('keeps maximal as the era 10-13 target while representative is diagnostic', () => {
     for (const era of [10, 11, 12, 13]) {
