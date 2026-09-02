@@ -6,7 +6,7 @@ import { TECH_TREE } from '@/systems/tech-definitions';
 import { foundCity } from '@/systems/city-system';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
 import { createVisibilityMap, getVisibility } from '@/systems/fog-of-war';
-import { getAvailableTechs } from '@/systems/tech-system';
+import { getAvailableTechs, getEffectiveTechCost, getTechById } from '@/systems/tech-system';
 import { hexKey } from '@/systems/hex-utils';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 import { resolveCivDefinition } from '@/systems/civ-registry';
@@ -638,6 +638,52 @@ describe('processTurn', () => {
 
     const newState = processTurn(state, bus);
     expect(newState.civilizations.player.techState.researchProgress).toBeGreaterThan(0);
+  });
+
+  it('carries research overflow into the queued successor and emits exactly one completion per turn (MR4, #917)', () => {
+    let state = createNewGame(undefined, 'turn-research-overflow', 'small');
+    state.currentPlayer = 'player';
+    const bus = new EventBus();
+    const completions: string[] = [];
+    bus.on('tech:completed', p => {
+      if (p.civId === 'player') completions.push(p.techId);
+    });
+
+    const playerCiv = state.civilizations.player;
+    const city = foundCity('player', state.units[playerCiv.units[0]].position, state.map, mkC());
+    state.cities[city.id] = city;
+    playerCiv.cities.push(city.id);
+
+    const fireCost = getEffectiveTechCost(getTechById('fire')!, []);
+    playerCiv.techState.currentResearch = 'fire';
+    // Sits above cost going in, as it would after a strong science turn, so the
+    // carried overflow is deterministic regardless of this small city's rate.
+    playerCiv.techState.researchProgress = fireCost + 10;
+    playerCiv.techState.researchQueue = ['writing', 'wheel'];
+
+    // Turn 1: fire completes; leftover science carries into writing immediately.
+    state = processTurn(state, bus);
+    let techState = state.civilizations.player.techState;
+    expect(completions).toEqual(['fire']);
+    expect(techState.completed).toContain('fire');
+    expect(techState.currentResearch).toBe('writing');
+    expect(techState.researchQueue).toEqual(['wheel']);
+    expect(techState.researchProgress).toBeGreaterThanOrEqual(10); // carried overflow visible now
+    expect(completions).not.toContain('writing');
+
+    // Simulate many turns of accumulated progress on writing, then run one turn:
+    // exactly one more completion fires, for writing only — never a second event.
+    const writingCost = getEffectiveTechCost(getTechById('writing')!, techState.completed);
+    state.civilizations.player.techState = { ...techState, researchProgress: writingCost - 1 };
+    state = processTurn(state, bus);
+    techState = state.civilizations.player.techState;
+    expect(completions).toEqual(['fire', 'writing']); // no duplicate 'fire', no early 'wheel'
+    expect(techState.currentResearch).toBe('wheel');
+    expect(techState.researchQueue).toEqual([]);
+
+    // Steady state: wheel is nowhere near done — no completion event may recur.
+    state = processTurn(state, bus);
+    expect(completions).toEqual(['fire', 'writing']);
   });
 
   it('advances each human hot-seat owner by that owner\'s canonical final research only', () => {
