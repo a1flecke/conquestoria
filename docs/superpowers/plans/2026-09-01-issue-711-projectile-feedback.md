@@ -93,7 +93,7 @@ Expected: four identity sheets, four contact sheets, and four GIF reels are rege
 
 Open the regenerated contact sheets and GIFs. Confirm the Trebuchet stone is fully visible at release and disappears before the right edge; confirm both rockets launch in sequence, originate from the tube bank, and do not overlap the chassis or clip frame edges.
 
-### Task 4: Verify, publish review evidence, and open the requested draft PR
+### Task 4: Verify, publish review evidence, and open the requested draft PR — 🟡 draft PR #943; awaiting remote visual approval
 
 **Files:**
 - Modify: `docs/superpowers/plans/2026-09-01-issue-711-projectile-feedback.md`
@@ -106,11 +106,11 @@ Run: `bash scripts/run-with-mise.sh yarn test --run tests/renderer/sprites/v2/in
 
 Expected: every focused regression and source-rule check passes.
 
-- [ ] **Step 2: Inspect all committed and local changes against `origin/main`**
+- [x] **Step 2: Inspect all committed and local changes against `origin/main`**
 
 Run: `git diff --check origin/main...HEAD` and `git diff --stat origin/main...HEAD`, followed by `git diff --check` and `git diff --stat`. Read the full source diff for the changed V2 SVG payloads and animation CSS.
 
-- [ ] **Step 3: Run release-level verification**
+- [x] **Step 3: Run release-level verification**
 
 Run separately: `bash scripts/run-with-mise.sh yarn build`
 
@@ -120,7 +120,7 @@ Then: `bash scripts/run-with-mise.sh yarn test:durable:status`
 
 Expected: build succeeds and durable status accepts the exact current `HEAD` and working tree.
 
-- [ ] **Step 4: Commit and push the corrected review package**
+- [x] **Step 4: Commit and push the corrected review package**
 
 Run: `git add design/conquestoria-sprites/lib/units-v2.jsx src/assets/sprite-animations-v2.css src/renderer/sprites/v2/trebuchet.svg.ts src/renderer/sprites/v2/rocket_artillery.svg.ts scripts/capture-issue-711-remote-review.mjs tests/renderer/sprites/v2/index.test.ts tests/renderer/sprites/sprite-animations-v2-css.test.ts docs/reviews docs/superpowers/plans/2026-09-01-issue-711-projectile-feedback.md`
 
@@ -128,6 +128,6 @@ Run: `git commit -m "fix(711): animate siege payloads"`
 
 Run: `git push -u origin codex/issue-711-visual-sprites`
 
-- [ ] **Step 5: Open the requested draft pull request and synchronize this plan**
+- [x] **Step 5: Open the requested draft pull request and synchronize this plan**
 
 Create a draft PR into `main` with `Closes #711`, a link to `docs/reviews/issue-711-remote-sprite-review.md`, and the build/durable evidence. Replace this task’s checkboxes with completed state and append `🟡 draft PR #<number>; awaiting remote visual approval` to this task heading, commit the plan update, and push it to the same PR.
