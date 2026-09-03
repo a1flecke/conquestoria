@@ -1304,6 +1304,58 @@ describe('#919 MR2 — Courthouse unrest relief row', () => {
   });
 });
 
+describe('#926 — Military Administration unrest relief row', () => {
+  function militaryAdministrationRowAmount(state: GameState): number | undefined {
+    return getUnrestPressureBreakdown(
+      'city-1', addBuilding(state, 'city-1', 'military-administration'), 0,
+    ).find(row => row.label === 'Military Administration')?.amount;
+  }
+
+  it('relieves maximum war and fresh-conquest pressure by at most 18', () => {
+    const state = makeState({ conquestTurn: 0, atWarCount: 3 });
+    const rows = getUnrestPressureBreakdown(
+      'city-1', addBuilding(state, 'city-1', 'military-administration'), 0,
+    );
+    expect(rows.find(row => row.label === 'War weariness')?.amount).toBe(24);
+    expect(rows.find(row => row.label === 'Recent conquest')?.amount).toBe(25);
+    expect(rows.find(row => row.label === 'Military Administration')?.amount).toBe(-18);
+  });
+
+  it('preserves the war and conquest residual floors after Constitutional Law', () => {
+    const state = makeState({ conquestTurn: 0, atWarCount: 1 });
+    const withLaw: GameState = {
+      ...state,
+      civilizations: {
+        ...state.civilizations,
+        player: {
+          ...state.civilizations.player,
+          techState: { ...state.civilizations.player.techState, completed: ['constitutional-law'] },
+        },
+      },
+    };
+    const rows = getUnrestPressureBreakdown(
+      'city-1', addBuilding(withLaw, 'city-1', 'military-administration'), 0,
+    );
+    expect(rows.find(row => row.label === 'Military Administration')?.amount).toBe(-9);
+    const remaining = (rows.find(row => row.label === 'War weariness')?.amount ?? 0)
+      + (rows.find(row => row.label === 'Recent conquest')?.amount ?? 0)
+      + (rows.find(row => row.label === 'Military Administration')?.amount ?? 0);
+    expect(remaining).toBe(12);
+  });
+
+  it('emits no relief row when neither target pressure row exists', () => {
+    expect(militaryAdministrationRowAmount(makeState())).toBeUndefined();
+  });
+
+  it('changes the real faction escalation decision at the war-and-conquest boundary', () => {
+    const base = makeState({ conquestTurn: 0, atWarCount: 2 });
+    const relieved = addBuilding(base, 'city-1', 'military-administration');
+    const bus = new EventBus();
+    expect(processFactionTurn(base, bus).cities['city-1'].unrestLevel).toBe(1);
+    expect(processFactionTurn(relieved, bus).cities['city-1'].unrestLevel).toBe(0);
+  });
+});
+
 describe('#919 MR2 — save compatibility and hot-seat', () => {
   let bus: EventBus;
   beforeEach(() => { bus = new EventBus(); });
@@ -1363,5 +1415,37 @@ describe('#919 MR2 — save compatibility and hot-seat', () => {
       'city-1', { ...withCh, currentPlayer: 'player' }, 0,
     ).find(r => r.label === 'Courthouse');
     expect(rowPlayer1Active).toEqual(row);
+  });
+
+  it('#926: Military Administration relief is computed from city.owner, not the hot-seat viewer', () => {
+    const base = makeState({ conquestTurn: 0, atWarCount: 2 });
+    const p2 = 'ai-1';
+    const cities = Object.fromEntries(
+      Object.entries(base.cities).map(([id, city]) => [id, { ...city, owner: p2 }]),
+    );
+    const player2Active: GameState = {
+      ...base,
+      currentPlayer: p2,
+      cities,
+      civilizations: {
+        ...base.civilizations,
+        player: { ...base.civilizations.player, cities: [] },
+        [p2]: {
+          ...base.civilizations[p2],
+          isHuman: true,
+          cities: base.civilizations.player.cities,
+          diplomacy: { ...base.civilizations[p2].diplomacy, atWarWith: ['player', 'ai-2'] },
+        },
+      },
+    };
+    const withAdministration = addBuilding(player2Active, 'city-1', 'military-administration');
+    const row = getUnrestPressureBreakdown('city-1', withAdministration, 0)
+      .find(candidate => candidate.label === 'Military Administration');
+    const otherViewerRow = getUnrestPressureBreakdown(
+      'city-1', { ...withAdministration, currentPlayer: 'player' }, 0,
+    ).find(candidate => candidate.label === 'Military Administration');
+
+    expect(row?.amount).toBeLessThan(0);
+    expect(otherViewerRow).toEqual(row);
   });
 });

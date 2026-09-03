@@ -237,6 +237,31 @@ describe('AI strategic research planning', () => {
     expect(relief(100)).toBeLessThanOrEqual(18);
   });
 
+  it('#926: relief research only values cities whose pressure the unlocked building can cut', () => {
+    const techs = [
+      tech('aaa-magistracy', 'civics', [], { unlocksBuildings: ['courthouse'] }),
+      tech('zzz-civil-service', 'civics', [], { unlocksBuildings: ['military-administration'] }),
+    ];
+
+    const warOnly = planAIResearch(context(techs, {
+      pressuredReliefCityIdsByBuildingId: {
+        courthouse: [],
+        'military-administration': ['front-1', 'front-2'],
+      },
+    }));
+    expect(warOnly?.frontierTechId).toBe('zzz-civil-service');
+    expect(warOnly?.scoreComponents.unrestReliefTechBonus).toBeGreaterThan(0);
+
+    const sprawlOnly = planAIResearch(context(techs, {
+      pressuredReliefCityIdsByBuildingId: {
+        courthouse: ['wide-1', 'wide-2'],
+        'military-administration': [],
+      },
+    }));
+    expect(sprawlOnly?.frontierTechId).toBe('aaa-magistracy');
+    expect(sprawlOnly?.scoreComponents.unrestReliefTechBonus).toBeGreaterThan(0);
+  });
+
   it('bounds search to four edges and twenty-four downstream targets', () => {
     const techs = [tech('root', 'science')];
     for (let index = 1; index <= 30; index++) {

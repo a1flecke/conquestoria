@@ -928,6 +928,23 @@ describe('#919 MR2 — AI values unrest relief (Courthouse)', () => {
     const courthouse = candidates.find(c => c.itemId === 'courthouse');
     expect(courthouse?.unrestReliefScore ?? 0).toBe(0);
   });
+
+  it.each(['explorer', 'standard', 'veteran'] as const)(
+    '#926: values Military Administration identically for %s difficulty when war and conquest pressure apply',
+    difficulty => {
+      const completed = TECH_TREE.filter(tech => tech.era <= 3 && tech.countsForEraAdvancement !== false)
+        .map(tech => tech.id);
+      const state = setupState([...completed, 'civil-service']);
+      state.opponentChallenge = difficulty;
+      state.cities['city-a']!.conquestTurn = state.turn;
+      state.civilizations['ai-1'].diplomacy.atWarWith = ['enemy-1', 'enemy-2', 'enemy-3'];
+
+      const administration = candidate(state, 'military-administration');
+
+      expect(administration.unrestReliefScore).toBeGreaterThan(0);
+      expect(administration.unrestReliefScore).toBe(27);
+    },
+  );
 });
 
 describe('#591 MR4 — milestone national project AI scoring', () => {

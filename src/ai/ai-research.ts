@@ -7,7 +7,6 @@ import type {
 } from '@/core/types';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import {
-  BUILDINGS,
   TRAINABLE_UNITS,
   isCityCoastal,
 } from '@/systems/city-system';
@@ -19,10 +18,6 @@ import {
   getUnrestPressureBreakdown,
 } from '@/systems/faction-system';
 
-// #919 MR2: the pressure rows a courthouse (or any current relief source) actually
-// addresses. A city pressured only by war / recent conquest / economy does NOT count
-// toward "this empire needs Magistracy" — that residual is a separate arc.
-const COURTHOUSE_ADDRESSABLE_ROWS = new Set(['Distance from capital', 'Empire overextension']);
 import {
   activateNextQueuedResearch,
   enqueueResearch,
@@ -42,11 +37,12 @@ export interface AIResearchPlanningContext {
   availableResources: ReadonlySet<ResourceType>;
   sciencePerTurn: number;
   /**
-   * #919 MR2: count of this civ's cities whose current unrest pressure is at or
-   * above 0.6 * UNREST_TRIGGER_PRESSURE. When >= 2, a tech unlocking any
-   * UNREST_RELIEF_SOURCES building (Magistracy -> Courthouse today) gets a flat
-   * priority bonus, so a pressured wide empire actually beelines the counter.
+   * City ids scoped to the relief building that can address their current
+   * pressure. Identities, rather than counts, keep a future multi-building
+   * unlock's bonus correct when its affected cities overlap.
    */
+  pressuredReliefCityIdsByBuildingId?: Readonly<Record<string, readonly string[]>>;
+  /** Compatibility for isolated planning callers; live AI supplies per-source counts. */
   pressuredReliefCityCount?: number;
   techs?: readonly Tech[];
 }
@@ -75,13 +71,14 @@ const UNREST_RELIEF_TECH_AI_BASE_BONUS = 6;
 const UNREST_RELIEF_TECH_AI_PER_PRESSURED_CITY = 1.5;
 const UNREST_RELIEF_TECH_AI_BONUS_CAP = 18;
 const UNREST_RELIEF_PRESSURED_CITY_GATE = 2;
-const UNREST_RELIEF_BUILDING_IDS = new Set(UNREST_RELIEF_SOURCES.map(source => source.id));
-
-function techUnlocksReliefBuilding(tech: Tech): boolean {
-  return (tech.unlocksBuildings ?? []).some(id => UNREST_RELIEF_BUILDING_IDS.has(id) && BUILDINGS[id]);
-}
-
-function unrestReliefTechBonus(pressuredReliefCityCount: number): number {
+function unrestReliefTechBonus(
+  tech: Tech,
+  cityIdsByBuildingId: Readonly<Record<string, readonly string[]>>,
+): number {
+  const unlocked = new Set(tech.unlocksBuildings ?? []);
+  const pressuredReliefCityCount = new Set(UNREST_RELIEF_SOURCES
+    .filter(source => unlocked.has(source.id))
+    .flatMap(source => cityIdsByBuildingId[source.id] ?? [])).size;
   if (pressuredReliefCityCount < UNREST_RELIEF_PRESSURED_CITY_GATE) return 0;
   return Math.min(
     UNREST_RELIEF_TECH_AI_BONUS_CAP,
@@ -125,7 +122,7 @@ function descendantsWithinLimit(
   techs: readonly Tech[],
   completed: ReadonlySet<string>,
   knownTechIds: ReadonlySet<string>,
-  reliefBonus: number,
+  reliefCityIdsByBuildingId: Readonly<Record<string, readonly string[]>>,
 ): SearchTarget[] {
   const byId = new Map(techs.map(tech => [tech.id, tech]));
   const targets: SearchTarget[] = [];
@@ -150,7 +147,7 @@ function descendantsWithinLimit(
       + capabilities.eraProgress
       + Object.values(capabilities.rolesUnlocked)
         .reduce((sum, value) => sum + (value ?? 0), 0)
-      + (techUnlocksReliefBuilding(current.tech) ? reliefBonus : 0);
+      + unrestReliefTechBonus(current.tech, reliefCityIdsByBuildingId);
     targets.push({
       frontier,
       target: current.tech,
@@ -234,10 +231,14 @@ export function planAIResearch(
     .sort((left, right) => left.id.localeCompare(right.id));
   if (frontier.length === 0) return null;
 
-  const reliefBonus = unrestReliefTechBonus(context.pressuredReliefCityCount ?? 0);
+  const reliefCityIdsByBuildingId = context.pressuredReliefCityIdsByBuildingId
+    ?? Object.fromEntries(UNREST_RELIEF_SOURCES.map(source => [
+      source.id,
+      Array.from({ length: context.pressuredReliefCityCount ?? 0 }, (_, index) => `legacy-${index}`),
+    ]));
 
   const searchTargets = frontier
-    .flatMap(tech => descendantsWithinLimit(tech, techs, completed, knownTechIds, reliefBonus))
+    .flatMap(tech => descendantsWithinLimit(tech, techs, completed, knownTechIds, reliefCityIdsByBuildingId))
     .sort((left, right) =>
       right.preliminary - left.preliminary
       || left.frontier.id.localeCompare(right.frontier.id)
@@ -281,7 +282,7 @@ export function planAIResearch(
         context.availableResources,
       ),
       situationalityPenalty: capabilities.situationality,
-      unrestReliefTechBonus: techUnlocksReliefBuilding(entry.target) ? reliefBonus : 0,
+      unrestReliefTechBonus: unrestReliefTechBonus(entry.target, reliefCityIdsByBuildingId),
     };
     const score = modernizationFit * 4
       + activePlanFit * 3
@@ -367,17 +368,16 @@ export function applyAIResearch(
     return city ? isCityCoastal(city, state.map) : false;
   });
   const sciencePerTurn = Math.max(1, calculateCivResearchOutput(state, civId).finalScience);
-  // #919 MR2: how many of this civ's cities are BOTH meaningfully pressured AND carry
-  // a pressure row a relief building would actually cut (distance / overextension).
+  // City identities are scoped to the relief source whose rows they can cut. This
+  // prevents war-only cities from pulling Courthouse research and vice versa.
   const reliefPressureGate = 0.6 * UNREST_TRIGGER_PRESSURE;
   const ownerHappiness = getCivHappinessFromResources(state, civId);
-  const pressuredReliefCityCount = civ.cities.reduce((count, cityId) => {
+  const pressuredReliefCityIdsByBuildingId = Object.fromEntries(UNREST_RELIEF_SOURCES.map(source => [source.id, civ.cities.filter(cityId => {
     const rows = getUnrestPressureBreakdown(cityId, state, ownerHappiness);
     const pressure = Math.min(100, Math.max(0, rows.reduce((total, row) => total + row.amount, 0)));
-    if (pressure < reliefPressureGate) return count;
-    const addressable = rows.some(row => COURTHOUSE_ADDRESSABLE_ROWS.has(row.label) && row.amount > 0);
-    return addressable ? count + 1 : count;
-  }, 0);
+    return pressure >= reliefPressureGate
+      && rows.some(row => source.targetRowLabels.includes(row.label) && row.amount > 0);
+  })]));
   const decision = planAIResearch({
     techState: activated,
     personality,
@@ -386,7 +386,7 @@ export function applyAIResearch(
     coastalEmpire,
     availableResources: resources,
     sciencePerTurn,
-    pressuredReliefCityCount,
+    pressuredReliefCityIdsByBuildingId,
   });
   if (!decision) {
     if (activated === civ.techState) return { state, startedTechId: null };

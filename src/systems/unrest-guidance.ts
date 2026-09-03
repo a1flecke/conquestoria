@@ -22,6 +22,7 @@ import { hexDistance } from './hex-utils';
 
 export type UnrestRecommendationKind =
   | 'build-courthouse' | 'research-magistracy'
+  | 'build-military-administration'
   | 'garrison-unit' | 'train-garrison-unit'
   | 'make-peace' | 'await-conquest-settle' | 'research-constitutional-law'
   | 'fix-economy' | 'counter-espionage' | 'stabilise-contagion-source'
@@ -67,13 +68,13 @@ function hasSpareMilitaryUnit(state: GameState, city: City): boolean {
     && hexDistance(u.position, city.position) !== 0);
 }
 
-function courthouseBuildableHere(state: GameState, city: City): boolean {
+function buildingBuildableHere(buildingId: string, state: GameState, city: City): boolean {
   const civ = state.civilizations[city.owner];
-  if (!civ || city.buildings.includes('courthouse')) return false;
+  if (!civ || city.buildings.includes(buildingId)) return false;
   const era = resolveCivilizationEra(civ.techState.completed);
   const resources = getCivAvailableResources(state, city.owner);
   return getAvailableBuildings(city, civ.techState.completed, state.map, resources, era, undefined, city.owner)
-    .some(b => b.id === 'courthouse');
+    .some(b => b.id === buildingId);
 }
 
 function anyHappinessBuildingAvailable(state: GameState, city: City): boolean {
@@ -100,7 +101,7 @@ const SPRAWL_RESOLVER: GuidanceResolver = {
   matchesRow: label => label === 'Empire overextension' || label === 'Distance from capital',
   resolve: ({ city, state, row }) => {
     const base = { rowLabel: row.label, amount: row.amount };
-    if (courthouseBuildableHere(state, city)) {
+    if (buildingBuildableHere('courthouse', state, city)) {
       return { ...base, kind: 'build-courthouse', availability: 'now' };
     }
     if (!city.buildings.includes('courthouse')
@@ -117,10 +118,9 @@ const SPRAWL_RESOLVER: GuidanceResolver = {
 
 const WAR_RESOLVER: GuidanceResolver = {
   matchesRow: label => label === 'War weariness',
-  resolve: ({ city, state, row }) => ({
-    rowLabel: row.label, amount: row.amount, kind: 'make-peace', availability: 'now',
-    params: { warCivIds: [...(state.civilizations[city.owner]?.diplomacy.atWarWith ?? [])] },
-  }),
+  resolve: ({ city, state, row }) => buildingBuildableHere('military-administration', state, city)
+    ? { rowLabel: row.label, amount: row.amount, kind: 'build-military-administration', availability: 'now' }
+    : { rowLabel: row.label, amount: row.amount, kind: 'make-peace', availability: 'now', params: { warCivIds: [...(state.civilizations[city.owner]?.diplomacy.atWarWith ?? [])] } },
 };
 
 const CONQUEST_RESOLVER: GuidanceResolver = {
@@ -130,7 +130,9 @@ const CONQUEST_RESOLVER: GuidanceResolver = {
       ? Math.max(0, CONQUEST_UNREST_DURATION - (state.turn - city.conquestTurn))
       : 0;
     const base = { rowLabel: row.label, amount: row.amount };
-    const recs: UnrestRecommendation[] = [
+    const recs: UnrestRecommendation[] = buildingBuildableHere('military-administration', state, city)
+      ? [{ ...base, kind: 'build-military-administration', availability: 'now' }]
+      : [
       // Primary: the only thing a player can actually do right now is wait it out
       // (a garrison blunts contagion spread from it, nothing more).
       {
@@ -138,9 +140,10 @@ const CONQUEST_RESOLVER: GuidanceResolver = {
         params: { turnsLeft, canGarrison: canGarrisonCity(city.id, state) },
       },
     ];
-    // Secondary: Constitutional Law halves this row — worth a "research it later" note,
-    // never the top lever (it is an Era 5-7 civics tech).
-    if (!techDone(state, city.owner, 'constitutional-law')) {
+    // Constitutional Law is a truthful fallback while the local relief building is
+    // unavailable. Once it is buildable, keep the actionable recommendation focused.
+    if (!buildingBuildableHere('military-administration', state, city)
+      && !techDone(state, city.owner, 'constitutional-law')) {
       recs.push({ ...base, kind: 'research-constitutional-law', availability: 'research-first', params: { techId: 'constitutional-law' } });
     }
     return recs;

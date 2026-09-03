@@ -13,6 +13,15 @@ describe('unrestRecommendationCopy', () => {
     expect(text).toMatch(/city screen/i);
   });
 
+  it('#926: build-military-administration names the City screen and both relief sources', () => {
+    const { icon, text } = unrestRecommendationCopy(rec({ kind: 'build-military-administration' }));
+    expect(icon).toBe('🛡️');
+    expect(text).toMatch(/military administration/i);
+    expect(text).toMatch(/city screen/i);
+    expect(text).toMatch(/war/i);
+    expect(text).toMatch(/conquest/i);
+  });
+
   it('research-magistracy names the Tech screen and says "first"', () => {
     const { text } = unrestRecommendationCopy(rec({ kind: 'research-magistracy', availability: 'research-first' }));
     expect(text).toMatch(/magistracy/i);
@@ -46,7 +55,7 @@ describe('unrestRecommendationCopy', () => {
 
   it('every kind returns a non-empty icon and text', () => {
     const kinds: UnrestRecommendationKind[] = [
-      'build-courthouse', 'research-magistracy', 'garrison-unit', 'train-garrison-unit',
+      'build-courthouse', 'build-military-administration', 'research-magistracy', 'garrison-unit', 'train-garrison-unit',
       'make-peace', 'await-conquest-settle', 'research-constitutional-law', 'fix-economy',
       'counter-espionage', 'stabilise-contagion-source', 'build-faith-building',
       'acquire-luxury', 'build-happiness-building', 'appease-or-concede',

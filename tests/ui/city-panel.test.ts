@@ -3,6 +3,8 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createCityPanel } from '@/ui/city-panel';
 import { SESSION_SHOWN_TIPS } from '@/ui/advisor-system';
 import { createUnit } from '@/systems/unit-system';
+import { EventBus } from '@/core/event-bus';
+import { rushBuyActiveProduction } from '@/systems/economy-system';
 import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { hexKey, hexNeighbors } from '@/systems/hex-utils';
@@ -2689,6 +2691,30 @@ describe('city-panel unrest recommendations — #919 MR3', () => {
       .map(s => s.textContent).join(' ');
     expect(joined).toMatch(/→/);
     expect(joined).toMatch(/Make peace/); // War weariness row resolved for the rival civ
+  });
+
+  it('#926: rush-buying Military Administration refreshes this panel with its relief row', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.civilizations.player.techState.completed = ['civil-service'];
+    city.unrestLevel = 1;
+    city.conquestTurn = state.turn;
+    city.productionQueue = ['military-administration'];
+    city.productionProgress = 0;
+    state.civilizations.player.gold = 113;
+    state.civilizations.player.diplomacy.atWarWith = ['rival', 'front-2', 'front-3'];
+
+    const panel = createCityPanel(container, city, state, {
+      ...cb(),
+      onRushBuyActiveProduction: cityId => {
+        const result = rushBuyActiveProduction(state, state.currentPlayer, cityId, new EventBus());
+        return result.success ? result.state : state;
+      },
+    });
+
+    expect(collectText(panel)).toContain('Buy now: 113 gold');
+    clickElement(panel.querySelector('[data-rush-buy]'));
+    expect(collectText(container)).toContain('Military Administration');
+    expect(collectText(container)).toContain('-18');
   });
 });
 

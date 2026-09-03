@@ -80,6 +80,7 @@ export const BUILDINGS: Record<string, Building> = {
   // #919 MR2 — administration ladder rung 1. Effect is a dedicated negative unrest
   // row (UNREST_RELIEF_SOURCES in faction-system.ts), not a happiness field.
   courthouse: { id: 'courthouse', name: 'Courthouse', category: 'culture', yields: { food: 0, production: 0, gold: 1, science: 0 }, productionCost: 55, techRequired: 'magistracy', description: "Seat of provincial law. Cuts this city's unrest pressure from distance to the capital and from empire overextension (a courthoused city still carries a little).", pacing: { band: 'infrastructure', role: 'stability', impact: 1.05, scope: 'city', snowball: 1.05, urgency: 1.1, situationality: 1.3, unlockBreadth: 1 } },
+  'military-administration': { id: 'military-administration', name: 'Military Administration', category: 'culture', yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 45, techRequired: 'civil-service', description: "Reduces this city's war weariness and fresh-conquest unrest without removing either pressure.", pacing: { band: 'infrastructure', role: 'stability', impact: 1.05, scope: 'city', snowball: 1, urgency: 1.15, situationality: 1.35, unlockBreadth: 1 } },
 
   // Espionage
   safehouse: {
@@ -1527,6 +1528,7 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   shrine: '⛩️',
   forum: '📢',
   courthouse: '⚖️',
+  'military-administration': '🛡️',
   safehouse: '🏠',
   'intelligence-agency': '🛡️',
   'security-bureau': '🔒',
