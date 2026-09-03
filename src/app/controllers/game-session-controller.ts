@@ -148,6 +148,7 @@ export function createGameSessionController(deps: GameSessionControllerDeps): Ga
         deps.uiLayer.appendChild(overlay);
       },
       onOpenWonderAtlas: () => deps.router.open('wonder-atlas'),
+      onOpenHallOfFame: () => deps.router.open('hall-of-fame'),
       supplyOverlayEnabled: deps.renderLoop.isSupplyOverlayEnabled(),
       onToggleSupplyOverlay: () => deps.renderLoop.toggleSupplyOverlay(),
       onBottomBarHeightChange: height => deps.hud.setMapViewportBottomInset(height),
