@@ -230,6 +230,14 @@ export function createHudController(deps: HudControllerDeps): HudController {
         pirateWatersButton.hidden = !getPirateWatersPresentation(state, state.currentPlayer).available;
       }
 
+      // #887 Phase B: the Hall of Fame button appears once the current player
+      // has ever earned a General and stays thereafter (history never shrinks).
+      // currentPlayer-scoped, so a hot-seat handoff re-evaluates it.
+      const hallOfFameButton = deps.getElementById('btn-hall-of-fame');
+      if (hallOfFameButton) {
+        hallOfFameButton.hidden = (state.civilizations[state.currentPlayer]?.generalHistory?.length ?? 0) === 0;
+      }
+
       // Show "Next Unit" button when there are unmoved units
       const nextUnitBtn = deps.getElementById('btn-next-unit');
       if (nextUnitBtn) {

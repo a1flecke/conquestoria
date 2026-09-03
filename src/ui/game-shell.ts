@@ -6,6 +6,9 @@ export interface GameShellCallbacks extends PrimaryActionBarCallbacks {
   onToggleIconLegend: () => void;
   onOpenWonderAtlas: () => void;
   onOpenPirateWaters?: () => void;
+  /** #887 Phase B — opens the Great General Hall of Fame. Optional: the button
+   * stays inert (never thrown) until the composition root wires it. */
+  onOpenHallOfFame?: () => void;
   onOpenMenu: () => void;
   /** Keeps the canvas viewport above the bottom action bar as its height changes. */
   onBottomBarHeightChange?: (height: number) => void;
@@ -21,7 +24,7 @@ let stopBottomBarLayoutTracking: (() => void) | undefined;
 function removeExistingShell(container: HTMLElement): void {
   stopBottomBarLayoutTracking?.();
   stopBottomBarLayoutTracking = undefined;
-  for (const id of ['game-shell', 'hud', 'bottom-bar', 'btn-next-unit', 'btn-notif-log', 'btn-icon-legend', 'btn-wonder-atlas', 'btn-pirate-waters', 'notifications', 'info-panel', 'icon-legend']) {
+  for (const id of ['game-shell', 'hud', 'bottom-bar', 'btn-next-unit', 'btn-notif-log', 'btn-icon-legend', 'btn-wonder-atlas', 'btn-hall-of-fame', 'btn-pirate-waters', 'notifications', 'info-panel', 'icon-legend']) {
     container.querySelector(`#${id}`)?.remove();
   }
 }
@@ -106,6 +109,10 @@ export function createGameShell(container: HTMLElement, callbacks: GameShellCall
   const pirateWatersButton = createFloatingButton('btn-pirate-waters', 'Pirates', 'Open Pirate Waters', () => callbacks.onOpenPirateWaters?.());
   pirateWatersButton.hidden = true;
   utilityToolbar.appendChild(pirateWatersButton);
+  // #887 Phase B: hidden until the current player has earned a General — hud-controller.update() toggles it (same pattern as btn-pirate-waters).
+  const hallOfFameButton = createFloatingButton('btn-hall-of-fame', '🎖️', 'Great Generals — Hall of Fame', () => callbacks.onOpenHallOfFame?.());
+  hallOfFameButton.hidden = true;
+  utilityToolbar.appendChild(hallOfFameButton);
   utilityToolbar.appendChild(createFloatingButton('btn-pause-menu', '☰', 'Pause menu', callbacks.onOpenMenu));
   shell.appendChild(utilityToolbar);
 

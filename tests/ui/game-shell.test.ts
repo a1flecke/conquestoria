@@ -108,6 +108,37 @@ describe('game-shell', () => {
     expect(opened).toBe(true);
   });
 
+  it('provides a Hall of Fame button, hidden on creation, that routes its optional callback', () => {
+    let opened = 0;
+    const shell = createGameShell(document.body, {
+      onOpenCouncil: () => {}, onOpenTech: () => {}, onOpenCity: () => {},
+      onOpenEspionage: () => {}, onOpenDiplomacy: () => {}, onOpenMarketplace: () => {},
+      onEndTurn: () => {}, onNextUnit: () => {}, onOpenNotificationLog: () => {},
+      onToggleIconLegend: () => {}, onOpenWonderAtlas: () => {}, onOpenMenu: () => {},
+      onOpenHallOfFame: () => { opened += 1; },
+      supplyOverlayEnabled: false, onToggleSupplyOverlay: () => false,
+    });
+    const button = shell.querySelector<HTMLButtonElement>('#btn-hall-of-fame');
+    expect(button).toBeTruthy();
+    expect(button?.hidden).toBe(true);
+    expect(button?.title).toBe('Great Generals — Hall of Fame');
+    button!.hidden = false;
+    button!.click();
+    expect(opened).toBe(1);
+  });
+
+  it('does not throw when the Hall of Fame button is clicked without the optional callback wired', () => {
+    const shell = createGameShell(document.body, {
+      onOpenCouncil: () => {}, onOpenTech: () => {}, onOpenCity: () => {},
+      onOpenEspionage: () => {}, onOpenDiplomacy: () => {}, onOpenMarketplace: () => {},
+      onEndTurn: () => {}, onNextUnit: () => {}, onOpenNotificationLog: () => {},
+      onToggleIconLegend: () => {}, onOpenWonderAtlas: () => {}, onOpenMenu: () => {},
+      supplyOverlayEnabled: false, onToggleSupplyOverlay: () => false,
+    });
+    const button = shell.querySelector<HTMLButtonElement>('#btn-hall-of-fame')!;
+    expect(() => button.click()).not.toThrow();
+  });
+
   it('keeps desktop utility controls in a non-overlapping toolbar', () => {
     const shell = createGameShell(document.body, {
       onOpenCouncil: () => {}, onOpenTech: () => {}, onOpenCity: () => {},
@@ -126,7 +157,7 @@ describe('game-shell', () => {
     expect(toolbar?.style.maxWidth).toBe('calc(100% - 24px)');
     expect([...toolbar?.querySelectorAll('button') ?? []].map(button => button.id)).toEqual([
       'btn-next-unit', 'btn-notif-log', 'btn-icon-legend', 'btn-wonder-atlas',
-      'btn-supply-overlay', 'btn-pirate-waters', 'btn-pause-menu',
+      'btn-supply-overlay', 'btn-pirate-waters', 'btn-hall-of-fame', 'btn-pause-menu',
     ]);
     expect(toolbar?.querySelectorAll('[style*="right:"]')).toHaveLength(0);
   });

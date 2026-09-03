@@ -171,6 +171,36 @@ describe('HudController', () => {
     expect(button.hidden).toBe(true);
   });
 
+  it('reveals #btn-hall-of-fame only once the current player has earned a General, re-hiding it per viewer', () => {
+    const state = makeFixture();
+    const deps = baseDeps(state);
+    const button = document.createElement('button');
+    button.id = 'btn-hall-of-fame';
+    button.hidden = true;
+    document.body.appendChild(button);
+    const hud = createHudController(deps);
+
+    state.civilizations.player.generalHistory = [];
+    deps.session.setStateWithoutRefresh(state);
+    hud.update();
+    expect(button.hidden).toBe(true);
+
+    state.civilizations.player.generalHistory = [
+      { unitId: 'u1', generalDefinitionId: 'gen_caesar', spawnedTurn: 2, careerEvents: [{ type: 'spawned', turn: 2 }] },
+    ];
+    deps.session.setStateWithoutRefresh(state);
+    hud.update();
+    expect(button.hidden).toBe(false);
+
+    // hot-seat handoff to a player with no history re-hides it
+    const aiId = Object.keys(state.civilizations).find(id => id !== 'player')!;
+    state.currentPlayer = aiId;
+    state.civilizations[aiId].generalHistory = [];
+    deps.session.setStateWithoutRefresh(state);
+    hud.update();
+    expect(button.hidden).toBe(true);
+  });
+
   it('places the anti-aircraft button next to the pause menu button once the toolbar exists', () => {
     const state = makeFixture();
     const deps = baseDeps(state);
