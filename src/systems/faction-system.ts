@@ -63,6 +63,7 @@ export interface UnrestPressureRow {
 // "Unrest Relief Inventory" table.
 export interface UnrestReliefSource {
   id: string;
+  targetRowLabels: readonly string[];
   isActive(city: City, state: GameState): boolean;
   reliefRows(city: City, state: GameState, positiveRows: UnrestPressureRow[]): UnrestPressureRow[];
 }
@@ -77,6 +78,7 @@ export const COURTHOUSE_SPRAWL_FLOOR = 2;
 
 const COURTHOUSE_RELIEF: UnrestReliefSource = {
   id: 'courthouse',
+  targetRowLabels: ['Distance from capital', 'Empire overextension'],
   isActive: city => city.buildings.includes('courthouse'),
   reliefRows: (_city, _state, positiveRows) => {
     // Matched by the same row-label strings the positive rows are pushed with above.
@@ -92,7 +94,18 @@ const COURTHOUSE_RELIEF: UnrestReliefSource = {
   },
 };
 
-export const UNREST_RELIEF_SOURCES: UnrestReliefSource[] = [COURTHOUSE_RELIEF];
+const MILITARY_ADMINISTRATION_RELIEF: UnrestReliefSource = {
+  id: 'military-administration', targetRowLabels: ['War weariness', 'Recent conquest'],
+  isActive: city => city.buildings.includes('military-administration'),
+  reliefRows: (_city, _state, rows) => {
+    const war = rows.find(row => row.label === 'War weariness')?.amount ?? 0;
+    const conquest = rows.find(row => row.label === 'Recent conquest')?.amount ?? 0;
+    const relief = Math.min(8, Math.max(0, war - 4)) + Math.min(10, Math.max(0, conquest - 8));
+    return relief > 0 ? [{ label: 'Military Administration', amount: -relief }] : [];
+  },
+};
+
+export const UNREST_RELIEF_SOURCES: UnrestReliefSource[] = [COURTHOUSE_RELIEF, MILITARY_ADMINISTRATION_RELIEF];
 
 export function getUnrestReliefRows(
   city: City,

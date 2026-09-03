@@ -228,4 +228,8 @@ describe('era-relative pacing bands (F1 regression)', () => {
     expect(resolveTechPacingBand(magistracy)).toBe('infrastructure');
     expect(BUILDINGS['courthouse'].pacing?.band).toBe('infrastructure');
   });
+
+  it('#926: Military Administration uses the infrastructure pacing band', () => {
+    expect(BUILDINGS['military-administration'].pacing?.band).toBe('infrastructure');
+  });
 });

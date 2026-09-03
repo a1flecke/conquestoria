@@ -418,6 +418,9 @@ export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = 
   shrine:                 ShrineSprite,
   forum:                  ForumSprite,
   courthouse:             CourthouseSprite,
+  // #926: an administrative civic building intentionally reuses the established
+  // Courthouse presentation; its distinct gameplay effect is shown in the city panel.
+  'military-administration': CourthouseSprite,
   safehouse:              SafehouseSprite,
   'intelligence-agency':  IntelAgencySprite,
   'security-bureau':      SecurityBureauSprite,

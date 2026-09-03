@@ -287,6 +287,42 @@ describe('rush buy', () => {
     expect(quote.cost).toBe(25);
   });
 
+  it('#926: quotes the production-derived rush-buy price for Military Administration', () => {
+    const state = makeState();
+    state.civilizations.player.gold = 113;
+    city(state).productionQueue = ['military-administration'];
+
+    const quote = getRushBuyQuote(state, 'player', 'capital');
+
+    expect(quote.available).toBe(true);
+    expect(quote.itemId).toBe('military-administration');
+    expect(quote.cost).toBe(113);
+  });
+
+  it('#926: reduces the Military Administration quote when the queue has real progress', () => {
+    const state = makeState();
+    state.civilizations.player.gold = 100;
+    city(state).productionQueue = ['military-administration'];
+    city(state).productionProgress = 5;
+
+    const quote = getRushBuyQuote(state, 'player', 'capital');
+
+    expect(quote.available).toBe(true);
+    expect(quote.cost).toBe(100);
+  });
+
+  it('#926: refuses an unaffordable Military Administration rush buy without changing its quote', () => {
+    const state = makeState();
+    state.civilizations.player.gold = 112;
+    city(state).productionQueue = ['military-administration'];
+
+    const quote = getRushBuyQuote(state, 'player', 'capital');
+
+    expect(quote.available).toBe(false);
+    expect(quote.reason).toBe('not-enough-gold');
+    expect(quote.cost).toBe(113);
+  });
+
   it('blocks legendary wonder production regardless of treasury', () => {
     const state = makeState();
     state.civilizations.player.gold = 999;

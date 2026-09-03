@@ -23,6 +23,7 @@ import { UNIT_DEFINITIONS, UNIT_DESCRIPTIONS } from '@/systems/unit-system';
 import { generateMap } from '@/systems/map-generator';
 import { hexKey } from '@/systems/hex-utils';
 import { TECH_TREE } from '@/systems/tech-definitions';
+import { createNewGame } from '@/core/game-state';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -1545,6 +1546,24 @@ describe('PRODUCTION_ICONS coverage', () => {
     expect(c.yields).toEqual({ food: 0, production: 0, gold: 1, science: 0 });
     expect(c.happiness ?? 0).toBe(0); // relief is a targeted row, not happiness
     expect(PRODUCTION_ICONS['courthouse']).toBe('⚖️');
+  });
+
+  it('#926: Military Administration is a Civil Service stability building with an icon', () => {
+    const building = BUILDINGS['military-administration'];
+    expect(building).toMatchObject({
+      id: 'military-administration', category: 'culture', productionCost: 45,
+      techRequired: 'civil-service', yields: { food: 0, production: 0, gold: 0, science: 0 },
+    });
+    expect(PRODUCTION_ICONS['military-administration']).toBe('🛡️');
+  });
+
+  it('#926: Military Administration is available exactly after Civil Service', () => {
+    const state = createNewGame();
+    const city = Object.values(state.cities)[0]!;
+    expect(getAvailableBuildings(city, [], state.map).map(building => building.id))
+      .not.toContain('military-administration');
+    expect(getAvailableBuildings(city, ['civil-service'], state.map).map(building => building.id))
+      .toContain('military-administration');
   });
 });
 

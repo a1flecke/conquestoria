@@ -90,6 +90,7 @@ they bite gets a **bought, deliberate** counter: the administration ladder
 | Source | Building id | Rows it relieves | Formula (per city) | Era active |
 |---|---|---|---|---|
 | Courthouse | `courthouse` | Distance from capital, Empire overextension | `relief = min( round(0.5·distRow) + min(3, overextRow),  max(0, (distRow + overextRow) − 2) )` | era 2+ (`magistracy`) |
+| Military Administration | `military-administration` | War weariness, Recent conquest | `relief = min(8, max(0, warRow − 4)) + min(10, max(0, conquestRow − 8))`; combined relief is at most `18` | era 3+ (`civil-service`) |
 
 **Rule:** any new distance / overextension / unrest-relief source — a future
 ladder rung (roads-cut-distance, second seat of government, civil-service

@@ -182,6 +182,18 @@ describe('unrest-guidance', () => {
     expect((rec?.params as { warCivIds: string[] }).warCivIds).toHaveLength(2);
   });
 
+  it('#926: war and recent conquest recommend Military Administration when Civil Service makes it buildable', () => {
+    const state = makeState({ era: 3, atWarCount: 1, conquestTurn: 0, completed: [...completedTechsForEra(3), 'civil-service'] });
+    expect(getUnrestRecommendations('city-1', state).filter(rec => rec.kind === 'build-military-administration')).toHaveLength(1);
+  });
+
+  it('#926 NEGATIVE: without Civil Service, war and conquest keep their existing fallbacks', () => {
+    const recs = getUnrestRecommendations('city-1', makeState({ atWarCount: 1, conquestTurn: 0 }));
+    expect(recs.some(rec => rec.kind === 'build-military-administration')).toBe(false);
+    expect(recs.some(rec => rec.kind === 'make-peace')).toBe(true);
+    expect(recs.some(rec => rec.kind === 'await-conquest-settle')).toBe(true);
+  });
+
   it('Recent conquest → await-conquest-settle (now) as the primary, with a research-constitutional-law note behind it', () => {
     const state = makeState({ cityCount: 1, era: 2, conquestTurn: 0 });
     state.turn = 5;
@@ -192,11 +204,11 @@ describe('unrest-guidance', () => {
     expect(conquestRecs[1].availability).toBe('research-first');
   });
 
-  it('Recent conquest omits the research-constitutional-law note once that tech is done', () => {
+  it('Recent conquest prefers Military Administration and omits the Constitutional Law note once that tech is done', () => {
     const state = makeState({ cityCount: 1, era: 2, conquestTurn: 0, completed: [...completedTechsForEra(6), 'constitutional-law'] });
     state.turn = 5;
     const conquestRecs = getUnrestRecommendations('city-1', state).filter(r => r.rowLabel === 'Recent conquest');
-    expect(conquestRecs.map(r => r.kind)).toEqual(['await-conquest-settle']);
+    expect(conquestRecs.map(r => r.kind)).toEqual(['build-military-administration']);
   });
 
   it('a courthouse recommendation is not repeated when both sprawl rows are present (dedupe by kind)', () => {

@@ -89,6 +89,12 @@ describe('tech structured unlock arrays', () => {
     }
   });
 
+  it('#926: Civil Service structurally unlocks Military Administration', () => {
+    const civilService = TECH_TREE.find(tech => tech.id === 'civil-service');
+    expect(civilService?.unlocksBuildings).toContain('military-administration');
+    expect(BUILDINGS['military-administration']?.techRequired).toBe('civil-service');
+  });
+
   it('has only known, non-duplicated production prerequisites across the full catalog', () => {
     const knownTechIds = new Set(TECH_TREE.map(tech => tech.id));
     const reachableTechIds = new Set(TECH_TREE
