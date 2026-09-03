@@ -25,12 +25,15 @@ function renderCard(entry: HallOfFameEntry): HTMLDetailsElement {
   card.style.cssText = 'margin-bottom:12px;background:rgba(255,255,255,0.06);border-radius:10px;padding:12px;';
 
   const summary = document.createElement('summary');
-  summary.style.cssText = 'cursor:pointer;font-size:14px;color:#e8c170;list-style:none;';
+  // Keep the native ▸/▾ disclosure marker — it is the cue that a collapsed
+  // card can be opened. Only the roster identity lives here; the deed summary
+  // and stats are in the expanded body so a 20-General roster stays scannable.
+  summary.style.cssText = 'cursor:pointer;font-size:14px;color:#e8c170;';
   const eraText = entry.era === null ? '' : ` · Era ${entry.era}`;
-  const tail = entry.statLine ? ` — ${entry.statLine}` : ' — no notable actions yet';
-  summary.textContent = `${entry.portraitIcon ? entry.portraitIcon + ' ' : ''}${entry.name}${eraText} · ${STATUS_WORD[entry.status]}${tail}`;
+  summary.textContent = `${entry.portraitIcon ? entry.portraitIcon + ' ' : ''}${entry.name}${eraText} · ${STATUS_WORD[entry.status]}`;
   card.appendChild(summary);
 
+  if (entry.statLine) card.appendChild(line(entry.statLine, 'font-size:12px;color:#e8c170;margin-top:6px;'));
   if (entry.descriptor) card.appendChild(line(entry.descriptor, 'font-size:11px;opacity:0.75;margin-top:6px;'));
   if (entry.specialtyLine) card.appendChild(line(entry.specialtyLine, 'font-size:11px;color:#f0c674;margin-top:3px;'));
 
