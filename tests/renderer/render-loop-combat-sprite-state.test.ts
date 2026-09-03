@@ -132,11 +132,21 @@ describe('render-loop — non-pirate combat sprite state', () => {
       defenderPosition: defender.position,
     } as CombatResult, nowMs);
 
-    vi.spyOn(performance, 'now').mockReturnValue(nowMs + 1_000); // past COMBAT_STATE_MS (420ms)
+    // 1s in: the short `hurt` one-shot (700ms) is done, but the attacker is still
+    // mid-swing -- the 1.4s v2 `attack` cycle needs the full ATTACK_STATE_MS window (#916).
+    vi.spyOn(performance, 'now').mockReturnValue(nowMs + 1_000);
     (loop as unknown as { render: () => void }).render();
 
+    const attackerWrapMidSwing = mount.querySelector(`[data-entity-id="${attacker.id}"]`)?.firstElementChild;
     const defenderWrap = mount.querySelector(`[data-entity-id="${defender.id}"]`)?.firstElementChild;
+    expect(attackerWrapMidSwing?.getAttribute('data-state')).toBe('attack');
     expect(defenderWrap?.getAttribute('data-state')).toBe('idle');
+
+    // Well past ATTACK_STATE_MS the attacker settles back to idle too.
+    vi.spyOn(performance, 'now').mockReturnValue(nowMs + 2_000);
+    (loop as unknown as { render: () => void }).render();
+    const attackerWrapSettled = mount.querySelector(`[data-entity-id="${attacker.id}"]`)?.firstElementChild;
+    expect(attackerWrapSettled?.getAttribute('data-state')).toBe('idle');
     vi.restoreAllMocks();
   });
 });

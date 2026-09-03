@@ -29,11 +29,21 @@ export type PirateSpriteVisualEvent =
 
 type PersistentVisualState = Omit<PirateSpriteVisualState, 'state' | 'expiresAtMs'>;
 
-const COMBAT_STATE_MS = 420;
+// The v2 `attack` keyframes (cq2-attack-body / cq2-attack-swing / cq2-plume-attack /
+// cq2-hound-attack-body / ... in sprite-animations-v2.css) run a 1.4s
+// anticipation -> strike -> hold -> recover cycle. Keep the attacker pinned in the
+// `attack` sprite state long enough for a full cycle to actually land -- the old
+// shared 420ms window flipped `data-state` back to idle just past the strike frame,
+// so all the player ever saw was a truncated pulse (#916). Mirrors WORK_STATE_MS's
+// "long enough to see the loop play at least once" convention.
+const ATTACK_STATE_MS = 1_500;
+// `cq2-hurt` is a 0.55s one-shot (single iteration). 700ms clears it with margin
+// without freezing the struck unit in a recoil pose the way ATTACK_STATE_MS would.
+const HURT_STATE_MS = 700;
 const DEATH_STATE_MS = 1_200;
 // A brief "just performed its civilian action" pulse (e.g. a trade unit delivering
 // goods) -- long enough to see the cq-deliver/cq-work-bob loop play at least once
-// (their keyframes run ~1.1s), matching COMBAT_STATE_MS's role for attack/hurt.
+// (their keyframes run ~1.1s), matching ATTACK_STATE_MS's role for attack.
 const WORK_STATE_MS = 1_400;
 
 interface TransientState {
@@ -78,19 +88,21 @@ export class PirateSpriteStateController {
       case 'combat':
         this.transients.set(event.attackerId, {
           state: event.attackerSurvived ? 'attack' : 'death',
-          expiresAtMs: nowMs + (event.attackerSurvived ? COMBAT_STATE_MS : DEATH_STATE_MS),
+          expiresAtMs: nowMs + (event.attackerSurvived ? ATTACK_STATE_MS : DEATH_STATE_MS),
         });
         this.transients.set(event.defenderId, {
           state: event.defenderSurvived ? 'hurt' : 'death',
-          expiresAtMs: nowMs + (event.defenderSurvived ? COMBAT_STATE_MS : DEATH_STATE_MS),
+          expiresAtMs: nowMs + (event.defenderSurvived ? HURT_STATE_MS : DEATH_STATE_MS),
         });
         return;
       case 'destroyed':
         this.transients.set(event.entityId, { state: 'death', expiresAtMs: nowMs + DEATH_STATE_MS });
         return;
       case 'attack':
+        this.transients.set(event.entityId, { state: 'attack', expiresAtMs: nowMs + ATTACK_STATE_MS });
+        return;
       case 'hurt':
-        this.transients.set(event.entityId, { state: event.type, expiresAtMs: nowMs + COMBAT_STATE_MS });
+        this.transients.set(event.entityId, { state: 'hurt', expiresAtMs: nowMs + HURT_STATE_MS });
         return;
       case 'work':
         this.transients.set(event.entityId, { state: 'work', expiresAtMs: nowMs + WORK_STATE_MS });
