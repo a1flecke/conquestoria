@@ -879,12 +879,36 @@ describe('createTurnFlowController', () => {
       expect(deps.uiLayer.querySelector('#victory-panel')).toBeTruthy();
     });
 
-    it('closeNetworkPanelsForHandoff closes the network router panel and removes the intent panel', () => {
+    it('closes the Hall of Fame before the next hot-seat player can view the handoff', async () => {
+      const state = makeHotSeatFixture();
+      const nextPlayerId = state.hotSeat!.players.find(player => player.slotId !== 'player')!.slotId;
+      clearRequiredChoices(state, nextPlayerId);
+      const hallOfFame = document.createElement('div');
+      hallOfFame.id = 'hall-of-fame-panel';
+      const router = {
+        close: vi.fn((panel: string) => {
+          if (panel === 'hall-of-fame') hallOfFame.remove();
+        }),
+        open: vi.fn(),
+      };
+      const deps = baseDeps(state, { router });
+      deps.uiLayer.appendChild(hallOfFame);
+
+      const handoff = createTurnFlowController(deps).beginHotSeatHandoff(state.hotSeat!, false);
+
+      expect(deps.uiLayer.querySelector('#hall-of-fame-panel')).toBeNull();
+      expect(router.close).toHaveBeenCalledWith('hall-of-fame');
+      document.querySelector<HTMLButtonElement>('#handoff-confirm')?.click();
+      await handoff;
+    });
+
+    it('closeNetworkPanelsForHandoff closes viewer-private panels and removes the intent panel', () => {
       const state = makeFixture();
       const panel = document.createElement('div');
       const deps = baseDeps(state, { getNetworkIntentPanel: () => panel });
       createTurnFlowController(deps).closeNetworkPanelsForHandoff();
       expect(deps.router.close).toHaveBeenCalledWith('network');
+      expect(deps.router.close).toHaveBeenCalledWith('hall-of-fame');
       expect(panel.isConnected).toBe(false);
     });
 
