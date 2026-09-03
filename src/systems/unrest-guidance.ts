@@ -7,7 +7,7 @@ import {
   type UnrestPressureRow,
 } from './faction-system';
 import { getAvailableBuildings } from './city-system';
-import { getEconomyStatusForCiv } from './economy-system';
+import { getEconomyStatusForCiv, getRushBuyQuote } from './economy-system';
 import { getCivHappinessFromResources, getCivAvailableResources } from './resource-acquisition-system';
 import { resolveCivilizationEra } from './tech-definitions';
 import { UNIT_DEFINITIONS } from './unit-system';
@@ -77,6 +77,11 @@ function buildingBuildableHere(buildingId: string, state: GameState, city: City)
     .some(b => b.id === buildingId);
 }
 
+function queuedBuildingCannotBeRushed(buildingId: string, state: GameState, city: City): boolean {
+  return city.productionQueue[0] === buildingId
+    && !getRushBuyQuote(state, city.owner, city.id).available;
+}
+
 function anyHappinessBuildingAvailable(state: GameState, city: City): boolean {
   const civ = state.civilizations[city.owner];
   if (!civ) return false;
@@ -118,9 +123,24 @@ const SPRAWL_RESOLVER: GuidanceResolver = {
 
 const WAR_RESOLVER: GuidanceResolver = {
   matchesRow: label => label === 'War weariness',
-  resolve: ({ city, state, row }) => buildingBuildableHere('military-administration', state, city)
-    ? { rowLabel: row.label, amount: row.amount, kind: 'build-military-administration', availability: 'now' }
-    : { rowLabel: row.label, amount: row.amount, kind: 'make-peace', availability: 'now', params: { warCivIds: [...(state.civilizations[city.owner]?.diplomacy.atWarWith ?? [])] } },
+  resolve: ({ city, state, row }) => {
+    const base = { rowLabel: row.label, amount: row.amount };
+    const makePeace: UnrestRecommendation = {
+      ...base,
+      kind: 'make-peace',
+      availability: 'now',
+      params: { warCivIds: [...(state.civilizations[city.owner]?.diplomacy.atWarWith ?? [])] },
+    };
+    if (!buildingBuildableHere('military-administration', state, city)) return makePeace;
+    const build: UnrestRecommendation = {
+      ...base,
+      kind: 'build-military-administration',
+      availability: 'now',
+    };
+    return queuedBuildingCannotBeRushed('military-administration', state, city)
+      ? [build, makePeace]
+      : build;
+  },
 };
 
 const CONQUEST_RESOLVER: GuidanceResolver = {
@@ -130,19 +150,24 @@ const CONQUEST_RESOLVER: GuidanceResolver = {
       ? Math.max(0, CONQUEST_UNREST_DURATION - (state.turn - city.conquestTurn))
       : 0;
     const base = { rowLabel: row.label, amount: row.amount };
-    const recs: UnrestRecommendation[] = buildingBuildableHere('military-administration', state, city)
-      ? [{ ...base, kind: 'build-military-administration', availability: 'now' }]
-      : [
-      // Primary: the only thing a player can actually do right now is wait it out
-      // (a garrison blunts contagion spread from it, nothing more).
-      {
-        ...base, kind: 'await-conquest-settle', availability: 'now',
-        params: { turnsLeft, canGarrison: canGarrisonCity(city.id, state) },
-      },
-    ];
+    // Primary: the only thing a player can actually do right now is wait it out
+    // (a garrison blunts contagion spread from it, nothing more).
+    const awaitSettlement: UnrestRecommendation = {
+      ...base,
+      kind: 'await-conquest-settle',
+      availability: 'now',
+      params: { turnsLeft, canGarrison: canGarrisonCity(city.id, state) },
+    };
+    const administrationBuildable = buildingBuildableHere('military-administration', state, city);
+    const recs: UnrestRecommendation[] = administrationBuildable
+      ? [
+          { ...base, kind: 'build-military-administration', availability: 'now' },
+          ...(queuedBuildingCannotBeRushed('military-administration', state, city) ? [awaitSettlement] : []),
+        ]
+      : [awaitSettlement];
     // Constitutional Law is a truthful fallback while the local relief building is
     // unavailable. Once it is buildable, keep the actionable recommendation focused.
-    if (!buildingBuildableHere('military-administration', state, city)
+    if (!administrationBuildable
       && !techDone(state, city.owner, 'constitutional-law')) {
       recs.push({ ...base, kind: 'research-constitutional-law', availability: 'research-first', params: { techId: 'constitutional-law' } });
     }
