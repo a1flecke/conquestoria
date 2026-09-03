@@ -127,7 +127,10 @@ function buildHallOfFameEntry(state: GameState, entry: GeneralHistoryEntry): Hal
   const definition = resolveGeneralDefinition(state, entry.generalDefinitionId);
   const profile = definition ? getGeneralProfile(definition.id) : undefined;
   const specialty = definition ? getGeneralSpecialtyPresentation(definition) : undefined;
-  const highlights = describeGeneralCareerHighlights(stats);
+  // `describeGeneralCareerHighlights` returns '' or ' — <clause>.'; strip the
+  // leading dash/space (tolerant of any dash variant) so the card can lead with
+  // the clause. No dependency on its exact prefix length.
+  const statLine = describeGeneralCareerHighlights(stats).replace(/^\s*[—–-]\s*/, '');
   return {
     generalDefinitionId: entry.generalDefinitionId,
     name: definition?.name ?? 'A forgotten commander',
@@ -136,7 +139,7 @@ function buildHallOfFameEntry(state: GameState, entry: GeneralHistoryEntry): Hal
     descriptor: definition?.descriptor ?? '',
     status: stats.status,
     stats,
-    statLine: highlights.startsWith(' — ') ? highlights.slice(3) : highlights,
+    statLine,
     specialtyLine: specialty ? `${specialty.displayName} — ${specialty.summary}` : undefined,
     profile: profile
       ? { kind: profile.kind, summary: profile.summary, facts: profile.facts, context: profile.context, loreWork: profile.loreWork }

@@ -46,12 +46,21 @@ describe('hall of fame panel', () => {
     expect(container.querySelectorAll('[data-hall-of-fame-entry]')).toHaveLength(3);
   });
 
-  it('shows the status word and the stat line in the summary', () => {
+  it('keeps the collapsed summary to identity only (icon, name, era, status) — deed summary is in the body', () => {
     createHallOfFamePanel(container, [makeEntry()], { onClose: () => {} });
     const summary = container.querySelector('[data-hall-of-fame-entry] summary')!;
-    expect(summary.textContent).toContain('Julius Caesar');
-    expect(summary.textContent).toContain('Fallen');
-    expect(summary.textContent).toContain('2 cities captured');
+    expect(summary.textContent).toBe('🦅 Julius Caesar · Era 2 · Fallen');
+    // the stat line still appears, but in the card body (visible once expanded), not the summary
+    expect(summary.textContent).not.toContain('2 cities captured');
+    const card = container.querySelector('[data-hall-of-fame-entry]')!;
+    expect(card.textContent).toContain('2 cities captured, 1 city defended, 2 units saved, 3 battles influenced.');
+  });
+
+  it('keeps the native disclosure marker so a collapsed card reads as expandable', () => {
+    createHallOfFamePanel(container, [makeEntry({ status: 'retired' })], { onClose: () => {} });
+    const summary = container.querySelector<HTMLElement>('[data-hall-of-fame-entry] summary')!;
+    expect(summary.style.listStyle).toBe('');
+    expect(summary.style.cssText).not.toContain('list-style');
   });
 
   it('opens the active General card and leaves an ended one collapsed', () => {
@@ -60,6 +69,14 @@ describe('hall of fame panel', () => {
     const cards = container.querySelectorAll<HTMLDetailsElement>('[data-hall-of-fame-entry]');
     expect(cards[0].open).toBe(true);
     expect(cards[1].open).toBe(false);
+  });
+
+  it('shows no dangling separator for a General with no recorded deeds (any status)', () => {
+    createHallOfFamePanel(container, [makeEntry({ status: 'retired', statLine: '', profile: undefined })], { onClose: () => {} });
+    const summary = container.querySelector('[data-hall-of-fame-entry] summary')!;
+    expect(summary.textContent).toBe('🦅 Julius Caesar · Era 2 · Retired');
+    expect(summary.textContent).not.toContain('yet');
+    expect(summary.textContent).not.toMatch(/[—-]\s*$/);
   });
 
   it('renders the timeline chronologically between the two bookends', () => {
