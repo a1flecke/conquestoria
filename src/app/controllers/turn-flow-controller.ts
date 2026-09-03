@@ -478,9 +478,10 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
     showRequiredChoicesIfNeeded();
   }
 
-  /** These player-owned surfaces may contain strategic targets; never carry them across a hot-seat veil. */
+  /** These viewer-owned surfaces may expose private history or strategic targets; never carry them across a hot-seat veil. */
   function closeNetworkPanelsForHandoff(): void {
     router.close('network');
+    router.close('hall-of-fame');
     deps.getNetworkIntentPanel()?.remove();
   }
 
