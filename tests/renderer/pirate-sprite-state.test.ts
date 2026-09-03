@@ -5,7 +5,7 @@ import {
 } from '@/renderer/pirate-sprite-state';
 
 describe('PirateSpriteStateController', () => {
-  it('expires attack and hurt one-shots back to the current persistent mode', () => {
+  it('holds `attack` past a full 1.4s keyframe cycle, then expires both one-shots (#916)', () => {
     const controller = new PirateSpriteStateController();
     controller.apply({
       type: 'combat',
@@ -15,11 +15,16 @@ describe('PirateSpriteStateController', () => {
       defenderSurvived: true,
     }, 1_000);
 
-    expect(controller.resolve('pirate-ship', { mode: 'raid', damage: 0, tier: 2, stage: 3 }, 1_100))
+    // Attacker stays in `attack` well past the 1.4s v2 attack cycle so the
+    // anticipation -> strike -> hold -> recover animation actually plays (#916).
+    expect(controller.resolve('pirate-ship', { mode: 'raid', damage: 0, tier: 2, stage: 3 }, 2_400))
       .toMatchObject({ state: 'attack', mode: 'raid' });
+    // `hurt` is a short 0.55s one-shot -- it does not linger as long as `attack`.
     expect(controller.resolve('enemy', { mode: 'patrol', damage: 2, tier: 1, stage: 2 }, 1_100))
       .toMatchObject({ state: 'hurt', damage: 2 });
-    expect(controller.resolve('pirate-ship', { mode: 'blockade', damage: 1, tier: 3, stage: 3 }, 1_500))
+    expect(controller.resolve('enemy', { mode: 'patrol', damage: 2, tier: 1, stage: 2 }, 1_800))
+      .toEqual({ state: 'idle', mode: 'patrol', damage: 2, tier: 1, stage: 2 });
+    expect(controller.resolve('pirate-ship', { mode: 'blockade', damage: 1, tier: 3, stage: 3 }, 2_600))
       .toEqual({ state: 'idle', mode: 'blockade', damage: 1, tier: 3, stage: 3 });
   });
 
@@ -39,10 +44,12 @@ describe('PirateSpriteStateController', () => {
 
     controller.apply({ type: 'attack', entityId: 'pirate-4' }, 500);
     expect(controller.resolve('pirate-4', persistent, 600).state).toBe('attack');
+    // still animating well past a 1.4s cycle
+    expect(controller.resolve('pirate-4', persistent, 1_900).state).toBe('attack');
 
-    controller.apply({ type: 'hurt', entityId: 'pirate-4' }, 700);
-    expect(controller.resolve('pirate-4', persistent, 800).state).toBe('hurt');
-    expect(controller.resolve('pirate-4', persistent, 1_200).state).toBe('idle');
+    controller.apply({ type: 'hurt', entityId: 'pirate-4' }, 2_100);
+    expect(controller.resolve('pirate-4', persistent, 2_200).state).toBe('hurt');
+    expect(controller.resolve('pirate-4', persistent, 2_900).state).toBe('idle');
   });
 
   it('keeps relocation active only for the explicit relocation sequence', () => {
@@ -98,7 +105,7 @@ describe('resolveTransientState', () => {
       defenderSurvived: false,
     }, 1_000);
 
-    // defender died -- death lasts DEATH_STATE_MS (1200ms), not COMBAT_STATE_MS (420ms)
+    // defender died -- death lasts DEATH_STATE_MS (1200ms), not HURT_STATE_MS (700ms)
     expect(controller.resolveTransientState('musketeer-2', 1_500)).toBe('death');
     expect(controller.resolveTransientState('musketeer-2', 2_300)).toBe('idle');
   });
