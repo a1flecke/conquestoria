@@ -470,6 +470,65 @@ describe('Great General identity display (#544 MR3)', () => {
     expect(text).not.toContain('Field Commander');
     expect(text).not.toContain('Defensive Commander');
   });
+
+  it('#887 — shows a "Career so far" line when the viewer civ has recorded deeds for this General', () => {
+    const state = createNewGame(undefined, '887-career-line', 'small');
+    const romeGeneral = GENERAL_DEFINITIONS.find(g => g.civTypeEligibility.includes('rome'))!;
+    const unit = { ...createUnit('great_general', 'player', { q: 15, r: 15 }, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 }), id: 'u1', generalDefinitionId: romeGeneral.id };
+    state.currentPlayer = 'player';
+    state.units = { u1: unit };
+    state.civilizations.player.units = ['u1'];
+    state.civilizations.player.generalHistory = [
+      { unitId: 'u1', generalDefinitionId: romeGeneral.id, spawnedTurn: 2, careerEvents: [
+        { type: 'spawned', turn: 2 },
+        { type: 'city-captured', turn: 6, cityId: 'c1', cityName: 'Thebes' },
+        { type: 'unit-saved', turn: 8, via: 'last-stand', unitId: 'x', unitType: 'warrior', remainingHp: 1, location: { q: 0, r: 0 } },
+      ] },
+    ];
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+    const text = collectAllText(container).join(' ');
+    expect(text).toContain('Career so far');
+    expect(text).toContain('1 city captured');
+    expect(text).toContain('1 unit saved');
+  });
+
+  it('#887 — shows no "Career so far" line for a General with only a spawn event', () => {
+    const state = createNewGame(undefined, '887-no-career', 'small');
+    const romeGeneral = GENERAL_DEFINITIONS.find(g => g.civTypeEligibility.includes('rome'))!;
+    const unit = { ...createUnit('great_general', 'player', { q: 15, r: 15 }, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 }), id: 'u1', generalDefinitionId: romeGeneral.id };
+    state.currentPlayer = 'player';
+    state.units = { u1: unit };
+    state.civilizations.player.units = ['u1'];
+    state.civilizations.player.generalHistory = [
+      { unitId: 'u1', generalDefinitionId: romeGeneral.id, spawnedTurn: 2, careerEvents: [{ type: 'spawned', turn: 2 }] },
+    ];
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+    expect(collectAllText(container).join(' ')).not.toContain('Career so far');
+  });
+
+  it('#887 — renders a "View Hall of Fame" button that fires onOpenHallOfFame, only for a Great General', () => {
+    const state = createNewGame(undefined, '887-hof-link', 'small');
+    const romeGeneral = GENERAL_DEFINITIONS.find(g => g.civTypeEligibility.includes('rome'))!;
+    const general = { ...createUnit('great_general', 'player', { q: 15, r: 15 }, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 }), id: 'u1', generalDefinitionId: romeGeneral.id };
+    const warrior = { ...createUnit('warrior', 'player', { q: 10, r: 10 }, { nextUnitId: 2, nextCityId: 1, nextCampId: 1, nextQuestId: 1 }), id: 'w1' };
+    state.currentPlayer = 'player';
+    state.units = { u1: general, w1: warrior };
+    state.civilizations.player.units = ['u1', 'w1'];
+
+    let opened = 0;
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', { onOpenHallOfFame: () => { opened += 1; } });
+    const btn = findButtons(container).find(b => b.textContent === 'View Hall of Fame');
+    expect(btn).toBeTruthy();
+    btn!.click();
+    expect(opened).toBe(1);
+
+    const warriorContainer = new MockElement('div');
+    renderSelectedUnitInfo(warriorContainer as unknown as HTMLElement, state, 'w1', { onOpenHallOfFame: () => {} });
+    expect(findButtons(warriorContainer).some(b => b.textContent === 'View Hall of Fame')).toBe(false);
+  });
 });
 
 describe('#544 MR4 — General command panel', () => {
