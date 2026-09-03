@@ -63,6 +63,8 @@ import type { NotificationEntry } from '@/core/notification-log';
 import { createPacingDebugPanel } from '@/ui/pacing-debug-panel';
 import { getBestiaryEntriesForPlayer } from '@/systems/beast-presentation';
 import { createBestiaryPanel } from '@/ui/bestiary-panel';
+import { getHallOfFameForViewer } from '@/systems/great-general-hall-of-fame';
+import { createHallOfFamePanel } from '@/ui/hall-of-fame-panel';
 import { createWonderAtlasPanel } from '@/ui/wonder-atlas-panel';
 import { createPirateWatersPanel } from '@/ui/pirate-waters-panel';
 import { getPirateWatersPresentation, type PirateFocusTarget } from '@/systems/pirate-presentation';
@@ -112,6 +114,7 @@ import { SFX } from '@/audio/sfx';
 export interface PanelActionsController {
   openPacingDebugPanel(): void;
   openBestiary(): void;
+  openHallOfFame(): void;
   openWonderAtlas(initialWonderId?: string): void;
   openPirateWaters(focus?: { factionId?: string; historyId?: string }): void;
   openPirateHeadquartersAssault(factionId: string, unitId: string): void;
@@ -191,6 +194,15 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
       onClose: () => {},
       slayerNameFor: (civId) => deps.session.getState().civilizations[civId]?.name ?? civId,
     });
+  }
+
+  function openHallOfFame(): void {
+    const state = deps.session.getState();
+    createHallOfFamePanel(
+      deps.uiLayer,
+      getHallOfFameForViewer(state, state.currentPlayer),
+      { onClose: () => {} },
+    );
   }
 
   function openStrategicArsenalPanel(): void {
@@ -1125,6 +1137,7 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
   return {
     openPacingDebugPanel,
     openBestiary,
+    openHallOfFame,
     openWonderAtlas,
     openPirateWaters,
     openPirateHeadquartersAssault,

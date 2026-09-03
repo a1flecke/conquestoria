@@ -17,6 +17,7 @@ import {
 
 vi.mock('@/ui/pacing-debug-panel', () => ({ createPacingDebugPanel: vi.fn() }));
 vi.mock('@/ui/bestiary-panel', () => ({ createBestiaryPanel: vi.fn() }));
+vi.mock('@/ui/hall-of-fame-panel', () => ({ createHallOfFamePanel: vi.fn() }));
 vi.mock('@/ui/wonder-atlas-panel', () => ({ createWonderAtlasPanel: vi.fn() }));
 vi.mock('@/ui/pirate-waters-panel', () => ({ createPirateWatersPanel: vi.fn() }));
 vi.mock('@/ui/pirate-headquarters-assault-panel', () => ({ createPirateHeadquartersAssaultPanel: vi.fn() }));
@@ -40,6 +41,7 @@ vi.mock('@/ui/espionage-panel', () => ({ createEspionagePanel: vi.fn(() => docum
 
 import { createPacingDebugPanel } from '@/ui/pacing-debug-panel';
 import { createBestiaryPanel } from '@/ui/bestiary-panel';
+import { createHallOfFamePanel } from '@/ui/hall-of-fame-panel';
 import { createWonderAtlasPanel } from '@/ui/wonder-atlas-panel';
 import { createPirateWatersPanel } from '@/ui/pirate-waters-panel';
 import { createPirateHeadquartersAssaultPanel } from '@/ui/pirate-headquarters-assault-panel';
@@ -216,6 +218,27 @@ describe('PanelActionsController', () => {
       const options = mockedCallArg<{ slayerNameFor: (id: string) => string }>(createBestiaryPanel, 0, 2);
       expect(options.slayerNameFor(aiCivId)).toBe(state.civilizations[aiCivId].name);
       expect(options.slayerNameFor('no-such-civ')).toBe('no-such-civ');
+    });
+  });
+
+  describe('openHallOfFame', () => {
+    it('builds the Hall of Fame for the current player and renders it', () => {
+      const { state } = makeFixture('hall-of-fame');
+      state.civilizations.player.generalHistory = [
+        { unitId: 'u1', generalDefinitionId: 'gen_caesar', spawnedTurn: 3,
+          careerEvents: [{ type: 'spawned', turn: 3 }, { type: 'city-captured', turn: 6, cityId: 'c', cityName: 'Thebes' }] },
+      ];
+      const { deps, controller } = build(state);
+
+      controller.openHallOfFame();
+
+      expect(createHallOfFamePanel).toHaveBeenCalledTimes(1);
+      expect(mockedCallArg(createHallOfFamePanel, 0, 0)).toBe(deps.uiLayer);
+      const entries = mockedCallArg<Array<{ moments: Array<{ text: string }> }>>(createHallOfFamePanel, 0, 1);
+      expect(entries).toHaveLength(1);
+      expect(entries[0].moments.map(m => m.text)).toEqual(['captured Thebes']);
+      const options = mockedCallArg<{ onClose: unknown }>(createHallOfFamePanel, 0, 2);
+      expect(typeof options.onClose).toBe('function');
     });
   });
 
