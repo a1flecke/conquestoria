@@ -23,20 +23,20 @@
 | Before | Action | Internal state | Immediate visual result |
 |---|---|---|---|
 | Eligible city has target pressure | Queue building | Queue gains `military-administration` | Active item name and ETA render. |
-| Production-locked, active building, 113+ gold | Click Buy now | Shared rush buy completes ordinary building | Same panel rerenders with `Military Administration −…`. |
+| Production-locked, active building, owner can afford displayed quote | Click Buy now | Shared rush buy completes ordinary building | Same panel rerenders with `Military Administration −…`. |
 | Locked but no gold/high strain | Inspect active purchase | Queue persists; quote rejects purchase | Existing disabled reason plus truthful peace/wait fallback. |
 | No target pressure | Open city panel | Source inactive | No zero row or recommendation; full build catalog reachable. |
 
 ## Misleading UI Risks and replay checklist
 
 - `build-military-administration` must use the same `getAvailableBuildings` eligibility as the production list: never before Civil Service, after completion, or without a target row.
-- A queue under a production lock is not an instant cure; only the existing affordable rush-buy control is immediate.
+- A queue under a production lock is not an instant cure; only the existing affordable rush-buy control is immediate. The UI uses `getRushBuyQuote.cost`, never a hardcoded 113; 113 is only the zero-progress/no-discount fixture quote.
 - When unavailable, preserve Make peace and settle/Constitutional Law advice.
 - Test: queue → rerender → locked-city rush buy → same-panel row; repeat for insufficient gold/high strain; verify a calm city has no recommendation but can browse the catalog.
 
-### Task 1: Catalog and faction calculation
+### Task 1: Write every required regression first, then add catalog and faction calculation
 
-**Files:** Modify `src/systems/city-system.ts:80-83`, `src/systems/tech-definitions-eras1-4.ts:48`, `src/systems/faction-system.ts:55-103`, `.claude/rules/game-balance.md:81-108`; test `tests/systems/faction-system.test.ts:1223-1366`, `tests/systems/city-system.test.ts:1539-1548`, `tests/systems/tech-unlocks-consistency.test.ts:79-89`, `tests/systems/pacing-model.test.ts:226-230`.
+**Files:** Modify `src/systems/city-system.ts:80-83`, `src/systems/tech-definitions-eras1-4.ts:48`, `src/systems/faction-system.ts:55-103`, `.claude/rules/game-balance.md:81-108`; test `tests/systems/faction-system.test.ts:522-588,1223-1366,1307-1366`, `tests/systems/faction-happiness.test.ts:170-184`, `tests/systems/city-system.test.ts:1539-1548`, `tests/systems/tech-unlocks-consistency.test.ts:79-89`, `tests/storage/save-migrations.test.ts:258-302`, `tests/systems/pacing-model.test.ts:226-230`.
 
 - [ ] **Step 1: Write failing catalog and formula tests.**
 
@@ -52,6 +52,11 @@ expect(rows.find(row => row.label === 'Military Administration')?.amount).toBe(-
 ```
 
 Add a negative one-war + Constitutional Law case: `-9` relief leaves 12 target pressure.
+
+Also add the end-to-end tests that prove the real faction-turn escalation boundary,
+hot-seat owner parity after changing `currentPlayer`, current-schema legacy-save
+idempotence, and the reference-economy exclusion. These must be part of this red step,
+before any production code changes.
 
 - [ ] **Step 2: Run red.** Run `./scripts/run-with-mise.sh yarn test --run tests/systems/faction-system.test.ts tests/systems/city-system.test.ts tests/systems/tech-unlocks-consistency.test.ts`; expect missing catalog/source failures.
 
@@ -80,25 +85,38 @@ Add Courthouse labels, exact catalog/icon data, Civil Service effect text, and t
 
 - [ ] **Step 4: Run green and commit.** Run `./scripts/run-with-mise.sh yarn test --run tests/systems/faction-system.test.ts tests/systems/city-system.test.ts tests/systems/tech-unlocks-consistency.test.ts tests/systems/pacing-model.test.ts`; expect PASS. Commit with `git add src/systems/faction-system.ts src/systems/city-system.ts src/systems/tech-definitions-eras1-4.ts .claude/rules/game-balance.md tests/systems/faction-system.test.ts tests/systems/city-system.test.ts tests/systems/tech-unlocks-consistency.test.ts tests/systems/pacing-model.test.ts && git commit -m "feat(unrest): add military administration relief"`.
 
-### Task 2: Generic AI production and research
+### Task 2: Generic AI production and per-technology research targeting
 
 **Files:** Modify `src/ai/ai-research.ts:22-25,67-91,330-350`; test `tests/ai/ai-production.test.ts:853-930`, `tests/ai/ai-research.test.ts:320-395`.
 
-- [ ] **Step 1: Write failing AI tests.** Assert the eligible building candidate has a positive `unrestReliefScore` for real war/conquest pressure on Explorer, Standard, and Veteran. Extend the existing state-derived research fixture: two pressured cities pull Civil Service within three choices, calm cities do not.
+- [ ] **Step 1: Write failing AI tests.** Assert the eligible building candidate has a positive `unrestReliefScore` for real war/conquest pressure on Explorer, Standard, and Veteran. Extend the state-derived research fixture: two war/conquest-pressured cities pull Civil Service within three choices while they do not pull Magistracy; two sprawl-pressured cities pull Magistracy while they do not pull Civil Service.
 
-- [ ] **Step 2: Run red.** Run `./scripts/run-with-mise.sh yarn test --run tests/ai/ai-production.test.ts tests/ai/ai-research.test.ts`; expect failure because `COURTHOUSE_ADDRESSABLE_ROWS` excludes both new target rows.
+- [ ] **Step 2: Run red.** Run `./scripts/run-with-mise.sh yarn test --run tests/ai/ai-production.test.ts tests/ai/ai-research.test.ts`; expect failure because `COURTHOUSE_ADDRESSABLE_ROWS` excludes the new target rows and the current scalar count cannot scope pressure to the candidate technology.
 
-- [ ] **Step 3: Replace the named row set with metadata.**
+- [ ] **Step 3: Derive candidate-specific pressure from metadata.**
 
 ```ts
-const UNREST_RELIEF_ADDRESSABLE_ROWS = new Set(UNREST_RELIEF_SOURCES.flatMap(source => source.targetRowLabels));
-function cityHasReliefAddressablePressure(cityId: string, state: GameState, civId: string): boolean {
+function targetRowsForTech(tech: Tech): ReadonlySet<string> {
+  const unlocked = new Set(tech.unlocksBuildings ?? []);
+  return new Set(UNREST_RELIEF_SOURCES
+    .filter(source => unlocked.has(source.id))
+    .flatMap(source => source.targetRowLabels));
+}
+function cityHasReliefPressureForTech(cityId: string, state: GameState, civId: string, tech: Tech): boolean {
+  const targetRows = targetRowsForTech(tech);
   return getUnrestPressureBreakdown(cityId, state, getCivHappinessFromResources(state, civId))
-    .some(row => row.amount > 0 && UNREST_RELIEF_ADDRESSABLE_ROWS.has(row.label));
+    .some(row => row.amount > 0 && targetRows.has(row.label));
 }
 ```
 
-Keep the existing two-city gate and `6 + 1.5 × count`, capped at 18. Add no building-ID or difficulty branch.
+Replace the single `pressuredReliefCityCount` context field with
+`reliefPressuredCityIdsByBuildingId: Readonly<Record<string, readonly string[]>>`.
+`applyAIResearch` fills it for each relief source using that source's own
+`targetRowLabels` and the existing `0.6 × UNREST_TRIGGER_PRESSURE` threshold. For
+each evaluated technology, union only the city IDs belonging to sources whose IDs are
+in `tech.unlocksBuildings`; calculate its bonus from that union's size. Retain the
+existing two-city gate and `6 + 1.5 × count`, capped at 18. A technology with no
+qualifying source gets zero. Add no building-ID or difficulty branch.
 
 - [ ] **Step 4: Run green and commit.** Run `./scripts/run-with-mise.sh yarn test --run tests/ai/ai-production.test.ts tests/ai/ai-research.test.ts`; expect PASS. Commit with `git add src/ai/ai-research.ts tests/ai/ai-production.test.ts tests/ai/ai-research.test.ts && git commit -m "feat(ai): value war and conquest unrest relief"`.
 
@@ -106,7 +124,7 @@ Keep the existing two-city gate and `6 + 1.5 × count`, capped at 18. Add no bui
 
 **Files:** Modify `src/systems/unrest-guidance.ts:23-29,49-69,118-146`, `src/ui/unrest-guidance-copy.ts:19-29`; test `tests/systems/unrest-guidance.test.ts:177-207,239-270`, `tests/ui/city-panel.test.ts:967-1015,2584-2695`, `tests/systems/economy-system.test.ts:260-350`.
 
-- [ ] **Step 1: Write failing system and DOM tests.** With Civil Service, one war, and fresh conquest, assert one `build-military-administration` recommendation. Without Civil Service, assert it is absent while Make peace and wait/Constitutional Law remain. In a level-2 unrest city with 113 gold and active building, click `[data-rush-buy]` and assert the same panel contains `Military Administration`; add insufficient-gold and high-strain disabled-reason cases.
+- [ ] **Step 1: Write failing system and DOM tests.** With Civil Service, one war, and fresh conquest, assert one `build-military-administration` recommendation. Without Civil Service, assert it is absent while Make peace and wait/Constitutional Law remain. In a level-2 unrest city with a zero-progress/no-discount 113-gold quote and active building, click `[data-rush-buy]` and assert the same panel contains `Military Administration`; add a partial-progress or production-modifier case that renders the actual quote rather than 113, plus insufficient-gold and high-strain disabled-reason cases.
 
 - [ ] **Step 2: Run red.** Run `./scripts/run-with-mise.sh yarn test --run tests/systems/unrest-guidance.test.ts tests/ui/city-panel.test.ts tests/systems/economy-system.test.ts`; expect missing kind/copy/rerender failures.
 
@@ -127,19 +145,15 @@ Use it for Courthouse and the new building. Add the recommendation kind and plai
 
 - [ ] **Step 4: Run green and commit.** Run `./scripts/run-with-mise.sh yarn test --run tests/systems/unrest-guidance.test.ts tests/ui/city-panel.test.ts tests/systems/economy-system.test.ts`; expect PASS. Commit with `git add src/systems/unrest-guidance.ts src/ui/unrest-guidance-copy.ts tests/systems/unrest-guidance.test.ts tests/ui/city-panel.test.ts tests/systems/economy-system.test.ts && git commit -m "feat(ui): guide military administration relief"`.
 
-### Task 4: Escalation, hot-seat, save, pacing, and final proof
+### Task 4: Run integration, hot-seat, save, pacing, and final proof
 
 **Files:** Modify `tests/systems/faction-system.test.ts:522-588,1307-1366`, `tests/systems/faction-happiness.test.ts:170-184`, `tests/storage/save-migrations.test.ts:258-302`; verify `tests/systems/helpers/pacing-reference-economy.ts:24-53`.
 
-- [ ] **Step 1: Write failing integration tests.** Prove a war/conquest fixture has a lower real `processFactionTurn` escalation result with the building. Rehome it to player two, switch `currentPlayer`, and assert the relief row is unchanged. Load a current-schema legacy-shaped save containing the building and assert `migrateSaveToCurrent` is idempotent.
+- [ ] **Step 1: Keep integration additive.** The escalation, hot-seat, save, and pacing regressions were written in Task 1 before implementation. Do not add migration/schema, turn-manager, or audio code. Confirm reference-economy exclusion follows `UNREST_RELIEF_SOURCES` with no hardcoded duplicate.
 
-- [ ] **Step 2: Run red.** Run `./scripts/run-with-mise.sh yarn test --run tests/systems/faction-system.test.ts tests/systems/faction-happiness.test.ts tests/storage/save-migrations.test.ts`; expect only newly added feature assertions to fail until the prior tasks land.
+- [ ] **Step 2: Run targeted verification.** Run `scripts/check-src-rule-violations.sh src/systems/faction-system.ts src/systems/city-system.ts src/systems/tech-definitions-eras1-4.ts src/ai/ai-research.ts src/systems/unrest-guidance.ts src/ui/unrest-guidance-copy.ts`; expect no violations. Then run `./scripts/run-with-mise.sh yarn test --run tests/systems/faction-system.test.ts tests/systems/faction-happiness.test.ts tests/systems/city-system.test.ts tests/systems/tech-unlocks-consistency.test.ts tests/systems/unrest-guidance.test.ts tests/systems/economy-system.test.ts tests/systems/pacing-model.test.ts tests/ai/ai-production.test.ts tests/ai/ai-research.test.ts tests/ui/city-panel.test.ts tests/storage/save-migrations.test.ts`; expect PASS.
 
-- [ ] **Step 3: Keep integration additive.** Do not add migration/schema, turn-manager, or audio code. Confirm reference-economy exclusion follows `UNREST_RELIEF_SOURCES` with no hardcoded duplicate.
-
-- [ ] **Step 4: Run targeted verification.** Run `scripts/check-src-rule-violations.sh src/systems/faction-system.ts src/systems/city-system.ts src/systems/tech-definitions-eras1-4.ts src/ai/ai-research.ts src/systems/unrest-guidance.ts src/ui/unrest-guidance-copy.ts`; expect no violations. Then run `./scripts/run-with-mise.sh yarn test --run tests/systems/faction-system.test.ts tests/systems/faction-happiness.test.ts tests/systems/city-system.test.ts tests/systems/tech-unlocks-consistency.test.ts tests/systems/unrest-guidance.test.ts tests/systems/economy-system.test.ts tests/systems/pacing-model.test.ts tests/ai/ai-production.test.ts tests/ai/ai-research.test.ts tests/ui/city-panel.test.ts tests/storage/save-migrations.test.ts`; expect PASS.
-
-- [ ] **Step 5: Build and capture durable evidence.** Run `./scripts/run-with-mise.sh yarn build`, then `./scripts/run-with-mise.sh yarn test:durable`, then `./scripts/run-with-mise.sh yarn test:durable:status`; expect build exit 0 and a durable PASS tied to current `HEAD`/working tree. Inspect `git status --short --branch`, `git diff --check`, `git diff --stat origin/main...HEAD`, `git diff --stat`, `git diff origin/main...HEAD`, and `git diff` before final reporting.
+- [ ] **Step 3: Build and capture durable evidence.** Run `./scripts/run-with-mise.sh yarn build`, then `./scripts/run-with-mise.sh yarn test:durable`, then `./scripts/run-with-mise.sh yarn test:durable:status`; expect build exit 0 and a durable PASS tied to current `HEAD`/working tree. Inspect `git status --short --branch`, `git diff --check`, `git diff --stat origin/main...HEAD`, `git diff --stat`, `git diff origin/main...HEAD`, and `git diff` before final reporting.
 
 ## Plan self-review
 
