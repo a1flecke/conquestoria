@@ -336,6 +336,7 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     openNetworkIntentPanel: panelActions.openNetworkIntentPanel,
     openUnitStackPicker: panelActions.openUnitStackPicker,
     openPirateHeadquartersAssault: panelActions.openPirateHeadquartersAssault,
+    openHallOfFame: panelActions.openHallOfFame,
     handleEstablishRoute: diplomacyActions.handleEstablishRoute,
     executeUpgrade: (unitId, targetType) => playerActions.executeUpgrade(unitId, targetType),
     ensurePlayerWarState: targetCivId => playerActions.ensurePlayerWarState(targetCivId),

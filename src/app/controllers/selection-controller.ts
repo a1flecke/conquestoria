@@ -114,6 +114,10 @@ export interface SelectionControllerDeps {
   readonly openNetworkIntentPanel: (unitId: string) => void;
   readonly openUnitStackPicker: (coord: HexCoord, unitIds: string[]) => void;
   readonly openPirateHeadquartersAssault: (factionId: string, unitId: string) => void;
+  /** #887 Phase B: opens the Great General Hall of Fame (via panelActions).
+   * Optional so existing deps fixtures compile unchanged; the composition root
+   * always provides it, and selected-unit-info only renders the link when set. */
+  readonly openHallOfFame?: () => void;
   readonly handleEstablishRoute: (caravanId: string) => void;
   readonly executeUpgrade: (unitId: string, targetType: UnitType) => boolean;
   readonly ensurePlayerWarState: (targetCivId: string) => void;
@@ -198,6 +202,7 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
           deps.advisorSystem.resetMessage('general_command_intro');
           deps.advisorSystem.check(session.getState());
         },
+        onOpenHallOfFame: deps.openHallOfFame,
         onOpenRally: (generalUnitId: string) => {
           const preview = getRallyPreview(session.getState(), generalUnitId);
           createRallyPanel(

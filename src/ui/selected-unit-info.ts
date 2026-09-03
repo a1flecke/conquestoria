@@ -5,6 +5,7 @@ import { isSuperweaponsEnabled } from '@/systems/superweapons-flag';
 import { resolveGeneralDefinition } from '@/systems/great-general-definitions';
 import { getGeneralProfile } from '@/systems/great-general-profiles';
 import { getGeneralSpecialtyPresentation, resolveGeneralMechanics } from '@/systems/great-general-specialties';
+import { getGeneralCareerForViewer, describeGeneralCareerHighlights } from '@/systems/great-general-career';
 import { getHeroicCommandEligibility } from '@/systems/great-general-abilities';
 import { getEffectiveCommandStats } from '@/systems/great-general-system';
 import { createGameButton } from '@/ui/ui-kit';
@@ -95,6 +96,8 @@ export interface SelectedUnitInfoCallbacks {
   onStartLastStandTargeting?: (generalUnitId: string) => void;
   /** #544 MR4: reopens the first-time General command tutorial on demand. */
   onReopenGeneralTutorial?: () => void;
+  /** #887 Phase B: opens the Great General Hall of Fame. */
+  onOpenHallOfFame?: () => void;
   onFoundCity?: () => void;
   onWorkerAction?: (action: WorkerActionType) => void;
   onPreach?: (unitId: string, cityId: string) => void;
@@ -378,6 +381,27 @@ export function renderSelectedUnitInfo(
         specialtyLine.style.cssText = 'font-size:11px;margin-top:3px;color:#f0c674;';
         specialtyLine.textContent = `Specialty: ${specialty.displayName} — ${specialty.summary}`;
         wrapper.appendChild(specialtyLine);
+      }
+
+      // #887 Phase B: a compact record of what this General has done for the
+      // viewing civ, plus a jump into the Hall of Fame. `getGeneralCareerForViewer`
+      // returns `undefined` for a General the current player never owned (e.g. an
+      // enemy General inspected on the map), so nothing rival-owned is shown.
+      const career = getGeneralCareerForViewer(state, state.currentPlayer, generalDef.id);
+      if (career) {
+        const clause = describeGeneralCareerHighlights(career); // ' — 1 city captured, …' or ''
+        if (clause) {
+          const careerLine = document.createElement('div');
+          careerLine.style.cssText = 'font-size:11px;margin-top:3px;opacity:0.85;';
+          careerLine.textContent = `Career so far${clause}`;
+          wrapper.appendChild(careerLine);
+        }
+      }
+      if (callbacks.onOpenHallOfFame) {
+        const hallOfFameButton = createGameButton('View Hall of Fame', 'ghost');
+        hallOfFameButton.style.marginTop = '4px';
+        hallOfFameButton.addEventListener('click', () => callbacks.onOpenHallOfFame!());
+        wrapper.appendChild(hallOfFameButton);
       }
 
       // #886: authored Generals carry a rich biography/facts profile. Render it
