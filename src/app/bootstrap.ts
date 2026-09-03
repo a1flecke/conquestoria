@@ -605,6 +605,7 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     },
     'wonder-atlas': { domId: 'wonder-codex-panel', group: 'transient', open: () => panelActions.openWonderAtlas() },
     bestiary: { domId: 'bestiary-panel', group: 'transient', open: () => panelActions.openBestiary() },
+    'hall-of-fame': { domId: 'hall-of-fame-panel', group: 'transient', open: () => panelActions.openHallOfFame() },
     'pirate-waters': { domId: 'pirate-waters-panel', group: 'transient', open: () => panelActions.openPirateWaters() },
     'notification-log': { domId: 'notification-log', group: 'transient', open: () => panelActions.openNotificationLog() },
     'city-overview': { domId: 'city-overview-panel', group: 'main', open: () => panelActions.openCityOverviewPanel() },
