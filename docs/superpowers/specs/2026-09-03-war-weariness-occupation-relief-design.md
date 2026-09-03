@@ -56,10 +56,13 @@ target rows, row formula, and the `-18` combined ceiling alongside Courthouse.
 
 AI consideration remains catalog- and table-driven:
 
-- The source metadata identifies its building, prerequisite technology, and target
-  positive-row labels. AI research must derive its addressable-row set from that
-  metadata; it must replace the current Courthouse-only row set rather than add a
-  Military Administration branch.
+- The source metadata identifies its building and target positive-row labels. For a
+  candidate research technology, AI research must derive its addressable rows only
+  from relief-source building IDs in *that technology's* `unlocksBuildings` list.
+  Magistracy therefore responds only to Courthouse sprawl pressure, while Civil
+  Service responds only to Military Administration war/conquest pressure. The mapping
+  is table-driven; it must not add either a Military Administration or Courthouse
+  branch.
 - The existing unrest-relief production scoring uses active target-row pressure to
   value Military Administration in an eligible city; it must not value the building
   in a peaceful, settled city merely because it exists in the catalog.
@@ -98,13 +101,15 @@ ordinary city-panel queue action remains available while an unrest production lo
 active, but the city generates no production until it recovers. Once Military
 Administration is the active non-wonder item, the normal rush-buy path remains
 available during that lock whenever the owner has enough gold and its treasury is not
-in high or critical strain. At zero progress, its exact rush price is
+in high or critical strain. The displayed purchase price always comes from the shared
+rush-buy quote because remaining production and any applicable production modifier can
+change it. The zero-progress, no-discount regression fixture costs exactly
 `ceil(45 × 2.5) = 113` gold.
 
 | City state | Player sees | Immediate outcome |
 |---|---|---|
 | War/conquest pressure, production active | Build Military Administration recommendation and normal queue option | 45 production investment; the relief row appears when completed. |
-| War/conquest pressure, production locked, 113+ gold and eligible treasury | Build recommendation plus normal `Buy now: 113 gold` control after queuing it | Existing rush-buy completion fires; panel rerenders with the negative relief row. |
+| War/conquest pressure, production locked, owner can afford the displayed quote and has an eligible treasury | Build recommendation plus the normal quote-derived `Buy now: … gold` control after queuing it | Existing rush-buy completion fires; panel rerenders with the negative relief row. |
 | War/conquest pressure, production locked, insufficient gold or blocked treasury | A truthful existing rush-buy disabled reason; make-peace / wait guidance remains visible | No instant escape is implied; the player can restore economic capacity, make peace, or wait. |
 | No applicable target row | No Military Administration relief row and no recommendation | The building is optional catalog content, not an unrest alarm. |
 
@@ -137,8 +142,9 @@ Implementation must add focused regression coverage for:
 7. player-visible immediate city-panel refresh after building completion;
 8. solo human, AI, and hot-seat owner parity; and
 9. loading legacy-shaped saves without migration or corruption;
-10. queueing and rush-buying the building during a production lock, including the
-    113-gold success case and the insufficient-gold / high-strain fallbacks; and
+10. queueing and rush-buying the building during a production lock, including a
+    zero-progress/no-discount 113-gold fixture, a modifier/progress-sensitive quoted
+    price, and the insufficient-gold / high-strain fallbacks; and
 11. identical human and AI relief arithmetic across Explorer, Standard, and Veteran.
 
 The implementation also reruns the applicable pacing outlier gate. Military
