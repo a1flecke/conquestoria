@@ -191,9 +191,12 @@ describe('#887 the AI never reads the career ledger', () => {
     return readdirSync(dir, { withFileTypes: true }).flatMap(e =>
       e.isDirectory() ? tsFiles(join(dir, e.name)) : e.name.endsWith('.ts') ? [join(dir, e.name)] : []);
   }
-  it('no file under src/ai references great-general-career', () => {
+  it('no file under src/ai references the career ledger or its Hall of Fame view', () => {
     for (const f of tsFiles('src/ai')) {
-      expect(readFileSync(f, 'utf8'), f).not.toContain('great-general-career');
+      const src = readFileSync(f, 'utf8');
+      expect(src, f).not.toContain('great-general-career');
+      expect(src, f).not.toContain('great-general-hall-of-fame');
+      expect(src, f).not.toContain('hall-of-fame-panel');
     }
   });
 });
