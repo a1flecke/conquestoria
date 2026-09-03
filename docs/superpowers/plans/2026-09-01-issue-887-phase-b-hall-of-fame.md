@@ -79,7 +79,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, { type: UnitType; name: string; 
 
 ---
 
-### Task 1: `great-general-hall-of-fame.ts` — pure event ranking + moment selection
+### Task 1: `great-general-hall-of-fame.ts` — pure event ranking + moment selection — ✅ done (`27f8f89d`)
 
 **Files:**
 - Create: `src/systems/great-general-hall-of-fame.ts`
@@ -96,7 +96,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, { type: UnitType; name: string; 
   export function selectMemorableMoments(entry: GeneralHistoryEntry, cap?: number): HallOfFameMoment[];
   ```
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/systems/great-general-hall-of-fame.test.ts`:
 ```ts
@@ -210,12 +210,12 @@ describe('selectMemorableMoments', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/great-general-hall-of-fame.test.ts`
 Expected: FAIL — `Cannot find module '@/systems/great-general-hall-of-fame'`.
 
-- [ ] **Step 3: Create the module with the pure helpers**
+- [x] **Step 3: Create the module with the pure helpers**
 
 Create `src/systems/great-general-hall-of-fame.ts`:
 ```ts
@@ -312,12 +312,12 @@ export function selectMemorableMoments(entry: GeneralHistoryEntry, cap = 5): Hal
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/great-general-hall-of-fame.test.ts`
 Expected: PASS (all `describe` blocks green).
 
-- [ ] **Step 5: Extend the MR1 "AI never reads the career ledger" guard**
+- [x] **Step 5: Extend the MR1 "AI never reads the career ledger" guard**
 
 In `tests/systems/great-general-career.test.ts`, replace the body of the `it('no file under src/ai references great-general-career', …)` test (around line 194) with:
 ```ts
@@ -331,12 +331,12 @@ In `tests/systems/great-general-career.test.ts`, replace the body of the `it('no
   });
 ```
 
-- [ ] **Step 6: Run the guard + full career test file**
+- [x] **Step 6: Run the guard + full career test file**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/great-general-career.test.ts tests/systems/great-general-hall-of-fame.test.ts`
 Expected: PASS (guard green — no `src/ai` file references any of the three).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/systems/great-general-hall-of-fame.ts tests/systems/great-general-hall-of-fame.test.ts tests/systems/great-general-career.test.ts
@@ -345,7 +345,7 @@ git commit -m "$(printf 'feat(#887): Hall of Fame moment ranking (classify + des
 
 ---
 
-### Task 2: `getHallOfFameForViewer` + `HallOfFameEntry`
+### Task 2: `getHallOfFameForViewer` + `HallOfFameEntry` — ✅ done (`f7b34519`; used `gen_caesar` → `initiative` specialty per Step 1 note)
 
 **Files:**
 - Modify: `src/systems/great-general-hall-of-fame.ts`
@@ -373,7 +373,7 @@ git commit -m "$(printf 'feat(#887): Hall of Fame moment ranking (classify + des
   export function getHallOfFameForViewer(state: GameState, civId: string): HallOfFameEntry[];
   ```
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `tests/systems/great-general-hall-of-fame.test.ts`:
 ```ts
@@ -486,12 +486,12 @@ describe('getHallOfFameForViewer', () => {
 ```
 > Note: `gen_caesar`, `gen_boudica`, `gen_hannibal`, `gen_ramesses` are real authored roster ids. If any of these has no authored specialty in the current roster, the "authored profile and specialty line" test's specialty assertion may need a different id — pick one from `GENERAL_SPECIALTY_ASSIGNMENTS` in `src/systems/great-general-specialties.ts` that maps to a non-`generalist` specialty. Verify with a quick grep during implementation.
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/great-general-hall-of-fame.test.ts`
 Expected: FAIL — `getHallOfFameForViewer` is not exported.
 
-- [ ] **Step 3: Add the builder to `great-general-hall-of-fame.ts`**
+- [x] **Step 3: Add the builder to `great-general-hall-of-fame.ts`**
 
 Add these imports at the top of `src/systems/great-general-hall-of-fame.ts`:
 ```ts
@@ -575,17 +575,17 @@ export function getHallOfFameForViewer(state: GameState, civId: string): HallOfF
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/great-general-hall-of-fame.test.ts`
 Expected: PASS. If the "authored profile and specialty line" test fails only on the specialty assertion, swap the id per the Step 1 note and re-run.
 
-- [ ] **Step 5: Typecheck**
+- [x] **Step 5: Typecheck**
 
 Run: `bash scripts/run-with-mise.sh yarn build`
 Expected: exits 0 (tsc clean).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/systems/great-general-hall-of-fame.ts tests/systems/great-general-hall-of-fame.test.ts
@@ -594,7 +594,7 @@ git commit -m "$(printf 'feat(#887): getHallOfFameForViewer + HallOfFameEntry vi
 
 ---
 
-### Task 3: `hall-of-fame-panel.ts` — pure render
+### Task 3: `hall-of-fame-panel.ts` — pure render — ✅ done (`ec6c8b05`)
 
 **Files:**
 - Create: `src/ui/hall-of-fame-panel.ts`
@@ -608,7 +608,7 @@ git commit -m "$(printf 'feat(#887): getHallOfFameForViewer + HallOfFameEntry vi
   export function createHallOfFamePanel(container: HTMLElement, entries: HallOfFameEntry[], callbacks: HallOfFamePanelCallbacks): HTMLElement;
   ```
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/ui/hall-of-fame-panel.test.ts`:
 ```ts
@@ -727,12 +727,12 @@ describe('hall of fame panel', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ui/hall-of-fame-panel.test.ts`
 Expected: FAIL — `Cannot find module '@/ui/hall-of-fame-panel'`.
 
-- [ ] **Step 3: Create the panel**
+- [x] **Step 3: Create the panel**
 
 Create `src/ui/hall-of-fame-panel.ts`:
 ```ts
@@ -849,16 +849,16 @@ export function createHallOfFamePanel(
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ui/hall-of-fame-panel.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Confirm the src-edit hook is satisfied (no bare buttons)**
+- [x] **Step 5: Confirm the src-edit hook is satisfied (no bare buttons)**
 
 The panel creates no raw `document.createElement('button')` — the only button is `createGameButton('✕', 'close')`. If the `check-src-edit` hook flags anything on the Write, fix per its message before continuing.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/ui/hall-of-fame-panel.ts tests/ui/hall-of-fame-panel.test.ts
@@ -867,7 +867,7 @@ git commit -m "$(printf 'feat(#887): Hall of Fame panel (pure render over HallOf
 
 ---
 
-### Task 4: Panel wiring — PanelId, registry entry, `openHallOfFame()`
+### Task 4: Panel wiring — PanelId, registry entry, `openHallOfFame()` — ✅ done (`8642bb74`)
 
 **Files:**
 - Modify: `src/app/panel-registry.ts` (`PanelId` union, ~line 12-16)
@@ -879,7 +879,7 @@ git commit -m "$(printf 'feat(#887): Hall of Fame panel (pure render over HallOf
 - Consumes: `getHallOfFameForViewer` from `@/systems/great-general-hall-of-fame`; `createHallOfFamePanel` from `@/ui/hall-of-fame-panel`.
 - Produces: `PanelId` gains `'hall-of-fame'`; `PanelActionsController` gains `openHallOfFame(): void` (used by Task 5 registry entry and Task 6 selection-controller dep).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 In `tests/app/controllers/panel-actions-controller.test.ts`, find the existing `openBestiary` test (search for `openBestiary`) and add a sibling directly after it. Mirror that test's setup exactly; the shape is:
 ```ts
@@ -902,12 +902,12 @@ In `tests/app/controllers/panel-actions-controller.test.ts`, find the existing `
 ```
 > If that test file mocks `@/ui/*` panels (some controller tests do), mock `@/ui/hall-of-fame-panel` the same way the others are mocked and assert `createHallOfFamePanel` was called with `(uiLayer, <entries>, { onClose: expect.any(Function) })` where `<entries>` is `getHallOfFameForViewer(state, 'player')`. Match the file's existing convention rather than introducing a new one.
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/panel-actions-controller.test.ts`
 Expected: FAIL — `controller.openHallOfFame is not a function`.
 
-- [ ] **Step 3: Add `'hall-of-fame'` to the `PanelId` union**
+- [x] **Step 3: Add `'hall-of-fame'` to the `PanelId` union**
 
 In `src/app/panel-registry.ts`, extend the union:
 ```ts
@@ -918,7 +918,7 @@ export type PanelId =
   | 'strategic-arsenal' | 'hall-of-fame';
 ```
 
-- [ ] **Step 4: Add `openHallOfFame` to the panel-actions controller**
+- [x] **Step 4: Add `openHallOfFame` to the panel-actions controller**
 
 In `src/app/controllers/panel-actions-controller.ts`:
 
@@ -950,24 +950,24 @@ Add `openHallOfFame` to the returned object (near `openBestiary,` ~line 1127):
     openHallOfFame,
 ```
 
-- [ ] **Step 5: Add the registry entry**
+- [x] **Step 5: Add the registry entry**
 
 In `src/app/bootstrap.ts`, in the `panelRegistry` object (right after the `bestiary:` line ~607):
 ```ts
     'hall-of-fame': { domId: 'hall-of-fame-panel', group: 'transient', open: () => panelActions.openHallOfFame() },
 ```
 
-- [ ] **Step 6: Run the test to verify it passes**
+- [x] **Step 6: Run the test to verify it passes**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/panel-actions-controller.test.ts tests/app/bootstrap.test.ts`
 Expected: PASS.
 
-- [ ] **Step 7: Typecheck**
+- [x] **Step 7: Typecheck**
 
 Run: `bash scripts/run-with-mise.sh yarn build`
 Expected: exits 0.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/app/panel-registry.ts src/app/bootstrap.ts src/app/controllers/panel-actions-controller.ts tests/app/controllers/panel-actions-controller.test.ts
@@ -976,7 +976,7 @@ git commit -m "$(printf 'feat(#887): wire the hall-of-fame panel (PanelId + regi
 
 ---
 
-### Task 5: Toolbar button (`🎖️`) + earned-first visibility
+### Task 5: Toolbar button (`🎖️`) + earned-first visibility — ✅ done (`23442c59`; hud-controller pirate-waters block now ~L228, not L179 — upstream `387cbe42`)
 
 **Files:**
 - Modify: `src/ui/game-shell.ts` (id-cleanup list line 24; `GameShellCallbacks` ~line 3-9; button append ~line 108)
@@ -989,7 +989,7 @@ git commit -m "$(printf 'feat(#887): wire the hall-of-fame panel (PanelId + regi
 - Consumes: `PanelId` `'hall-of-fame'` (Task 4); `panelActions.openHallOfFame` reached via `deps.router.open('hall-of-fame')`.
 - Produces: `GameShellCallbacks.onOpenHallOfFame?: () => void` (optional, like `onOpenPirateWaters?`); DOM button `#btn-hall-of-fame`, hidden until the current player's `generalHistory` is non-empty.
 
-- [ ] **Step 1: Write the failing test — game-shell**
+- [x] **Step 1: Write the failing test — game-shell**
 
 In `tests/ui/game-shell.test.ts`:
 
@@ -1035,12 +1035,12 @@ In `tests/ui/game-shell.test.ts`:
   });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ui/game-shell.test.ts`
 Expected: FAIL — no `#btn-hall-of-fame`; the id-list assertion mismatches.
 
-- [ ] **Step 3: Add the button to `game-shell.ts`**
+- [x] **Step 3: Add the button to `game-shell.ts`**
 
 (a) Line 24 — add `'btn-hall-of-fame'` to the id array in `removeExistingShell`:
 ```ts
@@ -1059,12 +1059,12 @@ Expected: FAIL — no `#btn-hall-of-fame`; the id-list assertion mismatches.
   utilityToolbar.appendChild(hallOfFameButton);
 ```
 
-- [ ] **Step 4: Run the game-shell test to verify it passes**
+- [x] **Step 4: Run the game-shell test to verify it passes**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ui/game-shell.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Write the failing test — hud-controller visibility**
+- [x] **Step 5: Write the failing test — hud-controller visibility**
 
 In `tests/app/controllers/hud-controller.test.ts`, mirror the existing `btn-pirate-waters` visibility test (search `btn-pirate-waters`). Add:
 ```ts
@@ -1096,12 +1096,12 @@ In `tests/app/controllers/hud-controller.test.ts`, mirror the existing `btn-pira
 ```
 > Adapt `makeState` / `hud.update(...)` to the file's actual helpers and controller-construction pattern — do not invent new ones.
 
-- [ ] **Step 6: Run to verify it fails**
+- [x] **Step 6: Run to verify it fails**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/hud-controller.test.ts`
 Expected: FAIL — the button stays `hidden` unconditionally.
 
-- [ ] **Step 7: Add the visibility toggle to `hud-controller.ts`**
+- [x] **Step 7: Add the visibility toggle to `hud-controller.ts`**
 
 In `src/app/controllers/hud-controller.ts` `update()`, directly after the `btn-pirate-waters` block (~line 182):
 ```ts
@@ -1111,24 +1111,24 @@ In `src/app/controllers/hud-controller.ts` `update()`, directly after the `btn-p
       }
 ```
 
-- [ ] **Step 8: Wire the shell callback in `game-session-controller.ts`**
+- [x] **Step 8: Wire the shell callback in `game-session-controller.ts`**
 
 In `src/app/controllers/game-session-controller.ts`, in the `createGameShell(deps.uiLayer, { … })` object (next to `onOpenWonderAtlas` ~line 150):
 ```ts
       onOpenHallOfFame: () => deps.router.open('hall-of-fame'),
 ```
 
-- [ ] **Step 9: Run the affected tests**
+- [x] **Step 9: Run the affected tests**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ui/game-shell.test.ts tests/app/controllers/hud-controller.test.ts tests/app/controllers/game-session-controller.test.ts`
 Expected: PASS.
 
-- [ ] **Step 10: Typecheck**
+- [x] **Step 10: Typecheck**
 
 Run: `bash scripts/run-with-mise.sh yarn build`
 Expected: exits 0.
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add src/ui/game-shell.ts src/app/controllers/hud-controller.ts src/app/controllers/game-session-controller.ts tests/ui/game-shell.test.ts tests/app/controllers/hud-controller.test.ts
@@ -1137,7 +1137,7 @@ git commit -m "$(printf 'feat(#887): Hall of Fame toolbar button, hidden until t
 
 ---
 
-### Task 6: `selected-unit-info` — "Career so far" line + "View Hall of Fame" link
+### Task 6: `selected-unit-info` — "Career so far" line + "View Hall of Fame" link — ✅ done (`5b1571b0`; deviation: `SelectionControllerDeps.openHallOfFame` made **optional** — required broke 3 existing deps fixtures (`map-interaction-controller`, `selection-controller-establish-outpost`, `selection-controller` tests); `selected-unit-info` already only renders the link when the callback is present, so passing `deps.openHallOfFame` straight through is safe)
 
 **Files:**
 - Modify: `src/ui/selected-unit-info.ts` (imports ~line 1-15; `SelectedUnitInfoCallbacks` type; the `unit.type === 'great_general'` block, right after the specialty line ~line 380)
@@ -1149,7 +1149,7 @@ git commit -m "$(printf 'feat(#887): Hall of Fame toolbar button, hidden until t
 - Consumes: `getGeneralCareerForViewer`, `describeGeneralCareerHighlights` from `@/systems/great-general-career`; `createGameButton` (already imported in `selected-unit-info.ts`); `panelActions.openHallOfFame` (Task 4) reached through a new `SelectionControllerDeps.openHallOfFame`.
 - Produces: `SelectedUnitInfoCallbacks.onOpenHallOfFame?: () => void`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 In `tests/ui/selected-unit-info.test.ts`, inside the `describe('Great General identity display (#544 MR3)', …)` block, add:
 ```ts
@@ -1197,12 +1197,12 @@ In `tests/ui/selected-unit-info.test.ts`, inside the `describe('Great General id
 ```
 > Use the exact helpers this test file already provides (state builder, unit selection, `collectAllText`). The names above (`makeGeneralState`, `renderAndCollect`) are placeholders for whatever the file uses — do not add new helpers.
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ui/selected-unit-info.test.ts`
 Expected: FAIL — no "Career so far" text, no "View Hall of Fame" button.
 
-- [ ] **Step 3: Extend `SelectedUnitInfoCallbacks` and the General block**
+- [x] **Step 3: Extend `SelectedUnitInfoCallbacks` and the General block**
 
 In `src/ui/selected-unit-info.ts`:
 
@@ -1236,7 +1236,7 @@ import { getGeneralCareerForViewer, describeGeneralCareerHighlights } from '@/sy
       }
 ```
 
-- [ ] **Step 4: Thread the callback through `selection-controller.ts`**
+- [x] **Step 4: Thread the callback through `selection-controller.ts`**
 
 In `src/app/controllers/selection-controller.ts`:
 
@@ -1250,24 +1250,24 @@ In `src/app/controllers/selection-controller.ts`:
         onOpenHallOfFame: () => deps.openHallOfFame(),
 ```
 
-- [ ] **Step 5: Provide the dep in `bootstrap.ts`**
+- [x] **Step 5: Provide the dep in `bootstrap.ts`**
 
 In `src/app/bootstrap.ts`, in `createSelectionController({ … })` (near `openPirateHeadquartersAssault: panelActions.openPirateHeadquartersAssault,` ~line 338):
 ```ts
     openHallOfFame: panelActions.openHallOfFame,
 ```
 
-- [ ] **Step 6: Run the affected tests**
+- [x] **Step 6: Run the affected tests**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ui/selected-unit-info.test.ts tests/app/controllers/selection-controller.test.ts tests/app/bootstrap.test.ts`
 Expected: PASS. (Existing selected-unit-info assertions are `toContain`-based and additive text does not break them; the "no extra text when `generalDefinitionId` does not resolve" case stays green because the new block is inside `if (generalDef)`.)
 
-- [ ] **Step 7: Typecheck**
+- [x] **Step 7: Typecheck**
 
 Run: `bash scripts/run-with-mise.sh yarn build`
 Expected: exits 0.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/ui/selected-unit-info.ts src/app/controllers/selection-controller.ts src/app/bootstrap.ts tests/ui/selected-unit-info.test.ts
@@ -1276,13 +1276,13 @@ git commit -m "$(printf 'feat(#887): Career-so-far line + View Hall of Fame link
 
 ---
 
-### Task 7: Full verification, docs sync, PR
+### Task 7: Full verification, docs sync, PR — ✅ done (full `yarn test` 565 files / 9894 passed / 3 skipped; `yarn build` clean; `architecture-boundaries.test.ts` green with no edits; `plans/README.md` checklist satisfied — read-only feature, no queue, negative coverage for the importance ranking, open/close/reopen replay covered)
 
 **Files:**
 - Modify: `docs/superpowers/plans/2026-09-01-issue-887-phase-b-hall-of-fame.md` (tick boxes, add status annotations)
 - No source changes unless verification finds a defect.
 
-- [ ] **Step 1: Targeted regression sweep**
+- [x] **Step 1: Targeted regression sweep**
 
 Run:
 ```bash
@@ -1302,22 +1302,22 @@ bash scripts/run-with-mise.sh yarn vitest run \
 ```
 Expected: all PASS. `architecture-boundaries.test.ts` must be green with no edits — the feature adds no `main.ts` behavior, the builder is pure, and the panel never mutates `session.getState()`.
 
-- [ ] **Step 2: `git diff --check`**
+- [x] **Step 2: `git diff --check`**
 
 Run: `git diff --check origin/main...HEAD`
 Expected: no output (no whitespace errors).
 
-- [ ] **Step 3: Full build**
+- [x] **Step 3: Full build**
 
 Run: `bash scripts/run-with-mise.sh yarn build`
 Expected: exits 0 (tsc + production bundle).
 
-- [ ] **Step 4: Full test suite**
+- [x] **Step 4: Full test suite**
 
 Run: `bash scripts/run-with-mise.sh yarn test`
 Expected: exits 0 (vitest + hook smoke tests). If a pre-existing unrelated flake appears, confirm it fails on `origin/main` too before proceeding; do not paper over a real failure this plan introduced.
 
-- [ ] **Step 5: `docs/superpowers/plans/README.md` checklist pass**
+- [x] **Step 5: `docs/superpowers/plans/README.md` checklist pass**
 
 Open `docs/superpowers/plans/README.md` and confirm this feature satisfies it:
 - **Player-visible state transitions:** none — the feature is read-only; the only state read (`generalHistory`) is never written here.
@@ -1325,7 +1325,7 @@ Open `docs/superpowers/plans/README.md` and confirm this feature satisfies it:
 - **Replayable interaction:** open → close → reopen renders a fresh snapshot — covered by the "a second call replaces rather than duplicates" panel test (Task 3) and `panel-router` `isOpen`/`close` behavior.
 No code change expected here; if the README lists a check this feature genuinely misses, add the missing test to the relevant task and re-run.
 
-- [ ] **Step 6: Tick this plan's checkboxes + status annotations**
+- [x] **Step 6: Tick this plan's checkboxes + status annotations**
 
 Edit this file: mark every `- [ ]` you completed as `- [x]`, and add to each `### Task N` header line ` — ✅ done` (or ` — ✅ done (deviation: …)` where you diverged, e.g. the specialty-id swap in Task 2 Step 1). Commit:
 ```bash
@@ -1333,7 +1333,7 @@ git add docs/superpowers/plans/2026-09-01-issue-887-phase-b-hall-of-fame.md
 git commit -m "$(printf 'docs(#887): Phase B plan — mark tasks complete\n\nCo-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>')"
 ```
 
-- [ ] **Step 7: Push and open the PR**
+- [x] **Step 7: Push and open the PR**
 
 ```bash
 git push -u origin HEAD
@@ -1350,7 +1350,7 @@ Body must include:
 - `Closes #887` (Phase B is the final piece of the issue; MR1 backend already merged as #940).
 - Footer: `🤖 Generated with [Claude Code](https://claude.com/claude-code)`
 
-- [ ] **Step 8: Comment on issue #887**
+- [x] **Step 8: Comment on issue #887**
 
 After the PR is open, comment on #887: Phase B (Hall of Fame UI) is up as PR #<n>; with it #887 is fully delivered (MR1 backend #940 + MR2 UI). Do not close the issue by hand — `Closes #887` in the PR body closes it on merge.
 
