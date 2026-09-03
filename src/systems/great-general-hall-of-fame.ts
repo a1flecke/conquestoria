@@ -6,8 +6,15 @@
  * or reads `opponentChallenge`; output is identical across difficulty modes.
  * The AI never imports this module (guard in great-general-career.test.ts).
  */
-import type { GeneralCareerEvent, GeneralHistoryEntry } from '@/core/types';
-import { summarizeGeneralCareer } from '@/systems/great-general-career';
+import type { GameState, GeneralCareerEvent, GeneralHistoryEntry } from '@/core/types';
+import {
+  describeGeneralCareerHighlights,
+  summarizeGeneralCareer,
+  type GeneralCareerSummary,
+} from '@/systems/great-general-career';
+import { resolveGeneralDefinition } from '@/systems/great-general-definitions';
+import { getGeneralProfile } from '@/systems/great-general-profiles';
+import { getGeneralSpecialtyPresentation } from '@/systems/great-general-specialties';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 
 export interface HallOfFameMoment {
@@ -88,4 +95,73 @@ export function selectMemorableMoments(entry: GeneralHistoryEntry, cap = 5): Hal
     }
   }
   return moments;
+}
+
+export interface HallOfFameEntry {
+  generalDefinitionId: string;
+  name: string;
+  portraitIcon: string;
+  era: number | null;
+  descriptor: string;
+  status: 'active' | 'retired' | 'fallen';
+  stats: GeneralCareerSummary;
+  /** describeGeneralCareerHighlights(stats) with the leading " — " stripped; "" when nothing notable. */
+  statLine: string;
+  /** "{displayName} — {summary}"; omitted for generalist / generated / unresolvable. */
+  specialtyLine?: string;
+  /** Authored Generals only. */
+  profile?: { kind: 'historical' | 'lore'; summary: string; facts: string[]; context?: string; loreWork?: string };
+  bookendStart: string;
+  bookendEnd?: string;
+  moments: HallOfFameMoment[];
+}
+
+function bookendEndFor(entry: GeneralHistoryEntry): string | undefined {
+  if (entry.outcome === 'died') return `Turn ${entry.diedTurn ?? entry.spawnedTurn} — fell in battle`;
+  if (entry.outcome === 'retired') return `Turn ${entry.retiredTurn ?? entry.spawnedTurn} — retired from service`;
+  return undefined;
+}
+
+function buildHallOfFameEntry(state: GameState, entry: GeneralHistoryEntry): HallOfFameEntry {
+  const stats = summarizeGeneralCareer(entry);
+  const definition = resolveGeneralDefinition(state, entry.generalDefinitionId);
+  const profile = definition ? getGeneralProfile(definition.id) : undefined;
+  const specialty = definition ? getGeneralSpecialtyPresentation(definition) : undefined;
+  const highlights = describeGeneralCareerHighlights(stats);
+  return {
+    generalDefinitionId: entry.generalDefinitionId,
+    name: definition?.name ?? 'A forgotten commander',
+    portraitIcon: definition?.portraitIcon ?? '',
+    era: definition?.era ?? null,
+    descriptor: definition?.descriptor ?? '',
+    status: stats.status,
+    stats,
+    statLine: highlights.startsWith(' — ') ? highlights.slice(3) : highlights,
+    specialtyLine: specialty ? `${specialty.displayName} — ${specialty.summary}` : undefined,
+    profile: profile
+      ? { kind: profile.kind, summary: profile.summary, facts: profile.facts, context: profile.context, loreWork: profile.loreWork }
+      : undefined,
+    bookendStart: `Turn ${entry.spawnedTurn} — took command`,
+    bookendEnd: bookendEndFor(entry),
+    moments: selectMemorableMoments(entry),
+  };
+}
+
+function compareHallOfFameEntries(a: HallOfFameEntry, b: HallOfFameEntry): number {
+  const activeRank = (s: HallOfFameEntry['status']) => (s === 'active' ? 0 : 1);
+  if (activeRank(a.status) !== activeRank(b.status)) return activeRank(a.status) - activeRank(b.status);
+  const endA = a.stats.spawnedTurn + a.stats.careerTurns;
+  const endB = b.stats.spawnedTurn + b.stats.careerTurns;
+  if (endA !== endB) return endB - endA;
+  return b.stats.spawnedTurn - a.stats.spawnedTurn;
+}
+
+/**
+ * Every Great General `civId` has ever had, resolved for display. Viewer-scoped:
+ * reads only `civId`'s own `generalHistory` — never another civ's. `[]` when the
+ * civ has never earned a General. Callers pass `state.currentPlayer`.
+ */
+export function getHallOfFameForViewer(state: GameState, civId: string): HallOfFameEntry[] {
+  const history = state.civilizations[civId]?.generalHistory ?? [];
+  return history.map(entry => buildHallOfFameEntry(state, entry)).sort(compareHallOfFameEntries);
 }
