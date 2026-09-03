@@ -11,7 +11,7 @@ export function unrestRecommendationCopy(rec: UnrestRecommendation): { icon: str
     case 'build-courthouse':
       return { icon: '⚖️', text: 'Build a Courthouse here (City screen) — it calms a city that is big or far from your capital.' };
     case 'build-military-administration':
-      return { icon: '🛡️', text: 'Build Military Administration here (City screen) to reduce this city’s war and fresh-conquest unrest.' };
+      return { icon: '🛡️', text: 'Build Military Administration here (City screen) to reduce unrest from war and from a city you just captured.' };
     case 'research-magistracy':
       return { icon: '🔬', text: 'Research Magistracy first (Tech screen), then you can build a Courthouse here.' };
     case 'garrison-unit':

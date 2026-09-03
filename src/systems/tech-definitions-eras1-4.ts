@@ -45,7 +45,7 @@ export const TECH_TREE_ERAS_1_4: Tech[] = [
   { id: 'magistracy', name: 'Magistracy', track: 'civics', cost: 70, prerequisites: ['code-of-laws'], unlocks: ['Provincial courts reduce unrest from distance and overextension'], unlocksBuildings: ['courthouse'], era: 2, countsForEraAdvancement: false, pacing: { band: 'infrastructure', role: 'stability-civics', impact: 1.05, scope: 'empire', snowball: 1.0, urgency: 1.1, situationality: 1.2, unlockBreadth: 1 } },
   { id: 'state-workforce', name: 'State Workforce', track: 'civics', cost: 50, prerequisites: ['early-empire'], unlocks: [], unlocksBuildings: ['lumbermill', 'quarry-building', 'masonry-works'], era: 2 },
   { id: 'diplomacy-tech', name: 'Diplomacy', track: 'civics', cost: 165, prerequisites: ['early-empire', 'writing'], unlocks: ['Unlock Non-Aggression Pacts'], era: 3 },
-  { id: 'civil-service', name: 'Civil Service', track: 'civics', cost: 120, prerequisites: ['state-workforce'], unlocks: ['Military Administration reduces local war and fresh-conquest unrest'], unlocksBuildings: ['forum', 'military-administration'], era: 3 },
+  { id: 'civil-service', name: 'Civil Service', track: 'civics', cost: 120, prerequisites: ['state-workforce'], unlocks: ['Military Administration reduces local unrest from war and newly captured cities'], unlocksBuildings: ['forum', 'military-administration'], era: 3 },
   { id: 'drama-poetry', name: 'Drama & Poetry', track: 'civics', cost: 235, prerequisites: ['philosophy', 'code-of-laws'], unlocks: [], unlocksBuildings: ['amphitheater'], era: 4 },
   { id: 'political-philosophy', name: 'Political Philosophy', track: 'civics', cost: 235, prerequisites: ['civil-service', 'philosophy'], unlocks: ['Unlock alliances'], era: 4 },
 

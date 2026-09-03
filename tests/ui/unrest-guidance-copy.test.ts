@@ -19,7 +19,7 @@ describe('unrestRecommendationCopy', () => {
     expect(text).toMatch(/military administration/i);
     expect(text).toMatch(/city screen/i);
     expect(text).toMatch(/war/i);
-    expect(text).toMatch(/conquest/i);
+    expect(text).toMatch(/just captured/i);
   });
 
   it('research-magistracy names the Tech screen and says "first"', () => {

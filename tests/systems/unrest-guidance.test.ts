@@ -187,6 +187,23 @@ describe('unrest-guidance', () => {
     expect(getUnrestRecommendations('city-1', state).filter(rec => rec.kind === 'build-military-administration')).toHaveLength(1);
   });
 
+  it('#926: an unaffordable queued Administration keeps peace and settlement fallback guidance visible', () => {
+    const state = makeState({
+      era: 3,
+      atWarCount: 1,
+      conquestTurn: 0,
+      completed: [...completedTechsForEra(3), 'civil-service'],
+    });
+    state.cities['city-1']!.productionQueue = ['military-administration'];
+    state.civilizations.player.gold = 0;
+
+    const kinds = getUnrestRecommendations('city-1', state).map(rec => rec.kind);
+
+    expect(kinds).toContain('build-military-administration');
+    expect(kinds).toContain('make-peace');
+    expect(kinds).toContain('await-conquest-settle');
+  });
+
   it('#926 NEGATIVE: without Civil Service, war and conquest keep their existing fallbacks', () => {
     const recs = getUnrestRecommendations('city-1', makeState({ atWarCount: 1, conquestTurn: 0 }));
     expect(recs.some(rec => rec.kind === 'build-military-administration')).toBe(false);
