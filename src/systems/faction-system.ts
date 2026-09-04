@@ -133,6 +133,13 @@ function getOwnedRoadConnectedCities(
   return connected;
 }
 
+function getRoadPostNetworkReliefAmount(city: City, rows: UnrestPressureRow[]): number {
+  const distance = rows.find(row => row.label === 'Distance from capital')?.amount ?? 0;
+  const overextension = rows.find(row => row.label === 'Empire overextension')?.amount ?? 0;
+  const courthouse = city.buildings.includes('courthouse') ? getCourthouseReliefAmount(rows) : 0;
+  return Math.min(Math.round(distance * 0.35), 6, Math.max(0, distance - 4), Math.max(0, distance + overextension - 2 - courthouse));
+}
+
 const ROAD_POST_NETWORK_RELIEF: UnrestReliefSource = {
   id: 'road-post-network',
   researchUnlockTechId: 'military-logistics',
@@ -143,15 +150,39 @@ const ROAD_POST_NETWORK_RELIEF: UnrestReliefSource = {
     getOwnedRoadConnectedCities(state, city.owner, context).has(city.id)
     || canConnectCityToCapitalByOwnedRoad(state, city.owner, city.id),
   reliefRows: (city, _state, rows) => {
-    const distance = rows.find(row => row.label === 'Distance from capital')?.amount ?? 0;
-    const overextension = rows.find(row => row.label === 'Empire overextension')?.amount ?? 0;
-    const courthouse = city.buildings.includes('courthouse') ? getCourthouseReliefAmount(rows) : 0;
-    const relief = Math.min(Math.round(distance * 0.35), 6, Math.max(0, distance - 4), Math.max(0, distance + overextension - 2 - courthouse));
+    const relief = getRoadPostNetworkReliefAmount(city, rows);
     return relief > 0 ? [{ label: 'Road & Post Network', amount: -relief }] : [];
   },
 };
 
-export const UNREST_RELIEF_SOURCES: UnrestReliefSource[] = [COURTHOUSE_RELIEF, MILITARY_ADMINISTRATION_RELIEF, ROAD_POST_NETWORK_RELIEF];
+function getRegionalCapitalCity(state: GameState, civId: string): City | null {
+  const record = state.builtNationalProjects?.[`${civId}:regional_capital`];
+  const city = record?.civId === civId ? state.cities[record.cityId] : undefined;
+  return city?.owner === civId && city.buildings.includes('regional_capital') ? city : null;
+}
+
+const REGIONAL_CAPITAL_RELIEF: UnrestReliefSource = {
+  id: 'regional-capital', buildingId: 'regional_capital', researchUnlockTechId: 'political-philosophy', targetRowLabels: ['Distance from capital'],
+  isActive: (city, state) => getRegionalCapitalCity(state, city.owner) !== null,
+  reliefRows: (city, state, rows) => {
+    const capital = getCapitalCity(state, city.owner);
+    const regionalCapital = getRegionalCapitalCity(state, city.owner);
+    const distance = rows.find(row => row.label === 'Distance from capital')?.amount ?? 0;
+    const overextension = rows.find(row => row.label === 'Empire overextension')?.amount ?? 0;
+    if (!capital || !regionalCapital || distance === 0) return [];
+    const nearestDistance = Math.min(hexDistance(city.position, capital.position), hexDistance(city.position, regionalCapital.position));
+    const nearestPressure = Math.min(MAX_PRESSURE_DISTANCE, Math.max(0, (nearestDistance - 5) * 2));
+    const rawSeatRelief = distance - nearestPressure;
+    const courthouse = city.buildings.includes('courthouse') ? getCourthouseReliefAmount(rows) : 0;
+    const road = state.civilizations[city.owner]?.techState.completed.includes('military-logistics')
+      && getCitiesConnectedToCapital(state, city.owner, 'owned-road').has(city.id)
+      ? getRoadPostNetworkReliefAmount(city, rows) : 0;
+    const relief = Math.min(rawSeatRelief, 10, Math.max(0, distance + overextension - 2 - courthouse - road));
+    return relief > 0 ? [{ label: 'Regional Capital administration', amount: -relief }] : [];
+  },
+};
+
+export const UNREST_RELIEF_SOURCES: UnrestReliefSource[] = [COURTHOUSE_RELIEF, MILITARY_ADMINISTRATION_RELIEF, ROAD_POST_NETWORK_RELIEF, REGIONAL_CAPITAL_RELIEF];
 
 export function getUnrestReliefRows(
   city: City,

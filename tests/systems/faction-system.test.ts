@@ -606,6 +606,21 @@ describe('faction-system', () => {
   });
 });
 
+describe('#927 Regional Capital unrest relief', () => {
+  it('keeps the capital distance row while adding bounded nearest-seat relief', () => {
+    const state = makeState({ cityPosition: { q: 10, r: 0 }, capitalPosition: { q: 0, r: 0 }, era: 4 });
+    state.cities.seat = makeCity('seat', 'player', { q: 9, r: 0 }, { buildings: ['regional_capital'] });
+    state.civilizations.player.cities.push('seat');
+    state.builtNationalProjects = {
+      'player:regional_capital': { civId: 'player', cityId: 'seat', eraBuilt: 4 },
+    };
+
+    const rows = getUnrestPressureBreakdown('city-1', state);
+    expect(rows).toContainEqual({ label: 'Distance from capital', amount: 10 });
+    expect(rows).toContainEqual({ label: 'Regional Capital administration', amount: -8 });
+  });
+});
+
 describe('appeaseFaction', () => {
   it('deducts gold, resets spyUnrestBonus, reduces unrestTurns by 2 (floor 0), downgrades unrestLevel 2→1', () => {
     const state = makeState({ unrestLevel: 2, unrestTurns: 1, spyUnrestBonus: 8 });

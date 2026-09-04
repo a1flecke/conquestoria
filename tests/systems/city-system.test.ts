@@ -2454,3 +2454,23 @@ describe('Herding Insight production', () => {
     expect(processCity(city, map, 0, 0, undefined, ['horseback-riding'], undefined, 3, undefined, undefined, undefined, undefined, true).completedUnit).toBe('beast_handler');
   });
 });
+
+describe('#927 Regional Capital production contract', () => {
+  it('is an Era-4 one-per-empire milestone project with a production icon', () => {
+    expect(BUILDINGS.regional_capital).toMatchObject({
+      id: 'regional_capital', name: 'Regional Capital', category: 'culture',
+      productionCost: 160, techRequired: 'political-philosophy',
+      yields: { food: 0, production: 0, gold: 0, science: 0 },
+      uniquePerEmpire: true, nationalProject: { homeEra: 4, milestone: true },
+      cannotBuildInCapital: true,
+    });
+    expect(PRODUCTION_ICONS.regional_capital).toBe('🏛️');
+  });
+
+  it('never offers the project in the true capital when capital context is supplied', () => {
+    const map = generateMap(20, 20, 'regional-capital-legality');
+    const capital: City = { ...foundCity('player', { q: 0, r: 0 }, map, mkC()), id: 'capital' };
+    expect(getAvailableBuildings(capital, ['political-philosophy'], map, undefined, 4, new Set(), 'player', undefined, 'capital')
+      .some(building => building.id === 'regional_capital')).toBe(false);
+  });
+});

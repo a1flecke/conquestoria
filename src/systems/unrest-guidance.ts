@@ -13,6 +13,7 @@ import { resolveCivilizationEra } from './tech-definitions';
 import { UNIT_DEFINITIONS } from './unit-system';
 import { hexDistance } from './hex-utils';
 import { canConnectCityToCapitalByOwnedRoad, getCitiesConnectedToCapital } from './road-network';
+import { getCapitalCityId } from './capital-system';
 
 // #919 MR3 — "given this city's pressure breakdown, what should the player do?"
 // This module is the single source of truth for that answer, and it returns
@@ -75,7 +76,7 @@ function buildingBuildableHere(buildingId: string, state: GameState, city: City)
   if (!civ || city.buildings.includes(buildingId)) return false;
   const era = resolveCivilizationEra(civ.techState.completed);
   const resources = getCivAvailableResources(state, city.owner);
-  return getAvailableBuildings(city, civ.techState.completed, state.map, resources, era, undefined, city.owner)
+  return getAvailableBuildings(city, civ.techState.completed, state.map, resources, era, undefined, city.owner, undefined, getCapitalCityId(state, city.owner))
     .some(b => b.id === buildingId);
 }
 

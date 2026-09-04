@@ -81,6 +81,7 @@ export const BUILDINGS: Record<string, Building> = {
   // row (UNREST_RELIEF_SOURCES in faction-system.ts), not a happiness field.
   courthouse: { id: 'courthouse', name: 'Courthouse', category: 'culture', yields: { food: 0, production: 0, gold: 1, science: 0 }, productionCost: 55, techRequired: 'magistracy', description: "Seat of provincial law. Cuts this city's unrest pressure from distance to the capital and from empire overextension (a courthoused city still carries a little).", pacing: { band: 'infrastructure', role: 'stability', impact: 1.05, scope: 'city', snowball: 1.05, urgency: 1.1, situationality: 1.3, unlockBreadth: 1 } },
   'military-administration': { id: 'military-administration', name: 'Military Administration', category: 'culture', yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 45, techRequired: 'civil-service', description: "Reduces this city's unrest from war and newly captured cities without removing either pressure.", pacing: { band: 'infrastructure', role: 'stability', impact: 1.05, scope: 'city', snowball: 1, urgency: 1.15, situationality: 1.35, unlockBreadth: 1 } },
+  regional_capital: { id: 'regional_capital', name: 'Regional Capital', category: 'culture', yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 160, techRequired: 'political-philosophy', description: 'A second administrative seat. Cities nearer this Regional Capital carry less distance pressure.', uniquePerEmpire: true, nationalProject: { homeEra: 4, milestone: true }, cannotBuildInCapital: true, pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1, urgency: 1.1, situationality: 1.3, unlockBreadth: 1 } },
 
   // Espionage
   safehouse: {
@@ -1529,6 +1530,7 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   forum: '📢',
   courthouse: '⚖️',
   'military-administration': '🛡️',
+  regional_capital: '🏛️',
   safehouse: '🏠',
   'intelligence-agency': '🛡️',
   'security-bureau': '🔒',
@@ -1954,10 +1956,12 @@ export function getAvailableBuildings(
    * here) -- callers that intentionally want the pre-gate "tech unlocked" set for a
    * locked-item-reason diff (see city-panel.ts) rely on omitting this. */
   arsenalStatus?: { hasManhattanProject: boolean; atCapacity: boolean },
+  capitalCityId?: string | null,
 ): Building[] {
   const coastal = isCityCoastal(city, map);
   return Object.values(BUILDINGS).filter(b => {
     if (city.buildings.includes(b.id)) return false;
+    if (b.cannotBuildInCapital && capitalCityId === city.id) return false;
     if (b.arsenalCapacityGated && arsenalStatus && (!arsenalStatus.hasManhattanProject || arsenalStatus.atCapacity)) return false;
     if (evaluateProductionPrerequisites(b, completedTechs).missing.length > 0) return false;
     if (isBuildingObsolete(b, completedTechs)) return false;
