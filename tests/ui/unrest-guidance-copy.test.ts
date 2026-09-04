@@ -36,6 +36,14 @@ describe('unrestRecommendationCopy', () => {
       .toMatch(/roads through your land/i);
   });
 
+  it('#927: Regional Capital copy tells the player both how to unlock and use the project', () => {
+    const research = unrestRecommendationCopy(rec({ kind: 'research-regional-capital', availability: 'research-first' })).text;
+    const build = unrestRecommendationCopy(rec({ kind: 'build-regional-capital' }));
+    expect(research).toMatch(/political philosophy.*tech screen/i);
+    expect(build.icon).toBe('🏛️');
+    expect(build.text).toMatch(/regional capital.*nearby cities/i);
+  });
+
   it('make-peace states the number of enemies from params.warCivIds', () => {
     const { text } = unrestRecommendationCopy(rec({ kind: 'make-peace', rowLabel: 'War weariness', amount: 24, params: { warCivIds: ['a', 'b'] } }));
     expect(text).toMatch(/\b2\b/);
@@ -63,6 +71,7 @@ describe('unrestRecommendationCopy', () => {
   it('every kind returns a non-empty icon and text', () => {
     const kinds: UnrestRecommendationKind[] = [
       'build-courthouse', 'build-military-administration', 'research-magistracy', 'research-military-logistics',
+      'research-regional-capital', 'build-regional-capital',
       'connect-city-road-network', 'garrison-unit', 'train-garrison-unit',
       'make-peace', 'await-conquest-settle', 'research-constitutional-law', 'fix-economy',
       'counter-espionage', 'stabilise-contagion-source', 'build-faith-building',
