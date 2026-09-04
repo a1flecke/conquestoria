@@ -31,7 +31,7 @@ import {
   drawPirateHeadquartersMapPresentation,
   type PirateHeadquartersMapEntity,
 } from './pirate-headquarters-presentation';
-import { PirateSpriteStateController } from './pirate-sprite-state';
+import { PirateSpriteStateController, DEATH_STATE_MS } from './pirate-sprite-state';
 import type { CombatResult } from '@/core/types';
 import {
   getWorldPressurePresentationForViewer,
@@ -391,7 +391,7 @@ export class RenderLoop {
     ] as const) {
       const unit = this.state.units[unitId];
       if (!survived && unit && isPirateOwner(unit.owner)) {
-        this.pirateUnitDeathSnapshots.set(unitId, { unit: { ...unit }, expiresAtMs: nowMs + 1_200 });
+        this.pirateUnitDeathSnapshots.set(unitId, { unit: { ...unit }, expiresAtMs: nowMs + DEATH_STATE_MS });
       }
     }
   }
@@ -418,7 +418,7 @@ export class RenderLoop {
       this.state.currentPlayer,
       factionId,
     ).entities.find(candidate => candidate.factionId === factionId);
-    if (entity) this.pirateLandmarkDeathSnapshots.set(entityId, { entity, expiresAtMs: nowMs + 1_200 });
+    if (entity) this.pirateLandmarkDeathSnapshots.set(entityId, { entity, expiresAtMs: nowMs + DEATH_STATE_MS });
   }
 
   setHighlights(highlights: HexHighlight[]): void {
