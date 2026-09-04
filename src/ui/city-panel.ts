@@ -64,6 +64,7 @@ import { resolveCivDefinition } from '@/systems/civ-registry';
 import { TECH_TREE, resolveCivilizationEra } from '@/systems/tech-definitions';
 import { evaluateProductionPrerequisites } from '@/systems/production-prerequisites';
 import { getStrategicArsenal, getStrategicArsenalCapacity, hasManhattanProject, getArsenalStatus, getActiveArmsControlCap } from '@/systems/strategic-arsenal-system';
+import { getCapitalCityId } from '@/systems/capital-system';
 import { isSuperweaponsEnabled } from '@/systems/superweapons-flag';
 import { resolveSuperweaponContentDescription } from '@/systems/superweapon-content-honesty';
 import { createCityWorkSection } from './city-grid';
@@ -300,6 +301,7 @@ export function createCityPanel(
     builtNPKeys,
     city.owner,
     getArsenalStatus(state, city.owner),
+    getCapitalCityId(state, city.owner),
   );
   const cityWonderEntries = getLegendaryWonderPresentationForCity(state, state.currentPlayer, city.id);
   const compactWonderEntries = getCompactLegendaryWonderEntriesForCity(state, state.currentPlayer, city.id, 4);

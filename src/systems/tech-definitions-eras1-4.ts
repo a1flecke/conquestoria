@@ -47,7 +47,7 @@ export const TECH_TREE_ERAS_1_4: Tech[] = [
   { id: 'diplomacy-tech', name: 'Diplomacy', track: 'civics', cost: 165, prerequisites: ['early-empire', 'writing'], unlocks: ['Unlock Non-Aggression Pacts'], era: 3 },
   { id: 'civil-service', name: 'Civil Service', track: 'civics', cost: 120, prerequisites: ['state-workforce'], unlocks: ['Military Administration reduces local unrest from war and newly captured cities'], unlocksBuildings: ['forum', 'military-administration'], era: 3 },
   { id: 'drama-poetry', name: 'Drama & Poetry', track: 'civics', cost: 235, prerequisites: ['philosophy', 'code-of-laws'], unlocks: [], unlocksBuildings: ['amphitheater'], era: 4 },
-  { id: 'political-philosophy', name: 'Political Philosophy', track: 'civics', cost: 235, prerequisites: ['civil-service', 'philosophy'], unlocks: ['Unlock alliances'], era: 4 },
+  { id: 'political-philosophy', name: 'Political Philosophy', track: 'civics', cost: 235, prerequisites: ['civil-service', 'philosophy'], unlocks: ['Unlock alliances', 'Unlock Regional Capital national project'], unlocksBuildings: ['regional_capital'], era: 4 },
 
   // === EXPLORATION TRACK (8 techs, existing) ===
   { id: 'pathfinding', name: 'Pathfinding', track: 'exploration', cost: 17, prerequisites: [], unlocks: ['Scouts get +1 vision'], era: 1, pacing: { band: 'starter', role: 'foundational-exploration', impact: 1, scope: 'military', snowball: 1, urgency: 1.1, situationality: 1, unlockBreadth: 1 } },

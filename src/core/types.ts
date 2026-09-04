@@ -898,6 +898,8 @@ export interface Building {
   resourceRequired?: ResourceType[];
   routeCapacity?: number;   // trade route slots added to the FROM city; 0 or absent = none
   requiresBuildings?: string[];   // chain of building IDs that must be built first
+  /** This project may be placed only outside the civilization's true capital. */
+  cannotBuildInCapital?: true;
   uniquePerEmpire?: true;         // only one instance per civ (used by national projects)
   nationalProject?: NationalProject;  // present when this building is a national project
   civYieldBonus?: Partial<ResourceYield>;  // empire-wide yield bonus while active

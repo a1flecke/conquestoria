@@ -40,6 +40,7 @@ import { isAIHostileOwner } from './ai-hostility';
 import { buildMajorCivPerception } from './ai-perception';
 import { getChallengeProfileForCiv } from '@/core/opponent-challenge';
 import { getMarginalCivResearchGain } from '@/systems/research-output-system';
+import { getCapitalCityId } from '@/systems/capital-system';
 
 export interface AIProductionCandidate {
   itemId: string;
@@ -647,6 +648,7 @@ function generateWithResidual(
     builtNationalProjectKeys,
     civId,
     arsenalStatus,
+    getCapitalCityId(state, civId),
   )) {
     const researchValueScore = getMarginalCivResearchGain(state, civId, cityId, building.id) * 1.25;
     const economyScore = economyValue(building.id, researchValueScore);

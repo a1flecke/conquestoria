@@ -9,6 +9,7 @@ import { getActiveNationalProjectsForCiv, getCircularManufacturingMaterial, getR
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { getArsenalStatus } from '@/systems/strategic-arsenal-system';
+import { getCapitalCityId } from '@/systems/capital-system';
 
 const MAX_CITY_QUEUE_ITEMS = 4;
 const MAX_RESEARCH_QUEUE_ITEMS = 3;
@@ -145,6 +146,7 @@ export function getIdleCityIds(state: GameState, civId: string): string[] {
         reservedNationalProjects,
         civId,
         arsenalStatus,
+        getCapitalCityId(state, civId),
       ).length > 0;
       const buildableUnits = getTrainableUnitsForCiv(completedTechs, civ.civType, availableResources).length > 0;
       return buildableBuildings || buildableUnits;
@@ -192,6 +194,7 @@ export function getRecommendedIdleCityChoice(
       reservedNationalProjects,
       civId,
       arsenalStatus,
+      getCapitalCityId(state, civId),
     ) : []).map(building => {
       const cost = getProductionCostForItem(building.id, { city, bonusEffect, era: civEra, completedTechs, activeNationalProjects, availableResources, materialSubstitution: getCircularManufacturingMaterial(state, civId) });
       return {
