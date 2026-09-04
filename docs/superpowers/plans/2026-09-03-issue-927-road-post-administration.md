@@ -12,13 +12,13 @@
 
 ## File map
 
-- Modify: src/systems/road-network.ts — strict owned-road capital connectivity.
+- Modify: src/systems/road-network.ts — strict owned-road capital connectivity and post-unlock AI target policy.
 - Modify: src/systems/faction-system.ts — evaluation context, source metadata, Road & Post row, shared Courthouse formula.
 - Modify: src/systems/unrest-guidance.ts and src/ui/unrest-guidance-copy.ts — typed recommendations and plain copy.
 - Modify: src/ui/city-overview-panel.ts and src/ui/city-panel.ts — one fresh context per render.
 - Modify: src/ai/ai-research.ts, src/ai/ai-production.ts, tests/systems/helpers/pacing-reference-economy.ts — generic metadata consumers.
 - Modify: src/systems/tech-definitions-eras1-4.ts and .claude/rules/game-balance.md — honest text and inventory.
-- Test: tests/systems/road-network.test.ts, tests/systems/faction-system.test.ts, tests/systems/unrest-guidance.test.ts, tests/ui/unrest-guidance-copy.test.ts, tests/ui/city-overview-panel.test.ts, tests/ui/city-panel.test.ts, tests/ai/ai-production.test.ts, tests/ai/ai-research.test.ts.
+- Test: tests/systems/road-network.test.ts, tests/ai/basic-ai-worker-roads.test.ts, tests/systems/faction-system.test.ts, tests/systems/unrest-guidance.test.ts, tests/ui/unrest-guidance-copy.test.ts, tests/ui/city-overview-panel.test.ts, tests/ui/city-panel.test.ts, tests/ai/ai-production.test.ts, tests/ai/ai-research.test.ts.
 
 ## Player truth table
 
@@ -40,11 +40,11 @@
 
 **Files:**
 - Modify: src/systems/road-network.ts:8-50
-- Test: tests/systems/road-network.test.ts
+- Test: tests/systems/road-network.test.ts, tests/ai/basic-ai-worker-roads.test.ts
 
 - [ ] **Step 1: Write failing tests**
 
-Add an owned-road policy test matrix: full owned chain succeeds; one missing road, foreign road, neutral road, enemy road, water gap, and island fail; horizontal wrap succeeds; repeated calls return identical sets. Add an intermediate own-city-center case and a territorial-transfer case where the same finished road starts foreign and becomes valid only after tile ownership changes.
+Add an owned-road policy test matrix: full owned chain succeeds; one missing road, foreign road, neutral road, enemy road, water gap, and island fail; horizontal wrap succeeds; repeated calls return identical sets. Add an intermediate own-city-center case and a territorial-transfer case where the same finished road starts foreign and becomes valid only after tile ownership changes. Add an AI-worker regression: with Military Logistics complete, a foreign-road link does not make getRoadBuildTarget return null; it selects a missing buildable owned-territory segment toward the city.
 
 - [ ] **Step 2: Run the failing test**
 
@@ -57,18 +57,20 @@ Expected: FAIL because the owned-road policy does not exist.
 Add:
     export type CapitalRoadPolicy = 'any-road' | 'owned-road';
 
-Give getCitiesConnectedToCapital a third optional policy argument defaulting to any-road. In its existing BFS, traverse a road when tile.hasRoad and either the policy is any-road or tile.owner equals civId. Keep own city centers traversable. Do not change existing callers, use roadOwner, or read diplomacy.
+Give getCitiesConnectedToCapital a third optional policy argument defaulting to any-road. In its existing BFS, traverse a road when tile.hasRoad and either the policy is any-road or tile.owner equals civId. Keep own city centers traversable. Do not use roadOwner or read diplomacy.
+
+In getRoadBuildTarget, select owned-road connectivity when the civ has Military Logistics and any-road otherwise. Existing AI callers then use the stricter legitimate target after the administration unlock without a new planner or AI-only benefit. Keep the target limited to a buildable tile; if no owned-territory route can be extended, return null rather than using foreign/neutral infrastructure.
 
 - [ ] **Step 4: Verify**
 
-Run: scripts/check-src-rule-violations.sh src/systems/road-network.ts && bash scripts/run-with-mise.sh yarn test --run tests/systems/road-network.test.ts tests/systems/road-system.test.ts tests/systems/pillage-system.test.ts
+Run: scripts/check-src-rule-violations.sh src/systems/road-network.ts && bash scripts/run-with-mise.sh yarn test --run tests/systems/road-network.test.ts tests/ai/basic-ai-worker-roads.test.ts tests/systems/road-system.test.ts tests/systems/pillage-system.test.ts
 
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 Run:
-    git add src/systems/road-network.ts tests/systems/road-network.test.ts
+    git add src/systems/road-network.ts tests/systems/road-network.test.ts tests/ai/basic-ai-worker-roads.test.ts
     git commit -m "feat(unrest): add owned road connectivity policy"
 
 ### Task 2: Table-driven Road & Post relief with bounded evaluation context
@@ -269,3 +271,11 @@ PR body must cover raw distance behavior, strict owned connectivity, formula/cap
 - Spec coverage: Tasks 1–2 cover connectivity, formula, floors, ownership, water/pillage/wrap, hot seat, and no persistence. Task 3 covers AI/pacing metadata. Task 4 covers player-visible guidance. Task 5 records balance. Task 6 covers save regression, source checks, build, durable suite, and PR evidence.
 - Placeholder scan: no unresolved implementation, testing, or command placeholder remains.
 - Type consistency: CapitalRoadPolicy, UnrestEvaluationContext, buildingId, researchUnlockTechId, and pressuredReliefCityIdsBySourceId are defined before later use.
+
+## Final inline plan review
+
+- **Gameplay, fun, ages, and play styles:** the 35% cap/floors preserve distance, make worker investment legible, and avoid a mandatory tall-empire bonus.
+- **Difficulty and AI:** rules remain profile-invariant. The existing worker targeter must use the owned-road policy after Military Logistics so AI does not treat foreign links as qualifying; Task 1 now has that regression.
+- **UI, UX, and hot seat:** only existing, owner-scoped breakdown and guidance surfaces change; tests require advice removal and row appearance after the final road.
+- **Architecture, extensibility, data, saves, and SFX:** one parameterized BFS, typed source metadata, and a short-lived context avoid new path models, persistent caches, schema changes, or audio work; later rail/telegraph can add another source.
+- **Testing and implementation safety:** each behavior begins red, includes negative road/water/foreign/hot-seat cases, then runs targeted, source-rule, build, durable-suite, and real-diff checks.
