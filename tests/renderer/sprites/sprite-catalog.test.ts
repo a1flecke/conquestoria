@@ -19,7 +19,7 @@ import {
   BroadcastTowerSprite, PrecisionFarmSprite, TelemedicineHubSprite, SmartGridSprite,
   RocketProgramSprite,
   RadarStationSprite,
-  StarFortSprite, WallsSprite, BunkerSprite, CoastalBatterySprite,
+  StarFortSprite, WallsSprite, BunkerSprite, CoastalBatterySprite, CourthouseSprite, RegionalCapitalSprite,
 } from '@/renderer/sprites/buildings';
 
 // Derive the authoritative unit-type list from UNIT_DEFINITIONS so this test
@@ -376,6 +376,15 @@ describe('#710 air-defense and orphaned sprites are not aliases of their former 
     expect(samSite).not.toContain('cq-radar-tower');
     expect(radarStation).toContain('cq-radar-tower');
     expect(radarStation).not.toContain('cq-sam-launcher');
+  });
+
+  it('#927: renders Regional Capital as a distinct two-banner civic seat', () => {
+    const regionalCapital = BUILDING_SPRITE_CATALOG.regional_capital({ palette, svgOnly: true });
+    expect(BUILDING_SPRITE_CATALOG.regional_capital).toBe(RegionalCapitalSprite);
+    expect(regionalCapital).not.toBe(CourthouseSprite({ palette, svgOnly: true }));
+    expect(regionalCapital).toContain('M14,70 L96,28 L178,70 Z');
+    expect(regionalCapital).toContain('translate(42 48) scale(0.75)');
+    expect(regionalCapital).toContain('translate(150 48) scale(0.75)');
   });
 });
 

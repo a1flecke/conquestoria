@@ -29,7 +29,7 @@ import {
   LibrarySprite, ArchiveSprite, ObservatorySprite,
   MarketplaceSprite, HarborSprite, DockSprite,
   BarracksSprite, WallsSprite, StableSprite,
-  TempleSprite, MonumentSprite, AmphitheaterSprite, ShrineSprite, ForumSprite, CourthouseSprite,
+  TempleSprite, MonumentSprite, AmphitheaterSprite, ShrineSprite, ForumSprite, CourthouseSprite, RegionalCapitalSprite,
   SafehouseSprite, IntelAgencySprite, SecurityBureauSprite,
   BronzeWorkshopSprite, ArmorySprite, RanchSprite, CavalryAcademySprite,
   IronFoundrySprite, WarAcademySprite, MasonryWorksSprite, SiegeWorkshopSprite,
@@ -418,6 +418,7 @@ export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = 
   shrine:                 ShrineSprite,
   forum:                  ForumSprite,
   courthouse:             CourthouseSprite,
+  regional_capital:       RegionalCapitalSprite,
   // #926: an administrative civic building intentionally reuses the established
   // Courthouse presentation; its distinct gameplay effect is shown in the city panel.
   'military-administration': CourthouseSprite,

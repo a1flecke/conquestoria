@@ -630,6 +630,32 @@ export function CourthouseSprite({ palette, svgOnly = false }: BuildingSpritePro
   );
 }
 
+export function RegionalCapitalSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  const columns = [0, 1, 2, 3, 4, 5].map(index => (
+    <g transform={`translate(${31 + index * 26} 0)`}>
+      <rect x="-3.5" y="82" width="7" height="48" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.6" />
+      <rect x="-5" y="78" width="10" height="5" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.5" />
+      <rect x="-5" y="130" width="10" height="5" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.5" />
+    </g>
+  )).join('');
+  return (
+    <BuildingFrame label="Regional Capital" sub="Culture" category="culture" svgOnly={svgOnly}>
+      <BuildingPlinth w={178} />
+      <rect x="12" y="130" width="168" height="10" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.7" />
+      <rect x="20" y="120" width="152" height="10" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.6" />
+      {columns}
+      <rect x="18" y="70" width="156" height="10" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.8" />
+      <path d="M14,70 L96,28 L178,70 Z" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1" />
+      <path d="M14,70 L96,28 L178,70 Z" fill="url(#stoneTexture)" opacity="0.55" />
+      <rect x="84" y="104" width="24" height="26" rx="2" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      <path d="M96,42 L96,62 M82,48 H110" stroke={P.metal.gold} strokeWidth="1.5" />
+      <path d="M82,48 L78,58 L86,58 Z M110,48 L106,58 L114,58 Z" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.35" />
+      <Banner x={42} y={48} palette={palette} scale={0.75} />
+      <Banner x={150} y={48} palette={palette} scale={0.75} />
+    </BuildingFrame>
+  );
+}
+
 /* === ESPIONAGE === */
 
 export function SafehouseSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
