@@ -143,6 +143,75 @@ challenge profile scales unrest *pressure* only, not action cost). The AI uses
 (a bot cannot value the 15-turn immunity payoff) and stays rational as long as
 the invariant above holds.
 
+## Minor-Civ Population Ceiling (#948)
+
+A one-city minor civ (city-state) has no housing/population cap in the generic
+`processCity` growth system (that system grows any civ's city by at most +1
+population/turn whenever accumulated food crosses `foodNeeded`, with no upper
+bound). Left alone across a long peaceful game, a city-state can become an
+implausible megacity. `getMinorCivPopulationCeiling` in
+`src/systems/minor-civ-economy-system.ts` bounds this, enforced only inside
+`processMinorCivEconomyTurn` — the generic city-growth system used by every
+other civ is untouched.
+
+**Ceiling table** (`MINOR_CIV_POPULATION_CEILING_BY_ERA_BAND`), keyed off
+`resolveNeutralPressureEra` — the same canonical era/maturity source already
+used for minor-civ production eligibility, not a second era resolver:
+
+| Pressure era | Population ceiling |
+|---|---:|
+| 1-2 | 6 |
+| 3-5 | 10 |
+| 6-8 | 14 |
+| 9+ | 18 |
+
+Every band stays at or below the reference-economy single-city max-development
+proxy (population 12, `tests/systems/helpers/pacing-reference-economy.ts`) or
+close to it, and well below what an unbounded multi-city major civ can reach.
+**Difficulty-invariant**: `MINOR_CIV_ECONOMY_TUNING` varies production
+multiplier and unit caps by challenge tier, but food yield has no existing
+difficulty tuning, so the ceiling does not vary by challenge either.
+
+**At-cap food behavior:** while `city.population >= ceiling`,
+`processMinorCivEconomyTurn` (1) clamps any already-banked `city.food` below
+`foodNeeded` (so a legacy over-cap save's stale banked food can never
+re-trigger growth the instant it's next processed) and (2) feeds `processCity`
+a synthetic food yield equal to `population` (zero net surplus), so `food`
+stays flat instead of banking toward a multi-level jump. This never happens to
+a city below the ceiling — normal growth is untouched there.
+
+**Over-cap legacy saves:** population is never shrunk on load or on the first
+post-patch turn. The cap only blocks *further* growth
+(`population >= ceiling` suppresses growth for `population` strictly greater
+than `ceiling` exactly the same way it does for `population === ceiling`).
+Once the era-scaled ceiling rises above an already-over-cap population,
+growth resumes normally.
+
+**Rule:** any future minor-civ economy change that can increase food yield
+(a new building, a new archetype bonus, a new resource effect) does not need
+its own cap-awareness — the suppression is computed fresh every turn from the
+live `population` vs. live `getMinorCivPopulationCeiling` result, not from a
+one-time check.
+
+## Minor-Civ Era Advancement Grants No Free Content (#948)
+
+`processMinorCivEraUpgrade` in `src/systems/minor-civ-system.ts` no longer
+rewrites existing unit types or grants free population when local pressure
+era advances (it did both, unconditionally, prior to #948 — the H2 finding
+from the #490 audit). It is bookkeeping-only: it advances
+`mc.lastEraUpgrade` to the new pressure era and does nothing else.
+Era-appropriate defenders come exclusively from production
+(`getMinorCivBuildCandidates` / `chooseMinorCivQueueItem`, both already
+era-gated via `getMinorCivCompletedTechBand`); population growth comes
+exclusively from the ceiling-bounded economy turn above. **Never** reintroduce
+`unit.type = <newer type>` or `city.population += N` keyed off world/pressure
+era advancement for an economy-enabled minor civ — that is exactly the "magic
+spawn" pattern this rule exists to prevent. No `!mc.economy` legacy backstop
+is retained: `economy` is normalized for every minor civ on every turn
+(`processMinorCivEconomyTurn`) and on every save load (`save-manager.ts`), and
+`lastEraUpgrade` starts at the placement-time pressure era, so the upgrade
+condition cannot fire before an economy-normalizing pass has already run.
+
 ## National Project Lifecycle Contract
 
 - **Build window:** available during `homeEra` and `homeEra + 1` only. Hidden from production queue when `currentEra > homeEra + 1`.
