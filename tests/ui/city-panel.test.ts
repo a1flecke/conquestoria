@@ -27,6 +27,32 @@ function clickElement(element: Element | null | undefined): void {
 }
 
 describe('city-panel national projects', () => {
+  it('#927: exposes Regional Capital in a non-capital city but never in the true capital', () => {
+    const { container, city: capital, state } = makeWonderPanelFixture();
+    state.civilizations.player.techState.completed = TECH_TREE
+      .filter(tech => tech.era <= 4 && tech.countsForEraAdvancement !== false)
+      .map(tech => tech.id);
+    const regionalCity: City = {
+      ...capital,
+      id: 'city-regional',
+      position: { q: 7, r: 2 },
+      buildings: [],
+      productionQueue: [],
+    };
+    state.cities[regionalCity.id] = regionalCity;
+    state.civilizations.player.cities.push(regionalCity.id);
+
+    const regionalPanel = createCityPanel(container, regionalCity, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+    expect(regionalPanel.querySelector('[data-item-id="regional_capital"]')).toBeTruthy();
+
+    const capitalPanel = createCityPanel(container, capital, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+    expect(capitalPanel.querySelector('[data-item-id="regional_capital"]')).toBeNull();
+  });
+
   it('renders the current player’s Rogue Elephant Host warning in the open city panel', () => {
     const { container, city, state } = makeWonderPanelFixture();
     state.rogueElephantHosts = { player: { targetCivId: 'player', phase: 'warning' } };
