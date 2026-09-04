@@ -465,6 +465,8 @@ function chooseLegendaryWonderFallback(
     resolveCivilizationEra(civilization.techState.completed),
     builtNPKeys,
     civId,
+    undefined,
+    getCapitalCityId(state, civId),
   ).map(building => building.id);
   const atWar = civilization.diplomacy.atWarWith.length > 0;
 

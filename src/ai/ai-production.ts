@@ -309,8 +309,20 @@ const UNREST_RELIEF_AI_URGENCY_MULT = 2;
 function withBuilding(state: GameState, cityId: string, buildingId: string): GameState {
   const city = state.cities[cityId];
   if (!city) return state;
+  const building = BUILDINGS[buildingId];
+  const builtNationalProjects = building?.nationalProject && building.uniquePerEmpire
+    ? {
+        ...(state.builtNationalProjects ?? {}),
+        [`${city.owner}:${buildingId}`]: {
+          civId: city.owner,
+          cityId,
+          eraBuilt: resolveCivilizationEra(state.civilizations[city.owner]?.techState.completed ?? []),
+        },
+      }
+    : state.builtNationalProjects;
   return {
     ...state,
+    builtNationalProjects,
     cities: {
       ...state.cities,
       [cityId]: { ...city, buildings: [...city.buildings, buildingId] },
@@ -319,9 +331,9 @@ function withBuilding(state: GameState, cityId: string, buildingId: string): Gam
 }
 
 // #919 MR2: generic — scores any building registered in UNREST_RELIEF_SOURCES by the
-// unrest-pressure drop it would produce in THIS city, scaled up when the city is
-// already pressured. No courthouse id branch; a future ladder-rung building with a
-// UNREST_RELIEF_SOURCES entry is covered automatically.
+// empire-wide unrest-pressure drop it would produce. A local building such as a
+// Courthouse naturally only changes its host city; a future regional source can
+// improve several cities without needing an AI id branch.
 function unrestReliefScore(
   state: GameState,
   civId: string,
@@ -330,12 +342,18 @@ function unrestReliefScore(
 ): number {
   if (!UNREST_RELIEF_SOURCES.some(source => source.buildingId === buildingId)) return 0;
   const ownerHappiness = getCivHappinessFromResources(state, civId);
-  const before = computeUnrestPressure(cityId, state, ownerHappiness);
-  if (before <= 0) return 0; // nothing to relieve — skip the second (O(cities)) pressure pass
-  const after = computeUnrestPressure(cityId, withBuilding(state, cityId, buildingId), ownerHappiness);
+  const cityIds = state.civilizations[civId]?.cities
+    .filter(candidateId => state.cities[candidateId]?.owner === civId) ?? [];
+  const beforeByCity = cityIds.map(candidateId => computeUnrestPressure(candidateId, state, ownerHappiness));
+  const before = beforeByCity.reduce((sum, pressure) => sum + pressure, 0);
+  if (before <= 0) return 0; // nothing to relieve — skip the simulated pass
+  const simulatedState = withBuilding(state, cityId, buildingId);
+  const after = cityIds
+    .map(candidateId => computeUnrestPressure(candidateId, simulatedState, ownerHappiness))
+    .reduce((sum, pressure) => sum + pressure, 0);
   const drop = Math.max(0, before - after);
   if (drop === 0) return 0;
-  const urgent = before >= 0.6 * UNREST_TRIGGER_PRESSURE;
+  const urgent = beforeByCity.some(pressure => pressure >= 0.6 * UNREST_TRIGGER_PRESSURE);
   return drop * UNREST_RELIEF_AI_WEIGHT * (urgent ? UNREST_RELIEF_AI_URGENCY_MULT : 1);
 }
 

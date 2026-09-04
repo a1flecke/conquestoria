@@ -281,6 +281,21 @@ describe('AI strategic research planning', () => {
       .toContain('unrest-relief');
   });
 
+  it('#927: generic relief research recognizes the Regional Capital building unlock', () => {
+    const techs = [
+      tech('aaa-plain', 'civics'),
+      tech('political-philosophy', 'civics', [], { unlocksBuildings: ['regional_capital'] }),
+    ];
+    const decision = planAIResearch(context(techs, {
+      pressuredReliefCityIdsByBuildingId: {
+        'regional-capital': ['frontier-1', 'frontier-2'],
+      },
+    }));
+
+    expect(decision?.frontierTechId).toBe('political-philosophy');
+    expect(decision?.scoreComponents.unrestReliefTechBonus).toBeGreaterThan(0);
+  });
+
   it('bounds search to four edges and twenty-four downstream targets', () => {
     const techs = [tech('root', 'science')];
     for (let index = 1; index <= 30; index++) {

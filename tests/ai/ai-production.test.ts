@@ -29,6 +29,7 @@ import { createEspionageCivState } from '@/systems/espionage-system';
 import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getReservedNationalProjectKeys } from '@/systems/national-project-system';
 import { getStrategicArsenal, getStrategicArsenalCapacity, hasManhattanProject } from '@/systems/strategic-arsenal-system';
+import { getCapitalCityId } from '@/systems/capital-system';
 
 const aggressive: PersonalityTraits = {
   traits: ['aggressive'],
@@ -710,6 +711,7 @@ describe('AI strategic production', () => {
         hasManhattanProject: hasManhattanProject(state, 'ai-1'),
         atCapacity: getStrategicArsenal(state.civilizations['ai-1']) >= getStrategicArsenalCapacity(state, 'ai-1'),
       },
+      getCapitalCityId(state, 'ai-1'),
     );
 
     for (const building of available) {
@@ -927,6 +929,26 @@ describe('#919 MR2 — AI values unrest relief (Courthouse)', () => {
     const candidates = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive);
     const courthouse = candidates.find(c => c.itemId === 'courthouse');
     expect(courthouse?.unrestReliefScore ?? 0).toBe(0);
+  });
+
+  it('#927: values a Regional Capital at a non-capital seat for the pressure it relieves across the empire', () => {
+    const era4Techs = TECH_TREE.filter(tech => tech.era <= 4 && tech.countsForEraAdvancement !== false)
+      .map(tech => tech.id);
+    const state = setupState([...era4Techs, 'political-philosophy'], ['cap', 'city-a']);
+    const civ = state.civilizations['ai-1'];
+    state.cities.cap.position = { q: 0, r: 0 };
+    state.cities['city-a'].position = { q: 30, r: 0 };
+    for (let i = 3; i <= 12; i++) {
+      const clone = { ...state.cities['city-a'], id: `regional-${i}`, position: { q: 24 + i, r: 0 }, buildings: [] as string[] };
+      state.cities[clone.id] = clone;
+      civ.cities.push(clone.id);
+    }
+
+    const regionalCapital = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
+      .find(candidate => candidate.itemId === 'regional_capital');
+
+    expect(regionalCapital).toBeDefined();
+    expect(regionalCapital?.unrestReliefScore).toBeGreaterThan(0);
   });
 
   it.each(['explorer', 'standard', 'veteran'] as const)(
