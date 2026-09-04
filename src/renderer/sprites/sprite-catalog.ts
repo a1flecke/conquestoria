@@ -35,7 +35,7 @@ import {
   IronFoundrySprite, WarAcademySprite, MasonryWorksSprite, SiegeWorkshopSprite,
   CaravanseraiSprite, BankSprite, StockExchangeSprite,
   NaturalHistoryMuseumSprite, SurgeryGuildSprite, ConcertHallSprite, StarFortSprite,
-  CoastalBatterySprite,
+  BunkerSprite, CoastalBatterySprite,
   MilitaryAcademySprite, GrandCipherBureauSprite, ColonialAdministrationSprite,
   FactorySprite, SteelMillSprite, FieldHospitalSprite, PrintShopSprite, CensusOfficeSprite,
   NationalRailwaySprite, GrandArsenalSprite, PeoplesUniversitySprite,
@@ -479,7 +479,8 @@ export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = 
   surgery_guild:          SurgeryGuildSprite,
   concert_hall:           ConcertHallSprite,
   star_fort:              StarFortSprite,
-  bunker:                 StarFortSprite,
+  // #712: de-aliased from StarFortSprite — Bunker now has a bespoke modern-hardened identity.
+  bunker:                 BunkerSprite,
   coastal_battery:        CoastalBatterySprite,
   // Era 7 regular buildings
   factory:                FactorySprite,

@@ -49,6 +49,24 @@ describe('submarine-undetected scenario (#542)', () => {
   });
 });
 
+describe('fort-citadel-visuals-712 scenario', () => {
+  it('reaches a Citadel-capable city holding the Coastal Battery and Bunker with Workers alongside', () => {
+    const state = buildScenario(SCENARIOS['fort-citadel-visuals-712']);
+    const defenceCity = Object.values(state.cities).find(
+      c => c.owner === 'player' && c.buildings.includes('bunker'),
+    );
+    expect(defenceCity).toBeDefined();
+    expect(defenceCity!.buildings).toEqual(expect.arrayContaining(['walls', 'coastal_battery', 'bunker']));
+
+    const workers = Object.values(state.units).filter(u => u.type === 'worker' && u.owner === 'player');
+    expect(workers.length).toBe(2);
+
+    const techs = state.civilizations.player.techState.completed;
+    expect(techs).toEqual(expect.arrayContaining(['fortresses', 'fortification-engineering']));
+    expect(state.civilizations.player.gold).toBeGreaterThanOrEqual(4000);
+  });
+});
+
 describe('destroyer-sonar-detection scenario (#542)', () => {
   it('reproduces an enemy submarine detected by a player destroyer at range 2', () => {
     const state = buildScenario(SCENARIOS['destroyer-sonar-detection']);

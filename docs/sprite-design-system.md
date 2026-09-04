@@ -105,6 +105,15 @@ Live render surfaces:
 Both consumers read the same `BUILDING_SPRITE_CATALOG`; nothing else (map diorama tiles, a
 build-chooser preview, damage-tier states) is wired to it yet — do not claim those in art prompts.
 
+**#712 defensive buildings:** `bunker` was de-aliased from `StarFortSprite` and now has a
+bespoke `BunkerSprite` — a static reinforced-concrete casemate (earth berm, horizontal firing
+slit, steel blast door). `CoastalBatterySprite` was refined to read unmistakably as fixed shore
+artillery (concrete parapet with the sea at its base, two armoured guns firing seaward, shell
+stacks, a squat rangefinder). Both keep faction identity to a small corner standard only.
+`star_fort` still uses `StarFortSprite` (a different building, out of #712's scope). Contact
+sheet: `docs/reviews/assets/issue-712/sprite-preview.html` (regenerate with
+`scripts/write-issue-712-review-data.ts`). Live review: `?scenario=fort-citadel-visuals-712`.
+
 | Building | Status | Category |
 |----------|--------|----------|
 | granary | ✅ sprite | food |
@@ -196,6 +205,14 @@ Canvas-drawn emoji icons. Target: replace with proper SVG marker images.
 | camp | ⚠️ `'⛺'` emoji |
 | quarry | ⚠️ `'⚒️'` emoji |
 | resource_outpost | ✅ SVG marker (`src/renderer/improvements/resource-outpost-marker.ts`) |
+| fort | ✅ SVG marker, Fort tier (`src/renderer/improvements/fort-marker.ts`, #712) — earthwork berm + timber palisade + blockhouse; Canvas-primitive fallback before `preloadFortMarker()` resolves |
+| fort (Citadel tier) | ✅ SVG marker, Citadel tier (same file, #712) — same enclosure in masonry with corner bastions + a tall crenellated keep; tier chosen by `getFortMarkerTierForPresentation` (owner has `fortification-engineering`) |
+
+Fort/Citadel markers are **faction-neutral** like every other improvement marker (earthy
+palette, one neutral amber pennant). They are drawn via `drawImprovementTreatment` →
+`drawFortMarker`; there is **no pillaged/damaged variant** — pillaging a fort tile sets
+`improvement:'none'` and the marker is removed. The generic under-construction treatment
+(42% alpha + `Nt` countdown) still applies.
 
 Roads are **not** an improvement marker — they're a tile overlay (`HexTile.hasRoad`) drawn as
 programmatic canvas lines between hex centers in `src/renderer/hex-renderer.ts` → `drawRoads`,

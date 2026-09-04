@@ -1365,28 +1365,97 @@ export function StarFortSprite({ palette, svgOnly = false }: BuildingSpriteProps
   );
 }
 
-/** Coastal gun emplacement: low sea wall, two traversing guns, and a signal mast. */
-export function CoastalBatterySprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+/**
+ * Bunker (#693) — a modern hardened city-defence structure, deliberately NOT a
+ * Fort or Citadel. Reads as a low reinforced-concrete casemate half-buried in an
+ * earth berm, with a single horizontal firing slit, a steel blast door, and a
+ * grass-capped roof. Squat and heavy; later-era than the medieval fortifications.
+ * De-aliased from StarFortSprite in #712. Faction identity is a small corner
+ * standard only — the concrete carries plausible material colour.
+ */
+export function BunkerSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  const concrete = '#9a9d99';
+  const concreteDark = '#6f7370';
+  const concreteLight = '#c2c5c0';
   return (
-    <BuildingFrame label="Coastal Battery" category="military" svgOnly={svgOnly}>
-      <BuildingPlinth w={148} />
-      <path d="M30,122 Q58,100 96,108 Q134,100 162,122 L158,140 H34 Z"
-        fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1.4" />
-      <path d="M36,123 H156" stroke={P.stone.light} strokeWidth="5" opacity="0.75" />
-      <path d="M44,136 Q72,128 96,136 Q124,128 150,136" fill="none" stroke={P.ground.water} strokeWidth="4" opacity="0.8" />
-      {[68, 124].map(x => (
-        <g key={x}>
-          <ellipse cx={x} cy="112" rx="18" ry="8" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1" />
-          <circle cx={x} cy="108" r="7" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
-          <rect x={x - 3} y="70" width="7" height="38" rx="2" fill={P.metal.iron}
-            stroke={P.ink.line} strokeWidth="1" transform={`rotate(${x === 68 ? -24 : 24} ${x} 108)`} />
-          <circle cx={x} cy="108" r="2" fill={P.metal.gold} />
+    <BuildingFrame label="Bunker" sub="Military" category="military" svgOnly={svgOnly} animate="">
+      <BuildingPlinth w={150} color={concreteDark} />
+      {/* earth berm banked against the rear and sides */}
+      <path className="cq-bunker-berm" d="M20,132 Q40,86 96,80 Q152,86 172,132 Z"
+        fill={P.ground.dirt} stroke={P.ink.line} strokeWidth="1.2" />
+      <path d="M34,124 Q60,96 96,92 Q132,96 158,124" fill="none" stroke={P.ground.grass} strokeWidth="4" opacity="0.7" />
+      {[46, 74, 118, 146].map(x => (
+        <path key={x} d={`M${x},112 q3,-8 6,0`} fill="none" stroke={P.ground.grass} strokeWidth="2.4" />
+      )).join('')}
+      {/* hardened concrete hull — chamfered low block */}
+      <path className="cq-bunker-hull" d="M40,132 L44,96 L64,84 L128,84 L148,96 L152,132 Z"
+        fill={concrete} stroke={P.ink.line} strokeWidth="1.8" />
+      <path d="M44,96 L64,84 L128,84 L148,96 Z" fill={concreteLight} stroke={P.ink.line} strokeWidth="1" />
+      <path d="M40,132 L152,132" stroke={concreteDark} strokeWidth="3" />
+      {/* grass-capped roof slab */}
+      <path d="M62,84 Q96,74 130,84" fill="none" stroke={P.ground.grass} strokeWidth="5" opacity="0.8" />
+      {/* horizontal firing slit with a stub barrel */}
+      <rect className="cq-bunker-slit" x="58" y="104" width="76" height="10" rx="2"
+        fill={P.ink.line} stroke={concreteDark} strokeWidth="2" />
+      <rect x="90" y="106" width="26" height="6" rx="1.5" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+      {/* steel blast door, offset */}
+      <rect className="cq-bunker-door" x="112" y="112" width="20" height="20" rx="1.5"
+        fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1.4" />
+      <line x1="122" y1="112" x2="122" y2="132" stroke={P.metal.steel} strokeWidth="1" />
+      <circle cx="117" cy="122" r="1.6" fill={P.metal.steel} />
+      {/* vent / periscope stub */}
+      <rect x="52" y="74" width="6" height="12" rx="2" fill={concreteDark} stroke={P.ink.line} strokeWidth="1" />
+      {/* sandbag row along the base */}
+      {[46, 60, 74, 130, 144].map(x => (
+        <ellipse key={x} cx={x} cy="130" rx="8" ry="5" fill={P.ground.sand} stroke={P.ink.line} strokeWidth="0.8" />
+      )).join('')}
+      <g className="cq-bunker-standard"><Banner x={44} y={92} palette={palette} scale={0.7} /></g>
+    </BuildingFrame>
+  );
+}
+
+/**
+ * Coastal Battery (#692) — a fixed shore-defence emplacement, refined in #712 to
+ * read unmistakably as installed coastal artillery rather than a wheeled field
+ * gun: a concrete casemate parapet with the sea washing its base, two heavy guns
+ * in armoured shields firing seaward (down-screen), shell stacks behind them, and
+ * a squat rangefinder post. Faction identity is a small corner standard.
+ */
+export function CoastalBatterySprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  const concrete = '#9a9d99';
+  const concreteDark = '#6f7370';
+  return (
+    <BuildingFrame label="Coastal Battery" sub="Military" category="military" svgOnly={svgOnly}>
+      <BuildingPlinth w={150} color={concreteDark} />
+      {/* sea at the foot of the emplacement */}
+      <path className="cq-coastal-battery-water" d="M20,132 H172 V150 H20 Z" fill={P.ground.water} opacity="0.9" />
+      <path d="M24,136 Q52,130 80,136 T140,136 T172,134" fill="none" stroke="#fff" strokeWidth="1.4" opacity="0.5" />
+      {/* concrete casemate parapet */}
+      <path className="cq-coastal-battery-parapet" d="M28,132 L34,92 Q96,74 158,92 L164,132 Z"
+        fill={concrete} stroke={P.ink.line} strokeWidth="1.8" />
+      <path d="M34,96 Q96,80 158,96" fill="none" stroke={P.stone.light} strokeWidth="5" opacity="0.8" />
+      <path d="M40,120 H152" stroke={concreteDark} strokeWidth="2" opacity="0.6" />
+      {/* two heavy guns in armoured shields, barrels over the parapet toward the sea */}
+      {[74, 122].map((x, i) => (
+        <g key={x} className={i === 0 ? 'cq-coastal-battery-gun-l' : 'cq-coastal-battery-gun-r'}>
+          <path d={`M${x - 16},104 Q${x},94 ${x + 16},104 L${x + 13},116 L${x - 13},116 Z`}
+            fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1.2" />
+          <circle cx={x} cy="106" r="6" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+          <rect x={x - 3.5} y="104" width="7" height="34" rx="2" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1"
+            transform={`rotate(${i === 0 ? -12 : 12} ${x} 108)`} />
+          <circle cx={x} cy="106" r="2" fill={P.metal.gold} />
         </g>
       )).join('')}
-      <path d="M96,102 V48" stroke={P.wood.dark} strokeWidth="3" />
-      <path d="M98,50 L124,58 L98,70 Z" fill={palette.bright} stroke={P.ink.line} strokeWidth="1" />
-      <path d="M44,96 L52,82 L60,96 M132,96 L140,82 L148,96" fill={P.stone.light} stroke={P.ink.line} strokeWidth="1" />
-      <Banner x={42} y={48} palette={palette} scale={0.72} />
+      {/* shell stacks / ready ammunition behind the guns */}
+      {[[52, 92], [58, 92], [138, 92], [144, 92]].map(([x, y]) => (
+        <rect key={`${x}-${y}`} x={x} y={y} width="4" height="9" rx="1.5" fill={P.metal.bronze} stroke={P.ink.line} strokeWidth="0.6" />
+      )).join('')}
+      {/* squat rangefinder / spotting post */}
+      <g className="cq-coastal-battery-rangefinder">
+        <rect x="92" y="66" width="12" height="20" rx="2" fill={concreteDark} stroke={P.ink.line} strokeWidth="1.2" />
+        <rect x="88" y="62" width="20" height="6" rx="2" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1" />
+      </g>
+      <g className="cq-coastal-battery-standard"><Banner x={40} y={84} palette={palette} scale={0.7} /></g>
     </BuildingFrame>
   );
 }
