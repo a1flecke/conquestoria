@@ -59,9 +59,9 @@ export interface UnrestPressureRow {
 // from the positive pressure rows already computed for a city. Later ladder rungs
 // (roads-cut-distance, second seat of government, civil-service bureaucracy,
 // governors) append an entry here — never a branch in getUnrestPressureBreakdown.
-// `id` is the building id the source is gated on, so ai-production.ts can score it
-// generically. Keep every entry registered in .claude/rules/game-balance.md's
-// "Unrest Relief Inventory" table.
+// `id` is source identity; buildingId and researchUnlockTechId declare how the
+// source is acquired so AI production/research can score it generically. Keep every
+// entry registered in .claude/rules/game-balance.md's "Unrest Relief Inventory" table.
 export interface UnrestReliefSource {
   id: string;
   buildingId?: string;
