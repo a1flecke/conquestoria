@@ -508,7 +508,7 @@ describe('era advancement', () => {
 });
 
 describe('minor civ era upgrades', () => {
-  it('upgrades garrison from warrior to swordsman at era 2', () => {
+  it('does not rewrite the garrison unit type when local pressure era advances', () => {
     const state = createNewGame(undefined, 'mc-era-up', 'small');
     state.era = 2;
     const mcId = Object.keys(state.minorCivs)[0];
@@ -519,11 +519,11 @@ describe('minor civ era upgrades', () => {
 
     processMinorCivEraUpgrade(state, mc);
     const garrison = state.units[mc.units[0]];
-    expect(garrison.type).toBe('swordsman');
+    expect(garrison.type).toBe('warrior');
     expect(mc.lastEraUpgrade).toBe(2);
   });
 
-  it('adds population on era upgrade', () => {
+  it('grants no free population when local pressure era advances', () => {
     const state = createNewGame(undefined, 'mc-era-pop', 'small');
     state.era = 2;
     const mcId = Object.keys(state.minorCivs)[0];
@@ -534,10 +534,10 @@ describe('minor civ era upgrades', () => {
     const popBefore = state.cities[mc.cityId].population;
 
     processMinorCivEraUpgrade(state, mc);
-    expect(state.cities[mc.cityId].population).toBe(popBefore + 1);
+    expect(state.cities[mc.cityId].population).toBe(popBefore);
   });
 
-  it('keeps the garrison modern at the current maximum era', () => {
+  it('does not rewrite the garrison even after many eras of world progression', () => {
     const state = createNewGame(undefined, 'mc-era-twelve', 'small');
     state.era = 12;
     const mcId = Object.keys(state.minorCivs)[0]!;
@@ -547,11 +547,11 @@ describe('minor civ era upgrades', () => {
 
     processMinorCivEraUpgrade(state, mc);
 
-    expect(state.units[mc.units[0]].type).toBe('tank');
+    expect(state.units[mc.units[0]].type).toBe('warrior');
     expect(mc.lastEraUpgrade).toBe(12);
   });
 
-  it('does not upgrade a minor-civ garrison beyond the nearby civilization pressure era', () => {
+  it('does not advance lastEraUpgrade beyond the nearby civilization pressure era', () => {
     const state = createNewGame(undefined, 'mc-local-era-cap', 'small');
     state.era = 12;
     const mcId = Object.keys(state.minorCivs)[0]!;
@@ -562,6 +562,42 @@ describe('minor civ era upgrades', () => {
 
     expect(state.units[mc.units[0]].type).toBe('warrior');
     expect(mc.lastEraUpgrade).toBe(1);
+  });
+
+  it('does not rewrite a production-backed unit the economy just trained', () => {
+    const state = createNewGame(undefined, 'mc-era-no-duplicate-upgrade', 'small');
+    state.era = 2;
+    const mcId = Object.keys(state.minorCivs)[0]!;
+    const mc = state.minorCivs[mcId];
+    const trainedUnit = createUnit('swordsman', mcId, state.cities[mc.cityId].position, state.idCounters);
+    state.units[trainedUnit.id] = trainedUnit;
+    mc.units = [...mc.units, trainedUnit.id];
+    mc.lastEraUpgrade = 1;
+    setNearbyPressureEra(state, mcId, 2);
+
+    processMinorCivEraUpgrade(state, mc);
+
+    expect(state.units[trainedUnit.id].type).toBe('swordsman');
+    expect(state.units[mc.units[0]].type).toBe('warrior');
+  });
+
+  it('does not batch-rewrite multiple existing units at once', () => {
+    const state = createNewGame(undefined, 'mc-era-no-batch-rewrite', 'small');
+    state.era = 2;
+    const mcId = Object.keys(state.minorCivs)[0]!;
+    const mc = state.minorCivs[mcId];
+    const city = state.cities[mc.cityId];
+    const second = createUnit('scout', mcId, city.position, state.idCounters);
+    state.units[second.id] = second;
+    mc.units = [...mc.units, second.id];
+    const typesBefore = mc.units.map(id => state.units[id].type);
+    mc.lastEraUpgrade = 1;
+    setNearbyPressureEra(state, mcId, 2);
+
+    processMinorCivEraUpgrade(state, mc);
+
+    const typesAfter = mc.units.map(id => state.units[id].type);
+    expect(typesAfter).toEqual(typesBefore);
   });
 });
 

@@ -7,7 +7,6 @@ import type {
   HexCoord,
   City,
   Unit,
-  UnitType,
 } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
 import { createEmptyOpponentAIState } from '@/core/opponent-ai-state';
@@ -929,42 +928,28 @@ export function checkCampEvolution(
 
 // === Era Advancement ===
 
-const ERA_UNIT_MAP: Record<number, UnitType> = {
-  1: 'warrior',
-  2: 'swordsman',
-  3: 'pikeman',
-  4: 'musketeer',
-  5: 'rifleman',
-  6: 'rifleman',
-  7: 'rifleman',
-  8: 'tank',
-  9: 'tank',
-  10: 'tank',
-  11: 'tank',
-  12: 'tank',
-};
-
 export function checkEraAdvancement(state: GameState): number {
   return resolveWorldAge(state.civilizations);
 }
 
+// #948 (H2, #490 audit): this used to rewrite every existing unit's type to an era-appropriate
+// type and grant +1 free population on every local-pressure-era tick, regardless of whether the
+// economy (#505) had already trained a production-backed unit/grown the city legitimately. That
+// silently overwrote real production. It is now bookkeeping-only: it tracks the highest local
+// pressure era this minor civ has observed (for future systems, e.g. #951/#954, to read without
+// recomputing it) and does nothing else. Era-appropriate defenders now come exclusively from
+// getMinorCivBuildCandidates/chooseMinorCivQueueItem (production), and population growth is
+// bounded by getMinorCivPopulationCeiling in minor-civ-economy-system.ts. A legacy no-`economy`
+// backstop is deliberately NOT retained: normalizeMinorCivEconomyState populates `economy` for
+// every minor civ on every turn (processMinorCivEconomyTurn) and on every save load
+// (save-manager.ts), and `lastEraUpgrade` starts at the placement-time pressure era, so the
+// upgrade condition below cannot fire before at least one economy-normalizing pass has already
+// run — there is no reachable state where `economy` is missing when this matters.
 export function processMinorCivEraUpgrade(state: GameState, mc: MinorCivState): void {
   if (mc.isDestroyed) return;
   const city = state.cities[mc.cityId];
   const pressureEra = city ? resolveNeutralPressureEra(state, city.position) : null;
   if (pressureEra === null || pressureEra <= mc.lastEraUpgrade) return;
-
-  const newType = ERA_UNIT_MAP[pressureEra] ?? 'warrior';
-  for (const uid of mc.units) {
-    const unit = state.units[uid];
-    if (unit && unit.type !== 'settler' && unit.type !== 'worker') {
-      (unit as any).type = newType;
-    }
-  }
-
-  if (city) {
-    city.population += 1;
-  }
 
   mc.lastEraUpgrade = pressureEra;
 }

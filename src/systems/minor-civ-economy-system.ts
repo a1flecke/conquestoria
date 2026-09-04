@@ -52,6 +52,28 @@ export const MINOR_CIV_ECONOMY_TUNING = {
   },
 } as const;
 
+// Era/maturity-scaled population ceiling for a one-city minor civ (#948, H1 from the #490 audit).
+// Reuses resolveNeutralPressureEra — the same canonical era/maturity source that already gates
+// minor-civ production eligibility (getMinorCivCompletedTechBand / getMinorCivBuildCandidates) —
+// rather than introducing a second era resolver. Values stay at or below the reference-economy
+// single-city max-development proxy (population 12, tests/systems/helpers/pacing-reference-economy.ts)
+// at every band, and are difficulty-invariant because food yield itself has no existing
+// challenge-tier tuning in MINOR_CIV_ECONOMY_TUNING. See .claude/rules/game-balance.md.
+export const MINOR_CIV_POPULATION_CEILING_BY_ERA_BAND: ReadonlyArray<{ maxEra: number; ceiling: number }> = [
+  { maxEra: 2, ceiling: 6 },
+  { maxEra: 5, ceiling: 10 },
+  { maxEra: 8, ceiling: 14 },
+  { maxEra: Infinity, ceiling: 18 },
+];
+
+export function getMinorCivPopulationCeiling(state: GameState, minorCivId: string): number {
+  const minorCiv = state.minorCivs[minorCivId];
+  const city = minorCiv ? state.cities[minorCiv.cityId] : undefined;
+  const pressureEra = city ? resolveNeutralPressureEra(state, city.position) ?? 1 : 1;
+  const band = MINOR_CIV_POPULATION_CEILING_BY_ERA_BAND.find(entry => pressureEra <= entry.maxEra);
+  return band?.ceiling ?? MINOR_CIV_POPULATION_CEILING_BY_ERA_BAND[MINOR_CIV_POPULATION_CEILING_BY_ERA_BAND.length - 1].ceiling;
+}
+
 const MINOR_CIV_POLICIES = new Set<MinorCivPolicy>([
   'balanced',
   'defense',
@@ -624,10 +646,28 @@ export function processMinorCivEconomyTurn(
   const cityForYields = nextState.cities[city.id];
   const yields = calculateCityYields(cityForYields, nextState.map, undefined, completedTechs, {}, nextState.turn);
   const productionYield = Math.max(0, Math.floor(yields.production * tuning.productionMultiplier));
+
+  // #948 (H1): a one-city minor civ has no housing ceiling in the generic city-growth system, so
+  // long peaceful games can produce an implausible megacity. Enforce an era-scaled ceiling here,
+  // in the minor-civ economy flow only, rather than changing processCity for every civ. While at
+  // or above the ceiling: (1) clamp any already-banked food below the next growth threshold, so a
+  // legacy over-cap save can never re-trigger growth from stale banked food, and (2) feed
+  // processCity a food yield equal to population (zero net surplus) so food stays flat instead of
+  // banking toward a future multi-level jump. This never shrinks an already-over-cap population —
+  // it only blocks further growth until the ceiling (era/maturity) catches up.
+  const populationCeiling = getMinorCivPopulationCeiling(nextState, minorCivId);
+  const growthSuppressed = cityForYields.population >= populationCeiling;
+  const cityForProcessing = growthSuppressed
+    ? { ...cityForYields, food: Math.min(cityForYields.food, Math.max(0, cityForYields.foodNeeded - 1)) }
+    : cityForYields;
+  const foodYieldForGrowth = growthSuppressed
+    ? Math.min(yields.food, cityForProcessing.population)
+    : yields.food;
+
   const processed = processCity(
-    cityForYields,
+    cityForProcessing,
     nextState.map,
-    yields.food,
+    foodYieldForGrowth,
     productionYield,
     undefined,
     completedTechs,
