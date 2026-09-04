@@ -140,6 +140,39 @@ function makeState(opts: MakeStateOpts = {}): GameState {
 }
 
 describe('unrest-guidance', () => {
+  it('#927: distance pressure recommends Military Logistics only after its prerequisite roads and tactics exist', () => {
+    const state = makeState({
+      cityPosition: { q: 10, r: 0 },
+      completed: ['road-building', 'tactics'],
+    });
+
+    const rec = getUnrestRecommendations('city-1', state)
+      .find(recommendation => recommendation.rowLabel === 'Distance from capital');
+    expect(rec?.kind).toBe('research-military-logistics');
+    expect(rec?.availability).toBe('research-first');
+  });
+
+  it('#927: distance pressure recommends an owned road connection only when the player can build one', () => {
+    const state = makeState({
+      cityPosition: { q: 10, r: 0 },
+      completed: ['road-building', 'tactics', 'military-logistics'],
+    });
+    for (let q = 1; q < 10; q++) {
+      state.map.tiles[`${q},0`] = {
+        coord: { q, r: 0 }, terrain: 'plains', elevation: 'lowland', resource: null,
+        improvement: 'none', owner: 'player', improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+      };
+    }
+
+    expect(getUnrestRecommendations('city-1', state)
+      .find(recommendation => recommendation.rowLabel === 'Distance from capital')?.kind)
+      .toBe('connect-city-road-network');
+
+    state.map.tiles['5,0'] = { ...state.map.tiles['5,0']!, terrain: 'coast' };
+    expect(getUnrestRecommendations('city-1', state)
+      .some(recommendation => recommendation.kind === 'connect-city-road-network')).toBe(false);
+  });
+
   it('Empire overextension → research-magistracy (research-first) when code-of-laws done but magistracy not', () => {
     const state = makeState({ cityCount: 12, era: 2, completed: ['tribal-council', 'code-of-laws'] });
     const rec = getUnrestRecommendations('city-1', state).find(r => r.rowLabel === 'Empire overextension');

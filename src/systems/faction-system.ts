@@ -12,6 +12,7 @@ import { getChallengeProfileForCiv } from '../core/opponent-challenge';
 import { TECH_TREE, resolveCivilizationEra } from './tech-definitions';
 import { BUILDINGS } from './city-system';
 import { getForeignFaithPressure } from './religion-loyalty-system';
+import { canConnectCityToCapitalByOwnedRoad, getCitiesConnectedToCapital } from './road-network';
 
 // --- Thresholds ---
 export const UNREST_TRIGGER_PRESSURE = 40;
@@ -63,9 +64,21 @@ export interface UnrestPressureRow {
 // "Unrest Relief Inventory" table.
 export interface UnrestReliefSource {
   id: string;
+  buildingId?: string;
+  researchUnlockTechId?: string;
   targetRowLabels: readonly string[];
-  isActive(city: City, state: GameState): boolean;
-  reliefRows(city: City, state: GameState, positiveRows: UnrestPressureRow[]): UnrestPressureRow[];
+  isActive(city: City, state: GameState, context: UnrestEvaluationContext): boolean;
+  reliefRows(city: City, state: GameState, positiveRows: UnrestPressureRow[], context: UnrestEvaluationContext): UnrestPressureRow[];
+  /** Optional AI planning gate for a source that is researched before it can be active. */
+  isPotentiallyUseful?(city: City, state: GameState, context: UnrestEvaluationContext): boolean;
+}
+
+export interface UnrestEvaluationContext {
+  connectedOwnedRoadCityIdsByCivId: Map<string, Set<string>>;
+}
+
+export function createUnrestEvaluationContext(): UnrestEvaluationContext {
+  return { connectedOwnedRoadCityIdsByCivId: new Map() };
 }
 
 // Civ IV Courthouse: halves the distance-to-capital row and shaves a flat slice off
@@ -76,26 +89,28 @@ export const COURTHOUSE_DISTANCE_RELIEF_FRACTION = 0.5;
 export const COURTHOUSE_OVEREXTENSION_RELIEF = 3;
 export const COURTHOUSE_SPRAWL_FLOOR = 2;
 
+export function getCourthouseReliefAmount(positiveRows: UnrestPressureRow[]): number {
+  const distanceRow = positiveRows.find(r => r.label === 'Distance from capital')?.amount ?? 0;
+  const overextensionRow = positiveRows.find(r => r.label === 'Empire overextension')?.amount ?? 0;
+  const rawSprawl = distanceRow + overextensionRow;
+  const uncapped = Math.round(COURTHOUSE_DISTANCE_RELIEF_FRACTION * distanceRow)
+    + Math.min(COURTHOUSE_OVEREXTENSION_RELIEF, overextensionRow);
+  return Math.min(uncapped, Math.max(0, rawSprawl - COURTHOUSE_SPRAWL_FLOOR));
+}
+
 const COURTHOUSE_RELIEF: UnrestReliefSource = {
   id: 'courthouse',
+  buildingId: 'courthouse',
   targetRowLabels: ['Distance from capital', 'Empire overextension'],
   isActive: city => city.buildings.includes('courthouse'),
   reliefRows: (_city, _state, positiveRows) => {
-    // Matched by the same row-label strings the positive rows are pushed with above.
-    // Coupling is intentional (mirrors the Happiness/Luxury offset rows) and guarded by
-    // the worked-example tests in faction-system.test.ts, which fail if a label changes.
-    const distanceRow = positiveRows.find(r => r.label === 'Distance from capital')?.amount ?? 0;
-    const overextensionRow = positiveRows.find(r => r.label === 'Empire overextension')?.amount ?? 0;
-    const rawSprawl = distanceRow + overextensionRow;
-    const uncapped = Math.round(COURTHOUSE_DISTANCE_RELIEF_FRACTION * distanceRow)
-      + Math.min(COURTHOUSE_OVEREXTENSION_RELIEF, overextensionRow);
-    const relief = Math.min(uncapped, Math.max(0, rawSprawl - COURTHOUSE_SPRAWL_FLOOR));
+    const relief = getCourthouseReliefAmount(positiveRows);
     return relief === 0 ? [] : [{ label: 'Courthouse', amount: -relief }];
   },
 };
 
 const MILITARY_ADMINISTRATION_RELIEF: UnrestReliefSource = {
-  id: 'military-administration', targetRowLabels: ['War weariness', 'Recent conquest'],
+  id: 'military-administration', buildingId: 'military-administration', targetRowLabels: ['War weariness', 'Recent conquest'],
   isActive: city => city.buildings.includes('military-administration'),
   reliefRows: (_city, _state, rows) => {
     const war = rows.find(row => row.label === 'War weariness')?.amount ?? 0;
@@ -105,15 +120,47 @@ const MILITARY_ADMINISTRATION_RELIEF: UnrestReliefSource = {
   },
 };
 
-export const UNREST_RELIEF_SOURCES: UnrestReliefSource[] = [COURTHOUSE_RELIEF, MILITARY_ADMINISTRATION_RELIEF];
+function getOwnedRoadConnectedCities(
+  state: GameState,
+  civId: string,
+  context: UnrestEvaluationContext,
+): Set<string> {
+  let connected = context.connectedOwnedRoadCityIdsByCivId.get(civId);
+  if (!connected) {
+    connected = getCitiesConnectedToCapital(state, civId, 'owned-road');
+    context.connectedOwnedRoadCityIdsByCivId.set(civId, connected);
+  }
+  return connected;
+}
+
+const ROAD_POST_NETWORK_RELIEF: UnrestReliefSource = {
+  id: 'road-post-network',
+  researchUnlockTechId: 'military-logistics',
+  targetRowLabels: ['Distance from capital'],
+  isActive: (city, state, context) => state.civilizations[city.owner]?.techState.completed.includes('military-logistics') === true
+    && getOwnedRoadConnectedCities(state, city.owner, context).has(city.id),
+  isPotentiallyUseful: (city, state, context) =>
+    getOwnedRoadConnectedCities(state, city.owner, context).has(city.id)
+    || canConnectCityToCapitalByOwnedRoad(state, city.owner, city.id),
+  reliefRows: (city, _state, rows) => {
+    const distance = rows.find(row => row.label === 'Distance from capital')?.amount ?? 0;
+    const overextension = rows.find(row => row.label === 'Empire overextension')?.amount ?? 0;
+    const courthouse = city.buildings.includes('courthouse') ? getCourthouseReliefAmount(rows) : 0;
+    const relief = Math.min(Math.round(distance * 0.35), 6, Math.max(0, distance - 4), Math.max(0, distance + overextension - 2 - courthouse));
+    return relief > 0 ? [{ label: 'Road & Post Network', amount: -relief }] : [];
+  },
+};
+
+export const UNREST_RELIEF_SOURCES: UnrestReliefSource[] = [COURTHOUSE_RELIEF, MILITARY_ADMINISTRATION_RELIEF, ROAD_POST_NETWORK_RELIEF];
 
 export function getUnrestReliefRows(
   city: City,
   state: GameState,
   positiveRows: UnrestPressureRow[],
+  context: UnrestEvaluationContext = createUnrestEvaluationContext(),
 ): UnrestPressureRow[] {
   return UNREST_RELIEF_SOURCES.flatMap(source =>
-    source.isActive(city, state) ? source.reliefRows(city, state, positiveRows) : []);
+    source.isActive(city, state, context) ? source.reliefRows(city, state, positiveRows, context) : []);
 }
 
 // Single source of truth for unrest pressure (#552): both computeUnrestPressure
@@ -123,6 +170,7 @@ export function getUnrestPressureBreakdown(
   cityId: string,
   state: GameState,
   ownerHappiness = 0,
+  context: UnrestEvaluationContext = createUnrestEvaluationContext(),
 ): UnrestPressureRow[] {
   const city = state.cities[cityId];
   if (!city) return [];
@@ -195,11 +243,11 @@ export function getUnrestPressureBreakdown(
 
   // #919 MR2: administration-ladder relief rows (Courthouse today) subtract from the
   // positive rows built above. Table-driven — see UNREST_RELIEF_SOURCES.
-  return [...rows, ...getUnrestReliefRows(city, state, rows)];
+  return [...rows, ...getUnrestReliefRows(city, state, rows, context)];
 }
 
-export function computeUnrestPressure(cityId: string, state: GameState, ownerHappiness = 0): number {
-  const rows = getUnrestPressureBreakdown(cityId, state, ownerHappiness);
+export function computeUnrestPressure(cityId: string, state: GameState, ownerHappiness = 0, context: UnrestEvaluationContext = createUnrestEvaluationContext()): number {
+  const rows = getUnrestPressureBreakdown(cityId, state, ownerHappiness, context);
   const sum = rows.reduce((total, row) => total + row.amount, 0);
   return Math.min(100, Math.max(0, sum));
 }
@@ -423,6 +471,7 @@ function clearEraOneUnrestForCity(state: GameState, cityId: string): GameState {
 }
 
 export function processFactionTurn(state: GameState, bus: EventBus): GameState {
+  const unrestContext = createUnrestEvaluationContext();
   let nextState = state;
 
   // Pre-compute happiness per civ to avoid O(cities²) tile scans inside the city loop
@@ -460,7 +509,7 @@ export function processFactionTurn(state: GameState, bus: EventBus): GameState {
       : currentCity.unrestLevel === 2
         ? 'revolt'
         : null;
-    const pressure = computeUnrestPressure(cityId, nextState, civHappiness[city.owner] ?? 0);
+    const pressure = computeUnrestPressure(cityId, nextState, civHappiness[city.owner] ?? 0, unrestContext);
     let updated = { ...currentCity };
 
     if (updated.unrestLevel === 0) {

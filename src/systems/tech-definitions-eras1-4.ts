@@ -58,7 +58,7 @@ export const TECH_TREE_ERAS_1_4: Tech[] = [
   { id: 'bridge-building', name: 'Bridge Building', track: 'exploration', cost: 120, prerequisites: ['road-building'], unlocks: ['River crossings cost no extra movement'], era: 3 },
   { id: 'harbor-tech', name: 'Harbors', track: 'exploration', cost: 165, prerequisites: ['sailing', 'currency'], unlocks: [], unlocksBuildings: ['harbor'], era: 3 },
   { id: 'exploration-tech', name: 'Exploration', track: 'exploration', cost: 155, prerequisites: ['celestial-navigation'], unlocks: ['All units +1 vision range'], era: 4 },
-  { id: 'military-logistics', name: 'Military Logistics', track: 'exploration', cost: 235, prerequisites: ['road-building', 'tactics'], unlocks: ['Roads cost half movement'], era: 4 },
+  { id: 'military-logistics', name: 'Military Logistics', track: 'exploration', cost: 235, prerequisites: ['road-building', 'tactics'], unlocks: ['Roads cost half movement; connected owned roads reduce distance unrest'], era: 4 },
 
   // === AGRICULTURE TRACK (8 techs, new) ===
   { id: 'foraging', name: 'Foraging', track: 'agriculture', cost: 19, prerequisites: [], unlocks: ['Food storage', 'Reveal Ivory resource', 'Reveal Furs resource'], unlocksUnits: ['expedition'], era: 1 },

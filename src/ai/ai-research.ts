@@ -15,6 +15,7 @@ import { getCivAvailableResources, getCivHappinessFromResources } from '@/system
 import {
   UNREST_RELIEF_SOURCES,
   UNREST_TRIGGER_PRESSURE,
+  createUnrestEvaluationContext,
   getUnrestPressureBreakdown,
 } from '@/systems/faction-system';
 
@@ -77,7 +78,8 @@ function unrestReliefTechBonus(
 ): number {
   const unlocked = new Set(tech.unlocksBuildings ?? []);
   const pressuredReliefCityCount = new Set(UNREST_RELIEF_SOURCES
-    .filter(source => unlocked.has(source.id))
+    .filter(source => (source.buildingId !== undefined && unlocked.has(source.buildingId))
+      || source.researchUnlockTechId === tech.id)
     .flatMap(source => cityIdsByBuildingId[source.id] ?? [])).size;
   if (pressuredReliefCityCount < UNREST_RELIEF_PRESSURED_CITY_GATE) return 0;
   return Math.min(
@@ -372,8 +374,11 @@ export function applyAIResearch(
   // prevents war-only cities from pulling Courthouse research and vice versa.
   const reliefPressureGate = 0.6 * UNREST_TRIGGER_PRESSURE;
   const ownerHappiness = getCivHappinessFromResources(state, civId);
+  const unrestContext = createUnrestEvaluationContext();
   const pressuredReliefCityIdsByBuildingId = Object.fromEntries(UNREST_RELIEF_SOURCES.map(source => [source.id, civ.cities.filter(cityId => {
-    const rows = getUnrestPressureBreakdown(cityId, state, ownerHappiness);
+    const city = state.cities[cityId];
+    if (!city || (source.isPotentiallyUseful && !source.isPotentiallyUseful(city, state, unrestContext))) return false;
+    const rows = getUnrestPressureBreakdown(cityId, state, ownerHappiness, unrestContext);
     const pressure = Math.min(100, Math.max(0, rows.reduce((total, row) => total + row.amount, 0)));
     return pressure >= reliefPressureGate
       && rows.some(row => source.targetRowLabels.includes(row.label) && row.amount > 0);

@@ -91,6 +91,7 @@ they bite gets a **bought, deliberate** counter: the administration ladder
 |---|---|---|---|---|
 | Courthouse | `courthouse` | Distance from capital, Empire overextension | `relief = min( round(0.5·distRow) + min(3, overextRow),  max(0, (distRow + overextRow) − 2) )` | era 2+ (`magistracy`) |
 | Military Administration | `military-administration` | War weariness, Recent conquest | `relief = min(8, max(0, warRow − 4)) + min(10, max(0, conquestRow − 8))`; combined relief is at most `18` | era 3+ (`civil-service`) |
+| Road & Post Network | — | Distance from capital | For an owned-road connection to the capital: `min(round(0.35·D), 6, max(0, D−4), max(0, D+O−2−courthouseRelief))` | era 4+ (`military-logistics`) |
 
 **Rule:** any new distance / overextension / unrest-relief source — a future
 ladder rung (roads-cut-distance, second seat of government, civil-service
@@ -98,8 +99,8 @@ bureaucracy, federalism, governors) or anything else — MUST:
 
 1. add a row to this table, and
 2. register an `UnrestReliefSource` entry in `UNREST_RELIEF_SOURCES`
-   (`src/systems/faction-system.ts`), keyed to the building id so
-   `ai-production.ts` scores it generically with no new branch.
+   (`src/systems/faction-system.ts`), keyed to `buildingId` or
+   `researchUnlockTechId` so AI production/research score it generically.
 
 It must keep a **residual floor** (the `COURTHOUSE_SPRAWL_FLOOR` pattern —
 scale always costs something) and must **never relieve more sprawl than the
@@ -107,6 +108,15 @@ city actually has**. The AI production valuation
 (`unrestReliefScore` in `src/ai/ai-production.ts`) and the AI research pull
 (`unrestReliefTechBonus` in `src/ai/ai-research.ts`) both key off this table,
 so a new entry is valued automatically.
+
+Road & Post Network accepts only continuous completed road tiles currently
+owned by the city owner (plus own city centers); foreign, allied, neutral, and
+water gaps never count. It is difficulty-invariant, owner-scoped for hot seat,
+derived from existing roads/techs without a save migration, and emits its own
+negative row rather than altering the base distance formula. `D` is the
+positive distance row and `O` the positive overextension row; the final terms
+keep at least 4 distance pressure from roads alone and at least 2 total sprawl
+pressure when stacked with a Courthouse.
 
 ## Unrest Instant-Action Costs (Appease vs Concede)
 

@@ -1,15 +1,25 @@
-import type { GameState, HexCoord } from '@/core/types';
+import type { City, GameState, HexCoord } from '@/core/types';
 import { hexKey, hexNeighbors, getWrappedHexNeighbors } from './hex-utils';
 import { getCapitalCityId } from './capital-system';
 import { canBuildRoad } from './road-system';
-import { findPath } from './unit-system';
+import { findPath, getMovementCostForUnit } from './unit-system';
 import { getWorkerChargesRemaining } from './worker-action-system';
+
+export type CapitalRoadPolicy = 'any-road' | 'owned-road';
+
+function isLandPassable(tile: GameState['map']['tiles'][string]): boolean {
+  return tile !== undefined && getMovementCostForUnit(tile.terrain, 'land') !== Infinity;
+}
 
 /**
  * Cities (other than the capital itself) reachable from the capital by walking
  * only road tiles or the civ's own city tiles. Pure/memoizable per turn.
  */
-export function getCitiesConnectedToCapital(state: GameState, civId: string): Set<string> {
+export function getCitiesConnectedToCapital(
+  state: GameState,
+  civId: string,
+  policy: CapitalRoadPolicy = 'any-road',
+): Set<string> {
   const connected = new Set<string>();
   const capitalId = getCapitalCityId(state, civId);
   if (!capitalId) return connected;
@@ -39,7 +49,9 @@ export function getCitiesConnectedToCapital(state: GameState, civId: string): Se
       const tile = state.map.tiles[key];
       if (!tile) continue;
       const cityIdHere = ownCityIdByTileKey.get(key);
-      if (!tile.hasRoad && !cityIdHere) continue;
+      const traversableRoad = tile.hasRoad
+        && (policy === 'any-road' || (tile.owner === civId && isLandPassable(tile)));
+      if (!traversableRoad && !cityIdHere) continue;
       visited.add(key);
       queue.push(neighbor);
       if (cityIdHere) connected.add(cityIdHere);
@@ -47,6 +59,56 @@ export function getCitiesConnectedToCapital(state: GameState, civId: string): Se
   }
 
   return connected;
+}
+
+/**
+ * Whether this city has a fully owned, land-based corridor to the capital that
+ * could be completed using the current road-building rules. This is deliberately
+ * stricter than generic road targeting: it prevents UI guidance from promising
+ * a connection through water or foreign territory.
+ */
+export function canConnectCityToCapitalByOwnedRoad(
+  state: GameState,
+  civId: string,
+  cityId: string,
+): boolean {
+  const civ = state.civilizations[civId];
+  const capitalId = getCapitalCityId(state, civId);
+  const capital = capitalId ? state.cities[capitalId] : undefined;
+  const destination = state.cities[cityId];
+  if (!civ || !capital || !destination || destination.owner !== civId
+    || !civ.techState.completed.includes('road-building')) return false;
+
+  const ownCityTileKeys = new Set(
+    civ.cities
+      .map(ownedCityId => state.cities[ownedCityId])
+      .filter((city): city is City => city !== undefined && city.owner === civId)
+      .map(city => hexKey(city.position)),
+  );
+  const destinationKey = hexKey(destination.position);
+  const startKey = hexKey(capital.position);
+  const visited = new Set<string>([startKey]);
+  const queue: HexCoord[] = [capital.position];
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    const neighbors = state.map.wrapsHorizontally
+      ? getWrappedHexNeighbors(current, state.map.width)
+      : hexNeighbors(current);
+    for (const neighbor of neighbors) {
+      const key = hexKey(neighbor);
+      if (visited.has(key)) continue;
+      if (key === destinationKey) return true;
+      const tile = state.map.tiles[key];
+      const traversable = ownCityTileKeys.has(key)
+        || (tile?.owner === civId && (tile.hasRoad || canBuildRoad(tile, civ.techState.completed, civId)));
+      if (!traversable) continue;
+      visited.add(key);
+      queue.push(neighbor);
+    }
+  }
+
+  return false;
 }
 
 /**
@@ -89,7 +151,11 @@ export function getRoadBuildTarget(state: GameState, civId: string): HexCoord | 
   const capital = state.cities[capitalId];
   if (!capital) return null;
 
-  const connected = getCitiesConnectedToCapital(state, civId);
+  const connected = getCitiesConnectedToCapital(
+    state,
+    civId,
+    completedTechs.includes('military-logistics') ? 'owned-road' : 'any-road',
+  );
   const cityKeys = new Set(
     Object.values(state.cities)
       .filter(city => city.owner === civId)
