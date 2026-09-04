@@ -92,6 +92,7 @@ they bite gets a **bought, deliberate** counter: the administration ladder
 | Courthouse | `courthouse` | Distance from capital, Empire overextension | `relief = min( round(0.5·distRow) + min(3, overextRow),  max(0, (distRow + overextRow) − 2) )` | era 2+ (`magistracy`) |
 | Military Administration | `military-administration` | War weariness, Recent conquest | `relief = min(8, max(0, warRow − 4)) + min(10, max(0, conquestRow − 8))`; combined relief is at most `18` | era 3+ (`civil-service`) |
 | Road & Post Network | — | Distance from capital | For an owned-road connection to the capital: `min(round(0.35·D), 6, max(0, D−4), max(0, D+O−2−courthouseRelief))` | era 4+ (`military-logistics`) |
+| Regional Capital | `regional_capital` | Distance from capital | For one completed owner-held non-capital seat: `min(D−nearestSeatPressure, 10, max(0, D+O−2−courthouseRelief−roadPostRelief))` | era 4+ (`political-philosophy`) |
 
 **Rule:** any new distance / overextension / unrest-relief source — a future
 ladder rung (roads-cut-distance, second seat of government, civil-service
@@ -117,6 +118,14 @@ negative row rather than altering the base distance formula. `D` is the
 positive distance row and `O` the positive overextension row; the final terms
 keep at least 4 distance pressure from roads alone and at least 2 total sprawl
 pressure when stacked with a Courthouse.
+
+Regional Capital uses the same direct axial distance as the base row, not roads or
+pathfinding. It is one permanent milestone national project per empire and cannot
+be placed in the true capital. Courthouse, Road & Post, then Regional Capital are
+evaluated in that order, preserving at least two total sprawl pressure. Capturing
+or razing its host removes the former owner's project record and building; a captor
+does not inherit it and the former owner can rebuild if normally eligible. The
+formula is owner-scoped, difficulty-invariant, and has no save migration.
 
 ## Unrest Instant-Action Costs (Appease vs Concede)
 

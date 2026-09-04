@@ -19,6 +19,20 @@ import {
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
 describe('city-capture-system', () => {
+  it('removes a former owner national project when its host city is occupied', () => {
+    const state = makeExposedCityCaptureState({ population: 2, buildings: [] });
+    const cityId = 'athens';
+    state.cities[cityId] = { ...state.cities[cityId]!, buildings: ['regional_capital'] };
+    state.builtNationalProjects = {
+      'ai-1:regional_capital': { civId: 'ai-1', cityId, eraBuilt: 4 },
+    };
+
+    const next = resolveMajorCityCapture(state, cityId, 'player', 'occupy', state.turn).state;
+    expect(next.builtNationalProjects?.['ai-1:regional_capital']).toBeUndefined();
+    expect(next.builtNationalProjects?.['player:regional_capital']).toBeUndefined();
+    expect(next.cities[cityId]?.buildings).not.toContain('regional_capital');
+  });
+
   function makeExposedCityCaptureState({
     population,
     buildings,
