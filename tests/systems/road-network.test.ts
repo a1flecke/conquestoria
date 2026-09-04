@@ -246,6 +246,23 @@ describe('canConnectCityToCapitalByOwnedRoad', () => {
     }
     expect(canConnectCityToCapitalByOwnedRoad(s, 'player', 'outpost')).toBe(false);
   });
+
+  it('rejects a malformed water-road corridor (negative)', () => {
+    const s = baseState({
+      map: makeMap(3, false, new Set(['1,0'])),
+      cities: {
+        capital: city({ id: 'capital', position: { q: 0, r: 0 } }),
+        outpost: city({ id: 'outpost', position: { q: 2, r: 0 } }),
+      },
+      civilizations: { player: { ...baseState().civilizations.player, cities: ['capital', 'outpost'] } },
+    });
+    for (let r = 1; r < 3; r++) {
+      s.map.tiles[`1,${r}`] = { ...s.map.tiles[`1,${r}`]!, owner: 'rival' };
+    }
+    s.map.tiles['1,0'] = { ...s.map.tiles['1,0']!, terrain: 'coast', hasRoad: true };
+
+    expect(canConnectCityToCapitalByOwnedRoad(s, 'player', 'outpost')).toBe(false);
+  });
 });
 
 describe('getOwnedRoadTileCount', () => {
@@ -308,7 +325,31 @@ describe('getRoadBuildTarget', () => {
     });
     s.map.tiles['1,0'] = { ...s.map.tiles['1,0']!, owner: 'rival' };
 
-    expect(getRoadBuildTarget(s, 'player')).toBeNull();
+    expect(getRoadBuildTarget(s, 'player')).toEqual({ q: 0, r: 1 });
+  });
+
+  it('uses a longer owned corridor when a shorter foreign road cannot qualify after Military Logistics', () => {
+    const s = baseState({
+      map: makeMap(4, false, new Set(['1,0', '2,0'])),
+      cities: {
+        capital: city({ id: 'capital', position: { q: 0, r: 0 } }),
+        outpost: city({ id: 'outpost', position: { q: 3, r: 0 } }),
+      },
+      civilizations: {
+        player: {
+          ...baseState().civilizations.player,
+          cities: ['capital', 'outpost'],
+          techState: {
+            ...baseState().civilizations.player.techState,
+            completed: ['road-building', 'military-logistics'],
+          },
+        },
+      },
+    });
+    s.map.tiles['1,0'] = { ...s.map.tiles['1,0']!, owner: 'rival' };
+    s.map.tiles['2,0'] = { ...s.map.tiles['2,0']!, owner: 'rival' };
+
+    expect(getRoadBuildTarget(s, 'player')).toEqual({ q: 0, r: 1 });
   });
 
   it('returns null without road-building tech (negative)', () => {

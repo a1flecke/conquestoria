@@ -67,17 +67,17 @@ export function getCitiesConnectedToCapital(
  * stricter than generic road targeting: it prevents UI guidance from promising
  * a connection through water or foreign territory.
  */
-export function canConnectCityToCapitalByOwnedRoad(
+function getOwnedRoadConnectionPath(
   state: GameState,
   civId: string,
   cityId: string,
-): boolean {
+): HexCoord[] | null {
   const civ = state.civilizations[civId];
   const capitalId = getCapitalCityId(state, civId);
   const capital = capitalId ? state.cities[capitalId] : undefined;
   const destination = state.cities[cityId];
   if (!civ || !capital || !destination || destination.owner !== civId
-    || !civ.techState.completed.includes('road-building')) return false;
+    || !civ.techState.completed.includes('road-building')) return null;
 
   const ownCityTileKeys = new Set(
     civ.cities
@@ -87,7 +87,9 @@ export function canConnectCityToCapitalByOwnedRoad(
   );
   const destinationKey = hexKey(destination.position);
   const startKey = hexKey(capital.position);
+  if (destinationKey === startKey) return [capital.position];
   const visited = new Set<string>([startKey]);
+  const previousByTileKey = new Map<string, HexCoord>();
   const queue: HexCoord[] = [capital.position];
 
   while (queue.length > 0) {
@@ -98,17 +100,38 @@ export function canConnectCityToCapitalByOwnedRoad(
     for (const neighbor of neighbors) {
       const key = hexKey(neighbor);
       if (visited.has(key)) continue;
-      if (key === destinationKey) return true;
+      if (key === destinationKey) {
+        previousByTileKey.set(key, current);
+        const path: HexCoord[] = [destination.position];
+        let step = destination.position;
+        while (hexKey(step) !== startKey) {
+          const previous = previousByTileKey.get(hexKey(step));
+          if (!previous) return null;
+          path.push(previous);
+          step = previous;
+        }
+        return path.reverse();
+      }
       const tile = state.map.tiles[key];
       const traversable = ownCityTileKeys.has(key)
-        || (tile?.owner === civId && (tile.hasRoad || canBuildRoad(tile, civ.techState.completed, civId)));
+        || (tile?.owner === civId && isLandPassable(tile)
+          && (tile.hasRoad || canBuildRoad(tile, civ.techState.completed, civId)));
       if (!traversable) continue;
       visited.add(key);
+      previousByTileKey.set(key, current);
       queue.push(neighbor);
     }
   }
 
-  return false;
+  return null;
+}
+
+export function canConnectCityToCapitalByOwnedRoad(
+  state: GameState,
+  civId: string,
+  cityId: string,
+): boolean {
+  return getOwnedRoadConnectionPath(state, civId, cityId) !== null;
 }
 
 /**
@@ -138,7 +161,9 @@ export function getOwnedRoadTileCount(state: GameState, civId: string): number {
 /**
  * Deterministic AI road-building target: the first tile lacking a road along
  * the shortest land path between the capital and the nearest disconnected
- * owned city. Returns null if the civ has no road tech or is fully connected.
+ * owned city. After Military Logistics, that path is constrained to an owned,
+ * land-based corridor so foreign infrastructure cannot satisfy the network.
+ * Returns null if the civ has no road tech or is fully connected.
  */
 export function getRoadBuildTarget(state: GameState, civId: string): HexCoord | null {
   const civ = state.civilizations[civId];
@@ -169,7 +194,9 @@ export function getRoadBuildTarget(state: GameState, civId: string): HexCoord | 
   for (const cityId of candidateCityIds) {
     const city = state.cities[cityId];
     if (!city) continue;
-    const path = findPath(capital.position, city.position, state.map, 'land', { completedTechs });
+    const path = completedTechs.includes('military-logistics')
+      ? getOwnedRoadConnectionPath(state, civId, cityId)
+      : findPath(capital.position, city.position, state.map, 'land', { completedTechs });
     if (!path) continue;
 
     for (const coord of path) {
