@@ -40,7 +40,14 @@ const ATTACK_STATE_MS = 1_500;
 // `cq2-hurt` is a 0.55s one-shot (single iteration). 700ms clears it with margin
 // without freezing the struck unit in a recoil pose the way ATTACK_STATE_MS would.
 const HURT_STATE_MS = 700;
-const DEATH_STATE_MS = 1_200;
+/**
+ * How long a unit / landmark stays in the `death` sprite state. Exported because
+ * `render-loop.ts` keeps a parallel death *snapshot* (the dead entity's data,
+ * retained so it can still be drawn mid-collapse) that MUST expire on the same
+ * clock -- a drifting literal there would either cut the collapse animation short
+ * or leave a ghost sprite after it finishes.
+ */
+export const DEATH_STATE_MS = 1_200;
 // A brief "just performed its civilian action" pulse (e.g. a trade unit delivering
 // goods) -- long enough to see the cq-deliver/cq-work-bob loop play at least once
 // (their keyframes run ~1.1s), matching ATTACK_STATE_MS's role for attack.

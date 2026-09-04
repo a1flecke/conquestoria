@@ -132,9 +132,10 @@ describe('render-loop — non-pirate combat sprite state', () => {
       defenderPosition: defender.position,
     } as CombatResult, nowMs);
 
-    // 1s in: the short `hurt` one-shot (700ms) is done, but the attacker is still
-    // mid-swing -- the 1.4s v2 `attack` cycle needs the full ATTACK_STATE_MS window (#916).
-    vi.spyOn(performance, 'now').mockReturnValue(nowMs + 1_000);
+    // A full 1.4s v2 attack cycle in: the short `hurt` one-shot (700ms) is long done,
+    // but the attacker must still be mid-animation so the whole
+    // anticipation -> strike -> hold -> recover sequence plays (#916).
+    vi.spyOn(performance, 'now').mockReturnValue(nowMs + 1_400);
     (loop as unknown as { render: () => void }).render();
 
     const attackerWrapMidSwing = mount.querySelector(`[data-entity-id="${attacker.id}"]`)?.firstElementChild;
