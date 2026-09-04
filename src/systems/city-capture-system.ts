@@ -521,6 +521,21 @@ export function recordCityCaptureCareerEvents(
   return out;
 }
 
+function removeNationalProjectsForCity(state: GameState, cityId: string): GameState {
+  const lost = Object.entries(state.builtNationalProjects ?? {})
+    .filter(([, record]) => record.cityId === cityId);
+  if (lost.length === 0) return state;
+  const lostBuildingIds = new Set(lost.map(([key]) => key.split(':').slice(1).join(':')));
+  const builtNationalProjects = { ...(state.builtNationalProjects ?? {}) };
+  for (const [key] of lost) delete builtNationalProjects[key];
+  const city = state.cities[cityId];
+  return {
+    ...state,
+    builtNationalProjects,
+    cities: city ? { ...state.cities, [cityId]: { ...city, buildings: city.buildings.filter(id => !lostBuildingIds.has(id)) } } : state.cities,
+  };
+}
+
 export function resolveMajorCityCapture(
   state: GameState,
   cityId: string,
@@ -610,8 +625,9 @@ export function resolveMajorCityCapture(
         newOwnerId,
       ),
     };
+    const afterProjectLoss = removeNationalProjectsForCity(nextState, cityId);
     const afterAircraft = resolveAirBaseLoss(
-      nextState,
+      afterProjectLoss,
       { kind: 'city', cityId },
       { kind: 'captured', victorId: newOwnerId },
     ).state;
@@ -677,7 +693,8 @@ export function resolveMajorCityCapture(
     cityFaith: nextCityFaith,
     legendaryWonderProjects: removeLegendaryWonderProjectsForCity(state.legendaryWonderProjects, cityId),
   };
-  const elimination = eliminateCivilization(nextState, previousOwnerId, newOwnerId);
+  const afterProjectLoss = removeNationalProjectsForCity(nextState, cityId);
+  const elimination = eliminateCivilization(afterProjectLoss, previousOwnerId, newOwnerId);
   const stateAfterElimination = elimination.state;
   const territoryResult = recalculateTerritory(stateAfterElimination, {
     reason: 'raze',
@@ -752,7 +769,7 @@ export function transferCapturedCityOwnership(
       },
     },
   };
-  const eliminatedState = eliminateCivilization(nextState, previousOwnerId, newOwnerId).state;
+  const eliminatedState = eliminateCivilization(removeNationalProjectsForCity(nextState, cityId), previousOwnerId, newOwnerId).state;
   return cancelInvalidNetworkPlans(recalculateTerritory(eliminatedState, {
     reason: 'capture',
     preserveCurrentHolderOnTie: true,
