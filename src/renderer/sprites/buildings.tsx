@@ -1379,37 +1379,37 @@ export function BunkerSprite({ palette, svgOnly = false }: BuildingSpriteProps):
   const concreteLight = '#c2c5c0';
   return (
     <BuildingFrame label="Bunker" sub="Military" category="military" svgOnly={svgOnly} animate="">
-      <BuildingPlinth w={150} color={concreteDark} />
-      {/* earth berm banked against the rear and sides */}
-      <path className="cq-bunker-berm" d="M20,132 Q40,86 96,80 Q152,86 172,132 Z"
+      <BuildingPlinth w={156} color={concreteDark} />
+      {/* earth berm banked against the rear and sides, meeting the plinth */}
+      <path className="cq-bunker-berm" d="M18,152 Q40,98 96,90 Q152,98 174,152 Z"
         fill={P.ground.dirt} stroke={P.ink.line} strokeWidth="1.2" />
-      <path d="M34,124 Q60,96 96,92 Q132,96 158,124" fill="none" stroke={P.ground.grass} strokeWidth="4" opacity="0.7" />
-      {[46, 74, 118, 146].map(x => (
-        <path key={x} d={`M${x},112 q3,-8 6,0`} fill="none" stroke={P.ground.grass} strokeWidth="2.4" />
+      <path d="M30,142 Q60,108 96,104 Q132,108 162,142" fill="none" stroke={P.ground.grass} strokeWidth="4" opacity="0.7" />
+      {[42, 70, 122, 150].map(x => (
+        <path key={x} d={`M${x},128 q3,-8 6,0`} fill="none" stroke={P.ground.grass} strokeWidth="2.4" />
       )).join('')}
-      {/* hardened concrete hull — chamfered low block */}
-      <path className="cq-bunker-hull" d="M40,132 L44,96 L64,84 L128,84 L148,96 L152,132 Z"
+      {/* hardened concrete hull — chamfered low block sitting on the plinth */}
+      <path className="cq-bunker-hull" d="M38,152 L42,108 L64,92 L128,92 L150,108 L154,152 Z"
         fill={concrete} stroke={P.ink.line} strokeWidth="1.8" />
-      <path d="M44,96 L64,84 L128,84 L148,96 Z" fill={concreteLight} stroke={P.ink.line} strokeWidth="1" />
-      <path d="M40,132 L152,132" stroke={concreteDark} strokeWidth="3" />
-      {/* grass-capped roof slab */}
-      <path d="M62,84 Q96,74 130,84" fill="none" stroke={P.ground.grass} strokeWidth="5" opacity="0.8" />
+      <path d="M42,108 L64,92 L128,92 L150,108 Z" fill={concreteLight} stroke={P.ink.line} strokeWidth="1" />
+      <path d="M42,130 L150,130" stroke={concreteDark} strokeWidth="2" opacity="0.6" />
+      {/* grass-capped roof */}
+      <path d="M62,92 Q96,82 130,92" fill="none" stroke={P.ground.grass} strokeWidth="5" opacity="0.8" />
       {/* horizontal firing slit with a stub barrel */}
-      <rect className="cq-bunker-slit" x="58" y="104" width="76" height="10" rx="2"
+      <rect className="cq-bunker-slit" x="56" y="114" width="80" height="11" rx="2"
         fill={P.ink.line} stroke={concreteDark} strokeWidth="2" />
-      <rect x="90" y="106" width="26" height="6" rx="1.5" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
-      {/* steel blast door, offset */}
-      <rect className="cq-bunker-door" x="112" y="112" width="20" height="20" rx="1.5"
+      <rect x="88" y="116" width="28" height="7" rx="1.5" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+      {/* steel blast door, offset, seated on the plinth */}
+      <rect className="cq-bunker-door" x="114" y="128" width="20" height="24" rx="1.5"
         fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1.4" />
-      <line x1="122" y1="112" x2="122" y2="132" stroke={P.metal.steel} strokeWidth="1" />
-      <circle cx="117" cy="122" r="1.6" fill={P.metal.steel} />
+      <line x1="124" y1="128" x2="124" y2="152" stroke={P.metal.steel} strokeWidth="1" />
+      <circle cx="119" cy="140" r="1.6" fill={P.metal.steel} />
       {/* vent / periscope stub */}
-      <rect x="52" y="74" width="6" height="12" rx="2" fill={concreteDark} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="50" y="82" width="6" height="12" rx="2" fill={concreteDark} stroke={P.ink.line} strokeWidth="1" />
       {/* sandbag row along the base */}
-      {[46, 60, 74, 130, 144].map(x => (
-        <ellipse key={x} cx={x} cy="130" rx="8" ry="5" fill={P.ground.sand} stroke={P.ink.line} strokeWidth="0.8" />
+      {[44, 58, 72, 132, 146].map(x => (
+        <ellipse key={x} cx={x} cy="148" rx="8" ry="5" fill={P.ground.sand} stroke={P.ink.line} strokeWidth="0.8" />
       )).join('')}
-      <g className="cq-bunker-standard"><Banner x={44} y={92} palette={palette} scale={0.7} /></g>
+      <g className="cq-bunker-standard"><Banner x={42} y={100} palette={palette} scale={0.7} /></g>
     </BuildingFrame>
   );
 }
