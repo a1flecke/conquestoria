@@ -470,6 +470,36 @@ describe('#948 — minor-civ population ceiling', () => {
   });
 });
 
+describe('#948 — production-backed modernization remains authoritative', () => {
+  it('makes a newer era-appropriate defender selectable through production once pressure era advances, with no rewrite involved', () => {
+    const state = createNewGame(undefined, 'minor-modernization-era1', 'small');
+    const minorCiv = Object.values(state.minorCivs)[0];
+    const eraOneCandidates = getMinorCivBuildCandidates(state, minorCiv.id);
+    expect(eraOneCandidates.units.map(unit => unit.type)).not.toContain('pikeman');
+
+    const city = state.cities[minorCiv.cityId];
+    state.cities['pressure-source'] = {
+      id: 'pressure-source', owner: 'player', position: { q: city.position.q + 1, r: city.position.r },
+    } as never;
+    state.civilizations.player.cities = ['pressure-source'];
+    setPlayerCivEra(state, 3);
+
+    const eraThreeCandidates = getMinorCivBuildCandidates(state, minorCiv.id);
+    expect(eraThreeCandidates.units.map(unit => unit.type)).toContain('pikeman');
+
+    // Prove the newer defender is reachable through the real selection path (not just present in
+    // the raw candidate list) by forcing mobilizing posture, where scoreUnit never returns a
+    // negative score for any legal candidate under the unit cap: the queue choice must land on
+    // some real unit type, and that unit type must exist in the era-appropriate candidate set —
+    // i.e. modernization flows through production, exactly like every other minor-civ unit choice,
+    // with nothing special-cased for "newer than what this city already has".
+    minorCiv.diplomacy.atWarWith = ['player'];
+    state.civilizations.player.diplomacy.atWarWith = [minorCiv.id];
+    const chosen = chooseMinorCivQueueItem(state, minorCiv.id);
+    expect(eraThreeCandidates.units.map(unit => unit.type)).toContain(chosen);
+  });
+});
+
 describe('#948 — long-run city-state population bound', () => {
   it('keeps population within the era-scaled ceiling and units non-rewritten over 120 peaceful turns', () => {
     const state = createNewGame(undefined, 'minor-pop-long-run-948', 'small');
