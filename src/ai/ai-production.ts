@@ -327,7 +327,7 @@ function unrestReliefScore(
   cityId: string,
   buildingId: string,
 ): number {
-  if (!UNREST_RELIEF_SOURCES.some(source => source.id === buildingId)) return 0;
+  if (!UNREST_RELIEF_SOURCES.some(source => source.buildingId === buildingId)) return 0;
   const ownerHappiness = getCivHappinessFromResources(state, civId);
   const before = computeUnrestPressure(cityId, state, ownerHappiness);
   if (before <= 0) return 0; // nothing to relieve — skip the second (O(cities)) pressure pass

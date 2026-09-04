@@ -16,6 +16,7 @@ import {
   getConcessionCost,
   getContagionSpread,
   getCityHappinessFromBuildings,
+  UNREST_RELIEF_SOURCES,
   getUnrestPressureBreakdown,
   getUnrestYieldMultiplier,
   isCityProductionLocked,
@@ -1353,6 +1354,109 @@ describe('#926 — Military Administration unrest relief row', () => {
     const bus = new EventBus();
     expect(processFactionTurn(base, bus).cities['city-1'].unrestLevel).toBe(1);
     expect(processFactionTurn(relieved, bus).cities['city-1'].unrestLevel).toBe(0);
+  });
+});
+
+describe('#927 — Road & Post Network unrest relief row', () => {
+  function addOwnedRoadChain(state: GameState, endQ: number): void {
+    for (let q = 1; q < endQ; q++) {
+      state.map.tiles[`${q},0`] = {
+        coord: { q, r: 0 }, terrain: 'plains', elevation: 'lowland', resource: null,
+        improvement: 'none', owner: 'player', improvementTurnsLeft: 0, hasRiver: false,
+        wonder: null, hasRoad: true,
+      };
+    }
+  }
+
+  it('keeps raw distance visible and emits bounded relief for an owned connected road chain', () => {
+    const state = makeState({ cityPosition: { q: 12, r: 0 }, capitalPosition: { q: 0, r: 0 }, era: 4 });
+    addOwnedRoadChain(state, 12);
+    state.civilizations.player!.techState.completed = ['military-logistics'];
+    const rows = getUnrestPressureBreakdown('city-1', state);
+    expect(rows.find(row => row.label === 'Distance from capital')?.amount).toBe(14);
+    expect(rows.find(row => row.label === 'Road & Post Network')?.amount).toBe(-5);
+  });
+
+  it('requires Military Logistics and a complete currently-owned land route (negative)', () => {
+    const state = makeState({ cityPosition: { q: 12, r: 0 }, capitalPosition: { q: 0, r: 0 }, era: 4 });
+    addOwnedRoadChain(state, 12);
+    state.civilizations.player!.techState.completed = [];
+    expect(getUnrestPressureBreakdown('city-1', state)
+      .find(row => row.label === 'Road & Post Network')).toBeUndefined();
+
+    state.civilizations.player!.techState.completed = ['military-logistics'];
+    state.map.tiles['6,0'] = { ...state.map.tiles['6,0']!, owner: 'ai-1' };
+    expect(getUnrestPressureBreakdown('city-1', state)
+      .find(row => row.label === 'Road & Post Network')).toBeUndefined();
+
+    state.map.tiles['6,0'] = { ...state.map.tiles['6,0']!, owner: 'player', terrain: 'coast' };
+    expect(getUnrestPressureBreakdown('city-1', state)
+      .find(row => row.label === 'Road & Post Network')).toBeUndefined();
+  });
+
+  it('exposes no AI research value for a city without a qualifying current or buildable route', () => {
+    const state = makeState({ cityPosition: { q: 12, r: 0 }, capitalPosition: { q: 0, r: 0 }, era: 4 });
+    addOwnedRoadChain(state, 12);
+    state.civilizations.player!.techState.completed = ['road-building', 'tactics'];
+    const source = UNREST_RELIEF_SOURCES.find(candidate => candidate.id === 'road-post-network')!;
+    expect(source.isPotentiallyUseful?.(state.cities['city-1']!, state, { connectedOwnedRoadCityIdsByCivId: new Map() }))
+      .toBe(true);
+
+    state.map.tiles['6,0'] = { ...state.map.tiles['6,0']!, owner: 'ai-1' };
+    expect(source.isPotentiallyUseful?.(state.cities['city-1']!, state, { connectedOwnedRoadCityIdsByCivId: new Map() }))
+      .toBe(false);
+  });
+
+  it('stacks after Courthouse without changing the raw rows or violating their residual floors', () => {
+    const state = makeState({ cityCount: 12, cityPosition: { q: 11, r: 0 }, capitalPosition: { q: 0, r: 0 }, era: 4 });
+    addOwnedRoadChain(state, 11);
+    state.civilizations.player!.techState.completed = ['military-logistics'];
+    const roadOnly = getUnrestPressureBreakdown('city-1', state);
+    const withCourthouse = getUnrestPressureBreakdown('city-1', addBuilding(state, 'city-1', 'courthouse'));
+    const rawDistance = roadOnly.find(row => row.label === 'Distance from capital')?.amount ?? 0;
+    const rawOverextension = roadOnly.find(row => row.label === 'Empire overextension')?.amount ?? 0;
+    const relief = withCourthouse
+      .filter(row => row.label === 'Courthouse' || row.label === 'Road & Post Network')
+      .reduce((total, row) => total - row.amount, 0);
+
+    expect(withCourthouse.find(row => row.label === 'Distance from capital')?.amount).toBe(rawDistance);
+    expect(withCourthouse.find(row => row.label === 'Empire overextension')?.amount).toBe(rawOverextension);
+    expect(relief).toBeLessThanOrEqual(rawDistance + rawOverextension - 2);
+    expect(withCourthouse.find(row => row.label === 'Road & Post Network')?.amount).toBeLessThanOrEqual(0);
+  });
+
+  it('is keyed to the city owner rather than the hot-seat viewer', () => {
+    const base = makeState({ cityPosition: { q: 12, r: 0 }, capitalPosition: { q: 0, r: 0 }, era: 4 });
+    addOwnedRoadChain(base, 12);
+    const owner = 'ai-1';
+    const cities = Object.fromEntries(
+      Object.entries(base.cities).map(([id, city]) => [id, { ...city, owner }]),
+    );
+    for (const tile of Object.values(base.map.tiles)) tile.owner = owner;
+    const hotSeatState: GameState = {
+      ...base,
+      currentPlayer: owner,
+      cities,
+      civilizations: {
+        ...base.civilizations,
+        player: { ...base.civilizations.player, cities: [] },
+        [owner]: {
+          ...base.civilizations[owner],
+          isHuman: true,
+          cities: base.civilizations.player.cities,
+          techState: { ...base.civilizations.player.techState, completed: ['military-logistics'] },
+        },
+      },
+    };
+
+    const row = getUnrestPressureBreakdown('city-1', hotSeatState)
+      .find(candidate => candidate.label === 'Road & Post Network');
+    const otherViewerRow = getUnrestPressureBreakdown(
+      'city-1', { ...hotSeatState, currentPlayer: 'player' },
+    ).find(candidate => candidate.label === 'Road & Post Network');
+
+    expect(row?.amount).toBeLessThan(0);
+    expect(otherViewerRow).toEqual(row);
   });
 });
 

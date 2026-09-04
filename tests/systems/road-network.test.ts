@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { City, GameState, HexTile } from '@/core/types';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
-import { getCitiesConnectedToCapital, getOwnedRoadTileCount, getRoadBuildTarget, resolveTileHasRail } from '@/systems/road-network';
+import {
+  canConnectCityToCapitalByOwnedRoad,
+  getCitiesConnectedToCapital,
+  getOwnedRoadTileCount,
+  getRoadBuildTarget,
+  resolveTileHasRail,
+} from '@/systems/road-network';
 
 function tile(overrides: Partial<HexTile>): HexTile {
   return {
@@ -163,6 +169,83 @@ describe('getCitiesConnectedToCapital', () => {
     });
     expect(getCitiesConnectedToCapital(s, 'player').size).toBe(0);
   });
+
+  it('owned-road policy rejects foreign and neutral road segments', () => {
+    const s = baseState({
+      map: makeMap(4, false, new Set(['1,0', '2,0'])),
+      cities: {
+        capital: city({ id: 'capital', position: { q: 0, r: 0 } }),
+        outpost: city({ id: 'outpost', position: { q: 3, r: 0 } }),
+      },
+      civilizations: { player: { ...baseState().civilizations.player, cities: ['capital', 'outpost'] } },
+    });
+    s.map.tiles['1,0'] = { ...s.map.tiles['1,0']!, owner: 'rival' };
+    s.map.tiles['2,0'] = { ...s.map.tiles['2,0']!, owner: null };
+    expect(getCitiesConnectedToCapital(s, 'player', 'owned-road').has('outpost')).toBe(false);
+    expect(getCitiesConnectedToCapital(s, 'player').has('outpost')).toBe(true);
+  });
+
+  it('owned-road policy rejects a malformed water-road crossing', () => {
+    const s = baseState({
+      map: makeMap(3, false, new Set(['1,0'])),
+      cities: {
+        capital: city({ id: 'capital', position: { q: 0, r: 0 } }),
+        outpost: city({ id: 'outpost', position: { q: 2, r: 0 } }),
+      },
+      civilizations: { player: { ...baseState().civilizations.player, cities: ['capital', 'outpost'] } },
+    });
+    s.map.tiles['1,0'] = { ...s.map.tiles['1,0']!, terrain: 'coast' };
+
+    expect(getCitiesConnectedToCapital(s, 'player', 'owned-road').has('outpost')).toBe(false);
+  });
+
+  it('owned-road policy supports a complete current-owner route across the wrap edge', () => {
+    const s = baseState({
+      map: makeMap(10, true, new Set(['9,0'])),
+      cities: {
+        capital: city({ id: 'capital', position: { q: 0, r: 0 } }),
+        outpost: city({ id: 'outpost', position: { q: 9, r: 0 } }),
+      },
+      civilizations: { player: { ...baseState().civilizations.player, cities: ['capital', 'outpost'] } },
+    });
+
+    expect(getCitiesConnectedToCapital(s, 'player', 'owned-road').has('outpost')).toBe(true);
+  });
+});
+
+describe('canConnectCityToCapitalByOwnedRoad', () => {
+  it('recognizes an owned land corridor that a player can finish with roads', () => {
+    const s = baseState({
+      map: makeMap(3, false, new Set()),
+      cities: {
+        capital: city({ id: 'capital', position: { q: 0, r: 0 } }),
+        outpost: city({ id: 'outpost', position: { q: 2, r: 0 } }),
+      },
+      civilizations: { player: { ...baseState().civilizations.player, cities: ['capital', 'outpost'] } },
+    });
+
+    expect(canConnectCityToCapitalByOwnedRoad(s, 'player', 'outpost')).toBe(true);
+  });
+
+  it('rejects an island and a foreign corridor (negative)', () => {
+    const s = baseState({
+      map: makeMap(3, false, new Set()),
+      cities: {
+        capital: city({ id: 'capital', position: { q: 0, r: 0 } }),
+        outpost: city({ id: 'outpost', position: { q: 2, r: 0 } }),
+      },
+      civilizations: { player: { ...baseState().civilizations.player, cities: ['capital', 'outpost'] } },
+    });
+    for (let r = 0; r < 3; r++) {
+      s.map.tiles[`1,${r}`] = { ...s.map.tiles[`1,${r}`]!, owner: 'rival' };
+    }
+    expect(canConnectCityToCapitalByOwnedRoad(s, 'player', 'outpost')).toBe(false);
+
+    for (let r = 0; r < 3; r++) {
+      s.map.tiles[`1,${r}`] = { ...s.map.tiles[`1,${r}`]!, owner: 'player', terrain: 'coast' };
+    }
+    expect(canConnectCityToCapitalByOwnedRoad(s, 'player', 'outpost')).toBe(false);
+  });
 });
 
 describe('getOwnedRoadTileCount', () => {
@@ -205,6 +288,29 @@ describe('getRoadBuildTarget', () => {
     expect(target).toEqual({ q: 1, r: 0 });
   });
 
+  it('uses the owned-road policy after Military Logistics, not a foreign completed link', () => {
+    const s = baseState({
+      map: makeMap(3, false, new Set(['1,0'])),
+      cities: {
+        capital: city({ id: 'capital', position: { q: 0, r: 0 } }),
+        outpost: city({ id: 'outpost', position: { q: 2, r: 0 } }),
+      },
+      civilizations: {
+        player: {
+          ...baseState().civilizations.player,
+          cities: ['capital', 'outpost'],
+          techState: {
+            ...baseState().civilizations.player.techState,
+            completed: ['road-building', 'military-logistics'],
+          },
+        },
+      },
+    });
+    s.map.tiles['1,0'] = { ...s.map.tiles['1,0']!, owner: 'rival' };
+
+    expect(getRoadBuildTarget(s, 'player')).toBeNull();
+  });
+
   it('returns null without road-building tech (negative)', () => {
     const s = baseState({
       map: makeMap(3, false, new Set()),
@@ -218,6 +324,7 @@ describe('getRoadBuildTarget', () => {
     });
     expect(getRoadBuildTarget(s, 'player')).toBeNull();
   });
+
 });
 
 describe('resolveTileHasRail', () => {

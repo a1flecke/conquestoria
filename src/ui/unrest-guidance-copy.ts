@@ -14,6 +14,10 @@ export function unrestRecommendationCopy(rec: UnrestRecommendation): { icon: str
       return { icon: '🛡️', text: 'Build Military Administration here (City screen) to reduce unrest from war and from a city you just captured.' };
     case 'research-magistracy':
       return { icon: '🔬', text: 'Research Magistracy first (Tech screen), then you can build a Courthouse here.' };
+    case 'research-military-logistics':
+      return { icon: '🔬', text: 'Research Military Logistics first (Tech screen), then roads can help your far cities stay connected.' };
+    case 'connect-city-road-network':
+      return { icon: '🛤️', text: 'Connect this city to your capital with roads through your land to make it easier to govern.' };
     case 'garrison-unit':
       return { icon: '⚔️', text: 'Move one of your soldiers into this city to keep order.' };
     case 'train-garrison-unit':

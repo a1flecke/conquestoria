@@ -12,6 +12,7 @@ import { getCivHappinessFromResources, getCivAvailableResources } from './resour
 import { resolveCivilizationEra } from './tech-definitions';
 import { UNIT_DEFINITIONS } from './unit-system';
 import { hexDistance } from './hex-utils';
+import { canConnectCityToCapitalByOwnedRoad, getCitiesConnectedToCapital } from './road-network';
 
 // #919 MR3 — "given this city's pressure breakdown, what should the player do?"
 // This module is the single source of truth for that answer, and it returns
@@ -22,6 +23,7 @@ import { hexDistance } from './hex-utils';
 
 export type UnrestRecommendationKind =
   | 'build-courthouse' | 'research-magistracy'
+  | 'research-military-logistics' | 'connect-city-road-network'
   | 'build-military-administration'
   | 'garrison-unit' | 'train-garrison-unit'
   | 'make-peace' | 'await-conquest-settle' | 'research-constitutional-law'
@@ -106,6 +108,16 @@ const SPRAWL_RESOLVER: GuidanceResolver = {
   matchesRow: label => label === 'Empire overextension' || label === 'Distance from capital',
   resolve: ({ city, state, row }) => {
     const base = { rowLabel: row.label, amount: row.amount };
+    const completed = state.civilizations[city.owner]?.techState.completed ?? [];
+    if (row.label === 'Distance from capital' && !completed.includes('military-logistics')
+      && completed.includes('road-building') && completed.includes('tactics')) {
+      return { ...base, kind: 'research-military-logistics', availability: 'research-first', params: { techId: 'military-logistics' } };
+    }
+    if (row.label === 'Distance from capital' && completed.includes('military-logistics')
+      && !getCitiesConnectedToCapital(state, city.owner, 'owned-road').has(city.id)
+      && canConnectCityToCapitalByOwnedRoad(state, city.owner, city.id)) {
+      return { ...base, kind: 'connect-city-road-network', availability: 'now' };
+    }
     if (buildingBuildableHere('courthouse', state, city)) {
       return { ...base, kind: 'build-courthouse', availability: 'now' };
     }

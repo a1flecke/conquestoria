@@ -29,6 +29,13 @@ describe('unrestRecommendationCopy', () => {
     expect(text).toMatch(/first/i);
   });
 
+  it('#927: road-network copy names its prerequisite screen and owned-territory constraint', () => {
+    expect(unrestRecommendationCopy(rec({ kind: 'research-military-logistics' })).text)
+      .toMatch(/military logistics.*tech screen/i);
+    expect(unrestRecommendationCopy(rec({ kind: 'connect-city-road-network' })).text)
+      .toMatch(/roads through your land/i);
+  });
+
   it('make-peace states the number of enemies from params.warCivIds', () => {
     const { text } = unrestRecommendationCopy(rec({ kind: 'make-peace', rowLabel: 'War weariness', amount: 24, params: { warCivIds: ['a', 'b'] } }));
     expect(text).toMatch(/\b2\b/);
@@ -55,7 +62,8 @@ describe('unrestRecommendationCopy', () => {
 
   it('every kind returns a non-empty icon and text', () => {
     const kinds: UnrestRecommendationKind[] = [
-      'build-courthouse', 'build-military-administration', 'research-magistracy', 'garrison-unit', 'train-garrison-unit',
+      'build-courthouse', 'build-military-administration', 'research-magistracy', 'research-military-logistics',
+      'connect-city-road-network', 'garrison-unit', 'train-garrison-unit',
       'make-peace', 'await-conquest-settle', 'research-constitutional-law', 'fix-economy',
       'counter-espionage', 'stabilise-contagion-source', 'build-faith-building',
       'acquire-luxury', 'build-happiness-building', 'appease-or-concede',

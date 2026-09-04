@@ -262,6 +262,25 @@ describe('AI strategic research planning', () => {
     expect(sprawlOnly?.scoreComponents.unrestReliefTechBonus).toBeGreaterThan(0);
   });
 
+  it('#927: generic relief research recognizes a direct-tech road network source', () => {
+    const techs = [
+      tech('aaa-plain', 'civics'),
+      tech('military-logistics', 'civics'),
+    ];
+    const decision = planAIResearch(context(techs, {
+      pressuredReliefCityIdsByBuildingId: {
+        courthouse: [],
+        'military-administration': [],
+        'road-post-network': ['frontier-1', 'frontier-2'],
+      },
+    }));
+
+    expect(decision?.frontierTechId).toBe('military-logistics');
+    expect(decision?.scoreComponents.unrestReliefTechBonus).toBeGreaterThan(0);
+    expect(decision?.trace.candidates.find(candidate => candidate.id === 'military-logistics')?.reasonCodes)
+      .toContain('unrest-relief');
+  });
+
   it('bounds search to four edges and twenty-four downstream targets', () => {
     const techs = [tech('root', 'science')];
     for (let index = 1; index <= 30; index++) {

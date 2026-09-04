@@ -49,7 +49,9 @@ const BUILDING_ERA_WINDOW = 4;
 
 // #919: administration-ladder relief buildings (Courthouse, future rungs) are stability,
 // not economic output — excluded from the reference economy (see methodology note above).
-const UNREST_RELIEF_BUILDING_IDS = new Set(UNREST_RELIEF_SOURCES.map(source => source.id));
+const UNREST_RELIEF_BUILDING_IDS = new Set(
+  UNREST_RELIEF_SOURCES.flatMap(source => source.buildingId ? [source.buildingId] : []),
+);
 
 export type ReferenceEconomyProfile = 'bounded' | 'maximal';
 
