@@ -328,7 +328,7 @@ describe('#855 — spy unit exclusion from minor-civ defense catalog', () => {
 function boostCityToGrassland(state: ReturnType<typeof createNewGame>, cityOwner: string, ownedTiles: { q: number; r: number }[]): void {
   for (const coord of ownedTiles) {
     const key = hexKey(coord);
-    state.map.tiles[key] = { ...state.map.tiles[key], terrain: 'grassland', resource: undefined, owner: cityOwner };
+    state.map.tiles[key] = { ...state.map.tiles[key], terrain: 'grassland', resource: null, owner: cityOwner };
   }
 }
 
