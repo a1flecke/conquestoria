@@ -714,7 +714,17 @@ export function createCityPanel(
   const allTechUnlockedUnits = getTrainableUnitsForCity(city, completedTechs, state.map, currentCiv.civType, undefined, cityFollowsOwnFaith(state, city));
   const lockedUnits = allTechUnlockedUnits.filter(u => !availableUnits.some(a => a.type === u.type));
 
-  const allTechUnlockedBuildings = getAvailableBuildings(city, completedTechs, state.map, undefined)
+  const allTechUnlockedBuildings = getAvailableBuildings(
+    city,
+    completedTechs,
+    state.map,
+    undefined,
+    undefined,
+    undefined,
+    city.owner,
+    undefined,
+    getCapitalCityId(state, city.owner),
+  )
     .filter(b => !b.nationalProject);
   const lockedBuildings = allTechUnlockedBuildings.filter(b => !availableBuildings.some(a => a.id === b.id));
 

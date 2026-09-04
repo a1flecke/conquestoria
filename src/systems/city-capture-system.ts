@@ -560,14 +560,14 @@ export function resolveMajorCityCapture(
 
   if (forcedDisposition === 'occupy' && previousOwner?.breakaway?.originOwnerId === newOwnerId) {
     const reconquered = reconquerBreakawayCity(state, newOwnerId, previousOwnerId, cityId);
-    const nextState = {
+    const nextState = removeNationalProjectsForCity({
       ...reconquered,
       legendaryWonderProjects: transferLegendaryWonderProjectsForCity(
         reconquered.legendaryWonderProjects,
         cityId,
         newOwnerId,
       ),
-    };
+    }, cityId);
     const territoryResult = recalculateTerritory(nextState, {
       reason: 'capture',
       preserveCurrentHolderOnTie: true,
@@ -737,7 +737,10 @@ export function transferCapturedCityOwnership(
 
   if (previousOwner?.breakaway?.originOwnerId === newOwnerId) {
     return recalculateTerritory(
-      reconquerBreakawayCity(state, newOwnerId, previousOwnerId, cityId),
+      removeNationalProjectsForCity(
+        reconquerBreakawayCity(state, newOwnerId, previousOwnerId, cityId),
+        cityId,
+      ),
       { reason: 'capture', preserveCurrentHolderOnTie: true },
     ).state;
   }

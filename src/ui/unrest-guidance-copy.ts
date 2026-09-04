@@ -16,6 +16,10 @@ export function unrestRecommendationCopy(rec: UnrestRecommendation): { icon: str
       return { icon: '🔬', text: 'Research Magistracy first (Tech screen), then you can build a Courthouse here.' };
     case 'research-military-logistics':
       return { icon: '🔬', text: 'Research Military Logistics first (Tech screen), then roads can help your far cities stay connected.' };
+    case 'research-regional-capital':
+      return { icon: '🔬', text: 'Research Political Philosophy first (Tech screen), then you can establish a Regional Capital.' };
+    case 'build-regional-capital':
+      return { icon: '🏛️', text: 'Establish a Regional Capital here to reduce distance pressure in nearby cities.' };
     case 'connect-city-road-network':
       return { icon: '🛤️', text: 'Connect this city to your capital with roads through your land to make it easier to govern.' };
     case 'garrison-unit':

@@ -332,3 +332,13 @@ describe('unrest-guidance', () => {
     expect(getTopUnrestLever('city-1', withCh)?.kind).not.toBe('build-courthouse');
   });
 });
+
+describe('#927 Regional Capital guidance', () => {
+  it('recommends its research before the unlock and a build after the unlock', () => {
+    const before = makeState({ cityPosition: { q: 10, r: 0 }, era: 4, completed: ['civil-service', 'philosophy'] });
+    expect(getUnrestRecommendations('city-1', before).some(rec => rec.kind === 'research-regional-capital')).toBe(true);
+
+    const after = makeState({ cityPosition: { q: 10, r: 0 }, era: 4, completed: [...completedTechsForEra(4), 'civil-service', 'philosophy', 'political-philosophy'] });
+    expect(getUnrestRecommendations('city-1', after).some(rec => rec.kind === 'build-regional-capital')).toBe(true);
+  });
+});
