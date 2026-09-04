@@ -194,4 +194,42 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
       },
     ],
   },
+
+  'fort-citadel-visuals-712': {
+    name: 'fort-citadel-visuals-712',
+    description:
+      'Visual-review harness for #712: a player coastal city that already holds Walls, a '
+      + 'Coastal Battery and a Bunker (open the city panel to see both bespoke building '
+      + 'sprites), plus two Workers on guaranteed land beside it and the Fortresses + '
+      + 'Fortification Engineering techs pre-granted. Manual steps: select each Worker, choose '
+      + '"Build Fort", then end the turn ~5 times — the finished markers render as Citadels '
+      + '(Fortification Engineering is granted; the plain Fort silhouette is on the contact '
+      + 'sheet at docs/reviews/assets/issue-712/sprite-preview.html). 4000 gold is provided so '
+      + 'the buildings can also be rush-bought in a second, settler-founded city. Includes a '
+      + 'player capital + war target so ending the turn does not trigger an instant '
+      + 'domination result.',
+    seed: 'scenario-fort-citadel-visuals-712',
+    base: {
+      kind: 'solo',
+      config: { civType: 'generic', mapSize: 'small', opponentCount: 1, gameTitle: 'Fort / Citadel Visuals 712' },
+    },
+    steps: [
+      { kind: 'terrain', position: { q: 0, r: 0 }, terrain: 'grassland' },
+      { kind: 'terrain', position: { q: 2, r: 2 }, terrain: 'grassland' },
+      { kind: 'terrain', position: { q: 1, r: 2 }, terrain: 'plains' },
+      { kind: 'terrain', position: { q: 3, r: 2 }, terrain: 'plains' },
+      { kind: 'terrain', position: { q: 2, r: 3 }, terrain: 'ocean' },
+      { kind: 'terrain', position: { q: 3, r: 3 }, terrain: 'coast' },
+      { kind: 'tech', civId: 'player', techIds: ['fortresses', 'fortification-engineering', 'naval-armor', 'reinforced-concrete'] },
+      { kind: 'gold', civId: 'player', amount: 4000 },
+      { kind: 'city', civId: 'player', position: { q: 0, r: 0 } },
+      {
+        kind: 'city', civId: 'player', position: { q: 2, r: 2 },
+        overrides: { buildings: ['walls', 'coastal_battery', 'bunker'] },
+      },
+      { kind: 'unit', civId: 'player', type: 'worker', position: { q: 1, r: 2 } },
+      { kind: 'unit', civId: 'player', type: 'worker', position: { q: 3, r: 2 } },
+      { kind: 'diplomacy', civA: 'player', civB: 'ai-1', status: 'war' },
+    ],
+  },
 };

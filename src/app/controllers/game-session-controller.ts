@@ -48,6 +48,7 @@ import { hexToPixel } from '@/systems/hex-utils';
 import { fortifyUnitInState, unfortifyUnitInState } from '@/systems/unit-lifecycle-system';
 import { initSprites } from '@/renderer/sprites/sprite-loader';
 import { preloadOutpostMarker } from '@/renderer/improvements/resource-outpost-marker';
+import { preloadFortMarker } from '@/renderer/improvements/fort-marker';
 import { preloadFamineBadgeMarker } from '@/renderer/improvements/famine-badge-marker';
 import { preloadReligionBadgeMarker } from '@/renderer/improvements/religion-badge-marker';
 import { preloadRailSegment } from '@/renderer/improvements/rail-segment-loader';
@@ -237,6 +238,7 @@ export function createGameSessionController(deps: GameSessionControllerDeps): Ga
     const spritesReady = initSprites(civColors);
     void spritesReady.catch(() => {});
     preloadOutpostMarker().catch(() => {});
+    preloadFortMarker().catch(() => {});
     preloadFamineBadgeMarker().catch(() => {});
     preloadReligionBadgeMarker().catch(() => {});
     preloadRailSegment().catch(() => {});

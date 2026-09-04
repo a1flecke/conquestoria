@@ -19,6 +19,7 @@ import {
   BroadcastTowerSprite, PrecisionFarmSprite, TelemedicineHubSprite, SmartGridSprite,
   RocketProgramSprite,
   RadarStationSprite,
+  StarFortSprite, WallsSprite, BunkerSprite, CoastalBatterySprite,
 } from '@/renderer/sprites/buildings';
 
 // Derive the authoritative unit-type list from UNIT_DEFINITIONS so this test
@@ -393,6 +394,51 @@ describe('#711 siege and capital-ship sprites are not aliases of their former do
 
     expect(actual).not.toBe(former);
     for (const marker of markers) expect(actual, `${type} missing ${marker}`).toContain(marker);
+  });
+});
+
+describe('#712 defensive-infrastructure sprites are bespoke, not placeholder aliases', () => {
+  const palette = derivePalette('#4a90d9');
+
+  it('Bunker no longer aliases the Star Fort sprite', () => {
+    const bunker = BUILDING_SPRITE_CATALOG.bunker({ palette, svgOnly: true });
+    expect(bunker).not.toBe(StarFortSprite({ palette, svgOnly: true }));
+    expect(BUILDING_SPRITE_CATALOG.bunker).toBe(BunkerSprite);
+  });
+
+  it('Bunker reads as a modern hardened casemate, not a fort or castle', () => {
+    const bunker = BUILDING_SPRITE_CATALOG.bunker({ palette, svgOnly: true });
+    for (const marker of ['cq-bunker-hull', 'cq-bunker-slit', 'cq-bunker-berm', 'cq-bunker-door', 'cq-bunker-standard']) {
+      expect(bunker, `bunker missing ${marker}`).toContain(marker);
+    }
+    // Static, hardened — no idle bob, and none of the Star Fort's star geometry.
+    expect(bunker).not.toContain('cq-anim-idle');
+    expect(bunker).not.toContain('cq-citadel-keep');
+  });
+
+  it('Coastal Battery reads as fixed shore artillery, distinct from Walls / Star Fort', () => {
+    const battery = BUILDING_SPRITE_CATALOG.coastal_battery({ palette, svgOnly: true });
+    expect(battery).not.toBe(StarFortSprite({ palette, svgOnly: true }));
+    expect(battery).not.toBe(WallsSprite({ palette, svgOnly: true }));
+    expect(BUILDING_SPRITE_CATALOG.coastal_battery).toBe(CoastalBatterySprite);
+    for (const marker of [
+      'cq-coastal-battery-parapet', 'cq-coastal-battery-gun-l', 'cq-coastal-battery-gun-r',
+      'cq-coastal-battery-rangefinder', 'cq-coastal-battery-water', 'cq-coastal-battery-standard',
+    ]) {
+      expect(battery, `coastal battery missing ${marker}`).toContain(marker);
+    }
+  });
+
+  it.each([
+    ['bunker', BunkerSprite, 'cq-bunker-hull'],
+    ['coastal_battery', CoastalBatterySprite, 'cq-coastal-battery-parapet'],
+  ] as const)('%s keeps faction identity to a small standard, not a full recolour', (_id, fn, structuralMarker) => {
+    const a = fn({ palette: derivePalette('#c0392b'), svgOnly: true });
+    const b = fn({ palette: derivePalette('#27ae60'), svgOnly: true });
+    // The palette moves the standard, but the load-bearing structure is unchanged.
+    expect(a).not.toBe(b);
+    expect(a).toContain(structuralMarker);
+    expect(b).toContain(structuralMarker);
   });
 });
 

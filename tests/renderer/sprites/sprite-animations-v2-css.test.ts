@@ -88,7 +88,15 @@ describe('sprite-animations-v2.css ambient classes are not silently inert', () =
     // sections already cover extensively; cq-shadow-detached is intentionally a static
     // opacity/scale override (see [data-kind="beast-winged"] .cq-shadow-detached), not
     // an animation — both would be false positives for "silently inert".
-    const notExpectedToAnimate = new Set(['cq-sprite-figure', 'cq-shadow-detached']);
+    // The #712 defensive-infrastructure markers (Bunker, Coastal Battery) are deliberately
+    // static hardened structures — see `.claude/rules/sprites.md` / issue #712's
+    // "static defensive infrastructure is acceptable; do not invent animation" directive.
+    const notExpectedToAnimate = new Set([
+      'cq-sprite-figure', 'cq-shadow-detached',
+      'cq-bunker-hull', 'cq-bunker-slit', 'cq-bunker-berm', 'cq-bunker-door', 'cq-bunker-standard',
+      'cq-coastal-battery-parapet', 'cq-coastal-battery-water', 'cq-coastal-battery-rangefinder',
+      'cq-coastal-battery-standard',
+    ]);
     const missing = [...usedClassNames].filter(
       name => !notExpectedToAnimate.has(name) && !hasRealAnimationRule(name),
     );
