@@ -341,4 +341,14 @@ describe('#927 Regional Capital guidance', () => {
     const after = makeState({ cityPosition: { q: 10, r: 0 }, era: 4, completed: [...completedTechsForEra(4), 'civil-service', 'philosophy', 'political-philosophy'] });
     expect(getUnrestRecommendations('city-1', after).some(rec => rec.kind === 'build-regional-capital')).toBe(true);
   });
+
+  it('does not recommend a seat in a city where the shared residual leaves it no relief to provide', () => {
+    const state = makeState({
+      cityPosition: { q: 6, r: 0 },
+      era: 4,
+      completed: [...completedTechsForEra(4), 'civil-service', 'philosophy', 'political-philosophy'],
+    });
+
+    expect(getUnrestRecommendations('city-1', state).some(rec => rec.kind === 'build-regional-capital')).toBe(false);
+  });
 });
