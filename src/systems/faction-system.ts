@@ -190,7 +190,68 @@ const REGIONAL_CAPITAL_RELIEF: UnrestReliefSource = {
   },
 };
 
-export const UNREST_RELIEF_SOURCES: UnrestReliefSource[] = [COURTHOUSE_RELIEF, MILITARY_ADMINISTRATION_RELIEF, ROAD_POST_NETWORK_RELIEF, REGIONAL_CAPITAL_RELIEF];
+// #927 Rung 4 — Bureaucracy. A pure research unlock (no building, no national
+// project — avoids duplicating Courthouse or Regional Capital) that raises the
+// empire's effective free-city allowance, i.e. how many cities it can administer
+// before Empire overextension pressure starts biting as hard. Targets ONLY
+// Empire overextension — never Distance from capital, war weariness, or recent
+// conquest. Modeled as: recompute the base overextension formula with a larger
+// free-city allowance, relief = the difference. Bounded by BUREAUCRACY_MAX_RELIEF
+// and by the same COURTHOUSE_SPRAWL_FLOOR shared-residual convention Regional
+// Capital already uses (treating Courthouse/Road-Post/Regional Capital's already-
+// delivered relief as spent from the same D+O budget) so Courthouse + Bureaucracy
+// together can never erase all overextension pressure from an extreme empire.
+export const BUREAUCRACY_TECH_ID = 'separation-of-powers';
+// +3 free cities (allowance 6 -> 9) matches the pacing-reference-economy 'wide'
+// era 5-6 fixture (9 cities): a fully-invested wide empire (Courthouse + Bureaucracy)
+// lands exactly on the shared 2-point residual floor rather than under- or
+// over-shooting it (see the faction-system.test.ts "#927 Bureaucracy" stacking test).
+export const BUREAUCRACY_FREE_CITY_BONUS = 3;
+// 3 excess cities * 3 pressure/city — the natural ceiling of the formula below once
+// both the real and hypothetical allowance curves saturate at MAX_PRESSURE_EMPIRE;
+// kept explicit so a future slope/bonus change can't silently raise this past 9.
+export const BUREAUCRACY_MAX_RELIEF = 9;
+
+export function getBureaucracyReliefAmount(
+  city: City,
+  state: GameState,
+  rows: UnrestPressureRow[],
+  context: UnrestEvaluationContext = createUnrestEvaluationContext(),
+  regionalCapital: City | null = getRegionalCapitalCity(state, city.owner),
+): number {
+  const civ = state.civilizations[city.owner];
+  if (!civ) return 0;
+  const distance = rows.find(row => row.label === 'Distance from capital')?.amount ?? 0;
+  const overextension = rows.find(row => row.label === 'Empire overextension')?.amount ?? 0;
+  if (overextension === 0) return 0;
+  const hypotheticalOverextension = Math.min(
+    MAX_PRESSURE_EMPIRE,
+    Math.max(0, (civ.cities.length - (OVEREXTENSION_FREE_CITIES + BUREAUCRACY_FREE_CITY_BONUS)) * 3),
+  );
+  const rawRelief = overextension - hypotheticalOverextension;
+  const courthouse = city.buildings.includes('courthouse') ? getCourthouseReliefAmount(rows) : 0;
+  // Reuses the same per-evaluation connected-cities cache Road & Post Network
+  // populates via getOwnedRoadConnectedCities, instead of re-running the capital
+  // connectivity BFS a third time for this civ (Regional Capital's own formula
+  // already runs it uncached; see game-balance.md's Bureaucracy row for context).
+  const road = civ.techState.completed.includes('military-logistics')
+    && getOwnedRoadConnectedCities(state, city.owner, context).has(city.id)
+    ? getRoadPostNetworkReliefAmount(city, rows) : 0;
+  const regionalCapitalRelief = regionalCapital ? getRegionalCapitalReliefAmount(city, state, rows, regionalCapital) : 0;
+  const consumed = courthouse + road + regionalCapitalRelief;
+  return Math.min(rawRelief, BUREAUCRACY_MAX_RELIEF, Math.max(0, distance + overextension - COURTHOUSE_SPRAWL_FLOOR - consumed));
+}
+
+const BUREAUCRACY_RELIEF: UnrestReliefSource = {
+  id: 'bureaucracy', researchUnlockTechId: BUREAUCRACY_TECH_ID, targetRowLabels: ['Empire overextension'],
+  isActive: (city, state) => state.civilizations[city.owner]?.techState.completed.includes(BUREAUCRACY_TECH_ID) === true,
+  reliefRows: (city, state, rows, context) => {
+    const relief = getBureaucracyReliefAmount(city, state, rows, context);
+    return relief > 0 ? [{ label: 'Bureaucratic administration', amount: -relief }] : [];
+  },
+};
+
+export const UNREST_RELIEF_SOURCES: UnrestReliefSource[] = [COURTHOUSE_RELIEF, MILITARY_ADMINISTRATION_RELIEF, ROAD_POST_NETWORK_RELIEF, REGIONAL_CAPITAL_RELIEF, BUREAUCRACY_RELIEF];
 
 export function getUnrestReliefRows(
   city: City,

@@ -5,6 +5,7 @@ import {
   canGarrisonCity,
   getContagionSpread,
   CONQUEST_UNREST_DURATION,
+  BUREAUCRACY_TECH_ID,
   type UnrestPressureRow,
 } from './faction-system';
 import { getAvailableBuildings } from './city-system';
@@ -28,6 +29,7 @@ export type UnrestRecommendationKind =
   | 'build-courthouse' | 'research-magistracy'
   | 'research-military-logistics' | 'connect-city-road-network'
   | 'research-regional-capital' | 'build-regional-capital'
+  | 'research-bureaucracy'
   | 'build-military-administration'
   | 'garrison-unit' | 'train-garrison-unit'
   | 'make-peace' | 'await-conquest-settle' | 'research-constitutional-law'
@@ -113,6 +115,10 @@ const SPRAWL_RESOLVER: GuidanceResolver = {
   resolve: ({ city, state, row }) => {
     const base = { rowLabel: row.label, amount: row.amount };
     const completed = state.civilizations[city.owner]?.techState.completed ?? [];
+    if (row.label === 'Empire overextension' && !completed.includes(BUREAUCRACY_TECH_ID)
+      && completed.includes('constitutional-law')) {
+      return { ...base, kind: 'research-bureaucracy', availability: 'research-first', params: { techId: BUREAUCRACY_TECH_ID } };
+    }
     if (row.label === 'Distance from capital' && !completed.includes('political-philosophy')
       && completed.includes('civil-service') && completed.includes('philosophy')) {
       return { ...base, kind: 'research-regional-capital', availability: 'research-first', params: { techId: 'political-philosophy' } };

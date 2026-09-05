@@ -352,3 +352,30 @@ describe('#927 Regional Capital guidance', () => {
     expect(getUnrestRecommendations('city-1', state).some(rec => rec.kind === 'build-regional-capital')).toBe(false);
   });
 });
+
+describe('#927 Bureaucracy guidance', () => {
+  it('recommends researching Separation of Powers once its prerequisite is done', () => {
+    const state = makeState({
+      cityCount: 12, era: 6,
+      completed: [...completedTechsForEra(6).filter(id => id !== 'separation-of-powers'), 'constitutional-law'],
+    });
+    const rec = getUnrestRecommendations('city-1', state).find(r => r.rowLabel === 'Empire overextension');
+    expect(rec?.kind).toBe('research-bureaucracy');
+    expect(rec?.availability).toBe('research-first');
+  });
+
+  it('NEGATIVE: does not recommend Bureaucracy before its prerequisite Constitutional Law is done', () => {
+    const state = makeState({ cityCount: 12, era: 6, completed: ['tribal-council', 'code-of-laws', 'magistracy'] });
+    const rec = getUnrestRecommendations('city-1', state).find(r => r.rowLabel === 'Empire overextension');
+    expect(rec?.kind).not.toBe('research-bureaucracy');
+  });
+
+  it('stops recommending Bureaucracy once researched', () => {
+    const state = makeState({
+      cityCount: 12, era: 6,
+      completed: [...completedTechsForEra(6), 'constitutional-law', 'separation-of-powers'],
+    });
+    const recs = getUnrestRecommendations('city-1', state);
+    expect(recs.some(rec => rec.kind === 'research-bureaucracy')).toBe(false);
+  });
+});

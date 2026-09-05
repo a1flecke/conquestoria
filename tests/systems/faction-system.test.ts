@@ -21,6 +21,9 @@ import {
   getUnrestYieldMultiplier,
   isCityProductionLocked,
   processFactionTurn,
+  BUREAUCRACY_TECH_ID,
+  BUREAUCRACY_MAX_RELIEF,
+  OVEREXTENSION_FREE_CITIES,
 } from '@/systems/faction-system';
 import { BUILDINGS } from '@/systems/city-system';
 import { getEraAdvancementTechs } from '@/systems/tech-definitions';
@@ -618,6 +621,121 @@ describe('#927 Regional Capital unrest relief', () => {
     const rows = getUnrestPressureBreakdown('city-1', state);
     expect(rows).toContainEqual({ label: 'Distance from capital', amount: 10 });
     expect(rows).toContainEqual({ label: 'Regional Capital administration', amount: -8 });
+  });
+});
+
+describe('#927 Bureaucracy unrest relief', () => {
+  function withCompleted(state: GameState, techIds: string[]): GameState {
+    return {
+      ...state,
+      civilizations: {
+        ...state.civilizations,
+        player: {
+          ...state.civilizations.player,
+          techState: { ...state.civilizations.player.techState, completed: techIds },
+        },
+      },
+    };
+  }
+
+  it('adds no Bureaucratic administration row without the tech, even in a wide empire', () => {
+    // cityCount 8 -> 9 total cities -> overextension (9-6)*3 = 9.
+    const state = withCompleted(makeState({ cityCount: 8, cityPosition: { q: 0, r: 0 }, era: 6 }), []);
+    const rows = getUnrestPressureBreakdown('city-1', state);
+    expect(rows).toContainEqual({ label: 'Empire overextension', amount: 9 });
+    expect(rows.find(r => r.label === 'Bureaucratic administration')).toBeUndefined();
+  });
+
+  it('adds no relief when the empire is still within the base free-city allowance', () => {
+    // Default cityCount=1 -> 2 total cities -> no Empire overextension row at all.
+    const state = withCompleted(makeState({ cityPosition: { q: 0, r: 0 }, era: 6 }), [BUREAUCRACY_TECH_ID]);
+    const rows = getUnrestPressureBreakdown('city-1', state);
+    expect(rows.find(r => r.label === 'Empire overextension')).toBeUndefined();
+    expect(rows.find(r => r.label === 'Bureaucratic administration')).toBeUndefined();
+  });
+
+  it('grants bounded relief once researched, leaving a residual floor and the base row untouched', () => {
+    // 9 total cities -> overextension = 9. With the tech, hypothetical allowance is
+    // OVEREXTENSION_FREE_CITIES + 3 = 9, so hypothetical overextension = 0 and raw
+    // relief = 9, capped by the shared 2-point sprawl floor: min(9, 9, 9-2) = 7.
+    const state = withCompleted(makeState({ cityCount: 8, cityPosition: { q: 0, r: 0 }, era: 6 }), [BUREAUCRACY_TECH_ID]);
+    expect(state.civilizations.player.cities.length).toBe(OVEREXTENSION_FREE_CITIES + 3);
+    const rows = getUnrestPressureBreakdown('city-1', state);
+    expect(rows).toContainEqual({ label: 'Empire overextension', amount: 9 });
+    expect(rows).toContainEqual({ label: 'Bureaucratic administration', amount: -7 });
+    const total = rows.reduce((sum, r) => sum + r.amount, 0);
+    expect(total).toBeGreaterThanOrEqual(2); // residual sprawl floor
+  });
+
+  it('never grants more than BUREAUCRACY_MAX_RELIEF across a sweep of wide empire sizes', () => {
+    for (const cityCount of [6, 8, 10, 14, 20, 30]) {
+      const state = withCompleted(makeState({ cityCount, cityPosition: { q: 0, r: 0 }, era: 6 }), [BUREAUCRACY_TECH_ID]);
+      const rows = getUnrestPressureBreakdown('city-1', state);
+      const relief = -(rows.find(r => r.label === 'Bureaucratic administration')?.amount ?? 0);
+      expect(relief).toBeLessThanOrEqual(BUREAUCRACY_MAX_RELIEF);
+    }
+  });
+
+  it('leaves the positive Distance from capital row unchanged and does not relieve it', () => {
+    const state = withCompleted(
+      makeState({ cityCount: 8, cityPosition: { q: 10, r: 0 }, capitalPosition: { q: 0, r: 0 }, era: 6 }),
+      [BUREAUCRACY_TECH_ID],
+    );
+    const rows = getUnrestPressureBreakdown('city-1', state);
+    // Distance row: min(20, max(0,(10-5)*2)) = 10, unaffected by Bureaucracy.
+    expect(rows).toContainEqual({ label: 'Distance from capital', amount: 10 });
+    expect(rows).toContainEqual({ label: 'Empire overextension', amount: 9 });
+    expect(rows).toContainEqual({ label: 'Bureaucratic administration', amount: -9 });
+  });
+
+  it('does not touch war weariness or recent conquest', () => {
+    const state = withCompleted(
+      makeState({ cityCount: 8, cityPosition: { q: 0, r: 0 }, era: 6, atWarCount: 2, conquestTurn: 9 }),
+      [BUREAUCRACY_TECH_ID],
+    );
+    const rows = getUnrestPressureBreakdown('city-1', state);
+    expect(rows).toContainEqual({ label: 'War weariness', amount: 16 });
+    expect(rows).toContainEqual({ label: 'Recent conquest', amount: 25 });
+    expect(rows.filter(r => r.label === 'Bureaucratic administration')).toHaveLength(1);
+  });
+
+  it('an unrelated era-6 tech grants no relief', () => {
+    const state = withCompleted(makeState({ cityCount: 8, cityPosition: { q: 0, r: 0 }, era: 6 }), ['parliamentary-reform']);
+    const rows = getUnrestPressureBreakdown('city-1', state);
+    expect(rows.find(r => r.label === 'Bureaucratic administration')).toBeUndefined();
+  });
+
+  it('stacks with Courthouse without erasing all overextension pressure (shared residual floor)', () => {
+    let state = withCompleted(makeState({ cityCount: 8, cityPosition: { q: 0, r: 0 }, era: 6 }), [BUREAUCRACY_TECH_ID]);
+    state = { ...state, cities: { ...state.cities, 'city-1': { ...state.cities['city-1'], buildings: ['courthouse'] } } };
+    const rows = getUnrestPressureBreakdown('city-1', state);
+    const overextension = rows.find(r => r.label === 'Empire overextension')!.amount;
+    const totalRelief = rows.filter(r => r.amount < 0).reduce((sum, r) => sum + r.amount, 0);
+    expect(overextension + totalRelief).toBeGreaterThanOrEqual(2);
+  });
+
+  it('is owner-scoped: a same-sized second civ without the tech gets no relief (hot-seat isolation)', () => {
+    let state = withCompleted(makeState({ cityCount: 8, cityPosition: { q: 0, r: 0 }, era: 6 }), [BUREAUCRACY_TECH_ID]);
+    // Give ai-1 an equally wide, equally overextended empire but no researched tech.
+    const aiCities: Record<string, City> = {};
+    for (let i = 1; i <= 9; i++) {
+      aiCities[`ai1-city-${i}`] = makeCity(`ai1-city-${i}`, 'ai-1', { q: i * 3, r: 5 });
+    }
+    state = {
+      ...state,
+      cities: { ...state.cities, ...aiCities },
+      civilizations: {
+        ...state.civilizations,
+        'ai-1': { ...state.civilizations['ai-1'], cities: Object.keys(aiCities) },
+      },
+    };
+
+    const playerRows = getUnrestPressureBreakdown('city-1', state);
+    expect(playerRows.find(r => r.label === 'Bureaucratic administration')).toBeDefined();
+
+    const aiRows = getUnrestPressureBreakdown('ai1-city-1', state);
+    expect(aiRows).toContainEqual({ label: 'Empire overextension', amount: 9 });
+    expect(aiRows.find(r => r.label === 'Bureaucratic administration')).toBeUndefined();
   });
 });
 

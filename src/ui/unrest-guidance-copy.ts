@@ -22,6 +22,8 @@ export function unrestRecommendationCopy(rec: UnrestRecommendation): { icon: str
       return { icon: '🏛️', text: 'Establish a Regional Capital here to reduce distance pressure in nearby cities.' };
     case 'connect-city-road-network':
       return { icon: '🛤️', text: 'Connect this city to your capital with roads through your land to make it easier to govern.' };
+    case 'research-bureaucracy':
+      return { icon: '🔬', text: 'Research Separation of Powers (Tech screen) to grow your bureaucracy — it eases unrest from having many cities.' };
     case 'garrison-unit':
       return { icon: '⚔️', text: 'Move one of your soldiers into this city to keep order.' };
     case 'train-garrison-unit':
