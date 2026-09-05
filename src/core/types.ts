@@ -1652,7 +1652,6 @@ export interface MinorCivRegionalGrievance {
   lastUpdatedTurn: number;
   lastConquestTurn?: number;
   decayBlockedUntilTurn?: number;
-  cooldownUntilTurn?: number;
   causes: MinorCivRegionalGrievanceCause[];
 }
 

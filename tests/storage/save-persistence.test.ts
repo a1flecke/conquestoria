@@ -280,7 +280,6 @@ describe('save persistence (#38)', () => {
       lastUpdatedTurn: state.turn,
       lastConquestTurn: state.turn - 1,
       decayBlockedUntilTurn: state.turn + 4,
-      cooldownUntilTurn: state.turn + 12,
       causes: [{
         type: 'minor-civ-conquest',
         turn: state.turn - 1,

@@ -169,7 +169,6 @@ export function applyRegionalGrievanceForMinorCivConquest(
       lastUpdatedTurn: state.turn,
       lastConquestTurn: state.turn,
       decayBlockedUntilTurn: state.turn + 4,
-      cooldownUntilTurn: existing?.cooldownUntilTurn,
       causes: [...(existing?.causes ?? []), nextCause].slice(-8),
     };
     nextState = {
@@ -439,11 +438,10 @@ function normalizeGrievance(value: unknown, state: GameState): MinorCivRegionalG
   };
   if (isFiniteNumber(value.lastConquestTurn)) grievance.lastConquestTurn = value.lastConquestTurn;
   if (isFiniteNumber(value.decayBlockedUntilTurn)) grievance.decayBlockedUntilTurn = value.decayBlockedUntilTurn;
-  if (isFiniteNumber(value.cooldownUntilTurn)) grievance.cooldownUntilTurn = value.cooldownUntilTurn;
   // mobilizationProgress/lastMobilizedTurn/conscriptCooldownUntilTurn/recoveryStrainedUntilTurn
-  // (#951): dead fields from the retired grievance-layer defender-spawn branches. Any of these
-  // present on an old save are simply dropped here rather than round-tripped — they have no
-  // remaining reader, and levy cooldown/recovery now live on MinorCivEconomyState instead.
+  // (#951) and cooldownUntilTurn (never assigned a fresh value anywhere; a dead "pair cooldown"
+  // field left over from the original design doc): dead fields with no remaining reader. Any of
+  // these present on an old save are simply dropped here rather than round-tripped.
   return grievance;
 }
 
