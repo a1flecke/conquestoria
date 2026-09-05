@@ -44,6 +44,13 @@ describe('unrestRecommendationCopy', () => {
     expect(build.text).toMatch(/regional capital.*nearby cities/i);
   });
 
+  it('#927: research-bureaucracy names its prerequisite screen and the many-cities effect', () => {
+    const { icon, text } = unrestRecommendationCopy(rec({ kind: 'research-bureaucracy', availability: 'research-first' }));
+    expect(icon).toBe('🔬');
+    expect(text).toMatch(/separation of powers.*tech screen/i);
+    expect(text).toMatch(/many cities/i);
+  });
+
   it('make-peace states the number of enemies from params.warCivIds', () => {
     const { text } = unrestRecommendationCopy(rec({ kind: 'make-peace', rowLabel: 'War weariness', amount: 24, params: { warCivIds: ['a', 'b'] } }));
     expect(text).toMatch(/\b2\b/);
@@ -71,7 +78,7 @@ describe('unrestRecommendationCopy', () => {
   it('every kind returns a non-empty icon and text', () => {
     const kinds: UnrestRecommendationKind[] = [
       'build-courthouse', 'build-military-administration', 'research-magistracy', 'research-military-logistics',
-      'research-regional-capital', 'build-regional-capital',
+      'research-regional-capital', 'build-regional-capital', 'research-bureaucracy',
       'connect-city-road-network', 'garrison-unit', 'train-garrison-unit',
       'make-peace', 'await-conquest-settle', 'research-constitutional-law', 'fix-economy',
       'counter-espionage', 'stabilise-contagion-source', 'build-faith-building',
