@@ -31,7 +31,8 @@ tests/ui/tech-panel.test.ts
 tests/systems/pacing-production-budget.test.ts
 tests/systems/pacing-reference-economy.test.ts
 tests/systems/start-placement-system.test.ts
-tests/systems/world-pressure-fairness.test.ts"
+tests/systems/world-pressure-fairness.test.ts
+tests/systems/minor-civ-economy-longrun.test.ts"
 
 MODE="${1:-}"
 if [ "$#" -gt 0 ]; then
