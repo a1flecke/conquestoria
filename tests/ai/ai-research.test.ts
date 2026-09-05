@@ -296,6 +296,33 @@ describe('AI strategic research planning', () => {
     expect(decision?.scoreComponents.unrestReliefTechBonus).toBeGreaterThan(0);
   });
 
+  it('#927 Rung 5: generic relief research recognizes the Railway Administration direct-tech unlock', () => {
+    // Uses the real 'railway-expansion' id (required so researchUnlockTechId actually
+    // matches) alongside a synthetic control tech. 'railway-expansion' also gates the
+    // real national_railway building, so it wins on economicSupport even with zero
+    // relief pressure — assert on the unrestReliefTechBonus component and reasonCodes
+    // directly rather than on which tech wins overall (see the analogous #926/#927
+    // tests above, which compare two real-content tech ids for the same reason).
+    const techs = [
+      tech('aaa-plain', 'metallurgy'),
+      tech('railway-expansion', 'metallurgy'),
+    ];
+    const wide = planAIResearch(context(techs, {
+      pressuredReliefCityIdsByBuildingId: { 'railway-administration': ['wide-1', 'wide-2'] },
+    }));
+    expect(wide?.frontierTechId).toBe('railway-expansion');
+    expect(wide?.scoreComponents.unrestReliefTechBonus).toBeGreaterThan(0);
+    expect(wide?.trace.candidates.find(c => c.id === 'railway-expansion')?.reasonCodes)
+      .toContain('unrest-relief');
+
+    const compact = planAIResearch(context(techs, {
+      pressuredReliefCityIdsByBuildingId: { 'railway-administration': [] },
+    }));
+    expect(compact?.scoreComponents.unrestReliefTechBonus).toBe(0);
+    expect(compact?.trace.candidates.find(c => c.id === 'railway-expansion')?.reasonCodes)
+      .not.toContain('unrest-relief');
+  });
+
   it('#927 Rung 4: generic relief research recognizes the Bureaucracy direct-tech unlock', () => {
     const techs = [
       tech('aaa-plain', 'civics'),

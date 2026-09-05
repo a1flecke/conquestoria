@@ -379,3 +379,41 @@ describe('#927 Bureaucracy guidance', () => {
     expect(recs.some(rec => rec.kind === 'research-bureaucracy')).toBe(false);
   });
 });
+
+describe('#927 Railway Administration guidance', () => {
+  const RAIL_PREREQS = ['military-logistics', 'precision-casting', 'fortification-engineering'];
+
+  function connectedState(completed: string[]): GameState {
+    const state = makeState({ cityPosition: { q: 10, r: 0 }, capitalPosition: { q: 0, r: 0 }, era: 7, completed });
+    for (let q = 1; q < 10; q++) {
+      state.map.tiles[`${q},0`] = {
+        coord: { q, r: 0 }, terrain: 'plains', elevation: 'lowland', resource: null,
+        improvement: 'none', owner: 'player', improvementTurnsLeft: 0, hasRiver: false, wonder: null, hasRoad: true,
+      };
+    }
+    return state;
+  }
+
+  it('recommends researching Railway Expansion once the road connection is already active and its prerequisites are done', () => {
+    const state = connectedState(RAIL_PREREQS);
+    const rec = getUnrestRecommendations('city-1', state).find(r => r.rowLabel === 'Distance from capital');
+    expect(rec?.kind).toBe('research-railway-administration');
+    expect(rec?.availability).toBe('research-first');
+  });
+
+  it('NEGATIVE: does not recommend Railway Administration before Road & Post Network is itself active', () => {
+    // Not actually connected (no road tiles) even though every tech is done.
+    const state = makeState({
+      cityPosition: { q: 10, r: 0 }, capitalPosition: { q: 0, r: 0 }, era: 7,
+      completed: [...RAIL_PREREQS, 'road-building', 'tactics'],
+    });
+    const rec = getUnrestRecommendations('city-1', state).find(r => r.rowLabel === 'Distance from capital');
+    expect(rec?.kind).not.toBe('research-railway-administration');
+  });
+
+  it('stops recommending Railway Administration once researched', () => {
+    const state = connectedState([...RAIL_PREREQS, 'railway-expansion']);
+    const recs = getUnrestRecommendations('city-1', state);
+    expect(recs.some(rec => rec.kind === 'research-railway-administration')).toBe(false);
+  });
+});

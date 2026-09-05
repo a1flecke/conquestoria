@@ -251,7 +251,72 @@ const BUREAUCRACY_RELIEF: UnrestReliefSource = {
   },
 };
 
-export const UNREST_RELIEF_SOURCES: UnrestReliefSource[] = [COURTHOUSE_RELIEF, MILITARY_ADMINISTRATION_RELIEF, ROAD_POST_NETWORK_RELIEF, REGIONAL_CAPITAL_RELIEF, BUREAUCRACY_RELIEF];
+// #927 Rung 5 — Railway Administration. Deliberately NOT "Telegraph": the only
+// real infrastructure this game has for compressed communication is Railway
+// Expansion's road-upgrade (the same tech resolveTileHasRail already uses to
+// decide whether an owned road tile renders as rail), so the row is named for
+// what the code actually checks rather than inventing a separate telegraph/cable
+// mechanic with no infrastructure requirement. Builds directly on Road & Post
+// Network's own connectivity abstraction (getOwnedRoadConnectedCities) instead
+// of a second graph/pathfinding implementation. Requires Military Logistics too
+// (Road & Post Network's own gate) so Railway Administration is always a
+// genuine upgrade ON TOP of an already-active Road & Post connection, never a
+// substitute reachable through an unusual research order that skips it — matches
+// "Telegraph/Rail answers: has industrial infrastructure further compressed
+// administrative delay?" from the rung design. Targets ONLY Distance from
+// capital, same family as Road & Post Network and Regional Capital.
+export const RAILWAY_ADMINISTRATION_TECH_ID = 'railway-expansion';
+// 0.2 * D capped at 4 — roughly half of Road & Post Network's own 0.35 fraction
+// and 6 cap, since this is a smaller marginal compression layered on top of an
+// already-active Road & Post connection, not a second independent network.
+export const RAILWAY_ADMINISTRATION_DISTANCE_RELIEF_FRACTION = 0.2;
+export const RAILWAY_ADMINISTRATION_MAX_RELIEF = 4;
+
+function isRoadPostActive(city: City, state: GameState, context: UnrestEvaluationContext): boolean {
+  const civ = state.civilizations[city.owner];
+  return civ?.techState.completed.includes('military-logistics') === true
+    && getOwnedRoadConnectedCities(state, city.owner, context).has(city.id);
+}
+
+export function getRailwayAdministrationReliefAmount(
+  city: City,
+  state: GameState,
+  rows: UnrestPressureRow[],
+  context: UnrestEvaluationContext = createUnrestEvaluationContext(),
+  regionalCapital: City | null = getRegionalCapitalCity(state, city.owner),
+): number {
+  const civ = state.civilizations[city.owner];
+  if (!civ) return 0;
+  const distance = rows.find(row => row.label === 'Distance from capital')?.amount ?? 0;
+  const overextension = rows.find(row => row.label === 'Empire overextension')?.amount ?? 0;
+  if (distance === 0) return 0;
+  const rawRelief = Math.min(Math.round(RAILWAY_ADMINISTRATION_DISTANCE_RELIEF_FRACTION * distance), RAILWAY_ADMINISTRATION_MAX_RELIEF);
+  const courthouse = city.buildings.includes('courthouse') ? getCourthouseReliefAmount(rows) : 0;
+  const road = isRoadPostActive(city, state, context) ? getRoadPostNetworkReliefAmount(city, rows) : 0;
+  const regionalCapitalRelief = regionalCapital ? getRegionalCapitalReliefAmount(city, state, rows, regionalCapital) : 0;
+  const bureaucracy = civ.techState.completed.includes(BUREAUCRACY_TECH_ID)
+    ? getBureaucracyReliefAmount(city, state, rows, context, regionalCapital) : 0;
+  const consumed = courthouse + road + regionalCapitalRelief + bureaucracy;
+  return Math.min(rawRelief, Math.max(0, distance + overextension - COURTHOUSE_SPRAWL_FLOOR - consumed));
+}
+
+const RAILWAY_ADMINISTRATION_RELIEF: UnrestReliefSource = {
+  id: 'railway-administration', researchUnlockTechId: RAILWAY_ADMINISTRATION_TECH_ID, targetRowLabels: ['Distance from capital'],
+  isActive: (city, state, context) => state.civilizations[city.owner]?.techState.completed.includes(RAILWAY_ADMINISTRATION_TECH_ID) === true
+    && isRoadPostActive(city, state, context),
+  isPotentiallyUseful: (city, state, context) =>
+    getOwnedRoadConnectedCities(state, city.owner, context).has(city.id)
+    || canConnectCityToCapitalByOwnedRoad(state, city.owner, city.id),
+  reliefRows: (city, state, rows, context) => {
+    const relief = getRailwayAdministrationReliefAmount(city, state, rows, context);
+    return relief > 0 ? [{ label: 'Railway Administration', amount: -relief }] : [];
+  },
+};
+
+export const UNREST_RELIEF_SOURCES: UnrestReliefSource[] = [
+  COURTHOUSE_RELIEF, MILITARY_ADMINISTRATION_RELIEF, ROAD_POST_NETWORK_RELIEF,
+  REGIONAL_CAPITAL_RELIEF, BUREAUCRACY_RELIEF, RAILWAY_ADMINISTRATION_RELIEF,
+];
 
 export function getUnrestReliefRows(
   city: City,

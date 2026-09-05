@@ -24,6 +24,8 @@ export function unrestRecommendationCopy(rec: UnrestRecommendation): { icon: str
       return { icon: '🛤️', text: 'Connect this city to your capital with roads through your land to make it easier to govern.' };
     case 'research-bureaucracy':
       return { icon: '🔬', text: 'Research Separation of Powers (Tech screen) to grow your bureaucracy — it eases unrest from having many cities.' };
+    case 'research-railway-administration':
+      return { icon: '🔬', text: 'Research Railway Expansion (Tech screen) — it upgrades your existing road connection into a faster-governed rail link.' };
     case 'garrison-unit':
       return { icon: '⚔️', text: 'Move one of your soldiers into this city to keep order.' };
     case 'train-garrison-unit':
