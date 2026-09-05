@@ -3,11 +3,15 @@ import { createNewGame } from '@/core/game-state';
 import {
   chooseMinorCivQueueItem,
   evaluateMinorCivEconomyPosture,
+  evaluateMinorCivEmergencyLevy,
   getMinorCivAvailableResources,
   getMinorCivBuildCandidates,
   getMinorCivCompletedTechBand,
   getMinorCivPopulationCeiling,
   getMinorCivUnitCap,
+  MINOR_CIV_LEVY_COOLDOWN_TURNS,
+  MINOR_CIV_LEVY_MIN_DEFENSIVE_FORCE,
+  MINOR_CIV_LEVY_MIN_POPULATION,
   normalizeMinorCivEconomyState,
   processMinorCivEconomyTurn,
   SAFE_MINOR_CIV_UNIT_TYPES,
@@ -126,7 +130,7 @@ describe('minor-civ economy helpers', () => {
     expect(candidates.buildings.every(building => !building.nationalProject && !building.uniquePerEmpire)).toBe(true);
   });
 
-  it('maps regional grievance and recovery strain into economy posture', () => {
+  it('maps regional grievance pressure into a mobilizing posture', () => {
     const state = createNewGame(undefined, 'minor-economy-posture', 'small');
     const minorCiv = Object.values(state.minorCivs)[0];
     minorCiv.regionalGrievanceByCiv = {
@@ -135,9 +139,21 @@ describe('minor-civ economy helpers', () => {
         pressure: 50,
         status: 'mobilizing',
         lastUpdatedTurn: state.turn,
-        recoveryStrainedUntilTurn: state.turn + 3,
         causes: [],
       },
+    };
+
+    expect(evaluateMinorCivEconomyPosture(state, minorCiv.id)).toBe('mobilizing');
+  });
+
+  it('maps an active localRecoveryUntilTurn window into a recovering posture (#951)', () => {
+    const state = createNewGame(undefined, 'minor-economy-posture-recovery', 'small');
+    const minorCiv = Object.values(state.minorCivs)[0];
+    minorCiv.economy = {
+      policy: 'recovery',
+      posture: 'recovering',
+      lastProcessedTurn: state.turn - 1,
+      localRecoveryUntilTurn: state.turn + 3,
     };
 
     expect(evaluateMinorCivEconomyPosture(state, minorCiv.id)).toBe('recovering');
@@ -557,5 +573,192 @@ describe('#948 — long-run city-state population bound', () => {
     const replay = processMinorCivEconomyTurn(structuredClone(nextState), minorCiv.id);
     const replayAgain = processMinorCivEconomyTurn(structuredClone(nextState), minorCiv.id);
     expect(replay.state.cities[city.id].population).toBe(replayAgain.state.cities[city.id].population);
+  });
+});
+
+describe('#951 — emergency levy eligibility', () => {
+  function makeSeverelyThreatenedMinorCiv(seed: string, era = 4) {
+    const state = createNewGame(undefined, seed, 'small');
+    state.era = era;
+    const minorCiv = Object.values(state.minorCivs)[0];
+    setPlayerCivEra(state, era);
+    const city = state.cities[minorCiv.cityId];
+    city.population = 4;
+    minorCiv.regionalGrievanceByCiv = {
+      player: {
+        targetCivId: 'player',
+        pressure: 85,
+        status: 'coalition-talks',
+        lastUpdatedTurn: state.turn,
+        causes: [],
+      },
+    };
+    return { state, minorCiv, city };
+  }
+
+  it('is eligible when severely threatened with room below the population floor, force floor, and unit cap', () => {
+    const { state, minorCiv } = makeSeverelyThreatenedMinorCiv('mc-levy-eligible');
+
+    const result = evaluateMinorCivEmergencyLevy(state, minorCiv.id);
+
+    expect(result).toMatchObject({ eligible: true });
+  });
+
+  it('is not eligible with no war, no nearby hostile unit, and no severe grievance pressure', () => {
+    const state = createNewGame(undefined, 'mc-levy-no-threat', 'small');
+    const minorCiv = Object.values(state.minorCivs)[0];
+
+    expect(evaluateMinorCivEmergencyLevy(state, minorCiv.id)).toEqual({ eligible: false, reason: 'no-threat' });
+  });
+
+  it('is not eligible in an era-1 region even under severe pressure (early-game safety)', () => {
+    const state = createNewGame(undefined, 'mc-levy-era-one-embargo', 'small');
+    const minorCiv = Object.values(state.minorCivs)[0];
+    state.cities[minorCiv.cityId].population = 4;
+    // No era advancement at all — pressureEra resolves to 1. Pressure itself (unlike grievance
+    // *status*) is not era-gated, so a high-pressure record is the way to reach severeThreat=true
+    // while still exercising the era-1 embargo specifically, rather than falling through to the
+    // unrelated 'no-threat' reason.
+    minorCiv.regionalGrievanceByCiv = {
+      player: {
+        targetCivId: 'player',
+        pressure: 85,
+        status: 'wary',
+        lastUpdatedTurn: state.turn,
+        causes: [],
+      },
+    };
+
+    expect(evaluateMinorCivEmergencyLevy(state, minorCiv.id)).toEqual({ eligible: false, reason: 'region-immature' });
+  });
+
+  it('is not eligible while the levy cooldown is still active', () => {
+    const { state, minorCiv } = makeSeverelyThreatenedMinorCiv('mc-levy-cooldown-gate');
+    minorCiv.economy = {
+      policy: 'defense',
+      posture: 'mobilizing',
+      lastProcessedTurn: state.turn,
+      levyCooldownUntilTurn: state.turn + MINOR_CIV_LEVY_COOLDOWN_TURNS,
+    };
+
+    expect(evaluateMinorCivEmergencyLevy(state, minorCiv.id)).toEqual({ eligible: false, reason: 'cooldown' });
+  });
+
+  it(`is not eligible at or below the population floor (${MINOR_CIV_LEVY_MIN_POPULATION})`, () => {
+    const { state, minorCiv, city } = makeSeverelyThreatenedMinorCiv('mc-levy-population-gate');
+    city.population = MINOR_CIV_LEVY_MIN_POPULATION;
+
+    expect(evaluateMinorCivEmergencyLevy(state, minorCiv.id)).toEqual({ eligible: false, reason: 'population-floor' });
+  });
+
+  it(`is not eligible once already fielding ${MINOR_CIV_LEVY_MIN_DEFENSIVE_FORCE} or more living units`, () => {
+    const { state, minorCiv, city } = makeSeverelyThreatenedMinorCiv('mc-levy-force-gate');
+    for (let i = minorCiv.units.length; i < MINOR_CIV_LEVY_MIN_DEFENSIVE_FORCE; i++) {
+      const extra = createUnit('warrior', minorCiv.id, city.position, state.idCounters);
+      state.units[extra.id] = extra;
+      minorCiv.units.push(extra.id);
+    }
+
+    expect(evaluateMinorCivEmergencyLevy(state, minorCiv.id)).toEqual({ eligible: false, reason: 'sufficient-force' });
+  });
+
+  it('is not eligible when the live unit cap would be exceeded', () => {
+    const { state, minorCiv, city } = makeSeverelyThreatenedMinorCiv('mc-levy-cap-gate');
+    const cap = getMinorCivUnitCap(state, minorCiv.id, 'mobilizing');
+    for (let i = minorCiv.units.length; i < cap; i++) {
+      const extra = createUnit('worker', minorCiv.id, city.position, state.idCounters);
+      state.units[extra.id] = extra;
+      minorCiv.units.push(extra.id);
+    }
+
+    expect(evaluateMinorCivEmergencyLevy(state, minorCiv.id)).toEqual({ eligible: false, reason: 'unit-cap' });
+  });
+
+  it('is not eligible when every legal spawn tile around the city is blocked', () => {
+    const { state, minorCiv, city } = makeSeverelyThreatenedMinorCiv('mc-levy-spawn-gate');
+    const blockerPositions = [city.position, ...getWrappedHexNeighbors(city.position, state.map.width)];
+    for (const [index, coord] of blockerPositions.entries()) {
+      const blocker = createUnit('warrior', 'barbarian', coord, state.idCounters);
+      blocker.id = `levy-spawn-blocker-${index}`;
+      state.units[blocker.id] = blocker;
+    }
+
+    expect(evaluateMinorCivEmergencyLevy(state, minorCiv.id)).toEqual({ eligible: false, reason: 'no-spawn' });
+  });
+
+  it('never selects a naval or air unit even when the build catalog includes one', () => {
+    const { state, minorCiv } = makeSeverelyThreatenedMinorCiv('mc-levy-land-only', 6);
+
+    const result = evaluateMinorCivEmergencyLevy(state, minorCiv.id);
+
+    expect(result.eligible).toBe(true);
+    if (result.eligible) {
+      expect(['warrior', 'archer', 'swordsman', 'pikeman', 'musketeer', 'rifleman']).toContain(result.unitType);
+    }
+  });
+});
+
+describe('#951 — long-run emergency-levy conflict scenario', () => {
+  it('keeps levies rare and bounded over 120 turns of sustained war, and replays deterministically', () => {
+    function runScenario() {
+      const state = createNewGame(undefined, 'mc-951-long-run-conflict', 'small');
+      const minorCiv = Object.values(state.minorCivs)[0];
+      const city = state.cities[minorCiv.cityId];
+      setPlayerCivEra(state, 4);
+      state.era = 4;
+      minorCiv.diplomacy.atWarWith = ['player'];
+      state.civilizations.player.diplomacy.atWarWith = [minorCiv.id];
+      // A standing hostile unit within hasImmediateCityThreat's radius keeps genuine pressure on
+      // every turn without needing to hand-simulate AI movement in this scoped test.
+      const raider = createUnit('warrior', 'player', { q: city.position.q + 1, r: city.position.r }, state.idCounters);
+      raider.id = 'long-run-raider';
+      state.units[raider.id] = raider;
+
+      let nextState = state;
+      let levyCount = 0;
+      let recoveringTurns = 0;
+      const populationHistory: number[] = [];
+      const unitCountHistory: number[] = [];
+
+      for (let turn = 0; turn < 120; turn++) {
+        nextState = { ...nextState, turn: nextState.turn + 1 };
+        const before = nextState.minorCivs[minorCiv.id].economy?.levyCooldownUntilTurn;
+        const result = processMinorCivEconomyTurn(nextState, minorCiv.id);
+        nextState = result.state;
+        const after = nextState.minorCivs[minorCiv.id].economy;
+        if (after?.levyCooldownUntilTurn && after.levyCooldownUntilTurn !== before) {
+          levyCount++;
+        }
+        if (after?.posture === 'recovering') {
+          recoveringTurns++;
+        }
+        const liveUnits = nextState.minorCivs[minorCiv.id].units.filter(unitId => Boolean(nextState.units[unitId]));
+        populationHistory.push(nextState.cities[city.id].population);
+        unitCountHistory.push(liveUnits.length);
+        const cap = getMinorCivUnitCap(nextState, minorCiv.id, 'mobilizing');
+        expect(liveUnits.length).toBeLessThanOrEqual(cap);
+      }
+
+      return { nextState, levyCount, recoveringTurns, populationHistory, unitCountHistory, city };
+    }
+
+    const first = runScenario();
+    const second = runScenario();
+
+    // Levies are gated by a 10-turn cooldown plus a real population cost; over 120 turns of
+    // constant war this must stay rare, never "every attacked city-state levies routinely" (#951).
+    expect(first.levyCount).toBeGreaterThan(0);
+    expect(first.levyCount).toBeLessThanOrEqual(12);
+    expect(first.recoveringTurns).toBeGreaterThan(0);
+    expect(first.populationHistory.every(pop => pop >= MINOR_CIV_LEVY_MIN_POPULATION)).toBe(true);
+    expect(Math.min(...first.populationHistory)).toBeGreaterThan(0);
+
+    // No dead mobilizationProgress accumulation: the field no longer exists on the type at all,
+    // so nothing in this 120-turn run could have written it — economy state is the full story.
+    expect(first.nextState.minorCivs[first.city.owner]?.economy).not.toHaveProperty('mobilizationProgress');
+
+    expect(second.levyCount).toBe(first.levyCount);
+    expect(second.populationHistory).toEqual(first.populationHistory);
+    expect(second.unitCountHistory).toEqual(first.unitCountHistory);
   });
 });

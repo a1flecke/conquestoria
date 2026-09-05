@@ -210,7 +210,7 @@ export function processMinorCivTurn(
       const unit = nextState.units[unitId];
       if (unit) nextState.units[unitId] = resetUnitTurn(unit);
     }
-    nextState = processMinorCivRegionalGrievanceTurn(nextState, mcId, { allowDefenderSpawns: false });
+    nextState = processMinorCivRegionalGrievanceTurn(nextState, mcId);
     const economyResult = processMinorCivEconomyTurn(nextState, mcId, bus);
     nextState = economyResult.state;
     mc = nextState.minorCivs[mcId];

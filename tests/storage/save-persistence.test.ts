@@ -337,7 +337,6 @@ describe('save persistence (#38)', () => {
         status: 'mobilizing',
         lastUpdatedTurn: state.turn,
         causes: [],
-        mobilizationProgress: 12,
       },
     };
 
@@ -351,7 +350,52 @@ describe('save persistence (#38)', () => {
     expect(loaded.minorCivs[minorCiv.id].regionalGrievanceByCiv?.player).toMatchObject({
       pressure: 55,
       status: 'mobilizing',
-      mobilizationProgress: 12,
+    });
+  });
+
+  it('drops dead legacy mobilizationProgress/conscription fields from an old grievance save without erroring (#951)', () => {
+    const state = createNewGame(undefined, 'minor-economy-dead-mobilization-fields', 'small');
+    const minorCiv = Object.values(state.minorCivs)[0];
+    (minorCiv as any).regionalGrievanceByCiv = {
+      player: {
+        targetCivId: 'player',
+        pressure: 55,
+        status: 'mobilizing',
+        lastUpdatedTurn: state.turn,
+        causes: [],
+        mobilizationProgress: 12,
+        lastMobilizedTurn: state.turn - 2,
+        conscriptCooldownUntilTurn: state.turn + 5,
+        recoveryStrainedUntilTurn: state.turn + 3,
+      },
+    };
+
+    const loaded = normalizeLoadedStateForTest(state);
+    const grievance = loaded.minorCivs[minorCiv.id].regionalGrievanceByCiv?.player;
+
+    expect(grievance).toMatchObject({ pressure: 55, status: 'mobilizing' });
+    expect(grievance).not.toHaveProperty('mobilizationProgress');
+    expect(grievance).not.toHaveProperty('lastMobilizedTurn');
+    expect(grievance).not.toHaveProperty('conscriptCooldownUntilTurn');
+    expect(grievance).not.toHaveProperty('recoveryStrainedUntilTurn');
+  });
+
+  it('round-trips an in-progress levy cooldown and recovery window on the economy state (#951)', () => {
+    const state = createNewGame(undefined, 'minor-economy-levy-roundtrip', 'small');
+    const minorCiv = Object.values(state.minorCivs)[0];
+    minorCiv.economy = {
+      policy: 'recovery',
+      posture: 'recovering',
+      lastProcessedTurn: state.turn,
+      levyCooldownUntilTurn: state.turn + 8,
+      localRecoveryUntilTurn: state.turn + 4,
+    };
+
+    const loaded = normalizeLoadedStateForTest(state);
+
+    expect(loaded.minorCivs[minorCiv.id].economy).toMatchObject({
+      levyCooldownUntilTurn: state.turn + 8,
+      localRecoveryUntilTurn: state.turn + 4,
     });
   });
 
