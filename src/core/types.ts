@@ -1488,6 +1488,14 @@ export interface Civilization {
    * intentionally does not clamp this field itself (see spec §1's
    * "capacity is a production-eligibility gate, not a live clamp"). */
   strategicArsenal?: number;
+  /** #927 rung 6: Federal Autonomy stance. Undefined/false = centralized
+   * (the safe default for legacy saves). Never named `autonomy` alone — that
+   * word is already `AutonomyPostureId` in the unrelated Cyber/network-warfare
+   * system (src/core/autonomy-state.ts). */
+  federalismEnabled?: boolean;
+  /** Turn of the most recent federalismEnabled toggle (either direction);
+   * enforces FEDERALISM_LOCK_TURNS in faction-system.ts. */
+  federalismChangedTurn?: number;
 }
 
 export interface BreakawayMetadata {

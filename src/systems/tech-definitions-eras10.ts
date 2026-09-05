@@ -39,7 +39,10 @@ const ERA_10_TECHS: Tech[] = [
   // CIVICS (2)
   { id: 'decolonization', name: 'Decolonization', track: 'civics', cost: 1040,
     prerequisites: ['universal-suffrage', 'propaganda-campaigns'],
-    unlocks: ['+2 gold empire-wide; emerging nations pursue self-determination and reshape world order'], era: 10 },
+    unlocks: [
+      '+2 gold empire-wide; emerging nations pursue self-determination and reshape world order',
+      'Unlock Federal Autonomy: grant regions more self-government to ease unrest from empire size, in exchange for reduced central gold income',
+    ], era: 10 },
   { id: 'international-institutions', name: 'International Institutions', track: 'civics', cost: 1040,
     prerequisites: ['universal-suffrage', 'welfare-state'],
     unlocks: ['+1 gold +1 science empire-wide; multilateral bodies manage trade, disputes, and humanitarian aid'],

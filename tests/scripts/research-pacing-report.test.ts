@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createHotSeatGame } from '@/core/game-state';
 import { TECH_TREE } from '@/systems/tech-definitions';
-import { CURRENT_SAVE_SCHEMA_VERSION } from '@/storage/save-migrations';
 import {
   PRE_V24_TECH_COST_BY_ID,
   RESEARCH_COST_MIGRATION_TARGET_SCHEMA_VERSION,
@@ -48,7 +47,11 @@ describe('research pacing report', () => {
     expect(report.changedCostIds).toEqual([]);
     expect(new Set(report.changedCostIds).size).toBe(report.changedCostIds.length);
     expect(report.changedCostIds.every(id => currentCosts.has(id))).toBe(true);
-    expect(RESEARCH_COST_MIGRATION_TARGET_SCHEMA_VERSION).toBe(CURRENT_SAVE_SCHEMA_VERSION);
+    // Pinned to the literal historical value (not CURRENT_SAVE_SCHEMA_VERSION):
+    // this constant records the schema version research-cost migration 24 was
+    // actually activated at and must never change, even after later migrations
+    // (e.g. #927's schema 25) move CURRENT_SAVE_SCHEMA_VERSION further ahead.
+    expect(RESEARCH_COST_MIGRATION_TARGET_SCHEMA_VERSION).toBe(24);
     expect(Object.keys(PRE_V24_TECH_COST_BY_ID).sort()).toEqual(Object.keys(RECOMMENDED_TECH_COST_BY_ID).sort());
     const formulaCosts = getProposedResearchCostById();
     for (const [id, currentCost] of currentCosts) {

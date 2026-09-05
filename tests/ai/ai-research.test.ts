@@ -345,6 +345,26 @@ describe('AI strategic research planning', () => {
     expect(compact?.scoreComponents.unrestReliefTechBonus).toBe(0);
   });
 
+  it('#927 Rung 6: generic relief research recognizes the Federal Autonomy direct-tech unlock', () => {
+    const techs = [
+      tech('aaa-plain', 'civics'),
+      tech('decolonization', 'civics'),
+    ];
+    const wide = planAIResearch(context(techs, {
+      pressuredReliefCityIdsByBuildingId: { federalism: ['wide-1', 'wide-2'] },
+    }));
+    expect(wide?.frontierTechId).toBe('decolonization');
+    expect(wide?.scoreComponents.unrestReliefTechBonus).toBeGreaterThan(0);
+    expect(wide?.trace.candidates.find(c => c.id === 'decolonization')?.reasonCodes)
+      .toContain('unrest-relief');
+
+    const compact = planAIResearch(context(techs, {
+      pressuredReliefCityIdsByBuildingId: { federalism: [] },
+    }));
+    expect(compact?.frontierTechId).toBe('aaa-plain');
+    expect(compact?.scoreComponents.unrestReliefTechBonus).toBe(0);
+  });
+
   it('bounds search to four edges and twenty-four downstream targets', () => {
     const techs = [tech('root', 'science')];
     for (let index = 1; index <= 30; index++) {

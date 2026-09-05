@@ -59,7 +59,10 @@ import {
 } from '@/systems/espionage-system';
 import { applyOpportunisticWarPenaltyIfCrisisStruck } from '@/systems/crisis-interaction-system';
 import { createRng } from '@/systems/map-generator';
-import { appeaseFaction } from '@/systems/faction-system';
+import {
+  appeaseFaction, getUnrestPressureBreakdown, setFederalismStance, canToggleFederalism, FEDERALISM_TECH_ID,
+} from '@/systems/faction-system';
+import { getEconomyStatusForCiv } from '@/systems/economy-system';
 import {
   getEligibleLegendaryWonders,
   initializeLegendaryWonderProjectsForAllCities,
@@ -928,6 +931,28 @@ function processAITurnInternal(
     if (appeaseResult.success) {
       newState = appeaseResult.state;
     }
+  }
+
+  // #927 Rung 6: AI Federal Autonomy. Deterministic, no hidden information —
+  // reads only this civ's own cities and economy status. Never auto-disables
+  // (a compact/low-pressure civ simply never enables it, so no separate
+  // "disable when no longer needed" branch is required); never toggles when
+  // locked, so it cannot thrash every turn.
+  if (civ.techState.completed.includes(FEDERALISM_TECH_ID)
+    && civ.federalismEnabled !== true
+    && canToggleFederalism(newState, civId)) {
+    const pressuredOverextendedCities = civ.cities.filter(cityId => {
+      const city = newState.cities[cityId];
+      if (!city) return false;
+      return getUnrestPressureBreakdown(cityId, newState)
+        .some(row => row.label === 'Empire overextension' && row.amount > 0);
+    }).length;
+    const economyStatus = getEconomyStatusForCiv(newState, civId);
+    if (pressuredOverextendedCities >= 2 && economyStatus.strainLevel !== 'critical') {
+      const toggled = setFederalismStance(newState, civId, true);
+      if (toggled.success) newState = toggled.state;
+    }
+    civ = newState.civilizations[civId];
   }
 
   for (const cityId of civ.cities) {

@@ -7,6 +7,9 @@ import {
   CONQUEST_UNREST_DURATION,
   BUREAUCRACY_TECH_ID,
   RAILWAY_ADMINISTRATION_TECH_ID,
+  FEDERALISM_TECH_ID,
+  getFederalismReliefAmount,
+  canToggleFederalism,
   type UnrestPressureRow,
 } from './faction-system';
 import { getAvailableBuildings } from './city-system';
@@ -31,6 +34,7 @@ export type UnrestRecommendationKind =
   | 'research-military-logistics' | 'connect-city-road-network'
   | 'research-regional-capital' | 'build-regional-capital'
   | 'research-bureaucracy' | 'research-railway-administration'
+  | 'research-federalism' | 'enable-federalism'
   | 'build-military-administration'
   | 'garrison-unit' | 'train-garrison-unit'
   | 'make-peace' | 'await-conquest-settle' | 'research-constitutional-law'
@@ -119,6 +123,17 @@ const SPRAWL_RESOLVER: GuidanceResolver = {
     if (row.label === 'Empire overextension' && !completed.includes(BUREAUCRACY_TECH_ID)
       && completed.includes('constitutional-law')) {
       return { ...base, kind: 'research-bureaucracy', availability: 'research-first', params: { techId: BUREAUCRACY_TECH_ID } };
+    }
+    if (row.label === 'Empire overextension' && completed.includes(BUREAUCRACY_TECH_ID)
+      && !completed.includes(FEDERALISM_TECH_ID)
+      && completed.includes('universal-suffrage') && completed.includes('propaganda-campaigns')) {
+      return { ...base, kind: 'research-federalism', availability: 'research-first', params: { techId: FEDERALISM_TECH_ID } };
+    }
+    if (row.label === 'Empire overextension' && completed.includes(FEDERALISM_TECH_ID)
+      && state.civilizations[city.owner]?.federalismEnabled !== true
+      && canToggleFederalism(state, city.owner)
+      && getFederalismReliefAmount(city, state, getUnrestPressureBreakdown(city.id, state)) > 0) {
+      return { ...base, kind: 'enable-federalism', availability: 'now' };
     }
     if (row.label === 'Distance from capital' && !completed.includes('political-philosophy')
       && completed.includes('civil-service') && completed.includes('philosophy')) {

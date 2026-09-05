@@ -38,8 +38,12 @@ describe('save migration 24 — research cost retune', () => {
     const migrated = migrateSaveToCurrent(legacyResearchSave(techId, oldProgress));
     const techState = migrated.civilizations.player.techState;
 
-    expect(CURRENT_SAVE_SCHEMA_VERSION).toBe(24);
-    expect(migrated.saveSchemaVersion).toBe(24);
+    // Not pinned to a literal 24: migrateSaveToCurrent always brings a save
+    // forward through every migration up to CURRENT_SAVE_SCHEMA_VERSION, which
+    // has since moved past 24 (e.g. #927's schema 25) — this test verifies
+    // migration 24's own research-cost-retune behavior, which is unaffected by
+    // whichever later migrations also ran on top of it.
+    expect(migrated.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
     expect(techState.researchProgress).toBe(expectedProgress(techId, oldProgress));
     expect(techState.researchQueue).toEqual(['archery']);
   });

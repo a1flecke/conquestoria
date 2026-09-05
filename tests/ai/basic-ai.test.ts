@@ -14,7 +14,7 @@ import { EventBus } from '@/core/event-bus';
 import { createEmptyMajorCivPlanPortfolio } from '@/core/opponent-ai-state';
 import type { City, GameEvents, GameState, HexCoord } from '@/core/types';
 import { BUILDINGS, foundCity } from '@/systems/city-system';
-import { appeaseFaction, getCityAppeaseCost } from '@/systems/faction-system';
+import { appeaseFaction, getCityAppeaseCost, setFederalismStance, FEDERALISM_LOCK_TURNS } from '@/systems/faction-system';
 import { createEspionageCivState, createSpyFromUnit } from '@/systems/espionage-system';
 import { hexKey, hexDistance } from '@/systems/hex-utils';
 import { tickLegendaryWonderProjects } from '@/systems/legendary-wonder-system';
@@ -2946,5 +2946,77 @@ describe('AI arms-control-pact proposing (#545 MR6)', () => {
     const armsControlTreaties = afterSecondTurn.civilizations[aiId].diplomacy.treaties
       .filter(t => t.type === 'arms_control_pact' && t.civB === neighborId);
     expect(armsControlTreaties).toHaveLength(1);
+  });
+});
+
+describe('#927 Rung 6 — AI Federal Autonomy', () => {
+  function buildWideAiState(cityCount: number, seed: string): GameState {
+    const state = createNewGame(undefined, seed, 'small');
+    const civ = state.civilizations['ai-1'];
+    const settler = civ.units.map(id => state.units[id]).find(unit => unit?.type === 'settler')!;
+    civ.cities = [];
+    for (let i = 1; i <= cityCount; i++) {
+      const position = { q: settler.position.q + (i % 5), r: settler.position.r + Math.floor(i / 5) };
+      const city = foundCity(civ.id, position, state.map, state.idCounters);
+      city.id = i === 1 ? 'ai1-capital' : `ai1-city-${i}`;
+      city.buildings = [];
+      city.productionQueue = [];
+      state.cities[city.id] = city;
+      civ.cities.push(city.id);
+    }
+    civ.techState = { ...civ.techState, completed: [...civ.techState.completed, 'decolonization'], currentResearch: null, researchQueue: [] };
+    civ.gold = 1000;
+    return state;
+  }
+
+  it('enables Federal Autonomy for a wide, overextended AI empire', () => {
+    // 15 cities -> Empire overextension (15-6)*3 = 27 on every city, well
+    // above the 2-pressured-city gate.
+    const state = buildWideAiState(15, 'mr6-federalism-wide');
+    const result = processAITurn(state, 'ai-1', new EventBus());
+    expect(result.civilizations['ai-1'].federalismEnabled).toBe(true);
+    expect(result.civilizations['ai-1'].federalismChangedTurn).toBe(state.turn);
+  });
+
+  it('does not enable Federal Autonomy for a compact, unpressured AI empire', () => {
+    // 3 cities -> no Empire overextension row at all.
+    const state = buildWideAiState(3, 'mr6-federalism-tall');
+    const result = processAITurn(state, 'ai-1', new EventBus());
+    expect(result.civilizations['ai-1'].federalismEnabled).not.toBe(true);
+  });
+
+  it('does not enable Federal Autonomy when the treasury is under critical strain', () => {
+    const state = buildWideAiState(15, 'mr6-federalism-broke');
+    // processAITurn (unlike the full processTurn pipeline) does not itself
+    // compute economyStatusByCiv -- force the same "critical" shape a real
+    // prior processTurn would have already stored, matching the shortcut
+    // unrest-guidance.test.ts's own criticalEconomy fixture uses.
+    state.economyStatusByCiv = { 'ai-1': { unpaidMaintenance: 999 } as never };
+    const result = processAITurn(state, 'ai-1', new EventBus());
+    expect(result.civilizations['ai-1'].federalismEnabled).not.toBe(true);
+  });
+
+  it('never re-enables the same turn it was disabled (lock respected across AI turns)', () => {
+    let state = buildWideAiState(15, 'mr6-federalism-lock');
+    state = processAITurn(state, 'ai-1', new EventBus());
+    expect(state.civilizations['ai-1'].federalismEnabled).toBe(true);
+
+    const disabled = setFederalismStance(state, 'ai-1', false);
+    expect(disabled.success).toBe(false); // still locked immediately after enabling
+
+    const afterLockExpires = {
+      ...state,
+      turn: state.turn + FEDERALISM_LOCK_TURNS,
+      civilizations: {
+        ...state.civilizations,
+        'ai-1': { ...state.civilizations['ai-1'], techState: { ...state.civilizations['ai-1'].techState, currentResearch: null } },
+      },
+    };
+    const disabledLater = setFederalismStance(afterLockExpires, 'ai-1', false);
+    expect(disabledLater.success).toBe(true);
+    const nextAiTurn = processAITurn(disabledLater.state, 'ai-1', new EventBus());
+    // Re-enabling is immediately locked again by the same toggle, so the AI
+    // cannot thrash it back on the very next turn.
+    expect(nextAiTurn.civilizations['ai-1'].federalismEnabled).toBe(false);
   });
 });

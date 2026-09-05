@@ -313,9 +313,129 @@ const RAILWAY_ADMINISTRATION_RELIEF: UnrestReliefSource = {
   },
 };
 
+// #927 Rung 6 (final) — Federal Autonomy. The only rung that is a real
+// tradeoff rather than a free lever: a persistent civ-wide toggle (not an
+// automatic tech effect) trading substantial Empire overextension relief for
+// a share of central gold income. Deliberately NOT named "autonomy" alone —
+// AutonomyPostureId already exists in the unrelated Cyber/network-warfare
+// system (src/core/autonomy-state.ts) and this must not collide with it.
+// Targets ONLY Empire overextension (Bureaucracy's own row family) — every
+// distance-pressure lever already belongs to Road & Post/Regional
+// Capital/Railway Administration, and giving this rung a fourth distance
+// lever would blur its identity as the ladder's last-resort city-count lever.
+export const FEDERALISM_TECH_ID = 'decolonization';
+export const FEDERALISM_REMITTANCE_LOSS_FRACTION = 0.2;
+
+/**
+ * Gold lost to reduced central remittance while Federal Autonomy is active,
+ * applied once per civ per turn at the canonical revenue-aggregation point in
+ * turn-manager.ts (same choke point as Vassalage tribute). `Math.max(0, ...)`
+ * guards against a reverse subsidy: a civ already running a deficit never has
+ * that deficit reduced by enabling the stance.
+ */
+export function getFederalismRemittanceLoss(totalGoldThisTurn: number): number {
+  return Math.floor(Math.max(0, totalGoldThisTurn) * FEDERALISM_REMITTANCE_LOSS_FRACTION);
+}
+// One lock, not separate min-duration/cooldown timers, covers both
+// directions: after ANY toggle the stance is locked for this many turns.
+// This isn't closing a phase-order exploit (relief and remittance loss both
+// read the identical field at the identical per-civ turn-processing pass, so
+// there is no gap between them to abuse) — it exists purely to stop thrash
+// (flipping every turn to chase a marginal edge).
+export const FEDERALISM_LOCK_TURNS = 8;
+
+export function getFederalismLockedUntilTurn(civ: { federalismChangedTurn?: number }): number {
+  return civ.federalismChangedTurn === undefined ? -Infinity : civ.federalismChangedTurn + FEDERALISM_LOCK_TURNS;
+}
+
+export function canToggleFederalism(state: GameState, civId: string): boolean {
+  const civ = state.civilizations[civId];
+  if (!civ) return false;
+  return state.turn >= getFederalismLockedUntilTurn(civ);
+}
+
+export function getFederalismReliefAmount(
+  city: City,
+  state: GameState,
+  rows: UnrestPressureRow[],
+  context: UnrestEvaluationContext = createUnrestEvaluationContext(),
+  regionalCapital: City | null = getRegionalCapitalCity(state, city.owner),
+): number {
+  const civ = state.civilizations[city.owner];
+  if (!civ) return 0;
+  const distance = rows.find(row => row.label === 'Distance from capital')?.amount ?? 0;
+  const overextension = rows.find(row => row.label === 'Empire overextension')?.amount ?? 0;
+  if (overextension === 0) return 0;
+  const courthouse = city.buildings.includes('courthouse') ? getCourthouseReliefAmount(rows) : 0;
+  const road = isRoadPostActive(city, state, context) ? getRoadPostNetworkReliefAmount(city, rows) : 0;
+  const regionalCapitalRelief = regionalCapital ? getRegionalCapitalReliefAmount(city, state, rows, regionalCapital) : 0;
+  const bureaucracy = civ.techState.completed.includes(BUREAUCRACY_TECH_ID)
+    ? getBureaucracyReliefAmount(city, state, rows, context, regionalCapital) : 0;
+  const railway = civ.techState.completed.includes(RAILWAY_ADMINISTRATION_TECH_ID) && isRoadPostActive(city, state, context)
+    ? getRailwayAdministrationReliefAmount(city, state, rows, context, regionalCapital) : 0;
+  const consumed = courthouse + road + regionalCapitalRelief + bureaucracy + railway;
+  const rawRelief = Math.max(0, overextension - bureaucracy);
+  return Math.min(rawRelief, Math.max(0, distance + overextension - COURTHOUSE_SPRAWL_FLOOR - consumed));
+}
+
+const FEDERALISM_RELIEF: UnrestReliefSource = {
+  id: 'federalism', researchUnlockTechId: FEDERALISM_TECH_ID, targetRowLabels: ['Empire overextension'],
+  isActive: (city, state) => {
+    const civ = state.civilizations[city.owner];
+    // Defense-in-depth: setFederalismStance is the only normal path to
+    // federalismEnabled=true and already gates on the tech, but this mirrors
+    // every other source's own isActive tech check rather than relying solely
+    // on the toggle function (matters for a malformed/hand-edited save).
+    return civ?.federalismEnabled === true && civ.techState.completed.includes(FEDERALISM_TECH_ID);
+  },
+  reliefRows: (city, state, rows, context) => {
+    const relief = getFederalismReliefAmount(city, state, rows, context);
+    return relief > 0 ? [{ label: 'Federal Autonomy', amount: -relief }] : [];
+  },
+};
+
+export interface FederalismToggleResult {
+  success: boolean;
+  state: GameState;
+  message: string;
+}
+
+export function setFederalismStance(state: GameState, civId: string, enabled: boolean): FederalismToggleResult {
+  const civ = state.civilizations[civId];
+  if (!civ) return { success: false, state, message: 'Unknown civilization.' };
+  if (!civ.techState.completed.includes(FEDERALISM_TECH_ID)) {
+    return { success: false, state, message: 'Research Decolonization before enabling Federal Autonomy.' };
+  }
+  if ((civ.federalismEnabled ?? false) === enabled) {
+    return {
+      success: false, state,
+      message: enabled ? 'Federal Autonomy is already active.' : 'Federal Autonomy is already disabled.',
+    };
+  }
+  if (!canToggleFederalism(state, civId)) {
+    return {
+      success: false, state,
+      message: `Federal Autonomy cannot be changed again until turn ${getFederalismLockedUntilTurn(civ)}.`,
+    };
+  }
+  return {
+    success: true,
+    message: enabled
+      ? 'Federal Autonomy enabled — administrative relief begins, at reduced central gold income.'
+      : 'Federal Autonomy disabled — full central gold income resumes.',
+    state: {
+      ...state,
+      civilizations: {
+        ...state.civilizations,
+        [civId]: { ...civ, federalismEnabled: enabled, federalismChangedTurn: state.turn },
+      },
+    },
+  };
+}
+
 export const UNREST_RELIEF_SOURCES: UnrestReliefSource[] = [
   COURTHOUSE_RELIEF, MILITARY_ADMINISTRATION_RELIEF, ROAD_POST_NETWORK_RELIEF,
-  REGIONAL_CAPITAL_RELIEF, BUREAUCRACY_RELIEF, RAILWAY_ADMINISTRATION_RELIEF,
+  REGIONAL_CAPITAL_RELIEF, BUREAUCRACY_RELIEF, RAILWAY_ADMINISTRATION_RELIEF, FEDERALISM_RELIEF,
 ];
 
 export function getUnrestReliefRows(

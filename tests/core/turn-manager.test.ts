@@ -1466,6 +1466,64 @@ describe('processTurn', () => {
     expect(result.civilizations[civId].gold).toBe(96);
   });
 
+  it('#927 Rung 6: Federal Autonomy deducts 20% of this turn\'s positive gold income, once, at the canonical revenue point', () => {
+    function buildState(federalismEnabled: boolean): GameState {
+      const state = createNewGame(undefined, 'federalism-remittance-test', 'small');
+      const city = foundCity('player', { q: 2, r: 2 }, state.map, state.idCounters);
+      city.id = 'capital';
+      city.population = 4;
+      city.buildings = ['marketplace'];
+      city.workedTiles = [];
+      city.productionQueue = [];
+      state.cities = { capital: city };
+      state.civilizations.player.cities = ['capital'];
+      state.civilizations.player.units = [];
+      state.units = {};
+      state.civilizations.player.gold = 500;
+      state.civilizations.player.techState.completed = [...state.civilizations.player.techState.completed, 'decolonization'];
+      state.civilizations.player.federalismEnabled = federalismEnabled;
+      return state;
+    }
+
+    const baseline = processTurn(buildState(false), new EventBus());
+    const withFederalism = processTurn(buildState(true), new EventBus());
+    const baselineIncome = baseline.civilizations.player.gold - 500;
+    expect(baselineIncome).toBeGreaterThan(0); // sanity: the fixture actually earns gold this turn
+
+    const expectedGold = 500 + baselineIncome - Math.floor(baselineIncome * 0.2);
+    expect(withFederalism.civilizations.player.gold).toBe(expectedGold);
+    expect(withFederalism.civilizations.player.gold).toBeLessThan(baseline.civilizations.player.gold);
+  });
+
+  it('#927 Rung 6: Federal Autonomy never creates a reverse subsidy on negative gold income', () => {
+    // No cities (no income) + a handful of units (unit maintenance only) ->
+    // totalGold is negative this turn but starting gold (500) is high enough
+    // that the result isn't also clamped at zero by the unrelated downstream
+    // treasury floor, so a reverse-subsidy regression (a missing
+    // Math.max(0, ...) guard turning the deduction into a gain) is directly
+    // observable as a gold difference between the two runs below.
+    function buildState(federalismEnabled: boolean): GameState {
+      const state = createNewGame(undefined, `federalism-deficit-test-${federalismEnabled}`, 'small');
+      state.civilizations.player.cities = [];
+      state.civilizations.player.units = [];
+      state.units = {};
+      for (let index = 0; index < 5; index++) {
+        const unit = createUnit('warrior', 'player', { q: 0, r: 0 }, state.idCounters);
+        state.units[unit.id] = unit;
+        state.civilizations.player.units.push(unit.id);
+      }
+      state.civilizations.player.gold = 500;
+      state.civilizations.player.techState.completed = [...state.civilizations.player.techState.completed, 'decolonization'];
+      state.civilizations.player.federalismEnabled = federalismEnabled;
+      return state;
+    }
+
+    const baseline = processTurn(buildState(false), new EventBus());
+    const withFederalism = processTurn(buildState(true), new EventBus());
+    expect(baseline.civilizations.player.gold).toBeLessThan(500); // sanity: genuinely a deficit turn
+    expect(withFederalism.civilizations.player.gold).toBe(baseline.civilizations.player.gold);
+  });
+
   it('cleans up expired purchasedResources entries at the start of each turn (expiresOnTurn <= state.turn)', () => {
     const state = createNewGame(undefined, 'purchased-expiry-test', 'small');
     const bus = new EventBus();
