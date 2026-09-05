@@ -18,6 +18,8 @@ import {
   fixtureProsperousMercantile,
   fixtureRecentlyAttacked,
   fixtureThreatenedNoWar,
+  longestConsecutiveRun,
+  MAX_RECOVERY_TURNS,
   runMinorCivLongRun,
   type MinorCivFixture,
 } from './helpers/minor-civ-scenario-fixtures';
@@ -78,15 +80,13 @@ describe('#949 — long-run scenario fixtures stay bounded', () => {
     const trace = runMinorCivLongRun(state, minorCivId, FIXTURE_SWEEP_TURNS, bus);
 
     expect(() => assertNoRunaway(trace)).not.toThrow();
-    // A coalition either resolves to war or dissolves/cools — it must not sit "forming" forever
-    // past its own countdown window (checked generically: every coalition's cooldownUntilTurn
-    // has long since passed by turn 90 for the 'forming' status, or it advanced to 'active').
+    // A coalition's own countdown is only 4-6 turns (coalitionTalksCountdown), so 90 turns is way
+    // more than enough for it to resolve out of 'forming' — a coalition genuinely stuck there the
+    // whole run (never activating) would be a real bug. Verified this fixture does form a
+    // coalition and it reaches 'active' well before turn 90.
     const finalCoalitions = Object.values(trace.finalState.minorCivCoalitions ?? {});
-    for (const coalition of finalCoalitions) {
-      if (coalition.status === 'forming') {
-        expect(coalition.cooldownUntilTurn).toBeGreaterThan(trace.finalState.turn - FIXTURE_SWEEP_TURNS);
-      }
-    }
+    expect(finalCoalitions.length).toBeGreaterThan(0);
+    expect(finalCoalitions.every(coalition => coalition.status === 'active')).toBe(true);
   }, 15000);
 
   it('early-game near a young player: never levies or grants free population/units in the first 20 turns', () => {
@@ -167,12 +167,11 @@ describe('#949 — flagship 100+ turn simulations', () => {
     expect(trace.levyCount).toBeLessThanOrEqual(FLAGSHIP_TURNS / 10);
     const recoveringTurns = trace.samples.filter(sample => sample.recovering).length;
     expect(recoveringTurns).toBeGreaterThan(0);
-    // Recovery must eventually exit — the run must not end still recovering from the very last levy.
-    const last = trace.samples[trace.samples.length - 1];
-    if (last.levyCooldownUntilTurn !== undefined) {
-      const recoveredBeforeEnd = trace.samples.some(sample => sample.turn > (last.levyCooldownUntilTurn ?? 0) - 5 && !sample.recovering);
-      expect(recoveredBeforeEnd || !last.recovering).toBe(true);
-    }
+    // Recovery must eventually exit — checked directly by bounding the longest unbroken streak of
+    // recovering=true samples, rather than inferring it from cooldown-timing arithmetic (which is
+    // sensitive to exactly when the last levy happens to land relative to the run's end). This
+    // holds regardless of where in the run recovery windows fall.
+    expect(longestConsecutiveRun(trace.samples, sample => sample.recovering)).toBeLessThanOrEqual(MAX_RECOVERY_TURNS);
   }, 20000);
 });
 

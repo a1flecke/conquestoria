@@ -7,6 +7,7 @@ import { TECH_TREE, getEraAdvancementTechs } from '@/systems/tech-definitions';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { processMinorCivRegionalGrievanceTurn } from '@/systems/minor-civ-coalition-system';
+import { advancePlayerCivToEra as setTargetCivEra } from './helpers/minor-civ-scenario-fixtures';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -19,13 +20,6 @@ function setNearbyPressureEra(state: ReturnType<typeof createNewGame>, minorCivI
     id: 'pressure-source', owner: 'player', position: { q: city.position.q + 1, r: city.position.r },
   } as never;
   state.civilizations.player.cities = ['pressure-source'];
-}
-
-function setTargetCivEra(state: ReturnType<typeof createNewGame>, era: number): void {
-  state.civilizations.player.techState.completed = Array.from({ length: era - 1 }, (_, index) => index + 2)
-    .flatMap(candidate => getEraAdvancementTechs(candidate)
-      .slice(0, Math.ceil(getEraAdvancementTechs(candidate).length * (candidate <= 3 ? 0.5 : candidate <= 8 ? 0.6 : 0.55)))
-      .map(tech => tech.id));
 }
 
 describe('minor civ placement', () => {
