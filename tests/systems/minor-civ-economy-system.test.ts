@@ -752,3 +752,99 @@ describe('#951 — long-run emergency-levy conflict scenario', () => {
     expect(second.unitCountHistory).toEqual(first.unitCountHistory);
   });
 });
+
+describe('#954 — cap-respecting unit completion when posture/cap drops mid-production', () => {
+  function addExtraUnits(state: ReturnType<typeof createNewGame>, minorCivId: string, count: number): void {
+    const minorCiv = state.minorCivs[minorCivId];
+    for (let i = 0; i < count; i++) {
+      const extra = createUnit('warrior', minorCivId, minorCivCityPosition(state, minorCivId), state.idCounters);
+      extra.id = `mc-954-extra-unit-${i}`;
+      state.units[extra.id] = extra;
+      minorCiv.units.push(extra.id);
+    }
+  }
+
+  function minorCivCityPosition(state: ReturnType<typeof createNewGame>, minorCivId: string) {
+    return state.cities[state.minorCivs[minorCivId].cityId].position;
+  }
+
+  it('dequeues an already-queued unit rather than completing it once the live cap drops below the current count', () => {
+    const state = createNewGame(undefined, 'mc-954-dequeue-overcap', 'small');
+    const minorCiv = Object.values(state.minorCivs)[0];
+    const city = state.cities[minorCiv.cityId];
+    // Standard-difficulty settled cap is 2; 3 living units simulates units legitimately built
+    // during an earlier 'mobilizing' phase (cap 4) that now outnumber the peaceful 'settled' cap
+    // — exactly the interaction #954 is about. No war/threat/grievance/coalition is set, so this
+    // turn's freshly-evaluated posture is 'settled'.
+    addExtraUnits(state, minorCiv.id, 2);
+    const unitCountBefore = minorCiv.units.filter(unitId => Boolean(state.units[unitId])).length;
+    expect(unitCountBefore).toBe(3);
+    city.productionQueue = ['warrior'];
+    city.productionProgress = 999;
+
+    const result = processMinorCivEconomyTurn(state, minorCiv.id);
+
+    const unitCountAfter = result.state.minorCivs[minorCiv.id].units.filter(unitId => Boolean(result.state.units[unitId])).length;
+    expect(unitCountAfter).toBe(unitCountBefore);
+    expect(result.state.cities[city.id].productionQueue).toEqual([]);
+    expect(result.state.cities[city.id].productionProgress).toBe(0);
+    expect(result.completed).toBeUndefined();
+  });
+
+  it('still completes a queued unit that stays within the live cap', () => {
+    const state = createNewGame(undefined, 'mc-954-under-cap-completes', 'small');
+    const minorCiv = Object.values(state.minorCivs)[0];
+    const city = state.cities[minorCiv.cityId];
+    // Only the default 1 garrison unit — well under the settled cap of 2.
+    city.productionQueue = ['warrior'];
+    city.productionProgress = 999;
+    const beforeUnitIds = new Set(Object.keys(state.units));
+
+    const result = processMinorCivEconomyTurn(state, minorCiv.id);
+    const newUnit = Object.values(result.state.units).find(unit => !beforeUnitIds.has(unit.id));
+
+    expect(newUnit).toBeDefined();
+    expect(result.state.minorCivs[minorCiv.id].units).toContain(newUnit!.id);
+    expect(result.completed).toMatchObject({ itemId: 'warrior', itemClass: 'unit' });
+  });
+
+  it('still completes a queued unit that stays within the elevated mobilizing cap', () => {
+    const state = createNewGame(undefined, 'mc-954-mobilizing-cap-completes', 'small');
+    const minorCiv = Object.values(state.minorCivs)[0];
+    const city = state.cities[minorCiv.cityId];
+    // Standard-difficulty mobilizing cap is 4. 3 living units + 1 queued = 4, exactly at cap —
+    // proves the fix checks the LIVE (current, elevated-by-war) cap, not an overly conservative
+    // fixed value.
+    minorCiv.diplomacy.atWarWith = ['player'];
+    state.civilizations.player.diplomacy.atWarWith = [minorCiv.id];
+    addExtraUnits(state, minorCiv.id, 2);
+    const unitCountBefore = minorCiv.units.filter(unitId => Boolean(state.units[unitId])).length;
+    expect(unitCountBefore).toBe(3);
+    city.productionQueue = ['warrior'];
+    city.productionProgress = 999;
+
+    const result = processMinorCivEconomyTurn(state, minorCiv.id);
+
+    const unitCountAfter = result.state.minorCivs[minorCiv.id].units.filter(unitId => Boolean(result.state.units[unitId])).length;
+    expect(unitCountAfter).toBe(unitCountBefore + 1);
+    expect(result.completed).toMatchObject({ itemId: 'warrior', itemClass: 'unit' });
+  });
+
+  it('carries existing production progress into the next queue item rather than resetting it', () => {
+    const state = createNewGame(undefined, 'mc-954-progress-carries', 'small');
+    const minorCiv = Object.values(state.minorCivs)[0];
+    const city = state.cities[minorCiv.cityId];
+    addExtraUnits(state, minorCiv.id, 2);
+    const legalBuilding = getMinorCivBuildCandidates(state, minorCiv.id).buildings[0]!.id;
+    city.productionQueue = ['warrior', legalBuilding];
+    city.productionProgress = 5;
+
+    const result = processMinorCivEconomyTurn(state, minorCiv.id);
+
+    expect(result.state.cities[city.id].productionQueue).toEqual([legalBuilding]);
+    // Not reset to 0 — the dropped unit's accumulated progress carries into the new head, exactly
+    // like processCity's own "drop an illegal queue head" convention. processCity still runs this
+    // same turn afterward and adds this turn's own yield on top, so it's >= 5, not pinned to it.
+    expect(result.state.cities[city.id].productionProgress).toBeGreaterThanOrEqual(5);
+  });
+});
