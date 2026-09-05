@@ -20,17 +20,7 @@ import { getCivAvailableResources } from '@/systems/resource-acquisition-system'
 import { getWrappedHexNeighbors, hexKey, hexNeighbors } from '@/systems/hex-utils';
 import { createUnit } from '@/systems/unit-system';
 import { getEraAdvancementTechs } from '@/systems/tech-definitions';
-
-// Mirrors setTargetCivEra in tests/systems/minor-civ-system.test.ts: to actually reach personal
-// era N (not just complete some era-N techs), a civ needs partial completion of every era from 2
-// through N. resolveNeutralPressureEra reads the nearby major civ's real resolved era, so a
-// population-ceiling test that wants to cross an era band boundary must fully walk the chain.
-function setPlayerCivEra(state: ReturnType<typeof createNewGame>, era: number): void {
-  state.civilizations.player.techState.completed = Array.from({ length: Math.max(0, era - 1) }, (_, index) => index + 2)
-    .flatMap(candidate => getEraAdvancementTechs(candidate)
-      .slice(0, Math.ceil(getEraAdvancementTechs(candidate).length * (candidate <= 3 ? 0.5 : candidate <= 8 ? 0.6 : 0.55)))
-      .map(tech => tech.id));
-}
+import { advancePlayerCivToEra as setPlayerCivEra } from './helpers/minor-civ-scenario-fixtures';
 
 describe('minor-civ economy normalization', () => {
   it('does not change city queue, production progress, units, or regional grievance', () => {

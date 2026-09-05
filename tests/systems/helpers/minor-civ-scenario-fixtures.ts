@@ -28,14 +28,30 @@ import {
  * for a determinism check.
  */
 
-// Mirrors setTargetCivEra / setPlayerCivEra in the sibling minor-civ test files: reaching
-// personal era N requires partial completion of every era from 2 through N, because
-// resolveNeutralPressureEra reads the nearby major civ's own resolved era.
+// The single shared implementation of what used to be two near-identical copies
+// (minor-civ-system.test.ts's setTargetCivEra, minor-civ-economy-system.test.ts's
+// setPlayerCivEra) — both files now import this under their original local name via an alias, so
+// existing call sites are unchanged. Reaching personal era N requires partial completion of every
+// era from 2 through N, because resolveNeutralPressureEra reads the nearby major civ's own
+// resolved era rather than a raw tech count.
 export function advancePlayerCivToEra(state: GameState, era: number): void {
   state.civilizations.player.techState.completed = Array.from({ length: Math.max(0, era - 1) }, (_, index) => index + 2)
     .flatMap(candidate => getEraAdvancementTechs(candidate)
       .slice(0, Math.ceil(getEraAdvancementTechs(candidate).length * (candidate <= 3 ? 0.5 : candidate <= 8 ? 0.6 : 0.55)))
       .map(tech => tech.id));
+}
+
+const ALL_MINOR_CIV_POSTURES: readonly MinorCivPosture[] = ['settled', 'fortifying', 'mobilizing', 'recovering'];
+
+// The highest cap this civ could legitimately reach under ANY posture right now — not just its
+// current posture's cap. A unit built while 'mobilizing' (cap up to 5) legitimately keeps existing
+// after posture reverts to 'settled' (cap as low as 1): there is no forced-disband mechanic, and
+// handling that cap-drop interaction properly is #954's explicit, separate, not-yet-done scope.
+// Checking against the current posture's cap alone would misreport that known, tracked gap as a
+// #949 "runaway" failure; checking against the max-across-postures ceiling instead still catches
+// genuine unbounded growth (which would eventually exceed even the highest tier).
+function maxUnitCapAcrossPostures(state: GameState, minorCivId: string): number {
+  return Math.max(...ALL_MINOR_CIV_POSTURES.map(posture => getMinorCivUnitCap(state, minorCivId, posture)));
 }
 
 export interface MinorCivFixture {
@@ -180,8 +196,12 @@ export function fixtureCoastal(seed: string): MinorCivFixture {
 export function fixtureBlockedSpawn(seed: string): MinorCivFixture {
   const fixture = firstMinorCiv(createNewGame(undefined, seed, 'small'));
   const city = fixture.state.cities[fixture.state.minorCivs[fixture.minorCivId].cityId];
-  const blockPositions = [city.position, ...hexNeighbors(city.position)];
-  for (const [index, coord] of blockPositions.entries()) {
+  // city.position itself is already occupied by the minor civ's own garrison unit
+  // (minor-civ-system.ts spawns it there) — placing a second unit on the same tile would violate
+  // this codebase's "never stack units on a tile" invariant (.claude/rules/game-systems.md,
+  // "Spawn Occupancy") and produce a game state that can never occur in real play. Blocking every
+  // neighbor is sufficient to make the city itself unspawnable-around.
+  for (const [index, coord] of hexNeighbors(city.position).entries()) {
     if (!fixture.state.map.tiles[hexKey(coord)]) continue;
     const blocker = createUnit('warrior', 'barbarian', coord, fixture.state.idCounters);
     blocker.id = `scenario-spawn-blocker-${index}`;
@@ -203,6 +223,14 @@ export interface MinorCivEnvelopeSample {
   pendingSpawnAttempts: number;
   levyCooldownUntilTurn: number | undefined;
   recovering: boolean;
+  // Computed against THIS turn's own state (not retroactively from the run's final state) so a
+  // ceiling/cap that legitimately shifts mid-run (a nearby major civ's era advancing) is checked
+  // against what was actually in effect at that turn, not a later, looser value.
+  populationCeiling: number;
+  // Max cap across every posture (see maxUnitCapAcrossPostures) — deliberately not this sample's
+  // own posture's cap, since a unit built during an earlier higher-cap posture legitimately
+  // outlives that posture (no forced-disband mechanic; that interaction is #954's separate scope).
+  unitCap: number;
 }
 
 export interface MinorCivScenarioTrace {
@@ -217,6 +245,7 @@ function sampleEnvelope(state: GameState, minorCivId: string): MinorCivEnvelopeS
   const minorCiv = state.minorCivs[minorCivId];
   const city = state.cities[minorCiv.cityId];
   const economy = minorCiv.economy;
+  const posture = economy?.posture ?? 'settled';
   return {
     turn: state.turn,
     destroyed: minorCiv.isDestroyed,
@@ -224,12 +253,14 @@ function sampleEnvelope(state: GameState, minorCivId: string): MinorCivEnvelopeS
     liveUnitCount: minorCiv.units.filter(unitId => Boolean(state.units[unitId])).length,
     buildingCount: city?.buildings.length ?? 0,
     productionProgress: city?.productionProgress ?? 0,
-    posture: economy?.posture ?? 'settled',
+    posture,
     policy: economy?.policy ?? 'balanced',
     pressureEra: city ? (resolveNeutralPressureEra(state, city.position) ?? 1) : 1,
     pendingSpawnAttempts: economy?.pendingUnitSpawn?.attempts ?? 0,
     levyCooldownUntilTurn: economy?.levyCooldownUntilTurn,
     recovering: (economy?.localRecoveryUntilTurn ?? 0) > state.turn,
+    populationCeiling: getMinorCivPopulationCeiling(state, minorCivId),
+    unitCap: maxUnitCapAcrossPostures(state, minorCivId),
   };
 }
 
@@ -278,19 +309,47 @@ export function assertNoRunaway(trace: MinorCivScenarioTrace): void {
   const tuning = MINOR_CIV_ECONOMY_TUNING[resolveOpponentChallenge(trace.finalState)];
   for (const sample of trace.samples) {
     if (sample.destroyed) continue;
-    const ceiling = getMinorCivPopulationCeiling(trace.finalState, trace.minorCivId);
-    if (sample.population > ceiling) {
-      throw new Error(`turn ${sample.turn}: population ${sample.population} exceeded ceiling ${ceiling}`);
+    // Each sample's own populationCeiling/unitCap were computed against that turn's state, not
+    // retroactively from the run's final state — correct even if a ceiling/cap-affecting input
+    // (e.g. a nearby major civ's era) legitimately shifts partway through a run.
+    if (sample.population > sample.populationCeiling) {
+      throw new Error(`turn ${sample.turn}: population ${sample.population} exceeded ceiling ${sample.populationCeiling}`);
     }
     if (sample.population < 0) {
       throw new Error(`turn ${sample.turn}: population went negative (${sample.population})`);
     }
-    const cap = getMinorCivUnitCap(trace.finalState, trace.minorCivId, sample.posture);
-    if (sample.liveUnitCount > cap) {
-      throw new Error(`turn ${sample.turn}: unit count ${sample.liveUnitCount} exceeded live cap ${cap} for posture ${sample.posture}`);
+    if (sample.liveUnitCount > sample.unitCap) {
+      throw new Error(`turn ${sample.turn}: unit count ${sample.liveUnitCount} exceeded the max-across-postures cap ${sample.unitCap}`);
     }
     if (sample.pendingSpawnAttempts > tuning.pendingSpawnMaxAttempts) {
       throw new Error(`turn ${sample.turn}: pending spawn attempts ${sample.pendingSpawnAttempts} exceeded max ${tuning.pendingSpawnMaxAttempts}`);
     }
   }
+
+  // Posture thrashing (#949's "posture transitions per N turns (no thrashing)" envelope): a
+  // change every turn or two indicates a borderline-threshold flap, not a legitimate scenario arc
+  // (settled -> mobilizing once, mobilizing -> recovering once, etc). A generous bound — no more
+  // than one change per 4 turns on average — comfortably covers every fixture's real transitions
+  // while still catching genuine oscillation.
+  const maxLegitimatePostureChanges = Math.ceil(trace.samples.length / 4);
+  if (trace.postureChangeCount > maxLegitimatePostureChanges) {
+    throw new Error(
+      `posture changed ${trace.postureChangeCount} times over ${trace.samples.length} turns `
+      + `(max expected ${maxLegitimatePostureChanges}) — looks like thrashing, not a real scenario arc`,
+    );
+  }
 }
+
+/** Length of the longest run of consecutive samples satisfying `predicate`. */
+export function longestConsecutiveRun<T>(items: T[], predicate: (item: T) => boolean): number {
+  let longest = 0;
+  let current = 0;
+  for (const item of items) {
+    current = predicate(item) ? current + 1 : 0;
+    longest = Math.max(longest, current);
+  }
+  return longest;
+}
+
+/** Largest recoveryTurns value across every difficulty tuning — a difficulty-generic upper bound. */
+export const MAX_RECOVERY_TURNS = Math.max(...Object.values(MINOR_CIV_ECONOMY_TUNING).map(tuning => tuning.recoveryTurns));
