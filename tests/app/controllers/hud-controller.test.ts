@@ -337,4 +337,53 @@ describe('HudController', () => {
       expect(document.getElementById('hud')!.textContent).not.toContain('☢');
     });
   });
+
+  describe('#927 Rung 6 — Federal Autonomy toggle', () => {
+    function federalismButton(): HTMLButtonElement | null {
+      return document.querySelector('[data-action="toggle-federalism"]');
+    }
+
+    it('is absent before Decolonization is researched', () => {
+      const state = makeFixture();
+      const deps = baseDeps(state);
+      const hud = createHudController(deps);
+      hud.update();
+      expect(federalismButton()).toBeNull();
+    });
+
+    it('shows Off once researched, and toggles to On via a real click, refreshing itself through session.commit', () => {
+      const state = makeFixture();
+      state.civilizations.player.techState.completed = [...state.civilizations.player.techState.completed, 'decolonization'];
+      const deps = baseDeps(state);
+      const hud = createHudController(deps);
+      hud.update();
+
+      const btn = federalismButton();
+      expect(btn).not.toBeNull();
+      expect(btn!.textContent).toContain('Off');
+      expect(btn!.disabled).toBe(false);
+
+      btn!.click();
+      hud.update();
+
+      const afterClick = federalismButton();
+      expect(afterClick!.textContent).toContain('On');
+      expect(deps.session.getState().civilizations.player.federalismEnabled).toBe(true);
+      expect(deps.session.getState().civilizations.player.federalismChangedTurn).toBe(state.turn);
+    });
+
+    it('is disabled with a title naming the unlock turn while the post-toggle lock is active', () => {
+      const state = makeFixture();
+      state.civilizations.player.techState.completed = [...state.civilizations.player.techState.completed, 'decolonization'];
+      state.civilizations.player.federalismEnabled = true;
+      state.civilizations.player.federalismChangedTurn = state.turn; // just toggled -> locked
+      const deps = baseDeps(state);
+      const hud = createHudController(deps);
+      hud.update();
+
+      const btn = federalismButton()!;
+      expect(btn.disabled).toBe(true);
+      expect(btn.title).toMatch(/locked until turn/i);
+    });
+  });
 });

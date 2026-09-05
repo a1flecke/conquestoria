@@ -417,3 +417,57 @@ describe('#927 Railway Administration guidance', () => {
     expect(recs.some(rec => rec.kind === 'research-railway-administration')).toBe(false);
   });
 });
+
+describe('#927 Federal Autonomy guidance', () => {
+  const FEDERALISM_PREREQS = ['universal-suffrage', 'propaganda-campaigns'];
+
+  it('recommends researching Decolonization once Bureaucracy is already researched', () => {
+    const state = makeState({
+      cityCount: 12, era: 10,
+      completed: ['separation-of-powers', ...FEDERALISM_PREREQS],
+    });
+    const rec = getUnrestRecommendations('city-1', state).find(r => r.rowLabel === 'Empire overextension');
+    expect(rec?.kind).toBe('research-federalism');
+    expect(rec?.availability).toBe('research-first');
+  });
+
+  it('NEGATIVE: recommends Bureaucracy first, not Federal Autonomy, before Bureaucracy is researched', () => {
+    const state = makeState({
+      cityCount: 12, era: 10,
+      completed: ['constitutional-law', ...FEDERALISM_PREREQS],
+    });
+    const rec = getUnrestRecommendations('city-1', state).find(r => r.rowLabel === 'Empire overextension');
+    expect(rec?.kind).toBe('research-bureaucracy');
+  });
+
+  it('recommends enabling Federal Autonomy once researched, not yet enabled, with real relief available', () => {
+    const state = makeState({
+      cityCount: 12, era: 10,
+      completed: ['separation-of-powers', ...FEDERALISM_PREREQS, 'decolonization'],
+    });
+    const rec = getUnrestRecommendations('city-1', state).find(r => r.rowLabel === 'Empire overextension');
+    expect(rec?.kind).toBe('enable-federalism');
+    expect(rec?.availability).toBe('now');
+  });
+
+  it('NEGATIVE: stops recommending enable-federalism once already enabled', () => {
+    const state = makeState({
+      cityCount: 12, era: 10,
+      completed: ['separation-of-powers', ...FEDERALISM_PREREQS, 'decolonization'],
+    });
+    state.civilizations.player.federalismEnabled = true;
+    const recs = getUnrestRecommendations('city-1', state);
+    expect(recs.some(rec => rec.kind === 'enable-federalism')).toBe(false);
+  });
+
+  it('NEGATIVE: does not recommend enable-federalism while the post-toggle lock is active', () => {
+    const state = makeState({
+      cityCount: 12, era: 10,
+      completed: ['separation-of-powers', ...FEDERALISM_PREREQS, 'decolonization'],
+    });
+    state.civilizations.player.federalismEnabled = false;
+    state.civilizations.player.federalismChangedTurn = state.turn; // just toggled -> locked
+    const recs = getUnrestRecommendations('city-1', state);
+    expect(recs.some(rec => rec.kind === 'enable-federalism')).toBe(false);
+  });
+});

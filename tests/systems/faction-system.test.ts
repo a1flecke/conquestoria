@@ -24,6 +24,10 @@ import {
   BUREAUCRACY_TECH_ID,
   BUREAUCRACY_MAX_RELIEF,
   OVEREXTENSION_FREE_CITIES,
+  FEDERALISM_TECH_ID,
+  FEDERALISM_LOCK_TURNS,
+  setFederalismStance,
+  getFederalismRemittanceLoss,
 } from '@/systems/faction-system';
 import { BUILDINGS } from '@/systems/city-system';
 import { getEraAdvancementTechs } from '@/systems/tech-definitions';
@@ -1704,6 +1708,248 @@ describe('#927 Rung 5 — Railway Administration unrest relief', () => {
 
     expect(row?.amount).toBeLessThan(0);
     expect(otherViewerRow).toEqual(row);
+  });
+});
+
+describe('#927 Rung 6 (final) — Federal Autonomy', () => {
+  function withCivFields(state: GameState, fields: Partial<GameState['civilizations']['player']>): GameState {
+    return {
+      ...state,
+      civilizations: { ...state.civilizations, player: { ...state.civilizations.player, ...fields } },
+    };
+  }
+
+  function withCompleted(state: GameState, techIds: string[]): GameState {
+    return withCivFields(state, { techState: { ...state.civilizations.player.techState, completed: techIds } });
+  }
+
+  describe('relief math', () => {
+    it('adds no relief without the tech, even with federalismEnabled somehow set', () => {
+      const state = withCivFields(
+        withCompleted(makeState({ cityCount: 8, cityPosition: { q: 0, r: 0 } }), []),
+        { federalismEnabled: true },
+      );
+      const rows = getUnrestPressureBreakdown('city-1', state);
+      expect(rows).toContainEqual({ label: 'Empire overextension', amount: 9 });
+      expect(rows.find(r => r.label === 'Federal Autonomy')).toBeUndefined();
+    });
+
+    it('adds no relief when researched but not enabled', () => {
+      const state = withCompleted(makeState({ cityCount: 8, cityPosition: { q: 0, r: 0 } }), [FEDERALISM_TECH_ID]);
+      const rows = getUnrestPressureBreakdown('city-1', state);
+      expect(rows.find(r => r.label === 'Federal Autonomy')).toBeUndefined();
+    });
+
+    it('grants bounded relief once enabled, leaving the base row and the shared floor intact', () => {
+      const state = withCivFields(
+        withCompleted(makeState({ cityCount: 8, cityPosition: { q: 0, r: 0 } }), [FEDERALISM_TECH_ID]),
+        { federalismEnabled: true },
+      );
+      const rows = getUnrestPressureBreakdown('city-1', state);
+      expect(rows).toContainEqual({ label: 'Empire overextension', amount: 9 });
+      // No Bureaucracy active: raw = 9, cap = max(0, 0+9-2-0) = 7.
+      expect(rows).toContainEqual({ label: 'Federal Autonomy', amount: -7 });
+    });
+
+    it('relieves only what remains after Bureaucracy, not the full row twice', () => {
+      const state = withCivFields(
+        withCompleted(makeState({ cityCount: 11, cityPosition: { q: 0, r: 0 } }), [FEDERALISM_TECH_ID, BUREAUCRACY_TECH_ID]),
+        { federalismEnabled: true },
+      );
+      const rows = getUnrestPressureBreakdown('city-1', state);
+      // 12 total cities (cityCount 11 -> capital + city-1 + city-2..city-11) -> O = (12-6)*3 = 18.
+      expect(rows).toContainEqual({ label: 'Empire overextension', amount: 18 });
+      // Bureaucracy: hypothetical = max(0,(12-9)*3)=9, raw=18-9=9, cap=max(0,18-2)=16 -> 9 (MAX_RELIEF).
+      expect(rows).toContainEqual({ label: 'Bureaucratic administration', amount: -9 });
+      // Federalism: raw = max(0, 18-9) = 9, consumed = 9, cap = max(0, 18-2-9) = 7 -> min(9,7) = 7.
+      expect(rows).toContainEqual({ label: 'Federal Autonomy', amount: -7 });
+      const total = rows.reduce((sum, r) => sum + r.amount, 0);
+      expect(total).toBeGreaterThanOrEqual(2);
+    });
+
+    it('does not touch Distance from capital, war weariness, or recent conquest', () => {
+      const state = withCivFields(
+        withCompleted(
+          makeState({
+            cityCount: 8, cityPosition: { q: 10, r: 0 }, capitalPosition: { q: 0, r: 0 },
+            atWarCount: 2, conquestTurn: 9,
+          }),
+          [FEDERALISM_TECH_ID],
+        ),
+        { federalismEnabled: true },
+      );
+      const rows = getUnrestPressureBreakdown('city-1', state);
+      expect(rows).toContainEqual({ label: 'Distance from capital', amount: 10 });
+      expect(rows).toContainEqual({ label: 'War weariness', amount: 16 });
+      expect(rows).toContainEqual({ label: 'Recent conquest', amount: 25 });
+      expect(rows.filter(r => r.label === 'Federal Autonomy')).toHaveLength(1);
+    });
+
+    it('an unrelated era-10 tech grants no relief', () => {
+      const state = withCivFields(
+        withCompleted(makeState({ cityCount: 8, cityPosition: { q: 0, r: 0 } }), ['international-institutions']),
+        { federalismEnabled: true },
+      );
+      expect(getUnrestPressureBreakdown('city-1', state).find(r => r.label === 'Federal Autonomy')).toBeUndefined();
+    });
+  });
+
+  describe('full-ladder stacking (Courthouse + Road & Post + Bureaucracy + Railway + Federalism)', () => {
+    function addOwnedRoadChain(state: GameState, endQ: number): void {
+      for (let q = 1; q < endQ; q++) {
+        state.map.tiles[`${q},0`] = {
+          coord: { q, r: 0 }, terrain: 'plains', elevation: 'lowland', resource: null,
+          improvement: 'none', owner: 'player', improvementTurnsLeft: 0, hasRiver: false,
+          wonder: null, hasRoad: true,
+        };
+      }
+    }
+
+    it('lands exactly on the shared residual floor with five rungs stacked', () => {
+      // cityPosition q=21 (not 20): makeState's cityCount=10 auto-places
+      // city-2..city-10 at q=4,6,...,20 (r=0) -- q=20 would collide with the
+      // auto-generated city-10 at the identical position, silently hijacking
+      // the road-connectivity BFS's cityIdByTileKey lookup. Distance still
+      // caps at 20 (MAX_PRESSURE_DISTANCE) either way, so this changes nothing
+      // about the expected numbers below.
+      let state = withCivFields(
+        withCompleted(
+          makeState({ cityCount: 10, cityPosition: { q: 21, r: 0 }, capitalPosition: { q: 0, r: 0 } }),
+          ['military-logistics', 'railway-expansion', BUREAUCRACY_TECH_ID, FEDERALISM_TECH_ID],
+        ),
+        { federalismEnabled: true },
+      );
+      addOwnedRoadChain(state, 21);
+      state = { ...state, cities: { ...state.cities, 'city-1': { ...state.cities['city-1'], buildings: ['courthouse'] } } };
+
+      const rows = getUnrestPressureBreakdown('city-1', state);
+      expect(rows).toContainEqual({ label: 'Distance from capital', amount: 20 });
+      expect(rows).toContainEqual({ label: 'Empire overextension', amount: 15 });
+      expect(rows).toContainEqual({ label: 'Courthouse', amount: -13 });
+      expect(rows).toContainEqual({ label: 'Road & Post Network', amount: -6 });
+      expect(rows).toContainEqual({ label: 'Bureaucratic administration', amount: -9 });
+      expect(rows).toContainEqual({ label: 'Railway Administration', amount: -4 });
+      expect(rows).toContainEqual({ label: 'Federal Autonomy', amount: -1 });
+
+      const total = rows.reduce((sum, r) => sum + r.amount, 0);
+      expect(total).toBe(2); // exactly the shared floor, not below it
+    });
+
+    it('lands exactly on the shared residual floor with all six rungs stacked (full ladder)', () => {
+      let state = withCivFields(
+        withCompleted(
+          makeState({ cityCount: 10, cityPosition: { q: 21, r: 0 }, capitalPosition: { q: 0, r: 0 } }),
+          ['military-logistics', 'railway-expansion', BUREAUCRACY_TECH_ID, FEDERALISM_TECH_ID, 'political-philosophy'],
+        ),
+        { federalismEnabled: true },
+      );
+      addOwnedRoadChain(state, 21);
+      state = {
+        ...state,
+        cities: {
+          ...state.cities,
+          'city-1': { ...state.cities['city-1'], buildings: ['courthouse'] },
+          seat: makeCity('seat', 'player', { q: 15, r: 0 }, { buildings: ['regional_capital'] }),
+        },
+        civilizations: { ...state.civilizations, player: { ...state.civilizations.player, cities: [...state.civilizations.player.cities, 'seat'] } },
+        builtNationalProjects: { 'player:regional_capital': { civId: 'player', cityId: 'seat', eraBuilt: 4 } },
+      };
+
+      const rows = getUnrestPressureBreakdown('city-1', state);
+      expect(rows).toContainEqual({ label: 'Distance from capital', amount: 20 });
+      // Adding the seat city itself raises the city count by 1 vs. the
+      // five-rung test above (12 total -> O = (12-6)*3 = 18).
+      expect(rows).toContainEqual({ label: 'Empire overextension', amount: 18 });
+      expect(rows).toContainEqual({ label: 'Courthouse', amount: -13 });
+      expect(rows).toContainEqual({ label: 'Road & Post Network', amount: -6 });
+      // Regional Capital seat at q=15 is much nearer city-1 (q=21) than the true
+      // capital (q=0): nearestDistance=6 -> nearestPressure=2, rawSeatRelief=18,
+      // capped at its own MAX_RELIEF (10) rather than the shared budget.
+      expect(rows).toContainEqual({ label: 'Regional Capital administration', amount: -10 });
+      // Railway and Federalism both zero out once Courthouse + Road & Post +
+      // Regional Capital + Bureaucracy already consume the entire remaining
+      // shared budget -- this is the invariant working as designed, not a bug:
+      // each later source in the chain gets whatever budget is actually left.
+      expect(rows).toContainEqual({ label: 'Bureaucratic administration', amount: -7 });
+      expect(rows.find(r => r.label === 'Railway Administration')).toBeUndefined();
+      expect(rows.find(r => r.label === 'Federal Autonomy')).toBeUndefined();
+
+      const total = rows.reduce((sum, r) => sum + r.amount, 0);
+      expect(total).toBe(2); // exactly the shared floor, even with every rung active
+    });
+  });
+
+  describe('getFederalismRemittanceLoss', () => {
+    it('deducts 20% of positive gold income, floored', () => {
+      expect(getFederalismRemittanceLoss(100)).toBe(20);
+      expect(getFederalismRemittanceLoss(11)).toBe(2); // floor(2.2)
+      expect(getFederalismRemittanceLoss(0)).toBe(0);
+    });
+
+    it('never creates a reverse subsidy on zero or negative income', () => {
+      expect(getFederalismRemittanceLoss(-50)).toBe(0);
+      expect(getFederalismRemittanceLoss(-1)).toBe(0);
+    });
+  });
+
+  describe('setFederalismStance', () => {
+    it('fails without the tech researched', () => {
+      const state = withCompleted(makeState(), []);
+      const result = setFederalismStance(state, 'player', true);
+      expect(result.success).toBe(false);
+      expect(result.state).toBe(state);
+    });
+
+    it('fails on a redundant toggle to the same state', () => {
+      const state = withCompleted(makeState(), [FEDERALISM_TECH_ID]);
+      const result = setFederalismStance(state, 'player', false);
+      expect(result.success).toBe(false);
+    });
+
+    it('succeeds enabling once researched, setting both fields', () => {
+      const state = withCompleted(makeState({ /* turn defaults to 10 */ }), [FEDERALISM_TECH_ID]);
+      const result = setFederalismStance(state, 'player', true);
+      expect(result.success).toBe(true);
+      expect(result.state.civilizations.player.federalismEnabled).toBe(true);
+      expect(result.state.civilizations.player.federalismChangedTurn).toBe(state.turn);
+    });
+
+    it('locks further toggles for FEDERALISM_LOCK_TURNS after enabling', () => {
+      const state = withCompleted(makeState(), [FEDERALISM_TECH_ID]);
+      const enabled = setFederalismStance(state, 'player', true);
+      expect(enabled.success).toBe(true);
+
+      const tooSoon = { ...enabled.state, turn: state.turn + FEDERALISM_LOCK_TURNS - 1 };
+      expect(setFederalismStance(tooSoon, 'player', false).success).toBe(false);
+
+      const unlocked = { ...enabled.state, turn: state.turn + FEDERALISM_LOCK_TURNS };
+      const disabled = setFederalismStance(unlocked, 'player', false);
+      expect(disabled.success).toBe(true);
+      expect(disabled.state.civilizations.player.federalismEnabled).toBe(false);
+    });
+  });
+
+  describe('hot-seat isolation', () => {
+    it('is owner-scoped: a second civ without the tech gets no relief', () => {
+      let state = withCivFields(
+        withCompleted(makeState({ cityCount: 8, cityPosition: { q: 0, r: 0 } }), [FEDERALISM_TECH_ID]),
+        { federalismEnabled: true },
+      );
+      const aiCities: Record<string, City> = {};
+      for (let i = 1; i <= 9; i++) {
+        aiCities[`ai1-city-${i}`] = makeCity(`ai1-city-${i}`, 'ai-1', { q: i * 3, r: 5 });
+      }
+      state = {
+        ...state,
+        cities: { ...state.cities, ...aiCities },
+        civilizations: { ...state.civilizations, 'ai-1': { ...state.civilizations['ai-1'], cities: Object.keys(aiCities) } },
+      };
+
+      expect(getUnrestPressureBreakdown('city-1', state).find(r => r.label === 'Federal Autonomy')).toBeDefined();
+      const aiRows = getUnrestPressureBreakdown('ai1-city-1', state);
+      expect(aiRows).toContainEqual({ label: 'Empire overextension', amount: 9 });
+      expect(aiRows.find(r => r.label === 'Federal Autonomy')).toBeUndefined();
+    });
   });
 });
 

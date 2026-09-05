@@ -58,6 +58,17 @@ describe('unrestRecommendationCopy', () => {
     expect(text).toMatch(/road/i);
   });
 
+  it('#927: research-federalism and enable-federalism name the top bar and the tradeoff', () => {
+    const research = unrestRecommendationCopy(rec({ kind: 'research-federalism', availability: 'research-first' })).text;
+    expect(research).toMatch(/decolonization.*tech screen/i);
+    expect(research).toMatch(/top bar/i);
+
+    const enable = unrestRecommendationCopy(rec({ kind: 'enable-federalism' }));
+    expect(enable.icon).toBe('🏛️');
+    expect(enable.text).toMatch(/top bar/i);
+    expect(enable.text).toMatch(/gold income/i);
+  });
+
   it('make-peace states the number of enemies from params.warCivIds', () => {
     const { text } = unrestRecommendationCopy(rec({ kind: 'make-peace', rowLabel: 'War weariness', amount: 24, params: { warCivIds: ['a', 'b'] } }));
     expect(text).toMatch(/\b2\b/);
@@ -86,6 +97,7 @@ describe('unrestRecommendationCopy', () => {
     const kinds: UnrestRecommendationKind[] = [
       'build-courthouse', 'build-military-administration', 'research-magistracy', 'research-military-logistics',
       'research-regional-capital', 'build-regional-capital', 'research-bureaucracy', 'research-railway-administration',
+      'research-federalism', 'enable-federalism',
       'connect-city-road-network', 'garrison-unit', 'train-garrison-unit',
       'make-peace', 'await-conquest-settle', 'research-constitutional-law', 'fix-economy',
       'counter-espionage', 'stabilise-contagion-source', 'build-faith-building',

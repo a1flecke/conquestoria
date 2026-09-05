@@ -95,6 +95,7 @@ they bite gets a **bought, deliberate** counter: the administration ladder
 | Regional Capital | `regional_capital` | Distance from capital | For one completed owner-held non-capital seat: `min(D−nearestSeatPressure, 10, max(0, D+O−2−courthouseRelief−roadPostRelief))` | era 4+ (`political-philosophy`) |
 | Bureaucracy | — | Empire overextension | Recompute overextension with `OVEREXTENSION_FREE_CITIES + 3`: `raw = O − hypotheticalO`; `relief = min(raw, 9, max(0, D+O−2−courthouseRelief−roadPostRelief−regionalCapitalRelief))` | era 5–6+ (`separation-of-powers`) |
 | Railway Administration | — | Distance from capital | Requires Road & Post Network already active (`military-logistics` + owned-road connection) plus `railway-expansion`: `relief = min(round(0.2·D), 4, max(0, D+O−2−courthouseRelief−roadPostRelief−regionalCapitalRelief−bureaucracyRelief))` | era 7+ (`railway-expansion`) |
+| Federal Autonomy | — | Empire overextension | Persistent civ toggle (not automatic): `raw = max(0, O − bureaucracyRelief)`; `relief = min(raw, max(0, D+O−2−courthouseRelief−roadPostRelief−regionalCapitalRelief−bureaucracyRelief−railwayRelief))`. Costs 20% of positive gold income per turn while enabled (`FEDERALISM_REMITTANCE_LOSS_FRACTION`); toggling either direction locks further toggles for `FEDERALISM_LOCK_TURNS` (8) turns. | era 10+ (`decolonization`) |
 
 **Rule:** any new distance / overextension / unrest-relief source — a future
 ladder rung (roads-cut-distance, second seat of government, civil-service

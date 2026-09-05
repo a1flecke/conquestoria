@@ -100,7 +100,7 @@ import { processDetection } from '@/systems/detection-system';
 import { applyPendingOpponentChallenge, resolveChallengeForCiv } from '@/core/opponent-challenge';
 import { applyCityHpRegeneration, applyCitySiegeOutcome, getCityCounterFireDamage, getCityGarrisonUnit, resolveCitySiegeDamage } from '@/systems/city-siege-system';
 import { normalizeOpponentAIState } from '@/core/opponent-ai-state';
-import { processFactionTurn, getUnrestYieldMultiplier, isCityProductionLocked } from '@/systems/faction-system';
+import { processFactionTurn, getUnrestYieldMultiplier, isCityProductionLocked, getFederalismRemittanceLoss } from '@/systems/faction-system';
 import { getOccupiedCityYieldMultiplier, tickOccupiedCities } from '@/systems/city-occupation-system';
 import { processBreakawayTurn } from '@/systems/breakaway-system';
 import { processCrisisTurn, processCrisisScheduler, getCrisisYieldMultiplier } from '@/systems/crisis-system';
@@ -601,6 +601,12 @@ export function processTurn(
       if (newState.civilizations[overlordId]) {
         grossGoldByCiv[overlordId] = (grossGoldByCiv[overlordId] ?? 0) + tribute.tributeAmount;
       }
+    }
+
+    // #927 Rung 6: Federal Autonomy remittance loss — applied at this
+    // canonical revenue-aggregation point, once per civ per turn.
+    if (civ.federalismEnabled) {
+      totalGold -= getFederalismRemittanceLoss(totalGold);
     }
     grossGoldByCiv[civId] = (grossGoldByCiv[civId] ?? 0) + totalGold;
 

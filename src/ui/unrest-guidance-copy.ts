@@ -26,6 +26,10 @@ export function unrestRecommendationCopy(rec: UnrestRecommendation): { icon: str
       return { icon: '🔬', text: 'Research Separation of Powers (Tech screen) to grow your bureaucracy — it eases unrest from having many cities.' };
     case 'research-railway-administration':
       return { icon: '🔬', text: 'Research Railway Expansion (Tech screen) — it upgrades your existing road connection into a faster-governed rail link.' };
+    case 'research-federalism':
+      return { icon: '🔬', text: 'Research Decolonization (Tech screen), then you can enable Federal Autonomy from the top bar.' };
+    case 'enable-federalism':
+      return { icon: '🏛️', text: 'Federal Autonomy (top bar) could ease this pressure empire-wide, but it reduces your central gold income while active.' };
     case 'garrison-unit':
       return { icon: '⚔️', text: 'Move one of your soldiers into this city to keep order.' };
     case 'train-garrison-unit':

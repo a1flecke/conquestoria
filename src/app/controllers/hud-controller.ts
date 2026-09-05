@@ -32,6 +32,7 @@ import { getNetworkPanelModel } from '@/ui/network-panel';
 import { getPirateWatersPresentation } from '@/systems/pirate-presentation';
 import { getUnmovedUnits } from '@/systems/unit-system';
 import { createResearchBreakdown } from '@/ui/research-breakdown';
+import { FEDERALISM_TECH_ID, canToggleFederalism, getFederalismLockedUntilTurn, setFederalismStance } from '@/systems/faction-system';
 
 /** The narrow slice of `RenderLoop` this controller needs. */
 export type HudRenderer = Pick<RenderLoop, 'isAirDefenseOverlayEnabled' | 'toggleAirDefenseOverlay' | 'resizeCanvas'>;
@@ -182,6 +183,34 @@ export function createHudController(deps: HudControllerDeps): HudController {
         researchBreakdown.querySelector<HTMLButtonElement>('[data-action="close-research-breakdown"]')?.focus();
       });
       yieldsRow.appendChild(scienceButton);
+
+      // #927 Rung 6: Federal Autonomy toggle. Only shown once Decolonization is
+      // researched. Disabled (with a title naming the unlock turn) while the
+      // post-toggle lock is active. No new panel — this is the "smallest
+      // coherent control" for a persistent civ-wide stance, per the rung's own
+      // design brief; see docs/superpowers/specs/2026-09-05-issue-927-federalism-design.md.
+      if (civ.techState.completed.includes(FEDERALISM_TECH_ID)) {
+        const federalismEnabled = civ.federalismEnabled === true;
+        const federalismUnlocked = canToggleFederalism(state, civ.id);
+        const federalismButton = document.createElement('button');
+        federalismButton.type = 'button';
+        federalismButton.dataset.action = 'toggle-federalism';
+        federalismButton.style.cssText = `background:transparent;color:inherit;border:1px solid rgba(232,193,112,${federalismUnlocked ? '0.45' : '0.2'});border-radius:6px;font:inherit;padding:4px 8px;min-height:44px;${federalismUnlocked ? 'cursor:pointer;' : 'cursor:not-allowed;opacity:0.6;'}`;
+        federalismButton.textContent = `🏛 Federal Autonomy: ${federalismEnabled ? 'On' : 'Off'}`;
+        federalismButton.setAttribute('aria-pressed', String(federalismEnabled));
+        federalismButton.disabled = !federalismUnlocked;
+        federalismButton.title = federalismUnlocked
+          ? 'Toggle Federal Autonomy — administrative relief for reduced central gold income.'
+          : `Locked until turn ${getFederalismLockedUntilTurn(civ)}.`;
+        federalismButton.addEventListener('click', () => {
+          deps.session.update(current => {
+            const currentCiv = current.civilizations[current.currentPlayer];
+            if (!currentCiv) return current;
+            return setFederalismStance(current, current.currentPlayer, !(currentCiv.federalismEnabled === true)).state;
+          });
+        });
+        yieldsRow.appendChild(federalismButton);
+      }
 
       if (isAutonomyActivated(state, civ.id)) {
         const networkButton = document.createElement('button');

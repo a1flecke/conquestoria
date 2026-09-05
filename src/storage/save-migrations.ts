@@ -23,7 +23,7 @@ import { UNIT_ROLE_DEFINITIONS } from '@/systems/combat-role-definitions';
 import { getEffectiveTechCost, getTechById } from '@/systems/tech-system';
 import { PRE_V24_TECH_COST_BY_ID } from './research-cost-migration-v24';
 
-export const CURRENT_SAVE_SCHEMA_VERSION = 24;
+export const CURRENT_SAVE_SCHEMA_VERSION = 25;
 
 export type SaveMigration = (state: GameState) => GameState;
 
@@ -1006,6 +1006,23 @@ export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   // unconditionally in the additive tail of migrateSaveToCurrent (same pattern as
   // withReligionDefaults / normalizeCityFaithConversionProgress).
   24: migrateResearchCostsV24,
+  // #927 Rung 6: Federal Autonomy (federalismEnabled/federalismChangedTurn on
+  // Civilization). Both fields are optional and absent already means
+  // "centralized" everywhere they're read, so this migration is a no-op for
+  // every real save -- it exists purely to scrub a malformed hand-edited value
+  // (wrong type, or a non-integer/negative federalismChangedTurn) rather than
+  // let it silently corrupt the lock-turn arithmetic. No toggle event or
+  // revenue mutation fires on load.
+  25: state => ({
+    ...state,
+    civilizations: Object.fromEntries(Object.entries(state.civilizations).map(([civId, civ]) => {
+      const enabled = typeof civ.federalismEnabled === 'boolean' ? civ.federalismEnabled : undefined;
+      const changedTurn = Number.isInteger(civ.federalismChangedTurn) && (civ.federalismChangedTurn as number) >= 0
+        ? civ.federalismChangedTurn : undefined;
+      if (enabled === civ.federalismEnabled && changedTurn === civ.federalismChangedTurn) return [civId, civ];
+      return [civId, { ...civ, federalismEnabled: enabled, federalismChangedTurn: changedTurn }];
+    })),
+  }),
 };
 
 function readSchemaVersion(raw: Record<string, unknown>): number {

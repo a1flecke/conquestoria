@@ -1345,3 +1345,62 @@ describe('#887 MR1 — migration 24: General career ledger normalization', () =>
     ]);
   });
 });
+
+describe('#927 Rung 6 — migration 25: Federal Autonomy defaults', () => {
+  it('leaves a legacy save (no federalism fields at all) with both fields undefined', () => {
+    const save = createNewGame('rome', '927-legacy-no-federalism', 'small');
+    save.saveSchemaVersion = 24;
+    delete save.civilizations.player!.federalismEnabled;
+    delete save.civilizations.player!.federalismChangedTurn;
+
+    const migrated = migrateSaveToCurrent(save);
+
+    expect(migrated.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
+    expect(migrated.civilizations.player!.federalismEnabled).toBeUndefined();
+    expect(migrated.civilizations.player!.federalismChangedTurn).toBeUndefined();
+  });
+
+  it('round-trips a valid enabled stance unchanged and is idempotent', () => {
+    const save = createNewGame('rome', '927-valid-federalism', 'small');
+    save.saveSchemaVersion = 24;
+    save.civilizations.player!.federalismEnabled = true;
+    save.civilizations.player!.federalismChangedTurn = 42;
+
+    const migrated = migrateSaveToCurrent(structuredClone(save));
+    expect(migrated.civilizations.player!.federalismEnabled).toBe(true);
+    expect(migrated.civilizations.player!.federalismChangedTurn).toBe(42);
+    expect(migrateSaveToCurrent(migrated)).toEqual(migrated);
+  });
+
+  it('scrubs a malformed federalismEnabled (wrong type) rather than trusting it', () => {
+    const save = createNewGame('rome', '927-malformed-enabled', 'small');
+    save.saveSchemaVersion = 24;
+    (save.civilizations.player as unknown as Record<string, unknown>).federalismEnabled = 'yes';
+
+    const migrated = migrateSaveToCurrent(save);
+    expect(migrated.civilizations.player!.federalismEnabled).toBeUndefined();
+  });
+
+  it('scrubs a malformed federalismChangedTurn (negative or non-integer) rather than trusting it', () => {
+    const negative = createNewGame('rome', '927-malformed-turn-negative', 'small');
+    negative.saveSchemaVersion = 24;
+    negative.civilizations.player!.federalismChangedTurn = -5;
+    expect(migrateSaveToCurrent(negative).civilizations.player!.federalismChangedTurn).toBeUndefined();
+
+    const fractional = createNewGame('rome', '927-malformed-turn-fractional', 'small');
+    fractional.saveSchemaVersion = 24;
+    fractional.civilizations.player!.federalismChangedTurn = 3.5;
+    expect(migrateSaveToCurrent(fractional).civilizations.player!.federalismChangedTurn).toBeUndefined();
+  });
+
+  it('produces no toggle event or revenue mutation on load', () => {
+    const save = createNewGame('rome', '927-no-load-mutation', 'small');
+    save.saveSchemaVersion = 24;
+    save.civilizations.player!.federalismEnabled = true;
+    save.civilizations.player!.federalismChangedTurn = 10;
+    const goldBefore = save.civilizations.player!.gold;
+
+    const migrated = migrateSaveToCurrent(save);
+    expect(migrated.civilizations.player!.gold).toBe(goldBefore);
+  });
+});
