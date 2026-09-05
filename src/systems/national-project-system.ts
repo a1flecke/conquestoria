@@ -30,6 +30,37 @@ export function getReservedNationalProjectKeys(
   return keys;
 }
 
+/**
+ * Repairs legacy or externally edited saves so a completed unique national
+ * project exists only when its keyed owner still owns its recorded host city.
+ * The same invariant is enforced at capture time; load normalization closes the
+ * gap for saves created before that cleanup existed.
+ */
+export function normalizeNationalProjects(state: GameState): GameState {
+  const records = state.builtNationalProjects ?? {};
+  const builtNationalProjects = { ...records };
+  let cities = state.cities;
+  let changed = false;
+  for (const [key, record] of Object.entries(records)) {
+    const [keyCivId, ...idParts] = key.split(':');
+    const buildingId = idParts.join(':');
+    const building = BUILDINGS[buildingId];
+    const city = state.cities[record.cityId];
+    const valid = keyCivId === record.civId
+      && building?.nationalProject
+      && building.uniquePerEmpire
+      && city?.owner === record.civId
+      && city.buildings.includes(buildingId);
+    if (valid) continue;
+    delete builtNationalProjects[key];
+    changed = true;
+    if (city?.buildings.includes(buildingId)) {
+      cities = { ...cities, [city.id]: { ...city, buildings: city.buildings.filter(id => id !== buildingId) } };
+    }
+  }
+  return changed ? { ...state, builtNationalProjects, cities } : state;
+}
+
 const CIRCULAR_MANUFACTURING_NETWORK = 'circular_manufacturing_network';
 export const CIRCULAR_MANUFACTURING_MATERIALS = [
   'aluminum',

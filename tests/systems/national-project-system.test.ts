@@ -7,6 +7,7 @@ import {
   expireNationalProjects,
   chooseCircularManufacturingMaterial,
   getCircularManufacturingMaterial,
+  normalizeNationalProjects,
 } from '@/systems/national-project-system';
 
 function makeState(overrides: Partial<GameState> = {}): GameState {
@@ -71,6 +72,23 @@ describe('getReservedNationalProjectKeys', () => {
       'p1:communal_stores',
       'p1:sacred_grove',
     ]);
+  });
+});
+
+describe('normalizeNationalProjects', () => {
+  it('#927 removes a captured Regional Capital record and its foreign-held building', () => {
+    const state = makeState({
+      civilizations: { p1: { id: 'p1', cities: ['capital'] } as any, p2: { id: 'p2', cities: ['seat'] } as any },
+      cities: {
+        capital: { id: 'capital', owner: 'p1', buildings: [], productionQueue: [] } as any,
+        seat: { id: 'seat', owner: 'p2', buildings: ['regional_capital'], productionQueue: [] } as any,
+      },
+      builtNationalProjects: { 'p1:regional_capital': { civId: 'p1', cityId: 'seat', eraBuilt: 4 } },
+    });
+
+    const normalized = normalizeNationalProjects(state);
+    expect(normalized.builtNationalProjects).toEqual({});
+    expect(normalized.cities.seat.buildings).not.toContain('regional_capital');
   });
 });
 

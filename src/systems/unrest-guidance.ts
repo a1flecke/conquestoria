@@ -1,6 +1,7 @@
 import type { GameState, City } from '@/core/types';
 import {
   getUnrestPressureBreakdown,
+  getRegionalCapitalReliefAmount,
   canGarrisonCity,
   getContagionSpread,
   CONQUEST_UNREST_DURATION,
@@ -116,7 +117,9 @@ const SPRAWL_RESOLVER: GuidanceResolver = {
       && completed.includes('civil-service') && completed.includes('philosophy')) {
       return { ...base, kind: 'research-regional-capital', availability: 'research-first', params: { techId: 'political-philosophy' } };
     }
-    if (row.label === 'Distance from capital' && buildingBuildableHere('regional_capital', state, city)) {
+    if (row.label === 'Distance from capital'
+      && buildingBuildableHere('regional_capital', state, city)
+      && getRegionalCapitalReliefAmount(city, state, getUnrestPressureBreakdown(city.id, state), city) > 0) {
       return { ...base, kind: 'build-regional-capital', availability: 'now' };
     }
     if (row.label === 'Distance from capital' && !completed.includes('military-logistics')

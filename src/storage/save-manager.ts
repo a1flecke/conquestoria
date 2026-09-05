@@ -35,6 +35,7 @@ import { isOpponentChallenge } from '@/core/opponent-challenge';
 import { createEmptyOpponentAIState, normalizeOpponentAIState } from '@/core/opponent-ai-state';
 import { getCrisisFlavor } from '@/systems/crisis-flavor-definitions';
 import { createTechState } from '@/systems/tech-system';
+import { normalizeNationalProjects } from '@/systems/national-project-system';
 
 const SAVE_PREFIX = 'save:';
 const META_PREFIX = 'meta:';
@@ -822,9 +823,9 @@ export function migrateLegacyCoastalData(state: GameState): GameState {
 
 export function normalizeLoadedState(state: GameState): NormalizedGameState {
   const migrated = migrateSaveToCurrent(state);
-  const normalizedCityState = migrateLegacyPirateFleets(normalizeMinorCivEconomyState(normalizeMinorCivCoalitionState(normalizeMinorCivQuestState(
+  const normalizedCityState = normalizeNationalProjects(migrateLegacyPirateFleets(normalizeMinorCivEconomyState(normalizeMinorCivCoalitionState(normalizeMinorCivQuestState(
     migrateLegacyCoastalData(normalizeThreatPressureDefaults(normalizeLandmassKeys(normalizeLegacyCitySimState(migrateStripCityGrid(migrateLegacyPlanningState(migrateLegacyNamingState(ensureGameIdentity(migrated)))))))),
-  ))));
+  )))));
   normalizedCityState.pirates = normalizePirateState(normalizedCityState);
   normalizedCityState.notificationLog = normalizeNotificationLog(normalizedCityState.notificationLog, normalizedCityState);
   normalizedCityState.legendaryWonderAvailability = normalizeLegendaryWonderAvailability(normalizedCityState.legendaryWonderAvailability);

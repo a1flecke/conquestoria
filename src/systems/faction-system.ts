@@ -161,23 +161,31 @@ function getRegionalCapitalCity(state: GameState, civId: string): City | null {
   return city?.owner === civId && city.buildings.includes('regional_capital') ? city : null;
 }
 
+export function getRegionalCapitalReliefAmount(
+  city: City,
+  state: GameState,
+  rows: UnrestPressureRow[],
+  regionalCapital: City | null = getRegionalCapitalCity(state, city.owner),
+): number {
+  const capital = getCapitalCity(state, city.owner);
+  const distance = rows.find(row => row.label === 'Distance from capital')?.amount ?? 0;
+  const overextension = rows.find(row => row.label === 'Empire overextension')?.amount ?? 0;
+  if (!capital || !regionalCapital || distance === 0) return 0;
+  const nearestDistance = Math.min(hexDistance(city.position, capital.position), hexDistance(city.position, regionalCapital.position));
+  const nearestPressure = Math.min(MAX_PRESSURE_DISTANCE, Math.max(0, (nearestDistance - 5) * 2));
+  const rawSeatRelief = distance - nearestPressure;
+  const courthouse = city.buildings.includes('courthouse') ? getCourthouseReliefAmount(rows) : 0;
+  const road = state.civilizations[city.owner]?.techState.completed.includes('military-logistics')
+    && getCitiesConnectedToCapital(state, city.owner, 'owned-road').has(city.id)
+    ? getRoadPostNetworkReliefAmount(city, rows) : 0;
+  return Math.min(rawSeatRelief, 10, Math.max(0, distance + overextension - 2 - courthouse - road));
+}
+
 const REGIONAL_CAPITAL_RELIEF: UnrestReliefSource = {
   id: 'regional-capital', buildingId: 'regional_capital', researchUnlockTechId: 'political-philosophy', targetRowLabels: ['Distance from capital'],
   isActive: (city, state) => getRegionalCapitalCity(state, city.owner) !== null,
   reliefRows: (city, state, rows) => {
-    const capital = getCapitalCity(state, city.owner);
-    const regionalCapital = getRegionalCapitalCity(state, city.owner);
-    const distance = rows.find(row => row.label === 'Distance from capital')?.amount ?? 0;
-    const overextension = rows.find(row => row.label === 'Empire overextension')?.amount ?? 0;
-    if (!capital || !regionalCapital || distance === 0) return [];
-    const nearestDistance = Math.min(hexDistance(city.position, capital.position), hexDistance(city.position, regionalCapital.position));
-    const nearestPressure = Math.min(MAX_PRESSURE_DISTANCE, Math.max(0, (nearestDistance - 5) * 2));
-    const rawSeatRelief = distance - nearestPressure;
-    const courthouse = city.buildings.includes('courthouse') ? getCourthouseReliefAmount(rows) : 0;
-    const road = state.civilizations[city.owner]?.techState.completed.includes('military-logistics')
-      && getCitiesConnectedToCapital(state, city.owner, 'owned-road').has(city.id)
-      ? getRoadPostNetworkReliefAmount(city, rows) : 0;
-    const relief = Math.min(rawSeatRelief, 10, Math.max(0, distance + overextension - 2 - courthouse - road));
+    const relief = getRegionalCapitalReliefAmount(city, state, rows);
     return relief > 0 ? [{ label: 'Regional Capital administration', amount: -relief }] : [];
   },
 };
