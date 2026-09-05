@@ -7,13 +7,11 @@ import type {
   MinorCivRegionalGrievance,
   MinorCivRegionalGrievanceCause,
   MinorCivRegionalGrievanceStatus,
-  UnitType,
 } from '@/core/types';
 import { resolveOpponentChallenge } from '@/core/opponent-challenge';
 import { declareWar, modifyRelationship } from '@/systems/diplomacy-system';
-import { getWrappedHexNeighbors, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
+import { hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
-import { createUnit } from '@/systems/unit-system';
 import { resolveNeutralPressureEra } from '@/systems/era-resolution';
 
 export const MINOR_CIV_REGIONAL_GRIEVANCE_RADIUS = 14;
@@ -23,25 +21,10 @@ const REPEATED_CONQUEST_WINDOW = 12;
 const WARY_PRESSURE = 20;
 const MOBILIZING_PRESSURE = 45;
 const COALITION_TALKS_PRESSURE = 70;
-const TRAINED_DEFENDER_PROGRESS = 24;
-const CONSCRIPTION_PRESSURE = 80;
-const CONSCRIPTION_COOLDOWN_TURNS = 10;
-const CONSCRIPTION_STRAIN_TURNS = 6;
-
-const ERA_DEFENDER_UNIT: Record<number, UnitType> = {
-  1: 'warrior',
-  2: 'swordsman',
-  3: 'pikeman',
-  4: 'musketeer',
-  5: 'rifleman',
-  6: 'rifleman',
-  7: 'rifleman',
-  8: 'tank',
-  9: 'tank',
-  10: 'tank',
-  11: 'tank',
-  12: 'tank',
-};
+// Pressure at/above which a target grievance is severe enough to justify an emergency levy
+// (consumed by getMinorCivMobilizationBudget's allowsEmergencyLevy — see #951; actual levy
+// mutation now lives entirely in minor-civ-economy-system.ts, this file only surfaces the signal).
+const EMERGENCY_LEVY_PRESSURE_THRESHOLD = 80;
 
 const GRIEVANCE_STATUSES = new Set<MinorCivRegionalGrievanceStatus>([
   'wary',
@@ -56,18 +39,12 @@ const COALITION_STATUSES = new Set<MinorCivCoalitionStatus>([
   'cooling',
 ]);
 
-export interface MinorCivRegionalGrievanceTurnOptions {
-  allowDefenderSpawns?: boolean;
-}
-
 export interface MinorCivMobilizationBudget {
   targetCivId: string | null;
   pressure: number;
   status: MinorCivRegionalGrievanceStatus | null;
   wantsDefender: boolean;
-  allowsConscription: boolean;
-  recoveryStrainedUntilTurn?: number;
-  conscriptCooldownUntilTurn?: number;
+  allowsEmergencyLevy: boolean;
 }
 
 function getMinorCivArchetype(minorCiv: MinorCivState) {
@@ -79,13 +56,6 @@ function resolveGrievanceStatus(pressure: number, era: number): MinorCivRegional
   if (pressure >= COALITION_TALKS_PRESSURE) return 'coalition-talks';
   if (pressure >= MOBILIZING_PRESSURE) return 'mobilizing';
   return 'wary';
-}
-
-function mobilizationProgressPerTurn(state: GameState): number {
-  const challenge = resolveOpponentChallenge(state);
-  if (challenge === 'explorer') return 6;
-  if (challenge === 'veteran') return 10;
-  return 8;
 }
 
 function pressureDecayPerTurn(state: GameState): number {
@@ -102,34 +72,17 @@ function coalitionTalksCountdown(state: GameState): number {
   return 4;
 }
 
-function eraDefenderUnit(era: number): UnitType {
-  return ERA_DEFENDER_UNIT[Math.max(1, Math.min(12, Math.floor(era)))] ?? 'warrior';
-}
-
-function isPassableSpawnTile(state: GameState, coord: { q: number; r: number }): boolean {
-  const tile = state.map.tiles[hexKey(coord)];
-  return Boolean(tile && tile.terrain !== 'ocean' && tile.terrain !== 'coast' && tile.terrain !== 'mountain');
-}
-
-function isTileOccupied(state: GameState, coord: { q: number; r: number }): boolean {
-  const key = hexKey(coord);
-  return Object.values(state.units).some(unit => hexKey(unit.position) === key);
-}
-
-function findRegionalDefenderSpawnPosition(state: GameState, minorCiv: MinorCivState) {
-  const city = state.cities[minorCiv.cityId];
-  if (!city) return null;
-  if (!isTileOccupied(state, city.position)) return city.position;
-  return getWrappedHexNeighbors(city.position, state.map.width)
-    .filter(coord => isPassableSpawnTile(state, coord) && !isTileOccupied(state, coord))
-    .sort((a, b) => a.q - b.q || a.r - b.r)[0] ?? null;
-}
-
-function isDirectWarGrievance(state: GameState, minorCiv: MinorCivState, targetCivId: string): boolean {
+// Exported so minor-civ-economy-system.ts (the sole emergency-levy mutation owner, #951) can gate
+// on the same war signal instead of re-deriving it.
+export function isDirectWarGrievance(state: GameState, minorCiv: MinorCivState, targetCivId: string): boolean {
   return minorCiv.diplomacy.atWarWith.includes(targetCivId)
     || Boolean(state.civilizations[targetCivId]?.diplomacy.atWarWith.includes(minorCiv.id));
 }
 
+// Read-only mobilization signal (#951): grievance/coalition owns WHY a city-state is under
+// regional pressure; it never materializes units itself. minor-civ-economy-system.ts is the only
+// place that turns `wantsDefender`/`allowsEmergencyLevy` into an actual unit (ordinary production
+// bias, or a gated emergency levy respecting cooldown/population/cap/spawn legality).
 export function getMinorCivMobilizationBudget(state: GameState, minorCivId: string): MinorCivMobilizationBudget {
   const minorCiv = state.minorCivs[minorCivId];
   if (!minorCiv) {
@@ -138,7 +91,7 @@ export function getMinorCivMobilizationBudget(state: GameState, minorCivId: stri
       pressure: 0,
       status: null,
       wantsDefender: false,
-      allowsConscription: false,
+      allowsEmergencyLevy: false,
     };
   }
 
@@ -152,43 +105,10 @@ export function getMinorCivMobilizationBudget(state: GameState, minorCivId: stri
     pressure: top?.pressure ?? 0,
     status: top?.status ?? null,
     wantsDefender: Boolean(top && (top.status === 'mobilizing' || top.status === 'coalition-talks')),
-    allowsConscription: Boolean(top && (
-      top.pressure >= CONSCRIPTION_PRESSURE
+    allowsEmergencyLevy: Boolean(top && (
+      top.pressure >= EMERGENCY_LEVY_PRESSURE_THRESHOLD
       || isDirectWarGrievance(state, minorCiv, top.targetCivId)
     )),
-    recoveryStrainedUntilTurn: top?.recoveryStrainedUntilTurn,
-    conscriptCooldownUntilTurn: top?.conscriptCooldownUntilTurn,
-  };
-}
-
-function spawnRegionalDefender(
-  state: GameState,
-  minorCiv: MinorCivState,
-  targetCivId: string,
-  health: number,
-): { state: GameState; unitId: string } | null {
-  const city = state.cities[minorCiv.cityId];
-  const spawnPosition = findRegionalDefenderSpawnPosition(state, minorCiv);
-  if (!city || !spawnPosition) return null;
-  const pressureEra = resolveNeutralPressureEra(state, city.position, targetCivId) ?? 1;
-  const unit = createUnit(eraDefenderUnit(pressureEra), minorCiv.id, spawnPosition, state.idCounters);
-  unit.health = health;
-  unit.movementPointsLeft = 0;
-  unit.hasMoved = true;
-  unit.hasActed = true;
-  return {
-    state: {
-      ...state,
-      units: { ...state.units, [unit.id]: unit },
-      minorCivs: {
-        ...state.minorCivs,
-        [minorCiv.id]: {
-          ...state.minorCivs[minorCiv.id],
-          units: [...state.minorCivs[minorCiv.id].units, unit.id],
-        },
-      },
-    },
-    unitId: unit.id,
   };
 }
 
@@ -276,15 +196,19 @@ export function applyRegionalGrievanceForMinorCivConquest(
   return nextState;
 }
 
+// Pressure/status bookkeeping only (#951): this function no longer materializes any unit. The
+// two spawn branches that used to live here (a population-cost "conscription" defender under
+// severe pressure, and a mobilization-progress-triggered "trained" defender) are gone — economy
+// (processMinorCivEconomyTurn / performMinorCivEmergencyLevy in minor-civ-economy-system.ts) is
+// now the single owner of emergency defender creation, reading `allowsEmergencyLevy` from
+// getMinorCivMobilizationBudget above instead of recomputing this file's old severeThreat check.
 export function processMinorCivRegionalGrievanceTurn(
   state: GameState,
   minorCivId: string,
-  options: MinorCivRegionalGrievanceTurnOptions = {},
 ): GameState {
   const minorCiv = state.minorCivs[minorCivId];
   if (!minorCiv || minorCiv.isDestroyed) return state;
 
-  const allowDefenderSpawns = options.allowDefenderSpawns ?? true;
   let nextState = state;
   const grievanceByCiv = { ...(minorCiv.regionalGrievanceByCiv ?? {}) };
   for (const [targetCivId, grievance] of Object.entries(minorCiv.regionalGrievanceByCiv ?? {})) {
@@ -297,7 +221,6 @@ export function processMinorCivRegionalGrievanceTurn(
       ...grievance,
       pressure: Math.max(0, grievance.pressure),
       status: resolveGrievanceStatus(grievance.pressure, resolveNeutralPressureEra(nextState, nextState.cities[minorCiv.cityId]!.position, targetCivId) ?? 1),
-      mobilizationProgress: grievance.mobilizationProgress ?? 0,
       causes: [...grievance.causes],
     };
     if ((nextGrievance.decayBlockedUntilTurn ?? 0) < nextState.turn) {
@@ -310,60 +233,6 @@ export function processMinorCivRegionalGrievanceTurn(
       ...nextGrievance,
       status: resolveGrievanceStatus(nextGrievance.pressure, resolveNeutralPressureEra(nextState, nextState.cities[nextState.minorCivs[minorCivId]!.cityId]!.position, targetCivId) ?? 1),
     };
-
-    const currentMinor = nextState.minorCivs[minorCivId];
-    const city = nextState.cities[currentMinor.cityId];
-    const conscriptionReady = (nextGrievance.conscriptCooldownUntilTurn ?? 0) <= nextState.turn;
-    const severeThreat = nextGrievance.pressure >= CONSCRIPTION_PRESSURE
-      || isDirectWarGrievance(nextState, currentMinor, targetCivId);
-    if (
-      (resolveNeutralPressureEra(nextState, city?.position ?? { q: 0, r: 0 }, targetCivId) ?? 1) >= 2
-      && city
-      && city.population >= 3
-      && conscriptionReady
-      && severeThreat
-      && allowDefenderSpawns
-    ) {
-      const spawned = spawnRegionalDefender(nextState, currentMinor, targetCivId, 65);
-      if (spawned) {
-        nextState = {
-          ...spawned.state,
-          cities: {
-            ...spawned.state.cities,
-            [city.id]: { ...spawned.state.cities[city.id], population: city.population - 1 },
-          },
-        };
-        nextGrievance = {
-          ...nextGrievance,
-          conscriptCooldownUntilTurn: nextState.turn + CONSCRIPTION_COOLDOWN_TURNS,
-          recoveryStrainedUntilTurn: nextState.turn + CONSCRIPTION_STRAIN_TURNS,
-        };
-      }
-    }
-
-    if (
-      (resolveNeutralPressureEra(nextState, city?.position ?? { q: 0, r: 0 }, targetCivId) ?? 1) >= 2
-      && (nextGrievance.status === 'mobilizing' || nextGrievance.status === 'coalition-talks')
-    ) {
-      const nextProgress = (nextGrievance.mobilizationProgress ?? 0) + mobilizationProgressPerTurn(nextState);
-      if (nextProgress >= TRAINED_DEFENDER_PROGRESS) {
-        const spawned = allowDefenderSpawns
-          ? spawnRegionalDefender(nextState, nextState.minorCivs[minorCivId], targetCivId, 100)
-          : null;
-        if (spawned) {
-          nextState = spawned.state;
-          nextGrievance = {
-            ...nextGrievance,
-            mobilizationProgress: nextProgress - TRAINED_DEFENDER_PROGRESS,
-            lastMobilizedTurn: nextState.turn,
-          };
-        } else {
-          nextGrievance = { ...nextGrievance, mobilizationProgress: TRAINED_DEFENDER_PROGRESS };
-        }
-      } else {
-        nextGrievance = { ...nextGrievance, mobilizationProgress: nextProgress };
-      }
-    }
 
     grievanceByCiv[targetCivId] = nextGrievance;
   }
@@ -571,10 +440,10 @@ function normalizeGrievance(value: unknown, state: GameState): MinorCivRegionalG
   if (isFiniteNumber(value.lastConquestTurn)) grievance.lastConquestTurn = value.lastConquestTurn;
   if (isFiniteNumber(value.decayBlockedUntilTurn)) grievance.decayBlockedUntilTurn = value.decayBlockedUntilTurn;
   if (isFiniteNumber(value.cooldownUntilTurn)) grievance.cooldownUntilTurn = value.cooldownUntilTurn;
-  if (isFiniteNumber(value.mobilizationProgress)) grievance.mobilizationProgress = value.mobilizationProgress;
-  if (isFiniteNumber(value.lastMobilizedTurn)) grievance.lastMobilizedTurn = value.lastMobilizedTurn;
-  if (isFiniteNumber(value.conscriptCooldownUntilTurn)) grievance.conscriptCooldownUntilTurn = value.conscriptCooldownUntilTurn;
-  if (isFiniteNumber(value.recoveryStrainedUntilTurn)) grievance.recoveryStrainedUntilTurn = value.recoveryStrainedUntilTurn;
+  // mobilizationProgress/lastMobilizedTurn/conscriptCooldownUntilTurn/recoveryStrainedUntilTurn
+  // (#951): dead fields from the retired grievance-layer defender-spawn branches. Any of these
+  // present on an old save are simply dropped here rather than round-tripped — they have no
+  // remaining reader, and levy cooldown/recovery now live on MinorCivEconomyState instead.
   return grievance;
 }
 

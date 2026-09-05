@@ -221,6 +221,71 @@ is retained: `economy` is normalized for every minor civ on every turn
 `lastEraUpgrade` starts at the placement-time pressure era, so the upgrade
 condition cannot fire before an economy-normalizing pass has already run.
 
+## City-State Emergency Levy (#951)
+
+`#490`'s original design intended one shared mobilization budget deciding what a city-state does
+under pressure. What actually shipped diverged into three overlapping mechanisms: ordinary
+production bias (`getMinorCivMobilizationBudget.wantsDefender`, live), a grievance-layer
+"conscription" defender spawn (live but reachable), and a grievance-layer "trained defender"
+mobilization-progress spawn (its own accumulation, never actually reachable because the only real
+caller passed `allowDefenderSpawns: false`). `#951` consolidated these into one owner:
+
+- **Economy owns all emergency defender creation.** `performMinorCivEmergencyLevy` in
+  `src/systems/minor-civ-economy-system.ts`, called only from `processMinorCivEconomyTurn`, is the
+  sole mutation path that can materialize a unit outside ordinary paid production.
+  `processMinorCivRegionalGrievanceTurn` (`minor-civ-coalition-system.ts`) is bookkeeping-only —
+  pressure decay and status resolution, never a spawn.
+- **Grievance/coalition owns the "why."** `getMinorCivMobilizationBudget` stays a deterministic,
+  read-only signal (`wantsDefender`, `allowsEmergencyLevy`); it does not mutate state and is not
+  itself where a levy decision is made.
+- **One budget, one response per turn.** Ordinary paid production is tried first
+  (`processCity`/`chooseMinorCivQueueItem`, already biased toward defense by `wantsDefender`). An
+  emergency levy is only evaluated when no *unit* completed production that same turn — a
+  completed building does not suppress it, since it doesn't address a military emergency.
+- **Emergency levy gates** (`evaluateMinorCivEmergencyLevy`, all required, in this order): a severe
+  threat exists (`allowsEmergencyLevy`, or `hasImmediateCityThreat`'s local-radius war/barbarian
+  scan) → local pressure era >= 2 (the exact era>=2 embargo the pre-#951 conscription branch had —
+  a brand-new era-1 city-state cannot levy no matter how severe the threat looks, so a young player
+  cannot trigger an emergency army in the first few turns) → live cap not exceeded (`currentUnits + 1 <= getMinorCivUnitCap(..., 'mobilizing')`) →
+  city not already fielding `MINOR_CIV_LEVY_MIN_DEFENSIVE_FORCE` (2) or more living units → levy
+  cooldown elapsed (`levyCooldownUntilTurn`, `MINOR_CIV_LEVY_COOLDOWN_TURNS` = 10 turns,
+  difficulty-invariant) → population above `MINOR_CIV_LEVY_MIN_POPULATION` (2, i.e. population
+  must be > 2) → a land-domain defensive-class candidate exists in the same tech/era/resource-gated
+  catalog ordinary production already draws from (`getMinorCivBuildCandidates`, filtered to
+  `melee`/`ranged`/`gunpowder` classes, cheapest wins — no hardcoded era→unit table) → a legal spawn
+  tile exists (`legalSpawnPositions`, the same helper production completion uses). A failed spawn
+  charges no population and sets no cooldown/recovery.
+- **Population cost:** flat `MINOR_CIV_LEVY_POPULATION_COST` (1), charged only on a successful
+  spawn. Not scaled by the `#948` population ceiling — the ceiling describes safe maximums, not
+  spendable credit, so a high-cap late-game city gets no cheaper levy than an early one.
+- **Levy unit quality:** `MINOR_CIV_LEVY_UNIT_HEALTH` = 65 (65% of the 100 max HP every unit spawns
+  at). Every minor-civ-created unit (ordinary production included) already spawns with
+  `hasActed`/`hasMoved` set and zero movement left, so a levied unit categorically cannot act,
+  move, or attack the turn it appears — no separate readiness system was needed.
+- **Recovery vs. cooldown are two different durations, not duplicate state.** A successful levy
+  sets both `localRecoveryUntilTurn` (`MINOR_CIV_ECONOMY_TUNING[challenge].recoveryTurns`: 8/6/5 by
+  difficulty — an already-difficulty-tuned knob this PR finally wires up) and `levyCooldownUntilTurn`
+  (`turn + 10`, flat). Recovery is a **posture-only** signal (`evaluateMinorCivEconomyPosture`
+  returns `'recovering'`, biasing production toward `food`) and does not by itself block another
+  levy attempt; the cooldown is the actual hard gate. Because `recoveryTurns` (max 8) is always
+  <= the cooldown (10), an active recovery window always implies the cooldown is also still active
+  — the two never contradict each other, and recovery ending early does not reopen the levy.
+  `wantsDefender`-driven queue biasing (`chooseMinorCivQueueItem`) already overrides a `'recovering'`
+  posture back toward defense scoring when a real grievance is still active, so recovery does not
+  mean "ignore an ongoing invasion" — it only affects the default (no-active-grievance) production
+  weighting.
+- **Land-defense only, always.** The levy candidate filter excludes naval/air/siege/mounted/armor
+  regardless of the host city being coastal — independent of `#952`'s broader (not yet implemented)
+  normal-production domain policy.
+- **Difficulty parity.** Every gate above (legality, population cost, unit choice, HP, spawn rules,
+  visibility) is identical across Explorer/Standard/Veteran. The only difficulty-varying input is
+  `recoveryTurns` — a posture-only signal, not a legality or cost difference — and it was already
+  difficulty-tuned in `MINOR_CIV_ECONOMY_TUNING` before `#951`.
+- **Removed as dead:** the grievance-layer `ERA_DEFENDER_UNIT` era→unit table, its "conscription"
+  and "trained defender" spawn branches, `MinorCivRegionalGrievance.mobilizationProgress`,
+  `.lastMobilizedTurn`, `.conscriptCooldownUntilTurn`, and `.recoveryStrainedUntilTurn`. Old saves
+  carrying any of these are tolerated (fields silently dropped on normalize) with no schema bump.
+
 ## National Project Lifecycle Contract
 
 - **Build window:** available during `homeEra` and `homeEra + 1` only. Hidden from production queue when `currentEra > homeEra + 1`.

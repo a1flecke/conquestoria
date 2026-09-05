@@ -1653,10 +1653,6 @@ export interface MinorCivRegionalGrievance {
   lastConquestTurn?: number;
   decayBlockedUntilTurn?: number;
   cooldownUntilTurn?: number;
-  mobilizationProgress?: number;
-  lastMobilizedTurn?: number;
-  conscriptCooldownUntilTurn?: number;
-  recoveryStrainedUntilTurn?: number;
   causes: MinorCivRegionalGrievanceCause[];
 }
 
@@ -1688,6 +1684,8 @@ export interface MinorCivEconomyState {
   lastProcessedTurn: number;
   lastPostureChangeTurn?: number;
   localRecoveryUntilTurn?: number;
+  /** Turn on/after which the next emergency levy may fire (#951). Hard gate, independent of posture. */
+  levyCooldownUntilTurn?: number;
   lastQueueDecisionTurn?: number;
   pendingUnitSpawn?: {
     unitType: UnitType;
