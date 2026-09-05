@@ -1593,6 +1593,120 @@ describe('#927 — Road & Post Network unrest relief row', () => {
   });
 });
 
+describe('#927 Rung 5 — Railway Administration unrest relief', () => {
+  function addOwnedRoadChain(state: GameState, endQ: number): void {
+    for (let q = 1; q < endQ; q++) {
+      state.map.tiles[`${q},0`] = {
+        coord: { q, r: 0 }, terrain: 'plains', elevation: 'lowland', resource: null,
+        improvement: 'none', owner: 'player', improvementTurnsLeft: 0, hasRiver: false,
+        wonder: null, hasRoad: true,
+      };
+    }
+  }
+
+  function connectedRailState(techs: string[]): GameState {
+    const state = makeState({ cityPosition: { q: 20, r: 0 }, capitalPosition: { q: 0, r: 0 } });
+    addOwnedRoadChain(state, 20);
+    state.civilizations.player!.techState.completed = techs;
+    return state;
+  }
+
+  it('adds no relief without Railway Expansion, even with an active Road & Post connection', () => {
+    const rows = getUnrestPressureBreakdown('city-1', connectedRailState(['military-logistics']));
+    expect(rows.find(r => r.label === 'Road & Post Network')?.amount).toBeLessThan(0);
+    expect(rows.find(r => r.label === 'Railway Administration')).toBeUndefined();
+  });
+
+  it('adds no relief without Military Logistics, even with Railway Expansion researched (must upgrade an active Road & Post connection, not substitute for it)', () => {
+    const rows = getUnrestPressureBreakdown('city-1', connectedRailState(['railway-expansion']));
+    expect(rows.find(r => r.label === 'Road & Post Network')).toBeUndefined();
+    expect(rows.find(r => r.label === 'Railway Administration')).toBeUndefined();
+  });
+
+  it('adds no relief when the city is not actually connected by owned road', () => {
+    const state = makeState({ cityPosition: { q: 20, r: 0 }, capitalPosition: { q: 0, r: 0 } });
+    state.civilizations.player!.techState.completed = ['military-logistics', 'railway-expansion'];
+    const rows = getUnrestPressureBreakdown('city-1', state);
+    expect(rows.find(r => r.label === 'Railway Administration')).toBeUndefined();
+  });
+
+  it('grants bounded relief once fully active, leaving Distance from capital unchanged', () => {
+    const rows = getUnrestPressureBreakdown('city-1', connectedRailState(['military-logistics', 'railway-expansion']));
+    // Distance: min(20, max(0,(20-5)*2)) = 20 (capped).
+    expect(rows.find(r => r.label === 'Distance from capital')?.amount).toBe(20);
+    // Road & Post: min(round(0.35*20)=7, 6, max(0,20-4)=16, max(0,20-2)=18) = 6.
+    expect(rows.find(r => r.label === 'Road & Post Network')?.amount).toBe(-6);
+    // Railway: raw = min(round(0.2*20)=4, 4) = 4; cap = max(0, 20-2-6) = 12; relief = 4.
+    expect(rows.find(r => r.label === 'Railway Administration')?.amount).toBe(-4);
+  });
+
+  it('does not touch Empire overextension, war weariness, or recent conquest', () => {
+    const state = connectedRailState(['military-logistics', 'railway-expansion']);
+    state.civilizations.player!.diplomacy.atWarWith = ['ai-1'];
+    state.cities['city-1']!.conquestTurn = 9;
+    const rows = getUnrestPressureBreakdown('city-1', state);
+    expect(rows.find(r => r.label === 'War weariness')?.amount).toBe(8);
+    expect(rows.find(r => r.label === 'Recent conquest')?.amount).toBe(25);
+    expect(rows.filter(r => r.label === 'Railway Administration')).toHaveLength(1);
+  });
+
+  it('an unrelated era-7 tech grants no relief', () => {
+    const rows = getUnrestPressureBreakdown('city-1', connectedRailState(['military-logistics', 'colonial-railways']));
+    expect(rows.find(r => r.label === 'Railway Administration')).toBeUndefined();
+  });
+
+  it('stacks with Courthouse and Road & Post Network without dropping below the shared residual floor', () => {
+    const state = addBuilding(connectedRailState(['military-logistics', 'railway-expansion']), 'city-1', 'courthouse');
+    const rows = getUnrestPressureBreakdown('city-1', state);
+    const distance = rows.find(r => r.label === 'Distance from capital')!.amount;
+    const totalRelief = rows.filter(r => r.amount < 0).reduce((sum, r) => sum + r.amount, 0);
+    expect(distance + totalRelief).toBeGreaterThanOrEqual(2);
+    expect(rows.find(r => r.label === 'Railway Administration')?.amount).toBeLessThan(0);
+  });
+
+  it('a broken route removes the relief, and repairing it brings the relief back', () => {
+    const state = connectedRailState(['military-logistics', 'railway-expansion']);
+    expect(getUnrestPressureBreakdown('city-1', state).find(r => r.label === 'Railway Administration')?.amount)
+      .toBeLessThan(0);
+
+    const breakLink = { ...state, map: { ...state.map, tiles: { ...state.map.tiles, '10,0': { ...state.map.tiles['10,0']!, hasRoad: false } } } };
+    expect(getUnrestPressureBreakdown('city-1', breakLink).find(r => r.label === 'Railway Administration')).toBeUndefined();
+
+    const repaired = { ...breakLink, map: { ...breakLink.map, tiles: { ...breakLink.map.tiles, '10,0': { ...breakLink.map.tiles['10,0']!, hasRoad: true } } } };
+    expect(getUnrestPressureBreakdown('city-1', repaired).find(r => r.label === 'Railway Administration')?.amount)
+      .toBeLessThan(0);
+  });
+
+  it('is keyed to the city owner rather than the hot-seat viewer', () => {
+    const base = connectedRailState(['military-logistics', 'railway-expansion']);
+    const owner = 'ai-1';
+    const cities = Object.fromEntries(Object.entries(base.cities).map(([id, city]) => [id, { ...city, owner }]));
+    for (const tile of Object.values(base.map.tiles)) tile.owner = owner;
+    const hotSeatState: GameState = {
+      ...base,
+      currentPlayer: owner,
+      cities,
+      civilizations: {
+        ...base.civilizations,
+        player: { ...base.civilizations.player, cities: [] },
+        [owner]: {
+          ...base.civilizations[owner],
+          isHuman: true,
+          cities: base.civilizations.player.cities,
+          techState: { ...base.civilizations.player.techState, completed: ['military-logistics', 'railway-expansion'] },
+        },
+      },
+    };
+
+    const row = getUnrestPressureBreakdown('city-1', hotSeatState).find(r => r.label === 'Railway Administration');
+    const otherViewerRow = getUnrestPressureBreakdown('city-1', { ...hotSeatState, currentPlayer: 'player' })
+      .find(r => r.label === 'Railway Administration');
+
+    expect(row?.amount).toBeLessThan(0);
+    expect(otherViewerRow).toEqual(row);
+  });
+});
+
 describe('#919 MR2 — save compatibility and hot-seat', () => {
   let bus: EventBus;
   beforeEach(() => { bus = new EventBus(); });

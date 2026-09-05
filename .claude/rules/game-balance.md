@@ -94,6 +94,7 @@ they bite gets a **bought, deliberate** counter: the administration ladder
 | Road & Post Network | — | Distance from capital | For an owned-road connection to the capital: `min(round(0.35·D), 6, max(0, D−4), max(0, D+O−2−courthouseRelief))` | era 4+ (`military-logistics`) |
 | Regional Capital | `regional_capital` | Distance from capital | For one completed owner-held non-capital seat: `min(D−nearestSeatPressure, 10, max(0, D+O−2−courthouseRelief−roadPostRelief))` | era 4+ (`political-philosophy`) |
 | Bureaucracy | — | Empire overextension | Recompute overextension with `OVEREXTENSION_FREE_CITIES + 3`: `raw = O − hypotheticalO`; `relief = min(raw, 9, max(0, D+O−2−courthouseRelief−roadPostRelief−regionalCapitalRelief))` | era 5–6+ (`separation-of-powers`) |
+| Railway Administration | — | Distance from capital | Requires Road & Post Network already active (`military-logistics` + owned-road connection) plus `railway-expansion`: `relief = min(round(0.2·D), 4, max(0, D+O−2−courthouseRelief−roadPostRelief−regionalCapitalRelief−bureaucracyRelief))` | era 7+ (`railway-expansion`) |
 
 **Rule:** any new distance / overextension / unrest-relief source — a future
 ladder rung (roads-cut-distance, second seat of government, civil-service

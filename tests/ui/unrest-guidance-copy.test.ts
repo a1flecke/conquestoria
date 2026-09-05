@@ -51,6 +51,13 @@ describe('unrestRecommendationCopy', () => {
     expect(text).toMatch(/many cities/i);
   });
 
+  it('#927: research-railway-administration names its prerequisite screen and the road-upgrade effect', () => {
+    const { icon, text } = unrestRecommendationCopy(rec({ kind: 'research-railway-administration', availability: 'research-first' }));
+    expect(icon).toBe('🔬');
+    expect(text).toMatch(/railway expansion.*tech screen/i);
+    expect(text).toMatch(/road/i);
+  });
+
   it('make-peace states the number of enemies from params.warCivIds', () => {
     const { text } = unrestRecommendationCopy(rec({ kind: 'make-peace', rowLabel: 'War weariness', amount: 24, params: { warCivIds: ['a', 'b'] } }));
     expect(text).toMatch(/\b2\b/);
@@ -78,7 +85,7 @@ describe('unrestRecommendationCopy', () => {
   it('every kind returns a non-empty icon and text', () => {
     const kinds: UnrestRecommendationKind[] = [
       'build-courthouse', 'build-military-administration', 'research-magistracy', 'research-military-logistics',
-      'research-regional-capital', 'build-regional-capital', 'research-bureaucracy',
+      'research-regional-capital', 'build-regional-capital', 'research-bureaucracy', 'research-railway-administration',
       'connect-city-road-network', 'garrison-unit', 'train-garrison-unit',
       'make-peace', 'await-conquest-settle', 'research-constitutional-law', 'fix-economy',
       'counter-espionage', 'stabilise-contagion-source', 'build-faith-building',

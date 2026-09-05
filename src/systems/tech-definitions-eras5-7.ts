@@ -367,7 +367,10 @@ const ERA_7_TECHS: Tech[] = [
     unlocks: ['Steel Mill unlocked — advanced iron processing building'], unlocksBuildings: ['steel_mill'], era: 7 },
   { id: 'railway-expansion', name: 'Railway Expansion', track: 'metallurgy', cost: 555,
     prerequisites: ['precision-casting', 'fortification-engineering'],
-    unlocks: ['Roads become railways: half movement on roads (does not stack with Military Logistics); National Railway national project available'], unlocksBuildings: ['national_railway'], era: 7 },
+    unlocks: [
+      'Roads become railways: half movement on roads (does not stack with Military Logistics); National Railway national project available',
+      'Cities connected to your capital by owned road become easier to govern, reducing further unrest from distance',
+    ], unlocksBuildings: ['national_railway'], era: 7 },
 
   // CONSTRUCTION (2)
   { id: 'urban-planning', name: 'Urban Planning', track: 'construction', cost: 495,

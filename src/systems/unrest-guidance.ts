@@ -6,6 +6,7 @@ import {
   getContagionSpread,
   CONQUEST_UNREST_DURATION,
   BUREAUCRACY_TECH_ID,
+  RAILWAY_ADMINISTRATION_TECH_ID,
   type UnrestPressureRow,
 } from './faction-system';
 import { getAvailableBuildings } from './city-system';
@@ -29,7 +30,7 @@ export type UnrestRecommendationKind =
   | 'build-courthouse' | 'research-magistracy'
   | 'research-military-logistics' | 'connect-city-road-network'
   | 'research-regional-capital' | 'build-regional-capital'
-  | 'research-bureaucracy'
+  | 'research-bureaucracy' | 'research-railway-administration'
   | 'build-military-administration'
   | 'garrison-unit' | 'train-garrison-unit'
   | 'make-peace' | 'await-conquest-settle' | 'research-constitutional-law'
@@ -136,6 +137,12 @@ const SPRAWL_RESOLVER: GuidanceResolver = {
       && !getCitiesConnectedToCapital(state, city.owner, 'owned-road').has(city.id)
       && canConnectCityToCapitalByOwnedRoad(state, city.owner, city.id)) {
       return { ...base, kind: 'connect-city-road-network', availability: 'now' };
+    }
+    if (row.label === 'Distance from capital' && completed.includes('military-logistics')
+      && getCitiesConnectedToCapital(state, city.owner, 'owned-road').has(city.id)
+      && !completed.includes(RAILWAY_ADMINISTRATION_TECH_ID)
+      && completed.includes('precision-casting') && completed.includes('fortification-engineering')) {
+      return { ...base, kind: 'research-railway-administration', availability: 'research-first', params: { techId: RAILWAY_ADMINISTRATION_TECH_ID } };
     }
     if (buildingBuildableHere('courthouse', state, city)) {
       return { ...base, kind: 'build-courthouse', availability: 'now' };
