@@ -192,12 +192,20 @@ bonus while `settled` or `recovering`). This is the one deliberate archetype-dri
 the whole economy — see "Difficulty policy" below for why nothing else varies by archetype or
 difficulty beyond this and the multiplier/interval/timing knobs above.
 
-**Note (not yet solved, tracked separately):** the live cap is checked at the moment a unit is
-about to be created (both ordinary production completion and the emergency levy), but nothing
-disbands an already-existing unit if the cap later drops (e.g. posture reverts from `mobilizing`
-to `settled`). A city-state can legitimately carry more units than its *current* posture's cap for
-a while after such a drop. Handling that interaction is `#954`'s explicit, separate scope — do not
-add ad hoc disbanding logic here to "fix" it.
+**Cap-drop mid-production (#954):** the live cap is checked at the moment a unit is about to be
+created — both ordinary production completion and the emergency levy — but there is still no
+disbanding mechanic: an already-existing unit built while the cap was higher is never retroactively
+removed once posture reverts (e.g. `mobilizing` → `settled`) and drops the cap below the current
+count. What #954 *does* fix is the queue: `processMinorCivEconomyTurn` checks the live cap against
+the live unit count for the queue head's posture immediately before `processCity` runs, every
+turn — if a unit already sitting at the queue head (accumulating progress across several turns)
+would push the count over the cap that's in effect *this* turn, it is dequeued instead of
+completing, mirroring `processCity`'s own "drop an illegal queue head" convention: only the head is
+checked (nothing further back is "in production" yet), and any accumulated progress carries into
+the next queue item rather than resetting — it resets to 0 only if the resulting queue is empty.
+This closes the gap where a unit could keep completing indefinitely once queued, uncapped, purely
+because the cap dropped after it was already queued; it intentionally does not touch units that
+already exist by the time posture drops.
 
 ### Posture evaluation and production-switching policy
 
@@ -281,7 +289,7 @@ change that needs to widen any of them must update both the test and this table 
 | Signal | Bound | Source |
 |---|---|---|
 | Population | Never exceeds the era-banded ceiling (see #948 section below); never negative | `assertNoRunaway`, per-turn `populationCeiling` (the separate, narrower `#951`-scoped test in `minor-civ-economy-system.test.ts` additionally checks population never drops below the emergency-levy floor over a 120-turn war) |
-| Live unit count | Never exceeds the **max cap across all four postures** (not just the current posture's cap — see the "not yet solved" note above) | `assertNoRunaway`, per-turn `unitCap` |
+| Live unit count | Never exceeds the **max cap across all four postures** (not just the current posture's cap — see "Cap-drop mid-production (#954)" above: #954 stops a queued unit from completing over the current cap, but never disbands an already-existing unit built during an earlier higher-cap posture) | `assertNoRunaway`, per-turn `unitCap` |
 | Pending-spawn attempts | Never exceeds `pendingSpawnMaxAttempts` for the active challenge tier | `assertNoRunaway` |
 | Posture changes | At most 1 per 4 turns on average over the run (`ceil(turns / 4)`) — catches thrashing, not legitimate scenario arcs | `assertNoRunaway`, `postureChangeCount` |
 | Emergency levies | Rare: > 0 but ≤ 1 per 10 turns over a 120-turn sustained-war simulation | flagship "100+ turn conflict" test |

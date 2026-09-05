@@ -809,6 +809,39 @@ export function processMinorCivEconomyTurn(
     };
   }
 
+  // #954 (M5, #490 audit): a unit already queued can legally sit at the head across several
+  // turns of accumulating production (scoreUnit only blocks *choosing* a new unit over cap; it
+  // never re-checks an already-queued one). If posture — and therefore the live cap — drops
+  // before that unit finishes (e.g. mobilizing -> settled once a war ends), drop it from the
+  // queue head before production accumulates further, rather than let it complete uncapped below.
+  // Mirrors processCity's own "drop an illegal queue head" convention (tech lost, resource lost):
+  // only the head is checked (nothing behind it is "in production" yet), and progress resets to 0
+  // only if the resulting queue is empty — a non-empty queue's progress carries to its new head,
+  // exactly like that existing convention.
+  const queueHeadAfterDecision = nextState.cities[city.id].productionQueue;
+  const queueHeadIsUnit = queueHeadAfterDecision.length > 0
+    && TRAINABLE_UNITS.some(unit => unit.type === queueHeadAfterDecision[0]);
+  if (queueHeadIsUnit) {
+    const liveUnitsBeforeCompletion = nextState.minorCivs[minorCivId].units
+      .filter(unitId => Boolean(nextState.units[unitId])).length;
+    const liveCap = getMinorCivUnitCap(nextState, minorCivId, posture);
+    if (liveUnitsBeforeCompletion >= liveCap) {
+      const remainingQueue = queueHeadAfterDecision.slice(1);
+      const cityBeforeDrop = nextState.cities[city.id];
+      nextState = {
+        ...nextState,
+        cities: {
+          ...nextState.cities,
+          [city.id]: {
+            ...cityBeforeDrop,
+            productionQueue: remainingQueue,
+            productionProgress: remainingQueue.length === 0 ? 0 : cityBeforeDrop.productionProgress,
+          },
+        },
+      };
+    }
+  }
+
   const completedTechs = getMinorCivCompletedTechBand(nextState, minorCivId);
   const availableResources = getMinorCivAvailableResources(nextState, minorCivId);
   const cityForYields = nextState.cities[city.id];
