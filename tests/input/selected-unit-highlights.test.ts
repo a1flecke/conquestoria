@@ -83,6 +83,40 @@ describe('selected-unit-highlights', () => {
     expect(highlightKeys).not.toContain('3,0');
   });
 
+  // #965: a pirate coastal-enclave anchors on land but is razed only by a warship from the
+  // sea. A land unit must never see its anchor as a move (or attack) highlight -- not even
+  // when adjacent -- so the tap surfaces a plain "assault it by sea" explanation instead of
+  // walking the unit onto the structure.
+  it('never highlights a pirate coastal-enclave anchor as reachable for an adjacent land unit', () => {
+    const state = createNewGame(undefined, 'pirate-enclave-highlight', 'small');
+    state.currentPlayer = 'player';
+    for (const key of ['0,0', '1,0', '2,0']) {
+      state.map.tiles[key] = { ...state.map.tiles[key], terrain: 'plains' };
+    }
+    state.units = {
+      scout: { ...createUnit('scout', 'player', { q: 1, r: 0 }, mkC()), id: 'scout', movementPointsLeft: 3 },
+    };
+    state.civilizations.player.units = ['scout'];
+    state.civilizations.player.visibility.tiles = { '0,0': 'visible', '1,0': 'visible', '2,0': 'visible' };
+    state.pirates = {
+      version: 1, factions: {
+        'pirate-1': {
+          id: 'pirate-1', name: 'The Salt Reavers', spawnedRound: 1, behavior: 'raiding',
+          maritimeStage: 2, notoriety: 2, shipIds: [],
+          headquarters: { kind: 'coastal-enclave', position: { q: 2, r: 0 }, integrity: 100, maxIntegrity: 100 },
+          tributeByCiv: {}, demandByCiv: {}, contract: null, intent: null,
+          transitionGuards: { emittedEventKeys: [] },
+        },
+      },
+      history: [], pressure: { value: 0, suppression: [] }, intelByCiv: {},
+      nextSpawnCheckTurn: 0, activatedTurn: null, activationWarningDeliveredByCiv: {},
+    };
+
+    const result = buildSelectedUnitHighlights(state, 'scout');
+    expect(result.movementRange.map(hexKey)).not.toContain('2,0');
+    expect(result.highlights.map(h => hexKey(h.coord))).not.toContain('2,0');
+  });
+
   it('still highlights an undefended enemy city as reachable once the unit is actually adjacent', () => {
     const state = createNewGame(undefined, 'undefended-city-adjacent-highlight', 'small');
     state.currentPlayer = 'player';

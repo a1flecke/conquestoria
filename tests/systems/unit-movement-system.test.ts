@@ -8,6 +8,7 @@ import { abandonWorkerTask, executeUnitMove } from '@/systems/unit-movement-syst
 import { makeAutoExploreFixture } from './helpers/auto-explore-fixture';
 import { makeEdgeMoveState } from './unit-movement-system.test-helpers';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { createEmptyPirateState } from '@/core/pirate-state';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -414,6 +415,65 @@ describe('unit-movement-system', () => {
 
     expect(result.ok).toBe(true);
     expect(state.units.raider.position).toEqual({ q: 1, r: 0 });
+  });
+
+  // #965: same defect class as the barbarian camp above, one structure later. A pirate
+  // faction's coastal-enclave headquarters anchors on a land tile but had ZERO
+  // representation in the movement system -- land units walked onto it and stacked there,
+  // and it was never razed (the only assault path is naval, from an adjacent sea tile).
+  function withEnclave(state: GameState, position: HexCoord): GameState {
+    state.pirates = createEmptyPirateState();
+    state.pirates.factions['pirate-1'] = {
+      id: 'pirate-1', name: 'The Salt Reavers', spawnedRound: 1, behavior: 'raiding',
+      maritimeStage: 2, notoriety: 2, shipIds: [],
+      headquarters: { kind: 'coastal-enclave', position, integrity: 100, maxIntegrity: 100 },
+      tributeByCiv: {}, demandByCiv: {}, contract: null, intent: null,
+      transitionGuards: { emittedEventKeys: [] },
+    };
+    return state;
+  }
+
+  it('rejects ordinary land movement onto a pirate coastal-enclave anchor', () => {
+    const mover = createUnit('warrior', 'player', { q: 0, r: 0 }, mkC());
+    mover.id = 'mover';
+    const state = withEnclave(
+      movementState(mover, [tile({ q: 0, r: 0 }), tile({ q: 1, r: 0 })]),
+      { q: 1, r: 0 },
+    );
+
+    const result = executeUnitMove(state, 'mover', { q: 1, r: 0 }, { actor: 'player', civId: 'player' });
+
+    expect(result).toMatchObject({ ok: false, reason: 'pirate-enclave' });
+    expect(state.units.mover.position).toEqual({ q: 0, r: 0 });
+  });
+
+  it('does not path a land unit through a pirate enclave anchor toward a tile beyond it', () => {
+    const mover = createUnit('warrior', 'player', { q: 0, r: 0 }, mkC());
+    mover.id = 'mover';
+    mover.movementPointsLeft = 3;
+    const state = withEnclave(
+      movementState(mover, [tile({ q: 0, r: 0 }), tile({ q: 1, r: 0 }), tile({ q: 2, r: 0 })]),
+      { q: 1, r: 0 },
+    );
+
+    const result = executeUnitMove(state, 'mover', { q: 2, r: 0 }, { actor: 'player', civId: 'player' });
+
+    expect(result).toMatchObject({ ok: false, reason: 'pirate-enclave' });
+    expect(state.units.mover.position).toEqual({ q: 0, r: 0 });
+  });
+
+  it('applies the same rejection to an AI/automation land mover (no human-only path)', () => {
+    const mover = createUnit('warrior', 'ai-1', { q: 0, r: 0 }, mkC());
+    mover.id = 'ai-mover';
+    const state = withEnclave(
+      movementState(mover, [tile({ q: 0, r: 0 }), tile({ q: 1, r: 0 })]),
+      { q: 1, r: 0 },
+    );
+
+    const result = executeUnitMove(state, 'ai-mover', { q: 1, r: 0 }, { actor: 'automation', civId: 'ai-1' });
+
+    expect(result).toMatchObject({ ok: false, reason: 'pirate-enclave' });
+    expect(state.units['ai-mover'].position).toEqual({ q: 0, r: 0 });
   });
 
   it('refuses to execute movement onto an occupied foreign unit tile', () => {

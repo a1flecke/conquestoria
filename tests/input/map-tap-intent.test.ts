@@ -423,6 +423,44 @@ describe('resolveMapTapIntent', () => {
       });
     });
 
+    // #965: a pirate coastal-enclave anchors on land but has no land assault action --
+    // buildSelectedUnitHighlights now excludes it from movementRange even when the unit is
+    // adjacent, so tapping it with a land unit selected must resolve to a clear
+    // 'blocked-movement' explaining the enclave is a naval target, never a silent 'move'
+    // that walks the unit onto the structure (the reported bug).
+    it('reports a clear pirate-enclave blocker when a land unit taps the enclave anchor', () => {
+      const state = makeFixture();
+      placePlayerUnit(state, 'unit-1', { position: { q: 0, r: 0 } });
+      const anchor = { q: 1, r: 0 };
+      state.pirates = createEmptyPirateState();
+      state.pirates.factions['pirate-1'] = {
+        id: 'pirate-1', name: 'The Salt Reavers', spawnedRound: 1, behavior: 'raiding',
+        maritimeStage: 2, notoriety: 2, shipIds: [],
+        headquarters: { kind: 'coastal-enclave', position: anchor, integrity: 100, maxIntegrity: 100 },
+        tributeByCiv: {}, demandByCiv: {}, contract: null, intent: null,
+        transitionGuards: { emittedEventKeys: [] },
+      };
+      makeVisible(state, anchor);
+
+      const intent = resolveMapTapIntent(
+        state,
+        // Enclave anchor is intentionally NOT in movementRange, matching the corrected
+        // buildSelectedUnitHighlights output for a land unit next to an enclave.
+        snapshot({ selectedUnitId: 'unit-1', movementRange: [{ q: 0, r: 1 }] }),
+        anchor,
+        false,
+      );
+
+      expect(intent).toEqual({
+        kind: 'blocked-movement',
+        unitId: 'unit-1',
+        reason: {
+          code: 'pirate-enclave',
+          message: 'This pirate stronghold can only be destroyed by a warship attacking from an adjacent sea tile.',
+        },
+      });
+    });
+
     it('asks for war confirmation when resolveSelectedUnitTapIntent returns confirm-war-city', () => {
       const state = makeFixture();
       placePlayerUnit(state, 'unit-1', { position: { q: 0, r: 0 } });

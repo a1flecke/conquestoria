@@ -21,6 +21,7 @@ import { generateMap } from '@/systems/map-generator';
 import { hexKey } from '@/systems/hex-utils';
 import { TRAINABLE_UNITS, foundCity } from '@/systems/city-system';
 import { PIRATE_HULL_TYPES } from '@/systems/pirate-definitions';
+import { createEmptyPirateState } from '@/core/pirate-state';
 import { createNewGame } from '@/core/game-state';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
@@ -519,6 +520,90 @@ describe('#845 hot-seat: camp blocking follows the acting unit\'s owner, not sta
       .toEqual(getBlockingMapEntityAt(stillCivAsTurn, unitDuringA, { q: 1, r: 0 }));
     expect(getMovementRangeDetails(nowCivBsTurn, 'mover').reachable.map(hexKey))
       .toEqual(getMovementRangeDetails(stillCivAsTurn, 'mover').reachable.map(hexKey));
+  });
+});
+
+// #965: a pirate faction's coastal-enclave headquarters anchors on a LAND tile
+// (pirate-factions design: "a legal non-city land tile adjacent to navigable
+// coastal water ... naval assault occurs from an adjacent water tile"). Before
+// this fix, that land anchor was invisible to getBlockingMapEntityAt/Keys -- it
+// only knew about state.cities and state.barbarianCamps -- so land units walked
+// straight onto the enclave and stacked there, and nothing ever razed it. The
+// intended contract, per the design and the issue: land units cannot enter or
+// assault the enclave at all; it is impassable to them until a warship destroys
+// it from the sea. Unlike a foreign city or a barbarian camp, its anchor is
+// therefore NEVER a reachable tap target for a land unit -- not even from direct
+// adjacency -- because there is no land action to offer there.
+function enclaveBlockState(
+  moverPosition: { q: number; r: number } = { q: 0, r: 0 },
+  movementPointsLeft = 3,
+): GameState {
+  const state = createNewGame(undefined, 'pirate-enclave-block', 'small');
+  const mover = { ...createUnit('scout', 'player', moverPosition, mkC()), id: 'mover', movementPointsLeft };
+  state.units = { mover };
+  state.civilizations.player.units = ['mover'];
+  state.cities = {};
+  for (const key of ['0,0', '1,0', '2,0', '3,0']) {
+    state.map.tiles[key] = { ...state.map.tiles[key]!, terrain: 'plains' };
+  }
+  state.pirates = createEmptyPirateState();
+  state.pirates.factions['pirate-1'] = {
+    id: 'pirate-1', name: 'The Salt Reavers', spawnedRound: 1, behavior: 'raiding',
+    maritimeStage: 2, notoriety: 2, shipIds: [],
+    headquarters: { kind: 'coastal-enclave', position: { q: 2, r: 0 }, integrity: 100, maxIntegrity: 100 },
+    tributeByCiv: {}, demandByCiv: {}, contract: null, intent: null,
+    transitionGuards: { emittedEventKeys: [] },
+  };
+  return state;
+}
+
+describe('#965 pirate coastal-enclave anchor blocks land units', () => {
+  it('getBlockingMapEntityAt reports the enclave at its land anchor for a non-pirate land unit', () => {
+    const state = enclaveBlockState();
+    expect(getBlockingMapEntityAt(state, state.units.mover, { q: 2, r: 0 })).toEqual({
+      reason: 'pirate-enclave', entityId: 'pirate-1',
+    });
+  });
+
+  it('does not block that faction\'s own unit from its own enclave anchor', () => {
+    const state = enclaveBlockState();
+    const pirateUnit = { ...state.units.mover, id: 'reaver', owner: 'pirate-1' };
+    state.units.reaver = pirateUnit;
+    expect(getBlockingMapEntityAt(state, pirateUnit, { q: 2, r: 0 })).toBeNull();
+  });
+
+  it('getBlockingMapEntityKeys includes the enclave anchor for a land unit', () => {
+    const state = enclaveBlockState();
+    expect(getBlockingMapEntityKeys(state, state.units.mover).has('2,0')).toBe(true);
+  });
+
+  it('getMovementRangeDetails never marks the enclave anchor reachable, even from direct adjacency', () => {
+    // 1 movement point: just enough to step onto an adjacent tile, with no budget
+    // to reach (3,0) by any detour -- isolates "walked through the enclave" from
+    // "took a legal route around it with leftover movement" (mirrors #843).
+    const adjacent = enclaveBlockState({ q: 1, r: 0 }, 1); // mover stands directly next to the enclave at (2,0)
+    const keys = getMovementRangeDetails(adjacent, 'mover').reachable.map(hexKey);
+    expect(keys).toContain('0,0'); // ordinary retreat tile is still a normal move
+    expect(keys).not.toContain('2,0'); // no land assault action -> never a tap target
+    expect(keys).not.toContain('3,0'); // and the BFS must not walk through it
+  });
+
+  it('getMovementBlockerReason explains the enclave must be assaulted by sea', () => {
+    const state = enclaveBlockState({ q: 1, r: 0 });
+    const reason = getMovementBlockerReason(state.units.mover, { q: 2, r: 0 }, state.map, {
+      blockingEntity: getBlockingMapEntityAt(state, state.units.mover, { q: 2, r: 0 }),
+    });
+    expect(reason?.code).toBe('pirate-enclave');
+    expect(reason?.message.toLowerCase()).toMatch(/sea|warship|ship/);
+  });
+
+  it('keys the block off the acting unit\'s owner, not state.currentPlayer (hot-seat safe)', () => {
+    const state = enclaveBlockState({ q: 1, r: 0 });
+    const asPlayerTurn = getBlockingMapEntityAt(state, state.units.mover, { q: 2, r: 0 });
+    state.currentPlayer = 'ai-1'; // a different seat becomes active; the acting unit is unchanged
+    const asOtherTurn = getBlockingMapEntityAt(state, state.units.mover, { q: 2, r: 0 });
+    expect(asOtherTurn).toEqual(asPlayerTurn);
+    expect(asOtherTurn).toEqual({ reason: 'pirate-enclave', entityId: 'pirate-1' });
   });
 });
 
