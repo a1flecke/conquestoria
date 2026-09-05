@@ -1,6 +1,7 @@
 import type { UnitDefinition, UnitType, Unit, City, HexCoord, GameMap, GameState, CivBonusEffect, VisibilityState, IdCounters } from '@/core/types';
 import { getZoneOfControlAt } from './zone-of-control-system';
 import { isHostileOwnerTo } from './owner-hostility';
+import { isPirateOwner } from '@/core/owner-kind';
 import { hasAllianceTreaty } from './diplomacy-system';
 import {
   hexKey,
@@ -1084,6 +1085,7 @@ export type UnitMovementBlockerCode =
   | 'occupied'
   | 'foreign-city'
   | 'barbarian-camp'
+  | 'pirate-enclave'
   | 'unreachable'
   | 'insufficient-movement';
 
@@ -1178,6 +1180,7 @@ export interface MovementBlockerReason {
     | 'occupied'
     | 'foreign-city'
     | 'barbarian-camp'
+    | 'pirate-enclave'
     | 'unreachable'
     | 'insufficient-movement';
   message: string;
@@ -1261,8 +1264,31 @@ function normalizeOccupants(value: string | string[] | undefined): string[] {
 }
 
 export interface BlockingMapEntity {
-  reason: 'foreign-city' | 'barbarian-camp';
+  reason: 'foreign-city' | 'barbarian-camp' | 'pirate-enclave';
   entityId: string;
+}
+
+// A pirate faction's coastal-enclave headquarters anchors on a land tile (#965;
+// pirate-factions design). Like a barbarian camp, an intact enclave blocks
+// ordinary movement onto that anchor for everyone except the pirate faction that
+// owns it -- a land unit cannot walk in, stack, or "capture" it. The enclave is
+// resolved only by a naval assault from an adjacent sea tile
+// (see getEnclaveAssaultPreview); it never transfers ownership to a civ.
+function isBlockingPirateEnclaveFor(unit: Unit): boolean {
+  return !isPirateOwner(unit.owner);
+}
+
+/** Land anchors of every intact pirate coastal-enclave headquarters. */
+function pirateEnclaveAnchorEntries(state: GameState): Array<{ id: string; key: string }> {
+  const factions = state.pirates?.factions;
+  if (!factions) return [];
+  const entries: Array<{ id: string; key: string }> = [];
+  for (const faction of Object.values(factions)) {
+    if (faction.headquarters.kind === 'coastal-enclave') {
+      entries.push({ id: faction.id, key: hexKey(faction.headquarters.position) });
+    }
+  }
+  return entries;
 }
 
 export function isBlockingCityFor(state: GameState, unit: Unit, city: City): boolean {
@@ -1299,12 +1325,19 @@ export function getBlockingMapEntityAt(
   if (camp && isBlockingCampFor(unit)) {
     return { reason: 'barbarian-camp', entityId: camp.id };
   }
+  if (isBlockingPirateEnclaveFor(unit)) {
+    const enclave = pirateEnclaveAnchorEntries(state).find(entry => entry.key === key);
+    if (enclave) {
+      return { reason: 'pirate-enclave', entityId: enclave.id };
+    }
+  }
   return null;
 }
 
 export const BLOCKING_MAP_ENTITY_MESSAGES: Record<BlockingMapEntity['reason'], string> = {
   'foreign-city': 'Move adjacent, then use the city assault action.',
   'barbarian-camp': 'Move adjacent, then attack to destroy the camp.',
+  'pirate-enclave': 'This pirate stronghold can only be destroyed by a warship attacking from an adjacent sea tile.',
 };
 
 /**
@@ -1323,6 +1356,11 @@ export function getBlockingMapEntityKeys(state: GameState, unit: Unit): Set<stri
   if (isBlockingCampFor(unit)) {
     for (const camp of Object.values(state.barbarianCamps ?? {})) {
       keys.add(hexKey(camp.position));
+    }
+  }
+  if (isBlockingPirateEnclaveFor(unit)) {
+    for (const { key } of pirateEnclaveAnchorEntries(state)) {
+      keys.add(key);
     }
   }
   return keys;
@@ -1493,7 +1531,12 @@ export function getMovementRangeDetails(
       // fromStart gate they would be "reachable" from arbitrarily far away whenever movement
       // points allowed -- exactly the #843 bug (a distant city looked tap-able, but tapping
       // it while not yet adjacent produced a confusing rejection instead of a move).
-      if (blockingEntity && !fromStart) continue;
+      //
+      // #965: a pirate coastal-enclave has NO land tap-action (it is razed only by
+      // a warship from the sea), so unlike a city/camp its anchor is never a
+      // reachable tap target -- exclude it even from direct adjacency so the tap
+      // falls through to the plain "assault it by sea" explanation.
+      if (blockingEntity && (!fromStart || blockingEntity.reason === 'pirate-enclave')) continue;
       const zoc = !hostileOccupant && !blockingEntity && getZoneOfControlAt(state, unit, neighbor).limited;
       const terminal = hostileOccupant || Boolean(blockingEntity) || zoc;
       const previous = visited.get(key) ?? -1;
