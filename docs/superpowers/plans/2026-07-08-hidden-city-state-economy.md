@@ -120,7 +120,7 @@ export const MINOR_CIV_ECONOMY_TUNING = {
 
 This implementation does not add a player-visible production queue for city-states. The hidden queue lives on the existing `City.productionQueue`, but the player sees only broad posture and coarse production class hints when visibility allows it. Tests must assert that exact queue item ids and ETA text are not rendered.
 
-## Task 1: Types, Save Normalization, And Event Skeleton
+## Task 1: Types, Save Normalization, And Event Skeleton ✅ merged (#505)
 
 **Files:**
 - Modify: `src/core/types.ts`
@@ -129,7 +129,7 @@ This implementation does not add a player-visible production queue for city-stat
 - Test: `tests/storage/save-persistence.test.ts`
 - Test: `tests/systems/minor-civ-economy-system.test.ts`
 
-- [ ] **Step 1: Write failing type/normalization tests**
+- [x] **Step 1: Write failing type/normalization tests**
 
 Add to `tests/storage/save-persistence.test.ts`:
 
@@ -217,13 +217,13 @@ describe('minor-civ economy normalization', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests and verify RED**
+- [x] **Step 2: Run tests and verify RED**
 
 Run: `./scripts/run-with-mise.sh yarn test --run tests/storage/save-persistence.test.ts tests/systems/minor-civ-economy-system.test.ts`
 
 Expected: FAIL because `normalizeMinorCivEconomyState` and `MinorCivState.economy` do not exist.
 
-- [ ] **Step 3: Add types and event**
+- [x] **Step 3: Add types and event**
 
 In `src/core/types.ts`, add near the existing minor-civ types:
 
@@ -265,7 +265,7 @@ Add this event to `GameEvents` near the other `minor-civ:*` events:
 };
 ```
 
-- [ ] **Step 4: Implement normalization skeleton**
+- [x] **Step 4: Implement normalization skeleton**
 
 Create `src/systems/minor-civ-economy-system.ts`:
 
@@ -354,7 +354,7 @@ export function normalizeMinorCivEconomyState(state: GameState): GameState {
 }
 ```
 
-- [ ] **Step 5: Wire save normalization**
+- [x] **Step 5: Wire save normalization**
 
 In `src/storage/save-manager.ts`, import:
 
@@ -370,26 +370,26 @@ const normalizedCityState = migrateLegacyPirateFleets(normalizeMinorCivEconomySt
 ))));
 ```
 
-- [ ] **Step 6: Run tests and verify GREEN**
+- [x] **Step 6: Run tests and verify GREEN**
 
 Run: `./scripts/run-with-mise.sh yarn test --run tests/storage/save-persistence.test.ts tests/systems/minor-civ-economy-system.test.ts`
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/core/types.ts src/systems/minor-civ-economy-system.ts src/storage/save-manager.ts tests/storage/save-persistence.test.ts tests/systems/minor-civ-economy-system.test.ts
 git commit -m "feat: normalize hidden city-state economy state"
 ```
 
-## Task 2: Minor-Civ-Safe Tech, Resource, Candidate, And Posture Helpers
+## Task 2: Minor-Civ-Safe Tech, Resource, Candidate, And Posture Helpers ✅ merged (#505)
 
 **Files:**
 - Modify: `src/systems/minor-civ-economy-system.ts`
 - Test: `tests/systems/minor-civ-economy-system.test.ts`
 
-- [ ] **Step 1: Write failing helper tests**
+- [x] **Step 1: Write failing helper tests**
 
 Add to `tests/systems/minor-civ-economy-system.test.ts`:
 
@@ -517,13 +517,13 @@ it('treats low cooled wary pressure as settled when no local threat exists', () 
 });
 ```
 
-- [ ] **Step 2: Run tests and verify RED**
+- [x] **Step 2: Run tests and verify RED**
 
 Run: `./scripts/run-with-mise.sh yarn test --run tests/systems/minor-civ-economy-system.test.ts`
 
 Expected: FAIL because the helper functions do not exist.
 
-- [ ] **Step 3: Implement helper exports**
+- [x] **Step 3: Implement helper exports**
 
 In `src/systems/minor-civ-economy-system.ts`, extend imports:
 
@@ -710,26 +710,26 @@ export function chooseMinorCivQueueItem(state: GameState, minorCivId: string): s
 }
 ```
 
-- [ ] **Step 4: Run tests and verify GREEN**
+- [x] **Step 4: Run tests and verify GREEN**
 
 Run: `./scripts/run-with-mise.sh yarn test --run tests/systems/minor-civ-economy-system.test.ts`
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/systems/minor-civ-economy-system.ts tests/systems/minor-civ-economy-system.test.ts
 git commit -m "feat: add city-state economy candidate helpers"
 ```
 
-## Task 3: Production Processing, Pending Spawns, And No Same-Turn Action
+## Task 3: Production Processing, Pending Spawns, And No Same-Turn Action ✅ merged (#505)
 
 **Files:**
 - Modify: `src/systems/minor-civ-economy-system.ts`
 - Test: `tests/systems/minor-civ-economy-system.test.ts`
 
-- [ ] **Step 1: Write failing production tests**
+- [x] **Step 1: Write failing production tests**
 
 Add to `tests/systems/minor-civ-economy-system.test.ts`:
 
@@ -859,13 +859,13 @@ it('does not replace an active legal hidden queue item just because the decision
 });
 ```
 
-- [ ] **Step 2: Run tests and verify RED**
+- [x] **Step 2: Run tests and verify RED**
 
 Run: `./scripts/run-with-mise.sh yarn test --run tests/systems/minor-civ-economy-system.test.ts`
 
 Expected: FAIL because `processMinorCivEconomyTurn` does not exist.
 
-- [ ] **Step 3: Implement production processing**
+- [x] **Step 3: Implement production processing**
 
 In `src/systems/minor-civ-economy-system.ts`, add imports:
 
@@ -1050,20 +1050,20 @@ export function processMinorCivEconomyTurn(state: GameState, minorCivId: string,
 }
 ```
 
-- [ ] **Step 4: Run tests and verify GREEN**
+- [x] **Step 4: Run tests and verify GREEN**
 
 Run: `./scripts/run-with-mise.sh yarn test --run tests/systems/minor-civ-economy-system.test.ts`
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/systems/minor-civ-economy-system.ts tests/systems/minor-civ-economy-system.test.ts
 git commit -m "feat: process hidden city-state production"
 ```
 
-## Task 4: Turn-Loop Integration And Shared Mobilization Budget
+## Task 4: Turn-Loop Integration And Shared Mobilization Budget ✅ merged (#505); mobilization design later corrected in #951 — see the reconciliation table in the spec doc
 
 **Files:**
 - Modify: `src/systems/minor-civ-coalition-system.ts`
@@ -1072,7 +1072,7 @@ git commit -m "feat: process hidden city-state production"
 - Test: `tests/systems/minor-civ-system.test.ts`
 - Test: `tests/systems/minor-civ-economy-system.test.ts`
 
-- [ ] **Step 1: Write failing integration tests**
+- [x] **Step 1: Write failing integration tests**
 
 Add to `tests/systems/minor-civ-system.test.ts`:
 
@@ -1140,13 +1140,13 @@ it('production-backed defenders stay within local force projection', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests and verify RED**
+- [x] **Step 2: Run tests and verify RED**
 
 Run: `./scripts/run-with-mise.sh yarn test --run tests/systems/minor-civ-system.test.ts tests/systems/minor-civ-economy-system.test.ts`
 
 Expected: FAIL because the turn loop does not call the economy and regional grievance still spawns independently.
 
-- [ ] **Step 3: Add regional grievance spawn control and budget helper**
+- [x] **Step 3: Add regional grievance spawn control and budget helper**
 
 In `src/systems/minor-civ-coalition-system.ts`, add:
 
@@ -1196,7 +1196,7 @@ export function processMinorCivRegionalGrievanceTurn(
 
 Wrap both `spawnRegionalDefender` branches with `allowDefenderSpawns`.
 
-- [ ] **Step 4: Consume budget in economy without direct duplicate spawns**
+- [x] **Step 4: Consume budget in economy without direct duplicate spawns**
 
 In `src/systems/minor-civ-economy-system.ts`, import:
 
@@ -1214,7 +1214,7 @@ const budget = getMinorCivMobilizationBudget(nextState, minorCivId);
 
 Use `budget.recoveryStrainedUntilTurn` in posture handling and do not create a separate regional cooldown field. Do not perform emergency conscription in this first pass. The existing regional conscription remains available only through direct callers that use the default `allowDefenderSpawns: true`; the minor-civ turn loop below will pass `false` so #490 does not double-spawn.
 
-- [ ] **Step 5: Wire `processMinorCivTurn`**
+- [x] **Step 5: Wire `processMinorCivTurn`**
 
 In `src/systems/minor-civ-system.ts`, import:
 
@@ -1241,20 +1241,20 @@ if (mc.economy && state.cities[mc.cityId]?.owner === mc.id) {
 }
 ```
 
-- [ ] **Step 6: Run tests and verify GREEN**
+- [x] **Step 6: Run tests and verify GREEN**
 
 Run: `./scripts/run-with-mise.sh yarn test --run tests/systems/minor-civ-system.test.ts tests/systems/minor-civ-economy-system.test.ts`
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/systems/minor-civ-system.ts src/systems/minor-civ-coalition-system.ts src/systems/minor-civ-economy-system.ts tests/systems/minor-civ-system.test.ts tests/systems/minor-civ-economy-system.test.ts
 git commit -m "feat: run city-state economy in minor-civ turns"
 ```
 
-## Task 5: Viewer-Safe Presentation, Notifications, And Hot-Seat Routing
+## Task 5: Viewer-Safe Presentation, Notifications, And Hot-Seat Routing ✅ merged (#505)
 
 **Files:**
 - Modify: `src/systems/minor-civ-presentation.ts`
@@ -1264,7 +1264,7 @@ git commit -m "feat: run city-state economy in minor-civ turns"
 - Test: `tests/ui/minor-civ-notifications.test.ts`
 - Test: `tests/ui/minor-civ-notification-listeners.test.ts`
 
-- [ ] **Step 1: Write failing presentation and notification tests**
+- [x] **Step 1: Write failing presentation and notification tests**
 
 Add to `tests/systems/minor-civ-presentation.test.ts`:
 
@@ -1403,13 +1403,13 @@ it('routes city-state economy production to eligible hot-seat viewers only', () 
 });
 ```
 
-- [ ] **Step 2: Run tests and verify RED**
+- [x] **Step 2: Run tests and verify RED**
 
 Run: `./scripts/run-with-mise.sh yarn test --run tests/systems/minor-civ-presentation.test.ts tests/ui/minor-civ-notifications.test.ts tests/ui/minor-civ-notification-listeners.test.ts`
 
 Expected: FAIL because the new presentation and notification event do not exist.
 
-- [ ] **Step 3: Implement presentation helper**
+- [x] **Step 3: Implement presentation helper**
 
 In `src/systems/minor-civ-presentation.ts`, add:
 
@@ -1454,7 +1454,7 @@ export function getMinorCivEconomyPresentationForPlayer(
 }
 ```
 
-- [ ] **Step 4: Implement notification draft and listener routing**
+- [x] **Step 4: Implement notification draft and listener routing**
 
 In `src/ui/minor-civ-notifications.ts`, add event union member:
 
@@ -1498,26 +1498,26 @@ bus.on('minor-civ:production-completed', data => {
 });
 ```
 
-- [ ] **Step 5: Run tests and verify GREEN**
+- [x] **Step 5: Run tests and verify GREEN**
 
 Run: `./scripts/run-with-mise.sh yarn test --run tests/systems/minor-civ-presentation.test.ts tests/ui/minor-civ-notifications.test.ts tests/ui/minor-civ-notification-listeners.test.ts`
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/systems/minor-civ-presentation.ts src/ui/minor-civ-notifications.ts src/ui/minor-civ-notification-listeners.ts tests/systems/minor-civ-presentation.test.ts tests/ui/minor-civ-notifications.test.ts tests/ui/minor-civ-notification-listeners.test.ts
 git commit -m "feat: route city-state economy presentation safely"
 ```
 
-## Task 6: Diplomacy Panel Integration And Exact-Pressure Cleanup
+## Task 6: Diplomacy Panel Integration And Exact-Pressure Cleanup ✅ merged (#505)
 
 **Files:**
 - Modify: `src/ui/diplomacy-panel.ts`
 - Test: `tests/ui/diplomacy-panel.test.ts`
 
-- [ ] **Step 1: Write failing UI tests**
+- [x] **Step 1: Write failing UI tests**
 
 Update the existing grievance panel test in `tests/ui/diplomacy-panel.test.ts` so it asserts no exact pressure number:
 
@@ -1604,13 +1604,13 @@ it('rerenders reparations cooling into economy posture without double charging f
 });
 ```
 
-- [ ] **Step 2: Run tests and verify RED**
+- [x] **Step 2: Run tests and verify RED**
 
 Run: `./scripts/run-with-mise.sh yarn test --run tests/ui/diplomacy-panel.test.ts`
 
 Expected: FAIL because the panel still renders exact pressure and does not render economy presentation.
 
-- [ ] **Step 3: Render coherent broad posture**
+- [x] **Step 3: Render coherent broad posture**
 
 In `src/ui/diplomacy-panel.ts`, import:
 
@@ -1678,26 +1678,26 @@ panel.querySelectorAll('.mc-reparations').forEach(btn => {
 });
 ```
 
-- [ ] **Step 4: Run tests and verify GREEN**
+- [x] **Step 4: Run tests and verify GREEN**
 
 Run: `./scripts/run-with-mise.sh yarn test --run tests/ui/diplomacy-panel.test.ts`
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/ui/diplomacy-panel.ts tests/ui/diplomacy-panel.test.ts
 git commit -m "feat: show city-state economy posture in diplomacy"
 ```
 
-## Task 7: Save, Client Neutrality, Rule Checks, And Full Regression Pass
+## Task 7: Save, Client Neutrality, Rule Checks, And Full Regression Pass ✅ merged (#505)
 
 **Files:**
 - Modify tests only if the verification commands expose a real gap.
 - No platform-specific source file should be modified for this task.
 
-- [ ] **Step 1: Run source rule check for changed `src` files**
+- [x] **Step 1: Run source rule check for changed `src` files**
 
 Run with the actual changed source file list from `git diff --name-only origin/main...HEAD`:
 
@@ -1707,7 +1707,7 @@ scripts/check-src-rule-violations.sh src/core/types.ts src/systems/minor-civ-eco
 
 Expected: PASS with no rule violation output.
 
-- [ ] **Step 2: Run targeted tests**
+- [x] **Step 2: Run targeted tests**
 
 Run:
 
@@ -1717,7 +1717,7 @@ Run:
 
 Expected: PASS.
 
-- [ ] **Step 3: Run build**
+- [x] **Step 3: Run build**
 
 Run:
 
@@ -1727,7 +1727,7 @@ Run:
 
 Expected: PASS. This is required because `yarn test` does not type-check.
 
-- [ ] **Step 4: Run Tauri frontend build**
+- [x] **Step 4: Run Tauri frontend build**
 
 Run:
 
@@ -1737,7 +1737,7 @@ Run:
 
 Expected: PASS. This verifies the shared frontend compiles for the desktop client after changing shared systems, storage normalization, and UI.
 
-- [ ] **Step 5: Check client-neutral source boundaries**
+- [x] **Step 5: Check client-neutral source boundaries**
 
 Run:
 
@@ -1747,7 +1747,7 @@ rg -n "@tauri|__TAURI__|window\\.location|/conquestoria/" src/core/types.ts src/
 
 Expected: no matches. Shared gameplay, save, and UI modules must not branch on web/PWA/Tauri details for #490.
 
-- [ ] **Step 6: Run full tests before push/PR**
+- [x] **Step 6: Run full tests before push/PR**
 
 Run:
 
@@ -1757,7 +1757,7 @@ Run:
 
 Expected: PASS.
 
-- [ ] **Step 7: Inspect committed and uncommitted diffs**
+- [x] **Step 7: Inspect committed and uncommitted diffs**
 
 Run:
 
@@ -1774,7 +1774,7 @@ Expected:
 - no Tauri-specific imports, browser-only globals, or platform path branches in shared gameplay modules
 - no exact hidden pressure values rendered in player-facing city-state economy UI
 
-- [ ] **Step 8: Final commit if verification fixes were needed**
+- [x] **Step 8: Final commit if verification fixes were needed**
 
 ```bash
 git add src tests

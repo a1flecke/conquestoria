@@ -2,7 +2,9 @@
 
 **Issue:** [#490](https://github.com/a1flecke/conquestoria/issues/490)
 **Related future designs:** [#496 city-state leagues](https://github.com/a1flecke/conquestoria/issues/496), [#497 minor-civ graduation](https://github.com/a1flecke/conquestoria/issues/497)
-**Status:** Approved design
+**Status:** Implemented in #505 (2026-07-10). See "Reconciliation With What Shipped" at the end of
+this document for how the delivered design diverged from what follows, and for the follow-up
+issues (#948-#954) that closed those gaps.
 **Date:** 2026-07-07
 
 ## Summary
@@ -599,3 +601,38 @@ If a loaded save has impossible economy data, normalization should fall back to 
 - The diplomacy panel surfaces discovered broad posture and refreshes after relevant actions.
 - Existing quest, alliance, combat, conquest, and notification behavior remains intact.
 - Future leagues (#496) and graduation (#497) have explicit extension points but no first-implementation behavior in #490.
+
+## Reconciliation With What Shipped
+
+`#490` shipped in `#505` (2026-07-10). A later read-only audit of the shipped implementation found
+several places where it diverged from this design, and filed the gaps as follow-up issues. Per
+`.claude/rules/spec-fidelity.md`, this section is the authoring-time reconciliation for those
+findings — do not treat the body of this document above as still describing current behavior
+without checking this table first.
+
+| Prior design decision | Verdict | Note |
+|---|---|---|
+| Reuse `processCity` + city yield/queue/food | Retained | |
+| `MinorCivState.economy` policy/posture/summary | Retained | |
+| `pendingUnitSpawn` bounded + retried + drop-on-load | Retained | |
+| Dedicated `minor-civ:production-completed` event | Retained | Reused as-is for the emergency levy's own unit-appeared notification (`#951`) rather than adding a second event |
+| Viewer-scoped presentation + discovery gate | Retained | |
+| One shared mobilization budget (queue vs store vs conscript vs nothing) | Modified, then fully resolved | Shipped as three overlapping mechanisms instead of one budget: production-queue bias (live), a grievance-layer "conscription" spawn (live but reachable), and a grievance-layer "trained defender" progress spawn (dead — its only live caller passed `allowDefenderSpawns: false`). `#951` consolidated all defender creation into one economy-owned emergency levy; grievance/coalition is now a read-only "why" signal that never mutates state |
+| Legacy garrison replacement as *temporary* backstop | Retained, not labelled temporary | Still open — no follow-up issue tracks relabelling or removing this |
+| Legacy era upgrade kept only if temporary + tested | Rejected in spirit, then fully corrected | Shipped unconditional and untested, silently rewriting unit types and granting free population every era tick. `#948` made it bookkeeping-only: it advances `lastEraUpgrade` and does nothing else |
+| Emergency conscription with explicit cost | Rejected in effect, then formally removed | Shipped cost/cooldown/strain fields existed but the spawn branch was unreachable from the live caller. `#951` deleted the whole grievance-layer conscription/trained-defender mechanism (including the dead fields) rather than leave it as unreachable code |
+| Save-version bump | Rejected (correctly) — additive optional field + fail-soft normalization | Held for every follow-up issue too (`#948`-`#954`): no schema bump was ever needed |
+| Minor-civ population bounds | Not implemented, then implemented | `#948` added an era-banded population ceiling (`getMinorCivPopulationCeiling`), enforced only inside the minor-civ economy turn |
+
+**Follow-up hardening beyond the original design** (none of this existed in the design above; each
+issue is one focused delivery, not a design revision):
+
+- `#948` — population ceiling and era-upgrade fix (see table above).
+- `#949` — long-run simulation and balance-scenario test coverage; there was none before this.
+- `#950` — a `.claude/rules/game-balance.md` "Minor-Civ Economy" section documenting every tuning
+  knob; before this, they lived only in code.
+- `#951` — mobilization consolidation (see table above).
+- `#952` — minor-civ production restricted to land-domain units only; naval/air were previously
+  neither included nor excluded, and a spawned naval unit would have been permanently inert.
+- `#954` — a unit already queued is dequeued rather than completing once the live unit cap drops
+  below the current count mid-production (e.g. `mobilizing` → `settled` after a war ends).
