@@ -296,6 +296,28 @@ describe('AI strategic research planning', () => {
     expect(decision?.scoreComponents.unrestReliefTechBonus).toBeGreaterThan(0);
   });
 
+  it('#927 Rung 4: generic relief research recognizes the Bureaucracy direct-tech unlock', () => {
+    const techs = [
+      tech('aaa-plain', 'civics'),
+      tech('separation-of-powers', 'civics'),
+    ];
+    const wide = planAIResearch(context(techs, {
+      pressuredReliefCityIdsByBuildingId: { bureaucracy: ['wide-1', 'wide-2'] },
+    }));
+    expect(wide?.frontierTechId).toBe('separation-of-powers');
+    expect(wide?.scoreComponents.unrestReliefTechBonus).toBeGreaterThan(0);
+    expect(wide?.trace.candidates.find(c => c.id === 'separation-of-powers')?.reasonCodes)
+      .toContain('unrest-relief');
+
+    // A compact empire (no pressured cities) does not get the bonus, so id
+    // tiebreak keeps the alphabetically-first plain tech.
+    const compact = planAIResearch(context(techs, {
+      pressuredReliefCityIdsByBuildingId: { bureaucracy: [] },
+    }));
+    expect(compact?.frontierTechId).toBe('aaa-plain');
+    expect(compact?.scoreComponents.unrestReliefTechBonus).toBe(0);
+  });
+
   it('bounds search to four edges and twenty-four downstream targets', () => {
     const techs = [tech('root', 'science')];
     for (let index = 1; index <= 30; index++) {

@@ -174,7 +174,7 @@ const ERA_6_TECHS: Tech[] = [
   // CIVICS (2)
   { id: 'separation-of-powers', name: 'Separation of Powers', track: 'civics', cost: 405,
     prerequisites: ['constitutional-law'],
-    unlocks: ['+1 gold per culture building empire-wide'], era: 6 },
+    unlocks: ['+1 gold per culture building empire-wide', 'Divides administrative authority across institutions, easing unrest from governing a large empire'], era: 6 },
   { id: 'parliamentary-reform', name: 'Parliamentary Reform', track: 'civics', cost: 370,
     prerequisites: ['civic-humanism', 'constitutional-law'],
     unlocks: ['+5% production empire-wide'], era: 6 },
