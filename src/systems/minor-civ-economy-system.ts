@@ -138,10 +138,17 @@ const UNSAFE_UNIT_TYPES = new Set<UnitType>([
   'troop_transport',
 ]);
 
+// Land-only for v1 (#952, L1 from the #490 audit): a coastal minor civ could otherwise train and
+// spawn naval units (getTrainableUnitsForCity is coastal-gated, and isLegalSpawnTerrain's naval
+// branch would place them), but planPurposefulMinorCivTurn's movement never issues naval/air
+// orders — a spawned galley would be a permanently inert unit that also wasted the production
+// spent on it. #883 (naval logistics) and #884 (air logistics) own any future minor-civ design in
+// this space; until then, land is the only domain minor-civ production may ever produce.
 export const SAFE_MINOR_CIV_UNIT_TYPES = new Set<UnitType>(
   TRAINABLE_UNITS
     .map(unit => unit.type)
-    .filter(unitType => !UNSAFE_UNIT_TYPES.has(unitType)),
+    .filter(unitType => !UNSAFE_UNIT_TYPES.has(unitType))
+    .filter(unitType => (UNIT_DEFINITIONS[unitType]?.domain ?? 'land') === 'land'),
 );
 
 const UNSAFE_BUILDING_IDS = new Set<string>();
@@ -352,8 +359,10 @@ export function getMinorCivBuildCandidates(
   const buildings = getAvailableBuildings(city, completedTechs, state.map, resources, pressureEra)
     .filter(building => !building.nationalProject && !building.uniquePerEmpire && !UNSAFE_BUILDING_IDS.has(building.id));
   // minor civs never found a religion — missionary never trainable here
+  // Land-only for v1 (#952) — see SAFE_MINOR_CIV_UNIT_TYPES above for the full rationale.
   const units = getTrainableUnitsForCity(city, completedTechs, state.map, undefined, resources, false)
-    .filter(unit => !UNSAFE_UNIT_TYPES.has(unit.type));
+    .filter(unit => !UNSAFE_UNIT_TYPES.has(unit.type))
+    .filter(unit => (UNIT_DEFINITIONS[unit.type]?.domain ?? 'land') === 'land');
 
   return { buildings, units };
 }

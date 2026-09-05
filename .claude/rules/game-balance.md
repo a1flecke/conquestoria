@@ -207,6 +207,21 @@ This closes the gap where a unit could keep completing indefinitely once queued,
 because the cap dropped after it was already queued; it intentionally does not touch units that
 already exist by the time posture drops.
 
+### Unit domain restriction (#952)
+
+Minor-civ production is **land-only for v1**, catalog-wide: `SAFE_MINOR_CIV_UNIT_TYPES` and
+`getMinorCivBuildCandidates` both filter to `(UNIT_DEFINITIONS[unitType]?.domain ?? 'land') ===
+'land'`, on top of the existing `UNSAFE_UNIT_TYPES` exclusions (settlers, workers, spies, caravans,
+transports). Before this, a coastal minor civ's `getTrainableUnitsForCity` call (itself
+coastal-gated) could surface naval units, and `isLegalSpawnTerrain`'s naval branch would place
+them — but `planPurposefulMinorCivTurn`'s movement never issues naval/air orders, so a spawned
+galley would sit permanently inert, having wasted the production spent on it. `#883` (naval
+logistics) and `#884` (air logistics) own any future minor-civ design in this space; until one of
+those ships, do not reintroduce naval/air candidates here. This does not retroactively remove an
+already-existing naval unit from a save that predates this restriction — only future production is
+affected — and it does not touch `processCity`/`getTrainableUnitsForCiv`, which stay domain-agnostic
+for every other civ.
+
 ### Posture evaluation and production-switching policy
 
 `evaluateMinorCivEconomyPosture` resolves one of `settled` / `fortifying` / `mobilizing` /
@@ -419,8 +434,11 @@ caller passed `allowDefenderSpawns: false`). `#951` consolidated these into one 
   mean "ignore an ongoing invasion" — it only affects the default (no-active-grievance) production
   weighting.
 - **Land-defense only, always.** The levy candidate filter excludes naval/air/siege/mounted/armor
-  regardless of the host city being coastal — independent of `#952`'s broader (not yet implemented)
-  normal-production domain policy.
+  regardless of the host city being coastal. See "Unit domain restriction (#952)" above — that
+  restriction now also excludes naval/air from `getMinorCivBuildCandidates` catalog-wide, so the
+  levy's own domain check is redundant with its upstream candidate source, but is kept anyway as
+  an explicit, cheap, defense-in-depth guarantee of the levy's own "always land" contract — do not
+  remove it on the assumption the upstream filter alone is sufficient.
 - **Difficulty parity.** Every gate above (legality, population cost, unit choice, HP, spawn rules,
   visibility) is identical across Explorer/Standard/Veteran. The only difficulty-varying input is
   `recoveryTurns` — a posture-only signal, not a legality or cost difference — and it was already

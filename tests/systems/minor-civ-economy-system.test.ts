@@ -17,10 +17,11 @@ import {
   SAFE_MINOR_CIV_UNIT_TYPES,
 } from '@/systems/minor-civ-economy-system';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
+import { TRAINABLE_UNITS } from '@/systems/city-system';
 import { getWrappedHexNeighbors, hexKey, hexNeighbors } from '@/systems/hex-utils';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getEraAdvancementTechs } from '@/systems/tech-definitions';
-import { advancePlayerCivToEra as setPlayerCivEra } from './helpers/minor-civ-scenario-fixtures';
+import { advancePlayerCivToEra as setPlayerCivEra, fixtureCoastal } from './helpers/minor-civ-scenario-fixtures';
 
 describe('minor-civ economy normalization', () => {
   it('does not change city queue, production progress, units, or regional grievance', () => {
@@ -325,6 +326,38 @@ describe('#855 — spy unit exclusion from minor-civ defense catalog', () => {
   it('never treats either new spy tier as a safe minor-civ defensive unit', () => {
     expect(SAFE_MINOR_CIV_UNIT_TYPES.has('spy_intelligence_officer')).toBe(false);
     expect(SAFE_MINOR_CIV_UNIT_TYPES.has('spy_station_chief')).toBe(false);
+  });
+});
+
+describe('#952 — naval/air exclusion from minor-civ production', () => {
+  it('never treats a naval or air unit as a safe minor-civ unit', () => {
+    // Sanity check the exclusion isn't vacuously true — the general catalog genuinely has
+    // naval/air entries for SAFE_MINOR_CIV_UNIT_TYPES to be excluding.
+    const hasNavalOrAirInGeneralCatalog = TRAINABLE_UNITS.some(unit => {
+      const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
+      return domain === 'naval' || domain === 'air';
+    });
+    expect(hasNavalOrAirInGeneralCatalog).toBe(true);
+
+    for (const unitType of SAFE_MINOR_CIV_UNIT_TYPES) {
+      const domain = UNIT_DEFINITIONS[unitType]?.domain ?? 'land';
+      expect(domain).toBe('land');
+    }
+  });
+
+  it('never includes a naval unit in a coastal minor civ\'s build candidates', () => {
+    const { state, minorCivId } = fixtureCoastal('mc-952-coastal-no-naval');
+    state.era = 2;
+    setPlayerCivEra(state, 2); // reaches 'galleys' (era 2), which unlocks galley/transport
+
+    const candidates = getMinorCivBuildCandidates(state, minorCivId);
+
+    expect(candidates.units.length).toBeGreaterThan(0);
+    for (const unit of candidates.units) {
+      const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
+      expect(domain).toBe('land');
+    }
+    expect(candidates.units.map(unit => unit.type)).not.toContain('galley');
   });
 });
 
