@@ -152,6 +152,142 @@ challenge profile scales unrest *pressure* only, not action cost). The AI uses
 (a bot cannot value the 15-turn immunity payoff) and stays rational as long as
 the invariant above holds.
 
+## Minor-Civ Economy (#950)
+
+Every minor-civ (city-state) economy balance knob lived only in code until now —
+`MINOR_CIV_ECONOMY_TUNING` and its siblings in `src/systems/minor-civ-economy-system.ts` and
+`src/systems/minor-civ-coalition-system.ts`, predating this file's wonder/national-project/
+unrest-relief documentation convention. This section is the umbrella for all of it; the three
+sections immediately below it (Population Ceiling #948, Era Advancement #948, Emergency Levy #951)
+cover their own topics in full detail and are cross-referenced here rather than duplicated.
+
+**Rule:** any new minor-civ economy knob (a cap, multiplier, interval, cost, cooldown, or
+threshold) must add a row to one of the tables in this section or one of the three sections below
+it, the same convention as the wonder/national-project/unrest-relief inventories elsewhere in this
+file.
+
+### Production multiplier, queue interval, retry limits (`MINOR_CIV_ECONOMY_TUNING`)
+
+| Challenge | Production multiplier | Queue decision interval (turns) | Recovery turns | Pending-spawn max attempts |
+|---|---:|---:|---:|---:|
+| Explorer | 0.75 | 5 | 8 | 3 |
+| Standard | 1.00 | 4 | 6 | 3 |
+| Veteran | 1.15 | 3 | 5 | 4 |
+
+`recoveryTurns` is consumed by the Emergency Levy section below. `pendingSpawnMaxAttempts` bounds
+`MinorCivEconomyState.pendingUnitSpawn` retries when a completed production unit has no legal
+spawn tile the turn it finishes — after the max, the pending spawn is dropped rather than retried
+forever (`processMinorCivEconomyTurn`).
+
+### Per-posture unit cap (`getMinorCivUnitCap`)
+
+| Challenge | settled | fortifying | mobilizing | recovering |
+|---|---:|---:|---:|---:|
+| Explorer | 1 | 2 | 3 | 1 |
+| Standard | 2 | 3 | 4 | 2 |
+| Veteran | 2 | 4 | 5 | 2 |
+
+**Militaristic archetype bonus:** `+1` to the cap while `fortifying` or `mobilizing` only (no
+bonus while `settled` or `recovering`). This is the one deliberate archetype-driven asymmetry in
+the whole economy — see "Difficulty policy" below for why nothing else varies by archetype or
+difficulty beyond this and the multiplier/interval/timing knobs above.
+
+**Note (not yet solved, tracked separately):** the live cap is checked at the moment a unit is
+about to be created (both ordinary production completion and the emergency levy), but nothing
+disbands an already-existing unit if the cap later drops (e.g. posture reverts from `mobilizing`
+to `settled`). A city-state can legitimately carry more units than its *current* posture's cap for
+a while after such a drop. Handling that interaction is `#954`'s explicit, separate scope — do not
+add ad hoc disbanding logic here to "fix" it.
+
+### Posture evaluation and production-switching policy
+
+`evaluateMinorCivEconomyPosture` resolves one of `settled` / `fortifying` / `mobilizing` /
+`recovering` from (checked in this order): an active `localRecoveryUntilTurn` window → `recovering`;
+formal war (`atWarWith.length > 0`) or `hasImmediateCityThreat` (any non-owned, non-transported
+unit within hex distance **2** of the city) → `mobilizing`; a regional grievance at `mobilizing` or
+`coalition-talks` status → `mobilizing`; membership in a `forming` or `active`
+`minorCivCoalitions` entry → `mobilizing`; a `wary` grievance at pressure ≥ 20, or zero live units
+→ `fortifying`; otherwise → `settled`.
+
+The production queue is **not** re-evaluated every turn — `chooseMinorCivQueueItem` only runs
+when the queue is empty and at least `queueDecisionInterval` turns have passed since the last
+decision, **or** the current queue head is no longer a legal candidate (tech/era/resource
+obsoleted it since it was queued). This is deliberate: it prevents the queue from thrashing every
+turn as posture flickers, while still guaranteeing an obsolete queued item never produces forever.
+`getMinorCivMobilizationBudget.wantsDefender` (grievance `mobilizing`/`coalition-talks` status)
+biases `chooseMinorCivQueueItem`'s scoring toward defense even when the base posture is
+`recovering` — recovery affects the *default* (no-active-grievance) production weighting only, it
+never means "ignore an ongoing invasion" (see Emergency Levy section).
+
+### Era-band policy
+
+Every era-gated minor-civ decision (tech/resource/building eligibility, the population ceiling,
+the emergency levy's region-immaturity embargo) reads `resolveNeutralPressureEra` — the single
+canonical era/maturity source, keyed off nearby major-civ tech state. There is no second,
+minor-civ-specific era resolver anywhere in this system; if a new minor-civ mechanic needs to know
+"how mature is this region," it must call this same function rather than reintroduce one.
+
+### Difficulty policy
+
+Explorer/Standard/Veteran tune **caps, timing, and production quantity only** — the production
+multiplier, queue decision interval, per-posture unit cap, recovery duration, and pending-spawn
+retry budget above. They never change: which units/buildings are in the candidate catalog, what
+anything costs (population, production), unit quality (HP, readiness), spawn legality rules, or
+what a minor civ is allowed to observe. The Emergency Levy section's own "Difficulty parity" note
+is the concrete instance of this rule already enforced in tests; this is the general policy that
+any *future* difficulty-varying knob must follow the same split.
+
+### AI-information restrictions
+
+A minor civ's economy and mobilization decisions may only read information a locally-aware actor
+would plausibly have:
+
+- its own city, units, and economy/grievance/coalition state;
+- its own formal war state (`diplomacy.atWarWith`);
+- other units within a small local radius of its own city — hex distance **2** for
+  `hasImmediateCityThreat` (posture/levy "is there an immediate threat" check), hex distance
+  **14** for `MINOR_CIV_REGIONAL_GRIEVANCE_RADIUS` (how far a minor-civ conquest elsewhere raises
+  this civ's grievance pressure against the conqueror);
+- pressure/status of its own tracked grievances and any coalition it belongs to.
+
+It may **not** read: another civ's full unit roster or military strength anywhere off that local
+radius, another civ's hidden production queue, or anything behind normal fog-of-war/discovery
+rules that a player wouldn't otherwise see. Difficulty does not widen or narrow this — see
+"Difficulty policy" above.
+
+### Regional grievance and coalition thresholds (`minor-civ-coalition-system.ts`)
+
+| Constant | Value | Meaning |
+|---|---:|---|
+| `CONQUEST_PRESSURE` | 35 | Pressure added to every minor civ within the regional radius when a neighboring minor civ is conquered |
+| `REPEATED_CONQUEST_PRESSURE` | +15 | Extra pressure if the same conqueror struck another minor civ within `REPEATED_CONQUEST_WINDOW` (12 turns) |
+| `WARY_PRESSURE` | 20 | Threshold used by `evaluateMinorCivEconomyPosture` for `wary` pressure to imply `fortifying` |
+| `MOBILIZING_PRESSURE` | 45 | Grievance status becomes `mobilizing` at or above this pressure |
+| `COALITION_TALKS_PRESSURE` | 70 | Grievance status becomes `coalition-talks`; also the threshold for a minor civ to become a coalition-formation candidate |
+| `EMERGENCY_LEVY_PRESSURE_THRESHOLD` | 80 | Feeds `getMinorCivMobilizationBudget.allowsEmergencyLevy` — see Emergency Levy section |
+| Pressure decay/turn | 3 (Explorer) / 2 (Standard) / 1 (Veteran) | `pressureDecayPerTurn`, blocked for 4 turns after a conquest event (`decayBlockedUntilTurn`) |
+| Coalition-talks countdown | 6 (Explorer) / 4 (Standard) / 3 (Veteran) | `coalitionTalksCountdown` — turns a `forming` coalition waits before declaring war |
+
+A region needs population ≥ 6 total or ≥ 2 living combat units among candidate coalition members
+(`isRegionMatureForCoalition`) before a coalition can form at all — this is why a coalition
+member's own long-run trace (see envelope below) reliably resolves out of `forming` well inside
+90 turns rather than stalling indefinitely.
+
+### Expected long-run envelope (from `tests/systems/minor-civ-economy-longrun.test.ts`, #949)
+
+These are the actual bounds the long-run test suite enforces, not aspirational targets — a future
+change that needs to widen any of them must update both the test and this table in the same PR:
+
+| Signal | Bound | Source |
+|---|---|---|
+| Population | Never exceeds the era-banded ceiling (see #948 section below); never negative | `assertNoRunaway`, per-turn `populationCeiling` (the separate, narrower `#951`-scoped test in `minor-civ-economy-system.test.ts` additionally checks population never drops below the emergency-levy floor over a 120-turn war) |
+| Live unit count | Never exceeds the **max cap across all four postures** (not just the current posture's cap — see the "not yet solved" note above) | `assertNoRunaway`, per-turn `unitCap` |
+| Pending-spawn attempts | Never exceeds `pendingSpawnMaxAttempts` for the active challenge tier | `assertNoRunaway` |
+| Posture changes | At most 1 per 4 turns on average over the run (`ceil(turns / 4)`) — catches thrashing, not legitimate scenario arcs | `assertNoRunaway`, `postureChangeCount` |
+| Emergency levies | Rare: > 0 but ≤ 1 per 10 turns over a 120-turn sustained-war simulation | flagship "100+ turn conflict" test |
+| Recovery duration | Longest unbroken streak of `recovering=true` samples never exceeds `MAX_RECOVERY_TURNS` (8, the Explorer-tier `recoveryTurns` — the largest across all three tiers) | flagship "100+ turn conflict" test, `longestConsecutiveRun` |
+| Determinism | Same seed + starting state → byte-identical multi-turn trace; save → reload → process-one-turn matches the uninterrupted path | `#949 — determinism` tests |
+
 ## Minor-Civ Population Ceiling (#948)
 
 A one-city minor civ (city-state) has no housing/population cap in the generic
