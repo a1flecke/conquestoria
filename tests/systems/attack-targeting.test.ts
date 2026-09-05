@@ -289,6 +289,24 @@ describe('attack-targeting', () => {
     });
   });
 
+  // #966: the rule is the same at adjacency -- an Archer next to a city still cannot attack
+  // it. #966 only adds a player-facing explanation; it does not weaken this canonical gate.
+  it('rejects an ordinary archer attack against an ADJACENT city, same as from range', () => {
+    const attacker = unit('attacker', 'archer', 'player', { q: 1, r: 0 });
+    const state = stateWithUnits({ attacker }, { '2,0': 'visible' });
+    state.cities.enemyCity = {
+      id: 'enemyCity', name: 'Enemy City', owner: 'ai-1', position: { q: 2, r: 0 },
+      population: 4, buildings: [], productionQueue: [], productionProgress: 0,
+      food: 0, foodNeeded: 10, ownedTiles: [{ q: 2, r: 0 }], workedTiles: [],
+      focus: 'balanced', maturity: 'outpost', unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0,
+    };
+
+    expect(canUnitAttackTarget(state, attacker, { q: 2, r: 0 }, { viewerId: 'player' })).toEqual({
+      ok: false,
+      reason: 'unsupported-target',
+    });
+  });
+
   it('uses wrapped distance for melee adjacency at the horizontal edge', () => {
     const attacker = unit('attacker', 'warrior', 'player', { q: 0, r: 1 });
     const defender = unit('defender', 'warrior', 'ai-1', { q: 9, r: 1 });

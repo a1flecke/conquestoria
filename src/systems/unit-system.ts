@@ -1181,10 +1181,28 @@ export interface MovementBlockerReason {
     | 'foreign-city'
     | 'barbarian-camp'
     | 'pirate-enclave'
+    | 'city-attack-unsupported'
     | 'unreachable'
     | 'insufficient-movement';
   message: string;
 }
+
+/**
+ * #966: whether this unit's attack profile can target a city at all. Units like
+ * the Archer / Crossbowman / Ballista / Anti-Tank Gun / Mobile AA declare
+ * `attackProfile.targets: ['unit']` and genuinely cannot attack or capture a
+ * city by design (see `canUnitAttackTarget` in attack-targeting.ts and
+ * docs/superpowers/specs/2026-05-15-combat-visibility-unit-motion-bug-bundle-design.md).
+ * The `?? ['unit', 'city']` fallback mirrors `DEFAULT_ATTACK_PROFILE` in
+ * attack-targeting.ts (importing it here would be a cycle -- that module imports
+ * `UNIT_DEFINITIONS` from this one).
+ */
+export function unitAttackProfileCanTargetCity(type: UnitType): boolean {
+  return (UNIT_DEFINITIONS[type]?.attackProfile?.targets ?? ['unit', 'city']).includes('city');
+}
+
+export const CITY_ATTACK_UNSUPPORTED_MESSAGE =
+  "This unit can't attack cities. Send a melee unit to capture it, or a siege unit to bombard it.";
 
 export function getMovementBlockerReason(
   unit: Unit,
@@ -1206,6 +1224,12 @@ export function getMovementBlockerReason(
   // the caller supplies it (via getBlockingMapEntityAt) rather than this function taking a
   // full GameState, matching its existing decoupled-from-state signature (#843).
   if (options.blockingEntity) {
+    // #966: a unit that fundamentally cannot attack cities (Archer, Crossbowman, ...) gets a
+    // truthful explanation instead of the melee-oriented "Move adjacent, then use the city
+    // assault action." hint -- which is misleading for a unit that has no city assault at all.
+    if (options.blockingEntity.reason === 'foreign-city' && !unitAttackProfileCanTargetCity(unit.type)) {
+      return { code: 'city-attack-unsupported', message: CITY_ATTACK_UNSUPPORTED_MESSAGE };
+    }
     return {
       code: options.blockingEntity.reason,
       message: BLOCKING_MAP_ENTITY_MESSAGES[options.blockingEntity.reason],
@@ -1536,7 +1560,15 @@ export function getMovementRangeDetails(
       // a warship from the sea), so unlike a city/camp its anchor is never a
       // reachable tap target -- exclude it even from direct adjacency so the tap
       // falls through to the plain "assault it by sea" explanation.
-      if (blockingEntity && (!fromStart || blockingEntity.reason === 'pirate-enclave')) continue;
+      //
+      // #966: same idea for a foreign city when the selected unit cannot attack
+      // cities at all (Archer, Crossbowman, ...). The adjacency push exists so
+      // melee units can tap-to-assault; a unit with no city attack has nothing to
+      // tap, so keep its anchor out of `reachable` and let the tap surface the
+      // "can't attack cities" explanation instead of a dead move highlight.
+      const noCityTapAction = blockingEntity?.reason === 'pirate-enclave'
+        || (blockingEntity?.reason === 'foreign-city' && !unitAttackProfileCanTargetCity(unit.type));
+      if (blockingEntity && (!fromStart || noCityTapAction)) continue;
       const zoc = !hostileOccupant && !blockingEntity && getZoneOfControlAt(state, unit, neighbor).limited;
       const terminal = hostileOccupant || Boolean(blockingEntity) || zoc;
       const previous = visited.get(key) ?? -1;

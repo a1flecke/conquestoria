@@ -461,6 +461,60 @@ describe('resolveMapTapIntent', () => {
       });
     });
 
+    // #966: an Archer (attackProfile.targets omits 'city') genuinely cannot attack a city.
+    // buildSelectedUnitHighlights now keeps the city out of the archer's movementRange (see
+    // selected-unit-highlights.test.ts), so tapping it lands in the !canMove && !canAttack
+    // branch and must resolve to a clear blocked-movement explaining the rule -- never a
+    // silent move toward the city, and never the melee-only "use the city assault action" hint.
+    it('explains why an at-war archer cannot attack an adjacent enemy city', () => {
+      const state = makeFixture();
+      placePlayerUnit(state, 'archer-1', { position: { q: 0, r: 0 }, type: 'archer' });
+      const cityCoord = { q: 1, r: 0 };
+      state.cities.enemyCity = { ...foundCity('ai-1', cityCoord, state.map, mkC()), id: 'enemyCity', owner: 'ai-1', position: cityCoord };
+      state.civilizations['ai-1'].cities.push('enemyCity');
+      state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+      state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
+      makeVisible(state, cityCoord);
+
+      const intent = resolveMapTapIntent(
+        state,
+        // City is deliberately absent from movementRange/attackRange, matching the corrected
+        // buildSelectedUnitHighlights output for a unit that cannot assault cities.
+        snapshot({ selectedUnitId: 'archer-1', movementRange: [{ q: 0, r: 1 }] }),
+        cityCoord,
+        false,
+      );
+
+      expect(intent).toEqual({
+        kind: 'blocked-movement',
+        unitId: 'archer-1',
+        reason: {
+          code: 'city-attack-unsupported',
+          message: "This unit can't attack cities. Send a melee unit to capture it, or a siege unit to bombard it.",
+        },
+      });
+    });
+
+    it('gives the same explanation to an archer two hexes from the enemy city', () => {
+      const state = makeFixture();
+      placePlayerUnit(state, 'archer-1', { position: { q: 0, r: 0 }, type: 'archer' });
+      const cityCoord = { q: 2, r: 0 };
+      state.cities.enemyCity = { ...foundCity('ai-1', cityCoord, state.map, mkC()), id: 'enemyCity', owner: 'ai-1', position: cityCoord };
+      state.civilizations['ai-1'].cities.push('enemyCity');
+      state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+      state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
+      makeVisible(state, cityCoord);
+
+      const intent = resolveMapTapIntent(
+        state,
+        snapshot({ selectedUnitId: 'archer-1', movementRange: [{ q: 1, r: 0 }] }),
+        cityCoord,
+        false,
+      );
+
+      expect(intent).toMatchObject({ kind: 'blocked-movement', reason: { code: 'city-attack-unsupported' } });
+    });
+
     it('asks for war confirmation when resolveSelectedUnitTapIntent returns confirm-war-city', () => {
       const state = makeFixture();
       placePlayerUnit(state, 'unit-1', { position: { q: 0, r: 0 } });

@@ -607,6 +607,81 @@ describe('#965 pirate coastal-enclave anchor blocks land units', () => {
   });
 });
 
+// #966: an Archer (and Crossbowman / Ballista / Anti-Tank Gun / Mobile AA -- every unit
+// whose `attackProfile.targets` omits 'city') genuinely cannot attack a city by design
+// (`canUnitAttackTarget` returns 'unsupported-target'; see
+// docs/superpowers/specs/2026-05-15-combat-visibility-unit-motion-bug-bundle-design.md).
+// The reported bug is that the rule was invisible: tapping an adjacent enemy city with an
+// Archer either silently walked it toward the city or showed the melee-oriented
+// "Move adjacent, then use the city assault action." toast. This is Case C -- keep the
+// rule, surface it. `getMovementBlockerReason` now returns a truthful
+// `city-attack-unsupported` reason, and `getMovementRangeDetails` no longer offers the
+// city anchor as a reachable tap target to a unit that cannot assault it.
+function archerCityState(archerPosition: { q: number; r: number }, attackerType: 'archer' | 'warrior' = 'archer'): GameState {
+  const state = createNewGame(undefined, 'archer-vs-city', 'small');
+  const mover = { ...createUnit(attackerType, 'player', archerPosition, mkC()), id: 'mover', movementPointsLeft: 3 };
+  state.units = { mover };
+  state.civilizations.player.units = ['mover'];
+  state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+  state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
+  for (const key of ['0,0', '1,0', '2,0', '3,0']) {
+    state.map.tiles[key] = { ...state.map.tiles[key]!, terrain: 'plains' };
+  }
+  state.cities = {};
+  const city = foundCity('ai-1', { q: 2, r: 0 }, state.map, state.idCounters);
+  city.id = 'greek-city';
+  state.cities = { [city.id]: city };
+  state.civilizations['ai-1'].cities = [city.id];
+  return state;
+}
+
+describe('#966 city attack denial is explained, not silent', () => {
+  it('getMovementBlockerReason gives a truthful reason when an archer is blocked by an enemy city', () => {
+    const state = archerCityState({ q: 1, r: 0 });
+    const reason = getMovementBlockerReason(state.units.mover, { q: 2, r: 0 }, state.map, {
+      blockingEntity: getBlockingMapEntityAt(state, state.units.mover, { q: 2, r: 0 }),
+    });
+    expect(reason?.code).toBe('city-attack-unsupported');
+    expect(reason?.message.toLowerCase()).toMatch(/can(?:no|')t attack cit|melee|siege/);
+  });
+
+  it('still gives a melee unit the ordinary foreign-city assault hint', () => {
+    const state = archerCityState({ q: 1, r: 0 }, 'warrior');
+    const reason = getMovementBlockerReason(state.units.mover, { q: 2, r: 0 }, state.map, {
+      blockingEntity: getBlockingMapEntityAt(state, state.units.mover, { q: 2, r: 0 }),
+    });
+    expect(reason?.code).toBe('foreign-city');
+  });
+
+  it('getMovementRangeDetails does not offer the enemy city as a reachable tile to an adjacent archer', () => {
+    const state = archerCityState({ q: 1, r: 0 });
+    state.units.mover.movementPointsLeft = 1; // isolate "walked through" from a detour
+    const keys = getMovementRangeDetails(state, 'mover').reachable.map(hexKey);
+    expect(keys).not.toContain('2,0'); // the city -- no assault action for an archer
+    expect(keys).not.toContain('3,0'); // and the BFS must not walk through it
+  });
+
+  it('still offers the enemy city as a reachable (tap-to-assault) tile to an adjacent melee unit', () => {
+    const state = archerCityState({ q: 1, r: 0 }, 'warrior');
+    state.units.mover.movementPointsLeft = 1;
+    const keys = getMovementRangeDetails(state, 'mover').reachable.map(hexKey);
+    expect(keys).toContain('2,0'); // unchanged: melee tap-to-assault still works
+  });
+
+  it('applies identically to an AI-owned archer (no human-only rule)', () => {
+    const state = archerCityState({ q: 1, r: 0 });
+    const aiArcher = { ...state.units.mover, id: 'ai-archer', owner: 'ai-1' };
+    state.units['ai-archer'] = aiArcher;
+    state.civilizations['ai-1'].units = ['ai-archer'];
+    state.civilizations['ai-1'].cities = []; // the city at (2,0) is the player's target here
+    state.cities['greek-city']!.owner = 'player';
+    state.civilizations.player.cities = ['greek-city'];
+    state.units.mover.movementPointsLeft = 1;
+    const keys = getMovementRangeDetails(state, 'ai-archer').reachable.map(hexKey);
+    expect(keys).not.toContain('2,0');
+  });
+});
+
 function createWrappedGrasslandMap(width: number, height: number): GameMap {
   const tiles: GameMap['tiles'] = {};
   for (let q = 0; q < width; q++) {

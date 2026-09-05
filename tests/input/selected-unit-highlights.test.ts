@@ -117,6 +117,32 @@ describe('selected-unit-highlights', () => {
     expect(result.highlights.map(h => hexKey(h.coord))).not.toContain('2,0');
   });
 
+  // #966: an Archer cannot attack a city (attackProfile.targets omits 'city'). The city
+  // must not appear as a move highlight (a dead affordance) for an adjacent archer -- only
+  // for units that can actually assault it.
+  it('never offers an enemy city as a reachable tile to an adjacent archer', () => {
+    const state = createNewGame(undefined, 'archer-city-highlight', 'small');
+    state.currentPlayer = 'player';
+    for (const key of ['0,0', '1,0', '2,0']) {
+      state.map.tiles[key] = { ...state.map.tiles[key], terrain: 'plains' };
+    }
+    state.units = {
+      archer: { ...createUnit('archer', 'player', { q: 1, r: 0 }, mkC()), id: 'archer', movementPointsLeft: 3 },
+    };
+    state.civilizations.player.units = ['archer'];
+    state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+    state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
+    state.civilizations.player.visibility.tiles = { '0,0': 'visible', '1,0': 'visible', '2,0': 'visible' };
+    const city = foundCity('ai-1', { q: 2, r: 0 }, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    state.civilizations['ai-1'].cities = [city.id];
+
+    const result = buildSelectedUnitHighlights(state, 'archer');
+    expect(result.movementRange.map(hexKey)).not.toContain('2,0');
+    expect(result.highlights.map(h => hexKey(h.coord))).not.toContain('2,0');
+    expect(result.attackTargets.map(t => hexKey(t.coord))).not.toContain('2,0');
+  });
+
   it('still highlights an undefended enemy city as reachable once the unit is actually adjacent', () => {
     const state = createNewGame(undefined, 'undefended-city-adjacent-highlight', 'small');
     state.currentPlayer = 'player';
