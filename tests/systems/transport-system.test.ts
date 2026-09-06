@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { City, GameMap, GameState, HexCoord, HexTile, Unit } from '@/core/types';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
 import { hexKey } from '@/systems/hex-utils';
+import { BLOCKING_MAP_ENTITY_MESSAGES } from '@/systems/unit-system';
 import {
   canLoadUnitOntoTransport,
   canUnloadUnitFromTransport,
@@ -623,6 +624,46 @@ describe('transport system', () => {
       }
       expect(getUnloadDestinations(ready, 'transport-1', 'warrior-1').some(d => hexKey(d) === '1,-1')).toBe(false);
       expect(canUnloadUnitFromTransport(ready, 'transport-1', 'warrior-1', { q: 1, r: -1 }).ok).toBe(false);
+    });
+
+    // map-interaction-controller.ts surfaces `result.message` verbatim to the
+    // player, so a denial without usable copy is a dead-end toast. Each blocker
+    // must explain what to do instead, in the same words ordinary movement uses.
+    it('gives the player actionable copy for each blocked unload, shared with ordinary movement', () => {
+      const camp = readyLoadedState(s => {
+        s.barbarianCamps = { 'camp-1': { id: 'camp-1', position: { q: 1, r: -1 }, strength: 10, spawnCooldown: 3 } as any };
+      });
+      const enclave = readyLoadedState(s => {
+        (s as any).pirates = { factions: { 'pirate-1': { id: 'pirate-1', headquarters: { kind: 'coastal-enclave', position: { q: 1, r: -1 }, integrity: 100, maxIntegrity: 100 } } } };
+      });
+
+      expect(canUnloadUnitFromTransport(camp, 'transport-1', 'warrior-1', { q: 1, r: -1 })).toEqual({
+        ok: false, reason: 'barbarian-camp', message: BLOCKING_MAP_ENTITY_MESSAGES['barbarian-camp'],
+      });
+      expect(canUnloadUnitFromTransport(enclave, 'transport-1', 'warrior-1', { q: 1, r: -1 })).toEqual({
+        ok: false, reason: 'pirate-enclave', message: BLOCKING_MAP_ENTITY_MESSAGES['pirate-enclave'],
+      });
+      // Not an empty/placeholder string -- this is what actually reaches the toast.
+      for (const reason of ['barbarian-camp', 'pirate-enclave', 'foreign-city'] as const) {
+        expect(BLOCKING_MAP_ENTITY_MESSAGES[reason].length).toBeGreaterThan(10);
+      }
+    });
+
+    // Hot-seat rule (#845, CLAUDE.md): gameplay legality keys off the acting
+    // unit's owner, never state.currentPlayer. Whose seat is active must not
+    // change whether a tile is a legal unload.
+    it('gives the identical answer regardless of whose hot-seat turn is active', () => {
+      const build = (currentPlayer: string) => readyLoadedState(s => {
+        s.currentPlayer = currentPlayer;
+        s.barbarianCamps = { 'camp-1': { id: 'camp-1', position: { q: 1, r: -1 }, strength: 10, spawnCooldown: 3 } as any };
+      });
+      const duringPlayer = build('player');
+      const duringOther = build('ai-1');
+
+      expect(getUnloadDestinations(duringOther, 'transport-1', 'warrior-1').map(hexKey))
+        .toEqual(getUnloadDestinations(duringPlayer, 'transport-1', 'warrior-1').map(hexKey));
+      expect(canUnloadUnitFromTransport(duringOther, 'transport-1', 'warrior-1', { q: 1, r: -1 }))
+        .toEqual(canUnloadUnitFromTransport(duringPlayer, 'transport-1', 'warrior-1', { q: 1, r: -1 }));
     });
   });
 

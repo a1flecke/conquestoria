@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { getParadropLaunchState, getParadropTargets, canParadrop, executeParadrop, getAirAssaultLaunchState, getAirAssaultTargets, canAirAssault, executeAirAssault } from '@/systems/airborne-system';
+import { getParadropLaunchState, getParadropTargets, canParadrop, executeParadrop, getAirAssaultLaunchState, getAirAssaultTargets, canAirAssault, executeAirAssault, PARADROP_FAILURE_MESSAGES, AIR_ASSAULT_FAILURE_MESSAGES } from '@/systems/airborne-system';
+import { BLOCKING_MAP_ENTITY_MESSAGES } from '@/systems/unit-system';
 import { createNewGame } from '@/core/game-state';
 import { processTurn } from '@/core/turn-manager';
 import { EventBus } from '@/core/event-bus';
@@ -770,6 +771,30 @@ describe('#970 paradrop cannot land on a hostile map structure', () => {
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('expected rejection');
     expect(result.reason).toBe('barbarian-camp');
+  });
+
+  it('surfaces actionable player copy for each new blocker, shared with ordinary movement', () => {
+    expect(PARADROP_FAILURE_MESSAGES['barbarian-camp']).toBe(BLOCKING_MAP_ENTITY_MESSAGES['barbarian-camp']);
+    expect(PARADROP_FAILURE_MESSAGES['pirate-enclave']).toBe(BLOCKING_MAP_ENTITY_MESSAGES['pirate-enclave']);
+    expect(AIR_ASSAULT_FAILURE_MESSAGES['barbarian-camp']).toBe(BLOCKING_MAP_ENTITY_MESSAGES['barbarian-camp']);
+    expect(AIR_ASSAULT_FAILURE_MESSAGES['pirate-enclave']).toBe(BLOCKING_MAP_ENTITY_MESSAGES['pirate-enclave']);
+  });
+
+  // Hot-seat rule (#845, CLAUDE.md): landing legality keys off the acting unit's
+  // owner, never state.currentPlayer -- whose seat is active must not change it.
+  it('gives the identical answer regardless of whose hot-seat turn is active', () => {
+    const build = (currentPlayer: string) => {
+      const { state, unitId } = makeParadropFixture();
+      const camped = withCampAt(state, { q: 1, r: 1 });
+      return { state: { ...camped, currentPlayer } as unknown as GameState, unitId };
+    };
+    const duringA = build('civ-a');
+    const duringB = build('civ-b');
+
+    expect(getParadropTargets(duringB.state, duringB.unitId).map(hexKey))
+      .toEqual(getParadropTargets(duringA.state, duringA.unitId).map(hexKey));
+    expect(canParadrop(duringB.state, duringB.unitId, { q: 1, r: 1 }))
+      .toEqual(canParadrop(duringA.state, duringA.unitId, { q: 1, r: 1 }));
   });
 });
 

@@ -110,12 +110,20 @@ function isDestinationOccupied(state: GameState, destination: HexCoord): boolean
  * the disembarking cargo unit's point of view. Ordinary movement's executor and
  * range preview both already route through `getBlockingMapEntityAt`; transport
  * unload is the same "a unit arrives on a tile" question, so it consults the same
- * source of truth instead of a bespoke foreign-city-only check. Returns a typed
- * `TransportCheckResult` failure (reason + player-facing copy shared with
- * movement) when the tile carries a blocking entity, or `null` when it is clear.
+ * source of truth instead of a bespoke foreign-city-only check.
+ *
+ * The enumerator (`getUnloadDestinations`) and the validator
+ * (`canUnloadUnitFromTransport`) share this one query so the highlighted tiles
+ * and the tiles the executor actually accepts can never drift apart -- unlike
+ * before #970, where the two kept independent legality lists.
  */
+function blockingStructureAt(state: GameState, cargo: Unit, destination: HexCoord) {
+  return getBlockingMapEntityAt(state, cargo, normalizeDestination(state, destination));
+}
+
+/** Typed denial for a blocked unload tile, reusing movement's player-facing copy. */
 function blockingStructureFailure(state: GameState, cargo: Unit, destination: HexCoord): TransportCheckResult | null {
-  const blocker = getBlockingMapEntityAt(state, cargo, normalizeDestination(state, destination));
+  const blocker = blockingStructureAt(state, cargo, destination);
   return blocker ? failure(blocker.reason, BLOCKING_MAP_ENTITY_MESSAGES[blocker.reason]) : null;
 }
 
@@ -301,7 +309,7 @@ export function getUnloadDestinations(state: GameState, transportId: string, car
   return transportNeighbors(state, transport.position).filter(destination =>
     isLandDestination(state, cargo, destination)
     && !isDestinationOccupied(state, destination)
-    && !blockingStructureFailure(state, cargo, destination)
+    && !blockingStructureAt(state, cargo, destination)
   );
 }
 
