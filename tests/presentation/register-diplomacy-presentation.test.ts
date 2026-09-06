@@ -90,6 +90,27 @@ describe('diplomacy presentation', () => {
     expect(ctx.deliver).toHaveBeenCalled();
   });
 
+  it('delivers already-masked compact notices to their explicit recipient', () => {
+    const bus = new EventBus();
+    const ctx = makePresentationContext();
+
+    registerDiplomacyPresentation(bus, ctx);
+    bus.emit('minor-civ:league-changed', {
+      happenedTurn: 12,
+      notices: [{
+        recipientCivId: 'player',
+        message: 'Amber Compact: members may prepare local defenses.',
+        type: 'warning',
+      }],
+    });
+
+    expect(ctx.deliver).toHaveBeenCalledWith(
+      'player',
+      'Amber Compact: members may prepare local defenses.',
+      'warning',
+    );
+  });
+
   it('announces an opportunistic war declaration to witnesses who have met both civs', () => {
     const bus = new EventBus();
     const ctx = makePresentationContext({
@@ -130,6 +151,7 @@ describe('diplomacy presentation', () => {
     bus.emit('diplomacy:peace-requested', { fromCivId: 'ai-1', toCivId: 'player' });
     bus.emit('diplomacy:peace-made', { civA: 'player', civB: 'ai-1' });
     bus.emit('diplomacy:opportunistic-war', { actorId: 'rome', targetCivId: 'carthage', crisisId: 'crisis-1' });
+    bus.emit('minor-civ:league-changed', { happenedTurn: 1, notices: [{ recipientCivId: 'player', message: 'Safe', type: 'info' }] });
 
     expect(ctx.deliver).not.toHaveBeenCalled();
   });

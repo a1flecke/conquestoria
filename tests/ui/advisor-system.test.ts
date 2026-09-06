@@ -5,6 +5,7 @@ import { AdvisorSystem, getAdvisorMessageIds, SESSION_SHOWN_TIPS, fireResourceDi
 import { EventBus } from '@/core/event-bus';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
+import { hexKey } from '@/systems/hex-utils';
 import type { GameState, Unit } from '@/core/types';
 import { createEmptyPirateState, type PirateFactionState } from '@/core/pirate-state';
 
@@ -28,6 +29,29 @@ function stateWithCity(): GameState {
 }
 
 describe('AdvisorSystem', () => {
+  it('gives each viewer compact advice only after that viewer discovers a member', () => {
+    const bus = new EventBus();
+    const advisor = new AdvisorSystem(bus);
+    const state = makeState();
+    const [first, second] = Object.keys(state.minorCivs);
+    state.tutorial.active = false;
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: true, warchief: false, treasurer: false, scholar: false, spymaster: false, artisan: false };
+    state.minorCivLeagues!.leagues = {
+      'minor-compact-1': {
+        id: 'minor-compact-1', nameKey: 'amber', charter: 'commerce',
+        memberIds: [first, second].sort(), formedTurn: 20, readiness: { kind: 'quiet' },
+      },
+    };
+    state.civilizations.player.visibility.tiles[hexKey(state.cities[state.minorCivs[first].cityId].position)] = 'fog';
+    const messages: any[] = [];
+    bus.on('advisor:message', message => messages.push(message));
+
+    advisor.check(state);
+
+    expect(messages.some(message => message.message.includes('regional compact'))).toBe(true);
+    expect(messages.map(message => message.message).join(' ')).not.toContain(state.minorCivs[second].id);
+  });
+
   it('gives viewer-scoped pirate sighting advice without hidden coordinates', () => {
     const bus = new EventBus();
     const advisor = new AdvisorSystem(bus);

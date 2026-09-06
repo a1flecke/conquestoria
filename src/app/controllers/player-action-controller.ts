@@ -102,6 +102,7 @@ import { getEmbarkedAssaultTarget, detachCargoForEmbarkedAssault } from '@/syste
 import { updateAndRefreshVisibility } from '@/systems/last-seen-presentation';
 import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
+import { emitMinorCivLeagueNotices } from '@/systems/minor-civ-league-presentation';
 import { getCurrentCivDef } from '@/app/cross-cutting-helpers';
 
 export interface PlayerActionController {
@@ -272,7 +273,9 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
     // Publish before the primary notification, whose reason reads current relationships.
     deps.session.commit(declared);
     deps.bus.emit('diplomacy:war-declared', { attackerId: cp, defenderId: targetCivId, opponentKind: resolveOpponentKind(targetCivId) });
-    deps.session.commit(applyOpportunisticWarPenaltyIfCrisisStruck(deps.session.getState(), cp, targetCivId, deps.bus));
+    const after = applyOpportunisticWarPenaltyIfCrisisStruck(deps.session.getState(), cp, targetCivId, deps.bus);
+    deps.session.commit(after);
+    emitMinorCivLeagueNotices(before, after, deps.bus);
   }
 
   function restAction(): void {
@@ -452,6 +455,7 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
       : deps.session.getState();
     const conquered = conquestMinorCiv(stateAfterMove, minorCivId, stateAfterMove.currentPlayer);
     deps.session.commit(conquered.state);
+    emitMinorCivLeagueNotices(stateAfterMove, conquered.state, deps.bus);
     emitMinorCivQuestTransitions(deps.bus, conquered.transitions, deps.session.getState());
     if (conquered.conquered) deps.bus.emit('minor-civ:destroyed', { minorCivId, conquerorId: deps.session.getState().currentPlayer });
     deps.showNotification(`${cityName} has been conquered!`, 'success');
@@ -847,8 +851,10 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
         if (!remainingHostileDefenders) {
           if (cityAtTarget.owner.startsWith('mc-')) {
             const conqueredCityName = cityAtTarget.name;
-            const conquered = conquestMinorCiv(deps.session.getState(), cityAtTarget.owner, deps.session.getState().currentPlayer);
+            const beforeConquest = deps.session.getState();
+            const conquered = conquestMinorCiv(beforeConquest, cityAtTarget.owner, beforeConquest.currentPlayer);
             deps.session.setStateWithoutRefresh(conquered.state);
+            emitMinorCivLeagueNotices(beforeConquest, conquered.state, deps.bus);
             emitMinorCivQuestTransitions(deps.bus, conquered.transitions, deps.session.getState());
             if (conquered.conquered) {
               deps.bus.emit('minor-civ:destroyed', { minorCivId: cityAtTarget.owner, conquerorId: deps.session.getState().currentPlayer });

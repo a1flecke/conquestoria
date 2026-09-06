@@ -56,6 +56,13 @@ export const registerDiplomacyPresentation: PresentationRegistrar = (bus, ctx) =
     bus.on('diplomacy:opportunistic-war', event => {
       routeOpportunisticWar(ctx.session.getState(), event, ctx.notifier.deliver);
     }),
+    bus.on('minor-civ:league-changed', event => {
+      ctx.notifier.withHappenedTurn(event.happenedTurn, () => {
+        for (const notice of event.notices) {
+          ctx.notifier.deliver(notice.recipientCivId, notice.message, notice.type);
+        }
+      });
+    }),
   ];
 
   return () => {

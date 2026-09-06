@@ -7,7 +7,7 @@ import {
   reconcileMinorCivLeagues,
 } from '@/systems/minor-civ-league-system';
 import { conquestMinorCiv, peacefullyAbsorbMinorCiv, processMinorCivTurn } from '@/systems/minor-civ-system';
-import { chooseMinorCivQueueItem } from '@/systems/minor-civ-economy-system';
+import { chooseMinorCivQueueItem, evaluateMinorCivEconomyPosture } from '@/systems/minor-civ-economy-system';
 import { MINOR_CIV_LEAGUE_RULES } from '@/systems/minor-civ-league-definitions';
 import { setMinorCivWarState } from '@/systems/minor-civ-actions';
 import { TECH_TREE } from '@/systems/tech-definitions';
@@ -27,6 +27,29 @@ function makeEligiblePairState(seed: string) {
 }
 
 describe('minor-civ league lifecycle', () => {
+  it.each([
+    ['explorer', 3],
+    ['standard', 2],
+    ['veteran', 1],
+  ] as const)('keeps the full %s preparation warning delay', (challenge, delay) => {
+    const { state, first, second } = makeEligiblePairState(`minor-civ-league-delay-${challenge}`);
+    state.turn = 40;
+    state.opponentChallenge = challenge;
+    state.civilizations.player.techState.completed = TECH_TREE.filter(tech => tech.era === 2).map(tech => tech.id);
+    state.minorCivLeagues!.leagues = {
+      'minor-compact-1': {
+        id: 'minor-compact-1', nameKey: 'amber', charter: 'commerce',
+        memberIds: [first.id, second.id].sort(), formedTurn: 30, readiness: { kind: 'quiet' },
+      },
+    };
+    const concerned = setMinorCivWarState(state, 'player', first.id, true).state;
+
+    expect(getMinorCivLeaguePreference({ ...concerned, turn: concerned.turn + delay - 1 }, second.id, 'settled'))
+      .toEqual({ kind: 'none', reason: 'warning' });
+    expect(getMinorCivLeaguePreference({ ...concerned, turn: concerned.turn + delay }, second.id, 'settled'))
+      .toEqual({ kind: 'defense', reason: 'preparation' });
+  });
+
   it('records concern from a member war with a mature major and withholds preparation through the warning delay', () => {
     const { state, first, second } = makeEligiblePairState('minor-civ-league-concern');
     state.turn = 40;
@@ -225,5 +248,37 @@ describe('minor-civ league lifecycle', () => {
 
     expect(chooseMinorCivQueueItem(baseline, first.id)).toBe('workshop');
     expect(chooseMinorCivQueueItem(state, first.id)).toBe('monument');
+  });
+
+  it('changes a settled peer to a legal defensive production choice only after the full warning', () => {
+    const { state, first, second } = makeEligiblePairState('minor-civ-league-defense-production');
+    state.turn = 42;
+    state.civilizations.player.techState.completed = TECH_TREE.filter(tech => tech.era === 2).map(tech => tech.id);
+    state.minorCivLeagues!.leagues = {
+      'minor-compact-1': {
+        id: 'minor-compact-1', nameKey: 'amber', charter: 'commerce',
+        memberIds: [first.id, second.id].sort(), formedTurn: 30, readiness: { kind: 'concern', sinceTurn: 40 },
+      },
+    };
+    state.minorCivs[first.id].diplomacy.atWarWith = ['player'];
+    state.civilizations.player.diplomacy.atWarWith = [first.id];
+    state.cities[second.cityId]!.buildings = ['dock', 'monument', 'temple', 'library'];
+    const firstUnit = state.units[state.minorCivs[first.id].units[0]!];
+    state.units['compact-peer-unit'] = {
+      ...firstUnit,
+      id: 'compact-peer-unit',
+      owner: second.id,
+      position: { ...state.cities[second.cityId]!.position },
+    };
+    state.minorCivs[second.id].units = ['compact-peer-unit'];
+    const baseline = structuredClone(state);
+    baseline.minorCivLeagues!.leagues['minor-compact-1']!.readiness = { kind: 'quiet' };
+
+    const preparedChoice = chooseMinorCivQueueItem(state, second.id);
+
+    expect(evaluateMinorCivEconomyPosture(state, second.id)).toBe('settled');
+    expect(getMinorCivLeaguePreference(state, second.id, 'settled')).toEqual({ kind: 'defense', reason: 'preparation' });
+    expect(preparedChoice).not.toBe(chooseMinorCivQueueItem(baseline, second.id));
+    expect(['walls', 'barracks', 'warrior', 'archer', 'spearman']).toContain(preparedChoice);
   });
 });

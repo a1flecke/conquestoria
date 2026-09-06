@@ -21,6 +21,7 @@ import {
   getMinorCivPresentationForPlayer,
 } from '@/systems/minor-civ-presentation';
 import { getMinorCivLeaguePresentationForPlayer } from '@/systems/minor-civ-league-presentation';
+import { createMinorCivLeagueDetails } from '@/ui/minor-civ-league-details';
 import {
   formatQuestReward,
   getMinorCivChainPresentationForPlayer,
@@ -116,6 +117,8 @@ interface MinorCivRowData {
   regionalGrievanceText: string | null;
   economyHintText: string | null;
   compactText: string | null;
+  compactPresentation: ReturnType<typeof getMinorCivLeaguePresentationForPlayer>;
+  compactWarHelp: string | null;
   reparationsLabel: string | null;
   reparationsDisabledReason: string | null;
   atWar: boolean;
@@ -410,6 +413,10 @@ export function createDiplomacyPanel(
       compactText: compactPresentation
         ? `${compactPresentation.name} · ${compactPresentation.charterLabel} · ${compactPresentation.readinessLabel}`
         : null,
+      compactPresentation,
+      compactWarHelp: compactPresentation
+        ? 'This city-state belongs to a regional compact. Other members may prepare local defenses.'
+        : null,
       reparationsLabel: canOfferReparations ? `Pay Reparations (${reparationsCost} Gold)` : null,
       reparationsDisabledReason,
       atWar,
@@ -532,6 +539,7 @@ export function createDiplomacyPanel(
       }
       if (row.compactText !== null) {
         minorCivsHtml += `<div style="font-size:11px;opacity:0.75;margin-top:4px;" data-text="mc-compact-${row.mcIdx}"></div>`;
+        minorCivsHtml += `<div data-role="mc-compact-details-${row.mcIdx}"></div>`;
       }
       if (row.festivalDisabledReason) {
         minorCivsHtml += `<div style="font-size:10px;color:#e8c170;margin-top:5px;" data-text="mc-festival-reason-${row.mcIdx}"></div>`;
@@ -630,6 +638,10 @@ export function createDiplomacyPanel(
     }
     if (row.compactText !== null) {
       setText(`mc-compact-${row.mcIdx}`, row.compactText);
+      const compactDetails = panel.querySelector<HTMLElement>(`[data-role="mc-compact-details-${row.mcIdx}"]`);
+      if (compactDetails && row.compactPresentation) {
+        compactDetails.append(createMinorCivLeagueDetails(row.compactPresentation));
+      }
     }
     if (row.festivalDisabledReason) setText(`mc-festival-reason-${row.mcIdx}`, row.festivalDisabledReason);
     if (row.reparationsDisabledReason) setText(`mc-reparations-reason-${row.mcIdx}`, row.reparationsDisabledReason);
@@ -658,6 +670,12 @@ export function createDiplomacyPanel(
       war.dataset.mcId = row.mcId;
       war.dataset.atWar = String(row.atWar);
       actions.appendChild(war);
+      if (row.compactWarHelp) {
+        const help = document.createElement('p');
+        help.textContent = row.compactWarHelp;
+        help.style.cssText = 'margin:4px 0 0;font-size:10px;line-height:1.35;opacity:0.78;';
+        actions.appendChild(help);
+      }
     }
   }
 
