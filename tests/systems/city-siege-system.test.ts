@@ -3,7 +3,7 @@ import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
 import { createUnit } from '@/systems/unit-system';
 import type { City, Civilization, GameState } from '@/core/types';
-import { applyCityHpRegeneration, applyCitySiegeOutcome, calculateCityAssaultStrengths, getCityCounterFireDamage, getCityIntrinsicStrength, isCityHpRegenerating, resolveCityAssault, resolveCitySiegeDamage } from '@/systems/city-siege-system';
+import { applyCityHpRegeneration, applyCitySiegeOutcome, calculateCityAssaultStrengths, CITY_HP_DEFENSE_FLOOR, cityHpDefenseScale, getCityCounterFireDamage, getCityIntrinsicStrength, getEffectiveCityAssaultDefense, isCityHpRegenerating, resolveCityAssault, resolveCitySiegeDamage } from '@/systems/city-siege-system';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -392,6 +392,66 @@ describe('getCityIntrinsicStrength (#522)', () => {
     // The same city under a major civ that researched Fortification Engineering.
     expect(getCityIntrinsicStrength(city, ['fortification-engineering'], 'land'))
       .toBeCloseTo(10 * 1.25 + 5 + 5, 5);
+  });
+});
+
+// #966: remaining city HP now scales the defense a land assault fights through, which is
+// the entire reason bombarding a city is worth doing. Deliberately surgical -- only
+// calculateCityAssaultStrengths consumes it, so counter-fire and the city panel's displayed
+// defense keep their exact pre-#966 behaviour.
+describe('#966 cityHpDefenseScale / getEffectiveCityAssaultDefense', () => {
+  it('is a no-op at full HP (the prime directive: no currently-tuned number moves)', () => {
+    const { city, ownerCiv } = makeCityAndCiv({ population: 4, buildings: ['walls'], hp: 100 });
+    const techs = ownerCiv.techState.completed ?? [];
+
+    expect(cityHpDefenseScale(city)).toBe(1);
+    expect(getEffectiveCityAssaultDefense(city, techs))
+      .toBe(getCityIntrinsicStrength(city, techs, 'land'));
+  });
+
+  it('treats a missing hp as full HP, so legacy saves are unaffected', () => {
+    const { city } = makeCityAndCiv({ population: 4, buildings: ['walls'] });
+    const { hp: _dropped, ...withoutHp } = city;
+
+    expect(cityHpDefenseScale(withoutHp as typeof city)).toBe(1);
+  });
+
+  it('scales defense down toward the floor as HP falls, never below it', () => {
+    const { city } = makeCityAndCiv({ population: 4, buildings: ['walls'] });
+
+    expect(cityHpDefenseScale({ ...city, hp: 50 })).toBeCloseTo(0.7, 5);
+    expect(cityHpDefenseScale({ ...city, hp: 1 })).toBeCloseTo(0.406, 5);
+    // HP can never reach 0 for a surviving city (preventDestruction floors at 1), but the
+    // formula must still not dip under the floor if it ever did.
+    expect(cityHpDefenseScale({ ...city, hp: 0 })).toBe(CITY_HP_DEFENSE_FLOOR);
+  });
+
+  it('makes a bombarded city meaningfully easier to storm without trivializing it', () => {
+    // pop 15 + walls + star fort + fortification engineering + professional army:
+    // base 32 -> x1.25 walls -> x1.10 professional army = 44, +5 star fort +5 fort-eng = 54
+    const { city, ownerCiv } = makeCityAndCiv({
+      population: 15, buildings: ['walls', 'star_fort'], hp: 100,
+    });
+    const techs = ['fortification-engineering', 'professional-army'];
+    const full = getEffectiveCityAssaultDefense(city, techs);
+    const wrecked = getEffectiveCityAssaultDefense({ ...city, hp: 1 }, techs);
+
+    expect(Math.round(full)).toBe(54);
+    expect(wrecked).toBeLessThan(full);
+    // A strong attacker gains a lot; a weak one still loses more often than not.
+    const tankOdds = 62 / (62 + wrecked);
+    const archerOdds = 15 / (15 + wrecked);
+    expect(tankOdds).toBeGreaterThan(0.65);
+    expect(archerOdds).toBeLessThan(0.5);
+    expect(ownerCiv).toBeDefined();
+  });
+
+  it('leaves counter-fire keyed to undamaged intrinsic strength (surgical scope)', () => {
+    const { city, ownerCiv } = makeCityAndCiv({ population: 4, buildings: ['walls'], hp: 100 });
+    const damaged = { ...city, hp: 1 };
+
+    expect(getCityCounterFireDamage(damaged, ownerCiv, 'land', 20, false, 12345))
+      .toBe(getCityCounterFireDamage(city, ownerCiv, 'land', 20, false, 12345));
   });
 });
 
