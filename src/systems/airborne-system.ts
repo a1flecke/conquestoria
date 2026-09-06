@@ -1,7 +1,7 @@
 import type { EventBus } from '@/core/event-bus';
 import type { CombatResult, GameState, HexCoord, Unit } from '@/core/types';
 import { getAirBaseKind, getAirBaseRoster, selectInterceptor } from '@/systems/air-operations-system';
-import { isBlockingCityFor, UNIT_DEFINITIONS, getMovementCostForUnit } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS, getMovementCostForUnit, getBlockingMapEntityAt, BLOCKING_MAP_ENTITY_MESSAGES } from '@/systems/unit-system';
 import { isVisible } from '@/systems/fog-of-war';
 import { buildUnitOccupancy, getUnitIdsAtCoord } from '@/systems/unit-occupancy';
 import { hexKey, hexesInRange, getWrappedHexesInRange, hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
@@ -13,10 +13,14 @@ import { getHostileAirDefenseThreat } from '@/systems/air-defense-system';
 import { appendNotification } from '@/core/notification-log';
 import { isHostileOwnerTo } from '@/systems/owner-hostility';
 
+// `foreign-city` / `barbarian-camp` / `pirate-enclave` mirror the canonical
+// hostile-structure blocker reasons from `getBlockingMapEntityAt` (#970): an
+// airborne unit can no more land on and sit on one of those than a walking unit
+// can enter it (#843 / #845 / #965).
 export type ParadropFailureReason =
   | 'not-airborne-unit' | 'no-launch-base' | 'already-acted'
   | 'out-of-range' | 'unexplored' | 'impassable-terrain'
-  | 'destination-occupied' | 'foreign-city';
+  | 'destination-occupied' | 'foreign-city' | 'barbarian-camp' | 'pirate-enclave';
 
 export type ParadropLaunchState =
   | { ok: true }
@@ -30,7 +34,10 @@ export const PARADROP_FAILURE_MESSAGES: Record<ParadropFailureReason, string> = 
   'unexplored': 'You have not explored that tile.',
   'impassable-terrain': 'A Paratrooper cannot land there.',
   'destination-occupied': 'That tile is occupied.',
-  'foreign-city': 'Move adjacent, then use the city assault action.',
+  // Shared copy with ordinary movement so the wording can never drift apart.
+  'foreign-city': BLOCKING_MAP_ENTITY_MESSAGES['foreign-city'],
+  'barbarian-camp': BLOCKING_MAP_ENTITY_MESSAGES['barbarian-camp'],
+  'pirate-enclave': BLOCKING_MAP_ENTITY_MESSAGES['pirate-enclave'],
 };
 
 function paradropDistance(state: GameState, from: HexCoord, to: HexCoord): number {
@@ -57,8 +64,9 @@ function isLegalAirborneLandingTile(state: GameState, unit: Unit, coord: HexCoor
   const tile = state.map.tiles[hexKey(coord)];
   if (!tile || getMovementCostForUnit(tile.terrain, 'land', UNIT_DEFINITIONS[unit.type].terrainCostOverrides) === Infinity) return false;
   if (getUnitIdsAtCoord(occupancy, coord).length > 0) return false;
-  const city = Object.values(state.cities).find(c => hexKey(c.position) === hexKey(coord));
-  if (city && isBlockingCityFor(state, unit, city)) return false;
+  // Canonical hostile-structure gate (#970): a foreign city, a barbarian camp,
+  // or a pirate coastal-enclave anchor is never a legal landing tile.
+  if (getBlockingMapEntityAt(state, unit, coord)) return false;
   return true;
 }
 
@@ -90,8 +98,8 @@ export function canParadrop(state: GameState, unitId: string, destination: HexCo
   }
   const occupancy = buildUnitOccupancy(state.units);
   if (getUnitIdsAtCoord(occupancy, destination).length > 0) return { ok: false, reason: 'destination-occupied' };
-  const city = Object.values(state.cities).find(c => hexKey(c.position) === hexKey(destination));
-  if (city && isBlockingCityFor(state, unit, city)) return { ok: false, reason: 'foreign-city' };
+  const blocker = getBlockingMapEntityAt(state, unit, destination);
+  if (blocker) return { ok: false, reason: blocker.reason };
 
   // Cross-check against getParadropTargets rather than trusting the individual
   // checks above to stay in sync forever -- if the two diverge, out-of-range
@@ -104,7 +112,7 @@ export function canParadrop(state: GameState, unitId: string, destination: HexCo
 export type AirAssaultFailureReason =
   | 'not-eligible-passenger' | 'no-launch-base' | 'no-launch-helicopter' | 'already-acted'
   | 'out-of-range' | 'unexplored' | 'impassable-terrain'
-  | 'destination-occupied' | 'foreign-city';
+  | 'destination-occupied' | 'foreign-city' | 'barbarian-camp' | 'pirate-enclave';
 
 export const AIR_ASSAULT_FAILURE_MESSAGES: Record<AirAssaultFailureReason, string> = {
   'not-eligible-passenger': 'This unit cannot be air-assaulted.',
@@ -115,7 +123,10 @@ export const AIR_ASSAULT_FAILURE_MESSAGES: Record<AirAssaultFailureReason, strin
   'unexplored': 'You have not explored that tile.',
   'impassable-terrain': 'A unit cannot land there.',
   'destination-occupied': 'That tile is occupied.',
-  'foreign-city': 'Move adjacent, then use the city assault action.',
+  // Shared copy with ordinary movement (#970) so the wording can never drift apart.
+  'foreign-city': BLOCKING_MAP_ENTITY_MESSAGES['foreign-city'],
+  'barbarian-camp': BLOCKING_MAP_ENTITY_MESSAGES['barbarian-camp'],
+  'pirate-enclave': BLOCKING_MAP_ENTITY_MESSAGES['pirate-enclave'],
 };
 
 function findLaunchCity(state: GameState, unit: Unit) {
@@ -184,8 +195,8 @@ export function canAirAssault(state: GameState, unitId: string, destination: Hex
   }
   const occupancy = buildUnitOccupancy(state.units);
   if (getUnitIdsAtCoord(occupancy, destination).length > 0) return { ok: false, reason: 'destination-occupied' };
-  const city = Object.values(state.cities).find(c => hexKey(c.position) === hexKey(destination));
-  if (city && isBlockingCityFor(state, unit, city)) return { ok: false, reason: 'foreign-city' };
+  const blocker = getBlockingMapEntityAt(state, unit, destination);
+  if (blocker) return { ok: false, reason: blocker.reason };
 
   const inTargets = getAirAssaultTargets(state, unitId).some(t => hexKey(t) === hexKey(destination));
   if (!inTargets) return { ok: false, reason: 'out-of-range' };
