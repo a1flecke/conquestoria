@@ -2,7 +2,6 @@ import type { GameState, ResourceType } from '@/core/types';
 import {
   BUILDINGS,
   getAvailableBuildings,
-  getProductionCostForItem,
   getTrainableUnitsForCity,
   cityFollowsOwnFaith,
   TRAINABLE_UNITS,
@@ -10,6 +9,7 @@ import {
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { getReservedNationalProjectKeys } from '@/systems/national-project-system';
+import { buildProductionCostContext, getContextualProductionCost } from '@/systems/production-cost-context';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { getCapitalCityId } from '@/systems/capital-system';
 import {
@@ -73,16 +73,12 @@ export function processAIResourceMarketplace(state: GameState, civId: string): G
     const currentCiv = working.civilizations[civId];
     if (!city || !currentCiv) continue;
     const available = getCivAvailableResources(working, civId);
+    const productionCostContext = buildProductionCostContext(working, civId, cityId);
     for (const itemId of getResourcePurchaseCandidates(working, civId, cityId)) {
       const missing = getRequiredResources(itemId).filter(resource => !available.has(resource));
       if (missing.length !== 1) continue;
 
-      const cost = getProductionCostForItem(itemId, {
-        city,
-        era: working.era,
-        completedTechs: currentCiv.techState.completed,
-        availableResources: available,
-      });
+      const cost = getContextualProductionCost(itemId, productionCostContext);
       const output = Math.max(1, calculateProjectedCityYields(
         working,
         cityId,

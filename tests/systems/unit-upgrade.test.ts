@@ -10,8 +10,13 @@ import { EventBus } from '@/core/event-bus';
 import { processTurn } from '@/core/turn-manager';
 import type { GameState, ResourceType, Spy, Unit } from '@/core/types';
 import { createNewGame } from '@/core/game-state';
-import { TRAINABLE_UNITS, foundCity } from '@/systems/city-system';
-import { TECH_TREE } from '@/systems/tech-definitions';
+import {
+  TRAINABLE_UNITS,
+  createProductionCostContext,
+  foundCity,
+  type ProductionCostContext,
+} from '@/systems/city-system';
+import { TECH_TREE, resolveCivilizationEra } from '@/systems/tech-definitions';
 import { createMarketplaceState } from '@/systems/trade-system';
 
 const TECH_ERA_BY_ID = new Map(TECH_TREE.map(tech => [tech.id, tech.era]));
@@ -20,48 +25,90 @@ function makeUnit(type: string, position = { q: 0, r: 0 }): Unit {
   return { id: 'u1', type: type as any, owner: 'player', position, health: 70, movementPointsLeft: 2, hasActed: false, hasMoved: false, experience: 0, isResting: false };
 }
 
+/**
+ * These tests exercise upgrade eligibility with synthetic units and cities, not a
+ * full `GameState`, so they build the production-cost context directly -- the
+ * documented test escape hatch from `createProductionCostContext` (#984).
+ */
+function upgradeContext(overrides: Partial<ProductionCostContext>): ProductionCostContext {
+  const completedTechs = overrides.completedTechs ?? [];
+  return createProductionCostContext({
+    era: resolveCivilizationEra(completedTechs),
+    ...overrides,
+    completedTechs,
+  });
+}
+
 describe('canUpgradeUnit', () => {
   it('spy_scout upgrades to spy_informant when espionage-informants researched', () => {
     const unit = makeUnit('spy_scout', { q: 0, r: 0 });
-    const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 } } as any;
-    const result = canUpgradeUnit(unit, 'c1', { 'c1': city }, ['espionage-scouting', 'espionage-informants']);
+    const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 }, buildings: [] } as any;
+    const result = canUpgradeUnit(
+      unit,
+      'c1',
+      { 'c1': city },
+      upgradeContext({ completedTechs: ['espionage-scouting', 'espionage-informants'] }),
+    );
     expect(result.canUpgrade).toBe(true);
     expect(result.targetType).toBe('spy_informant');
   });
 
   it('spy_scout does not upgrade when espionage-informants not researched', () => {
     const unit = makeUnit('spy_scout', { q: 0, r: 0 });
-    const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 } } as any;
-    const result = canUpgradeUnit(unit, 'c1', { 'c1': city }, ['espionage-scouting']);
+    const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 }, buildings: [] } as any;
+    const result = canUpgradeUnit(unit, 'c1', { 'c1': city }, upgradeContext({ completedTechs: ['espionage-scouting'] }));
     expect(result.canUpgrade).toBe(false);
   });
 
   it('cannot upgrade unit not standing on the city tile', () => {
     const unit = makeUnit('spy_scout', { q: 5, r: 5 });
-    const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 } } as any;
-    const result = canUpgradeUnit(unit, 'c1', { 'c1': city }, ['espionage-scouting', 'espionage-informants']);
+    const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 }, buildings: [] } as any;
+    const result = canUpgradeUnit(
+      unit,
+      'c1',
+      { 'c1': city },
+      upgradeContext({ completedTechs: ['espionage-scouting', 'espionage-informants'] }),
+    );
     expect(result.canUpgrade).toBe(false);
   });
 
   it('reports canUpgrade:false when civGold is below cost', () => {
     const unit = makeUnit('spy_scout', { q: 0, r: 0 });
-    const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 } } as any;
-    const result = canUpgradeUnit(unit, 'c1', { 'c1': city }, ['espionage-scouting', 'espionage-informants'], 10);
+    const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 }, buildings: [] } as any;
+    const result = canUpgradeUnit(
+      unit,
+      'c1',
+      { 'c1': city },
+      upgradeContext({ completedTechs: ['espionage-scouting', 'espionage-informants'] }),
+      10,
+    );
     expect(result.canUpgrade).toBe(false);
   });
 
   it('reports canUpgrade:true when civGold exactly meets cost', () => {
     const unit = makeUnit('spy_scout', { q: 0, r: 0 });
-    const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 } } as any;
-    const result = canUpgradeUnit(unit, 'c1', { 'c1': city }, ['espionage-scouting', 'espionage-informants'], 25);
+    const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 }, buildings: [] } as any;
+    const result = canUpgradeUnit(
+      unit,
+      'c1',
+      { 'c1': city },
+      upgradeContext({ completedTechs: ['espionage-scouting', 'espionage-informants'] }),
+      25,
+    );
     expect(result.canUpgrade).toBe(true);
     expect(result.cost).toBe(25);
   });
 
   it('allows upgrading an Operative to an Intelligence Officer once covert-operations is researched', () => {
     const unit = makeUnit('spy_operative', { q: 0, r: 0 });
-    const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 } } as any;
-    const result = canUpgradeUnit(unit, 'c1', { 'c1': city }, ['cryptography', 'covert-operations'], 200);
+    const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 }, buildings: [] } as any;
+    const result = canUpgradeUnit(
+      unit,
+      'c1',
+      { 'c1': city },
+      upgradeContext({ completedTechs: ['cryptography', 'covert-operations'] }),
+      200,
+    );
     expect(result.canUpgrade).toBe(true);
     expect(result.targetType).toBe('spy_intelligence_officer');
     expect(result.cost).toBe(70); // 50% of Intelligence Officer's 140 production cost
@@ -69,8 +116,14 @@ describe('canUpgradeUnit', () => {
 
   it('allows upgrading an Intelligence Officer to a Station Chief once counterintelligence is researched', () => {
     const unit = makeUnit('spy_intelligence_officer', { q: 0, r: 0 });
-    const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 } } as any;
-    const result = canUpgradeUnit(unit, 'c1', { 'c1': city }, ['covert-operations', 'counterintelligence'], 200);
+    const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 }, buildings: [] } as any;
+    const result = canUpgradeUnit(
+      unit,
+      'c1',
+      { 'c1': city },
+      upgradeContext({ completedTechs: ['covert-operations', 'counterintelligence'] }),
+      200,
+    );
     expect(result.canUpgrade).toBe(true);
     expect(result.targetType).toBe('spy_station_chief');
     expect(result.cost).toBe(93); // ceil(50% of Station Chief's 185 production cost)
@@ -80,17 +133,19 @@ describe('canUpgradeUnit', () => {
 describe('explicit upgrade chains', () => {
   it('Knight upgrades only to Cuirassier when both technologies and resources are present', () => {
     const knight = makeUnit('knight');
-    const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 } } as any;
+    const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 }, buildings: [] } as any;
 
     expect(canUpgradeUnit(
-      knight, city.id, { [city.id]: city },
-      ['iron-forging', 'rifle-tactics'], undefined,
-      new Set<ResourceType>(['horses', 'iron']),
+      knight,
+      city.id,
+      { [city.id]: city },
+      upgradeContext({ completedTechs: ['iron-forging', 'rifle-tactics'], availableResources: new Set<ResourceType>(['horses', 'iron']) }),
     ).targetType).toBeNull();
     expect(canUpgradeUnit(
-      knight, city.id, { [city.id]: city },
-      ['iron-forging', 'rifle-tactics', 'professional-army'], undefined,
-      new Set<ResourceType>(['horses', 'iron']),
+      knight,
+      city.id,
+      { [city.id]: city },
+      upgradeContext({ completedTechs: ['iron-forging', 'rifle-tactics', 'professional-army'], availableResources: new Set<ResourceType>(['horses', 'iron']) }),
     ).targetType).toBe('cuirassier');
   });
 
@@ -106,8 +161,8 @@ describe('explicit upgrade chains', () => {
     const result = canUpgradeUnit(
       unit,
       'c1',
-      { c1: { id: 'c1', owner: 'player', position: unit.position } as any },
-      ['cryptography', 'cyber-warfare'],
+      { c1: { id: 'c1', owner: 'player', position: unit.position, buildings: [] } as any },
+      upgradeContext({ completedTechs: ['cryptography', 'cyber-warfare'] }),
     );
 
     expect(result.targetType).toBeNull();
@@ -116,13 +171,13 @@ describe('explicit upgrade chains', () => {
   it('does not infer cross-role upgrades merely because a tech ID matches', () => {
     const steamship = makeUnit('steamship');
     const tank = makeUnit('tank');
-    const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 } } as any;
+    const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 }, buildings: [] } as any;
 
     expect(canUpgradeUnit(
       steamship,
       city.id,
       { [city.id]: city },
-      ['caravels', 'ironclad-warships'],
+      upgradeContext({ completedTechs: ['caravels', 'ironclad-warships'] }),
     ).targetType).toBeNull();
     // Terminal unit (no obsoletedByTech/upgradesTo) — researching a later tech must not
     // conjure an upgrade target out of thin air.
@@ -130,21 +185,19 @@ describe('explicit upgrade chains', () => {
       tank,
       city.id,
       { [city.id]: city },
-      ['tank-warfare', 'armored-tactics'],
+      upgradeContext({ completedTechs: ['tank-warfare', 'armored-tactics'] }),
     ).targetType).toBeNull();
   });
 
   it('archer -> crossbowman upgrade is blocked without Copper (negative), allowed with Copper', () => {
     const archer = makeUnit('archer');
-    const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 } } as any;
+    const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 }, buildings: [] } as any;
 
     const withoutCopper = canUpgradeUnit(
       archer,
       city.id,
       { [city.id]: city },
-      ['tactics'],
-      undefined,
-      new Set<ResourceType>(),
+      upgradeContext({ completedTechs: ['tactics'], availableResources: new Set<ResourceType>() }),
     );
     expect(withoutCopper.targetType).toBeNull();
 
@@ -152,9 +205,7 @@ describe('explicit upgrade chains', () => {
       archer,
       city.id,
       { [city.id]: city },
-      ['tactics'],
-      undefined,
-      new Set<ResourceType>(['copper']),
+      upgradeContext({ completedTechs: ['tactics'], availableResources: new Set<ResourceType>(['copper']) }),
     );
     expect(withCopper.targetType).toBe('crossbowman');
   });
@@ -188,7 +239,7 @@ describe('trainedFromBuilding upgrade gate (Stealth Airbase)', () => {
   it('blocks bomber -> stealth_bomber upgrade in a city without stealth_airbase, with reason missing-building', () => {
     const unit = makeUnit('bomber');
     const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 }, buildings: [] } as any;
-    const result = canUpgradeUnit(unit, 'c1', { c1: city }, completedTechs);
+    const result = canUpgradeUnit(unit, 'c1', { c1: city }, upgradeContext({ completedTechs: completedTechs }));
     expect(result.canUpgrade).toBe(false);
     expect(result.targetType).toBeNull();
     expect(result.reason).toBe('missing-building');
@@ -197,7 +248,7 @@ describe('trainedFromBuilding upgrade gate (Stealth Airbase)', () => {
   it('allows bomber -> stealth_bomber upgrade in a city with stealth_airbase and deducts gold', () => {
     const unit = makeUnit('bomber');
     const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 }, buildings: ['stealth_airbase'] } as any;
-    const result = canUpgradeUnit(unit, 'c1', { c1: city }, completedTechs, 1000);
+    const result = canUpgradeUnit(unit, 'c1', { c1: city }, upgradeContext({ completedTechs: completedTechs }), 1000);
     expect(result.canUpgrade).toBe(true);
     expect(result.targetType).toBe('stealth_bomber');
   });
@@ -205,7 +256,7 @@ describe('trainedFromBuilding upgrade gate (Stealth Airbase)', () => {
   it('regression: musketeer -> rifleman (no trainedFromBuilding) is unaffected by building gate', () => {
     const unit = makeUnit('musketeer');
     const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 }, buildings: [] } as any;
-    const result = canUpgradeUnit(unit, 'c1', { c1: city }, ['tactics', 'rifled-infantry']);
+    const result = canUpgradeUnit(unit, 'c1', { c1: city }, upgradeContext({ completedTechs: ['tactics', 'rifled-infantry'] }));
     expect(result.canUpgrade).toBe(true);
     expect(result.targetType).toBe('rifleman');
   });
@@ -253,12 +304,12 @@ describe('trainedFromBuilding upgrade gate (Stealth Airbase)', () => {
 
 describe('getUpgradeCost', () => {
   it('returns half of the target unit production cost from the canonical catalog', () => {
-    const cost = getUpgradeCost('spy_informant');
+    const cost = getUpgradeCost('spy_informant', upgradeContext({}));
     expect(cost).toBe(25);
   });
 
   it('uses the retuned worker production cost for upgrade math', () => {
-    expect(getUpgradeCost('worker')).toBe(6);
+    expect(getUpgradeCost('worker', upgradeContext({}))).toBe(6);
   });
 });
 

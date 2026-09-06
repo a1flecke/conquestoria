@@ -8,7 +8,6 @@ import {
   BUILDINGS,
   TRAINABLE_UNITS,
   getAvailableBuildings,
-  getProductionCostForItem,
   getTrainableUnitsForCity,
   cityFollowsOwnFaith,
 } from '@/systems/city-system';
@@ -25,10 +24,11 @@ import {
   computeUnrestPressure,
 } from '@/systems/faction-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
+import { buildProductionCostContext, getContextualProductionCost } from '@/systems/production-cost-context';
 import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { canCompleteAirUnitProduction, getAirBaseRoster } from '@/systems/air-operations-system';
 import { enqueueCityProduction } from '@/systems/planning-system';
-import { getActiveNationalProjectsForCiv, getCircularManufacturingMaterial, getReservedNationalProjectKeys } from '@/systems/national-project-system';
+import { getActiveNationalProjectsForCiv, getReservedNationalProjectKeys } from '@/systems/national-project-system';
 import { getArsenalStatus } from '@/systems/strategic-arsenal-system';
 import type { AIForceDemand } from './ai-unit-assignment';
 import { getAIStrategicRoles } from './ai-unit-roles';
@@ -490,6 +490,7 @@ function generateWithResidual(
   );
   const builtNationalProjectKeys = getReservedNationalProjectKeys(state, civId);
   const activeNationalProjects = getActiveNationalProjectsForCiv(state, civId);
+  const productionCostContext = buildProductionCostContext(state, civId, cityId);
   const cargoDemand = demands.some(entry =>
     entry.missing > 0 && COMBAT_CARGO_ROLES.has(entry.role));
   const needsCaptureCapacity = demands.some(entry =>
@@ -544,15 +545,7 @@ function generateWithResidual(
       unit.type,
     );
     if (!reserveAllows(state, civId, maintenanceImpact, emergency, 0)) continue;
-    const cost = getProductionCostForItem(unit.type, {
-      city,
-      bonusEffect: civDefinition?.bonusEffect,
-      era: civEra,
-      completedTechs: civ.techState.completed,
-      activeNationalProjects,
-      availableResources: resources,
-      materialSubstitution: getCircularManufacturingMaterial(state, civId),
-    });
+    const cost = getContextualProductionCost(unit.type, productionCostContext);
     const productionTurns = Math.max(1, Math.ceil(cost / productionPerTurn));
     const roleDemandScore = fulfilled.missing * 40 + fulfilled.priority / 5;
     const emergencyDefenseScore = emergency ? 10 : 0;
@@ -614,14 +607,7 @@ function generateWithResidual(
     if (missionaryTrainable) {
       const maintenanceImpact = projectedUnitMaintenanceImpact(state, civId, cityId, 'missionary');
       if (reserveAllows(state, civId, maintenanceImpact, false, 1)) {
-        const cost = getProductionCostForItem('missionary', {
-          city,
-          bonusEffect: civDefinition?.bonusEffect,
-          era: state.era,
-          completedTechs: civ.techState.completed,
-          activeNationalProjects,
-          availableResources: resources,
-        });
+        const cost = getContextualProductionCost('missionary', productionCostContext);
         const productionTurns = Math.max(1, Math.ceil(cost / productionPerTurn));
         const personalityScore = weightProductionRoles(personality, ['missionary']);
         // Fervor-boon civs weight missionaries higher — their faith already spreads/
@@ -677,15 +663,7 @@ function generateWithResidual(
       building.id,
     );
     if (!reserveAllows(state, civId, maintenanceImpact, false, economyScore)) continue;
-    const cost = getProductionCostForItem(building.id, {
-      city,
-      bonusEffect: civDefinition?.bonusEffect,
-      era: civEra,
-      completedTechs: civ.techState.completed,
-      activeNationalProjects,
-      availableResources: resources,
-      materialSubstitution: getCircularManufacturingMaterial(state, civId),
-    });
+    const cost = getContextualProductionCost(building.id, productionCostContext);
     const productionTurns = Math.max(1, Math.ceil(cost / productionPerTurn));
     const personalityScore = weightProductionRoles(personality, []);
     const citySpecializationScore = building.category === city.focus ? 1 : 0;

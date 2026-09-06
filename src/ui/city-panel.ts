@@ -5,7 +5,6 @@ import {
   TRAINABLE_UNITS,
   getTrainableUnitsForCity,
   cityFollowsOwnFaith,
-  getProductionCostForItem,
   getProductionDisplayName,
   getProductionIconForItem,
 } from '@/systems/city-system';
@@ -52,8 +51,6 @@ import { getStrongestPressure } from '@/systems/religion-system';
 import { CONVERSION_THRESHOLD } from '@/systems/religion-definitions';
 import { getLoyaltyThreshold, getLoyaltyTickAmount, isLoyaltyTrackEligible } from '@/systems/religion-loyalty-system';
 import { resolvePressureSeverityForCiv } from '@/core/opponent-challenge';
-import { hasActiveHerdingInsight } from '@/systems/stampede-system';
-import { hasActiveRecoveredHarnesses } from '@/systems/rogue-elephant-host-system';
 import { getWorldPressurePresentationForViewer } from '@/systems/world-pressure-presentation';
 import { getCityIntrinsicStrength, isCityHpRegenerating } from '@/systems/city-siege-system';
 import { getOccupiedCityMood, getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
@@ -61,6 +58,7 @@ import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { getFortificationCapacity } from '@/systems/fortification-system';
 import { getCityTechYields } from '@/systems/tech-yield-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
+import { buildProductionCostContext, getContextualProductionCost } from '@/systems/production-cost-context';
 import { TECH_TREE, resolveCivilizationEra } from '@/systems/tech-definitions';
 import { evaluateProductionPrerequisites } from '@/systems/production-prerequisites';
 import { getStrategicArsenal, getStrategicArsenalCapacity, hasManhattanProject, getArsenalStatus, getActiveArmsControlCap } from '@/systems/strategic-arsenal-system';
@@ -245,17 +243,14 @@ export function createCityPanel(
   const civDef = resolveCivDefinition(state, currentCiv.civType);
   const currentCivEra = resolveCivilizationEra(currentCiv.techState.completed);
   const activeNationalProjects = getActiveNationalProjectsForCiv(state, city.owner);
-  const getDisplayedCost = (itemId: string): number => getProductionCostForItem(itemId, {
-    city,
-    bonusEffect: civDef?.bonusEffect,
-    era: currentCivEra,
-    completedTechs: currentCiv.techState.completed,
-    activeNationalProjects,
-    availableResources: playerResources,
-    materialSubstitution: getCircularManufacturingMaterial(state, city.owner),
-    herdingInsight: city.owner === state.currentPlayer && hasActiveHerdingInsight(state, city.owner),
-    recoveredHarnesses: city.owner === state.currentPlayer && hasActiveRecoveredHarnesses(state, city.owner),
-  });
+  // #984: one canonical, owner-scoped context. The panel only ever opens for a
+  // city the current player owns (`map-tap-intent.ts` gates `open-city` on
+  // `owner === currentPlayer`), so scoping the reward charges to the owner
+  // rather than the viewer shows the same number the owner will actually pay
+  // and leaks nothing.
+  const productionCostContext = buildProductionCostContext(state, city.owner, city.id);
+  const getDisplayedCost = (itemId: string): number =>
+    getContextualProductionCost(itemId, productionCostContext);
   const resourceRequirementLine = (itemId: string, required: readonly ResourceType[] = []): string => {
     const requiredNames = required.map(id => RESOURCE_DEFINITIONS.find(def => def.id === id)?.name ?? id);
     const advantages = getResourceAdvantagesForItem(itemId);
@@ -1867,7 +1862,10 @@ export function createCityPanel(
   if (callbacks.onUpgradeUnit) {
     const civGold = state.civilizations[city.owner]?.gold ?? 0;
     const upgradeEntries = Object.values(state.units)
-      .map(u => ({ u, upgrade: canUpgradeUnit(u, city.id, state.cities, completedTechs, civGold, playerResources) }))
+      .map(u => ({
+        u,
+        upgrade: canUpgradeUnit(u, city.id, state.cities, productionCostContext, civGold),
+      }))
       .filter(({ u, upgrade }) =>
         u.owner === city.owner &&
         u.position.q === city.position.q &&

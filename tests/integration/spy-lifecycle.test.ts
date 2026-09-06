@@ -7,7 +7,7 @@ import {
   createSpyFromUnit,
   cleanupDeadSpyUnit,
   } from '@/systems/espionage-system';
-import { processCity, getTrainableUnitsForCiv } from '@/systems/city-system';
+import { createProductionCostContext, processCity, getTrainableUnitsForCiv } from '@/systems/city-system';
 import { processTurn } from '@/core/turn-manager';
 
 function makeBaseState(): GameState {
@@ -214,7 +214,13 @@ describe('spy lifecycle integration', () => {
     } as any;
 
     const completedTechs = ['espionage-scouting', 'espionage-informants'];
-    const result = processCity(city, { width: 4, height: 4, tiles: {}, wrapsHorizontally: false, rivers: [] } as any, 2, 10, undefined, completedTechs);
+    const result = processCity(
+      city,
+      { width: 4, height: 4, tiles: {}, wrapsHorizontally: false, rivers: [] } as any,
+      2,
+      10,
+      createProductionCostContext({ completedTechs: completedTechs }),
+    );
 
     expect(result.completedUnit).toBeNull();
     expect(result.city.productionQueue).toHaveLength(0);
@@ -243,7 +249,14 @@ describe('spy lifecycle integration', () => {
       spyUnrestBonus: 0,
     } as any;
 
-    const result = processCity(city, { width: 4, height: 4, tiles: {}, wrapsHorizontally: false, rivers: [] } as any, 0, 0, undefined, ['lookouts'], 'rome');
+    const result = processCity(
+      city,
+      { width: 4, height: 4, tiles: {}, wrapsHorizontally: false, rivers: [] } as any,
+      0,
+      0,
+      createProductionCostContext({ completedTechs: ['lookouts'] }),
+      'rome',
+    );
     expect(result.city.productionQueue).toContain('war_hound');
   });
 
@@ -270,7 +283,14 @@ describe('spy lifecycle integration', () => {
       spyUnrestBonus: 0,
     } as any;
 
-    const result = processCity(city, { width: 4, height: 4, tiles: {}, wrapsHorizontally: false, rivers: [] } as any, 0, 0, undefined, ['lookouts'], 'greece');
+    const result = processCity(
+      city,
+      { width: 4, height: 4, tiles: {}, wrapsHorizontally: false, rivers: [] } as any,
+      0,
+      0,
+      createProductionCostContext({ completedTechs: ['lookouts'] }),
+      'greece',
+    );
     expect(result.city.productionQueue).not.toContain('war_hound');
   });
 

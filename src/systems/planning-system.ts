@@ -1,11 +1,12 @@
 import type { City, GameState, TechState } from '@/core/types';
-import { BUILDINGS, getAvailableBuildings, getProductionCostForItem, getTrainableUnitsForCiv } from '@/systems/city-system';
+import { BUILDINGS, getAvailableBuildings, getTrainableUnitsForCiv } from '@/systems/city-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { getAvailableTechs, startResearch, TECH_TREE } from '@/systems/tech-system';
 import { resolveBuildingPacingBand, resolveUnitPacingBand } from '@/systems/pacing-model';
 import { resolveCivDefinition } from '@/systems/civ-registry';
+import { buildProductionCostContext, getContextualProductionCost } from '@/systems/production-cost-context';
 import { getQueueableResearchIds } from '@/systems/tech-progression';
-import { getActiveNationalProjectsForCiv, getCircularManufacturingMaterial, getReservedNationalProjectKeys } from '@/systems/national-project-system';
+import { getActiveNationalProjectsForCiv, getReservedNationalProjectKeys } from '@/systems/national-project-system';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { getArsenalStatus } from '@/systems/strategic-arsenal-system';
@@ -182,6 +183,7 @@ export function getRecommendedIdleCityChoice(
   const activeNationalProjects = getActiveNationalProjectsForCiv(state, civId);
   const availableResources = getCivAvailableResources(state, civId);
   const bonusEffect = resolveCivDefinition(state, civ.civType)?.bonusEffect;
+  const productionCostContext = buildProductionCostContext(state, civId, cityId);
   const productionPerTurn = Math.max(1, calculateProjectedCityYields(state, cityId, bonusEffect).production);
   const arsenalStatus = getArsenalStatus(state, civId);
   const candidates = [
@@ -196,7 +198,7 @@ export function getRecommendedIdleCityChoice(
       arsenalStatus,
       getCapitalCityId(state, civId),
     ) : []).map(building => {
-      const cost = getProductionCostForItem(building.id, { city, bonusEffect, era: civEra, completedTechs, activeNationalProjects, availableResources, materialSubstitution: getCircularManufacturingMaterial(state, civId) });
+      const cost = getContextualProductionCost(building.id, productionCostContext);
       return {
         itemId: building.id,
         label: building.name,
@@ -207,7 +209,7 @@ export function getRecommendedIdleCityChoice(
     }),
     ...getTrainableUnitsForCiv(completedTechs, civ.civType, availableResources)
       .map(unit => {
-        const cost = getProductionCostForItem(unit.type, { city, bonusEffect, era: civEra, completedTechs, activeNationalProjects, availableResources, materialSubstitution: getCircularManufacturingMaterial(state, civId) });
+        const cost = getContextualProductionCost(unit.type, productionCostContext);
         return {
           itemId: unit.type,
           label: unit.name,
