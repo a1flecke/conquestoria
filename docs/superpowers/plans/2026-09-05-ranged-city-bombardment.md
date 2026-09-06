@@ -18,6 +18,13 @@ generalised to all domains.
 
 **Spec:** `docs/superpowers/specs/2026-09-05-ranged-city-bombardment-design.md`
 
+## Status — COMPLETE
+
+All four phases merged: Phase 1 #975, Phase 2 #976 (closed #966), Phase 3 #977, Phase 4 #978.
+Tracking issue #974. Follow-ups deliberately not built: Demand Surrender, garrison Sortie,
+land+sea combined-arms bonus, wall-breach at low HP, per-unit bombardment coefficients, and
+scaling `CITY_HP_MAX` with population.
+
 ## Global Constants
 
 Copied verbatim from the spec. Declared in `src/systems/city-siege-system.ts`.
@@ -343,7 +350,7 @@ Test `tests/ai/ai-tactics.test.ts`
 
 ---
 
-## Phase 4 — Delight (PR 4) 🟡 in review
+## Phase 4 — Delight (PR 4) ✅ merged (#978)
 
 ### Task 4.1: Damage art, SFX, notification, advisor tip
 
