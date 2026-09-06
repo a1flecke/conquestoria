@@ -7,6 +7,36 @@ if [ "$#" -eq 0 ]; then
   exit 1
 fi
 
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+RNG_BASELINE_FILE="$REPO_ROOT/.claude/rng-legacy-baseline.txt"
+# Files that never need to route through createSimulationRng: map generation
+# (seeded once from the campaign seed string, before gameId exists), the
+# canonical LCG primitive it and createSimulationRng both build on, and
+# createSimulationRng's own module (#1021). Everywhere else, a NEW
+# hand-rolled LCG constant or truncated-id charCodeAt is flagged unless it is
+# in RNG_BASELINE_FILE -- see that file's header for what baselining does and
+# does not mean.
+RNG_EXEMPT_FILES="src/systems/map-generator.ts src/systems/river-system.ts src/systems/seeded-lcg.ts src/systems/simulation-rng.ts"
+
+is_rng_exempt_file() {
+  local f="$1" exempt
+  for exempt in $RNG_EXEMPT_FILES; do
+    [ "$f" = "$exempt" ] && return 0
+  done
+  return 1
+}
+
+is_rng_baselined() {
+  local key="$1:$2" line
+  [ -f "$RNG_BASELINE_FILE" ] || return 1
+  while IFS= read -r line; do
+    line="${line%%#*}"
+    line="${line%"${line##*[![:space:]]}"}"
+    [ "$line" = "$key" ] && return 0
+  done < "$RNG_BASELINE_FILE"
+  return 1
+}
+
 status=0
 
 append_violation() {
@@ -52,6 +82,32 @@ for file_path in "$@"; do
     lines="$(grep -nE 'Math\.random\(' "$file_path" | grep -v '//' | head -5)"
     append_match_block "Math.random() is banned in src/ — use seeded RNG (see .claude/rules/game-systems.md#deterministic-rng)" "$lines"
   fi
+
+  # --- hand-rolled simulation RNG (#1021): new LCG constants and truncated-id
+  # charCodeAt() calls under src/systems, src/ai, src/core must use
+  # createSimulationRng() instead. Pre-existing occurrences are tracked in
+  # RNG_BASELINE_FILE by exact path:line and are not re-flagged here; #982
+  # shrinks that file as it converts each one. Comment-only lines (matched
+  # the same way the Math.random() rule above excludes them) don't count.
+  case "$file_path" in
+    src/systems/*|src/ai/*|src/core/*)
+      if ! is_rng_exempt_file "$file_path"; then
+        rng_pattern='([*]\s*(16807|48271|1664525|104729|92821|99991|73937|65599|7919|31337)\b)|(\.charCodeAt\([0-9]+\))'
+        rng_lines=""
+        rng_count=0
+        while IFS=: read -r lineno content; do
+          is_rng_baselined "$file_path" "$lineno" && continue
+          rng_count=$((rng_count + 1))
+          [ "$rng_count" -le 5 ] && rng_lines="${rng_lines}${lineno}:${content}
+"
+        done < <(grep -nE "$rng_pattern" "$file_path" | grep -v '//' || true)
+        if [ -n "$rng_lines" ]; then
+          append_match_block "Hand-rolled simulation RNG constant or truncated-id charCodeAt() detected — use createSimulationRng() from src/systems/simulation-rng.ts instead (see .claude/rules/game-systems.md#deterministic-simulation-rng)" "$rng_lines"
+        fi
+      fi
+      ;;
+    *) ;;
+  esac
 
   case "$file_path" in
     src/systems/tech-system.ts|src/storage/save-migrations.ts|src/storage/research-cost-migration-v*.ts)

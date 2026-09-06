@@ -182,4 +182,49 @@ const svg = rawSvg.replace(
 EOF
 expect_allow "$tmp/src/renderer/sprites/v2/index.ts" "width=\"100%\" replacement in v2/index.ts"
 
+# --- #1021: block a fresh hand-rolled LCG constant / truncated-id charCodeAt ---
+cat > "$tmp/src/systems/fresh-rng.ts" <<'EOF'
+export function badSeed(turn: number, unitId: string): number {
+  return turn * 48271 + unitId.charCodeAt(0);
+}
+EOF
+expect_block "$tmp/src/systems/fresh-rng.ts" "new hand-rolled LCG constant + truncated-id charCodeAt"
+
+# --- #1021: allow createSimulationRng usage (no bare constant/charCodeAt) ---
+cat > "$tmp/src/systems/good-rng.ts" <<'EOF'
+import { createSimulationRng } from './simulation-rng';
+
+export function rollVillageOutcome(state: GameState, villageId: string, unitId: string): number {
+  const rng = createSimulationRng(state, { domain: 'village-visit', actorId: unitId, targetId: villageId });
+  return rng();
+}
+EOF
+expect_allow "$tmp/src/systems/good-rng.ts" "createSimulationRng usage"
+
+# --- #1021: allow a pre-existing baselined occurrence (path:line exact match) ---
+mkdir -p "$tmp/src/systems"
+baselined_line='  const rng = seededLcg(state.turn * 7919 + civId.charCodeAt(0) * 31);'
+{
+  for i in $(seq 1 125); do echo "// padding line $i"; done
+  printf '%s\n' "$baselined_line"
+} > "$tmp/src/systems/crisis-system.ts"
+expect_allow "$tmp/src/systems/crisis-system.ts" "baselined crisis-system.ts:126 occurrence"
+
+# --- #1021: the same offending pattern at a DIFFERENT (non-baselined) line in that
+# same file must still be blocked -- proves the baseline is line-precise, not file-wide.
+{
+  echo '  const rng2 = seededLcg(state.turn * 7919);'
+  for i in $(seq 1 130); do echo "// padding line $i"; done
+} > "$tmp/src/systems/crisis-system.ts"
+expect_block "$tmp/src/systems/crisis-system.ts" "same pattern at a non-baselined line in crisis-system.ts"
+
+# --- #1021: map-generator.ts is permanently exempt regardless of content ---
+cat > "$tmp/src/systems/map-generator.ts" <<'EOF'
+export function createRng(seed: string): () => number {
+  let h = seed.length * 48271;
+  return () => (h = (h * 1664525 + 1013904223) | 0) / 4294967296;
+}
+EOF
+expect_allow "$tmp/src/systems/map-generator.ts" "map-generator.ts permanent RNG exemption"
+
 exit "$fail"

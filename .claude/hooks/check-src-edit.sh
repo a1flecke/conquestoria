@@ -19,6 +19,29 @@ esac
 
 [ -f "$file_path" ] || exit 0
 
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+RNG_BASELINE_FILE="$REPO_ROOT/.claude/rng-legacy-baseline.txt"
+RNG_EXEMPT_FILES="src/systems/map-generator.ts src/systems/river-system.ts src/systems/seeded-lcg.ts src/systems/simulation-rng.ts"
+
+is_rng_exempt_file() {
+  local f="$1" exempt
+  for exempt in $RNG_EXEMPT_FILES; do
+    [ "$f" = "$exempt" ] && return 0
+  done
+  return 1
+}
+
+is_rng_baselined() {
+  local key="$1:$2" line
+  [ -f "$RNG_BASELINE_FILE" ] || return 1
+  while IFS= read -r line; do
+    line="${line%%#*}"
+    line="${line%"${line##*[![:space:]]}"}"
+    [ "$line" = "$key" ] && return 0
+  done < "$RNG_BASELINE_FILE"
+  return 1
+}
+
 violations=""
 
 append() {
@@ -72,6 +95,33 @@ if grep -nE 'Math\.random\(' "$file_path" | grep -v '//' >/dev/null; then
   append "Math.random() is banned in src/ — use seeded RNG (see .claude/rules/game-systems.md#deterministic-rng):
 $lines"
 fi
+
+# --- hand-rolled simulation RNG (#1021): new LCG constants and truncated-id
+# charCodeAt() calls under src/systems, src/ai, src/core must use
+# createSimulationRng() instead. Pre-existing occurrences are tracked in
+# RNG_BASELINE_FILE by exact path:line and are not re-flagged; #982 shrinks
+# that file as it converts each one.
+rel_path="src/${file_path#*/src/}"
+case "$rel_path" in
+  src/systems/*|src/ai/*|src/core/*)
+    if ! is_rng_exempt_file "$rel_path"; then
+      rng_pattern='([*]\s*(16807|48271|1664525|104729|92821|99991|73937|65599|7919|31337)\b)|(\.charCodeAt\([0-9]+\))'
+      rng_lines=""
+      rng_count=0
+      while IFS=: read -r lineno content; do
+        is_rng_baselined "$rel_path" "$lineno" && continue
+        rng_count=$((rng_count + 1))
+        [ "$rng_count" -le 5 ] && rng_lines="${rng_lines}${lineno}:${content}
+"
+      done < <(grep -nE "$rng_pattern" "$file_path" | grep -v '//' || true)
+      if [ -n "$rng_lines" ]; then
+        append "Hand-rolled simulation RNG constant or truncated-id charCodeAt() detected — use createSimulationRng() from src/systems/simulation-rng.ts instead (see .claude/rules/game-systems.md#deterministic-simulation-rng):
+$rng_lines"
+      fi
+    fi
+    ;;
+  *) ;;
+esac
 
 # --- research progress is owned by tech-system or a versioned save migration ---
 case "$file_path" in
