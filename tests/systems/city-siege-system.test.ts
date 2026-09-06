@@ -39,6 +39,85 @@ describe('resolveCitySiegeDamage (#522)', () => {
     expect(result.newHp).toBe(40);
   });
 
+  // #974 phase 2: a unit deliberately spending its action to bombard fires THROUGH a
+  // garrison; only the ambient barbarian/pirate siege tick is still blocked by one. Keeping
+  // that split is what preserves "station a defender" as counterplay against those threats
+  // while still letting a player shell a defended city.
+  describe('#974 unit-initiated bombardment options', () => {
+    it('still blocks a garrisoned city by default, for ambient siege ticks', () => {
+      const { city, ownerCiv } = makeCityAndCiv({ hp: 40 });
+
+      const result = resolveCitySiegeDamage({
+        city, ownerCiv, rawDamage: 10, attackerDomain: 'land', hasGarrison: true, era: 1, challenge: 'standard',
+      });
+
+      expect(result.outcome).toBe('blocked');
+      expect(result.hpLost).toBe(0);
+    });
+
+    it('fires through a garrison when ignoreGarrison is set, at reduced effect', () => {
+      const { city, ownerCiv } = makeCityAndCiv({ hp: 50, buildings: [] });
+
+      const result = resolveCitySiegeDamage({
+        city, ownerCiv, rawDamage: 10, attackerDomain: 'land', hasGarrison: true,
+        ignoreGarrison: true, garrisonMitigation: 0.5,
+        era: 1, challenge: 'standard',
+      });
+
+      expect(result.outcome).toBe('damaged');
+      expect(result.hpLost).toBe(5); // floor(10 * 0.5)
+    });
+
+    it('leaves an ungarrisoned city unaffected by the mitigation factor', () => {
+      const { city, ownerCiv } = makeCityAndCiv({ hp: 50, buildings: [] });
+
+      const result = resolveCitySiegeDamage({
+        city, ownerCiv, rawDamage: 10, attackerDomain: 'land', hasGarrison: false,
+        ignoreGarrison: true, garrisonMitigation: 0.5,
+        era: 1, challenge: 'standard',
+      });
+
+      expect(result.hpLost).toBe(10);
+    });
+
+    it('clamps damage to maxHpLoss, which is how the per-city per-turn cap is enforced', () => {
+      const { city, ownerCiv } = makeCityAndCiv({ hp: 90, buildings: [] });
+
+      const result = resolveCitySiegeDamage({
+        city, ownerCiv, rawDamage: 40, attackerDomain: 'land', hasGarrison: false,
+        maxHpLoss: 7, era: 1, challenge: 'standard',
+      });
+
+      expect(result.hpLost).toBe(7);
+      expect(result.newHp).toBe(83);
+    });
+
+    it('a spent cap (maxHpLoss 0) deals nothing rather than throwing or going negative', () => {
+      const { city, ownerCiv } = makeCityAndCiv({ hp: 90, buildings: [] });
+
+      const result = resolveCitySiegeDamage({
+        city, ownerCiv, rawDamage: 40, attackerDomain: 'land', hasGarrison: false,
+        maxHpLoss: 0, era: 1, challenge: 'standard',
+      });
+
+      expect(result.hpLost).toBe(0);
+      expect(result.newHp).toBe(90);
+    });
+
+    it('applies garrison mitigation before the cap, not after', () => {
+      const { city, ownerCiv } = makeCityAndCiv({ hp: 90, buildings: [] });
+
+      // raw 40 -> garrison halves to 20 -> cap 30 does not bite.
+      const result = resolveCitySiegeDamage({
+        city, ownerCiv, rawDamage: 40, attackerDomain: 'land', hasGarrison: true,
+        ignoreGarrison: true, garrisonMitigation: 0.5, maxHpLoss: 30,
+        era: 1, challenge: 'standard',
+      });
+
+      expect(result.hpLost).toBe(20);
+    });
+  });
+
   it('applies raw damage to an undefended city with no walls', () => {
     const { city, ownerCiv } = makeCityAndCiv({ hp: 50, buildings: [] });
 

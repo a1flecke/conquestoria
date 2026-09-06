@@ -195,6 +195,24 @@ export interface CitySiegeInput {
   isOwnersLastCity?: boolean;
   /** Offshore bombardment reduces a city to one HP; only land capture can change ownership. */
   preventDestruction?: boolean;
+  /**
+   * #974: a unit deliberately spending its action to bombard fires THROUGH a garrison;
+   * only the ambient barbarian/pirate siege tick keeps the hard block. Defaults false so
+   * every existing caller behaves exactly as before.
+   */
+  ignoreGarrison?: boolean;
+  /**
+   * Damage multiplier applied only when `ignoreGarrison` is set AND the city is garrisoned.
+   * Keeps "station a defender" meaningful counterplay even though it no longer makes the
+   * city's HP untouchable. Defaults to 1 (no mitigation).
+   */
+  garrisonMitigation?: number;
+  /**
+   * Upper bound on HP lost in this one resolution. This is how the per-city per-turn
+   * bombardment cap is enforced -- friendly stacking is uncapped in this codebase, so
+   * without a cap a stack of cheap units would floor any city in a single turn.
+   */
+  maxHpLoss?: number;
   era: number;
   challenge: OpponentChallenge;
 }
@@ -217,7 +235,7 @@ export const SACK_GOLD_LOSS_FRACTION = 0.15;
 export function resolveCitySiegeDamage(input: CitySiegeInput): CitySiegeResult {
   const currentHp = input.city.hp ?? 100;
 
-  if (input.hasGarrison) {
+  if (input.hasGarrison && !input.ignoreGarrison) {
     return { hpLost: 0, newHp: currentHp, outcome: 'blocked', goldLost: 0 };
   }
 
@@ -226,12 +244,20 @@ export function resolveCitySiegeDamage(input: CitySiegeInput): CitySiegeResult {
     defenderCompletedTechs: input.ownerCiv.techState.completed ?? [],
     attackerDomain: input.attackerDomain,
   });
-  const mitigatedDamage = Math.max(
+  let mitigatedDamage = Math.max(
     0,
     Math.round(
       (input.rawDamage * breakdown.bombardmentDamageMultiplier) / breakdown.multiplier,
     ) - breakdown.flatBonus,
   );
+  // Garrison mitigation first, then the per-turn cap. Order matters: capping first and
+  // halving second would let a garrison shrink an already-capped shot twice over.
+  if (input.hasGarrison && input.ignoreGarrison) {
+    mitigatedDamage = Math.floor(mitigatedDamage * (input.garrisonMitigation ?? 1));
+  }
+  if (input.maxHpLoss !== undefined) {
+    mitigatedDamage = Math.min(mitigatedDamage, Math.max(0, input.maxHpLoss));
+  }
   const newHp = Math.max(0, currentHp - mitigatedDamage);
 
   if (newHp > 0) {
