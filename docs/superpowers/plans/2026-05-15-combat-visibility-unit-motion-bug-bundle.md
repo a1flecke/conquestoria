@@ -1,5 +1,7 @@
 # Combat, Visibility, And Unit Motion Bug Bundle Implementation Plan
 
+> **SUPERSEDED (2026-09-05, #974):** the rule below that ordinary ranged attacks cannot damage cities no longer holds. Ranged and siege units bombard cities from range; see `docs/superpowers/specs/2026-09-05-ranged-city-bombardment-design.md`. Everything else in this document still stands.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task inline. Steps use checkbox (`- [ ]`) syntax for tracking. Do not use subagents for this plan.
 
 **Goal:** Fix issues #198-#201 by separating movement from attack eligibility, preserving viewer-scoped fog/last-seen truth at every zoom/wrap copy, giving barbarian and minor-civ units clear visual identity, and adding full per-sprite unit motion frames.

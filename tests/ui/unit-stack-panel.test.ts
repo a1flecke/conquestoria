@@ -145,3 +145,20 @@ describe('unit stack panel', () => {
     expect(container.textContent).toContain('coastal city');
   });
 });
+
+describe('#974 Hold Siege status', () => {
+  it('labels a unit holding a siege distinctly from auto-explore and from Spent', () => {
+    const state = stateWithStack();
+    state.units.warrior = unit('warrior', 'warrior', {
+      automation: { mode: 'hold-siege', cityId: 'athens', startedTurn: 4 },
+    });
+
+    const container = document.createElement('div');
+    renderUnitStackPanel(container, state, { q: 2, r: 1 }, ['warrior'], {
+      onSelectUnit: () => {},
+    }, { selectedUnitId: 'warrior' });
+
+    expect(container.textContent).toContain('Holding siege');
+    expect(container.textContent).not.toContain('Auto-explore');
+  });
+});

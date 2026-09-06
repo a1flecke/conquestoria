@@ -46,7 +46,7 @@ Copied verbatim from the spec. Declared in `src/systems/city-siege-system.ts`.
 
 ---
 
-## Phase 1 — Spine (PR 1)
+## Phase 1 — Spine (PR 1) ✅ merged (#975)
 
 Makes bombardment meaningful *before* it exists, and kills the divergent-route bug class.
 
@@ -231,7 +231,7 @@ export function resolveCityInteraction(state: GameState, unit: Unit, city: City)
 
 ---
 
-## Phase 2 — Bombard (PR 2) — closes #966
+## Phase 2 — Bombard (PR 2) — closes #966 🟡 in review
 
 ### Task 2.1: Siege-input options
 
