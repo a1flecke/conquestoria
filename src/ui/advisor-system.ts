@@ -917,3 +917,29 @@ export function fireResourceDiscoveredTip(
   });
   return true;
 }
+
+/**
+ * #974: the first time the player bombards a city, teach the loop the mechanic depends on.
+ *
+ * Bombarding is only ever a means to an end -- it can never capture -- and the payoff (a
+ * wrecked city is easier to storm) is a number in a preview the player may never have opened.
+ * Without this the first siege reads as "I hit it and nothing happened". Fires once per
+ * session via SESSION_SHOWN_TIPS, and respects the Warchief advisor toggle like every other
+ * tip here.
+ */
+export function fireFirstBombardmentTip(state: GameState, bus: EventBus): boolean {
+  const tipId = 'first-city-bombardment';
+  if (SESSION_SHOWN_TIPS.has(tipId)) return false;
+  if (!state.civilizations[state.currentPlayer]) return false;
+  if (!state.settings?.advisorsEnabled?.warchief) return false;
+
+  SESSION_SHOWN_TIPS.add(tipId);
+  bus.emit('advisor:message', {
+    advisor: 'warchief',
+    message: 'Bombarding wears a city down but never takes it. '
+      + 'Keep shelling to weaken its defenses, then move a soldier in to capture it. '
+      + 'Hold siege repeats the bombardment for you each turn.',
+    icon: '🏹',
+  });
+  return true;
+}

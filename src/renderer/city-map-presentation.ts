@@ -31,6 +31,12 @@ export interface CityMapPresentation {
   // is adjacent) — mirrors the city panel's "Under siege (no regen)" label (#522) via
   // the same isCityHpRegenerating helper so the map badge and panel can never drift.
   underSiege: boolean;
+  /**
+   * #974: how wrecked the city looks. `underSiege` is binary, so a city at 92 HP and one at
+   * 4 HP read identically -- with bombardment now a multi-turn loop, the player needs to see
+   * progress on the map, not only in a panel.
+   */
+  damageTier: 'none' | 'scarred' | 'burning';
 }
 
 export interface CityWonderSelection {
@@ -82,6 +88,18 @@ export function selectPrimaryCityWonder(entries: readonly LegendaryWonderMapEntr
   };
 }
 
+/**
+ * #974: thresholds chosen against the siege loop rather than arbitrarily. The per-turn
+ * bombardment cap is 20 HP, so `scarred` appears after roughly one full turn of shelling and
+ * `burning` around the point a city is nearly ready to storm -- the two moments a besieging
+ * player actually wants to see at a glance.
+ */
+export function resolveCityDamageTier(cityHp: number): 'none' | 'scarred' | 'burning' {
+  if (cityHp <= 35) return 'burning';
+  if (cityHp < 85) return 'scarred';
+  return 'none';
+}
+
 export function buildLiveCityMapPresentation(
   state: GameState,
   city: City,
@@ -102,6 +120,7 @@ export function buildLiveCityMapPresentation(
     completedWonderOverflowCount: wonder.completedOverflowCount,
     visibilityMode: 'live',
     underSiege: cityHp < 100 && !isCityHpRegenerating(state, city),
+    damageTier: resolveCityDamageTier(cityHp),
   };
 }
 
@@ -118,6 +137,7 @@ export function buildStaleCityMapPresentation(population: number): CityMapPresen
     visibilityMode: 'last-seen',
     // Last-seen (fogged) presentation has no live HP data; a badge here would be
     // stale/misleading, so it's always false.
+    damageTier: 'none',
     underSiege: false,
   };
 }

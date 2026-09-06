@@ -83,6 +83,7 @@ function makeItem(overrides: Partial<CityRenderItem> = {}): CityRenderItem {
       completedWonderOverflowCount: 0,
       visibilityMode: 'live' as const,
       underSiege: false,
+    damageTier: 'none' as const,
     },
     screen: { x: 100, y: 100 },
     size: 80,

@@ -88,8 +88,14 @@ export const registerRaiderPresentation: PresentationRegistrar = (bus, ctx) => {
         : domain === 'air'
           ? 'an air strike'
           : (source === 'ai' ? 'enemy siege guns' : 'a bombardment');
-      const remaining = city?.hp === undefined ? '' : ` (${city.hp}/100)`;
-      ctx.notifier.deliver(recipientCivId, `${cityName} took ${hpLost} damage from ${attacker}${remaining}.`, 'warning');
+      const hp = city?.hp;
+      // #974: a burning city is the moment a defender most needs to notice, and the moment a
+      // besieger has been working toward -- it gets its own line rather than another
+      // identical damage tick.
+      const message = hp !== undefined && hp <= 35
+        ? `${cityName} is burning — ${hp}/100.`
+        : `${cityName} took ${hpLost} damage from ${attacker}${hp === undefined ? '' : ` (${hp}/100)`}.`;
+      ctx.notifier.deliver(recipientCivId, message, 'warning');
     }),
     // Pirate-faction naval siege (#522) mirror of the barbarian handler above.
     bus.on('pirate:city-destroyed', ({ cityId, ownerId }) => {
