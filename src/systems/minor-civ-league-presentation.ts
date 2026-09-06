@@ -1,6 +1,6 @@
 import type { GameState } from '@/core/types';
 import { MINOR_CIV_LEAGUE_CHARTERS } from './minor-civ-league-definitions';
-import { getMinorCivLeagueForMember } from './minor-civ-league-system';
+import { getMinorCivLeagueForMember, getMinorCivLeaguePreference } from './minor-civ-league-system';
 import { getMinorCivPresentationForPlayer } from './minor-civ-presentation';
 
 export interface MinorCivLeaguePresentation {
@@ -26,11 +26,18 @@ function presentationForLeague(
     return member.known ? [{ minorCivId: memberId, name: member.name, color: member.color, connectedDetail: null }] : [];
   });
   const charter = MINOR_CIV_LEAGUE_CHARTERS[league.charter];
+  const readinessLabel = league.readiness.kind === 'quiet'
+    ? 'Quiet'
+    : league.readiness.kind === 'cooling'
+      ? 'Tensions easing'
+      : league.memberIds.some(memberId => getMinorCivLeaguePreference(state, memberId, 'settled').kind === 'defense')
+        ? 'Preparing local defenses'
+        : 'Concern reported';
   return {
     name: `${league.nameKey[0].toUpperCase()}${league.nameKey.slice(1)} Compact`,
     charterLabel: `${charter.label} charter`,
     summary: charter.purpose,
-    readinessLabel: league.readiness.kind === 'quiet' ? 'Quiet' : 'Concern reported',
+    readinessLabel,
     knownMembers,
     hasUnknownMembers: knownMembers.length < league.memberIds.length,
   };
