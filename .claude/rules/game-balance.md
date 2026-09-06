@@ -55,6 +55,50 @@ Movement bonuses are the most easily broken stat — small integers stack to pro
 
 **Why Road Corps and National Railway don't grant movement:** early drafts gave both +1 road movement, which stacked to +2 on roads for an era 3–8 overlap window. Both were revised to non-movement effects to respect this policy.
 
+## City Attack & Capture (#974)
+
+Three actions exist against a hostile city, all resolved by `resolveCityInteraction`
+(`src/systems/city-interaction.ts`) — the single source of truth consumed by highlights,
+the tap preview, the executor and the AI. Anything it offers must be executable; anything
+it withholds must come back in `denied` with player-facing copy. Never add a fourth city
+action anywhere but here.
+
+| Action | Eligibility | Effect |
+|---|---|---|
+| Attack the defender | any unit that can attack units at that distance; city garrisoned | ordinary unit combat |
+| Bombard | `attackProfile.kind` of `ranged`/`bombard`, `targets ∋ 'city'`, distance `1…profile.range` | −HP, floors at 1, never captures or razes |
+| Capture | `domain === 'land'`, `strength > 0`, `targets ∋ 'city'`, distance **1**, city ungarrisoned, major-civ owner | decisive assault |
+
+**Capture is adjacent-only for every unit.** `beginMajorCityAssault` rejects distance ≠ 1;
+gating a preview on `profile.range` instead produces an offer the executor refuses.
+
+**Constants** (`city-siege-system.ts` / `city-bombardment-system.ts`):
+
+| Constant | Value | Why |
+|---|---|---|
+| `CITY_HP_DEFENSE_FLOOR` | `0.4` | Remaining HP scales assault defense: `0.4 + 0.6 × hp/100`. **Exactly 1.0 at full HP**, so no pre-#974 tuned number moves. A wrecked metropolis is much easier to storm but never free. |
+| `CITY_BOMBARDMENT_COEFFICIENT` | `0.4` | Per-shot damage `strength × health% × 0.4`. Per-shot naval damage is unchanged from before #974. |
+| `CITY_BOMBARDMENT_MAX_HP_LOSS_PER_TURN` | `20` | Per city, per turn, across **all** attackers and domains. Friendly stacking is uncapped in this codebase, so without it a stack of cheap units floors any city in one turn. 99/20 ⇒ a siege takes ≥5 turns at every era. |
+| `CITY_BOMBARDMENT_GARRISON_MITIGATION` | `0.5` | A garrison halves bombardment rather than nullifying it, keeping "station a defender" real counterplay. |
+| `CITY_BOMBARDMENT_REGEN_SUPPRESSION_TURNS` | `1` | A bombarded city does not repair. Regen is otherwise only suppressed within 1 hex, so a unit shelling from range 2 would never out-pace 5 HP/turn. |
+
+**Ambient siege vs an aimed shot.** A unit deliberately spending its action bombards
+*through* a garrison (`ignoreGarrison: true`). Barbarian and pirate ambient siege ticks keep
+the hard block, so stationing a defender remains counterplay against them. Any new caller of
+`resolveCitySiegeDamage` must choose deliberately; the default is the hard block.
+
+**Counter-fire is adjacency-only.** A walled city answers a bombardier at distance 1
+regardless of garrison; range 2–3 is safe. That asymmetry is what pays for a slower,
+longer-ranged siege unit.
+
+**Invariants.** Bombardment awards no experience and no quest/wonder progress (ranged units
+must not farm veterancy on a city). It is difficulty-invariant — `preventDestruction` bypasses
+`citySiegeDestructionEra`, the only city-siege challenge knob. It never captures, razes, or
+destroys. A shot that would deal 0 is denied with its cause, never a burned turn.
+
+**Rule:** any new city action, constant, or bombardment caller must add a row above and be
+reachable through `resolveCityInteraction`.
+
 ## Happiness Inventory
 
 Happiness reduces unrest pressure at 2 pressure per point

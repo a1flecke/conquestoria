@@ -1,5 +1,7 @@
 # Combat, Visibility, And Unit Motion Bug Bundle Design
 
+> **SUPERSEDED (2026-09-05, #974):** the rule below that ordinary ranged attacks cannot damage cities no longer holds. Ranged and siege units bombard cities from range; see `docs/superpowers/specs/2026-09-05-ranged-city-bombardment-design.md`. Everything else in this document still stands.
+
 ## Issue Set
 
 - [#198: Barbarian and Minor Civ Graphics](https://github.com/a1flecke/conquestoria/issues/198)
