@@ -13,6 +13,7 @@ import type {
 import type { EventBus } from '@/core/event-bus';
 import { resolveOpponentChallenge } from '@/core/opponent-challenge';
 import {
+  createProductionCostContext,
   getAvailableBuildings,
   getTrainableUnitsForCity,
   processCity,
@@ -874,16 +875,23 @@ export function processMinorCivEconomyTurn(
     ? Math.min(yields.food, cityForProcessing.population)
     : yields.food;
 
+  // A minor civ has no `Civilization` record, so `buildProductionCostContext`
+  // has nothing to derive from: no civ definition bonus, no national projects,
+  // no Stampede/Host reward charges, and a synthetic tech band plus local
+  // pressure era instead of `resolveCivilizationEra`. This is the one
+  // documented caller that assembles a context directly (#984); every field is
+  // required, so nothing can be silently omitted here either.
   const processed = processCity(
     cityForProcessing,
     nextState.map,
     foodYieldForGrowth,
     productionYield,
-    undefined,
-    completedTechs,
-    undefined,
-    resolveNeutralPressureEra(nextState, cityForYields.position) ?? 1,
-    availableResources,
+    createProductionCostContext({
+      city: cityForProcessing,
+      era: resolveNeutralPressureEra(nextState, cityForYields.position) ?? 1,
+      completedTechs,
+      availableResources,
+    }),
   );
   nextState = {
     ...nextState,

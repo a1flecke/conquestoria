@@ -5,7 +5,6 @@ import { resetUnitTurn, createUnit, healUnit, findPath, UNIT_DEFINITIONS } from 
 import { getLocalCityHealingBonus, processCity, TRAINABLE_UNITS, BUILDINGS } from '@/systems/city-system';
 import { transferCapturedCityOwnership } from '@/systems/city-capture-system';
 import { baseNewAirUnit, canCompleteAirUnitProduction } from '@/systems/air-operations-system';
-import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { applyCityMaturity } from '@/systems/city-maturity-system';
 import { assignCityFocus, normalizeWorkedTilesForCity } from '@/systems/city-work-system';
 import { applyResearchBonus, processResearch, getTechById, getEffectiveTechCost } from '@/systems/tech-system';
@@ -53,7 +52,8 @@ import {
 } from '@/systems/tech-yield-system';
 import type { HexCoord } from './types';
 import { applyReconReveals, updateVisibility, revealMinorCivCities, applySharedVision, applySatelliteSurveillance, applyMassSurveillanceReveal } from '@/systems/fog-of-war';
-import { chooseCircularManufacturingMaterial, getActiveNationalProjectsForCiv, getCircularManufacturingMaterial } from '@/systems/national-project-system';
+import { chooseCircularManufacturingMaterial, getActiveNationalProjectsForCiv } from '@/systems/national-project-system';
+import { buildProductionCostContext } from '@/systems/production-cost-context';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
 import { MISSIONARY_BASE_CHARGES, MISSIONARY_ZEAL_CHARGES } from '@/systems/religion-definitions';
 import { getHealingBonus, getVisionBonus, isWithinRangeOfNeuralRehabilitationCenter, isWithinRangeOfTelemedicineHub } from '@/systems/unit-modifier-system';
@@ -128,8 +128,8 @@ import {
 import type { PirateEconomyModifiers } from '@/systems/economy-system';
 import { processPiratesForCompletedRound } from '@/systems/pirate-system';
 import { classifyOwner } from './owner-kind';
-import { consumeHerdingInsight, getStampedeLifecycleTransition, hasActiveHerdingInsight, processStampedeScheduling, processStampedeTurn } from '@/systems/stampede-system';
-import { consumeRecoveredHarnesses, getRogueElephantHostLifecycleTransition, hasActiveRecoveredHarnesses, processRogueElephantHostScheduling, processRogueElephantHostTurn } from '@/systems/rogue-elephant-host-system';
+import { consumeHerdingInsight, getStampedeLifecycleTransition, processStampedeScheduling, processStampedeTurn } from '@/systems/stampede-system';
+import { consumeRecoveredHarnesses, getRogueElephantHostLifecycleTransition, processRogueElephantHostScheduling, processRogueElephantHostTurn } from '@/systems/rogue-elephant-host-system';
 import { checkAndQueueGeneralCandidateChoice, retireGeneralsAtTurnEnd, spawnGeneralForCiv } from '@/systems/great-general-system';
 import { chooseBestGeneralCandidate } from '@/ai/ai-general-command';
 import { resolveGeneralDefinition, type GeneralDefinition } from '@/systems/great-general-definitions';
@@ -334,7 +334,6 @@ export function processTurn(
       totalGold += yields.gold;
       baseGoldByCityId[cityId] = yields.gold;
       const effectiveProduction = isCityProductionLocked(city) ? 0 : yields.production;
-      const availableResources = getCivAvailableResources(newState, civId);
       const npKeysForCiv = new Set(
         Object.keys(newState.builtNationalProjects ?? {}).filter(k => k.startsWith(`${civId}:`))
       );
@@ -343,19 +342,13 @@ export function processTurn(
         newState.map,
         yields.food,
         effectiveProduction,
-        civDef?.bonusEffect,
-        civ.techState.completed,
+        buildProductionCostContext(newState, civId, cityId),
         civ.civType,
-        civEra,
-        availableResources,
         npKeysForCiv,
         type => {
           if (!UNIT_DEFINITIONS[type].airOperation) return null;
           return canCompleteAirUnitProduction(newState, cityId, type).ok ? null : 'air-base-unavailable';
         },
-        getCircularManufacturingMaterial(newState, civId),
-        hasActiveHerdingInsight(newState, civId),
-        hasActiveRecoveredHarnesses(newState, civId),
       );
       totalGold += result.idleGoldBonus;
       authoritativeCityScience[cityId] = yields.science + result.idleScienceBonus;

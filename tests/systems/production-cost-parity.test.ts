@@ -11,6 +11,7 @@ import { ECONOMY_RULES, getRushBuyQuote } from '@/systems/economy-system';
 import { evaluateUnitUpgrade } from '@/systems/unit-upgrade-system';
 import { processAIResourceMarketplace } from '@/ai/ai-resource-marketplace';
 import { resolveCivilizationEra, resolveWorldAge, TECH_TREE } from '@/systems/tech-definitions';
+import { buildProductionCostContext } from '@/systems/production-cost-context';
 import { hexKey } from '@/systems/hex-utils';
 import { createUnit } from '@/systems/unit-system';
 
@@ -77,20 +78,26 @@ describe('#984 — World Age must never price production', () => {
 });
 
 describe('#984 — national-project discounts reach every production consumer', () => {
-  function musterGroundState(seed: string): { state: GameState; city: City } {
+  function musterGroundState(seed: string, ownsCopper: boolean): { state: GameState; city: City } {
     const state = laggardWorldState(seed);
     const city = laggardCity(state);
     city.productionQueue = ['axeman'];
     city.productionProgress = 0;
+    // `stone-weapons` unlocks the axeman and reveals copper, and is few enough
+    // era-1 techs to leave the civ in era 1 while World Age sits at 5.
+    state.civilizations[LAGGARD].techState.completed = ['stone-weapons'];
+    // Tribal Muster Ground: era-1/2 melee units train 10% cheaper empire-wide.
     state.builtNationalProjects = {
       ...(state.builtNationalProjects ?? {}),
       [`${LAGGARD}:tribal_muster_ground`]: { civId: LAGGARD, eraBuilt: 1, turn: 1 } as never,
     };
+    // A resource on the city centre is granted by tech alone, no improvement.
+    state.map.tiles[hexKey(city.position)].resource = ownsCopper ? 'copper' : null;
     return { state, city };
   }
 
   it('processCity completes an axeman at the discounted cost the city panel already displays', () => {
-    const { state, city } = musterGroundState('np-processcity');
+    const { state, city } = musterGroundState('np-processcity', true);
     const base = TRAINABLE_UNITS.find(unit => unit.type === 'axeman')!.cost;
     const discounted = Math.ceil(base * 0.9);
     expect(discounted).toBeLessThan(base);
@@ -100,11 +107,8 @@ describe('#984 — national-project discounts reach every production consumer', 
       state.map,
       0,
       discounted,
-      undefined,
-      state.civilizations[LAGGARD].techState.completed,
+      buildProductionCostContext(state, LAGGARD, city.id),
       state.civilizations[LAGGARD].civType,
-      resolveCivilizationEra(state.civilizations[LAGGARD].techState.completed),
-      new Set(['copper']),
     );
 
     expect(result.completedUnit).toBe('axeman');
@@ -120,11 +124,7 @@ describe('#984 — national-project discounts reach every production consumer', 
     sellerTile.resource = 'copper';
     sellerTile.improvement = 'none';
     sellerTile.improvementTurnsLeft = 0;
-    state.map.tiles[hexKey(city.position)].resource = null;
-
     const laggard = state.civilizations[LAGGARD];
-    // `stone-weapons` reveals copper and unlocks the axeman while leaving the civ in era 1.
-    laggard.techState.completed = ['stone-weapons'];
     laggard.gold = 500;
     laggard.diplomacy.relationships[seller.id] = 10;
     state.marketplace!.prices.copper = 10;
@@ -132,7 +132,7 @@ describe('#984 — national-project discounts reach every production consumer', 
   }
 
   it('buys access when the discounted cost finishes inside the access window', () => {
-    const { state, city } = musterGroundState('np-marketplace');
+    const { state, city } = musterGroundState('np-marketplace', false);
     withCopperSeller(state, city);
     // 1 production/turn. Undiscounted 22 leaves 11 turns of work and is refused;
     // the real discounted 20 leaves 9 and fits the 10-turn access window.
@@ -147,7 +147,7 @@ describe('#984 — national-project discounts reach every production consumer', 
   });
 
   it('still declines when even the correct cost cannot finish inside the window', () => {
-    const { state, city } = musterGroundState('np-marketplace-negative');
+    const { state, city } = musterGroundState('np-marketplace-negative', false);
     withCopperSeller(state, city);
     // No banked progress: 20 turns of work at 1 production/turn, well past the window.
     city.productionProgress = 0;
@@ -208,15 +208,8 @@ describe('#984 — rush buy prices what the city actually has to produce', () =>
       state.map,
       0,
       discounted,
-      undefined,
-      civ.techState.completed,
+      buildProductionCostContext(state, LAGGARD, city.id),
       civ.civType,
-      resolveCivilizationEra(civ.techState.completed),
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      true,
     );
     expect(processed.completedUnit).toBe('beast_handler');
 

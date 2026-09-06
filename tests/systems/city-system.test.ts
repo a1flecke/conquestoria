@@ -1,5 +1,5 @@
 import {
-  foundCity,
+  createProductionCostContext,  foundCity,
   getAvailableBuildings,
   getTrainableUnitsForCity,
   isCityCoastal,
@@ -516,7 +516,7 @@ describe('MR8 — naval roster gating', () => {
     const original = archer.requiredTechs;
     archer.requiredTechs = ['bronze-working'];
     try {
-      const result = processCity(city, map, 2, 3, undefined, ['archery']);
+      const result = processCity(city, map, 2, 3, createProductionCostContext({ completedTechs: ['archery'] }));
       expect(result.city.productionQueue).not.toContain('archer');
       expect(result.droppedProductionItems).toEqual([
         { itemId: 'archer', itemKind: 'unit', reason: 'no-longer-available' },
@@ -617,7 +617,7 @@ describe('MR9 — land/air roster gating', () => {
       productionQueue: ['musketeer'],
       productionProgress: 0,
     };
-    const result = processCity(city, map, 2, 3, undefined, ['tactics']);
+    const result = processCity(city, map, 2, 3, createProductionCostContext({ completedTechs: ['tactics'] }));
     expect(result.city.productionQueue).not.toContain('musketeer');
     expect(result.droppedProductionItems).toEqual([{ itemId: 'musketeer', itemKind: 'unit', reason: 'no-longer-available' }]);
   });
@@ -808,7 +808,7 @@ describe('processCity', () => {
     let city = foundCity('p1', landTile.coord, map, mkC());
     city.food = city.foodNeeded - 1;
 
-    const result = processCity(city, map, 3);
+    const result = processCity(city, map, 3, 0, createProductionCostContext());
     expect(result.city.food).toBeGreaterThanOrEqual(0);
   });
 
@@ -819,7 +819,7 @@ describe('processCity', () => {
     city.productionQueue = ['granary'];
     city.productionProgress = 0;
 
-    const result = processCity(city, map, 3, 5);
+    const result = processCity(city, map, 3, 5, createProductionCostContext());
     expect(result.city.productionProgress).toBe(5);
   });
 
@@ -833,7 +833,7 @@ describe('processCity', () => {
       productionProgress: 0,
     };
 
-    const result = processCity(city, map, 2, 100, undefined, ['horseback-riding', 'tank-warfare']);
+    const result = processCity(city, map, 2, 100, createProductionCostContext({ completedTechs: ['horseback-riding', 'tank-warfare'] }));
 
     expect(result.droppedProductionItems).toEqual([{ itemId: 'stable', itemKind: 'building', reason: 'obsoleted' }]);
     expect(result.city.productionQueue).not.toContain('stable');
@@ -851,7 +851,7 @@ describe('processCity', () => {
       productionProgress: 0,
     };
 
-    const result = processCity(city, map, 2, 1, undefined, ['horseback-riding']);
+    const result = processCity(city, map, 2, 1, createProductionCostContext({ completedTechs: ['horseback-riding'] }));
 
     expect(result.droppedProductionItems).toEqual([]);
     expect(result.city.productionQueue).toContain('stable');
@@ -867,7 +867,7 @@ describe('processCity', () => {
       productionProgress: 0,
     };
 
-    const result = processCity(city, map, 2, 1_000, undefined, ['radar-systems', 'rocketry']);
+    const result = processCity(city, map, 2, 1_000, createProductionCostContext({ completedTechs: ['radar-systems', 'rocketry'] }));
 
     expect(result.droppedProductionItems).toEqual([
       { itemId: 'sam_site', itemKind: 'building', reason: 'no-longer-available' },
@@ -886,7 +886,7 @@ describe('processCity', () => {
       productionProgress: 0,
     };
 
-    const result = processCity(city, map, 2, 5, undefined, ['horseback-riding', 'tank-warfare']);
+    const result = processCity(city, map, 2, 5, createProductionCostContext({ completedTechs: ['horseback-riding', 'tank-warfare'] }));
 
     expect(result.city.buildings).toContain('cavalry-academy');
   });
@@ -903,7 +903,7 @@ describe('processCity', () => {
     )!;
     let city = foundCity('p1', inlandTile.coord, map, mkC());
     city = { ...city, productionQueue: ['harbor'], productionProgress: 0 };
-    const result = processCity(city, map, 2, 5, undefined, ['harbor-tech']);
+    const result = processCity(city, map, 2, 5, createProductionCostContext({ completedTechs: ['harbor-tech'] }));
     expect(result.droppedProductionItems).toEqual([{ itemId: 'harbor', itemKind: 'building', reason: 'coastal-access-lost' }]);
     expect(result.city.productionQueue).not.toContain('harbor');
     expect(result.city.productionProgress).toBe(0); // production not wasted
@@ -922,7 +922,7 @@ describe('processCity', () => {
     )!;
     const city = { ...foundCity('p1', inlandTile.coord, map, mkC()), productionQueue: ['transport'], productionProgress: 40 };
 
-    const result = processCity(city, map, 2, 100, undefined, ['galleys']);
+    const result = processCity(city, map, 2, 100, createProductionCostContext({ completedTechs: ['galleys'] }));
 
     expect(result.droppedProductionItems).toEqual([{ itemId: 'transport', itemKind: 'unit', reason: 'coastal-access-lost' }]);
     expect(result.city.productionQueue).not.toContain('transport');
@@ -940,7 +940,7 @@ describe('processCity', () => {
       productionProgress: 50,
     };
 
-    const result = processCity(city, map, 2, 100, undefined, ['stealth-technology']);
+    const result = processCity(city, map, 2, 100, createProductionCostContext({ completedTechs: ['stealth-technology'] }));
 
     expect(result.droppedProductionItems).toEqual([{ itemId: 'stealth_bomber', itemKind: 'unit', reason: 'training-building-missing' }]);
     expect(result.city.productionQueue).not.toContain('stealth_bomber');
@@ -956,7 +956,7 @@ describe('processCity', () => {
       buildings: [], productionQueue: ['biplane'], productionProgress: 50,
     };
 
-    const result = processCity(city, map, 2, 100, undefined, ['aviation']);
+    const result = processCity(city, map, 2, 100, createProductionCostContext({ completedTechs: ['aviation'] }));
 
     expect(result.droppedProductionItems).toEqual([{ itemId: 'biplane', itemKind: 'unit', reason: 'training-building-missing' }]);
     expect(result.completedUnit).toBeNull();
@@ -970,7 +970,16 @@ describe('processCity', () => {
       buildings: ['airfield'], productionQueue: ['biplane'], productionProgress: 50,
     };
 
-    const result = processCity(city, map, 2, 100, undefined, ['aviation'], undefined, 1, undefined, undefined, () => 'air-base-unavailable');
+    const result = processCity(
+      city,
+      map,
+      2,
+      100,
+      createProductionCostContext({ era: 1, completedTechs: ['aviation'] }),
+      undefined,
+      undefined,
+      () => 'air-base-unavailable',
+    );
 
     expect(result.droppedProductionItems).toEqual([{ itemId: 'biplane', itemKind: 'unit', reason: 'air-base-unavailable' }]);
     expect(result.completedUnit).toBeNull();
@@ -987,7 +996,7 @@ describe('processCity', () => {
       productionProgress: 0,
     };
 
-    const result = processCity(city, map, 2, 1, undefined, ['stealth-technology']);
+    const result = processCity(city, map, 2, 1, createProductionCostContext({ completedTechs: ['stealth-technology'] }));
 
     expect(result.droppedProductionItems).toEqual([]);
     expect(result.city.productionQueue).toContain('stealth_bomber');
@@ -997,7 +1006,13 @@ describe('processCity', () => {
     const map = generateMap(30, 30, 'resource-unit-drop-test');
     const city = { ...foundCity('p1', { q: 2, r: 2 }, map, mkC()), productionQueue: ['swordsman'], productionProgress: 40 };
 
-    const result = processCity(city, map, 2, 100, undefined, ['bronze-working'], undefined, 1, new Set());
+    const result = processCity(
+      city,
+      map,
+      2,
+      100,
+      createProductionCostContext({ era: 1, completedTechs: ['bronze-working'], availableResources: new Set() }),
+    );
 
     expect(result.droppedProductionItems).toEqual([{ itemId: 'swordsman', itemKind: 'unit', reason: 'resource-lost' }]);
     expect(result.city.productionQueue).not.toContain('swordsman');
@@ -1019,7 +1034,7 @@ describe('processCity', () => {
       productionQueue: ['harbor'],
       productionProgress: 999, // high enough to complete
     };
-    const result = processCity(city, map, 2, 0, undefined, ['harbor-tech']);
+    const result = processCity(city, map, 2, 0, createProductionCostContext({ completedTechs: ['harbor-tech'] }));
     expect(result.completedBuilding).toBe('harbor');
     expect(result.droppedProductionItems).toEqual([]);
     expect(result.city.buildings).toContain('harbor');
@@ -1029,7 +1044,7 @@ describe('processCity', () => {
     const map = generateMap(30, 30, 'city-test');
     const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
     const city = foundCity('p1', landTile.coord, map, mkC());
-    const result = processCity(city, map, 2);
+    const result = processCity(city, map, 2, 0, createProductionCostContext());
     expect(result.droppedProductionItems).toEqual([]);
   });
 
@@ -1051,7 +1066,7 @@ describe('processCity', () => {
         productionProgress: 10,
       };
       const completedTechs = unitType === 'frigate' ? ['frigate-construction'] : ['carrier-warfare'];
-      const result = processCity(city, map, 2, 100, undefined, completedTechs);
+      const result = processCity(city, map, 2, 100, createProductionCostContext({ completedTechs: completedTechs }));
       expect(result.droppedProductionItems).toEqual([{ itemId: unitType, itemKind: 'unit', reason: 'coastal-access-lost' }]);
       expect(result.city.productionQueue).not.toContain(unitType);
       expect(result.city.productionProgress).toBe(0);
@@ -1062,7 +1077,7 @@ describe('processCity', () => {
     const map = generateMap(30, 30, 'city-growth-focus-fields');
     const city = foundCity('player', { q: 15, r: 15 }, map, mkC());
     const focused = { ...city, focus: 'food' as const, workedTiles: [] };
-    const result = processCity(focused, map, 30, 0);
+    const result = processCity(focused, map, 30, 0, createProductionCostContext());
     expect(result.city.focus).toBe('food');
     expect(result.city.workedTiles).toEqual([]);
   });
@@ -1072,7 +1087,7 @@ describe('processCity', () => {
     const city = foundCity('player', { q: 15, r: 15 }, map, mkC());
     const queued = { ...city, productionQueue: ['barracks'], productionProgress: 9 };
 
-    const result = processCity(queued, map, 0, 1);
+    const result = processCity(queued, map, 0, 1, createProductionCostContext());
 
     expect(result.completedBuilding).toBe('barracks');
     expect(result.city.buildings).toContain('barracks');
@@ -1088,7 +1103,7 @@ describe('processCity', () => {
       productionProgress: 9,
     };
 
-    const result = processCity(queued, map, 0, 1);
+    const result = processCity(queued, map, 0, 1, createProductionCostContext());
 
     expect(result.city.buildings.filter(buildingId => buildingId === 'barracks')).toHaveLength(1);
   });
@@ -1099,7 +1114,7 @@ describe('processCity', () => {
     const city = foundCity('p1', landTile.coord, map, mkC());
     const idle = { ...city, idleProduction: 'gold' as const, productionQueue: [] };
 
-    const result = processCity(idle, map, 0, 8);
+    const result = processCity(idle, map, 0, 8, createProductionCostContext());
 
     expect(result.idleGoldBonus).toBe(8);
     expect(result.idleScienceBonus).toBe(0);
@@ -1112,7 +1127,7 @@ describe('processCity', () => {
     const city = foundCity('p1', landTile.coord, map, mkC());
     const idle = { ...city, idleProduction: 'science' as const, productionQueue: [] };
 
-    const result = processCity(idle, map, 0, 5);
+    const result = processCity(idle, map, 0, 5, createProductionCostContext());
 
     expect(result.idleScienceBonus).toBe(5);
     expect(result.idleGoldBonus).toBe(0);
@@ -1125,7 +1140,7 @@ describe('processCity', () => {
     const city = foundCity('p1', landTile.coord, map, mkC());
     const active = { ...city, idleProduction: 'gold' as const, productionQueue: ['workshop'], productionProgress: 0 };
 
-    const result = processCity(active, map, 0, 5);
+    const result = processCity(active, map, 0, 5, createProductionCostContext());
 
     expect(result.idleGoldBonus).toBe(0);
     expect(result.idleScienceBonus).toBe(0);
@@ -1139,7 +1154,7 @@ describe('processCity', () => {
     const city = foundCity('p1', landTile.coord, map, mkC());
     const completing = { ...city, idleProduction: 'gold' as const, productionQueue: ['workshop'], productionProgress: 7 };
 
-    const result = processCity(completing, map, 0, 5);
+    const result = processCity(completing, map, 0, 5, createProductionCostContext());
 
     expect(result.completedBuilding).toBe('workshop');
     expect(result.idleGoldBonus).toBe(0);
@@ -1151,7 +1166,7 @@ describe('processCity', () => {
     const city = foundCity('player', { q: 15, r: 15 }, map, mkC());
     const queued = { ...city, productionQueue: ['herbalist'], productionProgress: 12 };
 
-    const result = processCity(queued, map, 0, 4, undefined, [], undefined, 1);
+    const result = processCity(queued, map, 0, 4, createProductionCostContext({ era: 1, completedTechs: [] }));
 
     expect(result.completedBuilding).toBe('herbalist');
     expect(result.city.buildings).toContain('herbalist');
@@ -1163,8 +1178,8 @@ describe('processCity', () => {
     const city = foundCity('player', { q: 15, r: 15 }, map, mkC());
     const queued = { ...city, productionQueue: ['settler'], productionProgress: 39 };
 
-    const era3Result = processCity(queued, map, 0, 1, undefined, [], undefined, 3);
-    const era4Result = processCity(queued, map, 0, 1, undefined, [], undefined, 4);
+    const era3Result = processCity(queued, map, 0, 1, createProductionCostContext({ era: 3, completedTechs: [] }));
+    const era4Result = processCity(queued, map, 0, 1, createProductionCostContext({ era: 4, completedTechs: [] }));
 
     expect(era3Result.completedUnit).toBe('settler');
     expect(era3Result.city.productionQueue).toEqual([]);
@@ -1184,7 +1199,13 @@ describe('processCity — droppedProductionItems (issue #457)', () => {
       productionProgress: 10,
     };
 
-    const result = processCity(city, map, 2, 100, undefined, ['stone-weapons'], undefined, 1, new Set());
+    const result = processCity(
+      city,
+      map,
+      2,
+      100,
+      createProductionCostContext({ era: 1, completedTechs: ['stone-weapons'], availableResources: new Set() }),
+    );
 
     expect(result.droppedProductionItems).toEqual([{ itemId: 'bronze-workshop', itemKind: 'building', reason: 'resource-lost' }]);
     expect(result.city.productionQueue).not.toContain('bronze-workshop');
@@ -1199,7 +1220,13 @@ describe('processCity — droppedProductionItems (issue #457)', () => {
       productionProgress: 0,
     };
 
-    const result = processCity(city, map, 2, 1, undefined, ['stone-weapons'], undefined, 1, new Set(['copper']));
+    const result = processCity(
+      city,
+      map,
+      2,
+      1,
+      createProductionCostContext({ era: 1, completedTechs: ['stone-weapons'], availableResources: new Set(['copper']) }),
+    );
 
     expect(result.droppedProductionItems).toEqual([]);
     expect(result.city.productionQueue).toContain('bronze-workshop');
@@ -1215,7 +1242,7 @@ describe('processCity — droppedProductionItems (issue #457)', () => {
     };
 
     // sacred_grove has nationalProject.homeEra: 1, so era 3 is outside homeEra..homeEra+1.
-    const result = processCity(city, map, 2, 100, undefined, ['animism'], undefined, 3);
+    const result = processCity(city, map, 2, 100, createProductionCostContext({ era: 3, completedTechs: ['animism'] }));
 
     expect(result.droppedProductionItems).toEqual([{ itemId: 'sacred_grove', itemKind: 'building', reason: 'build-window-expired' }]);
     expect(result.city.productionQueue).not.toContain('sacred_grove');
@@ -1230,7 +1257,7 @@ describe('processCity — droppedProductionItems (issue #457)', () => {
       productionProgress: 0,
     };
 
-    const result = processCity(city, map, 2, 1, undefined, ['animism'], undefined, 2);
+    const result = processCity(city, map, 2, 1, createProductionCostContext({ era: 2, completedTechs: ['animism'] }));
 
     expect(result.droppedProductionItems).toEqual([]);
     expect(result.city.productionQueue).toContain('sacred_grove');
@@ -1248,7 +1275,7 @@ describe('processCity — droppedProductionItems (issue #457)', () => {
 
     // sacred_council has nationalProject.homeEra: 3, milestone: true -- a normal NP
     // would be dropped at era 10 (far past homeEra + 1 = 4), a milestone NP must not be.
-    const result = processCity(city, map, 2, 1, undefined, ['philosophy'], undefined, 10);
+    const result = processCity(city, map, 2, 1, createProductionCostContext({ era: 10, completedTechs: ['philosophy'] }));
 
     expect(result.droppedProductionItems).toEqual([]);
     expect(result.city.productionQueue).toContain('sacred_council');
@@ -1260,17 +1287,35 @@ describe('processCity — droppedProductionItems (issue #457)', () => {
 
     // resource-lost only: bronze-working completed (queueable), rifled-infantry NOT completed, no iron.
     const resourceLostCity = { ...foundCity('p1', landTile.coord, map, mkC()), productionQueue: ['swordsman'], productionProgress: 10 };
-    const resourceLostResult = processCity(resourceLostCity, map, 2, 100, undefined, ['bronze-working'], undefined, 1, new Set());
+    const resourceLostResult = processCity(
+      resourceLostCity,
+      map,
+      2,
+      100,
+      createProductionCostContext({ era: 1, completedTechs: ['bronze-working'], availableResources: new Set() }),
+    );
     expect(resourceLostResult.droppedProductionItems).toEqual([{ itemId: 'swordsman', itemKind: 'unit', reason: 'resource-lost' }]);
 
     // obsoleted only: iron available, but rifled-infantry completed.
     const obsoletedCity = { ...foundCity('p1', landTile.coord, map, mkC()), productionQueue: ['swordsman'], productionProgress: 10 };
-    const obsoletedResult = processCity(obsoletedCity, map, 2, 100, undefined, ['bronze-working', 'rifled-infantry'], undefined, 1, new Set(['iron']));
+    const obsoletedResult = processCity(
+      obsoletedCity,
+      map,
+      2,
+      100,
+      createProductionCostContext({ era: 1, completedTechs: ['bronze-working', 'rifled-infantry'], availableResources: new Set(['iron']) }),
+    );
     expect(obsoletedResult.droppedProductionItems).toEqual([{ itemId: 'swordsman', itemKind: 'unit', reason: 'obsoleted' }]);
 
     // tie: both rifled-infantry completed AND iron unavailable — 'obsoleted' must win.
     const tieCity = { ...foundCity('p1', landTile.coord, map, mkC()), productionQueue: ['swordsman'], productionProgress: 10 };
-    const tieResult = processCity(tieCity, map, 2, 100, undefined, ['bronze-working', 'rifled-infantry'], undefined, 1, new Set());
+    const tieResult = processCity(
+      tieCity,
+      map,
+      2,
+      100,
+      createProductionCostContext({ era: 1, completedTechs: ['bronze-working', 'rifled-infantry'], availableResources: new Set() }),
+    );
     expect(tieResult.droppedProductionItems).toEqual([{ itemId: 'swordsman', itemKind: 'unit', reason: 'obsoleted' }]);
   });
 
@@ -1290,7 +1335,7 @@ describe('processCity — droppedProductionItems (issue #457)', () => {
       productionProgress: 0,
     };
 
-    const result = processCity(city, map, 2, 100, undefined, ['harbor-tech', 'galleys']);
+    const result = processCity(city, map, 2, 100, createProductionCostContext({ completedTechs: ['harbor-tech', 'galleys'] }));
 
     expect(result.droppedProductionItems).toEqual([
       { itemId: 'harbor', itemKind: 'building', reason: 'coastal-access-lost' },
@@ -1309,7 +1354,13 @@ describe('processCity — droppedProductionItems (issue #457)', () => {
     };
 
     // era 5, no completed techs, no resources, no buildings — every filter gets a chance to (wrongly) drop it.
-    const result = processCity(city, map, 2, 100, undefined, [], undefined, 5, new Set());
+    const result = processCity(
+      city,
+      map,
+      2,
+      100,
+      createProductionCostContext({ era: 5, completedTechs: [], availableResources: new Set() }),
+    );
 
     expect(result.droppedProductionItems).toEqual([]);
     expect(result.city.productionQueue).toContain('legendary:oracle-of-delphi');
@@ -1386,7 +1437,7 @@ describe('MR6: 3d-printing production overflow', () => {
       productionProgress: 0,
     };
 
-    const result = processCity(city, map, 2, 20, undefined, ['3d-printing']);
+    const result = processCity(city, map, 2, 20, createProductionCostContext({ completedTechs: ['3d-printing'] }));
 
     expect(result.completedBuilding).toBe('library');
     expect(result.city.productionQueue).toEqual(['granary']);
@@ -1402,7 +1453,7 @@ describe('MR6: 3d-printing production overflow', () => {
       productionProgress: 0,
     };
 
-    const result = processCity(city, map, 2, 20, undefined, []);
+    const result = processCity(city, map, 2, 20, createProductionCostContext({ completedTechs: [] }));
 
     expect(result.completedBuilding).toBe('library');
     expect(result.city.productionQueue).toEqual(['granary']);
@@ -1425,7 +1476,7 @@ describe('MR6: 3d-printing production overflow', () => {
       productionProgress: 50,
     };
 
-    const result = processCity(city, map, 2, 0, undefined, ['3d-printing']);
+    const result = processCity(city, map, 2, 0, createProductionCostContext({ completedTechs: ['3d-printing'] }));
 
     expect(result.droppedProductionItems).toEqual([{ itemId: 'dock', itemKind: 'building', reason: 'coastal-access-lost' }]);
     expect(result.city.productionQueue).toEqual(['library']);
@@ -2201,7 +2252,13 @@ describe('processCity — resource dequeue', () => {
   it('dequeues resource-blocked unit when resource is removed', () => {
     const map = mkMap2();
     const city: City = { ...mkBaseCity2(map), productionQueue: ['axeman'], productionProgress: 5 };
-    const result = processCity(city, map, 2, 3, undefined, ['stone-weapons'], undefined, 1, new Set<ResourceType>());
+    const result = processCity(
+      city,
+      map,
+      2,
+      3,
+      createProductionCostContext({ era: 1, completedTechs: ['stone-weapons'], availableResources: new Set<ResourceType>() }),
+    );
     expect(result.city.productionQueue).not.toContain('axeman');
     expect(result.city.productionProgress).toBe(0);
   });
@@ -2209,14 +2266,26 @@ describe('processCity — resource dequeue', () => {
   it('keeps unit in queue when resource is present', () => {
     const map = mkMap2();
     const city: City = { ...mkBaseCity2(map), productionQueue: ['axeman'], productionProgress: 5 };
-    const result = processCity(city, map, 2, 3, undefined, ['stone-weapons'], undefined, 1, new Set<ResourceType>(['copper']));
+    const result = processCity(
+      city,
+      map,
+      2,
+      3,
+      createProductionCostContext({ era: 1, completedTechs: ['stone-weapons'], availableResources: new Set<ResourceType>(['copper']) }),
+    );
     expect(result.city.productionQueue).toContain('axeman');
   });
 
   it('dequeues resource-blocked building when resource is removed', () => {
     const map = mkMap2();
     const city: City = { ...mkBaseCity2(map), productionQueue: ['bronze-workshop'], productionProgress: 5 };
-    const result = processCity(city, map, 2, 3, undefined, ['stone-weapons'], undefined, 1, new Set<ResourceType>());
+    const result = processCity(
+      city,
+      map,
+      2,
+      3,
+      createProductionCostContext({ era: 1, completedTechs: ['stone-weapons'], availableResources: new Set<ResourceType>() }),
+    );
     expect(result.city.productionQueue).not.toContain('bronze-workshop');
     expect(result.city.productionProgress).toBe(0);
   });
@@ -2224,14 +2293,26 @@ describe('processCity — resource dequeue', () => {
   it('keeps ungated building (granary) in queue even with empty resources', () => {
     const map = mkMap2();
     const city: City = { ...mkBaseCity2(map), productionQueue: ['granary'], productionProgress: 5 };
-    const result = processCity(city, map, 2, 3, undefined, [], undefined, 1, new Set<ResourceType>());
+    const result = processCity(
+      city,
+      map,
+      2,
+      3,
+      createProductionCostContext({ era: 1, completedTechs: [], availableResources: new Set<ResourceType>() }),
+    );
     expect(result.city.productionQueue).toContain('granary');
   });
 
   it('tech-drop dequeue regression: still drops unit when tech is lost', () => {
     const map = mkMap2();
     const city: City = { ...mkBaseCity2(map), productionQueue: ['swordsman'], productionProgress: 5 };
-    const result = processCity(city, map, 2, 3, undefined, [], undefined, 1, new Set<ResourceType>(['iron']));
+    const result = processCity(
+      city,
+      map,
+      2,
+      3,
+      createProductionCostContext({ era: 1, completedTechs: [], availableResources: new Set<ResourceType>(['iron']) }),
+    );
     expect(result.city.productionQueue).not.toContain('swordsman');
   });
 
@@ -2241,7 +2322,13 @@ describe('processCity — resource dequeue', () => {
     // dequeue path, not the unit completing production this turn.
     const map = mkMap2();
     const city: City = { ...mkBaseCity2(map), productionQueue: ['warrior'], productionProgress: 0 };
-    const result = processCity(city, map, 2, 3, undefined, ['bronze-working'], undefined, 1, new Set<ResourceType>());
+    const result = processCity(
+      city,
+      map,
+      2,
+      3,
+      createProductionCostContext({ era: 1, completedTechs: ['bronze-working'], availableResources: new Set<ResourceType>() }),
+    );
     expect(result.city.productionQueue).not.toContain('warrior');
     expect(result.city.productionProgress).toBe(0);
   });
@@ -2249,7 +2336,13 @@ describe('processCity — resource dequeue', () => {
   it('#429 regression: keeps a queued warrior when bronze-working has not been researched', () => {
     const map = mkMap2();
     const city: City = { ...mkBaseCity2(map), productionQueue: ['warrior'], productionProgress: 0 };
-    const result = processCity(city, map, 2, 3, undefined, [], undefined, 1, new Set<ResourceType>());
+    const result = processCity(
+      city,
+      map,
+      2,
+      3,
+      createProductionCostContext({ era: 1, completedTechs: [], availableResources: new Set<ResourceType>() }),
+    );
     expect(result.city.productionQueue).toContain('warrior');
   });
 });
@@ -2264,7 +2357,13 @@ describe('Cavalry retime save compatibility and #429 AI training selection', () 
       legacyTechGrace: { cavalry: true } as unknown as string[],
     };
 
-    const result = processCity(city, map, 2, 1, undefined, ['horseback-riding'], undefined, 2, new Set<ResourceType>(['horses']));
+    const result = processCity(
+      city,
+      map,
+      2,
+      1,
+      createProductionCostContext({ era: 2, completedTechs: ['horseback-riding'], availableResources: new Set<ResourceType>(['horses']) }),
+    );
 
     expect(result.city.productionQueue).toEqual([]);
     expect(result.city.legacyTechGrace).toBeUndefined();
@@ -2280,7 +2379,13 @@ describe('Cavalry retime save compatibility and #429 AI training selection', () 
       legacyTechGrace: ['horseman'],
     };
 
-    const result = processCity(city, map, 2, 1, undefined, [], undefined, 2, new Set<ResourceType>(['horses']));
+    const result = processCity(
+      city,
+      map,
+      2,
+      1,
+      createProductionCostContext({ era: 2, completedTechs: [], availableResources: new Set<ResourceType>(['horses']) }),
+    );
 
     expect(result.city.productionQueue).toEqual([]);
     expect(result.city.legacyTechGrace).toBeUndefined();
@@ -2297,13 +2402,25 @@ describe('Cavalry retime save compatibility and #429 AI training selection', () 
       legacyTechGrace: ['cavalry', 'cavalry'],
     };
 
-    const result = processCity(city, map, 2, 1, undefined, ['horseback-riding'], undefined, 2, new Set<ResourceType>(['horses']));
+    const result = processCity(
+      city,
+      map,
+      2,
+      1,
+      createProductionCostContext({ era: 2, completedTechs: ['horseback-riding'], availableResources: new Set<ResourceType>(['horses']) }),
+    );
 
     expect(result.completedUnit).toBe('cavalry');
     expect(result.city.productionQueue).toEqual(['cavalry']);
     expect(result.city.legacyTechGrace).toEqual(['cavalry']);
 
-    const secondResult = processCity({ ...result.city, productionProgress: 139 }, map, 2, 1, undefined, ['horseback-riding'], undefined, 2, new Set<ResourceType>(['horses']));
+    const secondResult = processCity(
+      { ...result.city, productionProgress: 139 },
+      map,
+      2,
+      1,
+      createProductionCostContext({ era: 2, completedTechs: ['horseback-riding'], availableResources: new Set<ResourceType>(['horses']) }),
+    );
     expect(secondResult.completedUnit).toBe('cavalry');
     expect(secondResult.city.productionQueue).toEqual([]);
     expect(secondResult.city.legacyTechGrace).toBeUndefined();
@@ -2320,9 +2437,11 @@ describe('Cavalry retime save compatibility and #429 AI training selection', () 
     };
 
     const result = processCity(
-      city, map, 2, 1, undefined,
-      ['iron-forging', 'rifle-tactics', 'professional-army'], undefined, 2,
-      new Set<ResourceType>(['horses', 'iron']),
+      city,
+      map,
+      2,
+      1,
+      createProductionCostContext({ era: 2, completedTechs: ['iron-forging', 'rifle-tactics', 'professional-army'], availableResources: new Set<ResourceType>(['horses', 'iron']) }),
     );
 
     expect(result.completedUnit).toBe('knight');
@@ -2330,9 +2449,11 @@ describe('Cavalry retime save compatibility and #429 AI training selection', () 
     expect(result.city.legacyTechGrace).toEqual(['knight']);
 
     const secondResult = processCity(
-      { ...result.city, productionProgress: 79 }, map, 2, 1, undefined,
-      ['iron-forging', 'rifle-tactics', 'professional-army'], undefined, 2,
-      new Set<ResourceType>(['horses', 'iron']),
+      { ...result.city, productionProgress: 79 },
+      map,
+      2,
+      1,
+      createProductionCostContext({ era: 2, completedTechs: ['iron-forging', 'rifle-tactics', 'professional-army'], availableResources: new Set<ResourceType>(['horses', 'iron']) }),
     );
     expect(secondResult.completedUnit).toBe('knight');
     expect(secondResult.city.productionQueue).toEqual([]);
@@ -2454,7 +2575,13 @@ describe('Herding Insight production', () => {
     };
     const map = generateMap(30, 30, 'herding-insight-production');
 
-    expect(processCity(city, map, 0, 0, undefined, ['horseback-riding'], undefined, 3, undefined, undefined, undefined, undefined, true).completedUnit).toBe('beast_handler');
+    expect(processCity(
+      city,
+      map,
+      0,
+      0,
+      createProductionCostContext({ era: 3, completedTechs: ['horseback-riding'], herdingInsight: true }),
+    ).completedUnit).toBe('beast_handler');
   });
 });
 

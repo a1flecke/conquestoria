@@ -1,5 +1,10 @@
 import type { Unit, UnitType, City, GameState, ResourceType, TrainableUnitEntry } from '@/core/types';
-import { TRAINABLE_UNITS, getProductionCostForItem } from './city-system';
+import { TRAINABLE_UNITS } from './city-system';
+import {
+  buildProductionCostContext,
+  getContextualProductionCost,
+  type ProductionCostContext,
+} from './production-cost-context';
 import { getCivAvailableResources } from './resource-acquisition-system';
 import { baseNewAirUnit, canCompleteAirUnitProduction } from './air-operations-system';
 import { UNIT_DEFINITIONS } from './unit-system';
@@ -68,7 +73,10 @@ export function evaluateUnitUpgrade(
   const civ = state.civilizations[unit.owner];
   const city = findFriendlyHostCity(state, unit);
   const resources = getCivAvailableResources(state, unit.owner);
-  const cost = getUpgradeCost(target.type, resources);
+  const cost = getUpgradeCost(
+    target.type,
+    buildProductionCostContext(state, unit.owner, city?.id ?? null),
+  );
   const missing: UpgradeMissingRequirement[] = [];
   if (!city) missing.push({ kind: 'friendly-city' });
   if (source.obsoletedByTech && !civ?.techState.completed.includes(source.obsoletedByTech)) {
@@ -112,33 +120,56 @@ export function evaluateUnitUpgrade(
   };
 }
 
-export function getUpgradeCost(targetType: UnitType, availableResources?: ReadonlySet<ResourceType>): number {
-  const cost = getProductionCostForItem(targetType, { availableResources });
-  return cost > 0 ? Math.ceil(cost * 0.5) : 0;
+export const UPGRADE_COST_FRACTION = 0.5;
+
+/**
+ * An upgrade costs half of what training the target unit would cost the owning
+ * civilization right now -- so it must be priced from that civilization's full
+ * production context (#984), not from a bare resource set. Before #984 this
+ * omitted the host city, the completed techs, the civ bonus, active national
+ * projects and the era, which defaulted to 1; a ballista -> cannon upgrade
+ * ignored the Cannon Casting discount the same civ already gets when training
+ * a cannon outright.
+ */
+export function getUpgradeCost(targetType: UnitType, context: ProductionCostContext): number {
+  const cost = getContextualProductionCost(targetType, context);
+  return cost > 0 ? Math.ceil(cost * UPGRADE_COST_FRACTION) : 0;
 }
 
+/**
+ * The city panel's "Upgradeable Units" list. Takes the owning civilization's
+ * `ProductionCostContext` rather than a hand-picked set of civ fields, so the
+ * cost it quotes is built exactly the way `evaluateUnitUpgrade` -- the path
+ * that actually charges the player -- builds it (#984). The two used to price
+ * upgrades independently and would have drifted the moment either gained a
+ * modifier the other lacked.
+ */
 export function canUpgradeUnit(
   unit: Unit,
   cityId: string,
   cities: Record<string, City>,
-  completedTechs: string[],
+  productionCost: ProductionCostContext,
   civGold?: number,
-  availableResources?: Set<ResourceType>,
 ): { canUpgrade: boolean; targetType: UnitType | null; cost: number; reason?: 'missing-building' } {
   const city = cities[cityId];
   if (!city || city.owner !== unit.owner) return { canUpgrade: false, targetType: null, cost: 0 };
   if (unit.position.q !== city.position.q || unit.position.r !== city.position.r) {
     return { canUpgrade: false, targetType: null, cost: 0 };
   }
+  // #984: eligibility and price read the same context, so the techs that decide
+  // *whether* a unit upgrades can never disagree with the techs that decide what
+  // the upgrade costs.
+  const { completedTechs, availableResources } = productionCost;
+  const hostContext: ProductionCostContext = { ...productionCost, city };
   const targetType = getCanonicalUpgradeTarget(unit, completedTechs, city.buildings, availableResources);
   if (!targetType) {
     const targetInPrinciple = getCanonicalUpgradeTarget(unit, completedTechs, undefined, availableResources);
     if (targetInPrinciple) {
-      return { canUpgrade: false, targetType: null, cost: getUpgradeCost(targetInPrinciple, availableResources), reason: 'missing-building' };
+      return { canUpgrade: false, targetType: null, cost: getUpgradeCost(targetInPrinciple, hostContext), reason: 'missing-building' };
     }
     return { canUpgrade: false, targetType: null, cost: 0 };
   }
-  const cost = getUpgradeCost(targetType, availableResources);
+  const cost = getUpgradeCost(targetType, hostContext);
   if (civGold !== undefined && civGold < cost) return { canUpgrade: false, targetType: null, cost };
   return { canUpgrade: true, targetType, cost };
 }
@@ -147,7 +178,7 @@ export function getCanonicalUpgradeTarget(
   unit: Unit,
   completedTechs: readonly string[],
   cityBuildings?: readonly string[],
-  availableResources?: Set<ResourceType>,
+  availableResources?: ReadonlySet<ResourceType>,
 ): UnitType | null {
   const currentEntry = TRAINABLE_UNITS.find(candidate => candidate.type === unit.type);
   if (

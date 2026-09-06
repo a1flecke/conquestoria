@@ -3,9 +3,9 @@ import { calculateCivEconomy } from './economy-system';
 import { getCivAvailableResources } from './resource-acquisition-system';
 import { RESOURCE_DEFINITIONS } from './resource-definitions';
 import { calculateProjectedCityYields } from './city-work-system';
-import { getProductionCostForItem, getTrainableUnitsForCity, cityFollowsOwnFaith } from './city-system';
-import { getActiveNationalProjectsForCiv } from './national-project-system';
+import { getTrainableUnitsForCity, cityFollowsOwnFaith } from './city-system';
 import { resolveCivDefinition } from './civ-registry';
+import { buildProductionCostContext, getContextualProductionCost } from '@/systems/production-cost-context';
 import { resolveCivilizationEra } from './tech-definitions';
 import { hasDiscoveredCity, hasDiscoveredMinorCiv } from './discovery-system';
 import { getVisibility } from './fog-of-war';
@@ -75,15 +75,13 @@ function queueCostBeforeCaravan(state: GameState, cityId: string): number | null
   const city = state.cities[cityId];
   const civ = city ? state.civilizations[city.owner] : undefined;
   if (!city || !civ) return null;
-  const bonusEffect = resolveCivDefinition(state, civ.civType)?.bonusEffect;
-  const activeNationalProjects = getActiveNationalProjectsForCiv(state, city.owner);
-  const availableResources = getCivAvailableResources(state, city.owner);
+  const productionCostContext = buildProductionCostContext(state, city.owner, cityId);
   let remaining = 0;
   let foundCaravan = false;
 
   for (let index = 0; index < city.productionQueue.length; index++) {
     const itemId = city.productionQueue[index];
-    const cost = getProductionCostForItem(itemId, { city, bonusEffect, era: resolveCivilizationEra(civ.techState.completed), completedTechs: civ.techState.completed, activeNationalProjects, availableResources });
+    const cost = getContextualProductionCost(itemId, productionCostContext);
     remaining += index === 0 ? Math.max(0, cost - city.productionProgress) : cost;
     if (itemId === 'caravan') {
       foundCaravan = true;
@@ -92,7 +90,7 @@ function queueCostBeforeCaravan(state: GameState, cityId: string): number | null
   }
 
   if (!foundCaravan) {
-    remaining += getProductionCostForItem('caravan', { city, bonusEffect, era: resolveCivilizationEra(civ.techState.completed), completedTechs: civ.techState.completed, activeNationalProjects, availableResources });
+    remaining += getContextualProductionCost('caravan', productionCostContext);
   }
   return remaining;
 }

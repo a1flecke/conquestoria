@@ -1453,22 +1453,69 @@ function getNationalProjectDiscountMultiplier(
   return multiplier;
 }
 
+/**
+ * The complete input set `getProductionCostForItem` prices an item from.
+ *
+ * Every key is required so a caller cannot silently omit one. #984 (and the
+ * national-project note in `.claude/rules/game-balance.md` before it) came from
+ * the opposite shape: an all-optional option bag that seven call sites
+ * assembled by hand, three of which quietly dropped a field or filled `era`
+ * with World Age instead of the owning civilization's era. Where a field is
+ * legitimately absent the key still has to be written, as `undefined`/`null`.
+ *
+ * Build one with `buildProductionCostContext(state, civId, cityId)`
+ * (`src/systems/production-cost-context.ts`) -- the canonical path for every
+ * gameplay caller. `createProductionCostContext` is the escape hatch for
+ * actors that have no `Civilization` record (minor civs) and for unit tests.
+ */
+export interface ProductionCostContext {
+  /** `null` when the item is priced outside any city (an upgrade in the field). */
+  city: Pick<City, 'buildings'> | null;
+  bonusEffect: CivBonusEffect | undefined;
+  /**
+   * The owning civilization's own technology-derived era
+   * (`resolveCivilizationEra`). Never `state.era`, which is World Age.
+   */
+  era: number;
+  completedTechs: string[];
+  activeNationalProjects: ActiveNationalProjectRef[];
+  /** `undefined` means "do not filter by resources at all", not "owns none". */
+  availableResources: ReadonlySet<ResourceType> | undefined;
+  /** One empire-selected soft material supplied by Circular Manufacturing Network. */
+  materialSubstitution: ResourceType | undefined;
+  /** One pending Stampede reward discounts the next Beast Handler or War Elephant. */
+  herdingInsight: boolean;
+  /** One Host reward discounts only the next War Elephant. */
+  recoveredHarnesses: boolean;
+}
+
+/**
+ * A neutral context, for actors with no `Civilization` record to derive one from
+ * (minor-civ production, which supplies a synthetic tech band and pressure era)
+ * and for tests exercising the formula directly. Gameplay code owned by a major
+ * civilization must use `buildProductionCostContext` instead -- enforced by
+ * `tests/systems/production-cost-context.test.ts`.
+ */
+export function createProductionCostContext(
+  overrides: Partial<ProductionCostContext> = {},
+): ProductionCostContext {
+  return {
+    city: null,
+    bonusEffect: undefined,
+    era: 1,
+    completedTechs: [],
+    activeNationalProjects: [],
+    availableResources: undefined,
+    materialSubstitution: undefined,
+    herdingInsight: false,
+    recoveredHarnesses: false,
+    ...overrides,
+  };
+}
+
 export function getProductionCostForItem(
   itemId: string,
-  options: {
-    city?: Pick<City, 'buildings'>;
-    bonusEffect?: CivBonusEffect;
-    era?: number;
-    completedTechs?: string[];
-    activeNationalProjects?: ActiveNationalProjectRef[];
-    availableResources?: ReadonlySet<ResourceType>;
-    /** One empire-selected soft material supplied by Circular Manufacturing Network. */
-    materialSubstitution?: ResourceType;
-    /** One pending Stampede reward discounts the next Beast Handler or War Elephant. */
-    herdingInsight?: boolean;
-    /** One Host reward discounts only the next War Elephant. */
-    recoveredHarnesses?: boolean;
-  } = {},
+  options: Partial<ProductionCostContext> = {},
 ): number {
   const baseCost = getCatalogProductionCost(itemId, options.era);
   if (baseCost <= 0) return 0;
@@ -1834,9 +1881,9 @@ export function getProductionIconForItem(itemId: string): string {
 }
 
 export function getTrainableUnitsForCiv(
-  completedTechs: string[],
+  completedTechs: readonly string[],
   civType?: string,
-  availableResources?: Set<ResourceType>,
+  availableResources?: ReadonlySet<ResourceType>,
 ): TrainableUnitEntry[] {
   const replacedForCiv = new Set(
     TRAINABLE_UNITS
@@ -1855,7 +1902,7 @@ export function getTrainableUnitsForCiv(
   });
 }
 
-export function isUnitObsolete(unit: TrainableUnitEntry, completedTechs: string[]): boolean {
+export function isUnitObsolete(unit: TrainableUnitEntry, completedTechs: readonly string[]): boolean {
   return (unit.obsoletedByTech !== undefined && completedTechs.includes(unit.obsoletedByTech))
     || (unit.obsoletedWhenAllTechs !== undefined
       && unit.obsoletedWhenAllTechs.every(techId => completedTechs.includes(techId)));
@@ -2065,24 +2112,23 @@ export function completeCityProductionItem(
   };
 }
 
+/**
+ * #984: the cost inputs arrive as one `ProductionCostContext` rather than seven
+ * positional arguments. `era`, `completedTechs` and `availableResources` are
+ * read back out of it for queue eligibility too, so the threshold this function
+ * completes at and the cost every other consumer displays cannot diverge.
+ */
 export function processCity(
   city: City,
   map: GameMap,
   foodYield: number,
   productionYield: number = 0,
-  bonusEffect?: CivBonusEffect,
-  completedTechs: string[] = [],
+  productionCost: ProductionCostContext = createProductionCostContext(),
   civType?: string,
-  era: number = 1,
-  availableResources?: Set<ResourceType>,
   builtNationalProjectKeys?: Set<string>,
   unitCompletionBlocker?: (type: UnitType) => ProductionDropReason | null,
-  materialSubstitution?: ResourceType,
-  /** Applies one active Stampede reward to a qualifying unit currently being produced. */
-  herdingInsight: boolean = false,
-  /** Applies one active Host reward to a qualifying War Elephant currently being produced. */
-  recoveredHarnesses: boolean = false,
 ): CityProcessResult {
+  const { bonusEffect, era, completedTechs, availableResources } = productionCost;
   let grew = false;
   let completedBuilding: string | null = null;
   let completedUnit: UnitType | null = null;
@@ -2237,16 +2283,7 @@ export function processCity(
     const currentItem = newQueue[0];
 
     const unitDef = TRAINABLE_UNITS.find(u => u.type === currentItem);
-    const currentItemCost = getProductionCostForItem(currentItem, {
-      city,
-      bonusEffect,
-      era,
-      completedTechs,
-      availableResources,
-      materialSubstitution,
-      herdingInsight,
-      recoveredHarnesses,
-    });
+    const currentItemCost = getProductionCostForItem(currentItem, { ...productionCost, city });
     if ((BUILDINGS[currentItem] || unitDef) && newProgress >= currentItemCost) {
       const completion = completeCityProductionItem(
         { ...city, productionQueue: newQueue, productionProgress: newProgress, buildings: newBuildings },

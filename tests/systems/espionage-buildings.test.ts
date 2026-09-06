@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { processCity, BUILDINGS, getAvailableBuildings } from '@/systems/city-system';
+import { createProductionCostContext, processCity, BUILDINGS, getAvailableBuildings } from '@/systems/city-system';
 import { applyBuildingCI, createEspionageCivState, processEspionageTurn } from '@/systems/espionage-system';
 import { createRng } from '@/systems/map-generator';
 import { EventBus } from '@/core/event-bus';
@@ -128,32 +128,32 @@ describe('safehouse spy training cost reduction', () => {
   it('safehouse reduces spy_scout training cost by 25% (30 → 23)', () => {
     // spy_scout costs 30; with safehouse 25% discount: ceil(30 * 0.75) = 23
     const city = { ...baseCity, productionProgress: 22 };
-    const result = processCity(city, baseMap, 0, 0, undefined, ['espionage-scouting']);
+    const result = processCity(city, baseMap, 0, 0, createProductionCostContext({ completedTechs: ['espionage-scouting'] }));
     expect(result.completedUnit).toBeNull();
 
     const city2 = { ...baseCity, productionProgress: 23 };
-    const result2 = processCity(city2, baseMap, 0, 0, undefined, ['espionage-scouting']);
+    const result2 = processCity(city2, baseMap, 0, 0, createProductionCostContext({ completedTechs: ['espionage-scouting'] }));
     expect(result2.completedUnit).toBe('spy_scout');
   });
 
   it('safehouse does NOT reduce training cost for non-spy units', () => {
     // warrior costs 8; safehouse discount should not apply
     const city = { ...baseCity, productionQueue: ['warrior'], productionProgress: 7 };
-    const result = processCity(city, baseMap, 0, 0, undefined, []);
+    const result = processCity(city, baseMap, 0, 0, createProductionCostContext({ completedTechs: [] }));
     expect(result.completedUnit).toBeNull();
 
     const city2 = { ...baseCity, productionQueue: ['warrior'], productionProgress: 8 };
-    const result2 = processCity(city2, baseMap, 0, 0, undefined, []);
+    const result2 = processCity(city2, baseMap, 0, 0, createProductionCostContext({ completedTechs: [] }));
     expect(result2.completedUnit).toBe('warrior');
   });
 
   it('without safehouse spy_scout requires full 30 production', () => {
     const city = { ...baseCity, buildings: [], productionProgress: 29 };
-    const result = processCity(city, baseMap, 0, 0, undefined, ['espionage-scouting']);
+    const result = processCity(city, baseMap, 0, 0, createProductionCostContext({ completedTechs: ['espionage-scouting'] }));
     expect(result.completedUnit).toBeNull();
 
     const city2 = { ...baseCity, buildings: [], productionProgress: 30 };
-    const result2 = processCity(city2, baseMap, 0, 0, undefined, ['espionage-scouting']);
+    const result2 = processCity(city2, baseMap, 0, 0, createProductionCostContext({ completedTechs: ['espionage-scouting'] }));
     expect(result2.completedUnit).toBe('spy_scout');
   });
 });
@@ -166,7 +166,7 @@ describe('espionage building save compatibility', () => {
       ownedTiles: [], grid: [[null]],
     } as any;
     const map = { tiles: {}, width: 10, height: 10, wrapsHorizontally: false } as any;
-    const result = processCity(city, map, 0, 0, undefined, ['espionage-informants']);
+    const result = processCity(city, map, 0, 0, createProductionCostContext({ completedTechs: ['espionage-informants'] }));
 
     expect(result.completedBuilding).toBe('intelligence-agency');
     expect(result.droppedProductionItems).toEqual([]);
