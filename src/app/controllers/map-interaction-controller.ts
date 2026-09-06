@@ -610,7 +610,7 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
         const effectiveAttacker = intent.embarkedAssault && attackerUnit.transportId
           ? { ...attackerUnit, position: { ...session.getState().units[attackerUnit.transportId].position }, transportId: undefined }
           : attackerUnit;
-        const strengths = calculateCityAssaultStrengths(effectiveAttacker, targetCity, ownerCiv, session.getState().map, { attackerMultiplier });
+        const strengths = calculateCityAssaultStrengths(effectiveAttacker, targetCity, ownerCiv.techState.completed ?? [], session.getState().map, { attackerMultiplier });
         const atkStr = Math.round(strengths.attackerStrength);
         const cityStr = Math.round(strengths.intrinsicStrength);
         const odds = strengths.winProbability > 0.55 ? 'Favorable' : strengths.winProbability > 0.45 ? 'Even' : 'Risky';

@@ -618,7 +618,7 @@ function rankCapture(
   // option still attempts it.
   const ownerCiv = context.state.civilizations[city.owner];
   const winProbability = ownerCiv
-    ? calculateCityAssaultStrengths(unit, city, ownerCiv, context.state.map).winProbability
+    ? calculateCityAssaultStrengths(unit, city, ownerCiv.techState.completed ?? [], context.state.map).winProbability
     : 1;
   return [ranked({ kind: 'capture-city', unitId: unit.id, cityId: city.id }, Math.round(winProbability * 600))];
 }

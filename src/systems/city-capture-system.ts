@@ -312,7 +312,7 @@ export function beginMajorCityAssault(
       }
       const counterFireSeed = baseSeed;
       const assaultSeed = baseSeed ^ 0x5a5a;
-      const strengths = calculateCityAssaultStrengths(attacker, city, ownerCiv, state.map, {
+      const strengths = calculateCityAssaultStrengths(attacker, city, ownerCiv.techState.completed ?? [], state.map, {
         attackerMultiplier: options.attackerMultiplier,
       });
       const counterFireDamage = getCityCounterFireDamage(

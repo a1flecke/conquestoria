@@ -1741,7 +1741,10 @@ describe('S4b — new unit entries', () => {
     expect(UNIT_DEFINITIONS[antiTankGun]).toMatchObject({
       strength: 43,
       movementPoints: 2,
-      attackProfile: { kind: 'ranged', range: 1, targets: ['unit'] },
+      // #966: 'city' added -- ranged units target cities like every other kind:'ranged'
+      // unit. Its anti-armor identity lives in its modifiers (+50% vs armor, -15% vs
+      // non-armor), not in a hard targeting ban.
+      attackProfile: { kind: 'ranged', range: 1, targets: ['unit', 'city'] },
     });
   });
 
