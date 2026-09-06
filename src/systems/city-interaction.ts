@@ -55,7 +55,21 @@ export function getCityDefenderTechs(state: GameState, city: City): string[] {
   return state.civilizations[city.owner]?.techState.completed ?? [];
 }
 
-export function resolveCityInteraction(state: GameState, unit: Unit, city: City): CityInteraction {
+export interface CityInteractionOptions {
+  /**
+   * Amphibious-assault multiplier, applied exactly as `calculateCityAssaultStrengths`
+   * already applies it. Threaded through here rather than computed by the preview so the
+   * odds the player is shown and the odds this resolver reports never diverge.
+   */
+  attackerMultiplier?: number;
+}
+
+export function resolveCityInteraction(
+  state: GameState,
+  unit: Unit,
+  city: City,
+  options: CityInteractionOptions = {},
+): CityInteraction {
   const available: CityAction[] = [];
   const denied: { kind: CityAction['kind']; reason: string }[] = [];
 
@@ -82,7 +96,9 @@ export function resolveCityInteraction(state: GameState, unit: Unit, city: City)
   }
 
   const techs = getCityDefenderTechs(state, city);
-  const strengths = calculateCityAssaultStrengths(unit, city, techs, state.map);
+  const strengths = calculateCityAssaultStrengths(unit, city, techs, state.map, {
+    attackerMultiplier: options.attackerMultiplier,
+  });
   available.push({
     kind: 'capture',
     winProbability: strengths.winProbability,

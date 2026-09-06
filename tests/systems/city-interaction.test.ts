@@ -4,6 +4,8 @@ import type { GameState, Unit, UnitType } from '@/core/types';
 import { foundCity } from '@/systems/city-system';
 import { createUnit } from '@/systems/unit-system';
 import { resolveCityInteraction } from '@/systems/city-interaction';
+import { beginMajorCityAssault } from '@/systems/city-capture-system';
+import { canUnitAttackTarget } from '@/systems/attack-targeting';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -162,4 +164,54 @@ describe('#966 resolveCityInteraction', () => {
     const { state, unit } = scenario({ attackerType: 'catapult', attackerPos: { q: 1, r: 0 } });
     expect(kinds(state, unit).available).not.toContain('bombard');
   });
+});
+
+// The whole point of a single resolver: anything it offers must actually execute. A
+// divergence between what the UI shows and what the executor accepts is the defect class
+// behind both #965 and #966, so this walks a matrix rather than a single fixture.
+describe('#966 preview/execution parity', () => {
+  const matrix: Array<{ attackerType: UnitType; attackerPos: { q: number; r: number }; garrison?: UnitType }> = [
+    { attackerType: 'warrior', attackerPos: { q: 2, r: 0 } },
+    { attackerType: 'archer', attackerPos: { q: 2, r: 0 } },
+    { attackerType: 'catapult', attackerPos: { q: 2, r: 0 } },
+    { attackerType: 'archer', attackerPos: { q: 1, r: 0 } },
+    { attackerType: 'catapult', attackerPos: { q: 1, r: 0 } },
+    { attackerType: 'settler', attackerPos: { q: 2, r: 0 } },
+    { attackerType: 'frigate', attackerPos: { q: 2, r: 0 } },
+    { attackerType: 'warrior', attackerPos: { q: 2, r: 0 }, garrison: 'spearman' },
+    { attackerType: 'archer', attackerPos: { q: 1, r: 0 }, garrison: 'spearman' },
+  ];
+
+  for (const entry of matrix) {
+    const label = `${entry.attackerType}@${entry.attackerPos.q},${entry.attackerPos.r}${entry.garrison ? ' vs garrison' : ''}`;
+
+    it(`every offered action executes: ${label}`, () => {
+      const { state, unit } = scenario(entry);
+      const interaction = resolveCityInteraction(state, unit, state.cities.target);
+
+      for (const action of interaction.available) {
+        if (action.kind === 'capture') {
+          const result = beginMajorCityAssault(
+            structuredClone(state), 'atk', 'target', { actor: 'player', civId: 'player' },
+          );
+          expect(result.ok, `capture offered for ${label} but executor said ${result.ok ? '' : result.reason}`).toBe(true);
+        }
+        if (action.kind === 'attack-defender') {
+          const legality = canUnitAttackTarget(state, unit, state.cities.target.position, { viewerId: 'player' });
+          expect(legality.ok, `attack-defender offered for ${label} but targeting refused it`).toBe(true);
+        }
+      }
+    });
+
+    it(`never withholds an executable capture: ${label}`, () => {
+      const { state, unit } = scenario(entry);
+      const interaction = resolveCityInteraction(state, unit, state.cities.target);
+      const offered = interaction.available.some(a => a.kind === 'capture');
+      const executorAccepts = beginMajorCityAssault(
+        structuredClone(state), 'atk', 'target', { actor: 'player', civId: 'player' },
+      ).ok;
+
+      expect(offered, `resolver/executor disagree for ${label}`).toBe(executorAccepts);
+    });
+  }
 });

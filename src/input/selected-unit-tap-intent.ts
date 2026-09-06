@@ -18,6 +18,13 @@ function canEnterForeignCityPeacefully(state: GameState, owner: string, targetOw
   return hasAllianceTreaty(state, owner, targetOwner);
 }
 
+// #966: capture is an ADJACENT action for every unit -- beginMajorCityAssault rejects any
+// attacker at distance !== 1 with 'not-adjacent'. This used to gate on `profile.range`
+// instead, which was harmless only because no ranged unit could target a city at all.
+// Now that Archer/Crossbowman/Ballista carry 'city' in attackProfile.targets, gating on
+// range would offer an Archer an "assault" from two hexes that the executor then refuses
+// -- precisely the preview/execution divergence #965 and #966 were caused by.
+// Bombarding from range is a separate action (Phase 2), not an assault.
 function canReachCityAssault(state: GameState, unitId: string, targetCoord: HexCoord): boolean {
   const unit = state.units[unitId];
   if (!unit) return false;
@@ -26,7 +33,7 @@ function canReachCityAssault(state: GameState, unitId: string, targetCoord: HexC
   const distance = state.map.wrapsHorizontally
     ? wrappedHexDistance(unit.position, targetCoord, state.map.width)
     : hexDistance(unit.position, targetCoord);
-  return distance > 0 && distance <= profile.range;
+  return distance === 1;
 }
 
 // #845: camps aren't part of attack-targeting.ts's target/profile system (they have no

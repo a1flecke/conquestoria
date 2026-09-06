@@ -636,9 +636,12 @@ describe('PlayerActionController', () => {
   });
 
   describe('beginPlayerCityAssault', () => {
+    // #966: a Catapult CAN capture now (canUnitOccupyCity dropped its siege/bombard
+    // exclusion), so this uses a strength-0 non-combatant -- still the canonical
+    // "cannot occupy" case, and one that cannot become capturable later.
     it('returns resolved immediately when the surviving attacker cannot occupy a city', () => {
       const { state, aiCivId } = makeFixture('assault-cannot-occupy');
-      placeUnit(state, 'catapult', 'attacker-1', { q: 0, r: 0 });
+      placeUnit(state, 'settler', 'attacker-1', { q: 0, r: 0 });
       state.cities['target-city'] = makeCity('target-city', { owner: aiCivId, position: { q: 1, r: 0 }, population: 3 });
       state.civilizations[aiCivId].cities = ['target-city'];
       const { deps, controller } = build(state);
