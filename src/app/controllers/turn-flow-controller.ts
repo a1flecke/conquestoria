@@ -40,6 +40,8 @@ import type { PanelRouter } from '@/app/panel-router';
 import type { CeremonyCoordinator } from '@/app/controllers/ceremony-coordinator';
 import type { UserSettingsStore } from '@/app/user-settings-store';
 import { RoundPresentationGate } from '@/presentation/round-presentation-gate';
+import { emitMinorCivLeagueNotices } from '@/systems/minor-civ-league-presentation';
+import { reconcileMinorCivLeagues } from '@/systems/minor-civ-league-system';
 import { SFX } from '@/audio/sfx';
 import { autoSave } from '@/storage/save-manager';
 import { isCivUnitInBeastTerritory } from '@/systems/beast-system';
@@ -415,8 +417,10 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
       world: (current, eventBus) => processTurn(current, eventBus),
       postprocess: (beforeRound, current, eventBus) => {
         const afterStrategic = applyStrategicWarningTransitions(beforeRound, current, eventBus);
-        applySupplyWarningTransitions(beforeRound, afterStrategic, eventBus);
-        return afterStrategic;
+        const afterCompacts = reconcileMinorCivLeagues(afterStrategic);
+        applySupplyWarningTransitions(beforeRound, afterCompacts, eventBus);
+        emitMinorCivLeagueNotices(beforeRound, afterCompacts, eventBus);
+        return afterCompacts;
       },
     });
   }

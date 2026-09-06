@@ -2624,6 +2624,10 @@ export interface GameEvents {
   'minor-civ:quest-expired': { minorCivId: string; majorCivId: string; quest: Quest; state?: GameState };
   'minor-civ:coalition-status': { minorCivId: string; targetCivId: string; status: MinorCivRegionalGrievanceStatus; state?: GameState };
   'minor-civ:coalition-war': { coalitionId: string; targetCivId: string; memberIds: string[]; state?: GameState };
+  'minor-civ:league-changed': {
+    happenedTurn: number;
+    notices: Array<{ recipientCivId: string; message: string; type: 'info' | 'warning' | 'success' }>;
+  };
   'minor-civ:production-completed': {
     minorCivId: string;
     cityId: string;

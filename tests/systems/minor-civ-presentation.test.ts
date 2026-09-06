@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { createHotSeatGame, createNewGame } from '@/core/game-state';
+import { foundCity } from '@/systems/city-system';
 import { hexKey } from '@/systems/hex-utils';
 import {
   formatMinorCivEventMessageForPlayer,
   getMinorCivEconomyPresentationForPlayer,
   getMinorCivPresentationForPlayer,
 } from '@/systems/minor-civ-presentation';
-import { getMinorCivLeaguePresentationForPlayer } from '@/systems/minor-civ-league-presentation';
+import {
+  collectMinorCivLeagueNotices,
+  getMinorCivLeaguePresentationForPlayer,
+} from '@/systems/minor-civ-league-presentation';
 
 describe('minor-civ-presentation', () => {
   it('uses a generic name for an undiscovered city-state', () => {
@@ -68,6 +72,57 @@ describe('minor-civ-presentation', () => {
     state.minorCivLeagues!.leagues['minor-compact-1']!.readiness = { kind: 'cooling', sinceTurn: state.turn };
     expect(getMinorCivLeaguePresentationForPlayer(state, 'player', first)!.readinessLabel)
       .toBe('Tensions easing');
+  });
+
+  it('grants member-scoped compact guidance for a valid viewer-owned route only', () => {
+    const state = createNewGame(undefined, 'mc-compact-route-guidance', 'small');
+    const [first, second] = Object.keys(state.minorCivs);
+    const playerCity = foundCity('player', { q: 0, r: 0 }, state.map, state.idCounters);
+    state.cities[playerCity.id] = playerCity;
+    state.civilizations.player.cities.push(playerCity.id);
+    const memberCity = state.cities[state.minorCivs[first].cityId];
+    state.minorCivLeagues!.leagues = {
+      'minor-compact-1': {
+        id: 'minor-compact-1', nameKey: 'amber', charter: 'commerce',
+        memberIds: [first, second].sort(), formedTurn: 20, readiness: { kind: 'quiet' },
+      },
+    };
+    state.civilizations.player.visibility.tiles[hexKey(memberCity.position)] = 'fog';
+    state.civilizations.player.visibility.tiles[hexKey(state.cities[state.minorCivs[second].cityId].position)] = 'fog';
+    state.marketplace!.tradeRoutes.push({
+      id: 'route-compact', fromCityId: playerCity.id, toCityId: memberCity.id,
+      foreignCivId: first, goldPerTrip: 3, turnsPerTrip: 2,
+    });
+
+    const presentation = getMinorCivLeaguePresentationForPlayer(state, 'player', first)!;
+    expect(presentation.knownMembers.find(member => member.minorCivId === first)?.connectedDetail)
+      .toBe('Local priority: trade buildings');
+    expect(presentation.knownMembers.find(member => member.minorCivId === second)?.connectedDetail)
+      .toBeNull();
+
+    state.minorCivs[first].diplomacy.relationships.player = -26;
+    expect(getMinorCivLeaguePresentationForPlayer(state, 'player', first)!.knownMembers[0]?.connectedDetail)
+      .toBeNull();
+  });
+
+  it('emits one safe concern notice when public compact readiness changes', () => {
+    const before = createNewGame(undefined, 'mc-compact-notice', 'small');
+    const [first, second] = Object.keys(before.minorCivs);
+    before.minorCivLeagues!.leagues = {
+      'minor-compact-1': {
+        id: 'minor-compact-1', nameKey: 'amber', charter: 'commerce',
+        memberIds: [first, second].sort(), formedTurn: 20, readiness: { kind: 'quiet' },
+      },
+    };
+    before.civilizations.player.visibility.tiles[hexKey(before.cities[before.minorCivs[first].cityId].position)] = 'fog';
+    const after = structuredClone(before);
+    after.minorCivLeagues!.leagues['minor-compact-1']!.readiness = { kind: 'concern', sinceTurn: after.turn };
+
+    expect(collectMinorCivLeagueNotices(before, after)).toEqual([{
+      recipientCivId: 'player',
+      message: 'Amber Compact: a member reports regional tension.',
+      type: 'info',
+    }]);
   });
 
   it('formats evolved notifications generically for undiscovered viewers', () => {

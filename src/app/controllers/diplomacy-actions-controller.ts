@@ -55,6 +55,7 @@ import {
 } from '@/systems/minor-civ-actions';
 import { applyOpportunisticWarPenaltyIfCrisisStruck, applySendAid, canSendAid } from '@/systems/crisis-interaction-system';
 import { openEstablishRoutePanel } from '@/ui/establish-route-panel';
+import { emitMinorCivLeagueNotices } from '@/systems/minor-civ-league-presentation';
 
 export interface DiplomacyActionsController {
   handleDiplomaticAction(targetCivId: string, action: DiplomaticAction): void;
@@ -100,6 +101,7 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
       deps.session.setStateWithoutRefresh(applyOpportunisticWarPenaltyIfCrisisStruck(deps.session.getState(), cp, targetCivId, deps.bus));
     }
     const after = deps.session.getState();
+    emitMinorCivLeagueNotices(before, after, deps.bus);
     deps.renderLoop.setGameState(after);
     deps.hud.update();
     deps.openDiplomacyPanel();
@@ -152,7 +154,10 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
   }
 
   function handleAcceptPeaceRequest(requestId: string): void {
-    deps.session.commit(acceptDiplomaticRequest(deps.session.getState(), deps.session.getState().currentPlayer, requestId, deps.bus));
+    const before = deps.session.getState();
+    const after = acceptDiplomaticRequest(before, before.currentPlayer, requestId, deps.bus);
+    deps.session.commit(after);
+    emitMinorCivLeagueNotices(before, after, deps.bus);
     deps.openDiplomacyPanel();
     deps.showNotification('Peace accepted.', 'success');
   }
@@ -169,6 +174,7 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
     const after = accept ? acceptDiplomaticRequest(before, before.currentPlayer, requestId, deps.bus)
       : rejectDiplomaticRequest(before, before.currentPlayer, requestId, deps.bus);
     deps.session.commit(after);
+    emitMinorCivLeagueNotices(before, after, deps.bus);
     deps.openDiplomacyPanel();
     const panel = deps.uiLayer.querySelector<HTMLElement>('#diplomacy-panel');
     if (panel) { panel.tabIndex = -1; panel.focus(); }
@@ -236,12 +242,14 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
   }
 
   function handleMinorCivReparations(mcId: string): void {
-    const result = performMinorCivReparations(deps.session.getState(), deps.session.getState().currentPlayer, mcId);
+    const before = deps.session.getState();
+    const result = performMinorCivReparations(before, before.currentPlayer, mcId);
     if (!result.ok) {
       deps.showNotification(result.reason ?? 'Reparations unavailable.', 'warning');
       return;
     }
     deps.session.setStateWithoutRefresh(result.state);
+    emitMinorCivLeagueNotices(before, result.state, deps.bus);
     deps.showNotification('Reparations paid.', 'success');
     deps.renderLoop.setGameState(deps.session.getState());
     deps.hud.update();
@@ -262,9 +270,11 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
   }
 
   function handleMinorCivWarPeace(mcId: string, currentlyAtWar: boolean): void {
-    const result = setMinorCivWarState(deps.session.getState(), deps.session.getState().currentPlayer, mcId, !currentlyAtWar, deps.bus);
+    const before = deps.session.getState();
+    const result = setMinorCivWarState(before, before.currentPlayer, mcId, !currentlyAtWar, deps.bus);
     if (!result.ok) return;
     deps.session.setStateWithoutRefresh(result.state);
+    emitMinorCivLeagueNotices(before, result.state, deps.bus);
     emitMinorCivQuestTransitions(deps.bus, result.transitions, deps.session.getState());
     deps.showNotification(currentlyAtWar ? 'Peace with city-state' : 'War declared on city-state!', currentlyAtWar ? 'success' : 'warning');
     deps.renderLoop.setGameState(deps.session.getState());

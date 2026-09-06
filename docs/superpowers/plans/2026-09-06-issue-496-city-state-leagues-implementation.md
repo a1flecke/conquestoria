@@ -253,9 +253,9 @@ The fixture builder must not prepopulate a compact unless `withCompact:true` is 
 | X02 | 120-turn peaceful/war scenarios, all difficulties, seeded and reload fork | Existing cap/population/levy envelope preserved; compact bounds hold every sample; final traces match. |
 | X03 | N=64 synthetic minors; repeated nondue calls | At most2016 unordered pair distances per formation candidate pass before bounded clique checks; no full map/unit scans; nondue/same-turn call performs no formation enumeration. |
 
-## 6. MR1 — Peaceful regional compacts, complete and usable — not started
+## 6. MR1 — Peaceful regional compacts, complete and usable — merged in #1029
 
-Dependencies: current main only; includes the Phase A documents. Scope: lifecycle, charter preferences, contact/connected disclosure, existing AI gift seam repair, persistence, advisor, safe membership notices and live panel. No concern/preparation effect or copy. If MR2 never ships this remains an understandable, useful peaceful compact feature.
+Dependencies: current main only; includes the Phase A documents. Scope: lifecycle, charter preferences, contact/connected disclosure, existing AI gift seam repair, persistence, advisor, safe membership notices and live panel. No concern/preparation effect or copy. If MR2 never ships this remains an understandable, useful peaceful compact feature. Merged as PR #1029; its rebase merge is the verified base for MR2.
 
 ### Task 1 — Define records, fixture, defaults and structural load handling
 
@@ -335,7 +335,7 @@ it('cannot chain a regional compact across distant endpoints', () => {
 
 **MR1 CI/merge checkpoint (Luna):** use §11. After merge, annotate this phase as merged with actual PR number in the repository's required status form, refresh main, confirm commit ancestry, then and only then start MR2. No worktree stack that assumes an unmerged prior slice.
 
-## 7. MR2 — Shared preparation and recoverable regional concern — not started
+## 7. MR2 — Shared preparation and recoverable regional concern — implemented locally; review pending
 
 Dependency: MR1 merged and current main refreshed. Scope: readiness, warning delay, paid defense preference, immediate counterplay truth, vassal-war reconciliation, complete UI/AI/notification/long-run regression coverage. No new schema field or new political action.
 

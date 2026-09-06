@@ -309,7 +309,11 @@ describe('diplomacy-panel breakaway rows', () => {
 
     expect(panel.textContent).toContain('Amber Compact');
     expect(panel.textContent).toContain('Commerce charter');
+    expect(panel.textContent).toContain('About this compact');
+    expect(panel.textContent).toContain('Other members not yet met.');
+    expect(panel.textContent).toContain('Other members may prepare local defenses.');
     expect(panel.textContent).not.toContain('Carthage');
+    expect(panel.outerHTML).not.toContain('mc-carthage');
   });
 
   it('renders chain step details and exact disabled festival requirements for the current viewer', () => {

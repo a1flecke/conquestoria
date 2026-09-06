@@ -15,6 +15,7 @@ import { getCivAvailableResources } from '@/systems/resource-acquisition-system'
 import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
 import { getPirateWatersPresentation } from '@/systems/pirate-presentation';
 import { getPirateTributeQuote } from '@/systems/pirate-actions';
+import { getMinorCivLeaguesForPlayer } from '@/systems/minor-civ-league-presentation';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { unitParticipatesInLandSupply } from '@/systems/supply-participation';
 
@@ -574,6 +575,14 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
         hasDiscoveredMinorCiv(state, state.currentPlayer, mc.id)
         && mc.activeQuests[state.currentPlayer]?.status === 'active'
       ),
+  },
+  {
+    id: 'chancellor_city_state_compact',
+    advisor: 'chancellor',
+    icon: '🤝',
+    viewerScoped: true,
+    message: 'A known city-state belongs to a regional compact. Discovery reveals its charter, while each city-state keeps its own friendships and war decisions.',
+    trigger: (state) => getMinorCivLeaguesForPlayer(state, state.currentPlayer).length > 0,
   },
   {
     id: 'chancellor_conquest_warning',
