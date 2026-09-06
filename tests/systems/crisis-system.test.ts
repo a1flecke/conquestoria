@@ -14,16 +14,20 @@ describe('crisis scheduler', () => {
     expect(crises).toHaveLength(1);
     // This fixture's city (population 5, grassland, no forest/mountain/coast/jungle
     // terrain) is geography-eligible for 'plague' (population >= 4), 'bandit-uprising'
-    // (any land city, MR3), 'crop-blight' (grassland city, MR5), and now 'failed-harvest'
-    // (any city, #590 MR3 — era-agnostic, no geography gate). This seed's weighted pick
-    // lands on failed-harvest (was crop-blight before #590 added a new famine-archetype
-    // candidate, weighted by this fixture's food fragility rather than the flat
-    // anti-repeat weight the other three use). The point of this test is the
-    // grace/cooldown gate and history bookkeeping, not which specific flavor wins the
-    // pick.
-    expect(crises[0].flavorId).toBe('failed-harvest');
+    // (any land city, MR3), 'crop-blight' (grassland city, MR5), and 'failed-harvest'
+    // (any city, #590 MR3 — era-agnostic, no geography gate). The point of this test is
+    // the grace/cooldown gate and history bookkeeping, not which specific flavor wins
+    // the pick — which is why this comment has already tracked two prior changes to the
+    // expected value (crop-blight, then failed-harvest) as the weighting/candidate set
+    // evolved. #982 changed which flavor this fixture's seed now lands on again: the
+    // crisis-flavor-select roll moved from `state.turn * 7919 + civId char-sum` (missing
+    // gameId, so every campaign at turn 40 picked identically) to
+    // `createSimulationRng(state, { domain: 'crisis-flavor-select', actorId: civId })`,
+    // which is gameId-rooted. Same underlying weights, same eligible set, different
+    // (correct) draw for this fixture's gameId.
+    expect(crises[0].flavorId).toBe('plague');
     expect(next.civilizations.p1.lastCrisisOnsetTurn).toBe(40);
-    expect(next.civilizations.p1.recentCrisisHistory).toEqual(['failed-harvest']);
+    expect(next.civilizations.p1.recentCrisisHistory).toEqual(['plague']);
   });
 
   it('respects era grace: no crisis in era 1 for anyone, era 2 for explorer', () => {

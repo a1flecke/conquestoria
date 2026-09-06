@@ -4,7 +4,8 @@ import { getChallengeProfileForCiv, resolvePressureSeverityForCiv, OPPONENT_CHAL
 import { computeThreatScore, deriveActiveIndependentThreatIds, createPirateFleetNear, pickBanditName } from './threat-pressure-system';
 import { getCrisisEligibleCivIds } from './world-pressure-eligibility';
 import { CRISIS_FLAVORS, getCrisisFlavor, type CrisisFlavor } from './crisis-flavor-definitions';
-import { seededLcg, weightedPick } from './seeded-lcg';
+import { weightedPick } from './seeded-lcg';
+import { createSimulationRng } from './simulation-rng';
 import { hexKey, mapDistance, mapHexesInRange } from './hex-utils';
 import { getCityAppeaseCost } from './faction-system';
 import { spawnBarbarianCamp } from './barbarian-system';
@@ -123,7 +124,10 @@ function maybeStartCrisis(state: GameState, civId: string, bus: EventBus): GameS
   const maxScore = landmassIds.reduce((m, l) => Math.max(m, computeThreatScore(state, civId, l)), 0);
   if (maxScore < CRISIS_PRESSURE_FLOOR) return state;
 
-  const rng = seededLcg(state.turn * 7919 + civId.split('').reduce((a, ch) => a + ch.charCodeAt(0), 0) * 31);
+  // #982: called at most once per (turn, civId) -- maybeStartCrisis is invoked
+  // once per eligible civ per crisis-turn pass -- so (turn, civId) alone is a
+  // sufficient tuple; no ordinal needed.
+  const rng = createSimulationRng(state, { domain: 'crisis-flavor-select', actorId: civId });
   const eligible = CRISIS_FLAVORS.filter(f =>
     civEra >= f.eraBand[0] && civEra <= f.eraBand[1] &&
     civ.cities.some(cid => { const c = state.cities[cid]; return !!c && f.geographyPredicate(state, c); }));
@@ -212,11 +216,6 @@ export function getCrisisYieldMultiplier(state: GameState, cityId: string): Cris
   return result;
 }
 
-function hashString(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
-  return h;
-}
 
 // #919 MR1: drop expired re-infection-immunity entries so curedUntilTurn stays bounded.
 function pruneExpiredCureImmunity(crisis: ActiveCrisis, turn: number): ActiveCrisis {
@@ -303,7 +302,9 @@ function tickOutbreakCrisis(
     if (working.remedyCompletionByCity?.[cityId] !== undefined) continue; // #919 MR1: a remedy-underway city no longer spreads
     const city = nextState.cities[cityId];
     if (!city) continue;
-    const rng = seededLcg(nextState.turn * 104729 + hashString(working.id + cityId));
+    // #982: one draw per (crisis, city) per turn -- the enclosing loop visits
+    // each cityId at most once per tick, so no ordinal is needed.
+    const rng = createSimulationRng(nextState, { domain: 'crisis-spread', eventId: working.id, targetId: cityId });
     const boost = flavor.spreadBoostPredicate?.(nextState, city) ? 0.15 : 0;
     if (rng() >= 0.20 + boost) continue;
     const candidates = Object.values(nextState.cities)
@@ -418,7 +419,11 @@ function tickFamineCrisis(
     if (working.remedyCompletionByCity?.[cityId] !== undefined) continue; // #919 MR1: parity with tickOutbreakCrisis
     const city = nextState.cities[cityId];
     if (!city) continue;
-    const rng = seededLcg(nextState.turn * 104729 + hashString(working.id + cityId));
+    // #982: same domain tag as tickOutbreakCrisis's identical spread roll --
+    // safe because the two never tick the same crisis instance (each crisis
+    // flavor has exactly one active-stage ticker), so `working.id` never
+    // collides between them.
+    const rng = createSimulationRng(nextState, { domain: 'crisis-spread', eventId: working.id, targetId: cityId });
     const boost = flavor.spreadBoostPredicate?.(nextState, city) ? 0.15 : 0;
     if (rng() >= 0.20 + boost) continue;
     const candidates = Object.values(nextState.cities)
@@ -503,7 +508,8 @@ function applyCatastropheShock(
     return { crisis: null, state };
   }
 
-  const rng = seededLcg(state.turn * 65599 + hashString(crisis.id));
+  // #982: one epicenter roll per crisis instance per onset tick.
+  const rng = createSimulationRng(state, { domain: 'crisis-epicenter', eventId: crisis.id });
   const epicenter = epicenterCandidates[Math.floor(rng() * epicenterCandidates.length)];
   const epicenterKey = hexKey(epicenter);
 
@@ -668,11 +674,15 @@ function spawnBarbarianHunt(
   const civ = state.civilizations[crisis.targetCivId];
   const cityPositions = Object.values(state.cities).map(c => c.position);
   const existingCamps = Object.values(state.barbarianCamps);
+  // spawnBarbarianCamp (barbarian-system.ts) still takes a raw int seed --
+  // derived from the canonical stream here rather than refactoring its
+  // signature, since #982 only requires the *root* seed to be gameId-rooted,
+  // not every downstream consumer's parameter shape.
   const seed = Math.floor(rng() * 2147483647);
   const camp = spawnBarbarianCamp(state.map, cityPositions, existingCamps, seed, state.idCounters);
   if (!camp) return { crisis: null, state };
 
-  const foeName = pickBanditName(civ?.civType ?? 'generic', seed + 1);
+  const foeName = pickBanditName(civ?.civType ?? 'generic', rng);
   const namedCamp = { ...camp, banditLordName: foeName };
   const nextState: GameState = {
     ...state,
@@ -693,11 +703,10 @@ function spawnPirateHunt(
   const civ = state.civilizations[crisis.targetCivId];
   const landmassId = state.map.tiles[hexKey(targetCity.position)]?.regionKey;
   if (!landmassId) return { crisis: null, state };
-  const seed = Math.floor(rng() * 2147483647);
-  const { state: nextState, fleetId } = createPirateFleetNear(state, crisis.targetCivId, landmassId, targetCity, seed);
+  const { state: nextState, fleetId } = createPirateFleetNear(state, crisis.targetCivId, landmassId, targetCity, rng);
   if (!fleetId) return { crisis: null, state };
 
-  const foeName = pickBanditName(civ?.civType ?? 'generic', seed + 1);
+  const foeName = pickBanditName(civ?.civType ?? 'generic', rng);
   return {
     crisis: { ...crisis, stage: 'menacing', huntEntityId: fleetId, foeName },
     state: nextState,
@@ -740,7 +749,8 @@ function tickHuntCrisis(
       bus.emit('crisis:resolved', { crisisId: working.id, flavorId: working.flavorId, civId: working.targetCivId, outcome: 'abandoned' });
       return { crisis: null, state: nextState };
     }
-    const rng = seededLcg(state.turn * 65599 + hashString(working.id));
+    // #982: one hunt-spawn roll per crisis instance per active-stage tick.
+    const rng = createSimulationRng(state, { domain: 'crisis-hunt-spawn', eventId: working.id });
     const spawned = flavor.hunt.spawnKind === 'beast'
       ? spawnBeastHunt(nextState, working, targetCity, rng)
       : flavor.hunt.spawnKind === 'barbarian-camp'

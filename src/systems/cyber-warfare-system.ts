@@ -2,6 +2,7 @@ import type { GameState } from '@/core/types';
 import { hexDistance } from './hex-utils';
 import { isAtWar } from './diplomacy-system';
 import { isAutonomyActivated } from './network-plan-system';
+import { createSimulationRng } from './simulation-rng';
 
 export interface CyberDrainEvent {
   cityId: string;
@@ -18,12 +19,14 @@ export interface CyberDrainResult {
   events: CyberDrainEvent[];
 }
 
-// Deterministic per-(turn, city, unit) roll in [0, 1) — same LCG shape used elsewhere
-// in turn-manager (e.g. barbarian spawns): no Math.random(), reproducible from state.
-export function computeCyberDrainRoll(turn: number, cityId: string, unitId: string): number {
-  let s = Math.abs(turn * 16807 + cityId.charCodeAt(0) + unitId.charCodeAt(0));
-  s = (s * 48271) % 2147483647;
-  return s / 2147483647;
+// #982: deterministic per-(gameId, turn, city, unit) roll. Was
+// `turn*16807 + cityId.charCodeAt(0) + unitId.charCodeAt(0)` -- city ids all
+// start with 'c' and unit ids all start with 'u', so `charCodeAt(0)` was
+// identical for every city/unit pair in the game, and gameId was missing
+// entirely. One roll per (city, enemy cyber unit) pair per invocation of
+// processCyberDrain (itself once per civ per turn), so no ordinal is needed.
+export function computeCyberDrainRoll(state: Pick<GameState, 'gameId' | 'turn'>, cityId: string, unitId: string): number {
+  return createSimulationRng(state, { domain: 'cyber-drain', targetId: cityId, actorId: unitId })();
 }
 
 // Cyber Unit gold drain: -2 gold/turn per adjacent enemy city the owner is at war with,
@@ -61,7 +64,7 @@ export function processCyberDrain(
     const blockChance = hasCDC ? (hasHub ? 0.75 : 0.65) : 0;
 
     for (const cyberUnit of enemyCyberUnits) {
-      const roll = computeCyberDrainRoll(state.turn, city.id, cyberUnit.id);
+      const roll = computeCyberDrainRoll(state, city.id, cyberUnit.id);
       const blocked = blockChance > 0 && roll < blockChance;
 
       if (blocked) {

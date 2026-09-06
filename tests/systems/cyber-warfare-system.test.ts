@@ -138,7 +138,7 @@ describe('processCyberDrain', () => {
   it('blocks the drain when Cyber Defense Center rolls under the block chance, crediting no gold', () => {
     // Find a (turn, cityId, unitId) combination whose roll is known relative to 0.65.
     let turn = 1;
-    while (computeCyberDrainRoll(turn, 'city-p1', 'cu1') >= 0.65) turn++;
+    while (computeCyberDrainRoll({ turn }, 'city-p1', 'cu1') >= 0.65) turn++;
 
     const state = makeState({
       turn,
@@ -157,10 +157,10 @@ describe('processCyberDrain', () => {
 
   it('signals_hub raises the CDC block chance to 0.75 — a roll between 0.65 and 0.75 is blocked only with the hub', () => {
     let turn = 1;
-    let roll = computeCyberDrainRoll(turn, 'city-p1', 'cu1');
+    let roll = computeCyberDrainRoll({ turn }, 'city-p1', 'cu1');
     while (!(roll >= 0.65 && roll < 0.75)) {
       turn++;
-      roll = computeCyberDrainRoll(turn, 'city-p1', 'cu1');
+      roll = computeCyberDrainRoll({ turn }, 'city-p1', 'cu1');
     }
 
     const withoutHub = processCyberDrain(

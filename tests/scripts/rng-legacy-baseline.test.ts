@@ -45,7 +45,12 @@ describe('#1021 — RNG legacy baseline stays honest', () => {
   const entries = parseBaseline();
 
   it('is non-empty and well-formed', () => {
-    expect(entries.length).toBeGreaterThan(20);
+    // #982 converted every [FIX-982]-tagged entry (the genuine under-keyed
+    // debt #1021 catalogued) to createSimulationRng and removed those lines
+    // from this file — only already-correct [OK]/[LOW] lines remain, so the
+    // threshold shrank from #1021's original ~30 to reflect that cleanup,
+    // not a regression in coverage.
+    expect(entries.length).toBeGreaterThan(5);
     for (const entry of entries) {
       expect(entry.path, entry.raw).toMatch(/^src\//);
       expect(entry.line, entry.raw).toBeGreaterThan(0);

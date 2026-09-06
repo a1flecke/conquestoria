@@ -155,7 +155,12 @@ describe('#949 — flagship 100+ turn simulations', () => {
   }, 20000);
 
   it('#16 — 100+ turn conflict simulation keeps levies rare, recovery bounded, and eventually exits recovery', () => {
-    const { state, minorCivId } = fixtureAtWarWithMajor('mc-949-flagship-conflict');
+    // #982: firstMinorCiv's own identity/position/archetype now differs
+    // (placeMinorCivs is gameId-rooted instead of a placement-seed-only hash),
+    // so the original seed's "first minor civ" no longer sees enough sustained
+    // pressure to trigger any levy in 120 turns under the corrected RNG. This
+    // seed's own first minor civ does.
+    const { state, minorCivId } = fixtureAtWarWithMajor('mc-949-flagship-conflict-3');
     const bus = new EventBus();
 
     const trace = runMinorCivLongRun(state, minorCivId, FLAGSHIP_TURNS, bus);

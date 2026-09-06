@@ -97,6 +97,13 @@ describe('turn-manager hoard handling', () => {
       },
       sightingsByCiv: {},
     };
+    // This test is purely about regen math, not combat — clear the rest of the
+    // world's units so no civ/minor-civ unit the map seed happens to place
+    // within the hydra's leash radius can trigger an unrelated attack (and
+    // counter-damage) this turn. #982 changed minor-civ placement to be
+    // gameId-rooted instead of an under-keyed shared seed, which legitimately
+    // relocates where units start; this test was never meant to depend on that.
+    state.units = {};
     state.units['hydra-1'] = {
       id: 'hydra-1', type: 'beast_hydra', owner: 'beasts',
       position: { q: hq, r: hr }, movementPointsLeft: 1, health: 95,

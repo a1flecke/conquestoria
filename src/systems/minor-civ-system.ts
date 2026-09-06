@@ -13,6 +13,7 @@ import { createEmptyOpponentAIState } from '@/core/opponent-ai-state';
 import { OPPONENT_CHALLENGE_PROFILES, resolveOpponentChallenge } from '@/core/opponent-challenge';
 import { isAlwaysHostilePair } from '@/core/owner-kind';
 import { MINOR_CIV_DEFINITIONS } from './minor-civ-definitions';
+import { createSimulationRng } from './simulation-rng';
 import { resolveWorldAge } from './tech-definitions';
 import { resolveCombatEra, resolveNeutralPressureEra } from './era-resolution';
 import { createDiplomacyState, modifyRelationship, applyVassalageWarConsequences } from './diplomacy-system';
@@ -71,16 +72,16 @@ export interface PlacementResult {
 export function placeMinorCivs(
   state: GameState,
   mapSize: 'small' | 'medium' | 'large',
-  seed: string,
 ): PlacementResult {
   const [min, max] = PLACEMENT_COUNTS[mapSize] ?? [2, 4];
 
-  // Seeded RNG
-  let rngState = hashSeed(seed + '-mc');
-  const rng = () => {
-    rngState = (rngState * 48271) % 2147483647;
-    return rngState / 2147483647;
-  };
+  // #982: was seeded from a placement seed string independent of `state.gameId`
+  // (missing gameId entirely). Placement is a one-time-per-campaign event
+  // (called once during createNewGame, before state.gameId is used for
+  // anything else), so `state.gameId` alone -- with a fixed event tag --
+  // already gives full campaign-scoped identity; the caller no longer needs
+  // to pass a separate seed string.
+  const rng = createSimulationRng(state, { domain: 'minor-civ-placement', eventId: mapSize });
 
   const count = min + Math.floor(rng() * (max - min + 1));
 
@@ -177,14 +178,6 @@ function findValidPosition(
     return pos;
   }
   return null;
-}
-
-function hashSeed(seed: string): number {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) {
-    hash = ((hash << 5) - hash + seed.charCodeAt(i)) | 0;
-  }
-  return Math.abs(hash) || 1;
 }
 
 // === Turn Processing ===
@@ -534,7 +527,11 @@ function processQuests(
     if (nextState.turn < (current.questCooldownUntilByCiv[civId] ?? 0)) continue;
     if (current.chainStatusByCiv[civId]?.status === 'allied') continue;
 
-    const rng = makeRng(nextState.turn * 16807 + civId.charCodeAt(0) + minorCivId.charCodeAt(3));
+    // #982: one quest-generation roll per (majorCiv, minorCiv) per invocation
+    // -- the enclosing loop visits each civId at most once per minor civ per
+    // call, and this function is itself called at most once per minor civ per
+    // turn, so no ordinal is needed.
+    const rng = createSimulationRng(nextState, { domain: 'minor-civ-quest-generate', actorId: civId, targetId: minorCivId });
     const newQuest = generateQuest(
       def.archetype,
       minorCivId,
@@ -674,14 +671,6 @@ function processGarrison(state: GameState, mc: MinorCivState): GameState {
   return state;
 }
 
-function makeRng(seed: number): () => number {
-  let s = Math.abs(seed) || 1;
-  return () => {
-    s = (s * 48271) % 2147483647;
-    return s / 2147483647;
-  };
-}
-
 // === Conquest ===
 
 export function conquestMinorCiv(
@@ -818,8 +807,13 @@ export function processScuffles(state: GameState, bus: EventBus): void {
     const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc.definitionId);
     if (!def || def.archetype !== 'militaristic') continue;
 
-    const roll = (state.turn * 16807 + mc.id.charCodeAt(3)) % 100;
-    if (roll >= 10) continue;
+    // #982: one trigger roll per militaristic minor civ per invocation of
+    // processScuffles (itself once per turn). mc.id is `mc-<definitionId>`,
+    // so `mc.id.charCodeAt(3)` was only the first character of the
+    // definition id (e.g. 'sparta' and 'syracuse' both 's') -- a partial,
+    // not total, collision, but still missing gameId and still truncated.
+    const rng = createSimulationRng(state, { domain: 'minor-civ-scuffle-trigger', actorId: mc.id });
+    if (rng() >= 0.10) continue;
 
     const mcCity = state.cities[mc.cityId];
     if (!mcCity) continue;

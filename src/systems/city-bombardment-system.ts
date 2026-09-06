@@ -16,6 +16,7 @@ import {
 } from '@/systems/city-siege-system';
 import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
+import { createSimulationRng } from '@/systems/simulation-rng';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 
 export type CityBombardmentSource = 'player' | 'ai';
@@ -179,8 +180,13 @@ export function previewUnitCityBombardment(
   const distance = state.map.wrapsHorizontally
     ? wrappedHexDistance(attacker.position, city.position, state.map.width)
     : hexDistance(attacker.position, city.position);
+  // #982: same domain tag as resolveUnitCityBombardment's own counter-fire
+  // roll below and pirate-system.ts's ship counter-fire, so the preview a
+  // player sees matches what actually lands. Was `turn*7919` alone -- no
+  // gameId, no attacker/city identity, shared by every bombardment in the
+  // game on a given turn.
   const counterFire = distance <= CITY_COUNTERFIRE_RANGE && ownerCiv
-    ? getCityCounterFireDamage(city, ownerCiv, domain, UNIT_DEFINITIONS[attacker.type].strength, false, Math.abs(state.turn * 7919) ^ 0x5a5a)
+    ? getCityCounterFireDamage(city, ownerCiv, domain, UNIT_DEFINITIONS[attacker.type].strength, false, Math.floor(createSimulationRng(state, { domain: 'city-counter-fire', actorId: attacker.id, targetId: city.id })() * 2147483647))
     : 0;
 
   return {
@@ -272,13 +278,15 @@ export function resolveUnitCityBombardment(
   let counterFireDamage = 0;
   let attackerDied = false;
   if (legality.distance <= CITY_COUNTERFIRE_RANGE) {
+    // #982: same domain tag as the preview above -- what was previewed
+    // matches what lands, given the same state.
     counterFireDamage = getCityCounterFireDamage(
       city,
       ownerCiv,
       domain,
       UNIT_DEFINITIONS[attacker.type].strength,
       false,
-      Math.abs(state.turn * 7919) ^ 0x5a5a,
+      Math.floor(createSimulationRng(state, { domain: 'city-counter-fire', actorId: attacker.id, targetId: city.id })() * 2147483647),
     );
   }
   if (counterFireDamage > 0) {

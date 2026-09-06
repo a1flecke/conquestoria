@@ -202,13 +202,17 @@ EOF
 expect_allow "$tmp/src/systems/good-rng.ts" "createSimulationRng usage"
 
 # --- #1021: allow a pre-existing baselined occurrence (path:line exact match) ---
+# Real baseline entry: src/systems/combat-system.ts:431 (#982 left this
+# [LOW]-tagged LCG recurrence body in place -- it's already fed a
+# gameId-rooted seed by its caller, just a hand-rolled duplicate of
+# seededLcg's body, not a live seed-construction bug).
 mkdir -p "$tmp/src/systems"
-baselined_line='  const rng = seededLcg(state.turn * 7919 + civId.charCodeAt(0) * 31);'
+baselined_line='  rngState = (rngState * 48271) % 2147483647;'
 {
-  for i in $(seq 1 125); do echo "// padding line $i"; done
+  for i in $(seq 1 430); do echo "// padding line $i"; done
   printf '%s\n' "$baselined_line"
-} > "$tmp/src/systems/crisis-system.ts"
-expect_allow "$tmp/src/systems/crisis-system.ts" "baselined crisis-system.ts:126 occurrence"
+} > "$tmp/src/systems/combat-system.ts"
+expect_allow "$tmp/src/systems/combat-system.ts" "baselined combat-system.ts:431 occurrence"
 
 # --- #1021: the same offending pattern at a DIFFERENT (non-baselined) line in that
 # same file must still be blocked -- proves the baseline is line-precise, not file-wide.

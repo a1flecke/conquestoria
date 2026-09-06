@@ -1,6 +1,6 @@
 import type { City, CityFaith, GameState, HexCoord, Religion, ReligionBoon } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
-import { seededLcg } from './seeded-lcg';
+import { createSimulationRng } from './simulation-rng';
 import {
   NAME_CANDIDATES, NEUTRAL_NAME_CANDIDATES, CONVERSION_THRESHOLD,
   OWN_CITY_ACCRUAL, FOREIGN_ADJACENT_ACCRUAL, FOREIGN_ADJACENT_CAP,
@@ -12,9 +12,8 @@ import { getCapitalCityId } from './capital-system';
 import { mapDistance } from './hex-utils';
 import { hasDiscoveredCity } from './discovery-system';
 
-function pickReligionName(civType: string, seed: number): string {
+function pickReligionName(civType: string, rng: () => number): string {
   const pool = NAME_CANDIDATES[civType] ?? NEUTRAL_NAME_CANDIDATES;
-  const rng = seededLcg(seed);
   return pool[Math.floor(rng() * pool.length)];
 }
 
@@ -30,8 +29,10 @@ export function foundReligion(
   if (alreadyHasReligion) return state;
 
   const religionId = `religion-${civId}`;
-  const seed = state.turn * 92821 + civId.split('').reduce((a, ch) => a + ch.charCodeAt(0), 0) * 17;
-  const name = pickReligionName(civ.civType, seed);
+  // #982: founding happens at most once per civ ever, so (turn, civId) is a
+  // sufficient tuple -- no ordinal needed.
+  const rng = createSimulationRng(state, { domain: 'religion-founding', actorId: civId });
+  const name = pickReligionName(civ.civType, rng);
 
   const religion: Religion = { id: religionId, name, ownerCivId: civId, foundedTurn: state.turn };
   const capitalId = getCapitalCityId(state, civId);
