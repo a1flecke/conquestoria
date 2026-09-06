@@ -21,6 +21,22 @@ function fixture(vassalHuman = true, overlordHuman = false, hotSeat = false): Ga
   for (const unit of Object.values(state.units)) { unit.hasActed = true; unit.hasMoved = true; }
   return state;
 }
+
+async function enterSoloAutosave(page: Page, state: GameState): Promise<void> {
+  await installAutosave(page, state);
+  await page.goto('/?e2e=autosave');
+  await expect.poll(
+    () => page.evaluate(() => (
+      window.__CONQUESTORIA_E2E_DIAGNOSTICS__?.readiness().includes('campaign-ready') ?? false
+    )),
+    {
+      message: 'expected the installed campaign to finish its E2E startup path',
+      timeout: 15_000,
+    },
+  ).toBe(true);
+  await expect(page.locator('#hud')).toContainText(`Turn ${state.turn}`);
+}
+
 async function handoff(page: Page) {
   await page.locator('#handoff-confirm').click();
   await page.locator('#handoff-start').click();
@@ -28,9 +44,7 @@ async function handoff(page: Page) {
 }
 
 test('human offers to AI, sees the active role immediately, and cannot declare an independent war', async ({page}, info) => {
-  await installAutosave(page, fixture());
-  await page.goto('/?e2e=autosave');
-  await expect(page.locator('#hud')).toContainText('Turn 20');
+  await enterSoloAutosave(page, fixture());
   await page.getByRole('button', {name: 'Diplo', exact: true}).click();
   await page.getByRole('button', {name: 'Offer Vassalage: Rome', exact: true}).click();
   const panel = page.locator('#diplomacy-panel');
@@ -45,8 +59,7 @@ test('human receives an AI offer, accepts, and confirms release in the live pane
   await page.setViewportSize({width: 390, height: 844});
   let state = fixture(false, true); state.currentPlayer = 'overlord';
   state = applyDiplomaticAction(state, 'vassal', 'overlord', 'offer_vassalage', new EventBus());
-  await installAutosave(page, state); await page.goto('/?e2e=autosave');
-  await expect(page.locator('#hud')).toContainText('Turn 20');
+  await enterSoloAutosave(page, state);
   await page.getByRole('button', {name: 'Diplo', exact: true}).click();
   await page.getByRole('button', {name: 'Accept Vassalage: Egypt', exact: true}).click();
   await expect(page.locator('#diplomacy-panel')).toContainText('Your vassal: Egypt');
