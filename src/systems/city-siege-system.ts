@@ -344,12 +344,49 @@ const CITY_HP_REGEN_PER_TURN = 5;
 const CITY_HP_MAX = 100;
 const CITY_HP_REGEN_HOSTILE_RANGE = 1;
 
+/**
+ * #974: ceiling on HP a single city can lose to unit-initiated bombardment in one turn.
+ * Friendly stacking is uncapped in this codebase, so without this a stack of cheap units
+ * would floor any city in one turn. 99 HP / 20 means a siege takes at least 5 turns
+ * regardless of era or stack size, which also normalises siege duration that a flat
+ * 100 max HP would otherwise leave wildly era-dependent.
+ */
+export const CITY_BOMBARDMENT_MAX_HP_LOSS_PER_TURN = 20;
+
+/** A garrison halves incoming bombardment rather than nullifying it (#974). */
+export const CITY_BOMBARDMENT_GARRISON_MITIGATION = 0.5;
+
+/** Turns of suppressed repair after the last bombardment hit (#974). */
+export const CITY_BOMBARDMENT_REGEN_SUPPRESSION_TURNS = 1;
+
+/** HP a city may still lose to bombardment this turn. */
+export function getRemainingBombardmentCap(city: City, turn: number): number {
+  const spent = city.bombardment?.turn === turn ? city.bombardment.hpLostThisTurn : 0;
+  return Math.max(0, CITY_BOMBARDMENT_MAX_HP_LOSS_PER_TURN - spent);
+}
+
+/** The `City.bombardment` value after taking `hpLost` on `turn`. Accumulates within a turn. */
+export function recordBombardment(city: City, turn: number, hpLost: number): { turn: number; hpLostThisTurn: number } {
+  const spent = city.bombardment?.turn === turn ? city.bombardment.hpLostThisTurn : 0;
+  return { turn, hpLostThisTurn: spent + hpLost };
+}
+
+/** True while bombardment is still suppressing this city's repair. */
+export function isBombardmentSuppressingRegen(city: City, turn: number): boolean {
+  const last = city.bombardment?.turn;
+  return last !== undefined && turn - last <= CITY_BOMBARDMENT_REGEN_SUPPRESSION_TURNS;
+}
+
 // True when a city below max HP has no hostile unit within regen range — shared by
 // applyCityHpRegeneration (turn processing) and the city panel (UI status label) so
 // the two never drift apart on what counts as "under siege" vs "recovering".
 export function isCityHpRegenerating(state: GameState, city: City): boolean {
   const hp = city.hp ?? CITY_HP_MAX;
   if (hp >= CITY_HP_MAX || hp <= 0) return false;
+  // #974: a city under active bombardment does not repair. Without this a unit shelling
+  // from range 2 -- outside CITY_HP_REGEN_HOSTILE_RANGE -- would chip less per turn than
+  // the city healed, so a ranged siege could never make progress.
+  if (isBombardmentSuppressingRegen(city, state.turn)) return false;
 
   const ownerCiv = state.civilizations[city.owner];
   const distanceFn = state.map.wrapsHorizontally

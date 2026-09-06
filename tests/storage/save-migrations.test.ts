@@ -1404,3 +1404,45 @@ describe('#927 Rung 6 — migration 25: Federal Autonomy defaults', () => {
     expect(migrated.civilizations.player!.gold).toBe(goldBefore);
   });
 });
+
+describe('#974 phase 2 — migration 26: City.bombardment scrubbing', () => {
+  function saveWithBombardment(bombardment: unknown): GameState {
+    const save = createNewGame('rome', `974-bombardment-${JSON.stringify(bombardment)}`, 'small');
+    save.saveSchemaVersion = 25;
+    const cityId = Object.keys(save.cities)[0]!;
+    (save.cities[cityId] as unknown as Record<string, unknown>).bombardment = bombardment;
+    return save;
+  }
+
+  function firstCityBombardment(state: GameState) {
+    return state.cities[Object.keys(state.cities)[0]!]!.bombardment;
+  }
+
+  it('leaves a legacy save with no bombardment record untouched', () => {
+    const save = createNewGame('rome', '974-legacy-no-bombardment', 'small');
+    save.saveSchemaVersion = 25;
+
+    const migrated = migrateSaveToCurrent(save);
+
+    expect(migrated.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
+    expect(firstCityBombardment(migrated)).toBeUndefined();
+  });
+
+  it('round-trips a valid record unchanged and is idempotent', () => {
+    const migrated = migrateSaveToCurrent(saveWithBombardment({ turn: 12, hpLostThisTurn: 8 }));
+
+    expect(firstCityBombardment(migrated)).toEqual({ turn: 12, hpLostThisTurn: 8 });
+    expect(migrateSaveToCurrent(structuredClone(migrated))).toEqual(migrated);
+  });
+
+  it('scrubs a negative tally, which would otherwise grant unlimited bombardment', () => {
+    const migrated = migrateSaveToCurrent(saveWithBombardment({ turn: 3, hpLostThisTurn: -50 }));
+    expect(firstCityBombardment(migrated)).toBeUndefined();
+  });
+
+  it('scrubs non-integer and malformed shapes rather than trusting them', () => {
+    expect(firstCityBombardment(migrateSaveToCurrent(saveWithBombardment({ turn: 1.5, hpLostThisTurn: 2 })))).toBeUndefined();
+    expect(firstCityBombardment(migrateSaveToCurrent(saveWithBombardment('nope')))).toBeUndefined();
+    expect(firstCityBombardment(migrateSaveToCurrent(saveWithBombardment(null)))).toBeUndefined();
+  });
+});

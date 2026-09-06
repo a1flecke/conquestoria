@@ -23,7 +23,7 @@ import { UNIT_ROLE_DEFINITIONS } from '@/systems/combat-role-definitions';
 import { getEffectiveTechCost, getTechById } from '@/systems/tech-system';
 import { PRE_V24_TECH_COST_BY_ID } from './research-cost-migration-v24';
 
-export const CURRENT_SAVE_SCHEMA_VERSION = 25;
+export const CURRENT_SAVE_SCHEMA_VERSION = 26;
 
 export type SaveMigration = (state: GameState) => GameState;
 
@@ -1021,6 +1021,23 @@ export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
         ? civ.federalismChangedTurn : undefined;
       if (enabled === civ.federalismEnabled && changedTurn === civ.federalismChangedTurn) return [civId, civ];
       return [civId, { ...civ, federalismEnabled: enabled, federalismChangedTurn: changedTurn }];
+    })),
+  }),
+  // #974 phase 2: City.bombardment ({ turn, hpLostThisTurn }) drives the per-turn
+  // bombardment cap and HP-regen suppression. It is optional and absent already means
+  // "never bombarded" everywhere it is read, so this is a no-op for every real save --
+  // it exists to scrub a malformed hand-edited value rather than let a non-integer or
+  // negative tally silently corrupt the cap arithmetic into granting unlimited damage.
+  26: state => ({
+    ...state,
+    cities: Object.fromEntries(Object.entries(state.cities).map(([cityId, city]) => {
+      const raw = city.bombardment;
+      const valid = raw !== undefined
+        && raw !== null
+        && Number.isInteger(raw.turn) && raw.turn >= 0
+        && Number.isInteger(raw.hpLostThisTurn) && raw.hpLostThisTurn >= 0;
+      if (valid ? raw === city.bombardment : city.bombardment === undefined) return [cityId, city];
+      return [cityId, { ...city, bombardment: valid ? raw : undefined }];
     })),
   }),
 };

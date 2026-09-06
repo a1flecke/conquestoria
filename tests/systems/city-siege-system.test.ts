@@ -3,7 +3,7 @@ import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
 import { createUnit } from '@/systems/unit-system';
 import type { City, Civilization, GameState } from '@/core/types';
-import { applyCityHpRegeneration, applyCitySiegeOutcome, calculateCityAssaultStrengths, CITY_HP_DEFENSE_FLOOR, cityHpDefenseScale, getCityCounterFireDamage, getCityIntrinsicStrength, getEffectiveCityAssaultDefense, isCityHpRegenerating, resolveCityAssault, resolveCitySiegeDamage } from '@/systems/city-siege-system';
+import { applyCityHpRegeneration, applyCitySiegeOutcome, calculateCityAssaultStrengths, CITY_BOMBARDMENT_MAX_HP_LOSS_PER_TURN, CITY_HP_DEFENSE_FLOOR, getRemainingBombardmentCap, recordBombardment, cityHpDefenseScale, getCityCounterFireDamage, getCityIntrinsicStrength, getEffectiveCityAssaultDefense, isCityHpRegenerating, resolveCityAssault, resolveCitySiegeDamage } from '@/systems/city-siege-system';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -478,6 +478,81 @@ describe('getCityIntrinsicStrength (#522)', () => {
 // the entire reason bombarding a city is worth doing. Deliberately surgical -- only
 // calculateCityAssaultStrengths consumes it, so counter-fire and the city panel's displayed
 // defense keep their exact pre-#966 behaviour.
+// #974 phase 2: bombarding from range only makes progress if the city stops repairing.
+// Regen was suppressed solely by a hostile unit within 1 hex, so a unit shelling from
+// range 2 would chip 6 while the city healed 5 -- roughly 100 turns to take it down.
+describe('#974 bombardment suppresses city HP regeneration', () => {
+  function stateWithDamagedCity(bombardment?: { turn: number; hpLostThisTurn: number }) {
+    const state = createNewGame(undefined, 'bombard-regen', 'small');
+    const city = {
+      ...foundCity('ai-1', { q: 5, r: 5 }, state.map, mkC()),
+      id: 'town', owner: 'ai-1', hp: 60,
+      ...(bombardment ? { bombardment } : {}),
+    };
+    state.cities = { town: city };
+    state.civilizations['ai-1'].cities = ['town'];
+    state.units = {};
+    state.turn = 10;
+    return state;
+  }
+
+  it('regenerates normally when the city has never been bombarded', () => {
+    const state = stateWithDamagedCity();
+    expect(isCityHpRegenerating(state, state.cities.town)).toBe(true);
+    expect(applyCityHpRegeneration(state).cities.town.hp).toBe(65);
+  });
+
+  it('does not regenerate on the turn it was bombarded', () => {
+    const state = stateWithDamagedCity({ turn: 10, hpLostThisTurn: 12 });
+    expect(isCityHpRegenerating(state, state.cities.town)).toBe(false);
+    expect(applyCityHpRegeneration(state).cities.town.hp).toBe(60);
+  });
+
+  it('still does not regenerate the turn after', () => {
+    const state = stateWithDamagedCity({ turn: 9, hpLostThisTurn: 12 });
+    expect(isCityHpRegenerating(state, state.cities.town)).toBe(false);
+  });
+
+  it('resumes regenerating two turns after the last hit', () => {
+    const state = stateWithDamagedCity({ turn: 8, hpLostThisTurn: 12 });
+    expect(isCityHpRegenerating(state, state.cities.town)).toBe(true);
+    expect(applyCityHpRegeneration(state).cities.town.hp).toBe(65);
+  });
+});
+
+describe('#974 per-city per-turn bombardment cap accounting', () => {
+  it('reports the full cap for a city not yet bombarded this turn', () => {
+    const city = { hp: 100 } as never;
+    expect(getRemainingBombardmentCap(city, 10)).toBe(CITY_BOMBARDMENT_MAX_HP_LOSS_PER_TURN);
+  });
+
+  it('subtracts damage already dealt this turn', () => {
+    const city = { hp: 100, bombardment: { turn: 10, hpLostThisTurn: 12 } } as never;
+    expect(getRemainingBombardmentCap(city, 10)).toBe(CITY_BOMBARDMENT_MAX_HP_LOSS_PER_TURN - 12);
+  });
+
+  it('resets on a new turn rather than carrying the tally forward', () => {
+    const city = { hp: 100, bombardment: { turn: 9, hpLostThisTurn: 20 } } as never;
+    expect(getRemainingBombardmentCap(city, 10)).toBe(CITY_BOMBARDMENT_MAX_HP_LOSS_PER_TURN);
+  });
+
+  it('never reports a negative remainder', () => {
+    const city = { hp: 100, bombardment: { turn: 10, hpLostThisTurn: 999 } } as never;
+    expect(getRemainingBombardmentCap(city, 10)).toBe(0);
+  });
+
+  it('accumulates within a turn and starts fresh on the next', () => {
+    const first = recordBombardment({ hp: 100 } as never, 10, 8);
+    expect(first).toEqual({ turn: 10, hpLostThisTurn: 8 });
+
+    const second = recordBombardment({ hp: 92, bombardment: first } as never, 10, 5);
+    expect(second).toEqual({ turn: 10, hpLostThisTurn: 13 });
+
+    const nextTurn = recordBombardment({ hp: 87, bombardment: second } as never, 11, 4);
+    expect(nextTurn).toEqual({ turn: 11, hpLostThisTurn: 4 });
+  });
+});
+
 describe('#966 cityHpDefenseScale / getEffectiveCityAssaultDefense', () => {
   it('is a no-op at full HP (the prime directive: no currently-tuned number moves)', () => {
     const { city, ownerCiv } = makeCityAndCiv({ population: 4, buildings: ['walls'], hp: 100 });
