@@ -72,7 +72,7 @@ describe('#496 minor-civ league save normalization', () => {
         'minor-compact-3': {
           id: 'minor-compact-3', nameKey: 'amber', charter: 'learning',
           memberIds: [d, c], formedTurn: 11,
-          readiness: { kind: 'concern', sinceTurn: 41 },
+          readiness: { kind: 'concern', sinceTurn: 40 },
         },
       },
       nextId: 2,
@@ -94,7 +94,7 @@ describe('#496 minor-civ league save normalization', () => {
         },
         'minor-compact-3': {
           id: 'minor-compact-3', nameKey: 'willow', charter: 'learning',
-          memberIds: [c, d].sort(), formedTurn: 11, readiness: { kind: 'quiet' },
+          memberIds: [c, d].sort(), formedTurn: 11, readiness: { kind: 'concern', sinceTurn: 40 },
         },
       },
       nextId: 4,

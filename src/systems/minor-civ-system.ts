@@ -187,6 +187,13 @@ export function processMinorCivTurn(
   bus: EventBus,
 ): GameState {
   let nextState = structuredClone(state);
+  // All member-owned grievance decay must settle before compact readiness or an
+  // individual member economy observes the shared state for this world turn.
+  for (const mcId of Object.keys(nextState.minorCivs).sort()) {
+    const minorCiv = nextState.minorCivs[mcId];
+    if (minorCiv.isDestroyed || !MINOR_CIV_DEFINITIONS.some(definition => definition.id === minorCiv.definitionId)) continue;
+    nextState = processMinorCivRegionalGrievanceTurn(nextState, mcId);
+  }
   nextState = processMinorCivLeagueTurn(nextState);
   if (!nextState.opponentAI) {
     nextState.opponentAI = createEmptyOpponentAIState();
@@ -208,7 +215,6 @@ export function processMinorCivTurn(
       const unit = nextState.units[unitId];
       if (unit) nextState.units[unitId] = resetUnitTurn(unit);
     }
-    nextState = processMinorCivRegionalGrievanceTurn(nextState, mcId);
     const economyResult = processMinorCivEconomyTurn(nextState, mcId, bus);
     nextState = economyResult.state;
     mc = nextState.minorCivs[mcId];
@@ -229,7 +235,7 @@ export function processMinorCivTurn(
 
   nextState = processMinorCivCoalitionsTurn(nextState);
 
-  return applyVassalageWarConsequences(state, nextState, bus);
+  return reconcileMinorCivLeagues(applyVassalageWarConsequences(state, nextState, bus));
 }
 
 export interface PurposefulMinorCivPlanResult {

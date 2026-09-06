@@ -5,6 +5,7 @@ import { hasAccessibleLuxury } from './quest-objective-system';
 import { applyQuestGameplayAction, type ChainTransition } from './quest-chain-system';
 import { isMinorCivAtWar, endMinorCivQuestForWar } from './minor-civ-diplomacy';
 import { resolveCivilizationEra } from './tech-definitions';
+import { reconcileMinorCivLeagues } from './minor-civ-league-system';
 
 const REPARATIONS_BASE_COST = 40;
 const REPARATIONS_ERA_COST = 10;
@@ -122,7 +123,7 @@ export function performMinorCivReparations(
     lastUpdatedTurn: nextState.turn,
     causes: [...grievance.causes, reparationsCause].slice(-8),
   };
-  return { state: nextState, ok: true, transitions: [] };
+  return { state: reconcileMinorCivLeagues(nextState), ok: true, transitions: [] };
 }
 
 export function setMinorCivWarState(
@@ -153,12 +154,12 @@ export function setMinorCivWarState(
   } else {
     if (majorAtWar) nextMajor.diplomacy = makePeace(nextMajor.diplomacy, minorCivId, state.turn);
     if (minorAtWar) nextMinor.diplomacy = makePeace(nextMinor.diplomacy, majorCivId, state.turn);
-    return { state: nextState, ok: true, transitions: [] };
+    return { state: reconcileMinorCivLeagues(nextState), ok: true, transitions: [] };
   }
 
   const ended = endMinorCivQuestForWar(nextMinor, majorCivId, state.turn);
   nextState.minorCivs[minorCivId] = ended.minor;
   const transitions: ChainTransition[] = ended.brokenChainId
     ? [{ type: 'alliance-broken', majorCivId, minorCivId, chainId: ended.brokenChainId }] : [];
-  return { state: applyVassalageWarConsequences(state, nextState, bus), ok: true, transitions };
+  return { state: reconcileMinorCivLeagues(applyVassalageWarConsequences(state, nextState, bus)), ok: true, transitions };
 }

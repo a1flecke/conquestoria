@@ -14,6 +14,7 @@ import {
 import { MINOR_CIV_DEFINITIONS } from './minor-civ-definitions';
 import { mapDistance } from './hex-utils';
 import { createRng } from './map-generator';
+import { resolveNeutralPressureEra } from './era-resolution';
 
 export type MinorCivLeaguePreference =
   | { kind: 'none'; reason: 'no-compact' | 'own-needs' | 'warning' }
@@ -86,6 +87,44 @@ function graceTurn(state: GameState): number {
   return Math.min(Number.MAX_SAFE_INTEGER, state.turn + MINOR_CIV_LEAGUE_RULES.admissionGraceTurns);
 }
 
+function hasLiveConcernSource(state: GameState, league: MinorCivLeague): boolean {
+  return league.memberIds.some(memberId => {
+    const member = getLivingIndependentMinor(state, memberId);
+    if (!member) return false;
+    const targets = new Set<string>(member.minorCiv.diplomacy.atWarWith ?? []);
+    for (const [targetId, grievance] of Object.entries(member.minorCiv.regionalGrievanceByCiv ?? {})) {
+      if (grievance.status === 'mobilizing' || grievance.status === 'coalition-talks') targets.add(targetId);
+    }
+    return [...targets].some(targetId => (
+      Boolean(state.civilizations[targetId] && !state.civilizations[targetId].isEliminated)
+      && (resolveNeutralPressureEra(state, member.city.position, targetId) ?? 1) >= 2
+    ));
+  });
+}
+
+function reconcileReadiness(state: GameState, league: MinorCivLeague): MinorCivLeague['readiness'] {
+  const hasSource = hasLiveConcernSource(state, league);
+  if (hasSource) {
+    return league.readiness.kind === 'concern'
+      ? league.readiness
+      : { kind: 'concern', sinceTurn: state.turn };
+  }
+  if (league.readiness.kind === 'concern') return { kind: 'cooling', sinceTurn: state.turn };
+  if (league.readiness.kind === 'cooling') {
+    const coolingTurns = MINOR_CIV_LEAGUE_TIMING[resolveOpponentChallenge(state)].coolingTurns;
+    return state.turn - league.readiness.sinceTurn >= coolingTurns ? { kind: 'quiet' } : league.readiness;
+  }
+  return league.readiness;
+}
+
+function sameReadiness(
+  left: MinorCivLeague['readiness'],
+  right: MinorCivLeague['readiness'],
+): boolean {
+  return left.kind === right.kind
+    && (left.kind === 'quiet' || (right.kind !== 'quiet' && left.sinceTurn === right.sinceTurn));
+}
+
 /**
  * Repairs only live compact membership. It deliberately does not form new
  * groups, register new minors, or advance the scheduler.
@@ -116,9 +155,12 @@ export function reconcileMinorCivLeagues(state: GameState): GameState {
       continue;
     }
     if (!sameMembers(league.memberIds, livingMembers)) changed = true;
-    const reconciled = sameMembers(league.memberIds, livingMembers)
+    const readiness = reconcileReadiness(state, league);
+    const readinessChanged = !sameReadiness(readiness, league.readiness);
+    if (readinessChanged) changed = true;
+    const reconciled = sameMembers(league.memberIds, livingMembers) && !readinessChanged
       ? league
-      : { ...league, memberIds: livingMembers };
+      : { ...league, memberIds: livingMembers, readiness };
     leagues[league.id] = reconciled;
     for (const memberId of livingMembers) claimedMembers.add(memberId);
   }
@@ -349,6 +391,14 @@ export function getMinorCivLeaguePreference(
   const league = getMinorCivLeagueForMember(state, minorCivId);
   if (!league) return { kind: 'none', reason: 'no-compact' };
   if (ownPosture !== 'settled') return { kind: 'none', reason: 'own-needs' };
-  if (league.readiness.kind !== 'quiet') return { kind: 'none', reason: 'warning' };
+  if (league.readiness.kind === 'concern') {
+    const warningTurns = MINOR_CIV_LEAGUE_TIMING[resolveOpponentChallenge(state)].warningTurns;
+    if (hasLiveConcernSource(state, league)
+      && state.turn >= MINOR_CIV_LEAGUE_RULES.minWorldTurn
+      && state.turn - league.readiness.sinceTurn >= warningTurns) {
+      return { kind: 'defense', reason: 'preparation' };
+    }
+    return { kind: 'none', reason: 'warning' };
+  }
   return { kind: league.charter, reason: 'charter' };
 }

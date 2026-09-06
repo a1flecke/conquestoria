@@ -21,4 +21,19 @@ describe('minor-civ league definitions', () => {
       { kind: 'building', building: BUILDINGS.marketplace },
     )).toBe(MINOR_CIV_LEAGUE_RULES.peacefulScoreBonus);
   });
+
+  it('awards the defense bonus only to local defense buildings and non-scout units', () => {
+    expect(getMinorCivLeagueScoreBonus(
+      { kind: 'defense', reason: 'preparation' },
+      { kind: 'building', building: BUILDINGS.walls },
+    )).toBe(MINOR_CIV_LEAGUE_RULES.defenseScoreBonus);
+    expect(getMinorCivLeagueScoreBonus(
+      { kind: 'defense', reason: 'preparation' },
+      { kind: 'unit', unitType: 'warrior' },
+    )).toBe(MINOR_CIV_LEAGUE_RULES.defenseScoreBonus);
+    expect(getMinorCivLeagueScoreBonus(
+      { kind: 'defense', reason: 'preparation' },
+      { kind: 'unit', unitType: 'scout' },
+    )).toBe(0);
+  });
 });

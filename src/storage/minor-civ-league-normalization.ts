@@ -82,8 +82,13 @@ function parseLeagueId(id: unknown, recordKey: string): number | null {
     : null;
 }
 
-function normalizeReadiness(value: unknown): MinorCivLeagueReadiness {
-  if (!isPlainRecord(value) || value.kind !== 'quiet') return { kind: 'quiet' };
+function normalizeReadiness(state: GameState, value: unknown): MinorCivLeagueReadiness {
+  if (!isPlainRecord(value)) return { kind: 'quiet' };
+  if (value.kind === 'quiet') return { kind: 'quiet' };
+  if ((value.kind === 'concern' || value.kind === 'cooling')
+    && isSafeIntegerInRange(value.sinceTurn, 0, currentTurn(state))) {
+    return { kind: value.kind, sinceTurn: value.sinceTurn };
+  }
   return { kind: 'quiet' };
 }
 
@@ -174,7 +179,7 @@ export function normalizeMinorCivLeagueState(state: GameState): GameState {
         charter: value.charter as MinorCivLeagueCharter,
         memberIds,
         formedTurn: value.formedTurn,
-        readiness: normalizeReadiness(value.readiness),
+        readiness: normalizeReadiness(state, value.readiness),
       },
     });
   }
