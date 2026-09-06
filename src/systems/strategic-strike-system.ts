@@ -67,7 +67,7 @@ export type StrategicStrikeResult =
  *
  * Gold loss: resolveCitySiegeDamage's own preventDestruction branch returns
  * goldLost: 0 unconditionally -- verified directly against the function; that is
- * naval-city-bombardment-system.ts's existing, unchanged contract, not something
+ * city-bombardment-system.ts's existing, unchanged contract, not something
  * this MR may alter. The design spec locks in a stricter outcome for a strategic
  * strike specifically (1-HP floor AND the same gold loss the normal 'sacked' branch
  * would have applied). This resolver applies that as an explicit extra step, reusing

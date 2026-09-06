@@ -77,7 +77,7 @@ import { getParadropTargets, executeParadrop, getAirAssaultLaunchState, getAirAs
 import { getKnownHostileAirDefenseThreat } from '@/systems/air-defense-system';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
 import { resolveCombatEra } from '@/systems/era-resolution';
-import { resolveNavalCityBombardment } from '@/systems/naval-city-bombardment-system';
+import { resolveUnitCityBombardment } from '@/systems/city-bombardment-system';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 
 export type AITacticalAction =
@@ -1131,7 +1131,7 @@ function applyPredictedAction(
       return applyCombatOutcomeToState(next, result, seed).state;
     }
     case 'bombard-city': {
-      const result = resolveNavalCityBombardment(next, {
+      const result = resolveUnitCityBombardment(next, {
         attackerUnitId: action.unitId,
         cityId: action.cityId,
         source: 'ai',

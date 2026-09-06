@@ -70,12 +70,19 @@ export const registerRaiderPresentation: PresentationRegistrar = (bus, ctx) => {
         : `${cityName}'s Coastal Battery returned fire on a ${attackerLabel} (−${damage} HP; first naval hit this turn).`;
       ctx.notifier.deliver(recipientCivId, message, attackerDied ? 'success' : 'info');
     }),
-    bus.on('city:naval-bombarded', ({ cityId, recipientCivId, source, hpLost }) => {
+    bus.on('city:bombarded', ({ cityId, recipientCivId, source, hpLost, domain }) => {
       const state = ctx.session.getState();
       if (!state.civilizations[recipientCivId]?.isHuman) return;
-      const cityName = state.cities[cityId]?.name ?? 'A coastal city';
-      const attacker = source === 'ai' ? 'an enemy fleet' : 'a naval bombardment';
-      ctx.notifier.deliver(recipientCivId, `${cityName} took ${hpLost} damage from ${attacker}.`, 'warning');
+      const city = state.cities[cityId];
+      const cityName = city?.name ?? 'A city';
+      // #974: the attacker label follows the firing domain rather than assuming a fleet.
+      const attacker = domain === 'naval'
+        ? (source === 'ai' ? 'an enemy fleet' : 'a naval bombardment')
+        : domain === 'air'
+          ? 'an air strike'
+          : (source === 'ai' ? 'enemy siege guns' : 'a bombardment');
+      const remaining = city?.hp === undefined ? '' : ` (${city.hp}/100)`;
+      ctx.notifier.deliver(recipientCivId, `${cityName} took ${hpLost} damage from ${attacker}${remaining}.`, 'warning');
     }),
     // Pirate-faction naval siege (#522) mirror of the barbarian handler above.
     bus.on('pirate:city-destroyed', ({ cityId, ownerId }) => {

@@ -82,7 +82,7 @@ import { createCityCapturePanel } from '@/ui/city-capture-panel';
 import { deterministicCombatSeed, resolveCombat } from '@/systems/combat-system';
 import { buildCombatContextForDefender, getAmphibiousAssaultMultiplier } from '@/systems/combat-context';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
-import { resolveNavalCityBombardment } from '@/systems/naval-city-bombardment-system';
+import { resolveUnitCityBombardment } from '@/systems/city-bombardment-system';
 import { applyCombatOutcomeToState, getCaptureNotificationLabel } from '@/systems/combat-reward-system';
 import { recordCombatForCiv } from '@/systems/threat-pressure-system';
 import { resolveCombatEra } from '@/systems/era-resolution';
@@ -668,7 +668,7 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
       const city = deps.session.getState().cities[legality.cityId];
       if (!city) return;
       ensurePlayerWarState(city.owner);
-      const bombardment = resolveNavalCityBombardment(deps.session.getState(), {
+      const bombardment = resolveUnitCityBombardment(deps.session.getState(), {
         attackerUnitId: initialAttacker.id,
         cityId: city.id,
         source: 'player',
@@ -678,7 +678,7 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
         return;
       }
       deps.session.setStateWithoutRefresh(bombardment.state);
-      if (bombardment.cityEvent) deps.bus.emit('city:naval-bombarded', bombardment.cityEvent);
+      if (bombardment.cityEvent) deps.bus.emit('city:bombarded', bombardment.cityEvent);
       if (bombardment.batteryEvent) deps.bus.emit('city:coastal-battery-fired', bombardment.batteryEvent);
       deps.renderLoop.setGameState(deps.session.getState());
       deps.hud.update();

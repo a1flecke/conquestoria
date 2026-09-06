@@ -19,7 +19,7 @@ import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { deterministicCombatSeed, resolveCombat } from '@/systems/combat-system';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { resolveCombatEra } from '@/systems/era-resolution';
-import { resolveNavalCityBombardment } from '@/systems/naval-city-bombardment-system';
+import { resolveUnitCityBombardment } from '@/systems/city-bombardment-system';
 import {
   beginMajorCityAssault,
   canUnitOccupyCity,
@@ -388,13 +388,13 @@ function executeAction(
       };
     }
     case 'bombard-city': {
-      const bombardment = resolveNavalCityBombardment(state, {
+      const bombardment = resolveUnitCityBombardment(state, {
         attackerUnitId: action.unitId,
         cityId: action.cityId,
         source: 'ai',
       });
       if (bombardment.ok) {
-        if (bombardment.cityEvent) bus.emit('city:naval-bombarded', bombardment.cityEvent);
+        if (bombardment.cityEvent) bus.emit('city:bombarded', bombardment.cityEvent);
         if (bombardment.batteryEvent) bus.emit('city:coastal-battery-fired', bombardment.batteryEvent);
       }
       return { state: bombardment.ok ? bombardment.state : state, succeeded: bombardment.ok, followUps: [] };
