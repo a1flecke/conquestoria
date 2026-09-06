@@ -1,0 +1,103 @@
+# RNG source-rule legacy baseline — #1021
+#
+# Every line below is a CURRENT occurrence (audited fresh at #1021's base
+# commit) of either a hand-written LCG constant used as a multiplier
+# (16807, 48271, 1664525, 104729, 92821, 99991, 73937, 65599, 7919, 31337)
+# or a `.charCodeAt(<literal index>)` call, inside src/systems, src/ai, or
+# src/core. `scripts/check-src-rule-violations.sh` and
+# `.claude/hooks/check-src-edit.sh` skip exactly these `path:line` pairs;
+# any NEW occurrence anywhere else in those three directories is flagged.
+#
+# This is deliberately NOT the same thing as "verified correct" — see the
+# per-entry tag:
+#
+#   [FIX-982]  genuinely under-keyed simulation RNG (missing state.gameId,
+#              and/or a single truncated character standing in for a full
+#              entity id). This is #982's own inventory — converting these
+#              is #982's job, not #1021's. Remove the line here in the same
+#              change that converts it.
+#   [OK]       verified correct at #1021's audit: the seed this line
+#              consumes already includes gameId, turn, and full entity
+#              identity — kept in the baseline only so the source rule
+#              doesn't fire on an already-reviewed line; not #982 scope.
+#   [LOW]      correct today, but a hand-rolled duplicate of the LCG body
+#              `seededLcg` already provides — a cosmetic unification
+#              opportunity, not a live bug. Not #982 scope either.
+#
+# Do not add a new entry here for code you are writing now — new simulation
+# RNG must go through `createSimulationRng` (src/systems/simulation-rng.ts).
+# This file only grows when a *future* audit finds a call site missed here.
+
+# --- crisis-system.ts (5 rows in #982's own table; all missing gameId) ---
+src/systems/crisis-system.ts:126 # [FIX-982] turn*7919 + civId char-sum*31 — no gameId
+src/systems/crisis-system.ts:306 # [FIX-982] turn*104729 + hashString(id+cityId) — no gameId
+src/systems/crisis-system.ts:421 # [FIX-982] turn*104729 + hashString(id+cityId) — no gameId
+src/systems/crisis-system.ts:506 # [FIX-982] turn*65599 + hashString(crisis.id) — no gameId
+src/systems/crisis-system.ts:743 # [FIX-982] turn*65599 + hashString(working.id) — no gameId
+
+# --- religion-system.ts ---
+src/systems/religion-system.ts:33 # [FIX-982] turn*92821 + civId char-sum*17 — no gameId
+
+# --- threat-pressure-system.ts (both truncate to one character, per #982) ---
+src/systems/threat-pressure-system.ts:440 # [FIX-982] turn*99991 + landmassId.charCodeAt(0)*7 + civId.charCodeAt(0)*3
+src/systems/threat-pressure-system.ts:642 # [FIX-982] turn*73937 + civId.charCodeAt(0)*13 + landmassId.charCodeAt(0)*5
+
+# --- cyber-warfare-system.ts (worst collision: EVERY city/unit pair shares one seed) ---
+src/systems/cyber-warfare-system.ts:24 # [FIX-982] turn*16807 + cityId.charCodeAt(0) + unitId.charCodeAt(0) — 'c'/'u' for every city/unit
+src/systems/cyber-warfare-system.ts:25 # [FIX-982] LCG advance of the line-24 seed
+
+# --- minor-civ-system.ts (4 separate sites) ---
+src/systems/minor-civ-system.ts:81 # [FIX-982] placement rng seeded from the placement seed string, not gameId
+src/systems/minor-civ-system.ts:537 # [FIX-982] turn*16807 + civId.charCodeAt(0) + minorCivId.charCodeAt(3) — no gameId, truncated ids
+src/systems/minor-civ-system.ts:680 # [FIX-982] makeRng() LCG body, fed the under-keyed seeds above
+src/systems/minor-civ-system.ts:821 # [FIX-982] (turn*16807 + mc.id.charCodeAt(3)) % 100 — no gameId, truncated id
+
+# --- pirate-system.ts ---
+src/systems/pirate-system.ts:885 # [FIX-982] (turn*104729) ^ targetShip.id.charCodeAt(0) ^ 0x5a5a — no gameId, truncated id
+
+# --- unit-movement-system.ts (this is #983 itself) ---
+src/systems/unit-movement-system.ts:191 # [FIX-982] turn*16807 + unit.id.charCodeAt(0) — no gameId, no village identity, every unit id starts with 'u' (#983)
+src/systems/unit-movement-system.ts:193 # [FIX-982] LCG advance of the line-191 seed
+
+# --- city-capture-system.ts (already folds full ids; still missing gameId) ---
+src/systems/city-capture-system.ts:315 # [FIX-982] turn*7919 base seed — no gameId (full attackerId/cityId already folded correctly below)
+src/systems/city-capture-system.ts:317 # [FIX-982] LCG fold over the full attackerId:cityId string — correct identity, still missing gameId
+
+# --- city-bombardment-system.ts (two call sites, same shape) ---
+src/systems/city-bombardment-system.ts:183 # [FIX-982] turn*7919 ^ 0x5a5a — no gameId, no attacker/city identity at all
+src/systems/city-bombardment-system.ts:281 # [FIX-982] turn*7919 ^ 0x5a5a — no gameId, no attacker/city identity at all
+
+# --- beast-system.ts ---
+src/systems/beast-system.ts:74 # [LOW] lcg() recurrence body — hand-rolled duplicate of seededLcg
+# note: the seed this feeds (turn-manager.ts:1171, below) IS under-keyed — that's the real #982 finding here.
+
+# --- barbarian-system.ts ---
+src/systems/barbarian-system.ts:36 # [LOW] lcg() recurrence body — hand-rolled duplicate of seededLcg
+src/systems/barbarian-system.ts:315 # [OK] gameId:turn:campId folded over the full string, no truncation
+src/systems/barbarian-system.ts:351 # [FIX-982] turn*31337 alone, shared across every camp in one call — no gameId, no camp identity (31337 not in #982's own constant list; found fresh here)
+src/systems/barbarian-system.ts:384 # [OK] gameId:turn:campId folded over the full string, no truncation
+
+# --- combat-system.ts (resolveCombat's own seed always comes from deterministicCombatSeed, already correct) ---
+src/systems/combat-system.ts:431 # [LOW] resolveCombat's LCG recurrence body — hand-rolled duplicate of seededLcg; caller-supplied seed is already gameId-rooted
+
+# --- city-siege-system.ts (createSeededRng is parameterized; every current caller already supplies a correct or #982-tracked seed) ---
+src/systems/city-siege-system.ts:135 # [LOW] createSeededRng() recurrence body — hand-rolled duplicate of seededLcg
+
+# --- combat-reward-system.ts (seededRoll's seed always traces back to deterministicCombatSeed via applyCombatOutcomeToState) ---
+src/systems/combat-reward-system.ts:140 # [OK] full victorId:defeatedId fold, no truncation; caller-supplied seed is already gameId-rooted
+src/systems/combat-reward-system.ts:142 # [LOW] LCG recurrence body — hand-rolled duplicate of seededLcg
+
+# --- pirate-actions.ts (deterministicRoll is parameterized; its one caller already builds gameId:turn:factionId:raidKey) ---
+src/systems/pirate-actions.ts:304 # [OK] full-string FNV-1a fold, no truncation; caller already supplies gameId:turn:factionId:raidKey
+
+# --- air-operations-system.ts (self-contained; already correct) ---
+src/systems/air-operations-system.ts:470 # [OK] gameId:turn:baseId:aircraftId folded over the full string, no truncation
+
+# --- turn-manager.ts (mixed: one already-correct function, four under-keyed sites) ---
+src/core/turn-manager.ts:151 # [LOW] deriveGeneralCandidateSeed (#932) — already gameId-rooted; recurrence body duplicates seededLcg
+src/core/turn-manager.ts:153 # [LOW] deriveGeneralCandidateSeed (#932) LCG fold — hand-rolled duplicate of seededLcg
+src/core/turn-manager.ts:897 # [FIX-982] fashion-cycle rng: turn*16807 alone — no gameId, no per-item identity
+src/core/turn-manager.ts:899 # [FIX-982] LCG advance of the line-897 seed
+src/core/turn-manager.ts:942 # [FIX-982] barbSeed = turn*31337 + camp count — no gameId, no per-camp identity (31337 is not in #982's own constant list; found fresh in this audit)
+src/core/turn-manager.ts:1056 # [FIX-982] barbSeed ^ attackerUnitId.charCodeAt(0) ^ 0x5a5a — truncated id, and barbSeed itself (line 942) also lacks gameId
+src/core/turn-manager.ts:1171 # [FIX-982] beastSeed = turn*7919 + 13 — no gameId, no per-lair identity; drives every lair/beast this turn from one shared stream

@@ -7,10 +7,13 @@ paths:
 
 # Game Systems Rules
 
-## Deterministic RNG
-- NEVER use `Math.random()` — use seeded RNG (e.g., mulberry32 or LCG)
-- Combat, AI decisions, and map generation must all be reproducible from a seed
-- Pass `seed` parameter through function signatures; derive from `state.turn` + entity IDs
+## Deterministic Simulation RNG (#1021)
+- NEVER use `Math.random()` in simulation code — the only exception is `src/audio/sfx.ts`, which is UI/audio randomness, not simulation state.
+- NEVER hand-roll a new LCG (`s = s * <constant> % 2147483647`, or any similar recurrence) or seed one from `turn` plus a `charCodeAt(0)`/`charCodeAt(N)` truncation of an id. Every normal unit id in this codebase starts with `unit-`, so `unit.id.charCodeAt(0)` is `117` for **every** unit in the game — that exact collision is what shipped as #983.
+- **Use `createSimulationRng(state, key)`** (`src/systems/simulation-rng.ts`) for any new deterministic simulation draw. It reads `state.gameId` and `state.turn` itself — a caller never supplies either — and takes a `SimulationDomainKey`: `{ domain: string, actorId?, targetId?, eventId?, ordinal? }`, requiring at least one of `actorId`/`targetId`/`eventId`/`ordinal` (a bare `{ domain }` is a compile error). Use **full entity ids** (`unit.id`, `civId`, `mc.id`) — never a substring or character code of one. Add an explicit `ordinal` whenever the same domain can draw more than once for the same actor/target/event in a single turn; otherwise those draws alias onto the same stream.
+- A source rule (`scripts/check-src-rule-violations.sh`, mirrored in `.claude/hooks/check-src-edit.sh`) rejects any **new** hand-written LCG constant (`16807`, `48271`, `1664525`, `104729`, `92821`, `99991`, `73937`, `65599`, `7919`, `31337`) or literal-index `charCodeAt(N)` under `src/systems`, `src/ai`, `src/core`. Pre-#1021 occurrences are tracked by exact `path:line` in `.claude/rng-legacy-baseline.txt` (see that file's header for what a baseline entry does and does not mean — some are genuine debt for #982 to convert, some are already-correct code kept out of the rule's way); the two exceptions to the rule entirely are `src/systems/map-generator.ts` and `src/systems/river-system.ts` (map generation, seeded once from the campaign seed string before `gameId` exists — keying it to `gameId` would be circular, not stronger) plus `src/systems/seeded-lcg.ts` and `src/systems/simulation-rng.ts` themselves (the canonical implementation).
+- Distinct from simulation RNG, and never conflated with it: **`createPlaythroughId`** (`src/core/game-state.ts`) is deliberately `Date.now()`-salted per-playthrough identity (save-slot bookkeeping), not simulation state — conflating the two was itself a fixed bug (see that file's doc comment). **Audio/UI randomness** (`src/audio/sfx.ts`) is out of simulation determinism entirely.
+- Combat, AI decisions, and map generation must all be reproducible from a seed. Two campaigns created with the same explicit seed must reach the same `gameId` and produce identical outcomes for every converted stream; two different seeds must diverge.
 
 ## State Mutations Must Match Events
 - If you emit an event (e.g., `city:unit-trained`), the state mutation (creating the unit, adding to arrays) MUST happen in the same block

@@ -79,4 +79,108 @@ describe('check-src-rule-violations.sh', () => {
     expect(result.status).toBe(0);
     expect(result.stderr).toBe('');
   });
+
+  describe('#1021 hand-rolled simulation RNG rule', () => {
+    it('blocks a new LCG constant + truncated-id charCodeAt outside the baseline', () => {
+      const workspace = makeWorkspace();
+      writeWorkspaceFile(
+        workspace,
+        'src/systems/fresh-rng.ts',
+        [
+          'export function badSeed(turn: number, unitId: string): number {',
+          '  return turn * 48271 + unitId.charCodeAt(0);',
+          '}',
+        ].join('\n'),
+      );
+
+      const result = runScript(workspace, 'src/systems/fresh-rng.ts');
+
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain('Hand-rolled simulation RNG constant or truncated-id charCodeAt() detected');
+      expect(result.stderr).toContain('createSimulationRng()');
+    });
+
+    it('allows createSimulationRng usage with no bare constant or charCodeAt', () => {
+      const workspace = makeWorkspace();
+      writeWorkspaceFile(
+        workspace,
+        'src/systems/good-rng.ts',
+        [
+          "import { createSimulationRng } from './simulation-rng';",
+          '',
+          'export function rollVillageOutcome(state: GameState, villageId: string, unitId: string): number {',
+          "  const rng = createSimulationRng(state, { domain: 'village-visit', actorId: unitId, targetId: villageId });",
+          '  return rng();',
+          '}',
+        ].join('\n'),
+      );
+
+      const result = runScript(workspace, 'src/systems/good-rng.ts');
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe('');
+    });
+
+    it('allows a pre-existing occurrence recorded in the legacy baseline at its exact path:line', () => {
+      const workspace = makeWorkspace();
+      const paddingLines = Array.from({ length: 125 }, (_, i) => `// padding line ${i + 1}`);
+      // Real baseline entry: src/systems/crisis-system.ts:126
+      const lines = [...paddingLines, '  const rng = seededLcg(state.turn * 7919 + civId.charCodeAt(0) * 31);'];
+      writeWorkspaceFile(workspace, 'src/systems/crisis-system.ts', lines.join('\n'));
+
+      const result = runScript(workspace, 'src/systems/crisis-system.ts');
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe('');
+    });
+
+    it('still blocks the same offending pattern at a different, non-baselined line in that file', () => {
+      const workspace = makeWorkspace();
+      const paddingLines = Array.from({ length: 130 }, (_, i) => `// padding line ${i + 1}`);
+      const lines = ['  const rng2 = seededLcg(state.turn * 7919);', ...paddingLines];
+      writeWorkspaceFile(workspace, 'src/systems/crisis-system.ts', lines.join('\n'));
+
+      const result = runScript(workspace, 'src/systems/crisis-system.ts');
+
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain('Hand-rolled simulation RNG constant or truncated-id charCodeAt() detected');
+    });
+
+    it('exempts map-generator.ts permanently regardless of content', () => {
+      const workspace = makeWorkspace();
+      writeWorkspaceFile(
+        workspace,
+        'src/systems/map-generator.ts',
+        [
+          'export function createRng(seed: string): () => number {',
+          '  let h = seed.length * 48271;',
+          '  return () => (h = (h * 1664525 + 1013904223) | 0) / 4294967296;',
+          '}',
+        ].join('\n'),
+      );
+
+      const result = runScript(workspace, 'src/systems/map-generator.ts');
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe('');
+    });
+
+    it('never scans src/audio -- the rule is scoped to src/systems, src/ai, src/core only', () => {
+      const workspace = makeWorkspace();
+      writeWorkspaceFile(
+        workspace,
+        'src/audio/sfx.ts',
+        [
+          'export function noiseSample(noiseSeed: number): number {',
+          '  return (noiseSeed * 1664525 + 1013904223) & 0xffffffff;',
+          '}',
+        ].join('\n'),
+      );
+
+      const result = runScript(workspace, 'src/audio/sfx.ts');
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe('');
+    });
+  });
 });
