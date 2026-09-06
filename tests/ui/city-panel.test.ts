@@ -4,8 +4,9 @@ import { createCityPanel } from '@/ui/city-panel';
 import { SESSION_SHOWN_TIPS } from '@/ui/advisor-system';
 import { createUnit } from '@/systems/unit-system';
 import { EventBus } from '@/core/event-bus';
-import { rushBuyActiveProduction } from '@/systems/economy-system';
-import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
+import { ECONOMY_RULES, getRushBuyQuote, rushBuyActiveProduction } from '@/systems/economy-system';
+import { BUILDINGS, TRAINABLE_UNITS, processCity } from '@/systems/city-system';
+import { buildProductionCostContext, getProductionCostForCivItem } from '@/systems/production-cost-context';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { hexKey, hexNeighbors } from '@/systems/hex-utils';
 import { TECH_TREE } from '@/systems/tech-definitions';
@@ -2998,5 +2999,46 @@ describe('Prepare Strategic Launch action (#545 MR4 §14 stage 1)', () => {
     const panel = createCityPanel(container, city, state, { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} });
     expect(panel.querySelector('[data-action="prepare-strategic-launch"]')).toBeNull();
     expect(collectText(panel)).not.toContain('Strategic Arsenal:');
+  });
+});
+
+describe('#984 city-panel production cost parity', () => {
+  it('displays the same cost the completion threshold and rush-buy quote use', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    const civ = state.civilizations.player;
+    civ.techState.completed = ['stone-weapons', 'bronze-working'];
+    // `spearman` is era-1/2 melee (so the muster ground applies) and needs no
+    // strategic resource, so the discount is the only modifier in play.
+    civ.gold = 5000;
+    // Tribal Muster Ground discounts era-1/2 melee units 10% empire-wide. Before
+    // #984 the panel applied it, processCity did not, and rush-buy priced the
+    // gold from a cost the city would never actually have to produce.
+    state.builtNationalProjects = {
+      ...(state.builtNationalProjects ?? {}),
+      'player:tribal_muster_ground': { civId: 'player', eraBuilt: 1, turn: 1 } as never,
+    };
+
+    const canonical = getProductionCostForCivItem(state, 'player', city.id, 'spearman');
+    expect(canonical).toBeLessThan(TRAINABLE_UNITS.find(unit => unit.type === 'spearman')!.cost);
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+    const spearmanCard = panel.querySelector('[data-item-id="spearman"]');
+    expect(spearmanCard, 'spearman is offered in the build list').toBeTruthy();
+    expect(collectText(spearmanCard as HTMLElement)).toContain(`Cost: ${canonical}`);
+
+    const queued: City = { ...city, productionQueue: ['spearman'], productionProgress: 0 };
+    state.cities[city.id] = queued;
+    expect(getRushBuyQuote(state, 'player', city.id).cost)
+      .toBe(Math.ceil(canonical * ECONOMY_RULES.rushBuyMultiplier));
+    expect(processCity(
+      queued,
+      state.map,
+      0,
+      canonical,
+      buildProductionCostContext(state, 'player', city.id),
+      civ.civType,
+    ).completedUnit).toBe('spearman');
   });
 });

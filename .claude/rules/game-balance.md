@@ -502,6 +502,53 @@ caller passed `allowDefenderSpawns: false`). `#951` consolidated these into one 
   `.lastMobilizedTurn`, `.conscriptCooldownUntilTurn`, and `.recoveryStrainedUntilTurn`. Old saves
   carrying any of these are tolerated (fields silently dropped on normalize) with no schema bump.
 
+## Production Cost Context (#984)
+
+Every production cost in the game is one function of one input:
+
+```ts
+getProductionCostForItem(itemId, buildProductionCostContext(state, civId, cityId))
+```
+
+`buildProductionCostContext` (`src/systems/production-cost-context.ts`) is the
+only place a production cost's inputs are derived from state. Callers name the
+state, the owning civilization and the host city; they never decide which era,
+tech list, national projects, resources, material substitution or reward charges
+belong in a cost.
+
+**`era` is always `resolveCivilizationEra(civ.techState.completed)` — the owning
+civilization's own technology-derived era.** `state.era` is *World Age*: the era
+a **majority** of living civilizations has reached (`resolveWorldAge`). For a
+civ behind the curve the two differ by more than 2x, and `SETTLER_COST_BY_ERA`
+turns that straight into a wrong price. `resolveCombatEra` and
+`resolveNeutralPressureEra` (`src/systems/era-resolution.ts`) deliberately blend
+or fall back to World Age; they are unrelated to production cost, leave them
+alone.
+
+**Every field of `ProductionCostContext` is required.** Absence must be written
+explicitly (`city: null`, `bonusEffect: undefined`). This is deliberate: MR12's
+national-project discount and #984's era both escaped through an *optional* key
+that a caller simply never wrote, and neither the compiler nor a test could see
+it. Adding a new cost input means adding a required key, which makes every
+construction site a compile error until it is considered.
+
+Enforced by `tests/systems/production-cost-context.test.ts`:
+
+| Rule | Why |
+|---|---|
+| Only `city-system.ts` and `production-cost-context.ts` may reference `getProductionCostForItem` | the raw formula is not a gameplay entry point |
+| Only `minor-civ-economy-system.ts` may call `createProductionCostContext` | a minor civ has no `Civilization` record to derive one from — it supplies a synthetic tech band and local pressure era. This is the single documented exception |
+| No file that touches a production cost may write `era: <something>.era` | the acceptance criterion from #984 |
+
+`processCity` takes the context and reads `era`, `completedTechs` and
+`availableResources` back out of it for queue eligibility as well, so the
+threshold a city completes at and the cost every panel, quote, projection and AI
+candidate displays cannot diverge.
+
+**Difficulty-invariant.** Explorer / Standard / Veteran change neither a
+production cost nor its legality. Challenge profiles may change *what the AI
+chooses*; they never change what an item costs.
+
 ## National Project Lifecycle Contract
 
 - **Build window:** available during `homeEra` and `homeEra + 1` only. Hidden from production queue when `currentEra > homeEra + 1`.
@@ -533,7 +580,7 @@ MR12 added a second class of national-project effect distinct from `civYieldBonu
 - Defined in `NP_PRODUCTION_DISCOUNTS` in `src/systems/city-system.ts`, a data table (`{ nationalProjectId, appliesTo, discount }`) consumed generically by `getNationalProjectDiscountMultiplier`. **Add a new discount by appending a row — never add another `if (project.id === '...')` branch to that function.** The whole point of the table is that a new discount NP requires zero changes to the resolver.
 - `appliesTo` is either a `UnitClass` (checked via `UNIT_CLASS_BY_TYPE`, e.g. `'gunpowder'`, `'siege'`) or an explicit `UnitType[]` for discounts that don't map to one class (e.g. `ERA_1_2_MELEE_UNIT_TYPES`). Prefer the class form — it stays correct if new units are added to that class later; only use an explicit list when the discount's boundary is genuinely not a `UnitClass` (era-scoped melee is the only current example).
 - Discounts are fade-scaled by the project's `fadeMultiplier` (same 1.0 / 0.5 / 0.0 curve as yields) and are **multiplicative** with building discounts and tech discounts — not `Math.min`'d like same-class building discounts are. See `tests/systems/city-system.test.ts` "MR12 — national-project production discounts" for the exact-value regression.
-- `getProductionCostForItem` only computes this when callers pass `activeNationalProjects: ActiveNationalProjectRef[]` (from `getActiveNationalProjectsForCiv`). As of MR12 this is threaded through: `economy-system.ts` (rush-buy), `planning-system.ts` (idle-city recommendation), `quest-objective-system.ts` (caravan-queue-cost estimate), `ai-production.ts` (AI candidate scoring), and `city-panel.ts` (displayed cost). **Any new call site of `getProductionCostForItem` that can see a real city/civ must also pass `activeNationalProjects`, or a discount NP will silently not apply there** — there is no compiler or test error for a caller that simply omits the option, since it defaults to `[]`. When adding a new caller, check this list and add it, and prefer verifying the new caller's discounted cost in a test rather than assuming the default-`[]` path is fine.
+- Discounts reach a cost through the canonical production-cost context (see "Production Cost Context" below), which derives `activeNationalProjects` from `getActiveNationalProjectsForCiv` for you. MR12 shipped this as a per-caller option that five call sites had to remember; #984 found `processCity` — the threshold a city actually completes at — had never been one of them, so a discounted unit was displayed at the discounted price and produced at the full one. Do not reintroduce a per-caller option.
 
 ## Great General Specialty Bounds (#885)
 
@@ -587,7 +634,7 @@ When adding a new wonder, national project, or special building in any future er
 - [ ] National project: AI/player availability uses the shared reserved-project set; UI labels its yields as empire-wide
 - [ ] Wonder/project: definition-driven AI eligibility and global/self-competition tests cover the new entry without ID-specific AI branches
 - [ ] Any movement bonus: update the stacking inventory table above; confirm total ≤ +2 empire-wide for affected unit class
-- [ ] National project production discount (new class, see above): append a row to `NP_PRODUCTION_DISCOUNTS`, don't branch; confirm every `getProductionCostForItem` caller in the list above still passes `activeNationalProjects`
+- [ ] National project production discount (new class, see above): append a row to `NP_PRODUCTION_DISCOUNTS`, don't branch; price it through the canonical production-cost context so every consumer picks it up at once
 - [ ] Run `yarn test` — `national-project-balance.test.ts` and `wonder-definitions.test.ts` will fail if ceilings are exceeded
 
 ## Pacing Regression Prevention
