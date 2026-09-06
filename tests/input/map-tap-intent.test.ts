@@ -546,3 +546,67 @@ describe('resolveMapTapIntent', () => {
     });
   });
 });
+
+// #974: the bombard action's player path. These guard the routing decisions that let a
+// player choose between fighting a garrison and shelling the walls.
+describe('#974 city bombardment routing', () => {
+  function cityScenario(attackerType: string, attackerPos: { q: number; r: number }, options: { atWar?: boolean; garrison?: boolean } = {}) {
+    const state = makeFixture();
+    const cityCoord = { q: 2, r: 0 };
+    placePlayerUnit(state, 'atk', { position: attackerPos, type: attackerType as never, movementPointsLeft: 3 });
+    state.cities.enemyCity = { ...foundCity('ai-1', cityCoord, state.map, mkC()), id: 'enemyCity', owner: 'ai-1', position: cityCoord };
+    state.civilizations['ai-1'].cities.push('enemyCity');
+    if (options.atWar !== false) {
+      state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+      state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
+    } else {
+      state.civilizations.player.diplomacy.atWarWith = [];
+      state.civilizations['ai-1'].diplomacy.atWarWith = [];
+    }
+    if (options.garrison) placeEnemyUnit(state, 'guard', 'ai-1', { position: cityCoord });
+    makeVisible(state, cityCoord);
+    return { state, cityCoord };
+  }
+
+  it('routes a ranged unit in range to the city-action preview, not a blocked move', () => {
+    const { state, cityCoord } = cityScenario('catapult', { q: 1, r: 0 });
+
+    const intent = resolveMapTapIntent(
+      state,
+      snapshot({ selectedUnitId: 'atk', movementRange: [], attackRange: [cityCoord] }),
+      cityCoord,
+      false,
+    );
+
+    expect(intent).toMatchObject({ kind: 'assault-preview', attackerId: 'atk', cityId: 'enemyCity' });
+  });
+
+  // Previously a garrisoned city fell into the unit-combat preview, so shelling the walls
+  // was simply not offered. The city preview now presents both choices.
+  it('routes a GARRISONED city to the city-action preview, not straight to unit combat', () => {
+    const { state, cityCoord } = cityScenario('catapult', { q: 1, r: 0 }, { garrison: true });
+
+    const intent = resolveMapTapIntent(
+      state,
+      snapshot({ selectedUnitId: 'atk', movementRange: [], attackRange: [cityCoord] }),
+      cityCoord,
+      false,
+    );
+
+    expect(intent).toMatchObject({ kind: 'assault-preview', cityId: 'enemyCity' });
+  });
+
+  // Bombarding must never be a quieter way to start a war than storming.
+  it('still asks for war confirmation before any city action against a neutral civ', () => {
+    const { state, cityCoord } = cityScenario('catapult', { q: 1, r: 0 }, { atWar: false });
+
+    const intent = resolveMapTapIntent(
+      state,
+      snapshot({ selectedUnitId: 'atk', movementRange: [cityCoord], attackRange: [] }),
+      cityCoord,
+      false,
+    );
+
+    expect(intent).toMatchObject({ kind: 'confirm-war-city', cityId: 'enemyCity' });
+  });
+});

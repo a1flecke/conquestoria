@@ -180,9 +180,14 @@ export function resolveMapTapIntent(
     // into the unit-combat preview below, which meant the player could only ever fight the
     // defender -- there was no way to choose to shell the walls instead. The city preview
     // renders attack-defender, bombard and capture together so the choice is explicit.
-    const hostileCityAtTap = Object.values(state.cities).find(city =>
-      hexKey(city.position) === key && city.owner !== unit.owner,
-    );
+    // Cargo aboard a transport keeps the existing embarked-assault route, which applies its
+    // own legality checks (getEmbarkedAssaultTarget) and the amphibious-landing multiplier.
+    // Short-circuiting those here would offer an assault those rules would refuse.
+    const hostileCityAtTap = unit.transportId
+      ? undefined
+      : Object.values(state.cities).find(city =>
+        hexKey(city.position) === key && city.owner !== unit.owner,
+      );
     if (hostileCityAtTap) {
       const interaction = resolveCityInteraction(state, unit, hostileCityAtTap);
       // A minor-civ city keeps its dedicated conquest flow (confirm-war-minor-civ /
@@ -191,7 +196,7 @@ export function resolveMapTapIntent(
       const isMinorCivCity = !state.civilizations[hostileCityAtTap.owner];
       const offersBombard = interaction.available.some(action => action.kind === 'bombard');
       if (interaction.available.length > 0 && (!isMinorCivCity || offersBombard)) {
-        return { kind: 'assault-preview', attackerId: selectedUnitId, cityId: hostileCityAtTap.id, embarkedAssault: Boolean(unit.transportId) };
+        return { kind: 'assault-preview', attackerId: selectedUnitId, cityId: hostileCityAtTap.id, embarkedAssault: false };
       }
     }
 
