@@ -1,7 +1,7 @@
 import type { EventBus } from '@/core/event-bus';
 import type { GameState } from '@/core/types';
 import { beginPlayerCityAssaultChoice, type PlayerCityAssaultChoiceResult } from '@/input/city-assault-flow';
-import { declareWar, resolveOpponentKind } from '@/systems/diplomacy-system';
+import { declareMajorWar, resolveOpponentKind } from '@/systems/diplomacy-system';
 
 export function beginConfirmedForeignCityEntry(
   state: GameState,
@@ -22,21 +22,14 @@ export function beginConfirmedForeignCityEntry(
   const alreadyAtWar = attacker?.diplomacy.atWarWith.includes(defenderId) ?? false;
 
   if (attacker && defender && !alreadyAtWar) {
-    nextState = {
-      ...nextState,
-      civilizations: {
-        ...nextState.civilizations,
-        [attackerCivId]: {
-          ...attacker,
-          diplomacy: declareWar(attacker.diplomacy, defenderId, nextState.turn),
-        },
-        [defenderId]: {
-          ...defender,
-          diplomacy: declareWar(defender.diplomacy, attackerCivId, nextState.turn),
-        },
-      },
-    };
-    bus?.emit('diplomacy:war-declared', { attackerId: attackerCivId, defenderId, opponentKind: resolveOpponentKind(defenderId) });
+    nextState = declareMajorWar(nextState, attackerCivId, defenderId, bus);
+    if (nextState !== state) {
+      bus?.emit('diplomacy:war-declared', {
+        attackerId: attackerCivId,
+        defenderId,
+        opponentKind: resolveOpponentKind(defenderId),
+      });
+    }
   }
 
   return beginPlayerCityAssaultChoice(

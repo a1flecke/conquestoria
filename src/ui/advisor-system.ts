@@ -4,7 +4,7 @@ import { resolveGeneralDefinition } from '@/systems/great-general-definitions';
 import { resolveGeneralMechanics } from '@/systems/great-general-specialties';
 import { mapDistance } from '@/systems/hex-utils';
 import { EventBus } from '@/core/event-bus';
-import { isAtWar, getRelationship } from '@/systems/diplomacy-system';
+import { isAtWar, getRelationship, getVassalageEligibility, isDiplomaticRequestLive } from '@/systems/diplomacy-system';
 import { NEW_WORLD_START_POSITIONS } from '@/systems/new-world-map-data';
 import { hasDiscoveredMinorCiv } from '@/systems/discovery-system';
 import { isMinorCivAllianceActive } from '@/systems/quest-chain-system';
@@ -292,34 +292,20 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
   {
     id: 'chancellor_vassalage_available',
     advisor: 'chancellor',
+    viewerScoped: true,
     icon: '🎩',
-    message: 'A rival civ is weakened. They may offer vassalage — consider accepting for tribute income.',
-    trigger: (state) => {
-      const playerDip = state.civilizations[state.currentPlayer]?.diplomacy;
-      if (!playerDip) return false;
-      if ((state.civilizations[state.currentPlayer]?.cities.length ?? 0) === 0) return false;
-      if (resolveCivilizationEra(state.civilizations[state.currentPlayer]?.techState.completed ?? []) < 2) return false;
-      return Object.entries(state.civilizations).some(([civId, civ]) => {
-        if (civId === state.currentPlayer) return false;
-        const rel = playerDip.relationships[civId] ?? 0;
-        return rel > 10 && civ.cities.length >= 1 && civ.cities.length < 2;
-      });
-    },
+    message: 'You have a vassalage offer. Review the tribute income and protection promise in Diplomacy before deciding.',
+    trigger: state => (state.pendingDiplomacyRequests ?? []).some(r => r.type === 'treaty' && r.treatyType === 'vassalage'
+      && r.toCivId === state.currentPlayer && isDiplomaticRequestLive(state, r)
+      && getVassalageEligibility(state, r.fromCivId, r.toCivId).ok),
   },
   {
     id: 'chancellor_under_threat_vassalage',
     advisor: 'chancellor',
+    viewerScoped: true,
     icon: '🎩',
-    message: "We're losing badly. Consider offering vassalage to a stronger neighbor for protection.",
-    trigger: (state) => {
-      const playerDip = state.civilizations[state.currentPlayer]?.diplomacy;
-      if (!playerDip) return false;
-      if (resolveCivilizationEra(state.civilizations[state.currentPlayer]?.techState.completed ?? []) < 2) return false;
-      const peakCities = playerDip.vassalage?.peakCities ?? 0;
-      if (peakCities < 2) return false;
-      const currentCities = state.civilizations[state.currentPlayer]?.cities.length ?? 0;
-      return currentCities < peakCities * 0.5;
-    },
+    message: 'We can offer vassalage for protection. It costs 25% tribute and independent war and treaty choices. Compare neighbors in Diplomacy.',
+    trigger: state => Object.keys(state.civilizations).some(id => getVassalageEligibility(state, state.currentPlayer, id).ok),
   },
   {
     id: 'chancellor_embargo_opportunity',

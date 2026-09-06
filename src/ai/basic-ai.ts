@@ -35,10 +35,12 @@ import { evaluateStrategicLaunchDecision } from './ai-strategic-doctrine';
 import { chooseProduction } from './ai-strategy';
 import { evaluateDiplomacy, evaluateMinorCivDiplomacy, evaluateVassalage, evaluateEmbargoResponse, evaluateLeagueResponse } from './ai-diplomacy';
 import {
-  declareWar,
+  declareMajorWar,
   proposeTreatyAgreement,
   modifyRelationship,
-  offerVassalage,
+  proposeVassalage,
+  getVassalageEligibility,
+  getVassalageMilitaryCount,
   joinEmbargo,
   inviteToLeague,
   getAvailableActions,
@@ -410,7 +412,7 @@ export function applyPirateAiResponse(state: GameState, civId: string, bus: Even
         resolveCombatEra(nextState, warship, adjacentPirate),
       );
       const combatPresentation = buildCombatPresentation(nextState, combat, warship, adjacentPirate);
-      const applied = applyCombatOutcomeToState(nextState, combat, seed);
+      const applied = applyCombatOutcomeToState(nextState, combat, seed, bus);
       nextState = applied.state;
       emitMinorCivQuestTransitions(bus, applied.questTransitions, nextState);
       bus.emit('combat:resolved', { result: combat, ...combatPresentation });
@@ -1111,15 +1113,12 @@ function processAITurnInternal(
           )) {
             break;
           }
-          newState.civilizations[civId].diplomacy = declareWar(
-            currentDiplomacy, decision.targetCiv, newState.turn,
-          );
-          if (newState.civilizations[decision.targetCiv]?.diplomacy) {
-            newState.civilizations[decision.targetCiv].diplomacy = declareWar(
-              newState.civilizations[decision.targetCiv].diplomacy, civId, newState.turn,
-            );
+          {
+            const beforeWar = newState;
+            newState = declareMajorWar(newState, civId, decision.targetCiv, bus);
+            if (newState === beforeWar) break;
+            bus.emit('diplomacy:war-declared', { attackerId: civId, defenderId: decision.targetCiv, opponentKind: resolveOpponentKind(decision.targetCiv) });
           }
-          bus.emit('diplomacy:war-declared', { attackerId: civId, defenderId: decision.targetCiv, opponentKind: resolveOpponentKind(decision.targetCiv) });
           // #526 MR7 Task 7.1: AI-declarer parity -- an AI that happens to declare war
           // on a crisis-struck civ eats the same opportunistic-war reputation penalty a
           // human would (accepted design note; teaching AI war-scoring to avoid this
@@ -1141,25 +1140,27 @@ function processAITurnInternal(
     }
 
     // AI vassalage: offer vassalage if very weak
-    const currentCities = civ.cities.length;
-    const currentMilitary = civ.units
-      .map(unitId => newState.units[unitId])
-      .filter((unit): unit is Unit => Boolean(unit) && !unit.transportId && hasAICombatRole(unit.type))
-      .length;
+    const currentVassalCandidate = newState.civilizations[civId];
+    const currentCities = currentVassalCandidate.cities.length;
+    const currentMilitary = getVassalageMilitaryCount(newState, civId);
+    const eligibleOverlords = Object.fromEntries(Object.entries(otherStrengths).filter(([id]) =>
+      getVassalageEligibility(newState, civId, id).ok));
     const vassalageDecision = evaluateVassalage(
-      personality, civ.diplomacy, newState.era, selfStrength,
-      currentCities, currentMilitary, otherStrengths,
+      personality, currentVassalCandidate.diplomacy, resolveCivilizationEra(currentVassalCandidate.techState.completed), selfStrength,
+      currentCities, currentMilitary, eligibleOverlords,
     );
     if (vassalageDecision && vassalageDecision.action === 'offer_vassalage') {
       const overlordId = vassalageDecision.targetCiv;
       if (newState.civilizations[overlordId]?.diplomacy) {
-        offerVassalage(civId, overlordId); // notification only — state mutation happens on accept
-        bus.emit('diplomacy:vassalage-offered', { fromCivId: civId, toCivId: overlordId });
+        newState = proposeVassalage(newState, civId, overlordId, bus);
       }
     }
 
+    // Vassals cannot make independent treaty, embargo, or league choices.
+    const isCurrentVassal = Boolean(newState.civilizations[civId]?.diplomacy.vassalage.overlord);
+
     // AI embargo: join embargoes proposed by allied civs
-    if (newState.embargoes) {
+    if (!isCurrentVassal && newState.embargoes) {
       for (const embargo of newState.embargoes) {
         if (embargo.participants.includes(civId)) continue;
         const proposerId = embargo.participants[0];
@@ -1174,7 +1175,7 @@ function processAITurnInternal(
     }
 
     // AI league: accept league invitations
-    if (newState.defensiveLeagues) {
+    if (!isCurrentVassal && newState.defensiveLeagues) {
       for (const league of newState.defensiveLeagues) {
         if (league.members.includes(civId)) continue;
         const shouldJoin = evaluateLeagueResponse(

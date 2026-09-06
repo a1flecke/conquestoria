@@ -72,7 +72,7 @@ import { preach } from '@/systems/religion-system';
 import { createUnitDeleteConfirmationPanel } from '@/ui/unit-delete-confirmation-panel';
 import { UNIT_DEFINITIONS, canHeal, restUnit, createUnit, getBlockingMapEntityAt } from '@/systems/unit-system';
 import { isMajorCivOwner } from '@/core/owner-kind';
-import { declareWar, modifyRelationship, resolveOpponentKind } from '@/systems/diplomacy-system';
+import { declareMajorWar, modifyRelationship, resolveOpponentKind } from '@/systems/diplomacy-system';
 import { applyOpportunisticWarPenaltyIfCrisisStruck } from '@/systems/crisis-interaction-system';
 import { getSpyCaptureRelationshipPenalty, expelSpy, executeSpy, startInterrogation } from '@/systems/espionage-system';
 import { getCapitalCity } from '@/systems/capital-system';
@@ -266,23 +266,11 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
     const alreadyAtWar = attackerCiv.diplomacy?.atWarWith.includes(targetCivId) ?? false;
     if (alreadyAtWar) return;
 
-    const turn = deps.session.getState().turn;
-    // Commit the declared-war state BEFORE emitting: registerDiplomacyPresentation's
-    // 'diplomacy:war-declared' listener reads session.getState() synchronously to pick
-    // a notification reason from the post-declareWar relationship score (declareWar
-    // applies a -50 relationship hit, and describeWarReason's bands sit at -50/-20/0 --
-    // tight enough that reading pre-war state there would show the wrong reason).
-    // The opportunistic-crisis penalty below is a separate, later state stage and must
-    // not be visible to that listener either, matching this function's original
-    // (accidental, in-place-mutation-order) behavior exactly.
-    deps.session.commit({
-      ...deps.session.getState(),
-      civilizations: {
-        ...deps.session.getState().civilizations,
-        [cp]: { ...attackerCiv, diplomacy: declareWar(attackerCiv.diplomacy, targetCivId, turn) },
-        [targetCivId]: { ...targetCiv, diplomacy: declareWar(targetCiv.diplomacy, cp, turn) },
-      },
-    });
+    const before = deps.session.getState();
+    const declared = declareMajorWar(before, cp, targetCivId, deps.bus);
+    if (declared === before) return;
+    // Publish before the primary notification, whose reason reads current relationships.
+    deps.session.commit(declared);
     deps.bus.emit('diplomacy:war-declared', { attackerId: cp, defenderId: targetCivId, opponentKind: resolveOpponentKind(targetCivId) });
     deps.session.commit(applyOpportunisticWarPenaltyIfCrisisStruck(deps.session.getState(), cp, targetCivId, deps.bus));
   }
@@ -799,7 +787,7 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
       ...buildCombatPresentation(deps.session.getState(), result, attacker, defender),
     });
 
-    const applied = applyCombatOutcomeToState(deps.session.getState(), result, seed);
+    const applied = applyCombatOutcomeToState(deps.session.getState(), result, seed, deps.bus);
     deps.session.setStateWithoutRefresh(applied.state);
     deps.session.setStateWithoutRefresh(recordCombatForCiv(deps.session.getState(), deps.session.getState().currentPlayer, defenderPosition));
     emitMinorCivQuestTransitions(deps.bus, applied.questTransitions, deps.session.getState());

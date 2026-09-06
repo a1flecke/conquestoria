@@ -1,3 +1,4 @@
+import type { EventBus } from '@/core/event-bus';
 import type { CombatResult, CombatRewardNotification, GameState, Unit, UnitType } from '@/core/types';
 import { cleanupDeadSpyUnit } from '@/systems/espionage-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
@@ -14,7 +15,7 @@ import {
   destroyPirateFaction,
   type PirateActionEvent,
 } from '@/systems/pirate-actions';
-import { recordMilitaryAttack } from './diplomacy-system';
+import { recordMilitaryAttack, applyVassalageWarConsequences } from './diplomacy-system';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
 import { resolveBoundedSplash } from '@/systems/combat-system';
 import { recordCampPressureFromCombatOutcome } from '@/systems/barbarian-pressure';
@@ -467,6 +468,7 @@ export function applyCombatOutcomeToState(
   state: GameState,
   result: CombatResult,
   seed: number,
+  bus?: EventBus,
 ): CombatOutcomeApplication {
   const attackerBefore = state.units[result.attackerId];
   const defenderBefore = state.units[result.defenderId];
@@ -486,7 +488,7 @@ export function applyCombatOutcomeToState(
   const defenderCiv = civilizations[defenderBefore.owner];
   if (
     attackerBefore.owner !== defenderBefore.owner
-    && civilizations[attackerBefore.owner]
+    && (civilizations[attackerBefore.owner] || minorCivs[attackerBefore.owner])
     && defenderCiv?.diplomacy
   ) {
     civilizations[defenderBefore.owner] = {
@@ -929,7 +931,7 @@ export function applyCombatOutcomeToState(
   nextState = appendLegendaryWonderMilitaryFacts(nextState, militaryFacts);
 
   return {
-    state: nextState,
+    state: applyVassalageWarConsequences(state, nextState, bus),
     rewards,
     attackerDefeated: attackerActuallyDefeated,
     defenderDefeated: defenderActuallyDefeated,

@@ -1,8 +1,9 @@
+import type { EventBus } from '@/core/event-bus';
 import type { GameState } from '@/core/types';
-import { declareWar, makePeace, modifyRelationship } from './diplomacy-system';
+import { declareWar, makePeace, modifyRelationship, applyVassalageWarConsequences } from './diplomacy-system';
 import { hasAccessibleLuxury } from './quest-objective-system';
 import { applyQuestGameplayAction, type ChainTransition } from './quest-chain-system';
-import { isMinorCivAtWar } from './minor-civ-diplomacy';
+import { isMinorCivAtWar, endMinorCivQuestForWar } from './minor-civ-diplomacy';
 import { resolveCivilizationEra } from './tech-definitions';
 
 const REPARATIONS_BASE_COST = 40;
@@ -129,12 +130,14 @@ export function setMinorCivWarState(
   majorCivId: string,
   minorCivId: string,
   atWar: boolean,
+  bus?: EventBus,
 ): MinorCivActionResult {
   const majorCiv = state.civilizations[majorCivId];
   const minorCiv = state.minorCivs[minorCivId];
   if (!majorCiv || !minorCiv || minorCiv.isDestroyed) {
     return { state, ok: false, reason: 'Diplomatic party not found.', transitions: [] };
   }
+  if (majorCiv.diplomacy.vassalage.overlord) return { state, ok: false, reason: 'Your overlord controls war and peace.', transitions: [] };
   const majorAtWar = majorCiv.diplomacy.atWarWith.includes(minorCivId);
   const minorAtWar = minorCiv.diplomacy.atWarWith.includes(majorCivId);
   if ((atWar && majorAtWar && minorAtWar) || (!atWar && !majorAtWar && !minorAtWar)) {
@@ -153,20 +156,9 @@ export function setMinorCivWarState(
     return { state: nextState, ok: true, transitions: [] };
   }
 
-  const transitions: ChainTransition[] = [];
-  const status = nextMinor.chainStatusByCiv[majorCivId];
-  if (status?.status === 'allied') {
-    nextMinor.chainStatusByCiv[majorCivId] = {
-      chainId: status.chainId,
-      status: 'broken',
-      statusTurn: state.turn,
-      earnedTurn: status.earnedTurn,
-    };
-    transitions.push({ type: 'alliance-broken', majorCivId, minorCivId, chainId: status.chainId });
-  } else if (status?.status === 'pending') {
-    delete nextMinor.chainStatusByCiv[majorCivId];
-  }
-  delete nextMinor.activeQuests[majorCivId];
-  nextMinor.questCooldownUntilByCiv[majorCivId] = state.turn + 3;
-  return { state: nextState, ok: true, transitions };
+  const ended = endMinorCivQuestForWar(nextMinor, majorCivId, state.turn);
+  nextState.minorCivs[minorCivId] = ended.minor;
+  const transitions: ChainTransition[] = ended.brokenChainId
+    ? [{ type: 'alliance-broken', majorCivId, minorCivId, chainId: ended.brokenChainId }] : [];
+  return { state: applyVassalageWarConsequences(state, nextState, bus), ok: true, transitions };
 }

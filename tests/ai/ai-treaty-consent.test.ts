@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { evaluatePeaceConsent, evaluateTreatyConsent } from '@/ai/ai-treaty-consent';
+import { evaluatePeaceConsent, evaluateTreatyConsent, evaluateVassalageConsent } from '@/ai/ai-treaty-consent';
 
 describe('treaty consent policy (#901)', () => {
   it('declines a hostile alliance and accepts a friendly non-aggression pact', () => {
@@ -51,5 +51,14 @@ describe('treaty consent policy (#901)', () => {
         targetVisibleStrength: 9, proposerVisibleStrength: 10,
       })).toEqual({ accepted: false, reason: 'peace-not-acceptable' });
     });
+  });
+});
+
+
+describe('#910 own-capacity consent policy', () => {
+  const boundary = {relationship: 0, diplomacyFocus: 0.3, militaryCount: 4, vassalCount: 1, warCount: 1};
+  it('accepts at every inclusive boundary', () => expect(evaluateVassalageConsent(boundary)).toEqual({accepted: true}));
+  it.each([{relationship: -1}, {diplomacyFocus: 0.29}, {militaryCount: 3}, {vassalCount: 2}, {warCount: 2}])('requires all bounds together: %j', change => {
+    expect(evaluateVassalageConsent({...boundary, ...change}).accepted).toBe(false);
   });
 });

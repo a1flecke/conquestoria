@@ -223,7 +223,7 @@ function executeAttack(
     resolveCombatEra(next, attacker, defender),
   );
   const presentation = buildCombatPresentation(next, combat, attacker, defender);
-  const applied = applyCombatOutcomeToState(next, combat, seed);
+  const applied = applyCombatOutcomeToState(next, combat, seed, bus);
   let working = recordCombatForCiv(
     applied.state,
     civId,
@@ -376,7 +376,7 @@ function executeAction(
       return { state: result.ok ? result.state : state, succeeded: result.ok, followUps: [] };
     }
     case 'air-strike': {
-      const result = resolveAirStrike(state, action.unitId, action.target);
+      const result = resolveAirStrike(state, action.unitId, action.target, bus);
       return { state: result.ok ? result.state : state, succeeded: result.ok, followUps: [] };
     }
     case 'attack': {
@@ -531,11 +531,11 @@ function executeAction(
       };
     }
     case 'paradrop': {
-      const result = executeParadrop(state, action.unitId, action.destination);
+      const result = executeParadrop(state, action.unitId, action.destination, bus);
       return { state: result.ok ? result.state : state, succeeded: result.ok, followUps: [] };
     }
     case 'air-assault': {
-      const result = executeAirAssault(state, action.unitId, action.destination);
+      const result = executeAirAssault(state, action.unitId, action.destination, bus);
       return { state: result.ok ? result.state : state, succeeded: result.ok, followUps: [] };
     }
     case 'patrol': {

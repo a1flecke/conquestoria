@@ -161,7 +161,7 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
           case 'air-mission': {
             const pending = intent.pending;
             const result = pending.mission === 'strike'
-              ? resolveAirStrike(session.getState(), pending.unitId, coord)
+              ? resolveAirStrike(session.getState(), pending.unitId, coord, bus)
               : pending.mission === 'recon'
                 ? resolveReconMission(session.getState(), pending.unitId, coord)
                 : resolvePatrolMission(session.getState(), pending.unitId, coord);
@@ -181,7 +181,7 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
 
           case 'paradrop': {
             const pending = intent.pending;
-            const result = executeParadrop(session.getState(), pending.unitId, coord);
+            const result = executeParadrop(session.getState(), pending.unitId, coord, bus);
             if (!result.ok) {
               deps.showNotification(PARADROP_FAILURE_MESSAGES[result.reason], 'warning');
               return;
@@ -223,7 +223,7 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
 
           case 'air-assault': {
             const pending = intent.pending;
-            const result = executeAirAssault(session.getState(), pending.unitId, coord);
+            const result = executeAirAssault(session.getState(), pending.unitId, coord, bus);
             if (!result.ok) {
               deps.showNotification(AIR_ASSAULT_FAILURE_MESSAGES[result.reason], 'warning');
               return;
@@ -768,7 +768,7 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
           cityName: city?.name ?? 'this city-state',
           defenderName: definition?.name ?? 'the city-state',
           onConfirm: () => {
-            const war = setMinorCivWarState(session.getState(), session.getState().currentPlayer, intent.minorCivId, true);
+            const war = setMinorCivWarState(session.getState(), session.getState().currentPlayer, intent.minorCivId, true, bus);
             if (!war.ok) return;
             session.setStateWithoutRefresh(war.state);
             emitMinorCivQuestTransitions(bus, war.transitions, session.getState());

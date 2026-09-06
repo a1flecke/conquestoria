@@ -255,6 +255,10 @@ export function routeTreatyProposed(
   sink: NotificationSink,
 ): void {
   const fromName = state.civilizations[event.fromCiv]?.name ?? 'Unknown';
+  if (event.treaty === 'vassalage') {
+    sink(event.toCiv, `${fromName} offers to become your vassal: receive 25% tribute and promise protection. Review the offer in Diplomacy.`, 'info');
+    return;
+  }
   const label = TREATY_LABELS[event.treaty];
   sink(event.toCiv, `${fromName} proposes a ${label}. Review it in the Diplomacy panel.`, 'info');
 }
@@ -266,6 +270,11 @@ export function routeTreatyAccepted(
 ): void {
   const civA = state.civilizations[event.civA]?.name ?? 'Unknown';
   const civB = state.civilizations[event.civB]?.name ?? 'Unknown';
+  if (event.treaty === 'vassalage') {
+    sink(event.civA, `${civB} is now your overlord. You pay 25% tribute and join their wars; they promise protection.`, 'success');
+    sink(event.civB, `${civA} is now your vassal. You receive 25% tribute and must respond to threats within 3 turns.`, 'success');
+    return;
+  }
   const label = TREATY_LABELS[event.treaty];
   sink(event.civA, `${civB} accepted the ${label}.`, 'success');
   sink(event.civB, `You accepted the ${label} with ${civA}.`, 'success');
@@ -957,4 +966,37 @@ export function routeWorldPressureCrisisResolved(
     if (!(viewer.knownCivilizations ?? []).includes(event.civId)) continue;
     sink(viewerId, message, 'success');
   }
+}
+
+
+export function routeIndependenceRequested(state: GameState, event: GameEvents['diplomacy:independence-requested'], sink: NotificationSink): void {
+  const name = state.civilizations[event.vassalId]?.name ?? 'Your vassal';
+  sink(event.overlordId, `${name} petitions for independence. Grant it peacefully or refuse and face war. Decide in Diplomacy.`, 'warning');
+}
+
+export function routeVassalageEnded(state: GameState, event: GameEvents['diplomacy:vassalage-ended'], sink: NotificationSink): void {
+  const vassal = state.civilizations[event.vassalId]?.name ?? 'The vassal';
+  const overlord = state.civilizations[event.overlordId]?.name ?? 'The overlord';
+  const reason = event.reason === 'war' ? 'The independence petition was refused: war has begun.'
+    : event.reason === 'released' ? 'The overlord released the vassal, taking 40 treachery for abandoning protection.'
+    : event.reason === 'auto_breakaway' ? 'Failed protection allowed an automatic peaceful breakaway.'
+    : event.reason === 'overlord_eliminated' ? 'The overlord was eliminated.' : 'Independence was granted peacefully.';
+  sink(event.vassalId, `You are independent of ${overlord}. Tribute and protection have ended. ${reason}`, event.reason === 'war' ? 'warning' : 'info');
+  sink(event.overlordId, `${vassal} is independent. Tribute and protection have ended. ${reason}`, event.reason === 'war' ? 'warning' : 'info');
+}
+
+export function routeProtectionRequested(state: GameState, event: GameEvents['diplomacy:protection-requested'], sink: NotificationSink): void {
+  const vassal = state.civilizations[event.vassalId]?.name ?? 'Your vassal';
+  sink(event.overlordId, `${vassal} needs protection. Join the attacker's war within 3 turns or lose 20 protection. Use Defend Vassal in Diplomacy.`, 'warning');
+}
+
+export function routeProtectionFailed(state: GameState, event: GameEvents['diplomacy:protection-failed'], sink: NotificationSink): void {
+  const vassal = state.civilizations[event.vassalId]?.name ?? 'Your vassal';
+  sink(event.overlordId, `You failed to protect ${vassal}: protection fell by 20.`, 'warning');
+  sink(event.vassalId, 'Your overlord failed to protect you: protection fell by 20. At 20 or less, you become independent.', 'warning');
+}
+
+export function routeVassalAutoWar(state: GameState, event: GameEvents['diplomacy:vassal-auto-war'], sink: NotificationSink): void {
+  const target = state.civilizations[event.targetCivId]?.name ?? 'a city-state';
+  sink(event.vassalId, `You joined your overlord's war against ${target}, without a treachery penalty.`, 'warning');
 }

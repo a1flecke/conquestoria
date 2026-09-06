@@ -68,6 +68,10 @@ export function eliminateCivilization(
     units: [],
     isEliminated: true,
     nearDefeat: false,
+    diplomacy: { ...next.civilizations[civId].diplomacy,
+      treaties: next.civilizations[civId].diplomacy.treaties.filter(t => t.type !== 'vassalage'),
+      vassalage: { ...next.civilizations[civId].diplomacy.vassalage, overlord: null, vassals: [], protectionScore: 100, protectionTimers: [] },
+    },
   };
 
   for (const [otherId, other] of Object.entries(next.civilizations)) {
@@ -93,7 +97,8 @@ export function eliminateCivilization(
             ? null
             : other.diplomacy.vassalage.overlord,
           vassals: other.diplomacy.vassalage.vassals.filter(id => id !== civId),
-          protectionTimers: other.diplomacy.vassalage.protectionTimers
+          protectionScore: other.diplomacy.vassalage.overlord === civId ? 100 : other.diplomacy.vassalage.protectionScore,
+          protectionTimers: other.diplomacy.vassalage.overlord === civId ? [] : other.diplomacy.vassalage.protectionTimers
             .filter(timer => timer.attackerCivId !== civId),
         },
       },

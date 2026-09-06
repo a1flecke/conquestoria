@@ -1,3 +1,5 @@
+import { makeVassalageFixture } from '../systems/helpers/vassalage-fixture';
+import { applyDiplomaticAction } from '@/systems/diplomacy-system';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { AdvisorSystem, getAdvisorMessageIds, SESSION_SHOWN_TIPS, fireResourceDiscoveredTip, fireFirstBombardmentTip } from '@/ui/advisor-system';
 import { EventBus } from '@/core/event-bus';
@@ -1039,5 +1041,26 @@ describe('#974 first-bombardment tip', () => {
     const bus = new EventBus();
 
     expect(fireFirstBombardmentTip(state, bus)).toBe(false);
+  });
+});
+
+describe('#910 vassalage advice', () => {
+  it('does not infer an incoming offer from hidden rival city counts', () => {
+    const state = makeVassalageFixture(); state.currentPlayer = 'overlord';
+    state.tutorial.active = false;
+    const bus = new EventBus(); const messages: string[] = [];
+    bus.on('advisor:message', e => messages.push(e.message));
+    const advisor = new AdvisorSystem(bus);
+    for (let i = 0; i < 30; i++) advisor.check(state);
+    expect(messages.some(m => /vassalage/i.test(m))).toBe(false);
+  });
+  it('advises the actual human recipient of a live offer and explains its protection cost', () => {
+    const state = applyDiplomaticAction(makeVassalageFixture(), 'vassal', 'overlord', 'offer_vassalage', new EventBus());
+    state.currentPlayer = 'overlord'; state.tutorial.active = false;
+    const bus = new EventBus(); const messages: string[] = [];
+    bus.on('advisor:message', e => messages.push(e.message));
+    const advisor = new AdvisorSystem(bus);
+    for (let i = 0; i < 30; i++) advisor.check(state);
+    expect(messages).toContainEqual(expect.stringMatching(/vassalage offer.*protection/i));
   });
 });

@@ -64,12 +64,8 @@ import {
   decayEvents,
   tickTreaties,
   processVassalageTribute,
-  processProtectionTimers,
-  checkIndependenceThreshold,
-  petitionIndependence,
-  endVassalage,
-  endVassalageUnilateral,
-  declareWar,
+  processVassalageTurn,
+  getVassalageMilitaryCount,
   isAtWar,
   decayTreachery,
   joinEmbargo,
@@ -615,9 +611,7 @@ export function processTurn(
     // Update peak counts (read from newState to pick up earlier mutations in this loop)
     if (currentCivState.diplomacy) {
       const cityCount = currentCivState.cities.length;
-      const milCount = currentCivState.units
-        .map(id => newState.units[id])
-        .filter(u => u && u.type !== 'settler' && u.type !== 'worker').length;
+      const milCount = getVassalageMilitaryCount(newState, civId);
       if (cityCount > currentCivState.diplomacy.vassalage.peakCities) {
         newState.civilizations[civId].diplomacy.vassalage.peakCities = cityCount;
       }
@@ -1014,7 +1008,7 @@ export function processTurn(
       resolveCombatEra(newState, attacker, defender),
     );
     const combatPresentation = buildCombatPresentation(newState, result, attacker, defender);
-    const applied = applyCombatOutcomeToState(newState, result, combatSeed);
+    const applied = applyCombatOutcomeToState(newState, result, combatSeed, bus);
     newState = applied.state;
     if (newState.civilizations[defender.owner]?.isHuman) {
       newState = recordCombatForCiv(newState, defender.owner, defenderPosBarbarian);
@@ -1257,7 +1251,7 @@ export function processTurn(
         resolveCombatEra(newState, attacker, defender),
       );
       const combatPresentation = buildCombatPresentation(newState, result, attacker, defender);
-      const applied = applyCombatOutcomeToState(newState, result, combatSeed);
+      const applied = applyCombatOutcomeToState(newState, result, combatSeed, bus);
       newState = applied.state;
       if (newState.civilizations[defender.owner]?.isHuman) {
         newState = recordCombatForCiv(newState, defender.owner, defenderPosBeast);
@@ -1456,53 +1450,8 @@ export function processTurn(
     refreshLastSeenPresentationsForCiv(newState, civId);
   }
 
-  // --- Vassalage protection & independence ---
-  for (const [civId, civ] of Object.entries(newState.civilizations)) {
-    if (!civ.diplomacy?.vassalage.overlord) continue;
-
-    // Process protection timers
-    newState.civilizations[civId].diplomacy = processProtectionTimers(civ.diplomacy);
-
-    // Check auto-breakaway
-    const vassalDip = newState.civilizations[civId].diplomacy;
-    const overlordId = vassalDip.vassalage.overlord!;
-    const overlord = newState.civilizations[overlordId];
-
-    if (!overlord) {
-      // Overlord eliminated — free vassal unilaterally
-      newState.civilizations[civId].diplomacy = endVassalageUnilateral(vassalDip, civId, overlordId);
-      bus.emit('diplomacy:vassalage-ended', { vassalId: civId, overlordId, reason: 'overlord_eliminated' });
-      continue;
-    }
-
-    if (vassalDip.vassalage.protectionScore <= 20) {
-      const { vassalState, overlordState } = endVassalage(vassalDip, overlord.diplomacy, civId, overlordId);
-      newState.civilizations[civId].diplomacy = vassalState;
-      newState.civilizations[overlordId].diplomacy = overlordState;
-      bus.emit('diplomacy:vassalage-ended', { vassalId: civId, overlordId, reason: 'auto_breakaway' });
-      continue;
-    }
-
-    // Independence petition: check if vassal has grown strong enough
-    const vassalCiv = newState.civilizations[civId];
-    const vassalMilitary = vassalCiv.units
-      .map(id => newState.units[id])
-      .filter(u => u && u.type !== 'settler' && u.type !== 'worker').length;
-    const overlordMilitary = overlord.units
-      .map(id => newState.units[id])
-      .filter(u => u && u.type !== 'settler' && u.type !== 'worker').length;
-    if (checkIndependenceThreshold(vassalMilitary, overlordMilitary, vassalDip.vassalage.protectionScore)) {
-      const overlordDef = resolveCivDefinition(newState, overlord.civType ?? '');
-      const accepts = (overlordDef?.personality.diplomacyFocus ?? 0.5) > 0.5;
-      const { vassalState, overlordState } = petitionIndependence(
-        vassalDip, overlord.diplomacy, civId, overlordId, accepts,
-      );
-      newState.civilizations[civId].diplomacy = vassalState;
-      newState.civilizations[overlordId].diplomacy = overlordState;
-      bus.emit('diplomacy:independence-petition', { vassalId: civId, overlordId, accepted: accepts });
-      bus.emit('diplomacy:vassalage-ended', { vassalId: civId, overlordId, reason: accepts ? 'independence' : 'war' });
-    }
-  }
+  // #910: human decisions remain recipient-owned; this only advances obligations.
+  newState = processVassalageTurn(newState, bus);
 
   // --- Vassal auto-joins overlord's embargoes ---
   if (newState.embargoes) {

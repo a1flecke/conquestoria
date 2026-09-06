@@ -37,6 +37,9 @@ import {
   CONSENT_TREATY_TYPES,
   hasPendingTreatyProposalBetween,
   isAtWar,
+  isDiplomaticRequestLive,
+  getVassalageEligibility,
+  canPetitionIndependence,
   rejectDiplomaticRequest,
 } from '@/systems/diplomacy-system';
 import { TREATY_LABELS } from '@/ui/notification-routing';
@@ -93,7 +96,7 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
     const before = deps.session.getState();
     const targetWasHuman = before.civilizations[targetCivId]?.isHuman === true;
     deps.session.setStateWithoutRefresh(applyDiplomaticAction(before, cp, targetCivId, action, deps.bus));
-    if (action === 'declare_war') {
+    if (action === 'declare_war' && deps.session.getState() !== before) {
       deps.session.setStateWithoutRefresh(applyOpportunisticWarPenaltyIfCrisisStruck(deps.session.getState(), cp, targetCivId, deps.bus));
     }
     const after = deps.session.getState();
@@ -111,7 +114,15 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
     const resolved = after !== before;
     const targetName = after.civilizations[targetCivId]?.name ?? 'They';
 
-    if (action === 'request_peace') {
+    if (action === 'offer_vassalage' || action === 'petition_independence') {
+      const pending = (after.pendingDiplomacyRequests ?? []).some(r => r.fromCivId === cp && r.toCivId === targetCivId
+        && (action === 'offer_vassalage' ? r.treatyType === 'vassalage' : r.type === 'independence'));
+      if (pending) deps.showNotification(`Awaiting ${targetName}'s decision.`, 'info');
+      else if (!resolved && (targetWasHuman || (action === 'offer_vassalage' ? !getVassalageEligibility(before, cp, targetCivId).ok : !canPetitionIndependence(before, cp)))) deps.showNotification('This proposal is no longer available.', 'warning');
+      // AI decisions use recipient-scoped events, including refusal.
+    } else if (action === 'release_vassal' || action === 'defend_vassal') {
+      if (!resolved) deps.showNotification('This action is no longer available.', 'warning');
+    } else if (action === 'request_peace') {
       const stillAtWar = isAtWar(after.civilizations[cp]?.diplomacy ?? before.civilizations[cp]!.diplomacy, targetCivId);
       if (!resolved) {
         deps.showNotification(`${targetName} is unwilling to make peace.`, 'warning');
@@ -152,21 +163,34 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
     deps.showNotification('Peace request rejected.', 'info');
   }
 
-  function handleAcceptTreatyProposal(requestId: string): void {
-    deps.session.commit(acceptDiplomaticRequest(deps.session.getState(), deps.session.getState().currentPlayer, requestId, deps.bus));
+  function respondToProposal(requestId: string, accept: boolean): void {
+    const before = deps.session.getState();
+    const request = before.pendingDiplomacyRequests?.find(r => r.id === requestId && r.toCivId === before.currentPlayer);
+    const after = accept ? acceptDiplomaticRequest(before, before.currentPlayer, requestId, deps.bus)
+      : rejectDiplomaticRequest(before, before.currentPlayer, requestId, deps.bus);
+    deps.session.commit(after);
     deps.openDiplomacyPanel();
-    deps.showNotification('Treaty signed.', 'success');
+    const panel = deps.uiLayer.querySelector<HTMLElement>('#diplomacy-panel');
+    if (panel) { panel.tabIndex = -1; panel.focus(); }
+    const live = request && isDiplomaticRequestLive(before, request);
+    const vassalage = request?.treatyType === 'vassalage';
+    const petition = request?.type === 'independence';
+    const valid = live && (accept
+      ? petition ? after.civilizations[request.fromCivId]?.diplomacy.vassalage.overlord !== request.toCivId && after !== before
+        : after.civilizations[request.toCivId]?.diplomacy.treaties.some(t => t.type === request.treatyType
+          && (t.civA === request.fromCivId || t.civB === request.fromCivId))
+      : petition ? after.civilizations[request.fromCivId]?.diplomacy.vassalage.overlord !== request.toCivId && after !== before : after !== before);
+    if (!valid) deps.showNotification('This proposal is no longer available.', 'warning');
+    else if (!vassalage && !petition) deps.showNotification(accept ? 'Treaty signed.' : 'Proposal declined.', accept ? 'success' : 'info');
+    else if (!accept && !petition) deps.showNotification('Proposal declined.', 'info');
+    // Successful vassalage/petition outcomes already notify each party once via the bus.
   }
 
-  function handleDeclineTreatyProposal(requestId: string): void {
-    // #901: pass the bus so the original proposer (possibly an inactive
-    // hot-seat player) is told via diplomacy:treaty-declined.
-    deps.session.commit(rejectDiplomaticRequest(deps.session.getState(), deps.session.getState().currentPlayer, requestId, deps.bus));
-    deps.openDiplomacyPanel();
-    deps.showNotification('Proposal declined.', 'info');
-  }
+  function handleAcceptTreatyProposal(requestId: string): void { respondToProposal(requestId, true); }
+  function handleDeclineTreatyProposal(requestId: string): void { respondToProposal(requestId, false); }
 
   function handleBreakTreaty(civId: string, treatyType: TreatyType): void {
+    if (treatyType === 'vassalage') return;
     const actorId = deps.session.getState().currentPlayer;
     const actor = deps.session.getState().civilizations[actorId];
     const target = deps.session.getState().civilizations[civId];
@@ -238,7 +262,7 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
   }
 
   function handleMinorCivWarPeace(mcId: string, currentlyAtWar: boolean): void {
-    const result = setMinorCivWarState(deps.session.getState(), deps.session.getState().currentPlayer, mcId, !currentlyAtWar);
+    const result = setMinorCivWarState(deps.session.getState(), deps.session.getState().currentPlayer, mcId, !currentlyAtWar, deps.bus);
     if (!result.ok) return;
     deps.session.setStateWithoutRefresh(result.state);
     emitMinorCivQuestTransitions(deps.bus, result.transitions, deps.session.getState());
