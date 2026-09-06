@@ -102,7 +102,7 @@ export interface CityAssaultOptions {
 export function calculateCityAssaultStrengths(
   attacker: Unit,
   city: City,
-  ownerCiv: Civilization,
+  defenderCompletedTechs: string[],
   map: GameMap,
   options: CityAssaultOptions = {},
 ): CityAssaultStrengthBreakdown {
@@ -117,7 +117,7 @@ export function calculateCityAssaultStrengths(
     * (attackerDefinition.cityAssaultMultiplier ?? 1)
     * (options.attackerMultiplier ?? 1);
   // #966: HP-scaled. Identical to the raw intrinsic strength at full HP.
-  const intrinsicStrength = getEffectiveCityAssaultDefense(city, ownerCiv.techState.completed ?? []);
+  const intrinsicStrength = getEffectiveCityAssaultDefense(city, defenderCompletedTechs);
   const winProbability = attackerStrength / (attackerStrength + intrinsicStrength);
   return { attackerStrength, intrinsicStrength, winProbability };
 }
