@@ -956,6 +956,14 @@ export interface City {
   appeasedOnTurn?: number;     // turn appeaseFaction last succeeded on this city; blocks a second appease the same turn
   idleProduction?: 'gold' | 'science' | null; // conversion mode when queue is empty
   hp?: number;               // city hit points for pirate siege (default 100)
+  /**
+   * #974: per-turn bombardment bookkeeping. Drives two things at once -- the per-city
+   * per-turn damage cap (`hpLostThisTurn`, reset when `turn` is stale) and HP-regen
+   * suppression (a city shelled within the last turn does not repair). Absent means
+   * "never bombarded"; every reader treats it that way, so no save migration is required
+   * for correctness -- one is added purely to keep the field explicit in older saves.
+   */
+  bombardment?: { turn: number; hpLostThisTurn: number };
   concessionImmunityUntilTurn?: number; // uprising concession: no new unrest until this turn
   resilienceBonusUntilTurn?: number;    // catastrophe recovery: +1 food +1 production until this turn
   /** Global turn when this city's Coastal Battery last returned naval siege damage. */
