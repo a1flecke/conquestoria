@@ -1,4 +1,5 @@
 import { normalizeVassalage } from '@/storage/vassalage-normalization';
+import { normalizeMinorCivLeagueState } from '@/storage/minor-civ-league-normalization';
 import type { ActiveCrisis, AirBaseRef, CombatRole, GameState, GeneralCareerEvent, GeneratedGeneralIdentity, HexCoord, LegendaryWonderMilitaryFact, LegendaryWonderTacticalEffectState, TradeRoute, Unit } from '@/core/types';
 import { createRng } from '@/systems/map-generator';
 import { placeLateResources } from '@/systems/late-resource-placement';
@@ -24,7 +25,7 @@ import { UNIT_ROLE_DEFINITIONS } from '@/systems/combat-role-definitions';
 import { getEffectiveTechCost, getTechById } from '@/systems/tech-system';
 import { PRE_V24_TECH_COST_BY_ID } from './research-cost-migration-v24';
 
-export const CURRENT_SAVE_SCHEMA_VERSION = 27;
+export const CURRENT_SAVE_SCHEMA_VERSION = 28;
 
 export type SaveMigration = (state: GameState) => GameState;
 
@@ -1044,6 +1045,8 @@ export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   // #910: normalize bilateral vassalage roles, protection obligations, and
   // pending consent records without applying any gameplay transition on load.
   27: normalizeVassalage,
+  // #496: additive persistent container only. Formation remains a world-turn action.
+  28: normalizeMinorCivLeagueState,
 };
 
 function readSchemaVersion(raw: Record<string, unknown>): number {

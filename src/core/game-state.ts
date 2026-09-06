@@ -22,6 +22,7 @@ import { placeWonders } from '@/systems/wonder-system';
 import { placeVillages } from '@/systems/village-system';
 import { placeBeastLairs } from '@/systems/beast-system';
 import { placeMinorCivs } from '@/systems/minor-civ-system';
+import { createMinorCivLeagueState } from '@/systems/minor-civ-league-system';
 import { initializeEspionage } from '@/systems/espionage-system';
 import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
 import { createEmptyOpponentAIState } from './opponent-ai-state';
@@ -409,6 +410,7 @@ export function createNewGame(
   state.minorCivs = mcResult.minorCivs;
   Object.assign(state.cities, mcResult.cities);
   Object.assign(state.units, mcResult.units);
+  state.minorCivLeagues = createMinorCivLeagueState(state);
 
   for (const civId of Object.keys(state.civilizations)) {
     refreshLastSeenPresentationsForCiv(state, civId);
@@ -586,6 +588,7 @@ export function createHotSeatGame(
   state.minorCivs = mcResult.minorCivs;
   Object.assign(state.cities, mcResult.cities);
   Object.assign(state.units, mcResult.units);
+  state.minorCivLeagues = createMinorCivLeagueState(state);
 
   for (const civId of Object.keys(state.civilizations)) {
     refreshLastSeenPresentationsForCiv(state, civId);

@@ -20,6 +20,7 @@ import {
   getMinorCivEconomyPresentationForPlayer,
   getMinorCivPresentationForPlayer,
 } from '@/systems/minor-civ-presentation';
+import { getMinorCivLeaguePresentationForPlayer } from '@/systems/minor-civ-league-presentation';
 import {
   formatQuestReward,
   getMinorCivChainPresentationForPlayer,
@@ -114,6 +115,7 @@ interface MinorCivRowData {
   festivalDisabledReason: string | null;
   regionalGrievanceText: string | null;
   economyHintText: string | null;
+  compactText: string | null;
   reparationsLabel: string | null;
   reparationsDisabledReason: string | null;
   atWar: boolean;
@@ -375,6 +377,7 @@ export function createDiplomacyPanel(
       .map(part => part[0].toUpperCase() + part.slice(1))
       .join(' ');
     const economyPresentation = getMinorCivEconomyPresentationForPlayer(state, state.currentPlayer, mcId);
+    const compactPresentation = getMinorCivLeaguePresentationForPlayer(state, state.currentPlayer, mcId);
     const postureSuffix = economyPresentation.postureLabel && economyPresentation.postureLabel !== grievanceStatusLabel
       ? ` · ${economyPresentation.postureLabel}`
       : '';
@@ -403,6 +406,9 @@ export function createDiplomacyPanel(
       festivalDisabledReason,
       regionalGrievanceText,
       economyHintText: economyPresentation.hint,
+      compactText: compactPresentation
+        ? `${compactPresentation.name} · ${compactPresentation.charterLabel} · ${compactPresentation.readinessLabel}`
+        : null,
       reparationsLabel: canOfferReparations ? `Pay Reparations (${reparationsCost} Gold)` : null,
       reparationsDisabledReason,
       atWar,
@@ -523,6 +529,9 @@ export function createDiplomacyPanel(
       if (row.economyHintText !== null) {
         minorCivsHtml += `<div style="font-size:11px;opacity:0.65;margin-top:4px;" data-text="mc-economy-hint-${row.mcIdx}"></div>`;
       }
+      if (row.compactText !== null) {
+        minorCivsHtml += `<div style="font-size:11px;opacity:0.75;margin-top:4px;" data-text="mc-compact-${row.mcIdx}"></div>`;
+      }
       if (row.festivalDisabledReason) {
         minorCivsHtml += `<div style="font-size:10px;color:#e8c170;margin-top:5px;" data-text="mc-festival-reason-${row.mcIdx}"></div>`;
       }
@@ -617,6 +626,9 @@ export function createDiplomacyPanel(
     }
     if (row.economyHintText !== null) {
       setText(`mc-economy-hint-${row.mcIdx}`, row.economyHintText);
+    }
+    if (row.compactText !== null) {
+      setText(`mc-compact-${row.mcIdx}`, row.compactText);
     }
     if (row.festivalDisabledReason) setText(`mc-festival-reason-${row.mcIdx}`, row.festivalDisabledReason);
     if (row.reparationsDisabledReason) setText(`mc-reparations-reason-${row.mcIdx}`, row.reparationsDisabledReason);

@@ -1722,6 +1722,31 @@ export interface MinorCivEconomyState {
   };
 }
 
+export type MinorCivLeagueCharter = 'commerce' | 'learning' | 'security' | 'cooperation';
+
+export type MinorCivLeagueReadiness =
+  | { kind: 'quiet' }
+  | { kind: 'concern'; sinceTurn: number }
+  | { kind: 'cooling'; sinceTurn: number };
+
+export interface MinorCivLeague {
+  id: string;
+  nameKey: string;
+  charter: MinorCivLeagueCharter;
+  /** Sorted and authoritative: minor civs do not carry a mirrored league ID. */
+  memberIds: string[];
+  formedTurn: number;
+  readiness: MinorCivLeagueReadiness;
+}
+
+export interface MinorCivLeagueState {
+  leagues: Record<string, MinorCivLeague>;
+  nextId: number;
+  nextCheckTurn: number;
+  lastProcessedTurn: number;
+  eligibleAfterTurnByMinorCiv: Record<string, number>;
+}
+
 export type QuestAction =
   | { type: 'gift_gold'; actorCivId: string; minorCivId: string; amount: number; turn: number }
   | { type: 'sponsor_festival'; actorCivId: string; minorCivId: string; turn: number }
@@ -2195,6 +2220,8 @@ export interface GameState {
   /** Coarse camp-owned observations; never stores live unit or viewer data. */
   barbarianCampPressure?: Record<string, BarbarianCampPressure>;
   minorCivs: Record<string, MinorCivState>;
+  /** Optional so legacy save fixtures remain loadable until normalization. */
+  minorCivLeagues?: MinorCivLeagueState;
   minorCivCoalitions?: Record<string, MinorCivCoalitionRecord>;
   minorCivRegionalCooldowns?: Record<string, MinorCivRegionalCooldown>;
   tutorial: TutorialState;

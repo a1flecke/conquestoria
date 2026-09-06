@@ -6,6 +6,7 @@ import {
   getMinorCivEconomyPresentationForPlayer,
   getMinorCivPresentationForPlayer,
 } from '@/systems/minor-civ-presentation';
+import { getMinorCivLeaguePresentationForPlayer } from '@/systems/minor-civ-league-presentation';
 
 describe('minor-civ-presentation', () => {
   it('uses a generic name for an undiscovered city-state', () => {
@@ -43,6 +44,27 @@ describe('minor-civ-presentation', () => {
     const presentation = getMinorCivPresentationForPlayer(state, 'player', mcId);
     expect(presentation.known).toBe(true);
     expect(presentation.name).not.toBe('City-State');
+  });
+
+  it('shows a compact only through a discovered member and masks undiscovered peers', () => {
+    const state = createNewGame(undefined, 'mc-compact-presentation', 'small');
+    const [first, second] = Object.keys(state.minorCivs);
+    state.minorCivLeagues!.leagues = {
+      'minor-compact-1': {
+        id: 'minor-compact-1', nameKey: 'amber', charter: 'commerce',
+        memberIds: [first, second].sort(), formedTurn: 20, readiness: { kind: 'quiet' },
+      },
+    };
+
+    expect(getMinorCivLeaguePresentationForPlayer(state, 'player', first)).toBeNull();
+    state.civilizations.player.visibility.tiles[hexKey(state.cities[state.minorCivs[first].cityId].position)] = 'fog';
+    const presentation = getMinorCivLeaguePresentationForPlayer(state, 'player', first);
+
+    expect(presentation).toMatchObject({
+      name: 'Amber Compact', charterLabel: 'Commerce charter', hasUnknownMembers: true,
+    });
+    expect(presentation!.knownMembers).toHaveLength(1);
+    expect(presentation!.knownMembers[0]!.minorCivId).toBe(first);
   });
 
   it('formats evolved notifications generically for undiscovered viewers', () => {

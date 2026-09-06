@@ -274,6 +274,44 @@ describe('diplomacy-panel breakaway rows', () => {
     expect(rendered).toContain(presentation.name);
   });
 
+  it('renders the compact line for a discovered city-state without naming an undiscovered peer', () => {
+    const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player', includeBreakaway: true });
+    state.minorCivs = {
+      'mc-sparta': {
+        id: 'mc-sparta', definitionId: 'sparta', cityId: 'mc-sparta-city', units: [],
+        diplomacy: state.civilizations.player.diplomacy, activeQuests: {}, chainStatusByCiv: {},
+        questCooldownUntilByCiv: {}, lastNotifiedStatusByCiv: {}, isDestroyed: false, garrisonCooldown: 0, lastEraUpgrade: 0,
+      },
+      'mc-carthage': {
+        id: 'mc-carthage', definitionId: 'carthage', cityId: 'mc-carthage-city', units: [],
+        diplomacy: state.civilizations.player.diplomacy, activeQuests: {}, chainStatusByCiv: {},
+        questCooldownUntilByCiv: {}, lastNotifiedStatusByCiv: {}, isDestroyed: false, garrisonCooldown: 0, lastEraUpgrade: 0,
+      },
+    };
+    state.cities['mc-sparta-city'] = {
+      ...state.cities['city-border'], id: 'mc-sparta-city', owner: 'mc-sparta', position: { q: 6, r: 0 }, ownedTiles: [{ q: 6, r: 0 }],
+    };
+    state.cities['mc-carthage-city'] = {
+      ...state.cities['city-border'], id: 'mc-carthage-city', owner: 'mc-carthage', position: { q: 7, r: 0 }, ownedTiles: [{ q: 7, r: 0 }],
+    };
+    state.civilizations.player.visibility.tiles['6,0'] = 'fog';
+    state.minorCivLeagues = {
+      leagues: {
+        'minor-compact-1': {
+          id: 'minor-compact-1', nameKey: 'amber', charter: 'commerce', memberIds: ['mc-carthage', 'mc-sparta'], formedTurn: 20, readiness: { kind: 'quiet' },
+        },
+      },
+      nextId: 2, nextCheckTurn: 24, lastProcessedTurn: 20,
+      eligibleAfterTurnByMinorCiv: { 'mc-sparta': 0, 'mc-carthage': 0 },
+    };
+
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {} });
+
+    expect(panel.textContent).toContain('Amber Compact');
+    expect(panel.textContent).toContain('Commerce charter');
+    expect(panel.textContent).not.toContain('Carthage');
+  });
+
   it('renders chain step details and exact disabled festival requirements for the current viewer', () => {
     const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player' });
     state.minorCivs['mc-alexandria'] = {

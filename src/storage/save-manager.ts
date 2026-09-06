@@ -9,6 +9,7 @@ import { getQuestChain, getQuestChainForArchetype } from '@/systems/quest-chain-
 import { isMinorCivAtWar } from '@/systems/minor-civ-diplomacy';
 import { normalizeMinorCivCoalitionState } from '@/systems/minor-civ-coalition-system';
 import { normalizeMinorCivEconomyState } from '@/systems/minor-civ-economy-system';
+import { normalizeMinorCivLeagueState } from '@/storage/minor-civ-league-normalization';
 import { scanIdCounters } from '@/core/id-counters';
 import { migrateSaveToCurrent } from '@/storage/save-migrations';
 import { refreshKnownCivilizations } from '@/systems/discovery-system';
@@ -823,9 +824,9 @@ export function migrateLegacyCoastalData(state: GameState): GameState {
 
 export function normalizeLoadedState(state: GameState): NormalizedGameState {
   const migrated = migrateSaveToCurrent(state);
-  const normalizedCityState = normalizeNationalProjects(migrateLegacyPirateFleets(normalizeMinorCivEconomyState(normalizeMinorCivCoalitionState(normalizeMinorCivQuestState(
+  const normalizedCityState = normalizeNationalProjects(migrateLegacyPirateFleets(normalizeMinorCivLeagueState(normalizeMinorCivEconomyState(normalizeMinorCivCoalitionState(normalizeMinorCivQuestState(
     migrateLegacyCoastalData(normalizeThreatPressureDefaults(normalizeLandmassKeys(normalizeLegacyCitySimState(migrateStripCityGrid(migrateLegacyPlanningState(migrateLegacyNamingState(ensureGameIdentity(migrated)))))))),
-  )))));
+  ))))));
   normalizedCityState.pirates = normalizePirateState(normalizedCityState);
   normalizedCityState.notificationLog = normalizeNotificationLog(normalizedCityState.notificationLog, normalizedCityState);
   normalizedCityState.legendaryWonderAvailability = normalizeLegendaryWonderAvailability(normalizedCityState.legendaryWonderAvailability);
