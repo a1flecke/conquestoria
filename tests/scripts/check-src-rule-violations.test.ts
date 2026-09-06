@@ -123,12 +123,15 @@ describe('check-src-rule-violations.sh', () => {
 
     it('allows a pre-existing occurrence recorded in the legacy baseline at its exact path:line', () => {
       const workspace = makeWorkspace();
-      const paddingLines = Array.from({ length: 125 }, (_, i) => `// padding line ${i + 1}`);
-      // Real baseline entry: src/systems/crisis-system.ts:126
-      const lines = [...paddingLines, '  const rng = seededLcg(state.turn * 7919 + civId.charCodeAt(0) * 31);'];
-      writeWorkspaceFile(workspace, 'src/systems/crisis-system.ts', lines.join('\n'));
+      const paddingLines = Array.from({ length: 430 }, (_, i) => `// padding line ${i + 1}`);
+      // Real baseline entry: src/systems/combat-system.ts:431 (#982 left this
+      // [LOW]-tagged LCG recurrence body in place — it's already fed a
+      // gameId-rooted seed by its caller, just a hand-rolled duplicate of
+      // seededLcg's body, not a live seed-construction bug).
+      const lines = [...paddingLines, '  rngState = (rngState * 48271) % 2147483647;'];
+      writeWorkspaceFile(workspace, 'src/systems/combat-system.ts', lines.join('\n'));
 
-      const result = runScript(workspace, 'src/systems/crisis-system.ts');
+      const result = runScript(workspace, 'src/systems/combat-system.ts');
 
       expect(result.status).toBe(0);
       expect(result.stderr).toBe('');

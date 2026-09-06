@@ -14,7 +14,7 @@ import { getChallengeProfileForCiv } from '@/core/opponent-challenge';
 import { BEAST_DEFINITIONS } from './beast-definitions';
 import { hexKey, mapDistance, mapNeighbors } from './hex-utils';
 import { createUnit } from './unit-system';
-import { seededLcg } from './seeded-lcg';
+import { createSimulationRng } from './simulation-rng';
 import { isPiratePressureEligible } from './world-pressure-eligibility';
 import { resolveCivilizationEra } from './tech-definitions';
 
@@ -389,9 +389,8 @@ const BANDIT_LORD_NAMES: Record<string, string[]> = {
   isengard: ['Saruman', 'Grima Wormtongue', 'Uglúk', 'Grishnákh', 'Mauhúr'],
 };
 
-export function pickBanditName(civType: string, seed: number): string {
+export function pickBanditName(civType: string, rng: () => number): string {
   const pool = BANDIT_LORD_NAMES[civType] ?? BANDIT_LORD_NAMES['generic'];
-  const rng = seededLcg(seed);
   return pool[Math.floor(rng() * pool.length)];
 }
 
@@ -437,8 +436,9 @@ export function processLandResurgence(
   const landmassTiles = Object.values(state.map.tiles).filter(t => t.regionKey === landmassId);
   const allCamps = Object.values(state.barbarianCamps);
   const cityPositions = Object.values(state.cities).map(c => c.position);
-  const spawnSeed = state.turn * 99991 + landmassId.charCodeAt(0) * 7 + civId.charCodeAt(0) * 3;
-  const rng = seededLcg(spawnSeed);
+  // #982: one resurgence roll per (civ, landmass) per invocation -- the caller
+  // (processThreatPressure) only visits each landmassId once per civ per turn.
+  const rng = createSimulationRng(state, { domain: 'threat-pressure-land-spawn', actorId: civId, targetId: landmassId });
 
   const candidates = landmassTiles.filter(tile => {
     if (NON_VIABLE_TERRAIN.has(tile.terrain)) return false;
@@ -482,7 +482,7 @@ export function processLandResurgence(
     strength,
     spawnCooldown: 5,
     resurgent: true,
-    ...(isBanditLord ? { banditLordName: pickBanditName(civ?.civType ?? 'generic', spawnSeed + 1) } : {}),
+    ...(isBanditLord ? { banditLordName: pickBanditName(civ?.civType ?? 'generic', rng) } : {}),
   };
 
   const updatedState: GameState = {
@@ -545,10 +545,9 @@ export function createPirateFleetNear(
   civId: string,
   landmassId: string,
   targetCity: City,
-  seed: number,
+  rng: () => number,
 ): { state: GameState; fleetId: string | null } {
   const cityPositions = Object.values(state.cities).map(c => c.position);
-  const rng = seededLcg(seed);
 
   const spawnCandidates = Object.values(state.map.tiles).filter(tile => {
     if (tile.terrain !== 'ocean') return false;
@@ -639,8 +638,10 @@ export function processPirateSpawn(
     return d1 < d2 ? city : nearest;
   });
 
-  const spawnSeed = state.turn * 73937 + civId.charCodeAt(0) * 13 + landmassId.charCodeAt(0) * 5;
-  const { state: updatedState, fleetId } = createPirateFleetNear(state, civId, landmassId, targetCity, spawnSeed);
+  // #982: one pirate-spawn roll per (civ, landmass) per invocation -- same call
+  // frequency as processLandResurgence above.
+  const rng = createSimulationRng(state, { domain: 'threat-pressure-pirate-spawn', actorId: civId, targetId: landmassId });
+  const { state: updatedState, fleetId } = createPirateFleetNear(state, civId, landmassId, targetCity, rng);
   if (!fleetId) return state;
 
   bus.emit('threat:pirate-fleet-spawned', {

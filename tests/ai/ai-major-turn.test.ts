@@ -30,7 +30,14 @@ function makeState(): GameState {
     seed: 'major-turn',
     opponentChallenge: 'veteran',
   });
-  state.turn = 20;
+  // #982: turn 20 happened to roll a `resolveCityAssault` loss for the
+  // ('captor'/'target-city') fixture under the new gameId-rooted
+  // `city-assault-resolve` seed (it previously "won" only because the old
+  // turn*7919-based seed had no gameId to root it). 21 is an arbitrary turn
+  // that rolls a win for that exact fixture; the assault odds/formula
+  // themselves are untouched -- swordsman (25) vs. a population-1 unwalled
+  // outpost (intrinsic 4) still resolves per the documented ~70-95% win band.
+  state.turn = 21;
   state.units = {};
   state.cities = {};
   state.barbarianCamps = {};

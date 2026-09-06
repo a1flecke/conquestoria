@@ -20,6 +20,7 @@ import {
   type BlockingMapEntity,
 } from '@/systems/unit-system';
 import { visitVillage } from '@/systems/village-system';
+import { createSimulationRng } from '@/systems/simulation-rng';
 import { processWonderDiscovery } from '@/systems/wonder-system';
 import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
 import { isAtWar } from '@/systems/diplomacy-system';
@@ -188,11 +189,13 @@ export function executeUnitMove(
   let villageOutcome: Extract<ExecuteUnitMoveResult, { ok: true }>['villageOutcome'];
   const villageAtDestination = Object.values(state.tribalVillages).find(village => hexKey(village.position) === hexKey(actualTo));
   if (villageAtDestination) {
-    let rngState = state.turn * 16807 + unit.id.charCodeAt(0);
-    const villageRng = () => {
-      rngState = (rngState * 48271) % 2147483647;
-      return rngState / 2147483647;
-    };
+    // #983: was `turn*16807 + unit.id.charCodeAt(0)` -- every normal unit id
+    // starts with 'unit-', so charCodeAt(0) was 117 for every unit in the
+    // game, and gameId was missing entirely; the village's own identity was
+    // never in the seed either. No ordinal is needed: a village is deleted on
+    // visit (village-system.ts), so (turn, villageId, unitId) can only ever
+    // occur once.
+    const villageRng = createSimulationRng(state, { domain: 'village-visit', actorId: unit.id, targetId: villageAtDestination.id });
     const result = visitVillage(state, villageAtDestination.id, state.units[unitId], villageRng);
     villageOutcome = {
       outcome: result.outcome,

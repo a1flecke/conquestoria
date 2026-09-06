@@ -156,6 +156,13 @@ describe('PlayerActionController', () => {
 
     it('applies a real worker action, refreshes the renderer, and reselects the unit', () => {
       const { state } = makeFixture('worker-action-farm');
+      // #982: clear the world's cities so this test's own controlled (0,0) tile can't
+      // coincidentally land under a minor-civ city -- placeMinorCivs is now gameId-rooted
+      // instead of an under-keyed shared seed, which legitimately relocates where minor
+      // civs start (here, a city at exactly (0,0) made applyWorkerAction correctly reject
+      // 'farm' as invalid-action on a city-center tile). This test is purely about worker-
+      // action wiring, not real-world city layout, so it was never meant to depend on that.
+      state.cities = {};
       state.map.tiles['0,0'] = {
         coord: { q: 0, r: 0 }, terrain: 'grassland', elevation: 'lowland', resource: null,
         improvement: 'none', owner: 'player', improvementTurnsLeft: 0, hasRiver: false, wonder: null,

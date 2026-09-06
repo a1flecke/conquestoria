@@ -28,6 +28,7 @@ import { classifyOwner } from '@/core/owner-kind';
 import { resolveNeutralPressureEra } from './era-resolution';
 import { getActiveCampPressure, observeCampPressureFromSensedUnits } from './barbarian-pressure';
 import { selectBarbarianReinforcement } from './barbarian-force-composer';
+import { createSimulationRng } from './simulation-rng';
 
 // Seeded LCG — avoids Math.random() per project rules
 function lcg(seed: number): () => number {
@@ -348,7 +349,10 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
     if (nearest) opponentAI.barbarianHomeCampByUnitId[unit.id] = nearest.id;
   }
 
-  const campTick = processBarbarians(camps, state.map, [], state.turn * 31337);
+  // #982: one shared stream drives every camp's tick this turn (processBarbarians'
+  // own internal lcg() advances sequentially per camp) -- was `turn*31337`
+  // alone, no gameId, shared by every campaign at a given turn.
+  const campTick = processBarbarians(camps, state.map, [], Math.floor(createSimulationRng(state, { domain: 'barbarian-tick', eventId: 'barbarian-tick' })() * 2147483647));
   const spawnedUnits: PurposefulBarbarianProcessResult['spawnedUnits'] = [];
   const moveOrders: BarbarianMoveOrder[] = [];
   const attackOrders: BarbarianAttackOrder[] = [];

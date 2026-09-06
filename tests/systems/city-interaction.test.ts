@@ -20,8 +20,10 @@ function scenario(options: {
   atWar?: boolean;
   cityHp?: number;
   cityOwner?: string;
+  turn?: number;
 }): { state: GameState; unit: Unit } {
   const state = createNewGame(undefined, `city-interaction-${options.attackerType}`, 'small');
+  if (options.turn !== undefined) state.turn = options.turn;
   state.currentPlayer = 'player';
   for (const key of ['0,0', '1,0', '2,0', '3,0', '4,0']) {
     state.map.tiles[key] = { ...state.map.tiles[key]!, terrain: 'plains' };
@@ -287,8 +289,14 @@ describe('#966 preview/execution parity', () => {
     garrison?: UnitType;
     exhausted?: boolean;
     alreadyCaptured?: boolean;
+    turn?: number;
   }> = [
-    { attackerType: 'warrior', attackerPos: { q: 2, r: 0 } },
+    // #982: turn 1 (the scenario() default) now rolls a `resolveCityAssault` loss for
+    // this exact (gameId, actorId: 'atk', targetId: 'target') fixture under the new
+    // gameId-rooted `city-assault-resolve` seed -- it only "won" before because the old
+    // turn*7919-based seed had no gameId to root it. Turn 20 is an arbitrary turn that
+    // rolls a win for this fixture; the assault odds/formula themselves are untouched.
+    { attackerType: 'warrior', attackerPos: { q: 2, r: 0 }, turn: 20 },
     { attackerType: 'archer', attackerPos: { q: 2, r: 0 } },
     { attackerType: 'catapult', attackerPos: { q: 2, r: 0 } },
     { attackerType: 'archer', attackerPos: { q: 1, r: 0 } },

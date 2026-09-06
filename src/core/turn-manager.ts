@@ -81,6 +81,7 @@ import { processWonderEffects } from '@/systems/wonder-system';
 import { createRng } from '@/systems/map-generator';
 import { processMinorCivTurn, checkEraAdvancement, processMinorCivEraUpgrade, checkCampEvolution } from '@/systems/minor-civ-system';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
+import { createSimulationRng } from '@/systems/simulation-rng';
 import { resolveCombatEra, resolveNeutralPressureEra } from '@/systems/era-resolution';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { applyProductionBonus } from '@/systems/city-system';
@@ -893,12 +894,9 @@ export function processTurn(
 
   // --- Process marketplace ---
   if (newState.marketplace) {
-    // Simple fashion cycle with seeded rng
-    let rngState = newState.turn * 16807;
-    const simpleRng = () => {
-      rngState = (rngState * 48271) % 2147483647;
-      return rngState / 2147483647;
-    };
+    // #982: one global fashion-cycle roll per turn. Was `turn*16807` alone --
+    // no gameId, so two campaigns at the same turn shared one fashion cycle.
+    const simpleRng = createSimulationRng(newState, { domain: 'marketplace-fashion-cycle', eventId: 'fashion-cycle' });
     newState.marketplace = processFashionCycle(newState.marketplace, simpleRng);
 
     // Compute supply (resource tiles in city territory) and demand (population)
@@ -939,7 +937,6 @@ export function processTurn(
       newState.units[unitId] = resetUnitTurn(unit);
     }
   }
-  const barbSeed = newState.turn * 31337 + Object.keys(newState.barbarianCamps).length;
   const barbResult = processPurposefulBarbarians(newState);
   newState.opponentAI = barbResult.opponentAI;
   newState.barbarianCampPressure = barbResult.barbarianCampPressure;
@@ -1049,11 +1046,15 @@ export function processTurn(
     if (result.outcome === 'blocked') continue;
 
     // Counter-fire (#522): a walled, ungarrisoned city fights back against the raider
-    // that's damaging it. Reuses barbSeed the same way real barbarian combat above does.
+    // that's damaging it. #982: same 'city-counter-fire' domain tag as
+    // city-bombardment-system.ts/pirate-system.ts's own counter-fire rolls.
+    // Was `barbSeed ^ attackerUnitId.charCodeAt(0)`, where barbSeed itself
+    // (`turn*31337 + camp count`) had no gameId and no per-attack identity,
+    // shared by every barbarian counter-fire event in the game this turn.
     const attackerUnit = newState.units[order.attackerUnitId];
     if (attackerUnit) {
       const attackerStrength = getUnitCombatStrength(attackerUnit) * (attackerUnit.health / 100);
-      const counterFireSeed = barbSeed ^ order.attackerUnitId.charCodeAt(0) ^ 0x5a5a;
+      const counterFireSeed = Math.floor(createSimulationRng(newState, { domain: 'city-counter-fire', actorId: order.attackerUnitId, targetId: order.cityId })() * 2147483647);
       const counterFireDamage = getCityCounterFireDamage(
         city, ownerCiv, 'land', attackerStrength, false, counterFireSeed,
       );
@@ -1168,7 +1169,12 @@ export function processTurn(
       const kind = classifyOwner(unit.owner);
       return kind !== 'beast' && kind !== 'barbarian' && unit.owner !== PIRATE_OWNER;
     });
-    const beastSeed = newState.turn * 7919 + 13;
+    // #982: one shared stream drives every lair/beast this turn (processBeasts'
+    // own internal lcg() advances sequentially per lair) -- was `turn*7919 + 13`,
+    // no gameId. The +13 offset existed only to decorrelate from other
+    // turn*7919-seeded sites (city-bombardment-system.ts, crisis-system.ts),
+    // which is now handled by the 'beast-tick' domain tag instead.
+    const beastSeed = Math.floor(createSimulationRng(newState, { domain: 'beast-tick', eventId: 'beast-tick' })() * 2147483647);
     const beastResult = processBeasts(
       Object.values(newState.beasts!.lairs),
       newState.map,

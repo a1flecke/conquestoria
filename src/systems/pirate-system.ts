@@ -12,6 +12,7 @@ import { deterministicCombatSeed, resolveCombat } from './combat-system';
 import { buildCombatContextForDefender } from './combat-context';
 import { applyCitySiegeOutcome, getCityCounterFireDamage, getCityGarrisonUnit, resolveCitySiegeDamage } from './city-siege-system';
 import { resolveCoastalBatteryCounterfire } from './coastal-defense-system';
+import { createSimulationRng } from './simulation-rng';
 import type { PirateEconomyModifiers } from './economy-system';
 import { getWrappedHexNeighbors, hexDistance, hexKey, hexNeighbors, wrappedHexDistance } from './hex-utils';
 import {
@@ -882,7 +883,11 @@ export function processPiratesForCompletedRound(
           || a.id.localeCompare(b.id))[0];
       if (targetShip) {
         const attackerStrength = UNIT_DEFINITIONS[targetShip.type].strength * (targetShip.health / 100);
-        const counterFireSeed = (nextState.turn * 104729) ^ targetShip.id.charCodeAt(0) ^ 0x5a5a;
+        // #982: one counter-fire roll per (city, targetShip) per siege tick.
+        // Was `(turn*104729) ^ targetShip.id.charCodeAt(0)` -- no gameId, and
+        // every unit id starts with 'unit-', so charCodeAt(0) was identical
+        // for every ship in the game.
+        const counterFireSeed = Math.floor(createSimulationRng(nextState, { domain: 'city-counter-fire', actorId: targetShip.id, targetId: city.id })() * 2147483647);
         const counterFireDamage = getCityCounterFireDamage(
           city, ownerCiv, 'naval', attackerStrength, false, counterFireSeed,
         );

@@ -25,21 +25,21 @@ function setNearbyPressureEra(state: ReturnType<typeof createNewGame>, minorCivI
 describe('minor civ placement', () => {
   it('places correct number for small map', () => {
     const state = createNewGame(undefined, 'mc-place-test', 'small');
-    const result = placeMinorCivs(state, 'small', 'mc-place-test');
+    const result = placeMinorCivs(state, 'small');
     expect(Object.keys(result.minorCivs).length).toBeGreaterThanOrEqual(2);
     expect(Object.keys(result.minorCivs).length).toBeLessThanOrEqual(4);
   });
 
   it('places correct number for medium map', () => {
     const state = createNewGame(undefined, 'mc-place-med', 'medium');
-    const result = placeMinorCivs(state, 'medium', 'mc-place-med');
+    const result = placeMinorCivs(state, 'medium');
     expect(Object.keys(result.minorCivs).length).toBeGreaterThanOrEqual(4);
     expect(Object.keys(result.minorCivs).length).toBeLessThanOrEqual(6);
   });
 
   it('respects distance from start positions', () => {
     const state = createNewGame(undefined, 'mc-dist-test', 'medium');
-    const result = placeMinorCivs(state, 'medium', 'mc-dist-test');
+    const result = placeMinorCivs(state, 'medium');
     const startPositions = Object.values(state.units)
       .filter(u => u.type === 'settler')
       .map(u => u.position);
@@ -64,7 +64,7 @@ describe('minor civ placement', () => {
     }
     state.map.tiles[`${width - 1},5`].terrain = 'plains';
 
-    const result = placeMinorCivs(state, 'small', 'mc-nonwrap-edge-seed');
+    const result = placeMinorCivs(state, 'small');
 
     // The only passable candidate is at q=width-1, r=5 — raw distance from the
     // start at q=0 is width-1 (far), but the pre-fix code treated it as
@@ -75,7 +75,7 @@ describe('minor civ placement', () => {
 
   it('respects distance between minor civs', () => {
     const state = createNewGame(undefined, 'mc-inter-test', 'medium');
-    const result = placeMinorCivs(state, 'medium', 'mc-inter-test');
+    const result = placeMinorCivs(state, 'medium');
     const mcCities = Object.values(result.minorCivs).map(mc => result.cities[mc.cityId]);
     for (let i = 0; i < mcCities.length; i++) {
       for (let j = i + 1; j < mcCities.length; j++) {
@@ -86,7 +86,7 @@ describe('minor civ placement', () => {
 
   it('creates city and garrison for each minor civ', () => {
     const state = createNewGame(undefined, 'mc-city-test', 'small');
-    const result = placeMinorCivs(state, 'small', 'mc-city-test');
+    const result = placeMinorCivs(state, 'small');
     for (const mc of Object.values(result.minorCivs)) {
       expect(result.cities[mc.cityId]).toBeDefined();
       expect(result.cities[mc.cityId].owner).toBe(`mc-${mc.definitionId}`);
@@ -97,7 +97,7 @@ describe('minor civ placement', () => {
 
   it('keeps minor-civ city labels globally unique during placement', () => {
     const state = createNewGame(undefined, 'mc-unique-test', 'medium');
-    const result = placeMinorCivs(state, 'medium', 'mc-unique-test');
+    const result = placeMinorCivs(state, 'medium');
     const names = Object.values(result.minorCivs).map(mc => result.cities[mc.cityId].name);
 
     expect(new Set(names).size).toBe(names.length);
@@ -105,7 +105,7 @@ describe('minor civ placement', () => {
 
   it('does not place on impassable terrain', () => {
     const state = createNewGame(undefined, 'mc-terrain-test', 'small');
-    const result = placeMinorCivs(state, 'small', 'mc-terrain-test');
+    const result = placeMinorCivs(state, 'small');
     const impassable = ['ocean', 'coast', 'mountain'];
     for (const mc of Object.values(result.minorCivs)) {
       const city = result.cities[mc.cityId];
@@ -116,7 +116,7 @@ describe('minor civ placement', () => {
 
   it('initializes diplomacy with major civs only', () => {
     const state = createNewGame(undefined, 'mc-diplo-test', 'small');
-    const result = placeMinorCivs(state, 'small', 'mc-diplo-test');
+    const result = placeMinorCivs(state, 'small');
     for (const mc of Object.values(result.minorCivs)) {
       const relKeys = Object.keys(mc.diplomacy.relationships);
       expect(relKeys).toContain('player');
@@ -957,7 +957,10 @@ describe('emergency levy (#951)', () => {
     const result = processMinorCivTurn(state, bus);
     const coalition = Object.values(result.minorCivCoalitions ?? {})[0];
 
-    expect(coalition).toMatchObject({ targetCivId: 'player', memberIds: [a, b], status: 'forming' });
+    // memberIds is always alphabetically sorted (minor-civ-coalition-system.ts),
+    // independent of state.minorCivs' insertion order -- assert against that
+    // sorted order rather than [a, b]'s incidental placement order.
+    expect(coalition).toMatchObject({ targetCivId: 'player', memberIds: [a, b].sort(), status: 'forming' });
     expect(result.civilizations.player.diplomacy.atWarWith).not.toContain(a);
     expect(result.civilizations.player.diplomacy.atWarWith).not.toContain(b);
   });
@@ -1060,7 +1063,15 @@ describe('scuffles between minor civs', () => {
 
   it('does not resolve scuffle combat when minor-civ melee units are not adjacent', () => {
     const state = createNewGame(undefined, 'mc-scuffle-range', 'small');
-    state.turn = 13;
+    // #982: the trigger roll is now gameId-rooted, so a turn that clears the
+    // 10% threshold for one fixture's gameId is not guaranteed to for
+    // another's -- unlike the old turn-only formula, which was gameId-blind
+    // and let every fixture in this file share turn 13. Without a turn that
+    // actually clears the gate, this test would pass vacuously (0 scuffles
+    // because the roll failed, never reaching the adjacency check its name
+    // claims to cover). Turn 15 is the first hit for this fixture's own
+    // 'mc-scuffle-range' gameId.
+    state.turn = 15;
     state.minorCivs = {
       'mc-sparta': {
         id: 'mc-sparta',
@@ -1115,7 +1126,12 @@ describe('scuffles between minor civs', () => {
     const state = createNewGame(undefined, 'mc-scuffle-wrap', 'small');
     state.map.wrapsHorizontally = true;
     const width = state.map.width;
-    state.turn = 13; // yields roll 6 (< 10) for mc-sparta, matching the existing roll-gated test above
+    // #982: minor-civ-scuffle-trigger's roll is now gameId-rooted (was
+    // `turn*16807 + mc.id.charCodeAt(3)`, ignoring gameId entirely -- which is
+    // why turn 13 previously worked for every gameId used in this file's
+    // fixtures). Turn 18 is the first turn where mc-sparta's roll clears the
+    // 10% trigger threshold for this fixture's own 'mc-scuffle-wrap' gameId.
+    state.turn = 18;
     state.minorCivs = {
       'mc-sparta': {
         id: 'mc-sparta',

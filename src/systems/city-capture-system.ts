@@ -29,6 +29,7 @@ import { buildMovePresentationByViewer } from '@/systems/viewer-event-presentati
 import { eliminateCivilization } from '@/systems/civilization-elimination-system';
 import { handleCityLeftCiv } from '@/systems/crisis-system';
 import { cancelInvalidNetworkPlans } from '@/systems/network-plan-system';
+import { createSimulationRng } from '@/systems/simulation-rng';
 import {
   calculateCityAssaultStrengths,
   getCityCounterFireDamage,
@@ -299,25 +300,12 @@ export function beginMajorCityAssault(
       // resolveCityAssault (win/lose) are conceptually independent rolls. Passing them
       // the same raw seed would make each function's first internal rng() draw
       // IDENTICAL, entangling "how much counter-fire damage I take" with "do I win" on
-      // every single assault (caught in review). XOR against a fixed constant to
-      // decorrelate -- same convention Tasks 5/6 use for barbarian/pirate counter-fire
-      // seeds (`... ^ 0x5a5a`).
-      //
-      // Fold the FULL id strings (not just their first character) into the seed, the
-      // same convention combat-reward-system.ts's seededRoll already uses -- the plan's
-      // original `attackerId.charCodeAt(0) + cityId.charCodeAt(0)` collided for this
-      // codebase's own default test fixture ids ('attacker' + 'athens', both starting
-      // with 'a'), producing a seed whose second RNG draw permanently exceeds
-      // resolveCityAssault's 0.95 clamp ceiling -- an attacker of ANY strength always
-      // lost against that exact seed, regardless of the real strength comparison.
-      // Full-string folding avoids this class of collision generically instead of
-      // patching one cursed id pair.
-      let baseSeed = Math.abs(state.turn * 7919);
-      for (const char of `${attackerId}:${cityId}`) {
-        baseSeed = (baseSeed * 48271 + char.charCodeAt(0)) % 2147483647;
-      }
-      const counterFireSeed = baseSeed;
-      const assaultSeed = baseSeed ^ 0x5a5a;
+      // every single assault (caught in review). #982: two distinct domain tags on the
+      // canonical factory replace the old baseSeed/`baseSeed ^ 0x5a5a` decorrelation
+      // trick -- gameId is now in both seeds too, which the old fold (full attackerId:
+      // cityId string, but no gameId) was still missing.
+      const counterFireSeed = Math.floor(createSimulationRng(state, { domain: 'city-assault-counter-fire', actorId: attackerId, targetId: cityId })() * 2147483647);
+      const assaultSeed = Math.floor(createSimulationRng(state, { domain: 'city-assault-resolve', actorId: attackerId, targetId: cityId })() * 2147483647);
       const strengths = calculateCityAssaultStrengths(attacker, city, ownerCiv.techState.completed ?? [], state.map, {
         attackerMultiplier: options.attackerMultiplier,
       });

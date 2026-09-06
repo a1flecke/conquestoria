@@ -406,7 +406,7 @@ export function createNewGame(
   };
 
   // Place minor civilizations
-  const mcResult = placeMinorCivs(state, actualSize, gameSeed);
+  const mcResult = placeMinorCivs(state, actualSize);
   state.minorCivs = mcResult.minorCivs;
   Object.assign(state.cities, mcResult.cities);
   Object.assign(state.units, mcResult.units);
@@ -584,7 +584,7 @@ export function createHotSeatGame(
   };
 
   // Place minor civilizations
-  const mcResult = placeMinorCivs(state, config.mapSize, gameSeed);
+  const mcResult = placeMinorCivs(state, config.mapSize);
   state.minorCivs = mcResult.minorCivs;
   Object.assign(state.cities, mcResult.cities);
   Object.assign(state.units, mcResult.units);
