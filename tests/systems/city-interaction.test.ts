@@ -138,8 +138,43 @@ describe('#966 resolveCityInteraction', () => {
     expect(action.label).toBe(`Capture the city — ${Math.round(action.winProbability * 100)}%`);
   });
 
+  // Action-state gates. beginMajorCityAssault rejects both of these outright, so the
+  // resolver must not offer a capture the executor will refuse. The parity matrix below
+  // uses fresh units and did NOT catch this -- these are the explicit cases.
+  it('denies capture to a unit that has already acted this turn', () => {
+    const { state, unit } = scenario({ attackerType: 'warrior', attackerPos: { q: 2, r: 0 } });
+    state.units.atk = { ...unit, hasActed: true };
+    const { available, denied } = kinds(state, state.units.atk);
+
+    expect(available).toEqual([]);
+    expect(denied.capture).toBe('This unit has already acted this turn.');
+    expect(beginMajorCityAssault(state, 'atk', 'target', { actor: 'player', civId: 'player' }).ok).toBe(false);
+  });
+
+  it('denies capture to a unit with no movement left', () => {
+    const { state, unit } = scenario({ attackerType: 'warrior', attackerPos: { q: 2, r: 0 } });
+    state.units.atk = { ...unit, movementPointsLeft: 0 };
+
+    expect(kinds(state, state.units.atk).denied.capture).toBe('This unit has already acted this turn.');
+  });
+
+  it('denies capture to a unit that already captured a city this turn', () => {
+    const { state, unit } = scenario({ attackerType: 'warrior', attackerPos: { q: 2, r: 0 } });
+    state.units.atk = { ...unit, hasCapturedCityThisTurn: true };
+    const { available, denied } = kinds(state, state.units.atk);
+
+    expect(available).toEqual([]);
+    expect(denied.capture).toBe('This unit has already captured a city this turn.');
+    expect(beginMajorCityAssault(state, 'atk', 'target', { actor: 'player', civId: 'player' }).ok).toBe(false);
+  });
+
   // Minor civs have no `techState`; the resolver must handle them rather than throw or
   // silently return nothing, which is exactly how bombardment would have no-opped.
+  //
+  // Scope note: beginMajorCityAssault explicitly rejects minor-civ cities ('not-major-city')
+  // -- they are captured through executeMinorCivConquest instead. Phase 1's preview never
+  // sees a minor-civ city (they route to the assault-minor-civ intent), so there is no live
+  // divergence; Phase 2 unifies the two executors behind this resolver.
   it('handles a minor-civ city without a Civilization record', () => {
     const { state, unit } = scenario({
       attackerType: 'warrior', attackerPos: { q: 2, r: 0 }, cityOwner: 'mc-warriors',
@@ -170,7 +205,13 @@ describe('#966 resolveCityInteraction', () => {
 // divergence between what the UI shows and what the executor accepts is the defect class
 // behind both #965 and #966, so this walks a matrix rather than a single fixture.
 describe('#966 preview/execution parity', () => {
-  const matrix: Array<{ attackerType: UnitType; attackerPos: { q: number; r: number }; garrison?: UnitType }> = [
+  const matrix: Array<{
+    attackerType: UnitType;
+    attackerPos: { q: number; r: number };
+    garrison?: UnitType;
+    exhausted?: boolean;
+    alreadyCaptured?: boolean;
+  }> = [
     { attackerType: 'warrior', attackerPos: { q: 2, r: 0 } },
     { attackerType: 'archer', attackerPos: { q: 2, r: 0 } },
     { attackerType: 'catapult', attackerPos: { q: 2, r: 0 } },
@@ -180,13 +221,24 @@ describe('#966 preview/execution parity', () => {
     { attackerType: 'frigate', attackerPos: { q: 2, r: 0 } },
     { attackerType: 'warrior', attackerPos: { q: 2, r: 0 }, garrison: 'spearman' },
     { attackerType: 'archer', attackerPos: { q: 1, r: 0 }, garrison: 'spearman' },
+    { attackerType: 'warrior', attackerPos: { q: 2, r: 0 }, exhausted: true },
+    { attackerType: 'warrior', attackerPos: { q: 2, r: 0 }, alreadyCaptured: true },
   ];
 
   for (const entry of matrix) {
-    const label = `${entry.attackerType}@${entry.attackerPos.q},${entry.attackerPos.r}${entry.garrison ? ' vs garrison' : ''}`;
+    const label = `${entry.attackerType}@${entry.attackerPos.q},${entry.attackerPos.r}`
+      + `${entry.garrison ? ' vs garrison' : ''}${entry.exhausted ? ' exhausted' : ''}`
+      + `${entry.alreadyCaptured ? ' already-captured' : ''}`;
+
+    const build = () => {
+      const built = scenario(entry);
+      if (entry.exhausted) built.state.units.atk = { ...built.unit, hasActed: true };
+      if (entry.alreadyCaptured) built.state.units.atk = { ...built.unit, hasCapturedCityThisTurn: true };
+      return { state: built.state, unit: built.state.units.atk };
+    };
 
     it(`every offered action executes: ${label}`, () => {
-      const { state, unit } = scenario(entry);
+      const { state, unit } = build();
       const interaction = resolveCityInteraction(state, unit, state.cities.target);
 
       for (const action of interaction.available) {
@@ -204,7 +256,7 @@ describe('#966 preview/execution parity', () => {
     });
 
     it(`never withholds an executable capture: ${label}`, () => {
-      const { state, unit } = scenario(entry);
+      const { state, unit } = build();
       const interaction = resolveCityInteraction(state, unit, state.cities.target);
       const offered = interaction.available.some(a => a.kind === 'capture');
       const executorAccepts = beginMajorCityAssault(

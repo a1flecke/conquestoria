@@ -49,7 +49,7 @@ import { getBeastDefinitionByUnitType } from '@/systems/beast-definitions';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { getEmbarkedAssaultTarget } from '@/systems/transport-system';
 import { calculateCityAssaultStrengths } from '@/systems/city-siege-system';
-import { getCityDefenderTechs, resolveCityInteraction } from '@/systems/city-interaction';
+import { resolveCityInteraction } from '@/systems/city-interaction';
 import { renderCityActionPreview } from '@/ui/city-action-preview';
 import { createGameButton } from '@/ui/ui-kit';
 import { createForeignCityEntryPanel } from '@/ui/foreign-city-entry-panel';
@@ -621,12 +621,11 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
           targetCity,
           { attackerMultiplier },
         );
-        const strengths = calculateCityAssaultStrengths(
-          effectiveAttacker,
-          targetCity,
-          getCityDefenderTechs(session.getState(), targetCity),
-          session.getState().map,
-          { attackerMultiplier },
+        // Single source for the attacker's own strength too -- the resolver already ran
+        // calculateCityAssaultStrengths, so recomputing it here would be a second source
+        // that could drift from the odds shown beside it.
+        const captureAction = interaction.available.find(
+          (action): action is Extract<typeof action, { kind: 'capture' }> => action.kind === 'capture',
         );
 
         const panel = deps.getElementById('info-panel');
@@ -634,7 +633,7 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
           panel.style.display = 'block';
           renderCityActionPreview(panel, {
             attackerName: UNIT_DEFINITIONS[attackerUnit.type].name,
-            attackerStrength: strengths.attackerStrength,
+            attackerStrength: captureAction?.attackerStrength ?? 0,
             cityName: targetCity.name,
             interaction,
             infoText: intent.embarkedAssault

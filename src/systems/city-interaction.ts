@@ -2,9 +2,8 @@ import type { City, GameState, Unit } from '@/core/types';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { canUnitOccupyCity } from '@/systems/city-capture-system';
 import { calculateCityAssaultStrengths, getCityIntrinsicStrength } from '@/systems/city-siege-system';
-import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
+import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { isHostileOwnerTo } from '@/systems/owner-hostility';
-import { buildUnitOccupancy, getUnitIdsAtCoord } from '@/systems/unit-occupancy';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 
 /**
@@ -29,6 +28,8 @@ export type CityAction =
   | {
       kind: 'capture';
       winProbability: number;
+      /** The attacker's side of the same roll, so the preview needs no second computation. */
+      attackerStrength: number;
       /** Intrinsic defense ignoring damage -- what the city is worth at full HP. */
       defenseBefore: number;
       /** Defense the assault actually fights through, i.e. HP-scaled (#966). */
@@ -102,6 +103,7 @@ export function resolveCityInteraction(
   available.push({
     kind: 'capture',
     winProbability: strengths.winProbability,
+    attackerStrength: strengths.attackerStrength,
     defenseBefore: getCityIntrinsicStrength(city, techs, 'land'),
     defenseAfter: strengths.intrinsicStrength,
     label: `Capture the city — ${Math.round(strengths.winProbability * 100)}%`,
@@ -114,13 +116,25 @@ function resolveCaptureDenial(state: GameState, unit: Unit, city: City): string 
   if (!canUnitOccupyCity(unit)) return 'This unit cannot capture a city.';
   if (city.owner === unit.owner) return 'This city is already yours.';
   if (!isHostileOwnerTo(state, unit.owner, city.owner)) return 'You are not at war with this city.';
+
+  // Action-state gates. beginMajorCityAssault rejects both of these
+  // ('already-captured-city-this-turn' / 'illegal-movement'), so omitting them here would
+  // let the UI offer a capture the executor refuses -- the exact divergence this resolver
+  // exists to prevent.
+  if (unit.hasCapturedCityThisTurn) return 'This unit has already captured a city this turn.';
+  if (unit.hasActed || unit.movementPointsLeft <= 0) return 'This unit has already acted this turn.';
+
   if (distanceFor(state, unit.position, city.position) !== 1) return 'Move next to the city to capture it.';
 
   // Matches beginMajorCityAssault's `city-defended` check exactly: ANY unit standing on the
-  // city tile blocks occupation, not only the owner's.
-  const occupancy = buildUnitOccupancy(state.units);
-  if (getUnitIdsAtCoord(occupancy, city.position).some(id => id !== unit.id)) {
-    return 'Defeat the defenders first.';
+  // city tile blocks occupation, not only the owner's. A direct scan rather than
+  // buildUnitOccupancy, because Phase 2 calls this per candidate tile while building
+  // highlights and allocating a whole occupancy index each time would be wasteful.
+  const cityKey = hexKey(city.position);
+  for (const occupant of Object.values(state.units)) {
+    if (occupant.id !== unit.id && hexKey(occupant.position) === cityKey) {
+      return 'Defeat the defenders first.';
+    }
   }
   return null;
 }
