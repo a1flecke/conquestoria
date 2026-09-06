@@ -113,6 +113,8 @@ export interface PlayerActionController {
   executeAttack(attackerId: string, targetKey: string): void;
   foundCityAction(): void;
   executeUpgrade(unitId: string, targetType: UnitType): boolean;
+  bombardCity(attackerId: string, cityId: string): void;
+  holdSiege(attackerId: string, cityId: string): void;
   beginPlayerCityAssault(
     attackerId: string,
     cityId: string,
@@ -515,6 +517,70 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
     deps.hud.update();
   }
 
+  /**
+   * #974: a unit spends its action shelling a hostile city. Never captures, never razes --
+   * ownership changes only through beginPlayerCityAssault. Declaring war first goes through
+   * the same ensurePlayerWarState the assault path uses, so bombarding can never start a war
+   * more quietly than storming would.
+   */
+  function bombardCity(attackerId: string, cityId: string): void {
+    const city = deps.session.getState().cities[cityId];
+    if (!city) return;
+    ensurePlayerWarState(city.owner);
+
+    const bombardment = resolveUnitCityBombardment(deps.session.getState(), {
+      attackerUnitId: attackerId,
+      cityId,
+      source: 'player',
+    });
+    if (!bombardment.ok) {
+      deps.showNotification('That bombardment is no longer possible.', 'warning');
+      return;
+    }
+
+    deps.session.setStateWithoutRefresh(bombardment.state);
+    if (bombardment.cityEvent) deps.bus.emit('city:bombarded', bombardment.cityEvent);
+    if (bombardment.batteryEvent) deps.bus.emit('city:coastal-battery-fired', bombardment.batteryEvent);
+    SFX.combat();
+
+    const after = deps.session.getState();
+    deps.showNotification(
+      bombardment.attackerDied
+        ? `${city.name}'s defenses destroyed your unit!`
+        : `${city.name} took ${bombardment.hpLost} damage (${after.cities[cityId]?.hp ?? 0}/100).`,
+      bombardment.attackerDied ? 'warning' : 'info',
+    );
+
+    deps.renderLoop.setGameState(after);
+    deps.hud.update();
+    deps.selectionController.refreshSelectedUnitAfterCombat();
+    deps.selectionController.selectNextUnit();
+  }
+
+  /**
+   * #974: bombard now, then keep bombarding this city each turn. The order re-checks
+   * legality every turn through the same resolver a manual tap uses, and clears itself with
+   * a reason the moment bombarding stops being possible.
+   */
+  function holdSiege(attackerId: string, cityId: string): void {
+    bombardCity(attackerId, cityId);
+    const state = deps.session.getState();
+    const unit = state.units[attackerId];
+    const city = state.cities[cityId];
+    // The unit may have died to counter-fire, or the city may already be gone.
+    if (!unit || !city) return;
+
+    deps.session.setStateWithoutRefresh({
+      ...state,
+      units: {
+        ...state.units,
+        [attackerId]: { ...unit, automation: { mode: 'hold-siege', cityId, startedTurn: state.turn } },
+      },
+    });
+    deps.showNotification(`Your unit will keep bombarding ${city.name}.`, 'info');
+    deps.renderLoop.setGameState(deps.session.getState());
+  }
+
   function beginPlayerCityAssault(
     attackerId: string,
     cityId: string,
@@ -840,6 +906,8 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
     foundCityAction,
     executeUpgrade,
     beginPlayerCityAssault,
+    bombardCity,
+    holdSiege,
     beginPlayerCampAssault,
     executeMinorCivConquest,
   };

@@ -70,6 +70,13 @@ export const registerRaiderPresentation: PresentationRegistrar = (bus, ctx) => {
         : `${cityName}'s Coastal Battery returned fire on a ${attackerLabel} (−${damage} HP; first naval hit this turn).`;
       ctx.notifier.deliver(recipientCivId, message, attackerDied ? 'success' : 'info');
     }),
+    // #974: an automation that stops silently is worse than no automation.
+    bus.on('unit:hold-siege-ended', ({ reason }) => {
+      const state = ctx.session.getState();
+      const viewer = state.currentPlayer;
+      if (!state.civilizations[viewer]?.isHuman) return;
+      ctx.notifier.deliver(viewer, `Siege ended: ${reason}`, 'info');
+    }),
     bus.on('city:bombarded', ({ cityId, recipientCivId, source, hpLost, domain }) => {
       const state = ctx.session.getState();
       if (!state.civilizations[recipientCivId]?.isHuman) return;

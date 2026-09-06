@@ -9,6 +9,7 @@ import { resolveFriendlyUnitStackTap } from '@/input/unit-stack-selection';
 import { resolveSelectedUnitTapIntent } from '@/input/selected-unit-tap-intent';
 import { resolveWonderAtlasIntent } from '@/input/wonder-atlas-intent';
 import { selectDefenderEntryAtKey } from '@/input/hex-defender-selection';
+import { resolveCityInteraction } from '@/systems/city-interaction';
 
 /**
  * `resolveMapTapIntent`'s top-level result (#787 phase 8a).
@@ -173,6 +174,26 @@ export function resolveMapTapIntent(
     // Reuses `ignore` (already used for the city-capture guard above) rather
     // than a new variant, since both are genuinely "do nothing at all".
     if (!unit) return { kind: 'ignore' };
+
+    // #974: a hostile city tile routes to the city-action preview whenever the resolver has
+    // anything to offer, INCLUDING when it is garrisoned. Previously a garrisoned city fell
+    // into the unit-combat preview below, which meant the player could only ever fight the
+    // defender -- there was no way to choose to shell the walls instead. The city preview
+    // renders attack-defender, bombard and capture together so the choice is explicit.
+    const hostileCityAtTap = Object.values(state.cities).find(city =>
+      hexKey(city.position) === key && city.owner !== unit.owner,
+    );
+    if (hostileCityAtTap) {
+      const interaction = resolveCityInteraction(state, unit, hostileCityAtTap);
+      // A minor-civ city keeps its dedicated conquest flow (confirm-war-minor-civ /
+      // assault-minor-civ), which has its own executor -- so it only takes this route when
+      // bombardment is the thing on offer.
+      const isMinorCivCity = !state.civilizations[hostileCityAtTap.owner];
+      const offersBombard = interaction.available.some(action => action.kind === 'bombard');
+      if (interaction.available.length > 0 && (!isMinorCivCity || offersBombard)) {
+        return { kind: 'assault-preview', attackerId: selectedUnitId, cityId: hostileCityAtTap.id, embarkedAssault: Boolean(unit.transportId) };
+      }
+    }
 
     if (canAttack && defenderEntry) {
       // handleHexTap re-checks the naval attack gate here with an

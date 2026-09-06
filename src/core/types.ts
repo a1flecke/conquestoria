@@ -754,7 +754,13 @@ export interface Unit {
   landSupply?: UnitLandSupplyStatus;
   automation?:
     | { mode: 'auto-explore'; lastTargets: string[]; startedTurn: number }
-    | { mode: 'journey'; destination: HexCoord };
+    | { mode: 'journey'; destination: HexCoord }
+    /**
+     * #974 Hold Siege: keep bombarding one city each turn until something stops it. A siege
+     * takes at least 5 turns by design (the per-turn damage cap), so without this the player
+     * clicks the same button five times per unit -- a chore, not a decision.
+     */
+    | { mode: 'hold-siege'; cityId: string; startedTurn: number };
   committedToRouteId?: string;   // set on establish; blocks movement while set
   tripsRemaining?: number;       // S5 sets it; S6b decrements on each completed round trip
   routeDirection?: 'outbound' | 'inbound';  // S6b uses; S5 leaves undefined
@@ -2503,6 +2509,7 @@ export interface GameEvents {
   };
   // #974: renamed from 'city:naval-bombarded' -- land and air units bombard cities too,
   // so the old name became a lie. `domain` says who fired.
+  'unit:hold-siege-ended': { unitId: string; cityId: string; reason: string };
   'city:bombarded': {
     cityId: string; recipientCivId: string; source: 'player' | 'ai'; hpLost: number;
       domain: 'land' | 'naval' | 'air';

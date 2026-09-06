@@ -4,6 +4,7 @@ import { buildSelectedUnitHighlights } from '@/input/selected-unit-highlights';
 import { foundCity } from '@/systems/city-system';
 import { hexDistance, hexKey } from '@/systems/hex-utils';
 import { createUnit } from '@/systems/unit-system';
+import { resolveMapTapIntent } from '@/input/map-tap-intent';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -33,22 +34,30 @@ describe('selected-unit-highlights', () => {
     });
   });
 
-  it('highlights a visible hostile city for a naval bombardment, but not for a land unit', () => {
+  // #974: a city is highlighted when the resolver has ANY legal action against it, replacing
+  // the old `domain === 'naval'` guess. That guess highlighted a city for a Frigate whose tap
+  // then produced a rejected move, and hid it from land ranged units that can now bombard.
+  it('highlights a hostile city for any unit with a legal action, and not for one without', () => {
     const state = createNewGame(undefined, 'naval-city-highlight', 'small');
     state.currentPlayer = 'player';
     state.units = {
       ship: { ...createUnit('frigate', 'player', { q: 1, r: 1 }, mkC()), id: 'ship', movementPointsLeft: 3 },
-      soldier: { ...createUnit('warrior', 'player', { q: 1, r: 2 }, mkC()), id: 'soldier', movementPointsLeft: 2 },
+      catapult: { ...createUnit('catapult', 'player', { q: 1, r: 2 }, mkC()), id: 'catapult', movementPointsLeft: 2 },
+      scout: { ...createUnit('scout', 'player', { q: 5, r: 5 }, mkC()), id: 'scout', movementPointsLeft: 2 },
     };
-    state.civilizations.player.units = ['ship', 'soldier'];
+    state.civilizations.player.units = ['ship', 'catapult', 'scout'];
     state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
-    state.civilizations.player.visibility.tiles = { '1,1': 'visible', '1,2': 'visible', '2,1': 'visible' };
+    state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
+    state.civilizations.player.visibility.tiles = { '1,1': 'visible', '1,2': 'visible', '2,1': 'visible', '5,5': 'visible' };
     const city = foundCity('ai-1', { q: 2, r: 1 }, state.map, state.idCounters);
     state.cities[city.id] = city;
     state.civilizations['ai-1'].cities = [city.id];
 
+    // In range and able to bombard.
     expect(buildSelectedUnitHighlights(state, 'ship').highlights).toContainEqual({ coord: { q: 2, r: 1 }, type: 'attack' });
-    expect(buildSelectedUnitHighlights(state, 'soldier').highlights).not.toContainEqual({ coord: { q: 2, r: 1 }, type: 'attack' });
+    expect(buildSelectedUnitHighlights(state, 'catapult').highlights).toContainEqual({ coord: { q: 2, r: 1 }, type: 'attack' });
+    // Far away, and a Scout cannot bombard anyway -- no highlight, no lie.
+    expect(buildSelectedUnitHighlights(state, 'scout').highlights).not.toContainEqual({ coord: { q: 2, r: 1 }, type: 'attack' });
   });
 
   // #843: an undefended enemy city radiates no Zone of Control (unlike a hostile unit), so
@@ -377,15 +386,20 @@ describe('selected-unit-highlights', () => {
     expect(result.highlights.filter(h => h.type === 'attack')).toHaveLength(0);
   });
 
-  it('leaves adjacent hostile cities on the city-assault path instead of combat-preview attack targets', () => {
+  // #974 replaced the old rule (cities were never attack targets for a land unit) with the
+  // resolver. The invariant that rule was really protecting -- a city tap must not become a
+  // unit-combat preview -- now lives in map-tap-intent, which routes every hostile city tap
+  // to the city-action preview. This asserts the highlight AND that invariant together.
+  it('marks an adjacent hostile city a target for a melee unit that can capture it', () => {
     const state = createNewGame(undefined, 'city-highlight', 'small');
     state.currentPlayer = 'player';
     state.units = {
       warrior: { ...createUnit('warrior', 'player', { q: 0, r: 0 }, mkC()), id: 'warrior', movementPointsLeft: 2 },
     };
     state.civilizations.player.units = ['warrior'];
-    state.civilizations.player.visibility.tiles = { '1,0': 'visible' };
+    state.civilizations.player.visibility.tiles = { '0,0': 'visible', '1,0': 'visible' };
     state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+    state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
     state.cities.enemyCity = {
       ...foundCity('ai-1', { q: 1, r: 0 }, state.map, mkC()),
       id: 'enemyCity',
@@ -397,9 +411,17 @@ describe('selected-unit-highlights', () => {
     };
 
     const result = buildSelectedUnitHighlights(state, 'warrior');
+    expect(result.attackTargets.map(target => hexKey(target.coord))).toContain('1,0');
 
-    expect(result.attackTargets.map(target => hexKey(target.coord))).not.toContain('1,0');
-    expect(result.highlights.filter(h => h.type === 'attack').map(h => hexKey(h.coord))).not.toContain('1,0');
+    // The tap still opens the city-action preview, never a unit-combat preview.
+    const intent = resolveMapTapIntent(state, {
+      selectedUnitId: 'warrior',
+      movementRange: result.movementRange,
+      attackRange: result.attackTargets.map(t => t.coord),
+      pendingIntent: { kind: 'none' },
+      waterRecovery: result.waterRecovery,
+    }, { q: 1, r: 0 }, false);
+    expect(intent).toMatchObject({ kind: 'assault-preview', cityId: 'enemyCity' });
   });
 
   it('adds worker guidance highlights for buildable, owned-blocked, and foreign-blocked movement-preview tiles', () => {

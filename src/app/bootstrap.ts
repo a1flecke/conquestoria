@@ -461,6 +461,8 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     executeAttack: playerActions.executeAttack,
     executeMinorCivConquest: playerActions.executeMinorCivConquest,
     beginPlayerCityAssault: playerActions.beginPlayerCityAssault,
+    bombardCity: playerActions.bombardCity,
+    holdSiege: playerActions.holdSiege,
     beginPlayerCampAssault: playerActions.beginPlayerCampAssault,
     finalizePendingCityCaptureChoice: turnFlow.finalizePendingCityCaptureChoice,
   });

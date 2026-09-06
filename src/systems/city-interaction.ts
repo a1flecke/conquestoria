@@ -1,6 +1,7 @@
 import type { City, GameState, Unit } from '@/core/types';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { canUnitOccupyCity } from '@/systems/city-capture-system';
+import { canUnitBombardCity, previewUnitCityBombardment } from '@/systems/city-bombardment-system';
 import { calculateCityAssaultStrengths, getCityIntrinsicStrength } from '@/systems/city-siege-system';
 import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { isHostileOwnerTo } from '@/systems/owner-hostility';
@@ -88,6 +89,33 @@ export function resolveCityInteraction(
     }
   }
 
+  // Bombard. Offered whether or not the city is garrisoned -- a unit deliberately spending
+  // its action fires through defenders (#974) -- but never as a live button that would deal
+  // zero and burn the turn.
+  const bombardLegality = canUnitBombardCity(state, unit, city, { requireVisibility: true });
+  if (bombardLegality.ok) {
+    const preview = previewUnitCityBombardment(state, unit, city);
+    if (preview.hpLoss > 0) {
+      available.push({
+        kind: 'bombard',
+        hpLoss: preview.hpLoss,
+        counterFire: preview.counterFire,
+        label: `Attack the city — −${preview.hpLoss} HP`,
+      });
+    } else {
+      denied.push({ kind: 'bombard', reason: bombardZeroDamageReason(preview) });
+    }
+  } else if (bombardLegality.reason === 'out-of-range' || bombardLegality.reason === 'no-action-points') {
+    // Only surface a denial to a unit that could otherwise bombard. Telling a Warrior it
+    // "cannot bombard" would be noise, not help.
+    denied.push({
+      kind: 'bombard',
+      reason: bombardLegality.reason === 'out-of-range'
+        ? 'Move closer to attack this city.'
+        : 'This unit has already acted this turn.',
+    });
+  }
+
   // Gates mirror `beginMajorCityAssault`'s own order, so a `capture` we offer here is one
   // that executor will actually accept.
   const captureDenial = resolveCaptureDenial(state, unit, city);
@@ -112,9 +140,24 @@ export function resolveCityInteraction(
   return { available, denied };
 }
 
+/**
+ * Which of the three independent reasons a bombard would deal zero. Naming the actual cause
+ * is the difference between a player learning a rule and a player thinking the game is
+ * broken -- the original #966 complaint.
+ */
+function bombardZeroDamageReason(preview: ReturnType<typeof previewUnitCityBombardment>): string {
+  if (preview.capRemaining <= 0) return 'This city has taken all the bombardment it can this turn.';
+  if (preview.hasGarrison && preview.hpLossBeforeCap <= 0) return 'The garrison absorbs your bombardment.';
+  return "This city's fortifications absorb your bombardment.";
+}
+
 function resolveCaptureDenial(state: GameState, unit: Unit, city: City): string | null {
   if (!canUnitOccupyCity(unit)) return 'This unit cannot capture a city.';
   if (city.owner === unit.owner) return 'This city is already yours.';
+  // beginMajorCityAssault rejects a minor-civ city with 'not-major-city' -- city-states are
+  // taken through executeMinorCivConquest instead. Offering capture here would be a preview
+  // the executor refuses, so it is denied and the dedicated minor-civ flow keeps that job.
+  if (!state.civilizations[city.owner]) return 'Use the city-state conquest action for this city.';
   if (!isHostileOwnerTo(state, unit.owner, city.owner)) return 'You are not at war with this city.';
 
   // Action-state gates. beginMajorCityAssault rejects both of these
