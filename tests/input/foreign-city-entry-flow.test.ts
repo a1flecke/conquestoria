@@ -71,3 +71,14 @@ describe('foreign-city-entry-flow', () => {
     expect(warDeclared).not.toHaveBeenCalled();
   });
 });
+
+
+it('rejects a vassal independent declaration through the confirmed map-entry flow (#910)', () => {
+  const state = makeForeignCityEntryState();
+  state.civilizations.player.diplomacy.vassalage.overlord = 'ai-1';
+  const bus = new EventBus(); const war = vi.fn(); bus.on('diplomacy:war-declared', war);
+  const result = beginConfirmedForeignCityEntry(state, 'unit-1', 'athens', bus);
+  expect(result.ok).toBe(false);
+  expect(result.state).toBe(state);
+  expect(war).not.toHaveBeenCalled();
+});

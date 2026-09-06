@@ -282,6 +282,22 @@ describe('createTurnFlowController', () => {
       expect(deps.roundPresentationGate.isSuppressed()).toBe(false);
     });
 
+    it('removes the private diplomacy inbox before the hot-seat veil mounts (#910)', async () => {
+      const state = makeHotSeatFixture();
+      const uiLayer = document.createElement('div');
+      const panel = document.createElement('div'); panel.id = 'diplomacy-panel';
+      panel.textContent = 'Private incoming vassalage offer'; uiLayer.append(panel);
+      const deps = baseDeps(state, { uiLayer });
+      const handoff = createTurnFlowController(deps).endTurn();
+      expect(uiLayer.querySelector('#diplomacy-panel')).toBeNull();
+      await flushMicrotasks();
+      document.querySelector<HTMLButtonElement>('#handoff-confirm')?.click();
+      await flushMicrotasks();
+      document.querySelector<HTMLButtonElement>('#handoff-start')?.click();
+      await flushMicrotasks();
+      await handoff;
+    });
+
     it('closes the strategic-launch flow panel and clears its map preview on handoff (#545 MR8)', async () => {
       const state = makeHotSeatFixture();
       const setStrategicLaunchPreview = vi.fn();

@@ -1,3 +1,4 @@
+import type { EventBus } from '@/core/event-bus';
 import type { CombatResult, GameState, HexCoord, Unit } from '@/core/types';
 import { getAirBaseKind, getAirBaseRoster, selectInterceptor } from '@/systems/air-operations-system';
 import { isBlockingCityFor, UNIT_DEFINITIONS, getMovementCostForUnit } from '@/systems/unit-system';
@@ -241,7 +242,7 @@ function notifyAirborneOutcome(state: GameState, droppedUnit: Unit, destination:
   return nextState;
 }
 
-function resolveAirborneLanding(state: GameState, unit: Unit, destination: HexCoord): {
+function resolveAirborneLanding(state: GameState, unit: Unit, destination: HexCoord, bus?: EventBus): {
   state: GameState;
   flak?: { damage: number; providerId: string; providerLabel: string };
   interception?: { interceptorId: string; result: CombatResult };
@@ -291,7 +292,7 @@ function resolveAirborneLanding(state: GameState, unit: Unit, destination: HexCo
       buildCombatContextForDefender(nextState, interceptor, workingUnit, { isIntercepting: true }),
       resolveCombatEra(nextState, interceptor, workingUnit),
     );
-    nextState = applyCombatOutcomeToState(nextState, result, seed).state;
+    nextState = applyCombatOutcomeToState(nextState, result, seed, bus).state;
     if (nextState.units[interceptor.id]) {
       nextState = { ...nextState, units: { ...nextState.units, [interceptor.id]: { ...nextState.units[interceptor.id]!, interceptedTurn: state.turn } } };
     }
@@ -304,12 +305,12 @@ function resolveAirborneLanding(state: GameState, unit: Unit, destination: HexCo
   return { state: nextState, flak, interception, survived: true };
 }
 
-export function executeParadrop(state: GameState, unitId: string, destination: HexCoord): ParadropResult {
+export function executeParadrop(state: GameState, unitId: string, destination: HexCoord, bus?: EventBus): ParadropResult {
   const check = canParadrop(state, unitId, destination);
   if (!check.ok) return { ok: false, state, reason: check.reason };
   const unit = state.units[unitId]!;
 
-  const landing = resolveAirborneLanding(state, unit, destination);
+  const landing = resolveAirborneLanding(state, unit, destination, bus);
   if (!landing.survived) {
     return { ok: true, state: notifyAirborneOutcome(landing.state, unit, destination, { flak: landing.flak, interception: landing.interception, destroyed: true }, 'landed'), flak: landing.flak, interception: landing.interception };
   }
@@ -326,13 +327,13 @@ export type AirAssaultResult =
   | { ok: true; state: GameState; helicopterId: string; flak?: { damage: number; providerId: string; providerLabel: string }; interception?: { interceptorId: string; result: CombatResult } }
   | { ok: false; state: GameState; reason: AirAssaultFailureReason };
 
-export function executeAirAssault(state: GameState, unitId: string, destination: HexCoord): AirAssaultResult {
+export function executeAirAssault(state: GameState, unitId: string, destination: HexCoord, bus?: EventBus): AirAssaultResult {
   const check = canAirAssault(state, unitId, destination);
   if (!check.ok) return { ok: false, state, reason: check.reason };
   const unit = state.units[unitId]!;
   const helicopterId = check.helicopterId;
 
-  const landing = resolveAirborneLanding(state, unit, destination);
+  const landing = resolveAirborneLanding(state, unit, destination, bus);
   // The helicopter flew the mission regardless of the passenger's fate --
   // lock it out unconditionally, on top of whatever resolveAirborneLanding
   // already did to the passenger/interceptor.

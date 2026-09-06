@@ -7,6 +7,7 @@
 import type { PresentationRegistrar } from '@/presentation/register-all';
 import {
   routeWarDeclared,
+  routeIndependenceRequested, routeVassalageEnded, routeProtectionRequested, routeProtectionFailed, routeVassalAutoWar,
   routeTreatyProposed,
   routeTreatyAccepted,
   routeTreatyDeclined,
@@ -18,6 +19,11 @@ import {
 
 export const registerDiplomacyPresentation: PresentationRegistrar = (bus, ctx) => {
   const unsubscribers = [
+    bus.on('diplomacy:independence-requested', event => routeIndependenceRequested(ctx.session.getState(), event, ctx.notifier.deliver)),
+    bus.on('diplomacy:vassalage-ended', event => routeVassalageEnded(ctx.session.getState(), event, ctx.notifier.deliver)),
+    bus.on('diplomacy:protection-requested', event => routeProtectionRequested(ctx.session.getState(), event, ctx.notifier.deliver)),
+    bus.on('diplomacy:protection-failed', event => routeProtectionFailed(ctx.session.getState(), event, ctx.notifier.deliver)),
+    bus.on('diplomacy:vassal-auto-war', event => routeVassalAutoWar(ctx.session.getState(), event, ctx.notifier.deliver)),
     bus.on('diplomacy:war-declared', ({ attackerId, defenderId }) => {
       routeWarDeclared(ctx.session.getState(), attackerId, defenderId, ctx.notifier.deliver);
     }),

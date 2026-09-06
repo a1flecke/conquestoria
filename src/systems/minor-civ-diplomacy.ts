@@ -1,4 +1,4 @@
-import type { GameState } from '@/core/types';
+import type { GameState, MinorCivState } from '@/core/types';
 import { isAlwaysHostilePair } from '@/core/owner-kind';
 
 export function isMinorCivAtWar(
@@ -30,4 +30,23 @@ export function isMinorCivHostileToOwner(
   return Object.entries(minor.chainStatusByCiv ?? {}).some(([allyId, status]) =>
     status.status === 'allied'
     && state.civilizations[allyId]?.diplomacy.atWarWith.includes(ownerId));
+}
+
+
+/** Starting either a voluntary or forced war permanently ends the current quest promise. */
+export function endMinorCivQuestForWar(minor: MinorCivState, majorCivId: string, turn: number): { minor: MinorCivState; brokenChainId?: string } {
+  const chainStatusByCiv = { ...minor.chainStatusByCiv };
+  const status = chainStatusByCiv[majorCivId];
+  let brokenChainId: string | undefined;
+  if (status?.status === 'allied') {
+    chainStatusByCiv[majorCivId] = { chainId: status.chainId, status: 'broken', statusTurn: turn, earnedTurn: status.earnedTurn };
+    brokenChainId = status.chainId;
+  } else if (status?.status === 'pending') {
+    delete chainStatusByCiv[majorCivId];
+  }
+  const activeQuests = { ...minor.activeQuests };
+  delete activeQuests[majorCivId];
+  return { minor: { ...minor, chainStatusByCiv, activeQuests,
+    questCooldownUntilByCiv: { ...minor.questCooldownUntilByCiv, [majorCivId]: turn + 3 },
+  }, ...(brokenChainId ? { brokenChainId } : {}) };
 }

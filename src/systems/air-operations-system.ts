@@ -1,3 +1,4 @@
+import type { EventBus } from '@/core/event-bus';
 import type { AirBaseRef, AirMission, CombatResult, GameState, HexCoord, Unit, UnitType } from '@/core/types';
 import { hexDistance, hexesInRange, getWrappedHexesInRange, wrappedHexDistance } from './hex-utils';
 import { UNIT_DEFINITIONS } from './unit-system';
@@ -284,11 +285,11 @@ export function resolvePatrolMission(state: GameState, unitId: string, center: H
   };
 }
 
-function applyAirCombatResult(state: GameState, result: CombatResult, seed: number): GameState {
-  return applyCombatOutcomeToState(state, result, seed).state;
+function applyAirCombatResult(state: GameState, result: CombatResult, seed: number, bus?: EventBus): GameState {
+  return applyCombatOutcomeToState(state, result, seed, bus).state;
 }
 
-export function resolveAirStrike(state: GameState, unitId: string, target: HexCoord): AirStrikeResult {
+export function resolveAirStrike(state: GameState, unitId: string, target: HexCoord, bus?: EventBus): AirStrikeResult {
   const striker = state.units[unitId];
   const definition = striker && UNIT_DEFINITIONS[striker.type].airOperation;
   if (!striker || !definition?.missions.includes('strike') || !striker.airBase || striker.hasActed) {
@@ -315,7 +316,7 @@ export function resolveAirStrike(state: GameState, unitId: string, target: HexCo
       isIntercepting: true,
       tacticalInterceptionMultiplier: tacticalClaim.multiplier,
     }), resolveCombatEra(state, interceptor, striker));
-    nextState = applyAirCombatResult(nextState, result, deterministicCombatSeed(state.gameId, state.turn, interceptor.id, striker.id));
+    nextState = applyAirCombatResult(nextState, result, deterministicCombatSeed(state.gameId, state.turn, interceptor.id, striker.id), bus);
     if (nextState.units[interceptor.id]) nextState = { ...nextState, units: { ...nextState.units, [interceptor.id]: { ...nextState.units[interceptor.id]!, interceptedTurn: state.turn } } };
     if (nextState.units[interceptor.id] && !nextState.units[striker.id]) {
       nextState = appendLegendaryWonderMilitaryFacts(nextState, [{
@@ -351,7 +352,7 @@ export function resolveAirStrike(state: GameState, unitId: string, target: HexCo
   const currentTarget = targetUnit && nextState.units[targetUnit.id];
   if (!currentTarget) return { ok: true, state: { ...nextState, units: { ...nextState.units, [unitId]: { ...currentStriker, movementPointsLeft: 0, hasMoved: true, hasActed: true } } }, interception };
   const targetResult = resolveCombat(currentStriker, currentTarget, nextState.map, deterministicCombatSeed(nextState.gameId, nextState.turn, currentStriker.id, currentTarget.id), buildCombatContextForDefender(nextState, currentStriker, currentTarget), resolveCombatEra(nextState, currentStriker, currentTarget));
-  nextState = applyAirCombatResult(nextState, targetResult, deterministicCombatSeed(nextState.gameId, nextState.turn, currentStriker.id, currentTarget.id));
+  nextState = applyAirCombatResult(nextState, targetResult, deterministicCombatSeed(nextState.gameId, nextState.turn, currentStriker.id, currentTarget.id), bus);
   if (nextState.units[unitId]) nextState = { ...nextState, units: { ...nextState.units, [unitId]: { ...nextState.units[unitId]!, movementPointsLeft: 0, hasMoved: true, hasActed: true } } };
   return { ok: true, state: recordCampPressureFromAirStrike(nextState, striker, target), interception, targetResult };
 }

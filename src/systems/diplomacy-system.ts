@@ -1,3 +1,4 @@
+import { endMinorCivQuestForWar } from '@/systems/minor-civ-diplomacy';
 import type {
   GameState,
   DiplomacyState,
@@ -21,7 +22,9 @@ import { hasMetCivilization } from '@/systems/discovery-system';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { computeArmsControlCap, hasKnownStrategicCapability, hasManhattanProject } from '@/systems/strategic-arsenal-system';
 import { isSuperweaponsEnabled } from '@/systems/superweapons-flag';
-import { evaluatePeaceConsent, evaluateTreatyConsent, type AgreementKind } from '@/ai/ai-treaty-consent';
+import { evaluatePeaceConsent, evaluateTreatyConsent, evaluateVassalageConsent, type AgreementKind } from '@/ai/ai-treaty-consent';
+import { hasAICombatRole } from '@/ai/ai-unit-roles';
+import { resolveCivilizationEra } from '@/systems/tech-definitions';
 
 export function resolveOpponentKind(civId: string): 'major' | 'minor' | 'barbarian' {
   if (civId.startsWith('barbarian')) return 'barbarian';
@@ -97,8 +100,10 @@ export function recordMilitaryAttack(
         left.turn - right.turn || left.otherCiv.localeCompare(right.otherCiv))
       .slice(-12),
   );
+  const defended = state.vassalage?.overlord && state.vassalage.overlord !== attackerCivId
+    ? onVassalAttacked(state, attackerCivId) : state;
   return {
-    ...state,
+    ...defended,
     events: [
       ...withoutDuplicate.filter(event =>
         event.type !== 'military_attacked' || retainedAttacks.has(event)),
@@ -151,7 +156,8 @@ export function declareWar(
       updated = applyTreachery(updated, treaty.type);
     }
   }
-  return updated;
+  return state.vassalage.overlord && targetCivId !== state.vassalage.overlord && !state.atWarWith.includes(targetCivId)
+    ? onVassalAttacked(updated, targetCivId) : updated;
 }
 
 // Vassal auto-joins overlord's wars — no treachery
@@ -170,6 +176,7 @@ export function makePeace(
 ): DiplomacyState {
   let newState = {
     ...state,
+    vassalage: { ...state.vassalage, protectionTimers: state.vassalage.protectionTimers.filter(t => t.attackerCivId !== targetCivId) },
     atWarWith: state.atWarWith.filter(id => id !== targetCivId),
     events: [...state.events],
   };
@@ -364,7 +371,7 @@ export function getAvailableActions(
     }
   }
 
-  return actions;
+  return actions.filter(action => !isVassalBlocked(action, Boolean(state.vassalage?.overlord)));
 }
 
 /**
@@ -389,6 +396,7 @@ export function commitTreatyAgreement(state: GameState, civAId: string, civBId: 
   const civB = state.civilizations[civBId];
   if (
     !civA || !civB
+    || civA.diplomacy.vassalage.overlord || civB.diplomacy.vassalage.overlord
     || !hasMetCivilization(state, civAId, civBId)
     || isAtWar(civA.diplomacy, civBId)
     || isAtWar(civB.diplomacy, civAId)
@@ -420,6 +428,7 @@ export function proposeTreatyAgreement(state: GameState, fromCivId: string, toCi
   const from = state.civilizations[fromCivId];
   const target = state.civilizations[toCivId];
   if (!from || !target) return state;
+  if (from.diplomacy.vassalage.overlord || target.diplomacy.vassalage.overlord) return state;
   if (kind === 'peace') {
     if (!isAtWar(from.diplomacy, toCivId) || !isAtWar(target.diplomacy, fromCivId)) return state;
     if (target.isHuman) return enqueuePeaceRequest(state, fromCivId, toCivId, bus);
@@ -489,6 +498,9 @@ export function applyDiplomaticAction(
     return state;
   }
 
+  if (isVassalBlocked(action, Boolean(actor.diplomacy.vassalage.overlord))) return state;
+  if (action !== 'declare_war' && isVassalBlocked(action, Boolean(target.diplomacy.vassalage.overlord))) return state;
+
   // Issue #435 guard: a treaty (or war record) between unmet civs becomes contact
   // "evidence" and cascades into mass discovery on the next visibility sync.
   const requiresContact: DiplomaticAction[] = [
@@ -499,22 +511,19 @@ export function applyDiplomaticAction(
   }
 
   switch (action) {
-    case 'declare_war':
-      bus.emit('diplomacy:war-declared', { attackerId: actorId, defenderId: targetCivId, opponentKind: resolveOpponentKind(targetCivId) });
-      return {
-        ...state,
-        civilizations: {
-          ...state.civilizations,
-          [actorId]: {
-            ...actor,
-            diplomacy: declareWar(actor.diplomacy, targetCivId, state.turn),
-          },
-          [targetCivId]: {
-            ...target,
-            diplomacy: declareWar(target.diplomacy, actorId, state.turn),
-          },
-        },
-      };
+    case 'offer_vassalage':
+      return proposeVassalage(state, actorId, targetCivId, bus);
+    case 'petition_independence':
+      return proposeIndependence(state, actorId, targetCivId, bus);
+    case 'release_vassal':
+      return releaseVassal(state, actorId, targetCivId, bus);
+    case 'defend_vassal':
+      return defendVassal(state, actorId, targetCivId, bus);
+    case 'declare_war': {
+      const next = declareMajorWar(state, actorId, targetCivId, bus);
+      if (next !== state) bus.emit('diplomacy:war-declared', { attackerId: actorId, defenderId: targetCivId, opponentKind: resolveOpponentKind(targetCivId) });
+      return next;
+    }
     case 'request_peace':
       return proposeTreatyAgreement(state, actorId, targetCivId, 'peace', bus);
     case 'non_aggression_pact':
@@ -672,7 +681,7 @@ export const PENDING_DIPLOMATIC_REQUEST_TTL_TURNS = 10;
 export function pruneExpiredDiplomaticRequests(state: GameState): GameState {
   const requests = state.pendingDiplomacyRequests ?? [];
   const kept = requests.filter(
-    request => state.turn - request.turnIssued < PENDING_DIPLOMATIC_REQUEST_TTL_TURNS,
+    request => isDiplomaticRequestLive(state, request),
   );
   if (kept.length === requests.length) return state;
   return { ...state, pendingDiplomacyRequests: kept };
@@ -718,6 +727,9 @@ export function acceptDiplomaticRequest(
   if (!request || request.toCivId !== actingCivId) {
     return state;
   }
+  if (!isDiplomaticRequestLive(state, request)) {
+    return rejectDiplomaticRequest(state, actingCivId, requestId);
+  }
 
   const actor = state.civilizations[request.fromCivId];
   const target = state.civilizations[request.toCivId];
@@ -728,13 +740,24 @@ export function acceptDiplomaticRequest(
     };
   }
 
+  if (request.type === 'independence') {
+    const result = resolveIndependence(state, request.fromCivId, request.toCivId, true, bus);
+    return result === state ? removeDiplomaticRequest(state, requestId) : result;
+  }
+
   if (request.type === 'treaty') {
-    if (!request.treatyType || request.treatyType === 'vassalage') return rejectDiplomaticRequest(state, actingCivId, requestId);
+    if (!request.treatyType) return rejectDiplomaticRequest(state, actingCivId, requestId);
+    if (request.treatyType === 'vassalage') {
+      const committed = commitVassalageAgreement(state, request.fromCivId, request.toCivId, bus);
+      return committed === state ? rejectDiplomaticRequest(state, actingCivId, requestId) : committed;
+    }
     const committed = commitTreatyAgreement(state, request.fromCivId, request.toCivId, request.treatyType, bus);
     return committed === state ? rejectDiplomaticRequest(state, actingCivId, requestId) : committed;
   }
 
-  if (!isAtWar(actor.diplomacy, request.toCivId) || !isAtWar(target.diplomacy, request.fromCivId)) {
+  if (request.type !== 'peace' || actor.isEliminated || target.isEliminated
+    || actor.diplomacy.vassalage.overlord || target.diplomacy.vassalage.overlord
+    || !isAtWar(actor.diplomacy, request.toCivId) || !isAtWar(target.diplomacy, request.fromCivId)) {
     return rejectDiplomaticRequest(state, actingCivId, requestId);
   }
 
@@ -769,11 +792,19 @@ export function rejectDiplomaticRequest(
     return state;
   }
 
+  if (!isDiplomaticRequestLive(state, request)) return removeDiplomaticRequest(state, requestId);
+
+  if (request.type === 'independence') {
+    if (!bus) return removeDiplomaticRequest(state, requestId);
+    const result = resolveIndependence(state, request.fromCivId, request.toCivId, false, bus);
+    return result === state ? removeDiplomaticRequest(state, requestId) : result;
+  }
+
   // #901: an *explicit* decline (caller passed a bus) of a treaty proposal
   // notifies the original proposer. Internal `acceptDiplomaticRequest`
   // fall-throughs for a lapsed/invalid request pass no bus and stay silent --
   // those did not "decline" anything.
-  if (bus && request.type === 'treaty' && request.treatyType && request.treatyType !== 'vassalage') {
+  if (bus && request.type === 'treaty' && request.treatyType) {
     bus.emit('diplomacy:treaty-declined', {
       proposerCivId: request.fromCivId,
       targetCivId: request.toCivId,
@@ -842,6 +873,92 @@ export function decayTreachery(state: DiplomacyState, turn: number): DiplomacySt
 
 // --- Vassalage ---
 
+export const VASSALAGE_TRIBUTE_RATE = 0.25;
+export const VASSALAGE_PROTECTION_TURNS = 3;
+export const VASSALAGE_PROTECTION_PENALTY = 20;
+
+export function isDiplomaticRequestLive(state: GameState, request: PendingDiplomaticRequest): boolean {
+  return Number.isInteger(request.turnIssued) && request.turnIssued >= 0 && request.turnIssued <= state.turn
+    && state.turn - request.turnIssued < PENDING_DIPLOMATIC_REQUEST_TTL_TURNS;
+}
+
+export function getVassalageMilitaryCount(state: GameState, civId: string): number {
+  return (state.civilizations[civId]?.units ?? []).filter(id => {
+    const unit = state.units[id];
+    return unit?.owner === civId && hasAICombatRole(unit.type);
+  }).length;
+}
+
+export type VassalageEligibility = { ok: true } | { ok: false; reason: string };
+
+export function getVassalageEligibility(state: GameState, vassalId: string, overlordId: string): VassalageEligibility {
+  const vassal = state.civilizations[vassalId];
+  const overlord = state.civilizations[overlordId];
+  if (vassalId === overlordId || !vassal || !overlord || vassal.isEliminated || overlord.isEliminated
+    || !vassal.cities.some(id => state.cities[id]?.owner === vassalId)
+    || !overlord.cities.some(id => state.cities[id]?.owner === overlordId)) {
+    return { ok: false, reason: 'Both civilizations must still have a city.' };
+  }
+  if (!hasMetCivilization(state, vassalId, overlordId)) return { ok: false, reason: 'You must have met first.' };
+  if (isAtWar(vassal.diplomacy, overlordId) || isAtWar(overlord.diplomacy, vassalId)) {
+    return { ok: false, reason: 'Make peace with each other first.' };
+  }
+  if (vassal.diplomacy.vassalage.overlord || overlord.diplomacy.vassalage.overlord
+    || vassal.diplomacy.vassalage.vassals.length > 0
+    || overlord.diplomacy.vassalage.vassals.includes(vassalId)
+    || hasTreatyBetween(state, vassalId, overlordId, 'vassalage')
+    || hasTreatyBetween(state, overlordId, vassalId, 'vassalage')) {
+    return { ok: false, reason: 'An existing vassal relationship prevents this offer.' };
+  }
+  if (!canOfferVassalage(vassal.cities.length, vassal.diplomacy.vassalage.peakCities,
+    getVassalageMilitaryCount(state, vassalId), vassal.diplomacy.vassalage.peakMilitary,
+    resolveCivilizationEra(vassal.techState.completed))) {
+    return { ok: false, reason: 'Requires era 2, a past peak of two cities, and fewer than half your peak cities or military units.' };
+  }
+  return { ok: true };
+}
+
+export function proposeVassalage(state: GameState, vassalId: string, overlordId: string, bus: EventBus): GameState {
+  if (!getVassalageEligibility(state, vassalId, overlordId).ok) return state;
+  const current = pruneExpiredDiplomaticRequests(state);
+  if (hasPendingTreatyProposalBetween(current, vassalId, overlordId, 'vassalage')) return current;
+  const overlord = current.civilizations[overlordId];
+  if (overlord.isHuman) return enqueueTreatyProposal(current, vassalId, overlordId, 'vassalage', -1, bus);
+  const consent = evaluateVassalageConsent({
+    relationship: getRelationship(overlord.diplomacy, vassalId),
+    diplomacyFocus: resolveCivDefinition(current, overlord.civType)?.personality.diplomacyFocus ?? 0.5,
+    militaryCount: getVassalageMilitaryCount(current, overlordId),
+    vassalCount: overlord.diplomacy.vassalage.vassals.length,
+    warCount: overlord.diplomacy.atWarWith.length,
+  });
+  if (consent.accepted) return commitVassalageAgreement(current, vassalId, overlordId, bus);
+  bus.emit('diplomacy:treaty-declined', { proposerCivId: vassalId, targetCivId: overlordId, treaty: 'vassalage' });
+  return current;
+}
+
+/** Only called after a recipient decision; applies all low-level outputs together. */
+export function commitVassalageAgreement(state: GameState, vassalId: string, overlordId: string, bus: EventBus): GameState {
+  if (!getVassalageEligibility(state, vassalId, overlordId).ok) return state;
+  const vassal = state.civilizations[vassalId];
+  const overlord = state.civilizations[overlordId];
+  const result = acceptVassalage(vassal.diplomacy, overlord.diplomacy, vassalId, overlordId, state.turn, state.defensiveLeagues);
+  const next = {
+    ...state,
+    civilizations: {
+      ...state.civilizations,
+      [vassalId]: { ...vassal, diplomacy: result.vassalState },
+      [overlordId]: { ...overlord, diplomacy: result.overlordState },
+    },
+    defensiveLeagues: result.leagueUpdates ?? state.defensiveLeagues,
+    pendingDiplomacyRequests: (state.pendingDiplomacyRequests ?? []).filter(request =>
+      !(request.type === 'treaty' && request.treatyType === 'vassalage'
+        && (request.fromCivId === vassalId || request.toCivId === vassalId))),
+  };
+  const withObligations = applyVassalageWarConsequences(state, next, bus);
+  bus.emit('diplomacy:treaty-accepted', { civA: vassalId, civB: overlordId, treaty: 'vassalage' });
+  return withObligations;
+}
+
 export function canOfferVassalage(
   currentCities: number,
   peakCities: number,
@@ -881,7 +998,7 @@ export function acceptVassalage(
   };
   const vassalState: DiplomacyState = {
     ...vassalDip,
-    vassalage: { ...vassalDip.vassalage, overlord: overlordId },
+    vassalage: { ...vassalDip.vassalage, overlord: overlordId, protectionScore: 100, protectionTimers: [] },
     treaties: [...vassalDip.treaties, treaty],
     events: [...vassalDip.events, { type: 'vassalage_accepted', turn, otherCiv: overlordId, weight: 1 }],
   };
@@ -925,7 +1042,7 @@ export function endVassalage(
 }
 
 export function processVassalageTribute(vassalGoldIncome: number): { tributeAmount: number } {
-  return { tributeAmount: Math.floor(vassalGoldIncome * 0.25) };
+  return { tributeAmount: Math.floor(Math.max(0, vassalGoldIncome) * VASSALAGE_TRIBUTE_RATE) };
 }
 
 export function processProtectionTimers(state: DiplomacyState): DiplomacyState {
@@ -935,7 +1052,7 @@ export function processProtectionTimers(state: DiplomacyState): DiplomacyState {
   for (const timer of state.vassalage.protectionTimers) {
     const newTurns = timer.turnsRemaining - 1;
     if (newTurns <= 0) {
-      protectionScore = Math.max(0, protectionScore - 20);
+      protectionScore = Math.max(0, protectionScore - VASSALAGE_PROTECTION_PENALTY);
     } else {
       remainingTimers.push({ ...timer, turnsRemaining: newTurns });
     }
@@ -968,7 +1085,7 @@ export function checkIndependenceThreshold(
 
 const VASSAL_BLOCKED_ACTIONS = [
   'declare_war', 'non_aggression_pact', 'trade_agreement', 'open_borders',
-  'alliance', 'propose_embargo', 'join_embargo', 'propose_league', 'invite_to_league',
+  'alliance', 'arms_control_pact', 'request_peace', 'propose_embargo', 'join_embargo', 'leave_embargo', 'propose_league', 'invite_to_league', 'petition_league',
 ];
 
 export function isVassalBlocked(action: string, isVassal: boolean): boolean {
@@ -1013,16 +1130,16 @@ export function petitionIndependence(
 // --- Vassal attacked: start protection timer (overlord gets 3 turns to respond) ---
 
 export function onVassalAttacked(
-  overlordDip: DiplomacyState,
+  vassalDip: DiplomacyState,
   attackerId: string,
 ): DiplomacyState {
-  const alreadyTracked = overlordDip.vassalage.protectionTimers.some(t => t.attackerCivId === attackerId);
-  if (alreadyTracked) return overlordDip;
+  const alreadyTracked = vassalDip.vassalage.protectionTimers.some(t => t.attackerCivId === attackerId);
+  if (alreadyTracked) return vassalDip;
   return {
-    ...overlordDip,
+    ...vassalDip,
     vassalage: {
-      ...overlordDip.vassalage,
-      protectionTimers: [...overlordDip.vassalage.protectionTimers, { attackerCivId: attackerId, turnsRemaining: 3 }],
+      ...vassalDip.vassalage,
+      protectionTimers: [...vassalDip.vassalage.protectionTimers, { attackerCivId: attackerId, turnsRemaining: VASSALAGE_PROTECTION_TURNS }],
     },
   };
 }
@@ -1254,4 +1371,196 @@ export function triggerLeagueDefense(
   const league = leagues.find(l => l.members.includes(defenderId));
   if (!league) return [];
   return league.members.filter(m => m !== defenderId && m !== attackerId);
+}
+
+// #910 GameState-level vassalage consequences. Presentation never applies these pieces.
+function withDiplomacy(state: GameState, civId: string, diplomacy: DiplomacyState): GameState {
+  const civ = state.civilizations[civId];
+  return { ...state, civilizations: { ...state.civilizations, [civId]: { ...civ, diplomacy } } };
+}
+
+function removeDiplomaticRequest(state: GameState, id: string): GameState {
+  return { ...state, pendingDiplomacyRequests: (state.pendingDiplomacyRequests ?? []).filter(request => request.id !== id) };
+}
+
+function hasActiveVassalage(state: GameState, vassalId: string, overlordId: string): boolean {
+  return !state.civilizations[vassalId]?.isEliminated && !state.civilizations[overlordId]?.isEliminated
+    && state.civilizations[vassalId]?.diplomacy.vassalage.overlord === overlordId
+    && state.civilizations[overlordId]?.diplomacy.vassalage.vassals.includes(vassalId) === true;
+}
+
+export function canPetitionIndependence(state: GameState, vassalId: string): boolean {
+  const civ = state.civilizations[vassalId];
+  const overlordId = civ?.diplomacy.vassalage.overlord;
+  if (!civ || civ.isEliminated || !overlordId || !hasActiveVassalage(state, vassalId, overlordId)
+    || state.civilizations[overlordId].isEliminated) return false;
+  return checkIndependenceThreshold(getVassalageMilitaryCount(state, vassalId),
+    getVassalageMilitaryCount(state, overlordId), civ.diplomacy.vassalage.protectionScore);
+}
+
+export function proposeIndependence(state: GameState, vassalId: string, overlordId: string, bus: EventBus): GameState {
+  if (!hasActiveVassalage(state, vassalId, overlordId) || !canPetitionIndependence(state, vassalId)) return state;
+  const current = pruneExpiredDiplomaticRequests(state);
+  if ((current.pendingDiplomacyRequests ?? []).some(request => request.type === 'independence'
+    && request.fromCivId === vassalId && request.toCivId === overlordId)) return current;
+  const overlord = current.civilizations[overlordId];
+  if (!overlord.isHuman) {
+    const accepted = (resolveCivDefinition(current, overlord.civType)?.personality.diplomacyFocus ?? 0.5) > 0.5;
+    return resolveIndependence(current, vassalId, overlordId, accepted, bus);
+  }
+  bus.emit('diplomacy:independence-requested', { vassalId, overlordId });
+  return { ...current, pendingDiplomacyRequests: [...(current.pendingDiplomacyRequests ?? []), {
+    id: `independence:${vassalId}:${overlordId}:${state.turn}`, type: 'independence',
+    fromCivId: vassalId, toCivId: overlordId, turnIssued: state.turn,
+  }] };
+}
+
+function applyVassalageEnd(state: GameState, vassalId: string, overlordId: string,
+  vassalDip: DiplomacyState, overlordDip?: DiplomacyState): GameState {
+  let next = withDiplomacy(state, vassalId, vassalDip);
+  if (overlordDip && next.civilizations[overlordId]) next = withDiplomacy(next, overlordId, overlordDip);
+  return { ...next, pendingDiplomacyRequests: (next.pendingDiplomacyRequests ?? []).filter(request =>
+    !((request.type === 'independence' || request.treatyType === 'vassalage')
+      && ((request.fromCivId === vassalId && request.toCivId === overlordId)
+        || (request.fromCivId === overlordId && request.toCivId === vassalId)))) };
+}
+
+export function resolveIndependence(state: GameState, vassalId: string, overlordId: string, accepted: boolean, bus: EventBus): GameState {
+  if (!hasActiveVassalage(state, vassalId, overlordId) || !canPetitionIndependence(state, vassalId)) return state;
+  const result = petitionIndependence(state.civilizations[vassalId].diplomacy,
+    state.civilizations[overlordId].diplomacy, vassalId, overlordId, accepted);
+  if (!accepted) {
+    // Independence war ends incompatible bilateral treaties as well as the vassalage link.
+    result.vassalState = { ...result.vassalState, treaties: result.vassalState.treaties.filter(t => t.civA !== overlordId && t.civB !== overlordId) };
+    result.overlordState = { ...result.overlordState, treaties: result.overlordState.treaties.filter(t => t.civA !== vassalId && t.civB !== vassalId) };
+  }
+  const ended = applyVassalageEnd(state, vassalId, overlordId, result.vassalState, result.overlordState);
+  const next = accepted ? ended : applyVassalageWarConsequences(state, ended, bus);
+  bus.emit('diplomacy:independence-petition', { vassalId, overlordId, accepted });
+  bus.emit('diplomacy:vassalage-ended', { vassalId, overlordId, reason: accepted ? 'independence' : 'war' });
+  return next;
+}
+
+export function releaseVassal(state: GameState, overlordId: string, vassalId: string, bus: EventBus): GameState {
+  if (!hasActiveVassalage(state, vassalId, overlordId)) return state;
+  const result = endVassalage(state.civilizations[vassalId].diplomacy, state.civilizations[overlordId].diplomacy, vassalId, overlordId);
+  const next = applyVassalageEnd(state, vassalId, overlordId, result.vassalState, applyTreachery(result.overlordState, 'vassalage'));
+  bus.emit('diplomacy:vassalage-ended', { vassalId, overlordId, reason: 'released' });
+  return next;
+}
+
+/** Effect-level bilateral war; forced joins may involve a city-state. */
+function addWarPair(state: GameState, attackerId: string, defenderId: string, voluntary: boolean, bus?: EventBus): GameState {
+  const attacker = state.civilizations[attackerId];
+  const defender = state.civilizations[defenderId] ?? state.minorCivs?.[defenderId];
+  if (!attacker || !defender || attackerId === defenderId) return state;
+  let next = state;
+  if (!isAtWar(attacker.diplomacy, defenderId)) {
+    const diplomacy = declareWar(attacker.diplomacy, defenderId, state.turn, voluntary);
+    next = withDiplomacy(next, attackerId, { ...diplomacy, treaties: diplomacy.treaties.filter(t => t.civA !== defenderId && t.civB !== defenderId) });
+  }
+  if (!isAtWar(defender.diplomacy, attackerId)) {
+    const declared = declareWar(defender.diplomacy, attackerId, state.turn, false);
+    const diplomacy = { ...declared, treaties: declared.treaties.filter(t => t.civA !== attackerId && t.civB !== attackerId) };
+    if (next.civilizations[defenderId]) next = withDiplomacy(next, defenderId, diplomacy);
+    else {
+      const ended = endMinorCivQuestForWar({ ...next.minorCivs[defenderId], diplomacy }, attackerId, state.turn);
+      next = { ...next, minorCivs: { ...next.minorCivs, [defenderId]: ended.minor } };
+      if (ended.brokenChainId) bus?.emit('minor-civ:alliance-broken', { minorCivId: defenderId, majorCivId: attackerId, chainId: ended.brokenChainId, state: next });
+    }
+  }
+  return next;
+}
+
+export function declareMajorWar(state: GameState, attackerId: string, defenderId: string, bus?: EventBus): GameState {
+  const attacker = state.civilizations[attackerId];
+  if (!attacker || attacker.diplomacy.vassalage.overlord || !state.civilizations[defenderId]
+    || attackerId === defenderId || attacker.isEliminated || state.civilizations[defenderId].isEliminated
+    || attacker.diplomacy.vassalage.vassals.includes(defenderId)) return state;
+  const atWar = addWarPair(state, attackerId, defenderId, true, bus);
+  if (atWar === state) return state;
+  const next = applyVassalageWarConsequences(state, atWar, bus);
+  return next;
+}
+
+/** A before/after transition, never a steady-state scan that replays war events. */
+export function applyVassalageWarConsequences(before: GameState, after: GameState, bus?: EventBus): GameState {
+  let next = after;
+  for (const [vassalId, candidate] of Object.entries(after.civilizations)) {
+    const overlordId = candidate.diplomacy?.vassalage?.overlord;
+    if (!overlordId || !hasActiveVassalage(next, vassalId, overlordId)) continue;
+    const overlord = next.civilizations[overlordId];
+    const newAgreement = before.civilizations[vassalId]?.diplomacy.vassalage.overlord !== overlordId;
+    for (const enemyId of overlord.diplomacy.atWarWith) {
+      if (enemyId === vassalId || isAtWar(next.civilizations[vassalId].diplomacy, enemyId)) continue;
+      if (!newAgreement && before.civilizations[overlordId]?.diplomacy.atWarWith.includes(enemyId)) continue;
+      const joined = addWarPair(next, vassalId, enemyId, false, bus);
+      if (joined !== next) bus?.emit('diplomacy:vassal-auto-war', { vassalId, overlordId, targetCivId: enemyId });
+      next = joined;
+    }
+    let dip = next.civilizations[vassalId].diplomacy;
+    if (newAgreement) {
+      for (const enemyId of dip.atWarWith) {
+        if (enemyId !== overlordId && !isAtWar(overlord.diplomacy, enemyId)) dip = onVassalAttacked(dip, enemyId);
+      }
+    }
+    const timers = dip.vassalage.protectionTimers.filter(timer =>
+      dip.atWarWith.includes(timer.attackerCivId) && !overlord.diplomacy.atWarWith.includes(timer.attackerCivId));
+    const previousTimers = before.civilizations[vassalId]?.diplomacy.vassalage.protectionTimers ?? [];
+    for (const timer of timers) {
+      if (newAgreement || !previousTimers.some(old => old.attackerCivId === timer.attackerCivId)) {
+        bus?.emit('diplomacy:protection-requested', { vassalId, overlordId, attackerId: timer.attackerCivId });
+      }
+    }
+    if (dip !== next.civilizations[vassalId].diplomacy || timers.length !== dip.vassalage.protectionTimers.length) {
+      next = withDiplomacy(next, vassalId, { ...dip, vassalage: { ...dip.vassalage, protectionTimers: timers } });
+    }
+  }
+  return next;
+}
+
+export function defendVassal(state: GameState, overlordId: string, vassalId: string, bus: EventBus): GameState {
+  if (!hasActiveVassalage(state, vassalId, overlordId)) return state;
+  let next = state;
+  for (const timer of state.civilizations[vassalId].diplomacy.vassalage.protectionTimers) {
+    const enemyId = timer.attackerCivId;
+    if (!state.civilizations[vassalId].diplomacy.atWarWith.includes(enemyId)) continue;
+    const updated = addWarPair(next, overlordId, enemyId, false, bus);
+    if (updated !== next) bus.emit('diplomacy:war-declared', { attackerId: overlordId, defenderId: enemyId, opponentKind: resolveOpponentKind(enemyId) });
+    next = updated;
+  }
+  return applyVassalageWarConsequences(state, next, bus);
+}
+
+export function processVassalageTurn(state: GameState, bus: EventBus): GameState {
+  let next = state;
+  for (const vassalId of Object.keys(state.civilizations)) {
+    let civ = next.civilizations[vassalId];
+    const overlordId = civ.diplomacy?.vassalage.overlord;
+    if (!overlordId) continue;
+    const overlord = next.civilizations[overlordId];
+    if (!overlord || overlord.isEliminated) {
+      next = applyVassalageEnd(next, vassalId, overlordId, endVassalageUnilateral(civ.diplomacy, vassalId, overlordId), overlord ? endVassalage(civ.diplomacy, overlord.diplomacy, vassalId, overlordId).overlordState : undefined);
+      bus.emit('diplomacy:vassalage-ended', { vassalId, overlordId, reason: 'overlord_eliminated' });
+      continue;
+    }
+    if (!overlord.isHuman) next = defendVassal(next, overlordId, vassalId, bus);
+    civ = next.civilizations[vassalId];
+    const timers = civ.diplomacy.vassalage.protectionTimers.filter(timer =>
+      civ.diplomacy.atWarWith.includes(timer.attackerCivId)
+      && !next.civilizations[overlordId].diplomacy.atWarWith.includes(timer.attackerCivId));
+    const ticked = processProtectionTimers({ ...civ.diplomacy, vassalage: { ...civ.diplomacy.vassalage, protectionTimers: timers } });
+    next = withDiplomacy(next, vassalId, ticked);
+    for (const timer of timers) {
+      if (timer.turnsRemaining <= 1) bus.emit('diplomacy:protection-failed', { overlordId, vassalId, attackerId: timer.attackerCivId });
+    }
+    if (ticked.vassalage.protectionScore <= 20) {
+      const result = endVassalage(ticked, next.civilizations[overlordId].diplomacy, vassalId, overlordId);
+      next = applyVassalageEnd(next, vassalId, overlordId, result.vassalState, result.overlordState);
+      bus.emit('diplomacy:vassalage-ended', { vassalId, overlordId, reason: 'auto_breakaway' });
+    } else if (!civ.isHuman && canPetitionIndependence(next, vassalId)) {
+      next = proposeIndependence(next, vassalId, overlordId, bus);
+    }
+  }
+  return next;
 }

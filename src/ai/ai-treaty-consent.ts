@@ -17,6 +17,23 @@ export interface TreatyConsent {
   reason?: TreatyDeclineReason;
 }
 
+export interface VassalageConsentInput {
+  relationship: number;
+  diplomacyFocus: number;
+  militaryCount: number;
+  vassalCount: number;
+  warCount: number;
+}
+
+/** Recipient-owned capacity and trust only; never reads a foreign army or treasury. */
+export function evaluateVassalageConsent(input: VassalageConsentInput): TreatyConsent {
+  if (input.relationship < 0) return { accepted: false, reason: 'relations-too-strained' };
+  return input.diplomacyFocus >= 0.3 && input.warCount <= 1
+    && input.militaryCount >= 2 * (input.vassalCount + 1)
+    ? { accepted: true }
+    : { accepted: false, reason: 'strategic-caution' };
+}
+
 export interface TreatyConsentInput {
   kind: AgreementKind;
   relationship: number;

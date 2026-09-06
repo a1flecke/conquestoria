@@ -282,7 +282,7 @@ function activateCoalitionWar(state: GameState, coalition: MinorCivCoalitionReco
         ...nextState.civilizations,
         [coalition.targetCivId]: {
           ...target,
-          diplomacy: declareWar(target.diplomacy, memberId, nextState.turn),
+          diplomacy: declareWar(target.diplomacy, memberId, nextState.turn, false),
         },
       },
       minorCivs: {

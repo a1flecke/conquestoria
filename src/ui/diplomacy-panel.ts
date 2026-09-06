@@ -1,8 +1,10 @@
+import { createVassalageControls } from '@/ui/vassalage-controls';
 import type { GameState, DiplomaticAction, TreatyType } from '@/core/types';
 import {
   canReabsorbBreakaway,
   getRelationship,
   isAtWar,
+  isVassalBlocked,
   getAvailableActions,
   getPendingPeaceRequestForPair,
   getPendingTreatyProposalsFor,
@@ -212,7 +214,7 @@ export function createDiplomacyPanel(
     }
 
     const treaties = playerDiplomacy.treaties
-      .filter(t => t.civB === civId || t.civA === civId)
+      .filter(t => t.type !== 'vassalage' && (t.civB === civId || t.civA === civId))
       .map(t => ({
         label: t.type === 'arms_control_pact'
           ? `Arms Control Pact (cap: ${t.arsenalCap})`
@@ -224,7 +226,7 @@ export function createDiplomacyPanel(
     // #554: incoming treaty proposals FROM this civ TO the viewer only --
     // never surface the viewer's own outgoing proposals or third-party ones.
     const incomingTreatyProposals = getPendingTreatyProposalsFor(state, state.currentPlayer)
-      .filter(request => request.fromCivId === civId)
+      .filter(request => request.fromCivId === civId && request.treatyType !== 'vassalage')
       .map(request => ({
         id: request.id,
         label: TREATY_LABELS[request.treatyType!],
@@ -311,6 +313,8 @@ export function createDiplomacyPanel(
       statusText,
       treaties,
       actions: rowActions
+        .filter(action => action === 'declare_war' ? !playerDiplomacy.vassalage.vassals.includes(civId) : !isVassalBlocked(action, Boolean(civ.diplomacy.vassalage.overlord)))
+        .filter(action => action !== 'offer_vassalage' && action !== 'petition_independence')
         .filter(action => !(action === 'request_peace' && peaceRequestState !== 'none'))
         .filter(action => !pendingTreatyTypes.has(action as TreatyType))
         .map(action => ({ action, isHostile: action === 'declare_war' })),
@@ -495,6 +499,7 @@ export function createDiplomacyPanel(
         </div>
         ${sendAidHtml}
         ${treatiesHtml}
+        <div data-role="vassalage-${row.civIdx}"></div>
         ${actionsHtml}
       </div>
     `;
@@ -553,6 +558,12 @@ export function createDiplomacyPanel(
   }
 
   for (const row of civRows) {
+    panel.querySelector(`[data-role="vassalage-${row.civIdx}"]`)?.append(createVassalageControls(state, row.civId, {
+      ...callbacks,
+      onAction: (target, action) => { panel.remove(); callbacks.onAction(target, action); },
+      onAcceptTreatyProposal: id => { panel.remove(); callbacks.onAcceptTreatyProposal?.(id); },
+      onDeclineTreatyProposal: id => { panel.remove(); callbacks.onDeclineTreatyProposal?.(id); },
+    }));
     setText(`civ-name-${row.civIdx}`, row.name);
     setText(`civ-bonus-${row.civIdx}`, row.bonusName);
     setText(`civ-status-${row.civIdx}`, row.statusText);
@@ -629,7 +640,7 @@ export function createDiplomacyPanel(
         reparations.dataset.action = 'pay-reparations';
         actions.appendChild(reparations);
       }
-      const war = createGameButton(row.atWar ? 'Make Peace' : 'Declare War', row.atWar ? 'secondary' : 'danger');
+      const war = createGameButton(row.atWar ? 'Make Peace' : 'Declare War', row.atWar ? 'secondary' : 'danger', { disabled: Boolean(playerDiplomacy.vassalage.overlord) });
       war.className = 'mc-war';
       war.dataset.mcId = row.mcId;
       war.dataset.atWar = String(row.atWar);

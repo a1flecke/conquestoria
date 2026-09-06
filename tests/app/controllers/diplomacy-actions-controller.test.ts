@@ -569,3 +569,22 @@ describe('DiplomacyActionsController', () => {
     });
   });
 });
+
+
+describe('#910 response truth', () => {
+  it('does not report a signed treaty for a stale or foreign request', () => {
+    const { state } = makeFixture();
+    const { deps, controller } = build(state);
+    controller.handleAcceptTreatyProposal('expired-request');
+    expect(deps.showNotification).not.toHaveBeenCalledWith('Treaty signed.', 'success');
+    expect(deps.showNotification).toHaveBeenCalledWith('This proposal is no longer available.', 'warning');
+  });
+  it('does not allow generic Break to bypass bilateral vassalage cleanup', () => {
+    const { state, aiCivId } = makeFixture();
+    state.civilizations.player.diplomacy.treaties = [{type: 'vassalage', civA: 'player', civB: aiCivId, turnsRemaining: -1}];
+    state.civilizations.player.diplomacy.vassalage.overlord = aiCivId;
+    const { deps, controller } = build(state);
+    controller.handleBreakTreaty(aiCivId, 'vassalage');
+    expect(deps.session.getState()).toBe(state);
+  });
+});

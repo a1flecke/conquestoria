@@ -21,6 +21,7 @@ import { tickLegendaryWonderProjects } from '@/systems/legendary-wonder-system';
 import { createUnit } from '@/systems/unit-system';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import type { ResourceType } from '@/core/types';
+import { makeVassalageFixture } from '../systems/helpers/vassalage-fixture';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -3018,5 +3019,48 @@ describe('#927 Rung 6 — AI Federal Autonomy', () => {
     // Re-enabling is immediately locked again by the same toggle, so the AI
     // cannot thrash it back on the very next turn.
     expect(nextAiTurn.civilizations['ai-1'].federalismEnabled).toBe(false);
+  });
+});
+
+// #910 exercises the shipped turn, not only its offer-scoring helper.
+describe('#910 AI vassalage offer wiring', () => {
+  it.each([true, false])('creates a real offer/commit for recipient human=%s using personal era', human => {
+    const state = makeVassalageFixture(false, human);
+    state.era = 1;
+    for (const id of state.civilizations.overlord.units) {
+      const unit = state.units[id];
+      state.civilizations.vassal.visibility.tiles[hexKey(unit.position)] = 'visible';
+    }
+    for (const id of state.civilizations.vassal.units) {
+      state.units[id].hasMoved = true;
+      state.units[id].hasActed = true;
+    }
+    const result = processAITurn(state, 'vassal', new EventBus());
+    if (human) {
+      expect(result.pendingDiplomacyRequests).toContainEqual(expect.objectContaining({
+        treatyType: 'vassalage', fromCivId: 'vassal', toCivId: 'overlord',
+      }));
+    } else {
+      expect(result.civilizations.vassal.diplomacy.vassalage.overlord).toBe('overlord');
+    }
+  });
+
+  it('does not let an existing AI vassal join an embargo or defensive league', () => {
+    const state = makeVassalageFixture(false, false);
+    state.civilizations.vassal.diplomacy.vassalage.overlord = 'overlord';
+    state.civilizations.overlord.diplomacy.vassalage.vassals = ['vassal'];
+    state.civilizations.vassal.diplomacy.relationships.overlord = 100;
+    state.civilizations.vassal.diplomacy.relationships.third = -100;
+    state.embargoes = [{ id: 'embargo', targetCivId: 'third', participants: ['overlord'], proposedTurn: 19 }];
+    state.defensiveLeagues = [{ id: 'league', members: ['overlord'], formedTurn: 19 }];
+    for (const id of state.civilizations.vassal.units) {
+      state.units[id].hasMoved = true;
+      state.units[id].hasActed = true;
+    }
+
+    const result = processAITurn(state, 'vassal', new EventBus());
+
+    expect(result.embargoes[0].participants).toEqual(['overlord']);
+    expect(result.defensiveLeagues[0].members).toEqual(['overlord']);
   });
 });

@@ -1153,6 +1153,8 @@ export type DiplomaticAction =
   | 'alliance'
   | 'offer_vassalage'
   | 'petition_independence'
+  | 'release_vassal'
+  | 'defend_vassal'
   | 'propose_embargo'
   | 'join_embargo'
   | 'leave_embargo'
@@ -1229,7 +1231,7 @@ export interface DefensiveLeague {
 
 export interface PendingDiplomaticRequest {
   id: string;
-  type: 'peace' | 'treaty';
+  type: 'peace' | 'treaty' | 'independence';
   treatyType?: TreatyType;        // set when type === 'treaty'
   turnsRemaining?: number;         // treaty duration to sign with (mirrors AI decision: 10 for NAP, -1 otherwise)
   fromCivId: string;
@@ -2423,7 +2425,9 @@ export interface GameEvents {
   'city:captured': { cityId: string; newOwner: string; previousOwner: string };
   'diplomacy:vassalage-offered': { fromCivId: string; toCivId: string };
   'diplomacy:vassalage-accepted': { vassalId: string; overlordId: string };
-  'diplomacy:vassalage-ended': { vassalId: string; overlordId: string; reason: 'independence' | 'war' | 'auto_breakaway' | 'overlord_eliminated' };
+  'diplomacy:vassalage-ended': { vassalId: string; overlordId: string; reason: 'independence' | 'war' | 'auto_breakaway' | 'overlord_eliminated' | 'released' };
+  'diplomacy:independence-requested': { vassalId: string; overlordId: string };
+  'diplomacy:protection-requested': { vassalId: string; overlordId: string; attackerId: string };
   'diplomacy:independence-petition': { vassalId: string; overlordId: string; accepted: boolean };
   'diplomacy:protection-failed': { overlordId: string; vassalId: string; attackerId: string };
   'diplomacy:vassal-auto-war': { vassalId: string; overlordId: string; targetCivId: string };

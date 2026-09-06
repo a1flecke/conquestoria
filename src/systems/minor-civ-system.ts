@@ -15,7 +15,7 @@ import { isAlwaysHostilePair } from '@/core/owner-kind';
 import { MINOR_CIV_DEFINITIONS } from './minor-civ-definitions';
 import { resolveWorldAge } from './tech-definitions';
 import { resolveCombatEra, resolveNeutralPressureEra } from './era-resolution';
-import { createDiplomacyState, modifyRelationship } from './diplomacy-system';
+import { createDiplomacyState, modifyRelationship, applyVassalageWarConsequences } from './diplomacy-system';
 import { applyResearchBonus } from './tech-system';
 import {
   hexKey,
@@ -231,7 +231,7 @@ export function processMinorCivTurn(
 
   nextState = processMinorCivCoalitionsTurn(nextState);
 
-  return nextState;
+  return applyVassalageWarConsequences(state, nextState, bus);
 }
 
 export interface PurposefulMinorCivPlanResult {

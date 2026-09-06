@@ -72,6 +72,12 @@ export function emitMajorCityCaptureEvents(
   const previousOwnerBefore = before.civilizations[previousOwnerId];
   const previousOwnerAfter = result.state.civilizations[previousOwnerId];
   if (result.elimination) {
+    for (const [vassalId, civ] of Object.entries(before.civilizations)) {
+      if (civ.diplomacy?.vassalage?.overlord === result.elimination.civId
+        && result.state.civilizations[vassalId]?.diplomacy.vassalage.overlord === null) {
+        bus.emit('diplomacy:vassalage-ended', { vassalId, overlordId: result.elimination.civId, reason: 'overlord_eliminated' });
+      }
+    }
     bus.emit('civ:eliminated', {
       civId: result.elimination.civId,
       eliminatedBy: result.elimination.eliminatedBy,

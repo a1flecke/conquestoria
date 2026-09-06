@@ -1,3 +1,4 @@
+import { normalizeVassalage } from '@/storage/vassalage-normalization';
 import type { ActiveCrisis, AirBaseRef, CombatRole, GameState, GeneralCareerEvent, GeneratedGeneralIdentity, HexCoord, LegendaryWonderMilitaryFact, LegendaryWonderTacticalEffectState, TradeRoute, Unit } from '@/core/types';
 import { createRng } from '@/systems/map-generator';
 import { placeLateResources } from '@/systems/late-resource-placement';
@@ -23,7 +24,7 @@ import { UNIT_ROLE_DEFINITIONS } from '@/systems/combat-role-definitions';
 import { getEffectiveTechCost, getTechById } from '@/systems/tech-system';
 import { PRE_V24_TECH_COST_BY_ID } from './research-cost-migration-v24';
 
-export const CURRENT_SAVE_SCHEMA_VERSION = 26;
+export const CURRENT_SAVE_SCHEMA_VERSION = 27;
 
 export type SaveMigration = (state: GameState) => GameState;
 
@@ -1040,6 +1041,9 @@ export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
       return [cityId, { ...city, bombardment: valid ? raw : undefined }];
     })),
   }),
+  // #910: normalize bilateral vassalage roles, protection obligations, and
+  // pending consent records without applying any gameplay transition on load.
+  27: normalizeVassalage,
 };
 
 function readSchemaVersion(raw: Record<string, unknown>): number {
@@ -1113,6 +1117,6 @@ export function migrateSaveToCurrent(raw: unknown): GameState {
   const generatedGenerals = normalizeGeneratedGenerals(religions);
   const careerLedger = normalizeGeneralCareerLedger(generatedGenerals);
   return normalizeLegendaryWonderTacticalEffects(normalizeLegendaryWonderMilitaryFacts(normalizeBarbarianCampPressure(normalizeImprovementValues(normalizeCoastalBatteryCounterfireTurns(
-    normalizeRetimedBiplaneQueues(normalizeCityFaithConversionProgress(careerLedger)),
+    normalizeRetimedBiplaneQueues(normalizeCityFaithConversionProgress(normalizeVassalage(careerLedger))),
   )))));
 }

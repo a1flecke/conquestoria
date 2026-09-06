@@ -1,3 +1,5 @@
+import { acceptVassalage } from '@/systems/diplomacy-system';
+import { EventBus } from '@/core/event-bus';
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
@@ -183,4 +185,19 @@ describe('minor-civ actions', () => {
     expect(noGrievanceResult.ok).toBe(false);
     expect(noGrievanceResult.state.civilizations.player.gold).toBe(200);
   });
+});
+
+
+it('clears a vassal city-state alliance and quest when it joins its overlord war (#910)', () => {
+  const { state, minorCivId, minorCiv } = actionState('vassal-minor-war');
+  const vassalId = Object.keys(state.civilizations).find(id => id !== 'player')!;
+  const roles = acceptVassalage(state.civilizations[vassalId].diplomacy, state.civilizations.player.diplomacy, vassalId, 'player', state.turn);
+  state.civilizations[vassalId].diplomacy = roles.vassalState;
+  state.civilizations.player.diplomacy = roles.overlordState;
+  minorCiv.chainStatusByCiv[vassalId] = { chainId: 'old-alliance', status: 'allied', earnedTurn: 1, statusTurn: 1 };
+  const result = setMinorCivWarState(state, 'player', minorCivId, true, new EventBus());
+  expect(result.state.civilizations[vassalId].diplomacy.atWarWith).toContain(minorCivId);
+  expect(result.state.minorCivs[minorCivId].chainStatusByCiv[vassalId].status).toBe('broken');
+  expect(result.state.minorCivs[minorCivId].questCooldownUntilByCiv[vassalId]).toBe(state.turn + 3);
+  expect(minorCiv.chainStatusByCiv[vassalId].status).toBe('allied');
 });

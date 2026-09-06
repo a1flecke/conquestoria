@@ -734,3 +734,13 @@ describe('PlayerActionController', () => {
     });
   });
 });
+
+describe('#910 vassal war ownership', () => {
+  it('cannot independently declare a war through the player combat controller', () => {
+    const { state, aiCivId } = makeFixture('vassal-combat-war');
+    state.civilizations.player.diplomacy.vassalage.overlord = 'other-overlord';
+    const { deps, controller } = build(state);
+    controller.ensurePlayerWarState(aiCivId);
+    expect(deps.session.getState().civilizations.player.diplomacy.atWarWith).toEqual([]);
+  });
+});
