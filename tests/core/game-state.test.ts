@@ -82,6 +82,20 @@ describe('createNewGame', () => {
     expect(civs.filter(c => !c.isHuman).length).toBe(1);
   });
 
+  it('initializes an empty minor-civ league state after placing city-states (#496)', () => {
+    const state = createNewGame(undefined, 'minor-civ-league-defaults', 'small');
+
+    expect(state.minorCivLeagues).toEqual({
+      leagues: {},
+      nextId: 1,
+      nextCheckTurn: 20,
+      lastProcessedTurn: -1,
+      eligibleAfterTurnByMinorCiv: Object.fromEntries(
+        Object.keys(state.minorCivs).sort().map(minorCivId => [minorCivId, 11]),
+      ),
+    });
+  });
+
   it('gives each civ starting units', () => {
     const state = createNewGame(undefined, 'test-seed');
     const units = Object.values(state.units);

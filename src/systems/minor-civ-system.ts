@@ -49,6 +49,10 @@ import {
   processMinorCivCoalitionsTurn,
   processMinorCivRegionalGrievanceTurn,
 } from './minor-civ-coalition-system';
+import {
+  processMinorCivLeagueTurn,
+  reconcileMinorCivLeagues,
+} from './minor-civ-league-system';
 
 const PLACEMENT_COUNTS: Record<string, [number, number]> = {
   small: [2, 4],
@@ -190,6 +194,7 @@ export function processMinorCivTurn(
   bus: EventBus,
 ): GameState {
   let nextState = structuredClone(state);
+  nextState = processMinorCivLeagueTurn(nextState);
   if (!nextState.opponentAI) {
     nextState.opponentAI = createEmptyOpponentAIState();
   }
@@ -716,7 +721,9 @@ export function conquestMinorCiv(
   mc.units = [];
 
   return {
-    state: applyRegionalGrievanceForMinorCivConquest(nextState, mcId, conquerorId),
+    state: reconcileMinorCivLeagues(
+      applyRegionalGrievanceForMinorCivConquest(nextState, mcId, conquerorId),
+    ),
     transitions,
     conquered: true,
   };
@@ -771,7 +778,7 @@ export function peacefullyAbsorbMinorCiv(
   }
   mc.units = [];
 
-  return { state: nextState, transitions, absorbed: true };
+  return { state: reconcileMinorCivLeagues(nextState), transitions, absorbed: true };
 }
 
 // === Guerrilla & Scuffles ===

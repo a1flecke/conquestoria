@@ -29,6 +29,10 @@ import { TECH_TREE } from '@/systems/tech-definitions';
 import { resolveNeutralPressureEra } from '@/systems/era-resolution';
 import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { UNIT_CLASS_BY_TYPE, type UnitClass } from '@/systems/unit-modifier-definitions';
+import {
+  getMinorCivLeagueScoreBonus,
+} from '@/systems/minor-civ-league-definitions';
+import { getMinorCivLeaguePreference } from '@/systems/minor-civ-league-system';
 
 export const MINOR_CIV_ECONOMY_TUNING = {
   explorer: {
@@ -498,16 +502,20 @@ export function chooseMinorCivQueueItem(state: GameState, minorCivId: string): s
   const cap = getMinorCivUnitCap(state, minorCivId, effectivePosture);
   const currentUnits = minorCiv.units.filter(unitId => Boolean(state.units[unitId])).length;
   const candidates = getMinorCivBuildCandidates(state, minorCivId);
+  const preference = getMinorCivLeaguePreference(state, minorCivId, posture);
   const scored = [
     ...candidates.buildings.map(building => ({
       id: building.id,
-      score: scoreBuilding(building, definition?.archetype, effectivePosture),
+      baseScore: scoreBuilding(building, definition?.archetype, effectivePosture),
+      bonus: getMinorCivLeagueScoreBonus(preference, { kind: 'building', building }),
     })),
     ...candidates.units.map(unit => ({
       id: unit.type,
-      score: scoreUnit(unit, definition?.archetype, effectivePosture, currentUnits, cap),
+      baseScore: scoreUnit(unit, definition?.archetype, effectivePosture, currentUnits, cap),
+      bonus: getMinorCivLeagueScoreBonus(preference, { kind: 'unit', unitType: unit.type }),
     })),
-  ].filter(candidate => candidate.score >= 0);
+  ].filter(candidate => candidate.baseScore >= 0)
+    .map(candidate => ({ ...candidate, score: candidate.baseScore + candidate.bonus }));
 
   scored.sort((left, right) => right.score - left.score || left.id.localeCompare(right.id));
   return scored[0]?.id ?? null;

@@ -61,7 +61,68 @@ function makeLocalStorageMock() {
   };
 }
 
+function snapshotLeagueUnaffectedState(state: GameState) {
+  return {
+    units: state.units,
+    cities: Object.fromEntries(Object.entries(state.cities).map(([cityId, city]) => [cityId, {
+      owner: city.owner,
+      population: city.population,
+      buildings: city.buildings,
+      productionQueue: city.productionQueue,
+      productionProgress: city.productionProgress,
+    }])),
+    minorCivs: Object.fromEntries(Object.entries(state.minorCivs).map(([minorCivId, minorCiv]) => [minorCivId, {
+      definitionId: minorCiv.definitionId,
+      cityId: minorCiv.cityId,
+      units: minorCiv.units,
+      isDestroyed: minorCiv.isDestroyed,
+      activeQuests: minorCiv.activeQuests,
+      chainStatusByCiv: minorCiv.chainStatusByCiv,
+      regionalGrievanceByCiv: minorCiv.regionalGrievanceByCiv,
+    }])),
+    coalitions: state.minorCivCoalitions,
+    regionalCooldowns: state.minorCivRegionalCooldowns,
+    defensiveLeagues: state.defensiveLeagues,
+    pendingEvents: state.pendingEvents,
+  };
+}
+
 describe('save-manager setup and outcome migration', () => {
+  it('adds only an empty, grace-gated league state when loading a schema 27 save (#496)', () => {
+    const legacy = createNewGame(undefined, 'minor-civ-league-legacy-load', 'small');
+    delete legacy.minorCivLeagues;
+    legacy.saveSchemaVersion = 27;
+    const before = structuredClone(legacy);
+
+    const normalized = normalizeLoadedStateForTest(legacy);
+
+    expect(normalized.saveSchemaVersion).toBe(28);
+    expect(normalized.minorCivLeagues).toEqual({
+      leagues: {},
+      nextId: 1,
+      nextCheckTurn: 20,
+      lastProcessedTurn: -1,
+      eligibleAfterTurnByMinorCiv: Object.fromEntries(
+        Object.keys(legacy.minorCivs).sort().map(minorCivId => [minorCivId, legacy.turn + 10]),
+      ),
+    });
+    expect(snapshotLeagueUnaffectedState(normalized)).toEqual(snapshotLeagueUnaffectedState(before));
+    expect(legacy).toEqual(before);
+  });
+
+  it('repairs a malformed league container in an already-current save (#496)', () => {
+    const current = createNewGame(undefined, 'minor-civ-league-current-repair', 'small');
+    current.saveSchemaVersion = CURRENT_SAVE_SCHEMA_VERSION;
+    current.minorCivLeagues = [] as unknown as NonNullable<GameState['minorCivLeagues']>;
+
+    const normalized = normalizeLoadedStateForTest(JSON.parse(JSON.stringify(current)) as GameState);
+
+    expect(normalized.minorCivLeagues?.leagues).toEqual({});
+    expect(normalized.minorCivLeagues?.nextId).toBe(1);
+    expect(Object.keys(normalized.minorCivLeagues?.eligibleAfterTurnByMinorCiv ?? {}).sort())
+      .toEqual(Object.keys(current.minorCivs).sort());
+  });
+
   it('runs the ordered save schema migration before legacy normalization', () => {
     const legacy = createNewGame(undefined, 'schema-load-boundary', 'small');
     delete legacy.saveSchemaVersion;

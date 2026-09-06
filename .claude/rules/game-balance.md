@@ -233,6 +233,16 @@ file.
 spawn tile the turn it finishes — after the max, the pending spawn is dropped rather than retried
 forever (`processMinorCivEconomyTurn`).
 
+### Regional compact peaceful preference (#496)
+
+| Knob | Value | Scope | Rationale |
+|---|---:|---|---|
+| `MINOR_CIV_LEAGUE_RULES.peacefulScoreBonus` | +12 | A settled compact member's already legal, nonnegative production candidate | A compact may express its charter through its own queue without changing unit caps, production, yields, legality, or active queue progress. A candidate receives the bonus once when it matches either the charter's yield category or explicit building ID. |
+
+The bonus is absent while the member is not `settled`, has no compact, or the compact is in a
+nonquiet readiness state. It is applied only after ordinary candidate scoring has rejected negative
+scores, so it cannot revive cap-excluded units or otherwise widen the catalog.
+
 ### Per-posture unit cap (`getMinorCivUnitCap`)
 
 | Challenge | settled | fortifying | mobilizing | recovering |
