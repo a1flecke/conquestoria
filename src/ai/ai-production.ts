@@ -28,7 +28,7 @@ import { buildProductionCostContext, getContextualProductionCost } from '@/syste
 import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { canCompleteAirUnitProduction, getAirBaseRoster } from '@/systems/air-operations-system';
 import { enqueueCityProduction } from '@/systems/planning-system';
-import { getActiveNationalProjectsForCiv, getReservedNationalProjectKeys } from '@/systems/national-project-system';
+import { getReservedNationalProjectKeys } from '@/systems/national-project-system';
 import { getArsenalStatus } from '@/systems/strategic-arsenal-system';
 import type { AIForceDemand } from './ai-unit-assignment';
 import { getAIStrategicRoles } from './ai-unit-roles';
@@ -489,7 +489,6 @@ function generateWithResidual(
     calculateProjectedCityYields(state, cityId, civDefinition?.bonusEffect).production,
   );
   const builtNationalProjectKeys = getReservedNationalProjectKeys(state, civId);
-  const activeNationalProjects = getActiveNationalProjectsForCiv(state, civId);
   const productionCostContext = buildProductionCostContext(state, civId, cityId);
   const cargoDemand = demands.some(entry =>
     entry.missing > 0 && COMBAT_CARGO_ROLES.has(entry.role));

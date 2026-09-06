@@ -284,3 +284,36 @@ describe('#984 — the canonical path stays canonical', () => {
     }
   });
 });
+
+describe('#984 — a single-use reward charge is projected once, not per item', () => {
+  it('does not discount two queued Beast Handlers with one Herding Insight charge', () => {
+    const { state, city } = laggardWorldState('one-shot-charge');
+    state.civilizations[LAGGARD].techState.completed = ['stone-weapons', 'horseback-riding'];
+    state.stampedes = {
+      ...(state.stampedes ?? {}),
+      [LAGGARD]: {
+        phase: 'resolved',
+        outcome: 'contained',
+        rewardGranted: true,
+        herdingInsight: { expiresTurn: state.turn + 10 },
+      } as never,
+    };
+    state.cities[city.id] = {
+      ...city,
+      productionQueue: ['beast_handler', 'beast_handler', 'caravan'],
+      productionProgress: 0,
+    };
+
+    const context = buildProductionCostContext(state, LAGGARD, city.id);
+    const full = getProductionCostForItem('beast_handler', { ...context, herdingInsight: false });
+    const discounted = getContextualProductionCost('beast_handler', context);
+    const caravan = getContextualProductionCost('caravan', context);
+    expect(discounted).toBeLessThan(full);
+
+    const output = Math.max(1, calculateProjectedCityYields(state, city.id, context.bonusEffect).production);
+    // `processCity` spends the charge on the first Beast Handler only, so the
+    // second is projected at full price.
+    expect(estimateCaravanReadyTurns(state, LAGGARD, city.id))
+      .toBe(Math.ceil((discounted + full + caravan) / output));
+  });
+});

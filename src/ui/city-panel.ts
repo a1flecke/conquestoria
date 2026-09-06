@@ -20,7 +20,6 @@ import { derivePalette, NEUTRAL_FACTION_PALETTE } from '@/renderer/sprites/sprit
 import { hasAITradeRole } from '@/ai/ai-unit-roles';
 import { buildCityRouteRows, getOutgoingRoutesForCity } from './trade-route-presentation';
 import {
-  getActiveNationalProjectsForCiv,
   getCircularManufacturingMaterial,
   CIRCULAR_MANUFACTURING_MATERIALS,
   getNationalProjectMultiplier,
@@ -57,7 +56,6 @@ import { getOccupiedCityMood, getOccupiedCityYieldMultiplier } from '@/systems/c
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { getFortificationCapacity } from '@/systems/fortification-system';
 import { getCityTechYields } from '@/systems/tech-yield-system';
-import { resolveCivDefinition } from '@/systems/civ-registry';
 import { buildProductionCostContext, getContextualProductionCost } from '@/systems/production-cost-context';
 import { TECH_TREE, resolveCivilizationEra } from '@/systems/tech-definitions';
 import { evaluateProductionPrerequisites } from '@/systems/production-prerequisites';
@@ -240,9 +238,7 @@ export function createCityPanel(
     `;
   }
 
-  const civDef = resolveCivDefinition(state, currentCiv.civType);
   const currentCivEra = resolveCivilizationEra(currentCiv.techState.completed);
-  const activeNationalProjects = getActiveNationalProjectsForCiv(state, city.owner);
   // #984: one canonical, owner-scoped context. The panel only ever opens for a
   // city the current player owns (`map-tap-intent.ts` gates `open-city` on
   // `owner === currentPlayer`), so scoping the reward charges to the owner

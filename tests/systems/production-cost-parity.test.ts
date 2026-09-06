@@ -8,7 +8,7 @@ import {
   processCity,
 } from '@/systems/city-system';
 import { ECONOMY_RULES, getRushBuyQuote } from '@/systems/economy-system';
-import { evaluateUnitUpgrade } from '@/systems/unit-upgrade-system';
+import { canUpgradeUnit, evaluateUnitUpgrade } from '@/systems/unit-upgrade-system';
 import { processAIResourceMarketplace } from '@/ai/ai-resource-marketplace';
 import { resolveCivilizationEra, resolveWorldAge, TECH_TREE } from '@/systems/tech-definitions';
 import { buildProductionCostContext } from '@/systems/production-cost-context';
@@ -176,6 +176,32 @@ describe('#984 — unit upgrades use the owning civilization production context'
 
     const evaluation = evaluateUnitUpgrade(state, ballista.id, 'cannon');
     expect(evaluation.cost).toBe(Math.ceil(discountedCannon * 0.5));
+  });
+  it('the city panel quotes exactly what the upgrade executor charges', () => {
+    const state = laggardWorldState('upgrade-evaluator-parity');
+    const city = laggardCity(state);
+    const civ = state.civilizations[LAGGARD];
+    civ.techState.completed = [...techsThroughEra(5)];
+    civ.gold = 5000;
+    const ballista = createUnit('ballista', LAGGARD, city.position, state.idCounters);
+    state.units[ballista.id] = ballista;
+    civ.units = [...civ.units, ballista.id];
+
+    const panelQuote = canUpgradeUnit(
+      ballista,
+      city.id,
+      state.cities,
+      buildProductionCostContext(state, LAGGARD, city.id),
+      civ.gold,
+    );
+    const charged = evaluateUnitUpgrade(state, ballista.id, 'cannon');
+
+    expect(panelQuote.targetType).toBe('cannon');
+    expect(panelQuote.cost).toBe(charged.cost);
+    // Both are below half the bare catalog price, so this is a parity assertion
+    // with teeth: the Cannon Casting discount reaches the panel quote and the
+    // charged price alike, rather than the two agreeing on an undiscounted cost.
+    expect(panelQuote.cost).toBeLessThan(Math.ceil(getProductionCostForItem('cannon') * 0.5));
   });
 });
 

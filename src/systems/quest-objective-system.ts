@@ -5,7 +5,11 @@ import { RESOURCE_DEFINITIONS } from './resource-definitions';
 import { calculateProjectedCityYields } from './city-work-system';
 import { getTrainableUnitsForCity, cityFollowsOwnFaith } from './city-system';
 import { resolveCivDefinition } from './civ-registry';
-import { buildProductionCostContext, getContextualProductionCost } from '@/systems/production-cost-context';
+import {
+  buildProductionCostContext,
+  getContextualProductionCost,
+  type ProductionCostContext,
+} from '@/systems/production-cost-context';
 import { resolveCivilizationEra } from './tech-definitions';
 import { hasDiscoveredCity, hasDiscoveredMinorCiv } from './discovery-system';
 import { getVisibility } from './fog-of-war';
@@ -76,12 +80,31 @@ function queueCostBeforeCaravan(state: GameState, cityId: string): number | null
   const civ = city ? state.civilizations[city.owner] : undefined;
   if (!city || !civ) return null;
   const productionCostContext = buildProductionCostContext(state, city.owner, cityId);
+  // Herding Insight and Recovered Harnesses are single-use charges: `processCity`
+  // spends one on the first qualifying unit and no other. Summing a whole queue
+  // has to spend it once too, or a queue holding two Beast Handlers would project
+  // a discount the city will only ever receive on one of them.
+  const spentCharges: ProductionCostContext = {
+    ...productionCostContext,
+    herdingInsight: false,
+    recoveredHarnesses: false,
+  };
+  let chargesAvailable = productionCostContext.herdingInsight || productionCostContext.recoveredHarnesses;
+
+  const priceInQueue = (itemId: string): number => {
+    const undiscounted = getContextualProductionCost(itemId, spentCharges);
+    if (!chargesAvailable) return undiscounted;
+    const discounted = getContextualProductionCost(itemId, productionCostContext);
+    if (discounted < undiscounted) chargesAvailable = false;
+    return discounted;
+  };
+
   let remaining = 0;
   let foundCaravan = false;
 
   for (let index = 0; index < city.productionQueue.length; index++) {
     const itemId = city.productionQueue[index];
-    const cost = getContextualProductionCost(itemId, productionCostContext);
+    const cost = priceInQueue(itemId);
     remaining += index === 0 ? Math.max(0, cost - city.productionProgress) : cost;
     if (itemId === 'caravan') {
       foundCaravan = true;
@@ -90,7 +113,7 @@ function queueCostBeforeCaravan(state: GameState, cityId: string): number | null
   }
 
   if (!foundCaravan) {
-    remaining += getContextualProductionCost('caravan', productionCostContext);
+    remaining += priceInQueue('caravan');
   }
   return remaining;
 }

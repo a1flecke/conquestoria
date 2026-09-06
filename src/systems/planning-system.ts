@@ -6,7 +6,7 @@ import { resolveBuildingPacingBand, resolveUnitPacingBand } from '@/systems/paci
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { buildProductionCostContext, getContextualProductionCost } from '@/systems/production-cost-context';
 import { getQueueableResearchIds } from '@/systems/tech-progression';
-import { getActiveNationalProjectsForCiv, getReservedNationalProjectKeys } from '@/systems/national-project-system';
+import { getReservedNationalProjectKeys } from '@/systems/national-project-system';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { getArsenalStatus } from '@/systems/strategic-arsenal-system';
@@ -180,7 +180,6 @@ export function getRecommendedIdleCityChoice(
   const completedTechs = civ.techState.completed ?? [];
   const civEra = resolveCivilizationEra(completedTechs);
   const reservedNationalProjects = getReservedNationalProjectKeys(state, civId);
-  const activeNationalProjects = getActiveNationalProjectsForCiv(state, civId);
   const availableResources = getCivAvailableResources(state, civId);
   const bonusEffect = resolveCivDefinition(state, civ.civType)?.bonusEffect;
   const productionCostContext = buildProductionCostContext(state, civId, cityId);
