@@ -1,6 +1,7 @@
 /** Semantic glyphs used only for simultaneous strategic-map city badges. */
 export const CITY_BADGE_GLYPHS = {
   underSiege: '⚔️',
+  cityBurning: '🔥',
   breakawaySecession: '⛓',
   breakawayEstablished: '👑',
   occupationSevere: '☹',

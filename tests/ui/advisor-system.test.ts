@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { AdvisorSystem, getAdvisorMessageIds, SESSION_SHOWN_TIPS, fireResourceDiscoveredTip } from '@/ui/advisor-system';
+import { AdvisorSystem, getAdvisorMessageIds, SESSION_SHOWN_TIPS, fireResourceDiscoveredTip, fireFirstBombardmentTip } from '@/ui/advisor-system';
 import { EventBus } from '@/core/event-bus';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
@@ -1014,5 +1014,30 @@ describe('#544 MR4 — general_last_stand_crisis_hint', () => {
     state.units['unit-1'] = makeWoundedUnit();
     state.civilizations.player.units.push('unit-1');
     expect(fires(state)).toBe(false);
+  });
+});
+
+describe('#974 first-bombardment tip', () => {
+  it('teaches the bombard-then-capture loop the first time only', () => {
+    SESSION_SHOWN_TIPS.clear();
+    const state = createNewGame(undefined, 'bombard-tip', 'small');
+    state.settings.advisorsEnabled = { ...state.settings.advisorsEnabled, warchief: true };
+    const bus = new EventBus();
+    const messages: unknown[] = [];
+    bus.on('advisor:message', m => messages.push(m));
+
+    expect(fireFirstBombardmentTip(state, bus)).toBe(true);
+    expect(fireFirstBombardmentTip(state, bus)).toBe(false);
+    expect(messages).toHaveLength(1);
+    expect(JSON.stringify(messages[0])).toContain('never takes it');
+  });
+
+  it('respects the Warchief advisor toggle', () => {
+    SESSION_SHOWN_TIPS.clear();
+    const state = createNewGame(undefined, 'bombard-tip-off', 'small');
+    state.settings.advisorsEnabled = { ...state.settings.advisorsEnabled, warchief: false };
+    const bus = new EventBus();
+
+    expect(fireFirstBombardmentTip(state, bus)).toBe(false);
   });
 });

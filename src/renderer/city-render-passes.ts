@@ -405,8 +405,10 @@ export function drawCityStatusBadgePass(ctx: CanvasRenderingContext2D, item: Cit
     ? item.breakaway.status === 'secession'
       ? CITY_BADGE_GLYPHS.breakawaySecession
       : CITY_BADGE_GLYPHS.breakawayEstablished
-    : item.presentation.underSiege
-      ? CITY_BADGE_GLYPHS.underSiege
+    : item.presentation.damageTier === 'burning'
+      ? CITY_BADGE_GLYPHS.cityBurning
+      : item.presentation.underSiege
+        ? CITY_BADGE_GLYPHS.underSiege
       : item.city.occupation
         ? getOccupiedCityMood(item.city) === 2
           ? CITY_BADGE_GLYPHS.occupationSevere

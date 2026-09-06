@@ -84,6 +84,14 @@ export const SFX = {
     setTimeout(() => playTone(65, 0.8, 0.3, 'sawtooth'), 90);
     setTimeout(() => playTone(45, 1.1, 0.28, 'square'), 220);
   },
+  // #974: bombardment is a stand-off action repeated across a multi-turn siege, so it reads
+  // as a duller, more distant thud than `combat`'s sharp exchange -- distinguishable at a
+  // glance by ear when a Hold Siege order fires on its own during turn processing. Pure
+  // oscillator synthesis like every other entry, no asset file.
+  bombard: () => {
+    playTone(110, 0.25, 0.25, 'square');
+    setTimeout(() => playTone(80, 0.35, 0.2, 'sawtooth'), 120);
+  },
   research: () => {
     playTone(880, 0.1, 0.15);
     setTimeout(() => playTone(1100, 0.1, 0.15), 80);

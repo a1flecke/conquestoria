@@ -324,7 +324,7 @@ Test `tests/core/turn-manager.test.ts`
 
 ---
 
-## Phase 3 — AI parity (PR 3) 🟡 in review
+## Phase 3 — AI parity (PR 3) ✅ merged (#977)
 
 ### Task 3.1: Land bombardment candidates and odds-delta scoring
 
@@ -343,7 +343,7 @@ Test `tests/ai/ai-tactics.test.ts`
 
 ---
 
-## Phase 4 — Delight (PR 4)
+## Phase 4 — Delight (PR 4) 🟡 in review
 
 ### Task 4.1: Damage art, SFX, notification, advisor tip
 

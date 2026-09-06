@@ -62,6 +62,7 @@ import type { HudController } from '@/app/controllers/hud-controller';
 import type { SelectionController } from '@/app/controllers/selection-controller';
 import type { TurnFlowController } from '@/app/controllers/turn-flow-controller';
 import type { AdvisorSystem } from '@/ui/advisor-system';
+import { fireFirstBombardmentTip } from '@/ui/advisor-system';
 import type { Civilization, CivBonusEffect, CombatResult, HexCoord, UnitType, WorkerActionType } from '@/core/types';
 import type { UnitTurnFlow } from '@/ui/unit-turn-flow';
 import { createUnitTurnFlow } from '@/ui/unit-turn-flow';
@@ -541,7 +542,9 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
     deps.session.setStateWithoutRefresh(bombardment.state);
     if (bombardment.cityEvent) deps.bus.emit('city:bombarded', bombardment.cityEvent);
     if (bombardment.batteryEvent) deps.bus.emit('city:coastal-battery-fired', bombardment.batteryEvent);
-    SFX.combat();
+    // Bombardment gets its own duller cue, distinct from a unit-vs-unit exchange (#974).
+    SFX.bombard();
+    fireFirstBombardmentTip(deps.session.getState(), deps.bus);
 
     const after = deps.session.getState();
     deps.showNotification(
