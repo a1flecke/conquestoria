@@ -109,6 +109,35 @@ describe('city-capture-system', () => {
     return state;
   }
 
+  // #966: "any military unit with offensive capabilities should be able to roll into an
+  // undefended enemy city and capture it." The siege/bombard exclusion in canUnitOccupyCity
+  // is gone; the remaining gate is land + combat strength + a city-capable attack profile.
+  it('#966 lets a siege unit capture an undefended city', () => {
+    const state = makeMajorAssaultState();
+    state.units.attacker = {
+      ...createUnit('catapult', 'player', { q: 0, r: 0 }, state.idCounters),
+      id: 'attacker',
+      movementPointsLeft: 2,
+    };
+
+    const result = beginMajorCityAssault(state, 'attacker', 'athens', { actor: 'player', civId: 'player' });
+
+    expect(result.ok).toBe(true);
+  });
+
+  it('#966 lets a ranged unit capture an undefended city', () => {
+    const state = makeMajorAssaultState();
+    state.units.attacker = {
+      ...createUnit('archer', 'player', { q: 0, r: 0 }, state.idCounters),
+      id: 'attacker',
+      movementPointsLeft: 2,
+    };
+
+    const result = beginMajorCityAssault(state, 'attacker', 'athens', { actor: 'player', civId: 'player' });
+
+    expect(result.ok).toBe(true);
+  });
+
   it('lets a human Mechanized Infantry capture and hold a major city through the shared path', () => {
     const state = makeMajorAssaultState();
     state.units.attacker = {
@@ -255,9 +284,17 @@ describe('city-capture-system', () => {
       reason: 'illegal-movement',
     },
     {
-      name: 'non-capturing siege unit',
+      // #966: siege units CAN capture now; a strength-0 non-combatant still cannot.
+      name: 'strength-0 non-combatant',
       mutate: (state: GameState) => {
-        state.units.attacker.type = 'catapult';
+        state.units.attacker.type = 'settler';
+      },
+      reason: 'cannot-capture',
+    },
+    {
+      name: 'naval unit (cannot occupy a land tile)',
+      mutate: (state: GameState) => {
+        state.units.attacker.type = 'frigate';
       },
       reason: 'cannot-capture',
     },

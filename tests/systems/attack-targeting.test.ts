@@ -30,7 +30,8 @@ describe('attack-targeting', () => {
     // static value baked into the profile object. See the naval-attack tests below for the
     // behavioral (not just shape) coverage this split enables.
     expect(getUnitAttackProfile('warrior')).toEqual({ kind: 'melee', range: 1, targets: ['unit', 'city'] });
-    expect(getUnitAttackProfile('archer')).toEqual({ kind: 'ranged', range: 2, targets: ['unit'] });
+    // #966: ranged units target cities too, like every other `role: 'ranged'` unit.
+    expect(getUnitAttackProfile('archer')).toEqual({ kind: 'ranged', range: 2, targets: ['unit', 'city'] });
   });
 
   it('#544 MR3: a great_general has no attack targets and cannot attack (strength 0, matching every other support unit)', () => {
@@ -260,7 +261,10 @@ describe('attack-targeting', () => {
     });
   });
 
-  it('rejects ordinary archer attacks against cities from range', () => {
+  // #966: ranged units (Archer, Crossbowman, Ballista, ...) attack cities. Superseded
+  // the earlier "ordinary Archer-style ranged attacks do not damage cities" rule from
+  // docs/superpowers/specs/2026-05-15-combat-visibility-unit-motion-bug-bundle-design.md.
+  it('allows an archer to target an enemy city within range', () => {
     const attacker = unit('attacker', 'archer', 'player', { q: 0, r: 0 });
     const state = stateWithUnits({ attacker }, { '2,0': 'visible' });
     state.cities.enemyCity = {
@@ -283,9 +287,27 @@ describe('attack-targeting', () => {
       spyUnrestBonus: 0,
     };
 
-    expect(canUnitAttackTarget(state, attacker, { q: 2, r: 0 }, { viewerId: 'player' })).toEqual({
+    expect(canUnitAttackTarget(state, attacker, { q: 2, r: 0 }, { viewerId: 'player' })).toMatchObject({
+      ok: true,
+      targetType: 'city',
+      cityId: 'enemyCity',
+      range: 2,
+    });
+  });
+
+  it('still rejects an archer city attack out of range', () => {
+    const attacker = unit('attacker', 'archer', 'player', { q: 0, r: 0 });
+    const state = stateWithUnits({ attacker }, { '3,0': 'visible' });
+    state.cities.enemyCity = {
+      id: 'enemyCity', name: 'Enemy City', owner: 'ai-1', position: { q: 3, r: 0 },
+      population: 4, buildings: [], productionQueue: [], productionProgress: 0,
+      food: 0, foodNeeded: 10, ownedTiles: [{ q: 3, r: 0 }], workedTiles: [],
+      focus: 'balanced', maturity: 'outpost', unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0,
+    };
+
+    expect(canUnitAttackTarget(state, attacker, { q: 3, r: 0 }, { viewerId: 'player' })).toEqual({
       ok: false,
-      reason: 'unsupported-target',
+      reason: 'out-of-range',
     });
   });
 

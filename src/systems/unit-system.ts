@@ -67,7 +67,10 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     type: 'archer', name: 'Archer', movementPoints: 2,
     visionRange: 2, strength: 15, canFoundCity: false,
     canBuildImprovements: false, productionCost: 35,
-    attackProfile: { kind: 'ranged', range: 2, targets: ['unit'] },
+    // #966: ranged units bombard cities like every other `role: 'ranged'` unit
+    // (Rifleman/Machine Gunner/Musketeer/Infantry). Damage/decisive-assault only --
+    // ownership still changes solely via the land capture flow (city-capture-system).
+    attackProfile: { kind: 'ranged', range: 2, targets: ['unit', 'city'] },
   },
   swordsman: {
     type: 'swordsman', name: 'Swordsman', movementPoints: 2,
@@ -296,7 +299,7 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     type: 'crossbowman', name: 'Crossbowman', movementPoints: 2,
     visionRange: 3, strength: 30, canFoundCity: false,
     canBuildImprovements: false, productionCost: 75,
-    attackProfile: { kind: 'ranged', range: 2, targets: ['unit'] },
+    attackProfile: { kind: 'ranged', range: 2, targets: ['unit', 'city'] }, // #966
   },
   catapult: {
     type: 'catapult', name: 'Catapult', movementPoints: 1,
@@ -320,7 +323,7 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     type: 'ballista', name: 'Ballista', movementPoints: 2,
     visionRange: 3, strength: 25, canFoundCity: false,
     canBuildImprovements: false, productionCost: 100,
-    attackProfile: { kind: 'ranged', range: 3, targets: ['unit'] },
+    attackProfile: { kind: 'ranged', range: 3, targets: ['unit', 'city'] }, // #966
     cargoSize: 3,
     landSupplyCost: 3, // #544 MR7: contract §10 -- initialized to match cargoSize
   },
@@ -463,13 +466,13 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     visionRange: 2, strength: 43, canFoundCity: false,
     canBuildImprovements: false, productionCost: 170,
     domain: 'land',
-    attackProfile: { kind: 'ranged', range: 1, targets: ['unit'] },
+    attackProfile: { kind: 'ranged', range: 1, targets: ['unit', 'city'] }, // #966
   },
   mobile_aa: {
     type: 'mobile_aa', name: 'Mobile AA', movementPoints: 2,
     visionRange: 2, strength: 32, canFoundCity: false,
     canBuildImprovements: false, productionCost: 175, domain: 'land',
-    attackProfile: { kind: 'ranged', range: 1, targets: ['unit'] },
+    attackProfile: { kind: 'ranged', range: 1, targets: ['unit', 'city'] }, // #966
     airDefenseProvider: { radius: 1, defenseModifier: 8, stackingGroup: 'ground-air-defense' },
   },
   submarine: {
@@ -731,7 +734,10 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     type: 'beast_dragon', name: 'Ancient Dragon', movementPoints: 3,
     visionRange: 3, strength: 120, canFoundCity: false,
     canBuildImprovements: false, productionCost: 0,
-    attackProfile: { kind: 'ranged', range: 2, targets: ['unit'] },
+    // #966: consistent with every other `kind: 'ranged'` unit. Inert for beast AI
+    // in practice -- beast-system only issues attack orders against units, and a
+    // beast owner can never run the city capture flow (no civ / war state).
+    attackProfile: { kind: 'ranged', range: 2, targets: ['unit', 'city'] },
   },
   // Era 12 units
   cyber_unit: {

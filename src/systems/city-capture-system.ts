@@ -152,6 +152,18 @@ function distanceForState(
     : hexDistance(from, to);
 }
 
+/**
+ * #966: any offensive land military unit can roll into an *undefended* enemy city
+ * and capture it -- there is no longer a siege/bombard exclusion. The gate is:
+ *   - `domain === 'land'`  -- naval/air units cannot occupy a land tile
+ *   - `strength > 0`       -- excludes Settler/Worker/Spy/Caravan/Great General
+ *   - `targets` includes `'city'` -- excludes the pure non-combatants that still
+ *     carry a placeholder profile (e.g. Observation Balloon's `targets: []`)
+ * Capture still runs through the same decisive assault (`beginMajorCityAssault`):
+ * attacker strength vs the city's intrinsic wall/population/tech defense, with
+ * counter-fire and an occupy/raze choice. A garrisoned city is untouchable until
+ * its defenders are killed (the `city-defended` gate, unchanged).
+ */
 export function canUnitOccupyCity(
   unit: GameState['units'][string],
 ): boolean {
@@ -159,9 +171,7 @@ export function canUnitOccupyCity(
   const profile = getUnitAttackProfile(unit.type);
   return (definition.domain ?? 'land') === 'land'
     && definition.strength > 0
-    && profile.targets.includes('city')
-    && profile.kind !== 'siege'
-    && profile.kind !== 'bombard';
+    && profile.targets.includes('city');
 }
 
 function assaultFailure(
