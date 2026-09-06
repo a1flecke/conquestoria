@@ -56,7 +56,10 @@ export function buildProductionCostContext(
     city: hostCity ? { buildings: hostCity.buildings ?? [] } : null,
     bonusEffect: resolveCivDefinition(state, civ.civType ?? '')?.bonusEffect,
     era: resolveCivilizationEra(completedTechs),
-    completedTechs,
+    // Copied, not aliased: the context outlives a single call in every caller
+    // that prices a whole build list, and it must not hand anyone a mutable
+    // handle onto live civilization state.
+    completedTechs: [...completedTechs],
     activeNationalProjects: getActiveNationalProjectsForCiv(state, civId),
     availableResources: getCivAvailableResources(state, civId),
     materialSubstitution: getCircularManufacturingMaterial(state, civId),

@@ -2117,13 +2117,17 @@ export function completeCityProductionItem(
  * positional arguments. `era`, `completedTechs` and `availableResources` are
  * read back out of it for queue eligibility too, so the threshold this function
  * completes at and the cost every other consumer displays cannot diverge.
+ *
+ * `productionCost` is deliberately required and un-defaulted: a defaulted
+ * context would silently price every item at era 1 with no discounts, which is
+ * the exact class of omission #984 exists to remove.
  */
 export function processCity(
   city: City,
   map: GameMap,
   foodYield: number,
-  productionYield: number = 0,
-  productionCost: ProductionCostContext = createProductionCostContext(),
+  productionYield: number,
+  productionCost: ProductionCostContext,
   civType?: string,
   builtNationalProjectKeys?: Set<string>,
   unitCompletionBlocker?: (type: UnitType) => ProductionDropReason | null,
