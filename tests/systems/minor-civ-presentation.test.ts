@@ -65,6 +65,9 @@ describe('minor-civ-presentation', () => {
     });
     expect(presentation!.knownMembers).toHaveLength(1);
     expect(presentation!.knownMembers[0]!.minorCivId).toBe(first);
+    state.minorCivLeagues!.leagues['minor-compact-1']!.readiness = { kind: 'cooling', sinceTurn: state.turn };
+    expect(getMinorCivLeaguePresentationForPlayer(state, 'player', first)!.readinessLabel)
+      .toBe('Tensions easing');
   });
 
   it('formats evolved notifications generically for undiscovered viewers', () => {

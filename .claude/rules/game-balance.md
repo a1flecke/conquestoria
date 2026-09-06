@@ -238,10 +238,12 @@ forever (`processMinorCivEconomyTurn`).
 | Knob | Value | Scope | Rationale |
 |---|---:|---|---|
 | `MINOR_CIV_LEAGUE_RULES.peacefulScoreBonus` | +12 | A settled compact member's already legal, nonnegative production candidate | A compact may express its charter through its own queue without changing unit caps, production, yields, legality, or active queue progress. A candidate receives the bonus once when it matches either the charter's yield category or explicit building ID. |
+| `MINOR_CIV_LEAGUE_RULES.defenseScoreBonus` | +25 | A settled compact member after its live concern has completed the difficulty-scaled warning delay | Raises only already legal, nonnegative non-scout land units and `walls`/`barracks`; it never changes caps, posture, queue progress, or force creation. |
 
 The bonus is absent while the member is not `settled`, has no compact, or the compact is in a
-nonquiet readiness state. It is applied only after ordinary candidate scoring has rejected negative
-scores, so it cannot revive cap-excluded units or otherwise widen the catalog.
+nonquiet readiness state. During an active preparation concern, the +25 defense preference
+replaces the peaceful preference. Both are applied only after ordinary candidate scoring has
+rejected negative scores, so neither can revive cap-excluded units or otherwise widen the catalog.
 
 ### Per-posture unit cap (`getMinorCivUnitCap`)
 
