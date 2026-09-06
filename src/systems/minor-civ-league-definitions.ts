@@ -63,9 +63,16 @@ export function getMinorCivLeagueScoreBonus(
   candidate: { kind: 'building'; building: Pick<Building, 'id' | 'yields'> }
     | { kind: 'unit'; unitType: UnitType },
 ): number {
-  if (preference.kind === 'none' || preference.kind === 'defense' || candidate.kind !== 'building') {
+  if (preference.kind === 'none') {
     return 0;
   }
+  if (preference.kind === 'defense') {
+    const supportsLocalDefense = candidate.kind === 'building'
+      ? candidate.building.id === 'walls' || candidate.building.id === 'barracks'
+      : candidate.unitType !== 'scout';
+    return supportsLocalDefense ? MINOR_CIV_LEAGUE_RULES.defenseScoreBonus : 0;
+  }
+  if (candidate.kind !== 'building') return 0;
   const charter = MINOR_CIV_LEAGUE_CHARTERS[preference.kind];
   const matchesYield = charter.preferredYieldKeys.some(yieldKey => candidate.building.yields[yieldKey] > 0);
   const matchesId = charter.preferredBuildingIds.includes(candidate.building.id);

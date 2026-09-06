@@ -25,6 +25,7 @@ import { isSuperweaponsEnabled } from '@/systems/superweapons-flag';
 import { evaluatePeaceConsent, evaluateTreatyConsent, evaluateVassalageConsent, type AgreementKind } from '@/ai/ai-treaty-consent';
 import { hasAICombatRole } from '@/ai/ai-unit-roles';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
+import { reconcileMinorCivLeagues } from '@/systems/minor-civ-league-system';
 
 export function resolveOpponentKind(civId: string): 'major' | 'minor' | 'barbarian' {
   if (civId.startsWith('barbarian')) return 'barbarian';
@@ -1546,7 +1547,7 @@ export function applyVassalageWarConsequences(before: GameState, after: GameStat
       next = withDiplomacy(next, vassalId, { ...dip, vassalage: { ...dip.vassalage, protectionTimers: timers } });
     }
   }
-  return next;
+  return reconcileMinorCivLeagues(next);
 }
 
 export function defendVassal(state: GameState, overlordId: string, vassalId: string, bus: EventBus): GameState {
