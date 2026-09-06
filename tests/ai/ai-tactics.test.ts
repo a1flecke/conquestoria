@@ -1277,6 +1277,25 @@ describe('rankUnitTacticalActions — paradrop (#543)', () => {
     }
   });
 
+  // #970: the AI reaches airborne legality through the same getParadropTargets
+  // the UI highlights from, so a hostile map structure the player cannot drop
+  // onto must be equally unavailable to the AI -- no AI-only shortcut.
+  it('never scores a paradrop onto a barbarian camp the human player could not drop onto either', () => {
+    const { state, paratrooper } = makeParatrooperFixture();
+    const campCoord = { q: 2, r: 0 };
+    state.barbarianCamps.camp = { id: 'camp', position: campCoord, strength: 4, spawnCooldown: 3 };
+    const plan = makePlan({ kind: 'region', id: 'front', anchor: campCoord }, [paratrooper.id], { objective: 'expand', requiredRoles: {} });
+
+    const actions = rankUnitTacticalActions(context(state, plan), paratrooper.id)
+      .filter(a => a.action.kind === 'paradrop');
+
+    // The camp sits on the plan anchor, so it would otherwise be the AI's
+    // top-scoring drop -- proving the exclusion is the legality gate, not luck.
+    expect(actions.some(a => a.action.kind === 'paradrop' && hexKey(a.action.destination) === hexKey(campCoord))).toBe(false);
+    expect(canParadrop(state, paratrooper.id, campCoord)).toEqual({ ok: false, reason: 'barbarian-camp' });
+    expect(actions.length).toBeGreaterThan(0); // still has legal drops elsewhere
+  });
+
   it('scores a drop closer to the strategic objective above a drop farther from it', () => {
     const { state, paratrooper } = makeParatrooperFixture();
     const plan = makePlan({ kind: 'region', id: 'front', anchor: { q: 4, r: 0 } }, [paratrooper.id], { objective: 'expand', requiredRoles: {} });

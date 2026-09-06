@@ -1,7 +1,7 @@
 import type { EventBus } from '@/core/event-bus';
 import type { CombatResult, GameState, HexCoord, Unit } from '@/core/types';
 import { getAirBaseKind, getAirBaseRoster, selectInterceptor } from '@/systems/air-operations-system';
-import { UNIT_DEFINITIONS, getMovementCostForUnit, getBlockingMapEntityAt, BLOCKING_MAP_ENTITY_MESSAGES } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS, getMovementCostForUnit, getBlockingMapEntityAt, getBlockingMapEntityKeys, BLOCKING_MAP_ENTITY_MESSAGES } from '@/systems/unit-system';
 import { isVisible } from '@/systems/fog-of-war';
 import { buildUnitOccupancy, getUnitIdsAtCoord } from '@/systems/unit-occupancy';
 import { hexKey, hexesInRange, getWrappedHexesInRange, hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
@@ -58,15 +58,34 @@ export function getParadropLaunchState(state: GameState, unitId: string): Paradr
   return { ok: true };
 }
 
-function isLegalAirborneLandingTile(state: GameState, unit: Unit, coord: HexCoord, occupancy: ReturnType<typeof buildUnitOccupancy>): boolean {
+/**
+ * `blockingKeys` is the canonical hostile-structure key set for this mover
+ * (#970), computed once per target enumeration rather than re-queried per
+ * candidate tile. This mirrors how `getMovementRange` already consumes
+ * `getBlockingMapEntityKeys` for its BFS: the per-coord `getBlockingMapEntityAt`
+ * form allocates three arrays (cities, camps, enclave anchors) on every call,
+ * which is wasteful across the ~60-130 tiles an airborne range sweep visits.
+ * The two helpers are boolean-equivalent by construction -- both derive from the
+ * same `isBlockingCityFor` / `isBlockingCampFor` / pirate-enclave predicates --
+ * so the reason-carrying form is still used where a *reason* is needed
+ * (`canParadrop` / `canAirAssault`), and this set form where only legality is.
+ */
+function isLegalAirborneLandingTile(
+  state: GameState,
+  unit: Unit,
+  coord: HexCoord,
+  occupancy: ReturnType<typeof buildUnitOccupancy>,
+  blockingKeys: ReadonlySet<string>,
+): boolean {
   const visibility = state.civilizations[unit.owner]?.visibility;
   if (visibility && !isVisible(visibility, coord)) return false;
-  const tile = state.map.tiles[hexKey(coord)];
+  const key = hexKey(coord);
+  const tile = state.map.tiles[key];
   if (!tile || getMovementCostForUnit(tile.terrain, 'land', UNIT_DEFINITIONS[unit.type].terrainCostOverrides) === Infinity) return false;
   if (getUnitIdsAtCoord(occupancy, coord).length > 0) return false;
   // Canonical hostile-structure gate (#970): a foreign city, a barbarian camp,
   // or a pirate coastal-enclave anchor is never a legal landing tile.
-  if (getBlockingMapEntityAt(state, unit, coord)) return false;
+  if (blockingKeys.has(key)) return false;
   return true;
 }
 
@@ -76,11 +95,12 @@ export function getParadropTargets(state: GameState, unitId: string): HexCoord[]
   const unit = state.units[unitId]!;
   const capability = UNIT_DEFINITIONS[unit.type].paradrop!;
   const occupancy = buildUnitOccupancy(state.units);
+  const blockingKeys = getBlockingMapEntityKeys(state, unit);
   const candidates = state.map.wrapsHorizontally
     ? getWrappedHexesInRange(unit.position, capability.range, state.map.width)
     : hexesInRange(unit.position, capability.range);
 
-  return candidates.filter(coord => isLegalAirborneLandingTile(state, unit, coord, occupancy));
+  return candidates.filter(coord => isLegalAirborneLandingTile(state, unit, coord, occupancy, blockingKeys));
 }
 
 export function canParadrop(state: GameState, unitId: string, destination: HexCoord): { ok: true } | { ok: false; reason: ParadropFailureReason } {
@@ -172,11 +192,12 @@ export function getAirAssaultTargets(state: GameState, unitId: string): HexCoord
   const launchCity = findLaunchCity(state, unit)!;
   const range = airAssaultRange(state, launchCity.id);
   const occupancy = buildUnitOccupancy(state.units);
+  const blockingKeys = getBlockingMapEntityKeys(state, unit);
   const candidates = state.map.wrapsHorizontally
     ? getWrappedHexesInRange(unit.position, range, state.map.width)
     : hexesInRange(unit.position, range);
 
-  return candidates.filter(coord => isLegalAirborneLandingTile(state, unit, coord, occupancy));
+  return candidates.filter(coord => isLegalAirborneLandingTile(state, unit, coord, occupancy, blockingKeys));
 }
 
 export function canAirAssault(state: GameState, unitId: string, destination: HexCoord): { ok: true; helicopterId: string } | { ok: false; reason: AirAssaultFailureReason } {
