@@ -8,6 +8,7 @@ function captureInteraction(overrides: Partial<Extract<CityInteraction['availabl
     available: [{
       kind: 'capture',
       winProbability: 0.65,
+      attackerStrength: 15,
       defenseBefore: 54,
       defenseAfter: 54,
       label: 'Capture the city — 65%',
