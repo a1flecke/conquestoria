@@ -27,15 +27,21 @@ export const CITY_STRENGTH_PER_POPULATION = 2;
 // and defensive techs multiply on top via the SAME getCityDefenseBreakdown a garrisoned
 // defender already uses, so a city's own defense and its garrison's defense never
 // diverge in formula.
+// #966: takes the defender's completed techs rather than a whole `Civilization`. That list
+// was the only thing this ever read off the record, and minor civs (city-states) have no
+// `techState` at all -- `MinorCivState` carries none -- so the old signature made it
+// structurally impossible to compute a city-state's defense. Callers pass
+// `state.civilizations[city.owner]?.techState.completed ?? []`, which yields `[]` for a
+// minor civ automatically.
 export function getCityIntrinsicStrength(
   city: City,
-  ownerCiv: Civilization,
+  defenderCompletedTechs: string[],
   attackerDomain: 'land' | 'naval' | 'air',
 ): number {
   const base = CITY_BASE_STRENGTH + city.population * CITY_STRENGTH_PER_POPULATION;
   const breakdown = getCityDefenseBreakdown({
     cityBuildings: city.buildings ?? [],
-    defenderCompletedTechs: ownerCiv.techState.completed ?? [],
+    defenderCompletedTechs,
     attackerDomain,
   });
   return base * breakdown.multiplier + breakdown.flatBonus;
@@ -72,7 +78,7 @@ export function calculateCityAssaultStrengths(
     * (1 + riverAttackPenalty)
     * (attackerDefinition.cityAssaultMultiplier ?? 1)
     * (options.attackerMultiplier ?? 1);
-  const intrinsicStrength = getCityIntrinsicStrength(city, ownerCiv, 'land');
+  const intrinsicStrength = getCityIntrinsicStrength(city, ownerCiv.techState.completed ?? [], 'land');
   const winProbability = attackerStrength / (attackerStrength + intrinsicStrength);
   return { attackerStrength, intrinsicStrength, winProbability };
 }
@@ -127,7 +133,7 @@ export function getCityCounterFireDamage(
   if (hasGarrison) return 0;
   if (!(city.buildings ?? []).includes('walls')) return 0;
 
-  const intrinsicStrength = getCityIntrinsicStrength(city, ownerCiv, attackerDomain);
+  const intrinsicStrength = getCityIntrinsicStrength(city, ownerCiv.techState.completed ?? [], attackerDomain);
   const totalStrength = attackerStrength + intrinsicStrength;
   if (totalStrength === 0) return 0;
   const atkRatio = attackerStrength / totalStrength;
