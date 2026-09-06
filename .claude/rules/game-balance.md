@@ -96,6 +96,13 @@ must not farm veterancy on a city). It is difficulty-invariant — `preventDestr
 `citySiegeDestructionEra`, the only city-siege challenge knob. It never captures, razes, or
 destroys. A shot that would deal 0 is denied with its cause, never a burned turn.
 
+**AI.** Bombardment is scored by the assault-odds delta it buys the best capture-capable
+friendly unit within `AI_BOMBARDMENT_FOLLOWUP_RADIUS` (3) hexes, plus a damage-proportional
+baseline so a fleet with no landing force still wears a coastal city down — matching
+`rankCapture`'s convention of never fully excluding an action. There is no domain check and
+no AI-only city exception; the AI uses the same `resolveCityInteraction` legality the player
+does.
+
 **Rule:** any new city action, constant, or bombardment caller must add a row above and be
 reachable through `resolveCityInteraction`.
 

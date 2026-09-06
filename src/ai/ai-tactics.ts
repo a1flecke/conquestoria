@@ -24,7 +24,7 @@ import {
   resolveCombat,
 } from '@/systems/combat-system';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
-import { resolveMajorCityCapture } from '@/systems/city-capture-system';
+import { canUnitOccupyCity, resolveMajorCityCapture } from '@/systems/city-capture-system';
 import { calculateCityAssaultStrengths } from '@/systems/city-siege-system';
 import { collectUsedCityNames } from '@/systems/city-name-system';
 import { foundCity } from '@/systems/city-system';
@@ -77,7 +77,7 @@ import { getParadropTargets, executeParadrop, getAirAssaultLaunchState, getAirAs
 import { getKnownHostileAirDefenseThreat } from '@/systems/air-defense-system';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
 import { resolveCombatEra } from '@/systems/era-resolution';
-import { resolveUnitCityBombardment } from '@/systems/city-bombardment-system';
+import { previewUnitCityBombardment, resolveUnitCityBombardment } from '@/systems/city-bombardment-system';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 
 export type AITacticalAction =
@@ -339,6 +339,55 @@ function isOnlyCaptureUnit(context: AITacticalContext, unit: Unit): boolean {
     .length === 1;
 }
 
+/**
+ * #974: how far from a city a friendly capture-capable unit may be and still count as the
+ * follow-up that makes bombarding worth doing.
+ */
+export const AI_BOMBARDMENT_FOLLOWUP_RADIUS = 3;
+
+/**
+ * #974: scores a bombardment by the assault odds it BUYS, not by the damage it deals.
+ *
+ * Bombarding is only ever a means to an end -- it can never capture -- so the AI values it
+ * mostly by how much easier it makes the eventual storm for the best capture-capable unit it
+ * actually has nearby. Without that link the AI either never picks the action (leaving
+ * bombardment a human-only advantage) or shells cities it cannot follow up on.
+ *
+ * A damage-proportional baseline remains when no follow-up is in reach, deliberately
+ * matching rankCapture's convention directly above of never fully excluding an action:
+ * wearing down a coastal city has standalone value, and a fleet with no landing force is
+ * exactly the case the pre-#974 naval-only scoring already served.
+ *
+ * Deliberately no domain check: this replaces a `domain === 'naval'` gate that predated land
+ * bombardment existing, and which is the same wrong guess the highlight layer carried.
+ */
+function rankBombardment(
+  context: AITacticalContext,
+  unit: Unit,
+  city: GameState['cities'][string],
+): number | null {
+  const preview = previewUnitCityBombardment(context.state, unit, city);
+  if (preview.hpLoss <= 0) return null;
+
+  const techs = context.state.civilizations[city.owner]?.techState.completed ?? [];
+  const damagedCity = { ...city, hp: Math.max(1, (city.hp ?? 100) - preview.hpLoss) };
+
+  let bestGain = 0;
+  for (const candidateId of context.state.civilizations[context.actorId]?.units ?? []) {
+    const candidate = context.state.units[candidateId];
+    if (!candidate || candidate.id === unit.id) continue;
+    if (!canUnitOccupyCity(candidate)) continue;
+    if (distance(context.state, candidate.position, city.position) > AI_BOMBARDMENT_FOLLOWUP_RADIUS) continue;
+
+    const before = calculateCityAssaultStrengths(candidate, city, techs, context.state.map).winProbability;
+    const after = calculateCityAssaultStrengths(candidate, damagedCity, techs, context.state.map).winProbability;
+    bestGain = Math.max(bestGain, after - before);
+  }
+  // Baseline keeps a follow-up-less bombardment as a real but low-ranked candidate; the
+  // odds-delta is what lifts it into competing with a direct attack.
+  return Math.round(380 + preview.hpLoss * 2 + bestGain * 1200);
+}
+
 function rankAttacks(
   context: AITacticalContext,
   unit: Unit,
@@ -351,13 +400,11 @@ function rankAttacks(
   })) {
     if (target.result.targetType === 'city') {
       const city = context.state.cities[target.result.cityId];
-      if (
-        city
-        && UNIT_DEFINITIONS[unit.type].domain === 'naval'
-        && isAIHostileOwner(context.state, context.actorId, city.owner)
-      ) {
-        attacks.push(ranked({ kind: 'bombard-city', unitId: unit.id, cityId: city.id },
-          560 + Math.max(0, 100 - (city.hp ?? 100))));
+      if (city && isAIHostileOwner(context.state, context.actorId, city.owner)) {
+        const score = rankBombardment(context, unit, city);
+        if (score !== null) {
+          attacks.push(ranked({ kind: 'bombard-city', unitId: unit.id, cityId: city.id }, score));
+        }
       }
       continue;
     }

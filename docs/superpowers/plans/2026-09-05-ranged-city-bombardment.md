@@ -231,7 +231,7 @@ export function resolveCityInteraction(state: GameState, unit: Unit, city: City)
 
 ---
 
-## Phase 2 — Bombard (PR 2) — closes #966 🟡 in review
+## Phase 2 — Bombard (PR 2) — closes #966 ✅ merged (#976)
 
 ### Task 2.1: Siege-input options
 
@@ -324,7 +324,7 @@ Test `tests/core/turn-manager.test.ts`
 
 ---
 
-## Phase 3 — AI parity (PR 3)
+## Phase 3 — AI parity (PR 3) 🟡 in review
 
 ### Task 3.1: Land bombardment candidates and odds-delta scoring
 
