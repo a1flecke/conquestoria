@@ -339,9 +339,9 @@ describe('isCityHpRegenerating (#522)', () => {
 describe('getCityIntrinsicStrength (#522)', () => {
   it('scales with population even without walls', () => {
     const { city, ownerCiv } = makeCityAndCiv({ population: 1, buildings: [] });
-    const low = getCityIntrinsicStrength(city, ownerCiv, 'land');
+    const low = getCityIntrinsicStrength(city, ownerCiv.techState.completed ?? [], 'land');
     const { city: cityB, ownerCiv: ownerCivB } = makeCityAndCiv({ population: 10, buildings: [] });
-    const high = getCityIntrinsicStrength(cityB, ownerCivB, 'land');
+    const high = getCityIntrinsicStrength(cityB, ownerCivB.techState.completed ?? [], 'land');
 
     expect(low).toBe(2 + 1 * 2); // 4
     expect(high).toBe(2 + 10 * 2); // 22
@@ -351,7 +351,7 @@ describe('getCityIntrinsicStrength (#522)', () => {
   it('applies the walls multiplier on top of the population base, matching getCityDefenseBreakdown', () => {
     const { city, ownerCiv } = makeCityAndCiv({ population: 4, buildings: ['walls'] });
     // base = 2 + 4*2 = 10; walls -> x1.25 -> 12.5 -> rounds per implementation
-    expect(getCityIntrinsicStrength(city, ownerCiv, 'land')).toBeCloseTo(10 * 1.25, 5);
+    expect(getCityIntrinsicStrength(city, ownerCiv.techState.completed ?? [], 'land')).toBeCloseTo(10 * 1.25, 5);
   });
 
   it('applies Star Fort and Fortification Engineering flat bonuses, same as a garrisoned defender', () => {
@@ -359,7 +359,7 @@ describe('getCityIntrinsicStrength (#522)', () => {
     const withEngineering = withTechs(ownerCiv, ['fortification-engineering']);
     const strength = getCityIntrinsicStrength(
       { ...city, buildings: ['walls', 'star_fort'] },
-      withEngineering,
+      withEngineering.techState.completed ?? [],
       'land',
     );
     // base = 10; walls -> 12.5; +star_fort(5) +fortification-engineering(5) = 22.5
@@ -369,15 +369,29 @@ describe('getCityIntrinsicStrength (#522)', () => {
   it('applies Torpedo Warfare only against a naval attacker, matching getCityDefenseBreakdown', () => {
     const { city, ownerCiv } = makeCityAndCiv({ population: 4, buildings: ['walls'] });
     const withTorpedo = withTechs(ownerCiv, ['torpedo-warfare']);
-    const naval = getCityIntrinsicStrength(city, withTorpedo, 'naval');
-    const land = getCityIntrinsicStrength(city, withTorpedo, 'land');
+    const naval = getCityIntrinsicStrength(city, withTorpedo.techState.completed ?? [], 'naval');
+    const land = getCityIntrinsicStrength(city, withTorpedo.techState.completed ?? [], 'land');
     expect(naval).toBeCloseTo(10 * 1.25 + 5, 5);
     expect(land).toBeCloseTo(10 * 1.25, 5);
   });
 
   it('handles zero population without throwing (a just-founded or fully-unrested city)', () => {
-    const { city, ownerCiv } = makeCityAndCiv({ population: 0, buildings: [] });
-    expect(getCityIntrinsicStrength(city, ownerCiv, 'land')).toBe(2);
+    const { city } = makeCityAndCiv({ population: 0, buildings: [] });
+    expect(getCityIntrinsicStrength(city, [], 'land')).toBe(2);
+  });
+
+  // #966: minor civs have no `techState` (MinorCivState carries none), so they can never be
+  // passed as a Civilization -- which is why city bombardment would silently no-op against a
+  // city-state. Completed techs are the ONLY thing this helper ever read off the record, so
+  // taking them directly is both smaller and minor-civ-safe.
+  it('#966 takes completed techs directly, with an empty list standing in for a minor civ', () => {
+    const { city } = makeCityAndCiv({ population: 4, buildings: ['walls', 'star_fort'] });
+
+    // A city-state: buildings count, techs contribute nothing.
+    expect(getCityIntrinsicStrength(city, [], 'land')).toBeCloseTo(10 * 1.25 + 5, 5);
+    // The same city under a major civ that researched Fortification Engineering.
+    expect(getCityIntrinsicStrength(city, ['fortification-engineering'], 'land'))
+      .toBeCloseTo(10 * 1.25 + 5 + 5, 5);
   });
 });
 

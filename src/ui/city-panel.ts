@@ -1078,7 +1078,7 @@ export function createCityPanel(
 
   const ownerCivForDefense = state.civilizations[city.owner];
   const defenseRating = ownerCivForDefense
-    ? Math.round(getCityIntrinsicStrength(city, ownerCivForDefense, 'land'))
+    ? Math.round(getCityIntrinsicStrength(city, ownerCivForDefense.techState.completed ?? [], 'land'))
     : 0;
   const defenseRatingHtml = `
     <div style="font-size:11px;opacity:0.7;margin-top:4px;">
