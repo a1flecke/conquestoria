@@ -297,13 +297,32 @@ export const ALLIANCE_TECHS = ['political-philosophy']; // its unlock text: "Unl
 // IDs must exist in TECH_TREE — see tests/systems/diplomacy-tech-gates.test.ts
 export const NAP_TECHS = ['diplomacy-tech']; // its unlock text: "Unlock Non-Aggression Pacts"
 
+/**
+ * The complete input set `getAvailableActions` gates a civ's diplomatic
+ * action surface from. `civilizationEra` is a required, explicitly-named
+ * field rather than a positional `era: number` -- #1027 found the AI path
+ * (`basic-ai.ts`) passing `state.era` (World Age: the era a *majority* of
+ * living civs has reached) into what the human path
+ * (`diplomacy-panel.ts`) correctly filled with `resolveCivilizationEra(...)`.
+ * A bare positional number let that drift silently; a required named field
+ * makes every call site spell out `civilizationEra: <expr>`, so a caller that
+ * writes `civilizationEra: state.era` is now visibly wrong rather than
+ * silently wrong. See `.claude/rules/game-balance.md`'s Production Cost
+ * Context section (#984) for the same lesson applied to a different system.
+ */
+export interface DiplomacyActionContext {
+  completedTechs: string[];
+  /** The acting civilization's own technology-derived era (`resolveCivilizationEra`). Never World Age (`state.era`). */
+  civilizationEra: number;
+  hasArmsControlTreaty: boolean;
+}
+
 export function getAvailableActions(
   state: DiplomacyState,
   targetCivId: string,
-  completedTechs: string[],
-  era: number,
-  hasArmsControlTreaty: boolean,
+  context: DiplomacyActionContext,
 ): DiplomaticAction[] {
+  const { completedTechs, civilizationEra, hasArmsControlTreaty } = context;
   const actions: DiplomaticAction[] = [];
   const atWar = isAtWar(state, targetCivId);
 
@@ -323,13 +342,13 @@ export function getAvailableActions(
     );
     const relationship = getRelationship(state, targetCivId);
 
-    if ((era >= 2 || hasNAPTech) && !hasNAP) {
+    if ((civilizationEra >= 2 || hasNAPTech) && !hasNAP) {
       actions.push('non_aggression_pact');
     }
-    if ((era >= 3 || hasTradeTech) && relationship > 0 && !hasTrade) {
+    if ((civilizationEra >= 3 || hasTradeTech) && relationship > 0 && !hasTrade) {
       actions.push('trade_agreement');
     }
-    if (era >= 4 || hasAllianceTech) {
+    if (civilizationEra >= 4 || hasAllianceTech) {
       if (!state.treaties.some(t => t.type === 'open_borders' && (t.civB === targetCivId || t.civA === targetCivId))) {
         actions.push('open_borders');
       }
@@ -353,14 +372,23 @@ export function getAvailableActions(
       actions.push('arms_control_pact');
     }
 
-    // Vassalage (only when weakened, era >= 2, not already a vassal)
-    if (era >= 2 && !state.vassalage?.overlord) {
-      actions.push('offer_vassalage');
-    }
+    // Vassalage is deliberately NOT surfaced here. `getVassalageEligibility`
+    // (which itself calls `canOfferVassalage` with
+    // `resolveCivilizationEra(vassal.techState.completed)`) is the sole
+    // canonical eligibility check for offering vassalage, consulted directly
+    // by both the human panel (`vassalage-controls.ts`) and the AI
+    // (`basic-ai.ts`'s `evaluateVassalage` call). #1027's audit found this
+    // function used to carry its own second, weaker vassalage rule here
+    // (`era >= 2 && !overlord`, with no "actually weakened" check at all) --
+    // dead code with zero consumers on either path, but exactly the
+    // "second vassalage rule" shape this issue's brief warned against
+    // reintroducing. Removed rather than fixed in place, since fixing it
+    // properly would require this function to also receive city/military
+    // counts it has no other use for.
 
-    // Embargo (requires currency tech or era >= 2, not vassal)
+    // Embargo (requires currency tech or civilizationEra >= 2, not vassal)
     const hasEmbargoTech = completedTechs.some(t => EMBARGO_TECHS.includes(t));
-    if ((era >= 2 || hasEmbargoTech) && !state.vassalage?.overlord) {
+    if ((civilizationEra >= 2 || hasEmbargoTech) && !state.vassalage?.overlord) {
       actions.push('propose_embargo');
     }
 
@@ -964,9 +992,10 @@ export function canOfferVassalage(
   peakCities: number,
   currentMilitary: number,
   peakMilitary: number,
-  era: number,
+  /** The acting civilization's own technology-derived era. Never World Age. */
+  civilizationEra: number,
 ): boolean {
-  if (era < 2) return false;
+  if (civilizationEra < 2) return false;
   if (peakCities < 2) return false;
   const citiesBelow = currentCities < peakCities * 0.5;
   const militaryBelow = currentMilitary < peakMilitary * 0.5;
@@ -1151,13 +1180,14 @@ export const EMBARGO_TECHS = ['currency', 'banking'];
 
 export function canProposeEmbargo(
   completedTechs: string[],
-  era: number,
+  /** The acting civilization's own technology-derived era. Never World Age. */
+  civilizationEra: number,
   treaties: Treaty[],
   targetCivId: string,
   isVassal: boolean = false,
 ): boolean {
   if (isVassal) return false;
-  if (era < 2 && !completedTechs.some(t => EMBARGO_TECHS.includes(t))) return false;
+  if (civilizationEra < 2 && !completedTechs.some(t => EMBARGO_TECHS.includes(t))) return false;
   const isAllied = treaties.some(t =>
     t.type === 'alliance' && (t.civA === targetCivId || t.civB === targetCivId),
   );

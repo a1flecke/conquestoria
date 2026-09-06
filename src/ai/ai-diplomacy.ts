@@ -21,11 +21,17 @@ export interface DiplomaticContext {
   targetHasKnownStrategicCapability: boolean;
 }
 
+/**
+ * `civilizationEra` must be the acting civ's own `resolveCivilizationEra(...)`
+ * result, never `state.era` (World Age -- the era a *majority* of living civs
+ * has reached). #1027: `basic-ai.ts` used to pass World Age here, which could
+ * let a laggard AI propose treaties an equally-behind human could not.
+ */
 export function evaluateDiplomacy(
   personality: PersonalityTraits,
   diplomacy: DiplomacyState,
   completedTechs: string[],
-  era: number,
+  civilizationEra: number,
   militaryStrengths: Record<string, MilitaryStrengthEstimate>,
   selfStrength: MilitaryStrengthEstimate,
   currentTurn: number,
@@ -37,7 +43,7 @@ export function evaluateDiplomacy(
   const decisions: DiplomaticDecision[] = [];
 
   for (const civId of Object.keys(diplomacy.relationships)) {
-    const actions = getAvailableActions(diplomacy, civId, completedTechs, era, hasArmsControlTreaty);
+    const actions = getAvailableActions(diplomacy, civId, { completedTechs, civilizationEra, hasArmsControlTreaty });
     const relationship = getRelationship(diplomacy, civId);
     const theirStrength = militaryStrengths[civId]?.midpoint ?? 0;
     const ownStrength = selfStrength.midpoint;
@@ -131,10 +137,11 @@ export function evaluateMinorCivDiplomacy(
 // `evaluateTreatyConsent` / `evaluatePeaceConsent`
 // (`src/ai/ai-treaty-consent.ts`), invoked by `proposeTreatyAgreement`.
 
+/** `civilizationEra` must be the acting civ's own `resolveCivilizationEra(...)` result, never World Age. */
 export function evaluateVassalage(
   personality: PersonalityTraits,
   diplomacy: DiplomacyState,
-  era: number,
+  civilizationEra: number,
   selfStrength: MilitaryStrengthEstimate,
   currentCities: number,
   currentMilitary: number,
@@ -142,7 +149,7 @@ export function evaluateVassalage(
 ): DiplomaticDecision | null {
   if (!canOfferVassalage(
     currentCities, diplomacy.vassalage.peakCities,
-    currentMilitary, diplomacy.vassalage.peakMilitary, era,
+    currentMilitary, diplomacy.vassalage.peakMilitary, civilizationEra,
   )) return null;
 
   // Find strongest non-enemy civ
