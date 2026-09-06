@@ -5,7 +5,7 @@ import {
   type AttackTargetResult,
 } from '@/systems/attack-targeting';
 import { getWrappedHexNeighbors, hexDistance, hexKey, hexNeighbors, wrapHexCoord, wrappedHexDistance } from '@/systems/hex-utils';
-import { UNIT_DEFINITIONS, getMovementCostForUnit } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS, getMovementCostForUnit, getBlockingMapEntityAt, BLOCKING_MAP_ENTITY_MESSAGES } from '@/systems/unit-system';
 import { buildUnitOccupancy, getUnitIdsAtCoord } from '@/systems/unit-occupancy';
 
 export type TransportFailureReason =
@@ -21,7 +21,13 @@ export type TransportFailureReason =
   | 'missing-destination'
   | 'invalid-destination'
   | 'destination-occupied'
-  | 'destination-not-land';
+  | 'destination-not-land'
+  // Canonical hostile-structure blockers (#970): a Transport can no more
+  // disembark its cargo onto one of these than a land unit can walk onto it
+  // (#843 / #845 / #965). Mirrors `getBlockingMapEntityAt`'s reason union.
+  | 'foreign-city'
+  | 'barbarian-camp'
+  | 'pirate-enclave';
 
 export type TransportCheckResult =
   | { ok: true }
@@ -97,6 +103,20 @@ function isDestinationOccupied(state: GameState, destination: HexCoord): boolean
   const normalized = normalizeDestination(state, destination);
   const occupancy = buildUnitOccupancy(state.units);
   return getUnitIdsAtCoord(occupancy, normalized).length > 0;
+}
+
+/**
+ * The canonical hostile-structure gate (#970), applied to the unload tile from
+ * the disembarking cargo unit's point of view. Ordinary movement's executor and
+ * range preview both already route through `getBlockingMapEntityAt`; transport
+ * unload is the same "a unit arrives on a tile" question, so it consults the same
+ * source of truth instead of a bespoke foreign-city-only check. Returns a typed
+ * `TransportCheckResult` failure (reason + player-facing copy shared with
+ * movement) when the tile carries a blocking entity, or `null` when it is clear.
+ */
+function blockingStructureFailure(state: GameState, cargo: Unit, destination: HexCoord): TransportCheckResult | null {
+  const blocker = getBlockingMapEntityAt(state, cargo, normalizeDestination(state, destination));
+  return blocker ? failure(blocker.reason, BLOCKING_MAP_ENTITY_MESSAGES[blocker.reason]) : null;
 }
 
 function canCargoSpendUnloadAction(cargo: Unit): boolean {
@@ -281,6 +301,7 @@ export function getUnloadDestinations(state: GameState, transportId: string, car
   return transportNeighbors(state, transport.position).filter(destination =>
     isLandDestination(state, cargo, destination)
     && !isDestinationOccupied(state, destination)
+    && !blockingStructureFailure(state, cargo, destination)
   );
 }
 
@@ -304,6 +325,8 @@ export function canUnloadUnitFromTransport(
   if (!isLandDestination(state, cargo, normalizedDestination)) return failure('destination-not-land', 'Unload onto land');
   if (transportDistance(state, transport.position, normalizedDestination) !== 1) return failure('invalid-destination', 'Unload next to land');
   if (isDestinationOccupied(state, normalizedDestination)) return failure('destination-occupied', 'Unload tile is occupied');
+  const blocked = blockingStructureFailure(state, cargo, normalizedDestination);
+  if (blocked) return blocked;
   return { ok: true };
 }
 

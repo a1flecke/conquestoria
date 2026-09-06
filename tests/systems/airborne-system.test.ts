@@ -704,3 +704,105 @@ describe('Air Assault solo-play parity (AI-triggered vs. human-triggered call th
     expect(result.ok).toBe(true);
   });
 });
+
+// #970: airborne landing legality must consult the canonical hostile-structure
+// query (getBlockingMapEntityAt) instead of its own narrower isBlockingCityFor
+// check. Before this fix, a Paratrooper / air-assault passenger could land
+// directly onto -- and then sit on -- a barbarian camp or a pirate
+// coastal-enclave anchor, both of which ordinary ground movement blocks (#845 /
+// #965). (1,1) is the fixture's canonical legal grassland target.
+function withCampAt(state: GameState, coord: { q: number; r: number }): GameState {
+  return { ...state, barbarianCamps: { 'camp-1': { id: 'camp-1', position: coord, strength: 10, spawnCooldown: 3 } } } as unknown as GameState;
+}
+
+function withEnclaveAt(state: GameState, coord: { q: number; r: number }): GameState {
+  return {
+    ...state,
+    pirates: { factions: { 'pirate-1': { id: 'pirate-1', headquarters: { kind: 'coastal-enclave', position: coord, integrity: 100, maxIntegrity: 100 } } } },
+  } as unknown as GameState;
+}
+
+describe('#970 paradrop cannot land on a hostile map structure', () => {
+  it('canParadrop rejects a barbarian camp tile with the barbarian-camp reason', () => {
+    const { state, unitId } = makeParadropFixture();
+    expect(canParadrop(withCampAt(state, { q: 1, r: 1 }), unitId, { q: 1, r: 1 }))
+      .toEqual({ ok: false, reason: 'barbarian-camp' });
+  });
+
+  it('canParadrop rejects a pirate coastal-enclave anchor with the pirate-enclave reason', () => {
+    const { state, unitId } = makeParadropFixture();
+    expect(canParadrop(withEnclaveAt(state, { q: 1, r: 1 }), unitId, { q: 1, r: 1 }))
+      .toEqual({ ok: false, reason: 'pirate-enclave' });
+  });
+
+  it('getParadropTargets omits a barbarian camp tile and an enclave anchor tile', () => {
+    const { state, unitId } = makeParadropFixture();
+    expect(getParadropTargets(withCampAt(state, { q: 1, r: 1 }), unitId).map(hexKey)).not.toContain('1,1');
+    expect(getParadropTargets(withEnclaveAt(state, { q: 1, r: 1 }), unitId).map(hexKey)).not.toContain('1,1');
+  });
+
+  it('still accepts a plain legal tile when the hostile structure is elsewhere (no over-blocking)', () => {
+    const { state, unitId } = makeParadropFixture();
+    // camp on the friendly-blocker tile, legal drop still available at (1,1).
+    expect(canParadrop(withCampAt(state, { q: 3, r: 0 }), unitId, { q: 1, r: 1 })).toEqual({ ok: true });
+  });
+
+  it('preview and executor agree: every getParadropTargets tile passes canParadrop, and the camp tile passes neither', () => {
+    const { state, unitId } = makeParadropFixture();
+    const camped = withCampAt(state, { q: 1, r: 1 });
+    for (const target of getParadropTargets(camped, unitId)) {
+      expect(canParadrop(camped, unitId, target)).toEqual({ ok: true });
+    }
+    expect(getParadropTargets(camped, unitId).some(t => hexKey(t) === '1,1')).toBe(false);
+    expect(canParadrop(camped, unitId, { q: 1, r: 1 }).ok).toBe(false);
+  });
+
+  it('does not leak a hidden camp: an unexplored tile with a camp still rejects as unexplored, not barbarian-camp', () => {
+    const { state, unitId } = makeParadropFixture();
+    // (2,2) is in range but deliberately unexplored in the fixture.
+    expect(canParadrop(withCampAt(state, { q: 2, r: 2 }), unitId, { q: 2, r: 2 }))
+      .toEqual({ ok: false, reason: 'unexplored' });
+  });
+
+  it('executeParadrop refuses to drop a unit onto a barbarian camp', () => {
+    const { state, unitId } = makeParadropFixture();
+    const result = executeParadrop(withCampAt(state, { q: 1, r: 1 }), unitId, { q: 1, r: 1 });
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('expected rejection');
+    expect(result.reason).toBe('barbarian-camp');
+  });
+});
+
+describe('#970 air assault cannot land on a hostile map structure', () => {
+  it('canAirAssault rejects a barbarian camp tile with the barbarian-camp reason', () => {
+    const { state, unitId } = makeAirAssaultFixture();
+    const check = canAirAssault(withCampAt(state, { q: 1, r: 1 }), unitId, { q: 1, r: 1 });
+    expect(check.ok).toBe(false);
+    if (check.ok) throw new Error('expected rejection');
+    expect(check.reason).toBe('barbarian-camp');
+  });
+
+  it('canAirAssault rejects a pirate coastal-enclave anchor with the pirate-enclave reason', () => {
+    const { state, unitId } = makeAirAssaultFixture();
+    const check = canAirAssault(withEnclaveAt(state, { q: 1, r: 1 }), unitId, { q: 1, r: 1 });
+    expect(check.ok).toBe(false);
+    if (check.ok) throw new Error('expected rejection');
+    expect(check.reason).toBe('pirate-enclave');
+  });
+
+  it('getAirAssaultTargets omits a barbarian camp tile and an enclave anchor tile', () => {
+    const { state, unitId } = makeAirAssaultFixture();
+    expect(getAirAssaultTargets(withCampAt(state, { q: 1, r: 1 }), unitId).map(hexKey)).not.toContain('1,1');
+    expect(getAirAssaultTargets(withEnclaveAt(state, { q: 1, r: 1 }), unitId).map(hexKey)).not.toContain('1,1');
+  });
+
+  it('preview and executor agree: every getAirAssaultTargets tile passes canAirAssault, and the camp tile passes neither', () => {
+    const { state, unitId } = makeAirAssaultFixture();
+    const camped = withCampAt(state, { q: 1, r: 1 });
+    for (const target of getAirAssaultTargets(camped, unitId)) {
+      expect(canAirAssault(camped, unitId, target).ok).toBe(true);
+    }
+    expect(getAirAssaultTargets(camped, unitId).some(t => hexKey(t) === '1,1')).toBe(false);
+    expect(canAirAssault(camped, unitId, { q: 1, r: 1 }).ok).toBe(false);
+  });
+});

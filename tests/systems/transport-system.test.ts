@@ -4,6 +4,7 @@ import { createDiplomacyState } from '@/systems/diplomacy-system';
 import { hexKey } from '@/systems/hex-utils';
 import {
   canLoadUnitOntoTransport,
+  canUnloadUnitFromTransport,
   detachCargoForEmbarkedAssault,
   getTransportCargoUsed,
   getEmbarkedAssaultTarget,
@@ -544,6 +545,84 @@ describe('transport system', () => {
     expect(getTransportCargoUsed(partialState, 'transport-p')).toBe(1);
     expect(canLoadUnitOntoTransport(partialState, 'cavalry-1', 'transport-p')).toEqual({
       ok: false, reason: 'no-capacity', message: 'No room on this Transport',
+    });
+  });
+
+  // #970: transport unload legality must consult the canonical hostile-structure
+  // query (getBlockingMapEntityAt), not just land + adjacency + unit occupancy.
+  // Before this fix a Transport could disembark its cargo directly onto a
+  // barbarian camp, a pirate coastal-enclave anchor, OR a foreign city -- all of
+  // which ordinary ground movement blocks (#843 / #845 / #965).
+  describe('#970 cannot unload cargo onto a hostile map structure', () => {
+    // warrior-1 aboard transport-1 (at (1,0)) with its action available. (1,-1)
+    // is an otherwise-legal adjacent land unload tile in the base fixture.
+    function readyLoadedState(mutate: (s: GameState) => void = () => {}): GameState {
+      const loaded = loadUnitOntoTransport(state(), 'warrior-1', 'transport-1');
+      if (!loaded.ok) throw new Error('setup: expected load to succeed');
+      const ready: GameState = {
+        ...loaded.state,
+        units: {
+          ...loaded.state.units,
+          'warrior-1': { ...loaded.state.units['warrior-1']!, hasMoved: false, hasActed: false, movementPointsLeft: 2 },
+        },
+      };
+      mutate(ready);
+      return ready;
+    }
+
+    it('rejects unload onto a barbarian camp with the barbarian-camp reason', () => {
+      const ready = readyLoadedState(s => {
+        s.barbarianCamps = { 'camp-1': { id: 'camp-1', position: { q: 1, r: -1 }, strength: 10, spawnCooldown: 3 } as any };
+      });
+      expect(getUnloadDestinations(ready, 'transport-1', 'warrior-1').map(hexKey)).not.toContain('1,-1');
+      expect(unloadUnitFromTransport(ready, 'transport-1', 'warrior-1', { q: 1, r: -1 })).toMatchObject({
+        ok: false, reason: 'barbarian-camp',
+      });
+    });
+
+    it('rejects unload onto a pirate coastal-enclave anchor with the pirate-enclave reason', () => {
+      const ready = readyLoadedState(s => {
+        (s as any).pirates = { factions: { 'pirate-1': { id: 'pirate-1', headquarters: { kind: 'coastal-enclave', position: { q: 1, r: -1 }, integrity: 100, maxIntegrity: 100 } } } };
+      });
+      expect(getUnloadDestinations(ready, 'transport-1', 'warrior-1').map(hexKey)).not.toContain('1,-1');
+      expect(unloadUnitFromTransport(ready, 'transport-1', 'warrior-1', { q: 1, r: -1 })).toMatchObject({
+        ok: false, reason: 'pirate-enclave',
+      });
+    });
+
+    it('rejects unload onto a foreign, unallied city with the foreign-city reason', () => {
+      const ready = readyLoadedState(s => {
+        s.map.tiles['1,-1'] = tile({ q: 1, r: -1 }, 'grassland', 'ai-1');
+        s.cities['city-2'] = city({ id: 'city-2', name: 'Foehaven', owner: 'ai-1', position: { q: 1, r: -1 }, ownedTiles: [{ q: 1, r: -1 }] });
+        s.civilizations['ai-1'] = {
+          ...s.civilizations.player,
+          id: 'ai-1', name: 'AI', isHuman: false, cities: ['city-2'], units: [],
+          diplomacy: createDiplomacyState(['player', 'ai-1'], 'ai-1'),
+        };
+      });
+      expect(getUnloadDestinations(ready, 'transport-1', 'warrior-1').map(hexKey)).not.toContain('1,-1');
+      expect(unloadUnitFromTransport(ready, 'transport-1', 'warrior-1', { q: 1, r: -1 })).toMatchObject({
+        ok: false, reason: 'foreign-city',
+      });
+    });
+
+    it('still unloads onto a plain adjacent land tile when a camp sits on a different neighbor', () => {
+      const ready = readyLoadedState(s => {
+        s.barbarianCamps = { 'camp-1': { id: 'camp-1', position: { q: 1, r: -1 }, strength: 10, spawnCooldown: 3 } as any };
+      });
+      expect(getUnloadDestinations(ready, 'transport-1', 'warrior-1').map(hexKey)).toContain('0,1');
+      expect(unloadUnitFromTransport(ready, 'transport-1', 'warrior-1', { q: 0, r: 1 }).ok).toBe(true);
+    });
+
+    it('preview and executor agree: every getUnloadDestinations tile passes canUnloadUnitFromTransport, and the camp tile passes neither', () => {
+      const ready = readyLoadedState(s => {
+        s.barbarianCamps = { 'camp-1': { id: 'camp-1', position: { q: 1, r: -1 }, strength: 10, spawnCooldown: 3 } as any };
+      });
+      for (const destination of getUnloadDestinations(ready, 'transport-1', 'warrior-1')) {
+        expect(canUnloadUnitFromTransport(ready, 'transport-1', 'warrior-1', destination).ok).toBe(true);
+      }
+      expect(getUnloadDestinations(ready, 'transport-1', 'warrior-1').some(d => hexKey(d) === '1,-1')).toBe(false);
+      expect(canUnloadUnitFromTransport(ready, 'transport-1', 'warrior-1', { q: 1, r: -1 }).ok).toBe(false);
     });
   });
 
