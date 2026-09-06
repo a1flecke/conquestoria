@@ -49,6 +49,8 @@ import { getBeastDefinitionByUnitType } from '@/systems/beast-definitions';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { getEmbarkedAssaultTarget } from '@/systems/transport-system';
 import { calculateCityAssaultStrengths } from '@/systems/city-siege-system';
+import { getCityDefenderTechs, resolveCityInteraction } from '@/systems/city-interaction';
+import { renderCityActionPreview } from '@/ui/city-action-preview';
 import { createGameButton } from '@/ui/ui-kit';
 import { createForeignCityEntryPanel } from '@/ui/foreign-city-entry-panel';
 import { createCityCapturePanel } from '@/ui/city-capture-panel';
@@ -601,8 +603,7 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
       case 'assault-preview': {
         const attackerUnit = session.getState().units[intent.attackerId];
         const targetCity = session.getState().cities[intent.cityId];
-        const ownerCiv = targetCity ? session.getState().civilizations[targetCity.owner] : undefined;
-        if (!attackerUnit || !targetCity || !ownerCiv) return;
+        if (!attackerUnit || !targetCity) return;
 
         const attackerMultiplier = intent.embarkedAssault
           ? getAmphibiousAssaultMultiplier(session.getState(), attackerUnit, targetCity.position)
@@ -610,71 +611,47 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
         const effectiveAttacker = intent.embarkedAssault && attackerUnit.transportId
           ? { ...attackerUnit, position: { ...session.getState().units[attackerUnit.transportId].position }, transportId: undefined }
           : attackerUnit;
-        const strengths = calculateCityAssaultStrengths(effectiveAttacker, targetCity, ownerCiv.techState.completed ?? [], session.getState().map, { attackerMultiplier });
-        const atkStr = Math.round(strengths.attackerStrength);
-        const cityStr = Math.round(strengths.intrinsicStrength);
-        const odds = strengths.winProbability > 0.55 ? 'Favorable' : strengths.winProbability > 0.45 ? 'Even' : 'Risky';
-        const oddsColor = strengths.winProbability > 0.55 ? '#6b9b4b' : strengths.winProbability > 0.45 ? '#e8c170' : '#d94a4a';
+
+        // #966: the preview's numbers, labels and denial copy all come from the single
+        // city-action resolver, so what the player is shown can never drift from what the
+        // executor will accept.
+        const interaction = resolveCityInteraction(
+          session.getState(),
+          effectiveAttacker,
+          targetCity,
+          { attackerMultiplier },
+        );
+        const strengths = calculateCityAssaultStrengths(
+          effectiveAttacker,
+          targetCity,
+          getCityDefenderTechs(session.getState(), targetCity),
+          session.getState().map,
+          { attackerMultiplier },
+        );
 
         const panel = deps.getElementById('info-panel');
         if (panel) {
           panel.style.display = 'block';
-          const previewDiv = document.createElement('div');
-          previewDiv.style.cssText = 'background:rgba(100,0,0,0.9);border-radius:12px;padding:12px 16px;';
-
-          const title = document.createElement('div');
-          title.style.cssText = 'font-size:13px;color:#e8c170;margin-bottom:6px;';
-          title.textContent = 'Assault Preview';
-          previewDiv.appendChild(title);
-
-          const stats = document.createElement('div');
-          stats.style.cssText = 'display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px;';
-          const atkSpan = document.createElement('span');
-          atkSpan.textContent = `${UNIT_DEFINITIONS[attackerUnit.type].name} (${atkStr})`;
-          const oddsSpan = document.createElement('span');
-          oddsSpan.style.cssText = `color:${oddsColor};font-weight:bold;`;
-          oddsSpan.textContent = odds;
-          const defSpan = document.createElement('span');
-          defSpan.textContent = `${targetCity.name} defenses (${cityStr})`;
-          stats.appendChild(atkSpan);
-          stats.appendChild(oddsSpan);
-          stats.appendChild(defSpan);
-          previewDiv.appendChild(stats);
-
-          const info = document.createElement('div');
-          info.style.cssText = 'font-size:10px;opacity:0.6;margin-bottom:8px;';
-          info.textContent = intent.embarkedAssault
-            ? 'Landing -50%. Marine training and adjacent shore bombardment are included.'
-            : 'A walled city fights back if it has no garrison.';
-          previewDiv.appendChild(info);
-
-          const btnRow = document.createElement('div');
-          btnRow.style.cssText = 'display:flex;gap:8px;';
-          const attackBtn = document.createElement('button');
-          attackBtn.id = 'btn-assault-confirm';
-          attackBtn.textContent = 'Attack';
-          attackBtn.style.cssText = 'flex:1;padding:8px;border-radius:8px;background:#d94a4a;border:none;color:white;font-weight:bold;cursor:pointer;';
-          const cancelBtn = document.createElement('button');
-          cancelBtn.id = 'btn-cancel-assault';
-          cancelBtn.textContent = 'Cancel';
-          cancelBtn.style.cssText = 'flex:1;padding:8px;border-radius:8px;background:rgba(255,255,255,0.15);border:none;color:white;cursor:pointer;';
-          btnRow.appendChild(attackBtn);
-          btnRow.appendChild(cancelBtn);
-          previewDiv.appendChild(btnRow);
-
-          panel.innerHTML = '';
-          panel.appendChild(previewDiv);
-
-          cancelBtn.addEventListener('click', selectionController.deselectUnit);
-          attackBtn.addEventListener('click', () => {
-            // Read live, as the module binding this replaced did.
-            const assaultStatus = deps.beginPlayerCityAssault(selection.getSelectedUnitId()!, intent.cityId, undefined, undefined, intent.embarkedAssault);
-            SFX.combat();
-            renderLoop.setGameState(session.getState());
-            deps.updateHUD();
-            if (assaultStatus === 'resolved') {
-              setTimeout(() => selectionController.selectNextUnit(), 400);
-            }
+          renderCityActionPreview(panel, {
+            attackerName: UNIT_DEFINITIONS[attackerUnit.type].name,
+            attackerStrength: strengths.attackerStrength,
+            cityName: targetCity.name,
+            interaction,
+            infoText: intent.embarkedAssault
+              ? 'Landing -50%. Marine training and adjacent shore bombardment are included.'
+              : 'A walled city fights back if it has no garrison.',
+          }, {
+            onCancel: selectionController.deselectUnit,
+            onCapture: () => {
+              // Read live, as the module binding this replaced did.
+              const assaultStatus = deps.beginPlayerCityAssault(selection.getSelectedUnitId()!, intent.cityId, undefined, undefined, intent.embarkedAssault);
+              SFX.combat();
+              renderLoop.setGameState(session.getState());
+              deps.updateHUD();
+              if (assaultStatus === 'resolved') {
+                setTimeout(() => selectionController.selectNextUnit(), 400);
+              }
+            },
           });
         }
         return;

@@ -251,6 +251,9 @@ describe('selected-unit-tap-intent', () => {
     expect(intent).toEqual({ kind: 'move' });
   });
 
+  // #966: an Archer can now target a city, but capture is still an adjacent-only action --
+  // beginMajorCityAssault rejects distance !== 1. Offering "assault" from two hexes would
+  // be a dead affordance. Bombarding from range is a separate Phase 2 action.
   it('returns move when an ordinary archer taps a non-adjacent hostile city', () => {
     const state = makeTapAssaultFixture();
     state.units['unit-1'] = { ...createUnit('archer', 'player', { q: 0, r: 0 }, mkC()), id: 'unit-1', movementPointsLeft: 2 };
