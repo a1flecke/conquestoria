@@ -181,10 +181,11 @@ export function createDiplomacyPanel(
       : pendingPeaceRequest.toCivId === state.currentPlayer ? 'incoming'
       : pendingPeaceRequest.fromCivId === state.currentPlayer ? 'outgoing'
       : 'none';
-    const actions = getAvailableActions(
-      playerDiplomacy, civId, playerCiv.techState.completed, resolveCivilizationEra(playerCiv.techState.completed),
-      hasArmsControlTreaty(state, state.currentPlayer),
-    );
+    const actions = getAvailableActions(playerDiplomacy, civId, {
+      completedTechs: playerCiv.techState.completed,
+      civilizationEra: resolveCivilizationEra(playerCiv.techState.completed),
+      hasArmsControlTreaty: hasArmsControlTreaty(state, state.currentPlayer),
+    });
 
     let barColor = '#888';
     if (relationship > 30) barColor = '#4a9b4a';

@@ -999,12 +999,17 @@ function processAITurnInternal(
     }
     civ = newState.civilizations[civId];
     const perception = administrativePerception;
+    // #1027: computed once here and reused for every diplomacy-era-gated call
+    // below (`evaluateDiplomacy`, the direct `getAvailableActions` re-check).
+    // Both used to receive `newState.era` (World Age) instead -- a laggard AI
+    // could unlock treaties an equally-behind human could not.
+    const civilizationEra = resolveCivilizationEra(civ.techState.completed);
     const {
       self: selfStrength,
       others: otherStrengths,
     } = buildDiplomaticStrengthEstimates(
       perception,
-      resolveCivilizationEra(civ.techState.completed),
+      civilizationEra,
     );
     const diplomacyContext: Record<string, { hasMet: boolean; hasBorderPressure: boolean; targetHasKnownStrategicCapability: boolean }> = {};
     for (const otherId of perception.knownCivIds) {
@@ -1051,7 +1056,7 @@ function processAITurnInternal(
       personality,
       civ.diplomacy,
       civ.techState.completed,
-      newState.era,
+      civilizationEra,
       otherStrengths,
       selfStrength,
       newState.turn,
@@ -1082,9 +1087,7 @@ function processAITurnInternal(
         && getAvailableActions(
           civ.diplomacy,
           plannedWarTarget,
-          civ.techState.completed,
-          newState.era,
-          civHasArmsControlTreaty,
+          { completedTechs: civ.techState.completed, civilizationEra, hasArmsControlTreaty: civHasArmsControlTreaty },
         ).includes('declare_war')
       ) {
         decisions.push({
@@ -1146,7 +1149,7 @@ function processAITurnInternal(
     const eligibleOverlords = Object.fromEntries(Object.entries(otherStrengths).filter(([id]) =>
       getVassalageEligibility(newState, civId, id).ok));
     const vassalageDecision = evaluateVassalage(
-      personality, currentVassalCandidate.diplomacy, resolveCivilizationEra(currentVassalCandidate.techState.completed), selfStrength,
+      personality, currentVassalCandidate.diplomacy, civilizationEra, selfStrength,
       currentCities, currentMilitary, eligibleOverlords,
     );
     if (vassalageDecision && vassalageDecision.action === 'offer_vassalage') {
