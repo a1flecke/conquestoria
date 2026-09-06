@@ -2501,8 +2501,11 @@ export interface GameEvents {
     cityId: string; attackerUnitId: string; recipientCivId: string;
     source: 'player' | 'ai' | 'barbarian' | 'pirate'; damage: number; attackerDied: boolean;
   };
-  'city:naval-bombarded': {
+  // #974: renamed from 'city:naval-bombarded' -- land and air units bombard cities too,
+  // so the old name became a lie. `domain` says who fired.
+  'city:bombarded': {
     cityId: string; recipientCivId: string; source: 'player' | 'ai'; hpLost: number;
+      domain: 'land' | 'naval' | 'air';
   };
   /** #545 MR4: fired by the strategic-launch flow's onConfirmLaunch handlers
    * after a successful executeStrategicLaunch commit, so the defending civ
