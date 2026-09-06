@@ -130,6 +130,68 @@ export function getCityBombardmentRawDamage(attacker: Unit): number {
   );
 }
 
+export interface CityBombardmentPreview {
+  /** HP the city would actually lose, after mitigation, garrison halving and the cap. */
+  hpLoss: number;
+  /** HP the city would lose ignoring this turn's cap -- used to tell the two causes apart. */
+  hpLossBeforeCap: number;
+  /** HP this city may still lose to bombardment this turn. */
+  capRemaining: number;
+  /** Damage the attacker would take in return (adjacent, walled cities only). */
+  counterFire: number;
+  hasGarrison: boolean;
+}
+
+/**
+ * What a bombardment WOULD do, without mutating anything. The preview panel and the AI's
+ * scoring both need the number before committing, and computing it here rather than in each
+ * caller is what keeps the figure the player is shown identical to the one that lands.
+ */
+export function previewUnitCityBombardment(
+  state: GameState,
+  attacker: Unit,
+  city: GameState['cities'][string],
+): CityBombardmentPreview {
+  const ownerCiv = state.civilizations[city.owner];
+  const domain = UNIT_DEFINITIONS[attacker.type].domain ?? 'land';
+  const hasGarrison = getCityGarrisonUnit(state.units, city) !== undefined;
+  const capRemaining = getRemainingBombardmentCap(city, state.turn);
+  const rawDamage = getCityBombardmentRawDamage(attacker);
+
+  const shared = {
+    city,
+    // Minor civs have no Civilization record; an empty tech list is the honest stand-in.
+    ownerCiv: ownerCiv ?? ({ techState: { completed: [] }, gold: 0, cities: [] } as never),
+    rawDamage,
+    attackerDomain: domain,
+    hasGarrison,
+    ignoreGarrison: true,
+    garrisonMitigation: CITY_BOMBARDMENT_GARRISON_MITIGATION,
+    isOwnersLastCity: (ownerCiv?.cities.length ?? 0) <= 1,
+    preventDestruction: true,
+    era: resolveCivilizationEra(ownerCiv?.techState.completed ?? []),
+    challenge: resolveChallengeForCiv(state, city.owner),
+  } as const;
+
+  const uncapped = resolveCitySiegeDamage({ ...shared });
+  const capped = resolveCitySiegeDamage({ ...shared, maxHpLoss: capRemaining });
+
+  const distance = state.map.wrapsHorizontally
+    ? wrappedHexDistance(attacker.position, city.position, state.map.width)
+    : hexDistance(attacker.position, city.position);
+  const counterFire = distance <= CITY_COUNTERFIRE_RANGE && ownerCiv
+    ? getCityCounterFireDamage(city, ownerCiv, domain, UNIT_DEFINITIONS[attacker.type].strength, false, Math.abs(state.turn * 7919) ^ 0x5a5a)
+    : 0;
+
+  return {
+    hpLoss: capped.hpLost,
+    hpLossBeforeCap: uncapped.hpLost,
+    capRemaining,
+    counterFire,
+    hasGarrison,
+  };
+}
+
 /**
  * Resolves a non-capturing bombardment against a hostile city, for land, naval, or air
  * attackers alike (#974).
@@ -153,8 +215,11 @@ export function resolveUnitCityBombardment(
   const legality = canUnitBombardCity(state, attacker, city);
   if (!legality.ok) return { ok: false, state, reason: legality.reason };
 
-  const ownerCiv = state.civilizations[city.owner];
-  if (!ownerCiv) return { ok: false, state, reason: 'missing-city-owner' };
+  // A minor civ (city-state) has no Civilization record at all. Bombarding one is legal --
+  // an empty tech list and no treasury is the honest stand-in, since neither a tech defense
+  // bonus nor a sack payout applies. Only CAPTURE is major-civ-only (see resolveCityInteraction).
+  const ownerCiv = state.civilizations[city.owner]
+    ?? ({ techState: { completed: [] }, gold: 0, cities: [] } as never);
 
   const domain = UNIT_DEFINITIONS[attacker.type].domain ?? 'land';
   const hasGarrison = getCityGarrisonUnit(state.units, city) !== undefined;

@@ -9,6 +9,7 @@ export interface ContextMenuTarget {
 export interface ContextMenuCallbacks {
   onStartAutoExplore?: (unitId: string) => void;
   onCancelAutoExplore?: (unitId: string) => void;
+  onCancelHoldSiege?: (unitId: string) => void;
 }
 
 function makeMenuButton(label: string, onClick?: () => void): HTMLButtonElement {
@@ -40,7 +41,11 @@ export function createContextMenu(
   } else if (target.unitId) {
     const unit = state.units[target.unitId];
     if (unit?.owner === state.currentPlayer) {
-      if (unit.automation?.mode === 'auto-explore') {
+      if (unit.automation?.mode === 'hold-siege') {
+        // #974: a standing bombardment order must always be cancellable from the unit it
+        // belongs to, not only by moving the unit.
+        menu.appendChild(makeMenuButton('Stop holding siege', () => callbacks.onCancelHoldSiege?.(unit.id)));
+      } else if (unit.automation?.mode === 'auto-explore') {
         menu.appendChild(makeMenuButton('Cancel auto-explore', () => callbacks.onCancelAutoExplore?.(unit.id)));
       } else {
         menu.appendChild(makeMenuButton('Auto-explore', () => callbacks.onStartAutoExplore?.(unit.id)));

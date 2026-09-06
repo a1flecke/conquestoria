@@ -14,6 +14,8 @@ export interface CityActionPreviewInput {
   attackerName: string;
   attackerStrength: number;
   cityName: string;
+  /** Current city HP out of 100, shown so "−12 HP" means something to the player. */
+  cityHp: number;
   interaction: CityInteraction;
   /** Extra explanatory line, e.g. the amphibious-landing penalty note. */
   infoText: string;
@@ -21,6 +23,10 @@ export interface CityActionPreviewInput {
 
 export interface CityActionPreviewCallbacks {
   onCapture: () => void;
+  onBombard: () => void;
+  /** Bombard now AND keep bombarding each turn until something stops it (#974). */
+  onHoldSiege: () => void;
+  onAttackDefender: () => void;
   onCancel: () => void;
 }
 
@@ -55,7 +61,7 @@ export function renderCityActionPreview(
 
   const title = document.createElement('div');
   title.style.cssText = 'font-size:13px;color:#e8c170;margin-bottom:6px;';
-  title.textContent = 'Assault Preview';
+  title.textContent = 'City Actions';
   previewDiv.appendChild(title);
 
   const stats = document.createElement('div');
@@ -78,6 +84,13 @@ export function renderCityActionPreview(
   }
   previewDiv.appendChild(stats);
 
+  // Without a visible HP figure, "-12 HP" is meaningless to a player who does not know
+  // cities have hit points at all.
+  const hpLine = document.createElement('div');
+  hpLine.style.cssText = 'font-size:11px;opacity:0.85;margin-bottom:6px;';
+  hpLine.textContent = `City strength: ${Math.max(0, Math.round(input.cityHp))}/100`;
+  previewDiv.appendChild(hpLine);
+
   const info = document.createElement('div');
   info.style.cssText = 'font-size:10px;opacity:0.6;margin-bottom:8px;';
   info.textContent = input.infoText;
@@ -93,15 +106,38 @@ export function renderCityActionPreview(
   }
 
   const btnRow = document.createElement('div');
-  btnRow.style.cssText = 'display:flex;gap:8px;';
+  btnRow.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;';
+
+  const actionButton = (id: string, label: string, background: string, onClick: () => void) => {
+    const button = document.createElement('button');
+    button.id = id;
+    button.textContent = label;
+    button.style.cssText = `flex:1;min-width:120px;padding:8px;border-radius:8px;background:${background};border:none;color:white;font-weight:bold;cursor:pointer;`;
+    button.addEventListener('click', onClick);
+    btnRow.appendChild(button);
+  };
+
+  // Order is deliberate: fight the defender, wear the city down, then take it -- the order a
+  // player works through a siege.
+  const defenderAction = input.interaction.available.find(action => action.kind === 'attack-defender');
+  if (defenderAction?.kind === 'attack-defender') {
+    actionButton('btn-attack-defender', defenderAction.label, '#d94a4a', callbacks.onAttackDefender);
+  }
+
+  const bombard = input.interaction.available.find(action => action.kind === 'bombard');
+  if (bombard?.kind === 'bombard') {
+    const label = bombard.counterFire > 0
+      ? `${bombard.label} (−${bombard.counterFire} to you)`
+      : bombard.label;
+    actionButton('btn-bombard-city', label, '#b8622f', callbacks.onBombard);
+    // A siege runs at least 5 turns by design (the per-turn damage cap), so offering the
+    // standing order right beside the single shot is what keeps it a decision rather than
+    // five identical clicks per unit.
+    actionButton('btn-hold-siege', 'Hold siege', '#8a5a2b', callbacks.onHoldSiege);
+  }
 
   if (capture?.kind === 'capture') {
-    const attackBtn = document.createElement('button');
-    attackBtn.id = 'btn-assault-confirm';
-    attackBtn.textContent = capture.label;
-    attackBtn.style.cssText = 'flex:1;padding:8px;border-radius:8px;background:#d94a4a;border:none;color:white;font-weight:bold;cursor:pointer;';
-    attackBtn.addEventListener('click', callbacks.onCapture);
-    btnRow.appendChild(attackBtn);
+    actionButton('btn-assault-confirm', capture.label, '#d94a4a', callbacks.onCapture);
   }
 
   const cancelBtn = document.createElement('button');

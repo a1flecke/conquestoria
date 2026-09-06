@@ -12,6 +12,7 @@ import {
   type LandUnitWaterRecovery,
 } from '@/systems/unit-water-recovery';
 import { getEmbarkedAssaultTargets } from '@/systems/transport-system';
+import { resolveCityInteraction } from '@/systems/city-interaction';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getShoreSupplyCapability } from '@/systems/supply-participation';
 import { LAND_SUPPLY_RADII } from '@/systems/supply-sources';
@@ -82,6 +83,12 @@ function buildWorkerGuidanceHighlights(
   return highlights;
 }
 
+/** True when the resolver has any legal action for this unit against this city. */
+function cityOffersAnAction(state: GameState, unit: GameState['units'][string], cityId: string): boolean {
+  const city = state.cities[cityId];
+  return city !== undefined && resolveCityInteraction(state, unit, city).available.length > 0;
+}
+
 function buildHostileOwners(state: GameState, civId: string): Set<string> {
   const civ = state.civilizations[civId];
   const hostile = new Set<string>(['barbarian', ...(civ?.diplomacy?.atWarWith ?? [])]);
@@ -128,11 +135,16 @@ export function buildSelectedUnitHighlights(state: GameState, unitId: string): S
     .filter(coord => isPreviewableMoveDestination(state, unit.position, coord));
   const zocLimitedRange = detailedRange.zocLimited
     .filter(coord => isPreviewableMoveDestination(state, unit.position, coord));
+  // #974: city targets are derived from the single city-action resolver rather than a
+  // `domain === 'naval'` guess. That guess was doubly wrong: it highlighted a city for a
+  // Frigate whose tap then produced a rejected move (a lie on the map), and it hid the city
+  // from every land ranged unit even once they could legitimately bombard it.
   const attackTargets = unit.transportId
     ? getEmbarkedAssaultTargets(state, unitId, { viewerId: state.currentPlayer })
     : getAttackTargets(state, unit, { viewerId: state.currentPlayer })
       .filter(target => target.result.targetType === 'unit'
-        || (target.result.targetType === 'city' && UNIT_DEFINITIONS[unit.type].domain === 'naval'));
+        || (target.result.targetType === 'city'
+          && cityOffersAnAction(state, unit, target.result.cityId)));
   const attackKeys = new Set(attackTargets.map(target => hexKey(target.coord)));
   const nonCombatMovementRange = movementRange
     .filter(coord => !attackKeys.has(hexKey(coord)));

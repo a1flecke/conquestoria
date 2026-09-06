@@ -168,21 +168,37 @@ describe('#966 resolveCityInteraction', () => {
     expect(beginMajorCityAssault(state, 'atk', 'target', { actor: 'player', civId: 'player' }).ok).toBe(false);
   });
 
-  // Minor civs have no `techState`; the resolver must handle them rather than throw or
-  // silently return nothing, which is exactly how bombardment would have no-opped.
-  //
-  // Scope note: beginMajorCityAssault explicitly rejects minor-civ cities ('not-major-city')
-  // -- they are captured through executeMinorCivConquest instead. Phase 1's preview never
-  // sees a minor-civ city (they route to the assault-minor-civ intent), so there is no live
-  // divergence; Phase 2 unifies the two executors behind this resolver.
-  it('handles a minor-civ city without a Civilization record', () => {
-    const { state, unit } = scenario({
-      attackerType: 'warrior', attackerPos: { q: 2, r: 0 }, cityOwner: 'mc-warriors',
-    });
-    state.civilizations.player.diplomacy.atWarWith = ['mc-warriors'];
+  // Minor civs have no `techState` and no Civilization record at all, so the resolver must
+  // handle them rather than throw -- that missing record is exactly why bombardment would
+  // have silently no-opped against a city-state.
+  describe('minor-civ (city-state) cities', () => {
+    function minorCivScenario(attackerType: UnitType, attackerPos: { q: number; r: number }) {
+      const built = scenario({ attackerType, attackerPos, cityOwner: 'mc-warriors' });
+      built.state.civilizations.player.diplomacy.atWarWith = ['mc-warriors'];
+      return built;
+    }
 
-    expect(() => kinds(state, unit)).not.toThrow();
-    expect(kinds(state, unit).available).toEqual(['capture']);
+    it('does not throw on a city with no Civilization record', () => {
+      const { state, unit } = minorCivScenario('warrior', { q: 2, r: 0 });
+      expect(() => kinds(state, unit)).not.toThrow();
+    });
+
+    // beginMajorCityAssault rejects a minor-civ city with 'not-major-city' -- city-states are
+    // taken through executeMinorCivConquest. Offering capture would be a preview the executor
+    // refuses, so parity requires denying it here.
+    it('denies capture and points at the dedicated city-state flow', () => {
+      const { state, unit } = minorCivScenario('warrior', { q: 2, r: 0 });
+      const { available, denied } = kinds(state, unit);
+
+      expect(available).not.toContain('capture');
+      expect(denied.capture).toBe('Use the city-state conquest action for this city.');
+      expect(beginMajorCityAssault(state, 'atk', 'target', { actor: 'player', civId: 'player' }).ok).toBe(false);
+    });
+
+    it('still allows bombarding a city-state, which has no separate executor', () => {
+      const { state, unit } = minorCivScenario('catapult', { q: 1, r: 0 });
+      expect(kinds(state, unit).available).toContain('bombard');
+    });
   });
 
   it('keys legality off the acting unit\'s owner, not state.currentPlayer (hot seat)', () => {
@@ -193,11 +209,71 @@ describe('#966 resolveCityInteraction', () => {
     expect(kinds(state, unit).available).toEqual(asPlayerSeat);
   });
 
-  // Phase 1 ships no bombard action; Phase 2 adds it. Guards against a dead affordance
-  // appearing early now that ranged units carry 'city' in attackProfile.targets.
-  it('never offers a bombard action in phase 1', () => {
-    const { state, unit } = scenario({ attackerType: 'catapult', attackerPos: { q: 1, r: 0 } });
-    expect(kinds(state, unit).available).not.toContain('bombard');
+  // #974 phase 2: the bombard action. This is what #966 actually asked for -- a ranged unit
+  // that can attack a city from where it stands.
+  describe('bombard', () => {
+    it('offers bombard to a siege unit standing off at range', () => {
+      const { state, unit } = scenario({ attackerType: 'catapult', attackerPos: { q: 1, r: 0 } });
+      expect(kinds(state, unit).available).toContain('bombard');
+    });
+
+    it('offers bombard to an archer -- the original #966 report', () => {
+      const { state, unit } = scenario({ attackerType: 'archer', attackerPos: { q: 1, r: 0 } });
+      expect(kinds(state, unit).available).toContain('bombard');
+    });
+
+    it('offers bombard THROUGH a garrison, alongside attacking the defender', () => {
+      const { state, unit } = scenario({
+        attackerType: 'catapult', attackerPos: { q: 1, r: 0 }, garrison: 'spearman',
+      });
+      expect(kinds(state, unit).available).toEqual(['attack-defender', 'bombard']);
+    });
+
+    it('labels bombard with the damage it will actually deal', () => {
+      const { state, unit } = scenario({ attackerType: 'catapult', attackerPos: { q: 1, r: 0 } });
+      const action = kinds(state, unit).result.available.find(a => a.kind === 'bombard');
+      if (action?.kind !== 'bombard') throw new Error('expected a bombard action');
+
+      expect(action.label).toBe(`Attack the city — −${action.hpLoss} HP`);
+      expect(action.hpLoss).toBeGreaterThan(0);
+    });
+
+    it('never offers bombard to a melee unit', () => {
+      const { state, unit } = scenario({ attackerType: 'warrior', attackerPos: { q: 2, r: 0 } });
+      expect(kinds(state, unit).available).not.toContain('bombard');
+    });
+
+    it('says nothing about bombarding to a melee unit, rather than adding noise', () => {
+      const { state, unit } = scenario({ attackerType: 'warrior', attackerPos: { q: 2, r: 0 } });
+      expect(kinds(state, unit).denied.bombard).toBeUndefined();
+    });
+
+    it('tells an out-of-range siege unit to move closer', () => {
+      const { state, unit } = scenario({ attackerType: 'catapult', attackerPos: { q: 0, r: 0 } });
+      expect(kinds(state, unit).denied.bombard).toBe('Move closer to attack this city.');
+    });
+
+    it('names the cap as the cause when this city is already fully shelled this turn', () => {
+      const { state, unit } = scenario({ attackerType: 'catapult', attackerPos: { q: 1, r: 0 } });
+      state.cities.target = { ...state.cities.target, bombardment: { turn: state.turn, hpLostThisTurn: 999 } };
+
+      expect(kinds(state, unit).available).not.toContain('bombard');
+      expect(kinds(state, unit).denied.bombard).toBe('This city has taken all the bombardment it can this turn.');
+    });
+
+    it('names fortifications as the cause when they absorb the shot entirely', () => {
+      const { state, unit } = scenario({ attackerType: 'archer', attackerPos: { q: 1, r: 0 } });
+      state.cities.target = { ...state.cities.target, buildings: ['walls', 'star_fort'] };
+      state.civilizations['ai-1'].techState.completed = ['fortification-engineering'];
+
+      expect(kinds(state, unit).available).not.toContain('bombard');
+      expect(kinds(state, unit).denied.bombard).toBe("This city's fortifications absorb your bombardment.");
+    });
+
+    it('does not offer bombard against a city you are not at war with', () => {
+      const { state, unit } = scenario({ attackerType: 'catapult', attackerPos: { q: 1, r: 0 }, atWar: false });
+      expect(kinds(state, unit).available).not.toContain('bombard');
+    });
   });
 });
 

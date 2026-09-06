@@ -17,6 +17,7 @@ export interface UnitStackPanelOptions {
 
 function unitStatus(unit: Unit): string {
   if (unit.automation?.mode === 'auto-explore') return 'Auto-explore';
+  if (unit.automation?.mode === 'hold-siege') return 'Holding siege';
   if (unit.hasActed || unit.movementPointsLeft <= 0) return 'Spent';
 
   const def = UNIT_DEFINITIONS[unit.type];

@@ -96,6 +96,8 @@ export interface MapInteractionControllerDeps {
   readonly openWonderAtlas: (initialWonderId?: string) => void;
   readonly executeAttack: (attackerId: string, targetKey: string) => void;
   readonly executeMinorCivConquest: (unitId: string, target: HexCoord, minorCivId: string, cityId: string) => void;
+  readonly bombardCity: (attackerId: string, cityId: string) => void;
+  readonly holdSiege: (attackerId: string, cityId: string) => void;
   readonly beginPlayerCityAssault: (
     attackerId: string,
     cityId: string,
@@ -635,12 +637,22 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
             attackerName: UNIT_DEFINITIONS[attackerUnit.type].name,
             attackerStrength: captureAction?.attackerStrength ?? 0,
             cityName: targetCity.name,
+            cityHp: targetCity.hp ?? 100,
             interaction,
             infoText: intent.embarkedAssault
               ? 'Landing -50%. Marine training and adjacent shore bombardment are included.'
               : 'A walled city fights back if it has no garrison.',
           }, {
             onCancel: selectionController.deselectUnit,
+            onBombard: () => {
+              deps.bombardCity(selection.getSelectedUnitId()!, intent.cityId);
+            },
+            onHoldSiege: () => {
+              deps.holdSiege(selection.getSelectedUnitId()!, intent.cityId);
+            },
+            onAttackDefender: () => {
+              deps.executeAttack(selection.getSelectedUnitId()!, hexKey(targetCity.position));
+            },
             onCapture: () => {
               // Read live, as the module binding this replaced did.
               const assaultStatus = deps.beginPlayerCityAssault(selection.getSelectedUnitId()!, intent.cityId, undefined, undefined, intent.embarkedAssault);

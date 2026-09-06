@@ -36,6 +36,8 @@ import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
 import { hexKey } from '@/systems/hex-utils';
 import { executeUnitMove } from '@/systems/unit-movement-system';
+import { resolveUnitCityBombardment } from '@/systems/city-bombardment-system';
+import { resolveCityInteraction } from '@/systems/city-interaction';
 import { buildCombatPresentation } from '@/systems/viewer-event-presentation';
 import { calculateCityYields } from '@/systems/resource-system';
 import { getNetworkCityYieldBonus, getNetworkUnitVisionBonus } from '@/systems/network-infrastructure-plans';
@@ -686,6 +688,8 @@ export function processTurn(
       const unit = newState.units[unitId];
       if (unit?.automation?.mode === 'auto-explore') {
         applyAutoExploreOrder(newState, unitId, { bus });
+      } else if (unit?.automation?.mode === 'hold-siege') {
+        applyHoldSiegeOrder(newState, unitId, unit.automation.cityId, bus);
       } else if (unit?.automation?.mode === 'journey') {
         const destination = unit.automation.destination;
         const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
@@ -1649,4 +1653,64 @@ export function processTurn(
   }
 
   return newState;
+}
+
+/**
+ * #974 Hold Siege: one turn's worth of a standing bombardment order.
+ *
+ * Re-resolves legality every turn through the same resolver the player's own tap uses, so a
+ * standing order can never do something a manual click could not. Clears itself and tells
+ * the player why the moment bombarding stops being possible -- an automation that silently
+ * stops is worse than no automation.
+ */
+export function applyHoldSiegeOrder(
+  state: GameState,
+  unitId: string,
+  cityId: string,
+  bus: EventBus,
+): void {
+  const clear = (reason: string) => {
+    const current = state.units[unitId];
+    if (current) state.units[unitId] = { ...current, automation: undefined };
+    bus.emit('unit:hold-siege-ended', { unitId, cityId, reason });
+  };
+
+  const unit = state.units[unitId];
+  const city = state.cities[cityId];
+  if (!unit) return;
+  if (!city) {
+    clear('The city is gone.');
+    return;
+  }
+  if (city.owner === unit.owner) {
+    clear(`${city.name} is yours now.`);
+    return;
+  }
+
+  const bombard = resolveCityInteraction(state, unit, city).available
+    .find(action => action.kind === 'bombard');
+  if (!bombard) {
+    const denial = resolveCityInteraction(state, unit, city).denied
+      .find(entry => entry.kind === 'bombard');
+    clear(denial?.reason ?? `Your unit can no longer bombard ${city.name}.`);
+    return;
+  }
+
+  const result = resolveUnitCityBombardment(state, { attackerUnitId: unitId, cityId, source: 'player' });
+  if (!result.ok) {
+    clear(`Your unit can no longer bombard ${city.name}.`);
+    return;
+  }
+
+  state.cities = result.state.cities;
+  state.units = result.state.units;
+  state.civilizations = result.state.civilizations;
+  if (result.cityEvent) bus.emit('city:bombarded', result.cityEvent);
+  if (result.batteryEvent) bus.emit('city:coastal-battery-fired', result.batteryEvent);
+
+  // Taking return fire ends the order: a standing order must not quietly grind a unit to
+  // death while the player is looking elsewhere.
+  if (result.counterFireDamage > 0 && state.units[unitId]) {
+    clear(`Your unit is under fire at ${city.name}.`);
+  }
 }
