@@ -77,7 +77,7 @@ Declared in `city-siege-system.ts`, documented in `.claude/rules/game-balance.md
 | Constant | Value | Derivation |
 |---|---|---|
 | `CITY_HP_DEFENSE_FLOOR` | `0.4` | A city bombarded to rubble keeps 40% of its defense. Against a pop-15 Walls + Star Fort city whose owner has Fortification Engineering and Professional Army (intrinsic 54) this moves a Tank from ~55% to ~75% and an Archer from ~41% to ~65%: decisive help, never a free metropolis. |
-| `CITY_BOMBARDMENT_COEFFICIENT` | `0.4` | Inherited unchanged from `resolveNavalCityBombardment`, so **naval bombardment damage stays bit-identical**. |
+| `CITY_BOMBARDMENT_COEFFICIENT` | `0.4` | Inherited unchanged from `resolveNavalCityBombardment`, so **per-shot naval damage is unchanged**. Note: the per-turn cap below applies to every domain, so a *fleet* can no longer exceed it against one city — an intended, uniform anti-stacking rule, corrected here from an earlier draft that wrongly claimed naval behaviour was bit-identical overall. |
 | `CITY_BOMBARDMENT_MAX_HP_LOSS_PER_TURN` | `20` | `99 ÷ 20` ⇒ any siege takes **≥5 turns regardless of era or stack size**. Necessary because friendly stacking is uncapped (audit #6); also normalises siege duration, which flat 100 HP otherwise leaves wildly era-dependent. |
 | `CITY_BOMBARDMENT_GARRISON_MITIGATION` | `0.5` | Keeps "station a defender" meaningful under decision #2. |
 | `CITY_BOMBARDMENT_REGEN_SUPPRESSION_TURNS` | `1` | One full turn of no repair after the last hit. |
@@ -305,7 +305,7 @@ variation (arrow volley → trebuchet → cannon → artillery) is Phase 4.
 | Target | Test |
 |---|---|
 | **Full-HP invariance** — assault odds at `hp === 100` are unchanged | Statistical sampling vs pre-change values; the single most important regression guard |
-| Naval bombardment damage unchanged | Exact-value assertion |
+| Per-shot naval damage unchanged (fleet totals now capped) | Exact-value assertion |
 | Siege ≥5 turns regardless of stack size | Cap test with 1, 4, and 10 bombardiers |
 | Garrison halves bombardment; still blocks capture | Both directions |
 | Regen boundary N / N+1 / N+2 | Explicit turn-order test |
