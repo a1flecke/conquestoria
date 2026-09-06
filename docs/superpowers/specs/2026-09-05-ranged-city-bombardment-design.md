@@ -76,7 +76,7 @@ Declared in `city-siege-system.ts`, documented in `.claude/rules/game-balance.md
 
 | Constant | Value | Derivation |
 |---|---|---|
-| `CITY_HP_DEFENSE_FLOOR` | `0.4` | A city bombarded to rubble keeps 40% of its defense. Against a pop-15 Walls+Star Fort+Fortification-Engineering city (intrinsic 54) this moves a Tank from 55% → 75% and an Archer from 41% → 65%: decisive help, never a free metropolis. |
+| `CITY_HP_DEFENSE_FLOOR` | `0.4` | A city bombarded to rubble keeps 40% of its defense. Against a pop-15 Walls + Star Fort city whose owner has Fortification Engineering and Professional Army (intrinsic 54) this moves a Tank from ~55% to ~75% and an Archer from ~41% to ~65%: decisive help, never a free metropolis. |
 | `CITY_BOMBARDMENT_COEFFICIENT` | `0.4` | Inherited unchanged from `resolveNavalCityBombardment`, so **naval bombardment damage stays bit-identical**. |
 | `CITY_BOMBARDMENT_MAX_HP_LOSS_PER_TURN` | `20` | `99 ÷ 20` ⇒ any siege takes **≥5 turns regardless of era or stack size**. Necessary because friendly stacking is uncapped (audit #6); also normalises siege duration, which flat 100 HP otherwise leaves wildly era-dependent. |
 | `CITY_BOMBARDMENT_GARRISON_MITIGATION` | `0.5` | Keeps "station a defender" meaningful under decision #2. |
@@ -108,8 +108,8 @@ never three synonyms.
 cityHpDefenseScale(city) =
   CITY_HP_DEFENSE_FLOOR + (1 - CITY_HP_DEFENSE_FLOOR) * ((city.hp ?? CITY_HP_MAX) / CITY_HP_MAX)
 
-getEffectiveCityAssaultDefense(city, ownerCiv) =
-  getCityIntrinsicStrength(city, ownerCiv, 'land') * cityHpDefenseScale(city)
+getEffectiveCityAssaultDefense(city, defenderCompletedTechs) =
+  getCityIntrinsicStrength(city, defenderCompletedTechs, 'land') * cityHpDefenseScale(city)
 ```
 
 `calculateCityAssaultStrengths` uses `getEffectiveCityAssaultDefense`. **`getCityIntrinsicStrength`

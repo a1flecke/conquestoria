@@ -47,6 +47,44 @@ export function getCityIntrinsicStrength(
   return base * breakdown.multiplier + breakdown.flatBonus;
 }
 
+// #966: a bombarded city is easier to storm. Without this, reducing a city's HP buys the
+// attacker nothing toward taking it, and the whole bombardment loop is hollow -- city.hp
+// and the capture roll were two systems that never touched.
+//
+// Deliberately floored: a city pounded to rubble keeps CITY_HP_DEFENSE_FLOOR of its
+// defense, so bombarding is decisive help rather than a free capture. Against a pop-15
+// Walls + Star Fort + Fortification-Engineering city (intrinsic 54) this moves a Tank from
+// ~55% to ~75% while an Archer only reaches ~65%.
+//
+// At full HP the scale is exactly 1, which is the prime directive of this change: every
+// number tuned before #966 -- the ~70% warrior-vs-outpost and ~48% tank-vs-metropolis
+// reference points in the comment above -- is untouched.
+export const CITY_HP_DEFENSE_FLOOR = 0.4;
+
+export function cityHpDefenseScale(city: City): number {
+  const hp = city.hp ?? CITY_HP_MAX;
+  const clamped = Math.max(0, Math.min(CITY_HP_MAX, hp));
+  return CITY_HP_DEFENSE_FLOOR + (1 - CITY_HP_DEFENSE_FLOOR) * (clamped / CITY_HP_MAX);
+}
+
+/**
+ * The defense a LAND ASSAULT actually fights through, i.e. intrinsic strength scaled by
+ * how wrecked the city is.
+ *
+ * Surgical by design: only `calculateCityAssaultStrengths` consumes this.
+ * `getCityIntrinsicStrength` stays HP-blind, so counter-fire
+ * (`getCityCounterFireDamage`) and the city panel's displayed Defense rating keep their
+ * exact pre-#966 behaviour, and bombardment DAMAGE mitigation stays HP-blind too -- were
+ * damage to scale with HP as well, each hit would land harder than the last and a siege
+ * would run away with itself.
+ */
+export function getEffectiveCityAssaultDefense(
+  city: City,
+  defenderCompletedTechs: string[],
+): number {
+  return getCityIntrinsicStrength(city, defenderCompletedTechs, 'land') * cityHpDefenseScale(city);
+}
+
 export interface CityAssaultStrengthBreakdown {
   attackerStrength: number;
   intrinsicStrength: number;
@@ -78,7 +116,8 @@ export function calculateCityAssaultStrengths(
     * (1 + riverAttackPenalty)
     * (attackerDefinition.cityAssaultMultiplier ?? 1)
     * (options.attackerMultiplier ?? 1);
-  const intrinsicStrength = getCityIntrinsicStrength(city, ownerCiv.techState.completed ?? [], 'land');
+  // #966: HP-scaled. Identical to the raw intrinsic strength at full HP.
+  const intrinsicStrength = getEffectiveCityAssaultDefense(city, ownerCiv.techState.completed ?? []);
   const winProbability = attackerStrength / (attackerStrength + intrinsicStrength);
   return { attackerStrength, intrinsicStrength, winProbability };
 }
