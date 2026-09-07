@@ -26,6 +26,7 @@ export type UnitMovementBlockerCode =
   | 'pirate-enclave'
   | 'unreachable'
   | 'insufficient-movement';
+
 export interface BlockingMapEntity {
   reason: 'foreign-city' | 'barbarian-camp' | 'pirate-enclave';
   entityId: string;

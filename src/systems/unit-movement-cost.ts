@@ -38,6 +38,7 @@ export function getMovementCostForUnit(
   }
   return getMovementCost(terrain);
 }
+
 export interface UnitMovementContext {
   completedTechs?: string[];
 }

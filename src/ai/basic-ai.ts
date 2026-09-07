@@ -283,7 +283,7 @@ function isCombatWarship(unit: Unit): boolean {
   return definition?.domain === 'naval' && definition.strength > 0 && definition.cargoCapacity === undefined;
 }
 
-function moveWarshipToward(state: GameState, civId: string, unit: Unit, target: HexCoord): GameState {
+function moveWarshipToward(state: GameState, civId: string, unit: Unit, target: HexCoord, bus: EventBus): GameState {
   const range = getMovementRangeDetails(state, unit.id).reachable;
   const best = range
     .map(coord => ({ coord, distance: pirateDistance(state, coord, target) }))
@@ -294,9 +294,11 @@ function moveWarshipToward(state: GameState, civId: string, unit: Unit, target: 
   // #1025: route through the canonical movement resolver rather than mutating
   // position via the low-level mover — the destination already came from the
   // canonical reachable set, so this only formalises the contract (and picks up
-  // visibility/discovery side effects the raw mutation skipped).
+  // visibility/discovery side effects the raw mutation skipped). Thread `bus` so
+  // the resulting mutations (fog reveal, first-contact) match their events, the
+  // same as every other executeUnitMove call in this file.
   const next = structuredClone(state);
-  const result = executeUnitMove(next, unit.id, best.coord, { actor: 'ai', civId });
+  const result = executeUnitMove(next, unit.id, best.coord, { actor: 'ai', civId, bus });
   return result.ok ? next : state;
 }
 
@@ -436,7 +438,7 @@ export function applyPirateAiResponse(state: GameState, civId: string, bus: Even
     warship = nextState.units[unitId];
     if (!warship) continue;
     const goal = choosePirateGoal(nextState, civId, currentPresentation.factions, warship);
-    if (goal) nextState = moveWarshipToward(nextState, civId, warship, goal);
+    if (goal) nextState = moveWarshipToward(nextState, civId, warship, goal, bus);
   }
   return nextState;
 }

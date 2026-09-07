@@ -115,11 +115,19 @@ describe('AI pirate response', () => {
     // apply, isolating the blockading/besieging-ship targeting tier this fix touches.
     revealFaction(state, { knownBehavior: 'besieging', observedUnitIds: [pirateShip.id] });
 
-    const result = applyPirateAiResponse(state, 'ai-1', new EventBus());
+    const bus = new EventBus();
+    const moves: string[] = [];
+    bus.on('unit:move', ({ unitId }) => moves.push(unitId));
+
+    const result = applyPirateAiResponse(state, 'ai-1', bus);
 
     expect(hexDistance(result.units[warship.id].position, pirateShip.position)).toBeLessThan(
       hexDistance(warship.position, pirateShip.position),
     );
+    // The warship move must go through the canonical executor WITH the bus, so its
+    // state mutations (position, fog reveal, first-contact) match their events —
+    // like every other executeUnitMove call in basic-ai.ts (#1025 review fix).
+    expect(moves).toContain(warship.id);
   });
 
   it('pays affordable tribute for an active blockade but refuses debt', () => {

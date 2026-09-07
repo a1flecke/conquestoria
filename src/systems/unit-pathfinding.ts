@@ -19,8 +19,7 @@ import {
  * over the canonical step-cost model. Imports the cost module; it does NOT need
  * the legality module (a route is map + cost only; blocker legality is applied
  * by `validateUnitMove` / the movement-queries range BFS, not here).
- */
-/**
+ *
  * Cost-aware A* over the canonical movement-step cost model
  * (`getMovementStepCostFor`). Route selection minimises **movement points**, not
  * hex count, so a longer road detour that is cheaper in movement points wins
