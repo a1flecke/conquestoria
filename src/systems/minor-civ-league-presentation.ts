@@ -172,8 +172,9 @@ export function getMinorCivLeaguesForPlayer(
   return Object.keys(state.minorCivs).sort().flatMap(minorCivId => {
     const league = getMinorCivLeagueForMember(state, minorCivId);
     if (!league || seen.has(league.id)) return [];
-    seen.add(league.id);
     const presentation = presentationForLeague(state, viewerCivId, minorCivId);
-    return presentation ? [presentation] : [];
+    if (!presentation) return [];
+    seen.add(league.id);
+    return [presentation];
   });
 }
