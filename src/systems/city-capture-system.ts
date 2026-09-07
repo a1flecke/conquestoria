@@ -26,7 +26,7 @@ import { buildUnitOccupancy, getUnitIdsAtCoord } from '@/systems/unit-occupancy'
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { resolveAirBaseLoss } from '@/systems/air-operations-system';
 import { buildMovePresentationByViewer } from '@/systems/viewer-event-presentation';
-import { eliminateCivilization } from '@/systems/civilization-elimination-system';
+import { reconcileCivilizationLiveness } from '@/systems/civilization-elimination-system';
 import { handleCityLeftCiv } from '@/systems/crisis-system';
 import { cancelInvalidNetworkPlans } from '@/systems/network-plan-system';
 import { createSimulationRng } from '@/systems/simulation-rng';
@@ -635,8 +635,10 @@ export function resolveMajorCityCapture(
       { kind: 'city', cityId },
       { kind: 'captured', victorId: newOwnerId },
     ).state;
-    const elimination = eliminateCivilization(afterAircraft, previousOwnerId, newOwnerId);
-    const stateAfterElimination = elimination.state;
+    const liveness = reconcileCivilizationLiveness(state, afterAircraft, newOwnerId);
+    const elimination = liveness.transitions.find(transition =>
+      transition.kind === 'eliminated' && transition.civId === previousOwnerId);
+    const stateAfterElimination = liveness.state;
     const territoryResult = recalculateTerritory(stateAfterElimination, {
       reason: 'capture',
       preserveCurrentHolderOnTie: true,
@@ -648,7 +650,7 @@ export function resolveMajorCityCapture(
       'occupied',
       0,
       cityId,
-      elimination.eliminated ? {
+      elimination?.kind === 'eliminated' ? {
         civId: elimination.civId,
         eliminatedBy: elimination.eliminatedBy,
         removedUnitIds: elimination.removedUnitIds,
@@ -698,8 +700,10 @@ export function resolveMajorCityCapture(
     legendaryWonderProjects: removeLegendaryWonderProjectsForCity(state.legendaryWonderProjects, cityId),
   };
   const afterProjectLoss = removeNationalProjectsForCity(nextState, cityId);
-  const elimination = eliminateCivilization(afterProjectLoss, previousOwnerId, newOwnerId);
-  const stateAfterElimination = elimination.state;
+  const liveness = reconcileCivilizationLiveness(state, afterProjectLoss, newOwnerId);
+  const elimination = liveness.transitions.find(transition =>
+    transition.kind === 'eliminated' && transition.civId === previousOwnerId);
+  const stateAfterElimination = liveness.state;
   const territoryResult = recalculateTerritory(stateAfterElimination, {
     reason: 'raze',
     preserveCurrentHolderOnTie: true,
@@ -711,7 +715,7 @@ export function resolveMajorCityCapture(
     'razed',
     goldAwarded,
     cityId,
-    elimination.eliminated ? {
+    elimination?.kind === 'eliminated' ? {
       civId: elimination.civId,
       eliminatedBy: elimination.eliminatedBy,
       removedUnitIds: elimination.removedUnitIds,
@@ -776,7 +780,11 @@ export function transferCapturedCityOwnership(
       },
     },
   };
-  const eliminatedState = eliminateCivilization(removeNationalProjectsForCity(nextState, cityId), previousOwnerId, newOwnerId).state;
+  const eliminatedState = reconcileCivilizationLiveness(
+    state,
+    removeNationalProjectsForCity(nextState, cityId),
+    newOwnerId,
+  ).state;
   return cancelInvalidNetworkPlans(recalculateTerritory(eliminatedState, {
     reason: 'capture',
     preserveCurrentHolderOnTie: true,
