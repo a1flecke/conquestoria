@@ -12,6 +12,11 @@ describe('world-pressure eligibility', () => {
       h1: { id: 'h1', isHuman: true, isEliminated: false, cities: ['c1'] },
       'ai-1': { id: 'ai-1', isHuman: false, isEliminated: false, cities: ['c2'] },
     },
+    cities: {
+      c1: { id: 'c1', owner: 'h1' },
+      c2: { id: 'c2', owner: 'ai-1' },
+    },
+    units: {},
   } as any);
   it('flags explicitly off: humans only', () => {
     expect(getCrisisEligibleCivIds(base('off'))).toEqual(['h1']);
@@ -34,10 +39,20 @@ describe('world-pressure eligibility', () => {
         h1: { id: 'h1', isHuman: true, isEliminated: true, cities: [] },
         'ai-1': { id: 'ai-1', isHuman: false, isEliminated: true, cities: [] },
       },
+      cities: {},
+      units: {},
     } as any;
     expect(isCrisisPressureEligible(state, 'h1')).toBe(false);
     expect(isCrisisPressureEligible(state, 'ai-1')).toBe(false);
     expect(isPiratePressureEligible(state, 'h1')).toBe(false);
     expect(isPiratePressureEligible(state, 'ai-1')).toBe(false);
+  });
+
+  it('does not treat a stale city roster as an owned city', () => {
+    const state = base('full');
+    state.civilizations.h1.cities = ['missing-city'];
+    state.cities.c1 = { id: 'c1', owner: 'ai-1' };
+
+    expect(getCrisisEligibleCivIds(state)).not.toContain('h1');
   });
 });
