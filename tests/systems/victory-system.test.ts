@@ -6,6 +6,7 @@ import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
 import { collectUsedCityNames } from '@/systems/city-name-system';
 import type { GameState } from '@/core/types';
+import { makeLivenessGame, withoutOwnedAssets } from './helpers/civilization-liveness-fixture';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -60,6 +61,23 @@ function makeState(civEntries: [string, string[]][]): GameState {
 }
 
 describe('checkDominationVictory', () => {
+  it('does not end a campaign because only the player has founded a city', () => {
+    const state = makeLivenessGame();
+
+    expect(checkDominationVictory(state)).toBeNull();
+    const result = processTurn(state, new EventBus());
+    expect(result.gameOver).toBe(false);
+    expect(Object.values(result.units).some(unit =>
+      unit.owner === 'ai-1' && unit.type === 'settler')).toBe(true);
+  });
+
+  it('does not let a ghost city roster block domination', () => {
+    const state = withoutOwnedAssets(makeLivenessGame(), 'ai-1');
+    state.civilizations['ai-1'].cities = ['city-ghost'];
+
+    expect(checkDominationVictory(state)).toBe('player');
+  });
+
   it('returns null when 2 major civs each have cities', () => {
     const state = makeState([['player', ['city-1']], ['ai-1', ['city-2']]]);
     expect(checkDominationVictory(state)).toBeNull();

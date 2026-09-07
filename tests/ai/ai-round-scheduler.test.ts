@@ -11,6 +11,7 @@ import { buildMajorCivPerception } from '@/ai/ai-perception';
 import { createEmptyMajorCivPortfolio } from '@/ai/ai-plan-portfolio';
 import { foundCity } from '@/systems/city-system';
 import type { Unit } from '@/core/types';
+import { makeLivenessGame } from '../systems/helpers/civilization-liveness-fixture';
 
 function prepared(state: ReturnType<typeof createNewGame>, civId: string): PreparedMajorCivPlan {
   const portfolio = createEmptyMajorCivPortfolio();
@@ -37,6 +38,13 @@ function prepared(state: ReturnType<typeof createNewGame>, civId: string): Prepa
 }
 
 describe('AI round scheduler', () => {
+  it('schedules a real settler omitted from its civilization roster', () => {
+    const state = makeLivenessGame();
+    state.civilizations['ai-1'].units = [];
+
+    expect(getLivingNonHumanMajorIds(state)).toContain('ai-1');
+  });
+
   it('processes every living non-human civilization once in rotating order', () => {
     const state = createNewGame({
       civType: 'egypt',
