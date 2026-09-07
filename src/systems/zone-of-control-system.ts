@@ -1,7 +1,9 @@
 import type { GameState, HexCoord, Unit } from '@/core/types';
 import { getWrappedHexNeighbors, hexKey, hexNeighbors } from '@/systems/hex-utils';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+// #1010: import from the catalog leaf, not the unit-system barrel — unit-system
+// imports getZoneOfControlAt from here, so this used to be an import cycle.
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { isHostileOwnerTo } from '@/systems/owner-hostility';
 
 function domainOf(unit: Unit): 'land' | 'naval' | 'air' {
