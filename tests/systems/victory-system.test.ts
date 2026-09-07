@@ -5,60 +5,10 @@ import { EventBus } from '@/core/event-bus';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
 import { collectUsedCityNames } from '@/systems/city-name-system';
-import type { GameState } from '@/core/types';
+import { foundCityInState } from '@/systems/city-founding-system';
 import { makeLivenessGame, withoutOwnedAssets } from './helpers/civilization-liveness-fixture';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
-
-function makeMinimalCiv(id: string, cityIds: string[]) {
-  return {
-    id,
-    name: id,
-    color: '#fff',
-    isHuman: id === 'player',
-    civType: 'generic',
-    cities: cityIds,
-    units: [],
-    techState: {
-      completed: [],
-      currentResearch: null,
-      researchQueue: [],
-      researchProgress: 0,
-      trackPriorities: {
-        military: 'medium', economy: 'medium', science: 'medium', civics: 'medium',
-        exploration: 'medium', agriculture: 'medium', medicine: 'medium', philosophy: 'medium',
-        arts: 'medium', maritime: 'medium', metallurgy: 'medium', construction: 'medium',
-        communication: 'medium', espionage: 'medium', spirituality: 'medium',
-      } as const,
-    },
-    gold: 0,
-    visibility: { tiles: {} },
-    score: 0,
-    diplomacy: {
-      relationships: {},
-      treaties: [],
-      events: [],
-      atWarWith: [],
-      treacheryScore: 0,
-      vassalage: {
-        overlord: null,
-        vassals: [],
-        protectionScore: 100,
-        protectionTimers: [],
-        peakCities: 0,
-        peakMilitary: 0,
-      },
-    },
-  };
-}
-
-function makeState(civEntries: [string, string[]][]): GameState {
-  const civilizations: GameState['civilizations'] = {};
-  for (const [id, cityIds] of civEntries) {
-    civilizations[id] = makeMinimalCiv(id, cityIds) as GameState['civilizations'][string];
-  }
-  return { civilizations } as unknown as GameState;
-}
 
 describe('checkDominationVictory', () => {
   it('does not end a campaign because only the player has founded a city', () => {
@@ -79,50 +29,63 @@ describe('checkDominationVictory', () => {
   });
 
   it('returns null when 2 major civs each have cities', () => {
-    const state = makeState([['player', ['city-1']], ['ai-1', ['city-2']]]);
-    expect(checkDominationVictory(state)).toBeNull();
+    const state = makeLivenessGame();
+    const aiSettler = Object.values(state.units).find(unit =>
+      unit.owner === 'ai-1' && unit.type === 'settler');
+    if (!aiSettler) throw new Error('Fixture requires an AI settler');
+    const founded = foundCityInState(state, aiSettler.id, new EventBus()).state;
+
+    expect(checkDominationVictory(founded)).toBeNull();
   });
 
   it('returns winner id when exactly one major civ has cities', () => {
-    const state = makeState([['player', ['city-1']], ['ai-1', []]]);
+    const state = withoutOwnedAssets(makeLivenessGame(), 'ai-1');
+    expect(checkDominationVictory(state)).toBe('player');
+  });
+
+  it('returns the sole surviving settler owner as the winner', () => {
+    const state = withoutOwnedAssets(createNewGame('egypt', 'settler-winner'), 'ai-1');
+
     expect(checkDominationVictory(state)).toBe('player');
   });
 
   it('returns null when no major civ has cities', () => {
-    const state = makeState([['player', []], ['ai-1', []]]);
+    const withoutPlayer = withoutOwnedAssets(makeLivenessGame(), 'player');
+    const state = withoutOwnedAssets(withoutPlayer, 'ai-1');
     expect(checkDominationVictory(state)).toBeNull();
   });
 
   it('returns null when only one major civ exists (no rival to eliminate)', () => {
-    const state = makeState([['player', ['city-1']]]);
+    const state = makeLivenessGame();
+    delete state.civilizations['ai-1'];
+    for (const [unitId, unit] of Object.entries(state.units)) {
+      if (unit.owner === 'ai-1') delete state.units[unitId];
+    }
     expect(checkDominationVictory(state)).toBeNull();
   });
 
   it('returns winner id when all 3 civs are present and 2 rivals have no cities', () => {
-    const state = makeState([
-      ['player', ['city-1', 'city-2']],
-      ['ai-1', []],
-      ['ai-2', []],
-    ]);
+    const created = createNewGame({
+      civType: 'egypt',
+      mapSize: 'small',
+      opponentCount: 2,
+      gameTitle: 'Three rivals',
+      seed: 'three-rival-victory',
+    });
+    const playerSettler = Object.values(created.units).find(unit =>
+      unit.owner === 'player' && unit.type === 'settler');
+    if (!playerSettler) throw new Error('Fixture requires player settler');
+    const playerFounded = foundCityInState(created, playerSettler.id, new EventBus()).state;
+    const withoutAiOne = withoutOwnedAssets(playerFounded, 'ai-1');
+    const state = withoutOwnedAssets(withoutAiOne, 'ai-2');
+
     expect(checkDominationVictory(state)).toBe('player');
   });
 });
 
 describe('processTurn victory wiring', () => {
   it('sets gameOver and winner when only one civ has cities', () => {
-    const state = createNewGame('egypt', 'test-victory-seed');
-
-    const settler = Object.values(state.units).find(
-      u => u.owner === 'player' && u.type === 'settler',
-    );
-    const pos = settler?.position ?? { q: 5, r: 5 };
-    const city = foundCity('player', pos, state.map, mkC(), {
-      civType: 'egypt',
-      usedNames: collectUsedCityNames(state),
-    });
-    state.cities[city.id] = city;
-    state.civilizations['player']!.cities = [city.id];
-    state.civilizations['ai-1']!.cities = [];
+    const state = withoutOwnedAssets(makeLivenessGame(), 'ai-1');
 
     const bus = new EventBus();
     const result = processTurn(state, bus);

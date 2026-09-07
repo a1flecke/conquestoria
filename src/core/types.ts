@@ -1481,7 +1481,8 @@ export interface Civilization {
   satelliteSurveillanceTargets?: Record<string, number>;
   breakaway?: BreakawayMetadata;
   nearDefeat?: boolean;   // true when cities.length <= 1; used by audio system
-  isEliminated?: boolean; // true once all cities are captured; hides civ from diplomacy
+  /** Terminal elimination transition; use getCivilizationLiveness for actor eligibility. */
+  isEliminated?: boolean;
   lastCombatTurnByLandmass?: Record<string, number>; // landmassId → turn of last combat
   // Per-player challenge (humans only): governs internal-pressure knobs (crisis
   // frequency/severity, unrest contagion) ONLY — AI behavior stays on the

@@ -17,16 +17,12 @@ import type {
 import { prepareMajorCivStrategicPlan } from './ai-prepared-turn';
 import type { AIDecisionTrace } from './ai-decision-trace';
 import { processAIGeneralCommand } from './ai-general-command';
+import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 
 export function getLivingNonHumanMajorIds(state: GameState): string[] {
-  return Object.values(state.civilizations)
-    .filter(civ => {
-      if (civ.isHuman || civ.isEliminated === true) return false;
-      const hasLiveCity = civ.cities.some(id => state.cities[id]?.owner === civ.id);
-      const hasLiveUnit = civ.units.some(id => state.units[id]?.owner === civ.id);
-      return hasLiveCity || hasLiveUnit;
-    })
-    .map(civ => civ.id)
+  return Object.entries(state.civilizations)
+    .filter(([civId, civ]) => !civ.isHuman && getCivilizationLiveness(state, civId).living)
+    .map(([civId]) => civId)
     .sort();
 }
 
@@ -258,7 +254,7 @@ export function processNonHumanMajorRound(
       !prepared
       || !civ
       || civ.isHuman
-      || civ.isEliminated
+      || !getCivilizationLiveness(working, civId).living
       || portfolio?.lastExecutedTurn === working.turn
     ) {
       continue;

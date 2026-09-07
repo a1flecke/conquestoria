@@ -1,4 +1,5 @@
 import type { GameState, HotSeatConfig, HotSeatPlayer } from './types';
+import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 
 export function getHumanPlayers(config: HotSeatConfig): HotSeatPlayer[] {
   return config.players.filter(p => p.isHuman);
@@ -23,8 +24,7 @@ export function isRoundComplete(config: HotSeatConfig, currentSlotId: string): b
 export function getActiveHumanPlayers(state: GameState): HotSeatPlayer[] {
   return (state.hotSeat?.players ?? []).filter(player => {
     if (!player.isHuman) return false;
-    const civilization = state.civilizations[player.slotId];
-    return civilization !== undefined && civilization.isEliminated !== true;
+    return getCivilizationLiveness(state, player.slotId).living;
   });
 }
 

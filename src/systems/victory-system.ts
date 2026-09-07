@@ -1,10 +1,11 @@
 import type { GameState } from '@/core/types';
+import { isMajorCivOwner } from '@/core/owner-kind';
+import { getCivilizationLiveness } from './civilization-liveness';
 
 export function checkDominationVictory(state: GameState): string | null {
-  const entries = Object.entries(state.civilizations);
-  if (entries.length < 2) return null;
+  const ids = Object.keys(state.civilizations).filter(isMajorCivOwner);
+  if (ids.length < 2) return null;
 
-  const withCities = entries.filter(([, civ]) => civ.cities.length > 0);
-  if (withCities.length === 1) return withCities[0][0];
-  return null;
+  const living = ids.filter(civId => getCivilizationLiveness(state, civId).living);
+  return living.length === 1 ? living[0] : null;
 }
