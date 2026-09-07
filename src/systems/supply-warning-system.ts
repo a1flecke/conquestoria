@@ -1,5 +1,6 @@
 import type { EventBus } from '@/core/event-bus';
 import type { GameState, LandSupplyState } from '@/core/types';
+import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { unitParticipatesInLandSupply } from '@/systems/supply-participation';
 
 export interface SupplyWarning {
@@ -37,7 +38,7 @@ export function deriveSupplyWarningTransitions(
   viewerId: string,
 ): SupplyWarning[] {
   const viewer = finalState.civilizations[viewerId];
-  if (!viewer?.isHuman || viewer.isEliminated) return [];
+  if (!viewer?.isHuman || !getCivilizationLiveness(finalState, viewerId).living) return [];
 
   const unitIdsByKind = new Map<SupplyWarning['kind'], string[]>();
   for (const unit of Object.values(finalState.units)) {
@@ -71,7 +72,7 @@ export function applySupplyWarningTransitions(
   bus: EventBus,
 ): void {
   for (const viewerId of Object.values(finalState.civilizations)
-    .filter(civ => civ.isHuman && !civ.isEliminated)
+    .filter(civ => civ.isHuman && getCivilizationLiveness(finalState, civ.id).living)
     .map(civ => civ.id)
     .sort()) {
     for (const warning of deriveSupplyWarningTransitions(beforeRound, finalState, viewerId)) {
