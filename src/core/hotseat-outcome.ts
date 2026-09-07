@@ -1,5 +1,6 @@
 import type { GameState } from '@/core/types';
 import {
+  getHumanPlayers,
   getActiveHumanPlayers,
   getNextActiveHumanPlayerId,
 } from '@/core/turn-cycling';
@@ -22,7 +23,8 @@ export function resolveHotSeatPostSimulation(
       nextHumanId: null,
     };
   }
-  if (getActiveHumanPlayers(state).length === 0) {
+  const configuredHumans = getHumanPlayers(state.hotSeat ?? { players: [] });
+  if (configuredHumans.length > 0 && getActiveHumanPlayers(state).length === 0) {
     return {
       state: {
         ...state,

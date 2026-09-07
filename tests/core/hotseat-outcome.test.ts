@@ -39,6 +39,16 @@ describe('post-simulation hot-seat outcome', () => {
     expect(result.state.gameOverReason).toBe('all-humans-eliminated');
   });
 
+  it('does not turn an AI-only simulation into a human-elimination outcome', () => {
+    const game = state();
+    game.hotSeat = { ...game.hotSeat!, players: game.hotSeat!.players.filter(player => !player.isHuman) };
+
+    const result = resolveHotSeatPostSimulation(game, 'ai-1');
+
+    expect(result.nextHumanId).toBeNull();
+    expect(result.state.gameOver).toBe(false);
+  });
+
   it('preserves an already resolved domination winner before all-human defeat', () => {
     const game = state();
     game.civilizations['player-1'].isEliminated = true;
