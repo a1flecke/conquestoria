@@ -1,6 +1,6 @@
 # #496 — City-state leagues and regional compacts
 
-Status: Phase A design; reviewed inline and corrected. Implementation has not started.
+Status: ✅ #496 product implementation merged in [#1029](https://github.com/a1flecke/conquestoria/pull/1029) and [#1035](https://github.com/a1flecke/conquestoria/pull/1035). Final-arc acceptance evidence is maintained in the companion implementation plan.
 Audit date: 2026-09-06. Initial base: `ff3c7eac5cb38d39e285d40f3e87ab2ab5bf4617`; final drift-audited base: `9e3db8f65245034ce19f102dddfbacb71c71991f` (`origin/main`). The two intervening #970 commits fix airborne/transport blockers; no compact dependency changed. The documentation worktree was rebased onto that final base, and the open-PR recheck remained empty.
 Issue: [#496](https://github.com/a1flecke/conquestoria/issues/496).
 Companion: [implementation plan](../plans/2026-09-06-issue-496-city-state-leagues-implementation.md).
