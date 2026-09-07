@@ -95,9 +95,32 @@ function formatCivLabel(state: GameState, viewerId: string, civId: string | unde
   return state.civilizations[civId]?.name ?? 'a foreign civilization';
 }
 
+const REGION_ORDINALS = [
+  'first', 'second', 'third', 'fourth', 'fifth',
+  'sixth', 'seventh', 'eighth', 'ninth', 'tenth',
+] as const;
+
+/**
+ * Turn a landmass key into advisor prose. `regionKey` is an internal,
+ * zero-indexed id (`continent-0`, `island-2`, from `landmass-tagger.ts`), and
+ * the old implementation just swapped the dash for a space — so the council
+ * literally said "urged expansion toward continent 0" to the player.
+ *
+ * That has always been reachable (any reloaded save had region keys), but
+ * #1004 made procedural maps carry them from turn 1 instead of only after a
+ * reload, which turns a rarely-seen wart into the normal wording. Advisor text
+ * is player-facing prose read by kids, so it says "the first continent", not a
+ * zero-indexed key. Presentation only — the key itself is unchanged and no
+ * gameplay reads this string.
+ */
 function formatRegionLabel(regionKey: string | undefined): string {
   if (!regionKey) return 'the frontier';
-  return regionKey.replace(/-/g, ' ');
+  const match = /^(continent|island)-(\d+)$/.exec(regionKey);
+  if (!match) return regionKey.replace(/-/g, ' ');
+  const kind = match[1];
+  const index = Number(match[2]);
+  const ordinal = REGION_ORDINALS[index];
+  return ordinal ? `the ${ordinal} ${kind}` : `${kind} ${index + 1}`;
 }
 
 function getCallbackTone(entry: CouncilMemoryEntry): CouncilCallbackTone {

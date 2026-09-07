@@ -3,10 +3,12 @@ import { createNewGame } from '@/core/game-state';
 import type { City, CombatRole, GameState, Unit } from '@/core/types';
 import {
   CURRENT_SAVE_SCHEMA_VERSION,
+  SAVE_MIGRATIONS,
   migrateSaveToCurrent,
   normalizeImprovementValues,
   UnsupportedSaveSchemaVersionError,
 } from '@/storage/save-migrations';
+import { CURRENT_SAVE_SCHEMA_VERSION as LEAF_SCHEMA_VERSION } from '@/storage/save-schema-version';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getTradeUnitTripBonus, canEstablishRoute } from '@/systems/trade-system';
 import { applyUnitUpgradeToState } from '@/systems/unit-upgrade-system';
@@ -21,6 +23,39 @@ import { getEligibleStrategicLaunchPlatforms } from '@/systems/strategic-launch-
 import { hasArmsControlTreaty } from '@/systems/diplomacy-system';
 import { getEffectiveTechCost, getTechById } from '@/systems/tech-system';
 import { PRE_V24_TECH_COST_BY_ID } from '@/storage/research-cost-migration-v24';
+
+describe('save migration registry integrity (#1004)', () => {
+  // CURRENT_SAVE_SCHEMA_VERSION was extracted to the dependency-free leaf
+  // module src/storage/save-schema-version.ts so createNewGame can stamp a
+  // fresh game with it (#1004). That extraction removed the constant's
+  // co-location with SAVE_MIGRATIONS, and added a SECOND consumer whose
+  // correctness depends on the two staying in step: if a migration is added
+  // without bumping the constant, migrateSaveToCurrent would never run it AND
+  // every new game would be stamped below it. These guard that coupling
+  // mechanically instead of by convention.
+  const versions = Object.keys(SAVE_MIGRATIONS).map(Number).sort((a, b) => a - b);
+
+  it('the leaf module and the save-migrations re-export are the same value', () => {
+    expect(LEAF_SCHEMA_VERSION).toBe(CURRENT_SAVE_SCHEMA_VERSION);
+  });
+
+  it('CURRENT_SAVE_SCHEMA_VERSION equals the highest registered migration', () => {
+    expect(versions.at(-1)).toBe(CURRENT_SAVE_SCHEMA_VERSION);
+  });
+
+  it('registers a migration for every version from 1 to CURRENT with no gaps', () => {
+    // migrateSaveToCurrent throws `Missing save migration for schema version N`
+    // on a gap, so a hole here is a hard load failure for every older save.
+    const expected = Array.from({ length: CURRENT_SAVE_SCHEMA_VERSION }, (_, i) => i + 1);
+    expect(versions).toEqual(expected);
+  });
+
+  it('every registered migration is callable', () => {
+    for (const version of versions) {
+      expect(typeof SAVE_MIGRATIONS[version], `migration ${version}`).toBe('function');
+    }
+  });
+});
 
 describe('save migrations', () => {
   it('#701 initializes and normalizes crisis-force records idempotently', () => {

@@ -30,13 +30,18 @@
  *      excluded and IS compared.
  *
  *  • `saveSchemaVersion`
- *      Persistence-layer metadata, not simulation state. An in-memory state
- *      straight out of `createNewGame` has no `saveSchemaVersion`; the same
- *      state after `serializeSaveFile` → load carries
- *      `CURRENT_SAVE_SCHEMA_VERSION` because `migrateSaveToCurrent` stamps
- *      it. That difference is the load path working correctly, not a
- *      simulation divergence. Tests that care (save/reload) assert
- *      `=== CURRENT_SAVE_SCHEMA_VERSION` separately and explicitly.
+ *      Persistence-layer metadata describing the on-disk format, not
+ *      simulation state: two states can be playing the identical game while
+ *      carrying different schema stamps. A legacy fixture loaded from schema
+ *      12 and a state created at the current schema are simulation-equivalent
+ *      the moment migration finishes, and #1006's compatibility matrix relies
+ *      on exactly that. Tests that care about the stamp assert
+ *      `=== CURRENT_SAVE_SCHEMA_VERSION` separately and explicitly
+ *      (`simulation-determinism.test.ts`, `new-game-completeness.test.ts`)
+ *      rather than folding it into state equality.
+ *      (Note: `createNewGame`/`createHotSeatGame` DO stamp this at creation as
+ *      of #1004 — a fresh game is already at the current schema. The exclusion
+ *      is about format-vs-simulation, not about the field being absent.)
  *
  * Everything investigated and deliberately NOT excluded: `gameId` (compared —
  * it is the determinism root), `turn`/`era`, `idCounters` (entity-id
@@ -66,8 +71,40 @@ export function stripForSimulationEquivalence<T>(state: T): T {
   return clone;
 }
 
+/**
+ * A plain object literal (or a null-prototype bag), which is all `GameState`
+ * is ever allowed to contain — see CLAUDE.md, "All game state is a single
+ * serializable plain object (no class instances)".
+ *
+ * `typeof x === 'object'` alone is NOT sufficient here and getting this wrong
+ * is silently catastrophic: a `Map`, `Set`, `Date` or class instance has no
+ * own enumerable string keys, so a record walk would see `Object.keys(...)`
+ * empty on both sides and report two completely different values as EQUAL.
+ * A comparison helper that can only pass is worse than no helper, so anything
+ * that is not a plain record or an array is rejected loudly instead (see
+ * `assertJsonSerializable`).
+ */
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+/**
+ * Fail loudly on a value the save path could not round-trip. Reaching this is
+ * either a caller passing something that is not simulation state, or state
+ * that has stopped being JSON-serializable — which is itself a save-correctness
+ * bug, not something to paper over with a lenient comparison.
+ */
+function assertJsonSerializable(value: unknown, path: string): void {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return;
+  if (isPlainRecord(value)) return;
+  const kind = (value as object).constructor?.name ?? 'non-plain object';
+  throw new Error(
+    `deterministic-state: value at "${path || '(root)'}" is a ${kind}, which is not JSON-serializable `
+      + 'simulation state. GameState must be a plain serializable object (CLAUDE.md). Comparing it '
+      + 'would silently report unequal values as equal, so this is rejected instead.',
+  );
 }
 
 function joinPath(base: string, segment: string | number): string {
@@ -91,6 +128,11 @@ export function firstSimulationDivergence(a: unknown, b: unknown): string | null
 }
 
 function walk(a: unknown, b: unknown, path: string): string | null {
+  // Checked before the identity short-circuit so an unsupported type is
+  // reported even when both sides happen to be the same reference.
+  assertJsonSerializable(a, path);
+  assertJsonSerializable(b, path);
+
   if (Object.is(a, b)) return null;
 
   const aIsArray = Array.isArray(a);
@@ -127,16 +169,24 @@ function walk(a: unknown, b: unknown, path: string): string | null {
 }
 
 function preview(value: unknown): string {
+  if (value === undefined) return 'undefined';
   let text: string;
   try {
-    text = typeof value === 'object' ? JSON.stringify(value) : String(value);
+    text = typeof value === 'object' && value !== null ? JSON.stringify(value) ?? String(value) : String(value);
   } catch {
     text = String(value);
   }
-  if (text === undefined) text = 'undefined';
   return text.length > 200 ? `${text.slice(0, 200)}…` : text;
 }
 
+/**
+ * Resolve a dotted path produced by `walk` back to its value, for the failure
+ * message only. Known limitation: a path segment is split on `.`, so an object
+ * key containing a literal dot would resolve to `undefined` here. No id format
+ * in this codebase contains one (`unit-N`, `city-N`, `village-N`, `q,r` hex
+ * keys, `civId:landmassId`), and this only ever degrades the printed preview —
+ * `firstSimulationDivergence` decides pass/fail on its own and is unaffected.
+ */
 function valueAtPath(root: unknown, path: string): unknown {
   if (path === '' || path === '(root)') return root;
   let current: unknown = root;
@@ -154,12 +204,17 @@ function valueAtPath(root: unknown, path: string): unknown {
  * identifying which contract broke.
  */
 export function assertSimulationEquivalent(a: unknown, b: unknown, label?: string): void {
-  const path = firstSimulationDivergence(a, b);
+  // Strip once and reuse for both the walk and the failure preview: these are
+  // whole-GameState structuredClones and this helper is called several times
+  // per contract test.
+  const strippedA = stripForSimulationEquivalence(a);
+  const strippedB = stripForSimulationEquivalence(b);
+  const path = walk(strippedA, strippedB, '');
   if (path === null) return;
   const where = label ? `${label}: ` : '';
   throw new Error(
     `${where}simulation state diverged at "${path}"\n` +
-      `  a: ${preview(valueAtPath(stripForSimulationEquivalence(a), path))}\n` +
-      `  b: ${preview(valueAtPath(stripForSimulationEquivalence(b), path))}`,
+      `  a: ${preview(valueAtPath(strippedA, path))}\n` +
+      `  b: ${preview(valueAtPath(strippedB, path))}`,
   );
 }

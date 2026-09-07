@@ -82,6 +82,61 @@ describe('#1004 firstSimulationDivergence', () => {
     // ...but a real value difference is still caught.
     expect(firstSimulationDivergence({ a: 1, b: undefined }, { a: 1, b: 2 })).toBe('b');
   });
+
+  // A non-plain object (Map/Set/Date/class instance) has no own enumerable
+  // string keys, so a naive record walk sees `Object.keys(...) === []` on both
+  // sides and reports two totally different Maps as EQUAL. That is the worst
+  // possible failure mode for a guard helper, and GameState is contractually
+  // plain + JSON-serializable (see CLAUDE.md "All game state is a single
+  // serializable plain object"), so encountering one is itself a bug worth
+  // surfacing loudly rather than silently passing.
+  describe('rejects non-plain objects instead of silently comparing them equal', () => {
+    it('throws for Maps with different contents rather than reporting them equal', () => {
+      expect(() => firstSimulationDivergence(
+        { registry: new Map([['a', 1]]) },
+        { registry: new Map([['b', 2]]) },
+      )).toThrow(/"registry".*is a Map, which is not JSON-serializable/s);
+    });
+
+    it('throws for Sets with different contents', () => {
+      expect(() => firstSimulationDivergence(
+        { seen: new Set(['x']) },
+        { seen: new Set(['y']) },
+      )).toThrow(/"seen".*is a Set, which is not JSON-serializable/s);
+    });
+
+    it('throws for Dates', () => {
+      expect(() => firstSimulationDivergence(
+        { at: new Date(0) },
+        { at: new Date(1) },
+      )).toThrow(/"at".*is a Date, which is not JSON-serializable/s);
+    });
+
+    it('a class instance is flattened by structuredClone, so it still compares by value', () => {
+      // structuredClone drops the prototype (unlike Map/Set/Date, which it
+      // preserves), so a class instance arrives here as a plain object and is
+      // compared field-by-field rather than rejected. Pinned so nobody
+      // "tightens" the guard into rejecting a case that is already safe.
+      class Thing { constructor(public n: number) {} }
+      expect(firstSimulationDivergence({ t: new Thing(1) }, { t: new Thing(2) })).toBe('t.n');
+      expect(firstSimulationDivergence({ t: new Thing(1) }, { t: new Thing(1) })).toBeNull();
+    });
+
+    it('names the path so the author can find the offending field', () => {
+      expect(() => firstSimulationDivergence(
+        { deeply: { nested: { bad: new Set([1]) } } },
+        { deeply: { nested: { bad: new Set([2]) } } },
+      )).toThrow(/deeply\.nested\.bad/);
+    });
+
+    it('still accepts null, arrays, and objects with a null prototype', () => {
+      expect(firstSimulationDivergence({ a: null }, { a: null })).toBeNull();
+      expect(firstSimulationDivergence({ a: [1, 2] }, { a: [1, 2] })).toBeNull();
+      const bare = Object.assign(Object.create(null), { x: 1 });
+      const bareToo = Object.assign(Object.create(null), { x: 1 });
+      expect(firstSimulationDivergence({ a: bare }, { a: bareToo })).toBeNull();
+    });
+  });
 });
 
 describe('#1004 assertSimulationEquivalent', () => {

@@ -3,6 +3,7 @@ paths:
   - "src/systems/**"
   - "src/core/**"
   - "src/ai/**"
+  - "src/storage/**"
 ---
 
 # Game Systems Rules
@@ -24,9 +25,22 @@ paths:
 3. **Deterministic AI.** Given the same seed and state, the AI makes the same decision (same `traces`) and reaches the same resulting state — in-process and across a save/reload boundary (`opponentAI` is persisted and must reconstruct identically).
 4. **Domain-stream independence.** Adding or draining randomness in one `createSimulationRng` domain must not shift any other domain's output. This is why keyed streams (above) are structurally required, not merely tidy.
 
-- **Compare simulation states only through the canonical helper** `assertSimulationEquivalent` / `firstSimulationDivergence` (`tests/helpers/deterministic-state.ts`). It strips exactly `playthroughId` (deliberately `Date.now()`-salted) and `saveSchemaVersion` (persistence metadata) and deep-compares everything else, reporting the first divergent path. Do **not** hand-roll a `JSON.stringify(a) === JSON.stringify(b)` comparison with its own ad-hoc field carve-out, and do **not** add an exclusion to that helper to make a test green — a divergence on any other field is a real determinism or save-normalization bug to investigate.
-- A newly created game (`createNewGame` / `createHotSeatGame`) is stamped with `CURRENT_SAVE_SCHEMA_VERSION` (`src/storage/save-schema-version.ts`). It must stay that way: an unstamped fresh game reads as schema 0 and its first autosave silently replays the entire historical migration chain over it (that was the #1004 root-cause bug).
+- **Compare simulation states only through the canonical helper** `assertSimulationEquivalent` / `firstSimulationDivergence` (`tests/helpers/deterministic-state.ts`). It strips exactly `playthroughId` (deliberately `Date.now()`-salted) and `saveSchemaVersion` (persistence metadata) and deep-compares everything else, reporting the first divergent path. Do **not** hand-roll a `JSON.stringify(a) === JSON.stringify(b)` comparison with its own ad-hoc field carve-out, and do **not** add an exclusion to that helper to make a test green — a divergence on any other field is a real determinism or save-normalization bug to investigate. It rejects `Map`/`Set`/`Date` outright rather than comparing them: those have no own enumerable keys, so a record walk would report two different values as equal, and simulation state must be plain and JSON-serializable anyway.
 - Heavy whole-simulation determinism tests belong in `SLOW_TEST_FILES` (`scripts/run-tests-by-tier.sh`) with a headroom-sized timeout, never in the fast push gate.
+
+### Game creation must produce load-canonical state
+
+Auto-save fires on game creation, and `normalizeLoadedState` runs on both the save and the load side. So anything the load path derives or defaults that `createNewGame` / `createHotSeatGame` does **not** is a field where **the game plays differently before its first reload than after it** — a bug the player experiences as "my save changed my game". #1004 found three:
+
+- **`saveSchemaVersion`** was unstamped, so a fresh game read as schema 0 and its first autosave replayed the entire historical migration chain over it (re-rolling late resources under a different RNG key, retiming in-flight research). Both creation functions now stamp `CURRENT_SAVE_SCHEMA_VERSION` (`src/storage/save-schema-version.ts`).
+- **`regionKey`** was only tagged by the balanced/single-continent generators, so a `'procedural'` map (the default) had none until `normalizeLandmassKeys` added them on load — which silently disabled `colonial-charter`'s foreign-landmass founding bonus and the entire land-resurgence threat system for a never-reloaded session. Now tagged at creation.
+- **`opponentAI.pressureByCiv`** was left empty by `createEmptyOpponentAIState` and backfilled per living human on load. Now normalized at creation.
+
+**Rule:** when you add a field that a load-path normalizer derives or defaults, set it at creation too — or prove in a test that leaving it absent is behaviourally identical. `tests/storage/new-game-completeness.test.ts` holds the ratchet (the exact set of fields load still adds to a fresh game) plus the per-field default contract; a new entry there needs a written justification. Note that `normalizeLandmassKeys` only re-tags when a key is **missing**, so a creation-time tag that is wrong is never repaired — tag only from data that cannot change afterwards (terrain is immutable after generation).
+
+### Save schema version and the migration registry move together
+
+`CURRENT_SAVE_SCHEMA_VERSION` lives in the dependency-free leaf module `src/storage/save-schema-version.ts` (so `src/core/game-state.ts` can stamp it without importing the migration graph) and is re-exported from `save-migrations.ts`. Adding `SAVE_MIGRATIONS[N]` **must** bump it in the same change: otherwise `migrateSaveToCurrent` never runs the new migration *and* every new game is stamped below it. `tests/storage/save-migrations.test.ts` → "save migration registry integrity (#1004)" enforces the coupling, no-gap coverage of `1..CURRENT`, and that both modules export the same value.
 
 ## State Mutations Must Match Events
 - If you emit an event (e.g., `city:unit-trained`), the state mutation (creating the unit, adding to arrays) MUST happen in the same block
