@@ -86,6 +86,119 @@ it('the movement family has exactly one low-level position executor (#1025)', ()
   expect(offenders, offenders.join('\n')).toEqual([]);
 });
 
+describe('#1010 — unit-system movement decomposition boundaries', () => {
+  const sys = resolve(__dirname, '../../src/systems');
+  const read = (name: string) => readFileSync(resolve(sys, name), 'utf8');
+
+  /** All `from '…'` module specifiers in a source file, resolved to a bare basename. */
+  function importsOf(name: string): string[] {
+    const src = read(name).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    return [...src.matchAll(/(?:from|import)\s+['"]([^'"]+)['"]/g)]
+      .map(m => m[1]!)
+      .map(spec => spec.replace(/^@\/systems\//, './').replace(/^\.\//, '').replace(/\.ts$/, ''));
+  }
+
+  const MOVEMENT_MODULES = [
+    'unit-definitions',
+    'unit-movement-cost',
+    'unit-movement-legality',
+    'unit-pathfinding',
+    'unit-movement-queries',
+    'unit-system',
+  ];
+
+  it('the movement modules form an acyclic import graph (incl. zone-of-control-system)', () => {
+    const nodes = [...MOVEMENT_MODULES, 'zone-of-control-system'];
+    const graph = new Map(nodes.map(n => [n, importsOf(`${n}.ts`).filter(s => nodes.includes(s))]));
+    const state = new Map<string, 'visiting' | 'done'>();
+    const stack: string[] = [];
+    const cycles: string[] = [];
+    const visit = (n: string) => {
+      if (state.get(n) === 'done') return;
+      if (state.get(n) === 'visiting') { cycles.push([...stack.slice(stack.indexOf(n)), n].join(' → ')); return; }
+      state.set(n, 'visiting');
+      stack.push(n);
+      for (const dep of graph.get(n) ?? []) visit(dep);
+      stack.pop();
+      state.set(n, 'done');
+    };
+    for (const n of nodes) visit(n);
+    expect(cycles, cycles.join('\n')).toEqual([]);
+  });
+
+  it('layering: cost imports neither pathfinding nor queries nor legality; legality imports none of them', () => {
+    const cost = importsOf('unit-movement-cost.ts');
+    expect(cost).not.toContain('unit-pathfinding');
+    expect(cost).not.toContain('unit-movement-queries');
+    expect(cost).not.toContain('unit-movement-legality');
+    expect(cost.some(s => s.startsWith('@/app') || s.startsWith('@/ui') || s.startsWith('@/renderer'))).toBe(false);
+
+    const legality = importsOf('unit-movement-legality.ts');
+    for (const forbidden of ['unit-pathfinding', 'unit-movement-queries', 'unit-movement-cost']) {
+      expect(legality, `legality must not import ${forbidden}`).not.toContain(forbidden);
+    }
+    expect(legality.some(s => s.startsWith('@/app') || s.startsWith('@/ui'))).toBe(false);
+
+    expect(importsOf('unit-pathfinding.ts')).not.toContain('unit-movement-queries');
+
+    // The catalog leaf pulls in no other system module (types + two data leaves only).
+    expect(importsOf('unit-definitions.ts').filter(s =>
+      !['@/core/types', 'pirate-definitions', 'barbarian-roster'].includes(s))).toEqual([]);
+  });
+
+  it('unit-system.ts is a barrel: pre-split public surface preserved, sibling internals excluded', async () => {
+    const mod = await import('@/systems/unit-system');
+    const PRE_SPLIT_PUBLIC = [
+      'UNIT_DEFINITIONS', 'UNIT_DESCRIPTIONS',
+      'createUnit', 'moveUnit', 'moveUnitWithZoneOfControl', 'resetUnitTurn',
+      'HEAL_PASSIVE', 'HEAL_RESTING', 'HEAL_IN_CITY', 'HEAL_IN_TERRITORY',
+      'canHeal', 'healUnit', 'restUnit', 'getUnmovedUnits', 'isUnitAwaitingOrders',
+      'getMovementCost', 'getMovementCostForUnit', 'canHullEnterOcean',
+      'getMovementCostForUnitInContext', 'getMovementStepCostFor',
+      'movementStepCostParamsForType', 'getMovementStepCost',
+      'BLOCKING_MAP_ENTITY_MESSAGES', 'isBlockingCityFor', 'getBlockingMapEntityAt',
+      'getBlockingMapEntityKeys', 'findPath', 'findPathToCity',
+      'getMovementBlockerReason', 'getMovementRange', 'getMovementRangeDetails',
+    ];
+    for (const name of PRE_SPLIT_PUBLIC) {
+      expect(mod, `unit-system barrel must re-export ${name}`).toHaveProperty(name);
+    }
+    // The four sibling-only cost helpers must NOT leak into the barrel.
+    for (const internal of ['terrainCostForParams', 'isPassableForParams', 'hasRoadMovementDiscount', 'isPassableForUnitInContext']) {
+      expect(mod, `${internal} must stay internal to unit-movement-cost`).not.toHaveProperty(internal);
+    }
+  });
+
+  it('unit-system.ts sheds the coupling that moved with the movement subsystem', () => {
+    const imp = importsOf('unit-system.ts');
+    for (const gone of ['diplomacy-system', 'owner-hostility', './river-system', 'river-system']) {
+      expect(imp, `unit-system.ts should no longer import ${gone}`).not.toContain(gone.replace('./', ''));
+    }
+    expect(imp).not.toContain('@/core/owner-kind');
+  });
+
+  it('exactly one implementation of the blocking predicate and the road-discount predicate', () => {
+    function walk(dir: string): string[] {
+      return readdirSync(dir, { withFileTypes: true }).flatMap(e => {
+        const full = resolve(dir, e.name);
+        return e.isDirectory() ? walk(full) : e.name.endsWith('.ts') ? [full] : [];
+      });
+    }
+    const files = walk(resolve(__dirname, '../../src'));
+    const defsOf = (re: RegExp) => files.filter(f => re.test(readFileSync(f, 'utf8')))
+      .map(f => f.slice(resolve(__dirname, '../../src').length + 1));
+    expect(defsOf(/function getBlockingMapEntityAt\(/)).toEqual(['systems/unit-movement-legality.ts']);
+    expect(defsOf(/function hasRoadMovementDiscount\(/)).toEqual(['systems/unit-movement-cost.ts']);
+    // the pre-#1010 dead duplicate is gone
+    expect(defsOf(/function getRoadMovementDiscount\(/)).toEqual([]);
+  });
+
+  it('the low-level position movers stay in unit-system.ts (keeps the #1025 guard valid)', () => {
+    expect(read('unit-system.ts')).toMatch(/export function moveUnitWithZoneOfControl\(/);
+    expect(read('unit-system.ts')).toMatch(/export function moveUnit\(/);
+  });
+});
+
 it('no app/presentation/ui file mutates the object returned by session.getState() directly', () => {
   // GameSession.commit()/update() are the only sanctioned publish path (see
   // src/app/ports.ts's GameSession doc comment). Mutating getState()'s return

@@ -2,6 +2,11 @@
 paths:
   - "src/systems/unit-movement-system.ts"
   - "src/systems/unit-system.ts"
+  - "src/systems/unit-movement-cost.ts"
+  - "src/systems/unit-movement-legality.ts"
+  - "src/systems/unit-pathfinding.ts"
+  - "src/systems/unit-movement-queries.ts"
+  - "src/systems/unit-definitions.ts"
   - "src/systems/airborne-system.ts"
   - "src/systems/transport-system.ts"
   - "src/systems/pirate-system.ts"
@@ -34,6 +39,18 @@ The movement-range BFS (`getMovementRangeDetails`) is a performance-motivated pr
 **derived from the same primitives** (`getMovementStepCost`, `getBlockingMapEntityAt`) — never
 a parallel reimplementation; a regression test pins that its reachable set agrees with the
 resolver.
+
+**Where these live (#1010):** the movement subsystem is decomposed into
+`unit-movement-cost.ts` (the step-cost model — pure map+mover, never reads `GameState`),
+`unit-movement-legality.ts` (the single source of truth for map-entity blockers —
+`getBlockingMapEntityAt` / `getBlockingMapEntityKeys` / `BLOCKING_MAP_ENTITY_MESSAGES`),
+`unit-pathfinding.ts` (cost-aware A* — imports cost only), and `unit-movement-queries.ts`
+(read-only derived answers: `getMovementRange*`, `getMovementBlockerReason`). `unit-system.ts`
+re-exports all of them and keeps unit lifecycle + healing + `UNIT_DESCRIPTIONS`. Layering is
+guarded by `tests/app/architecture-boundaries.test.ts`: pathfinding→cost, queries→cost+legality
++pathfinding, legality→nothing in the subsystem, no cycles. `getMovementBlockerReason` is a
+second (latent) legality derivation kept verbatim by #1010 — collapsing it onto the resolver is
+tracked under #1025 (`tests/systems/unit-movement-resolver-parity.test.ts`).
 
 ## The sibling movement actions
 
