@@ -27,6 +27,7 @@ tests/app/determinism-guard.test.ts
 tests/app/simulation-determinism.test.ts
 tests/core/turn-manager-beasts.test.ts
 tests/integration/save-load-mass-discovery.test.ts
+tests/storage/save-compat-matrix.test.ts
 tests/integration/pacing-simulation.test.ts
 tests/ui/tech-panel.test.ts
 tests/systems/pacing-production-budget.test.ts

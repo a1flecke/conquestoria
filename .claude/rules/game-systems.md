@@ -42,6 +42,15 @@ Auto-save fires on game creation, and `normalizeLoadedState` runs on both the sa
 
 `CURRENT_SAVE_SCHEMA_VERSION` lives in the dependency-free leaf module `src/storage/save-schema-version.ts` (so `src/core/game-state.ts` can stamp it without importing the migration graph) and is re-exported from `save-migrations.ts`. Adding `SAVE_MIGRATIONS[N]` **must** bump it in the same change: otherwise `migrateSaveToCurrent` never runs the new migration *and* every new game is stamped below it. `tests/storage/save-migrations.test.ts` → "save migration registry integrity (#1004)" enforces the coupling, no-gap coverage of `1..CURRENT`, and that both modules export the same value.
 
+### A persistent `GameState` shape change needs a migration or a proof it does not (#1006)
+
+"Persistent `GameState` shape" = any field that is serialized into a save (everything on `GameState` except the few deliberately-transient bits). Adding, removing, renaming, retyping, or changing the required/optional-ness of one is a **save-compatibility change**, and every one of them must ship with **one of**:
+
+1. **An ordered migration + a migration test.** A numbered `SAVE_MIGRATIONS[N]` entry (bump `CURRENT_SAVE_SCHEMA_VERSION`, per the section above) *plus* a well-formed matrix case in `tests/storage/fixtures/save-compat/manifest.ts` for source version `N-1`, and — if the migration only exists to scrub hand-edited corruption — a `malformed-repair` case too. `tests/storage/save-compat-coverage.test.ts` (fast tier) fails if the version bump lands without the manifest entry.
+2. **A written proof + test that the change is safely additive.** The field is optional, every reader already tolerates its absence (`?? default` / optional chaining), and a test demonstrates a save that predates the field loads and processes a turn unchanged. `tests/storage/new-game-completeness.test.ts` (the load-canonicalisation ratchet) and the matrix's own "strip the field for pre-CURRENT source versions" coverage are where that lives — extend them rather than asserting it ad hoc in a comment.
+
+The full `migrate → normalize → run a few rounds → save → reload → shared invariant validators` sweep across every representable version is `tests/storage/save-compat-matrix.test.ts` (slow tier). The shared validators it asserts (`tests/helpers/save-state-invariants.ts`: bilateral war, city + unit rosters, cargo reciprocity, eliminated-civ entities) are the minimal structural contract a migrated save must still satisfy; the dedicated invariant issues (#995 / #997 / #1000 / #1001) own making each exhaustive. Do **not** assert `migrated.saveSchemaVersion === CURRENT` and stop — that proves the migration *ran*, not that the result is playable.
+
 ## State Mutations Must Match Events
 - If you emit an event (e.g., `city:unit-trained`), the state mutation (creating the unit, adding to arrays) MUST happen in the same block
 - Events are notifications for UI/logging — they do NOT trigger state changes
