@@ -190,6 +190,16 @@ describe('unit-lifecycle-system', () => {
     expect(warningUnits).not.toContain(secondUnitId);
     expect(warningUnits).not.toContain(enemyUnitId);
   });
+
+  it('returns an owned unit even when a stale civilization roster omits it', () => {
+    const state = createNewGame(undefined, 'issue-981-unrostered-unit', 'small');
+    const playerId = state.currentPlayer;
+    const unit = createUnit('warrior', playerId, { q: 4, r: 4 }, mkC());
+    state.units[unit.id] = unit;
+
+    expect(getUnmovedUnitsForEndTurn(state, playerId).map(candidate => candidate.id))
+      .toContain(unit.id);
+  });
 });
 
 describe('fortifyUnitInState / unfortifyUnitInState', () => {
