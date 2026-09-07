@@ -105,14 +105,25 @@ describe('#1010 — unit-system movement decomposition boundaries', () => {
     'unit-pathfinding',
     'unit-movement-validation',
     'unit-movement-queries',
+    'unit-movement-explainer',
     'unit-system',
   ];
 
   it('validation is leaf-ward: it imports no execution, barrel, or query module', () => {
     const validation = importsOf('unit-movement-validation.ts');
-    for (const forbidden of ['unit-system', 'unit-movement-system', 'unit-movement-queries']) {
+    for (const forbidden of ['unit-system', 'unit-movement-system', 'unit-movement-queries', 'unit-movement-explainer']) {
       expect(validation, `validation must not import ${forbidden}`).not.toContain(forbidden);
     }
+  });
+
+  it('the tap explainer is NOT re-exported through the unit-system barrel (it would cycle)', () => {
+    // unit-movement-explainer → unit-movement-validation → unit-occupancy → air-operations-system
+    // → unit-system barrel. Re-exporting the explainer from the barrel closes that loop and
+    // leaves TRAINABLE_UNITS / BUILDINGS undefined at import time in downstream modules.
+    expect(importsOf('unit-system.ts')).not.toContain('unit-movement-explainer');
+    const explainer = importsOf('unit-movement-explainer.ts');
+    expect(explainer).not.toContain('unit-system');
+    expect(explainer).toContain('unit-movement-validation');
   });
 
   it('unit-movement-system still re-exports the validation API (barrel compat)', async () => {
@@ -184,7 +195,7 @@ describe('#1010 — unit-system movement decomposition boundaries', () => {
       'movementStepCostParamsForType', 'getMovementStepCost',
       'BLOCKING_MAP_ENTITY_MESSAGES', 'isBlockingCityFor', 'getBlockingMapEntityAt',
       'getBlockingMapEntityKeys', 'findPath', 'findPathToCity',
-      'getMovementBlockerReason', 'getMovementRange', 'getMovementRangeDetails',
+      'getMovementRange', 'getMovementRangeDetails',
     ];
     for (const name of PRE_SPLIT_PUBLIC) {
       expect(mod, `unit-system barrel must re-export ${name}`).toHaveProperty(name);
@@ -193,6 +204,11 @@ describe('#1010 — unit-system movement decomposition boundaries', () => {
     for (const internal of ['terrainCostForParams', 'isPassableForParams', 'hasRoadMovementDiscount', 'isPassableForUnitInContext']) {
       expect(mod, `${internal} must stay internal to unit-movement-cost`).not.toHaveProperty(internal);
     }
+    // #1025 MR4: getMovementBlockerReason moved OUT of the barrel (cycle) to its own module;
+    // the MovementBlockerReason *type* is still re-exported here.
+    expect(mod, 'getMovementBlockerReason must NOT be on the barrel post-#1025-MR4').not.toHaveProperty('getMovementBlockerReason');
+    const explainer = await import('@/systems/unit-movement-explainer');
+    expect(explainer).toHaveProperty('getMovementBlockerReason');
   });
 
   it('unit-system.ts sheds the coupling that moved with the movement subsystem', () => {

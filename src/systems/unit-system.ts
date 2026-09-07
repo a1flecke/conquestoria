@@ -33,12 +33,14 @@ export {
 } from './unit-movement-legality';
 export { findPath, findPathToCity } from './unit-pathfinding';
 export {
-  getMovementBlockerReason,
   getMovementRange,
   getMovementRangeDetails,
   type MovementBlockerReason,
   type MovementRangeDetails,
 } from './unit-movement-queries';
+// #1025 MR4: getMovementBlockerReason is NOT re-exported here — it lives in
+// unit-movement-explainer.ts and depends on unit-movement-validation.ts, whose deps would
+// cycle back through this barrel. Import it from '@/systems/unit-movement-explainer'.
 
 const VIKING_MOBILITY_UNITS = new Set<UnitType>(['scout', 'warrior', 'archer', 'swordsman']);
 

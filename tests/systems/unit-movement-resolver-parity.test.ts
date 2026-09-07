@@ -1,22 +1,16 @@
 /**
- * #1010 / #1025 follow-up guard — `getMovementBlockerReason` (the player-facing
- * tap explainer, now in unit-movement-queries.ts) is a SECOND derivation of
- * movement legality alongside `resolveUnitMoveIntent`. #1010 moves it verbatim
- * rather than freezing the gap; this test pins the current relationship so a
- * future divergence is caught, and marks the known-incomplete direction `.todo`
- * against the #1025 follow-up.
+ * #1025 MR4 guard — `getMovementBlockerReason` (the player-facing tap explainer in
+ * `unit-movement-explainer.ts`) is now the VIEWER-SCOPED PROJECTION of
+ * `resolveUnitMoveIntent`, not a second legality implementation. This pins that every
+ * resolver rejection for an explored destination surfaces the identical explainer code.
  */
 import { describe, it, expect } from 'vitest';
-import type { GameMap, GameState, HexCoord, Unit } from '@/core/types';
+import type { GameMap, GameState } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
 import { createEmptyPirateState } from '@/core/pirate-state';
-import {
-  createUnit,
-  getMovementBlockerReason,
-  getBlockingMapEntityAt,
-  getMovementRangeDetails,
-} from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-system';
+import { getMovementBlockerReason } from '@/systems/unit-movement-explainer';
 import { resolveUnitMoveIntent } from '@/systems/unit-movement-system';
 
 function grassland(w: number, h: number): GameMap {
