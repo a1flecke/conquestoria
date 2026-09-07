@@ -1,6 +1,8 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import type { GameState } from '@/core/types';
 import { CURRENT_SAVE_SCHEMA_VERSION } from '@/storage/save-schema-version';
-import { buildBaselineSave } from './baseline';
+import { buildBaselineSave, buildHotSeatBaselineSave } from './baseline';
 
 /**
  * #1006 — the save-compatibility matrix manifest.
@@ -30,6 +32,8 @@ export interface SaveCompatCase {
   build: () => Record<string, unknown>;
   /** Optional assertions to run on the migrated state before the turn is processed. */
   afterMigrate?: (migrated: GameState) => void;
+  /** Completed rounds to process after loading (default 3). */
+  runRounds?: number;
 }
 
 type RawState = Record<string, any>;
@@ -38,9 +42,18 @@ type RawState = Record<string, any>;
  * Optional containers / fields added over the project's history. A save written
  * at version `v` would not carry anything whose `introducedAt` is greater than
  * `v`; `downgradeToVersion` strips those so each migration has real work.
+ *
  * Deliberately conservative — only fields whose absence is a faithful "old
  * save" shape and whose rehydration path is a migration or the unconditional
- * normalizer tail.
+ * normalizer tail. Migrations that reshape a value already present rather than
+ * add a container (2 late resources, 4 based aircraft, 5 dual-era world age,
+ * 8 combat-notification detail, 10/11 retimed cavalry/knight, 12 the main.ts
+ * fixup bundle) get no tailored strip: for those source versions the migrated
+ * fixture is a near-no-op, and the matrix's contract there is only "migrate →
+ * run rounds → reload stays structurally valid". Field-level correctness of
+ * those specific migrations is owned by their targeted `save-migrations-v*`
+ * tests, which this file does not replace. The real archived save (case below)
+ * is the counterweight to the fixtures all being `createNewGame`-shaped.
  */
 const HISTORICAL_FIELDS: ReadonlyArray<{ introducedAt: number; strip: (raw: RawState) => void }> = [
   { introducedAt: 1, strip: raw => { delete raw.gameId; } },
@@ -202,8 +215,48 @@ const MALFORMED_CASES: SaveCompatCase[] = [
   },
 ];
 
+/**
+ * A genuine archived save — `tests/fixtures/issue-365-crowded-map-save.json`,
+ * turn 42, unversioned (schema 0), captured from a real playthrough, not
+ * `createNewGame` output. The one case in the matrix whose shape the synthetic
+ * fixtures cannot reproduce. `runRounds: 1` — it is a full crowded-map board,
+ * and the point here is "a real old save migrates and survives a turn", not a
+ * multi-round projection.
+ */
+const REAL_ARCHIVED_SAVE_CASE: SaveCompatCase = {
+  sourceVersion: 0,
+  label: 'real archived save — issue #365 crowded map, turn 42, unversioned',
+  kind: 'well-formed',
+  focus: ['real playthrough shape', 'full migration chain', 'crowded map'],
+  runRounds: 1,
+  build: () => JSON.parse(
+    // vitest runs with cwd = repo/worktree root (see determinism-contract-meta.test.ts).
+    readFileSync(resolve(process.cwd(), 'tests/fixtures/issue-365-crowded-map-save.json'), 'utf8'),
+  ) as Record<string, unknown>,
+};
+
+/**
+ * Hot-seat shape — the `hotSeat` slot config and per-viewer `pendingEvents`
+ * queues a solo save never carries. Full migration chain (source version 0).
+ */
+const HOT_SEAT_CASE: SaveCompatCase = {
+  sourceVersion: 0,
+  label: 'hot-seat save (2 human viewers, queued pendingEvents), unversioned',
+  kind: 'well-formed',
+  focus: ['hot seat', 'pendingEvents per viewer', 'full migration chain'],
+  build: () => downgradeToVersion(buildHotSeatBaselineSave('save-compat-hotseat-v0').state, 0),
+  afterMigrate: migrated => {
+    if (!migrated.hotSeat) throw new Error('migration dropped the hotSeat config');
+    if (!migrated.pendingEvents || Object.keys(migrated.pendingEvents).length === 0) {
+      throw new Error('migration dropped the per-viewer pendingEvents queue');
+    }
+  },
+};
+
 export const SAVE_COMPAT_MATRIX: readonly SaveCompatCase[] = [
   ...Array.from({ length: CURRENT_SAVE_SCHEMA_VERSION + 1 }, (_, version) => wellFormedCase(version)),
+  REAL_ARCHIVED_SAVE_CASE,
+  HOT_SEAT_CASE,
   ...MALFORMED_CASES,
 ];
 
