@@ -23,7 +23,7 @@ export function resolveHotSeatPostSimulation(
       nextHumanId: null,
     };
   }
-  const configuredHumans = getHumanPlayers(state.hotSeat ?? { players: [] });
+  const configuredHumans = state.hotSeat ? getHumanPlayers(state.hotSeat) : [];
   if (configuredHumans.length > 0 && getActiveHumanPlayers(state).length === 0) {
     return {
       state: {
