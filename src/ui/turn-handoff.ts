@@ -6,6 +6,7 @@ import {
 } from '@/core/hotseat-events';
 import { createEmptyOpponentAIState } from '@/core/opponent-ai-state';
 import { resolveCivDefinition } from '@/systems/civ-registry';
+import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { createGameButton, setButtonDisabled } from '@/ui/ui-kit';
 
 export interface TurnHandoffOptions {
@@ -195,6 +196,20 @@ export function showTurnHandoff(
 
   let confirmButton: HTMLButtonElement;
 
+  const renderOutOfGameRoster = (before?: Node | null): void => {
+    card.querySelector('[data-role="out-of-game-players"]')?.remove();
+    const outOfGameNames = Object.values(currentState.civilizations)
+      .filter(civ => civ.isHuman && !getCivilizationLiveness(currentState, civ.id).living)
+      .map(civ => civ.name)
+      .sort();
+    if (outOfGameNames.length === 0) return;
+    const outOfGame = document.createElement('p');
+    outOfGame.dataset.role = 'out-of-game-players';
+    outOfGame.textContent = `Out of this game: ${outOfGameNames.join(', ')}`;
+    outOfGame.style.cssText = 'margin:0 0 16px;color:#d4c5aa;';
+    card.insertBefore(outOfGame, before ?? null);
+  };
+
   const renderPassTo = (): void => {
     card.replaceChildren();
     if (!currentNextCivId || !currentPlayerName) {
@@ -224,6 +239,7 @@ export function showTurnHandoff(
       if (ready) renderSummary();
     });
     card.appendChild(confirmButton);
+    renderOutOfGameRoster(confirmButton);
     if (ready) confirmButton.focus();
     else title.focus();
   };
@@ -362,6 +378,7 @@ export function showTurnHandoff(
       currentState = updatedState;
       ready = true;
       if (confirmButton?.isConnected) {
+        renderOutOfGameRoster(confirmButton);
         confirmButton.textContent = `I'm ${currentPlayerName ?? 'Player'}`;
         setButtonDisabled(confirmButton, false);
         confirmButton.focus();

@@ -135,6 +135,21 @@ describe('turn handoff', () => {
     expect(shell.hasAttribute('aria-hidden')).toBe(false);
   });
 
+  it('recomputes the public out-of-game roster when the completed state becomes ready', () => {
+    const { state, layer } = makeFixture();
+    const controller = showTurnHandoff(layer, state, 'player-2', 'Bob', {
+      initiallyReady: false,
+      onReady: vi.fn(),
+    });
+    const completed = structuredClone(state);
+    completed.civilizations['player-1'].isEliminated = true;
+
+    controller.setReady(completed);
+
+    expect(document.querySelector('[data-role="out-of-game-players"]')?.textContent)
+      .toBe('Out of this game: Alice');
+  });
+
   it('keeps keyboard focus inside the opaque handoff while no action is enabled', () => {
     const { state, layer } = makeFixture();
     showTurnHandoff(layer, state, 'player-2', 'Bob', {
