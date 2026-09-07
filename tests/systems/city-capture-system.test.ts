@@ -99,9 +99,8 @@ describe('city-capture-system', () => {
     );
     attacker.id = 'attacker';
     attacker.movementPointsLeft = 2;
-    state.units = { [attacker.id]: attacker };
-    state.civilizations.player.units = [attacker.id];
-    state.civilizations['ai-1'].units = [];
+    state.units = { ...state.units, [attacker.id]: attacker };
+    state.civilizations.player.units = [...state.civilizations.player.units, attacker.id];
     state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
     state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
     state.map.tiles['0,0'].terrain = 'grassland';
@@ -178,6 +177,12 @@ describe('city-capture-system', () => {
 
   it('emits capture, territory, and elimination transitions from one shared helper', () => {
     const state = makeMajorAssaultState();
+    const settlerId = state.civilizations['ai-1'].units.find(unitId =>
+      state.units[unitId]?.type === 'settler');
+    if (!settlerId) throw new Error('fixture requires ai settler');
+    delete state.units[settlerId];
+    state.civilizations['ai-1'].units = state.civilizations['ai-1'].units
+      .filter(unitId => unitId !== settlerId);
     const result = resolveMajorCityCapture(
       state,
       'athens',
@@ -630,6 +635,12 @@ describe('city-capture-system', () => {
 
   it('sets isEliminated on the previous owner when their last city is occupied', () => {
     const state = makeExposedCityCaptureState({ population: 4, buildings: [] });
+    const settlerId = state.civilizations['ai-1'].units.find(unitId =>
+      state.units[unitId]?.type === 'settler');
+    if (!settlerId) throw new Error('fixture requires ai settler');
+    delete state.units[settlerId];
+    state.civilizations['ai-1'].units = state.civilizations['ai-1'].units
+      .filter(unitId => unitId !== settlerId);
     const defeatedUnits = [...state.civilizations['ai-1'].units];
     // ai-1 starts with only 'athens'
     expect(state.civilizations['ai-1'].cities).toEqual(['athens']);
@@ -644,6 +655,12 @@ describe('city-capture-system', () => {
 
   it('sets isEliminated on the previous owner when their last city is razed', () => {
     const state = makeExposedCityCaptureState({ population: 4, buildings: [] });
+    const settlerId = state.civilizations['ai-1'].units.find(unitId =>
+      state.units[unitId]?.type === 'settler');
+    if (!settlerId) throw new Error('fixture requires ai settler');
+    delete state.units[settlerId];
+    state.civilizations['ai-1'].units = state.civilizations['ai-1'].units
+      .filter(unitId => unitId !== settlerId);
     const defeatedUnits = [...state.civilizations['ai-1'].units];
 
     const result = resolveMajorCityCapture(state, 'athens', 'player', 'raze', state.turn);
@@ -651,6 +668,19 @@ describe('city-capture-system', () => {
     expect(result.state.civilizations['ai-1'].isEliminated).toBe(true);
     expect(defeatedUnits.every(id => result.state.units[id] === undefined)).toBe(true);
     expect(result.elimination?.civId).toBe('ai-1');
+  });
+
+  it('keeps the previous owner alive when a surviving settler escapes its last city', () => {
+    const state = makeExposedCityCaptureState({ population: 4, buildings: [] });
+    const settlerId = state.civilizations['ai-1'].units.find(unitId =>
+      state.units[unitId]?.type === 'settler');
+    if (!settlerId) throw new Error('fixture requires ai settler');
+
+    const result = resolveMajorCityCapture(state, 'athens', 'player', 'occupy', state.turn);
+
+    expect(result.state.civilizations['ai-1'].isEliminated).toBeUndefined();
+    expect(result.state.units[settlerId]?.type).toBe('settler');
+    expect(result.elimination).toBeUndefined();
   });
 
   it('does not set isEliminated when the previous owner still has other cities', () => {
