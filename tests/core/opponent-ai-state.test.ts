@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
+import { createUnit } from '@/systems/unit-system';
 import {
   createEmptyOpponentAIState,
   createEmptyMajorCivPlanPortfolio,
@@ -255,6 +256,9 @@ describe('opponent AI state normalization', () => {
       cities: [],
       units: [],
     };
+    const player2Settler = createUnit('settler', 'player-2', { q: 1, r: 1 }, state.idCounters);
+    state.units[player2Settler.id] = player2Settler;
+    state.civilizations['player-2'].units = [player2Settler.id];
     state.civilizations['dead-human'] = {
       ...structuredClone(player),
       id: 'dead-human',
@@ -331,6 +335,8 @@ describe('opponent AI state normalization', () => {
     const state = {
       opponentAI,
       civilizations: { h1: { id: 'h1', isHuman: true, isEliminated: false } },
+      cities: {},
+      units: { settler: { id: 'settler', type: 'settler', owner: 'h1', health: 100 } },
     } as unknown as GameState;
     const normalized = normalizeOpponentAIState(state);
     expect(normalized.opponentAI!.pressureByCiv.h1.activeIndependentThreatIds).toEqual(['barbarian:t1']);
