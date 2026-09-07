@@ -53,6 +53,26 @@ export interface MovementBlockerReason {
   message: string;
 }
 
+/**
+ * The ONE viewer-scoping rule for movement rejections (#1025 MR4 / #1002).
+ * `resolveUnitMoveIntent` is deliberately omniscient — it sees units, blockers and terrain the
+ * viewer has not discovered. Surfacing its reason verbatim would leak that. When the
+ * destination is unexplored to the viewer, every reason collapses to the generic one.
+ *
+ * Known limitation (owned by #1002): this keys off the DESTINATION only. If the destination is
+ * explored but a path tile is not, the reason can still describe that unexplored tile. Making
+ * redaction path-aware is out of scope here — do not widen the leak, do not silently fix it.
+ */
+export function redactMovementRejectionForViewer(
+  reason: MovementBlockerReason,
+  visibilityState: VisibilityState | undefined,
+): MovementBlockerReason {
+  if (visibilityState === 'unexplored') {
+    return { code: 'unexplored', message: 'Too far away to spot.' };
+  }
+  return reason;
+}
+
 export function getMovementBlockerReason(
   unit: Unit,
   to: HexCoord,
