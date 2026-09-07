@@ -15,6 +15,7 @@ import { MINOR_CIV_DEFINITIONS } from './minor-civ-definitions';
 import { mapDistance } from './hex-utils';
 import { createRng } from './map-generator';
 import { resolveNeutralPressureEra } from './era-resolution';
+import { getCivilizationLiveness } from './civilization-liveness';
 
 export type MinorCivLeaguePreference =
   | { kind: 'none'; reason: 'no-compact' | 'own-needs' | 'warning' }
@@ -96,7 +97,7 @@ function hasLiveConcernSource(state: GameState, league: MinorCivLeague): boolean
       if (grievance.status === 'mobilizing' || grievance.status === 'coalition-talks') targets.add(targetId);
     }
     return [...targets].some(targetId => (
-      Boolean(state.civilizations[targetId] && !state.civilizations[targetId].isEliminated)
+      getCivilizationLiveness(state, targetId).living
       && (resolveNeutralPressureEra(state, member.city.position, targetId) ?? 1) >= 2
     ));
   });
