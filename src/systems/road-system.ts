@@ -50,7 +50,3 @@ export function formatRoadBlockerReason(reason: RoadBlockerReason): string {
 export function getRoadBuildTurns(hasRoadCorpsActive: boolean): number {
   return hasRoadCorpsActive ? ROAD_BUILD_TURNS_FAST : ROAD_BUILD_TURNS;
 }
-
-export function getRoadMovementDiscount(completedTechs: string[]): boolean {
-  return completedTechs.includes('military-logistics') || completedTechs.includes('railway-expansion');
-}
