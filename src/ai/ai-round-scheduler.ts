@@ -18,6 +18,10 @@ import { prepareMajorCivStrategicPlan } from './ai-prepared-turn';
 import type { AIDecisionTrace } from './ai-decision-trace';
 import { processAIGeneralCommand } from './ai-general-command';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
+import {
+  emitCivilizationLivenessTransitions,
+  reconcileCivilizationLiveness,
+} from '@/systems/civilization-elimination-system';
 
 export function getLivingNonHumanMajorIds(state: GameState): string[] {
   return Object.entries(state.civilizations)
@@ -200,7 +204,9 @@ export function processNonHumanMajorRound(
   bus: EventBus,
   options: ProcessNonHumanRoundOptions = {},
 ): ProcessNonHumanRoundResult {
-  let working = normalizeOpponentAIState(state);
+  let liveness = reconcileCivilizationLiveness(state, state);
+  emitCivilizationLivenessTransitions(liveness, bus);
+  let working = normalizeOpponentAIState(liveness.state);
   if (working.opponentAI!.lastProcessedRound === working.turn) {
     return { state: working, traces: [], planningErrors: [] };
   }
@@ -268,7 +274,10 @@ export function processNonHumanMajorRound(
     working = processAIGeneralCommand(working, civId, 'pre-tactical');
     working = executePrepared(working, revalidated, bus).state;
     working = processAIGeneralCommand(working, civId, 'post-tactical');
-    working = normalizeOpponentAIState(working);
+    liveness = reconcileCivilizationLiveness(working, working);
+    emitCivilizationLivenessTransitions(liveness, bus);
+    working = normalizeOpponentAIState(liveness.state);
+    if (!getCivilizationLiveness(working, civId).living) continue;
     const executedPortfolio = working.opponentAI!.majorCivs[civId]
       ?? createEmptyMajorCivPlanPortfolio();
     working = withMajorPortfolio(working, civId, {

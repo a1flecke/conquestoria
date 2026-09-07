@@ -566,7 +566,7 @@ export function applyDiplomaticAction(
     }
     case 'reabsorb_breakaway': {
       const cityId = target.breakaway?.originCityId;
-      const nextState = tryReabsorbBreakaway(state, actorId, targetCivId);
+      const nextState = tryReabsorbBreakaway(state, actorId, targetCivId, bus);
       if (cityId) {
         bus.emit('faction:breakaway-reabsorbed', {
           civId: targetCivId,

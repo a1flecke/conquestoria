@@ -9,7 +9,6 @@ import type {
   Unit,
 } from '@/core/types';
 import { getUnitAttackProfile } from '@/systems/attack-targeting';
-import { reconquerBreakawayCity } from '@/systems/breakaway-system';
 import { awardGeneralProgress, GENERAL_PROGRESS_AWARDS } from '@/systems/great-general-system';
 import { appendGeneralCareerEvent } from '@/systems/great-general-career';
 import { BUILDINGS } from '@/systems/city-system';
@@ -537,6 +536,37 @@ function removeNationalProjectsForCity(state: GameState, cityId: string): GameSt
     ...state,
     builtNationalProjects,
     cities: city ? { ...state.cities, [cityId]: { ...city, buildings: city.buildings.filter(id => !lostBuildingIds.has(id)) } } : state.cities,
+  };
+}
+
+function reconquerBreakawayCity(
+  state: GameState,
+  ownerId: string,
+  breakawayId: string,
+  cityId: string,
+): GameState {
+  const owner = state.civilizations[ownerId];
+  const breakaway = state.civilizations[breakawayId];
+  const city = state.cities[cityId];
+  if (!owner || !breakaway?.breakaway || !city) {
+    throw new Error('Cannot reconquer missing breakaway state');
+  }
+  const tiles = Object.fromEntries(Object.entries(state.map.tiles).map(([key, tile]) => [
+    key,
+    tile.owner === breakawayId ? { ...tile, owner: ownerId } : tile,
+  ]));
+  return {
+    ...state,
+    map: { ...state.map, tiles },
+    cities: {
+      ...state.cities,
+      [cityId]: { ...city, owner: ownerId, unrestLevel: 1 as const, unrestTurns: 0 },
+    },
+    civilizations: {
+      ...state.civilizations,
+      [ownerId]: { ...owner, cities: owner.cities.includes(cityId) ? owner.cities : [...owner.cities, cityId] },
+      [breakawayId]: { ...breakaway, cities: breakaway.cities.filter(id => id !== cityId) },
+    },
   };
 }
 
