@@ -52,6 +52,40 @@ it('controllers depend on ports, not on RenderLoop/AudioSystem/document', () => 
   }
 });
 
+it('the movement family has exactly one low-level position executor (#1025)', () => {
+  // resolveUnitMoveIntent + executeValidatedUnitMove is the canonical movement
+  // contract (see .claude/rules/movement-actions.md). The low-level movers
+  // (moveUnitWithZoneOfControl / moveUnit) may only be called from the module
+  // that defines them and the module that owns the executor -- anything else is
+  // an alternate executor and must either route through the resolver or carry a
+  // `movement-contract-exempt: <reason>` marker on the call line.
+  function walk(dir: string): string[] {
+    return readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
+      const full = resolve(dir, entry.name);
+      if (entry.isDirectory()) return walk(full);
+      return entry.name.endsWith('.ts') ? [full] : [];
+    });
+  }
+  const srcRoot = resolve(__dirname, '../../src');
+  const sanctioned = new Set([
+    resolve(srcRoot, 'systems/unit-system.ts'),
+    resolve(srcRoot, 'systems/unit-movement-system.ts'),
+  ]);
+  const callPattern = /moveUnitWithZoneOfControl\(|(^|[^.A-Za-z_])moveUnit\(/;
+  const offenders: string[] = [];
+  for (const file of walk(srcRoot)) {
+    if (sanctioned.has(file)) continue;
+    const source = readFileSync(file, 'utf8');
+    source.split('\n').forEach((line, i) => {
+      const code = line.replace(/\/\/.*$/, '');
+      if (!callPattern.test(code)) return;
+      if (line.includes('movement-contract-exempt')) return;
+      offenders.push(`${file.slice(srcRoot.length + 1)}:${i + 1}  ${line.trim()}`);
+    });
+  }
+  expect(offenders, offenders.join('\n')).toEqual([]);
+});
+
 it('no app/presentation/ui file mutates the object returned by session.getState() directly', () => {
   // GameSession.commit()/update() are the only sanctioned publish path (see
   // src/app/ports.ts's GameSession doc comment). Mutating getState()'s return

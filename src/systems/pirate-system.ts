@@ -178,8 +178,14 @@ function moveOneStepToward(state: GameState, unit: Unit, target: HexCoord): { st
       || a.coord.q - b.coord.q || a.coord.r - b.coord.r);
   const next = candidates[0];
   if (!next || distance(state, next.coord, target) >= distance(state, unit.position, target)) return { state, path: [] };
+  // #1025: barbarian pirate raiders move one adjacent step over coast/ocean only.
+  // `getBlockingMapEntityAt`'s entities (foreign cities, camps, enclave anchors) are
+  // all land tiles, already excluded by the terrain filter above; routing through
+  // resolveUnitMoveIntent would also pull in player-only visibility/village rules
+  // that do not apply to a world actor.
+  const stepped = moveUnitWithZoneOfControl(state, unit, next.coord, next.cost).unit; // movement-contract-exempt: world-actor coast/ocean step, no land blockers reachable
   return {
-    state: { ...state, units: { ...state.units, [unit.id]: moveUnitWithZoneOfControl(state, unit, next.coord, next.cost).unit } },
+    state: { ...state, units: { ...state.units, [unit.id]: stepped } },
     path: [next.coord],
   };
 }
