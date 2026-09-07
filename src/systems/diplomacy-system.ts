@@ -26,6 +26,7 @@ import { evaluatePeaceConsent, evaluateTreatyConsent, evaluateVassalageConsent, 
 import { hasAICombatRole } from '@/ai/ai-unit-roles';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { reconcileMinorCivLeagues } from '@/systems/minor-civ-league-system';
+import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 
 export function resolveOpponentKind(civId: string): 'major' | 'minor' | 'barbarian' {
   if (civId.startsWith('barbarian')) return 'barbarian';
@@ -784,7 +785,9 @@ export function acceptDiplomaticRequest(
     return committed === state ? rejectDiplomaticRequest(state, actingCivId, requestId) : committed;
   }
 
-  if (request.type !== 'peace' || actor.isEliminated || target.isEliminated
+  if (request.type !== 'peace'
+    || !getCivilizationLiveness(state, request.fromCivId).living
+    || !getCivilizationLiveness(state, request.toCivId).living
     || actor.diplomacy.vassalage.overlord || target.diplomacy.vassalage.overlord
     || !isAtWar(actor.diplomacy, request.toCivId) || !isAtWar(target.diplomacy, request.fromCivId)) {
     return rejectDiplomaticRequest(state, actingCivId, requestId);
@@ -923,9 +926,11 @@ export type VassalageEligibility = { ok: true } | { ok: false; reason: string };
 export function getVassalageEligibility(state: GameState, vassalId: string, overlordId: string): VassalageEligibility {
   const vassal = state.civilizations[vassalId];
   const overlord = state.civilizations[overlordId];
-  if (vassalId === overlordId || !vassal || !overlord || vassal.isEliminated || overlord.isEliminated
-    || !vassal.cities.some(id => state.cities[id]?.owner === vassalId)
-    || !overlord.cities.some(id => state.cities[id]?.owner === overlordId)) {
+  if (vassalId === overlordId || !vassal || !overlord
+    || !getCivilizationLiveness(state, vassalId).living
+    || !getCivilizationLiveness(state, overlordId).living
+    || !Object.values(state.cities).some(city => city.owner === vassalId)
+    || !Object.values(state.cities).some(city => city.owner === overlordId)) {
     return { ok: false, reason: 'Both civilizations must still have a city.' };
   }
   if (!hasMetCivilization(state, vassalId, overlordId)) return { ok: false, reason: 'You must have met first.' };
@@ -1415,7 +1420,8 @@ function removeDiplomaticRequest(state: GameState, id: string): GameState {
 }
 
 function hasActiveVassalage(state: GameState, vassalId: string, overlordId: string): boolean {
-  return !state.civilizations[vassalId]?.isEliminated && !state.civilizations[overlordId]?.isEliminated
+  return getCivilizationLiveness(state, vassalId).living
+    && getCivilizationLiveness(state, overlordId).living
     && state.civilizations[vassalId]?.diplomacy.vassalage.overlord === overlordId
     && state.civilizations[overlordId]?.diplomacy.vassalage.vassals.includes(vassalId) === true;
 }
@@ -1423,8 +1429,9 @@ function hasActiveVassalage(state: GameState, vassalId: string, overlordId: stri
 export function canPetitionIndependence(state: GameState, vassalId: string): boolean {
   const civ = state.civilizations[vassalId];
   const overlordId = civ?.diplomacy.vassalage.overlord;
-  if (!civ || civ.isEliminated || !overlordId || !hasActiveVassalage(state, vassalId, overlordId)
-    || state.civilizations[overlordId].isEliminated) return false;
+  if (!civ || !getCivilizationLiveness(state, vassalId).living || !overlordId
+    || !hasActiveVassalage(state, vassalId, overlordId)
+    || !getCivilizationLiveness(state, overlordId).living) return false;
   return checkIndependenceThreshold(getVassalageMilitaryCount(state, vassalId),
     getVassalageMilitaryCount(state, overlordId), civ.diplomacy.vassalage.protectionScore);
 }
@@ -1506,7 +1513,8 @@ function addWarPair(state: GameState, attackerId: string, defenderId: string, vo
 export function declareMajorWar(state: GameState, attackerId: string, defenderId: string, bus?: EventBus): GameState {
   const attacker = state.civilizations[attackerId];
   if (!attacker || attacker.diplomacy.vassalage.overlord || !state.civilizations[defenderId]
-    || attackerId === defenderId || attacker.isEliminated || state.civilizations[defenderId].isEliminated
+    || attackerId === defenderId || !getCivilizationLiveness(state, attackerId).living
+    || !getCivilizationLiveness(state, defenderId).living
     || attacker.diplomacy.vassalage.vassals.includes(defenderId)) return state;
   const atWar = addWarPair(state, attackerId, defenderId, true, bus);
   if (atWar === state) return state;
@@ -1570,7 +1578,7 @@ export function processVassalageTurn(state: GameState, bus: EventBus): GameState
     const overlordId = civ.diplomacy?.vassalage.overlord;
     if (!overlordId) continue;
     const overlord = next.civilizations[overlordId];
-    if (!overlord || overlord.isEliminated) {
+    if (!overlord || !getCivilizationLiveness(next, overlordId).living) {
       next = applyVassalageEnd(next, vassalId, overlordId, endVassalageUnilateral(civ.diplomacy, vassalId, overlordId), overlord ? endVassalage(civ.diplomacy, overlord.diplomacy, vassalId, overlordId).overlordState : undefined);
       bus.emit('diplomacy:vassalage-ended', { vassalId, overlordId, reason: 'overlord_eliminated' });
       continue;

@@ -109,6 +109,9 @@ describe('#910 protection transitions', () => {
   });
   it('overlord elimination resets the freed vassal protection data', () => {
     const state = active(); state.civilizations.overlord.cities = [];
+    for (const [cityId, city] of Object.entries(state.cities)) {
+      if (city.owner === 'overlord') delete state.cities[cityId];
+    }
     state.civilizations.vassal.diplomacy.vassalage.protectionScore = 40;
     state.civilizations.vassal.diplomacy.vassalage.protectionTimers = [{attackerCivId: 'third', turnsRemaining: 1}];
     const result = eliminateCivilization(state, 'overlord', 'third');
