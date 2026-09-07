@@ -572,6 +572,12 @@ describe('processTurn', () => {
       },
     };
     state.civilizations.player.units = ['player-1'];
+    const survivalSettler = createUnit('settler', 'player', { q: 0, r: 1 }, state.idCounters);
+    survivalSettler.id = 'player-survival-settler';
+    survivalSettler.hasActed = true;
+    survivalSettler.movementPointsLeft = 0;
+    state.units[survivalSettler.id] = survivalSettler;
+    state.civilizations.player.units.push(survivalSettler.id);
     state.barbarianCamps = {
       camp: { id: 'camp', position: { q: 2, r: 0 }, strength: 5, spawnCooldown: 99 },
     };
@@ -1518,6 +1524,12 @@ describe('processTurn', () => {
         state.units[unit.id] = unit;
         state.civilizations.player.units.push(unit.id);
       }
+      const survivalSettler = createUnit('settler', 'player', { q: 0, r: 1 }, state.idCounters);
+      survivalSettler.id = 'player-survival-settler';
+      survivalSettler.hasActed = true;
+      survivalSettler.movementPointsLeft = 0;
+      state.units[survivalSettler.id] = survivalSettler;
+      state.civilizations.player.units.push(survivalSettler.id);
       state.civilizations.player.gold = 500;
       state.civilizations.player.techState.completed = [...state.civilizations.player.techState.completed, 'decolonization'];
       state.civilizations.player.federalismEnabled = federalismEnabled;

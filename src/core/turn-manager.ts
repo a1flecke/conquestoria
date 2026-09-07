@@ -99,6 +99,10 @@ import { processDetection } from '@/systems/detection-system';
 import { applyPendingOpponentChallenge, resolveChallengeForCiv } from '@/core/opponent-challenge';
 import { applyCityHpRegeneration, applyCitySiegeOutcome, getCityCounterFireDamage, getCityGarrisonUnit, resolveCitySiegeDamage } from '@/systems/city-siege-system';
 import { normalizeOpponentAIState } from '@/core/opponent-ai-state';
+import {
+  emitCivilizationLivenessTransitions,
+  reconcileCivilizationLiveness,
+} from '@/systems/civilization-elimination-system';
 import { processFactionTurn, getUnrestYieldMultiplier, isCityProductionLocked, getFederalismRemittanceLoss } from '@/systems/faction-system';
 import { getOccupiedCityYieldMultiplier, tickOccupiedCities } from '@/systems/city-occupation-system';
 import { processBreakawayTurn } from '@/systems/breakaway-system';
@@ -180,6 +184,9 @@ export function processTurn(
 ): GameState {
   const previousEraByCiv = Object.fromEntries(Object.entries(state.civilizations).map(([civId, civ]) => [civId, resolveCivilizationEra(civ.techState.completed)]));
   let newState = initializeLegendaryWonderProjectsForAllCities(structuredClone(state));
+  let liveness = reconcileCivilizationLiveness(newState, newState);
+  emitCivilizationLivenessTransitions(liveness, bus);
+  newState = liveness.state;
   newState = normalizeOpponentAIState(newState);
 
   bus.emit('turn:end', { turn: newState.turn, playerId: newState.currentPlayer });
@@ -190,6 +197,9 @@ export function processTurn(
   newState = processCrisisTurn(newState, bus);
   newState = processReligionTurn(newState, bus);
   newState = processLoyaltyTurn(newState, bus);
+  liveness = reconcileCivilizationLiveness(newState, newState);
+  emitCivilizationLivenessTransitions(liveness, bus);
+  newState = liveness.state;
   // AI civ turns run later via the AI round scheduler, so responses recorded
   // here (quarantine/fund-remedy) shape the same round's plans (#529 MR3 Task 3.2).
   if (resolveWorldPressureFlags(newState.settings).aiPressure === 'full') {
@@ -1490,6 +1500,7 @@ export function processTurn(
 
   if (newState.marketplace) {
     for (const civId of Object.keys(newState.civilizations)) {
+      if (!getCivilizationLiveness(newState, civId).living) continue;
       const civRouteIncome = processTradeRouteIncome(
         newState.marketplace.tradeRoutes.filter(route => {
           const city = newState.cities[route.fromCityId];
@@ -1575,12 +1586,14 @@ export function processTurn(
       newState = applyHoardChoice(newState, pending.lairId, pending.civId, 'gold');
     }
     for (const civId of Object.keys(newState.civilizations)) {
+      if (!getCivilizationLiveness(newState, civId).living) continue;
       const trophyGold = getClaimedTrophyGoldPerTurn(newState, civId);
       if (trophyGold > 0) grossGoldByCiv[civId] = (grossGoldByCiv[civId] ?? 0) + trophyGold;
     }
   }
 
   for (const civId of Object.keys(newState.civilizations)) {
+    if (!getCivilizationLiveness(newState, civId).living) continue;
     newState = applyEconomyTurn(newState, civId, grossGoldByCiv[civId] ?? 0, pirateEconomyModifiers);
     emitEconomyStrainIfNeeded(previousEconomyStatusByCiv[civId], newState.economyStatusByCiv![civId], bus, civId);
   }
