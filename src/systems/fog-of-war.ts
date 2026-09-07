@@ -1,6 +1,9 @@
 import type { VisibilityMap, VisibilityState, HexCoord, Unit, GameMap, GameState } from '@/core/types';
 import { hexKey, hexesInRange, hexDistance, getWrappedHexesInRange, wrapHexCoord, wrappedHexDistance, hexNeighbors, getWrappedHexNeighbors } from './hex-utils';
-import { UNIT_DEFINITIONS } from './unit-system';
+// #1025 MR4: import from the catalog leaf, not the unit-system barrel — the barrel
+// re-exports unit-movement-queries, which imports unit-movement-validation, which
+// imports this module. Going through the leaf keeps that graph acyclic.
+import { UNIT_DEFINITIONS } from './unit-definitions';
 import { getWonderVisionBonus } from './wonder-system';
 import { resolveCivDefinition } from './civ-registry';
 
