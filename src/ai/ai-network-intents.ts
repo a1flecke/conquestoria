@@ -8,6 +8,7 @@ import {
   validateNetworkPlanAssignment,
 } from '@/systems/network-plan-system';
 import { planNetworkTurn } from './ai-network-planning';
+import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 
 export interface AINetworkIntentOptions {
   /** City IDs in the actor's freshly earned perception; hostile targets never bypass this boundary. */
@@ -31,7 +32,7 @@ export function assignNetworkIntentsForAI(
 ): GameState {
   let nextState = cancelInvalidNetworkPlans(state).state;
   const civ = nextState.civilizations[civId];
-  if (!civ || civ.isHuman || civ.isEliminated) return nextState;
+  if (!civ || civ.isHuman || !getCivilizationLiveness(nextState, civId).living) return nextState;
   const profile = getChallengeProfileForCiv(nextState, civId);
   const sourceIds = civ.units
     .filter(unitId => nextState.units[unitId]?.type === 'cyber_unit')

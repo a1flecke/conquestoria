@@ -2,12 +2,13 @@ import type { GameState } from '@/core/types';
 import { isAtWar } from '@/systems/diplomacy-system';
 import { hexDistance } from '@/systems/hex-utils';
 import { usePropagandistAction } from '@/systems/propagandist-system';
+import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 
 /** One deterministic civic action per ready Propagandist. Enemy pressure comes
  * first; without a legal target, the unit relieves its most pressured nearby city. */
 export function usePropagandistActionsForAI(state: GameState, civId: string): GameState {
   const civ = state.civilizations[civId];
-  if (!civ || civ.isHuman || civ.isEliminated) return state;
+  if (!civ || civ.isHuman || !getCivilizationLiveness(state, civId).living) return state;
   let next = state;
   const units = civ.units
     .map(unitId => next.units[unitId])
