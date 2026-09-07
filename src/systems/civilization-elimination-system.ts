@@ -3,7 +3,9 @@ import type {
   GameState,
   MajorCivPlanPortfolio,
 } from '@/core/types';
+import type { EventBus } from '@/core/event-bus';
 import { cancelInvalidNetworkPlans } from '@/systems/network-plan-system';
+import { getCivilizationLiveness } from './civilization-liveness';
 
 export type CivilizationEliminationResult =
   | { state: GameState; eliminated: false }
@@ -11,10 +13,27 @@ export type CivilizationEliminationResult =
       state: GameState;
       eliminated: true;
       civId: string;
-      eliminatedBy: string;
+      eliminatedBy: string | null;
       removedUnitIds: string[];
       removedSpyIds: string[];
     };
+
+export type CivilizationLivenessTransition =
+  | { kind: 'cityless'; civId: string }
+  | { kind: 'resettled'; civId: string }
+  | {
+      kind: 'eliminated';
+      civId: string;
+      eliminatedBy: string | null;
+      removedUnitIds: string[];
+      removedSpyIds: string[];
+      releasedVassalIds: string[];
+    };
+
+export interface CivilizationLivenessReconciliation {
+  state: GameState;
+  transitions: CivilizationLivenessTransition[];
+}
 
 function removeAssignedUnits(
   plan: AIStrategicPlan | null,
@@ -48,10 +67,10 @@ function scrubPortfolio(
 export function eliminateCivilization(
   state: GameState,
   civId: string,
-  eliminatedBy: string,
+  eliminatedBy: string | null,
 ): CivilizationEliminationResult {
   const civilization = state.civilizations[civId];
-  if (!civilization || civilization.isEliminated || civilization.cities.length > 0) {
+  if (!civilization || getCivilizationLiveness(state, civId).reason !== 'no-survival-assets') {
     return { state, eliminated: false };
   }
 
@@ -65,11 +84,15 @@ export function eliminateCivilization(
   }
   next.civilizations[civId] = {
     ...next.civilizations[civId],
+    cities: [],
     units: [],
     isEliminated: true,
     nearDefeat: false,
     diplomacy: { ...next.civilizations[civId].diplomacy,
-      treaties: next.civilizations[civId].diplomacy.treaties.filter(t => t.type !== 'vassalage'),
+      relationships: {},
+      atWarWith: [],
+      treaties: [],
+      events: [],
       vassalage: { ...next.civilizations[civId].diplomacy.vassalage, overlord: null, vassals: [], protectionScore: 100, protectionTimers: [] },
     },
   };
@@ -175,4 +198,75 @@ export function eliminateCivilization(
     removedUnitIds,
     removedSpyIds,
   };
+}
+
+export function reconcileCivilizationLiveness(
+  before: GameState,
+  after: GameState,
+  eliminatedBy: string | null | Readonly<Record<string, string | null>> = null,
+): CivilizationLivenessReconciliation {
+  let working = after;
+  const transitions: CivilizationLivenessTransition[] = [];
+
+  for (const civId of Object.keys(after.civilizations).sort()) {
+    const verdict = getCivilizationLiveness(working, civId);
+    if (verdict.reason === 'no-survival-assets') {
+      const releasedVassalIds = Object.entries(working.civilizations)
+        .filter(([, civ]) => civ.diplomacy?.vassalage?.overlord === civId)
+        .map(([id]) => id)
+        .sort();
+      const victor = eliminatedBy !== null && typeof eliminatedBy === 'object'
+        ? eliminatedBy[civId] ?? null
+        : eliminatedBy;
+      const result = eliminateCivilization(working, civId, victor);
+      working = result.state;
+      if (result.eliminated) {
+        transitions.push({
+          kind: 'eliminated',
+          civId,
+          eliminatedBy: result.eliminatedBy,
+          removedUnitIds: result.removedUnitIds,
+          removedSpyIds: result.removedSpyIds,
+          releasedVassalIds,
+        });
+      }
+      continue;
+    }
+
+    const previous = getCivilizationLiveness(before, civId);
+    if (previous.reason === 'city' && verdict.reason === 'settler') {
+      transitions.push({ kind: 'cityless', civId });
+    } else if (previous.reason === 'settler' && verdict.reason === 'city') {
+      transitions.push({ kind: 'resettled', civId });
+    }
+  }
+
+  return { state: working, transitions };
+}
+
+export function emitCivilizationLivenessTransitions(
+  result: CivilizationLivenessReconciliation,
+  bus: EventBus,
+): void {
+  for (const transition of result.transitions) {
+    if (transition.kind === 'cityless') {
+      bus.emit('civ:resettlement-needed', { civId: transition.civId });
+      continue;
+    }
+    if (transition.kind === 'resettled') {
+      bus.emit('civ:resettled', { civId: transition.civId });
+      continue;
+    }
+    for (const vassalId of transition.releasedVassalIds) {
+      bus.emit('diplomacy:vassalage-ended', {
+        vassalId,
+        overlordId: transition.civId,
+        reason: 'overlord_eliminated',
+      });
+    }
+    bus.emit('civ:eliminated', {
+      civId: transition.civId,
+      eliminatedBy: transition.eliminatedBy,
+    });
+  }
 }

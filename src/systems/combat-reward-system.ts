@@ -25,6 +25,10 @@ import { hexKey } from '@/systems/hex-utils';
 import { getUnitRoleDefinition } from '@/systems/combat-role-definitions';
 import { appendLegendaryWonderMilitaryFacts } from '@/systems/legendary-wonder-history';
 import { getFortificationTier } from '@/systems/fortification-system';
+import {
+  emitCivilizationLivenessTransitions,
+  reconcileCivilizationLiveness,
+} from '@/systems/civilization-elimination-system';
 
 /** Age-of-Sail through ironclad — boarding-action flavor. Everything else
  * (destroyer onward) uses modern "disabled and captured" phrasing. Same
@@ -930,8 +934,19 @@ export function applyCombatOutcomeToState(
   }
   nextState = appendLegendaryWonderMilitaryFacts(nextState, militaryFacts);
 
+  const afterVassalage = applyVassalageWarConsequences(state, nextState, bus);
+  const eliminatedBy = defenderActuallyDefeated || defenderCaptured
+    ? attackerBefore.owner
+    : attackerActuallyDefeated || attackerCaptured
+      ? defenderBefore.owner
+      : undefined;
+  const liveness = state.cities
+    ? reconcileCivilizationLiveness(state, afterVassalage, eliminatedBy)
+    : { state: afterVassalage, transitions: [] };
+  if (bus) emitCivilizationLivenessTransitions(liveness, bus);
+
   return {
-    state: applyVassalageWarConsequences(state, nextState, bus),
+    state: liveness.state,
     rewards,
     attackerDefeated: attackerActuallyDefeated,
     defenderDefeated: defenderActuallyDefeated,

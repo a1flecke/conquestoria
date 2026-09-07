@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { createHotSeatGame } from '@/core/game-state';
-import { eliminateCivilization } from '@/systems/civilization-elimination-system';
-import { makeLivenessGame } from './helpers/civilization-liveness-fixture';
+import {
+  eliminateCivilization,
+  reconcileCivilizationLiveness,
+} from '@/systems/civilization-elimination-system';
+import { makeLivenessGame, withoutOwnedAssets } from './helpers/civilization-liveness-fixture';
 
 function stateWithDefeatedActor() {
   const state = createHotSeatGame({
@@ -12,6 +15,12 @@ function stateWithDefeatedActor() {
       { name: 'Defeated', slotId: 'player-2', civType: 'germany', isHuman: true },
     ],
   }, 'elimination-fixture');
+  const settlerId = state.civilizations['player-2'].units.find(unitId =>
+    state.units[unitId]?.type === 'settler');
+  if (!settlerId) throw new Error('Fixture requires a defeated-player settler');
+  delete state.units[settlerId];
+  state.civilizations['player-2'].units = state.civilizations['player-2'].units
+    .filter(unitId => unitId !== settlerId);
   state.civilizations['player-1'].diplomacy.relationships['player-2'] = -80;
   state.civilizations['player-1'].diplomacy.atWarWith = ['player-2'];
   state.civilizations['player-1'].diplomacy.treaties = [{
@@ -60,6 +69,22 @@ describe('civilization elimination', () => {
     });
   });
 
+  it('finalizes every assetless actor once with no invented victor', () => {
+    let state = makeLivenessGame();
+    state = withoutOwnedAssets(state, 'player');
+    state = withoutOwnedAssets(state, 'ai-1');
+
+    const first = reconcileCivilizationLiveness(state, state);
+
+    expect(first.transitions.filter(transition => transition.kind === 'eliminated')
+      .map(transition => [transition.civId, transition.eliminatedBy]))
+      .toEqual([
+        ['ai-1', null],
+        ['player', null],
+      ]);
+    expect(reconcileCivilizationLiveness(first.state, first.state).transitions).toEqual([]);
+  });
+
   it('atomically removes owned pieces and live cross-system references', () => {
     const state = stateWithDefeatedActor();
     const defeatedUnitIds = [...state.civilizations['player-2'].units];
@@ -85,11 +110,14 @@ describe('civilization elimination', () => {
     expect(state).toEqual(before);
   });
 
-  it('does not eliminate an actor that still owns a city', () => {
-    const state = stateWithDefeatedActor();
-    state.civilizations['player-2'].cities = ['city-1'];
+  it('does not eliminate an actor that owns a city omitted from its roster', () => {
+    const state = makeLivenessGame();
+    const city = Object.values(state.cities).find(candidate => candidate.owner === 'player');
+    if (!city) throw new Error('Fixture requires a player city');
+    state.cities[city.id] = { ...city, owner: 'ai-1' };
+    state.civilizations['ai-1'].cities = [];
 
-    const result = eliminateCivilization(state, 'player-2', 'player-1');
+    const result = eliminateCivilization(state, 'ai-1', 'player');
 
     expect(result).toEqual({ state, eliminated: false });
   });

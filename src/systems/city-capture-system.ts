@@ -45,7 +45,7 @@ export interface MajorCityCaptureResult {
   territoryEvents: GameEvents['territory:tile-flipped'][];
   elimination?: {
     civId: string;
-    eliminatedBy: string;
+    eliminatedBy: string | null;
     removedUnitIds: string[];
     removedSpyIds: string[];
   };
