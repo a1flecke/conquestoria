@@ -83,7 +83,12 @@ describe('#910 live formation', () => {
     if (reason === 'own-vassal') vassal.diplomacy.vassalage.overlord = 'third';
     if (reason === 'own-overlord') vassal.diplomacy.vassalage.vassals = ['third'];
     if (reason === 'recipient-vassal') state.civilizations.overlord.diplomacy.vassalage.overlord = 'third';
-    if (reason === 'cityless') vassal.cities = [];
+    if (reason === 'cityless') {
+      vassal.cities = [];
+      for (const [cityId, city] of Object.entries(state.cities)) {
+        if (city.owner === 'vassal') delete state.cities[cityId];
+      }
+    }
     expect(offer(state).pendingDiplomacyRequests).toEqual([]);
   });
 
