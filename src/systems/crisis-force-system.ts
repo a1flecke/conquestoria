@@ -1,6 +1,7 @@
 import { CRISIS_FORCE_OWNER, isMajorCivOwner } from '@/core/owner-kind';
 import type { CrisisForce, GameState, OpponentChallenge } from '@/core/types';
 import { resolvePressureSeverityForCiv } from '@/core/opponent-challenge';
+import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import type { HerdRoute } from '@/core/types';
 
 export { CRISIS_FORCE_OWNER } from '@/core/owner-kind';
@@ -29,7 +30,7 @@ function normalizeForce(
     || typeof record.targetCivId !== 'string'
     || !isMajorCivOwner(record.targetCivId)
     || !state.civilizations[record.targetCivId]
-    || state.civilizations[record.targetCivId].isEliminated
+    || !getCivilizationLiveness(state, record.targetCivId).living
     || !isValidSeverity(record.severity)
     || !Number.isInteger(createdTurn)
     || !Array.isArray(record.unitIds)
