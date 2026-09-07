@@ -146,6 +146,9 @@ describe('processTurn', () => {
       type: 'submarine',
       revealedThisTurn: true,
     };
+    const settler = createUnit('settler', 'player', { q: 1, r: 1 }, state.idCounters);
+    state.units[settler.id] = settler;
+    civ.units.push(settler.id);
 
     const next = processTurn(state, new EventBus());
 
@@ -592,6 +595,9 @@ describe('processTurn', () => {
       civ.cities = [];
       civ.visibility = createVisibilityMap();
     }
+    const settler = createUnit('settler', 'player', { q: 1, r: 1 }, state.idCounters);
+    state.units[settler.id] = settler;
+    state.civilizations.player.units = [settler.id];
 
     state.civilizations.player.visibility.tiles['4,1'] = 'fog';
 
@@ -1879,6 +1885,13 @@ describe('journey automation', () => {
       isResting: false,
       automation: { mode: 'journey', destination },
     };
+    const settler: Unit = {
+      ...unit,
+      id: 'settler-1',
+      type: 'settler',
+      position: { q: 0, r: 0 },
+      automation: undefined,
+    };
 
     const civ = {
       id: 'player',
@@ -1887,7 +1900,7 @@ describe('journey automation', () => {
       isHuman: true,
       civType: 'generic' as const,
       cities: [],
-      units: ['scout-1'],
+      units: ['scout-1', 'settler-1'],
       techState: createTechState(),
       gold: 0,
       visibility: {
@@ -1907,7 +1920,7 @@ describe('journey automation', () => {
       gameTitle: 'Journey Test',
       civilizations: { player: civ },
       map,
-      units: { 'scout-1': unit },
+      units: { 'scout-1': unit, 'settler-1': settler },
       cities: {},
       barbarianCamps: {},
       minorCivs: {},
