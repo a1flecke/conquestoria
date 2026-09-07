@@ -1,5 +1,6 @@
 import type { GameState, PendingDiplomaticRequest, VassalageState } from '@/core/types';
 import { PENDING_DIPLOMATIC_REQUEST_TTL_TURNS, VASSALAGE_PROTECTION_TURNS } from '@/systems/diplomacy-system';
+import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 
 function count(value: unknown, fallback = 0): number {
   return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : fallback;
@@ -8,7 +9,8 @@ function count(value: unknown, fallback = 0): number {
 /** Pure repair of serialized records. Loading never creates consent or gameplay effects. */
 export function normalizeVassalage(state: GameState): GameState {
   const civs = state.civilizations ?? {};
-  const living = (id: unknown): id is string => typeof id === 'string' && Object.hasOwn(civs, id) && !civs[id].isEliminated;
+  const living = (id: unknown): id is string => typeof id === 'string'
+    && Object.hasOwn(civs, id) && getCivilizationLiveness(state, id).living;
   const records: Record<string, VassalageState> = Object.create(null);
   for (const [id, civ] of Object.entries(civs)) {
     const raw = civ.diplomacy?.vassalage;
