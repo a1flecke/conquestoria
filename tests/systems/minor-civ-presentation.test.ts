@@ -125,6 +125,37 @@ describe('minor-civ-presentation', () => {
     }]);
   });
 
+  it('keeps compact notices private to the hot-seat player who discovered a member', () => {
+    const before = createHotSeatGame({
+      playerCount: 2,
+      mapSize: 'medium',
+      players: [
+        { name: 'Alice', slotId: 'alice', civType: 'egypt', isHuman: true },
+        { name: 'Bob', slotId: 'bob', civType: 'rome', isHuman: true },
+      ],
+    }, 'mc-compact-hot-seat-notice');
+    const [first, second] = Object.keys(before.minorCivs);
+    before.minorCivLeagues!.leagues = {
+      'minor-compact-1': {
+        id: 'minor-compact-1', nameKey: 'amber', charter: 'commerce',
+        memberIds: [first, second].sort(), formedTurn: 20, readiness: { kind: 'quiet' },
+      },
+    };
+    before.civilizations.alice.visibility.tiles[hexKey(before.cities[before.minorCivs[first].cityId].position)] = 'fog';
+    before.civilizations.bob.visibility.tiles = {};
+    expect(getMinorCivLeaguePresentationForPlayer(before, 'alice', first)).not.toBeNull();
+    expect(getMinorCivLeaguePresentationForPlayer(before, 'bob', first)).toBeNull();
+    const after = structuredClone(before);
+    after.minorCivLeagues!.leagues['minor-compact-1']!.readiness = { kind: 'concern', sinceTurn: after.turn };
+    expect(getMinorCivLeaguePresentationForPlayer(after, 'alice', first)?.readinessLabel).toBe('Concern reported');
+
+    expect(collectMinorCivLeagueNotices(before, after)).toEqual([{
+      recipientCivId: 'alice',
+      message: 'Amber Compact: a member reports regional tension.',
+      type: 'info',
+    }]);
+  });
+
   it('formats evolved notifications generically for undiscovered viewers', () => {
     const state = createNewGame(undefined, 'mc-present-evolved', 'small');
     const mcId = Object.keys(state.minorCivs)[0]!;
