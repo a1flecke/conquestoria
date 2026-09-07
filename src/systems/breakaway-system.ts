@@ -1,6 +1,10 @@
 import type { BreakawayMetadata, Civilization, GameState } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
+import {
+  emitCivilizationLivenessTransitions,
+  reconcileCivilizationLiveness,
+} from '@/systems/civilization-elimination-system';
 
 const BREAKAWAY_ESTABLISHMENT_TURNS = 50;
 export const REABSORB_RELATIONSHIP_MINIMUM = 50;
@@ -35,13 +39,10 @@ export function createBreakawayFromCity(
   };
 
   const cityTerritory = new Set(city.ownedTiles.map(coord => `${coord.q},${coord.r}`));
-  const transferredUnitIds = previousOwner.units.filter(unitId => {
-    const unit = state.units[unitId];
-    if (!unit) {
-      return false;
-    }
-    return cityTerritory.has(`${unit.position.q},${unit.position.r}`);
-  });
+  const transferredUnitIds = Object.values(state.units)
+    .filter(unit => unit.owner === previousOwner.id
+      && cityTerritory.has(`${unit.position.q},${unit.position.r}`))
+    .map(unit => unit.id);
 
   const updatedUnits = { ...state.units };
   for (const unitId of transferredUnitIds) {
@@ -128,7 +129,9 @@ export function createBreakawayFromCity(
     breakawayId,
   });
 
-  return nextState;
+  const liveness = reconcileCivilizationLiveness(state, nextState);
+  emitCivilizationLivenessTransitions(liveness, bus);
+  return liveness.state;
 }
 
 export function processBreakawayTurn(state: GameState, bus: EventBus): GameState {
@@ -177,6 +180,7 @@ export function tryReabsorbBreakaway(
   state: GameState,
   ownerId: string,
   breakawayId: string,
+  bus?: EventBus,
 ): GameState {
   const owner = state.civilizations[ownerId];
   const breakaway = state.civilizations[breakawayId];
@@ -195,19 +199,20 @@ export function tryReabsorbBreakaway(
     throw new Error('Gold is too low to reabsorb this breakaway');
   }
 
-  const cityId = breakaway.breakaway.originCityId;
-  const city = state.cities[cityId];
-  if (!city) {
-    throw new Error('Breakaway city not found');
-  }
+  const transferredCities = Object.values(state.cities)
+    .filter(city => city.owner === breakawayId);
+  if (transferredCities.length === 0) throw new Error('Breakaway city not found');
+  const transferredCityIds = transferredCities.map(city => city.id);
 
   const updatedCivilizations = { ...state.civilizations };
   delete updatedCivilizations[breakawayId];
-  const transferredUnitIds = breakaway.units.filter(unitId => state.units[unitId] !== undefined);
+  const transferredUnitIds = Object.values(state.units)
+    .filter(unit => unit.owner === breakawayId)
+    .map(unit => unit.id);
   updatedCivilizations[ownerId] = {
     ...owner,
     gold: owner.gold - REABSORB_GOLD_COST,
-    cities: owner.cities.includes(cityId) ? owner.cities : [...owner.cities, cityId],
+    cities: [...owner.cities, ...transferredCityIds.filter(cityId => !owner.cities.includes(cityId))],
     units: [...owner.units, ...transferredUnitIds.filter(unitId => !owner.units.includes(unitId))],
     diplomacy: {
       ...owner.diplomacy,
@@ -218,17 +223,14 @@ export function tryReabsorbBreakaway(
   };
   delete updatedCivilizations[ownerId].diplomacy.relationships[breakawayId];
 
-  for (const civ of Object.values(updatedCivilizations)) {
-    if (civ.id === ownerId) {
-      continue;
-    }
-    if (civ.diplomacy.relationships[breakawayId] !== undefined) {
-      civ.diplomacy = {
-        ...civ.diplomacy,
-        relationships: { ...civ.diplomacy.relationships },
-      };
-      delete civ.diplomacy.relationships[breakawayId];
-    }
+  for (const [civId, civ] of Object.entries(updatedCivilizations)) {
+    if (civId === ownerId || civ.diplomacy.relationships[breakawayId] === undefined) continue;
+    const relationships = { ...civ.diplomacy.relationships };
+    delete relationships[breakawayId];
+    updatedCivilizations[civId] = {
+      ...civ,
+      diplomacy: { ...civ.diplomacy, relationships },
+    };
   }
 
   const updatedUnits = { ...state.units };
@@ -240,18 +242,11 @@ export function tryReabsorbBreakaway(
   }
 
   const updatedMapTiles = { ...state.map.tiles };
-  for (const coord of city.ownedTiles) {
-    const key = `${coord.q},${coord.r}`;
-    const tile = updatedMapTiles[key];
-    if (tile) {
-      updatedMapTiles[key] = {
-        ...tile,
-        owner: ownerId,
-      };
-    }
+  for (const [key, tile] of Object.entries(updatedMapTiles)) {
+    if (tile.owner === breakawayId) updatedMapTiles[key] = { ...tile, owner: ownerId };
   }
 
-  return {
+  const nextState: GameState = {
     ...state,
     units: updatedUnits,
     map: {
@@ -260,15 +255,18 @@ export function tryReabsorbBreakaway(
     },
     cities: {
       ...state.cities,
-      [cityId]: {
+      ...Object.fromEntries(transferredCities.map(city => [city.id, {
         ...city,
         owner: ownerId,
         unrestLevel: 0,
         unrestTurns: 0,
-      },
+      }])),
     },
     civilizations: updatedCivilizations,
   };
+  const liveness = reconcileCivilizationLiveness(state, nextState);
+  if (bus) emitCivilizationLivenessTransitions(liveness, bus);
+  return liveness.state;
 }
 
 export function reconquerBreakawayCity(
