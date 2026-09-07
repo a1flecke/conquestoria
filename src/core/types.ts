@@ -2671,7 +2671,9 @@ export interface GameEvents {
   // Spec 3 — adaptive music events
   'civ:near-defeat':                { civId: string };
   'civ:recovered-from-near-defeat': { civId: string };
-  'civ:eliminated':                 { civId: string; eliminatedBy: string };
+  'civ:resettlement-needed':        { civId: string };
+  'civ:resettled':                  { civId: string };
+  'civ:eliminated':                 { civId: string; eliminatedBy: string | null };
   // Crisis events & revolutionary movements (#381, #354)
   'crisis:started':   { crisisId: string; flavorId: string; civId: string; cityIds: string[] };
   'religion:founded': { religionId: string; civId: string; cityId: string; name: string };

@@ -146,6 +146,43 @@ describe('foundCityInState', () => {
       .toThrow('Settler has already acted');
     expect(state).toEqual(before);
   });
+
+  it('rejects a settler aboard a transport without mutating the input', () => {
+    const state = createNewGame(undefined, 'founding-cargo-settler', 'small');
+    const settlerId = getSettlerId(state, 'player');
+    state.units[settlerId].transportId = 'missing-transport';
+    const before = structuredClone(state);
+
+    expect(() => foundCityInState(state, settlerId, new EventBus()))
+      .toThrow('Settler cannot found a city while aboard a transport');
+    expect(state).toEqual(before);
+  });
+
+  it('rejects a terminally eliminated owner without mutating the input', () => {
+    const state = createNewGame(undefined, 'founding-eliminated-owner', 'small');
+    const settlerId = getSettlerId(state, 'player');
+    state.civilizations.player.isEliminated = true;
+    const before = structuredClone(state);
+
+    expect(() => foundCityInState(state, settlerId, new EventBus()))
+      .toThrow('Settler owner is not living');
+    expect(state).toEqual(before);
+  });
+
+  it('emits one resettlement transition when a cityless civilization founds', () => {
+    const state = createNewGame(undefined, 'founding-resettled', 'small');
+    const civId = 'ai-1';
+    const settlerId = getSettlerId(state, civId);
+    const bus = new EventBus();
+    const resettled = vi.fn();
+    bus.on('civ:resettled', resettled);
+
+    const result = foundCityInState(state, settlerId, bus);
+
+    expect(result.state.cities[result.cityId].owner).toBe(civId);
+    expect(resettled).toHaveBeenCalledOnce();
+    expect(resettled).toHaveBeenCalledWith({ civId });
+  });
 });
 
 describe('foundCityInState — colonial-charter founding production bonus', () => {

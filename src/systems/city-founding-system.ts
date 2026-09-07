@@ -1,6 +1,11 @@
 import type { EventBus } from '@/core/event-bus';
 import type { GameState } from '@/core/types';
 import { collectUsedCityNames } from '@/systems/city-name-system';
+import {
+  emitCivilizationLivenessTransitions,
+  reconcileCivilizationLiveness,
+} from '@/systems/civilization-elimination-system';
+import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { foundCity } from '@/systems/city-system';
 import {
   buildTerritoryTileFlippedEvents,
@@ -32,6 +37,12 @@ export function foundCityInState(
   }
   const civilization = state.civilizations[settler.owner];
   if (!civilization) throw new Error('Settler owner not found');
+  if (settler.transportId) {
+    throw new Error('Settler cannot found a city while aboard a transport');
+  }
+  if (!getCivilizationLiveness(state, settler.owner).living) {
+    throw new Error('Settler owner is not living');
+  }
   if (!canFoundCityAt(state, settler.position)) {
     throw new Error('City cannot be founded here');
   }
@@ -93,6 +104,8 @@ export function foundCityInState(
     preserveForeignHolders: true,
   });
   nextState = territory.state;
+  const liveness = reconcileCivilizationLiveness(state, nextState);
+  nextState = liveness.state;
 
   for (const event of buildTerritoryTileFlippedEvents(
     beforeTerritory,
@@ -105,6 +118,7 @@ export function foundCityInState(
     city: nextState.cities[city.id] ?? city,
     founderId: settler.owner,
   });
+  emitCivilizationLivenessTransitions(liveness, bus);
   if (recoveredFromNearDefeat) {
     bus.emit('civ:recovered-from-near-defeat', { civId: settler.owner });
   }

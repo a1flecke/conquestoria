@@ -13,7 +13,7 @@ import {
   meetsCaptureMargin,
 } from '@/systems/combat-reward-system';
 import { createEmptyPirateState, type PirateFactionState } from '@/core/pirate-state';
-import type { CombatResult, GameState, GeneralCareerEvent } from '@/core/types';
+import type { City, CombatResult, GameState, GeneralCareerEvent } from '@/core/types';
 import { selectDefenderForAttack } from '@/systems/combat-system';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
@@ -206,7 +206,16 @@ function makeRewardState(): GameState {
     winner: null,
     map: { width: 4, height: 4, wrapsHorizontally: false, rivers: [], tiles: {} },
     units: { attacker, defender },
-    cities: {},
+    cities: {
+      'player-survival-city': {
+        id: 'player-survival-city', owner: 'player', name: 'Player City',
+        position: { q: 3, r: 3 }, ownedTiles: [], buildings: [], population: 1,
+      } as unknown as City,
+      'ai-survival-city': {
+        id: 'ai-survival-city', owner: 'ai-1', name: 'AI City',
+        position: { q: 2, r: 3 }, ownedTiles: [], buildings: [], population: 1,
+      } as unknown as City,
+    },
     civilizations: {
       player: {
         id: 'player',

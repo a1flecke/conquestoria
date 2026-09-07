@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createNewGame } from '@/core/game-state';
+import { EventBus } from '@/core/event-bus';
 import { createUnit, moveUnit, resetUnitTurn } from '@/systems/unit-system';
 import {
   getUnmovedUnitsForEndTurn,
@@ -100,6 +101,44 @@ describe('unit-lifecycle-system', () => {
     expect(next.units[spyUnit.id]).toBeUndefined();
     expect(next.civilizations[playerId].units).not.toContain(spyUnit.id);
     expect(next.espionage?.[playerId]?.spies[spyUnit.id]).toBeUndefined();
+  });
+
+  it('cascades voluntary deletion from a transport to its cargo', () => {
+    const state = createNewGame(undefined, 'delete-transport-cargo', 'small');
+    const civId = state.currentPlayer;
+    const cargoId = state.civilizations[civId].units.find(unitId =>
+      state.units[unitId]?.type === 'settler');
+    if (!cargoId) throw new Error('fixture requires a settler');
+    const transport = createUnit('transport', civId, { q: 0, r: 0 }, {
+      ...mkC(),
+      nextUnitId: 999,
+    });
+    state.units[transport.id] = { ...transport, cargoUnitIds: [cargoId] };
+    state.units[cargoId] = { ...state.units[cargoId], transportId: transport.id };
+    state.civilizations[civId].units.push(transport.id);
+
+    const next = removePlayerUnitFromState(state, civId, transport.id);
+
+    expect(next.units[transport.id]).toBeUndefined();
+    expect(next.units[cargoId]).toBeUndefined();
+    expect(next.civilizations[civId].units).not.toContain(transport.id);
+    expect(next.civilizations[civId].units).not.toContain(cargoId);
+  });
+
+  it('finalizes a cityless civilization when its last settler is voluntarily deleted', () => {
+    const state = createNewGame(undefined, 'delete-last-settler', 'small');
+    const civId = state.currentPlayer;
+    const settlerId = state.civilizations[civId].units.find(unitId =>
+      state.units[unitId]?.type === 'settler');
+    if (!settlerId) throw new Error('fixture requires a settler');
+    const bus = new EventBus();
+    const eliminated = vi.fn();
+    bus.on('civ:eliminated', eliminated);
+
+    const next = removePlayerUnitFromState(state, civId, settlerId, bus);
+
+    expect(next.civilizations[civId].isEliminated).toBe(true);
+    expect(eliminated).toHaveBeenCalledWith({ civId, eliminatedBy: null });
   });
 
   it('excludes fortified units from getUnmovedUnitsForEndTurn', () => {
