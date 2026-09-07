@@ -52,6 +52,30 @@ named in the PR body.
 Change 3 is the one most likely to look like a regression in review. It is not: it is the
 `isPlayerControlledMove` branch of `validateUnitMove`, unchanged, finally surfacing.
 
+## Deviation from this plan — runtime import cycle (discovered at Task 8)
+
+The plan below keeps `getMovementBlockerReason` in `unit-movement-queries.ts`. The full
+`yarn test` run at Task 8 surfaced a **load-order** circular import the design's static
+review missed: `unit-movement-queries` (on the `unit-system` barrel) → `unit-movement-validation`
+→ `unit-occupancy` → `air-operations-system` → back into the `unit-system` barrel
+mid-initialisation, leaving `TRAINABLE_UNITS` / `BUILDINGS` undefined for ~65 downstream test
+files. Resolution (shipped, commit `3c728d6a`):
+
+- `getMovementBlockerReason`, `redactMovementRejectionForViewer` and `findZoneOfControlStop`
+  moved into a **new `src/systems/unit-movement-explainer.ts`** that is **not** re-exported
+  through the `unit-system` barrel. `MovementBlockerReason` (a pure type) stays in
+  `unit-movement-queries.ts` as the shared vocabulary.
+- `src/input/map-tap-intent.ts` and `src/input/selected-unit-movement-feedback.ts` import
+  `getMovementBlockerReason` from `@/systems/unit-movement-explainer` directly.
+- The test file the plan calls `unit-movement-queries-redaction.test.ts` shipped (and was then
+  renamed) as **`tests/systems/unit-movement-explainer.test.ts`**.
+- `architecture-boundaries.test.ts` gained an `explainer → validation`-only assertion plus a
+  "not on the barrel" assertion; `.claude/rules/movement-actions.md` and
+  `.claude/rules/game-systems.md` document the module and the cycle reason.
+
+Where a task below says "`unit-movement-queries.ts`" for the explainer/redaction functions,
+read "`unit-movement-explainer.ts`".
+
 ## File Structure
 
 | File | Responsibility | Change |
