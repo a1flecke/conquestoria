@@ -14,6 +14,7 @@ import { deterministicCombatSeed, resolveCombat } from '@/systems/combat-system'
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
 import { isHostileOwnerTo } from '@/systems/owner-hostility';
+import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 
 export interface StampedeProfile {
   cooldownTurns: number;
@@ -133,7 +134,7 @@ export function processStampedeScheduling(state: GameState): GameState {
   let next = state;
   for (const civId of Object.keys(state.civilizations).sort()) {
     const civ = next.civilizations[civId];
-    if (!civ || civ.isEliminated) continue;
+    if (!civ || !getCivilizationLiveness(next, civId).living) continue;
     const era = resolveCivilizationEra(civ.techState.completed);
     const existing = next.stampedes?.[civId];
     if (era < 3 || era > 8 || existing?.phase === 'warning' || existing?.phase === 'active') continue;

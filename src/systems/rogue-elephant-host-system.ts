@@ -11,6 +11,7 @@ import { resolvePressureSeverityForCiv } from '@/core/opponent-challenge';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { getTrainableUnitsForCiv } from '@/systems/city-system';
 import { commitHerdRouteForTurn } from '@/systems/stampede-route-system';
+import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 
 export interface RogueElephantHostProfile {
   elephantCount: number;
@@ -91,7 +92,7 @@ export function startRogueElephantHostWarning(
   severity: OpponentChallenge,
 ): GameState {
   const target = state.civilizations[targetCivId];
-  if (!target || target.isEliminated || state.rogueElephantHosts?.[targetCivId]?.completed || hasActiveTargetedWorldPressure(state, targetCivId)) return state;
+  if (!target || !getCivilizationLiveness(state, targetCivId).living || state.rogueElephantHosts?.[targetCivId]?.completed || hasActiveTargetedWorldPressure(state, targetCivId)) return state;
   const era = resolveCivilizationEra(target.techState.completed);
   if (era < 4 || era > 9) return state;
   const profile = getRogueElephantHostProfile(severity, target.isHuman);
@@ -130,7 +131,7 @@ export function processRogueElephantHostScheduling(state: GameState): GameState 
   let next = state;
   for (const targetCivId of Object.keys(state.civilizations).sort()) {
     const civ = next.civilizations[targetCivId];
-    if (!civ || civ.isEliminated || next.rogueElephantHosts?.[targetCivId]?.completed || next.rogueElephantHosts?.[targetCivId]?.phase) continue;
+    if (!civ || !getCivilizationLiveness(next, targetCivId).living || next.rogueElephantHosts?.[targetCivId]?.completed || next.rogueElephantHosts?.[targetCivId]?.phase) continue;
     const era = resolveCivilizationEra(civ.techState.completed);
     if (era < 4 || era > 9 || hasActiveTargetedWorldPressure(next, targetCivId)) continue;
     // Stable 4% per eligible completed round: visible warning prevents surprise attacks.
