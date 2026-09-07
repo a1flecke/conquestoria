@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import { createUnit } from '@/systems/unit-system';
+import { foundCity } from '@/systems/city-system';
 import { getAvailableTechs } from '@/systems/tech-system';
 import type { GameState, HotSeatPlayer, Religion, Unit } from '@/core/types';
 import { createGameSession } from '@/app/game-session';
@@ -76,9 +77,14 @@ function makeFixture(): GameState {
   const state = createNewGame(undefined, 'turn-flow-controller', 'small');
   state.currentPlayer = 'player';
   state.units = {};
-  for (const civId of Object.keys(state.civilizations)) {
-    state.civilizations[civId].units = [];
-  }
+  Object.keys(state.civilizations).forEach((civId, index) => {
+    const civilization = state.civilizations[civId];
+    civilization.units = [];
+    const city = foundCity(civId, { q: index, r: 1 }, state.map, idCounters);
+    city.id = `${civId}-survival-city`;
+    state.cities[city.id] = city;
+    civilization.cities = [city.id];
+  });
   clearRequiredChoices(state, 'player');
   return state;
 }

@@ -27,9 +27,9 @@
 # when a *future* audit finds a call site missed here.
 
 # --- barbarian-system.ts ---
-src/systems/barbarian-system.ts:37 # [LOW] lcg() recurrence body — hand-rolled duplicate of seededLcg
-src/systems/barbarian-system.ts:316 # [OK] gameId:turn:campId folded over the full string, no truncation
-src/systems/barbarian-system.ts:388 # [OK] gameId:turn:campId folded over the full string, no truncation
+src/systems/barbarian-system.ts:38 # [LOW] lcg() recurrence body — hand-rolled duplicate of seededLcg
+src/systems/barbarian-system.ts:317 # [OK] gameId:turn:campId folded over the full string, no truncation
+src/systems/barbarian-system.ts:389 # [OK] gameId:turn:campId folded over the full string, no truncation
 
 # --- beast-system.ts ---
 src/systems/beast-system.ts:74 # [LOW] lcg() recurrence body — hand-rolled duplicate of seededLcg
@@ -42,8 +42,8 @@ src/systems/combat-system.ts:431 # [LOW] resolveCombat's LCG recurrence body —
 src/systems/city-siege-system.ts:135 # [LOW] createSeededRng() recurrence body — hand-rolled duplicate of seededLcg
 
 # --- combat-reward-system.ts (seededRoll's seed always traces back to deterministicCombatSeed via applyCombatOutcomeToState) ---
-src/systems/combat-reward-system.ts:140 # [OK] full victorId:defeatedId fold, no truncation; caller-supplied seed is already gameId-rooted
-src/systems/combat-reward-system.ts:142 # [LOW] LCG recurrence body — hand-rolled duplicate of seededLcg
+src/systems/combat-reward-system.ts:144 # [OK] full victorId:defeatedId fold, no truncation; caller-supplied seed is already gameId-rooted
+src/systems/combat-reward-system.ts:146 # [LOW] LCG recurrence body — hand-rolled duplicate of seededLcg
 
 # --- pirate-actions.ts (deterministicRoll is parameterized; its one caller already builds gameId:turn:factionId:raidKey) ---
 src/systems/pirate-actions.ts:304 # [OK] full-string FNV-1a fold, no truncation; caller already supplies gameId:turn:factionId:raidKey
@@ -52,5 +52,5 @@ src/systems/pirate-actions.ts:304 # [OK] full-string FNV-1a fold, no truncation;
 src/systems/air-operations-system.ts:470 # [OK] gameId:turn:baseId:aircraftId folded over the full string, no truncation
 
 # --- turn-manager.ts (deriveGeneralCandidateSeed, #932 — already gameId-rooted) ---
-src/core/turn-manager.ts:152 # [LOW] deriveGeneralCandidateSeed (#932) — already gameId-rooted; recurrence body duplicates seededLcg
-src/core/turn-manager.ts:154 # [LOW] deriveGeneralCandidateSeed (#932) LCG fold — hand-rolled duplicate of seededLcg
+src/core/turn-manager.ts:153 # [LOW] deriveGeneralCandidateSeed (#932) — already gameId-rooted; recurrence body duplicates seededLcg
+src/core/turn-manager.ts:155 # [LOW] deriveGeneralCandidateSeed (#932) LCG fold — hand-rolled duplicate of seededLcg

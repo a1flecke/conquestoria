@@ -1200,7 +1200,9 @@ describe('renderSelectedUnitInfo — crisis-force label', () => {
   it('shows the neutral crisis-force label and dedicated color', () => {
     const state = createNewGame(undefined, 'crisis-force-label', 'small');
     const unit = { ...createUnit('warrior', 'crisis-force', { q: 3, r: 0 }, state.idCounters), id: 'crisis-1' };
-    state.units = { 'crisis-1': unit };
+    const survivalSettler = { ...createUnit('settler', 'player', { q: 0, r: 1 }, state.idCounters), id: 'player-survival-settler', hasActed: true, movementPointsLeft: 0 };
+    state.units = { 'crisis-1': unit, [survivalSettler.id]: survivalSettler };
+    state.civilizations.player.units = [survivalSettler.id];
     const container = new MockElement('div');
 
     renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'crisis-1', {});
@@ -1212,7 +1214,9 @@ describe('renderSelectedUnitInfo — crisis-force label', () => {
   it('shows a committed herd path only to its visible target', () => {
     let state = createNewGame(undefined, 'crisis-force-route-label', 'small');
     const unit = { ...createUnit('warrior', 'crisis-force', { q: 3, r: 0 }, state.idCounters), id: 'crisis-1' };
-    state.units = { 'crisis-1': unit };
+    const survivalSettler = { ...createUnit('settler', 'player', { q: 0, r: 1 }, state.idCounters), id: 'player-survival-settler', hasActed: true, movementPointsLeft: 0 };
+    state.units = { 'crisis-1': unit, [survivalSettler.id]: survivalSettler };
+    state.civilizations.player.units = [survivalSettler.id];
     state.civilizations.player.visibility.tiles['3,0'] = 'visible';
     state.civilizations.player.visibility.tiles['4,0'] = 'visible';
     state = registerCrisisForce(state, {
@@ -1229,7 +1233,9 @@ describe('renderSelectedUnitInfo — crisis-force label', () => {
     let state = createNewGame(undefined, 'rogue-command-label', 'small');
     const handler = { ...createUnit('rogue_handler', 'crisis-force', { q: 3, r: 0 }, state.idCounters), id: 'handler-1' };
     const elephant = { ...createUnit('rogue_elephant', 'crisis-force', { q: 4, r: 0 }, state.idCounters), id: 'elephant-1' };
-    state.units = { [handler.id]: handler, [elephant.id]: elephant };
+    const survivalSettler = { ...createUnit('settler', 'player', { q: 0, r: 1 }, state.idCounters), id: 'player-survival-settler', hasActed: true, movementPointsLeft: 0 };
+    state.units = { [handler.id]: handler, [elephant.id]: elephant, [survivalSettler.id]: survivalSettler };
+    state.civilizations.player.units = [survivalSettler.id];
     state.civilizations.player.visibility.tiles['4,0'] = 'visible';
     state = registerCrisisForce(state, {
       id: 'rogue-host', targetCivId: 'player', severity: 'standard', createdTurn: state.turn, unitIds: [handler.id, elephant.id],

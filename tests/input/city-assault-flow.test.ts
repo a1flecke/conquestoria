@@ -4,6 +4,7 @@ import { createNewGame } from '@/core/game-state';
 import type { GameState } from '@/core/types';
 import { foundCity } from '@/systems/city-system';
 import { hexKey } from '@/systems/hex-utils';
+import { createUnit } from '@/systems/unit-system';
 import {
   beginPlayerCityAssaultChoice,
   finalizePlayerCityAssaultChoice,
@@ -29,6 +30,12 @@ function makePlayerAssaultState({ population }: { population: number }): GameSta
     hasMoved: false,
   };
   state.civilizations.player.units = ['unit-1'];
+  const survivalSettler = createUnit('settler', 'player', { q: 0, r: 1 }, state.idCounters);
+  survivalSettler.id = 'player-survival-settler';
+  survivalSettler.hasActed = true;
+  survivalSettler.movementPointsLeft = 0;
+  state.units[survivalSettler.id] = survivalSettler;
+  state.civilizations.player.units.push(survivalSettler.id);
 
   state.cities.athens = {
     ...foundCity('ai-1', { q: 1, r: 0 }, state.map, mkC()),
