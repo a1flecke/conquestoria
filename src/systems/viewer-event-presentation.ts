@@ -1,6 +1,7 @@
 import type { CombatResult, GameState, HexCoord, Unit } from '@/core/types';
 import { getVisibility } from '@/systems/fog-of-war';
 import { isUnitConcealedFrom } from '@/systems/concealment';
+import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 
 export interface ViewerMovePresentation {
   unit: Unit;
@@ -15,7 +16,7 @@ export function getLivingHumanViewerIds(state: GameState): string[] {
     ? configured
     : Object.values(state.civilizations).filter(civ => civ.isHuman).map(civ => civ.id);
   return [...new Set(candidates)]
-    .filter(civId => state.civilizations[civId] && !state.civilizations[civId].isEliminated)
+    .filter(civId => getCivilizationLiveness(state, civId).living)
     .sort();
 }
 
