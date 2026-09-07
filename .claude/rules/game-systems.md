@@ -110,6 +110,7 @@ The full `migrate → normalize → run a few rounds → save → reload → sha
 - Unit movement execution must validate the destination in the shared movement system before mutating state. UI highlights are advisory and cannot be the only blocker.
 - Movement failures should return a structured reason/message so UI, AI, and automation callers can avoid animating or treating the move as successful.
 - Transported cargo is not an occupying map unit and must not contribute visibility, unmoved-unit prompts, or order-selection prompts while aboard.
+- The movement subsystem lives in `unit-movement-system.ts` (`resolveUnitMoveIntent` / `executeValidatedUnitMove` — the #1025 contract) on top of `unit-movement-cost.ts`, `unit-movement-legality.ts`, `unit-pathfinding.ts` and `unit-movement-queries.ts` (#1010). `unit-system.ts` re-exports them and otherwise owns only unit lifecycle, healing and `UNIT_DESCRIPTIONS`; the static catalog is `unit-definitions.ts`. See `.claude/rules/movement-actions.md`.
 
 ## Transport Cargo
 - Load/unload rules, cargo capacity, cargo position sync, and transport destruction cascades must live in shared system helpers, not in UI-only branches.
