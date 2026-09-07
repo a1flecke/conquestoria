@@ -11,6 +11,26 @@ import {
 import { EventBus } from '@/core/event-bus';
 import { getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentation';
 import { makeDiplomacyFixture } from './helpers/diplomacy-fixture';
+import { createUnit } from '@/systems/unit-system';
+
+describe('diplomacy-panel cityless rivals', () => {
+  it('keeps a met cityless rival with a settler in the visible diplomacy list', () => {
+    const { container, state } = makeDiplomacyFixture({ includeThirdCiv: true });
+    const outsider = state.civilizations.outsider;
+    const unit = createUnit('settler', 'outsider', { q: 0, r: 0 }, state.idCounters);
+    state.units[unit.id] = unit;
+    outsider.units = [unit.id];
+    for (const city of Object.values(state.cities)) {
+      if (city.owner === 'outsider') delete state.cities[city.id];
+    }
+    outsider.cities = [];
+    state.civilizations.player.knownCivilizations = ['outsider'];
+
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {} });
+
+    expect(panel.textContent).toContain(outsider.name);
+  });
+});
 
 describe('diplomacy-panel breakaway rows', () => {
   it('renders breakaway status, countdown, and reabsorb action for the current player only', () => {
