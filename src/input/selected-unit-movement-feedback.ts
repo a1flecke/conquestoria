@@ -1,6 +1,6 @@
 import type { GameState, HexCoord } from '@/core/types';
 import { getVisibility } from '@/systems/fog-of-war';
-import { getMovementBlockerReason, getBlockingMapEntityAt } from '@/systems/unit-system';
+import { getMovementBlockerReason } from '@/systems/unit-system';
 import {
   getLandUnitWaterRecoveryTapMessage,
   type LandUnitWaterRecovery,
@@ -21,17 +21,11 @@ export function handleSelectedUnitMovementBlocker(
 ): boolean {
   const unit = state.units[unitId];
   if (!unit) return false;
-  const civ = state.civilizations[state.currentPlayer];
-  const visibilityState = civ?.visibility
-    ? getVisibility(civ.visibility, target)
-    : undefined;
-  const completedTechs = state.civilizations[unit.owner]?.techState.completed ?? [];
-  const reason = getMovementBlockerReason(
-    unit,
-    target,
-    state.map,
-    { visibilityState, completedTechs, blockingEntity: getBlockingMapEntityAt(state, unit, target) },
-  );
+  // #1025 MR4: owner-scoped, not state.currentPlayer — previously visibilityState came from
+  // currentPlayer while completedTechs came from unit.owner, which disagreed in hot seat.
+  const ownerVisibility = state.civilizations[unit.owner]?.visibility;
+  const visibilityState = ownerVisibility ? getVisibility(ownerVisibility, target) : undefined;
+  const reason = getMovementBlockerReason(state, unitId, target, { visibilityState });
   if (!reason) return false;
 
   const recoveryMessage = reason.code === 'impassable-water'

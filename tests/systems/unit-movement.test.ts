@@ -6,6 +6,7 @@ import { createHotSeatGame } from '@/core/game-state';
 import { processTurn } from '@/core/turn-manager';
 import type { GameMap } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
+import { explainerState } from './helpers/movement-explainer-fixture';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -281,15 +282,15 @@ describe('mountain terrain — movement cost and forced march (issue #280)', () 
 
   it('a unit with exactly 4 movement points can enter a mountain', () => {
     const unit = createUnit('warrior', 'p1', { q: 0, r: 0 }, mkC());
-    const unitWithMovement = { ...unit, movementPointsLeft: 4 };
-    const reason = getMovementBlockerReason(unitWithMovement as any, { q: 1, r: 0 }, mountainMap());
+    unit.movementPointsLeft = 4;
+    const reason = getMovementBlockerReason(explainerState(unit, mountainMap()), unit.id, { q: 1, r: 0 });
     expect(reason).toBeNull();
   });
 
   it('forced march: worker (2 movement) can always move to an adjacent mountain', () => {
     const unit = createUnit('worker', 'p1', { q: 0, r: 0 }, mkC());
     // Worker is adjacent to (1,0) mountain — forced march should allow it despite cost 4
-    const reason = getMovementBlockerReason(unit, { q: 1, r: 0 }, mountainMap());
+    const reason = getMovementBlockerReason(explainerState(unit, mountainMap()), unit.id, { q: 1, r: 0 });
     expect(reason).toBeNull();
   });
 

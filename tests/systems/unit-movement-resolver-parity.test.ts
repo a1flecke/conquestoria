@@ -50,46 +50,20 @@ function fixture(): { state: GameState; moverId: string } {
   return { state, moverId: mover.id };
 }
 
-describe('#1010 — resolver ↔ tap-explainer parity', () => {
-  it('every tile the resolver rejects that is ALSO outside movement range gets a non-null explainer reason', () => {
+describe('#1025 MR4 — resolver ↔ tap-explainer parity', () => {
+  it('every resolver rejection for an explored destination yields the same explainer code', () => {
     const { state, moverId } = fixture();
-    const mover = state.units[moverId]!;
-    const completedTechs: string[] = [];
-    const reachable = new Set(getMovementRangeDetails(state, moverId).reachable.map(hexKey));
-
-    const unexplained: string[] = [];
+    const mismatches: string[] = [];
     for (const key of Object.keys(state.map.tiles)) {
       const [q, r] = key.split(',').map(Number) as [number, number];
-      const to: HexCoord = { q, r };
-      if (hexKey(mover.position) === key) continue;
-      const res = resolveUnitMoveIntent(state, moverId, to, { actor: 'player', civId: 'civ-a' });
-      if (res.ok) continue;
-      if (reachable.has(key)) continue; // range preview already communicates "reachable but terminal"
-      const reason = getMovementBlockerReason(mover, to, state.map, {
-        completedTechs,
-        blockingEntity: getBlockingMapEntityAt(state, mover, to),
-      });
-      if (!reason) unexplained.push(`${key} (resolver: ${res.reason})`);
+      if (hexKey(state.units[moverId]!.position) === key) continue;
+      const res = resolveUnitMoveIntent(state, moverId, { q, r }, { actor: 'player', civId: 'civ-a' });
+      if (res.ok || res.reason === 'missing-unit') continue;
+      const reason = getMovementBlockerReason(state, moverId, { q, r });
+      if (reason?.code !== res.reason) {
+        mismatches.push(`${key}: resolver=${res.reason} explainer=${reason?.code ?? 'null'}`);
+      }
     }
-    expect(unexplained, unexplained.join('\n')).toEqual([]);
+    expect(mismatches, mismatches.join('\n')).toEqual([]);
   });
-
-  it('blocker tiles: resolver and explainer agree on the reason code', () => {
-    const { state, moverId } = fixture();
-    const mover = state.units[moverId]!;
-    for (const to of [{ q: 3, r: 0 }, { q: 1, r: 2 }] as HexCoord[]) {
-      const res = resolveUnitMoveIntent(state, moverId, to, { actor: 'player', civId: 'civ-a' });
-      expect(res.ok).toBe(false);
-      const reason = getMovementBlockerReason(mover, to, state.map, {
-        blockingEntity: getBlockingMapEntityAt(state, mover, to),
-      });
-      if (res.ok) return;
-      expect(reason?.code).toBe(res.reason);
-    }
-  });
-
-  // Known incomplete (see module docblock + #1025 follow-up): the explainer does
-  // not reproduce the resolver's hostile-occupant / path-crossing rejections.
-  // Collapsing it onto resolveUnitMoveIntent is tracked under #1025.
-  it.todo('explainer reproduces the resolver\'s hostile-occupant rejection (#1025 follow-up)');
 });
