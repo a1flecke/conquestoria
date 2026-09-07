@@ -1,5 +1,6 @@
 import type { GameState, HexCoord, Unit } from '@/core/types';
 import { classifyOwner } from '@/core/owner-kind';
+import { getCivilizationLiveness } from './civilization-liveness';
 import { resolveCivilizationEra } from './tech-definitions';
 import { mapDistance } from './hex-utils';
 
@@ -34,14 +35,14 @@ export function resolveNeutralPressureEra(
   intendedTargetId?: string | null,
 ): number | null {
   const target = intendedTargetId ? state.civilizations[intendedTargetId] : undefined;
-  if (target && !target.isEliminated) {
+  if (target && getCivilizationLiveness(state, intendedTargetId!).living) {
     return resolveCivilizationEra(target.techState.completed);
   }
 
   const nearbyOwnerIds = new Set(
     Object.values(state.cities)
       .filter(city => classifyOwner(city.owner) === 'major')
-      .filter(city => !state.civilizations[city.owner]?.isEliminated)
+      .filter(city => getCivilizationLiveness(state, city.owner).living)
       .filter(city => mapDistance(state.map, position, city.position) <= NEUTRAL_PRESSURE_LOCAL_RADIUS)
       .map(city => city.owner),
   );

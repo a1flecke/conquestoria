@@ -29,6 +29,7 @@ import { resolveNeutralPressureEra } from './era-resolution';
 import { getActiveCampPressure, observeCampPressureFromSensedUnits } from './barbarian-pressure';
 import { selectBarbarianReinforcement } from './barbarian-force-composer';
 import { createSimulationRng } from './simulation-rng';
+import { getCivilizationLiveness } from './civilization-liveness';
 
 // Seeded LCG — avoids Math.random() per project rules
 function lcg(seed: number): () => number {
@@ -303,7 +304,7 @@ function chooseBarbarianSpawnType(
 ): UnitType {
   const camp = state.barbarianCamps[campId];
   const target = camp ? Object.values(state.cities)
-    .filter(city => state.civilizations[city.owner] && !state.civilizations[city.owner].isEliminated)
+    .filter(city => getCivilizationLiveness(state, city.owner).living)
     .sort((a, b) => barbarianDistance(state, camp.position, a.position) - barbarianDistance(state, camp.position, b.position) || a.owner.localeCompare(b.owner))[0]
     : undefined;
   const roster = getBarbarianRosterForEra(camp
