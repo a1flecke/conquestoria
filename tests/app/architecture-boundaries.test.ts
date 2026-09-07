@@ -126,6 +126,17 @@ describe('#1010 — unit-system movement decomposition boundaries', () => {
     expect(cycles, cycles.join('\n')).toEqual([]);
   });
 
+  it('fog-of-war and unit-occupancy import the catalog leaf, not the unit-system barrel', () => {
+    // #1025 MR4: unit-movement-validation depends on both. If they reach UNIT_DEFINITIONS
+    // through the barrel (which re-exports unit-movement-queries, which imports validation),
+    // that closes a cycle. Point them at the leaf instead — same fix MR3 made for
+    // zone-of-control-system.
+    for (const file of ['fog-of-war.ts', 'unit-occupancy.ts']) {
+      expect(importsOf(file), file).not.toContain('unit-system');
+      expect(importsOf(file), file).toContain('unit-definitions');
+    }
+  });
+
   it('layering: cost imports neither pathfinding nor queries nor legality; legality imports none of them', () => {
     const cost = importsOf('unit-movement-cost.ts');
     expect(cost).not.toContain('unit-pathfinding');
