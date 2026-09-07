@@ -23,6 +23,7 @@ import { TRAINABLE_UNITS, foundCity } from '@/systems/city-system';
 import { PIRATE_HULL_TYPES } from '@/systems/pirate-definitions';
 import { createEmptyPirateState } from '@/core/pirate-state';
 import { createNewGame } from '@/core/game-state';
+import { explainerState } from './helpers/movement-explainer-fixture';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -589,10 +590,10 @@ describe('#965 pirate coastal-enclave anchor blocks land units', () => {
   });
 
   it('getMovementBlockerReason explains the enclave must be assaulted by sea', () => {
+    // #1025 MR4: the explainer now derives the blocking entity from state itself,
+    // rather than the caller passing it in.
     const state = enclaveBlockState({ q: 1, r: 0 });
-    const reason = getMovementBlockerReason(state.units.mover, { q: 2, r: 0 }, state.map, {
-      blockingEntity: getBlockingMapEntityAt(state, state.units.mover, { q: 2, r: 0 }),
-    });
+    const reason = getMovementBlockerReason(state, 'mover', { q: 2, r: 0 });
     expect(reason?.code).toBe('pirate-enclave');
     expect(reason?.message.toLowerCase()).toMatch(/sea|warship|ship/);
   });
@@ -959,49 +960,53 @@ describe('moveUnit', () => {
   });
 });
 
-describe('getMovementBlockerReason', () => {
+describe('getMovementBlockerReason (#1025 MR4: derives from resolveUnitMoveIntent)', () => {
+  /** A foreign city the mover is not allied with, placed on the state at `coord`. */
+  function withForeignCity(state: GameState, coord: { q: number; r: number }): GameState {
+    state.cities = {
+      'foreign-1': { id: 'foreign-1', name: 'Elsewhere', owner: 'enemy', position: coord } as never,
+    };
+    return state;
+  }
+
   it('scout can enter an adjacent mountain tile via forced march (mountains now passable)', () => {
     const map = createWrappedGrasslandMap(5, 5);
     map.tiles['2,2'] = { ...map.tiles['2,2'], terrain: 'mountain' };
     const scout = createUnit('scout', 'player', { q: 2, r: 1 }, mkC());
-
-    // Mountain cost is 4 but scout is adjacent with ≥1 movement — forced march allows it
-    expect(getMovementBlockerReason(scout, { q: 2, r: 2 }, map)).toBeNull();
+    // Mountain cost is 4 but scout is adjacent with ≥1 movement — forced march allows it.
+    expect(getMovementBlockerReason(explainerState(scout, map), scout.id, { q: 2, r: 2 })).toBeNull();
   });
 
   it('uses a distinct reason for land units tapping water', () => {
     const map = createWrappedGrasslandMap(5, 5);
     map.tiles['2,2'] = { ...map.tiles['2,2'], terrain: 'coast' };
     const scout = createUnit('scout', 'player', { q: 2, r: 1 }, mkC());
-
-    expect(getMovementBlockerReason(scout, { q: 2, r: 2 }, map)?.code).toBe('impassable-water');
+    expect(getMovementBlockerReason(explainerState(scout, map), scout.id, { q: 2, r: 2 })?.code).toBe('impassable-water');
   });
 
   it('explains a passable destination that costs more movement than remains', () => {
     const map = createWrappedGrasslandMap(5, 5);
     const scout = createUnit('scout', 'player', { q: 0, r: 0 }, mkC());
     scout.movementPointsLeft = 1;
-
-    expect(getMovementBlockerReason(scout, { q: 2, r: 0 }, map)?.code).toBe('insufficient-movement');
+    expect(getMovementBlockerReason(explainerState(scout, map), scout.id, { q: 2, r: 0 })?.code).toBe('insufficient-movement');
   });
 
   it('explains when a river crossing makes a multi-step move too expensive', () => {
     const map = createStackCorridorMap();
     const warrior = createUnit('warrior', 'player', { q: 1, r: 1 }, mkC());
     map.rivers = [{ from: { q: 1, r: 1 }, to: { q: 2, r: 1 } }];
-
-    expect(getMovementBlockerReason(warrior, { q: 3, r: 1 }, map)?.code)
+    expect(getMovementBlockerReason(explainerState(warrior, map), warrior.id, { q: 3, r: 1 })?.code)
       .toBe('insufficient-movement');
   });
 
-  it('uses the scouting message for an unexplored tapped tile', () => {
+  it('redacts a rejection to the scouting message when the destination is unexplored', () => {
+    // #1025 MR4: redaction now applies to a REJECTION, not to a legal move. A land unit
+    // tapping an unexplored water tile is rejected (impassable-water) and then redacted.
     const map = createWrappedGrasslandMap(5, 5);
+    map.tiles['2,2'] = { ...map.tiles['2,2'], terrain: 'coast' };
     const scout = createUnit('scout', 'player', { q: 2, r: 1 }, mkC());
-
-    expect(getMovementBlockerReason(scout, { q: 2, r: 2 }, map, { visibilityState: 'unexplored' })).toEqual({
-      code: 'unexplored',
-      message: 'Too far away to spot.',
-    });
+    expect(getMovementBlockerReason(explainerState(scout, map), scout.id, { q: 2, r: 2 }, { visibilityState: 'unexplored' }))
+      .toEqual({ code: 'unexplored', message: 'Too far away to spot.' });
   });
 
   it('blocks a coastal-only Transport from ocean regardless of completed techs', () => {
@@ -1010,44 +1015,38 @@ describe('getMovementBlockerReason', () => {
     map.tiles['1,0'] = { ...map.tiles['1,0'], terrain: 'coast' };
     map.tiles['2,0'] = { ...map.tiles['2,0'], terrain: 'ocean' };
     const transport = createUnit('transport', 'player', { q: 0, r: 0 }, mkC());
-
-    expect(getMovementBlockerReason(transport, { q: 1, r: 0 }, map)).toBeNull();
+    expect(getMovementBlockerReason(explainerState(transport, map), transport.id, { q: 1, r: 0 })).toBeNull();
     expect(
-      getMovementBlockerReason(transport, { q: 2, r: 0 }, map, { completedTechs: ['galleys', 'celestial-navigation'] })?.code,
+      getMovementBlockerReason(
+        explainerState(transport, map, { completedTechs: ['galleys', 'celestial-navigation'] }),
+        transport.id, { q: 2, r: 0 },
+      )?.code,
     ).toBe('requires-ocean-hull');
   });
 
-  // #843: before this, getMovementBlockerReason had no 'foreign-city' code at all, even
-  // though UnitMoveValidationResult's reason type did -- masked because canMove was
-  // wrongly true for these tiles pre-fix, so this branch was never reached. Now that Task 1
-  // correctly excludes far-away city tiles from movementRange, a tap on one falls into the
-  // blocked-movement path and must get the same message validateUnitMove would give.
-  it('reports the foreign-city reason when the caller supplies a blocking entity', () => {
+  // #843: the explainer must give the same foreign-city reason validateUnitMove would.
+  it('reports the foreign-city reason for a foreign city on the destination', () => {
     const map = createWrappedGrasslandMap(5, 5);
     const scout = createUnit('scout', 'player', { q: 0, r: 0 }, mkC());
-
-    expect(getMovementBlockerReason(scout, { q: 2, r: 0 }, map, {
-      blockingEntity: { reason: 'foreign-city', entityId: 'some-city' },
-    })).toEqual({
+    const state = withForeignCity(explainerState(scout, map), { q: 2, r: 0 });
+    expect(getMovementBlockerReason(state, scout.id, { q: 2, r: 0 })).toEqual({
       code: 'foreign-city',
       message: 'Move adjacent, then use the city assault action.',
     });
   });
 
-  it('takes the blocking-entity reason over an otherwise-passable tile', () => {
+  it('takes the foreign-city reason over an otherwise-passable adjacent tile', () => {
     const map = createWrappedGrasslandMap(5, 5);
     const scout = createUnit('scout', 'player', { q: 0, r: 0 }, mkC());
-    // Adjacent + passable would otherwise return null (forced march) -- the blocking entity
-    // must still win.
-    expect(getMovementBlockerReason(scout, { q: 1, r: 0 }, map, {
-      blockingEntity: { reason: 'foreign-city', entityId: 'some-city' },
-    })?.code).toBe('foreign-city');
+    const state = withForeignCity(explainerState(scout, map), { q: 1, r: 0 });
+    // Adjacent + passable would otherwise return null (forced march) — the city must still win.
+    expect(getMovementBlockerReason(state, scout.id, { q: 1, r: 0 })?.code).toBe('foreign-city');
   });
 
-  it('falls through to normal terrain logic when no blocking entity is supplied', () => {
+  it('falls through to null when the adjacent tile is plain passable ground', () => {
     const map = createWrappedGrasslandMap(5, 5);
     const scout = createUnit('scout', 'player', { q: 0, r: 0 }, mkC());
-    expect(getMovementBlockerReason(scout, { q: 1, r: 0 }, map, { blockingEntity: null })).toBeNull();
+    expect(getMovementBlockerReason(explainerState(scout, map), scout.id, { q: 1, r: 0 })).toBeNull();
   });
 });
 

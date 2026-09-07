@@ -377,6 +377,9 @@ describe('resolveMapTapIntent', () => {
       placePlayerUnit(state, 'unit-1', { position: { q: 0, r: 0 } });
       const campCoord = { q: 2, r: 0 };
       state.barbarianCamps['camp-1'] = { id: 'camp-1', position: campCoord, strength: 10, spawnCooldown: 3 };
+      // #1025 MR4: the tap explainer now redacts an unexplored destination. A camp you can
+      // see is explored — make that explicit so the specific message survives.
+      makeVisible(state, campCoord);
 
       const intent = resolveMapTapIntent(
         state,

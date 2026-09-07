@@ -110,7 +110,11 @@ describe('selected-unit blocked movement feedback', () => {
   });
 
   it('does not play the error cue for informational fog feedback', () => {
+    // #1025 MR4: redaction now applies to a REJECTION, not a legal move. (2,1) is made
+    // impassable water AND unexplored, so the tap is genuinely refused and then redacted
+    // to the informational "Too far away to spot." (shown as info, no error cue).
     const state = feedbackState(false);
+    state.map.tiles['2,1'] = tile({ q: 2, r: 1 }, 'coast');
     state.civilizations.player.visibility.tiles['2,1'] = 'unexplored';
     const showNotification = vi.fn();
     const playError = vi.fn();

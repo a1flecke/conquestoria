@@ -20,6 +20,7 @@ import {
   type BlockingMapEntity,
 } from './unit-movement-legality';
 import { findPath } from './unit-pathfinding';
+import { resolveUnitMoveIntent } from './unit-movement-validation';
 
 /**
  * Movement queries (#1010). A read-only derived answer for a UI / AI consumer,
@@ -96,73 +97,49 @@ export function findZoneOfControlStop(
   return null;
 }
 
+/**
+ * Why can this unit not move to `to` — the **viewer-scoped** answer (#1025 MR4).
+ *
+ * This owns NO legality of its own. It resolves through `resolveUnitMoveIntent` (the one
+ * omniscient legality+cost source), projects that typed rejection, and then applies the one
+ * redaction rule. `getZoneOfControlAt` is consulted only to describe an outcome the executor
+ * would produce (a partial move), which the resolver reports as `ok: true`.
+ *
+ * Owner-scoped, never viewer-scoped, for legality: `civId` is always `unit.owner`, so hot-seat
+ * viewing cannot change what a unit may do.
+ */
 export function getMovementBlockerReason(
-  unit: Unit,
+  state: GameState,
+  unitId: string,
   to: HexCoord,
-  map: GameMap,
-  options: { visibilityState?: VisibilityState; completedTechs?: string[]; blockingEntity?: BlockingMapEntity | null } = {},
+  options: { visibilityState?: VisibilityState } = {},
 ): MovementBlockerReason | null {
-  if (options.visibilityState === 'unexplored') {
-    return { code: 'unexplored', message: 'Too far away to spot.' };
+  const unit = state.units[unitId];
+  if (!unit) return null;
+
+  const resolution = resolveUnitMoveIntent(state, unitId, to, {
+    actor: 'player',
+    civId: unit.owner,
+  });
+
+  if (!resolution.ok) {
+    if (resolution.reason === 'missing-unit') return null;
+    return redactMovementRejectionForViewer(
+      { code: resolution.reason, message: resolution.message },
+      options.visibilityState,
+    );
   }
 
-  const target = map.wrapsHorizontally ? wrapHexCoord(to, map.width) : to;
-  const tile = map.tiles[hexKey(target)];
-  if (!tile) {
-    return { code: 'unknown-tile', message: 'Too far away to spot.' };
-  }
-
-  // A blocking map entity (e.g. a foreign, unallied city) takes priority over terrain --
-  // the caller supplies it (via getBlockingMapEntityAt) rather than this function taking a
-  // full GameState, matching its existing decoupled-from-state signature (#843).
-  if (options.blockingEntity) {
-    return {
-      code: options.blockingEntity.reason,
-      message: BLOCKING_MAP_ENTITY_MESSAGES[options.blockingEntity.reason],
-    };
-  }
-
-  const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
-  if (!isPassableForUnitInContext(unit, tile.terrain, { completedTechs: options.completedTechs })) {
-    if (domain === 'naval' && tile.terrain === 'ocean' && !canHullEnterOcean(unit.type)) {
-      return {
-        code: 'requires-ocean-hull',
-        message: "This ship can't survive the open sea — upgrade it to go further.",
-      };
-    }
-    if (domain === 'naval') {
-      return { code: 'impassable-terrain', message: 'Naval units cannot move on land.' };
-    }
-    if (tile.terrain === 'ocean' || tile.terrain === 'coast') {
-      return { code: 'impassable-water', message: 'Land units cannot cross water yet.' };
-    }
-    return { code: 'impassable-terrain', message: 'This terrain cannot be entered.' };
-  }
-
-  const path = findPath(unit.position, target, map, domain, { unit, completedTechs: options.completedTechs });
-  if (!path) {
-    return { code: 'unreachable', message: 'No passable route to that tile.' };
-  }
-
-  const pathCost = path.slice(1).reduce(
-    (total, coord, index) => total + getMovementStepCost(
-      unit,
-      map,
-      path[index]!,
-      coord,
-      { completedTechs: options.completedTechs },
-    ),
-    0,
-  );
-
-  // Forced march: a unit can always move to an adjacent passable tile with ≥1 move remaining.
-  const isAdjacentMove = path.length === 2;
-  if (isAdjacentMove && unit.movementPointsLeft >= 1) {
-    return null;
-  }
-
-  if (pathCost > unit.movementPointsLeft) {
-    return { code: 'insufficient-movement', message: 'Not enough movement left this turn.' };
+  const stop = findZoneOfControlStop(state, unit, resolution.command.path);
+  const destination = resolution.command.to;
+  if (stop && hexKey(stop) !== hexKey(destination)) {
+    return redactMovementRejectionForViewer(
+      {
+        code: 'zone-of-control',
+        message: 'An enemy nearby would stop your unit before it reaches that tile.',
+      },
+      options.visibilityState,
+    );
   }
 
   return null;

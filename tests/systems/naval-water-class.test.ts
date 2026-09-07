@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { UNIT_DEFINITIONS, createUnit, getMovementBlockerReason } from '@/systems/unit-system';
+import { explainerState } from './helpers/movement-explainer-fixture';
 import { PIRATE_HULL_DEFINITIONS, PIRATE_HULL_TYPES } from '@/systems/pirate-definitions';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import type { GameMap } from '@/core/types';
@@ -84,43 +85,43 @@ describe('naval hull water-class movement enforcement', () => {
   it('blocks a coastal-only hull (Galley) from entering ocean', () => {
     const map = createWaterMap();
     const galley = createUnit('galley', 'player', { q: 1, r: 0 }, mkCounters());
-    expect(getMovementBlockerReason(galley, { q: 2, r: 0 }, map)?.code).toBe('requires-ocean-hull');
+    expect(getMovementBlockerReason(explainerState(galley, map), galley.id, { q: 2, r: 0 })?.code).toBe('requires-ocean-hull');
   });
 
   it('allows a coastal-only hull (Transport) to enter coast', () => {
     const map = createWaterMap();
     const transport = createUnit('transport', 'player', { q: 0, r: 0 }, mkCounters());
-    expect(getMovementBlockerReason(transport, { q: 1, r: 0 }, map)).toBeNull();
+    expect(getMovementBlockerReason(explainerState(transport, map), transport.id, { q: 1, r: 0 })).toBeNull();
   });
 
   it('allows an ocean-going hull (Trireme) to enter ocean', () => {
     const map = createWaterMap();
     const trireme = createUnit('trireme', 'player', { q: 1, r: 0 }, mkCounters());
-    expect(getMovementBlockerReason(trireme, { q: 2, r: 0 }, map)).toBeNull();
+    expect(getMovementBlockerReason(explainerState(trireme, map), trireme.id, { q: 2, r: 0 })).toBeNull();
   });
 
   it('allows an ocean-going hull (Carrack) to enter ocean', () => {
     const map = createWaterMap();
     const carrack = createUnit('carrack', 'player', { q: 1, r: 0 }, mkCounters());
-    expect(getMovementBlockerReason(carrack, { q: 2, r: 0 }, map)).toBeNull();
+    expect(getMovementBlockerReason(explainerState(carrack, map), carrack.id, { q: 2, r: 0 })).toBeNull();
   });
 
   it('blocks a coastal-only pirate hull (pirate_galley) from entering ocean', () => {
     const map = createWaterMap();
     const pirate = createUnit('pirate_galley', 'pirates', { q: 1, r: 0 }, mkCounters());
-    expect(getMovementBlockerReason(pirate, { q: 2, r: 0 }, map)?.code).toBe('requires-ocean-hull');
+    expect(getMovementBlockerReason(explainerState(pirate, map), pirate.id, { q: 2, r: 0 })?.code).toBe('requires-ocean-hull');
   });
 
   it('allows an ocean-going pirate hull (pirate_frigate) to enter ocean', () => {
     const map = createWaterMap();
     const pirate = createUnit('pirate_frigate', 'pirates', { q: 1, r: 0 }, mkCounters());
-    expect(getMovementBlockerReason(pirate, { q: 2, r: 0 }, map)).toBeNull();
+    expect(getMovementBlockerReason(explainerState(pirate, map), pirate.id, { q: 2, r: 0 })).toBeNull();
   });
 
   it('uses plain, non-jargon language in the blocked-move message', () => {
     const map = createWaterMap();
     const galley = createUnit('galley', 'player', { q: 1, r: 0 }, mkCounters());
-    const reason = getMovementBlockerReason(galley, { q: 2, r: 0 }, map);
+    const reason = getMovementBlockerReason(explainerState(galley, map), galley.id, { q: 2, r: 0 });
     expect(reason?.message.toLowerCase()).not.toContain('waterAccess'.toLowerCase());
     expect(reason?.message.toLowerCase()).not.toContain('hull class');
   });

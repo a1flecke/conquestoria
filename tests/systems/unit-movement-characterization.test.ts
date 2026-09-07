@@ -33,6 +33,7 @@ import type { GameMap, GameState, HexCoord, HexTile, TerrainType, Unit, UnitType
 import { hexKey } from '@/systems/hex-utils';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
 import { createEmptyPirateState } from '@/core/pirate-state';
+import { explainerState } from './helpers/movement-explainer-fixture';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -334,16 +335,16 @@ describe('#1010 golden — getMovementRange / getMovementRangeDetails', () => {
   });
 });
 
-// ── getMovementBlockerReason — every code + message ─────────────────────────
+// ── getMovementBlockerReason — every code + message (#1025 MR4: derives from the resolver) ──
 describe('#1010 golden — getMovementBlockerReason', () => {
   const map = buildMap({
     '0,0': {}, '1,0': {}, '2,0': { terrain: 'mountain' }, '3,0': {},
     '0,1': { terrain: 'ocean' },
   });
-  const at = (type: UnitType, to: HexCoord, opts: Parameters<typeof getMovementBlockerReason>[3] = {}, mp = 2) => {
+  const at = (type: UnitType, to: HexCoord, opts: { visibilityState?: 'unexplored' | 'fog' | 'visible' } = {}, mp = 2) => {
     const u = createUnit(type, 'player', { q: 0, r: 0 }, mkC());
     u.movementPointsLeft = mp;
-    return getMovementBlockerReason(u, to, map, opts);
+    return getMovementBlockerReason(explainerState(u, map), u.id, to, opts);
   };
   it('null for a legal move', () => {
     expect(at('warrior', { q: 1, r: 0 })).toBeNull();
@@ -354,11 +355,16 @@ describe('#1010 golden — getMovementBlockerReason', () => {
   it('insufficient-movement past a mountain', () => {
     expect(at('warrior', { q: 3, r: 0 })?.code).toBe('insufficient-movement');
   });
-  it('unexplored when visibilityState says so', () => {
-    expect(at('warrior', { q: 1, r: 0 }, { visibilityState: 'unexplored' })).toEqual({ code: 'unexplored', message: 'Too far away to spot.' });
+  it('redacts a rejection to the scouting message when the destination is unexplored', () => {
+    // #1025 MR4: redaction applies to a REJECTION. (0,1) is ocean → impassable-water → redacted.
+    expect(at('warrior', { q: 0, r: 1 }, { visibilityState: 'unexplored' }))
+      .toEqual({ code: 'unexplored', message: 'Too far away to spot.' });
   });
-  it('a supplied blockingEntity short-circuits to its reason + shared copy', () => {
-    const r = at('warrior', { q: 1, r: 0 }, { blockingEntity: { reason: 'foreign-city', entityId: 'x' } });
-    expect(r).toEqual({ code: 'foreign-city', message: BLOCKING_MAP_ENTITY_MESSAGES['foreign-city'] });
+  it('a foreign city on the destination reports foreign-city + shared copy', () => {
+    const u = createUnit('warrior', 'player', { q: 0, r: 0 }, mkC());
+    const state = explainerState(u, map);
+    state.cities = { 'foreign-1': { id: 'foreign-1', name: 'X', owner: 'enemy', position: { q: 1, r: 0 } } as never };
+    expect(getMovementBlockerReason(state, u.id, { q: 1, r: 0 }))
+      .toEqual({ code: 'foreign-city', message: BLOCKING_MAP_ENTITY_MESSAGES['foreign-city'] });
   });
 });
