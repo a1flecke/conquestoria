@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createHotSeatGame } from '@/core/game-state';
 import { eliminateCivilization } from '@/systems/civilization-elimination-system';
+import { makeLivenessGame } from './helpers/civilization-liveness-fixture';
 
 function stateWithDefeatedActor() {
   const state = createHotSeatGame({
@@ -50,6 +51,15 @@ function stateWithDefeatedActor() {
 }
 
 describe('civilization elimination', () => {
+  it('does not eliminate a cityless civilization with a surviving settler', () => {
+    const state = makeLivenessGame();
+
+    expect(eliminateCivilization(state, 'ai-1', 'player')).toEqual({
+      state,
+      eliminated: false,
+    });
+  });
+
   it('atomically removes owned pieces and live cross-system references', () => {
     const state = stateWithDefeatedActor();
     const defeatedUnitIds = [...state.civilizations['player-2'].units];
