@@ -9,6 +9,7 @@ import { describe, it, expect } from 'vitest';
 import type { GameMap, GameState, HexCoord, Unit } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { createUnit } from '@/systems/unit-system';
 import {
   resolveUnitMoveIntent,
   executeUnitMove,
@@ -126,5 +127,34 @@ describe('#1025 resolveUnitMoveIntent — the canonical movement resolver', () =
     if (!ra.ok || !rb.ok) return;
     expect(rb.command.path).toEqual(ra.command.path);
     expect(rb.command.cost).toEqual(ra.command.cost);
+  });
+});
+
+describe('#1025 MR4 — impassable-terrain copy', () => {
+  it('a naval unit onto land gets the naval-specific message, not the generic one', () => {
+    const map = grasslandMap(4, 3);
+    map.tiles[hexKey({ q: 0, r: 0 })]!.terrain = 'coast';
+    const c = { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 };
+    const galley = createUnit('galley', 'player', { q: 0, r: 0 }, c);
+    const visibility = { tiles: Object.fromEntries(Object.keys(map.tiles).map(k => [k, 'visible' as const])) };
+    const state = {
+      turn: 1, era: 1, gameId: 'naval-copy', currentPlayer: 'player', gameOver: false, winner: null, map,
+      units: { [galley.id]: galley }, cities: {}, barbarianCamps: {}, tribalVillages: {},
+      civilizations: {
+        player: {
+          id: 'player', name: 'Player', color: '#4a90d9', isHuman: true, civType: 'generic',
+          cities: [], units: [galley.id],
+          techState: { completed: [], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} },
+          gold: 0, visibility, knownCivilizations: [], score: 0,
+          diplomacy: createDiplomacyState(['player'], 'player'),
+        },
+      },
+    } as unknown as GameState;
+
+    const res = resolveUnitMoveIntent(state, galley.id, { q: 1, r: 0 }, asPlayer);
+    expect(res.ok).toBe(false);
+    if (res.ok) return;
+    expect(res.reason).toBe('impassable-terrain');
+    expect(res.message).toBe('Naval units cannot move on land.');
   });
 });

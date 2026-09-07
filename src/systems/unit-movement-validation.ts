@@ -113,6 +113,11 @@ export function getImpassableReason(
       message: "This ship can't survive the open sea — upgrade it to go further.",
     };
   }
+  // #1025 MR4: a naval unit tapping land gets the specific message the tap explainer
+  // already used, so the executor and the preview cannot disagree on copy.
+  if (domain === 'naval') {
+    return { reason: 'impassable-terrain', message: 'Naval units cannot move on land.' };
+  }
   if (terrain === 'ocean' || terrain === 'coast') {
     return { reason: 'impassable-water', message: 'Land units cannot cross water yet.' };
   }
