@@ -39,7 +39,7 @@ function laggardWorldState(seed: string): GameState {
     if (civ.id === LAGGARD) continue;
     civ.techState.completed = [...advanced];
   }
-  state.era = resolveWorldAge(state.civilizations);
+  state.era = resolveWorldAge(state);
   return state;
 }
 

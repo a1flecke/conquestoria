@@ -33,7 +33,7 @@ function laggardWorldState(seed: string): GameState {
     if (civ.id === LAGGARD) continue;
     civ.techState.completed = [...advanced];
   }
-  state.era = resolveWorldAge(state.civilizations);
+  state.era = resolveWorldAge(state);
   state.civilizations[LAGGARD].techState.completed = [];
   return state;
 }
@@ -168,7 +168,7 @@ describe('#1027 — diplomacy action gates must use the acting civ\'s own era', 
       if (other.id === LAGGARD) continue;
       other.techState.completed = techsThroughEra(8);
     }
-    const higherWorldAge = resolveWorldAge(state.civilizations);
+    const higherWorldAge = resolveWorldAge(state);
     expect(higherWorldAge).toBeGreaterThan(state.era);
 
     const after = getAvailableActions(civ.diplomacy, 'ai-1', { completedTechs: civ.techState.completed, civilizationEra: civEra, hasArmsControlTreaty: false });
@@ -182,7 +182,7 @@ describe('#1027 — diplomacy action gates must use the acting civ\'s own era', 
     expect(before).not.toContain('non_aggression_pact');
 
     civ.techState.completed = techsThroughEra(2);
-    const worldAgeUnchanged = resolveWorldAge(state.civilizations);
+    const worldAgeUnchanged = resolveWorldAge(state);
     expect(worldAgeUnchanged).toBe(state.era);
 
     const after = getAvailableActions(civ.diplomacy, 'ai-1', { completedTechs: civ.techState.completed, civilizationEra: resolveCivilizationEra(civ.techState.completed), hasArmsControlTreaty: false });

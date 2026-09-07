@@ -219,14 +219,22 @@ describe('tech definitions', () => {
   it('advances World Age only when a strict majority reaches an era', () => {
     const era2 = getEraAdvancementTechs(2);
     const completed = era2.slice(0, Math.ceil(era2.length * 0.5)).map(tech => tech.id);
-    const civilizations = {
-      player: { isEliminated: false, techState: { completed } },
-      'ai-1': { isEliminated: false, techState: { completed } },
-      'ai-2': { isEliminated: false, techState: { completed: [] } },
-      retired: { isEliminated: true, techState: { completed: [] } },
+    const state = {
+      civilizations: {
+        player: { id: 'player', isEliminated: false, techState: { completed } },
+        'ai-1': { id: 'ai-1', isEliminated: false, techState: { completed } },
+        'ai-2': { id: 'ai-2', isEliminated: false, techState: { completed: [] } },
+        retired: { id: 'retired', isEliminated: true, techState: { completed: [] } },
+      },
+      cities: {
+        player: { owner: 'player' },
+        'ai-1': { owner: 'ai-1' },
+        'ai-2': { owner: 'ai-2' },
+      },
+      units: {},
     } as any;
 
-    expect(resolveWorldAge(civilizations)).toBe(2);
+    expect(resolveWorldAge(state)).toBe(2);
   });
 
   it('save-compat: a legacy save with digital-surveillance among its completed techs does not lose era-5 progress', () => {

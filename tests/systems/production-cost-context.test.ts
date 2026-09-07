@@ -62,7 +62,7 @@ function laggardWorldState(
     if (civ.id === LAGGARD) continue;
     civ.techState.completed = [...advanced];
   }
-  state.era = resolveWorldAge(state.civilizations);
+  state.era = resolveWorldAge(state);
 
   const laggard = state.civilizations[LAGGARD];
   const settler = laggard.units.map(id => state.units[id]).find(unit => unit?.type === 'settler')!;
