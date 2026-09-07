@@ -49,7 +49,8 @@ export interface MovementBlockerReason {
     | 'barbarian-camp'
     | 'pirate-enclave'
     | 'unreachable'
-    | 'insufficient-movement';
+    | 'insufficient-movement'
+    | 'zone-of-control';
   message: string;
 }
 
@@ -71,6 +72,28 @@ export function redactMovementRejectionForViewer(
     return { code: 'unexplored', message: 'Too far away to spot.' };
   }
   return reason;
+}
+
+/**
+ * The first tile on `path` (excluding the start) whose *entry* is Zone-of-Control limited,
+ * or `null`. `moveUnitWithZoneOfControl` stops a unit immediately after entering such a tile,
+ * so if this is not the destination the executor will stop the unit short.
+ *
+ * Derived from the executor's own predicate (`getZoneOfControlAt`) rather than re-deriving the
+ * rule — the same "precomputation derived from the canonical rule" pattern
+ * `getBlockingMapEntityKeys` uses. `getZoneOfControlAt` reads only the mover's type/owner and
+ * the destination's neighbours, never the mover's position, so passing the unmoved unit for
+ * every step gives the executor's answer.
+ */
+export function findZoneOfControlStop(
+  state: GameState,
+  unit: Unit,
+  path: HexCoord[],
+): HexCoord | null {
+  for (const step of path.slice(1)) {
+    if (getZoneOfControlAt(state, unit, step).limited) return step;
+  }
+  return null;
 }
 
 export function getMovementBlockerReason(
