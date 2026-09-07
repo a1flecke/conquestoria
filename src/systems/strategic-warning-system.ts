@@ -15,6 +15,7 @@ import {
   getCivAvailableResources,
   isResourceTileDeniedByHostileOccupation,
 } from '@/systems/resource-acquisition-system';
+import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 
 type StrategicWarning = GameEvents['ai:strategic-warning'];
 
@@ -145,7 +146,7 @@ function deriveMajorWarnings(
   const warnings: StrategicWarning[] = [];
   for (const actorId of Object.keys(after.opponentAI?.majorCivs ?? {}).sort()) {
     const actor = after.civilizations[actorId];
-    if (!actor || actor.isHuman || actor.isEliminated) continue;
+    if (!actor || actor.isHuman || !getCivilizationLiveness(after, actorId).living) continue;
     const plan = after.opponentAI!.majorCivs[actorId].primaryPlan;
     if (!plan) continue;
     const beforePlan = before.opponentAI?.majorCivs[actorId]?.primaryPlan;
@@ -345,7 +346,7 @@ export function deriveStrategicWarningTransitions(
   viewerId: string,
 ): StrategicWarning[] {
   const viewer = finalState.civilizations[viewerId];
-  if (!viewer?.isHuman || viewer.isEliminated) return [];
+  if (!viewer?.isHuman || !getCivilizationLiveness(finalState, viewerId).living) return [];
   const ledger = finalState.opponentAI?.pressureByCiv[viewerId] ?? emptyLedger();
   const warnings = [
     ...deriveMajorWarnings(beforeRound as GameState, finalState, viewerId),
@@ -377,7 +378,7 @@ export function applyStrategicWarningTransitions(
   );
   const warnings: StrategicWarning[] = [];
   for (const viewerId of Object.values(finalState.civilizations)
-    .filter(civ => civ.isHuman && !civ.isEliminated)
+    .filter(civ => civ.isHuman && getCivilizationLiveness(finalState, civ.id).living)
     .map(civ => civ.id)
     .sort()) {
     const viewerWarnings = deriveStrategicWarningTransitions(
