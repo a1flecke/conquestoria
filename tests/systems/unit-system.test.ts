@@ -11,7 +11,6 @@ import {
   UNIT_DEFINITIONS,
   getUnmovedUnits,
   healUnit,
-  getMovementBlockerReason,
   getMovementCostForUnit,
   isBlockingCityFor,
   UNIT_DESCRIPTIONS,
@@ -23,6 +22,7 @@ import { TRAINABLE_UNITS, foundCity } from '@/systems/city-system';
 import { PIRATE_HULL_TYPES } from '@/systems/pirate-definitions';
 import { createEmptyPirateState } from '@/core/pirate-state';
 import { createNewGame } from '@/core/game-state';
+import { getMovementBlockerReason } from '@/systems/unit-movement-explainer';
 import { explainerState } from './helpers/movement-explainer-fixture';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });

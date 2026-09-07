@@ -20,7 +20,6 @@ import {
   canHullEnterOcean,
   getMovementRange,
   getMovementRangeDetails,
-  getMovementBlockerReason,
   getBlockingMapEntityAt,
   getBlockingMapEntityKeys,
   isBlockingCityFor,
@@ -33,6 +32,7 @@ import type { GameMap, GameState, HexCoord, HexTile, TerrainType, Unit, UnitType
 import { hexKey } from '@/systems/hex-utils';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
 import { createEmptyPirateState } from '@/core/pirate-state';
+import { getMovementBlockerReason } from '@/systems/unit-movement-explainer';
 import { explainerState } from './helpers/movement-explainer-fixture';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });

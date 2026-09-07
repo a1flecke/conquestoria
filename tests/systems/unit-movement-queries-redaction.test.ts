@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   redactMovementRejectionForViewer,
   findZoneOfControlStop,
-} from '@/systems/unit-movement-queries';
+  getMovementBlockerReason,
+} from '@/systems/unit-movement-explainer';
 import { createUnit } from '@/systems/unit-system';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
 import { hexKey } from '@/systems/hex-utils';

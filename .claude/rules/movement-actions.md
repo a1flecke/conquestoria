@@ -1,6 +1,8 @@
 ---
 paths:
   - "src/systems/unit-movement-system.ts"
+  - "src/systems/unit-movement-validation.ts"
+  - "src/systems/unit-movement-explainer.ts"
   - "src/systems/unit-system.ts"
   - "src/systems/unit-movement-cost.ts"
   - "src/systems/unit-movement-legality.ts"
@@ -40,17 +42,36 @@ The movement-range BFS (`getMovementRangeDetails`) is a performance-motivated pr
 a parallel reimplementation; a regression test pins that its reachable set agrees with the
 resolver.
 
-**Where these live (#1010):** the movement subsystem is decomposed into
+**Where these live (#1010 / #1025):** the movement subsystem is decomposed into
 `unit-movement-cost.ts` (the step-cost model — pure map+mover, never reads `GameState`),
 `unit-movement-legality.ts` (the single source of truth for map-entity blockers —
 `getBlockingMapEntityAt` / `getBlockingMapEntityKeys` / `BLOCKING_MAP_ENTITY_MESSAGES`),
-`unit-pathfinding.ts` (cost-aware A* — imports cost only), and `unit-movement-queries.ts`
-(read-only derived answers: `getMovementRange*`, `getMovementBlockerReason`). `unit-system.ts`
-re-exports all of them and keeps unit lifecycle + healing + `UNIT_DESCRIPTIONS`. Layering is
-guarded by `tests/app/architecture-boundaries.test.ts`: pathfinding→cost, queries→cost+legality
-+pathfinding, legality→nothing in the subsystem, no cycles. `getMovementBlockerReason` is a
-second (latent) legality derivation kept verbatim by #1010 — collapsing it onto the resolver is
-tracked under #1025 (`tests/systems/unit-movement-resolver-parity.test.ts`).
+`unit-pathfinding.ts` (cost-aware A* — imports cost only), `unit-movement-validation.ts`
+(the omniscient `validateUnitMove` / `resolveUnitMoveIntent` — extracted from
+`unit-movement-system.ts` in #1025 MR4 so the explainer can derive from it without a cycle;
+`unit-movement-system.ts` re-exports the API), `unit-movement-queries.ts`
+(read-only derived answers: `getMovementRange*`), and `unit-movement-explainer.ts`
+(`getMovementBlockerReason` — see below). `unit-system.ts` re-exports the first four and keeps
+unit lifecycle + healing + `UNIT_DESCRIPTIONS`. Layering is guarded by
+`tests/app/architecture-boundaries.test.ts`: pathfinding→cost,
+validation→cost+legality+pathfinding, explainer→validation, legality→nothing in the subsystem,
+no cycles.
+
+`getMovementBlockerReason` (`unit-movement-explainer.ts`) is the **viewer-scoped projection** of
+the resolver, not a second legality implementation (#1025 MR4). It resolves through
+`resolveUnitMoveIntent`, then applies exactly one redaction rule
+(`redactMovementRejectionForViewer`): when the destination is unexplored to the viewer every
+reason collapses to "Too far away to spot." Validation is deliberately omniscient; the preview
+is deliberately viewer-scoped. **Never surface a resolver rejection to a player without passing
+it through the redaction rule** — that is the information leak #1002 tracks. Redaction is
+destination-only today; path-aware redaction is #1002's scope. Parity is pinned by
+`tests/systems/unit-movement-resolver-parity.test.ts`.
+
+The explainer lives in its own module (**not** re-exported through the `unit-system` barrel):
+`unit-movement-validation` → `unit-occupancy` → `air-operations-system` → the `unit-system`
+barrel, so re-exporting the explainer there closes an import cycle that leaves
+`TRAINABLE_UNITS` / `BUILDINGS` undefined at load time. `src/input` and its tests import
+`getMovementBlockerReason` from `@/systems/unit-movement-explainer` directly.
 
 ## The sibling movement actions
 

@@ -20,23 +20,21 @@ import {
   type BlockingMapEntity,
 } from './unit-movement-legality';
 import { findPath } from './unit-pathfinding';
-import { resolveUnitMoveIntent } from './unit-movement-validation';
 
 /**
- * Movement queries (#1010). A read-only derived answer for a UI / AI consumer,
+ * Movement queries (#1010). Read-only derived answers for a UI / AI consumer,
  * composed from the cost + legality + pathfinding modules: what tiles can a unit
- * reach this turn (`getMovementRange` / `getMovementRangeDetails`), and why is a
- * specific tap illegal (`getMovementBlockerReason`).
+ * reach this turn (`getMovementRange` / `getMovementRangeDetails`).
  *
  * Admission criterion: everything here mutates nothing and owns no rule of its
  * own. Anything that owns a movement rule belongs in the cost or legality
  * module instead.
  *
- * NOTE (#1025 follow-up): `getMovementBlockerReason` is the player-facing tap
- * explainer and is a *second* derivation of movement legality — it omits
- * `validateUnitMove`'s hostile-occupant and path-crossing checks. It is kept
- * verbatim here (moved, not changed); collapsing it onto `resolveUnitMoveIntent`
- * is tracked under #1025. `unit-movement-resolver-parity.test.ts` pins the gap.
+ * The player-facing "why is this tap illegal?" answer (`getMovementBlockerReason`)
+ * lives in `unit-movement-explainer.ts` — it derives from `resolveUnitMoveIntent`
+ * (`unit-movement-validation.ts`), whose deps would cycle back through the
+ * `unit-system` barrel if it were re-exported there. The `MovementBlockerReason`
+ * type stays here as the shared vocabulary and has no runtime deps.
  */
 export interface MovementBlockerReason {
   code:
@@ -55,95 +53,11 @@ export interface MovementBlockerReason {
   message: string;
 }
 
-/**
- * The ONE viewer-scoping rule for movement rejections (#1025 MR4 / #1002).
- * `resolveUnitMoveIntent` is deliberately omniscient — it sees units, blockers and terrain the
- * viewer has not discovered. Surfacing its reason verbatim would leak that. When the
- * destination is unexplored to the viewer, every reason collapses to the generic one.
- *
- * Known limitation (owned by #1002): this keys off the DESTINATION only. If the destination is
- * explored but a path tile is not, the reason can still describe that unexplored tile. Making
- * redaction path-aware is out of scope here — do not widen the leak, do not silently fix it.
- */
-export function redactMovementRejectionForViewer(
-  reason: MovementBlockerReason,
-  visibilityState: VisibilityState | undefined,
-): MovementBlockerReason {
-  if (visibilityState === 'unexplored') {
-    return { code: 'unexplored', message: 'Too far away to spot.' };
-  }
-  return reason;
-}
-
-/**
- * The first tile on `path` (excluding the start) whose *entry* is Zone-of-Control limited,
- * or `null`. `moveUnitWithZoneOfControl` stops a unit immediately after entering such a tile,
- * so if this is not the destination the executor will stop the unit short.
- *
- * Derived from the executor's own predicate (`getZoneOfControlAt`) rather than re-deriving the
- * rule — the same "precomputation derived from the canonical rule" pattern
- * `getBlockingMapEntityKeys` uses. `getZoneOfControlAt` reads only the mover's type/owner and
- * the destination's neighbours, never the mover's position, so passing the unmoved unit for
- * every step gives the executor's answer.
- */
-export function findZoneOfControlStop(
-  state: GameState,
-  unit: Unit,
-  path: HexCoord[],
-): HexCoord | null {
-  for (const step of path.slice(1)) {
-    if (getZoneOfControlAt(state, unit, step).limited) return step;
-  }
-  return null;
-}
-
-/**
- * Why can this unit not move to `to` — the **viewer-scoped** answer (#1025 MR4).
- *
- * This owns NO legality of its own. It resolves through `resolveUnitMoveIntent` (the one
- * omniscient legality+cost source), projects that typed rejection, and then applies the one
- * redaction rule. `getZoneOfControlAt` is consulted only to describe an outcome the executor
- * would produce (a partial move), which the resolver reports as `ok: true`.
- *
- * Owner-scoped, never viewer-scoped, for legality: `civId` is always `unit.owner`, so hot-seat
- * viewing cannot change what a unit may do.
- */
-export function getMovementBlockerReason(
-  state: GameState,
-  unitId: string,
-  to: HexCoord,
-  options: { visibilityState?: VisibilityState } = {},
-): MovementBlockerReason | null {
-  const unit = state.units[unitId];
-  if (!unit) return null;
-
-  const resolution = resolveUnitMoveIntent(state, unitId, to, {
-    actor: 'player',
-    civId: unit.owner,
-  });
-
-  if (!resolution.ok) {
-    if (resolution.reason === 'missing-unit') return null;
-    return redactMovementRejectionForViewer(
-      { code: resolution.reason, message: resolution.message },
-      options.visibilityState,
-    );
-  }
-
-  const stop = findZoneOfControlStop(state, unit, resolution.command.path);
-  const destination = resolution.command.to;
-  if (stop && hexKey(stop) !== hexKey(destination)) {
-    return redactMovementRejectionForViewer(
-      {
-        code: 'zone-of-control',
-        message: 'An enemy nearby would stop your unit before it reaches that tile.',
-      },
-      options.visibilityState,
-    );
-  }
-
-  return null;
-}
+// #1025 MR4: `getMovementBlockerReason` — the viewer-scoped projection of the resolver — moved
+// to `unit-movement-explainer.ts`. It depends on `unit-movement-validation.ts`, whose deps
+// (`unit-occupancy` → `air-operations-system` → the `unit-system` barrel) would form a cycle
+// if it were re-exported through that barrel. The `MovementBlockerReason` type stays here
+// because it is also the range/queries vocabulary and has no runtime deps.
 
 function normalizeOccupants(value: string | string[] | undefined): string[] {
   if (!value) return [];

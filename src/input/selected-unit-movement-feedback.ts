@@ -1,6 +1,6 @@
 import type { GameState, HexCoord } from '@/core/types';
 import { getVisibility } from '@/systems/fog-of-war';
-import { getMovementBlockerReason } from '@/systems/unit-system';
+import { getMovementBlockerReason } from '@/systems/unit-movement-explainer';
 import {
   getLandUnitWaterRecoveryTapMessage,
   type LandUnitWaterRecovery,
