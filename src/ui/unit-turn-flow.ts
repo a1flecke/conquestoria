@@ -1,4 +1,6 @@
+import type { EventBus } from '@/core/event-bus';
 import type { GameState, HexCoord } from '@/core/types';
+import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { getUnmovedUnitsForEndTurn, removePlayerUnitFromState, skipUnitInState } from '@/systems/unit-lifecycle-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getEffectiveGoldPerTurn, getRouteTechGoldBonus } from '@/systems/trade-system';
@@ -20,6 +22,7 @@ export interface UnitTurnFlowDeps {
   showNotification: (message: string, type: 'info' | 'success' | 'warning') => void;
   setBlockingOverlay: (id: string | null) => void;
   endTurn: (options: { allowUnmovedUnits?: boolean }) => void;
+  bus?: EventBus;
   onUnitDisbanded?: (state: GameState, unitId: string, routeId: string) => GameState;
 }
 
@@ -82,6 +85,21 @@ export function createUnitTurnFlow(deps: UnitTurnFlowDeps): UnitTurnFlow {
         bodyText = `Disbanding this Caravan will end your ${fromName} → ${toName} trade route (-${goldLoss.toFixed(1)} gold/turn). Continue?`;
       }
     }
+    const preview = removePlayerUnitFromState(state, state.currentPlayer, unitId);
+    const before = getCivilizationLiveness(state, state.currentPlayer);
+    const after = getCivilizationLiveness(preview, state.currentPlayer);
+    if (before.living && !after.living) {
+      const carriesFinalSettler = Object.values(state.units).some(candidate =>
+        candidate.owner === state.currentPlayer
+        && candidate.type === 'settler'
+        && candidate.health > 0
+        && candidate.transportId === unitId,
+      );
+      const consequence = carriesFinalSettler
+        ? 'This ship carries your last city-founding settler. Removing it will end your civilization and its remaining units will stand down.'
+        : 'This is your last city-founding settler. Removing it will end your civilization and its remaining units will stand down.';
+      bodyText = bodyText ? `${bodyText}\n\n${consequence}` : consequence;
+    }
 
     deps.setBlockingOverlay('unit-delete-confirmation');
     createUnitDeleteConfirmationPanel(deps.uiLayer, {
@@ -98,7 +116,12 @@ export function createUnitTurnFlow(deps: UnitTurnFlowDeps): UnitTurnFlow {
           currentState = deps.onUnitDisbanded(currentState, unitId, routeId);
           deps.setState(currentState);
         }
-        deps.setState(removePlayerUnitFromState(deps.getState(), deps.getState().currentPlayer, unitId));
+        deps.setState(removePlayerUnitFromState(
+          deps.getState(),
+          deps.getState().currentPlayer,
+          unitId,
+          deps.bus,
+        ));
         if (deps.getSelectedUnitId() === unitId) {
           deps.deselectUnit();
         }

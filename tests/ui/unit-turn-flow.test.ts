@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { EventBus } from '@/core/event-bus';
 import type { GameState, HexCoord } from '@/core/types';
 import { createUnit } from '@/systems/unit-system';
 import { createUnitTurnFlow, type UnitTurnFlowDeps } from '@/ui/unit-turn-flow';
@@ -16,7 +17,9 @@ function clickButtonWithText(container: ParentNode, text: string): void {
 function makeState(): GameState {
   const scout = { ...createUnit('scout', 'player', { q: 2, r: 3 }, mkC()), id: 'unit-scout', health: 50 };
   const warrior = { ...createUnit('warrior', 'player', { q: 4, r: 3 }, mkC()), id: 'unit-warrior' };
+  const playerSettler = { ...createUnit('settler', 'player', { q: 3, r: 3 }, mkC()), id: 'unit-player-settler' };
   const enemy = { ...createUnit('warrior', 'ai-1', { q: 7, r: 7 }, mkC()), id: 'unit-enemy' };
+  const aiSettler = { ...createUnit('settler', 'ai-1', { q: 8, r: 7 }, mkC()), id: 'unit-ai-settler' };
   return {
     turn: 1,
     era: 1,
@@ -27,7 +30,9 @@ function makeState(): GameState {
     units: {
       [scout.id]: scout,
       [warrior.id]: warrior,
+      [playerSettler.id]: playerSettler,
       [enemy.id]: enemy,
+      [aiSettler.id]: aiSettler,
     },
     cities: {},
     civilizations: {
@@ -37,12 +42,15 @@ function makeState(): GameState {
         civType: 'rome',
         color: '#fff',
         cities: [],
-        units: [scout.id, warrior.id],
+        units: [scout.id, warrior.id, playerSettler.id],
         gold: 0,
         score: 0,
         techState: { completed: [], currentResearch: null, researchProgress: 0, researchQueue: [] },
         visibility: { tiles: {} },
-        diplomacy: { relationships: {}, atWarWith: [], treaties: [], tradeRoutes: [], diplomaticCapital: 0 },
+        diplomacy: {
+          relationships: {}, atWarWith: [], treaties: [], tradeRoutes: [], diplomaticCapital: 0, events: [],
+          vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 0, peakMilitary: 0 },
+        },
       },
       'ai-1': {
         id: 'ai-1',
@@ -50,12 +58,15 @@ function makeState(): GameState {
         civType: 'greece',
         color: '#f00',
         cities: [],
-        units: [enemy.id],
+        units: [enemy.id, aiSettler.id],
         gold: 0,
         score: 0,
         techState: { completed: [], currentResearch: null, researchProgress: 0, researchQueue: [] },
         visibility: { tiles: {} },
-        diplomacy: { relationships: {}, atWarWith: [], treaties: [], tradeRoutes: [], diplomaticCapital: 0 },
+        diplomacy: {
+          relationships: {}, atWarWith: [], treaties: [], tradeRoutes: [], diplomaticCapital: 0, events: [],
+          vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 0, peakMilitary: 0 },
+        },
       },
     },
     minorCivs: {},
@@ -79,7 +90,7 @@ function makeState(): GameState {
   } as unknown as GameState;
 }
 
-function makeFlow(initialState: GameState) {
+function makeFlow(initialState: GameState, bus?: EventBus) {
   let state = initialState;
   let selectedUnitId: string | null = 'unit-scout';
   const overlayStates: Array<string | null> = [];
@@ -109,6 +120,7 @@ function makeFlow(initialState: GameState) {
     showNotification: calls.showNotification,
     setBlockingOverlay: id => { overlayStates.push(id); },
     endTurn: calls.endTurn,
+    bus,
   };
 
   return {
@@ -169,6 +181,31 @@ describe('unit-turn-flow', () => {
     expect(overlayStates).toEqual(['unit-delete-confirmation', null]);
   });
 
+  it('warns before deleting the final viable settler and emits its defeat once on confirmation', () => {
+    const state = makeState();
+    const settler = createUnit('settler', 'player', { q: 2, r: 3 }, mkC());
+    state.units = { [settler.id]: settler, 'unit-ai-settler': state.units['unit-ai-settler'] };
+    state.civilizations.player.units = [settler.id];
+    const bus = new EventBus();
+    const eliminated = vi.fn();
+    bus.on('civ:eliminated', eliminated);
+    const { flow, getState } = makeFlow(state, bus);
+
+    flow.showDeleteUnitConfirmation(settler.id);
+
+    expect(document.body.textContent).toContain(
+      'This is your last city-founding settler. Removing it will end your civilization and its remaining units will stand down.',
+    );
+    clickButtonWithText(document.body, 'Cancel');
+    expect(getState().units[settler.id]).toBeDefined();
+
+    flow.showDeleteUnitConfirmation(settler.id);
+    clickButtonWithText(document.body, 'Delete Unit');
+    expect(getState().units[settler.id]).toBeUndefined();
+    expect(eliminated).toHaveBeenCalledTimes(1);
+    expect(eliminated).toHaveBeenCalledWith({ civId: 'player', eliminatedBy: null });
+  });
+
   it('opens an end-turn warning and routes Go to Unit through selection and camera centering', () => {
     const { flow, calls, overlayStates } = makeFlow(makeState());
 
@@ -226,6 +263,11 @@ describe('unit-turn-flow', () => {
     const state = makeState();
     state.units['unit-scout'] = { ...state.units['unit-scout'], skippedTurn: true, movementPointsLeft: 0 };
     state.units['unit-warrior'] = { ...state.units['unit-warrior'], hasMoved: true, movementPointsLeft: 0 };
+    state.units['unit-player-settler'] = {
+      ...state.units['unit-player-settler'],
+      hasMoved: true,
+      movementPointsLeft: 0,
+    };
     const { flow, overlayStates } = makeFlow(state);
 
     const blocked = flow.showEndTurnUnitWarningIfNeeded();
