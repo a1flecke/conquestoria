@@ -18,10 +18,13 @@ function cyber(): Unit {
 describe('AI network intents', () => {
   it('assigns a legal Exploit only when the target city is earned intel, otherwise leaves the Cyber Unit on Hold', () => {
     const state = createNewGame(undefined, 'ai-network-intent', 'small');
-    state.units = { 'ai-cyber': cyber() };
+    state.units = {
+      'ai-cyber': cyber(),
+      'ai-settler': { ...cyber(), id: 'ai-settler', type: 'settler', position: { q: 0, r: 0 } },
+    };
     state.cities = { target: city('target', 'player', 2) };
     state.civilizations['ai-1'] = {
-      ...state.civilizations['ai-1'], units: ['ai-cyber'], cities: [],
+      ...state.civilizations['ai-1'], units: ['ai-cyber', 'ai-settler'], cities: [],
       techState: { ...state.civilizations['ai-1'].techState, completed: ['quantum-computing'] },
       diplomacy: { ...state.civilizations['ai-1'].diplomacy, atWarWith: ['player'] },
       knownCivilizations: ['player'],

@@ -13,8 +13,11 @@ describe('AI Propagandist use', () => {
     const enemy = city('enemy', 'player', 1);
     state.cities = { enemy };
     const unit: Unit = { id: 'ai-prop', type: 'propagandist', owner: 'ai-1', position: { q: 0, r: 0 }, movementPointsLeft: 3, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false };
-    state.units = { [unit.id]: unit };
-    state.civilizations['ai-1'] = { ...state.civilizations['ai-1'], units: [unit.id], cities: [], diplomacy: { ...state.civilizations['ai-1'].diplomacy, atWarWith: ['player'] } };
+    state.units = {
+      [unit.id]: unit,
+      'ai-settler': { ...unit, id: 'ai-settler', type: 'settler' },
+    };
+    state.civilizations['ai-1'] = { ...state.civilizations['ai-1'], units: [unit.id, 'ai-settler'], cities: [], diplomacy: { ...state.civilizations['ai-1'].diplomacy, atWarWith: ['player'] } };
     state.civilizations.player = { ...state.civilizations.player, cities: ['enemy'], diplomacy: { ...state.civilizations.player.diplomacy, atWarWith: ['ai-1'] } };
 
     const result = usePropagandistActionsForAI(state, 'ai-1');

@@ -12,6 +12,7 @@ import { isTrustedObservedLastSeenTile } from '@/systems/last-seen-presentation'
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { findPath, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
+import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import {
   buildMajorCivPerception,
   estimatePerceivedCivStrength,
@@ -459,7 +460,7 @@ export function prepareMajorCivStrategicPlan(
   const portfolioResult = refreshMajorCivPortfolio({
     actorId: civId,
     turn: state.turn,
-    actorEliminated: civ.isEliminated === true,
+    actorEliminated: !getCivilizationLiveness(state, civId).living,
     portfolio: previous,
     candidates: [...planCandidates(candidates, choice), ...crisisDispatchPlanCandidates(state, civId)],
     cityThreats: threats,

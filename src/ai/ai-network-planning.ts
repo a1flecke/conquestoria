@@ -9,6 +9,7 @@ import {
   type NetworkPlanRequest,
   previewNetworkPlan,
 } from '@/systems/network-plan-system';
+import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 
 export interface NetworkPlanCandidate {
   request: NetworkPlanRequest;
@@ -23,7 +24,7 @@ const FORMATION: readonly NetworkPlanDefinitionId[] = ['guardian-screen', 'swarm
 /** Generates only owner-visible, validator-approved city plans. No difficulty profile changes this list. */
 export function getNetworkPlanCandidates(state: GameState, civId: string): readonly NetworkPlanCandidate[] {
   const civ = state.civilizations[civId];
-  if (!civ || civ.isEliminated) return [];
+  if (!civ || !getCivilizationLiveness(state, civId).living) return [];
   const candidates: NetworkPlanCandidate[] = [];
   const ownedCities = Object.values(state.cities).filter(candidate => candidate.owner === civId).sort((a, b) => a.id.localeCompare(b.id));
   for (const city of ownedCities) {
@@ -75,7 +76,7 @@ export function getNetworkPlanCandidates(state: GameState, civId: string): reado
 /** One deterministic constructive assignment per AI turn. Effects and legal targets are identical to humans. */
 export function planNetworkTurn(state: GameState, civId: string): GameState {
   const civ = state.civilizations[civId];
-  if (!civ || civ.isHuman || civ.isEliminated) return state;
+  if (!civ || civ.isHuman || !getCivilizationLiveness(state, civId).living) return state;
   const candidates = getNetworkPlanCandidates(state, civId);
   if (candidates.length === 0) return state;
   const profile = getChallengeProfileForCiv(state, civId);
