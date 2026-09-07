@@ -15,6 +15,19 @@ paths:
 - Distinct from simulation RNG, and never conflated with it: **`createPlaythroughId`** (`src/core/game-state.ts`) is deliberately `Date.now()`-salted per-playthrough identity (save-slot bookkeeping), not simulation state — conflating the two was itself a fixed bug (see that file's doc comment). **Audio/UI randomness** (`src/audio/sfx.ts`) is out of simulation determinism entirely.
 - Combat, AI decisions, and map generation must all be reproducible from a seed. Two campaigns created with the same explicit seed must reach the same `gameId` and produce identical outcomes for every converted stream; two different seeds must diverge.
 
+## Deterministic Simulation Contract (#1004)
+
+"Deterministic" in this codebase means four things, each with a permanent regression in the slow tier (`tests/app/simulation-determinism.test.ts`, plus `determinism-guard.test.ts` and `simulation-rng*.test.ts`):
+
+1. **Same seed + same commands ⇒ equivalent whole state.** Two games from one seed driven through the same command sequence land in the same simulation state; two different seeds diverge meaningfully.
+2. **Save/reload continuity.** Run N rounds → save → load → continue M rounds ⇒ the same state as an uninterrupted N+M run. Loading a save mid-game must not move the trajectory.
+3. **Deterministic AI.** Given the same seed and state, the AI makes the same decision (same `traces`) and reaches the same resulting state — in-process and across a save/reload boundary (`opponentAI` is persisted and must reconstruct identically).
+4. **Domain-stream independence.** Adding or draining randomness in one `createSimulationRng` domain must not shift any other domain's output. This is why keyed streams (above) are structurally required, not merely tidy.
+
+- **Compare simulation states only through the canonical helper** `assertSimulationEquivalent` / `firstSimulationDivergence` (`tests/helpers/deterministic-state.ts`). It strips exactly `playthroughId` (deliberately `Date.now()`-salted) and `saveSchemaVersion` (persistence metadata) and deep-compares everything else, reporting the first divergent path. Do **not** hand-roll a `JSON.stringify(a) === JSON.stringify(b)` comparison with its own ad-hoc field carve-out, and do **not** add an exclusion to that helper to make a test green — a divergence on any other field is a real determinism or save-normalization bug to investigate.
+- A newly created game (`createNewGame` / `createHotSeatGame`) is stamped with `CURRENT_SAVE_SCHEMA_VERSION` (`src/storage/save-schema-version.ts`). It must stay that way: an unstamped fresh game reads as schema 0 and its first autosave silently replays the entire historical migration chain over it (that was the #1004 root-cause bug).
+- Heavy whole-simulation determinism tests belong in `SLOW_TEST_FILES` (`scripts/run-tests-by-tier.sh`) with a headroom-sized timeout, never in the fast push gate.
+
 ## State Mutations Must Match Events
 - If you emit an event (e.g., `city:unit-trained`), the state mutation (creating the unit, adding to arrays) MUST happen in the same block
 - Events are notifications for UI/logging — they do NOT trigger state changes

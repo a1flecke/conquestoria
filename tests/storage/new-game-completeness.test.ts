@@ -8,15 +8,17 @@ import type { GameState, HotSeatConfig } from '@/core/types';
  * main.ts's migrateLegacySave() ran on brand-new HOT-SEAT games (createHotSeatGame
  * -> enterCampaign -> migrate) but not on brand-new SOLO games, which called
  * startGame() directly. So the two new-game paths did not provably produce the
- * same state shape, and nothing tested that they did. #787 phase 1 deletes that
+ * same state shape, and nothing tested that they did. #787 phase 1 deleted that
  * function; these tests are what replaces the guarantee.
  *
- * Note on scope: createNewGame/createHotSeatGame do not set saveSchemaVersion, so
- * a fresh state reads as version 0 and normalizeLoadedState replays migrations
- * 1..12, not just 12. A whole-state equality assertion would therefore fail on any
- * pre-existing non-idempotency anywhere in that chain -- which is why the gate
- * below is scoped to the fields phase 1 actually relocated, and the whole-state
- * comparison is kept separately as a diagnostic.
+ * #1004: createNewGame / createHotSeatGame now stamp `saveSchemaVersion` with
+ * CURRENT_SAVE_SCHEMA_VERSION. Previously they left it undefined, so a fresh
+ * state read as version 0 and `normalizeLoadedState` replayed the ENTIRE 1..N
+ * historical migration chain over a brand-new current-schema game — which is
+ * exactly what broke same-seed save/reload determinism (a fresh game's first
+ * autosave silently ran placeLateResources, the v24 research-cost retime, etc.).
+ * A new game IS current, so now only the unconditional normalizers touch it on
+ * load. The ratchet below pins that (now much smaller) set.
  */
 
 const SOLO = (): GameState => createNewGame({
@@ -40,11 +42,17 @@ const HOT_SEAT = (): GameState => createHotSeatGame(HOT_SEAT_CONFIG, undefined, 
 
 describe('freshly created games need no legacy fixups', () => {
   for (const [label, make] of [['solo', SOLO], ['hot seat', HOT_SEAT]] as const) {
-    it(`${label}: no relocated fixup overwrites anything a fresh game already set`, () => {
+    it(`${label}: is stamped at the current schema, so load runs no numbered migration`, () => {
+      const state = make();
+      expect(state.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
+
+      const normalized = normalizeLoadedState(structuredClone(state));
+      expect(normalized.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
+    });
+
+    it(`${label}: no unconditional normalizer overwrites anything a fresh game already set`, () => {
       const state = make();
       const normalized = normalizeLoadedState(structuredClone(state));
-
-      expect(normalized.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
 
       // Beasts: a fresh game already has its lairs placed, so the legacy
       // migrationPending flag must NOT be set -- setting it would make
@@ -78,24 +86,6 @@ describe('freshly created games need no legacy fixups', () => {
         expect(civ.knownCivilizations, civId).toEqual(original.knownCivilizations);
       }
     });
-
-    it(`${label}: fields a fresh game genuinely omits get their documented default`, () => {
-      // createNewGame does not set these two; migrateLegacySave defaulted them at
-      // campaign entry and migration 12 keeps doing so. Asserted rather than
-      // assumed, because `{}` vs `undefined` decides whether downstream readers
-      // need `?? {}`.
-      const normalized = normalizeLoadedState(structuredClone(make()));
-
-      expect(normalized.pendingEvents).toEqual({});
-      expect(normalized.resurgentCampCooldownByCivLandmass).toEqual({});
-      // Same story one level down: createNewGame builds legendaryWonderHistory
-      // with only destroyedStrongholds/discoveredSites, and builds civs with no
-      // lastCombatTurnByLandmass at all.
-      expect(normalized.legendaryWonderHistory!.networkPlanResolutions).toEqual([]);
-      for (const [civId, civ] of Object.entries(normalized.civilizations)) {
-        expect(civ.lastCombatTurnByLandmass, civId).toEqual({});
-      }
-    });
   }
 
   it('both new-game paths agree on the fields the deleted migrateLegacySave used to backfill', () => {
@@ -110,41 +100,37 @@ describe('freshly created games need no legacy fixups', () => {
         'scholar', 'spymaster', 'treasurer', 'warchief',
       ]);
       expect(state.beasts!.migrationPending).toBeUndefined();
+      expect(state.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
       for (const civ of Object.values(state.civilizations)) {
         expect(civ.civType).toBeDefined();
         expect(civ.diplomacy).toBeDefined();
-        expect(civ.lastCombatTurnByLandmass).toBeDefined();
       }
     }
   });
 
   it('ratchet: the load pipeline adds exactly these fields to a fresh game, and no others', () => {
-    // A fresh state carries no saveSchemaVersion, so it reads as version 0 and
-    // normalizeLoadedState replays migrations 1..12 plus every unconditional
-    // normalizer. That legitimately enriches a new game. This pins the exact set
-    // so a future change that starts adding something new has to say so here.
-    //
-    // Only `pendingEvents` and `resurgentCampCooldownByCivLandmass` belong to
-    // #787 phase 1 (migration 12). The rest predate it:
-    //   reconReveals, nationalProjectChoices  -- earlier numbered migrations
-    //   pirateFleets, pirateFleetCooldownByCivLandmass -- migrateLegacyPirateFleets
-    //   legendaryWonderAvailability -- key set to undefined by its normalizer
+    // A fresh game is now stamped at the current schema (#1004), so
+    // normalizeLoadedState runs ZERO numbered migrations over it — only the
+    // unconditional normalizers. What they still add are optional bookkeeping
+    // containers, every one of them read behind `?? {}` / `?? []`:
+    //   generatedGenerals              -- normalizeGeneratedGenerals
+    //   legendaryWonderAvailability    -- key assigned by its normalizer
+    //   nationalProjectChoices         -- national-project normalizer
+    //   pirateFleets / pirateFleetCooldownByCivLandmass / resurgentCampCooldownByCivLandmass
+    //                                  -- normalizeThreatPressureDefaults
+    // This pins the set so a future change that starts adding something new has
+    // to update it here (and, ideally, set it at creation instead).
     const state = SOLO();
     const normalized = normalizeLoadedState(structuredClone(state)) as unknown as Record<string, unknown>;
     const before = state as unknown as Record<string, unknown>;
 
     expect(Object.keys(normalized).filter(key => !(key in before)).sort()).toEqual([
-      // #888: normalizeGeneratedGenerals defaults the fallback-officer registry
-      // to {} on load, same as withReligionDefaults does for `religions`.
       'generatedGenerals',
       'legendaryWonderAvailability',
       'nationalProjectChoices',
-      'pendingEvents',
       'pirateFleetCooldownByCivLandmass',
       'pirateFleets',
-      'reconReveals',
       'resurgentCampCooldownByCivLandmass',
-      'saveSchemaVersion',
     ]);
     expect(Object.keys(before).filter(key => !(key in normalized))).toEqual([]);
   });

@@ -389,6 +389,10 @@ describe('save-manager autosave listing', () => {
 
   it('migrates legacy pirate fleets into distinct active v2 flotillas', () => {
     const state = createNewGame(undefined, 'legacy-pirate-migration', 'small') as any;
+    // createNewGame now stamps the current schema (#1004); this fixture models a
+    // legacy save, so force it back to pre-migration so the schema-9 coastal-hull
+    // relocation and the pirate-fleet v2 migration actually run.
+    state.saveSchemaVersion = 0;
     const waterTiles = Object.values(state.map.tiles)
       .filter((tile: any) => tile.terrain === 'ocean')
       .slice(0, 3) as any[];

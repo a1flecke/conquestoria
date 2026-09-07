@@ -25,10 +25,12 @@ import { placeMinorCivs } from '@/systems/minor-civ-system';
 import { createMinorCivLeagueState } from '@/systems/minor-civ-league-system';
 import { initializeEspionage } from '@/systems/espionage-system';
 import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
-import { createEmptyOpponentAIState } from './opponent-ai-state';
+import { createEmptyOpponentAIState, normalizeOpponentAIState } from './opponent-ai-state';
 import { placeCivilizationStarts } from '@/systems/start-placement-system';
 import { selectAIRoster } from '@/systems/ai-roster-selection';
 import { placeLateResources } from '@/systems/late-resource-placement';
+import { tagLandmassRegions } from '@/systems/landmass-tagger';
+import { CURRENT_SAVE_SCHEMA_VERSION } from '@/storage/save-schema-version';
 
 function hashSeed(s: string): number {
   let h = 0;
@@ -43,6 +45,24 @@ export const MAP_DIMENSIONS = {
   medium: { width: 50, height: 50, maxPlayers: 5 },
   large: { width: 80, height: 80, maxPlayers: 8 },
 } as const;
+
+/**
+ * Bring a freshly-assembled state closer to the canonical shape the save/load
+ * path produces, so a new game's first autosave (auto-save fires on game
+ * creation) changes as little as possible (#1004).
+ *
+ * `normalizeOpponentAIState` runs on every load and fills in per-human AI
+ * pressure ledgers that `createEmptyOpponentAIState` leaves empty; running it
+ * here keeps `opponentAI` identical across that first save. Other, larger
+ * load-path canonicalisations of minor-civ bookkeeping (territory,
+ * notification-status maps, economy defaults) are deliberately NOT reproduced
+ * here — untangling save-path normalization is #1023's scope; #1004's
+ * save/reload contract runs both sides of the comparison through the real
+ * load path so those one-time canonicalisations cancel out.
+ */
+function canonicalizeCreatedGameState(state: GameState): void {
+  state.opponentAI = normalizeOpponentAIState(state).opponentAI;
+}
 
 export class GameCreationError extends Error {
   readonly code = 'start-placement-failed';
@@ -264,6 +284,11 @@ export function createNewGame(
     }
     default: // 'procedural' and old saves
       map = generateMap(dims.width, dims.height, gameSeed);
+      // The balanced and single-continent generators tag landmass regions
+      // themselves; generateMap does not, so a procedural map used to gain
+      // regionKeys only on its first load (normalizeLandmassKeys). Tag at
+      // creation so a fresh game already matches its own save/reload (#1004).
+      map.tiles = tagLandmassRegions(map);
       startPositions = findStartPositions(map, civTypeIds, 'procedural', actualSize);
       break;
   }
@@ -361,6 +386,7 @@ export function createNewGame(
   const state: GameState = {
     turn: 1,
     era: 1,
+    saveSchemaVersion: CURRENT_SAVE_SCHEMA_VERSION,
     gameId: createGameId(gameSeed),
     playthroughId: createPlaythroughId(gameSeed),
     gameTitle: resolvedGameTitle,
@@ -420,6 +446,8 @@ export function createNewGame(
   // Initialize espionage state for all civs
   state.espionage = initializeEspionage(state);
 
+  canonicalizeCreatedGameState(state);
+
   return state;
 }
 
@@ -468,6 +496,9 @@ export function createHotSeatGame(
     }
     default: // 'procedural' and old saves
       map = generateMap(dims.width, dims.height, gameSeed);
+      // See createNewGame: tag landmass regions at creation so a fresh hot-seat
+      // game already matches its own save/reload (#1004).
+      map.tiles = tagLandmassRegions(map);
       startPositions = findStartPositions(map, civTypeIds, 'procedural', config.mapSize);
       break;
   }
@@ -537,6 +568,7 @@ export function createHotSeatGame(
   const state: GameState = {
     turn: 1,
     era: 1,
+    saveSchemaVersion: CURRENT_SAVE_SCHEMA_VERSION,
     gameId: createGameId(gameSeed),
     playthroughId: createPlaythroughId(gameSeed),
     gameTitle: resolvedGameTitle,
@@ -597,6 +629,8 @@ export function createHotSeatGame(
 
   // Initialize espionage state for all civs
   state.espionage = initializeEspionage(state);
+
+  canonicalizeCreatedGameState(state);
 
   return state;
 }

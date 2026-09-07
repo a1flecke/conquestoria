@@ -464,6 +464,9 @@ describe('save migrations', () => {
 
   it('renames legacy Quantum Computing only in persisted technology ID fields', () => {
     const legacySave = createNewGame('rome', 'cloud-boundary-save', 'small');
+    // createNewGame now stamps the current schema (#1004); force this fixture
+    // back to a pre-migration version so the tech-ID rename chain actually runs.
+    legacySave.saveSchemaVersion = 0;
     legacySave.civilizations.player.techState = {
       ...legacySave.civilizations.player.techState,
       currentResearch: 'quantum-computing',
