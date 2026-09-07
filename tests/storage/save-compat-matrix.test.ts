@@ -71,8 +71,9 @@ function runCase(testCase: SaveCompatCase): void {
   assertSaveStateInvariants(loaded, `${testCase.label} — after normalizeLoadedState`);
 
   // 3. process a few meaningful rounds — the step that surfaces silent corruption
+  const rounds = testCase.runRounds ?? ROUNDS_PER_CASE;
   let afterRounds: GameState = loaded;
-  for (let round = 0; round < ROUNDS_PER_CASE; round += 1) {
+  for (let round = 0; round < rounds; round += 1) {
     afterRounds = runOneRound(afterRounds);
     assertSaveStateInvariants(afterRounds, `${testCase.label} — after round ${round + 1}`);
   }
@@ -87,6 +88,11 @@ function runCase(testCase: SaveCompatCase): void {
 describe('#1006 save-schema compatibility matrix', () => {
   const wellFormed = SAVE_COMPAT_MATRIX.filter(c => c.kind === 'well-formed');
   const malformed = SAVE_COMPAT_MATRIX.filter(c => c.kind === 'malformed-repair');
+
+  it('the manifest is non-trivial (guards against it.each registering nothing)', () => {
+    expect(wellFormed.length).toBeGreaterThan(CURRENT_SAVE_SCHEMA_VERSION); // 0..CURRENT + the real save
+    expect(malformed.length).toBeGreaterThanOrEqual(4);
+  });
 
   it.each(wellFormed.map(c => [c.label, c] as const))(
     'well-formed: %s → migrate → round → save → reload stays valid',

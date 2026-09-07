@@ -220,6 +220,14 @@ export function assertNoEliminatedCivEntities(state: GameState): void {
     if (civ.cities.length > 0) problems.push(`eliminated civ "${civId}" still has a non-empty city roster`);
     if (civ.units.length > 0) problems.push(`eliminated civ "${civId}" still has a non-empty unit roster`);
 
+    // The eliminated civ's own obligations, not just what others hold against it.
+    if ((civ.diplomacy?.atWarWith ?? []).length > 0) {
+      problems.push(`eliminated civ "${civId}" still lists active wars: ${civ.diplomacy.atWarWith.join(', ')}`);
+    }
+    if ((civ.diplomacy?.treaties ?? []).length > 0) {
+      problems.push(`eliminated civ "${civId}" still holds ${civ.diplomacy.treaties.length} treaty record(s)`);
+    }
+
     for (const [otherId, other] of Object.entries(state.civilizations)) {
       if (otherId === civId) continue;
       if ((other.diplomacy?.atWarWith ?? []).includes(civId)) {

@@ -1,5 +1,5 @@
-import type { GameState } from '@/core/types';
-import { createNewGame } from '@/core/game-state';
+import type { GameState, HotSeatConfig } from '@/core/types';
+import { createNewGame, createHotSeatGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
 
 /**
@@ -79,4 +79,49 @@ export function buildBaselineSave(seed = 'save-compat-baseline'): BaselineSave {
   }
 
   return { state, playerCityId, aiCityId, eliminatedCivId };
+}
+
+const HOT_SEAT_CONFIG: HotSeatConfig = {
+  playerCount: 2,
+  mapSize: 'small',
+  players: [
+    { slotId: 'player-1', name: 'A', civType: 'generic', isHuman: true },
+    { slotId: 'player-2', name: 'B', civType: 'generic', isHuman: true },
+  ],
+};
+
+/**
+ * Hot-seat variant — carries the persisted state a solo save does not: the
+ * `hotSeat` slot config and per-viewer `pendingEvents` queues. Two founded
+ * cities (one per human), a queued council interrupt for the non-active
+ * viewer, and a live bilateral war.
+ */
+export function buildHotSeatBaselineSave(seed = 'save-compat-hotseat'): BaselineSave {
+  const state = createHotSeatGame(HOT_SEAT_CONFIG, seed, 'save compat hot seat', 'standard');
+  const ids = freshIds();
+
+  const civIds = Object.keys(state.civilizations).filter(id => state.civilizations[id].isHuman);
+  const foundFor = (civId: string): string => {
+    const settler = Object.values(state.units).find(u => u.owner === civId && u.type === 'settler');
+    if (!settler) throw new Error(`hot-seat baseline: no settler for ${civId}`);
+    const city = foundCity(civId, settler.position, state.map, ids, { civType: state.civilizations[civId].civType });
+    state.cities[city.id] = city;
+    state.civilizations[civId].cities.push(city.id);
+    delete state.units[settler.id];
+    state.civilizations[civId].units = state.civilizations[civId].units.filter(id => id !== settler.id);
+    return city.id;
+  };
+
+  const playerCityId = foundFor(civIds[0]);
+  const aiCityId = foundFor(civIds[1]);
+
+  state.civilizations[civIds[0]].diplomacy.atWarWith = [civIds[1]];
+  state.civilizations[civIds[1]].diplomacy.atWarWith = [civIds[0]];
+
+  // A pending event queued for the non-active viewer — hot-seat-only state.
+  state.pendingEvents = {
+    [civIds[1]]: [{ type: 'council:interrupt', message: 'Your advisors have concerns.', turn: state.turn }],
+  };
+
+  return { state, playerCityId, aiCityId, eliminatedCivId: 'none' };
 }
