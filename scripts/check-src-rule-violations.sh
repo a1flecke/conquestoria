@@ -110,8 +110,12 @@ for file_path in "$@"; do
   esac
 
   case "$file_path" in
-    src/systems/tech-system.ts|src/storage/save-migrations.ts|src/storage/research-cost-migration-v*.ts)
-      : # explicit state authority / schema migration exception
+    src/systems/tech-system.ts|src/storage/save-migrations.ts|src/storage/research-cost-migration-v*.ts|src/storage/migrations/steps/*.ts)
+      # Explicit state authority / schema migration exception. #1023 split the
+      # 1130-line save-migrations.ts into src/storage/migrations/steps/*, so the
+      # migration exemption has to follow the step modules there — a versioned
+      # migration retiming persisted research is exactly the documented case.
+      :
       ;;
     *)
       if grep -nE 'researchProgress[[:space:]]*(\+?=)|researchProgress[[:space:]]*:[[:space:]]*([^,]*researchProgress[[:space:]]*[+\-]|0[,}]?)' "$file_path" | grep -v '//' >/dev/null; then
