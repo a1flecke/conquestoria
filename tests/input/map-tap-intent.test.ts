@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
-import type { GameState } from '@/core/types';
+import type { GameMap, GameState } from '@/core/types';
 import { foundCity } from '@/systems/city-system';
 import { createUnit } from '@/systems/unit-system';
 import { createEmptyPirateState } from '@/core/pirate-state';
 import { NO_LAND_UNIT_WATER_RECOVERY } from '@/systems/unit-water-recovery';
 import type { PendingMapIntent, SelectionSnapshot } from '@/app/ports';
 import { resolveMapTapIntent } from '@/input/map-tap-intent';
+import { handleSelectedUnitMovementBlocker } from '@/input/selected-unit-movement-feedback';
+import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { hexKey } from '@/systems/hex-utils';
+import { explainerState } from '../systems/helpers/movement-explainer-fixture';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -611,5 +615,71 @@ describe('#974 city bombardment routing', () => {
     );
 
     expect(intent).toMatchObject({ kind: 'confirm-war-city', cityId: 'enemyCity' });
+  });
+});
+
+describe('#1025 MR4 — tap explainer derives from the resolver', () => {
+  function zocTapFixture(): { state: GameState; moverId: string } {
+    const tiles: GameMap['tiles'] = {};
+    for (let q = 0; q < 6; q++) for (let r = 0; r < 3; r++) {
+      tiles[hexKey({ q, r })] = {
+        coord: { q, r }, terrain: 'grassland', elevation: 'lowland', resource: null,
+        improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, hasRoad: false, wonder: null,
+      };
+    }
+    const map: GameMap = { width: 6, height: 3, wrapsHorizontally: false, tiles, rivers: [] };
+    const c = { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 };
+    const mover = createUnit('warrior', 'civ-a', { q: 0, r: 0 }, c);
+    mover.movementPointsLeft = 4;
+    const enemy = createUnit('warrior', 'civ-b', { q: 2, r: 1 }, c);
+    const state = explainerState(mover, map, { extraUnits: [enemy] });
+    // ZoC only applies between HOSTILE owners.
+    state.civilizations['civ-a']!.diplomacy = { ...createDiplomacyState(['civ-a', 'civ-b'], 'civ-a'), atWarWith: ['civ-b'] };
+    state.civilizations['civ-b']!.diplomacy = { ...createDiplomacyState(['civ-a', 'civ-b'], 'civ-b'), atWarWith: ['civ-a'] };
+    return { state, moverId: mover.id };
+  }
+
+  function snapshotFor(moverId: string): SelectionSnapshot {
+    return {
+      selectedUnitId: moverId,
+      movementRange: [],
+      attackRange: [],
+      pendingIntent: { kind: 'none' },
+      waterRecovery: NO_LAND_UNIT_WATER_RECOVERY,
+    } as unknown as SelectionSnapshot;
+  }
+
+  it('a tap past an enemy zone of control explains instead of deselecting', () => {
+    const { state, moverId } = zocTapFixture();
+    const intent = resolveMapTapIntent(state, snapshotFor(moverId), { q: 3, r: 0 }, false);
+    expect(intent.kind).toBe('blocked-movement');
+    if (intent.kind !== 'blocked-movement') return;
+    expect(intent.reason.code).toBe('zone-of-control');
+  });
+
+  it('an unexplored destination is redacted in the tap path', () => {
+    const { state, moverId } = zocTapFixture();
+    state.civilizations['civ-a']!.visibility.tiles = {};
+    const intent = resolveMapTapIntent(state, snapshotFor(moverId), { q: 3, r: 0 }, false);
+    expect(intent.kind).toBe('blocked-movement');
+    if (intent.kind !== 'blocked-movement') return;
+    expect(intent.reason).toEqual({ code: 'unexplored', message: 'Too far away to spot.' });
+  });
+
+  it('a zone-of-control refusal warns and plays the error cue', () => {
+    const { state, moverId } = zocTapFixture();
+    const messages: Array<{ message: string; type: string }> = [];
+    let errors = 0;
+    const handled = handleSelectedUnitMovementBlocker(
+      state, moverId, { q: 3, r: 0 }, NO_LAND_UNIT_WATER_RECOVERY,
+      {
+        showNotification: (message, type) => messages.push({ message, type }),
+        reselectUnit: () => {},
+        playError: () => { errors += 1; },
+      },
+    );
+    expect(handled).toBe(true);
+    expect(messages[0]!.type).toBe('warning');
+    expect(errors).toBe(1);
   });
 });
