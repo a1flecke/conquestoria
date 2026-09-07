@@ -78,7 +78,7 @@ export function deriveHumansMateriallyAffectedByPosition(
   radius: number,
 ): string[] {
   return Object.values(state.civilizations)
-    .filter(civ => !civ.isEliminated && isPiratePressureEligible(state, civ.id))
+    .filter(civ => isPiratePressureEligible(state, civ.id))
     .filter(civ =>
       humanAssetPositions(state, civ.id)
         .some(asset => threatDistance(state, position, asset) <= radius))
@@ -170,7 +170,7 @@ export function deriveActiveIndependentThreatIds(
   humanId: string,
 ): string[] {
   const civ = state.civilizations[humanId];
-  if (!civ || civ.isEliminated || !isPiratePressureEligible(state, humanId)) return [];
+  if (!civ || !isPiratePressureEligible(state, humanId)) return [];
   const active = new Set<string>();
   for (const campId of Object.keys(state.barbarianCamps).sort()) {
     if (barbarianMateriallyAffectsHuman(state, campId, humanId)) {
@@ -230,7 +230,7 @@ export function reserveIndependentThreatForHumans(
   let changed = false;
   for (const humanId of [...new Set(humanIds)].sort()) {
     const civ = state.civilizations[humanId];
-    if (!civ || civ.isEliminated || !isPiratePressureEligible(state, humanId)) continue;
+    if (!civ || !isPiratePressureEligible(state, humanId)) continue;
     const ledger = pressureByCiv[humanId] ?? emptyPressureLedger();
     if (ledger.activeIndependentThreatIds.includes(threatId)) continue;
     changed = true;
@@ -254,7 +254,7 @@ export function processIndependentThreatPressure(
 ): GameState {
   const initialOpponentAI = structuredClone(state.opponentAI ?? createEmptyOpponentAIState());
   const humanIds = Object.values(state.civilizations)
-    .filter(civ => !civ.isEliminated && isPiratePressureEligible(state, civ.id))
+    .filter(civ => isPiratePressureEligible(state, civ.id))
     .map(civ => civ.id)
     .sort();
   initialOpponentAI.pressureByCiv = Object.fromEntries(humanIds.map(humanId => [
