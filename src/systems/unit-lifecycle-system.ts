@@ -87,13 +87,11 @@ export function removePlayerUnitFromState(
 }
 
 export function getUnmovedUnitsForEndTurn(state: GameState, civId: string): Unit[] {
-  const civ = state.civilizations[civId];
-  if (!civ) {
+  if (!state.civilizations[civId]) {
     return [];
   }
 
-  const roster = new Set(civ.units);
-  return getUnmovedUnits(state.units, civId).filter(unit => roster.has(unit.id));
+  return getUnmovedUnits(state.units, civId);
 }
 
 export function fortifyUnitInState(state: GameState, civId: string, unitId: string): GameState {

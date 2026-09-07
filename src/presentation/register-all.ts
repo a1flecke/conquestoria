@@ -28,6 +28,7 @@ import { registerStrategicStrikePresentation } from '@/presentation/register-str
 import { registerCombatPresentation } from '@/presentation/register-combat-presentation';
 import { registerGeneralPresentation } from '@/presentation/register-general-presentation';
 import { registerSupplyPresentation } from '@/presentation/register-supply-presentation';
+import { registerCivilizationPresentation } from '@/presentation/register-civilization-presentation';
 
 export interface PresentationContext {
   readonly session: GameSession;
@@ -112,6 +113,7 @@ const ALL_REGISTRARS: readonly PresentationRegistrar[] = [
   registerCombatPresentation,
   registerGeneralPresentation,
   registerSupplyPresentation,
+  registerCivilizationPresentation,
 ];
 
 /**
