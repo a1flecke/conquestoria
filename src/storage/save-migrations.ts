@@ -24,8 +24,13 @@ import { normalizeRogueElephantHosts } from '@/systems/rogue-elephant-host-syste
 import { UNIT_ROLE_DEFINITIONS } from '@/systems/combat-role-definitions';
 import { getEffectiveTechCost, getTechById } from '@/systems/tech-system';
 import { PRE_V24_TECH_COST_BY_ID } from './research-cost-migration-v24';
+import { CURRENT_SAVE_SCHEMA_VERSION } from './save-schema-version';
 
-export const CURRENT_SAVE_SCHEMA_VERSION = 28;
+// Re-exported so every existing `import { CURRENT_SAVE_SCHEMA_VERSION } from
+// '@/storage/save-migrations'` keeps working. The canonical definition lives
+// in the dependency-free leaf module `./save-schema-version` (#1004) so
+// `createNewGame` can stamp it without importing this whole migration graph.
+export { CURRENT_SAVE_SCHEMA_VERSION };
 
 export type SaveMigration = (state: GameState) => GameState;
 

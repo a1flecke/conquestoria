@@ -24,6 +24,7 @@ set -eu
 SLOW_TEST_FILES="tests/ai/ai-prepared-turn.test.ts
 tests/ai/basic-ai-worker-roads.test.ts
 tests/app/determinism-guard.test.ts
+tests/app/simulation-determinism.test.ts
 tests/core/turn-manager-beasts.test.ts
 tests/integration/save-load-mass-discovery.test.ts
 tests/integration/pacing-simulation.test.ts
