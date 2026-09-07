@@ -103,9 +103,24 @@ describe('#1010 — unit-system movement decomposition boundaries', () => {
     'unit-movement-cost',
     'unit-movement-legality',
     'unit-pathfinding',
+    'unit-movement-validation',
     'unit-movement-queries',
     'unit-system',
   ];
+
+  it('validation is leaf-ward: it imports no execution, barrel, or query module', () => {
+    const validation = importsOf('unit-movement-validation.ts');
+    for (const forbidden of ['unit-system', 'unit-movement-system', 'unit-movement-queries']) {
+      expect(validation, `validation must not import ${forbidden}`).not.toContain(forbidden);
+    }
+  });
+
+  it('unit-movement-system still re-exports the validation API (barrel compat)', async () => {
+    const mod = await import('@/systems/unit-movement-system');
+    for (const name of ['validateUnitMove', 'resolveUnitMoveIntent', 'executeValidatedUnitMove', 'executeUnitMove']) {
+      expect(mod, `unit-movement-system must export ${name}`).toHaveProperty(name);
+    }
+  });
 
   it('the movement modules form an acyclic import graph (incl. zone-of-control-system)', () => {
     const nodes = [...MOVEMENT_MODULES, 'zone-of-control-system'];
