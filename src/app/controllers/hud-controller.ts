@@ -33,6 +33,7 @@ import { getPirateWatersPresentation } from '@/systems/pirate-presentation';
 import { getUnmovedUnits } from '@/systems/unit-system';
 import { createResearchBreakdown } from '@/ui/research-breakdown';
 import { FEDERALISM_TECH_ID, canToggleFederalism, getFederalismLockedUntilTurn, setFederalismStance } from '@/systems/faction-system';
+import { getCivilizationStatusForViewer } from '@/systems/civilization-status-presentation';
 
 /** The narrow slice of `RenderLoop` this controller needs. */
 export type HudRenderer = Pick<RenderLoop, 'isAirDefenseOverlayEnabled' | 'toggleAirDefenseOverlay' | 'resizeCanvas'>;
@@ -137,6 +138,14 @@ export function createHudController(deps: HudControllerDeps): HudController {
 
       const techName = civ.techState.currentResearch ?? 'None';
       hud.textContent = '';
+      const status = getCivilizationStatusForViewer(state, civ.id);
+      if (status) {
+        const statusRow = document.createElement('div');
+        statusRow.dataset.role = 'civilization-status';
+        statusRow.style.cssText = 'width:100%;white-space:normal;line-height:1.35;margin-bottom:4px;';
+        statusRow.textContent = status.message;
+        hud.appendChild(statusRow);
+      }
 
       const yieldsRow = document.createElement('div');
       yieldsRow.dataset.role = 'hud-yields';
