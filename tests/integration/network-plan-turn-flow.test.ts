@@ -17,15 +17,18 @@ function makePreparedExploit() {
     ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'village', unrestLevel: 0,
     unrestTurns: 0, spyUnrestBonus: 0, idleProduction: null,
   };
+  const playerCity: City = {
+    ...city, id: 'city-player', name: 'Source', owner: 'player', position: { q: 2, r: 0 },
+  };
   const cyber: Unit = {
     id: 'unit-cyber', type: 'cyber_unit', owner: 'player', position: { q: 1, r: 0 },
     movementPointsLeft: 3, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
   };
-  state.cities = { [city.id]: city };
+  state.cities = { [city.id]: city, [playerCity.id]: playerCity };
   state.units = { [cyber.id]: cyber };
   state.civilizations.player = {
     ...state.civilizations.player,
-    units: [cyber.id],
+    cities: [playerCity.id], units: [cyber.id],
     techState: { ...state.civilizations.player.techState, completed: ['quantum-computing'] },
     diplomacy: { ...state.civilizations.player.diplomacy, atWarWith: ['ai-1'] },
   };

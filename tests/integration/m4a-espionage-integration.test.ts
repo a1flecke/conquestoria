@@ -46,6 +46,13 @@ function makeTestGameState(): GameState {
       },
     },
     cities: {
+      'city-player-1': {
+        id: 'city-player-1', name: 'Memphis', owner: 'player',
+        position: { q: 1, r: 1 }, population: 3, food: 0, foodNeeded: 20,
+        buildings: [], productionQueue: [], productionProgress: 0,
+        ownedTiles: [{ q: 1, r: 1 }], workedTiles: [], focus: 'balanced', maturity: 'outpost',
+        unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0,
+      },
       'city-egypt-1': {
         id: 'city-egypt-1', name: 'Thebes', owner: 'ai-egypt',
         position: { q: 5, r: 3 }, population: 5, food: 0, foodNeeded: 20,
@@ -59,7 +66,7 @@ function makeTestGameState(): GameState {
       player: {
         id: 'player', name: 'Player', color: '#4a90d9',
         isHuman: true, civType: 'egypt',
-        cities: [], units: [],
+        cities: ['city-player-1'], units: [],
         techState: {
           completed: ['espionage-scouting', 'espionage-informants'],
           currentResearch: null, researchProgress: 0,

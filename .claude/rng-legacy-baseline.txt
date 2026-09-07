@@ -52,5 +52,5 @@ src/systems/pirate-actions.ts:304 # [OK] full-string FNV-1a fold, no truncation;
 src/systems/air-operations-system.ts:470 # [OK] gameId:turn:baseId:aircraftId folded over the full string, no truncation
 
 # --- turn-manager.ts (deriveGeneralCandidateSeed, #932 — already gameId-rooted) ---
-src/core/turn-manager.ts:153 # [LOW] deriveGeneralCandidateSeed (#932) — already gameId-rooted; recurrence body duplicates seededLcg
-src/core/turn-manager.ts:155 # [LOW] deriveGeneralCandidateSeed (#932) LCG fold — hand-rolled duplicate of seededLcg
+src/core/turn-manager.ts:157 # [LOW] deriveGeneralCandidateSeed (#932) — already gameId-rooted; recurrence body duplicates seededLcg
+src/core/turn-manager.ts:159 # [LOW] deriveGeneralCandidateSeed (#932) LCG fold — hand-rolled duplicate of seededLcg

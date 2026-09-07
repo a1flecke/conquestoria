@@ -37,6 +37,13 @@ function makeMinimalGameState(overrides: Partial<GameState> = {}): GameState {
     map: { width: 10, height: 10, tiles: { '5,3': { q: 5, r: 3, terrain: 'grassland', improvement: null, wonder: null } as any }, wrapsHorizontally: false, rivers: [] },
     units: {},
     cities: {
+      'city-player-1': {
+        id: 'city-player-1', name: 'Rome', owner: 'player',
+        position: { q: 1, r: 1 }, population: 3, food: 0, foodNeeded: 20,
+        buildings: [], productionQueue: [], productionProgress: 0,
+        ownedTiles: [{ q: 1, r: 1 }], workedTiles: [], focus: 'balanced', maturity: 'outpost',
+        unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0,
+      },
       'city-enemy-1': {
         id: 'city-enemy-1', name: 'Enemy Capital', owner: 'enemy',
         position: { q: 5, r: 3 }, population: 3, food: 0, foodNeeded: 20,
