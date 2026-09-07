@@ -1,0 +1,316 @@
+import type { GameMap, GameState, HexCoord, Unit, VisibilityState } from '@/core/types';
+import {
+  hexKey,
+  hexNeighbors,
+  getWrappedHexNeighbors,
+  wrapHexCoord,
+} from './hex-utils';
+import { isHostileOwnerTo } from './owner-hostility';
+import { getZoneOfControlAt } from './zone-of-control-system';
+import { UNIT_DEFINITIONS } from './unit-definitions';
+import {
+  isPassableForUnitInContext,
+  canHullEnterOcean,
+  getMovementStepCost,
+  type UnitMovementContext,
+} from './unit-movement-cost';
+import {
+  BLOCKING_MAP_ENTITY_MESSAGES,
+  getBlockingMapEntityAt,
+  type BlockingMapEntity,
+} from './unit-movement-legality';
+import { findPath } from './unit-pathfinding';
+
+/**
+ * Movement queries (#1010). A read-only derived answer for a UI / AI consumer,
+ * composed from the cost + legality + pathfinding modules: what tiles can a unit
+ * reach this turn (`getMovementRange` / `getMovementRangeDetails`), and why is a
+ * specific tap illegal (`getMovementBlockerReason`).
+ *
+ * Admission criterion: everything here mutates nothing and owns no rule of its
+ * own. Anything that owns a movement rule belongs in the cost or legality
+ * module instead.
+ *
+ * NOTE (#1025 follow-up): `getMovementBlockerReason` is the player-facing tap
+ * explainer and is a *second* derivation of movement legality — it omits
+ * `validateUnitMove`'s hostile-occupant and path-crossing checks. It is kept
+ * verbatim here (moved, not changed); collapsing it onto `resolveUnitMoveIntent`
+ * is tracked under #1025. `unit-movement-resolver-parity.test.ts` pins the gap.
+ */
+export interface MovementBlockerReason {
+  code:
+    | 'unexplored'
+    | 'unknown-tile'
+    | 'impassable-water'
+    | 'impassable-terrain'
+    | 'requires-ocean-hull'
+    | 'occupied'
+    | 'foreign-city'
+    | 'barbarian-camp'
+    | 'pirate-enclave'
+    | 'unreachable'
+    | 'insufficient-movement';
+  message: string;
+}
+
+export function getMovementBlockerReason(
+  unit: Unit,
+  to: HexCoord,
+  map: GameMap,
+  options: { visibilityState?: VisibilityState; completedTechs?: string[]; blockingEntity?: BlockingMapEntity | null } = {},
+): MovementBlockerReason | null {
+  if (options.visibilityState === 'unexplored') {
+    return { code: 'unexplored', message: 'Too far away to spot.' };
+  }
+
+  const target = map.wrapsHorizontally ? wrapHexCoord(to, map.width) : to;
+  const tile = map.tiles[hexKey(target)];
+  if (!tile) {
+    return { code: 'unknown-tile', message: 'Too far away to spot.' };
+  }
+
+  // A blocking map entity (e.g. a foreign, unallied city) takes priority over terrain --
+  // the caller supplies it (via getBlockingMapEntityAt) rather than this function taking a
+  // full GameState, matching its existing decoupled-from-state signature (#843).
+  if (options.blockingEntity) {
+    return {
+      code: options.blockingEntity.reason,
+      message: BLOCKING_MAP_ENTITY_MESSAGES[options.blockingEntity.reason],
+    };
+  }
+
+  const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
+  if (!isPassableForUnitInContext(unit, tile.terrain, { completedTechs: options.completedTechs })) {
+    if (domain === 'naval' && tile.terrain === 'ocean' && !canHullEnterOcean(unit.type)) {
+      return {
+        code: 'requires-ocean-hull',
+        message: "This ship can't survive the open sea — upgrade it to go further.",
+      };
+    }
+    if (domain === 'naval') {
+      return { code: 'impassable-terrain', message: 'Naval units cannot move on land.' };
+    }
+    if (tile.terrain === 'ocean' || tile.terrain === 'coast') {
+      return { code: 'impassable-water', message: 'Land units cannot cross water yet.' };
+    }
+    return { code: 'impassable-terrain', message: 'This terrain cannot be entered.' };
+  }
+
+  const path = findPath(unit.position, target, map, domain, { unit, completedTechs: options.completedTechs });
+  if (!path) {
+    return { code: 'unreachable', message: 'No passable route to that tile.' };
+  }
+
+  const pathCost = path.slice(1).reduce(
+    (total, coord, index) => total + getMovementStepCost(
+      unit,
+      map,
+      path[index]!,
+      coord,
+      { completedTechs: options.completedTechs },
+    ),
+    0,
+  );
+
+  // Forced march: a unit can always move to an adjacent passable tile with ≥1 move remaining.
+  const isAdjacentMove = path.length === 2;
+  if (isAdjacentMove && unit.movementPointsLeft >= 1) {
+    return null;
+  }
+
+  if (pathCost > unit.movementPointsLeft) {
+    return { code: 'insufficient-movement', message: 'Not enough movement left this turn.' };
+  }
+
+  return null;
+}
+
+function normalizeOccupants(value: string | string[] | undefined): string[] {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
+}
+export function getMovementRange(
+  unit: Unit,
+  map: GameMap,
+  unitPositions: Record<string, string | string[]>,
+  unitOwners?: Record<string, string>,
+  hostileOwners?: Set<string>,
+  options: UnitMovementContext = {},
+  blockingKeys?: ReadonlySet<string>,
+): HexCoord[] {
+  const reachable: HexCoord[] = [];
+  const visited = new Map<string, number>();
+  const queue: Array<{ coord: HexCoord; remaining: number }> = [];
+
+  const startKey = hexKey(unit.position);
+  visited.set(startKey, unit.movementPointsLeft);
+  queue.push({ coord: unit.position, remaining: unit.movementPointsLeft });
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    const neighbors = map.wrapsHorizontally
+      ? getWrappedHexNeighbors(current.coord, map.width)
+      : hexNeighbors(current.coord);
+
+    for (const neighbor of neighbors) {
+      const key = hexKey(neighbor);
+      const tile = map.tiles[key];
+      if (!tile || !isPassableForUnitInContext(unit, tile.terrain, options)) continue;
+
+      const cost = getMovementStepCost(unit, map, current.coord, neighbor, options);
+      const remaining = current.remaining - cost;
+
+      // Forced march: if this is a direct neighbor of the start position and the unit
+      // has ≥1 movement remaining, allow entry even when the tile cost exceeds remaining points.
+      const isFromStartPosition = hexKey(current.coord) === hexKey(unit.position);
+      const forcedMarch = isFromStartPosition && current.remaining >= 1 && remaining < 0;
+
+      if (remaining < 0 && !forcedMarch) continue;
+
+      const effectiveRemaining = forcedMarch ? 0 : remaining;
+
+      const occupants = normalizeOccupants(unitPositions[key]).filter(id => id !== unit.id);
+      if (occupants.length > 0) {
+        const isNeutralOccupant = (id: string) => {
+          const owner = unitOwners?.[id];
+          return Boolean(owner) && owner !== unit.owner
+            && hostileOwners !== undefined && !hostileOwners.has(owner!);
+        };
+        const isHostileOccupant = (id: string) => {
+          const owner = unitOwners?.[id];
+          if (!owner || owner === unit.owner) return false;
+          return hostileOwners !== undefined ? hostileOwners.has(owner) : true;
+        };
+
+        if (occupants.some(isNeutralOccupant)) continue;
+
+        if (occupants.some(isHostileOccupant)) {
+          const prevRemaining = visited.get(key) ?? -1;
+          if (effectiveRemaining > prevRemaining) {
+            visited.set(key, effectiveRemaining);
+            reachable.push(neighbor);
+          }
+          continue;
+        }
+      }
+
+      // A blocking map entity (e.g. a foreign, unallied city -- see
+      // `getBlockingMapEntityAt`/`getBlockingMapEntityKeys`) is only ever reachable (for
+      // adjacent tap-to-assault highlighting) when the unit is ALREADY directly adjacent to
+      // it before this action, exactly like how Zone of Control already restricts a hostile
+      // unit's own tile to direct-adjacency-only. Without the `isFromStartPosition` gate this
+      // would be "reachable" from arbitrarily far away, which is the #843 bug.
+      if (blockingKeys?.has(key)) {
+        if (isFromStartPosition) {
+          const prevRemaining = visited.get(key) ?? -1;
+          if (effectiveRemaining > prevRemaining) {
+            visited.set(key, effectiveRemaining);
+            reachable.push(neighbor);
+          }
+        }
+        continue;
+      }
+
+      const prevRemaining = visited.get(key) ?? -1;
+      if (effectiveRemaining > prevRemaining) {
+        visited.set(key, effectiveRemaining);
+        reachable.push(neighbor);
+        if (effectiveRemaining > 0) {
+          queue.push({ coord: neighbor, remaining: effectiveRemaining });
+        }
+      }
+    }
+  }
+
+  return reachable;
+}
+
+export interface MovementRangeDetails {
+  reachable: HexCoord[];
+  zocLimited: HexCoord[];
+}
+
+export function getMovementRangeDetails(
+  state: Readonly<GameState>,
+  unitId: string,
+): MovementRangeDetails {
+  const unit = state.units[unitId];
+  if (!unit) return { reachable: [], zocLimited: [] };
+  const unitPositions: Record<string, string | string[]> = {};
+  const unitOwners: Record<string, string> = {};
+  for (const candidate of Object.values(state.units)) {
+    const key = hexKey(candidate.position);
+    const existing = unitPositions[key];
+    unitPositions[key] = existing ? [...(Array.isArray(existing) ? existing : [existing]), candidate.id] : candidate.id;
+    unitOwners[candidate.id] = candidate.owner;
+  }
+  const hostileOwners = new Set(Object.values(state.units)
+    .filter(candidate => isHostileOwnerTo(state, unit.owner, candidate.owner))
+    .map(candidate => candidate.owner));
+  const reachable: HexCoord[] = [];
+  const zocLimited: HexCoord[] = [];
+  const visited = new Map<string, number>();
+  const queue: Array<{ coord: HexCoord; remaining: number }> = [];
+  const startKey = hexKey(unit.position);
+  visited.set(startKey, unit.movementPointsLeft);
+  queue.push({ coord: unit.position, remaining: unit.movementPointsLeft });
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    const neighbors = state.map.wrapsHorizontally
+      ? getWrappedHexNeighbors(current.coord, state.map.width)
+      : hexNeighbors(current.coord);
+    for (const neighbor of neighbors) {
+      const key = hexKey(neighbor);
+      const tile = state.map.tiles[key];
+      if (!tile || !isPassableForUnitInContext(unit, tile.terrain, {
+        completedTechs: state.civilizations[unit.owner]?.techState.completed ?? [],
+      })) continue;
+      const cost = getMovementStepCost(unit, state.map, current.coord, neighbor, {
+        completedTechs: state.civilizations[unit.owner]?.techState.completed ?? [],
+      });
+      const remaining = current.remaining - cost;
+      const fromStart = hexKey(current.coord) === startKey;
+      const forcedMarch = fromStart && current.remaining >= 1 && remaining < 0;
+      if (remaining < 0 && !forcedMarch) continue;
+      const effectiveRemaining = forcedMarch ? 0 : remaining;
+      const occupants = normalizeOccupants(unitPositions[key]).filter(id => id !== unit.id);
+      const neutralOccupant = occupants.some(id => {
+        const owner = unitOwners[id];
+        return Boolean(owner) && owner !== unit.owner && !hostileOwners.has(owner);
+      });
+      if (neutralOccupant) continue;
+      const hostileOccupant = occupants.some(id => {
+        const owner = unitOwners[id];
+        return Boolean(owner) && owner !== unit.owner && hostileOwners.has(owner);
+      });
+      const blockingEntity = getBlockingMapEntityAt(state, unit, neighbor);
+      // A blocking map entity's own tile is only ever "reachable" (for tap-to-assault) when
+      // the unit is ALREADY directly adjacent to it before this action -- never via a
+      // multi-hop approach. This matches how Zone of Control already prevents a hostile
+      // unit's own tile from being added except from direct adjacency (any multi-hop
+      // approach must first cross a ZOC-limited tile one hex short, which is terminal and
+      // never enqueued). Cities/camps radiate no ZOC of their own, so without this explicit
+      // fromStart gate they would be "reachable" from arbitrarily far away whenever movement
+      // points allowed -- exactly the #843 bug (a distant city looked tap-able, but tapping
+      // it while not yet adjacent produced a confusing rejection instead of a move).
+      //
+      // #965: a pirate coastal-enclave has NO land tap-action (it is razed only by
+      // a warship from the sea), so unlike a city/camp its anchor is never a
+      // reachable tap target -- exclude it even from direct adjacency so the tap
+      // falls through to the plain "assault it by sea" explanation.
+      if (blockingEntity && (!fromStart || blockingEntity.reason === 'pirate-enclave')) continue;
+      const zoc = !hostileOccupant && !blockingEntity && getZoneOfControlAt(state, unit, neighbor).limited;
+      const terminal = hostileOccupant || Boolean(blockingEntity) || zoc;
+      const previous = visited.get(key) ?? -1;
+      if (effectiveRemaining <= previous) continue;
+      visited.set(key, effectiveRemaining);
+      reachable.push(neighbor);
+      if (zoc) zocLimited.push(neighbor);
+      if (!terminal && effectiveRemaining > 0) {
+        queue.push({ coord: neighbor, remaining: effectiveRemaining });
+      }
+    }
+  }
+  return { reachable, zocLimited };
+}
