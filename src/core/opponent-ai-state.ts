@@ -6,6 +6,7 @@ import type {
   MajorCivPlanPortfolio,
   OpponentAIState,
 } from './types';
+import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 
 const PLAN_PHASES = new Set([
   'scouting',
@@ -275,7 +276,7 @@ export function normalizeOpponentAIState(state: GameState): GameState {
 
   for (const [actorId, value] of Object.entries(source.majorCivs ?? {})) {
     const civ = state.civilizations[actorId];
-    if (!civ || civ.isHuman || civ.isEliminated) continue;
+    if (!civ || civ.isHuman || !getCivilizationLiveness(state, actorId).living) continue;
     opponentAI.majorCivs[actorId] = normalizePortfolio(state, actorId, value);
   }
 
@@ -298,7 +299,7 @@ export function normalizeOpponentAIState(state: GameState): GameState {
   }
 
   const livingHumanIds = Object.values(state.civilizations)
-    .filter(civ => civ.isHuman && !civ.isEliminated)
+    .filter(civ => civ.isHuman && getCivilizationLiveness(state, civ.id).living)
     .map(civ => civ.id)
     .sort();
   for (const humanId of livingHumanIds) {
