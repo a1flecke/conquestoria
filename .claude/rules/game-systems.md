@@ -49,6 +49,23 @@ Auto-save fires on game creation, and `normalizeLoadedState` runs on both the sa
 1. **An ordered migration + a migration test.** A numbered `SAVE_MIGRATIONS[N]` entry (bump `CURRENT_SAVE_SCHEMA_VERSION`, per the section above) *plus* a well-formed matrix case in `tests/storage/fixtures/save-compat/manifest.ts` for source version `N-1`, and — if the migration only exists to scrub hand-edited corruption — a `malformed-repair` case too. `tests/storage/save-compat-coverage.test.ts` (fast tier) fails if the version bump lands without the manifest entry.
 2. **A written proof + test that the change is safely additive.** The field is optional, every reader already tolerates its absence (`?? default` / optional chaining), and a test demonstrates a save that predates the field loads and processes a turn unchanged. `tests/storage/new-game-completeness.test.ts` (the load-canonicalisation ratchet) and the matrix's own "strip the field for pre-CURRENT source versions" coverage are where that lives — extend them rather than asserting it ad hoc in a comment.
 
+### Save compatibility is three registries, not one pile (#1023)
+
+`src/storage/save-migrations.ts` is **composition only**. The mechanisms live in `src/storage/migrations/`, each with a written admission criterion, and each entry states its own reason:
+
+| Registry | Admission criterion | When it runs |
+|---|---|---|
+| `ordered.ts` → `ORDERED_MIGRATIONS` | The persisted shape changed at schema N, and a save below N cannot be read correctly without this transformation. | Once each, in ascending order, only for saves below current. |
+| `compatibility.ts` → `COMPATIBILITY_NORMALIZERS` | A safe default or idempotent shape conversion for an optional/additive field that is legal to be absent at every version, and every reader tolerates its absence. | Unconditionally, every load. |
+| `repair.ts` → `CORRUPTION_REPAIRS` | Drops or repairs structurally impossible data the game itself never writes — hand-edited, truncated, externally-produced. | Unconditionally, every load. |
+
+- **Do not let these substitute for one another.** Adding a default to `COMPATIBILITY_NORMALIZERS` instead of writing an ordered migration is cheaper, works, and hides the fact that a version step was never written — that is the exact failure #1023 exists to prevent. `tests/storage/save-persisted-shape-ratchet.test.ts` fails when a persisted field appears with no version bump and no written exemption.
+- **A corruption repair that fires on a save the game wrote is a bug in the writer**, not a reason to keep the repair.
+- A pass may be in two registries, but only with `alsoOrderedMigration: { version, why }`. `save-migration-registries.test.ts` detects undeclared dual registration by **function identity**, not by id.
+- The unconditional pass order lives in `migrations/pipeline.ts` and is the pre-#1023 tail order **verbatim** — several passes read fields an earlier pass defaults, so regrouping by registry would be a behaviour change dressed as a refactor. Add a new pass to the order deliberately.
+- `docs/save-compatibility.md` is **generated** from the registries (`UPDATE_SAVE_COMPAT_DOC=1 yarn vitest run tests/storage/save-migration-registries.test.ts`) and test-enforced, so the list cannot drift from the code. Never hand-edit it.
+- Behaviour changes to this seam are gated by `tests/storage/save-migration-equivalence.test.ts` — per-top-level-key golden digests of `migrateSaveToCurrent` for every compatibility-matrix fixture. A refactor must never need `UPDATE_MIGRATION_GOLDEN=1`; a deliberate change must justify every moved digest in the PR.
+
 The full `migrate → normalize → run a few rounds → save → reload → shared invariant validators` sweep across every representable version is `tests/storage/save-compat-matrix.test.ts` (slow tier). The shared validators it asserts (`tests/helpers/save-state-invariants.ts`: bilateral war, city + unit rosters, cargo reciprocity, eliminated-civ entities) are the minimal structural contract a migrated save must still satisfy; the dedicated invariant issues (#995 / #997 / #1000 / #1001) own making each exhaustive. Do **not** assert `migrated.saveSchemaVersion === CURRENT` and stop — that proves the migration *ran*, not that the result is playable.
 
 ## State Mutations Must Match Events
