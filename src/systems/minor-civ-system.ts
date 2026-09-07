@@ -936,7 +936,7 @@ export function checkCampEvolution(
 // === Era Advancement ===
 
 export function checkEraAdvancement(state: GameState): number {
-  return resolveWorldAge(state.civilizations);
+  return resolveWorldAge(state);
 }
 
 // #948 (H2, #490 audit): this used to rewrite every existing unit's type to an era-appropriate

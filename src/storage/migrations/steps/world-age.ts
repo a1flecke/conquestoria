@@ -15,5 +15,5 @@ import { migrateLegacyBasedAircraft } from './legacy-aircraft';
  */
 export function migrateDualEraWorldAge(state: GameState): GameState {
   const withAircraft = migrateLegacyBasedAircraft(state);
-  return { ...withAircraft, era: resolveWorldAge(withAircraft.civilizations) };
+  return { ...withAircraft, era: resolveWorldAge(withAircraft) };
 }

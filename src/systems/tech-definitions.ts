@@ -1,4 +1,5 @@
-import type { Civilization, Tech } from '@/core/types';
+import type { GameState, Tech } from '@/core/types';
+import { getCivilizationLiveness } from './civilization-liveness';
 import { TECH_TREE_ERAS_1_4 } from './tech-definitions-eras1-4';
 import { TECH_TREE_ERAS_5_7 } from './tech-definitions-eras5-7';
 import { TECH_TREE_ERAS_8 } from './tech-definitions-eras8';
@@ -59,8 +60,10 @@ export function resolveCivilizationEra(completedTechIds: readonly string[]): num
   return era;
 }
 
-export function resolveWorldAge(civilizations: Record<string, Civilization>): number {
-  const active = Object.values(civilizations).filter(civ => !civ.isEliminated);
+export function resolveWorldAge(state: Pick<GameState, 'civilizations' | 'cities' | 'units'>): number {
+  const active = Object.keys(state.civilizations)
+    .filter(civId => getCivilizationLiveness(state, civId).living)
+    .map(civId => state.civilizations[civId]!);
   if (active.length === 0) return 1;
   const required = Math.floor(active.length / 2) + 1;
   const eras = active.map(civ => resolveCivilizationEra(civ.techState?.completed ?? []));

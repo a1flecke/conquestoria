@@ -38,7 +38,7 @@ function laggardAiWorldState(seed: string): GameState {
   state.civilizations[LAGGARD].techState.completed = [];
   state.civilizations[LAGGARD].civType = 'greece'; // diplomacyFocus 0.9 -- clears the >0.4 NAP bar unambiguously
   state.civilizations[TARGET].civType = 'egypt'; // diplomacyFocus 0.7 -- clears evaluateTreatyConsent's >0.3 NAP bar
-  state.era = resolveWorldAge(state.civilizations);
+  state.era = resolveWorldAge(state);
 
   const laggard = state.civilizations[LAGGARD];
   const target = state.civilizations[TARGET];
