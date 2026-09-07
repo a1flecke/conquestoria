@@ -486,7 +486,12 @@ export function advanceRouteRunners(state: GameState, bus?: EventBus): GameState
     // Trade Routes Overhaul (#553 MR1/4): route runners must move in the unit's own
     // domain, same root-cause fix as canEstablishRoute/resolveFromCity in trade-system.ts.
     const runnerDomain = UNIT_DEFINITIONS[caravan.type]?.domain ?? 'land';
-    const path = findPathToCity(caravan.position, targetCity.position, newState.map, runnerDomain);
+    // #1042: thread the caravan + owner techs so the drawn route follows roads,
+    // matching the canonical cost model the executor uses.
+    const path = findPathToCity(caravan.position, targetCity.position, newState.map, runnerDomain, {
+      unit: caravan,
+      completedTechs: newState.civilizations[caravan.owner]?.techState.completed ?? [],
+    });
     if (!path || path.length === 0) continue;
 
     if (path.length === 1) {
