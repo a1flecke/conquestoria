@@ -130,7 +130,14 @@ export function makeAutoExploreFixture(options: AutoExploreFixtureOptions = {}):
     [scout.id]: scout,
   };
 
-  const player = makeCivilization('player', true, [scout.id]);
+  const settler: Unit = {
+    ...makeScout({ q: 0, r: 0 }),
+    id: 'unit-settler',
+    type: 'settler',
+    automation: undefined,
+  };
+  units[settler.id] = settler;
+  const player = makeCivilization('player', true, [scout.id, settler.id]);
   const raiders = makeCivilization('raiders', false, []);
   const traders = makeCivilization('traders', false, []);
 

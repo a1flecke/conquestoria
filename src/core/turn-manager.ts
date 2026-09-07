@@ -134,6 +134,7 @@ import { consumeRecoveredHarnesses, getRogueElephantHostLifecycleTransition, pro
 import { checkAndQueueGeneralCandidateChoice, retireGeneralsAtTurnEnd, spawnGeneralForCiv } from '@/systems/great-general-system';
 import { chooseBestGeneralCandidate } from '@/ai/ai-general-command';
 import { resolveGeneralDefinition, type GeneralDefinition } from '@/systems/great-general-definitions';
+import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 
 // #544 MR3: same char-folding convention combat-reward-system.ts's seededRoll and
 // city-capture-system.ts's assault seed already use -- turns a (gameId, turn, civId)
@@ -212,6 +213,7 @@ export function processTurn(
 
   // --- Process each civilization ---
   for (const [civId, civ] of Object.entries(newState.civilizations)) {
+    if (!getCivilizationLiveness(newState, civId).living) continue;
     newState = resolveLandSupplyForCiv(newState, civId);
     const stampedeBefore = newState.stampedes?.[civId];
     newState = processStampedeTurn(newState, civId);
