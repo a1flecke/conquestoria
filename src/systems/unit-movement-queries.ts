@@ -1,25 +1,17 @@
-import type { GameMap, GameState, HexCoord, Unit, VisibilityState } from '@/core/types';
+import type { GameMap, GameState, HexCoord, Unit } from '@/core/types';
 import {
   hexKey,
   hexNeighbors,
   getWrappedHexNeighbors,
-  wrapHexCoord,
 } from './hex-utils';
 import { isHostileOwnerTo } from './owner-hostility';
 import { getZoneOfControlAt } from './zone-of-control-system';
-import { UNIT_DEFINITIONS } from './unit-definitions';
 import {
   isPassableForUnitInContext,
-  canHullEnterOcean,
   getMovementStepCost,
   type UnitMovementContext,
 } from './unit-movement-cost';
-import {
-  BLOCKING_MAP_ENTITY_MESSAGES,
-  getBlockingMapEntityAt,
-  type BlockingMapEntity,
-} from './unit-movement-legality';
-import { findPath } from './unit-pathfinding';
+import { getBlockingMapEntityAt } from './unit-movement-legality';
 
 /**
  * Movement queries (#1010). Read-only derived answers for a UI / AI consumer,
