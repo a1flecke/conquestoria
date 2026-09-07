@@ -80,6 +80,49 @@ describe('council-memory', () => {
     expect(formatted).toContain('an undiscovered foreign city');
   });
 
+  // #1004: procedural maps now carry landmass regionKeys from turn 1 rather
+  // than only after a reload, so this prose (which interpolates the raw
+  // zero-indexed `continent-N` / `island-N` key) went from rarely-seen to the
+  // normal wording. Advisor text is player-facing and read by kids.
+  describe('frontier-expansion region wording', () => {
+    function expansionProse(regionKey: string | undefined): string {
+      const { state } = makeCouncilFixture();
+      const memory = rememberCouncilDecision(state, 'player', {
+        key: `expand-${regionKey ?? 'none'}`,
+        advisor: 'explorer',
+        kind: 'frontier-expansion',
+        turn: 12,
+        subjects: regionKey ? { regionKey } : {},
+      });
+      return formatCouncilMemoryEntry(memory.player.entries[0], state, 'player');
+    }
+
+    it('names a continent in words, never as a zero-indexed internal key', () => {
+      const prose = expansionProse('continent-0');
+      expect(prose).toContain('the first continent');
+      expect(prose).not.toContain('continent 0');
+      expect(prose).not.toContain('continent-0');
+    });
+
+    it('names an island the same way', () => {
+      expect(expansionProse('island-2')).toContain('the third island');
+    });
+
+    it('falls back to a 1-based number past the ordinal words rather than saying "0"', () => {
+      const prose = expansionProse('continent-12');
+      expect(prose).toContain('continent 13');
+      expect(prose).not.toContain('continent 12');
+    });
+
+    it('still says "the frontier" when no region is known', () => {
+      expect(expansionProse(undefined)).toContain('the frontier');
+    });
+
+    it('leaves an unrecognized region key readable rather than dropping it', () => {
+      expect(expansionProse('northern-reach')).toContain('northern reach');
+    });
+  });
+
   it('preserves council memory through save round-trip without changing viewer-safe formatting rules', () => {
     const { state } = makeCouncilFixture();
 

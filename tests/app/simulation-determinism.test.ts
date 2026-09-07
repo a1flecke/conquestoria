@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { EventBus } from '@/core/event-bus';
-import { createNewGame } from '@/core/game-state';
+import { createNewGame, createHotSeatGame } from '@/core/game-state';
 import { runCompletedRound } from '@/core/completed-round-orchestrator';
 import { processImprovementTurns } from '@/systems/improvement-turn-system';
 import { processNonHumanMajorRound } from '@/ai/ai-round-scheduler';
@@ -14,7 +14,7 @@ import {
   assertSimulationEquivalent,
   firstSimulationDivergence,
 } from '../helpers/deterministic-state';
-import type { GameState, SoloSetupConfig } from '@/core/types';
+import type { GameState, HotSeatConfig, SoloSetupConfig } from '@/core/types';
 
 /**
  * #1004 — whole-simulation determinism contracts.
@@ -78,6 +78,19 @@ const CONTRACT_TIMEOUT_MS = 45_000;
 
 function freshGame(seed: string): GameState {
   return createNewGame({ ...BASE_CONFIG, seed, gameTitle: `determinism ${seed}` });
+}
+
+const HOT_SEAT_CONFIG: HotSeatConfig = {
+  playerCount: 2,
+  mapSize: 'small',
+  players: [
+    { slotId: 'player-1', name: 'A', civType: 'generic', isHuman: true },
+    { slotId: 'player-2', name: 'B', civType: 'generic', isHuman: true },
+  ],
+};
+
+function freshHotSeatGame(seed: string): GameState {
+  return createHotSeatGame(HOT_SEAT_CONFIG, seed, `hot seat determinism ${seed}`, 'standard');
 }
 
 function advanceRound(state: GameState): GameState {
@@ -146,6 +159,24 @@ describe('#1004 Contract 1 — same seed + same commands => equivalent whole sta
     const differing = facets.filter(same => !same).length;
     expect(differing).toBeGreaterThanOrEqual(4);
   }, CONTRACT_TIMEOUT_MS);
+
+  it.each(['explorer', 'veteran'] as const)(
+    'determinism holds on the %s challenge tier, not just the default',
+    challenge => {
+      // opponentChallenge is persisted state that feeds AI behaviour, unrest
+      // pressure and world-pressure scaling. Determinism must not be a
+      // property of the default tier only — a challenge-scaled code path that
+      // reached for wall-clock or an unkeyed stream would show up here and
+      // nowhere else in this file.
+      const config = { ...BASE_CONFIG, seed: `contract-1-${challenge}`, gameTitle: challenge, opponentChallenge: challenge };
+      const a = advance(createNewGame(config), 6);
+      const b = advance(createNewGame(config), 6);
+
+      expect(a.opponentChallenge).toBe(challenge);
+      assertSimulationEquivalent(a, b, `Contract 1: same seed on ${challenge}`);
+    },
+    CONTRACT_TIMEOUT_MS,
+  );
 });
 
 describe('#1004 Contract 2 — whole-state save/reload continuity', () => {
@@ -206,6 +237,34 @@ describe('#1004 Contract 2 — whole-state save/reload continuity', () => {
     );
   }, CONTRACT_TIMEOUT_MS);
 
+  it('hot seat: save/reload continuity holds, and per-viewer state survives the round trip', () => {
+    // Hot seat carries the persisted state most at risk across a save
+    // boundary: the `hotSeat` slot config itself, per-viewer `pendingEvents`
+    // queues, and two living humans (so `opponentAI.pressureByCiv` has two
+    // ledgers, not one). Solo coverage above would not catch a regression in
+    // any of them. Fewer rounds than the solo case — the point here is
+    // hot-seat-specific persistence, not trajectory depth.
+    const HOT_SEAT_N = 6;
+    const HOT_SEAT_M = 4;
+
+    const uninterrupted = saveAndReload(advance(freshHotSeatGame('contract-2-hotseat'), HOT_SEAT_N + HOT_SEAT_M));
+    const continued = saveAndReload(
+      advance(saveAndReload(advance(freshHotSeatGame('contract-2-hotseat'), HOT_SEAT_N)), HOT_SEAT_M),
+    );
+
+    assertSimulationEquivalent(continued, uninterrupted, 'Contract 2: hot-seat save/reload continuity');
+
+    // Pin the hot-seat-specific carriers explicitly rather than trusting the
+    // whole-state compare to have reached them.
+    expect(continued.hotSeat).toEqual(uninterrupted.hotSeat);
+    expect(continued.hotSeat?.players).toHaveLength(2);
+    const humanIds = Object.values(continued.civilizations)
+      .filter(civ => civ.isHuman && !civ.isEliminated).map(civ => civ.id).sort();
+    expect(humanIds).toHaveLength(2);
+    expect(Object.keys(continued.opponentAI!.pressureByCiv).sort()).toEqual(humanIds);
+    expect(continued.pendingEvents).toEqual(uninterrupted.pendingEvents);
+  }, CONTRACT_TIMEOUT_MS);
+
   it('a freshly created game is stamped at the current schema, so its first save runs zero historical migrations', () => {
     // Root cause of the original Contract 2 failure: createNewGame left
     // saveSchemaVersion undefined, so readSchemaVersion() fell back to 0 and
@@ -213,6 +272,13 @@ describe('#1004 Contract 2 — whole-state save/reload continuity', () => {
     // over a brand-new current-schema game (placeLateResources revealed
     // resources, the v24 research-cost retime moved research progress,
     // minor-civ territory shifted). A new game IS current; it must say so.
+    // Asserted as a concrete integer first: `createNewGame` now imports the
+    // constant from src/storage across the core→storage boundary, and an ESM
+    // cycle there would surface as `undefined` on both sides, making a bare
+    // `toBe(CURRENT_SAVE_SCHEMA_VERSION)` pass vacuously.
+    expect(typeof CURRENT_SAVE_SCHEMA_VERSION).toBe('number');
+    expect(CURRENT_SAVE_SCHEMA_VERSION).toBeGreaterThan(0);
+
     const fresh = freshGame('contract-2-fresh-schema');
     expect(fresh.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
 
@@ -221,6 +287,22 @@ describe('#1004 Contract 2 — whole-state save/reload continuity', () => {
     // never executes.
     const serialized = JSON.parse(serializeSaveFile(fresh)) as { saveSchemaVersion?: number };
     expect(serialized.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
+
+    // Direct behavioural pin on the two loudest symptoms the chain produced,
+    // rather than inferring "no migration ran" from the version number alone:
+    //   migration 2  (migrateLateResources) re-rolled late resources with
+    //     `${gameId}-late-resources`, a DIFFERENT key from creation's
+    //     `${seed}-late-resources`, so tiles gained/changed resources.
+    //   migration 24 (migrateResearchCostsV24) retimed in-flight research,
+    //     moving researchProgress and completing techs.
+    const reloaded = saveAndReload(fresh);
+    const resourcesOf = (state: GameState) => Object.fromEntries(
+      Object.entries(state.map.tiles).map(([key, tile]) => [key, tile.resource ?? null]),
+    );
+    expect(resourcesOf(reloaded)).toEqual(resourcesOf(fresh));
+    for (const [civId, civ] of Object.entries(reloaded.civilizations)) {
+      expect(civ.techState, civId).toEqual(fresh.civilizations[civId].techState);
+    }
   }, CONTRACT_TIMEOUT_MS);
 });
 

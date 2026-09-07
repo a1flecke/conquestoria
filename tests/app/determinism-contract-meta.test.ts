@@ -33,17 +33,41 @@ describe('#1004 — test-tier registration', () => {
   });
 });
 
+const SIMULATION_DIRS = ['src/systems', 'src/ai', 'src/core'];
+
+function grepSimulationDirs(pattern: string): { status: number | null; lines: string[] } {
+  const grep = spawnSync(
+    'grep',
+    ['-rInE', '--include=*.ts', pattern, ...SIMULATION_DIRS],
+    { cwd: REPO_ROOT, encoding: 'utf8' },
+  );
+  // grep exits 0 with matches, 1 with none, >=2 on a real error (bad path,
+  // unreadable dir). Anything else means the scan never ran — without this the
+  // whole sweep would pass vacuously on an empty stdout.
+  expect(grep.error, `grep failed to spawn: ${grep.error?.message}`).toBeUndefined();
+  expect([0, 1], `grep exited ${grep.status}: ${grep.stderr}`).toContain(grep.status);
+  return { status: grep.status, lines: grep.stdout.split('\n').filter(Boolean) };
+}
+
 describe('#1004 — no Math.random() in simulation code', () => {
+  it('actually scans the simulation source tree (guards against a vacuous pass)', () => {
+    // Positive control: if the scan is running at all it must find the
+    // canonical RNG factory's own call sites. A rename/move that silently
+    // stops the sweep from reaching src/ fails here rather than going green.
+    const { lines } = grepSimulationDirs('createSimulationRng');
+    expect(lines.length).toBeGreaterThan(5);
+  });
+
   it('src/systems, src/ai, src/core contain no non-comment Math.random( call', () => {
-    const grep = spawnSync(
-      'grep',
-      ['-rInE', '--include=*.ts', 'Math\\.random\\(', 'src/systems', 'src/ai', 'src/core'],
-      { cwd: REPO_ROOT, encoding: 'utf8' },
-    );
-    const offending = grep.stdout
-      .split('\n')
-      .filter(Boolean)
-      // A line is only a violation if the call is not inside a // comment.
+    const { lines } = grepSimulationDirs('Math\\.random\\(');
+    const offending = lines
+      // A line is only a violation if the call is not inside a `//` comment.
+      // Same deliberately-simple heuristic the shipped source rule uses
+      // (`scripts/check-src-rule-violations.sh` greps `-v '//'`); it does not
+      // understand block comments or string literals. That is acceptable here
+      // because this sweep is a belt-and-braces backstop behind the per-edit
+      // hook, not the primary gate — but do not add a new exemption to it
+      // without also teaching the shipped rule.
       .filter(line => {
         const body = line.slice(line.indexOf(':', line.indexOf(':') + 1) + 1);
         const idx = body.indexOf('Math.random(');

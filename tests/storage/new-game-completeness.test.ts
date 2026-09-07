@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
+import { EventBus } from '@/core/event-bus';
 import { createNewGame, createHotSeatGame } from '@/core/game-state';
+import { processTurn } from '@/core/turn-manager';
 import { normalizeLoadedState } from '@/storage/save-manager';
 import { CURRENT_SAVE_SCHEMA_VERSION } from '@/storage/save-migrations';
 import type { GameState, HotSeatConfig } from '@/core/types';
@@ -86,6 +88,42 @@ describe('freshly created games need no legacy fixups', () => {
         expect(civ.knownCivilizations, civId).toEqual(original.knownCivilizations);
       }
     });
+
+    it(`${label}: fields a fresh game genuinely omits get their documented default`, () => {
+      // Kept (and re-pinned) from before #1004 for the reason its original
+      // comment gave: `{}` vs `undefined` decides whether downstream readers
+      // need `?? {}`. That mattered MORE after #1004, not less — stamping the
+      // current schema stopped migration 12 from running on a fresh game, so
+      // several of these flipped from `{}`/`[]` to `undefined` and every
+      // reader now has to tolerate that.
+      const normalized = normalizeLoadedState(structuredClone(make()));
+
+      // Still defaulted, by the unconditional normalizeThreatPressureDefaults.
+      expect(normalized.resurgentCampCooldownByCivLandmass).toEqual({});
+      expect(normalized.pirateFleets).toEqual({});
+      expect(normalized.pirateFleetCooldownByCivLandmass).toEqual({});
+
+      // No longer defaulted (migration 12 no longer runs on a current-schema
+      // fresh game). Every reader of these is optional-chained or `?? {}`:
+      //   legendaryWonderHistory.networkPlanResolutions -- legendary-wonder-history.ts,
+      //     legendary-wonder-system.ts, turn-manager.ts all use `?? []`
+      //   civ.lastCombatTurnByLandmass -- threat-pressure-system.ts uses `?.[id] ??`
+      //   reconReveals -- optional in types.ts
+      expect(normalized.legendaryWonderHistory!.networkPlanResolutions).toBeUndefined();
+      expect(normalized.reconReveals).toBeUndefined();
+      for (const [civId, civ] of Object.entries(normalized.civilizations)) {
+        expect(civ.lastCombatTurnByLandmass, civId).toBeUndefined();
+      }
+    });
+
+    it(`${label}: a loaded fresh game processes a turn without a reader tripping on those undefined defaults`, () => {
+      // The assertions above pin the shape; this proves the shape is actually
+      // safe. Before #1004 the load path backfilled these containers, so no
+      // production reader was ever exercised against `undefined` on turn 1.
+      const normalized = normalizeLoadedState(structuredClone(make()));
+
+      expect(() => processTurn(normalized, new EventBus())).not.toThrow();
+    });
   }
 
   it('both new-game paths agree on the fields the deleted migrateLegacySave used to backfill', () => {
@@ -105,6 +143,60 @@ describe('freshly created games need no legacy fixups', () => {
         expect(civ.civType).toBeDefined();
         expect(civ.diplomacy).toBeDefined();
       }
+    }
+  });
+
+  // #1004: these two are gameplay-bearing, not cosmetic — see the MR notes.
+  // Without them a future refactor could drop either call and only a
+  // whole-trajectory determinism test would (eventually) notice.
+  describe('#1004 — a fresh game is already in the shape the load path expects', () => {
+    for (const [label, make] of [['solo', SOLO], ['hot seat', HOT_SEAT]] as const) {
+      it(`${label}: every land tile of a procedural map is landmass-tagged at creation`, () => {
+        // generateMap (the 'procedural' default) does not tag regions, unlike
+        // the balanced/single-continent generators. Until #1004, a procedural
+        // game therefore had NO regionKey until its first load — which
+        // silently disabled `colonial-charter`'s foreign-landmass founding
+        // bonus (city-founding-system.ts) and the whole land-resurgence threat
+        // system (threat-pressure-system.ts derives landmassIds from city
+        // regionKeys), so the game literally played differently before vs
+        // after a reload.
+        const state = make();
+        const untagged = Object.entries(state.map.tiles).filter(([, tile]) =>
+          tile.terrain !== 'ocean' && tile.terrain !== 'coast' && !tile.regionKey);
+
+        expect(untagged.map(([key]) => key)).toEqual([]);
+      });
+
+      it(`${label}: creation-time landmass tags match what the load path would compute`, () => {
+        // Tagging happens right after generateMap, before wonders/resources/
+        // villages/lairs/minor civs are placed. That is only safe because
+        // terrain is immutable after generation (verified: no `.terrain =`
+        // write exists outside the generators). If that ever changes, the
+        // creation-time tags would go stale AND normalizeLandmassKeys would
+        // not fix them, because it only re-tags when a key is *missing*.
+        const state = make();
+        const stripped = structuredClone(state);
+        for (const tile of Object.values(stripped.map.tiles)) delete tile.regionKey;
+
+        const retagged = normalizeLoadedState(stripped);
+
+        for (const [key, tile] of Object.entries(state.map.tiles)) {
+          expect(retagged.map.tiles[key].regionKey, key).toBe(tile.regionKey);
+        }
+      });
+
+      it(`${label}: opponentAI is already normalized, so the first save does not rewrite it`, () => {
+        const state = make();
+        const normalized = normalizeLoadedState(structuredClone(state));
+
+        expect(normalized.opponentAI).toEqual(state.opponentAI);
+        // The concrete thing normalizeOpponentAIState adds: a pressure ledger
+        // per living human. Hot seat has two, so this also pins that the
+        // canonicalisation is viewer-count aware rather than player-only.
+        const humanIds = Object.values(state.civilizations)
+          .filter(civ => civ.isHuman && !civ.isEliminated).map(civ => civ.id).sort();
+        expect(Object.keys(state.opponentAI!.pressureByCiv).sort()).toEqual(humanIds);
+      });
     }
   });
 
