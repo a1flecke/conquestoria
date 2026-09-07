@@ -101,6 +101,7 @@ import {
   type MajorCivPerception,
 } from './ai-perception';
 import { processMajorCivStrategicTurn } from './ai-major-turn';
+import { processAIResettlement } from './ai-resettlement';
 import {
   prepareMajorCivStrategicPlan,
   type PreparedMajorCivPlan,
@@ -589,6 +590,9 @@ function processAITurnInternal(
   for (const event of abandonment.lostEvents) {
     bus.emit('wonder:legendary-lost', event);
   }
+
+  newState = processAIResettlement(newState, civId, bus);
+  civ = newState.civilizations[civId];
 
   preparedForTurn ??= prepareMajorCivStrategicPlan(
     structuredClone(newState),
