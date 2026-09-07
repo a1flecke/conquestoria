@@ -144,6 +144,25 @@ if grep -nE "=== ['\"]player['\"]|owner === ['\"]player['\"]" "$file_path" >/dev
 $lines"
 fi
 
+# --- movement executor bypass (#1025) ---
+# The low-level position movers must not be called outside the canonical movement
+# system. New movement executors go through resolveUnitMoveIntent() +
+# executeValidatedUnitMove() (see .claude/rules/movement-actions.md). A genuinely
+# special world-actor path marks the call line 'movement-contract-exempt: <reason>'.
+case "$file_path" in
+  */src/systems/unit-system.ts|*/src/systems/unit-movement-system.ts)
+    : # sanctioned
+    ;;
+  *)
+    mv_lines="$(grep -nE 'moveUnitWithZoneOfControl\(|(^|[^.A-Za-z_])moveUnit\(' "$file_path" \
+      | grep -vE 'movement-contract-exempt|^[0-9]+:[[:space:]]*(//|\*)|export function' | head -5 || true)"
+    if [ -n "$mv_lines" ]; then
+      append "Low-level unit mover called outside the movement system — route through resolveUnitMoveIntent()/executeValidatedUnitMove(), or mark the line 'movement-contract-exempt: <reason>' (see .claude/rules/movement-actions.md):
+$mv_lines"
+    fi
+    ;;
+esac
+
 # --- innerHTML with template-literal game text ---
 if grep -nE 'innerHTML\s*=\s*`[^`]*\$\{' "$file_path" >/dev/null; then
   lines="$(grep -nE 'innerHTML\s*=\s*`[^`]*\$\{' "$file_path" | head -5)"

@@ -556,7 +556,10 @@ export function applyPlannedRelocation(state: GameState, factionId: string): Pir
       ) {
         return cancel('placement-failed');
       }
-      const movement = moveUnitWithZoneOfControl(state, moved, next, cost);
+      // #1025: a pirate armada advances along a fixed ocean heading; the guard above
+      // already rejects any non-'ocean' step, and ocean tiles never host a
+      // `getBlockingMapEntityAt` entity. World-actor placement, not a move intent.
+      const movement = moveUnitWithZoneOfControl(state, moved, next, cost); // movement-contract-exempt: world-actor ocean armada placement, no blockers on ocean
       if (movement.stopped && step < plan.path.length - 1) return cancel('placement-failed');
       moved = movement.unit;
       path.push(next);

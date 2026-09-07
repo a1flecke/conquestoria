@@ -130,6 +130,25 @@ for file_path in "$@"; do
     append_match_block "Hardcoded 'player' ownership check — use state.currentPlayer (see .claude/rules/ui-panels.md#hot-seat-multiplayer)" "$lines"
   fi
 
+  # --- movement executor bypass (#1025): the low-level position movers
+  # (moveUnitWithZoneOfControl / moveUnit) must not be called outside the
+  # canonical movement system. New movement executors go through
+  # resolveUnitMoveIntent() + executeValidatedUnitMove() (see
+  # .claude/rules/movement-actions.md). A genuinely special world-actor path
+  # marks the call line 'movement-contract-exempt: <reason>'.
+  case "$file_path" in
+    src/systems/unit-system.ts|src/systems/unit-movement-system.ts)
+      : # sanctioned: unit-system.ts defines the primitives; unit-movement-system.ts is the canonical executor
+      ;;
+    *)
+      mv_lines="$(grep -nE 'moveUnitWithZoneOfControl\(|(^|[^.A-Za-z_])moveUnit\(' "$file_path" \
+        | grep -vE 'movement-contract-exempt|^[0-9]+:[[:space:]]*(//|\*)|export function' | head -5 || true)"
+      if [ -n "$mv_lines" ]; then
+        append_match_block "Low-level unit mover called outside the movement system — route through resolveUnitMoveIntent()/executeValidatedUnitMove(), or mark the line 'movement-contract-exempt: <reason>' (see .claude/rules/movement-actions.md)" "$mv_lines"
+      fi
+      ;;
+  esac
+
   if grep -nE 'innerHTML\s*=\s*`[^`]*\$\{' "$file_path" >/dev/null; then
     lines="$(grep -nE 'innerHTML\s*=\s*`[^`]*\$\{' "$file_path" | head -5)"
     append_match_block "innerHTML with interpolated game data — use textContent or data-text placeholders (see .claude/rules/ui-panels.md#unit-info-panels)" "$lines"

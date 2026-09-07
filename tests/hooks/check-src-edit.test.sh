@@ -100,6 +100,34 @@ el.innerHTML = `<div>${name}</div>`;
 EOF
 expect_block "$tmp/src/ui/xss.ts" "innerHTML with template literal"
 
+# --- #1025: block a low-level unit mover called outside the movement system ---
+cat > "$tmp/src/systems/sneaky-move.ts" <<'EOF'
+export function sneak(state, unit, coord) {
+  return moveUnitWithZoneOfControl(state, unit, coord, 1).unit;
+}
+EOF
+expect_block "$tmp/src/systems/sneaky-move.ts" "moveUnitWithZoneOfControl outside movement system"
+
+# --- #1025: allow it when the call line carries the exempt marker ---
+cat > "$tmp/src/systems/world-actor-move.ts" <<'EOF'
+export function armadaStep(state, unit, coord, cost) {
+  return moveUnitWithZoneOfControl(state, unit, coord, cost).unit; // movement-contract-exempt: world-actor ocean step
+}
+EOF
+expect_allow "$tmp/src/systems/world-actor-move.ts" "moveUnitWithZoneOfControl with exempt marker"
+
+# --- #1025: allow it inside the sanctioned canonical executor ---
+cat > "$tmp/src/systems/unit-movement-system.ts" <<'EOF'
+const movement = moveUnitWithZoneOfControl(state, moved, step, cost);
+EOF
+expect_allow "$tmp/src/systems/unit-movement-system.ts" "moveUnitWithZoneOfControl in unit-movement-system.ts"
+
+# --- #1025: removeUnit() must not trip the moveUnit( substring match ---
+cat > "$tmp/src/systems/lifecycle.ts" <<'EOF'
+nextState = removeUnit(nextState, updatedUnit);
+EOF
+expect_allow "$tmp/src/systems/lifecycle.ts" "removeUnit is not a movement-executor bypass"
+
 # --- allow: clean src file ---
 cat > "$tmp/src/systems/clean.ts" <<'EOF'
 export function add(a: number, b: number): number { return a + b; }

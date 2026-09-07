@@ -5,7 +5,7 @@ import { getDetectionUnitTypeForCiv, cityFollowsOwnFaith } from '@/systems/city-
 import { preach, isPreachTargetEligible } from '@/systems/religion-system';
 import { foundCityInState } from '@/systems/city-founding-system';
 import { canFoundCityAt } from '@/systems/city-territory-system';
-import { getMovementRangeDetails, moveUnitWithZoneOfControl, findPath, createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { getMovementRangeDetails, findPath, createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { executeUnitMove } from '@/systems/unit-movement-system';
 import {
   canLoadUnitOntoTransport,
@@ -291,13 +291,13 @@ function moveWarshipToward(state: GameState, civId: string, unit: Unit, target: 
     .sort((left, right) => left.distance - right.distance
       || left.coord.q - right.coord.q || left.coord.r - right.coord.r)[0];
   if (!best) return state;
-  return {
-    ...state,
-    units: {
-      ...state.units,
-      [unit.id]: moveUnitWithZoneOfControl(state, unit, best.coord, unit.movementPointsLeft).unit,
-    },
-  };
+  // #1025: route through the canonical movement resolver rather than mutating
+  // position via the low-level mover — the destination already came from the
+  // canonical reachable set, so this only formalises the contract (and picks up
+  // visibility/discovery side effects the raw mutation skipped).
+  const next = structuredClone(state);
+  const result = executeUnitMove(next, unit.id, best.coord, { actor: 'ai', civId });
+  return result.ok ? next : state;
 }
 
 function isFavorablePirateFight(attacker: Unit, defender: Unit): boolean {

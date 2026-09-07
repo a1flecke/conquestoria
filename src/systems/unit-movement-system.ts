@@ -74,6 +74,37 @@ export type ExecuteUnitMoveResult =
       discoveredWonders: [];
     };
 
+declare const validatedUnitMoveBrand: unique symbol;
+
+/**
+ * An ordinary-movement command that has passed `resolveUnitMoveIntent` — the
+ * canonical legality + cost check for the movement family (#1025). Only
+ * `resolveUnitMoveIntent` can produce one (`validatedUnitMoveBrand` is an
+ * un-nameable `unique symbol`, so no other module can construct this shape), and
+ * `executeValidatedUnitMove` is the only executor that consumes one. A new
+ * movement executor goes through this pair, never `moveUnitWithZoneOfControl`
+ * directly — see `.claude/rules/movement-actions.md` and the `check-src-edit`
+ * source rule that enforces it.
+ */
+export interface ValidatedUnitMove {
+  readonly [validatedUnitMoveBrand]: true;
+  readonly unitId: string;
+  readonly from: HexCoord;
+  readonly to: HexCoord;
+  readonly path: HexCoord[];
+  readonly cost: number;
+  readonly options: ExecuteUnitMoveOptions;
+}
+
+/**
+ * Either a `command` an executor can run, or a typed rejection carrying
+ * player-facing `message` copy. Previews, AI and executors all consult this one
+ * function rather than recomputing movement legality/cost independently.
+ */
+export type MoveResolution =
+  | { ok: true; command: ValidatedUnitMove }
+  | Extract<ExecuteUnitMoveResult, { ok: false }>;
+
 function isWorkerTaskInProgress(tile: GameState['map']['tiles'][string] | undefined, task: NonNullable<GameState['units'][string]['workerTask']>): boolean {
   if (!tile) return false;
   if (task.action === 'build_road') return (tile.roadTurnsLeft ?? 0) > 0;
@@ -119,20 +150,59 @@ function getCivCityPositions(state: GameState, civId: string): HexCoord[] {
     .filter((coord): coord is HexCoord => coord !== undefined) ?? [];
 }
 
+/**
+ * Canonical movement resolver (#1025): validate a move intent and either hand
+ * back a `ValidatedUnitMove` command or a typed rejection with player-facing
+ * copy. This is the single source of truth the preview, the AI and the executor
+ * share — nothing recomputes movement legality or cost on its own.
+ */
+export function resolveUnitMoveIntent(
+  state: GameState,
+  unitId: string,
+  to: HexCoord,
+  options: ExecuteUnitMoveOptions,
+): MoveResolution {
+  const validation = validateUnitMove(state, unitId, to, options);
+  if (!validation.ok) return validation;
+  return {
+    ok: true,
+    command: {
+      unitId,
+      from: validation.from,
+      to: validation.to,
+      path: validation.path,
+      cost: validation.cost,
+      options,
+    } as ValidatedUnitMove,
+  };
+}
+
 export function executeUnitMove(
   state: GameState,
   unitId: string,
   to: HexCoord,
   options: ExecuteUnitMoveOptions,
 ): ExecuteUnitMoveResult {
-  const validation = validateUnitMove(state, unitId, to, options);
-  if (!validation.ok) {
-    return validation;
-  }
+  const resolution = resolveUnitMoveIntent(state, unitId, to, options);
+  if (!resolution.ok) return resolution;
+  return executeValidatedUnitMove(state, resolution.command);
+}
 
+/**
+ * The raw executor. Accepts only a `ValidatedUnitMove` produced by
+ * `resolveUnitMoveIntent`, so a caller structurally cannot execute an
+ * unvalidated move. Every other movement executor in the codebase either calls
+ * this or is a documented, source-rule-exempt special case
+ * (`.claude/rules/movement-actions.md`).
+ */
+export function executeValidatedUnitMove(
+  state: GameState,
+  command: ValidatedUnitMove,
+): ExecuteUnitMoveResult {
+  const { unitId, options } = command;
   const unit = state.units[unitId]!;
   const from = { ...unit.position };
-  const movePath = validation.path;
+  const movePath = command.path;
   let moved = unit;
   let stopReason: 'zone-of-control' | undefined;
   const executedPath = [from];
