@@ -193,6 +193,13 @@ describe('AI pirate response', () => {
 
   it('uses favorable combat and canonical destruction for a known flagship', () => {
     const state = fixture();
+    state.cities['ai-harbor'] = {
+      id: 'ai-harbor', name: 'AI Harbor', owner: 'ai-1', position: { q: 1, r: 1 }, population: 3,
+      food: 0, foodNeeded: 15, buildings: [], productionQueue: [], productionProgress: 0,
+      ownedTiles: [{ q: 1, r: 1 }], workedTiles: [], focus: 'balanced', maturity: 'town',
+      unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0, idleProduction: null,
+    };
+    state.civilizations['ai-1'].cities = ['ai-harbor'];
     const hunter = addUnit(state, 'hunter', 'trireme', 'ai-1', { q: 1, r: 0 });
     const flagship = addUnit(state, 'flagship', 'pirate_galley', 'pirate-1', { q: 2, r: 0 });
     flagship.health = 1;

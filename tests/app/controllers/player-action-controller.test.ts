@@ -434,9 +434,16 @@ describe('PlayerActionController', () => {
       const counters = { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 };
       const attacker = { ...createUnit('warrior', 'player', { q: 0, r: 0 }, counters), id: 'attacker-1' };
       const defender = { ...createUnit('warrior', aiCivId, { q: 1, r: 0 }, counters), id: 'defender-1' };
-      state.units = { [attacker.id]: attacker, [defender.id]: defender };
-      state.civilizations.player.units = [attacker.id];
-      state.civilizations[aiCivId].units = [defender.id];
+      const playerSurvivalSettler = { ...createUnit('settler', 'player', { q: 0, r: 1 }, counters), id: 'player-survival-settler', hasActed: true, movementPointsLeft: 0 };
+      const aiSurvivalSettler = { ...createUnit('settler', aiCivId, { q: 2, r: 1 }, counters), id: 'ai-survival-settler', hasActed: true, movementPointsLeft: 0 };
+      state.units = {
+        [attacker.id]: attacker,
+        [defender.id]: defender,
+        [playerSurvivalSettler.id]: playerSurvivalSettler,
+        [aiSurvivalSettler.id]: aiSurvivalSettler,
+      };
+      state.civilizations.player.units = [attacker.id, playerSurvivalSettler.id];
+      state.civilizations[aiCivId].units = [defender.id, aiSurvivalSettler.id];
       state.civilizations.player.diplomacy.atWarWith = [aiCivId];
       state.civilizations.player.visibility.tiles[hexKey(defender.position)] = 'visible';
       return state;

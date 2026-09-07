@@ -2879,6 +2879,16 @@ describe('AI strategic launch doctrine (#545 MR5)', () => {
 });
 
 describe('AI arms-control-pact proposing (#545 MR6)', () => {
+  function addLivingCity(state: GameState, id: string, owner: string, position: { q: number; r: number }): void {
+    state.cities[id] = {
+      id, name: id, owner, position, population: 3, food: 0, foodNeeded: 15,
+      buildings: [], productionQueue: [], productionProgress: 0,
+      ownedTiles: [position], workedTiles: [], focus: 'balanced', maturity: 'town',
+      unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0, idleProduction: null,
+    } as any;
+    state.civilizations[owner].cities = [id];
+  }
+
   it('an AI with the national project, known capability, and a friendly known-capable neighbor signs a pact via processAITurn', () => {
     const state = createNewGame(undefined, 'mr6-arms-control-propose', 'small');
     const aiId = 'ai-1';
@@ -2908,6 +2918,8 @@ describe('AI arms-control-pact proposing (#545 MR6)', () => {
     };
     state.civilizations[aiId].diplomacy.relationships[neighborId] = 20; // clears the >0 bar
     state.civilizations[neighborId].diplomacy.relationships[aiId] = 20;
+    addLivingCity(state, 'c1', aiId, { q: 1, r: 1 });
+    addLivingCity(state, 'c2', neighborId, { q: 3, r: 1 });
 
     const result = processAITurn(state, aiId, new EventBus());
 
@@ -2935,6 +2947,8 @@ describe('AI arms-control-pact proposing (#545 MR6)', () => {
     };
     state.civilizations[aiId].diplomacy.relationships[neighborId] = 20;
     state.civilizations[neighborId].diplomacy.relationships[aiId] = 20;
+    addLivingCity(state, 'c1', aiId, { q: 1, r: 1 });
+    addLivingCity(state, 'c2', neighborId, { q: 3, r: 1 });
 
     // Every condition that made the first turn sign a pact (relationship,
     // personality, both national projects/capabilities) still holds on the

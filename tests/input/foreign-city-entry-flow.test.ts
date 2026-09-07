@@ -4,6 +4,7 @@ import { createNewGame } from '@/core/game-state';
 import type { GameState } from '@/core/types';
 import { beginConfirmedForeignCityEntry } from '@/input/foreign-city-entry-flow';
 import { foundCity } from '@/systems/city-system';
+import { createUnit } from '@/systems/unit-system';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -20,6 +21,12 @@ function makeForeignCityEntryState(): GameState {
     hasMoved: false,
   };
   state.civilizations.player.units = ['unit-1'];
+  const survivalSettler = createUnit('settler', 'player', { q: 0, r: 1 }, state.idCounters);
+  survivalSettler.id = 'player-survival-settler';
+  survivalSettler.hasActed = true;
+  survivalSettler.movementPointsLeft = 0;
+  state.units[survivalSettler.id] = survivalSettler;
+  state.civilizations.player.units.push(survivalSettler.id);
   state.cities.athens = {
     ...foundCity('ai-1', { q: 1, r: 0 }, state.map, mkC()),
     id: 'athens',
