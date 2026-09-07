@@ -54,6 +54,14 @@ function makeState(): GameState {
     civilization.units = [];
     civilization.cities = [];
   }
+  for (const [owner, id, position] of [
+    [AI, 'ai-survival-settler', { q: 0, r: 4 }],
+    [HUMAN, 'human-survival-settler', { q: 4, r: 4 }],
+  ] as const) {
+    const settler = { ...createUnit('settler', owner, position, state.idCounters), id, movementPointsLeft: 0, hasActed: true };
+    state.units[id] = settler;
+    state.civilizations[owner].units.push(id);
+  }
   state.civilizations[AI].diplomacy.atWarWith = [HUMAN];
   state.civilizations[HUMAN].diplomacy.atWarWith = [AI];
   state.civilizations[AI].visibility.tiles = Object.fromEntries(
