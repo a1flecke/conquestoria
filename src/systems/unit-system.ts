@@ -1125,6 +1125,107 @@ export function getMovementCostForUnitInContext(
   return getMovementCost(terrain);
 }
 
+/**
+ * Everything the canonical movement-step cost model needs about a mover, with no
+ * dependency on a live `Unit` record. This is the one shape that movement range,
+ * pathfinding, route preview and the executor all cost against, so a caller that
+ * only knows a `UnitType` (or just a domain) still optimises the *same* model the
+ * executor consumes — see #1042, where road-blind `findPath` callers took a
+ * shorter-but-more-expensive route because the fallback ignored `tile.hasRoad`.
+ */
+export interface MovementStepCostParams {
+  /** Movement domain of the mover; drives the water/land/air branch. */
+  domain: 'land' | 'naval' | 'air';
+  /** Per-terrain cost overrides from the unit definition (land only). */
+  terrainCostOverrides?: Partial<Record<string, number>>;
+  /** Whether a naval hull may enter open `ocean` (vs `coast` only). */
+  canEnterOcean?: boolean;
+  /** Owning civ's completed techs — road discount, bridge-building, gps-navigation. */
+  completedTechs?: string[];
+  /** Owner id of the mover — only the gps-navigation "own territory" clause reads it. */
+  owner?: string;
+}
+
+function terrainCostForParams(params: MovementStepCostParams, terrain: string): number {
+  if (params.domain === 'air') return 1;
+  if (params.domain === 'naval') {
+    if (terrain !== 'ocean' && terrain !== 'coast') return Infinity;
+    if (terrain === 'ocean' && !params.canEnterOcean) return Infinity;
+    return 1;
+  }
+  if (params.terrainCostOverrides && terrain in params.terrainCostOverrides) {
+    return params.terrainCostOverrides[terrain]!;
+  }
+  return getMovementCost(terrain);
+}
+
+function isPassableForParams(params: MovementStepCostParams, terrain: string): boolean {
+  return terrainCostForParams(params, terrain) < Infinity;
+}
+
+/** True when a land mover with these techs pays the halved (0.5) road step cost. */
+function hasRoadMovementDiscount(completedTechs: readonly string[]): boolean {
+  return completedTechs.includes('military-logistics')
+    || completedTechs.includes('railway-expansion');
+}
+
+/**
+ * Canonical per-step movement cost, keyed off a `MovementStepCostParams` rather
+ * than a `Unit`. `getMovementStepCost` below is the thin `Unit` adapter; both
+ * return the identical number for the same terrain / road / river / tech inputs.
+ */
+export function getMovementStepCostFor(
+  params: MovementStepCostParams,
+  map: GameMap,
+  from: HexCoord,
+  to: HexCoord,
+): number {
+  const tile = map.tiles[hexKey(to)];
+  if (!tile) return Infinity;
+
+  const completedTechs = params.completedTechs ?? [];
+  let terrainCost: number;
+
+  if (params.domain === 'land' && tile.hasRoad) {
+    // Roads cost 1 movement regardless of terrain; Military Logistics OR Railway
+    // Expansion halves that to 0.5 — the two do not stack (see game-balance.md).
+    terrainCost = hasRoadMovementDiscount(completedTechs) ? 0.5 : 1;
+  } else {
+    terrainCost = terrainCostForParams(params, tile.terrain);
+    if (terrainCost === Infinity) return Infinity;
+
+    if (
+      params.domain === 'land'
+      && params.owner !== undefined
+      && tile.owner === params.owner
+      && completedTechs.includes('gps-navigation')
+    ) {
+      terrainCost = 1;
+    }
+  }
+
+  const crossesUnbridgedRiver = params.domain !== 'naval' && params.domain !== 'air'
+    && !completedTechs.includes('bridge-building')
+    && isRiverBetween(map, from, to);
+  return terrainCost + (crossesUnbridgedRiver ? 1 : 0);
+}
+
+/** Build the canonical cost params from a `UnitType` (or a bare domain fallback). */
+export function movementStepCostParamsForType(
+  unitType: UnitType | undefined,
+  domain: 'land' | 'naval' | 'air' = 'land',
+  context: { completedTechs?: string[]; owner?: string } = {},
+): MovementStepCostParams {
+  const definition = unitType ? UNIT_DEFINITIONS[unitType] : undefined;
+  return {
+    domain: definition?.domain ?? domain,
+    terrainCostOverrides: definition?.terrainCostOverrides,
+    canEnterOcean: unitType ? canHullEnterOcean(unitType) : domain === 'naval',
+    completedTechs: context.completedTechs,
+    owner: context.owner,
+  };
+}
+
 export function getMovementStepCost(
   unit: Unit,
   map: GameMap,
@@ -1132,40 +1233,15 @@ export function getMovementStepCost(
   to: HexCoord,
   context: UnitMovementContext = {},
 ): number {
-  const tile = map.tiles[hexKey(to)];
-  if (!tile) return Infinity;
-
-  const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
-  const completedTechs = context.completedTechs ?? [];
-  let terrainCost: number;
-
-  if (domain === 'land' && tile.hasRoad) {
-    // Roads cost 1 movement regardless of terrain; Military Logistics OR Railway
-    // Expansion halves that to 0.5 — the two do not stack (see game-balance.md).
-    const hasRoadDiscount = completedTechs.includes('military-logistics')
-      || completedTechs.includes('railway-expansion');
-    terrainCost = hasRoadDiscount ? 0.5 : 1;
-  } else {
-    terrainCost = getMovementCostForUnitInContext(unit, tile.terrain, context);
-    if (terrainCost === Infinity) return Infinity;
-
-    if (domain === 'land' && tile.owner === unit.owner && completedTechs.includes('gps-navigation')) {
-      terrainCost = 1;
-    }
-  }
-
-  const crossesUnbridgedRiver = domain !== 'naval' && domain !== 'air'
-    && !completedTechs.includes('bridge-building')
-    && isRiverBetween(map, from, to);
-  return terrainCost + (crossesUnbridgedRiver ? 1 : 0);
-}
-
-function isPassableForUnit(
-  terrain: string,
-  domain: 'land' | 'naval' | 'air',
-  terrainCostOverrides?: Partial<Record<string, number>>,
-): boolean {
-  return getMovementCostForUnit(terrain, domain, terrainCostOverrides) < Infinity;
+  return getMovementStepCostFor(
+    movementStepCostParamsForType(unit.type, 'land', {
+      completedTechs: context.completedTechs,
+      owner: unit.owner,
+    }),
+    map,
+    from,
+    to,
+  );
 }
 
 function isPassableForUnitInContext(
@@ -1558,19 +1634,48 @@ export function getMovementRangeDetails(
   return { reachable, zocLimited };
 }
 
+/**
+ * Cost-aware A* over the canonical movement-step cost model
+ * (`getMovementStepCostFor`). Route selection minimises **movement points**, not
+ * hex count, so a longer road detour that is cheaper in movement points wins
+ * (#1042). Callers pass a `unit` (preferred) or a bare `unitType` so the same
+ * road / terrain-override / tech model the executor consumes is optimised here;
+ * a caller with neither still gets a road-aware `domain`-level cost.
+ *
+ * Heuristic: `minStepCost × hexDistance`. `minStepCost` is `0.5` when a
+ * road-movement-discount tech is active (a road step can then cost 0.5) and `1`
+ * otherwise — the smallest cost any single step can take. That keeps the
+ * heuristic admissible *and* consistent (`h(n) − h(n′) ≤ minStepCost ≤
+ * cost(n,n′)` for every edge), so the closed-set never locks in a worse path.
+ *
+ * Tie-break for equal `f`: prefer the higher `g` (closer to the goal → fewer
+ * expansions), then the lexicographically smaller `hexKey`. This is independent
+ * of `Set` iteration order, so equal-cost paths resolve identically across runs
+ * and across a save/reload.
+ */
 export function findPath(
   from: HexCoord,
   to: HexCoord,
   map: GameMap,
   domain: 'land' | 'naval' | 'air' = 'land',
-  options: UnitMovementContext & { unit?: Unit } = {},
+  options: UnitMovementContext & { unit?: Unit; unitType?: UnitType } = {},
 ): HexCoord[] | null {
   const toKey = hexKey(to);
   const toTile = map.tiles[toKey];
-  const canEnter = options.unit
-    ? isPassableForUnitInContext(options.unit, toTile?.terrain ?? '', options)
-    : Boolean(toTile && isPassableForUnit(toTile.terrain, domain));
-  if (!toTile || !canEnter) return null;
+  if (!toTile) return null;
+
+  const costParams = movementStepCostParamsForType(
+    options.unit?.type ?? options.unitType,
+    domain,
+    { completedTechs: options.completedTechs, owner: options.unit?.owner },
+  );
+  if (!isPassableForParams(costParams, toTile.terrain)) return null;
+
+  const minStepCost = costParams.domain === 'land'
+    && hasRoadMovementDiscount(costParams.completedTechs ?? [])
+    ? 0.5
+    : 1;
+  const EPS = 1e-9;
 
   const parents = new Map<string, string>();
   const gScore = new Map<string, number>();
@@ -1584,17 +1689,23 @@ export function findPath(
   coords.set(startKey, from);
 
   while (openSet.size > 0) {
-    // Find node with lowest f score
+    // Find the open node with lowest f, breaking ties deterministically.
     let currentKey = '';
     let lowestF = Infinity;
+    let lowestG = Infinity;
     for (const key of openSet) {
       const coord = coords.get(key)!;
       const heuristic = map.wrapsHorizontally
         ? wrappedHexDistance(coord, to, map.width)
         : hexDistance(coord, to);
-      const f = (gScore.get(key) ?? Infinity) + heuristic;
-      if (f < lowestF) {
+      const g = gScore.get(key) ?? Infinity;
+      const f = g + minStepCost * heuristic;
+      const better = f < lowestF - EPS
+        || (Math.abs(f - lowestF) <= EPS && g > lowestG + EPS)
+        || (Math.abs(f - lowestF) <= EPS && Math.abs(g - lowestG) <= EPS && (currentKey === '' || key < currentKey));
+      if (better) {
         lowestF = f;
+        lowestG = g;
         currentKey = key;
       }
     }
@@ -1623,13 +1734,11 @@ export function findPath(
 
       const tile = map.tiles[nKey];
       if (!tile) continue;
-      const stepCost = options.unit
-        ? getMovementStepCost(options.unit, map, currentCoord, neighbor, options)
-        : getMovementCostForUnit(tile.terrain, domain);
+      const stepCost = getMovementStepCostFor(costParams, map, currentCoord, neighbor);
       if (stepCost === Infinity) continue;
 
       const tentativeG = (gScore.get(currentKey) ?? Infinity) + stepCost;
-      if (tentativeG < (gScore.get(nKey) ?? Infinity)) {
+      if (tentativeG < (gScore.get(nKey) ?? Infinity) - EPS) {
         parents.set(nKey, currentKey);
         gScore.set(nKey, tentativeG);
         coords.set(nKey, neighbor);
@@ -1649,14 +1758,19 @@ export function findPath(
  * can never reach a real coastal city's own tile. This wraps `findPath` so naval-domain
  * callers path to the nearest ocean/coast neighbor of the city (docking) and then treat
  * the city tile as one final step, while land/air callers behave exactly like `findPath`.
+ *
+ * `options` is forwarded verbatim to `findPath`, so a land caravan or unit routed
+ * to a city optimises the same road / terrain / tech cost model as a plain
+ * `findPath` call (#1042).
  */
 export function findPathToCity(
   from: HexCoord,
   cityPosition: HexCoord,
   map: GameMap,
   domain: 'land' | 'naval' | 'air' = 'land',
+  options: UnitMovementContext & { unit?: Unit; unitType?: UnitType } = {},
 ): HexCoord[] | null {
-  const direct = findPath(from, cityPosition, map, domain);
+  const direct = findPath(from, cityPosition, map, domain, options);
   if (direct) return direct;
   if (domain !== 'naval') return null;
 
@@ -1668,7 +1782,8 @@ export function findPathToCity(
   for (const neighbor of neighbors) {
     const tile = map.tiles[hexKey(neighbor)];
     if (!tile || (tile.terrain !== 'ocean' && tile.terrain !== 'coast')) continue;
-    const path = findPath(from, neighbor, map, 'naval');
+    const path = findPath(from, neighbor, map, 'naval', options);
+    // Naval steps are uniform cost 1, so shortest hop count is also cheapest.
     if (path && (!best || path.length < best.length)) best = path;
   }
   return best ? [...best, cityPosition] : null;

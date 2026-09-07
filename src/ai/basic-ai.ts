@@ -635,7 +635,10 @@ function processAITurnInternal(
       const result = applyWorkerAction(newState, worker.id, 'restore_land');
       if (result.ok) newState = result.state;
     } else if (worker.movementPointsLeft > 0) {
-      const path = findPath(worker.position, tile.coord, newState.map, 'land');
+      const path = findPath(worker.position, tile.coord, newState.map, 'land', {
+        unit: worker,
+        completedTechs: newState.civilizations[civId]?.techState.completed ?? [],
+      });
       if (path && path.length > 1) {
         const next = structuredClone(newState);
         const movement = executeUnitMove(next, worker.id, path[1]!, { actor: 'ai', civId, bus });
@@ -754,7 +757,10 @@ function processAITurnInternal(
         const result = preach(newState, current.id, targetCityId, bus);
         if (result.ok) newState = result.state;
       } else if (current.movementPointsLeft > 0) {
-        const path = findPath(current.position, targetCity.position, newState.map, 'land');
+        const path = findPath(current.position, targetCity.position, newState.map, 'land', {
+          unit: current,
+          completedTechs: newState.civilizations[civId]?.techState.completed ?? [],
+        });
         if (path && path.length > 1) {
           const next = structuredClone(newState);
           const movement = executeUnitMove(next, current.id, path[1]!, { actor: 'ai', civId, bus });
@@ -1282,7 +1288,10 @@ function processAITurnInternal(
       const target = candidates[0];
       const targetPosition = target.position!;
       if (spyUnit.position.q === targetPosition.q && spyUnit.position.r === targetPosition.r) continue;
-      const path = findPath(spyUnit.position, targetPosition, newState.map);
+      const path = findPath(spyUnit.position, targetPosition, newState.map, 'land', {
+        unit: spyUnit,
+        completedTechs: newState.civilizations[civId].techState.completed ?? [],
+      });
       if (!path || path.length < 2) continue;
       const next = path[1];
       const nextKey = `${next.q},${next.r}`;
