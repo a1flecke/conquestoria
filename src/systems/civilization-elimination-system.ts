@@ -75,6 +75,14 @@ export function eliminateCivilization(
   }
 
   const next = structuredClone(state);
+  const defaultVassalage = {
+    overlord: null,
+    vassals: [],
+    protectionScore: 100,
+    protectionTimers: [],
+    peakCities: 0,
+    peakMilitary: 0,
+  };
   const removedUnitIds = Object.values(next.units)
     .filter(unit => unit.owner === civId)
     .map(unit => unit.id);
@@ -93,7 +101,7 @@ export function eliminateCivilization(
       atWarWith: [],
       treaties: [],
       events: [],
-      vassalage: { ...next.civilizations[civId].diplomacy.vassalage, overlord: null, vassals: [], protectionScore: 100, protectionTimers: [] },
+      vassalage: { ...defaultVassalage, ...(next.civilizations[civId].diplomacy.vassalage ?? {}), overlord: null, vassals: [], protectionScore: 100, protectionTimers: [] },
     },
   };
 
@@ -102,6 +110,7 @@ export function eliminateCivilization(
     const relationships = { ...other.diplomacy.relationships };
     delete relationships[civId];
     const satelliteSurveillanceTargets = { ...other.satelliteSurveillanceTargets };
+    const otherVassalage = { ...defaultVassalage, ...(other.diplomacy.vassalage ?? {}) };
     delete satelliteSurveillanceTargets[civId];
     next.civilizations[otherId] = {
       ...other,
@@ -115,27 +124,27 @@ export function eliminateCivilization(
         ),
         events: other.diplomacy.events.filter(event => event.otherCiv !== civId),
         vassalage: {
-          ...other.diplomacy.vassalage,
-          overlord: other.diplomacy.vassalage.overlord === civId
+          ...otherVassalage,
+          overlord: otherVassalage.overlord === civId
             ? null
-            : other.diplomacy.vassalage.overlord,
-          vassals: other.diplomacy.vassalage.vassals.filter(id => id !== civId),
-          protectionScore: other.diplomacy.vassalage.overlord === civId ? 100 : other.diplomacy.vassalage.protectionScore,
-          protectionTimers: other.diplomacy.vassalage.overlord === civId ? [] : other.diplomacy.vassalage.protectionTimers
+            : otherVassalage.overlord,
+          vassals: otherVassalage.vassals.filter(id => id !== civId),
+          protectionScore: otherVassalage.overlord === civId ? 100 : otherVassalage.protectionScore,
+          protectionTimers: otherVassalage.overlord === civId ? [] : otherVassalage.protectionTimers
             .filter(timer => timer.attackerCivId !== civId),
         },
       },
     };
   }
 
-  next.embargoes = next.embargoes
+  next.embargoes = (next.embargoes ?? [])
     .filter(embargo => embargo.targetCivId !== civId)
     .map(embargo => ({
       ...embargo,
       participants: embargo.participants.filter(id => id !== civId),
     }))
     .filter(embargo => embargo.participants.length > 0);
-  next.defensiveLeagues = next.defensiveLeagues
+  next.defensiveLeagues = (next.defensiveLeagues ?? [])
     .map(league => ({ ...league, members: league.members.filter(id => id !== civId) }))
     .filter(league => league.members.length >= 2);
   next.pendingDiplomacyRequests = (next.pendingDiplomacyRequests ?? [])

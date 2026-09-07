@@ -538,16 +538,21 @@ function makeObsolescenceState(overrides: {
     position: { q: 0, r: 0 }, health: 100, movementPointsLeft: 2,
     hasActed: false, hasMoved: false, experience: 0, isResting: false,
   };
+  const settler = {
+    id: 'survival-settler', type: 'settler' as const, owner: civId,
+    position: { q: 1, r: 1 }, health: 100, movementPointsLeft: 0,
+    hasActed: true, hasMoved: true, experience: 0, isResting: false,
+  };
   return {
     turn: 1, era: 1, currentPlayer: civId, hotSeat: false,
     gameOver: false, winner: null,
     map: { width: 5, height: 5, tiles: {}, wrapsHorizontally: false, rivers: [] },
-    units: overrides.unitOnMap ? { u1: mapUnit } : {},
+    units: overrides.unitOnMap ? { u1: mapUnit, [settler.id]: settler } : { [settler.id]: settler },
     cities: {},
     civilizations: {
       [civId]: {
         id: civId, name: 'Rome', color: '#c00', isHuman: true, civType: 'rome',
-        cities: [], units: overrides.unitOnMap ? ['u1'] : [],
+        cities: [], units: overrides.unitOnMap ? ['u1', settler.id] : [settler.id],
         techState: {
           completed: ['espionage-scouting'],
           currentResearch: 'espionage-informants',

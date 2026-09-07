@@ -131,11 +131,14 @@ describe('ERA_NAMES', () => {
 
 function makeCombatState(units: Record<string, Partial<Unit>>, civUnits: Record<string, string[]>): GameState {
   const civilizations: GameState['civilizations'] = {};
+  const cities: Record<string, Partial<City>> = {};
   for (const [civId, unitIds] of Object.entries(civUnits)) {
+    const cityId = `city-${civId}`;
+    cities[cityId] = { id: cityId, owner: civId };
     civilizations[civId] = {
       id: civId, name: civId, color: civId === 'p1' ? '#fff' : '#000',
       isHuman: civId === 'p1', civType: 'generic',
-      units: unitIds, cities: [], gold: 100,
+      units: unitIds, cities: [cityId], gold: 100,
       techState: { completed: [], currentResearch: null, researchQueue: [], researchProgress: 0, trackPriorities: {} } as any,
       diplomacy: { relationships: {}, atWarWith: [civId === 'p1' ? 'p2' : 'p1'], treaties: [], events: [], treacheryScore: 0, vassalage: { isVassal: false } } as any,
       visibility: { tiles: {} } as any, score: 0,
@@ -152,7 +155,7 @@ function makeCombatState(units: Record<string, Partial<Unit>>, civUnits: Record<
   }
   return {
     turn: 1, era: 12, currentPlayer: 'p1', civilizations,
-    units: fullUnits, cities: {},
+    units: fullUnits, cities,
     map: { tiles: {}, width: 10, height: 10, wrapsHorizontally: false },
     idCounters: { unit: 0, city: 0 },
   } as unknown as GameState;
