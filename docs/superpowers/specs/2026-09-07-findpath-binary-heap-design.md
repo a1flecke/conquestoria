@@ -202,9 +202,9 @@ behaviour:
    open-set-selection algorithm verbatim into the test as `referenceFindPath` (linear scan,
    same three-tier tie-break, same `EPS`). Assert `findPath` output
    `.toEqual(referenceFindPath(...))` over: the existing `roadDetourMap` battery, the
-   wraparound map, and **a randomized battery** — N random maps built from a **local
-   deterministic PRNG** (a `mulberry32(seed)` helper in the test file, fixed seed constants —
-   never `Math.random()`, so a failure reproduces exactly), mixing terrain, roads, rivers,
+   wraparound map, and **a randomized battery** — N random maps built from the canonical
+   `seededLcg(seed)` helper (`@/systems/seeded-lcg`) with fixed seed constants — never
+   `Math.random()`, so a failure reproduces exactly — mixing terrain, roads, rivers,
    wrap on/off, and tech on/off, each with several start/goal pairs. This is the strongest
    guard: it pins "heap order == linear-scan order" directly.
    `referenceFindPath` and this assertion exist **only** to pin this refactor — if
