@@ -46,7 +46,11 @@ resolver.
 `unit-movement-cost.ts` (the step-cost model — pure map+mover, never reads `GameState`),
 `unit-movement-legality.ts` (the single source of truth for map-entity blockers —
 `getBlockingMapEntityAt` / `getBlockingMapEntityKeys` / `BLOCKING_MAP_ENTITY_MESSAGES`),
-`unit-pathfinding.ts` (cost-aware A* — imports cost only), `unit-movement-validation.ts`
+`unit-pathfinding.ts` (cost-aware A* — imports cost only; its open set is a deterministic
+`BinaryHeap` from `src/systems/binary-heap.ts` — a lazy-deletion A* min-heap keyed
+`(f asc, g desc, hexKey asc)`; route output is byte-identical to the pre-#1042-MR5 linear
+scan, pinned by `referenceFindPath` in `tests/systems/unit-pathfinding-cost.test.ts`),
+`unit-movement-validation.ts`
 (the omniscient `validateUnitMove` / `resolveUnitMoveIntent` — extracted from
 `unit-movement-system.ts` in #1025 MR4 so the explainer can derive from it without a cycle;
 `unit-movement-system.ts` re-exports the API), `unit-movement-queries.ts`
