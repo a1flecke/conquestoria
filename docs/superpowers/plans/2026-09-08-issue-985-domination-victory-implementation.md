@@ -129,7 +129,7 @@ createVictoryProgressPanel(model: DominationPanelModel,
 | Presentation hook | `core/types.ts:GameEvents`, `presentation/register-civilization-presentation.ts` | `victory:resolved` once, recipient-safe message; #993 adapter if present |
 | Save | `core/game-state.ts`, `core/types.ts`, storage registries + matrix | Initialize ledger; next ordered migration, separate shape repair and generated docs |
 
-## MR1 — Rule, progress core and completed-round timing (locally verified; awaiting Sol implementation review)
+## MR1 — Rule, progress core and completed-round timing (Sol-reviewed; awaiting Luna MR/CI)
 
 ### Task 1.1 — Pure rule and authoritative facts
 
@@ -567,3 +567,65 @@ Cold-execution checks: all proposed public types/APIs are defined; source owners
 **Phase A handoff:** `READY FOR TERRA IMPLEMENTATION`.
 
 **STOP HERE. Do not begin implementation. The human must switch models before work continues.**
+
+## MR1 Sol implementation review
+
+Reviewed the complete MR1 production and test diff against `origin/main` at `8e7bbb512669b716f453849c3cac7798cd0577b4`. The review stayed within MR1's rule, timing, safe-copy and guard boundary; MR2–MR4 work remains governed by the later tasks above.
+
+| Dimension | Inspected evidence and finding | Severity / required fix / resolution |
+|---|---|---|
+| Balancing gameplay | `domination-rules.ts`, the sovereignty adapter and vassal/secession cases preserve the approved defeat-or-direct-vassal rule, the two-founding-major guard and the bounded provisional-secession exception. Review found malformed or reversed duplicate vassalage treaties could still grant credit. | **High.** Count every treaty for the unordered pair, then require exactly one valid canonical active record on each endpoint. Fixed with three malformed/duplicate regressions; repeated review now fails closed. |
+| Fun | The rule supports conquest and consensual vassalage, while completed-round timing and actionable independence petitions prevent a mid-round surprise ending. No MR1 defect found; future progress guidance and empirical pacing belong to MR2/MR4. | **None.** No change required; the shipped slice has two legible routes and preserves a last response opportunity. |
+| New mechanics | The pure kernel, authoritative adapter and blocker implement the new victory semantics without adding a new diplomatic action or changing vassal acceptance. | **None.** No change required; MR1 is a complete resolution slice with later presentation/intelligence mechanics explicitly absent. |
+| Different player ages (7–43) | Advisor, vassalage and result copy state “last independent empire” and immediately explain defeat-or-vassalize in plain language. | **Low residual playtest risk.** No code fix required; rendered copy tests cover the rule and remove the obsolete “no enemy city” wording. |
+| Different play styles | Military defeat and diplomacy both count; minors do not become compulsory targets, provisional secessions receive the narrow grace rule, and a one-founder sandbox cannot auto-win. | **None.** No change required; military, diplomatic and exploratory/sandbox play retain their intended choices. |
+| Built-in difficulty modes | Victory truth and sovereignty read no difficulty setting, so Explorer, Standard and Veteran use identical eligibility. | **None.** No change required; difficulty may affect later AI competence but cannot alter rules or hidden knowledge. |
+| Computer players | `processTurn` finalizes after the shared human/AI/world round, so existing AI capture and vassal actions can produce a valid victory. No MR1-only omniscient AI import exists. Purposeful Domination doctrine remains MR4. | **None in MR1.** No partial AI scoring or privileged query was added; architecture guards reserve the observer-safe boundary. |
+| UI | Advisor, live vassal controls and the existing final panel display accurate minimal copy; the controller invokes the panel through the existing overlay path. | **None.** DOM/controller tests verify the visible rule, result variants and action controls. |
+| UX | `endTurn` stops before side effects while a capture choice is pending; solo defeat uses a generic rival label and hot seat uses a shared conclusion. | **None.** Controller and panel tests cover the blocking message and privacy-safe results. A progress launcher is intentionally a complete MR2 surface. |
+| Architecture | The pure rules module consumes immutable facts; the GameState adapter owns liveness/relationship classification; victory owns the formula/finalizer. UI and AI imports plus roster-liveness shortcuts are guarded in the hook and CLI checker. | **None after review.** The review-found treaty bug was corrected inside the adapter without spreading policy into UI, AI or storage. |
+| Extensibility | Typed actor facts and progress isolate future knowledge, warning and AI projections from authoritative GameState reads. The final event remains deferred until its MR3 contract exists. | **None.** No speculative event or oversized framework was introduced. |
+| Data | MR1 derives results from canonical cities, units, owner kinds, breakaway records, reciprocal role links and bilateral treaties. It adds no GameState field or cache. | **High finding resolved.** Treaty orientation, duplication and duration are now validated before credit; malformed data remains independent. |
+| SFX | MR1 emits no new victory event, so it cannot introduce duplicate or wrong-seat audio. Existing panel behavior is unchanged apart from copy/privacy. | **None.** No SFX change required until the recipient-safe MR3 event and warning acknowledgement path exist. |
+| Updating saved games | No persisted shape changed. Export/import/normalize continuity now covers a winning round, a near miss and an actionable pending-independence veto using the real round pipeline. | **None.** No migration is warranted; tests prove old/current state data produces the same deterministic outcome. |
+| Proper testing | Reviewed kernel, sovereignty, victory, round boundary, controller, UI, architecture, hook and storage suites. Review replaced a hand-mutated release with the real diplomacy action and added a real breakaway lifecycle case. | **High finding resolved.** Added direct regressions for each malformed-treaty failure plus stronger lifecycle, save and privacy coverage; affected suites pass. |
+| Solo play regressions | Solo victory and defeat retain existing overlay flow; an unknown rival name is redacted while the player's own victory remains identifiable. | **High privacy risk resolved by MR1 implementation.** Controller regression proves raw rival identity is absent. |
+| Hot-seat plays | The shared result does not expose outgoing or winning civilization names, vassal seats still act normally, and finalization remains after the completed round. | **High privacy risk resolved by MR1 implementation.** Controller regression checks both secret names are absent and round tests preserve later-actor counterplay. |
+| Proper implementation | Reviewed source order, immutable state returns, candidate uniqueness, blocker validation, liveness reconciliation and source guards. The hold-siege caller now retains the immutable bombardment result required by the existing source rule. | **High treaty-validation defect fixed.** Focused re-review found no remaining in-scope defect; final build/durable evidence is required on the committed reviewed HEAD. |
+
+The material fix was re-reviewed across balance, architecture, data, saves, testing, solo and hot-seat dimensions. It now rejects reversed duplicates, active duplicates, malformed duplicate durations and an invalid sole duration, while preserving a real accepted vassalage relationship.
+
+### Prepared MR1 description
+
+**Title:** `feat(victory): add sovereignty-based Domination resolution (#985)`
+
+**Body:**
+
+> Refs #985
+>
+> ## Scope
+> Add the authoritative Domination rule, progress contract and completed-round finalization. A living independent major wins after every rival empire is defeated or its direct vassal, provided the campaign began with at least two major civilizations. A qualifying one-city secession remains provisionally exempt until its establishment deadline.
+>
+> ## Design contract
+> A pure fact kernel is separated from the GameState sovereignty adapter. The adapter uses canonical civilization liveness, major-owner classification, actual city ownership and reciprocal canonical vassalage state. Malformed, duplicated, nested or cyclic vassal relationships fail closed and grant no victory credit.
+>
+> ## Player-visible behavior
+> Domination resolves only after the completed world round. An actionable direct-vassal independence petition postpones resolution. A pending occupy-or-raze decision blocks end turn before side effects. Advisor, vassalage and result copy now explain the defeat-or-vassalize rule.
+>
+> ## AI behavior
+> Existing AI actions participate in the same final rule and round boundary. This slice adds no privileged AI knowledge or new pursuit scoring; observer-safe knowledge and purposeful doctrine are later #985 slices.
+>
+> ## Viewer safety and hot seat
+> Solo defeats name only “A rival empire.” Hot-seat endings use a shared campaign-finished result and disclose neither the outgoing seat nor a private winner identity. Source guards prevent UI and AI from importing authoritative world queries.
+>
+> ## Save/determinism
+> No persisted field or schema changes. Real serialize/parse/normalize continuation tests cover a win, near miss and pending-independence veto through the same completed-round pipeline.
+>
+> ## Difficulty
+> Explorer, Standard and Veteran share identical victory, liveness and sovereignty rules. This slice does not change difficulty tuning.
+>
+> ## Pre-MR inline code review
+> The multidimensional review found one high-severity correctness issue: reversed or malformed duplicate vassalage treaties could be ignored while a canonical treaty still granted Domination credit. The adapter now counts every pair treaty before validating the sole canonical active record, with regressions for reversed duplicates, invalid durations and malformed duplicates. The review also strengthened real breakaway/release lifecycle, save-continuity, solo privacy and hot-seat privacy coverage.
+>
+> ## Verification
+> Final command outcomes are recorded by the Luna phase from the reviewed commit using the repository's focused MR1 suite, source guards, build, `verify:pr`, durable status and diff checks.

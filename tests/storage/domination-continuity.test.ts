@@ -53,4 +53,34 @@ describe('domination save continuity', () => {
       turn: beforeFinalRound.turn + 1,
     });
   });
+
+  it('preserves a near miss across export, import, and real round processing', () => {
+    const beforeRound = normalizeLoadedState(makeVassalageFixture());
+    const uninterrupted = runOneRealRound(structuredClone(beforeRound));
+    const continued = runOneRealRound(reload(beforeRound));
+
+    assertSimulationEquivalent(continued, uninterrupted, 'Domination near miss');
+    expect(continued.gameOver).toBe(false);
+    expect(continued.winner).toBeNull();
+  });
+
+  it('preserves a pending independence veto across export, import, and the final round', () => {
+    const candidate = candidateState();
+    candidate.civilizations.overlord.units = [];
+    const pending = applyDiplomaticAction(
+      candidate, 'vassal', 'overlord', 'petition_independence', new EventBus(),
+    );
+    const beforeRound = normalizeLoadedState(pending);
+    const uninterrupted = runOneRealRound(structuredClone(beforeRound));
+    const continued = runOneRealRound(reload(beforeRound));
+
+    assertSimulationEquivalent(continued, uninterrupted, 'Domination pending independence');
+    expect(continued.pendingDiplomacyRequests).toContainEqual(expect.objectContaining({
+      type: 'independence',
+      fromCivId: 'vassal',
+      toCivId: 'overlord',
+    }));
+    expect(continued.gameOver).toBe(false);
+    expect(continued.winner).toBeNull();
+  });
 });

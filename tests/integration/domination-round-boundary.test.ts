@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { EventBus } from '@/core/event-bus';
 import { runCompletedRound } from '@/core/completed-round-orchestrator';
 import { processTurn } from '@/core/turn-manager';
-import { acceptDiplomaticRequest, applyDiplomaticAction, makeMajorPeace } from '@/systems/diplomacy-system';
+import { acceptDiplomaticRequest, applyDiplomaticAction } from '@/systems/diplomacy-system';
 import { checkDominationVictory } from '@/systems/victory-system';
 import { withoutOwnedAssets } from '../systems/helpers/civilization-liveness-fixture';
 import { makeVassalageFixture } from '../systems/helpers/vassalage-fixture';
@@ -30,35 +30,9 @@ describe('domination completed-round boundary', () => {
         expect(checkDominationVictory(current)).toBe('overlord');
         return current;
       },
-      majors: current => {
-        const released = makeMajorPeace(current, 'overlord', 'vassal');
-        return {
-          ...released,
-          civilizations: {
-            ...released.civilizations,
-            vassal: {
-              ...released.civilizations.vassal,
-              diplomacy: {
-                ...released.civilizations.vassal.diplomacy,
-                vassalage: {
-                  ...released.civilizations.vassal.diplomacy.vassalage,
-                  overlord: null,
-                },
-              },
-            },
-            overlord: {
-              ...released.civilizations.overlord,
-              diplomacy: {
-                ...released.civilizations.overlord.diplomacy,
-                vassalage: {
-                  ...released.civilizations.overlord.diplomacy.vassalage,
-                  vassals: [],
-                },
-              },
-            },
-          },
-        };
-      },
+      majors: (current, eventBus) => applyDiplomaticAction(
+        current, 'overlord', 'vassal', 'release_vassal', eventBus,
+      ),
       world: current => processTurn(current, bus),
     });
 

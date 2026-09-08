@@ -927,6 +927,36 @@ describe('createTurnFlowController', () => {
       expect(deps.uiLayer.querySelector('#victory-panel')).toBeTruthy();
     });
 
+    it('redacts the winner identity from a solo defeat', () => {
+      const state = makeFixture();
+      const rivalId = Object.keys(state.civilizations).find(id => id !== state.currentPlayer)!;
+      state.gameOver = true;
+      state.winner = rivalId;
+      state.civilizations[rivalId].name = 'Hidden Rival Name';
+      const deps = baseDeps(state);
+
+      createTurnFlowController(deps).handleVictoryIfNeeded();
+
+      expect(deps.uiLayer.textContent).toContain('A rival empire');
+      expect(deps.uiLayer.textContent).not.toContain('Hidden Rival Name');
+    });
+
+    it('shows a shared hot-seat conclusion without either seat identity', () => {
+      const state = makeHotSeatFixture();
+      const rivalId = state.hotSeat!.players.find(player => player.slotId !== state.currentPlayer)!.slotId;
+      state.gameOver = true;
+      state.winner = rivalId;
+      state.civilizations[state.currentPlayer].name = 'Outgoing Secret';
+      state.civilizations[rivalId].name = 'Winning Secret';
+      const deps = baseDeps(state);
+
+      createTurnFlowController(deps).handleVictoryIfNeeded();
+
+      expect(deps.uiLayer.textContent).toContain('Campaign Finished');
+      expect(deps.uiLayer.textContent).not.toContain('Outgoing Secret');
+      expect(deps.uiLayer.textContent).not.toContain('Winning Secret');
+    });
+
     it('closes the Hall of Fame before the next hot-seat player can view the handoff', async () => {
       const state = makeHotSeatFixture();
       const nextPlayerId = state.hotSeat!.players.find(player => player.slotId !== 'player')!.slotId;
