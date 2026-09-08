@@ -13,6 +13,7 @@ import {
   hasRoadMovementDiscount,
   type UnitMovementContext,
 } from './unit-movement-cost';
+import { BinaryHeap } from './binary-heap';
 
 /**
  * Cost-aware pathfinding (#1010 / #1042). "What is the cheapest route?" — A*
@@ -33,10 +34,15 @@ import {
  * heuristic admissible *and* consistent (`h(n) − h(n′) ≤ minStepCost ≤
  * cost(n,n′)` for every edge), so the closed-set never locks in a worse path.
  *
- * Tie-break for equal `f`: prefer the higher `g` (closer to the goal → fewer
- * expansions), then the lexicographically smaller `hexKey`. This is independent
- * of `Set` iteration order, so equal-cost paths resolve identically across runs
- * and across a save/reload.
+ * Open set: a `BinaryHeap` (`./binary-heap`) with lazy deletion — a `g` improvement
+ * pushes a fresh entry and the superseded one is skipped on pop. The heap comparator is
+ * the total order `f` ascending, then `g` descending (higher `g` → closer to the goal →
+ * fewer expansions), then `hexKey` ascending. This reproduces the pre-#1042-MR5
+ * linear-scan selection **byte-for-byte** — same nodes expanded in the same order, same
+ * `parents` chain — while dropping the O(V²) per-iteration scan. `referenceFindPath` in
+ * `tests/systems/unit-pathfinding-cost.test.ts` pins the equivalence over a seeded
+ * randomized battery; routes resolve identically across runs and a save/reload because
+ * the order depends only on `(f, g, hexKey)`, never on iteration or object identity.
  */
 export function findPath(
   from: HexCoord,
@@ -62,43 +68,52 @@ export function findPath(
     : 1;
   const EPS = 1e-9;
 
+  interface OpenNode { key: string; g: number; f: number; }
+
+  // Ordered on the EXACT pre-MR5 tie-break: f ascending, then g descending (higher g ⇒
+  // closer to the goal ⇒ fewer expansions), then hexKey ascending. EPS is identical to the
+  // incumbent; every genuine cost here is a 0.5-multiple, so the EPS band never spans two
+  // distinct values and this is a well-defined total order.
+  const heap = new BinaryHeap<OpenNode>((a, b) => {
+    if (a.f < b.f - EPS) return -1;
+    if (b.f < a.f - EPS) return 1;
+    if (a.g > b.g + EPS) return -1;
+    if (b.g > a.g + EPS) return 1;
+    return a.key < b.key ? -1 : a.key > b.key ? 1 : 0;
+  });
+
   const parents = new Map<string, string>();
   const gScore = new Map<string, number>();
-  const openSet = new Set<string>();
   const closedSet = new Set<string>();
   const coords = new Map<string, HexCoord>();
 
+  const heuristicFrom = (coord: HexCoord): number => (map.wrapsHorizontally
+    ? wrappedHexDistance(coord, to, map.width)
+    : hexDistance(coord, to));
+
   const startKey = hexKey(from);
   gScore.set(startKey, 0);
-  openSet.add(startKey);
   coords.set(startKey, from);
+  heap.push({ key: startKey, g: 0, f: minStepCost * heuristicFrom(from) });
 
-  while (openSet.size > 0) {
-    // Find the open node with lowest f, breaking ties deterministically.
-    let currentKey = '';
-    let lowestF = Infinity;
-    let lowestG = Infinity;
-    for (const key of openSet) {
-      const coord = coords.get(key)!;
-      const heuristic = map.wrapsHorizontally
-        ? wrappedHexDistance(coord, to, map.width)
-        : hexDistance(coord, to);
-      const g = gScore.get(key) ?? Infinity;
-      const f = g + minStepCost * heuristic;
-      const better = f < lowestF - EPS
-        || (Math.abs(f - lowestF) <= EPS && g > lowestG + EPS)
-        || (Math.abs(f - lowestF) <= EPS && Math.abs(g - lowestG) <= EPS && (currentKey === '' || key < currentKey));
-      if (better) {
-        lowestF = f;
-        lowestG = g;
-        currentKey = key;
-      }
-    }
+  while (heap.size > 0) {
+    const current = heap.pop()!;
 
-    // Reached destination — reconstruct path
-    if (currentKey === toKey) {
+    // Lazy deletion: when a node's g improves we push a fresh entry and leave the old one.
+    // A stale entry for a key always has strictly higher f than its replacement (h is fixed,
+    // g only decreases), so the fresh entry always pops first; this skip only ever discards
+    // an already-superseded entry.
+    if (current.g > (gScore.get(current.key) ?? Infinity) + EPS) continue;
+    // Redundant given the strict-improvement relaxation gate below (a second entry for a
+    // closed key is always caught by the stale-g skip), kept as a locally-obvious
+    // "a closed node is never expanded twice" guard.
+    if (closedSet.has(current.key)) continue;
+
+    // Goal check strictly AFTER the stale-g skip: a fresh toKey pop is the global (f, g, key)
+    // minimum, so for the consistent heuristic the goal is settled and `parents` is final.
+    if (current.key === toKey) {
       const path: HexCoord[] = [];
-      let key: string | null = currentKey;
+      let key: string | null = current.key;
       while (key) {
         path.unshift(coords.get(key)!);
         key = parents.get(key) ?? null;
@@ -106,9 +121,8 @@ export function findPath(
       return path;
     }
 
-    openSet.delete(currentKey);
-    closedSet.add(currentKey);
-    const currentCoord = coords.get(currentKey)!;
+    closedSet.add(current.key);
+    const currentCoord = coords.get(current.key)!;
 
     const neighbors = map.wrapsHorizontally
       ? getWrappedHexNeighbors(currentCoord, map.width)
@@ -122,12 +136,12 @@ export function findPath(
       const stepCost = getMovementStepCostFor(costParams, map, currentCoord, neighbor);
       if (stepCost === Infinity) continue;
 
-      const tentativeG = (gScore.get(currentKey) ?? Infinity) + stepCost;
+      const tentativeG = current.g + stepCost;
       if (tentativeG < (gScore.get(nKey) ?? Infinity) - EPS) {
-        parents.set(nKey, currentKey);
+        parents.set(nKey, current.key);
         gScore.set(nKey, tentativeG);
         coords.set(nKey, neighbor);
-        openSet.add(nKey);
+        heap.push({ key: nKey, g: tentativeG, f: tentativeG + minStepCost * heuristicFrom(neighbor) });
       }
     }
   }
