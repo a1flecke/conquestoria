@@ -1,6 +1,6 @@
 import type { EventBus } from '@/core/event-bus';
 import type { GameState } from '@/core/types';
-import { declareWar, makePeace, modifyRelationship, applyVassalageWarConsequences } from './diplomacy-system';
+import { declareWar, makePeace, modifyRelationship, applyVassalageWarConsequences, getActiveVassalIds } from './diplomacy-system';
 import { hasAccessibleLuxury } from './quest-objective-system';
 import { applyQuestGameplayAction, type ChainTransition } from './quest-chain-system';
 import { isMinorCivAtWar, endMinorCivQuestForWar } from './minor-civ-diplomacy';
@@ -154,6 +154,19 @@ export function setMinorCivWarState(
   } else {
     if (majorAtWar) nextMajor.diplomacy = makePeace(nextMajor.diplomacy, minorCivId, state.turn);
     if (minorAtWar) nextMinor.diplomacy = makePeace(nextMinor.diplomacy, majorCivId, state.turn);
+    // #1054: the war branch below runs applyVassalageWarConsequences, which drags
+    // this civ's vassals into its city-state wars. The peace branch has to undo
+    // that or they are stranded — a vassal is blocked from setMinorCivWarState
+    // too ("Your overlord controls war and peace"), so it can never sue itself.
+    for (const vassalId of getActiveVassalIds(state, majorCivId)) {
+      const vassal = nextState.civilizations[vassalId];
+      if (!vassal?.diplomacy.atWarWith.includes(minorCivId)) continue;
+      vassal.diplomacy = makePeace(vassal.diplomacy, minorCivId, state.turn);
+      if (nextMinor.diplomacy.atWarWith.includes(vassalId)) {
+        nextMinor.diplomacy = makePeace(nextMinor.diplomacy, vassalId, state.turn);
+      }
+      bus?.emit('diplomacy:vassal-auto-peace', { vassalId, overlordId: majorCivId, targetCivId: minorCivId });
+    }
     return { state: reconcileMinorCivLeagues(nextState), ok: true, transitions: [] };
   }
 

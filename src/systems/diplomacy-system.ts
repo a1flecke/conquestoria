@@ -1528,46 +1528,45 @@ function removeMajorWarPair(state: GameState, aId: string, bId: string): GameSta
 }
 
 /**
- * #1054 — an overlord controls its vassals' war and peace (a vassal is blocked
- * from both `declare_war` and `request_peace`, see {@link VASSAL_BLOCKED_ACTIONS}).
- * So a war a vassal is only in through its overlord must not outlive the
- * overlord's participation: when `peacePartyId` (an overlord) makes peace with
- * `formerEnemyId`, every active vassal of `peacePartyId` at war with
- * `formerEnemyId` makes peace too. Bloc-wide peace, no persisted provenance —
- * mirrors the auto-join in {@link applyVassalageWarConsequences}. Bilateral
- * throughout (`assertBilateralWar` stays green).
+ * #1054 — the active vassals whose war and peace `overlordId` controls (a vassal
+ * is blocked from `declare_war`, `request_peace` AND `setMinorCivWarState`, see
+ * {@link VASSAL_BLOCKED_ACTIONS}, so its overlord's foreign policy is its own).
+ * The vassalage graph is a depth-1 star — `getVassalageEligibility` refuses an
+ * overlord that is itself a vassal and a vassal that already has vassals — so
+ * this list is complete, never recursive.
+ *
+ * Any path that ends a war on the overlord's behalf must free these civs from
+ * the same war, or they are stranded: they cannot sue for peace themselves.
  */
-function reconcileVassalWarsAfterPeace(
-  state: GameState,
-  peacePartyId: string,
-  formerEnemyId: string,
-  bus?: EventBus,
-): GameState {
-  const peaceParty = state.civilizations[peacePartyId];
-  if (!peaceParty) return state;
-  let next = state;
-  for (const vassalId of peaceParty.diplomacy.vassalage.vassals) {
-    if (vassalId === formerEnemyId) continue;
-    const vassal = next.civilizations[vassalId];
-    if (!vassal || !hasActiveVassalage(next, vassalId, peacePartyId)) continue;
-    if (!isAtWar(vassal.diplomacy, formerEnemyId)) continue;
-    const reconciled = removeMajorWarPair(next, vassalId, formerEnemyId);
-    if (reconciled !== next) {
-      bus?.emit('diplomacy:vassal-auto-peace', { vassalId, overlordId: peacePartyId, targetCivId: formerEnemyId });
-    }
-    next = reconciled;
-  }
-  return next;
+export function getActiveVassalIds(state: GameState, overlordId: string): string[] {
+  const civ = state.civilizations[overlordId];
+  if (!civ) return [];
+  return civ.diplomacy.vassalage.vassals.filter(
+    vassalId => vassalId !== overlordId && hasActiveVassalage(state, vassalId, overlordId));
+}
+
+/** The civs a peace signed by `civId` speaks for: itself plus its active vassals. */
+function warBlocMembers(state: GameState, civId: string): string[] {
+  return state.civilizations[civId] ? [civId, ...getActiveVassalIds(state, civId)] : [];
 }
 
 /**
  * The public bilateral peace transition between two MAJOR civilizations — the
- * mirror of {@link declareMajorWar}. Clears the pair from BOTH sides'
- * `atWarWith` (#995) and then reconciles each side's vassals out of the same war
- * (#1054 — see {@link reconcileVassalWarsAfterPeace}). Callers must use this (or
- * an `acceptDiplomaticRequest`-style flow that wraps it) rather than the
+ * mirror of {@link declareMajorWar}. Callers must use this (or an
+ * `acceptDiplomaticRequest`-style flow that wraps it) rather than the
  * module-private single-side `makePeace`. No-ops if either peace party is itself
  * a vassal, or neither side is currently at war with the other.
+ *
+ * #1054 — peace is made between the two *blocs*, not just the two principals.
+ * `applyVassalageWarConsequences` drags every vassal into every war its overlord
+ * holds, so by the time two vassal-holding civs are at war the state contains the
+ * full bloc x bloc cross product of war pairs (overlord-overlord,
+ * overlord-vassal, AND vassal-vassal). Clearing only the principal pair and each
+ * principal's own vassals leaves the two sides' vassals permanently at war with
+ * each other — neither can sue for peace, and both overlords are at peace. So the
+ * exit clears the same cross product the join built. Bilateral throughout
+ * (`assertBilateralWar` stays green); every freed vassal is notified via
+ * `diplomacy:vassal-auto-peace`, naming its own overlord.
  */
 export function makeMajorPeace(state: GameState, aId: string, bId: string, bus?: EventBus): GameState {
   const a = state.civilizations[aId];
@@ -1575,9 +1574,26 @@ export function makeMajorPeace(state: GameState, aId: string, bId: string, bus?:
   if (!a || !b || aId === bId
     || a.diplomacy.vassalage.overlord || b.diplomacy.vassalage.overlord
     || (!isAtWar(a.diplomacy, bId) && !isAtWar(b.diplomacy, aId))) return state;
-  let next = removeMajorWarPair(state, aId, bId);
-  next = reconcileVassalWarsAfterPeace(next, aId, bId, bus);
-  next = reconcileVassalWarsAfterPeace(next, bId, aId, bus);
+  // Blocs are read once from the pre-peace state: peace only edits `atWarWith`
+  // and protection timers, never `vassalage.vassals`, so the membership is
+  // stable and the iteration order is deterministic.
+  const blocA = warBlocMembers(state, aId);
+  const blocB = warBlocMembers(state, bId);
+  let next = state;
+  for (const memberA of blocA) {
+    for (const memberB of blocB) {
+      if (memberA === memberB) continue;
+      const before = next;
+      next = removeMajorWarPair(next, memberA, memberB);
+      if (next === before) continue;
+      if (memberA !== aId) {
+        bus?.emit('diplomacy:vassal-auto-peace', { vassalId: memberA, overlordId: aId, targetCivId: memberB });
+      }
+      if (memberB !== bId) {
+        bus?.emit('diplomacy:vassal-auto-peace', { vassalId: memberB, overlordId: bId, targetCivId: memberA });
+      }
+    }
+  }
   return next;
 }
 

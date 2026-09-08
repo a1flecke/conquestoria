@@ -108,25 +108,45 @@ The full `migrate → normalize → run a few rounds → save → reload → sha
 
 ### An overlord controls its vassals' war *and* peace (#1054)
 
-- A vassal is blocked from both `declare_war` and `request_peace`
-  (`VASSAL_BLOCKED_ACTIONS`) — its overlord's foreign policy is its own. So the
-  war set follows the overlord in both directions:
-  - **join:** `applyVassalageWarConsequences` drags each active vassal into every
-    war the overlord is in (`addWarPair`, no treachery).
-  - **exit:** `makeMajorPeace(state, a, b, bus?)` — after clearing the `a↔b`
-    pair — calls `reconcileVassalWarsAfterPeace` for each side, making bilateral
-    peace between every active vassal of that side and the other peace party.
-    Bloc-wide peace, no persisted provenance: an inherited *or* a
-    pre-existing-independent vassal war with the other peace party ends when the
-    overlord makes peace with them. A vassal war with a **third** civ the
-    overlord is not making peace with is untouched (the reconciliation is scoped
-    to the peace pair). Emits `diplomacy:vassal-auto-peace` (recipient-safe via
-    `routeVassalAutoPeace`).
+A vassal is blocked from `declare_war`, `request_peace` **and**
+`setMinorCivWarState` — its overlord's foreign policy is its own, and it can
+never end a war itself. So **every path that ends a war on an overlord's behalf
+must free that overlord's vassals from the same war, or they are stranded
+forever.** `getActiveVassalIds(state, overlordId)` (`diplomacy-system.ts`) is the
+single definition of "who this civ's peace speaks for"; the vassalage graph is a
+depth-1 star (`getVassalageEligibility` refuses a vassal-of-a-vassal), so it is
+never recursive.
+
+- **join:** `applyVassalageWarConsequences` drags each active vassal into every
+  war its overlord holds (`addWarPair`, no treachery). When both sides hold
+  vassals this builds the **full bloc × bloc cross product** — overlord↔overlord,
+  overlord↔vassal, *and* vassal↔vassal.
+- **exit (major↔major):** `makeMajorPeace(state, a, b, bus?)` clears that same
+  cross product — `warBlocMembers(a) × warBlocMembers(b)` — not just the
+  principal pair. Clearing only each principal's own vassals leaves the two
+  sides' vassals permanently at war with each other; that was the #1054 review
+  finding, and it is what the cross product exists to prevent.
+- **exit (major↔minor):** `setMinorCivWarState(..., atWar: false)` frees the
+  major's active vassals from the same city-state war. Its `atWar: true` branch
+  runs `applyVassalageWarConsequences`, so vassals *are* dragged into city-state
+  wars — the peace branch has to undo it symmetrically.
+- Bloc-wide peace, **no persisted provenance**: an inherited *or* a
+  pre-existing-independent vassal war with the other peace party ends when the
+  overlord makes peace with them. A vassal war with a **third** party the
+  overlord is not making peace with is untouched (reconciliation is scoped to the
+  peace pair). Every freed vassal gets `diplomacy:vassal-auto-peace` naming its
+  own overlord (recipient-safe via `routeVassalAutoPeace`, which never resolves a
+  discovery-gated city-state name).
+- A **released / independent** ex-vassal keeps its inherited wars — that is not a
+  stranding, because `vassalage.overlord` is `null` and it can immediately make
+  its own peace. Pinned by a regression so it is not "fixed" into a bloc rule.
 - The exit is **event-triggered on the peace transition**, not a per-turn
   invariant sweep. A pre-#1054 save whose overlord already made peace while a
   vassal stayed stuck is not retroactively reconciled (benign, bilateral, and
   not admissible to any save registry — the writer bug it came from is fixed
   forward). No save-shape change, no migration.
+- **Adding a new way to end a war?** Free the overlord's vassals from it in the
+  same transition, or it is a new stranding.
 
 ### `atWarWith` also carries minor-civ war ids
 

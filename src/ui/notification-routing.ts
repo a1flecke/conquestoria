@@ -1002,7 +1002,9 @@ export function routeVassalAutoWar(state: GameState, event: GameEvents['diplomac
 }
 
 export function routeVassalAutoPeace(state: GameState, event: GameEvents['diplomacy:vassal-auto-peace'], sink: NotificationSink): void {
-  const target = state.civilizations[event.targetCivId]?.name ?? 'a rival';
+  // Same fallback as routeVassalAutoWar: a target that is not in `civilizations`
+  // is a city-state, and its real name is discovery-gated — never read it here.
+  const target = state.civilizations[event.targetCivId]?.name ?? 'a city-state';
   const overlord = state.civilizations[event.overlordId]?.name ?? 'your overlord';
   sink(event.vassalId, `${overlord} made peace with ${target}, so your war with them has ended too.`, 'info');
 }
