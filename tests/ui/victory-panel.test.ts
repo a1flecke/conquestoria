@@ -19,6 +19,7 @@ describe('showVictoryPanel', () => {
     expect(panel!.textContent).toContain('Egypt');
     expect(panel!.textContent).toContain('Domination');
     expect(panel!.textContent).toContain('42');
+    expect(panel!.textContent).toContain('last independent empire');
   });
 
   it('removes existing panel before adding new one', () => {
@@ -72,10 +73,10 @@ describe('showVictoryPanel', () => {
     expect(container.textContent).not.toContain('Victory!');
   });
 
-  it('identifies the conquering civilization when another actor wins', () => {
+  it('renders the supplied generic rival label when another actor wins', () => {
     const container = document.createElement('div');
     showVictoryPanel(container, {
-      winnerName: 'Rome',
+      winnerName: 'A rival empire',
       victoryType: 'Domination',
       outcome: 'defeat',
       reason: 'domination',
@@ -84,6 +85,22 @@ describe('showVictoryPanel', () => {
     });
 
     expect(container.textContent).toContain('Defeat');
-    expect(container.textContent).toContain('Rome');
+    expect(container.textContent).toContain('A rival empire');
+  });
+
+  it('renders a shared hot-seat result without a winner identity', () => {
+    const container = document.createElement('div');
+    showVictoryPanel(container, {
+      winnerName: 'A rival empire',
+      victoryType: 'Campaign Finished',
+      outcome: 'defeat',
+      reason: 'domination',
+      turn: 20,
+      sharedResult: true,
+      onNewGame: () => {},
+    });
+
+    expect(container.textContent).toContain('Campaign Finished');
+    expect(container.textContent).not.toContain('A rival empire');
   });
 });

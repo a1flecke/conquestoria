@@ -129,7 +129,7 @@ createVictoryProgressPanel(model: DominationPanelModel,
 | Presentation hook | `core/types.ts:GameEvents`, `presentation/register-civilization-presentation.ts` | `victory:resolved` once, recipient-safe message; #993 adapter if present |
 | Save | `core/game-state.ts`, `core/types.ts`, storage registries + matrix | Initialize ledger; next ordered migration, separate shape repair and generated docs |
 
-## MR1 — Rule, progress core and completed-round timing (not started)
+## MR1 — Rule, progress core and completed-round timing (locally verified; awaiting Sol implementation review)
 
 ### Task 1.1 — Pure rule and authoritative facts
 

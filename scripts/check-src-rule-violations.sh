@@ -177,6 +177,24 @@ for file_path in "$@"; do
       ;;
   esac
 
+  # --- domination authority boundary (#985): presentation and AI must consume
+  # observer-safe DTOs/doctrine, never the omniscient sovereignty/victory query.
+  # The victory adapter itself also must not revive roster-based liveness.
+  case "$file_path" in
+    src/ui/*|src/ai/*)
+      domination_lines="$(grep -nE "from ['\"][^'\"]*(domination-sovereignty|victory-system)['\"]" "$file_path" | head -5 || true)"
+      if [ -n "$domination_lines" ]; then
+        append_match_block "Authoritative domination queries are not available to UI or AI — consume observer-safe presentation/knowledge DTOs instead (see .claude/rules/game-systems.md#domination-authority)" "$domination_lines"
+      fi
+      ;;
+    src/systems/victory-system.ts)
+      roster_lines="$(grep -nE 'civilizations(\[[^]]+\]|\.[A-Za-z0-9_]+)\.(cities|units)' "$file_path" | head -5 || true)"
+      if [ -n "$roster_lines" ]; then
+        append_match_block "Victory may not use civilization roster lengths for liveness — consume canonical domination sovereignty facts instead (see .claude/rules/game-systems.md#domination-authority)" "$roster_lines"
+      fi
+      ;;
+  esac
+
   if [ -n "$violations" ]; then
     append_violation "$file_path" "$violations"
   fi

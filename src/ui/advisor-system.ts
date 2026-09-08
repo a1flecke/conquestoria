@@ -619,7 +619,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     id: 'warchief_domination_hint',
     advisor: 'warchief',
     icon: '⚔️',
-    message: 'To win by Domination, conquer every rival civilization — leave no enemy city standing!',
+    message: 'To win by Domination, be the last independent empire: defeat other empires or make them your vassals.',
     trigger: (state: GameState) =>
       state.turn <= 5 &&
       Object.values(state.civilizations).some(c => c.id !== state.currentPlayer),

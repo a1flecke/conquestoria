@@ -195,6 +195,32 @@ describe('createTurnFlowController', () => {
     vi.clearAllMocks();
   });
 
+  it('blocks endTurn before deselection when a city-capture choice is pending', async () => {
+    const state = makeFixture();
+    const selection = createSelectionStore();
+    const city = Object.values(state.cities).find(candidate => candidate.owner !== 'player')!;
+    selection.setPendingIntent({
+      kind: 'city-capture',
+      choice: {
+        attackerId: 'player',
+        cityId: city.id,
+        targetCoord: city.position,
+        occupiedPopulation: city.population,
+        razeGold: 0,
+      },
+    });
+    const deps = baseDeps(state, { selection });
+
+    await createTurnFlowController(deps).endTurn({ allowUnmovedUnits: true });
+
+    expect(deps.deselectUnit).not.toHaveBeenCalled();
+    expect(session_getState(deps).turn).toBe(state.turn);
+    expect(deps.showNotification).toHaveBeenCalledWith(
+      'Choose whether to occupy or raze the captured city before ending the turn.',
+      'info',
+    );
+  });
+
   describe('endTurn — solo mode', () => {
     it('runs the completed round, replays AI moves, then refreshes, then opens required choices, in order', async () => {
       const state = makeFixture();
