@@ -17,8 +17,10 @@ import {
   UNIT_DEFINITIONS,
   type MovementStepCostParams,
 } from '@/systems/unit-system';
+import { isPassableForParams, hasRoadMovementDiscount } from '@/systems/unit-movement-cost';
+import { seededLcg } from '@/systems/seeded-lcg';
 import type { GameMap, GameState, HexCoord, HexTile, UnitType } from '@/core/types';
-import { hexKey, hexNeighbors, getWrappedHexNeighbors } from '@/systems/hex-utils';
+import { hexKey, hexNeighbors, getWrappedHexNeighbors, hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 
 const mkCtx = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -303,6 +305,21 @@ describe('#1042 — findPath route cost equals the Dijkstra optimum (admissible 
       }),
       techs: ['military-logistics'],
     },
+    {
+      // #1042 MR5 — a size where the O(V^2) scan and the O(V log V) heap actually
+      // diverge in work done; the returned route must still be the Dijkstra optimum.
+      name: 'large map: mountains straight, long road ring (~54 tiles)',
+      map: buildMap((() => {
+        const s: Record<string, TileSpec> = {};
+        for (let q = 0; q < 9; q++) for (let r = 0; r < 6; r++) {
+          s[`${q},${r}`] = r === 5
+            ? { terrain: 'hills', hasRoad: true }
+            : (q > 0 && q < 8 && r === 0 ? { terrain: 'mountain' } : {});
+        }
+        return s;
+      })()),
+      techs: ['military-logistics'],
+    },
   ];
 
   for (const { name, map, techs } of cases) {
@@ -329,5 +346,170 @@ describe('#1042 — getMovementStepCostFor is the canonical no-Unit cost provide
       map, { q: 0, r: 0 }, { q: 0, r: 1 },
     );
     expect(viaParams).toBe(viaUnit);
+  });
+});
+
+/**
+ * Verbatim port of findPath's PRE-MR5 open-set selection (linear scan, three-tier
+ * tie-break: f asc, then g desc, then hexKey asc; EPS = 1e-9). Exists ONLY to pin the
+ * MR5 binary-heap refactor: if findPath's selection order is ever deliberately changed,
+ * delete this and its assertions rather than updating them.
+ */
+function referenceFindPath(
+  from: HexCoord,
+  to: HexCoord,
+  map: GameMap,
+  domain: 'land' | 'naval' | 'air',
+  options: { unitType?: UnitType; completedTechs?: string[]; owner?: string } = {},
+): HexCoord[] | null {
+  const toKey = hexKey(to);
+  const toTile = map.tiles[toKey];
+  if (!toTile) return null;
+  const costParams = movementStepCostParamsForType(options.unitType, domain, {
+    completedTechs: options.completedTechs, owner: options.owner,
+  });
+  if (!isPassableForParams(costParams, toTile.terrain)) return null;
+  const minStepCost = costParams.domain === 'land'
+    && hasRoadMovementDiscount(costParams.completedTechs ?? []) ? 0.5 : 1;
+  const EPS = 1e-9;
+
+  const parents = new Map<string, string>();
+  const gScore = new Map<string, number>([[hexKey(from), 0]]);
+  const openSet = new Set<string>([hexKey(from)]);
+  const closedSet = new Set<string>();
+  const coords = new Map<string, HexCoord>([[hexKey(from), from]]);
+
+  while (openSet.size > 0) {
+    let currentKey = '';
+    let lowestF = Infinity;
+    let lowestG = Infinity;
+    for (const key of openSet) {
+      const coord = coords.get(key)!;
+      const heuristic = map.wrapsHorizontally
+        ? wrappedHexDistance(coord, to, map.width)
+        : hexDistance(coord, to);
+      const g = gScore.get(key) ?? Infinity;
+      const f = g + minStepCost * heuristic;
+      const better = f < lowestF - EPS
+        || (Math.abs(f - lowestF) <= EPS && g > lowestG + EPS)
+        || (Math.abs(f - lowestF) <= EPS && Math.abs(g - lowestG) <= EPS
+            && (currentKey === '' || key < currentKey));
+      if (better) { lowestF = f; lowestG = g; currentKey = key; }
+    }
+
+    if (currentKey === toKey) {
+      const path: HexCoord[] = [];
+      let key: string | null = currentKey;
+      while (key) { path.unshift(coords.get(key)!); key = parents.get(key) ?? null; }
+      return path;
+    }
+
+    openSet.delete(currentKey);
+    closedSet.add(currentKey);
+    const currentCoord = coords.get(currentKey)!;
+    const neighbors = map.wrapsHorizontally
+      ? getWrappedHexNeighbors(currentCoord, map.width)
+      : hexNeighbors(currentCoord);
+    for (const neighbor of neighbors) {
+      const nKey = hexKey(neighbor);
+      if (closedSet.has(nKey)) continue;
+      const tile = map.tiles[nKey];
+      if (!tile) continue;
+      const stepCost = getMovementStepCostFor(costParams, map, currentCoord, neighbor);
+      if (stepCost === Infinity) continue;
+      const tentativeG = (gScore.get(currentKey) ?? Infinity) + stepCost;
+      if (tentativeG < (gScore.get(nKey) ?? Infinity) - EPS) {
+        parents.set(nKey, currentKey);
+        gScore.set(nKey, tentativeG);
+        coords.set(nKey, neighbor);
+        openSet.add(nKey);
+      }
+    }
+  }
+  return null;
+}
+
+/** Deterministic random land map (wrapping ~30% of the time) from a seed. */
+function randomMap(seed: number): GameMap {
+  const rng = seededLcg(seed);
+  const w = 5 + Math.floor(rng() * 5);   // 5..9
+  const h = 4 + Math.floor(rng() * 4);   // 4..7
+  const wraps = rng() < 0.3;
+  const terrains: HexTile['terrain'][] = ['grassland', 'plains', 'forest', 'hills', 'mountain'];
+  const tiles: GameMap['tiles'] = {};
+  const rivers: GameMap['rivers'] = [];
+  for (let q = 0; q < w; q++) {
+    for (let r = 0; r < h; r++) {
+      const t = terrains[Math.floor(rng() * terrains.length)]!;
+      tiles[hexKey({ q, r })] = {
+        coord: { q, r }, terrain: t, elevation: 'lowland', resource: null,
+        improvement: 'none', owner: null, improvementTurnsLeft: 0,
+        hasRiver: false, hasRoad: rng() < 0.25, wonder: null,
+      };
+      if (rng() < 0.12 && q + 1 < w) rivers.push({ from: { q, r }, to: { q: q + 1, r } });
+    }
+  }
+  return { width: w, height: h, wrapsHorizontally: wraps, tiles, rivers };
+}
+
+describe('#1042 MR5 — findPath matches the pre-MR5 linear-scan oracle exactly', () => {
+  const techSets: string[][] = [[], ['military-logistics'], ['road-building']];
+
+  it('roadDetourMap fixture across techs and unit types: identical to referenceFindPath', () => {
+    const map = roadDetourMap();
+    for (const techs of techSets) {
+      for (const type of ['warrior', 'scout', 'missionary'] as UnitType[]) {
+        const opts = { unitType: type, completedTechs: techs, owner: 'player' };
+        expect(findPath({ q: 0, r: 0 }, { q: 3, r: 0 }, map, 'land', opts))
+          .toEqual(referenceFindPath({ q: 0, r: 0 }, { q: 3, r: 0 }, map, 'land', opts));
+      }
+    }
+  });
+
+  it('120 seeded random maps x 4 start/goal pairs: identical to referenceFindPath', () => {
+    // Equal or unreachable from/to pairs need no filtering — findPath and referenceFindPath
+    // handle them identically ([from] for equal, null for unreachable), so .toEqual holds.
+    let compared = 0;
+    for (let seed = 1; seed <= 120; seed++) {
+      const map = randomMap(seed);
+      const keys = Object.keys(map.tiles);
+      const pick = seededLcg(seed * 7 + 1);
+      for (let p = 0; p < 4; p++) {
+        const from = map.tiles[keys[Math.floor(pick() * keys.length)]!]!.coord;
+        const to = map.tiles[keys[Math.floor(pick() * keys.length)]!]!.coord;
+        const techs = techSets[Math.floor(pick() * techSets.length)]!;
+        const opts = { unitType: 'warrior' as UnitType, completedTechs: techs, owner: 'player' };
+        expect(
+          findPath(from, to, map, 'land', opts),
+          `seed ${seed} pair ${p} ${hexKey(from)}->${hexKey(to)}`,
+        ).toEqual(referenceFindPath(from, to, map, 'land', opts));
+        compared++;
+      }
+    }
+    expect(compared).toBe(480);
+  });
+
+  it('naval domain: equal-cost water routes resolve identically to referenceFindPath', () => {
+    // Uniform cost 1 -> many equal-f nodes; the tie-break path through the heap must
+    // still match the linear scan. trireme is ocean-going so the routes actually resolve.
+    const tiles: GameMap['tiles'] = {};
+    for (let q = 0; q < 7; q++) for (let r = 0; r < 4; r++) {
+      tiles[hexKey({ q, r })] = {
+        coord: { q, r }, terrain: r === 0 || r === 3 ? 'coast' : 'ocean',
+        elevation: 'lowland', resource: null, improvement: 'none', owner: null,
+        improvementTurnsLeft: 0, hasRiver: false, hasRoad: false, wonder: null,
+      };
+    }
+    for (const wraps of [false, true]) {
+      const map: GameMap = { width: 7, height: 4, wrapsHorizontally: wraps, tiles, rivers: [] };
+      for (const [from, to] of [
+        [{ q: 0, r: 1 }, { q: 5, r: 2 }], [{ q: 6, r: 0 }, { q: 1, r: 3 }],
+        [{ q: 0, r: 0 }, { q: 0, r: 0 }],
+      ] as Array<[HexCoord, HexCoord]>) {
+        const opts = { unitType: 'trireme' as UnitType, completedTechs: [], owner: 'player' };
+        expect(findPath(from, to, map, 'naval', opts))
+          .toEqual(referenceFindPath(from, to, map, 'naval', opts));
+      }
+    }
   });
 });
