@@ -165,6 +165,25 @@ describe('notification routing', () => {
     expect(calls.find(c => c.civId === 'p2')).toBeUndefined();
   });
 
+  it('#1054 vassal-auto-peace names a city-state target generically, never its discovery-gated name', () => {
+    const state = makeState();
+    const { sink, calls } = makeSink();
+
+    // an overlord's peace with a CITY-STATE also frees its vassals; the target is
+    // not in `civilizations`, and reading state.minorCivs[id].name here would leak
+    // a name the viewer may not have discovered (see .claude/rules/ui-panels.md).
+    routeVassalAutoPeace(state, { vassalId: 'p3', overlordId: 'p1', targetCivId: 'mc-delphi' }, sink);
+
+    expect(calls).toEqual([
+      expect.objectContaining({
+        civId: 'p3',
+        message: 'Alice made peace with a city-state, so your war with them has ended too.',
+        type: 'info',
+      }),
+    ]);
+    expect(calls[0]!.message).not.toMatch(/delphi/i);
+  });
+
   it('peace-requested writes only to the recipient civ', () => {
     const state = makeState();
     const { sink, calls } = makeSink();
