@@ -16,6 +16,20 @@ export function isMajorCivOwner(ownerId: string): boolean {
   return classifyOwner(ownerId) === 'major';
 }
 
+/**
+ * The subset of a civ's `diplomacy.atWarWith` that are wars with *major
+ * civilizations* — the sense meant by "war weariness" unrest and the "at war
+ * with N empires" guidance (#1041). Minor-civ (city-state) war state also rides
+ * `atWarWith` (`setMinorCivWarState`, minor-civ coalitions), and
+ * barbarians / pirates / rebels / beasts / crisis forces never belong there;
+ * both are excluded here. De-duplicated so a repeated id cannot inflate a
+ * player-facing count — structural dedup/bilateral enforcement is #995's remit,
+ * this is only a read-side guard.
+ */
+export function majorCivWarOpponentIds(atWarWith: readonly string[] | undefined): string[] {
+  return [...new Set(atWarWith ?? [])].filter(isMajorCivOwner);
+}
+
 export function isPirateOwner(ownerId: string): boolean {
   return classifyOwner(ownerId) === 'pirate';
 }

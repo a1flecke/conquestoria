@@ -215,6 +215,22 @@ describe('unrest-guidance', () => {
     expect((rec?.params as { warCivIds: string[] }).warCivIds).toHaveLength(2);
   });
 
+  it('#1041: city-state war ids do not produce a War weariness / make-peace recommendation', () => {
+    const state = makeState({ cityCount: 1, era: 2, atWarCount: 0 });
+    state.civilizations.player.diplomacy.atWarWith = ['mc-athens', 'mc-sparta', 'mc-thebes'];
+    const recs = getUnrestRecommendations('city-1', state);
+    expect(recs.find(r => r.rowLabel === 'War weariness')).toBeUndefined();
+    expect(recs.find(r => r.kind === 'make-peace')).toBeUndefined();
+  });
+
+  it('#1041: only major-civ ids reach params.warCivIds when a real major war is mixed in', () => {
+    const state = makeState({ cityCount: 1, era: 2, atWarCount: 0 });
+    state.civilizations.player.diplomacy.atWarWith = ['mc-athens', 'ai-2', 'mc-sparta'];
+    const rec = getUnrestRecommendations('city-1', state).find(r => r.rowLabel === 'War weariness');
+    expect(rec?.kind).toBe('make-peace');
+    expect((rec?.params as { warCivIds: string[] }).warCivIds).toEqual(['ai-2']);
+  });
+
   it('#926: war and recent conquest recommend Military Administration when Civil Service makes it buildable', () => {
     const state = makeState({ era: 3, atWarCount: 1, conquestTurn: 0, completed: [...completedTechsForEra(3), 'civil-service'] });
     expect(getUnrestRecommendations('city-1', state).filter(rec => rec.kind === 'build-military-administration')).toHaveLength(1);

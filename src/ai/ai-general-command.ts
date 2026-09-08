@@ -4,6 +4,7 @@ import { GENERAL_SPECIALTY_ASSIGNMENTS, resolveGeneralMechanics } from '@/system
 import { mapDistance } from '@/systems/hex-utils';
 import { getVisibility } from '@/systems/fog-of-war';
 import { isAIHostileOwner } from '@/ai/ai-hostility';
+import { majorCivWarOpponentIds } from '@/core/owner-kind';
 import {
   getHeroicCommandEligibility,
   getLastStandPreview,
@@ -325,7 +326,7 @@ function specialtyNeed(state: GameState, civId: string, specialtyId: string): nu
       return Math.min(far, 4);
     }
     case 'endurance':
-      return Math.min((civ?.diplomacy?.atWarWith?.length ?? 0) * 2, 4);
+      return Math.min(majorCivWarOpponentIds(civ?.diplomacy?.atWarWith).length * 2, 4);
     default: // generalist — no situational lean (its value is the base stat term
       // only). Returning >0 here would give generated officers a standing edge
       // over a situationally-quiet specialist and break #888's authored-preferred

@@ -75,6 +75,7 @@ The full `migrate → normalize → run a few rounds → save → reload → sha
 ## Bilateral Diplomacy
 - `declareWar()` and `makePeace()` must be called for BOTH parties
 - `atWarWith` arrays must never contain duplicates — deduplicate on insert
+- `diplomacy.atWarWith` on a **major** civ also holds **minor-civ (city-state)** war ids: `setMinorCivWarState` and minor-civ coalitions (`activateCoalitionWar`) call `declareWar` with an `mc-…` target. Barbarians / pirates / rebels never belong there. So any surface that means "how many **major** wars / **empires** am I at war with" — war-weariness unrest, the "at war with N empires" guidance, the hot-seat handoff enemy list, AI war-count scoring — MUST read `majorCivWarOpponentIds(atWarWith)` (`src/core/owner-kind.ts`), never raw `atWarWith.length` / `[...atWarWith]` (#1041). A concrete `atWarWith.includes(specificId)` pair check is fine as-is: a minor-civ war is still a real war with *that* city-state.
 
 ## AI Combat
 - AI must check `isAtWar(civDiplomacy, targetOwner)` before attacking non-barbarian units
