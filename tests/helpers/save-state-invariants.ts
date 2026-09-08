@@ -1,5 +1,8 @@
-import type { GameState } from '@/core/types';
+import type { AirBaseRef, GameState } from '@/core/types';
 import { classifyOwner } from '@/core/owner-kind';
+import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { getTransportCapacity, getUnitCargoSize, isNavalTransportUnit } from '@/systems/transport-system';
+import { getAirBaseCapacity, getAirBaseRoster } from '@/systems/air-operations-system';
 
 /**
  * #1006 — shared cross-system structural invariants asserted by the
@@ -11,8 +14,10 @@ import { classifyOwner } from '@/core/owner-kind';
  * one turn of processing could plausibly break, not full gameplay validation.
  * The dedicated invariant issues expand each into an exhaustive / property
  * suite: #995 (bilateral war), #997 (city + unit rosters), #1000 (cargo
- * reciprocity), #1001 (eliminated-civ entities). Keep those four the source of
- * truth for the *rules*; this file is the shared assertion the matrix runs.
+ * reciprocity AND carrier/city air-base integrity — two separate representations,
+ * see each function), #1001 (eliminated-civ entities). Keep those issues the
+ * source of truth for the *rules*; this file is the shared assertion the matrix
+ * runs.
  *
  * Every function throws an `Error` whose message names the civ / entity ids
  * involved so a matrix failure points straight at the offending version.
@@ -174,37 +179,171 @@ export function assertUnitRosters(state: GameState): void {
 }
 
 /**
- * `carrier.cargoUnitIds[i]` ⇔ `cargo.transportId === carrier.id`, both
- * directions, both endpoints existing. (#1000)
+ * Naval transport ↔ land-unit cargo is a **dual reference**: the transport's
+ * `cargoUnitIds[]` manifest and each carried unit's `transportId` back-pointer
+ * must agree, and every real path (`loadUnitOntoTransport` /
+ * `unloadUnitFromTransport` / the combat & lifecycle cascades) keeps them in
+ * lock-step. This asserts the full contract those helpers enforce (#1000):
+ *
+ *  - both directions of the link resolve and point back at each other;
+ *  - only a naval transport hull (`isNavalTransportUnit`) carries a manifest;
+ *  - a manifest entry is unique within its transport AND across all transports
+ *    (one unit is never aboard two ships);
+ *  - cargo is a land-domain unit owned by the same civ as the transport, and is
+ *    not itself a transport (no cargo-carrying-cargo);
+ *  - total `getUnitCargoSize` aboard never exceeds `getTransportCapacity`;
+ *  - cargo sits on its transport's tile (cargo is not an occupying map unit — it
+ *    tracks the hull).
  */
 export function assertCargoReciprocity(state: GameState): void {
   const problems: string[] = [];
+  const claimedBy = new Map<string, string>(); // cargoId -> first transport that listed it
 
   for (const [unitId, unit] of Object.entries(state.units)) {
-    for (const cargoId of unit.cargoUnitIds ?? []) {
+    const manifest = unit.cargoUnitIds ?? [];
+    if (manifest.length > 0 && !isNavalTransportUnit(unit)) {
+      problems.push(`unit "${unitId}" (${unit.type}) carries a cargo manifest but is not a naval transport`);
+    }
+
+    const seen = new Set<string>();
+    let loadUsed = 0;
+    for (const cargoId of manifest) {
+      if (seen.has(cargoId)) {
+        problems.push(`transport "${unitId}" lists cargo "${cargoId}" more than once`);
+        continue;
+      }
+      seen.add(cargoId);
+
+      const firstClaim = claimedBy.get(cargoId);
+      if (firstClaim && firstClaim !== unitId) {
+        problems.push(`cargo "${cargoId}" is listed by two transports: "${firstClaim}" and "${unitId}"`);
+      } else if (!firstClaim) {
+        claimedBy.set(cargoId, unitId);
+      }
+
       const cargo = state.units[cargoId];
       if (!cargo) {
-        problems.push(`carrier "${unitId}" lists cargo "${cargoId}" which does not exist`);
+        problems.push(`transport "${unitId}" lists cargo "${cargoId}" which does not exist`);
         continue;
       }
       if (cargo.transportId !== unitId) {
-        problems.push(`carrier "${unitId}" lists cargo "${cargoId}" but that unit's transportId is "${cargo.transportId ?? 'unset'}" — does not point back`);
+        problems.push(`transport "${unitId}" lists cargo "${cargoId}" but that unit's transportId is "${cargo.transportId ?? 'unset'}" — does not point back`);
+      }
+      if (cargo.owner !== unit.owner) {
+        problems.push(`transport "${unitId}" (owner ${unit.owner}) carries cargo "${cargoId}" owned by ${cargo.owner}`);
+      }
+      if (!UNIT_DEFINITIONS[cargo.type]) {
+        problems.push(`transport "${unitId}" carries cargo "${cargoId}" of unknown type "${cargo.type}"`);
+        continue; // an unknown type has no domain or cargo size to check
+      }
+      if ((UNIT_DEFINITIONS[cargo.type].domain ?? 'land') !== 'land') {
+        problems.push(`transport "${unitId}" carries non-land cargo "${cargoId}" (${cargo.type})`);
+      }
+      if (isNavalTransportUnit(cargo)) {
+        problems.push(`transport "${unitId}" carries another transport "${cargoId}" as cargo`);
+      }
+      if (cargo.position.q !== unit.position.q || cargo.position.r !== unit.position.r) {
+        problems.push(`cargo "${cargoId}" is at (${cargo.position.q},${cargo.position.r}) but its transport "${unitId}" is at (${unit.position.q},${unit.position.r})`);
+      }
+      loadUsed += getUnitCargoSize(cargo);
+    }
+
+    if (isNavalTransportUnit(unit)) {
+      const capacity = getTransportCapacity(unit);
+      if (loadUsed > capacity) {
+        problems.push(`transport "${unitId}" carries ${loadUsed} cargo size over its capacity of ${capacity}`);
       }
     }
 
     if (unit.transportId !== undefined) {
-      const carrier = state.units[unit.transportId];
-      if (!carrier) {
+      const transport = state.units[unit.transportId];
+      if (!transport) {
         problems.push(`unit "${unitId}" rides transport "${unit.transportId}" which does not exist`);
         continue;
       }
-      if (!(carrier.cargoUnitIds ?? []).includes(unitId)) {
-        problems.push(`unit "${unitId}" rides transport "${unit.transportId}" but that carrier's cargoUnitIds does not list it`);
+      if (!(transport.cargoUnitIds ?? []).includes(unitId)) {
+        problems.push(`unit "${unitId}" rides transport "${unit.transportId}" but that transport's cargoUnitIds does not list it`);
       }
     }
   }
 
   if (problems.length > 0) throw new InvariantError(`cargo-reciprocity invariant violated:\n  - ${problems.join('\n  - ')}`);
+}
+
+/**
+ * Carrier- and city-based aircraft use a **single representation**: a based
+ * aircraft carries an `airBase` ref and the roster is *derived* by
+ * `getAirBaseRoster` scanning for it — there is no reciprocal list to keep in
+ * sync, which is why this is a separate model from naval cargo above and #1000
+ * deliberately does not unify them. What must still hold (#1000):
+ *
+ *  - the `airBase` host resolves — a live city, or a live unit whose definition
+ *    declares `carrierDeckCapacity` (a carrier-family hull);
+ *  - the aircraft and its base share an owner;
+ *  - the aircraft sits on its base's tile (it tracks the host, same as cargo);
+ *  - no base's derived roster exceeds `getAirBaseCapacity` for that base.
+ *
+ * The game removes an aircraft that loses its base (`resolveAirBaseLoss`), so a
+ * dangling `airBase` is structurally impossible, not merely stale.
+ */
+export function assertAirBaseIntegrity(state: GameState): void {
+  const problems: string[] = [];
+  const seenBases = new Map<string, AirBaseRef>();
+  const baseKey = (base: AirBaseRef): string => (base.kind === 'city' ? `city:${base.cityId}` : `carrier:${base.unitId}`);
+
+  for (const [unitId, unit] of Object.entries(state.units)) {
+    // Widened to admit hand-edited junk (`null`, a bare string, `{kind:'x'}`)
+    // that the field type forbids but a corrupt save can still carry.
+    const base = unit.airBase as AirBaseRef | null | undefined;
+    if (base === undefined) continue; // not a based aircraft
+    if (base === null || typeof base !== 'object' || (base.kind !== 'carrier' && base.kind !== 'city')) {
+      problems.push(`aircraft "${unitId}" has a malformed air base value (${JSON.stringify(base)})`);
+      continue;
+    }
+
+    if (base.kind === 'carrier') {
+      const host = state.units[base.unitId];
+      if (!host) {
+        problems.push(`aircraft "${unitId}" is based on carrier "${base.unitId}" which does not exist`);
+        continue;
+      }
+      if (UNIT_DEFINITIONS[host.type]?.carrierDeckCapacity == null) {
+        problems.push(`aircraft "${unitId}" is based on unit "${base.unitId}" (${host.type}) which is not a carrier-capable hull`);
+        continue; // not a valid base — skip capacity aggregation (getAirBaseCapacity would deref a maybe-missing def)
+      }
+      if (host.owner !== unit.owner) {
+        problems.push(`aircraft "${unitId}" (owner ${unit.owner}) is based on carrier "${base.unitId}" owned by ${host.owner}`);
+      }
+      if (unit.position.q !== host.position.q || unit.position.r !== host.position.r) {
+        problems.push(`aircraft "${unitId}" is at (${unit.position.q},${unit.position.r}) but its carrier "${base.unitId}" is at (${host.position.q},${host.position.r})`);
+      }
+    } else {
+      // base.kind === 'city' (the guard above rejected every other shape)
+      const city = state.cities[base.cityId];
+      if (!city) {
+        problems.push(`aircraft "${unitId}" is based at city "${base.cityId}" which does not exist`);
+        continue;
+      }
+      if (city.owner !== unit.owner) {
+        problems.push(`aircraft "${unitId}" (owner ${unit.owner}) is based at city "${base.cityId}" owned by ${city.owner}`);
+      }
+      if (unit.position.q !== city.position.q || unit.position.r !== city.position.r) {
+        problems.push(`aircraft "${unitId}" is at (${unit.position.q},${unit.position.r}) but its base city "${base.cityId}" is at (${city.position.q},${city.position.r})`);
+      }
+    }
+
+    seenBases.set(baseKey(base), base);
+  }
+
+  for (const base of seenBases.values()) {
+    const roster = getAirBaseRoster(state, base).length;
+    const capacity = getAirBaseCapacity(state, base);
+    if (roster > capacity) {
+      problems.push(`air base ${baseKey(base)} hosts ${roster} aircraft over its capacity of ${capacity}`);
+    }
+  }
+
+  if (problems.length > 0) throw new InvariantError(`air-base-integrity invariant violated:\n  - ${problems.join('\n  - ')}`);
 }
 
 /**
@@ -261,6 +400,7 @@ export const SAVE_STATE_INVARIANTS: ReadonlyArray<{ name: string; check: (state:
   { name: 'city-rosters', check: assertCityRosters },
   { name: 'unit-rosters', check: assertUnitRosters },
   { name: 'cargo-reciprocity', check: assertCargoReciprocity },
+  { name: 'air-base-integrity', check: assertAirBaseIntegrity },
   { name: 'no-eliminated-civ-entities', check: assertNoEliminatedCivEntities },
 ];
 

@@ -11,7 +11,9 @@ import { buildBaselineSave, buildHotSeatBaselineSave } from './baseline';
  * at that version, migrated forward, run for a turn, re-saved and reloaded,
  * then checked against the shared invariant validators. Plus `malformed-repair`
  * cases for the migrations that exist ONLY to scrub hand-edited corruption
- * (23, 25, 26, 27) — a well-formed fixture would exercise nothing there.
+ * (23, 25, 26, 27) and for the unconditional corruption repairs that never bump
+ * a version (bilateral war #995, cargo reciprocity #1000) — a well-formed
+ * fixture would exercise nothing there.
  *
  * The coverage meta-test (`save-compat-coverage.test.ts`, fast tier) fails if
  * `CURRENT_SAVE_SCHEMA_VERSION` advances without a matching well-formed case,
@@ -237,6 +239,52 @@ const MALFORMED_CASES: SaveCompatCase[] = [
       }
       const ai2 = migrated.civilizations['ai-2']?.diplomacy.atWarWith ?? [];
       if (ai2.includes('ai-1')) throw new Error('bilateral-war repair left a one-sided ai-2 → ai-1 war in place');
+    },
+  },
+  {
+    // #1000 — no version bump: `normalizeCargoReciprocity` is an unconditional
+    // corruption repair. Exercises it against a corrupt CURRENT save carrying a
+    // dangling manifest entry, a missing back-pointer, a one-sided transportId,
+    // and a based aircraft whose carrier is gone.
+    sourceVersion: CURRENT_SAVE_SCHEMA_VERSION,
+    label: 'repair — normalizes transport/cargo and carrier-aircraft links (#1000)',
+    kind: 'malformed-repair',
+    focus: ['transport cargo', 'carrier aircraft', 'cargo reciprocity'],
+    runRounds: 1,
+    build: () => {
+      const raw = buildBaselineSave('save-compat-malformed-cargo-reciprocity').state as RawState;
+      const units = raw.units as RawState;
+      const playerRoster = (raw.civilizations as RawState).player.units as string[];
+      const anchor = Object.values(units).find((u: RawState) => u.owner === 'player') as RawState;
+      const pos = { q: anchor.position.q, r: anchor.position.r };
+      const base = {
+        owner: 'player', position: { ...pos }, movementPointsLeft: 3,
+        health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      };
+      units['unit-4900'] = { ...base, id: 'unit-4900', type: 'transport', cargoUnitIds: ['unit-4901', 'unit-ghost-cargo'] };
+      units['unit-4901'] = { ...base, id: 'unit-4901', type: 'warrior' /* transportId missing — rebuilt from manifest */ };
+      units['unit-4902'] = { ...base, id: 'unit-4902', type: 'warrior', transportId: 'unit-4900' /* one-sided — cleared */ };
+      units['unit-4903'] = { ...base, id: 'unit-4903', type: 'biplane', airBase: { kind: 'carrier', unitId: 'unit-ghost-carrier' } };
+      playerRoster.push('unit-4900', 'unit-4901', 'unit-4902', 'unit-4903');
+      return raw;
+    },
+    afterMigrate: migrated => {
+      const u = migrated.units;
+      if (JSON.stringify(u['unit-4900']?.cargoUnitIds) !== JSON.stringify(['unit-4901'])) {
+        throw new Error(`cargo-reciprocity repair should have dropped the dangling manifest entry, got ${JSON.stringify(u['unit-4900']?.cargoUnitIds)}`);
+      }
+      if (u['unit-4901']?.transportId !== 'unit-4900') {
+        throw new Error(`cargo-reciprocity repair should have rebuilt the back-pointer, got ${JSON.stringify(u['unit-4901']?.transportId)}`);
+      }
+      if (u['unit-4902']?.transportId !== undefined) {
+        throw new Error(`cargo-reciprocity repair should have cleared the one-sided transportId, got ${JSON.stringify(u['unit-4902']?.transportId)}`);
+      }
+      if (u['unit-4903'] !== undefined) {
+        throw new Error('cargo-reciprocity repair should have removed the aircraft whose carrier is gone');
+      }
+      if (migrated.civilizations.player.units.includes('unit-4903')) {
+        throw new Error('cargo-reciprocity repair left the removed aircraft in its owner roster');
+      }
     },
   },
 ];

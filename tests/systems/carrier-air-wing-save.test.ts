@@ -7,6 +7,7 @@ import { EventBus } from '@/core/event-bus';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
 import { hexKey } from '@/systems/hex-utils';
+import { assertAirBaseIntegrity, assertCargoReciprocity } from '../helpers/save-state-invariants';
 
 describe('carrier air wing save/load round-trip (#582)', () => {
   it('preserves a mixed air wing (fighter + naval strike + patrol) and an active patrol reveal through a same-turn save/load, clearing correctly next turn', () => {
@@ -112,5 +113,38 @@ describe('carrier air wing save/load round-trip (#582)', () => {
     const loaded = parsed.state;
 
     expect(getAirBaseCapacity(loaded, { kind: 'carrier', unitId: carrierId })).toBe(2);
+  });
+
+  it('#1000 a within-capacity carrier wing still satisfies assertAirBaseIntegrity after a save/load round-trip', () => {
+    const state = createNewGame('rome', 'carrier-air-wing-integrity-round-trip');
+    const playerCiv = state.civilizations.player!;
+    const startingPosition = state.units[playerCiv.units[0]!]!.position;
+
+    const carrierId = `unit-${state.idCounters.nextUnitId++}`;
+    state.units[carrierId] = {
+      id: carrierId, type: 'carrier', owner: 'player', position: { ...startingPosition },
+      movementPointsLeft: 5, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    };
+    playerCiv.units = [...playerCiv.units, carrierId];
+
+    // carrier deck capacity is 2 — fill it exactly, aircraft on the carrier tile.
+    for (const type of ['jet_fighter', 'naval_strike_aircraft'] as const) {
+      const id = `unit-${state.idCounters.nextUnitId++}`;
+      state.units[id] = {
+        id, type, owner: 'player', position: { ...startingPosition },
+        movementPointsLeft: 5, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+        airBase: { kind: 'carrier', unitId: carrierId },
+      };
+      playerCiv.units = [...playerCiv.units, id];
+    }
+
+    expect(() => assertAirBaseIntegrity(state)).not.toThrow();
+
+    const parsed = parseSaveFile(serializeSaveFile(state));
+    if (parsed.status !== 'success') throw new Error(`expected successful parse, got error: ${parsed.message}`);
+
+    expect(() => assertAirBaseIntegrity(parsed.state)).not.toThrow();
+    expect(() => assertCargoReciprocity(parsed.state)).not.toThrow();
+    expect(getAirBaseRoster(parsed.state, { kind: 'carrier', unitId: carrierId })).toHaveLength(2);
   });
 });

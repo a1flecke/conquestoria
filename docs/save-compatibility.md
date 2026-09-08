@@ -87,6 +87,7 @@ wrote is a bug in the writer, not a reason to keep the repair.**
 | `coastal-battery-counterfire-turns` | Removes non-integer per-city counterfire markers, which would otherwise corrupt counterfire-timing arithmetic. | 13 |
 | `improvement-values` | Clamps unknown improvement ids to "none" and caps build timers at their definition maximum, so a hand-edited tile cannot complete an improvement that does not exist. | — |
 | `bilateral-war` | Repairs one-sided, self-referential and duplicated MAJOR-civ war entries; a one-sided war silently drives war-weariness unrest, AI war-pressure and peace availability off a phantom (#995). | — |
+| `cargo-reciprocity` | Repairs transport/cargo and carrier-aircraft links the load/unload/rebase helpers never break: a dangling or one-sided transportId, an over-capacity or wrong-owner manifest, a transport listed as cargo, and a based aircraft whose air base is gone (removed, like the game does on air-base loss) (#1000). | — |
 | `vassalage` | Repairs one-sided, self-referential, duplicated and dangling vassalage roles; an impossible role silently breaks protection obligations and independence checks. | 27 |
 
 ## Dual registrations
@@ -123,10 +124,11 @@ as a refactor.
 8. `general-career-ledger` (repair)
 9. `vassalage` (repair)
 10. `bilateral-war` (repair)
-11. `city-faith-conversion-progress` (compatibility)
-12. `retimed-biplane-queues` (compatibility)
-13. `coastal-battery-counterfire-turns` (repair)
-14. `improvement-values` (repair)
-15. `barbarian-camp-pressure` (compatibility)
-16. `legendary-wonder-military-facts` (repair)
-17. `legendary-wonder-tactical-effects` (repair)
+11. `cargo-reciprocity` (repair)
+12. `city-faith-conversion-progress` (compatibility)
+13. `retimed-biplane-queues` (compatibility)
+14. `coastal-battery-counterfire-turns` (repair)
+15. `improvement-values` (repair)
+16. `barbarian-camp-pressure` (compatibility)
+17. `legendary-wonder-military-facts` (repair)
+18. `legendary-wonder-tactical-effects` (repair)

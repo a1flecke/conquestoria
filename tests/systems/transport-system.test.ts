@@ -13,6 +13,7 @@ import {
   loadUnitOntoTransport,
   unloadUnitFromTransport,
 } from '@/systems/transport-system';
+import { assertCargoReciprocity } from '../helpers/save-state-invariants';
 
 function tile(coord: HexCoord, terrain: HexTile['terrain'] = 'grassland', owner: string | null = null): HexTile {
   return {
@@ -664,6 +665,74 @@ describe('transport system', () => {
         .toEqual(getUnloadDestinations(duringPlayer, 'transport-1', 'warrior-1').map(hexKey));
       expect(canUnloadUnitFromTransport(duringOther, 'transport-1', 'warrior-1', { q: 1, r: -1 }))
         .toEqual(canUnloadUnitFromTransport(duringPlayer, 'transport-1', 'warrior-1', { q: 1, r: -1 }));
+    });
+  });
+
+  // #1000 — the dual reference (transport.cargoUnitIds ⇔ cargo.transportId) must
+  // stay reciprocal across every real load/unload, and an *illegal* op must not
+  // touch either side. Asserting `assertCargoReciprocity` after each real op is
+  // the counterpart-drop guard: dropping either the manifest push/filter or the
+  // transportId set/clear in the helper makes these throw.
+  describe('#1000 both sides of the transport/cargo reference stay in lock-step', () => {
+    it('a successful load writes BOTH the manifest and the back-pointer', () => {
+      const result = loadUnitOntoTransport(state(), 'warrior-1', 'transport-1');
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.state.units['transport-1'].cargoUnitIds).toEqual(['warrior-1']);
+      expect(result.state.units['warrior-1'].transportId).toBe('transport-1');
+      expect(result.state.units['warrior-1'].position).toEqual(result.state.units['transport-1'].position);
+      expect(() => assertCargoReciprocity(result.state)).not.toThrow();
+    });
+
+    it('a successful unload clears BOTH the manifest and the back-pointer', () => {
+      const loaded = loadUnitOntoTransport(state(), 'warrior-1', 'transport-1');
+      expect(loaded.ok).toBe(true);
+      if (!loaded.ok) return;
+      const readyState = {
+        ...loaded.state,
+        units: {
+          ...loaded.state.units,
+          'warrior-1': { ...loaded.state.units['warrior-1'], hasMoved: false, hasActed: false, movementPointsLeft: 2 },
+        },
+      };
+      const result = unloadUnitFromTransport(readyState, 'transport-1', 'warrior-1', { q: 0, r: 1 });
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.state.units['transport-1'].cargoUnitIds).toEqual([]);
+      expect(result.state.units['warrior-1'].transportId).toBeUndefined();
+      expect(() => assertCargoReciprocity(result.state)).not.toThrow();
+    });
+
+    it('an illegal unload (non-adjacent destination) returns the input state untouched', () => {
+      const loaded = loadUnitOntoTransport(state(), 'warrior-1', 'transport-1');
+      expect(loaded.ok).toBe(true);
+      if (!loaded.ok) return;
+      const readyState = {
+        ...loaded.state,
+        units: {
+          ...loaded.state.units,
+          'warrior-1': { ...loaded.state.units['warrior-1'], hasMoved: false, hasActed: false, movementPointsLeft: 2 },
+        },
+      };
+      const result = unloadUnitFromTransport(readyState, 'transport-1', 'warrior-1', { q: 3, r: 3 });
+      expect(result.ok).toBe(false);
+      // same object reference back — neither the manifest nor the back-pointer moved
+      expect(result.state).toBe(readyState);
+      expect(result.state.units['transport-1'].cargoUnitIds).toEqual(['warrior-1']);
+      expect(result.state.units['warrior-1'].transportId).toBe('transport-1');
+    });
+
+    it('an illegal load (over capacity) returns the input state untouched', () => {
+      const start = state();
+      // transport cap is 2; put a size-2 cavalry aboard, then a warrior would overfill
+      start.units['cavalry-1'] = { ...start.units['warrior-1'], id: 'cavalry-1', type: 'cavalry', transportId: 'transport-1', position: { q: 1, r: 0 } };
+      start.units['transport-1'] = { ...start.units['transport-1'], cargoUnitIds: ['cavalry-1'] };
+      start.civilizations.player.units.push('cavalry-1');
+      const result = loadUnitOntoTransport(start, 'warrior-1', 'transport-1');
+      expect(result.ok).toBe(false);
+      expect(result.state).toBe(start);
+      expect(result.state.units['transport-1'].cargoUnitIds).toEqual(['cavalry-1']);
+      expect(result.state.units['warrior-1'].transportId).toBeUndefined();
     });
   });
 

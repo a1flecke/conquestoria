@@ -10,6 +10,7 @@ import {
 import { normalizeCoastalBatteryCounterfireTurns } from './steps/coastal-battery';
 import { normalizeImprovementValues } from './steps/improvements';
 import { normalizeBilateralWar } from './steps/bilateral-war';
+import { normalizeCargoReciprocity } from './steps/cargo-reciprocity';
 
 /**
  * #1023 — corruption repair / defensive sanitation: unconditional, every load.
@@ -93,6 +94,11 @@ export const CORRUPTION_REPAIRS: readonly CorruptionRepair[] = [
     id: 'bilateral-war',
     reason: 'Repairs one-sided, self-referential and duplicated MAJOR-civ war entries; a one-sided war silently drives war-weariness unrest, AI war-pressure and peace availability off a phantom (#995).',
     apply: normalizeBilateralWar,
+  },
+  {
+    id: 'cargo-reciprocity',
+    reason: 'Repairs transport/cargo and carrier-aircraft links the load/unload/rebase helpers never break: a dangling or one-sided transportId, an over-capacity or wrong-owner manifest, a transport listed as cargo, and a based aircraft whose air base is gone (removed, like the game does on air-base loss) (#1000).',
+    apply: normalizeCargoReciprocity,
   },
   {
     id: 'vassalage',
