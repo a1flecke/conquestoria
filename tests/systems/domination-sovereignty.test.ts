@@ -8,6 +8,7 @@ import {
 import { makeLivenessGame, withoutOwnedAssets } from './helpers/civilization-liveness-fixture';
 import { makeBreakawayFixture } from './helpers/breakaway-fixture';
 import { makeVassalageFixture } from './helpers/vassalage-fixture';
+import { createBreakawayFromCity } from '@/systems/breakaway-system';
 
 describe('Domination sovereignty facts', () => {
   it('uses canonical liveness rather than civilization rosters', () => {
@@ -60,6 +61,15 @@ describe('Domination sovereignty facts', () => {
     });
 
     expect(getDominationActorFact(state, breakawayId)).toMatchObject({
+      disposition: 'provisional',
+    });
+  });
+
+  it('recognizes a secession created through the real breakaway lifecycle', () => {
+    const initial = makeBreakawayFixture();
+    const state = createBreakawayFromCity(initial.state, initial.cityId, new EventBus());
+
+    expect(getDominationActorFact(state, `breakaway-${initial.cityId}`)).toMatchObject({
       disposition: 'provisional',
     });
   });
@@ -121,6 +131,61 @@ describe('Domination sovereignty facts', () => {
   ])('fails closed for %s', (_description, corrupt) => {
     const state = acceptVassalage();
     corrupt(state);
+
+    expect(getDominationActorFact(state, 'vassal')).toEqual({
+      civId: 'vassal',
+      disposition: 'independent',
+      overlordId: null,
+    });
+  });
+
+  it('fails closed when a reversed duplicate treaty shadows the canonical treaty', () => {
+    const state = acceptVassalage();
+    const reversed = {
+      type: 'vassalage' as const,
+      civA: 'overlord',
+      civB: 'vassal',
+      turnsRemaining: -1,
+    };
+    state.civilizations.vassal.diplomacy.treaties.push(reversed);
+    state.civilizations.overlord.diplomacy.treaties.push(structuredClone(reversed));
+
+    expect(getDominationActorFact(state, 'vassal')).toEqual({
+      civId: 'vassal',
+      disposition: 'independent',
+      overlordId: null,
+    });
+  });
+
+  it('fails closed when the only vassalage treaty has an invalid negative duration', () => {
+    const state = acceptVassalage();
+    for (const civId of ['vassal', 'overlord']) {
+      const treaty = state.civilizations[civId].diplomacy.treaties.find(
+        candidate => candidate.type === 'vassalage',
+      );
+      if (!treaty) throw new Error('fixture requires an active vassalage treaty');
+      treaty.turnsRemaining = -2;
+    }
+
+    expect(getDominationActorFact(state, 'vassal')).toEqual({
+      civId: 'vassal',
+      disposition: 'independent',
+      overlordId: null,
+    });
+  });
+
+  it('fails closed when a malformed duplicate accompanies the canonical treaty', () => {
+    const state = acceptVassalage();
+    for (const civId of ['vassal', 'overlord']) {
+      const treaty = state.civilizations[civId].diplomacy.treaties.find(
+        candidate => candidate.type === 'vassalage',
+      );
+      if (!treaty) throw new Error('fixture requires an active vassalage treaty');
+      state.civilizations[civId].diplomacy.treaties.push({
+        ...structuredClone(treaty),
+        turnsRemaining: -2,
+      });
+    }
 
     expect(getDominationActorFact(state, 'vassal')).toEqual({
       civId: 'vassal',

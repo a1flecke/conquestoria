@@ -74,10 +74,14 @@ function hasSingleActiveVassalageTreaty(
   vassalId: string,
   overlordId: string,
 ): boolean {
-  return treaties.filter(treaty => treaty.type === 'vassalage'
-    && treaty.civA === vassalId
-    && treaty.civB === overlordId
-    && treaty.turnsRemaining !== 0).length === 1;
+  const pairTreaties = treaties.filter(treaty => treaty.type === 'vassalage'
+    && ((treaty.civA === vassalId && treaty.civB === overlordId)
+      || (treaty.civA === overlordId && treaty.civB === vassalId)));
+  return pairTreaties.length === 1
+    && pairTreaties[0]!.civA === vassalId
+    && pairTreaties[0]!.civB === overlordId
+    && Number.isInteger(pairTreaties[0]!.turnsRemaining)
+    && (pairTreaties[0]!.turnsRemaining === -1 || pairTreaties[0]!.turnsRemaining > 0);
 }
 
 function classifyActor(
