@@ -183,6 +183,15 @@ describe('#1010 — unit-system movement decomposition boundaries', () => {
       !['@/core/types', 'pirate-definitions', 'barbarian-roster'].includes(s))).toEqual([]);
   });
 
+  it('binary-heap is a pure leaf; unit-pathfinding may depend on it', () => {
+    // #1042 MR5: findPath's open set. Generic, not part of the #1010 movement decomposition,
+    // so it is NOT in MOVEMENT_MODULES — it must import nothing at all (types are structural).
+    // If it ever genuinely needs @/core/types, relax this to `.toEqual(['@/core/types'])` —
+    // never to allow a @/systems / @/app import.
+    expect(importsOf('binary-heap.ts')).toEqual([]);
+    expect(importsOf('unit-pathfinding.ts')).toContain('binary-heap');
+  });
+
   it('unit-system.ts is a barrel: pre-split public surface preserved, sibling internals excluded', async () => {
     const mod = await import('@/systems/unit-system');
     const PRE_SPLIT_PUBLIC = [
