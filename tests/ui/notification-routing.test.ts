@@ -15,6 +15,7 @@ import {
   routeFirstContact,
   routePeaceMade,
   routePeaceRequested,
+  routeVassalAutoPeace,
   routeTreatyAccepted,
   routeTreatyDeclined,
   routeWarDeclared,
@@ -144,6 +145,24 @@ describe('notification routing', () => {
     expect(calls.map(c => c.civId).sort()).toEqual(['p1', 'p2']);
     expect(calls.every(c => c.type === 'success')).toBe(true);
     expect(calls.find(c => c.civId === 'p3')).toBeUndefined();
+  });
+
+  it('#1054 vassal-auto-peace notifies only the freed vassal (recipient-safe)', () => {
+    const state = makeState();
+    const { sink, calls } = makeSink();
+
+    routeVassalAutoPeace(state, { vassalId: 'p3', overlordId: 'p1', targetCivId: 'p2' }, sink);
+
+    expect(calls).toEqual([
+      expect.objectContaining({
+        civId: 'p3',
+        message: expect.stringMatching(/Alice made peace with Bob, so your war with them has ended/i),
+        type: 'info',
+      }),
+    ]);
+    // never leaks to the overlord or the former enemy
+    expect(calls.find(c => c.civId === 'p1')).toBeUndefined();
+    expect(calls.find(c => c.civId === 'p2')).toBeUndefined();
   });
 
   it('peace-requested writes only to the recipient civ', () => {
