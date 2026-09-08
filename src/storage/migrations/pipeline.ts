@@ -29,6 +29,7 @@ const UNCONDITIONAL_ORDER: readonly string[] = [
   'general-career-ledger',                  // repair
   'vassalage',                              // repair
   'bilateral-war',                          // repair (#995) — self-contained, only touches diplomacy.atWarWith
+  'cargo-reciprocity',                      // repair (#1000) — self-contained, only touches units + civ.units rosters
   'city-faith-conversion-progress',         // compatibility
   'retimed-biplane-queues',                 // compatibility
   'coastal-battery-counterfire-turns',      // repair

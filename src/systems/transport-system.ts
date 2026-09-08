@@ -41,11 +41,24 @@ function failure(reason: TransportFailureReason, message: string): TransportChec
   return { ok: false, reason, message };
 }
 
-function isTransport(unit: Unit | undefined): unit is Unit {
+/**
+ * A unit that can carry land-unit cargo: a naval hull whose definition declares
+ * `cargoCapacity`. The single definition of "is this a transport" — used by the
+ * load/unload helpers here and by the `assertCargoReciprocity` invariant and its
+ * `normalizeCargoReciprocity` repair (#1000), so all three agree.
+ *
+ * Returns a plain `boolean` (not a `unit is Unit` type guard): "transport" is a
+ * property of `unit.type`, not a structural subtype of `Unit`, so a guard here
+ * would narrow the *false* branch of an already-`Unit` value to `never`. Callers
+ * that pass `Unit | undefined` keep their own explicit existence check.
+ */
+export function isNavalTransportUnit(unit: Unit | undefined): boolean {
   if (!unit) return false;
   const def = UNIT_DEFINITIONS[unit.type];
   return Boolean(def && (def.domain ?? 'land') === 'naval' && def.cargoCapacity !== undefined);
 }
+
+const isTransport = isNavalTransportUnit;
 
 function normalizeDestination(state: GameState, coord: HexCoord): HexCoord {
   return state.map.wrapsHorizontally ? wrapHexCoord(coord, state.map.width) : { ...coord };
@@ -153,7 +166,7 @@ export function getEmbarkedAssaultTarget(
   const cargo = state.units[cargoUnitId];
   if (!cargo || !cargo.transportId || !canCargoSpendUnloadAction(cargo)) return { ok: false, reason: 'no-target' };
   const transport = state.units[cargo.transportId];
-  if (!isTransport(transport) || transport.owner !== cargo.owner || !(transport.cargoUnitIds ?? []).includes(cargo.id)) {
+  if (!transport || !isTransport(transport) || transport.owner !== cargo.owner || !(transport.cargoUnitIds ?? []).includes(cargo.id)) {
     return { ok: false, reason: 'no-target' };
   }
   const destination = normalizeDestination(state, coord);
@@ -301,7 +314,7 @@ export function loadUnitOntoTransport(
 
 export function getUnloadDestinations(state: GameState, transportId: string, cargoUnitId: string): HexCoord[] {
   const transport = state.units[transportId];
-  if (!isTransport(transport) || getTransportCargo(state, transportId).length === 0) return [];
+  if (!transport || !isTransport(transport) || getTransportCargo(state, transportId).length === 0) return [];
   const cargo = state.units[cargoUnitId];
   if (!cargo || cargo.transportId !== transportId) return [];
   if (!canCargoSpendUnloadAction(cargo)) return [];
@@ -379,7 +392,7 @@ export function unloadUnitFromTransport(
 
 export function syncTransportCargoPositions(state: GameState, transportId: string): GameState {
   const transport = state.units[transportId];
-  if (!isTransport(transport) || !(transport.cargoUnitIds ?? []).length) return state;
+  if (!transport || !isTransport(transport) || !(transport.cargoUnitIds ?? []).length) return state;
 
   let changed = false;
   const nextUnits = { ...state.units };

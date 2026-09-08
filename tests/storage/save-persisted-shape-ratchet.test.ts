@@ -44,7 +44,16 @@ const UPDATING = process.env.UPDATE_PERSISTED_SHAPE === '1';
  * field under rule (2) of `.claude/rules/game-systems.md` → "A persistent
  * GameState shape change needs a migration or a proof it does not (#1006)".
  */
-const ADDITIVE_WITHOUT_MIGRATION: Readonly<Record<string, string>> = {};
+const ADDITIVE_WITHOUT_MIGRATION: Readonly<Record<string, string>> = {
+  // Long-pre-existing optional `Unit` fields (the naval transport ⇔ land cargo
+  // dual reference). They predate this ratchet; no matrix fixture had a loaded
+  // transport until #1000's `cargo-reciprocity` malformed-repair case, which is
+  // the first to populate them. A save with no loaded transport simply has
+  // neither key, and every reader guards with `?? []` / `!unit.transportId`
+  // (~80 sites) — so an old save needs no migration for them.
+  'units.*.cargoUnitIds': '#1000 — pre-existing optional Unit field; absent on any save with no loaded transport; all readers tolerate absence.',
+  'units.*.transportId': '#1000 — pre-existing optional Unit field; absent on any save with no embarked land unit; all readers tolerate absence.',
+};
 
 describe('#1023 persisted-save-shape ratchet', () => {
   // Union across every matrix fixture: one save never exercises every optional

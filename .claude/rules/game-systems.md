@@ -192,3 +192,34 @@ never recursive.
 - Load/unload rules, cargo capacity, cargo position sync, and transport destruction cascades must live in shared system helpers, not in UI-only branches.
 - Loading and unloading consume the land unit/cargo action state, not the ship action state.
 - If a transport is removed by combat or another actor-agnostic lifecycle path, all cargo must be removed from `state.units` and owner unit rosters in the same mutation.
+
+### Two carriage models, kept separate on purpose (#1000)
+
+There are **two** unrelated "unit A carries unit B" systems. They are shaped
+differently, and #1000 deliberately did **not** unify them.
+
+| | Naval transport ↔ land cargo | Carrier / city ↔ based aircraft |
+|---|---|---|
+| Representation | **Dual reference**: `transport.cargoUnitIds: string[]` on the hull ⇔ `cargo.transportId: string` on the rider | **Single reference**: `aircraft.airBase: AirBaseRef` only; the roster is *derived* by `getAirBaseRoster` scanning every unit for a matching `airBase` |
+| "Is this a carrier" | `isNavalTransportUnit(unit)` (`transport-system.ts`) — naval domain + `cargoCapacity` defined. The one definition, shared by the load/unload helpers, the `assertCargoReciprocity` invariant, and the `normalizeCargoReciprocity` repair | `UNIT_DEFINITIONS[type].carrierDeckCapacity != null` (any carrier-family hull, #582) |
+| Capacity | `getTransportCapacity` (`cargoCapacity`), used against `getUnitCargoSize` sums | `getAirBaseCapacity` — `carrierDeckCapacity` for a carrier; the host city's buildings/projects for a city base |
+| Legal transitions | `loadUnitOntoTransport` / `unloadUnitFromTransport` (+ `syncTransportCargoPositions` on hull move) | `baseNewAirUnit` / `rebaseAircraft` / `resolveAirBaseLoss` (+ `syncCarrierBasedAircraft` on hull move) |
+
+**Why dual for naval cargo:** ~80 map-scan sites ask "is this unit an occupying
+map entity?" and must exclude cargo with a cheap `!unit.transportId` check;
+capacity, the cargo UI panel, combat rewards, the pirate prize and the
+lifecycle cascade all read `cargoUnitIds` directly. A single derived model would
+turn every one of those ~80 checks into a scan of all units. **Why single for
+aircraft:** there is no equivalent hot path — air units are few, and a derived
+`getAirBaseRoster` scan is affordable; a reciprocal list on the hull would be
+one more thing for `rebaseAircraft` / carrier-loss to keep in sync for no
+performance gain. Collapsing either onto the other was evaluated and rejected on
+these grounds — see the #1000 MR description for the full write-up.
+
+### The reciprocity contract both must satisfy
+
+- **`assertCargoReciprocity` + `assertAirBaseIntegrity`** (`tests/helpers/save-state-invariants.ts`, both in `SAVE_STATE_INVARIANTS`) are the shared structural validators — run by the save-compat matrix, the AI-playability fixture, and `assertSaveStateInvariants`. Call them at the end of any test that loads/unloads cargo, moves a loaded hull, or rebases/destroys a carrier.
+- Naval: `cargoUnitIds[i]` ⇔ `transportId`, both endpoints live, same owner, cargo is a land unit that is not itself a transport, one unit aboard at most one ship, total `getUnitCargoSize` ≤ capacity, and **cargo sits on the hull's tile** (it is not an occupying map unit — it tracks the hull).
+- Air: the `airBase` host resolves (live city, or live carrier-capable hull), shares the aircraft's owner, the aircraft sits on the host's tile, and the derived roster never exceeds `getAirBaseCapacity`.
+- **`normalizeCargoReciprocity`** (`src/storage/migrations/steps/cargo-reciprocity.ts`, a `CORRUPTION_REPAIRS` entry — no version bump) scrubs hand-edited saves the helpers never write: a dangling/one-sided/duplicated `transportId` or manifest entry, an over-capacity or wrong-owner manifest, a transport listed as cargo, position drift. A trimmed **land** rider becomes a free unit at its tile (always valid). A based **aircraft** whose base is gone is **removed** (units + owner roster) — matching `resolveAirBaseLoss` ("cannot evacuate ⇒ destroyed"); a grounded based-aircraft is a state the game has no other way to produce, so it is not left lying around.
+- **Adding a third way a unit can carry another** (a land mech-carrier, a submarine pen, …)? Pick dual-reference only if a hot path needs the back-pointer; add its rules to the matching `assert*`/`normalize*`; never fold it into `resolveUnitMoveIntent` (carriage is not a walk).
