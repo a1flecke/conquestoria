@@ -356,17 +356,20 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
   function handleVictoryIfNeeded(): boolean {
     const state = session.getState();
     if (!state.gameOver) return false;
-    const winnerCiv = state.winner
-      ? state.civilizations[state.winner]
-      : undefined;
-    const winnerName = winnerCiv?.name ?? state.winner ?? '';
+    const sharedResult = state.hotSeat !== undefined;
     const outcome = state.winner === state.currentPlayer ? 'victory' : 'defeat';
+    const winnerName = sharedResult
+      ? ''
+      : outcome === 'victory'
+        ? state.civilizations[state.winner ?? '']?.name ?? 'Your empire'
+        : 'A rival empire';
     deps.setBlockingOverlay('victory');
     showVictoryPanel(uiLayer, {
       winnerName,
-      victoryType: outcome === 'victory' ? 'Domination Victory' : 'Campaign Defeat',
+      victoryType: sharedResult ? 'Campaign Finished' : outcome === 'victory' ? 'Domination Victory' : 'Campaign Defeat',
       outcome,
       reason: state.gameOverReason ?? 'domination',
+      sharedResult,
       turn: state.turn,
       onNewGame: () => {
         deps.getElementById('victory-panel')?.remove();
@@ -694,6 +697,10 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
 
   async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<void> {
     if (session.getState().gameOver) return;
+    if (selection.getPendingIntent().kind === 'city-capture') {
+      deps.showNotification('Choose whether to occupy or raze the captured city before ending the turn.', 'info');
+      return;
+    }
     try {
       if (showReligionBoonIfNeeded()) {
         deps.showNotification('Choose a boon for your religion before ending the turn.', 'info');

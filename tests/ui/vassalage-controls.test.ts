@@ -36,6 +36,7 @@ describe('live vassalage diplomacy controls', () => {
     expect(h.action).toHaveBeenCalledTimes(1);
     expect(h.container.textContent).toContain('Awaiting');
     expect(h.container.textContent).toContain('25%');
+    expect(h.container.textContent).toContain('cannot win independently');
     h.viewer('overlord');
     h.click('Accept Vassalage');
     expect(h.container.textContent).toContain('Your vassal');

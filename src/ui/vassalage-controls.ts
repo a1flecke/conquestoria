@@ -45,7 +45,7 @@ export function createVassalageControls(state: GameState, otherId: string, callb
   const eligible = getVassalageEligibility(state, viewerId, otherId).ok;
   if (!vassal && !incoming && !outgoing && !eligible) return box;
   const share = VASSALAGE_TRIBUTE_RATE * 100;
-  text(`Vassalage: the vassal pays ${share}% of positive gold income before treasury upkeep (rounded down), joins the overlord's wars, and gives up independent war and treaty choices. Protection is a promise to respond, not an automatic human decision.`);
+  text(`Vassalage: the vassal pays ${share}% of positive gold income before treasury upkeep (rounded down), joins the overlord's wars, and gives up independent war and treaty choices. A vassal cannot win independently; if every other empire is defeated or a vassal, the overlord wins when the round finishes. Protection is a promise to respond, not an automatic human decision.`);
   if (vassal) {
     const role = vassal === viewer ? 'Your overlord' : 'Your vassal';
     text(`${role}: ${other.name}. Protection: ${vassal.diplomacy.vassalage.protectionScore}/100. ${vassal === viewer ? 'You pay' : 'You receive'} ${share}% tribute.`);

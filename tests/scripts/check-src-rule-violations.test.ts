@@ -235,4 +235,42 @@ describe('check-src-rule-violations.sh', () => {
       expect(result.stderr).toBe('');
     });
   });
+
+  describe('#985 domination authority boundaries', () => {
+    it('blocks UI and AI imports of the authoritative domination adapter', () => {
+      const workspace = makeWorkspace();
+      writeWorkspaceFile(
+        workspace,
+        'src/ui/domination-panel.ts',
+        "import { buildDominationActorFacts } from '@/systems/domination-sovereignty';",
+      );
+
+      const result = runScript(workspace, 'src/ui/domination-panel.ts');
+
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain('Authoritative domination queries are not available to UI or AI');
+    });
+
+    it('blocks roster-based liveness in the victory adapter but permits canonical liveness', () => {
+      const workspace = makeWorkspace();
+      writeWorkspaceFile(
+        workspace,
+        'src/systems/victory-system.ts',
+        'const survivors = state.civilizations[civId].units.length;',
+      );
+      writeWorkspaceFile(
+        workspace,
+        'src/systems/domination-sovereignty.ts',
+        "import { getCivilizationLiveness } from './civilization-liveness';\nconst living = getCivilizationLiveness(state, civId);",
+      );
+
+      const bad = runScript(workspace, 'src/systems/victory-system.ts');
+      const good = runScript(workspace, 'src/systems/domination-sovereignty.ts');
+
+      expect(bad.status).toBe(2);
+      expect(bad.stderr).toContain('Victory may not use civilization roster lengths for liveness');
+      expect(good.status).toBe(0);
+      expect(good.stderr).toBe('');
+    });
+  });
 });

@@ -74,6 +74,15 @@ The full `migrate → normalize → run a few rounds → save → reload → sha
 
 ## Bilateral Diplomacy
 
+## Domination authority
+
+- `domination-sovereignty.ts` and `victory-system.ts` are authoritative world
+  queries. UI and AI code must consume observer-safe presentation/knowledge
+  DTOs or doctrine instead; they must not import either module directly.
+- `victory-system.ts` must use canonical sovereignty facts and must never
+  infer survival from civilization `cities` or `units` rosters. The adapter
+  owns only the final formula and completed-round resolution.
+
 ### Major-war state is bilateral by construction (#995)
 
 - **Never hand-roll both sides.** Major↔major war/peace goes through the bilateral

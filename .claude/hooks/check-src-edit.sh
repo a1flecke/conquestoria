@@ -181,6 +181,26 @@ $war_lines"
     ;;
 esac
 
+# --- domination authority boundary (#985): UI/AI consume observer-safe DTOs
+# rather than the omniscient victory or sovereignty query. The victory adapter
+# itself must use the canonical sovereignty facts rather than roster lengths.
+case "$file_path" in
+  */src/ui/*|*/src/ai/*)
+    domination_lines="$(grep -nE "from ['\"][^'\"]*(domination-sovereignty|victory-system)['\"]" "$file_path" | head -5 || true)"
+    if [ -n "$domination_lines" ]; then
+      append "Authoritative domination queries are not available to UI or AI — consume observer-safe presentation/knowledge DTOs instead (see .claude/rules/game-systems.md#domination-authority):
+$domination_lines"
+    fi
+    ;;
+  */src/systems/victory-system.ts)
+    roster_lines="$(grep -nE 'civilizations(\[[^]]+\]|\.[A-Za-z0-9_]+)\.(cities|units)' "$file_path" | head -5 || true)"
+    if [ -n "$roster_lines" ]; then
+      append "Victory may not use civilization roster lengths for liveness — consume canonical domination sovereignty facts instead (see .claude/rules/game-systems.md#domination-authority):
+$roster_lines"
+    fi
+    ;;
+esac
+
 # --- innerHTML with template-literal game text ---
 if grep -nE 'innerHTML\s*=\s*`[^`]*\$\{' "$file_path" >/dev/null; then
   lines="$(grep -nE 'innerHTML\s*=\s*`[^`]*\$\{' "$file_path" | head -5)"

@@ -1,6 +1,6 @@
 import type { AdvisorType, GameEvents, GameState } from './types';
 import { EventBus } from './event-bus';
-import { checkDominationVictory } from '@/systems/victory-system';
+import { finalizeDominationVictory } from '@/systems/victory-system';
 import { resetUnitTurn, createUnit, healUnit, findPath, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getLocalCityHealingBonus, processCity, TRAINABLE_UNITS, BUILDINGS } from '@/systems/city-system';
 import { transferCapturedCityOwnership } from '@/systems/city-capture-system';
@@ -689,7 +689,7 @@ export function processTurn(
       if (unit?.automation?.mode === 'auto-explore') {
         applyAutoExploreOrder(newState, unitId, { bus });
       } else if (unit?.automation?.mode === 'hold-siege') {
-        applyHoldSiegeOrder(newState, unitId, unit.automation.cityId, bus);
+        newState = applyHoldSiegeOrder(newState, unitId, unit.automation.cityId, bus);
       } else if (unit?.automation?.mode === 'journey') {
         const destination = unit.automation.destination;
         const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
@@ -1598,22 +1598,14 @@ export function processTurn(
     emitEconomyStrainIfNeeded(previousEconomyStatusByCiv[civId], newState.economyStatusByCiv![civId], bus, civId);
   }
 
-  newState = finalizeOpponentRoundState(newState);
+  liveness = reconcileCivilizationLiveness(newState, newState);
+  emitCivilizationLivenessTransitions(liveness, bus);
+  newState = finalizeOpponentRoundState(liveness.state);
 
   // --- Advance turn ---
   newState.turn += 1;
-
+  newState = finalizeDominationVictory(newState, bus);
   bus.emit('turn:start', { turn: newState.turn, playerId: newState.currentPlayer });
-
-  // --- Domination victory check ---
-  if (!newState.gameOver) {
-    const victorId = checkDominationVictory(newState);
-    if (victorId !== null) {
-      newState.gameOver = true;
-      newState.winner = victorId;
-      newState.gameOverReason = 'domination';
-    }
-  }
 
   return newState;
 }
@@ -1631,49 +1623,54 @@ export function applyHoldSiegeOrder(
   unitId: string,
   cityId: string,
   bus: EventBus,
-): void {
+): GameState {
+  let nextState = state;
   const clear = (reason: string) => {
-    const current = state.units[unitId];
-    if (current) state.units[unitId] = { ...current, automation: undefined };
+    const current = nextState.units[unitId];
+    if (current) {
+      nextState = {
+        ...nextState,
+        units: { ...nextState.units, [unitId]: { ...current, automation: undefined } },
+      };
+    }
     bus.emit('unit:hold-siege-ended', { unitId, cityId, reason });
   };
 
-  const unit = state.units[unitId];
-  const city = state.cities[cityId];
-  if (!unit) return;
+  const unit = nextState.units[unitId];
+  const city = nextState.cities[cityId];
+  if (!unit) return nextState;
   if (!city) {
     clear('The city is gone.');
-    return;
+    return nextState;
   }
   if (city.owner === unit.owner) {
     clear(`${city.name} is yours now.`);
-    return;
+    return nextState;
   }
 
-  const bombard = resolveCityInteraction(state, unit, city).available
+  const bombard = resolveCityInteraction(nextState, unit, city).available
     .find(action => action.kind === 'bombard');
   if (!bombard) {
-    const denial = resolveCityInteraction(state, unit, city).denied
+    const denial = resolveCityInteraction(nextState, unit, city).denied
       .find(entry => entry.kind === 'bombard');
     clear(denial?.reason ?? `Your unit can no longer bombard ${city.name}.`);
-    return;
+    return nextState;
   }
 
-  const result = resolveUnitCityBombardment(state, { attackerUnitId: unitId, cityId, source: 'player' });
+  const result = resolveUnitCityBombardment(nextState, { attackerUnitId: unitId, cityId, source: 'player' });
   if (!result.ok) {
     clear(`Your unit can no longer bombard ${city.name}.`);
-    return;
+    return nextState;
   }
 
-  state.cities = result.state.cities;
-  state.units = result.state.units;
-  state.civilizations = result.state.civilizations;
+  nextState = result.state;
   if (result.cityEvent) bus.emit('city:bombarded', result.cityEvent);
   if (result.batteryEvent) bus.emit('city:coastal-battery-fired', result.batteryEvent);
 
   // Taking return fire ends the order: a standing order must not quietly grind a unit to
   // death while the player is looking elsewhere.
-  if (result.counterFireDamage > 0 && state.units[unitId]) {
+  if (result.counterFireDamage > 0 && nextState.units[unitId]) {
     clear(`Your unit is under fire at ${city.name}.`);
   }
+  return nextState;
 }

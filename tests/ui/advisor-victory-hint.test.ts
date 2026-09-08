@@ -37,7 +37,9 @@ describe('warchief_domination_hint advisor message', () => {
     const advisor = new AdvisorSystem(bus);
     const texts = drainMessages(advisor, state, bus);
 
-    expect(texts.some(t => t.toLowerCase().includes('domination'))).toBe(true);
+    const hint = texts.find(t => t.toLowerCase().includes('domination'));
+    expect(hint).toContain('vassals');
+    expect(hint).not.toContain('leave no enemy city standing');
   });
 
   it('does NOT fire after turn 5', () => {

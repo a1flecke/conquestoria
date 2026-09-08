@@ -283,4 +283,23 @@ export function createRng(seed: string): () => number {
 EOF
 expect_allow "$tmp/src/systems/map-generator.ts" "map-generator.ts permanent RNG exemption"
 
+# --- #985: UI/AI may not import omniscient domination authority ---
+cat > "$tmp/src/ui/domination-panel.ts" <<'EOF'
+import { buildDominationActorFacts } from '@/systems/domination-sovereignty';
+EOF
+expect_block "$tmp/src/ui/domination-panel.ts" "UI authoritative domination import"
+
+# --- #985: victory must use sovereignty facts, not civilization roster liveness ---
+cat > "$tmp/src/systems/victory-system.ts" <<'EOF'
+const survivors = state.civilizations[civId].units.length;
+EOF
+expect_block "$tmp/src/systems/victory-system.ts" "victory roster-based liveness"
+
+# --- #985: canonical liveness consumer remains lawful ---
+cat > "$tmp/src/systems/domination-sovereignty.ts" <<'EOF'
+import { getCivilizationLiveness } from './civilization-liveness';
+const living = getCivilizationLiveness(state, civId);
+EOF
+expect_allow "$tmp/src/systems/domination-sovereignty.ts" "canonical domination liveness consumer"
+
 exit "$fail"

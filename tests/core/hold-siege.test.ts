@@ -48,11 +48,11 @@ describe('#974 Hold Siege', () => {
     const bombarded = vi.fn();
     bus.on('city:bombarded', bombarded);
 
-    applyHoldSiegeOrder(state, 'gun', 'target', bus);
+    const result = applyHoldSiegeOrder(state, 'gun', 'target', bus);
 
-    expect(state.cities.target.hp).toBeLessThan(90);
+    expect(result.cities.target.hp).toBeLessThan(90);
     expect(bombarded).toHaveBeenCalledTimes(1);
-    expect(state.units.gun.automation).toEqual({ mode: 'hold-siege', cityId: 'target', startedTurn: 20 });
+    expect(result.units.gun.automation).toEqual({ mode: 'hold-siege', cityId: 'target', startedTurn: 20 });
   });
 
   it('re-checks legality through the same resolver a manual tap uses', () => {
@@ -63,9 +63,9 @@ describe('#974 Hold Siege', () => {
     const ended = vi.fn();
     bus.on('unit:hold-siege-ended', ended);
 
-    applyHoldSiegeOrder(state, 'gun', 'target', bus);
+    const result = applyHoldSiegeOrder(state, 'gun', 'target', bus);
 
-    expect(state.units.gun.automation).toBeUndefined();
+    expect(result.units.gun.automation).toBeUndefined();
     expect(ended).toHaveBeenCalledWith(expect.objectContaining({ unitId: 'gun', reason: 'Move closer to attack this city.' }));
   });
 
@@ -76,9 +76,9 @@ describe('#974 Hold Siege', () => {
     const ended = vi.fn();
     bus.on('unit:hold-siege-ended', ended);
 
-    applyHoldSiegeOrder(state, 'gun', 'target', bus);
+    const result = applyHoldSiegeOrder(state, 'gun', 'target', bus);
 
-    expect(state.units.gun.automation).toBeUndefined();
+    expect(result.units.gun.automation).toBeUndefined();
     expect(ended).toHaveBeenCalledWith(expect.objectContaining({ reason: expect.stringContaining('yours') }));
   });
 
@@ -89,9 +89,9 @@ describe('#974 Hold Siege', () => {
     const ended = vi.fn();
     bus.on('unit:hold-siege-ended', ended);
 
-    applyHoldSiegeOrder(state, 'gun', 'target', bus);
+    const result = applyHoldSiegeOrder(state, 'gun', 'target', bus);
 
-    expect(state.units.gun.automation).toBeUndefined();
+    expect(result.units.gun.automation).toBeUndefined();
     expect(ended).toHaveBeenCalledWith(expect.objectContaining({ reason: 'The city is gone.' }));
   });
 
@@ -102,9 +102,9 @@ describe('#974 Hold Siege', () => {
     const ended = vi.fn();
     bus.on('unit:hold-siege-ended', ended);
 
-    applyHoldSiegeOrder(state, 'gun', 'target', bus);
+    const result = applyHoldSiegeOrder(state, 'gun', 'target', bus);
 
-    expect(state.units.gun.automation).toBeUndefined();
+    expect(result.units.gun.automation).toBeUndefined();
     expect(ended).toHaveBeenCalledWith(expect.objectContaining({
       reason: 'This city has taken all the bombardment it can this turn.',
     }));
@@ -117,9 +117,9 @@ describe('#974 Hold Siege', () => {
     const ended = vi.fn();
     bus.on('unit:hold-siege-ended', ended);
 
-    applyHoldSiegeOrder(state, 'gun', 'target', bus);
+    const result = applyHoldSiegeOrder(state, 'gun', 'target', bus);
 
-    expect(state.units.gun?.automation).toBeUndefined();
+    expect(result.units.gun?.automation).toBeUndefined();
     expect(ended).toHaveBeenCalledWith(expect.objectContaining({ reason: expect.stringContaining('under fire') }));
   });
 });
