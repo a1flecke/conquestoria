@@ -198,9 +198,10 @@ export function showTurnHandoff(
 
   const renderOutOfGameRoster = (before?: Node | null): void => {
     card.querySelector('[data-role="out-of-game-players"]')?.remove();
-    const outOfGameNames = Object.values(currentState.civilizations)
-      .filter(civ => civ.isHuman && !getCivilizationLiveness(currentState, civ.id).living)
-      .map(civ => civ.name)
+    const outOfGameNames = (currentState.hotSeat?.players ?? [])
+      .filter(player => player.isHuman
+        && !getCivilizationLiveness(currentState, player.slotId).living)
+      .map(player => player.name)
       .sort();
     if (outOfGameNames.length === 0) return;
     const outOfGame = document.createElement('p');

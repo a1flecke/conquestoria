@@ -142,6 +142,7 @@ describe('turn handoff', () => {
       onReady: vi.fn(),
     });
     const completed = structuredClone(state);
+    completed.civilizations['player-1'].name = 'Egypt';
     completed.civilizations['player-1'].isEliminated = true;
 
     controller.setReady(completed);
