@@ -1,4 +1,5 @@
 import type { CouncilInterrupt, GameState, GameEvent } from './types';
+import { majorCivWarOpponentIds } from './owner-kind';
 
 export function collectEvent(
   pending: Record<string, GameEvent[]>,
@@ -84,7 +85,8 @@ export function generateSummary(
     units: civ?.units.length ?? 0,
     currentResearch: civ?.techState.currentResearch ?? null,
     researchProgress: civ?.techState.researchProgress ?? 0,
-    atWarWith: civ?.diplomacy?.atWarWith ?? [],
+    // Handoff card lists these as enemy empires — major-civ wars only (#1041).
+    atWarWith: majorCivWarOpponentIds(civ?.diplomacy?.atWarWith),
     allies,
     events: pending[civId] ?? [],
   };

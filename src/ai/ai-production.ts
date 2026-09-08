@@ -41,6 +41,7 @@ import { buildMajorCivPerception } from './ai-perception';
 import { getChallengeProfileForCiv } from '@/core/opponent-challenge';
 import { getMarginalCivResearchGain } from '@/systems/research-output-system';
 import { getCapitalCityId } from '@/systems/capital-system';
+import { majorCivWarOpponentIds } from '@/core/owner-kind';
 
 export interface AIProductionCandidate {
   itemId: string;
@@ -253,7 +254,9 @@ function strategicArsenalValueScore(state: GameState, civId: string, buildingId:
   const building = BUILDINGS[buildingId];
   if (!building?.arsenalCapacityGated) return 0;
   const civ = state.civilizations[civId];
-  const warCount = Math.min(civ?.diplomacy.atWarWith.length ?? 0, STRATEGIC_ARSENAL_VALUE_MAX_WARS);
+  // Nuclear-arsenal value scales with MAJOR-civ wars only — a city-state coalition
+  // war should not pull the AI toward silos (#1041).
+  const warCount = Math.min(majorCivWarOpponentIds(civ?.diplomacy.atWarWith).length, STRATEGIC_ARSENAL_VALUE_MAX_WARS);
   return warCount * STRATEGIC_ARSENAL_VALUE_PER_WAR;
 }
 

@@ -7,6 +7,7 @@ import {
   isAlwaysHostilePair,
   isMajorCivOwner,
   isPirateOwner,
+  majorCivWarOpponentIds,
 } from '@/core/owner-kind';
 
 describe('owner-kind', () => {
@@ -52,5 +53,14 @@ describe('owner-kind', () => {
     expect(isAlwaysHostilePair('player', 'crisis-force')).toBe(true);
     expect(isAlwaysHostilePair('crisis-force', 'mc-sparta')).toBe(true);
     expect(isAlwaysHostilePair('crisis-force', 'crisis-force')).toBe(false);
+  });
+
+  it('majorCivWarOpponentIds keeps only major-civ war ids, de-duplicated (#1041)', () => {
+    expect(majorCivWarOpponentIds(['ai-1', 'mc-sparta', 'ai-2', 'barbarian', 'pirate-3', 'rebels']))
+      .toEqual(['ai-1', 'ai-2']);
+    expect(majorCivWarOpponentIds(['ai-1', 'ai-1', 'ai-2'])).toEqual(['ai-1', 'ai-2']);
+    expect(majorCivWarOpponentIds(['mc-athens', 'mc-sparta'])).toEqual([]);
+    expect(majorCivWarOpponentIds([])).toEqual([]);
+    expect(majorCivWarOpponentIds(undefined)).toEqual([]);
   });
 });

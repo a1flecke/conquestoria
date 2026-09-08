@@ -21,6 +21,7 @@ import { hexDistance } from './hex-utils';
 import { canConnectCityToCapitalByOwnedRoad, getCitiesConnectedToCapital } from './road-network';
 import { getCapitalCityId } from './capital-system';
 import { getReservedNationalProjectKeys } from './national-project-system';
+import { majorCivWarOpponentIds } from '@/core/owner-kind';
 
 // #919 MR3 — "given this city's pressure breakdown, what should the player do?"
 // This module is the single source of truth for that answer, and it returns
@@ -182,7 +183,7 @@ const WAR_RESOLVER: GuidanceResolver = {
       ...base,
       kind: 'make-peace',
       availability: 'now',
-      params: { warCivIds: [...(state.civilizations[city.owner]?.diplomacy.atWarWith ?? [])] },
+      params: { warCivIds: majorCivWarOpponentIds(state.civilizations[city.owner]?.diplomacy.atWarWith) },
     };
     if (!buildingBuildableHere('military-administration', state, city)) return makePeace;
     const build: UnrestRecommendation = {

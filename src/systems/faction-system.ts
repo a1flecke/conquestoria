@@ -13,6 +13,7 @@ import { TECH_TREE, resolveCivilizationEra } from './tech-definitions';
 import { BUILDINGS } from './city-system';
 import { getForeignFaithPressure } from './religion-loyalty-system';
 import { canConnectCityToCapitalByOwnedRoad, getCitiesConnectedToCapital } from './road-network';
+import { majorCivWarOpponentIds } from '../core/owner-kind';
 
 // --- Thresholds ---
 export const UNREST_TRIGGER_PRESSURE = 40;
@@ -486,8 +487,9 @@ export function getUnrestPressureBreakdown(
     }
   }
 
-  // War weariness
-  const atWarCount = civ.diplomacy.atWarWith?.length ?? 0;
+  // War weariness — major-civ wars only. Minor-civ (city-state) war state also
+  // rides atWarWith, but "war weariness" is an imperial concept (#1041).
+  const atWarCount = majorCivWarOpponentIds(civ.diplomacy.atWarWith).length;
   const warPressure = Math.min(MAX_PRESSURE_WAR, atWarCount * 8);
   if (warPressure > 0) rows.push({ label: 'War weariness', amount: warPressure });
 
