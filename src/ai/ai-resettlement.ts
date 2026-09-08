@@ -38,8 +38,7 @@ function processEmbarkedSettler(state: GameState, civId: string, settler: Unit):
   const destinations = getUnloadDestinations(state, settler.transportId, settler.id)
     .filter(destination => getVisibility(visibility, destination) === 'visible')
     .sort((left, right) => hexKey(left).localeCompare(hexKey(right)));
-  const destination = destinations.find(candidate => canFoundCityAt(state, candidate))
-    ?? destinations[0];
+  const destination = destinations[0];
   if (!destination) return state;
   const unloaded = unloadUnitFromTransport(state, settler.transportId, settler.id, destination);
   return unloaded.ok ? unloaded.state : state;
