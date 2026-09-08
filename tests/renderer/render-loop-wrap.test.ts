@@ -531,6 +531,37 @@ describe('render-loop wrap parity', () => {
     nowSpy.mockRestore();
   });
 
+  it('#1039: still fires the completion callback when the destination tile is unexplored', () => {
+    const nowSpy = vi.spyOn(performance, 'now').mockReturnValue(0);
+    const loop = new RenderLoop(createCanvas());
+    const unit = {
+      id: 'u1', owner: 'player', type: 'warrior', position: { q: 0, r: 0 },
+      movementPointsLeft: 1, health: 100, experience: 0, hasMoved: true,
+      hasActed: false, isResting: false,
+    } as Unit;
+    const state = {
+      turn: 1,
+      currentPlayer: 'player',
+      map: { width: 5, height: 3, wrapsHorizontally: false, tiles: {}, rivers: [] },
+      tribalVillages: {}, minorCivs: {}, cities: {}, units: { u1: unit },
+      // '1,0' — the move destination — is NOT in the visibility map, so it reads
+      // as 'unexplored'. The slide is not drawn, but the callback must still run.
+      civilizations: { player: { color: '#4a90d9', visibility: { tiles: {} } } },
+    } as unknown as GameState;
+    let completed = false;
+
+    loop.setGameState(state);
+    loop.camera.isHexVisible = () => true;
+    loop.animateUnitMove(unit, [{ q: 0, r: 0 }, { q: 1, r: 0 }], () => { completed = true; });
+    nowSpy.mockReturnValue(1000); // past the animation duration
+
+    (loop as unknown as { render: () => void }).render();
+
+    expect(completed).toBe(true);
+    expect(loop.hasMovingUnit('u1')).toBe(false);
+    nowSpy.mockRestore();
+  });
+
   it('drops a normal movement snapshot when the authoritative unit is deleted', () => {
     rendererMocks.drawUnitGlyph.mockReset();
     const nowSpy = vi.spyOn(performance, 'now').mockReturnValue(0);
