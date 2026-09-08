@@ -92,6 +92,26 @@ describe('AI modernization', () => {
     expect(result.state.civilizations[AI].gold).toBe(475);
   });
 
+  it('preserves a recovery-reserved unit and its existing upgrade route', () => {
+    const state = setup();
+    const city = addCity(state, 'safe-city', { q: 0, r: 0 });
+    addObsolete(state, 'veteran', city.position);
+    state.opponentAI!.majorCivs[AI].upgradeRoutesByUnitId.veteran = {
+      cityId: city.id,
+      createdTurn: state.turn - 1,
+    };
+
+    const result = processAIUpgrades(state, AI, prepared(state), new EventBus(), {
+      excludedUnitIds: new Set(['veteran']),
+    });
+
+    expect(result.upgradedUnitIds).toEqual([]);
+    expect(result.routedUnitIds).toEqual([]);
+    expect(result.state.units.veteran.type).toBe('spy_scout');
+    expect(result.state.opponentAI!.majorCivs[AI].upgradeRoutesByUnitId.veteran)
+      .toEqual({ cityId: city.id, createdTurn: state.turn - 1 });
+  });
+
   it('does not spend the emergency treasury reserve', () => {
     const state = setup();
     const city = addCity(state, 'safe-city', { q: 0, r: 0 });

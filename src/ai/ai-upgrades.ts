@@ -173,6 +173,7 @@ export function processAIUpgrades(
   civId: string,
   prepared: PreparedMajorCivPlan,
   bus: EventBus,
+  options: { excludedUnitIds?: ReadonlySet<string> } = {},
 ): ProcessAIUpgradesResult {
   const civ = state.civilizations[civId];
   if (!civ) return { state, upgradedUnitIds: [], routedUnitIds: [] };
@@ -182,6 +183,7 @@ export function processAIUpgrades(
   );
   const upgradedUnitIds: string[] = [];
   const routedUnitIds: string[] = [];
+  const excludedUnitIds = options.excludedUnitIds ?? new Set<string>();
   const availableResources = getCivAvailableResources(working, civId);
   const reserve = treasuryReserve(working, civId);
   const challenge = resolveOpponentChallenge(working);
@@ -192,6 +194,7 @@ export function processAIUpgrades(
   );
 
   for (const unitId of Object.keys(portfolio.upgradeRoutesByUnitId).sort()) {
+    if (excludedUnitIds.has(unitId)) continue;
     const unit = working.units[unitId];
     const route = portfolio.upgradeRoutesByUnitId[unitId];
     const city = route ? working.cities[route.cityId] : undefined;
@@ -229,6 +232,7 @@ export function processAIUpgrades(
     .filter((unit): unit is Unit =>
       Boolean(unit)
       && unit.owner === civId
+      && !excludedUnitIds.has(unit.id)
       && eligibleForModernization(unit, civ.techState.completed, availableResources))
     .sort((left, right) => {
       const leftCity = cityAtUnit(working, civId, left);

@@ -102,6 +102,7 @@ import {
 } from './ai-perception';
 import { processMajorCivStrategicTurn } from './ai-major-turn';
 import { processAIResettlement } from './ai-resettlement';
+import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import {
   prepareMajorCivStrategicPlan,
   type PreparedMajorCivPlan,
@@ -591,7 +592,17 @@ function processAITurnInternal(
     bus.emit('wonder:legendary-lost', event);
   }
 
+  const recoveryUnitIds = new Set<string>();
+  if (getCivilizationLiveness(newState, civId).reason === 'settler') {
+    for (const unit of Object.values(newState.units)) {
+      if (unit.owner !== civId || unit.type !== 'settler') continue;
+      recoveryUnitIds.add(unit.id);
+      if (unit.transportId) recoveryUnitIds.add(unit.transportId);
+    }
+  }
+  const beforeResettlement = newState;
   newState = processAIResettlement(newState, civId, bus);
+  if (newState !== beforeResettlement) preparedForTurn = undefined;
   civ = newState.civilizations[civId];
 
   preparedForTurn ??= prepareMajorCivStrategicPlan(
@@ -601,9 +612,11 @@ function processAITurnInternal(
 
   // Strategic movement is plan-driven, while settlement remains a shared
   // administrative action using the canonical mutation helper.
-  const settlers = civ.units
-    .map(id => newState.units[id])
-    .filter((unit): unit is Unit => unit?.type === 'settler');
+  const settlers = Object.values(newState.units)
+    .filter((unit): unit is Unit => unit.owner === civId
+      && unit.type === 'settler'
+      && !unit.transportId
+      && !recoveryUnitIds.has(unit.id));
   for (const settler of settlers) {
     if (
       !settler.hasActed
@@ -799,13 +812,14 @@ function processAITurnInternal(
     .map(id => newState.units[id])
     .filter((unit): unit is Unit =>
       Boolean(unit)
+      && !recoveryUnitIds.has(unit.id)
       && UNIT_DEFINITIONS[unit.type]?.domain === 'naval'
       && UNIT_DEFINITIONS[unit.type]?.cargoCapacity !== undefined);
   for (const transport of idleTransports) {
     let unloaded = false;
     for (const cargo of getTransportCargo(newState, transport.id)) {
       const current = newState.units[cargo.id];
-      if (!current || current.hasActed || current.movementPointsLeft <= 0) continue;
+      if (!current || recoveryUnitIds.has(current.id) || current.hasActed || current.movementPointsLeft <= 0) continue;
       const destination = getUnloadDestinations(newState, transport.id, current.id)
         .find(coord => {
           const owner = newState.map.tiles[hexKey(coord)]?.owner;
@@ -824,6 +838,7 @@ function processAITurnInternal(
       .map(id => newState.units[id])
       .filter((unit): unit is Unit =>
         Boolean(unit)
+        && !recoveryUnitIds.has(unit.id)
         && !unit.transportId
         && !unit.hasActed
         && unit.movementPointsLeft > 0
@@ -844,6 +859,7 @@ function processAITurnInternal(
     newState,
     preparedForTurn,
     bus,
+    { excludedUnitIds: recoveryUnitIds },
   ).state;
   newState = processAIResourceMarketplace(newState, civId);
   civ = newState.civilizations[civId];

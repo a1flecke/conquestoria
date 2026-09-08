@@ -865,6 +865,7 @@ export function processMajorCivStrategicTurn(
   state: GameState,
   prepared: PreparedMajorCivPlan,
   bus: EventBus,
+  options: { excludedUnitIds?: ReadonlySet<string> } = {},
 ): ProcessMajorCivStrategicTurnResult {
   const preparedPlans = [
     ...(prepared.portfolio.primaryPlan
@@ -896,6 +897,7 @@ export function processMajorCivStrategicTurn(
     prepared.civId,
     prepared,
     bus,
+    options,
   ).state;
   const plans = [
     ...Object.values(prepared.portfolio.defensePlansByCityId)
@@ -914,6 +916,7 @@ export function processMajorCivStrategicTurn(
     const assignedUnitIds = [...new Set(requestedUnitIds)].filter(unitId =>
       working.units[unitId]?.owner === prepared.civId
       && !working.units[unitId]?.hasActed
+      && !options.excludedUnitIds?.has(unitId)
       && !Boolean(
         working.opponentAI?.majorCivs[prepared.civId]
           ?.upgradeRoutesByUnitId[unitId],
