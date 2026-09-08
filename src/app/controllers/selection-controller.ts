@@ -148,6 +148,11 @@ export interface SelectionController {
   refreshCurrentPlayerVisibility(): void;
 }
 
+// #1039: how long the unit slide is given to play before focus settles on the
+// next actionable unit. A plain timer, not the animation's completion callback
+// (which is unreliable). Matches the post-combat `selectNextUnit` delay.
+const MOVE_FOCUS_SETTLE_MS = 400;
+
 export function createSelectionController(deps: SelectionControllerDeps): SelectionController {
   const { session, selection, renderLoop, bus, uiLayer, host, ceremonies } = deps;
 
@@ -815,15 +820,23 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
       renderLoop.setGameState(session.getState());
       deps.updateHUD();
       ceremonies.endAction();
-      const unit = session.getState().units[unitId];
-      if (!unit || unit.owner !== session.getState().currentPlayer) return;
-
-      if ((unit.movementPointsLeft ?? 0) <= 0) {
-        selectNextUnit();
-      } else if (selection.getSelectedUnitId() === unitId) {
-        selectUnit(unitId);
-      }
     });
+  }
+
+  // #1039: after a player move settles, focus jumps to the next actionable own
+  // unit if the mover is spent, otherwise the mover's panel is refreshed. This
+  // is scheduled on a plain timer by executeAnimatedUnitMove — never off the
+  // movement-animation completion callback, which can be dropped for a move into
+  // an unexplored tile, a reduced-motion / degenerate-path move, or a frame the
+  // render loop skips, stranding focus on the 0-move unit.
+  function settleFocusAfterMove(unitId: string): void {
+    const unit = session.getState().units[unitId];
+    if (!unit || unit.owner !== session.getState().currentPlayer) return;
+    if ((unit.movementPointsLeft ?? 0) <= 0) {
+      selectNextUnit();
+    } else if (selection.getSelectedUnitId() === unitId) {
+      selectUnit(unitId);
+    }
   }
 
   function executeAnimatedUnitMove(unitId: string, move: () => ExecuteUnitMoveResult): ExecuteUnitMoveResult {
@@ -852,6 +865,9 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
         renderLoop.setJourneyPath(null);
       }
       animateMovedUnit(unitId, moveResult.path);
+      // Deferred so the slide plays first, but on a timer rather than the
+      // animation's completion callback — see settleFocusAfterMove (#1039).
+      setTimeout(() => settleFocusAfterMove(unitId), MOVE_FOCUS_SETTLE_MS);
       return moveResult;
     } catch (error) {
       ceremonies.endAction();

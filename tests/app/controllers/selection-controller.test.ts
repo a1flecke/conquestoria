@@ -372,6 +372,127 @@ describe('SelectionController', () => {
     expect(deps.renderLoop.setSelectedUnitId).toHaveBeenCalledWith('u1');
   });
 
+  // #1039 — after a move settles, focus advances to the next actionable own
+  // unit. This is driven by a timer in executeAnimatedUnitMove, NOT the
+  // movement-animation completion callback (which the render loop can drop for
+  // a move into an unexplored tile, so focus used to stay stranded on the
+  // 0-move unit). The `droppedCallbackRenderer` here NEVER invokes onComplete,
+  // proving the timer path alone is sufficient.
+  function droppedCallbackRenderer(): SelectionControllerRenderer {
+    return fakeRenderer({ animateUnitMove: vi.fn() });
+  }
+
+  function moveExhausting(deps: SelectionControllerDeps, unitId: string, mpLeft: number): ExecuteUnitMoveResult {
+    const s = deps.session.getState();
+    s.units[unitId] = { ...s.units[unitId]!, position: { q: 1, r: 0 }, movementPointsLeft: mpLeft, hasMoved: true };
+    return { ok: true, path: [{ q: 0, r: 0 }, { q: 1, r: 0 }], state: s, events: [] } as unknown as ExecuteUnitMoveResult;
+  }
+
+  it('#1039: a move that exhausts the unit advances focus even if the animation callback never fires', () => {
+    vi.useFakeTimers();
+    try {
+      const state = makeFixture();
+      placePlayerUnit(state, 'u1', { position: { q: 0, r: 0 }, movementPointsLeft: 1 });
+      placePlayerUnit(state, 'u2', { position: { q: 5, r: 0 }, movementPointsLeft: 2 });
+      document.body.innerHTML = '<div id="info-panel"></div>';
+      const deps = baseDeps(state, { renderLoop: droppedCallbackRenderer() });
+      const controller = createSelectionController(deps);
+      controller.selectUnit('u1');
+
+      controller.executeAnimatedUnitMove('u1', () => moveExhausting(deps, 'u1', 0));
+      expect(deps.selection.getSelectedUnitId()).toBe('u1'); // not yet — deferred so the slide plays
+      vi.runAllTimers();
+
+      expect(deps.selection.getSelectedUnitId()).toBe('u2');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('#1039: a move that leaves movement keeps focus on the moved unit', () => {
+    vi.useFakeTimers();
+    try {
+      const state = makeFixture();
+      placePlayerUnit(state, 'u1', { position: { q: 0, r: 0 }, movementPointsLeft: 3 });
+      placePlayerUnit(state, 'u2', { position: { q: 5, r: 0 }, movementPointsLeft: 2 });
+      document.body.innerHTML = '<div id="info-panel"></div>';
+      const deps = baseDeps(state, { renderLoop: droppedCallbackRenderer() });
+      const controller = createSelectionController(deps);
+      controller.selectUnit('u1');
+
+      controller.executeAnimatedUnitMove('u1', () => moveExhausting(deps, 'u1', 2));
+      vi.runAllTimers();
+
+      expect(deps.selection.getSelectedUnitId()).toBe('u1');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('#1039: an exhausting move with no other actionable unit clears the selection', () => {
+    vi.useFakeTimers();
+    try {
+      const state = makeFixture();
+      placePlayerUnit(state, 'u1', { position: { q: 0, r: 0 }, movementPointsLeft: 1 });
+      document.body.innerHTML = '<div id="info-panel"></div>';
+      const deps = baseDeps(state, { renderLoop: droppedCallbackRenderer() });
+      const controller = createSelectionController(deps);
+      controller.selectUnit('u1');
+
+      controller.executeAnimatedUnitMove('u1', () => moveExhausting(deps, 'u1', 0));
+      vi.runAllTimers();
+
+      expect(deps.selection.getSelectedUnitId()).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('#1039: a failed move does not schedule a focus change', () => {
+    vi.useFakeTimers();
+    try {
+      const state = makeFixture();
+      placePlayerUnit(state, 'u1', { position: { q: 0, r: 0 }, movementPointsLeft: 1 });
+      placePlayerUnit(state, 'u2', { position: { q: 5, r: 0 }, movementPointsLeft: 2 });
+      document.body.innerHTML = '<div id="info-panel"></div>';
+      const deps = baseDeps(state, { renderLoop: droppedCallbackRenderer() });
+      const controller = createSelectionController(deps);
+      controller.selectUnit('u1');
+
+      controller.executeAnimatedUnitMove('u1', () => ({ ok: false, message: 'Blocked.' } as unknown as ExecuteUnitMoveResult));
+      vi.runAllTimers();
+
+      expect(deps.selection.getSelectedUnitId()).toBe('u1');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('#1039: a deferred focus settle that lands after a hot-seat handoff does not touch the next seat', () => {
+    vi.useFakeTimers();
+    try {
+      const state = makeFixture();
+      placePlayerUnit(state, 'u1', { position: { q: 0, r: 0 }, movementPointsLeft: 1 });
+      // an opponent-owned actionable unit that must NOT be auto-selected
+      const tmpl = createUnit('warrior', 'ai-1', { q: 8, r: 0 }, idCounters);
+      state.units['enemy-1'] = { ...tmpl, id: 'enemy-1', owner: 'ai-1', position: { q: 8, r: 0 } };
+      state.civilizations['ai-1'].units.push('enemy-1');
+      document.body.innerHTML = '<div id="info-panel"></div>';
+      const deps = baseDeps(state, { renderLoop: droppedCallbackRenderer() });
+      const controller = createSelectionController(deps);
+      controller.selectUnit('u1');
+
+      controller.executeAnimatedUnitMove('u1', () => moveExhausting(deps, 'u1', 0));
+      // handoff happens before the 400ms settle timer fires
+      deps.session.getState().currentPlayer = 'ai-1';
+      vi.runAllTimers();
+
+      expect(deps.selection.getSelectedUnitId()).not.toBe('enemy-1');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('startAutoExplore arms auto-explore automation, re-selects the unit, and publishes through session subscribers', () => {
     const state = makeFixture();
     placePlayerUnit(state, 'u1', { movementPointsLeft: 0 });

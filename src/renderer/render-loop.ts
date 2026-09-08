@@ -912,7 +912,11 @@ export class RenderLoop {
       const progress = Math.min(1, elapsed / animation.duration);
       const frame = getMovementAnimationPosition(animation, progress);
       if (getVisibility(viewerVisibility, animation.to) === 'unexplored') {
+        // Don't draw a slide into a tile the viewer has never seen, but a
+        // finished animation must still fire its completion callback — several
+        // callers `await` it or advance unit focus from it (#1039).
         if (progress < 1) remaining.push(animation);
+        else if (animation.onComplete) completedCallbacks.push(animation.onComplete);
         continue;
       }
       const renderCoords = this.state.map.wrapsHorizontally
