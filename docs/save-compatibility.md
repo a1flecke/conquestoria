@@ -86,6 +86,7 @@ wrote is a bug in the writer, not a reason to keep the repair.**
 | `legendary-wonder-tactical-effects` | Scrubs granted combat roles that are not real roles, so a corrupt file cannot hand a civ a tactical grant the wonder never confers. | 22 |
 | `coastal-battery-counterfire-turns` | Removes non-integer per-city counterfire markers, which would otherwise corrupt counterfire-timing arithmetic. | 13 |
 | `improvement-values` | Clamps unknown improvement ids to "none" and caps build timers at their definition maximum, so a hand-edited tile cannot complete an improvement that does not exist. | — |
+| `bilateral-war` | Repairs one-sided, self-referential and duplicated MAJOR-civ war entries; a one-sided war silently drives war-weariness unrest, AI war-pressure and peace availability off a phantom (#995). | — |
 | `vassalage` | Repairs one-sided, self-referential, duplicated and dangling vassalage roles; an impossible role silently breaks protection obligations and independence checks. | 27 |
 
 ## Dual registrations
@@ -121,10 +122,11 @@ as a refactor.
 7. `generated-generals` (repair)
 8. `general-career-ledger` (repair)
 9. `vassalage` (repair)
-10. `city-faith-conversion-progress` (compatibility)
-11. `retimed-biplane-queues` (compatibility)
-12. `coastal-battery-counterfire-turns` (repair)
-13. `improvement-values` (repair)
-14. `barbarian-camp-pressure` (compatibility)
-15. `legendary-wonder-military-facts` (repair)
-16. `legendary-wonder-tactical-effects` (repair)
+10. `bilateral-war` (repair)
+11. `city-faith-conversion-progress` (compatibility)
+12. `retimed-biplane-queues` (compatibility)
+13. `coastal-battery-counterfire-turns` (repair)
+14. `improvement-values` (repair)
+15. `barbarian-camp-pressure` (compatibility)
+16. `legendary-wonder-military-facts` (repair)
+17. `legendary-wonder-tactical-effects` (repair)

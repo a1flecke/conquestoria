@@ -213,6 +213,32 @@ const MALFORMED_CASES: SaveCompatCase[] = [
       if (v.vassals.includes('ai-ghost')) throw new Error('migration 27 left a dangling vassal id in place');
     },
   },
+  {
+    // #995 — no version bump: `normalizeBilateralWar` is an unconditional
+    // corruption repair, so this exercises it against a corrupt CURRENT save.
+    sourceVersion: CURRENT_SAVE_SCHEMA_VERSION,
+    label: 'repair — normalizes one-sided / duplicated / self major-civ war state (#995)',
+    kind: 'malformed-repair',
+    focus: ['diplomacy', 'bilateral war'],
+    build: () => {
+      const raw = buildBaselineSave('save-compat-malformed-bilateral-war').state as RawState;
+      const civs = raw.civilizations as RawState;
+      // player lists ai-1 but ai-1 does not list player → one-sided
+      civs.player.diplomacy.atWarWith = ['ai-1', 'ai-1', 'player'];
+      civs['ai-1'].diplomacy.atWarWith = [];
+      // ai-2 lists ai-1 one-sidedly the other direction
+      if (civs['ai-2']) civs['ai-2'].diplomacy.atWarWith = ['ai-1'];
+      return raw;
+    },
+    afterMigrate: migrated => {
+      const player = migrated.civilizations.player.diplomacy.atWarWith;
+      if (player.length !== 0) {
+        throw new Error(`bilateral-war repair should have emptied player.atWarWith (orphans + self + dupe), got ${JSON.stringify(player)}`);
+      }
+      const ai2 = migrated.civilizations['ai-2']?.diplomacy.atWarWith ?? [];
+      if (ai2.includes('ai-1')) throw new Error('bilateral-war repair left a one-sided ai-2 → ai-1 war in place');
+    },
+  },
 ];
 
 /**

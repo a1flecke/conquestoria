@@ -130,6 +130,14 @@ export function hasAllianceTreaty(state: GameState, civA: string, civB: string):
   return hasAllianceTreatyFromSide(state, civA, civB) || hasAllianceTreatyFromSide(state, civB, civA);
 }
 
+/**
+ * SINGLE-SIDE war-state write — a building block, not a transition. Writing
+ * major↔major war state through this directly leaves the other side out of
+ * sync (#995). Use {@link declareMajorWar} for major civs; the minor-civ war
+ * paths (`minor-civ-actions.ts`, `minor-civ-coalition-system.ts`) update both
+ * sides themselves and are the only sanctioned external callers.
+ * `scripts/check-src-rule-violations.sh` blocks a new one.
+ */
 export function declareWar(
   state: DiplomacyState,
   targetCivId: string,
@@ -163,15 +171,11 @@ export function declareWar(
     ? onVassalAttacked(updated, targetCivId) : updated;
 }
 
-// Vassal auto-joins overlord's wars — no treachery
-export function vassalAutoWar(
-  vassalDip: DiplomacyState,
-  targetCivId: string,
-  turn: number,
-): DiplomacyState {
-  return declareWar(vassalDip, targetCivId, turn, false);
-}
-
+/**
+ * SINGLE-SIDE peace-state write — the mirror of {@link declareWar} and, like it,
+ * a building block, not a transition. Use {@link makeMajorPeace} for major civs
+ * (#995). Same sanctioned-caller list and source-rule guard.
+ */
 export function makePeace(
   state: DiplomacyState,
   targetCivId: string,
@@ -475,15 +479,15 @@ export function proposeTreatyAgreement(state: GameState, fromCivId: string, toCi
     });
     if (!consent.accepted) return state;
     bus.emit('diplomacy:peace-made', { civA: fromCivId, civB: toCivId });
+    const peaced = makeMajorPeace(state, fromCivId, toCivId);
     return cancelInvalidNetworkPlans({
-      ...state,
+      ...peaced,
       // Same pair-level peace-request cleanup acceptDiplomaticRequest does on
       // commit -- an immediate AI-consented peace must not leave the other
       // side's now-moot "incoming peace request" rotting in the panel.
-      pendingDiplomacyRequests: (state.pendingDiplomacyRequests ?? []).filter(
+      pendingDiplomacyRequests: (peaced.pendingDiplomacyRequests ?? []).filter(
         candidate => !isPeaceRequestPair(candidate, fromCivId, toCivId),
       ),
-      civilizations: { ...state.civilizations, [fromCivId]: { ...from, diplomacy: makePeace(from.diplomacy, toCivId, state.turn) }, [toCivId]: { ...target, diplomacy: makePeace(target.diplomacy, fromCivId, state.turn) } },
     }).state;
   }
   if (hasTreatyBetween(state, fromCivId, toCivId, kind)) return state;
@@ -795,22 +799,12 @@ export function acceptDiplomaticRequest(
   }
 
   bus.emit('diplomacy:peace-made', { civA: request.fromCivId, civB: request.toCivId });
+  const peaced = makeMajorPeace(state, request.fromCivId, request.toCivId);
   return cancelInvalidNetworkPlans({
-    ...state,
-    pendingDiplomacyRequests: (state.pendingDiplomacyRequests ?? []).filter(
+    ...peaced,
+    pendingDiplomacyRequests: (peaced.pendingDiplomacyRequests ?? []).filter(
       candidate => !isPeaceRequestPair(candidate, request.fromCivId, request.toCivId),
     ),
-    civilizations: {
-      ...state.civilizations,
-      [request.fromCivId]: {
-        ...actor,
-        diplomacy: makePeace(actor.diplomacy, request.toCivId, state.turn),
-      },
-      [request.toCivId]: {
-        ...target,
-        diplomacy: makePeace(target.diplomacy, request.fromCivId, state.turn),
-      },
-    },
   }).state;
 }
 
@@ -1509,6 +1503,31 @@ function addWarPair(state: GameState, attackerId: string, defenderId: string, vo
       next = { ...next, minorCivs: { ...next.minorCivs, [defenderId]: ended.minor } };
       if (ended.brokenChainId) bus?.emit('minor-civ:alliance-broken', { minorCivId: defenderId, majorCivId: attackerId, chainId: ended.brokenChainId, state: next });
     }
+  }
+  return next;
+}
+
+/**
+ * The public bilateral peace transition between two MAJOR civilizations — the
+ * mirror of {@link declareMajorWar} / {@link addWarPair}. Clears the pair from
+ * BOTH sides' `atWarWith` (and the matching vassal protection timers, via
+ * `makePeace`) in one mutation, so a caller can never write one side and forget
+ * the other (#995). Callers must use this (or an `acceptDiplomaticRequest`-style
+ * flow that wraps it) rather than the module-private single-side `makePeace`.
+ * No-ops if either side is a vassal, or neither side is currently at war with
+ * the other. Does not propagate to vassals — as before #995, a vassal dragged
+ * into a war leaves it via its own peace, not the overlord's.
+ */
+export function makeMajorPeace(state: GameState, aId: string, bId: string): GameState {
+  const a = state.civilizations[aId];
+  const b = state.civilizations[bId];
+  if (!a || !b || aId === bId
+    || a.diplomacy.vassalage.overlord || b.diplomacy.vassalage.overlord
+    || (!isAtWar(a.diplomacy, bId) && !isAtWar(b.diplomacy, aId))) return state;
+  let next = state;
+  if (isAtWar(a.diplomacy, bId)) next = withDiplomacy(next, aId, makePeace(a.diplomacy, bId, state.turn));
+  if (isAtWar(next.civilizations[bId].diplomacy, aId)) {
+    next = withDiplomacy(next, bId, makePeace(next.civilizations[bId].diplomacy, aId, state.turn));
   }
   return next;
 }

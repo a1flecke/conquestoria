@@ -60,10 +60,16 @@ describe('#1006 assertBilateralWar', () => {
     expect(() => assertBilateralWar(state)).toThrow(/duplicate.*ai-1/s);
   });
 
-  it('throws on a war with a civ that does not exist', () => {
+  it('throws on a war with a major civ that does not exist', () => {
     const state = freshState('inv-war-ghost');
     state.civilizations.player.diplomacy.atWarWith = ['ai-ghost'];
-    expect(() => assertBilateralWar(state)).toThrow(/unknown civ.*ai-ghost/s);
+    expect(() => assertBilateralWar(state)).toThrow(/unknown major civ.*ai-ghost/s);
+  });
+
+  it('#995: does not flag a legitimate minor-civ (city-state) war id', () => {
+    const state = freshState('inv-war-minor');
+    state.civilizations.player.diplomacy.atWarWith = ['mc-sparta'];
+    expect(() => assertBilateralWar(state)).not.toThrow();
   });
 
   it('throws on self-war', () => {

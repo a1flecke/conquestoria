@@ -9,6 +9,7 @@ import {
 } from './steps/legendary-wonders';
 import { normalizeCoastalBatteryCounterfireTurns } from './steps/coastal-battery';
 import { normalizeImprovementValues } from './steps/improvements';
+import { normalizeBilateralWar } from './steps/bilateral-war';
 
 /**
  * #1023 — corruption repair / defensive sanitation: unconditional, every load.
@@ -87,6 +88,11 @@ export const CORRUPTION_REPAIRS: readonly CorruptionRepair[] = [
     id: 'improvement-values',
     reason: 'Clamps unknown improvement ids to "none" and caps build timers at their definition maximum, so a hand-edited tile cannot complete an improvement that does not exist.',
     apply: normalizeImprovementValues,
+  },
+  {
+    id: 'bilateral-war',
+    reason: 'Repairs one-sided, self-referential and duplicated MAJOR-civ war entries; a one-sided war silently drives war-weariness unrest, AI war-pressure and peace availability off a phantom (#995).',
+    apply: normalizeBilateralWar,
   },
   {
     id: 'vassalage',

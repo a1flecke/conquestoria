@@ -73,9 +73,32 @@ The full `migrate → normalize → run a few rounds → save → reload → sha
 - Events are notifications for UI/logging — they do NOT trigger state changes
 
 ## Bilateral Diplomacy
-- `declareWar()` and `makePeace()` must be called for BOTH parties
-- `atWarWith` arrays must never contain duplicates — deduplicate on insert
-- `diplomacy.atWarWith` on a **major** civ also holds **minor-civ (city-state)** war ids: `setMinorCivWarState` and minor-civ coalitions (`activateCoalitionWar`) call `declareWar` with an `mc-…` target. Barbarians / pirates / rebels never belong there. So any surface that means "how many **major** wars / **empires** am I at war with" — war-weariness unrest, the "at war with N empires" guidance, the hot-seat handoff enemy list, AI war-count scoring — MUST read `majorCivWarOpponentIds(atWarWith)` (`src/core/owner-kind.ts`), never raw `atWarWith.length` / `[...atWarWith]` (#1041). A concrete `atWarWith.includes(specificId)` pair check is fine as-is: a minor-civ war is still a real war with *that* city-state.
+
+### Major-war state is bilateral by construction (#995)
+
+- **Never hand-roll both sides.** Major↔major war/peace goes through the bilateral
+  transitions in `diplomacy-system.ts`: `declareMajorWar(state, a, b, bus?)` and
+  `makeMajorPeace(state, a, b)` (each writes/clears BOTH `atWarWith` arrays and
+  dedupes on insert). The single-side `declareWar()` / `makePeace()` are
+  module-internal building blocks — `scripts/check-src-rule-violations.sh` (mirrored
+  in `.claude/hooks/check-src-edit.sh`) blocks a new caller of them outside
+  `diplomacy-system.ts`. The minor-civ war paths (`minor-civ-actions.ts`,
+  `minor-civ-coalition-system.ts`) are the only sanctioned external callers and
+  update both sides themselves; `addWarPair` already handles a minor-civ defender.
+- **Test-time validator:** `assertBilateralWar(state)` (`tests/helpers/save-state-invariants.ts`)
+  — for every ordered pair of majors `A.atWarWith ∋ B ⟺ B.atWarWith ∋ A`, no
+  duplicates, no self-war, no dangling major id. Runs in the AI-playability
+  fixture and the save-compat matrix; call it at the end of any test that drives
+  diplomacy transitions.
+- **Malformed persisted state:** `normalizeBilateralWar` (a `CORRUPTION_REPAIRS`
+  entry, `src/storage/migrations/steps/bilateral-war.ts`) scrubs one-sided /
+  duplicated / self / dangling-major war entries on every load. It is a repair,
+  not a migration — no `SAVE_VERSION` bump — and must stay a no-op on any save the
+  game itself wrote.
+
+### `atWarWith` also carries minor-civ war ids
+
+- `diplomacy.atWarWith` on a **major** civ also holds **minor-civ (city-state)** war ids: `setMinorCivWarState` and minor-civ coalitions (`activateCoalitionWar`) call `declareWar` with an `mc-…` target. Barbarians / pirates / rebels never belong there. So any surface that means "how many **major** wars / **empires** am I at war with" — war-weariness unrest, the "at war with N empires" guidance, the hot-seat handoff enemy list, AI war-count scoring — MUST read `majorCivWarOpponentIds(atWarWith)` (`src/core/owner-kind.ts`), never raw `atWarWith.length` / `[...atWarWith]` (#1041). A concrete `atWarWith.includes(specificId)` pair check is fine as-is: a minor-civ war is still a real war with *that* city-state. `assertBilateralWar` and `normalizeBilateralWar` both scope their reciprocity/roster checks to `classifyOwner === 'major'` ids for the same reason.
 
 ## AI Combat
 - AI must check `isAtWar(civDiplomacy, targetOwner)` before attacking non-barbarian units
