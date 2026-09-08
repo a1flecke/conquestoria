@@ -4,9 +4,14 @@ import { generateSummary } from '@/core/hotseat-events';
 import { setMinorCivWarState } from '@/systems/minor-civ-actions';
 import { processMinorCivCoalitionsTurn } from '@/systems/minor-civ-coalition-system';
 import { declareMajorWar } from '@/systems/diplomacy-system';
+import { evaluateVassalageConsent } from '@/ai/ai-treaty-consent';
+import { majorCivWarOpponentIds } from '@/core/owner-kind';
 import { getUnrestPressureBreakdown } from '@/systems/faction-system';
 import { getUnrestRecommendations } from '@/systems/unrest-guidance';
 import { foundCityInState } from '@/systems/city-founding-system';
+import { normalizeLoadedState } from '@/storage/save-manager';
+import { createHotSeatGame } from '@/core/game-state';
+import type { GameState } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
 
 // #1041 — the player was shown "War weariness: +24 / you're at war with 3 empires
@@ -119,5 +124,54 @@ describe('#1041 war weariness counts major-civ wars only', () => {
     expect((makePeace?.params as { warCivIds: string[] }).warCivIds).toEqual([otherMajorId]);
 
     expect(generateSummary(state, 'player').atWarWith).toEqual([otherMajorId]);
+  });
+
+  it('save/load continuity: a save carrying mc- war ids computes no War weariness after reload', () => {
+    let { state, cityId } = withPlayerCity(createNewGame(undefined, '1041-save-load', 'small'));
+    for (const mcId of threeMinorCivIds(state)) {
+      state = setMinorCivWarState(state, 'player', mcId, true).state;
+    }
+    const reloaded = normalizeLoadedState(JSON.parse(JSON.stringify(state)) as GameState);
+
+    // the city-state war ids are legitimate data — not scrubbed on load
+    expect(reloaded.civilizations.player.diplomacy.atWarWith).toHaveLength(3);
+    // ...but they still produce no imperial war weariness after a round-trip
+    expect(getUnrestPressureBreakdown(cityId, reloaded).find(r => r.label === 'War weariness'))
+      .toBeUndefined();
+    expect(generateSummary(reloaded, 'player').atWarWith).toEqual([]);
+  });
+
+  it('hot seat: filtering is owner-scoped, not viewer-scoped', () => {
+    const state = createHotSeatGame({
+      playerCount: 2,
+      mapSize: 'small',
+      players: [
+        { name: 'Alice', slotId: 'player-1', civType: 'egypt', isHuman: true },
+        { name: 'Bob', slotId: 'player-2', civType: 'rome', isHuman: true },
+      ],
+    }, '1041-hotseat');
+
+    // Alice is at war with a city-state; Bob is at war with a major civ.
+    const mcId = Object.keys(state.minorCivs)[0];
+    state.civilizations['player-1'].diplomacy.atWarWith = [mcId];
+    state.civilizations['player-2'].diplomacy.atWarWith = ['player-1'];
+    state.civilizations['player-1'].diplomacy.atWarWith.push('player-2');
+
+    expect(generateSummary(state, 'player-1').atWarWith).toEqual(['player-2']);
+    expect(generateSummary(state, 'player-2').atWarWith).toEqual(['player-1']);
+  });
+
+  it('#1041 sweep: AI vassalage-consent load signal counts major wars only', () => {
+    // proposeVassalage() feeds evaluateVassalageConsent a `warCount` that used to
+    // be raw atWarWith.length; it now routes through majorCivWarOpponentIds. This
+    // pins that composition — evaluateVassalageConsent's own boundary
+    // (warCount <= 1) is fixed by tests/ai/ai-treaty-consent.test.ts.
+    const base = { relationship: 0, diplomacyFocus: 0.5, militaryCount: 4, vassalCount: 0 };
+    expect(evaluateVassalageConsent({
+      ...base, warCount: majorCivWarOpponentIds(['mc-a', 'mc-b', 'mc-c']).length,
+    }).accepted).toBe(true);
+    expect(evaluateVassalageConsent({
+      ...base, warCount: majorCivWarOpponentIds(['ai-9', 'ai-8']).length,
+    }).accepted).toBe(false);
   });
 });
