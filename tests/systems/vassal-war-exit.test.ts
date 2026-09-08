@@ -10,8 +10,10 @@ import {
   proposeTreatyAgreement,
   acceptDiplomaticRequest,
   enqueuePeaceRequest,
+  releaseVassal,
   isAtWar,
 } from '@/systems/diplomacy-system';
+import { setMinorCivWarState } from '@/systems/minor-civ-actions';
 import { normalizeLoadedState } from '@/storage/save-manager';
 import { assertBilateralWar } from '../helpers/save-state-invariants';
 
@@ -238,6 +240,119 @@ describe('#1054 vassal leaves a war when its overlord makes peace', () => {
     expect(atWar(state, V, enemyId)).toBe(false);
     expect(atWar(state, enemyId, V)).toBe(false);
     expect(notices).toEqual([{ civId: V }]); // only the vassal seat
+    expect(() => assertBilateralWar(state)).not.toThrow();
+  });
+
+  // Sol review finding A: `applyVassalageWarConsequences` builds the full
+  // bloc x bloc cross product on the way in (O-E, O-V2, V1-E, AND V1-V2).
+  // Clearing only each principal's own vassals left the two sides' vassals
+  // permanently at war with each other — neither can sue for peace and both
+  // overlords are at peace. The exit must clear the same cross product.
+  describe('both peace parties hold vassals (bloc x bloc)', () => {
+    function twoBlocsAtWar(seed: string) {
+      let state = createNewGame({
+        civType: 'generic', seed, mapSize: 'large', opponentCount: 4, gameTitle: 'vassal-war-exit',
+      });
+      const [O, V1, E, V2] = majorIds(state, 4);
+      state = vassalize(state, V1, O);
+      state = vassalize(state, V2, E);
+      state = declareMajorWar(state, O, E, new EventBus());
+      return { state, O, V1, E, V2 };
+    }
+
+    it('the join really does create the vassal-vs-vassal war pair', () => {
+      const { state, V1, V2 } = twoBlocsAtWar('1054-bloc-join');
+      expect(atWar(state, V1, V2)).toBe(true);
+      expect(atWar(state, V2, V1)).toBe(true);
+    });
+
+    it('peace between the overlords clears every cross-bloc pair, including vassal-vs-vassal', () => {
+      let { state, O, V1, E, V2 } = twoBlocsAtWar('1054-bloc-peace');
+      state = makeMajorPeace(state, O, E, new EventBus());
+
+      for (const [x, y] of [[O, E], [O, V2], [V1, E], [V1, V2]] as const) {
+        expect(atWar(state, x, y), `${x} should not be at war with ${y}`).toBe(false);
+        expect(atWar(state, y, x), `${y} should not be at war with ${x}`).toBe(false);
+      }
+      expect(() => assertBilateralWar(state)).not.toThrow();
+    });
+
+    it('notifies each freed vassal naming its OWN overlord', () => {
+      let { state, O, V1, E, V2 } = twoBlocsAtWar('1054-bloc-events');
+      const bus = new EventBus();
+      const seen: Array<{ vassalId: string; overlordId: string; targetCivId: string }> = [];
+      bus.on('diplomacy:vassal-auto-peace', e => seen.push(e));
+      state = makeMajorPeace(state, O, E, bus);
+
+      // V1 hears about its overlord O; V2 hears about its overlord E — never swapped.
+      expect(seen.filter(e => e.vassalId === V1).every(e => e.overlordId === O)).toBe(true);
+      expect(seen.filter(e => e.vassalId === V2).every(e => e.overlordId === E)).toBe(true);
+      // the vassal-vs-vassal pair notifies both sides
+      expect(seen).toEqual(expect.arrayContaining([
+        { vassalId: V1, overlordId: O, targetCivId: V2 },
+        { vassalId: V2, overlordId: E, targetCivId: V1 },
+      ]));
+      // the principals are not reported as vassals of anyone
+      expect(seen.some(e => e.vassalId === O || e.vassalId === E)).toBe(false);
+    });
+  });
+
+  // Sol review finding B: the same stranding with a city-state counterparty.
+  // setMinorCivWarState's war branch runs applyVassalageWarConsequences (so the
+  // vassal is dragged in) but its peace branch did not undo it.
+  describe('city-state wars inherited from the overlord', () => {
+    function overlordAtWarWithCityState(seed: string) {
+      let state = createNewGame({
+        civType: 'generic', seed, mapSize: 'large', opponentCount: 3, gameTitle: 'vassal-war-exit',
+      });
+      const [O, V] = majorIds(state, 2);
+      const mcId = Object.keys(state.minorCivs)[0]!;
+      state = setMinorCivWarState(state, O, mcId, true).state;
+      state = vassalize(state, V, O);
+      return { state, O, V, mcId };
+    }
+
+    it('a vassal cannot sue a city-state for peace itself — which is what makes stranding possible', () => {
+      const { state, V, mcId } = overlordAtWarWithCityState('1054-mc-blocked');
+      const attempt = setMinorCivWarState(state, V, mcId, false);
+      expect(attempt.ok).toBe(false);
+      expect(attempt.reason).toMatch(/overlord controls war and peace/i);
+    });
+
+    it("the overlord's peace with a city-state frees its vassals from that war too", () => {
+      let { state, O, V, mcId } = overlordAtWarWithCityState('1054-mc-peace');
+      expect(state.civilizations[V].diplomacy.atWarWith).toContain(mcId); // dragged in
+
+      const bus = new EventBus();
+      const seen: string[] = [];
+      bus.on('diplomacy:vassal-auto-peace', e => seen.push(e.vassalId));
+      state = setMinorCivWarState(state, O, mcId, false, bus).state;
+
+      expect(state.civilizations[O].diplomacy.atWarWith).not.toContain(mcId);
+      expect(state.civilizations[V].diplomacy.atWarWith).not.toContain(mcId);
+      // bilateral on the city-state's side as well
+      expect(state.minorCivs[mcId].diplomacy.atWarWith).not.toContain(O);
+      expect(state.minorCivs[mcId].diplomacy.atWarWith).not.toContain(V);
+      expect(seen).toEqual([V]);
+      expect(() => assertBilateralWar(state)).not.toThrow();
+    });
+  });
+
+  // Sol review finding C (verified NOT a defect, pinned so it stays that way):
+  // a released vassal keeps the inherited war, but regains the agency to end it.
+  it('a released vassal keeps its inherited war but can immediately make its own peace', () => {
+    let state = newGame('1054-release');
+    const [O, V, E] = majorIds(state, 3);
+    state = declareMajorWar(state, O, E, new EventBus());
+    state = vassalize(state, V, O);
+    expect(atWar(state, V, E)).toBe(true);
+
+    state = releaseVassal(state, O, V, new EventBus());
+    expect(state.civilizations[V].diplomacy.vassalage.overlord).toBeNull();
+    expect(atWar(state, V, E)).toBe(true); // still its war — not stranded, just owned
+
+    state = makeMajorPeace(state, V, E, new EventBus()); // agency restored
+    expect(atWar(state, V, E)).toBe(false);
     expect(() => assertBilateralWar(state)).not.toThrow();
   });
 
