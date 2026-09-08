@@ -33,7 +33,7 @@ describe('civilization presentation', () => {
       id: 'p1',
       isHuman: true,
       knownCivilizations: ['victor'],
-      diplomacy: {},
+      diplomacy: {} as never,
       visibility: { tiles: {} },
     };
     state.civilizations.victor = {
@@ -58,7 +58,7 @@ describe('civilization presentation', () => {
     state.civilizations.p1 = {
       ...state.civilizations.p1,
       knownCivilizations: [],
-      diplomacy: {},
+      diplomacy: {} as never,
       visibility: { tiles: {} },
     };
     state.civilizations.victor = {
@@ -66,7 +66,7 @@ describe('civilization presentation', () => {
       id: 'victor',
       isHuman: true,
       knownCivilizations: [],
-      diplomacy: {},
+      diplomacy: {} as never,
     };
 
     registerCivilizationPresentation(bus, ctx);
