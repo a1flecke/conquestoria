@@ -102,12 +102,11 @@ export function findPath(
     // Lazy deletion: when a node's g improves we push a fresh entry and leave the old one.
     // A stale entry for a key always has strictly higher f than its replacement (h is fixed,
     // g only decreases), so the fresh entry always pops first; this skip only ever discards
-    // an already-superseded entry.
+    // an already-superseded entry. It also subsumes any "already closed" case: a node closes
+    // at its optimal g, the strict-improvement relaxation gate never re-pushes it, and every
+    // pre-close entry it still holds has g strictly above that optimum — so a closed node is
+    // never expanded twice without a separate closed-set guard here.
     if (current.g > (gScore.get(current.key) ?? Infinity) + EPS) continue;
-    // Redundant given the strict-improvement relaxation gate below (a second entry for a
-    // closed key is always caught by the stale-g skip), kept as a locally-obvious
-    // "a closed node is never expanded twice" guard.
-    if (closedSet.has(current.key)) continue;
 
     // Goal check strictly AFTER the stale-g skip: a fresh toKey pop is the global (f, g, key)
     // minimum, so for the consistent heuristic the goal is settled and `parents` is final.
