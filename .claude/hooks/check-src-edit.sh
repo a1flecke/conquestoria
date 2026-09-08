@@ -163,6 +163,24 @@ $mv_lines"
     ;;
 esac
 
+# --- single-side war/peace mutation (#995) ---
+# declareWar() / makePeace() write ONE side of a war. Major↔major war state must
+# stay bilateral by construction — use declareMajorWar() / makeMajorPeace().
+# diplomacy-system.ts defines them; the minor-civ war paths update both sides
+# themselves. declareMajorWar/makeMajorPeace do not match this pattern.
+case "$file_path" in
+  */src/systems/diplomacy-system.ts|*/src/systems/minor-civ-actions.ts|*/src/systems/minor-civ-coalition-system.ts)
+    : # sanctioned
+    ;;
+  */src/*.ts)
+    war_lines="$(grep -nE '(^|[^A-Za-z])(declareWar|makePeace)\(' "$file_path" | grep -v '//' | head -5 || true)"
+    if [ -n "$war_lines" ]; then
+      append "Single-side declareWar()/makePeace() outside diplomacy-system — use declareMajorWar()/makeMajorPeace() so major-war state stays bilateral (see .claude/rules/game-systems.md#bilateral-diplomacy):
+$war_lines"
+    fi
+    ;;
+esac
+
 # --- innerHTML with template-literal game text ---
 if grep -nE 'innerHTML\s*=\s*`[^`]*\$\{' "$file_path" >/dev/null; then
   lines="$(grep -nE 'innerHTML\s*=\s*`[^`]*\$\{' "$file_path" | head -5)"

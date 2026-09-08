@@ -128,6 +128,30 @@ nextState = removeUnit(nextState, updatedUnit);
 EOF
 expect_allow "$tmp/src/systems/lifecycle.ts" "removeUnit is not a movement-executor bypass"
 
+# --- #995: block single-side declareWar()/makePeace() outside diplomacy-system ---
+cat > "$tmp/src/ai/war-planner.ts" <<'EOF'
+export function plan(state, a, b) {
+  const next = declareWar(state.civilizations[a].diplomacy, b, state.turn);
+  return makePeace(next, b, state.turn);
+}
+EOF
+expect_block "$tmp/src/ai/war-planner.ts" "single-side declareWar/makePeace outside diplomacy-system"
+
+# --- #995: allow declareMajorWar()/makeMajorPeace() (the bilateral transitions) ---
+cat > "$tmp/src/ai/war-planner-ok.ts" <<'EOF'
+export function plan(state, a, b) {
+  return makeMajorPeace(declareMajorWar(state, a, b), a, b);
+}
+EOF
+expect_allow "$tmp/src/ai/war-planner-ok.ts" "declareMajorWar/makeMajorPeace are bilateral and allowed"
+
+# --- #995: allow single-side forms inside the sanctioned minor-civ war paths ---
+cat > "$tmp/src/systems/minor-civ-actions.ts" <<'EOF'
+nextMajor.diplomacy = declareWar(nextMajor.diplomacy, minorCivId, state.turn);
+nextMinor.diplomacy = makePeace(nextMinor.diplomacy, majorCivId, state.turn);
+EOF
+expect_allow "$tmp/src/systems/minor-civ-actions.ts" "single-side forms allowed in minor-civ-actions.ts"
+
 # --- allow: clean src file ---
 cat > "$tmp/src/systems/clean.ts" <<'EOF'
 export function add(a: number, b: number): number { return a + b; }

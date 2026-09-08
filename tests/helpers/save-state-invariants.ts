@@ -1,4 +1,5 @@
 import type { GameState } from '@/core/types';
+import { classifyOwner } from '@/core/owner-kind';
 
 /**
  * #1006 — shared cross-system structural invariants asserted by the
@@ -42,8 +43,15 @@ function ownerKind(state: GameState, ownerId: string): OwnerKind {
 }
 
 /**
- * Every `atWarWith` entry is reciprocal, dedup'd, references a real civ, and
- * is never self-directed. (#995)
+ * The MAJOR-civ war invariant (#995): for every ordered pair of major civs,
+ * `A.atWarWith ∋ B ⟺ B.atWarWith ∋ A`; no `atWarWith` array carries a
+ * duplicate or a self-reference; a `classifyOwner === 'major'` id in an
+ * `atWarWith` list is a live civ in the roster.
+ *
+ * A NON-major id (`mc-…` city-state, `barbarian`, …) is deliberately out of
+ * scope — minor-civ war state legitimately rides the same array (see
+ * `.claude/rules/game-systems.md#bilateral-diplomacy`), so it is only checked
+ * for dedup / self-reference here, not reciprocity or roster membership.
  */
 export function assertBilateralWar(state: GameState): void {
   const civIds = new Set(majorCivIds(state));
@@ -63,8 +71,9 @@ export function assertBilateralWar(state: GameState): void {
         problems.push(`${civId} is at war with itself ("${otherId}")`);
         continue;
       }
+      if (classifyOwner(otherId) !== 'major') continue; // minor-civ / barbarian war — not this invariant
       if (!civIds.has(otherId)) {
-        problems.push(`${civId} is at war with unknown civ "${otherId}"`);
+        problems.push(`${civId} is at war with unknown major civ "${otherId}"`);
         continue;
       }
       const reciprocal = state.civilizations[otherId].diplomacy?.atWarWith ?? [];

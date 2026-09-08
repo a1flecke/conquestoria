@@ -186,4 +186,53 @@ describe('check-src-rule-violations.sh', () => {
       expect(result.stderr).toBe('');
     });
   });
+
+  describe('#995 single-side war/peace mutation rule', () => {
+    it('blocks single-side declareWar()/makePeace() outside diplomacy-system', () => {
+      const workspace = makeWorkspace();
+      writeWorkspaceFile(
+        workspace,
+        'src/ai/war-planner.ts',
+        [
+          'export function plan(state: GameState, a: string, b: string): DiplomacyState {',
+          '  const next = declareWar(state.civilizations[a].diplomacy, b, state.turn);',
+          '  return makePeace(next, b, state.turn);',
+          '}',
+        ].join('\n'),
+      );
+
+      const result = runScript(workspace, 'src/ai/war-planner.ts');
+
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain('Single-side declareWar()/makePeace() outside diplomacy-system');
+    });
+
+    it('allows declareMajorWar()/makeMajorPeace() (the bilateral transitions)', () => {
+      const workspace = makeWorkspace();
+      writeWorkspaceFile(
+        workspace,
+        'src/ai/war-planner-ok.ts',
+        'export const plan = (s: GameState, a: string, b: string) => makeMajorPeace(declareMajorWar(s, a, b), a, b);\n',
+      );
+
+      const result = runScript(workspace, 'src/ai/war-planner-ok.ts');
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe('');
+    });
+
+    it('allows the single-side forms inside the sanctioned minor-civ war paths', () => {
+      const workspace = makeWorkspace();
+      writeWorkspaceFile(
+        workspace,
+        'src/systems/minor-civ-coalition-system.ts',
+        'const d = declareWar(target.diplomacy, memberId, nextState.turn, false);\n',
+      );
+
+      const result = runScript(workspace, 'src/systems/minor-civ-coalition-system.ts');
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe('');
+    });
+  });
 });

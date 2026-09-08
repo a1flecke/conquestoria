@@ -25,6 +25,7 @@ import { getAvailableTechs } from '@/systems/tech-system';
 import { processTurn } from '@/core/turn-manager';
 import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { CRISIS_FORCE_OWNER } from '@/core/owner-kind';
+import { assertBilateralWar } from '../helpers/save-state-invariants';
 
 export type AIPersonality =
   | 'aggressive'
@@ -552,6 +553,7 @@ function simulate(
 
     assertFiniteSerializable(state, options.seed);
     assertOwnersAndReferences(state, options.seed);
+    assertBilateralWar(state); // #995 — major-war state stays bilateral across every AI diplomacy transition
     assertPlanInvariants(state, options.seed);
     assertLegalChoices(state, traces, options.seed, lateEra);
     metrics.roundDurationsMs.push(performance.now() - roundStart);
