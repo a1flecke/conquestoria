@@ -432,6 +432,13 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
       civId,
       civType: civ?.civType ?? civId,
       era: session.getState().era,
+      // Deliberately the raw count (incl. city-state wars), unlike the #1041
+      // "major wars only" surfaces. This only drives war ambience on/off in
+      // AudioSystem; a city-state coalition war is a real military threat, so
+      // martial ambience for it is intentional. AudioSystem also mutates this
+      // as `remainingWars` off diplomacy bus events, so the seed and that
+      // counter must stay the same shape — opponent-kind-aware war ambience is
+      // a separate audio follow-up, not part of #1041.
       atWarCount: civ?.diplomacy?.atWarWith?.length ?? 0,
       unrestCityCount: cities.filter(city => city.unrestLevel > 0).length,
       nearDefeat: civ?.nearDefeat ?? false,

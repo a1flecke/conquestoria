@@ -12,6 +12,7 @@ import type {
 } from '@/core/types';
 import { cancelInvalidNetworkPlans } from '@/systems/network-plan-system';
 import type { EventBus } from '@/core/event-bus';
+import { majorCivWarOpponentIds } from '@/core/owner-kind';
 import {
   REABSORB_GOLD_COST,
   REABSORB_RELATIONSHIP_MINIMUM,
@@ -963,7 +964,9 @@ export function proposeVassalage(state: GameState, vassalId: string, overlordId:
     diplomacyFocus: resolveCivDefinition(current, overlord.civType)?.personality.diplomacyFocus ?? 0.5,
     militaryCount: getVassalageMilitaryCount(current, overlordId),
     vassalCount: overlord.diplomacy.vassalage.vassals.length,
-    warCount: overlord.diplomacy.atWarWith.length,
+    // Strategic-load signal — major-civ wars only. A city-state war shouldn't
+    // make an AI overlord refuse a vassal for "strategic-caution" (#1041).
+    warCount: majorCivWarOpponentIds(overlord.diplomacy.atWarWith).length,
   });
   if (consent.accepted) return commitVassalageAgreement(current, vassalId, overlordId, bus);
   bus.emit('diplomacy:treaty-declined', { proposerCivId: vassalId, targetCivId: overlordId, treaty: 'vassalage' });
