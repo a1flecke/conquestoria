@@ -2459,6 +2459,7 @@ export interface GameEvents {
   'diplomacy:independence-petition': { vassalId: string; overlordId: string; accepted: boolean };
   'diplomacy:protection-failed': { overlordId: string; vassalId: string; attackerId: string };
   'diplomacy:vassal-auto-war': { vassalId: string; overlordId: string; targetCivId: string };
+  'diplomacy:vassal-auto-peace': { vassalId: string; overlordId: string; targetCivId: string };
   'diplomacy:treachery': { civId: string; action: string; newScore: number };
   'diplomacy:embargo-proposed': { proposerId: string; targetCivId: string; embargoId: string };
   'diplomacy:embargo-joined': { civId: string; embargoId: string };

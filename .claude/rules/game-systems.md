@@ -87,8 +87,9 @@ The full `migrate → normalize → run a few rounds → save → reload → sha
 
 - **Never hand-roll both sides.** Major↔major war/peace goes through the bilateral
   transitions in `diplomacy-system.ts`: `declareMajorWar(state, a, b, bus?)` and
-  `makeMajorPeace(state, a, b)` (each writes/clears BOTH `atWarWith` arrays and
-  dedupes on insert). The single-side `declareWar()` / `makePeace()` are
+  `makeMajorPeace(state, a, b, bus?)` (each writes/clears BOTH `atWarWith` arrays
+  and dedupes on insert; `makeMajorPeace` also reconciles vassals — see #1054
+  below). The single-side `declareWar()` / `makePeace()` are
   module-internal building blocks — `scripts/check-src-rule-violations.sh` (mirrored
   in `.claude/hooks/check-src-edit.sh`) blocks a new caller of them outside
   `diplomacy-system.ts`. The minor-civ war paths (`minor-civ-actions.ts`,
@@ -104,6 +105,28 @@ The full `migrate → normalize → run a few rounds → save → reload → sha
   duplicated / self / dangling-major war entries on every load. It is a repair,
   not a migration — no `SAVE_VERSION` bump — and must stay a no-op on any save the
   game itself wrote.
+
+### An overlord controls its vassals' war *and* peace (#1054)
+
+- A vassal is blocked from both `declare_war` and `request_peace`
+  (`VASSAL_BLOCKED_ACTIONS`) — its overlord's foreign policy is its own. So the
+  war set follows the overlord in both directions:
+  - **join:** `applyVassalageWarConsequences` drags each active vassal into every
+    war the overlord is in (`addWarPair`, no treachery).
+  - **exit:** `makeMajorPeace(state, a, b, bus?)` — after clearing the `a↔b`
+    pair — calls `reconcileVassalWarsAfterPeace` for each side, making bilateral
+    peace between every active vassal of that side and the other peace party.
+    Bloc-wide peace, no persisted provenance: an inherited *or* a
+    pre-existing-independent vassal war with the other peace party ends when the
+    overlord makes peace with them. A vassal war with a **third** civ the
+    overlord is not making peace with is untouched (the reconciliation is scoped
+    to the peace pair). Emits `diplomacy:vassal-auto-peace` (recipient-safe via
+    `routeVassalAutoPeace`).
+- The exit is **event-triggered on the peace transition**, not a per-turn
+  invariant sweep. A pre-#1054 save whose overlord already made peace while a
+  vassal stayed stuck is not retroactively reconciled (benign, bilateral, and
+  not admissible to any save registry — the writer bug it came from is fixed
+  forward). No save-shape change, no migration.
 
 ### `atWarWith` also carries minor-civ war ids
 

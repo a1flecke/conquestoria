@@ -1000,3 +1000,9 @@ export function routeVassalAutoWar(state: GameState, event: GameEvents['diplomac
   const target = state.civilizations[event.targetCivId]?.name ?? 'a city-state';
   sink(event.vassalId, `You joined your overlord's war against ${target}, without a treachery penalty.`, 'warning');
 }
+
+export function routeVassalAutoPeace(state: GameState, event: GameEvents['diplomacy:vassal-auto-peace'], sink: NotificationSink): void {
+  const target = state.civilizations[event.targetCivId]?.name ?? 'a rival';
+  const overlord = state.civilizations[event.overlordId]?.name ?? 'your overlord';
+  sink(event.vassalId, `${overlord} made peace with ${target}, so your war with them has ended too.`, 'info');
+}
