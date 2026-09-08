@@ -1,4 +1,5 @@
 import type { PresentationRegistrar } from '@/presentation/register-all';
+import { shouldListMajorCivForViewer } from '@/systems/viewer-intel';
 
 export const registerCivilizationPresentation: PresentationRegistrar = (bus, ctx) => {
   const unsubscribers = [
@@ -15,7 +16,7 @@ export const registerCivilizationPresentation: PresentationRegistrar = (bus, ctx
     bus.on('civ:eliminated', ({ civId, eliminatedBy }) => {
       ctx.notifier.deliver(civId, 'Your civilization has been defeated.', 'warning');
       const victor = eliminatedBy ? ctx.session.getState().civilizations[eliminatedBy] : undefined;
-      if (victor?.isHuman) {
+      if (victor?.isHuman && shouldListMajorCivForViewer(ctx.session.getState(), eliminatedBy!, civId)) {
         ctx.notifier.deliver(eliminatedBy!, 'A rival civilization has been defeated.', 'success');
       }
     }),

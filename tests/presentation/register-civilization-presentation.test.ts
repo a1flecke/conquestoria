@@ -26,10 +26,21 @@ describe('civilization presentation', () => {
   it('gives a responsible human victor generic rival-defeat text only', () => {
     const bus = new EventBus();
     const ctx = makePresentationContext();
-    ctx.session.getState().civilizations.victor = {
-      ...ctx.session.getState().civilizations.p1,
+    const state = ctx.session.getState();
+    state.map = { tiles: {} } as never;
+    state.civilizations.p1 = {
+      ...state.civilizations.p1,
+      id: 'p1',
+      isHuman: true,
+      knownCivilizations: ['victor'],
+      diplomacy: {},
+      visibility: { tiles: {} },
+    };
+    state.civilizations.victor = {
+      ...state.civilizations.p1,
       id: 'victor',
       isHuman: true,
+      knownCivilizations: ['p1'],
     };
 
     registerCivilizationPresentation(bus, ctx);
@@ -37,6 +48,32 @@ describe('civilization presentation', () => {
 
     expect(ctx.deliver).toHaveBeenNthCalledWith(1, 'p1', 'Your civilization has been defeated.', 'warning');
     expect(ctx.deliver).toHaveBeenNthCalledWith(2, 'victor', 'A rival civilization has been defeated.', 'success');
+  });
+
+  it('does not disclose an unknown defeated civilization to a human victor', () => {
+    const bus = new EventBus();
+    const ctx = makePresentationContext();
+    const state = ctx.session.getState();
+    state.map = { tiles: {} } as never;
+    state.civilizations.p1 = {
+      ...state.civilizations.p1,
+      knownCivilizations: [],
+      diplomacy: {},
+      visibility: { tiles: {} },
+    };
+    state.civilizations.victor = {
+      ...state.civilizations.p1,
+      id: 'victor',
+      isHuman: true,
+      knownCivilizations: [],
+      diplomacy: {},
+    };
+
+    registerCivilizationPresentation(bus, ctx);
+    bus.emit('civ:eliminated', { civId: 'p1', eliminatedBy: 'victor' });
+
+    expect(ctx.deliver).toHaveBeenCalledTimes(1);
+    expect(ctx.deliver).toHaveBeenCalledWith('p1', 'Your civilization has been defeated.', 'warning');
   });
 
   it('disposes every lifecycle subscription', () => {
