@@ -5,7 +5,7 @@ import type { DominationKnownActorFact, DominationPanelModel, DominationPanelRow
 const RULE_TEXT = 'To win, be the last independent empire.';
 
 function rowForFact(fact: DominationKnownActorFact): DominationPanelRow {
-  if (fact.evidence === 'defeat' || fact.disposition === 'eliminated') {
+  if (fact.evidence === 'defeat') {
     return {
       civId: fact.civId,
       civName: fact.civName,
@@ -59,8 +59,10 @@ export function projectDominationProgressForViewer(state: GameState, viewerId: s
     ownEarnedDefeatCount: knowledge.ownEarnedDefeatIds.length,
     rows,
     uncertaintyText: 'Other empires or changes may be unknown. These reports do not prove a worldwide total.',
-    guidance: ownedCityId
-      ? { kind: 'owned-city', text: 'Review one of your cities and keep your empire secure.', cityId: ownedCityId }
-      : { kind: 'espionage', text: 'Scout and gather intelligence to update your reports.' },
+    guidance: rows.length === 0
+      ? { kind: 'text', text: 'Explore to meet other empires and learn about their progress.' }
+      : ownedCityId
+        ? { kind: 'owned-city', text: 'Review one of your cities and keep your empire secure.', cityId: ownedCityId }
+        : { kind: 'espionage', text: 'Scout and gather intelligence to update your reports.' },
   };
 }

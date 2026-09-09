@@ -1,4 +1,5 @@
 import type { GameState } from '@/core/types';
+import { isMajorCivOwner } from '@/core/owner-kind';
 import type {
   DominationDefeatFact,
   DominationIntelState,
@@ -68,8 +69,9 @@ function repairPoliticalReport(
     contenderId,
     observedTurn: value.observedTurn,
     contenderRole: value.contenderRole as DominationPoliticalReport['contenderRole'],
-    directVassalIds,
-    defeatedCivIds,
+    directVassalIds: directVassalIds.filter(civId => civId !== contenderId && isMajorCivOwner(civId)),
+    defeatedCivIds: defeatedCivIds.filter(civId =>
+      civId !== contenderId && isMajorCivOwner(civId) && !directVassalIds.includes(civId)),
   };
 }
 
@@ -86,6 +88,7 @@ function repairObserverIntel(value: unknown, currentTurn: number): DominationObs
 
   const reportsByContenderId: Record<string, DominationPoliticalReport> = {};
   for (const [contenderId, report] of Object.entries(value.reportsByContenderId)) {
+    if (!isMajorCivOwner(contenderId)) continue;
     const repaired = repairPoliticalReport(contenderId, report, currentTurn);
     if (repaired) reportsByContenderId[contenderId] = repaired;
   }
@@ -107,7 +110,7 @@ export function repairDominationIntel(state: GameState): GameState {
 
   const dominationIntel: DominationIntelState = {};
   for (const [observerId, observerIntel] of Object.entries(state.dominationIntel)) {
-    if (!state.civilizations[observerId]) continue;
+    if (!state.civilizations[observerId] || !isMajorCivOwner(observerId)) continue;
     const repaired = repairObserverIntel(observerIntel, state.turn);
     if (repaired) dominationIntel[observerId] = repaired;
   }

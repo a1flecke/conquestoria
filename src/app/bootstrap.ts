@@ -375,6 +375,8 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     userSettingsStore,
     getElementById: id => document.getElementById(id),
     getNetworkIntentPanel: () => document.querySelector('[aria-label="Network intent"]'),
+    closeVictoryProgressPanel: panelActions.closeVictoryProgressPanel,
+    refreshVictoryProgressPanel: panelActions.refreshVictoryProgressPanel,
     showNotification,
     updateHUD: () => hud.update(),
     setBlockingOverlay,

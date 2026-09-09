@@ -114,6 +114,10 @@ export interface TurnFlowControllerDeps {
   readonly getElementById: (id: string) => HTMLElement | null;
   /** Substitutes for `document.querySelector('[aria-label="Network intent"]')`. */
   readonly getNetworkIntentPanel: () => Element | null;
+  /** Clears a viewer-private panel before the next hot-seat player can see it. */
+  readonly closeVictoryProgressPanel: () => void;
+  /** Refreshes the open viewer-private panel after a deliberate un-published capture write. */
+  readonly refreshVictoryProgressPanel: () => void;
   readonly showNotification: (message: string, type?: 'info' | 'success' | 'warning') => void;
   readonly updateHUD: () => void;
   readonly setBlockingOverlay: (id: string | null) => void;
@@ -328,6 +332,7 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
     selection.setPendingIntent({ kind: 'none' });
     deps.getElementById('city-capture-panel')?.remove();
     session.setStateWithoutRefresh(result.state);
+    deps.refreshVictoryProgressPanel();
     emitMajorCityCaptureEvents(
       beforeCapture,
       result,
@@ -494,6 +499,7 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
 
   /** These viewer-owned surfaces may expose private history or strategic targets; never carry them across a hot-seat veil. */
   function closeNetworkPanelsForHandoff(): void {
+    deps.closeVictoryProgressPanel();
     router.close('victory-progress');
     router.close('diplomacy');
     uiLayer.querySelector('#diplomacy-panel')?.remove();

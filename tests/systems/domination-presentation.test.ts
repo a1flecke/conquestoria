@@ -68,4 +68,47 @@ describe('Domination progress presentation', () => {
       projectDominationProgressForViewer(state, 'player'),
     );
   });
+
+  it('keeps a reported elimination historical rather than calling it a confirmed current defeat', () => {
+    const state = makeLivenessGame();
+    state.turn = 9;
+    state.dominationIntel = {
+      player: {
+        defeatsByCivId: {},
+        reportsByContenderId: {
+          overlord: {
+            contenderId: 'overlord',
+            observedTurn: 7,
+            contenderRole: 'independent',
+            directVassalIds: [],
+            defeatedCivIds: ['ai-1'],
+          },
+        },
+      },
+    };
+
+    const row = projectDominationProgressForViewer(state, 'player').rows
+      .find(candidate => candidate.civId === 'ai-1');
+
+    expect(row).toMatchObject({ evidence: 'reported', reportTurn: 7 });
+    expect(row?.text).toContain('was reported eliminated on turn 7.');
+  });
+
+  it('guides a player with no rival reports to explore instead of opening an empty intelligence screen', () => {
+    const state = makeLivenessGame();
+    for (const civilization of Object.values(state.civilizations)) {
+      civilization.knownCivilizations = [];
+      civilization.diplomacy.atWarWith = [];
+      civilization.diplomacy.treaties = [];
+    }
+    state.dominationIntel = {};
+
+    const model = projectDominationProgressForViewer(state, 'player');
+
+    expect(model.rows).toEqual([]);
+    expect(model.guidance).toEqual({
+      kind: 'text',
+      text: 'Explore to meet other empires and learn about their progress.',
+    });
+  });
 });

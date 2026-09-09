@@ -147,6 +147,8 @@ function baseDeps(state: GameState, overrides: Partial<TurnFlowControllerDeps> =
     userSettingsStore: { getMasterVolume: () => 0.8 },
     getElementById: id => elements.get(id) ?? null,
     getNetworkIntentPanel: () => null,
+    closeVictoryProgressPanel: vi.fn(),
+    refreshVictoryProgressPanel: vi.fn(),
     showNotification: vi.fn(),
     updateHUD: vi.fn(),
     setBlockingOverlay: vi.fn(),
@@ -805,6 +807,7 @@ describe('createTurnFlowController', () => {
       turnFlow.finalizePendingCityCaptureChoice('raze');
 
       expect(emitter).toHaveBeenCalledTimes(1);
+      expect(deps.refreshVictoryProgressPanel).toHaveBeenCalledTimes(1);
       // ai-major-turn.ts's strategic-AI capture path calling the same shared
       // emitter (not a divergent AI-only implementation) is covered by
       // tests/ai/ai-major-turn.test.ts, not re-asserted here.
@@ -985,6 +988,7 @@ describe('createTurnFlowController', () => {
       const panel = document.createElement('div');
       const deps = baseDeps(state, { getNetworkIntentPanel: () => panel });
       createTurnFlowController(deps).closeNetworkPanelsForHandoff();
+      expect(deps.closeVictoryProgressPanel).toHaveBeenCalledTimes(1);
       expect(deps.router.close).toHaveBeenCalledWith('network');
       expect(deps.router.close).toHaveBeenCalledWith('hall-of-fame');
       expect(panel.isConnected).toBe(false);
