@@ -5,7 +5,7 @@
      Regenerate: UPDATE_SAVE_COMPAT_DOC=1 yarn vitest run tests/storage/save-migration-registries.test.ts
      Enforced by: tests/storage/save-migration-registries.test.ts -->
 
-Current schema version: **28**
+Current schema version: **29**
 
 Save compatibility is three separate mechanisms (#1023). They are deliberately
 not interchangeable: a normalizer silently standing in for a migration that was
@@ -49,6 +49,7 @@ Never on an already-current save.
 | 26 | `city-bombardment-tallies` | City.bombardment added the per-turn cap tally. Like 25, scrub-only — the number exists to give the repair a version boundary. |
 | 27 | `vassalage` | #910 made vassalage bilateral; a one-sided or dangling role silently breaks protection obligations and independence checks. |
 | 28 | `minor-civ-leagues` | #496 added the regional-compact container. Additive persistent container only; formation stays a world-turn action. |
+| 29 | `domination-intel` | #985 MR2 persists only earned Domination observations; older saves receive an empty ledger rather than omniscient historical backfill. |
 
 ## 2. Compatibility normalization
 
@@ -89,6 +90,7 @@ wrote is a bug in the writer, not a reason to keep the repair.**
 | `bilateral-war` | Repairs one-sided, self-referential and duplicated MAJOR-civ war entries; a one-sided war silently drives war-weariness unrest, AI war-pressure and peace availability off a phantom (#995). | — |
 | `cargo-reciprocity` | Repairs transport/cargo and carrier-aircraft links the load/unload/rebase helpers never break: a dangling or one-sided transportId, an over-capacity or wrong-owner manifest, a transport listed as cargo, and a based aircraft whose air base is gone (removed, like the game does on air-base loss) (#1000). | — |
 | `vassalage` | Repairs one-sided, self-referential, duplicated and dangling vassalage roles; an impossible role silently breaks protection obligations and independence checks. | 27 |
+| `domination-intel` | Drops malformed earned-Domination records from a current-version external save without reconstructing unearned history. | 29 |
 
 ## Dual registrations
 
@@ -107,6 +109,7 @@ a migration. Enforced by function identity, not by id.
 | `legendary-wonder-tactical-effects` | 22 | Schema 22 introduced the effect state. The unconditional pass is the validation half, for the same forgery reason as the military facts above. |
 | `coastal-battery-counterfire-turns` | 13 | Schema 13 introduced the markers. The unconditional pass is the malformed-value scrub. |
 | `vassalage` | 27 | Schema 27 made vassalage bilateral. The unconditional pass is the impossible-shape repair, which must apply to any file regardless of version. |
+| `domination-intel` | 29 | Schema 29 initializes the ledger for old saves, while this unconditional guard repairs a missing field that current writers never emit. |
 
 ## Unconditional pass order
 
@@ -123,12 +126,13 @@ as a refactor.
 7. `generated-generals` (repair)
 8. `general-career-ledger` (repair)
 9. `vassalage` (repair)
-10. `bilateral-war` (repair)
-11. `cargo-reciprocity` (repair)
-12. `city-faith-conversion-progress` (compatibility)
-13. `retimed-biplane-queues` (compatibility)
-14. `coastal-battery-counterfire-turns` (repair)
-15. `improvement-values` (repair)
-16. `barbarian-camp-pressure` (compatibility)
-17. `legendary-wonder-military-facts` (repair)
-18. `legendary-wonder-tactical-effects` (repair)
+10. `domination-intel` (repair)
+11. `bilateral-war` (repair)
+12. `cargo-reciprocity` (repair)
+13. `city-faith-conversion-progress` (compatibility)
+14. `retimed-biplane-queues` (compatibility)
+15. `coastal-battery-counterfire-turns` (repair)
+16. `improvement-values` (repair)
+17. `barbarian-camp-pressure` (compatibility)
+18. `legendary-wonder-military-facts` (repair)
+19. `legendary-wonder-tactical-effects` (repair)

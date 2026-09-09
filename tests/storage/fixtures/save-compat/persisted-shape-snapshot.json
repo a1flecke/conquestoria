@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 28,
+  "schemaVersion": 29,
   "paths": [
     "autonomyByCiv",
     "autonomyByCiv.*.detections",
@@ -1038,6 +1038,7 @@
     "currentPlayer",
     "defensiveLeagues",
     "discoveredWonders",
+    "dominationIntel",
     "embargoes",
     "era",
     "espionage",

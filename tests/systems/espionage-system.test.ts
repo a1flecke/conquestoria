@@ -1530,6 +1530,20 @@ describe('informational mission report persistence (post-#442 audit fix)', () =>
     expect(outcome!.state.espionage![targetCivId].intelReports ?? {}).toEqual({});
   });
 
+  it('records the filtered Domination political snapshot before notifying gather_intel success', () => {
+    const { state: baseState, targetCivId } = makeInformationalMissionFixture();
+    baseState.civilizations.player.knownCivilizations = [targetCivId];
+    baseState.civilizations[targetCivId].knownCivilizations = ['player'];
+    const outcome = runUntil(baseState, 'gather_intel', acquired => acquired.length > 0);
+
+    expect(outcome).not.toBeNull();
+    expect(outcome!.state.dominationIntel?.player?.reportsByContenderId[targetCivId]).toMatchObject({
+      contenderId: targetCivId,
+      observedTurn: outcome!.state.turn,
+    });
+    expect(outcome!.state.dominationIntel?.[targetCivId]).toBeUndefined();
+  });
+
   it('identify_resources persists a resource report on the attacker only', () => {
     const { state: baseState, targetCivId, cityId } = makeInformationalMissionFixture();
     const outcome = runUntil(baseState, 'identify_resources', acquired => acquired.length > 0);

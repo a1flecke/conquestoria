@@ -6,6 +6,7 @@ import type {
 import type { EventBus } from '@/core/event-bus';
 import { cancelInvalidNetworkPlans } from '@/systems/network-plan-system';
 import { getCivilizationLiveness } from './civilization-liveness';
+import { recordDominationDefeat } from './domination-intel';
 
 export type CivilizationEliminationResult =
   | { state: GameState; eliminated: false }
@@ -230,6 +231,10 @@ export function reconcileCivilizationLiveness(
       const result = eliminateCivilization(working, civId, victor);
       working = result.state;
       if (result.eliminated) {
+        working = recordDominationDefeat(before, working, {
+          civId: result.civId,
+          eliminatedBy: result.eliminatedBy,
+        });
         transitions.push({
           kind: 'eliminated',
           civId,

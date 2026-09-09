@@ -149,6 +149,7 @@ export function createGameSessionController(deps: GameSessionControllerDeps): Ga
         deps.uiLayer.appendChild(overlay);
       },
       onOpenWonderAtlas: () => deps.router.open('wonder-atlas'),
+      onOpenVictoryProgress: () => deps.router.open('victory-progress'),
       onOpenHallOfFame: () => deps.router.open('hall-of-fame'),
       supplyOverlayEnabled: deps.renderLoop.isSupplyOverlayEnabled(),
       onToggleSupplyOverlay: () => deps.renderLoop.toggleSupplyOverlay(),

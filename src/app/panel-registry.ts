@@ -13,7 +13,7 @@ export type PanelId =
   | 'council' | 'tech' | 'city' | 'espionage' | 'diplomacy' | 'marketplace'
   | 'network' | 'wonder' | 'wonder-atlas' | 'bestiary' | 'pirate-waters'
   | 'notification-log' | 'city-overview' | 'territory-inspection' | 'pacing-debug'
-  | 'strategic-arsenal' | 'hall-of-fame';
+  | 'strategic-arsenal' | 'hall-of-fame' | 'victory-progress';
 
 /**
  * Panels in the same group close each other. 'main' is the mutually-exclusive
