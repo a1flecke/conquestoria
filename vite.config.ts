@@ -38,7 +38,13 @@ export default defineConfig(({ mode }) => {
       globals: true,
       environment: 'node',
       dir: resolve(__dirname, 'tests'),
-      exclude: ['e2e/**'],
+      // `simulation/long-horizon/**` is the #1005 heavyweight AI campaign suite:
+      // 300-500 turn deterministic campaigns, minutes per scenario. It is
+      // explicit-run only (`yarn test:ai-long`) via `vitest.long-horizon.config.ts`,
+      // and excluded here UNCONDITIONALLY so `yarn test` / `test:fast` / `test:slow`
+      // / `verify:push` / the pre-push hooks / CI can never discover it. Guarded by
+      // `tests/scripts/ai-long-horizon-isolation.test.ts`.
+      exclude: ['e2e/**', 'simulation/long-horizon/**'],
       // Vitest only manages workers inside one process. A local 25% budget leaves
       // headroom for up to four concurrent worktree runs; CI is isolated and can use
       // the available parallelism. VITEST_MAX_WORKERS is Vitest's official override.
