@@ -17,6 +17,7 @@ import { applySatelliteSurveillance } from './fog-of-war';
 import { getCapitalCityId } from './capital-system';
 import { getActiveNationalProjectsForCiv } from './national-project-system';
 import { recordDominationPoliticalReport } from './domination-intel';
+import { isSpyUnitType } from './spy-unit-types';
 import {
   ESPIONAGE_MODIFIERS,
   ESPIONAGE_SUCCESS_CHANCE_MAX,
@@ -241,13 +242,7 @@ export function getMissionDuration(missionType: SpyMissionType): number {
 
 // --- Mutations ---
 
-const SPY_UNIT_TYPES = new Set<UnitType>([
-  'spy_scout', 'spy_informant', 'spy_agent', 'spy_operative', 'spy_intelligence_officer', 'spy_station_chief', 'spy_hacker',
-]);
-
-export function isSpyUnitType(type: UnitType): boolean {
-  return SPY_UNIT_TYPES.has(type);
-}
+export { isSpyUnitType } from './spy-unit-types';
 
 export function createSpyFromUnit(
   state: EspionageCivState,
