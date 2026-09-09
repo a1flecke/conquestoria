@@ -25,7 +25,15 @@ import { getAvailableTechs } from '@/systems/tech-system';
 import { processTurn } from '@/core/turn-manager';
 import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { CRISIS_FORCE_OWNER } from '@/core/owner-kind';
+import { serializeSaveFile, parseSaveFile } from '@/storage/save-file-transfer';
+import { normalizeLoadedState } from '@/storage/save-manager';
 import { assertAirBaseIntegrity, assertBilateralWar, assertCargoReciprocity, assertEliminatedCivHasNoLiveEntities } from '../helpers/save-state-invariants';
+import {
+  buildCampaignRoundSample,
+  emptyCivCounters,
+  type CampaignCivCounters,
+  type CampaignRoundSample,
+} from './campaign-sample';
 
 export type AIPersonality =
   | 'aggressive'
@@ -343,10 +351,64 @@ function assertLateEraForce(state: GameState, seed: string): void {
   }
 }
 
-function simulate(
-  options: AISimulationOptions,
-  lateEra: boolean,
-): AISimulationMetrics {
+export type CampaignTerminationReason = 'victory' | 'turn-cap';
+
+export interface AICampaignOptions extends AISimulationOptions {
+  /** Start every civ in a deterministic Era-9 posture (the `simulateLateEraAIRounds` path). */
+  lateEra?: boolean;
+  /**
+   * Run the Era-9 terminal force-composition assertions (`assertLateEraForce` +
+   * the modern-combat-share floor). Defaults to `lateEra` so `simulateLateEra
+   * AIRounds` keeps its exact behaviour. The long-horizon `lh-late-era-medium`
+   * scenario sets this `false`: those assertions were calibrated for a 20-turn
+   * probe, and over 250 turns an F1-stalled Era-9 AI can legitimately lose its
+   * force — a hard throw there would masquerade as an unrelated regression. The
+   * campaign's analysis detectors watch the long Era-9 run instead.
+   */
+  lateEraForceAssertions?: boolean;
+  /** Stop the campaign the round `state.gameOver` turns true, instead of running the full turn cap. */
+  stopOnGameOver?: boolean;
+  /**
+   * After the listed COUNTS of completed rounds, round-trip the live state
+   * through `serializeSaveFile` → `parseSaveFile` → `normalizeLoadedState` and
+   * continue from the reloaded state. Changes the simulation, so it is used only
+   * by the dedicated save/reload continuity test — never the scenario matrix.
+   */
+  saveReloadAfterRounds?: readonly number[];
+  /**
+   * Called once per completed round with a PLAIN-DATA reduction of the state —
+   * never `GameState` itself. This is what keeps the campaign report
+   * deterministic and keeps the analysis layer structurally unable to perturb
+   * the simulation.
+   */
+  observe?: (sample: CampaignRoundSample) => void;
+}
+
+export interface AICampaignResult {
+  metrics: AISimulationMetrics;
+  termination: {
+    reason: CampaignTerminationReason;
+    roundsCompleted: number;
+    winner: string | null;
+    gameOverReason: string | null;
+  };
+  /** Echo of the reload points that actually fired (for the report artifact). */
+  saveReloadRounds: readonly number[];
+  /**
+   * The campaign's final `GameState`. For the determinism / save-reload
+   * continuity tests only — the `observe` callback never receives this, so the
+   * plain-data contract for the report artifact is unaffected.
+   */
+  finalState: GameState;
+}
+
+/**
+ * #1005 — the long-horizon campaign entry point. `simulateAIRounds` /
+ * `simulateLateEraAIRounds` are thin wrappers over this; their behaviour is
+ * unchanged because every campaign-only option defaults off.
+ */
+export function runAICampaign(options: AICampaignOptions): AICampaignResult {
+  const lateEra = options.lateEra ?? false;
   let state = initializeScenario(options);
   if (lateEra) {
     const eraNineTechs = TECH_TREE.filter(tech => tech.era <= 9).map(tech => tech.id);
@@ -398,6 +460,19 @@ function simulate(
   for (const id of humanIds) metrics.maxIndependentThreatsByHuman[id] = 0;
 
   const warningRoundByViewerActor = new Map<string, number>();
+  // #1005 — cumulative per-civ counters, accrued only from each round's own bus.
+  // Populated for every civ up front so the sample builder never sees a gap.
+  const countersByCiv = new Map<string, CampaignCivCounters>();
+  for (const civId of Object.keys(state.civilizations)) {
+    countersByCiv.set(civId, emptyCivCounters());
+  }
+  const bumpCounter = (civId: string, key: keyof CampaignCivCounters): void => {
+    const counters = countersByCiv.get(civId);
+    if (counters) counters[key] += 1;
+  };
+  const saveReloadRounds: number[] = [];
+  let terminationReason: CampaignTerminationReason = 'turn-cap';
+
   const startedAt = performance.now();
   for (let round = 0; round < options.turns; round++) {
     const roundStart = performance.now();
@@ -410,6 +485,20 @@ function simulate(
     bus.on('city:captured', event => {
       metrics.cityCaptures += 1;
       captures.push(event);
+      bumpCounter(event.newOwner, 'capturesMade');
+      bumpCounter(event.previousOwner, 'capturesSuffered');
+    });
+    bus.on('diplomacy:peace-requested', event => {
+      bumpCounter(event.fromCivId, 'peaceEventsInvolvingCiv');
+      bumpCounter(event.toCivId, 'peaceEventsInvolvingCiv');
+    });
+    bus.on('diplomacy:peace-made', event => {
+      bumpCounter(event.civA, 'peaceEventsInvolvingCiv');
+      bumpCounter(event.civB, 'peaceEventsInvolvingCiv');
+    });
+    bus.on('diplomacy:war-declared', event => {
+      bumpCounter(event.attackerId, 'warDeclarationsInvolvingCiv');
+      bumpCounter(event.defenderId, 'warDeclarationsInvolvingCiv');
     });
     bus.on('barbarian:camp-destroyed', () => {
       metrics.campsResolved += 1;
@@ -561,10 +650,41 @@ function simulate(
     assertLegalChoices(state, traces, options.seed, lateEra);
     metrics.roundDurationsMs.push(performance.now() - roundStart);
     metrics.turns += 1;
+
+    // #1005 — plain-data observation of the completed round. `beforeInput` is the
+    // state as it ENTERED this round (the fixture's own mutation-check string), so
+    // `stateBytesBeforeRound` costs no extra stringify.
+    if (options.observe) {
+      options.observe(buildCampaignRoundSample(
+        round,
+        state,
+        beforeInput.length,
+        metrics.planProgressTransitions,
+        countersByCiv,
+      ));
+    }
+
+    if (options.stopOnGameOver && state.gameOver) {
+      terminationReason = 'victory';
+      break;
+    }
+
+    // #1005 — optional save/reload continuity checkpoint. Off for the scenario
+    // matrix (it changes the simulation); used only by the dedicated test.
+    if (options.saveReloadAfterRounds?.includes(round + 1)) {
+      const parsed = parseSaveFile(serializeSaveFile(state));
+      if (parsed.status !== 'success') {
+        throw new Error(`${options.seed}: save/reload at round ${round + 1} failed: ${parsed.message}`);
+      }
+      state = normalizeLoadedState(parsed.state);
+      saveReloadRounds.push(round + 1);
+    }
   }
   metrics.elapsedMs = performance.now() - startedAt;
   Object.assign(metrics, modernForceMetrics(state));
-  if (lateEra) {
+  // `lateEraForceAssertions` defaults on for the `simulateLateEraAIRounds` path
+  // (bit-identical to before); the long-horizon Era-9 scenario turns it off.
+  if (lateEra && (options.lateEraForceAssertions ?? true)) {
     assertLateEraForce(state, options.seed);
     for (const [civId, share] of Object.entries(metrics.modernUnitShareByCiv)) {
       if (share < 0.6) {
@@ -578,15 +698,25 @@ function simulate(
       }
     }
   }
-  return metrics;
+  return {
+    metrics,
+    termination: {
+      reason: terminationReason,
+      roundsCompleted: metrics.turns,
+      winner: state.winner ?? null,
+      gameOverReason: state.gameOverReason ?? null,
+    },
+    saveReloadRounds,
+    finalState: state,
+  };
 }
 
 export function simulateAIRounds(options: AISimulationOptions): AISimulationMetrics {
-  return simulate(options, false);
+  return runAICampaign(options).metrics;
 }
 
 export function simulateLateEraAIRounds(
   options: AISimulationOptions,
 ): AISimulationMetrics {
-  return simulate(options, true);
+  return runAICampaign({ ...options, lateEra: true }).metrics;
 }
