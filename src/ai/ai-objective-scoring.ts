@@ -18,6 +18,8 @@ export interface AIObjectiveCandidate {
   expectedLossRatio: number;
   supplyDistance: number;
   explicitDistantReasons: AIPlanReason[];
+  /** Informational reasons that never change locality eligibility or score. */
+  reasonCodes?: AIPlanReason[];
   requiredRoles: Partial<Record<AIStrategicRole, number>>;
 }
 
@@ -218,10 +220,12 @@ export function choosePrimaryObjective(
     );
     if (!exactTargetKnown) demands.add('recon');
     const pathReachable = Number.isFinite(candidate.travelTurns) && candidate.travelTurns >= 0;
+    const informationalReasons = candidate.reasonCodes ?? [];
     return {
       candidate: { ...candidate, explicitDistantReasons: reasons },
       id: candidateId(candidate),
-      reasons,
+      reasons: [...informationalReasons, ...reasons],
+      distantReasons: reasons,
       baseEligible: missing.length === 0 && exactTargetKnown && pathReachable,
     };
   });
@@ -236,7 +240,7 @@ export function choosePrimaryObjective(
 
   const ranked = analyzed.map(entry => {
     const local = entry.candidate.travelTurns <= localityLimit;
-    const eligible = entry.baseEligible && (local || entry.reasons.length > 0);
+    const eligible = entry.baseEligible && (local || entry.distantReasons.length > 0);
     return {
       ...entry,
       eligible,

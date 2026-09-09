@@ -13,6 +13,8 @@ import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { findPath, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
+import { getAvailableActions, hasArmsControlTreaty } from '@/systems/diplomacy-system';
+import { buildDominationKnowledge } from '@/systems/domination-knowledge';
 import {
   buildMajorCivPerception,
   estimatePerceivedCivStrength,
@@ -47,6 +49,12 @@ import {
 } from '@/core/opponent-challenge';
 import { getCrisisDispatchCandidates } from './ai-crisis-response';
 import { isCrisisPressureEligible, isPiratePressureEligible } from '@/systems/world-pressure-eligibility';
+import {
+  evaluateDominationDoctrine,
+  isKnownIndependentDominationTarget,
+  type DominationDoctrine,
+} from './ai-domination';
+import { resolveCivDefinition } from '@/systems/civ-registry';
 
 export interface PreparedMajorCivPlan {
   civId: string;
@@ -211,6 +219,8 @@ function objectiveCandidates(
   civId: string,
   perception: MajorCivPerception,
   knownMap: GameMap,
+  doctrine: DominationDoctrine,
+  knowledge: ReturnType<typeof buildDominationKnowledge>,
 ): AIObjectiveCandidate[] {
   const actor = state.civilizations[civId];
   const operationalAnchors = perception.ownCities.length > 0
@@ -237,12 +247,21 @@ function objectiveCandidates(
       && event.otherCiv === city.owner
       && state.turn - event.turn <= 6);
     const activeWar = actor.diplomacy.atWarWith.includes(city.owner);
-    if (!activeWar && !recentAttack) continue;
     const rivalStrength = estimatePerceivedCivStrength(
       perception,
       city.owner,
       actorEra,
     ).midpoint;
+    const peacefulDominationTarget = doctrine.pursuit
+      && actor.knownCivilizations?.includes(city.owner) === true
+      && isKnownIndependentDominationTarget(knowledge, city.owner)
+      && getAvailableActions(actor.diplomacy, city.owner, {
+        completedTechs: actor.techState.completed,
+        civilizationEra: actorEra,
+        hasArmsControlTreaty: hasArmsControlTreaty(state as GameState, civId),
+      }).includes('declare_war');
+    const expectedLossRatio = Math.min(2, rivalStrength / Math.max(1, ownStrength));
+    if (!activeWar && !recentAttack && (!peacefulDominationTarget || expectedLossRatio > 1)) continue;
     const candidate: AIObjectiveCandidate = {
       objective: 'capture',
       target: {
@@ -252,14 +271,19 @@ function objectiveCandidates(
       },
       theaterId: `local:${city.position.q},${city.position.r}`,
       travelTurns,
-      strategicValue: activeWar ? 75 : 45,
-      expectedLossRatio: Math.min(2, rivalStrength / Math.max(1, ownStrength)),
+      strategicValue: activeWar
+        ? 75
+        : recentAttack
+          ? 45
+          : Math.min(100, 75 + doctrine.captureValueBonus),
+      expectedLossRatio,
       supplyDistance: travelTurns,
       explicitDistantReasons: recentAttack
         ? ['retaliate-recent-attack']
         : activeWar
           ? ['continue-active-war']
           : [],
+      reasonCodes: peacefulDominationTarget ? doctrine.reasonCodes : [],
       requiredRoles: { frontline: 1, capture: 1 },
     };
     candidates.push(candidate);
@@ -431,7 +455,16 @@ export function prepareMajorCivStrategicPlan(
   const actorEra = resolveCivilizationEra(civ.techState.completed);
   const perception = buildMajorCivPerception(state, civId);
   const knownMap = buildKnownPathMap(state, civId);
-  const candidates = objectiveCandidates(state, civId, perception, knownMap);
+  const knowledge = buildDominationKnowledge(state, civId);
+  const doctrine = evaluateDominationDoctrine({
+    knowledge,
+    ownCityCount: perception.ownCities.length,
+    personality: resolveCivDefinition(state, civ.civType)?.personality ?? {
+      traits: [], warLikelihood: 0.5, diplomacyFocus: 0.5, expansionDrive: 0.5,
+    },
+    challenge: resolveOpponentChallenge(state),
+  });
+  const candidates = objectiveCandidates(state, civId, perception, knownMap, doctrine, knowledge);
   const choice = choosePrimaryObjective({
     actorId: civId,
     turn: state.turn,
