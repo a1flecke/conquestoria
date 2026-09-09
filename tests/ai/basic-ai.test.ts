@@ -22,6 +22,7 @@ import { createUnit } from '@/systems/unit-system';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import type { ResourceType } from '@/core/types';
 import { makeVassalageFixture } from '../systems/helpers/vassalage-fixture';
+import { assertBilateralWar } from '../helpers/save-state-invariants';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -1499,6 +1500,35 @@ describe('processAITurn', () => {
     expect(result.pendingDiplomacyRequests).toHaveLength(1);
     expect(result.pendingDiplomacyRequests?.[0]?.fromCivId).toBe('player');
     expect(result.pendingDiplomacyRequests?.[0]?.toCivId).toBe('ai-1');
+  });
+
+  it('uses one current Domination counterplay peace request and never duplicates it', () => {
+    const state = makeAiPeaceRequestState();
+    state.dominationIntel = {
+      'ai-1': {
+        defeatsByCivId: {},
+        reportsByContenderId: {
+          'ai-2': {
+            contenderId: 'ai-2', observedTurn: state.turn, contenderRole: 'independent',
+            directVassalIds: ['ai-3', 'ai-4'], defeatedCivIds: [],
+          },
+          player: {
+            contenderId: 'player', observedTurn: state.turn, contenderRole: 'independent',
+            directVassalIds: [], defeatedCivIds: [],
+          },
+        },
+      },
+    };
+
+    const once = processAITurn(state, 'ai-1', new EventBus());
+    expect(once.pendingDiplomacyRequests).toEqual([
+      expect.objectContaining({ type: 'peace', fromCivId: 'ai-1', toCivId: 'player' }),
+    ]);
+    assertBilateralWar(once);
+
+    const twice = processAITurn(once, 'ai-1', new EventBus());
+    expect(twice.pendingDiplomacyRequests).toEqual(once.pendingDiplomacyRequests);
+    assertBilateralWar(twice);
   });
 
   it('does not bypass plan progression to capture an exposed city', () => {

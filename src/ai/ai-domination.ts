@@ -74,26 +74,41 @@ export function isKnownIndependentDominationTarget(
 }
 
 /**
- * Picks one observed threat deterministically. The result is a demand seed;
- * production and diplomacy remain owned by their existing planners.
+ * Picks one credible political lead deterministically. Warning presentation
+ * waits for its stricter near-victory threshold; the AI responds earlier once
+ * a current report confirms two secured rivals, leaving time for legal peace,
+ * alliance, and frontline preparation. Every fact remains observer-earned.
  */
 export function getDominationCounterplay(
   knowledge: DominationKnowledge,
 ): DominationCounterplay | null {
-  const reportsByContenderId = new Map(knowledge.reports.map(report => [report.contenderId, report]));
-  const threat = getDominationThreats(knowledge)
-    .sort((left, right) =>
-      left.unresolvedRivalIds.length - right.unresolvedRivalIds.length
-      || right.securedRivalIds.length - left.securedRivalIds.length
-      || (reportsByContenderId.get(right.contenderId)?.observedTurn ?? -1)
-        - (reportsByContenderId.get(left.contenderId)?.observedTurn ?? -1)
-      || left.contenderId.localeCompare(right.contenderId))[0];
-  if (!threat) return null;
+  if (knowledge.ownRole !== 'independent') return null;
+  const factsById = new Map(knowledge.knownActorFacts.map(fact => [fact.civId, fact]));
+  const contender = knowledge.reports.flatMap(report => {
+    if (!isKnownIndependentDominationTarget(knowledge, report.contenderId)) return [];
+    const securedRivalCount = [...report.directVassalIds, ...report.defeatedCivIds]
+      .filter((civId, index, entries) => entries.indexOf(civId) === index)
+      .filter(civId => {
+        const fact = factsById.get(civId);
+        const currentReportFact = fact?.evidence === 'report'
+          && fact.observedTurn === report.observedTurn;
+        return currentReportFact
+          && (fact.disposition === 'eliminated'
+            || fact.disposition === 'vassal' && fact.overlordId === report.contenderId);
+      }).length;
+    return securedRivalCount >= 2
+      ? [{ contenderId: report.contenderId, securedRivalCount, observedTurn: report.observedTurn }]
+      : [];
+  }).sort((left, right) =>
+    right.securedRivalCount - left.securedRivalCount
+    || right.observedTurn - left.observedTurn
+    || left.contenderId.localeCompare(right.contenderId))[0];
+  if (!contender) return null;
   return {
-    threatId: threat.contenderId,
+    threatId: contender.contenderId,
     forceDemand: {
       role: 'frontline',
-      sourceId: `domination-threat:${threat.contenderId}`,
+      sourceId: `domination-threat:${contender.contenderId}`,
       priority: 220,
     },
   };

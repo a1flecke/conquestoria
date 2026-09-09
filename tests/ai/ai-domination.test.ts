@@ -66,16 +66,16 @@ describe('Domination AI doctrine', () => {
   it('derives urgency only from a current earned report, never a stale one', () => {
     const report = {
       contenderId: 'ai-2', observedTurn: 10, contenderRole: 'independent' as const,
-      directVassalIds: ['ai-3', 'ai-1'], defeatedCivIds: ['ai-4'],
+      directVassalIds: ['ai-3'], defeatedCivIds: ['ai-4'],
     };
     const facts = [
-      { civId: 'ai-1', civName: 'Self', disposition: 'vassal' as const, overlordId: 'ai-2', observedTurn: 10, evidence: 'own' as const },
+      { civId: 'ai-1', civName: 'Self', disposition: 'independent' as const, overlordId: null, observedTurn: 10, evidence: 'own' as const },
       { civId: 'ai-2', civName: 'Threat', disposition: 'independent' as const, overlordId: null, observedTurn: 10, evidence: 'report' as const },
       { civId: 'ai-3', civName: 'Vassal', disposition: 'vassal' as const, overlordId: 'ai-2', observedTurn: 10, evidence: 'report' as const },
       { civId: 'ai-4', civName: 'Defeated', disposition: 'eliminated' as const, overlordId: null, observedTurn: 10, evidence: 'report' as const },
     ];
     const current = knowledge({
-      ownRole: 'vassal', ownOverlordId: 'ai-2', reports: [report], knownActorFacts: facts,
+      reports: [report], knownActorFacts: facts,
     });
 
     expect(evaluateDominationDoctrine({
@@ -94,16 +94,18 @@ describe('Domination AI doctrine', () => {
   it('uses one current independent partner, preferring peace before alliance', () => {
     const report = {
       contenderId: 'ai-2', observedTurn: 10, contenderRole: 'independent' as const,
-      directVassalIds: ['ai-3', 'ai-1'], defeatedCivIds: ['ai-4'],
+      directVassalIds: ['ai-3', 'ai-4', 'ai-5', 'ai-6'], defeatedCivIds: [],
     };
     const current = knowledge({
-      ownRole: 'vassal', ownOverlordId: 'ai-2', reports: [report],
-      knownCivIds: ['ai-1', 'ai-2', 'ai-3', 'ai-4', 'player'],
+      reports: [report],
+      knownCivIds: ['ai-1', 'ai-2', 'ai-3', 'ai-4', 'ai-5', 'ai-6', 'player'],
       knownActorFacts: [
-        { civId: 'ai-1', civName: 'Self', disposition: 'vassal', overlordId: 'ai-2', observedTurn: 10, evidence: 'own' },
+        { civId: 'ai-1', civName: 'Self', disposition: 'independent', overlordId: null, observedTurn: 10, evidence: 'own' },
         { civId: 'ai-2', civName: 'Threat', disposition: 'independent', overlordId: null, observedTurn: 10, evidence: 'report' },
         { civId: 'ai-3', civName: 'Vassal', disposition: 'vassal', overlordId: 'ai-2', observedTurn: 10, evidence: 'report' },
-        { civId: 'ai-4', civName: 'Defeated', disposition: 'eliminated', overlordId: null, observedTurn: 10, evidence: 'report' },
+        { civId: 'ai-4', civName: 'Vassal', disposition: 'vassal', overlordId: 'ai-2', observedTurn: 10, evidence: 'report' },
+        { civId: 'ai-5', civName: 'Vassal', disposition: 'vassal', overlordId: 'ai-2', observedTurn: 10, evidence: 'report' },
+        { civId: 'ai-6', civName: 'Vassal', disposition: 'vassal', overlordId: 'ai-2', observedTurn: 10, evidence: 'report' },
         { civId: 'player', civName: 'Partner', disposition: 'independent', overlordId: null, observedTurn: 10, evidence: 'report' },
       ],
     });
@@ -117,6 +119,27 @@ describe('Domination AI doctrine', () => {
     ])).toEqual({ targetCivId: 'player', kind: 'alliance' });
     expect(chooseDominationCounterplayDiplomacyAction(current, [
       { civId: 'player', canRequestPeace: false, canOfferAlliance: false },
+    ])).toBeNull();
+  });
+
+  it('does not mobilize or negotiate against an overlord for a vassal observer', () => {
+    const report = {
+      contenderId: 'ai-2', observedTurn: 10, contenderRole: 'independent' as const,
+      directVassalIds: ['ai-1', 'ai-3'], defeatedCivIds: ['ai-4'],
+    };
+    const vassalKnowledge = knowledge({
+      ownRole: 'vassal', ownOverlordId: 'ai-2', reports: [report],
+      knownActorFacts: [
+        { civId: 'ai-1', civName: 'Self', disposition: 'vassal', overlordId: 'ai-2', observedTurn: 10, evidence: 'own' },
+        { civId: 'ai-2', civName: 'Threat', disposition: 'independent', overlordId: null, observedTurn: 10, evidence: 'report' },
+        { civId: 'ai-3', civName: 'Vassal', disposition: 'vassal', overlordId: 'ai-2', observedTurn: 10, evidence: 'report' },
+        { civId: 'ai-4', civName: 'Defeated', disposition: 'eliminated', overlordId: null, observedTurn: 10, evidence: 'report' },
+      ],
+    });
+
+    expect(getDominationCounterplay(vassalKnowledge)).toBeNull();
+    expect(chooseDominationCounterplayDiplomacyAction(vassalKnowledge, [
+      { civId: 'ai-2', canRequestPeace: true, canOfferAlliance: true },
     ])).toBeNull();
   });
 });
