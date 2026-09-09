@@ -544,9 +544,10 @@ describe('prepared major-civilization planning', () => {
     expect(prepared.portfolio.primaryPlan).toBeNull();
   });
 
-  it('admits a legal, reachable reported independent city for aggressive Domination pursuit', () => {
+  it.each(['explorer', 'standard', 'veteran'] as const)('admits a legal, reachable reported independent city for aggressive Domination pursuit on %s', challenge => {
     const state = createNewGame(undefined, 'prepared-domination-pursuit', 'small');
     state.turn = 10;
+    state.opponentChallenge = challenge;
     const civ = state.civilizations['ai-1'];
     civ.civType = 'rome';
     const anchor = civ.units.map(id => state.units[id]).find(Boolean)!.position;

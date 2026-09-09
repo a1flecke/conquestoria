@@ -6,7 +6,9 @@ import { EventBus } from '@/core/event-bus';
 import { createHotSeatGame } from '@/core/game-state';
 import type { GameState, HexCoord, HotSeatConfig } from '@/core/types';
 import { foundCity } from '@/systems/city-system';
+import { acceptDiplomaticRequest, applyDiplomaticAction } from '@/systems/diplomacy-system';
 import { recordDominationPoliticalReport } from '@/systems/domination-intel';
+import { projectDominationProgressForViewer } from '@/systems/domination-presentation';
 import { hexDistance, hexKey } from '@/systems/hex-utils';
 import { processImprovementTurns } from '@/systems/improvement-turn-system';
 import { updateAndRefreshVisibility } from '@/systems/last-seen-presentation';
@@ -14,10 +16,13 @@ import { applyStrategicWarningTransitions } from '@/systems/strategic-warning-sy
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { processTurn } from '@/core/turn-manager';
 import { createUnit } from '@/systems/unit-system';
+import { checkDominationVictory } from '@/systems/victory-system';
 import { normalizeLoadedState } from '@/storage/save-manager';
 import { parseSaveFile, serializeSaveFile } from '@/storage/save-file-transfer';
 import { assertSimulationEquivalent } from '../helpers/deterministic-state';
 import { assertBilateralWar } from '../helpers/save-state-invariants';
+import { withoutOwnedAssets } from '../systems/helpers/civilization-liveness-fixture';
+import { makeVassalageFixture } from '../systems/helpers/vassalage-fixture';
 
 const SEED = 'domination-ai-campaign-standard-v1';
 const SAVE_ROUND = 3;
@@ -176,10 +181,41 @@ describe('Domination AI campaign', () => {
     expect(reloaded.state.turn).toBe(uninterrupted.state.turn);
     expect(reloaded.traces).toEqual(uninterrupted.traces);
     expect(reloaded.rivalStatusChanges).toEqual(uninterrupted.rivalStatusChanges);
+    for (const viewerId of ['player-1', 'player-2']) {
+      expect(projectDominationProgressForViewer(reloaded.state, viewerId))
+        .toEqual(projectDominationProgressForViewer(uninterrupted.state, viewerId));
+      expect(reloaded.state.pendingEvents?.[viewerId])
+        .toEqual(uninterrupted.state.pendingEvents?.[viewerId]);
+    }
     assertSimulationEquivalent(
       saveAndReload(reloaded.state),
       saveAndReload(uninterrupted.state),
       'Domination campaign save/reload',
     );
   }, CAMPAIGN_TIMEOUT_MS);
+
+  it('reverses a near-win through the canonical vassal release before finalization', () => {
+    const bus = new EventBus();
+    const offered = applyDiplomaticAction(
+      makeVassalageFixture(), 'vassal', 'overlord', 'offer_vassalage', bus,
+    );
+    const accepted = acceptDiplomaticRequest(
+      offered, 'overlord', offered.pendingDiplomacyRequests![0]!.id, bus,
+    );
+    const nearWin = withoutOwnedAssets(accepted, 'third');
+    expect(checkDominationVictory(nearWin)).toBe('overlord');
+
+    const reversed = applyDiplomaticAction(nearWin, 'overlord', 'vassal', 'release_vassal', bus);
+    expect(checkDominationVictory(reversed)).toBeNull();
+    assertBilateralWar(reversed);
+
+    const completed = runCompletedRound(reversed, bus, {
+      improvements: state => state,
+      majors: state => state,
+      world: processTurn,
+    });
+    expect(completed.ok).toBe(true);
+    if (!completed.ok) throw completed.error;
+    expect(completed.state.gameOver).toBe(false);
+  });
 });
