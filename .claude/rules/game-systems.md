@@ -185,6 +185,38 @@ never recursive.
 - When a new civ is introduced mid-game (breakaway, rebellion statehood), every existing civ's `diplomacy.relationships` must get an entry for the new civ id, and the new civ's `relationships` must get an entry for every existing civ id.
 - When a civ is removed (reabsorbed, eliminated), every other civ's `diplomacy.relationships` AND `diplomacy.atWarWith` AND active treaties involving that id must be scrubbed in the same operation. Dangling ids cause silent lookup failures downstream.
 
+### Elimination must be complete across every subsystem (#1001)
+
+Once `civ.isEliminated`, that civ retains **no live owned entity and no active
+obligation anywhere in `GameState`** — not just diplomacy. `eliminateCivilization`
+(`src/systems/civilization-elimination-system.ts`) is the single teardown, and
+its coverage is now enumerated:
+
+- **`tests/helpers/eliminated-civ-areas.ts`** — `ELIMINATED_CIV_AREAS` is a
+  `Record<keyof GameState, {kind: 'teardown' | 'historical' | 'structural'}>`, so
+  **adding a persisted `GameState` field is a compile error until it is
+  classified** as one the dead civ must be scrubbed from, an intentional
+  historical record, or structurally civ-free. `eliminated-civ-invariant.test.ts`
+  re-checks that against a live state's keys and plants a reference in every
+  `teardown` area so a future refactor that stops scrubbing one is caught.
+- **`assertEliminatedCivHasNoLiveEntities`** (in `SAVE_STATE_INVARIANTS`, run by
+  the save-compat matrix and the AI-playability fixture per round) walks every
+  `teardown` area. Call it after any test that eliminates a civ.
+- **Historical records are kept, never deleted** — `discoveredWonders` /
+  `wonderDiscoverers` (first-discovery credit), `completedLegendaryWonders`
+  (Hall of Fame), `legendaryWonderHistory`, `generatedGenerals` (career ledger),
+  a founded `religions` entry, `hotSeat` seat config, an inert
+  `notificationLog`. They are classified `historical` and asserted to *survive*.
+- **Per-turn / per-load systems that iterate `Object.keys(state.civilizations)`
+  must skip `isEliminated` civs** — a dead civ must not be re-seeded a pirate
+  intel ledger (`pirate-system.ts`), a fresh city-state relationship on a
+  mid-game minor-civ spawn (`minor-civ-system.ts`), etc. The one tolerated
+  exception is the empty `createEmptyAutonomyCivState()` shell the load-time
+  `autonomy-network` normalizer gives every civ (inert; the invariant checks for
+  an *active plan*, not the key).
+- **Not this issue's job:** deciding *when* elimination fires (that is the
+  cityless-civ / liveness path). This is only whether it is *complete*.
+
 ## No Dead Return Fields
 - If a function's return type declares a field, populate it with real data.
 - Do not return a placeholder (`0`, `null`, `''`) with a `// computed elsewhere` comment. Either compute it, or remove the field from the return type.

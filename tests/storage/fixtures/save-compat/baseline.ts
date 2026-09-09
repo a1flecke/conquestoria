@@ -1,6 +1,7 @@
 import type { GameState, HotSeatConfig } from '@/core/types';
 import { createNewGame, createHotSeatGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
+import { reconcileCivilizationLiveness } from '@/systems/civilization-elimination-system';
 
 /**
  * #1006 — the compact current-schema `GameState` every save-compat-matrix case
@@ -65,20 +66,18 @@ export function buildBaselineSave(seed = 'save-compat-baseline'): BaselineSave {
     foreignCivId: 'ai-1',
   }];
 
-  // Eliminated civ: ai-2 keeps no cities/units and is flagged out of diplomacy.
+  // Eliminated civ: strip ai-2's assets and run the REAL elimination path
+  // (`reconcileCivilizationLiveness` -> `eliminateCivilization`), so the fixture
+  // carries a properly torn-down eliminated civ — every subsystem, not just
+  // diplomacy — and the `no-eliminated-civ-entities` invariant holds on it (#1001).
   const eliminatedCivId = 'ai-2';
-  for (const unitId of state.civilizations[eliminatedCivId].units) delete state.units[unitId];
+  const before = state;
+  for (const unitId of [...state.civilizations[eliminatedCivId].units]) delete state.units[unitId];
   state.civilizations[eliminatedCivId].units = [];
   state.civilizations[eliminatedCivId].cities = [];
-  state.civilizations[eliminatedCivId].isEliminated = true;
-  state.civilizations[eliminatedCivId].nearDefeat = true;
-  // Scrub the eliminated civ from everyone else's live obligations.
-  for (const civ of Object.values(state.civilizations)) {
-    civ.diplomacy.atWarWith = civ.diplomacy.atWarWith.filter(id => id !== eliminatedCivId);
-    civ.diplomacy.treaties = civ.diplomacy.treaties.filter(t => t.civA !== eliminatedCivId && t.civB !== eliminatedCivId);
-  }
+  const eliminated = reconcileCivilizationLiveness(before, state).state;
 
-  return { state, playerCityId, aiCityId, eliminatedCivId };
+  return { state: eliminated, playerCityId, aiCityId, eliminatedCivId };
 }
 
 const HOT_SEAT_CONFIG: HotSeatConfig = {

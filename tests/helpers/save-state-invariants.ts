@@ -3,6 +3,7 @@ import { classifyOwner } from '@/core/owner-kind';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getTransportCapacity, getUnitCargoSize, isNavalTransportUnit } from '@/systems/transport-system';
 import { getAirBaseCapacity, getAirBaseRoster } from '@/systems/air-operations-system';
+import { assertEliminatedCivHasNoLiveEntities } from './eliminated-civ-areas';
 
 /**
  * #1006 — shared cross-system structural invariants asserted by the
@@ -347,53 +348,17 @@ export function assertAirBaseIntegrity(state: GameState): void {
 }
 
 /**
- * An `isEliminated` civ holds no live entities and no active obligations:
- * no owned cities or units, no other civ at war with it, no treaty naming it,
- * and it is neither an overlord nor a vassal. (#1001)
+ * An `isEliminated` civ holds no live entities and no active obligations
+ * anywhere in `GameState` — not just no owned cities/units/wars, but nothing in
+ * espionage, AI planning, crises, trade, the minor-civ layer, and so on. The
+ * exhaustive rule and its declared per-area catalogue (`ELIMINATED_CIV_AREAS`,
+ * a `Record<keyof GameState, …>` so a new field cannot dodge classification)
+ * live in `./eliminated-civ-areas`; `eliminated-civ-invariant.test.ts` owns the
+ * coverage meta-test and the allowed-historical-record classification. (#1001)
  */
-export function assertNoEliminatedCivEntities(state: GameState): void {
-  const problems: string[] = [];
-  const eliminated = new Set(
-    Object.entries(state.civilizations).filter(([, civ]) => civ.isEliminated).map(([id]) => id),
-  );
-  if (eliminated.size === 0) return;
-
-  for (const civId of eliminated) {
-    const civ = state.civilizations[civId];
-
-    const ownedCities = Object.values(state.cities).filter(city => city.owner === civId).map(city => city.id);
-    const ownedUnits = Object.values(state.units).filter(unit => unit.owner === civId).map(unit => unit.id);
-    if (ownedCities.length > 0) problems.push(`eliminated civ "${civId}" still owns cities: ${ownedCities.join(', ')}`);
-    if (ownedUnits.length > 0) problems.push(`eliminated civ "${civId}" still owns units: ${ownedUnits.join(', ')}`);
-    if (civ.cities.length > 0) problems.push(`eliminated civ "${civId}" still has a non-empty city roster`);
-    if (civ.units.length > 0) problems.push(`eliminated civ "${civId}" still has a non-empty unit roster`);
-
-    // The eliminated civ's own obligations, not just what others hold against it.
-    if ((civ.diplomacy?.atWarWith ?? []).length > 0) {
-      problems.push(`eliminated civ "${civId}" still lists active wars: ${civ.diplomacy.atWarWith.join(', ')}`);
-    }
-    if ((civ.diplomacy?.treaties ?? []).length > 0) {
-      problems.push(`eliminated civ "${civId}" still holds ${civ.diplomacy.treaties.length} treaty record(s)`);
-    }
-
-    for (const [otherId, other] of Object.entries(state.civilizations)) {
-      if (otherId === civId) continue;
-      if ((other.diplomacy?.atWarWith ?? []).includes(civId)) {
-        problems.push(`eliminated civ "${civId}" still has ${otherId} at war with it`);
-      }
-      for (const treaty of other.diplomacy?.treaties ?? []) {
-        if (treaty.civA === civId || treaty.civB === civId) {
-          problems.push(`eliminated civ "${civId}" is still party to a ${treaty.type} treaty with ${otherId}`);
-        }
-      }
-      const vassalage = other.diplomacy?.vassalage;
-      if (vassalage?.overlord === civId) problems.push(`eliminated civ "${civId}" is still overlord of ${otherId}`);
-      if ((vassalage?.vassals ?? []).includes(civId)) problems.push(`eliminated civ "${civId}" is still a vassal of ${otherId}`);
-    }
-  }
-
-  if (problems.length > 0) throw new InvariantError(`no-eliminated-civ-entities invariant violated:\n  - ${problems.join('\n  - ')}`);
-}
+export { assertEliminatedCivHasNoLiveEntities };
+/** Back-compat alias — same check, older name used by existing tests + `SAVE_STATE_INVARIANTS`. */
+export const assertNoEliminatedCivEntities = assertEliminatedCivHasNoLiveEntities;
 
 export const SAVE_STATE_INVARIANTS: ReadonlyArray<{ name: string; check: (state: GameState) => void }> = [
   { name: 'bilateral-war', check: assertBilateralWar },

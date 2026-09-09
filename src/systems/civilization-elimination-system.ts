@@ -87,8 +87,31 @@ export function eliminateCivilization(
   const removedUnitIds = Object.values(next.units)
     .filter(unit => unit.owner === civId)
     .map(unit => unit.id);
+
+  // #1001 — world threats aimed at the dead civ dissipate: the crisis / stampede
+  // / rogue-host records and the units their forces spawned go with the target.
+  // `removedUnits` (used below for AI-portfolio scrubbing + unit deletion) is the
+  // superset; `removedUnitIds` (returned + reported) stays the dead civ's own.
   const removedUnits = new Set(removedUnitIds);
-  for (const unitId of removedUnitIds) {
+  for (const [forceId, force] of Object.entries(next.crisisForces ?? {})) {
+    if (force.targetCivId !== civId) continue;
+    for (const unitId of force.unitIds) removedUnits.add(unitId);
+    delete next.crisisForces![forceId];
+  }
+  for (const [crisisId, crisis] of Object.entries(next.activeCrises ?? {})) {
+    if (crisis.targetCivId === civId) delete next.activeCrises![crisisId];
+  }
+  for (const [stampedeId, stampede] of Object.entries(next.stampedes ?? {})) {
+    if (stampede.targetCivId === civId) delete next.stampedes![stampedeId];
+  }
+  for (const [hostId, host] of Object.entries(next.rogueElephantHosts ?? {})) {
+    if (host.targetCivId === civId) delete next.rogueElephantHosts![hostId];
+  }
+  for (const [frontierKey, frontier] of Object.entries(next.territoryFrontiers ?? {})) {
+    if (frontier.holderCivId === civId || frontier.challengerCivId === civId) delete next.territoryFrontiers![frontierKey];
+  }
+
+  for (const unitId of removedUnits) {
     delete next.units[unitId];
   }
   next.civilizations[civId] = {
@@ -198,6 +221,69 @@ export function eliminateCivilization(
       .filter(route => route.foreignCivId !== civId);
     next.marketplace.purchasedResources = (next.marketplace.purchasedResources ?? [])
       .filter(entry => entry.civId !== civId);
+  }
+
+  // #1001 — every remaining per-civ subsystem record. A dead civ runs no
+  // economy, autonomy network, advisory council or intel; makes no
+  // national-project choice; and holds no in-flight legendary-wonder project or
+  // combat grant. (Completed wonders, discovery credit and career ledgers are
+  // historical records and are deliberately kept — see
+  // tests/helpers/eliminated-civ-areas.ts.)
+  delete next.economyStatusByCiv?.[civId];
+  delete next.nationalProjectChoices?.[civId];
+  delete next.legendaryWonderIntel?.[civId];
+  if (next.councilMemory) delete (next.councilMemory as Record<string, unknown>)[civId];
+  if (next.legendaryWonderTacticalEffects) {
+    delete next.legendaryWonderTacticalEffects.trainingGrantsByCiv?.[civId];
+    delete next.legendaryWonderTacticalEffects.interceptionClaimTurnByCiv?.[civId];
+  }
+  for (const [projectId, project] of Object.entries(next.legendaryWonderProjects ?? {})) {
+    if (project.ownerId === civId) delete next.legendaryWonderProjects![projectId];
+  }
+  for (const [key, record] of Object.entries(next.builtNationalProjects ?? {})) {
+    if (record.civId === civId || key.startsWith(`${civId}:`)) delete next.builtNationalProjects![key];
+  }
+  next.pendingGeneralCandidateChoices = (next.pendingGeneralCandidateChoices ?? [])
+    .filter(choice => (choice as { civId?: string }).civId !== civId);
+
+  // Minor civs: no city-state stays at war with, aggrieved at, offering a quest
+  // to, or tracking a quest chain for a dead major civ. Sub-maps are guarded —
+  // this runs on load and a legacy save may predate some of them.
+  for (const minorCiv of Object.values(next.minorCivs ?? {})) {
+    const d = minorCiv.diplomacy;
+    if (d) {
+      if (d.relationships) delete d.relationships[civId];
+      d.atWarWith = (d.atWarWith ?? []).filter(id => id !== civId);
+      d.treaties = (d.treaties ?? []).filter(t => t.civA !== civId && t.civB !== civId);
+      d.events = (d.events ?? []).filter(e => e.otherCiv !== civId);
+    }
+    if (minorCiv.activeQuests) delete minorCiv.activeQuests[civId];
+    if (minorCiv.regionalGrievanceByCiv) delete minorCiv.regionalGrievanceByCiv[civId];
+    if (minorCiv.chainStatusByCiv) delete minorCiv.chainStatusByCiv[civId];
+    if (minorCiv.questCooldownUntilByCiv) delete minorCiv.questCooldownUntilByCiv[civId];
+    if (minorCiv.lastNotifiedStatusByCiv) delete minorCiv.lastNotifiedStatusByCiv[civId];
+  }
+  for (const [coalitionId, coalition] of Object.entries(next.minorCivCoalitions ?? {})) {
+    if ((coalition as { targetCivId?: string }).targetCivId === civId) delete next.minorCivCoalitions![coalitionId];
+  }
+  for (const [cooldownId, cooldown] of Object.entries(next.minorCivRegionalCooldowns ?? {})) {
+    if ((cooldown as { targetCivId?: string }).targetCivId === civId) delete next.minorCivRegionalCooldowns![cooldownId];
+  }
+
+  // Pirates: intel, tribute/demand ledgers and any active contract naming the
+  // dead civ are void; the raid history chronicle is kept.
+  if (next.pirates) {
+    delete next.pirates.intelByCiv[civId];
+    delete next.pirates.activationWarningDeliveredByCiv[civId];
+    for (const faction of Object.values(next.pirates.factions)) {
+      delete faction.tributeByCiv[civId];
+      delete faction.demandByCiv[civId];
+      if (faction.contract && (faction.contract.employerId === civId || faction.contract.targetId === civId)) {
+        faction.contract = null;
+      }
+      const intentTarget = (faction.intent as { targetCivId?: string } | null)?.targetCivId;
+      if (intentTarget === civId) faction.intent = null;
+    }
   }
 
   return {
