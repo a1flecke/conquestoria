@@ -130,6 +130,20 @@ for file_path in "$@"; do
     append_match_block "Hardcoded 'player' ownership check — use state.currentPlayer (see .claude/rules/ui-panels.md#hot-seat-multiplayer)" "$lines"
   fi
 
+  # --- catalog/runtime dependency boundary (#985): city-system owns static
+  # production catalogs and may consume the spy catalog leaf, but importing the
+  # runtime espionage system closes a catalog-initialization cycle once
+  # espionage records Domination intelligence. Keep the classifier in
+  # spy-unit-types.ts so either system can depend on it safely.
+  case "$file_path" in
+    src/systems/city-system.ts)
+      spy_runtime_lines="$(grep -nE "^[[:space:]]*import[[:space:]].*from[[:space:]]+['\"][^'\"]*espionage-system['\"]" "$file_path" | head -5 || true)"
+      if [ -n "$spy_runtime_lines" ]; then
+        append_match_block "city-system.ts must import the spy classifier from spy-unit-types.ts, not runtime espionage-system.ts — that dependency closes a catalog-initialization cycle (see .claude/rules/game-systems.md#catalog-runtime-dependency-boundary)" "$spy_runtime_lines"
+      fi
+      ;;
+  esac
+
   # --- movement executor bypass (#1025): the low-level position movers
   # (moveUnitWithZoneOfControl / moveUnit) must not be called outside the
   # canonical movement system. New movement executors go through
