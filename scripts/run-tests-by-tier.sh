@@ -10,10 +10,9 @@
 #       Claude Code push-gate hook, and `yarn test:fast` for day-to-day
 #       iteration.
 # slow: runs ONLY SLOW_TEST_FILES. For a developer working directly on one
-#       of these systems (`yarn test:slow`). CI's `yarn verify:push` does
-#       NOT use this split — it runs the full `yarn test` (fast + slow) as
-#       the required merge gate, on isolated hardware where contention isn't
-#       a factor.
+#       of these systems (`yarn test:slow`). CI runs the fast and slow tiers
+#       independently, and its required aggregate status needs both, so the
+#       full suite remains the merge gate on isolated hardware.
 #
 # Adding a new heavy multi-city/era/seed simulation test? Add its path to
 # SLOW_TEST_FILES below, and give it an explicit headroom-sized timeout per

@@ -45,7 +45,7 @@ paths:
 `require-green-before-push.sh` fires only for `git push`, `gh pr create`, and `gh pr merge` — not for `git commit`. It delegates to `scripts/verify-before-push.sh`, which runs `yarn test`, then `yarn build` — **sequentially**, not in parallel (each `run_phase` call blocks before the next line runs).
 
 - **Local gate** (the real `.githooks/pre-push` hook, and this Claude Code hook): both call `verify-before-push.sh --fast`, which runs `yarn test:fast` — the fast tier only, see "Fast/slow test split" below.
-- **CI** (`yarn verify:push`, the `test` job in `.github/workflows/deploy.yml`, a required branch-protection status check on `main`): calls `verify-before-push.sh --no-mise` with no `--fast`, so it always runs the full `yarn test` (fast + slow tiers) as the actual merge gate, on isolated hardware.
+- **CI**: the `test-fast` job calls `verify-before-push.sh --no-mise --fast`; the independent `test-slow` job runs `yarn test:slow`; and the required `test` aggregate status succeeds only when both do. Together they remain the full fast + slow merge gate on isolated hardware.
 
 **Set Bash tool timeout to match the command, not the hook:**
 - `git commit` — **30 000 ms**. No hook runs tests; the commit itself takes < 1s.
@@ -197,9 +197,9 @@ test filters root-relative (`tests/foo.test.ts`) and cover this contract in
 
 `scripts/run-tests-by-tier.sh` splits the suite into two tiers, to keep the local push gate fast without losing coverage at merge time:
 
-- `yarn test:fast` (`run-tests-by-tier.sh fast`) — excludes the `SLOW_TEST_FILES` list defined in that script (currently: `ai-prepared-turn`, `basic-ai-worker-roads`, `determinism-guard`, `turn-manager-beasts`, `save-load-mass-discovery`, `tech-panel`, `pacing-production-budget`, `pacing-reference-economy`, `start-placement-system`, `world-pressure-fairness`). This is what the local pre-push hook and the Claude Code push-gate hook actually run.
+- `yarn test:fast` (`run-tests-by-tier.sh fast`) — excludes the `SLOW_TEST_FILES` list defined in that script (currently: `ai-prepared-turn`, `basic-ai-worker-roads`, `determinism-guard`, `simulation-determinism`, `turn-manager-beasts`, `save-load-mass-discovery`, `save-compat-matrix`, `pacing-simulation`, `tech-panel`, `pacing-production-budget`, `pacing-reference-economy`, `start-placement-system`, `world-pressure-fairness`, `minor-civ-economy-longrun`, `minor-civ-league-longrun`). This is what the local pre-push hook and the Claude Code push-gate hook actually run.
 - `yarn test:slow` (`run-tests-by-tier.sh slow`) — runs ONLY those files, for a developer working directly on one of those systems.
-- `yarn test` (full, unchanged) — always runs everything. This is what CI's required `test` status check runs; it is never given `--fast`, so slow-tier regressions still block merge, just not every local push.
+- `yarn test` (full, unchanged) — always runs everything. CI runs its fast and slow tiers in separate jobs, and the required `test` aggregate status succeeds only when both do; slow-tier regressions therefore still block merge, just not every local push.
 
 **When adding a new heavy multi-city/era/seed simulation test:** add its path to `SLOW_TEST_FILES` in `scripts/run-tests-by-tier.sh`, in addition to giving it an explicit headroom-sized timeout (see below) — the two are complementary: the timeout stops it from spuriously failing under contention, the tier split stops it from adding wall-clock/CPU cost to every local push-gate run in the first place.
 

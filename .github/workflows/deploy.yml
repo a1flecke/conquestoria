@@ -91,7 +91,7 @@ jobs:
         with:
           path: dist
 
-  test:
+  test-fast:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
@@ -114,7 +114,46 @@ jobs:
         run: yarn install --immutable
 
       - name: Run tests
-        run: yarn verify:push
+        run: yarn verify:push --fast
+
+  test-slow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24.13.1'
+          cache: yarn
+          cache-dependency-path: yarn.lock
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Run slow tests
+        run: yarn test:slow
+
+  test:
+    needs: [test-fast, test-slow]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    if: ${{ always() && (github.event_name == 'pull_request' || github.ref == 'refs/heads/main') }}
+    steps:
+      - name: Require all test partitions
+        env:
+          FAST_RESULT: ${{ needs.test-fast.result }}
+          SLOW_RESULT: ${{ needs.test-slow.result }}
+        run: |
+          test "$FAST_RESULT" = 'success'
+          test "$SLOW_RESULT" = 'success'
 
   pirate-audio-reproducibility:
     runs-on: ubuntu-latest

@@ -18,19 +18,59 @@ grep -Fq '"verify:pr:status": "sh scripts/read-pr-verification-result.sh"' "$ROO
   exit 1
 }
 
-test_job="$(
+test_fast_job="$(
+  sed -n '/^  test-fast:/,/^  test-slow:/p' "$ROOT/.github/workflows/deploy.yml"
+)"
+printf '%s' "$test_fast_job" | grep -Fq 'timeout-minutes: 15' || {
+  echo "GitHub fast test job has no 15-minute timeout"
+  exit 1
+}
+printf '%s' "$test_fast_job" | grep -Fq 'run: yarn verify:push --fast' || {
+  echo "GitHub fast test job does not use the fast canonical verifier"
+  exit 1
+}
+if printf '%s' "$test_fast_job" | grep -Fq 'Install audio test tooling'; then
+  echo "GitHub fast test job runs pirate audio tooling in the parallel suite"
+  exit 1
+fi
+
+test_slow_job="$(
+  sed -n '/^  test-slow:/,/^  test:/p' "$ROOT/.github/workflows/deploy.yml"
+)"
+printf '%s' "$test_slow_job" | grep -Fq 'timeout-minutes: 15' || {
+  echo "GitHub slow test job has no 15-minute timeout"
+  exit 1
+}
+printf '%s' "$test_slow_job" | grep -Fq 'run: yarn test:slow' || {
+  echo "GitHub slow test job does not run the slow tier"
+  exit 1
+}
+if printf '%s' "$test_slow_job" | grep -Fq 'run: yarn verify:push'; then
+  echo "GitHub slow test job duplicates the fast verifier"
+  exit 1
+fi
+
+test_aggregator_job="$(
   sed -n '/^  test:/,/^  pirate-audio-reproducibility:/p' "$ROOT/.github/workflows/deploy.yml"
 )"
-printf '%s' "$test_job" | grep -Fq 'timeout-minutes: 15' || {
-  echo "GitHub test job has no 15-minute timeout"
+printf '%s' "$test_aggregator_job" | grep -Fq 'needs: [test-fast, test-slow]' || {
+  echo "GitHub test aggregate job does not require both test partitions"
   exit 1
 }
-printf '%s' "$test_job" | grep -Fq 'run: yarn verify:push' || {
-  echo "GitHub test job does not use the canonical verifier"
+printf '%s' "$test_aggregator_job" | grep -Fq 'if: ${{ always()' || {
+  echo "GitHub test aggregate job does not run after failed partitions"
   exit 1
 }
-if printf '%s' "$test_job" | grep -Fq 'Install audio test tooling'; then
-  echo "GitHub test job runs pirate audio tooling in the parallel suite"
+printf '%s' "$test_aggregator_job" | grep -Fq 'FAST_RESULT: ${{ needs.test-fast.result }}' || {
+  echo "GitHub test aggregate job does not inspect the fast partition result"
+  exit 1
+}
+printf '%s' "$test_aggregator_job" | grep -Fq 'SLOW_RESULT: ${{ needs.test-slow.result }}' || {
+  echo "GitHub test aggregate job does not inspect the slow partition result"
+  exit 1
+}
+if printf '%s' "$test_aggregator_job" | grep -Fq 'run: yarn verify:push'; then
+  echo "GitHub test aggregate job reruns the verifier"
   exit 1
 fi
 

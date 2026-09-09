@@ -32,10 +32,9 @@ done
 # skipping the heavy multi-city/era/seed simulation tests tracked in
 # scripts/run-tests-by-tier.sh so the local push gate stays quick and
 # doesn't add CPU pressure on top of whatever else is running on this
-# machine. Only the local git pre-push hook and the Claude Code push-gate
-# hook pass --fast. CI's `yarn verify:push` never does — it always runs the
-# full suite as the required merge gate, on isolated hardware where
-# contention isn't a factor.
+# machine. Local git/Claude push hooks and CI's `test-fast` job pass --fast.
+# CI's required `test` aggregate status also requires its independent
+# `test-slow` job, so together those two jobs remain the full merge gate.
 case "$TEST_SCOPE" in
   fast) TEST_YARN_SCRIPT=test:fast ;;
   *) TEST_YARN_SCRIPT=test ;;
