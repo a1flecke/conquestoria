@@ -51,6 +51,7 @@ import { getCrisisDispatchCandidates } from './ai-crisis-response';
 import { isCrisisPressureEligible, isPiratePressureEligible } from '@/systems/world-pressure-eligibility';
 import {
   evaluateDominationDoctrine,
+  getDominationCounterplay,
   isKnownIndependentDominationTarget,
   type DominationDoctrine,
 } from './ai-domination';
@@ -464,6 +465,7 @@ export function prepareMajorCivStrategicPlan(
     },
     challenge: resolveOpponentChallenge(state),
   });
+  const counterplay = getDominationCounterplay(knowledge);
   const candidates = objectiveCandidates(state, civId, perception, knownMap, doctrine, knowledge);
   const choice = choosePrimaryObjective({
     actorId: civId,
@@ -582,6 +584,10 @@ export function prepareMajorCivStrategicPlan(
         sourceId: 'objective-readiness',
         priority: 90,
       })),
+      ...(counterplay ? [{
+        ...counterplay.forceDemand,
+        desired: 1,
+      }] : []),
       ...portfolioResult.unplannedDefenseCityIds.map(cityId => ({
         role: 'frontline' as const,
         sourceId: `defense-overflow:${cityId}`,

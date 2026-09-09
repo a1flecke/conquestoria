@@ -590,4 +590,34 @@ describe('prepared major-civilization planning', () => {
       reasonCodes: ['domination-pursuit'],
     });
   });
+
+  it('feeds one frontline demand from an earned Domination threat', () => {
+    const state = createNewGame({
+      civType: 'rome', mapSize: 'small', opponentCount: 4, gameTitle: 'Counterplay', seed: 'prepared-domination-counterplay',
+    });
+    const civ = state.civilizations['ai-1'];
+    const anchor = civ.units.map(id => state.units[id]).find(Boolean)!.position;
+    const ownCity = foundCity(civ.id, anchor, state.map, state.idCounters);
+    state.cities[ownCity.id] = ownCity;
+    civ.cities = [ownCity.id];
+    state.dominationIntel = {
+      [civ.id]: {
+        defeatsByCivId: {},
+        reportsByContenderId: {
+          'ai-2': {
+            contenderId: 'ai-2', observedTurn: state.turn, contenderRole: 'independent',
+            directVassalIds: ['ai-3', 'ai-4'], defeatedCivIds: ['player'],
+          },
+        },
+      },
+    };
+
+    const demand = prepareMajorCivStrategicPlan(state, civ.id).forceDemands
+      .find(candidate => candidate.sourcePlanIds.includes('domination-threat:ai-2'));
+
+    expect(demand).toMatchObject({
+      role: 'frontline', desired: 1, priority: 220,
+      sourcePlanIds: ['domination-threat:ai-2'],
+    });
+  });
 });
