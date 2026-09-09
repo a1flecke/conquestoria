@@ -1,5 +1,5 @@
 import type { City, Building, HexCoord, GameMap, UnitType, CivBonusEffect, TrainableUnitEntry, IdCounters, ResourceType, DroppedProductionItem, ProductionDropReason, GameState, LocalInfrastructureFamily } from '@/core/types';
-import { isSpyUnitType } from './espionage-system';
+import { isSpyUnitType } from './spy-unit-types';
 import { hexKey, hexesInRange, hexNeighbors, wrapHexCoord } from './hex-utils';
 import { drawNextCityName, DEFAULT_CITY_NAMES } from './city-name-system';
 import { INITIAL_CITY_FOCUS, INITIAL_CITY_MATURITY } from './city-maturity-system';
