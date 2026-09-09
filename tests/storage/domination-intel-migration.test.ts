@@ -98,4 +98,43 @@ describe('Domination intelligence migration', () => {
 
     expect(loaded.dominationIntel).toEqual({});
   });
+
+  it('drops records for non-major observers and impossible self-referential reports', () => {
+    const current = createNewGame('egypt', 'domination-intel-repair-owner-kind');
+    current.dominationIntel = {
+      rebels: {
+        defeatsByCivId: {},
+        reportsByContenderId: {},
+      },
+      player: {
+        defeatsByCivId: {},
+        reportsByContenderId: {
+          'ai-1': {
+            contenderId: 'ai-1',
+            observedTurn: current.turn,
+            contenderRole: 'independent',
+            directVassalIds: ['ai-1', 'ai-2'],
+            defeatedCivIds: ['ai-1', 'ai-2', 'beasts'],
+          },
+        },
+      },
+    } as unknown as NonNullable<typeof current.dominationIntel>;
+
+    const loaded = normalizeLoadedState(current);
+
+    expect(loaded.dominationIntel).toEqual({
+      player: {
+        defeatsByCivId: {},
+        reportsByContenderId: {
+          'ai-1': {
+            contenderId: 'ai-1',
+            observedTurn: current.turn,
+            contenderRole: 'independent',
+            directVassalIds: ['ai-2'],
+            defeatedCivIds: [],
+          },
+        },
+      },
+    });
+  });
 });

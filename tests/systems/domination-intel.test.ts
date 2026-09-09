@@ -7,6 +7,7 @@ import { eliminateCivilization } from '@/systems/civilization-elimination-system
 import { makeLivenessGame, withoutOwnedAssets } from './helpers/civilization-liveness-fixture';
 import { makeVassalageFixture } from './helpers/vassalage-fixture';
 import { hexKey } from '@/systems/hex-utils';
+import { createUnit } from '@/systems/unit-system';
 
 describe('Domination earned intelligence', () => {
   it('records only direct vassalage facts already known by the observing civilization', () => {
@@ -85,5 +86,31 @@ describe('Domination earned intelligence', () => {
     });
 
     expect(recorded.dominationIntel?.third).toBeUndefined();
+  });
+
+  it('credits a contact who saw the last surviving settler', () => {
+    const before = makeVassalageFixture();
+    const vassal = before.civilizations.vassal;
+    const formerUnit = before.units[vassal.units[0]]!;
+    const cityId = vassal.cities[0]!;
+    delete before.cities[cityId];
+    for (const unitId of vassal.units) delete before.units[unitId];
+    const settler = createUnit('settler', 'vassal', formerUnit.position, before.idCounters);
+    before.units[settler.id] = settler;
+    vassal.cities = [];
+    vassal.units = [settler.id];
+    before.civilizations.third.visibility.tiles[hexKey(settler.position)] = 'visible';
+    const assetless = withoutOwnedAssets(before, 'vassal');
+
+    const recorded = recordDominationDefeat(before, assetless, {
+      civId: 'vassal',
+      eliminatedBy: 'overlord',
+    });
+
+    expect(recorded.dominationIntel?.third?.defeatsByCivId.vassal).toMatchObject({
+      civId: 'vassal',
+      defeatedById: 'overlord',
+      source: 'witness',
+    });
   });
 });

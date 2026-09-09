@@ -221,6 +221,43 @@ describe('PanelActionsController', () => {
     });
   });
 
+  describe('Victory progress lifecycle', () => {
+    it('refreshes after an explicit un-published state write and disposes its subscription on close', () => {
+      const { state } = makeFixture('victory-progress-lifecycle');
+      const { deps, controller } = build(state);
+      document.body.appendChild(deps.uiLayer);
+
+      try {
+        controller.openVictoryProgressPanel();
+        expect(deps.uiLayer.querySelector('#victory-progress-panel')).toBeTruthy();
+
+        const next = structuredClone(deps.session.getState());
+        next.dominationIntel = {
+          player: {
+            defeatsByCivId: {
+              'ai-1': {
+                civId: 'ai-1', civName: 'Recorded Rival', observedTurn: next.turn,
+                defeatedById: 'player', source: 'participant',
+              },
+            },
+            reportsByContenderId: {},
+          },
+        };
+        deps.session.setStateWithoutRefresh(next);
+        controller.refreshVictoryProgressPanel();
+
+        expect(deps.uiLayer.querySelector('#victory-progress-panel')?.textContent).toContain('Recorded Rival');
+        controller.closeVictoryProgressPanel();
+        expect(deps.uiLayer.querySelector('#victory-progress-panel')).toBeNull();
+
+        deps.session.commit({ ...next, turn: next.turn + 1 });
+        expect(deps.uiLayer.querySelector('#victory-progress-panel')).toBeNull();
+      } finally {
+        deps.uiLayer.remove();
+      }
+    });
+  });
+
   describe('openHallOfFame', () => {
     it('builds the Hall of Fame for the current player and renders it', () => {
       const { state } = makeFixture('hall-of-fame');

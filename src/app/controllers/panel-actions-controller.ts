@@ -134,6 +134,8 @@ export interface PanelActionsController {
   openEspionagePanel(): void;
   openStrategicArsenalPanel(): void;
   openVictoryProgressPanel(): void;
+  closeVictoryProgressPanel(): void;
+  refreshVictoryProgressPanel(): void;
 }
 
 /** The narrow slice of `RenderLoop` this controller needs. */
@@ -184,6 +186,8 @@ export interface PanelActionsControllerDeps {
 
 export function createPanelActionsController(deps: PanelActionsControllerDeps): PanelActionsController {
   let stopVictoryProgressUpdates: (() => void) | null = null;
+  let renderVictoryProgressPanel: (() => void) | null = null;
+  let removeVictoryProgressPanel: (() => void) | null = null;
   /**
    * `createPacingDebugPanel` self-removes any prior instance from `uiLayer`,
    * so the router's own DOM-derived `isOpen`/`close` need no extra bookkeeping
@@ -214,19 +218,25 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
     createStrategicArsenalPanel(deps.uiLayer, presentation, () => {});
   }
 
-  function openVictoryProgressPanel(): void {
-    deps.hud.closeDrawer();
+  function closeVictoryProgressPanel(): void {
     stopVictoryProgressUpdates?.();
     stopVictoryProgressUpdates = null;
+    renderVictoryProgressPanel = null;
+    removeVictoryProgressPanel?.();
+    removeVictoryProgressPanel = null;
+  }
+
+  function refreshVictoryProgressPanel(): void {
+    renderVictoryProgressPanel?.();
+  }
+
+  function openVictoryProgressPanel(): void {
+    deps.hud.closeDrawer();
+    closeVictoryProgressPanel();
     deps.getElementById('victory-progress-panel')?.remove();
     const viewerId = deps.session.getState().currentPlayer;
     let panel: HTMLElement | null = null;
-    const close = () => {
-      stopVictoryProgressUpdates?.();
-      stopVictoryProgressUpdates = null;
-      panel?.remove();
-      panel = null;
-    };
+    const close = () => closeVictoryProgressPanel();
     const render = (state: GameState) => {
       if (panel && !panel.isConnected) {
         stopVictoryProgressUpdates?.();
@@ -260,6 +270,11 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
       });
       deps.uiLayer.appendChild(panel);
     };
+    removeVictoryProgressPanel = () => {
+      panel?.remove();
+      panel = null;
+    };
+    renderVictoryProgressPanel = () => render(deps.session.getState());
     render(deps.session.getState());
     stopVictoryProgressUpdates = deps.session.subscribe(render);
   }
@@ -1209,5 +1224,7 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
     openEspionagePanel,
     openStrategicArsenalPanel,
     openVictoryProgressPanel,
+    closeVictoryProgressPanel,
+    refreshVictoryProgressPanel,
   };
 }
