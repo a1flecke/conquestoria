@@ -83,6 +83,16 @@ The full `migrate → normalize → run a few rounds → save → reload → sha
   infer survival from civilization `cities` or `units` rosters. The adapter
   owns only the final formula and completed-round resolution.
 
+### Catalog/runtime dependency boundary
+
+`city-system.ts` owns the static building and trainable-unit catalogs. It must
+not import `espionage-system.ts`: the runtime espionage module may gain
+Domination, visibility, or mission dependencies that return to city production
+before those catalogs initialize. Shared static facts belong in a dependency-light
+leaf instead. The spy classifier is `spy-unit-types.ts`; both city production and
+espionage import it there. `scripts/check-src-rule-violations.sh` and the
+`check-src-edit.sh` hook enforce this boundary.
+
 ### Major-war state is bilateral by construction (#995)
 
 - **Never hand-roll both sides.** Major↔major war/peace goes through the bilateral

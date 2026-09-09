@@ -302,4 +302,11 @@ const living = getCivilizationLiveness(state, civId);
 EOF
 expect_allow "$tmp/src/systems/domination-sovereignty.ts" "canonical domination liveness consumer"
 
+# --- #985: city production must use the spy catalog leaf, never the runtime
+# espionage system (that edge closes a catalog-initialization import cycle). ---
+cat > "$tmp/src/systems/city-system.ts" <<'EOF'
+import { isSpyUnitType } from './espionage-system';
+EOF
+expect_block "$tmp/src/systems/city-system.ts" "city system runtime espionage import"
+
 exit "$fail"
