@@ -85,6 +85,29 @@ describe('purposeful AI war gating', () => {
     portfolio.primaryPlan.phase = 'advancing';
     expect(canDeclareWarForPreparedPlan(state, prepared, 'player'))
       .toBe(true);
+    portfolio.primaryPlan.reasonCodes = ['domination-pursuit'];
+    expect(canDeclareWarForPreparedPlan(state, prepared, 'player'))
+      .toBe(false);
+    state.dominationIntel = {
+      [aiId]: {
+        defeatsByCivId: {},
+        reportsByContenderId: {
+          player: {
+            contenderId: 'player',
+            observedTurn: state.turn,
+            contenderRole: 'independent',
+            directVassalIds: [],
+            defeatedCivIds: [],
+          },
+        },
+      },
+    };
+    expect(canDeclareWarForPreparedPlan(state, prepared, 'player'))
+      .toBe(true);
+    state.dominationIntel[aiId].reportsByContenderId.player.observedTurn = state.turn - 6;
+    expect(canDeclareWarForPreparedPlan(state, prepared, 'player'))
+      .toBe(false);
+    state.dominationIntel[aiId].reportsByContenderId.player.observedTurn = state.turn;
     expect(canDeclareWarForPreparedPlan(state, prepared, 'ai-2'))
       .toBe(false);
     state.cities[city.id] = {

@@ -44,9 +44,16 @@ import {
   joinEmbargo,
   inviteToLeague,
   getAvailableActions,
+  getPendingPeaceRequestForPair,
+  hasPendingTreatyProposalBetween,
   resolveOpponentKind,
   hasArmsControlTreaty,
 } from '@/systems/diplomacy-system';
+import { buildDominationKnowledge } from '@/systems/domination-knowledge';
+import {
+  chooseDominationCounterplayDiplomacyAction,
+  isKnownIndependentDominationTarget,
+} from './ai-domination';
 import {
   getAvailableMissions,
   embedSpy,
@@ -555,6 +562,15 @@ export function canDeclareWarForPreparedPlan(
     || !['advancing', 'attacking'].includes(plan.phase)
     || (state.opponentAI?.migrationGraceRoundsRemaining ?? 0) > 0
     || !prepared.perception.knownCivIds.includes(targetCivId)
+  ) {
+    return false;
+  }
+  if (
+    plan.reasonCodes.includes('domination-pursuit')
+    && !isKnownIndependentDominationTarget(
+      buildDominationKnowledge(state, prepared.civId),
+      targetCivId,
+    )
   ) {
     return false;
   }
@@ -1122,6 +1138,39 @@ function processAITurnInternal(
           action: 'declare_war',
           targetCiv: plannedWarTarget,
         });
+      }
+    }
+    {
+      const knowledge = buildDominationKnowledge(newState, civId);
+      const counterplayAction = chooseDominationCounterplayDiplomacyAction(
+        knowledge,
+        perception.knownCivIds
+          .filter(targetCivId => hasMetCivilization(newState, civId, targetCivId))
+          .map(targetCivId => {
+            const actions = getAvailableActions(
+              civ.diplomacy,
+              targetCivId,
+              {
+                completedTechs: civ.techState.completed,
+                civilizationEra,
+                hasArmsControlTreaty: civHasArmsControlTreaty,
+              },
+            );
+            return {
+              civId: targetCivId,
+              canRequestPeace: actions.includes('request_peace')
+                && !getPendingPeaceRequestForPair(newState, civId, targetCivId),
+              canOfferAlliance: actions.includes('alliance')
+                && !hasPendingTreatyProposalBetween(newState, civId, targetCivId, 'alliance'),
+            };
+          }),
+      );
+      if (counterplayAction) {
+        const action = counterplayAction.kind === 'peace' ? 'request_peace' : 'alliance';
+        if (!decisions.some(decision =>
+          decision.action === action && decision.targetCiv === counterplayAction.targetCivId)) {
+          decisions.push({ action, targetCiv: counterplayAction.targetCivId });
+        }
       }
     }
 

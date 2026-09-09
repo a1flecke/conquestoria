@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { evaluateDominationDoctrine, getDominationCounterplay } from '@/ai/ai-domination';
+import {
+  chooseDominationCounterplayDiplomacyAction,
+  evaluateDominationDoctrine,
+  getDominationCounterplay,
+} from '@/ai/ai-domination';
 import type { PersonalityTraits } from '@/core/types';
 import type { DominationKnowledge } from '@/systems/domination-types';
 
@@ -85,5 +89,34 @@ describe('Domination AI doctrine', () => {
       forceDemand: { role: 'frontline', sourceId: 'domination-threat:ai-2', priority: 220 },
     });
     expect(getDominationCounterplay({ ...current, turn: 16 })).toBeNull();
+  });
+
+  it('uses one current independent partner, preferring peace before alliance', () => {
+    const report = {
+      contenderId: 'ai-2', observedTurn: 10, contenderRole: 'independent' as const,
+      directVassalIds: ['ai-3', 'ai-1'], defeatedCivIds: ['ai-4'],
+    };
+    const current = knowledge({
+      ownRole: 'vassal', ownOverlordId: 'ai-2', reports: [report],
+      knownCivIds: ['ai-1', 'ai-2', 'ai-3', 'ai-4', 'player'],
+      knownActorFacts: [
+        { civId: 'ai-1', civName: 'Self', disposition: 'vassal', overlordId: 'ai-2', observedTurn: 10, evidence: 'own' },
+        { civId: 'ai-2', civName: 'Threat', disposition: 'independent', overlordId: null, observedTurn: 10, evidence: 'report' },
+        { civId: 'ai-3', civName: 'Vassal', disposition: 'vassal', overlordId: 'ai-2', observedTurn: 10, evidence: 'report' },
+        { civId: 'ai-4', civName: 'Defeated', disposition: 'eliminated', overlordId: null, observedTurn: 10, evidence: 'report' },
+        { civId: 'player', civName: 'Partner', disposition: 'independent', overlordId: null, observedTurn: 10, evidence: 'report' },
+      ],
+    });
+
+    expect(chooseDominationCounterplayDiplomacyAction(current, [
+      { civId: 'ai-2', canRequestPeace: true, canOfferAlliance: true },
+      { civId: 'player', canRequestPeace: true, canOfferAlliance: true },
+    ])).toEqual({ targetCivId: 'player', kind: 'peace' });
+    expect(chooseDominationCounterplayDiplomacyAction(current, [
+      { civId: 'player', canRequestPeace: false, canOfferAlliance: true },
+    ])).toEqual({ targetCivId: 'player', kind: 'alliance' });
+    expect(chooseDominationCounterplayDiplomacyAction(current, [
+      { civId: 'player', canRequestPeace: false, canOfferAlliance: false },
+    ])).toBeNull();
   });
 });

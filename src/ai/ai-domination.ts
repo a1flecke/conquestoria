@@ -25,6 +25,17 @@ export interface DominationCounterplay {
   };
 }
 
+export interface DominationCounterplayDiplomacyCandidate {
+  civId: string;
+  canRequestPeace: boolean;
+  canOfferAlliance: boolean;
+}
+
+export interface DominationCounterplayDiplomacyAction {
+  targetCivId: string;
+  kind: 'peace' | 'alliance';
+}
+
 const PURSUIT_BONUS: Record<OpponentChallenge, number> = {
   explorer: 8,
   standard: 14,
@@ -86,4 +97,30 @@ export function getDominationCounterplay(
       priority: 220,
     },
   };
+}
+
+/**
+ * Selects one defensive diplomatic action from candidates whose contact and
+ * legality were checked by the diplomacy owner. The doctrine never makes a
+ * treaty request against the reported contender itself and never upgrades
+ * unconfirmed political knowledge into a diplomatic target.
+ */
+export function chooseDominationCounterplayDiplomacyAction(
+  knowledge: DominationKnowledge,
+  candidates: readonly DominationCounterplayDiplomacyCandidate[],
+): DominationCounterplayDiplomacyAction | null {
+  const counterplay = getDominationCounterplay(knowledge);
+  if (!counterplay) return null;
+
+  const eligible = candidates
+    .filter(candidate =>
+      candidate.civId !== counterplay.threatId
+      && isKnownIndependentDominationTarget(knowledge, candidate.civId))
+    .sort((left, right) => left.civId.localeCompare(right.civId));
+  const peaceTarget = eligible.find(candidate => candidate.canRequestPeace);
+  if (peaceTarget) return { targetCivId: peaceTarget.civId, kind: 'peace' };
+  const allianceTarget = eligible.find(candidate => candidate.canOfferAlliance);
+  return allianceTarget
+    ? { targetCivId: allianceTarget.civId, kind: 'alliance' }
+    : null;
 }
