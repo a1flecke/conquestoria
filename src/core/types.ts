@@ -1938,7 +1938,8 @@ export type AIPlanReason =
   | 'modernization-gap'
   | 'camp-defense'
   | 'visible-stampede'
-  | 'opportunistic-raid';
+  | 'opportunistic-raid'
+  | 'domination-pursuit';
 
 export type AIPlanPhase =
   | 'scouting'

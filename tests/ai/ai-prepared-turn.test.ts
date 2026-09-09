@@ -543,4 +543,51 @@ describe('prepared major-civilization planning', () => {
 
     expect(prepared.portfolio.primaryPlan).toBeNull();
   });
+
+  it('admits a legal, reachable reported independent city for aggressive Domination pursuit', () => {
+    const state = createNewGame(undefined, 'prepared-domination-pursuit', 'small');
+    state.turn = 10;
+    const civ = state.civilizations['ai-1'];
+    civ.civType = 'rome';
+    const anchor = civ.units.map(id => state.units[id]).find(Boolean)!.position;
+    const targetTile = Object.values(state.map.tiles)
+      .filter(tile =>
+        hexDistance(anchor, tile.coord) === 1
+        && findPath(anchor, tile.coord, state.map, 'land') !== null)
+      .sort((left, right) => hexKey(left.coord).localeCompare(hexKey(right.coord)))[0]!;
+    const ownCity = foundCity(civ.id, anchor, state.map, state.idCounters);
+    const targetCity = foundCity('player', targetTile.coord, state.map, state.idCounters);
+    state.cities[ownCity.id] = ownCity;
+    state.cities[targetCity.id] = targetCity;
+    civ.cities = [ownCity.id];
+    state.civilizations.player.cities = [targetCity.id];
+    const warrior = createUnit('warrior', civ.id, anchor, state.idCounters);
+    warrior.id = 'domination-warrior';
+    state.units[warrior.id] = warrior;
+    civ.units.push(warrior.id);
+    civ.knownCivilizations = ['player'];
+    civ.visibility.tiles = {
+      [hexKey(anchor)]: 'visible',
+      [hexKey(targetCity.position)]: 'visible',
+    };
+    state.dominationIntel = {
+      [civ.id]: {
+        defeatsByCivId: {},
+        reportsByContenderId: {
+          player: {
+            contenderId: 'player', observedTurn: state.turn, contenderRole: 'independent',
+            directVassalIds: [], defeatedCivIds: [],
+          },
+        },
+      },
+    };
+
+    const prepared = prepareMajorCivStrategicPlan(state, civ.id);
+
+    expect(prepared.portfolio.primaryPlan).toMatchObject({
+      objective: 'capture',
+      target: { kind: 'city', id: targetCity.id },
+      reasonCodes: ['domination-pursuit'],
+    });
+  });
 });
