@@ -103,4 +103,23 @@ describe('showVictoryPanel', () => {
     expect(container.textContent).toContain('Campaign Finished');
     expect(container.textContent).not.toContain('A rival empire');
   });
+
+  it('renders a safe supplied summary and configured shared standings', () => {
+    const container = document.createElement('div');
+    showVictoryPanel(container, {
+      winnerName: 'Bob won by Domination.',
+      victoryType: 'Campaign Finished',
+      outcome: 'victory',
+      reason: 'domination',
+      turn: 20,
+      sharedResult: true,
+      summary: 'Domination means becoming the last independent empire.',
+      standings: ['Alice: Not winner', 'Bob: Winner'],
+      onNewGame: () => {},
+    });
+
+    expect(container.textContent).toContain('Domination means becoming the last independent empire.');
+    expect(container.textContent).toContain('Alice: Not winner');
+    expect(container.textContent).toContain('Bob: Winner');
+  });
 });

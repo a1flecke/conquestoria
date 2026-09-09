@@ -46,6 +46,7 @@ export function createVictoryProgressPanel(
     const item = document.createElement('article');
     item.dataset.civId = row.civId;
     item.dataset.evidence = row.evidence;
+    item.dataset.warning = String(row.warning);
     item.style.cssText = 'padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.12);';
     const title = document.createElement('strong');
     title.textContent = row.civName;
@@ -53,6 +54,13 @@ export function createVictoryProgressPanel(
     text.textContent = row.text;
     text.style.margin = '4px 0 0';
     item.append(title, text);
+    if (row.warning) {
+      const warning = document.createElement('p');
+      warning.textContent = 'Near Domination victory';
+      warning.setAttribute('role', 'status');
+      warning.style.cssText = 'margin:4px 0 0;color:#ffd166;font-weight:700;';
+      item.appendChild(warning);
+    }
     rows.appendChild(item);
   }
   panel.appendChild(rows);

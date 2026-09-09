@@ -927,6 +927,7 @@ describe('createTurnFlowController', () => {
       const deps = baseDeps(state);
       expect(createTurnFlowController(deps).handleVictoryIfNeeded()).toBe(true);
       expect(deps.setBlockingOverlay).toHaveBeenCalledWith('victory');
+      expect(deps.closeVictoryProgressPanel).toHaveBeenCalledTimes(1);
       expect(deps.uiLayer.querySelector('#victory-panel')).toBeTruthy();
     });
 
@@ -956,6 +957,8 @@ describe('createTurnFlowController', () => {
       createTurnFlowController(deps).handleVictoryIfNeeded();
 
       expect(deps.uiLayer.textContent).toContain('Campaign Finished');
+      expect(deps.uiLayer.textContent).toContain('Alice: Not winner');
+      expect(deps.uiLayer.textContent).toContain('Bob: Winner');
       expect(deps.uiLayer.textContent).not.toContain('Outgoing Secret');
       expect(deps.uiLayer.textContent).not.toContain('Winning Secret');
     });

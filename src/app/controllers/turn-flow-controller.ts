@@ -74,6 +74,7 @@ import { processNonHumanMajorRound } from '@/ai/ai-round-scheduler';
 import { processTurn } from '@/core/turn-manager';
 import { applyStrategicWarningTransitions } from '@/systems/strategic-warning-system';
 import { applySupplyWarningTransitions } from '@/systems/supply-warning-system';
+import { projectDominationOutcome } from '@/systems/domination-presentation';
 
 /** The narrow slice of `RenderLoop` this controller needs. */
 export type TurnFlowRenderer = Pick<RenderLoop, 'setGameState' | 'animateUnitMove' | 'setSelectedPirateFactionId' | 'setStrategicLaunchPreview'> & {
@@ -361,20 +362,17 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
   function handleVictoryIfNeeded(): boolean {
     const state = session.getState();
     if (!state.gameOver) return false;
-    const sharedResult = state.hotSeat !== undefined;
-    const outcome = state.winner === state.currentPlayer ? 'victory' : 'defeat';
-    const winnerName = sharedResult
-      ? ''
-      : outcome === 'victory'
-        ? state.civilizations[state.winner ?? '']?.name ?? 'Your empire'
-        : 'A rival empire';
+    const outcome = projectDominationOutcome(state, state.hotSeat ? null : state.currentPlayer);
+    deps.closeVictoryProgressPanel();
     deps.setBlockingOverlay('victory');
     showVictoryPanel(uiLayer, {
-      winnerName,
-      victoryType: sharedResult ? 'Campaign Finished' : outcome === 'victory' ? 'Domination Victory' : 'Campaign Defeat',
-      outcome,
+      winnerName: outcome.winnerName,
+      victoryType: outcome.sharedResult ? 'Campaign Finished' : outcome.outcome === 'victory' ? 'Domination Victory' : 'Campaign Defeat',
+      outcome: outcome.outcome,
       reason: state.gameOverReason ?? 'domination',
-      sharedResult,
+      sharedResult: outcome.sharedResult,
+      summary: outcome.summary,
+      standings: outcome.standings,
       turn: state.turn,
       onNewGame: () => {
         deps.getElementById('victory-panel')?.remove();

@@ -9,9 +9,21 @@ import {
 } from '@/systems/victory-system';
 import { makeBreakawayFixture } from './helpers/breakaway-fixture';
 import { makeVassalageFixture } from './helpers/vassalage-fixture';
-import { withoutOwnedAssets } from './helpers/civilization-liveness-fixture';
+import { makeLivenessGame, withoutOwnedAssets } from './helpers/civilization-liveness-fixture';
 
 describe('Domination progress adapter', () => {
+  it('emits one final event only when Domination changes a live campaign into an outcome', () => {
+    const state = withoutOwnedAssets(makeLivenessGame(), 'ai-1');
+    const bus = new EventBus();
+    const events: unknown[] = [];
+    bus.on('victory:resolved', event => events.push(event));
+
+    const finished = finalizeDominationVictory(state, bus);
+    finalizeDominationVictory(finished, bus);
+
+    expect(events).toEqual([{ winnerId: 'player', reason: 'domination', turn: state.turn }]);
+  });
+
   it('credits an overlord for a valid direct vassal and an eliminated founding rival', () => {
     const bus = new EventBus();
     const pending = applyDiplomaticAction(

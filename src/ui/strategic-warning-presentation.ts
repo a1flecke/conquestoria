@@ -9,6 +9,18 @@ export interface StrategicWarningPresentation {
 export function presentStrategicWarning(
   event: GameEvents['ai:strategic-warning'],
 ): StrategicWarningPresentation {
+  if (event.kind === 'domination') {
+    return {
+      message: 'Recent intelligence indicates a rival empire may be close to winning by Domination. Review your latest report; the wider situation may have changed.',
+      type: 'warning',
+    };
+  }
+  if (event.kind === 'domination-eased') {
+    return {
+      message: 'Your latest intelligence no longer shows an immediate Domination threat. Other empires may still be unknown.',
+      type: 'info',
+    };
+  }
   if (event.kind === 'recovery') {
     return {
       message: 'The raid was broken. Independent threats will need time to regroup.',

@@ -82,4 +82,22 @@ describe('strategic warning presentation', () => {
     expect(presented.message).toBe('Pirate activity indicates a blockade is forming. Review known pirate waters and protect coastal trade.');
     expect(presented.message).not.toContain('pirate-1');
   });
+
+  it('renders generic Domination warnings and silent clears without a contender identity', () => {
+    const warningPresentation = presentStrategicWarning(warning({
+      actorId: 'secret-rival', actorName: 'Secret Rival', kind: 'domination', evidence: 'earned-intel',
+    }));
+    const clearPresentation = presentStrategicWarning(warning({
+      actorId: 'secret-rival', actorName: 'Secret Rival', kind: 'domination-eased', evidence: 'earned-intel', playAudio: false,
+    }));
+
+    expect(warningPresentation).toEqual({
+      message: 'Recent intelligence indicates a rival empire may be close to winning by Domination. Review your latest report; the wider situation may have changed.',
+      type: 'warning',
+    });
+    expect(clearPresentation).toEqual({
+      message: 'Your latest intelligence no longer shows an immediate Domination threat. Other empires may still be unknown.',
+      type: 'info',
+    });
+  });
 });

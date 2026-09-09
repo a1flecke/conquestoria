@@ -10,6 +10,20 @@
 
 ---
 
+## Player truth table
+
+| Player context | Visible outcome | Must remain hidden |
+|---|---|---|
+| Solo player with a known winning rival | The earned rival name and the player's own defeat status | Any current foreign state beyond earned reports |
+| Solo player with an unknown winning rival | “A rival empire” and the player's own defeat status | The winner identity and its private sovereignty details |
+| Human hot-seat winner | Configured human names and winner/not-winner standings | Civilization names, private panels, and per-seat intelligence |
+| AI hot-seat winner | Generic AI result and configured human standings | The AI civilization identity and its private state |
+| All humans eliminated | Defeat and “No human civilizations remain” | A Domination winner or a reclassified victory outcome |
+
+The final interaction closes the viewer-private Victory Progress panel before opening the blocking result panel. DOM tests assert the visible safe result text, standings, warning marker, and panel cleanup.
+
+---
+
 ### Task 1: Earned-knowledge threat inference and warning lifecycle
 
 **Files:**

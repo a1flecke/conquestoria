@@ -47,4 +47,22 @@ describe('victory progress panel', () => {
 
     expect(onOpenCity).toHaveBeenCalledWith('city-1');
   });
+
+  it('marks a reported near-Domination contender without revealing new facts', () => {
+    const panel = createVictoryProgressPanel({
+      viewerId: 'player', ruleText: 'rule', ownStatusText: 'status', ownVassalCount: 0,
+      ownEarnedDefeatCount: 0,
+      rows: [{
+        civId: 'rome', civName: 'Rome', evidence: 'reported', reportTurn: 8,
+        text: 'Rome was reported independent on turn 8.', warning: true,
+      }],
+      uncertaintyText: 'unknown', guidance: { kind: 'text', text: 'Continue.' },
+    }, { onClose: vi.fn(), onOpenDiplomacy: vi.fn(), onOpenCity: vi.fn(), onOpenEspionage: vi.fn() });
+
+    const row = panel.querySelector<HTMLElement>('[data-civ-id="rome"]');
+
+    expect(row?.dataset.warning).toBe('true');
+    expect(row?.textContent).toContain('Near Domination victory');
+    expect(row?.textContent).not.toContain('unreported');
+  });
 });
