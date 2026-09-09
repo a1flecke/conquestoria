@@ -390,7 +390,7 @@ Replay warning→open panel→close→reopen, save→reload, handoff→ack, repe
 
 **Terra stop:** `READY FOR SOL IMPLEMENTATION REVIEW` then `STOP HERE. Do not create the MR. The human must switch models before work continues.`
 
-## MR4 — AI pursuit and counterplay (🟡 active; #995 prerequisite satisfied)
+## MR4 — AI pursuit and counterplay (🟢 implemented and locally verified; PR not yet created)
 
 ### Task 4.0 — Hard dependency gate
 
@@ -454,6 +454,8 @@ Shared knowledge may supply only own legal role information and earned foreign e
 - [ ] Run final source/architecture checks and relevant focused suites, then build/durable and browser regression once stable. Update all task statuses honestly. Final MR may use `Closes #985` only if the full design acceptance is proved.
 
 **Terra stop:** `READY FOR SOL IMPLEMENTATION REVIEW` then `STOP HERE. Do not create the MR. The human must switch models before work continues.`
+
+**MR4 completion note (2026-09-09):** The active worktree implements transient, earned-intelligence AI pursuit and legal counterplay in `src/ai/ai-domination.ts`, rechecks reports at declaration time, and uses only canonical war/peace/treaty APIs. The fixed-seed three-empire campaign reaches a real AI Domination win through the full pipeline, includes two rival eliminations, replays identically across save/reload, and validates bilateral war each round. The required multidimensional review found and fixed an inert-counterplay defect caused by reusing the stricter player-warning threshold. Details, exact test paths, review matrix, and final validation evidence are recorded in `2026-09-09-issue-985-domination-ai.md`. The PR is intentionally not yet created.
 
 ## Common validation and release gates
 
