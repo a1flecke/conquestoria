@@ -25,7 +25,7 @@ import { getAvailableTechs } from '@/systems/tech-system';
 import { processTurn } from '@/core/turn-manager';
 import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { CRISIS_FORCE_OWNER } from '@/core/owner-kind';
-import { assertAirBaseIntegrity, assertBilateralWar, assertCargoReciprocity } from '../helpers/save-state-invariants';
+import { assertAirBaseIntegrity, assertBilateralWar, assertCargoReciprocity, assertEliminatedCivHasNoLiveEntities } from '../helpers/save-state-invariants';
 
 export type AIPersonality =
   | 'aggressive'
@@ -556,6 +556,7 @@ function simulate(
     assertBilateralWar(state); // #995 — major-war state stays bilateral across every AI diplomacy transition
     assertCargoReciprocity(state); // #1000 — transport/cargo dual-reference stays reciprocal across AI load/unload + combat cascades
     assertAirBaseIntegrity(state); // #1000 — carrier/city air basing stays within capacity and owner across AI rebase + carrier loss
+    assertEliminatedCivHasNoLiveEntities(state); // #1001 — a civ the AI wipes out mid-run leaves no live entity or obligation anywhere
     assertPlanInvariants(state, options.seed);
     assertLegalChoices(state, traces, options.seed, lateEra);
     metrics.roundDurationsMs.push(performance.now() - roundStart);

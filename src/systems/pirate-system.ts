@@ -939,7 +939,8 @@ export function processPiratesForCompletedRound(
   );
   if (!wasActivated && nextState.pirates?.activatedTurn !== null) events.push({ type: 'activated', factionId: '' });
   const previousIntel = state.pirates?.intelByCiv ?? {};
-  for (const viewerId of Object.keys(nextState.civilizations)) {
+  for (const [viewerId, viewer] of Object.entries(nextState.civilizations)) {
+    if (viewer.isEliminated) continue; // #1001: a dead civ gathers no pirate intel
     nextState = refreshPirateIntel(nextState, viewerId);
   }
   nextState = deliverPirateActivationWarnings(nextState);

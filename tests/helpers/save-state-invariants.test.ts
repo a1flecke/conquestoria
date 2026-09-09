@@ -370,13 +370,13 @@ describe('#1006 assertNoEliminatedCivEntities', () => {
     const cityId = Object.keys(state.cities)[0];
     state.cities[cityId] = { ...state.cities[cityId], owner: 'ai-1' };
     state.civilizations['ai-1'].cities = [cityId];
-    expect(() => assertNoEliminatedCivEntities(state)).toThrow(/eliminated civ .*ai-1.* still owns/s);
+    expect(() => assertNoEliminatedCivEntities(state)).toThrow(/\[cities\] city .* is still owned by eliminated civ "ai-1"/s);
   });
 
   it('throws when an eliminated civ still owns a unit', () => {
     const state = freshState('inv-elim-unit');
     state.civilizations['ai-1'].isEliminated = true;
-    expect(() => assertNoEliminatedCivEntities(state)).toThrow(/eliminated civ .*ai-1.* still owns/s);
+    expect(() => assertNoEliminatedCivEntities(state)).toThrow(/\[units\] unit .* is still owned by eliminated civ "ai-1"/s);
   });
 
   it('throws when another civ is still at war with an eliminated civ', () => {
@@ -388,7 +388,7 @@ describe('#1006 assertNoEliminatedCivEntities', () => {
     state.civilizations['ai-1'].isEliminated = true;
     state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
     state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
-    expect(() => assertNoEliminatedCivEntities(state)).toThrow(/eliminated civ .*ai-1.* still .*war/s);
+    expect(() => assertNoEliminatedCivEntities(state)).toThrow(/still at war with eliminated civ "ai-1"/s);
   });
 });
 

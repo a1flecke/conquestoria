@@ -520,6 +520,7 @@ function processQuests(
   let nextState = state;
   const majorCivIds = Object.keys(state.civilizations);
   for (const civId of majorCivIds) {
+    if (nextState.civilizations[civId]?.isEliminated) continue; // #1001: a dead civ gets no new / refreshed city-state quest
     const mc = nextState.minorCivs[minorCivId];
     if (!hasDiscoveredMinorCiv(nextState, civId, minorCivId)) continue;
     if (isMinorCivAtWar(nextState, civId, minorCivId)) continue;
@@ -886,7 +887,8 @@ export function checkCampEvolution(
     if (startPositions.some(s => mapDistance(state.map, camp.position, s) < 6)) continue;
 
     const def = unusedDefs[0];
-    const majorCivIds = Object.keys(state.civilizations);
+    // #1001: a mid-game city-state spawn holds no relationship with an already-eliminated civ.
+    const majorCivIds = Object.entries(state.civilizations).filter(([, civ]) => !civ.isEliminated).map(([id]) => id);
 
     const city = foundCity(`mc-${def.id}`, camp.position, state.map, state.idCounters, {
       civType: def.id,
