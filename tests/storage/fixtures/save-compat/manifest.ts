@@ -11,8 +11,8 @@ import { buildBaselineSave, buildHotSeatBaselineSave } from './baseline';
  * at that version, migrated forward, run for a turn, re-saved and reloaded,
  * then checked against the shared invariant validators. Plus `malformed-repair`
  * cases for the migrations that exist ONLY to scrub hand-edited corruption
- * (23, 25, 26, 27) and for the unconditional corruption repairs that never bump
- * a version (bilateral war #995, cargo reciprocity #1000) — a well-formed
+ * (23, 25, 26, 27, 29) and for the unconditional corruption repairs that never
+ * bump a version (bilateral war #995, cargo reciprocity #1000) — a well-formed
  * fixture would exercise nothing there.
  *
  * The coverage meta-test (`save-compat-coverage.test.ts`, fast tier) fails if
@@ -92,6 +92,7 @@ const HISTORICAL_FIELDS: ReadonlyArray<{ introducedAt: number; strip: (raw: RawS
     },
   },
   { introducedAt: 28, strip: raw => { delete raw.minorCivLeagues; } },
+  { introducedAt: 29, strip: raw => { delete raw.dominationIntel; } },
   // Rehydrated by the unconditional normalizer tail on every load regardless of
   // version — strip for any pre-CURRENT source so the "old save had none" path runs.
   {
@@ -213,6 +214,22 @@ const MALFORMED_CASES: SaveCompatCase[] = [
       const v = migrated.civilizations.player.diplomacy.vassalage;
       if (v.overlord === 'player') throw new Error('migration 27 left a self-overlord in place');
       if (v.vassals.includes('ai-ghost')) throw new Error('migration 27 left a dangling vassal id in place');
+    },
+  },
+  {
+    sourceVersion: CURRENT_SAVE_SCHEMA_VERSION,
+    label: 'repair — drops malformed earned-Domination observations without backfilling history',
+    kind: 'malformed-repair',
+    focus: ['domination', 'earned intelligence', 'save corruption'],
+    build: () => {
+      const raw = buildBaselineSave('save-compat-malformed-domination-intel').state as RawState;
+      raw.dominationIntel = [];
+      return raw;
+    },
+    afterMigrate: migrated => {
+      if (JSON.stringify(migrated.dominationIntel) !== '{}') {
+        throw new Error(`Domination intel repair should drop malformed data, got ${JSON.stringify(migrated.dominationIntel)}`);
+      }
     },
   },
   {

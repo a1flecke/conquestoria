@@ -19,9 +19,22 @@ describe('domination architecture boundaries', () => {
       'src/ui/advisor-system.ts',
       'src/ui/vassalage-controls.ts',
       'src/ui/victory-panel.ts',
+      'src/ui/victory-progress-panel.ts',
+      'src/systems/domination-presentation.ts',
     ]) {
       expect(read(path), path).not.toMatch(forbidden);
     }
+  });
+
+  it('limits foreign sovereignty reads to source-owned report acquisition', () => {
+    const knowledge = read('src/systems/domination-knowledge.ts');
+    expect(knowledge).toContain('function ownFact');
+    expect(knowledge).toContain('getDominationActorFact(state, observerId)');
+    expect(knowledge).not.toContain('getDominationActorFact(state, civId)');
+
+    const intel = read('src/systems/domination-intel.ts');
+    expect(intel).toContain('function recordDominationPoliticalReport');
+    expect(intel).toContain('getDominationActorFact(state, contenderId)');
   });
 
   it('uses canonical liveness rather than civilization roster fields in the victory adapter', () => {

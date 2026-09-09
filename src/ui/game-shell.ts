@@ -5,6 +5,7 @@ export interface GameShellCallbacks extends PrimaryActionBarCallbacks {
   onOpenNotificationLog: () => void;
   onToggleIconLegend: () => void;
   onOpenWonderAtlas: () => void;
+  onOpenVictoryProgress: () => void;
   onOpenPirateWaters?: () => void;
   /** #887 Phase B — opens the Great General Hall of Fame. Optional: the button
    * stays inert (never thrown) until the composition root wires it. */
@@ -24,7 +25,7 @@ let stopBottomBarLayoutTracking: (() => void) | undefined;
 function removeExistingShell(container: HTMLElement): void {
   stopBottomBarLayoutTracking?.();
   stopBottomBarLayoutTracking = undefined;
-  for (const id of ['game-shell', 'hud', 'bottom-bar', 'btn-next-unit', 'btn-notif-log', 'btn-icon-legend', 'btn-wonder-atlas', 'btn-hall-of-fame', 'btn-pirate-waters', 'notifications', 'info-panel', 'icon-legend']) {
+  for (const id of ['game-shell', 'hud', 'bottom-bar', 'btn-next-unit', 'btn-notif-log', 'btn-icon-legend', 'btn-wonder-atlas', 'btn-victory-progress', 'btn-hall-of-fame', 'btn-pirate-waters', 'notifications', 'info-panel', 'icon-legend']) {
     container.querySelector(`#${id}`)?.remove();
   }
 }
@@ -101,6 +102,7 @@ export function createGameShell(container: HTMLElement, callbacks: GameShellCall
   utilityToolbar.appendChild(createFloatingButton('btn-notif-log', '📜', 'View message log', callbacks.onOpenNotificationLog));
   utilityToolbar.appendChild(createFloatingButton('btn-icon-legend', '🗺️', 'Toggle icon legend', callbacks.onToggleIconLegend));
   utilityToolbar.appendChild(createFloatingButton('btn-wonder-atlas', '✦', 'Open Wonder Atlas', callbacks.onOpenWonderAtlas));
+  utilityToolbar.appendChild(createFloatingButton('btn-victory-progress', 'Victory', 'Open Victory progress', callbacks.onOpenVictoryProgress));
   const supplyOverlayButton = createFloatingButton('btn-supply-overlay', '🚚', 'Toggle supply overlay', () => {
     paintSupplyOverlayButton(supplyOverlayButton, callbacks.onToggleSupplyOverlay());
   });

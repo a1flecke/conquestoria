@@ -494,6 +494,7 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
 
   /** These viewer-owned surfaces may expose private history or strategic targets; never carry them across a hot-seat veil. */
   function closeNetworkPanelsForHandoff(): void {
+    router.close('victory-progress');
     router.close('diplomacy');
     uiLayer.querySelector('#diplomacy-panel')?.remove();
     router.close('network');

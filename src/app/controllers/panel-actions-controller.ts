@@ -97,6 +97,8 @@ import { executeStrategicLaunch } from '@/systems/strategic-launch-execution-sys
 import { createStrategicArsenalPanel } from '@/ui/strategic-arsenal-panel';
 import { getStrategicArsenalSummaryPresentation } from '@/systems/strategic-arsenal-summary-presentation';
 import { createEspionagePanel } from '@/ui/espionage-panel';
+import { createVictoryProgressPanel } from '@/ui/victory-progress-panel';
+import { projectDominationProgressForViewer } from '@/systems/domination-presentation';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { chooseCircularManufacturingMaterial } from '@/systems/national-project-system';
 import { rushBuyActiveProduction } from '@/systems/economy-system';
@@ -131,6 +133,7 @@ export interface PanelActionsController {
   openCityPanelForCity(city: City): void;
   openEspionagePanel(): void;
   openStrategicArsenalPanel(): void;
+  openVictoryProgressPanel(): void;
 }
 
 /** The narrow slice of `RenderLoop` this controller needs. */
@@ -180,6 +183,7 @@ export interface PanelActionsControllerDeps {
 }
 
 export function createPanelActionsController(deps: PanelActionsControllerDeps): PanelActionsController {
+  let stopVictoryProgressUpdates: (() => void) | null = null;
   /**
    * `createPacingDebugPanel` self-removes any prior instance from `uiLayer`,
    * so the router's own DOM-derived `isOpen`/`close` need no extra bookkeeping
@@ -208,6 +212,56 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
   function openStrategicArsenalPanel(): void {
     const presentation = getStrategicArsenalSummaryPresentation(deps.session.getState(), deps.session.getState().currentPlayer);
     createStrategicArsenalPanel(deps.uiLayer, presentation, () => {});
+  }
+
+  function openVictoryProgressPanel(): void {
+    deps.hud.closeDrawer();
+    stopVictoryProgressUpdates?.();
+    stopVictoryProgressUpdates = null;
+    deps.getElementById('victory-progress-panel')?.remove();
+    const viewerId = deps.session.getState().currentPlayer;
+    let panel: HTMLElement | null = null;
+    const close = () => {
+      stopVictoryProgressUpdates?.();
+      stopVictoryProgressUpdates = null;
+      panel?.remove();
+      panel = null;
+    };
+    const render = (state: GameState) => {
+      if (panel && !panel.isConnected) {
+        stopVictoryProgressUpdates?.();
+        stopVictoryProgressUpdates = null;
+        return;
+      }
+      if (state.currentPlayer !== viewerId) {
+        close();
+        return;
+      }
+      panel?.remove();
+      panel = createVictoryProgressPanel(projectDominationProgressForViewer(state, viewerId), {
+        onClose: close,
+        onOpenDiplomacy: () => {
+          close();
+          deps.router.open('diplomacy');
+        },
+        onOpenCity: cityId => {
+          const city = deps.session.getState().cities[cityId];
+          if (!city || city.owner !== deps.session.getState().currentPlayer) {
+            deps.showNotification('That city is no longer available to this seat.', 'info');
+            return;
+          }
+          close();
+          openCityPanelForCity(city);
+        },
+        onOpenEspionage: () => {
+          close();
+          deps.router.open('espionage');
+        },
+      });
+      deps.uiLayer.appendChild(panel);
+    };
+    render(deps.session.getState());
+    stopVictoryProgressUpdates = deps.session.subscribe(render);
   }
 
   function openWonderAtlas(initialWonderId?: string): void {
@@ -1154,5 +1208,6 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
     openCityPanelForCity,
     openEspionagePanel,
     openStrategicArsenalPanel,
+    openVictoryProgressPanel,
   };
 }

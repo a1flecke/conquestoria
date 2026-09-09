@@ -1,5 +1,6 @@
 import type { NotificationCityAction, NotificationLog } from './notification-log';
 import type { PirateFactionId, PirateHeadquarters, PirateMaritimeStage, PirateState } from './pirate-state';
+import type { DominationIntelState } from '@/systems/domination-types';
 
 // --- Hex Coordinates ---
 
@@ -2188,6 +2189,8 @@ export interface GameState {
   era: number;
   /** Incremented only by ordered, deterministic save migrations. */
   saveSchemaVersion?: number;
+  /** Earned Domination observations; absent only until old saves migrate. */
+  dominationIntel?: DominationIntelState;
   /**
    * Pure function of the seed string (see createGameId in game-state.ts) --
    * the base for every deterministic combat/AI/pirate/crisis RNG seed in the

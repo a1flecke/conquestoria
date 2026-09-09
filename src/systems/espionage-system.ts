@@ -16,6 +16,7 @@ import { resolveCivDefinition } from './civ-registry';
 import { applySatelliteSurveillance } from './fog-of-war';
 import { getCapitalCityId } from './capital-system';
 import { getActiveNationalProjectsForCiv } from './national-project-system';
+import { recordDominationPoliticalReport } from './domination-intel';
 import {
   ESPIONAGE_MODIFIERS,
   ESPIONAGE_SUCCESS_CHANCE_MAX,
@@ -1849,6 +1850,7 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
                 },
               };
               state.espionage![civId] = updatedEsp;
+              state = recordDominationPoliticalReport(state, civId, targetCivId);
               bus.emit('espionage:intel-report-acquired', {
                 civId, spyId: evt.spyId, missionType: evt.missionType, targetCivId,
               });

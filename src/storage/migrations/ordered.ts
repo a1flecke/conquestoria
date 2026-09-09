@@ -1,4 +1,5 @@
 import { normalizeVassalage } from '@/storage/vassalage-normalization';
+import { migrateDominationIntel } from './steps/domination-intel';
 import { normalizeMinorCivLeagueState } from '@/storage/minor-civ-league-normalization';
 import type { OrderedMigration } from './types';
 import { migrateToEra13Foundation } from './steps/tech-identity';
@@ -213,6 +214,12 @@ export const ORDERED_MIGRATIONS: readonly OrderedMigration[] = [
     id: 'minor-civ-leagues',
     reason: '#496 added the regional-compact container. Additive persistent container only; formation stays a world-turn action.',
     apply: normalizeMinorCivLeagueState,
+  },
+  {
+    version: 29,
+    id: 'domination-intel',
+    reason: '#985 MR2 persists only earned Domination observations; older saves receive an empty ledger rather than omniscient historical backfill.',
+    apply: migrateDominationIntel,
   },
 ];
 

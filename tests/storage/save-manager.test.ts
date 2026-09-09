@@ -96,7 +96,7 @@ describe('save-manager setup and outcome migration', () => {
 
     const normalized = normalizeLoadedStateForTest(legacy);
 
-    expect(normalized.saveSchemaVersion).toBe(28);
+    expect(normalized.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
     expect(normalized.minorCivLeagues).toEqual({
       leagues: {},
       nextId: 1,

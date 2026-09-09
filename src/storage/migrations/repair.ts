@@ -11,6 +11,7 @@ import { normalizeCoastalBatteryCounterfireTurns } from './steps/coastal-battery
 import { normalizeImprovementValues } from './steps/improvements';
 import { normalizeBilateralWar } from './steps/bilateral-war';
 import { normalizeCargoReciprocity } from './steps/cargo-reciprocity';
+import { repairDominationIntel } from './steps/domination-intel';
 
 /**
  * #1023 — corruption repair / defensive sanitation: unconditional, every load.
@@ -107,6 +108,15 @@ export const CORRUPTION_REPAIRS: readonly CorruptionRepair[] = [
     alsoOrderedMigration: {
       version: 27,
       why: 'Schema 27 made vassalage bilateral. The unconditional pass is the impossible-shape repair, which must apply to any file regardless of version.',
+    },
+  },
+  {
+    id: 'domination-intel',
+    reason: 'Drops malformed earned-Domination records from a current-version external save without reconstructing unearned history.',
+    apply: repairDominationIntel,
+    alsoOrderedMigration: {
+      version: 29,
+      why: 'Schema 29 initializes the ledger for old saves, while this unconditional guard repairs a missing field that current writers never emit.',
     },
   },
 ];

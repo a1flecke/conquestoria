@@ -21,6 +21,7 @@ describe('game-shell', () => {
       onOpenNotificationLog: () => {},
       onToggleIconLegend: () => {},
       onOpenWonderAtlas: () => {},
+      onOpenVictoryProgress: () => {},
       onOpenMenu: () => {},
       supplyOverlayEnabled: false,
       onToggleSupplyOverlay: () => false,
@@ -38,6 +39,7 @@ describe('game-shell', () => {
       onOpenNotificationLog: () => {},
       onToggleIconLegend: () => {},
       onOpenWonderAtlas: () => {},
+      onOpenVictoryProgress: () => {},
       onOpenMenu: () => {},
       supplyOverlayEnabled: false,
       onToggleSupplyOverlay: () => false,
@@ -64,6 +66,7 @@ describe('game-shell', () => {
       onOpenNotificationLog: () => {},
       onToggleIconLegend: () => {},
       onOpenWonderAtlas: () => { opened = true; },
+      onOpenVictoryProgress: () => {},
       onOpenMenu: () => {},
       supplyOverlayEnabled: false,
       onToggleSupplyOverlay: () => false,
@@ -76,6 +79,20 @@ describe('game-shell', () => {
     button!.click();
 
     expect(opened).toBe(true);
+  });
+
+  it('opens the non-optional Victory progress callback from the live shell', () => {
+    const onOpenVictoryProgress = vi.fn();
+    const shell = createGameShell(document.body, {
+      onOpenCouncil: () => {}, onOpenTech: () => {}, onOpenCity: () => {}, onOpenEspionage: () => {},
+      onOpenDiplomacy: () => {}, onOpenMarketplace: () => {}, onEndTurn: () => {}, onNextUnit: () => {},
+      onOpenNotificationLog: () => {}, onToggleIconLegend: () => {}, onOpenWonderAtlas: () => {},
+      onOpenVictoryProgress, onOpenMenu: () => {}, supplyOverlayEnabled: false, onToggleSupplyOverlay: () => false,
+    });
+
+    shell.querySelector<HTMLButtonElement>('#btn-victory-progress')?.click();
+
+    expect(onOpenVictoryProgress).toHaveBeenCalledOnce();
   });
 
   it('reveals Pirate Waters only after discovery and routes the launcher', () => {
@@ -92,6 +109,7 @@ describe('game-shell', () => {
       onOpenNotificationLog: () => {},
       onToggleIconLegend: () => {},
       onOpenWonderAtlas: () => {},
+      onOpenVictoryProgress: () => {},
       onOpenPirateWaters: () => { opened = true; },
       onOpenMenu: () => {},
       supplyOverlayEnabled: false,
@@ -114,7 +132,7 @@ describe('game-shell', () => {
       onOpenCouncil: () => {}, onOpenTech: () => {}, onOpenCity: () => {},
       onOpenEspionage: () => {}, onOpenDiplomacy: () => {}, onOpenMarketplace: () => {},
       onEndTurn: () => {}, onNextUnit: () => {}, onOpenNotificationLog: () => {},
-      onToggleIconLegend: () => {}, onOpenWonderAtlas: () => {}, onOpenMenu: () => {},
+      onToggleIconLegend: () => {}, onOpenWonderAtlas: () => {}, onOpenVictoryProgress: () => {}, onOpenMenu: () => {},
       onOpenHallOfFame: () => { opened += 1; },
       supplyOverlayEnabled: false, onToggleSupplyOverlay: () => false,
     });
@@ -132,7 +150,7 @@ describe('game-shell', () => {
       onOpenCouncil: () => {}, onOpenTech: () => {}, onOpenCity: () => {},
       onOpenEspionage: () => {}, onOpenDiplomacy: () => {}, onOpenMarketplace: () => {},
       onEndTurn: () => {}, onNextUnit: () => {}, onOpenNotificationLog: () => {},
-      onToggleIconLegend: () => {}, onOpenWonderAtlas: () => {}, onOpenMenu: () => {},
+      onToggleIconLegend: () => {}, onOpenWonderAtlas: () => {}, onOpenVictoryProgress: () => {}, onOpenMenu: () => {},
       supplyOverlayEnabled: false, onToggleSupplyOverlay: () => false,
     });
     const button = shell.querySelector<HTMLButtonElement>('#btn-hall-of-fame')!;
@@ -144,7 +162,7 @@ describe('game-shell', () => {
       onOpenCouncil: () => {}, onOpenTech: () => {}, onOpenCity: () => {},
       onOpenEspionage: () => {}, onOpenDiplomacy: () => {}, onOpenMarketplace: () => {},
       onEndTurn: () => {}, onNextUnit: () => {}, onOpenNotificationLog: () => {},
-      onToggleIconLegend: () => {}, onOpenWonderAtlas: () => {}, onOpenMenu: () => {},
+      onToggleIconLegend: () => {}, onOpenWonderAtlas: () => {}, onOpenVictoryProgress: () => {}, onOpenMenu: () => {},
       supplyOverlayEnabled: false,
       onToggleSupplyOverlay: () => false,
     });
@@ -157,7 +175,7 @@ describe('game-shell', () => {
     expect(toolbar?.style.maxWidth).toBe('calc(100% - 24px)');
     expect([...toolbar?.querySelectorAll('button') ?? []].map(button => button.id)).toEqual([
       'btn-next-unit', 'btn-notif-log', 'btn-icon-legend', 'btn-wonder-atlas',
-      'btn-supply-overlay', 'btn-pirate-waters', 'btn-hall-of-fame', 'btn-pause-menu',
+      'btn-victory-progress', 'btn-supply-overlay', 'btn-pirate-waters', 'btn-hall-of-fame', 'btn-pause-menu',
     ]);
     expect(toolbar?.querySelectorAll('[style*="right:"]')).toHaveLength(0);
   });
@@ -167,7 +185,7 @@ describe('game-shell', () => {
       onOpenCouncil: () => {}, onOpenTech: () => {}, onOpenCity: () => {},
       onOpenEspionage: () => {}, onOpenDiplomacy: () => {}, onOpenMarketplace: () => {},
       onEndTurn: () => {}, onNextUnit: () => {}, onOpenNotificationLog: () => {},
-      onToggleIconLegend: () => {}, onOpenWonderAtlas: () => {}, onOpenMenu: () => {},
+      onToggleIconLegend: () => {}, onOpenWonderAtlas: () => {}, onOpenVictoryProgress: () => {}, onOpenMenu: () => {},
       supplyOverlayEnabled: false,
       onToggleSupplyOverlay: () => false,
     });
@@ -183,7 +201,7 @@ describe('game-shell', () => {
       onOpenCouncil: () => {}, onOpenTech: () => {}, onOpenCity: () => {},
       onOpenEspionage: () => {}, onOpenDiplomacy: () => {}, onOpenMarketplace: () => {},
       onEndTurn: () => {}, onNextUnit: () => {}, onOpenNotificationLog: () => {},
-      onToggleIconLegend: () => {}, onOpenWonderAtlas: () => {}, onOpenMenu: () => {},
+      onToggleIconLegend: () => {}, onOpenWonderAtlas: () => {}, onOpenVictoryProgress: () => {}, onOpenMenu: () => {},
       supplyOverlayEnabled: false,
       onToggleSupplyOverlay: () => false,
       onBottomBarHeightChange,
@@ -210,7 +228,7 @@ describe('game-shell', () => {
       onOpenCouncil: () => {}, onOpenTech: () => {}, onOpenCity: () => {},
       onOpenEspionage: () => {}, onOpenDiplomacy: () => {}, onOpenMarketplace: () => {},
       onEndTurn: () => {}, onNextUnit: () => {}, onOpenNotificationLog: () => {},
-      onToggleIconLegend: () => {}, onOpenWonderAtlas: () => {}, onOpenMenu: () => {},
+      onToggleIconLegend: () => {}, onOpenWonderAtlas: () => {}, onOpenVictoryProgress: () => {}, onOpenMenu: () => {},
       supplyOverlayEnabled: false,
       onToggleSupplyOverlay,
     });
@@ -230,7 +248,7 @@ describe('game-shell', () => {
       onOpenCouncil: () => {}, onOpenTech: () => {}, onOpenCity: () => {},
       onOpenEspionage: () => {}, onOpenDiplomacy: () => {}, onOpenMarketplace: () => {},
       onEndTurn: () => {}, onNextUnit: () => {}, onOpenNotificationLog: () => {},
-      onToggleIconLegend: () => {}, onOpenWonderAtlas: () => {}, onOpenMenu: () => {},
+      onToggleIconLegend: () => {}, onOpenWonderAtlas: () => {}, onOpenVictoryProgress: () => {}, onOpenMenu: () => {},
       supplyOverlayEnabled: true,
       onToggleSupplyOverlay: () => true,
     });

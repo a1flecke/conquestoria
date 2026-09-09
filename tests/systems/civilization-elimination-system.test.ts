@@ -85,6 +85,19 @@ describe('civilization elimination', () => {
     expect(reconcileCivilizationLiveness(first.state, first.state).transitions).toEqual([]);
   });
 
+  it('records an attributed defeat at the reconciliation boundary', () => {
+    const before = makeLivenessGame();
+    const after = withoutOwnedAssets(before, 'ai-1');
+
+    const reconciled = reconcileCivilizationLiveness(before, after, 'player');
+
+    expect(reconciled.state.dominationIntel?.player?.defeatsByCivId['ai-1']).toMatchObject({
+      civId: 'ai-1',
+      defeatedById: 'player',
+      source: 'participant',
+    });
+  });
+
   it('atomically removes owned pieces and live cross-system references', () => {
     const state = stateWithDefeatedActor();
     const defeatedUnitIds = [...state.civilizations['player-2'].units];

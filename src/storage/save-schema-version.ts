@@ -10,4 +10,4 @@
  *
  * Bump this in the same change that adds `SAVE_MIGRATIONS[<this value>]`.
  */
-export const CURRENT_SAVE_SCHEMA_VERSION = 28;
+export const CURRENT_SAVE_SCHEMA_VERSION = 29;
