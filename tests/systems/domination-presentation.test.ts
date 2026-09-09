@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { createNewGame } from '@/core/game-state';
 import { projectDominationProgressForViewer } from '@/systems/domination-presentation';
 import { makeLivenessGame, withoutOwnedAssets } from './helpers/civilization-liveness-fixture';
 
@@ -110,5 +111,28 @@ describe('Domination progress presentation', () => {
       kind: 'text',
       text: 'Explore to meet other empires and learn about their progress.',
     });
+  });
+
+  it('marks only an earned recent contender report that crosses the Domination warning threshold', () => {
+    const state = createNewGame({
+      civType: 'rome', mapSize: 'small', opponentCount: 4, gameTitle: 'Warning visibility', seed: 'warning-visibility',
+    });
+    state.turn = 10;
+    state.dominationIntel = {
+      player: {
+        defeatsByCivId: {},
+        reportsByContenderId: {
+          'ai-1': {
+            contenderId: 'ai-1', observedTurn: 10, contenderRole: 'independent',
+            directVassalIds: ['ai-2', 'ai-3'], defeatedCivIds: ['ai-4'],
+          },
+        },
+      },
+    };
+
+    const rows = projectDominationProgressForViewer(state, 'player').rows;
+
+    expect(rows.find(row => row.civId === 'ai-1')).toMatchObject({ warning: true, evidence: 'reported' });
+    expect(rows.filter(row => row.warning).map(row => row.civId)).toEqual(['ai-1']);
   });
 });

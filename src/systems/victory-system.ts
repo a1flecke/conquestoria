@@ -39,11 +39,13 @@ export function getDominationResolutionBlocker(
   return requestIds.length > 0 ? { kind: 'independence', requestIds } : null;
 }
 
-export function finalizeDominationVictory(state: GameState, _bus: EventBus): GameState {
+export function finalizeDominationVictory(state: GameState, bus: EventBus): GameState {
   if (state.gameOver) return state;
   const victorId = checkDominationVictory(state);
   if (!victorId || getDominationResolutionBlocker(state, victorId)) return state;
-  return { ...state, gameOver: true, winner: victorId, gameOverReason: 'domination' };
+  const finished: GameState = { ...state, gameOver: true, winner: victorId, gameOverReason: 'domination' };
+  bus.emit('victory:resolved', { winnerId: victorId, reason: 'domination', turn: state.turn });
+  return finished;
 }
 
 function hasCompetitiveFoundingRecords(state: GameState): boolean {

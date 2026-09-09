@@ -16,6 +16,8 @@ import {
   isResourceTileDeniedByHostileOccupation,
 } from '@/systems/resource-acquisition-system';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
+import { buildDominationKnowledge } from '@/systems/domination-knowledge';
+import { getDominationThreats } from '@/systems/domination-presentation';
 
 type StrategicWarning = GameEvents['ai:strategic-warning'];
 
@@ -340,6 +342,42 @@ function deriveRecoveryWarning(
   })];
 }
 
+function dominationWarning(
+  viewerId: string,
+  actorId: string,
+  kind: Extract<StrategicWarning['kind'], 'domination' | 'domination-eased'>,
+): StrategicWarning {
+  return {
+    viewerId,
+    actorId,
+    actorName: 'A rival empire',
+    warningKey: `${viewerId}:${actorId}:domination`,
+    kind,
+    evidence: 'earned-intel',
+    playAudio: false,
+  };
+}
+
+function deriveDominationWarnings(
+  before: GameState,
+  after: GameState,
+  viewerId: string,
+): StrategicWarning[] {
+  const beforeThreatIds = new Set(getDominationThreats(buildDominationKnowledge(before, viewerId))
+    .map(threat => threat.contenderId));
+  const afterThreatIds = new Set(getDominationThreats(buildDominationKnowledge(after, viewerId))
+    .map(threat => threat.contenderId));
+  const rising = [...afterThreatIds]
+    .filter(actorId => !beforeThreatIds.has(actorId))
+    .sort()
+    .map(actorId => dominationWarning(viewerId, actorId, 'domination'));
+  const eased = [...beforeThreatIds]
+    .filter(actorId => !afterThreatIds.has(actorId))
+    .sort()
+    .map(actorId => dominationWarning(viewerId, actorId, 'domination-eased'));
+  return [...rising, ...eased];
+}
+
 export function deriveStrategicWarningTransitions(
   beforeRound: Readonly<GameState>,
   finalState: GameState,
@@ -354,16 +392,24 @@ export function deriveStrategicWarningTransitions(
     ...deriveBarbarianWarnings(beforeRound as GameState, finalState, viewerId),
     ...deriveResourceWarnings(beforeRound as GameState, finalState, viewerId),
     ...deriveRecoveryWarning(beforeRound as GameState, finalState, viewerId),
+    ...deriveDominationWarnings(beforeRound as GameState, finalState, viewerId),
   ]
-    .filter(warning => ledger.lastWarningTurnByKey[warning.warningKey] !== finalState.turn)
+    .filter(warning => {
+      if (warning.kind === 'domination-eased') return true;
+      const lastWarningTurn = ledger.lastWarningTurnByKey[warning.warningKey];
+      if (warning.kind === 'domination') {
+        return lastWarningTurn === undefined || finalState.turn - lastWarningTurn >= 5;
+      }
+      return lastWarningTurn !== finalState.turn;
+    })
     .sort((left, right) =>
       left.actorId.localeCompare(right.actorId)
       || left.kind.localeCompare(right.kind)
       || left.warningKey.localeCompare(right.warningKey));
   let audioAssigned = ledger.lastStrategicAudioTurn === finalState.turn;
   return warnings.map(warning => {
-    const playAudio = !audioAssigned;
-    audioAssigned = true;
+    const playAudio = warning.kind !== 'domination-eased' && !audioAssigned;
+    if (playAudio) audioAssigned = true;
     return { ...warning, playAudio };
   });
 }
@@ -392,10 +438,12 @@ export function applyStrategicWarningTransitions(
       ...ledger,
       lastWarningTurnByKey: {
         ...ledger.lastWarningTurnByKey,
-        ...Object.fromEntries(viewerWarnings.map(warning => [
+        ...Object.fromEntries(viewerWarnings
+          .filter(warning => warning.kind !== 'domination-eased')
+          .map(warning => [
           warning.warningKey,
           finalState.turn,
-        ])),
+          ])),
       },
     };
     warnings.push(...viewerWarnings);

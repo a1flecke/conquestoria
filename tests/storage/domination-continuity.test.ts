@@ -7,7 +7,9 @@ import { processImprovementTurns } from '@/systems/improvement-turn-system';
 import { acceptDiplomaticRequest, applyDiplomaticAction } from '@/systems/diplomacy-system';
 import { serializeSaveFile, parseSaveFile } from '@/storage/save-file-transfer';
 import { normalizeLoadedState } from '@/storage/save-manager';
+import { createNewGame } from '@/core/game-state';
 import type { GameState } from '@/core/types';
+import { deriveStrategicWarningTransitions } from '@/systems/strategic-warning-system';
 import { assertSimulationEquivalent } from '../helpers/deterministic-state';
 import { withoutOwnedAssets } from '../systems/helpers/civilization-liveness-fixture';
 import { makeVassalageFixture } from '../systems/helpers/vassalage-fixture';
@@ -82,5 +84,37 @@ describe('domination save continuity', () => {
     }));
     expect(continued.gameOver).toBe(false);
     expect(continued.winner).toBeNull();
+  });
+
+  it('preserves a Domination warning cooldown across export and import', () => {
+    const before = createNewGame({
+      civType: 'rome', mapSize: 'small', opponentCount: 4, gameTitle: 'Warning save', seed: 'warning-save',
+    });
+    before.turn = 9;
+    const state = structuredClone(before);
+    state.turn = 10;
+    state.dominationIntel = {
+      player: {
+        defeatsByCivId: {},
+        reportsByContenderId: {
+          'ai-1': {
+            contenderId: 'ai-1', observedTurn: 10, contenderRole: 'independent',
+            directVassalIds: ['ai-2', 'ai-3'], defeatedCivIds: ['ai-4'],
+          },
+        },
+      },
+    };
+    state.opponentAI!.pressureByCiv.player = {
+      activeIndependentThreatIds: [], recoveryUntilTurn: 0, lastResolvedThreatTurn: null,
+      lastWarningTurnByKey: { 'player:ai-1:domination': 6 }, lastStrategicAudioTurn: null,
+    };
+
+    const reloaded = reload(state);
+
+    expect(deriveStrategicWarningTransitions(before, reloaded, 'player')).toEqual([]);
+    reloaded.turn = 11;
+    reloaded.dominationIntel!.player.reportsByContenderId['ai-1'].observedTurn = 11;
+    expect(deriveStrategicWarningTransitions(before, reloaded, 'player'))
+      .toEqual([expect.objectContaining({ kind: 'domination', playAudio: true })]);
   });
 });

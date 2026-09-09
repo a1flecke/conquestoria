@@ -8,6 +8,10 @@ export interface VictoryPanelOptions {
   reason?: GameOverReason;
   /** A hot-seat conclusion is public, but must not disclose a private winner. */
   sharedResult?: boolean;
+  /** Already recipient-safe explanation from the outcome projection. */
+  summary?: string;
+  /** Configured human standings for a shared hot-seat result. */
+  standings?: string[];
   turn: number;
   onNewGame: () => void;
 }
@@ -41,7 +45,7 @@ export function showVictoryPanel(container: HTMLElement, options: VictoryPanelOp
   const winner = document.createElement('p');
   winner.style.cssText = 'font-size:22px;color:white;margin:0 0 8px;';
   winner.textContent = isSharedResult
-    ? ''
+    ? options.summary ? options.winnerName : ''
     : options.reason === 'all-humans-eliminated'
     ? 'No human civilizations remain.'
     : options.winnerName;
@@ -49,6 +53,18 @@ export function showVictoryPanel(container: HTMLElement, options: VictoryPanelOp
   const rule = document.createElement('p');
   rule.style.cssText = 'font-size:14px;color:#ccc;margin:0 0 12px;max-width:420px;line-height:1.5;';
   rule.textContent = 'Domination means becoming the last independent empire: defeat other empires or make them your vassals.';
+
+  const summary = document.createElement('p');
+  summary.style.cssText = 'font-size:16px;color:white;margin:0 0 12px;max-width:420px;line-height:1.5;';
+  summary.textContent = options.summary ?? '';
+
+  const standings = document.createElement('ul');
+  standings.style.cssText = 'list-style:none;padding:0;margin:0 0 16px;color:#ddd;font-size:15px;line-height:1.5;';
+  for (const standing of options.standings ?? []) {
+    const row = document.createElement('li');
+    row.textContent = standing;
+    standings.appendChild(row);
+  }
 
   const turnLine = document.createElement('p');
   turnLine.style.cssText = 'font-size:14px;color:#aaa;margin:0 0 32px;';
@@ -65,6 +81,8 @@ export function showVictoryPanel(container: HTMLElement, options: VictoryPanelOp
   overlay.appendChild(type);
   overlay.appendChild(winner);
   overlay.appendChild(rule);
+  overlay.appendChild(summary);
+  overlay.appendChild(standings);
   overlay.appendChild(turnLine);
   overlay.appendChild(btn);
 

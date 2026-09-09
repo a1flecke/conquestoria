@@ -72,7 +72,68 @@ function setVisibility(state: GameState, viewerId: string, coord: HexCoord, valu
   state.civilizations[viewerId].visibility.tiles[`${coord.q},${coord.r}`] = value;
 }
 
+function dominationWarningFixture(): { before: GameState; after: GameState } {
+  const before = createNewGame({
+    civType: 'rome', mapSize: 'small', opponentCount: 4, gameTitle: 'Domination warning', seed: 'domination-warning',
+  });
+  before.turn = 9;
+  const after = structuredClone(before);
+  after.turn = 10;
+  after.dominationIntel = {
+    player: {
+      defeatsByCivId: {},
+      reportsByContenderId: {
+        'ai-1': {
+          contenderId: 'ai-1', observedTurn: 10, contenderRole: 'independent',
+          directVassalIds: ['ai-2', 'ai-3'], defeatedCivIds: ['ai-4'],
+        },
+      },
+    },
+  };
+  return { before, after };
+}
+
 describe('strategic warning transition derivation', () => {
+  it('emits one earned-intel Domination warning when a new report crosses the threshold', () => {
+    const { before, after } = dominationWarningFixture();
+
+    expect(deriveStrategicWarningTransitions(before, after, 'player')).toEqual([
+      expect.objectContaining({
+        viewerId: 'player', actorId: 'ai-1', kind: 'domination', evidence: 'earned-intel',
+        warningKey: 'player:ai-1:domination', playAudio: true,
+      }),
+    ]);
+  });
+
+  it('emits a silent clear when earned intelligence no longer supports a Domination warning', () => {
+    const { after: before } = dominationWarningFixture();
+    const after = structuredClone(before);
+    after.turn++;
+    after.dominationIntel!.player.reportsByContenderId = {};
+
+    expect(deriveStrategicWarningTransitions(before, after, 'player')).toEqual([
+      expect.objectContaining({
+        actorId: 'ai-1', kind: 'domination-eased', evidence: 'earned-intel', playAudio: false,
+      }),
+    ]);
+  });
+
+  it('uses the persisted Domination warning cooldown before repeating a report warning', () => {
+    const { before, after } = dominationWarningFixture();
+    after.opponentAI = createEmptyOpponentAIState();
+    after.opponentAI.pressureByCiv.player = {
+      activeIndependentThreatIds: [], recoveryUntilTurn: 0, lastResolvedThreatTurn: null,
+      lastWarningTurnByKey: { 'player:ai-1:domination': 6 }, lastStrategicAudioTurn: null,
+    };
+
+    expect(deriveStrategicWarningTransitions(before, after, 'player')).toEqual([]);
+    after.turn = 11;
+    after.dominationIntel!.player.reportsByContenderId['ai-1'].observedTurn = 11;
+    expect(deriveStrategicWarningTransitions(before, after, 'player')).toEqual([
+      expect.objectContaining({ kind: 'domination', playAudio: true }),
+    ]);
+  });
+
   it('warns about a visible mobilization without leaking its hidden target', () => {
     const { before, after, aiId, aiUnitId } = fixture();
     const unit = after.units[aiUnitId];

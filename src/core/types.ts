@@ -2440,7 +2440,9 @@ export interface GameEvents {
       | 'resource-denied'
       | 'resource-restored'
       | 'withdrawing'
-      | 'recovery';
+      | 'recovery'
+      | 'domination'
+      | 'domination-eased';
     evidence: 'visible' | 'remembered' | 'earned-intel';
     targetLabel?: string;
     regionLabel?: string;
@@ -2450,6 +2452,11 @@ export interface GameEvents {
   };
   'ai:strategic-warning-audio': {
     viewerId: string;
+    turn: number;
+  };
+  'victory:resolved': {
+    winnerId: string;
+    reason: 'domination';
     turn: number;
   };
   'city:founded': { city: City; founderId: string };
