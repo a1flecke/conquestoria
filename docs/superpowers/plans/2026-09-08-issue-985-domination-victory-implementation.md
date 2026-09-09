@@ -14,7 +14,7 @@ Controlling contract: [Domination design](../specs/2026-09-08-issue-985-dominati
 ## Status and preserved decisions
 
 - Phase A: current-main audit, design, plan, and both inline reviews complete. No production implementation.
-- MR1, MR2, MR3 and MR4: **not started**.
+- MR1 is merged as [#1055](https://github.com/a1flecke/conquestoria/pull/1055), MR2 as [#1058](https://github.com/a1flecke/conquestoria/pull/1058), and MR3 as [#1060](https://github.com/a1flecke/conquestoria/pull/1060). MR4 is the remaining active slice.
 - All Terra/Sol/Luna gates and merge confirmations: **not started**.
 
 Final source baseline: `8e7bbb512669b716f453849c3cac7798cd0577b4`. The initial audit used `644c9d64a6171cb5eeffaf1008b5e55a449a7388`; #1041 landed during Phase A and its two commits/source hunks were inspected after rebase. #995 and #1039 then landed through PRs #1052/#1053; their relevant source, repair, validator and guard changes were inspected and the worktree rebased again. #995 is closed, its merge prerequisite is satisfied, and no open PR remained at the final check. Any major-war load must reuse the newly landed `majorCivWarOpponentIds`; raw count is intentionally retained for ambience. Worktree: `/Users/aaronfleckenstein/development/github/conquestoria/.worktrees/issue-985-domination-design`; branch `codex/issue-985-domination-design`. Preserve these documents when rebasing. A documentation commit may be ahead of the source baseline. The initial victory/liveness baseline passed 2 files / 22 tests. After the final rebase, victory/liveness plus the landed bilateral-war suite passed 3 files / 35 tests and all hook checks, exit 0. Counts are historical evidence, not expected forever.
@@ -390,7 +390,7 @@ Replay warning→open panel→close→reopen, save→reload, handoff→ack, repe
 
 **Terra stop:** `READY FOR SOL IMPLEMENTATION REVIEW` then `STOP HERE. Do not create the MR. The human must switch models before work continues.`
 
-## MR4 — AI pursuit and counterplay (not started; #995 prerequisite satisfied at baseline)
+## MR4 — AI pursuit and counterplay (🟡 active; #995 prerequisite satisfied)
 
 ### Task 4.0 — Hard dependency gate
 
