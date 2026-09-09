@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { evaluateDominationDoctrine } from '@/ai/ai-domination';
+import { evaluateDominationDoctrine, getDominationCounterplay } from '@/ai/ai-domination';
 import type { PersonalityTraits } from '@/core/types';
 import type { DominationKnowledge } from '@/systems/domination-types';
 
@@ -80,5 +80,10 @@ describe('Domination AI doctrine', () => {
     expect(evaluateDominationDoctrine({
       knowledge: { ...current, turn: 16 }, ownCityCount: 1, personality: trader, challenge: 'standard',
     }).threatId).toBeNull();
+    expect(getDominationCounterplay(current)).toEqual({
+      threatId: 'ai-2',
+      forceDemand: { role: 'frontline', sourceId: 'domination-threat:ai-2', priority: 220 },
+    });
+    expect(getDominationCounterplay({ ...current, turn: 16 })).toBeNull();
   });
 });
