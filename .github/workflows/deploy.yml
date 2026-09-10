@@ -91,7 +91,7 @@ jobs:
         with:
           path: dist
 
-  test:
+  test-fast:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
@@ -113,8 +113,87 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
 
-      - name: Run tests
-        run: yarn verify:push
+      - name: Record test manifests
+        run: |
+          mkdir -p artifacts/test-manifests
+          yarn test:manifest > artifacts/test-manifests/default.txt
+          yarn test:manifest:fast > artifacts/test-manifests/fast.txt
+
+      - name: Run fast tests
+        run: sh scripts/run-tests-by-tier.sh fast
+
+      - name: Upload test manifests
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: test-manifests-fast
+          path: artifacts/test-manifests
+          if-no-files-found: warn
+          retention-days: 14
+
+  test-slow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24.13.1'
+          cache: yarn
+          cache-dependency-path: yarn.lock
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Record test manifest
+        run: |
+          mkdir -p artifacts/test-manifests
+          yarn test:manifest:slow > artifacts/test-manifests/slow.txt
+
+      - name: Run slow tests
+        run: sh scripts/run-tests-by-tier.sh slow
+
+      - name: Upload test manifest
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: test-manifests-slow
+          path: artifacts/test-manifests
+          if-no-files-found: warn
+          retention-days: 14
+
+  hooks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24.13.1'
+          cache: yarn
+          cache-dependency-path: yarn.lock
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Run hook tests
+        run: yarn test:hooks
 
   pirate-audio-reproducibility:
     runs-on: ubuntu-latest
@@ -275,8 +354,35 @@ jobs:
           name: conquestoria-macos
           path: src-tauri/target/release/bundle/macos/Conquestoria.app
 
+  merge-gate:
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    needs:
+      - web-build
+      - test-fast
+      - test-slow
+      - hooks
+      - web-smoke
+      - security-analysis
+      - desktop-change-check
+      - tauri-frontend-build
+      - tauri-macos-build
+      - pirate-audio-reproducibility
+    env:
+      GATE_NEEDS_JSON: ${{ toJSON(needs) }}
+      GATE_EVENT_NAME: ${{ github.event_name }}
+      GATE_REF: ${{ github.ref }}
+      GATE_DESKTOP_CHANGED: ${{ needs.desktop-change-check.outputs.desktop_changed }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: Verify required child results
+        run: node scripts/verify-merge-gate.mjs
+
   deploy:
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       pages: write
       id-token: write
@@ -284,7 +390,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    needs: [web-build, test, web-smoke, security-analysis]
+    needs: [merge-gate]
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
