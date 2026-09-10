@@ -38,13 +38,18 @@ export default defineConfig(({ mode }) => {
       globals: true,
       environment: 'node',
       dir: resolve(__dirname, 'tests'),
-      // `simulation/long-horizon/**` is the #1005 heavyweight AI campaign suite:
-      // 300-500 turn deterministic campaigns, minutes per scenario. It is
-      // explicit-run only (`yarn test:ai-long`) via `vitest.long-horizon.config.ts`,
-      // and excluded here UNCONDITIONALLY so `yarn test` / `test:fast` / `test:slow`
-      // / `verify:push` / the pre-push hooks / CI can never discover it. Guarded by
-      // `tests/scripts/ai-long-horizon-isolation.test.ts`.
-      exclude: ['e2e/**', 'simulation/long-horizon/**'],
+      // Two directories are explicit-run only and excluded here UNCONDITIONALLY so
+      // `yarn test` / `test:fast` / `test:slow` / `verify:push` / the pre-push hooks
+      // / CI can never discover them:
+      //  - `simulation/long-horizon/**` — the #1005 heavyweight AI campaign suite
+      //    (300-500 turn deterministic campaigns), via `vitest.long-horizon.config.ts`
+      //    (`yarn test:ai-long`). Guarded by `tests/scripts/ai-long-horizon-isolation.test.ts`.
+      //  - `perf/report/**` — the #1007 local wall-clock performance reporter, via
+      //    `vitest.perf.config.ts` (`yarn perf:report`). Guarded by
+      //    `tests/scripts/perf-isolation.test.ts`. (The #1007 ALGORITHMIC budgets —
+      //    `tests/perf/algorithmic-budgets.test.ts` — DO run in the ordinary suite,
+      //    slow tier; only the wall-clock reporter is excluded.)
+      exclude: ['e2e/**', 'simulation/long-horizon/**', 'perf/report/**'],
       // Vitest only manages workers inside one process. A local 25% budget leaves
       // headroom for up to four concurrent worktree runs; CI is isolated and can use
       // the available parallelism. VITEST_MAX_WORKERS is Vitest's official override.
