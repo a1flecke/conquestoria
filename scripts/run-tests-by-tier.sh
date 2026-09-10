@@ -41,19 +41,48 @@ MODE="${1:-}"
 if [ "$#" -gt 0 ]; then
   shift
 fi
+LIST_FILES=0
+if [ "${1:-}" = "--list-files" ]; then
+  LIST_FILES=1
+  shift
+fi
+
+run_vitest() {
+  if [ "$LIST_FILES" -eq 1 ]; then
+    exec yarn vitest list --filesOnly "$@"
+  fi
+  exec yarn vitest run "$@"
+}
+
+has_root_relative_filter() {
+  for arg in "$@"; do
+    case "$arg" in
+      tests/*) return 0 ;;
+    esac
+  done
+  return 1
+}
 
 # Any remaining Vitest arguments (such as root-relative focused test paths) are
 # kept in "$@" and passed through to the final invocation in both modes.
 case "$MODE" in
   fast)
     for f in $SLOW_TEST_FILES; do
-      set -- "$@" --exclude "$f"
+      # Vitest resolves exclusions beneath `test.dir` (`tests/`), while slow
+      # positional filters intentionally stay root-relative for callers.
+      exclude_path="${f#tests/}"
+      set -- "$@" --exclude "$exclude_path"
     done
-    exec yarn vitest run "$@"
+    run_vitest "$@"
     ;;
   slow)
+    # A root-relative filter narrows slow mode to that focus. Passing the
+    # entire slow list alongside it makes Vitest select their union instead.
+    if has_root_relative_filter "$@"; then
+      run_vitest "$@"
+    fi
     # shellcheck disable=SC2086
-    exec yarn vitest run $SLOW_TEST_FILES "$@"
+    run_vitest $SLOW_TEST_FILES "$@"
     ;;
   *)
     echo "Usage: run-tests-by-tier.sh fast|slow [-- extra vitest args]" >&2

@@ -195,10 +195,11 @@ test filters root-relative (`tests/foo.test.ts`) and cover this contract in
 
 ## Fast/slow test split (#608)
 
-`scripts/run-tests-by-tier.sh` splits the suite into two tiers, to keep the local push gate fast without losing coverage at merge time:
+`scripts/run-tests-by-tier.sh` splits the suite into two tiers, to keep the local push gate fast without losing coverage at merge time. Vitest discovers beneath `test.dir = tests`, so the runner keeps slow positional filters root-relative (`tests/foo.test.ts`) but strips only the leading `tests/` from fast `--exclude` operands. `tests/scripts/test-tier-selection.test.ts` invokes real Vitest discovery and proves the tiers are disjoint, exhaustive, and preserve root-relative focused slow filters.
 
-- `yarn test:fast` (`run-tests-by-tier.sh fast`) — excludes the `SLOW_TEST_FILES` list defined in that script (currently: `ai-prepared-turn`, `basic-ai-worker-roads`, `determinism-guard`, `turn-manager-beasts`, `save-load-mass-discovery`, `tech-panel`, `pacing-production-budget`, `pacing-reference-economy`, `start-placement-system`, `world-pressure-fairness`). This is what the local pre-push hook and the Claude Code push-gate hook actually run.
-- `yarn test:slow` (`run-tests-by-tier.sh slow`) — runs ONLY those files, for a developer working directly on one of those systems.
+- `yarn test:fast` (`run-tests-by-tier.sh fast`) — excludes the `SLOW_TEST_FILES` list defined in that script: `ai-prepared-turn`, `basic-ai-worker-roads`, `determinism-guard`, `simulation-determinism`, `turn-manager-beasts`, `save-load-mass-discovery`, `save-compat-matrix`, `pacing-simulation`, `tech-panel`, `pacing-production-budget`, `pacing-reference-economy`, `start-placement-system`, `world-pressure-fairness`, `minor-civ-economy-longrun`, and `minor-civ-league-longrun`. This is what the local pre-push hook and the Claude Code push-gate hook actually run.
+- `yarn test:slow` (`run-tests-by-tier.sh slow`) — runs the declared slow files, or a supplied root-relative focused filter without unioning it with every slow file.
+- `yarn test:manifest`, `yarn test:manifest:fast`, and `yarn test:manifest:slow` — print real Vitest default/fast/slow file manifests without executing test bodies. CI artifact publication must use these commands rather than counts or a mocked executable.
 - `yarn test` (full, unchanged) — always runs everything. This is what CI's required `test` status check runs; it is never given `--fast`, so slow-tier regressions still block merge, just not every local push.
 
 **When adding a new heavy multi-city/era/seed simulation test:** add its path to `SLOW_TEST_FILES` in `scripts/run-tests-by-tier.sh`, in addition to giving it an explicit headroom-sized timeout (see below) — the two are complementary: the timeout stops it from spuriously failing under contention, the tier split stops it from adding wall-clock/CPU cost to every local push-gate run in the first place.
