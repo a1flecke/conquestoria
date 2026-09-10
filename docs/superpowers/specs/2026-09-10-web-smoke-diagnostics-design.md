@@ -51,3 +51,11 @@ resolves synchronously after the existing close handler removes the panel, and
 diagnostic serialization runs only on a failure. If diagnostics identify a
 product defect, a later MR will fix that source condition rather than hiding it
 behind a longer timeout.
+
+## Implementation evidence (unmerged)
+
+- The focused spec passed 10/10 under the CI-style two-worker replay on
+  2026-09-10.
+- The complete `test:web-smoke` suite passed 14/14 on the same worktree.
+- The diagnostic remains unmerged; a CI failure is still required to supply
+  root-cause evidence before changing application code.
