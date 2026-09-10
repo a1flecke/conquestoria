@@ -22,6 +22,7 @@
     "test:manifest:slow": "sh scripts/run-tests-by-tier.sh slow --list-files",
     "test:ai-playability": "bash scripts/run-ai-playability-regressions.sh",
     "test:ai-long": "bash scripts/run-ai-long-horizon.sh",
+    "perf:report": "bash scripts/run-perf-report.sh",
     "test:hooks": "bash tests/hooks/run.sh",
     "test:web-smoke": "playwright test",
     "test:watch": "vitest",
