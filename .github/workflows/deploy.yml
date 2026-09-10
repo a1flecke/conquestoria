@@ -286,6 +286,17 @@ jobs:
       - name: Run web smoke test
         run: yarn test:web-smoke
 
+      - name: Upload Playwright failure evidence
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: playwright-failure-evidence
+          path: |
+            test-results
+            playwright-report
+          if-no-files-found: warn
+          retention-days: 14
+
   tauri-frontend-build:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'

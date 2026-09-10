@@ -16,4 +16,12 @@ describe('playwright config', () => {
     expect(resolvePlaywrightDevCommand(''))
       .toBe('./scripts/run-with-mise.sh yarn dev --mode e2e --host 127.0.0.1');
   });
+
+  it('retains first-attempt failure traces and a stable HTML report for CI artifacts', () => {
+    expect(playwrightConfig.use?.trace).toBe('retain-on-failure');
+    expect(playwrightConfig.reporter).toEqual([
+      ['line'],
+      ['html', { outputFolder: 'playwright-report', open: 'never' }],
+    ]);
+  });
 });
