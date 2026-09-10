@@ -8,6 +8,10 @@ export function resolvePlaywrightDevCommand(ci = process.env.CI): string {
 
 export default defineConfig({
   testDir: './tests/e2e',
+  reporter: [
+    ['line'],
+    ['html', { outputFolder: 'playwright-report', open: 'never' }],
+  ],
   timeout: 30_000,
   expect: {
     timeout: 5_000,
@@ -20,7 +24,7 @@ export default defineConfig({
   },
   use: {
     baseURL: 'http://127.0.0.1:5173/conquestoria/',
-    trace: 'on-first-retry',
+    trace: 'retain-on-failure',
   },
   projects: [
     {

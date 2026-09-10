@@ -114,6 +114,30 @@ if printf '%s' "$pirate_audio_job" | grep -Fq -- ' -t '; then
   exit 1
 fi
 
+web_smoke_job="$(
+  sed -n '/^  web-smoke:/,/^  tauri-frontend-build:/p' "$ROOT/.github/workflows/deploy.yml"
+)"
+printf '%s' "$web_smoke_job" | grep -Fq 'if: failure()' || {
+  echo "GitHub web smoke job does not retain evidence after a failure"
+  exit 1
+}
+printf '%s' "$web_smoke_job" | grep -Fq 'uses: actions/upload-artifact@' || {
+  echo "GitHub web smoke job does not upload Playwright evidence"
+  exit 1
+}
+printf '%s' "$web_smoke_job" | grep -Fq 'test-results' || {
+  echo "GitHub web smoke job does not retain Playwright result attachments"
+  exit 1
+}
+printf '%s' "$web_smoke_job" | grep -Fq 'playwright-report' || {
+  echo "GitHub web smoke job does not retain the Playwright HTML report"
+  exit 1
+}
+printf '%s' "$web_smoke_job" | grep -Fq 'retention-days: 14' || {
+  echo "GitHub web smoke artifacts have no bounded retention"
+  exit 1
+}
+
 grep -Fq 'VITEST_MAX_WORKERS' "$ROOT/vite.config.ts" || {
   echo "Vitest worker count cannot be overridden with the official environment variable"
   exit 1
