@@ -5,6 +5,28 @@ set -eu
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 
+grep -Fq 'workflow_dispatch:' "$ROOT/.github/workflows/deploy.yml" || {
+  echo "CI workflow cannot run an explicit benchmark dispatch"
+  exit 1
+}
+
+grep -Fq "github.event_name == 'workflow_dispatch'" "$ROOT/.github/workflows/deploy.yml" || {
+  echo "CI workflow does not intentionally include benchmark dispatches in validation jobs"
+  exit 1
+}
+
+desktop_change_job="$(
+  sed -n '/^  desktop-change-check:/,/^  web-build:/p' "$ROOT/.github/workflows/deploy.yml"
+)"
+printf '%s' "$desktop_change_job" | grep -Fq 'github.event_name }}" == "workflow_dispatch"' || {
+  echo "Desktop change check does not identify benchmark dispatches"
+  exit 1
+}
+printf '%s' "$desktop_change_job" | grep -Fq 'echo "desktop_changed=false"' || {
+  echo "Desktop change check does not mark benchmark dispatches as non-applicable"
+  exit 1
+}
+
 grep -Fq '"verify:push": "sh scripts/verify-before-push.sh --no-mise"' "$ROOT/package.json" || {
   echo "package.json does not expose the canonical verifier"
   exit 1
