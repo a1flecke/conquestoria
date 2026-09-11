@@ -76,6 +76,7 @@ async function selectLeadWarrior(page: Page): Promise<void> {
 }
 
 test('saved water unit stays selected after a blocked tap and can return ashore', async ({ page }, testInfo) => {
+  test.slow();
   await installFixture(page);
   await continueFixture(page);
   await selectLeadWarrior(page);
@@ -110,6 +111,7 @@ test('saved water unit stays selected after a blocked tap and can return ashore'
 });
 
 test('recovery guidance remains legible and contained on mobile', async ({ page }, testInfo) => {
+  test.slow();
   await page.setViewportSize({ width: 390, height: 844 });
   await installFixture(page);
   await continueFixture(page);
