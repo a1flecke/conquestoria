@@ -39,12 +39,15 @@ try {
   const startedAt = epoch(run.run_started_at, 'run run_started_at');
   const completedAt = epoch(run.updated_at, 'run updated_at');
   const completedJobs = jobs.filter(job => job.started_at && job.completed_at);
-  const earliestJobStart = Math.min(...completedJobs.map(job => epoch(job.started_at, `job ${job.name} started_at`)));
+  const executedJobs = completedJobs.filter(job => job.conclusion !== 'skipped');
+  const earliestJobStart = Math.min(...executedJobs.map(job => epoch(job.started_at, `job ${job.name} started_at`)));
   if (!Number.isFinite(earliestJobStart)) throw new Error('no completed jobs to measure');
 
   const jobDurationsMs = Object.fromEntries(completedJobs.map(job => [
     job.name,
-    epoch(job.completed_at, `job ${job.name} completed_at`) - epoch(job.started_at, `job ${job.name} started_at`),
+    job.conclusion === 'skipped'
+      ? 0
+      : epoch(job.completed_at, `job ${job.name} completed_at`) - epoch(job.started_at, `job ${job.name} started_at`),
   ]));
   const childResults = Object.fromEntries(jobs.map(job => [job.name, job.conclusion ?? job.status ?? 'unknown']));
   const mergeGate = completedJobs.find(job => job.name === 'merge-gate');

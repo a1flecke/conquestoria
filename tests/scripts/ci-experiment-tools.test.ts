@@ -53,6 +53,10 @@ describe('#1075 CI experiment tools', () => {
             name: 'merge-gate', conclusion: 'success',
             started_at: '2026-09-11T10:05:00Z', completed_at: '2026-09-11T10:06:00Z',
           },
+          {
+            name: 'tauri-macos-build', conclusion: 'skipped',
+            started_at: '2026-09-11T10:00:01Z', completed_at: '2026-09-11T10:00:00Z',
+          },
         ] }),
         CI_EXPERIMENT_ARTIFACTS_JSON: JSON.stringify({ artifacts: [
           { name: 'ci-timing-fast', archive_download_url: 'https://example.test/timing.zip' },
@@ -69,8 +73,8 @@ describe('#1075 CI experiment tools', () => {
       workflowCompletedAt: '2026-09-11T10:07:00Z',
       queueDelayMs: 90_000,
       aggregateWallTimeMs: 300_000,
-      jobDurationsMs: { 'test-fast': 180_000, 'merge-gate': 60_000 },
-      childResults: { 'test-fast': 'success', 'merge-gate': 'success' },
+      jobDurationsMs: { 'test-fast': 180_000, 'merge-gate': 60_000, 'tauri-macos-build': 0 },
+      childResults: { 'test-fast': 'success', 'merge-gate': 'success', 'tauri-macos-build': 'skipped' },
       runnerMinutes: 4,
       artifactUrls: { 'ci-timing-fast': 'https://example.test/timing.zip' },
     });
