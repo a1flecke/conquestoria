@@ -10,6 +10,9 @@ const EXPLICITLY_NON_DEFAULT_PREFIXES = [
   'tests/simulation/long-horizon/',
 ];
 const TIER_SCRIPT = resolve(REPO_ROOT, 'scripts/run-tests-by-tier.sh');
+// CI observed the three real discovery processes taking 25.417s under load;
+// 60s preserves more than 2x headroom without raising Vitest's global limit (#1075).
+const REAL_DISCOVERY_TIMEOUT_MS = 60_000;
 
 type Tier = 'default' | 'fast' | 'slow';
 
@@ -50,6 +53,7 @@ describe('#1075 real Vitest tier selection', () => {
     const union = [...new Set([...fastFiles, ...slowFiles])].sort();
 
     expect(defaultFiles).toContain(THIS_TEST);
+    expect(declaredSlowFiles()).toContain(THIS_TEST);
     expect(overlap).toEqual([]);
     expect(union).toEqual(defaultFiles);
     expect(fastFiles).toHaveLength(fast.size);
@@ -67,10 +71,10 @@ describe('#1075 real Vitest tier selection', () => {
       expect(fastFiles.some(file => file.startsWith(prefix)), prefix).toBe(false);
       expect(slowFiles.some(file => file.startsWith(prefix)), prefix).toBe(false);
     }
-  });
+  }, REAL_DISCOVERY_TIMEOUT_MS);
 
   it('keeps root-relative focused filters valid for a slow-tier file', () => {
     expect(listManifest('slow', ['tests/ai/ai-prepared-turn.test.ts']))
       .toEqual(['tests/ai/ai-prepared-turn.test.ts']);
-  });
+  }, REAL_DISCOVERY_TIMEOUT_MS);
 });
