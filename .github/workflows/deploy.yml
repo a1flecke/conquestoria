@@ -83,7 +83,16 @@ jobs:
         run: yarn install --immutable
 
       - name: Build
-        run: yarn build
+        run: node scripts/ci-record-phase-timing.mjs --output artifacts/ci-timing/web-build.json --phase web-build -- yarn build
+
+      - name: Upload web build timing
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ci-timing-web-build
+          path: artifacts/ci-timing/web-build.json
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Upload Pages artifact
         if: github.ref == 'refs/heads/main'
@@ -120,14 +129,16 @@ jobs:
           yarn test:manifest:fast > artifacts/test-manifests/fast.txt
 
       - name: Run fast tests
-        run: sh scripts/run-tests-by-tier.sh fast
+        run: node scripts/ci-record-phase-timing.mjs --output artifacts/ci-timing/test-fast.json --phase test-fast -- sh scripts/run-tests-by-tier.sh fast
 
       - name: Upload test manifests
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: test-manifests-fast
-          path: artifacts/test-manifests
+          path: |
+            artifacts/test-manifests
+            artifacts/ci-timing
           if-no-files-found: warn
           retention-days: 14
 
@@ -159,14 +170,16 @@ jobs:
           yarn test:manifest:slow > artifacts/test-manifests/slow.txt
 
       - name: Run slow tests
-        run: sh scripts/run-tests-by-tier.sh slow
+        run: node scripts/ci-record-phase-timing.mjs --output artifacts/ci-timing/test-slow.json --phase test-slow -- sh scripts/run-tests-by-tier.sh slow
 
       - name: Upload test manifest
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: test-manifests-slow
-          path: artifacts/test-manifests
+          path: |
+            artifacts/test-manifests
+            artifacts/ci-timing
           if-no-files-found: warn
           retention-days: 14
 
@@ -193,7 +206,16 @@ jobs:
         run: yarn install --immutable
 
       - name: Run hook tests
-        run: yarn test:hooks
+        run: node scripts/ci-record-phase-timing.mjs --output artifacts/ci-timing/hooks.json --phase hooks -- yarn test:hooks
+
+      - name: Upload hook timing
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ci-timing-hooks
+          path: artifacts/ci-timing/hooks.json
+          if-no-files-found: warn
+          retention-days: 14
 
   pirate-audio-reproducibility:
     runs-on: ubuntu-latest

@@ -37,6 +37,14 @@ printf '%s' "$test_fast_job" | grep -Fq 'sh scripts/run-tests-by-tier.sh fast' |
   echo "GitHub fast test lane does not run the fast tier directly"
   exit 1
 }
+printf '%s' "$test_fast_job" | grep -Fq 'ci-record-phase-timing.mjs --output artifacts/ci-timing/test-fast.json --phase test-fast' || {
+  echo "GitHub fast test lane does not record its phase timing"
+  exit 1
+}
+printf '%s' "$test_fast_job" | grep -Fq 'artifacts/ci-timing' || {
+  echo "GitHub fast test lane does not retain its timing record"
+  exit 1
+}
 if printf '%s' "$test_fast_job" | grep -Eq 'verify:push|yarn build'; then
   echo "GitHub fast test lane rebuilds or invokes the local verifier"
   exit 1
@@ -53,6 +61,10 @@ printf '%s' "$test_slow_job" | grep -Fq 'sh scripts/run-tests-by-tier.sh slow' |
   echo "GitHub slow test lane does not run the slow tier directly"
   exit 1
 }
+printf '%s' "$test_slow_job" | grep -Fq 'ci-record-phase-timing.mjs --output artifacts/ci-timing/test-slow.json --phase test-slow' || {
+  echo "GitHub slow test lane does not record its phase timing"
+  exit 1
+}
 if printf '%s' "$test_slow_job" | grep -Eq 'verify:push|yarn build|test:hooks'; then
   echo "GitHub slow test lane rebuilds, invokes the local verifier, or duplicates hooks"
   exit 1
@@ -61,8 +73,24 @@ fi
 hooks_job="$(
   sed -n '/^  hooks:/,/^  pirate-audio-reproducibility:/p' "$ROOT/.github/workflows/deploy.yml"
 )"
-printf '%s' "$hooks_job" | grep -Fq 'run: yarn test:hooks' || {
+printf '%s' "$hooks_job" | grep -Fq -- '-- yarn test:hooks' || {
   echo "GitHub hooks job does not execute hook coverage exactly once"
+  exit 1
+}
+printf '%s' "$hooks_job" | grep -Fq 'ci-record-phase-timing.mjs --output artifacts/ci-timing/hooks.json --phase hooks' || {
+  echo "GitHub hooks job does not record its phase timing"
+  exit 1
+}
+
+web_build_job="$(
+  sed -n '/^  web-build:/,/^  test-fast:/p' "$ROOT/.github/workflows/deploy.yml"
+)"
+printf '%s' "$web_build_job" | grep -Fq 'ci-record-phase-timing.mjs --output artifacts/ci-timing/web-build.json --phase web-build' || {
+  echo "GitHub web build does not record its phase timing"
+  exit 1
+}
+printf '%s' "$web_build_job" | grep -Fq 'name: ci-timing-web-build' || {
+  echo "GitHub web build does not upload its timing record"
   exit 1
 }
 
