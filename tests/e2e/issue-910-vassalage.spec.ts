@@ -7,6 +7,11 @@ import { getAvailableTechs } from '@/systems/tech-system';
 import { normalizeLoadedState } from '@/storage/save-manager';
 import { installAutosave } from './helpers/save-fixture';
 
+// This fixture mounts a complete small-map campaign. On GitHub's shared Linux
+// runners, the first mount has legitimately exceeded the default 30-second
+// test budget without reporting a runtime error.
+const CAMPAIGN_READY_TIMEOUT_MS = 45_000;
+
 function fixture(vassalHuman = true, overlordHuman = false, hotSeat = false): GameState {
   const state = normalizeLoadedState(makeVassalageFixture(vassalHuman, overlordHuman));
   if (!hotSeat) delete state.hotSeat;
@@ -38,7 +43,7 @@ async function enterSoloAutosave(page: Page, state: GameState, testInfo: TestInf
       )),
       {
         message: 'expected the installed campaign to finish its E2E startup path',
-        timeout: 15_000,
+        timeout: CAMPAIGN_READY_TIMEOUT_MS,
       },
     ).toBe(true);
   } catch (error) {
@@ -63,6 +68,7 @@ async function handoff(page: Page) {
 }
 
 test('human offers to AI, sees the active role immediately, and cannot declare an independent war', async ({page}, testInfo) => {
+  test.slow();
   await enterSoloAutosave(page, fixture(), testInfo);
   await page.getByRole('button', {name: 'Diplo', exact: true}).click();
   await page.getByRole('button', {name: 'Offer Vassalage: Rome', exact: true}).click();
@@ -74,6 +80,7 @@ test('human offers to AI, sees the active role immediately, and cannot declare a
 });
 
 test('human receives an AI offer, accepts, and confirms release in the live panel', async ({page}, testInfo) => {
+  test.slow();
   await page.setViewportSize({width: 390, height: 844});
   let state = fixture(false, true); state.currentPlayer = 'overlord';
   state = applyDiplomaticAction(state, 'vassal', 'overlord', 'offer_vassalage', new EventBus());
@@ -88,6 +95,7 @@ test('human receives an AI offer, accepts, and confirms release in the live pane
 });
 
 test('hot-seat handoff removes the first player inbox and lets the recipient accept', async ({page}) => {
+  test.slow();
   await installAutosave(page, fixture(true, true, true)); await page.goto('/');
   await page.getByRole('button', {name: 'Continue', exact: true}).click();
   await handoff(page);

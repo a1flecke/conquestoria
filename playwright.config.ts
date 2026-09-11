@@ -6,17 +6,8 @@ export function resolvePlaywrightDevCommand(ci = process.env.CI): string {
     : './scripts/run-with-mise.sh yarn dev --mode e2e --host 127.0.0.1';
 }
 
-/**
- * Browser specs share one Vite origin, service worker, and persistence model.
- * Keep CI deterministic while local developers may still use Playwright defaults.
- */
-export function resolvePlaywrightWorkers(ci = process.env.CI): number | undefined {
-  return ci ? 1 : undefined;
-}
-
 export default defineConfig({
   testDir: './tests/e2e',
-  workers: resolvePlaywrightWorkers(),
   reporter: [
     ['line'],
     ['html', { outputFolder: 'playwright-report', open: 'never' }],
