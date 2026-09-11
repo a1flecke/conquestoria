@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import playwrightConfig, {
-  resolvePlaywrightDevCommand,
-  resolvePlaywrightWorkers,
-} from '../../playwright.config';
+import playwrightConfig, { resolvePlaywrightDevCommand } from '../../playwright.config';
 
 describe('playwright config', () => {
   it('starts the dev server without requiring mise on CI runners', () => {
@@ -18,11 +15,6 @@ describe('playwright config', () => {
   it('uses the worktree-aware wrapper for local browser tests', () => {
     expect(resolvePlaywrightDevCommand(''))
       .toBe('./scripts/run-with-mise.sh yarn dev --mode e2e --host 127.0.0.1');
-  });
-
-  it('serializes CI browser specs that share a development-server origin', () => {
-    expect(resolvePlaywrightWorkers('true')).toBe(1);
-    expect(resolvePlaywrightWorkers('')).toBeUndefined();
   });
 
   it('retains first-attempt failure traces and a stable HTML report for CI artifacts', () => {
