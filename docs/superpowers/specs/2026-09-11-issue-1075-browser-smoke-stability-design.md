@@ -64,3 +64,21 @@ Successful runs do not wait for the expanded ceilings. The worst-case failure
 time is intentionally bounded per full-campaign fixture, rather than being
 hidden by a global timeout or reduced suite concurrency. This repair is
 limited to test infrastructure and does not change player-visible behavior.
+
+## Implementation evidence
+
+- `tests/e2e/issue-496-compacts.spec.ts` now marks both complete-campaign
+  tests slow, uses a fixture-local 45-second readiness condition, and attaches
+  `e2e-startup-diagnostic.json` only when that condition fails.
+- `tests/e2e/issue-447-water-recovery.spec.ts` now marks both
+  complete-campaign tests slow. Its setup and player-visible assertions are
+  unchanged.
+- On 2026-09-11, CI-style local verification passed:
+  - compact spec: 6/6 with `--repeat-each=3 --workers=2` in 22.7 seconds;
+  - water spec: 6/6 with `--repeat-each=3 --workers=2` in 25.0 seconds;
+  - both specs together: 12/12 with `--repeat-each=3 --workers=2` in 36.8
+    seconds;
+  - full `CI=1 yarn test:web-smoke`: 14/14 in 41.4 seconds;
+  - `yarn build`: passed.
+- A real GitHub Actions PR `web-smoke` result remains required before the
+  three-run benchmark experiment resumes.
