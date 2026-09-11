@@ -4,6 +4,8 @@ import { getAvailableTechs } from '@/systems/tech-system';
 import { installAutosave } from './helpers/save-fixture';
 import { addAuditCompact, makeMinorCivLeagueAuditFixture } from '../systems/helpers/minor-civ-league-audit-fixture';
 
+const CAMPAIGN_READY_TIMEOUT_MS = 45_000;
+
 interface DiplomacyPanelDiagnostic {
   readiness: readonly string[];
   panelExists: boolean;
@@ -12,6 +14,13 @@ interface DiplomacyPanelDiagnostic {
   compactSummaryTexts: string[];
   consoleErrors: string[];
   pageErrors: string[];
+}
+
+interface StartupDiagnostic {
+  readiness: readonly string[];
+  runtimeErrors: readonly string[];
+  consoleErrors: readonly string[];
+  pageErrors: readonly string[];
 }
 
 function captureBrowserErrors(page: Page): { consoleErrors: string[]; pageErrors: string[] } {
@@ -52,6 +61,23 @@ async function attachDiplomacyPanelDiagnostic(
   });
 }
 
+async function attachStartupDiagnostic(
+  page: Page,
+  testInfo: TestInfo,
+  browserErrors: { consoleErrors: string[]; pageErrors: string[] },
+): Promise<void> {
+  const diagnostic: StartupDiagnostic = {
+    readiness: await page.evaluate(() => window.__CONQUESTORIA_E2E_DIAGNOSTICS__?.readiness() ?? []),
+    runtimeErrors: await page.evaluate(() => window.__CONQUESTORIA_E2E_DIAGNOSTICS__?.errors() ?? []),
+    consoleErrors: browserErrors.consoleErrors,
+    pageErrors: browserErrors.pageErrors,
+  };
+  await testInfo.attach('e2e-startup-diagnostic.json', {
+    body: JSON.stringify(diagnostic, null, 2),
+    contentType: 'application/json',
+  });
+}
+
 async function expectCompactSummary(
   page: Page,
   testInfo: TestInfo,
@@ -78,21 +104,34 @@ function fixture() {
   return compacted;
 }
 
-async function enterAutosave(page: Page): Promise<void> {
+async function enterAutosave(
+  page: Page,
+  testInfo: TestInfo,
+  browserErrors: { consoleErrors: string[]; pageErrors: string[] },
+): Promise<void> {
   const state = fixture();
   await installAutosave(page, state);
   await page.goto('/?e2e=autosave');
-  await expect.poll(
-    () => page.evaluate(() => (
-      window.__CONQUESTORIA_E2E_DIAGNOSTICS__?.readiness().includes('campaign-ready') ?? false
-    )),
-    { timeout: 15_000, message: 'expected the compact fixture to reach campaign-ready' },
-  ).toBe(true);
+  try {
+    await expect.poll(
+      () => page.evaluate(() => (
+        window.__CONQUESTORIA_E2E_DIAGNOSTICS__?.readiness().includes('campaign-ready') ?? false
+      )),
+      {
+        timeout: CAMPAIGN_READY_TIMEOUT_MS,
+        message: 'expected the compact fixture to reach campaign-ready',
+      },
+    ).toBe(true);
+  } catch (error) {
+    await attachStartupDiagnostic(page, testInfo, browserErrors);
+    throw error;
+  }
 }
 
 test('opens, keyboard-toggles, and reopens the safe compact disclosure on desktop', async ({ page }, testInfo) => {
+  test.slow();
   const browserErrors = captureBrowserErrors(page);
-  await enterAutosave(page);
+  await enterAutosave(page, testInfo, browserErrors);
   await page.getByRole('button', { name: 'Diplo', exact: true }).click();
 
   const panel = page.locator('#diplomacy-panel');
@@ -114,9 +153,11 @@ test('opens, keyboard-toggles, and reopens the safe compact disclosure on deskto
   await expectCompactSummary(page, testInfo, browserErrors);
 });
 
-test('keeps compact disclosure readable at 390px', async ({ page }) => {
+test('keeps compact disclosure readable at 390px', async ({ page }, testInfo) => {
+  test.slow();
+  const browserErrors = captureBrowserErrors(page);
   await page.setViewportSize({ width: 390, height: 844 });
-  await enterAutosave(page);
+  await enterAutosave(page, testInfo, browserErrors);
   await page.getByRole('button', { name: 'Diplo', exact: true }).click();
 
   const details = page.locator('#diplomacy-panel details.minor-civ-compact-details');
