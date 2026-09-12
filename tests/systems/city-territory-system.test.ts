@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { City, GameState } from '@/core/types';
+import type { City, GameState, TerrainType } from '@/core/types';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
 import { hexKey } from '@/systems/hex-utils';
@@ -14,6 +14,7 @@ import {
   formatCityFoundingBlockerMessage,
   getCityFoundingBlockers,
   getCulturalTerritoryRadius,
+  isCityCenterTerrain,
   MIN_CITY_CENTER_DISTANCE,
   normalizeCityWorkClaims,
   processTerritoryFrontiers,
@@ -540,5 +541,26 @@ describe('#593 MR6 — faith territory pressure', () => {
     state.cityFaith = { [city.id]: { religionId: 'religion-ai-1' } };
     state.religions = { 'religion-ai-1': { id: 'religion-ai-1', name: 'Rival Faith', ownerCivId: 'ai-1', boon: 'fervor', foundedTurn: 1 } };
     expect(calculateCityPressureForTile(state, city, coord)).toBe(base);
+  });
+});
+
+describe('isCityCenterTerrain', () => {
+  const ALL_TERRAIN = [
+    'grassland', 'plains', 'desert', 'tundra', 'snow',
+    'forest', 'hills', 'mountain', 'ocean', 'coast',
+    'jungle', 'swamp', 'volcanic',
+  ] as const satisfies readonly TerrainType[];
+
+  // COMPILE-TIME exhaustiveness. A hardcoded array alone would silently keep
+  // passing when a TerrainType is added; this makes `yarn build` fail until the
+  // new terrain is listed and someone decides which side of the rule it is on.
+  type UncoveredTerrain = Exclude<TerrainType, typeof ALL_TERRAIN[number]>;
+  const _allTerrainCovered: UncoveredTerrain extends never ? true : never = true;
+  void _allTerrainCovered;
+
+  const BLOCKED: readonly TerrainType[] = ['ocean', 'coast', 'mountain'];
+
+  it.each(ALL_TERRAIN)('classifies %s', terrain => {
+    expect(isCityCenterTerrain(terrain)).toBe(!BLOCKED.includes(terrain));
   });
 });
