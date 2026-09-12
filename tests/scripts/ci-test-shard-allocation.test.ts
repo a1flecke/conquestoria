@@ -256,4 +256,84 @@ describe('#1075 deterministic duration-balanced allocation', () => {
     });
     expect(allocation.source.commit).toBe('0123456789abcdef0123456789abcdef01234567');
   });
+
+  it('retains A and C byte-for-byte while splitting only measured B into B and D', () => {
+    const directory = workspace();
+    const manifest = join(directory, 'default.txt');
+    const timings = join(directory, 'b-timings.json');
+    const fixedManifest = join(directory, 'fixed-shards.json');
+    const output = join(directory, 'shards.json');
+    writeFileSync(manifest, [
+      'tests/alpha.test.ts',
+      'tests/beta.test.ts',
+      'tests/delta.test.ts',
+      'tests/epsilon.test.ts',
+      'tests/gamma.test.ts',
+      'tests/zeta.test.ts',
+    ].join('\n'));
+    writeJson(timings, {
+      schemaVersion: 1,
+      files: {
+        'tests/beta.test.ts': 10,
+        'tests/delta.test.ts': 6,
+        'tests/epsilon.test.ts': 4,
+        'tests/zeta.test.ts': 2,
+      },
+    });
+    writeJson(fixedManifest, {
+      schemaVersion: 1,
+      files: {
+        'tests/alpha.test.ts': 1,
+        'tests/beta.test.ts': 10,
+        'tests/delta.test.ts': 6,
+        'tests/epsilon.test.ts': 4,
+        'tests/gamma.test.ts': 1,
+        'tests/zeta.test.ts': 2,
+      },
+      shards: {
+        'test-suite-shard-a': ['tests/alpha.test.ts'],
+        'test-suite-shard-b': [
+          'tests/beta.test.ts',
+          'tests/delta.test.ts',
+          'tests/epsilon.test.ts',
+          'tests/zeta.test.ts',
+        ],
+        'test-suite-shard-c': ['tests/gamma.test.ts'],
+      },
+    });
+
+    const result = run(ALLOCATE_SHARDS, [
+      '--default-manifest', manifest,
+      '--timings', timings,
+      '--output', output,
+      '--shard-names', 'test-suite-shard-a,test-suite-shard-b,test-suite-shard-c,test-suite-shard-d',
+      '--fixed-shard-manifest', fixedManifest,
+      '--fixed-shards', 'test-suite-shard-a,test-suite-shard-c',
+      '--timing-source', 'github-actions-vitest-json-fixture',
+      '--source-commit', 'fedcba9876543210fedcba9876543210fedcba98',
+    ]);
+
+    expect(result.status, result.stderr).toBe(0);
+    const allocation = JSON.parse(readFileSync(output, 'utf8'));
+    expect(allocation.shards).toEqual({
+      'test-suite-shard-a': ['tests/alpha.test.ts'],
+      'test-suite-shard-b': ['tests/beta.test.ts', 'tests/zeta.test.ts'],
+      'test-suite-shard-c': ['tests/gamma.test.ts'],
+      'test-suite-shard-d': ['tests/delta.test.ts', 'tests/epsilon.test.ts'],
+    });
+    expect(allocation.source).toEqual({
+      commit: 'fedcba9876543210fedcba9876543210fedcba98',
+      timingSource: 'github-actions-vitest-json-fixture',
+    });
+    const assigned = Object.values(allocation.shards).flat() as string[];
+    expect(new Set(assigned).size).toBe(assigned.length);
+    expect([...assigned].sort()).toEqual([
+      'tests/alpha.test.ts',
+      'tests/beta.test.ts',
+      'tests/delta.test.ts',
+      'tests/epsilon.test.ts',
+      'tests/gamma.test.ts',
+      'tests/zeta.test.ts',
+    ]);
+  });
 });

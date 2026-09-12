@@ -10,6 +10,7 @@ const SHARD_MANIFEST = resolve(REPO_ROOT, 'scripts/ci-test-shards.json');
 const SHARD_A = 'test-suite-shard-a';
 const SHARD_B = 'test-suite-shard-b';
 const SHARD_C = 'test-suite-shard-c';
+const SHARD_D = 'test-suite-shard-d';
 const temporaryDirectories: string[] = [];
 const PROFILE_MODE = process.env.CI_SHARD_PROFILE === '1';
 
@@ -42,27 +43,36 @@ function listShard(shard: string, manifest = SHARD_MANIFEST) {
     const shardA = manifest.shards[SHARD_A] as string[];
     const shardB = manifest.shards[SHARD_B] as string[];
     const shardC = manifest.shards[SHARD_C] as string[];
+    const shardD = manifest.shards[SHARD_D] as string[];
     const resultA = listShard(SHARD_A);
     const resultB = listShard(SHARD_B);
     const resultC = listShard(SHARD_C);
+    const resultD = listShard(SHARD_D);
 
     expect(resultA.status, resultA.stderr).toBe(0);
     expect(resultB.status, resultB.stderr).toBe(0);
     expect(resultC.status, resultC.stderr).toBe(0);
+    expect(resultD.status, resultD.stderr).toBe(0);
     expect(shardA).not.toHaveLength(0);
     expect(shardB).not.toHaveLength(0);
     expect(shardC).not.toHaveLength(0);
+    expect(shardD).not.toHaveLength(0);
     expect(shardA).toEqual([...shardA].sort());
     expect(shardB).toEqual([...shardB].sort());
     expect(shardC).toEqual([...shardC].sort());
+    expect(shardD).toEqual([...shardD].sort());
     expect(shardA.every(path => path.startsWith('tests/'))).toBe(true);
     expect(shardB.every(path => path.startsWith('tests/'))).toBe(true);
     expect(shardC.every(path => path.startsWith('tests/'))).toBe(true);
-    expect(new Set([...shardA, ...shardB, ...shardC]).size).toBe(shardA.length + shardB.length + shardC.length);
-    expect([...shardA, ...shardB, ...shardC].sort()).toEqual(expectedFiles);
+    expect(shardD.every(path => path.startsWith('tests/'))).toBe(true);
+    expect(new Set([...shardA, ...shardB, ...shardC, ...shardD]).size).toBe(
+      shardA.length + shardB.length + shardC.length + shardD.length,
+    );
+    expect([...shardA, ...shardB, ...shardC, ...shardD].sort()).toEqual(expectedFiles);
     expect(resultA.stdout.trim().split('\n')).toEqual(shardA);
     expect(resultB.stdout.trim().split('\n')).toEqual(shardB);
     expect(resultC.stdout.trim().split('\n')).toEqual(shardC);
+    expect(resultD.stdout.trim().split('\n')).toEqual(shardD);
   }, 60_000);
 
   it('rejects stale or unassigned files before it lists a shard', () => {
@@ -77,6 +87,7 @@ function listShard(shard: string, manifest = SHARD_MANIFEST) {
         [SHARD_A]: ['tests/not-a-real-test.test.ts'],
         [SHARD_B]: [],
         [SHARD_C]: [],
+        [SHARD_D]: [],
       },
     }, null, 2)}\n`);
 

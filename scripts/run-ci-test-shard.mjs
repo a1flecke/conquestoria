@@ -4,7 +4,12 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
-const SHARDS = ['test-suite-shard-a', 'test-suite-shard-b', 'test-suite-shard-c'];
+const SHARDS = [
+  'test-suite-shard-a',
+  'test-suite-shard-b',
+  'test-suite-shard-c',
+  'test-suite-shard-d',
+];
 
 function argument(flag) {
   const index = process.argv.indexOf(flag);
