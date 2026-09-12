@@ -8,7 +8,7 @@
 
 **Tech Stack:** GitHub Actions, Node.js ESM scripts, Yarn, Vitest JSON reporter, shell workflow-contract tests.
 
-**Status:** 🟡 Tasks 1–4 are complete locally at `2095363728aa4ae02e32801b9906afc2bc8b7066`. Direct A execution completed without a recoverable exit status and is therefore inconclusive; all four manifest commands, focused contracts, production build, and durable full-suite status passed. GitHub candidate measurement has not started.
+**Status:** 🟡 Tasks 1–4 are complete locally at rebased commit `3b6f38bbd51856acb0b84876b269f8f4ebc1743a`. Direct A execution completed without a recoverable exit status and is therefore inconclusive; all four manifest commands, focused contracts, production build, and durable full-suite status passed. GitHub candidate measurement has not started.
 
 ---
 
