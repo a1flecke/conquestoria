@@ -95,7 +95,7 @@ Test-selection rule:
 
 CI-shard rule for agents:
 
-- Before adding, removing, or renaming a default-discovered Vitest test, refresh `scripts/ci-test-shards.json` through `yarn test:profile:default` then `yarn test:ci-shards:allocate`, and run `tests/scripts/ci-test-shard-selection.test.ts`. Every default-discovered test must appear in exactly one CI shard. For a measured critical-shard split, retain the noncritical assignments and use retained GitHub JSON reporter timings with the allocator's explicit fixed-shard options; never guess from file counts.
+- Before adding, removing, or renaming a default-discovered Vitest test, place it by the CI-selection table in `.claude/rules/hooks-and-tooling.md`, refresh `scripts/ci-test-shards.json` through `yarn test:profile:default` then the explicit four-name `yarn test:ci-shards:allocate`, and run `tests/scripts/ci-test-shard-selection.test.ts`. Every default-discovered test must appear in exactly one CI shard. For a measured critical-shard split, retain every noncritical assignment byte-for-byte, use successful retained GitHub JSON reporter timings only for the critical shard, pass all retained names through `--fixed-shards`, and allocate only the critical shard plus its new companion; never guess from file counts, raise timeouts, or weaken tests.
 - Classify a costly multi-city, multi-era, multi-seed, or long-running simulation in the local `intensive-simulations` selection as well; that local classification is independent of its required CI shard assignment.
 - Keep browser coverage under `tests/e2e/` and the browser workflow; never put it in a Vitest CI shard. Keep shell hook coverage under `tests/hooks/` and run `yarn test:hooks`.
 
