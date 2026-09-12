@@ -9,6 +9,7 @@ const RUN_CI_SHARD = resolve(REPO_ROOT, 'scripts/run-ci-test-shard.mjs');
 const SHARD_MANIFEST = resolve(REPO_ROOT, 'scripts/ci-test-shards.json');
 const SHARD_A = 'test-suite-shard-a';
 const SHARD_B = 'test-suite-shard-b';
+const SHARD_C = 'test-suite-shard-c';
 const temporaryDirectories: string[] = [];
 const PROFILE_MODE = process.env.CI_SHARD_PROFILE === '1';
 
@@ -40,21 +41,28 @@ function listShard(shard: string, manifest = SHARD_MANIFEST) {
     const manifest = JSON.parse(readFileSync(SHARD_MANIFEST, 'utf8'));
     const shardA = manifest.shards[SHARD_A] as string[];
     const shardB = manifest.shards[SHARD_B] as string[];
+    const shardC = manifest.shards[SHARD_C] as string[];
     const resultA = listShard(SHARD_A);
     const resultB = listShard(SHARD_B);
+    const resultC = listShard(SHARD_C);
 
     expect(resultA.status, resultA.stderr).toBe(0);
     expect(resultB.status, resultB.stderr).toBe(0);
+    expect(resultC.status, resultC.stderr).toBe(0);
     expect(shardA).not.toHaveLength(0);
     expect(shardB).not.toHaveLength(0);
+    expect(shardC).not.toHaveLength(0);
     expect(shardA).toEqual([...shardA].sort());
     expect(shardB).toEqual([...shardB].sort());
+    expect(shardC).toEqual([...shardC].sort());
     expect(shardA.every(path => path.startsWith('tests/'))).toBe(true);
     expect(shardB.every(path => path.startsWith('tests/'))).toBe(true);
-    expect(new Set([...shardA, ...shardB]).size).toBe(shardA.length + shardB.length);
-    expect([...shardA, ...shardB].sort()).toEqual(expectedFiles);
+    expect(shardC.every(path => path.startsWith('tests/'))).toBe(true);
+    expect(new Set([...shardA, ...shardB, ...shardC]).size).toBe(shardA.length + shardB.length + shardC.length);
+    expect([...shardA, ...shardB, ...shardC].sort()).toEqual(expectedFiles);
     expect(resultA.stdout.trim().split('\n')).toEqual(shardA);
     expect(resultB.stdout.trim().split('\n')).toEqual(shardB);
+    expect(resultC.stdout.trim().split('\n')).toEqual(shardC);
   }, 60_000);
 
   it('rejects stale or unassigned files before it lists a shard', () => {
@@ -68,6 +76,7 @@ function listShard(shard: string, manifest = SHARD_MANIFEST) {
       shards: {
         [SHARD_A]: ['tests/not-a-real-test.test.ts'],
         [SHARD_B]: [],
+        [SHARD_C]: [],
       },
     }, null, 2)}\n`);
 
