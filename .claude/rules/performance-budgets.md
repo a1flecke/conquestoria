@@ -15,7 +15,7 @@ paths:
   - "src/ai/ai-round-scheduler.ts"
   - "src/ai/ai-major-turn.ts"
   - "tests/perf/**"
-  - "scripts/run-tests-by-tier.sh"
+  - "scripts/run-tests-by-local-tier.sh"
 ---
 
 # Performance Budgets (#1007)
@@ -25,7 +25,7 @@ Two layers. Never conflate them.
 ## 1. Algorithmic regression budgets — a real merge gate
 
 `tests/perf/algorithmic-budgets.test.ts` (in `SLOW_TEST_FILES`, so it runs in
-`yarn test` / the CI slow lane / `yarn test:durable`). Every assertion is a
+`yarn test` / exactly one balanced CI shard / `yarn test:durable`). Every assertion is a
 **machine-independent integer count** on a deterministic fixture
 (`tests/perf/fixtures/crowded-state.ts`) — a `vi.spyOn` work counter
 (`tests/perf/perf-probe.ts`), never a wall-clock. Counts come from spies on
@@ -76,7 +76,7 @@ count on `96fb08e9` — see the #1007 follow-up issues. Those guards only catch 
 ## 2. Wall-clock report — LOCAL only, never a gate
 
 `yarn perf:report` (`scripts/run-perf-report.sh` → `vitest.perf.config.ts` →
-`tests/perf/report/**`). Excluded from `yarn test` / `test:fast` / `test:slow` /
+`tests/perf/report/**`). Excluded from `yarn test` / `test:regular` / `test:intensive-simulations` /
 `verify:push` / the pre-push hooks / CI **unconditionally** by
 `vite.config.ts`'s `test.exclude`. Writes `.verification/perf/report.json`
 (deterministic counts, diffable) and `.verification/perf/report.timings.json`

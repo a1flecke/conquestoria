@@ -18,7 +18,7 @@ paths:
 
 ## Deterministic Simulation Contract (#1004)
 
-"Deterministic" in this codebase means four things, each with a permanent regression in the slow tier (`tests/app/simulation-determinism.test.ts`, plus `determinism-guard.test.ts` and `simulation-rng*.test.ts`):
+"Deterministic" in this codebase means four things, each with a permanent regression in the intensive-simulations local selection (`tests/app/simulation-determinism.test.ts`, plus `determinism-guard.test.ts` and `simulation-rng*.test.ts`):
 
 1. **Same seed + same commands ⇒ equivalent whole state.** Two games from one seed driven through the same command sequence land in the same simulation state; two different seeds diverge meaningfully.
 2. **Save/reload continuity.** Run N rounds → save → load → continue M rounds ⇒ the same state as an uninterrupted N+M run. Loading a save mid-game must not move the trajectory.
@@ -26,7 +26,7 @@ paths:
 4. **Domain-stream independence.** Adding or draining randomness in one `createSimulationRng` domain must not shift any other domain's output. This is why keyed streams (above) are structurally required, not merely tidy.
 
 - **Compare simulation states only through the canonical helper** `assertSimulationEquivalent` / `firstSimulationDivergence` (`tests/helpers/deterministic-state.ts`). It strips exactly `playthroughId` (deliberately `Date.now()`-salted) and `saveSchemaVersion` (persistence metadata) and deep-compares everything else, reporting the first divergent path. Do **not** hand-roll a `JSON.stringify(a) === JSON.stringify(b)` comparison with its own ad-hoc field carve-out, and do **not** add an exclusion to that helper to make a test green — a divergence on any other field is a real determinism or save-normalization bug to investigate. It rejects `Map`/`Set`/`Date` outright rather than comparing them: those have no own enumerable keys, so a record walk would report two different values as equal, and simulation state must be plain and JSON-serializable anyway.
-- Heavy whole-simulation determinism tests belong in `SLOW_TEST_FILES` (`scripts/run-tests-by-tier.sh`) with a headroom-sized timeout, never in the fast push gate.
+- Heavy whole-simulation determinism tests belong in `SLOW_TEST_FILES` (`scripts/run-tests-by-local-tier.sh`) with a headroom-sized timeout, never in the regular local push gate; assign them to exactly one CI shard as well.
 
 ### Game creation must produce load-canonical state
 
@@ -46,7 +46,7 @@ Auto-save fires on game creation, and `normalizeLoadedState` runs on both the sa
 
 "Persistent `GameState` shape" = any field that is serialized into a save (everything on `GameState` except the few deliberately-transient bits). Adding, removing, renaming, retyping, or changing the required/optional-ness of one is a **save-compatibility change**, and every one of them must ship with **one of**:
 
-1. **An ordered migration + a migration test.** A numbered `SAVE_MIGRATIONS[N]` entry (bump `CURRENT_SAVE_SCHEMA_VERSION`, per the section above) *plus* a well-formed matrix case in `tests/storage/fixtures/save-compat/manifest.ts` for source version `N-1`, and — if the migration only exists to scrub hand-edited corruption — a `malformed-repair` case too. `tests/storage/save-compat-coverage.test.ts` (fast tier) fails if the version bump lands without the manifest entry.
+1. **An ordered migration + a migration test.** A numbered `SAVE_MIGRATIONS[N]` entry (bump `CURRENT_SAVE_SCHEMA_VERSION`, per the section above) *plus* a well-formed matrix case in `tests/storage/fixtures/save-compat/manifest.ts` for source version `N-1`, and — if the migration only exists to scrub hand-edited corruption — a `malformed-repair` case too. `tests/storage/save-compat-coverage.test.ts` (regular local selection) fails if the version bump lands without the manifest entry.
 2. **A written proof + test that the change is safely additive.** The field is optional, every reader already tolerates its absence (`?? default` / optional chaining), and a test demonstrates a save that predates the field loads and processes a turn unchanged. `tests/storage/new-game-completeness.test.ts` (the load-canonicalisation ratchet) and the matrix's own "strip the field for pre-CURRENT source versions" coverage are where that lives — extend them rather than asserting it ad hoc in a comment.
 
 ### Save compatibility is three registries, not one pile (#1023)
@@ -66,7 +66,7 @@ Auto-save fires on game creation, and `normalizeLoadedState` runs on both the sa
 - `docs/save-compatibility.md` is **generated** from the registries (`UPDATE_SAVE_COMPAT_DOC=1 yarn vitest run tests/storage/save-migration-registries.test.ts`) and test-enforced, so the list cannot drift from the code. Never hand-edit it.
 - Behaviour changes to this seam are gated by `tests/storage/save-migration-equivalence.test.ts` — per-top-level-key golden digests of `migrateSaveToCurrent` for every compatibility-matrix fixture. A refactor must never need `UPDATE_MIGRATION_GOLDEN=1`; a deliberate change must justify every moved digest in the PR.
 
-The full `migrate → normalize → run a few rounds → save → reload → shared invariant validators` sweep across every representable version is `tests/storage/save-compat-matrix.test.ts` (slow tier). The shared validators it asserts (`tests/helpers/save-state-invariants.ts`: bilateral war, city + unit rosters, cargo reciprocity, eliminated-civ entities) are the minimal structural contract a migrated save must still satisfy; the dedicated invariant issues (#995 / #997 / #1000 / #1001) own making each exhaustive. Do **not** assert `migrated.saveSchemaVersion === CURRENT` and stop — that proves the migration *ran*, not that the result is playable.
+The full `migrate → normalize → run a few rounds → save → reload → shared invariant validators` sweep across every representable version is `tests/storage/save-compat-matrix.test.ts` (intensive-simulations local selection). The shared validators it asserts (`tests/helpers/save-state-invariants.ts`: bilateral war, city + unit rosters, cargo reciprocity, eliminated-civ entities) are the minimal structural contract a migrated save must still satisfy; the dedicated invariant issues (#995 / #997 / #1000 / #1001) own making each exhaustive. Do **not** assert `migrated.saveSchemaVersion === CURRENT` and stop — that proves the migration *ran*, not that the result is playable.
 
 ## State Mutations Must Match Events
 - If you emit an event (e.g., `city:unit-trained`), the state mutation (creating the unit, adding to arrays) MUST happen in the same block

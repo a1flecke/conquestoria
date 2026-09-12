@@ -93,6 +93,12 @@ Test-selection rule:
 - If no mirrored test file exists for the changed area, run the smallest existing relevant test file in the same domain directory.
 - If no targeted test can be identified confidently, run `./scripts/run-with-mise.sh yarn test`.
 
+CI-shard rule for agents:
+
+- Before adding, removing, or renaming a default-discovered Vitest test, refresh `scripts/ci-test-shards.json` through `yarn test:profile:default` then `yarn test:ci-shards:allocate`, and run `tests/scripts/ci-test-shard-selection.test.ts`. Every default-discovered test must appear in exactly one CI shard.
+- Classify a costly multi-city, multi-era, multi-seed, or long-running simulation in the local `intensive-simulations` selection as well; that local classification is independent of its required CI shard assignment.
+- Keep browser coverage under `tests/e2e/` and the browser workflow; never put it in a Vitest CI shard. Keep shell hook coverage under `tests/hooks/` and run `yarn test:hooks`.
+
 Before `git push`, PR creation, or merge, run:
 
 - `./scripts/run-with-mise.sh yarn build`

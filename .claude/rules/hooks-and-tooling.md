@@ -44,17 +44,17 @@ paths:
 
 `require-green-before-push.sh` fires only for `git push`, `gh pr create`, and `gh pr merge` — not for `git commit`. It delegates to `scripts/verify-before-push.sh`, which runs `yarn test`, then `yarn build` — **sequentially**, not in parallel (each `run_phase` call blocks before the next line runs).
 
-- **Local gate** (the real `.githooks/pre-push` hook, and this Claude Code hook): both call `verify-before-push.sh --fast`, which runs `yarn test:fast` — the fast tier only, see "Fast/slow test split" below.
-- **CI** (`yarn verify:push`, the `test` job in `.github/workflows/deploy.yml`, a required branch-protection status check on `main`): calls `verify-before-push.sh --no-mise` with no `--fast`, so it always runs the full `yarn test` (fast + slow tiers) as the actual merge gate, on isolated hardware.
+- **Local gate** (the real `.githooks/pre-push` hook, and this Claude Code hook): both call `verify-before-push.sh --regular`, which runs `yarn test:regular` — the local regular selection only, see "Local selections and CI shards" below.
+- **CI** (`yarn verify:push`, `test-suite-shard-a`, `test-suite-shard-b`, and `merge-gate` in `.github/workflows/deploy.yml`): runs the complete default Vitest suite exactly once across two balanced shards. `merge-gate` requires both results, so neither the local selection nor a skipped expensive simulation can weaken merge coverage.
 
 **Set Bash tool timeout to match the command, not the hook:**
 - `git commit` — **30 000 ms**. No hook runs tests; the commit itself takes < 1s.
-- `git push` / `gh pr create` / `gh pr merge` — allow **240 000 ms** for the local `--fast` gate. The fast suite plus build has been measured at about 174 seconds on this shared workstation; a 120-second tool window can interrupt its detached timeout child and leave Vitest workers behind. If you've just changed a slow-tier file and want to also verify it locally first (`yarn test:slow` or a targeted `yarn vitest run <file>`), do that as its own step before pushing — see #608 investigation notes above for observed durations up to ~600s worst case.
+- `git push` / `gh pr create` / `gh pr merge` — allow **240 000 ms** for the local `--regular` gate. A 120-second tool window can interrupt its detached timeout child and leave Vitest workers behind. If you've changed an intensive-simulations file, first run `yarn test:intensive-simulations` or a targeted `yarn vitest run <file>` as its own step before pushing.
 - A 360 000 ms timeout on `git commit` papers over the wrong symptom. Match the timeout to what the command actually does.
 
 ## Concurrent local verification
 
-Routine `yarn test`, `test:fast`, `test:slow`, `build`, and `build:tauri` --
+Routine `yarn test`, `test:regular`, `test:intensive-simulations`, `build`, and `build:tauri` --
 run directly by a developer or agent, not through the orchestrators below --
 stay fully concurrent across linked worktrees. Do not add a lock around
 those: it turns unrelated agents into a queue and does not make a test suite
@@ -193,16 +193,25 @@ from the active worktree so it produces that worktree's PnP map. Keep focused
 test filters root-relative (`tests/foo.test.ts`) and cover this contract in
 `tests/hooks/run-with-mise-worktree.test.sh` whenever the adapter changes.
 
-## Fast/slow test split (#608)
+## Local selections and CI shards (#608, #1075)
 
-`scripts/run-tests-by-tier.sh` splits the suite into two tiers, to keep the local push gate fast without losing coverage at merge time. Vitest discovers beneath `test.dir = tests`, so the runner keeps slow positional filters root-relative (`tests/foo.test.ts`) but strips only the leading `tests/` from fast `--exclude` operands. `tests/scripts/test-tier-selection.test.ts` invokes real Vitest discovery and proves the tiers are disjoint, exhaustive, and preserve root-relative focused slow filters.
+Local selection keeps push feedback practical; CI sharding keeps complete merge coverage balanced. They are independent: a test in `intensive-simulations` still belongs to exactly one CI shard, and a regular test may land in either shard. `scripts/run-tests-by-local-tier.sh` owns local selection; `scripts/ci-test-shards.json` is the checked-in CI contract. Vitest discovers beneath `test.dir = tests`, so local focused filters stay root-relative. `tests/scripts/local-test-tier-selection.test.ts` proves the local selections are disjoint and exhaustive; `tests/scripts/ci-test-shard-selection.test.ts` proves the CI assignment is disjoint, exhaustive, and current against real discovery.
 
-- `yarn test:fast` (`run-tests-by-tier.sh fast`) — excludes the `SLOW_TEST_FILES` list defined in that script: `ai-prepared-turn`, `basic-ai-worker-roads`, `determinism-guard`, `simulation-determinism`, `turn-manager-beasts`, `save-load-mass-discovery`, `save-compat-matrix`, `pacing-simulation`, `tech-panel`, `pacing-production-budget`, `pacing-reference-economy`, `start-placement-system`, `world-pressure-fairness`, `minor-civ-economy-longrun`, `minor-civ-league-longrun`, and the real-discovery `test-tier-selection` regression. This is what the local pre-push hook and the Claude Code push-gate hook actually run.
-- `yarn test:slow` (`run-tests-by-tier.sh slow`) — runs the declared slow files, or a supplied root-relative focused filter without unioning it with every slow file.
-- `yarn test:manifest`, `yarn test:manifest:fast`, and `yarn test:manifest:slow` — print real Vitest default/fast/slow file manifests without executing test bodies. CI artifact publication must use these commands rather than counts or a mocked executable.
-- `yarn test` (full, unchanged) — always runs everything. This is what CI's required `test` status check runs; it is never given `--fast`, so slow-tier regressions still block merge, just not every local push.
+| Test kind | Location | Local selection | CI selection |
+| --- | --- | --- | --- |
+| Production unit, system, renderer, or UI test | Mirrored `tests/<domain>/` path | `regular` unless expensive | Exactly one balanced shard |
+| Multi-city, multi-era, multi-seed, or long-running simulation | Mirrored domain path; use `tests/simulation/long-horizon/` only when intentionally explicit-run | `intensive-simulations` | Exactly one balanced shard when default-discovered |
+| Browser test | `tests/e2e/` | Browser command | Existing browser job; never a Vitest shard |
+| Tooling script | `tests/scripts/` | `regular` unless expensive | Exactly one balanced shard |
+| Shell hook or workflow contract | `tests/hooks/` | `yarn test:hooks` plus a targeted check | Hooks job; a Vitest contract test also belongs in one shard |
 
-**When adding a new heavy multi-city/era/seed simulation test:** add its path to `SLOW_TEST_FILES` in `scripts/run-tests-by-tier.sh`, in addition to giving it an explicit headroom-sized timeout (see below) — the two are complementary: the timeout stops it from spuriously failing under contention, the tier split stops it from adding wall-clock/CPU cost to every local push-gate run in the first place.
+- `yarn test:regular` (`run-tests-by-local-tier.sh regular`) excludes the `SLOW_TEST_FILES` implementation list. This is the local pre-push selection.
+- `yarn test:intensive-simulations` runs only that list, or one supplied root-relative focused file without unioning it with the whole list.
+- `yarn test:manifest`, `test:manifest:regular`, and `test:manifest:intensive-simulations` print real local manifests without executing bodies.
+- `yarn test:ci:shard-a` and `test:ci:shard-b` run the checked-in complete-suite assignments. `test:manifest:ci:shard-a` and `test:manifest:ci:shard-b` print their exact lists. CI must use these package scripts rather than duplicate paths in workflow YAML.
+- `yarn test` remains complete and unchanged. CI's two explicit shard jobs, not the local selection, are the required full-suite merge gate.
+
+**When adding, removing, or renaming a default-discovered Vitest test:** first place it by the table above and add an explicit headroom-sized timeout if it is expensive. Then run `yarn test:profile:default`, `yarn test:ci-shards:allocate`, and `yarn vitest run tests/scripts/ci-test-shard-selection.test.ts`. Commit the regenerated `scripts/ci-test-shards.json`; the runner rejects an unassigned, duplicate, stale, or non-default entry. The profile data is a starting allocation only: use uploaded CI JSON reporter artifacts and the three-run measurement protocol before treating a rebalance as successful. Do not respond to imbalance by splitting file counts, raising timeouts, or weakening tests.
 
 ## Vitest cache config
 

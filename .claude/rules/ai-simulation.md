@@ -20,7 +20,7 @@ with the full per-round invariant battery on.
 It is **explicit-run only**. `tests/simulation/long-horizon/**` is excluded from
 `vite.config.ts` unconditionally; only `vitest.long-horizon.config.ts` (driven by
 `scripts/run-ai-long-horizon.sh`) re-includes it. It is **not** in `yarn test`,
-`test:fast`, `test:slow`, `verify:push`, the pre-push hooks, the production
+`test:regular`, `test:intensive-simulations`, `verify:push`, the pre-push hooks, the production
 build, or CI, and must never be — `tests/scripts/ai-long-horizon-isolation.test.ts`
 fails in the ordinary suite if that ever changes. Do not "fix" that guard by
 loosening it.
