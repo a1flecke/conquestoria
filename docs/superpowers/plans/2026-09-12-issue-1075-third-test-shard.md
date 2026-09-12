@@ -8,7 +8,7 @@
 
 **Tech Stack:** GitHub Actions, Node.js ESM scripts, Yarn, Vitest, shell workflow-contract tests.
 
-**Status:** 🟡 Tasks 1–3 implemented locally; final local shard, durable-suite, and GitHub candidate measurements remain.
+**Status:** 🟡 Tasks 1–3 and the final build/durable full-suite check are complete locally at `560ad2d44920694c93bbd1c65b85de5678ea5405`; GitHub candidate measurements remain. The three standalone local shard commands were each started but their terminal streams detached before an exit result was recoverable, so they are deliberately recorded as inconclusive rather than passing; the durable full suite is the authoritative complete-suite evidence.
 
 ---
 
@@ -151,7 +151,7 @@ git commit -m "ci: require the third balanced test shard"
 - Modify: `CLAUDE.md`
 - Modify: `docs/superpowers/plans/2026-09-12-issue-1075-third-test-shard.md`
 
-- [ ] **Step 1: Update CI-sharding guidance**
+- [x] **Step 1: Update CI-sharding guidance**
 
 Replace two-shard references with three explicit shards. State that a measured slow shard may be subdivided only with retained CI reporter data; do not rebalance by file count or local-only timings. Preserve the rule that new default-discovered tests must be assigned exactly once and the rule that local tiers are independent from CI topology.
 
@@ -167,7 +167,7 @@ Run separately:
 
 Expected: every command passes; together they execute the complete default suite exactly once.
 
-- [ ] **Step 3: Run final required verification**
+- [x] **Step 3: Run final required verification**
 
 Run separately:
 
