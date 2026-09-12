@@ -196,6 +196,26 @@ $war_lines"
     ;;
 esac
 
+# --- single-side treaty mutation (#1003) ---
+# signTreaty() writes ONE side's diplomacy.treaties array. A complete treaty
+# requires both sides signed (see commitTreatyAgreement / the vassal-acceptance
+# path in diplomacy-system.ts, the sole bilateral treaty mutation paths). The
+# #846 scenario builder (diplomacy-step.ts) is also sanctioned — it
+# deliberately bypasses commitTreatyAgreement's precondition guards to seed
+# deterministic fixture state, same as buildScenario does elsewhere.
+case "$file_path" in
+  */src/systems/diplomacy-system.ts|*/src/testing/scenario-steps/diplomacy-step.ts)
+    : # sanctioned
+    ;;
+  */src/*.ts)
+    treaty_lines="$(grep -nE '(^|[^A-Za-z])signTreaty\(' "$file_path" | grep -v '//' | head -5 || true)"
+    if [ -n "$treaty_lines" ]; then
+      append "Single-side signTreaty() outside diplomacy-system — a treaty needs both sides signed so it stays bilateral (see .claude/rules/game-systems.md#bilateral-diplomacy):
+$treaty_lines"
+    fi
+    ;;
+esac
+
 # --- domination authority boundary (#985): UI/AI consume observer-safe DTOs
 # rather than the omniscient victory or sovereignty query. The victory adapter
 # itself must use the canonical sovereignty facts rather than roster lengths.

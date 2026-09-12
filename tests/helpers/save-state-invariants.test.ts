@@ -8,6 +8,8 @@ import {
   assertUnitRosters,
   assertCargoReciprocity,
   assertAirBaseIntegrity,
+  assertVassalageReciprocity,
+  assertTreatyReciprocity,
   assertNoEliminatedCivEntities,
   assertSaveStateInvariants,
   SAVE_STATE_INVARIANTS,
@@ -357,6 +359,141 @@ describe('#1000 assertAirBaseIntegrity', () => {
   });
 });
 
+describe('#1003 assertVassalageReciprocity', () => {
+  it('passes for a fresh game (nobody vassalized)', () => {
+    expect(() => assertVassalageReciprocity(freshState('inv-vassal-ok'))).not.toThrow();
+  });
+
+  it('passes for a correctly reciprocal vassal pair', () => {
+    const state = freshState('inv-vassal-bilateral');
+    state.civilizations.player.diplomacy.vassalage.overlord = 'ai-1';
+    state.civilizations['ai-1'].diplomacy.vassalage.vassals = ['player'];
+    expect(() => assertVassalageReciprocity(state)).not.toThrow();
+  });
+
+  it('throws on a one-sided overlord (vassal claims an overlord that does not list it back)', () => {
+    const state = freshState('inv-vassal-onesided-overlord');
+    state.civilizations.player.diplomacy.vassalage.overlord = 'ai-1';
+    expect(() => assertVassalageReciprocity(state)).toThrow(/does not list "player" as a vassal/s);
+  });
+
+  it('throws on a one-sided vassal (overlord claims a vassal that does not name it back)', () => {
+    const state = freshState('inv-vassal-onesided-vassal');
+    state.civilizations['ai-1'].diplomacy.vassalage.vassals = ['player'];
+    expect(() => assertVassalageReciprocity(state)).toThrow(/does not have "ai-1" as its overlord/s);
+  });
+
+  it('throws on self-vassalage', () => {
+    const state = freshState('inv-vassal-self');
+    state.civilizations.player.diplomacy.vassalage.overlord = 'player';
+    expect(() => assertVassalageReciprocity(state)).toThrow(/is its own overlord/s);
+  });
+
+  it('throws when an overlord itself has an overlord (vassal-of-a-vassal, not a depth-1 star)', () => {
+    const state = freshState('inv-vassal-chain');
+    state.civilizations.player.diplomacy.vassalage.overlord = 'ai-1';
+    state.civilizations['ai-1'].diplomacy.vassalage.vassals = ['player'];
+    state.civilizations['ai-1'].diplomacy.vassalage.overlord = 'ai-2';
+    state.civilizations['ai-2'].diplomacy.vassalage.vassals = ['ai-1'];
+    expect(() => assertVassalageReciprocity(state)).toThrow(/"ai-1" is an overlord of "player" but itself has an overlord \("ai-2"\)/s);
+  });
+
+  it('throws when a vassal has vassals of its own', () => {
+    const state = freshState('inv-vassal-hasvassals');
+    state.civilizations.player.diplomacy.vassalage.overlord = 'ai-1';
+    state.civilizations['ai-1'].diplomacy.vassalage.vassals = ['player'];
+    state.civilizations.player.diplomacy.vassalage.vassals = ['ai-2'];
+    state.civilizations['ai-2'].diplomacy.vassalage.overlord = 'player';
+    expect(() => assertVassalageReciprocity(state)).toThrow(/"player" is a vassal of "ai-1" but itself has vassals: ai-2/s);
+  });
+
+  it('throws when overlord is an unknown civ id', () => {
+    const state = freshState('inv-vassal-ghost-overlord');
+    state.civilizations.player.diplomacy.vassalage.overlord = 'ai-ghost';
+    expect(() => assertVassalageReciprocity(state)).toThrow(/unknown civ "ai-ghost"/s);
+  });
+
+  it('throws when the vassals list names an unknown civ id', () => {
+    const state = freshState('inv-vassal-ghost-vassal');
+    state.civilizations['ai-1'].diplomacy.vassalage.vassals = ['ai-ghost'];
+    expect(() => assertVassalageReciprocity(state)).toThrow(/unknown civ "ai-ghost"/s);
+  });
+
+  it('throws on a duplicated vassal entry', () => {
+    const state = freshState('inv-vassal-dup');
+    state.civilizations['ai-1'].diplomacy.vassalage.vassals = ['player', 'player'];
+    state.civilizations.player.diplomacy.vassalage.overlord = 'ai-1';
+    expect(() => assertVassalageReciprocity(state)).toThrow(/duplicate vassal entry "player"/s);
+  });
+});
+
+describe('#1003 assertTreatyReciprocity', () => {
+  it('passes for a fresh game (no treaties)', () => {
+    expect(() => assertTreatyReciprocity(freshState('inv-treaty-ok'))).not.toThrow();
+  });
+
+  it('passes for a correctly reciprocal treaty pair', () => {
+    const state = freshState('inv-treaty-bilateral');
+    state.civilizations.player.diplomacy.treaties = [{ type: 'alliance', civA: 'player', civB: 'ai-1', turnsRemaining: -1 }];
+    state.civilizations['ai-1'].diplomacy.treaties = [{ type: 'alliance', civA: 'ai-1', civB: 'player', turnsRemaining: -1 }];
+    expect(() => assertTreatyReciprocity(state)).not.toThrow();
+  });
+
+  it('throws on a one-sided treaty', () => {
+    const state = freshState('inv-treaty-onesided');
+    state.civilizations.player.diplomacy.treaties = [{ type: 'alliance', civA: 'player', civB: 'ai-1', turnsRemaining: -1 }];
+    expect(() => assertTreatyReciprocity(state)).toThrow(/"ai-1" has no matching alliance treaty back to "player"/s);
+  });
+
+  it('throws when the two sides disagree on treaty type', () => {
+    const state = freshState('inv-treaty-mismatch');
+    state.civilizations.player.diplomacy.treaties = [{ type: 'alliance', civA: 'player', civB: 'ai-1', turnsRemaining: -1 }];
+    state.civilizations['ai-1'].diplomacy.treaties = [{ type: 'trade_agreement', civA: 'ai-1', civB: 'player', turnsRemaining: -1, goldPerTurn: 2 }];
+    expect(() => assertTreatyReciprocity(state)).toThrow(/"ai-1" has no matching alliance treaty back to "player"/s);
+  });
+
+  it('throws on a self-treaty', () => {
+    const state = freshState('inv-treaty-self');
+    state.civilizations.player.diplomacy.treaties = [{ type: 'alliance', civA: 'player', civB: 'player', turnsRemaining: -1 }];
+    expect(() => assertTreatyReciprocity(state)).toThrow(/treaty with itself/s);
+  });
+
+  it('throws when a treaty names an unknown civ id', () => {
+    const state = freshState('inv-treaty-ghost');
+    state.civilizations.player.diplomacy.treaties = [{ type: 'alliance', civA: 'player', civB: 'ai-ghost', turnsRemaining: -1 }];
+    expect(() => assertTreatyReciprocity(state)).toThrow(/unknown civ "ai-ghost"/s);
+  });
+
+  it('throws when a treaty record does not carry its own owner as civA', () => {
+    const state = freshState('inv-treaty-wrongcivA');
+    state.civilizations.player.diplomacy.treaties = [{ type: 'alliance', civA: 'ai-1', civB: 'player', turnsRemaining: -1 }];
+    expect(() => assertTreatyReciprocity(state)).toThrow(/"player" holds a treaty record whose civA is "ai-1", not itself/s);
+  });
+
+  it('throws on a duplicated same-type treaty with the same partner', () => {
+    const state = freshState('inv-treaty-dup');
+    state.civilizations.player.diplomacy.treaties = [
+      { type: 'alliance', civA: 'player', civB: 'ai-1', turnsRemaining: -1 },
+      { type: 'alliance', civA: 'player', civB: 'ai-1', turnsRemaining: -1 },
+    ];
+    state.civilizations['ai-1'].diplomacy.treaties = [{ type: 'alliance', civA: 'ai-1', civB: 'player', turnsRemaining: -1 }];
+    expect(() => assertTreatyReciprocity(state)).toThrow(/duplicate alliance treaty with "ai-1"/s);
+  });
+
+  it('allows two different-type treaties with the same partner', () => {
+    const state = freshState('inv-treaty-multitype');
+    state.civilizations.player.diplomacy.treaties = [
+      { type: 'alliance', civA: 'player', civB: 'ai-1', turnsRemaining: -1 },
+      { type: 'trade_agreement', civA: 'player', civB: 'ai-1', turnsRemaining: -1, goldPerTurn: 2 },
+    ];
+    state.civilizations['ai-1'].diplomacy.treaties = [
+      { type: 'alliance', civA: 'ai-1', civB: 'player', turnsRemaining: -1 },
+      { type: 'trade_agreement', civA: 'ai-1', civB: 'player', turnsRemaining: -1, goldPerTurn: 2 },
+    ];
+    expect(() => assertTreatyReciprocity(state)).not.toThrow();
+  });
+});
+
 describe('#1006 assertNoEliminatedCivEntities', () => {
   it('passes for a fresh game (nobody eliminated)', () => {
     expect(() => assertNoEliminatedCivEntities(freshState('inv-elim-ok'))).not.toThrow();
@@ -412,14 +549,16 @@ describe('#1006 assertSaveStateInvariants (aggregate)', () => {
     expect(message).toMatch(/unit-ghost/);
   });
 
-  it('SAVE_STATE_INVARIANTS lists exactly the six documented checks', () => {
+  it('SAVE_STATE_INVARIANTS lists exactly the eight documented checks', () => {
     expect(SAVE_STATE_INVARIANTS.map(inv => inv.name).sort()).toEqual([
       'air-base-integrity',
       'bilateral-war',
       'cargo-reciprocity',
       'city-rosters',
       'no-eliminated-civ-entities',
+      'treaty-reciprocity',
       'unit-rosters',
+      'vassalage-reciprocity',
     ]);
   });
 });

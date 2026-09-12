@@ -348,6 +348,137 @@ export function assertAirBaseIntegrity(state: GameState): void {
 }
 
 /**
+ * Vassalage reciprocity (#1054, #1003): a depth-1 star, both directions
+ * agree, no self-vassalage. `normalizeVassalage` (a `CORRUPTION_REPAIRS`
+ * entry, `src/storage/vassalage-normalization.ts`) repairs exactly these
+ * shapes on every *load* — but that is a save-corruption backstop, not a
+ * live-bug catcher. #1054's actual bug (an overlord's peace not freeing its
+ * vassals from the same war) was a live, in-session defect a load-time
+ * repair could never have caught; this assert is the missing test-time
+ * counterpart, the same role `assertBilateralWar` plays for war state.
+ *
+ * Deliberately narrower than `normalizeVassalage`'s full repair scope: this
+ * checks only the graph shape (reciprocity, depth-1 star, dedup, live ids),
+ * not whether a live `vassalage`-type treaty backs the relationship or
+ * whether `protectionTimers` entries are individually legal — those are
+ * load-time corruption-repair concerns, a different layer, the same way
+ * `assertBilateralWar` does not re-check `diplomacy.events`.
+ */
+export function assertVassalageReciprocity(state: GameState): void {
+  const civIds = new Set(majorCivIds(state));
+  const problems: string[] = [];
+
+  for (const [civId, civ] of Object.entries(state.civilizations)) {
+    const overlord = civ.diplomacy?.vassalage?.overlord;
+    if (overlord == null) continue;
+
+    if (overlord === civId) {
+      problems.push(`"${civId}" is its own overlord`);
+      continue;
+    }
+    if (!civIds.has(overlord)) {
+      problems.push(`"${civId}" claims overlord "${overlord}" which is an unknown civ "${overlord}"`);
+      continue;
+    }
+    const overlordVassals = state.civilizations[overlord].diplomacy?.vassalage?.vassals ?? [];
+    if (!overlordVassals.includes(civId)) {
+      problems.push(`"${civId}" claims overlord "${overlord}" but "${overlord}" does not list "${civId}" as a vassal`);
+    }
+  }
+
+  for (const [civId, civ] of Object.entries(state.civilizations)) {
+    const vassals = civ.diplomacy?.vassalage?.vassals ?? [];
+    const seen = new Set<string>();
+    for (const vassalId of vassals) {
+      if (seen.has(vassalId)) {
+        problems.push(`"${civId}" lists duplicate vassal entry "${vassalId}"`);
+        continue;
+      }
+      seen.add(vassalId);
+
+      if (!civIds.has(vassalId)) {
+        problems.push(`"${civId}" lists vassal "${vassalId}" which is an unknown civ "${vassalId}"`);
+        continue;
+      }
+      const vassalOverlord = state.civilizations[vassalId].diplomacy?.vassalage?.overlord;
+      if (vassalOverlord !== civId) {
+        problems.push(`"${civId}" lists "${vassalId}" as a vassal but "${vassalId}" does not have "${civId}" as its overlord`);
+        continue;
+      }
+      // Depth-1 star: an overlord has no overlord of its own, and a vassal
+      // has no vassals of its own (see `.claude/rules/game-systems.md#1054`).
+      const overlordOfOverlord = civ.diplomacy?.vassalage?.overlord;
+      if (overlordOfOverlord != null) {
+        problems.push(`"${civId}" is an overlord of "${vassalId}" but itself has an overlord ("${overlordOfOverlord}")`);
+      }
+      const vassalsOfVassal = state.civilizations[vassalId].diplomacy?.vassalage?.vassals ?? [];
+      if (vassalsOfVassal.length > 0) {
+        problems.push(`"${vassalId}" is a vassal of "${civId}" but itself has vassals: ${vassalsOfVassal.join(', ')}`);
+      }
+    }
+  }
+
+  if (problems.length > 0) throw new InvariantError(`vassalage-reciprocity invariant violated:\n  - ${problems.join('\n  - ')}`);
+}
+
+/**
+ * Treaty reciprocity (#1003): `signTreaty` (`diplomacy-system.ts`) writes a
+ * `Treaty` record onto exactly ONE side's `diplomacy.treaties` array — its
+ * own comment says "Both sides must be signed for a complete treaty," i.e. a
+ * correct caller calls it twice. That is the identical single-side-write
+ * shape `declareWar`/`makePeace` had before #995, and this is the same
+ * test-time backstop `assertBilateralWar` provides for war state: every
+ * treaty a civ records must have a matching record on the other side (same
+ * type), and no civ holds a duplicate same-type treaty with the same
+ * partner (mirrors the vassalage assert's duplicate-vassal-entry check
+ * above). Deliberately does not compare `turnsRemaining` between the two
+ * sides — in normal play they stay numerically identical (`tickTreaties`
+ * runs once per living civ inside the same unconditional per-turn loop, so
+ * both copies decrement together), but asserting exact equality here would
+ * couple this structural-reciprocity check to turn-processing order/timing
+ * rather than to the shape that actually matters: a treaty existing on only
+ * one side, or disagreeing on `type`, is the dangerous bug class this exists
+ * to catch.
+ */
+export function assertTreatyReciprocity(state: GameState): void {
+  const civIds = new Set(majorCivIds(state));
+  const problems: string[] = [];
+
+  for (const [civId, civ] of Object.entries(state.civilizations)) {
+    const seen = new Set<string>();
+    for (const treaty of civ.diplomacy?.treaties ?? []) {
+      if (treaty.civA !== civId) {
+        problems.push(`"${civId}" holds a treaty record whose civA is "${treaty.civA}", not itself`);
+        continue;
+      }
+      if (treaty.civB === civId) {
+        problems.push(`"${civId}" holds a treaty with itself`);
+        continue;
+      }
+      if (!civIds.has(treaty.civB)) {
+        problems.push(`"${civId}" holds a treaty with unknown civ "${treaty.civB}"`);
+        continue;
+      }
+
+      const pairKey = `${treaty.type}:${treaty.civB}`;
+      if (seen.has(pairKey)) {
+        problems.push(`"${civId}" holds a duplicate ${treaty.type} treaty with "${treaty.civB}"`);
+        continue;
+      }
+      seen.add(pairKey);
+
+      const otherTreaties = state.civilizations[treaty.civB].diplomacy?.treaties ?? [];
+      const hasMirror = otherTreaties.some(t => t.civA === treaty.civB && t.civB === civId && t.type === treaty.type);
+      if (!hasMirror) {
+        problems.push(`"${treaty.civB}" has no matching ${treaty.type} treaty back to "${civId}"`);
+      }
+    }
+  }
+
+  if (problems.length > 0) throw new InvariantError(`treaty-reciprocity invariant violated:\n  - ${problems.join('\n  - ')}`);
+}
+
+/**
  * An `isEliminated` civ holds no live entities and no active obligations
  * anywhere in `GameState` — not just no owned cities/units/wars, but nothing in
  * espionage, AI planning, crises, trade, the minor-civ layer, and so on. The
@@ -366,6 +497,8 @@ export const SAVE_STATE_INVARIANTS: ReadonlyArray<{ name: string; check: (state:
   { name: 'unit-rosters', check: assertUnitRosters },
   { name: 'cargo-reciprocity', check: assertCargoReciprocity },
   { name: 'air-base-integrity', check: assertAirBaseIntegrity },
+  { name: 'vassalage-reciprocity', check: assertVassalageReciprocity },
+  { name: 'treaty-reciprocity', check: assertTreatyReciprocity },
   { name: 'no-eliminated-civ-entities', check: assertNoEliminatedCivEntities },
 ];
 
