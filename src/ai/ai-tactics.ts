@@ -749,8 +749,23 @@ function rankCivilianAndTransportActions(
   }
 
   if (unit.type === 'settler' && !unit.hasActed && unit.movementPointsLeft > 0) {
-    return canFoundCityAt(context.state, unit.position)
-      ? [ranked({ kind: 'found-city', unitId: unit.id, destination: unit.position }, 650)]
+    // Legality still wins over belief: canFoundCityAt is the canonical rule, so a site
+    // the civ merely BELIEVED legal is refused here rather than founded.
+    if (canFoundCityAt(context.state, unit.position)) {
+      return [ranked({ kind: 'found-city', unitId: unit.id, destination: unit.position }, 650)];
+    }
+    // #1064: MIN_CITY_CENTER_DISTANCE is 4, so a settler trained in a city can never
+    // found where it spawns. Without this step it would idle forever.
+    const completedTechs = context.state.civilizations[context.actorId]?.techState.completed ?? [];
+    const path = findPath(
+      unit.position,
+      targetPosition(context.plan),
+      context.state.map,
+      'land',
+      { unit, completedTechs },
+    );
+    return path && path.length > 1
+      ? [ranked({ kind: 'move', unitId: unit.id, destination: path[1]! }, 645)]
       : [];
   }
   if (

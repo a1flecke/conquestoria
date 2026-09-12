@@ -16,8 +16,14 @@ import type {
   UnitType,
 } from '@/core/types';
 import { foundCity } from '@/systems/city-system';
+import {
+  canFoundCityAt,
+  cityDistance,
+  isCityCenterTerrain,
+  MIN_CITY_CENTER_DISTANCE,
+} from '@/systems/city-territory-system';
 import { hexDistance, hexKey } from '@/systems/hex-utils';
-import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { createUnit, findPath, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import * as combatSystem from '@/systems/combat-system';
 import { canParadrop, getAirAssaultTargets } from '@/systems/airborne-system';
 import { getLegalAirMissionTargets } from '@/systems/air-operations-system';
@@ -85,6 +91,17 @@ function addCity(state: GameState, id: string, owner: string, position: HexCoord
   state.cities[id] = city;
   state.civilizations[owner].cities.push(id);
   return city;
+}
+
+/** A real land tile at least `minDistance` from every city in the fixture. */
+function distantLandTile(state: GameState, minDistance: number): HexCoord {
+  const cities = Object.values(state.cities).map(city => city.position);
+  const tile = Object.values(state.map.tiles).find(candidate =>
+    isCityCenterTerrain(candidate.terrain)
+    && cities.every(position =>
+      cityDistance(candidate.coord, position, state.map) >= minDistance));
+  if (!tile) throw new Error('fixture has no distant land tile');
+  return tile.coord;
 }
 
 function makePlan(
@@ -1508,5 +1525,71 @@ describe('rankUnitTacticalActions — patrol (#582)', () => {
     const plan = makePlan({ kind: 'region', id: 'front', anchor: { q: 3, r: 0 } }, [patrol.id], { objective: 'expand', requiredRoles: {} });
     const actions = rankUnitTacticalActions(context(state, plan), patrol.id).filter((a): a is typeof a & { action: { kind: 'patrol'; unitId: string; center: HexCoord } } => a.action.kind === 'patrol');
     expect(actions.some(a => hexKey(a.action.center) === hexKey(hiddenPosition))).toBe(false);
+  });
+});
+
+describe('#1064 settler movement', () => {
+  it('moves toward the region anchor when it cannot found where it stands', () => {
+    const state = makeState();
+    addCity(state, 'home', AI, { q: 0, r: 0 });            // founding here is now illegal
+    const settler = addUnit(state, 'settler-1', 'settler', AI, { q: 0, r: 0 });
+    const anchor = distantLandTile(state, MIN_CITY_CENTER_DISTANCE);
+    const plan = makePlan(
+      { kind: 'region', id: `settle:${hexKey(anchor)}`, anchor },
+      [settler.id],
+      { objective: 'expand', requiredRoles: { settlement: 1 } },
+    );
+
+    const actions = rankUnitTacticalActions(context(state, plan), settler.id);
+    const move = actions.find(entry => entry.action.kind === 'move');
+    const path = findPath(settler.position, anchor, state.map, 'land', {
+      unit: settler,
+      completedTechs: state.civilizations[AI].techState.completed,
+    });
+
+    expect(path).not.toBeNull();
+    expect(move).toBeDefined();
+    expect(move!.action).toMatchObject({ kind: 'move', destination: path![1] });
+  });
+
+  it('prefers founding over moving when the tile is legal', () => {
+    const state = makeState();
+    addCity(state, 'home', AI, { q: 0, r: 0 });
+    // Stand the settler ON a legal site rather than assuming the origin is one.
+    const site = distantLandTile(state, MIN_CITY_CENTER_DISTANCE);
+    const settler = addUnit(state, 'settler-1', 'settler', AI, site);
+    const plan = makePlan(
+      { kind: 'region', id: `settle:${hexKey(site)}`, anchor: site },
+      [settler.id],
+      { objective: 'expand', requiredRoles: { settlement: 1 } },
+    );
+
+    expect(canFoundCityAt(state, site)).toBe(true);   // guards the premise
+
+    const actions = rankUnitTacticalActions(context(state, plan), settler.id);
+
+    expect(actions[0]?.action.kind).toBe('found-city');
+    expect(actions.some(entry => entry.action.kind === 'move')).toBe(false);
+  });
+
+  it('does not offer found-city when it cannot found where it stands and cannot reach the anchor', () => {
+    const state = makeState();
+    addCity(state, 'home', AI, { q: 0, r: 0 });    // founding at the settler's own tile is illegal
+    const settler = addUnit(state, 'settler-1', 'settler', AI, { q: 0, r: 0 });
+    const plan = makePlan(
+      // Deliberately off-map: findPath returns null, so the settler branch itself
+      // proposes no move toward it.
+      { kind: 'region', id: 'settle:999,999', anchor: { q: 999, r: 999 } },
+      [settler.id],
+      { objective: 'expand', requiredRoles: { settlement: 1 } },
+    );
+
+    // rankUnitTacticalActions always appends at least a `hold` fallback, and other
+    // rankers (e.g. a generic idle-unit mover) may independently propose an unrelated
+    // move -- that is pre-existing behaviour, not something #1064 touches, so this
+    // does not assert "no move at all". The precise claim: `found-city` never appears,
+    // since the settler cannot found on its own (occupied) tile.
+    const actions = rankUnitTacticalActions(context(state, plan), settler.id);
+    expect(actions.some(entry => entry.action.kind === 'found-city')).toBe(false);
   });
 });
