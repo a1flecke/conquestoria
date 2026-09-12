@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
-const SHARDS = ['test-suite-shard-a', 'test-suite-shard-b'];
+const SHARDS = ['test-suite-shard-a', 'test-suite-shard-b', 'test-suite-shard-c'];
 
 function argument(flag) {
   const index = process.argv.indexOf(flag);
@@ -17,7 +17,7 @@ function fail(message) {
 
 function usage(message) {
   if (message) console.error(message);
-  console.error('usage: run-ci-test-shard.mjs --shard test-suite-shard-a|test-suite-shard-b [--list-files] [--report-json <path>]');
+  console.error(`usage: run-ci-test-shard.mjs --shard ${SHARDS.join('|')} [--list-files] [--report-json <path>]`);
   process.exit(2);
 }
 

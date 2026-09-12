@@ -61,6 +61,33 @@ describe('#1075 Vitest file-timing ingestion', () => {
     });
   });
 
+  it('normalizes a successful GitHub workspace reporter path only when its reporter root is explicit', () => {
+    const directory = workspace();
+    const input = join(directory, 'vitest.json');
+    const output = join(directory, 'timings.json');
+    const githubWorkspace = '/home/runner/work/conquestoria/conquestoria';
+    writeJson(input, {
+      success: true,
+      testResults: [{
+        name: `${githubWorkspace}/tests/scripts/ci-test-shard-allocation.test.ts`,
+        status: 'passed',
+        startTime: 100,
+        endTime: 140,
+      }],
+    });
+
+    const result = run(COLLECT_TIMINGS, [
+      '--input', input,
+      '--output', output,
+      '--repo-root', REPO_ROOT,
+      '--reporter-repo-root', githubWorkspace,
+    ]);
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(readFileSync(output, 'utf8')).files)
+      .toEqual({ 'tests/scripts/ci-test-shard-allocation.test.ts': 40 });
+  });
+
   it('keeps an intentionally skipped file in a successful timing profile', () => {
     const directory = workspace();
     const input = join(directory, 'vitest.json');
@@ -174,5 +201,57 @@ describe('#1075 deterministic duration-balanced allocation', () => {
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('timing files differ from default manifest');
+  });
+
+  it('keeps a measured shard fixed while deterministically splitting its critical peer in two', () => {
+    const directory = workspace();
+    const manifest = join(directory, 'default.txt');
+    const timings = join(directory, 'timings.json');
+    const fixedManifest = join(directory, 'fixed-shards.json');
+    const output = join(directory, 'shards.json');
+    writeFileSync(manifest, [
+      'tests/alpha.test.ts',
+      'tests/beta.test.ts',
+      'tests/delta.test.ts',
+      'tests/gamma.test.ts',
+    ].join('\n'));
+    writeJson(timings, {
+      schemaVersion: 1,
+      files: {
+        'tests/alpha.test.ts': 10,
+        'tests/delta.test.ts': 5,
+        'tests/gamma.test.ts': 5,
+      },
+    });
+    writeJson(fixedManifest, {
+      schemaVersion: 1,
+      files: {
+        'tests/alpha.test.ts': 10,
+        'tests/beta.test.ts': 1,
+        'tests/delta.test.ts': 5,
+        'tests/gamma.test.ts': 5,
+      },
+      shards: {
+        'test-suite-shard-a': ['tests/alpha.test.ts', 'tests/gamma.test.ts'],
+        'test-suite-shard-b': ['tests/beta.test.ts'],
+      },
+    });
+
+    const result = run(ALLOCATE_SHARDS, [
+      '--default-manifest', manifest,
+      '--timings', timings,
+      '--output', output,
+      '--shard-names', 'test-suite-shard-a,test-suite-shard-b,test-suite-shard-c',
+      '--fixed-shard-manifest', fixedManifest,
+      '--fixed-shards', 'test-suite-shard-b',
+    ]);
+
+    expect(result.status, result.stderr).toBe(0);
+    const allocation = JSON.parse(readFileSync(output, 'utf8'));
+    expect(allocation.shards).toEqual({
+      'test-suite-shard-a': ['tests/alpha.test.ts'],
+      'test-suite-shard-b': ['tests/beta.test.ts'],
+      'test-suite-shard-c': ['tests/delta.test.ts', 'tests/gamma.test.ts'],
+    });
   });
 });

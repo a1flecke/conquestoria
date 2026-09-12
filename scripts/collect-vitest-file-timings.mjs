@@ -13,14 +13,14 @@ function argument(flag) {
 }
 
 function usage() {
-  console.error('usage: collect-vitest-file-timings.mjs --input <vitest-json> --output <timings-json> --repo-root <path>');
+  console.error('usage: collect-vitest-file-timings.mjs --input <vitest-json> --output <timings-json> --repo-root <path> [--reporter-repo-root <path>]');
   process.exit(2);
 }
 
-function normalizePath(name, repoRoot) {
+function normalizePath(name, reporterRoot) {
   if (typeof name !== 'string' || name.length === 0) fail('reporter test result is missing a name');
-  const absolutePath = isAbsolute(name) ? resolve(name) : resolve(repoRoot, name);
-  const normalized = relative(repoRoot, absolutePath).split(sep).join('/');
+  const absolutePath = isAbsolute(name) ? resolve(name) : resolve(reporterRoot, name);
+  const normalized = relative(reporterRoot, absolutePath).split(sep).join('/');
   if (normalized === '' || normalized === '..' || normalized.startsWith('../') || !normalized.startsWith('tests/')) {
     fail(`reporter test path is outside the repository tests directory: ${name}`);
   }
@@ -30,10 +30,12 @@ function normalizePath(name, repoRoot) {
 const input = argument('--input');
 const output = argument('--output');
 const repoRootArgument = argument('--repo-root');
+const reporterRepoRootArgument = argument('--reporter-repo-root');
 if (!input || !output || !repoRootArgument) usage();
 
 try {
   const repoRoot = resolve(repoRootArgument);
+  const reporterRepoRoot = resolve(reporterRepoRootArgument ?? repoRoot);
   const reporter = JSON.parse(readFileSync(input, 'utf8'));
   if (reporter?.success !== true) fail('reporter did not succeed');
   if (!Array.isArray(reporter.testResults)) fail('reporter testResults must be an array');
@@ -48,7 +50,7 @@ try {
     if (!Number.isFinite(startTime) || !Number.isFinite(endTime) || endTime < startTime) {
       fail(`reporter timing for ${result.name ?? '<unknown>'} must be finite and nondecreasing`);
     }
-    const path = normalizePath(result.name, repoRoot);
+    const path = normalizePath(result.name, reporterRepoRoot);
     if (Object.hasOwn(files, path)) fail(`duplicate normalized reporter path: ${path}`);
     files[path] = endTime - startTime;
   }
