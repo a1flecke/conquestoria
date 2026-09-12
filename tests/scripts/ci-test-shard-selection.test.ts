@@ -10,6 +10,7 @@ const SHARD_MANIFEST = resolve(REPO_ROOT, 'scripts/ci-test-shards.json');
 const SHARD_A = 'test-suite-shard-a';
 const SHARD_B = 'test-suite-shard-b';
 const temporaryDirectories: string[] = [];
+const PROFILE_MODE = process.env.CI_SHARD_PROFILE === '1';
 
 afterEach(() => {
   while (temporaryDirectories.length > 0) {
@@ -33,7 +34,7 @@ function listShard(shard: string, manifest = SHARD_MANIFEST) {
   ], { cwd: REPO_ROOT, encoding: 'utf8' });
 }
 
-describe('#1075 checked-in CI shard selection', () => {
+(PROFILE_MODE ? describe.skip : describe)('#1075 checked-in CI shard selection', () => {
   it('assigns every default-discovered test exactly once and prints each checked-in shard', () => {
     const expectedFiles = defaultDiscovery();
     const manifest = JSON.parse(readFileSync(SHARD_MANIFEST, 'utf8'));

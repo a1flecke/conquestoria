@@ -40,7 +40,9 @@ try {
 
   const files = {};
   for (const result of reporter.testResults) {
-    if (result?.status !== 'passed') fail(`reporter result for ${result?.name ?? '<unknown>'} is not passed`);
+    if (result?.status !== 'passed' && result?.status !== 'skipped') {
+      fail(`reporter result for ${result?.name ?? '<unknown>'} is not passed or skipped`);
+    }
     const startTime = result.startTime;
     const endTime = result.endTime;
     if (!Number.isFinite(startTime) || !Number.isFinite(endTime) || endTime < startTime) {
