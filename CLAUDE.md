@@ -26,11 +26,14 @@ This is enforced by the user and is not optional.
 - `bash scripts/run-with-mise.sh yarn test` — Run vitest + hook smoke tests. DOES NOT type-check — `yarn build` is the only path that runs `tsc`. Before any `git push`, `gh pr create`, or `gh pr merge`, run `yarn build` and `yarn test` and confirm both exit 0. The `require-green-before-push` hook enforces this, but catching it locally is faster.
 - `bash scripts/run-with-mise.sh yarn test:durable` — Run the complete suite and persist its result in this worktree's ignored `.verification/` directory. Use this for agent-driven full-suite checks when terminal output might be interrupted; it removes stale completed evidence before it starts, refuses to replace a live run in the same worktree, and records the tested HEAD plus exit code.
 - `bash scripts/run-with-mise.sh yarn test:durable:status` — Accept durable evidence only when it passed and belongs to the current `HEAD` and working tree; otherwise it exits non-zero and explains why.
+- `bash scripts/run-with-mise.sh yarn test:regular` — Run the local push-gate selection, excluding expensive simulation coverage.
+- `bash scripts/run-with-mise.sh yarn test:intensive-simulations` — Run the expensive local simulation selection.
+- `bash scripts/run-with-mise.sh yarn test:ci:shard-a` / `test:ci:shard-b` — Run one duration-balanced full-suite CI shard; these are not local tiers.
 - `bash scripts/run-with-mise.sh yarn test:watch` — Run tests in watch mode
 
 **Bash tool timeout guidance** — set `timeout` to match what the command actually does:
 - `git commit` → **30 000 ms** (commit itself < 1s; no hook runs tests on commit)
-- `git push` / `gh pr create` / `gh pr merge` → **120 000 ms** (pre-push verification runs the fast test tier, then the production build, sequentially)
+- `git push` / `gh pr create` / `gh pr merge` → **240 000 ms** (pre-push verification runs the regular local selection, then the production build, sequentially)
 - Using a 360 000 ms timeout for commits papers over the root cause; the correct fix is matching the timeout to the command's expected duration.
 
 ## Rules Index
