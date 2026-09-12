@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "source": {
-    "commit": "fe813b56bd5e2cfc9289e353fafe89e2ed24b710",
-    "timingSource": "github-actions-vitest-json-run-34686364246-attempt-3"
+    "commit": "d7d8ff84386f117f5634e8977fb2e17d46ce56e1",
+    "timingSource": "github-actions-vitest-json-run-34686364246-attempt-3+local-new-test"
   },
   "files": {
     "tests/main.integration.test.ts": 3.379150390625,
@@ -648,7 +648,8 @@
     "tests/systems/wonder-codex/presentation.test.ts": 219.202392578125,
     "tests/systems/wonder-codex/related.test.ts": 27.703125,
     "tests/systems/wonder-codex/sources.test.ts": 146.678955078125,
-    "tests/renderer/sprites/v2/index.test.ts": 36.044189453125
+    "tests/renderer/sprites/v2/index.test.ts": 36.044189453125,
+    "tests/scripts/desktop-build-inputs.test.ts": 1857.153564453125
   },
   "shards": {
     "test-suite-shard-a": [
@@ -926,6 +927,7 @@
       "tests/scripts/assert-no-e2e-runtime.test.ts",
       "tests/scripts/check-src-rule-violations.test.ts",
       "tests/scripts/ci-test-shard-allocation.test.ts",
+      "tests/scripts/desktop-build-inputs.test.ts",
       "tests/scripts/perf-isolation.test.ts",
       "tests/scripts/research-pacing-report.test.ts",
       "tests/scripts/rng-legacy-baseline.test.ts",
