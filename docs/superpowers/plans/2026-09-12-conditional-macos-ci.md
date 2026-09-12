@@ -211,6 +211,16 @@ Add the top-level event trigger:
 workflow_dispatch:
 ```
 
+For `test-suite-shard-a`, `test-suite-shard-b`, `test-suite-shard-c`, `hooks`,
+`web-smoke`, and `tauri-frontend-build`, extend the existing PR-or-main job
+condition to also accept `github.event_name == 'workflow_dispatch'`. This
+ensures a manual run on a selected branch executes every merge-gate child.
+
+Before calling `git diff` for a push, compare `base_sha` with forty zeroes. If
+it is all zeroes, write `desktop_changed=true` and exit successfully; the
+missing comparison base is a packaging-risk condition, not a reason to fail
+or skip the macOS job.
+
 - [ ] **Step 4: Run workflow-contract tests to verify they pass**
 
 Run:
