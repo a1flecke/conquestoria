@@ -244,6 +244,7 @@ describe('#1075 deterministic duration-balanced allocation', () => {
       '--shard-names', 'test-suite-shard-a,test-suite-shard-b,test-suite-shard-c',
       '--fixed-shard-manifest', fixedManifest,
       '--fixed-shards', 'test-suite-shard-b',
+      '--source-commit', '0123456789abcdef0123456789abcdef01234567',
     ]);
 
     expect(result.status, result.stderr).toBe(0);
@@ -253,5 +254,6 @@ describe('#1075 deterministic duration-balanced allocation', () => {
       'test-suite-shard-b': ['tests/beta.test.ts'],
       'test-suite-shard-c': ['tests/delta.test.ts', 'tests/gamma.test.ts'],
     });
+    expect(allocation.source.commit).toBe('0123456789abcdef0123456789abcdef01234567');
   });
 });
