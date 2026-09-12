@@ -303,3 +303,43 @@ describe('AI unit assignment', () => {
     });
   });
 });
+
+it('#1064 fills a settlement slot with a settler', () => {
+  const plan: AIStrategicPlan = {
+    id: 'expand-plan',
+    actorId: 'ai-1',
+    objective: 'expand',
+    target: { kind: 'region', id: 'settle:6,0', anchor: { q: 6, r: 0 } },
+    theaterId: 'local:6,0',
+    phase: 'mobilizing',
+    reasonCodes: ['nearby-opportunity'],
+    commitment: 0.25,
+    createdTurn: 1,
+    reconsiderAfterTurn: 4,
+    expiresAfterTurn: 13,
+    lastProgressTurn: 1,
+    requiredRoles: { settlement: 1 },
+    assignedUnitIds: [],
+  };
+
+  const result = assignUnitsToPortfolio({
+    portfolio: { ...createEmptyMajorCivPortfolio(), primaryPlan: plan },
+    units: [{
+      id: 'settler-1',
+      type: 'settler',
+      health: 100,
+      experience: 0,
+      embarked: false,
+      activeOtherDuty: false,
+      travelTurnsByPlanId: { 'expand-plan': 3 },
+    }],
+    profile: { maxPrimaryForce: 6, retreatHealthPercent: 40 },
+    defenseThreatScoreByPlanId: {},
+    eliminationDefensePlanIds: [],
+    onlyImmediateDefenderUnitIds: [],
+    requiresEmbarkationByPlanId: {},
+  });
+
+  expect(result.assignmentsByPlanId['expand-plan']).toEqual(['settler-1']);
+  expect(result.forceDemands.find(entry => entry.role === 'settlement')?.missing).toBe(0);
+});

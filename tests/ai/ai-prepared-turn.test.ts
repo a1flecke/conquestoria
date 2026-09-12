@@ -6,6 +6,7 @@ import {
   prepareMajorCivStrategicPlan,
   WORKER_SOFT_CAP,
 } from '@/ai/ai-prepared-turn';
+import { EXPANSION_SEARCH_RADIUS } from '@/ai/ai-expansion-sites';
 import { createNewGame } from '@/core/game-state';
 import { getWrappedHexNeighbors, hexDistance, hexKey, mapHexesInRange } from '@/systems/hex-utils';
 import { foundCity } from '@/systems/city-system';
@@ -29,6 +30,14 @@ function addSpacedCities(state: GameState, civId: string, count: number): void {
     state.cities[city.id] = city;
     civ.cities.push(city.id);
     taken.push(tile.coord);
+    // The real game founds cities through foundCityInState, which updates visibility
+    // around the new city. This raw `foundCity` helper does not -- without revealing a
+    // radius here, `buildKnownPathMap`'s fog-bounded map would have no known tiles
+    // anywhere near a city founded far from the civ's original starting position, and
+    // any expand-candidate site search anchored on it would legitimately find nothing.
+    for (const coord of mapHexesInRange(state.map, city.position, EXPANSION_SEARCH_RADIUS)) {
+      civ.visibility.tiles[hexKey(coord)] = 'visible';
+    }
   }
 }
 
@@ -130,7 +139,11 @@ describe('prepared major-civilization planning', () => {
 
     const prepared = prepareMajorCivStrategicPlan(state, 'ai-1');
 
-    expect(prepared.portfolio.primaryPlan).toBeNull();
+    // #1064: primaryPlan is no longer guaranteed null here -- an eligible `expand`
+    // candidate can now legitimately win by default when nothing else competes (that
+    // IS the fix). The actual claim this test makes is narrower: no resource-expedition
+    // (secure-resource) plan was drafted, while the readiness demand is still preserved.
+    expect(prepared.portfolio.primaryPlan?.objective).not.toBe('secure-resource');
     expect(prepared.forceDemands).toContainEqual(expect.objectContaining({
       role: 'resource-expedition',
       desired: 1,
@@ -564,7 +577,10 @@ describe('prepared major-civilization planning', () => {
 
     const prepared = prepareMajorCivStrategicPlan(state, 'ai-1');
 
-    expect(prepared.portfolio.primaryPlan).toBeNull();
+    // #1064: primaryPlan is no longer guaranteed null -- an eligible `expand` candidate
+    // can now legitimately win by default when nothing else competes. This test's actual
+    // claim, per its title, is narrower: no repel plan against the pirate was drafted.
+    expect(prepared.portfolio.primaryPlan?.objective).not.toBe('repel');
   });
 
   it.each(['explorer', 'standard', 'veteran'] as const)('admits a legal, reachable reported independent city for aggressive Domination pursuit on %s', challenge => {
@@ -786,5 +802,131 @@ describe('#1064 bounded force demands', () => {
 
     const after = readiness(prepareMajorCivStrategicPlan(state, civ.id).forceDemands);
     expect(after?.missing ?? 0).toBe(0);
+  });
+});
+
+describe('#1064 expand objective candidates', () => {
+  it('demands a settler when a cityless civilization has nowhere to put one yet', () => {
+    // createNewGame starts every civ cityless (settler + warrior only) -- this IS
+    // the real turn-1 state, not a contrived one. Anchors fall back to unit positions.
+    const state = createNewGame(undefined, 'expand-demand-settler', 'small');
+    const civ = state.civilizations['ai-1'];
+    for (const unitId of [...civ.units]) {
+      if (state.units[unitId]?.type === 'settler') {
+        delete state.units[unitId];
+        civ.units = civ.units.filter(id => id !== unitId);
+      }
+    }
+
+    const demand = prepareMajorCivStrategicPlan(state, civ.id).forceDemands
+      .find(entry => entry.role === 'settlement');
+
+    expect(demand).toMatchObject({ missing: 1, priority: 90 });
+    expect(demand?.sourcePlanIds).toContain('objective-readiness');
+  });
+
+  it('stops demanding a settler once one is alive', () => {
+    const state = createNewGame(undefined, 'expand-settler-alive', 'small');
+    const civ = state.civilizations['ai-1'];
+    addSpacedCities(state, civ.id, 0);
+    const home = state.cities[civ.cities[0]!]!;
+    const settler = createUnit('settler', civ.id, home.position, state.idCounters);
+    state.units[settler.id] = settler;
+    civ.units.push(settler.id);
+
+    const demand = prepareMajorCivStrategicPlan(state, civ.id).forceDemands
+      .find(entry => entry.role === 'settlement');
+
+    expect(demand?.missing ?? 0).toBe(0);
+  });
+
+  it('makes the expand candidate eligible once a settler exists', () => {
+    // Asserted on ELIGIBILITY, not on winning primaryPlan. Whether expand outranks a
+    // resource candidate depends on map scoring, so asserting `primaryPlan.objective
+    // === 'expand'` would be flaky, and wrapping the assertion in an `if` would make
+    // it pass vacuously -- which proves nothing.
+    const state = createNewGame(undefined, 'expand-assigns-settler', 'small');
+    const civ = state.civilizations['ai-1'];
+    addSpacedCities(state, civ.id, 0);
+    const home = state.cities[civ.cities[0]!]!;
+    // createNewGame starts every civ WITH a settler already -- strip it so
+    // "withoutSettler" is genuinely enforced rather than assumed.
+    for (const unitId of [...civ.units]) {
+      if (state.units[unitId]?.type === 'settler') {
+        delete state.units[unitId];
+        civ.units = civ.units.filter(id => id !== unitId);
+      }
+    }
+
+    const withoutSettler = prepareMajorCivStrategicPlan(state, civ.id).traces
+      .find(entry => entry.decision === 'objective')
+      ?.candidates.find(entry => entry.id.startsWith('expand:'));
+    expect(withoutSettler?.eligible).toBe(false);
+
+    const settler = createUnit('settler', civ.id, home.position, state.idCounters);
+    state.units[settler.id] = settler;
+    civ.units.push(settler.id);
+
+    const withSettler = prepareMajorCivStrategicPlan(state, civ.id).traces
+      .find(entry => entry.decision === 'objective')
+      ?.candidates.find(entry => entry.id.startsWith('expand:'));
+    expect(withSettler?.eligible).toBe(true);
+  });
+
+  it('emits exactly one expand candidate however many sites qualify', () => {
+    const state = createNewGame(undefined, 'expand-single-candidate', 'small');
+    const civ = state.civilizations['ai-1'];
+
+    const prepared = prepareMajorCivStrategicPlan(state, civ.id);
+    const expandIds = (prepared.traces.find(entry => entry.decision === 'objective')
+      ?.candidates ?? []).filter(candidate => candidate.id.startsWith('expand:'));
+
+    // `toBe(1)`, never `toBeLessThanOrEqual(1)` -- the latter passes at zero and would
+    // hide a generator that emits nothing at all.
+    //
+    // If this fails with 0, this seed's map has no legal site within
+    // EXPANSION_SEARCH_RADIUS of the capital. Pick a different seed; do NOT relax the
+    // assertion to `<= 1`.
+    expect(expandIds).toHaveLength(1);
+  });
+
+  it('keeps the objective trace inside the 12-candidate ceiling under load', () => {
+    // assertLegalChoices in the long-horizon fixture HARD THROWS above 12, and the
+    // trace carries EVERY analysed candidate. At peace there are no capture
+    // candidates at all, so a peaceful fixture would pass this trivially -- the civ
+    // must be at war with everyone, with the whole map revealed, to create real load.
+    const state = createNewGame(undefined, 'expand-trace-ceiling', 'small');
+    const allCivIds = Object.keys(state.civilizations);
+    for (const civ of Object.values(state.civilizations)) {
+      civ.knownCivilizations = allCivIds.filter(id => id !== civ.id);
+      civ.diplomacy.atWarWith = allCivIds.filter(id => id !== civ.id);
+      for (const key of Object.keys(state.map.tiles)) civ.visibility.tiles[key] = 'visible';
+    }
+
+    for (const civId of allCivIds) {
+      if (state.civilizations[civId]!.isHuman) continue;
+      const trace = prepareMajorCivStrategicPlan(state, civId).traces
+        .find(entry => entry.decision === 'objective');
+      expect(trace?.candidates.length ?? 0, civId).toBeLessThanOrEqual(12);
+    }
+  });
+
+  it('produces no expand candidate at the expansion soft cap', () => {
+    const state = createNewGame(undefined, 'expand-soft-cap', 'small');
+    const civ = state.civilizations['ai-1'];
+    // Past any soft cap (the maximum is 6), on real, legally spaced tiles. Founded
+    // FIRST so civ.cities[0] exists below -- `addSpacedCities` is the helper added to
+    // this same file in Task 3 Step 1.
+    addSpacedCities(state, civ.id, 8);
+    const settler = createUnit(
+      'settler', civ.id, state.cities[civ.cities[0]!]!.position, state.idCounters,
+    );
+    state.units[settler.id] = settler;
+    civ.units.push(settler.id);
+
+    const trace = prepareMajorCivStrategicPlan(state, civ.id).traces
+      .find(entry => entry.decision === 'objective');
+
+    expect((trace?.candidates ?? []).some(c => c.id.startsWith('expand:'))).toBe(false);
   });
 });

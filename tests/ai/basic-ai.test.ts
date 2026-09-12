@@ -1990,6 +1990,13 @@ describe('S4b — AI resource-aware production', () => {
       currentPlayer: 'ai-1',
       gameOver: false,
       winner: null,
+      // #1064: generateWithResidual now legitimately considers settler/worker
+      // candidates (an incremental settlement/worker demand can exist where none did
+      // before), and projectedUnitMaintenanceImpact needs a real idCounters to project
+      // a unit -- this fixture founded its city with a local `counters` but never
+      // attached it to the returned state, so it crashed the instant that new code
+      // path was actually exercised.
+      idCounters: counters,
       map,
       units: {},
       cities: { [city.id]: city },
@@ -2112,6 +2119,9 @@ describe('Expedition AI parity', () => {
 
     return {
       turn: 5, era: 1, currentPlayer: 'ai-1', gameOver: false, winner: null,
+      // #1064: see makeSingleCivState's comment above -- the local `counters` founded
+      // the city but was never attached to the returned state.
+      idCounters: counters,
       map,
       units: expeditionUnitEntry,
       cities: { [city.id]: city },

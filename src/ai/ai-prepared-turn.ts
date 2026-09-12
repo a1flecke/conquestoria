@@ -4,6 +4,7 @@ import type {
   GameMap,
   GameState,
   MajorCivPlanPortfolio,
+  PersonalityTraits,
 } from '@/core/types';
 import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { getTrainableUnitsForCiv, TRAINABLE_UNITS } from '@/systems/city-system';
@@ -21,6 +22,11 @@ import {
   type MajorCivPerception,
 } from './ai-perception';
 import type { AIDecisionTrace } from './ai-decision-trace';
+import {
+  EXPANSION_SITE_SHORTLIST,
+  getExpansionCitySoftCap,
+  getKnownExpansionSites,
+} from './ai-expansion-sites';
 import {
   assignUnitsToPortfolio,
   type AIForceDemand,
@@ -251,6 +257,7 @@ function objectiveCandidates(
   knownMap: GameMap,
   doctrine: DominationDoctrine,
   knowledge: ReturnType<typeof buildDominationKnowledge>,
+  personality: PersonalityTraits,
 ): AIObjectiveCandidate[] {
   const actor = state.civilizations[civId];
   const operationalAnchors = perception.ownCities.length > 0
@@ -345,6 +352,42 @@ function objectiveCandidates(
     candidates.push(candidate);
     startByCandidate.set(candidate, anchor);
   }
+  // #1064: expansion is a real objective, not an administrative side-channel. With no
+  // settler this candidate is ineligible (missingRoles) but still reports `settlement`,
+  // which becomes an objective-readiness demand and makes the settler buildable. With a
+  // settler it becomes a plan and the settler is assigned to it.
+  if (perception.ownCities.length < getExpansionCitySoftCap(personality.expansionDrive)) {
+    const knownCityPositions = perception.knownCities
+      .flatMap(city => city.position ? [city.position] : []);
+    for (const site of getKnownExpansionSites(
+      knownMap,
+      knownCityPositions,
+      operationalAnchors,
+      EXPANSION_SITE_SHORTLIST,
+    )) {
+      const anchor = nearestAnchor(site.anchor);
+      const travelTurns = Math.ceil(distance(state, anchor, site.anchor) / 2);
+      const candidate: AIObjectiveCandidate = {
+        objective: 'expand',
+        target: {
+          kind: 'region',
+          id: `settle:${hexKey(site.anchor)}`,
+          anchor: { ...site.anchor },
+        },
+        theaterId: `local:${site.anchor.q},${site.anchor.r}`,
+        travelTurns,
+        strategicValue: Math.max(0, Math.min(100, site.score * (0.5 + personality.expansionDrive))),
+        expectedLossRatio: 0,
+        supplyDistance: travelTurns,
+        // Expansion is LOCAL activity. It must never earn scoreObjectiveCandidate's
+        // +35 distant-reason bonus.
+        explicitDistantReasons: [],
+        requiredRoles: { settlement: 1 },
+      };
+      candidates.push(candidate);
+      startByCandidate.set(candidate, anchor);
+    }
+  }
   const travelInputs: AIObjectiveTravelCandidate[] = candidates.map(candidate => {
     const { travelTurns: _travelTurns, ...withoutTravel } = candidate;
     return {
@@ -355,7 +398,22 @@ function objectiveCandidates(
       completedMovementTechHash: [...actor.techState.completed].sort().join(','),
     };
   });
-  return resolveObjectiveTravelCandidates(knownMap, travelInputs);
+  const resolved = resolveObjectiveTravelCandidates(knownMap, travelInputs);
+  // Exactly ONE expand candidate reaches the caller, so the decision trace grows by at
+  // most 1 unconditionally -- assertLegalChoices hard-throws above 12 candidates. The
+  // shortlist exists only so an unreachable best site falls back to a reachable one.
+  // One is also the semantically correct number: a civ has one primaryPlan and, by the
+  // incremental settlement demand, at most one settler.
+  const bestExpand = resolved
+    .filter(candidate =>
+      candidate.objective === 'expand' && Number.isFinite(candidate.travelTurns))
+    .sort((left, right) =>
+      scoreObjectiveCandidate(right) - scoreObjectiveCandidate(left)
+      || targetStableKey(left.target).localeCompare(targetStableKey(right.target)))[0];
+  return [
+    ...resolved.filter(candidate => candidate.objective !== 'expand'),
+    ...(bestExpand ? [bestExpand] : []),
+  ];
 }
 
 function planTargetPosition(plan: AIStrategicPlan): { q: number; r: number } {
@@ -496,7 +554,7 @@ export function prepareMajorCivStrategicPlan(
     challenge: resolveOpponentChallenge(state),
   });
   const counterplay = getDominationCounterplay(knowledge);
-  const candidates = objectiveCandidates(state, civId, perception, knownMap, doctrine, knowledge);
+  const candidates = objectiveCandidates(state, civId, perception, knownMap, doctrine, knowledge, personality);
   const availableRoles = availableRoleCounts(perception);
   const choice = choosePrimaryObjective({
     actorId: civId,
