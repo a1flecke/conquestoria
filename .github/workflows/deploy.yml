@@ -231,6 +231,49 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  test-suite-shard-d:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24.13.1'
+          cache: yarn
+          cache-dependency-path: yarn.lock
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Record test manifests
+        run: |
+          mkdir -p artifacts/test-manifests artifacts/vitest-results
+          yarn test:manifest > artifacts/test-manifests/default.txt
+          yarn test:manifest:ci:shard-d > artifacts/test-manifests/test-suite-shard-d.txt
+
+      - name: Run test suite shard D
+        run: node scripts/ci-record-phase-timing.mjs --output artifacts/ci-timing/test-suite-shard-d.json --phase test-suite-shard-d -- yarn test:ci:shard-d --report-json artifacts/vitest-results/test-suite-shard-d.json
+
+      - name: Upload test suite shard D evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: test-suite-shard-d-evidence
+          path: |
+            artifacts/test-manifests
+            artifacts/ci-timing
+            artifacts/vitest-results
+          if-no-files-found: warn
+          retention-days: 14
+
   hooks:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -443,6 +486,7 @@ jobs:
       - test-suite-shard-a
       - test-suite-shard-b
       - test-suite-shard-c
+      - test-suite-shard-d
       - hooks
       - web-smoke
       - security-analysis
