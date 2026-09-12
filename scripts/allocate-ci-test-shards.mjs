@@ -16,7 +16,7 @@ function argument(flag) {
 }
 
 function usage() {
-  console.error('usage: allocate-ci-test-shards.mjs --default-manifest <path> --timings <path> --output <path> [--shard-names name,...] [--fixed-shard-manifest <path> --fixed-shards name,...] [--timing-source <label>]');
+  console.error('usage: allocate-ci-test-shards.mjs --default-manifest <path> --timings <path> --output <path> [--shard-names name,...] [--fixed-shard-manifest <path> --fixed-shards name,...] [--timing-source <label>] [--source-commit <sha>]');
   process.exit(2);
 }
 
@@ -89,6 +89,7 @@ const shardNames = names(argument('--shard-names') ?? DEFAULT_SHARD_NAMES.join('
 const fixedShardNames = argument('--fixed-shards') ? names(argument('--fixed-shards'), '--fixed-shards') : [];
 const fixedShardManifest = argument('--fixed-shard-manifest');
 const timingSource = argument('--timing-source') ?? 'vitest-json';
+const sourceCommit = argument('--source-commit');
 if (!manifestPath || !timingsPath || !output) usage();
 
 try {
@@ -121,7 +122,8 @@ try {
   }
   for (const shard of shardNames) shards[shard].sort();
 
-  const commit = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+  const commit = sourceCommit ?? execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+  if (!/^[0-9a-f]{40}$/i.test(commit)) fail('--source-commit must be a full Git SHA');
   if (!commit) fail('git rev-parse HEAD returned an empty commit');
   mkdirSync(dirname(output), { recursive: true });
   writeFileSync(output, `${JSON.stringify({
