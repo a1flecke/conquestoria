@@ -4,11 +4,33 @@ import {
   incrementalDemandSeed,
   mergePreparedForceDemands,
   prepareMajorCivStrategicPlan,
+  WORKER_SOFT_CAP,
 } from '@/ai/ai-prepared-turn';
 import { createNewGame } from '@/core/game-state';
-import { getWrappedHexNeighbors, hexDistance, hexKey } from '@/systems/hex-utils';
+import { getWrappedHexNeighbors, hexDistance, hexKey, mapHexesInRange } from '@/systems/hex-utils';
 import { foundCity } from '@/systems/city-system';
-import { createUnit, findPath } from '@/systems/unit-system';
+import {
+  cityDistance,
+  isCityCenterTerrain,
+  MIN_CITY_CENTER_DISTANCE,
+} from '@/systems/city-territory-system';
+import { createUnit, findPath, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import type { GameState } from '@/core/types';
+
+/** Found `count` extra cities for `civId` on real, legally spaced land tiles. */
+function addSpacedCities(state: GameState, civId: string, count: number): void {
+  const civ = state.civilizations[civId]!;
+  const taken = Object.values(state.cities).map(city => city.position);
+  for (const tile of Object.values(state.map.tiles)) {
+    if (civ.cities.length >= count + 1) break;
+    if (!isCityCenterTerrain(tile.terrain)) continue;
+    if (taken.some(position => cityDistance(tile.coord, position, state.map) < MIN_CITY_CENTER_DISTANCE)) continue;
+    const city = foundCity(civId, tile.coord, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    civ.cities.push(city.id);
+    taken.push(tile.coord);
+  }
+}
 
 describe('prepared major-civilization planning', () => {
   it.each([
@@ -668,5 +690,101 @@ describe('incrementalDemandSeed', () => {
         expect(missing, `owned=${owned} cap=${cap}`).toBeLessThanOrEqual(1);
       }
     }
+  });
+});
+
+describe('#1064 bounded force demands', () => {
+  it('demands one worker when a civilization owns none', () => {
+    const state = createNewGame(undefined, 'demand-worker-none', 'small');
+    const civ = state.civilizations['ai-1'];
+    addSpacedCities(state, civ.id, 0);   // found exactly one city; a cityless civ has no worker cap
+    for (const unitId of [...civ.units]) {
+      if (state.units[unitId]?.type === 'worker') {
+        delete state.units[unitId];
+        civ.units = civ.units.filter(id => id !== unitId);
+      }
+    }
+
+    const demand = prepareMajorCivStrategicPlan(state, civ.id).forceDemands
+      .find(entry => entry.role === 'worker');
+
+    expect(demand).toMatchObject({ missing: 1, priority: 40 });
+  });
+
+  it('stops demanding workers once the city-count cap is met', () => {
+    const state = createNewGame(undefined, 'demand-worker-capped', 'small');
+    const civ = state.civilizations['ai-1'];
+    addSpacedCities(state, civ.id, 0);   // found exactly one city -> cap 1
+    const home = state.cities[civ.cities[0]!]!;
+    // One city -> cap 1. Give it one worker.
+    const existing = civ.units.filter(id => state.units[id]?.type === 'worker');
+    for (const extra of existing.slice(1)) {
+      delete state.units[extra];
+      civ.units = civ.units.filter(id => id !== extra);
+    }
+    if (existing.length === 0) {
+      const worker = createUnit('worker', civ.id, home.position, state.idCounters);
+      state.units[worker.id] = worker;
+      civ.units.push(worker.id);
+    }
+
+    const demand = prepareMajorCivStrategicPlan(state, civ.id).forceDemands
+      .find(entry => entry.role === 'worker');
+
+    expect(demand?.missing ?? 0).toBe(0);
+  });
+
+  it('never demands more workers than WORKER_SOFT_CAP however many cities it holds', () => {
+    const state = createNewGame(undefined, 'demand-worker-softcap', 'small');
+    const civ = state.civilizations['ai-1'];
+    addSpacedCities(state, civ.id, WORKER_SOFT_CAP + 3);
+
+    const demand = prepareMajorCivStrategicPlan(state, civ.id).forceDemands
+      .find(entry => entry.role === 'worker');
+
+    expect(civ.cities.length).toBeGreaterThan(WORKER_SOFT_CAP);
+    expect(demand?.desired ?? 0).toBeLessThanOrEqual(WORKER_SOFT_CAP);
+  });
+
+  it('re-opens a readiness demand only while the civilization owns no unit of that role', () => {
+    // This MUST be built so a readiness demand is guaranteed to exist. A peaceful
+    // fresh civ often produces no objective candidates at all, in which case
+    // `choice.demands` is empty and a filter-then-assert test passes vacuously
+    // while proving nothing.
+    const state = createNewGame(undefined, 'demand-readiness-frontline', 'small');
+    const civ = state.civilizations['ai-1'];
+    addSpacedCities(state, civ.id, 0);           // ai-1 needs a city to place the warrior in
+    addSpacedCities(state, 'player', 0);         // player needs a city to be a capture target
+    civ.knownCivilizations = ['player'];
+    civ.diplomacy.atWarWith = ['player'];
+    // Reveal the enemy capital so a capture candidate (frontline + capture) exists.
+    const enemyCity = state.cities[state.civilizations.player.cities[0]!]!;
+    for (const coord of mapHexesInRange(state.map, enemyCity.position, 2)) {
+      civ.visibility.tiles[hexKey(coord)] = 'visible';
+    }
+    // Strip every combat unit so `frontline` is genuinely unowned.
+    for (const unitId of [...civ.units]) {
+      if (UNIT_DEFINITIONS[state.units[unitId]!.type].strength > 0) {
+        delete state.units[unitId];
+        civ.units = civ.units.filter(id => id !== unitId);
+      }
+    }
+
+    const readiness = (demands: ReturnType<typeof prepareMajorCivStrategicPlan>['forceDemands']) =>
+      demands.find(entry =>
+        entry.role === 'frontline' && entry.sourcePlanIds.includes('objective-readiness'));
+
+    const before = readiness(prepareMajorCivStrategicPlan(state, civ.id).forceDemands);
+    // Fails loudly rather than vacuously if the fixture produced no candidate.
+    expect(before?.missing).toBe(1);
+
+    const warrior = createUnit(
+      'warrior', civ.id, state.cities[civ.cities[0]!]!.position, state.idCounters,
+    );
+    state.units[warrior.id] = warrior;
+    civ.units.push(warrior.id);
+
+    const after = readiness(prepareMajorCivStrategicPlan(state, civ.id).forceDemands);
+    expect(after?.missing ?? 0).toBe(0);
   });
 });

@@ -155,6 +155,9 @@ export function incrementalDemandSeed(
   return [{ role, sourceId, priority, desired: Math.min(held + 1, ceiling), assigned: held }];
 }
 
+/** Most workers an empire will ever ask for, regardless of city count. */
+export const WORKER_SOFT_CAP = 4;
+
 function observedArmorDemand(
   state: Readonly<GameState>,
   perception: MajorCivPerception,
@@ -483,21 +486,23 @@ export function prepareMajorCivStrategicPlan(
   const perception = buildMajorCivPerception(state, civId);
   const knownMap = buildKnownPathMap(state, civId);
   const knowledge = buildDominationKnowledge(state, civId);
+  const personality = resolveCivDefinition(state, civ.civType)?.personality ?? {
+    traits: [], warLikelihood: 0.5, diplomacyFocus: 0.5, expansionDrive: 0.5,
+  };
   const doctrine = evaluateDominationDoctrine({
     knowledge,
     ownCityCount: perception.ownCities.length,
-    personality: resolveCivDefinition(state, civ.civType)?.personality ?? {
-      traits: [], warLikelihood: 0.5, diplomacyFocus: 0.5, expansionDrive: 0.5,
-    },
+    personality,
     challenge: resolveOpponentChallenge(state),
   });
   const counterplay = getDominationCounterplay(knowledge);
   const candidates = objectiveCandidates(state, civId, perception, knownMap, doctrine, knowledge);
+  const availableRoles = availableRoleCounts(perception);
   const choice = choosePrimaryObjective({
     actorId: civId,
     turn: state.turn,
     candidates,
-    availableRoles: availableRoleCounts(perception),
+    availableRoles,
   });
   const previous = state.opponentAI?.majorCivs[civId] ?? createEmptyMajorCivPortfolio();
   const trainable = getTrainableUnitsForCiv(
@@ -605,11 +610,28 @@ export function prepareMajorCivStrategicPlan(
   const forceDemands = mergePreparedForceDemands(
     assignments.forceDemands,
     [
-      ...choice.demands.map(role => ({
+      // #1064: a readiness demand means "I own ZERO units of role R, so I cannot even
+      // consider this objective". Owning one satisfies it. Before this it re-seeded
+      // desired:1/assigned:0 every turn, and residualDemands only discounts QUEUED
+      // units -- so a persistent readiness role produced one unit per turn forever.
+      ...choice.demands.flatMap(role => incrementalDemandSeed(
         role,
-        sourceId: 'objective-readiness',
-        priority: 90,
-      })),
+        'objective-readiness',
+        90,
+        Math.min(availableRoles[role] ?? 0, 1),
+        1,
+      )),
+      // #1064: workers have the production gap but not the execution gap -- basic-ai's
+      // idle-worker loop already tasks them. Bounded by city count so a wide empire
+      // does not turn into a worker farm.
+      ...incrementalDemandSeed(
+        'worker',
+        'worker-infrastructure',
+        40,
+        perception.ownUnits.filter(unit =>
+          !unit.transportId && getAIStrategicRoles(unit.type).includes('worker')).length,
+        Math.min(perception.ownCities.length, WORKER_SOFT_CAP),
+      ),
       ...(counterplay ? [{
         ...counterplay.forceDemand,
         desired: 1,
