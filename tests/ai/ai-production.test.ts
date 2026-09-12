@@ -30,6 +30,11 @@ import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getReservedNationalProjectKeys } from '@/systems/national-project-system';
 import { getStrategicArsenal, getStrategicArsenalCapacity, hasManhattanProject } from '@/systems/strategic-arsenal-system';
 import { getCapitalCityId } from '@/systems/capital-system';
+import {
+  cityDistance,
+  isCityCenterTerrain,
+  MIN_CITY_CENTER_DISTANCE,
+} from '@/systems/city-territory-system';
 
 const aggressive: PersonalityTraits = {
   traits: ['aggressive'],
@@ -1184,5 +1189,53 @@ describe('AI carrier deck composition nudging (#582)', () => {
     const candidate = generateAIProductionCandidates(state, 'ai-1', 'city-a', [demand('recon')], aggressive)
       .find(c => c.itemId === 'maritime_patrol_aircraft')!;
     expect(candidate.carrierCompositionScore).toBe(0);
+  });
+});
+
+describe('#1064 production selection invariants', () => {
+  it('enqueues the top-ranked item even when every candidate scores negative', () => {
+    // The score is a RANKING, not a veto. A one-city AI with low production
+    // legitimately has all-negative candidates, and idling is strictly worse --
+    // idling is the production-idle finding this work exists to remove.
+    const state = createNewGame(undefined, 'production-negative-scores', 'small');
+    const civ = state.civilizations['ai-1'];
+    // createNewGame starts every civ cityless (settler + warrior only) -- found one on
+    // a real, legally spaced tile before referencing civ.cities[0].
+    const startingPosition = civ.units.map(id => state.units[id]).find(Boolean)!.position;
+    const home = foundCity(civ.id, startingPosition, state.map, state.idCounters);
+    state.cities[home.id] = home;
+    civ.cities.push(home.id);
+    home.productionQueue = [];
+
+    const next = applyAIProduction(state, civ.id, [], aggressive);
+
+    expect(next.cities[home.id]!.productionQueue.length).toBeGreaterThan(0);
+  });
+
+  it('queues at most one settler empire-wide per round', () => {
+    const state = createNewGame(undefined, 'production-one-settler', 'small');
+    const civ = state.civilizations['ai-1'];
+    // Real, legally spaced tiles: a city whose map tile does not exist breaks the
+    // yield projection every production candidate is priced against.
+    const taken = Object.values(state.cities).map(city => city.position);
+    for (const tile of Object.values(state.map.tiles)) {
+      if (civ.cities.length >= 4) break;
+      if (!isCityCenterTerrain(tile.terrain)) continue;
+      if (taken.some(p => cityDistance(tile.coord, p, state.map) < MIN_CITY_CENTER_DISTANCE)) continue;
+      const city = foundCity(civ.id, tile.coord, state.map, state.idCounters);
+      state.cities[city.id] = city;
+      civ.cities.push(city.id);
+      taken.push(tile.coord);
+    }
+    for (const cityId of civ.cities) state.cities[cityId]!.productionQueue = [];
+
+    const next = applyAIProduction(state, civ.id, [{
+      role: 'settlement', desired: 1, assigned: 0, missing: 1,
+      priority: 90, sourcePlanIds: ['objective-readiness'],
+    }], aggressive);
+    const settlers = civ.cities
+      .filter(cityId => next.cities[cityId]?.productionQueue[0] === 'settler');
+
+    expect(settlers).toHaveLength(1);
   });
 });
