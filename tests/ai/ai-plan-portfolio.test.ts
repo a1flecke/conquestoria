@@ -326,3 +326,78 @@ describe('major-civilization plan portfolios', () => {
     expect(result.portfolio.primaryPlan?.target.kind).not.toBe('region');
   });
 });
+
+describe('#1064 settle-plan stability', () => {
+  // Named to avoid shadowing this file's module-level `candidate` helper, which
+  // builds a capture candidate.
+  const settlePlan = (anchor: { q: number; r: number }, createdTurn: number) => ({
+    id: `ai-plan:ai-1:expand:region:settle:${anchor.q},${anchor.r}:${createdTurn}`,
+    actorId: 'ai-1',
+    objective: 'expand' as const,
+    target: { kind: 'region' as const, id: `settle:${anchor.q},${anchor.r}`, anchor },
+    theaterId: `local:${anchor.q},${anchor.r}`,
+    phase: 'advancing' as const,
+    reasonCodes: ['nearby-opportunity' as const],
+    commitment: 0.25,
+    createdTurn,
+    reconsiderAfterTurn: createdTurn + 3,
+    expiresAfterTurn: createdTurn + 12,
+    lastProgressTurn: createdTurn + 2,
+    requiredRoles: { settlement: 1 },
+    assignedUnitIds: ['settler-1'],
+  });
+
+  const expandCandidate = (anchor: { q: number; r: number }, score: number) => ({
+    objective: 'expand' as const,
+    target: { kind: 'region' as const, id: `settle:${anchor.q},${anchor.r}`, anchor },
+    theaterId: `local:${anchor.q},${anchor.r}`,
+    score,
+    reasonCodes: ['nearby-opportunity' as const],
+    requiredRoles: { settlement: 1 },
+    commitment: 0.25,
+    targetValid: true,
+    reasonValid: true,
+    expectedLossRatio: 0,
+    progress: false,
+  });
+
+  it('keeps the incumbent site when a rival site is only marginally better', () => {
+    const current = settlePlan({ q: 6, r: 0 }, 10);
+    const result = refreshMajorCivPortfolio({
+      actorId: 'ai-1',
+      turn: 12,
+      actorEliminated: false,
+      portfolio: { ...createEmptyMajorCivPortfolio(), primaryPlan: current },
+      // +5 is well inside switchingBonus (10 + 20 * 0.25 = 15).
+      candidates: [expandCandidate({ q: 6, r: 0 }, 40), expandCandidate({ q: 9, r: 3 }, 45)],
+      cityThreats: [],
+      modernization: {
+        bestTrainableStrength: 10, deployedStrength: 10, actorEra: 1, globalEra: 1,
+        knownRivalMaxStrength: 0, obsoleteUnitShare: 0, treasuryCanAct: true,
+      },
+    });
+
+    expect(result.portfolio.primaryPlan?.target).toMatchObject({ id: 'settle:6,0' });
+  });
+
+  it('drops the plan when its site stops qualifying', () => {
+    // Someone founded nearby, so the site no longer produces a candidate. Note
+    // targetStillValid alone does NOT catch this -- for a region target it only checks
+    // that the tile exists -- so the candidate-driven path is what does the work.
+    const current = settlePlan({ q: 6, r: 0 }, 10);
+    const result = refreshMajorCivPortfolio({
+      actorId: 'ai-1',
+      turn: 12,
+      actorEliminated: false,
+      portfolio: { ...createEmptyMajorCivPortfolio(), primaryPlan: current },
+      candidates: [expandCandidate({ q: 12, r: 4 }, 30)],
+      cityThreats: [],
+      modernization: {
+        bestTrainableStrength: 10, deployedStrength: 10, actorEra: 1, globalEra: 1,
+        knownRivalMaxStrength: 0, obsoleteUnitShare: 0, treasuryCanAct: true,
+      },
+    });
+
+    expect(result.portfolio.primaryPlan?.target).toMatchObject({ id: 'settle:12,4' });
+  });
+});
