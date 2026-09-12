@@ -236,6 +236,66 @@ describe('check-src-rule-violations.sh', () => {
     });
   });
 
+  describe('#1003 single-side treaty mutation rule', () => {
+    it('blocks single-side signTreaty() outside diplomacy-system', () => {
+      const workspace = makeWorkspace();
+      writeWorkspaceFile(
+        workspace,
+        'src/ai/treaty-planner.ts',
+        [
+          'export function propose(state: GameState, a: string, b: string): DiplomacyState {',
+          "  return signTreaty(state.civilizations[a].diplomacy, a, b, 'alliance', -1, state.turn);",
+          '}',
+        ].join('\n'),
+      );
+
+      const result = runScript(workspace, 'src/ai/treaty-planner.ts');
+
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain('Single-side signTreaty() outside diplomacy-system');
+    });
+
+    it('allows signTreaty() inside diplomacy-system.ts (commitTreatyAgreement)', () => {
+      const workspace = makeWorkspace();
+      writeWorkspaceFile(
+        workspace,
+        'src/systems/diplomacy-system.ts',
+        [
+          'export function commitTreatyAgreement(state: GameState, civAId: string, civBId: string, type: TreatyType, bus: EventBus): GameState {',
+          '  const aState = signTreaty(civA.diplomacy, civAId, civBId, type, turns, state.turn, cap);',
+          '  const bState = signTreaty(civB.diplomacy, civBId, civAId, type, turns, state.turn, cap);',
+          '  return state;',
+          '}',
+        ].join('\n'),
+      );
+
+      const result = runScript(workspace, 'src/systems/diplomacy-system.ts');
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe('');
+    });
+
+    it('allows signTreaty() inside the #846 scenario builder', () => {
+      const workspace = makeWorkspace();
+      writeWorkspaceFile(
+        workspace,
+        'src/testing/scenario-steps/diplomacy-step.ts',
+        [
+          'export function applyDiplomacyStep(state: GameState, step: DiplomacyStep): GameState {',
+          "  civA.diplomacy = signTreaty(civA.diplomacy, step.civA, step.civB, 'alliance', -1, state.turn);",
+          "  civB.diplomacy = signTreaty(civB.diplomacy, step.civB, step.civA, 'alliance', -1, state.turn);",
+          '  return state;',
+          '}',
+        ].join('\n'),
+      );
+
+      const result = runScript(workspace, 'src/testing/scenario-steps/diplomacy-step.ts');
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe('');
+    });
+  });
+
   describe('#985 domination authority boundaries', () => {
     it('blocks UI and AI imports of the authoritative domination adapter', () => {
       const workspace = makeWorkspace();

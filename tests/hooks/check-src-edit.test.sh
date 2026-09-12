@@ -152,6 +152,35 @@ nextMinor.diplomacy = makePeace(nextMinor.diplomacy, majorCivId, state.turn);
 EOF
 expect_allow "$tmp/src/systems/minor-civ-actions.ts" "single-side forms allowed in minor-civ-actions.ts"
 
+# --- #1003: block single-side signTreaty() outside diplomacy-system ---
+cat > "$tmp/src/ai/treaty-planner.ts" <<'EOF'
+export function propose(state, a, b) {
+  return signTreaty(state.civilizations[a].diplomacy, a, b, 'alliance', -1, state.turn);
+}
+EOF
+expect_block "$tmp/src/ai/treaty-planner.ts" "single-side signTreaty outside diplomacy-system"
+
+# --- #1003: allow signTreaty() inside diplomacy-system.ts (commitTreatyAgreement) ---
+cat > "$tmp/src/systems/diplomacy-system.ts" <<'EOF'
+export function commitTreatyAgreement(state, civAId, civBId, type, bus) {
+  const aState = signTreaty(civA.diplomacy, civAId, civBId, type, turns, state.turn, cap);
+  const bState = signTreaty(civB.diplomacy, civBId, civAId, type, turns, state.turn, cap);
+  return state;
+}
+EOF
+expect_allow "$tmp/src/systems/diplomacy-system.ts" "signTreaty allowed inside diplomacy-system.ts"
+
+# --- #1003: allow signTreaty() inside the #846 scenario builder ---
+mkdir -p "$tmp/src/testing/scenario-steps"
+cat > "$tmp/src/testing/scenario-steps/diplomacy-step.ts" <<'EOF'
+export function applyDiplomacyStep(state, step) {
+  civA.diplomacy = signTreaty(civA.diplomacy, step.civA, step.civB, 'alliance', -1, state.turn);
+  civB.diplomacy = signTreaty(civB.diplomacy, step.civB, step.civA, 'alliance', -1, state.turn);
+  return state;
+}
+EOF
+expect_allow "$tmp/src/testing/scenario-steps/diplomacy-step.ts" "signTreaty allowed inside the scenario builder"
+
 # --- allow: clean src file ---
 cat > "$tmp/src/systems/clean.ts" <<'EOF'
 export function add(a: number, b: number): number { return a + b; }
