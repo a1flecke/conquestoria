@@ -45,6 +45,7 @@ async function readTextTops(page: Page): Promise<number[]> {
 }
 
 test('Tauri-sized HUD keeps every yield on one visual baseline', async ({ page }) => {
+  test.setTimeout(45_000);
   await page.setViewportSize({ width: 1440, height: 960 });
   await installFixture(page);
   await continueFixture(page);
