@@ -20,7 +20,7 @@
     "test:manifest": "yarn vitest list --filesOnly",
     "test:manifest:regular": "sh scripts/run-tests-by-local-tier.sh regular --list-files",
     "test:manifest:intensive-simulations": "sh scripts/run-tests-by-local-tier.sh intensive-simulations --list-files",
-    "test:profile:default": "mkdir -p .verification/ci-shard-profile && yarn vitest run --reporter=default --reporter=json --outputFile.json=.verification/ci-shard-profile/vitest.json",
+    "test:profile:default": "mkdir -p .verification/ci-shard-profile && CI_SHARD_PROFILE=1 yarn vitest run --reporter=default --reporter=json --outputFile.json=.verification/ci-shard-profile/vitest.json",
     "test:ci-shards:allocate": "mkdir -p .verification/ci-shard-profile && yarn test:manifest > .verification/ci-shard-profile/default-manifest.txt && node scripts/collect-vitest-file-timings.mjs --input .verification/ci-shard-profile/vitest.json --output .verification/ci-shard-profile/timings.json --repo-root . && node scripts/allocate-ci-test-shards.mjs --default-manifest .verification/ci-shard-profile/default-manifest.txt --timings .verification/ci-shard-profile/timings.json --output scripts/ci-test-shards.json",
     "test:ci:shard-a": "node scripts/run-ci-test-shard.mjs --shard test-suite-shard-a",
     "test:ci:shard-b": "node scripts/run-ci-test-shard.mjs --shard test-suite-shard-b",

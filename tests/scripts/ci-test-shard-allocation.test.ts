@@ -61,6 +61,26 @@ describe('#1075 Vitest file-timing ingestion', () => {
     });
   });
 
+  it('keeps an intentionally skipped file in a successful timing profile', () => {
+    const directory = workspace();
+    const input = join(directory, 'vitest.json');
+    const output = join(directory, 'timings.json');
+    writeJson(input, {
+      success: true,
+      testResults: [
+        { name: 'tests/scripts/ci-test-shard-selection.test.ts', status: 'skipped', startTime: 100, endTime: 105 },
+      ],
+    });
+
+    const result = run(COLLECT_TIMINGS, [
+      '--input', input, '--output', output, '--repo-root', REPO_ROOT,
+    ]);
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(readFileSync(output, 'utf8')).files)
+      .toEqual({ 'tests/scripts/ci-test-shard-selection.test.ts': 5 });
+  });
+
   it.each([
     ['failed reporter run', { success: false, testResults: [] }, 'reporter did not succeed'],
     ['failed file', {
