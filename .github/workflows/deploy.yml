@@ -1,6 +1,7 @@
 name: CI/CD
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
   pull_request:
@@ -45,23 +46,24 @@ jobs:
         id: desktop-changes
         shell: bash
         run: |
-          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+          if [[ "${{ github.event_name }}" == 'workflow_dispatch' ]]; then
             echo "desktop_changed=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.sha }}")"
-          desktop_changed=false
+          if [[ "${{ github.event_name }}" == 'pull_request' ]]; then
+            base_sha='${{ github.event.pull_request.base.sha }}'
+          else
+            base_sha='${{ github.event.before }}'
+          fi
 
-          while IFS= read -r file; do
-            case "$file" in
-              src-tauri/*|src-tauri/**|package.json|yarn.lock|.yarnrc.yml|.yarn/**|.github/workflows/deploy.yml)
-                desktop_changed=true
-                break
-                ;;
-            esac
-          done <<< "$changed_files"
+          if [[ "$base_sha" == '0000000000000000000000000000000000000000' ]]; then
+            echo "desktop_changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
 
+          changed_files="$(git diff --name-only "$base_sha" "${{ github.sha }}")"
+          desktop_changed="$(printf '%s\n' "$changed_files" | node scripts/desktop-build-inputs.mjs)"
           echo "desktop_changed=$desktop_changed" >> "$GITHUB_OUTPUT"
 
   web-build:
@@ -103,7 +105,7 @@ jobs:
   test-suite-shard-a:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
@@ -146,7 +148,7 @@ jobs:
   test-suite-shard-b:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
@@ -189,7 +191,7 @@ jobs:
   test-suite-shard-c:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
@@ -232,7 +234,7 @@ jobs:
   hooks:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
@@ -323,7 +325,7 @@ jobs:
 
   web-smoke:
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
@@ -367,7 +369,7 @@ jobs:
 
   tauri-frontend-build:
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
@@ -392,7 +394,7 @@ jobs:
   tauri-macos-build:
     runs-on: macos-latest
     needs: desktop-change-check
-    if: github.ref == 'refs/heads/main' || needs.desktop-change-check.outputs.desktop_changed == 'true'
+    if: needs.desktop-change-check.outputs.desktop_changed == 'true'
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:

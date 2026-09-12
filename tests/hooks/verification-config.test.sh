@@ -17,6 +17,42 @@ grep -Fq '"verify:pr:status": "sh scripts/read-pr-verification-result.sh"' "$ROO
   echo "package.json does not expose the PR verification status reader"
   exit 1
 }
+grep -Eq '^  workflow_dispatch:$' "$ROOT/.github/workflows/deploy.yml" || {
+  echo "GitHub workflow has no manual validation trigger"
+  exit 1
+}
+
+desktop_change_check_job="$(
+  sed -n '/^  desktop-change-check:/,/^  web-build:/p' "$ROOT/.github/workflows/deploy.yml"
+)"
+printf '%s' "$desktop_change_check_job" | grep -Fq 'node scripts/desktop-build-inputs.mjs' || {
+  echo "Desktop change check does not use the canonical path classifier"
+  exit 1
+}
+printf '%s' "$desktop_change_check_job" | grep -Fq 'github.event.pull_request.base.sha' || {
+  echo "Desktop change check does not compare pull requests to their base SHA"
+  exit 1
+}
+printf '%s' "$desktop_change_check_job" | grep -Fq 'github.event.before' || {
+  echo "Desktop change check does not compare pushes to their previous SHA"
+  exit 1
+}
+printf '%s' "$desktop_change_check_job" | grep -Fq "if [[ \"\${{ github.event_name }}\" == 'workflow_dispatch' ]]; then" || {
+  echo "Desktop change check does not force manual macOS validation"
+  exit 1
+}
+printf '%s' "$desktop_change_check_job" | grep -Fq "if [[ \"\${{ github.event_name }}\" == 'pull_request' ]]; then" || {
+  echo "Desktop change check does not select a pull-request diff"
+  exit 1
+}
+printf '%s' "$desktop_change_check_job" | grep -Fq '0000000000000000000000000000000000000000' || {
+  echo "Desktop change check does not fail closed for a missing push base SHA"
+  exit 1
+}
+if printf '%s' "$desktop_change_check_job" | grep -Fq '.github/workflows/deploy.yml'; then
+  echo "Desktop change check treats workflow-only changes as macOS build inputs"
+  exit 1
+fi
 
 test_suite_shard_a_job="$(
   sed -n '/^  test-suite-shard-a:/,/^  test-suite-shard-b:/p' "$ROOT/.github/workflows/deploy.yml"
@@ -49,6 +85,10 @@ if printf '%s' "$test_suite_shard_a_job" | grep -Eq 'verify:push|yarn build|test
   echo "GitHub test suite shard A rebuilds, invokes the local verifier, or duplicates hooks"
   exit 1
 fi
+printf '%s' "$test_suite_shard_a_job" | grep -Fq "github.event_name == 'workflow_dispatch'" || {
+  echo "GitHub test suite shard A cannot run during manual validation"
+  exit 1
+}
 
 test_suite_shard_b_job="$(
   sed -n '/^  test-suite-shard-b:/,/^  test-suite-shard-c:/p' "$ROOT/.github/workflows/deploy.yml"
@@ -77,6 +117,10 @@ if printf '%s' "$test_suite_shard_b_job" | grep -Eq 'verify:push|yarn build|test
   echo "GitHub test suite shard B rebuilds, invokes the local verifier, or duplicates hooks"
   exit 1
 fi
+printf '%s' "$test_suite_shard_b_job" | grep -Fq "github.event_name == 'workflow_dispatch'" || {
+  echo "GitHub test suite shard B cannot run during manual validation"
+  exit 1
+}
 
 test_suite_shard_c_job="$(
   sed -n '/^  test-suite-shard-c:/,/^  hooks:/p' "$ROOT/.github/workflows/deploy.yml"
@@ -105,6 +149,10 @@ if printf '%s' "$test_suite_shard_c_job" | grep -Eq 'verify:push|yarn build|test
   echo "GitHub test suite shard C rebuilds, invokes the local verifier, or duplicates hooks"
   exit 1
 fi
+printf '%s' "$test_suite_shard_c_job" | grep -Fq "github.event_name == 'workflow_dispatch'" || {
+  echo "GitHub test suite shard C cannot run during manual validation"
+  exit 1
+}
 
 hooks_job="$(
   sed -n '/^  hooks:/,/^  pirate-audio-reproducibility:/p' "$ROOT/.github/workflows/deploy.yml"
@@ -115,6 +163,10 @@ printf '%s' "$hooks_job" | grep -Fq -- '-- yarn test:hooks' || {
 }
 printf '%s' "$hooks_job" | grep -Fq 'ci-record-phase-timing.mjs --output artifacts/ci-timing/hooks.json --phase hooks' || {
   echo "GitHub hooks job does not record its phase timing"
+  exit 1
+}
+printf '%s' "$hooks_job" | grep -Fq "github.event_name == 'workflow_dispatch'" || {
+  echo "GitHub hooks job cannot run during manual validation"
   exit 1
 }
 
@@ -159,6 +211,14 @@ printf '%s' "$merge_gate_job" | grep -Fq -- '- test-suite-shard-b' || {
 }
 printf '%s' "$merge_gate_job" | grep -Fq -- '- test-suite-shard-c' || {
   echo "GitHub merge gate does not require test suite shard C"
+  exit 1
+}
+printf '%s' "$merge_gate_job" | grep -Fq -- '- desktop-change-check' || {
+  echo "GitHub merge gate does not require the desktop input check"
+  exit 1
+}
+printf '%s' "$merge_gate_job" | grep -Fq -- '- tauri-macos-build' || {
+  echo "GitHub merge gate does not require the conditional macOS build"
   exit 1
 }
 
@@ -213,6 +273,30 @@ printf '%s' "$web_smoke_job" | grep -Fq 'retention-days: 14' || {
   echo "GitHub web smoke artifacts have no bounded retention"
   exit 1
 }
+printf '%s' "$web_smoke_job" | grep -Fq "github.event_name == 'workflow_dispatch'" || {
+  echo "GitHub web smoke job cannot run during manual validation"
+  exit 1
+}
+
+tauri_frontend_build_job="$(
+  sed -n '/^  tauri-frontend-build:/,/^  tauri-macos-build:/p' "$ROOT/.github/workflows/deploy.yml"
+)"
+printf '%s' "$tauri_frontend_build_job" | grep -Fq "github.event_name == 'workflow_dispatch'" || {
+  echo "GitHub Tauri frontend build cannot run during manual validation"
+  exit 1
+}
+
+tauri_macos_build_job="$(
+  sed -n '/^  tauri-macos-build:/,/^  merge-gate:/p' "$ROOT/.github/workflows/deploy.yml"
+)"
+printf '%s' "$tauri_macos_build_job" | grep -Fq "if: needs.desktop-change-check.outputs.desktop_changed == 'true'" || {
+  echo "GitHub macOS build does not depend solely on desktop-risk inputs"
+  exit 1
+}
+if printf '%s' "$tauri_macos_build_job" | grep -Fq "github.ref == 'refs/heads/main' ||"; then
+  echo "GitHub macOS build bypasses desktop-risk input detection on main"
+  exit 1
+fi
 
 grep -Fq 'VITEST_MAX_WORKERS' "$ROOT/vite.config.ts" || {
   echo "Vitest worker count cannot be overridden with the official environment variable"
