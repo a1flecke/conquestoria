@@ -1,4 +1,4 @@
-import type { City, GameEvents, GameMap, GameState, HexCoord, TerritoryFrontierState } from '@/core/types';
+import type { City, GameEvents, GameMap, GameState, HexCoord, TerrainType, TerritoryFrontierState } from '@/core/types';
 import { BUILDINGS } from './city-system';
 import { hexDistance, hexesInRange, hexKey, wrapHexCoord, wrappedHexDistance } from './hex-utils';
 
@@ -478,9 +478,18 @@ export function processTerritoryFrontiers(state: GameState): GameState {
   );
 }
 
+/**
+ * May a city centre stand on this terrain? The single definition of that rule.
+ * Imported by the AI's fog-bounded expansion-site belief layer
+ * (`src/ai/ai-expansion-sites.ts`) so belief and legality cannot drift apart.
+ */
+export function isCityCenterTerrain(terrain: TerrainType): boolean {
+  return terrain !== 'ocean' && terrain !== 'coast' && terrain !== 'mountain';
+}
+
 function isValidCityCenterTerrain(state: GameState, position: HexCoord): boolean {
   const tile = state.map.tiles[hexKey(canonicalizeCityCoord(position, state.map))];
-  return Boolean(tile && tile.terrain !== 'ocean' && tile.terrain !== 'coast' && tile.terrain !== 'mountain');
+  return Boolean(tile && isCityCenterTerrain(tile.terrain));
 }
 
 export function getCityFoundingBlockers(

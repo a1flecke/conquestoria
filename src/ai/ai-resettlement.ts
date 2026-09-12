@@ -1,7 +1,7 @@
 import type { EventBus } from '@/core/event-bus';
 import type { GameMap, GameState, HexCoord, Unit } from '@/core/types';
 import { foundCityInState } from '@/systems/city-founding-system';
-import { canFoundCityAt } from '@/systems/city-territory-system';
+import { canFoundCityAt, isCityCenterTerrain } from '@/systems/city-territory-system';
 import { getVisibility } from '@/systems/fog-of-war';
 import { hexKey } from '@/systems/hex-utils';
 import { getUnloadDestinations, unloadUnitFromTransport } from '@/systems/transport-system';
@@ -11,10 +11,6 @@ import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 
 function sameCoord(left: HexCoord, right: HexCoord): boolean {
   return left.q === right.q && left.r === right.r;
-}
-
-function isFoundingTerrain(terrain: string): boolean {
-  return terrain !== 'ocean' && terrain !== 'coast' && terrain !== 'mountain';
 }
 
 function planningMap(state: GameState, civId: string, settler: Unit): GameMap {
@@ -27,7 +23,7 @@ function planningMap(state: GameState, civId: string, settler: Unit): GameMap {
 function visibleFoundingSites(state: GameState, civId: string, settler: Unit): HexCoord[] {
   const map = planningMap(state, civId, settler);
   return Object.values(map.tiles)
-    .filter(tile => isFoundingTerrain(tile.terrain) && !sameCoord(tile.coord, settler.position))
+    .filter(tile => isCityCenterTerrain(tile.terrain) && !sameCoord(tile.coord, settler.position))
     .map(tile => tile.coord)
     .sort((left, right) => hexKey(left).localeCompare(hexKey(right)));
 }
