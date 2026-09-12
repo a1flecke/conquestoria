@@ -53,8 +53,8 @@ run_hook "{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"cd $tmpdir && gi
   echo "Claude push gate did not invoke the canonical verifier"
   exit 1
 }
-grep -q -- '--fast' "$args_log" || {
-  echo "Claude push gate did not invoke the canonical verifier with --fast (#608)"
+grep -q -- '--regular' "$args_log" || {
+  echo "Claude push gate did not invoke the canonical verifier with --regular (#608)"
   exit 1
 }
 

@@ -73,7 +73,7 @@ describe('#1005 long-horizon suite isolation', () => {
     const explicitFiles = [
       'package.json',
       'scripts/run-test-suite.sh',
-      'scripts/run-tests-by-tier.sh',
+      'scripts/run-tests-by-local-tier.sh',
       'scripts/verify-before-push.sh',
       'scripts/verify-pr.sh',
       'scripts/run-durable-test-suite.sh',
