@@ -8,7 +8,7 @@
 
 **Tech Stack:** GitHub Actions, Node.js ESM scripts, Yarn, Vitest JSON reporter, shell workflow-contract tests.
 
-**Status:** 🟡 Tasks 1–3 and Task 4's guidance update are complete locally. Direct A execution completed without a recoverable exit status and is therefore inconclusive; all four manifest commands, focused contracts, final build, and durable full-suite evidence remain required before PR creation. GitHub candidate measurement has not started.
+**Status:** 🟡 Tasks 1–4 are complete locally at `2095363728aa4ae02e32801b9906afc2bc8b7066`. Direct A execution completed without a recoverable exit status and is therefore inconclusive; all four manifest commands, focused contracts, production build, and durable full-suite status passed. GitHub candidate measurement has not started.
 
 ---
 
@@ -83,7 +83,7 @@ After Task 2 writes D, run:
 
 Expected: PASS; all four runner invocations list the exact arrays stored in the manifest and their union equals live default discovery.
 
-- [ ] **Step 5: Commit the runner contract with its manifest**
+- [x] **Step 5: Commit the runner contract with its manifest**
 
 ```bash
 git add scripts/run-ci-test-shard.mjs package.json scripts/ci-test-shards.json tests/scripts/ci-test-shard-selection.test.ts
@@ -202,7 +202,7 @@ Run:
 
 Expected: PASS. A missing, skipped, cancelled, or failed D result causes `merge-gate` to reject the workflow.
 
-- [ ] **Step 5: Commit the workflow gate**
+- [x] **Step 5: Commit the workflow gate**
 
 ```bash
 git add .github/workflows/deploy.yml scripts/verify-merge-gate.mjs tests/scripts/verify-merge-gate.test.ts tests/hooks/verification-config.test.sh
@@ -236,7 +236,7 @@ Run separately:
 
 Expected: each exits zero. Together, the four execution commands cover the complete default suite exactly once.
 
-- [ ] **Step 3: Run final bounded verification and inspect both deltas**
+- [x] **Step 3: Run final bounded verification and inspect both deltas**
 
 Run separately:
 
@@ -253,7 +253,7 @@ git diff
 
 Expected: build and durable status pass for the current commit and working tree; no whitespace errors; committed and uncommitted source/configuration deltas are reviewed.
 
-- [ ] **Step 4: Update this plan honestly and commit guidance**
+- [x] **Step 4: Update this plan honestly and commit guidance**
 
 Tick only verified completed steps. Before the PR is created, keep Task 5 unchecked; after a merge, add `✅ merged (#PR)` status without claiming measurements that have not run. Commit:
 
