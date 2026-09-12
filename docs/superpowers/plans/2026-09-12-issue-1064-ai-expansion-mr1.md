@@ -123,14 +123,20 @@ existing import block from `@/systems/city-territory-system`, and add
 
 ```ts
 describe('isCityCenterTerrain', () => {
-  // Enumerated exhaustively on purpose: a newly added TerrainType fails this test
-  // until someone decides which side of the founding rule it belongs on.
-  const ALL_TERRAIN: TerrainType[] = [
+  const ALL_TERRAIN = [
     'grassland', 'plains', 'desert', 'tundra', 'snow',
     'forest', 'hills', 'mountain', 'ocean', 'coast',
     'jungle', 'swamp', 'volcanic',
-  ];
-  const BLOCKED: TerrainType[] = ['ocean', 'coast', 'mountain'];
+  ] as const satisfies readonly TerrainType[];
+
+  // COMPILE-TIME exhaustiveness. A hardcoded array alone would silently keep
+  // passing when a TerrainType is added; this makes `yarn build` fail until the
+  // new terrain is listed and someone decides which side of the rule it is on.
+  type UncoveredTerrain = Exclude<TerrainType, typeof ALL_TERRAIN[number]>;
+  const _allTerrainCovered: UncoveredTerrain extends never ? true : never = true;
+  void _allTerrainCovered;
+
+  const BLOCKED: readonly TerrainType[] = ['ocean', 'coast', 'mountain'];
 
   it.each(ALL_TERRAIN)('classifies %s', terrain => {
     expect(isCityCenterTerrain(terrain)).toBe(!BLOCKED.includes(terrain));
@@ -792,28 +798,51 @@ describe('#1064 bounded force demands', () => {
     expect(demand?.desired ?? 0).toBeLessThanOrEqual(WORKER_SOFT_CAP);
   });
 
-  it('satisfies an objective-readiness demand once the civilization owns one such unit', () => {
-    const state = createNewGame(undefined, 'demand-readiness-owned', 'small');
+  it('re-opens a readiness demand only while the civilization owns no unit of that role', () => {
+    // This MUST be built so a readiness demand is guaranteed to exist. A peaceful
+    // fresh civ often produces no objective candidates at all, in which case
+    // `choice.demands` is empty and a filter-then-assert test passes vacuously
+    // while proving nothing.
+    const state = createNewGame(undefined, 'demand-readiness-frontline', 'small');
     const civ = state.civilizations['ai-1'];
-    const home = state.cities[civ.cities[0]!]!;
-    const scout = createUnit('scout', civ.id, home.position, state.idCounters);
-    state.units[scout.id] = scout;
-    civ.units.push(scout.id);
-
-    const readiness = prepareMajorCivStrategicPlan(state, civ.id).forceDemands
-      .filter(entry => entry.sourcePlanIds.includes('objective-readiness'));
-
-    // Every readiness demand is a bootstrap ("I own zero of R"), so owning one
-    // satisfies it. It must never re-open every turn.
-    for (const demand of readiness) {
-      expect(demand.missing).toBeLessThanOrEqual(1);
+    civ.knownCivilizations = ['player'];
+    civ.diplomacy.atWarWith = ['player'];
+    // Reveal the enemy capital so a capture candidate (frontline + capture) exists.
+    const enemyCity = state.cities[state.civilizations.player.cities[0]!]!;
+    for (const coord of mapHexesInRange(state.map, enemyCity.position, 2)) {
+      civ.visibility.tiles[hexKey(coord)] = 'visible';
     }
-    expect(readiness.every(demand => demand.desired <= demand.assigned + 1)).toBe(true);
+    // Strip every combat unit so `frontline` is genuinely unowned.
+    for (const unitId of [...civ.units]) {
+      if (UNIT_DEFINITIONS[state.units[unitId]!.type].strength > 0) {
+        delete state.units[unitId];
+        civ.units = civ.units.filter(id => id !== unitId);
+      }
+    }
+
+    const readiness = (demands: ReturnType<typeof prepareMajorCivStrategicPlan>['forceDemands']) =>
+      demands.find(entry =>
+        entry.role === 'frontline' && entry.sourcePlanIds.includes('objective-readiness'));
+
+    const before = readiness(prepareMajorCivStrategicPlan(state, civ.id).forceDemands);
+    // Fails loudly rather than vacuously if the fixture produced no candidate.
+    expect(before?.missing).toBe(1);
+
+    const warrior = createUnit(
+      'warrior', civ.id, state.cities[civ.cities[0]!]!.position, state.idCounters,
+    );
+    state.units[warrior.id] = warrior;
+    civ.units.push(warrior.id);
+
+    const after = readiness(prepareMajorCivStrategicPlan(state, civ.id).forceDemands);
+    expect(after?.missing ?? 0).toBe(0);
   });
 });
 ```
 
-Add `WORKER_SOFT_CAP` to the existing import block from `@/ai/ai-prepared-turn`.
+Add `WORKER_SOFT_CAP` to the existing import block from `@/ai/ai-prepared-turn`, and
+`mapHexesInRange` from `@/systems/hex-utils` plus `UNIT_DEFINITIONS` from
+`@/systems/unit-system` (`createUnit` and `hexKey` are already imported).
 
 Both this test and the soft-cap test in Task 4 need extra cities. Add this helper once,
 near the top of `tests/ai/ai-prepared-turn.test.ts`, and reuse it — cities must sit on
@@ -1028,45 +1057,61 @@ describe('#1064 expand objective candidates', () => {
     expect(demand?.missing ?? 0).toBe(0);
   });
 
-  it('assigns a living settler to the expand plan', () => {
+  it('makes the expand candidate eligible once a settler exists', () => {
+    // Asserted on ELIGIBILITY, not on winning primaryPlan. Whether expand outranks a
+    // resource candidate depends on map scoring, so asserting `primaryPlan.objective
+    // === 'expand'` would be flaky, and wrapping the assertion in an `if` would make
+    // it pass vacuously -- which proves nothing.
     const state = createNewGame(undefined, 'expand-assigns-settler', 'small');
     const civ = state.civilizations['ai-1'];
     const home = state.cities[civ.cities[0]!]!;
+
+    const withoutSettler = prepareMajorCivStrategicPlan(state, civ.id).traces
+      .find(entry => entry.decision === 'objective')
+      ?.candidates.find(entry => entry.id.startsWith('expand:'));
+    expect(withoutSettler?.eligible).toBe(false);
+
     const settler = createUnit('settler', civ.id, home.position, state.idCounters);
     state.units[settler.id] = settler;
     civ.units.push(settler.id);
 
-    const prepared = prepareMajorCivStrategicPlan(state, civ.id);
-    const plan = prepared.portfolio.primaryPlan;
-
-    if (plan?.objective === 'expand') {
-      expect(prepared.assignments.assignmentsByPlanId[plan.id]).toContain(settler.id);
-      expect(plan.requiredRoles).toMatchObject({ settlement: 1 });
-      expect(plan.target.kind).toBe('region');
-    }
+    const withSettler = prepareMajorCivStrategicPlan(state, civ.id).traces
+      .find(entry => entry.decision === 'objective')
+      ?.candidates.find(entry => entry.id.startsWith('expand:'));
+    expect(withSettler?.eligible).toBe(true);
   });
 
-  it('emits at most one expand candidate however many sites qualify', () => {
+  it('emits exactly one expand candidate however many sites qualify', () => {
     const state = createNewGame(undefined, 'expand-single-candidate', 'small');
     const civ = state.civilizations['ai-1'];
 
-    const trace = prepareMajorCivStrategicPlan(state, civ.id).traces
-      .find(entry => entry.decision === 'objective');
-    const expandIds = (trace?.candidates ?? []).filter(candidate =>
-      candidate.id.startsWith('expand:'));
+    const prepared = prepareMajorCivStrategicPlan(state, civ.id);
+    const expandIds = (prepared.traces.find(entry => entry.decision === 'objective')
+      ?.candidates ?? []).filter(candidate => candidate.id.startsWith('expand:'));
 
-    expect(expandIds.length).toBeLessThanOrEqual(1);
+    // `toBe(1)`, never `toBeLessThanOrEqual(1)` -- the latter passes at zero and would
+    // hide a generator that emits nothing at all.
+    //
+    // If this fails with 0, this seed's map has no legal site within
+    // EXPANSION_SEARCH_RADIUS of the capital. Pick a different seed; do NOT relax the
+    // assertion to `<= 1`.
+    expect(expandIds).toHaveLength(1);
   });
 
-  it('keeps the objective trace inside the 12-candidate ceiling', () => {
-    // assertLegalChoices in the long-horizon fixture HARD THROWS above 12.
+  it('keeps the objective trace inside the 12-candidate ceiling under load', () => {
+    // assertLegalChoices in the long-horizon fixture HARD THROWS above 12, and the
+    // trace carries EVERY analysed candidate. At peace there are no capture
+    // candidates at all, so a peaceful fixture would pass this trivially -- the civ
+    // must be at war with everyone, with the whole map revealed, to create real load.
     const state = createNewGame(undefined, 'expand-trace-ceiling', 'small');
+    const allCivIds = Object.keys(state.civilizations);
     for (const civ of Object.values(state.civilizations)) {
-      civ.knownCivilizations = Object.keys(state.civilizations).filter(id => id !== civ.id);
+      civ.knownCivilizations = allCivIds.filter(id => id !== civ.id);
+      civ.diplomacy.atWarWith = allCivIds.filter(id => id !== civ.id);
       for (const key of Object.keys(state.map.tiles)) civ.visibility.tiles[key] = 'visible';
     }
 
-    for (const civId of Object.keys(state.civilizations)) {
+    for (const civId of allCivIds) {
       if (state.civilizations[civId]!.isHuman) continue;
       const trace = prepareMajorCivStrategicPlan(state, civId).traces
         .find(entry => entry.decision === 'objective');
@@ -1094,11 +1139,67 @@ describe('#1064 expand objective candidates', () => {
 });
 ```
 
+Also add a deterministic assignment test to `tests/ai/ai-unit-assignment.test.ts`. That
+file drives `assignUnitsToPortfolio` directly with hand-built inputs, so it does not
+depend on map scoring at all:
+
+```ts
+it('#1064 fills a settlement slot with a settler', () => {
+  const plan: AIStrategicPlan = {
+    id: 'expand-plan',
+    actorId: 'ai-1',
+    objective: 'expand',
+    target: { kind: 'region', id: 'settle:6,0', anchor: { q: 6, r: 0 } },
+    theaterId: 'local:6,0',
+    phase: 'mobilizing',
+    reasonCodes: ['nearby-opportunity'],
+    commitment: 0.25,
+    createdTurn: 1,
+    reconsiderAfterTurn: 4,
+    expiresAfterTurn: 13,
+    lastProgressTurn: 1,
+    requiredRoles: { settlement: 1 },
+    assignedUnitIds: [],
+  };
+
+  const result = assignUnitsToPortfolio({
+    portfolio: { ...createEmptyMajorCivPortfolio(), primaryPlan: plan },
+    units: [{
+      id: 'settler-1',
+      type: 'settler',
+      health: 100,
+      experience: 0,
+      embarked: false,
+      activeOtherDuty: false,
+      travelTurnsByPlanId: { 'expand-plan': 3 },
+    }],
+    profile: { maxPrimaryForce: 6, retreatHealthPercent: 40 },
+    defenseThreatScoreByPlanId: {},
+    eliminationDefensePlanIds: [],
+    onlyImmediateDefenderUnitIds: [],
+    requiresEmbarkationByPlanId: {},
+  });
+
+  expect(result.assignmentsByPlanId['expand-plan']).toEqual(['settler-1']);
+  expect(result.forceDemands.find(entry => entry.role === 'settlement')?.missing).toBe(0);
+});
+```
+
+Match that file's existing import and fixture style rather than adding a new one.
+
 - [ ] **Step 2: Run the tests and verify they fail**
 
-Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ai/ai-prepared-turn.test.ts -t "#1064 expand objective candidates"`
+Run:
+```bash
+bash scripts/run-with-mise.sh yarn vitest run tests/ai/ai-prepared-turn.test.ts -t "#1064 expand objective candidates"
+bash scripts/run-with-mise.sh yarn vitest run tests/ai/ai-unit-assignment.test.ts -t "#1064"
+```
 
-Expected: FAIL — no `settlement` demand exists, so the first test's `demand` is `undefined`.
+Expected: the `ai-prepared-turn` tests FAIL — no `settlement` demand exists, so the first
+test's `demand` is `undefined`. The `ai-unit-assignment` test should **already PASS**:
+`settlement` is in `ROLE_ORDER` and `roleFit('settler', 'settlement')` is 1, so assignment
+already works. It is a regression pin, not new behaviour. If it fails, stop — the plan's
+premise that assignment needs no change is wrong.
 
 - [ ] **Step 3: Add the parameter and the generator**
 
@@ -1220,6 +1321,20 @@ Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ai/ai-prepared-turn.te
 
 Expected: PASS, all three files.
 
+**If the 12-candidate ceiling test fails**, work through this in order — do **not** raise
+the fixture's limit:
+
+1. Confirm exactly one expand candidate is reaching the trace (the previous test). If
+   more than one is, Step 4's filter is wrong.
+2. If exactly one is and the total is still 13+, reduce `EXPANSION_SITE_SHORTLIST` to `1`
+   so the resolver never sees more than one expand input, and re-run.
+3. If it is still over with zero expand candidates in the trace, the cause is the
+   pre-existing capture + resource count (each sliced to 8 independently,
+   `ai-objective-scoring.ts:156`), not expansion. Stop and report
+   `DESIGN ESCALATION REQUIRED`: the ceiling was already at its limit on `main`, and
+   deciding whether to tighten the per-objective slice is a design call, not an
+   implementation one.
+
 - [ ] **Step 7: Type-check**
 
 Run: `bash scripts/run-with-mise.sh yarn build`
@@ -1272,13 +1387,14 @@ describe('#1064 non-offensive plan phase', () => {
     state.units[settler.id] = settler;
     civ.units.push(settler.id);
     state.turn = 30;
+    const anchor = distantLandTile(state, MIN_CITY_CENTER_DISTANCE);
 
     const plan: AIStrategicPlan = {
       id: 'expand-plan',
       actorId: civ.id,
       objective: 'expand',
-      target: { kind: 'region', id: 'settle:6,0', anchor: { q: 6, r: 0 } },
-      theaterId: 'local:6,0',
+      target: { kind: 'region', id: `settle:${hexKey(anchor)}`, anchor },
+      theaterId: `local:${hexKey(anchor)}`,
       phase: 'mobilizing',
       reasonCodes: ['nearby-opportunity'],
       commitment: 0.25,
@@ -1290,7 +1406,7 @@ describe('#1064 non-offensive plan phase', () => {
       assignedUnitIds: [settler.id],
     };
 
-    expect(resolveNextPlanPhaseForTest(
+    expect(nextPlanPhase(
       state, plan, [settler.id], [], buildMajorCivPerception(state, civ.id),
     )).toBe('advancing');
   });
@@ -1303,13 +1419,14 @@ describe('#1064 non-offensive plan phase', () => {
     state.units[worker.id] = worker;
     civ.units.push(worker.id);
     state.turn = 30;
+    const anchor = distantLandTile(state, MIN_CITY_CENTER_DISTANCE);
 
     const plan: AIStrategicPlan = {
       id: 'capture-plan',
       actorId: civ.id,
       objective: 'capture',
-      target: { kind: 'region', id: 'raid:6,0', anchor: { q: 6, r: 0 } },
-      theaterId: 'local:6,0',
+      target: { kind: 'region', id: `raid:${hexKey(anchor)}`, anchor },
+      theaterId: `local:${hexKey(anchor)}`,
       phase: 'mobilizing',
       reasonCodes: ['continue-active-war'],
       commitment: 0.5,
@@ -1321,48 +1438,61 @@ describe('#1064 non-offensive plan phase', () => {
       assignedUnitIds: [worker.id],
     };
 
-    expect(resolveNextPlanPhaseForTest(
+    expect(nextPlanPhase(
       state, plan, [worker.id], [], buildMajorCivPerception(state, civ.id),
     )).toBe('mobilizing');
   });
 });
 ```
 
-`nextPlanPhase` is module-private and has no other public entry point. Export a thin test
-seam next to it in `src/ai/ai-major-turn.ts`. It takes the perception as a parameter —
-`ai-major-turn.ts` imports `MajorCivPerception` as a **type only** (line 60), and a test
-seam must not drag a new runtime import into production code:
+`nextPlanPhase` is module-private. It is a **pure function** — same inputs, same phase,
+no state mutation — so the right move is simply to export it under its own name. Do NOT
+add a `…ForTest` wrapper: a test-only export in production code is a smell, and this
+function needs no seam.
+
+In `src/ai/ai-major-turn.ts`, change the declaration at line 720 to:
 
 ```ts
-/** #1064 test seam: `nextPlanPhase` is private and has no other public entry point. */
-export function resolveNextPlanPhaseForTest(
-  after: GameState,
-  plan: AIStrategicPlan,
-  assignedUnitIds: readonly string[],
-  actions: readonly AITacticalAction[],
-  perception: MajorCivPerception,
-): AIStrategicPlan['phase'] {
-  return nextPlanPhase(after, plan, assignedUnitIds, actions, perception);
-}
+export function nextPlanPhase(
 ```
 
-In the test file, build the perception yourself and pass it:
+Leave the body and every existing call site alone.
+
+(Longer term, `ai-major-turn.ts` is 984 lines and does both execution and phase
+resolution; extracting the phase resolver and its helpers into `ai-plan-phase.ts` would
+be the honest SRP split. That is a larger diff than this MR should carry — note it as a
+follow-up, do not do it here.)
+
+The tests import it plus the perception builder:
 
 ```ts
+import { nextPlanPhase } from '@/ai/ai-major-turn';
 import { buildMajorCivPerception } from '@/ai/ai-perception';
-import { resolveNextPlanPhaseForTest } from '@/ai/ai-major-turn';
-```
-
-so both calls become, for example:
-
-```ts
-resolveNextPlanPhaseForTest(
-  state, plan, [settler.id], [], buildMajorCivPerception(state, civ.id),
-)
 ```
 
 Also import `createNewGame`, `createUnit` and the `AIStrategicPlan` type in the test file
 if they are not already there.
+
+**Both plans must target a real map tile.** `targetStillValid` for a `region` target
+checks that the tile exists (`ai-major-turn.ts:611`); an invented coordinate returns
+`abandoned` and the test fails for the wrong reason. Derive it:
+
+```ts
+/** A real land tile at least `minDistance` from every city in the fixture. */
+function distantLandTile(state: GameState, minDistance: number): HexCoord {
+  const cities = Object.values(state.cities).map(city => city.position);
+  const tile = Object.values(state.map.tiles).find(candidate =>
+    isCityCenterTerrain(candidate.terrain)
+    && cities.every(position =>
+      cityDistance(candidate.coord, position, state.map) >= minDistance));
+  if (!tile) throw new Error('fixture has no distant land tile');
+  return tile.coord;
+}
+```
+
+Import `isCityCenterTerrain`, `cityDistance` and `MIN_CITY_CENTER_DISTANCE` from
+`@/systems/city-territory-system`, and `hexKey` from `@/systems/hex-utils` if it is not
+already imported. Both tests above already call this helper — add it before running them.
 
 - [ ] **Step 2: Run the tests and verify the first one fails**
 
@@ -1438,31 +1568,38 @@ describe('#1064 settler movement', () => {
     const state = makeState();
     addCity(state, 'home', AI, { q: 0, r: 0 });            // founding here is now illegal
     const settler = addUnit(state, 'settler-1', 'settler', AI, { q: 0, r: 0 });
+    const anchor = distantLandTile(state, MIN_CITY_CENTER_DISTANCE);
     const plan = makePlan(
-      { kind: 'region', id: 'settle:6,0', anchor: { q: 6, r: 0 } },
+      { kind: 'region', id: `settle:${hexKey(anchor)}`, anchor },
       [settler.id],
       { objective: 'expand', requiredRoles: { settlement: 1 } },
     );
 
     const actions = rankUnitTacticalActions(context(state, plan), settler);
     const move = actions.find(entry => entry.action.kind === 'move');
-    const path = findPath(settler.position, { q: 6, r: 0 }, state.map, 'land', {
+    const path = findPath(settler.position, anchor, state.map, 'land', {
       unit: settler,
       completedTechs: state.civilizations[AI].techState.completed,
     });
 
+    expect(path).not.toBeNull();
     expect(move).toBeDefined();
     expect(move!.action).toMatchObject({ kind: 'move', destination: path![1] });
   });
 
   it('prefers founding over moving when the tile is legal', () => {
     const state = makeState();
-    const settler = addUnit(state, 'settler-1', 'settler', AI, { q: 0, r: 0 });
+    addCity(state, 'home', AI, { q: 0, r: 0 });
+    // Stand the settler ON a legal site rather than assuming the origin is one.
+    const site = distantLandTile(state, MIN_CITY_CENTER_DISTANCE);
+    const settler = addUnit(state, 'settler-1', 'settler', AI, site);
     const plan = makePlan(
-      { kind: 'region', id: 'settle:6,0', anchor: { q: 6, r: 0 } },
+      { kind: 'region', id: `settle:${hexKey(site)}`, anchor: site },
       [settler.id],
       { objective: 'expand', requiredRoles: { settlement: 1 } },
     );
+
+    expect(canFoundCityAt(state, site)).toBe(true);   // guards the premise
 
     const actions = rankUnitTacticalActions(context(state, plan), settler);
 
@@ -1475,6 +1612,7 @@ describe('#1064 settler movement', () => {
     addCity(state, 'home', AI, { q: 0, r: 0 });
     const settler = addUnit(state, 'settler-1', 'settler', AI, { q: 0, r: 0 });
     const plan = makePlan(
+      // Deliberately off-map: findPath returns null, so no action is legal.
       { kind: 'region', id: 'settle:999,999', anchor: { q: 999, r: 999 } },
       [settler.id],
       { objective: 'expand', requiredRoles: { settlement: 1 } },
@@ -1485,14 +1623,27 @@ describe('#1064 settler movement', () => {
 });
 ```
 
-Add `findPath` to the existing `@/systems/unit-system` import in that file if it is not
-already there.
+Coordinates are **derived from the fixture map**, never hardcoded: an invented
+coordinate has no tile, so `findPath` returns `null` and the test fails for the wrong
+reason. Add this helper next to the file's other helpers:
 
-**Before running:** confirm the second test's assumption holds for `makeState`'s map —
-the settler must be standing somewhere `canFoundCityAt` returns `true`. If `makeState`
-places a city at or near the origin, move the settler to a tile at least
-`MIN_CITY_CENTER_DISTANCE` (4) away from every city in that fixture and adjust the plan
-anchor to match. Do not weaken the assertion to accommodate the fixture.
+```ts
+/** A real land tile at least `minDistance` from every city in the fixture. */
+function distantLandTile(state: GameState, minDistance: number): HexCoord {
+  const cities = Object.values(state.cities).map(city => city.position);
+  const tile = Object.values(state.map.tiles).find(candidate =>
+    isCityCenterTerrain(candidate.terrain)
+    && cities.every(position =>
+      cityDistance(candidate.coord, position, state.map) >= minDistance));
+  if (!tile) throw new Error('fixture has no distant land tile');
+  return tile.coord;
+}
+```
+
+Imports this block needs, added to the existing blocks in that file: `findPath` from
+`@/systems/unit-system`, and `canFoundCityAt`, `isCityCenterTerrain`, `cityDistance`,
+`MIN_CITY_CENTER_DISTANCE` from `@/systems/city-territory-system`. `hexKey` is already
+imported.
 
 - [ ] **Step 2: Run the tests and verify they fail**
 
@@ -1882,104 +2033,83 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 # Task 9: Determinism and save/reload continuity
 
+The test goes in **`tests/app/simulation-determinism.test.ts`**, not in an AI test file.
+That is where `freshGame`, `advance` and `saveAndReload` already live, and — critically —
+`advance` drives a **complete** round through `runCompletedRound` (improvements → majors →
+world `processTurn` → postprocess). Driving `processNonHumanMajorRound` alone and bumping
+`state.turn` by hand would exercise planning but never run `processCity`, so no settler
+would ever finish production and a test claiming to cover "a settler mid-walk" would in
+fact cover nothing.
+
+That file is in `SLOW_TEST_FILES` (`scripts/run-tests-by-local-tier.sh:28`), so it runs in
+the intensive-simulations selection and exactly one CI shard. Keep the round count modest.
+
 **Files:**
-- Test: `tests/ai/ai-round-scheduler.test.ts`
+- Modify: `tests/app/simulation-determinism.test.ts`
 
 - [ ] **Step 1: Write the tests**
 
-Add to `tests/ai/ai-round-scheduler.test.ts`:
+Append to `tests/app/simulation-determinism.test.ts`. Every helper and import it needs —
+`freshGame`, `advance`, `saveAndReload`, `assertSimulationEquivalent` — is already in that
+file.
 
 ```ts
 describe('#1064 expansion determinism', () => {
-  /**
-   * The real load path a save file goes through: serialize, parse, then the same
-   * normalizeLoadedState every DB / autosave / file import load calls. Deliberately
-   * NOT structuredClone -- the JSON boundary is part of what determinism must survive.
-   * `parseSaveFile` returns a discriminated union, so the status must be narrowed.
-   * (This mirrors `saveAndReload` in tests/app/simulation-determinism.test.ts:120.)
-   */
-  function saveAndReload(state: GameState): GameState {
-    const parsed = parseSaveFile(serializeSaveFile(state));
-    if (parsed.status !== 'success') {
-      throw new Error(`save file did not round-trip: ${parsed.message}`);
-    }
-    return normalizeLoadedState(parsed.state);
-  }
+  // 25 rounds is enough for a settler to be demanded, produced, walked and founded on a
+  // small map, and short enough to stay inside this file's existing runtime.
+  const ROUNDS = 25;
 
-  function runRounds(seed: string, rounds: number): GameState {
-    let state = createNewGame(undefined, seed, 'small');
-    for (let i = 0; i < rounds; i++) {
-      state = processNonHumanMajorRound(state, new EventBus()).state;
-      state = { ...state, turn: state.turn + 1 };
-    }
-    return state;
-  }
+  it('reaches equivalent state from the same seed with expansion active', () => {
+    const a = advance(freshGame('expansion-determinism'), ROUNDS);
+    const b = advance(freshGame('expansion-determinism'), ROUNDS);
 
-  it('reaches the same state and traces from the same seed', () => {
-    const left = runRounds('expansion-determinism', 6);
-    const right = runRounds('expansion-determinism', 6);
-
-    assertSimulationEquivalent(left, right);
+    assertSimulationEquivalent(a, b, '#1064: same seed, expansion active');
   });
 
-  it('is simulation-equivalent across a save/reload boundary with a plan in flight', () => {
-    let uninterrupted = createNewGame(undefined, 'expansion-save-reload', 'small');
-    for (let i = 0; i < 8; i++) {
-      uninterrupted = processNonHumanMajorRound(uninterrupted, new EventBus()).state;
-      uninterrupted = { ...uninterrupted, turn: uninterrupted.turn + 1 };
-    }
+  it('survives a save/reload boundary with an expand plan in flight', () => {
+    const uninterrupted = advance(freshGame('expansion-save-reload'), ROUNDS);
 
-    let reloaded = createNewGame(undefined, 'expansion-save-reload', 'small');
-    for (let i = 0; i < 4; i++) {
-      reloaded = processNonHumanMajorRound(reloaded, new EventBus()).state;
-      reloaded = { ...reloaded, turn: reloaded.turn + 1 };
-    }
-    reloaded = saveAndReload(reloaded);
-    for (let i = 0; i < 4; i++) {
-      reloaded = processNonHumanMajorRound(reloaded, new EventBus()).state;
-      reloaded = { ...reloaded, turn: reloaded.turn + 1 };
-    }
+    const midpoint = advance(freshGame('expansion-save-reload'), 12);
+    // Guard the premise: if no AI is actually pursuing expansion at the midpoint, this
+    // test is not exercising what it claims and the round counts need revisiting.
+    const expanding = Object.values(midpoint.opponentAI?.majorCivs ?? {})
+      .some(portfolio => portfolio.primaryPlan?.objective === 'expand');
+    expect(expanding, 'no expand plan in flight at the save point').toBe(true);
 
-    assertSimulationEquivalent(uninterrupted, reloaded);
+    const continued = advance(saveAndReload(midpoint), ROUNDS - 12);
+
+    assertSimulationEquivalent(continued, uninterrupted, '#1064: save/reload continuity');
   });
 });
 ```
 
-Imports for this block — `EventBus`, `createNewGame` and `processNonHumanMajorRound` are
-already in that file:
+- [ ] **Step 2: Run the tests**
 
-```ts
-import type { GameState } from '@/core/types';
-import { serializeSaveFile, parseSaveFile } from '@/storage/save-file-transfer';
-import { normalizeLoadedState } from '@/storage/save-manager';
-import { assertSimulationEquivalent } from '../helpers/deterministic-state';
-```
+Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/simulation-determinism.test.ts`
 
-(`tests/ai/ai-round-scheduler.test.ts` already imports a sibling test helper with a
-relative path — `'../systems/helpers/civilization-liveness-fixture'` — so match that
-style rather than inventing an alias.)
+Expected: PASS, whole file.
 
-**Never** hand-roll a `JSON.stringify(a) === JSON.stringify(b)` comparison, and never add
-an exclusion to `assertSimulationEquivalent` to make this green — a divergence on any
-other field is a real bug.
+Two failures are worth distinguishing:
 
-- [ ] **Step 2: Run them and verify they pass**
-
-Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ai/ai-round-scheduler.test.ts`
-
-Expected: PASS.
-
-If the save/reload test reports a divergence at
-`minorCivs.<id>.lastNotifiedStatusByCiv.<civ>`, that is the **pre-existing** #1065 bug,
-not yours. Confirm the path matches that pattern exactly, then either skip that assertion
-with a comment citing #1065 or shorten the horizon so no minor-civ notification fires.
-Any other divergence path is yours to fix.
+- **`no expand plan in flight at the save point`** — the premise guard fired. Raise the
+  midpoint (and `ROUNDS` with it) until an AI is genuinely mid-expansion, or pick a seed
+  where expansion starts sooner. Do **not** delete the guard; without it the test proves
+  nothing.
+- **A divergence at `minorCivs.<id>.lastNotifiedStatusByCiv.<civ>`** — that is the
+  pre-existing **#1065** bug, not yours. Confirm the reported path matches that shape
+  exactly, then shorten the horizon so no minor-civ status notification fires, or skip
+  that one assertion with a comment citing #1065. **Any other divergence path is yours**,
+  and never add an exclusion to `assertSimulationEquivalent` to make it green.
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add tests/ai/ai-round-scheduler.test.ts
+git add tests/app/simulation-determinism.test.ts
 git commit -m "test(ai): pin expansion determinism and save/reload continuity
+
+Driven through runCompletedRound, so production and founding actually run --
+processNonHumanMajorRound alone would never complete a settler, and the test
+would claim coverage it did not have.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
