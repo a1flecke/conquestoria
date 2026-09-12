@@ -23,6 +23,9 @@ The same changed-path policy applies to both events:
   providing an explicit release-validation escape hatch when no changed-file
   range exists.
 
+The workflow must declare `workflow_dispatch` so that escape hatch is actually
+available from GitHub Actions.
+
 ## Desktop-risk inputs
 
 The macOS package build runs when at least one changed path is one of:
