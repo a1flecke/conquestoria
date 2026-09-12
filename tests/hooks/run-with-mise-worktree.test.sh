@@ -89,7 +89,7 @@ grep -Fq "$linked|$linked/.vite/vitest||exec -- yarn test --run tests/systems/ex
   exit 1
 }
 
-for command in 'test:fast' 'test:slow' 'test:manifest' 'test:manifest:fast' 'test:manifest:slow' 'test:watch' build build:tauri test:web-smoke verify:pr verify:push; do
+for command in 'test:regular' 'test:intensive-simulations' 'test:manifest' 'test:manifest:regular' 'test:manifest:intensive-simulations' 'test:watch' build build:tauri test:web-smoke verify:pr verify:push; do
   rm -f "$mise_log"
   (
     cd "$linked"

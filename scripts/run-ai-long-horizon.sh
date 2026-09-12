@@ -3,7 +3,7 @@
 #
 # 300-500 turn deterministic campaigns across every challenge tier, every AI
 # personality, small/medium/large maps, solo + hot seat, early + late-era start.
-# Minutes per scenario; NOT part of `yarn test`, `test:fast`, `test:slow`,
+# Minutes per scenario; NOT part of `yarn test`, `test:regular`, `test:intensive-simulations`,
 # `verify:push`, the pre-push hooks, the production build, or CI. Run it
 # explicitly before finishing a change that materially affects AI strategy,
 # production, diplomacy, movement, pathfinding, combat decisions, economy,

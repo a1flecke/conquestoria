@@ -17,27 +17,27 @@ while [ "$#" -gt 0 ]; do
       USE_MISE=0
       shift
       ;;
-    --fast)
-      TEST_SCOPE=fast
+    --regular)
+      TEST_SCOPE=regular
       shift
       ;;
     *)
-      echo "Usage: verify-before-push.sh [--no-mise] [--fast]" >&2
+      echo "Usage: verify-before-push.sh [--no-mise] [--regular]" >&2
       exit 2
       ;;
   esac
 done
 
-# --fast (#608) runs `yarn test:fast` instead of the full `yarn test`,
+# --regular (#608) runs `yarn test:regular` instead of the full `yarn test`,
 # skipping the heavy multi-city/era/seed simulation tests tracked in
-# scripts/run-tests-by-tier.sh so the local push gate stays quick and
+# scripts/run-tests-by-local-tier.sh so the local push gate stays quick and
 # doesn't add CPU pressure on top of whatever else is running on this
 # machine. Only the local git pre-push hook and the Claude Code push-gate
-# hook pass --fast. CI's `yarn verify:push` never does — it always runs the
+# hook pass --regular. CI's `yarn verify:push` never does — it always runs the
 # full suite as the required merge gate, on isolated hardware where
 # contention isn't a factor.
 case "$TEST_SCOPE" in
-  fast) TEST_YARN_SCRIPT=test:fast ;;
+  regular) TEST_YARN_SCRIPT=test:regular ;;
   *) TEST_YARN_SCRIPT=test ;;
 esac
 

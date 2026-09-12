@@ -39,7 +39,7 @@ export default defineConfig(({ mode }) => {
       environment: 'node',
       dir: resolve(__dirname, 'tests'),
       // Two directories are explicit-run only and excluded here UNCONDITIONALLY so
-      // `yarn test` / `test:fast` / `test:slow` / `verify:push` / the pre-push hooks
+      // `yarn test` / `test:regular` / `test:intensive-simulations` / `verify:push` / the pre-push hooks
       // / CI can never discover them:
       //  - `simulation/long-horizon/**` — the #1005 heavyweight AI campaign suite
       //    (300-500 turn deterministic campaigns), via `vitest.long-horizon.config.ts`
@@ -48,7 +48,7 @@ export default defineConfig(({ mode }) => {
       //    `vitest.perf.config.ts` (`yarn perf:report`). Guarded by
       //    `tests/scripts/perf-isolation.test.ts`. (The #1007 ALGORITHMIC budgets —
       //    `tests/perf/algorithmic-budgets.test.ts` — DO run in the ordinary suite,
-      //    slow tier; only the wall-clock reporter is excluded.)
+      //    intensive-simulations local tier; only the wall-clock reporter is excluded.)
       exclude: ['e2e/**', 'simulation/long-horizon/**', 'perf/report/**'],
       // Vitest only manages workers inside one process. A local 25% budget leaves
       // headroom for up to four concurrent worktree runs; CI is isolated and can use

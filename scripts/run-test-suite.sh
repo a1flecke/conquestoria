@@ -81,15 +81,15 @@ case "$mode" in
       exit 1
     fi
     ;;
-  fast)
-    sh scripts/run-tests-by-tier.sh fast "$@"
+  regular)
+    sh scripts/run-tests-by-local-tier.sh regular "$@"
     exec bash tests/hooks/run.sh
     ;;
-  slow)
-    exec sh scripts/run-tests-by-tier.sh slow "$@"
+  intensive-simulations)
+    exec sh scripts/run-tests-by-local-tier.sh intensive-simulations "$@"
     ;;
   *)
-    echo 'Usage: run-test-suite.sh full|fast|slow [-- vitest arguments]' >&2
+    echo 'Usage: run-test-suite.sh full|regular|intensive-simulations [-- vitest arguments]' >&2
     exit 2
     ;;
 esac

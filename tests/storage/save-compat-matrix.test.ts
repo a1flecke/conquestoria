@@ -23,9 +23,9 @@ import { SAVE_COMPAT_MATRIX, type SaveCompatCase } from './fixtures/save-compat/
  * or silently corrupts. Assertions are the shared cross-system validators
  * (`tests/helpers/save-state-invariants.ts`), not bespoke per-version checks.
  *
- * SLOW tier (`SLOW_TEST_FILES` in `scripts/run-tests-by-tier.sh`) — it is
+ * Intensive-simulations local tier (`SLOW_TEST_FILES` in `scripts/run-tests-by-local-tier.sh`) — it is
  * O(versions) full round-processing runs. The coverage meta-test
- * (`save-compat-coverage.test.ts`) is the fast-tier half.
+ * (`save-compat-coverage.test.ts`) is the regular-selection half.
  */
 
 // Per-case timeout. Each case migrates, normalizes, runs 3 completed rounds on

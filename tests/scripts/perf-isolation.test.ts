@@ -57,7 +57,7 @@ describe('#1007 perf-report isolation', () => {
   it('the default config excludes only the perf REPORTER directory', () => {
     const test = resolveTestConfig(baseConfig);
     expect(test.exclude).toContain(REPORT_GLOB);
-    // The algorithmic budgets must NOT be excluded — they run in the slow tier.
+    // The algorithmic budgets must NOT be excluded — they run in intensive simulations.
     expect(test.exclude).not.toContain('perf/**');
     expect(test.exclude).not.toContain('perf/*');
     expect(String(test.dir)).toMatch(/[/\\]tests$/);
@@ -78,10 +78,10 @@ describe('#1007 perf-report isolation', () => {
     expect(entries.filter(name => name.endsWith('.test.ts')).length).toBeGreaterThan(0);
   });
 
-  it('the ALGORITHMIC budgets ARE wired into the slow tier (so CI runs them)', () => {
-    const tier = readFileSync(resolve(REPO_ROOT, 'scripts/run-tests-by-tier.sh'), 'utf8');
+  it('the ALGORITHMIC budgets ARE wired into intensive simulations (so CI runs them)', () => {
+    const tier = readFileSync(resolve(REPO_ROOT, 'scripts/run-tests-by-local-tier.sh'), 'utf8');
     // It must be listed in SLOW_TEST_FILES — otherwise the perf gate silently
-    // stops running in `yarn test` / the CI slow lane.
+    // stops running in `yarn test` / the CI balanced shards.
     expect(tier).toMatch(/SLOW_TEST_FILES=/);
     expect(tier).toContain('tests/perf/algorithmic-budgets.test.ts');
     // And it must NOT be excluded by the default vitest config.
@@ -98,7 +98,7 @@ describe('#1007 perf-report isolation', () => {
     const explicitFiles = [
       'package.json',
       'scripts/run-test-suite.sh',
-      'scripts/run-tests-by-tier.sh',
+      'scripts/run-tests-by-local-tier.sh',
       'scripts/verify-before-push.sh',
       'scripts/verify-pr.sh',
       'scripts/run-durable-test-suite.sh',

@@ -6,19 +6,19 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 /**
  * #1004 architecture-gate meta-checks. These are the cheap, structural half
- * of the determinism contract and stay in the fast tier. The expensive
+ * of the determinism contract and stay in the regular local selection. The expensive
  * whole-simulation trajectory contracts live in
- * tests/app/simulation-determinism.test.ts (slow tier), which THIS file
- * asserts is correctly registered as slow.
+ * tests/app/simulation-determinism.test.ts (intensive-simulations local selection), which THIS file
+ * asserts is correctly registered as intensive.
  */
 
 const REPO_ROOT = resolve(process.cwd());
-const TIER_SCRIPT = resolve(REPO_ROOT, 'scripts/run-tests-by-tier.sh');
+const TIER_SCRIPT = resolve(REPO_ROOT, 'scripts/run-tests-by-local-tier.sh');
 const SRC_RULE_SCRIPT = resolve(REPO_ROOT, 'scripts/check-src-rule-violations.sh');
 const HEAVY_DETERMINISM_FILE = 'tests/app/simulation-determinism.test.ts';
 
-describe('#1004 — test-tier registration', () => {
-  it(`registers ${HEAVY_DETERMINISM_FILE} in the slow tier so the fast push gate skips it`, () => {
+describe('#1004 — local test-tier registration', () => {
+  it(`registers ${HEAVY_DETERMINISM_FILE} in intensive simulations so the regular push gate skips it`, () => {
     const tierScript = readFileSync(TIER_SCRIPT, 'utf8');
     const slowBlock = tierScript.slice(
       tierScript.indexOf('SLOW_TEST_FILES="'),
@@ -27,7 +27,7 @@ describe('#1004 — test-tier registration', () => {
     expect(slowBlock).toContain(HEAVY_DETERMINISM_FILE);
   });
 
-  it('keeps the pre-existing determinism-guard in the slow tier too', () => {
+  it('keeps the pre-existing determinism-guard in intensive simulations too', () => {
     const tierScript = readFileSync(TIER_SCRIPT, 'utf8');
     expect(tierScript).toContain('tests/app/determinism-guard.test.ts');
   });

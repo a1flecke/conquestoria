@@ -4,11 +4,11 @@
 # Runs the perf fixtures + operations, records `performance.now()` durations
 # AND the deterministic algorithmic counts to `.verification/perf/`. Wall-clock
 # is machine-dependent and is NEVER a merge gate: this is not part of
-# `yarn test`, `test:fast`, `test:slow`, `verify:push`, the pre-push hooks, the
+# `yarn test`, `test:regular`, `test:intensive-simulations`, `verify:push`, the pre-push hooks, the
 # production build, or CI. `tests/scripts/perf-isolation.test.ts` guards that.
 #
 # The machine-INDEPENDENT algorithmic budgets live in
-# `tests/perf/algorithmic-budgets.test.ts` and run in the ordinary slow tier.
+# `tests/perf/algorithmic-budgets.test.ts` and run in the intensive-simulations local tier.
 #
 #   yarn perf:report                 # full report
 #   yarn perf:report -- -t findPath  # one area

@@ -64,8 +64,8 @@ run_hook "refs/heads/main $head_sha refs/heads/main $zero_sha"
   echo "pre-push did not invoke the canonical verifier"
   exit 1
 }
-grep -q -- '--fast' "$args_log" || {
-  echo "pre-push did not invoke the canonical verifier with --fast (#608)"
+grep -q -- '--regular' "$args_log" || {
+  echo "pre-push did not invoke the canonical verifier with --regular (#608)"
   exit 1
 }
 
