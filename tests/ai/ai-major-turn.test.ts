@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { processMajorCivStrategicTurn } from '@/ai/ai-major-turn';
+import { nextPlanPhase, processMajorCivStrategicTurn } from '@/ai/ai-major-turn';
 import { buildMajorCivPerception } from '@/ai/ai-perception';
 import type { PreparedMajorCivPlan } from '@/ai/ai-prepared-turn';
 import { EventBus } from '@/core/event-bus';
@@ -13,6 +13,11 @@ import type {
   UnitType,
 } from '@/core/types';
 import { foundCity } from '@/systems/city-system';
+import {
+  cityDistance,
+  isCityCenterTerrain,
+  MIN_CITY_CENTER_DISTANCE,
+} from '@/systems/city-territory-system';
 import { hexKey } from '@/systems/hex-utils';
 import { createUnit } from '@/systems/unit-system';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
@@ -100,6 +105,17 @@ function addCity(
   state.civilizations[owner]?.cities.push(id);
   state.map.tiles[hexKey(position)].owner = owner;
   return city;
+}
+
+/** A real land tile at least `minDistance` from every city in the fixture. */
+function distantLandTile(state: GameState, minDistance: number): HexCoord {
+  const cities = Object.values(state.cities).map(city => city.position);
+  const tile = Object.values(state.map.tiles).find(candidate =>
+    isCityCenterTerrain(candidate.terrain)
+    && cities.every(position =>
+      cityDistance(candidate.coord, position, state.map) >= minDistance));
+  if (!tile) throw new Error('fixture has no distant land tile');
+  return tile.coord;
 }
 
 function makePlan(
@@ -1054,5 +1070,75 @@ describe('processMajorCivStrategicTurn', () => {
       .toBe('consolidating');
     expect(result.state.opponentAI?.majorCivs[AI].primaryPlan?.lastProgressTurn)
       .toBe(state.turn - 1);
+  });
+});
+
+describe('#1064 non-offensive plan phase', () => {
+  it('advances an expand plan to advancing without a capture or frontline unit', () => {
+    const state = createNewGame(undefined, 'phase-expand-advances', 'small');
+    const civ = state.civilizations['ai-1'];
+    const startingPosition = civ.units.map(id => state.units[id]).find(Boolean)!.position;
+    addCity(state, 'home', civ.id, startingPosition);
+    const home = state.cities[civ.cities[0]!]!;
+    const settler = createUnit('settler', civ.id, home.position, state.idCounters);
+    state.units[settler.id] = settler;
+    civ.units.push(settler.id);
+    state.turn = 30;
+    const anchor = distantLandTile(state, MIN_CITY_CENTER_DISTANCE);
+
+    const plan: AIStrategicPlan = {
+      id: 'expand-plan',
+      actorId: civ.id,
+      objective: 'expand',
+      target: { kind: 'region', id: `settle:${hexKey(anchor)}`, anchor },
+      theaterId: `local:${hexKey(anchor)}`,
+      phase: 'mobilizing',
+      reasonCodes: ['nearby-opportunity'],
+      commitment: 0.25,
+      createdTurn: 20,
+      reconsiderAfterTurn: 23,
+      expiresAfterTurn: 32,
+      lastProgressTurn: 29,
+      requiredRoles: { settlement: 1 },
+      assignedUnitIds: [settler.id],
+    };
+
+    expect(nextPlanPhase(
+      state, plan, [settler.id], [], buildMajorCivPerception(state, civ.id),
+    )).toBe('advancing');
+  });
+
+  it('still requires a capture or frontline unit for an offensive plan', () => {
+    const state = createNewGame(undefined, 'phase-capture-gated', 'small');
+    const civ = state.civilizations['ai-1'];
+    const startingPosition = civ.units.map(id => state.units[id]).find(Boolean)!.position;
+    addCity(state, 'home', civ.id, startingPosition);
+    const home = state.cities[civ.cities[0]!]!;
+    const worker = createUnit('worker', civ.id, home.position, state.idCounters);
+    state.units[worker.id] = worker;
+    civ.units.push(worker.id);
+    state.turn = 30;
+    const anchor = distantLandTile(state, MIN_CITY_CENTER_DISTANCE);
+
+    const plan: AIStrategicPlan = {
+      id: 'capture-plan',
+      actorId: civ.id,
+      objective: 'capture',
+      target: { kind: 'region', id: `raid:${hexKey(anchor)}`, anchor },
+      theaterId: `local:${hexKey(anchor)}`,
+      phase: 'mobilizing',
+      reasonCodes: ['continue-active-war'],
+      commitment: 0.5,
+      createdTurn: 20,
+      reconsiderAfterTurn: 23,
+      expiresAfterTurn: 32,
+      lastProgressTurn: 29,
+      requiredRoles: { frontline: 1 },
+      assignedUnitIds: [worker.id],
+    };
+
+    expect(nextPlanPhase(
+      state, plan, [worker.id], [], buildMajorCivPerception(state, civ.id),
+    )).toBe('mobilizing');
   });
 });
