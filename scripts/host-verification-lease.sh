@@ -192,7 +192,15 @@ hvl_is_stale() {
   fi
 
   hvl_current_marker="$(hvl_start_marker "$hvl_owner_pid")"
-  if [ -z "$hvl_current_marker" ] || [ "$hvl_current_marker" != "$hvl_owner_marker" ]; then
+  if [ -z "$hvl_current_marker" ]; then
+    # A live PID with an unreadable start marker is not proof of PID reuse.
+    # Access to process metadata can be denied by a sandbox, so stealing the
+    # lease here would permit two suite-scale verifications to overlap. Wait
+    # for the live PID to exit rather than trading safety for faster recovery.
+    return 1
+  fi
+
+  if [ "$hvl_current_marker" != "$hvl_owner_marker" ]; then
     # Same pid, different process (PID reuse): the process that actually
     # holds this pid now started at a different time than the lease
     # metadata records, so the original owner is gone.

@@ -55,6 +55,38 @@ run_leased_bg() {
   ) &
 }
 
+run_leased_with_path() {
+  path_prefix="$1"
+  log="$2"
+  shift 2
+  PATH="$path_prefix:$PATH" \
+    HOST_VERIFICATION_LEASE_ROOT="$lease_root" \
+    HOST_VERIFICATION_LEASE_REPORT_SECONDS="${TEST_REPORT_SECONDS:-1}" \
+    sh "$RUNNER" "$@" > "$log" 2>&1
+}
+
+wait_for_lease_owner() {
+  attempts=0
+  while [ ! -f "$lease_root/active/owner" ]; do
+    attempts=$((attempts + 1))
+    if [ "$attempts" -ge 50 ]; then
+      echo "holder did not acquire the lease within 5 seconds" >&2
+      return 1
+    fi
+    sleep 0.1
+  done
+}
+
+no_start_marker_bin="$tmpdir/no-start-marker-bin"
+mkdir -p "$no_start_marker_bin"
+printf '#!/bin/sh\nexit 1\n' > "$no_start_marker_bin/ps"
+chmod +x "$no_start_marker_bin/ps"
+
+known_start_marker_bin="$tmpdir/known-start-marker-bin"
+mkdir -p "$known_start_marker_bin"
+printf '#!/bin/sh\nprintf "known-start-marker\\n"\n' > "$known_start_marker_bin/ps"
+chmod +x "$known_start_marker_bin/ps"
+
 # --- 1. basic acquire/run/release -------------------------------------
 
 log1="$tmpdir/basic.log"
@@ -72,7 +104,39 @@ grep -Fq "released 'basic-run'" "$log1" || {
   exit 1
 }
 
-# --- 2. second heavy verification waits; does not start its command ----
+# --- 2. unreadable process identity never steals a live lease ------------
+
+rm -rf "$lease_root"
+mkdir -p "$lease_root"
+marker="$tmpdir/unreadable-waiter-started"
+holder_log="$tmpdir/unreadable-holder.log"
+waiter_log="$tmpdir/unreadable-waiter.log"
+
+(
+  run_leased_with_path "$no_start_marker_bin" "$holder_log" unreadable-holder -- sh -c 'sleep 2; exit 0'
+) &
+holder_pid=$!
+wait_for_lease_owner
+
+(
+  run_leased_with_path "$no_start_marker_bin" "$waiter_log" unreadable-waiter -- sh -c "touch '$marker'; exit 0"
+) &
+waiter_pid=$!
+sleep 0.6
+
+[ ! -e "$marker" ] || {
+  echo "waiter stole a live lease when process identity was unreadable" >&2
+  exit 1
+}
+
+wait "$holder_pid"
+wait "$waiter_pid"
+[ -e "$marker" ] || {
+  echo "waiter did not run after the unreadable-identity holder released" >&2
+  exit 1
+}
+
+# --- 3. second heavy verification waits; does not start its command ----
 
 rm -rf "$lease_root"
 mkdir -p "$lease_root"
@@ -83,7 +147,7 @@ rm -f "$marker"
 
 ( run_leased "$holder_log" holder -- sh -c 'sleep 2; exit 0' ) &
 holder_pid=$!
-sleep 0.4
+wait_for_lease_owner
 
 ( run_leased "$waiter_log" waiter -- sh -c "touch '$marker'; exit 0" ) &
 waiter_pid=$!
@@ -106,7 +170,7 @@ grep -Fq "acquired 'waiter' after" "$waiter_log" || {
   exit 1
 }
 
-# --- 3. cancelling a waiter does not touch the live holder's lease -----
+# --- 4. cancelling a waiter does not touch the live holder's lease -----
 
 rm -rf "$lease_root"
 mkdir -p "$lease_root"
@@ -115,7 +179,7 @@ waiter_log="$tmpdir/waiter3.log"
 
 run_leased_bg "$holder_log" holder3 -- sh -c 'sleep 5; exit 0'
 holder_pid=$!
-sleep 0.4
+wait_for_lease_owner
 
 run_leased_bg "$waiter_log" waiter3 -- sh -c 'echo should-not-run; exit 0'
 waiter_pid=$!
@@ -146,7 +210,7 @@ grep -Fq "released 'holder3'" "$holder_log" || {
   exit 1
 }
 
-# --- 4. cancelling the owner releases the lease (signal cleanup) -------
+# --- 5. cancelling the owner releases the lease (signal cleanup) -------
 
 rm -rf "$lease_root"
 mkdir -p "$lease_root"
@@ -154,7 +218,7 @@ holder_log="$tmpdir/holder4.log"
 
 run_leased_bg "$holder_log" holder4 -- sh -c 'sleep 30; exit 0'
 holder_pid=$!
-sleep 0.4
+wait_for_lease_owner
 [ -d "$lease_root/active" ] || {
   echo "holder did not acquire the lease before being cancelled" >&2
   exit 1
@@ -181,7 +245,7 @@ grep -Fq 'ok' "$log4b" || {
   exit 1
 }
 
-# --- 5. stale lease: pid no longer exists -------------------------------
+# --- 6. stale lease: pid no longer exists -------------------------------
 
 rm -rf "$lease_root"
 mkdir -p "$lease_root/active"
@@ -201,7 +265,7 @@ grep -Fq 'recovered' "$log5" || {
   exit 1
 }
 
-# --- 6. PID-reuse defense: live pid, mismatched start marker -----------
+# --- 7. PID-reuse defense: live pid, mismatched start marker -----------
 
 rm -rf "$lease_root"
 mkdir -p "$lease_root/active"
@@ -218,7 +282,7 @@ trap 'kill "$reuse_pid" 2>/dev/null || true; rm -rf "$tmpdir"' EXIT
 } > "$lease_root/active/owner"
 
 log6="$tmpdir/pid-reuse.log"
-HOST_VERIFICATION_LEASE_SHORT_GRACE=10 run_leased "$log6" reused -- sh -c 'echo reclaimed-despite-live-pid; exit 0'
+HOST_VERIFICATION_LEASE_SHORT_GRACE=10 run_leased_with_path "$known_start_marker_bin" "$log6" reused -- sh -c 'echo reclaimed-despite-live-pid; exit 0'
 grep -Fq 'reclaimed-despite-live-pid' "$log6" || {
   echo "a lease was not reclaimed when its recorded pid is live but its start marker does not match (PID reuse)" >&2
   exit 1
@@ -226,18 +290,14 @@ grep -Fq 'reclaimed-despite-live-pid' "$log6" || {
 kill "$reuse_pid" 2>/dev/null || true
 trap 'rm -rf "$tmpdir"' EXIT
 
-# --- 7. a genuinely live owner (matching pid + start marker) is never stolen
+# --- 8. a genuinely live owner (matching pid + start marker) is never stolen
 
 rm -rf "$lease_root"
 mkdir -p "$lease_root"
 holder_log="$tmpdir/holder7.log"
 ( run_leased "$holder_log" real-holder -- sh -c 'sleep 3; exit 0' ) &
 holder_pid=$!
-sleep 0.4
-[ -d "$lease_root/active" ] || {
-  echo "real holder did not acquire before the live-owner check" >&2
-  exit 1
-}
+wait_for_lease_owner
 
 waiter_log="$tmpdir/waiter7.log"
 ( TEST_REPORT_SECONDS=1 run_leased "$waiter_log" impatient -- sh -c 'echo stole-it; exit 0' ) &
@@ -258,7 +318,7 @@ grep -Fq 'stole-it' "$waiter_log" || {
   exit 1
 }
 
-# --- 8. corrupt metadata: missing pid field -----------------------------
+# --- 9. corrupt metadata: missing pid field -----------------------------
 
 rm -rf "$lease_root"
 mkdir -p "$lease_root/active"
@@ -286,7 +346,7 @@ grep -Fq 'after-grace' "$log8_late" || {
   exit 1
 }
 
-# --- 9. multiple simulated worktrees share the same injected lease root
+# --- 10. multiple simulated worktrees share the same injected lease root
 
 rm -rf "$lease_root"
 mkdir -p "$lease_root" "$tmpdir/worktree-a" "$tmpdir/worktree-b"
@@ -297,7 +357,7 @@ waiter_log="$tmpdir/mw-waiter.log"
   run_leased "$holder_log" from-a -- sh -c 'sleep 2; exit 0'
 ) &
 holder_pid=$!
-sleep 0.4
+wait_for_lease_owner
 (
   cd "$tmpdir/worktree-b"
   run_leased "$waiter_log" from-b -- sh -c 'echo from-b-ran; exit 0'
@@ -315,14 +375,14 @@ grep -Fq 'from-b-ran' "$waiter_log" || {
   exit 1
 }
 
-# --- 10. CI mode is a no-op: no wait, no lease directory ----------------
+# --- 11. CI mode is a no-op: no wait, no lease directory ----------------
 
 rm -rf "$lease_root"
 mkdir -p "$lease_root"
 holder_log="$tmpdir/holder10.log"
 ( run_leased "$holder_log" holder10 -- sh -c 'sleep 2; exit 0' ) &
 holder_pid=$!
-sleep 0.4
+wait_for_lease_owner
 
 ci_log="$tmpdir/ci.log"
 CI=true HOST_VERIFICATION_LEASE_ROOT="$lease_root" sh "$RUNNER" ci-caller -- sh -c 'echo ci-ran-immediately; exit 0' > "$ci_log" 2>&1
@@ -336,7 +396,7 @@ grep -Fq 'ci-ran-immediately' "$ci_log" || {
 }
 wait "$holder_pid"
 
-# --- 11. this coordination never touches worktree-local cache paths ----
+# --- 12. this coordination never touches worktree-local cache paths ----
 
 ! grep -v '^[[:space:]]*#' "$LIB" | grep -Eq '\.verification|\.vite' || {
   echo "host-verification-lease.sh references worktree-local cache/evidence paths; it must stay host-scoped only" >&2
