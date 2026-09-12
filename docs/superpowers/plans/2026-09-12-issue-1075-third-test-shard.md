@@ -8,6 +8,8 @@
 
 **Tech Stack:** GitHub Actions, Node.js ESM scripts, Yarn, Vitest, shell workflow-contract tests.
 
+**Status:** 🟡 Tasks 1–3 implemented locally; final local shard, durable-suite, and GitHub candidate measurements remain.
+
 ---
 
 ## Fixed experiment contract
@@ -27,11 +29,11 @@
 - Modify: `tests/scripts/ci-test-shard-allocation.test.ts`
 - Modify: `tests/scripts/ci-test-shard-selection.test.ts`
 
-- [ ] **Step 1: Write failing tests for a fixed B and two balanced A children**
+- [x] **Step 1: Write failing tests for a fixed B and two balanced A children**
 
 Add fixture coverage that supplies `test-suite-shard-b` as a fixed assignment and A-file timings, then asserts that the allocator emits sorted, disjoint `test-suite-shard-a`, `test-suite-shard-b`, and `test-suite-shard-c` arrays whose union is the supplied manifest. Assert the fixture keeps B byte-for-byte unchanged and uses deterministic lexical tie-breaking between A and C.
 
-- [ ] **Step 2: Run the focused allocation and selection tests to verify the new three-shard assertions fail**
+- [x] **Step 2: Run the focused allocation and selection tests to verify the new three-shard assertions fail**
 
 Run:
 
@@ -41,11 +43,11 @@ Run:
 
 Expected: FAIL because the current allocator and runner only recognize A and B.
 
-- [ ] **Step 3: Implement the minimal explicit three-shard contract**
+- [x] **Step 3: Implement the minimal explicit three-shard contract**
 
 Define one shared ordered shard-name list (`test-suite-shard-a`, `test-suite-shard-b`, `test-suite-shard-c`). Extend manifest validation and CLI usage to require all three assignments. Extend allocation with a constrained mode that verifies fixed B coverage, removes B files from the weighted input, and applies LPT allocation only between A and C. Add package scripts for C execution and C manifest listing; preserve A/B script semantics.
 
-- [ ] **Step 4: Run the focused contract tests**
+- [x] **Step 4: Run the focused contract tests**
 
 Run:
 
@@ -55,7 +57,7 @@ Run:
 
 Expected: PASS, including real default-discovery exact-once coverage across all three assignments.
 
-- [ ] **Step 5: Commit the runner contract**
+- [x] **Step 5: Commit the runner contract**
 
 ```bash
 git add scripts/allocate-ci-test-shards.mjs scripts/run-ci-test-shard.mjs package.json tests/scripts/ci-test-shard-allocation.test.ts tests/scripts/ci-test-shard-selection.test.ts tests/scripts/ci-test-shard-profile-mode.test.ts
@@ -68,15 +70,15 @@ git commit -m "feat(ci): support a third balanced test shard"
 - Modify: `scripts/ci-test-shards.json`
 - Test: `tests/scripts/ci-test-shard-selection.test.ts`
 
-- [ ] **Step 1: Download the retained Shard A evidence artifact from workflow run `34686364246` attempt 3**
+- [x] **Step 1: Download the retained Shard A evidence artifact from workflow run `34686364246` attempt 3**
 
 Download only `test-suite-shard-a-evidence` into a temporary directory outside the repository, identify its `artifacts/vitest-results/test-suite-shard-a.json`, and reject the artifact if it is not a successful reporter result or its paths do not match the checked-in A assignment.
 
-- [ ] **Step 2: Produce a constrained three-shard manifest**
+- [x] **Step 2: Produce a constrained three-shard manifest**
 
 Use exact default discovery and the retained CI reporter duration for every current A file. Retain every current B file unchanged. Allocate the former A file set only over A and C, then write the checked-in manifest with the measured source revision and a source label that identifies GitHub CI reporter evidence.
 
-- [ ] **Step 3: Prove exact default-suite membership before executing tests**
+- [x] **Step 3: Prove exact default-suite membership before executing tests**
 
 Run:
 
@@ -89,7 +91,7 @@ Run:
 
 Expected: each manifest prints only its own sorted files; the selection test proves the three-way union equals live default discovery with no overlap.
 
-- [ ] **Step 4: Commit the CI-derived manifest**
+- [x] **Step 4: Commit the CI-derived manifest**
 
 ```bash
 git add scripts/ci-test-shards.json tests/scripts/ci-test-shard-selection.test.ts
@@ -104,11 +106,11 @@ git commit -m "chore(ci): split the measured critical test shard"
 - Modify: `tests/scripts/verify-merge-gate.test.ts`
 - Modify: `tests/hooks/verification-config.test.sh`
 
-- [ ] **Step 1: Write failing workflow and gate contract assertions for C**
+- [x] **Step 1: Write failing workflow and gate contract assertions for C**
 
 Add a successful `test-suite-shard-c` result to the merge-gate fixture and add a parameterized non-success case that expects the verifier to name C. Add shell assertions that C has the same 15-minute bound, exact manifest capture, direct package script invocation with JSON reporter, phase timing, retained evidence, and aggregate dependency as A/B.
 
-- [ ] **Step 2: Run the focused tests to verify the new C assertions fail**
+- [x] **Step 2: Run the focused tests to verify the new C assertions fail**
 
 Run:
 
@@ -119,11 +121,11 @@ Run:
 
 Expected: FAIL because the current workflow and verifier do not declare C.
 
-- [ ] **Step 3: Add the explicit C job and aggregate dependency**
+- [x] **Step 3: Add the explicit C job and aggregate dependency**
 
 Copy the A/B job shape for `test-suite-shard-c`, substituting only C-specific package script, manifest filename, phase key, JSON result filename, and evidence artifact name. Add C to `merge-gate.needs` and the verifier's mandatory jobs. Do not use a matrix: the separate job name remains stable for branch protection, artifacts, and diagnostics.
 
-- [ ] **Step 4: Run focused workflow contracts**
+- [x] **Step 4: Run focused workflow contracts**
 
 Run:
 
@@ -134,7 +136,7 @@ Run:
 
 Expected: PASS; the aggregate rejects missing, skipped, cancelled, and failed C results.
 
-- [ ] **Step 5: Commit the workflow gate**
+- [x] **Step 5: Commit the workflow gate**
 
 ```bash
 git add .github/workflows/deploy.yml scripts/verify-merge-gate.mjs tests/scripts/verify-merge-gate.test.ts tests/hooks/verification-config.test.sh

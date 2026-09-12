@@ -28,7 +28,7 @@ This is enforced by the user and is not optional.
 - `bash scripts/run-with-mise.sh yarn test:durable:status` — Accept durable evidence only when it passed and belongs to the current `HEAD` and working tree; otherwise it exits non-zero and explains why.
 - `bash scripts/run-with-mise.sh yarn test:regular` — Run the local push-gate selection, excluding expensive simulation coverage.
 - `bash scripts/run-with-mise.sh yarn test:intensive-simulations` — Run the expensive local simulation selection.
-- `bash scripts/run-with-mise.sh yarn test:ci:shard-a` / `test:ci:shard-b` — Run one duration-balanced full-suite CI shard; these are not local tiers.
+- `bash scripts/run-with-mise.sh yarn test:ci:shard-a` / `test:ci:shard-b` / `test:ci:shard-c` — Run one duration-balanced full-suite CI shard; these are not local tiers.
 - `bash scripts/run-with-mise.sh yarn test:watch` — Run tests in watch mode
 
 **Bash tool timeout guidance** — set `timeout` to match what the command actually does:
