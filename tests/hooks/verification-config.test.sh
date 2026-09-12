@@ -51,7 +51,7 @@ if printf '%s' "$test_suite_shard_a_job" | grep -Eq 'verify:push|yarn build|test
 fi
 
 test_suite_shard_b_job="$(
-  sed -n '/^  test-suite-shard-b:/,/^  hooks:/p' "$ROOT/.github/workflows/deploy.yml"
+  sed -n '/^  test-suite-shard-b:/,/^  test-suite-shard-c:/p' "$ROOT/.github/workflows/deploy.yml"
 )"
 printf '%s' "$test_suite_shard_b_job" | grep -Fq 'timeout-minutes: 15' || {
   echo "GitHub test suite shard B has no 15-minute timeout"
@@ -75,6 +75,34 @@ printf '%s' "$test_suite_shard_b_job" | grep -Fq 'artifacts/vitest-results/test-
 }
 if printf '%s' "$test_suite_shard_b_job" | grep -Eq 'verify:push|yarn build|test:hooks'; then
   echo "GitHub test suite shard B rebuilds, invokes the local verifier, or duplicates hooks"
+  exit 1
+fi
+
+test_suite_shard_c_job="$(
+  sed -n '/^  test-suite-shard-c:/,/^  hooks:/p' "$ROOT/.github/workflows/deploy.yml"
+)"
+printf '%s' "$test_suite_shard_c_job" | grep -Fq 'timeout-minutes: 15' || {
+  echo "GitHub test suite shard C has no 15-minute timeout"
+  exit 1
+}
+printf '%s' "$test_suite_shard_c_job" | grep -Fq 'yarn test:manifest:ci:shard-c' || {
+  echo "GitHub test suite shard C does not record its real manifest"
+  exit 1
+}
+printf '%s' "$test_suite_shard_c_job" | grep -Fq 'yarn test:ci:shard-c --report-json artifacts/vitest-results/test-suite-shard-c.json' || {
+  echo "GitHub test suite shard C does not run its checked-in shard directly"
+  exit 1
+}
+printf '%s' "$test_suite_shard_c_job" | grep -Fq 'ci-record-phase-timing.mjs --output artifacts/ci-timing/test-suite-shard-c.json --phase test-suite-shard-c' || {
+  echo "GitHub test suite shard C does not record its phase timing"
+  exit 1
+}
+printf '%s' "$test_suite_shard_c_job" | grep -Fq 'artifacts/vitest-results/test-suite-shard-c.json' || {
+  echo "GitHub test suite shard C does not retain its reporter result"
+  exit 1
+}
+if printf '%s' "$test_suite_shard_c_job" | grep -Eq 'verify:push|yarn build|test:hooks'; then
+  echo "GitHub test suite shard C rebuilds, invokes the local verifier, or duplicates hooks"
   exit 1
 fi
 
@@ -127,6 +155,10 @@ printf '%s' "$merge_gate_job" | grep -Fq -- '- test-suite-shard-a' || {
 }
 printf '%s' "$merge_gate_job" | grep -Fq -- '- test-suite-shard-b' || {
   echo "GitHub merge gate does not require test suite shard B"
+  exit 1
+}
+printf '%s' "$merge_gate_job" | grep -Fq -- '- test-suite-shard-c' || {
+  echo "GitHub merge gate does not require test suite shard C"
   exit 1
 }
 

@@ -16,6 +16,7 @@ const REQUIRED_JOBS = [
   'web-build',
   'test-suite-shard-a',
   'test-suite-shard-b',
+  'test-suite-shard-c',
   'hooks',
   'web-smoke',
   'security-analysis',
@@ -28,6 +29,7 @@ function successfulNeeds(desktopChanged = 'true'): Needs {
     'web-build': { result: 'success' },
     'test-suite-shard-a': { result: 'success' },
     'test-suite-shard-b': { result: 'success' },
+    'test-suite-shard-c': { result: 'success' },
     hooks: { result: 'success' },
     'web-smoke': { result: 'success' },
     'security-analysis': { result: 'success' },
@@ -73,6 +75,18 @@ describe('#1075 merge gate', () => {
       const result = runGate(needs);
       expect(result.status).not.toBe(0);
       expect(result.stderr).toContain('test-suite-shard-a');
+      expect(result.stderr).toContain(status);
+    },
+  );
+
+  it.each(['failure', 'cancelled', 'timed_out', 'neutral', 'action_required', 'skipped'])(
+    'rejects a mandatory third shard with %s',
+    status => {
+      const needs = successfulNeeds();
+      needs['test-suite-shard-c'] = { result: status };
+      const result = runGate(needs);
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain('test-suite-shard-c');
       expect(result.stderr).toContain(status);
     },
   );
