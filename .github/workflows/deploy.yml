@@ -100,7 +100,7 @@ jobs:
         with:
           path: dist
 
-  test-fast:
+  test-suite-shard-a:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
@@ -124,25 +124,26 @@ jobs:
 
       - name: Record test manifests
         run: |
-          mkdir -p artifacts/test-manifests
+          mkdir -p artifacts/test-manifests artifacts/vitest-results
           yarn test:manifest > artifacts/test-manifests/default.txt
-          yarn test:manifest:fast > artifacts/test-manifests/fast.txt
+          yarn test:manifest:ci:shard-a > artifacts/test-manifests/test-suite-shard-a.txt
 
-      - name: Run fast tests
-        run: node scripts/ci-record-phase-timing.mjs --output artifacts/ci-timing/test-fast.json --phase test-fast -- sh scripts/run-tests-by-tier.sh fast
+      - name: Run test suite shard A
+        run: node scripts/ci-record-phase-timing.mjs --output artifacts/ci-timing/test-suite-shard-a.json --phase test-suite-shard-a -- yarn test:ci:shard-a --report-json artifacts/vitest-results/test-suite-shard-a.json
 
-      - name: Upload test manifests
+      - name: Upload test suite shard A evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: test-manifests-fast
+          name: test-suite-shard-a-evidence
           path: |
             artifacts/test-manifests
             artifacts/ci-timing
+            artifacts/vitest-results
           if-no-files-found: warn
           retention-days: 14
 
-  test-slow:
+  test-suite-shard-b:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
@@ -164,22 +165,24 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
 
-      - name: Record test manifest
+      - name: Record test manifests
         run: |
-          mkdir -p artifacts/test-manifests
-          yarn test:manifest:slow > artifacts/test-manifests/slow.txt
+          mkdir -p artifacts/test-manifests artifacts/vitest-results
+          yarn test:manifest > artifacts/test-manifests/default.txt
+          yarn test:manifest:ci:shard-b > artifacts/test-manifests/test-suite-shard-b.txt
 
-      - name: Run slow tests
-        run: node scripts/ci-record-phase-timing.mjs --output artifacts/ci-timing/test-slow.json --phase test-slow -- sh scripts/run-tests-by-tier.sh slow
+      - name: Run test suite shard B
+        run: node scripts/ci-record-phase-timing.mjs --output artifacts/ci-timing/test-suite-shard-b.json --phase test-suite-shard-b -- yarn test:ci:shard-b --report-json artifacts/vitest-results/test-suite-shard-b.json
 
-      - name: Upload test manifest
+      - name: Upload test suite shard B evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: test-manifests-slow
+          name: test-suite-shard-b-evidence
           path: |
             artifacts/test-manifests
             artifacts/ci-timing
+            artifacts/vitest-results
           if-no-files-found: warn
           retention-days: 14
 
@@ -392,8 +395,8 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - web-build
-      - test-fast
-      - test-slow
+      - test-suite-shard-a
+      - test-suite-shard-b
       - hooks
       - web-smoke
       - security-analysis

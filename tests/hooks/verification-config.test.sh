@@ -18,55 +18,63 @@ grep -Fq '"verify:pr:status": "sh scripts/read-pr-verification-result.sh"' "$ROO
   exit 1
 }
 
-test_fast_job="$(
-  sed -n '/^  test-fast:/,/^  test-slow:/p' "$ROOT/.github/workflows/deploy.yml"
+test_suite_shard_a_job="$(
+  sed -n '/^  test-suite-shard-a:/,/^  test-suite-shard-b:/p' "$ROOT/.github/workflows/deploy.yml"
 )"
-printf '%s' "$test_fast_job" | grep -Fq 'timeout-minutes: 15' || {
-  echo "GitHub fast test lane has no 15-minute timeout"
+printf '%s' "$test_suite_shard_a_job" | grep -Fq 'timeout-minutes: 15' || {
+  echo "GitHub test suite shard A has no 15-minute timeout"
   exit 1
 }
-printf '%s' "$test_fast_job" | grep -Fq 'yarn test:manifest:fast' || {
-  echo "GitHub fast test lane does not record its real manifest"
+printf '%s' "$test_suite_shard_a_job" | grep -Fq 'yarn test:manifest:ci:shard-a' || {
+  echo "GitHub test suite shard A does not record its real manifest"
   exit 1
 }
-printf '%s' "$test_fast_job" | grep -Fq 'yarn test:manifest' || {
-  echo "GitHub fast test lane does not record default discovery"
+printf '%s' "$test_suite_shard_a_job" | grep -Fq 'yarn test:manifest' || {
+  echo "GitHub test suite shard A does not record default discovery"
   exit 1
 }
-printf '%s' "$test_fast_job" | grep -Fq 'sh scripts/run-tests-by-tier.sh fast' || {
-  echo "GitHub fast test lane does not run the fast tier directly"
+printf '%s' "$test_suite_shard_a_job" | grep -Fq 'yarn test:ci:shard-a --report-json artifacts/vitest-results/test-suite-shard-a.json' || {
+  echo "GitHub test suite shard A does not run its checked-in shard directly"
   exit 1
 }
-printf '%s' "$test_fast_job" | grep -Fq 'ci-record-phase-timing.mjs --output artifacts/ci-timing/test-fast.json --phase test-fast' || {
-  echo "GitHub fast test lane does not record its phase timing"
+printf '%s' "$test_suite_shard_a_job" | grep -Fq 'ci-record-phase-timing.mjs --output artifacts/ci-timing/test-suite-shard-a.json --phase test-suite-shard-a' || {
+  echo "GitHub test suite shard A does not record its phase timing"
   exit 1
 }
-printf '%s' "$test_fast_job" | grep -Fq 'artifacts/ci-timing' || {
-  echo "GitHub fast test lane does not retain its timing record"
+printf '%s' "$test_suite_shard_a_job" | grep -Fq 'artifacts/vitest-results/test-suite-shard-a.json' || {
+  echo "GitHub test suite shard A does not retain its reporter result"
   exit 1
 }
-if printf '%s' "$test_fast_job" | grep -Eq 'verify:push|yarn build'; then
-  echo "GitHub fast test lane rebuilds or invokes the local verifier"
+if printf '%s' "$test_suite_shard_a_job" | grep -Eq 'verify:push|yarn build|test:hooks'; then
+  echo "GitHub test suite shard A rebuilds, invokes the local verifier, or duplicates hooks"
   exit 1
 fi
 
-test_slow_job="$(
-  sed -n '/^  test-slow:/,/^  hooks:/p' "$ROOT/.github/workflows/deploy.yml"
+test_suite_shard_b_job="$(
+  sed -n '/^  test-suite-shard-b:/,/^  hooks:/p' "$ROOT/.github/workflows/deploy.yml"
 )"
-printf '%s' "$test_slow_job" | grep -Fq 'yarn test:manifest:slow' || {
-  echo "GitHub slow test lane does not record its real manifest"
+printf '%s' "$test_suite_shard_b_job" | grep -Fq 'timeout-minutes: 15' || {
+  echo "GitHub test suite shard B has no 15-minute timeout"
   exit 1
 }
-printf '%s' "$test_slow_job" | grep -Fq 'sh scripts/run-tests-by-tier.sh slow' || {
-  echo "GitHub slow test lane does not run the slow tier directly"
+printf '%s' "$test_suite_shard_b_job" | grep -Fq 'yarn test:manifest:ci:shard-b' || {
+  echo "GitHub test suite shard B does not record its real manifest"
   exit 1
 }
-printf '%s' "$test_slow_job" | grep -Fq 'ci-record-phase-timing.mjs --output artifacts/ci-timing/test-slow.json --phase test-slow' || {
-  echo "GitHub slow test lane does not record its phase timing"
+printf '%s' "$test_suite_shard_b_job" | grep -Fq 'yarn test:ci:shard-b --report-json artifacts/vitest-results/test-suite-shard-b.json' || {
+  echo "GitHub test suite shard B does not run its checked-in shard directly"
   exit 1
 }
-if printf '%s' "$test_slow_job" | grep -Eq 'verify:push|yarn build|test:hooks'; then
-  echo "GitHub slow test lane rebuilds, invokes the local verifier, or duplicates hooks"
+printf '%s' "$test_suite_shard_b_job" | grep -Fq 'ci-record-phase-timing.mjs --output artifacts/ci-timing/test-suite-shard-b.json --phase test-suite-shard-b' || {
+  echo "GitHub test suite shard B does not record its phase timing"
+  exit 1
+}
+printf '%s' "$test_suite_shard_b_job" | grep -Fq 'artifacts/vitest-results/test-suite-shard-b.json' || {
+  echo "GitHub test suite shard B does not retain its reporter result"
+  exit 1
+}
+if printf '%s' "$test_suite_shard_b_job" | grep -Eq 'verify:push|yarn build|test:hooks'; then
+  echo "GitHub test suite shard B rebuilds, invokes the local verifier, or duplicates hooks"
   exit 1
 fi
 
@@ -83,7 +91,7 @@ printf '%s' "$hooks_job" | grep -Fq 'ci-record-phase-timing.mjs --output artifac
 }
 
 web_build_job="$(
-  sed -n '/^  web-build:/,/^  test-fast:/p' "$ROOT/.github/workflows/deploy.yml"
+  sed -n '/^  web-build:/,/^  test-suite-shard-a:/p' "$ROOT/.github/workflows/deploy.yml"
 )"
 printf '%s' "$web_build_job" | grep -Fq 'ci-record-phase-timing.mjs --output artifacts/ci-timing/web-build.json --phase web-build' || {
   echo "GitHub web build does not record its phase timing"
@@ -111,6 +119,14 @@ printf '%s' "$merge_gate_job" | grep -Fq 'uses: actions/checkout@' || {
 }
 printf '%s' "$merge_gate_job" | grep -Fq 'node scripts/verify-merge-gate.mjs' || {
   echo "GitHub merge gate does not run the fail-closed verifier"
+  exit 1
+}
+printf '%s' "$merge_gate_job" | grep -Fq -- '- test-suite-shard-a' || {
+  echo "GitHub merge gate does not require test suite shard A"
+  exit 1
+}
+printf '%s' "$merge_gate_job" | grep -Fq -- '- test-suite-shard-b' || {
+  echo "GitHub merge gate does not require test suite shard B"
   exit 1
 }
 

@@ -14,8 +14,8 @@ type Needs = Record<string, JobResult>;
 
 const REQUIRED_JOBS = [
   'web-build',
-  'test-fast',
-  'test-slow',
+  'test-suite-shard-a',
+  'test-suite-shard-b',
   'hooks',
   'web-smoke',
   'security-analysis',
@@ -26,8 +26,8 @@ const REQUIRED_JOBS = [
 function successfulNeeds(desktopChanged = 'true'): Needs {
   return {
     'web-build': { result: 'success' },
-    'test-fast': { result: 'success' },
-    'test-slow': { result: 'success' },
+    'test-suite-shard-a': { result: 'success' },
+    'test-suite-shard-b': { result: 'success' },
     hooks: { result: 'success' },
     'web-smoke': { result: 'success' },
     'security-analysis': { result: 'success' },
@@ -69,10 +69,10 @@ describe('#1075 merge gate', () => {
     'rejects a mandatory %s result',
     status => {
       const needs = successfulNeeds();
-      needs['test-fast'] = { result: status };
+      needs['test-suite-shard-a'] = { result: status };
       const result = runGate(needs);
       expect(result.status).not.toBe(0);
-      expect(result.stderr).toContain('test-fast');
+      expect(result.stderr).toContain('test-suite-shard-a');
       expect(result.stderr).toContain(status);
     },
   );
