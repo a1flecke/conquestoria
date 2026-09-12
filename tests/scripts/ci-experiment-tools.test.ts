@@ -10,11 +10,11 @@ const COLLECT_EXPERIMENT = resolve(REPO_ROOT, 'scripts/collect-ci-experiment.mjs
 
 describe('#1075 CI experiment tools', () => {
   it('records a failed phase with its commit, elapsed time, and exit status', () => {
-    const output = join(mkdtempSync(join(tmpdir(), 'conquestoria-ci-timing-')), 'test-fast.json');
+    const output = join(mkdtempSync(join(tmpdir(), 'conquestoria-ci-timing-')), 'test-suite-shard-a.json');
     const result = spawnSync(process.execPath, [
       RECORD_TIMING,
       '--output', output,
-      '--phase', 'test-fast',
+      '--phase', 'test-suite-shard-a',
       '--', process.execPath, '-e', 'process.exit(7)',
     ], {
       cwd: REPO_ROOT,
@@ -24,7 +24,7 @@ describe('#1075 CI experiment tools', () => {
 
     expect(result.status, result.stderr).toBe(7);
     expect(JSON.parse(readFileSync(output, 'utf8'))).toMatchObject({
-      phase: 'test-fast',
+      phase: 'test-suite-shard-a',
       commit: 'timing-fixture-sha',
       exitStatus: 7,
     });
@@ -46,7 +46,7 @@ describe('#1075 CI experiment tools', () => {
         }),
         CI_EXPERIMENT_JOBS_JSON: JSON.stringify({ jobs: [
           {
-            name: 'test-fast', conclusion: 'success',
+            name: 'test-suite-shard-a', conclusion: 'success',
             started_at: '2026-09-11T10:01:30Z', completed_at: '2026-09-11T10:04:30Z',
           },
           {
@@ -55,7 +55,7 @@ describe('#1075 CI experiment tools', () => {
           },
         ] }),
         CI_EXPERIMENT_ARTIFACTS_JSON: JSON.stringify({ artifacts: [
-          { name: 'ci-timing-fast', archive_download_url: 'https://example.test/timing.zip' },
+          { name: 'ci-timing-test-suite-shard-a', archive_download_url: 'https://example.test/timing.zip' },
         ] }),
       },
     });
@@ -69,10 +69,10 @@ describe('#1075 CI experiment tools', () => {
       workflowCompletedAt: '2026-09-11T10:07:00Z',
       queueDelayMs: 90_000,
       aggregateWallTimeMs: 300_000,
-      jobDurationsMs: { 'test-fast': 180_000, 'merge-gate': 60_000 },
-      childResults: { 'test-fast': 'success', 'merge-gate': 'success' },
+      jobDurationsMs: { 'test-suite-shard-a': 180_000, 'merge-gate': 60_000 },
+      childResults: { 'test-suite-shard-a': 'success', 'merge-gate': 'success' },
       runnerMinutes: 4,
-      artifactUrls: { 'ci-timing-fast': 'https://example.test/timing.zip' },
+      artifactUrls: { 'ci-timing-test-suite-shard-a': 'https://example.test/timing.zip' },
     });
   });
 });

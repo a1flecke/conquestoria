@@ -2,8 +2,8 @@
 
 const REQUIRED_JOBS = [
   'web-build',
-  'test-fast',
-  'test-slow',
+  'test-suite-shard-a',
+  'test-suite-shard-b',
   'hooks',
   'web-smoke',
   'security-analysis',
