@@ -26,6 +26,12 @@ The same changed-path policy applies to both events:
 The workflow must declare `workflow_dispatch` so that escape hatch is actually
 available from GitHub Actions.
 
+Every normally required child job must also accept `workflow_dispatch`, so a
+manual run on a selected non-`main` ref is a valid full merge-gate run rather
+than a guaranteed failure from skipped required children. If a push event has
+an all-zero `before` SHA, the change check must conservatively require macOS
+packaging instead of attempting an invalid Git diff.
+
 ## Desktop-risk inputs
 
 The macOS package build runs when at least one changed path is one of:
