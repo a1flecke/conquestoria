@@ -45,7 +45,7 @@ paths:
 `require-green-before-push.sh` fires only for `git push`, `gh pr create`, and `gh pr merge` — not for `git commit`. It delegates to `scripts/verify-before-push.sh`, which runs `yarn test`, then `yarn build` — **sequentially**, not in parallel (each `run_phase` call blocks before the next line runs).
 
 - **Local gate** (the real `.githooks/pre-push` hook, and this Claude Code hook): both call `verify-before-push.sh --regular`, which runs `yarn test:regular` — the local regular selection only, see "Local selections and CI shards" below.
-- **CI** (`yarn verify:push`, `test-suite-shard-a`, `test-suite-shard-b`, and `merge-gate` in `.github/workflows/deploy.yml`): runs the complete default Vitest suite exactly once across two balanced shards. `merge-gate` requires both results, so neither the local selection nor a skipped expensive simulation can weaken merge coverage.
+- **CI** (`yarn verify:push`, `test-suite-shard-a`, `test-suite-shard-b`, `test-suite-shard-c`, and `merge-gate` in `.github/workflows/deploy.yml`): runs the complete default Vitest suite exactly once across three explicit shards. `merge-gate` requires all three results, so neither the local selection nor a skipped expensive simulation can weaken merge coverage.
 
 **Set Bash tool timeout to match the command, not the hook:**
 - `git commit` — **30 000 ms**. No hook runs tests; the commit itself takes < 1s.
@@ -208,10 +208,10 @@ Local selection keeps push feedback practical; CI sharding keeps complete merge 
 - `yarn test:regular` (`run-tests-by-local-tier.sh regular`) excludes the `SLOW_TEST_FILES` implementation list. This is the local pre-push selection.
 - `yarn test:intensive-simulations` runs only that list, or one supplied root-relative focused file without unioning it with the whole list.
 - `yarn test:manifest`, `test:manifest:regular`, and `test:manifest:intensive-simulations` print real local manifests without executing bodies.
-- `yarn test:ci:shard-a` and `test:ci:shard-b` run the checked-in complete-suite assignments. `test:manifest:ci:shard-a` and `test:manifest:ci:shard-b` print their exact lists. CI must use these package scripts rather than duplicate paths in workflow YAML.
-- `yarn test` remains complete and unchanged. CI's two explicit shard jobs, not the local selection, are the required full-suite merge gate.
+- `yarn test:ci:shard-a`, `test:ci:shard-b`, and `test:ci:shard-c` run the checked-in complete-suite assignments. `test:manifest:ci:shard-a`, `test:manifest:ci:shard-b`, and `test:manifest:ci:shard-c` print their exact lists. CI must use these package scripts rather than duplicate paths in workflow YAML.
+- `yarn test` remains complete and unchanged. CI's three explicit shard jobs, not the local selection, are the required full-suite merge gate.
 
-**When adding, removing, or renaming a default-discovered Vitest test:** first place it by the table above and add an explicit headroom-sized timeout if it is expensive. Then run `yarn test:profile:default`, `yarn test:ci-shards:allocate`, and `yarn vitest run tests/scripts/ci-test-shard-selection.test.ts`. Commit the regenerated `scripts/ci-test-shards.json`; the runner rejects an unassigned, duplicate, stale, or non-default entry. The profile data is a starting allocation only: use uploaded CI JSON reporter artifacts and the three-run measurement protocol before treating a rebalance as successful. Do not respond to imbalance by splitting file counts, raising timeouts, or weakening tests.
+**When adding, removing, or renaming a default-discovered Vitest test:** first place it by the table above and add an explicit headroom-sized timeout if it is expensive. Then run `yarn test:profile:default`, `yarn test:ci-shards:allocate`, and `yarn vitest run tests/scripts/ci-test-shard-selection.test.ts`. Commit the regenerated `scripts/ci-test-shards.json`; the runner rejects an unassigned, duplicate, stale, or non-default entry. The profile data is a starting allocation only: use uploaded CI JSON reporter artifacts and the three-run measurement protocol before treating a rebalance as successful. When one measured shard alone is critical, retain every noncritical assignment and use its retained reporter JSON plus `--fixed-shard-manifest` / `--fixed-shards` to divide only that shard; do not split file counts, raise timeouts, or weaken tests.
 
 ## Vitest cache config
 
