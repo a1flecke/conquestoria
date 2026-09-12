@@ -23,11 +23,11 @@
 - Modify: `tests/e2e/issue-437-hud-alignment.spec.ts:47-79`
 - Test: `tests/e2e/issue-437-hud-alignment.spec.ts`
 
-- [ ] **Step 1: Preserve the failing CI reproduction evidence**
+- [x] **Step 1: Preserve the failing CI reproduction evidence**
 
 Treat workflow `34701694504` as the red result. Its trace shows that the test exceeded Playwright's default 30,000 ms timeout while waiting for the second post-fixture interaction to settle; it does not show a failed HUD assertion or a product behavior regression.
 
-- [ ] **Step 2: Add the explicit per-test budget at the start of the affected test**
+- [x] **Step 2: Add the explicit per-test budget at the start of the affected test**
 
 Inside the existing `Tauri-sized HUD keeps every yield on one visual baseline` callback, before `page.setViewportSize`, add exactly:
 
@@ -37,7 +37,7 @@ Inside the existing `Tauri-sized HUD keeps every yield on one visual baseline` c
 
 Do not alter the 30,000 ms global `playwright.config.ts` timeout or either neighboring test. This leaves ordinary E2E failures fast while allowing this known fixture-intensive visual flow its documented 15-second startup headroom.
 
-- [ ] **Step 3: Run the exact affected E2E test**
+- [x] **Step 3: Run the exact affected E2E test**
 
 Run:
 
@@ -56,6 +56,8 @@ Run:
 ```
 
 Expected: all 14 browser tests pass with their existing two-worker configuration.
+
+Local result: the command was started after the repair but its terminal stream detached; the process later exited without a recoverable result. It is intentionally inconclusive rather than a claimed pass. The replacement GitHub workflow is the authoritative full-suite check.
 
 - [ ] **Step 5: Commit the isolated reliability repair**
 
