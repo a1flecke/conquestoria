@@ -129,6 +129,32 @@ export function mergePreparedForceDemands(
     right.priority - left.priority || left.role.localeCompare(right.role));
 }
 
+/**
+ * #1064 -- an INCREMENTAL demand: "one more R, up to `cap`".
+ *
+ * `desired = min(owned + 1, cap)` and `assigned = owned`, so the merged `missing` is
+ * structurally 0 or 1. A standing force can never be requested in a single round, and
+ * a demand can never outrun the units that satisfy it -- which is exactly the failure
+ * that made a persistent readiness role produce one unit per turn forever.
+ *
+ * Returns [] once already OVER the cap (owned > cap) so callers stay declarative.
+ * Exactly AT the cap still emits a satisfied entry (desired === assigned === cap,
+ * so missing === 0) rather than [] -- an off-by-one here would make a demand
+ * disappear right at the boundary instead of reading as satisfied.
+ */
+export function incrementalDemandSeed(
+  role: AIForceDemand['role'],
+  sourceId: string,
+  priority: number,
+  owned: number,
+  cap: number,
+): PreparedForceDemandSeed[] {
+  const held = Math.max(0, Math.floor(owned));
+  const ceiling = Math.max(0, Math.floor(cap));
+  if (held > ceiling) return [];
+  return [{ role, sourceId, priority, desired: Math.min(held + 1, ceiling), assigned: held }];
+}
+
 function observedArmorDemand(
   state: Readonly<GameState>,
   perception: MajorCivPerception,

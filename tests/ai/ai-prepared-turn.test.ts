@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   getPreparedAssignmentProfile,
+  incrementalDemandSeed,
   mergePreparedForceDemands,
   prepareMajorCivStrategicPlan,
 } from '@/ai/ai-prepared-turn';
@@ -620,5 +621,52 @@ describe('prepared major-civilization planning', () => {
       role: 'frontline', desired: 1, priority: 220,
       sourcePlanIds: ['domination-threat:ai-2'],
     });
+  });
+});
+
+describe('incrementalDemandSeed', () => {
+  it('asks for one when the civilization owns none', () => {
+    expect(incrementalDemandSeed('worker', 'worker-infrastructure', 40, 0, 4))
+      .toEqual([{
+        role: 'worker',
+        sourceId: 'worker-infrastructure',
+        priority: 40,
+        desired: 1,
+        assigned: 0,
+      }]);
+  });
+
+  it('asks for exactly one MORE, never the whole gap', () => {
+    expect(incrementalDemandSeed('worker', 'worker-infrastructure', 40, 1, 4))
+      .toEqual([{
+        role: 'worker',
+        sourceId: 'worker-infrastructure',
+        priority: 40,
+        desired: 2,
+        assigned: 1,
+      }]);
+  });
+
+  it('is satisfied at the cap', () => {
+    const [seed] = incrementalDemandSeed('settlement', 'objective-readiness', 90, 1, 1);
+    expect(seed).toMatchObject({ desired: 1, assigned: 1 });
+  });
+
+  it('returns nothing when already over cap, never a negative shortfall', () => {
+    expect(incrementalDemandSeed('worker', 'worker-infrastructure', 40, 3, 2)).toEqual([]);
+  });
+
+  it('always merges to a missing of 0 or 1, for every owned/cap pair', () => {
+    for (let owned = 0; owned <= 6; owned++) {
+      for (let cap = 0; cap <= 6; cap++) {
+        const merged = mergePreparedForceDemands(
+          [],
+          incrementalDemandSeed('worker', 'worker-infrastructure', 40, owned, cap),
+        );
+        const missing = merged.find(entry => entry.role === 'worker')?.missing ?? 0;
+        expect(missing, `owned=${owned} cap=${cap}`).toBeGreaterThanOrEqual(0);
+        expect(missing, `owned=${owned} cap=${cap}`).toBeLessThanOrEqual(1);
+      }
+    }
   });
 });
