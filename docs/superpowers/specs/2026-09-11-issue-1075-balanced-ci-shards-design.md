@@ -9,9 +9,12 @@ explicit and enforce it for both humans and agents.
 
 ## Verified evidence
 
-- The current CI `test-fast` job executes 622 of the 638 default-discovered
-  Vitest files. `test-slow` executes the remaining 16 intensive simulation
-  files. The names describe the local-push policy, not their CI duration.
+- The 2026-09-11 benchmark commit had `test-fast` execute 622 of 638
+  default-discovered Vitest files and `test-slow` execute the remaining 16
+  intensive simulation files. Current `origin/main` discovery has since
+  advanced to 641 files (624 regular, 17 intensive), confirming that a
+  hand-maintained CI partition needs an exhaustive real-discovery guard. The
+  current names describe the local-push policy, not CI duration.
 - In the first two new fixed-reference runs at
   `4de90e4652b8529e78d5c95ac72e455e003fbc42`, the directly recorded test
   phases were 359.5 seconds for `test-fast` and 194.4 seconds for
@@ -55,12 +58,21 @@ one named partition, while a checked-in manifest owns the file-to-shard
 mapping. The workflow invokes the runner directly, records each shard's real
 manifest and phase timing, and merge-gate requires both jobs.
 
-Initial membership is chosen from the measured baseline to equalize aggregate
-test-phase duration, not by file count or source directory. The implementation
-must retain a reproducible record of the measurements used for the initial
-partition. A follow-up three-run experiment measures the actual CI result;
-the target is that neither shard is more than 15% longer than the other across
-the sample median, excluding setup time shared by both jobs.
+Initial membership is chosen from measured per-file runtime, not by file count
+or source directory. A dedicated profiling command runs Vitest with both its
+ordinary terminal reporter and the official JSON reporter written to a file.
+The owned parser consumes each file result's `name`, `startTime`, and `endTime`
+from that JSON artifact, validates the schema with fixtures, and records the
+file weight used for the initial partition. A deterministic greedy allocator
+then writes the checked-in shard manifest, making the input data and the
+allocation reproducible.
+
+A follow-up three-run experiment measures the actual CI result; the target is
+that neither shard is more than 15% longer than the other across the sample
+median, excluding setup time shared by both jobs. File durations are only the
+initial allocation signal because Vite transforms, worker scheduling, and
+per-process startup also affect wall time. The three-run result, not a
+file-count estimate, decides whether the partition is acceptable.
 
 The regular/intensive classification does not determine a CI shard. Intensive
 tests are deliberately distributed across the two CI shards alongside regular
@@ -93,9 +105,23 @@ and a stale/non-default manifest entry. The existing local-tier regression
 must make the equivalent guarantees under the renamed terminology.
 
 Workflow-configuration and merge-gate tests must assert the two named shard
-jobs, their direct shard-runner invocations, their timing/manifests artifacts,
-and their fail-closed required results. No workflow condition may treat a
-missing shard as success.
+jobs, their direct shard-runner invocations, their timing/manifests/JSON-report
+artifacts, equal 15-minute safety ceilings, and their fail-closed required
+results. No workflow condition may treat a missing shard as success.
+
+The two jobs remain explicit rather than a GitHub Actions matrix. There are
+only two fixed, separately required partitions; explicit job IDs make their
+status, artifacts, and merge-gate failures legible, and avoid matrix
+`fail-fast` canceling the peer before it publishes useful diagnostic evidence.
+
+Vitest's native `--shard` is intentionally not used because it partitions test
+files equally, not measured duration. Vitest blob reports and a merge-reports
+job are likewise deferred: the repository has no coverage or consolidated test
+report consumer today, while GitHub's native job results and this workflow's
+fail-closed merge-gate already provide the required pass/fail record. If a
+future workflow needs consolidated cross-machine test or coverage reporting,
+adopt the official blob-artifact and merge-reports flow at that time; do not
+add its runner, dependency install, and artifact transfer merely for sharding.
 
 ## Non-goals
 
@@ -104,6 +130,9 @@ missing shard as success.
   branch-protection semantics to improve timing.
 - Do not use a hash-only or equal-file-count split: neither demonstrates
   duration balance for this suite.
+- Do not reduce worker counts or timeouts as part of the split. Vitest keeps
+  its existing CI worker policy, and both shards retain the current 15-minute
+  safety ceiling until real measurements support a separate timeout decision.
 - Do not alter the existing issue-365 browser-test failure as part of this
   sharding change. Its root-cause repair is a separate test-stability task.
 
