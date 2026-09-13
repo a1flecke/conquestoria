@@ -855,6 +855,16 @@ function makeAdjacentExposedCityState({ population }: { population: number }): G
     throw new Error('missing ai warrior fixture');
   }
 
+  // #1064: delete the ORIGINAL stray units (createNewGame's default settler + warrior)
+  // -- reassigning civ.units below does not remove them from state.units, and
+  // getCivilizationLiveness scans state.units by OWNERSHIP, not civ.units membership.
+  // Leaving them in place made this civ falsely "living, reason: settler", which
+  // triggered processAIResettlement against the wrong (stray) unit and produced a
+  // nonsensical operational anchor for candidate generation.
+  for (const id of [...state.civilizations['ai-1'].units]) {
+    delete state.units[id];
+  }
+
   state.units['ai-attacker'] = {
     ...template,
     id: 'ai-attacker',
@@ -864,6 +874,17 @@ function makeAdjacentExposedCityState({ population }: { population: number }): G
     hasMoved: false,
   };
   state.civilizations['ai-1'].units = ['ai-attacker'];
+
+  // #1064: a real city, so the civ is genuinely "living" (reason: city) with a sensible
+  // operational anchor -- matching what this fixture's own name already claimed. mkC()
+  // matches this file's existing convention (used by city-player just below) -- its
+  // auto-generated id is always overridden by an explicit id right after, so the
+  // counter resetting to 1 every call never collides with the map's existing cities.
+  state.cities['city-ai1'] = {
+    ...foundCity('ai-1', { q: 0, r: 0 }, state.map, mkC()),
+    id: 'city-ai1',
+  };
+  state.civilizations['ai-1'].cities = ['city-ai1'];
 
   state.cities['city-player'] = {
     ...foundCity('player', { q: 1, r: 0 }, state.map, mkC()),
@@ -876,6 +897,14 @@ function makeAdjacentExposedCityState({ population }: { population: number }): G
   };
   state.civilizations.player.cities = ['city-player'];
   state.map.tiles[hexKey({ q: 1, r: 0 })].owner = 'player';
+
+  // #1064: reveal the target properly -- perception requires actual visibility, and
+  // this fixture never granted it, so no capture candidate could ever be generated at
+  // all (a second, independent reason the pre-existing "no moves" assertion passed for
+  // the wrong reason: no plan ever existed to progress in the first place).
+  state.civilizations['ai-1'].knownCivilizations = ['player'];
+  state.civilizations['ai-1'].visibility.tiles[hexKey({ q: 1, r: 0 })] = 'visible';
+  state.civilizations['ai-1'].visibility.tiles[hexKey({ q: 0, r: 0 })] = 'visible';
 
   return state;
 }
@@ -3139,5 +3168,28 @@ describe('#910 AI vassalage offer wiring', () => {
 
     expect(result.embargoes[0].participants).toEqual(['overlord']);
     expect(result.defensiveLeagues[0].members).toEqual(['overlord']);
+  });
+});
+
+describe('#1064 idle-unit auto-explore', () => {
+  it('sends a genuinely idle combat unit to explore', () => {
+    const state = createNewGame(undefined, 'explore-idle-warrior', 'small');
+    const civ = state.civilizations['ai-1'];
+    const warriorId = civ.units.find(id => state.units[id]?.type === 'warrior')!;
+    const before = { ...state.units[warriorId] };
+    const visibleBefore = Object.values(civ.visibility.tiles).filter(v => v === 'visible').length;
+
+    const bus = new EventBus();
+    const after = processAITurn(state, 'ai-1', bus);
+    const warriorAfter = after.units[warriorId];
+
+    // The warrior must have actually moved (or, on a fully-boxed fixture, at
+    // least been considered) -- position OR automation changing proves the
+    // loop ran, not just that the field was set and nothing happened.
+    expect(warriorAfter?.automation?.mode).toBe('auto-explore');
+    const civAfter = after.civilizations['ai-1'];
+    const visibleAfter = Object.values(civAfter.visibility.tiles).filter(v => v === 'visible').length;
+    expect(visibleAfter, 'exploring should reveal at least one new tile').toBeGreaterThan(visibleBefore);
+    expect(warriorAfter?.position).not.toEqual(before.position);
   });
 });
