@@ -293,7 +293,7 @@
 
   The review must state evidence for no gameplay/difficulty/UI/SFX/save changes, unchanged AI call semantics, hot-seat actor-owner independence, canonical legality ownership, first-match collision preservation, transport/airborne compatibility, exact performance guard behavior, and any actual inline findings with their fixes.
 
-- [ ] **Step 2: Run final source, targeted, build, and durable evidence.**
+- [x] **Step 2: Run final source, targeted, build, and durable evidence.**
 
   Run separately:
 
@@ -305,7 +305,7 @@
   ./scripts/run-with-mise.sh yarn test:durable:status
   ```
 
-  Expected: every command exits 0; durable status identifies the current `HEAD` and a clean working tree. If any long command has incomplete terminal output, use its durable status before inspecting a live process and do not start a duplicate run.
+  Result: source-policy check, the 346-test focused suite, and the production build passed. The durable suite passed for `783119d76facf19132b9ddb972c0b416014daabe` with 647 files and 11,214 tests passing (3 skipped); its status confirmed a clean worktree. If any long command has incomplete terminal output, use its durable status before inspecting a live process and do not start a duplicate run.
 
 - [x] **Step 3: Mark delivery state in this plan and commit it with the final review notes.**
 
