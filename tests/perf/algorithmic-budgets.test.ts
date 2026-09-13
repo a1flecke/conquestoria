@@ -82,10 +82,6 @@ function computeBaseline(runs: Record<PerfArea, AreaSample[]>, priorAuditedCommi
         heapPops: cap(a.findPath.heapPops!),
         heapPushes: cap(a.findPath.heapPushes!),
       },
-      moveRange: {
-        blockingEntityAtCalls: cap(a['moveRange@e2'].blockingEntityAtCalls!),
-        derivedInnerBound: cap(a['moveRange@e2'].derivedInnerBound!),
-      },
       saveSerialize: {
         bytes: cap(a['saveSerialize@e2'].bytes!),
         entityBytes: cap(a['saveSerialize@e2'].entityBytes!),
@@ -118,6 +114,11 @@ function computeBaseline(runs: Record<PerfArea, AreaSample[]>, priorAuditedCommi
 let fx: PerfFixtures;
 const runs = Object.fromEntries(PERF_AREAS.map(k => [k, [] as AreaSample[]])) as Record<PerfArea, AreaSample[]>;
 const S = (area: PerfArea): AreaSample => runs[area][0]!;
+
+function expectMoveRangeBlockerWork(sample: AreaSample): void {
+  expect(sample.blockingEntityAtCalls, 'detailed BFS must not call the linear coordinate lookup').toBe(0);
+  expect(sample.blockingMapEntityLookupBuilds, 'detailed query must build one blocker lookup').toBe(1);
+}
 
 describe('#1007 algorithmic budgets', () => {
   beforeAll(() => {
@@ -197,19 +198,13 @@ describe('#1007 algorithmic budgets', () => {
 
   /** ── the 5 proven guards ────────────────────────────────────────────── */
 
-  it('GUARD 1 — move-range blocker work does not multiply by city count', () => {
-    // `getMovementRangeDetails` calls `getBlockingMapEntityAt` per BFS neighbour
-    // (each `.find`s over all cities+camps). The CALL COUNT tracks reachable-tile
-    // count, not city count, so it must stay under an absolute budget as cities
-    // grow — and the derived O(reachable×cities) inner work must too.
-    // Sabotage: add a 2nd `getBlockingMapEntityAt(state, unit, neighbor)` call
-    // inside that BFS loop (unit-movement-queries.ts ~:213) → blockingEntityAtCalls
-    // and derivedInnerBound both double → both assertions fail.
-    const e2 = S('moveRange@e2');
-    expect(e2.blockingEntityAtCalls!, 'blocker call count must not scale with cities')
-      .toBeLessThanOrEqual(base.budgets.moveRange!.blockingEntityAtCalls!);
-    expect(e2.derivedInnerBound!, 'O(reachable × cities) inner blocker work')
-      .toBeLessThanOrEqual(base.budgets.moveRange!.derivedInnerBound!);
+  it('GUARD 1 — detailed movement builds one blocker lookup and makes no direct coordinate lookup', () => {
+    expectMoveRangeBlockerWork(S('moveRange@e2'));
+  });
+
+  it('GUARD 1 sabotage proof — rejects a per-neighbor lookup or rebuilt lookup', () => {
+    expect(() => expectMoveRangeBlockerWork({ blockingEntityAtCalls: 1, blockingMapEntityLookupBuilds: 1 })).toThrow();
+    expect(() => expectMoveRangeBlockerWork({ blockingEntityAtCalls: 0, blockingMapEntityLookupBuilds: 2 })).toThrow();
   });
 
   it('GUARD 2 — findPath expands a bounded set of nodes proportional to the route, not the map', () => {

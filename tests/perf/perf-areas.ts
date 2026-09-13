@@ -50,8 +50,6 @@ export function buildPerfFixtures(): PerfFixtures {
 export interface AreaSample extends Partial<PerfCounts> {
   bytes?: number;
   entityBytes?: number;
-  cityCount?: number;
-  derivedInnerBound?: number;
   routeLength?: number;
 }
 
@@ -130,12 +128,10 @@ export function measurePerfArea(area: PerfArea, fx: PerfFixtures): AreaSample {
     case 'moveRange@e1':
     case 'moveRange@e2': {
       const state = area === 'moveRange@e1' ? fx.e1 : fx.e2;
-      const cityCount = Object.keys(state.cities).length;
       const { counts } = withPerfProbe(() => getMovementRangeDetails(state, moveRangeUnitId(state)));
       return {
         blockingEntityAtCalls: counts.blockingEntityAtCalls,
-        cityCount,
-        derivedInnerBound: counts.blockingEntityAtCalls * cityCount,
+        blockingMapEntityLookupBuilds: counts.blockingMapEntityLookupBuilds,
       };
     }
     case 'saveSerialize@e1':

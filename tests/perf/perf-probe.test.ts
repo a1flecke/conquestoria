@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BinaryHeap } from '@/systems/binary-heap';
 import { findPath } from '@/systems/unit-pathfinding';
 import { createNewGame } from '@/core/game-state';
+import { getMovementRangeDetails } from '@/systems/unit-movement-queries';
 import { withPerfProbe } from './perf-probe';
 
 /**
@@ -43,10 +44,29 @@ describe('withPerfProbe', () => {
       heapPops: 0,
       heapPushes: 0,
       blockingEntityAtCalls: 0,
+      blockingMapEntityLookupBuilds: 0,
       pathQueries: 0,
       visibilityPasses: 0,
       cityYieldCalls: 0,
     });
+  });
+
+  it('counts one canonical blocker lookup and no direct coordinate lookup for a detailed movement query', () => {
+    const state = createNewGame({
+      civType: 'rome',
+      seed: 'perf-probe-movement-lookup',
+      mapSize: 'small',
+      opponentCount: 1,
+      gameTitle: 'probe-movement',
+      opponentChallenge: 'standard',
+    });
+    const unitId = Object.keys(state.units)[0];
+    if (!unitId) throw new Error('fixture must create a unit');
+
+    const { counts } = withPerfProbe(() => getMovementRangeDetails(state, unitId));
+
+    expect(counts.blockingMapEntityLookupBuilds).toBe(1);
+    expect(counts.blockingEntityAtCalls).toBe(0);
   });
 
   it('restores every spy even when the operation throws', () => {
