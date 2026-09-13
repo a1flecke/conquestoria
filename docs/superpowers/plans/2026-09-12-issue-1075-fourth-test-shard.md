@@ -8,16 +8,16 @@
 
 **Tech Stack:** GitHub Actions, Node.js ESM scripts, Yarn, Vitest JSON reporter, shell workflow-contract tests.
 
-**Status:** 🟡 Tasks 1–4 are complete locally at rebased commit `3b6f38bbd51856acb0b84876b269f8f4ebc1743a`. Direct A execution completed without a recoverable exit status and is therefore inconclusive; all four manifest commands, focused contracts, production build, and durable full-suite status passed. GitHub candidate measurement has not started.
+**Status:** 🟡 Rebased onto `b27c959d01734a22bb5792c9e8d64ff17a76b08b`. The current-base B/D manifest has been regenerated from successful GitHub evidence; focused shard/gate and hook contracts pass. All four direct shard commands, production build, and durable full-suite evidence pass. GitHub candidate measurement remains outstanding.
 
 ---
 
 ## Fixed experiment contract
 
-- Base commit: `b68a9561a3f79ccc2ebed43fb3cbab3ed4aca3df` (`origin/main` after PR #1079's rebase merge).
-- Retained source evidence: successful `test-suite-shard-b` reporter artifact from workflow run `34704662037`, attempt 4, at pre-rebase PR head `cf5ae947bf28afbc091452ce43af068288a97f6e`. Its 322 B paths exactly equal the post-rebase base assignment above; the generated manifest records the current base commit.
-- Baseline measurement: three successful post-#1079 full workflow attempts; required-gate median `5m35s`, worst `5m39s`. B was critical in each (`5m22s`, `5m31s`, `5m26s`); A was `4m27s`, `4m21s`, `3m42s`; C was `3m14s`, `3m08s`, `3m04s`.
-- Single changed variable: B's 322 measured files become B plus D. A and C must be exact retained assignments. The web build, browser smoke, hooks, security, desktop, macOS, worker/isolation settings, test bodies, and retry policy are unchanged.
+- Base commit: `b27c959d01734a22bb5792c9e8d64ff17a76b08b` (`origin/main` after PR #1091's conditional macOS policy merge).
+- Retained source evidence: successful `test-suite-shard-b` reporter artifact from workflow run `34720429438`, attempt 1, at PR head `e1ec56aa3edbd4ce3d65617841965ddcdb16d16b`. Its 323 B paths and its 645-path default manifest exactly equal the current base assignment; the generated manifest records that reporter commit as timing provenance.
+- Immediate current-base reference: workflow `34720429438` required-gate wall time `5m50s`; B was critical at `5m36s`, with A `3m02s`, C `3m05s`, and web smoke `3m51s`. The historical three-run pre-conditional-macOS baseline remains context only, not a same-topology comparator.
+- Single changed variable: B's 323 measured files become B plus D. A and C must be exact retained assignments. The web build, browser smoke, hooks, security, desktop classifier, conditional macOS policy, worker/isolation settings, test bodies, and retry policy are unchanged from this base.
 - Do not divide by file count, derive timings from a local run, omit a test, or raise a timeout. The allocator's duration-aware LPT split is the only balancing mechanism.
 - Candidate acceptance: an initial complete green PR workflow followed by three fresh, sequential whole-workflow attempts. Record required-gate wall time, job durations, queue time, and positive runner seconds. Stop on a failed attempt; never use a failed-job-only rerun.
 - Success threshold: required-gate median at or below `5m30s`, no coverage or reliability regression, and median positive runner seconds no more than 50% above the pre-shard baseline.
@@ -120,7 +120,7 @@ Expected: PASS. The current allocator already supports multiple retained assignm
 
 - [x] **Step 3: Download and normalize only successful B reporter evidence**
 
-Download the `test-suite-shard-b-evidence` artifact from run `34704662037`, attempt 4 into a new `/private/tmp/` directory. Extract `vitest-results/test-suite-shard-b.json`, then run:
+Download the `test-suite-shard-b-evidence` artifact from successful current-base run `34720429438`, attempt 1 into a new `/private/tmp/` directory. Extract `vitest-results/test-suite-shard-b.json`, then run:
 
 ```bash
 ./scripts/run-with-mise.sh yarn node scripts/collect-vitest-file-timings.mjs \
@@ -130,7 +130,7 @@ Download the `test-suite-shard-b-evidence` artifact from run `34704662037`, atte
   --reporter-repo-root /home/runner/work/conquestoria/conquestoria
 ```
 
-Reject the input if the reporter is unsuccessful or if either its retained B manifest or normalized reporter paths is not precisely B's current assignment. Record its pre-rebase PR-head SHA (`cf5ae947bf28afbc091452ce43af068288a97f6e`) as provenance and use the current base SHA (`b68a9561a3f79ccc2ebed43fb3cbab3ed4aca3df`) in the generated manifest; a rebase merge intentionally changes the commit ID without changing this verified assignment.
+Reject the input if the reporter is unsuccessful or if either its retained B manifest or full default manifest is not precisely the current-base assignment. Record its workflow head SHA (`e1ec56aa3edbd4ce3d65617841965ddcdb16d16b`) as timing provenance; it is accepted only after exact manifest equality proves the reporter represents this base.
 
 - [x] **Step 4: Generate the manifest with A/C retained**
 
@@ -144,8 +144,8 @@ Run the existing allocator with the artifact's exact `test-manifests/default.txt
   --shard-names test-suite-shard-a,test-suite-shard-b,test-suite-shard-c,test-suite-shard-d \
   --fixed-shard-manifest scripts/ci-test-shards.json \
   --fixed-shards test-suite-shard-a,test-suite-shard-c \
-  --timing-source github-actions-vitest-json-run-34704662037-attempt-4 \
-  --source-commit b68a9561a3f79ccc2ebed43fb3cbab3ed4aca3df
+  --timing-source github-actions-vitest-json-run-34720429438-attempt-1 \
+  --source-commit e1ec56aa3edbd4ce3d65617841965ddcdb16d16b
 ```
 
 Compare the pre-generation A/C arrays to the generated A/C arrays byte-for-byte. Reject any change. Confirm the resulting weighted B/D estimates are nearly equal and every reporter path is assigned exactly once.
@@ -174,7 +174,7 @@ Expected: PASS. Each list contains only its stored sorted assignment; A/C remain
 
 - [x] **Step 1: Write failing D gate and workflow assertions**
 
-Add `test-suite-shard-d` to the successful needs fixture and `REQUIRED_JOBS`. Add a parameterized D non-success test asserting its name and status appear in stderr. In the shell contract, extract D from the workflow and assert its 15-minute timeout, D manifest command, D direct runner with `--report-json`, phase timing file, reporter artifact, no build/local-verifier/hooks duplication, and D entry in `merge-gate.needs`.
+Add `test-suite-shard-d` to the successful needs fixture and `REQUIRED_JOBS`. Add a parameterized D non-success test asserting its name and status appear in stderr. In the shell contract, extract D from the workflow and assert its 15-minute timeout, manual-dispatch eligibility, D manifest command, D direct runner with `--report-json`, phase timing file, reporter artifact, no build/local-verifier/hooks duplication, and D entry in `merge-gate.needs`.
 
 - [x] **Step 2: Prove the D workflow contract is red**
 
@@ -189,7 +189,7 @@ Expected: FAIL because production gate/workflow definitions omit D.
 
 - [x] **Step 3: Implement the explicit D job and dependency**
 
-Copy C's workflow job into a standalone `test-suite-shard-d` job. Substitute only D's command, manifest filename, reporter filename, timing phase/file, and artifact name; retain checkout, setup, timeout, evidence retention, and direct execution shape. Add D to `merge-gate.needs`. Add D to `REQUIRED_JOBS` in `scripts/verify-merge-gate.mjs`. Do not replace explicit jobs with a matrix, alter worker configuration, or weaken an existing required result.
+Copy C's workflow job into a standalone `test-suite-shard-d` job. Substitute only D's command, manifest filename, reporter filename, timing phase/file, and artifact name; retain checkout, setup, timeout, evidence retention, manual-dispatch eligibility, and direct execution shape. Add D to `merge-gate.needs`. Add D to `REQUIRED_JOBS` in `scripts/verify-merge-gate.mjs`. Do not replace explicit jobs with a matrix, alter worker configuration, or weaken an existing required result.
 
 - [x] **Step 4: Run workflow contract tests**
 
@@ -223,7 +223,7 @@ Replace the remaining three-shard command and merge-gate references with A/B/C/D
 
 State the constrained critical-shard rule precisely: retain every noncritical assignment byte-for-byte, normalize successful reporter JSON for only the critical shard, pass all retained shard names to `--fixed-shards`, and split the remaining files only among the critical shard and its new companion. For this topology, A/C are fixed and B/D are the only allocatable names.
 
-- [ ] **Step 2: Run local direct shard commands once**
+- [x] **Step 2: Run local direct shard commands once after this rebase**
 
 Run separately:
 
@@ -236,7 +236,7 @@ Run separately:
 
 Expected: each exits zero. Together, the four execution commands cover the complete default suite exactly once.
 
-- [x] **Step 3: Run final bounded verification and inspect both deltas**
+- [x] **Step 3: Run final current-base verification and inspect both deltas**
 
 Run separately:
 
@@ -269,7 +269,7 @@ git commit -m "docs(ci): document four-shard test placement"
 
 - [ ] **Step 1: Create a non-merged PR**
 
-Push the branch and open a PR linked to #1075. State the 5m35s / 5m39s baseline, B's three measured durations, the retained B reporter source, exact fixed A/C invariant, unchanged macOS scope, and the single B-to-B/D changed variable.
+Update the existing PR linked to #1075. State the current-base reference (`5m50s` gate; B `5m36s`), the retained B reporter source, exact fixed A/C invariant, unchanged conditional-macOS policy, and the single B-to-B/D changed variable.
 
 - [ ] **Step 2: Verify one initial complete green workflow**
 
