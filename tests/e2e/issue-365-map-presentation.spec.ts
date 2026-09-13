@@ -96,6 +96,12 @@ async function getOnScreenCopy(
 }
 
 test('crowded save keeps one bounded city, one stack, and no building overlay labels', async ({ page }, testInfo) => {
+  // continueFixture()'s "Continue Campaign" click awaits a real async save
+  // (see the "Saving..." busy state in src/ui/legacy-opponent-challenge-prompt.ts)
+  // before the dialog closes -- the same class of CI-runner-slowness flake
+  // CAMPAIGN_READY_TIMEOUT_MS and HANDOFF_CLOSE_TIMEOUT_MS already exist to
+  // absorb in tests/e2e/issue-910-vassalage.spec.ts.
+  test.slow();
   await installFixture(page);
   await continueFixture(page);
 
@@ -116,6 +122,8 @@ test('crowded save keeps one bounded city, one stack, and no building overlay la
 });
 
 test('moving a member out of the crowded stack preserves its rendered size', async ({ page }) => {
+  // See test.slow() rationale on the first test in this file.
+  test.slow();
   await installFixture(page);
   await continueFixture(page);
 
@@ -138,6 +146,8 @@ test('moving a member out of the crowded stack preserves its rendered size', asy
 });
 
 test('mobile reduced motion keeps static DOM sprites and the crowded map usable', async ({ page }, testInfo) => {
+  // See test.slow() rationale on the first test in this file.
+  test.slow();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await installFixture(page);
