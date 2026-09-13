@@ -68,6 +68,43 @@ function isBlockingCampFor(unit: Unit): boolean {
 }
 
 /**
+ * Canonical per-unit blocker lookup. Preserves getBlockingMapEntityAt's source
+ * priority (first city at a hex, then camp, then enclave) while allowing range
+ * queries to perform constant-time lookups for each BFS neighbor.
+ */
+export function getBlockingMapEntitiesByHex(
+  state: GameState,
+  unit: Unit,
+): ReadonlyMap<string, BlockingMapEntity> {
+  const blockers = new Map<string, BlockingMapEntity>();
+  const seenCityKeys = new Set<string>();
+  for (const city of Object.values(state.cities)) {
+    const key = hexKey(city.position);
+    if (seenCityKeys.has(key)) continue;
+    seenCityKeys.add(key);
+    if (isBlockingCityFor(state, unit, city)) {
+      blockers.set(key, { reason: 'foreign-city', entityId: city.id });
+    }
+  }
+  if (isBlockingCampFor(unit)) {
+    for (const camp of Object.values(state.barbarianCamps ?? {})) {
+      const key = hexKey(camp.position);
+      if (!blockers.has(key)) {
+        blockers.set(key, { reason: 'barbarian-camp', entityId: camp.id });
+      }
+    }
+  }
+  if (isBlockingPirateEnclaveFor(unit)) {
+    for (const enclave of pirateEnclaveAnchorEntries(state)) {
+      if (!blockers.has(enclave.key)) {
+        blockers.set(enclave.key, { reason: 'pirate-enclave', entityId: enclave.id });
+      }
+    }
+  }
+  return blockers;
+}
+
+/**
  * A foreign, unallied city -- or a barbarian camp -- blocks ordinary movement onto its tile
  * exactly like `validateUnitMove`'s rejection checks: this is the single source of truth both
  * that executor and the movement-range preview BFS (`getMovementRange`/
@@ -80,22 +117,7 @@ export function getBlockingMapEntityAt(
   unit: Unit,
   coord: HexCoord,
 ): BlockingMapEntity | null {
-  const key = hexKey(coord);
-  const city = Object.values(state.cities).find(c => hexKey(c.position) === key);
-  if (city && isBlockingCityFor(state, unit, city)) {
-    return { reason: 'foreign-city', entityId: city.id };
-  }
-  const camp = Object.values(state.barbarianCamps ?? {}).find(c => hexKey(c.position) === key);
-  if (camp && isBlockingCampFor(unit)) {
-    return { reason: 'barbarian-camp', entityId: camp.id };
-  }
-  if (isBlockingPirateEnclaveFor(unit)) {
-    const enclave = pirateEnclaveAnchorEntries(state).find(entry => entry.key === key);
-    if (enclave) {
-      return { reason: 'pirate-enclave', entityId: enclave.id };
-    }
-  }
-  return null;
+  return getBlockingMapEntitiesByHex(state, unit).get(hexKey(coord)) ?? null;
 }
 
 export const BLOCKING_MAP_ENTITY_MESSAGES: Record<BlockingMapEntity['reason'], string> = {
@@ -111,21 +133,5 @@ export const BLOCKING_MAP_ENTITY_MESSAGES: Record<BlockingMapEntity['reason'], s
  * once up front and pass it in, rather than threading `GameState` through the BFS.
  */
 export function getBlockingMapEntityKeys(state: GameState, unit: Unit): Set<string> {
-  const keys = new Set<string>();
-  for (const city of Object.values(state.cities)) {
-    if (isBlockingCityFor(state, unit, city)) {
-      keys.add(hexKey(city.position));
-    }
-  }
-  if (isBlockingCampFor(unit)) {
-    for (const camp of Object.values(state.barbarianCamps ?? {})) {
-      keys.add(hexKey(camp.position));
-    }
-  }
-  if (isBlockingPirateEnclaveFor(unit)) {
-    for (const { key } of pirateEnclaveAnchorEntries(state)) {
-      keys.add(key);
-    }
-  }
-  return keys;
+  return new Set(getBlockingMapEntitiesByHex(state, unit).keys());
 }

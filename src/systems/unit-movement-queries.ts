@@ -11,7 +11,7 @@ import {
   getMovementStepCost,
   type UnitMovementContext,
 } from './unit-movement-cost';
-import { getBlockingMapEntityAt } from './unit-movement-legality';
+import { getBlockingMapEntitiesByHex } from './unit-movement-legality';
 
 /**
  * Movement queries (#1010). Read-only derived answers for a UI / AI consumer,
@@ -162,6 +162,7 @@ export function getMovementRangeDetails(
 ): MovementRangeDetails {
   const unit = state.units[unitId];
   if (!unit) return { reachable: [], zocLimited: [] };
+  const blockingEntitiesByHex = getBlockingMapEntitiesByHex(state, unit);
   const unitPositions: Record<string, string | string[]> = {};
   const unitOwners: Record<string, string> = {};
   for (const candidate of Object.values(state.units)) {
@@ -210,7 +211,7 @@ export function getMovementRangeDetails(
         const owner = unitOwners[id];
         return Boolean(owner) && owner !== unit.owner && hostileOwners.has(owner);
       });
-      const blockingEntity = getBlockingMapEntityAt(state, unit, neighbor);
+      const blockingEntity = blockingEntitiesByHex.get(key) ?? null;
       // A blocking map entity's own tile is only ever "reachable" (for tap-to-assault) when
       // the unit is ALREADY directly adjacent to it before this action -- never via a
       // multi-hop approach. This matches how Zone of Control already prevents a hostile
