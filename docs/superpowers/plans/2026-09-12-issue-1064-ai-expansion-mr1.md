@@ -19,6 +19,16 @@ candidate is ineligible but still reports `settlement` as a missing role, which 
 force demand, which makes the settler buildable; with a settler the candidate becomes a
 plan, the settler is assigned to it, and tactics walks it to the site.
 
+**A second, load-bearing piece, found during implementation (Task 9):** no passive
+knowledge source in this game (fixed radius-2 city vision, culture-capped radius-3
+territory) ever reaches `MIN_CITY_CENTER_DISTANCE` (4), so a civ that starts at peace with
+no visible rival can never *discover* a legal site to feed the candidate generator above,
+no matter how long the game runs. Task 9 closes this by administratively auto-exploring
+idle combat units, reusing the existing player-facing auto-explore mechanism. Task 1-8
+alone would satisfy every unit test and still fail the actual long-horizon acceptance
+scenario — this was found only by driving the real round pipeline end to end and checking
+the actual scenario, not by unit-testing each piece in isolation. See design §1.3/§2.5.
+
 **Tech Stack:** TypeScript, Vitest, Vite. No new dependencies.
 
 **Design:** `docs/superpowers/specs/2026-09-12-issue-1064-1066-1069-ai-viability-arc-design.md`
@@ -50,7 +60,7 @@ Every task's requirements implicitly include this section.
   already-fog-bounded `GameMap`. This is what makes AI information safety structural
   rather than a review convention.
 - **Never weaken a test detector or widen a threshold** to make a run green. If a
-  long-horizon detector still fires, follow Task 11 — do not edit
+  long-horizon detector still fires, follow Task 12 — do not edit
   `DEFAULT_CAMPAIGN_ANALYSIS_CONFIG`.
 - **Commit after every task.** End every commit message with:
   `Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>`
@@ -2031,7 +2041,569 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-# Task 9: Determinism and save/reload continuity
+# Task 9: Idle-unit auto-explore
+
+⚠ **This task closes a gap the original plan did not anticipate.** Integration
+testing after Task 8 (a live 25-round determinism run through the real round
+pipeline) found that no passive knowledge source in this game ever reaches
+`MIN_CITY_CENTER_DISTANCE` — city vision is a fixed radius 2
+(`fog-of-war.ts`'s `updateVisibility`), culture-matured territory caps at radius
+3 (`getCulturalTerritoryRadius`), and the floor is 4. **Without a unit actively
+exploring, the belief layer built in Task 1 has nothing to find, ever, for any
+civ that starts at peace with no immediately visible rival.** See design
+§1.3/§2.5 for the full evidence chain (empirical proof via
+`lh-standard-small`, plus the quantitative table of every passive source).
+
+The fix reuses the **existing, tested, player-facing** auto-explore mechanism
+(`chooseAutoExploreMove` / `applyAutoExploreOrder` in
+`auto-explore-system.ts`) from a **new administrative loop** in `basic-ai.ts` —
+the same pattern that file already uses, with the identical justification
+already written there in its own comments, for settler founding, catastrophe
+restoration, worker road-building, and missionary dispatch: *"no
+`AIStrategicPlan` [...] role covers this... [it] never reaches
+`processMajorCivStrategicTurn`'s tactical dispatch."*
+
+**Files:**
+- Create: `src/ai/ai-exploration.ts`
+- Test: `tests/ai/ai-exploration.test.ts` (create)
+- Modify: `src/ai/basic-ai.ts` (add the administrative loop + import)
+- Test: `tests/ai/basic-ai.test.ts`
+
+**Interfaces:**
+- Produces, consumed by the new admin loop:
+  `getIdleExplorerUnitIds(civ: Civilization, units: Record<string, Unit>, preparedForTurn: PreparedMajorCivPlan): string[]`
+  — a pure function, independently testable with hand-built fixtures, matching
+  this codebase's existing pattern of putting small AI-decision helpers in
+  dedicated modules (`road-network.ts`'s `chooseRoadBuilderUnit` is the direct
+  precedent) rather than as anonymous inline filter chains.
+
+## Step 1: Write the failing tests for `getIdleExplorerUnitIds`
+
+Create `tests/ai/ai-exploration.test.ts`:
+
+```ts
+import { describe, expect, it } from 'vitest';
+import { getIdleExplorerUnitIds } from '@/ai/ai-exploration';
+import { createEmptyMajorCivPlanPortfolio } from '@/core/opponent-ai-state';
+import { createEmptyMajorCivPortfolio } from '@/ai/ai-plan-portfolio';
+import type { Civilization, PreparedMajorCivPlan, Unit } from '@/core/types';
+
+const CIV_ID = 'ai-1';
+
+function civ(unitIds: string[]): Civilization {
+  return {
+    id: CIV_ID,
+    name: 'Test', color: '#ff0000', isHuman: false, civType: 'generic',
+    cities: [], units: unitIds,
+    techState: { completed: [], current: null, progress: 0 },
+    gold: 0,
+    visibility: { tiles: {} },
+    score: 0,
+    diplomacy: {
+      relationships: {}, atWarWith: [], treatyRequestsSent: [], treatyRequestsReceived: [],
+      vassalage: {
+        overlord: null, vassals: [], protectionScore: 100,
+        protectionTimers: [], peakCities: 0, peakMilitary: 0,
+      },
+    },
+  } as unknown as Civilization;
+}
+
+function unit(id: string, type: Unit['type'], overrides: Partial<Unit> = {}): Unit {
+  return {
+    id, type, owner: CIV_ID, position: { q: 0, r: 0 },
+    movementPointsLeft: 2, health: 100, experience: 0,
+    hasMoved: false, hasActed: false, isResting: false,
+    ...overrides,
+  } as unknown as Unit;
+}
+
+function prepared(overrides: Partial<{
+  assignmentsByPlanId: Record<string, string[]>;
+  recoveryUnitIds: string[];
+  upgradeRoutesByUnitId: Record<string, { cityId: string; createdTurn: number }>;
+}> = {}): PreparedMajorCivPlan {
+  const portfolio = { ...createEmptyMajorCivPortfolio(), ...createEmptyMajorCivPlanPortfolio() };
+  return {
+    civId: CIV_ID,
+    perception: {} as PreparedMajorCivPlan['perception'],
+    portfolio: {
+      ...portfolio,
+      upgradeRoutesByUnitId: overrides.upgradeRoutesByUnitId ?? {},
+    },
+    assignments: {
+      portfolio,
+      assignmentsByPlanId: overrides.assignmentsByPlanId ?? {},
+      recoveryUnitIds: overrides.recoveryUnitIds ?? [],
+      forceDemands: [],
+      rejectedByUnitId: {},
+    },
+    forceDemands: [],
+    traces: [],
+  };
+}
+
+describe('getIdleExplorerUnitIds', () => {
+  it('includes an idle combat-capable unit with movement left', () => {
+    const units = { warrior: unit('warrior', 'warrior') };
+    const result = getIdleExplorerUnitIds(civ(['warrior']), units, prepared());
+    expect(result).toEqual(['warrior']);
+  });
+
+  it('excludes a unit claimed by any plan this round', () => {
+    const units = { warrior: unit('warrior', 'warrior') };
+    const result = getIdleExplorerUnitIds(
+      civ(['warrior']),
+      units,
+      prepared({ assignmentsByPlanId: { 'defend:city-1': ['warrior'] } }),
+    );
+    expect(result).toEqual([]);
+  });
+
+  it('excludes a unit retreating to heal', () => {
+    const units = { warrior: unit('warrior', 'warrior', { health: 20 }) };
+    const result = getIdleExplorerUnitIds(
+      civ(['warrior']),
+      units,
+      prepared({ recoveryUnitIds: ['warrior'] }),
+    );
+    expect(result).toEqual([]);
+  });
+
+  it('excludes a unit mid-upgrade-route', () => {
+    const units = { warrior: unit('warrior', 'warrior') };
+    const result = getIdleExplorerUnitIds(
+      civ(['warrior']),
+      units,
+      prepared({ upgradeRoutesByUnitId: { warrior: { cityId: 'city-1', createdTurn: 1 } } }),
+    );
+    expect(result).toEqual([]);
+  });
+
+  it('excludes a non-combat unit', () => {
+    // strength 0: settlers, workers, missionaries all have their own dedicated
+    // administrative or plan-driven dispatch and must never be diverted here.
+    const units = {
+      settler: unit('settler', 'settler'),
+      worker: unit('worker', 'worker'),
+    };
+    const result = getIdleExplorerUnitIds(civ(['settler', 'worker']), units, prepared());
+    expect(result).toEqual([]);
+  });
+
+  it('excludes a unit that has already acted', () => {
+    const units = { warrior: unit('warrior', 'warrior', { hasActed: true }) };
+    const result = getIdleExplorerUnitIds(civ(['warrior']), units, prepared());
+    expect(result).toEqual([]);
+  });
+
+  it('excludes a unit with no movement left', () => {
+    const units = { warrior: unit('warrior', 'warrior', { movementPointsLeft: 0 }) };
+    const result = getIdleExplorerUnitIds(civ(['warrior']), units, prepared());
+    expect(result).toEqual([]);
+  });
+
+  it('returns multiple eligible units, one civ can send more than one to explore', () => {
+    const units = {
+      warrior: unit('warrior', 'warrior'),
+      scout: unit('scout', 'scout'),
+    };
+    const result = getIdleExplorerUnitIds(civ(['warrior', 'scout']), units, prepared());
+    expect(result.sort()).toEqual(['scout', 'warrior']);
+  });
+});
+```
+
+## Step 2: Run the tests and verify they fail
+
+Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ai/ai-exploration.test.ts`
+
+Expected: FAIL — cannot resolve `@/ai/ai-exploration`.
+
+## Step 3: Write the implementation
+
+Create `src/ai/ai-exploration.ts`:
+
+```ts
+/**
+ * #1064 -- which of a civilization's own units are genuinely idle, this round,
+ * for the purpose of administrative auto-explore.
+ *
+ * Pure and independently testable, matching this codebase's existing pattern of
+ * putting small AI-decision helpers in a dedicated module (road-network.ts's
+ * chooseRoadBuilderUnit is the direct precedent) rather than an inline filter
+ * chain buried in basic-ai.ts.
+ */
+import type { Civilization, PreparedMajorCivPlan, Unit } from '@/core/types';
+import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+
+/**
+ * Combat-capable units (strength > 0) that no plan, health-driven recovery, or
+ * upgrade route claims this round. Settlers/workers/missionaries (strength 0)
+ * are excluded categorically -- they each already have their own dedicated
+ * administrative or plan-driven dispatch elsewhere in basic-ai.ts and must
+ * never be diverted into wandering.
+ */
+export function getIdleExplorerUnitIds(
+  civ: Civilization,
+  units: Record<string, Unit>,
+  preparedForTurn: PreparedMajorCivPlan,
+): string[] {
+  const unavailable = new Set([
+    ...Object.values(preparedForTurn.assignments.assignmentsByPlanId).flat(),
+    ...preparedForTurn.assignments.recoveryUnitIds,
+  ]);
+  return civ.units.filter(unitId => {
+    const unit = units[unitId];
+    if (!unit || unit.hasActed || unit.movementPointsLeft <= 0) return false;
+    if (UNIT_DEFINITIONS[unit.type].strength <= 0) return false;
+    if (unavailable.has(unitId)) return false;
+    if (unit.committedToRouteId) return false;
+    if (preparedForTurn.portfolio.upgradeRoutesByUnitId[unitId]) return false;
+    return true;
+  });
+}
+```
+
+## Step 4: Run the tests and verify they pass
+
+Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ai/ai-exploration.test.ts`
+
+Expected: PASS, all 8 tests.
+
+## Step 5: Type-check
+
+Run: `bash scripts/run-with-mise.sh yarn build`
+
+Expected: exit 0.
+
+## Step 6: Commit the pure helper
+
+```bash
+git add src/ai/ai-exploration.ts tests/ai/ai-exploration.test.ts
+git commit -m "feat(ai): add getIdleExplorerUnitIds, the auto-explore eligibility rule
+
+Pure, independently testable -- matching road-network.ts's
+chooseRoadBuilderUnit precedent for small AI-decision helpers. Not yet
+wired to anything; the administrative loop that calls it is the next step.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+```
+
+## Step 7: Write the failing integration test
+
+Add to `tests/ai/basic-ai.test.ts`. This file already imports `processAITurn`,
+`createNewGame`, `EventBus`, `foundCity`, `createUnit`.
+
+```ts
+describe('#1064 idle-unit auto-explore', () => {
+  it('sends a genuinely idle combat unit to explore', () => {
+    const state = createNewGame(undefined, 'explore-idle-warrior', 'small');
+    const civ = state.civilizations['ai-1'];
+    const warriorId = civ.units.find(id => state.units[id]?.type === 'warrior')!;
+    const before = { ...state.units[warriorId] };
+    const visibleBefore = Object.values(civ.visibility.tiles).filter(v => v === 'visible').length;
+
+    const bus = new EventBus();
+    const after = processAITurn(state, 'ai-1', bus);
+    const warriorAfter = after.units[warriorId];
+
+    // The warrior must have actually moved (or, on a fully-boxed fixture, at
+    // least been considered) -- position OR automation changing proves the
+    // loop ran, not just that the field was set and nothing happened.
+    expect(warriorAfter?.automation?.mode).toBe('auto-explore');
+    const civAfter = after.civilizations['ai-1'];
+    const visibleAfter = Object.values(civAfter.visibility.tiles).filter(v => v === 'visible').length;
+    expect(visibleAfter, 'exploring should reveal at least one new tile').toBeGreaterThan(visibleBefore);
+    expect(warriorAfter?.position).not.toEqual(before.position);
+  });
+});
+```
+
+## Step 8: Run and verify it fails
+
+Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ai/basic-ai.test.ts -t "idle-unit auto-explore"`
+
+Expected: FAIL — `warriorAfter?.automation?.mode` is `undefined`, and
+`visibleAfter` equals `visibleBefore` (nothing moved).
+
+## Step 9: Wire the administrative loop into `basic-ai.ts`
+
+Add the import, alongside the other `@/systems/*` imports near the top of the
+file (after the existing `unit-system` import on line 8):
+
+```ts
+import { applyAutoExploreOrder, chooseAutoExploreMove } from '@/systems/auto-explore-system';
+import { getIdleExplorerUnitIds } from './ai-exploration';
+```
+
+`chooseAutoExploreMove` is imported for the eligibility check only (used to
+decide whether to *set* automation before calling `applyAutoExploreOrder`);
+you may find you do not need to call it directly if you set automation
+unconditionally for every eligible unit and let `applyAutoExploreOrder` do the
+rest -- if so, drop it from the import and say so in the commit, don't leave
+an unused import.
+
+In `src/ai/basic-ai.ts`, insert this block immediately before
+`newState = processMajorCivStrategicTurn(` (the last administrative loop, right
+after the transport-loading loop's closing brace):
+
+```ts
+  // #1064 (design §2.5): passive knowledge never reaches MIN_CITY_CENTER_DISTANCE
+  // (city vision is a fixed radius 2; culture-matured territory caps at radius 3),
+  // so an isolated civ's expand-site belief layer can never discover a legal site
+  // without SOME unit actively exploring. Administrative for the same reason as
+  // every loop above: no AIStrategicPlan claims a genuinely idle combat unit, so it
+  // never reaches processMajorCivStrategicTurn's tactical dispatch. Reuses the exact
+  // player-facing auto-explore mechanism (chooseAutoExploreMove / applyAutoExploreOrder)
+  // -- same pathfinding, same isThreatenedByVisibleHostiles safety check, same
+  // self-termination once nothing useful remains -- rather than a parallel
+  // implementation. Placed LAST among the administrative loops: a unit is only
+  // offered to exploration once every other administrative system has had first
+  // refusal this round.
+  for (const unitId of getIdleExplorerUnitIds(civ, newState.units, preparedForTurn)) {
+    const current = newState.units[unitId];
+    if (!current || current.hasActed) continue;
+    if (current.automation?.mode !== 'auto-explore') {
+      newState = {
+        ...newState,
+        units: {
+          ...newState.units,
+          [current.id]: {
+            ...current,
+            automation: { mode: 'auto-explore', startedTurn: newState.turn, lastTargets: [] },
+          },
+        },
+      };
+    }
+    applyAutoExploreOrder(newState, unitId, { bus });
+  }
+  civ = newState.civilizations[civId];
+
+  newState = processMajorCivStrategicTurn(
+```
+
+`applyAutoExploreOrder` mutates `newState.units` directly rather than
+returning a new state — this is the **exact same calling convention** already
+used in production by `turn-manager.ts`'s own player-facing automation loop
+(`applyAutoExploreOrder(newState, unitId, { bus });` with no reassignment).
+Do not wrap it in `newState = applyAutoExploreOrder(...)` — its return type is
+`ExecuteUnitMoveResult | null`, not `GameState`.
+
+**Do not confuse `preparedForTurn.assignments.recoveryUnitIds` (health-based
+retreat, inside `AIUnitAssignmentResult`) with the file's own local
+`recoveryUnitIds` variable (settler-elimination handling, declared near the
+top of `processAITurnInternal`).** They are unrelated despite the shared name;
+`getIdleExplorerUnitIds` only ever reads the first one, via `preparedForTurn`.
+
+## Step 10: Run the integration test and verify it passes
+
+Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ai/basic-ai.test.ts -t "idle-unit auto-explore"`
+
+Expected: PASS.
+
+If `visibleAfter` is not greater than `visibleBefore`, check first whether the
+warrior's starting position is already fully boxed in by impassable terrain on
+this specific seed (rare, but possible) — try a different seed rather than
+weakening the assertion. If `automation.mode` never gets set at all, re-check
+the loop's placement is genuinely reached (no earlier `return` in
+`processAITurnInternal` for this civ) and that `getIdleExplorerUnitIds` isn't
+excluding the warrior for a reason you didn't expect — read its result
+directly in a scratch check before assuming the wiring is wrong.
+
+## Step 11: Run the full regression surface
+
+This loop runs inside `basic-ai.ts` for **every** AI civ, every round — the
+highest-blast-radius change in this task. Run broadly and read the output,
+not just the pass/fail count:
+
+```bash
+bash scripts/run-with-mise.sh yarn vitest run tests/ai/
+bash scripts/run-with-mise.sh yarn test:ai-playability
+```
+
+**Expect exactly one known failure here, already root-caused during design
+verification — fix it, do not work around it:**
+`tests/ai/basic-ai.test.ts > processAITurn > does not bypass plan progression to
+capture an exposed city` fails with an unexpected `unit:move` event for
+`ai-attacker`.
+
+This is a **pre-existing fixture bug**, not a defect in this task's loop, and it
+predates #1064 entirely — it has always been latent, just never observable
+before, because an unclaimed unit previously did nothing at all regardless of
+why it was unclaimed. `makeAdjacentExposedCityState` reassigns
+`state.civilizations['ai-1'].units = ['ai-attacker']` but never deletes
+`createNewGame`'s original two units (`unit-3` settler, `unit-4` warrior) from
+`state.units` itself — they simply stop being referenced by `civ.units`, while
+still existing with `owner: 'ai-1'`. `getCivilizationLiveness` scans
+`state.units` by **ownership**, not by `civ.units` membership, so it finds the
+stray settler and reports `{ living: true, reason: 'settler' }`. This makes
+`processAIResettlement` run against the *stray* settler (at its own original
+spawn position, nowhere near the fixture's intended scenario), and — depending
+on what that resettlement does — the civ's operational anchor for candidate
+generation ends up wrong, so no real capture plan ever forms and
+`ai-attacker` is genuinely unclaimed. Before this task, "genuinely unclaimed"
+meant "does nothing"; now it means "explores" — which is why this specific
+fixture defect only becomes visible now.
+
+Verified directly (temporarily wiring this task's loop and running the
+scenario by hand) that the fix is to make the fixture's `ai-1` state
+internally consistent with what its own name claims — an established civ with
+one attacking unit near an enemy city, not an accidental non-civ:
+
+```ts
+function makeAdjacentExposedCityState({ population }: { population: number }): GameState {
+  const state = createNewGame(undefined, 'ai-city-capture', 'small');
+  state.currentPlayer = 'ai-1';
+  state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
+  state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+  state.civilizations.player.diplomacy.relationships['ai-1'] = -60;
+  state.civilizations['ai-1'].diplomacy.relationships.player = -60;
+
+  const template = Object.values(state.units).find(unit => unit.owner === 'ai-1' && unit.type === 'warrior');
+  if (!template) {
+    throw new Error('missing ai warrior fixture');
+  }
+
+  // #1064: delete the ORIGINAL stray units (createNewGame's default settler + warrior)
+  // -- reassigning civ.units below does not remove them from state.units, and
+  // getCivilizationLiveness scans state.units by OWNERSHIP, not civ.units membership.
+  // Leaving them in place made this civ falsely "living, reason: settler", which
+  // triggered processAIResettlement against the wrong (stray) unit and produced a
+  // nonsensical operational anchor for candidate generation.
+  for (const id of [...state.civilizations['ai-1'].units]) {
+    delete state.units[id];
+  }
+
+  state.units['ai-attacker'] = {
+    ...template,
+    id: 'ai-attacker',
+    owner: 'ai-1',
+    position: { q: 0, r: 0 },
+    movementPointsLeft: 2,
+    hasMoved: false,
+  };
+  state.civilizations['ai-1'].units = ['ai-attacker'];
+
+  // #1064: a real city, so the civ is genuinely "living" (reason: city) with a sensible
+  // operational anchor -- matching what this fixture's own name already claimed. mkC()
+  // matches this file's existing convention (used by city-player just below) -- its
+  // auto-generated id is always overridden by an explicit id right after, so the
+  // counter resetting to 1 every call never collides with the map's existing cities.
+  state.cities['city-ai1'] = {
+    ...foundCity('ai-1', { q: 0, r: 0 }, state.map, mkC()),
+    id: 'city-ai1',
+  };
+  state.civilizations['ai-1'].cities = ['city-ai1'];
+
+  state.cities['city-player'] = {
+    ...foundCity('player', { q: 1, r: 0 }, state.map, mkC()),
+    id: 'city-player',
+    name: 'Memphis',
+    owner: 'player',
+    position: { q: 1, r: 0 },
+    population,
+    ownedTiles: [{ q: 1, r: 0 }],
+  };
+  state.civilizations.player.cities = ['city-player'];
+  state.map.tiles[hexKey({ q: 1, r: 0 })].owner = 'player';
+
+  // #1064: reveal the target properly -- perception requires actual visibility, and
+  // this fixture never granted it, so no capture candidate could ever be generated at
+  // all (a second, independent reason the pre-existing "no moves" assertion passed for
+  // the wrong reason: no plan ever existed to progress in the first place).
+  state.civilizations['ai-1'].knownCivilizations = ['player'];
+  state.civilizations['ai-1'].visibility.tiles[hexKey({ q: 1, r: 0 })] = 'visible';
+  state.civilizations['ai-1'].visibility.tiles[hexKey({ q: 0, r: 0 })] = 'visible';
+
+  return state;
+}
+```
+
+With this fix, a real capture plan forms (`primaryPlan.objective === 'capture'`,
+targeting `city-player`), `ai-attacker` is genuinely assigned to it
+(confirmed via `assignmentsByPlanId`), `getIdleExplorerUnitIds` correctly
+excludes it, and the test's original assertions (`moves` empty, city still
+owned by `player`) pass **for the reason the test's name actually claims** —
+real plan-phase gating (`mobilizing` does not yet authorize an attack) —
+rather than by the fixture's accident. Re-run
+`bash scripts/run-with-mise.sh yarn vitest run tests/ai/basic-ai.test.ts` after
+applying this fix and confirm the whole file passes.
+
+**If any other test in the full run fails**, do not assume it is this same
+bug. Diagnose each one on its own evidence — check specifically whether the
+premise was "a completely static, unthreatened civ never moves" (which this
+task deliberately changes) versus a genuine regression elsewhere.
+
+## Step 12: Empirical proof the gap is closed
+
+Run the actual scenario that surfaced this gap:
+
+```bash
+bash scripts/run-with-mise.sh yarn test:ai-long -- -t lh-standard-small
+```
+
+This runs exactly one test:
+`campaign-matrix.test.ts > long-horizon campaign matrix > lh-standard-small
+completes a deterministic campaign within the invariant battery`
+(confirm with `yarn vitest list --config vitest.long-horizon.config.ts -t
+lh-standard-small` first if you want to see the match before running it).
+
+Read `.verification/ai-long-horizon/lh-standard-small.json` afterward:
+
+```bash
+cat .verification/ai-long-horizon/lh-standard-small.json | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+for f in d['report']['findings']:
+    print(f\"{f['civId']}: {f['code']} - {f['detail']}\")
+print('perCiv cities:', [(c['civId'], c['cities']) for c in d['report']['perCiv']])
+"
+```
+
+Expected: `expansion-frozen` should no longer appear for at least one AI civ
+over the 300-round run (a civ founding zero additional cities in one specific
+300-round sample is not itself proof of failure — city count growing at all,
+even for just one civ, is the proof the mechanism works; Task 12's full
+long-horizon acceptance pass is where every scenario gets checked and the
+known-gap entries get retired). **Do not delete any `KNOWN_CAMPAIGN_GAPS`
+entry in this task** — that is Task 12's job, after the full matrix runs.
+
+If `expansion-frozen` still fires for every civ with zero exceptions, stop:
+either the wiring is not actually reached in this scenario, or a further gap
+exists. Do not proceed to Task 10 on an unverified assumption a second time —
+that is exactly the mistake this task exists to correct.
+
+## Step 13: Type-check
+
+Run: `bash scripts/run-with-mise.sh yarn build`
+
+Expected: exit 0.
+
+## Step 14: Commit
+
+```bash
+git add src/ai/basic-ai.ts tests/ai/basic-ai.test.ts
+git commit -m "feat(ai): administratively auto-explore idle combat units (#1064)
+
+Passive knowledge (fixed radius-2 city vision, culture-capped radius-3
+territory) never reaches MIN_CITY_CENTER_DISTANCE (4), so an isolated civ's
+expand-site belief layer could never discover a legal site without a unit
+actively exploring -- and no AI wiring for that existed. Reuses the
+player-facing chooseAutoExploreMove/applyAutoExploreOrder mechanism from a
+new administrative loop, the same pattern basic-ai.ts already uses for
+settler founding, worker roads, and missionary dispatch.
+
+Verified against the actual long-horizon acceptance scenario
+(lh-standard-small), not just unit tests -- expansion-frozen no longer fires
+unconditionally for every AI civ.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+```
+
+---
+
+# Task 10: Determinism and save/reload continuity
 
 The test goes in **`tests/app/simulation-determinism.test.ts`**, not in an AI test file.
 That is where `freshGame`, `advance` and `saveAndReload` already live, and — critically —
@@ -2042,22 +2614,56 @@ would ever finish production and a test claiming to cover "a settler mid-walk" w
 fact cover nothing.
 
 That file is in `SLOW_TEST_FILES` (`scripts/run-tests-by-local-tier.sh:28`), so it runs in
-the intensive-simulations selection and exactly one CI shard. Keep the round count modest.
+the intensive-simulations selection and exactly one CI shard. Keep the round count modest
+— but **do not guess it**. Task 9 added exploration, which adds real rounds of walking
+before a site can even be discovered; a round budget picked before that existed (an
+earlier draft of this plan assumed 25 rounds total) is not a safe assumption anymore.
 
 **Files:**
 - Modify: `tests/app/simulation-determinism.test.ts`
+
+- [ ] **Step 0: Derive a real round budget empirically, before writing the test**
+
+Do not hardcode a guessed round count. Use the exact technique that found the exploration
+gap in the first place: a throwaway scratch script, driven through the real
+`runCompletedRound` pipeline, tracing when an `expand` plan and a founded second city
+actually appear for the `'expansion-save-reload'`-style seed you intend to use. A minimal
+version:
+
+```ts
+// scratch only -- do not commit
+let state = createNewGame(undefined, 'expansion-save-reload', 'small');
+for (let round = 1; round <= 150; round++) {
+  state = advanceRound(state); // the same helper already in simulation-determinism.test.ts
+  const civ = state.civilizations['ai-1'];
+  const plan = state.opponentAI?.majorCivs['ai-1']?.primaryPlan;
+  if (round % 10 === 0 || civ.cities.length > 1) {
+    console.log(`round ${round}: plan=${plan?.objective ?? 'none'} cities=${civ.cities.length}`);
+  }
+  if (civ.cities.length > 1) break;
+}
+```
+
+Run it (e.g. paste into a temporary `it()` in a scratch test file, run with
+`--reporter=verbose`, then delete the scratch file — do not commit it). Read off: the
+round an `expand` plan first appears, and the round a second city is actually founded.
+Set `ROUNDS` in Step 1 below to comfortably exceed the second number, and set the
+save-point `midpoint` used in the second test to comfortably exceed the first number
+(so an expand plan is reliably in flight at the save point) while leaving real rounds
+after the reload for the settler to keep progressing.
 
 - [ ] **Step 1: Write the tests**
 
 Append to `tests/app/simulation-determinism.test.ts`. Every helper and import it needs —
 `freshGame`, `advance`, `saveAndReload`, `assertSimulationEquivalent` — is already in that
-file.
+file. Replace the placeholder `ROUNDS` and `midpoint` values below with the numbers you
+derived in Step 0.
 
 ```ts
 describe('#1064 expansion determinism', () => {
-  // 25 rounds is enough for a settler to be demanded, produced, walked and founded on a
-  // small map, and short enough to stay inside this file's existing runtime.
-  const ROUNDS = 25;
+  // Derived empirically in Step 0 against this exact seed -- do not guess these numbers.
+  const ROUNDS = 60;      // comfortably past the round a second city is founded
+  const MIDPOINT = 30;    // comfortably past the round an expand plan first appears
 
   it('reaches equivalent state from the same seed with expansion active', () => {
     const a = advance(freshGame('expansion-determinism'), ROUNDS);
@@ -2069,14 +2675,14 @@ describe('#1064 expansion determinism', () => {
   it('survives a save/reload boundary with an expand plan in flight', () => {
     const uninterrupted = advance(freshGame('expansion-save-reload'), ROUNDS);
 
-    const midpoint = advance(freshGame('expansion-save-reload'), 12);
+    const midpoint = advance(freshGame('expansion-save-reload'), MIDPOINT);
     // Guard the premise: if no AI is actually pursuing expansion at the midpoint, this
     // test is not exercising what it claims and the round counts need revisiting.
     const expanding = Object.values(midpoint.opponentAI?.majorCivs ?? {})
       .some(portfolio => portfolio.primaryPlan?.objective === 'expand');
     expect(expanding, 'no expand plan in flight at the save point').toBe(true);
 
-    const continued = advance(saveAndReload(midpoint), ROUNDS - 12);
+    const continued = advance(saveAndReload(midpoint), ROUNDS - MIDPOINT);
 
     assertSimulationEquivalent(continued, uninterrupted, '#1064: save/reload continuity');
   });
@@ -2089,12 +2695,17 @@ Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/simulation-determi
 
 Expected: PASS, whole file.
 
-Two failures are worth distinguishing:
+Three failures are worth distinguishing:
 
-- **`no expand plan in flight at the save point`** — the premise guard fired. Raise the
-  midpoint (and `ROUNDS` with it) until an AI is genuinely mid-expansion, or pick a seed
-  where expansion starts sooner. Do **not** delete the guard; without it the test proves
-  nothing.
+- **`no expand plan in flight at the save point`** — the premise guard fired despite
+  Step 0's measurement. Re-measure rather than blindly raising the number further; this
+  usually means the seed's specific terrain took longer to explore than the scratch trace
+  suggested, or exploration itself needs a second look. Do **not** delete the guard;
+  without it the test proves nothing.
+- **A test that exceeds a reasonable wall-clock budget** — exploration adds real walked
+  rounds; if `ROUNDS` from Step 0 pushes this file's total runtime uncomfortably high,
+  that is itself useful evidence for #1069 (later, separate arc), not a reason to shrink
+  the round count below what Step 0 measured as necessary.
 - **A divergence at `minorCivs.<id>.lastNotifiedStatusByCiv.<civ>`** — that is the
   pre-existing **#1065** bug, not yours. Confirm the reported path matches that shape
   exactly, then shorten the horizon so no minor-civ status notification fires, or skip
@@ -2116,7 +2727,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-# Task 10: Full local verification
+# Task 11: Full local verification
 
 - [ ] **Step 1: Type-check and run the whole suite**
 
@@ -2168,7 +2779,7 @@ Skip this step entirely if no baseline changed.
 
 ---
 
-# Task 11: Long-horizon acceptance and the known-gap ratchet
+# Task 12: Long-horizon acceptance and the known-gap ratchet
 
 The register is a **two-way ratchet**: a gap that no longer reproduces **fails the run**
 until its entry is deleted. That is how this MR proves it worked.
@@ -2281,7 +2892,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-# Task 12: Document the contract
+# Task 13: Document the contract
 
 **Files:**
 - Modify: `.claude/rules/ai-simulation.md`
@@ -2311,9 +2922,20 @@ Expansion is a real strategic-plan objective, not an administrative side-channel
   Legality is validated at execution time by `canFoundCityAt` and `foundCityInState`. The
   belief layer imports `isCityCenterTerrain`, `MIN_CITY_CENTER_DISTANCE` and the
   wrap-aware `cityDistance` from `city-territory-system.ts` so the two can differ only in
-  which cities the civ knows about.
+  which cities the civ knows about. `knownCityPositions` in `ai-prepared-turn.ts` MUST
+  include **both** `perception.ownCities` and `perception.knownCities` — the latter is
+  built only from *other* civs' cities, never the actor's own, and omitting the former
+  let a site win one tile from the civ's own capital, permanently freezing the settler.
 - **Site enumeration is radius-bounded** (`EXPANSION_SEARCH_RADIUS`). An unbounded scan is
   `O(known tiles x known cities)` per civ per round.
+- **No passive knowledge source ever reaches `MIN_CITY_CENTER_DISTANCE`.** City vision is
+  a fixed radius 2 (`updateVisibility`, `fog-of-war.ts`); culture-matured territory caps
+  at radius 3 (`getCulturalTerritoryRadius`); both are permanently short of the legal
+  floor of 4. An idle-unit administrative auto-explore loop in `basic-ai.ts`
+  (`getIdleExplorerUnitIds` in `ai-exploration.ts`, reusing the player-facing
+  `chooseAutoExploreMove`/`applyAutoExploreOrder`) is therefore load-bearing, not
+  optional — without it, no civ that starts at peace with no visible rival can ever
+  discover a legal expand site, for the entire game.
 - **The incremental-demand rule.** Any demand meaning "one more of role R, up to a cap"
   goes through `incrementalDemandSeed`: `desired = min(owned + 1, cap)`,
   `assigned = owned`, so `missing` is structurally 0 or 1. Never hand-roll this — the bug
@@ -2339,7 +2961,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-# Task 13: Mandatory inline review, then hand off
+# Task 14: Mandatory inline review, then hand off
 
 - [ ] **Step 1: Perform the review**
 
@@ -2356,14 +2978,30 @@ every real finding: classify severity, fix it, add regression coverage, rerun th
 affected tests, and repeat the affected part of the review. Where a dimension yields
 nothing, state what you inspected and why it is acceptable.
 
-UI, UX and SFX are genuinely **N/A** here — this MR ships no player-visible surface, no
-panel, no derived label, no queue, and no audio. Say that explicitly with the reason
-rather than silently omitting those dimensions.
+SFX is genuinely **N/A** — no audio changes. UI/panel/queue/derived-label surfaces are
+also N/A — no new panel, no new UI text. **UX is not fully N/A as of Task 9**: idle
+combat units now visibly wander the map every round instead of standing still forever.
+Inspect specifically: does this look like intentional behaviour rather than a glitch to
+a human watching a hot-seat opponent's turn (it should — it is the same visual the
+player's own "auto-explore" toggle already produces, just AI-initiated); does an
+exploring unit ever wander somewhere that reads as obviously suicidal to a 7-year-old
+watching (it should not — `isThreatenedByVisibleHostiles` refuses danger, the same
+check the player-facing feature relies on); does anything about it look like idle
+oscillation/twitching round to round rather than purposeful movement (it should not —
+`rankCandidate`'s recency penalty and frontier scoring bias toward genuinely new
+ground). State plainly which of these you checked and what you saw, not just that the
+dimension was "considered."
 
 - [ ] **Step 2: Confirm the acceptance checklist**
 
 - [ ] a one-city AI with no plan surfaces a legal settler candidate when expansion is viable
 - [ ] no strategic plan does not eliminate all trainable unit candidates
+- [ ] an idle combat unit with no plan auto-explores; a plan-claimed, recovering, or
+      upgrade-route-committed unit is never diverted into exploring
+- [ ] `getIdleExplorerUnitIds` is independently unit-tested (not just exercised via a
+      full AI turn)
+- [ ] the empirical `lh-standard-small` check in Task 9 showed `expansion-frozen`
+      genuinely stop firing for at least one civ, not merely "the code compiles"
 - [ ] a civ at its soft cap does not spam settlers; at most one settler is queued
       empire-wide per round
 - [ ] worker / settlement / military behaviour is bounded, with the priority ordering
@@ -2407,3 +3045,8 @@ you. If it does, the PR description must contain the heading `Pre-MR inline code
 - Worker **task** selection — `basic-ai.ts`'s existing loop decides what workers do.
 - Richer site valuation (resources, rivers, coastal, chokepoints). Follow-up issue.
 - Any `SAVE_VERSION` bump, migration, or new persisted field.
+- A dedicated scout/recon production path. Any exploration *strategy* (toward rivals,
+  toward resources) beyond the existing danger-avoidance check the player-facing
+  auto-explore feature already performs.
+- Any fix to civ-to-civ contact/diplomacy rates, even though the same root gap
+  plausibly affects them (design §1.3). No diplomacy behaviour is asserted on here.
