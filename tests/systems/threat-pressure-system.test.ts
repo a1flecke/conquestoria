@@ -147,6 +147,24 @@ describe('tagLandmassRegions', () => {
     expect(areTaggedLandmassesConnected(nonWrappingMap, { q: 0, r: 0 }, { q: 2, r: 0 })).toBe(false);
     expect(areTaggedLandmassesConnected(wrappingMap, { q: 0, r: 0 }, { q: 2, r: 0 })).toBe(true);
   });
+
+  it('examines only seam tiles when connecting wrapped landmass tags', () => {
+    const tiles: Record<string, HexTile> = {
+      '0,0': { ...makeTile(0, 0, 'grassland'), regionKey: 'island-0' },
+      '2,0': { ...makeTile(2, 0, 'grassland'), regionKey: 'island-1' },
+    };
+    let enumeratedEveryTile = false;
+    const seamOnlyTiles = new Proxy(tiles, {
+      ownKeys(target) {
+        enumeratedEveryTile = true;
+        return Reflect.ownKeys(target);
+      },
+    });
+    const map: GameMap = { width: 3, height: 1, tiles: seamOnlyTiles, wrapsHorizontally: true, rivers: [] };
+
+    expect(areTaggedLandmassesConnected(map, { q: 0, r: 0 }, { q: 2, r: 0 })).toBe(true);
+    expect(enumeratedEveryTile).toBe(false);
+  });
 });
 
 describe('processLandResurgence', () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createNewGame } from '@/core/game-state';
+import { createHotSeatGame, createNewGame } from '@/core/game-state';
 import {
   generateQuest,
   checkQuestCompletion,
@@ -167,6 +167,46 @@ describe('quest system', () => {
       expect(counts.pathQueries).toBe(0);
     });
 
+    it('generates the same trade-route quest as the legacy pathfinding fallback', () => {
+      const { state, minorCivId, city: minorCity } = questState('tagged-and-legacy-trade-route-quest');
+      const destinationRegion = state.map.tiles[hexKey(minorCity.position)]?.regionKey;
+      const sourceTile = Object.values(state.map.tiles).find(tile =>
+        tile.regionKey === destinationRegion
+        && tile.terrain !== 'ocean'
+        && tile.terrain !== 'coast',
+      );
+      if (!sourceTile || !destinationRegion) throw new Error('fixture needs a tagged landmass');
+
+      const playerCity = {
+        ...minorCity,
+        id: 'player-port',
+        owner: 'player',
+        position: { ...sourceTile.coord },
+        productionProgress: 1_000,
+        productionQueue: ['caravan'],
+      };
+      state.cities[playerCity.id] = playerCity;
+      state.civilizations.player.cities = [playerCity.id];
+      state.civilizations.player.techState.completed = ['trade-routes'];
+      state.civilizations.player.visibility.tiles[hexKey(minorCity.position)] = 'visible';
+      state.civilizations.player.gold = 0;
+      state.barbarianCamps = {};
+      state.units = {};
+      expect(canPursueMinorCivTradeRoute(state, 'player', minorCivId, 20)).toBe(true);
+
+      const legacyState = structuredClone(state);
+      for (const tile of Object.values(legacyState.map.tiles)) delete tile.regionKey;
+      const tagged = withPerfProbe(() =>
+        generateQuest('mercantile', minorCivId, 'player', 5, state, () => 0.8, mkC()));
+      const legacy = withPerfProbe(() =>
+        generateQuest('mercantile', minorCivId, 'player', 5, legacyState, () => 0.8, mkC()));
+
+      expect(tagged.result).toEqual(legacy.result);
+      expect(tagged.result?.type).toBe('trade_route');
+      expect(tagged.counts.pathQueries).toBe(0);
+      expect(legacy.counts.pathQueries).toBeGreaterThan(0);
+    });
+
     it('rejects distinct tagged landmasses on a non-wrapping map without pathfinding', () => {
       const { state, minorCivId } = taggedTradeRouteState('separate-landmass-trade-route-quest', false, 'island-0', 'island-1');
 
@@ -202,6 +242,57 @@ describe('quest system', () => {
 
       expect(result).toBe(true);
       expect(counts.pathQueries).toBe(1);
+    });
+
+    it('keeps trade-route feasibility identical for either human hot-seat player', () => {
+      const state = createHotSeatGame({
+        playerCount: 2,
+        mapSize: 'small',
+        players: [
+          { name: 'Alice', slotId: 'player-1', civType: 'egypt', isHuman: true },
+          { name: 'Bob', slotId: 'player-2', civType: 'rome', isHuman: true },
+        ],
+      }, 'hot-seat-trade-route-feasibility');
+      const minorCivId = Object.keys(state.minorCivs)[0]!;
+      const minorCity = state.cities[state.minorCivs[minorCivId]!.cityId]!;
+      const source = { q: 0, r: 0 };
+      const destination = { q: 2, r: 0 };
+      const landTile = (coord: { q: number; r: number }): HexTile => ({
+        coord, terrain: 'plains', elevation: 'lowland', resource: null,
+        improvement: 'none', owner: null, improvementTurnsLeft: 0,
+        hasRiver: false, wonder: null, regionKey: 'continent-0',
+      });
+      state.map = {
+        width: 3,
+        height: 1,
+        wrapsHorizontally: true,
+        rivers: [],
+        tiles: {
+          '0,0': landTile(source),
+          '1,0': landTile({ q: 1, r: 0 }),
+          '2,0': landTile(destination),
+        },
+      };
+      minorCity.position = destination;
+
+      for (const civId of ['player-1', 'player-2']) {
+        const cityId = `${civId}-port`;
+        state.cities[cityId] = { ...minorCity, id: cityId, owner: civId, position: source };
+        state.civilizations[civId]!.cities = [cityId];
+        state.civilizations[civId]!.techState.completed = ['trade-routes'];
+        state.civilizations[civId]!.visibility.tiles[hexKey(destination)] = 'visible';
+      }
+
+      const { result, counts } = withPerfProbe(() => {
+        state.currentPlayer = 'player-1';
+        const firstSeat = canPursueMinorCivTradeRoute(state, 'player-1', minorCivId, 999);
+        state.currentPlayer = 'player-2';
+        const secondSeat = canPursueMinorCivTradeRoute(state, 'player-2', minorCivId, 999);
+        return [firstSeat, secondSeat];
+      });
+
+      expect(result).toEqual([true, true]);
+      expect(counts.pathQueries).toBe(0);
     });
 
     it('returns null when no nearby hostile units exist for a defeat_units quest', () => {

@@ -31,13 +31,15 @@ export function areTaggedLandmassesConnected(
     rightConnections.add(left);
     seamConnections.set(right, rightConnections);
   };
-  for (const tile of Object.values(map.tiles)) {
-    if (tile.coord.q !== 0 && tile.coord.q !== map.width - 1) continue;
-    if (!tile.regionKey) continue;
-    for (const neighbor of getWrappedHexNeighbors(tile.coord, map.width)) {
-      if (neighbor.q !== 0 && neighbor.q !== map.width - 1) continue;
-      const neighborRegion = map.tiles[hexKey(neighbor)]?.regionKey;
-      if (neighborRegion) connect(tile.regionKey, neighborRegion);
+  for (const q of new Set([0, map.width - 1])) {
+    for (let r = 0; r < map.height; r++) {
+      const tile = map.tiles[hexKey({ q, r })];
+      if (!tile?.regionKey) continue;
+      for (const neighbor of getWrappedHexNeighbors(tile.coord, map.width)) {
+        if (neighbor.q !== 0 && neighbor.q !== map.width - 1) continue;
+        const neighborRegion = map.tiles[hexKey(neighbor)]?.regionKey;
+        if (neighborRegion) connect(tile.regionKey, neighborRegion);
+      }
     }
   }
 
