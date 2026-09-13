@@ -12,6 +12,13 @@ import { installAutosave } from './helpers/save-fixture';
 // test budget without reporting a runtime error.
 const CAMPAIGN_READY_TIMEOUT_MS = 45_000;
 
+// #turn-handoff's "Start Turn" click awaits a real autoSave() (an async storage
+// write) before removing the overlay -- see onReady in
+// src/app/controllers/turn-flow-controller.ts. On GitHub's shared Linux runners
+// that can legitimately exceed Playwright's 5s default assertion timeout, the
+// same class of flake CAMPAIGN_READY_TIMEOUT_MS above already exists to absorb.
+const HANDOFF_CLOSE_TIMEOUT_MS = 20_000;
+
 function fixture(vassalHuman = true, overlordHuman = false, hotSeat = false): GameState {
   const state = normalizeLoadedState(makeVassalageFixture(vassalHuman, overlordHuman));
   if (!hotSeat) delete state.hotSeat;
@@ -64,7 +71,7 @@ async function enterSoloAutosave(page: Page, state: GameState, testInfo: TestInf
 async function handoff(page: Page) {
   await page.locator('#handoff-confirm').click();
   await page.locator('#handoff-start').click();
-  await expect(page.locator('#turn-handoff')).toBeHidden();
+  await expect(page.locator('#turn-handoff')).toBeHidden({ timeout: HANDOFF_CLOSE_TIMEOUT_MS });
 }
 
 test('human offers to AI, sees the active role immediately, and cannot declare an independent war', async ({page}, testInfo) => {
