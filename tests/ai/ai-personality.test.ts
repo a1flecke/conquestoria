@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   weightTechChoice,
   weightProductionChoice,
+  weightProductionRoles,
   shouldDeclareWar,
 } from '@/ai/ai-personality';
 import type { PersonalityTraits, Tech } from '@/core/types';
@@ -131,5 +132,22 @@ describe('ai-personality', () => {
     it('caution never grants immunity — a sufficiently motivated AI still declares war', () => {
       expect(shouldDeclareWar(aggressive, -10, 3.0, 12, true, true, true, 0.15)).toBe(true);
     });
+  });
+});
+
+describe('#1064 expansion weighting', () => {
+  it('weights settlement higher for an expansionist than an aggressor', () => {
+    // Pin the ORDERING, never an absolute number -- the constant is tuning.
+    // Explicit PersonalityTraits type, not `as const` -- traits is a mutable
+    // PersonalityTrait[], which a readonly `as const` tuple cannot satisfy.
+    const expansionist: PersonalityTraits = {
+      traits: ['expansionist'], warLikelihood: 0.3, diplomacyFocus: 0.5, expansionDrive: 0.9,
+    };
+    const aggressor: PersonalityTraits = {
+      traits: ['aggressive'], warLikelihood: 0.9, diplomacyFocus: 0.2, expansionDrive: 0.2,
+    };
+
+    expect(weightProductionRoles(expansionist, ['settlement']))
+      .toBeGreaterThan(weightProductionRoles(aggressor, ['settlement']));
   });
 });

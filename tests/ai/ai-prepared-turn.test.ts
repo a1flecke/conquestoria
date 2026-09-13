@@ -930,3 +930,31 @@ describe('#1064 expand objective candidates', () => {
     expect((trace?.candidates ?? []).some(c => c.id.startsWith('expand:'))).toBe(false);
   });
 });
+
+describe('#1064 difficulty invariance', () => {
+  it.each(['explorer', 'standard', 'veteran'] as const)(
+    'produces the same expand legality on %s',
+    challenge => {
+      const state = createNewGame(undefined, 'expand-difficulty-invariant', 'small');
+      state.opponentChallenge = challenge;
+      const civ = state.civilizations['ai-1'];
+
+      const trace = prepareMajorCivStrategicPlan(state, civ.id).traces
+        .find(entry => entry.decision === 'objective');
+      const expandIds = (trace?.candidates ?? [])
+        .filter(candidate => candidate.id.startsWith('expand:'))
+        .map(candidate => candidate.id);
+
+      // Core legality is difficulty-invariant. Challenge profiles tune scores and
+      // timing (maxPrimaryForce, mobilizationRounds), never what is legal.
+      expect(expandIds).toEqual(
+        (prepareMajorCivStrategicPlan(
+          { ...state, opponentChallenge: 'standard' },
+          civ.id,
+        ).traces.find(entry => entry.decision === 'objective')?.candidates ?? [])
+          .filter(candidate => candidate.id.startsWith('expand:'))
+          .map(candidate => candidate.id),
+      );
+    },
+  );
+});
