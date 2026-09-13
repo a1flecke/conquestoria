@@ -120,6 +120,20 @@ describe('getIdleExplorerUnitIds', () => {
     expect(result).toEqual([]);
   });
 
+  it('excludes a unit already auto-exploring, even with unspent movement', () => {
+    // turn-manager.ts's per-civ turn-start loop already re-issues this unit's move
+    // every round on its own (the same mechanism the player's auto-explore button
+    // drives). Reprocessing it here too would move it twice in the same round
+    // whenever its chosen destination didn't consume its full movement budget.
+    const units = {
+      warrior: unit('warrior', 'warrior', {
+        automation: { mode: 'auto-explore', startedTurn: 1, lastTargets: [] },
+      }),
+    };
+    const result = getIdleExplorerUnitIds(civ(['warrior']), units, prepared());
+    expect(result).toEqual([]);
+  });
+
   it('returns multiple eligible units, one civ can send more than one to explore', () => {
     const units = {
       warrior: unit('warrior', 'warrior'),

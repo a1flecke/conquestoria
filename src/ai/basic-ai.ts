@@ -881,21 +881,25 @@ function processAITurnInternal(
   // processMajorCivStrategicTurn's tactical dispatch. Reuses the exact player-facing
   // auto-explore mechanism. Placed LAST among the administrative loops: a unit is only
   // offered to exploration once every other administrative system has had first refusal.
+  //
+  // getIdleExplorerUnitIds already excludes a unit already in auto-explore mode -- once
+  // set here, turn-manager.ts's per-civ turn-start loop (the same mechanism the player's
+  // own auto-explore button drives) re-issues the move every subsequent round on its own.
+  // This loop only INITIATES exploration; it must never re-apply an order to a unit
+  // already exploring, or that unit gets moved twice in the same round.
   for (const unitId of getIdleExplorerUnitIds(civ, newState.units, preparedForTurn)) {
     const current = newState.units[unitId];
     if (!current || current.hasActed) continue;
-    if (current.automation?.mode !== 'auto-explore') {
-      newState = {
-        ...newState,
-        units: {
-          ...newState.units,
-          [current.id]: {
-            ...current,
-            automation: { mode: 'auto-explore', startedTurn: newState.turn, lastTargets: [] },
-          },
+    newState = {
+      ...newState,
+      units: {
+        ...newState.units,
+        [current.id]: {
+          ...current,
+          automation: { mode: 'auto-explore', startedTurn: newState.turn, lastTargets: [] },
         },
-      };
-    }
+      },
+    };
     applyAutoExploreOrder(newState, unitId, { bus });
   }
   civ = newState.civilizations[civId];

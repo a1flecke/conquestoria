@@ -17,6 +17,14 @@ import { UNIT_DEFINITIONS } from '@/systems/unit-system';
  * are excluded categorically -- they each already have their own dedicated
  * administrative or plan-driven dispatch elsewhere in basic-ai.ts and must
  * never be diverted into wandering.
+ *
+ * Excludes a unit already in `automation.mode === 'auto-explore'`: turn-manager.ts's
+ * per-civ turn-start loop (the same generic mechanism the player's own auto-explore
+ * button drives) already re-issues that unit's move every round with freshly-reset
+ * movement, before the AI round scheduler ever calls into basic-ai.ts. This helper
+ * only *initiates* exploration for a unit that isn't auto-exploring yet -- reprocessing
+ * an already-exploring unit here would move it a second time in the same round
+ * whenever its chosen destination didn't consume its full movement budget.
  */
 export function getIdleExplorerUnitIds(
   civ: Civilization,
@@ -30,6 +38,7 @@ export function getIdleExplorerUnitIds(
   return civ.units.filter(unitId => {
     const unit = units[unitId];
     if (!unit || unit.hasActed || unit.movementPointsLeft <= 0) return false;
+    if (unit.automation?.mode === 'auto-explore') return false;
     if (UNIT_DEFINITIONS[unit.type].strength <= 0) return false;
     if (unavailable.has(unitId)) return false;
     if (unit.committedToRouteId) return false;
