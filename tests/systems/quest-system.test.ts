@@ -10,9 +10,11 @@ import {
   isQuestTargetKnownToPlayer,
 } from '@/systems/quest-system';
 import { getQuestOriginLabel, isQuestVisibleToPlayer } from '@/systems/quest-presentation';
-import type { Quest } from '@/core/types';
+import { canPursueMinorCivTradeRoute } from '@/systems/quest-objective-system';
+import type { HexTile, Quest } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 import { getEraAdvancementTechs } from '@/systems/tech-definitions';
+import { withPerfProbe } from '../perf/perf-probe';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -33,6 +35,44 @@ function questState(seed: string) {
   state.civilizations.player.gold = 500;
   state.civilizations.player.visibility.tiles[hexKey(city.position)] = 'visible';
   return { state, minorCivId, city };
+}
+
+function taggedTradeRouteState(
+  seed: string,
+  wrapsHorizontally: boolean,
+  sourceRegion: string,
+  destinationRegion: string,
+) {
+  const { state, minorCivId, city: minorCity } = questState(seed);
+  const source = { q: 0, r: 0 };
+  const destination = { q: 2, r: 0 };
+  const landTile = (coord: { q: number; r: number }, regionKey: string): HexTile => ({
+    coord, terrain: 'plains', elevation: 'lowland' as const, resource: null,
+    improvement: 'none' as const, owner: null, improvementTurnsLeft: 0,
+    hasRiver: false, wonder: null, regionKey,
+  });
+  state.map = {
+    width: 3,
+    height: 1,
+    wrapsHorizontally,
+    rivers: [],
+    tiles: {
+      '0,0': landTile(source, sourceRegion),
+      '1,0': {
+        ...landTile({ q: 1, r: 0 }, 'water'),
+        terrain: 'ocean',
+        regionKey: undefined,
+      },
+      '2,0': landTile(destination, destinationRegion),
+    },
+  };
+  minorCity.position = destination;
+  const playerCity = { ...minorCity, id: 'player-port', owner: 'player', position: source };
+  state.cities[playerCity.id] = playerCity;
+  state.civilizations.player.cities = [playerCity.id];
+  state.civilizations.player.techState.completed = ['trade-routes'];
+  state.civilizations.player.visibility.tiles[hexKey(destination)] = 'visible';
+  return { state, minorCivId };
 }
 
 describe('quest system', () => {
@@ -97,6 +137,71 @@ describe('quest system', () => {
       state.civilizations.player.techState.completed = [];
       const quest = generateQuest('mercantile', minorCivId, 'player', 5, state, () => 0.8, mkC());
       expect(quest?.type).not.toBe('trade_route');
+    });
+
+    it('uses a shared landmass tag to prove a discovered trade-route quest is feasible without pathfinding', () => {
+      const { state, minorCivId, city: minorCity } = questState('same-region-trade-route-quest');
+      const destinationRegion = state.map.tiles[hexKey(minorCity.position)]?.regionKey;
+      const sourceTile = Object.values(state.map.tiles).find(tile =>
+        tile.regionKey === destinationRegion
+        && tile.terrain !== 'ocean'
+        && tile.terrain !== 'coast',
+      );
+      if (!sourceTile || !destinationRegion) throw new Error('fixture needs a tagged landmass');
+
+      const playerCity = {
+        ...minorCity,
+        id: 'player-port',
+        owner: 'player',
+        position: { ...sourceTile.coord },
+      };
+      state.cities[playerCity.id] = playerCity;
+      state.civilizations.player.cities = [playerCity.id];
+      state.civilizations.player.techState.completed = ['trade-routes'];
+      state.civilizations.player.visibility.tiles[hexKey(minorCity.position)] = 'visible';
+
+      const { result, counts } = withPerfProbe(() =>
+        canPursueMinorCivTradeRoute(state, 'player', minorCivId, 999));
+
+      expect(result).toBe(true);
+      expect(counts.pathQueries).toBe(0);
+    });
+
+    it('rejects distinct tagged landmasses on a non-wrapping map without pathfinding', () => {
+      const { state, minorCivId } = taggedTradeRouteState('separate-landmass-trade-route-quest', false, 'island-0', 'island-1');
+
+      const { result, counts } = withPerfProbe(() =>
+        canPursueMinorCivTradeRoute(state, 'player', minorCivId, 999));
+
+      expect(result).toBe(false);
+      expect(counts.pathQueries).toBe(0);
+    });
+
+    it('recognizes distinct tags joined across the horizontal seam without pathfinding', () => {
+      const { state, minorCivId } = taggedTradeRouteState('seam-landmass-trade-route-quest', true, 'island-0', 'island-1');
+
+      const { result, counts } = withPerfProbe(() =>
+        canPursueMinorCivTradeRoute(state, 'player', minorCivId, 999));
+
+      expect(result).toBe(true);
+      expect(counts.pathQueries).toBe(0);
+    });
+
+    it('falls back to canonical pathfinding when a legacy map has no landmass tags', () => {
+      const { state, minorCivId } = taggedTradeRouteState('legacy-landmass-trade-route-quest', false, 'island-0', 'island-1');
+      state.map.tiles['1,0'] = {
+        ...state.map.tiles['1,0']!,
+        terrain: 'plains',
+      };
+      delete state.map.tiles['0,0']!.regionKey;
+      delete state.map.tiles['1,0']!.regionKey;
+      delete state.map.tiles['2,0']!.regionKey;
+
+      const { result, counts } = withPerfProbe(() =>
+        canPursueMinorCivTradeRoute(state, 'player', minorCivId, 999));
+
+      expect(result).toBe(true);
+      expect(counts.pathQueries).toBe(1);
     });
 
     it('returns null when no nearby hostile units exist for a defeat_units quest', () => {

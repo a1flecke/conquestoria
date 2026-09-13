@@ -89,6 +89,7 @@ export function measurePerfArea(area: PerfArea, fx: PerfFixtures): AreaSample {
       return {
         structuredCloneWholeState: counts.structuredCloneWholeState,
         heapPops: counts.heapPops,
+        pathQueries: counts.pathQueries,
         blockingEntityAtCalls: counts.blockingEntityAtCalls,
         visibilityPasses: counts.visibilityPasses,
         cityYieldCalls: counts.cityYieldCalls,

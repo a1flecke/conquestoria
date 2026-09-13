@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { generateBalancedMap } from '@/systems/balanced-map-generator';
 import { generateContinentMap } from '@/systems/continent-map-generator';
-import { tagLandmassRegions } from '@/systems/landmass-tagger';
+import { areTaggedLandmassesConnected, tagLandmassRegions } from '@/systems/landmass-tagger';
 import {
   canStartIndependentThreat,
   computeThreatScore,
@@ -134,6 +134,18 @@ describe('tagLandmassRegions', () => {
 
     const tagged = tagLandmassRegions(map);
     expect(tagged['1,0'].regionKey).toBeUndefined();
+  });
+
+  it('joins separately tagged land only when the horizontal seam connects it', () => {
+    const tiles: Record<string, HexTile> = {
+      '0,0': { ...makeTile(0, 0, 'grassland'), regionKey: 'island-0' },
+      '2,0': { ...makeTile(2, 0, 'grassland'), regionKey: 'island-1' },
+    };
+    const nonWrappingMap: GameMap = { width: 3, height: 1, tiles, wrapsHorizontally: false, rivers: [] };
+    const wrappingMap: GameMap = { ...nonWrappingMap, wrapsHorizontally: true };
+
+    expect(areTaggedLandmassesConnected(nonWrappingMap, { q: 0, r: 0 }, { q: 2, r: 0 })).toBe(false);
+    expect(areTaggedLandmassesConnected(wrappingMap, { q: 0, r: 0 }, { q: 2, r: 0 })).toBe(true);
   });
 });
 
