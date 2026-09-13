@@ -151,16 +151,11 @@ for the full detail on each:
   on the three small-map scenarios) — the "residual idle" contingency #1064's own design
   doc anticipated (§2.20): a civ that expansion now genuinely works for eventually reaches
   its soft cap or exhausts buildable content on a bigger map. See #1094.
-- **#1092** — `normalizeLoadedState` calls `recalculateTerritory` with
-  `preserveForeignHolders: true` on every load; the live per-round call in
-  `turn-manager.ts` does not pass that flag. A border tile that would legitimately change
-  hands under the live `'turn'` recompute instead freezes to its previous owner if a
-  save/reload happens near that transition — a real save/reload determinism violation,
-  only reachable once AI civs have contested, closely-packed borders. `tests/simulation/
-  long-horizon/campaign-continuity.test.ts`'s save/reload check documents this inline and
-  can legitimately fail with a divergence path other than the pre-existing F2 one until
-  #1092 lands; deliberately not added to `isKnownSaveReloadDivergence` since (unlike F2)
-  its downstream symptom is unbounded.
+- **#1092 (fixed)** — a load-time territory recompute bug that froze contested border
+  tiles to their previous owner across a save/reload instead of matching live play, only
+  reachable once AI civs have contested, closely-packed borders. See
+  `.claude/rules/game-systems.md`'s "Load-time territory recompute must match live
+  attrition" for the fix.
 - **#1093** (`tech-frozen`, registered in `known-campaign-gaps.ts`) — a civ with techs
   objectively available completes none for 135+ rounds in `lh-late-era-medium`, once
   expansion lets it reach a far higher tech count within the scenario's fixed round budget

@@ -68,6 +68,45 @@ Auto-save fires on game creation, and `normalizeLoadedState` runs on both the sa
 
 The full `migrate → normalize → run a few rounds → save → reload → shared invariant validators` sweep across every representable version is `tests/storage/save-compat-matrix.test.ts` (intensive-simulations local selection). The shared validators it asserts (`tests/helpers/save-state-invariants.ts`: bilateral war, city + unit rosters, cargo reciprocity, eliminated-civ entities) are the minimal structural contract a migrated save must still satisfy; the dedicated invariant issues (#995 / #997 / #1000 / #1001) own making each exhaustive. Do **not** assert `migrated.saveSchemaVersion === CURRENT` and stop — that proves the migration *ran*, not that the result is playable.
 
+### Load-time territory recompute must match live attrition (#1092)
+
+`normalizeLoadedState` calls `recalculateTerritory` (`city-territory-system.ts`) with
+`reason: 'load'`, and every load-path caller must produce the **same** tile ownership a
+continuous, never-reloaded run would have at that exact point — otherwise save/reload
+stops being simulation-equivalent (clause 2 of the Deterministic Simulation Contract
+above), specifically for territory.
+
+- `preserveForeignHolders: true` has two genuinely different callers with two genuinely
+  different intents, and they must never share one unconditional boolean again:
+  - **`reason: 'founding'`** (`city-founding-system.ts`) means "a brand-new city's claims
+    must never immediately steal already-claimed foreign land" — a permanent game-balance
+    rule (prevents a settle-next-to-your-neighbor land grab). This is unconditional and
+    correct as-is; do not touch it.
+  - **`reason: 'load'`** (`save-manager.ts`) exists to repair a **structurally impossible**
+    persisted state a hand-edited or otherwise malformed save can contain — some city's
+    `ownedTiles`/`workedTiles` names a tile whose recorded `owner` disagrees with that
+    city (live play can never produce this: `recalculateTerritory` always writes a tile's
+    `owner` and the winning city's `ownedTiles` together, atomically, from the same
+    resolution pass).
+- Before #1092, `reason: 'load'` applied the exact same unconditional protection as
+  founding — so a border tile with **no** contradiction to repair, whose ownership would
+  legitimately flip under the live `'turn'` recompute (a stronger neighbor's claim finally
+  overtaking a weaker one through ordinary attrition), instead froze to its previous owner
+  on every save/reload. Only reachable once AI civs have contested, closely-packed
+  borders — #1064's expansion fix made that common for the first time, which is how this
+  was found.
+- The fix: `recalculateTerritory` computes `findContradictedForeignHolderTiles` (which
+  cities' `ownedTiles`/`workedTiles` actually disagree with the map) **only** when
+  `reason === 'load'`, and narrows `preserveForeignHolders` to exactly those tiles for
+  that call. A tile with no contradiction falls through to the same strongest-claim
+  comparison (with `preserveCurrentHolderOnTie`'s hysteresis) the live `'turn'` path uses.
+  `founding`/`capture`/`raze`/`turn` are completely untouched by this narrowing.
+- `tests/systems/city-territory-system.test.ts`'s `#1092` describe block pins both halves:
+  an uncontradicted overlap flips identically under `reason: 'load'` and `reason: 'turn'`;
+  a genuinely contradicted tile still gets repaired. Do not "fix" a future load-time
+  territory bug by widening `preserveForeignHolders` back to unconditional — that
+  reintroduces this exact divergence.
+
 ## State Mutations Must Match Events
 - If you emit an event (e.g., `city:unit-trained`), the state mutation (creating the unit, adding to arrays) MUST happen in the same block
 - Events are notifications for UI/logging — they do NOT trigger state changes

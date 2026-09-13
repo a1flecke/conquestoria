@@ -230,6 +230,28 @@ function removeOwnedTile(city: City, coord: HexCoord): City {
   return { ...city, ownedTiles: city.ownedTiles.filter(owned => hexKey(owned) !== key) };
 }
 
+/**
+ * Tiles where a city's persisted `ownedTiles`/`workedTiles` names a tile the map does
+ * NOT currently record that city as owning -- a structurally impossible state live
+ * play never produces (`recalculateTerritory` always writes a tile's `owner` and the
+ * winning city's `ownedTiles` together, atomically, from the same resolution pass).
+ * Only meaningful for hand-edited or otherwise malformed persisted data -- see
+ * `recalculateTerritory`'s `reason === 'load'` branch for why this exists.
+ */
+function findContradictedForeignHolderTiles(state: GameState): Set<string> {
+  const contradicted = new Set<string>();
+  for (const city of Object.values(state.cities)) {
+    for (const coord of [...city.ownedTiles, ...city.workedTiles]) {
+      const key = hexKey(coord);
+      const tile = state.map.tiles[key];
+      if (tile && tile.owner !== city.owner) {
+        contradicted.add(key);
+      }
+    }
+  }
+  return contradicted;
+}
+
 export function recalculateTerritory(
   state: GameState,
   options: TerritoryRecalculationOptions,
@@ -241,6 +263,21 @@ export function recalculateTerritory(
       claimsByTile.set(key, [...(claimsByTile.get(key) ?? []), claim]);
     }
   }
+
+  // #1092: `reason: 'load'` is the ONLY caller where `preserveForeignHolders` must
+  // distinguish "repair a persisted contradiction" from "match ordinary live-play
+  // attrition" -- founding's `preserveForeignHolders` genuinely means "never let
+  // founding steal already-claimed land" and must stay unconditional (see
+  // `tests/systems/city-territory-system.test.ts`'s "does not steal valid
+  // foreign-held tiles during MR1 founding recalculation"). Without this narrowing,
+  // a border tile that would legitimately change hands under the live `'turn'`
+  // recompute instead froze to its previous owner across every save/reload, purely
+  // because it had no contradiction to repair -- a real save/reload determinism
+  // violation (#1092), only reachable once AI civs have contested, closely-packed
+  // borders.
+  const contradictedTiles = options.reason === 'load'
+    ? findContradictedForeignHolderTiles(state)
+    : null;
 
   const nextTiles = { ...state.map.tiles };
   const nextCities: GameState['cities'] = {};
@@ -264,8 +301,11 @@ export function recalculateTerritory(
     if (!tile) continue;
 
     const previousOwner = tile.owner ?? null;
-    const winner = chooseTerritoryWinner(claims, previousOwner, options);
-    const winningCivId = winner?.civId ?? (options.preserveForeignHolders && previousOwner ? previousOwner : null);
+    const preserveForeignHolders = contradictedTiles
+      ? contradictedTiles.has(key)
+      : (options.preserveForeignHolders ?? false);
+    const winner = chooseTerritoryWinner(claims, previousOwner, { ...options, preserveForeignHolders });
+    const winningCivId = winner?.civId ?? (preserveForeignHolders && previousOwner ? previousOwner : null);
     if (winner) {
       let nextTile = { ...tile, owner: winner.civId };
       if (previousOwner !== winner.civId && tile.improvement !== 'none' && tile.improvementTurnsLeft > 0) {
@@ -280,7 +320,7 @@ export function recalculateTerritory(
       }
       nextTiles[key] = nextTile;
       ownedByCity.set(winner.cityId, [...(ownedByCity.get(winner.cityId) ?? []), winner.coord]);
-    } else if (!options.preserveForeignHolders || !previousOwner) {
+    } else if (!preserveForeignHolders || !previousOwner) {
       let nextTile = { ...tile, owner: null };
       if (previousOwner !== null && tile.improvement !== 'none' && tile.improvementTurnsLeft > 0) {
         nextTile = { ...nextTile, improvement: 'none', improvementTurnsLeft: 0 };
