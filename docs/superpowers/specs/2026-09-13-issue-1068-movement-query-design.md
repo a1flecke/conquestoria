@@ -33,6 +33,14 @@ in the same city, camp, then pirate-enclave precedence, applying the same
 legality predicates as today. The current key-set helper will derive its keys
 from that map, keeping one definition of what blocks movement.
 
+The lookup must also preserve the current first-match behavior for multiple
+records on one hex: a first city entry is considered before camps, and the first
+camp or enclave entry is considered only when no earlier blocking result exists.
+This is normally unreachable in valid generated state, but retaining it avoids
+silently changing behavior for imported or hand-edited saves with overlapping
+records. A simple later `Map#set` must not overwrite an earlier canonical
+answer.
+
 `getMovementRangeDetails` will build that lookup exactly once per invocation and
 perform O(1) map reads inside the BFS. It will retain the existing direct-start
 and pirate-enclave condition, zone-of-control calculation, terminal behavior,
@@ -48,10 +56,10 @@ cache is out of scope.
 
 Tests will prove that canonical lookups and single-coordinate blocker lookup
 agree for hostile cities, barbarian camps, pirate enclaves, allied/neutral
-entities, and non-blocking tiles. They will also preserve exact detailed-query
-results, including ordering and reasons, across crowding, enemy-city,
-transport/cargo, airborne, and fog-relevant coverage already used by movement
-tests.
+entities, non-blocking tiles, and deliberate same-hex collision fixtures. They
+will also preserve exact detailed-query results, including ordering and reasons,
+across crowding, enemy-city, transport/cargo, airborne, and fog-relevant
+coverage already used by movement tests.
 
 Existing #843, #845, #965, and #970 movement regressions remain in the targeted
 suite. No gameplay balance, difficulty-mode rules, save schema/normalization,
