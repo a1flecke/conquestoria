@@ -13,7 +13,8 @@ vi.mock('@/storage/db', () => ({
 }));
 
 import { loadGame, migrateLegacyNamingState, normalizeLoadedStateForTest, saveGame } from '@/storage/save-manager';
-import type { CustomCivDefinition, GameState } from '@/core/types';
+import { parseSaveFile, serializeSaveFile } from '@/storage/save-file-transfer';
+import type { CustomCivDefinition, GameState, MinorCivRelationshipStatus } from '@/core/types';
 import { foundCity } from '@/systems/city-system';
 import { hexKey } from '@/systems/hex-utils';
 import { createUnit } from '@/systems/unit-system';
@@ -233,7 +234,7 @@ describe('save persistence (#38)', () => {
     expect(loaded?.pendingDiplomacyRequests).toEqual([]);
   });
 
-  it('normalizes legacy minor-civ chain maps without emitting a synthetic status transition', () => {
+  it('keeps an absent legacy minor-civ notification history empty', () => {
     const state = createNewGame(undefined, 'legacy-minor-chain-maps', 'small');
     const minorCiv = Object.values(state.minorCivs)[0];
     minorCiv.diplomacy.relationships.player = 35;
@@ -246,7 +247,59 @@ describe('save persistence (#38)', () => {
 
     expect(normalized.chainStatusByCiv).toEqual({});
     expect(normalized.questCooldownUntilByCiv).toEqual({});
-    expect(normalized.lastNotifiedStatusByCiv.player).toBe('friendly');
+    expect(normalized.lastNotifiedStatusByCiv).toEqual({});
+  });
+
+  const minorCivNotificationHistories: Array<[string, Record<string, MinorCivRelationshipStatus>]> = [
+    ['empty', {}],
+    ['one entry', { player: 'friendly' }],
+    ['multiple entries', { player: 'friendly', 'ai-1': 'hostile' }],
+  ];
+
+  it.each(minorCivNotificationHistories)(
+    'preserves %s minor-civ notification history without synthesis',
+    (_label, history) => {
+      const state = createNewGame(undefined, `minor-civ-history-${_label}`, 'small');
+      const minorCiv = Object.values(state.minorCivs)[0]!;
+      minorCiv.lastNotifiedStatusByCiv = { ...history };
+      const saveFile = serializeSaveFile(state);
+
+      const normalized = normalizeLoadedStateForTest(state);
+      expect(normalized.minorCivs[minorCiv.id]!.lastNotifiedStatusByCiv).toEqual(history);
+
+      const parsed = parseSaveFile(saveFile);
+      if (parsed.status !== 'success') throw new Error(parsed.message);
+      const reloaded = normalizeLoadedStateForTest(parsed.state);
+      expect(reloaded.minorCivs[minorCiv.id]!.lastNotifiedStatusByCiv).toEqual(history);
+    },
+  );
+
+  it('repairs malformed and eliminated-civ notification history without synthesizing a replacement', () => {
+    const state = createNewGame(undefined, 'minor-civ-history-repair', 'small');
+    const minorCiv = Object.values(state.minorCivs)[0]!;
+    const eliminatedCivId = Object.keys(state.civilizations).find(id => id !== 'player')!;
+    state.civilizations[eliminatedCivId]!.isEliminated = true;
+    minorCiv.lastNotifiedStatusByCiv = {
+      player: 'friendly',
+      [eliminatedCivId]: 'hostile',
+      missing: 'neutral',
+      malformed: 'not-a-status' as never,
+    };
+
+    const normalized = normalizeLoadedStateForTest(state);
+
+    expect(normalized.minorCivs[minorCiv.id]!.lastNotifiedStatusByCiv).toEqual({ player: 'friendly' });
+  });
+
+  it('does not add minor-civ notification history while saving and loading', async () => {
+    const state = createNewGame(undefined, 'minor-civ-history-store-round-trip', 'small');
+    const minorCiv = Object.values(state.minorCivs)[0]!;
+    minorCiv.lastNotifiedStatusByCiv = {};
+
+    await saveGame('minor-civ-history-store', 'Minor civ history', state);
+    const loaded = await loadGame('minor-civ-history-store');
+
+    expect(loaded?.minorCivs[minorCiv.id]!.lastNotifiedStatusByCiv).toEqual({});
   });
 
   it('normalizes legacy minor-civ coalition fields for solo saves', () => {

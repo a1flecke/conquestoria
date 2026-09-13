@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { placeMinorCivs, processMinorCivTurn, planPurposefulMinorCivTurn, checkEraAdvancement, processMinorCivEraUpgrade, conquestMinorCiv, peacefullyAbsorbMinorCiv, processGuerrilla, processScuffles, applyDiplomaticReaction } from '@/systems/minor-civ-system';
-import { createNewGame } from '@/core/game-state';
+import { createHotSeatGame, createNewGame } from '@/core/game-state';
 import { hexDistance, hexKey } from '@/systems/hex-utils';
 import { EventBus } from '@/core/event-bus';
+import { parseSaveFile, serializeSaveFile } from '@/storage/save-file-transfer';
+import { normalizeLoadedStateForTest } from '@/storage/save-manager';
 import { TECH_TREE, getEraAdvancementTechs } from '@/systems/tech-definitions';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
@@ -21,6 +23,45 @@ function setNearbyPressureEra(state: ReturnType<typeof createNewGame>, minorCivI
   } as never;
   state.civilizations.player.cities = ['pressure-source'];
 }
+
+describe('minor-civ relationship notification history', () => {
+  it('emits the first status notice for a non-viewing hot-seat civ after save/reload', () => {
+    const state = createHotSeatGame({
+      playerCount: 2,
+      mapSize: 'small',
+      players: [
+        { name: 'Alice', slotId: 'player-1', civType: 'egypt', isHuman: true },
+        { name: 'Bob', slotId: 'player-2', civType: 'rome', isHuman: true },
+      ],
+    }, 'minor-civ-history-hot-seat');
+    const minorCiv = Object.values(state.minorCivs)[0]!;
+    minorCiv.lastNotifiedStatusByCiv = { 'player-1': 'neutral' };
+    minorCiv.diplomacy.relationships['player-2'] = 35;
+
+    const parsed = parseSaveFile(serializeSaveFile(state));
+    if (parsed.status !== 'success') throw new Error(parsed.message);
+    const loaded = normalizeLoadedStateForTest(parsed.state);
+    const events: Array<{ majorCivId: string; minorCivId: string; newStatus: string }> = [];
+    const eventBus = new EventBus();
+    eventBus.on('minor-civ:relationship-threshold', event => events.push(event));
+
+    const next = processMinorCivTurn(loaded, eventBus);
+
+    expect(next.minorCivs[minorCiv.id]!.lastNotifiedStatusByCiv).toMatchObject({
+      'player-1': 'neutral',
+      'player-2': 'friendly',
+    });
+    const playerTwoEvents = events.filter(
+      event => event.majorCivId === 'player-2',
+    );
+    expect(playerTwoEvents).toHaveLength(1);
+    expect(playerTwoEvents[0]).toMatchObject({
+      majorCivId: 'player-2',
+      minorCivId: minorCiv.id,
+      newStatus: 'friendly',
+    });
+  });
+});
 
 describe('minor civ placement', () => {
   it('places correct number for small map', () => {

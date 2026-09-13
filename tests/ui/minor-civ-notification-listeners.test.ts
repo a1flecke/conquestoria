@@ -77,6 +77,35 @@ describe('minor-civ notification listeners', () => {
     expect(calls[0]![0]).toBe(otherMajorId);
   });
 
+  it('queues a relationship-threshold notice only for its affected non-current hot-seat civ', () => {
+    const state = createHotSeatGame({
+      playerCount: 2,
+      mapSize: 'small',
+      players: [
+        { name: 'Alice', slotId: 'player-1', civType: 'egypt', isHuman: true },
+        { name: 'Bob', slotId: 'player-2', civType: 'rome', isHuman: true },
+      ],
+    }, 'mc-threshold-listener-hot-seat');
+    state.currentPlayer = 'player-1';
+    state.pendingEvents = {};
+    const minorCivId = getFirstMinorCivId(state);
+    discoverMinorCiv(state, 'player-2', minorCivId);
+    const bus = new EventBus();
+    registerMinorCivNotificationListeners(bus, () => state, { appendToCivLog: vi.fn() });
+
+    bus.emit('minor-civ:relationship-threshold', {
+      majorCivId: 'player-2',
+      minorCivId,
+      newStatus: 'friendly',
+      state,
+    });
+
+    expect(state.pendingEvents?.['player-2']).toEqual([
+      expect.objectContaining({ type: 'minor-civ:status', turn: state.turn }),
+    ]);
+    expect(state.pendingEvents?.['player-1']).toBeUndefined();
+  });
+
   it('queues turn-time quest events into the authoritative immutable next state', () => {
     const stale = createHotSeatGame({
       playerCount: 2,
