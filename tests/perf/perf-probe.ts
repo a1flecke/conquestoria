@@ -29,6 +29,8 @@ export interface PerfCounts {
   heapPushes: number;
   /** `getBlockingMapEntityAt` calls — per-coordinate `Object.values(state.cities).find(...)` scans */
   blockingEntityAtCalls: number;
+  /** `getBlockingMapEntitiesByHex` calls — canonical per-unit blocker-map builds */
+  blockingMapEntityLookupBuilds: number;
   /** `findPath` calls (cross-module; internal `findPathToCity`→`findPath` is only in `heapPops`) */
   pathQueries: number;
   /** `updateVisibility` calls — full fog recomputations */
@@ -43,6 +45,7 @@ function emptyCounts(): PerfCounts {
     heapPops: 0,
     heapPushes: 0,
     blockingEntityAtCalls: 0,
+    blockingMapEntityLookupBuilds: 0,
     pathQueries: 0,
     visibilityPasses: 0,
     cityYieldCalls: 0,
@@ -96,6 +99,14 @@ export function withPerfProbe<T>(fn: () => T): { result: T; counts: PerfCounts }
   );
 
   // --- cross-module namespace spies: capture original before spying ---
+  const blockingLookupOrig = legality.getBlockingMapEntitiesByHex;
+  spies.push(
+    vi.spyOn(legality, 'getBlockingMapEntitiesByHex').mockImplementation((...args: Parameters<typeof blockingLookupOrig>) => {
+      counts.blockingMapEntityLookupBuilds += 1;
+      return blockingLookupOrig(...args);
+    }),
+  );
+
   const blockingOrig = legality.getBlockingMapEntityAt;
   spies.push(
     vi.spyOn(legality, 'getBlockingMapEntityAt').mockImplementation((...args: Parameters<typeof blockingOrig>) => {

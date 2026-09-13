@@ -20,14 +20,12 @@
       "routeLength": 25
     },
     "moveRange@e1": {
-      "blockingEntityAtCalls": 27,
-      "cityCount": 30,
-      "derivedInnerBound": 810
+      "blockingEntityAtCalls": 0,
+      "blockingMapEntityLookupBuilds": 1
     },
     "moveRange@e2": {
-      "blockingEntityAtCalls": 27,
-      "cityCount": 54,
-      "derivedInnerBound": 1458
+      "blockingEntityAtCalls": 0,
+      "blockingMapEntityLookupBuilds": 1
     },
     "saveLoad@e1": {
       "structuredCloneWholeState": 3
@@ -69,10 +67,6 @@
     "findPath": {
       "heapPops": 105,
       "heapPushes": 170
-    },
-    "moveRange": {
-      "blockingEntityAtCalls": 41,
-      "derivedInnerBound": 2187
     },
     "saveLoad": {
       "structuredCloneWholeState": 5
