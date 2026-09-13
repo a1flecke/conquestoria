@@ -357,8 +357,19 @@ function objectiveCandidates(
   // which becomes an objective-readiness demand and makes the settler buildable. With a
   // settler it becomes a plan and the settler is assigned to it.
   if (perception.ownCities.length < getExpansionCitySoftCap(personality.expansionDrive)) {
-    const knownCityPositions = perception.knownCities
-      .flatMap(city => city.position ? [city.position] : []);
+    // BUG FOUND VIA INTEGRATION TESTING (not caught by unit tests): perception.knownCities
+    // is built ONLY from OTHER civs' cities the actor has observed -- the actor's own live
+    // separately in perception.ownCities. Omitting them here let a belief-layer site win
+    // one tile from the civ's own capital (its highest-scoring neighbourhood, since nothing
+    // else competed), which is always illegal under MIN_CITY_CENTER_DISTANCE -- and because
+    // scoring never re-checks legality, the SAME illegal site was regenerated as "best"
+    // every round, permanently freezing the assigned settler (found-city refused,
+    // move-to-self is a zero-length path). A live 25-round determinism run caught this;
+    // no isolated unit test exercised the real perception.knownCities/ownCities split.
+    const knownCityPositions = [
+      ...perception.ownCities.map(city => city.position),
+      ...perception.knownCities.flatMap(city => city.position ? [city.position] : []),
+    ];
     for (const site of getKnownExpansionSites(
       knownMap,
       knownCityPositions,
