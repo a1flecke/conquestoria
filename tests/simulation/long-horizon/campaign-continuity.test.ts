@@ -58,6 +58,27 @@ describe('long-horizon determinism', () => {
 
 describe('long-horizon save/reload continuity', () => {
   it(
+    // #1064 note: this test can now legitimately fail on `lh-standard-medium` (and
+    // potentially other scenarios) with a divergence path OTHER than F2 -- e.g.
+    // `civilizations.<id>.gold` -- once AI civs actually expand to multiple, possibly
+    // border-contested cities. That failure is issue #1092, NOT a regression in #1064's
+    // own changes: `normalizeLoadedState` (src/storage/save-manager.ts) calls
+    // `recalculateTerritory` with `preserveForeignHolders: true` on every load, while the
+    // live per-round call in turn-manager.ts does not pass that flag, so a border tile
+    // that would legitimately change hands under ordinary `'turn'` recompute instead
+    // freezes to its previous owner if a save/reload happens near that transition.
+    // Confirmed via bisection (removing #1064's exploration mechanism makes the
+    // divergence disappear) and via a raw parse+normalizeLoadedState round-trip with no
+    // further simulation (already diverges at `cities.<id>.ownedTiles.length`). This is a
+    // pre-existing gap in `city-territory-system.ts`'s load/live asymmetry -- unreachable
+    // before #1064 because no AI civ ever had a close, contested neighbor. See #1092 for
+    // the full mechanism and why a real fix needs its own careful design (a minimal
+    // change to `preserveForeignHolders` breaks the corruption-repair case it was added
+    // for -- `tests/storage/save-persistence.test.ts`'s "preserves legacy tile owner..."
+    // test). Deliberately NOT added to `isKnownSaveReloadDivergence`: unlike F2 (a single
+    // inert field), this divergence's downstream symptom is unbounded (gold, population,
+    // anything fed by which city owns a tile), so a blanket tolerance would defeat the
+    // point of this test. Left as an honest, informative failure until #1092 lands.
     'save/reload mid-campaign continues equivalently, save for the known F2 divergence',
     () => {
       const scenario = scenarioBySeed('lh-standard-medium');
