@@ -6,6 +6,8 @@ import { preach, isPreachTargetEligible } from '@/systems/religion-system';
 import { foundCityInState } from '@/systems/city-founding-system';
 import { canFoundCityAt } from '@/systems/city-territory-system';
 import { getMovementRangeDetails, findPath, createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
+import { getIdleExplorerUnitIds } from './ai-exploration';
 import { executeUnitMove } from '@/systems/unit-movement-system';
 import {
   canLoadUnitOntoTransport,
@@ -870,6 +872,33 @@ function processAITurnInternal(
       }
     }
   }
+
+  // #1064 (design section 2.5): passive knowledge never reaches MIN_CITY_CENTER_DISTANCE
+  // (city vision is a fixed radius 2; culture-matured territory caps at radius 3), so an
+  // isolated civ's expand-site belief layer can never discover a legal site without SOME
+  // unit actively exploring. Administrative for the same reason as every loop above: no
+  // AIStrategicPlan claims a genuinely idle combat unit, so it never reaches
+  // processMajorCivStrategicTurn's tactical dispatch. Reuses the exact player-facing
+  // auto-explore mechanism. Placed LAST among the administrative loops: a unit is only
+  // offered to exploration once every other administrative system has had first refusal.
+  for (const unitId of getIdleExplorerUnitIds(civ, newState.units, preparedForTurn)) {
+    const current = newState.units[unitId];
+    if (!current || current.hasActed) continue;
+    if (current.automation?.mode !== 'auto-explore') {
+      newState = {
+        ...newState,
+        units: {
+          ...newState.units,
+          [current.id]: {
+            ...current,
+            automation: { mode: 'auto-explore', startedTurn: newState.turn, lastTargets: [] },
+          },
+        },
+      };
+    }
+    applyAutoExploreOrder(newState, unitId, { bus });
+  }
+  civ = newState.civilizations[civId];
 
   newState = processMajorCivStrategicTurn(
     newState,
