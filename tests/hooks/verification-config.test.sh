@@ -181,6 +181,10 @@ if printf '%s' "$test_suite_shard_d_job" | grep -Eq 'verify:push|yarn build|test
   echo "GitHub test suite shard D rebuilds, invokes the local verifier, or duplicates hooks"
   exit 1
 fi
+printf '%s' "$test_suite_shard_d_job" | grep -Fq "github.event_name == 'workflow_dispatch'" || {
+  echo "GitHub test suite shard D cannot run during manual validation"
+  exit 1
+}
 
 hooks_job="$(
   sed -n '/^  hooks:/,/^  pirate-audio-reproducibility:/p' "$ROOT/.github/workflows/deploy.yml"
