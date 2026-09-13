@@ -806,6 +806,45 @@ describe('#1064 bounded force demands', () => {
 });
 
 describe('#1064 expand objective candidates', () => {
+  it('never targets a site within MIN_CITY_CENTER_DISTANCE of the civilization\'s OWN city', () => {
+    // Regression: perception.knownCities is built ONLY from OTHER civs' cities the
+    // actor has observed -- the actor's own city lives separately in
+    // perception.ownCities. Omitting it from the belief layer's exclusion set let a
+    // site one tile from the civ's own capital win as "best" (nothing else competed
+    // in the small fog bubble around a fresh city), which is always illegal and
+    // permanently froze the assigned settler once it arrived.
+    //
+    // This test deliberately does NOT use addSpacedCities' broad radius-8 visibility
+    // reveal (added for Task 3/4's tests, which need a wide known area) -- with that
+    // much visible, many legitimate distant sites compete and the highest-scoring one
+    // can incidentally already clear MIN_CITY_CENTER_DISTANCE regardless of whether the
+    // own-city exclusion is applied, silently failing to catch this exact bug. Real
+    // city vision is a fixed radius 2 (`fog-of-war.ts`'s updateVisibility), which is
+    // entirely inside MIN_CITY_CENTER_DISTANCE=4 -- so a fresh city's own immediate
+    // neighbourhood is the ONLY area visible, forcing the belief layer to consider (and,
+    // pre-fix, wrongly accept) a site adjacent to its own capital.
+    const state = createNewGame(undefined, 'expand-excludes-own-city', 'small');
+    const civ = state.civilizations['ai-1'];
+    const startingPosition = civ.units.map(id => state.units[id]).find(Boolean)!.position;
+    const home = foundCity(civ.id, startingPosition, state.map, state.idCounters);
+    state.cities[home.id] = home;
+    civ.cities.push(home.id);
+    civ.visibility.tiles = {};
+    for (const coord of mapHexesInRange(state.map, home.position, 2)) {
+      civ.visibility.tiles[hexKey(coord)] = 'visible';
+    }
+
+    const prepared = prepareMajorCivStrategicPlan(state, civ.id);
+    const expandCandidate = prepared.traces
+      .find(entry => entry.decision === 'objective')
+      ?.candidates.find(entry => entry.id.startsWith('expand:'));
+    // With only a radius-2 bubble visible around the capital, a legal site (>= distance
+    // 4 away) genuinely cannot exist -- so the correct, fixed behaviour is NO expand
+    // candidate at all. This assertion IS the regression pin: pre-fix, the adjacent
+    // (illegal) tile was wrongly accepted as a candidate here.
+    expect(expandCandidate).toBeUndefined();
+  });
+
   it('demands a settler when a cityless civilization has nowhere to put one yet', () => {
     // createNewGame starts every civ cityless (settler + warrior only) -- this IS
     // the real turn-1 state, not a contrived one. Anchors fall back to unit positions.
