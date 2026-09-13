@@ -739,21 +739,28 @@ export function applyAIProduction(
   const civ = state.civilizations[civId];
   if (!civ) return state;
   const residual = residualDemands(state, civId, demands);
-  const idleCities = civ.cities
+  const idle = civ.cities
     .map(cityId => state.cities[cityId])
-    .filter(city => city?.owner === civId && city.productionQueue.length === 0)
-    .sort((left, right) => {
-      const leftEmergency = residual.some(entry =>
-        entry.missing > 0 && isEmergencyDemand(entry, left.id)) ? 1 : 0;
-      const rightEmergency = residual.some(entry =>
-        entry.missing > 0 && isEmergencyDemand(entry, right.id)) ? 1 : 0;
-      if (leftEmergency !== rightEmergency) return rightEmergency - leftEmergency;
-      const leftEta = generateWithResidual(state, civId, left.id, residual, personality)[0]
-        ?.productionTurns ?? Number.POSITIVE_INFINITY;
-      const rightEta = generateWithResidual(state, civId, right.id, residual, personality)[0]
-        ?.productionTurns ?? Number.POSITIVE_INFINITY;
-      return leftEta - rightEta || left.id.localeCompare(right.id);
-    });
+    .filter(city => city?.owner === civId && city.productionQueue.length === 0);
+  // The comparator used to call generateWithResidual TWICE per comparison -- O(n log n)
+  // full candidate generations per civ per round, each one costing a city-yield
+  // projection. Precomputing is provably order-identical: the comparator already read
+  // `state` (not `nextState`), and `residual` is still pristine here because it is only
+  // mutated inside the enqueue loop below.
+  const bestByCityId = new Map(idle.map(city => [
+    city.id,
+    generateWithResidual(state, civId, city.id, residual, personality)[0],
+  ]));
+  const idleCities = [...idle].sort((left, right) => {
+    const leftEmergency = residual.some(entry =>
+      entry.missing > 0 && isEmergencyDemand(entry, left.id)) ? 1 : 0;
+    const rightEmergency = residual.some(entry =>
+      entry.missing > 0 && isEmergencyDemand(entry, right.id)) ? 1 : 0;
+    if (leftEmergency !== rightEmergency) return rightEmergency - leftEmergency;
+    const leftEta = bestByCityId.get(left.id)?.productionTurns ?? Number.POSITIVE_INFINITY;
+    const rightEta = bestByCityId.get(right.id)?.productionTurns ?? Number.POSITIVE_INFINITY;
+    return leftEta - rightEta || left.id.localeCompare(right.id);
+  });
   let nextState = state;
 
   for (const city of idleCities) {
