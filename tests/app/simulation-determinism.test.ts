@@ -366,3 +366,47 @@ describe('#1004 Contract 4 — domain-stream independence', () => {
     assertSimulationEquivalent(interfered, baseline, 'Contract 4: domain-stream independence');
   }, CONTRACT_TIMEOUT_MS);
 });
+
+describe('#1064 expansion determinism', () => {
+  // Derived empirically against these exact seeds (Task 9's exploration loop makes
+  // this take longer than #1064's original 25-round estimate): expansion-determinism
+  // first drafts an expand plan at round 27 and founds a second city at round 31;
+  // expansion-save-reload at rounds 33 and 37 respectively. Do not guess these numbers
+  // if the seeds or the exploration mechanism change -- re-derive them.
+  const ROUNDS = 60;      // comfortably past round 37, the later of the two second-city rounds
+  const MIDPOINT = 40;    // comfortably past round 33, when expansion-save-reload's expand plan appears
+
+  it('reaches equivalent state from the same seed with expansion active', () => {
+    const a = advance(freshGame('expansion-determinism'), ROUNDS);
+    const b = advance(freshGame('expansion-determinism'), ROUNDS);
+
+    assertSimulationEquivalent(a, b, '#1064: same seed, expansion active');
+  }, CONTRACT_TIMEOUT_MS);
+
+  it('survives a save/reload boundary with an expand plan in flight', () => {
+    const uninterrupted = advance(freshGame('expansion-save-reload'), ROUNDS);
+
+    const midpoint = advance(freshGame('expansion-save-reload'), MIDPOINT);
+    // Guard the premise: if no AI is actually pursuing expansion at the midpoint, this
+    // test is not exercising what it claims and the round counts need revisiting.
+    const expanding = Object.values(midpoint.opponentAI?.majorCivs ?? {})
+      .some(portfolio => portfolio.primaryPlan?.objective === 'expand');
+    expect(expanding, 'no expand plan in flight at the save point').toBe(true);
+
+    const continued = advance(saveAndReload(midpoint), ROUNDS - MIDPOINT);
+
+    // #1065 (pre-existing, not #1064's): normalizeMinorCivQuestState re-seeds
+    // minorCivs.<id>.lastNotifiedStatusByCiv for every major civ on load, so a
+    // reloaded run diverges from an uninterrupted one at exactly that path -- the
+    // same divergence the file's own "one-time load canonicalisation" test above
+    // documents and works around by comparing gameplay-bearing containers
+    // individually rather than the whole state. Following that exact precedent.
+    assertSimulationEquivalent(continued.units, uninterrupted.units, '#1064: reload must not alter units');
+    assertSimulationEquivalent(continued.cities, uninterrupted.cities, '#1064: reload must not alter cities');
+    assertSimulationEquivalent(continued.civilizations, uninterrupted.civilizations, '#1064: reload must not alter civilizations');
+    assertSimulationEquivalent(continued.map, uninterrupted.map, '#1064: reload must not alter the map');
+    for (const civId of Object.keys(continued.civilizations)) {
+      expect(continued.opponentAI?.majorCivs[civId]).toEqual(uninterrupted.opponentAI?.majorCivs[civId]);
+    }
+  }, CONTRACT_TIMEOUT_MS);
+});
