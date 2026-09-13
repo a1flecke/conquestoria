@@ -430,6 +430,20 @@ export function createNewGame(
     startPlacementMode,
     religions: {},
     cityFaith: {},
+    // #1098: normalizeLoadedState's circular-manufacturing-choices compatibility
+    // normalizer unconditionally materializes this as {} on every load (it must, to
+    // repair a stale choice for a since-lost project). Leaving it absent here made a
+    // fresh game's first autosave-then-reload a real state change -- see "Game
+    // creation must produce load-canonical state" in game-systems.md.
+    nationalProjectChoices: {},
+    // Same class of bug, found immediately after fixing the above: normalizeGeneratedGenerals
+    // also unconditionally materializes {} when this is undefined.
+    generatedGenerals: {},
+    // Same class of bug again: normalizeThreatPressureDefaults unconditionally
+    // materializes all three of these as {} whenever any of them is undefined.
+    pirateFleets: {},
+    pirateFleetCooldownByCivLandmass: {},
+    resurgentCampCooldownByCivLandmass: {},
   };
 
   // Place minor civilizations
@@ -615,6 +629,20 @@ export function createHotSeatGame(
     startPlacementMode,
     religions: {},
     cityFaith: {},
+    // #1098: normalizeLoadedState's circular-manufacturing-choices compatibility
+    // normalizer unconditionally materializes this as {} on every load (it must, to
+    // repair a stale choice for a since-lost project). Leaving it absent here made a
+    // fresh game's first autosave-then-reload a real state change -- see "Game
+    // creation must produce load-canonical state" in game-systems.md.
+    nationalProjectChoices: {},
+    // Same class of bug, found immediately after fixing the above: normalizeGeneratedGenerals
+    // also unconditionally materializes {} when this is undefined.
+    generatedGenerals: {},
+    // Same class of bug again: normalizeThreatPressureDefaults unconditionally
+    // materializes all three of these as {} whenever any of them is undefined.
+    pirateFleets: {},
+    pirateFleetCooldownByCivLandmass: {},
+    resurgentCampCooldownByCivLandmass: {},
   };
 
   // Place minor civilizations

@@ -1566,7 +1566,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 29": {
-    "__whole": "6c63fa59219e",
+    "__whole": "2d9f8c7fa74b",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "0c70420e5ddf",
@@ -1604,8 +1604,11 @@
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingGeneralCandidateChoices": "4f53cda18c2b",
+    "pirateFleetCooldownByCivLandmass": "44136fa355b3",
+    "pirateFleets": "44136fa355b3",
     "pirates": "e2fc13f92201",
     "religions": "44136fa355b3",
+    "resurgentCampCooldownByCivLandmass": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
     "saveSchemaVersion": "35135aaa6cc2",
     "settings": "19ce8f05dccb",
@@ -1936,7 +1939,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "repair — drops malformed earned-Domination observations without backfilling history": {
-    "__whole": "578ef3563bea",
+    "__whole": "10358a2a5e35",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "38a5eba6baa1",
@@ -1974,8 +1977,11 @@
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingGeneralCandidateChoices": "4f53cda18c2b",
+    "pirateFleetCooldownByCivLandmass": "44136fa355b3",
+    "pirateFleets": "44136fa355b3",
     "pirates": "e2fc13f92201",
     "religions": "44136fa355b3",
+    "resurgentCampCooldownByCivLandmass": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
     "saveSchemaVersion": "35135aaa6cc2",
     "settings": "19ce8f05dccb",
@@ -1989,7 +1995,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "repair — normalizes one-sided / duplicated / self major-civ war state (#995)": {
-    "__whole": "12a52c7b0a3d",
+    "__whole": "2f6a2beca63d",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "7feef51932cf",
@@ -2027,8 +2033,11 @@
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingGeneralCandidateChoices": "4f53cda18c2b",
+    "pirateFleetCooldownByCivLandmass": "44136fa355b3",
+    "pirateFleets": "44136fa355b3",
     "pirates": "e2fc13f92201",
     "religions": "44136fa355b3",
+    "resurgentCampCooldownByCivLandmass": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
     "saveSchemaVersion": "35135aaa6cc2",
     "settings": "19ce8f05dccb",
@@ -2042,7 +2051,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "repair — normalizes transport/cargo and carrier-aircraft links (#1000)": {
-    "__whole": "dde1b5a18621",
+    "__whole": "1ca01dd2314f",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "792f327ad249",
@@ -2080,8 +2089,11 @@
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingGeneralCandidateChoices": "4f53cda18c2b",
+    "pirateFleetCooldownByCivLandmass": "44136fa355b3",
+    "pirateFleets": "44136fa355b3",
     "pirates": "e2fc13f92201",
     "religions": "44136fa355b3",
+    "resurgentCampCooldownByCivLandmass": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
     "saveSchemaVersion": "35135aaa6cc2",
     "settings": "19ce8f05dccb",
