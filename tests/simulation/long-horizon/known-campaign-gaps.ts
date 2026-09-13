@@ -83,8 +83,6 @@ export interface KnownCampaignGap {
  * caused by any #1064 change (research/tech-yield code is untouched by that
  * MR) — see #1093.
  *
- * F2 lives in the save/reload continuity test, not here — it is a divergence
- * path, not a campaign finding code.
  */
 export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
   {
@@ -134,23 +132,6 @@ export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
     scenarios: ['lh-late-era-medium'],
   },
 ];
-
-/**
- * F2 (found by the #1005 design probes): loading a save re-seeds
- * `minorCivs.<id>.lastNotifiedStatusByCiv` for EVERY major civ
- * (`normalizeMinorCivQuestState`, `src/storage/save-manager.ts`), so a
- * save/reload is not simulation-equivalent — a civ that had never triggered a
- * city-state status notification acquires a "notified at neutral" baseline,
- * which can suppress a first notification. Contradicts the #1001 comment that
- * the field "drives nothing". The `save/reload continuity` test tolerates
- * exactly this divergence path and nothing else.
- */
-export const F2_SAVE_RELOAD_ISSUE = '#1065';
-const F2_DIVERGENCE_PATTERN = /^minorCivs\.[^.]+\.lastNotifiedStatusByCiv\./;
-
-export function isKnownSaveReloadDivergence(path: string | null): boolean {
-  return path !== null && F2_DIVERGENCE_PATTERN.test(path);
-}
 
 export interface GapRatchetResult {
   unknownFindings: Array<{ scenario: string; code: CampaignFindingCode; detail: string }>;
