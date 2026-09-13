@@ -96,12 +96,21 @@ describe('freshly created games need no legacy fixups', () => {
       // current schema stopped migration 12 from running on a fresh game, so
       // several of these flipped from `{}`/`[]` to `undefined` and every
       // reader now has to tolerate that.
+      //
+      // resurgentCampCooldownByCivLandmass, pirateFleets, and
+      // pirateFleetCooldownByCivLandmass used to be documented here as "still
+      // defaulted by the unconditional normalizeThreatPressureDefaults" (i.e.
+      // genuinely absent at creation, fine because every reader tolerates it).
+      // #1098 found that "fine because readers tolerate it" is a WEAKER bar
+      // than the full save/reload structural equivalence
+      // firstSimulationDivergence enforces (used by campaign-continuity.test.ts,
+      // now strict since #1065): a save taken before vs. after the very first
+      // load differed by these three fields' mere presence, which
+      // firstSimulationDivergence treats as a real divergence even though every
+      // reader is functionally indifferent to it. They are covered by their own
+      // dedicated `${label}: the pirate/threat-pressure defaults are already {}
+      // at creation` test above now instead.
       const normalized = normalizeLoadedState(structuredClone(make()));
-
-      // Still defaulted, by the unconditional normalizeThreatPressureDefaults.
-      expect(normalized.resurgentCampCooldownByCivLandmass).toEqual({});
-      expect(normalized.pirateFleets).toEqual({});
-      expect(normalized.pirateFleetCooldownByCivLandmass).toEqual({});
 
       // No longer defaulted (migration 12 no longer runs on a current-schema
       // fresh game). Every reader of these is optional-chained or `?? {}`:
@@ -197,19 +206,64 @@ describe('freshly created games need no legacy fixups', () => {
           .filter(civ => civ.isHuman && !civ.isEliminated).map(civ => civ.id).sort();
         expect(Object.keys(state.opponentAI!.pressureByCiv).sort()).toEqual(humanIds);
       });
+
+      it(`${label}: nationalProjectChoices is already {} at creation, so a load/reload does not create it fresh (#1098)`, () => {
+        // Before #1098, this field was absent until the first load (the
+        // circular-manufacturing-choices compatibility normalizer materializes it
+        // unconditionally), so a fresh game's very first autosave-then-reload was a
+        // real state change: firstSimulationDivergence flagged
+        // `nationalProjectChoices` as present-after but absent-before. Present-and-
+        // empty at creation makes the two states genuinely identical.
+        const state = make();
+        expect(state.nationalProjectChoices).toEqual({});
+        const normalized = normalizeLoadedState(structuredClone(state));
+        expect(normalized.nationalProjectChoices).toEqual(state.nationalProjectChoices);
+      });
+
+      it(`${label}: generatedGenerals is already {} at creation, so a load/reload does not create it fresh (#1098)`, () => {
+        // Same bug class as nationalProjectChoices above, found immediately after
+        // fixing it: normalizeGeneratedGenerals also unconditionally materializes {}
+        // when this is undefined.
+        const state = make();
+        expect(state.generatedGenerals).toEqual({});
+        const normalized = normalizeLoadedState(structuredClone(state));
+        expect(normalized.generatedGenerals).toEqual(state.generatedGenerals);
+      });
+
+      it(`${label}: the pirate/threat-pressure defaults are already {} at creation (#1098)`, () => {
+        // Same bug class again: normalizeThreatPressureDefaults unconditionally
+        // materializes all three of these as {} whenever any one of them is
+        // undefined, so a fresh game never having them made its first
+        // autosave-then-reload a real state change for all three at once.
+        const state = make();
+        expect(state.pirateFleets).toEqual({});
+        expect(state.pirateFleetCooldownByCivLandmass).toEqual({});
+        expect(state.resurgentCampCooldownByCivLandmass).toEqual({});
+        const normalized = normalizeLoadedState(structuredClone(state));
+        expect(normalized.pirateFleets).toEqual(state.pirateFleets);
+        expect(normalized.pirateFleetCooldownByCivLandmass).toEqual(state.pirateFleetCooldownByCivLandmass);
+        expect(normalized.resurgentCampCooldownByCivLandmass).toEqual(state.resurgentCampCooldownByCivLandmass);
+      });
     }
   });
 
   it('ratchet: the load pipeline adds exactly these fields to a fresh game, and no others', () => {
     // A fresh game is now stamped at the current schema (#1004), so
     // normalizeLoadedState runs ZERO numbered migrations over it — only the
-    // unconditional normalizers. What they still add are optional bookkeeping
-    // containers, every one of them read behind `?? {}` / `?? []`:
-    //   generatedGenerals              -- normalizeGeneratedGenerals
-    //   legendaryWonderAvailability    -- key assigned by its normalizer
-    //   nationalProjectChoices         -- national-project normalizer
-    //   pirateFleets / pirateFleetCooldownByCivLandmass / resurgentCampCooldownByCivLandmass
-    //                                  -- normalizeThreatPressureDefaults
+    // unconditional normalizers. What it still adds:
+    //   legendaryWonderAvailability    -- key assigned by its normalizer once a
+    //                                     wonder becomes eligible; genuinely
+    //                                     progressive, not a load-canonical-state
+    //                                     bug (its normalizer returns `undefined`
+    //                                     unchanged when the input is `undefined`,
+    //                                     it never materializes `{}`).
+    // nationalProjectChoices, generatedGenerals, pirateFleets,
+    // pirateFleetCooldownByCivLandmass, and resurgentCampCooldownByCivLandmass used
+    // to be in this list (each added unconditionally by its own normalizer) until
+    // #1098: a fresh game never having them made its own first
+    // autosave-then-reload a real state change. Both creation functions now stamp
+    // them at {} directly (see game-state.ts), matching the load-canonical-state
+    // rule this ratchet exists to enforce.
     // This pins the set so a future change that starts adding something new has
     // to update it here (and, ideally, set it at creation instead).
     const state = SOLO();
@@ -217,12 +271,7 @@ describe('freshly created games need no legacy fixups', () => {
     const before = state as unknown as Record<string, unknown>;
 
     expect(Object.keys(normalized).filter(key => !(key in before)).sort()).toEqual([
-      'generatedGenerals',
       'legendaryWonderAvailability',
-      'nationalProjectChoices',
-      'pirateFleetCooldownByCivLandmass',
-      'pirateFleets',
-      'resurgentCampCooldownByCivLandmass',
     ]);
     expect(Object.keys(before).filter(key => !(key in normalized))).toEqual([]);
   });

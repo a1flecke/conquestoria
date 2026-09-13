@@ -53,6 +53,20 @@ const ADDITIVE_WITHOUT_MIGRATION: Readonly<Record<string, string>> = {
   // (~80 sites) — so an old save needs no migration for them.
   'units.*.cargoUnitIds': '#1000 — pre-existing optional Unit field; absent on any save with no loaded transport; all readers tolerate absence.',
   'units.*.transportId': '#1000 — pre-existing optional Unit field; absent on any save with no embarked land unit; all readers tolerate absence.',
+  // #1098 — createNewGame/createHotSeatGame now stamp five previously-absent
+  // fields at `{}` directly, matching what their own unconditional load-time
+  // normalizers already defaulted them to (normalizeThreatPressureDefaults,
+  // normalizeGeneratedGenerals, migrateCircularManufacturingChoices), so a fresh
+  // game's first autosave-then-reload is no longer a real state change. Three of
+  // the five (nationalProjectChoices, generatedGenerals,
+  // resurgentCampCooldownByCivLandmass) were already present in the checked-in
+  // snapshot from an existing matrix fixture that reaches a non-empty value, so
+  // only these two are genuinely new paths here. Every reader already tolerates
+  // absence via `?? {}` optional chaining (unchanged by this fix) — old saves
+  // need no migration, since the existing unconditional normalizers keep
+  // defaulting them exactly as before.
+  'pirateFleets': '#1098 — now stamped at {} by both creation functions; every reader already tolerates absence via `?? {}`.',
+  'pirateFleetCooldownByCivLandmass': '#1098 — now stamped at {} by both creation functions; every reader already tolerates absence via `?? {}`.',
 };
 
 describe('#1023 persisted-save-shape ratchet', () => {
