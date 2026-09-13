@@ -281,6 +281,67 @@ describe('city founding territory rules', () => {
     expect(result.state.map.tiles[hexKey(overlap)].owner).toBe('ai-1');
   });
 
+  describe('#1092 load-time recompute matches live turn attrition', () => {
+    it('flips an uncontradicted overlap on load exactly like a live turn recompute would', () => {
+      // Same fixture as "flips an overlap when rival pressure margin is at least two"
+      // above, but resolved with reason: 'load' + preserveForeignHolders: true (the
+      // exact options save-manager.ts passes on every load). Before #1092's fix this
+      // combination unconditionally froze the tile to its previous owner regardless of
+      // claim strength -- a save/reload determinism violation, since the live 'turn'
+      // path (used every other round) lets a strong-enough challenger win. Both cities'
+      // ownedTiles here are already self-consistent with tile.owner (no city claims a
+      // tile it doesn't hold), so there is nothing to repair.
+      const state = createNewGame(undefined, 'territory-load-matches-turn-flip');
+      state.cities = {};
+      const holder = addCity(state, 'player', 10, 10);
+      const challenger = addCity(state, 'ai-1', 13, 10);
+      const overlap = { q: 12, r: 10 };
+      state.map.tiles[hexKey(overlap)] = { ...state.map.tiles[hexKey(overlap)], terrain: 'grassland', owner: 'player' };
+      state.cities[holder.id] = { ...holder, population: 2, maturity: 'outpost', ownedTiles: [overlap] };
+      state.cities[challenger.id] = { ...challenger, population: 6, maturity: 'town', buildings: ['shrine'], ownedTiles: [] };
+
+      const liveTurn = recalculateTerritory(state, { reason: 'turn', preserveCurrentHolderOnTie: true });
+      const load = recalculateTerritory(state, {
+        reason: 'load',
+        preserveForeignHolders: true,
+        preserveCurrentHolderOnTie: true,
+      });
+
+      expect(load.state.map.tiles[hexKey(overlap)].owner).toBe('ai-1');
+      expect(load.state.map.tiles[hexKey(overlap)].owner)
+        .toBe(liveTurn.state.map.tiles[hexKey(overlap)].owner);
+    });
+
+    it('still protects a tile with a genuine persisted contradiction on load', () => {
+      // Same overlap and pressure differential as above -- the challenger would
+      // normally win it -- but a THIRD city's ownedTiles contradicts the tile's
+      // recorded owner (a structurally impossible state live play never produces).
+      // The repair path must still win here: protect the previous owner and let
+      // normalizeCityWorkClaims (already covered by "normalizes city work claims
+      // after territory loss" above) clean up the stale claim.
+      const state = createNewGame(undefined, 'territory-load-protects-contradiction');
+      state.cities = {};
+      const holder = addCity(state, 'player', 10, 10);
+      const challenger = addCity(state, 'ai-1', 13, 10);
+      const distant = addCity(state, 'ai-2', 20, 20);
+      const overlap = { q: 12, r: 10 };
+      state.map.tiles[hexKey(overlap)] = { ...state.map.tiles[hexKey(overlap)], terrain: 'grassland', owner: 'player' };
+      state.cities[holder.id] = { ...holder, population: 2, maturity: 'outpost', ownedTiles: [overlap] };
+      state.cities[challenger.id] = { ...challenger, population: 6, maturity: 'town', buildings: ['shrine'], ownedTiles: [] };
+      // ai-2's own city record contradicts the map: it claims `overlap` as owned/worked
+      // despite the tile recording 'player' as owner and ai-2's city being nowhere near it.
+      state.cities[distant.id] = { ...distant, ownedTiles: [distant.position, overlap], workedTiles: [overlap] };
+
+      const load = recalculateTerritory(state, {
+        reason: 'load',
+        preserveForeignHolders: true,
+        preserveCurrentHolderOnTie: true,
+      });
+
+      expect(load.state.map.tiles[hexKey(overlap)].owner).toBe('player');
+    });
+  });
+
   it('builds tile-flipped events for completed improvements that transfer owners', () => {
     const state = createNewGame(undefined, 'territory-transfer-event');
     state.cities = {};
