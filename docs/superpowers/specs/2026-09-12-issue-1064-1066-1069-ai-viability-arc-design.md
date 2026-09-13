@@ -38,9 +38,9 @@ if (!fulfilled) continue;
 
 Every `requiredRoles` literal in the tree is military or expeditionary:
 `{ frontline: 1, capture: 1 }` and `{ 'resource-expedition': 1 }`
-(`ai-prepared-turn.ts:288,314`), `{ frontline: 1, ranged: 1 }`
+(`ai-prepared-turn.ts:324,350`), `{ frontline: 1, ranged: 1 }`
 (`ai-plan-portfolio.ts:208`), `{ frontline | naval-combat: 1 }`
-(`ai-prepared-turn.ts:399`), plus `{ frontline: 1 }` in `barbarian-system.ts:270`
+(`ai-prepared-turn.ts:497`), plus `{ frontline: 1 }` in `barbarian-system.ts:270`
 and `minor-civ-system.ts:276`. **No code path anywhere emits `settlement` or
 `worker`.** Verified by `grep -rn "settlement" src`.
 
@@ -86,6 +86,109 @@ design leans on (§2.2).
 - The register is a **two-way ratchet** (`campaign-matrix.test.ts`): a fixed gap
   whose entry is not deleted fails the run.
 
+### 1.3 A third structural gap, found during implementation: passive knowledge can never reach a legal site
+
+Implementing §2 below (candidate generation, the demand fix, settler movement) and
+then proving it end-to-end through the real round pipeline (`runCompletedRound`,
+not an isolated unit test) surfaced a gap the original design did not anticipate,
+and which the original design's own unit tests could not have caught because none
+of them exercised more than a handful of hand-built rounds.
+
+**The proximate bug, found first and already fixed on its own merits:**
+`expandCandidates()`'s `knownCityPositions` was built only from
+`perception.knownCities` — which is populated **only from other civs' cities the
+actor has observed** (`ai-perception.ts`'s `rememberedCities` / `contacted` loop).
+The actor's own city lives separately in `perception.ownCities`, and was never
+added to the exclusion set. A belief-layer site one tile from the civ's own capital
+could therefore win as "best" (nothing else competes inside a fresh city's tiny
+known bubble), which is always illegal under `MIN_CITY_CENTER_DISTANCE`. Because
+scoring never re-checks legality, the *same* illegal site regenerated as "best"
+every round, permanently freezing the assigned settler: `found-city` was refused at
+the illegal site, and a move toward it — already the settler's own position — is a
+zero-length path, so no legal action existed at all. Fixed by including
+`perception.ownCities` in the exclusion set.
+
+**Fixing that bug was necessary but not sufficient.** Re-running the actual
+acceptance scenario afterward —
+
+```
+yarn test:ai-long -- -t lh-standard-small
+```
+
+— produced, unchanged, from `.verification/ai-long-horizon/lh-standard-small.json`
+after 300 rounds:
+
+```
+ai-1: expansion-frozen  — city count never rose above 1 across 300 living rounds
+ai-2: expansion-frozen  — city count never rose above 1 across 300 living rounds
+ai-1: gold-hoard        — gold never fell across 155 rounds, rose by 2724
+ai-2: gold-hoard        — gold never fell across 114 rounds, rose by 1391
+ai-1: production-idle   — every city idle for 66 consecutive rounds
+ai-2: production-idle   — every city idle for 116 consecutive rounds
+```
+
+All three of #1064's target findings still fired. A minimal isolated debug trace
+(one civ, no war, no contact) showed why: `visibleTiles` sat at **exactly 19** —
+the tile count of a fixed radius-2 bubble — for the entire length of a 300-round
+run. Neither the settler nor the warrior ever moved, because nothing ever gave
+either of them a reason to.
+
+**The gap is mathematically permanent, not merely slow, and it is a property of
+the vision system, not of any one civ's luck:**
+
+| Passive knowledge source | Radius | Code |
+|---|---:|---|
+| City vision | **2**, fixed, never grows with population, culture, or turns | `updateVisibility` in `fog-of-war.ts`: `getVisibilityRange(cityPos, 2, map)` |
+| Territory (culture-matured city, the maximum attainable) | **3** | `getCulturalTerritoryRadius`, `city-territory-system.ts` — caps at 3 regardless of population/maturity/culture buildings |
+| A unit's own vision, stationary | 2 (warrior) or 3 (scout) | `unit-definitions.ts` `visionRange` |
+| `MIN_CITY_CENTER_DISTANCE` | **4** | `city-territory-system.ts:5` |
+
+Every passive source tops out at 2 or 3. The legal floor is 4. **No amount of
+population growth, culture, or turns passing can ever close that one-tile gap on
+its own** — a tile at hex-distance exactly 4 sits one step past even a stationary
+scout's own sight radius. Only actual unit *movement* reveals it.
+
+**No such movement exists for an AI-controlled unit today.** Confirmed by
+inspection, not inference: `chooseAutoExploreMove` / `applyAutoExploreOrder`
+(`auto-explore-system.ts`) implement exploration, but they are wired only to the
+**player-facing** `unit.automation.mode === 'auto-explore'` toggle
+(`selection-controller.ts`, `turn-manager.ts`). `basic-ai.ts` never sets that field
+and never calls either function. Separately, the entire tactical-dispatch system
+(`ai-major-turn.ts`'s executor loop) is **plan-scoped**: it iterates over the
+civ's active plans and only ever touches units in a plan's `assignedUnitIds`. A
+unit that no plan currently wants — the common case for a peaceful, unthreatened
+civ's starting warrior — receives **no dispatch call of any kind**, every round,
+forever.
+
+**This is not new to #1064.** The vision system, the plan-scoped executor, and the
+missing AI wiring for auto-explore all predate this arc. What #1064 changes is
+that expansion is now the *first* AI behaviour whose success depends on this gap
+being closed — every prior AI behaviour (defense, capture, secure-resource,
+diplomacy) only activates once a target is *already* known by some other route
+(a visible threat, a tech-revealed resource, a met civilization), so none of them
+were ever blocked by it, and nothing forced anyone to notice it before.
+
+**A related symptom, worth naming but not solving here:** civ-to-civ contact
+(`hasMetCivilizationByCurrentEvidence`, `discovery-system.ts`) requires the same
+kind of visibility overlap — seeing the other civ's city, owned tile, or unit — or
+a pre-existing war/treaty (which itself requires prior contact). Two peaceful,
+geographically separated AI civs that never explore may never meet at all for an
+entire campaign. This is the *same* root gap manifesting in diplomacy rather than
+expansion. Fixing exploration plausibly improves contact rates as a side effect;
+this design does not claim or test that explicitly, and no diplomacy behaviour
+changes as a result — it is named here only because "look for similar causes" is
+exactly what surfaced it, and a future session tracing a contact/diplomacy report
+should not have to rediscover this.
+
+**Chosen fix, and why this shape:** reuse the existing, tested, player-facing
+auto-explore mechanism from a new *administrative* loop in `basic-ai.ts` — the
+same seam already used for workers (`#526`), settler founding, and missionary
+dispatch, each with the identical justification already written in that file:
+*"no `AIStrategicPlan` [...] role covers this... administrative for the same
+reason as the [...] loop[s] above."* This is not a new design decision so much as
+applying an established, working pattern to the one unit category (idle
+combat-capable units) it had not yet been applied to. See §2.6.
+
 ---
 
 ## 2. Chosen behaviour contract
@@ -98,7 +201,7 @@ system:
 
 | Piece | Already exists |
 |---|---|
-| `AIStrategicObjective` `'expand'` | `core/types.ts:1920`; used today by `executionPlan` (`ai-major-turn.ts:792`) as a rally-movement rewrite |
+| `AIStrategicObjective` `'expand'` | `core/types.ts:1920`; used today by `executionPlan` (`ai-major-turn.ts:795`) as a rally-movement rewrite |
 | `AITarget` `{ kind: 'region'; id; anchor }` | `core/types.ts:1959` |
 | `settlement` in role assignment order | `ai-unit-assignment.ts:64` |
 | `found-city` tactical action + executor | `ai-tactics.ts:95`, `ai-major-turn.ts:472` |
@@ -134,7 +237,7 @@ bypass.
 
 Workers follow the same contract through a different entry point: they need no
 candidate (no objective requires one), so they get one explicit incremental seed
-(§2.5, §2.12). Both roles reach `generateWithResidual` as ordinary demand matches; both
+(§2.6, §2.13). Both roles reach `generateWithResidual` as ordinary demand matches; both
 are maintenance-free, so both pass `reserveAllows` at normal strain and are correctly
 refused at `high`/`critical` strain.
 
@@ -144,7 +247,7 @@ Two different questions must not be conflated:
 
 | Layer | Question | Owner |
 |---|---|---|
-| **Legality** | "Is founding here actually legal?" | `getCityFoundingBlockers` / `canFoundCityAt` (`city-territory-system.ts:486,512`) — reads the real, omniscient city list |
+| **Legality** | "Is founding here actually legal?" | `getCityFoundingBlockers` / `canFoundCityAt` (`city-territory-system.ts:495,521`) — reads the real, omniscient city list |
 | **Belief** | "As far as this civ knows, is founding here legal?" | the new `ai-expansion-sites.ts` — reads only fog-bounded knowledge |
 
 The AI **plans on belief** and the **executor validates legality**. This is the exact
@@ -170,27 +273,34 @@ would guarantee drift, so it is achieved by sharing code:
   and the existing private `isValidCityCenterTerrain` is rewritten to call it.
 
 That last point is not tidiness. The predicate `terrain !== 'ocean' && terrain !==
-'coast' && terrain !== 'mountain'` is **already duplicated** at
-`city-territory-system.ts:483`, `ai-resettlement.ts:17`,
-`barbarian-system.ts:222` and `rogue-elephant-host-system.ts:81,158`. A sixth copy in
-the new module would be a guaranteed drift point the first time a terrain type is
-added. MR1 collapses the two that genuinely mean *"a city centre may stand here"*
-(`city-territory-system.ts` and `ai-resettlement.ts`) onto the new export and leaves
-the barbarian/elephant copies alone — those mean *"a land actor may spawn here"*, a
-different concept that merely coincides today.
+'coast' && terrain !== 'mountain'` was duplicated in five places before Task 0 of the
+implementation ran: `city-territory-system.ts`'s own private
+`isValidCityCenterTerrain`, `ai-resettlement.ts`, `barbarian-system.ts:222`, and
+`rogue-elephant-host-system.ts:81,158`. A sixth copy in the new module would have been
+a guaranteed drift point the first time a terrain type is added. Task 0 collapsed the
+two that genuinely mean *"a city centre may stand here"* — the private copy in
+`city-territory-system.ts` and the one in `ai-resettlement.ts` — onto the new export
+(now live at `city-territory-system.ts:483`) and left the barbarian/elephant copies
+alone, since those mean *"a land actor may spawn here"*, a different concept that
+merely coincides today.
 
 ### 2.4 Expansion rules
 
 Site selection is **fog-bounded**. Candidate sites are drawn from
-`buildKnownPathMap(state, civId)` (`ai-prepared-turn.ts:185`) — visible tiles plus
+`buildKnownPathMap(state, civId)` (`ai-prepared-turn.ts:220`) — visible tiles plus
 `isTrustedObservedLastSeenTile` snapshots — the same map the objective travel resolver
-already uses. Known cities come from `perception.knownCities`, never `state.cities`.
+already uses. Known cities come from `perception.knownCities` **and**
+`perception.ownCities`, never `state.cities` (the omniscient list). Both are required:
+`perception.knownCities` is built only from *other* civs' cities the actor has
+observed — the actor's own city lives separately in `perception.ownCities`, and a
+first implementation that forgot it let a site win one tile from the civ's own
+capital, always illegal and permanently fatal to the assigned settler (§1.3).
 
 A site qualifies when:
 
 - `isCityCenterTerrain(tile.terrain)` (§2.3);
-- no **known** city centre lies within `MIN_CITY_CENTER_DISTANCE`, measured with
-  `cityDistance`;
+- no **known** city centre — the civ's own or another civ's — lies within
+  `MIN_CITY_CENTER_DISTANCE`, measured with `cityDistance`;
 - it lies within `EXPANSION_SEARCH_RADIUS` of an operational anchor; and
 - the civ is below its expansion soft cap (below).
 
@@ -217,11 +327,11 @@ site valuation.
    2-to-6 city soft cap. This is the **only** place `expansionDrive` gates *whether*
    the AI expands; everywhere else it only weights *how much*. It caps new *settling*,
    not empire size — conquest is unaffected.
-2. *Rate* — the `settlement` demand is incremental (§2.5), so `missing` is never more
+2. *Rate* — the `settlement` demand is incremental (§2.6), so `missing` is never more
    than 1. `applyAIProduction` additionally decrements `residual` after each
    enqueue, so **at most one settler is queued per empire per round** even when several
    cities are idle — verified in code, not assumed
-   (`ai-production.ts:779`: `fulfilled.missing = Math.max(0, fulfilled.missing - 1)`).
+   (`ai-production.ts:786`: `fulfilled.missing = Math.max(0, fulfilled.missing - 1)`).
 
 Economic safety needs no new gate: `reserveAllows` (`ai-production.ts:263`) already
 rejects a zero-`economyScore` unit candidate outright at `high` or `critical` strain,
@@ -229,20 +339,126 @@ and settlers and workers are in `freeUnitTypes` (`economy-system.ts:47`) so they
 maintenance. A strained civ therefore stops expanding on its own, and a gold-hoarding
 civ (`strainLevel: 'none'`) does not.
 
-### 2.5 Demand accounting: the incremental-demand rule (required, not optional)
+### 2.5 Idle-unit exploration — closing the discovery gap
 
-`choice.demands` seeds are merged with `desired: 1, assigned: 0` **every turn**
-(`ai-prepared-turn.ts:584`), unlike `observedArmorDemand` / `observedAirDefenseDemand`,
-which both pass a real `assigned`. `residualDemands` only discounts units **already
-queued**, never units that **exist**. So a persistent readiness role produces one unit
-per turn, forever.
+§1.3 proved this is mandatory, not optional: no passive knowledge source ever
+reaches `MIN_CITY_CENTER_DISTANCE`, so without active exploration the expand
+candidate generator in §2.4 has nothing to find, for the entire game, for any
+civ that starts at peace with no immediately visible rival.
 
-Left alone, adding an `expand` candidate yields one settler per turn indefinitely —
-precisely #1064's "do not create arbitrary unit spam" prohibition, and precisely the
-#1066 signature.
+**Shape decision: an administrative loop in `basic-ai.ts`, not a new production
+role, not a new plan objective.** Three shapes were considered:
 
-The fix is not a local patch to one call site. Three demand sources now want the same
-shape, and writing the arithmetic three times is how they drift apart:
+1. **A new `recon` production demand** (a scout, built like the settler/worker
+   demands in §2.6). Rejected as insufficient on its own: `'recon'` already has an
+   existing readiness path (`ai-objective-scoring.ts:221`,
+   `if (!exactTargetKnown) demands.add('recon')`), and it does not fire for a
+   peaceful civ with no offensive-region candidate — building a scout would not by
+   itself make anything explore. It would also need its own new tactical dispatch
+   to actually move the scout, duplicating work the next option gets for free.
+2. **A new plan objective** (`'explore'`), matching #1064's own `expand` shape.
+   Rejected: exploration has no target, no completion condition, and no
+   `requiredRoles` — forcing it into the plan/objective/candidate machinery
+   (`AITarget`, `AIObjectiveCandidate`, trace entries, the 12-candidate ceiling)
+   would strain a data model built for *targeted* activity onto something
+   fundamentally open-ended, for no benefit over option 3.
+3. **An administrative loop, reusing the existing player-facing auto-explore
+   mechanism.** Chosen. `basic-ai.ts` already has this *exact* pattern, for the
+   *exact* same reason, three times over — its own comments say so verbatim:
+   settler founding, catastrophe-restoration workers (`#526`), and worker
+   road-building all run administratively because *"no `AIStrategicPlan` [...]
+   role covers this... [it] never reaches `processMajorCivStrategicTurn`'s
+   tactical dispatch."* Idle combat-capable units are the one remaining category
+   that sentence was never applied to. And the mechanism to move them already
+   exists, fully built and tested: `chooseAutoExploreMove` /
+   `applyAutoExploreOrder` (`auto-explore-system.ts`) are the mechanism a human
+   player uses to set a unit to auto-explore. They are gated only by
+   `unit.automation.mode === 'auto-explore'` — nothing about them requires a
+   human-controlled unit — and no other code branches specifically on that
+   field's *origin*, only its value.
+
+**What gets reused, verified line by line, not assumed:**
+
+- Path/destination choice: `getMovementRange` (existing, tested) plus
+  `rankCandidate`'s scoring — favours unexplored tiles, then frontier tiles,
+  breaks ties deterministically (`(coord.r * 100) + coord.q`), penalises recently
+  visited tiles so a unit does not thrash.
+- Safety: `isThreatenedByVisibleHostiles` refuses a candidate destination
+  outright; `canAutoExploreEnter` refuses a hostile-occupied tile. Neither is
+  reimplemented — both are called exactly as the player's own flow calls them.
+- Legality: the move still goes through the canonical
+  `executeUnitMove` (`unit-movement-system.ts`), inside `applyAutoExploreOrder`.
+  `actor: 'automation'` is grouped with `'ai'` in
+  `unit-movement-validation.ts`'s `isPlayerControlledMove` check — both are
+  already treated as non-player-controlled by that check, so nothing behaves
+  differently for an AI-owned unit than it would for the existing "set a unit to
+  auto-explore" player feature.
+- Termination: `applyAutoExploreOrder` clears `unit.automation` itself once
+  `chooseAutoExploreMove` returns null (nothing left worth exploring) — no new
+  stop condition to invent or get wrong.
+- Persistence: `automation` is an existing, already-optional `Unit` field
+  (`core/types.ts:756`). Setting it on an AI unit adds no new persisted shape —
+  **no `SAVE_VERSION` bump**.
+
+**Eligibility — deliberately conservative, three exclusions beyond "combat-capable
+and idle":**
+
+A unit is offered to the loop only if `!unit.hasActed`, `movementPointsLeft > 0`,
+and `UNIT_DEFINITIONS[unit.type].strength > 0` (excludes settlers, workers,
+missionaries, expeditions — every civilian type already has its own dedicated
+administrative or plan-driven dispatch elsewhere in this same file, and must never
+be diverted into wandering). Even among combat-capable units, three further
+exclusions are required, each found by re-deriving what "genuinely idle" means
+against the real assignment output rather than assuming it:
+
+1. **Claimed by any plan this round** —
+   `preparedForTurn.assignments.assignmentsByPlanId` flattened to a set. Without
+   this, a defense plan's own assigned defender could be sent exploring before
+   the tactical executor ever runs, since the administrative loops in this file
+   all execute *before* `processMajorCivStrategicTurn` — leaving a threatened
+   city undefended by the civ's own hand.
+2. **Retreating to heal** —
+   `preparedForTurn.assignments.recoveryUnitIds`. This is a *different* field
+   from the file's own local `recoveryUnitIds` (settler-elimination handling,
+   declared earlier in the same function) — a naming collision to watch for, not
+   reuse.
+3. **Mid-upgrade-route** — `preparedForTurn.portfolio.upgradeRoutesByUnitId`, the
+   same field `ai-prepared-turn.ts`'s own `activeOtherDuty` computation already
+   checks for exactly this reason.
+
+**Placement**: after every other administrative loop in `processAITurnInternal`
+(settler founding, worker roads, pillage, missionary dispatch, transport
+loading), immediately before `processMajorCivStrategicTurn`. This is the most
+conservative ordering available — a unit is only offered to exploration once
+every other administrative system in the file has had first refusal, and once
+the round's plan assignments (computed earlier via `prepareMajorCivStrategicPlan`)
+are already known, so exclusion 1 above can check against them directly.
+
+**Difficulty and personality: invariant, matching the settler/worker precedent.**
+No challenge-profile branch, no `expansionDrive` weighting. Base competence — "an
+idle unit looks around" — is not a tuned behaviour in this codebase any more than
+settler founding or worker road-building are; those are both personality- and
+difficulty-invariant too, for the identical reason.
+
+**Non-goal:** this is not a scouting *strategy*. It does not prioritise exploring
+toward rivals, toward resources, or away from danger beyond the existing
+`isThreatenedByVisibleHostiles` destination check. It does not build or demand a
+dedicated scout. It is the minimum administrative wiring that makes §2.4's belief
+layer *possible* to feed, nothing more — a richer exploration policy is a
+follow-up, not this MR's job.
+
+### 2.6 Demand accounting: the incremental-demand rule (required, not optional)
+
+Before this fix, `choice.demands` seeds were merged with `desired: 1, assigned: 0`
+**every turn**, unlike `observedArmorDemand` / `observedAirDefenseDemand`, which both
+already passed a real `assigned`. `residualDemands` only discounts units **already
+queued**, never units that **exist** — so a persistent readiness role would have produced
+one unit per turn, forever, precisely #1064's "do not create arbitrary unit spam"
+prohibition and precisely the #1066 signature. The fixed seed now lives at
+`ai-prepared-turn.ts:688`, inside `incrementalDemandSeed`.
+
+The fix is not a local patch to one call site. Three demand sources want the same
+shape, and writing the arithmetic three times is how they would have drifted apart:
 
 **The incremental-demand rule.** A demand that expresses *"I would like one more of R,
 up to a cap"* is always built as:
@@ -260,7 +476,7 @@ round, and a demand can never outrun the units that satisfy it. One helper in
 | Demand | `owned` | `cap` | Priority | Emitted by |
 |---|---|---|---|---|
 | `objective-readiness` (any role, incl. `settlement`) | `min(availableRoles[role] ?? 0, 1)` | `1` | 90 (existing) | `choice.demands`, unchanged path |
-| `worker` | live worker count | `min(ownCityCount, WORKER_SOFT_CAP)` | 40 | new explicit seed (§2.12) |
+| `worker` | live worker count | `min(ownCityCount, WORKER_SOFT_CAP)` | 40 | new explicit seed (§2.13) |
 
 `settlement` needs **no dedicated seed**: it rides the existing readiness path, because
 the `expand` candidate declares `requiredRoles: { settlement: 1 }` and `missingRoles`
@@ -299,9 +515,9 @@ damping proves too aggressive, is to scope `cap = 1` to `settlement` and `worker
 and leave combat readiness unbounded — but that knowingly leaves #1066's most likely
 cause in place, so it is a decision to escalate, not to take quietly.
 
-### 2.6 Plan-phase behaviour
+### 2.7 Plan-phase behaviour
 
-`nextPlanPhase` (`ai-major-turn.ts:752`) gates `mobilizing → advancing` on
+`nextPlanPhase` (`ai-major-turn.ts:720`) gates `mobilizing → advancing` on
 `hasCaptureOrFrontline(assignedUnitIds)`. A settler is neither, so a settle plan
 would sit in `mobilizing` for its whole life.
 
@@ -313,12 +529,12 @@ on. The gate becomes objective-aware: a non-offensive plan advances on
 deadline, without the capture/frontline requirement.
 
 A settle plan that keeps moving stays alive: a `move` action satisfies
-`actionAdvancesPlan` (`ai-major-turn.ts:778`), so `lastProgressTurn` advances
-(`ai-major-turn.ts:976`) and `currentPlanIsValid`'s stall check
+`actionAdvancesPlan` (`ai-major-turn.ts:781`), so `lastProgressTurn` advances
+(`ai-major-turn.ts:979`) and `currentPlanIsValid`'s stall check
 (`ai-plan-portfolio.ts:146`) does not fire. `expiresAfterTurn` is `createdTurn + 12`;
 a walk longer than that simply re-plans, which is correct.
 
-### 2.7 Settler tactics
+### 2.8 Settler tactics
 
 `rankCivilianAndTransportActions` gains a move branch: when a settler cannot found
 where it stands, step one tile along `findPath(unit.position, targetPosition(plan), …)`
@@ -346,7 +562,7 @@ the portfolio re-plans on the spot. Note that `targetStillValid` alone would **n
 catch this — for a `region` target it only checks that the tile exists
 (`ai-major-turn.ts:611`) — so the candidate-driven path is the one doing the work here.
 
-### 2.8 The 12-candidate trace ceiling — a structural bound, not a hope
+### 2.9 The 12-candidate trace ceiling — a structural bound, not a hope
 
 `assertLegalChoices` throws at `trace.candidates.length > 12`
 (`ai-playability-fixture.ts:266`). The trace carries **every** analysed candidate, i.e.
@@ -374,7 +590,7 @@ If **no** shortlisted site is reachable, no expand candidate is emitted and ther
 `settlement` demand exists. That is correct: a civ that cannot reach anywhere to settle
 should not build a settler.
 
-### 2.9 Negative-score production selection
+### 2.10 Negative-score production selection
 
 `applyAIProduction` takes `candidates[0]` regardless of sign. **This stays.** The
 score is a *ranking*, not a *veto*: a one-city AI with low production legitimately has
@@ -391,7 +607,7 @@ comparator calls `generateWithResidual` **twice per comparison**, i.e.
 `nextState`. MR1 does this because MR1 adds a candidate class and would otherwise
 multiply the cost; MR3 owns measuring it.
 
-### 2.10 Challenge-profile behaviour
+### 2.11 Challenge-profile behaviour
 
 Explorer / Standard / Veteran **do not change core legality**. No challenge input
 gates whether an expand candidate exists, whether a site is legal, whether a settler
@@ -401,7 +617,7 @@ phase deadline, `retreatHealthPercent` still drives recovery. This follows the
 established `.claude/rules/game-balance.md` difficulty split (tune scores and
 timing, never legality).
 
-### 2.11 Personality behaviour
+### 2.12 Personality behaviour
 
 `expansionDrive` shapes **how wide**, never **whether**. It enters through
 `weightProductionRoles`'s existing `settlement` term (`expansionDrive * 24`), which
@@ -410,7 +626,7 @@ this design finally makes reachable, and through the expand candidate's
 settle meaningfully more than `aggressive` and `diplomatic` over a campaign, and a
 test pins the ordering rather than an absolute count.
 
-### 2.12 Worker behaviour — in scope, and why the original deferral was wrong
+### 2.13 Worker behaviour — in scope, and why the original deferral was wrong
 
 The first draft of this design deferred workers to a follow-up. Reviewing the
 acceptance criteria against the mechanism shows that deferral would have made MR1 fail
@@ -435,7 +651,7 @@ only**:
 
 So a bounded `worker` demand is one seed, with execution already working, and it is
 **structurally safe by construction**: `assigned` is the live worker count, so unlike
-the readiness bug it can never outrun its own supply. Under §2.5's incremental rule:
+the readiness bug it can never outrun its own supply. Under §2.6's incremental rule:
 
 ```
 owned = live worker count
@@ -452,7 +668,7 @@ yields, which is the economic basis the `gold-hoard` detector is really asking a
 **Still out of scope:** any change to worker *task selection*. The existing
 administrative loop decides what workers do; MR1 only makes them exist.
 
-### 2.13 Determinism
+### 2.14 Determinism
 
 - No new randomness. No `Math.random()`, no new `createSimulationRng` stream — site
   selection is a pure function of known tiles with a total order (`hexKey` ascending).
@@ -463,7 +679,7 @@ administrative loop decides what workers do; MR1 only makes them exist.
 - Contract clauses 1–4 of `.claude/rules/game-systems.md` all apply; clause 3
   (deterministic AI, in-process **and** across a save/reload boundary) is the binding one.
 
-### 2.14 Save / reload continuity
+### 2.15 Save / reload continuity
 
 **No `SAVE_VERSION` bump and no migration.** `AIStrategicPlan`, `AITarget` and
 `MajorCivPlanPortfolio` are unchanged; `'expand'` and `kind: 'region'` are already
@@ -475,13 +691,13 @@ Note that `#1065` (an unrelated open bug) makes `save/reload continuity` diverge
 `minorCivs.*.lastNotifiedStatusByCiv`; `isKnownSaveReloadDivergence` tolerates exactly
 that path. This arc must not add a second tolerated path.
 
-### 2.15 Hot seat
+### 2.16 Hot seat
 
 No behaviour may key off `state.currentPlayer`. Expansion is authoritative simulation:
 it reads `civId`-scoped perception, `civId`-scoped visibility, and `civId`-scoped
 portfolio state only. `lh-hotseat-medium` is in the acceptance matrix.
 
-### 2.16 Viewer-information boundaries
+### 2.17 Viewer-information boundaries
 
 The AI must not use hidden global facts to decide expansion. Enforced by construction:
 sites come from `buildKnownPathMap`, which deletes every tile that is neither
@@ -489,13 +705,13 @@ sites come from `buildKnownPathMap`, which deletes every tile that is neither
 `perception.knownCities`. A negative test proves an unexplored but objectively
 excellent site is never targeted.
 
-### 2.17 AI trace expectations
+### 2.18 AI trace expectations
 
 `decision: 'objective'` traces gain expand candidate ids of the form
-`expand:region:settle:<q>,<r>`. Trace **shape** is unchanged. The ≤12 ceiling (§2.8)
+`expand:region:settle:<q>,<r>`. Trace **shape** is unchanged. The ≤12 ceiling (§2.9)
 is the binding constraint.
 
-### 2.18 Long-horizon acceptance for #1064
+### 2.19 Long-horizon acceptance for #1064
 
 - `expansion-frozen`, `gold-hoard`, `production-idle` stop reproducing across the
   matrix, and their three `KNOWN_CAMPAIGN_GAPS` entries are **deleted in the same PR**
@@ -504,14 +720,18 @@ is the binding constraint.
 - Any **new** finding the suite surfaces is either fixed or registered against a new
   follow-up issue — never hidden.
 
-### 2.19 Residual idle — the named contingency
+### 2.20 Residual idle — the named contingency
 
 `production-idle` and `gold-hoard` are **symptoms with more than one sufficient cause**.
-This design removes two of them (nothing to build because no unit demand exists;
-nothing to build because the civ cannot expand) and adds workers to remove a third
-(§2.12). It cannot prove in advance that none remains: a civ at its expansion soft cap,
-at its worker cap, with every available building constructed and no military demand, has
-nothing to produce and will idle.
+This design removes three of them (nothing to build because no unit demand exists;
+nothing to build because the civ cannot *discover* a site to expand into, per §2.5's
+fix; nothing to build because the civ cannot expand once a site is known) and adds
+workers to remove a fourth (§2.13). It cannot prove in advance that none remains: a
+civ at its expansion soft cap, at its worker cap, with every available building
+constructed and no military demand, has nothing to produce and will idle — and a
+sufficiently crowded map could in principle leave a civ with no legal site anywhere
+within reach even after full exploration, though that is a materially different
+failure (map crowding) from the one this arc found and fixed (no exploration at all).
 
 That is a real possibility, not a hypothetical, and it is the single most likely way MR1
 fails its own acceptance gate. The contingency is decided **now**, so it is not
@@ -533,7 +753,7 @@ improvised under pressure at the end of the MR:
 Deleting a gap entry the evidence does not support is the one outcome this section
 exists to prevent.
 
-### 2.20 Module boundaries
+### 2.21 Module boundaries
 
 | Module | Single responsibility | Depends on |
 |---|---|---|
@@ -564,9 +784,9 @@ paying inside the MR that also changes behaviour.
 **#1066's root cause is explicitly not triaged. No fix is pre-committed.**
 
 One prediction is recorded **to be falsified, not assumed**: the unbounded
-`objective-readiness` accounting in §2.5 produces exactly the reported signature —
+`objective-readiness` accounting in §2.6 produces exactly the reported signature —
 `+1 unit/civ/round`, one city, gold still rising (gold rises because production, not
-gold, buys the unit). If §2.5 removes it, that is Outcome A below, and #1066 closes
+gold, buys the unit). If §2.6 removes it, that is Outcome A below, and #1066 closes
 with evidence and **no second code change**.
 
 MR2 begins by re-running `lh-late-era-medium` on refreshed post-#1064 `main`:
@@ -613,7 +833,7 @@ Named hotspots, from tracing:
 
 | Hotspot | Location | Shape |
 |---|---|---|
-| `applyAIProduction` sort comparator | `ai-production.ts:751` | `O(n log n)` full candidate generations per civ per round (addressed in MR1 §2.9) |
+| `applyAIProduction` sort comparator | `ai-production.ts:754` (already hoisted in MR1 §2.10 -- kept here for reference) | `O(n log n)` full candidate generations per civ per round, now precomputed |
 | `movementRange()` rebuilds occupancy | `ai-tactics.ts:232` | `buildUnitOccupancy(state.units)` on **every** call, and called repeatedly per unit per ranking pass |
 | `calculateProjectedCityYields` per candidate | `ai-production.ts:492` | once per `generateWithResidual`, multiplied by the comparator above |
 | `getMovementRangeDetails` blocker scan | `unit-movement-queries.ts` | **owned by #1068** — consume it, do not duplicate it |
@@ -647,7 +867,7 @@ accepted merely because its work counts fell. A lower count is not automatically
 
 | MR | Issue | Scope | Explicitly out |
 |---|---|---|---|
-| 1 | #1064 | shared founding predicate extraction; `ai-expansion-sites.ts`; expand candidate generator (exactly 1 emitted); the incremental-demand rule (readiness + worker); objective-aware phase gate; settler tactical move; production-sort hoist; 3 ratchet entries deleted or re-pointed per §2.19 | any #1066 production cap; any #1069 caching layer; worker *task* selection; richer site valuation |
+| 1 | #1064 | shared founding predicate extraction; `ai-expansion-sites.ts`; expand candidate generator (exactly 1 emitted); the incremental-demand rule (readiness + worker); objective-aware phase gate; settler tactical move; **idle-unit auto-explore administrative loop (§2.5, discovered mandatory during implementation)**; production-sort hoist; 3 ratchet entries deleted or re-pointed per §2.20 | any #1066 production cap; any #1069 caching layer; worker *task* selection; richer site valuation; a dedicated scout/recon production path; any exploration *strategy* beyond the existing safety check |
 | 2 | #1066 | instrument → trace → (fix or close-with-evidence); `unit-count-runaway` entry deleted | any perf optimization; any change to #1064's expansion behaviour |
 | 3 | #1069 | fresh baselines; round-scoped shared derived data; tightened budgets | any AI behaviour change; any new persistence |
 
@@ -661,7 +881,11 @@ MR3 is optional within this arc. If the session is long, stop after MR2 and hand
 - Not a strategic-planner rewrite. Not a redesign of the `AIForceDemand` model.
 - Not an observability change — #1005 already added the detection.
 - No `SAVE_VERSION` bump unless a real persisted-shape change becomes unavoidable.
-  None is expected.
+  None is expected. §2.5's exploration reuses the existing optional `automation`
+  field — no new persisted shape.
 - No new player-facing UI. Players aged 7–43 should meet a **more credible** opponent,
   not a more complex interface.
 - No detector weakening, threshold widening, or gap-entry retention to make a run green.
+- Not a fix for civ-to-civ contact/diplomacy rates, even though §1.3 documents that
+  the same root gap plausibly affects them. No diplomacy behaviour is asserted on or
+  changed by this arc.
