@@ -2,15 +2,15 @@
   "__doc__": "#1007 machine-independent algorithmic baselines + budgets. Integers/ratios ONLY (contamination-tested). Regenerate with `UPDATE_PERF_BASELINE=1 yarn vitest run tests/perf/algorithmic-budgets.test.ts`. See .claude/rules/performance-budgets.md.",
   "areas": {
     "aiRound@e1": {
-      "blockingEntityAtCalls": 12,
-      "heapPops": 114774,
-      "pathQueries": 118,
+      "blockingEntityAtCalls": 261,
+      "heapPops": 116596,
+      "pathQueries": 251,
       "structuredCloneWholeState": 21
     },
     "aiRound@e2": {
-      "blockingEntityAtCalls": 24,
-      "heapPops": 387872,
-      "pathQueries": 408,
+      "blockingEntityAtCalls": 509,
+      "heapPops": 386884,
+      "pathQueries": 572,
       "structuredCloneWholeState": 21
     },
     "findPath": {
@@ -61,9 +61,9 @@
   "auditedCommit": "96fb08e9",
   "budgets": {
     "aiRound": {
-      "blockingEntityAtCalls": 36,
-      "heapPops": 581808,
-      "pathQueries": 612,
+      "blockingEntityAtCalls": 764,
+      "heapPops": 580326,
+      "pathQueries": 858,
       "structuredCloneWholeState": 32
     },
     "findPath": {
@@ -92,8 +92,8 @@
     }
   },
   "ratios": {
-    "aiRoundHeapPops": 4.39,
-    "aiRoundPathQueries": 4.49,
+    "aiRoundHeapPops": 4.31,
+    "aiRoundPathQueries": 2.96,
     "findPathPopsPerRouteStep": 3.64,
     "saveBytes": 1.94,
     "saveEntityBytes": 2.34,
