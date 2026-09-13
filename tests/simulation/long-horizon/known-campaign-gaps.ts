@@ -74,14 +74,26 @@ export interface KnownCampaignGap {
  * plans for 250 rounds), so the underlying defect looks unresolved, just no
  * longer visible through this specific numeric symptom. See the #1066 thread.
  *
- * F4 (found running the full matrix after #1064's expansion fix landed): the
- * same `lh-late-era-medium` scenario also reports `tech-frozen` — a civ with
- * techs objectively available completes none for 135+ rounds. #1064 fixing
- * expansion lets AI civs reach a far higher tech count within this fixed-round
- * scenario than was ever reachable while every civ was stuck at one city,
- * newly exposing this separate, pre-existing stall in `ai-research.ts`. Not
- * caused by any #1064 change (research/tech-yield code is untouched by that
- * MR) — see #1093.
+ * F4 (found running the full matrix after #1064's expansion fix landed, later
+ * investigated and re-triaged as #1093): the same `lh-late-era-medium`
+ * scenario also reports `tech-frozen` — a civ with techs objectively
+ * available completes none for 135+ rounds. #1093's investigation instrumented
+ * the real campaign and found the research subsystem itself (`processResearch`,
+ * `planAIResearch`, `enqueueResearch`, tech-tree topology) behaves correctly
+ * throughout: `currentResearch` is always valid, the queue is always empty
+ * (never stuck/duplicated/invalid), and progress accrues and completes
+ * correctly given whatever science the civ actually produces. The freeze is
+ * NOT an independent research-system defect — it is downstream of the SAME F1
+ * zero-plan defect above (#1066): the affected civ (`ai-3` in the observed
+ * run) is `expansion-frozen` with `activePlanCount` at 0 for 230+ consecutive
+ * rounds, and its single city additionally spawned on terrain with zero
+ * plains/grassland (coast/hills/mountains only), so its food surplus
+ * permanently plateaus around population 9 (vs. population 19-35 for its
+ * siblings, who keep forming plans even though they too never expand). That
+ * starves its science to ~13/turn against era-10+ tech costs of 1000-2000+,
+ * which is what the 70+-round no-completion window actually measures. `#1093`
+ * was closed as a duplicate/symptom of this entry rather than tracked
+ * separately — see its closing comment for the full evidence trace.
  *
  */
 export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
@@ -121,14 +133,16 @@ export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
   },
   {
     code: 'tech-frozen',
-    issue: '#1093',
-    why: '#1064 fixed AI expansion, which lets AI civs reach a far higher tech count '
-      + 'within a fixed-round late-era scenario than was ever reachable while every '
-      + 'civ was stuck at one city. That newly exposes a separate, pre-existing stall '
-      + 'in ai-research.ts: a civ with techs objectively available (availableTechCount '
-      + '> 0) completes none for 135+ rounds. Not caused by any #1064 change '
-      + '(research/tech-yield code is untouched by that MR) and not triaged further '
-      + '-- out of scope here.',
+    issue: '#1066',
+    why: '#1093 investigated this as a possible independent ai-research.ts defect and '
+      + 'found the research subsystem behaves correctly throughout (valid currentResearch, '
+      + 'empty/uncorrupted queue, progress accrues and completes normally). The freeze is '
+      + 'downstream of the same F1 zero-plan defect tracked by the expansion-frozen entry '
+      + 'above: the affected civ forms no strategic plan for 230+ consecutive rounds and '
+      + 'additionally spawned on terrain with no plains/grassland, so its city food (and '
+      + 'therefore science) output permanently plateaus far below its siblings\' -- ~13 '
+      + 'science/turn against era-10+ tech costs of 1000-2000+. #1093 was closed as a '
+      + 'duplicate/symptom of this entry; see its closing comment for the evidence trace.',
     scenarios: ['lh-late-era-medium'],
   },
 ];
