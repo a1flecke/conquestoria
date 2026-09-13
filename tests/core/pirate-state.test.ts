@@ -107,7 +107,21 @@ describe('pirate state', () => {
     expect(faction.transitionGuards.lastStageReinforcementRound).toBe(15);
     expect(faction.transitionGuards.lastFlagshipAttackedRound).toBe(18);
     expect(normalized.pirates.activationWarningDeliveredByCiv).toEqual({ player: true });
-    expect(normalized.pirates.intelByCiv.player).toEqual({});
+    // 'pirate-404' has no matching faction and is dropped. 'pirate-2' is otherwise
+    // well-formed -- a 'tracked' intel entry with observedUnitIds and no
+    // lastKnownHeadquarters is a legitimate shape (a civ that has only ever seen this
+    // faction's ships, never its headquarters -- see #1099) and survives, with its
+    // extraneous `liveFaction` key simply dropped since normalizePirateIntel only
+    // ever copies known fields forward.
+    expect(normalized.pirates.intelByCiv.player).toEqual({
+      'pirate-2': {
+        factionId: 'pirate-2',
+        level: 'tracked',
+        discoveredRound: 20,
+        lastUpdatedRound: 22,
+        observedUnitIds: ['hidden-unit'],
+      },
+    });
   });
 
   it('loads a pre-#522 save whose factions have no blockadeStreakByCity field without crashing (save-compat)', () => {
