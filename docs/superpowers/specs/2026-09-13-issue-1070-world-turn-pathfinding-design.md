@@ -9,7 +9,7 @@ world-actor behavior.
 
 ## Current evidence, verified after #1068
 
-The fresh post-#1068 report still measures 5,572 turn heap pops at e1 and
+The fresh post-#1068 report artifact records 5,572 turn heap pops at e1 and
 23,131 at e2: a 4.15x increase for the fixture's roughly 1.8x entity increase.
 Whole-state clones remain 2 and visibility passes remain 8 at both scales.
 The #1068 movement lookup now records zero direct blocker scans and exactly one
@@ -27,12 +27,21 @@ actual caller family.
 ## Chosen design: test-only attributable perf probe first
 
 Extend the existing `tests/perf/perf-probe.ts` instrumentation, rather than
-adding production diagnostics or persisting counters. The probe will retain the
-existing aggregate counters and add an optional, explicitly enabled attribution
-record keyed by stable turn-operation names. A phase wrapper entered by a
-spied, exported turn helper will charge all nested `findPath`, heap push, and
-heap pop work to that key; work not entered through a wrapper is charged to an
-explicit `unattributed-turn-pathfinding` key.
+adding production diagnostics or persisting counters. The generic probe owns
+only an optional stack-safe attribution primitive: a caller supplies a stable
+scope key, the probe charges nested `findPath`, heap push, and heap pop work to
+that key, and `try/finally` restores the prior scope even if the wrapped helper
+throws. Its default scope is `turn:unattributed-pathfinding`, so every counted
+pathfinding operation has a visible owner.
+
+Create a separate test-only `tests/perf/turn-pathfinding-attribution.ts` helper
+that owns the world-phase names and the `vi.spyOn` wrappers around exported
+turn helpers. `perf-probe.ts` must not import, name, or otherwise know about
+pirates, rogue hosts, route runners, or `processTurn`; it remains reusable for
+other performance tests. The domain helper registers its wrappers with the
+generic probe, calls each captured original exactly once with its original
+`this`/arguments, and always restores them. Neither helper is imported by
+production code.
 
 The initial attribution boundary is intentionally narrow and based on verified
 current call sites:
@@ -40,22 +49,37 @@ current call sites:
 - `turn:pirates` for `processPiratesForCompletedRound`;
 - `turn:rogue-elephant-host` for each `processRogueElephantHostTurn` call;
 - `turn:route-runners` for `advanceRouteRunners`;
-- `turn:unattributed-turn-pathfinding` for the remaining direct turn-manager
+- `turn:unattributed-pathfinding` for the remaining direct turn-manager
   journey path or any newly discovered call site.
 
 The attribution result must reconcile exactly with the aggregate path-query and
-heap counters. The test must run e1 and e2 repeatedly and prove the full
-attribution record is bit-stable. It is test-only data: it has no import from
-`src/`, no event, no save field, no UI, and no audio behavior.
+heap counters: the sum of every scope's `pathQueries`, `heapPops`, and
+`heapPushes` must respectively equal the probe's aggregate counter. The test
+must run e1 and e2 repeatedly and prove the complete sorted attribution record
+is bit-stable. Scope data contains only stable names and integer counters--no
+wall-clock data, call stacks, or game-state references. It is test-only data:
+it has no import from `src/`, no event, no save field, no UI, and no audio
+behavior.
+
+A separate calibrated fixture must deliberately activate at least one pirate
+turn and one rogue-elephant-host turn. It proves those two labels receive
+nonzero path-query work, which distinguishes a genuinely installed ESM wrapper
+from a merely zero-valued phase. The calibration also compares an unprobed and
+attributed run with `firstSimulationDivergence` and captures the relevant
+explicitly registered EventBus events, proving instrumentation neither mutates
+authoritative state nor changes the event sequence. Event capture must use
+concrete typed `bus.on(...)` registrations; it must not assume EventBus has a
+wildcard listener.
 
 ## Root-cause decision gate
 
 Only after that attribution is green and measured on e1/e2 will the production
 scope be selected.
 
-1. If one operation family contributes the material e2/e1 increase, optimize
-   only that family and preserve its exact output state, events, target choice,
-   and movement route.
+1. If one operation family contributes the material e2/e1 increase, first add a
+   current-behavior characterization fixture for that family (exact state,
+   relevant typed events, target choice, and movement route), then optimize only
+   that family while preserving it.
 2. If several families repeat the same equivalent query against an unchanged
    turn-state slice, introduce the smallest deterministic, transient helper at
    their shared existing seam. It must have deterministic keys, never persist,
@@ -74,7 +98,10 @@ those changes is a design escalation, not an optimization shortcut.
 ## Behavioral and data contract
 
 - Identical state and command inputs produce equivalent authoritative state,
-  event traces, chosen targets, and movement paths.
+  explicitly captured relevant event traces, chosen targets, and movement
+  paths. This is characterized against the current implementation before a
+  production optimization; a test cannot compare itself to a historical branch
+  at runtime.
 - World-actor behavior remains actor-owned and independent of `currentPlayer`,
   so solo and hot-seat seats observe the same authoritative result.
 - Explorer, Standard, and Veteran preserve their existing pressure behavior;
@@ -86,8 +113,14 @@ those changes is a design escalation, not an optimization shortcut.
 ## Required regression evidence after a root cause is proven
 
 - The attribution test proves aggregate reconciliation and repeat stability.
+- The calibrated pirate/rogue-host fixture proves phase wrappers are installed,
+  execute once, preserve event/state behavior, and do not leave an attribution
+  scope active after a wrapped exception.
+- If the new attribution test is default-discovered, its CI-shard assignment is
+  regenerated and validated; if its crowded simulation is costly, it is also
+  classified in the independent local intensive-simulations selection.
 - The optimized subsystem has an exact-state/event/path regression against the
-  pre-optimization behavior on a controlled fixture.
+  pre-optimization characterization on a controlled fixture.
 - A deterministic turn or save/reload continuity regression proves the cache or
   reuse cannot change the simulation trajectory.
 - The #1007 e2/e1 turn heap-pop shape materially improves; the baseline is
@@ -107,8 +140,9 @@ extensibility, data, sfx, updating saved games, proper testing, regressions solo
 play, and hot seat plays, and proper implementation.
 
 At design review, the inspected evidence is the post-#1068 deterministic perf
-report, the current turn-manager call sites, the world subsystem call sites,
-and the #1007 probe/budget tests. No gameplay, UI, SFX, save, difficulty, or
-hot-seat defect is introduced by the test-only attribution design. The main
-risk is optimizing an unproven phase; the reconciliation and decision gate
-prevent that scope error.
+report artifact, the current turn-manager call sites, the world subsystem call
+sites, and the #1007 probe/budget tests. No gameplay, UI, SFX, save, difficulty,
+or hot-seat defect is introduced by the test-only attribution design. The main
+risk is optimizing an unproven phase; the strict ownership separation,
+calibration fixture, reconciliation, and decision gate prevent that scope
+error.
