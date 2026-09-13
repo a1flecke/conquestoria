@@ -1,4 +1,4 @@
-# #1068 Detailed Movement-Query Blocker Lookup Implementation Plan
+# #1068 Detailed Movement-Query Blocker Lookup Implementation Plan — 🟡 implementation complete; PR pending
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -27,7 +27,7 @@
 - Test: `tests/systems/transport-system.test.ts:553-668`
 - Test: `tests/systems/airborne-system.test.ts`
 
-- [ ] **Step 1: Add failing direct-lookup and first-match regressions to the characterization test.**
+- [x] **Step 1: Add failing direct-lookup and first-match regressions to the characterization test.**
 
   Import `getBlockingMapEntitiesByHex` directly from `@/systems/unit-movement-legality`; do not expand the `unit-system` public barrel for this internal query dependency. Add the following assertions to the existing `#1010 golden — blockers` suite:
 
@@ -78,7 +78,7 @@
   });
   ```
 
-- [ ] **Step 2: Run the new characterization test and confirm it fails because the map helper is absent.**
+- [x] **Step 2: Run the new characterization test and confirm it fails because the map helper is absent.**
 
   Run:
 
@@ -88,7 +88,7 @@
 
   Expected: TypeScript/Vitest fails to resolve `getBlockingMapEntitiesByHex`; no production file changes have occurred.
 
-- [ ] **Step 3: Record the existing behavioral surfaces that must remain unchanged.**
+- [x] **Step 3: Record the existing behavioral surfaces that must remain unchanged.**
 
   Do not edit these tests. Run them before implementation to establish the compatibility set:
 
@@ -105,7 +105,7 @@
 - Modify: `src/systems/unit-movement-queries.ts:14,159-241`
 - Test: `tests/systems/unit-movement-characterization.test.ts:282-336`
 
-- [ ] **Step 1: Implement the canonical lookup in the legality module.**
+- [x] **Step 1: Implement the canonical lookup in the legality module.**
 
   Add this exported helper immediately before `getBlockingMapEntityAt`:
 
@@ -155,7 +155,7 @@
 
   This intentionally preserves the prior `find` behavior for duplicate city records: only the first city at a hex participates; a non-blocking first city lets a camp or enclave win, and a blocking first city cannot be overwritten later.
 
-- [ ] **Step 2: Build one lookup after the unit-null guard in `getMovementRangeDetails`.**
+- [x] **Step 2: Build one lookup after the unit-null guard in `getMovementRangeDetails`.**
 
   Change the legality import and insert the lookup once, before occupancy construction:
 
@@ -175,7 +175,7 @@
 
   Leave the `fromStart`, pirate-enclave reason check, zone-of-control condition, terminal calculation, queue ordering, and AI caller signatures unchanged.
 
-- [ ] **Step 3: Run source policy and focused behavioral tests.**
+- [x] **Step 3: Run source policy and focused behavioral tests.**
 
   Run:
 
@@ -186,7 +186,7 @@
 
   Expected: PASS. In particular, detailed reachable and `zocLimited` ordering/reasons remain identical, AI still excludes illegal pathing, transport and airborne use the same legality, and changing `currentPlayer` in hot-seat fixtures does not alter the acting unit's result.
 
-- [ ] **Step 4: Commit the tested legality/query change.**
+- [x] **Step 4: Commit the tested legality/query change.**
 
   ```bash
   git add src/systems/unit-movement-legality.ts src/systems/unit-movement-queries.ts tests/systems/unit-movement-characterization.test.ts
@@ -201,9 +201,9 @@
 - Modify: `tests/perf/perf-areas.ts:50-55,130-140`
 - Modify: `tests/perf/algorithmic-budgets.test.ts:61-113,198-213`
 - Modify: `tests/perf/baselines/algorithmic-baseline.json`
-- Modify: `scripts/ci-test-shards.json`
+- Verify: `scripts/ci-test-shards.json` retains the existing assignment for the changed default-discovered test.
 
-- [ ] **Step 1: Add the lookup-build counter and its zero-operation probe assertion.**
+- [x] **Step 1: Add the lookup-build counter and its zero-operation probe assertion.**
 
   Extend `PerfCounts` and `emptyCounts()` with `blockingMapEntityLookupBuilds: number`. Spy on `legality.getBlockingMapEntitiesByHex` exactly as the existing `getBlockingMapEntityAt` spy does, incrementing the new counter and calling the captured original. Update the empty-operation expectation to include:
 
@@ -211,7 +211,7 @@
   blockingMapEntityLookupBuilds: 0,
   ```
 
-- [ ] **Step 2: Measure exact detailed-query work, without a derived city-count proxy.**
+- [x] **Step 2: Measure exact detailed-query work, without a derived city-count proxy.**
 
   In the `moveRange@e1`/`moveRange@e2` branch, remove `cityCount` and `derivedInnerBound` entirely and return:
 
@@ -224,7 +224,7 @@
 
   Remove `cityCount` and `derivedInnerBound` from `AreaSample`; no other measured area uses either field.
 
-- [ ] **Step 3: Make Guard 1 exact and prove the guard rejects both sabotage shapes.**
+- [x] **Step 3: Make Guard 1 exact and prove the guard rejects both sabotage shapes.**
 
   Add a local assertion helper in `algorithmic-budgets.test.ts`:
 
@@ -246,7 +246,7 @@
 
   Remove `moveRange` from computed baseline budgets: its two shape invariants are exact and independent of a historical hardware-free cap. Regenerate the baseline so it removes the obsolete `cityCount`, `derivedInnerBound`, and `budgets.moveRange` fields while retaining the new per-area counts.
 
-- [ ] **Step 4: Refresh CI-shard metadata because the default-discovered budget test gained a test.**
+- [x] **Step 4: Refresh CI-shard metadata because the default-discovered budget test gained a test.**
 
   Run:
 
@@ -256,9 +256,9 @@
   ./scripts/run-with-mise.sh yarn test --run tests/scripts/ci-test-shard-selection.test.ts
   ```
 
-  Expected: PASS; `tests/perf/algorithmic-budgets.test.ts` appears in exactly one selected shard, and unrelated assignments remain untouched unless the allocator's retained timing data requires a documented move.
+  Result: `test:profile:default` and the shard-selection test passed. The allocator proposed a repository-wide 1,313-line reassignment even though the changed test already had exactly one valid assignment; that unrelated churn was discarded, leaving the manifest unchanged.
 
-- [ ] **Step 5: Regenerate and verify the performance baseline.**
+- [x] **Step 5: Regenerate and verify the performance baseline.**
 
   Run separately:
 
@@ -270,7 +270,7 @@
 
   Expected: PASS. The checked-in JSON contains only deterministic numeric data; `moveRange@e1` and `moveRange@e2` show zero direct coordinate lookups and one canonical lookup build. Inspect `.verification/perf/report.json` to confirm the same counts are reported locally. In the PR body, justify each changed move-range number as removal of 27 per-neighbor linear scans and addition of one per-query canonical build; do not claim an AI-round cache.
 
-- [ ] **Step 6: Commit the performance gate.**
+- [x] **Step 6: Commit the performance gate.**
 
   ```bash
   git add tests/perf/perf-probe.ts tests/perf/perf-probe.test.ts tests/perf/perf-areas.ts tests/perf/algorithmic-budgets.test.ts tests/perf/baselines/algorithmic-baseline.json scripts/ci-test-shards.json
@@ -283,7 +283,7 @@
 - Modify: `docs/superpowers/plans/2026-09-13-issue-1068-movement-query.md`
 - Verify: changed source and test files from Tasks 1-3
 
-- [ ] **Step 1: Perform the required inline review against the completed diff.**
+- [x] **Step 1: Perform the required inline review against the completed diff.**
 
   Review both `git diff --stat origin/main...HEAD` and `git diff --stat`, then inspect the complete source diff. Record in the PR under `## Pre-PR inline code review`:
 
@@ -307,7 +307,7 @@
 
   Expected: every command exits 0; durable status identifies the current `HEAD` and a clean working tree. If any long command has incomplete terminal output, use its durable status before inspecting a live process and do not start a duplicate run.
 
-- [ ] **Step 3: Mark delivery state in this plan and commit it with the final review notes.**
+- [x] **Step 3: Mark delivery state in this plan and commit it with the final review notes.**
 
   Tick every completed checkbox. Before creating the PR, annotate this plan's title with `🟡 implementation complete; PR pending`; after the PR number exists, replace that annotation with `✅ merged (#<actual-pr-number>)` in the merge-follow-up commit required by repository policy. Commit the pre-PR status update with:
 
