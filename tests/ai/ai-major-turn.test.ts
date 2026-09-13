@@ -1141,4 +1141,42 @@ describe('#1064 non-offensive plan phase', () => {
       state, plan, [worker.id], [], buildMajorCivPerception(state, civ.id),
     )).toBe('mobilizing');
   });
+
+  it('still requires a capture or frontline unit for a non-offensive, non-expand plan', () => {
+    // #1064's fix is scoped to `expand` specifically, not "every objective that isn't
+    // capture/raid/blockade" -- a `repel` plan assigned only a worker (no frontline or
+    // capture role) must stay gated exactly like an offensive plan would, or the fix's
+    // blast radius silently widens to five objective types it was never meant to touch.
+    const state = createNewGame(undefined, 'phase-repel-still-gated', 'small');
+    const civ = state.civilizations['ai-1'];
+    const startingPosition = civ.units.map(id => state.units[id]).find(Boolean)!.position;
+    addCity(state, 'home', civ.id, startingPosition);
+    const home = state.cities[civ.cities[0]!]!;
+    const worker = createUnit('worker', civ.id, home.position, state.idCounters);
+    state.units[worker.id] = worker;
+    civ.units.push(worker.id);
+    state.turn = 30;
+    const anchor = distantLandTile(state, MIN_CITY_CENTER_DISTANCE);
+
+    const plan: AIStrategicPlan = {
+      id: 'repel-plan',
+      actorId: civ.id,
+      objective: 'repel',
+      target: { kind: 'region', id: `repel:${hexKey(anchor)}`, anchor },
+      theaterId: `local:${hexKey(anchor)}`,
+      phase: 'mobilizing',
+      reasonCodes: ['urgent-defense'],
+      commitment: 0.5,
+      createdTurn: 20,
+      reconsiderAfterTurn: 23,
+      expiresAfterTurn: 32,
+      lastProgressTurn: 29,
+      requiredRoles: { frontline: 1 },
+      assignedUnitIds: [worker.id],
+    };
+
+    expect(nextPlanPhase(
+      state, plan, [worker.id], [], buildMajorCivPerception(state, civ.id),
+    )).toBe('mobilizing');
+  });
 });

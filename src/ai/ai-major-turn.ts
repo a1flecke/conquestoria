@@ -752,7 +752,10 @@ export function nextPlanPhase(
       // #1064: capture/frontline is an OFFENSIVE readiness requirement. A settle plan
       // carries a settler and nothing else, and would otherwise sit in `mobilizing`
       // for its whole life, permanently distorting plan-stuck / maxNoProgressRounds.
-      && (!isOffensivePlan(plan) || hasCaptureOrFrontline(after, assignedUnitIds))
+      // Scoped to `expand` specifically, not "every non-offensive objective" -- the
+      // other five objectives (defend/recover/secure-resource/repel/support-ally)
+      // always assign combat-capable units and must keep the real readiness gate.
+      && (plan.objective === 'expand' || hasCaptureOrFrontline(after, assignedUnitIds))
       && (hasRequiredRoles(after, plan, assignedUnitIds) || deadlineReached)
     ) {
       return 'advancing';
