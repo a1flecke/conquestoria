@@ -497,7 +497,6 @@ jobs:
     env:
       GATE_NEEDS_JSON: ${{ toJSON(needs) }}
       GATE_EVENT_NAME: ${{ github.event_name }}
-      GATE_REF: ${{ github.ref }}
       GATE_DESKTOP_CHANGED: ${{ needs.desktop-change-check.outputs.desktop_changed }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1

@@ -44,7 +44,6 @@ function requireSuccess(needs, jobId, failures) {
 
 const needs = readNeeds();
 const eventName = process.env.GATE_EVENT_NAME ?? '';
-const ref = process.env.GATE_REF ?? '';
 const desktopChanged = process.env.GATE_DESKTOP_CHANGED ?? '';
 const failures = [];
 
@@ -55,7 +54,7 @@ if (desktopChanged !== 'true' && desktopChanged !== 'false') {
 }
 
 const macosResult = resultOf(needs, 'tauri-macos-build', failures);
-const macosRequired = ref === 'refs/heads/main' || desktopChanged === 'true';
+const macosRequired = desktopChanged === 'true';
 if (macosResult !== null && macosResult !== 'success' && !(macosResult === 'skipped' && !macosRequired)) {
   failures.push(
     `tauri-macos-build: expected ${macosRequired ? 'success' : 'success or skipped'}, received ${macosResult}`,

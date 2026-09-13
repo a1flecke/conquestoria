@@ -127,6 +127,27 @@ describe('#1075 merge gate', () => {
     expect(result.stderr).toContain('tauri-macos-build');
   });
 
+  it('allows a skipped macOS job on a push to main with no desktop changes', () => {
+    const result = runGate(successfulNeeds('false'), {
+      eventName: 'push',
+      ref: 'refs/heads/main',
+      desktopChanged: 'false',
+    });
+    expect(result.status, result.stderr).toBe(0);
+  });
+
+  it('rejects a skipped macOS job on a push to main when desktop changes require it', () => {
+    const needs = successfulNeeds('true');
+    needs['tauri-macos-build'] = { result: 'skipped' };
+    const result = runGate(needs, {
+      eventName: 'push',
+      ref: 'refs/heads/main',
+      desktopChanged: 'true',
+    });
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('tauri-macos-build');
+  });
+
   it('allows the pirate-audio job to skip outside pull requests', () => {
     const needs = successfulNeeds('false');
     needs['pirate-audio-reproducibility'] = { result: 'skipped' };
