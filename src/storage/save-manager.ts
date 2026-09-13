@@ -228,7 +228,19 @@ function normalizePirateIntel(value: unknown, state: GameState, factions: Pirate
               : {}),
           }
         : undefined;
-      if (rawIntel.level === 'rumor' ? !region : !headquarters) continue;
+      const hasObservedUnitIds = Array.isArray(rawIntel.observedUnitIds);
+      const observedUnitIds = hasObservedUnitIds
+        ? (rawIntel.observedUnitIds as unknown[]).filter((id): id is string => typeof id === 'string')
+        : [];
+      // #1099: a 'sighted'/'tracked' entry legitimately has no lastKnownHeadquarters
+      // when the civ has only ever observed this faction's ships, never its
+      // headquarters directly (refreshPirateIntel in pirate-presentation.ts creates
+      // exactly this shape whenever `hasCurrentObservation` is satisfied by
+      // `visibleShipIds` alone). Requiring headquarters unconditionally here silently
+      // dropped every such entry on load -- invisible on save/reload once (nothing
+      // re-derives it from this state), but the drop meant a second save/reload wiped
+      // an intel entry a continuous run still had.
+      if (rawIntel.level === 'rumor' ? !region : (!headquarters && observedUnitIds.length === 0)) continue;
       const knownBehavior = rawIntel.knownBehavior === 'patrolling'
         || rawIntel.knownBehavior === 'raiding'
         || rawIntel.knownBehavior === 'blockading'
@@ -247,9 +259,7 @@ function normalizePirateIntel(value: unknown, state: GameState, factions: Pirate
         ...(headquarters ? { lastKnownHeadquarters: headquarters } : {}),
         ...(knownBehavior ? { knownBehavior } : {}),
         ...(knownMaritimeStage ? { knownMaritimeStage } : {}),
-        ...(Array.isArray(rawIntel.observedUnitIds)
-          ? { observedUnitIds: rawIntel.observedUnitIds.filter((id): id is string => typeof id === 'string') }
-          : {}),
+        ...(hasObservedUnitIds ? { observedUnitIds } : {}),
         ...(rawIntel.level === 'tracked'
           && isPirateRelocationDirection(rawIntel.plannedRelocationDirection)
           ? { plannedRelocationDirection: rawIntel.plannedRelocationDirection }

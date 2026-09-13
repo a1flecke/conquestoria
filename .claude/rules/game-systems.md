@@ -108,10 +108,38 @@ above), specifically for territory.
   reintroduces this exact divergence.
 - Fixing #1092 (alongside #1065's separate `lastNotifiedStatusByCiv` fix) uncovered two
   further, unrelated, pre-existing save/reload divergences masked underneath it:
-  `nationalProjectChoices` (#1098, load-time-only, likely an expiry-timing mismatch
-  between load and live `'turn'` processing) and `pirates.intelByCiv` (#1099, not yet
-  isolated to a load-time-only repro). Neither is territory-related; do not conflate a
-  future territory finding with either.
+  `nationalProjectChoices` (#1098, fixed — see "Game creation must produce load-canonical
+  state" above) and `pirates.intelByCiv` (#1099, fixed — see below). Neither was
+  territory-related.
+
+### A pirate intel record can be valid with no observed headquarters (#1099)
+
+`normalizePirateIntel` (`save-manager.ts`) used to require `lastKnownHeadquarters` on
+every non-`'rumor'` `PirateFactionIntel` entry, silently dropping the whole entry
+(`continue`) otherwise. That assumption was wrong: `refreshPirateIntel`
+(`pirate-presentation.ts`) legitimately creates a `'sighted'` (or `'tracked') entry with
+**only** `observedUnitIds` and no `lastKnownHeadquarters` whenever a civ has seen a
+faction's ships but never its actual headquarters/base — `PirateFactionIntel.
+lastKnownHeadquarters` is optional for exactly this reason.
+
+- **Why this only ever showed up after a *second* save/reload.** The drop happens at
+  load time, and a fresh game has no such entry yet — a civ needs several turns of live
+  play to ever create one (`discoveredRound`/`lastUpdatedRound` well after game start).
+  So the very first save/reload of a long campaign never encounters this shape; the
+  entry only exists — and only gets silently dropped — starting from whichever reload
+  happens *after* it was first created live. #1099 was found via a scenario with reloads
+  at rounds 150 and 300: the entry was created live around round 225 (after the first
+  reload), so only the second reload (round 300) ever round-tripped it through the buggy
+  normalizer.
+- The fix: an entry is now dropped only when it has **neither** a valid `headquarters`
+  **nor** a non-empty `observedUnitIds` (`'rumor'` keeps its existing `approximateRegion`
+  requirement, unaffected). `tests/storage/save-manager.test.ts`'s
+  "preserves a ship-only pirate sighting ... (#1099)" test pins this exact shape across
+  two consecutive save/reload cycles.
+- Do not reintroduce an unconditional `lastKnownHeadquarters` requirement for a
+  `'sighted'`/`'tracked'` entry — that is exactly this bug. Any future validation added
+  to `normalizePirateIntel` must accept every shape `refreshPirateIntel` can actually
+  produce, not just the shape that happens to appear in whatever fixture wrote the check.
 
 ## State Mutations Must Match Events
 - If you emit an event (e.g., `city:unit-trained`), the state mutation (creating the unit, adding to arrays) MUST happen in the same block

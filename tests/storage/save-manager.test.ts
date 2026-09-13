@@ -209,6 +209,43 @@ describe('save-manager autosave listing', () => {
     expect(autoLoaded?.notificationLog).toEqual(state.notificationLog);
   });
 
+  it('preserves a ship-only pirate sighting (no observed headquarters) across two save/reload cycles (#1099)', async () => {
+    // refreshPirateIntel (pirate-presentation.ts) legitimately creates a 'sighted'
+    // intel entry with no lastKnownHeadquarters whenever a civ has only ever seen a
+    // faction's ships, never its headquarters directly. normalizePirateIntel used to
+    // require lastKnownHeadquarters unconditionally for any non-'rumor' entry, which
+    // silently dropped this entire (valid) entry on load. The drop was invisible on
+    // the first save/reload of a fresh game (this entry does not exist there) and
+    // only showed up as a real state divergence on a SECOND save/reload of a
+    // long-running campaign that had since created one -- see #1099.
+    const state = createNewGame(undefined, 'pirate-ship-only-sighting', 'small');
+    state.pirates!.factions['pirate-1'] = {
+      id: 'pirate-1', name: 'The Ghost Fleet', spawnedRound: 10, behavior: 'patrolling',
+      maritimeStage: 1, notoriety: 0, shipIds: ['pirate-ship-1'],
+      headquarters: { kind: 'coastal-enclave', position: { q: 0, r: 0 }, integrity: 100, maxIntegrity: 100 },
+      tributeByCiv: {}, demandByCiv: {}, contract: null, intent: null,
+      transitionGuards: { emittedEventKeys: [] },
+    };
+    state.pirates!.intelByCiv['ai-1'] = {
+      'pirate-1': {
+        factionId: 'pirate-1', level: 'sighted', discoveredRound: 12, lastUpdatedRound: 15,
+        observedUnitIds: ['pirate-ship-1'],
+      },
+    };
+
+    await saveGame('pirate-ship-only-slot', 'Pirate Ship Only Save', state);
+    const loadedOnce = await loadGame('pirate-ship-only-slot');
+    expect(loadedOnce?.pirates?.intelByCiv['ai-1']?.['pirate-1']).toEqual(
+      state.pirates!.intelByCiv['ai-1']['pirate-1'],
+    );
+
+    await saveGame('pirate-ship-only-slot', 'Pirate Ship Only Save', loadedOnce!);
+    const loadedTwice = await loadGame('pirate-ship-only-slot');
+    expect(loadedTwice?.pirates?.intelByCiv['ai-1']?.['pirate-1']).toEqual(
+      state.pirates!.intelByCiv['ai-1']['pirate-1'],
+    );
+  });
+
   it('preserves correct derived submarine concealment across save/reload (#542)', async () => {
     const state = createNewGame(undefined, 'submarine-concealment-round-trip', 'small');
     state.map.tiles[hexKey({ q: 0, r: 0 })].terrain = 'ocean';

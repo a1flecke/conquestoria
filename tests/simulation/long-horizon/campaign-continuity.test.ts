@@ -60,12 +60,8 @@ describe('long-horizon save/reload continuity', () => {
     // #1092 fixed a territory-recompute divergence this test used to catch here (a
     // contested border tile freezing to its previous owner across a save/reload
     // instead of matching live `'turn'` attrition). Fixing it uncovered two further,
-    // unrelated, pre-existing divergences this test can still legitimately fail on:
-    // `nationalProjectChoices` (#1098, confirmed load-time-only, likely an
-    // expiry-timing mismatch between load and live `'turn'` processing) and
-    // `pirates.intelByCiv` (#1099, not yet isolated to a load-time-only repro).
-    // Neither is caused by #1092's change. Left as an honest, informative failure
-    // until both land, rather than reintroducing a per-bug tolerance mechanism.
+    // unrelated, pre-existing divergences: `nationalProjectChoices` (#1098) and
+    // `pirates.intelByCiv` (#1099) -- both now fixed too, see game-systems.md.
     'save/reload mid-campaign continues equivalently',
     () => {
       const scenario = scenarioBySeed('lh-standard-medium');
