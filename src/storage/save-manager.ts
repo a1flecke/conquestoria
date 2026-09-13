@@ -116,16 +116,6 @@ function allowedQuestTypesForStep(chainId: string, stepIndex: number): Set<strin
   return types;
 }
 
-function effectiveLoadedMinorCivStatus(state: GameState, minorCivId: string, majorCivId: string) {
-  const minorCiv = state.minorCivs[minorCivId];
-  if (isMinorCivAtWar(state, majorCivId, minorCivId)) return 'at-war' as const;
-  if (minorCiv.chainStatusByCiv[majorCivId]?.status === 'allied') return 'allied' as const;
-  const relationship = minorCiv.diplomacy.relationships[majorCivId] ?? 0;
-  if (relationship <= -60) return 'hostile' as const;
-  if (relationship >= 30) return 'friendly' as const;
-  return 'neutral' as const;
-}
-
 function isFiniteCoord(value: unknown): boolean {
   if (!value || typeof value !== 'object') return false;
   const coord = value as { q?: unknown; r?: unknown };
@@ -682,11 +672,9 @@ function normalizeMinorCivQuestState(state: GameState): GameState {
     minorCiv.lastNotifiedStatusByCiv ??= {};
     const validStatuses = new Set(['at-war', 'hostile', 'neutral', 'friendly', 'allied']);
     for (const [majorCivId, status] of Object.entries(minorCiv.lastNotifiedStatusByCiv)) {
-      if (!validStatuses.has(status)) delete minorCiv.lastNotifiedStatusByCiv[majorCivId];
-    }
-    for (const majorCivId of Object.keys(nextState.civilizations ?? {})) {
-      if (!(majorCivId in minorCiv.lastNotifiedStatusByCiv)) {
-        minorCiv.lastNotifiedStatusByCiv[majorCivId] = effectiveLoadedMinorCivStatus(nextState, minorCivId, majorCivId);
+      const civilization = nextState.civilizations[majorCivId];
+      if (!civilization || civilization.isEliminated || !validStatuses.has(status)) {
+        delete minorCiv.lastNotifiedStatusByCiv[majorCivId];
       }
     }
   }

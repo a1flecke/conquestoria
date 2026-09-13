@@ -320,7 +320,7 @@ export const ELIMINATED_CIV_AREAS: Record<keyof GameState, EliminatedCivArea> = 
   },
   minorCivs: {
     kind: 'teardown',
-    why: 'city-state war state, relationships, grievances, offered quests, quest cooldowns and quest-chain status against a dead major civ are all cleared (the inert lastNotifiedStatusByCiv string cache is exempt — see below)',
+    why: 'city-state war state, relationships, notification history, grievances, offered quests, quest cooldowns and quest-chain status against a dead major civ are all cleared',
     scan: (state, ctx) => {
       const problems: string[] = [];
       const has = (map: Record<string, unknown> | undefined, id: string): boolean => Object.hasOwn(map ?? {}, id);
@@ -332,11 +332,7 @@ export const ELIMINATED_CIV_AREAS: Record<keyof GameState, EliminatedCivArea> = 
           if (has(mc.chainStatusByCiv, deadId)) problems.push(`minor civ "${mcId}" still tracks quest-chain status for eliminated civ "${deadId}"`);
           if (has(mc.activeQuests, deadId)) problems.push(`minor civ "${mcId}" still offers an active quest to eliminated civ "${deadId}"`);
           if (has(mc.questCooldownUntilByCiv, deadId)) problems.push(`minor civ "${mcId}" still tracks a quest cooldown for eliminated civ "${deadId}"`);
-          // `lastNotifiedStatusByCiv[deadId]` is deliberately NOT flagged: the
-          // `normalizeMinorCivQuestState` load normalizer gives every minor civ a
-          // status string for every major so readers need no null check, and it
-          // drives nothing for a civ that is no longer in `diplomacy.relationships`
-          // (which IS scrubbed). Same tolerance as the empty `autonomyByCiv` shell.
+          if (has(mc.lastNotifiedStatusByCiv, deadId)) problems.push(`minor civ "${mcId}" still holds notification history for eliminated civ "${deadId}"`);
         }
       }
       return problems;

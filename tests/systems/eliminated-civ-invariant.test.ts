@@ -202,6 +202,17 @@ describe('#1001 historical records survive elimination', () => {
   });
 });
 
+describe('#1065 notification history elimination invariant', () => {
+  it('flags notification history retained for an eliminated civilization', () => {
+    const state = eliminate(withCities(newGame('elim-stale-notification')), 'ai-1');
+    const minorCiv = Object.values(state.minorCivs)[0]!;
+    minorCiv.lastNotifiedStatusByCiv['ai-1'] = 'neutral';
+
+    expect(() => assertEliminatedCivHasNoLiveEntities(state))
+      .toThrow('still holds notification history for eliminated civ "ai-1"');
+  });
+});
+
 describe('#1001 long post-elimination simulation', () => {
   it('eliminating two civs mid-game leaves no live reference across 25 more turns, and a save/reload round-trip', () => {
     let state = withCities(newGame('elim-longrun', 3));
