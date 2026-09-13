@@ -17,6 +17,7 @@ import { hexDistance } from './hex-utils';
 import { findPath } from './unit-system';
 import { canEstablishRoute } from './trade-system';
 import { isMinorCivAtWar } from './minor-civ-diplomacy';
+import { areTaggedLandmassesConnected } from './landmass-tagger';
 import {
   ERA_QUEST_TUNING,
   type QuestEra,
@@ -179,7 +180,10 @@ export function canPursueMinorCivTradeRoute(
   for (const cityId of civ.cities) {
     const city = state.cities[cityId];
     if (!city || !hasRouteCapacity(state, cityId)) continue;
-    if (!findPath(city.position, destination.position, state.map, 'land')) continue;
+    const landmassConnection = areTaggedLandmassesConnected(state.map, city.position, destination.position);
+    if (landmassConnection === false) continue;
+    if (landmassConnection === undefined
+      && !findPath(city.position, destination.position, state.map, 'land')) continue;
     if (estimateCaravanReadyTurns(state, majorCivId, cityId) + 1 <= duration) return true;
   }
   return false;

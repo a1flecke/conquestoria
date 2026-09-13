@@ -207,6 +207,11 @@ describe('#1007 algorithmic budgets', () => {
     expect(() => expectMoveRangeBlockerWork({ blockingEntityAtCalls: 0, blockingMapEntityLookupBuilds: 2 })).toThrow();
   });
 
+  it('GUARD 7 — minor-civ trade-route quest feasibility never calculates an unused route on crowded turns', () => {
+    expect(S('turn@e1').pathQueries).toBe(0);
+    expect(S('turn@e2').pathQueries).toBe(0);
+  });
+
   it('GUARD 2 — findPath expands a bounded set of nodes proportional to the route, not the map', () => {
     // A directed A* over a long cross-map route should pop ~O(route length),
     // NOT ~O(map area). Two checks:
