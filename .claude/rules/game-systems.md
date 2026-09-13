@@ -106,6 +106,12 @@ above), specifically for territory.
   a genuinely contradicted tile still gets repaired. Do not "fix" a future load-time
   territory bug by widening `preserveForeignHolders` back to unconditional — that
   reintroduces this exact divergence.
+- Fixing #1092 (alongside #1065's separate `lastNotifiedStatusByCiv` fix) uncovered two
+  further, unrelated, pre-existing save/reload divergences masked underneath it:
+  `nationalProjectChoices` (#1098, load-time-only, likely an expiry-timing mismatch
+  between load and live `'turn'` processing) and `pirates.intelByCiv` (#1099, not yet
+  isolated to a load-time-only repro). Neither is territory-related; do not conflate a
+  future territory finding with either.
 
 ## State Mutations Must Match Events
 - If you emit an event (e.g., `city:unit-trained`), the state mutation (creating the unit, adding to arrays) MUST happen in the same block
