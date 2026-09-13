@@ -7,7 +7,6 @@ import {
   writeCampaignArtifacts,
 } from './campaign-report';
 import { runScenario, scenarioBySeed, SCENARIO_TIMEOUT_MS } from './campaign-scenarios';
-import { F2_SAVE_RELOAD_ISSUE, isKnownSaveReloadDivergence } from './known-campaign-gaps';
 
 /**
  * #1005 — determinism and save/reload continuity for long campaigns.
@@ -79,7 +78,7 @@ describe('long-horizon save/reload continuity', () => {
     // inert field), this divergence's downstream symptom is unbounded (gold, population,
     // anything fed by which city owns a tile), so a blanket tolerance would defeat the
     // point of this test. Left as an honest, informative failure until #1092 lands.
-    'save/reload mid-campaign continues equivalently, save for the known F2 divergence',
+    'save/reload mid-campaign continues equivalently',
     () => {
       const scenario = scenarioBySeed('lh-standard-medium');
       const uninterrupted = runScenario(scenario);
@@ -98,26 +97,10 @@ describe('long-horizon save/reload continuity', () => {
         uninterrupted.finalState,
       );
 
-      // Two-way ratchet, mirroring KNOWN_CAMPAIGN_GAPS:
-      //  - a divergence at any path OTHER than F2's
-      //    (`minorCivs.<id>.lastNotifiedStatusByCiv.*`) is a NEW save/reload
-      //    correctness bug and fails here;
-      //  - F2 currently DOES reproduce on this scenario, so `null` also fails,
-      //    telling you the normalizer bug is fixed and this whole test plus
-      //    `isKnownSaveReloadDivergence` and `F2_SAVE_RELOAD_ISSUE` should be
-      //    deleted.
-      // Do not weaken this to `divergence === null || isKnown(...)`.
       expect(
         divergence,
-        `save/reload diverged at an UNEXPECTED path (only F2 is tolerated — see `
-          + `${F2_SAVE_RELOAD_ISSUE}): ${divergence}`,
-      ).not.toBeNull();
-      expect(
-        isKnownSaveReloadDivergence(divergence),
-        `F2 no longer reproduces (divergence: ${divergence ?? 'null'}). If the `
-          + `minor-civ lastNotifiedStatusByCiv normalizer bug is fixed, delete this `
-          + `test, isKnownSaveReloadDivergence and F2_SAVE_RELOAD_ISSUE.`,
-      ).toBe(true);
+        `save/reload must preserve authoritative state exactly (divergence: ${divergence})`,
+      ).toBeNull();
     },
     SCENARIO_TIMEOUT_MS * 2,
   );
