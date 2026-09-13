@@ -33,6 +33,7 @@ import { hexKey } from '@/systems/hex-utils';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
 import { createEmptyPirateState } from '@/core/pirate-state';
 import { getMovementBlockerReason } from '@/systems/unit-movement-explainer';
+import { getBlockingMapEntitiesByHex } from '@/systems/unit-movement-legality';
 import { explainerState } from './helpers/movement-explainer-fixture';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
@@ -300,6 +301,48 @@ describe('#1010 golden — blockers', () => {
       const [q, r] = key.split(',').map(Number) as [number, number];
       expect(set.has(key)).toBe(getBlockingMapEntityAt(state, mover, { q, r }) !== null);
     }
+  });
+  it('getBlockingMapEntitiesByHex agrees with the per-coordinate form and retains blocker reasons', () => {
+    const { state, moverId } = fixtureState();
+    const mover = state.units[moverId]!;
+    state.pirates = {
+      factions: {
+        'pirate-1': {
+          id: 'pirate-1',
+          headquarters: { kind: 'coastal-enclave', position: { q: 3, r: 1 }, integrity: 100, maxIntegrity: 100 },
+        },
+      },
+    } as GameState['pirates'];
+    const lookup = getBlockingMapEntitiesByHex(state, mover);
+    for (const key of Object.keys(state.map.tiles)) {
+      const [q, r] = key.split(',').map(Number) as [number, number];
+      expect(lookup.get(key) ?? null).toEqual(getBlockingMapEntityAt(state, mover, { q, r }));
+    }
+    expect(lookup.get('3,1')).toEqual({ reason: 'pirate-enclave', entityId: 'pirate-1' });
+
+    state.civilizations['civ-a']!.diplomacy.treaties.push({
+      type: 'alliance', civA: 'civ-a', civB: 'civ-b', turnsRemaining: 5,
+    });
+    expect(getBlockingMapEntitiesByHex(state, mover).get('4,0')).toBeUndefined();
+  });
+  it('preserves current city, camp, and first-record precedence on an overlapping imported-state hex', () => {
+    const { state, moverId } = fixtureState();
+    const mover = state.units[moverId]!;
+    const overlap = { q: 0, r: 2 };
+    state.cities = {
+      friendlyFirst: { id: 'friendlyFirst', name: 'Friendly', owner: 'civ-a', position: overlap },
+      hostileSecond: { id: 'hostileSecond', name: 'Hostile', owner: 'civ-b', position: overlap },
+    } as typeof state.cities;
+
+    expect(getBlockingMapEntityAt(state, mover, overlap)).toEqual({ reason: 'barbarian-camp', entityId: 'camp-1' });
+    expect(getBlockingMapEntitiesByHex(state, mover).get(hexKey(overlap)))
+      .toEqual({ reason: 'barbarian-camp', entityId: 'camp-1' });
+
+    state.cities = {
+      hostileFirst: { id: 'hostileFirst', name: 'Hostile', owner: 'civ-b', position: overlap },
+    } as typeof state.cities;
+    expect(getBlockingMapEntitiesByHex(state, mover).get(hexKey(overlap)))
+      .toEqual({ reason: 'foreign-city', entityId: 'hostileFirst' });
   });
   it('BLOCKING_MAP_ENTITY_MESSAGES copy is stable', () => {
     expect(BLOCKING_MAP_ENTITY_MESSAGES).toEqual({
