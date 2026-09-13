@@ -1,4 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('@/storage/db', () => ({
+  dbGet: vi.fn(),
+  dbPut: vi.fn(),
+  dbDelete: vi.fn(),
+  dbGetAllKeys: vi.fn(async () => []),
+}));
+
 import { EventBus } from '@/core/event-bus';
 import { createNewGame } from '@/core/game-state';
 import { createEmptyPirateState, type PirateFactionState } from '@/core/pirate-state';
@@ -7,6 +15,7 @@ import { processPiratesForCompletedRound, PIRATE_ROUND_TRACE } from '@/systems/p
 import { createEmptyOpponentAIState } from '@/core/opponent-ai-state';
 import { PIRATE_NOTORIETY, PIRATE_SIEGE_BLOCKADE_TURNS } from '@/systems/pirate-definitions';
 import { getEraAdvancementTechs } from '@/systems/tech-definitions';
+import { normalizeLoadedStateForTest } from '@/storage/save-manager';
 
 function completedTechsForEra(era: number): string[] {
   return Array.from({ length: Math.max(0, era - 1) }, (_, index) => index + 2)
@@ -127,6 +136,49 @@ describe('completed-round pirate coordinator', () => {
     )).toBe(true);
     expect(result.state.pendingEvents?.player ?? []).toEqual([]);
     expect(sideEffects).toEqual([]);
+  });
+
+  it('does not re-fire a sighting notification for an already-known ship-only pirate intel record across a reload (#1099)', () => {
+    // A civ can legitimately have a 'sighted' intel record for a faction whose ships
+    // it has seen but whose headquarters it never has (refreshPirateIntel in
+    // pirate-presentation.ts). #1099's bug silently dropped exactly this shape on
+    // load, so a faction already known to the player looked "new" again the next
+    // time its ships were sighted -- a spurious "Pirates sighted" notification and
+    // audio cue for a pirate the player had already discovered. This pins the fixed
+    // behavior end to end: the intel survives a reload, and no duplicate sighting
+    // notification fires for it afterward.
+    const state = fixture();
+    state.pirates!.factions['pirate-1'] = faction(
+      { kind: 'coastal-enclave', position: { q: 5, r: 5 }, integrity: 100, maxIntegrity: 100 },
+      ['ship-1'],
+    );
+    addUnit(state, 'ship-1', 'pirate_ironclad', 'pirate-1', { q: 3, r: 3 });
+    state.pirates!.intelByCiv.player = {
+      'pirate-1': {
+        factionId: 'pirate-1',
+        level: 'sighted',
+        discoveredRound: state.turn - 2,
+        lastUpdatedRound: state.turn - 2,
+        observedUnitIds: ['ship-1'],
+      },
+    };
+    // The ship is visible; the headquarters at (5,5) is not.
+    state.civilizations.player.visibility.tiles['3,3'] = 'visible';
+
+    const reloaded = normalizeLoadedStateForTest(state);
+    expect(reloaded.pirates!.intelByCiv.player['pirate-1']).toEqual(
+      state.pirates!.intelByCiv.player['pirate-1'],
+    );
+
+    const bus = new EventBus();
+    const audioCues: unknown[] = [];
+    bus.on('pirate:audio-cue', event => audioCues.push(event));
+    const result = processPiratesForCompletedRound(reloaded, bus);
+
+    const pirateNotifications = (result.state.notificationLog?.player ?? [])
+      .filter(entry => entry.review?.kind === 'pirate-faction' && entry.review.factionId === 'pirate-1');
+    expect(pirateNotifications).toEqual([]);
+    expect(audioCues).toEqual([]);
   });
 
   it('moves a purposeful fleet along canonical multi-step cohesive paths and retains intent', () => {
