@@ -113,6 +113,26 @@ export interface KnownCampaignGap {
  * proven correct (see that PR's test evidence), but this scenario's specific
  * findings persist for the different, narrower reason #1107 now owns.
  *
+ * F6 (found during #1107's own design investigation): `ai-3`'s specific
+ * landmass under the original `lh-late-era-medium` seed is smaller than
+ * `MIN_CITY_CENTER_DISTANCE` -- exactly 10 land tiles total, including its
+ * own city -- so no second city, coastal or not, can EVER legally stand
+ * anywhere on it. This is not an AI-competence gap; it is a genuine,
+ * permanent capability deadlock (behaviorally identical to #1108's "fully
+ * landlocked civ" case, just reached via a different literal mechanism). A
+ * 25-seed search confirmed this landmass shape is a statistical outlier: zero
+ * of the alternate seeds tried reproduced anything remotely that degenerate
+ * for a non-coastal-city civ. `lh-late-era-medium` therefore now sets
+ * `mapSeed: 'lh-1107-search-0'` (see `campaign-scenarios.ts` and
+ * `docs/superpowers/specs/2026-09-14-issue-1107-coastal-city-recovery-design.md`),
+ * which reproduces the same "coastal territory, non-coastal city" shape for
+ * civ `ai-1` on a genuinely recoverable 43-tile landmass, so the `#1107` fix
+ * below has something real to fix and the long-horizon suite actually
+ * exercises it. `ai-3`'s original 10-tile shape is a legitimate, separate
+ * map-generation finding of its own -- not solved by #1107, not silently
+ * dropped; worth its own follow-up if map generation should avoid landmasses
+ * below the minimum city-spacing floor in general.
+ *
  */
 export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
   {
@@ -120,9 +140,12 @@ export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
     issue: '#1107',
     why: '#1066 fixed the original zero-plan cause (strategic-layer reachability across '
       + 'water) -- confirmed working via findRegionCrossings and a correctly-seeded '
-      + 'transport demand -- but ai-3 still never builds a transport because its only '
-      + 'city fails isCityCoastal despite abundant nearby coastal territory (its '
-      + 'immediate 6-tile ring is entirely hills/mountain). See file header F5.',
+      + 'transport demand -- but under this scenario\'s mapSeed (lh-1107-search-0, see '
+      + 'file header F6), civ ai-1 still never builds a transport because its only city '
+      + 'fails isCityCoastal despite abundant nearby coastal territory. EXPECTED TO BE '
+      + 'DELETED once the #1107 coastal-recovery expansion-site bias (see the design doc '
+      + 'linked in F6) is verified to resolve it against this exact seed -- do not delete '
+      + 'until the matrix has actually been re-run and confirmed non-reproducing.',
     scenarios: ['lh-late-era-medium'],
   },
   {
@@ -156,8 +179,11 @@ export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
     why: '#1093 (closed) traced this to the same zero-plan root cause as the '
       + 'expansion-frozen entry above, not an independent research-system defect. '
       + 'Now tracked at the same current owner (#1107) as that entry -- see file '
-      + 'header F5 for why #1066 fixing strategic reachability was not enough on its '
-      + 'own to unstick this civ.',
+      + 'header F5/F6 for why #1066 fixing strategic reachability was not enough on its '
+      + 'own to unstick this civ. Re-check independently once the #1107 fix lands -- do '
+      + 'NOT assume this auto-resolves alongside expansion-frozen; if the civ\'s economy '
+      + 'genuinely recovers, delete this entry, but if a different stall remains, file a '
+      + 'new focused finding rather than treating #1107 as covering it.',
     scenarios: ['lh-late-era-medium'],
   },
 ];

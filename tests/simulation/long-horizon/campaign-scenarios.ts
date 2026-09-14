@@ -70,8 +70,16 @@ export const LONG_HORIZON_SCENARIOS: readonly LongHorizonScenario[] = [
     personalities: ['aggressive', 'trader'], lateEra: false, stopOnGameOver: true,
   },
   // measured 223.6s — deterministic Era-9 start (250 turns, heavier per round)
+  // #1107 -- mapSeed replaces the original literal seed, which produced a
+  // 10-tile landmass for one AI civ (smaller than MIN_CITY_CENTER_DISTANCE,
+  // mathematically un-recoverable) -- a genuine statistical outlier, not the
+  // representative shape of the coastal-recovery bug class (0/25 alternate
+  // seeds tried reproduced it). lh-1107-search-0 reproduces the same "coastal
+  // territory, non-coastal city" shape on a genuinely recoverable 43-tile
+  // landmass (civ ai-1). seed stays the stable label.
   {
-    seed: 'lh-late-era-medium', challenge: 'standard', mapSize: 'medium',
+    seed: 'lh-late-era-medium', mapSeed: 'lh-1107-search-0',
+    challenge: 'standard', mapSize: 'medium',
     humanCount: 1, aiCount: 3, turns: 250,
     personalities: ['aggressive', 'trader', 'diplomatic'], lateEra: true, stopOnGameOver: true,
   },
@@ -88,7 +96,7 @@ function toCampaignOptions(
   extra: Partial<AICampaignOptions>,
 ): AICampaignOptions {
   const base: AISimulationOptions = {
-    seed: scenario.seed,
+    seed: scenario.mapSeed ?? scenario.seed,
     challenge: scenario.challenge as OpponentChallenge,
     turns: scenario.turns,
     mapSize: scenario.mapSize as AISimulationOptions['mapSize'],
