@@ -3,6 +3,8 @@ import {
   getAvailableBuildings,
   getTrainableUnitsForCity,
   isCityCoastal,
+  isPositionCoastal,
+  civHasCoastalCity,
   getTrainableUnitsForCiv,
   getProductionCostForItem,
   processCity,
@@ -18,7 +20,7 @@ import {
   getSettlerProductionCost,
   describeDroppedProductionItem,
 } from '@/systems/city-system';
-import type { City, GameMap, HexCoord, ResourceType, UnitType } from '@/core/types';
+import type { City, GameMap, GameState, HexCoord, ResourceType, UnitType } from '@/core/types';
 import { UNIT_DEFINITIONS, UNIT_DESCRIPTIONS } from '@/systems/unit-system';
 import { generateMap } from '@/systems/map-generator';
 import { hexKey } from '@/systems/hex-utils';
@@ -253,6 +255,54 @@ describe('isCityCoastal', () => {
       },
     } as GameMap;
     expect(isCityCoastal(city, wrappingMap)).toBe(true);
+  });
+
+  describe('isPositionCoastal (#1107 — the primitive isCityCoastal now wraps)', () => {
+    it('returns true when the position itself is coast', () => {
+      const map = coastMap('coast', 'plains');
+      expect(isPositionCoastal({ q: 5, r: 5 }, map)).toBe(true);
+    });
+
+    it('returns true when an immediate neighbor is coast', () => {
+      const map = coastMap('plains', 'coast');
+      expect(isPositionCoastal({ q: 5, r: 5 }, map)).toBe(true);
+    });
+
+    it('returns false when only a distant (non-neighbor) tile is coast (#386 contract)', () => {
+      const map = coastMap('plains', 'plains');
+      expect(isPositionCoastal({ q: 5, r: 5 }, map)).toBe(false);
+    });
+  });
+
+  describe('civHasCoastalCity (#1107)', () => {
+    it('returns false for an unknown civId', () => {
+      const state = {
+        civilizations: {},
+        cities: {},
+        map: coastMap('plains', 'plains'),
+      } as unknown as GameState;
+      expect(civHasCoastalCity(state, 'nope')).toBe(false);
+    });
+
+    it('returns false when the civ has cities but none are coastal', () => {
+      const city = makeCity();
+      const state = {
+        civilizations: { 'civ-1': { id: 'civ-1', cities: ['c-coast'] } },
+        cities: { 'c-coast': city },
+        map: coastMap('plains', 'plains'),
+      } as unknown as GameState;
+      expect(civHasCoastalCity(state, 'civ-1')).toBe(false);
+    });
+
+    it('returns true when at least one owned city is coastal', () => {
+      const city = makeCity();
+      const state = {
+        civilizations: { 'civ-1': { id: 'civ-1', cities: ['c-coast'] } },
+        cities: { 'c-coast': city },
+        map: coastMap('coast', 'plains'),
+      } as unknown as GameState;
+      expect(civHasCoastalCity(state, 'civ-1')).toBe(true);
+    });
   });
 });
 

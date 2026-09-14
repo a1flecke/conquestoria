@@ -8,7 +8,7 @@ import type {
 import { TECH_TREE } from '@/systems/tech-definitions';
 import {
   TRAINABLE_UNITS,
-  isCityCoastal,
+  civHasCoastalCity,
 } from '@/systems/city-system';
 import { calculateCivResearchOutput } from '@/systems/research-output-system';
 import { getCivAvailableResources, getCivHappinessFromResources } from '@/systems/resource-acquisition-system';
@@ -365,10 +365,7 @@ export function applyAIResearch(
   }
 
   const resources = getCivAvailableResources(state, civId);
-  const coastalEmpire = civ.cities.some(cityId => {
-    const city = state.cities[cityId];
-    return city ? isCityCoastal(city, state.map) : false;
-  });
+  const coastalEmpire = civHasCoastalCity(state, civId);
   const sciencePerTurn = Math.max(1, calculateCivResearchOutput(state, civId).finalScience);
   // City identities are scoped to the relief source whose rows they can cut. This
   // prevents war-only cities from pulling Courthouse research and vice versa.
