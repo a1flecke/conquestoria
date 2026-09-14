@@ -119,6 +119,55 @@ describe('major-civilization plan portfolios', () => {
     expect(result.portfolio.defensePlansByCityId).toEqual({});
   });
 
+  it('refreshes a retained plan\'s target position from the matching candidate (repel-plan staleness bug)', () => {
+    // Found investigating #1107's Task 7 long-horizon verification: `repel` plans
+    // (crisisDispatchPlanCandidates -- pirates/stampedes/rogue-elephant-hosts) target
+    // a MOVING unit. Every round, a fresh candidate is generated with the target's
+    // CURRENT position -- but the retention branch below only ever refreshed
+    // reasonCodes/requiredRoles/commitment/lastProgressTurn from the matching
+    // candidate, never `target` itself. A retained repel plan's lastKnownPosition
+    // stayed frozen at plan-creation time while the real unit kept moving, until the
+    // actor's fog eventually forgot the stale tile -- at which point
+    // `assertPlanInvariants`' targetWasPerceived check (a real information-safety
+    // invariant, not just a test nicety) correctly flagged the plan as having an
+    // "unearned exact target": the AI was tracking a position it could no longer
+    // actually see or remember. Reproduced against the real long-horizon matrix in
+    // lh-standard-medium/lh-hotseat-medium; not caused by #1107's own coastal-recovery
+    // change, which never touches unit targets -- exposed by it via a different game
+    // trajectory, not introduced by it.
+    const staleUnitPlan = plan('repel-raider', {
+      objective: 'repel',
+      target: { kind: 'unit', id: 'raider-1', lastKnownPosition: { q: 1, r: 1 } },
+      commitment: 0.25,
+    });
+    const freshCandidate: AIPlanCandidate = {
+      objective: 'repel',
+      target: { kind: 'unit', id: 'raider-1', lastKnownPosition: { q: 9, r: 9 } },
+      theaterId: 'local:9,9',
+      score: 50,
+      reasonCodes: ['urgent-defense'],
+      requiredRoles: { 'naval-combat': 1 },
+      commitment: 0.25,
+      targetValid: true,
+      reasonValid: true,
+      expectedLossRatio: 0,
+      progress: false,
+    };
+
+    const result = refreshMajorCivPortfolio(context({
+      portfolio: { ...createEmptyMajorCivPortfolio(), primaryPlan: staleUnitPlan },
+      candidates: [freshCandidate],
+    }));
+
+    expect(result.portfolio.primaryPlan?.id).toBe('repel-raider');
+    expect(result.portfolio.primaryPlan?.target).toMatchObject({
+      kind: 'unit',
+      id: 'raider-1',
+      lastKnownPosition: { q: 9, r: 9 },
+    });
+    expect(result.portfolio.primaryPlan?.theaterId).toBe('local:9,9');
+  });
+
   it('adds urgent city defense without deleting the primary plan', () => {
     const result = refreshMajorCivPortfolio(context({
       cityThreats: [{

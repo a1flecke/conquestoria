@@ -169,6 +169,16 @@ function selectPrimaryPlan(context: AIPortfolioContext): AIStrategicPlan | null 
     if (!best || (currentCandidate?.score ?? Number.NEGATIVE_INFINITY) + switchingBonus >= best.score) {
       return {
         ...current,
+        // A matching candidate is regenerated fresh every round from live state
+        // (crisisDispatchPlanCandidates snapshots a MOVING unit's current position
+        // each time), so a retained plan must adopt its target/theaterId too --
+        // otherwise a repel plan against a moving unit keeps its plan-creation-time
+        // lastKnownPosition forever while the real unit walks away, eventually
+        // failing targetWasPerceived once the actor's fog forgets the stale tile.
+        target: currentCandidate ? structuredClone(currentCandidate.target) : current.target,
+        theaterId: currentCandidate
+          ? normalizedTheater(currentCandidate.theaterId, targetAnchor(currentCandidate.target))
+          : current.theaterId,
         lastProgressTurn: currentCandidate?.progress ? context.turn : current.lastProgressTurn,
         commitment: clamp(current.commitment, 0, 1),
         reasonCodes: currentCandidate ? [...currentCandidate.reasonCodes] : [...current.reasonCodes],
