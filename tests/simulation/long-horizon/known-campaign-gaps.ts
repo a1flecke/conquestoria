@@ -133,6 +133,24 @@ export interface KnownCampaignGap {
  * dropped; worth its own follow-up if map generation should avoid landmasses
  * below the minimum city-spacing floor in general.
  *
+ * F7 (found running the full matrix after #1107's own fixes landed -- both the
+ * coastal-recovery bias and a real, separately-fixed repel-plan target-staleness
+ * bug it exposed, see that commit's message): `lh-veteran-medium`'s civ `ai-3`
+ * newly reports `expansion-frozen` across a 400-round campaign. NOT caused by
+ * #1107's coastal-recovery mechanism -- confirmed `ai-3` already has a coastal
+ * city (`civHasCoastalCity` true), so the bias never applies to it, and
+ * confirmed omnisciently that 1429 of 1445 land tiles on the real map are
+ * legal second-city sites for it (not a landmass-size deadlock like F6 above).
+ * Root cause: `getKnownExpansionSites` (the #1064 belief-layer site finder)
+ * returns ZERO candidates for this civ throughout the entire campaign -- its
+ * fog-bounded knowledge never covers a single legal site within
+ * EXPANSION_SEARCH_RADIUS of its own city, so no expand candidate (not even an
+ * ineligible one) is ever produced, and consequently no settlement force-demand
+ * is ever seeded either. This points at #1064's own idle-unit
+ * auto-explore/exploration-coverage machinery, not anything #1107 touches --
+ * see #1110. Newly exposed (not caused) by the trajectory shift from #1107's
+ * changes, the same way the repel-plan bug above was.
+ *
  */
 export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
   {
@@ -156,6 +174,17 @@ export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
       + 'to prioritize expansion at all on explorer tier and does not finish founding '
       + 'within this scenario\'s 300-round cap. Not caused by #1064 (see file header).',
     scenarios: ['lh-explorer-small'],
+  },
+  {
+    code: 'expansion-frozen',
+    issue: '#1110',
+    why: 'Not a coastal-status issue -- ai-3 already has a coastal city, so #1107\'s '
+      + 'bias never applies, and 1429/1445 land tiles are legal second-city sites for '
+      + 'it (not a landmass deadlock). getKnownExpansionSites returns zero candidates '
+      + 'for this civ across the whole 400-round campaign -- its fog-bounded knowledge '
+      + 'never covers a legal site within EXPANSION_SEARCH_RADIUS. Points at #1064\'s '
+      + 'own idle-unit exploration-coverage machinery. See file header F7.',
+    scenarios: ['lh-veteran-medium'],
   },
   {
     code: 'gold-hoard',
