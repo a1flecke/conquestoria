@@ -16,7 +16,7 @@ import {
   MIN_CITY_CENTER_DISTANCE,
 } from '@/systems/city-territory-system';
 import { createUnit, findPath, UNIT_DEFINITIONS } from '@/systems/unit-system';
-import type { GameState } from '@/core/types';
+import type { GameState, HexCoord, TerrainType } from '@/core/types';
 
 /** Found `count` extra cities for `civId` on real, legally spaced land tiles. */
 function addSpacedCities(state: GameState, civId: string, count: number): void {
@@ -967,6 +967,97 @@ describe('#1064 expand objective candidates', () => {
       .find(entry => entry.decision === 'objective');
 
     expect((trace?.candidates ?? []).some(c => c.id.startsWith('expand:'))).toBe(false);
+  });
+
+  it('makes an otherwise-unreachable expand candidate eligible once a sea crossing exists (#1066)', () => {
+    function setTerrain(coord: HexCoord, terrain: TerrainType, regionKey: string | undefined) {
+      const key = hexKey(coord);
+      const existing = state.map.tiles[key];
+      state.map.tiles[key] = {
+        coord,
+        terrain,
+        elevation: existing?.elevation ?? 'lowland',
+        resource: existing?.resource ?? null,
+        improvement: existing?.improvement ?? null,
+        owner: existing?.owner ?? null,
+        improvementTurnsLeft: existing?.improvementTurnsLeft ?? 0,
+        hasRiver: existing?.hasRiver ?? false,
+        wonder: existing?.wonder ?? null,
+        regionKey,
+      };
+    }
+
+    const state = createNewGame(undefined, 'amphibious-expand-eligible', 'small');
+    const civ = state.civilizations['ai-1'];
+    const home = foundCity(civ.id, { q: 15, r: 15 }, state.map, state.idCounters);
+    state.cities[home.id] = home;
+    civ.cities.push(home.id);
+
+    // Give the city's own tile a regionKey that exists NOWHERE else on the
+    // real generated map. Without this, `findRegionCrossings` -- correctly,
+    // by design -- also treats every other real tile still tagged with the
+    // map's original regionKey (e.g. 'continent-0', likely most of the map)
+    // as a valid seed, including ones the moat below has physically cut off
+    // from the city. `regionKey` is meant to be a static, precomputed fact
+    // about real connectivity; hand-editing terrain around one city without
+    // relabeling it is what breaks that invariant, not a bug in the BFS.
+    const homeTerrain = state.map.tiles[hexKey(home.position)]?.terrain ?? 'grassland';
+    setTerrain(home.position, homeTerrain, 'test-origin-region');
+
+    // Seal the city off with a full disc of open water out to radius 3 --
+    // topologically, any path from inside to outside this disc must cross
+    // it, so whatever terrain the real generated map happens to have
+    // elsewhere cannot accidentally provide a land route around it. (A thin
+    // one-tile ring is NOT enough: real land immediately past the ring
+    // would share the city's own regionKey too widely -- see above.)
+    for (const coord of mapHexesInRange(state.map, home.position, 3)) {
+      if (hexKey(coord) === hexKey(home.position)) continue;
+      setTerrain(coord, 'coast', undefined);
+    }
+
+    // A legal, positively-scored expansion site on a distinct landmass,
+    // hexDistance 6 away (within EXPANSION_SEARCH_RADIUS=8, past
+    // MIN_CITY_CENTER_DISTANCE=4), reachable only by sea.
+    const targetCenter = { q: home.position.q + 6, r: home.position.r };
+    for (const coord of mapHexesInRange(state.map, targetCenter, 2)) {
+      setTerrain(coord, 'grassland', 'test-target-region');
+    }
+
+    civ.visibility.tiles = {};
+    for (const coord of mapHexesInRange(state.map, home.position, EXPANSION_SEARCH_RADIUS)) {
+      civ.visibility.tiles[hexKey(coord)] = 'visible';
+    }
+
+    const withoutTransport = prepareMajorCivStrategicPlan(state, civ.id);
+    const expandCandidate = withoutTransport.traces
+      .find(entry => entry.decision === 'objective')
+      ?.candidates.find(entry => entry.id.startsWith('expand:'));
+
+    // Pre-#1066: this candidate never even appears in the trace -- the
+    // land-only travel resolver marks it Infinity/unreachable and
+    // `bestExpand` in `objectiveCandidates` filters it out entirely before
+    // it's ever added to the candidate list. Post-#1066: it's present (with
+    // a real, finite composed travel time), but not yet ELIGIBLE -- it now
+    // demands a transport the civ doesn't own yet, exactly like #1064's own
+    // settlement-demand pattern above.
+    expect(expandCandidate).toBeDefined();
+    expect(expandCandidate?.eligible).toBe(false);
+    const transportDemand = withoutTransport.forceDemands.find(entry => entry.role === 'transport');
+    expect(transportDemand).toMatchObject({ missing: 1, priority: 90 });
+
+    // Once the civ actually has a transport, the same candidate becomes
+    // eligible -- the whole loop (reachability -> demand -> eligibility)
+    // closes, mirroring "makes the expand candidate eligible once a settler
+    // exists" above.
+    const transport = createUnit('transport', civ.id, home.position, state.idCounters);
+    state.units[transport.id] = transport;
+    civ.units.push(transport.id);
+
+    const withTransport = prepareMajorCivStrategicPlan(state, civ.id);
+    const eligibleExpandCandidate = withTransport.traces
+      .find(entry => entry.decision === 'objective')
+      ?.candidates.find(entry => entry.id.startsWith('expand:'));
+    expect(eligibleExpandCandidate?.eligible).toBe(true);
   });
 });
 

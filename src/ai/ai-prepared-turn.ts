@@ -27,6 +27,7 @@ import {
   getExpansionCitySoftCap,
   getKnownExpansionSites,
 } from './ai-expansion-sites';
+import { findRegionCrossings } from './ai-amphibious-routing';
 import {
   assignUnitsToPortfolio,
   type AIForceDemand,
@@ -409,7 +410,16 @@ function objectiveCandidates(
       completedMovementTechHash: [...actor.techState.completed].sort().join(','),
     };
   });
-  const resolved = resolveObjectiveTravelCandidates(knownMap, travelInputs);
+  // #1066: one BFS per civ per turn, reused by every candidate below that
+  // needs a sea-crossing fallback -- see
+  // docs/superpowers/specs/2026-09-13-issue-1066-amphibious-objective-routing-design.md.
+  const originRegionKeys = new Set(
+    operationalAnchors
+      .map(anchor => knownMap.tiles[hexKey(anchor)]?.regionKey)
+      .filter((key): key is string => key !== undefined),
+  );
+  const crossings = findRegionCrossings(knownMap, originRegionKeys);
+  const resolved = resolveObjectiveTravelCandidates(knownMap, travelInputs, crossings);
   // Exactly ONE expand candidate reaches the caller, so the decision trace grows by at
   // most 1 unconditionally -- assertLegalChoices hard-throws above 12 candidates. The
   // shortlist exists only so an unreachable best site falls back to a reachable one.
