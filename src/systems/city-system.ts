@@ -1978,12 +1978,26 @@ export function foundCity(owner: string, position: HexCoord, map: GameMap, count
   };
 }
 
-export function isCityCoastal(city: City, map: GameMap): boolean {
-  const coordsToCheck = [city.position, ...hexNeighbors(city.position)];
+export function isPositionCoastal(position: HexCoord, map: GameMap): boolean {
+  const coordsToCheck = [position, ...hexNeighbors(position)];
   return coordsToCheck.some(coord => {
     const wrapped = map.wrapsHorizontally ? wrapHexCoord(coord, map.width) : coord;
     const t = map.tiles[hexKey(wrapped)];
     return t?.terrain === 'ocean' || t?.terrain === 'coast';
+  });
+}
+
+export function isCityCoastal(city: City, map: GameMap): boolean {
+  return isPositionCoastal(city.position, map);
+}
+
+/** #1107 — does this civilization currently own at least one genuinely coastal city? */
+export function civHasCoastalCity(state: GameState, civId: string): boolean {
+  const civ = state.civilizations[civId];
+  if (!civ) return false;
+  return civ.cities.some(cityId => {
+    const city = state.cities[cityId];
+    return city ? isCityCoastal(city, state.map) : false;
   });
 }
 
