@@ -25,6 +25,14 @@ import { analyzeCampaign, type CampaignAnalysisConfig, type CampaignReport } fro
 
 export interface LongHorizonScenario {
   seed: string;
+  /**
+   * #1107 -- when set, this is the literal RNG seed passed to map generation
+   * instead of `seed`. `seed` stays the scenario's stable display/tracking
+   * label (artifact filename, known-gap registry keys); `mapSeed` lets that
+   * label survive a seed swap done to fix a degenerate map-generation outlier
+   * (see docs/superpowers/specs/2026-09-14-issue-1107-coastal-city-recovery-design.md).
+   */
+  mapSeed?: string;
   challenge: string;
   mapSize: string;
   humanCount: number;
