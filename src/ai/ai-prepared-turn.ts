@@ -7,7 +7,7 @@ import type {
   PersonalityTraits,
 } from '@/core/types';
 import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
-import { getTrainableUnitsForCiv, TRAINABLE_UNITS } from '@/systems/city-system';
+import { civHasCoastalCity, getTrainableUnitsForCiv, TRAINABLE_UNITS } from '@/systems/city-system';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { isTrustedObservedLastSeenTile } from '@/systems/last-seen-presentation';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
@@ -376,6 +376,7 @@ function objectiveCandidates(
       knownCityPositions,
       operationalAnchors,
       EXPANSION_SITE_SHORTLIST,
+      !civHasCoastalCity(state, civId),
     )) {
       const anchor = nearestAnchor(site.anchor);
       const travelTurns = Math.ceil(distance(state, anchor, site.anchor) / 2);
