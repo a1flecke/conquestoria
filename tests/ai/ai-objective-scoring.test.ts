@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import type { GameMap, HexCoord } from '@/core/types';
+import { hexKey } from '@/systems/hex-utils';
 import {
   choosePrimaryObjective,
   getObjectiveApproximateDistance,
@@ -7,6 +9,10 @@ import {
   type AIObjectiveCandidate,
   type AIObjectiveTravelCandidate,
 } from '@/ai/ai-objective-scoring';
+
+function hexKeyEq(a: HexCoord, b: HexCoord): boolean {
+  return hexKey(a) === hexKey(b);
+}
 
 function candidate(
   id: string,
@@ -186,7 +192,7 @@ describe('AI objective scoring', () => {
     inputs.push({ ...inputs[0], objective: 'raid' });
     let queries = 0;
 
-    const resolved = resolveObjectiveTravelCandidates(map, inputs, (from, to) => {
+    const resolved = resolveObjectiveTravelCandidates(map, inputs, new Map(), (from, to) => {
       queries += 1;
       return [from, to];
     });
@@ -194,6 +200,88 @@ describe('AI objective scoring', () => {
     expect(resolved.length).toBeLessThanOrEqual(16);
     expect(queries).toBeLessThan(resolved.length);
     expect(queries).toBeLessThanOrEqual(24);
+  });
+
+  it('falls back to a composed sea route when the direct land path fails and a crossing exists', () => {
+    const map = {
+      width: 40, height: 20, wrapsHorizontally: false, rivers: [],
+      tiles: {
+        '3,0': { coord: { q: 3, r: 0 }, regionKey: 'target' },
+      },
+    } as unknown as GameMap;
+    const crossings = new Map([
+      ['target', {
+        targetRegionKey: 'target',
+        embarkTile: { q: 0, r: 0 },
+        disembarkTile: { q: 2, r: 0 },
+        navalDistance: 1,
+      }],
+    ]);
+    const input: AIObjectiveTravelCandidate = {
+      ...candidate('overseas', 0, 50),
+      target: { kind: 'city', id: 'overseas', lastKnownPosition: { q: 3, r: 0 } },
+      start: { q: 0, r: 0 },
+      domain: 'land',
+      movementPoints: 2,
+      completedMovementTechHash: 'none',
+    };
+    const fakePathfinder = (from: HexCoord, to: HexCoord) => {
+      // Direct land path always fails.
+      if (hexKeyEq(from, { q: 0, r: 0 }) && hexKeyEq(to, { q: 3, r: 0 })) return null;
+      // Zero-distance "path" (start === embark tile here) is a 1-tile path,
+      // matching real pathfinder semantics: distance = path.length - 1.
+      if (hexKeyEq(from, to)) return [to];
+      // Every other queried leg is a single 1-tile step.
+      return [from, to];
+    };
+
+    const [resolved] = resolveObjectiveTravelCandidates(map, [input], crossings, fakePathfinder);
+
+    // land(0,0->embark 0,0)=0 turns (start IS the embark tile) + embark
+    // overhead 1 + naval(1 tile / 2mp)=ceil(1/2)=1 turn +
+    // land(disembark 2,0->3,0)=1 step/2mp=ceil(1/2)=1 turn = 3 total.
+    expect(resolved.travelTurns).toBe(3);
+    expect(resolved.requiredRoles).toEqual({ capture: 1, transport: 1 });
+  });
+
+  it('stays unreachable when the direct land path fails and no crossing is known', () => {
+    const map = { width: 40, height: 20, wrapsHorizontally: false, rivers: [], tiles: {} } as unknown as GameMap;
+    const input: AIObjectiveTravelCandidate = {
+      ...candidate('stranded', 0, 50),
+      start: { q: 0, r: 0 },
+      domain: 'land',
+      movementPoints: 2,
+      completedMovementTechHash: 'none',
+    };
+
+    const [resolved] = resolveObjectiveTravelCandidates(map, [input], new Map(), () => null);
+
+    expect(resolved.travelTurns).toBe(Number.POSITIVE_INFINITY);
+    expect(resolved.requiredRoles).toEqual({ capture: 1 });
+  });
+
+  it('never applies the sea-crossing fallback to a naval-domain candidate', () => {
+    const map = { width: 40, height: 20, wrapsHorizontally: false, rivers: [], tiles: {} } as unknown as GameMap;
+    const crossings = new Map([
+      ['target', {
+        targetRegionKey: 'target',
+        embarkTile: { q: 0, r: 0 },
+        disembarkTile: { q: 2, r: 0 },
+        navalDistance: 1,
+      }],
+    ]);
+    const input: AIObjectiveTravelCandidate = {
+      ...candidate('naval-target', 0, 50),
+      start: { q: 0, r: 0 },
+      domain: 'naval',
+      movementPoints: 2,
+      completedMovementTechHash: 'none',
+    };
+
+    const [resolved] = resolveObjectiveTravelCandidates(map, [input], crossings, () => null);
+
+    expect(resolved.travelTurns).toBe(Number.POSITIVE_INFINITY);
+    expect(resolved.requiredRoles).toEqual({ capture: 1 });
   });
 
   it('applies the documented score formula with bounded values', () => {

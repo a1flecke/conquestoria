@@ -4,10 +4,12 @@ import type {
   AIStrategicRole,
   AITarget,
   GameMap,
+  HexCoord,
 } from '@/core/types';
 import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { findPath } from '@/systems/unit-system';
 import { createAIDecisionTrace, type AIDecisionTrace } from './ai-decision-trace';
+import type { RegionCrossing } from './ai-amphibious-routing';
 
 export interface AIObjectiveCandidate {
   objective: AIStrategicObjective;
@@ -131,9 +133,19 @@ function targetPosition(target: AITarget): { q: number; r: number } {
   }
 }
 
+/** #1066: a land-domain candidate embarks for one whole turn regardless of
+ * remaining movement points -- verified against `loadUnitOntoTransport`
+ * (`transport-system.ts`), which unconditionally sets `movementPointsLeft: 0,
+ * hasMoved: true, hasActed: true` on the loading unit. Disembarking needs no
+ * matching overhead: `canUnloadUnitFromTransport` only requires ordinary
+ * unused movement, and the unit's step onto the destination land tile is
+ * already counted by the final land leg's own pathfind. */
+const AMPHIBIOUS_EMBARK_OVERHEAD_TURNS = 1;
+
 export function resolveObjectiveTravelCandidates(
   map: GameMap,
   candidates: readonly AIObjectiveTravelCandidate[],
+  crossings: ReadonlyMap<string, RegionCrossing> = new Map(),
   pathfinder: typeof findPath = findPath,
 ): AIObjectiveCandidate[] {
   const perObjective = new Map<AIStrategicObjective, AIObjectiveTravelCandidate[]>();
@@ -166,20 +178,30 @@ export function resolveObjectiveTravelCandidates(
     .slice(0, 24);
 
   const pathLengthByKey = new Map<string, number | null>();
-  return approximate.map(candidate => {
-    const destination = targetPosition(candidate.target);
-    const cacheKey = [
-      candidate.domain,
-      hexKey(candidate.start),
-      hexKey(destination),
-      candidate.completedMovementTechHash,
-    ].join(':');
+  const pathLength = (
+    from: HexCoord,
+    to: HexCoord,
+    domain: 'land' | 'naval' | 'air',
+    techHash: string,
+  ): number | null => {
+    const cacheKey = [domain, hexKey(from), hexKey(to), techHash].join(':');
     if (!pathLengthByKey.has(cacheKey)) {
-      const path = pathfinder(candidate.start, destination, map, candidate.domain);
+      const path = pathfinder(from, to, map, domain);
       pathLengthByKey.set(cacheKey, path ? Math.max(0, path.length - 1) : null);
     }
-    const pathLength = pathLengthByKey.get(cacheKey);
+    return pathLengthByKey.get(cacheKey)!;
+  };
+
+  return approximate.map(candidate => {
+    const destination = targetPosition(candidate.target);
     const movementPoints = Math.max(1, Math.floor(candidate.movementPoints));
+    const directLength = pathLength(
+      candidate.start,
+      destination,
+      candidate.domain,
+      candidate.completedMovementTechHash,
+    );
+
     const {
       start: _start,
       domain: _domain,
@@ -187,11 +209,39 @@ export function resolveObjectiveTravelCandidates(
       completedMovementTechHash: _completedMovementTechHash,
       ...objective
     } = candidate;
+
+    if (directLength !== null) {
+      return {
+        ...objective,
+        travelTurns: Math.ceil(directLength / movementPoints),
+      };
+    }
+
+    // #1066: a land-domain candidate with no direct path may still be
+    // reachable by sea. `crossings` is empty for a same-region failure
+    // (findRegionCrossings never records a crossing back into an origin
+    // region), so this only ever fires for a genuine water gap.
+    if (candidate.domain === 'land') {
+      const targetRegionKey = map.tiles[hexKey(destination)]?.regionKey;
+      const crossing = targetRegionKey ? crossings.get(targetRegionKey) : undefined;
+      if (crossing) {
+        const toEmbark = pathLength(candidate.start, crossing.embarkTile, 'land', candidate.completedMovementTechHash);
+        const fromDisembark = pathLength(crossing.disembarkTile, destination, 'land', candidate.completedMovementTechHash);
+        if (toEmbark !== null && fromDisembark !== null) {
+          const landTurns = Math.ceil(toEmbark / movementPoints) + Math.ceil(fromDisembark / movementPoints);
+          const navalTurns = Math.ceil(crossing.navalDistance / movementPoints);
+          return {
+            ...objective,
+            travelTurns: landTurns + AMPHIBIOUS_EMBARK_OVERHEAD_TURNS + navalTurns,
+            requiredRoles: { ...objective.requiredRoles, transport: 1 },
+          };
+        }
+      }
+    }
+
     return {
       ...objective,
-      travelTurns: pathLength === null || pathLength === undefined
-        ? Number.POSITIVE_INFINITY
-        : Math.ceil(pathLength / movementPoints),
+      travelTurns: Number.POSITIVE_INFINITY,
     };
   });
 }

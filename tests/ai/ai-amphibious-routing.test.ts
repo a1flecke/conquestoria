@@ -27,7 +27,7 @@ function testMap(
         regionKey: t.regionKey,
       },
     ])),
-  } as GameMap;
+  } as unknown as GameMap;
 }
 
 describe('findRegionCrossings', () => {
