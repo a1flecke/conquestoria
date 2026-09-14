@@ -74,24 +74,55 @@ export interface KnownCampaignGap {
  * plans for 250 rounds), so the underlying defect looks unresolved, just no
  * longer visible through this specific numeric symptom. See the #1066 thread.
  *
- * F4 (found running the full matrix after #1064's expansion fix landed): the
- * same `lh-late-era-medium` scenario also reports `tech-frozen` — a civ with
- * techs objectively available completes none for 135+ rounds. #1064 fixing
- * expansion lets AI civs reach a far higher tech count within this fixed-round
- * scenario than was ever reachable while every civ was stuck at one city,
- * newly exposing this separate, pre-existing stall in `ai-research.ts`. Not
- * caused by any #1064 change (research/tech-yield code is untouched by that
- * MR) — see #1093.
+ * F4 (found running the full matrix after #1064's expansion fix landed, later
+ * investigated and re-triaged as #1093 — see that issue and its closing
+ * comment): the same `lh-late-era-medium` scenario also reports `tech-frozen`
+ * — a civ with techs objectively available completes none for 135+ rounds.
+ * #1093's investigation found the research subsystem itself
+ * (`processResearch`, `planAIResearch`, `enqueueResearch`, tech-tree topology)
+ * behaves correctly throughout — the freeze is downstream of the SAME F1
+ * zero-plan defect above, not an independent research-system bug. #1093 was
+ * closed as a duplicate/symptom of the `expansion-frozen` entry below.
+ *
+ * F5 (found verifying #1066's amphibious-objective-routing fix against this
+ * exact scenario): #1066 was designed on the assumption that `ai-3`'s
+ * zero-plan freeze was purely a strategic-reachability problem — teach the AI
+ * that a target across water is reachable, and it unsticks. That assumption
+ * was *partially* right: instrumented at round 200 of the real campaign,
+ * `findRegionCrossings` correctly finds two one-hop sea crossings from
+ * `ai-3`'s known territory, 6 of its 8 previously-permanently-unreachable
+ * `secure-resource` candidates gain real finite travel-time scores instead of
+ * `-Number.MAX_VALUE`, and `prepareMajorCivStrategicPlan`'s `forceDemands`
+ * correctly includes a `transport` role demand at priority 90. The fix works
+ * exactly as designed. But `ai-3` still never builds a transport and its
+ * `primaryPlan` stays permanently `null`, because `isCityCoastal(city, map)`
+ * returns `false` for its one city — confirmed directly, and confirmed that
+ * `troop_transport` (the non-obsolete, fully tech-unlocked terminal transport
+ * unit) passes every other production gate (tech, obsoletion, civ-type,
+ * resource) and is excluded on `coastalRequired` alone. `isCityCoastal` checks
+ * only the city's own tile plus its immediate 6 neighbors — `ai-3`'s city
+ * sits at the center of a small landmass whose immediate ring is entirely
+ * hills/mountain; its abundant coastal tiles are all 2+ tiles further out.
+ * With exactly one, non-immediately-coastal city, the civ can never build a
+ * ship regardless of how correctly it identifies a crossing. Distinct from
+ * the "fully landlocked civ" case #1066's design doc already flagged as a
+ * non-goal (zero coastal *territory* anywhere, tracked separately as #1108)
+ * — `ai-3` has plenty of coastal territory, just not within its specific
+ * city's immediate ring. Filed as #1107. #1066 itself is NOT closed by its
+ * own PR as a result — the amphibious-routing defect it targeted is fixed and
+ * proven correct (see that PR's test evidence), but this scenario's specific
+ * findings persist for the different, narrower reason #1107 now owns.
  *
  */
 export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
   {
     code: 'expansion-frozen',
-    issue: '#1066',
-    why: 'Believed to share unit-count-runaway\'s root cause: the affected civs never '
-      + 'form a single plan for the whole 250-round campaign, and #1064\'s exploration '
-      + 'loop cannot make prepareMajorCivStrategicPlan itself produce a plan -- it only '
-      + 'feeds the belief layer once a plan exists. Not caused by #1064 (see file header).',
+    issue: '#1107',
+    why: '#1066 fixed the original zero-plan cause (strategic-layer reachability across '
+      + 'water) -- confirmed working via findRegionCrossings and a correctly-seeded '
+      + 'transport demand -- but ai-3 still never builds a transport because its only '
+      + 'city fails isCityCoastal despite abundant nearby coastal territory (its '
+      + 'immediate 6-tile ring is entirely hills/mountain). See file header F5.',
     scenarios: ['lh-late-era-medium'],
   },
   {
@@ -121,14 +152,12 @@ export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
   },
   {
     code: 'tech-frozen',
-    issue: '#1093',
-    why: '#1064 fixed AI expansion, which lets AI civs reach a far higher tech count '
-      + 'within a fixed-round late-era scenario than was ever reachable while every '
-      + 'civ was stuck at one city. That newly exposes a separate, pre-existing stall '
-      + 'in ai-research.ts: a civ with techs objectively available (availableTechCount '
-      + '> 0) completes none for 135+ rounds. Not caused by any #1064 change '
-      + '(research/tech-yield code is untouched by that MR) and not triaged further '
-      + '-- out of scope here.',
+    issue: '#1107',
+    why: '#1093 (closed) traced this to the same zero-plan root cause as the '
+      + 'expansion-frozen entry above, not an independent research-system defect. '
+      + 'Now tracked at the same current owner (#1107) as that entry -- see file '
+      + 'header F5 for why #1066 fixing strategic reachability was not enough on its '
+      + 'own to unstick this civ.',
     scenarios: ['lh-late-era-medium'],
   },
 ];
