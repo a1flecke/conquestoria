@@ -19,6 +19,7 @@ import {
   isCityCenterTerrain,
 } from '@/systems/city-territory-system';
 import { hexKey, mapHexesInRange } from '@/systems/hex-utils';
+import { isPositionCoastal } from '@/systems/city-system';
 import { evaluateExpansionTarget } from './ai-strategy';
 
 /**
@@ -36,6 +37,17 @@ export const EXPANSION_SITE_SHORTLIST = 3;
 export const EXPANSION_NEIGHBOURHOOD_RADIUS = 2;
 
 export const EXPANSION_CITY_SOFT_CAP_BASE = 2;
+
+/**
+ * #1107 -- score bonus applied to a candidate site that would itself pass
+ * isPositionCoastal, but ONLY when the requesting civ currently has zero
+ * coastal cities (needsCoastalAccess). Sized to reliably overcome
+ * evaluateExpansionTarget's ocean-tile penalty and typical terrain-score
+ * spread for a radius-2 neighbourhood; confirmed against the fixture data in
+ * tests/ai/ai-expansion-sites.test.ts before this value was finalized here --
+ * if you need to change it, re-measure against real data, don't guess.
+ */
+export const COASTAL_ACCESS_RECOVERY_BONUS = 40;
 
 export interface AIExpansionSite {
   anchor: HexCoord;
@@ -75,6 +87,7 @@ export function getKnownExpansionSites(
   knownCityPositions: readonly HexCoord[],
   anchors: readonly HexCoord[],
   limit: number,
+  needsCoastalAccess = false,
 ): AIExpansionSite[] {
   if (anchors.length === 0 || limit <= 0) return [];
 
@@ -94,7 +107,11 @@ export function getKnownExpansionSites(
     const tooClose = knownCityPositions.some(city =>
       cityDistance(coord, city, knownMap) < MIN_CITY_CENTER_DISTANCE);
     if (tooClose) continue;
-    sites.push({ anchor: { ...coord }, score: scoreNeighbourhood(knownMap, coord) });
+    const baseScore = scoreNeighbourhood(knownMap, coord);
+    const score = needsCoastalAccess && isPositionCoastal(coord, knownMap)
+      ? baseScore + COASTAL_ACCESS_RECOVERY_BONUS
+      : baseScore;
+    sites.push({ anchor: { ...coord }, score });
   }
 
   return sites

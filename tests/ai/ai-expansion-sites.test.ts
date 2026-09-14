@@ -155,6 +155,56 @@ describe('getKnownExpansionSites', () => {
     const map = knownMap(patch(0, 0, 8, 'ocean'));
     expect(getKnownExpansionSites(map, [ORIGIN], [ORIGIN], 5)).toEqual([]);
   });
+
+  describe('#1107 — needsCoastalAccess bonus', () => {
+    // Site A (6,0): all-grassland radius-2 neighbourhood, not coastal. 19 tiles
+    // * grassland(+3) = 57.
+    // Site B (-6,0): plains radius-2 neighbourhood but its OWN immediate ring
+    // includes one ocean tile, making it isPositionCoastal. 18 tiles * plains
+    // (+2.5) + 1 tile * ocean(-2) = 43. So A outscores B on raw terrain alone.
+    function biasMap(): GameMap {
+      return knownMap([
+        ...patch(0, 0, 8, 'desert'),
+        ...patch(6, 0, 2, 'grassland'),
+        ...patch(-6, 0, 2, 'plains'),
+        { q: -5, r: 0, terrain: 'ocean' }, // immediate neighbour of (-6,0)
+      ]);
+    }
+
+    it('does not change ranking when needsCoastalAccess is false (default)', () => {
+      const sites = getKnownExpansionSites(biasMap(), [ORIGIN], [ORIGIN], 3);
+      expect(hexKey(sites[0]!.anchor)).toBe(hexKey({ q: 6, r: 0 }));
+    });
+
+    it('promotes the genuinely coastal site when needsCoastalAccess is true', () => {
+      const withoutBonus = getKnownExpansionSites(biasMap(), [ORIGIN], [ORIGIN], 3, false);
+      expect(withoutBonus.map(s => hexKey(s.anchor))).not.toContain(hexKey({ q: -6, r: 0 }));
+
+      const withBonus = getKnownExpansionSites(biasMap(), [ORIGIN], [ORIGIN], 3, true);
+      expect(hexKey(withBonus[0]!.anchor)).toBe(hexKey({ q: -6, r: 0 }));
+    });
+
+    it('never promotes a coastal site inside MIN_CITY_CENTER_DISTANCE even with needsCoastalAccess', () => {
+      // (3,0) is desert (city-centre legal) with an ocean neighbour at (3,-1),
+      // so it IS coastal -- but only hexDistance 3 from the known city at ORIGIN,
+      // inside MIN_CITY_CENTER_DISTANCE(4). Must never appear regardless of bonus.
+      const map = knownMap([
+        ...patch(0, 0, 8, 'desert'),
+        { q: 3, r: -1, terrain: 'ocean' },
+      ]);
+      const sites = getKnownExpansionSites(map, [ORIGIN], [ORIGIN], 50, true);
+      expect(sites.map(s => hexKey(s.anchor))).not.toContain(hexKey({ q: 3, r: 0 }));
+    });
+
+    it('has no effect on a civ that already has coastal access (needsCoastalAccess: false is the caller-supplied answer, not derived here)', () => {
+      // getKnownExpansionSites itself is GameState-free -- it trusts whatever
+      // needsCoastalAccess the caller passes. This test just pins that omitting
+      // the argument entirely defaults to false (same as passing it explicitly).
+      const withDefault = getKnownExpansionSites(biasMap(), [ORIGIN], [ORIGIN], 3);
+      const withExplicitFalse = getKnownExpansionSites(biasMap(), [ORIGIN], [ORIGIN], 3, false);
+      expect(withDefault).toEqual(withExplicitFalse);
+    });
+  });
 });
 
 describe('getExpansionCitySoftCap', () => {
