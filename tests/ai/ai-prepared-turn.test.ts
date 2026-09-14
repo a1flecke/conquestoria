@@ -1059,6 +1059,105 @@ describe('#1064 expand objective candidates', () => {
       ?.candidates.find(entry => entry.id.startsWith('expand:'));
     expect(eligibleExpandCandidate?.eligible).toBe(true);
   });
+
+  describe('#1107 — coastal-access recovery bias', () => {
+    function setTerrain(state: GameState, coord: HexCoord, terrain: TerrainType) {
+      const key = hexKey(coord);
+      const existing = state.map.tiles[key];
+      state.map.tiles[key] = {
+        coord,
+        terrain,
+        elevation: existing?.elevation ?? 'lowland',
+        resource: existing?.resource ?? null,
+        improvement: existing?.improvement ?? null,
+        owner: existing?.owner ?? null,
+        improvementTurnsLeft: existing?.improvementTurnsLeft ?? 0,
+        hasRiver: existing?.hasRiver ?? false,
+        wonder: existing?.wonder ?? null,
+      };
+    }
+
+    // Shared geometry for both tests below: a home city at a fixed absolute
+    // position (avoids any real-map-generation wrap/edge risk, same
+    // convention as the #1066 test above), an inland site with strictly
+    // better raw terrain (all grassland) and a coastal site with strictly
+    // worse raw terrain (plains, plus one ocean neighbour making it
+    // isPositionCoastal) -- both hexDistance 6 from home (legal, within
+    // EXPANSION_SEARCH_RADIUS).
+    function buildGeometry(state: GameState, civId: string) {
+      const home = foundCity(civId, { q: 15, r: 15 }, state.map, state.idCounters);
+      state.cities[home.id] = home;
+      state.civilizations[civId]!.cities.push(home.id);
+
+      // Blanket the ENTIRE search+scoring area with a neutral, non-coastal
+      // terrain first -- otherwise real map-generated ocean/coast elsewhere
+      // in this radius could itself pass isPositionCoastal and win the bias
+      // instead of the deliberately-constructed coastalAnchor site below.
+      for (const coord of mapHexesInRange(state.map, home.position, EXPANSION_SEARCH_RADIUS + 2)) {
+        setTerrain(state, coord, 'desert');
+      }
+
+      const inlandAnchor: HexCoord = { q: home.position.q + 6, r: home.position.r };
+      for (const coord of mapHexesInRange(state.map, inlandAnchor, 2)) {
+        setTerrain(state, coord, 'grassland');
+      }
+
+      const coastalAnchor: HexCoord = { q: home.position.q - 6, r: home.position.r };
+      for (const coord of mapHexesInRange(state.map, coastalAnchor, 2)) {
+        setTerrain(state, coord, 'plains');
+      }
+      setTerrain(state, { q: coastalAnchor.q, r: coastalAnchor.r - 1 }, 'ocean');
+
+      const civ = state.civilizations[civId]!;
+      civ.visibility.tiles = {};
+      for (const coord of mapHexesInRange(state.map, home.position, EXPANSION_SEARCH_RADIUS)) {
+        civ.visibility.tiles[hexKey(coord)] = 'visible';
+      }
+
+      return { home, inlandAnchor, coastalAnchor };
+    }
+
+    it('promotes the coastal site over a better-terrain inland one when the civ has no coastal city', () => {
+      const state = createNewGame(undefined, 'coastal-recovery-bias-on', 'small');
+      const civ = state.civilizations['ai-1']!;
+      const { home, coastalAnchor } = buildGeometry(state, civ.id);
+      // Guarantee the home city itself is NOT coastal -- its own tile and
+      // every immediate neighbour are grassland.
+      setTerrain(state, home.position, 'grassland');
+      for (const neighbor of getWrappedHexNeighbors(home.position, state.map.width)) {
+        setTerrain(state, neighbor, 'grassland');
+      }
+
+      const expandCandidate = prepareMajorCivStrategicPlan(state, civ.id).traces
+        .find(entry => entry.decision === 'objective')
+        ?.candidates.find(entry => entry.id.startsWith('expand:'));
+
+      expect(expandCandidate?.id).toBe(`expand:region:settle:${hexKey(coastalAnchor)}`);
+    });
+
+    it('does not bias site selection when the civ already has a coastal city', () => {
+      const state = createNewGame(undefined, 'coastal-recovery-bias-off', 'small');
+      const civ = state.civilizations['ai-1']!;
+      const { home, inlandAnchor } = buildGeometry(state, civ.id);
+      // Make the home city ITSELF coastal (one neighbour is ocean) rather than
+      // adding a second owned city -- adding a second city would push
+      // ownCities.length to 2, which can trip the expansion soft cap and
+      // suppress the expand candidate entirely for reasons unrelated to this
+      // test.
+      setTerrain(state, home.position, 'grassland');
+      const homeNeighbors = getWrappedHexNeighbors(home.position, state.map.width);
+      setTerrain(state, homeNeighbors[0]!, 'ocean');
+      for (const neighbor of homeNeighbors.slice(1)) {
+        setTerrain(state, neighbor, 'grassland');
+      }
+
+      const expandCandidate = prepareMajorCivStrategicPlan(state, civ.id).traces
+        .find(entry => entry.decision === 'objective')
+        ?.candidates.find(entry => entry.id.startsWith('expand:'));
+
+      expect(expandCandidate?.id).toBe(`expand:region:settle:${hexKey(inlandAnchor)}`);
+    });
+  });
 });
 
 describe('#1064 difficulty invariance', () => {
