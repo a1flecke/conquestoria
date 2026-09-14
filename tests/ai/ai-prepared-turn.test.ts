@@ -1157,6 +1157,31 @@ describe('#1064 expand objective candidates', () => {
 
       expect(expandCandidate?.id).toBe(`expand:region:settle:${hexKey(inlandAnchor)}`);
     });
+
+    it('end-to-end: ai-1 under the swapped lh-late-era-medium seed targets a genuinely coastal site', async () => {
+      // Exercises Tasks 1-5 together against the REAL generated map (not a
+      // synthetic fixture) -- the exact scenario/civ the #1107 design doc's
+      // seed swap (lh-1107-search-0) was chosen to make genuinely solvable.
+      const { scenarioBySeed, runScenario } = await import('../simulation/long-horizon/campaign-scenarios');
+      const { civHasCoastalCity: civHasCoastalCityFn, isPositionCoastal: isPositionCoastalFn } =
+        await import('@/systems/city-system');
+
+      const scenario = scenarioBySeed('lh-late-era-medium');
+      expect(scenario.mapSeed).toBe('lh-1107-search-0');
+      const run = runScenario(scenario, { turns: 1 });
+      const state = run.finalState;
+
+      expect(state.civilizations['ai-1']).toBeDefined();
+      expect(civHasCoastalCityFn(state, 'ai-1')).toBe(false);
+
+      const expandCandidate = prepareMajorCivStrategicPlan(state, 'ai-1').traces
+        .find(entry => entry.decision === 'objective')
+        ?.candidates.find(entry => entry.id.startsWith('expand:region:settle:'));
+
+      expect(expandCandidate).toBeDefined();
+      const [q, r] = expandCandidate!.id.replace('expand:region:settle:', '').split(',').map(Number);
+      expect(isPositionCoastalFn({ q, r }, state.map)).toBe(true);
+    }, 30000);
   });
 });
 
