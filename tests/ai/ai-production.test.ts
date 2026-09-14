@@ -545,7 +545,7 @@ describe('AI strategic production', () => {
     expect(result.cities['city-a'].productionQueue[0]).toBe('warrior');
   });
 
-  it('requires cargo demand for transport and keeps transport pairing coherent', () => {
+  it('builds a transport for an explicit transport demand alone (#1066 amphibious routing)', () => {
     const state = setupState(['galleys']);
     makeCoastal(state);
 
@@ -563,9 +563,17 @@ describe('AI strategic production', () => {
       [demand('transport'), demand('capture')],
       expansionist,
     );
+    const unrelatedDemandOnly = generateAIProductionCandidates(
+      state,
+      'ai-1',
+      'city-a',
+      [demand('worker')],
+      expansionist,
+    );
 
-    expect(transportOnly.map(candidate => candidate.itemId)).not.toContain('transport');
+    expect(transportOnly.map(candidate => candidate.itemId)).toContain('transport');
     expect(paired.map(candidate => candidate.itemId)).toContain('transport');
+    expect(unrelatedDemandOnly.map(candidate => candidate.itemId)).not.toContain('transport');
   });
 
   it('classifies carrier as naval combat and escort rather than transport', () => {

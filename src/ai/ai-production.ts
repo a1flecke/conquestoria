@@ -493,8 +493,13 @@ function generateWithResidual(
   );
   const builtNationalProjectKeys = getReservedNationalProjectKeys(state, civId);
   const productionCostContext = buildProductionCostContext(state, civId, cityId);
+  // #1066: a transport can be justified two ways -- an existing combat-cargo
+  // demand (the original "ferry my army overseas" case), or an explicit
+  // `transport` demand on its own (the amphibious-objective-routing case,
+  // where `resolveObjectiveTravelCandidates` seeds `requiredRoles.transport`
+  // directly for a civilian/settler crossing with no combat unit involved).
   const cargoDemand = demands.some(entry =>
-    entry.missing > 0 && COMBAT_CARGO_ROLES.has(entry.role));
+    entry.missing > 0 && (COMBAT_CARGO_ROLES.has(entry.role) || entry.role === 'transport'));
   const needsCaptureCapacity = demands.some(entry =>
     entry.missing > 0 && (entry.role === 'capture' || entry.role === 'frontline'));
   const hasCaptureCapacity = civ.units.some(unitId => {
