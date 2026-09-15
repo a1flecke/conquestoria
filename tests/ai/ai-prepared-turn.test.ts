@@ -1342,6 +1342,82 @@ describe('#1064 expand objective candidates', () => {
       expect(stickyPlan?.id).toBe(`expand:region:settle:${hexKey(siteB)}`);
     });
 
+    it('switches away from a committed target once a dramatically better candidate is available, instead of staying sticky forever', () => {
+      // Found investigating the same "dig into both" follow-up as the
+      // distance-bound test above: after that fix landed, ai-1 in the real
+      // campaign STAYED on its committed target (score 46.75) even though it
+      // genuinely qualified as "in reach" (a real wraparound route across the
+      // map, not a stale/unreachable pin -- see the distance-bound test's own
+      // comment) -- because "still findable in rankedExpand" was the ONLY
+      // criterion for staying committed, with no comparison against how much
+      // better the alternatives were. Three local candidates scoring 71-73
+      // sat completely untried the whole time. The switching-margin fix
+      // mirrors selectPrimaryPlan's own switchingBonus hysteresis: a SMALL
+      // score gap (the "stays committed" test above) must not evict the
+      // current target, but a LARGE one must.
+      const state = createNewGame(undefined, 'coastal-recovery-switch-large-gap', 'small');
+      const civ = state.civilizations['ai-1']!;
+      const home = foundCity(civ.id, { q: 15, r: 15 }, state.map, state.idCounters);
+      state.cities[home.id] = home;
+      civ.cities.push(home.id);
+
+      for (const coord of mapHexesInRange(state.map, home.position, EXPANSION_SEARCH_RADIUS + 2)) {
+        setTerrain(state, coord, 'desert');
+      }
+      setTerrain(state, home.position, 'grassland');
+      for (const neighbor of getWrappedHexNeighbors(home.position, state.map.width)) {
+        setTerrain(state, neighbor, 'grassland');
+      }
+
+      // Site A: all-grassland neighbourhood -- dramatically outscores the
+      // desert committed site below (neither is coastal, so #1107's bias
+      // plays no role in this test).
+      const siteA: HexCoord = { q: home.position.q + 6, r: home.position.r };
+      for (const coord of mapHexesInRange(state.map, siteA, 2)) {
+        setTerrain(state, coord, 'grassland');
+      }
+
+      // The committed site: left as desert (the blanket fill above), a real,
+      // legal, in-reach, but dramatically worse site.
+      const weakCommittedSite: HexCoord = { q: home.position.q - 6, r: home.position.r };
+
+      civ.visibility.tiles = {};
+      for (const coord of mapHexesInRange(state.map, home.position, EXPANSION_SEARCH_RADIUS)) {
+        civ.visibility.tiles[hexKey(coord)] = 'visible';
+      }
+
+      const settler = createUnit('settler', civ.id, home.position, state.idCounters);
+      state.units[settler.id] = settler;
+      civ.units.push(settler.id);
+
+      state.opponentAI!.majorCivs[civ.id] = {
+        ...createEmptyMajorCivPortfolio(),
+        primaryPlan: {
+          id: `ai-plan:${civ.id}:expand:region:settle:${hexKey(weakCommittedSite)}:1`,
+          actorId: civ.id,
+          objective: 'expand',
+          target: { kind: 'region', id: `settle:${hexKey(weakCommittedSite)}`, anchor: { ...weakCommittedSite } },
+          theaterId: `local:${weakCommittedSite.q},${weakCommittedSite.r}`,
+          phase: 'advancing',
+          reasonCodes: [],
+          commitment: 0.25,
+          createdTurn: 1,
+          reconsiderAfterTurn: 4,
+          expiresAfterTurn: 13,
+          lastProgressTurn: 1,
+          requiredRoles: { settlement: 1 },
+          assignedUnitIds: [settler.id],
+        },
+      };
+
+      const result = prepareMajorCivStrategicPlan(state, civ.id).traces
+        .find(entry => entry.decision === 'objective')
+        ?.candidates.find(entry => entry.id.startsWith('expand:'));
+
+      expect(result?.id).not.toBe(`expand:region:settle:${hexKey(weakCommittedSite)}`);
+      expect(result?.id).toBe(`expand:region:settle:${hexKey(siteA)}`);
+    });
+
     it('drops a committed target once it falls outside EXPANSION_SEARCH_RADIUS of every current anchor, instead of pinning it forever', () => {
       // Found investigating a further "dig into both" request after the four
       // Task-7 fixes above landed: ai-1 in the real campaign stayed pinned to

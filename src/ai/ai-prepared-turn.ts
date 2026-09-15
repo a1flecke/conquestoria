@@ -503,7 +503,24 @@ function objectiveCandidates(
     ? rankedExpand.find(candidate =>
         candidate.target.kind === 'region' && candidate.target.id === currentExpandTarget.id)
     : undefined;
-  const bestExpand = stillCommitted ?? rankedExpand[0];
+  const bestRankedExpand = rankedExpand[0];
+  // Sticky, but not absolutely -- mirrors selectPrimaryPlan's own switchingBonus
+  // hysteresis (10 + 20*commitment): a small score gap (fog noise, minor terrain
+  // reveals) must not evict a committed target; a LARGE one (a much better site
+  // genuinely became known/reachable) must. Without this, once any target
+  // qualifies as "still committed" (legal, in reach) it wins forever regardless
+  // of how much better another option is. Found via a #1107 Task-7 follow-up:
+  // ai-1 stayed on a target scoring 46.75 -- technically in reach via a real
+  // wraparound route, not a stale/unreachable pin, so the radius check above
+  // correctly kept it -- while three local candidates scoring 71-73 sat
+  // completely untried, because "still findable" alone was the only criterion
+  // for staying committed.
+  const switchingMargin = 10 + 20 * (currentPlan?.commitment ?? 0);
+  const bestExpand = stillCommitted
+    && bestRankedExpand
+    && scoreObjectiveCandidate(stillCommitted) + switchingMargin >= scoreObjectiveCandidate(bestRankedExpand)
+    ? stillCommitted
+    : bestRankedExpand;
   return [
     ...resolved.filter(candidate => candidate.objective !== 'expand'),
     ...(bestExpand ? [bestExpand] : []),
