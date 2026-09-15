@@ -39,7 +39,7 @@ import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import { isAIHostileOwner } from './ai-hostility';
 import { buildMajorCivPerception } from './ai-perception';
 import { getChallengeProfileForCiv } from '@/core/opponent-challenge';
-import { getMarginalCivResearchGain } from '@/systems/research-output-system';
+import { computeResearchScoringBaseline, getMarginalCivResearchGain } from '@/systems/research-output-system';
 import { getCapitalCityId } from '@/systems/capital-system';
 import { majorCivWarOpponentIds } from '@/core/owner-kind';
 
@@ -491,6 +491,10 @@ function generateWithResidual(
     1,
     calculateProjectedCityYields(state, cityId, civDefinition?.bonusEffect).production,
   );
+  // #1069: computed once per city-scoring call and reused across every building candidate below,
+  // instead of each candidate independently re-deriving the whole civ's projected research
+  // output from scratch. See docs/superpowers/specs/2026-09-15-issue-1069-ai-round-perf-design.md §5.
+  const researchBaseline = computeResearchScoringBaseline(state, civId);
   const builtNationalProjectKeys = getReservedNationalProjectKeys(state, civId);
   const productionCostContext = buildProductionCostContext(state, civId, cityId);
   // #1066: a transport can be justified two ways -- an existing combat-cargo
@@ -661,7 +665,7 @@ function generateWithResidual(
     arsenalStatus,
     getCapitalCityId(state, civId),
   )) {
-    const researchValueScore = getMarginalCivResearchGain(state, civId, cityId, building.id) * 1.25;
+    const researchValueScore = getMarginalCivResearchGain(state, civId, cityId, building.id, researchBaseline) * 1.25;
     const economyScore = economyValue(building.id, researchValueScore);
     const maintenanceImpact = projectedBuildingMaintenanceImpact(
       state,
