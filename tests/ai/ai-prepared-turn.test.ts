@@ -1316,7 +1316,7 @@ describe('#1064 expand objective candidates', () => {
 
       // Now seed a pre-existing plan already committed to site B, as if the
       // settler had been walking there for several rounds.
-      state.opponentAI.majorCivs[civ.id] = {
+      state.opponentAI!.majorCivs[civ.id] = {
         ...createEmptyMajorCivPortfolio(),
         primaryPlan: {
           id: `ai-plan:${civ.id}:expand:region:settle:${hexKey(siteB)}:1`,
@@ -1398,7 +1398,7 @@ describe('#1064 expand objective candidates', () => {
       state.units[settler.id] = settler;
       civ.units.push(settler.id);
 
-      state.opponentAI.majorCivs[civ.id] = {
+      state.opponentAI!.majorCivs[civ.id] = {
         ...createEmptyMajorCivPortfolio(),
         primaryPlan: {
           id: `ai-plan:${civ.id}:expand:region:settle:${hexKey(illegalSite)}:1`,
