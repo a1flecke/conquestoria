@@ -122,7 +122,24 @@ test passing unchanged.
 
 ---
 
-### Task 2: Failing-shape + equivalence tests for the `ai-upgrades.ts` distance prefilter
+### Task 2 & 3: DONE (`8656a751`) — see commit for the executed diff
+
+Implemented as designed, with one test-harness correction found while executing: the initial
+`findPathSpy` assertion in Step 1 install the spy before calling `prepared(state)`, and
+`prepared()` (`prepareMajorCivStrategicPlan`) does its OWN unrelated `findPath` calls (objective
+scoring / exploration) — so the spy caught background noise, not `processAIUpgrades`'s own calls.
+Fixed by computing `prepared(state)` first, then installing the spy immediately before
+`processAIUpgrades`. Both tests then correctly failed pre-fix and passed post-fix.
+
+Measured impact (`yarn perf:report`, crowded fixture, this fix alone):
+`aiRound.heapPops` e1 116,596→2,658 (−97.7%), e2 386,884→5,704 (−98.5%); `aiRound.pathQueries` e1
+251→181 (−27.9%), e2 572→313 (−45.3%); heapPops e2/e1 ratio 3.32×→2.15× (shape improved, not just
+constant factor). Full `tests/ai/` (691 tests) and the whole-round golden-digest equivalence test
+both green, unmodified.
+
+Original task bodies retained below for reference.
+
+### Task 2 (original): Failing-shape + equivalence tests for the `ai-upgrades.ts` distance prefilter
 
 **Files:**
 - Modify: `tests/ai/ai-upgrades.test.ts` (279 lines currently — read it first for existing
@@ -277,7 +294,29 @@ test passing unchanged.
 
 ---
 
-### Task 4: Implement the research-scoring baseline (`research-output-system.ts` + `ai-production.ts`)
+### Task 4: DONE (committed separately, see commit for exact diff)
+
+Implemented as designed, with one structural improvement over the original draft: the civ-level
+inputs derivation (`resourceYieldBonus`, `nationalProjectBonus`, `empireTechPercents`,
+`empireFlatTechYields`, `empireFlatTargetCityId`, `civDefinitionBonusEffect`) was factored into a
+single `civResearchProjectionInputs(state, civId)` helper, shared by both
+`getProjectedCityScience` (the full-scan path, now delegating to it) and
+`computeResearchScoringBaseline` (the new baseline), instead of duplicating that derivation
+inline in both places as the original plan draft showed. All 10 new equivalence tests
+(`tests/systems/research-output-system-baseline.test.ts`) passed on the **first run**, including
+the two fallback-scope tests (unique national-project building, active network-governance bonus)
+and the exact call-count assertions (1 call for the fast path, `civ.cities.length` for the
+national-project fallback, `2 * civ.cities.length` for the no-baseline full path) -- the design's
+cache-validity proof held exactly as derived.
+
+Measured impact (this fix alone, on top of Task 3's): `aiRound.cityYieldCalls` e1 9,616→2,184
+(−77.3%), e2 31,164→5,220 (−83.2%); ratio 3.24×→2.39× (shape improved). Full `tests/ai/` (701
+tests, both AI test files) and the whole-round golden-digest equivalence test both green,
+unmodified.
+
+Original task body retained below for reference.
+
+### Task 4 (original): Implement the research-scoring baseline (`research-output-system.ts` + `ai-production.ts`)
 
 **Files:**
 - Modify: `src/systems/research-output-system.ts` (extract `projectOneCityScience`, add
