@@ -77,6 +77,7 @@ function computeBaseline(runs: Record<PerfArea, AreaSample[]>, priorAuditedCommi
         heapPops: cap(a['aiRound@e2'].heapPops!),
         structuredCloneWholeState: cap(a['aiRound@e2'].structuredCloneWholeState!),
         blockingEntityAtCalls: cap(a['aiRound@e2'].blockingEntityAtCalls!),
+        cityYieldCalls: cap(a['aiRound@e2'].cityYieldCalls!),
       },
       findPath: {
         heapPops: cap(a.findPath.heapPops!),
@@ -98,6 +99,7 @@ function computeBaseline(runs: Record<PerfArea, AreaSample[]>, priorAuditedCommi
       turnHeapPops: Number((ratio(a['turn@e2'].heapPops!, a['turn@e1'].heapPops!) * RATIO_SLACK).toFixed(2)),
       aiRoundPathQueries: Number((ratio(a['aiRound@e2'].pathQueries!, a['aiRound@e1'].pathQueries!) * RATIO_SLACK).toFixed(2)),
       aiRoundHeapPops: Number((ratio(a['aiRound@e2'].heapPops!, a['aiRound@e1'].heapPops!) * RATIO_SLACK).toFixed(2)),
+      aiRoundCityYieldCalls: Number((ratio(a['aiRound@e2'].cityYieldCalls!, a['aiRound@e1'].cityYieldCalls!) * RATIO_SLACK).toFixed(2)),
       saveBytes: Number((ratio(a['saveSerialize@e2'].bytes!, a['saveSerialize@e1'].bytes!) * RATIO_SLACK).toFixed(2)),
       saveEntityBytes: Number((ratio(a['saveSerialize@e2'].entityBytes!, a['saveSerialize@e1'].entityBytes!) * RATIO_SLACK).toFixed(2)),
       // findPath: a directed A* pops at most a constant factor more nodes than
@@ -253,6 +255,24 @@ describe('#1007 algorithmic budgets', () => {
     }
     if (e1.heapPops! > 0) {
       expect(e2.heapPops! / e1.heapPops!).toBeLessThanOrEqual(base.ratios.aiRoundHeapPops!);
+    }
+  });
+
+  it('GUARD 8 — #1069: a full AI round\'s city-yield work stays bounded (and no more super-linear)', () => {
+    // `getProjectedCityScience`'s ai-production.ts research-scoring caller used to recompute the
+    // whole civ's projected science from scratch (twice) per (city, building) candidate pair —
+    // O(cities² × buildings). #1069 fixed that; this guard is what stops it from silently
+    // regressing back. Same absolute-budget-primary / ratio-secondary shape as GUARD 3.
+    //
+    // Sabotage: in ai-production.ts's generateWithResidual, drop the `researchBaseline` argument
+    // from the getMarginalCivResearchGain call (revert to the un-cached 4-arg call) → e2
+    // cityYieldCalls jumps back to ~31,164, well past this tightened budget.
+    const e1 = S('aiRound@e1');
+    const e2 = S('aiRound@e2');
+    expect(e2.cityYieldCalls!, 'AI round city-yield budget').toBeLessThanOrEqual(base.budgets.aiRound!.cityYieldCalls!);
+    if (e1.cityYieldCalls! > 0) {
+      expect(e2.cityYieldCalls! / e1.cityYieldCalls!, 'AI round city-yield work must not get MORE super-linear')
+        .toBeLessThanOrEqual(base.ratios.aiRoundCityYieldCalls!);
     }
   });
 

@@ -111,6 +111,7 @@ export function measurePerfArea(area: PerfArea, fx: PerfFixtures): AreaSample {
         heapPops: counts.heapPops,
         structuredCloneWholeState: counts.structuredCloneWholeState,
         blockingEntityAtCalls: counts.blockingEntityAtCalls,
+        cityYieldCalls: counts.cityYieldCalls,
       };
     }
     case 'findPath': {
