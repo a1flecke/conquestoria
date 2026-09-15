@@ -81,6 +81,14 @@ function scoreNeighbourhood(knownMap: GameMap, centre: HexCoord): number {
  *
  * `knownMap` MUST already be fog-bounded -- this performs no visibility filtering of
  * its own.
+ *
+ * `needsCoastalAccess` adds `COASTAL_ACCESS_RECOVERY_BONUS` to any candidate that is
+ * itself coastal (#1107), so a civ with no coastal city prefers regaining sea access.
+ *
+ * `pinnedAnchor` keeps a caller's already-committed site in the result even when it has
+ * fallen out of the top `limit`, so the caller can decide whether to stay committed. It
+ * is appended, so the result can hold up to `limit + 1` entries when the pinned site did
+ * not rank into the shortlist on its own.
  */
 export function getKnownExpansionSites(
   knownMap: GameMap,
@@ -105,7 +113,7 @@ export function getKnownExpansionSites(
   // that can't happen (an in-progress target was itself found within radius of
   // an anchor), but this keeps the guarantee independent of that assumption.
   const pinnedKey = pinnedAnchor ? hexKey(pinnedAnchor) : undefined;
-  if (pinnedAnchor && pinnedKey && !considered.has(pinnedKey) && knownMap.tiles[pinnedKey]) {
+  if (pinnedKey && !considered.has(pinnedKey) && knownMap.tiles[pinnedKey]) {
     considered.set(pinnedKey, knownMap.tiles[pinnedKey]!.coord);
   }
 

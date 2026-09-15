@@ -269,6 +269,7 @@ function objectiveCandidates(
     : perception.ownUnits
         .filter(unit => !unit.transportId)
         .map(unit => unit.position);
+  if (!actor || operationalAnchors.length === 0) return [];
   // #1107 -- a settler committed to an in-progress expand site must not get
   // redirected to a different one just because fog revealed a few more terrain
   // tiles this round and shifted the raw score ordering. Computed once, reused
@@ -292,10 +293,10 @@ function objectiveCandidates(
   // was reachable when it was first pinned can end up permanently favoured
   // even after the civ's own operational anchors move on (a new city founded
   // elsewhere, an old one lost), leaving it stuck "committed" to a target
-  // dozens of tiles away while several far-better, genuinely local candidates
-  // sit unused. Confirmed against the real campaign: ai-1 stayed pinned to a
-  // site 42+ tiles from either of its cities (score 46.75) while three
-  // legal, close candidates scoring 71-73 went untried.
+  // far away while better, genuinely local candidates sit unused. This bound is
+  // a structural guarantee rather than a fix for an observed stall: in the
+  // lh-late-era-medium campaign the one suspicious-looking case turned out to
+  // be within radius once horizontal map wrapping is accounted for.
   const currentExpandTargetInReach = currentExpandTargetRaw
     ? operationalAnchors.some(anchor =>
         distance(state, anchor, currentExpandTargetRaw.anchor) <= EXPANSION_SEARCH_RADIUS)
@@ -305,7 +306,6 @@ function objectiveCandidates(
     && canFoundCityAt(state, currentExpandTargetRaw.anchor)
     ? currentExpandTargetRaw
     : undefined;
-  if (!actor || operationalAnchors.length === 0) return [];
   const nearestAnchor = (target: { q: number; r: number }) =>
     [...operationalAnchors].sort((left, right) =>
       distance(state, left, target) - distance(state, right, target)
@@ -421,10 +421,10 @@ function objectiveCandidates(
     const knownCityPositions = [
       ...perception.ownCities.map(city => city.position),
       ...perception.knownCities.flatMap(city => city.position ? [city.position] : []),
-      ...Object.values(state.minorCivs)
-        .map(minorCiv => state.cities[minorCiv.cityId])
-        .filter(city => city && isVisible(actor.visibility, city.position))
-        .map(city => city!.position),
+      ...Object.values(state.minorCivs).flatMap(minorCiv => {
+        const city = state.cities[minorCiv.cityId];
+        return city && isVisible(actor.visibility, city.position) ? [city.position] : [];
+      }),
     ];
     for (const site of getKnownExpansionSites(
       knownMap,
