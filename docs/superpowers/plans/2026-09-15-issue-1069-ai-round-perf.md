@@ -69,9 +69,22 @@ per the assignment), do not improvise past it.
 
 ### Task 1: Golden-reference fixture for whole-round behavioral equivalence
 
+**IMPLEMENTATION NOTE (found while executing this task, not anticipated when this plan was
+written):** a raw JSON dump of `aiRound@e2`'s full resulting `GameState` is ~12.5MB (8.5MB for
+e1) — an unreasonable thing to commit, and it would grow by that much again on every future
+regen. Switched to **per-top-level-key digests**, reusing this repo's existing convention for
+exactly this problem: `tests/storage/fixtures/save-compat/migration-digest.ts` (#1023)'s
+`digestMigratedState`/`describeDigestDrift`, imported directly rather than reimplemented, plus a
+small local digest for `traces` (not itself a `GameState`). Output is ~120 lines instead of tens
+of megabytes, and a failure still names the divergent top-level key. This does not change what's
+being proven — a digest divergence is exactly as strong a signal as a full-value divergence,
+just without full diagnostic detail on-hand (get that by regenerating a NEW digest locally,
+comparing key-by-key, and inspecting the live objects in a debugger/temporary log — never by
+re-baselining the committed golden file to match a divergence).
+
 **Files:**
-- Create: `tests/perf/fixtures/__reference__/aiRound-1069-e1.json`
-- Create: `tests/perf/fixtures/__reference__/aiRound-1069-e2.json`
+- Create: `tests/perf/fixtures/aiRound-1069-golden-digests.json` (compact digest file, not a raw
+  state dump — see note above)
 - Create: `tests/perf/aiRound-1069-equivalence.test.ts`
 
 **Interfaces:**
@@ -82,86 +95,26 @@ per the assignment), do not improvise past it.
 This is the load-bearing equivalence proof for the WHOLE MR — every later task must leave this
 test passing unchanged.
 
-- [ ] **Step 1: Generate the golden reference on the UNMODIFIED current `main`-equivalent code**
-  (i.e. before any of this plan's src changes land — run this step first, on a clean checkout of
-  this branch before Task 3/4 touch anything).
+- [x] **Step 1: Generate the golden reference on the UNMODIFIED current `main`-equivalent code**
+  — done. `tests/perf/aiRound-1069-equivalence.test.ts` runs `processNonHumanMajorRound` on both
+  `buildCrowdedGame({entityScale: 1})` and `{entityScale: 2})`, digests the result via
+  `digestMigratedState` (reused from `tests/storage/fixtures/save-compat/migration-digest.ts`,
+  #1023's existing convention for exactly this "large state, need a compact pinned fingerprint"
+  problem) for `state` plus a local sha256 digest for `traces`, gated by
+  `UPDATE_1069_REFERENCE=1` the same way `algorithmic-budgets.test.ts` uses
+  `UPDATE_PERF_BASELINE`.
 
-  Write a small one-off generation script inline in the new test file, gated by an env var, same
-  convention as `algorithmic-budgets.test.ts`'s `UPDATE_PERF_BASELINE`:
+- [x] **Step 2: Regenerate the fixture on the current, unmodified code** — done:
+  `UPDATE_1069_REFERENCE=1 bash scripts/run-with-mise.sh yarn vitest run
+  tests/perf/aiRound-1069-equivalence.test.ts` wrote
+  `tests/perf/fixtures/aiRound-1069-golden-digests.json` (124 lines).
 
-  ```ts
-  import { readFileSync, writeFileSync } from 'node:fs';
-  import { resolve } from 'node:path';
-  import { describe, it, expect } from 'vitest';
-  import { EventBus } from '@/core/event-bus';
-  import { processNonHumanMajorRound } from '@/ai/ai-round-scheduler';
-  import { firstSimulationDivergence } from '../helpers/deterministic-state';
-  import { buildCrowdedGame } from './fixtures/crowded-state';
+- [x] **Step 3: Run again without the env var — confirm it's green against itself** — done, PASS
+  (2 tests).
 
-  const REGEN = process.env.UPDATE_1069_REFERENCE === '1';
-
-  function referencePath(scale: 1 | 2): string {
-    return resolve(process.cwd(), `tests/perf/fixtures/__reference__/aiRound-1069-e${scale}.json`);
-  }
-
-  function runRound(scale: 1 | 2) {
-    const state = buildCrowdedGame({ entityScale: scale });
-    const result = processNonHumanMajorRound(state, new EventBus());
-    if (result.planningErrors.length > 0) {
-      throw new Error(`aiRound e${scale}: planning errors: ` +
-        result.planningErrors.map(e => `${e.actorId}: ${e.message}`).join('; '));
-    }
-    return result;
-  }
-
-  describe('#1069 — aiRound whole-round behavioral equivalence', () => {
-    for (const scale of [1, 2] as const) {
-      it(`aiRound@e${scale} matches the committed pre-fix reference`, () => {
-        const result = runRound(scale);
-        if (REGEN) {
-          writeFileSync(referencePath(scale), JSON.stringify(result, null, 2) + '\n');
-          return;
-        }
-        const reference = JSON.parse(readFileSync(referencePath(scale), 'utf8'));
-        // `result.state` carries `playthroughId` (Date.now()-salted) --
-        // firstSimulationDivergence already strips it and saveSchemaVersion.
-        expect(firstSimulationDivergence(reference.state, result.state)).toBeNull();
-        expect(result.traces).toEqual(reference.traces);
-      }, 120_000);
-    }
-  });
-  ```
-
-  Adjust field names (`result.state`, `result.traces`, `result.planningErrors`) to match
-  `processNonHumanMajorRound`'s actual return type — read
-  `src/ai/ai-round-scheduler.ts`'s `processNonHumanMajorRound` signature first; the perf-areas.ts
-  `aiRound` case (`tests/perf/perf-areas.ts:98-115`) already shows the shape it expects
-  (`result.planningErrors`), confirm `traces` similarly before writing this.
-
-- [ ] **Step 2: Regenerate the fixture on the current, unmodified code**
-
-  ```bash
-  UPDATE_1069_REFERENCE=1 bash scripts/run-with-mise.sh yarn vitest run tests/perf/aiRound-1069-equivalence.test.ts
-  ```
-
-  Expected: writes both JSON files, test suite reports pass (regen mode returns early, no
-  assertion runs).
-
-- [ ] **Step 3: Run again without the env var — confirm it's green against itself**
-
-  ```bash
-  bash scripts/run-with-mise.sh yarn vitest run tests/perf/aiRound-1069-equivalence.test.ts
-  ```
-
-  Expected: PASS (comparing current code's output to the reference just captured from the same
-  code — this is a sanity check that the harness itself works, not yet a real regression proof).
-
-- [ ] **Step 4: Commit the fixture + test**
-
-  ```bash
-  git add tests/perf/fixtures/__reference__/ tests/perf/aiRound-1069-equivalence.test.ts
-  git commit -m "test(perf): golden aiRound reference for #1069 equivalence proof"
-  ```
+- [x] **Step 4: Commit the fixture + test** — staged (`tests/perf/aiRound-1069-equivalence.test.ts`,
+  `tests/perf/fixtures/aiRound-1069-golden-digests.json`), committed at the end of this task
+  alongside the rest of the branch's early commits.
 
   This test must stay green, UNCHANGED, through every remaining task. If a later task needs to
   touch it, that is a signal to stop and reconsider, not to regenerate the fixture — regenerating
