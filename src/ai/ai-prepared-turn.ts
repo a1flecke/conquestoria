@@ -25,6 +25,7 @@ import {
 } from './ai-perception';
 import type { AIDecisionTrace } from './ai-decision-trace';
 import {
+  EXPANSION_SEARCH_RADIUS,
   EXPANSION_SITE_SHORTLIST,
   getExpansionCitySoftCap,
   getKnownExpansionSites,
@@ -286,7 +287,22 @@ function objectiveCandidates(
   const currentExpandTargetRaw = currentPlan?.objective === 'expand' && currentPlan.target.kind === 'region'
     ? currentPlan.target
     : undefined;
-  const currentExpandTarget = currentExpandTargetRaw && canFoundCityAt(state, currentExpandTargetRaw.anchor)
+  // A pin/preference must stay bounded by the same EXPANSION_SEARCH_RADIUS the
+  // belief layer's own normal site search respects -- otherwise a target that
+  // was reachable when it was first pinned can end up permanently favoured
+  // even after the civ's own operational anchors move on (a new city founded
+  // elsewhere, an old one lost), leaving it stuck "committed" to a target
+  // dozens of tiles away while several far-better, genuinely local candidates
+  // sit unused. Confirmed against the real campaign: ai-1 stayed pinned to a
+  // site 42+ tiles from either of its cities (score 46.75) while three
+  // legal, close candidates scoring 71-73 went untried.
+  const currentExpandTargetInReach = currentExpandTargetRaw
+    ? operationalAnchors.some(anchor =>
+        distance(state, anchor, currentExpandTargetRaw.anchor) <= EXPANSION_SEARCH_RADIUS)
+    : false;
+  const currentExpandTarget = currentExpandTargetRaw
+    && currentExpandTargetInReach
+    && canFoundCityAt(state, currentExpandTargetRaw.anchor)
     ? currentExpandTargetRaw
     : undefined;
   if (!actor || operationalAnchors.length === 0) return [];

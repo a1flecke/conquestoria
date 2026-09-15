@@ -1342,6 +1342,105 @@ describe('#1064 expand objective candidates', () => {
       expect(stickyPlan?.id).toBe(`expand:region:settle:${hexKey(siteB)}`);
     });
 
+    it('drops a committed target once it falls outside EXPANSION_SEARCH_RADIUS of every current anchor, instead of pinning it forever', () => {
+      // Found investigating a further "dig into both" request after the four
+      // Task-7 fixes above landed: ai-1 in the real campaign stayed pinned to
+      // an expand target 42+ tiles from either of its cities (score 46.75)
+      // for 150+ rounds, while THREE genuinely local, legal candidates
+      // scoring 71-73 sat completely untried -- confirmed directly via
+      // getKnownExpansionSites called without the pin. The sticky/pinned
+      // preference above has no distance bound at all: once a target becomes
+      // "current" it stays preferred forever, even long after it drifts out
+      // of the EXPANSION_SEARCH_RADIUS the belief layer's own normal search
+      // respects (e.g. after the civ founds a second city elsewhere, shifting
+      // its operational anchors). A committed target must stay bounded by
+      // that same radius, or it isn't a "settler en route," it's a
+      // permanently stuck plan pointed at an unreachable-in-practice site.
+      const state = createNewGame(undefined, 'coastal-recovery-drop-distant-target', 'small');
+      const civ = state.civilizations['ai-1']!;
+      const home = foundCity(civ.id, { q: 15, r: 15 }, state.map, state.idCounters);
+      state.cities[home.id] = home;
+      civ.cities.push(home.id);
+
+      for (const coord of mapHexesInRange(state.map, home.position, EXPANSION_SEARCH_RADIUS + 2)) {
+        setTerrain(state, coord, 'desert');
+      }
+      setTerrain(state, home.position, 'grassland');
+      for (const neighbor of getWrappedHexNeighbors(home.position, state.map.width)) {
+        setTerrain(state, neighbor, 'grassland');
+      }
+
+      // A single legal, local, genuinely coastal site within reach.
+      const siteA: HexCoord = { q: home.position.q + 6, r: home.position.r };
+      for (const coord of mapHexesInRange(state.map, siteA, 2)) {
+        setTerrain(state, coord, 'plains');
+      }
+      setTerrain(state, { q: siteA.q, r: siteA.r - 1 }, 'ocean');
+
+      // The committed target: legal (own terrain patch, no rival city), but
+      // 30 tiles away -- well beyond EXPANSION_SEARCH_RADIUS(8) of home.
+      // r-offset, not q-offset: the map wraps horizontally (small = width 30),
+      // so a q+30 offset wraps back to almost exactly home's own position --
+      // r is never wrapped, so this stays genuinely far regardless of width.
+      const farSite: HexCoord = { q: home.position.q, r: home.position.r + 30 };
+      setTerrain(state, farSite, 'plains');
+      for (const neighbor of getWrappedHexNeighbors(farSite, state.map.width)) {
+        setTerrain(state, neighbor, 'plains');
+      }
+      // Clear a walkable land corridor all the way from home to farSite --
+      // otherwise real (uncontrolled) generated terrain between the two could
+      // block findPath entirely, making farSite unreachable (travelTurns:
+      // Infinity) for a reason unrelated to this test's actual point (that a
+      // reachable-but-far target must still be dropped once out of range).
+      for (let r = home.position.r; r <= farSite.r; r++) {
+        setTerrain(state, { q: home.position.q, r }, 'grassland');
+      }
+
+      civ.visibility.tiles = {};
+      for (const coord of mapHexesInRange(state.map, home.position, EXPANSION_SEARCH_RADIUS)) {
+        civ.visibility.tiles[hexKey(coord)] = 'visible';
+      }
+      // findPath (via resolveObjectiveTravelCandidates) is called with the
+      // FOG-BOUNDED knownMap, not the full real map -- a civ cannot path
+      // through territory it hasn't observed. Reveal the whole corridor, not
+      // just farSite's own tile, or travelTurns comes back Infinity for a
+      // reason unrelated to this test's actual point.
+      for (let r = home.position.r; r <= farSite.r; r++) {
+        civ.visibility.tiles[hexKey({ q: home.position.q, r })] = 'visible';
+      }
+
+      const settler = createUnit('settler', civ.id, home.position, state.idCounters);
+      state.units[settler.id] = settler;
+      civ.units.push(settler.id);
+
+      state.opponentAI!.majorCivs[civ.id] = {
+        ...createEmptyMajorCivPortfolio(),
+        primaryPlan: {
+          id: `ai-plan:${civ.id}:expand:region:settle:${hexKey(farSite)}:1`,
+          actorId: civ.id,
+          objective: 'expand',
+          target: { kind: 'region', id: `settle:${hexKey(farSite)}`, anchor: { ...farSite } },
+          theaterId: `local:${farSite.q},${farSite.r}`,
+          phase: 'advancing',
+          reasonCodes: [],
+          commitment: 0.25,
+          createdTurn: 1,
+          reconsiderAfterTurn: 4,
+          expiresAfterTurn: 13,
+          lastProgressTurn: 1,
+          requiredRoles: { settlement: 1 },
+          assignedUnitIds: [settler.id],
+        },
+      };
+
+      const result = prepareMajorCivStrategicPlan(state, civ.id).traces
+        .find(entry => entry.decision === 'objective')
+        ?.candidates.find(entry => entry.id.startsWith('expand:'));
+
+      expect(result?.id).not.toBe(`expand:region:settle:${hexKey(farSite)}`);
+      expect(result?.id).toBe(`expand:region:settle:${hexKey(siteA)}`);
+    });
+
     it('drops a committed target once it is proven canonically illegal, instead of pinning it forever', () => {
       // Found investigating #1107's own Task 7 verification: the sticky-target
       // fix above (stays committed to an in-progress site) had a real gap --
