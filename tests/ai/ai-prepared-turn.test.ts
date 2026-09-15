@@ -7,6 +7,7 @@ import {
   WORKER_SOFT_CAP,
 } from '@/ai/ai-prepared-turn';
 import { EXPANSION_SEARCH_RADIUS } from '@/ai/ai-expansion-sites';
+import { createEmptyMajorCivPortfolio } from '@/ai/ai-plan-portfolio';
 import { createNewGame } from '@/core/game-state';
 import { getWrappedHexNeighbors, hexDistance, hexKey, mapHexesInRange } from '@/systems/hex-utils';
 import { foundCity } from '@/systems/city-system';
@@ -1182,6 +1183,179 @@ describe('#1064 expand objective candidates', () => {
       const [q, r] = expandCandidate!.id.replace('expand:region:settle:', '').split(',').map(Number);
       expect(isPositionCoastalFn({ q, r }, state.map)).toBe(true);
     }, 30000);
+
+    it('stays committed to the currently-assigned expand site even when a marginally-higher-scoring one exists (oscillation fix)', () => {
+      // Found investigating #1107's own Task 7 verification: ai-1 under the
+      // real swapped seed never actually founded its second city despite
+      // consistently proposing a coastal target -- its settler kept getting
+      // redirected to a DIFFERENT coastal site every few rounds as fog
+      // revealed more terrain and shifted which of several close-scoring
+      // coastal candidates currently ranked #1. bestExpand (ai-prepared-turn.ts)
+      // recomputed "the single best reachable site" fresh every round with no
+      // memory of the currently in-progress target, so the settler's travel
+      // progress toward the OLD target was discarded every time a new one
+      // edged ahead -- it never completed a single journey. Two coastal sites
+      // are built here with A scoring marginally higher than B; a plan already
+      // committed to B (with an assigned settler) must stay on B, not switch
+      // to A just because A nominally scores a little higher this round.
+      const state = createNewGame(undefined, 'coastal-recovery-sticky-target', 'small');
+      const civ = state.civilizations['ai-1']!;
+      const home = foundCity(civ.id, { q: 15, r: 15 }, state.map, state.idCounters);
+      state.cities[home.id] = home;
+      civ.cities.push(home.id);
+
+      for (const coord of mapHexesInRange(state.map, home.position, EXPANSION_SEARCH_RADIUS + 2)) {
+        setTerrain(state, coord, 'desert');
+      }
+      setTerrain(state, home.position, 'grassland');
+      for (const neighbor of getWrappedHexNeighbors(home.position, state.map.width)) {
+        setTerrain(state, neighbor, 'grassland');
+      }
+
+      // Site A (home + (6,0)): plains + ocean neighbour, PLUS one extra
+      // grassland tile in its neighbourhood -- scores marginally higher than B.
+      const siteA: HexCoord = { q: home.position.q + 6, r: home.position.r };
+      for (const coord of mapHexesInRange(state.map, siteA, 2)) {
+        setTerrain(state, coord, 'plains');
+      }
+      setTerrain(state, { q: siteA.q, r: siteA.r - 1 }, 'ocean');
+      setTerrain(state, { q: siteA.q + 2, r: siteA.r }, 'grassland');
+
+      // Site B (home + (-6,0)): identical plains + ocean neighbour, no bonus tile.
+      const siteB: HexCoord = { q: home.position.q - 6, r: home.position.r };
+      for (const coord of mapHexesInRange(state.map, siteB, 2)) {
+        setTerrain(state, coord, 'plains');
+      }
+      setTerrain(state, { q: siteB.q, r: siteB.r - 1 }, 'ocean');
+
+      civ.visibility.tiles = {};
+      for (const coord of mapHexesInRange(state.map, home.position, EXPANSION_SEARCH_RADIUS)) {
+        civ.visibility.tiles[hexKey(coord)] = 'visible';
+      }
+
+      const settler = createUnit('settler', civ.id, home.position, state.idCounters);
+      state.units[settler.id] = settler;
+      civ.units.push(settler.id);
+
+      // Confirm the fixture actually produces the intended A > B raw score
+      // gap before asserting anything about stickiness -- otherwise this test
+      // would pass vacuously if the terrain tweak had no effect.
+      const freshPlan = prepareMajorCivStrategicPlan(state, civ.id).traces
+        .find(entry => entry.decision === 'objective')
+        ?.candidates.find(entry => entry.id.startsWith('expand:'));
+      expect(freshPlan?.id).toBe(`expand:region:settle:${hexKey(siteA)}`);
+
+      // Now seed a pre-existing plan already committed to site B, as if the
+      // settler had been walking there for several rounds.
+      state.opponentAI.majorCivs[civ.id] = {
+        ...createEmptyMajorCivPortfolio(),
+        primaryPlan: {
+          id: `ai-plan:${civ.id}:expand:region:settle:${hexKey(siteB)}:1`,
+          actorId: civ.id,
+          objective: 'expand',
+          target: { kind: 'region', id: `settle:${hexKey(siteB)}`, anchor: { ...siteB } },
+          theaterId: `local:${siteB.q},${siteB.r}`,
+          phase: 'mobilizing',
+          reasonCodes: [],
+          commitment: 0.25,
+          createdTurn: 1,
+          reconsiderAfterTurn: 4,
+          expiresAfterTurn: 13,
+          lastProgressTurn: 1,
+          requiredRoles: { settlement: 1 },
+          assignedUnitIds: [settler.id],
+        },
+      };
+
+      const stickyPlan = prepareMajorCivStrategicPlan(state, civ.id).traces
+        .find(entry => entry.decision === 'objective')
+        ?.candidates.find(entry => entry.id.startsWith('expand:'));
+      expect(stickyPlan?.id).toBe(`expand:region:settle:${hexKey(siteB)}`);
+    });
+
+    it('drops a committed target once it is proven canonically illegal, instead of pinning it forever', () => {
+      // Found investigating #1107's own Task 7 verification: the sticky-target
+      // fix above (stays committed to an in-progress site) had a real gap --
+      // if the belief layer's site turns out to be actually illegal by the
+      // time the settler arrives (e.g. another civ founded a real city
+      // nearby in the meantime, unseen due to fog), canFoundCityAt correctly
+      // refuses to found there, but the settler had nothing else to do and
+      // the OLD stickiness kept re-proposing the same illegal anchor every
+      // round forever -- confirmed against the real long-horizon campaign,
+      // where ai-1's settler sat on an illegal site for 120+ rounds. Once a
+      // committed target is canonically illegal, it must stop being
+      // pinned/preferred so the civ can pick a genuinely different site.
+      const state = createNewGame(undefined, 'coastal-recovery-drop-illegal-target', 'small');
+      const civ = state.civilizations['ai-1']!;
+      const home = foundCity(civ.id, { q: 15, r: 15 }, state.map, state.idCounters);
+      state.cities[home.id] = home;
+      civ.cities.push(home.id);
+
+      for (const coord of mapHexesInRange(state.map, home.position, EXPANSION_SEARCH_RADIUS + 2)) {
+        setTerrain(state, coord, 'desert');
+      }
+      setTerrain(state, home.position, 'grassland');
+      for (const neighbor of getWrappedHexNeighbors(home.position, state.map.width)) {
+        setTerrain(state, neighbor, 'grassland');
+      }
+
+      // A single legal, genuinely coastal site -- the only real candidate.
+      const siteA: HexCoord = { q: home.position.q + 6, r: home.position.r };
+      for (const coord of mapHexesInRange(state.map, siteA, 2)) {
+        setTerrain(state, coord, 'plains');
+      }
+      setTerrain(state, { q: siteA.q, r: siteA.r - 1 }, 'ocean');
+
+      // The site the plan is ALREADY committed to -- but a real, OTHER civ's
+      // city now sits 1 tile away (well inside MIN_CITY_CENTER_DISTANCE),
+      // making it canonically illegal. canFoundCityAt reads every real city
+      // unconditionally, not just known ones, so this is legal-check-real
+      // even though ai-1 never "discovered" the rival city via fog.
+      const illegalSite: HexCoord = { q: home.position.q - 6, r: home.position.r };
+      for (const coord of mapHexesInRange(state.map, illegalSite, 2)) {
+        setTerrain(state, coord, 'plains');
+      }
+      setTerrain(state, { q: illegalSite.q, r: illegalSite.r - 1 }, 'ocean');
+      const rivalCity = foundCity('player', { q: illegalSite.q + 1, r: illegalSite.r }, state.map, state.idCounters);
+      state.cities[rivalCity.id] = rivalCity;
+      state.civilizations.player!.cities.push(rivalCity.id);
+
+      civ.visibility.tiles = {};
+      for (const coord of mapHexesInRange(state.map, home.position, EXPANSION_SEARCH_RADIUS)) {
+        civ.visibility.tiles[hexKey(coord)] = 'visible';
+      }
+
+      const settler = createUnit('settler', civ.id, illegalSite, state.idCounters);
+      state.units[settler.id] = settler;
+      civ.units.push(settler.id);
+
+      state.opponentAI.majorCivs[civ.id] = {
+        ...createEmptyMajorCivPortfolio(),
+        primaryPlan: {
+          id: `ai-plan:${civ.id}:expand:region:settle:${hexKey(illegalSite)}:1`,
+          actorId: civ.id,
+          objective: 'expand',
+          target: { kind: 'region', id: `settle:${hexKey(illegalSite)}`, anchor: { ...illegalSite } },
+          theaterId: `local:${illegalSite.q},${illegalSite.r}`,
+          phase: 'advancing',
+          reasonCodes: [],
+          commitment: 0.25,
+          createdTurn: 1,
+          reconsiderAfterTurn: 4,
+          expiresAfterTurn: 13,
+          lastProgressTurn: 1,
+          requiredRoles: { settlement: 1 },
+          assignedUnitIds: [settler.id],
+        },
+      };
+
+      const result = prepareMajorCivStrategicPlan(state, civ.id).traces
+        .find(entry => entry.decision === 'objective')
+        ?.candidates.find(entry => entry.id.startsWith('expand:'));
+
+      expect(result?.id).not.toBe(`expand:region:settle:${hexKey(illegalSite)}`);
+      expect(result?.id).toBe(`expand:region:settle:${hexKey(siteA)}`);
+    });
   });
 });
 

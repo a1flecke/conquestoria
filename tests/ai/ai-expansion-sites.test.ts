@@ -205,6 +205,47 @@ describe('getKnownExpansionSites', () => {
       expect(withDefault).toEqual(withExplicitFalse);
     });
   });
+
+  describe('pinnedAnchor (oscillation fix — keeps a committed target considered)', () => {
+    it('includes the pinned site even when it would not make the top-N shortlist', () => {
+      // Three DISTINCT grassland sites at (6,0), (-6,0), (0,6) all outscore a
+      // lone desert site at (0,-6) -- with limit 3, the desert site would
+      // normally be truncated away entirely.
+      const map = knownMap([
+        ...patch(0, 0, 8, 'desert'),
+        ...patch(6, 0, 2, 'grassland'),
+        ...patch(-6, 0, 2, 'grassland'),
+        ...patch(0, 6, 2, 'grassland'),
+      ]);
+      const withoutPin = getKnownExpansionSites(map, [ORIGIN], [ORIGIN], 3);
+      expect(withoutPin.map(s => hexKey(s.anchor))).not.toContain(hexKey({ q: 0, r: -6 }));
+
+      const withPin = getKnownExpansionSites(map, [ORIGIN], [ORIGIN], 3, false, { q: 0, r: -6 });
+      expect(withPin.map(s => hexKey(s.anchor))).toContain(hexKey({ q: 0, r: -6 }));
+      // The pin is additive -- it does not push out any of the 3 genuinely
+      // top-scoring sites.
+      expect(withPin).toHaveLength(4);
+    });
+
+    it('does not duplicate the pinned site when it already made the shortlist', () => {
+      const map = knownMap(patch(0, 0, 8, 'grassland'));
+      const sites = getKnownExpansionSites(map, [ORIGIN], [ORIGIN], 3, false, { q: 6, r: 0 });
+      const matches = sites.filter(s => hexKey(s.anchor) === hexKey({ q: 6, r: 0 }));
+      expect(matches).toHaveLength(1);
+    });
+
+    it('never pins an illegal site (too close to a known city)', () => {
+      const map = knownMap(patch(0, 0, 8, 'grassland'));
+      const sites = getKnownExpansionSites(map, [ORIGIN], [ORIGIN], 50, false, { q: 1, r: 0 });
+      expect(sites.map(s => hexKey(s.anchor))).not.toContain(hexKey({ q: 1, r: 0 }));
+    });
+
+    it('never pins a site absent from the known map', () => {
+      const map = knownMap([...patch(0, 0, 8, 'desert')].filter(t => !(t.q === 6 && t.r === 0)));
+      const sites = getKnownExpansionSites(map, [ORIGIN], [ORIGIN], 50, false, { q: 6, r: 0 });
+      expect(sites.map(s => hexKey(s.anchor))).not.toContain(hexKey({ q: 6, r: 0 }));
+    });
+  });
 });
 
 describe('getExpansionCitySoftCap', () => {

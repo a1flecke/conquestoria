@@ -88,6 +88,7 @@ export function getKnownExpansionSites(
   anchors: readonly HexCoord[],
   limit: number,
   needsCoastalAccess = false,
+  pinnedAnchor?: HexCoord,
 ): AIExpansionSite[] {
   if (anchors.length === 0 || limit <= 0) return [];
 
@@ -98,6 +99,14 @@ export function getKnownExpansionSites(
       if (considered.has(key) || !knownMap.tiles[key]) continue;
       considered.set(key, knownMap.tiles[key]!.coord);
     }
+  }
+  // A pinned site (the civ's currently in-progress expand target) must stay
+  // considered even if a search anchor doesn't happen to cover it -- normally
+  // that can't happen (an in-progress target was itself found within radius of
+  // an anchor), but this keeps the guarantee independent of that assumption.
+  const pinnedKey = pinnedAnchor ? hexKey(pinnedAnchor) : undefined;
+  if (pinnedAnchor && pinnedKey && !considered.has(pinnedKey) && knownMap.tiles[pinnedKey]) {
+    considered.set(pinnedKey, knownMap.tiles[pinnedKey]!.coord);
   }
 
   const sites: AIExpansionSite[] = [];
@@ -114,9 +123,18 @@ export function getKnownExpansionSites(
     sites.push({ anchor: { ...coord }, score });
   }
 
-  return sites
-    .sort((left, right) =>
-      right.score - left.score
-      || hexKey(left.anchor).localeCompare(hexKey(right.anchor)))
-    .slice(0, limit);
+  const ranked = sites.sort((left, right) =>
+    right.score - left.score
+    || hexKey(left.anchor).localeCompare(hexKey(right.anchor)));
+  const shortlisted = ranked.slice(0, limit);
+  // #1107 -- guarantee the pinned site is in the result regardless of the
+  // limit-based truncation above, so a civ can never be forced off a
+  // still-legal, still-reachable, already-committed expand target purely
+  // because OTHER sites now outscore it. Additive: never displaces a
+  // genuinely top-`limit`-scoring site.
+  if (pinnedKey && !shortlisted.some(site => hexKey(site.anchor) === pinnedKey)) {
+    const pinnedSite = ranked.find(site => hexKey(site.anchor) === pinnedKey);
+    if (pinnedSite) shortlisted.push(pinnedSite);
+  }
+  return shortlisted;
 }
