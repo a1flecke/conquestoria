@@ -737,7 +737,25 @@ Original task body retained below for reference.
 
 ---
 
-### Task 5: Close the `cityYieldCalls` guard gap on the `aiRound` perf area
+### Task 5: DONE — see commit for exact diff. One additional discovery worth recording: regenerating
+the baseline (which recomputes EVERY area, not just aiRound) also corrected `turn@e1/e2.heapPops`
+from the checked-in 5,572/23,131 to 0/0. This is **unrelated to #1069** — it exactly matches the
+before/after numbers `#1070`'s own (separately merged) PR description quoted, and that PR never
+regenerated `algorithmic-baseline.json` (confirmed: its file list did not include that path). The
+checked-in baseline was simply stale for that metric since #1070 landed. This regen incidentally
+catches it up as an unavoidable side effect of the canonical process — documented honestly in the
+PR body per `.claude/rules/performance-budgets.md`'s "per changed number" rule, not silently
+absorbed and not hand-reverted (the rule explicitly forbids hand-editing a regenerated number).
+`auditedCommit` set to `6be5a726` (Task 4's commit — the actual code state these numbers were
+measured against).
+
+GUARD 8 sabotage proof: temporarily reverted the `ai-production.ts` call site (dropped the
+`researchBaseline` argument), confirmed `aiRound.cityYieldCalls` jumped to 31,828 against the
+tightened budget of 7,830 (fails as expected), reverted.
+
+Original task body retained below for reference.
+
+### Task 5 (original): Close the `cityYieldCalls` guard gap on the `aiRound` perf area
 
 **Files:**
 - Modify: `tests/perf/perf-areas.ts:98-115` (the `aiRound@e1`/`aiRound@e2` case in

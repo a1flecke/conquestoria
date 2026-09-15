@@ -3,14 +3,16 @@
   "areas": {
     "aiRound@e1": {
       "blockingEntityAtCalls": 261,
-      "heapPops": 116596,
-      "pathQueries": 251,
+      "cityYieldCalls": 2184,
+      "heapPops": 2658,
+      "pathQueries": 181,
       "structuredCloneWholeState": 21
     },
     "aiRound@e2": {
       "blockingEntityAtCalls": 509,
-      "heapPops": 386884,
-      "pathQueries": 572,
+      "cityYieldCalls": 5220,
+      "heapPops": 5704,
+      "pathQueries": 313,
       "structuredCloneWholeState": 21
     },
     "findPath": {
@@ -44,24 +46,27 @@
     "turn@e1": {
       "blockingEntityAtCalls": 0,
       "cityYieldCalls": 111,
-      "heapPops": 5572,
+      "heapPops": 0,
+      "pathQueries": 0,
       "structuredCloneWholeState": 2,
       "visibilityPasses": 8
     },
     "turn@e2": {
       "blockingEntityAtCalls": 0,
       "cityYieldCalls": 285,
-      "heapPops": 23131,
+      "heapPops": 0,
+      "pathQueries": 0,
       "structuredCloneWholeState": 2,
       "visibilityPasses": 8
     }
   },
-  "auditedCommit": "96fb08e9",
+  "auditedCommit": "6be5a726",
   "budgets": {
     "aiRound": {
       "blockingEntityAtCalls": 764,
-      "heapPops": 580326,
-      "pathQueries": 858,
+      "cityYieldCalls": 7830,
+      "heapPops": 8556,
+      "pathQueries": 470,
       "structuredCloneWholeState": 32
     },
     "findPath": {
@@ -77,7 +82,7 @@
     },
     "turn": {
       "blockingEntityAtCalls": 0,
-      "heapPops": 34697,
+      "heapPops": 0,
       "structuredCloneWholeState": 3,
       "visibilityPasses": 12
     },
@@ -86,11 +91,12 @@
     }
   },
   "ratios": {
-    "aiRoundHeapPops": 4.31,
-    "aiRoundPathQueries": 2.96,
+    "aiRoundCityYieldCalls": 3.11,
+    "aiRoundHeapPops": 2.79,
+    "aiRoundPathQueries": 2.25,
     "findPathPopsPerRouteStep": 3.64,
     "saveBytes": 1.94,
     "saveEntityBytes": 2.34,
-    "turnHeapPops": 5.4
+    "turnHeapPops": 0
   }
 }
