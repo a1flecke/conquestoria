@@ -8,6 +8,7 @@ import type {
 } from '@/core/types';
 import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { civHasCoastalCity, getTrainableUnitsForCiv, TRAINABLE_UNITS } from '@/systems/city-system';
+import { canFoundCityAt } from '@/systems/city-territory-system';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { isTrustedObservedLastSeenTile } from '@/systems/last-seen-presentation';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
@@ -266,6 +267,27 @@ function objectiveCandidates(
     : perception.ownUnits
         .filter(unit => !unit.transportId)
         .map(unit => unit.position);
+  // #1107 -- a settler committed to an in-progress expand site must not get
+  // redirected to a different one just because fog revealed a few more terrain
+  // tiles this round and shifted the raw score ordering. Computed once, reused
+  // both to keep this target in getKnownExpansionSites' result (pinnedAnchor
+  // below) and to prefer it when collapsing to a single bestExpand candidate.
+  //
+  // Belief can be wrong; canonical legality always wins over stickiness. The
+  // belief layer's own "legal" check (isCityCenterTerrain + distance from
+  // KNOWN cities) can disagree with canFoundCityAt's full, canonical check --
+  // e.g. another civ founded a real city near the target in the meantime,
+  // never observed due to fog. Once a target is PROVEN illegal, it must stop
+  // being pinned/preferred: a settler that physically arrives at a
+  // since-invalidated site has nothing else to do there, and stickiness would
+  // otherwise keep re-proposing the same illegal anchor forever, trapping it.
+  const currentPlan = state.opponentAI?.majorCivs[civId]?.primaryPlan;
+  const currentExpandTargetRaw = currentPlan?.objective === 'expand' && currentPlan.target.kind === 'region'
+    ? currentPlan.target
+    : undefined;
+  const currentExpandTarget = currentExpandTargetRaw && canFoundCityAt(state, currentExpandTargetRaw.anchor)
+    ? currentExpandTargetRaw
+    : undefined;
   if (!actor || operationalAnchors.length === 0) return [];
   const nearestAnchor = (target: { q: number; r: number }) =>
     [...operationalAnchors].sort((left, right) =>
@@ -377,6 +399,7 @@ function objectiveCandidates(
       operationalAnchors,
       EXPANSION_SITE_SHORTLIST,
       !civHasCoastalCity(state, civId),
+      currentExpandTarget?.anchor,
     )) {
       const anchor = nearestAnchor(site.anchor);
       const travelTurns = Math.ceil(distance(state, anchor, site.anchor) / 2);
@@ -426,12 +449,28 @@ function objectiveCandidates(
   // shortlist exists only so an unreachable best site falls back to a reachable one.
   // One is also the semantically correct number: a civ has one primaryPlan and, by the
   // incremental settlement demand, at most one settler.
-  const bestExpand = resolved
+  const rankedExpand = resolved
     .filter(candidate =>
       candidate.objective === 'expand' && Number.isFinite(candidate.travelTurns))
     .sort((left, right) =>
       scoreObjectiveCandidate(right) - scoreObjectiveCandidate(left)
-      || targetStableKey(left.target).localeCompare(targetStableKey(right.target)))[0];
+      || targetStableKey(left.target).localeCompare(targetStableKey(right.target)));
+  // A settler committed to an in-progress expand site must not get redirected to a
+  // marginally-better-scoring one just because fog revealed a few more terrain tiles
+  // this round -- site scores are recomputed fresh every round from whatever's
+  // currently known, so two close-scoring sites can trade the #1 spot turn to turn
+  // with no actual change in legality/reachability. Without this, the settler never
+  // completes a single journey: found via #1107's coastal-recovery bias making
+  // several previously-uncompetitive coastal sites suddenly compete against EACH
+  // OTHER for the top slot, but the underlying "recompute best from scratch every
+  // round" behavior predates #1107 and is not specific to coastal sites.
+  // getKnownExpansionSites' pinnedAnchor (above) guarantees currentExpandTarget's
+  // own site survives its shortlist truncation, so it's always findable here too.
+  const stillCommitted = currentExpandTarget
+    ? rankedExpand.find(candidate =>
+        candidate.target.kind === 'region' && candidate.target.id === currentExpandTarget.id)
+    : undefined;
+  const bestExpand = stillCommitted ?? rankedExpand[0];
   return [
     ...resolved.filter(candidate => candidate.objective !== 'expand'),
     ...(bestExpand ? [bestExpand] : []),
