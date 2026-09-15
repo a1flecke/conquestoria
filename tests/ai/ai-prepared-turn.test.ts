@@ -1097,6 +1097,23 @@ describe('#1064 expand objective candidates', () => {
       for (const coord of mapHexesInRange(state.map, home.position, EXPANSION_SEARCH_RADIUS + 2)) {
         setTerrain(state, coord, 'desert');
       }
+      // #1107 -- a real generated map can place a minor civ (city-state)
+      // anywhere, including inside this test's controlled area. Since
+      // getKnownExpansionSites' legality filter now correctly excludes sites
+      // too close to a visible minor-civ city (the exact bug this describe
+      // block's later "drops a committed target" test covers), a coincidental
+      // real minor civ here would silently disqualify a deliberately-placed
+      // site and make this fixture's own geometry assumptions wrong. Remove
+      // any minor civ inside the controlled radius so only the terrain this
+      // test actually sets up determines the outcome.
+      for (const [minorCivId, minorCiv] of Object.entries(state.minorCivs)) {
+        const city = state.cities[minorCiv.cityId];
+        if (city && mapHexesInRange(state.map, home.position, EXPANSION_SEARCH_RADIUS + 2)
+          .some(coord => hexKey(coord) === hexKey(city.position))) {
+          delete state.cities[minorCiv.cityId];
+          delete state.minorCivs[minorCivId];
+        }
+      }
 
       const inlandAnchor: HexCoord = { q: home.position.q + 6, r: home.position.r };
       for (const coord of mapHexesInRange(state.map, inlandAnchor, 2)) {
@@ -1184,6 +1201,48 @@ describe('#1064 expand objective candidates', () => {
       expect(isPositionCoastalFn({ q, r }, state.map)).toBe(true);
     }, 30000);
 
+    it('excludes a site too close to a visible minor civ (city-state), not just visible major-civ cities', () => {
+      // Found investigating #1107's own Task 7 verification against the real
+      // long-horizon campaign: MajorCivPerception.knownCities is built ONLY
+      // from contacted MAJOR civs (buildMajorCivPerception's remembered-city
+      // and contacted-civ loops never touch minor-civ cities at all), so
+      // knownCityPositions could never correctly avoid a real, currently
+      // visible city-state -- the belief layer kept re-proposing a site 2
+      // tiles from a real minor civ forever, because it structurally had no
+      // way to ever learn the site was illegal.
+      const state = createNewGame(undefined, 'coastal-recovery-minor-civ-legality', 'small');
+      const civ = state.civilizations['ai-1']!;
+      const { home, inlandAnchor, coastalAnchor } = buildGeometry(state, civ.id);
+      setTerrain(state, home.position, 'grassland');
+      for (const neighbor of getWrappedHexNeighbors(home.position, state.map.width)) {
+        setTerrain(state, neighbor, 'grassland');
+      }
+
+      // inlandAnchor (all-grassland, no bonus) outscores coastalAnchor
+      // (plains+ocean) on raw terrain when needsCoastalAccess is false -- but
+      // this civ needs coastal access, so coastalAnchor would normally win
+      // (per the "promotes the coastal site" test above). Place a real minor
+      // civ's city 2 tiles from coastalAnchor -- inside MIN_CITY_CENTER_
+      // DISTANCE(4) -- and mark it visible, so coastalAnchor becomes
+      // canonically illegal despite still passing the belief layer's own
+      // terrain/coastal checks in isolation.
+      const [minorCivId, minorCiv] = Object.entries(state.minorCivs)[0]!;
+      const minorCivCity = state.cities[minorCiv.cityId]!;
+      const relocated: HexCoord = { q: coastalAnchor.q + 2, r: coastalAnchor.r };
+      setTerrain(state, relocated, 'grassland');
+      state.map.tiles[hexKey(minorCivCity.position)]!.owner = null;
+      minorCivCity.position = { ...relocated };
+      state.map.tiles[hexKey(relocated)]!.owner = minorCivId;
+      civ.visibility.tiles[hexKey(relocated)] = 'visible';
+
+      const expandCandidate = prepareMajorCivStrategicPlan(state, civ.id).traces
+        .find(entry => entry.decision === 'objective')
+        ?.candidates.find(entry => entry.id.startsWith('expand:'));
+
+      expect(expandCandidate?.id).not.toBe(`expand:region:settle:${hexKey(coastalAnchor)}`);
+      expect(expandCandidate?.id).toBe(`expand:region:settle:${hexKey(inlandAnchor)}`);
+    });
+
     it('stays committed to the currently-assigned expand site even when a marginally-higher-scoring one exists (oscillation fix)', () => {
       // Found investigating #1107's own Task 7 verification: ai-1 under the
       // real swapped seed never actually founded its second city despite
@@ -1206,6 +1265,16 @@ describe('#1064 expand objective candidates', () => {
 
       for (const coord of mapHexesInRange(state.map, home.position, EXPANSION_SEARCH_RADIUS + 2)) {
         setTerrain(state, coord, 'desert');
+      }
+      // #1107 -- clear any real minor civ inside the controlled radius; see
+      // the identical comment in buildGeometry above for why.
+      for (const [minorCivId, minorCiv] of Object.entries(state.minorCivs)) {
+        const mcCity = state.cities[minorCiv.cityId];
+        if (mcCity && mapHexesInRange(state.map, home.position, EXPANSION_SEARCH_RADIUS + 2)
+          .some(coord => hexKey(coord) === hexKey(mcCity.position))) {
+          delete state.cities[minorCiv.cityId];
+          delete state.minorCivs[minorCivId];
+        }
       }
       setTerrain(state, home.position, 'grassland');
       for (const neighbor of getWrappedHexNeighbors(home.position, state.map.width)) {

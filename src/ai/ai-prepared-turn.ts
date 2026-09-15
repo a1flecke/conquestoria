@@ -9,6 +9,7 @@ import type {
 import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { civHasCoastalCity, getTrainableUnitsForCiv, TRAINABLE_UNITS } from '@/systems/city-system';
 import { canFoundCityAt } from '@/systems/city-territory-system';
+import { isVisible } from '@/systems/fog-of-war';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { isTrustedObservedLastSeenTile } from '@/systems/last-seen-presentation';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
@@ -389,9 +390,25 @@ function objectiveCandidates(
     // every round, permanently freezing the assigned settler (found-city refused,
     // move-to-self is a zero-length path). A live 25-round determinism run caught this;
     // no isolated unit test exercised the real perception.knownCities/ownCities split.
+    // #1107: perception.knownCities only ever includes MAJOR civs --
+    // buildMajorCivPerception's remembered-city and contacted-civ loops never
+    // touch minor-civ (city-state) cities at all. A visible city-state is
+    // real and always inside canFoundCityAt's canonical distance check, but
+    // was completely invisible to this belief-layer legality filter: found
+    // via #1107, where the belief layer kept re-proposing a site 2 tiles
+    // from a real, currently-visible minor civ forever, because it had no
+    // way to ever learn the site was illegal -- the same class of bug the
+    // ownCities fix above (see comment) already fixed for the civ's own
+    // capital. Scoped to CURRENTLY VISIBLE minor-civ cities, matching this
+    // bug's exact shape; a remembered-but-now-fogged minor-civ city is a
+    // smaller completeness gap, not reproduced here.
     const knownCityPositions = [
       ...perception.ownCities.map(city => city.position),
       ...perception.knownCities.flatMap(city => city.position ? [city.position] : []),
+      ...Object.values(state.minorCivs)
+        .map(minorCiv => state.cities[minorCiv.cityId])
+        .filter(city => city && isVisible(actor.visibility, city.position))
+        .map(city => city!.position),
     ];
     for (const site of getKnownExpansionSites(
       knownMap,
