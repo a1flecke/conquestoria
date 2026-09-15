@@ -703,6 +703,16 @@ function shouldWithdraw(
   const target = targetPosition(plan);
   const ownStrength = units.reduce((sum, unit) =>
     sum + UNIT_DEFINITIONS[unit.type].strength * (unit.health / 100), 0);
+  // A force with zero total combat strength (e.g. a lone settler on an expand
+  // plan) was never going to fight anything -- "outmatched" is meaningless
+  // for it, and the strength-ratio check below is structurally always 0/N,
+  // triggering withdrawal whenever ANY hostile unit is merely within 4 tiles
+  // of the target, however harmless. #1107 found this: a settler-only expand
+  // plan cycled mobilizing -> withdrawing -> mobilizing forever every time a
+  // wandering barbarian came within range, never once reaching 'advancing'
+  // or completing its journey. The health-based retreat check above still
+  // applies to every assigned force, combat-capable or not.
+  if (ownStrength === 0) return false;
   const hostileStrength = Object.values(state.units)
     .filter(unit =>
       isAIHostileOwner(state, plan.actorId, unit.owner)

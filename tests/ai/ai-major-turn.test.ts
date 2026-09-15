@@ -1007,6 +1007,47 @@ describe('processMajorCivStrategicTurn', () => {
       .not.toBe('withdrawing');
   });
 
+  it('does not withdraw a non-combat expand plan from a nearby hostile it was never going to fight (#1107)', () => {
+    // Found investigating #1107's own Task 7 long-horizon verification, not
+    // caused by #1107 itself -- shouldWithdraw compares the assigned force's
+    // combat strength against nearby hostile strength
+    // (ownStrength / hostileStrength < 0.65). A settler's UNIT_DEFINITIONS
+    // strength is 0, so that ratio is structurally always 0 whenever ANY
+    // hostile unit is merely within 4 tiles of the target -- regardless of
+    // whether it actually threatens a settler that was never going to fight
+    // it. Confirmed against the real long-horizon campaign
+    // (lh-late-era-medium, unit-126): a settler-only expand plan cycled
+    // mobilizing -> withdrawing -> mobilizing forever, its objective rewritten
+    // to 'recover' (walk home) every time a barbarian merely wandered within
+    // range, never once reaching 'advancing' or completing its journey.
+    // #1107's coastal-recovery bias made this reliably reproduce (a coastal
+    // target is more likely to have a wandering pirate/barbarian nearby), but
+    // the bug itself is in shouldWithdraw and applies to any expand plan.
+    const state = makeState();
+    addCity(state, 'home', AI, { q: 0, r: 0 });
+    addUnit(state, 'colonist', 'settler', AI, { q: 2, r: 0 });
+    // Within colonist's own vision (2) so it's genuinely 'visible' after this
+    // round's real fog recompute, within shouldWithdraw's distance-4-of-target
+    // check, and off the settler's direct path (2,0)->(3,0)->(4,0)->(5,0) so
+    // it doesn't block movement (a confound that produced a false pass in an
+    // earlier draft of this test).
+    addUnit(state, 'raider', 'warrior', 'barbarian', { q: 3, r: 1 });
+    const plan = makePlan(
+      { kind: 'region', id: 'settle:5,0', anchor: { q: 5, r: 0 } },
+      ['colonist'],
+      { phase: 'advancing', requiredRoles: { settlement: 1 } },
+    );
+
+    const result = processMajorCivStrategicTurn(
+      state,
+      prepared(state, plan),
+      new EventBus(),
+    );
+
+    expect(result.state.opponentAI?.majorCivs[AI].primaryPlan?.phase)
+      .not.toBe('withdrawing');
+  });
+
   it('keeps consolidating while a visible hostile counterattack is nearby', () => {
     const state = makeState();
     const captured = addCity(state, 'captured-city', AI, { q: 1, r: 0 });
