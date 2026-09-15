@@ -151,40 +151,43 @@ export interface KnownCampaignGap {
  * see #1110. Newly exposed (not caused) by the trajectory shift from #1107's
  * changes, the same way the repel-plan bug above was.
  *
+ * F8 (found running the full matrix after all five #1107 Task-7 fixes landed):
+ * THREE registered gaps are now confirmed stale and deleted here --
+ * `tech-frozen`/#1107 (ai-1's economy genuinely recovered, matching the
+ * predicted resolution path), `expansion-frozen`/#1110 (the exploration-
+ * coverage gap -- plausibly a side effect of the shouldWithdraw non-combat
+ * fix or the sticky-target fix, both of which improve settler-plan
+ * robustness generically, not just for coastal-recovery civs; #1110 closed
+ * on GitHub with this explanation), and `expansion-frozen`/#1095 (a
+ * pre-existing, #1107-unrelated finding that also stopped reproducing --
+ * plausibly the same generic robustness improvement; left open on GitHub
+ * pending owner confirmation rather than closed unilaterally). The
+ * `expansion-frozen`/#1107 entry for `lh-late-era-medium` itself survives,
+ * but for a DIFFERENT civ than originally diagnosed -- confirmed via direct
+ * production trace that ai-1 (the civ #1107 targets) now reaches 2 cities
+ * and is actively expanding further, while `ai-3` in the same scenario is
+ * newly the one stuck at 1 city, unrelated to coastal status. Not yet
+ * root-caused as a distinct issue.
+ *
  */
 export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
   {
     code: 'expansion-frozen',
     issue: '#1107',
-    why: '#1066 fixed the original zero-plan cause (strategic-layer reachability across '
-      + 'water) -- confirmed working via findRegionCrossings and a correctly-seeded '
-      + 'transport demand -- but under this scenario\'s mapSeed (lh-1107-search-0, see '
-      + 'file header F6), civ ai-1 still never builds a transport because its only city '
-      + 'fails isCityCoastal despite abundant nearby coastal territory. EXPECTED TO BE '
-      + 'DELETED once the #1107 coastal-recovery expansion-site bias (see the design doc '
-      + 'linked in F6) is verified to resolve it against this exact seed -- do not delete '
-      + 'until the matrix has actually been re-run and confirmed non-reproducing.',
+    why: 'ai-1\'s original instance of this finding (the civ #1107\'s coastal-recovery '
+      + 'fix targets) is CONFIRMED RESOLVED as of the fifth #1107 Task-7 fix (visible '
+      + 'minor-civ cities in expand legality): ai-1 now reaches 2 cities and is actively '
+      + 'pursuing further expansion by round 250, verified via direct production trace. '
+      + 'This scenario still reproduces the same finding CODE for a DIFFERENT civ, '
+      + 'ai-3 -- also non-coastal, also stuck at 1 city, despite having abundant legal '
+      + 'sites available on the real map (unrelated to #1107\'s own coastal-status '
+      + 'mechanism, since fixing ai-1 does not touch whatever ai-3 is blocked on). Not '
+      + 'yet root-caused; kept registered here rather than filed as a new issue since it '
+      + 'may share one of the five #1107 Task-7 bugs (repel-plan staleness, expand-site '
+      + 'oscillation, shouldWithdraw non-combat exemption, or the minor-civ-legality gap) '
+      + 'for a different specific site/geometry. Investigate ai-3 specifically before '
+      + 'assuming this is resolved.',
     scenarios: ['lh-late-era-medium'],
-  },
-  {
-    code: 'expansion-frozen',
-    issue: '#1095',
-    why: 'Different shape from the #1066 case: this civ gets a settler and an '
-      + 'actively-progressing (not wedged) expand plan, it simply takes ~195 rounds '
-      + 'to prioritize expansion at all on explorer tier and does not finish founding '
-      + 'within this scenario\'s 300-round cap. Not caused by #1064 (see file header).',
-    scenarios: ['lh-explorer-small'],
-  },
-  {
-    code: 'expansion-frozen',
-    issue: '#1110',
-    why: 'Not a coastal-status issue -- ai-3 already has a coastal city, so #1107\'s '
-      + 'bias never applies, and 1429/1445 land tiles are legal second-city sites for '
-      + 'it (not a landmass deadlock). getKnownExpansionSites returns zero candidates '
-      + 'for this civ across the whole 400-round campaign -- its fog-bounded knowledge '
-      + 'never covers a legal site within EXPANSION_SEARCH_RADIUS. Points at #1064\'s '
-      + 'own idle-unit exploration-coverage machinery. See file header F7.',
-    scenarios: ['lh-veteran-medium'],
   },
   {
     code: 'gold-hoard',
@@ -201,19 +204,6 @@ export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
     why: 'Same residual-idle cause as gold-hoard above. Reproduces on every scenario '
       + 'in the matrix.',
     scenarios: 'any',
-  },
-  {
-    code: 'tech-frozen',
-    issue: '#1107',
-    why: '#1093 (closed) traced this to the same zero-plan root cause as the '
-      + 'expansion-frozen entry above, not an independent research-system defect. '
-      + 'Now tracked at the same current owner (#1107) as that entry -- see file '
-      + 'header F5/F6 for why #1066 fixing strategic reachability was not enough on its '
-      + 'own to unstick this civ. Re-check independently once the #1107 fix lands -- do '
-      + 'NOT assume this auto-resolves alongside expansion-frozen; if the civ\'s economy '
-      + 'genuinely recovers, delete this entry, but if a different stall remains, file a '
-      + 'new focused finding rather than treating #1107 as covering it.',
-    scenarios: ['lh-late-era-medium'],
   },
 ];
 
