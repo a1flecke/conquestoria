@@ -287,6 +287,16 @@ export function processAIUpgrades(
         safeCity(working, civId, cityCandidate, prepared)
         && getCanonicalUpgradeTarget(current, civ.techState.completed, cityCandidate.buildings, availableResources))
       .flatMap(cityCandidate => {
+        // #1069: hex distance is a strict lower bound on any real path's
+        // hex-step count -- terrain/obstacles can only lengthen a route, never
+        // shorten it below the direct distance. So if a candidate is already
+        // farther than `rounds <= 6` could ever allow, the routePath() search
+        // below is GUARANTEED to be discarded by the `rounds <= 6` check a few
+        // lines down. Skip the A* search entirely for those candidates; every
+        // candidate that reaches routePath() is scored identically to before
+        // this change. See docs/superpowers/specs/2026-09-15-issue-1069-ai-round-perf-design.md §3.
+        const maxHexSteps = 6 * Math.max(1, UNIT_DEFINITIONS[current.type].movementPoints);
+        if (distance(working, current.position, cityCandidate.position) > maxHexSteps) return [];
         const path = routePath(
           working,
           current,
