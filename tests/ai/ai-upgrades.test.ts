@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   processAIUpgrades,
 } from '@/ai/ai-upgrades';
@@ -10,6 +10,7 @@ import { foundCity } from '@/systems/city-system';
 import { EventBus } from '@/core/event-bus';
 import { createUnit } from '@/systems/unit-system';
 import { hexKey } from '@/systems/hex-utils';
+import * as pathfindingModule from '@/systems/unit-pathfinding';
 
 const AI = 'ai-1';
 
@@ -275,5 +276,43 @@ describe('AI modernization', () => {
     const result = processAIUpgrades(state, AI, prepared(state), new EventBus());
 
     expect(result.upgradedUnitIds).toHaveLength(cap);
+  });
+
+  describe('#1069 -- destination search skips guaranteed-out-of-range cities before pathfinding', () => {
+    it('does not call findPath for a destination beyond the 6-round distance cap', () => {
+      const state = setup();
+      // spy_scout has movementPoints: 2, so the existing `rounds <= 6` cap allows at most
+      // 12 hex steps. Distance from (0,0) to (15,0) is 15 (no wrap benefit on a small/30-wide
+      // map: min(15, 30-15) = 15) -- guaranteed to fail `rounds <= 6` no matter what the real
+      // path looks like.
+      addCity(state, 'far-city', { q: 15, r: 0 });
+      addObsolete(state, 'traveler', { q: 0, r: 0 });
+      // `prepared(state)` runs its own strategic-planning pathfinding (objective scoring,
+      // exploration) unrelated to upgrade routing -- spy only around processAIUpgrades itself.
+      const plan = prepared(state);
+      const findPathSpy = vi.spyOn(pathfindingModule, 'findPath');
+
+      processAIUpgrades(state, AI, plan, new EventBus());
+
+      expect(findPathSpy).not.toHaveBeenCalled();
+      findPathSpy.mockRestore();
+    });
+
+    it('still routes to a nearby safe city when a farther one is also eligible, without pathfinding to the far one', () => {
+      const state = setup();
+      addCity(state, 'near-city', { q: 2, r: 0 });
+      addCity(state, 'far-city', { q: 15, r: 0 });
+      addObsolete(state, 'traveler', { q: 0, r: 0 });
+      const plan = prepared(state);
+      const findPathSpy = vi.spyOn(pathfindingModule, 'findPath');
+
+      const result = processAIUpgrades(state, AI, plan, new EventBus());
+
+      expect(result.state.opponentAI!.majorCivs[AI].upgradeRoutesByUnitId.traveler?.cityId)
+        .toBe('near-city');
+      const calledTargets = findPathSpy.mock.calls.map(call => call[1]);
+      expect(calledTargets).not.toContainEqual({ q: 15, r: 0 });
+      findPathSpy.mockRestore();
+    });
   });
 });
