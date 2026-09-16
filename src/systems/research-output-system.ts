@@ -187,7 +187,28 @@ function getProjectedCityScience(state: GameState, civId: string): Record<string
 export interface ResearchScoringBaseline {
   readonly cityScience: Readonly<Record<string, number>>;
   readonly networkGovernanceBonusActive: boolean;
+  readonly hasActiveCitySourcedNetworkPlan: boolean;
   readonly inputs: CivResearchProjectionInputs;
+}
+
+/**
+ * Sol review (#1069): does this civ have any active network-infrastructure plan sourced from a
+ * CITY (as opposed to a unit)? `getNetworkCityYieldBonus` (called inside `projectOneCityScience`
+ * for every city) checks `hasLiveCitySource`, which reads the SOURCE city's `.buildings` array --
+ * a city that is NOT the one being scored. A live example: `research-mesh` is sourced from a city
+ * with `network_operations_center`/`data_center` and boosts a DIFFERENT (linked) city's science
+ * 5-8% once that source building exists (`network-plan-definitions.ts`); the AI itself creates
+ * these plans (`ai-network-planning.ts`). So appending a building to city A can change city B's
+ * cached science if A is B's plan source -- the 1-city patch below cannot see that. Conservative
+ * on purpose: this doesn't check whether the SPECIFIC modified city is a source for a plan
+ * targeting a DIFFERENT city (that would need per-candidate plan lookups, reintroducing cost this
+ * fix exists to remove) -- any active city-sourced plan for the civ disables the fast path for
+ * every candidate this round. Network plans are uncommon enough that this stays a rare fallback,
+ * not a systematic one.
+ */
+function hasActiveCitySourcedNetworkPlan(state: GameState, civId: string): boolean {
+  return Object.values(state.autonomyByCiv?.[civId]?.plans ?? {})
+    .some(plan => plan.status === 'active' && plan.source?.kind === 'city');
 }
 
 /**
@@ -200,6 +221,7 @@ export function computeResearchScoringBaseline(state: GameState, civId: string):
   return {
     cityScience: getProjectedCityScience(state, civId),
     networkGovernanceBonusActive: civ ? getLowestCityScienceBonus(civ.techState.completed) > 0 : false,
+    hasActiveCitySourcedNetworkPlan: hasActiveCitySourcedNetworkPlan(state, civId),
     inputs: civResearchProjectionInputs(state, civId),
   };
 }
@@ -300,10 +322,12 @@ export function getMarginalCivResearchGain(
   // #1069: when a precomputed baseline is available and provably still valid for this candidate
   // (no active network-governance bonus that could shift WHICH city is "lowest science" if this
   // one city's raw science changes; not itself a unique national project, whose civ-level
-  // `nationalProjectBonus` feeds EVERY city's production/idleScienceBonus, not just this one) --
-  // patch just the modified city's science into the cached baseline instead of rescanning the
-  // whole civ. See design doc §5b for the full proof.
-  if (baseline && !baseline.networkGovernanceBonusActive && !isUniqueNationalProject) {
+  // `nationalProjectBonus` feeds EVERY city's production/idleScienceBonus, not just this one; no
+  // active city-sourced network-infrastructure plan, whose effect on a DIFFERENT (linked) city can
+  // depend on THIS city's buildings -- see `hasActiveCitySourcedNetworkPlan`'s doc comment, a real
+  // gap this patch cannot see without rescanning) -- patch just the modified city's science into
+  // the cached baseline instead of rescanning the whole civ. See design doc §5b for the full proof.
+  if (baseline && !baseline.networkGovernanceBonusActive && !isUniqueNationalProject && !baseline.hasActiveCitySourcedNetworkPlan) {
     const { science: afterCityOwnScience } = projectOneCityScience(projectedState, civId, cityId, baseline.inputs, undefined, 0);
     const afterCityScience = {
       ...baseline.cityScience,
