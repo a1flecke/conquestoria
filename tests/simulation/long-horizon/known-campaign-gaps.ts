@@ -205,6 +205,39 @@ export interface KnownCampaignGap {
  * this can only be a trajectory-shift exposure of an existing defect, exactly
  * like F7/F8 above, not a new bug from the gold-spending change itself.
  *
+ * F10 (#1113 -- production-idle's own root-cause pass, split off from #1094):
+ * a full-catalog audit of `TRAINABLE_UNITS` found `isUnitObsolete` retiring a
+ * unit the instant its `obsoletedByTech` completed, with no check that its
+ * `upgradesTo` successor was actually buildable -- affecting `archer`
+ * (obsoletes at `tactics`; successor `crossbowman` additionally needs
+ * `copper`) and `chariot` (obsoletes at `iron-forging`; successor `knight`
+ * additionally needs `iron`), the exact pattern #1094's original trace found.
+ * Both pairs are gated by the SAME tech that retires the predecessor, so a
+ * civ lacking the resource lost its only unit in that role with no way to
+ * build the replacement. Fixed in `city-system.ts`'s `isUnitObsolete` by
+ * walking the full `upgradesTo` chain (not just the immediate successor --
+ * `crossbowman`'s own successor `rifleman` needs no resource at all, so a
+ * copper-starved civ must still retire `archer` once `rifled-infantry` makes
+ * `rifleman` real, rather than fielding archers forever) and keeping the
+ * predecessor trainable only while nothing in the chain is yet buildable.
+ * Applies identically to human and AI production (`getTrainableUnitsForCiv`/
+ * `getTrainableUnitsForCity` are the sole legality source for both).
+ *
+ * Direct re-trace after the fix confirmed it working exactly as designed:
+ * `lh-veteran-small`'s previously-idle civ now actively queues `archer` to
+ * fill its `ranged` demand the moment the fix makes it legal again. The SAME
+ * civ then idles again a few rounds later, for a DIFFERENT, already-tracked
+ * reason (no coastal city, so no naval unit can ever fill its `naval-combat`
+ * demand -- #1108's territory). Re-tracing `lh-standard-small`'s window found
+ * a third, genuinely benign shape: zero active demands and zero legal
+ * buildings, a temporary tech/build plateau with nothing wrong to fix. Across
+ * the full matrix, 8 of 9 scenarios' findings are byte-identical before and
+ * after this fix -- the resource-locked-successor pattern was real and is
+ * fixed, but it was never the majority cause of `production-idle` matrix-wide.
+ * The remaining reproductions split across benign plateaus and two
+ * already-open, already-owned issues (#1066, #1108) rather than one further
+ * bug -- see the `production-idle` entry below for the honest accounting.
+ *
  */
 export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
   {
@@ -236,16 +269,22 @@ export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
   },
   {
     code: 'production-idle',
-    issue: '#1113',
-    why: '#1094 investigated this together with gold-hoard and found a DIFFERENT cause '
-      + '(see that entry and F9 in the file header): a civ can genuinely have zero '
-      + 'legal buildings left and a force demand that can never be satisfied given its '
-      + 'current tech/resources (e.g. a ranged-role demand when the era-1 archer is '
-      + 'obsoleted and its era-4 successor needs a copper resource the civ never got). '
-      + 'Whether that is always benign (a temporary tech-plateau, as observed on '
-      + 'lh-veteran-small) or can also starve an otherwise-satisfiable option needs its '
-      + 'own investigation -- split into #1113 rather than fixed here. Reproduces on '
-      + 'every scenario in the matrix.',
+    issue: '#1108',
+    why: '#1113 root-caused and fixed one real, catalog-wide correctness bug this '
+      + 'finding was tracking (isUnitObsolete retiring archer/chariot before their '
+      + 'resource-locked successors were actually buildable -- see F10 in the file '
+      + 'header) -- confirmed via direct re-trace that the fixed civ now actively '
+      + 'produces archers to fill its ranged demand instead of idling. Re-tracing the '
+      + 'REMAINING occurrences after that fix found no single further bug: '
+      + 'lh-standard-small idles legitimately (no active demand, no legal building -- a '
+      + 'temporary tech/build plateau, resolves once research/expansion progresses); '
+      + 'the same civ that was fixed on lh-veteran-small idles again immediately after '
+      + 'for a DIFFERENT, already-tracked reason (no coastal city ever, so no naval unit '
+      + 'can ever fill its `naval-combat` demand -- #1108\'s territory, not fixed here); '
+      + 'lh-veteran-medium\'s `ai-3` idles because it never forms a strategic plan at '
+      + 'all (#1066, see that entry above). Still reproduces on every scenario, but as a '
+      + 'mix of benign temporary plateaus and two already-open, already-owned issues -- '
+      + 'not one bug for a new issue to claim.',
     scenarios: 'any',
   },
 ];

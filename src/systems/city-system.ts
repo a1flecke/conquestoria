@@ -1892,7 +1892,7 @@ export function getTrainableUnitsForCiv(
   );
   return TRAINABLE_UNITS.filter(u => {
     if (evaluateProductionPrerequisites(u, completedTechs).missing.length > 0) return false;
-    if (isUnitObsolete(u, completedTechs)) return false;
+    if (isUnitObsolete(u, completedTechs, availableResources)) return false;
     if (u.civTypeRequired && u.civTypeRequired !== civType) return false;
     if (replacedForCiv.has(u.type)) return false;
     if (availableResources !== undefined && u.resourceRequired?.length) {
@@ -1902,10 +1902,67 @@ export function getTrainableUnitsForCiv(
   });
 }
 
-export function isUnitObsolete(unit: TrainableUnitEntry, completedTechs: readonly string[]): boolean {
-  return (unit.obsoletedByTech !== undefined && completedTechs.includes(unit.obsoletedByTech))
+/**
+ * #1113: a unit whose `obsoletedByTech` has fired is normally retired even if
+ * its designated `upgradesTo` successor is itself blocked by a strategic
+ * resource the civ doesn't have -- e.g. `archer` obsoletes at `tactics`, but
+ * `crossbowman` additionally needs `copper`; `chariot` obsoletes at
+ * `iron-forging`, but `knight` additionally needs `iron`. Both pairs are
+ * gated by the SAME tech, so the moment that tech completes, the civ can lose
+ * its only unit in that role with no way to build the replacement until it
+ * separately acquires the resource -- for a human player exactly as much as
+ * for the AI (`getTrainableUnitsForCiv`/`getTrainableUnitsForCity` are the
+ * only production-legality source for both).
+ *
+ * The check walks the FULL `upgradesTo` chain, not just the immediate
+ * successor: `crossbowman` is itself superseded by the resource-free
+ * `rifleman` once `rifled-infantry` is researched, so a copper-starved civ
+ * that reaches that tech has a genuine modern replacement even though
+ * `crossbowman` itself was never reachable -- `archer` must retire there, not
+ * stay trainable forever. Only when NO unit anywhere in the chain currently
+ * passes its own tech+resource gates does the original stay trainable. This
+ * was caught by `tests/simulation/ai-playability.test.ts`'s Era-9 modern-share
+ * assertion during #1113: an immediate-successor-only check left a
+ * copper-starved civ still fielding archers at Era 9, when `rifleman` had
+ * long been a real, resource-free option.
+ *
+ * `availableResources` is optional to preserve every existing caller that
+ * only cares about tech-based obsolescence (e.g. a diagnostic that has no
+ * civ/city context to derive resources from) -- omitting it keeps the
+ * pre-#1113 tech-only behavior exactly. This does not change obsolescence for
+ * a successor blocked by anything else (coastal, civType) -- no demonstrated
+ * instance of that shape exists in the current catalog, and a resource is the
+ * one requirement a chain can add that an earlier link didn't already need.
+ */
+export function isUnitObsolete(
+  unit: TrainableUnitEntry,
+  completedTechs: readonly string[],
+  availableResources?: ReadonlySet<ResourceType>,
+): boolean {
+  const techObsolete = (unit.obsoletedByTech !== undefined && completedTechs.includes(unit.obsoletedByTech))
     || (unit.obsoletedWhenAllTechs !== undefined
       && unit.obsoletedWhenAllTechs.every(techId => completedTechs.includes(techId)));
+  if (!techObsolete) return false;
+  if (availableResources !== undefined && unit.upgradesTo) {
+    let successorType: UnitType | undefined = unit.upgradesTo;
+    const visited = new Set<UnitType>();
+    let chainHasBuildableUnit = false;
+    while (successorType !== undefined && !visited.has(successorType)) {
+      visited.add(successorType);
+      const successor = TRAINABLE_UNITS.find(candidate => candidate.type === successorType);
+      if (!successor) break;
+      const techOk = evaluateProductionPrerequisites(successor, completedTechs).missing.length === 0;
+      const resourceOk = !successor.resourceRequired?.length
+        || successor.resourceRequired.every(r => availableResources.has(r));
+      if (techOk && resourceOk) {
+        chainHasBuildableUnit = true;
+        break;
+      }
+      successorType = successor.upgradesTo;
+    }
+    if (!chainHasBuildableUnit) return false;
+  }
+  return true;
 }
 
 // #592 MR5: single source of truth for missionary's "city follows owner's own faith" gate,
@@ -2225,7 +2282,7 @@ export function processCity(
         // tech-tree rebalance — its techRequired can be unmet with neither of the two dynamic
         // reasons applying (see the musketeer save-compat test above) — so a third, honest
         // fallback reason covers that residual case instead of misreporting it as resource-lost.
-        const obsoleted = isUnitObsolete(unit, completedTechs);
+        const obsoleted = isUnitObsolete(unit, completedTechs, availableResources);
         const resourceLost = !legacyResourceGrace.has(unit.type)
           && (unit.resourceRequired?.length ?? 0) > 0
           && availableResources !== undefined
