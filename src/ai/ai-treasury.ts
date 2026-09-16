@@ -31,12 +31,9 @@ import { calculateMaintenance, getRushBuyQuote, rushBuyActiveProduction } from '
  */
 const RESERVE_ROUNDS = 2;
 
-function hasSpendingReserve(state: GameState, civId: string, cost: number): boolean {
-  const civ = state.civilizations[civId];
-  if (!civ) return false;
+function totalMaintenanceFor(state: GameState, civId: string): number {
   const maintenance = calculateMaintenance(state, civId);
-  const totalMaintenance = maintenance.buildingUpkeep + maintenance.unitUpkeep;
-  return civ.gold - cost >= totalMaintenance * RESERVE_ROUNDS;
+  return maintenance.buildingUpkeep + maintenance.unitUpkeep;
 }
 
 /**
@@ -47,19 +44,34 @@ function hasSpendingReserve(state: GameState, civId: string, cost: number): bool
  * the threaded state, so an early purchase naturally reduces what a later
  * city in the same round can afford -- no separate per-round spending cap is
  * needed on top of that.
+ *
+ * `totalMaintenanceFor` is cached across cities in the same round and only
+ * recomputed after a successful purchase (the one thing that can change it --
+ * a rushed building/unit can add its own upkeep). This is an exact
+ * optimization, not an approximation: a multi-city civ with several
+ * already-queued cities would otherwise pay `calculateMaintenance`'s full
+ * O(cities + units) cost once per candidate city, which is the redundant
+ * quadratic-shaped cost `.claude/rules/performance-budgets.md` calls out --
+ * see the #1094 PR for the measured wall-clock this fixed on `lh-veteran-large`.
  */
 export function applyAIGoldSpending(state: GameState, civId: string, bus: EventBus): GameState {
   const civ = state.civilizations[civId];
   if (!civ) return state;
   let nextState = state;
+  let cachedMaintenance: number | null = null;
   for (const cityId of civ.cities) {
     const city = nextState.cities[cityId];
     if (!city || city.owner !== civId || city.productionQueue.length === 0) continue;
     const quote = getRushBuyQuote(nextState, civId, cityId);
     if (!quote.available) continue;
-    if (!hasSpendingReserve(nextState, civId, quote.cost)) continue;
+    cachedMaintenance ??= totalMaintenanceFor(nextState, civId);
+    const civGold = nextState.civilizations[civId]!.gold;
+    if (civGold - quote.cost < cachedMaintenance * RESERVE_ROUNDS) continue;
     const result = rushBuyActiveProduction(nextState, civId, cityId, bus);
-    if (result.success) nextState = result.state;
+    if (result.success) {
+      nextState = result.state;
+      cachedMaintenance = null;
+    }
   }
   return nextState;
 }
