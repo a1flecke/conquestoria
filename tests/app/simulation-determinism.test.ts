@@ -74,7 +74,14 @@ const ROUNDS_AFTER_SAVE = 6;
 // Sized well above observed worst case, per .claude/rules/hooks-and-tooling.md:
 // this file advances the full multi-civ pipeline several times per test and
 // must never sit on vitest's 5s default under multi-worktree contention.
-const CONTRACT_TIMEOUT_MS = 45_000;
+// Bumped 45_000 -> 180_000 for #1094: the '#1064 expansion determinism' tests
+// timed out in CI's real parallel-shard contention (test-suite-shard-c) even
+// though a solo local run of the same test takes ~9s -- #1094's AI
+// gold-spending pass (src/ai/ai-treasury.ts) adds real per-round cost, and a
+// solo timing understates a CI shard's actual worst case, per this file's own
+// existing contention-testing guidance. Do not lower this back down to what a
+// quiet solo run suggests.
+const CONTRACT_TIMEOUT_MS = 180_000;
 
 function freshGame(seed: string): GameState {
   return createNewGame({ ...BASE_CONFIG, seed, gameTitle: `determinism ${seed}` });
