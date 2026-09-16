@@ -7,9 +7,12 @@
  * the report artifact it feeds is byte-stable per commit.
  *
  * Measured wall-clock (this workstation, per-round invariant battery on, full
- * matrix run 2026-09-09 on `main` + #985 MR4) is in the comment beside each row
- * — used to size `SCENARIO_TIMEOUT_MS`, never asserted. Whole matrix ≈ 19 min
- * sequential; Vitest runs the matrix and the continuity file concurrently.
+ * matrix run 2026-09-09 on `main` + #985 MR4; `lh-veteran-large` re-measured for
+ * #1094, see its row comment) is in the comment beside each row — used to size
+ * `SCENARIO_TIMEOUT_MS`, never asserted. Whole matrix ≈ 19 min sequential pre-#1094,
+ * ≈ 40 min as of #1094's AI gold-spending pass (attributable almost entirely to
+ * `lh-veteran-large`'s own increase); Vitest runs the matrix and the continuity
+ * file concurrently.
  */
 import type { AICampaignOptions, AIPersonality, AISimulationOptions } from '../ai-playability-fixture';
 import { runAICampaign } from '../ai-playability-fixture';
@@ -56,7 +59,13 @@ export const LONG_HORIZON_SCENARIOS: readonly LongHorizonScenario[] = [
     personalities: ['aggressive', 'diplomatic', 'expansionist', 'trader'],
     lateEra: false, stopOnGameOver: true,
   },
-  // measured 427.8s (matrix worst case)
+  // measured 1520s as of #1094 (matrix worst case; was 427.8s pre-#1094). #1094's AI
+  // gold-spending fix (src/ai/ai-treasury.ts) calls getRushBuyQuote -- a real,
+  // civ-wide economy projection -- once per actively-producing city, every round;
+  // measured 1135.7s on unmodified pre-#1094 main vs 1500-1520s with the fix, a ~32%
+  // genuine wall-clock increase from real new work, not noise (two isolated runs of
+  // the fixed code independently landed in that range). See the #1094 PR for the
+  // full attribution; do not "fix" this by suppressing the gold-spending pass.
   {
     seed: 'lh-veteran-large', challenge: 'veteran', mapSize: 'large',
     humanCount: 1, aiCount: 5, turns: 500,
@@ -143,5 +152,10 @@ export function runScenario(
   };
 }
 
-/** measured-worst (`lh-veteran-large`, 428s) x3 ≈ 1284s, rounded up, per .claude/rules/hooks-and-tooling.md */
-export const SCENARIO_TIMEOUT_MS = 1_500_000;
+/**
+ * measured-worst (`lh-veteran-large`, 1520s as of #1094 -- see that row's comment)
+ * x3 ~= 4560s, rounded up, per .claude/rules/hooks-and-tooling.md. Was 1_500_000
+ * (428s x3) pre-#1094; #1094's AI gold-spending pass genuinely raised the worst-case
+ * scenario's wall clock, it did not make the timeout itself flaky to fix.
+ */
+export const SCENARIO_TIMEOUT_MS = 4_800_000;
