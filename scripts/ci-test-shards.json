@@ -654,7 +654,8 @@
     "tests/systems/wonder-codex/content.test.ts": 30.921630859375,
     "tests/systems/wonder-codex/presentation.test.ts": 259.204345703125,
     "tests/systems/wonder-codex/related.test.ts": 5.20556640625,
-    "tests/systems/wonder-codex/sources.test.ts": 35.88623046875
+    "tests/systems/wonder-codex/sources.test.ts": 35.88623046875,
+    "tests/ai/ai-treasury.test.ts": 95.6884765625
   },
   "shards": {
     "test-suite-shard-a": [
@@ -666,6 +667,7 @@
       "tests/ai/ai-propagandist.test.ts",
       "tests/ai/ai-resettlement.test.ts",
       "tests/ai/ai-resource-marketplace.test.ts",
+      "tests/ai/ai-treasury.test.ts",
       "tests/app/controllers/diplomacy-actions-controller.test.ts",
       "tests/app/controllers/game-session-controller.test.ts",
       "tests/app/controllers/panel-actions-controller.test.ts",

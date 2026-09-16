@@ -119,6 +119,7 @@ import {
 import { isAIHostileOwner } from './ai-hostility';
 import { hasAICombatRole, hasAITradeRole } from './ai-unit-roles';
 import { applyAIProduction } from './ai-production';
+import { applyAIGoldSpending } from './ai-treasury';
 import { applyAIResearch } from './ai-research';
 import { processAIResourceMarketplace } from './ai-resource-marketplace';
 import { getCrisisRestoreAssignments } from './ai-crisis-response';
@@ -1066,6 +1067,8 @@ function processAITurnInternal(
     preparedForTurn.forceDemands,
     personality,
   );
+  civ = newState.civilizations[civId];
+  newState = applyAIGoldSpending(newState, civId, bus);
   civ = newState.civilizations[civId];
 
   // --- Handle diplomacy ---

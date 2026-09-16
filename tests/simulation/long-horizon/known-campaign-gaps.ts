@@ -169,40 +169,83 @@ export interface KnownCampaignGap {
  * newly the one stuck at 1 city, unrelated to coastal status. Not yet
  * root-caused as a distinct issue.
  *
+ * F9 (found running the full matrix with #1094's AI gold-spending fix
+ * landed -- see `src/ai/ai-treasury.ts`): #1094 investigated `production-idle`
+ * and `gold-hoard` together and found they do NOT share one cause. Direct
+ * instrumentation of `generateWithResidual`/`applyAIProduction` on
+ * `lh-veteran-small` proved `gold-hoard` was structural: the AI had NO gold
+ * sink at all, ever (`rushBuyActiveProduction` had zero callers under
+ * `src/ai/`), so a healthy civ's gold only ever climbed, independent of any
+ * idle window. `production-idle` there was a genuinely different, narrower
+ * thing -- a temporary tech-plateau (every currently-unlockable building
+ * already built, and the only live force demand permanently unsatisfiable
+ * because `crossbowman` needs a `copper` resource the civ never acquired).
+ * #1094 fixed the gold-spending gap by wiring the AI into the same
+ * `getRushBuyQuote`/`rushBuyActiveProduction` mechanic a human player already
+ * has (reserve-gated, difficulty-invariant, no new legality). `production-idle`
+ * was NOT touched and was split into its own follow-up, #1113, since it needs
+ * separate root-causing before any fix is attempted.
+ *
+ * Effect on this registry: `gold-hoard` dropped from reproducing on all 9
+ * scenarios to reproducing on 2 (`lh-standard-large`, `lh-veteran-medium`),
+ * and in both remaining cases only for rounds that overlap that civ's own
+ * `production-idle` window -- once a queue is genuinely empty, rush-buying
+ * has nothing to spend on, so gold-hoard is now purely a downstream symptom
+ * of #1113's still-open finding, not an independent defect. The trajectory
+ * shift from AI civs affording things sooner also (a) resolved the
+ * `expansion-frozen`/#1107 entry below -- `lh-late-era-medium` no longer
+ * reports it at all, deleted per the ratchet's own "gap fixed, delete it"
+ * rule -- and (b) newly exposed the same finding CODE on a different
+ * scenario/civ: `lh-veteran-medium`'s `ai-3` never rises above 1 city across
+ * the full 400-round campaign (`cities` flat at 1 in the decimated sample
+ * series start to finish, `maxPlanNoProgressRounds: 0` -- not wedged, simply
+ * never active), the same zero-plan-forever signature F1 attributes to
+ * #1066's still-open thread. Not independently re-root-caused here -- #1094's
+ * diff never touches `ai-prepared-turn.ts`/expansion candidate generation, so
+ * this can only be a trajectory-shift exposure of an existing defect, exactly
+ * like F7/F8 above, not a new bug from the gold-spending change itself.
+ *
  */
 export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
   {
     code: 'expansion-frozen',
-    issue: '#1107',
-    why: 'ai-1\'s original instance of this finding (the civ #1107\'s coastal-recovery '
-      + 'fix targets) is CONFIRMED RESOLVED as of the fifth #1107 Task-7 fix (visible '
-      + 'minor-civ cities in expand legality): ai-1 now reaches 2 cities and is actively '
-      + 'pursuing further expansion by round 250, verified via direct production trace. '
-      + 'This scenario still reproduces the same finding CODE for a DIFFERENT civ, '
-      + 'ai-3 -- also non-coastal, also stuck at 1 city, despite having abundant legal '
-      + 'sites available on the real map (unrelated to #1107\'s own coastal-status '
-      + 'mechanism, since fixing ai-1 does not touch whatever ai-3 is blocked on). Not '
-      + 'yet root-caused; kept registered here rather than filed as a new issue since it '
-      + 'may share one of the five #1107 Task-7 bugs (repel-plan staleness, expand-site '
-      + 'oscillation, shouldWithdraw non-combat exemption, or the minor-civ-legality gap) '
-      + 'for a different specific site/geometry. Investigate ai-3 specifically before '
-      + 'assuming this is resolved.',
-    scenarios: ['lh-late-era-medium'],
+    issue: '#1066',
+    why: 'lh-veteran-medium\'s ai-3 never rises above 1 city across the full 400-round '
+      + 'campaign (flat at 1 city in every decimated sample, maxPlanNoProgressRounds: 0 '
+      + '-- not a wedged plan, simply never active) -- the same zero-plan-forever '
+      + 'signature F1 attributes to #1066\'s still-open thread. Newly exposed (not '
+      + 'caused) by the trajectory shift from #1094\'s AI gold-spending fix, the same way '
+      + 'F7/F8 above were newly exposed by #1107\'s changes -- #1094\'s diff never '
+      + 'touches expansion candidate generation. See F9 in the file header.',
+    scenarios: ['lh-veteran-medium'],
   },
   {
     code: 'gold-hoard',
-    issue: '#1094',
-    why: 'Residual idle once a civ genuinely expands and then reaches its soft cap or '
-      + 'exhausts buildable content given enough rounds -- the design\'s own '
-      + 'anticipated §2.20 contingency, not #1064\'s original no-plan bug (see file '
-      + 'header). Reproduces on every scenario in the matrix.',
-    scenarios: 'any',
+    issue: '#1113',
+    why: '#1094 found this was NOT the same cause as production-idle: the AI had no '
+      + 'gold-spending mechanism at all (rushBuyActiveProduction had zero AI callers), '
+      + 'so a healthy civ\'s gold climbed regardless of idle state, reproducing on all 9 '
+      + 'scenarios for up to the full campaign length. Fixed by wiring the AI into the '
+      + 'same rush-buy mechanic a human player already has (src/ai/ai-treasury.ts). '
+      + 'Post-fix this now reproduces only on lh-standard-large and lh-veteran-medium, '
+      + 'and only for rounds that overlap that civ\'s own production-idle window -- an '
+      + 'empty queue has nothing to rush-buy, so the residual is a pure downstream '
+      + 'symptom of #1113\'s still-open production-idle finding, not an independent '
+      + 'defect. See F9 in the file header.',
+    scenarios: ['lh-standard-large', 'lh-veteran-medium'],
   },
   {
     code: 'production-idle',
-    issue: '#1094',
-    why: 'Same residual-idle cause as gold-hoard above. Reproduces on every scenario '
-      + 'in the matrix.',
+    issue: '#1113',
+    why: '#1094 investigated this together with gold-hoard and found a DIFFERENT cause '
+      + '(see that entry and F9 in the file header): a civ can genuinely have zero '
+      + 'legal buildings left and a force demand that can never be satisfied given its '
+      + 'current tech/resources (e.g. a ranged-role demand when the era-1 archer is '
+      + 'obsoleted and its era-4 successor needs a copper resource the civ never got). '
+      + 'Whether that is always benign (a temporary tech-plateau, as observed on '
+      + 'lh-veteran-small) or can also starve an otherwise-satisfiable option needs its '
+      + 'own investigation -- split into #1113 rather than fixed here. Reproduces on '
+      + 'every scenario in the matrix.',
     scenarios: 'any',
   },
 ];
