@@ -1862,8 +1862,12 @@ describe('processAITurn', () => {
     );
 
     expect(lostProjects).toHaveLength(2);
-    expect(result.cities['city-ai'].productionQueue[0]).not.toMatch(/^legendary:/);
-    expect(result.cities['city-ai-2'].productionQueue[0]).not.toMatch(/^legendary:/);
+    // #1094: the carried-over replacement item can now be fully rush-bought
+    // (and so removed from the queue) in the same turn it's queued, once the
+    // AI's gold comfortably covers it -- an empty queue is an equally valid
+    // "no leftover wonder id" outcome as a queued non-wonder item.
+    expect(result.cities['city-ai'].productionQueue[0] ?? '').not.toMatch(/^legendary:/);
+    expect(result.cities['city-ai-2'].productionQueue[0] ?? '').not.toMatch(/^legendary:/);
     expect(lostEvents).toHaveLength(2);
   });
 
@@ -2046,7 +2050,7 @@ describe('S4b — AI resource-aware production', () => {
           gold: 50,
           visibility: { tiles: {} },
           score: 0,
-          diplomacy: { relationships: {}, atWarWith: [], treatyRequestsSent: [], treatyRequestsReceived: [], vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 1, peakMilitary: 0 } },
+          diplomacy: { relationships: {}, atWarWith: [], treaties: [], treatyRequestsSent: [], treatyRequestsReceived: [], vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 1, peakMilitary: 0 } },
         },
       },
       barbarianCamps: {},
@@ -2167,7 +2171,7 @@ describe('Expedition AI parity', () => {
           gold: 50,
           visibility: { tiles: {} },
           score: 0,
-          diplomacy: { relationships: {}, atWarWith: [], treatyRequestsSent: [], treatyRequestsReceived: [], vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 1, peakMilitary: 0 } },
+          diplomacy: { relationships: {}, atWarWith: [], treaties: [], treatyRequestsSent: [], treatyRequestsReceived: [], vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 1, peakMilitary: 0 } },
         },
       },
       barbarianCamps: {}, tribalVillages: {}, minorCivs: {},
@@ -2252,7 +2256,7 @@ describe('#553 MR1-3/4 — idle trade-unit AI parity (caravan, Naval Trader, lan
           gold: 50,
           visibility: { tiles: {} },
           score: 0,
-          diplomacy: { relationships: {}, atWarWith: [], treatyRequestsSent: [], treatyRequestsReceived: [], vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 1, peakMilitary: 0 } },
+          diplomacy: { relationships: {}, atWarWith: [], treaties: [], treatyRequestsSent: [], treatyRequestsReceived: [], vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 1, peakMilitary: 0 } },
         },
       },
       barbarianCamps: {}, tribalVillages: {}, minorCivs: {},
