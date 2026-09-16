@@ -1247,3 +1247,52 @@ describe('#1064 production selection invariants', () => {
     expect(settlers).toHaveLength(1);
   });
 });
+
+// #1113: production-idle root cause. A civ that researches `tactics` without owning
+// `copper` used to lose `archer` (obsoleted) with no way to build `crossbowman` (its
+// successor, resource-gated) -- leaving a `ranged` force demand permanently
+// unsatisfiable and, if nothing else is legally buildable that round, the city idle.
+// `.claude/rules/game-systems.md`'s `isUnitObsolete` fix keeps archer trainable until
+// copper is actually available; these tests prove the AI production layer picks it up.
+describe('#1113 — production-idle: resource-locked successor no longer starves a role', () => {
+  it('proposes archer for an unsatisfiable ranged demand when copper is unavailable', () => {
+    const state = setupState(['archery', 'tactics']);
+    const candidates = generateAIProductionCandidates(
+      state, 'ai-1', 'city-a', [demand('ranged', 3, 580)], aggressive,
+    );
+    expect(candidates.some(c => c.itemId === 'archer')).toBe(true);
+    expect(candidates.some(c => c.itemId === 'crossbowman')).toBe(false);
+  });
+
+  it('proposes crossbowman instead once copper is available, not archer', () => {
+    const state = setupState(['archery', 'tactics', 'stone-weapons']);
+    grantResources(state, ['copper']);
+    const candidates = generateAIProductionCandidates(
+      state, 'ai-1', 'city-a', [demand('ranged', 3, 580)], aggressive,
+    );
+    expect(candidates.some(c => c.itemId === 'crossbowman')).toBe(true);
+    expect(candidates.some(c => c.itemId === 'archer')).toBe(false);
+  });
+
+  it('actually queues archer (not left idle) for a city with only a ranged demand and no copper', () => {
+    const state = setupState(['archery', 'tactics']);
+    const next = applyAIProduction(state, 'ai-1', [demand('ranged', 3, 580)], aggressive);
+    expect(next.cities['city-a']!.productionQueue[0]).toBe('archer');
+  });
+
+  it('emergency-priority demand still outranks a resource-locked-successor role in the same city', () => {
+    // A frontline demand (unaffected by any resource lock) is emergency-priority
+    // (isEmergencyDemand requires priority >= 500) and must still win over a
+    // low-priority, non-emergency ranged demand's own (now-available) candidate --
+    // whichever specific frontline unit the AI's cost/turns scoring prefers.
+    const state = setupState(['archery', 'tactics', 'fortification']);
+    const next = applyAIProduction(
+      state,
+      'ai-1',
+      [demand('frontline', 1, 900), demand('ranged', 3, 100)],
+      aggressive,
+    );
+    const selected = next.cities['city-a']!.productionQueue[0];
+    expect(getAIStrategicRoles(selected as never)).toContain('frontline');
+  });
+});

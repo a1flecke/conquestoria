@@ -1737,6 +1737,87 @@ describe('getTrainableUnitsForCiv — resource gate', () => {
   });
 });
 
+// #1113: `archer` is obsoletedByTech: 'tactics', and its designated successor
+// `crossbowman` additionally requires resourceRequired: ['copper'] on top of the
+// same 'tactics' tech. Before this fix, researching tactics retired archer
+// unconditionally, even for a civ with no copper -- leaving it with zero
+// buildable ranged unit until it acquired copper or reached a much later,
+// resource-free ranged unit. `chariot`/`knight` (iron) has the identical shape
+// and is covered too, proving this is a general rule, not an archer special case.
+describe('getTrainableUnitsForCiv — obsolescence waits for an actually-trainable successor (#1113)', () => {
+  it('keeps archer trainable when tactics is researched but copper is unavailable', () => {
+    const units = getTrainableUnitsForCiv(['archery', 'tactics'], undefined, new Set<ResourceType>());
+    expect(units.some(u => u.type === 'archer')).toBe(true);
+    expect(units.some(u => u.type === 'crossbowman')).toBe(false);
+  });
+
+  it('retires archer once copper is available and crossbowman is genuinely buildable', () => {
+    const units = getTrainableUnitsForCiv(['archery', 'tactics'], undefined, new Set<ResourceType>(['copper']));
+    expect(units.some(u => u.type === 'archer')).toBe(false);
+    expect(units.some(u => u.type === 'crossbowman')).toBe(true);
+  });
+
+  it('retires archer as before when no resource filter is supplied (backward-compat)', () => {
+    const units = getTrainableUnitsForCiv(['archery', 'tactics'], undefined, undefined);
+    expect(units.some(u => u.type === 'archer')).toBe(false);
+  });
+
+  it('does not retire archer before tactics regardless of resources (baseline, unaffected)', () => {
+    const units = getTrainableUnitsForCiv(['archery'], undefined, new Set<ResourceType>(['copper']));
+    expect(units.some(u => u.type === 'archer')).toBe(true);
+  });
+
+  it('keeps chariot trainable when iron-forging is researched but iron is unavailable', () => {
+    const units = getTrainableUnitsForCiv(
+      ['wheel', 'horseback-riding', 'iron-forging'],
+      undefined,
+      new Set<ResourceType>(['horses']),
+    );
+    expect(units.some(u => u.type === 'chariot')).toBe(true);
+    expect(units.some(u => u.type === 'knight')).toBe(false);
+  });
+
+  it('retires chariot once iron is available and knight is genuinely buildable', () => {
+    const units = getTrainableUnitsForCiv(
+      ['wheel', 'horseback-riding', 'iron-forging'],
+      undefined,
+      new Set<ResourceType>(['horses', 'iron']),
+    );
+    expect(units.some(u => u.type === 'chariot')).toBe(false);
+    expect(units.some(u => u.type === 'knight')).toBe(true);
+  });
+
+  it('retires archer once a FURTHER successor (rifleman, resource-free) becomes buildable, even though crossbowman itself stays blocked', () => {
+    // crossbowman (archer's immediate successor) still has no copper here, but
+    // rifleman (crossbowman's own successor) needs only rifled-infantry and no
+    // resource -- once that's researched, a real modern replacement exists and
+    // archer must retire rather than persisting into the late game.
+    const units = getTrainableUnitsForCiv(
+      ['archery', 'tactics', 'rifled-infantry'],
+      undefined,
+      new Set<ResourceType>(),
+    );
+    expect(units.some(u => u.type === 'archer')).toBe(false);
+    expect(units.some(u => u.type === 'crossbowman')).toBe(false);
+    expect(units.some(u => u.type === 'rifleman')).toBe(true);
+  });
+
+  it('applies identically for a human-facing city query (getTrainableUnitsForCity)', () => {
+    const map = generateMap(20, 20, 'res-test-archer');
+    const tile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
+    const city = foundCity('p1', tile.coord, map, mkC());
+    const units = getTrainableUnitsForCity(
+      city,
+      ['archery', 'tactics'],
+      map,
+      undefined,
+      new Set<ResourceType>(),
+      false,
+    );
+    expect(units.some(u => u.type === 'archer')).toBe(true);
+  });
+});
+
 describe('getAvailableBuildings — resource gate', () => {
   it('returns all tech-met buildings when availableResources is undefined (backward-compat)', () => {
     const map = generateMap(30, 30, 'res-test');
@@ -1927,7 +2008,9 @@ describe('#429 — expanded obsolescence coverage', () => {
   }> = [
     // MR9: warrior's cheap-fallback role ends once real militaries exist (era 2, Bronze Working).
     { type: 'warrior', obsoleteTech: 'bronze-working' },
-    { type: 'archer', unlockTech: 'archery', obsoleteTech: 'tactics' },
+    // #1113: crossbowman (archer's successor) needs copper; without it archer stays
+    // trainable past tactics rather than leaving the civ with no ranged unit at all.
+    { type: 'archer', unlockTech: 'archery', obsoleteTech: 'tactics', resources: ['copper'] },
     { type: 'swordsman', unlockTech: 'bronze-working', obsoleteTech: 'rifled-infantry', resources: ['iron'] },
     { type: 'pikeman', unlockTech: 'fortification', obsoleteTech: 'rifled-infantry' },
     // MR8: galley's fighting line now upgrades into trireme (obsoletes at triremes,
