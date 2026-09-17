@@ -1,14 +1,14 @@
 {
   "e1": {
     "state": {
-      "__whole": "005f67c93b7b",
+      "__whole": "e7e54b2ff24b",
       "autonomyByCiv": "95313c912b48",
       "barbarianCampPressure": "44136fa355b3",
       "barbarianCamps": "c9c75b490ac4",
       "beasts": "59b9eb6fa030",
       "cities": "cb0b94a667c0",
       "cityFaith": "44136fa355b3",
-      "civilizations": "062afaf4075e",
+      "civilizations": "f2633acf5c14",
       "crisisForces": "44136fa355b3",
       "currentPlayer": "f4fd498bf9ac",
       "defensiveLeagues": "4f53cda18c2b",
@@ -55,7 +55,7 @@
       "tribalVillages": "2dac53c812f9",
       "turn": "6b86b273ff34",
       "tutorial": "8036676ee8e5",
-      "units": "2a2ab9c59012",
+      "units": "5f4598b4c0ce",
       "winner": "74234e98afe7",
       "wonderDiscoverers": "d73e4dc79ebc"
     },
@@ -63,20 +63,20 @@
   },
   "e2": {
     "state": {
-      "__whole": "0e622cb8bb90",
+      "__whole": "b8dc587a6a4b",
       "autonomyByCiv": "95313c912b48",
       "barbarianCampPressure": "44136fa355b3",
       "barbarianCamps": "5148e5b9b58d",
       "beasts": "59b9eb6fa030",
-      "cities": "9fd2226fe929",
+      "cities": "ca705c5dcd01",
       "cityFaith": "44136fa355b3",
-      "civilizations": "d6fa2a9a9c04",
+      "civilizations": "b74784ae3e96",
       "crisisForces": "44136fa355b3",
       "currentPlayer": "f4fd498bf9ac",
       "defensiveLeagues": "4f53cda18c2b",
-      "discoveredWonders": "d00957d91511",
+      "discoveredWonders": "514c00a8ca59",
       "dominationIntel": "44136fa355b3",
-      "economyStatusByCiv": "e0eeec642d30",
+      "economyStatusByCiv": "c7b7e4a7d405",
       "embargoes": "4f53cda18c2b",
       "era": "6b86b273ff34",
       "espionage": "5b5a2bb386e8",
@@ -86,7 +86,7 @@
       "generatedGenerals": "44136fa355b3",
       "hotSeat": "36ca84e10393",
       "idCounters": "74e6f1702695",
-      "legendaryWonderHistory": "468b45997fc7",
+      "legendaryWonderHistory": "0e8bd2021e4b",
       "legendaryWonderIntel": "44136fa355b3",
       "legendaryWonderProjects": "673b868d0373",
       "legendaryWonderTacticalEffects": "47b45e76467c",
@@ -96,7 +96,7 @@
       "minorCivCoalitions": "44136fa355b3",
       "minorCivLeagues": "7b10dbc42e48",
       "minorCivRegionalCooldowns": "44136fa355b3",
-      "minorCivs": "031411ed405f",
+      "minorCivs": "115524bec54e",
       "nationalProjectChoices": "44136fa355b3",
       "networkCivicPressureByCity": "44136fa355b3",
       "notificationLog": "44136fa355b3",
@@ -117,9 +117,9 @@
       "tribalVillages": "ef2f2a33f67f",
       "turn": "6b86b273ff34",
       "tutorial": "8036676ee8e5",
-      "units": "c0f1a044dd60",
+      "units": "0996cec2bb54",
       "winner": "74234e98afe7",
-      "wonderDiscoverers": "9171d59141cc"
+      "wonderDiscoverers": "950939e22b2c"
     },
     "traces": "177876433416"
   }

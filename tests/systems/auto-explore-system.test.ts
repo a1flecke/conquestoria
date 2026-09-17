@@ -1,7 +1,8 @@
 import { chooseAutoExploreMove, applyAutoExploreOrder } from '@/systems/auto-explore-system';
 import { makeAutoExploreFixture } from './helpers/auto-explore-fixture';
 import { foundCity } from '@/systems/city-system';
-import { hexKey } from '@/systems/hex-utils';
+import { hexKey, hexDistance } from '@/systems/hex-utils';
+import type { GameState, HexCoord } from '@/core/types';
 
 describe('auto-explore-system', () => {
   it('prefers unexplored safe tiles and avoids visible hostile attack range when alternatives exist', () => {
@@ -61,5 +62,78 @@ describe('auto-explore-system', () => {
     applyAutoExploreOrder(state, unitId);
 
     expect((state.units[unitId] as any).automation).toBeUndefined();
+  });
+
+  // #1066: a small local pocket of already-`fog` tiles with no frontier signal (mirrors
+  // a city's own initial vision radius) can permanently trap a unit in a position cycle.
+  // `recencyPenalty`'s fixed 4-slot memory alone cannot prevent this -- empirically
+  // confirmed to still cycle (at a larger period) even at window sizes 8 and 12; see
+  // docs/superpowers/specs/2026-09-17-issue-1066-auto-explore-recency-trap-design.md
+  // Section 7.1. This fixture reproduces that exact shape: a uniform fog disk bounded by
+  // ocean on two sides (defeating the scoring's static positional tie-breaker), with
+  // genuinely unexplored land only reachable by walking multiple consistent steps around
+  // the obstacle.
+  function makeOceanCornerPocket() {
+    const { state, unitId } = makeAutoExploreFixture({});
+    const width = 30;
+    const height = 20;
+    state.map.width = width;
+    state.map.height = height;
+    for (let q = 0; q < width; q++) {
+      for (let r = 0; r < height; r++) {
+        state.map.tiles[`${q},${r}`] = {
+          coord: { q, r }, terrain: 'plains', elevation: 'lowland', resource: null,
+          improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+        };
+      }
+    }
+    const start: HexCoord = { q: width - 2, r: 2 };
+    for (let q = 0; q < width; q++) state.map.tiles[`${q},0`].terrain = 'ocean';
+    for (let r = 0; r < height; r++) state.map.tiles[`${width - 1},${r}`].terrain = 'ocean';
+
+    state.units[unitId].position = start;
+    state.units[unitId].movementPointsLeft = 1;
+    state.units[unitId].automation = { mode: 'auto-explore', lastTargets: [], startedTurn: 1 };
+
+    const player = state.civilizations.player;
+    player.visibility.tiles = {};
+    for (let q = 0; q < width; q++) {
+      for (let r = 0; r < height; r++) {
+        const dist = hexDistance({ q, r }, start);
+        player.visibility.tiles[`${q},${r}`] = dist <= 4 ? 'fog' : 'unexplored';
+      }
+    }
+    return { state, unitId, start };
+  }
+
+  // Drives chooseAutoExploreMove/applyAutoExploreOrder (the real, full execution path,
+  // including its own real-fog-of-war reveal via executeUnitMove) for `turns` rounds,
+  // resetting movement each round the same way turn-processing does, and returns the
+  // full position trajectory.
+  function driveAutoExplore(state: GameState, unitId: string, turns: number): string[] {
+    const trajectory: string[] = [hexKey(state.units[unitId].position)];
+    for (let turn = 0; turn < turns; turn++) {
+      state.units[unitId].movementPointsLeft = 1;
+      if (!chooseAutoExploreMove(state, unitId)) break;
+      applyAutoExploreOrder(state, unitId);
+      trajectory.push(hexKey(state.units[unitId].position));
+    }
+    return trajectory;
+  }
+
+  it('#1066: escapes a fully-explored local pocket instead of cycling forever', () => {
+    const { state, unitId } = makeOceanCornerPocket();
+
+    const trajectory = driveAutoExplore(state, unitId, 60);
+
+    // Under the pre-#1066-fix recency-only scoring, this settles into an exact,
+    // indefinite repeating position cycle (empirically confirmed at every tested
+    // recency-window size -- 4, 8, and 12 -- just at a larger period each time; see
+    // docs/superpowers/specs/2026-09-17-issue-1066-auto-explore-recency-trap-design.md
+    // Section 7.1). A working chooser must never repeat a position within its last 20
+    // moves this late in a 60-turn run against a pocket this size -- it should still be
+    // making continuous forward progress toward genuinely new territory.
+    const tail = trajectory.slice(-20);
+    expect(new Set(tail).size).toBe(tail.length);
   });
 });

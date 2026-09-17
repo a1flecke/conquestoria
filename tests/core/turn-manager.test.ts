@@ -1146,6 +1146,13 @@ describe('processTurn', () => {
   it('applies auto-explore orders during turn processing', () => {
     const { state, unitId } = makeAutoExploreFixture({ safeFogNorth: true });
     const bus = new EventBus();
+    // #1066: the fixture's `east` tile is unconditionally also `unexplored`, tied with
+    // `north` for hex-distance. Pre-#1066, the local tieBreaker (favors lower r) happened
+    // to prefer north; post-#1066, the bounded nearest-unexplored-tile search is the
+    // primary signal and finds whichever direction `hexNeighbors` enumerates first
+    // (east). Mark `east` already-known so this test still isolates "does auto-explore
+    // move onto a real unexplored tile" rather than depending on that tie-break.
+    state.civilizations.player.visibility.tiles['2,1'] = 'fog';
 
     const result = processTurn(state, bus);
 
@@ -1156,6 +1163,8 @@ describe('processTurn', () => {
   it('auto-explore processes village and wonder side effects during turn processing', () => {
     const { state, unitId } = makeAutoExploreFixture({ villageNorth: true, wonderNorth: 'grand_canyon', safeFogNorth: true });
     const bus = new EventBus();
+    // #1066: see the comment in the test above -- avoid the incidental north/east tie.
+    state.civilizations.player.visibility.tiles['2,1'] = 'fog';
 
     const result = processTurn(state, bus);
 
@@ -1388,6 +1397,73 @@ describe('processTurn', () => {
       const result = processTurn(state, new EventBus());
 
       expect(getVisibility(result.civilizations['ai-1'].visibility, { q: 15, r: 15 })).not.toBe('visible');
+    });
+  });
+
+  // #1066 follow-up (see docs/superpowers/specs/2026-09-17-issue-1066-auto-explore-recency-trap-design.md
+  // §7.5): contact discovery must run AFTER every late-applying vision source
+  // in the same round's per-civ block, not before -- otherwise a contact only
+  // ever revealed through one of those sources can never be caught live: the
+  // next round's updateVisibility resets that tile to 'fog' before sync runs
+  // again, and the late source only re-promotes it to 'visible' after sync has
+  // already passed. Uses satellite surveillance specifically because, unlike
+  // mass-surveillance (gated on already being at war -- itself sufficient
+  // contact evidence) or telegraph (gated on an alliance treaty -- also itself
+  // sufficient evidence), it needs no pre-existing diplomatic relationship, so
+  // this isolates the vision-only discovery path the reordering fixes.
+  describe('satellite surveillance first contact (#1066 follow-up)', () => {
+    function setUpSurveillanceTarget() {
+      const state = createNewGame(undefined, 'satellite-surveillance-contact', 'small');
+      state.map = { ...createWrappedGrasslandMap(20, 20), wrapsHorizontally: false };
+      state.units = {};
+      state.cities = {};
+      state.minorCivs = {};
+
+      for (const civ of Object.values(state.civilizations)) {
+        civ.units = [];
+        civ.cities = [];
+        civ.visibility = createVisibilityMap();
+        civ.knownCivilizations = [];
+        civ.diplomacy.atWarWith = [];
+        civ.diplomacy.treaties = [];
+      }
+
+      const counters = mkC();
+      const targetCity = foundCity('ai-1', { q: 0, r: 0 }, state.map, counters);
+      state.cities[targetCity.id] = targetCity;
+      state.civilizations['ai-1'].cities = [targetCity.id];
+      // Satellite surveillance operates on tile.owner directly (unlike telegraph's
+      // city-position check) -- claim the city's own tile immediately rather than
+      // relying on this round's own territory recompute to do it first.
+      state.map.tiles['0,0']!.owner = 'ai-1';
+
+      const playerCity = foundCity('player', { q: 15, r: 15 }, state.map, counters);
+      state.cities[playerCity.id] = playerCity;
+      state.civilizations.player.cities = [playerCity.id];
+      state.map.tiles['15,15']!.owner = 'player';
+
+      state.civilizations.player.satelliteSurveillanceTargets = { 'ai-1': 5 };
+
+      return state;
+    }
+
+    it('records first contact the same round satellite surveillance reveals the target', () => {
+      const state = setUpSurveillanceTarget();
+      expect(state.civilizations.player.knownCivilizations ?? []).not.toContain('ai-1');
+
+      const result = processTurn(state, new EventBus());
+
+      expect(getVisibility(result.civilizations.player.visibility, { q: 0, r: 0 })).toBe('visible');
+      expect(result.civilizations.player.knownCivilizations).toContain('ai-1');
+    });
+
+    it('does not record contact without an active surveillance target', () => {
+      const state = setUpSurveillanceTarget();
+      state.civilizations.player.satelliteSurveillanceTargets = {};
+
+      const result = processTurn(state, new EventBus());
+
+      expect(result.civilizations.player.knownCivilizations ?? []).not.toContain('ai-1');
     });
   });
 

@@ -153,6 +153,35 @@ describe('purposeful AI administrative intel', () => {
     expect(result.cities[city.id].productionQueue).toEqual(['catapult']);
   });
 
+  // #1066 follow-up (see docs/superpowers/specs/2026-09-17-issue-1066-auto-explore-recency-trap-design.md
+  // §7.4): before this fix, nothing ever cleared a unit's administrative
+  // `auto-explore` automation once a plan claimed it for the round, so
+  // turn-manager.ts's per-civ turn-start loop kept re-issuing its exploration
+  // move indefinitely, consuming its movement before tactical dispatch ever ran.
+  it('clears auto-explore automation for a unit a plan claims this round', () => {
+    const state = createNewGame(undefined, 'purposeful-reclaim-explorer', 'small');
+    const aiId = 'ai-1';
+    const civ = state.civilizations[aiId];
+    // Found this civ's first city so getCivilizationLiveness's reason is no longer
+    // 'settler' -- otherwise processAIResettlement legitimately mutates state before
+    // this test's hand-crafted `prepared` is used, discarding it in favor of a freshly
+    // recomputed one (processAITurnInternal resets `preparedForTurn` whenever
+    // resettlement actually changes state).
+    const settler = civ.units.map(id => state.units[id]).find(unit => unit?.type === 'settler')!;
+    const city = foundCity(civ.id, settler.position, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    civ.cities = [city.id];
+    const warrior = Object.values(state.units).find(unit => unit.owner === aiId && unit.type === 'warrior');
+    if (!warrior) throw new Error('missing ai warrior');
+    warrior.automation = { mode: 'auto-explore', startedTurn: state.turn, lastTargets: [] };
+    const prepared = prepareMajorCivStrategicPlan(state, aiId);
+    prepared.assignments.assignmentsByPlanId = { 'fake-plan': [warrior.id] };
+
+    const result = processPreparedAITurn(state, prepared, new EventBus()).state;
+
+    expect(result.units[warrior.id]?.automation).toBeUndefined();
+  });
+
   it('promotes the valid research queue on the enabled path', () => {
     const state = createNewGame(undefined, 'purposeful-research-queue', 'small');
     const civ = state.civilizations['ai-1'];

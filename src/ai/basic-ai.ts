@@ -7,7 +7,7 @@ import { foundCityInState } from '@/systems/city-founding-system';
 import { canFoundCityAt } from '@/systems/city-territory-system';
 import { getMovementRangeDetails, findPath, createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
-import { getIdleExplorerUnitIds } from './ai-exploration';
+import { getIdleExplorerUnitIds, computeAdministrativeExploreLeash } from './ai-exploration';
 import { executeUnitMove } from '@/systems/unit-movement-system';
 import {
   canLoadUnitOntoTransport,
@@ -629,6 +629,31 @@ function processAITurnInternal(
     civId,
   );
 
+  // #1066 follow-up: `getIdleExplorerUnitIds` only ever *starts* administrative
+  // auto-explore for a genuinely idle combat unit -- nothing ever cleared it once a
+  // plan later wanted that same unit. Before #1066's bounded-BFS fix this rarely
+  // mattered in practice: the old recency-only chooser reliably ran out of candidates
+  // within a few rounds (a local cycle, or every reachable tile threat-blocked), and
+  // `applyAutoExploreOrder` clears automation whenever `chooseAutoExploreMove` returns
+  // null -- so a wandering unit was routinely handed back to AI control on its own.
+  // The BFS fix makes that dead end almost never occur, so a unit this round's
+  // assignment now legitimately wants for a plan could otherwise stay stuck
+  // auto-exploring forever: `turn-manager.ts`'s per-civ turn-start loop re-issues its
+  // exploration move unconditionally every round, consuming its movement before this
+  // civ's own tactical dispatch (`processMajorCivStrategicTurn`, below) ever runs.
+  // Reclaim explicitly instead of depending on that side effect.
+  const assignedThisRound = new Set(Object.values(preparedForTurn.assignments.assignmentsByPlanId).flat());
+  for (const unitId of assignedThisRound) {
+    const unit = newState.units[unitId];
+    if (unit?.automation?.mode === 'auto-explore') {
+      newState = {
+        ...newState,
+        units: { ...newState.units, [unitId]: { ...unit, automation: undefined } },
+      };
+    }
+  }
+  civ = newState.civilizations[civId];
+
   // City work focus (#1116 follow-up): unlike minor-civ economy processing
   // (`assignCityFocus(..., posture === 'mobilizing' ? 'production' : ...)` in
   // `minor-civ-economy-system.ts`), no AI code anywhere ever called
@@ -928,7 +953,7 @@ function processAITurnInternal(
         },
       },
     };
-    applyAutoExploreOrder(newState, unitId, { bus });
+    applyAutoExploreOrder(newState, unitId, { bus, leash: computeAdministrativeExploreLeash(newState, unitId) ?? undefined });
   }
   civ = newState.civilizations[civId];
 
