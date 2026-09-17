@@ -33,6 +33,7 @@ import {
 } from '@/systems/threat-pressure-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
+import { computeAdministrativeExploreLeash } from '@/ai/ai-exploration';
 import { hexKey } from '@/systems/hex-utils';
 import { executeUnitMove } from '@/systems/unit-movement-system';
 import { resolveUnitCityBombardment } from '@/systems/city-bombardment-system';
@@ -687,7 +688,7 @@ export function processTurn(
     for (const unitId of civ.units) {
       const unit = newState.units[unitId];
       if (unit?.automation?.mode === 'auto-explore') {
-        applyAutoExploreOrder(newState, unitId, { bus });
+        applyAutoExploreOrder(newState, unitId, { bus, leash: computeAdministrativeExploreLeash(newState, unitId) ?? undefined });
       } else if (unit?.automation?.mode === 'hold-siege') {
         newState = applyHoldSiegeOrder(newState, unitId, unit.automation.cityId, bus);
       } else if (unit?.automation?.mode === 'journey') {
@@ -766,9 +767,6 @@ export function processTurn(
       );
       applyReconReveals(newState, civId);
     }
-    for (const contact of syncCivilizationContactsFromVisibility(newState, civId)) {
-      bus.emit('civilization:first-contact', contact);
-    }
 
     if (civ.techState.completed.includes('mass-surveillance')) {
       newState = applyMassSurveillanceReveal(newState, civId);
@@ -813,6 +811,24 @@ export function processTurn(
           .filter(Boolean) as HexCoord[];
         applySharedVision(newState.civilizations[civId].visibility, allyCityPositions, newState.map);
       }
+    }
+
+    // Contact discovery must run AFTER every vision-granting source for this civ's
+    // round has applied -- mass surveillance / satellite surveillance / minor-civ
+    // shared vision / ally telegraph vision all run above and can be the ONLY
+    // reason a foreign civ becomes visible this round. Running the sync earlier
+    // (as this used to, immediately after the base updateVisibility call) meant a
+    // contact only ever revealed through one of those later sources could never be
+    // caught live: the next round's updateVisibility recomputes fog-of-war from
+    // scratch, degrading that tile back to 'fog' before this same sync point runs
+    // again, and the later sources re-promote it to 'visible' only after sync has
+    // already passed -- forever missing it, every round, regardless of how many
+    // rounds pass. Found via tests/simulation/long-horizon/campaign-continuity.test.ts's
+    // save/reload determinism check: `normalizeLoadedState`'s unconditional
+    // `refreshKnownCivilizations` sweep on every load has no such ordering problem,
+    // so a save/reload could "discover" a contact live play could never reach.
+    for (const contact of syncCivilizationContactsFromVisibility(newState, civId)) {
+      bus.emit('civilization:first-contact', contact);
     }
     refreshLastSeenPresentationsForCiv(newState, civId);
 

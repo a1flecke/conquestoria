@@ -375,19 +375,18 @@ describe('#1004 Contract 4 — domain-stream independence', () => {
 });
 
 describe('#1064 expansion determinism', () => {
-  // Derived empirically against these exact seeds. #1094's AI gold-spending (rush-buying
-  // active production, see ai-treasury.ts) let the AI afford settlers/production faster,
-  // shifting these numbers earlier than the pre-#1094 values (27/31 and 33/37): as of
-  // #1094, expansion-determinism first drafts an expand plan at round 17 and founds a
-  // second city at round 22; expansion-save-reload at rounds 15 and 19. Both seeds then
-  // cycle through further expand-plan windows separated by gaps with no active plan (e.g.
-  // expansion-save-reload: plan active 15-19, gap 20-26, plan active 27-36, gap 37-41,
-  // plan active 42+) as each civ pursues further cities up to its soft cap -- MIDPOINT
-  // must land inside a wide active window, not just past the first one. Do not guess these
-  // numbers if the seeds, the exploration mechanism, or AI production/spending change --
-  // re-derive them.
+  // Derived empirically against these exact seeds. #1066's administrative-explore leash
+  // (`computeAdministrativeExploreLeash` in ai-exploration.ts -- bounds an idle combat
+  // unit's exploration to EXPANSION_SEARCH_RADIUS of its nearest city, so it can no
+  // longer wander far enough to break `ai-tactics.ts`'s cohesion check once a war plan
+  // needs it) changed how quickly each civ's own belief layer reveals a legal expansion
+  // site, shifting these numbers again: expansion-save-reload now cycles through
+  // expand-plan windows at 18-24, gap 25-31, 32-41, gap 42-45, 46-58+ (re-measured via
+  // a fresh probe of this exact seed after the leash landed). MIDPOINT must land inside
+  // a wide active window, not just past the first one. Do not guess these numbers if the
+  // seeds, the exploration mechanism, or AI production/spending change -- re-derive them.
   const ROUNDS = 60;      // comfortably past every observed second/third-city round for both seeds
-  const MIDPOINT = 30;    // centered in expansion-save-reload's wide 27-36 active-plan window
+  const MIDPOINT = 36;    // centered in expansion-save-reload's wide 32-41 active-plan window
 
   it('reaches equivalent state from the same seed with expansion active', () => {
     const a = advance(freshGame('expansion-determinism'), ROUNDS);

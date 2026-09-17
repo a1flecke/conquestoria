@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { getIdleExplorerUnitIds } from '@/ai/ai-exploration';
+import { computeAdministrativeExploreLeash, getIdleExplorerUnitIds } from '@/ai/ai-exploration';
+import { EXPANSION_SEARCH_RADIUS } from '@/ai/ai-expansion-sites';
 import { createEmptyMajorCivPlanPortfolio } from '@/core/opponent-ai-state';
 import { createEmptyMajorCivPortfolio } from '@/ai/ai-plan-portfolio';
-import type { Civilization, Unit } from '@/core/types';
+import type { City, Civilization, GameState, Unit } from '@/core/types';
 import type { PreparedMajorCivPlan } from '@/ai/ai-prepared-turn';
 
 const CIV_ID = 'ai-1';
@@ -141,5 +142,64 @@ describe('getIdleExplorerUnitIds', () => {
     };
     const result = getIdleExplorerUnitIds(civ(['warrior', 'scout']), units, prepared());
     expect(result.sort()).toEqual(['scout', 'warrior']);
+  });
+});
+
+function city(id: string, position: { q: number; r: number }): City {
+  return { id, position, owner: CIV_ID } as unknown as City;
+}
+
+function stateWith(overrides: {
+  civId?: string;
+  isHuman?: boolean;
+  units: Record<string, Unit>;
+  cities?: Record<string, City>;
+  cityIds?: string[];
+}): GameState {
+  const civId = overrides.civId ?? CIV_ID;
+  return {
+    civilizations: {
+      [civId]: { ...civ([]), id: civId, isHuman: overrides.isHuman ?? false, cities: overrides.cityIds ?? [] },
+    },
+    units: overrides.units,
+    cities: overrides.cities ?? {},
+  } as unknown as GameState;
+}
+
+describe('computeAdministrativeExploreLeash', () => {
+  // #1066 follow-up: `findNearestUnexploredTile`'s bounded BFS gives an idle combat unit
+  // real multi-hop lookahead, which lets it wander far enough from its own civilization
+  // that `ai-tactics.ts`'s `supportRemainsCohesive` check can never be satisfied again once
+  // a war plan needs it (see the design doc's §7.4). This leash bounds ONLY the AI's own
+  // administrative idle-explorer case to a sane radius of home; a human player's own
+  // auto-explore button must never receive one.
+  it('returns null for a human-owned unit', () => {
+    const units = { scout: unit('scout', 'scout') };
+    const state = stateWith({ isHuman: true, units, cities: { c1: city('c1', { q: 0, r: 0 }) }, cityIds: ['c1'] });
+    expect(computeAdministrativeExploreLeash(state, 'scout')).toBeNull();
+  });
+
+  it('returns null for an AI civ with no owned city', () => {
+    const units = { scout: unit('scout', 'scout') };
+    const state = stateWith({ units });
+    expect(computeAdministrativeExploreLeash(state, 'scout')).toBeNull();
+  });
+
+  it('anchors to the nearest owned city and uses EXPANSION_SEARCH_RADIUS', () => {
+    const units = { scout: unit('scout', 'scout', { position: { q: 10, r: 0 } }) };
+    const state = stateWith({
+      units,
+      cities: { far: city('far', { q: 0, r: 0 }), near: city('near', { q: 9, r: 0 }) },
+      cityIds: ['far', 'near'],
+    });
+    expect(computeAdministrativeExploreLeash(state, 'scout')).toEqual({
+      anchor: { q: 9, r: 0 },
+      maxDistance: EXPANSION_SEARCH_RADIUS,
+    });
+  });
+
+  it('returns null for an unknown unit id', () => {
+    const state = stateWith({ units: {}, cities: { c1: city('c1', { q: 0, r: 0 }) }, cityIds: ['c1'] });
+    expect(computeAdministrativeExploreLeash(state, 'missing')).toBeNull();
   });
 });
