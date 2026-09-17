@@ -10,7 +10,7 @@ import type { PreparedMajorCivPlan } from '@/ai/ai-prepared-turn';
 import { buildMajorCivPerception } from '@/ai/ai-perception';
 import { createEmptyMajorCivPortfolio } from '@/ai/ai-plan-portfolio';
 import { foundCity } from '@/systems/city-system';
-import type { Unit } from '@/core/types';
+import type { AIStrategicPlan, Unit } from '@/core/types';
 import { makeLivenessGame } from '../systems/helpers/civilization-liveness-fixture';
 
 function prepared(state: ReturnType<typeof createNewGame>, civId: string): PreparedMajorCivPlan {
@@ -516,6 +516,60 @@ describe('AI round scheduler', () => {
       'worker',
     ]);
     expect(executedAiOne!.forceDemands.find(demand => demand.role === 'recon')).toBeUndefined();
+  });
+
+  it('switches a defended city to production focus, and back once the threat clears (#1116 follow-up)', () => {
+    const state = createNewGame({
+      civType: 'egypt',
+      mapSize: 'medium',
+      opponentCount: 2,
+      gameTitle: 'City focus follow-up',
+      seed: 'scheduler-city-focus',
+    });
+    state.turn = 0;
+    const aiTwoSettler = state.civilizations['ai-2'].units
+      .map(id => state.units[id])
+      .find(unit => unit?.type === 'settler')!;
+    const defendedCity = foundCity('ai-2', aiTwoSettler.position, state.map, state.idCounters);
+    state.cities[defendedCity.id] = defendedCity;
+    state.civilizations['ai-2'].cities.push(defendedCity.id);
+    expect(defendedCity.focus).toBe('balanced');
+
+    const defensePlan: AIStrategicPlan = {
+      id: 'defend-home',
+      actorId: 'ai-2',
+      objective: 'defend' as const,
+      target: {
+        kind: 'city' as const,
+        id: defendedCity.id,
+        lastKnownPosition: defendedCity.position,
+      },
+      theaterId: 'home',
+      phase: 'mobilizing' as const,
+      reasonCodes: ['urgent-defense'],
+      commitment: 1,
+      createdTurn: 0,
+      reconsiderAfterTurn: 1,
+      expiresAfterTurn: 5,
+      lastProgressTurn: 0,
+      requiredRoles: { frontline: 1 },
+      assignedUnitIds: [],
+    };
+
+    const underThreat = processNonHumanMajorRound(state, new EventBus(), {
+      prepare: (snapshot, civId) => {
+        const value = prepared(snapshot as typeof state, civId);
+        if (civId === 'ai-2') value.portfolio.defensePlansByCityId[defendedCity.id] = defensePlan;
+        return value;
+      },
+    });
+    expect(underThreat.state.cities[defendedCity.id]?.focus).toBe('production');
+
+    const nextRoundState = { ...underThreat.state, turn: underThreat.state.turn + 1 };
+    const threatCleared = processNonHumanMajorRound(nextRoundState, new EventBus(), {
+      prepare: (snapshot, civId) => prepared(snapshot as typeof state, civId),
+    });
+    expect(threatCleared.state.cities[defendedCity.id]?.focus).toBe('balanced');
   });
 
   it('skips a resource objective claimed peacefully after preparation', () => {
