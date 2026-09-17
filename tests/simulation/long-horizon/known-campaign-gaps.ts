@@ -238,6 +238,60 @@ export interface KnownCampaignGap {
  * already-open, already-owned issues (#1066, #1108) rather than one further
  * bug -- see the `production-idle` entry below for the honest accounting.
  *
+ * F11 (#1108 itself -- fresh investigation found the ORIGINAL issue framing,
+ * "a fully landlocked civ (zero coastal tiles anywhere)", does not currently
+ * reproduce anywhere in the checked-in matrix: an omniscient map audit of
+ * every AI civ across 4 scenarios found zero civs with no coastal territory
+ * at all. The `lh-veteran-small` instance F10 attributed to "#1108's
+ * territory" (no coastal city ever) was re-investigated directly and found to
+ * be a DIFFERENT, more specific defect: that civ's city `city-9` IS genuinely
+ * coastal (`isCityCoastal` true, per #386's strict own-tile-plus-immediate-
+ * ring rule -- not weakened), but `galleys` (its only naval-combat unlock)
+ * needs BOTH `fishing` (via `rafts`) and `sailing` (via `pathfinding`), two
+ * prerequisites on independent tech-tree branches with no shared ancestor.
+ * `ai-research.ts`'s search was a single-frontier linear BFS
+ * (`descendantsWithinLimit`), which structurally cannot discover a target
+ * whose prerequisites converge from two such branches unless one branch
+ * happens to already be `completed` -- not "temporarily unresearched",
+ * invisible to the scorer for the entire game. A full-catalog audit found 357
+ * of ~400 techs have 2+ prerequisites, many on independent branches, so this
+ * was a general algorithmic gap, not a one-tech curiosity. Fixed by adding one
+ * bounded, non-recursive convergence pass (`convergentTargets`) that attaches
+ * a target to each contributing frontier once every prerequisite is
+ * `completed` or already-discovered -- no map-omniscience, no free naval
+ * capability, no relaxation of the real-coastal-city ship contract (#386/
+ * #1107 untouched). Confirmed against the real tech tree and a direct
+ * campaign trace: the previously-idle civ discovers `galleys` as a scored
+ * candidate (`reasonCodes: ["active-plan"]`, previously structurally absent)
+ * and gains naval capability by round 300. Since the original "zero coastal
+ * tiles anywhere" scenario is unconfirmed and the research-discoverability
+ * gap is now fixed, no fallback/consolidation plan mechanic was built --
+ * doing so would invent gameplay for a scenario with no current evidence. If
+ * a genuinely topology-locked civ (zero coastal territory anywhere) is later
+ * demonstrated, it needs its own fresh investigation; this issue's closure
+ * does not preclude reopening that narrower case separately.
+ *
+ * Re-running the full matrix after this fix landed found two trajectory-shift
+ * effects, the same pattern as F7/F8/F9 above (a genuine AI-behavior fix
+ * changes what an AI civ does and how far it gets, newly exposing latent,
+ * pre-existing gaps elsewhere -- not new bugs from this fix's own diff, which
+ * touches only `ai-research.ts`'s search-target construction):
+ *
+ * - `gold-hoard` newly reproduces on `lh-standard-small`, `lh-veteran-small`,
+ *   and twice on `lh-hotseat-medium`, in addition to its two already-tracked
+ *   scenarios. Consistent with #1113's existing "downstream of a
+ *   production-idle window" mechanism reproducing more broadly now that more
+ *   civs progress further and hit more (still-benign) plateaus -- not a new,
+ *   independent defect. Registered by widening the existing #1113 entry's
+ *   scenario list rather than opening a new issue.
+ * - `tech-frozen` newly reproduces on `lh-late-era-medium` (completed-tech
+ *   count held at 279 for 110 rounds). Direct inspection of `finalState`
+ *   found all three AI civs finish well past 279 techs with live plans,
+ *   multiple cities, and active research -- a temporary plateau that resolved
+ *   before the campaign's turn cap, not the #1066 zero-plan signature. Not
+ *   root-caused in this MR (out of #1108's evidence-based scope, which is the
+ *   single-level convergence gap only) -- filed as #1116 and registered
+ *   below.
  */
 export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
   {
@@ -260,32 +314,58 @@ export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
       + 'so a healthy civ\'s gold climbed regardless of idle state, reproducing on all 9 '
       + 'scenarios for up to the full campaign length. Fixed by wiring the AI into the '
       + 'same rush-buy mechanic a human player already has (src/ai/ai-treasury.ts). '
-      + 'Post-fix this now reproduces only on lh-standard-large and lh-veteran-medium, '
-      + 'and only for rounds that overlap that civ\'s own production-idle window -- an '
-      + 'empty queue has nothing to rush-buy, so the residual is a pure downstream '
-      + 'symptom of #1113\'s still-open production-idle finding, not an independent '
-      + 'defect. See F9 in the file header.',
-    scenarios: ['lh-standard-large', 'lh-veteran-medium'],
+      + 'Post-fix this reproduced only on lh-standard-large and lh-veteran-medium, and '
+      + 'only for rounds overlapping that civ\'s own production-idle window -- an empty '
+      + 'queue has nothing to rush-buy, so the residual is a pure downstream symptom of '
+      + '#1113\'s still-open production-idle finding, not an independent defect. See F9 '
+      + 'in the file header. #1108\'s research-convergence fix (F11) widened this to '
+      + 'three more scenarios (lh-standard-small, lh-veteran-small, twice on '
+      + 'lh-hotseat-medium) -- consistent with the same already-tracked mechanism '
+      + 'reproducing more broadly now that more civs progress further and hit more '
+      + '(still-benign) plateaus, not a new defect from #1108\'s diff (which touches '
+      + 'only ai-research.ts\'s search-target construction, never production/gold).',
+    scenarios: [
+      'lh-standard-small', 'lh-veteran-small', 'lh-standard-large',
+      'lh-veteran-medium', 'lh-hotseat-medium',
+    ],
   },
   {
     code: 'production-idle',
-    issue: '#1108',
+    issue: '#1066',
     why: '#1113 root-caused and fixed one real, catalog-wide correctness bug this '
       + 'finding was tracking (isUnitObsolete retiring archer/chariot before their '
       + 'resource-locked successors were actually buildable -- see F10 in the file '
       + 'header) -- confirmed via direct re-trace that the fixed civ now actively '
-      + 'produces archers to fill its ranged demand instead of idling. Re-tracing the '
-      + 'REMAINING occurrences after that fix found no single further bug: '
-      + 'lh-standard-small idles legitimately (no active demand, no legal building -- a '
-      + 'temporary tech/build plateau, resolves once research/expansion progresses); '
-      + 'the same civ that was fixed on lh-veteran-small idles again immediately after '
-      + 'for a DIFFERENT, already-tracked reason (no coastal city ever, so no naval unit '
-      + 'can ever fill its `naval-combat` demand -- #1108\'s territory, not fixed here); '
-      + 'lh-veteran-medium\'s `ai-3` idles because it never forms a strategic plan at '
-      + 'all (#1066, see that entry above). Still reproduces on every scenario, but as a '
-      + 'mix of benign temporary plateaus and two already-open, already-owned issues -- '
-      + 'not one bug for a new issue to claim.',
+      + 'produces archers to fill its ranged demand instead of idling. #1108 (F11) '
+      + 'fixed a second: the `lh-veteran-small` civ that idled again immediately after '
+      + 'for what was then attributed to "no coastal city ever" turned out, on fresh '
+      + 'investigation, to have a genuinely coastal city -- the real blocker was that '
+      + '`galleys` (its only naval-combat unlock) needed two independently-researched '
+      + 'prerequisites the AI\'s single-frontier research search could never discover '
+      + 'together. Fixed by adding a bounded convergence search; confirmed the civ now '
+      + 'discovers and researches `galleys` and gains naval capability. Re-tracing the '
+      + 'REMAINING occurrences found no single further bug: lh-standard-small idles '
+      + 'legitimately (no active demand, no legal building -- a temporary tech/build '
+      + 'plateau, resolves once research/expansion progresses); lh-veteran-medium\'s '
+      + '`ai-3` idles because it never forms a strategic plan at all (#1066, see that '
+      + 'entry above -- now this finding\'s sole remaining owner). Still reproduces on '
+      + 'every scenario, but as a mix of benign temporary plateaus and #1066\'s '
+      + 'already-open zero-plan defect -- not a bug of its own to claim.',
     scenarios: 'any',
+  },
+  {
+    code: 'tech-frozen',
+    issue: '#1116',
+    why: '#1108\'s research-convergence fix (F11) newly exposed this on '
+      + 'lh-late-era-medium: completed-tech count held at 279 for 110 rounds. Direct '
+      + 'inspection of finalState found all three AI civs finish well past 279 techs '
+      + '(293-315) with live plans, multiple cities, and active research -- a temporary '
+      + 'plateau that resolved before the campaign\'s turn cap, not the #1066 zero-plan '
+      + 'signature. Not root-caused here -- out of #1108\'s evidence-based scope (the '
+      + 'single-level convergence gap only); a hypothesis that this reflects a further, '
+      + 'second-level ("convergence of convergences") tech-tree gap is noted on #1116 '
+      + 'but unconfirmed.',
+    scenarios: ['lh-late-era-medium'],
   },
 ];
 

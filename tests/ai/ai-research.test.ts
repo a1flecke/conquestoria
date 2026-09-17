@@ -445,6 +445,74 @@ describe('AI strategic research planning', () => {
   });
 });
 
+// #1108: a tech whose prerequisites converge from two INDEPENDENT branches
+// (neither prerequisite is on the other's path -- e.g. real `galleys` needs
+// `fishing` (via `rafts`) AND `sailing` (via `pathfinding`), which share no
+// common ancestor) could never be discovered by the search at all, because
+// `descendantsWithinLimit` walks a single linear path from one frontier tech.
+// A civ with no independent reason to research either branch on its own
+// merits (e.g. an aggressive personality that never values fishing/sailing)
+// could hold a persistent, high-priority force demand for the role that tech
+// alone unlocks and never once see it as a research candidate -- not
+// "temporarily unresearched", structurally invisible to the scorer.
+describe('AI research planning discovers converging multi-branch prerequisites (#1108)', () => {
+  it('discovers a tech that converges two independently-researched prerequisite branches', () => {
+    const techs = [
+      tech('branch-a', 'maritime', []),
+      tech('mid-a', 'maritime', ['branch-a']),
+      tech('branch-b', 'exploration', []),
+      tech('mid-b', 'exploration', ['branch-b']),
+      tech('galleys-equiv', 'maritime', ['mid-a', 'mid-b'], { unlocksUnits: ['trireme'] }),
+    ];
+    const result = planAIResearch(context(techs, {
+      coastalEmpire: true,
+      forceDemands: [{
+        role: 'naval-combat', desired: 1, assigned: 0, missing: 1, priority: 100, sourcePlanIds: ['fleet'],
+      }],
+    }));
+
+    const galleysCandidate = result?.trace.candidates.find(c => c.targetId === 'galleys-equiv');
+    expect(galleysCandidate).toBeDefined();
+    expect(galleysCandidate?.reasonCodes).toContain('active-plan');
+  });
+
+  it('does not invent a convergence when only one branch is a real prerequisite', () => {
+    // 'mid-a' alone (single prerequisite) must not spuriously gain a second,
+    // fabricated attribution through the convergence pass.
+    const techs = [
+      tech('branch-a', 'maritime', []),
+      tech('mid-a', 'maritime', ['branch-a'], { unlocksUnits: ['trireme'] }),
+    ];
+    const result = planAIResearch(context(techs, {
+      coastalEmpire: true,
+      forceDemands: [{
+        role: 'naval-combat', desired: 1, assigned: 0, missing: 1, priority: 100, sourcePlanIds: ['fleet'],
+      }],
+    }));
+
+    expect(result?.trace.candidates.filter(c => c.targetId === 'mid-a')).toHaveLength(1);
+  });
+
+  it('still picks the frontier tech leading toward the discovered convergence, not an unrelated one', () => {
+    const techs = [
+      tech('branch-a', 'maritime', []),
+      tech('mid-a', 'maritime', ['branch-a']),
+      tech('branch-b', 'exploration', []),
+      tech('mid-b', 'exploration', ['branch-b']),
+      tech('galleys-equiv', 'maritime', ['mid-a', 'mid-b'], { unlocksUnits: ['trireme'] }),
+      tech('unrelated', 'economy', [], { unlocksBuildings: ['marketplace'] }),
+    ];
+    const result = planAIResearch(context(techs, {
+      coastalEmpire: true,
+      forceDemands: [{
+        role: 'naval-combat', desired: 3, assigned: 0, missing: 3, priority: 580, sourcePlanIds: ['fleet'],
+      }],
+    }));
+
+    expect(['branch-a', 'branch-b']).toContain(result?.frontierTechId);
+  });
+});
+
 describe('#919 MR2 — unrest pressure lifts magistracy in AI research planning', () => {
   const earlyGame = () => ({
     ...createTechState(),
