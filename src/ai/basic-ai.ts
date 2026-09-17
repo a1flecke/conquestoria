@@ -82,7 +82,7 @@ import {
 } from '@/systems/legendary-wonder-system';
 import { BUILDINGS, getAvailableBuildings } from '@/systems/city-system';
 import { getReservedNationalProjectKeys } from '@/systems/national-project-system';
-import { calculateProjectedCityYields } from '@/systems/city-work-system';
+import { assignCityFocus, calculateProjectedCityYields } from '@/systems/city-work-system';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 import { getLegendaryWonderTacticalEffectAiValue } from '@/systems/legendary-wonder-tactical-effects';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
@@ -628,6 +628,33 @@ function processAITurnInternal(
     structuredClone(newState),
     civId,
   );
+
+  // City work focus (#1116 follow-up): unlike minor-civ economy processing
+  // (`assignCityFocus(..., posture === 'mobilizing' ? 'production' : ...)` in
+  // `minor-civ-economy-system.ts`), no AI code anywhere ever called
+  // `assignCityFocus` for a major civ -- every AI city sits at its founding
+  // default ('balanced') for the entire game, regardless of what it actually
+  // needs. Mirrors that proven, already-shipped pattern for the one signal a
+  // major civ already computes per-city and per-round: a city with an active
+  // defense plan (`portfolio.defensePlansByCityId`) needs production to field
+  // defenders, exactly like a 'mobilizing' minor civ. This intentionally does
+  // NOT add a science- or food-leaning focus -- neither has an equivalently
+  // direct, already-computed per-city justification, and a science lean in
+  // particular risks moving research pacing (`.claude/rules/game-balance.md`
+  // "Pacing Regression Prevention") without the evidence that would require.
+  // Only reassigns when the desired focus actually differs from the current
+  // one, so this adds no per-round tile-scan cost to an already-settled city
+  // (#1069 perf contract).
+  for (const cityId of civ.cities) {
+    const city = newState.cities[cityId];
+    if (!city || city.focus === 'custom') continue;
+    const desiredFocus = cityId in preparedForTurn.portfolio.defensePlansByCityId
+      ? 'production'
+      : 'balanced';
+    if (city.focus === desiredFocus) continue;
+    newState = assignCityFocus(newState, cityId, desiredFocus).state;
+  }
+  civ = newState.civilizations[civId];
 
   // Strategic movement is plan-driven, while settlement remains a shared
   // administrative action using the canonical mutation helper.
