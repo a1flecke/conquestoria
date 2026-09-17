@@ -180,6 +180,92 @@ function descendantsWithinLimit(
   return targets;
 }
 
+/**
+ * #1108: `descendantsWithinLimit` walks a single linear path from ONE frontier
+ * tech, so a tech whose prerequisites converge from two (or more) INDEPENDENT
+ * branches -- neither on the other's path -- can never be discovered unless
+ * one branch happens to already be `completed`. Real example: `galleys`
+ * needs both `fishing` (via `rafts`) and `sailing` (via `pathfinding`), which
+ * share no common ancestor. A civ with no independent reason to value either
+ * branch on its own merits (e.g. a personality that never weights maritime
+ * tech) can hold a persistent, high-priority `naval-combat` force demand
+ * (from ambient pirate pressure) and never once see `galleys` as a research
+ * candidate -- not "temporarily unresearched", structurally invisible to the
+ * scorer, for the entire game.
+ *
+ * This adds exactly one bounded convergence pass: given every target already
+ * discovered by the per-frontier search above, any tech whose prerequisites
+ * are ALL satisfied by `completed` plus that already-discovered set becomes a
+ * new target, attributed back to each contributing frontier separately (both
+ * `rafts` and `pathfinding` are legitimate "first steps" toward `galleys`).
+ * O(techs) over the already-computed target list -- no repeated tree walks,
+ * no map/geography scan, and no per-candidate-per-turn cost (`planAIResearch`
+ * runs once per civ only when a new research choice is actually needed).
+ * Deliberately one pass, not recursive: this closes the exact two-branch
+ * diamond the evidence shows (#1108), not an arbitrary N-way transitive
+ * closure a real tech tree has never been observed to need.
+ */
+function convergentTargets(
+  techs: readonly Tech[],
+  completed: ReadonlySet<string>,
+  knownTechIds: ReadonlySet<string>,
+  reliefCityIdsByBuildingId: Readonly<Record<string, readonly string[]>>,
+  discovered: readonly SearchTarget[],
+): SearchTarget[] {
+  const bestById = new Map<string, SearchTarget>();
+  for (const target of discovered) {
+    const existing = bestById.get(target.target.id);
+    if (!existing || target.pathCost < existing.pathCost) bestById.set(target.target.id, target);
+  }
+  const reachable = new Set<string>([...completed, ...bestById.keys()]);
+  const converged: SearchTarget[] = [];
+  for (const candidate of techs) {
+    if (completed.has(candidate.id) || bestById.has(candidate.id)) continue;
+    if (candidate.prerequisites.length < 2) continue; // a single-branch tech is already found above
+    if (!candidate.prerequisites.every(prerequisite => reachable.has(prerequisite))) continue;
+    const sourceEntries = candidate.prerequisites
+      .map(prerequisite => bestById.get(prerequisite))
+      .filter((entry): entry is SearchTarget => entry !== undefined);
+    if (sourceEntries.length === 0) continue; // every prerequisite already completed -- not a real convergence
+    const combinedPathIds = new Set(sourceEntries.flatMap(entry => entry.pathTechIds));
+    combinedPathIds.add(candidate.id);
+    const completedAfterPath = new Set([...completed, ...combinedPathIds]);
+    const capabilities = evaluateAITechCapabilities(candidate, completedAfterPath, knownTechIds);
+    const preliminary = capabilities.militaryPowerSpike
+      + capabilities.economicSupport
+      + capabilities.eraProgress
+      + Object.values(capabilities.rolesUnlocked)
+        .reduce((sum, value) => sum + (value ?? 0), 0)
+      + unrestReliefTechBonus(candidate, reliefCityIdsByBuildingId);
+    const pathCost = sourceEntries.reduce((sum, entry) => sum + entry.pathCost, 0) + candidate.cost;
+    const uniqueSources = [...new Map(sourceEntries.map(entry => [entry.frontier.id, entry])).values()];
+    for (const ownSource of uniqueSources) {
+      // #1108: `pathTechIds[0]` must be THIS entry's own frontier -- callers
+      // (`estimateResearchPathTurns`) fall back to `pathTechIds[0]` as the
+      // tech actually being researched when nothing is in progress yet. Order
+      // this frontier's own branch first, then every other contributing
+      // branch, then the converging candidate itself -- total research work
+      // is unchanged (all branches are still eventually required), but each
+      // emitted entry's own path now starts with the frontier it's attributed
+      // to, matching what every other (non-converged) SearchTarget guarantees.
+      const orderedPathIds = [
+        ...ownSource.pathTechIds,
+        ...[...combinedPathIds].filter(id => !ownSource.pathTechIds.includes(id)),
+      ];
+      converged.push({
+        frontier: ownSource.frontier,
+        target: candidate,
+        depth: Math.min(4, Math.max(...sourceEntries.map(entry => entry.depth)) + 1),
+        pathCost,
+        preliminary,
+        completedAfterPath,
+        pathTechIds: orderedPathIds,
+      });
+    }
+  }
+  return converged;
+}
+
 function estimateResearchPathTurns(
   context: AIResearchPlanningContext,
   target: SearchTarget,
@@ -239,8 +325,12 @@ export function planAIResearch(
       Array.from({ length: context.pressuredReliefCityCount ?? 0 }, (_, index) => `legacy-${index}`),
     ]));
 
-  const searchTargets = frontier
-    .flatMap(tech => descendantsWithinLimit(tech, techs, completed, knownTechIds, reliefCityIdsByBuildingId))
+  const directTargets = frontier
+    .flatMap(tech => descendantsWithinLimit(tech, techs, completed, knownTechIds, reliefCityIdsByBuildingId));
+  const searchTargets = [
+    ...directTargets,
+    ...convergentTargets(techs, completed, knownTechIds, reliefCityIdsByBuildingId, directTargets),
+  ]
     .sort((left, right) =>
       right.preliminary - left.preliminary
       || left.frontier.id.localeCompare(right.frontier.id)
