@@ -436,6 +436,88 @@ describe('AI round scheduler', () => {
     expect(result.state.opponentAI?.majorCivs['ai-2']?.defensePlansByCityId).toEqual({});
   });
 
+  it('preserves plan-agnostic standing demands through revalidation (#1116)', () => {
+    // #1116: worker-infrastructure (and observed-armor/-air, remembered-armor/-air,
+    // domination-threat:*) are recomputed fresh every round from world observation --
+    // none of them name a real AIStrategicPlan, so none of them should ever be checked
+    // against validPlanIds. Before the fix, every one of these was silently dropped
+    // here because only 'objective-readiness' and 'defense-overflow:' were allowlisted.
+    const state = createNewGame({
+      civType: 'egypt',
+      mapSize: 'medium',
+      opponentCount: 2,
+      gameTitle: 'Plan-agnostic demands',
+      seed: 'scheduler-plan-agnostic-demands',
+    });
+    let executedAiOne: PreparedMajorCivPlan | null = null;
+
+    processNonHumanMajorRound(state, new EventBus(), {
+      prepare: (snapshot, civId) => {
+        const value = prepared(snapshot as typeof state, civId);
+        if (civId === 'ai-1') {
+          value.forceDemands = [
+            {
+              role: 'worker',
+              desired: 1,
+              assigned: 0,
+              missing: 1,
+              priority: 40,
+              sourcePlanIds: ['worker-infrastructure'],
+            },
+            {
+              role: 'anti-armor',
+              desired: 1,
+              assigned: 0,
+              missing: 1,
+              priority: 180,
+              sourcePlanIds: ['observed-armor'],
+            },
+            {
+              role: 'air-defense',
+              desired: 1,
+              assigned: 0,
+              missing: 1,
+              priority: 80,
+              sourcePlanIds: ['remembered-air'],
+            },
+            {
+              role: 'frontline',
+              desired: 1,
+              assigned: 0,
+              missing: 1,
+              priority: 220,
+              sourcePlanIds: ['domination-threat:ai-2'],
+            },
+            // A genuinely unknown, non-plan source id must still be dropped -- the
+            // fix allowlists a specific known taxonomy, not "anything not a plan".
+            {
+              role: 'recon',
+              desired: 1,
+              assigned: 0,
+              missing: 1,
+              priority: 50,
+              sourcePlanIds: ['not-a-real-source'],
+            },
+          ];
+        }
+        return value;
+      },
+      executePrepared: (current, value) => {
+        if (value.civId === 'ai-1') executedAiOne = value;
+        return { state: current };
+      },
+    });
+
+    expect(executedAiOne).not.toBeNull();
+    expect(executedAiOne!.forceDemands.map(demand => demand.role).sort()).toEqual([
+      'air-defense',
+      'anti-armor',
+      'frontline',
+      'worker',
+    ]);
+    expect(executedAiOne!.forceDemands.find(demand => demand.role === 'recon')).toBeUndefined();
+  });
+
   it('skips a resource objective claimed peacefully after preparation', () => {
     const state = createNewGame({
       civType: 'egypt',
