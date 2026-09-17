@@ -292,6 +292,37 @@ export interface KnownCampaignGap {
  *   root-caused in this MR (out of #1108's evidence-based scope, which is the
  *   single-level convergence gap only) -- filed as #1116 and registered
  *   below.
+ *
+ * F12 (#1116, closed): the `tech-frozen` finding above was NOT a research-search
+ * defect at all -- the "convergence of convergences" hypothesis was disproven by
+ * direct instrumentation. The actual stalled tech (`rocketry`) was an ordinary,
+ * already-unlockable frontier pick (its two nominal prerequisites are in a direct
+ * ancestor relationship, not independent branches, and both were already completed
+ * at selection time); #1108's `convergentTargets` was never involved. The real
+ * cause: `revalidatePreparedPlan` (`ai-round-scheduler.ts`) silently dropped every
+ * force demand whose `sourcePlanIds` named a plan-agnostic, observation-derived
+ * source (`worker-infrastructure`, `observed-armor`/`remembered-armor`,
+ * `observed-air`/`remembered-air`, `domination-threat:*`) rather than a real
+ * `AIStrategicPlan` id -- its allowlist only recognized `objective-readiness` and
+ * `defense-overflow:*`. Concretely: #1064's worker-production demand
+ * (`worker-infrastructure`) was computed correctly every round and then discarded
+ * before it could ever reach production, meaning no AI civ has ever trained a
+ * Worker. No workers -> no tile improvements -> (combined with `city.focus` never
+ * being touched by any AI code, a separate pre-existing gap) science-poor terrain
+ * increasingly dominated a growing city's worked-tile set -> the sustained science
+ * collapse (49 -> 13/turn) that produced this finding. Fixed generically:
+ * `PLAN_AGNOSTIC_DEMAND_SOURCE_IDS`/`DEFENSE_OVERFLOW_SOURCE_PREFIX`/
+ * `DOMINATION_THREAT_SOURCE_PREFIX` (`ai-prepared-turn.ts`) now enumerate the
+ * complete taxonomy in one place, so `revalidatePreparedPlan` can't silently regain
+ * this gap the next time an administrative demand source is added. Re-running
+ * `lh-late-era-medium` after the fix: `tech-frozen` no longer reproduces; all three
+ * civs now hold 3-5 workers each (previously 0); `ai-2`'s completed-tech count rose
+ * from 293 to 306. `production-idle` (#1066, `scenarios: 'any'` above) now also
+ * reproduces for `ai-2` late-game (rounds 208-249) alongside the already-tracked
+ * `ai-1`/`ai-3` instances -- the same F7/F8/F9/F11 trajectory-shift pattern (a real
+ * fix changes how far an AI civ gets, exposing #1066's own already-tracked, already
+ * scenario-agnostic zero-plan/idle pattern in one more place) -- already covered by
+ * the existing entry, no registry change needed for it.
  */
 export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
   {
@@ -352,20 +383,6 @@ export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
       + 'every scenario, but as a mix of benign temporary plateaus and #1066\'s '
       + 'already-open zero-plan defect -- not a bug of its own to claim.',
     scenarios: 'any',
-  },
-  {
-    code: 'tech-frozen',
-    issue: '#1116',
-    why: '#1108\'s research-convergence fix (F11) newly exposed this on '
-      + 'lh-late-era-medium: completed-tech count held at 279 for 110 rounds. Direct '
-      + 'inspection of finalState found all three AI civs finish well past 279 techs '
-      + '(293-315) with live plans, multiple cities, and active research -- a temporary '
-      + 'plateau that resolved before the campaign\'s turn cap, not the #1066 zero-plan '
-      + 'signature. Not root-caused here -- out of #1108\'s evidence-based scope (the '
-      + 'single-level convergence gap only); a hypothesis that this reflects a further, '
-      + 'second-level ("convergence of convergences") tech-tree gap is noted on #1116 '
-      + 'but unconfirmed.',
-    scenarios: ['lh-late-era-medium'],
   },
 ];
 

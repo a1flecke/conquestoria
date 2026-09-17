@@ -168,6 +168,48 @@ export function incrementalDemandSeed(
 /** Most workers an empire will ever ask for, regardless of city count. */
 export const WORKER_SOFT_CAP = 4;
 
+/**
+ * Force-demand `sourcePlanIds` entries that name a standing, observation-derived need
+ * rather than a specific `AIStrategicPlan` -- these are recomputed fresh from world
+ * state every round (never carried over from a prior round the way a plan is), so they
+ * can never go "stale" the way a persisted plan can and must never be checked against
+ * `validPlanIds`. `revalidatePreparedPlan` (`ai-round-scheduler.ts`) is the only other
+ * consumer of this taxonomy -- it must treat every one of these, plus every
+ * `DOMINATION_THREAT_SOURCE_PREFIX`-prefixed id, as always valid; anything absent from
+ * both is assumed to be a real plan id and checked against `validPlanIds` instead.
+ *
+ * #1116: `worker-infrastructure` was missing from this set (which didn't exist as a
+ * shared export yet -- `ai-round-scheduler.ts` hardcoded only `objective-readiness`),
+ * so #1064's worker-production demand was silently dropped every single round since it
+ * shipped -- no AI civ has ever trained a Worker as a result. `observed-armor` /
+ * `remembered-armor` / `observed-air` / `remembered-air` had the identical defect.
+ * Add a new entry here (or to `DOMINATION_THREAT_SOURCE_PREFIX`-style prefix handling
+ * in `ai-round-scheduler.ts` for a per-target tag) whenever a new plan-agnostic demand
+ * source is introduced -- never re-hardcode a string directly in the scheduler.
+ */
+export const PLAN_AGNOSTIC_DEMAND_SOURCE_IDS: ReadonlySet<string> = new Set([
+  'objective-readiness',
+  'worker-infrastructure',
+  'observed-armor',
+  'remembered-armor',
+  'observed-air',
+  'remembered-air',
+]);
+
+/**
+ * Per-target-city plan-agnostic prefix (`ai-round-scheduler.ts` still validates the
+ * named city still exists and is still owned by the demanding civ -- unlike the exact
+ * sources above, the overflow *target* itself can legitimately go stale).
+ */
+export const DEFENSE_OVERFLOW_SOURCE_PREFIX = 'defense-overflow:';
+
+/**
+ * Per-target-civ plan-agnostic prefix from `ai-domination.ts`'s counterplay demand --
+ * recomputed fresh every round from current domination knowledge like the exact
+ * sources above, so no further per-target revalidation is needed.
+ */
+export const DOMINATION_THREAT_SOURCE_PREFIX = 'domination-threat:';
+
 function observedArmorDemand(
   state: Readonly<GameState>,
   perception: MajorCivPerception,
@@ -807,7 +849,7 @@ export function prepareMajorCivStrategicPlan(
       }] : []),
       ...portfolioResult.unplannedDefenseCityIds.map(cityId => ({
         role: 'frontline' as const,
-        sourceId: `defense-overflow:${cityId}`,
+        sourceId: `${DEFENSE_OVERFLOW_SOURCE_PREFIX}${cityId}`,
         priority: 600,
       })),
       ...observedArmorDemand(state, perception, getPreparedAssignmentProfile(state)),

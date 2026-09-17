@@ -14,7 +14,12 @@ import type {
   PrepareMajorCivPlan,
   PreparedMajorCivPlan,
 } from './ai-prepared-turn';
-import { prepareMajorCivStrategicPlan } from './ai-prepared-turn';
+import {
+  DEFENSE_OVERFLOW_SOURCE_PREFIX,
+  DOMINATION_THREAT_SOURCE_PREFIX,
+  PLAN_AGNOSTIC_DEMAND_SOURCE_IDS,
+  prepareMajorCivStrategicPlan,
+} from './ai-prepared-turn';
 import type { AIDecisionTrace } from './ai-decision-trace';
 import { processAIGeneralCommand } from './ai-general-command';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
@@ -108,13 +113,21 @@ function revalidatePreparedPlan(
         unitIds.filter(unitId => validUnitIds.has(unitId)),
       ]),
   );
+  // #1116: a demand's sourcePlanIds can name either a real, potentially-stale
+  // AIStrategicPlan (checked against validPlanIds below) or a plan-agnostic standing
+  // demand recomputed fresh every round (PLAN_AGNOSTIC_DEMAND_SOURCE_IDS and its two
+  // per-target prefixes) -- those never go stale and must never be checked against
+  // validPlanIds. Before this, any plan-agnostic source missing from this allowlist
+  // (worker-infrastructure, observed-armor/-air, remembered-armor/-air) was silently
+  // dropped every round; see PLAN_AGNOSTIC_DEMAND_SOURCE_IDS's own doc comment.
   const forceDemands = prepared.forceDemands.flatMap(demand => {
     const sourcePlanIds = demand.sourcePlanIds.filter(sourceId => {
-      if (sourceId === 'objective-readiness') return true;
-      if (sourceId.startsWith('defense-overflow:')) {
-        const cityId = sourceId.slice('defense-overflow:'.length);
+      if (PLAN_AGNOSTIC_DEMAND_SOURCE_IDS.has(sourceId)) return true;
+      if (sourceId.startsWith(DEFENSE_OVERFLOW_SOURCE_PREFIX)) {
+        const cityId = sourceId.slice(DEFENSE_OVERFLOW_SOURCE_PREFIX.length);
         return state.cities[cityId]?.owner === prepared.civId;
       }
+      if (sourceId.startsWith(DOMINATION_THREAT_SOURCE_PREFIX)) return true;
       return validPlanIds.has(sourceId);
     });
     return sourcePlanIds.length > 0 ? [{ ...demand, sourcePlanIds }] : [];
