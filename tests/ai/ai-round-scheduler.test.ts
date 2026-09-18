@@ -334,6 +334,119 @@ describe('AI round scheduler', () => {
     expect(result.state.opponentAI?.majorCivs['ai-2']?.primaryPlan).toBeNull();
   });
 
+  it('#1088: does not wipe a consolidating capture plan just because the target is now owned', () => {
+    // Mirror of `selectPrimaryPlan`'s own consolidating exemption (ai-plan-portfolio.ts)
+    // at this second revalidation site -- pre-fix, `planTargetIsStale` treated "capture
+    // objective, city now owned by us" as ALWAYS stale, which is exactly the state a
+    // freshly-captured city is in the instant its plan enters `consolidating`. Without
+    // this fix here too, the plan survives `selectPrimaryPlan` during prepare() only to
+    // be wiped again right before execution, every single round -- confirmed via a real
+    // campaign trace during implementation (the first fix alone caused the domination
+    // campaign integration test to never win within its round cap).
+    const state = createNewGame({
+      civType: 'egypt',
+      mapSize: 'medium',
+      opponentCount: 2,
+      gameTitle: 'Consolidating capture',
+      seed: 'scheduler-consolidating-capture',
+    });
+    state.turn = 0;
+    const aiTwoSettler = state.civilizations['ai-2'].units
+      .map(id => state.units[id])
+      .find(unit => unit?.type === 'settler')!;
+    const capturedCity = foundCity('ai-2', aiTwoSettler.position, state.map, state.idCounters);
+    state.cities[capturedCity.id] = capturedCity;
+    state.civilizations['ai-2'].cities.push(capturedCity.id);
+
+    const consolidatingPlan: AIStrategicPlan = {
+      id: 'capture-consolidating',
+      actorId: 'ai-2',
+      objective: 'capture',
+      target: { kind: 'city', id: capturedCity.id, lastKnownPosition: capturedCity.position },
+      theaterId: 'test',
+      phase: 'consolidating',
+      reasonCodes: ['continue-active-war'],
+      commitment: 0.25,
+      createdTurn: 0,
+      reconsiderAfterTurn: 3,
+      expiresAfterTurn: 12,
+      lastProgressTurn: 0,
+      requiredRoles: { frontline: 1, capture: 1 },
+      assignedUnitIds: [],
+    };
+
+    const executed: PreparedMajorCivPlan[] = [];
+    const result = processNonHumanMajorRound(state, new EventBus(), {
+      prepare: (snapshot, civId) => {
+        const value = prepared(snapshot as typeof state, civId);
+        if (civId === 'ai-2') value.portfolio.primaryPlan = consolidatingPlan;
+        return value;
+      },
+      executePrepared: (current, value) => {
+        executed.push(value);
+        return { state: current };
+      },
+    });
+
+    const aiTwoExecuted = executed.find(value => value.civId === 'ai-2');
+    expect(aiTwoExecuted?.portfolio.primaryPlan?.id).toBe('capture-consolidating');
+    expect(aiTwoExecuted?.portfolio.primaryPlan?.phase).toBe('consolidating');
+    expect(result.state.opponentAI?.majorCivs['ai-2']?.primaryPlan?.id).toBe('capture-consolidating');
+  });
+
+  it('#1088: still treats an owned capture target as stale when the plan is not consolidating', () => {
+    // Regression guard for the pre-existing, still-correct behavior: a plan that is
+    // NOT consolidating (e.g. still 'advancing', a stale fixture shape) against a city
+    // it already owns is not a real in-progress consolidation and must still be wiped.
+    const state = createNewGame({
+      civType: 'egypt',
+      mapSize: 'medium',
+      opponentCount: 2,
+      gameTitle: 'Owned but not consolidating',
+      seed: 'scheduler-owned-not-consolidating',
+    });
+    state.turn = 0;
+    const aiTwoSettler = state.civilizations['ai-2'].units
+      .map(id => state.units[id])
+      .find(unit => unit?.type === 'settler')!;
+    const ownedCity = foundCity('ai-2', aiTwoSettler.position, state.map, state.idCounters);
+    state.cities[ownedCity.id] = ownedCity;
+    state.civilizations['ai-2'].cities.push(ownedCity.id);
+
+    const advancingPlan: AIStrategicPlan = {
+      id: 'capture-advancing-but-owned',
+      actorId: 'ai-2',
+      objective: 'capture',
+      target: { kind: 'city', id: ownedCity.id, lastKnownPosition: ownedCity.position },
+      theaterId: 'test',
+      phase: 'advancing',
+      reasonCodes: ['nearby-opportunity'],
+      commitment: 0.25,
+      createdTurn: 0,
+      reconsiderAfterTurn: 3,
+      expiresAfterTurn: 12,
+      lastProgressTurn: 0,
+      requiredRoles: { frontline: 1, capture: 1 },
+      assignedUnitIds: [],
+    };
+
+    const executed: PreparedMajorCivPlan[] = [];
+    processNonHumanMajorRound(state, new EventBus(), {
+      prepare: (snapshot, civId) => {
+        const value = prepared(snapshot as typeof state, civId);
+        if (civId === 'ai-2') value.portfolio.primaryPlan = advancingPlan;
+        return value;
+      },
+      executePrepared: (current, value) => {
+        executed.push(value);
+        return { state: current };
+      },
+    });
+
+    const aiTwoExecuted = executed.find(value => value.civId === 'ai-2');
+    expect(aiTwoExecuted?.portfolio.primaryPlan).toBeNull();
+  });
+
   it('removes stale defense plans before prepared execution', () => {
     const state = createNewGame({
       civType: 'egypt',

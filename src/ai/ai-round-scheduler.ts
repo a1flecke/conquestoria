@@ -66,7 +66,16 @@ function planTargetIsStale(
       const city = state.cities[plan.target.id];
       if (!city) return true;
       if (plan.objective === 'defend') return city.owner !== civId;
-      return plan.objective === 'capture' && city.owner === civId;
+      // #1088: "we now own the capture target" is exactly what `consolidating` means
+      // -- the mirror image of the same bug fixed in `currentPlanIsValid`
+      // (ai-plan-portfolio.ts): this belt-and-suspenders re-check ran right before
+      // execution and wiped a just-retained consolidating plan a second time, this
+      // time by treating "captured, so now owned" as staleness rather than success.
+      // Matches ai-major-turn.ts's own `targetStillValid` treatment of this exact
+      // case (`city.owner !== plan.actorId || plan.phase === 'consolidating'`).
+      return plan.objective === 'capture'
+        && city.owner === civId
+        && plan.phase !== 'consolidating';
     }
     case 'unit':
       return !Object.prototype.hasOwnProperty.call(state.units, plan.target.id);

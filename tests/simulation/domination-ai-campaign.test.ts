@@ -135,6 +135,24 @@ function runCampaign(start: GameState, reloadAtSaveRound: boolean): CampaignResu
   const traces: AIDecisionTrace[] = [];
   const rivalStatusChanges: string[] = [];
   for (let round = 1; round <= MAX_ROUNDS && !state.gameOver; round += 1) {
+    // #1088: `recordDominationPoliticalReport`'s disposition fact decays to 'unknown'
+    // after 5 turns without a fresh report (`domination-knowledge.ts`'s `staleRole`) --
+    // a real, working-as-designed "earned knowledge" mechanic, unrelated to #1088. This
+    // fixture originally called the report exactly once, at round 0, which happened to
+    // stay just inside that 5-turn window purely by the coincidental timing of the
+    // PRE-#1088-fix consolidation bug (which re-rolled ai-1's objective every single
+    // round instead of correctly holding during consolidation, giving it many chances
+    // to catch the target while still fresh). #1088's fix makes ai-1 correctly hold a
+    // captured city for ~2 quiet rounds before reconsidering -- a real behavior
+    // improvement -- which was enough to push past that narrow window and leave
+    // player-2 permanently unknown to ai-1's domination doctrine. Refreshing the report
+    // every round here simulates the ongoing diplomatic/espionage awareness a real,
+    // long-running campaign would provide (ai-1 already has standing contact with both
+    // rivals from the start) rather than a single stale snapshot -- it does not touch,
+    // weaken, or omniscience-leak into any AI decision path; `recordDominationPoliticalReport`
+    // is itself a no-op once a civ is eliminated.
+    state = recordDominationPoliticalReport(state, 'ai-1', 'player-1');
+    state = recordDominationPoliticalReport(state, 'ai-1', 'player-2');
     const beforeOwners = Object.fromEntries(
       ['player-1', 'player-2'].map(civId => [civId, [...state.civilizations[civId].cities]]),
     );

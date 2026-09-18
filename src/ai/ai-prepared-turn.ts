@@ -741,6 +741,7 @@ export function prepareMajorCivStrategicPlan(
     portfolio: previous,
     candidates: [...planCandidates(candidates, choice), ...crisisDispatchPlanCandidates(state, civId)],
     cityThreats: threats,
+    ownedCityIds: new Set(perception.ownCities.map(city => city.id)),
     modernization: {
       bestTrainableStrength,
       deployedStrength: Math.max(
