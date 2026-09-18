@@ -25,8 +25,11 @@ touching one of the above, STOP and escalate rather than silently broadening sco
 
 | File | Change |
 |---|---|
-| `src/ai/ai-plan-portfolio.ts` | `currentPlanIsValid` gains a consolidating-and-still-owned exemption from the opportunity-candidate requirement; `selectPrimaryPlan` passes through the extra context needed to evaluate it. |
+| `src/ai/ai-plan-portfolio.ts` | `currentPlanIsValid` gains a consolidating-and-still-owned exemption from the opportunity-candidate requirement; `selectPrimaryPlan` passes through the extra context needed to evaluate it, and must ALSO bypass its own switching-bonus score comparison for an exempted plan (a consolidating plan has no candidate score to compare, so the plain score-comparison branch always lost to any scored alternative — found during implementation, not anticipated by this plan's original sketch). |
+| `src/ai/ai-prepared-turn.ts` | `prepareMajorCivStrategicPlan` populates the new `ownedCityIds` context field from `perception.ownCities` (already computed — zero new perception cost). |
+| `src/ai/ai-round-scheduler.ts` | **Found during implementation, not in the original plan**: `revalidatePreparedPlan`'s `planTargetIsStale` has the identical bug at a second site — it runs after planning but before execution and independently treats "capture objective, city now owned" as always-stale, wiping the just-retained plan again. Needs the same `phase !== 'consolidating'` exemption. Without this, the design's §17 fix alone causes `domination-ai-campaign.test.ts` to stop winning within its round cap — confirmed by direct integration-test regression during implementation. |
 | `tests/ai/ai-plan-portfolio.test.ts` | New `describe` block covering the fix (RED → GREEN) plus negative/boundary cases. |
+| `tests/ai/ai-round-scheduler.test.ts` | New tests covering the second site: a consolidating plan against an owned target survives revalidation; a non-consolidating plan against an owned target is still correctly wiped (regression guard). |
 | `tests/simulation/domination-ai-campaign.test.ts` | No code change expected, but re-run as an integration check (§ Verification) — it already exercises a real multi-capture campaign and should keep passing byte-for-byte on its determinism assertions. |
 | `tests/simulation/long-horizon/known-campaign-gaps.ts` | Only touched if `yarn test:ai-long` surfaces a new named finding directly attributable to this change (unlikely per design §15) — do not touch speculatively. |
 

@@ -138,6 +138,41 @@ describe('AI unit assignment', () => {
     expect(result.assignmentsByPlanId['capture-rival']).not.toContain('near-swordsman');
   });
 
+  it('#1088: emergency defense still preempts a consolidating primary plan\'s garrison', () => {
+    // Mandatory arc coverage: a consolidating plan (#1088's retention fix) must not
+    // become immune to emergency defense -- defense plans are still ordered before
+    // primaryPlan in `orderedPlans` (ai-unit-assignment.ts), unchanged by the fix, so a
+    // genuine home-city threat can still poach a garrison unit. The consolidating plan
+    // itself must stay internally consistent (no corrupted/duplicate assignment, no
+    // crash) with whatever units remain.
+    const consolidating = plan('capture-consolidating', 'capture', { frontline: 1, capture: 1 });
+    consolidating.phase = 'consolidating';
+    const result = assignUnitsToPortfolio({
+      portfolio: {
+        ...createEmptyMajorCivPortfolio(),
+        primaryPlan: consolidating,
+        defensePlansByCityId: {
+          capital: plan('defend-capital', 'defend', { frontline: 1 }),
+        },
+      },
+      units: [
+        unit('garrison-a', 'swordsman', { 'defend-capital': 1, 'capture-consolidating': 0 }),
+        unit('garrison-b', 'warrior', { 'defend-capital': 2, 'capture-consolidating': 0 }),
+      ],
+      profile: { maxPrimaryForce: 3, retreatHealthPercent: 30 },
+      defenseThreatScoreByPlanId: { 'defend-capital': 90 },
+      eliminationDefensePlanIds: [],
+      onlyImmediateDefenderUnitIds: [],
+      requiresEmbarkationByPlanId: {},
+    });
+
+    expect(result.assignmentsByPlanId['defend-capital']).toContain('garrison-a');
+    expect(result.assignmentsByPlanId['capture-consolidating']).not.toContain('garrison-a');
+    const assigned = Object.values(result.assignmentsByPlanId).flat();
+    expect(new Set(assigned).size).toBe(assigned.length);
+    expect(result.portfolio.defensePlansByCityId.capital.assignedUnitIds).toContain('garrison-a');
+  });
+
   it('never fills combat requirements with support specialists', () => {
     const result = assignUnitsToPortfolio({
       portfolio: {

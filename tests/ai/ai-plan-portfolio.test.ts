@@ -55,6 +55,7 @@ function context(overrides: Record<string, unknown> = {}) {
     },
     candidates: [candidate('close', 40), candidate('new', 44)],
     cityThreats: [] as AICityThreat[],
+    ownedCityIds: new Set<string>(),
     modernization: {
       bestTrainableStrength: 30,
       deployedStrength: 25,
@@ -357,6 +358,112 @@ describe('major-civilization plan portfolios', () => {
     expect(first.portfolio.primaryPlan?.commitment).toBe(1);
   });
 
+  describe('#1088 consolidating-plan retention', () => {
+    // #1088: traced against a real domination campaign -- the round after a capture
+    // plan captures its target and enters 'consolidating', objectiveCandidates() never
+    // emits another 'capture' candidate for that same city (it's owned now), so the
+    // pre-fix retention rule (which requires a live matching candidate) discarded the
+    // plan and replaced it with whatever scored highest -- typically a brand-new,
+    // distant objective -- leaving the just-captured city with zero assigned
+    // defenders and no grace period to heal/garrison/hold.
+    const consolidatingPlan = (overrides: Partial<AIStrategicPlan> = {}) => plan('capture-city5', {
+      phase: 'consolidating',
+      target: { kind: 'city', id: 'city5', lastKnownPosition: { q: 3, r: 2 } },
+      assignedUnitIds: ['tank-1', 'tank-2'],
+      lastProgressTurn: 10,
+      ...overrides,
+    });
+
+    it('retains a consolidating capture plan with no matching opportunity candidate', () => {
+      const result = refreshMajorCivPortfolio(context({
+        portfolio: { ...createEmptyMajorCivPortfolio(), primaryPlan: consolidatingPlan() },
+        // No 'city5' candidate at all -- objectiveCandidates() never emits one for a
+        // city the civ already owns -- but a fresh, higher-scoring opportunity exists
+        // elsewhere, which is exactly what displaced the plan pre-fix.
+        candidates: [candidate('city7', 90)],
+        ownedCityIds: new Set(['city5']),
+      }));
+
+      expect(result.portfolio.primaryPlan?.id).toBe('capture-city5');
+      expect(result.portfolio.primaryPlan?.phase).toBe('consolidating');
+      expect(result.portfolio.primaryPlan?.target).toMatchObject({ kind: 'city', id: 'city5' });
+      expect(result.portfolio.primaryPlan?.assignedUnitIds).toEqual(['tank-1', 'tank-2']);
+    });
+
+    it('does not retain a consolidating plan once its city is lost to recapture', () => {
+      const result = refreshMajorCivPortfolio(context({
+        portfolio: { ...createEmptyMajorCivPortfolio(), primaryPlan: consolidatingPlan() },
+        candidates: [candidate('city7', 90)],
+        // city5 is NOT in ownedCityIds -- lost to a counterattack mid-consolidation.
+        ownedCityIds: new Set<string>(),
+      }));
+
+      expect(result.portfolio.primaryPlan?.id).not.toBe('capture-city5');
+      expect(result.portfolio.primaryPlan?.target).toMatchObject({ kind: 'city', id: 'city7' });
+    });
+
+    it('still expires a consolidating plan past its explicit expiresAfterTurn', () => {
+      const result = refreshMajorCivPortfolio(context({
+        portfolio: {
+          ...createEmptyMajorCivPortfolio(),
+          primaryPlan: consolidatingPlan({ expiresAfterTurn: 9 }),
+        },
+        candidates: [candidate('city7', 90)],
+        ownedCityIds: new Set(['city5']),
+        turn: 10,
+      }));
+
+      expect(result.portfolio.primaryPlan?.id).not.toBe('capture-city5');
+    });
+
+    it('still enforces the unacceptable-loss-ratio cap when a matching candidate does exist', () => {
+      // A plan can be BOTH consolidating AND matched by a fresh candidate (e.g. the
+      // city was lost and immediately re-targeted for recapture) -- the loss-ratio
+      // safety valve must still apply in that case.
+      const result = refreshMajorCivPortfolio(context({
+        portfolio: {
+          ...createEmptyMajorCivPortfolio(),
+          primaryPlan: consolidatingPlan({
+            target: { kind: 'city', id: 'close', lastKnownPosition: { q: 3, r: 2 } },
+          }),
+        },
+        candidates: [
+          candidate('close', 40, { expectedLossRatio: 1.8 }),
+          candidate('fallback', 30),
+        ],
+        ownedCityIds: new Set<string>(),
+      }));
+
+      expect(result.portfolio.primaryPlan?.target).toMatchObject({ kind: 'city', id: 'fallback' });
+    });
+
+    it('does not exempt a non-consolidating plan targeting an owned city', () => {
+      // Sanity check that the exemption is phase-gated, not just ownership-gated --
+      // an 'advancing' plan against a city the civ somehow already owns (e.g. a stale
+      // fixture) must still require a matching candidate like any other plan.
+      const result = refreshMajorCivPortfolio(context({
+        portfolio: {
+          ...createEmptyMajorCivPortfolio(),
+          primaryPlan: consolidatingPlan({ phase: 'advancing' }),
+        },
+        candidates: [candidate('city7', 90)],
+        ownedCityIds: new Set(['city5']),
+      }));
+
+      expect(result.portfolio.primaryPlan?.id).not.toBe('capture-city5');
+    });
+
+    it('lets the retained plan be reached deterministically twice in a row', () => {
+      const built = () => refreshMajorCivPortfolio(context({
+        portfolio: { ...createEmptyMajorCivPortfolio(), primaryPlan: consolidatingPlan() },
+        candidates: [candidate('city7', 90)],
+        ownedCityIds: new Set(['city5']),
+      }));
+
+      expect(built().portfolio.primaryPlan).toEqual(built().portfolio.primaryPlan);
+    });
+  });
+
   it('keeps modernization bounded and non-spatial', () => {
     const result = refreshMajorCivPortfolio(context({
       modernization: {
@@ -420,6 +527,7 @@ describe('#1064 settle-plan stability', () => {
       // +5 is well inside switchingBonus (10 + 20 * 0.25 = 15).
       candidates: [expandCandidate({ q: 6, r: 0 }, 40), expandCandidate({ q: 9, r: 3 }, 45)],
       cityThreats: [],
+      ownedCityIds: new Set<string>(),
       modernization: {
         bestTrainableStrength: 10, deployedStrength: 10, actorEra: 1, globalEra: 1,
         knownRivalMaxStrength: 0, obsoleteUnitShare: 0, treasuryCanAct: true,
@@ -441,6 +549,7 @@ describe('#1064 settle-plan stability', () => {
       portfolio: { ...createEmptyMajorCivPortfolio(), primaryPlan: current },
       candidates: [expandCandidate({ q: 12, r: 4 }, 30)],
       cityThreats: [],
+      ownedCityIds: new Set<string>(),
       modernization: {
         bestTrainableStrength: 10, deployedStrength: 10, actorEra: 1, globalEra: 1,
         knownRivalMaxStrength: 0, obsoleteUnitShare: 0, treasuryCanAct: true,

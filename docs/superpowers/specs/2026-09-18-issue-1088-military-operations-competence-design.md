@@ -352,6 +352,68 @@ This is the smallest change that lets `nextPlanPhase`'s already-correct completi
 `assignUnitsToPortfolio`/tactical fallout (§3's `rest`/`hold`/counterattack-response
 behavior) actually execute for more than the single round the capture happened in.
 
+### 17.1. Amendment found during implementation — a second, mirror-image site
+
+TDD implementation surfaced a second occurrence of the identical bug, in a different
+file. `ai-round-scheduler.ts`'s `revalidatePreparedPlan` runs a belt-and-suspenders
+`planTargetIsStale` check on the prepared portfolio **after** `prepareMajorCivStrategicPlan`
+(and therefore after §17's fix) but **before** that round's execution:
+
+```ts
+if (plan.objective === 'defend') return city.owner !== civId;
+return plan.objective === 'capture' && city.owner === civId;   // <- unconditionally stale
+```
+
+This treats "capture objective, city now owned by us" as **always** stale — exactly the
+condition a freshly-`consolidating` plan is in by definition. So §17's fix alone
+retained the plan during planning, only for this second, independent check to discard
+it again immediately before execution, every single round, forever. Confirmed
+empirically: with only §17 applied, `tests/simulation/domination-ai-campaign.test.ts`
+stopped reaching a domination victory within its 200-round cap (previously passing on
+`main`) — a genuine, demonstrated regression, not a hypothetical.
+
+The fix is the identical pattern, applied at this second site: exempt
+`plan.phase === 'consolidating'` from the "owned ⇒ stale" rule, mirroring
+`ai-major-turn.ts`'s own `targetStillValid` (`city.owner !== plan.actorId || plan.phase
+=== 'consolidating'`) — this is now the *third* place in the codebase expressing the
+same "a consolidating capture plan legitimately owns its target" fact, all three now
+consistent. No further site was found; `targetStillValid` (execution-time,
+`ai-major-turn.ts`) already had this exemption from the start (§3) and needed no change.
+
+This does not broaden the MR's scope — it is the same finding (§16, finding 1), fixed
+completely rather than partially. Both sites are covered by focused regression tests
+(see the implementation plan).
+
+### 17.2. A third implementation-time finding — a fragile test fixture, not a code bug
+
+With both code sites fixed, `tests/simulation/domination-ai-campaign.test.ts` still
+failed: `ai-1` eliminated `player-1` correctly, then never pursued `player-2` at all for
+the rest of the 200-round cap. Root cause, confirmed by direct trace: the "capture
+`player-2`'s city" candidate requires `isKnownIndependentDominationTarget`
+(`ai-domination.ts`), which in turn requires a `domination-knowledge.ts` fact whose
+`evidence === 'report'` be no more than 5 turns old (`staleRole`). The fixture calls
+`recordDominationPoliticalReport` for both rivals exactly **once**, at round 0. Pre-fix,
+the old consolidation bug re-rolled `ai-1`'s objective every single round after any
+capture (its own defect), which coincidentally gave it many chances to land on
+`capture player-2` while that one-shot report happened to still be inside its 5-turn
+freshness window. Post-fix, `ai-1` correctly holds a captured city for ~2 quiet rounds
+before reconsidering (§17) — a real behavior improvement — which pushed the timing just
+past that narrow, coincidental window, and the report was never refreshed again.
+
+This is a **fixture limitation**, not a code defect: `staleRole`'s 5-turn decay is a
+deliberate, working-as-designed "earned knowledge" mechanic (the doc comment on
+`getDominationCounterplay` is explicit that facts must stay observer-earned), unrelated
+to #1088, and a real multi-hundred-round campaign would ordinarily refresh this via
+ongoing espionage/diplomacy contact — the fixture's single snapshot was never a faithful
+stand-in for that. The fix is in the **test only**: `runCampaign` now re-calls
+`recordDominationPoliticalReport` for both rivals every round (a no-op once a civ is
+eliminated), simulating the sustained awareness a real campaign provides instead of one
+stale snapshot. This does not touch, weaken, or add omniscience to any AI decision path
+— it feeds the exact same "earned knowledge" API `campaignStart()` already used, just
+repeatedly. After this, both campaign sub-tests pass in ~11s (down from a non-terminating
+200-round run that previously took ~400s to exhaust its cap without a winner) —
+consistent with `ai-1` now winning briskly and decisively, not marginally.
+
 ## 18. Explicit non-goals
 
 - No new `AIStrategicPlan.phase` value. No `assembling`/`engaging` rename.

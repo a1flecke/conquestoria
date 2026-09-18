@@ -56,6 +56,17 @@ export interface AIPortfolioContext {
   portfolio: MajorCivPlanPortfolio;
   candidates: readonly AIPlanCandidate[];
   cityThreats: readonly AICityThreat[];
+  /**
+   * #1088: cities this civ currently owns (id set), so `currentPlanIsValid` can tell a
+   * `consolidating` capture plan's target is still held without needing a matching
+   * opportunity `AIPlanCandidate` -- `objectiveCandidates()` never emits a `capture`
+   * candidate for a city the civ already owns (correctly -- that's not an opportunity),
+   * which is exactly why a consolidating plan could never be retained past the single
+   * round it entered that phase. See
+   * `docs/superpowers/specs/2026-09-18-issue-1088-military-operations-competence-design.md`
+   * for the full trace.
+   */
+  ownedCityIds: ReadonlySet<string>;
   modernization: AIModernizationFactors;
 }
 
@@ -135,16 +146,35 @@ function createPlan(
   };
 }
 
+/**
+ * #1088: a `consolidating` plan is no longer chasing an opportunity -- it already
+ * captured its target and is holding/healing/garrisoning it -- so requiring a live
+ * matching `AIPlanCandidate` (the normal retention rule below) is the wrong question to
+ * ask of it. `objectiveCandidates()` structurally never emits a `capture` candidate for
+ * a city the civ already owns, so without this exemption a consolidating plan was
+ * discarded the very next planning round, every time, regardless of any real threat.
+ */
+function isConsolidatingAndStillOwned(
+  context: Pick<AIPortfolioContext, 'ownedCityIds'>,
+  plan: AIStrategicPlan,
+): boolean {
+  return plan.phase === 'consolidating'
+    && plan.target.kind === 'city'
+    && context.ownedCityIds.has(plan.target.id);
+}
+
 function currentPlanIsValid(
+  context: Pick<AIPortfolioContext, 'ownedCityIds'>,
   plan: AIStrategicPlan,
   candidate: AIPlanCandidate | undefined,
   turn: number,
 ): boolean {
-  if (!candidate?.targetValid || !candidate.reasonValid) return false;
-  if (candidate.expectedLossRatio > 1.5) return false;
+  const exempt = isConsolidatingAndStillOwned(context, plan);
+  if (!exempt && (!candidate?.targetValid || !candidate.reasonValid)) return false;
+  if (candidate && candidate.expectedLossRatio > 1.5) return false;
   if (turn > plan.expiresAfterTurn) return false;
   const stalledPastReconsideration = turn >= plan.reconsiderAfterTurn
-    && !candidate.progress
+    && !(candidate?.progress ?? exempt)
     && plan.lastProgressTurn < plan.reconsiderAfterTurn;
   return !stalledPastReconsideration;
 }
@@ -164,9 +194,18 @@ function selectPrimaryPlan(context: AIPortfolioContext): AIStrategicPlan | null 
     ? context.candidates.find(candidate => planMatchesCandidate(current, candidate))
     : undefined;
 
-  if (current && currentPlanIsValid(current, currentCandidate, context.turn)) {
+  if (current && currentPlanIsValid(context, current, currentCandidate, context.turn)) {
     const switchingBonus = 10 + 20 * clamp(current.commitment, 0, 1);
-    if (!best || (currentCandidate?.score ?? Number.NEGATIVE_INFINITY) + switchingBonus >= best.score) {
+    // #1088: a consolidating plan has no opportunity score to compare against `best`
+    // (it isn't chasing one) -- without this, the plain switching-bonus math below
+    // always favored ANY scored candidate over a scoreless retained plan, silently
+    // discarding a just-succeeded consolidation the instant any other opportunity
+    // existed, which defeated the currentPlanIsValid exemption above entirely.
+    if (
+      isConsolidatingAndStillOwned(context, current)
+      || !best
+      || (currentCandidate?.score ?? Number.NEGATIVE_INFINITY) + switchingBonus >= best.score
+    ) {
       return {
         ...current,
         // A matching candidate is regenerated fresh every round from live state
