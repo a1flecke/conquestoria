@@ -13,6 +13,17 @@
  * ≈ 40 min as of #1094's AI gold-spending pass (attributable almost entirely to
  * `lh-veteran-large`'s own increase); Vitest runs the matrix and the continuity
  * file concurrently.
+ *
+ * #1125 investigated `lh-veteran-large`'s #1094-era increase directly: found and fixed
+ * an exact, provable redundancy (`getRushBuyQuote` recomputing the whole-civ economy
+ * projection once per producing city instead of once per round — see
+ * `src/ai/ai-treasury.ts`), confirmed via direct instrumentation on a real (not
+ * synthetic-fixture) campaign to reduce that specific computation by ~20%. That fix did
+ * NOT measurably change `lh-veteran-large`'s own wall-clock (1567.3s measured post-fix
+ * vs. the 1520s figure below — statistically indistinguishable) — the dominant driver of
+ * this scenario's cost is a DIFFERENT, unrelated hotspot (`calculateCityYields` growing
+ * super-linearly across a campaign, tracked separately as #1126). The 1520s figure below
+ * remains the accurate current number; do not revise it down based on #1125's fix.
  */
 import type { AICampaignOptions, AIPersonality, AISimulationOptions } from '../ai-playability-fixture';
 import { runAICampaign } from '../ai-playability-fixture';
