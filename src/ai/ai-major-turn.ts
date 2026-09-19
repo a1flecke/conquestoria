@@ -65,7 +65,7 @@ import {
   type AITacticalAction,
   type AITacticalContext,
 } from './ai-tactics';
-import { canUnitFulfillAIStrategicRole, getAIStrategicRoles } from './ai-unit-roles';
+import { canUnitFulfillAIStrategicRole, countAIStrategicRoleCapabilities, getAIStrategicRoles } from './ai-unit-roles';
 import { isAIHostileOwner } from './ai-hostility';
 import { processAIUpgrades } from './ai-upgrades';
 
@@ -588,12 +588,11 @@ function hasRequiredRoles(
   plan: AIStrategicPlan,
   assignedUnitIds: readonly string[],
 ): boolean {
+  const units = assignedUnitIds.map(unitId => state.units[unitId])
+    .filter((unit): unit is Unit => Boolean(unit) && unit.owner === plan.actorId);
+  const available = countAIStrategicRoleCapabilities(units, plan.requiredRoles);
   return Object.entries(plan.requiredRoles).every(([role, desired]) =>
-    assignedUnitIds
-      .map(unitId => state.units[unitId])
-      .filter((unit): unit is Unit => Boolean(unit) && unit.owner === plan.actorId)
-      .filter(unit => canUnitFulfillAIStrategicRole(unit.type, role as AIStrategicRole))
-      .length >= (desired ?? 0));
+    (available[role as AIStrategicRole] ?? 0) >= (desired ?? 0));
 }
 
 function hasCaptureOrFrontline(
