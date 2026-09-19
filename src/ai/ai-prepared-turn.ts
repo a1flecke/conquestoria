@@ -406,7 +406,7 @@ function objectiveCandidates(
       requiredRoles: (
         city.defense === 'fortified'
         || perception.units.some(unit => unit.owner === city.owner && unit.position
-          && hexKey(unit.position) === hexKey(city.position))
+          && hexKey(unit.position) === hexKey(city.position!))
       ) ? { frontline: 2, capture: 1 } : { capture: 1 },
     };
     candidates.push(candidate);
@@ -609,6 +609,7 @@ function planCandidates(
           ? [...candidate.explicitDistantReasons]
           : ['nearby-opportunity'],
       requiredRoles: { ...candidate.requiredRoles },
+      ...(candidate.supportRoles ? { supportRoles: { ...candidate.supportRoles } } : {}),
       commitment: 0.25,
       targetValid: Number.isFinite(candidate.travelTurns),
       reasonValid: true,
