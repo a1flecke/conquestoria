@@ -262,14 +262,19 @@ function missingRoles(
 export function choosePrimaryObjective(
   context: AIObjectiveChoiceContext,
 ): AIObjectiveChoice {
+  const demands: Partial<Record<AIStrategicRole, number>> = {};
   const analyzed = context.candidates.map(candidate => {
     const reasons = candidate.explicitDistantReasons
       .filter(reason => DISTANT_ELIGIBILITY_REASONS.has(reason));
     const missing = missingRoles(candidate, context.availableRoles);
+    for (const role of missing) {
+      demands[role] = Math.max(demands[role] ?? 0, candidate.requiredRoles[role] ?? 0);
+    }
     const exactTargetKnown = !(
       candidate.target.kind === 'region'
       && OFFENSIVE_OBJECTIVES.has(candidate.objective)
     );
+    if (!exactTargetKnown) demands.recon = Math.max(demands.recon ?? 0, 1);
     const pathReachable = Number.isFinite(candidate.travelTurns) && candidate.travelTurns >= 0;
     const informationalReasons = candidate.reasonCodes ?? [];
     return {
@@ -277,9 +282,6 @@ export function choosePrimaryObjective(
       id: candidateId(candidate),
       reasons: [...informationalReasons, ...reasons],
       distantReasons: reasons,
-      missing,
-      exactTargetKnown,
-      pathReachable,
       baseEligible: missing.length === 0 && exactTargetKnown && pathReachable,
     };
   });
@@ -306,34 +308,6 @@ export function choosePrimaryObjective(
     .filter(entry => entry.eligible)
     .sort((left, right) =>
       right.score - left.score || left.id.localeCompare(right.id))[0];
-
-  // A pre-plan readiness demand is scaffolding, not a request to build every
-  // role for every analyzed opportunity. Once an objective is viable it needs
-  // no scaffolding; when none is viable, choose one reachable local (or
-  // explicitly justified distant) target deterministically. A retained capture
-  // plan later owns its own deficit in ai-prepared-turn.
-  const readinessReachable = ranked.filter(entry => entry.pathReachable);
-  const readinessNearestTurns = readinessReachable.length > 0
-    ? Math.min(...readinessReachable.map(entry => entry.candidate.travelTurns))
-    : Number.POSITIVE_INFINITY;
-  const readinessLocalityLimit = Number.isFinite(readinessNearestTurns)
-    ? Math.max(readinessNearestTurns + 3, Math.ceil(readinessNearestTurns * 1.5))
-    : Number.NEGATIVE_INFINITY;
-  const readiness = selected
-    ? undefined
-    : readinessReachable
-      .filter(entry =>
-        entry.candidate.travelTurns <= readinessLocalityLimit
-        || entry.distantReasons.length > 0)
-      .sort((left, right) =>
-        right.score - left.score || left.id.localeCompare(right.id))[0];
-  const demands: Partial<Record<AIStrategicRole, number>> = {};
-  if (readiness) {
-    for (const role of readiness.missing) {
-      demands[role] = readiness.candidate.requiredRoles[role] ?? 0;
-    }
-    if (!readiness.exactTargetKnown) demands.recon = 1;
-  }
 
   const selectedReasons = selected ? [...selected.reasons] : [];
   if (

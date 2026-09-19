@@ -172,7 +172,7 @@ describe('prepared major-civilization planning', () => {
     expect(prepareMajorCivStrategicPlan(state, civ.id).forceDemands.some(entry => entry.role === 'air-defense')).toBe(false);
   });
 
-  it('does not seed an unselected resource operation while a viable expansion plan exists', () => {
+  it('preserves objective-readiness demand when no current unit can fill the role', () => {
     const state = createNewGame(undefined, 'prepared-objective-demand', 'small');
     const civ = state.civilizations['ai-1'];
     const anchor = civ.units.map(id => state.units[id]).find(Boolean)!.position;
@@ -185,10 +185,18 @@ describe('prepared major-civilization planning', () => {
 
     const prepared = prepareMajorCivStrategicPlan(state, 'ai-1');
 
-    expect(prepared.portfolio.primaryPlan?.objective).toBe('expand');
-    expect(prepared.forceDemands.find(demand =>
-      demand.role === 'resource-expedition' && demand.sourcePlanIds.includes('objective-readiness')),
-    ).toBeUndefined();
+    // #1064: primaryPlan is no longer guaranteed null here -- an eligible `expand`
+    // candidate can now legitimately win by default when nothing else competes (that
+    // IS the fix). The actual claim this test makes is narrower: no resource-expedition
+    // (secure-resource) plan was drafted, while the readiness demand is still preserved.
+    expect(prepared.portfolio.primaryPlan?.objective).not.toBe('secure-resource');
+    expect(prepared.forceDemands).toContainEqual(expect.objectContaining({
+      role: 'resource-expedition',
+      desired: 1,
+      assigned: 0,
+      missing: 1,
+      sourcePlanIds: ['objective-readiness'],
+    }));
   });
 
   it('does not draft conquest against a peaceful neighbor', () => {
@@ -917,15 +925,14 @@ describe('#1064 bounded force demands', () => {
     expect(demand?.desired ?? 0).toBeLessThanOrEqual(WORKER_SOFT_CAP);
   });
 
-  it('seeds only the strongest reachable incomplete objective, not every analyzed one', () => {
-    // This MUST include more than one incomplete objective. The distant capture
-    // is deliberately lower-scored than visible resources, so a role-set union
-    // would wrongly demand both while the single-target contract demands one.
+  it('re-opens a readiness demand only while the civilization owns no unit of that role', () => {
+    // This MUST be built so a readiness demand is guaranteed to exist. A peaceful
+    // fresh civ often produces no objective candidates at all, in which case
+    // `choice.demands` is empty and a filter-then-assert test passes vacuously
+    // while proving nothing.
     const state = createNewGame(undefined, 'demand-readiness-frontline', 'small');
     const civ = state.civilizations['ai-1'];
-    // Suppress expansion so this test reaches the no-viable-plan readiness path,
-    // rather than correctly selecting an unrelated expansion objective.
-    addSpacedCities(state, civ.id, 6);
+    addSpacedCities(state, civ.id, 0);           // ai-1 needs a city to place the warrior in
     addSpacedCities(state, 'player', 0);         // player needs a city to be a capture target
     civ.knownCivilizations = ['player'];
     civ.diplomacy.atWarWith = ['player'];
@@ -934,7 +941,7 @@ describe('#1064 bounded force demands', () => {
     for (const coord of mapHexesInRange(state.map, enemyCity.position, 2)) {
       civ.visibility.tiles[hexKey(coord)] = 'visible';
     }
-    // Strip every combat unit so `capture` is genuinely unowned.
+    // Strip every combat unit so `frontline` is genuinely unowned.
     for (const unitId of [...civ.units]) {
       if (UNIT_DEFINITIONS[state.units[unitId]!.type].strength > 0) {
         delete state.units[unitId];
@@ -942,14 +949,22 @@ describe('#1064 bounded force demands', () => {
       }
     }
 
-    const beforePrepared = prepareMajorCivStrategicPlan(state, civ.id);
-    const readiness = beforePrepared.forceDemands.filter(entry =>
-      entry.sourcePlanIds.includes('objective-readiness'));
+    const readiness = (demands: ReturnType<typeof prepareMajorCivStrategicPlan>['forceDemands']) =>
+      demands.find(entry =>
+        entry.role === 'capture' && entry.sourcePlanIds.includes('objective-readiness'));
 
-    expect(readiness).toContainEqual(expect.objectContaining({
-      role: 'resource-expedition', missing: 1,
-    }));
-    expect(readiness.some(entry => entry.role === 'capture')).toBe(false);
+    const before = readiness(prepareMajorCivStrategicPlan(state, civ.id).forceDemands);
+    // Fails loudly rather than vacuously if the fixture produced no candidate.
+    expect(before?.missing).toBe(1);
+
+    const warrior = createUnit(
+      'warrior', civ.id, state.cities[civ.cities[0]!]!.position, state.idCounters,
+    );
+    state.units[warrior.id] = warrior;
+    civ.units.push(warrior.id);
+
+    const after = readiness(prepareMajorCivStrategicPlan(state, civ.id).forceDemands);
+    expect(after?.missing ?? 0).toBe(0);
   });
 });
 

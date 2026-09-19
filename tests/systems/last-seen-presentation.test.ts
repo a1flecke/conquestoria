@@ -220,6 +220,8 @@ describe('last-seen-presentation', () => {
       name: 'Old City',
       owner: 'ai-1',
       population: 2,
+      defense: 'open',
+      hpBand: 'healthy',
     });
   });
 });
