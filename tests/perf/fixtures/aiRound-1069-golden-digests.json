@@ -1,14 +1,14 @@
 {
   "e1": {
     "state": {
-      "__whole": "e7e54b2ff24b",
+      "__whole": "b88cff2a7fbf",
       "autonomyByCiv": "95313c912b48",
       "barbarianCampPressure": "44136fa355b3",
       "barbarianCamps": "c9c75b490ac4",
       "beasts": "59b9eb6fa030",
       "cities": "cb0b94a667c0",
       "cityFaith": "44136fa355b3",
-      "civilizations": "f2633acf5c14",
+      "civilizations": "bd4d51a38211",
       "crisisForces": "44136fa355b3",
       "currentPlayer": "f4fd498bf9ac",
       "defensiveLeagues": "4f53cda18c2b",
@@ -63,14 +63,14 @@
   },
   "e2": {
     "state": {
-      "__whole": "e2051bc67498",
+      "__whole": "46af89d12259",
       "autonomyByCiv": "95313c912b48",
       "barbarianCampPressure": "44136fa355b3",
       "barbarianCamps": "5148e5b9b58d",
       "beasts": "59b9eb6fa030",
       "cities": "ca705c5dcd01",
       "cityFaith": "44136fa355b3",
-      "civilizations": "ba2d3498e8b8",
+      "civilizations": "560f846c39e0",
       "crisisForces": "44136fa355b3",
       "currentPlayer": "f4fd498bf9ac",
       "defensiveLeagues": "4f53cda18c2b",

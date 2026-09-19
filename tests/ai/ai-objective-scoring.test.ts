@@ -65,7 +65,7 @@ describe('AI objective scoring', () => {
       availableRoles: { capture: 2 },
     });
     expect(withoutTransport.plan?.target).toMatchObject({ kind: 'city', id: 'close' });
-    expect(withoutTransport.demands.transport).toBeUndefined();
+    expect(withoutTransport.demands.transport).toBe(1);
 
     const withTransport = choosePrimaryObjective({
       actorId: 'ai-1',
@@ -136,26 +136,6 @@ describe('AI objective scoring', () => {
 
     expect(result.plan).toBeNull();
     expect(result.demands.recon).toBe(1);
-  });
-
-  it('seeds only the best reachable incomplete target when no objective is ready', () => {
-    const result = choosePrimaryObjective({
-      actorId: 'ai-1',
-      turn: 10,
-      candidates: [
-        candidate('local-defended', 2, 80, {
-          requiredRoles: { frontline: 2, capture: 1 },
-        }),
-        candidate('distant-transport', 10, 100, {
-          requiredRoles: { capture: 1, transport: 1 },
-          explicitDistantReasons: ['continue-active-war'],
-        }),
-      ],
-      availableRoles: { frontline: 1, capture: 1 },
-    });
-
-    expect(result.plan).toBeNull();
-    expect(result.demands).toEqual({ frontline: 2 });
   });
 
   it('excludes unreachable objectives even with a retaliation reason', () => {

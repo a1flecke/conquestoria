@@ -50,7 +50,7 @@ Add a coarse city observation to perception and last-seen presentation: `defense
 
 1. Compute legal trainable roles before candidate selection.
 2. Derive each capture shape from coarse city observation plus local perceived units.
-3. Objective choice returns a counted deficit for the single best reachable readiness target, not a role-set union across targets. A possible but incomplete capture candidate creates/retains a `mobilizing` plan, allowing target-specific assignment demand before full assembly. Once retained, that plan suppresses generic readiness for its own critical roles so production sees each shortage exactly once.
+3. Objective choice preserves its existing aggregate pre-plan readiness contract, using counted deficits rather than a role-set union. A possible but incomplete capture candidate creates/retains a `mobilizing` plan, allowing target-specific assignment demand before full assembly. Once retained, that plan suppresses generic readiness for its own critical roles so production sees each capture shortage exactly once without starving independent expansion or resource operations.
 4. Reject only candidates with no live, queued, or legal trainable source for a critical role; drop unavailable optional support. Target-scoped readiness demand is revalidated against ownership so it cannot survive capture/retarget.
 5. Loss or emergency detach recomputes the canonical deficit next turn. Critical deficit remains readiness-critical; support loss is optional. Portfolio refresh copies role maps/tier from a matching candidate.
 

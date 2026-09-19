@@ -948,16 +948,19 @@ export function migrateLegacyNamingState(state: GameState): GameState {
   const usedNames = new Set<string>();
 
   for (const [, city] of sortedCities) {
-    const namingInfo = getCityNamingInfo(state, city.owner);
-    const pool = namingInfo.namingPool ?? [];
-    const nameIsAllowed = pool.length === 0 || pool.includes(city.name);
     const nameIsUnique = !usedNames.has(city.name);
 
-    if (nameIsAllowed && nameIsUnique) {
+    // A city's name belongs to its founding culture, not necessarily its
+    // current owner. Capturing Rome must not make a later load rename it to a
+    // Mongolian city solely because its former-owner name is outside Mongolia's
+    // founding pool. The legacy corruption this repair can establish is a
+    // duplicate name; a unique off-pool name is valid live state.
+    if (nameIsUnique) {
       usedNames.add(city.name);
       continue;
     }
 
+    const namingInfo = getCityNamingInfo(state, city.owner);
     city.name = drawNextCityName(namingInfo.civType, usedNames, {
       namingPool: namingInfo.namingPool,
       civName: namingInfo.civName,
