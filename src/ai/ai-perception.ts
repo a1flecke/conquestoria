@@ -51,6 +51,8 @@ export interface MajorCivPerception {
     position: HexCoord | null;
     confidence: AIPerceptionConfidence;
     observedTurn: number | null;
+    defense?: 'open' | 'fortified';
+    hpBand?: LastSeenHealthBand;
   }>;
   units: AIPerceivedUnit[];
   knownCivIds: string[];
@@ -207,6 +209,8 @@ export function buildMajorCivPerception(
         position: copyCoord(snapshot.coord),
         confidence: 'remembered',
         observedTurn: snapshot.observedTurn,
+        defense: snapshot.city.defense,
+        hpBand: snapshot.city.hpBand,
       });
     }
     if (isKnownResourceType(snapshot.resource)) {
@@ -246,6 +250,8 @@ export function buildMajorCivPerception(
         position: copyCoord(city.position),
         confidence: 'visible' as const,
         observedTurn: state.turn,
+        defense: city.buildings.includes('walls') || city.buildings.includes('star_fort') ? 'fortified' : 'open' as const,
+        hpBand: healthBand(city.hp ?? 100),
       };
       const index = knownCities.findIndex(candidate => candidate.id === city.id);
       if (index >= 0) knownCities[index] = known;

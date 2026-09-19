@@ -789,7 +789,7 @@ describe('#1064 bounded force demands', () => {
 
     const readiness = (demands: ReturnType<typeof prepareMajorCivStrategicPlan>['forceDemands']) =>
       demands.find(entry =>
-        entry.role === 'frontline' && entry.sourcePlanIds.includes('objective-readiness'));
+        entry.role === 'capture' && entry.sourcePlanIds.includes('objective-readiness'));
 
     const before = readiness(prepareMajorCivStrategicPlan(state, civ.id).forceDemands);
     // Fails loudly rather than vacuously if the fixture produced no candidate.

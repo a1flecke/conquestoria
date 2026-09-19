@@ -105,7 +105,11 @@ function createTilePresentation(
     hasRoad: tile.hasRoad,
     hasRail,
     city: city
-      ? { id: city.id, name: city.name, owner: city.owner, population: city.population }
+      ? {
+          id: city.id, name: city.name, owner: city.owner, population: city.population,
+          defense: city.buildings.includes('walls') || city.buildings.includes('star_fort') ? 'fortified' : 'open',
+          hpBand: healthBand(city.hp ?? 100),
+        }
       : undefined,
     observedTurn: state.turn,
     source: 'observed',
