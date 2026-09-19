@@ -494,6 +494,8 @@ export interface LastSeenCityPresentation {
   name: string;
   owner: string;
   population: number;
+  defense?: 'open' | 'fortified';
+  hpBand?: LastSeenHealthBand;
 }
 
 export type LastSeenHealthBand = 'healthy' | 'damaged' | 'critical';
@@ -1976,6 +1978,7 @@ export interface AIStrategicPlan {
   lastProgressTurn: number;
   rallyPoint?: HexCoord;
   requiredRoles: Partial<Record<AIStrategicRole, number>>;
+  supportRoles?: Partial<Record<AIStrategicRole, number>>;
   assignedUnitIds: string[];
 }
 
