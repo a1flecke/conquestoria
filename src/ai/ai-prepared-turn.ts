@@ -403,7 +403,11 @@ function objectiveCandidates(
           ? ['continue-active-war']
           : [],
       reasonCodes: peacefulDominationTarget ? doctrine.reasonCodes : [],
-      requiredRoles: { frontline: 1, capture: 1 },
+      requiredRoles: (
+        city.defense === 'fortified'
+        || perception.units.some(unit => unit.owner === city.owner && unit.position
+          && hexKey(unit.position) === hexKey(city.position))
+      ) ? { frontline: 2, capture: 1 } : { capture: 1 },
     };
     candidates.push(candidate);
     startByCandidate.set(candidate, anchor);
