@@ -50,7 +50,8 @@ export interface AIObjectiveChoice {
     supportRoles?: Partial<Record<AIStrategicRole, number>>;
     score: number;
   } | null;
-  demands: AIStrategicRole[];
+  /** Desired capability cardinality for readiness production. */
+  demands: Partial<Record<AIStrategicRole, number>>;
   eligibleCandidateIds: string[];
   trace: AIDecisionTrace;
 }
@@ -261,17 +262,19 @@ function missingRoles(
 export function choosePrimaryObjective(
   context: AIObjectiveChoiceContext,
 ): AIObjectiveChoice {
-  const demands = new Set<AIStrategicRole>();
+  const demands: Partial<Record<AIStrategicRole, number>> = {};
   const analyzed = context.candidates.map(candidate => {
     const reasons = candidate.explicitDistantReasons
       .filter(reason => DISTANT_ELIGIBILITY_REASONS.has(reason));
     const missing = missingRoles(candidate, context.availableRoles);
-    for (const role of missing) demands.add(role);
+    for (const role of missing) {
+      demands[role] = Math.max(demands[role] ?? 0, candidate.requiredRoles[role] ?? 0);
+    }
     const exactTargetKnown = !(
       candidate.target.kind === 'region'
       && OFFENSIVE_OBJECTIVES.has(candidate.objective)
     );
-    if (!exactTargetKnown) demands.add('recon');
+    if (!exactTargetKnown) demands.recon = Math.max(demands.recon ?? 0, 1);
     const pathReachable = Number.isFinite(candidate.travelTurns) && candidate.travelTurns >= 0;
     const informationalReasons = candidate.reasonCodes ?? [];
     return {
@@ -341,7 +344,7 @@ export function choosePrimaryObjective(
           score: selected.score,
         }
       : null,
-    demands: [...demands].sort(),
+    demands,
     eligibleCandidateIds: ranked
       .filter(entry => entry.eligible)
       .map(entry => entry.id),
