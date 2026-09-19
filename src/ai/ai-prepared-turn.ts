@@ -1,6 +1,7 @@
 import type { EventBus } from '@/core/event-bus';
 import type {
   AIStrategicPlan,
+  AIStrategicRole,
   GameMap,
   GameState,
   MajorCivPlanPortfolio,
@@ -836,6 +837,9 @@ export function prepareMajorCivStrategicPlan(
       : [],
     requiresEmbarkationByPlanId: {},
   });
+  const primaryCaptureRequiredRoles = portfolioResult.portfolio.primaryPlan?.objective === 'capture'
+    ? portfolioResult.portfolio.primaryPlan.requiredRoles
+    : undefined;
   const forceDemands = mergePreparedForceDemands(
     assignments.forceDemands,
     [
@@ -843,13 +847,25 @@ export function prepareMajorCivStrategicPlan(
       // consider this objective". Owning one satisfies it. Before this it re-seeded
       // desired:1/assigned:0 every turn, and residualDemands only discounts QUEUED
       // units -- so a persistent readiness role produced one unit per turn forever.
-      ...Object.entries(choice.demands).flatMap(([role, desired]) => incrementalDemandSeed(
-        role as AIForceDemand['role'],
-        'objective-readiness',
-        90,
-        availableRoles[role as keyof typeof availableRoles] ?? 0,
-        desired ?? 0,
-      )),
+      ...Object.entries(choice.demands).flatMap(([role, desired]) => {
+        // An incomplete capture candidate is retained as a real mobilizing plan.
+        // Its assignment shortage already owns production for its critical roles;
+        // adding the generic pre-plan readiness seed here would count the same
+        // frontline/capture gap twice and queue an unnecessary second unit.
+        if (
+          primaryCaptureRequiredRoles
+          && (primaryCaptureRequiredRoles[role as AIStrategicRole] ?? 0) > 0
+        ) {
+          return [];
+        }
+        return incrementalDemandSeed(
+          role as AIForceDemand['role'],
+          'objective-readiness',
+          90,
+          availableRoles[role as keyof typeof availableRoles] ?? 0,
+          desired ?? 0,
+        );
+      }),
       // #1064: workers have the production gap but not the execution gap -- basic-ai's
       // idle-worker loop already tasks them. Bounded by city count so a wide empire
       // does not turn into a worker farm.
