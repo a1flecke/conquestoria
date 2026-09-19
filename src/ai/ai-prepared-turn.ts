@@ -304,6 +304,7 @@ function objectiveCandidates(
   doctrine: DominationDoctrine,
   knowledge: ReturnType<typeof buildDominationKnowledge>,
   personality: PersonalityTraits,
+  trainableTypes: readonly (typeof TRAINABLE_UNITS)[number]['type'][],
 ): AIObjectiveCandidate[] {
   const actor = state.civilizations[civId];
   const operationalAnchors = perception.ownCities.length > 0
@@ -381,6 +382,14 @@ function objectiveCandidates(
       }).includes('declare_war');
     const expectedLossRatio = Math.min(2, rivalStrength / Math.max(1, ownStrength));
     if (!activeWar && !recentAttack && (!peacefulDominationTarget || expectedLossRatio > 1)) continue;
+    const observedGarrison = perception.units.some(unit => unit.owner === city.owner && unit.position
+      && hexKey(unit.position) === hexKey(city.position!));
+    const hardened = city.defense === 'fortified' && observedGarrison && city.hpBand === 'healthy';
+    const supportRole = hardened
+      ? trainableTypes.some(type => getAIStrategicRoles(type).includes('siege')) ? 'siege'
+        : trainableTypes.some(type => getAIStrategicRoles(type).includes('ranged')) ? 'ranged'
+          : undefined
+      : undefined;
     const candidate: AIObjectiveCandidate = {
       objective: 'capture',
       target: {
@@ -405,9 +414,9 @@ function objectiveCandidates(
       reasonCodes: peacefulDominationTarget ? doctrine.reasonCodes : [],
       requiredRoles: (
         city.defense === 'fortified'
-        || perception.units.some(unit => unit.owner === city.owner && unit.position
-          && hexKey(unit.position) === hexKey(city.position!))
+        || observedGarrison
       ) ? { frontline: 2, capture: 1 } : { capture: 1 },
+      ...(supportRole ? { supportRoles: { [supportRole]: 1 } } : {}),
     };
     candidates.push(candidate);
     startByCandidate.set(candidate, anchor);
@@ -707,8 +716,14 @@ export function prepareMajorCivStrategicPlan(
     personality,
     challenge: resolveOpponentChallenge(state),
   });
+  const trainable = getTrainableUnitsForCiv(
+    civ.techState.completed,
+    civ.civType,
+    getCivAvailableResources(state, civId),
+  );
   const counterplay = getDominationCounterplay(knowledge);
-  const candidates = objectiveCandidates(state, civId, perception, knownMap, doctrine, knowledge, personality);
+  const candidates = objectiveCandidates(state, civId, perception, knownMap, doctrine, knowledge, personality,
+    trainable.map(entry => entry.type));
   const availableRoles = availableRoleCounts(perception);
   const choice = choosePrimaryObjective({
     actorId: civId,
@@ -717,11 +732,6 @@ export function prepareMajorCivStrategicPlan(
     availableRoles,
   });
   const previous = state.opponentAI?.majorCivs[civId] ?? createEmptyMajorCivPortfolio();
-  const trainable = getTrainableUnitsForCiv(
-    civ.techState.completed,
-    civ.civType,
-    getCivAvailableResources(state, civId),
-  );
   const bestTrainableStrength = Math.max(
     0,
     ...trainable.map(entry => UNIT_DEFINITIONS[entry.type].strength),
