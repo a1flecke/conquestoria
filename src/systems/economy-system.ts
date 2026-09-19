@@ -576,11 +576,16 @@ export function calculateCivEconomy(
 ): EconomyProjection {
   const civ = state.civilizations[civId];
   const modifiers = options.pirateModifiers ?? { plunderByCiv: {}, blockadedCityIds: [] };
-  const baseProjectedGross = projectCivGrossGold(state, civId);
   const modifiedProjectedGross = projectCivGrossGold(state, civId, modifiers);
+  // #1126: `baseProjectedGross` (the un-modified projection) is only ever read to
+  // compute a delta when the caller overrides `grossGoldPerTurn` -- every real
+  // production call site (getRushBuyQuote, city-panel.ts, hud-controller.ts,
+  // quest-objective-system.ts, pirate-actions.ts) omits it, so recomputing the
+  // whole civ-wide, O(cities) projection a second time was pure discarded work on
+  // every single call. Only the tests that exercise the override actually need it.
   const grossGoldIncome = options.grossGoldPerTurn === undefined
     ? modifiedProjectedGross
-    : options.grossGoldPerTurn + (modifiedProjectedGross - baseProjectedGross);
+    : options.grossGoldPerTurn + (modifiedProjectedGross - projectCivGrossGold(state, civId));
   const baseBreakdown = calculateMaintenance(state, civId);
   const breakdown = {
     ...baseBreakdown,
