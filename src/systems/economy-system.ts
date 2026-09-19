@@ -687,10 +687,22 @@ export function getProductionLabel(itemId: string): string {
     ?? itemId;
 }
 
-export function getRushBuyQuote(state: GameState, civId: string, cityId: string): RushBuyQuote {
+export function getRushBuyQuote(
+  state: GameState,
+  civId: string,
+  cityId: string,
+  precomputedOwnerStatus?: EconomyProjection,
+): RushBuyQuote {
   const city = state.cities[cityId];
   const civ = state.civilizations[civId];
-  const ownerStatus = calculateCivEconomy(state, civId);
+  // #1125: `calculateCivEconomy` is a pure function of `(state, civId)` -- no
+  // per-city input at all -- so a caller checking several of one civ's cities
+  // against the SAME unchanged `state` (the AI treasury batch loop) can compute
+  // it once and pass it in here, instead of every call re-deriving it. Every
+  // other caller (the single-city UI/guidance sites) omits this argument and
+  // gets byte-identical behavior to before. See docs/superpowers/specs/
+  // 2026-09-18-issue-1125-long-horizon-stability-design.md §5b.
+  const ownerStatus = precomputedOwnerStatus ?? calculateCivEconomy(state, civId);
 
   if (!city || !civ) {
     return { available: false, itemId: null, cost: 0, reason: 'invalid-active-item', message: 'This production item cannot be bought.', status: ownerStatus };
