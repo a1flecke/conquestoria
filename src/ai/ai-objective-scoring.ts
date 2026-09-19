@@ -236,8 +236,8 @@ export function resolveObjectiveTravelCandidates(
           return {
             ...objective,
             travelTurns: landTurns + AMPHIBIOUS_EMBARK_OVERHEAD_TURNS + navalTurns,
-          requiredRoles: { ...objective.requiredRoles, transport: 1 },
-          supportRoles: objective.supportRoles ? { ...objective.supportRoles } : undefined,
+            requiredRoles: { ...objective.requiredRoles, transport: 1 },
+            supportRoles: objective.supportRoles ? { ...objective.supportRoles } : undefined,
           };
         }
       }
