@@ -757,6 +757,24 @@ describe('prepared major-civilization planning', () => {
     expect(next.cities[ownCity.id]!.productionQueue[0]).toBe('warrior');
   });
 
+  it('does not retain an incomplete capture plan when no owned city can replenish its critical role', () => {
+    const { state, civ, ownCity, targetCity } = setupVisibleDefendedCapture(
+      'prepared-cityless-capture-shortfall',
+    );
+    // The last warrior is a valid operational anchor, but it cannot satisfy the
+    // fortified target's second frontline slot and a cityless civ has no production
+    // source for that shortage. Catalog trainability alone must not create a plan.
+    delete state.cities[ownCity.id];
+    civ.cities = [];
+
+    const prepared = prepareMajorCivStrategicPlan(state, civ.id);
+
+    expect(prepared.portfolio.primaryPlan).not.toMatchObject({
+      objective: 'capture',
+      target: { kind: 'city', id: targetCity.id },
+    });
+  });
+
   it('does not size a remembered capture force from a defender first placed while hidden', () => {
     let state = createNewGame(undefined, 'prepared-hidden-capture-defender', 'small');
     const civ = state.civilizations['ai-1'];
