@@ -71,6 +71,18 @@ describe('AI unit assignment', () => {
       expect.objectContaining({ role: 'capture', missing: 0 }),
     ]));
   });
+
+  it('assigns optional support after the critical capture force and emits its demand when absent', () => {
+    const capture = { ...plan('capture', 'capture', { frontline: 1, capture: 1 }), supportRoles: { siege: 1 } };
+    const result = assignUnitsToPortfolio({
+      portfolio: { ...createEmptyMajorCivPortfolio(), primaryPlan: capture },
+      units: [unit('warrior', 'warrior', { capture: 1 })],
+      profile: { maxPrimaryForce: 3, retreatHealthPercent: 30 },
+      defenseThreatScoreByPlanId: {}, eliminationDefensePlanIds: [], onlyImmediateDefenderUnitIds: [], requiresEmbarkationByPlanId: {},
+    });
+    expect(result.assignmentsByPlanId.capture).toEqual(['warrior']);
+    expect(result.forceDemands).toContainEqual(expect.objectContaining({ role: 'siege', missing: 1 }));
+  });
   it('assigns an Anti-Tank Gun to a frontline defense slot without making it a generic production role', () => {
     const result = assignUnitsToPortfolio({
       portfolio: {
