@@ -132,6 +132,14 @@ function normalizePlan(
       }
     }
   }
+  const supportRoles: NonNullable<AIStrategicPlan['supportRoles']> = {};
+  if (isRecord(plan.supportRoles)) {
+    for (const [role, count] of Object.entries(plan.supportRoles)) {
+      if (STRATEGIC_ROLES.has(role) && Number.isFinite(count) && Number(count) > 0) {
+        supportRoles[role as keyof typeof supportRoles] = Math.min(MAX_PLAN_ROLE_REQUIREMENT, Math.floor(Number(count)));
+      }
+    }
+  }
 
   return {
     id: plan.id,
@@ -149,6 +157,7 @@ function normalizePlan(
     expiresAfterTurn: Math.max(0, Math.floor(plan.expiresAfterTurn)),
     lastProgressTurn: Math.max(0, Math.floor(plan.lastProgressTurn)),
     requiredRoles,
+    ...(Object.keys(supportRoles).length > 0 ? { supportRoles } : {}),
     assignedUnitIds: Array.isArray(plan.assignedUnitIds)
       ? [...new Set(plan.assignedUnitIds.filter(unitId =>
           typeof unitId === 'string'

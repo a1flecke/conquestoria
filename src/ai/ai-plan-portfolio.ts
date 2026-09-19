@@ -18,6 +18,7 @@ export interface AIPlanCandidate {
   score: number;
   reasonCodes: AIPlanReason[];
   requiredRoles: Partial<Record<AIStrategicRole, number>>;
+  supportRoles?: Partial<Record<AIStrategicRole, number>>;
   commitment: number;
   targetValid: boolean;
   reasonValid: boolean;
@@ -142,6 +143,7 @@ function createPlan(
     expiresAfterTurn: context.turn + 12,
     lastProgressTurn: context.turn,
     requiredRoles: { ...candidate.requiredRoles },
+    ...(candidate.supportRoles ? { supportRoles: { ...candidate.supportRoles } } : {}),
     assignedUnitIds: [],
   };
 }
@@ -224,6 +226,9 @@ function selectPrimaryPlan(context: AIPortfolioContext): AIStrategicPlan | null 
         requiredRoles: currentCandidate
           ? { ...currentCandidate.requiredRoles }
           : { ...current.requiredRoles },
+        ...(currentCandidate?.supportRoles
+          ? { supportRoles: { ...currentCandidate.supportRoles } }
+          : {}),
       };
     }
   }
@@ -351,6 +356,7 @@ export function refreshMajorCivPortfolio(
             target: structuredClone(existing.target),
             reasonCodes: [...existing.reasonCodes],
             requiredRoles: { ...existing.requiredRoles },
+            ...(existing.supportRoles ? { supportRoles: { ...existing.supportRoles } } : {}),
             assignedUnitIds: [...existing.assignedUnitIds],
           }
         : createDefensePlan(context, threat),

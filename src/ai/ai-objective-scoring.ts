@@ -23,6 +23,7 @@ export interface AIObjectiveCandidate {
   /** Informational reasons that never change locality eligibility or score. */
   reasonCodes?: AIPlanReason[];
   requiredRoles: Partial<Record<AIStrategicRole, number>>;
+  supportRoles?: Partial<Record<AIStrategicRole, number>>;
 }
 
 export interface AIObjectiveTravelCandidate extends Omit<AIObjectiveCandidate, 'travelTurns'> {
@@ -46,6 +47,7 @@ export interface AIObjectiveChoice {
     theaterId: string;
     reasonCodes: AIPlanReason[];
     requiredRoles: Partial<Record<AIStrategicRole, number>>;
+    supportRoles?: Partial<Record<AIStrategicRole, number>>;
     score: number;
   } | null;
   demands: AIStrategicRole[];
@@ -233,7 +235,8 @@ export function resolveObjectiveTravelCandidates(
           return {
             ...objective,
             travelTurns: landTurns + AMPHIBIOUS_EMBARK_OVERHEAD_TURNS + navalTurns,
-            requiredRoles: { ...objective.requiredRoles, transport: 1 },
+          requiredRoles: { ...objective.requiredRoles, transport: 1 },
+          supportRoles: objective.supportRoles ? { ...objective.supportRoles } : undefined,
           };
         }
       }
@@ -334,6 +337,7 @@ export function choosePrimaryObjective(
           theaterId: selected.candidate.theaterId,
           reasonCodes: selectedReasons,
           requiredRoles: { ...selected.candidate.requiredRoles },
+          supportRoles: selected.candidate.supportRoles ? { ...selected.candidate.supportRoles } : undefined,
           score: selected.score,
         }
       : null,
