@@ -82,6 +82,18 @@ describe('major-civilization plan portfolios', () => {
     expect(result.portfolio.primaryPlan?.lastProgressTurn).toBe(10);
   });
 
+  it('refreshes optional support from the matching candidate, including clearing obsolete support', () => {
+    const result = refreshMajorCivPortfolio(context({
+      portfolio: {
+        ...createEmptyMajorCivPortfolio(),
+        primaryPlan: plan('capture-close', { supportRoles: { siege: 1 } }),
+      },
+      candidates: [candidate('close', 40, { supportRoles: undefined }), candidate('new', 44)],
+    }));
+
+    expect(result.portfolio.primaryPlan?.supportRoles).toBeUndefined();
+  });
+
   it('switches when the new plan clears the commitment-weighted threshold', () => {
     const result = refreshMajorCivPortfolio(context({
       candidates: [candidate('close', 40), candidate('decisive', 70)],
