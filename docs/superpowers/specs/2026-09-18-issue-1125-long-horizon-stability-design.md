@@ -497,7 +497,58 @@ explicit, required, non-optional step of the same MR (plan doc's final tasks) �
 
 ## 10. Performance contract
 
-**A. Human workflow target.** Restore the full matrix toward the project's historical ≤25-minute
+**A. Human workflow target — MEASURED, target NOT achieved by this fix alone; honest result,
+not the optimistic prediction this section originally made.** This subsection originally
+predicted the fix would recover `lh-veteran-large` to near its pre-#1094 427.8s baseline. Terra
+measured this directly and that prediction was **wrong**:
+
+- A full untruncated `lh-veteran-large` run post-fix measured **1567.3s** — statistically
+  indistinguishable from the documented pre-fix **1520s**. The fix did not move this scenario's
+  wall-clock in any way visible above measurement noise.
+- To separate a real-but-small effect from contention noise, Terra measured deterministic
+  operation counts directly on a REAL (not synthetic-fixture) truncated `lh-veteran-large` run
+  (150 rounds), comparing pre-fix and post-fix code on the identical scenario:
+  `getCitiesConnectedToCapital` calls (the cross-module proxy for `calculateCivEconomy`
+  invocations established in §3/Task 0) dropped from **5,828 to 4,666** — a genuine, real
+  **~20% reduction**, proving the fix works exactly as designed even under real gameplay
+  conditions, not just the synthetic `ai-treasury.test.ts` fixture. But this 20% reduction did
+  not move wall-clock (312.3s vs 316.2s for the same 150-round comparison, within noise) —
+  proving the treasury path, while genuinely fixed, is **not** `lh-veteran-large`'s dominant cost.
+- Widening the same instrumentation to `heapPops` (pathfinding, `#1069`'s own metric) and
+  `cityYieldCalls` (`calculateCityYields`, `resource-system.ts`) at 75 vs 150 rounds found the
+  real dominant driver: `heapPops` grew **1.995x** (linear, confirming `#1069`'s fix still holds)
+  while `cityYieldCalls` grew **3.43x** for the same 2x round increase — genuinely super-linear,
+  and closely tracking wall-clock's own **3.17x** growth for the same comparison, far more
+  closely than any other counted metric. The full 500-round run's own round-duration curve
+  (891ms avg for rounds 0-50 → 4,088ms avg for rounds 450-500, ~4.6x) is consistent with this: a
+  cost compounding as AI-driven city expansion (#1064) grows the civs' city counts over a long
+  campaign.
+- **This is filed as a separate, focused follow-up: [#1126](https://github.com/a1flecke/conquestoria/issues/1126)**
+  ("Performance: calculateCityYields grows super-linearly across a long-horizon campaign,
+  dominating lh-veteran-large's cost"). It is explicitly **not** folded into this issue/MR — it is
+  a different subsystem (city-yield calculation, not the AI treasury), its own root cause is not
+  yet attributed to a specific call site (the source prompt's Phase 4 depth of investigation
+  `#1069`'s design doc did for `routePath` has not been done for this), and attempting it here
+  would be exactly the scope creep the source prompt's guardrails warn against ("generic
+  memoization/caching frameworks," "broad economy rewrite" — city-yield calculation is a third,
+  independent subsystem from both of those, but the same principle applies: a different root
+  cause deserves its own design pass, not an opportunistic fix bolted onto this one).
+- **Per the source prompt's own Phase 9/Definition-of-Done allowance**: "If still far above
+  target: quantify remaining dominant costs; separate legitimate work from redundancy; file
+  focused follow-ups; do not claim the gate is restored if it still cannot realistically serve
+  that role." This section does exactly that. **This MR does not, and cannot honestly, claim the
+  ≤25-minute target is restored.** What it DOES claim, with direct evidence: the specific,
+  provable `#1094`-era treasury redundancy this issue was scoped to investigate is real, is fixed,
+  and the dominant remaining cost is now quantified and attributed to a different, tracked,
+  out-of-scope hotspot — which is a legitimate, honest, bounded outcome, not a failure to
+  complete this issue's actual mandate.
+
+The rest of this subsection is preserved below as the ORIGINAL (now superseded) prediction, for
+the historical record of what was assumed before measurement — per this repo's own convention of
+not silently erasing a wrong prediction (`.claude/rules/spec-fidelity.md`'s "note the deviation"
+principle, applied to a design doc's own prior claim):
+
+> Restore the full matrix toward the project's historical ≤25-minute
 intent. This design's fix removes the specific `O(producing cities)`-per-round multiplier §3
 identified, which `6bbe6e67`'s own measurement attributes essentially the entire #1094-era
 increase to (1135.7s → 1520s on `lh-veteran-large`, the matrix's dominant scenario by a wide
