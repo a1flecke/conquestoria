@@ -240,44 +240,49 @@ file yet since it was added whole-cloth in #1094).
   living check, not just prose.
 - [ ] **Step 4:** Commit.
 
-### Task 5: Deterministic performance-budget guard
+### Task 5: Deterministic performance-budget guard — DONE, relocated (see below)
 
-**Files:** `tests/perf/algorithmic-budgets.test.ts`, `tests/perf/perf-probe.ts`,
-`tests/perf/baselines/algorithmic-baseline.json`
+**DEVIATION FROM PLAN, recorded per this repo's spec-fidelity convention (note deviations, don't
+silently redesign):** Steps 1-4 as originally written (extend `tests/perf/algorithmic-budgets.test.ts`
+with a new `perf-probe.ts` counter, re-baseline `algorithmic-baseline.json`) were attempted and
+measured directly, and abandoned for a concrete, evidenced reason:
 
-- [ ] **Step 1:** Add a new spy to `perf-probe.ts`'s `PerfCounts`/`withPerfProbe`, for whichever
-  function Task 0 Step 3 determined is the right attribution point
-  (`calculateCivEconomy` is the more precise one per design doc §5a's "pure, civ-scoped" framing —
-  prefer it unless Task 0's measurement shows `projectCivGrossGold` is needed for finer
-  attribution). Follow the file's exact existing pattern (cross-module namespace import + `vi.spyOn`
-  + call-through, `mockRestore` in the `finally` block).
-- [ ] **Step 2 (RED):** Add a new assertion in `algorithmic-budgets.test.ts` on the existing
-  `crowded-state.ts` fixture (which already has multiple cities per civ, per `#1069`'s design doc
-  reuse of it) at `entityScale: 1` and `entityScale: 2`: run a full AI round (whatever this file's
-  existing harness call is — `processNonHumanMajorRound` or equivalent, matching `#1069`'s own
-  precedent) and assert the new counter's ratio between e1 and e2 is the **exact invariant** shape
-  (`1.0`, "must not scale with entities/producing-cities at all") — NOT `main`'s current ratio ×
-  1.3, since this is a case where the correct behavior genuinely is scale-invariant (per-round
-  cost independent of city count), unlike the pre-existing `aiRound.heapPops`/`pathQueries`
-  guards which are `main`'s-current-ratio-×-1.3 because THEIR underlying work is legitimately
-  scale-dependent (per `#1069`'s design doc — do not confuse the two guard shapes). This assertion
-  must fail against the UNMODIFIED (pre-Task-2/3) code, proving it actually catches the regression
-  it's meant to catch — verify this by temporarily stashing Task 2/3's changes, confirming RED, then
-  restoring them.
-- [ ] **Step 3 (GREEN):** With Task 2/3's changes in place, regenerate the baseline:
-  `UPDATE_PERF_BASELINE=1 bash scripts/run-with-mise.sh yarn vitest run
-  tests/perf/algorithmic-budgets.test.ts`. Confirm the new counter's checked-in ratio is `1.0` (or
-  extremely close — allow for the `+1 per successful purchase` term if the fixture's AI makes any
-  purchases during the harness's single measured round; if so, confirm this is a SMALL, bounded
-  addition, not a scaling one, and document the exact fixture behavior in a comment).
-- [ ] **Step 4:** Run `yarn perf:report` and eyeball `.verification/perf/report.json` for the new
-  counter's value at both scales, per `.claude/rules/performance-budgets.md`'s own re-baselining
-  checklist.
-- [ ] **Step 5:** Add the required one-line PR-body justification (per that same file's
-  re-baselining rule) — draft it now for Task 9's MR description: name the new counter, the old
-  value (`O(producing cities)`, e.g. scaling with city count), the new value (`O(1)` + successful
-  purchases), and cite this issue.
-- [ ] **Step 6:** Commit.
+- `calculateCivEconomy` cannot be spied on directly (its only pre-fix call site is in the same file).
+- The originally-proposed proxy, `getCitiesConnectedToCapital`, is ALSO called every round by
+  `faction-system.ts`'s unrest-pressure calculation for every city — a real, unrelated, dominant
+  cost in the shared `crowded-state.ts`/full-AI-round harness. Measured directly: pre-fix
+  `e1=628, e2=2596` connectivity calls; post-fix `e1=618, e2=2550` — statistically indistinguishable.
+  A guard built on this signal would not reliably fail against a reintroduced regression.
+- `calculateProjectedCityYields` (the other candidate) is directly called by
+  `basic-ai.ts`/`ai-production.ts` for production scoring — an even larger contamination source.
+
+**Resolution:** the deterministic guard was implemented instead in `tests/ai/ai-treasury.test.ts`
+(Task 3, already done) — using a dedicated 4-producing-city fixture with no other system running,
+asserting EXACT connectivity-check counts (not a ratio) for three shapes, all verified to fail
+against the unmodified pre-fix code before the fix landed:
+
+| Shape | Pre-fix (verified RED) | Post-fix (verified GREEN) |
+|---|---:|---:|
+| 4 producing cities, 0 purchases | 8 | 2 |
+| 4 producing cities, 1 successful purchase | 12 | 8 |
+| 1 producing city + 3 empty-queue cities | 2 | 2 (unaffected either way) |
+
+This satisfies the same intent (a machine-independent, deterministic regression guard against this
+exact redundancy class) without forcing a fit onto shared infrastructure whose fixture happens to
+share a helper function with an unrelated subsystem. See design doc §10B for the full writeup.
+**No changes were made to `tests/perf/perf-probe.ts`, `tests/perf/perf-areas.ts`, or
+`tests/perf/baselines/algorithmic-baseline.json`** — both files were edited, measured, found not to
+give a clean signal, and reverted to their exact committed state (confirmed via `git diff --stat`
+showing zero diff after revert).
+
+- [x] Step 1-4 (as originally written): attempted, measured, superseded by the above — see design
+  doc §10B for the full before/after numbers.
+- [x] Step 5 (PR-body justification): drafted — see this doc's Task 10 MR requirements; the
+  justification is "the deterministic guard is in `tests/ai/ai-treasury.test.ts`, not
+  `algorithmic-budgets.test.ts`, and here's why" (this section), not a baseline-number justification,
+  since no baseline changed.
+- [x] Step 6: N/A — no `algorithmic-budgets.test.ts`/`perf-probe.ts`/baseline changes to commit;
+  Task 3's commit (`31d9b3d8`) already contains the actual guard tests.
 
 ### Task 6: Timeout-layer reconciliation
 
