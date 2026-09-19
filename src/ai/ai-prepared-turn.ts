@@ -603,7 +603,13 @@ function planCandidates(
   const eligibleIds = new Set(choice.eligibleCandidateIds);
   return candidates.flatMap(candidate => {
     const id = `${candidate.objective}:${targetStableKey(candidate.target)}`;
-    if (!eligibleIds.has(id)) return [];
+    // A capture operation may be strategically valid before all of its counted force
+    // exists. Retaining it in mobilizing lets assignment/production replenish the
+    // target-specific deficit instead of dropping the operation until it is too late.
+    const incompleteCapture = candidate.objective === 'capture'
+      && Number.isFinite(candidate.travelTurns)
+      && candidate.travelTurns >= 0;
+    if (!eligibleIds.has(id) && !incompleteCapture) return [];
     const selected = choice.plan
       && candidate.objective === choice.plan.objective
       && targetStableKey(candidate.target) === targetStableKey(choice.plan.target);
