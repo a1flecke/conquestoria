@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { applyAIGoldSpending } from '@/ai/ai-treasury';
-import type { GameState } from '@/core/types';
-import { createNewGame } from '@/core/game-state';
+import type { GameState, OpponentChallenge } from '@/core/types';
+import { createHotSeatGame, createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import { foundCity } from '@/systems/city-system';
 import { hexKey, hexNeighbors } from '@/systems/hex-utils';
@@ -33,8 +33,20 @@ function countConnectivityChecks(fn: () => GameState): { result: GameState; call
   }
 }
 
-function setupState(cityIds = ['city-a']): GameState {
-  const state = createNewGame(undefined, `ai-treasury-${cityIds.join('-')}`, 'small');
+function setupState(
+  cityIds = ['city-a'],
+  options: { challenge?: OpponentChallenge } = {},
+): GameState {
+  const state = createNewGame({
+    civType: 'generic',
+    mapSize: 'small',
+    opponentCount: 1,
+    gameTitle: 'ai-treasury-test',
+    opponentChallenge: options.challenge,
+    seed: options.challenge
+      ? `ai-treasury-${cityIds.join('-')}-${options.challenge}`
+      : `ai-treasury-${cityIds.join('-')}`,
+  });
   const civ = state.civilizations['ai-1']!;
   const settler = civ.units.map(id => state.units[id]).find(unit => unit?.type === 'settler')!;
   civ.cities = [];
@@ -222,5 +234,100 @@ describe('applyAIGoldSpending economy-projection reuse (#1125)', () => {
     const { calls } = countConnectivityChecks(() => applyAIGoldSpending(state, 'ai-1', new EventBus()));
 
     expect(calls).toBe(2);
+  });
+
+  it.each<OpponentChallenge>(['explorer', 'standard', 'veteran'])(
+    'gives every challenge tier the identical batching shape (%s)',
+    (challenge) => {
+      // Zero-purchase shape is exact and gold-arithmetic-independent (getRushBuyQuote
+      // denies on `civ.gold < rushCost` before any yield/maintenance number matters),
+      // so it isolates whether a challenge tier gets a different call-count shortcut
+      // -- per `.claude/rules/game-balance.md`'s Production Cost Context section,
+      // difficulty must change neither a production cost nor its legality.
+      const state = setupState(FOUR_CITIES, { challenge });
+      state.civilizations['ai-1']!.gold = 0;
+      for (const cityId of FOUR_CITIES) state.cities[cityId]!.productionQueue = ['warrior'];
+
+      const { calls } = countConnectivityChecks(() => applyAIGoldSpending(state, 'ai-1', new EventBus()));
+
+      expect(calls).toBe(2);
+    },
+  );
+
+  it.each(['rome', 'greece'])(
+    'gives every civ personality/type the identical batching shape (%s)',
+    (civType) => {
+      // applyAIGoldSpending reads only civ.cities/gold and city.owner/productionQueue
+      // -- never civ.civType or any personality-derived field -- so no civ type can
+      // get a personality-specific performance shortcut. Same zero-purchase,
+      // gold-arithmetic-independent shape as the difficulty parity test above.
+      const state = createNewGame({
+        civType, mapSize: 'small', opponentCount: 1, gameTitle: 'ai-treasury-personality-test',
+        seed: `ai-treasury-personality-${civType}`,
+      });
+      const civ = state.civilizations['ai-1']!;
+      const settler = civ.units.map(id => state.units[id]).find(unit => unit?.type === 'settler')!;
+      civ.cities = [];
+      for (const [index, cityId] of FOUR_CITIES.entries()) {
+        const city = foundCity(
+          civ.id,
+          index === 0 ? settler.position : { q: settler.position.q + index * 3, r: settler.position.r },
+          state.map,
+          state.idCounters,
+        );
+        city.id = cityId;
+        city.population = 4;
+        city.productionQueue = ['warrior'];
+        city.productionProgress = 0;
+        state.cities[cityId] = city;
+        civ.cities.push(cityId);
+        for (const coord of [city.position, ...hexNeighbors(city.position)]) {
+          const tile = state.map.tiles[hexKey(coord)];
+          if (tile && (tile.terrain === 'coast' || tile.terrain === 'ocean')) tile.terrain = 'plains';
+        }
+      }
+      civ.units = civ.units.filter(id => state.units[id]?.type !== 'settler');
+      delete state.units[settler.id];
+      civ.gold = 0;
+
+      const { calls } = countConnectivityChecks(() => applyAIGoldSpending(state, 'ai-1', new EventBus()));
+
+      expect(calls).toBe(2);
+    },
+  );
+
+  it('behaves identically for an AI civ regardless of solo vs. hot-seat human seating', () => {
+    // applyAIGoldSpending takes an explicit civId and never reads state.currentPlayer
+    // (confirmed by reading its body -- no such reference exists), so hot-seat turn
+    // cycling cannot leak into or out of this function. This regression proves it
+    // rather than relying on that code-read claim alone.
+    const solo = setupState(FOUR_CITIES);
+    solo.civilizations['ai-1']!.gold = 25;
+    for (const cityId of FOUR_CITIES) solo.cities[cityId]!.productionQueue = ['warrior'];
+    const soloResult = applyAIGoldSpending(solo, 'ai-1', new EventBus());
+
+    const hotSeat = createHotSeatGame(
+      {
+        playerCount: 2,
+        mapSize: 'small',
+        players: [
+          { name: 'Player 1', slotId: 'player-1', civType: 'generic', isHuman: true },
+          { name: 'Player 2', slotId: 'player-2', civType: 'generic', isHuman: true },
+        ],
+      },
+      'ai-treasury-hotseat',
+    );
+    // Graft an AI civ onto the hot-seat state using the exact same city/gold shape
+    // as the solo case, so the only difference between the two runs is hotSeat
+    // config + an extra human civ existing alongside -- not a different economy.
+    hotSeat.civilizations['ai-1'] = solo.civilizations['ai-1'];
+    for (const cityId of FOUR_CITIES) hotSeat.cities[cityId] = solo.cities[cityId]!;
+    hotSeat.currentPlayer = 'player-1';
+    const hotSeatResult = applyAIGoldSpending(hotSeat, 'ai-1', new EventBus());
+
+    for (const cityId of FOUR_CITIES) {
+      expect(hotSeatResult.cities[cityId]!.productionQueue).toEqual(soloResult.cities[cityId]!.productionQueue);
+    }
+    expect(hotSeatResult.civilizations['ai-1']!.gold).toBe(soloResult.civilizations['ai-1']!.gold);
   });
 });
