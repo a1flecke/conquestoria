@@ -58,6 +58,19 @@ function portfolio(): MajorCivPlanPortfolio {
 }
 
 describe('AI unit assignment', () => {
+  it('credits a single multi-role unit to both capture capabilities without duplicate assignment', () => {
+    const result = assignUnitsToPortfolio({
+      portfolio: { ...createEmptyMajorCivPortfolio(), primaryPlan: plan('capture', 'capture', { frontline: 1, capture: 1 }) },
+      units: [unit('warrior', 'warrior', { capture: 1 })],
+      profile: { maxPrimaryForce: 3, retreatHealthPercent: 30 },
+      defenseThreatScoreByPlanId: {}, eliminationDefensePlanIds: [], onlyImmediateDefenderUnitIds: [], requiresEmbarkationByPlanId: {},
+    });
+    expect(result.assignmentsByPlanId.capture).toEqual(['warrior']);
+    expect(result.forceDemands).toEqual(expect.arrayContaining([
+      expect.objectContaining({ role: 'frontline', missing: 0 }),
+      expect.objectContaining({ role: 'capture', missing: 0 }),
+    ]));
+  });
   it('assigns an Anti-Tank Gun to a frontline defense slot without making it a generic production role', () => {
     const result = assignUnitsToPortfolio({
       portfolio: {

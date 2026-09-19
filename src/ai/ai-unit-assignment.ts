@@ -5,7 +5,7 @@ import type {
   UnitType,
 } from '@/core/types';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
-import { canUnitFulfillAIStrategicRole, getAIStrategicRoles } from './ai-unit-roles';
+import { canUnitFulfillAIStrategicRole, countAIStrategicRoleCapabilities, getAIStrategicRoles } from './ai-unit-roles';
 
 export interface AIUnitAssignmentCandidate {
   id: string;
@@ -247,7 +247,12 @@ export function assignUnitsToPortfolio(
   for (const plan of plans) {
     for (const [role, desiredRaw] of Object.entries(desiredSlotsByPlanId[plan.id] ?? {}) as Array<[AIStrategicRole, number]>) {
       const desired = Math.max(0, Math.floor(desiredRaw));
-      const assigned = assignedSlotsByPlanId[plan.id].filter(slot => slot === role).length;
+      const assigned = countAIStrategicRoleCapabilities(
+        (assignmentsByPlanId[plan.id] ?? [])
+          .map(id => context.units.find(unit => unit.id === id))
+          .filter((unit): unit is AIUnitAssignmentCandidate => Boolean(unit)),
+        { [role]: desired },
+      )[role] ?? 0;
       const existing = demandByRole.get(role) ?? {
         role,
         desired: 0,
