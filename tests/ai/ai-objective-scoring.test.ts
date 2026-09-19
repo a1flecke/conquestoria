@@ -65,7 +65,7 @@ describe('AI objective scoring', () => {
       availableRoles: { capture: 2 },
     });
     expect(withoutTransport.plan?.target).toMatchObject({ kind: 'city', id: 'close' });
-    expect(withoutTransport.demands).toContain('transport');
+    expect(withoutTransport.demands.transport).toBe(1);
 
     const withTransport = choosePrimaryObjective({
       actorId: 'ai-1',
@@ -135,7 +135,7 @@ describe('AI objective scoring', () => {
     });
 
     expect(result.plan).toBeNull();
-    expect(result.demands).toContain('recon');
+    expect(result.demands.recon).toBe(1);
   });
 
   it('excludes unreachable objectives even with a retaliation reason', () => {

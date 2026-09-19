@@ -837,12 +837,12 @@ export function prepareMajorCivStrategicPlan(
       // consider this objective". Owning one satisfies it. Before this it re-seeded
       // desired:1/assigned:0 every turn, and residualDemands only discounts QUEUED
       // units -- so a persistent readiness role produced one unit per turn forever.
-      ...choice.demands.flatMap(role => incrementalDemandSeed(
-        role,
+      ...Object.entries(choice.demands).flatMap(([role, desired]) => incrementalDemandSeed(
+        role as AIForceDemand['role'],
         'objective-readiness',
         90,
-        Math.min(availableRoles[role] ?? 0, 1),
-        1,
+        availableRoles[role as keyof typeof availableRoles] ?? 0,
+        desired ?? 0,
       )),
       // #1064: workers have the production gap but not the execution gap -- basic-ai's
       // idle-worker loop already tasks them. Bounded by city count so a wide empire
