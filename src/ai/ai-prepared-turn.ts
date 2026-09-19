@@ -6,9 +6,16 @@ import type {
   GameState,
   MajorCivPlanPortfolio,
   PersonalityTraits,
+  UnitType,
 } from '@/core/types';
 import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
-import { civHasCoastalCity, getTrainableUnitsForCiv, TRAINABLE_UNITS } from '@/systems/city-system';
+import {
+  civHasCoastalCity,
+  cityFollowsOwnFaith,
+  getTrainableUnitsForCity,
+  getTrainableUnitsForCiv,
+  TRAINABLE_UNITS,
+} from '@/systems/city-system';
 import { canFoundCityAt } from '@/systems/city-territory-system';
 import { isVisible } from '@/systems/fog-of-war';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
@@ -597,9 +604,19 @@ function availableRoleCounts(perception: MajorCivPerception) {
     Object.fromEntries(roles.map(role => [role, 1])));
 }
 
+function hasMissingCriticalRole(
+  candidate: AIObjectiveCandidate,
+  availableRoles: Partial<Record<AIStrategicRole, number>>,
+): boolean {
+  return Object.entries(candidate.requiredRoles).some(([role, desired]) =>
+    Math.max(0, Math.floor(desired ?? 0)) > (availableRoles[role as AIStrategicRole] ?? 0));
+}
+
 function planCandidates(
   candidates: readonly AIObjectiveCandidate[],
   choice: AIObjectiveChoice,
+  availableRoles: Partial<Record<AIStrategicRole, number>>,
+  trainableInOwnedCities: readonly UnitType[],
 ): AIPlanCandidate[] {
   const eligibleIds = new Set(choice.eligibleCandidateIds);
   return candidates.flatMap(candidate => {
@@ -609,7 +626,16 @@ function planCandidates(
     // target-specific deficit instead of dropping the operation until it is too late.
     const incompleteCapture = candidate.objective === 'capture'
       && Number.isFinite(candidate.travelTurns)
-      && candidate.travelTurns >= 0;
+      && candidate.travelTurns >= 0
+      // A strategic catalog entry is not a production source. Keep a force-short
+      // capture operation only when every missing critical role can actually be
+      // replenished by one of this civ's current cities. Optional support remains
+      // intentionally outside this guard.
+      && !(hasMissingCriticalRole(candidate, availableRoles)
+        && Object.entries(candidate.requiredRoles).some(([role, desired]) =>
+          Math.max(0, Math.floor(desired ?? 0)) > (availableRoles[role as AIStrategicRole] ?? 0)
+          && !trainableInOwnedCities.some(type =>
+            getAIStrategicRoles(type).includes(role as AIStrategicRole))));
     if (!eligibleIds.has(id) && !incompleteCapture) return [];
     const selected = choice.plan
       && candidate.objective === choice.plan.objective
@@ -723,15 +749,33 @@ export function prepareMajorCivStrategicPlan(
     personality,
     challenge: resolveOpponentChallenge(state),
   });
+  const availableResources = getCivAvailableResources(state, civId);
   const trainable = getTrainableUnitsForCiv(
     civ.techState.completed,
     civ.civType,
-    getCivAvailableResources(state, civId),
+    availableResources,
   );
   const counterplay = getDominationCounterplay(knowledge);
   const candidates = objectiveCandidates(state, civId, perception, knownMap, doctrine, knowledge, personality,
     trainable.map(entry => entry.type));
   const availableRoles = availableRoleCounts(perception);
+  // City-specific trainability is only relevant to an actual capture deficit. Most
+  // peaceful/no-shortfall turns avoid this per-city production-legality pass entirely.
+  const trainableInOwnedCities = candidates.some(candidate =>
+    candidate.objective === 'capture' && hasMissingCriticalRole(candidate, availableRoles))
+    ? civ.cities.flatMap(cityId => {
+      const city = state.cities[cityId];
+      if (!city || city.owner !== civId) return [];
+      return getTrainableUnitsForCity(
+        city,
+        civ.techState.completed,
+        state.map,
+        civ.civType,
+        availableResources,
+        cityFollowsOwnFaith(state, city),
+      ).map(unit => unit.type);
+    })
+    : [];
   const choice = choosePrimaryObjective({
     actorId: civId,
     turn: state.turn,
@@ -757,7 +801,10 @@ export function prepareMajorCivStrategicPlan(
     turn: state.turn,
     actorEliminated: !getCivilizationLiveness(state, civId).living,
     portfolio: previous,
-    candidates: [...planCandidates(candidates, choice), ...crisisDispatchPlanCandidates(state, civId)],
+    candidates: [
+      ...planCandidates(candidates, choice, availableRoles, trainableInOwnedCities),
+      ...crisisDispatchPlanCandidates(state, civId),
+    ],
     cityThreats: threats,
     ownedCityIds: new Set(perception.ownCities.map(city => city.id)),
     modernization: {
