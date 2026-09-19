@@ -882,7 +882,7 @@ describe('save persistence (#38)', () => {
     expect(loaded?.civilizations.player.techState.researchQueue).toEqual([]);
   });
 
-  it('normalizes legacy duplicate or off-pool city names on load', () => {
+  it('normalizes duplicate legacy city names on load', () => {
     const state = createNewGame('rome', 'legacy-naming-seed');
     state.cities['city-1'] = {
       id: 'city-1',
@@ -913,6 +913,36 @@ describe('save persistence (#38)', () => {
     const names = Object.values(loaded.cities).map(city => city.name);
 
     expect(new Set(names).size).toBe(names.length);
+  });
+
+  it('preserves a unique captured city name that belongs to its former owner', () => {
+    const state = createNewGame('rome', 'captured-city-name-load');
+    state.civilizations.player.civType = 'mongolia';
+    state.cities['city-1'] = {
+      id: 'city-1',
+      name: 'Rome',
+      owner: 'player',
+      position: { q: 2, r: 2 },
+      population: 2,
+      food: 0,
+      foodNeeded: 15,
+      buildings: [],
+      productionQueue: [],
+      productionProgress: 0,
+      ownedTiles: [{ q: 2, r: 2 }],
+      workedTiles: [],
+      focus: 'balanced',
+      maturity: 'outpost',
+      unrestLevel: 0,
+      unrestTurns: 0,
+      spyUnrestBonus: 0,
+      conquestTurn: 8,
+      occupation: { originalOwnerId: 'rome', turnsRemaining: 6 },
+    };
+
+    const loaded = migrateLegacyNamingState(JSON.parse(JSON.stringify(state)) as GameState);
+
+    expect(loaded.cities['city-1'].name).toBe('Rome');
   });
 
   it('preserves the older city name when duplicate legacy ids reach double digits', () => {
