@@ -21,7 +21,17 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-./scripts/run-with-mise.sh node ./scripts/run-with-timeout.mjs 3600 ai-long-horizon -- \
+# #1125: this outer wrapper must stay LARGER than campaign-scenarios.ts's own
+# SCENARIO_TIMEOUT_MS (the per-scenario Vitest timeout), or a legitimately slow
+# worst-case scenario gets killed here first -- turning a diagnosable single-test
+# timeout into an ambiguous "the whole run vanished" signal. 6bbe6e67 bumped
+# SCENARIO_TIMEOUT_MS from 1,500,000 to 4,800,000ms (80min) without touching this
+# 3600s (60min) literal, so for three days this wrapper WAS smaller than the inner
+# timeout it wraps. 8400s = SCENARIO_TIMEOUT_MS's own 4800s worst-case-scenario
+# ceiling + the other 8 scenarios' historical combined ~720s, x1.5 for the matrix
+# and continuity files' own concurrent CPU contention -- see campaign-scenarios.ts's
+# header comment for the per-scenario numbers this is derived from.
+./scripts/run-with-mise.sh node ./scripts/run-with-timeout.mjs 8400 ai-long-horizon -- \
   ./scripts/run-with-mise.sh yarn vitest run \
   --config vitest.long-horizon.config.ts \
   --testTimeout=1800000 \

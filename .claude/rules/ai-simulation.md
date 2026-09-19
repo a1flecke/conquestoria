@@ -38,9 +38,22 @@ affects:
 - any large simulation system whose behaviour compounds over a campaign
 
 **Do not run it** for docs-only changes, asset-only changes, isolated CSS,
-trivial copy, or test-only refactors unrelated to the simulation. It costs
-~20 minutes; it is a deliberate pre-merge check for substantial AI/gameplay
-work, not a universal gate.
+trivial copy, or test-only refactors unrelated to the simulation. It is a
+deliberate pre-merge check for substantial AI/gameplay work, not a universal
+gate.
+
+**Runtime (updated by #1125, supersedes this section's old "~20 minutes"
+claim, which was stale since #1094):** the matrix's per-scenario wall-clock is
+documented in `campaign-scenarios.ts`'s own header and row comments — read
+those for the current numbers rather than this file, which does not duplicate
+them to avoid a second place to go stale. As of #1125, `lh-veteran-large`
+alone is ~1520-1570s; the matrix's historical ≤25-minute-sequential intent is
+**not currently met** — #1126 (`calculateCityYields` super-linearity) is the
+tracked, not-yet-fixed dominant cost. Run the full matrix expecting up to
+roughly 60-90 minutes wall-clock on a comparable machine, more under heavy
+concurrent-agent host contention (a documented condition on this project's
+usual dev host — see `.claude/rules/hooks-and-tooling.md`'s "#608" section).
+`scripts/run-ai-long-horizon.sh`'s outer wrapper is sized accordingly.
 
 ### Reading the output
 
@@ -165,10 +178,16 @@ for the full detail on each:
 ### Adding a scenario
 
 Append a row to `LONG_HORIZON_SCENARIOS` in `campaign-scenarios.ts` (fixed seed,
-challenge, map size, human/AI counts, turn cap, personality set). Keep the whole
-matrix under ~25 minutes; put the measured wall-clock in the row comment and
-size `SCENARIO_TIMEOUT_MS` off the slowest row × 3, per
-`.claude/rules/hooks-and-tooling.md`.
+challenge, map size, human/AI counts, turn cap, personality set). The
+matrix's historical ~25-minute-sequential intent is not currently met (see the
+"Runtime" note above — #1126 is the tracked cause); do not make it *worse* by
+adding an expensive new scenario without a genuine coverage justification, and
+prefer fixing #1126 over widening this budget further. Put the measured
+wall-clock in the row comment and size `SCENARIO_TIMEOUT_MS` off the slowest
+row × 3, per `.claude/rules/hooks-and-tooling.md` — and re-check
+`scripts/run-ai-long-horizon.sh`'s own outer wrapper is still larger than the
+resulting `SCENARIO_TIMEOUT_MS` (#1125 found these can silently drift out of
+sync).
 
 ### Determinism
 
