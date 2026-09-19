@@ -323,20 +323,35 @@ export interface KnownCampaignGap {
  * fix changes how far an AI civ gets, exposing #1066's own already-tracked, already
  * scenario-agnostic zero-plan/idle pattern in one more place) -- already covered by
  * the existing entry, no registry change needed for it.
+ *
+ * F13 (#1125's own required known-gap reconciliation, run after #1066 closed and after
+ * #1125's AI-treasury economy-projection fix landed -- see that issue for the runtime-
+ * stability context this reconciliation was done under): a fresh full long-horizon run
+ * (2026-09-19) found THREE registry changes needed:
+ *
+ * - `expansion-frozen`/`lh-veteran-medium` (the entry directly below, now DELETED per
+ *   the ratchet's own "gap fixed, delete it" rule): no longer reproduces at all.
+ *   `lh-veteran-medium`'s `ai-3` zero-plan-forever signature this entry tracked is
+ *   confirmed resolved by #1066's auto-explore multi-hop-lookahead fix.
+ * - `gold-hoard` widened to include `lh-standard-medium` (`ai-1` rounds 293-352,
+ *   `ai-3` rounds 307-371) -- the same already-tracked "downstream of a
+ *   production-idle window" mechanism (see F9) reproducing on one more scenario, not
+ *   a new defect; #1066's diff never touches production/gold.
+ * - `production-idle` re-pointed from closed `#1066` to a fresh follow-up, `#1127`:
+ *   the specific mechanism this entry cited #1066 for (`lh-veteran-medium`'s `ai-3`
+ *   zero-plan case) is resolved (see `expansion-frozen` above), but `production-idle`
+ *   ITSELF still reproduces in `lh-veteran-medium` -- now for ALL FOUR civs, with much
+ *   longer idle streaks than previously documented (189-288 of 400 rounds each,
+ *   i.e. every civ idle for well over half the campaign). That is a materially
+ *   different shape than this entry's prior "mix of benign temporary plateaus"
+ *   characterization, so rather than silently re-attribute it to #1066 (which the
+ *   ratchet's own Decision 6 in #1125's plan doc explicitly forbids -- "never
+ *   re-point a still-reproducing finding back at a closed issue just because an old
+ *   comment names it") or leave it pointing at a closed issue, #1127 was filed to
+ *   re-triage this specific shape fresh, with the same rigor #1094/#1108/#1113 used
+ *   for this same finding code previously. Not yet root-caused -- #1127 owns that.
  */
 export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
-  {
-    code: 'expansion-frozen',
-    issue: '#1066',
-    why: 'lh-veteran-medium\'s ai-3 never rises above 1 city across the full 400-round '
-      + 'campaign (flat at 1 city in every decimated sample, maxPlanNoProgressRounds: 0 '
-      + '-- not a wedged plan, simply never active) -- the same zero-plan-forever '
-      + 'signature F1 attributes to #1066\'s still-open thread. Newly exposed (not '
-      + 'caused) by the trajectory shift from #1094\'s AI gold-spending fix, the same way '
-      + 'F7/F8 above were newly exposed by #1107\'s changes -- #1094\'s diff never '
-      + 'touches expansion candidate generation. See F9 in the file header.',
-    scenarios: ['lh-veteran-medium'],
-  },
   {
     code: 'gold-hoard',
     issue: '#1113',
@@ -354,15 +369,19 @@ export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
       + 'lh-hotseat-medium) -- consistent with the same already-tracked mechanism '
       + 'reproducing more broadly now that more civs progress further and hit more '
       + '(still-benign) plateaus, not a new defect from #1108\'s diff (which touches '
-      + 'only ai-research.ts\'s search-target construction, never production/gold).',
+      + 'only ai-research.ts\'s search-target construction, never production/gold). '
+      + '#1125\'s known-gap reconciliation (F13) widened this further to '
+      + 'lh-standard-medium (ai-1 rounds 293-352, ai-3 rounds 307-371) -- same '
+      + 'already-tracked mechanism, not touched by #1125\'s own diff (an AI-treasury '
+      + 'economy-projection caching fix, never production/gold decisions).',
     scenarios: [
       'lh-standard-small', 'lh-veteran-small', 'lh-standard-large',
-      'lh-veteran-medium', 'lh-hotseat-medium',
+      'lh-veteran-medium', 'lh-hotseat-medium', 'lh-standard-medium',
     ],
   },
   {
     code: 'production-idle',
-    issue: '#1066',
+    issue: '#1127',
     why: '#1113 root-caused and fixed one real, catalog-wide correctness bug this '
       + 'finding was tracking (isUnitObsolete retiring archer/chariot before their '
       + 'resource-locked successors were actually buildable -- see F10 in the file '
@@ -378,10 +397,14 @@ export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
       + 'REMAINING occurrences found no single further bug: lh-standard-small idles '
       + 'legitimately (no active demand, no legal building -- a temporary tech/build '
       + 'plateau, resolves once research/expansion progresses); lh-veteran-medium\'s '
-      + '`ai-3` idles because it never forms a strategic plan at all (#1066, see that '
-      + 'entry above -- now this finding\'s sole remaining owner). Still reproduces on '
-      + 'every scenario, but as a mix of benign temporary plateaus and #1066\'s '
-      + 'already-open zero-plan defect -- not a bug of its own to claim.',
+      + '`ai-3` idled because it never formed a strategic plan at all -- that specific '
+      + 'mechanism was #1066\'s (now closed and confirmed resolved, see F13 in the file '
+      + 'header). Post-#1066, this finding STILL reproduces in lh-veteran-medium, now '
+      + 'for all four civs with much longer idle streaks (189-288 of 400 rounds each) '
+      + 'than previously documented -- a materially different, worse shape than the '
+      + 'prior "mix of benign temporary plateaus" characterization, not yet root-caused. '
+      + 'Re-pointed from closed #1066 to #1127 (F13) for fresh triage rather than left '
+      + 'citing a closed issue or silently re-attributed without evidence.',
     scenarios: 'any',
   },
 ];
