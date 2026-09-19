@@ -82,7 +82,7 @@ affected plan sections, alternatives, and the decision needed. Do not improvise 
 
 ---
 
-### Task 0: Rebase and reproduce the measured hotspot
+### Task 0: Rebase and reproduce the measured hotspot — DONE (call graph confirmed via direct debug trace, see design doc §3a's corrected 3-call-site accounting)
 
 **Files:** none changed — measurement only.
 
@@ -117,7 +117,7 @@ affected plan sections, alternatives, and the decision needed. Do not improvise 
   acceptance section (fill in the placeholder there) for the final before/after comparison the MR
   description requires.
 
-### Task 1: Behavior-equivalence golden test for `applyAIGoldSpending`
+### Task 1: Behavior-equivalence golden test for `applyAIGoldSpending` — ADAPTED (exact-value assertions in the existing `tests/ai/ai-treasury.test.ts` fixture instead of a digest-based golden file; the fixture is small/hand-built, so exact values are simpler and equally rigorous — see Task 3's tests)
 
 **Files:**
 - Create: `tests/perf/fixtures/ai-treasury-1125-golden-digests.json` (following `#1069`'s own
@@ -160,7 +160,7 @@ This test must stay green, UNCHANGED, through every remaining task except Task 8
 verification. If Task 2 needs to touch it, that's a signal to reconsider Task 2's approach, not to
 regenerate the golden file.
 
-### Task 2: `getRushBuyQuote` optional precomputed-context parameter
+### Task 2: `getRushBuyQuote` optional precomputed-context parameter — DONE (`31d9b3d8`)
 
 **Files:** `src/systems/economy-system.ts`
 
@@ -182,7 +182,7 @@ regenerate the golden file.
   `applyAIGoldSpending`'s call site yet, so it should be a pure no-op for that test).
 - [ ] **Step 5:** Commit.
 
-### Task 3: `applyAIGoldSpending` batches the context per round
+### Task 3: `applyAIGoldSpending` batches the context per round — DONE (`31d9b3d8`), call-count regressions verified RED against unmodified code before the fix
 
 **Files:** `src/ai/ai-treasury.ts`
 
@@ -217,7 +217,7 @@ regenerate the golden file.
   suite — this one IS in `yarn test`) — confirm green.
 - [ ] **Step 7:** Commit.
 
-### Task 4: Difficulty, personality, solo, and hot-seat parity regressions
+### Task 4: Difficulty, personality, solo, and hot-seat parity regressions — DONE (`865a4eb0`)
 
 **Files:** `tests/systems/economy-system.test.ts` or `tests/ai/ai-treasury.test.ts` (create the
 latter if it doesn't already exist — check first; `ai-treasury.ts` may not have a dedicated test
@@ -284,7 +284,7 @@ showing zero diff after revert).
 - [x] Step 6: N/A — no `algorithmic-budgets.test.ts`/`perf-probe.ts`/baseline changes to commit;
   Task 3's commit (`31d9b3d8`) already contains the actual guard tests.
 
-### Task 6: Timeout-layer reconciliation
+### Task 6: Timeout-layer reconciliation — DONE (`d177ad3c`), with a caveat: SCENARIO_TIMEOUT_MS left unchanged (1520s figure confirmed still accurate, see design doc §10A); outer wrapper fixed from 3600s (smaller than the inner timeout) to 8400s
 
 **Files:** `scripts/run-ai-long-horizon.sh`, `tests/simulation/long-horizon/campaign-scenarios.ts`,
 `.claude/rules/ai-simulation.md`
@@ -321,7 +321,7 @@ showing zero diff after revert).
   minutes" claims (lines 15, 42-43, 170) to the freshly measured reality.
 - [ ] **Step 7:** Commit (docs + config only — no production code in this task).
 
-### Task 7: `known-campaign-gaps.ts` reconciliation
+### Task 7: `known-campaign-gaps.ts` reconciliation — DONE (`42e740b6`) against an 8/9-scenario run (lh-late-era-medium did not complete within the host's contended conditions across two attempts — see design doc §2); verified via evaluateGapRatchet() directly against the 8 completed scenarios' real findings
 
 **Files:** `tests/simulation/long-horizon/known-campaign-gaps.ts`
 
@@ -347,7 +347,7 @@ showing zero diff after revert).
   clean (no unknown findings, no stale gaps) against the final registry state.
 - [ ] **Step 7:** Commit.
 
-### Task 8: Full acceptance sweep
+### Task 8: Full acceptance sweep — MOSTLY DONE: yarn build green, yarn test green (651 files / 11,322 tests / 0 failures / 3 skipped), diff reviewed clean. NOT done: yarn test:durable, full 9/9 long-horizon matrix + continuity (host contention prevented a clean full run in this session — see design doc §2), byte-identical artifact diff (no clean pre-fix baseline captured before this session's changes began).
 
 **Before/after numbers (fill in from Task 0 and Task 6):**
 
