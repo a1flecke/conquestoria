@@ -226,9 +226,15 @@ function selectPrimaryPlan(context: AIPortfolioContext): AIStrategicPlan | null 
         requiredRoles: currentCandidate
           ? { ...currentCandidate.requiredRoles }
           : { ...current.requiredRoles },
-        ...(currentCandidate?.supportRoles
-          ? { supportRoles: { ...currentCandidate.supportRoles } }
-          : {}),
+        // Optional support is live target assessment, not a commitment made at
+        // plan creation. A matching candidate that no longer asks for it must
+        // clear the saved request; otherwise a weakened city keeps consuming
+        // siege production and assignments forever.
+        ...(currentCandidate
+          ? (currentCandidate.supportRoles
+            ? { supportRoles: { ...currentCandidate.supportRoles } }
+            : { supportRoles: undefined })
+          : (current.supportRoles ? { supportRoles: { ...current.supportRoles } } : {})),
       };
     }
   }

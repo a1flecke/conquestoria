@@ -232,6 +232,30 @@ describe('opponent AI state normalization', () => {
     expect(portfolio.defensePlansByCityId).toEqual({});
   });
 
+  it('preserves valid optional support demand but treats legacy or malformed support data as empty', () => {
+    const valid = makeState();
+    valid.opponentAI!.majorCivs['ai-1'].primaryPlan = makePlan({
+      supportRoles: { siege: 1 },
+    });
+    expect(normalizeOpponentAIState(valid).opponentAI!.majorCivs['ai-1'].primaryPlan?.supportRoles)
+      .toEqual({ siege: 1 });
+
+    const legacy = makeState();
+    const malformed = makeState();
+    malformed.opponentAI!.majorCivs['ai-1'].primaryPlan = makePlan({
+      supportRoles: {
+        siege: -1,
+        capture: Number.POSITIVE_INFINITY,
+        nonsense: 3,
+      } as unknown as AIStrategicPlan['supportRoles'],
+    });
+
+    expect(normalizeOpponentAIState(legacy).opponentAI!.majorCivs['ai-1'].primaryPlan?.supportRoles)
+      .toBeUndefined();
+    expect(normalizeOpponentAIState(malformed).opponentAI!.majorCivs['ai-1'].primaryPlan?.supportRoles)
+      .toBeUndefined();
+  });
+
   it('strips transient and unknown fields from normalized saved plans', () => {
     const state = makeState();
     const savedPlan = state.opponentAI!.majorCivs['ai-1'].primaryPlan as
