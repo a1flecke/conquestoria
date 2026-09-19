@@ -16,6 +16,7 @@ import {
   rushBuyActiveProduction,
 } from '@/systems/economy-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
+import * as cityWorkSystem from '@/systems/city-work-system';
 import { foundCity } from '@/systems/city-system';
 import { createUnit } from '@/systems/unit-system';
 
@@ -166,6 +167,50 @@ describe('economy maintenance', () => {
     const breakdown = calculateCivUnitMaintenance(state, 'player');
 
     expect(breakdown.paidUnits).toContainEqual(expect.objectContaining({ id: 'beast-handler', upkeep: 2 }));
+  });
+
+  it('#1126: does not compute the unused base gold projection when grossGoldPerTurn is not overridden', () => {
+    // calculateCivEconomy's own baseProjectedGross (projectCivGrossGold with no
+    // pirate modifiers) is only ever READ to compute a delta when the caller
+    // supplies options.grossGoldPerTurn -- every real production call site
+    // (getRushBuyQuote, city-panel.ts, hud-controller.ts, quest-objective-
+    // system.ts, pirate-actions.ts) omits it, so today that projection is
+    // computed and immediately discarded on every single call. This counts
+    // calculateProjectedCityYields calls (the cross-module function
+    // projectCivGrossGold's own per-city loop calls) as a proxy, since
+    // projectCivGrossGold itself is same-module to calculateCivEconomy and
+    // cannot be spied on directly here.
+    const state = makeState();
+    addUnits(state, 3);
+    let calls = 0;
+    const orig = cityWorkSystem.calculateProjectedCityYields;
+    const spy = vi.spyOn(cityWorkSystem, 'calculateProjectedCityYields').mockImplementation((...args) => {
+      calls += 1;
+      return orig(...args);
+    });
+
+    calculateCivEconomy(state, 'player');
+
+    spy.mockRestore();
+    // Exactly 1 city, so 1 call per projectCivGrossGold invocation. The
+    // unused base projection must not run at all -- only the real one.
+    expect(calls).toBe(1);
+  });
+
+  it('#1126: still computes both projections when grossGoldPerTurn IS overridden, for the delta', () => {
+    const state = makeState();
+    addUnits(state, 3);
+    let calls = 0;
+    const orig = cityWorkSystem.calculateProjectedCityYields;
+    const spy = vi.spyOn(cityWorkSystem, 'calculateProjectedCityYields').mockImplementation((...args) => {
+      calls += 1;
+      return orig(...args);
+    });
+
+    calculateCivEconomy(state, 'player', { grossGoldPerTurn: 42 });
+
+    spy.mockRestore();
+    expect(calls).toBe(2);
   });
 
   it('projects and applies compact economy status without mutating the input state', () => {

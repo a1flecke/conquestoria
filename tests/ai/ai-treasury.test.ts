@@ -9,15 +9,22 @@ import * as roadNetwork from '@/systems/road-network';
 
 /**
  * #1125 — `getCitiesConnectedToCapital` (`road-network.ts`) is called exactly
- * twice per `calculateCivEconomy` invocation (once from each of
- * `projectCivGrossGold`'s two calls inside it -- base and pirate-modified).
- * It lives in a DIFFERENT module from `economy-system.ts`, so `vi.spyOn` on
- * it (unlike spying on `calculateCivEconomy` itself, which is called from
- * `getRushBuyQuote` in the SAME file and therefore invisible to an external
- * spy on that binding) gives an exact, cross-module-observable proxy for how
- * many times the whole-civ economy projection actually runs. See the #1125
- * design doc's Task 0 finding for why `calculateCivEconomy` itself cannot be
- * spied on directly here.
+ * once per `calculateCivEconomy` invocation (from `projectCivGrossGold`'s call
+ * inside it). It lives in a DIFFERENT module from `economy-system.ts`, so
+ * `vi.spyOn` on it (unlike spying on `calculateCivEconomy` itself, which is
+ * called from `getRushBuyQuote` in the SAME file and therefore invisible to an
+ * external spy on that binding) gives an exact, cross-module-observable proxy
+ * for how many times the whole-civ economy projection actually runs. See the
+ * #1125 design doc's Task 0 finding for why `calculateCivEconomy` itself
+ * cannot be spied on directly here.
+ *
+ * #1126 update: before #1126, `calculateCivEconomy` called `projectCivGrossGold`
+ * TWICE per invocation (an unused base projection plus the real, pirate-modified
+ * one), so this proxy's counts here used to be double what they are now. #1126
+ * made the base projection lazy (computed only when a caller overrides
+ * `grossGoldPerTurn`, which no production call site here does) -- see that
+ * issue's fix in `economy-system.ts`. The counts below reflect the current,
+ * fixed 1x-per-call shape.
  */
 function countConnectivityChecks(fn: () => GameState): { result: GameState; calls: number } {
   let calls = 0;
@@ -179,12 +186,13 @@ describe('applyAIGoldSpending economy-projection reuse (#1125)', () => {
 
     const { calls } = countConnectivityChecks(() => applyAIGoldSpending(state, 'ai-1', new EventBus()));
 
-    // getCitiesConnectedToCapital runs exactly twice per calculateCivEconomy call
-    // (projectCivGrossGold's base + pirate-modified projections). One projection
-    // for the whole round, zero purchases to invalidate it => exactly 2, not
-    // 2 * FOUR_CITIES.length (8) as unmodified `getRushBuyQuote` would produce by
+    // getCitiesConnectedToCapital runs exactly once per calculateCivEconomy call
+    // (post-#1126: projectCivGrossGold's single real projection; the unused base
+    // projection is no longer computed at all). One projection for the whole
+    // round, zero purchases to invalidate it => exactly 1, not
+    // FOUR_CITIES.length (4) as unmodified `getRushBuyQuote` would produce by
     // recomputing per producing city.
-    expect(calls).toBe(2);
+    expect(calls).toBe(1);
   });
 
   it('recomputes the projection only after a successful purchase invalidates it', () => {
@@ -204,24 +212,26 @@ describe('applyAIGoldSpending economy-projection reuse (#1125)', () => {
     expect(result.cities['city-c']!.productionQueue).toEqual(['warrior']);
     expect(result.cities['city-d']!.productionQueue).toEqual(['warrior']);
     expect(result.civilizations['ai-1']!.gold).toBe(0);
-    // Pre-#1125 shape (verified against unmodified `main` while writing this
-    // test): city-a's outer check (1 calculateCivEconomy) + its successful
-    // rushBuyActiveProduction (2 more, its own re-validation + post-purchase
-    // economyStatusByCiv persistence, both deliberately untouched by this fix
-    // -- design doc §5d) = 3 calls; city-b/c/d each pay their OWN outer-check
-    // call (1 each) = 3 more. Total 6 calls => 12 connectivity checks.
+    // Pre-#1125 shape: city-a's outer check (1 calculateCivEconomy) + its
+    // successful rushBuyActiveProduction (2 more, its own re-validation +
+    // post-purchase economyStatusByCiv persistence, both deliberately
+    // untouched by #1125 -- design doc §5d) = 3 calls; city-b/c/d each pay
+    // their OWN outer-check call (1 each) = 3 more. Total 6 calculateCivEconomy
+    // calls.
     //
     // Post-#1125: one batched projection covers city-a's outer check (1 call)
     // + city-a's own rushBuyActiveProduction cost (2 calls, unchanged) = 3,
     // THEN the purchase invalidates the batched projection so city-b's outer
     // check recomputes it fresh ONCE (1 call) -- correctly reflecting the
     // now-lower gold -- and city-c/d reuse THAT same still-valid projection
-    // (0 more calls, since neither purchases). Total 4 calls => 8 connectivity
-    // checks. A real reduction (12 -> 8), and, unlike the "every city
-    // succeeds" case, representative of a realistic AI round where the
-    // treasury-reserve gate naturally limits successful purchases per round
-    // while still checking every producing city.
-    expect(calls).toBe(8);
+    // (0 more calls, since neither purchases). Total 4 calculateCivEconomy
+    // calls (6 -> 4).
+    //
+    // Post-#1126: each calculateCivEconomy call now does exactly 1
+    // getCitiesConnectedToCapital call instead of 2 (the unused base
+    // projection is no longer computed). 4 calculateCivEconomy calls => 4
+    // connectivity checks (was 8 before #1126).
+    expect(calls).toBe(4);
   });
 
   it('does not recompute the projection for a city with no active production', () => {
@@ -233,7 +243,7 @@ describe('applyAIGoldSpending economy-projection reuse (#1125)', () => {
 
     const { calls } = countConnectivityChecks(() => applyAIGoldSpending(state, 'ai-1', new EventBus()));
 
-    expect(calls).toBe(2);
+    expect(calls).toBe(1);
   });
 
   it.each<OpponentChallenge>(['explorer', 'standard', 'veteran'])(
@@ -250,7 +260,7 @@ describe('applyAIGoldSpending economy-projection reuse (#1125)', () => {
 
       const { calls } = countConnectivityChecks(() => applyAIGoldSpending(state, 'ai-1', new EventBus()));
 
-      expect(calls).toBe(2);
+      expect(calls).toBe(1);
     },
   );
 
@@ -292,7 +302,7 @@ describe('applyAIGoldSpending economy-projection reuse (#1125)', () => {
 
       const { calls } = countConnectivityChecks(() => applyAIGoldSpending(state, 'ai-1', new EventBus()));
 
-      expect(calls).toBe(2);
+      expect(calls).toBe(1);
     },
   );
 
