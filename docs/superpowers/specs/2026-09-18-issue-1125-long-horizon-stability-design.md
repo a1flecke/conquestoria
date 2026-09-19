@@ -509,18 +509,39 @@ to near its pre-#1094 ≈19-minute figure, comfortably under the 25-minute targe
 shows otherwise, Terra must write `DESIGN ESCALATION REQUIRED` with the actual numbers rather than
 declare success — this design does not assume its own success.
 
-**B. Merge-stable deterministic guard.** Extend `tests/perf/algorithmic-budgets.test.ts`'s
-existing pattern (`tests/perf/perf-probe.ts`) with a new counter: `calculateCivEconomy` (or
-`projectCivGrossGold`, whichever proves to be the more precise attribution point once Terra's
-fresh instrumentation runs — plan doc leaves this as a measured decision, not assumed) calls
-**per `applyAIGoldSpending` invocation**, asserted to be `O(1)` (a fixed small constant — 1 for the
-no-purchase case, or 1 + number of successful purchases) regardless of how many producing cities
-the civ has, on the existing `tests/perf/fixtures/crowded-state.ts` fixture (which already has
-multiple cities per civ) at both its `entityScale: 1` and `entityScale: 2` sizes. This is a
-**shape** assertion (ratio ≈ 1.0, "must not scale with producing-city count"), matching this
-repo's own convention for a "must not scale with entities at all" invariant (`performance-budgets.md`
-§1), not a re-baselined absolute number — so it would fail immediately if the old `O(P)` shape were
-ever reintroduced, independent of machine speed or contention.
+**B. Merge-stable deterministic guard — IMPLEMENTED, in `tests/ai/ai-treasury.test.ts`, not
+`tests/perf/algorithmic-budgets.test.ts`.** This design originally proposed extending
+`tests/perf/algorithmic-budgets.test.ts`'s shared `crowded-state.ts`/full-AI-round harness with a
+new `civEconomyConnectivityCalls` counter (spying on `getCitiesConnectedToCapital`, the one
+cross-module function called from inside `calculateCivEconomy` — `calculateCivEconomy` itself
+cannot be spied on directly because its only pre-fix call site, `getRushBuyQuote`, lives in the
+SAME file, so an external `vi.spyOn` on the exported binding never observes that internal call).
+
+**Terra measured this directly and found the shared harness does not give a clean signal**:
+`getCitiesConnectedToCapital` is *also* called every round, for every city, by
+`faction-system.ts`'s unrest-pressure calculation (`getUnrestPressureBreakdown`) — a real,
+legitimate, unrelated cost that dominates the count in a full `processNonHumanMajorRound`
+measurement. Measured on `tests/perf/fixtures/crowded-state.ts` at both scales: pre-fix
+`e1=628, e2=2596`; post-fix `e1=618, e2=2550` — statistically indistinguishable (the fix's own
+contribution is a small fraction of a count dominated by unrest-pressure calls). A guard built on
+this signal would not reliably fail on a reintroduced regression, violating the plan's own
+requirement that a RED test must demonstrably fail against the unmodified code before the fix.
+`calculateProjectedCityYields` (the other cross-module function inside `projectCivGrossGold`) has
+the same problem in the other direction — it's directly called by `basic-ai.ts`/`ai-production.ts`
+for production scoring, an even larger contaminating signal.
+
+**Resolution:** the deterministic guard instead lives in `tests/ai/ai-treasury.test.ts`'s
+`applyAIGoldSpending economy-projection reuse (#1125)` describe block, using a dedicated,
+uncontaminated fixture (4 producing cities, no other system running) rather than the shared
+crowded-state harness. It asserts **exact** connectivity-check counts (not a ratio) for three
+shapes: zero purchases across 4 producing cities (`8` pre-fix → `2` post-fix — verified to fail
+against the unmodified code before the fix landed), one successful purchase among 4 (`12` → `8`),
+and a city with no active production never contributing to the count at all (`2` either way). This
+satisfies the same intent — a machine-independent, deterministic, regression-proof guard against
+this exact class of redundant recomputation — without forcing a fit onto shared infrastructure
+whose fixture happens to share a helper function with an unrelated subsystem. No change to
+`tests/perf/perf-probe.ts`, `tests/perf/perf-areas.ts`, or the checked-in
+`algorithmic-baseline.json` was needed or made.
 
 **C. Timeout safety margin.** Only after B is green and Terra's fresh full-matrix measurement
 (A) is in hand: reconcile the outer wrapper (`run-ai-long-horizon.sh`'s `3600` literal) against
