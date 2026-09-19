@@ -250,7 +250,7 @@ export function buildMajorCivPerception(
         position: copyCoord(city.position),
         confidence: 'visible' as const,
         observedTurn: state.turn,
-        defense: city.buildings.includes('walls') || city.buildings.includes('star_fort') ? 'fortified' : 'open' as const,
+        defense: (city.buildings.includes('walls') || city.buildings.includes('star_fort') ? 'fortified' : 'open') as 'open' | 'fortified',
         hpBand: healthBand(city.hp ?? 100),
       };
       const index = knownCities.findIndex(candidate => candidate.id === city.id);
