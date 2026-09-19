@@ -153,7 +153,7 @@ export function assignUnitsToPortfolio(
     let remainingPrimarySlots = plan.id === primaryId
       ? Math.max(0, Math.floor(context.profile.maxPrimaryForce))
       : Number.POSITIVE_INFINITY;
-    const requiredEntries = (Object.entries(plan.requiredRoles) as Array<[AIStrategicRole, number]>)
+    const criticalEntries = (Object.entries(plan.requiredRoles) as Array<[AIStrategicRole, number]>)
       .sort((left, right) =>
         ROLE_ORDER.indexOf(left[0]) - ROLE_ORDER.indexOf(right[0]))
       .map(([role, desired]) => {
@@ -164,6 +164,16 @@ export function assignUnitsToPortfolio(
         remainingPrimarySlots -= effectiveDesired;
         return [role, effectiveDesired] as const;
       });
+    // Support is deliberately appended after critical readiness: it may produce and
+    // travel with the operation, but it must not consume the force before capture can act.
+    const supportEntries = (Object.entries(plan.supportRoles ?? {}) as Array<[AIStrategicRole, number]>)
+      .sort((left, right) => ROLE_ORDER.indexOf(left[0]) - ROLE_ORDER.indexOf(right[0]))
+      .map(([role, desired]) => {
+        const effectiveDesired = Math.min(Math.max(0, Math.floor(desired)), remainingPrimarySlots);
+        remainingPrimarySlots -= effectiveDesired;
+        return [role, effectiveDesired] as const;
+      });
+    const requiredEntries = [...criticalEntries, ...supportEntries];
     desiredSlotsByPlanId[plan.id] = Object.fromEntries(requiredEntries);
 
     for (const [role, desired] of requiredEntries) {
