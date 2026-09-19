@@ -18,7 +18,7 @@ Write tests first for intentional multi-role overlap, two distinct frontline uni
 
 **Source:** `src/ai/ai-objective-scoring.ts`, `src/ai/ai-prepared-turn.ts`, `src/ai/ai-plan-portfolio.ts`, `src/ai/ai-round-scheduler.ts`.
 
-Make a one-of-two frontline RED case. Change choice demand from role `Set` to counted deficit for only the selected reachable readiness target. Permit an incomplete but possible capture target to create/retain a `mobilizing` plan so assignment can replenish it. Reject only critical roles with no live, queued, or legal trainable source. Revalidate target-scoped demand by ownership. Test loss, emergency detach, retained refresh, and ownership change without modifying `deadlineReached` behavior.
+Make a one-of-two frontline RED case. Change choice demand from role `Set` to counted deficit for only the selected reachable readiness target. Permit an incomplete but possible capture target to create/retain a `mobilizing` plan so assignment can replenish it. Once that capture plan exists, suppress generic `objective-readiness` for the plan's own critical roles: the assignment deficit is the sole production authority, so one missing frontline yields one replacement request rather than two. Reject only critical roles with no live, queued, or legal trainable source. Revalidate target-scoped demand by ownership. Test loss, emergency detach, retained refresh, ownership change, and an actual legal production queue without modifying `deadlineReached` behavior.
 
 ## 4. Safe city observation and bounded shape
 

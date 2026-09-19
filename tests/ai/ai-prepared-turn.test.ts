@@ -8,6 +8,8 @@ import {
 } from '@/ai/ai-prepared-turn';
 import { EXPANSION_SEARCH_RADIUS } from '@/ai/ai-expansion-sites';
 import { createEmptyMajorCivPortfolio } from '@/ai/ai-plan-portfolio';
+import { refreshMajorCivIntel } from '@/ai/ai-perception';
+import { applyAIProduction } from '@/ai/ai-production';
 import { createNewGame } from '@/core/game-state';
 import { getWrappedHexNeighbors, hexDistance, hexKey, mapHexesInRange } from '@/systems/hex-utils';
 import { foundCity } from '@/systems/city-system';
@@ -40,6 +42,49 @@ function addSpacedCities(state: GameState, civId: string, count: number): void {
       civ.visibility.tiles[hexKey(coord)] = 'visible';
     }
   }
+}
+
+function setupVisibleDefendedCapture(
+  seed: string,
+  options: { archery?: boolean; garrison?: boolean } = {},
+) {
+  const state = createNewGame(undefined, seed, 'small');
+  const civ = state.civilizations['ai-1'];
+  const anchor = civ.units.map(id => state.units[id]).find(Boolean)!.position;
+  const targetTile = Object.values(state.map.tiles)
+    .filter(tile =>
+      hexDistance(anchor, tile.coord) === 1
+      && findPath(anchor, tile.coord, state.map, 'land') !== null)
+    .sort((left, right) => hexKey(left.coord).localeCompare(hexKey(right.coord)))[0]!;
+  const ownCity = foundCity(civ.id, anchor, state.map, state.idCounters);
+  const targetCity = foundCity('player', targetTile.coord, state.map, state.idCounters);
+  targetCity.buildings.push('walls');
+  state.cities[ownCity.id] = ownCity;
+  state.cities[targetCity.id] = targetCity;
+  civ.cities = [ownCity.id];
+  state.civilizations.player.cities = [targetCity.id];
+  for (const unitId of [...civ.units]) {
+    if (UNIT_DEFINITIONS[state.units[unitId]!.type].strength > 0) {
+      delete state.units[unitId];
+      civ.units = civ.units.filter(id => id !== unitId);
+    }
+  }
+  const attacker = createUnit('warrior', civ.id, anchor, state.idCounters);
+  state.units[attacker.id] = attacker;
+  civ.units.push(attacker.id);
+  if (options.garrison !== false) {
+    const garrison = createUnit('warrior', 'player', targetCity.position, state.idCounters);
+    state.units[garrison.id] = garrison;
+    state.civilizations.player.units.push(garrison.id);
+  }
+  civ.knownCivilizations = ['player'];
+  civ.diplomacy.atWarWith = ['player'];
+  if (options.archery) civ.techState.completed = ['archery'];
+  civ.visibility.tiles = {
+    [hexKey(anchor)]: 'visible',
+    [hexKey(targetCity.position)]: 'visible',
+  };
+  return { state, civ, ownCity, targetCity };
 }
 
 describe('prepared major-civilization planning', () => {
@@ -127,7 +172,7 @@ describe('prepared major-civilization planning', () => {
     expect(prepareMajorCivStrategicPlan(state, civ.id).forceDemands.some(entry => entry.role === 'air-defense')).toBe(false);
   });
 
-  it('preserves objective-readiness demand when no current unit can fill the role', () => {
+  it('does not seed an unselected resource operation while a viable expansion plan exists', () => {
     const state = createNewGame(undefined, 'prepared-objective-demand', 'small');
     const civ = state.civilizations['ai-1'];
     const anchor = civ.units.map(id => state.units[id]).find(Boolean)!.position;
@@ -140,18 +185,10 @@ describe('prepared major-civilization planning', () => {
 
     const prepared = prepareMajorCivStrategicPlan(state, 'ai-1');
 
-    // #1064: primaryPlan is no longer guaranteed null here -- an eligible `expand`
-    // candidate can now legitimately win by default when nothing else competes (that
-    // IS the fix). The actual claim this test makes is narrower: no resource-expedition
-    // (secure-resource) plan was drafted, while the readiness demand is still preserved.
-    expect(prepared.portfolio.primaryPlan?.objective).not.toBe('secure-resource');
-    expect(prepared.forceDemands).toContainEqual(expect.objectContaining({
-      role: 'resource-expedition',
-      desired: 1,
-      assigned: 0,
-      missing: 1,
-      sourcePlanIds: ['objective-readiness'],
-    }));
+    expect(prepared.portfolio.primaryPlan?.objective).toBe('expand');
+    expect(prepared.forceDemands.find(demand =>
+      demand.role === 'resource-expedition' && demand.sourcePlanIds.includes('objective-readiness')),
+    ).toBeUndefined();
   });
 
   it('does not draft conquest against a peaceful neighbor', () => {
@@ -632,6 +669,123 @@ describe('prepared major-civilization planning', () => {
     });
   });
 
+  it('assembles a counted critical force for a visibly fortified and garrisoned capture target', () => {
+    const { state, civ, targetCity } = setupVisibleDefendedCapture('prepared-defended-capture-force');
+
+    const prepared = prepareMajorCivStrategicPlan(state, civ.id);
+
+    expect(prepared.portfolio.primaryPlan).toMatchObject({
+      objective: 'capture',
+      target: { kind: 'city', id: targetCity.id },
+      requiredRoles: { frontline: 2, capture: 1 },
+    });
+    const capturePlanId = prepared.portfolio.primaryPlan!.id;
+    const frontlineDemand = prepared.forceDemands.find(demand => demand.role === 'frontline');
+    const captureDemand = prepared.forceDemands.find(demand => demand.role === 'capture');
+    // The visible garrison also creates an urgent home-defense plan. That plan may
+    // legitimately take the only warrior first, but the capture operation must still
+    // retain its counted shortage in the shared production demand.
+    expect(frontlineDemand).toMatchObject({ role: 'frontline' });
+    expect(frontlineDemand!.desired).toBeGreaterThanOrEqual(2);
+    expect(frontlineDemand!.missing).toBeGreaterThanOrEqual(1);
+    expect(frontlineDemand!.sourcePlanIds).toContain(capturePlanId);
+    expect(captureDemand?.sourcePlanIds).toContain(capturePlanId);
+    expect(prepared.portfolio.primaryPlan?.supportRoles).toBeUndefined();
+  });
+
+  it.each(['explorer', 'standard', 'veteran'] as const)(
+    'keeps observed capture-force requirements equally competent on %s',
+    challenge => {
+      const { state, civ, targetCity } = setupVisibleDefendedCapture(
+        `prepared-defended-capture-${challenge}`,
+      );
+      state.opponentChallenge = challenge;
+
+      const prepared = prepareMajorCivStrategicPlan(state, civ.id);
+
+      expect(prepared.portfolio.primaryPlan).toMatchObject({
+        objective: 'capture',
+        target: { kind: 'city', id: targetCity.id },
+        requiredRoles: { frontline: 2, capture: 1 },
+      });
+    },
+  );
+
+  it('requests optional ranged support only when a hardened capture target is visibly observed and legal to train', () => {
+    const { state, civ } = setupVisibleDefendedCapture('prepared-defended-capture-support', {
+      archery: true,
+    });
+
+    const prepared = prepareMajorCivStrategicPlan(state, civ.id);
+
+    expect(prepared.portfolio.primaryPlan?.supportRoles).toEqual({ ranged: 1 });
+    const rangedDemand = prepared.forceDemands.find(demand => demand.role === 'ranged');
+    expect(rangedDemand).toBeDefined();
+    expect(rangedDemand!.desired).toBeGreaterThanOrEqual(1);
+    expect(rangedDemand!.missing).toBeGreaterThanOrEqual(1);
+    expect(rangedDemand!.sourcePlanIds).toContain(prepared.portfolio.primaryPlan!.id);
+  });
+
+  it('carries a fortified capture shortage into the real production queue', () => {
+    const { state, civ, ownCity, targetCity } = setupVisibleDefendedCapture(
+      'prepared-defended-capture-production',
+      { garrison: false },
+    );
+    const prepared = prepareMajorCivStrategicPlan(state, civ.id);
+
+    expect(prepared.portfolio.primaryPlan).toMatchObject({
+      objective: 'capture',
+      target: { kind: 'city', id: targetCity.id },
+      requiredRoles: { frontline: 2, capture: 1 },
+    });
+    expect(prepared.forceDemands.find(demand => demand.role === 'frontline')).toMatchObject({
+      desired: 2, assigned: 1, missing: 1,
+    });
+
+    const next = applyAIProduction(state, civ.id, prepared.forceDemands, {
+      traits: [], warLikelihood: 0.5, diplomacyFocus: 0.5, expansionDrive: 0.5,
+    });
+
+    expect(next.cities[ownCity.id]!.productionQueue[0]).toBe('warrior');
+  });
+
+  it('does not size a remembered capture force from a defender first placed while hidden', () => {
+    let state = createNewGame(undefined, 'prepared-hidden-capture-defender', 'small');
+    const civ = state.civilizations['ai-1'];
+    const anchor = civ.units.map(id => state.units[id]).find(Boolean)!.position;
+    const targetTile = Object.values(state.map.tiles)
+      .filter(tile =>
+        hexDistance(anchor, tile.coord) === 1
+        && findPath(anchor, tile.coord, state.map, 'land') !== null)
+      .sort((left, right) => hexKey(left.coord).localeCompare(hexKey(right.coord)))[0]!;
+    const ownCity = foundCity(civ.id, anchor, state.map, state.idCounters);
+    const targetCity = foundCity('player', targetTile.coord, state.map, state.idCounters);
+    state.cities[ownCity.id] = ownCity;
+    state.cities[targetCity.id] = targetCity;
+    civ.cities = [ownCity.id];
+    state.civilizations.player.cities = [targetCity.id];
+    civ.knownCivilizations = ['player'];
+    civ.diplomacy.atWarWith = ['player'];
+    civ.visibility.tiles = {
+      [hexKey(anchor)]: 'visible',
+      [hexKey(targetCity.position)]: 'visible',
+    };
+    state = refreshMajorCivIntel(state, civ.id);
+    state.civilizations[civ.id]!.visibility.tiles[hexKey(targetCity.position)] = 'fog';
+    const hiddenGarrison = createUnit('warrior', 'player', targetCity.position, state.idCounters);
+    state.units[hiddenGarrison.id] = hiddenGarrison;
+    state.civilizations.player.units.push(hiddenGarrison.id);
+
+    const prepared = prepareMajorCivStrategicPlan(state, civ.id);
+
+    expect(prepared.portfolio.primaryPlan).toMatchObject({
+      objective: 'capture',
+      target: { kind: 'city', id: targetCity.id },
+      requiredRoles: { capture: 1 },
+    });
+    expect(prepared.portfolio.primaryPlan?.supportRoles).toBeUndefined();
+  });
+
   it('feeds one frontline demand from an earned Domination threat', () => {
     const state = createNewGame({
       civType: 'rome', mapSize: 'small', opponentCount: 4, gameTitle: 'Counterplay', seed: 'prepared-domination-counterplay',
@@ -763,14 +917,15 @@ describe('#1064 bounded force demands', () => {
     expect(demand?.desired ?? 0).toBeLessThanOrEqual(WORKER_SOFT_CAP);
   });
 
-  it('re-opens a readiness demand only while the civilization owns no unit of that role', () => {
-    // This MUST be built so a readiness demand is guaranteed to exist. A peaceful
-    // fresh civ often produces no objective candidates at all, in which case
-    // `choice.demands` is empty and a filter-then-assert test passes vacuously
-    // while proving nothing.
+  it('seeds only the strongest reachable incomplete objective, not every analyzed one', () => {
+    // This MUST include more than one incomplete objective. The distant capture
+    // is deliberately lower-scored than visible resources, so a role-set union
+    // would wrongly demand both while the single-target contract demands one.
     const state = createNewGame(undefined, 'demand-readiness-frontline', 'small');
     const civ = state.civilizations['ai-1'];
-    addSpacedCities(state, civ.id, 0);           // ai-1 needs a city to place the warrior in
+    // Suppress expansion so this test reaches the no-viable-plan readiness path,
+    // rather than correctly selecting an unrelated expansion objective.
+    addSpacedCities(state, civ.id, 6);
     addSpacedCities(state, 'player', 0);         // player needs a city to be a capture target
     civ.knownCivilizations = ['player'];
     civ.diplomacy.atWarWith = ['player'];
@@ -779,7 +934,7 @@ describe('#1064 bounded force demands', () => {
     for (const coord of mapHexesInRange(state.map, enemyCity.position, 2)) {
       civ.visibility.tiles[hexKey(coord)] = 'visible';
     }
-    // Strip every combat unit so `frontline` is genuinely unowned.
+    // Strip every combat unit so `capture` is genuinely unowned.
     for (const unitId of [...civ.units]) {
       if (UNIT_DEFINITIONS[state.units[unitId]!.type].strength > 0) {
         delete state.units[unitId];
@@ -787,22 +942,14 @@ describe('#1064 bounded force demands', () => {
       }
     }
 
-    const readiness = (demands: ReturnType<typeof prepareMajorCivStrategicPlan>['forceDemands']) =>
-      demands.find(entry =>
-        entry.role === 'capture' && entry.sourcePlanIds.includes('objective-readiness'));
+    const beforePrepared = prepareMajorCivStrategicPlan(state, civ.id);
+    const readiness = beforePrepared.forceDemands.filter(entry =>
+      entry.sourcePlanIds.includes('objective-readiness'));
 
-    const before = readiness(prepareMajorCivStrategicPlan(state, civ.id).forceDemands);
-    // Fails loudly rather than vacuously if the fixture produced no candidate.
-    expect(before?.missing).toBe(1);
-
-    const warrior = createUnit(
-      'warrior', civ.id, state.cities[civ.cities[0]!]!.position, state.idCounters,
-    );
-    state.units[warrior.id] = warrior;
-    civ.units.push(warrior.id);
-
-    const after = readiness(prepareMajorCivStrategicPlan(state, civ.id).forceDemands);
-    expect(after?.missing ?? 0).toBe(0);
+    expect(readiness).toContainEqual(expect.objectContaining({
+      role: 'resource-expedition', missing: 1,
+    }));
+    expect(readiness.some(entry => entry.role === 'capture')).toBe(false);
   });
 });
 

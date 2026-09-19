@@ -1,6 +1,6 @@
 # #1122 — Capture Force Demand and Assembly Design
 
-**Status:** revised Astra design; implementation has not begun.
+**Status:** implementation evidence updated after real-pipeline reproduction.
 
 **Base:** `be6d23228519c1be1455d3dafe8ad153ab9165eb` (`origin/main`, refreshed 2026-09-19). #1122 is open with no comments or open-PR collision. Re-run the refresh/collision gate before Terra and Sol.
 
@@ -18,6 +18,8 @@ Production runs after tactical execution. Thus the missing assignment slot canno
 
 The initial `{ frontline: 2, capture: 1 }` draft also cannot work: objective choice collapses missing counts to a role `Set`, while `incrementalDemandSeed()` caps readiness demand at one. One frontline against a two-frontline candidate yields no second-unit demand and no plan. Finally, capture candidates use whole-rival strength, while city perception has no HP/defense facts and candidate generation does not inspect local garrison. Fogged `GameState` city reads would violate the information boundary.
 
+The real fortified-city pipeline then exposed a second causal seam: after an incomplete capture became a real plan, its assignment-derived shortage and the older generic `objective-readiness` shortage were merged. The same one-frontline gap therefore appeared twice to production. This is not an economy or queue-scoring bug; it is two authorities describing one capability deficit.
+
 **First causal root:** there is no canonical, consumptive force-capacity contract shared by selection, demand, assignment, and readiness.
 
 ## Chosen contract
@@ -28,6 +30,7 @@ The initial `{ frontline: 2, capture: 1 }` draft also cannot work: objective cho
 - A count within one role requires distinct units: `frontline: 2` requires two frontline-capable units.
 - One typed helper, based on `canUnitFulfillAIStrategicRole`, returns available/missing/satisfied role counts. Objective selection, pre-plan demand, assignment demand, and `hasRequiredRoles()` all use it.
 - Assignment selects a deterministic minimal union of units: bounded greedy coverage of unmet capabilities, then existing role-fit/travel/health/id ties. A selected unit is credited for all genuine capabilities once; no duplicate assignment, permutations, or tactical simulation.
+- Once a primary capture plan exists, its assignment-derived critical-role deficit is the only production authority for those roles. Generic `objective-readiness` remains pre-plan scaffolding and must not duplicate plan-owned capture requirements.
 
 The exposed-city control is deliberately one capture-capable unit: `{ capture: 1 }`. This preserves opportunistic conquest. Observed resistance is bounded:
 
@@ -41,13 +44,13 @@ The exposed-city control is deliberately one capture-capable unit: `{ capture: 1
 
 ## Observer-safe target facts
 
-Add a coarse city observation to perception and last-seen presentation: `defense: 'open' | 'fortified'` and `hpBand: 'intact' | 'damaged' | 'critical'`, captured only while that city is visible. Do not retain building lists, exact HP, techs, queues, or raw city references. Build one bounded local index of perceived hostile units around candidate cities. Visible strengthening escalates immediately; visible weakening lowers the tier. Fog cannot manufacture escalation or a false de-escalation; a retained plan keeps its legally earned tier until direct reobservation. This avoids hidden-information use and demand oscillation.
+Add a coarse city observation to perception and last-seen presentation: `defense: 'open' | 'fortified'` and `hpBand: 'healthy' | 'damaged' | 'critical'`, captured only while that city is visible. Do not retain building lists, exact HP, techs, queues, or raw city references. Build one bounded local index of perceived hostile units around candidate cities. Visible strengthening escalates immediately; visible weakening lowers the tier. Fog cannot manufacture escalation or a false de-escalation; a retained plan keeps its legally earned tier until direct reobservation. This avoids hidden-information use and demand oscillation.
 
 ## Data flow
 
 1. Compute legal trainable roles before candidate selection.
 2. Derive each capture shape from coarse city observation plus local perceived units.
-3. Objective choice returns a counted deficit for the single best reachable readiness target, not a role-set union across targets. A possible but incomplete capture candidate creates/retains a `mobilizing` plan, allowing target-specific assignment demand before full assembly.
+3. Objective choice returns a counted deficit for the single best reachable readiness target, not a role-set union across targets. A possible but incomplete capture candidate creates/retains a `mobilizing` plan, allowing target-specific assignment demand before full assembly. Once retained, that plan suppresses generic readiness for its own critical roles so production sees each shortage exactly once.
 4. Reject only candidates with no live, queued, or legal trainable source for a critical role; drop unavailable optional support. Target-scoped readiness demand is revalidated against ownership so it cannot survive capture/retarget.
 5. Loss or emergency detach recomputes the canonical deficit next turn. Critical deficit remains readiness-critical; support loss is optional. Portfolio refresh copies role maps/tier from a matching candidate.
 
@@ -64,10 +67,10 @@ Non-goals: no combat rewrite, new content, personality hack, deadline change (#1
 **perform an INLINE review across these dimensions about balancing gameplay, fun, new mechanics, different player ages (7-43), different play styles, the built in difficulty modes, how computer players will use it, ui, ux, architecture, extensibility, data, sfx, updating saved games, proper testing, regressions solo play, and hot seat plays, and proper implementation.**
 
 - **Balance/fun/ages/styles/difficulty:** exposed targets remain quick; only observed resistance earns a finite second fighter and possible support. Every tier retains minimum capability without cheats.
-- **AI/architecture:** review found the prior role-slot contradiction and boolean count loss. One canonical helper and incomplete mobilizing plan correct both at the earliest causal seam.
+- **AI/architecture:** review found the prior role-slot contradiction, boolean count loss, and duplicate pre-plan/plan demand authority. One canonical helper, incomplete mobilizing plan, and a single plan-owned production deficit correct these at the earliest causal seams.
 - **UI/UX/SFX:** no control, renderer, or sound change. Coarse observed facts are viewer-safe state, not a new hidden overlay.
 - **Data/saves/hot-seat:** review found raw city inspection unsafe. Coarse snapshots, normalization, legacy defaults, target-scoped demand, and actor-scoped perception correct that defect.
 - **Testing/performance:** review found the old draft lacked a valid pipeline proof. RED-first, three-consumer consistency, save/determinism, seat privacy, and bounded matching/indexing are required.
 - **Implementation:** #1124/#1123 remain explicitly downstream; the no-deadline readiness contradiction is fixed here.
 
-The review materially changed the design: it removed the false distinct-slot assumption, replaced role-set demand with counted deficits, required observer-safe city facts, and preserved incomplete plans for assembly. No in-scope design defect remains. If the RED trace disproves this path, emit `DESIGN ESCALATION REQUIRED`.
+The review materially changed the design: it removed the false distinct-slot assumption, replaced role-set demand with counted deficits, required observer-safe city facts, preserved incomplete plans for assembly, and made retained plans the sole authority for their own production shortage. If the RED trace disproves this path, emit `DESIGN ESCALATION REQUIRED`.

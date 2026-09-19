@@ -72,6 +72,31 @@ describe('AI unit assignment', () => {
     ]));
   });
 
+  it('regenerates the counted capture shortage when an assigned attacker is lost', () => {
+    const context = {
+      portfolio: {
+        ...createEmptyMajorCivPortfolio(),
+        primaryPlan: plan('capture', 'capture', { frontline: 2, capture: 1 }),
+      },
+      profile: { maxPrimaryForce: 3, retreatHealthPercent: 30 },
+      defenseThreatScoreByPlanId: {}, eliminationDefensePlanIds: [], onlyImmediateDefenderUnitIds: [], requiresEmbarkationByPlanId: {},
+    };
+    const withAttacker = assignUnitsToPortfolio({
+      ...context,
+      units: [unit('warrior', 'warrior', { capture: 1 })],
+    });
+    const afterLoss = assignUnitsToPortfolio({ ...context, units: [] });
+
+    expect(withAttacker.forceDemands).toEqual(expect.arrayContaining([
+      expect.objectContaining({ role: 'frontline', desired: 2, assigned: 1, missing: 1 }),
+      expect.objectContaining({ role: 'capture', desired: 1, assigned: 1, missing: 0 }),
+    ]));
+    expect(afterLoss.forceDemands).toEqual(expect.arrayContaining([
+      expect.objectContaining({ role: 'frontline', desired: 2, assigned: 0, missing: 2 }),
+      expect.objectContaining({ role: 'capture', desired: 1, assigned: 0, missing: 1 }),
+    ]));
+  });
+
   it('assigns optional support after the critical capture force and emits its demand when absent', () => {
     const capture = { ...plan('capture', 'capture', { frontline: 1, capture: 1 }), supportRoles: { siege: 1 } };
     const result = assignUnitsToPortfolio({
