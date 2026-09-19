@@ -1,6 +1,12 @@
 import type { EventBus } from '@/core/event-bus';
 import type { GameState } from '@/core/types';
-import { calculateMaintenance, getRushBuyQuote, rushBuyActiveProduction } from '@/systems/economy-system';
+import {
+  calculateCivEconomy,
+  calculateMaintenance,
+  type EconomyProjection,
+  getRushBuyQuote,
+  rushBuyActiveProduction,
+} from '@/systems/economy-system';
 
 /**
  * #1094: the AI never called `rushBuyActiveProduction` -- the same gold-for-
@@ -53,16 +59,34 @@ function totalMaintenanceFor(state: GameState, civId: string): number {
  * O(cities + units) cost once per candidate city, which is the redundant
  * quadratic-shaped cost `.claude/rules/performance-budgets.md` calls out --
  * see the #1094 PR for the measured wall-clock this fixed on `lh-veteran-large`.
+ *
+ * #1125: that PR left `getRushBuyQuote`'s own `calculateCivEconomy` call
+ * unaddressed ("out of scope... without risking the shared human rush-buy
+ * path"). `calculateCivEconomy(state, civId)` takes no per-city input, so
+ * calling it once per producing city against the SAME unchanged `state` was an
+ * exact, provable redundancy -- `ownerStatus` below gets the identical
+ * cache/invalidate-on-purchase treatment `cachedMaintenance` already has.
+ * `rushBuyActiveProduction` itself is deliberately left untouched (its own
+ * internal re-validation quote call and its post-purchase `economyStatusByCiv`
+ * persistence call both still do their own `calculateCivEconomy` work) --
+ * threading a precomputed context into the one function BOTH the human "Rush
+ * Buy" button and this AI loop share would special-case the AI caller's trust
+ * level, which is exactly the divergent-legality pattern this module's own
+ * design doc (docs/superpowers/specs/2026-09-18-issue-1125-long-horizon-
+ * stability-design.md §5d) rules out. See that doc for the full call-graph
+ * accounting.
  */
 export function applyAIGoldSpending(state: GameState, civId: string, bus: EventBus): GameState {
   const civ = state.civilizations[civId];
   if (!civ) return state;
   let nextState = state;
   let cachedMaintenance: number | null = null;
+  let ownerStatus: EconomyProjection | null = null;
   for (const cityId of civ.cities) {
     const city = nextState.cities[cityId];
     if (!city || city.owner !== civId || city.productionQueue.length === 0) continue;
-    const quote = getRushBuyQuote(nextState, civId, cityId);
+    ownerStatus ??= calculateCivEconomy(nextState, civId);
+    const quote = getRushBuyQuote(nextState, civId, cityId, ownerStatus);
     if (!quote.available) continue;
     cachedMaintenance ??= totalMaintenanceFor(nextState, civId);
     const civGold = nextState.civilizations[civId]!.gold;
@@ -71,6 +95,7 @@ export function applyAIGoldSpending(state: GameState, civId: string, bus: EventB
     if (result.success) {
       nextState = result.state;
       cachedMaintenance = null;
+      ownerStatus = null;
     }
   }
   return nextState;

@@ -1,10 +1,37 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { applyAIGoldSpending } from '@/ai/ai-treasury';
 import type { GameState } from '@/core/types';
 import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import { foundCity } from '@/systems/city-system';
 import { hexKey, hexNeighbors } from '@/systems/hex-utils';
+import * as roadNetwork from '@/systems/road-network';
+
+/**
+ * #1125 — `getCitiesConnectedToCapital` (`road-network.ts`) is called exactly
+ * twice per `calculateCivEconomy` invocation (once from each of
+ * `projectCivGrossGold`'s two calls inside it -- base and pirate-modified).
+ * It lives in a DIFFERENT module from `economy-system.ts`, so `vi.spyOn` on
+ * it (unlike spying on `calculateCivEconomy` itself, which is called from
+ * `getRushBuyQuote` in the SAME file and therefore invisible to an external
+ * spy on that binding) gives an exact, cross-module-observable proxy for how
+ * many times the whole-civ economy projection actually runs. See the #1125
+ * design doc's Task 0 finding for why `calculateCivEconomy` itself cannot be
+ * spied on directly here.
+ */
+function countConnectivityChecks(fn: () => GameState): { result: GameState; calls: number } {
+  let calls = 0;
+  const orig = roadNetwork.getCitiesConnectedToCapital;
+  const spy = vi.spyOn(roadNetwork, 'getCitiesConnectedToCapital').mockImplementation((...args) => {
+    calls += 1;
+    return orig(...args);
+  });
+  try {
+    return { result: fn(), calls };
+  } finally {
+    spy.mockRestore();
+  }
+}
 
 function setupState(cityIds = ['city-a']): GameState {
   const state = createNewGame(undefined, `ai-treasury-${cityIds.join('-')}`, 'small');
@@ -127,5 +154,73 @@ describe('applyAIGoldSpending (#1094)', () => {
     const state = setupState();
     const result = applyAIGoldSpending(state, 'unknown-civ', new EventBus());
     expect(result).toBe(state);
+  });
+});
+
+describe('applyAIGoldSpending economy-projection reuse (#1125)', () => {
+  const FOUR_CITIES = ['city-a', 'city-b', 'city-c', 'city-d'];
+
+  it('computes the whole-civ economy projection once per round, not once per producing city', () => {
+    const state = setupState(FOUR_CITIES);
+    state.civilizations['ai-1']!.gold = 0; // every quote is unavailable -- zero purchases
+    for (const cityId of FOUR_CITIES) state.cities[cityId]!.productionQueue = ['warrior'];
+
+    const { calls } = countConnectivityChecks(() => applyAIGoldSpending(state, 'ai-1', new EventBus()));
+
+    // getCitiesConnectedToCapital runs exactly twice per calculateCivEconomy call
+    // (projectCivGrossGold's base + pirate-modified projections). One projection
+    // for the whole round, zero purchases to invalidate it => exactly 2, not
+    // 2 * FOUR_CITIES.length (8) as unmodified `getRushBuyQuote` would produce by
+    // recomputing per producing city.
+    expect(calls).toBe(2);
+  });
+
+  it('recomputes the projection only after a successful purchase invalidates it', () => {
+    // gold=25 affords exactly ONE warrior rush on this 4-city fixture and
+    // leaves nothing for a second (empirically confirmed against this exact
+    // fixture shape -- 4 default-population cities, no extra buildings -- with
+    // the values below), so exactly city-a succeeds and city-b/c/d are
+    // correctly denied by getRushBuyQuote's own gold check.
+    const state = setupState(FOUR_CITIES);
+    state.civilizations['ai-1']!.gold = 25;
+    for (const cityId of FOUR_CITIES) state.cities[cityId]!.productionQueue = ['warrior'];
+
+    const { result, calls } = countConnectivityChecks(() => applyAIGoldSpending(state, 'ai-1', new EventBus()));
+
+    expect(result.cities['city-a']!.productionQueue).toEqual([]);
+    expect(result.cities['city-b']!.productionQueue).toEqual(['warrior']);
+    expect(result.cities['city-c']!.productionQueue).toEqual(['warrior']);
+    expect(result.cities['city-d']!.productionQueue).toEqual(['warrior']);
+    expect(result.civilizations['ai-1']!.gold).toBe(0);
+    // Pre-#1125 shape (verified against unmodified `main` while writing this
+    // test): city-a's outer check (1 calculateCivEconomy) + its successful
+    // rushBuyActiveProduction (2 more, its own re-validation + post-purchase
+    // economyStatusByCiv persistence, both deliberately untouched by this fix
+    // -- design doc §5d) = 3 calls; city-b/c/d each pay their OWN outer-check
+    // call (1 each) = 3 more. Total 6 calls => 12 connectivity checks.
+    //
+    // Post-#1125: one batched projection covers city-a's outer check (1 call)
+    // + city-a's own rushBuyActiveProduction cost (2 calls, unchanged) = 3,
+    // THEN the purchase invalidates the batched projection so city-b's outer
+    // check recomputes it fresh ONCE (1 call) -- correctly reflecting the
+    // now-lower gold -- and city-c/d reuse THAT same still-valid projection
+    // (0 more calls, since neither purchases). Total 4 calls => 8 connectivity
+    // checks. A real reduction (12 -> 8), and, unlike the "every city
+    // succeeds" case, representative of a realistic AI round where the
+    // treasury-reserve gate naturally limits successful purchases per round
+    // while still checking every producing city.
+    expect(calls).toBe(8);
+  });
+
+  it('does not recompute the projection for a city with no active production', () => {
+    const state = setupState(FOUR_CITIES);
+    state.civilizations['ai-1']!.gold = 0;
+    state.cities['city-a']!.productionQueue = ['warrior'];
+    // city-b/c/d stay empty -- applyAIGoldSpending must `continue` before ever
+    // asking for a quote, so they must not contribute to the projection count.
+
+    const { calls } = countConnectivityChecks(() => applyAIGoldSpending(state, 'ai-1', new EventBus()));
+
+    expect(calls).toBe(2);
   });
 });
