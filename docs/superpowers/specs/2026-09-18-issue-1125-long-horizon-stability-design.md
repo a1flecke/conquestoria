@@ -79,19 +79,51 @@ re-verified the code paths those numbers implicate and ran a **targeted, current
 instrumentation probe (see §3) directly against the `#1094` treasury hypothesis, which is the
 central open question the prompt raises.
 
-**Honest limitation, disclosed rather than glossed over:** this investigation's own environment
-is a shared dev host running numerous concurrent Claude Code worktree agents (documented and
-expected per `.claude/rules/hooks-and-tooling.md`'s own "Heavy simulation tests need an explicit,
-headroom-sized timeout (#608)" section, which cites "200+ worktree directories exist" on this
-exact host as a known, permanent condition). A targeted 3-scenario instrumentation probe
-(`lh-standard-small` 19.4s, `lh-standard-medium` 94.9s, `lh-veteran-medium` 116.6s — chosen as
-small/medium representative points, deliberately excluding the 1520s `lh-veteran-large` worst case
-to keep this investigation's own footprint bounded) was still running after 10+ minutes of CPU
-time at investigation-writing time, against a pre-contention baseline sum of 230.9s — a >2.5x
-slowdown from contention alone, consistent with this repo's own documented risk. **This is
-evidence for, not against, treating wall-clock as diagnostic-only (per the prompt's own framing)
-and building the actual merge gate on deterministic operation counts (§8's performance contract).**
-The full fresh matrix run, and reproduction of the `lh-veteran-large` worst case specifically, is
+**Contention limitation — initially disclosed as a general risk, later CONFIRMED and FIXED
+with a specific, verified cause, not left as a vague caveat.** Early instrumentation probes in
+this investigation ran unexpectedly slowly (a 3-scenario probe still running after 10+ minutes of
+CPU time against a pre-contention baseline sum of 230.9s — a >2.5x slowdown), and two full-matrix
+attempts both hit the (then-3600s) outer wrapper timeout after completing only 8 of 9 scenarios in
+~59 minutes each, well past the documented ~40-minute figure. The initial hypothesis — general,
+undifferentiated "concurrent Claude Code worktree agent" contention, citing
+`.claude/rules/hooks-and-tooling.md`'s own documented #608 risk — was directionally right but not
+verified with a specific cause at the time.
+
+**It was subsequently confirmed directly, with hard evidence, not assumed:** a `ps aux` snapshot
+taken during a later control measurement found a live, actively-running process tree from a
+**different worktree** (`issue-1122-capture-force`, an unrelated arc — #1122 is explicitly listed
+as this issue's own non-goal in §11) running its own `yarn test:ai-long`-style invocation,
+consuming two full CPU cores at ~100% each, running continuously for 18+ minutes. This directly
+explained a subsequent isolated control measurement of `lh-standard-small` alone (no continuity
+file, no instrumentation overhead) measuring 49.9s against its documented 19.4s baseline — the
+"isolation" was illusory; a genuinely separate worktree's own long-horizon run was competing for
+CPU the entire time. Per the repository owner (2026-09-19): multiple concurrent agents are a
+routine, expected, and *planned-for* condition on this dev host, not a rare edge case — exactly
+matching `.claude/rules/hooks-and-tooling.md`'s own framing of #608, just now confirmed with a
+concrete instance rather than cited as a general background risk.
+
+**This is now fixed, not just disclosed.** `scripts/run-ai-long-horizon.sh` was explicitly
+documented as opting out of the existing `scripts/host-verification-lease.sh` mutual-exclusion
+mechanism ("a developer/agent tool, not a push gate") that `test:durable`/`verify-before-push.sh`/
+`verify-pr.sh` already use for exactly this class of problem. It now takes that same lease, under
+its own dedicated root (`HOST_VERIFICATION_LEASE_ROOT` set to a separate
+`conquestoria-ai-long-horizon-lease` directory) so long-horizon runs serialize against each other
+— including across worktrees of this clone — without ever blocking, or being blocked by, the
+much-shorter push-verification lease. Verified directly: two concurrent invocations correctly
+serialize (the second reports "Waiting for host verification slot... Held by PID `<n>`... Held
+for: 0s/15s/.../75s" and only proceeds once the first releases), and the existing
+`tests/hooks/host-verification-lease.test.sh` suite still passes unmodified since the shared
+library itself was not touched.
+
+**Remaining, now-narrower limitation:** this fix prevents future long-horizon runs (once every
+worktree pulls it) from contending with *each other*. It does not, and cannot, retroactively fix
+runs that already happened against the un-leased script, and it does not eliminate contention from
+non-long-horizon CPU load (other applications, other test suites) — wall-clock remains diagnostic
+only, per §8's performance contract, for exactly that reason. **This is evidence for, not against,
+treating wall-clock as diagnostic-only (per the prompt's own framing) and building the actual
+merge gate on deterministic operation counts (§8's performance contract).** The full fresh matrix
+run, and reproduction of the `lh-veteran-large` worst case specifically, ideally now under the new
+lease (so a future re-measurement is not itself contaminated by a repeat of this exact problem), is
 Terra's required first implementation step (see plan doc Task 1) — consistent with "Terra
 implements... 2. Reproduce the measured hotspot after rebase" in the source prompt, not skipped
 here.
