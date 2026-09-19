@@ -62,6 +62,16 @@ export function canUnitFulfillAIStrategicRole(
     || (COMPATIBLE_REQUIRED_ROLES[required] ?? []).some(role => roles.includes(role));
 }
 
+/** Shared capability cardinality: a unit can meet different role requirements. */
+export function countAIStrategicRoleCapabilities(
+  units: readonly Pick<{ type: UnitType }, 'type'>[],
+  requiredRoles: Partial<Record<AIStrategicRole, number>>,
+): Partial<Record<AIStrategicRole, number>> {
+  return Object.fromEntries(Object.keys(requiredRoles).map(role => [role,
+    units.filter(unit => canUnitFulfillAIStrategicRole(unit.type, role as AIStrategicRole)).length,
+  ])) as Partial<Record<AIStrategicRole, number>>;
+}
+
 export function hasAICombatRole(type: UnitType): boolean {
   return getAIStrategicRoles(type).some(role => COMBAT_ROLES.has(role));
 }

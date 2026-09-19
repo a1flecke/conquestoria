@@ -51,7 +51,7 @@ import {
   type AICityThreat,
   type AIPlanCandidate,
 } from './ai-plan-portfolio';
-import { getAIStrategicRoles, hasAICombatRole } from './ai-unit-roles';
+import { countAIStrategicRoleCapabilities, getAIStrategicRoles, hasAICombatRole } from './ai-unit-roles';
 import { isAIHostileOwner } from './ai-hostility';
 import {
   OPPONENT_CHALLENGE_PROFILES,
@@ -577,14 +577,10 @@ function planTargetPosition(plan: AIStrategicPlan): { q: number; r: number } {
 }
 
 function availableRoleCounts(perception: MajorCivPerception) {
-  const counts: Partial<Record<ReturnType<typeof getAIStrategicRoles>[number], number>> = {};
-  for (const unit of perception.ownUnits) {
-    if (unit.transportId) continue;
-    for (const role of getAIStrategicRoles(unit.type)) {
-      counts[role] = (counts[role] ?? 0) + 1;
-    }
-  }
-  return counts;
+  const roles = [...new Set((Object.keys(UNIT_DEFINITIONS) as Array<keyof typeof UNIT_DEFINITIONS>)
+    .flatMap(type => getAIStrategicRoles(type)))];
+  return countAIStrategicRoleCapabilities(perception.ownUnits.filter(unit => !unit.transportId),
+    Object.fromEntries(roles.map(role => [role, 1])));
 }
 
 function planCandidates(
