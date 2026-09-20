@@ -138,35 +138,48 @@ two linked worktrees of one clone, different across two unrelated clones,
 keyed by the real uid, and fully usable (a real acquire+release cycle) even
 with a read-only `.git`.
 
-**Job-group ownership, not just supervisor-pid ownership (#1133 items B/E).**
+**Job-tree ownership, not just supervisor-pid ownership (#1133 items B/E).**
 Recording only the *supervisor* pid (the shell that called `hvl_acquire`) is
 not enough: if that supervisor dies (crash, OOM-kill, agent restart) while its
 heavyweight job's process tree is still alive, a stale check based on the
 supervisor pid alone would reclaim the lease immediately even though the real
 job is still consuming CPU, letting a second acquisition overlap it. All
 three real callers (`run-under-host-lease.sh` directly, and
-`verify-before-push.sh`'s `run_phase` via `run_phase`'s own call) run their
-wrapped command through `hvl_run_registering_job` instead of invoking it
-directly: it puts the command in its own new process group (`set -m` makes a
-newly backgrounded job get a fresh pgid instead of inheriting the caller's),
-registers that pgid into the held lease's metadata as `job_pgid` as soon as
-it's known, and forwards INT/TERM to the whole group (`kill -SIGNAL
--$job_pgid`) rather than one child pid -- this is what lets cancellation reach
-a descendant that itself later `detached: true`s further down (e.g.
-`run-with-timeout.mjs`'s own child; that Node process still belongs to the
-registered group and re-signals its detached child itself, so the group
-signal only needs to reach it, not every possible descendant directly).
-`hvl_is_stale` now checks `job_pgid` liveness (`kill -0 -$job_pgid`) before
-ever reclaiming on a dead-supervisor or PID-reuse verdict: a live registered
-job group is never stolen, no matter how long its supervisor has been gone,
-and the lease becomes reclaimable again only once that group has actually
-ended. See `tests/hooks/host-verification-lease-process-group.test.sh` for
-the real child+grandchild+worker-like regression: job_pgid matches a real
-live group containing every nested descendant; cancelling the supervisor
-reaps the entire tree, not just the immediate child; and a lease whose
-supervisor was SIGKILLed outright (bypassing its own release trap, exactly
-like a real crash) is never stolen while its registered job group is still
-alive, but becomes acquirable the moment that group actually dies.
+`verify-before-push.sh`'s `run_phase`) run their wrapped command through
+`hvl_run_registering_job` instead of invoking it directly: it backgrounds the
+command, registers its pid into the held lease's metadata as `job_pid` as
+soon as it's known, and on INT/TERM walks the *live process table* from that
+pid (`hvl_job_tree_pids`, a portable `ps -eo pid=,ppid=` parent/child walk) to
+find every current descendant and signals each one individually. `hvl_is_stale`
+checks `job_pid` liveness (a plain `kill -0`) before ever reclaiming on a
+dead-supervisor or PID-reuse verdict: a live registered job is never stolen,
+no matter how long its supervisor has been gone, and the lease becomes
+reclaimable again only once that job has actually ended.
+
+An earlier version of this fix put the wrapped command in its own OS process
+group (`set -m`, giving a newly backgrounded job a fresh pgid) and signaled
+it as a unit with a single `kill -SIGNAL -$pgid`. **That version took down an
+entire CI runner the first time it ran in CI**, almost certainly because
+`set -m`'s new-process-group semantics resolved more broadly than intended in
+that environment (a real risk any negative-pid/process-group signal carries:
+if the group boundary you computed is wrong, you can hit far more than you
+meant to, with no way to bound the blast radius after the fact). The
+tree-walk approach replaced it specifically because it cannot repeat that
+failure: it only ever signals PIDs reached by explicit parent/child descent
+from a PID this library itself spawned, so it is structurally incapable of
+resolving to anything outside that explicit set, regardless of how a given
+host or CI environment handles process groups or sessions. Do not reintroduce
+process-group-based signaling (`set -m`, `setsid`, `kill -SIGNAL -$pgid`) into
+this library without new evidence that it is safe across every environment
+this code runs in, local and CI alike.
+
+See `tests/hooks/host-verification-lease-process-group.test.sh` for the real
+child+grandchild+worker-like regression: `job_pid`'s tree includes the nested
+grandchild; cancelling the supervisor reaps the entire tree, not just the
+immediate child; and a lease whose supervisor was SIGKILLed outright
+(bypassing its own release trap, exactly like a real crash) is never stolen
+while its registered job is still alive, but becomes acquirable the moment
+that job actually ends.
 
 ### Lock order
 

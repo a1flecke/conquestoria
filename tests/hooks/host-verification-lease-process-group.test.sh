@@ -14,13 +14,17 @@
 #      guarantee the whole descendant tree dies; a grandchild can be
 #      orphaned and keep running.
 #
-# hvl_run_registering_job (host-verification-lease.sh) now puts the wrapped
-# command in its own new process group (via `set -m`) and registers that
-# group's pgid into the lease metadata as soon as it's known. This proves:
-# cancellation reaps the whole registered group, not just one pid; a
-# genuinely live registered group is never stolen even once its supervisor
-# is gone; and once that group is actually dead, the lease becomes
-# reclaimable again.
+# hvl_run_registering_job (host-verification-lease.sh) registers the wrapped
+# job's own pid into the lease metadata as soon as it's known, and
+# cancellation walks the live process table from that pid (hvl_job_tree_pids)
+# to reach every descendant rather than a single pid. (An earlier version of
+# this fix used `set -m` plus a single `kill -SIGNAL -$pgid` to treat the job
+# as one OS process group; that was found to take down an entire CI runner,
+# almost certainly because the new-process-group semantics resolved more
+# broadly than intended in that environment. The tree-walk approach below
+# never signals anything outside PIDs explicitly reached by parent/child
+# descent from a PID this library itself recorded, so it cannot repeat that
+# failure regardless of how a given host/CI handles process groups/sessions.)
 
 set -eu
 unset CI || true
@@ -48,7 +52,7 @@ wait_for_lease_owner() {
 
 wait_for_field() {
   # wait_for_field <field-name> -- polls the owner file for a non-empty
-  # value, since hvl_run_registering_job registers job_pgid slightly after
+  # value, since hvl_run_registering_job registers job_pid slightly after
   # the initial acquire/mkdir.
   field="$1"
   attempts=0
@@ -64,11 +68,22 @@ wait_for_field() {
   done
 }
 
-pgid_alive() {
-  kill -0 "-$1" 2>/dev/null
+# job_tree_pids <root-pid> -- shells out to the same tree-walk the library
+# itself uses, so this test verifies real behavior rather than reimplementing
+# (and potentially diverging from) the walk's own logic.
+job_tree_pids() {
+  ( . "$LIB"; hvl_job_tree_pids "$1" )
 }
 
-# --- 1. the registered job_pgid matches a real, live process group -------
+job_tree_any_alive() {
+  for p in $(job_tree_pids "$1"); do
+    kill -0 "$p" 2>/dev/null && return 0
+  done
+  return 1
+}
+
+# --- 1. the registered job_pid is real, and its descendant tree includes
+#        the nested grandchild -------------------------------------------
 
 rm -rf "$lease_root"; mkdir -p "$lease_root"
 holder_log="$tmpdir/holder1.log"
@@ -78,37 +93,39 @@ holder_log="$tmpdir/holder1.log"
 ) > "$holder_log" 2>&1 &
 holder_pid=$!
 wait_for_lease_owner
-job_pgid="$(wait_for_field job_pgid)"
+job_pid="$(wait_for_field job_pid)"
 
-case "$job_pgid" in
+case "$job_pid" in
   ''|*[!0-9]*)
-    echo "job_pgid was not a plain integer: '$job_pgid'" >&2
+    echo "job_pid was not a plain integer: '$job_pid'" >&2
     exit 1
     ;;
 esac
-pgid_alive "$job_pgid" || {
-  echo "registered job_pgid $job_pgid is not a live process group" >&2
+kill -0 "$job_pid" 2>/dev/null || {
+  echo "registered job_pid $job_pid is not a live process" >&2
   exit 1
 }
-# The nested grandchild (the real `sleep`) must be a member of that exact
-# group, not just the immediate child -- this is the whole point of #1133
-# item E over signaling a single pid.
-ps -eo pgid,comm | awk -v pg="$job_pgid" '$1==pg' | grep -q 'sleep' || {
-  echo "the nested grandchild sleep process is not a member of registered job_pgid $job_pgid" >&2
-  ps -eo pid,ppid,pgid,comm >&2
+tree_members="$(job_tree_pids "$job_pid")"
+printf '%s' "$tree_members" | grep -q "$job_pid" || {
+  echo "the job tree did not even include its own root pid: $tree_members" >&2
+  exit 1
+}
+descendant_comms="$(for p in $tree_members; do ps -o comm= -p "$p" 2>/dev/null; done)"
+printf '%s\n' "$descendant_comms" | grep -q 'sleep' || {
+  echo "the nested grandchild sleep process was not reachable from job_pid $job_pid's tree: $descendant_comms" >&2
   exit 1
 }
 
 kill -TERM "$holder_pid" 2>/dev/null || true
 wait "$holder_pid" 2>/dev/null || true
 sleep 0.3
-pgid_alive "$job_pgid" && {
-  echo "cancelling the wrapper left the registered job group alive" >&2
+job_tree_any_alive "$job_pid" && {
+  echo "cancelling the wrapper left members of the registered job's tree alive" >&2
   exit 1
 }
 
 # --- 2. cancelling the wrapper reaps the WHOLE nested tree, not just the
-#        immediate child -------------------------------------------------
+#        immediate child ---------------------------------------------------
 
 rm -rf "$lease_root"; mkdir -p "$lease_root"
 marker_dir="$tmpdir/tree-marker"
@@ -121,7 +138,7 @@ holder_log="$tmpdir/holder2.log"
 ) > "$holder_log" 2>&1 &
 holder_pid=$!
 wait_for_lease_owner
-job_pgid="$(wait_for_field job_pgid)"
+job_pid="$(wait_for_field job_pid)"
 
 attempts=0
 while [ ! -f "$marker_dir/child-started" ]; do
@@ -130,9 +147,13 @@ while [ ! -f "$marker_dir/child-started" ]; do
   sleep 0.1
 done
 
-before_count="$(ps -eo pgid | awk -v pg="$job_pgid" '$1==pg' | wc -l | tr -d ' ')"
+before_members="$(job_tree_pids "$job_pid")"
+before_count=0
+for p in $before_members; do
+  kill -0 "$p" 2>/dev/null && before_count=$((before_count + 1))
+done
 [ "$before_count" -ge 2 ] || {
-  echo "expected at least 2 live members (parent shell + nested sleep) in group $job_pgid before cancellation, saw $before_count" >&2
+  echo "expected at least 2 live members (parent shell + nested sleep) in job_pid $job_pid's tree before cancellation, saw $before_count" >&2
   exit 1
 }
 
@@ -140,17 +161,19 @@ kill -TERM "$holder_pid" 2>/dev/null || true
 wait "$holder_pid" 2>/dev/null || true
 sleep 0.3
 
-after_count="$(ps -eo pgid | awk -v pg="$job_pgid" '$1==pg' | wc -l | tr -d ' ')"
+after_count=0
+for p in $before_members; do
+  kill -0 "$p" 2>/dev/null && after_count=$((after_count + 1))
+done
 [ "$after_count" -eq 0 ] || {
-  echo "cancellation left $after_count process(es) alive in job group $job_pgid" >&2
-  ps -eo pid,ppid,pgid,comm >&2
+  echo "cancellation left $after_count process(es) alive from job_pid $job_pid's tree" >&2
   exit 1
 }
 
-# --- 3. a live registered job group is never stolen even once its own
-#        supervisor is killed outright (SIGKILL bypasses the EXIT trap that
-#        would normally release the lease) -- and the lease becomes
-#        reclaimable again only once that job group actually dies --------
+# --- 3. a live registered job is never stolen even once its own supervisor
+#        is killed outright (SIGKILL bypasses the EXIT trap that would
+#        normally release the lease) -- and the lease becomes reclaimable
+#        again only once that job actually dies -----------------------------
 
 rm -rf "$lease_root"; mkdir -p "$lease_root"
 holder_log="$tmpdir/holder3.log"
@@ -160,23 +183,23 @@ holder_log="$tmpdir/holder3.log"
 ) > "$holder_log" 2>&1 &
 holder_pid=$!
 wait_for_lease_owner
-job_pgid="$(wait_for_field job_pgid)"
-pgid_alive "$job_pgid" || {
-  echo "job group $job_pgid was never alive to begin with" >&2
+job_pid="$(wait_for_field job_pid)"
+kill -0 "$job_pid" 2>/dev/null || {
+  echo "job_pid $job_pid was never alive to begin with" >&2
   exit 1
 }
 
 # Simulate an abrupt supervisor death: SIGKILL cannot be trapped, so the
 # lease directory/metadata is left behind exactly as it would be after a
-# real crash/OOM-kill, with the job group still running underneath it.
+# real crash/OOM-kill, with the job still running underneath it.
 kill -KILL "$holder_pid" 2>/dev/null || true
 wait "$holder_pid" 2>/dev/null || true
 [ -d "$lease_root/active" ] || {
   echo "test setup error: the lease directory disappeared on its own after SIGKILL" >&2
   exit 1
 }
-pgid_alive "$job_pgid" || {
-  echo "test setup error: the job group died along with its SIGKILLed supervisor" >&2
+kill -0 "$job_pid" 2>/dev/null || {
+  echo "test setup error: the job died along with its SIGKILLed supervisor" >&2
   exit 1
 }
 
@@ -190,27 +213,27 @@ rm -f "$waiter_marker"
 waiter_pid=$!
 sleep 1.5
 [ ! -e "$waiter_marker" ] || {
-  echo "a second acquisition stole the lease while its orphaned-but-live job group was still running (#1133 item B regression)" >&2
+  echo "a second acquisition stole the lease while its orphaned-but-live job was still running (#1133 item B regression)" >&2
   exit 1
 }
 grep -Fq 'Waiting for host verification slot' "$waiter_log" || {
-  echo "the waiter did not report waiting behind the orphaned-but-live job group" >&2
+  echo "the waiter did not report waiting behind the orphaned-but-live job" >&2
   exit 1
 }
 
-# Now actually end the orphaned job group -- the lease must become
-# reclaimable again once it is genuinely gone.
-kill -KILL "-$job_pgid" 2>/dev/null || true
+# Now actually end the orphaned job -- the lease must become reclaimable
+# again once it is genuinely gone.
+kill -KILL "$job_pid" 2>/dev/null || true
 attempts=0
-while pgid_alive "$job_pgid"; do
+while kill -0 "$job_pid" 2>/dev/null; do
   attempts=$((attempts + 1))
-  [ "$attempts" -lt 50 ] || { echo "orphaned job group $job_pgid would not die" >&2; exit 1; }
+  [ "$attempts" -lt 50 ] || { echo "orphaned job_pid $job_pid would not die" >&2; exit 1; }
   sleep 0.1
 done
 
 wait "$waiter_pid" 2>/dev/null || true
 [ -e "$waiter_marker" ] || {
-  echo "the waiter never acquired the lease after the orphaned job group actually ended" >&2
+  echo "the waiter never acquired the lease after the orphaned job actually ended" >&2
   cat "$waiter_log" >&2
   exit 1
 }
