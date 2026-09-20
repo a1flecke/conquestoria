@@ -91,12 +91,21 @@ nothing inspected the log (see "Durable failure classification" below).
 `scripts/host-verification-lease.sh` (a sourceable library) and
 `scripts/run-under-host-lease.sh` (its `<label> -- <command>` CLI wrapper)
 provide ONE host-wide mutual-exclusion slot, implemented as an atomic `mkdir`
-lease under `<git-common-dir>/conquestoria-verification-lease` -- shared by
-every linked worktree of one clone (same host, by construction), and never
-shared across an unrelated clone or user. This is deliberately narrower than
-"a repository-wide verification lock": it does not touch `.verification/`,
-does not touch Vite/Vitest caches, and does not gate the routine commands
-listed above -- only the three orchestrators do:
+lease. By default (`HOST_VERIFICATION_LEASE_ROOT` unset) the root is
+`${TMPDIR:-/tmp}/conquestoria-verification/<uid>/<hash of the canonical
+git-common-dir>/push-verification-lease` (`hvl_resolve_host_scope_dir` in
+`host-verification-lease.sh`) -- shared by every linked worktree of one
+clone (they all share that same git-common-dir), never shared across an
+unrelated clone or user (the uid + path-hash key), and, since #1133,
+deliberately **not** under `.git`: Codex's default workspace-write sandbox
+protects `.git` (and a linked worktree's resolved gitdir target) read-only,
+so a coordination primitive rooted there was unusable by design for one of
+the two agent runtimes this repo supports. `run-ai-long-horizon.sh` sources
+the same helper for its own, separate `ai-long-horizon-lease` sub-path
+rather than duplicating git-common-dir resolution. This is deliberately
+narrower than "a repository-wide verification lock": it does not touch
+`.verification/`, does not touch Vite/Vitest caches, and does not gate the
+routine commands listed above -- only the three orchestrators do:
 
 - `run-durable-test-suite.sh` acquires it around the test command it runs,
   after its own worktree-local `.lock` (see "Lock order" below).
@@ -122,7 +131,12 @@ lease root is chosen to be same-host-only, so this should not trigger in
 practice, but it exists so a corrupt lease cannot block development
 forever). See `tests/hooks/host-verification-lease.test.sh` for the full
 concurrency contract (acquire/wait/release, cancellation, all stale-recovery
-cases, and multi-worktree coordination through one injected lease root).
+cases, and multi-worktree coordination through one injected lease root), and
+`tests/hooks/host-verification-lease-relocation.test.sh` for the *default*
+(no injected root) resolution contract: never under `.git`, identical across
+two linked worktrees of one clone, different across two unrelated clones,
+keyed by the real uid, and fully usable (a real acquire+release cycle) even
+with a read-only `.git`.
 
 ### Lock order
 

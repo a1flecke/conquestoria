@@ -36,11 +36,15 @@
 # Environment overrides (all optional; see tests/hooks/host-verification-
 # lease.test.sh for the contract each one is pinned by):
 #   HOST_VERIFICATION_LEASE_ROOT           Lease root directory. Defaults to
-#                                           <git-common-dir>/conquestoria-
+#                                           ${TMPDIR:-/tmp}/conquestoria-
+#                                           verification/<uid>/<hash of the
+#                                           canonical git-common-dir>/push-
 #                                           verification-lease so every
 #                                           linked worktree of one clone
-#                                           shares it, and unrelated clones
-#                                           / users never do.
+#                                           shares it, unrelated clones /
+#                                           users never do, and the whole
+#                                           thing lives outside `.git` (see
+#                                           hvl_resolve_host_scope_dir, #1133).
 #   HOST_VERIFICATION_LEASE_REPORT_SECONDS How often (seconds) to print a
 #                                           waiting-status line. Default 15.
 #   HOST_VERIFICATION_LEASE_SHORT_GRACE    Seconds to wait before reclaiming
@@ -96,12 +100,49 @@ hvl_cpu_count() {
   getconf _NPROCESSORS_ONLN 2>/dev/null || nproc 2>/dev/null || echo unknown
 }
 
-hvl_resolve_root() {
-  if [ -n "${HOST_VERIFICATION_LEASE_ROOT:-}" ]; then
-    printf '%s\n' "$HOST_VERIFICATION_LEASE_ROOT"
-    return 0
+# Portable, stable hash of $1 (used to key a lease directory name). Tries
+# common hash tools in order; `cksum` is POSIX-guaranteed so it is always a
+# usable last resort even on a minimal system.
+hvl_path_hash() {
+  if command -v shasum >/dev/null 2>&1; then
+    printf '%s' "$1" | shasum -a 256 | awk '{print $1}'
+  elif command -v sha256sum >/dev/null 2>&1; then
+    printf '%s' "$1" | sha256sum | awk '{print $1}'
+  elif command -v md5 >/dev/null 2>&1; then
+    printf '%s' "$1" | md5
+  elif command -v md5sum >/dev/null 2>&1; then
+    printf '%s' "$1" | md5sum | awk '{print $1}'
+  else
+    printf '%s' "$1" | cksum | awk '{print $1"-"$2}'
   fi
+}
 
+# hvl_resolve_host_scope_dir
+#
+# Returns the sandbox-safe, per-user, per-clone base directory every lease
+# in this coordination family is rooted under -- both the shared push-
+# verification lease this file manages, and any sibling coordination domain
+# that wants its own separate lease namespace under the same identity (e.g.
+# run-ai-long-horizon.sh's own lease).
+#
+# #1133: this used to be <git-common-dir>/conquestoria-verification-lease --
+# i.e. inside `.git`. Codex's default workspace-write sandbox protects `.git`
+# (and, for a linked worktree, the gitdir file's resolved target) read-only,
+# so a coordination primitive rooted there is unusable by design for one of
+# the two agent runtimes this repo supports; that mismatch was directly
+# observed blocking a focused rerun. Moved to a host-shared temp location
+# instead, keyed by:
+#   - uid, so unrelated users on a shared machine never collide even if
+#     $TMPDIR itself is shared (it usually is not on macOS, but is on a
+#     typical Linux box defaulting to /tmp); and
+#   - a hash of the canonical (absolute) git-common-dir, so every linked
+#     worktree of one clone -- which all share that same common dir --
+#     resolves to the identical key, while a different clone (even of the
+#     same repo, checked out twice) has a different common-dir path and
+#     therefore a different key.
+# No approval/elevation is required to create or use $TMPDIR, unlike `.git`
+# under a restrictive sandbox.
+hvl_resolve_host_scope_dir() {
   # Resolved from $0's own directory rather than $PWD so this is correct
   # regardless of the caller's current directory -- every caller (this
   # file itself, or a script that sources it) lives in scripts/, alongside
@@ -122,7 +163,22 @@ hvl_resolve_root() {
     /*) hvl_common_dir="$hvl_common_dir_raw" ;;
     *) hvl_common_dir="$(cd "$hvl_repo_root" && cd "$hvl_common_dir_raw" && pwd)" ;;
   esac
-  printf '%s/conquestoria-verification-lease\n' "$hvl_common_dir"
+
+  hvl_uid="$(id -u 2>/dev/null || echo unknown)"
+  hvl_key="$(hvl_path_hash "$hvl_common_dir")"
+  hvl_tmp_base="${TMPDIR:-/tmp}"
+  hvl_tmp_base="${hvl_tmp_base%/}"
+  printf '%s/conquestoria-verification/%s/%s\n' "$hvl_tmp_base" "$hvl_uid" "$hvl_key"
+}
+
+hvl_resolve_root() {
+  if [ -n "${HOST_VERIFICATION_LEASE_ROOT:-}" ]; then
+    printf '%s\n' "$HOST_VERIFICATION_LEASE_ROOT"
+    return 0
+  fi
+
+  hvl_host_scope_dir="$(hvl_resolve_host_scope_dir)" || return 1
+  printf '%s/push-verification-lease\n' "$hvl_host_scope_dir"
 }
 
 hvl_write_metadata() {
