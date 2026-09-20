@@ -176,6 +176,41 @@ pass_status=$?
   exit 1
 }
 
+# H. runner-infrastructure marker present only on stderr -> still classified
+#    runner-infrastructure, not the unrecognized-shape product-test default
+#    (#1133: run-test-suite.sh previously piped stdout only into `tee`, so a
+#    marker Vitest emits on stderr never reached the classifier at all).
+cat > "$tmpdir/pool-timeout-stderr.log" <<'EOF'
+Error: [vitest-pool-runner]: Timeout waiting for worker to respond
+    at Runner.withTimeout (file:///repo/node_modules/vitest/dist/chunks/cli-api.js:3041:1)
+    at Runner.waitForStart (file:///repo/node_modules/vitest/dist/chunks/cli-api.js:3027:1)
+EOF
+run_with_stderr_fixture() {
+  fixture="$1"
+  vitest_exit="$2"
+  kind_file="$tmpdir/kind-stderr"
+  rm -f "$kind_file"
+  cat > "$fake_bin/yarn" <<EOF
+#!/bin/sh
+cat "$fixture" >&2
+exit $vitest_exit
+EOF
+  chmod +x "$fake_bin/yarn"
+  set +e
+  (
+    cd "$ROOT"
+    PATH="$fake_bin:$PATH" DURABLE_FAILURE_KIND_FILE="$kind_file" \
+      sh "$RUNNER" full
+  ) >/dev/null 2>&1
+  set -e
+  [ -f "$kind_file" ] && cat "$kind_file" || echo 'none'
+}
+kind="$(run_with_stderr_fixture "$tmpdir/pool-timeout-stderr.log" 1)"
+[ "$kind" = 'runner-infrastructure' ] || {
+  echo "expected runner-infrastructure for a stderr-only pool-startup timeout (#1133), got: $kind" >&2
+  exit 1
+}
+
 # --- real Vitest run: keep the fixture text honest against the actually
 #     installed Vitest version, not just a hand-written guess. -----------
 
