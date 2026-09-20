@@ -97,11 +97,18 @@ describe('#1005 long-horizon suite isolation', () => {
 
     for (const relPath of gatingFiles) {
       const contents = readFileSync(resolve(REPO_ROOT, relPath), 'utf8');
-      // package.json legitimately DEFINES the script — that one declaration is
-      // the only allowed mention anywhere in the gating set.
+      // package.json legitimately DEFINES the script, plus its #1133 durable
+      // variant (also explicit/opt-in -- yarn test:ai-long:durable, never
+      // reached by any default path, same as test:ai-long itself) -- those
+      // are the only allowed mentions anywhere in the gating set.
+      const allowedPackageJsonLines = [
+        '"test:ai-long"',
+        '"test:ai-long:durable"',
+        '"test:ai-long:durable:status"',
+      ];
       const lines = contents.split('\n').filter(line => {
         if (relPath !== 'package.json') return true;
-        return !line.includes('"test:ai-long"');
+        return !allowedPackageJsonLines.some(allowed => line.includes(allowed));
       });
       for (const pattern of forbidden) {
         const offending = lines.find(line => pattern.test(line));
