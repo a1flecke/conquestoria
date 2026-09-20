@@ -95,6 +95,14 @@ this code again), in the order they were found:**
 without new cross-environment (including a real dash `/bin/sh`, not just macOS) evidence that it's
 safe.**
 
+A third, minor round-trip: `tests/hooks/host-verification-lease-dash-compat.test.sh`'s own first
+draft duplicated the nested-tree-cancellation scenario under an explicitly-invoked `dash`, which hit
+a CI-only, never-reproduced-locally "holder never acquired the lease" timeout in its background/poll
+setup. Simplified to just the plain synchronous run (the scenario that actually caught the `trap -p`
+incident) once it became clear the cancellation scenario was already fully covered on any dash-as-
+/bin/sh host — including this repo's own CI — by `host-verification-lease-process-group.test.sh`'s
+existing `sh "$RUNNER"` calls.
+
 New `tests/hooks/host-verification-lease-process-group.test.sh` proves the corrected design with a
 real child+grandchild nested tree (not the single-`sleep` fixture): `job_pid`'s tree includes the
 nested grandchild; cancelling the supervisor reaps the *entire* tree, not just the immediate
