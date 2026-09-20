@@ -147,14 +147,23 @@ job is still consuming CPU, letting a second acquisition overlap it. All
 three real callers (`run-under-host-lease.sh` directly, and
 `verify-before-push.sh`'s `run_phase`) run their wrapped command through
 `hvl_run_registering_job` instead of invoking it directly: it backgrounds the
-command, registers its pid into the held lease's metadata as `job_pid` as
-soon as it's known, and on INT/TERM walks the *live process table* from that
-pid (`hvl_job_tree_pids`, a portable `ps -eo pid=,ppid=` parent/child walk) to
-find every current descendant and signals each one individually. `hvl_is_stale`
-checks `job_pid` liveness (a plain `kill -0`) before ever reclaiming on a
-dead-supervisor or PID-reuse verdict: a live registered job is never stolen,
-no matter how long its supervisor has been gone, and the lease becomes
-reclaimable again only once that job has actually ended.
+command and registers its pid into the held lease's metadata as `job_pid` as
+soon as it's known. The caller installs `hvl_cancel_and_release` as its
+INT/TERM trap once, at the top level (spanning every `hvl_run_registering_job`
+call it makes, not one trap per call) -- on a signal, it walks the *live
+process table* from the registered pid (`hvl_job_tree_pids`, a portable
+`ps -eo pid=,ppid=` parent/child walk) to find every current descendant and
+signals each one individually, then releases the lease and exits. Trap
+ownership stays with the caller specifically so `hvl_run_registering_job`
+never needs to save/query/restore a pre-existing trap around each call (an
+earlier version tried that with `trap -p`, which dash -- the `/bin/sh` on at
+least one real CI runner -- does not implement at all, silently breaking
+every caller there; see below for the other, more serious correction this
+same PR needed). `hvl_is_stale` checks `job_pid` liveness (a plain `kill -0`)
+before ever reclaiming on a dead-supervisor or PID-reuse verdict: a live
+registered job is never stolen, no matter how long its supervisor has been
+gone, and the lease becomes reclaimable again only once that job has
+actually ended.
 
 An earlier version of this fix put the wrapped command in its own OS process
 group (`set -m`, giving a newly backgrounded job a fresh pgid) and signaled

@@ -33,17 +33,24 @@
 #                         Safe to call multiple times and safe to call when
 #                         nothing was acquired.
 #   hvl_run_registering_job <command...>
-#                         Run <command...>, register its pid into the held
-#                         lease's metadata as soon as it's known, forward
-#                         INT/TERM to it and every live descendant found by
-#                         walking the process table (see hvl_job_tree_pids),
-#                         and return the command's exit status (130/143 on a
-#                         forwarded signal). Call after hvl_acquire. This is
-#                         what lets hvl_is_stale (#1133 items B/E) see a real
-#                         heavyweight job is still alive even if the
-#                         supervising shell that called hvl_acquire is gone,
-#                         and what lets cancellation reach every descendant
-#                         rather than only the immediate child pid.
+#                         Run <command...>, registering its pid (in
+#                         HVL_JOB_PID and the held lease's metadata) as soon
+#                         as it's known, and return its exit status. Call
+#                         after hvl_acquire. This is what lets hvl_is_stale
+#                         (#1133 item B) see a real heavyweight job is still
+#                         alive even if the supervising shell that called
+#                         hvl_acquire is gone. Does not itself install any
+#                         signal handling -- see hvl_cancel_and_release.
+#   hvl_cancel_and_release <signal> <exit-code>
+#                         The INT/TERM handler a caller of
+#                         hvl_run_registering_job should install once, at
+#                         the top level (spanning every call it makes): if a
+#                         job is currently registered, forwards <signal> to
+#                         it and every live descendant found by walking the
+#                         process table (#1133 item E; see
+#                         hvl_job_tree_pids), waits for it, releases the
+#                         lease, and exits <exit-code> (130/143 by
+#                         convention).
 #
 # Environment overrides (all optional; see tests/hooks/host-verification-
 # lease.test.sh for the contract each one is pinned by):
@@ -471,41 +478,52 @@ hvl_register_job_pid() {
 #
 # See the "Public functions" header comment above for the contract. Runs
 # "$@" as a plain backgrounded job (no OS-level process-group manipulation --
-# see hvl_job_tree_pids for why) and registers its pid. Cancellation walks
-# the live descendant tree from that pid at signal time (children may not
-# exist yet at registration time) and signals every member individually.
+# see hvl_job_tree_pids for why) and registers its pid in HVL_JOB_PID (a
+# shared, non-local variable -- see hvl_cancel_and_release) as well as in
+# the lease metadata. Deliberately does NOT install its own INT/TERM traps:
+# an earlier version did, saving/restoring the caller's previous trap via
+# `trap -p` so it could compose safely with a caller's own outer signal
+# handling -- but `trap -p` is a POSIX option dash does not implement
+# ("Illegal option -p"), breaking every caller on any host/CI whose /bin/sh
+# is dash rather than bash. Trap ownership belongs to the caller instead
+# (see hvl_cancel_and_release below), which sidesteps the portability gap
+# entirely: nothing here ever needs to query an existing trap.
 hvl_run_registering_job() {
-  hvl_prev_trap_int="$(trap -p INT)"
-  hvl_prev_trap_term="$(trap -p TERM)"
-
   "$@" &
   HVL_JOB_PID=$!
   hvl_register_job_pid "$HVL_JOB_PID"
-
-  hvl_job_forward() {
-    hvl_fwd_signal="$1"
-    hvl_fwd_exit_code="$2"
-    for hvl_fwd_pid in $(hvl_job_tree_pids "$HVL_JOB_PID"); do
-      kill -"$hvl_fwd_signal" "$hvl_fwd_pid" 2>/dev/null || true
-    done
-    wait "$HVL_JOB_PID" 2>/dev/null || true
-    [ -n "${DURABLE_FAILURE_KIND_FILE:-}" ] && printf 'cancelled\n' > "$DURABLE_FAILURE_KIND_FILE"
-    exit "$hvl_fwd_exit_code"
-  }
-  trap 'hvl_job_forward INT 130' INT
-  trap 'hvl_job_forward TERM 143' TERM
 
   set +e
   wait "$HVL_JOB_PID"
   hvl_job_status=$?
   set -e
 
-  # Restore whatever INT/TERM traps the caller had before this call (never
-  # blindly `trap - INT TERM`, which would erase a caller's own outer
-  # signal handling, e.g. verify-before-push.sh's "release the lease on
-  # TERM" trap spanning both of its run_phase calls).
-  eval "$hvl_prev_trap_int"
-  eval "$hvl_prev_trap_term"
-
+  HVL_JOB_PID=''
   return "$hvl_job_status"
+}
+
+# hvl_cancel_and_release <signal> <exit-code>
+#
+# The one INT/TERM handler every caller of hvl_run_registering_job should
+# install (once, at the top level, spanning every hvl_run_registering_job
+# call it makes -- see run-under-host-lease.sh and verify-before-push.sh for
+# the pattern). If a job is currently registered (HVL_JOB_PID set by
+# hvl_run_registering_job), forwards <signal> to it and every live
+# descendant (hvl_job_tree_pids) and waits for it to exit; if no job is
+# currently running (e.g. between verify-before-push.sh's two run_phase
+# calls), this step is simply skipped. Then releases the lease and exits
+# with <exit-code> (130/143 by shell convention), matching what the
+# now-removed inline forwarding used to do per-call.
+hvl_cancel_and_release() {
+  hvl_cancel_signal="$1"
+  hvl_cancel_exit_code="$2"
+  if [ -n "${HVL_JOB_PID:-}" ]; then
+    for hvl_cancel_pid in $(hvl_job_tree_pids "$HVL_JOB_PID"); do
+      kill -"$hvl_cancel_signal" "$hvl_cancel_pid" 2>/dev/null || true
+    done
+    wait "$HVL_JOB_PID" 2>/dev/null || true
+  fi
+  [ -n "${DURABLE_FAILURE_KIND_FILE:-}" ] && printf 'cancelled\n' > "$DURABLE_FAILURE_KIND_FILE"
+  hvl_release
+  exit "$hvl_cancel_exit_code"
 }
