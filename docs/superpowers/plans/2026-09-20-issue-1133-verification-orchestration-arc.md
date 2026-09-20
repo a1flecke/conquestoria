@@ -185,16 +185,108 @@ Closes 1 more of #1133's 12 acceptance criteria (8 total closed so far, across M
 - [x] "Losing the terminal/tool stream does not make a heavyweight run inconclusive; a durable
       status command reports active/passed/failed/abandoned."
 
-### MR5 — benchmarking-driven host resource budget (items H, I, J) — NOT STARTED
+### MR5 — host resource budget (items H, J) ✅ merged (see git history for this file's introducing PR)
 
-This is a measurement task first, a code change second: benchmark `maxWorkers: '25%'` under the
-issue's six named scenarios (one full suite; two concurrent full suites; AI-long alone; AI-long +
-regular/pre-push; AI-long + full suite; two focused runs during one heavy run), and
-`vitest.long-horizon.config.ts` with `fileParallelism: false` against the current concurrent
-matrix+continuity default, before choosing a bounded host-wide heavy-worker policy. Do not encode
-a policy number without the measurement data backing it — see `.claude/rules/game-balance.md`'s
-"Pacing Regression Prevention" section for the parallel precedent (never retune a ceiling without
-attached measurement).
+Mid-arc, the user reframed this MR's priority directly: multiple concurrent agents on this host
+were experiencing real, active work-blocking contention from unbounded simultaneous heavyweight
+`yarn test` invocations, and the ask became "get isolation actually working now," not "produce a
+full formal benchmark report first." Real empirical spot-checks earlier in this session (2-way,
+3-way, 4-way simultaneous full-suite `yarn test` runs across linked worktrees on this exact host)
+had already shown all of 2/3/4-way concurrency completing successfully, just progressively slower
+(~1.3x/2x/2.5x a solo baseline) — enough evidence to pick a starting cap without a multi-day
+formal benchmarking pass, with the explicit understanding the number can be revisited later
+against real usage. Item I (a full six-scenario `maxWorkers`/`fileParallelism` benchmark matrix)
+was consciously deferred, not silently dropped — see "Not in this MR" below.
+
+`hvl_acquire_budget_slot` / `hvl_release_budget_slot` in `host-verification-lease.sh` add a
+host-wide **counting** semaphore (default budget 3, `HOST_VERIFICATION_LEASE_BUDGET`) alongside
+the existing single-slot mutex, gating `run-test-suite.sh`'s three modes (`full`, `regular`,
+`intensive-simulations`) — which between them cover plain `yarn test`, `test:regular`,
+`test:intensive-simulations`, `test:durable`, and every `git push`'s test phase. This was
+previously the one completely ungated path; only the durable/push-verification and AI-long-horizon
+classes had their own (separate, single-slot) coordination before this.
+
+**Three real concurrency defects were found and fixed during this MR's own verification (in the
+order they were found), plus a fourth and most significant one found while chasing down what
+first looked like a test-timing flake — read `.claude/rules/hooks-and-tooling.md`'s "Host resource
+budget" section for the full mechanism-level detail on each:**
+
+1. **Count-then-write TOCTOU race.** The first implementation counted live marker files and then
+   wrote its own — passed every isolated/sequenced test, but reliably let a 3rd/4th holder in the
+   moment several real `yarn test` processes raced for it on a genuinely busy host. Fixed by
+   switching to atomic `mkdir` on `HOST_VERIFICATION_LEASE_BUDGET` pre-numbered slot directories,
+   the same primitive the mutex already uses.
+2. **Missing-owner-file reclaim race.** A slot whose `mkdir` succeeded but whose owner file hadn't
+   been written yet looked identical to an abandoned slot to a racing reader, which would delete
+   and re-win it out from under the true (still-writing) owner. Fixed with the same short-grace-
+   period treatment `hvl_is_stale` already gives the mutex's own metadata file for the identical
+   reason.
+3. **Nested-release leak.** Reentrant acquire/release tracked "nested" as a single flag reflecting
+   only the *last* acquire call's nested-ness; a real acquire followed by one nested acquire
+   followed by two releases had both releases read that stale flag and both skip the real release,
+   leaking the slot. Fixed by switching to a depth counter (`HVL_BUDGET_DEPTH`) so only the release
+   that brings depth back to zero touches the filesystem.
+
+**A fourth issue looked like a test-timing flake and was NOT — chasing that theory to its
+disproof is what found the real (and most important) defect.** Scenario 1 originally held its
+first two slots for a fixed `sleep 3` and checked a third holder was still blocked after a fixed
+`sleep 0.6`; that failure ("a third holder acquired a slot while `HOST_VERIFICATION_LEASE_BUDGET=2`
+already had two live holders") reproduced three separate times inside a real
+`bash scripts/run-with-mise.sh yarn test` invocation but never once across 15+ standalone runs, real
+`/bin/dash` execution, or synthetic CPU-stress runs. The plausible-sounding timing theory (scheduling
+delay under real load could let the fixed 0.6s check observe a slot the first holder had already,
+legitimately, released) was rewritten out entirely — holding until an explicit release-signal file
+instead of a fixed sleep, removing all wall-clock dependence — and the **exact same failure still
+reproduced**, disproving the theory rather than confirming it.
+
+The real defect: `run-test-suite.sh full` (what `yarn test` runs) acquires the real, default-rooted
+budget once around vitest *and* the entire hook-test suite that follows it, held for the whole
+duration via `trap ... EXIT`. Every hook test — including this file's own scenarios, which
+deliberately override `HOST_VERIFICATION_LEASE_ROOT` to their own isolated domain — therefore runs
+as a **descendant process** of that held slot. The reentrancy depth counter was a single *exported*
+`HVL_BUDGET_DEPTH`, inherited by every descendant regardless of what domain it actually targets: a
+descendant resolving a completely different budget directory still saw the ancestor's inherited
+depth and treated its own acquire calls as nested no-ops, so scenario 1's three holders "succeeded"
+instantly with **zero real mkdir contention ever happening** — explaining every symptom at once (no
+wait message, and, once a `HVL_DEBUG_TRACE=1` opt-in stderr trace was added, a complete absence of
+the `ENTER` line that logs *before* the nested-check return). Fixed by keying the depth counter
+(`hvl_path_hash` of the resolved budget directory, one `eval`-based indirect variable per domain,
+verified under real `/bin/dash`) so a genuinely different domain always goes through real
+acquisition, while true same-domain call-stack reentrancy still nests correctly. The now-redundant
+`HVL_BUDGET_HELD` flag (superseded by the depth counter, itself now domain-keyed) was removed as
+dead state.
+
+All five fixes were verified with: the full sequenced+reentrant+CI-noop+many-simultaneous-racers+
+cross-domain test file (the cross-domain scenario is a direct regression test for the fifth defect),
+repeated standalone runs (15+ clean) both in isolation and under synthetic CPU stress, real execution
+under `/bin/dash` for both the outer test driver and the sourced library, and four full
+`bash scripts/run-with-mise.sh yarn test` runs end-to-end — the first three of which reproduced the
+cross-domain defect (the first surfaced defect 1 also; the fourth, after the domain-scoping fix,
+passed clean).
+
+**Not in this MR (tracked as explicit follow-up, not silently dropped):**
+- **Item I** — the full six-scenario `maxWorkers`/`fileParallelism` benchmark matrix the issue's
+  original design called for. The budget default (3) is backed by real spot-check evidence, not a
+  guess, but not the exhaustive matrix either; revisit the constant against real multi-agent usage
+  data once it accumulates, the same way `.claude/rules/game-balance.md`'s pacing constants get
+  revisited against reference-economy snapshots rather than re-tuned on vibes.
+- The "asymmetric join" hypothesis (a new heavyweight process starting while others are already
+  deep into execution, rather than several starting simultaneously) was raised during this
+  session's own investigation but never cleanly isolated as its own test scenario — worth a
+  dedicated look if real contention is still observed after this MR ships.
+
+Closes 2 more of #1133's 12 acceptance criteria (10 total closed so far, across MR1-MR5):
+- [x] "One Claude + one Codex can work concurrently without an unbounded number of Vitest pools
+      appearing."
+- [x] "The number of heavyweight workers has a documented, mechanically enforced host-level upper
+      bound."
+
+Still open (both explicitly deferred, not silently dropped):
+- [ ] "AI-long one-worker vs current file-parallel mode is benchmarked under the real two-agent
+      workload and the chosen setting is documented with measurements." (item I)
+- [ ] "The fix does not weaken CI coverage or the deterministic AI test matrix." — a standing
+      constraint the whole arc has held so far rather than a one-time task; carried forward as an
+      open item since it was never explicitly itemized as "closed" by any prior MR either.
 
 ### MR6 — agent-facing `yarn verify:local:status` (P2) — NOT STARTED
 
