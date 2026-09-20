@@ -44,20 +44,66 @@ esac
 TEST_TIMEOUT_SECONDS="${VERIFY_TEST_TIMEOUT_SECONDS:-600}"
 BUILD_TIMEOUT_SECONDS="${VERIFY_BUILD_TIMEOUT_SECONDS:-300}"
 
+# Follow-up to #1133: run-with-timeout.mjs's stall watchdog already proves,
+# by direct CPU-progress measurement rather than a guess, that a STALL (exit
+# 125) is host contention, not a code problem -- its own message already
+# says "safe to retry immediately." Before this, that only meant a human (or
+# an agent) had to notice the "STALL:" line in the log and re-run the push
+# by hand. run_phase now does that retry itself, bounded and backed off, so
+# every caller (the real .githooks/pre-push hook, the Claude Code push-gate
+# hook, and CI's --no-mise path alike -- this is agent-framework-agnostic by
+# construction, same as the lease/budget mechanism it sits on) gets it for
+# free.
+VERIFY_STALL_MAX_RETRIES="${VERIFY_STALL_MAX_RETRIES:-2}"
+VERIFY_STALL_RETRY_BACKOFF_SECONDS="${VERIFY_STALL_RETRY_BACKOFF_SECONDS:-20}"
+
 run_phase() {
   timeout_seconds="$1"
   label="$2"
   shift 2
 
-  # #1133 items B/E: run via the shared job-registering helper (see
-  # host-verification-lease.sh) instead of directly in the foreground, so
-  # this phase's pid is registered into the held lease metadata for the
-  # duration of the INT/TERM traps installed below.
-  if [ "$USE_MISE" -eq 1 ]; then
-    hvl_run_registering_job "$RUN" node "$TIMEOUT_RUNNER" "$timeout_seconds" "$label" -- "$@"
-  else
-    hvl_run_registering_job node "$TIMEOUT_RUNNER" "$timeout_seconds" "$label" -- "$@"
-  fi
+  attempt=0
+  while :; do
+    attempt=$((attempt + 1))
+
+    # #1133 items B/E: run via the shared job-registering helper (see
+    # host-verification-lease.sh) instead of directly in the foreground, so
+    # this phase's pid is registered into the held lease metadata for the
+    # duration of the INT/TERM traps installed below.
+    #
+    # set +e around this one call, restoring the caller's own errexit
+    # afterward -- the exact pattern hvl_run_registering_job itself already
+    # uses internally (see its own doc comment) and for the identical
+    # reason: under `set -e`, a non-zero return here would abort the script
+    # before the retry decision below ever runs.
+    case "$-" in
+      *e*) run_phase_errexit_was_set=1 ;;
+      *) run_phase_errexit_was_set=0 ;;
+    esac
+    set +e
+    if [ "$USE_MISE" -eq 1 ]; then
+      hvl_run_registering_job "$RUN" node "$TIMEOUT_RUNNER" "$timeout_seconds" "$label" -- "$@"
+    else
+      hvl_run_registering_job node "$TIMEOUT_RUNNER" "$timeout_seconds" "$label" -- "$@"
+    fi
+    run_phase_status=$?
+    [ "$run_phase_errexit_was_set" -eq 0 ] || set -e
+
+    [ "$run_phase_status" -eq 0 ] && return 0
+
+    # Only exit 125 (STALL) is safe to retry -- a machine-checked claim of
+    # zero CPU progress, not a guess. A plain timeout (124: the work is
+    # genuinely slow, not stalled) or any other non-zero (a real test/build
+    # failure) must fail immediately: retrying either wastes time, and
+    # retrying a real failure risks hiding a flake as "fixed" instead of
+    # reporting it.
+    if [ "$run_phase_status" -ne 125 ] || [ "$attempt" -gt "$VERIFY_STALL_MAX_RETRIES" ]; then
+      return "$run_phase_status"
+    fi
+
+    echo "verify-before-push: '$label' stalled (attempt $attempt/$((VERIFY_STALL_MAX_RETRIES + 1))) -- host contention, not a code problem. Backing off ${VERIFY_STALL_RETRY_BACKOFF_SECONDS}s before retrying." >&2
+    sleep "$VERIFY_STALL_RETRY_BACKOFF_SECONDS"
+  done
 }
 
 # This is the local, heavyweight test+build verification gate (#892): both

@@ -29,7 +29,7 @@
           {
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/require-green-before-push.sh",
-            "timeout": 240
+            "timeout": 900
           }
         ]
       },
