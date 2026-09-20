@@ -6,3 +6,23 @@ yarn = "4.17.0"
 [tasks."macos:run"]
 description = "Build the ad-hoc signed macOS app bundle and launch it locally"
 run = "scripts/build-run-macos-app.sh"
+
+[tasks."opencode:remote"]
+description = "Securely start OpenCode remote access over Tailscale"
+run = "scripts/opencode-remote.sh start"
+
+[tasks."opencode:remote:ready"]
+description = "Strict leave-home preflight for remote OpenCode"
+run = "scripts/opencode-remote.sh ready"
+
+[tasks."opencode:remote:status"]
+description = "Show OpenCode/Tailscale remote-access status"
+run = "scripts/opencode-remote.sh status"
+
+[tasks."opencode:remote:pair"]
+description = "Show OpenCode pairing information for private remote access"
+run = "scripts/opencode-remote.sh pair"
+
+[tasks."opencode:remote:stop"]
+description = "Stop OpenCode remote access and owned sleep prevention"
+run = "scripts/opencode-remote.sh stop"

@@ -1,0 +1,72 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // Remote browser sessions are private to the tailnet; do not also publish
+  // transcripts through OpenCode's separate sharing feature.
+  "share": "disabled",
+
+  // V2 appends an agent's permission rules after global rules. This gives the
+  // Conquestoria build agent routine repository authority without weakening
+  // the user's global credential protections in other projects.
+  "agents": {
+    "build": {
+      "permissions": [
+        { "action": "shell", "resource": "*", "effect": "ask" },
+
+        { "action": "shell", "resource": "pwd", "effect": "allow" },
+        { "action": "shell", "resource": "ls *", "effect": "allow" },
+        { "action": "shell", "resource": "find *", "effect": "allow" },
+        { "action": "shell", "resource": "rg *", "effect": "allow" },
+        { "action": "shell", "resource": "grep *", "effect": "allow" },
+        { "action": "shell", "resource": "sed *", "effect": "allow" },
+        { "action": "shell", "resource": "head *", "effect": "allow" },
+        { "action": "shell", "resource": "tail *", "effect": "allow" },
+        { "action": "shell", "resource": "cat *", "effect": "allow" },
+        { "action": "shell", "resource": "which *", "effect": "allow" },
+        { "action": "shell", "resource": "command -v *", "effect": "allow" },
+
+        { "action": "shell", "resource": "./scripts/run-with-mise.sh yarn *", "effect": "allow" },
+        { "action": "shell", "resource": "mise *", "effect": "allow" },
+
+        { "action": "shell", "resource": "git status *", "effect": "allow" },
+        { "action": "shell", "resource": "git diff *", "effect": "allow" },
+        { "action": "shell", "resource": "git log *", "effect": "allow" },
+        { "action": "shell", "resource": "git show *", "effect": "allow" },
+        { "action": "shell", "resource": "git branch *", "effect": "allow" },
+        { "action": "shell", "resource": "git switch *", "effect": "allow" },
+        { "action": "shell", "resource": "git checkout *", "effect": "allow" },
+        { "action": "shell", "resource": "git worktree add *", "effect": "allow" },
+        { "action": "shell", "resource": "git rev-parse *", "effect": "allow" },
+        { "action": "shell", "resource": "git grep *", "effect": "allow" },
+        { "action": "shell", "resource": "git ls-files *", "effect": "allow" },
+        { "action": "shell", "resource": "git merge-base *", "effect": "allow" },
+        { "action": "shell", "resource": "git add *", "effect": "allow" },
+        { "action": "shell", "resource": "git commit *", "effect": "allow" },
+        { "action": "shell", "resource": "git fetch *", "effect": "allow" },
+        { "action": "shell", "resource": "git pull *", "effect": "allow" },
+        { "action": "shell", "resource": "git push *", "effect": "allow" },
+
+        { "action": "shell", "resource": "gh issue *", "effect": "allow" },
+        { "action": "shell", "resource": "gh pr *", "effect": "allow" },
+        { "action": "shell", "resource": "gh repo *", "effect": "allow" },
+        { "action": "shell", "resource": "gh auth status", "effect": "allow" },
+
+        { "action": "shell", "resource": "sudo *", "effect": "deny" },
+        { "action": "shell", "resource": "rm -rf *", "effect": "deny" },
+        { "action": "shell", "resource": "git reset --hard *", "effect": "deny" },
+        { "action": "shell", "resource": "git clean *", "effect": "deny" },
+        { "action": "shell", "resource": "git restore *", "effect": "deny" },
+        { "action": "shell", "resource": "git checkout -- *", "effect": "deny" },
+        { "action": "shell", "resource": "git push --force *", "effect": "deny" },
+        { "action": "shell", "resource": "git push * --force *", "effect": "deny" },
+        { "action": "shell", "resource": "git push * --force-with-lease *", "effect": "ask" },
+        { "action": "shell", "resource": "tailscale *", "effect": "deny" },
+        { "action": "shell", "resource": "networksetup *", "effect": "deny" },
+        { "action": "shell", "resource": "security *", "effect": "deny" },
+        { "action": "shell", "resource": "diskutil *", "effect": "deny" },
+
+        { "action": "subagent", "resource": "*", "effect": "deny" }
+      ]
+    }
+  }
+}
