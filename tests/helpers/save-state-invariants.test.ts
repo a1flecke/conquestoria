@@ -11,6 +11,7 @@ import {
   assertVassalageReciprocity,
   assertTreatyReciprocity,
   assertNationalProjectUniqueness,
+  assertMarketplaceReferences,
   assertNoEliminatedCivEntities,
   assertSaveStateInvariants,
   SAVE_STATE_INVARIANTS,
@@ -662,6 +663,115 @@ describe('#1080 assertNationalProjectUniqueness', () => {
   });
 });
 
+/** Lightweight fixture for #1083 — only reads `civilizations`, `minorCivs`, `marketplace`. */
+function marketState(overrides: {
+  civilizations?: Record<string, unknown>;
+  minorCivs?: Record<string, unknown>;
+  tradeRoutes?: Array<{ id: string; fromCityId: string; toCityId: string; foreignCivId?: string }>;
+  purchasedResources?: Array<{ civId: string; resource: string; expiresOnTurn: number }>;
+}): GameState {
+  return {
+    civilizations: overrides.civilizations ?? {},
+    minorCivs: overrides.minorCivs ?? {},
+    marketplace: {
+      prices: {},
+      priceHistory: {},
+      fashionable: null,
+      fashionTurnsLeft: 0,
+      tradeRoutes: (overrides.tradeRoutes ?? []) as any,
+      purchasedResources: (overrides.purchasedResources ?? []) as any,
+    },
+  } as GameState;
+}
+
+describe('#1083 assertMarketplaceReferences', () => {
+  it('is a no-op when there is no marketplace at all', () => {
+    expect(() => assertMarketplaceReferences({ civilizations: {}, minorCivs: {} } as GameState)).not.toThrow();
+  });
+
+  it('passes for a fresh game (no routes, no purchases)', () => {
+    expect(() => assertMarketplaceReferences(freshState('inv-mkt-ok'))).not.toThrow();
+  });
+
+  it('passes when a trade route names a real major civ', () => {
+    const state = marketState({
+      civilizations: { p1: {}, p2: {} },
+      tradeRoutes: [{ id: 'route-1', fromCityId: 'c1', toCityId: 'c2', foreignCivId: 'p2' }],
+    });
+    expect(() => assertMarketplaceReferences(state)).not.toThrow();
+  });
+
+  it('passes when a trade route names a real minor civ (city-state destination)', () => {
+    const state = marketState({
+      civilizations: { p1: {} },
+      minorCivs: { 'mc-sparta': {} },
+      tradeRoutes: [{ id: 'route-1', fromCityId: 'c1', toCityId: 'c2', foreignCivId: 'mc-sparta' }],
+    });
+    expect(() => assertMarketplaceReferences(state)).not.toThrow();
+  });
+
+  it('passes when a trade route has no foreignCivId (same-civ domestic route)', () => {
+    const state = marketState({
+      civilizations: { p1: {} },
+      tradeRoutes: [{ id: 'route-1', fromCityId: 'c1', toCityId: 'c2' }],
+    });
+    expect(() => assertMarketplaceReferences(state)).not.toThrow();
+  });
+
+  it('throws when a trade route names an unknown foreignCivId', () => {
+    const state = marketState({
+      civilizations: { p1: {} },
+      tradeRoutes: [{ id: 'route-1', fromCityId: 'c1', toCityId: 'c2', foreignCivId: 'ghost-civ' }],
+    });
+    expect(() => assertMarketplaceReferences(state)).toThrow(/route-1.*ghost-civ.*not a known civ or minor civ/s);
+  });
+
+  it('passes when a purchase names a real major civ', () => {
+    const state = marketState({
+      civilizations: { p1: {} },
+      purchasedResources: [{ civId: 'p1', resource: 'iron', expiresOnTurn: 20 }],
+    });
+    expect(() => assertMarketplaceReferences(state)).not.toThrow();
+  });
+
+  it('throws when a purchase names an unknown civId', () => {
+    const state = marketState({
+      civilizations: { p1: {} },
+      purchasedResources: [{ civId: 'ghost-civ', resource: 'iron', expiresOnTurn: 20 }],
+    });
+    expect(() => assertMarketplaceReferences(state)).toThrow(/purchasedResources.*ghost-civ.*not a known civ/s);
+  });
+
+  it('throws when a purchase names a minor civ (purchases are major-civ-only)', () => {
+    const state = marketState({
+      civilizations: { p1: {} },
+      minorCivs: { 'mc-sparta': {} },
+      purchasedResources: [{ civId: 'mc-sparta', resource: 'iron', expiresOnTurn: 20 }],
+    });
+    expect(() => assertMarketplaceReferences(state)).toThrow(/purchasedResources.*mc-sparta.*not a known civ/s);
+  });
+
+  it('reports every problem across multiple routes/purchases in one throw', () => {
+    const state = marketState({
+      civilizations: { p1: {} },
+      tradeRoutes: [
+        { id: 'route-1', fromCityId: 'c1', toCityId: 'c2', foreignCivId: 'ghost-a' },
+        { id: 'route-2', fromCityId: 'c3', toCityId: 'c4', foreignCivId: 'ghost-b' },
+      ],
+    });
+    let message = '';
+    try {
+      assertMarketplaceReferences(state);
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toMatch(/route-1/);
+    expect(message).toMatch(/ghost-a/);
+    expect(message).toMatch(/route-2/);
+    expect(message).toMatch(/ghost-b/);
+  });
+});
+
 describe('#1006 assertSaveStateInvariants (aggregate)', () => {
   it('passes for a fresh solo game', () => {
     expect(() => assertSaveStateInvariants(freshState('inv-agg-solo'))).not.toThrow();
@@ -682,12 +792,13 @@ describe('#1006 assertSaveStateInvariants (aggregate)', () => {
     expect(message).toMatch(/unit-ghost/);
   });
 
-  it('SAVE_STATE_INVARIANTS lists exactly the nine documented checks', () => {
+  it('SAVE_STATE_INVARIANTS lists exactly the ten documented checks', () => {
     expect(SAVE_STATE_INVARIANTS.map(inv => inv.name).sort()).toEqual([
       'air-base-integrity',
       'bilateral-war',
       'cargo-reciprocity',
       'city-rosters',
+      'marketplace-references',
       'national-project-uniqueness',
       'no-eliminated-civ-entities',
       'treaty-reciprocity',

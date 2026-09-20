@@ -547,6 +547,54 @@ export function assertNationalProjectUniqueness(state: GameState): void {
 }
 
 /**
+ * Marketplace civ references (#1083, follow-up from #1003):
+ * `marketplace.tradeRoutes[].foreignCivId` and `marketplace.purchasedResources[].civId`
+ * must each name a civ that actually exists — regardless of elimination status.
+ * `ELIMINATED_CIV_AREAS.marketplace` already catches a reference to a civ that
+ * WAS real but has since been eliminated (a teardown-only check, gated behind
+ * "at least one civ is eliminated"); this is the distinct, general
+ * counterpart it was missing: a reference that never named a real civ at all
+ * (e.g. a copy/paste or key-collision bug) is invisible to that elimination
+ * scan and had no live-state assert anywhere.
+ *
+ * `foreignCivId` is deliberately checked against BOTH `state.civilizations`
+ * AND `state.minorCivs` (`ownerKind`, shared with `assertCityRosters` above)
+ * — verified against `trade-system.ts`: `getRouteDiplomacy` explicitly reads
+ * `state.minorCivs[foreignCivId]`, and a route's `foreignCivId` is set from
+ * `toCity.owner`, which is legitimately a minor-civ id whenever the
+ * destination city belongs to a city-state. The issue's own "fix direction"
+ * text says "names a civ that exists in `state.civilizations`" — that is
+ * wrong for trade routes specifically (see `.claude/rules/spec-fidelity.md`'s
+ * "Specs Can Be Stale" note); verified against the actual code rather than
+ * carried forward.
+ *
+ * `purchasedResources[].civId`, by contrast, IS major-civ-only: confirmed via
+ * `performBuyResourceAccess` (`resource-acquisition-system.ts`), which reads
+ * `state.civilizations[buyerCivId]` and returns the state unchanged if that
+ * civ does not exist there — a minor civ can never be a purchase's `civId`.
+ */
+export function assertMarketplaceReferences(state: GameState): void {
+  const problems: string[] = [];
+  const marketplace = state.marketplace;
+  if (!marketplace) return;
+
+  for (const route of marketplace.tradeRoutes ?? []) {
+    if (route.foreignCivId === undefined) continue;
+    if (ownerKind(state, route.foreignCivId) === 'other') {
+      problems.push(`trade route "${route.id}" names foreignCivId "${route.foreignCivId}" which is not a known civ or minor civ`);
+    }
+  }
+
+  for (const entry of marketplace.purchasedResources ?? []) {
+    if (!state.civilizations[entry.civId]) {
+      problems.push(`purchasedResources has an entry for "${entry.civId}" which is not a known civ`);
+    }
+  }
+
+  if (problems.length > 0) throw new InvariantError(`marketplace-references invariant violated:\n  - ${problems.join('\n  - ')}`);
+}
+
+/**
  * An `isEliminated` civ holds no live entities and no active obligations
  * anywhere in `GameState` — not just no owned cities/units/wars, but nothing in
  * espionage, AI planning, crises, trade, the minor-civ layer, and so on. The
@@ -568,6 +616,7 @@ export const SAVE_STATE_INVARIANTS: ReadonlyArray<{ name: string; check: (state:
   { name: 'vassalage-reciprocity', check: assertVassalageReciprocity },
   { name: 'treaty-reciprocity', check: assertTreatyReciprocity },
   { name: 'national-project-uniqueness', check: assertNationalProjectUniqueness },
+  { name: 'marketplace-references', check: assertMarketplaceReferences },
   { name: 'no-eliminated-civ-entities', check: assertNoEliminatedCivEntities },
 ];
 
