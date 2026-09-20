@@ -29,31 +29,14 @@ script_dir="$(cd "$(dirname "$0")" && pwd)"
 hvl_acquire "$label"
 trap hvl_release EXIT
 
-run_status=0
-run_child_pid=''
-
-forward_and_wait() {
-  fwd_signal="$1"
-  fwd_exit_code="$2"
-  if [ -n "$run_child_pid" ]; then
-    kill -"$fwd_signal" "$run_child_pid" 2>/dev/null || true
-    wait "$run_child_pid" 2>/dev/null || true
-  fi
-  [ -n "${DURABLE_FAILURE_KIND_FILE:-}" ] && printf 'cancelled\n' > "$DURABLE_FAILURE_KIND_FILE"
-  exit "$fwd_exit_code"
-}
-
-trap 'forward_and_wait INT 130' INT
-trap 'forward_and_wait TERM 143' TERM
-
+# #1133 items B/E: hvl_run_registering_job puts "$@" in its own process
+# group (so cancellation reaches every descendant, not just the immediate
+# child pid) and registers that group into the lease metadata (so a later
+# hvl_is_stale check can see the real job is still alive even if this
+# wrapper process itself is gone).
 set +e
-"$@" &
-run_child_pid=$!
-wait "$run_child_pid"
+hvl_run_registering_job "$@"
 run_status=$?
 set -e
-
-trap - INT TERM
-run_child_pid=''
 
 exit "$run_status"

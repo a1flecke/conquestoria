@@ -49,10 +49,15 @@ run_phase() {
   label="$2"
   shift 2
 
+  # #1133 items B/E: run via the shared job-registering helper (see
+  # host-verification-lease.sh) instead of directly in the foreground, so
+  # this phase's real process group is registered into the held lease
+  # metadata and cancellation reaches every descendant -- the same
+  # guarantee scripts/run-under-host-lease.sh's other callers get.
   if [ "$USE_MISE" -eq 1 ]; then
-    "$RUN" node "$TIMEOUT_RUNNER" "$timeout_seconds" "$label" -- "$@"
+    hvl_run_registering_job "$RUN" node "$TIMEOUT_RUNNER" "$timeout_seconds" "$label" -- "$@"
   else
-    node "$TIMEOUT_RUNNER" "$timeout_seconds" "$label" -- "$@"
+    hvl_run_registering_job node "$TIMEOUT_RUNNER" "$timeout_seconds" "$label" -- "$@"
   fi
 }
 

@@ -32,6 +32,20 @@
 #                         (verified against recorded pid + start marker).
 #                         Safe to call multiple times and safe to call when
 #                         nothing was acquired.
+#   hvl_run_registering_job <command...>
+#                         Run <command...> as the leader of its own new
+#                         process group, register that group into the held
+#                         lease's metadata as soon as it's known, forward
+#                         INT/TERM to the whole group, and return the
+#                         command's exit status (130/143 on a forwarded
+#                         signal). Call after hvl_acquire. This is what lets
+#                         hvl_is_stale (#1133 items B/E) see a real
+#                         heavyweight job is still alive even if the
+#                         supervising shell that called hvl_acquire is gone,
+#                         and what lets cancellation reach every descendant
+#                         (including one that later `detached: true`s itself
+#                         further, e.g. scripts/run-with-timeout.mjs's own
+#                         child) rather than only the immediate child pid.
 #
 # Environment overrides (all optional; see tests/hooks/host-verification-
 # lease.test.sh for the contract each one is pinned by):
@@ -85,6 +99,25 @@ hvl_start_marker() {
 
 hvl_pid_is_live() {
   kill -0 "$1" 2>/dev/null
+}
+
+# Portable process-group lookup for a pid -- pairs with hvl_run_registering_job
+# (#1133 item B/E), which puts the wrapped command in its own new process
+# group via `set -m` so it is one signalable/checkable unit independent of
+# this shell's own group. `ps -o pgid=` is supported by both GNU and
+# BSD/macOS ps.
+hvl_pgid_of_pid() {
+  ps -o pgid= -p "$1" 2>/dev/null | tr -d ' \t'
+}
+
+# A negative pid targets the whole process group for `kill`; signal 0 is a
+# pure existence/permission check (nothing is actually delivered), so this
+# is true iff at least one process in that group still exists.
+hvl_job_pgid_is_live() {
+  case "$1" in
+    ''|*[!0-9]*) return 1 ;;
+  esac
+  kill -0 "-$1" 2>/dev/null
 }
 
 # Portable mtime-as-epoch-seconds: try GNU stat syntax, fall back to BSD.
@@ -221,6 +254,7 @@ hvl_is_stale() {
   hvl_owner_pid="$(hvl_field "$hvl_meta" pid)"
   hvl_owner_host="$(hvl_field "$hvl_meta" hostname)"
   hvl_owner_marker="$(hvl_field "$hvl_meta" start_marker)"
+  hvl_owner_job_pgid="$(hvl_field "$hvl_meta" job_pgid)"
 
   case "$hvl_owner_pid" in
     ''|*[!0-9]*)
@@ -244,6 +278,17 @@ hvl_is_stale() {
   fi
 
   if ! hvl_pid_is_live "$hvl_owner_pid"; then
+    # #1133 item B: the supervisor that acquired the lease is gone, but if it
+    # registered the real heavyweight job's process group before dying (see
+    # hvl_run_registering_job) and that group is still alive, the lease must
+    # not be reclaimed out from under it -- a detached/orphaned job can
+    # legitimately keep running (and consuming CPU) after its supervising
+    # shell exits, and stealing the lease here would let a second
+    # suite-scale verification start while the first is still genuinely
+    # active. Only actually-dead job groups fall through to reclaim.
+    if [ -n "$hvl_owner_job_pgid" ] && hvl_job_pgid_is_live "$hvl_owner_job_pgid"; then
+      return 1
+    fi
     return 0
   fi
 
@@ -259,7 +304,12 @@ hvl_is_stale() {
   if [ "$hvl_current_marker" != "$hvl_owner_marker" ]; then
     # Same pid, different process (PID reuse): the process that actually
     # holds this pid now started at a different time than the lease
-    # metadata records, so the original owner is gone.
+    # metadata records, so the original owner is gone -- unless its
+    # registered job group is somehow still alive (see above), in which
+    # case the same "do not steal a live job" rule applies.
+    if [ -n "$hvl_owner_job_pgid" ] && hvl_job_pgid_is_live "$hvl_owner_job_pgid"; then
+      return 1
+    fi
     return 0
   fi
 
@@ -377,4 +427,66 @@ hvl_release() {
       echo "host-verification-lease: released '$HVL_LABEL' after ${hvl_duration}s held" >&2
     fi
   fi
+}
+
+# hvl_register_job_pgid <pgid>
+#
+# Records the real heavyweight job's process group into the metadata of the
+# lease THIS process currently holds, preserving every other field. A no-op
+# when nothing was acquired (CI/skipped) or the lease is somehow no longer
+# held -- registration is best-effort and must never itself fail a caller.
+hvl_register_job_pgid() {
+  [ "${HVL_SKIPPED:-1}" -eq 1 ] && return 0
+  [ -n "${HVL_LEASE_DIR:-}" ] && [ -f "${HVL_META_FILE:-}" ] || return 0
+  hvl_meta_tmp="$HVL_LEASE_DIR/owner.tmp.$$"
+  { grep -v '^job_pgid=' "$HVL_META_FILE" 2>/dev/null || true
+    printf 'job_pgid=%s\n' "$1"
+  } > "$hvl_meta_tmp" && mv "$hvl_meta_tmp" "$HVL_META_FILE"
+}
+
+# hvl_run_registering_job <command...>
+#
+# See the "Public functions" header comment above for the contract. `set -m`
+# (job control) makes the shell put a newly backgrounded job in a brand-new
+# process group (pgid == its own pid) instead of inheriting this shell's own
+# group -- verified empirically against both dash-style and bash-style
+# /bin/sh on this platform. That group is what gets registered and signaled
+# as a unit, independent of whatever group this wrapper shell itself is in.
+hvl_run_registering_job() {
+  hvl_prev_trap_int="$(trap -p INT)"
+  hvl_prev_trap_term="$(trap -p TERM)"
+
+  set -m
+  "$@" &
+  HVL_JOB_PID=$!
+  HVL_JOB_PGID="$(hvl_pgid_of_pid "$HVL_JOB_PID")"
+  case "$HVL_JOB_PGID" in
+    ''|*[!0-9]*) HVL_JOB_PGID="$HVL_JOB_PID" ;;
+  esac
+  hvl_register_job_pgid "$HVL_JOB_PGID"
+
+  hvl_job_forward() {
+    hvl_fwd_signal="$1"
+    hvl_fwd_exit_code="$2"
+    kill -"$hvl_fwd_signal" "-$HVL_JOB_PGID" 2>/dev/null || true
+    wait "$HVL_JOB_PID" 2>/dev/null || true
+    [ -n "${DURABLE_FAILURE_KIND_FILE:-}" ] && printf 'cancelled\n' > "$DURABLE_FAILURE_KIND_FILE"
+    exit "$hvl_fwd_exit_code"
+  }
+  trap 'hvl_job_forward INT 130' INT
+  trap 'hvl_job_forward TERM 143' TERM
+
+  set +e
+  wait "$HVL_JOB_PID"
+  hvl_job_status=$?
+  set -e
+
+  # Restore whatever INT/TERM traps the caller had before this call (never
+  # blindly `trap - INT TERM`, which would erase a caller's own outer
+  # signal handling, e.g. verify-before-push.sh's "release the lease on
+  # TERM" trap spanning both of its run_phase calls).
+  eval "$hvl_prev_trap_int"
+  eval "$hvl_prev_trap_term"
+
+  return "$hvl_job_status"
 }
