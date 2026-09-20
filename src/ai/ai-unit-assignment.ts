@@ -257,12 +257,12 @@ export function assignUnitsToPortfolio(
   for (const plan of plans) {
     for (const [role, desiredRaw] of Object.entries(desiredSlotsByPlanId[plan.id] ?? {}) as Array<[AIStrategicRole, number]>) {
       const desired = Math.max(0, Math.floor(desiredRaw));
-      const assigned = countAIStrategicRoleCapabilities(
+      const assigned = Math.min(desired, countAIStrategicRoleCapabilities(
         (assignmentsByPlanId[plan.id] ?? [])
           .map(id => context.units.find(unit => unit.id === id))
           .filter((unit): unit is AIUnitAssignmentCandidate => Boolean(unit)),
         { [role]: desired },
-      )[role] ?? 0;
+      )[role] ?? 0);
       const existing = demandByRole.get(role) ?? {
         role,
         desired: 0,
