@@ -72,6 +72,26 @@ describe('AI unit assignment', () => {
     ]));
   });
 
+  it('caps multi-role capability credit at the requested role count', () => {
+    const result = assignUnitsToPortfolio({
+      portfolio: {
+        ...createEmptyMajorCivPortfolio(),
+        primaryPlan: plan('capture', 'capture', { frontline: 1, capture: 1 }),
+      },
+      units: [
+        unit('warrior', 'warrior', { capture: 1 }),
+        unit('swordsman', 'swordsman', { capture: 1 }),
+      ],
+      profile: { maxPrimaryForce: 3, retreatHealthPercent: 30 },
+      defenseThreatScoreByPlanId: {}, eliminationDefensePlanIds: [], onlyImmediateDefenderUnitIds: [], requiresEmbarkationByPlanId: {},
+    });
+
+    expect(result.forceDemands).toEqual(expect.arrayContaining([
+      expect.objectContaining({ role: 'frontline', desired: 1, assigned: 1, missing: 0 }),
+      expect.objectContaining({ role: 'capture', desired: 1, assigned: 1, missing: 0 }),
+    ]));
+  });
+
   it('regenerates the counted capture shortage when an assigned attacker is lost', () => {
     const context = {
       portfolio: {
