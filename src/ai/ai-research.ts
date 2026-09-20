@@ -7,6 +7,7 @@ import type {
 } from '@/core/types';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import {
+  BUILDINGS,
   TRAINABLE_UNITS,
   civHasCoastalCity,
 } from '@/systems/city-system';
@@ -25,7 +26,7 @@ import {
 } from '@/systems/planning-system';
 import type { AIForceDemand } from './ai-unit-assignment';
 import type { PreparedMajorCivPlan } from './ai-prepared-turn';
-import { evaluateAITechCapabilities } from './ai-tech-evaluation';
+import { evaluateAITechCapabilities, type AITechCapabilities } from './ai-tech-evaluation';
 import { weightTechChoice } from './ai-personality';
 import { simulateResearchQueueTiming } from '@/systems/tech-progression';
 
@@ -45,6 +46,12 @@ export interface AIResearchPlanningContext {
   pressuredReliefCityIdsByBuildingId?: Readonly<Record<string, readonly string[]>>;
   /** Compatibility for isolated planning callers; live AI supplies per-source counts. */
   pressuredReliefCityCount?: number;
+  /**
+   * #1127: how many of the civ's cities have zero science-yielding buildings.
+   * Drives `scienceStarvationTechBonus`. Defaults to 0 (no bonus) for isolated
+   * planning callers that don't supply it.
+   */
+  scienceDeficientCityCount?: number;
   techs?: readonly Tech[];
 }
 
@@ -59,6 +66,7 @@ export interface AIResearchScoreComponents {
   resourceMismatchPenalty: number;
   situationalityPenalty: number;
   unrestReliefTechBonus: number;
+  scienceStarvationTechBonus: number;
 }
 
 // #919 MR2: pull toward a tech unlocking any UNREST_RELIEF_SOURCES building when the
@@ -86,6 +94,35 @@ function unrestReliefTechBonus(
     UNREST_RELIEF_TECH_AI_BONUS_CAP,
     UNREST_RELIEF_TECH_AI_BASE_BONUS
       + UNREST_RELIEF_TECH_AI_PER_PRESSURED_CITY * pressuredReliefCityCount,
+  );
+}
+
+// #1127: pull toward a tech that unlocks a science-yielding building when the empire
+// is actually science-starved (zero science buildings in one or more cities). Root
+// cause: `economicSupport`'s flat linear formula gives a science-only tech (e.g.
+// `writing` -> `library`) a preliminary score far below unit-unlocking siblings, so it
+// is pruned by the top-24 preliminary cut before final scoring ever runs -- a civ can
+// go 130+ rounds never researching it. Mirrors `unrestReliefTechBonus`'s shape and
+// magnitude exactly (same base/per-unit/cap): reuses `capabilities.buildingYieldValue`
+// (already computed at both call sites) instead of re-deriving unlocked buildings, so
+// it automatically covers any future science-building tech, not just `writing`.
+// Gate is 1 city, not 2 like unrest -- a 1-city civ (common early game, and exactly
+// the stuck case observed) can never reach a 2-city gate. Applied to both the
+// preliminary search cut and the final score, same as unrest.
+const SCIENCE_STARVATION_TECH_AI_BASE_BONUS = 6;
+const SCIENCE_STARVATION_TECH_AI_PER_CITY = 1.5;
+const SCIENCE_STARVATION_TECH_AI_BONUS_CAP = 18;
+const SCIENCE_STARVATION_CITY_GATE = 1;
+function scienceStarvationTechBonus(
+  capabilities: AITechCapabilities,
+  scienceDeficientCityCount: number,
+): number {
+  if ((capabilities.buildingYieldValue.science ?? 0) <= 0) return 0;
+  if (scienceDeficientCityCount < SCIENCE_STARVATION_CITY_GATE) return 0;
+  return Math.min(
+    SCIENCE_STARVATION_TECH_AI_BONUS_CAP,
+    SCIENCE_STARVATION_TECH_AI_BASE_BONUS
+      + SCIENCE_STARVATION_TECH_AI_PER_CITY * scienceDeficientCityCount,
   );
 }
 
@@ -125,6 +162,7 @@ function descendantsWithinLimit(
   completed: ReadonlySet<string>,
   knownTechIds: ReadonlySet<string>,
   reliefCityIdsByBuildingId: Readonly<Record<string, readonly string[]>>,
+  scienceDeficientCityCount: number,
 ): SearchTarget[] {
   const byId = new Map(techs.map(tech => [tech.id, tech]));
   const targets: SearchTarget[] = [];
@@ -149,7 +187,8 @@ function descendantsWithinLimit(
       + capabilities.eraProgress
       + Object.values(capabilities.rolesUnlocked)
         .reduce((sum, value) => sum + (value ?? 0), 0)
-      + unrestReliefTechBonus(current.tech, reliefCityIdsByBuildingId);
+      + unrestReliefTechBonus(current.tech, reliefCityIdsByBuildingId)
+      + scienceStarvationTechBonus(capabilities, scienceDeficientCityCount);
     targets.push({
       frontier,
       target: current.tech,
@@ -211,6 +250,7 @@ function convergentTargets(
   knownTechIds: ReadonlySet<string>,
   reliefCityIdsByBuildingId: Readonly<Record<string, readonly string[]>>,
   discovered: readonly SearchTarget[],
+  scienceDeficientCityCount: number,
 ): SearchTarget[] {
   const bestById = new Map<string, SearchTarget>();
   for (const target of discovered) {
@@ -236,7 +276,8 @@ function convergentTargets(
       + capabilities.eraProgress
       + Object.values(capabilities.rolesUnlocked)
         .reduce((sum, value) => sum + (value ?? 0), 0)
-      + unrestReliefTechBonus(candidate, reliefCityIdsByBuildingId);
+      + unrestReliefTechBonus(candidate, reliefCityIdsByBuildingId)
+      + scienceStarvationTechBonus(capabilities, scienceDeficientCityCount);
     const pathCost = sourceEntries.reduce((sum, entry) => sum + entry.pathCost, 0) + candidate.cost;
     const uniqueSources = [...new Map(sourceEntries.map(entry => [entry.frontier.id, entry])).values()];
     for (const ownSource of uniqueSources) {
@@ -324,12 +365,17 @@ export function planAIResearch(
       source.id,
       Array.from({ length: context.pressuredReliefCityCount ?? 0 }, (_, index) => `legacy-${index}`),
     ]));
+  const scienceDeficientCityCount = context.scienceDeficientCityCount ?? 0;
 
   const directTargets = frontier
-    .flatMap(tech => descendantsWithinLimit(tech, techs, completed, knownTechIds, reliefCityIdsByBuildingId));
+    .flatMap(tech => descendantsWithinLimit(
+      tech, techs, completed, knownTechIds, reliefCityIdsByBuildingId, scienceDeficientCityCount,
+    ));
   const searchTargets = [
     ...directTargets,
-    ...convergentTargets(techs, completed, knownTechIds, reliefCityIdsByBuildingId, directTargets),
+    ...convergentTargets(
+      techs, completed, knownTechIds, reliefCityIdsByBuildingId, directTargets, scienceDeficientCityCount,
+    ),
   ]
     .sort((left, right) =>
       right.preliminary - left.preliminary
@@ -375,6 +421,7 @@ export function planAIResearch(
       ),
       situationalityPenalty: capabilities.situationality,
       unrestReliefTechBonus: unrestReliefTechBonus(entry.target, reliefCityIdsByBuildingId),
+      scienceStarvationTechBonus: scienceStarvationTechBonus(capabilities, scienceDeficientCityCount),
     };
     const score = modernizationFit * 4
       + activePlanFit * 3
@@ -383,6 +430,7 @@ export function planAIResearch(
       + capabilities.eraProgress
       + unlockBreadth
       + scoreComponents.unrestReliefTechBonus
+      + scoreComponents.scienceStarvationTechBonus
       - estimatedResearchTurns * 0.75
       - scoreComponents.resourceMismatchPenalty
       - scoreComponents.situationalityPenalty;
@@ -395,6 +443,7 @@ export function planAIResearch(
         ...(activePlanFit > 0 ? ['active-plan'] : []),
         ...(capabilities.economicSupport > 0 ? ['economic-support'] : []),
         ...(scoreComponents.unrestReliefTechBonus > 0 ? ['unrest-relief'] : []),
+        ...(scoreComponents.scienceStarvationTechBonus > 0 ? ['science-starvation'] : []),
       ],
     };
   }).sort((left, right) =>
@@ -470,6 +519,11 @@ export function applyAIResearch(
     return pressure >= reliefPressureGate
       && rows.some(row => source.targetRowLabels.includes(row.label) && row.amount > 0);
   })]));
+  // #1127: cities with zero science-yielding buildings -- drives scienceStarvationTechBonus.
+  const scienceDeficientCityCount = civ.cities.filter(cityId => {
+    const city = state.cities[cityId];
+    return !!city && !city.buildings.some(buildingId => (BUILDINGS[buildingId]?.yields.science ?? 0) > 0);
+  }).length;
   const decision = planAIResearch({
     techState: activated,
     personality,
@@ -479,6 +533,7 @@ export function applyAIResearch(
     availableResources: resources,
     sciencePerTurn,
     pressuredReliefCityIdsByBuildingId,
+    scienceDeficientCityCount,
   });
   if (!decision) {
     if (activated === civ.techState) return { state, startedTechId: null };
