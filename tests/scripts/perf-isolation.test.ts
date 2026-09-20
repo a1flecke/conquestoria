@@ -120,10 +120,12 @@ describe('#1007 perf-report isolation', () => {
 
     for (const relPath of gatingFiles) {
       const contents = readFileSync(resolve(REPO_ROOT, relPath), 'utf8');
+      // package.json legitimately DEFINES the script, plus its #1133 durable
+      // variant (also explicit/opt-in, never reached by any default path).
+      const allowedPackageJsonLines = ['"perf:report"', '"perf:report:durable"', '"perf:report:durable:status"'];
       const lines = contents.split('\n').filter(line => {
-        // package.json legitimately DEFINES the script.
         if (relPath !== 'package.json') return true;
-        return !line.includes('"perf:report"');
+        return !allowedPackageJsonLines.some(allowed => line.includes(allowed));
       });
       for (const pattern of forbidden) {
         const offending = lines.find(line => pattern.test(line));

@@ -86,6 +86,20 @@
 #                                           coordination entirely (CI runs
 #                                           on isolated, dedicated hardware
 #                                           and must not know this exists).
+#   DURABLE_JOB_PID_FILE                   If set, hvl_run_registering_job
+#                                           also writes the real job's pid
+#                                           to this path as soon as it's
+#                                           known (#1133 items C/D) -- for a
+#                                           caller that wants durable,
+#                                           worktree-local liveness
+#                                           evidence readable by a separate
+#                                           process while the job is still
+#                                           running. See
+#                                           scripts/run-durable-test-suite.sh.
+#   DURABLE_FAILURE_KIND_FILE              If set, a cancellation
+#                                           (hvl_cancel_and_release /
+#                                           hvl_wait_cancel) writes
+#                                           `cancelled` to this path.
 
 hvl_now() {
   date +%s
@@ -492,6 +506,12 @@ hvl_run_registering_job() {
   "$@" &
   HVL_JOB_PID=$!
   hvl_register_job_pid "$HVL_JOB_PID"
+  # #1133 items C/D: an optional side channel (same convention as
+  # DURABLE_FAILURE_KIND_FILE) so a caller that wants durable, worktree-
+  # local evidence of the real job pid can read it directly off disk while
+  # this is still running, independent of whether a lease was ever
+  # acquired (HVL_SKIPPED) or of this function's own call stack.
+  [ -n "${DURABLE_JOB_PID_FILE:-}" ] && printf '%s\n' "$HVL_JOB_PID" > "$DURABLE_JOB_PID_FILE"
 
   set +e
   wait "$HVL_JOB_PID"

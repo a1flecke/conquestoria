@@ -4,19 +4,39 @@
 set -eu
 
 usage() {
-  echo 'Usage: run-durable-test-suite.sh <scope> -- <test command> [arguments...]' >&2
+  echo 'Usage: run-durable-test-suite.sh <scope> [--no-lease] -- <command> [arguments...]' >&2
   exit 2
 }
 
 scope="${1:-}"
-[ "$#" -ge 3 ] && [ "${2:-}" = '--' ] || usage
 case "$scope" in
   ''|*[!a-z0-9_-]*) usage ;;
 esac
-shift 2
+[ "$#" -ge 1 ] || usage
+shift
+
+# #1133 items C/D: durability (worktree-local evidence) is independent of
+# which host-wide lease (if any) a command uses -- some heavyweight AI-suite
+# runners deliberately do NOT take the shared push-verification lease (see
+# their own header comments), so wrapping them here must not force them into
+# it. --no-lease skips the host-wide lease acquisition below entirely while
+# still getting durable evidence + job-pid liveness tracking (via
+# hvl_run_registering_job directly); omitting it preserves the original
+# behavior (used by the "full" scope / yarn test:durable), acquiring the
+# shared lease via run-under-host-lease.sh.
+use_lease=1
+if [ "${1:-}" = '--no-lease' ]; then
+  use_lease=0
+  shift
+fi
+[ "${1:-}" = '--' ] || usage
+shift
+[ "$#" -ge 1 ] || usage
 
 script_dir="$(cd "$(dirname "$0")" && pwd)"
 repo_root="$(git -C "$script_dir" rev-parse --show-toplevel)"
+# shellcheck source=./host-verification-lease.sh
+. "$repo_root/scripts/host-verification-lease.sh"
 artifact_dir="$repo_root/.verification"
 prefix="$artifact_dir/${scope}-suite"
 lock_dir="$prefix.lock"
@@ -25,6 +45,7 @@ log="$prefix.log"
 status="$prefix.status"
 status_tmp="$status.tmp.$$"
 failure_kind_file="$prefix.failure-kind"
+job_pid_file="$prefix.job-pid"
 head_sha="$(git -C "$repo_root" rev-parse HEAD)"
 started_at="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 
@@ -72,7 +93,7 @@ fi
 
 # Finished and abandoned artifacts cannot be evidence for the run about to
 # start. A live marker is handled above before anything is removed.
-rm -f "$running" "$log" "$status" "$status_tmp" "$failure_kind_file"
+rm -f "$running" "$log" "$status" "$status_tmp" "$failure_kind_file" "$job_pid_file"
 initial_worktree_state="$(worktree_state)"
 printf 'pid=%s\nworktree=%s\nhead=%s\nstarted_at=%s\n' \
   "$$" "$repo_root" "$head_sha" "$started_at" > "$running"
@@ -99,7 +120,7 @@ finish() {
     printf 'failure_kind=%s\n' "$failure_kind"
   } > "$status_tmp"
   mv "$status_tmp" "$status"
-  rm -f "$running"
+  rm -f "$running" "$job_pid_file"
 }
 
 on_exit() {
@@ -117,15 +138,38 @@ trap on_exit EXIT
 # The host lease serializes actually running the heavyweight suite across
 # every worktree on this machine; it does not touch this worktree's
 # `.verification/` evidence directory or lock at all.
-if DURABLE_FAILURE_KIND_FILE="$failure_kind_file" \
-  sh "$repo_root/scripts/run-under-host-lease.sh" "durable $scope suite" -- "$@" \
-  > "$log" 2>&1; then
-  test_exit_code=0
+#
+# #1133 items C/D: DURABLE_JOB_PID_FILE asks run-under-host-lease.sh's own
+# hvl_run_registering_job to also drop the real job's pid into this file,
+# independent of the (worktree-local) lock/marker above. read-durable-test-
+# result.sh reads it directly off disk while this is still running -- it
+# does not need to wait for this script to finish, so a concurrent reader
+# can tell a genuinely-active run apart from an abandoned one (a stale
+# `.running` marker whose process actually died). The output is piped
+# through `tee` (not just redirected) so a `.running` job streams live
+# instead of only appearing in $log after the fact -- `set -e` must be off
+# across the pipeline for the same reason run-test-suite.sh's own internal
+# pipeline needs it: a mid-group failure would otherwise abort this script
+# before `echo "$?"` ever runs, losing the real exit code.
+exit_file="$(mktemp)"
+set +e
+if [ "$use_lease" -eq 1 ]; then
+  {
+    DURABLE_FAILURE_KIND_FILE="$failure_kind_file" DURABLE_JOB_PID_FILE="$job_pid_file" \
+      sh "$repo_root/scripts/run-under-host-lease.sh" "durable $scope suite" -- "$@"
+    echo "$?" > "$exit_file"
+  } 2>&1 | tee "$log"
 else
-  test_exit_code=$?
+  {
+    DURABLE_FAILURE_KIND_FILE="$failure_kind_file" DURABLE_JOB_PID_FILE="$job_pid_file" \
+      hvl_run_registering_job "$@"
+    echo "$?" > "$exit_file"
+  } 2>&1 | tee "$log"
 fi
+set -e
+test_exit_code="$(cat "$exit_file")"
+rm -f "$exit_file"
 
-cat "$log"
 trap - EXIT
 finish "$test_exit_code"
 release_lock

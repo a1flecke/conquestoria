@@ -124,16 +124,54 @@ Closes 2 more of #1133's 12 acceptance criteria (7 total closed so far, across M
 - [x] "Cancellation kills/reaps the whole intended process tree or leaves an explicitly
       discoverable registered live job; no unowned Vitest pool remains."
 
-### MR4 — generalized durable-command layer (items C, D) — NOT STARTED
+### MR4 — generalized durable-command layer (items C, D) ✅ merged (see git history for this file's introducing PR)
 
-Refactor `run-durable-test-suite.sh`'s ideas into a generic `run-durable-command <scope>
-[resource-class] -- <command...>` / `read-durable-command-result <scope>` layer usable by full
-tests, AI long-horizon, AI playability, and perf report — each currently has its own bespoke (or
-absent) durable-evidence story. Status must resolve to exactly one of `active` / `passed` /
-`failed` / `abandoned` / `mismatched`, verified against a live registered job identity (from
-MR3), never by an agent inspecting `ps`. Requires a live-tee (stream loss must be
-presentation-only, never evidence) and a reconnect/status command that can tail the same file
-without restarting the run.
+Rather than renaming `run-durable-test-suite.sh`/`read-durable-test-result.sh` to the issue's
+suggested `run-durable-command`/`read-durable-command-result` names, kept the existing names
+(all four heavy callers are fundamentally Vitest runs, so "test-suite" isn't misleading) and
+generalized the existing `<scope> -- <command>` interface, which was already parameter-generic —
+the real gaps were behavioral, not naming:
+
+- **Item C (usable by all four heavy commands):** added a `--no-lease` flag
+  (`run-durable-test-suite.sh <scope> [--no-lease] -- <command...>`) so a caller can get durable
+  evidence + job-pid liveness tracking without being forced into the shared push-verification
+  lease — required because the AI-long/AI-playability/perf-report runners deliberately manage
+  their own (or no) host-wide lease already. New `yarn test:ai-long:durable`/`:status`, `yarn
+  test:ai-playability:durable`/`:status`, `yarn perf:report:durable`/`:status` package scripts
+  wire this up for the three previously bespoke-or-absent callers; `yarn test:durable`/`:status`
+  (the "full" scope) keeps its exact prior behavior (still acquires the shared lease).
+- **Item D (live tee):** the runner used to capture the wrapped command's output silently to a
+  file and only `cat` the whole thing at the end — not a live stream at all. Now pipes through
+  `tee` (with the same exit-code-through-a-pipe pattern `run-test-suite.sh` already uses:
+  capture to a file inside the `{ }` group, `set +e` around it) so the durable log streams live
+  while still being durable evidence.
+- **Real `active`/`passed`/`failed`/`abandoned`/`mismatched` status:** added `DURABLE_JOB_PID_FILE`
+  to `host-verification-lease.sh`'s `hvl_run_registering_job` (same side-channel-env-var
+  convention `DURABLE_FAILURE_KIND_FILE` already used) so the real job's pid is written to disk,
+  readable by a separate process, independent of lease state or of the writer's own progress.
+  `read-durable-test-result.sh` now checks that pid's liveness before ever reporting `active` —
+  a stale `.running` marker whose recorded process actually died now reports `abandoned` (a new,
+  previously-nonexistent distinction; both cases used to report "still running" forever, the
+  exact bug #1133 cites). Every status now leads with an unambiguous `STATUS: <word>` line on
+  stdout for agent parseability; all pre-existing exit codes (0/1/2/3) are unchanged, `abandoned`
+  gets a new exit 4.
+
+New tests: `tests/hooks/run-durable-test-suite-abandoned.test.sh` (live-tee streaming proven via a
+real running job; `abandoned` vs `active` proven with a real dead pid vs a real live one) and
+`tests/hooks/run-durable-test-suite-no-lease.test.sh` (`--no-lease` never contends for the shared
+lease; the default still does, unchanged). `tests/scripts/ai-long-horizon-isolation.test.ts` and
+`tests/scripts/perf-isolation.test.ts` (pre-existing #1005/#1007 guards against the heavy suites
+leaking into a default path) updated to allowlist the new durable package-script lines — they're
+equally explicit/opt-in, never reached by any default path, same as the originals.
+
+Verified end-to-end with a real run of `yarn test:ai-playability:durable` (not just synthetic
+fixtures) followed by `yarn test:ai-playability:durable:status`, confirming real job-pid
+tracking, real live-tee streaming, and correct `mismatched` detection once the worktree changed
+after the run completed.
+
+Closes 1 more of #1133's 12 acceptance criteria (8 total closed so far, across MR1+MR2+MR3+MR4):
+- [x] "Losing the terminal/tool stream does not make a heavyweight run inconclusive; a durable
+      status command reports active/passed/failed/abandoned."
 
 ### MR5 — benchmarking-driven host resource budget (items H, I, J) — NOT STARTED
 

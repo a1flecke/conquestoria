@@ -76,6 +76,32 @@ streamed output ended early. Inspect the process tree only when that command
 reports an active run; never report a completed durable run as still running
 solely because the terminal stream was truncated.
 
+**The same durable-evidence mechanism is also available for the other three
+heavyweight AI/perf commands (#1133 items C/D):** `yarn test:ai-long:durable`
+/ `:status`, `yarn test:ai-playability:durable` / `:status`, and `yarn
+perf:report:durable` / `:status`. These wrap the exact same underlying
+commands as their non-durable equivalents, via `run-durable-test-suite.sh
+<scope> --no-lease -- <command>` -- `--no-lease` is required for all three
+because each of those commands deliberately manages its own (or no) host-wide
+lease already (see their own header comments); only the "full" scope (`yarn
+test:durable`) acquires the shared push-verification lease, unchanged from
+before this MR.
+
+Every `:status` reader now prints an unambiguous leading `STATUS: <word>` line
+to stdout, one of `active` / `passed` / `failed` / `abandoned` / `mismatched`
+/ `none` -- read that line, not exit codes or prose, when scripting against
+it. `abandoned` is new: previously, a stale `.running` marker whose recorded
+process had actually died was indistinguishable from a genuinely active run
+(both reported "still running" forever) -- the exact bug #1133 cites
+("even that reader trusts a `.running` marker without checking whether its
+PID/job is still alive"). The reader now checks the real job's pid (recorded
+by `hvl_run_registering_job` via the `DURABLE_JOB_PID_FILE` side channel, the
+same mechanism `DURABLE_FAILURE_KIND_FILE` already used) for liveness before
+ever reporting `active`. The durable log is also now a genuine live tee (via
+`| tee`, not a silent capture redirected to a file and dumped only at the
+end), so `:status` while a run is `active` can show real progress (the last
+20 lines) instead of nothing.
+
 ### Host verification lease (#892)
 
 `yarn test:durable`, `scripts/verify-before-push.sh`'s test+build phases, and
