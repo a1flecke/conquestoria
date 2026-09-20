@@ -1,5 +1,6 @@
 import type { AirBaseRef, GameState } from '@/core/types';
 import { classifyOwner } from '@/core/owner-kind';
+import { BUILDINGS } from '@/systems/city-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getTransportCapacity, getUnitCargoSize, isNavalTransportUnit } from '@/systems/transport-system';
 import { getAirBaseCapacity, getAirBaseRoster } from '@/systems/air-operations-system';
@@ -479,6 +480,73 @@ export function assertTreatyReciprocity(state: GameState): void {
 }
 
 /**
+ * National-project empire-uniqueness (#1080, follow-up from #1003): a
+ * `uniquePerEmpire` national-project building must never be simultaneously
+ * present — built or queued, in any combination — in more than one city
+ * owned by the same civ. `builtNationalProjects` cannot itself expose a
+ * "built in two cities" duplicate (it is keyed `${civId}:${buildingId}`, so a
+ * second completion silently overwrites the first record) — this asserts
+ * directly against each civ's owned cities' `buildings`/`productionQueue`
+ * arrays, the only place a duplicate can actually be observed. Scoped to
+ * major civs (`state.civilizations`) only, matching every national-project
+ * helper (`getReservedNationalProjectKeys`, `getActiveNationalProjectsForCiv`,
+ * …) which are all civId-keyed; national projects are not part of the
+ * minor-civ production catalog.
+ *
+ * Deliberately does NOT flag the same item appearing twice within one city's
+ * own `productionQueue` — that is a same-city duplicate-queue-entry shape,
+ * not a cross-city empire-uniqueness violation, and is out of this
+ * invariant's scope.
+ */
+export function assertNationalProjectUniqueness(state: GameState): void {
+  const problems: string[] = [];
+
+  for (const [civId, civ] of Object.entries(state.civilizations)) {
+    const builtIn = new Map<string, Set<string>>();
+    const queuedIn = new Map<string, Set<string>>();
+
+    for (const cityId of civ.cities) {
+      const city = state.cities[cityId];
+      if (!city || city.owner !== civId) continue; // ownership drift is #997's invariant, not this one
+
+      for (const buildingId of city.buildings) {
+        const building = BUILDINGS[buildingId];
+        if (!building?.nationalProject || !building.uniquePerEmpire) continue;
+        const set = builtIn.get(buildingId) ?? new Set<string>();
+        set.add(cityId);
+        builtIn.set(buildingId, set);
+      }
+      for (const itemId of city.productionQueue) {
+        const building = BUILDINGS[itemId];
+        if (!building?.nationalProject || !building.uniquePerEmpire) continue;
+        const set = queuedIn.get(itemId) ?? new Set<string>();
+        set.add(cityId);
+        queuedIn.set(itemId, set);
+      }
+    }
+
+    for (const [buildingId, cityIds] of builtIn) {
+      if (cityIds.size > 1) {
+        problems.push(`civ "${civId}" has unique national project "${buildingId}" built in multiple cities: ${[...cityIds].join(', ')}`);
+      }
+    }
+    for (const [buildingId, cityIds] of queuedIn) {
+      if (cityIds.size > 1) {
+        problems.push(`civ "${civId}" has unique national project "${buildingId}" queued in multiple cities: ${[...cityIds].join(', ')}`);
+      }
+    }
+    for (const [buildingId, builtCityIds] of builtIn) {
+      const queuedElsewhere = [...(queuedIn.get(buildingId) ?? [])].filter(cityId => !builtCityIds.has(cityId));
+      if (queuedElsewhere.length > 0) {
+        problems.push(`civ "${civId}" has unique national project "${buildingId}" already built in ${[...builtCityIds].join(', ')} but also queued in ${queuedElsewhere.join(', ')}`);
+      }
+    }
+  }
+
+  if (problems.length > 0) throw new InvariantError(`national-project-uniqueness invariant violated:\n  - ${problems.join('\n  - ')}`);
+}
+
+/**
  * An `isEliminated` civ holds no live entities and no active obligations
  * anywhere in `GameState` — not just no owned cities/units/wars, but nothing in
  * espionage, AI planning, crises, trade, the minor-civ layer, and so on. The
@@ -499,6 +567,7 @@ export const SAVE_STATE_INVARIANTS: ReadonlyArray<{ name: string; check: (state:
   { name: 'air-base-integrity', check: assertAirBaseIntegrity },
   { name: 'vassalage-reciprocity', check: assertVassalageReciprocity },
   { name: 'treaty-reciprocity', check: assertTreatyReciprocity },
+  { name: 'national-project-uniqueness', check: assertNationalProjectUniqueness },
   { name: 'no-eliminated-civ-entities', check: assertNoEliminatedCivEntities },
 ];
 
