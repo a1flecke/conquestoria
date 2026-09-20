@@ -44,14 +44,14 @@ paths:
 
 `require-green-before-push.sh` fires only for `git push`, `gh pr create`, and `gh pr merge` — not for `git commit`. It delegates to `scripts/verify-before-push.sh`, which runs `yarn test`, then `yarn build` — **sequentially**, not in parallel (each `run_phase` call blocks before the next line runs).
 
-**Plain `git push` defers to the real `.githooks/pre-push` hook when it is wired (#1133).** Before invoking the verifier itself, the Claude hook checks whether this worktree's `core.hooksPath` resolves to `.githooks` and `.githooks/pre-push` is executable; if so it exits 0 immediately and lets the actual Git hook own verification, so a clean push doesn't pay for the regular test+build gate twice. This only applies to a literal `git push` — `gh pr create`/`gh pr merge` never trigger a git pre-push hook, so those always run the verifier here. If hooks aren't correctly wired (the `#608` worktree regression this repo already guards against), the Claude hook falls through to running `verify-before-push.sh --regular` itself, unchanged from before. Because that fallback path is still live, the hook's own `.claude/settings.json` `timeout` must stay at or above the `240s` budget below — it must never be shorter than the verification it is meant to govern.
+**Plain `git push` defers to the real `.githooks/pre-push` hook when it is wired (#1133).** Before invoking the verifier itself, the Claude hook checks whether this worktree's `core.hooksPath` resolves to `.githooks` and `.githooks/pre-push` is executable; if so it exits 0 immediately and lets the actual Git hook own verification, so a clean push doesn't pay for the regular test+build gate twice. This only applies to a literal `git push` — `gh pr create`/`gh pr merge` never trigger a git pre-push hook, so those always run the verifier here. If hooks aren't correctly wired (the `#608` worktree regression this repo already guards against), the Claude hook falls through to running `verify-before-push.sh --regular` itself, unchanged from before. Because that fallback path is still live, the hook's own `.claude/settings.json` `timeout` must stay at or above the `900s` budget below — it must never be shorter than the verification it is meant to govern.
 
 - **Local gate** (the real `.githooks/pre-push` hook, and this Claude Code hook): both call `verify-before-push.sh --regular`, which runs `yarn test:regular` — the local regular selection only, see "Local selections and CI shards" below.
 - **CI** (`yarn verify:push`, `test-suite-shard-a`, `test-suite-shard-b`, `test-suite-shard-c`, `test-suite-shard-d`, and `merge-gate` in `.github/workflows/deploy.yml`): runs the complete default Vitest suite exactly once across four explicit shards. `merge-gate` requires all four results, so neither the local selection nor a skipped expensive simulation can weaken merge coverage.
 
 **Set Bash tool timeout to match the command, not the hook:**
 - `git commit` — **30 000 ms**. No hook runs tests; the commit itself takes < 1s.
-- `git push` / `gh pr create` / `gh pr merge` — allow **240 000 ms** for the local `--regular` gate. A 120-second tool window can interrupt its detached timeout child and leave Vitest workers behind. If you've changed an intensive-simulations file, first run `yarn test:intensive-simulations` or a targeted `yarn vitest run <file>` as its own step before pushing.
+- `git push` / `gh pr create` / `gh pr merge` — allow **900 000 ms** for the local `--regular` gate (raised from 240 000ms — see "`verify-before-push.sh` retries a STALL automatically" above: a stalled attempt now backs off and retries up to `VERIFY_STALL_MAX_RETRIES` times before giving up, and a smaller external timeout would kill the *hook itself* mid-retry, which per Claude Code's own documented behavior lets the tool call through WITHOUT completing verification — worse than the stall it was retrying around). A 120-second tool window can interrupt its detached timeout child and leave Vitest workers behind. If you've changed an intensive-simulations file, first run `yarn test:intensive-simulations` or a targeted `yarn vitest run <file>` as its own step before pushing. If your own Bash tool call itself times out before the command finishes, it is moved to the background automatically rather than killed — this is expected on a stall-retry and not a failure; wait for it rather than re-issuing the same push.
 - A 360 000 ms timeout on `git commit` papers over the wrong symptom. Match the timeout to what the command actually does.
 
 ## Concurrent local verification
@@ -528,6 +528,62 @@ more than 90s to show its first tick (unlikely for any current caller, all of
 which are pure test/build execution with no slow network/install phase
 wrapped inside the timeout), widen `STALL_GRACE_SECONDS` for that call site
 rather than disabling the watchdog outright.
+
+### `verify-before-push.sh` retries a STALL automatically (#1133 follow-up)
+
+A STALL's own message already asserts "safe to retry immediately" -- it is a
+machine-checked claim (zero CPU progress across the whole process group),
+not a guess. Before this, that only meant a human or an agent had to notice
+the `STALL:` line in a log tail and re-run `git push` by hand -- observed
+directly across concurrent Claude, Codex, and OpenCode agents all hitting
+the same host contention and each independently re-running their own push
+several times. `run_phase()` in `verify-before-push.sh` now does that retry
+itself: on exit **125** specifically, it backs off
+`VERIFY_STALL_RETRY_BACKOFF_SECONDS` (default 20) and retries the same
+phase, up to `VERIFY_STALL_MAX_RETRIES` times (default 2, so 3 attempts
+total) before giving up and propagating the **original** 125 so a caller can
+still tell "gave up after repeated stall" from a real failure.
+
+**Only 125 retries.** Exit **124** (a plain timeout -- the work is
+genuinely slow, not stalled) and any other non-zero (a real test/build
+failure) fail on the first attempt, unretried -- retrying either wastes
+time, and retrying a real failure risks silently hiding a flake as "fixed"
+instead of reporting it. This is a narrower, more precise version of "safe
+to retry" than "any non-zero exit," deliberately: the stall watchdog already
+did the hard work of proving *this specific* failure has no legitimate
+explanation other than contention.
+
+**Why this is the one place to fix it, not three.** `verify-before-push.sh`
+is the single script `.githooks/pre-push` (every agent, via the real git
+hook), the Claude Code push-gate hook, and CI's `yarn verify:push --no-mise`
+all call -- unlike the Claude-specific PreToolUse wrapper
+(`require-green-before-push.sh`), which only Claude Code sessions ever
+invoke and which Codex/OpenCode never see at all. Putting the retry inside
+`run_phase()` itself means it is agent-framework-agnostic by construction,
+the same way the lease/budget mechanism it sits on already is (#1133's own
+motivation: Codex's sandbox constraints shaped where that mechanism could
+even live). Each retry attempt re-runs inside the SAME held host-wide
+verification lease acquisition (`hvl_acquire "pre-push verification"` at the
+top of the script) -- deliberately not released and re-acquired between
+attempts, to avoid the added complexity and signal-trap-reinstallation risk
+of tearing down and rebuilding that acquisition mid-script for uncertain
+benefit (the lease is a single-slot mutex among push-verification-class
+callers specifically; the contention a STALL reports is typically host-wide
+CPU oversubscription from processes outside that lease's scope entirely, so
+releasing it wouldn't reliably fix the thing that caused the stall). A
+stalled attempt itself exits fast (the watchdog's own boot + grace window,
+not the full phase timeout), so the realistic worst case across 3 attempts
+is on the order of a few minutes, not the phase's full timeout multiplied
+by the attempt count.
+
+See `tests/hooks/verify-before-push-stall-retry.test.sh` for the full
+contract: a stall-then-success retry (overall pass, build still runs); every
+attempt stalling exhausts retries and propagates 125 unretried further, never
+reaching the build phase; a plain timeout (124) and a real failure both fail
+on the first attempt with zero retries; `VERIFY_STALL_MAX_RETRIES=0` disables
+retrying entirely; and the build phase's own stall retries independently of
+the test phase's (separate attempt counters, proven by an already-passed
+test phase remaining at exactly one invocation).
 
 ## Worktree command-runner contract
 
