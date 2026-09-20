@@ -80,6 +80,22 @@ printf 'mise %s\n' "$*" >> "$CALL_LOG"
 printf '%s\n' 'mise test'
 EOF
 
+cat > "$bin/git" <<'EOF'
+#!/bin/sh
+printf 'git %s\n' "$*" >> "$CALL_LOG"
+case "$1 ${2:-} ${3:-}" in
+  'rev-parse --is-inside-work-tree ')
+    printf '%s\n' true
+    ;;
+  'remote get-url origin')
+    printf '%s\n' https://github.com/example/repo.git
+    ;;
+  'config --worktree --get')
+    printf '%s\n' .githooks
+    ;;
+esac
+EOF
+
 cat > "$bin/socketfilterfw" <<'EOF'
 #!/bin/sh
 printf '%s\n' 'Firewall is enabled. (State = 1)'
@@ -96,6 +112,7 @@ run() {
     CAFFEINATE_BIN="$bin/caffeinate" \
     GH_BIN="$bin/gh" \
     MISE_BIN="$bin/mise" \
+    GIT_BIN="$bin/git" \
     FIREWALL_BIN="$bin/socketfilterfw" \
     OPENCODE_REMOTE_STATE_DIR="$state_dir" \
     CALL_LOG="$call_log" \
