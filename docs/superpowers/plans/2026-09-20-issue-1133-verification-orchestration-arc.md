@@ -169,6 +169,18 @@ fixtures) followed by `yarn test:ai-playability:durable:status`, confirming real
 tracking, real live-tee streaming, and correct `mismatched` detection once the worktree changed
 after the run completed.
 
+**One CI-only round-trip:** `tests/hooks/run-durable-test-suite-no-lease.test.sh` failed on its
+first CI run ("unrelated holder never acquired the shared lease") but never locally. Root cause,
+confirmed by reproducing it locally with `CI=true bash tests/hooks/run-durable-test-suite-no-lease.test.sh`
+and fixed by comparing against the passing sibling tests: GitHub Actions always sets `CI=true`,
+which `hvl_acquire` treats as "skip coordination entirely" by design (documented: "CI runs on
+isolated, dedicated hardware and must not know this exists") — so the test's "unrelated holder,"
+meant to occupy the shared lease so the test can prove `--no-lease` doesn't wait behind it, never
+created anything at all under real CI conditions, and the poll loop waiting for it timed out.
+`host-verification-lease.test.sh` and `host-verification-lease-process-group.test.sh` already
+`unset CI || true` at the top for exactly this reason; the new file simply forgot to. Fixed, and
+reproduced+verified locally with `CI=true` before and after the fix (not just re-run on faith).
+
 Closes 1 more of #1133's 12 acceptance criteria (8 total closed so far, across MR1+MR2+MR3+MR4):
 - [x] "Losing the terminal/tool stream does not make a heavyweight run inconclusive; a durable
       status command reports active/passed/failed/abandoned."
