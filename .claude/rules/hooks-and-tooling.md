@@ -179,6 +179,49 @@ worktree runs; CI uses 100% on isolated hardware. Override a one-off run with
 Vitest's supported `VITEST_MAX_WORKERS` environment variable. Run the mirrored
 targeted test first; reserve the complete suite for final verification.
 
+### Stall watchdog in `run-with-timeout.mjs`
+
+`run-with-timeout.mjs` wraps `run-ai-long-horizon.sh` (8400s ceiling),
+`run-perf-report.sh` (900s), `run-ai-playability-regressions.sh` (300s), and
+`verify-before-push.sh`'s test+build phases. Its original design only had one
+failure mode for "too long": the absolute wall-clock ceiling. That leaves a
+gap distinct from ordinary CPU-starvation slowdown (the ~2x contention
+`.claude/rules/ai-simulation.md` already documents): a Vitest invocation can
+sit at genuinely **zero** CPU, having never spawned a worker process at all,
+for the entire ceiling with no signal anything is wrong -- observed directly
+when an `ai-long-horizon` run launched moments after two back-to-back heavy
+`yarn test` runs sat at 0.0% CPU for over an hour before a live `ps` check
+caught it, un-noticed the whole time because the process was technically
+still "within its timeout."
+
+Every caller of this script is CPU-bound once it actually starts (a Vitest
+run or a production build), so unlike stdout activity (Vitest's default
+reporter is silent for the whole duration of a single long-running test --
+a stdout-based heartbeat would false-positive on real work), **zero CPU
+progress across the whole process group genuinely cannot be legitimate slow
+work**. The watchdog samples `ps -eo pgid=,time=` every
+`STALL_CHECK_INTERVAL_SECONDS` (default 15s), summed across every process
+sharing the spawned child's process group (the `detached: true` group leader
+plus any workers it forks, which inherit the same pgid), and treats
+`STALL_GRACE_SECONDS` (default 90s) of literally zero increase -- after an
+initial `STALL_BOOT_GRACE_SECONDS` (default 20s) startup allowance -- as a
+stall rather than a legitimately slow run. A stall exits **125** with a
+message prefixed `STALL:`, distinct from the plain ceiling's **124**, so a
+caller (or a human) can tell "this needs a bigger timeout" apart from "this
+never started and is safe to retry immediately." `STALL_WATCHDOG_DISABLE=1`
+bypasses it entirely for a one-off case that needs to. See
+`tests/hooks/run-with-timeout.test.sh` for the positive (stalled sleeper,
+killed well inside a much larger ceiling), negative (a genuinely CPU-busy
+process is never killed), and disable-switch cases.
+
+Do not "fix" a future stall by only raising the affected script's absolute
+ceiling -- that repeats exactly the silent-wait failure mode this watchdog
+exists to shorten. If a *legitimate* slow-but-real-CPU-work phase ever needs
+more than 90s to show its first tick (unlikely for any current caller, all of
+which are pure test/build execution with no slow network/install phase
+wrapped inside the timeout), widen `STALL_GRACE_SECONDS` for that call site
+rather than disabling the watchdog outright.
+
 ## Worktree command-runner contract
 
 `scripts/run-with-mise.sh` executes all project behavior from the active
