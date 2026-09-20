@@ -38,12 +38,14 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-hvl_common_dir="$(git rev-parse --git-common-dir)"
-case "$hvl_common_dir" in
-  /*) : ;;
-  *) hvl_common_dir="$ROOT/$hvl_common_dir" ;;
-esac
-export HOST_VERIFICATION_LEASE_ROOT="$hvl_common_dir/conquestoria-ai-long-horizon-lease"
+# #1133: reuse host-verification-lease.sh's own sandbox-safe host-scope
+# resolution (see its hvl_resolve_host_scope_dir) instead of duplicating
+# git-common-dir logic here -- this lease still gets its own sub-path so it
+# stays a separate coordination domain from the shared push-verification
+# lease, per the header comment above.
+. "$ROOT/scripts/host-verification-lease.sh"
+hvl_host_scope_dir="$(hvl_resolve_host_scope_dir)" || exit 2
+export HOST_VERIFICATION_LEASE_ROOT="$hvl_host_scope_dir/ai-long-horizon-lease"
 
 # #1125: this outer wrapper must stay LARGER than campaign-scenarios.ts's own
 # SCENARIO_TIMEOUT_MS (the per-scenario Vitest timeout), or a legitimately slow

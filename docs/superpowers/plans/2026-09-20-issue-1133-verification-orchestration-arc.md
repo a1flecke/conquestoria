@@ -31,17 +31,22 @@ otherwise it runs the verifier itself, unchanged). Closes 4 of #1133's 12 accept
 - [x] "A clean Claude `git push` runs the expensive regular test+build gate exactly once."
 - [x] "No Claude `PreToolUse` timeout is shorter than the verification it is expected to govern."
 
-### MR2 — relocate the host verification lease out of `.git` (item A) — NOT STARTED
+### MR2 — relocate the host verification lease out of `.git` (item A) ✅ merged (see git history for this file's introducing PR)
 
-`scripts/host-verification-lease.sh`'s `hvl_resolve_root` and `run-ai-long-horizon.sh`'s inline
-`HOST_VERIFICATION_LEASE_ROOT` both currently resolve under `<git-common-dir>/...`. Codex's
-default workspace-write sandbox protects `.git` (and a worktree's resolved gitdir) read-only, so
-this coordination primitive lives somewhere one of the two intended agent runtimes cannot write
-to by design. Move both to a sandbox-writable, host-shared runtime directory keyed by
-`${TMPDIR:-/tmp}/conquestoria-verification/<uid>/<hash(canonical-git-common-dir)>`, preserving:
-env override for tests, same-key resolution across every linked worktree of one clone, no
-collision across unrelated clones/users, and no sandbox escalation required. Needs a regression
-proving two real linked worktrees resolve to the same key under a simulated read-only `.git`.
+`scripts/host-verification-lease.sh` gained `hvl_resolve_host_scope_dir`: the default lease root
+(`HOST_VERIFICATION_LEASE_ROOT` unset) now resolves to
+`${TMPDIR:-/tmp}/conquestoria-verification/<uid>/<hash(canonical-git-common-dir)>/push-verification-lease`
+instead of `<git-common-dir>/conquestoria-verification-lease`, so it never lives under `.git`.
+`run-ai-long-horizon.sh` now sources this same helper for its own `ai-long-horizon-lease`
+sub-path instead of duplicating git-common-dir resolution inline. Env override, same-key
+resolution across every linked worktree of one clone, and no collision across unrelated
+clones/users are all preserved — verified in `tests/hooks/host-verification-lease-relocation.test.sh`
+(never under `.git`; identical root for two linked worktrees of one clone; different root for an
+unrelated clone; keyed by real uid; and a real acquire+release cycle succeeds even with the fake
+repo's `.git` made read-only, simulating Codex's default sandbox exactly). Closes 1 more of
+#1133's 12 acceptance criteria (5 total closed so far):
+- [x] "Default Codex workspace-write can acquire/read/release coordination without writing under
+      `.git` and without sandbox escalation."
 
 ### MR3 — process-group-based lease ownership + signal forwarding (items B, E) — NOT STARTED
 
