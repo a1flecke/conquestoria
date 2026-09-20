@@ -5,6 +5,10 @@
 
 set -eu
 
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=./host-verification-lease.sh
+. "$script_dir/host-verification-lease.sh"
+
 record_failure_kind() {
   [ -n "${DURABLE_FAILURE_KIND_FILE:-}" ] || return 0
   printf '%s\n' "$1" > "$DURABLE_FAILURE_KIND_FILE"
@@ -52,9 +56,16 @@ fi
 
 case "$mode" in
   full)
+    # #1133 items H/J: every heavy Vitest invocation now competes for the
+    # same host-wide resource budget (see hvl_acquire_budget_slot),
+    # regardless of which command/worktree/agent started it -- this used to
+    # be the one completely ungated path (plain `yarn test`), even though
+    # the durable/push-verification and AI-long-horizon classes already had
+    # their own (separate, single-slot) mutexes.
+    hvl_acquire_budget_slot
+    trap 'hvl_release_budget_slot; rm -f "${vitest_log:-}" "${vitest_exit_file:-}"' EXIT
     vitest_log="$(mktemp)"
     vitest_exit_file="$(mktemp)"
-    trap 'rm -f "$vitest_log" "$vitest_exit_file"' EXIT
     # `set -e` must be off across this pipeline: it runs in a subshell as a
     # non-last pipeline stage, and with errexit on, `yarn vitest run`
     # failing would abort that subshell before it ever reaches the `echo
@@ -82,11 +93,23 @@ case "$mode" in
     fi
     ;;
   regular)
+    # #1133 items H/J: same shared budget as "full" above. This mode used to
+    # `exec` its final step, but an `exec`'d program replaces this process
+    # image entirely -- the EXIT trap that releases the budget slot would
+    # never run. Uses a plain call plus explicit `exit "$?"` instead, which
+    # is externally identical (same exit code, same stdout/stderr) but lets
+    # the trap fire.
+    hvl_acquire_budget_slot
+    trap hvl_release_budget_slot EXIT
     sh scripts/run-tests-by-local-tier.sh regular "$@"
-    exec bash tests/hooks/run.sh
+    bash tests/hooks/run.sh
+    exit "$?"
     ;;
   intensive-simulations)
-    exec sh scripts/run-tests-by-local-tier.sh intensive-simulations "$@"
+    hvl_acquire_budget_slot
+    trap hvl_release_budget_slot EXIT
+    sh scripts/run-tests-by-local-tier.sh intensive-simulations "$@"
+    exit "$?"
     ;;
   *)
     echo 'Usage: run-test-suite.sh full|regular|intensive-simulations [-- vitest arguments]' >&2

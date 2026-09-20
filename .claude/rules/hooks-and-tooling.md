@@ -237,6 +237,135 @@ other script in this repo acquires both locks, so there is no ordering
 inversion to guard against between callers -- `verify-before-push.sh` and
 `verify-pr.sh` only ever acquire (2).
 
+### Host resource budget (#1133 items H/J)
+
+The host-wide lease above is a single-slot **mutex**: at most one push-
+verification-scale run at a time. It never gated the most common command,
+plain `yarn test` (and `test:regular` / `test:intensive-simulations`), so
+before this, nothing capped how many *simultaneous* heavyweight Vitest
+invocations one host could be asked to run at once -- the exact "work is
+blocked because several agents' `yarn test` runs are starving each other"
+failure mode #1133 was opened to fix. `hvl_acquire_budget_slot` /
+`hvl_release_budget_slot` add a host-wide **counting** semaphore on top of
+the same coordination family (`hvl_resolve_host_scope_dir`'s scope dir,
+`budget/` alongside the mutex's own lease directory): up to
+`HOST_VERIFICATION_LEASE_BUDGET` (default 3, chosen from measured evidence
+that 2-4-way concurrent full-suite runs on this class of host all complete,
+just progressively slower) processes may hold a slot at once; a caller past
+the budget waits and reports progress every
+`HOST_VERIFICATION_LEASE_REPORT_SECONDS` (15s), identically to the mutex.
+`run-test-suite.sh`'s three modes (`full`, `regular`, `intensive-simulations`)
+each acquire one slot around their real work and release it on exit --
+between them these cover plain `yarn test`, `test:regular`,
+`test:intensive-simulations`, `test:durable` (which wraps `full`), and every
+`git push`'s test phase (`verify-before-push.sh --regular` -> `regular`).
+
+Implementation is `mkdir` on `HOST_VERIFICATION_LEASE_BUDGET` pre-numbered
+slot directories (`budget/slot-0` .. `slot-(N-1)`) -- the same atomic-`mkdir`
+primitive the mutex uses, extended to N names instead of one. **Do not
+reintroduce a count-then-write scheme** (count live marker files, then write
+your own if the count is under budget): an earlier version of this function
+did exactly that and passed every isolated/sequenced test, but reliably let
+a 3rd/4th holder in the moment real concurrent `yarn test` processes raced
+for it on a genuinely busy host -- a classic time-of-check-to-time-of-use gap
+between the count and the write. `mkdir` on a specific slot *name* is
+atomic, so at most one process can ever believe it won a given slot.
+
+**Reclaiming an already-taken slot needs the same two-sided staleness
+handling `hvl_is_stale` already applies to the mutex, PLUS a subtlety unique
+to a freshly-created-but-not-yet-populated slot:**
+
+- If the slot's owner file names a pid that is genuinely dead (or was reused
+  since -- checked via `hvl_pid_is_live` + the `hvl_start_marker` identity
+  check), reclaim it immediately, exactly like the mutex.
+- If the owner file is missing or unreadable, that is **not** itself proof
+  of abandonment: the process that just won that slot's `mkdir` may simply
+  not have finished writing its owner file yet. An earlier version of this
+  function had no grace period for this case at all and reclaimed on sight;
+  a stress test racing 10 holders for 3 slots as close to simultaneously as
+  the shell can manage reliably let a 4th holder in through exactly this
+  gap (one racer read the not-yet-written file as empty, concluded the slot
+  was abandoned, deleted it, and re-won it for itself while the true owner
+  was still mid-write). The fix gives a missing owner file the same short
+  grace period (`HOST_VERIFICATION_LEASE_SHORT_GRACE`, default 10s, keyed
+  off the slot directory's own mtime) the mutex already gives its metadata
+  file for the identical reason, and moves on to the next slot index instead
+  of reclaiming immediately while still within that window.
+
+**Reentrancy is tracked with a depth counter (`HVL_BUDGET_DEPTH`), not a
+plain "already held" flag.** A flag records only the most recent acquire
+call's nested-ness; a real acquire followed by one nested acquire followed
+by two releases (an ordinary, correctly-paired reentrant sequence) had both
+releases reading the flag as it stood after the *last* acquire (nested) and
+skipping the real release -- the actual slot was never removed. The leaked
+slot then sat in the budget directory, occupying one of a scarce few slots,
+until a later acquirer eventually reclaimed it as stale. The depth counter
+instead reflects how many acquire calls are currently open on this process's
+stack; only the release that brings it back to zero ever touches the
+filesystem. `tests/hooks/host-verification-lease-budget.test.sh` scenario 2
+asserts the budget directory is empty after a matched nested pair, not just
+that `HVL_BUDGET_NESTED` reports the right value per call -- the earlier bug
+passed the latter check while still leaking a slot.
+
+**Reentrancy state must be keyed by domain, not global -- an exported "am I
+nested" variable is inherited by every descendant process, not just genuine
+nested function calls within the same process.** This was the actual root
+cause behind a failure ("a third holder acquired a slot while
+HOST_VERIFICATION_LEASE_BUDGET=2 already had two live holders") that
+reproduced three times in a row inside a real `bash scripts/run-with-mise.sh
+yarn test` invocation but never once across 15+ standalone runs, real
+`/bin/dash` execution, or synthetic CPU-stress runs -- a strong initial
+signal that the mechanism was specific to running *nested inside* a real
+`yarn test`, not a race in the mkdir logic itself. Two dead ends were chased
+first (both real, both worth the fix, neither the actual cause here): a
+missing-grace-period reclaim race (see above) and a hypothesis that a fixed
+`sleep 3` / `sleep 0.6` timing pair in scenario 1 could observe a slot the
+first holder had already, legitimately, released under heavy scheduling
+delay -- rewriting the test to hold until an explicit release-signal file
+instead of a fixed sleep (removing all wall-clock dependence) still failed
+identically, disproving that theory outright rather than confirming it.
+
+The real mechanism: `run-test-suite.sh full` (what plain `yarn test` runs)
+acquires the REAL, default-rooted budget once around vitest *and* the entire
+hook-test suite that follows it, via `trap ... EXIT` held for the whole
+duration. Every hook test -- including this file's own scenarios --
+therefore runs as a **descendant process** of that held slot. The reentrancy
+counter was a single exported `HVL_BUDGET_DEPTH`, inherited by every
+descendant regardless of what it does with it. This file's own scenario 1
+deliberately overrides `HOST_VERIFICATION_LEASE_ROOT` to an isolated,
+per-test directory -- a COMPLETELY DIFFERENT budget domain from the real one
+the ancestor `full` invocation holds -- but the single global counter cannot
+tell the two apart: it saw a depth inherited from the ancestor's unrelated
+real acquisition and treated every one of the test's own acquire calls as
+nested no-ops, so all three of its holders (m1/m2/m3) "succeeded" instantly
+with **zero real mkdir contention ever happening**. This was confirmed
+directly, not inferred: a `HVL_DEBUG_TRACE=1` opt-in stderr trace
+(`ENTER`/`WON`/`RECLAIM-*` lines, zero cost when unset -- see the env var
+table above) showed these lines appearing normally in every standalone run
+but being **completely absent** from the failing nested run, because the
+nested-check `return 0` fires before the trace line is ever reached.
+
+The fix keys the depth counter (and its matching decrement in
+`hvl_release_budget_slot`) by a hash of the *resolved budget directory*
+(`hvl_path_hash`, the same helper already used for the lease root's own key)
+rather than one global name, via one `eval`-based indirect variable per
+domain (`HVL_BUDGET_DEPTH_<hash>`) -- verified to work correctly under real
+`/bin/dash`, not just macOS's bash-as-`/bin/sh`. A genuinely different
+domain now always goes through real acquisition; true call-stack reentrancy
+against the *same* domain (the scenario the doc comment above actually
+describes: "a caller that already holds a slot invoking another function
+that also acquires one") still nests correctly. The now-unused
+`HVL_BUDGET_HELD` flag (superseded by the domain-keyed depth counter earlier
+in this same MR, but left in place until this fix made the redundancy
+obvious) was removed as dead state.
+
+See `tests/hooks/host-verification-lease-budget.test.sh` for the full
+contract: budget enforcement across sequenced holders, reentrancy (including
+scenario 5's explicit ancestor-process-holds-domain-A /
+descendant-process-acquires-domain-B regression for the bug above), the
+`CI=true` no-op, and the many-simultaneous-racers stress scenario that
+catches the mkdir-then-write-metadata race directly.
+
 ### Durable failure classification (#892)
 
 `run-test-suite.sh`'s `full` mode captures Vitest's combined stdout/stderr
