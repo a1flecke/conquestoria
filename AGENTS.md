@@ -1,13 +1,15 @@
 # Repository Guidelines
 
 ## Purpose
-`AGENTS.md` is the official repo instruction file for Codex.
+`AGENTS.md` is the mandatory repository instruction file for every coding
+agent working here, including Codex, Claude Code, OpenCode, and future
+automated contributors.
 
 Canonical project policy lives in:
 - `CLAUDE.md`
 - `.claude/rules/*.md`
 
-Claude-specific hook scripts in `.claude/hooks/` are enforcement helpers, not the policy source. When Codex is working in this repo, follow the policy files above and run the repo checks listed below.
+Claude-specific hook scripts in `.claude/hooks/` are enforcement helpers, not the policy source. Every coding agent must follow the policy files above and run the repo checks listed below.
 
 ## Codex Operating Loop
 Start new implementation work from a fresh branch or worktree based on the latest `origin/main`. In a new worktree, run `./scripts/setup-git-hooks.sh` before the first commit or push and verify `git config --worktree --get core.hooksPath` returns `.githooks`; run `mise trust` if mise blocks project commands, then `./scripts/run-with-mise.sh yarn install` if Yarn says the project has not been installed.
@@ -20,7 +22,12 @@ Core game code lives in `src/`. Use the existing domain split: `src/core/` for s
 Platform and distribution-specific code lives outside the gameplay core. Use `src/platform/` for browser-vs-Tauri capability boundaries and `src-tauri/` for the macOS shell, bundle config, capabilities, icons, and Rust entrypoint. Shared systems, renderer, UI panels, save format, and storage logic must stay distribution-neutral.
 
 ## Build, Test, and Development Commands
-Prefer the repo wrapper `./scripts/run-with-mise.sh` for project commands so Codex can reuse one stable approval path. In a fresh interactive shell, `eval "$(mise activate bash)"` still works. Main commands:
+All automated coding agents must use the repository wrapper
+`./scripts/run-with-mise.sh <command>` for normal project Node/Yarn commands.
+Do not invoke bare `yarn`, `npm`, `npx`, or `node` when an equivalent wrapper
+command exists.
+
+Prefer the repo wrapper `./scripts/run-with-mise.sh` for project commands. In a fresh interactive shell, `eval "$(mise activate bash)"` still works. Main commands:
 
 The wrapper always executes `package.json`, project scripts, configuration, sources, hooks, and outputs from the **active worktree**. Each worktree owns its generated Yarn PnP map because it represents that worktree's lockfile; Yarn may share its download cache, but never borrow another checkout's `.pnp.cjs`. Standard focused-test paths remain root-relative, for example `tests/systems/city-system.test.ts`.
 
@@ -29,7 +36,7 @@ The wrapper always executes `package.json`, project scripts, configuration, sour
 - `./scripts/run-with-mise.sh yarn test` runs the full Vitest suite and hook smoke tests once. It does not type-check; use `yarn build` for TypeScript validation.
 - `./scripts/run-with-mise.sh yarn test:watch` runs Vitest in watch mode during feature work.
 
-For Codex command consistency, prefer:
+For automated-agent command consistency, prefer:
 
 - `./scripts/run-with-mise.sh yarn test --run tests/path/to/file.test.ts`
 - `./scripts/run-with-mise.sh yarn build`
