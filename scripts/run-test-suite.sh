@@ -62,7 +62,7 @@ case "$mode" in
     # classification (and, worse, falling through to run the hook-test
     # step as if Vitest had passed).
     set +e
-    { yarn vitest run "$@"; echo "$?" > "$vitest_exit_file"; } | tee "$vitest_log"
+    { yarn vitest run "$@"; echo "$?" > "$vitest_exit_file"; } 2>&1 | tee "$vitest_log"
     set -e
     vitest_status="$(cat "$vitest_exit_file")"
     case "$vitest_status" in
