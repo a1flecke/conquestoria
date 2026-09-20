@@ -128,6 +128,48 @@ describe('AI unit assignment', () => {
     expect(result.assignmentsByPlanId.capture).toEqual(['warrior']);
     expect(result.forceDemands).toContainEqual(expect.objectContaining({ role: 'siege', missing: 1 }));
   });
+
+  it('uses unfilled physical capacity for optional support after multi-role critical readiness', () => {
+    const capture = {
+      ...plan('capture', 'capture', { frontline: 2, capture: 1 }),
+      supportRoles: { siege: 1 },
+    };
+    const result = assignUnitsToPortfolio({
+      portfolio: { ...createEmptyMajorCivPortfolio(), primaryPlan: capture },
+      units: [
+        unit('warrior', 'warrior', { capture: 1 }),
+        unit('swordsman', 'swordsman', { capture: 1 }),
+        unit('catapult', 'catapult', { capture: 1 }),
+      ],
+      profile: { maxPrimaryForce: 3, retreatHealthPercent: 30 },
+      defenseThreatScoreByPlanId: {}, eliminationDefensePlanIds: [], onlyImmediateDefenderUnitIds: [], requiresEmbarkationByPlanId: {},
+    });
+
+    expect(result.assignmentsByPlanId.capture).toEqual(['swordsman', 'warrior', 'catapult']);
+    expect(result.forceDemands).toContainEqual(expect.objectContaining({
+      role: 'siege', desired: 1, assigned: 1, missing: 0,
+    }));
+  });
+
+  it('does not alias optional support roles into the assigned portfolio', () => {
+    const capture = {
+      ...plan('capture', 'capture', { frontline: 1, capture: 1 }),
+      supportRoles: { siege: 1 },
+    };
+    const result = assignUnitsToPortfolio({
+      portfolio: { ...createEmptyMajorCivPortfolio(), primaryPlan: capture },
+      units: [unit('warrior', 'warrior', { capture: 1 })],
+      profile: { maxPrimaryForce: 3, retreatHealthPercent: 30 },
+      defenseThreatScoreByPlanId: {}, eliminationDefensePlanIds: [], onlyImmediateDefenderUnitIds: [], requiresEmbarkationByPlanId: {},
+    });
+
+    const assignedSupport = result.portfolio.primaryPlan?.supportRoles;
+    expect(assignedSupport).toEqual({ siege: 1 });
+    if (!assignedSupport) throw new Error('assigned plan must retain optional support');
+    assignedSupport.siege = 0;
+    expect(capture.supportRoles.siege).toBe(1);
+  });
+
   it('assigns an Anti-Tank Gun to a frontline defense slot without making it a generic production role', () => {
     const result = assignUnitsToPortfolio({
       portfolio: {
@@ -383,15 +425,20 @@ describe('AI unit assignment', () => {
   });
 
   it('uses stable IDs to break equal assignment ties and caps the primary force', () => {
+    const primary = {
+      ...plan('primary', 'capture', { frontline: 3 }),
+      supportRoles: { siege: 1 },
+    };
     const result = assignUnitsToPortfolio({
       portfolio: {
         ...createEmptyMajorCivPortfolio(),
-        primaryPlan: plan('primary', 'capture', { frontline: 3 }),
+        primaryPlan: primary,
       },
       units: [
         unit('unit-b', 'warrior', { primary: 1 }),
         unit('unit-a', 'warrior', { primary: 1 }),
         unit('unit-c', 'warrior', { primary: 1 }),
+        unit('catapult', 'catapult', { primary: 1 }),
       ],
       profile: { maxPrimaryForce: 2, retreatHealthPercent: 30 },
       defenseThreatScoreByPlanId: {},
@@ -404,6 +451,11 @@ describe('AI unit assignment', () => {
     expect(result.forceDemands.find(demand => demand.role === 'frontline')).toMatchObject({
       desired: 2,
       assigned: 2,
+      missing: 0,
+    });
+    expect(result.forceDemands.find(demand => demand.role === 'siege')).toMatchObject({
+      desired: 0,
+      assigned: 0,
       missing: 0,
     });
   });

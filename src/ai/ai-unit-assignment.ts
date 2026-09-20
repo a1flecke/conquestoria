@@ -88,6 +88,7 @@ function clonePlan(plan: AIStrategicPlan, assignedUnitIds: string[]): AIStrategi
     target: structuredClone(plan.target),
     reasonCodes: [...plan.reasonCodes],
     requiredRoles: { ...plan.requiredRoles },
+    ...(plan.supportRoles ? { supportRoles: { ...plan.supportRoles } } : {}),
     assignedUnitIds,
   };
 }
@@ -164,37 +165,28 @@ export function assignUnitsToPortfolio(
         remainingPrimarySlots -= effectiveDesired;
         return [role, effectiveDesired] as const;
       });
-    // Support is deliberately appended after critical readiness: it may produce and
-    // travel with the operation, but it must not consume the force before capture can act.
-    const supportEntries = (Object.entries(plan.supportRoles ?? {}) as Array<[AIStrategicRole, number]>)
-      .sort((left, right) => ROLE_ORDER.indexOf(left[0]) - ROLE_ORDER.indexOf(right[0]))
-      .map(([role, desired]) => {
-        const effectiveDesired = Math.min(Math.max(0, Math.floor(desired)), remainingPrimarySlots);
-        remainingPrimarySlots -= effectiveDesired;
-        return [role, effectiveDesired] as const;
-      });
-    const requiredEntries = [...criticalEntries, ...supportEntries];
-    desiredSlotsByPlanId[plan.id] = Object.fromEntries(requiredEntries);
+    desiredSlotsByPlanId[plan.id] = Object.fromEntries(criticalEntries);
 
-    for (const [role, desired] of requiredEntries) {
-      for (let slot = 0; slot < desired; slot++) {
-        if (
-          role === 'siege'
-          && !assignedSlotsByPlanId[plan.id].some(assigned =>
-            assigned === 'frontline' || assigned === 'capture')
-        ) {
-          continue;
-        }
+    const assignEntries = (entries: ReadonlyArray<readonly [AIStrategicRole, number]>) => {
+      for (const [role, desired] of entries) {
+        for (let slot = 0; slot < desired; slot++) {
+          if (
+            role === 'siege'
+            && !assignedSlotsByPlanId[plan.id].some(assigned =>
+              assigned === 'frontline' || assigned === 'capture')
+          ) {
+            continue;
+          }
 
-        const compatibleCandidates = context.units
-          .filter(unit =>
-            !usedUnitIds.has(unit.id)
-            && !recovering.has(unit.id)
-            && !unit.embarked
-            && !unit.activeOtherDuty
-            && roleFit(unit.type, role) > 0
-            && Number.isFinite(unit.travelTurnsByPlanId[plan.id]));
-        const capacityEligibleCandidates = compatibleCandidates.filter(unit => {
+          const compatibleCandidates = context.units
+            .filter(unit =>
+              !usedUnitIds.has(unit.id)
+              && !recovering.has(unit.id)
+              && !unit.embarked
+              && !unit.activeOtherDuty
+              && roleFit(unit.type, role) > 0
+              && Number.isFinite(unit.travelTurnsByPlanId[plan.id]));
+          const capacityEligibleCandidates = compatibleCandidates.filter(unit => {
             if (!context.requiresEmbarkationByPlanId[plan.id]) return true;
             const definition = UNIT_DEFINITIONS[unit.type];
             if (role === 'transport') return definition.cargoCapacity !== undefined;
@@ -202,46 +194,68 @@ export function assignUnitsToPortfolio(
             const cargoSize = definition.cargoSize ?? 1;
             return cargoCapacityUsed + cargoSize <= transportCapacity;
           });
-        if (
-          capacityEligibleCandidates.length === 0
-          && compatibleCandidates.some(unit => {
-            const definition = UNIT_DEFINITIONS[unit.type];
-            return context.requiresEmbarkationByPlanId[plan.id]
-              && role !== 'transport'
-              && (definition.domain ?? 'land') === 'land'
-              && cargoCapacityUsed + (definition.cargoSize ?? 1) > transportCapacity;
-          })
-        ) {
-          capacityBlockedPlanIds.add(plan.id);
-        }
-        const candidates = capacityEligibleCandidates
-          .map(unit => ({
-            unit,
-            score: roleFit(unit.type, role) * 40
-              - unit.travelTurnsByPlanId[plan.id] * 5
-              + Math.max(0, Math.min(100, unit.health)) * 0.2
-              + veterancyTier(unit.experience) * 3
-              - (unit.activeOtherDuty ? 20 : 0),
-          }))
-          .sort((left, right) =>
-            right.score - left.score || left.unit.id.localeCompare(right.unit.id));
-        const selected = candidates[0]?.unit;
-        if (!selected) continue;
+          if (
+            capacityEligibleCandidates.length === 0
+            && compatibleCandidates.some(unit => {
+              const definition = UNIT_DEFINITIONS[unit.type];
+              return context.requiresEmbarkationByPlanId[plan.id]
+                && role !== 'transport'
+                && (definition.domain ?? 'land') === 'land'
+                && cargoCapacityUsed + (definition.cargoSize ?? 1) > transportCapacity;
+            })
+          ) {
+            capacityBlockedPlanIds.add(plan.id);
+          }
+          const candidates = capacityEligibleCandidates
+            .map(unit => ({
+              unit,
+              score: roleFit(unit.type, role) * 40
+                - unit.travelTurnsByPlanId[plan.id] * 5
+                + Math.max(0, Math.min(100, unit.health)) * 0.2
+                + veterancyTier(unit.experience) * 3
+                - (unit.activeOtherDuty ? 20 : 0),
+            }))
+            .sort((left, right) =>
+              right.score - left.score || left.unit.id.localeCompare(right.unit.id));
+          const selected = candidates[0]?.unit;
+          if (!selected) continue;
 
-        usedUnitIds.add(selected.id);
-        assignmentsByPlanId[plan.id].push(selected.id);
-        assignedSlotsByPlanId[plan.id].push(role);
-        const definition = UNIT_DEFINITIONS[selected.type];
-        if (role === 'transport') {
-          transportCapacity += definition.cargoCapacity ?? 0;
-        } else if (
-          context.requiresEmbarkationByPlanId[plan.id]
-          && (definition.domain ?? 'land') === 'land'
-        ) {
-          cargoCapacityUsed += definition.cargoSize ?? 1;
+          usedUnitIds.add(selected.id);
+          assignmentsByPlanId[plan.id].push(selected.id);
+          assignedSlotsByPlanId[plan.id].push(role);
+          const definition = UNIT_DEFINITIONS[selected.type];
+          if (role === 'transport') {
+            transportCapacity += definition.cargoCapacity ?? 0;
+          } else if (
+            context.requiresEmbarkationByPlanId[plan.id]
+            && (definition.domain ?? 'land') === 'land'
+          ) {
+            cargoCapacityUsed += definition.cargoSize ?? 1;
+          }
         }
       }
+    };
+
+    assignEntries(criticalEntries);
+
+    // Support is deliberately appended after critical readiness: it may produce and
+    // travel with the operation, but it must not consume the force before capture can act.
+    // The primary cap is physical units, not role entries: a unit may satisfy both
+    // frontline and capture capability, leaving room for a support unit.
+    let remainingSupportSlots = plan.id === primaryId
+      ? Math.max(0, Math.floor(context.profile.maxPrimaryForce) - assignmentsByPlanId[plan.id].length)
+      : Number.POSITIVE_INFINITY;
+    const supportEntries = (Object.entries(plan.supportRoles ?? {}) as Array<[AIStrategicRole, number]>)
+      .sort((left, right) => ROLE_ORDER.indexOf(left[0]) - ROLE_ORDER.indexOf(right[0]))
+      .map(([role, desired]) => {
+        const effectiveDesired = Math.min(Math.max(0, Math.floor(desired)), remainingSupportSlots);
+        remainingSupportSlots -= effectiveDesired;
+        return [role, effectiveDesired] as const;
+      });
+    for (const [role, desired] of supportEntries) {
+      desiredSlotsByPlanId[plan.id][role] = (desiredSlotsByPlanId[plan.id][role] ?? 0) + desired;
     }
+    assignEntries(supportEntries);
   }
 
   for (const unit of context.units) {
