@@ -237,6 +237,86 @@ describe('AI strategic research planning', () => {
     expect(relief(100)).toBeLessThanOrEqual(18);
   });
 
+  it('#1127: the science-starvation bonus lifts a science-building-unlocking tech', () => {
+    const techs = [
+      // Equal unlock breadth AND equal economicSupport on both sides
+      // (workshop: production=3 * 1.25 == library: science=3 * 1.25 == 3.75)
+      // so only the starvation-gated bonus can break the tie.
+      tech('aaa-plain', 'civics', [], { unlocksBuildings: ['workshop'] }),
+      tech('zzz-library', 'science', [], { unlocksBuildings: ['library'] }),
+    ];
+    const starvation = (n: number) => {
+      const d = planAIResearch(context(techs, { scienceDeficientCityCount: n }));
+      return d?.scoreComponents.scienceStarvationTechBonus ?? 0;
+    };
+
+    // Below the 1-city gate: no bonus, id tiebreak keeps 'aaa-plain'.
+    expect(planAIResearch(context(techs))?.frontierTechId).toBe('aaa-plain');
+    expect(starvation(0)).toBe(0);
+    expect(planAIResearch(context(techs, { scienceDeficientCityCount: 0 }))?.frontierTechId)
+      .toBe('aaa-plain');
+
+    // At the gate (a single science-deficient city is enough): bonus applies
+    // and the science-building tech wins.
+    const gate = planAIResearch(context(techs, { scienceDeficientCityCount: 1 }));
+    expect(gate?.frontierTechId).toBe('zzz-library');
+    expect(gate?.scoreComponents.scienceStarvationTechBonus).toBeGreaterThanOrEqual(6);
+    expect(gate?.trace.candidates.find(c => c.id === 'zzz-library')?.reasonCodes)
+      .toContain('science-starvation');
+
+    // Scales with deficient-city count, capped.
+    expect(starvation(8)).toBeGreaterThan(starvation(1));
+    expect(starvation(100)).toBe(starvation(12)); // both clamp to the cap
+    expect(starvation(100)).toBeLessThanOrEqual(18);
+  });
+
+  it('#1127: a tech unlocking no science-yielding building gets no starvation bonus', () => {
+    const techs = [
+      tech('aaa-monument', 'civics', [], { unlocksBuildings: ['monument'] }),
+      tech('zzz-barracks', 'military', [], { unlocksBuildings: ['barracks'] }),
+    ];
+    const decision = planAIResearch(context(techs, { scienceDeficientCityCount: 50 }));
+    expect(decision?.scoreComponents.scienceStarvationTechBonus).toBe(0);
+    for (const candidate of decision?.trace.candidates ?? []) {
+      expect(candidate.reasonCodes).not.toContain('science-starvation');
+    }
+  });
+
+  it('#1127: a science-building tech survives the preliminary top-24 cut only when science-starved', () => {
+    // Reproduces the actual root cause: a tech with weak preliminary score
+    // (only unlocks a science building, no unit/role value -- preliminary
+    // ~4.75, matching the real 'writing' measurement) loses the preliminary
+    // top-24 cut to two dozen independent, higher-preliminary siblings and
+    // never reaches final scoring at all -- unless the starvation bonus lifts
+    // it in time. `pacing.impact` directly drives `militaryPowerSpike`
+    // (see ai-tech-evaluation.ts), used here instead of a real unit unlock so
+    // the sibling preliminary score (11) is pinned and doesn't depend on any
+    // particular unit's stats.
+    const siblingPacing = {
+      band: 'starter' as const,
+      role: 'sibling',
+      impact: 10,
+      scope: 'military' as const,
+      snowball: 1,
+      urgency: 1,
+      situationality: 0,
+      unlockBreadth: 1,
+    };
+    const techs: Tech[] = [];
+    for (let index = 1; index <= 30; index++) {
+      techs.push(tech(`sibling-${index}`, 'military', [], { pacing: siblingPacing }));
+    }
+    techs.push(tech('writing-like', 'science', [], { unlocksBuildings: ['library'] }));
+
+    const starved = planAIResearch(context(techs, { scienceDeficientCityCount: 10 }));
+    const notStarved = planAIResearch(context(techs, { scienceDeficientCityCount: 0 }));
+
+    expect(notStarved?.trace.candidates.find(c => c.targetId === 'writing-like'))
+      .toBeUndefined();
+    expect(starved?.trace.candidates.find(c => c.targetId === 'writing-like'))
+      .toBeDefined();
+  });
+
   it('#926: relief research only values cities whose pressure the unlocked building can cut', () => {
     const techs = [
       tech('aaa-magistracy', 'civics', [], { unlocksBuildings: ['courthouse'] }),
@@ -581,7 +661,16 @@ describe('#919 MR2 — unrest pressure lifts magistracy in AI research planning'
 
     // 15 cities -> empire overextension (15-6)*3 = 27 on every city -> all 15 are above
     // 0.6 * UNREST_TRIGGER_PRESSURE (24) AND carry an Empire-overextension row -> count = 15.
-    expect(firstMagistracyTurn(buildEmpire(15, 'mr2-research-wide'))).toBeLessThanOrEqual(3);
+    // #1127: this empire's cities also start with zero buildings at all, so
+    // scienceStarvationTechBonus now ALSO fires (scienceDeficientCityCount = 15) and
+    // genuinely competes with the relief bonus for a few turns -- the civ researches
+    // fire -> writing -> mathematics -> philosophy (building real science
+    // infrastructure) before finally landing on magistracy at turn 6. This is the
+    // intended effect of #1127, not a regression: a totally undeveloped wide empire
+    // correctly addresses total science absence alongside unrest, rather than the
+    // pre-#1127 world where magistracy always won outright by turn 3 regardless of
+    // how science-starved the empire also was.
+    expect(firstMagistracyTurn(buildEmpire(15, 'mr2-research-wide'))).toBeLessThanOrEqual(6);
     // 3 clustered cities, no wars -> no overextension / distance row -> count 0 -> no bonus.
     // It must not match the wide empire's early beeline; later generic selection remains valid.
     expect(firstMagistracyTurn(buildEmpire(3, 'mr2-research-tall'))).toBeGreaterThan(3);
