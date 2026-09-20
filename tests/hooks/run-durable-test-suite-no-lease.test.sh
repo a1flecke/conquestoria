@@ -127,4 +127,50 @@ wait "$holder_pid2" 2>/dev/null || true
   exit 1
 }
 
+# --- 3. a FAILING wrapped command still records its real exit code (#1133
+#        MR6) -----------------------------------------------------------
+#
+# hvl_run_registering_job used to unconditionally `set -e` at its own end,
+# regardless of what errexit state the caller had before calling it. Both
+# --no-lease callers here (this script, and run-under-host-lease.sh's own
+# trailer) deliberately `set +e` around this call specifically so they can
+# capture "$?" or write it to a file immediately afterward -- but under
+# `set -e`, a function call returning non-zero is itself a triggering
+# command, so with errexit forced back on before control returned, the
+# caller's very next statement (its own exit-code capture) never ran.
+# --no-lease runs this inside a `{ ...; echo "$?" > exit_file; } | tee`
+# pipeline specifically, so the abort happened inside that subshell with no
+# outer `set -e` to visibly report it -- the only symptom was `exit_file`
+# staying empty, corrupting `exit_code=` in the durable `.status` file with
+# an empty string instead of a real number. Neither scenario above ever
+# exercised a FAILING wrapped command, so this regressed silently until a
+# real failed --no-lease durable run (while building this MR's own status
+# view) surfaced "integer expression expected" / "numeric argument
+# required" errors from run-durable-test-suite.sh itself.
+
+rm -rf "$repo/.verification"
+set +e
+(
+  cd "$repo"
+  sh scripts/run-durable-test-suite.sh failing-scope --no-lease -- sh -c 'exit 7'
+) > "$tmpdir/failing-run.log" 2>&1
+failing_run_status=$?
+set -e
+
+[ "$failing_run_status" -ne 0 ] || {
+  echo "a failing --no-lease wrapped command did not propagate a non-zero exit" >&2
+  cat "$tmpdir/failing-run.log" >&2
+  exit 1
+}
+grep -Fxq 'exit_code=7' "$repo/.verification/failing-scope-suite.status" || {
+  echo "a failing --no-lease wrapped command's real exit code (7) was not persisted -- got: $(sed -n 's/^exit_code=//p' "$repo/.verification/failing-scope-suite.status" 2>/dev/null)" >&2
+  cat "$tmpdir/failing-run.log" >&2
+  exit 1
+}
+grep -Fxq 'failure_kind=command-failed' "$repo/.verification/failing-scope-suite.status" || {
+  echo "a failing --no-lease wrapped command did not persist a failure_kind" >&2
+  cat "$repo/.verification/failing-scope-suite.status" >&2
+  exit 1
+}
+
 echo "all run-durable-test-suite --no-lease scenarios passed"

@@ -366,6 +366,90 @@ descendant-process-acquires-domain-B regression for the bug above), the
 `CI=true` no-op, and the many-simultaneous-racers stress scenario that
 catches the mkdir-then-write-metadata race directly.
 
+### `yarn verify:local:status` (#1133 P2 / MR6)
+
+One durable, agent/human-facing view of every tracked heavyweight
+verification class on this host, built entirely on top of the mutex/budget
+metadata and durable `.verification/` files already described above --
+**never `ps` heuristics**. Rows:
+
+- `ACTIVE <command> worktree=... elapsed=...` for the mutex's current
+  holder (if any) and each live budget slot holder.
+- `QUEUED <command> worktree=... waited=...` for any process currently
+  blocked in `hvl_acquire`'s or `hvl_acquire_budget_slot`'s own wait loop.
+- `RUNNING` / `DONE` / `ABANDONED` / `STALE` / `NONE` for each of the four
+  durable scopes (`full`, `ai-long`, `ai-playability`, `perf`), delegating
+  entirely to the existing `read-durable-test-result.sh <scope>` for the
+  actual judgment (parsing its `STATUS: <word>` contract) rather than
+  reimplementing any of its mismatch/liveness logic a second time.
+
+**QUEUED visibility required a new kind of self-registration.** Neither
+`hvl_acquire` nor `hvl_acquire_budget_slot` previously left any durable
+trace of a process that was *waiting*, only of a process that had
+*acquired* -- there was nothing on disk for a third-party status command to
+read. Both functions now write a small file (`<scope-dir>/waiting/$$`: pid,
+command label, worktree, wait-started-at) the first time they actually have
+to wait (not on every poll iteration -- once, lazily), and remove it on
+acquire or on `hvl_wait_cancel` (the shared INT/TERM handler, which now
+cleans up whichever of the two waiting-file variables is set, each a no-op
+in the other function's context). A waiting record from a process that was
+since `SIGKILL`ed (bypassing that cleanup) is a read-side concern: the
+status view filters out any record whose pid is not alive, the same way
+`hvl_is_stale` already treats a dead owner -- this script never writes to
+lease state, only reads it.
+
+**`hvl_acquire_budget_slot` gained an optional `[label]` parameter** so a
+won slot's owner file (and any waiting record) can name the actual command
+(`full`, `regular`, `intensive-simulations`) instead of the generic
+`"budget"` default every pre-existing caller still gets unchanged.
+`run-test-suite.sh`'s three call sites now pass their own mode name.
+
+**A real, previously-undiscovered bug in `hvl_run_registering_job` was found
+and fixed while building this** (not something this MR introduced --
+latent since MR3): it unconditionally `set -e` at its own end, regardless
+of what errexit state the caller had before calling it. Two real callers
+deliberately `set +e` around this exact call so they can capture `"$?"` or
+write it to a file immediately afterward: `run-under-host-lease.sh`'s own
+trailer, and `run-durable-test-suite.sh`'s `--no-lease` path (used by
+`test:ai-long:durable`, `test:ai-playability:durable`, and
+`perf:report:durable`). Under `set -e`, a function call returning non-zero
+is itself a triggering command -- with errexit forced back on before
+control returned to the caller, the caller's very next statement (its own
+exit-code capture) never ran. Confirmed directly under both bash and dash
+with a minimal repro (a backgrounded `false` wrapped exactly this way: the
+calling script aborted before ever reaching its own capture line). The
+`--no-lease` path runs this inside a `{ ...; echo "$?" > exit_file; } | tee`
+pipeline specifically, so the abort happened silently inside that pipeline
+stage with nothing to visibly report it -- the only symptom was
+`exit_file` staying empty, corrupting `exit_code=` in the durable `.status`
+file with an empty string instead of a real number (surfaced as
+`run-durable-test-suite.sh` itself throwing "integer expression expected" /
+"numeric argument required" the first time a real `--no-lease` durable run
+actually failed, discovered manually while verifying this MR's own status
+rows). `test:durable` (the `full` scope, which always uses a lease) was
+never affected: it wraps `run-under-host-lease.sh` as a **separate `sh`
+process**, and shell option state never crosses a process boundary --
+`hvl_run_registering_job`'s own `set -e` there only ever affected that
+child process's copy, not the caller's.
+
+Fixed by having `hvl_run_registering_job` save the caller's errexit state
+(`case "$-" in *e*) ...) via the portable `$-` flag-string check) before its
+own internal `set +e`, and only restoring it at the end if the caller
+actually had it on -- never unconditionally. See
+`tests/hooks/run-durable-test-suite-no-lease.test.sh`'s third scenario for
+the regression test (a wrapped `sh -c 'exit 7'`, asserting the real exit
+code and a `command-failed` failure kind both land in the `.status` file
+intact) -- neither pre-existing scenario in that file had ever exercised a
+*failing* wrapped command.
+
+See `tests/hooks/verify-local-status.test.sh` for the full contract: an
+idle/empty host reports all-NONE and 0-in-use; a passed and a failed
+durable run both render as `DONE`; an active durable run renders `RUNNING`;
+a run whose supervisor *and* real registered job are both confirmed dead
+renders `ABANDONED`; a live mutex holder and a live budget holder both
+render `ACTIVE` with the right command/worktree/elapsed; and a blocked
+second acquirer of either renders `QUEUED` with the right waited time.
+
 ### Durable failure classification (#892)
 
 `run-test-suite.sh`'s `full` mode captures Vitest's combined stdout/stderr

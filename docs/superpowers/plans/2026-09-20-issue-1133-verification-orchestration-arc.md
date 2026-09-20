@@ -288,11 +288,46 @@ Still open (both explicitly deferred, not silently dropped):
       constraint the whole arc has held so far rather than a one-time task; carried forward as an
       open item since it was never explicitly itemized as "closed" by any prior MR either.
 
-### MR6 — agent-facing `yarn verify:local:status` (P2) — NOT STARTED
+### MR6 — agent-facing `yarn verify:local:status` (P2) — pending merge
 
-Built on top of MR3/MR4's durable/ownership records, not `ps` heuristics: one view showing every
-tracked heavyweight class's live/queued/done state, pid/pgid, worktree, elapsed time, and log
-path. Depends on MR3 and MR4 landing first.
+Built on top of MR3/MR4's durable/ownership records and MR5's budget metadata, not `ps`
+heuristics: `scripts/verify-local-status.sh` shows the mutex's current holder (if any), every
+live budget-semaphore holder up to `HOST_VERIFICATION_LEASE_BUDGET`, any process currently
+blocked waiting for either (a genuinely new signal — see below), and each of the four durable
+scopes' (`full`, `ai-long`, `ai-playability`, `perf`) last known state, delegating entirely to
+the existing `read-durable-test-result.sh <scope>` for the durable judgment rather than
+reimplementing it. Row states: `ACTIVE` / `QUEUED` for live coordination, `RUNNING` / `DONE` /
+`ABANDONED` / `STALE` / `NONE` for durable scopes. One deliberate deviation from the issue's
+original terse sketch: no per-row log path for `ACTIVE`/`QUEUED` rows, since the mutex and budget
+semaphore are pure coordination primitives with no log of their own (a durable scope's own log is
+reachable via `read-durable-test-result.sh`, which already tails it for an `active` scope).
+
+**QUEUED visibility needed new self-registration — neither primitive previously left any trace of
+a *waiting* process, only of one that had *acquired*.** Both `hvl_acquire` and
+`hvl_acquire_budget_slot` now write a small file (pid, command label, worktree, wait-started-at)
+the first time they actually have to wait, removed on acquire or via `hvl_wait_cancel`'s shared
+INT/TERM handler. A record from a process since `SIGKILL`ed is a read-side concern (filtered by a
+liveness check), never a write-side guarantee. `hvl_acquire_budget_slot` also gained an optional
+`[label]` parameter (backward-compatible default `"budget"`) so a won slot's owner file can name
+the real command; `run-test-suite.sh`'s three modes now pass their own mode name.
+
+**A real, previously-undiscovered bug in `hvl_run_registering_job` was found and fixed while
+manually verifying this MR's own durable-scope rows (latent since MR3, not introduced here):** it
+unconditionally `set -e`'d at its own end regardless of the caller's prior errexit state, silently
+defeating a caller's deliberate `set +e` around the call (done specifically to capture `"$?"`
+afterward). Confirmed directly under both bash and dash with a minimal repro. This corrupted
+`exit_code=` (left empty) in the durable `.status` file for any `--no-lease` durable command
+(`test:ai-long:durable`, `test:ai-playability:durable`, `perf:report:durable`) whose wrapped
+command actually failed — `test:durable` (`full`, always leased) was unaffected, since it wraps
+`run-under-host-lease.sh` as a separate process and shell option state never crosses that
+boundary. Neither pre-existing test for this path had ever exercised a *failing* wrapped command.
+Fixed by having the function save and restore the caller's own errexit state instead of forcing
+it; regression test added as `run-durable-test-suite-no-lease.test.sh`'s third scenario.
+
+See `tests/hooks/verify-local-status.test.sh` for the full contract (idle-host baseline,
+passed/failed/running/abandoned durable rows, live mutex and budget ACTIVE/QUEUED rows with
+correct in-use counts) and `.claude/rules/hooks-and-tooling.md`'s "`yarn verify:local:status`"
+section for the complete mechanism-level writeup of both the feature and the bug fix.
 
 ## Notes for whoever picks this up next
 
