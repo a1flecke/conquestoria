@@ -9,6 +9,14 @@
 # behavior -- used by the "full" scope -- still acquires it exactly as before.
 
 set -eu
+# CI always sets CI=true, which the lease library treats as "do not
+# coordinate at all" (by design -- CI runs on isolated hardware and must
+# not know this exists). This test specifically exercises real host-lease
+# coordination between two concurrent processes, so it must unset CI first
+# to get that real behavior regardless of the ambient environment -- same
+# as host-verification-lease.test.sh and
+# host-verification-lease-process-group.test.sh already do.
+unset CI || true
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 RUNNER="$ROOT/scripts/run-durable-test-suite.sh"
@@ -45,7 +53,16 @@ holder_pid=$!
 attempts=0
 while [ ! -f "$lease_root/active/owner" ]; do
   attempts=$((attempts + 1))
-  [ "$attempts" -lt 100 ] || { echo "unrelated holder never acquired the shared lease" >&2; exit 1; }
+  if [ "$attempts" -ge 200 ]; then
+    echo "unrelated holder never acquired the shared lease" >&2
+    echo "--- holder log ---" >&2
+    cat "$holder_log" >&2
+    echo "--- is holder_pid ($holder_pid) still alive? ---" >&2
+    kill -0 "$holder_pid" 2>/dev/null && echo yes >&2 || echo no >&2
+    echo "--- lease_root contents ---" >&2
+    find "$lease_root" >&2
+    exit 1
+  fi
   sleep 0.1
 done
 
@@ -87,7 +104,12 @@ holder_pid2=$!
 attempts=0
 while [ ! -f "$lease_root/active/owner" ]; do
   attempts=$((attempts + 1))
-  [ "$attempts" -lt 100 ] || { echo "second unrelated holder never acquired the shared lease" >&2; exit 1; }
+  if [ "$attempts" -ge 200 ]; then
+    echo "second unrelated holder never acquired the shared lease" >&2
+    echo "--- holder log ---" >&2
+    cat "$holder_log2" >&2
+    exit 1
+  fi
   sleep 0.1
 done
 
