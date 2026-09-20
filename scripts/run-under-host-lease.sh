@@ -28,12 +28,14 @@ script_dir="$(cd "$(dirname "$0")" && pwd)"
 
 hvl_acquire "$label"
 trap hvl_release EXIT
+trap 'hvl_cancel_and_release INT 130' INT
+trap 'hvl_cancel_and_release TERM 143' TERM
 
 # #1133 items B/E: hvl_run_registering_job registers "$@"'s pid into the
 # lease metadata (so a later hvl_is_stale check can see the real job is
-# still alive even if this wrapper process itself is gone) and, on
-# cancellation, walks the live process table from that pid so every
-# descendant is signaled, not just the immediate child.
+# still alive even if this wrapper process itself is gone); the traps above
+# forward a signal to it and every live descendant, not just the immediate
+# child, via hvl_cancel_and_release.
 set +e
 hvl_run_registering_job "$@"
 run_status=$?

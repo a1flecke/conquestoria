@@ -51,9 +51,8 @@ run_phase() {
 
   # #1133 items B/E: run via the shared job-registering helper (see
   # host-verification-lease.sh) instead of directly in the foreground, so
-  # this phase's pid is registered into the held lease metadata and
-  # cancellation reaches every descendant -- the same guarantee
-  # scripts/run-under-host-lease.sh's other callers get.
+  # this phase's pid is registered into the held lease metadata for the
+  # duration of the INT/TERM traps installed below.
   if [ "$USE_MISE" -eq 1 ]; then
     hvl_run_registering_job "$RUN" node "$TIMEOUT_RUNNER" "$timeout_seconds" "$label" -- "$@"
   else
@@ -71,8 +70,8 @@ run_phase() {
 # verify-before-push.sh entrypoint acquires it.
 hvl_acquire "pre-push verification"
 trap hvl_release EXIT
-trap 'hvl_release; exit 130' INT
-trap 'hvl_release; exit 143' TERM
+trap 'hvl_cancel_and_release INT 130' INT
+trap 'hvl_cancel_and_release TERM 143' TERM
 
 echo "Running pre-push verification: tests"
 if [ "$USE_MISE" -eq 1 ]; then

@@ -50,34 +50,50 @@ repo's `.git` made read-only, simulating Codex's default sandbox exactly). Close
 
 ### MR3 — process-tree-based lease ownership + signal forwarding (items B, E) ✅ merged (see git history for this file's introducing PR)
 
-Added `hvl_run_registering_job` to `host-verification-lease.sh`: backgrounds the wrapped command,
-registers its pid into the held lease's metadata as `job_pid` as soon as it's known, and on
-INT/TERM walks the *live process table* from that pid (`hvl_job_tree_pids`, a portable
-`ps -eo pid=,ppid=` parent/child walk — this reaches a descendant regardless of process-group or
-session membership, since it follows the real OS parent/child link, not group membership) to find
-every current descendant and signals each one individually. `hvl_is_stale` checks `job_pid`
-liveness (a plain `kill -0`) before ever reclaiming on a dead-supervisor or PID-reuse verdict — a
-live registered job is never stolen no matter how long its supervisor has been gone.
-`run-under-host-lease.sh` and `verify-before-push.sh`'s `run_phase` both now run their wrapped
-command through this shared helper instead of duplicating background/signal-forwarding logic (the
-old bespoke version in `run-under-host-lease.sh` is gone; `verify-before-push.sh` gained job
-registration it never had at all before, since it previously ran its phases in the foreground with
-no cancellation/registration of any kind).
+Added `hvl_run_registering_job` to `host-verification-lease.sh`: backgrounds the wrapped command
+and registers its pid into the held lease's metadata as `job_pid` as soon as it's known. The caller
+installs `hvl_cancel_and_release` as its INT/TERM trap once, at the top level (spanning every
+`hvl_run_registering_job` call it makes) — on a signal, it walks the *live process table* from the
+registered pid (`hvl_job_tree_pids`, a portable `ps -eo pid=,ppid=` parent/child walk — this reaches
+a descendant regardless of process-group or session membership, since it follows the real OS
+parent/child link, not group membership) to find every current descendant, signals each one
+individually, then releases the lease and exits. `hvl_is_stale` checks `job_pid` liveness (a plain
+`kill -0`) before ever reclaiming on a dead-supervisor or PID-reuse verdict — a live registered job
+is never stolen no matter how long its supervisor has been gone. `run-under-host-lease.sh` and
+`verify-before-push.sh` both now run their wrapped command(s) through this shared pair instead of
+duplicating background/signal-forwarding logic (the old bespoke version in `run-under-host-lease.sh`
+is gone; `verify-before-push.sh` gained job registration and cancellation it never had at all
+before, since it previously ran its phases in the plain foreground).
 
-**Design correction during this MR's own CI verification (important — read before touching this
-code again):** the first implementation put the wrapped command in its own OS process group
-(`set -m`, giving a newly backgrounded job a fresh pgid) and signaled it as a unit with a single
-`kill -SIGNAL -$pgid`. **That version took down an entire CI runner** the first time its test ran
-in CI (`##[error]The runner has received a shutdown signal` / `The operation was canceled`,
-reproduced identically on a rerun, at the exact point the new test started) — almost certainly
-because `set -m`'s new-process-group semantics resolved more broadly than intended in that
-environment, so the group signal reached far more than the intended job. This is the general risk
-of any negative-pid/process-group signal: if the computed group boundary is wrong, there is no way
-to bound the blast radius after the fact. Replaced with the tree-walk approach described above,
-which is structurally incapable of repeating that failure — it only ever signals PIDs reached by
-explicit parent/child descent from a PID this library itself spawned, never anything inferred from
-process-group/session state. **Do not reintroduce `set -m`, `setsid`, or `kill -SIGNAL -$pgid`
-into this library without new cross-environment evidence that it's safe.**
+**Two design corrections during this MR's own CI verification (important — read before touching
+this code again), in the order they were found:**
+
+1. The first implementation put the wrapped command in its own OS process group (`set -m`, giving a
+   newly backgrounded job a fresh pgid) and signaled it as a unit with a single `kill -SIGNAL
+   -$pgid`. **That version took down an entire CI runner** the first time its test ran in CI
+   (`##[error]The runner has received a shutdown signal` / `The operation was canceled`, reproduced
+   identically on a rerun, at the exact point the new test started) — almost certainly because
+   `set -m`'s new-process-group semantics resolved more broadly than intended in that environment,
+   so the group signal reached far more than the intended job. This is the general risk of any
+   negative-pid/process-group signal: if the computed group boundary is wrong, there is no way to
+   bound the blast radius after the fact. Replaced with the tree-walk approach described above,
+   which is structurally incapable of repeating that failure — it only ever signals PIDs reached by
+   explicit parent/child descent from a PID this library itself spawned, never anything inferred
+   from process-group/session state.
+2. The corrected tree-walk version still failed CI (this time safely — no runner crash), because it
+   tried to make `hvl_run_registering_job` composable with a caller's pre-existing INT/TERM trap by
+   saving it with `trap -p` and restoring it with `eval` after each call. **`dash` — the `/bin/sh` on
+   that CI runner — does not implement the POSIX `-p` option at all** (`trap: Illegal option -p`),
+   silently breaking every caller there even though the exact same code worked on macOS (whose
+   `/bin/sh` is bash in POSIX mode). Fixed by moving trap ownership to the caller entirely:
+   `hvl_run_registering_job` no longer touches signal handling at all, and each caller installs
+   `hvl_cancel_and_release` once, at the top level, instead of the helper installing/restoring a
+   trap per call. This sidesteps the portability gap structurally — nothing ever needs to query an
+   existing trap.
+
+**Do not reintroduce `set -m`, `setsid`, `kill -SIGNAL -$pgid`, or `trap -p` into this library
+without new cross-environment (including a real dash `/bin/sh`, not just macOS) evidence that it's
+safe.**
 
 New `tests/hooks/host-verification-lease-process-group.test.sh` proves the corrected design with a
 real child+grandchild nested tree (not the single-`sleep` fixture): `job_pid`'s tree includes the
