@@ -213,8 +213,20 @@ kind="$(run_with_stderr_fixture "$tmpdir/pool-timeout-stderr.log" 1)"
 
 # --- real Vitest run: keep the fixture text honest against the actually
 #     installed Vitest version, not just a hand-written guess. -----------
+#
+# The fixture directory is suffixed with this script's own pid so two
+# concurrent invocations of this test (e.g. two `yarn test` processes on
+# one host, or two agents sharing a worktree -- both routine here, see
+# #1133) never share the same on-disk path. An earlier, unsuffixed version
+# ("classification-assertion-probe-892/") let one invocation's cleanup trap
+# delete the fixture out from under another invocation's still-running
+# `yarn vitest run`, producing "No test files found, exiting with code 1"
+# for the victim -- observed directly while demonstrating #1133 MR5's host-
+# resource-budget fix with 4 genuinely concurrent `yarn test` runs in one
+# worktree. Unrelated to that budget mechanism (which coordinates Vitest
+# worker-pool concurrency, not same-worktree file access) and pre-existing.
 
-real_scratch_dir="$ROOT/tests/hooks/classification-assertion-probe-892"
+real_scratch_dir="$ROOT/tests/hooks/classification-assertion-probe-892-$$"
 mkdir -p "$real_scratch_dir"
 cat > "$real_scratch_dir/real-failure.test.ts" <<'EOF'
 import { describe, it, expect } from 'vitest';
@@ -232,7 +244,7 @@ trap 'cleanup_real; rm -rf "$tmpdir"' EXIT
 real_log="$tmpdir/real-vitest-output.log"
 (
   cd "$ROOT"
-  yarn vitest run "tests/hooks/classification-assertion-probe-892/real-failure.test.ts"
+  yarn vitest run "tests/hooks/classification-assertion-probe-892-$$/real-failure.test.ts"
 ) > "$real_log" 2>&1 || true
 grep -Eq 'Failed Tests [0-9]+' "$real_log" || {
   echo "the installed Vitest no longer prints a 'Failed Tests N' banner for a real assertion failure -- update classify_vitest_log's product-test marker" >&2

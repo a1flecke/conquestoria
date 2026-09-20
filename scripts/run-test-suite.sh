@@ -62,7 +62,7 @@ case "$mode" in
     # be the one completely ungated path (plain `yarn test`), even though
     # the durable/push-verification and AI-long-horizon classes already had
     # their own (separate, single-slot) mutexes.
-    hvl_acquire_budget_slot
+    hvl_acquire_budget_slot full
     trap 'hvl_release_budget_slot; rm -f "${vitest_log:-}" "${vitest_exit_file:-}"' EXIT
     vitest_log="$(mktemp)"
     vitest_exit_file="$(mktemp)"
@@ -99,14 +99,14 @@ case "$mode" in
     # never run. Uses a plain call plus explicit `exit "$?"` instead, which
     # is externally identical (same exit code, same stdout/stderr) but lets
     # the trap fire.
-    hvl_acquire_budget_slot
+    hvl_acquire_budget_slot regular
     trap hvl_release_budget_slot EXIT
     sh scripts/run-tests-by-local-tier.sh regular "$@"
     bash tests/hooks/run.sh
     exit "$?"
     ;;
   intensive-simulations)
-    hvl_acquire_budget_slot
+    hvl_acquire_budget_slot intensive-simulations
     trap hvl_release_budget_slot EXIT
     sh scripts/run-tests-by-local-tier.sh intensive-simulations "$@"
     exit "$?"

@@ -67,11 +67,17 @@
 #                         hvl_job_tree_pids), waits for it, releases the
 #                         lease, and exits <exit-code> (130/143 by
 #                         convention).
-#   hvl_acquire_budget_slot
+#   hvl_acquire_budget_slot [label]
 #                         Block until fewer than HOST_VERIFICATION_LEASE_
 #                         BUDGET (default 3) other processes hold a slot in
 #                         the SAME resolved budget domain (or until CI mode
-#                         causes an immediate no-op). Unlike hvl_acquire,
+#                         causes an immediate no-op). [label] (default
+#                         "budget") is recorded into the won slot's owner
+#                         file, and into a self-registered waiting record
+#                         while blocked (#1133 MR6), so `yarn
+#                         verify:local:status` can show which command holds
+#                         or wants each slot from durable files alone, never
+#                         `ps`. Unlike hvl_acquire,
 #                         more than one holder can be inside this section at
 #                         once, up to the budget -- it is a COUNTING
 #                         semaphore, not a mutex. Tracks reentrancy with a
@@ -458,10 +464,16 @@ hvl_report_waiting() {
 }
 
 # Cancel cleanly while still waiting (i.e. before we own anything): nothing
-# to release, just stop.
+# to release, just stop -- except a self-registered "waiting" record (#1133
+# MR6, see hvl_acquire/hvl_acquire_budget_slot), which would otherwise be
+# orphaned since neither function installs an EXIT trap. Shared by both the
+# mutex and the budget semaphore's INT/TERM traps; each guard is a no-op
+# when that specific function isn't the one currently waiting.
 hvl_wait_cancel() {
   hvl_sig="$1"
   hvl_code="$2"
+  [ -z "${hvl_waiting_file:-}" ] || rm -f "$hvl_waiting_file"
+  [ -z "${hvl_budget_waiting_file:-}" ] || rm -f "$hvl_budget_waiting_file"
   echo "Host verification lease wait cancelled ($hvl_sig)." >&2
   [ -n "${DURABLE_FAILURE_KIND_FILE:-}" ] && printf 'cancelled\n' > "$DURABLE_FAILURE_KIND_FILE"
   exit "$hvl_code"
@@ -498,6 +510,7 @@ hvl_acquire() {
   hvl_start_wait="$(hvl_now)"
   hvl_last_report=""
   hvl_report_interval="${HOST_VERIFICATION_LEASE_REPORT_SECONDS:-15}"
+  hvl_waiting_file=""
 
   while :; do
     if mkdir "$HVL_LEASE_DIR" 2>/dev/null; then
@@ -517,6 +530,22 @@ hvl_acquire() {
       continue
     fi
 
+    # Self-register as a waiter (#1133 MR6) the first time this process
+    # actually has to wait, so `yarn verify:local:status` can show a QUEUED
+    # row from durable files -- never from `ps` -- for anyone currently
+    # blocked here. Written once (not every loop iteration); hvl_wait_cancel
+    # removes it on INT/TERM, and the break below removes it on acquire. A
+    # stale file from a waiter that was SIGKILLed is a read-side concern
+    # (the status view filters out any waiting record whose pid is dead),
+    # not a writer-side one.
+    if [ -z "$hvl_waiting_file" ]; then
+      hvl_waiting_dir="$hvl_root/waiting"
+      mkdir -p "$hvl_waiting_dir"
+      hvl_waiting_file="$hvl_waiting_dir/$$"
+      printf 'pid=%s\ncommand=%s\nworktree=%s\nwait_started_at=%s\n' \
+        "$$" "$HVL_LABEL" "$HVL_WORKTREE" "$hvl_start_wait" > "$hvl_waiting_file"
+    fi
+
     hvl_now_epoch="$(hvl_now)"
     hvl_waited=$(( hvl_now_epoch - hvl_start_wait ))
     if [ -z "$hvl_last_report" ] || [ $(( hvl_now_epoch - hvl_last_report )) -ge "$hvl_report_interval" ]; then
@@ -526,6 +555,7 @@ hvl_acquire() {
     sleep 1
   done
 
+  [ -z "$hvl_waiting_file" ] || rm -f "$hvl_waiting_file"
   trap - INT TERM
   HVL_ACQUIRED_AT="$(hvl_now)"
   HVL_WAITED_SECONDS=$(( HVL_ACQUIRED_AT - hvl_start_wait ))
@@ -596,6 +626,11 @@ hvl_release() {
 # there is no window for two processes to both believe the same slot is
 # free. Do not reintroduce a count-then-write scheme here.
 hvl_acquire_budget_slot() {
+  # #1133 MR6: optional label (e.g. "full", "regular"), recorded into the
+  # won slot's owner file and any waiting record so `yarn verify:local:status`
+  # can show which command holds/wants each slot. Every existing caller that
+  # predates this parameter still works unchanged with the "budget" default.
+  HVL_BUDGET_LABEL="${1:-budget}"
   HVL_BUDGET_SKIPPED=0
   HVL_BUDGET_NESTED=0
 
@@ -647,6 +682,7 @@ hvl_acquire_budget_slot() {
   hvl_budget_start_wait="$(hvl_now)"
   hvl_budget_last_report=""
   hvl_budget_marker=""
+  hvl_budget_waiting_file=""
 
   trap 'hvl_wait_cancel INT 130' INT
   trap 'hvl_wait_cancel TERM 143' TERM
@@ -658,7 +694,9 @@ hvl_acquire_budget_slot() {
       hvl_budget_owner_file="$hvl_budget_slot_dir/owner"
 
       if mkdir "$hvl_budget_slot_dir" 2>/dev/null; then
-        printf 'pid=%s\nstart_marker=%s\n' "$$" "$hvl_budget_self_marker" > "$hvl_budget_owner_file"
+        printf 'pid=%s\nstart_marker=%s\ncommand=%s\nworktree=%s\nacquired_at=%s\nacquired_at_iso=%s\n' \
+          "$$" "$hvl_budget_self_marker" "$HVL_BUDGET_LABEL" "$(pwd)" "$(hvl_now)" \
+          "$(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || true)" > "$hvl_budget_owner_file"
         hvl_budget_marker="$hvl_budget_slot_dir"
         [ -z "${HVL_DEBUG_TRACE:-}" ] || echo "$(hvl_now) pid=$$ dir=$hvl_budget_dir WON slot=$hvl_budget_slot_index marker=[$hvl_budget_self_marker]"  >&2
         break
@@ -730,6 +768,18 @@ hvl_acquire_budget_slot() {
 
     [ -n "$hvl_budget_marker" ] && break
 
+    # Self-register as a waiter (#1133 MR6) the first time this process
+    # actually has to wait -- same rationale and cleanup contract as
+    # hvl_acquire's own waiting record above, keyed under the budget's own
+    # scope dir instead of the mutex's.
+    if [ -z "$hvl_budget_waiting_file" ]; then
+      hvl_budget_waiting_dir="$hvl_budget_dir/waiting"
+      mkdir -p "$hvl_budget_waiting_dir"
+      hvl_budget_waiting_file="$hvl_budget_waiting_dir/$$"
+      printf 'pid=%s\ncommand=%s\nworktree=%s\nwait_started_at=%s\n' \
+        "$$" "$HVL_BUDGET_LABEL" "$(pwd)" "$hvl_budget_start_wait" > "$hvl_budget_waiting_file"
+    fi
+
     hvl_budget_now_epoch="$(hvl_now)"
     hvl_budget_waited=$(( hvl_budget_now_epoch - hvl_budget_start_wait ))
     if [ -z "$hvl_budget_last_report" ] || [ $(( hvl_budget_now_epoch - hvl_budget_last_report )) -ge "$hvl_budget_report_interval" ]; then
@@ -739,6 +789,7 @@ hvl_acquire_budget_slot() {
     sleep 1
   done
 
+  [ -z "$hvl_budget_waiting_file" ] || rm -f "$hvl_budget_waiting_file"
   trap - INT TERM
   hvl_budget_acquired_at="$(hvl_now)"
   hvl_budget_waited_seconds=$(( hvl_budget_acquired_at - hvl_budget_start_wait ))
@@ -824,10 +875,36 @@ hvl_run_registering_job() {
   # acquired (HVL_SKIPPED) or of this function's own call stack.
   [ -n "${DURABLE_JOB_PID_FILE:-}" ] && printf '%s\n' "$HVL_JOB_PID" > "$DURABLE_JOB_PID_FILE"
 
+  # #1133 MR6: restore the CALLER's own errexit setting, not unconditionally
+  # `set -e`. This function runs as a plain call in the caller's own shell
+  # (never a subshell), so any `set` here is global, visible-after-return
+  # state. A caller that itself needs `set +e` across this call -- to
+  # capture "$?" or write it to a file afterward, e.g.
+  # run-durable-test-suite.sh's `--no-lease` path and run-under-host-
+  # lease.sh's own trailer -- had that `set +e` silently undone the moment
+  # this function returned, because it unconditionally re-enabled errexit
+  # here regardless of what the caller had set. Under `set -e`, a function
+  # call returning non-zero is itself a triggering command: with errexit
+  # forced back on before control returned, the caller's very next
+  # statement (its own exit-code capture) never ran. Confirmed directly
+  # under both bash and dash with a minimal repro (a backgrounded `false`
+  # wrapped exactly this way): the calling script aborted before reaching
+  # its own capture line, discovered only because `run-durable-test-
+  # suite.sh --no-lease` (used by test:ai-long/ai-playability/perf:durable)
+  # left its exit-code file empty on any REAL failure of the wrapped
+  # command, corrupting `exit_code=` in the durable `.status` file that
+  # this MR's own status view (and the pre-existing read-durable-test-
+  # result.sh) both depend on being a clean integer. `test:durable` (the
+  # "full" scope) was unaffected: it wraps run-under-host-lease.sh as a
+  # separate `sh` process, and `set` state never crosses a process boundary.
+  case "$-" in
+    *e*) hvl_job_errexit_was_set=1 ;;
+    *) hvl_job_errexit_was_set=0 ;;
+  esac
   set +e
   wait "$HVL_JOB_PID"
   hvl_job_status=$?
-  set -e
+  [ "$hvl_job_errexit_was_set" -eq 0 ] || set -e
 
   HVL_JOB_PID=''
   return "$hvl_job_status"
