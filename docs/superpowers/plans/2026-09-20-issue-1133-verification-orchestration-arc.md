@@ -13,6 +13,13 @@ design" section) and 12 acceptance criteria. This is a multi-week rewrite of liv
 concurrently-used dev infrastructure — phased into independently-landable MRs so each can be
 verified in isolation before the next touches the same scripts.
 
+**Arc status: all 6 planned MRs merged (2026-09-20).** 10 of 12 acceptance criteria closed; the
+remaining 2 (item I's `maxWorkers`/`fileParallelism` benchmark matrix, and the standing "does not
+weaken CI coverage" constraint) are explicitly deferred, not dropped — see MR5's section below for
+why item I was deprioritized mid-arc, and MR6's for the two additional real bugs (an
+`hvl_run_registering_job` errexit defect and a fixture-file race) found and fixed along the way
+while building/verifying the later MRs.
+
 ## Phase status
 
 ### MR1 — safe mechanical correctness fixes ✅ merged (see git history for this file's introducing PR)
@@ -288,7 +295,7 @@ Still open (both explicitly deferred, not silently dropped):
       constraint the whole arc has held so far rather than a one-time task; carried forward as an
       open item since it was never explicitly itemized as "closed" by any prior MR either.
 
-### MR6 — agent-facing `yarn verify:local:status` (P2) — pending merge
+### MR6 — agent-facing `yarn verify:local:status` (P2) — ✅ merged ([PR #1141](https://github.com/a1flecke/conquestoria/pull/1141), commit `72e05338`)
 
 Built on top of MR3/MR4's durable/ownership records and MR5's budget metadata, not `ps`
 heuristics: `scripts/verify-local-status.sh` shows the mutex's current holder (if any), every
