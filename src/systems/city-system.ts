@@ -1865,6 +1865,8 @@ export function describeDroppedProductionItem(item: DroppedProductionItem, cityN
       return `${name} removed from ${cityName}'s build queue — it's no longer available to train.`;
     case 'build-window-expired':
       return `${name} removed from ${cityName}'s build queue — its national-project build window has closed.`;
+    case 'already-built-elsewhere':
+      return `${name} removed from ${cityName}'s build queue — you already completed it in another city.`;
     case 'coastal-access-lost':
       return `${name} removed from ${cityName}'s build queue — the city is no longer coastal.`;
     case 'training-building-missing':
@@ -2321,6 +2323,30 @@ export function processCity(
       newQueue.length = 0;
       newQueue.push(...filteredNP);
       if (filteredNP.length === 0) newProgress = 0;
+    }
+  }
+
+  // Belt-and-suspenders: dequeue a uniquePerEmpire national project this civ already
+  // completed in a different city (#1080). `builtNationalProjectKeys` was already computed
+  // and passed in by the caller for `getAvailableBuildings`' candidate-exclusion check, but
+  // was never consulted here — so a stale queue entry (most commonly a captured city that
+  // inherited a queued item for something the capturing civ already finished elsewhere)
+  // could keep accumulating production and eventually complete a second time.
+  if (builtNationalProjectKeys && newQueue.length > 0) {
+    const beforeDup = newQueue.length;
+    const filteredDup = newQueue.filter((item: string) => {
+      const bldg = BUILDINGS[item];
+      if (!bldg?.nationalProject || !bldg.uniquePerEmpire) return true;
+      const alreadyBuiltElsewhere = builtNationalProjectKeys.has(`${city.owner}:${item}`);
+      if (alreadyBuiltElsewhere) {
+        droppedProductionItems.push({ itemId: item, itemKind: 'building', reason: 'already-built-elsewhere' });
+      }
+      return !alreadyBuiltElsewhere;
+    });
+    if (filteredDup.length !== beforeDup) {
+      newQueue.length = 0;
+      newQueue.push(...filteredDup);
+      if (filteredDup.length === 0) newProgress = 0;
     }
   }
 

@@ -71,6 +71,11 @@ describe('describeDroppedProductionItem', () => {
       .toBe("Sacred Grove removed from Thebes's build queue — its national-project build window has closed.");
   });
 
+  it('describes an already-built-elsewhere drop', () => {
+    expect(describeDroppedProductionItem({ itemId: 'sacred_grove', itemKind: 'building', reason: 'already-built-elsewhere' }, 'Thebes'))
+      .toBe("Sacred Grove removed from Thebes's build queue — you already completed it in another city.");
+  });
+
   it('describes a coastal-access-lost building drop', () => {
     expect(describeDroppedProductionItem({ itemId: 'harbor', itemKind: 'building', reason: 'coastal-access-lost' }, 'Sparta'))
       .toBe("Harbor removed from Sparta's build queue — the city is no longer coastal.");
@@ -1311,6 +1316,68 @@ describe('processCity — droppedProductionItems (issue #457)', () => {
 
     expect(result.droppedProductionItems).toEqual([]);
     expect(result.city.productionQueue).toContain('sacred_grove');
+  });
+
+  it('#1080 dequeues a uniquePerEmpire national project already completed elsewhere in the empire', () => {
+    const map = generateMap(30, 30, 'np-already-built-drop-test');
+    const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland' || t.terrain === 'plains')!;
+    const city = {
+      ...foundCity('p1', landTile.coord, map, mkC()),
+      productionQueue: ['sacred_grove'],
+      productionProgress: 10,
+    };
+
+    // Simulates a captured city that inherited a stale queue entry for a project this civ
+    // already completed in a different city — see #1080's design doc.
+    const result = processCity(
+      city, map, 2, 100,
+      createProductionCostContext({ era: 1, completedTechs: ['animism'] }),
+      undefined,
+      new Set(['p1:sacred_grove']),
+    );
+
+    expect(result.droppedProductionItems).toEqual([{ itemId: 'sacred_grove', itemKind: 'building', reason: 'already-built-elsewhere' }]);
+    expect(result.city.productionQueue).not.toContain('sacred_grove');
+  });
+
+  it('does NOT drop a uniquePerEmpire national project not yet completed anywhere (negative)', () => {
+    const map = generateMap(30, 30, 'np-not-built-keep-test');
+    const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland' || t.terrain === 'plains')!;
+    const city = {
+      ...foundCity('p1', landTile.coord, map, mkC()),
+      productionQueue: ['sacred_grove'],
+      productionProgress: 0,
+    };
+
+    const result = processCity(
+      city, map, 2, 1,
+      createProductionCostContext({ era: 1, completedTechs: ['animism'] }),
+      undefined,
+      new Set(),
+    );
+
+    expect(result.droppedProductionItems).toEqual([]);
+    expect(result.city.productionQueue).toContain('sacred_grove');
+  });
+
+  it('does NOT drop a non-unique building even if its id happens to appear in builtNationalProjectKeys', () => {
+    const map = generateMap(30, 30, 'np-nonunique-keep-test');
+    const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland' || t.terrain === 'plains')!;
+    const city = {
+      ...foundCity('p1', landTile.coord, map, mkC()),
+      productionQueue: ['granary'],
+      productionProgress: 0,
+    };
+
+    const result = processCity(
+      city, map, 2, 1,
+      createProductionCostContext({ era: 1, completedTechs: ['granary-design'] }),
+      undefined,
+      new Set(['p1:granary']), // granary is not a national project — the coincidental key is inert
+    );
+
+    expect(result.droppedProductionItems).toEqual([]);
+    expect(result.city.productionQueue).toContain('granary');
   });
 
   it('#591 MR4: never drops a milestone national project (sacred_council) regardless of how far past homeEra+1 the era is', () => {

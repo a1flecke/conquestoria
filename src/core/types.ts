@@ -988,6 +988,9 @@ export type ProductionDropReason =
   | 'no-longer-available'        // building or unit: neither obsoleted nor resource-lost explains it
                                   // (e.g. a save-compat queue item whose tech or local prerequisite is unmet)
   | 'build-window-expired'       // national-project building: outside homeEra/homeEra+1
+  | 'already-built-elsewhere'    // uniquePerEmpire national-project building: this civ already
+                                  // completed it in a different city (#1080 — e.g. a captured
+                                  // city inherited a stale queue entry for it)
   | 'coastal-access-lost'        // building or unit: city lost coastal access
   | 'training-building-missing'  // unit: trainedFromBuilding no longer present
   | 'air-base-unavailable';      // unit: compatible base is missing or full

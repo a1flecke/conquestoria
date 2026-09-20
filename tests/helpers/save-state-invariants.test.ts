@@ -10,6 +10,7 @@ import {
   assertAirBaseIntegrity,
   assertVassalageReciprocity,
   assertTreatyReciprocity,
+  assertNationalProjectUniqueness,
   assertNoEliminatedCivEntities,
   assertSaveStateInvariants,
   SAVE_STATE_INVARIANTS,
@@ -529,6 +530,138 @@ describe('#1006 assertNoEliminatedCivEntities', () => {
   });
 });
 
+/**
+ * Lightweight fixture — `assertNationalProjectUniqueness` reads only
+ * `civilizations.*.cities` and `cities.*.{owner,buildings,productionQueue}`,
+ * so a full `createNewGame` state is unnecessary overhead here; matches the
+ * fixture style already used for this same domain in
+ * `tests/systems/national-project-system.test.ts`.
+ */
+function npState(
+  civs: Record<string, string[]>,
+  cities: Record<string, { owner: string; buildings?: string[]; productionQueue?: string[] }>,
+): GameState {
+  return {
+    civilizations: Object.fromEntries(
+      Object.entries(civs).map(([civId, cityIds]) => [civId, { id: civId, cities: cityIds } as any]),
+    ),
+    cities: Object.fromEntries(
+      Object.entries(cities).map(([cityId, c]) => [cityId, {
+        id: cityId,
+        owner: c.owner,
+        buildings: c.buildings ?? [],
+        productionQueue: c.productionQueue ?? [],
+      } as any]),
+    ),
+  } as GameState;
+}
+
+describe('#1080 assertNationalProjectUniqueness', () => {
+  it('passes for a fresh game (no national projects)', () => {
+    expect(() => assertNationalProjectUniqueness(freshState('inv-np-ok'))).not.toThrow();
+  });
+
+  it('passes when built in exactly one city', () => {
+    const state = npState({ p1: ['c1'] }, { c1: { owner: 'p1', buildings: ['sacred_grove'] } });
+    expect(() => assertNationalProjectUniqueness(state)).not.toThrow();
+  });
+
+  it('passes when queued in exactly one city', () => {
+    const state = npState({ p1: ['c1'] }, { c1: { owner: 'p1', productionQueue: ['sacred_grove'] } });
+    expect(() => assertNationalProjectUniqueness(state)).not.toThrow();
+  });
+
+  it('throws when built in two owned cities', () => {
+    const state = npState(
+      { p1: ['c1', 'c2'] },
+      { c1: { owner: 'p1', buildings: ['sacred_grove'] }, c2: { owner: 'p1', buildings: ['sacred_grove'] } },
+    );
+    expect(() => assertNationalProjectUniqueness(state)).toThrow(/sacred_grove.*built in multiple cities.*c1.*c2/s);
+  });
+
+  it('throws when queued in two owned cities', () => {
+    const state = npState(
+      { p1: ['c1', 'c2'] },
+      { c1: { owner: 'p1', productionQueue: ['sacred_grove'] }, c2: { owner: 'p1', productionQueue: ['sacred_grove'] } },
+    );
+    expect(() => assertNationalProjectUniqueness(state)).toThrow(/sacred_grove.*queued in multiple cities.*c1.*c2/s);
+  });
+
+  it('does not flag a same-city built+queued pair as a cross-city violation', () => {
+    // Structurally shouldn't happen in live play (a completed item leaves the queue), but if a
+    // malformed save carried it, this is a single-city shape, not the empire-uniqueness
+    // violation this invariant targets — "queued elsewhere" explicitly excludes a city already
+    // counted as "built", so a queue entry sitting alongside its own completed building in the
+    // SAME city is out of scope here (a same-city queue/building consistency check, if ever
+    // needed, belongs in a different, narrower invariant).
+    const state = npState(
+      { p1: ['c1'] },
+      { c1: { owner: 'p1', buildings: ['sacred_grove'], productionQueue: ['sacred_grove'] } },
+    );
+    expect(() => assertNationalProjectUniqueness(state)).not.toThrow();
+  });
+
+  it('throws when built in one city and queued in a different city', () => {
+    const state = npState(
+      { p1: ['c1', 'c2'] },
+      { c1: { owner: 'p1', buildings: ['sacred_grove'] }, c2: { owner: 'p1', productionQueue: ['sacred_grove'] } },
+    );
+    expect(() => assertNationalProjectUniqueness(state)).toThrow(/sacred_grove.*already built in c1.*queued in c2/s);
+  });
+
+  it('does not flag two different unique projects, each in its own city', () => {
+    const state = npState(
+      { p1: ['c1', 'c2'] },
+      { c1: { owner: 'p1', buildings: ['sacred_grove'] }, c2: { owner: 'p1', buildings: ['tribal_muster_ground'] } },
+    );
+    expect(() => assertNationalProjectUniqueness(state)).not.toThrow();
+  });
+
+  it('does not flag a non-unique building present in multiple cities', () => {
+    const state = npState(
+      { p1: ['c1', 'c2'] },
+      { c1: { owner: 'p1', buildings: ['granary'] }, c2: { owner: 'p1', buildings: ['granary'] } },
+    );
+    expect(() => assertNationalProjectUniqueness(state)).not.toThrow();
+  });
+
+  it('allows two different civs to each own the same empire-unique project', () => {
+    const state = npState(
+      { p1: ['c1'], p2: ['c2'] },
+      { c1: { owner: 'p1', buildings: ['sacred_grove'] }, c2: { owner: 'p2', buildings: ['sacred_grove'] } },
+    );
+    expect(() => assertNationalProjectUniqueness(state)).not.toThrow();
+  });
+
+  it('error message names the civ, the project, and every conflicting city id', () => {
+    const state = npState(
+      { p1: ['c1', 'c2'] },
+      { c1: { owner: 'p1', buildings: ['sacred_grove'] }, c2: { owner: 'p1', buildings: ['sacred_grove'] } },
+    );
+    let message = '';
+    try {
+      assertNationalProjectUniqueness(state);
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toMatch(/"p1"/);
+    expect(message).toMatch(/"sacred_grove"/);
+    expect(message).toMatch(/c1/);
+    expect(message).toMatch(/c2/);
+  });
+
+  it('ignores a city whose owner disagrees with the civ roster (a #997 finding, not this one)', () => {
+    // c2 is listed in p1's roster but its own `.owner` says p2 — city-roster drift, out of
+    // this invariant's scope (assertCityRosters catches it). This invariant must not
+    // mis-attribute c2's building to p1 just because p1's roster names it.
+    const state = npState(
+      { p1: ['c1', 'c2'], p2: [] },
+      { c1: { owner: 'p1', buildings: ['sacred_grove'] }, c2: { owner: 'p2', buildings: ['sacred_grove'] } },
+    );
+    expect(() => assertNationalProjectUniqueness(state)).not.toThrow();
+  });
+});
+
 describe('#1006 assertSaveStateInvariants (aggregate)', () => {
   it('passes for a fresh solo game', () => {
     expect(() => assertSaveStateInvariants(freshState('inv-agg-solo'))).not.toThrow();
@@ -549,12 +682,13 @@ describe('#1006 assertSaveStateInvariants (aggregate)', () => {
     expect(message).toMatch(/unit-ghost/);
   });
 
-  it('SAVE_STATE_INVARIANTS lists exactly the eight documented checks', () => {
+  it('SAVE_STATE_INVARIANTS lists exactly the nine documented checks', () => {
     expect(SAVE_STATE_INVARIANTS.map(inv => inv.name).sort()).toEqual([
       'air-base-integrity',
       'bilateral-war',
       'cargo-reciprocity',
       'city-rosters',
+      'national-project-uniqueness',
       'no-eliminated-civ-entities',
       'treaty-reciprocity',
       'unit-rosters',
