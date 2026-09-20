@@ -21,9 +21,21 @@
  * synthetic-fixture) campaign to reduce that specific computation by ~20%. That fix did
  * NOT measurably change `lh-veteran-large`'s own wall-clock (1567.3s measured post-fix
  * vs. the 1520s figure below — statistically indistinguishable) — the dominant driver of
- * this scenario's cost is a DIFFERENT, unrelated hotspot (`calculateCityYields` growing
- * super-linearly across a campaign, tracked separately as #1126). The 1520s figure below
- * remains the accurate current number; do not revise it down based on #1125's fix.
+ * this scenario's cost was a DIFFERENT hotspot (`calculateCityYields`/production-and-
+ * research-scoring growing super-linearly across a campaign), tracked and since fully
+ * attributed by #1126: idle-city-round accumulation, not entity-count growth, and not a
+ * redundant computation — it is the already-tracked #1094 gameplay gap (civs exhausting
+ * buildable content / hitting their soft cap and legitimately idling). #1129 (an exact
+ * `calculateCivEconomy` redundancy) and #1130 (#1127's science-starvation fix) both
+ * measurably reduced this cost afterward (super-linear ratio dropped, e.g.
+ * `cityYieldCalls` growth for a 2x round increase: ~3.6x pre-#1130 -> ~3.2x post-#1130 on
+ * a 75/150-round `lh-veteran-large` sample), but did not eliminate it, since the
+ * underlying idle-city growth is real AI behavior, not a bug in this scoring path. The
+ * 1520s figure below is retained as the last full-scenario measurement on record; it has
+ * not been independently re-verified under isolation post-#1130 (see #1126's design doc,
+ * `docs/superpowers/specs/2026-09-20-issue-1126-remeasure-design.md`, for the
+ * call-count-based re-measurement this repo's own host-contention conditions make more
+ * reliable than a contended wall-clock re-run).
  */
 import type { AICampaignOptions, AIPersonality, AISimulationOptions } from '../ai-playability-fixture';
 import { runAICampaign } from '../ai-playability-fixture';

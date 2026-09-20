@@ -42,17 +42,26 @@ trivial copy, or test-only refactors unrelated to the simulation. It is a
 deliberate pre-merge check for substantial AI/gameplay work, not a universal
 gate.
 
-**Runtime (updated by #1125, supersedes this section's old "~20 minutes"
+**Runtime (updated by #1126, supersedes this section's old "~20 minutes"
 claim, which was stale since #1094):** the matrix's per-scenario wall-clock is
 documented in `campaign-scenarios.ts`'s own header and row comments — read
 those for the current numbers rather than this file, which does not duplicate
-them to avoid a second place to go stale. As of #1125, `lh-veteran-large`
-alone is ~1520-1570s; the matrix's historical ≤25-minute-sequential intent is
-**not currently met** — #1126 (`calculateCityYields` super-linearity) is the
-tracked, not-yet-fixed dominant cost. Run the full matrix expecting up to
-roughly 60-90 minutes wall-clock on a comparable machine, more under heavy
-concurrent-agent host contention (a documented condition on this project's
-usual dev host — see `.claude/rules/hooks-and-tooling.md`'s "#608" section).
+them to avoid a second place to go stale. `lh-veteran-large` remains the
+matrix's worst case; the matrix's historical ≤25-minute-sequential intent
+**is still not met**, but as of #1126's re-measurement the remaining cost is
+now fully attributed: `calculateCityYields`/production-and-research-scoring
+work grows super-linearly with round count (not entity count — city/unit
+counts stay nearly flat across the same window) because the number of idle
+cities re-scored from scratch every round genuinely grows as a campaign
+progresses, ramping up roughly 14x before plateauing around round 100-125 of
+a 150-round sample. This is the already-tracked `production-idle`/`gold-hoard`
+gameplay gap (**#1094** — civs exhausting buildable content or hitting their
+expansion soft cap, not a redundant computation) — **#1126 is closed as fully
+attributed, not as fixed**; #1094 owns any future gameplay-side improvement.
+Run the full matrix expecting up to roughly 60-90 minutes wall-clock on a
+comparable machine, more under heavy concurrent-agent host contention (a
+documented condition on this project's usual dev host — see
+`.claude/rules/hooks-and-tooling.md`'s "#608" section).
 `scripts/run-ai-long-horizon.sh`'s outer wrapper is sized accordingly.
 
 ### Reading the output
@@ -180,9 +189,9 @@ for the full detail on each:
 Append a row to `LONG_HORIZON_SCENARIOS` in `campaign-scenarios.ts` (fixed seed,
 challenge, map size, human/AI counts, turn cap, personality set). The
 matrix's historical ~25-minute-sequential intent is not currently met (see the
-"Runtime" note above — #1126 is the tracked cause); do not make it *worse* by
-adding an expensive new scenario without a genuine coverage justification, and
-prefer fixing #1126 over widening this budget further. Put the measured
+"Runtime" note above — #1094's idle-city gameplay gap is the attributed
+cause); do not make it *worse* by adding an expensive new scenario without a
+genuine coverage justification. Put the measured
 wall-clock in the row comment and size `SCENARIO_TIMEOUT_MS` off the slowest
 row × 3, per `.claude/rules/hooks-and-tooling.md` — and re-check
 `scripts/run-ai-long-horizon.sh`'s own outer wrapper is still larger than the
