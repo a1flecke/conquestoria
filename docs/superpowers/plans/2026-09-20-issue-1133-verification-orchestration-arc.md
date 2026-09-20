@@ -48,15 +48,47 @@ repo's `.git` made read-only, simulating Codex's default sandbox exactly). Close
 - [x] "Default Codex workspace-write can acquire/read/release coordination without writing under
       `.git` and without sandbox escalation."
 
-### MR3 — process-group-based lease ownership + signal forwarding (items B, E) — NOT STARTED
+### MR3 — process-group-based lease ownership + signal forwarding (items B, E) ✅ merged (see git history for this file's introducing PR)
 
-Record the heavyweight job's actual PGID (not just the supervisor PID) in lease metadata; don't
-reclaim a lease just because the supervisor PID disappeared while the registered job group is
-still live. `run-under-host-lease.sh`'s signal forwarding (`kill -"$fwd_signal" "$run_child_pid"`)
-targets one PID, not the process group (POSIX uses a negative PID for that) — needs an explicit
-regression with a real child+grandchild+worker-like nested tree, not the current single-`sleep`
-fixture, proving cancellation reaps or leaves a discoverable live job, and a second invocation
-cannot start a duplicate while the first group is alive.
+Added `hvl_run_registering_job` to `host-verification-lease.sh`: puts the wrapped command in its
+own new process group (`set -m` — verified empirically to give a newly backgrounded job a fresh
+pgid instead of inheriting the caller's, on this platform's `/bin/sh`), registers that pgid into
+the held lease's metadata as `job_pgid` as soon as it's known, and forwards INT/TERM to the whole
+group rather than one child pid. `hvl_is_stale` now checks `job_pgid` liveness (`kill -0
+-$job_pgid`) before ever reclaiming on a dead-supervisor or PID-reuse verdict — a live registered
+job group is never stolen no matter how long its supervisor has been gone. `run-under-host-lease.sh`
+and `verify-before-push.sh`'s `run_phase` both now run their wrapped command through this shared
+helper instead of duplicating background/signal-forwarding logic (the old bespoke version in
+`run-under-host-lease.sh` is gone; `verify-before-push.sh` gained job registration it never had at
+all before, since it previously ran its phases in the foreground with no process-group isolation).
+
+New `tests/hooks/host-verification-lease-process-group.test.sh` proves this with a real
+child+grandchild nested tree (not the single-`sleep` fixture): the registered `job_pgid` matches a
+real live group containing every nested descendant; cancelling the supervisor reaps the *entire*
+tree, not just the immediate child; and a supervisor killed outright with SIGKILL (bypassing its
+own release trap, exactly like a real crash) never has its lease stolen while the registered job
+group is still alive, but the lease becomes acquirable again the moment that group actually ends.
+
+**Known residual, intentionally out of scope:** if a caller's chain goes through
+`run-with-timeout.mjs` (which itself `spawn`s its real command with `detached: true`, i.e. a
+*second*, deeper process-group boundary — `run-under-host-lease.sh`'s two AI-suite callers and
+`verify-before-push.sh`'s two phases all do this), the registered `job_pgid` is the group
+containing the `node run-with-timeout.mjs` process itself, not that deeper detached descendant.
+This is sufficient for the actually-observed failure mode (an outer shell/supervisor layer dying
+while the real job continues), because `run-with-timeout.mjs`'s own SIGINT/SIGTERM handlers
+already re-signal its detached child's group when it receives a signal — the group signal only
+needs to reach that Node process, not the detached grandchild directly. It would NOT catch the
+narrower case of `run-with-timeout.mjs` itself dying while its detached child survives; closing
+that gap would need `run-with-timeout.mjs` to report its own child's pid back through a side
+channel (an env-var-provided file path) so the shell layer could register the *deeper* pgid
+instead. Not attempted here — no observed incident motivates it, and it adds meaningful complexity
+for a narrower failure mode than the one this MR actually fixes.
+
+Closes 2 more of #1133's 12 acceptance criteria (7 total closed so far, across MR1+MR2+MR3):
+- [x] "Retrying after stream loss cannot start a duplicate while the original registered process
+      group is still alive."
+- [x] "Cancellation kills/reaps the whole intended process tree or leaves an explicitly
+      discoverable registered live job; no unowned Vitest pool remains."
 
 ### MR4 — generalized durable-command layer (items C, D) — NOT STARTED
 
