@@ -75,7 +75,7 @@ run_matrix() {
       STATUS_SEQUENCE="${1:-0}" \
       AI_LONG_HORIZON_STALL_MAX_RETRIES="${2:-2}" \
       AI_LONG_HORIZON_STALL_RETRY_BACKOFF_SECONDS=0 \
-      sh scripts/run-ai-long-horizon.sh
+      bash scripts/run-ai-long-horizon.sh
   ) >"$tmpdir/stderr.log" 2>&1
   matrix_status=$?
   set -e
