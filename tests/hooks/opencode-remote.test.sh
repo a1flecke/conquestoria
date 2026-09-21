@@ -119,6 +119,22 @@ run() {
     "$SCRIPT" "$@"
 }
 
+log_contains_fixed() {
+  if command -v rg >/dev/null 2>&1; then
+    rg -Fq -- "$1" "$call_log"
+  else
+    grep -Fq -- "$1" "$call_log"
+  fi
+}
+
+log_matches() {
+  if command -v rg >/dev/null 2>&1; then
+    rg -q -- "$1" "$call_log"
+  else
+    grep -Eq -- "$1" "$call_log"
+  fi
+}
+
 # An empty shared proxy configuration means neither Serve nor Funnel is
 # present, so start may create the single private Serve mapping.
 : > "$call_log"
@@ -126,7 +142,7 @@ if ! run start > /dev/null; then
   echo "start rejected an empty Tailscale service configuration" >&2
   exit 1
 fi
-if ! rg -Fq 'tailscale serve --https=443 --bg http://127.0.0.1:49374' "$call_log"; then
+if ! log_contains_fixed 'tailscale serve --https=443 --bg http://127.0.0.1:49374'; then
   echo "start did not create the expected private Serve mapping:" >&2
   cat "$call_log" >&2
   exit 1
@@ -137,7 +153,7 @@ rm -rf "$state_dir"
 # `status` is diagnostic-only.
 : > "$call_log"
 run status > /dev/null
-if rg -q 'service (set|start|stop)|tailscale serve --https|tailscale down' "$call_log"; then
+if log_matches 'service (set|start|stop)|tailscale serve --https|tailscale down'; then
   echo "status changed service state:" >&2
   cat "$call_log" >&2
   exit 1
@@ -149,7 +165,7 @@ if FUNNEL_CONFIG='{"AllowFunnel":{"443":true}}' run start > /dev/null 2>&1; then
   echo "start accepted an active Funnel" >&2
   exit 1
 fi
-if rg -q 'service set|tailscale serve --https' "$call_log"; then
+if log_matches 'service set|tailscale serve --https'; then
   echo "start changed state after detecting Funnel:" >&2
   cat "$call_log" >&2
   exit 1
@@ -162,7 +178,7 @@ if SERVE_CONFIG='{"TCP":{"443":{"HTTPS":true}}}' run start > /dev/null 2>&1; the
   echo "start accepted unowned Serve configuration" >&2
   exit 1
 fi
-if rg -q 'tailscale serve --https' "$call_log"; then
+if log_matches 'tailscale serve --https'; then
   echo "start overwrote unowned Serve configuration:" >&2
   cat "$call_log" >&2
   exit 1
@@ -178,7 +194,7 @@ fi
 # Stopping this setup must never disconnect Tailscale itself.
 : > "$call_log"
 run stop > /dev/null
-if rg -q '^tailscale down' "$call_log"; then
+if log_matches '^tailscale down'; then
   echo "stop called tailscale down" >&2
   exit 1
 fi
