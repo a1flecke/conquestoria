@@ -193,7 +193,26 @@ hvl_start_marker() {
 }
 
 hvl_pid_is_live() {
-  kill -0 "$1" 2>/dev/null
+  kill -0 "$1" 2>/dev/null && return 0
+  # #1133 cross-context status-visibility report: `kill -0` failing is not
+  # proof of death -- POSIX kill(2) returns EPERM (not ESRCH) when a target
+  # process genuinely exists but the caller lacks permission to signal it, a
+  # real condition across a sandbox/privilege boundary that still allows a
+  # read-only process listing. Confirmed reproduced: from a restricted Codex
+  # command context, `yarn verify:local:status` reported a lease as fully
+  # idle (0/3 budget slots, no holders) at the exact moment the same command
+  # run from the privileged execution context showed two genuinely live
+  # holders on disk. `kill -0 2>/dev/null` alone cannot distinguish "gone"
+  # from "denied", so fall back to a listing-based check (`ps -p`, which
+  # only requires read access, not signal-send permission) before concluding
+  # "not live" -- the same "do not trade safety for faster recovery"
+  # philosophy `hvl_is_stale`'s unreadable-start-marker branch already
+  # applies to process METADATA reads, now applied to the liveness signal
+  # itself. This does not fully close the gap for a true PID-namespace
+  # container where even `ps` cannot see foreign-namespace PIDs at all (no
+  # local probe can prove liveness there) -- that residual is a documented,
+  # not-yet-measured limitation, not something this fix claims to solve.
+  ps -p "$1" >/dev/null 2>&1
 }
 
 # hvl_job_tree_pids <root-pid>
