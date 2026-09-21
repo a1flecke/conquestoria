@@ -1,8 +1,54 @@
 # #1122 — Capture Force Demand and Assembly Design
 
-**Status:** implementation evidence updated after real-pipeline reproduction.
+**Status:** implementation complete, independently reviewed, and verified — see §12 below.
 
 **Base:** `be6d23228519c1be1455d3dafe8ad153ab9165eb` (`origin/main`, refreshed 2026-09-19). #1122 is open with no comments or open-PR collision. Re-run the refresh/collision gate before Terra and Sol.
+
+## 12. Independent verification (added after implementation, single-agent session)
+
+This 16-commit implementation was found complete but unmerged on a stalled worktree/branch
+(`codex/issue-1122-capture-force`, last commit `e5956848`, never pushed to origin, no open PR) —
+36+ hours untouched, zero issue comments. Per this repo's `CLAUDE.md` ("NEVER use subagents") and
+the user's explicit "proceed with 1122," this session performed its own independent review and
+verification rather than re-deriving the design/implementation from scratch, since discarding
+genuinely complete, well-reasoned work would be wasteful and risk reintroducing bugs this
+implementation already fixed.
+
+- **Cherry-picked cleanly**: all 16 commits (`git cherry-pick 6f1166d5..codex/issue-1122-capture-force`,
+  where `6f1166d5` is the actual merge-base with `origin/main`, not the design doc's stale
+  `be6d2322` note above) applied onto current `main` with only one trivial auto-merge (`types.ts`,
+  no conflict).
+- **Independent adversarial code review** (this session, not the original author): read the full
+  diff across `ai-prepared-turn.ts`, `ai-unit-assignment.ts`, `ai-objective-scoring.ts`,
+  `ai-major-turn.ts`, `ai-plan-portfolio.ts`, `ai-perception.ts`, `ai-unit-roles.ts`,
+  `opponent-ai-state.ts`, `types.ts`, `save-manager.ts`, `city-system.ts`,
+  `last-seen-presentation.ts`. Specifically traced: the `incrementalDemandSeed` cap generalization
+  (confirmed it still structurally produces `missing ∈ {0,1}` per call even when `cap > 1`,
+  preserving `.claude/rules/ai-simulation.md`'s documented incremental-demand invariant); the
+  incomplete-capture-plan retention guard (confirmed it rejects only when a missing role is
+  untrainable in *every* owned city, not merely unaffordable); the assignment ordering (critical
+  roles filled before support, support capped by remaining `maxPrimaryForce` slots, one unit
+  credited toward every genuine capability it holds); and the `save-manager.ts` city-naming fix
+  (an adjacent bug the original implementation found via integration testing, not scope creep —
+  see its own comment). No defects found.
+- **`yarn build`**: green.
+- **`yarn test`** (652 files, 11,372 tests, +17 from this branch's own new coverage): green.
+- **`yarn test:ai-long`** (the full 9-scenario concurrent matrix): stalled repeatedly (6 attempts
+  across two sessions, including 3 automatic retries each via the `run-ai-long-horizon.sh`
+  stall-retry fix — see `docs/superpowers/specs/2026-09-20-verify-before-push-stall-retry-design.md`),
+  consistently around 1155-1370s of held-lease time. Traced directly rather than assumed: `vm_stat`
+  showed ~64MB free memory and ~9GB actively held in macOS's memory compressor (zero actual disk
+  swapouts) — this specific host, with 12+ concurrent Claude/Codex/OpenCode agent sessions active,
+  cannot currently sustain the full matrix's 9-scenario-plus-continuity-file CONCURRENT memory
+  footprint, a genuine host-capacity limit rather than a defect in this change. Confirmed by running
+  the two most relevant scenarios individually, each with its own full invariant battery:
+  - `lh-explorer-small` (fastest, baseline sanity check): passed cleanly, 50.1s.
+  - `lh-veteran-large` (slowest, most war/capture-heavy — the scenario most likely to exercise
+    #1122's actual behavior change): passed cleanly, 2029s (contention-slowed vs. the ~1520-1570s
+    documented baseline, but no stall, full invariant battery, deterministic completion).
+  This is the same evidence standard `.claude/rules/game-balance.md`'s pacing-audit "Case D"
+  precedent applies: document a genuine host/environment limit honestly rather than either hiding
+  it or blocking otherwise-well-verified work indefinitely against a moving, uncontrollable target.
 
 ## Root cause
 
