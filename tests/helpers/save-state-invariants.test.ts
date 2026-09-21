@@ -12,6 +12,7 @@ import {
   assertTreatyReciprocity,
   assertNationalProjectUniqueness,
   assertMarketplaceReferences,
+  assertOpponentAIPortfolioIntegrity,
   assertNoEliminatedCivEntities,
   assertSaveStateInvariants,
   SAVE_STATE_INVARIANTS,
@@ -772,6 +773,185 @@ describe('#1083 assertMarketplaceReferences', () => {
   });
 });
 
+/** A minimal `AIStrategicPlan`-shaped fixture: the assert only reads `assignedUnitIds`. */
+function plan(assignedUnitIds: string[]): unknown {
+  return { assignedUnitIds };
+}
+
+function portfolioState(overrides: {
+  units?: Record<string, { owner: string }>;
+  majorCivs?: Record<string, unknown>;
+  barbarianHomeCampByUnitId?: Record<string, string>;
+}): GameState {
+  return {
+    units: overrides.units ?? {},
+    opponentAI: {
+      majorCivs: overrides.majorCivs ?? {},
+      barbarianHomeCampByUnitId: overrides.barbarianHomeCampByUnitId ?? {},
+    },
+  } as unknown as GameState;
+}
+
+describe('#1081 assertOpponentAIPortfolioIntegrity', () => {
+  it('is a no-op when there is no opponentAI state at all', () => {
+    expect(() => assertOpponentAIPortfolioIntegrity({ units: {} } as GameState)).not.toThrow();
+  });
+
+  it('passes for a fresh game (no plans yet)', () => {
+    expect(() => assertOpponentAIPortfolioIntegrity(freshState('inv-ai-ok'))).not.toThrow();
+  });
+
+  it('passes when a primary plan assigns a live unit the civ still owns', () => {
+    const state = portfolioState({
+      units: { 'unit-1': { owner: 'ai-1' } },
+      majorCivs: {
+        'ai-1': {
+          primaryPlan: plan(['unit-1']),
+          defensePlansByCityId: {},
+          upgradeRoutesByUnitId: {},
+        },
+      },
+    });
+    expect(() => assertOpponentAIPortfolioIntegrity(state)).not.toThrow();
+  });
+
+  it('passes for a unit that is transported cargo but still alive and correctly owned', () => {
+    const state = portfolioState({
+      units: { 'unit-1': { owner: 'ai-1' } }, // transportId is irrelevant to this invariant
+      majorCivs: {
+        'ai-1': {
+          primaryPlan: plan(['unit-1']),
+          defensePlansByCityId: {},
+          upgradeRoutesByUnitId: {},
+        },
+      },
+    });
+    expect(() => assertOpponentAIPortfolioIntegrity(state)).not.toThrow();
+  });
+
+  it('throws when a primary plan assigns a unit that no longer exists', () => {
+    const state = portfolioState({
+      units: {},
+      majorCivs: {
+        'ai-1': {
+          primaryPlan: plan(['unit-dead']),
+          defensePlansByCityId: {},
+          upgradeRoutesByUnitId: {},
+        },
+      },
+    });
+    expect(() => assertOpponentAIPortfolioIntegrity(state)).toThrow(/ai-1.*unit-dead.*does not exist/s);
+  });
+
+  it('throws when a defense plan assigns a unit that no longer exists', () => {
+    const state = portfolioState({
+      units: {},
+      majorCivs: {
+        'ai-1': {
+          primaryPlan: null,
+          defensePlansByCityId: { 'city-1': plan(['unit-dead']) },
+          upgradeRoutesByUnitId: {},
+        },
+      },
+    });
+    expect(() => assertOpponentAIPortfolioIntegrity(state)).toThrow(/ai-1.*unit-dead.*does not exist/s);
+  });
+
+  it('throws when a plan assigns a unit that was captured by another civ (ownership changed, unit still alive)', () => {
+    const state = portfolioState({
+      units: { 'unit-1': { owner: 'ai-2' } }, // captured away from ai-1
+      majorCivs: {
+        'ai-1': {
+          primaryPlan: plan(['unit-1']),
+          defensePlansByCityId: {},
+          upgradeRoutesByUnitId: {},
+        },
+      },
+    });
+    expect(() => assertOpponentAIPortfolioIntegrity(state)).toThrow(/ai-1.*unit-1.*now owned by "ai-2"/s);
+  });
+
+  it('throws when upgradeRoutesByUnitId references a unit that no longer exists', () => {
+    const state = portfolioState({
+      units: {},
+      majorCivs: {
+        'ai-1': {
+          primaryPlan: null,
+          defensePlansByCityId: {},
+          upgradeRoutesByUnitId: { 'unit-dead': { cityId: 'city-1', createdTurn: 1 } },
+        },
+      },
+    });
+    expect(() => assertOpponentAIPortfolioIntegrity(state)).toThrow(/ai-1.*unit-dead.*does not exist/s);
+  });
+
+  it('throws when upgradeRoutesByUnitId references a unit captured by another civ', () => {
+    const state = portfolioState({
+      units: { 'unit-1': { owner: 'ai-2' } },
+      majorCivs: {
+        'ai-1': {
+          primaryPlan: null,
+          defensePlansByCityId: {},
+          upgradeRoutesByUnitId: { 'unit-1': { cityId: 'city-1', createdTurn: 1 } },
+        },
+      },
+    });
+    expect(() => assertOpponentAIPortfolioIntegrity(state)).toThrow(/ai-1.*unit-1.*now owned by "ai-2"/s);
+  });
+
+  it('passes for a live barbarianHomeCampByUnitId entry still owned by barbarian', () => {
+    const state = portfolioState({
+      units: { 'raider-1': { owner: 'barbarian' } },
+      barbarianHomeCampByUnitId: { 'raider-1': 'camp-1' },
+    });
+    expect(() => assertOpponentAIPortfolioIntegrity(state)).not.toThrow();
+  });
+
+  it('throws when barbarianHomeCampByUnitId references a dead unit', () => {
+    const state = portfolioState({
+      units: {},
+      barbarianHomeCampByUnitId: { 'raider-dead': 'camp-1' },
+    });
+    expect(() => assertOpponentAIPortfolioIntegrity(state)).toThrow(/raider-dead.*camp-1.*does not exist/s);
+  });
+
+  it('throws when barbarianHomeCampByUnitId references a unit captured away from the barbarians', () => {
+    const state = portfolioState({
+      units: { 'raider-1': { owner: 'player' } },
+      barbarianHomeCampByUnitId: { 'raider-1': 'camp-1' },
+    });
+    expect(() => assertOpponentAIPortfolioIntegrity(state)).toThrow(/raider-1.*camp-1.*now owned by "player"/s);
+  });
+
+  it('reports every problem across multiple plans/civs in one throw', () => {
+    const state = portfolioState({
+      units: {},
+      majorCivs: {
+        'ai-1': {
+          primaryPlan: plan(['unit-dead-a']),
+          defensePlansByCityId: {},
+          upgradeRoutesByUnitId: {},
+        },
+        'ai-2': {
+          primaryPlan: plan(['unit-dead-b']),
+          defensePlansByCityId: {},
+          upgradeRoutesByUnitId: {},
+        },
+      },
+    });
+    let message = '';
+    try {
+      assertOpponentAIPortfolioIntegrity(state);
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toMatch(/ai-1/);
+    expect(message).toMatch(/unit-dead-a/);
+    expect(message).toMatch(/ai-2/);
+    expect(message).toMatch(/unit-dead-b/);
+  });
+});
+
 describe('#1006 assertSaveStateInvariants (aggregate)', () => {
   it('passes for a fresh solo game', () => {
     expect(() => assertSaveStateInvariants(freshState('inv-agg-solo'))).not.toThrow();
@@ -792,7 +972,7 @@ describe('#1006 assertSaveStateInvariants (aggregate)', () => {
     expect(message).toMatch(/unit-ghost/);
   });
 
-  it('SAVE_STATE_INVARIANTS lists exactly the ten documented checks', () => {
+  it('SAVE_STATE_INVARIANTS lists exactly the eleven documented checks', () => {
     expect(SAVE_STATE_INVARIANTS.map(inv => inv.name).sort()).toEqual([
       'air-base-integrity',
       'bilateral-war',
@@ -801,6 +981,7 @@ describe('#1006 assertSaveStateInvariants (aggregate)', () => {
       'marketplace-references',
       'national-project-uniqueness',
       'no-eliminated-civ-entities',
+      'opponent-ai-portfolio-integrity',
       'treaty-reciprocity',
       'unit-rosters',
       'vassalage-reciprocity',

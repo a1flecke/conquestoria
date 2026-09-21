@@ -4,7 +4,7 @@ import { BUILDINGS } from '@/systems/city-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getTransportCapacity, getUnitCargoSize, isNavalTransportUnit } from '@/systems/transport-system';
 import { getAirBaseCapacity, getAirBaseRoster } from '@/systems/air-operations-system';
-import { assertEliminatedCivHasNoLiveEntities } from './eliminated-civ-areas';
+import { assertEliminatedCivHasNoLiveEntities, scanOpponentAIPortfolioDanglingUnitRefs } from './eliminated-civ-areas';
 
 /**
  * #1006 — shared cross-system structural invariants asserted by the
@@ -595,6 +595,58 @@ export function assertMarketplaceReferences(state: GameState): void {
 }
 
 /**
+ * `opponentAI` portfolio integrity for every LIVING civ (#1081, follow-up
+ * from #1003): `ELIMINATED_CIV_AREAS.opponentAI` already catches a dangling
+ * unit reference left behind by an eliminated civ's portfolio — but that
+ * scan is a no-op unless at least one civ in the save is eliminated
+ * (`assertEliminatedCivHasNoLiveEntities` returns early otherwise), so a
+ * *living* civ whose plan still names a unit that died in ordinary combat
+ * this round — or, more subtly, a unit that was captured and changed owner
+ * without being destroyed (`combat-reward-system.ts`'s "prize crew"
+ * mechanic) — had no assert covering it at all. This is the general
+ * counterpart: it runs unconditionally, for every `opponentAI.majorCivs`
+ * entry regardless of elimination status, via the same
+ * `scanOpponentAIPortfolioDanglingUnitRefs` scan `ELIMINATED_CIV_AREAS.opponentAI`
+ * uses — one scan, two callers, per #1081's explicit "don't duplicate the
+ * logic" direction.
+ *
+ * Also covers `opponentAI.barbarianHomeCampByUnitId`: every key must resolve
+ * to a live unit still owned by `'barbarian'` — a captured barbarian (turned
+ * into a player/AI unit) or a dead one must not linger as a stale key.
+ *
+ * In normal play this invariant is expected to hold by the end of every
+ * processed round: `processAIUpgrades` (`ai-upgrades.ts`) and the tactical
+ * execution loop in `ai-major-turn.ts` both self-prune `assignedUnitIds` /
+ * `upgradeRoutesByUnitId` for existence AND ownership every time a civ's own
+ * AI turn runs, and `processPurposefulBarbarians` (`barbarian-system.ts`)
+ * does the same for `barbarianHomeCampByUnitId` every round. A failure here
+ * is therefore a genuine regression in one of those self-healing paths, not
+ * an expected transient — see #1003's own catalog entry for why this had no
+ * demonstrated break before now.
+ */
+export function assertOpponentAIPortfolioIntegrity(state: GameState): void {
+  const problems: string[] = [];
+  const ai = state.opponentAI;
+  if (!ai) return;
+
+  const liveUnitIds = new Set(Object.keys(state.units));
+  for (const [ownerId, portfolio] of Object.entries(ai.majorCivs ?? {})) {
+    problems.push(...scanOpponentAIPortfolioDanglingUnitRefs(state, ownerId, portfolio, liveUnitIds));
+  }
+
+  for (const [unitId, campId] of Object.entries(ai.barbarianHomeCampByUnitId ?? {})) {
+    const unit = state.units[unitId];
+    if (!unit) {
+      problems.push(`opponentAI.barbarianHomeCampByUnitId references unit "${unitId}" (camp "${campId}") which does not exist`);
+    } else if (unit.owner !== 'barbarian') {
+      problems.push(`opponentAI.barbarianHomeCampByUnitId references unit "${unitId}" (camp "${campId}") which is now owned by "${unit.owner}"`);
+    }
+  }
+
+  if (problems.length > 0) throw new InvariantError(`opponentAI-portfolio-integrity invariant violated:\n  - ${problems.join('\n  - ')}`);
+}
+
+/**
  * An `isEliminated` civ holds no live entities and no active obligations
  * anywhere in `GameState` — not just no owned cities/units/wars, but nothing in
  * espionage, AI planning, crises, trade, the minor-civ layer, and so on. The
@@ -617,6 +669,7 @@ export const SAVE_STATE_INVARIANTS: ReadonlyArray<{ name: string; check: (state:
   { name: 'treaty-reciprocity', check: assertTreatyReciprocity },
   { name: 'national-project-uniqueness', check: assertNationalProjectUniqueness },
   { name: 'marketplace-references', check: assertMarketplaceReferences },
+  { name: 'opponent-ai-portfolio-integrity', check: assertOpponentAIPortfolioIntegrity },
   { name: 'no-eliminated-civ-entities', check: assertNoEliminatedCivEntities },
 ];
 

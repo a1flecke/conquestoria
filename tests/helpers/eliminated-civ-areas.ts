@@ -1,4 +1,4 @@
-import type { GameState } from '@/core/types';
+import type { GameState, MajorCivPlanPortfolio } from '@/core/types';
 
 /**
  * #1001 — the declared catalogue of every `GameState` area, classified by what
@@ -46,6 +46,49 @@ const isEliminatedId = (id: string | null | undefined, ctx: EliminatedCivScanCon
 
 /** First segment of a `${civId}:${rest}` composite key. */
 const compositeCivId = (key: string): string => key.split(':', 1)[0]!;
+
+/**
+ * Every unit reference a `MajorCivPlanPortfolio` can hold — an assigned unit
+ * on the primary plan or a defense plan, or an `upgradeRoutesByUnitId` key —
+ * must resolve to a unit that both exists AND is still owned by that
+ * portfolio's own civ. Existence alone is not enough (#1081): a unit can
+ * change owner mid-game without being destroyed — see
+ * `combat-reward-system.ts`'s "prize crew" capture, which flips `unit.owner`
+ * on a captured unit in place. This is the single scan shared by
+ * `ELIMINATED_CIV_AREAS.opponentAI` below (elimination teardown — only runs
+ * when at least one civ is eliminated) and
+ * `assertOpponentAIPortfolioIntegrity` in `save-state-invariants.ts` (the
+ * general, always-on check for every living civ's portfolio, every round) —
+ * one scan, two callers, rather than the duplicated logic #1081 asked to
+ * avoid.
+ */
+export function scanOpponentAIPortfolioDanglingUnitRefs(
+  state: GameState,
+  ownerId: string,
+  portfolio: MajorCivPlanPortfolio,
+  liveUnitIds: ReadonlySet<string>,
+): string[] {
+  const problems: string[] = [];
+  const describeInvalid = (unitId: string): string | null => {
+    if (!liveUnitIds.has(unitId)) return 'does not exist';
+    const owner = state.units[unitId]?.owner;
+    if (owner !== ownerId) return `is now owned by "${owner ?? 'nobody'}"`;
+    return null;
+  };
+
+  const plans = [portfolio.primaryPlan, ...Object.values(portfolio.defensePlansByCityId ?? {})].filter(Boolean);
+  for (const plan of plans) {
+    for (const unitId of plan!.assignedUnitIds ?? []) {
+      const reason = describeInvalid(unitId);
+      if (reason) problems.push(`opponentAI portfolio for "${ownerId}" assigns unit "${unitId}" which ${reason}`);
+    }
+  }
+  for (const unitId of Object.keys(portfolio.upgradeRoutesByUnitId ?? {})) {
+    const reason = describeInvalid(unitId);
+    if (reason) problems.push(`opponentAI portfolio for "${ownerId}" routes an upgrade for unit "${unitId}" which ${reason}`);
+  }
+  return problems;
+}
 
 /** Flag an eliminated-civ id that survives anywhere inside an opaque JSON blob. */
 const jsonMentionsEliminated = (value: unknown, ctx: EliminatedCivScanContext, label: string): string[] => {
@@ -225,15 +268,7 @@ export const ELIMINATED_CIV_AREAS: Record<keyof GameState, EliminatedCivArea> = 
       }
       const dangling = (id: string): boolean => !ctx.liveUnitIds.has(id);
       for (const [ownerId, portfolio] of Object.entries(ai.majorCivs ?? {})) {
-        const plans = [portfolio.primaryPlan, ...Object.values(portfolio.defensePlansByCityId ?? {})].filter(Boolean);
-        for (const plan of plans) {
-          for (const unitId of plan!.assignedUnitIds ?? []) {
-            if (dangling(unitId)) problems.push(`opponentAI portfolio for "${ownerId}" still assigns removed unit "${unitId}"`);
-          }
-        }
-        for (const unitId of Object.keys(portfolio.upgradeRoutesByUnitId ?? {})) {
-          if (dangling(unitId)) problems.push(`opponentAI portfolio for "${ownerId}" still routes an upgrade for removed unit "${unitId}"`);
-        }
+        problems.push(...scanOpponentAIPortfolioDanglingUnitRefs(state, ownerId, portfolio, ctx.liveUnitIds));
       }
       for (const unitId of Object.keys(ai.barbarianHomeCampByUnitId ?? {})) {
         if (dangling(unitId)) problems.push(`opponentAI.barbarianHomeCampByUnitId still references removed unit "${unitId}"`);

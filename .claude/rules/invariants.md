@@ -70,8 +70,8 @@ every implicit assumption an invariant... short enough to read").
 
 | Area | Invariant | Enforcement |
 |---|---|---|
-| `builtNationalProjects`, city `productionQueue`/`buildings` | A `uniquePerEmpire` item is never simultaneously built/queued in two cities of one civ | Query-time dedup only (`getReservedNationalProjectKeys`); **no live-state assert** — **#1080** (no demonstrated break; cheap to add given the `${civId}:${buildingId}` key shape) |
-| `marketplace.tradeRoutes` / `.purchasedResources` | A route/purchase names a real, living civ | `ELIMINATED_CIV_AREAS.marketplace` (teardown only); no demonstrated break — **#1083** |
+| `builtNationalProjects`, city `productionQueue`/`buildings` | A `uniquePerEmpire` item is never simultaneously built/queued in two cities of one civ | `SAVE_STATE_INVARIANTS: national-project-uniqueness` (**#1080, closed**) |
+| `marketplace.tradeRoutes` / `.purchasedResources` | A route/purchase names a real, living civ | `SAVE_STATE_INVARIANTS: marketplace-references` (**#1083, closed**) |
 | `nationalProjectChoices` | A dead civ makes no resource choice | `ELIMINATED_CIV_AREAS.nationalProjectChoices` (teardown) |
 | `economyStatusByCiv` | A dead civ has no economy status | `ELIMINATED_CIV_AREAS.economyStatusByCiv` (teardown) |
 | `idCounters` | Every counter has both a `scanIdCounters` reconstruction block and an `emptyIdCounters` default | Discipline only — an "EXTENSION CONTRACT" comment in `id-counters.ts`, no compile-enforced coverage (unlike `ELIMINATED_CIV_AREAS`'s `Record<keyof …>` pattern) — **#1082** |
@@ -80,7 +80,7 @@ every implicit assumption an invariant... short enough to read").
 
 | Area | Invariant | Enforcement |
 |---|---|---|
-| `opponentAI.majorCivs.*` (`assignedUnitIds`, `upgradeRoutesByUnitId`), `.barbarianHomeCampByUnitId` | A portfolio references only live units it actually owns | `ELIMINATED_CIV_AREAS.opponentAI` scrubs this **only for eliminated civs**; a living civ's portfolio referencing a unit that died in ordinary combat this round has no general assert — **#1081** (plausible latent-bug shape, no demonstrated break) |
+| `opponentAI.majorCivs.*` (`assignedUnitIds`, `upgradeRoutesByUnitId`), `.barbarianHomeCampByUnitId` | A portfolio references only a live unit it actually still owns (existence AND ownership — a unit can change owner without dying, via `combat-reward-system.ts`'s "prize crew" capture) | `SAVE_STATE_INVARIANTS: opponent-ai-portfolio-integrity` (**#1081, closed**) — runs unconditionally for every living civ, via `scanOpponentAIPortfolioDanglingUnitRefs` (`tests/helpers/eliminated-civ-areas.ts`), the same scan `ELIMINATED_CIV_AREAS.opponentAI` now delegates to for the elimination-teardown case |
 | `opponentAI.pressureByCiv`, `autonomyByCiv`, `networkCivicPressureByCity`, `councilMemory` | Keyed only by live civs/cities | `ELIMINATED_CIV_AREAS` (teardown, per-field) |
 | AI decision determinism | Same seed + state ⇒ identical AI trace and resulting state, in-process and across save/reload | `.claude/rules/game-systems.md`'s Deterministic Simulation Contract + `tests/app/simulation-determinism.test.ts` / `determinism-guard.test.ts` |
 | Domination sovereignty/victory queries | UI and AI consume observer-safe DTOs, never the omniscient query directly | Source rule (`check-src-rule-violations.sh`'s domination-authority block) |
@@ -161,13 +161,14 @@ already landed the movement-specific slice).
 ## New findings from this audit, not fixed here (follow-up issues)
 
 1. **#1080** — National-project state-level uniqueness has no live-state assert (query-time dedup
-   only).
+   only). **Closed** — `SAVE_STATE_INVARIANTS: national-project-uniqueness`.
 2. **#1081** — `opponentAI` portfolio dangling-unit references are checked only on civ elimination,
-   not for a living civ whose unit died in ordinary combat.
+   not for a living civ whose unit died in ordinary combat. **Closed** —
+   `SAVE_STATE_INVARIANTS: opponent-ai-portfolio-integrity`.
 3. **#1082** — `IdCounters`' extension contract is discipline-only — no compile-enforced coverage
    the way `ELIMINATED_CIV_AREAS` enforces its own.
 4. **#1083** — Trade-route / marketplace civ references are checked only on elimination, not for a
-   living civ.
+   living civ. **Closed** — `SAVE_STATE_INVARIANTS: marketplace-references`.
 
-None has a demonstrated break; each is cheap to close later by extending one of the three mechanisms
-above. Do not fix these here — see #1003's own non-goal against fixing every invariant in one PR.
+None had a demonstrated break; each was cheap to close by extending one of the three mechanisms
+above. #1082 remains open. See #1003's own non-goal against fixing every invariant in one PR.
