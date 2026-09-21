@@ -366,6 +366,59 @@ descendant-process-acquires-domain-B regression for the bug above), the
 `CI=true` no-op, and the many-simultaneous-racers stress scenario that
 catches the mkdir-then-write-metadata race directly.
 
+### AI-long-horizon participates in the shared budget too (#1133 MR7)
+
+`scripts/run-ai-long-horizon.sh` acquires ONE shared host-budget slot
+(`hvl_acquire_budget_slot ai-long`) for its entire run — including stall-retry
+attempts and their backoff sleeps — in ADDITION to its own separate
+`ai-long-horizon-lease` mutex (unchanged, still prevents two ai-long runs from
+double-booking each other). Before this, ai-long held only its own mutex, so
+up to `HOST_VERIFICATION_LEASE_BUDGET` (3) `full`/`regular`/
+`intensive-simulations` jobs PLUS one ai-long run could proceed fully
+simultaneously — one more heavyweight Vitest invocation than the documented
+host-wide ceiling. This was empirically reproduced, not theoretical: a real
+`yarn verify:local:status` snapshot during an MR7 benchmark run showed an
+ai-long stall-retry attempt with an `ACTIVE ai-long-horizon` mutex row at the
+exact same instant as another agent's real `ACTIVE regular` budget-slot row.
+
+The budget-slot acquire happens BEFORE the script's own
+`HOST_VERIFICATION_LEASE_ROOT` override to `$hvl_host_scope_dir/
+ai-long-horizon-lease` — it must resolve against the real SHARED root (the
+same one `full`/`regular`/`intensive-simulations` use), not ai-long's own
+separate lease domain. One slot (not a weighted multi-slot cost) is
+deliberately the simplest policy that gives a single known host-wide ceiling
+across every heavyweight class, per #1133's own preference for the simplest
+sufficient policy over a more complex weighted one absent measured evidence
+that one slot is insufficient.
+
+Verified live: with `HOST_VERIFICATION_LEASE_BUDGET=1` and a concurrent
+`yarn test` holding the only slot, a started `yarn test:ai-long` now shows as
+a `QUEUED ai-long` row in `yarn verify:local:status` (impossible before this
+fix — ai-long never appeared in that view's coordination rows at all except
+via its own separate mutex) and proceeds only once the slot frees.
+
+**A related stall investigation, for the record:** during the same MR7 pass,
+`yarn test:ai-long` stalled to genuine zero-CPU-progress 6/6 times across two
+independent invocations — each correctly auto-retried by the #1131 watchdog,
+eventually exhausting retries with a clean `STATUS: STALL` rather than a
+silent hang or false pass. Memory pressure, swap, and process-group
+CPU-accounting correctness were all directly ruled out (66% system-wide free
+memory, swap disabled, and a dedicated instrumented repro confirmed every
+descendant process, including the real Vitest worker fork, correctly shares
+the wrapper's detached-process-group pgid and was genuinely CPU-busy).
+Bisecting the wrapper chain layer by layer on a subsequently-quiet host found
+no defect in any single layer (`run-with-timeout.mjs` alone, `run-under-
+host-lease.sh` with an isolated root, the same with the real root, and the
+full unmodified production script) — each completed in ~50s, matching the
+documented ~19.4s baseline plus known contention slowdown. Conclusion: the
+six stalls were genuine, self-inflicted host exhaustion from that session's
+own unusually aggressive back-to-back benchmark campaign (several
+4-way-concurrent full-suite runs within about an hour on one 10-core host),
+not a wrapper-chain defect. The budget-slot fix above is the real, durable
+mitigation for this class of condition under *normal* two-agent usage; see
+`docs/superpowers/plans/2026-09-20-issue-1133-verification-orchestration-arc.md`'s
+MR7 section for the full bisection evidence.
+
 ### `yarn verify:local:status` (#1133 P2 / MR6)
 
 One durable, agent/human-facing view of every tracked heavyweight
