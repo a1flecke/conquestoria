@@ -44,5 +44,11 @@ describe('#496 final arc — compact long-run envelope', () => {
 
     expect(traceA.samples).toEqual(traceB.samples);
     expect(traceA.finalState.minorCivLeagues).toEqual(traceB.finalState.minorCivLeagues);
-  }, 20000);
+    // This test runs the full 120-turn simulation TWICE (determinism check), unlike the
+    // single-run `it.each` cases above which share this file's 20000ms budget for one run.
+    // Under real host contention (#1133's own benchmark matrix reproduced this 4/4 times: a
+    // raw 4-way-concurrent `yarn test` run consistently took 23.5-24.8s here, vs the six
+    // single-run siblings averaging ~12.3s each well inside 20000ms) the doubled workload
+    // needs a doubled budget, not the same one. See docs/superpowers/plans/2026-09-20-issue-1133-verification-orchestration-arc.md.
+  }, 40000);
 });

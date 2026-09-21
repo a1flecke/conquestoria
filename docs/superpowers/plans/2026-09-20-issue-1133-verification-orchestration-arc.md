@@ -288,7 +288,7 @@ Still open (both explicitly deferred, not silently dropped):
       constraint the whole arc has held so far rather than a one-time task; carried forward as an
       open item since it was never explicitly itemized as "closed" by any prior MR either.
 
-### MR6 — agent-facing `yarn verify:local:status` (P2) — pending merge
+### MR6 — agent-facing `yarn verify:local:status` (P2) ✅ merged (PR #1141)
 
 Built on top of MR3/MR4's durable/ownership records and MR5's budget metadata, not `ps`
 heuristics: `scripts/verify-local-status.sh` shows the mutex's current holder (if any), every
@@ -328,6 +328,107 @@ See `tests/hooks/verify-local-status.test.sh` for the full contract (idle-host b
 passed/failed/running/abandoned durable rows, live mutex and budget ACTIVE/QUEUED rows with
 correct in-use counts) and `.claude/rules/hooks-and-tooling.md`'s "`yarn verify:local:status`"
 section for the complete mechanism-level writeup of both the feature and the bug fix.
+
+### MR7 — real-host benchmark/tuning pass (2026-09-21 issue comment) 🟡 partial
+
+Scope was the issue's own follow-up comment: run the real benchmark matrix, tune the host
+budget/ai-long-parallelism knobs from evidence, and either close #1133 or file any newly-found
+structural bug narrowly. Ran on the actual dev host (10 logical/physical cores, Apple Silicon,
+32GB RAM, swap disabled, macOS, Node v26.4.0, vitest 4.1.9) with real concurrent-agent
+contention present for parts of the session (another agent's worktree ran real
+`test:regular`/pre-push cycles throughout) — noted per-scenario below rather than pretending a
+clean isolated baseline throughout.
+
+**Benchmark data (§1, partial — see "Not done" below):**
+
+| Scenario | Wall time | Notes |
+|---|---:|---|
+| 1x solo `yarn test` | 334s | host idle |
+| 2x concurrent | 607s each (1.82x) | host idle |
+| 3x concurrent | 657-659s each (1.97x) | host idle |
+| 4x concurrent, default budget=3 | 577-1002s | 4th queued; **real external contention** from another agent's `regular` job took one of the 3 slots, so only 2 of 4 got immediate slots — an authentic two-agent data point, not a clean 4-way-only measurement |
+| 4x concurrent, budget raised to 10 (no self-queue) | 766s each | **all 4 failed** — see bug #1 below |
+
+Peak resource sampling used `ps`-based vitest-worker-count and load-average polling; the
+load-average field had a shell field-splitting bug in the sampler script (a scratch tool, not
+committed) and its absolute numbers are unreliable — worker-count and wall-clock are the
+trustworthy signals above. Not measured: `perf:report`/ai-playability contention (§5), the
+`fileParallelism:false` ai-long comparison (§2), the asymmetric-join scenario (a heavy job
+starting mid-way through another's execution, distinct from simultaneous starts) — all
+explicitly deferred, not silently dropped; see "Not done" below.
+
+**Bug #1 (found via the raw 4-way scenario, fixed + verified):**
+`tests/systems/minor-civ-league-longrun.test.ts`'s `'replays the same peaceful compact trace
+from an identical seed'` test reproducibly timed out (23.5-24.8s, 4/4 concurrent jobs, byte-
+identical failure) against a hardcoded 20000ms budget. Root cause: unlike its six `it.each`
+siblings (which average ~12.3s each under the same contention, well inside their own 20000ms
+budget), this test runs the full 120-turn simulation **twice** (a determinism check) while
+sharing the single-run budget. Fixed by doubling its timeout to 40000ms, matching the doubled
+workload, with a comment explaining the derivation. Re-run standalone: 21.42s, passes.
+
+**Bug #2 (found via the ai-long-alone scenario, fixed + verified — a real architectural gap
+the plan doc's own MR5 section had already flagged as open, §4 in the issue):**
+`scripts/run-ai-long-horizon.sh` held only its own separate `ai-long-horizon-lease` mutex
+(via `run-under-host-lease.sh`), never the shared host-wide budget semaphore
+`run-test-suite.sh`'s three modes (`full`/`regular`/`intensive-simulations`) already respect.
+This meant up to `HOST_VERIFICATION_LEASE_BUDGET` (3) of those **plus** one ai-long run could
+proceed fully simultaneously — one more heavyweight Vitest invocation than the documented
+ceiling. Not theoretical: directly observed via `yarn verify:local:status` showing an ai-long
+stall-retry attempt genuinely overlapping with another agent's real `regular` push-verification
+run at the same instant. Fixed by having `run-ai-long-horizon.sh` also acquire one shared
+budget slot (`hvl_acquire_budget_slot ai-long`) for its entire run — including stall-retry
+attempts and their backoff sleeps — acquired *before* the script's own
+`HOST_VERIFICATION_LEASE_ROOT` override so it resolves against the real shared root, not
+ai-long's separate domain. Deliberately the simplest policy (one slot, not a weighted
+multi-slot cost) per the issue's own stated preference for the simplest policy that gives a
+single known host-wide ceiling. Its own per-ai-long mutex is untouched and still separately
+prevents two ai-long runs from double-booking each other. Verified live: with
+`HOST_VERIFICATION_LEASE_BUDGET=1` and a concurrent `yarn test` holding the only slot, a
+started `yarn test:ai-long` now correctly shows as a `QUEUED` row in
+`yarn verify:local:status` (never possible before this fix) and proceeds only after the slot
+frees. All 28 existing `yarn test:hooks` scenarios still pass, including
+`run-ai-long-horizon-stall-retry.test.sh` unmodified.
+
+**The "ai-long stalls to zero CPU progress" investigation (§2/§6 evidence, root-caused —
+not a wrapper-chain bug):** `yarn test:ai-long` (and a `-t lh-standard-small`-filtered single
+scenario) stalled to genuine zero-CPU-progress 6/6 times across two independent invocations
+during this session, each auto-retried by the #1131 watchdog and eventually exhausting
+retries with a clean `STATUS: STALL`. Memory pressure, swap, and process-group CPU-tracking
+correctness were all ruled out directly (66% system-wide free memory, swap disabled/0 used,
+and a dedicated instrumented repro confirmed every descendant — including the real Vitest
+worker fork — correctly shares the wrapper's detached process-group pgid, with the worker
+consistently visible at 100%+ CPU). The actual test logic was confirmed healthy in isolation:
+run directly through plain `vitest run -t lh-standard-small`, it completed in 48.8s (in line
+with the documented ~19.4s baseline plus known contention slowdown, not the ~1155-1571s seen
+in the failing runs). Bisecting the wrapper chain layer by layer on a now-quiet host — plain
+`run-with-timeout.mjs` (52s, clean), `run-under-host-lease.sh` with an isolated lease root
+(51s, clean), the same with the *real* (non-isolated) host-scope root (51s, clean), and
+finally the full unmodified production `run-ai-long-horizon.sh -t lh-standard-small` itself
+(51s, clean) — found no defect in any layer once the host was actually quiet. Conclusion: the
+six stalls were genuine, self-inflicted host exhaustion from this session's own unusually
+aggressive back-to-back benchmark campaign (several 4-way-concurrent full-suite runs, one of
+which failed all 4 jobs, run within about an hour on one 10-core host), not a code bug — the
+stall-retry mechanism worked exactly as designed throughout (never a silent hang, never a
+false pass, always a clean machine-checked signal). Bug #2 above is the real, durable
+mitigation: it directly caps the worst-case simultaneous-heavyweight-job count that can
+produce this condition under *normal* two-agent usage. No further code change is filed for
+this specific investigation; re-open with fresh evidence if it reproduces under normal
+(non-benchmark-stress) conditions.
+
+**Not done in this MR (explicitly deferred, not silently dropped):**
+- The full 9-scenario benchmark matrix (§1) — completed 1x/2x/3x/4x-gated/4x-raw only; ai-long
+  alone/+regular/+full combinations, the two focused-during-heavy-load and asymmetric-join
+  scenarios were not cleanly measured (the ai-long-alone attempts became the stall
+  investigation above instead of clean timing data).
+- §2 (ai-long `fileParallelism:false` comparison) and §5 (`perf:report`/ai-playability
+  contention check) — not started.
+- §3 (validate/change the default budget of 3) — not re-tuned; the 2x/3x/4x scaling numbers
+  above (1.82x/1.97x/queued-4th) are consistent with the existing default's own documented
+  spot-check rationale, but were not run as a dedicated statistical pass, so the existing
+  default is left as-is rather than changed on this partial evidence.
+- §4 (should ai-long participate in the shared budget) — **answered and shipped**: yes, one
+  slot (bug #2 above).
+- §7 (close #1133) — not done. The benchmark matrix is still incomplete per the items above.
 
 ## Notes for whoever picks this up next
 

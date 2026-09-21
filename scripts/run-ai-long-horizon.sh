@@ -44,6 +44,32 @@ cd "$ROOT"
 # stays a separate coordination domain from the shared push-verification
 # lease, per the header comment above.
 . "$ROOT/scripts/host-verification-lease.sh"
+
+# #1133 (2026-09-21 benchmark/closure pass): this suite previously held ONLY
+# its own separate ai-long-horizon-lease mutex below, with NO coordination
+# against the shared host-wide budget scripts/run-test-suite.sh's three
+# modes (full/regular/intensive-simulations) already respect. That let up to
+# HOST_VERIFICATION_LEASE_BUDGET (3) of those PLUS one ai-long run proceed
+# fully simultaneously -- one MORE heavyweight Vitest invocation than the
+# documented host-wide ceiling. This is not theoretical: directly reproduced
+# during this benchmark pass, where an ai-long run's stall-retry attempt
+# genuinely overlapped with another agent's real `regular` push-verification
+# run (both visible as concurrent ACTIVE rows in `yarn verify:local:status`
+# at the same instant). Fixed by having ai-long also hold ONE shared-budget
+# slot for its entire run (including stall-retry attempts and their backoff
+# sleeps below) -- its own per-ai-long mutex still separately prevents two
+# ai-long runs from double-booking each other, so this adds one more
+# constraint rather than replacing that one. This is deliberately the
+# simplest sufficient policy (one slot, not a weighted multi-slot cost):
+# it gives a single known host-wide ceiling across every heavyweight class,
+# matching the issue's own stated preference for the simplest policy that
+# achieves that. Acquired BEFORE the ai-long-specific
+# HOST_VERIFICATION_LEASE_ROOT override below so it resolves against the
+# real SHARED root (the same one full/regular/intensive-simulations use),
+# not ai-long's own separate domain.
+hvl_acquire_budget_slot ai-long
+trap hvl_release_budget_slot EXIT
+
 hvl_host_scope_dir="$(hvl_resolve_host_scope_dir)" || exit 2
 export HOST_VERIFICATION_LEASE_ROOT="$hvl_host_scope_dir/ai-long-horizon-lease"
 
