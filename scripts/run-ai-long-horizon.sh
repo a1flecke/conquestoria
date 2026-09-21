@@ -59,10 +59,33 @@ export HOST_VERIFICATION_LEASE_ROOT="$hvl_host_scope_dir/ai-long-horizon-lease"
 # header comment for the per-scenario numbers this is derived from. This budget
 # starts only AFTER the lease above is acquired, so waiting for another
 # long-horizon run to finish never eats into it.
-sh ./scripts/run-under-host-lease.sh "ai-long-horizon" -- \
-  ./scripts/run-with-mise.sh node ./scripts/run-with-timeout.mjs 8400 ai-long-horizon -- \
-  ./scripts/run-with-mise.sh yarn vitest run \
-  --config vitest.long-horizon.config.ts \
-  --testTimeout=1800000 \
-  --hookTimeout=1800000 \
-  "$@"
+# Follow-up to #1133 (see verify-before-push.sh's run_phase and
+# .claude/rules/hooks-and-tooling.md's "verify-before-push.sh retries a STALL
+# automatically" section for the full rationale): only exit 125 (STALL --
+# zero CPU progress, a machine-checked claim from run-with-timeout.mjs's own
+# watchdog) is safe to retry. A plain timeout (124) or a real failure fail
+# immediately, unretried.
+AI_LONG_HORIZON_STALL_MAX_RETRIES="${AI_LONG_HORIZON_STALL_MAX_RETRIES:-2}"
+AI_LONG_HORIZON_STALL_RETRY_BACKOFF_SECONDS="${AI_LONG_HORIZON_STALL_RETRY_BACKOFF_SECONDS:-20}"
+
+attempt=0
+while :; do
+  attempt=$((attempt + 1))
+  set +e
+  sh ./scripts/run-under-host-lease.sh "ai-long-horizon" -- \
+    ./scripts/run-with-mise.sh node ./scripts/run-with-timeout.mjs 8400 ai-long-horizon -- \
+    ./scripts/run-with-mise.sh yarn vitest run \
+    --config vitest.long-horizon.config.ts \
+    --testTimeout=1800000 \
+    --hookTimeout=1800000 \
+    "$@"
+  matrix_status=$?
+  set -e
+
+  [ "$matrix_status" -eq 0 ] && exit 0
+  if [ "$matrix_status" -ne 125 ] || [ "$attempt" -gt "$AI_LONG_HORIZON_STALL_MAX_RETRIES" ]; then
+    exit "$matrix_status"
+  fi
+  echo "run-ai-long-horizon: stalled (attempt $attempt/$((AI_LONG_HORIZON_STALL_MAX_RETRIES + 1))) -- host contention, not a code problem. Backing off ${AI_LONG_HORIZON_STALL_RETRY_BACKOFF_SECONDS}s before retrying." >&2
+  sleep "$AI_LONG_HORIZON_STALL_RETRY_BACKOFF_SECONDS"
+done

@@ -585,6 +585,23 @@ retrying entirely; and the build phase's own stall retries independently of
 the test phase's (separate attempt counters, proven by an already-passed
 test phase remaining at exactly one invocation).
 
+**`run-ai-long-horizon.sh` got the identical treatment**, discovered while
+verifying #1122's capture-force AI change hit this exact same host-contention
+stall twice in a row on this exact script. Same shape:
+`AI_LONG_HORIZON_STALL_MAX_RETRIES` (default 2) /
+`AI_LONG_HORIZON_STALL_RETRY_BACKOFF_SECONDS` (default 20), only exit 125
+retries, the original exit code propagates once retries are exhausted. This
+lives directly in `run-ai-long-horizon.sh` rather than in the shared
+`run-under-host-lease.sh` primitive it calls into — that primitive also backs
+`run-durable-test-suite.sh` and `verify-pr.sh`'s build step, callers with
+their own retry needs (or none), so the decision to retry stays with each
+specific caller, the same reasoning `verify-before-push.sh`'s own retry logic
+above already used to reject putting this in `run-with-timeout.mjs` itself.
+See `tests/hooks/run-ai-long-horizon-stall-retry.test.sh` for the same four
+scenarios (stall-then-success, retries-exhausted, 124-never-retries,
+real-failure-never-retries), built with the identical fake-`node`/`yarn`
+fixture technique.
+
 ## Worktree command-runner contract
 
 `scripts/run-with-mise.sh` executes all project behavior from the active
