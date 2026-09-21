@@ -419,6 +419,48 @@ mitigation for this class of condition under *normal* two-agent usage; see
 `docs/superpowers/plans/2026-09-20-issue-1133-verification-orchestration-arc.md`'s
 MR7 section for the full bisection evidence.
 
+### PID-liveness checks must not trust `kill -0` alone across a privilege boundary (#1133 MR8)
+
+`hvl_pid_is_live` (`scripts/host-verification-lease.sh`) — the primitive every reclaim decision
+(mutex staleness, budget-slot staleness) and every status display (`yarn verify:local:status`'s
+ACTIVE/QUEUED rows, `read-durable-test-result.sh`'s RUNNING/ABANDONED classification,
+`run-durable-test-suite.sh`'s duplicate-run guard) ultimately reads — used to just be
+`kill -0 "$1" 2>/dev/null`. POSIX `kill(2)` returns `EPERM` (not `ESRCH`) when a target process
+genuinely exists but the caller lacks permission to signal it, a real condition across a
+sandbox/privilege boundary that can still allow a read-only process listing. `kill -0
+2>/dev/null` collapses both outcomes into the same "not live" result, discarding exactly the
+distinction that matters.
+
+Reported and reproduced (issue comment on #1133, 2026-09-21): from a restricted Codex command
+context, `yarn verify:local:status` reported a lease as fully idle (`resource budget: 0/3 slots
+in use`, no holders) at the exact moment the same command run from the privileged execution
+context found two genuinely live holders on disk. Fixed by falling back to a listing-based check
+(`ps -p`, which only requires read access, not signal-send permission) before concluding "not
+live" — the same "do not trade safety for faster recovery" philosophy `hvl_is_stale`'s
+unreadable-start-marker branch already applied to process *metadata* reads (see the "Host
+resource budget" section above), now applied to the liveness signal itself. Since every caller
+above funnels through this one primitive, the fix is a single point of change, not a
+per-call-site patch.
+
+Two direct `kill -0` calls in `run-durable-test-suite.sh` (`acquire_lock`'s stale-lock check and
+its own `.running`-marker duplicate-run guard) already sourced this same library but bypassed it
+— switched to `hvl_pid_is_live` for the same reason: a false "dead" reading there would let a
+restricted execution context steal a lock or start a duplicate run against a genuinely active
+job in a privileged context, exactly the failure #1133 exists to prevent.
+
+**Residual, documented limitation, not claimed as solved:** a true PID-namespace container where
+even `ps` cannot see foreign-namespace PIDs at all has no local probe that can prove liveness —
+this fix resolves the permission-boundary case (`EPERM`), not full namespace isolation. No
+attempt was made to detect "am I in such a sandbox" generically; doing so without concrete
+evidence of that specific condition would be exactly the kind of speculative complexity this
+codebase avoids elsewhere.
+
+See `tests/hooks/host-verification-lease-pid-visibility.test.sh` for the regression coverage:
+a genuinely live and a genuinely dead PID (baseline, unchanged behavior) plus both cases again
+with `kill -0` itself faked to fail (via shadowing the `kill` builtin with a shell function —
+verified working under both bash and dash), proving the `ps`-based fallback is what makes the
+difference.
+
 ### `yarn verify:local:status` (#1133 P2 / MR6)
 
 One durable, agent/human-facing view of every tracked heavyweight

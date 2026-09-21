@@ -430,6 +430,24 @@ this specific investigation; re-open with fresh evidence if it reproduces under 
   slot (bug #2 above).
 - §7 (close #1133) — not done. The benchmark matrix is still incomplete per the items above.
 
+### MR8 — cross-context PID-visibility fix (2026-09-21 issue comment) ✅ done
+
+Follow-up issue comment reported and reproduced a real, safety-relevant bug: from a restricted
+Codex command context, `yarn verify:local:status` reported a lease as fully idle at the exact
+moment the same command run from the privileged execution context found two genuinely live
+holders on disk. Root cause: `hvl_pid_is_live` trusted `kill -0` alone; POSIX `kill(2)` returns
+`EPERM` (not `ESRCH`) when a process genuinely exists but the caller lacks signal permission — a
+real condition across a sandbox/privilege boundary — and `kill -0 2>/dev/null` discards that
+distinction. Fixed by falling back to a `ps -p` (listing-only, no signal permission needed)
+check before concluding "not live," at the single primitive every reclaim decision and status
+display in this system reads from. Two direct `kill -0` calls in `run-durable-test-suite.sh`
+that already sourced the library but bypassed it were also switched over — same bug class, same
+fix. See `.claude/rules/hooks-and-tooling.md`'s new section for the full writeup and
+`tests/hooks/host-verification-lease-pid-visibility.test.sh` for the regression coverage.
+Explicitly not claimed as solved: a true PID-namespace container where even `ps` can't see
+foreign-namespace PIDs has no local probe that can prove liveness — documented as a residual
+limitation, not silently ignored.
+
 ## Notes for whoever picks this up next
 
 - Do not attempt MR2 onward without re-reading #1133 in full — the "Recommended design" section
