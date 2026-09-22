@@ -56,6 +56,8 @@ export interface CampaignCivSample extends CampaignCivCounters {
   activePlanCount: number;
   /** max over this civ's live plans of (state.turn - plan.lastProgressTurn) */
   maxPlanNoProgressRounds: number;
+  /** #1086: absent for a human civ or a non-human civ with no round processed yet. */
+  nationalIntent: string | null;
 }
 
 export interface CampaignRoundSample {
@@ -136,6 +138,7 @@ export function buildCampaignRoundSample(
           (max, plan) => Math.max(max, state.turn - plan.lastProgressTurn),
           0,
         ),
+        nationalIntent: state.opponentAI?.nationalIntentByCiv?.[civ.id]?.current ?? null,
         ...counters,
       };
     })

@@ -75,6 +75,7 @@ describe('barbarian camp pressure', () => {
     state.opponentAI = {
       version: 1, migrationGraceRoundsRemaining: 0, majorCivs: {}, barbarianCamps: {},
       barbarianHomeCampByUnitId: { [raider.id]: 'camp-a' }, minorCivs: {}, pressureByCiv: {},
+      nationalIntentByCiv: {},
       lastPlannedRound: null, lastProcessedRound: null, lastFinalizedRound: null,
     };
 

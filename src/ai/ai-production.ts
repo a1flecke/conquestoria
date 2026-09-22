@@ -33,6 +33,7 @@ import { getArsenalStatus } from '@/systems/strategic-arsenal-system';
 import type { AIForceDemand } from './ai-unit-assignment';
 import { getAIStrategicRoles } from './ai-unit-roles';
 import { weightProductionRoles } from './ai-personality';
+import { NATIONAL_INTENT_POSTURE } from './ai-national-intent';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { getVisibility } from '@/systems/fog-of-war';
 import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
@@ -487,6 +488,12 @@ function generateWithResidual(
   const resources = getCivAvailableResources(state, civId);
   const civEra = resolveCivilizationEra(civ.techState.completed);
   const civDefinition = resolveCivDefinition(state, civ.civType ?? '');
+  // #1086: read-only lookup of this civ's already-persisted intent (written back by
+  // ai-round-scheduler.ts's writePreparedPortfolios in the same round intent was
+  // resolved) -- no new parameter threaded through every production caller.
+  const posture = NATIONAL_INTENT_POSTURE[
+    state.opponentAI?.nationalIntentByCiv[civId]?.current ?? 'develop'
+  ];
   const productionPerTurn = Math.max(
     1,
     calculateProjectedCityYields(state, cityId, civDefinition?.bonusEffect).production,
@@ -560,7 +567,7 @@ function generateWithResidual(
     const productionTurns = Math.max(1, Math.ceil(cost / productionPerTurn));
     const roleDemandScore = fulfilled.missing * 40 + fulfilled.priority / 5;
     const emergencyDefenseScore = emergency ? 10 : 0;
-    const personalityScore = weightProductionRoles(personality, roles);
+    const personalityScore = weightProductionRoles(personality, roles, posture);
     const citySpecializationScore = city.buildings.includes('barracks')
       && roles.some(role => COMBAT_CARGO_ROLES.has(role))
       ? 2
@@ -620,7 +627,7 @@ function generateWithResidual(
       if (reserveAllows(state, civId, maintenanceImpact, false, 1)) {
         const cost = getContextualProductionCost('missionary', productionCostContext);
         const productionTurns = Math.max(1, Math.ceil(cost / productionPerTurn));
-        const personalityScore = weightProductionRoles(personality, ['missionary']);
+        const personalityScore = weightProductionRoles(personality, ['missionary'], posture);
         // Fervor-boon civs weight missionaries higher — their faith already spreads/
         // converts faster, so each additional missionary compounds more value.
         const fervorWeight = civReligion.boon === 'fervor' ? 2 : 1;
@@ -676,7 +683,7 @@ function generateWithResidual(
     if (!reserveAllows(state, civId, maintenanceImpact, false, economyScore)) continue;
     const cost = getContextualProductionCost(building.id, productionCostContext);
     const productionTurns = Math.max(1, Math.ceil(cost / productionPerTurn));
-    const personalityScore = weightProductionRoles(personality, []);
+    const personalityScore = weightProductionRoles(personality, [], posture);
     const citySpecializationScore = building.category === city.focus ? 1 : 0;
     const maintenanceRisk = maintenanceImpact;
     const buildingDefensiveScore = defensiveEspionageScore(state, civId, cityId, building.id);

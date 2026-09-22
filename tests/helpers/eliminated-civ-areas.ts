@@ -257,7 +257,7 @@ export const ELIMINATED_CIV_AREAS: Record<keyof GameState, EliminatedCivArea> = 
   },
   opponentAI: {
     kind: 'teardown',
-    why: 'majorCivs / pressureByCiv key deleted; every portfolio scrubbed of removed unit ids; barbarianHomeCampByUnitId filtered',
+    why: 'majorCivs / pressureByCiv / nationalIntentByCiv key deleted; every portfolio scrubbed of removed unit ids; barbarianHomeCampByUnitId filtered',
     scan: (state, ctx) => {
       const problems: string[] = [];
       const ai = state.opponentAI;
@@ -265,6 +265,7 @@ export const ELIMINATED_CIV_AREAS: Record<keyof GameState, EliminatedCivArea> = 
       for (const deadId of ctx.eliminated) {
         if (Object.hasOwn(ai.majorCivs ?? {}, deadId)) problems.push(`opponentAI.majorCivs still has a portfolio for eliminated civ "${deadId}"`);
         if (Object.hasOwn(ai.pressureByCiv ?? {}, deadId)) problems.push(`opponentAI.pressureByCiv still has an entry for eliminated civ "${deadId}"`);
+        if (Object.hasOwn(ai.nationalIntentByCiv ?? {}, deadId)) problems.push(`opponentAI.nationalIntentByCiv still has an entry for eliminated civ "${deadId}"`);
       }
       const dangling = (id: string): boolean => !ctx.liveUnitIds.has(id);
       for (const [ownerId, portfolio] of Object.entries(ai.majorCivs ?? {})) {

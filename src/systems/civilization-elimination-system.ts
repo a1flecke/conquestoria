@@ -207,6 +207,7 @@ export function eliminateCivilization(
   if (next.opponentAI) {
     delete next.opponentAI.majorCivs[civId];
     delete next.opponentAI.pressureByCiv[civId];
+    delete next.opponentAI.nationalIntentByCiv[civId];
     for (const [otherId, portfolio] of Object.entries(next.opponentAI.majorCivs)) {
       next.opponentAI.majorCivs[otherId] = scrubPortfolio(portfolio, removedUnits);
     }

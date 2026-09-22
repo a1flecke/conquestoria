@@ -1,4 +1,5 @@
 import type { AIStrategicRole, PersonalityTraits, Tech, TechTrack } from '@/core/types';
+import type { NationalIntentPosture } from './ai-national-intent';
 
 const TRACK_WEIGHTS: Record<string, Record<TechTrack, number>> = {
   aggressive:   { military: 3, economy: 1, science: 1, civics: 0.5, exploration: 1.5, agriculture: 1, medicine: 0.5, philosophy: 0.5, arts: 0.5, maritime: 1, metallurgy: 2.5, construction: 1.5, communication: 0.5, espionage: 1.5, spirituality: 0.5 },
@@ -64,28 +65,35 @@ const COMBAT_PRODUCTION_ROLES = new Set<AIStrategicRole>([
   'escort',
 ]);
 
+/**
+ * #1086: `posture` is national intent's typed bias table (see ai-national-intent.ts) --
+ * a required parameter, not optional, so every call site is forced to consider it rather
+ * than silently defaulting. Every existing personality-only term is preserved exactly;
+ * posture only multiplies the settlement/economy/combat groupings, never replaces them.
+ */
 export function weightProductionRoles(
   personality: PersonalityTraits,
   roles: readonly AIStrategicRole[],
+  posture: NationalIntentPosture,
 ): number {
   let score = 0;
   if (roles.some(role => COMBAT_PRODUCTION_ROLES.has(role))) {
-    score += personality.warLikelihood * 20;
+    score += personality.warLikelihood * 20 * posture.combatRoleWeight;
   }
   if (roles.includes('settlement')) {
-    score += personality.expansionDrive * 24;
+    score += personality.expansionDrive * 24 * posture.settlementRoleWeight;
   }
   if (roles.includes('transport') || roles.includes('recon')) {
-    score += personality.expansionDrive * 8;
+    score += personality.expansionDrive * 8 * posture.settlementRoleWeight;
   }
   if (roles.includes('trade')) {
-    score += personality.traits.includes('trader') ? 16 : 0;
+    score += (personality.traits.includes('trader') ? 16 : 0) * posture.economyRoleWeight;
   }
   if (roles.includes('espionage')) {
-    score += personality.diplomacyFocus * 4;
+    score += personality.diplomacyFocus * 4 * posture.economyRoleWeight;
   }
   if (roles.includes('missionary')) {
-    score += personality.diplomacyFocus * 6;
+    score += personality.diplomacyFocus * 6 * posture.economyRoleWeight;
   }
   return score;
 }

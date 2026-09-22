@@ -2003,6 +2003,31 @@ export interface CivPressureLedger {
   lastStrategicAudioTurn: number | null;
 }
 
+// #1086: a persistent, long-horizon (dozens of turns) strategic ambition layer above
+// MajorCivPlanPortfolio. `recover` is reachable only via a shock override (never chosen
+// by ordinary ambition scoring) -- see ai-national-intent.ts.
+export type NationalIntent = 'expand' | 'develop' | 'dominate' | 'deter' | 'recover';
+
+export type NationalIntentReason =
+  | 'intent-initial-selection'
+  | 'intent-shock-recover'
+  | 'intent-shock-resolved'
+  | 'intent-sustained-evidence'
+  | 'intent-hysteresis-retained'
+  | 'intent-personality-bias'
+  | 'intent-domination-pursuit';
+
+export interface NationalIntentState {
+  current: NationalIntent;
+  previous: NationalIntent | null;
+  selectedTurn: number;
+  reconsiderAfterTurn: number;
+  shockActive: boolean;
+  /** consecutive not-shocked rounds while `current === 'recover'`; 0 otherwise. */
+  shockFreeStreak: number;
+  reasonCodes: NationalIntentReason[];
+}
+
 export interface OpponentAIState {
   version: 1;
   migrationGraceRoundsRemaining: number;
@@ -2011,6 +2036,7 @@ export interface OpponentAIState {
   barbarianHomeCampByUnitId: Record<string, string>;
   minorCivs: Record<string, AIStrategicPlan>;
   pressureByCiv: Record<string, CivPressureLedger>;
+  nationalIntentByCiv: Record<string, NationalIntentState>;
   lastPlannedRound: number | null;
   lastProcessedRound: number | null;
   lastFinalizedRound: number | null;

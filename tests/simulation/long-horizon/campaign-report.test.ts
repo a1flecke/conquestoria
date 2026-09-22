@@ -49,6 +49,7 @@ function sample(round: number): CampaignRoundSample {
         atWarWith: round > 10 ? ['ai-2'] : [],
         activePlanCount: 1,
         maxPlanNoProgressRounds: round % 3,
+        nationalIntent: 'develop',
         capturesMade: 0,
         capturesSuffered: 0,
         peaceEventsInvolvingCiv: 0,

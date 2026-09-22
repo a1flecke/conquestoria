@@ -1,7 +1,7 @@
 export interface AIDecisionTrace {
   actorId: string;
   turn: number;
-  decision: 'objective' | 'tactical' | 'production' | 'research';
+  decision: 'objective' | 'tactical' | 'production' | 'research' | 'intent';
   selectedId: string | null;
   candidates: Array<{
     id: string;

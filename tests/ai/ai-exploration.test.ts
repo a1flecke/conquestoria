@@ -58,6 +58,10 @@ function prepared(overrides: Partial<{
     },
     forceDemands: [],
     traces: [],
+    nationalIntent: {
+      current: 'develop', previous: null, selectedTurn: 0, reconsiderAfterTurn: 0,
+      shockActive: false, shockFreeStreak: 0, reasonCodes: [],
+    },
   };
 }
 
