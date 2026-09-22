@@ -134,3 +134,31 @@ export function createSimulationRng(
   ].join(':');
   return seededLcg(hashToSeed(source));
 }
+
+/**
+ * #1089: a sibling to `createSimulationRng` for identity that must stay FIXED for an entity's
+ * entire lifetime -- e.g. a barbarian camp's archetype -- rather than a per-turn draw. Deliberately
+ * excludes `state.turn` from the seed: `createSimulationRng` folding turn into every seed is
+ * correct for an ordinary stochastic draw and wrong here, since it would make a stable identity
+ * flicker turn to turn. Reuses this module's own `hashToSeed`/`seededLcg` rather than adding a
+ * fourth hand-rolled copy of the same rolling-hash pattern documented in `hashToSeed`'s own comment
+ * (three pre-existing copies already exist across `game-state.ts`/`crisis-system.ts`/
+ * `minor-civ-system.ts`). Same campaign (`gameId`) + same key ⇒ same result, forever, including
+ * across any number of save/reload cycles -- no persisted field is needed for identity derivable
+ * this way.
+ */
+export function createStableIdentityRng(
+  state: Pick<GameState, 'gameId'>,
+  key: SimulationDomainKey,
+): SimulationRng {
+  const source = [
+    'stable-identity',
+    state.gameId ?? 'legacy',
+    key.domain,
+    key.actorId ?? '',
+    key.targetId ?? '',
+    key.eventId ?? '',
+    key.ordinal ?? '',
+  ].join(':');
+  return seededLcg(hashToSeed(source));
+}

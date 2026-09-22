@@ -1,6 +1,7 @@
 import type {
   BarbarianEligibility,
   BarbarianObservationRequirement,
+  BarbarianRoleSlot,
   UnitType,
 } from '@/core/types';
 import { seededLcg, weightedPick } from './seeded-lcg';
@@ -16,6 +17,13 @@ export interface BarbarianForceCompositionContext {
   seed: number;
   /** Coarse camp-local facts; persistence and collection arrive in #698. */
   observedThreats?: readonly BarbarianObservationRequirement[];
+  /**
+   * #1089: multiplies BarbarianEligibility.weight per role slot before the weighted pick --
+   * never touches canAddCandidate's cap/exclusion legality. Required, not optional, so every
+   * call site is forced to consider it (mirrors #1087's NationalIntentPosture precedent).
+   * Pass NEUTRAL_BARBARIAN_ROLE_WEIGHTS for archetype-unaware callers.
+   */
+  roleWeightMultipliers: Record<BarbarianRoleSlot, number>;
 }
 
 export interface BarbarianReinforcementCandidateContext {
@@ -27,7 +35,12 @@ export interface BarbarianReinforcementContext extends BarbarianReinforcementCan
   assignedUnitTypes: readonly UnitType[];
   escalated: boolean;
   seed: number;
+  roleWeightMultipliers: Record<BarbarianRoleSlot, number>;
 }
+
+export const NEUTRAL_BARBARIAN_ROLE_WEIGHTS: Record<BarbarianRoleSlot, number> = {
+  frontline: 1, ranged: 1, siege: 1, mobile: 1, specialist: 1, 'anti-air': 1,
+};
 
 interface Candidate {
   unitType: UnitType;
@@ -84,6 +97,7 @@ export function getBarbarianReinforcementCandidates(
     forceSize: 1,
     escalated: false,
     seed: 0,
+    roleWeightMultipliers: NEUTRAL_BARBARIAN_ROLE_WEIGHTS,
   }).map(candidate => candidate.unitType);
 }
 
@@ -98,6 +112,7 @@ export function selectBarbarianReinforcement(
     escalated: context.escalated,
     seed: context.seed,
     observedThreats: context.observedThreats,
+    roleWeightMultipliers: context.roleWeightMultipliers,
   };
   const force = context.assignedUnitTypes
     .map(candidateFromEligibility)
@@ -106,7 +121,11 @@ export function selectBarbarianReinforcement(
     .filter(candidate => canAddCandidate(candidate, force, selectionContext));
   return legal.length === 0
     ? undefined
-    : weightedPick(legal, legal.map(candidate => candidate.eligibility.weight), seededLcg(context.seed)).unitType;
+    : weightedPick(
+        legal,
+        legal.map(candidate => candidate.eligibility.weight * context.roleWeightMultipliers[candidate.eligibility.roleSlot]),
+        seededLcg(context.seed),
+      ).unitType;
 }
 
 function countRole(force: readonly Candidate[], role: EligibleBarbarianUnit['roleSlot']): number {
@@ -173,7 +192,11 @@ export function composeBarbarianForce(context: BarbarianForceCompositionContext)
   for (let slot = 0; slot < size; slot++) {
     const legal = candidates.filter(candidate => canAddCandidate(candidate, force, normalizedContext));
     if (legal.length === 0) break;
-    force.push(weightedPick(legal, legal.map(candidate => candidate.eligibility.weight), rng));
+    force.push(weightedPick(
+      legal,
+      legal.map(candidate => candidate.eligibility.weight * context.roleWeightMultipliers[candidate.eligibility.roleSlot]),
+      rng,
+    ));
   }
 
   return force.length > 0 ? force.map(candidate => candidate.unitType) : [fallback.unitType];

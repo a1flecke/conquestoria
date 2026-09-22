@@ -30,6 +30,12 @@ import { getActiveCampPressure, observeCampPressureFromSensedUnits } from './bar
 import { selectBarbarianReinforcement } from './barbarian-force-composer';
 import { createSimulationRng } from './simulation-rng';
 import { getCivilizationLiveness } from './civilization-liveness';
+import {
+  findPredatorHuntTarget,
+  getBarbarianArchetypeDefinition,
+  isMobilizedForAssault,
+  resolveBarbarianArchetype,
+} from './barbarian-archetype';
 
 // Seeded LCG — avoids Math.random() per project rules
 function lcg(seed: number): () => number {
@@ -365,6 +371,10 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
     const assigned = barbarianUnits.filter(unit =>
       opponentAI.barbarianHomeCampByUnitId[unit.id] === camp.id);
     const assignedIds = assigned.map(unit => unit.id);
+    // #1089: bounded, legible per-camp behavioral identity -- derived (never persisted), see
+    // barbarian-archetype.ts and the #1089 design doc for the full rationale.
+    const archetype = resolveBarbarianArchetype(state, camp.id);
+    const archetypeDef = getBarbarianArchetypeDefinition(archetype);
     const sensedUnits = Object.values(state.units)
       .filter(unit =>
         unit.owner !== 'barbarian'
@@ -393,6 +403,7 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
         observedThreats: getActiveCampPressure(observationState, camp.id, state.turn),
         escalated: camp.strength >= 8,
         seed,
+        roleWeightMultipliers: archetypeDef.roleWeightMultipliers,
       });
       if (spawnPosition && unitType) {
         spawnedUnits.push({
@@ -407,11 +418,22 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
       && barbarianDistance(state, camp.position, unit.position) <= BARBARIAN_DEFENSE_RADIUS);
     const existing = opponentAI.barbarianCamps[camp.id];
     const existingPosition = existing ? planTargetPosition(state, existing) : null;
+    // #1089: archetype is stable and derived -- within one continuous game a camp's archetype
+    // never changes turn to turn, so the ladder below never CREATES a plan its own archetype
+    // forbids. The one way a retained plan can still violate the current archetype is a save
+    // that predates #1089 (a city-raid plan a since-resolved-Predator camp created under the
+    // old, archetype-unaware ladder) -- without this check that stale plan would be retained
+    // (and even acted on) for up to its remaining expiresAfterTurn window instead of being
+    // re-selected through the current, archetype-correct ladder on the very next turn.
+    const existingViolatesArchetype = Boolean(
+      existing && existing.target.kind === 'city' && archetypeDef.avoidsCities,
+    );
     const existingValid = Boolean(
       existing
       && state.turn <= existing.expiresAfterTurn
       && existingPosition
-      && sensedByCamp(state, camp, assigned, existingPosition),
+      && sensedByCamp(state, camp, assigned, existingPosition)
+      && !existingViolatesArchetype,
     );
     const existingRaidTargetEscaped = Boolean(
       existing
@@ -435,6 +457,13 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
         'camp-defense',
         assignedIds,
       );
+    }
+
+    // #1089: a Warlord's retained mobilizing plan re-checks its mobilization gate every turn
+    // (the existingValid re-adoption above would otherwise keep phase='mobilizing' forever
+    // once the camp actually has enough assigned force to advance).
+    if (plan && plan.phase === 'mobilizing' && isMobilizedForAssault(assigned.length, archetype)) {
+      plan = { ...plan, phase: 'advancing', reasonCodes: ['nearby-opportunity'] };
     }
 
     const tryRaidUnitPlan = (): typeof plan => {
@@ -482,10 +511,30 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
         : null;
     };
 
-    // #541: higher-difficulty barbarians prioritize pillage-capable resource-tile
-    // raids over chasing a lone worker/caravan; player-side pillage rules never
-    // change by difficulty — only this raid-target preference does.
-    if (!plan) {
+    const tryPredatorHuntPlan = (): typeof plan => {
+      const target = findPredatorHuntTarget(
+        state,
+        camp.position,
+        sensedUnits,
+        unit => UNIT_DEFINITIONS[unit.type].strength > 0,
+      );
+      return target
+        ? makeBarbarianPlan(
+            state,
+            camp,
+            { kind: 'unit', id: target.id, lastKnownPosition: { ...target.position } },
+            'raid',
+            'predator-hunt',
+            assignedIds,
+          )
+        : null;
+    };
+
+    // #1089: Raider keeps the original raid-unit/raid-resource ladder (higher-difficulty
+    // preference for pillage-capable resource tiles over a lone worker/caravan, #541,
+    // unchanged); Predator replaces it with a proactive hunt for a wounded/isolated combat
+    // unit; Warlord never raids at all -- it only ever mobilizes toward a city (below).
+    if (!plan && archetype === 'raider') {
       const unitRaidPlan = tryRaidUnitPlan();
       const resourceRaidPlan = tryRaidResourcePlan();
       const resourceOwnerId = resourceRaidPlan && planTargetOwnerId(state, resourceRaidPlan);
@@ -495,9 +544,13 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
       plan = resourceProfile.pillageAggressivenessMultiplier > 1
         ? (resourceRaidPlan ?? unitRaidPlan)
         : (unitRaidPlan ?? resourceRaidPlan);
+      if (plan) plan.commitment = archetypeDef.commitment;
+    } else if (!plan && archetypeDef.huntsIsolatedWounded) {
+      plan = tryPredatorHuntPlan();
+      if (plan) plan.commitment = archetypeDef.commitment;
     }
 
-    if (!plan) {
+    if (!plan && !archetypeDef.avoidsCities) {
       const city = Object.values(state.cities)
         .filter(city =>
           city.owner !== 'barbarian'
@@ -507,14 +560,17 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
           barbarianDistance(state, camp.position, a.position) - barbarianDistance(state, camp.position, b.position)
           || a.id.localeCompare(b.id))[0];
       if (city) {
+        const mobilized = isMobilizedForAssault(assigned.length, archetype);
         plan = makeBarbarianPlan(
           state,
           camp,
           { kind: 'city', id: city.id, lastKnownPosition: { ...city.position } },
           'raid',
-          'nearby-opportunity',
+          mobilized ? 'nearby-opportunity' : 'warlord-mobilizing',
           assignedIds,
         );
+        plan.commitment = archetypeDef.commitment;
+        if (!mobilized) plan.phase = 'mobilizing';
       }
     }
 
@@ -550,6 +606,35 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
         lastProgressTurn: state.turn,
       };
     }
+
+    // #1089: Raider's recovery cooldown -- once every assigned unit is back at camp after a
+    // withdrawing raid, replace the plan with a low-commitment holding plan whose
+    // reconsiderAfterTurn/expiresAfterTurn are pushed out by the archetype's own
+    // recoveryCooldownTurns. This reuses the SAME existingValid re-adoption mechanism every
+    // other plan already relies on (a 'region' target anchored at the camp is always sensed,
+    // so this plan is re-adopted verbatim every turn until it expires) -- no new field, no
+    // new check. Camp-defense still overrides it immediately (computed above, unconditionally).
+    if (
+      archetype === 'raider'
+      && plan.phase === 'withdrawing'
+      && plan.objective === 'raid'
+      && assigned.length > 0
+      && assigned.every(unit => hexKey(unit.position) === hexKey(camp.position))
+    ) {
+      plan = makeBarbarianPlan(
+        state,
+        camp,
+        { kind: 'region', id: `recover:${camp.id}`, anchor: { ...camp.position } },
+        'defend',
+        'homeland-secure',
+        assignedIds,
+      );
+      plan.phase = 'scouting';
+      plan.commitment = 0.3;
+      plan.reconsiderAfterTurn = state.turn + archetypeDef.recoveryCooldownTurns;
+      plan.expiresAfterTurn = state.turn + archetypeDef.recoveryCooldownTurns;
+    }
+
     plan = { ...plan, assignedUnitIds: assignedIds };
     opponentAI.barbarianCamps[camp.id] = plan;
 
@@ -561,6 +646,11 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
     for (const unit of assigned) {
       if (unit.movementPointsLeft <= 0 || unit.hasActed) continue;
       const withdrawing = plan.phase === 'withdrawing' || unit.health < profile.retreatHealthPercent;
+      // #1089: Warlord accumulating force below its mobilization threshold stays at camp --
+      // "defend the camp while mobilizing" (the campThreat branch above already overrides
+      // `plan` to a 'defend' plan first when the camp is actually threatened, so this only
+      // ever suppresses an unthreatened advance-toward-target).
+      if (!withdrawing && plan.phase === 'mobilizing') continue;
       const targetOwnerId = plan.target.kind === 'unit'
         ? state.units[plan.target.id]?.owner
         : plan.target.kind === 'city'
