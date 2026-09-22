@@ -5,7 +5,10 @@ import {
   weightProductionRoles,
   shouldDeclareWar,
 } from '@/ai/ai-personality';
+import { NATIONAL_INTENT_POSTURE } from '@/ai/ai-national-intent';
 import type { PersonalityTraits, Tech } from '@/core/types';
+
+const NEUTRAL_POSTURE = NATIONAL_INTENT_POSTURE.develop;
 
 describe('ai-personality', () => {
   const aggressive: PersonalityTraits = {
@@ -147,7 +150,45 @@ describe('#1064 expansion weighting', () => {
       traits: ['aggressive'], warLikelihood: 0.9, diplomacyFocus: 0.2, expansionDrive: 0.2,
     };
 
-    expect(weightProductionRoles(expansionist, ['settlement']))
-      .toBeGreaterThan(weightProductionRoles(aggressor, ['settlement']));
+    expect(weightProductionRoles(expansionist, ['settlement'], NEUTRAL_POSTURE))
+      .toBeGreaterThan(weightProductionRoles(aggressor, ['settlement'], NEUTRAL_POSTURE));
+  });
+});
+
+describe('#1086 national intent posture weighting', () => {
+  const neutral: PersonalityTraits = {
+    traits: [], warLikelihood: 0.5, diplomacyFocus: 0.5, expansionDrive: 0.5,
+  };
+
+  it('an expand posture weights settlement/transport/recon higher than a develop posture', () => {
+    expect(weightProductionRoles(neutral, ['settlement'], NATIONAL_INTENT_POSTURE.expand))
+      .toBeGreaterThan(weightProductionRoles(neutral, ['settlement'], NATIONAL_INTENT_POSTURE.develop));
+  });
+
+  it('a dominate posture weights combat roles higher than a develop posture', () => {
+    expect(weightProductionRoles(neutral, ['frontline'], NATIONAL_INTENT_POSTURE.dominate))
+      .toBeGreaterThan(weightProductionRoles(neutral, ['frontline'], NATIONAL_INTENT_POSTURE.develop));
+  });
+
+  it('a recover posture weights settlement lower than every ambition posture', () => {
+    const recoverScore = weightProductionRoles(neutral, ['settlement'], NATIONAL_INTENT_POSTURE.recover);
+    for (const intent of ['expand', 'develop', 'dominate', 'deter'] as const) {
+      expect(recoverScore).toBeLessThan(
+        weightProductionRoles(neutral, ['settlement'], NATIONAL_INTENT_POSTURE[intent]),
+      );
+    }
+  });
+
+  it('preserves the existing personality-only ordering under a neutral (develop) posture', () => {
+    // #1064's own assertion, re-proven under the now-required posture parameter, to
+    // pin that posture never overrides personality's existing relative ordering.
+    const expansionist: PersonalityTraits = {
+      traits: ['expansionist'], warLikelihood: 0.3, diplomacyFocus: 0.5, expansionDrive: 0.9,
+    };
+    const aggressor: PersonalityTraits = {
+      traits: ['aggressive'], warLikelihood: 0.9, diplomacyFocus: 0.2, expansionDrive: 0.2,
+    };
+    expect(weightProductionRoles(expansionist, ['settlement'], NATIONAL_INTENT_POSTURE.develop))
+      .toBeGreaterThan(weightProductionRoles(aggressor, ['settlement'], NATIONAL_INTENT_POSTURE.develop));
   });
 });

@@ -67,6 +67,17 @@ const ADDITIVE_WITHOUT_MIGRATION: Readonly<Record<string, string>> = {
   // defaulting them exactly as before.
   'pirateFleets': '#1098 — now stamped at {} by both creation functions; every reader already tolerates absence via `?? {}`.',
   'pirateFleetCooldownByCivLandmass': '#1098 — now stamped at {} by both creation functions; every reader already tolerates absence via `?? {}`.',
+  // #1086 — a new sibling map on OpponentAIState (`nationalIntentByCiv`), added the
+  // identical way `pressureByCiv`/`majorCivs` themselves were: `createEmptyOpponentAIState`
+  // defaults it to `{}`, `normalizeOpponentAIState` (which already runs unconditionally on
+  // every load, per game-state.ts's own doc comment) rebuilds it entry-by-entry with full
+  // validation, and every downstream reader already goes through optional chaining
+  // (`state.opponentAI?.nationalIntentByCiv[civId]?.current ?? 'develop'` in
+  // ai-production.ts; `state.opponentAI?.nationalIntentByCiv[civId] ?? null` in
+  // ai-prepared-turn.ts). A pre-#1086 save has no key at all, normalizes to `{}`, and the
+  // very next AI round populates every living AI major's entry exactly like `majorCivs`
+  // already does for a civ with no portfolio yet — old saves need no migration for it.
+  'opponentAI.nationalIntentByCiv': '#1086 — new OpponentAIState sibling map, self-normalizing exactly like majorCivs/pressureByCiv; every reader tolerates absence via optional chaining and a sensible default.',
 };
 
 describe('#1023 persisted-save-shape ratchet', () => {

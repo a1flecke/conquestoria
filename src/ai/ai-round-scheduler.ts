@@ -182,14 +182,17 @@ function writePreparedPortfolios(
 ): GameState {
   const normalized = normalizeOpponentAIState(state);
   const majorCivs = { ...normalized.opponentAI!.majorCivs };
+  const nationalIntentByCiv = { ...normalized.opponentAI!.nationalIntentByCiv };
   for (const prepared of preparedPlans) {
     majorCivs[prepared.civId] = structuredClone(prepared.portfolio);
+    nationalIntentByCiv[prepared.civId] = structuredClone(prepared.nationalIntent);
   }
   return {
     ...normalized,
     opponentAI: {
       ...normalized.opponentAI!,
       majorCivs,
+      nationalIntentByCiv,
       lastPlannedRound: normalized.turn,
     },
   };

@@ -6,7 +6,7 @@ import {
   createEmptyMajorCivPlanPortfolio,
   normalizeOpponentAIState,
 } from '@/core/opponent-ai-state';
-import type { AIStrategicPlan, GameState } from '@/core/types';
+import type { AIStrategicPlan, GameState, NationalIntentState } from '@/core/types';
 
 function makePlan(overrides: Partial<AIStrategicPlan> = {}): AIStrategicPlan {
   return {
@@ -67,6 +67,7 @@ describe('opponent AI state normalization', () => {
       barbarianHomeCampByUnitId: {},
       minorCivs: {},
       pressureByCiv: {},
+      nationalIntentByCiv: {},
       lastPlannedRound: null,
       lastProcessedRound: null,
       lastFinalizedRound: null,
@@ -364,5 +365,74 @@ describe('opponent AI state normalization', () => {
     } as unknown as GameState;
     const normalized = normalizeOpponentAIState(state);
     expect(normalized.opponentAI!.pressureByCiv.h1.activeIndependentThreatIds).toEqual(['barbarian:t1']);
+  });
+
+  describe('#1086 nationalIntentByCiv normalization', () => {
+    function validIntentState(): NationalIntentState {
+      return {
+        current: 'expand',
+        previous: 'develop',
+        selectedTurn: 5,
+        reconsiderAfterTurn: 20,
+        shockActive: false,
+        shockFreeStreak: 0,
+        reasonCodes: ['intent-sustained-evidence'],
+      };
+    }
+
+    it('normalizes a valid entry for a living AI major civ', () => {
+      const state = makeState();
+      state.opponentAI!.nationalIntentByCiv['ai-1'] = validIntentState();
+      const normalized = normalizeOpponentAIState(state);
+      expect(normalized.opponentAI!.nationalIntentByCiv['ai-1']).toEqual(validIntentState());
+    });
+
+    it('a pre-#1086 save with no nationalIntentByCiv key normalizes to an empty map', () => {
+      const state = makeState();
+      const { nationalIntentByCiv: _removed, ...withoutIntent } = state.opponentAI!;
+      state.opponentAI = withoutIntent as never;
+      const normalized = normalizeOpponentAIState(state);
+      expect(normalized.opponentAI!.nationalIntentByCiv).toEqual({});
+    });
+
+    it('drops a malformed entry (unknown intent, non-finite turn) rather than crashing', () => {
+      const state = makeState();
+      state.opponentAI!.nationalIntentByCiv['ai-1'] = {
+        ...validIntentState(),
+        current: 'invalid-intent' as never,
+      };
+      expect(normalizeOpponentAIState(state).opponentAI!.nationalIntentByCiv['ai-1']).toBeUndefined();
+
+      state.opponentAI!.nationalIntentByCiv['ai-1'] = {
+        ...validIntentState(),
+        selectedTurn: Number.NaN,
+      };
+      expect(normalizeOpponentAIState(state).opponentAI!.nationalIntentByCiv['ai-1']).toBeUndefined();
+    });
+
+    it('filters unrecognized reason codes but keeps the rest of a valid entry', () => {
+      const state = makeState();
+      state.opponentAI!.nationalIntentByCiv['ai-1'] = {
+        ...validIntentState(),
+        reasonCodes: ['intent-sustained-evidence', 'not-a-real-reason'] as never,
+      };
+      expect(normalizeOpponentAIState(state).opponentAI!.nationalIntentByCiv['ai-1']!.reasonCodes)
+        .toEqual(['intent-sustained-evidence']);
+    });
+
+    it('never has an entry for a human civ, mirroring majorCivs', () => {
+      const state = makeState();
+      (state.opponentAI as { nationalIntentByCiv: Record<string, unknown> }).nationalIntentByCiv.player
+        = validIntentState();
+      const normalized = normalizeOpponentAIState(state);
+      expect(normalized.opponentAI!.nationalIntentByCiv.player).toBeUndefined();
+    });
+
+    it('scrubs an entry for a civ that no longer exists', () => {
+      const state = makeState();
+      state.opponentAI!.nationalIntentByCiv['ghost-civ'] = validIntentState();
+      const normalized = normalizeOpponentAIState(state);
+      expect(normalized.opponentAI!.nationalIntentByCiv['ghost-civ']).toBeUndefined();
+    });
   });
 });

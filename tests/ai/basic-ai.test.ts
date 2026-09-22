@@ -79,6 +79,10 @@ describe('purposeful AI war gating', () => {
       },
       forceDemands: [],
       traces: [],
+      nationalIntent: {
+        current: 'develop', previous: null, selectedTurn: 0, reconsiderAfterTurn: 0,
+        shockActive: false, shockFreeStreak: 0, reasonCodes: [],
+      },
     };
 
     expect(canDeclareWarForPreparedPlan(state, prepared, 'player'))

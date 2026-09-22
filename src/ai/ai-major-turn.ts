@@ -911,6 +911,15 @@ export function processMajorCivStrategicTurn(
         ...working.opponentAI!.majorCivs,
         [prepared.civId]: structuredClone(prepared.portfolio),
       },
+      // #1086: mirrors the majorCivs write immediately above -- this function is the
+      // single write-back path for basic-ai.ts's direct per-civ execution (it never
+      // routes through ai-round-scheduler.ts's writePreparedPortfolios), so national
+      // intent must be persisted here too. Redundant-but-idempotent for the round-
+      // scheduler's own bulk path, which already commits the identical value.
+      nationalIntentByCiv: {
+        ...working.opponentAI!.nationalIntentByCiv,
+        [prepared.civId]: structuredClone(prepared.nationalIntent),
+      },
     },
   };
   working = processAIUpgrades(

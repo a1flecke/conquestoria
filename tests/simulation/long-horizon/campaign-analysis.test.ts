@@ -36,6 +36,7 @@ function healthyCiv(civId: string, round: number, overrides: Partial<CampaignCiv
     atWarWith: [],
     activePlanCount: 1,
     maxPlanNoProgressRounds: round % 4,
+    nationalIntent: 'develop',
     capturesMade: 0,
     capturesSuffered: 0,
     peaceEventsInvolvingCiv: 0,

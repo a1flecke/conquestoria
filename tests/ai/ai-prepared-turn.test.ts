@@ -1810,3 +1810,68 @@ describe('#1064 difficulty invariance', () => {
     },
   );
 });
+
+describe('#1086 national intent integration', () => {
+  const ALL_INTENTS = new Set(['expand', 'develop', 'dominate', 'deter', 'recover']);
+
+  it('a prepared plan carries a nationalIntent and an intent decision trace', () => {
+    const { state, civ } = setupVisibleDefendedCapture('intent-trace');
+    const prepared = prepareMajorCivStrategicPlan(state, civ.id);
+
+    expect(ALL_INTENTS.has(prepared.nationalIntent.current)).toBe(true);
+    const intentTrace = prepared.traces.find(entry => entry.decision === 'intent');
+    expect(intentTrace).toBeDefined();
+    expect(intentTrace!.selectedId).toBe(prepared.nationalIntent.current);
+  });
+
+  it("posture.captureBias shifts a capture candidate's final score by exactly its own value, proving it is applied exactly once (not double-counted with doctrine)", () => {
+    // scoreObjectiveCandidate adds strategicValue linearly (verified directly against
+    // ai-objective-scoring.ts), so injecting two different persisted intents against an
+    // otherwise-identical fixture isolates posture.captureBias's exact contribution --
+    // any double-counting (e.g. captureBias applied twice, or summed with
+    // doctrine.captureValueBonus incorrectly) would shift the delta away from the
+    // documented table value.
+    function withIntent(intent: 'develop' | 'dominate') {
+      const { state, civ } = setupVisibleDefendedCapture('intent-capture-sum', { garrison: false });
+      state.opponentAI = {
+        version: 1,
+        migrationGraceRoundsRemaining: 0,
+        majorCivs: {},
+        barbarianCamps: {},
+        barbarianHomeCampByUnitId: {},
+        minorCivs: {},
+        pressureByCiv: {},
+        nationalIntentByCiv: {
+          [civ.id]: {
+            current: intent, previous: null, selectedTurn: state.turn,
+            reconsiderAfterTurn: state.turn + 999, shockActive: false, shockFreeStreak: 0,
+            reasonCodes: [],
+          },
+        },
+        lastPlannedRound: null, lastProcessedRound: null, lastFinalizedRound: null,
+      };
+      const prepared = prepareMajorCivStrategicPlan(state, civ.id);
+      const captureCandidate = prepared.traces
+        .find(entry => entry.decision === 'objective')
+        ?.candidates.find(entry => entry.id.startsWith('capture:'));
+      expect(captureCandidate).toBeDefined();
+      return captureCandidate!.score;
+    }
+
+    const developScore = withIntent('develop');
+    const dominateScore = withIntent('dominate');
+    // NATIONAL_INTENT_POSTURE.develop.captureBias=0, .dominate.captureBias=18.
+    expect(dominateScore - developScore).toBe(18);
+  });
+
+  it('applyAIProduction does not throw and stays intent-aware with no persisted intent yet (pre-first-round state)', () => {
+    // Regression guard for the ai-production.ts read seam: it reads
+    // state.opponentAI?.nationalIntentByCiv[civId]?.current ?? 'develop' directly
+    // rather than requiring a value to already exist -- a fresh game with no AI round
+    // processed yet must not crash city production scoring.
+    const { state, civ } = setupVisibleDefendedCapture('intent-production-seam');
+    expect(state.opponentAI?.nationalIntentByCiv[civ.id]).toBeUndefined();
+    expect(() => applyAIProduction(state, civ.id, [], { traits: [], warLikelihood: 0.5, diplomacyFocus: 0.5, expansionDrive: 0.5 }))
+      .not.toThrow();
+  });
+});

@@ -34,6 +34,10 @@ function prepared(state: ReturnType<typeof createNewGame>, civId: string): Prepa
       selectedId: null,
       candidates: [],
     }],
+    nationalIntent: {
+      current: 'develop', previous: null, selectedTurn: 0, reconsiderAfterTurn: 0,
+      shockActive: false, shockFreeStreak: 0, reasonCodes: [],
+    },
   };
 }
 

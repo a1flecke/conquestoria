@@ -1,14 +1,14 @@
 {
   "e1": {
     "state": {
-      "__whole": "b88cff2a7fbf",
+      "__whole": "e24124f7a0b0",
       "autonomyByCiv": "95313c912b48",
       "barbarianCampPressure": "44136fa355b3",
       "barbarianCamps": "c9c75b490ac4",
       "beasts": "59b9eb6fa030",
-      "cities": "cb0b94a667c0",
+      "cities": "a84717f038cf",
       "cityFaith": "44136fa355b3",
-      "civilizations": "bd4d51a38211",
+      "civilizations": "275e61cc21db",
       "crisisForces": "44136fa355b3",
       "currentPlayer": "f4fd498bf9ac",
       "defensiveLeagues": "4f53cda18c2b",
@@ -23,7 +23,7 @@
       "gameTitle": "bc0b5d37a7a4",
       "generatedGenerals": "44136fa355b3",
       "hotSeat": "36ca84e10393",
-      "idCounters": "c2c54008a32d",
+      "idCounters": "d2715df07477",
       "legendaryWonderHistory": "948672c82a30",
       "legendaryWonderIntel": "44136fa355b3",
       "legendaryWonderProjects": "3b7d67da584b",
@@ -38,7 +38,7 @@
       "nationalProjectChoices": "44136fa355b3",
       "networkCivicPressureByCity": "44136fa355b3",
       "notificationLog": "44136fa355b3",
-      "opponentAI": "4564257802ac",
+      "opponentAI": "50c24931ac4c",
       "opponentChallenge": "cb2842d6687d",
       "pendingDiplomacyRequests": "4f53cda18c2b",
       "pendingEvents": "44136fa355b3",
@@ -55,15 +55,15 @@
       "tribalVillages": "2dac53c812f9",
       "turn": "6b86b273ff34",
       "tutorial": "8036676ee8e5",
-      "units": "5f4598b4c0ce",
+      "units": "ec0e27cdfe86",
       "winner": "74234e98afe7",
       "wonderDiscoverers": "d73e4dc79ebc"
     },
-    "traces": "fa48a46ba2c8"
+    "traces": "9d9ff9b9210a"
   },
   "e2": {
     "state": {
-      "__whole": "46af89d12259",
+      "__whole": "dcc3ee5faf28",
       "autonomyByCiv": "95313c912b48",
       "barbarianCampPressure": "44136fa355b3",
       "barbarianCamps": "5148e5b9b58d",
@@ -100,7 +100,7 @@
       "nationalProjectChoices": "44136fa355b3",
       "networkCivicPressureByCity": "44136fa355b3",
       "notificationLog": "44136fa355b3",
-      "opponentAI": "bb76219705a7",
+      "opponentAI": "1e0da9541043",
       "opponentChallenge": "cb2842d6687d",
       "pendingDiplomacyRequests": "4f53cda18c2b",
       "pendingEvents": "44136fa355b3",
@@ -121,6 +121,6 @@
       "winner": "74234e98afe7",
       "wonderDiscoverers": "950939e22b2c"
     },
-    "traces": "177876433416"
+    "traces": "9c31cfad4682"
   }
 }

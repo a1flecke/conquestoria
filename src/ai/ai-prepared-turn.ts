@@ -5,6 +5,7 @@ import type {
   GameMap,
   GameState,
   MajorCivPlanPortfolio,
+  NationalIntentState,
   PersonalityTraits,
   UnitType,
 } from '@/core/types';
@@ -31,7 +32,7 @@ import {
   estimatePerceivedCivStrength,
   type MajorCivPerception,
 } from './ai-perception';
-import type { AIDecisionTrace } from './ai-decision-trace';
+import { createAIDecisionTrace, type AIDecisionTrace } from './ai-decision-trace';
 import {
   EXPANSION_SEARCH_RADIUS,
   EXPANSION_SITE_SHORTLIST,
@@ -74,6 +75,12 @@ import {
   type DominationDoctrine,
 } from './ai-domination';
 import { resolveCivDefinition } from '@/systems/civ-registry';
+import {
+  NATIONAL_INTENT_POSTURE,
+  resolveNationalIntent,
+  scoreIntents,
+  type NationalIntentPosture,
+} from './ai-national-intent';
 
 export interface PreparedMajorCivPlan {
   civId: string;
@@ -82,6 +89,7 @@ export interface PreparedMajorCivPlan {
   assignments: AIUnitAssignmentResult;
   forceDemands: AIForceDemand[];
   traces: AIDecisionTrace[];
+  nationalIntent: NationalIntentState;
 }
 
 export interface ProcessMajorCivStrategicTurnResult {
@@ -313,6 +321,7 @@ function objectiveCandidates(
   knowledge: ReturnType<typeof buildDominationKnowledge>,
   personality: PersonalityTraits,
   trainableTypes: readonly (typeof TRAINABLE_UNITS)[number]['type'][],
+  posture: NationalIntentPosture,
 ): AIObjectiveCandidate[] {
   const actor = state.civilizations[civId];
   const operationalAnchors = perception.ownCities.length > 0
@@ -407,11 +416,15 @@ function objectiveCandidates(
       },
       theaterId: `local:${city.position.q},${city.position.r}`,
       travelTurns,
-      strategicValue: activeWar
+      // #1086: posture.captureBias is intent's own, separately-reasoned contribution --
+      // additive alongside doctrine.captureValueBonus, never replacing or duplicating it
+      // (see design doc §6 -- doctrine decides pursuit eligibility, intent decides
+      // this-turn priority).
+      strategicValue: Math.max(0, Math.min(100, (activeWar
         ? 75
         : recentAttack
           ? 45
-          : Math.min(100, 75 + doctrine.captureValueBonus),
+          : Math.min(100, 75 + doctrine.captureValueBonus)) + posture.captureBias)),
       expectedLossRatio,
       supplyDistance: travelTurns,
       explicitDistantReasons: recentAttack
@@ -446,7 +459,7 @@ function objectiveCandidates(
       },
       theaterId: `local:${resource.position.q},${resource.position.r}`,
       travelTurns,
-      strategicValue: 55,
+      strategicValue: Math.max(0, Math.min(100, 55 + posture.resourceBias)),
       expectedLossRatio: 0,
       supplyDistance: travelTurns,
       explicitDistantReasons: [],
@@ -508,6 +521,11 @@ function objectiveCandidates(
         },
         theaterId: `local:${site.anchor.q},${site.anchor.r}`,
         travelTurns,
+        // #1086: posture.expandBias is applied AFTER site selection (see bestExpand
+        // below), not per-candidate here -- applying it per-candidate would shift the
+        // #1107 anti-thrash switching-margin comparison between two already-viable
+        // expand SITES (a site-selection concern), when intent is only meant to bias
+        // expand's priority against OTHER objectives, never which specific site wins.
         strategicValue: Math.max(0, Math.min(100, site.score * (0.5 + personality.expansionDrive))),
         expectedLossRatio: 0,
         supplyDistance: travelTurns,
@@ -584,9 +602,15 @@ function objectiveCandidates(
     && scoreObjectiveCandidate(stillCommitted) + switchingMargin >= scoreObjectiveCandidate(bestRankedExpand)
     ? stillCommitted
     : bestRankedExpand;
+  // #1086: posture.expandBias applies once, to whichever site the (unaffected) #1107
+  // stickiness logic above already chose -- biasing expand's priority against sibling
+  // capture/secure-resource candidates without ever influencing which expand SITE wins.
+  const biasedExpand = bestExpand
+    ? { ...bestExpand, strategicValue: Math.max(0, Math.min(100, bestExpand.strategicValue + posture.expandBias)) }
+    : bestExpand;
   return [
     ...resolved.filter(candidate => candidate.objective !== 'expand'),
-    ...(bestExpand ? [bestExpand] : []),
+    ...(biasedExpand ? [biasedExpand] : []),
   ];
 }
 
@@ -743,12 +767,29 @@ export function prepareMajorCivStrategicPlan(
   const personality = resolveCivDefinition(state, civ.civType)?.personality ?? {
     traits: [], warLikelihood: 0.5, diplomacyFocus: 0.5, expansionDrive: 0.5,
   };
+  const challenge = resolveOpponentChallenge(state);
   const doctrine = evaluateDominationDoctrine({
     knowledge,
     ownCityCount: perception.ownCities.length,
     personality,
-    challenge: resolveOpponentChallenge(state),
+    challenge,
   });
+  // #1086: computed early (cityThreats depends only on state/civId/perception, not on
+  // doctrine/candidates) so it can feed both the national-intent shock check and its
+  // existing later use (unplanned-defense force demand) without a duplicate pass.
+  const threats = cityThreats(state, civId, perception);
+  const previousIntent = state.opponentAI?.nationalIntentByCiv[civId] ?? null;
+  const nationalIntent = resolveNationalIntent({
+    turn: state.turn,
+    previous: previousIntent,
+    perception,
+    personality,
+    doctrine,
+    cityThreats: threats,
+    atWarWith: civ.diplomacy.atWarWith,
+    challenge,
+  });
+  const posture = NATIONAL_INTENT_POSTURE[nationalIntent.current];
   const availableResources = getCivAvailableResources(state, civId);
   const trainable = getTrainableUnitsForCiv(
     civ.techState.completed,
@@ -757,7 +798,7 @@ export function prepareMajorCivStrategicPlan(
   );
   const counterplay = getDominationCounterplay(knowledge);
   const candidates = objectiveCandidates(state, civId, perception, knownMap, doctrine, knowledge, personality,
-    trainable.map(entry => entry.type));
+    trainable.map(entry => entry.type), posture);
   const availableRoles = availableRoleCounts(perception);
   // City-specific trainability is only relevant to an actual capture deficit. Most
   // peaceful/no-shortfall turns avoid this per-city production-legality pass entirely.
@@ -795,7 +836,6 @@ export function prepareMajorCivStrategicPlan(
         && civ.techState.completed.includes(entry.obsoletedByTech))
       .map(entry => entry.type),
   );
-  const threats = cityThreats(state, civId, perception);
   const portfolioResult = refreshMajorCivPortfolio({
     actorId: civId,
     turn: state.turn,
@@ -942,12 +982,39 @@ export function prepareMajorCivStrategicPlan(
     forceDemands,
   };
 
+  // #1086: one 'intent' trace per civ per round, alongside (not replacing) the existing
+  // 'objective' trace -- see design doc §8. The shared assertLegalChoices contract
+  // (tests/simulation/ai-playability-fixture.ts) requires selectedId to always resolve
+  // to an eligible candidate entry, so `recover` -- shock-forced, with no comparative
+  // score among the four ambition intents -- still gets its own entry (mandatory: no
+  // numeric score is fabricated, mirroring how mandatory tactical actions in
+  // ai-tactics.ts skip scoring entirely).
+  const intentTrace: AIDecisionTrace = createAIDecisionTrace({
+    actorId: civId,
+    turn: state.turn,
+    decision: 'intent',
+    selectedId: nationalIntent.current,
+    candidates: nationalIntent.current === 'recover'
+      // A finite sentinel, not Infinity -- traces must stay plain JSON-serializable
+      // data (JSON.stringify(Infinity) === 'null', which would corrupt any
+      // JSON-round-trip comparison of this trace).
+      ? [{ id: 'recover', score: Number.MAX_SAFE_INTEGER, eligible: true, reasonCodes: nationalIntent.reasonCodes }]
+      : Object.entries(scoreIntents({ perception, personality, doctrine, cityThreats: threats, atWarWith: civ.diplomacy.atWarWith }))
+        .map(([id, score]) => ({
+          id,
+          score,
+          eligible: true,
+          reasonCodes: nationalIntent.current === id ? nationalIntent.reasonCodes : [],
+        })),
+  });
+
   return {
     civId,
     perception,
     portfolio: preparedAssignments.portfolio,
     assignments: preparedAssignments,
     forceDemands,
-    traces: [choice.trace],
+    traces: [choice.trace, intentTrace],
+    nationalIntent,
   };
 }

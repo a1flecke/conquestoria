@@ -4,6 +4,9 @@ import type {
   CivPressureLedger,
   GameState,
   MajorCivPlanPortfolio,
+  NationalIntent,
+  NationalIntentReason,
+  NationalIntentState,
   OpponentAIState,
 } from './types';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
@@ -62,6 +65,18 @@ const STRATEGIC_ROLES = new Set([
   'espionage',
 ]);
 const MAX_PLAN_ROLE_REQUIREMENT = 32;
+const NATIONAL_INTENTS = new Set<NationalIntent>([
+  'expand', 'develop', 'dominate', 'deter', 'recover',
+]);
+const NATIONAL_INTENT_REASONS = new Set<NationalIntentReason>([
+  'intent-initial-selection',
+  'intent-shock-recover',
+  'intent-shock-resolved',
+  'intent-sustained-evidence',
+  'intent-hysteresis-retained',
+  'intent-personality-bias',
+  'intent-domination-pursuit',
+]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -172,6 +187,40 @@ function normalizePlan(
   };
 }
 
+// #1086: malformed/unrecognized entries are dropped (returns null), not replaced with a
+// synthetic "fresh" state -- prepareMajorCivStrategicPlan's own `?? null` fallback already
+// triggers the evaluator's first-selection path identically to a never-before-tracked civ,
+// so there is no need for a second "initial state" concept here.
+function normalizeNationalIntentState(
+  value: unknown,
+): NationalIntentState | null {
+  if (!isRecord(value)) return null;
+  const intent = value as unknown as NationalIntentState;
+  if (
+    !NATIONAL_INTENTS.has(intent.current)
+    || (intent.previous !== null && !NATIONAL_INTENTS.has(intent.previous))
+    || !Number.isFinite(intent.selectedTurn)
+    || !Number.isFinite(intent.reconsiderAfterTurn)
+  ) {
+    return null;
+  }
+  return {
+    current: intent.current,
+    previous: intent.previous !== null && NATIONAL_INTENTS.has(intent.previous)
+      ? intent.previous
+      : null,
+    selectedTurn: Math.max(0, Math.floor(intent.selectedTurn)),
+    reconsiderAfterTurn: Math.max(0, Math.floor(intent.reconsiderAfterTurn)),
+    shockActive: Boolean(intent.shockActive),
+    shockFreeStreak: Number.isFinite(intent.shockFreeStreak)
+      ? Math.max(0, Math.floor(intent.shockFreeStreak))
+      : 0,
+    reasonCodes: Array.isArray(intent.reasonCodes)
+      ? intent.reasonCodes.filter(reason => NATIONAL_INTENT_REASONS.has(reason))
+      : [],
+  };
+}
+
 function normalizePortfolio(
   state: GameState,
   actorId: string,
@@ -239,6 +288,7 @@ export function createEmptyOpponentAIState(): OpponentAIState {
     barbarianHomeCampByUnitId: {},
     minorCivs: {},
     pressureByCiv: {},
+    nationalIntentByCiv: {},
     lastPlannedRound: null,
     lastProcessedRound: null,
     lastFinalizedRound: null,
@@ -287,6 +337,17 @@ export function normalizeOpponentAIState(state: GameState): GameState {
     const civ = state.civilizations[actorId];
     if (!civ || civ.isHuman || !getCivilizationLiveness(state, actorId).living) continue;
     opponentAI.majorCivs[actorId] = normalizePortfolio(state, actorId, value);
+  }
+
+  // #1086: same population/filter as majorCivs (living, non-human majors) -- national
+  // intent is scoped to exactly the same actors a plan portfolio exists for. Entries are
+  // only normalized if already present; a civ with none yet is left absent, matching
+  // majorCivs' own "no entry until first prepared" convention.
+  for (const [actorId, value] of Object.entries(source.nationalIntentByCiv ?? {})) {
+    const civ = state.civilizations[actorId];
+    if (!civ || civ.isHuman || !getCivilizationLiveness(state, actorId).living) continue;
+    const intent = normalizeNationalIntentState(value);
+    if (intent) opponentAI.nationalIntentByCiv[actorId] = intent;
   }
 
   for (const [campId, value] of Object.entries(source.barbarianCamps ?? {})) {

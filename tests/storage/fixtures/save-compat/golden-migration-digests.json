@@ -1,6 +1,6 @@
 {
   "unversioned legacy save (schema 0)": {
-    "__whole": "ed7ebfb0550f",
+    "__whole": "cd939ee137c0",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "23b9aef5bdce",
@@ -34,7 +34,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingEvents": "44136fa355b3",
@@ -56,7 +56,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 1": {
-    "__whole": "f98c6f92d255",
+    "__whole": "0d0812e537cf",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "08ddf6086d5c",
@@ -90,7 +90,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingEvents": "44136fa355b3",
@@ -112,7 +112,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 2": {
-    "__whole": "49cbb3ab7ddf",
+    "__whole": "dfe3ed60ab2d",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "7dafa0f49e30",
@@ -146,7 +146,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingEvents": "44136fa355b3",
@@ -168,7 +168,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 3": {
-    "__whole": "08bf5039d6f0",
+    "__whole": "a5514e35bcc2",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "83e5370cf4f9",
@@ -202,7 +202,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingEvents": "44136fa355b3",
@@ -224,7 +224,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 4": {
-    "__whole": "d3672d655be9",
+    "__whole": "fce8a06327bb",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "10060fdec9c1",
@@ -258,7 +258,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingEvents": "44136fa355b3",
@@ -280,7 +280,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 5": {
-    "__whole": "8f1e95686718",
+    "__whole": "bddbef192e18",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "e1f643ffdb8a",
@@ -314,7 +314,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingEvents": "44136fa355b3",
@@ -335,7 +335,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 6": {
-    "__whole": "1e035ae4d48f",
+    "__whole": "512685d04a66",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "c4848bd00379",
@@ -369,7 +369,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingEvents": "44136fa355b3",
@@ -390,7 +390,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 7": {
-    "__whole": "5592e4c16106",
+    "__whole": "fd07a1578bc1",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "6c4eda1b870c",
@@ -424,7 +424,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingEvents": "44136fa355b3",
@@ -445,7 +445,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 8": {
-    "__whole": "12d752e71d7b",
+    "__whole": "96ab6ab38e5f",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "380ea0b40583",
@@ -479,7 +479,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingEvents": "44136fa355b3",
@@ -500,7 +500,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 9": {
-    "__whole": "6bb46bc171b4",
+    "__whole": "b046ea7cfd04",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "50506a05a0f2",
@@ -534,7 +534,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingEvents": "44136fa355b3",
@@ -555,7 +555,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 10": {
-    "__whole": "786e3f59573d",
+    "__whole": "1b5bc8f3f4d3",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "54b8a4b3b732",
@@ -589,7 +589,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingEvents": "44136fa355b3",
@@ -610,7 +610,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 11": {
-    "__whole": "72e300d4ab7c",
+    "__whole": "34884f58f222",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "7609208a0228",
@@ -644,7 +644,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingEvents": "44136fa355b3",
@@ -665,7 +665,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 12": {
-    "__whole": "d43d4bf68222",
+    "__whole": "25f2d513cc89",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "573bc2cb20ca",
@@ -699,7 +699,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingGeneralCandidateChoices": "4f53cda18c2b",
@@ -718,7 +718,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 13": {
-    "__whole": "99dee6f0bc6a",
+    "__whole": "33ef1f1c216a",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "b200ad8aacf6",
@@ -752,7 +752,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingGeneralCandidateChoices": "4f53cda18c2b",
@@ -771,7 +771,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 14": {
-    "__whole": "253247889ccf",
+    "__whole": "43a0818a909f",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "cfbf51dc67d1",
@@ -805,7 +805,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingGeneralCandidateChoices": "4f53cda18c2b",
@@ -824,7 +824,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 15": {
-    "__whole": "8c38fe58c397",
+    "__whole": "59d05ae043ba",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "a3aeeb865bd1",
@@ -858,7 +858,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingGeneralCandidateChoices": "4f53cda18c2b",
@@ -877,7 +877,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 16": {
-    "__whole": "56b90439a71e",
+    "__whole": "2c3cefab9034",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "ed4659296c23",
@@ -911,7 +911,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingGeneralCandidateChoices": "4f53cda18c2b",
@@ -930,7 +930,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 17": {
-    "__whole": "7d6f573bff7e",
+    "__whole": "4ca6e59cac83",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "629f32b333d8",
@@ -964,7 +964,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingGeneralCandidateChoices": "4f53cda18c2b",
@@ -983,7 +983,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 18": {
-    "__whole": "558f9321bb5f",
+    "__whole": "423060c8225f",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "1c60424ab246",
@@ -1017,7 +1017,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingGeneralCandidateChoices": "4f53cda18c2b",
@@ -1036,7 +1036,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 19": {
-    "__whole": "55c03f5caa4a",
+    "__whole": "dd5caf42de0d",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "38238f764750",
@@ -1070,7 +1070,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingGeneralCandidateChoices": "4f53cda18c2b",
@@ -1089,7 +1089,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 20": {
-    "__whole": "61ba0c69fa85",
+    "__whole": "10ee44491fbd",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "9c9e202a81a8",
@@ -1123,7 +1123,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingGeneralCandidateChoices": "4f53cda18c2b",
@@ -1142,7 +1142,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 21": {
-    "__whole": "083723536e7e",
+    "__whole": "a17d8194eee6",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "bfe8b05c6951",
@@ -1176,7 +1176,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingGeneralCandidateChoices": "4f53cda18c2b",
@@ -1195,7 +1195,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 22": {
-    "__whole": "d16234f3351f",
+    "__whole": "301fcf0e9bed",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "6ea2797353df",
@@ -1229,7 +1229,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingGeneralCandidateChoices": "4f53cda18c2b",
@@ -1248,7 +1248,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 23": {
-    "__whole": "497bc808a795",
+    "__whole": "645a4910fb30",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "3afb5e8ee0b7",
@@ -1282,7 +1282,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingGeneralCandidateChoices": "4f53cda18c2b",
@@ -1301,7 +1301,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 24": {
-    "__whole": "25d26102b4d2",
+    "__whole": "f5a6994c2862",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "a6d09771bb87",
@@ -1335,7 +1335,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingGeneralCandidateChoices": "4f53cda18c2b",
@@ -1354,7 +1354,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 25": {
-    "__whole": "381cb5388637",
+    "__whole": "8fc99c6486e3",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "802b3f6c21fe",
@@ -1388,7 +1388,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingGeneralCandidateChoices": "4f53cda18c2b",
@@ -1407,7 +1407,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 26": {
-    "__whole": "5b9b6008d3b3",
+    "__whole": "74b737c4a592",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "baac7d2eb1e0",
@@ -1441,7 +1441,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingGeneralCandidateChoices": "4f53cda18c2b",
@@ -1460,7 +1460,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 27": {
-    "__whole": "c871a7144055",
+    "__whole": "3b3d9920b6af",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "53a6812e52d3",
@@ -1494,7 +1494,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingGeneralCandidateChoices": "4f53cda18c2b",
@@ -1513,7 +1513,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 28": {
-    "__whole": "915e35770e98",
+    "__whole": "e0d57fbc515b",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "d873417c227c",
@@ -1547,7 +1547,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingGeneralCandidateChoices": "4f53cda18c2b",
@@ -1566,7 +1566,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 29": {
-    "__whole": "2d9f8c7fa74b",
+    "__whole": "7451ef3e2f3d",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "0c70420e5ddf",
@@ -1600,7 +1600,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingGeneralCandidateChoices": "4f53cda18c2b",
@@ -1671,7 +1671,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "hot-seat save (2 human viewers, queued pendingEvents), unversioned": {
-    "__whole": "f827a4f47650",
+    "__whole": "43c128ea98d0",
     "autonomyByCiv": "c93a1bc559b4",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "38551d23b483",
@@ -1706,7 +1706,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "d08221f477e1",
+    "opponentAI": "b84efa18dcc4",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingEvents": "d4eb7a58e759",
@@ -1727,7 +1727,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "migration 23 — scrubs a malformed generated-officer registry entry": {
-    "__whole": "2a430e56f81b",
+    "__whole": "f366e7f302cc",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "8d8058a3a255",
@@ -1761,7 +1761,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingGeneralCandidateChoices": "4f53cda18c2b",
@@ -1780,7 +1780,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "migration 25 — scrubs a malformed federalismChangedTurn": {
-    "__whole": "4b9c85273889",
+    "__whole": "8967386d38b1",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "4868add23a53",
@@ -1814,7 +1814,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingGeneralCandidateChoices": "4f53cda18c2b",
@@ -1833,7 +1833,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "migration 26 — scrubs a malformed city.bombardment tally": {
-    "__whole": "cf0b05add70a",
+    "__whole": "50cbc0ea90e3",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "1ac6c8762d39",
@@ -1867,7 +1867,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingGeneralCandidateChoices": "4f53cda18c2b",
@@ -1886,7 +1886,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "migration 27 — normalizes malformed vassalage state": {
-    "__whole": "ec3b55486cb8",
+    "__whole": "4a42cdd7fd6d",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "a0b4892cc6d6",
@@ -1920,7 +1920,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingGeneralCandidateChoices": "4f53cda18c2b",
@@ -1939,7 +1939,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "repair — drops malformed earned-Domination observations without backfilling history": {
-    "__whole": "10358a2a5e35",
+    "__whole": "0a7ccf0e17aa",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "38a5eba6baa1",
@@ -1973,7 +1973,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingGeneralCandidateChoices": "4f53cda18c2b",
@@ -1995,7 +1995,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "repair — normalizes one-sided / duplicated / self major-civ war state (#995)": {
-    "__whole": "2f6a2beca63d",
+    "__whole": "27b25f70bb7a",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "7feef51932cf",
@@ -2029,7 +2029,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingGeneralCandidateChoices": "4f53cda18c2b",
@@ -2051,7 +2051,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "repair — normalizes transport/cargo and carrier-aircraft links (#1000)": {
-    "__whole": "1ca01dd2314f",
+    "__whole": "1339f4228c62",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "792f327ad249",
@@ -2085,7 +2085,7 @@
     "nationalProjectChoices": "44136fa355b3",
     "networkCivicPressureByCity": "44136fa355b3",
     "notificationLog": "44136fa355b3",
-    "opponentAI": "1f0a79f68152",
+    "opponentAI": "6ec9db8cfff9",
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingGeneralCandidateChoices": "4f53cda18c2b",
