@@ -400,7 +400,15 @@ function rankAttacks(
   })) {
     if (target.result.targetType === 'city') {
       const city = context.state.cities[target.result.cityId];
-      if (city && isAIHostileOwner(context.state, context.actorId, city.owner)) {
+      // #1123: a unit that can legally capture THIS city right now must never also be
+      // offered a non-capturing "attack the city" alternative for it -- see
+      // canCaptureCityNow's doc comment. A different hostile city this same unit cannot
+      // (yet) capture is unaffected.
+      if (
+        city
+        && isAIHostileOwner(context.state, context.actorId, city.owner)
+        && !canCaptureCityNow(context, unit, city)
+      ) {
         const score = rankBombardment(context, unit, city);
         if (score !== null) {
           attacks.push(ranked({ kind: 'bombard-city', unitId: unit.id, cityId: city.id }, score));
@@ -619,26 +627,37 @@ function rankPatrol(
   });
 }
 
-function rankCapture(
+/**
+ * #1123: legal-right-now capture eligibility, factored out of `rankCapture` so
+ * `rankAttacks`'s bombard-city branch (below) can ask the identical question for the
+ * same (unit, city) pair. A unit that can legally capture a city this instant should
+ * never also be offered a non-capturing "attack the city" alternative for that same
+ * city: capturing ends the operation outright, so chip damage from the same unit is
+ * never better for that unit's OWN turn, and `rankBombardment`'s baseline floor was
+ * calibrated for a unit that genuinely cannot capture (a pure siege/ranged/naval hull)
+ * where standalone attrition value is all it has. See the `rankBombardment` doc comment
+ * above `rankAttacks` for the case this leaves untouched: a real siege/ranged unit
+ * supporting a *different* capture-capable teammate.
+ */
+function canCaptureCityNow(
   context: AITacticalContext,
   unit: Unit,
-): RankedAITacticalAction[] {
+  city: GameState['cities'][string],
+): boolean {
   if (
     context.allowOffensiveActions === false
-    || context.plan.target.kind !== 'city'
     || !getAIStrategicRoles(unit.type).includes('capture')
     || unit.hasActed
     || unit.movementPointsLeft <= 0
+    || city.owner === context.actorId
   ) {
-    return [];
+    return false;
   }
-  const city = context.state.cities[context.plan.target.id];
-  if (!city || city.owner === context.actorId) return [];
   if (getVisibility(
     context.state.civilizations[context.actorId].visibility,
     city.position,
   ) !== 'visible') {
-    return [];
+    return false;
   }
   const attackTarget = getAttackTargets(context.state, unit, {
     viewerId: context.actorId,
@@ -646,16 +665,24 @@ function rankCapture(
   }).find(target =>
     target.result.targetType === 'city'
     && target.result.cityId === city.id);
-  if (!attackTarget) return [];
-  if (distance(context.state, unit.position, city.position) !== 1) return [];
+  if (!attackTarget) return false;
+  if (distance(context.state, unit.position, city.position) !== 1) return false;
   const occupancy = buildUnitOccupancy(context.state.units);
   if (getUnitIdsAtCoord(occupancy, city.position).some(unitId =>
     context.state.units[unitId]?.owner !== context.actorId)) {
-    return [];
+    return false;
   }
-  const reachable = movementRange(context.state, context.actorId, unit)
+  return movementRange(context.state, context.actorId, unit)
     .some(coord => hexKey(coord) === hexKey(city.position));
-  if (!reachable) return [];
+}
+
+function rankCapture(
+  context: AITacticalContext,
+  unit: Unit,
+): RankedAITacticalAction[] {
+  if (context.plan.target.kind !== 'city') return [];
+  const city = context.state.cities[context.plan.target.id];
+  if (!city || !canCaptureCityNow(context, unit, city)) return [];
 
   // Score by win probability (#522) -- previously a flat 600 regardless of the city's
   // walls/population, because capture was unconditionally guaranteed. Left unweighted,

@@ -27,6 +27,7 @@ import { createUnit, findPath, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import * as combatSystem from '@/systems/combat-system';
 import { canParadrop, getAirAssaultTargets } from '@/systems/airborne-system';
 import { getLegalAirMissionTargets } from '@/systems/air-operations-system';
+import { resolveUnitCityBombardment } from '@/systems/city-bombardment-system';
 
 const AI = 'ai-1';
 const HUMAN = 'player';
@@ -1591,5 +1592,171 @@ describe('#1064 settler movement', () => {
     // since the settler cannot found on its own (occupied) tile.
     const actions = rankUnitTacticalActions(context(state, plan), settler.id);
     expect(actions.some(entry => entry.action.kind === 'found-city')).toBe(false);
+  });
+});
+
+describe('#1123 engagement order: capture vs self-bombardment', () => {
+  // A pop-20, no-building, ungarrisoned city gives a lone melee unit moderate
+  // (well under 70%) capture odds -- the #1122 "contested" shape -- without needing a
+  // defending unit at all. Reused across this whole block for a stable fixture.
+  function contestedCity(state: GameState) {
+    const city = addCity(state, 'target-city', HUMAN, { q: 4, r: 0 });
+    state.cities['target-city'] = { ...city, population: 20, buildings: [], hp: 100 };
+    state.civilizations[HUMAN].units = [];
+    return state.cities['target-city']!;
+  }
+
+  it('a lone capture-capable unit at moderate odds captures rather than self-bombarding', () => {
+    // RED before the fix: rankBombardment's no-follow-up baseline (~380 + 2*hpLoss,
+    // here 416) outscored this unit's own capture-city score (224, ~37% odds) even
+    // though nothing else exists to benefit from the chip damage -- the unit would
+    // "attack" the city forever instead of ever attempting the legal capture.
+    const state = makeState('veteran');
+    addUnit(state, 'captor', 'swordsman', AI, { q: 3, r: 0 }, { movementPointsLeft: 2 });
+    const city = contestedCity(state);
+    const plan = makePlan(
+      { kind: 'city', id: city.id, lastKnownPosition: city.position },
+      ['captor'],
+    );
+
+    const candidates = rankUnitTacticalActions(context(state, plan), 'captor');
+    expect(candidates.some(entry => entry.action.kind === 'bombard-city')).toBe(false);
+    expect(chooseUnitTacticalAction(context(state, plan), 'captor'))
+      .toEqual({ kind: 'capture-city', unitId: 'captor', cityId: city.id });
+  });
+
+  it('does not delay an already-favorable capture even with support nearby (healthy opportunistic capture)', () => {
+    const state = makeState('veteran');
+    addUnit(state, 'siege', 'catapult', AI, { q: 2, r: 0 }, { movementPointsLeft: 2 });
+    addUnit(state, 'captor', 'swordsman', AI, { q: 3, r: 0 }, { movementPointsLeft: 2 });
+    const city = addCity(state, 'target-city', HUMAN, { q: 4, r: 0 });
+    state.cities['target-city'] = { ...city, population: 1, buildings: [], hp: 100 };
+    state.civilizations[HUMAN].units = [];
+    const plan = makePlan(
+      { kind: 'city', id: city.id, lastKnownPosition: city.position },
+      ['siege', 'captor'],
+    );
+
+    const actions = chooseTacticalSequence(context(state, plan));
+    expect(actions[0]).toEqual({ kind: 'capture-city', unitId: 'captor', cityId: city.id });
+  });
+
+  it('a genuine support unit bombards first, then the capture unit captures the same turn with improved odds', () => {
+    const state = makeState('veteran');
+    addUnit(state, 'siege', 'catapult', AI, { q: 2, r: 0 }, { movementPointsLeft: 2 });
+    addUnit(state, 'captor', 'swordsman', AI, { q: 3, r: 0 }, { movementPointsLeft: 2 });
+    const city = contestedCity(state);
+    const plan = makePlan(
+      { kind: 'city', id: city.id, lastKnownPosition: city.position },
+      ['siege', 'captor'],
+    );
+
+    const preOddsScore = rankUnitTacticalActions(context(state, plan), 'captor')
+      .find(entry => entry.action.kind === 'capture-city')!.score;
+
+    const actions = chooseTacticalSequence(context(state, plan));
+
+    expect(actions).toEqual([
+      { kind: 'bombard-city', unitId: 'siege', cityId: city.id },
+      { kind: 'capture-city', unitId: 'captor', cityId: city.id },
+    ]);
+
+    // The capture that actually lands reflects the freshly-bombarded city, not the
+    // pre-bombardment odds -- proving chooseTacticalSequence's scratch state really
+    // feeds forward between iterations rather than ranking every unit against the
+    // turn's starting snapshot. Compute the REAL post-bombardment city via the same
+    // resolver the sequence itself uses, rather than approximating the HP loss.
+    const bombardResult = resolveUnitCityBombardment(state, {
+      attackerUnitId: 'siege',
+      cityId: city.id,
+      source: 'ai',
+    });
+    expect(bombardResult.ok).toBe(true);
+    const postBombardState = bombardResult.ok ? bombardResult.state : state;
+    const postOddsScore = rankUnitTacticalActions(context(postBombardState, plan), 'captor')
+      .find(entry => entry.action.kind === 'capture-city')!.score;
+    expect(postOddsScore).toBeGreaterThan(preOddsScore);
+  });
+
+  it('a unit that cannot itself capture (pure siege) still bombards normally with no capture-capable teammate assigned', () => {
+    const state = makeState('veteran');
+    addUnit(state, 'siege', 'catapult', AI, { q: 2, r: 0 }, { movementPointsLeft: 2 });
+    const city = contestedCity(state);
+    const plan = makePlan(
+      { kind: 'city', id: city.id, lastKnownPosition: city.position },
+      ['siege'],
+    );
+
+    const candidates = rankUnitTacticalActions(context(state, plan), 'siege');
+    expect(candidates.some(entry => entry.action.kind === 'bombard-city'
+      && entry.action.cityId === city.id)).toBe(true);
+  });
+
+  it('does not suppress bombardment of a different hostile city the unit cannot yet capture', () => {
+    const state = makeState('veteran');
+    // captor is adjacent to (and can capture) the PLAN's target, but also has a
+    // second, unrelated hostile city within its attack range that it is NOT adjacent
+    // to (so it cannot capture that one) -- bombardment of the unrelated city must
+    // stay available.
+    addUnit(state, 'captor', 'catapult', AI, { q: 3, r: 0 }, { movementPointsLeft: 2 });
+    const planTarget = addCity(state, 'target-city', HUMAN, { q: 4, r: 0 });
+    const otherCity = addCity(state, 'other-city', HUMAN, { q: 1, r: 0 });
+    state.cities[otherCity.id] = { ...otherCity, population: 20, buildings: [] };
+    state.civilizations[HUMAN].units = [];
+    const plan = makePlan(
+      { kind: 'city', id: planTarget.id, lastKnownPosition: planTarget.position },
+      ['captor'],
+    );
+
+    const candidates = rankUnitTacticalActions(context(state, plan), 'captor');
+    expect(candidates.some(entry => entry.action.kind === 'bombard-city'
+      && entry.action.cityId === otherCity.id)).toBe(true);
+  });
+
+  it('is difficulty-invariant: the same suppression applies at every challenge tier', () => {
+    for (const challenge of ['explorer', 'standard', 'veteran'] as const) {
+      const state = makeState(challenge);
+      addUnit(state, 'captor', 'swordsman', AI, { q: 3, r: 0 }, { movementPointsLeft: 2 });
+      const city = contestedCity(state);
+      const plan = makePlan(
+        { kind: 'city', id: city.id, lastKnownPosition: city.position },
+        ['captor'],
+      );
+
+      const candidates = rankUnitTacticalActions(context(state, plan), 'captor');
+      expect(candidates.some(entry => entry.action.kind === 'bombard-city')).toBe(false);
+    }
+  });
+
+  it('produces the identical mixed-force sequence across repeated calls (determinism)', () => {
+    const state = makeState('veteran');
+    addUnit(state, 'siege', 'catapult', AI, { q: 2, r: 0 }, { movementPointsLeft: 2 });
+    addUnit(state, 'captor', 'swordsman', AI, { q: 3, r: 0 }, { movementPointsLeft: 2 });
+    const city = contestedCity(state);
+    const plan = makePlan(
+      { kind: 'city', id: city.id, lastKnownPosition: city.position },
+      ['siege', 'captor'],
+    );
+
+    const first = chooseTacticalSequence(context(state, plan));
+    const second = chooseTacticalSequence(context(state, plan));
+    expect(second).toEqual(first);
+  });
+
+  it('produces the identical result across a save/reload round trip of state and plan', () => {
+    const state = makeState('veteran');
+    addUnit(state, 'siege', 'catapult', AI, { q: 2, r: 0 }, { movementPointsLeft: 2 });
+    addUnit(state, 'captor', 'swordsman', AI, { q: 3, r: 0 }, { movementPointsLeft: 2 });
+    const city = contestedCity(state);
+    const plan = makePlan(
+      { kind: 'city', id: city.id, lastKnownPosition: city.position },
+      ['siege', 'captor'],
+    );
+
+    const before = chooseTacticalSequence(context(state, plan));
+    const reloadedState: GameState = JSON.parse(JSON.stringify(state));
+    const reloadedPlan: AIStrategicPlan = JSON.parse(JSON.stringify(plan));
+    const after = chooseTacticalSequence(context(reloadedState, reloadedPlan));
+    expect(after).toEqual(before);
   });
 });
