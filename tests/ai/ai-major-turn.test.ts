@@ -1221,3 +1221,163 @@ describe('#1064 non-offensive plan phase', () => {
     )).toBe('mobilizing');
   });
 });
+
+describe('#1124 mobilization deadline semantics', () => {
+  // The #1122 contested/hardened shape: two DISTINCT frontline-capable units plus one
+  // capture-capable unit. A single warrior satisfies capture:1 and contributes 1 toward
+  // frontline (via role compatibility), but not the full frontline:2 -- this is the
+  // smallest shape where hasRequiredRoles and the post-deadline hasCaptureOrFrontline
+  // floor actually diverge, since a lone generalist unit always trivially clears a
+  // frontline:1/capture:1 ask.
+  function contestedPlan(
+    createdTurn: number,
+    assignedUnitIds: string[],
+    overrides: Partial<AIStrategicPlan> = {},
+  ): AIStrategicPlan {
+    return makePlan(
+      { kind: 'region', id: 'raid:contested', anchor: { q: 5, r: 5 } },
+      assignedUnitIds,
+      {
+        objective: 'capture',
+        phase: 'mobilizing',
+        createdTurn,
+        reconsiderAfterTurn: createdTurn + 10,
+        expiresAfterTurn: createdTurn + 20,
+        lastProgressTurn: createdTurn,
+        requiredRoles: { frontline: 2, capture: 1 },
+        ...overrides,
+      },
+    );
+  }
+
+  it('does not bypass required roles on the very round a veteran plan is created (0 elapsed rounds)', () => {
+    // RED under pre-fix `>=`: veteran's mobilizationRounds is 0, so
+    // `after.turn - plan.createdTurn >= 0` is true even with zero elapsed rounds --
+    // deadlineReached fires on the plan's very first readiness check, before it has ever
+    // had a real chance to assemble the second frontline unit #1122 asked for.
+    const state = makeState();
+    state.opponentChallenge = 'veteran';
+    state.turn = 20;
+    addUnit(state, 'warrior-1', 'warrior', AI, { q: 0, r: 0 });
+    const plan = contestedPlan(20, ['warrior-1']);
+
+    expect(nextPlanPhase(
+      state, plan, ['warrior-1'], [], buildMajorCivPerception(state, AI),
+    )).toBe('mobilizing');
+  });
+
+  it('still relaxes required roles for veteran after one genuine elapsed round', () => {
+    const state = makeState();
+    state.opponentChallenge = 'veteran';
+    state.turn = 21;
+    addUnit(state, 'warrior-1', 'warrior', AI, { q: 0, r: 0 });
+    const plan = contestedPlan(20, ['warrior-1']);
+
+    expect(nextPlanPhase(
+      state, plan, ['warrior-1'], [], buildMajorCivPerception(state, AI),
+    )).toBe('advancing');
+  });
+
+  it('never delays a veteran plan whose required roles are already fully satisfied', () => {
+    const state = makeState();
+    state.opponentChallenge = 'veteran';
+    state.turn = 20;
+    addUnit(state, 'warrior-1', 'warrior', AI, { q: 0, r: 0 });
+    addUnit(state, 'warrior-2', 'warrior', AI, { q: 0, r: 1 });
+    const plan = contestedPlan(20, ['warrior-1', 'warrior-2']);
+
+    expect(nextPlanPhase(
+      state, plan, ['warrior-1', 'warrior-2'], [], buildMajorCivPerception(state, AI),
+    )).toBe('advancing');
+  });
+
+  it('shifts explorer\'s effective deadline from 2 elapsed rounds to 3', () => {
+    const state = makeState();
+    state.opponentChallenge = 'explorer';
+    addUnit(state, 'warrior-1', 'warrior', AI, { q: 0, r: 0 });
+
+    state.turn = 22;
+    expect(nextPlanPhase(
+      state, contestedPlan(20, ['warrior-1']), ['warrior-1'], [],
+      buildMajorCivPerception(state, AI),
+    )).toBe('mobilizing');
+
+    state.turn = 23;
+    expect(nextPlanPhase(
+      state, contestedPlan(20, ['warrior-1']), ['warrior-1'], [],
+      buildMajorCivPerception(state, AI),
+    )).toBe('advancing');
+  });
+
+  it('shifts standard\'s effective deadline from 1 elapsed round to 2', () => {
+    const state = makeState();
+    state.opponentChallenge = 'standard';
+    addUnit(state, 'warrior-1', 'warrior', AI, { q: 0, r: 0 });
+
+    state.turn = 21;
+    expect(nextPlanPhase(
+      state, contestedPlan(20, ['warrior-1']), ['warrior-1'], [],
+      buildMajorCivPerception(state, AI),
+    )).toBe('mobilizing');
+
+    state.turn = 22;
+    expect(nextPlanPhase(
+      state, contestedPlan(20, ['warrior-1']), ['warrior-1'], [],
+      buildMajorCivPerception(state, AI),
+    )).toBe('advancing');
+  });
+
+  it('never advances a capture plan with zero real combat/capture capability, however late the deadline', () => {
+    const state = makeState();
+    state.opponentChallenge = 'veteran';
+    state.turn = 200;
+    addUnit(state, 'worker-1', 'worker', AI, { q: 0, r: 0 });
+    const plan = contestedPlan(20, ['worker-1']);
+
+    expect(nextPlanPhase(
+      state, plan, ['worker-1'], [], buildMajorCivPerception(state, AI),
+    )).toBe('mobilizing');
+  });
+
+  it('leaves the expand objective\'s exemption from the capture/frontline floor untouched', () => {
+    const state = makeState();
+    state.opponentChallenge = 'veteran';
+    state.turn = 20;
+    const settler = addUnit(state, 'settler-1', 'settler', AI, { q: 0, r: 0 });
+    const plan = makePlan(
+      { kind: 'region', id: 'settle:expand', anchor: { q: 5, r: 5 } },
+      [settler.id],
+      {
+        objective: 'expand',
+        phase: 'mobilizing',
+        createdTurn: 20,
+        requiredRoles: { settlement: 1 },
+      },
+    );
+
+    expect(nextPlanPhase(
+      state, plan, [settler.id], [], buildMajorCivPerception(state, AI),
+    )).toBe('advancing');
+  });
+
+  it('produces the same result across a save/reload round trip of state and plan', () => {
+    const state = makeState();
+    state.opponentChallenge = 'veteran';
+    state.turn = 20;
+    addUnit(state, 'warrior-1', 'warrior', AI, { q: 0, r: 0 });
+    const plan = contestedPlan(20, ['warrior-1']);
+
+    const before = nextPlanPhase(
+      state, plan, ['warrior-1'], [], buildMajorCivPerception(state, AI),
+    );
+
+    const reloadedState: GameState = JSON.parse(JSON.stringify(state));
+    const reloadedPlan: AIStrategicPlan = JSON.parse(JSON.stringify(plan));
+    const after = nextPlanPhase(
+      reloadedState, reloadedPlan, ['warrior-1'], [],
+      buildMajorCivPerception(reloadedState, AI),
+    );
+
+    expect(after).toBe(before);
+  });
+});
