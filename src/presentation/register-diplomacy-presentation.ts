@@ -14,6 +14,7 @@ import {
   routeFirstContact,
   routePeaceRequested,
   routePeaceMade,
+  routePeaceDeclined,
   routeOpportunisticWar,
 } from '@/ui/notification-routing';
 
@@ -53,6 +54,9 @@ export const registerDiplomacyPresentation: PresentationRegistrar = (bus, ctx) =
     }),
     bus.on('diplomacy:peace-made', ({ civA, civB }) => {
       routePeaceMade(ctx.session.getState(), civA, civB, ctx.notifier.deliver);
+    }),
+    bus.on('diplomacy:peace-declined', event => {
+      routePeaceDeclined(ctx.session.getState(), event, ctx.notifier.deliver);
     }),
     bus.on('diplomacy:opportunistic-war', event => {
       routeOpportunisticWar(ctx.session.getState(), event, ctx.notifier.deliver);

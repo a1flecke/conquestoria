@@ -18,6 +18,19 @@ import {
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { buildDominationKnowledge } from '@/systems/domination-knowledge';
 import { getDominationThreats } from '@/systems/domination-presentation';
+import { resolveBarbarianArchetype, type BarbarianArchetype } from '@/systems/barbarian-archetype';
+import { shouldListMajorCivForViewer } from '@/systems/viewer-intel';
+
+// #1090: archetype identity is a behavioral pattern the player is meant to learn to
+// recognize (matching the issue's own "clues that distinguish raiders, warlords..."
+// framing) -- not a secret the camp senses/observes, so no new fog/evidence check is
+// needed to name it once a warning is already being raised for this camp under the
+// SAME evidence gate every other barbarian warning already uses.
+const BARBARIAN_ARCHETYPE_ACTOR_NAME: Record<BarbarianArchetype, string> = {
+  raider: 'Raiders',
+  predator: 'Predators',
+  warlord: 'Warlords',
+};
 
 type StrategicWarning = GameEvents['ai:strategic-warning'];
 
@@ -260,11 +273,17 @@ function deriveBarbarianWarnings(
       ? plan.target.resource
       : undefined;
     const label = resource ? `${resource} outpost` : 'raider target';
+    // #1089/#1090: a Warlord's under-mobilized plan keeps objective:'raid' (see
+    // barbarian-system.ts) but phase:'mobilizing' -- reuse the SAME 'mobilizing' kind
+    // deriveMajorWarnings already uses for major civs, rather than a bare 'raid' warning
+    // firing before the camp has actually committed to anything.
+    const kind = plan.phase === 'mobilizing' ? 'mobilizing' : 'raid';
+    const archetype = resolveBarbarianArchetype(after, campId);
     warnings.push(withKey({
       viewerId,
       actorId: `barbarian:${campId}`,
-      actorName: 'Raiders',
-      kind: 'raid',
+      actorName: BARBARIAN_ARCHETYPE_ACTOR_NAME[archetype],
+      kind,
       evidence: visibleThreat ? 'visible' : 'remembered',
       ...(resource ? { resource } : {}),
       targetLabel: label,
@@ -342,6 +361,43 @@ function deriveRecoveryWarning(
   })];
 }
 
+const NOTEWORTHY_POSTURES = new Set(['dominate', 'recover'] as const);
+type NoteworthyPosture = 'dominate' | 'recover';
+
+/**
+ * #1090: surfaces #1086's national intent only for the two "noteworthy" transitions
+ * (dominate/recover) -- expand/develop fluctuate too often to be worth a warning and
+ * would be spam, mirroring this file's own existing restraint for domination (fires only
+ * on a state *change*, never every round). Gated by shouldListMajorCivForViewer, the
+ * SAME contact-evidence bar every viewer-safe surface in this codebase already uses --
+ * an unmet civ's posture never reaches derivation, let alone presentation.
+ */
+function derivePostureWarnings(
+  before: GameState,
+  after: GameState,
+  viewerId: string,
+): StrategicWarning[] {
+  const warnings: StrategicWarning[] = [];
+  for (const actorId of Object.keys(after.opponentAI?.nationalIntentByCiv ?? {}).sort()) {
+    const actor = after.civilizations[actorId];
+    if (!actor || actor.isHuman || !getCivilizationLiveness(after, actorId).living) continue;
+    if (!shouldListMajorCivForViewer(after, viewerId, actorId)) continue;
+    const current = after.opponentAI!.nationalIntentByCiv[actorId].current;
+    if (!NOTEWORTHY_POSTURES.has(current as NoteworthyPosture)) continue;
+    const previousIntent = before.opponentAI?.nationalIntentByCiv[actorId]?.current;
+    if (previousIntent === current) continue;
+    warnings.push(withKey({
+      viewerId,
+      actorId,
+      actorName: actor.name,
+      kind: 'posture-shift',
+      posture: current as NoteworthyPosture,
+      evidence: 'earned-intel',
+    }));
+  }
+  return warnings;
+}
+
 function dominationWarning(
   viewerId: string,
   actorId: string,
@@ -393,6 +449,7 @@ export function deriveStrategicWarningTransitions(
     ...deriveResourceWarnings(beforeRound as GameState, finalState, viewerId),
     ...deriveRecoveryWarning(beforeRound as GameState, finalState, viewerId),
     ...deriveDominationWarnings(beforeRound as GameState, finalState, viewerId),
+    ...derivePostureWarnings(beforeRound as GameState, finalState, viewerId),
   ]
     .filter(warning => {
       if (warning.kind === 'domination-eased') return true;

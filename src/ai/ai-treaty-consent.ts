@@ -7,10 +7,10 @@
  * share identical consent thresholds per the design). Invoked by
  * `proposeTreatyAgreement` for both the human->AI and AI->AI paths.
  */
-import type { TreatyType } from '@/core/types';
+import type { TreatyDeclineReason, TreatyType } from '@/core/types';
 
 export type AgreementKind = Exclude<TreatyType, 'vassalage'> | 'peace';
-export type TreatyDeclineReason = 'relations-too-strained' | 'strategic-caution' | 'peace-not-acceptable';
+export type { TreatyDeclineReason };
 
 export interface TreatyConsent {
   accepted: boolean;

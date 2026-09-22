@@ -83,6 +83,26 @@ describe('strategic warning presentation', () => {
     expect(presented.message).not.toContain('pirate-1');
   });
 
+  it('#1090: renders posture-shift copy for dominate and recover, with no raw enum leakage', () => {
+    const dominatePresentation = presentStrategicWarning(warning({
+      actorId: 'rome', actorName: 'Roman', kind: 'posture-shift', posture: 'dominate', evidence: 'earned-intel',
+    }));
+    const recoverPresentation = presentStrategicWarning(warning({
+      actorId: 'rome', actorName: 'Roman', kind: 'posture-shift', posture: 'recover', evidence: 'earned-intel',
+    }));
+
+    expect(dominatePresentation).toEqual({
+      message: 'Intelligence suggests Roman is pursuing open conquest.',
+      type: 'info',
+    });
+    expect(recoverPresentation).toEqual({
+      message: 'Roman appears to be recovering from a recent setback.',
+      type: 'info',
+    });
+    expect(dominatePresentation.message).not.toMatch(/dominate|recover/i);
+    expect(recoverPresentation.message).not.toMatch(/\bdominate\b/i);
+  });
+
   it('renders generic Domination warnings and silent clears without a contender identity', () => {
     const warningPresentation = presentStrategicWarning(warning({
       actorId: 'secret-rival', actorName: 'Secret Rival', kind: 'domination', evidence: 'earned-intel',

@@ -1173,6 +1173,13 @@ export type DiplomaticAction =
 
 export type TreatyType = 'non_aggression_pact' | 'trade_agreement' | 'open_borders' | 'alliance' | 'vassalage' | 'arms_control_pact';
 
+/**
+ * #1090: canonical here (not in `src/ai/ai-treaty-consent.ts`, which imports it) so this event
+ * payload type can reference it without creating a core -> ai dependency. `ai-treaty-consent.ts`
+ * is the sole computer of a `TreatyDeclineReason` value; this file only names the shape.
+ */
+export type TreatyDeclineReason = 'relations-too-strained' | 'strategic-caution' | 'peace-not-acceptable';
+
 export interface Treaty {
   type: TreatyType;
   civA: string;
@@ -2479,12 +2486,18 @@ export interface GameEvents {
       | 'withdrawing'
       | 'recovery'
       | 'domination'
-      | 'domination-eased';
+      | 'domination-eased'
+      // #1090: a major civ's national intent (#1086) enters 'dominate' or 'recover' --
+      // the two "noteworthy" transitions; expand/develop are deliberately never surfaced
+      // (too frequent, low player value).
+      | 'posture-shift';
     evidence: 'visible' | 'remembered' | 'earned-intel';
     targetLabel?: string;
     regionLabel?: string;
     resource?: ResourceType;
     target?: { kind: 'map'; coord: HexCoord; label: string };
+    /** Present only for kind: 'posture-shift'. */
+    posture?: 'dominate' | 'recover';
     playAudio: boolean;
   };
   'ai:strategic-warning-audio': {
@@ -2617,6 +2630,13 @@ export interface GameEvents {
   'diplomacy:opportunistic-war': { actorId: string; targetCivId: string; crisisId: string };
   'diplomacy:peace-requested': { fromCivId: string; toCivId: string };
   'diplomacy:peace-made': { civA: string; civB: string };
+  // #1090: fired when a peace proposal is refused by the synchronous AI-target consent path
+  // (proposeTreatyAgreement) -- peace is deliberately a sibling to diplomacy:treaty-declined
+  // rather than folded into it, since TreatyType (and diplomacy:treaty-declined's own `treaty`
+  // field) structurally excludes 'peace' (a war-state transition, not a treaty), matching the
+  // existing diplomacy:peace-made / diplomacy:treaty-accepted split. `reason` is present only
+  // when computed by an AI consent evaluation; absent for any other resolution path.
+  'diplomacy:peace-declined': { proposerCivId: string; targetCivId: string; reason?: TreatyDeclineReason };
   'era:advanced': { era: number };
   'civilization:era-advanced': { civId: string; previousEra: number; era: number };
   'currentPlayer:changed-after-handoff': {
@@ -2633,7 +2653,12 @@ export interface GameEvents {
   // #901: a queued treaty proposal the recipient explicitly declined -- so the
   // original proposer (who may be an inactive hot-seat player) learns the
   // outcome instead of the request silently vanishing from their panel.
-  'diplomacy:treaty-declined': { proposerCivId: string; targetCivId: string; treaty: TreatyType };
+  // #1090: also fired (in addition to rejectDiplomaticRequest's original explicit-decline
+  // path) from proposeTreatyAgreement's synchronous AI-target consent refusal, which
+  // previously emitted nothing at all. `reason` is present only when a computed AI consent
+  // evaluation produced one (never for a human's own explicit decline of an AI's proposal --
+  // there is no AI "reason" for a choice the human made).
+  'diplomacy:treaty-declined': { proposerCivId: string; targetCivId: string; treaty: TreatyType; reason?: TreatyDeclineReason };
   'diplomacy:treaty-broken': { breakerId: string; otherCiv: string; treaty: TreatyType };
   'advisor:message': { advisor: AdvisorType; message: string; icon: string; tone?: CouncilCallbackTone; memoryKey?: string };
   'trade:route-created': { route: TradeRoute };

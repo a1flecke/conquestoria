@@ -21,6 +21,12 @@ export function presentStrategicWarning(
       type: 'info',
     };
   }
+  if (event.kind === 'posture-shift') {
+    const message = event.posture === 'dominate'
+      ? `Intelligence suggests ${event.actorName} is pursuing open conquest.`
+      : `${event.actorName} appears to be recovering from a recent setback.`;
+    return { message, type: 'info' };
+  }
   if (event.kind === 'recovery') {
     return {
       message: 'The raid was broken. Independent threats will need time to regroup.',
@@ -54,7 +60,7 @@ export function presentStrategicWarning(
   }
   if (event.kind === 'raid' && event.resource) {
     return {
-      message: `Raiders are moving toward the ${event.targetLabel ?? `${event.resource} outpost`}. Intercept them or destroy their camp.`,
+      message: `${event.actorName} are moving toward the ${event.targetLabel ?? `${event.resource} outpost`}. Intercept them or destroy their camp.`,
       type: 'warning',
       ...(event.target ? { target: event.target } : {}),
     };
