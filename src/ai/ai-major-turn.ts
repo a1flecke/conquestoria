@@ -753,8 +753,14 @@ export function nextPlanPhase(
     const profile = OPPONENT_CHALLENGE_PROFILES[
       resolveOpponentChallenge(after)
     ];
+    // #1124: `>` not `>=` -- a deadline of exactly `mobilizationRounds` elapsed rounds
+    // means "no grace period has been given yet" for a challenge tier whose configured
+    // value is 0 (veteran), collapsing this into an unconditional bypass of
+    // hasRequiredRoles from the very round a plan is created. Requiring strictly more
+    // than the configured value guarantees every tier gets at least one genuine round of
+    // mobilization before the deadline can override counted role requirements.
     const deadlineReached = after.turn - plan.createdTurn
-      >= profile.mobilizationRounds;
+      > profile.mobilizationRounds;
     const migrationGrace = after.opponentAI?.migrationGraceRoundsRemaining ?? 0;
     if (
       migrationGrace === 0
