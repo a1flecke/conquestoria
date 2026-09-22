@@ -10,7 +10,7 @@ import { isMinorCivAtWar } from '@/systems/minor-civ-diplomacy';
 import { normalizeMinorCivCoalitionState } from '@/systems/minor-civ-coalition-system';
 import { normalizeMinorCivEconomyState } from '@/systems/minor-civ-economy-system';
 import { normalizeMinorCivLeagueState } from '@/storage/minor-civ-league-normalization';
-import { scanIdCounters } from '@/core/id-counters';
+import { ID_COUNTER_SPECS, scanIdCounters } from '@/core/id-counters';
 import { migrateSaveToCurrent } from '@/storage/save-migrations';
 import { refreshKnownCivilizations } from '@/systems/discovery-system';
 import { reconstructLastSeenFromMap } from '@/systems/last-seen-presentation';
@@ -566,16 +566,13 @@ export function normalizeIdCounters(state: GameState): GameState['idCounters'] {
   const scanned = scanIdCounters(state);
   const current = (isRecord(state.idCounters) ? state.idCounters : {}) as Partial<GameState['idCounters']>;
   const positive = (value: unknown): number | null => Number.isInteger(value) && Number(value) > 0 ? Number(value) : null;
-  return {
-    nextUnitId: Math.max(positive(current.nextUnitId) ?? 1, scanned.nextUnitId),
-    nextCityId: Math.max(positive(current.nextCityId) ?? 1, scanned.nextCityId),
-    nextCampId: Math.max(positive(current.nextCampId) ?? 1, scanned.nextCampId),
-    nextQuestId: Math.max(positive(current.nextQuestId) ?? 1, scanned.nextQuestId),
-    nextRouteId: Math.max(positive(current.nextRouteId) ?? 1, scanned.nextRouteId ?? 1),
-    nextPirateFactionId: Math.max(positive(current.nextPirateFactionId) ?? 1, scanned.nextPirateFactionId ?? 1),
-    nextNotificationId: Math.max(positive(current.nextNotificationId) ?? 1, scanned.nextNotificationId ?? 1),
-    nextNetworkPlanId: Math.max(positive(current.nextNetworkPlanId) ?? 1, scanned.nextNetworkPlanId ?? 1),
-  };
+  // Iterate the satisfies-checked ID_COUNTER_SPECS table (#1082) so a new
+  // counter is merged (max of persisted vs. scanned) without a third manual list.
+  const out = {} as Record<keyof GameState['idCounters'], number>;
+  for (const key of Object.keys(ID_COUNTER_SPECS) as (keyof GameState['idCounters'])[]) {
+    out[key] = Math.max(positive(current[key]) ?? ID_COUNTER_SPECS[key].initial, scanned[key] ?? ID_COUNTER_SPECS[key].initial);
+  }
+  return out;
 }
 
 function isValidQuestTarget(target: QuestTarget, minorCivId: string): boolean {

@@ -32,8 +32,10 @@ describe('scanIdCounters', () => {
       nextCityId: 1,
       nextCampId: 1,
       nextQuestId: 1,
+      nextRouteId: 1,
       nextPirateFactionId: 1,
       nextNotificationId: 1,
+      nextNetworkPlanId: 1,
     });
   });
 
@@ -114,6 +116,14 @@ describe('scanIdCounters', () => {
 
     expect(counters.nextPirateFactionId).toBe(8);
     expect(counters.nextNotificationId).toBe(13);
+  });
+
+  it('scans trade route IDs from marketplace.tradeRoutes', () => {
+    const counters = scanIdCounters({
+      marketplace: { tradeRoutes: [{ id: 'route-3' }, { id: 'route-11' }] },
+    });
+
+    expect(counters.nextRouteId).toBe(12);
   });
 
   it('scans persistent network plan IDs', () => {
