@@ -28,11 +28,14 @@ import type { AIForceDemand } from './ai-unit-assignment';
 import type { PreparedMajorCivPlan } from './ai-prepared-turn';
 import { evaluateAITechCapabilities, type AITechCapabilities } from './ai-tech-evaluation';
 import { weightTechChoice } from './ai-personality';
+import { NATIONAL_INTENT_POSTURE, type NationalIntentPosture } from './ai-national-intent';
 import { simulateResearchQueueTiming } from '@/systems/tech-progression';
 
 export interface AIResearchPlanningContext {
   techState: TechState;
   personality: PersonalityTraits;
+  /** #1087: national-intent posture (#1086) -- required, mirrors ai-production.ts's precedent. */
+  posture: NationalIntentPosture;
   modernizationDemand: number;
   forceDemands: readonly AIForceDemand[];
   coastalEmpire: boolean;
@@ -402,6 +405,7 @@ export function planAIResearch(
     const personalityTrackWeight = weightTechChoice(
       context.personality,
       entry.target,
+      context.posture,
     );
     const unlockBreadth = (entry.target.unlocksUnits?.length ?? 0)
       + (entry.target.unlocksBuildings?.length ?? 0)
@@ -524,9 +528,11 @@ export function applyAIResearch(
     const city = state.cities[cityId];
     return !!city && !city.buildings.some(buildingId => (BUILDINGS[buildingId]?.yields.science ?? 0) > 0);
   }).length;
+  const posture = NATIONAL_INTENT_POSTURE[state.opponentAI?.nationalIntentByCiv[civId]?.current ?? 'develop'];
   const decision = planAIResearch({
     techState: activated,
     personality,
+    posture,
     modernizationDemand: prepared.portfolio.modernizationDemand,
     forceDemands: prepared.forceDemands,
     coastalEmpire,

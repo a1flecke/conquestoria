@@ -8,13 +8,22 @@ const TRACK_WEIGHTS: Record<string, Record<TechTrack, number>> = {
   trader:       { military: 0.5, economy: 3, science: 1, civics: 1.5, exploration: 1.5, agriculture: 1.5, medicine: 1, philosophy: 1, arts: 1.5, maritime: 2, metallurgy: 0.5, construction: 1, communication: 2, espionage: 1, spirituality: 1 },
 };
 
-export function weightTechChoice(personality: PersonalityTraits, tech: Tech): number {
+/**
+ * #1087: `posture` (#1086's `NationalIntentPosture`) multiplies only the military-track
+ * component -- it does not blanket-scale every track, so a `dominate` civ prioritizes
+ * military research without every other track being crushed toward zero. Required, not
+ * optional, mirroring `weightProductionRoles`'s own #1086 precedent.
+ */
+export function weightTechChoice(personality: PersonalityTraits, tech: Tech, posture: NationalIntentPosture): number {
   let weight = 1;
   for (const trait of personality.traits) {
     const trackWeights = TRACK_WEIGHTS[trait];
     if (trackWeights) {
       weight *= trackWeights[tech.track] ?? 1;
     }
+  }
+  if (tech.track === 'military') {
+    weight *= posture.researchMilitaryTrackWeight;
   }
   return weight;
 }
@@ -98,6 +107,11 @@ export function weightProductionRoles(
   return score;
 }
 
+/**
+ * #1087: `posture` shifts the ordinary (post-turn-5) war threshold only -- the early-turn
+ * rush branch stays a hardcoded personality-only rule, independent of intent, matching its
+ * existing documented intent (a fixed opening-turns policy, not ongoing war scoring).
+ */
 export function shouldDeclareWar(
   personality: PersonalityTraits,
   relationship: number,
@@ -107,6 +121,7 @@ export function shouldDeclareWar(
   hasBorderPressure: boolean,
   targetHasKnownStrategicCapability: boolean,
   strategicDeterrenceCautionWeight: number,
+  posture: NationalIntentPosture,
 ): boolean {
   if (!hasMetTarget) return false;
   if (relationship > 30) return false;
@@ -122,5 +137,5 @@ export function shouldDeclareWar(
   // blocks war outright -- caller passes 0 when the target's capability is
   // unknown, so this is a strict no-op for every pre-MR5 call site.
   const cautionPenalty = targetHasKnownStrategicCapability ? strategicDeterrenceCautionWeight : 0;
-  return warScore > (0.8 + peacePressure + cautionPenalty);
+  return warScore > (0.8 + peacePressure + cautionPenalty - posture.warDeclarationBias);
 }

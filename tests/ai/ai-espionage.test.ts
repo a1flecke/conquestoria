@@ -175,6 +175,76 @@ describe('AI espionage decisions', () => {
       expect(mission).toBeNull();
     });
 
+    // #1087: a civ's current national intent overrides its fixed personality trait for
+    // mission selection -- the civ's situation, not just its base personality, now shapes
+    // which espionage strategy it pursues.
+    it('a trader civ under a dominate national intent selects an aggressive mission, not its trait-based diplomatic order', () => {
+      const state = makeAiTestState();
+      state.civilizations['ai-egypt'].civType = 'persia'; // trader, expansionist
+      state.civilizations['ai-egypt'].techState.completed = [
+        'espionage-scouting', 'espionage-informants', 'spy-networks', 'cryptography',
+      ];
+      state.opponentAI = {
+        ...(state.opponentAI as any),
+        nationalIntentByCiv: {
+          'ai-egypt': {
+            current: 'dominate', previous: null, selectedTurn: 0, reconsiderAfterTurn: 999,
+            shockActive: false, shockFreeStreak: 0, reasonCodes: [],
+          },
+        },
+      } as any;
+      const mission = chooseAiMission(state, 'ai-egypt');
+      expect(['steal_tech', 'sabotage_production', 'arms_smuggling']).toContain(mission);
+    });
+
+    it('an aggressive civ under a deter national intent selects a defensive/information mission, not its trait-based aggressive order', () => {
+      const state = makeAiTestState();
+      state.civilizations['ai-egypt'].civType = 'annuvin'; // aggressive
+      state.civilizations['ai-egypt'].techState.completed = [
+        'espionage-scouting', 'espionage-informants', 'spy-networks', 'cryptography',
+      ];
+      state.opponentAI = {
+        ...(state.opponentAI as any),
+        nationalIntentByCiv: {
+          'ai-egypt': {
+            current: 'deter', previous: null, selectedTurn: 0, reconsiderAfterTurn: 999,
+            shockActive: false, shockFreeStreak: 0, reasonCodes: [],
+          },
+        },
+      } as any;
+      const mission = chooseAiMission(state, 'ai-egypt');
+      expect(mission).toBe('gather_intel');
+    });
+
+    it('a recover national intent selects a defensive/information mission for any personality', () => {
+      const state = makeAiTestState();
+      state.civilizations['ai-egypt'].civType = 'annuvin'; // aggressive
+      state.civilizations['ai-egypt'].techState.completed = [
+        'espionage-scouting', 'espionage-informants', 'spy-networks', 'cryptography',
+      ];
+      state.opponentAI = {
+        ...(state.opponentAI as any),
+        nationalIntentByCiv: {
+          'ai-egypt': {
+            current: 'recover', previous: null, selectedTurn: 0, reconsiderAfterTurn: 999,
+            shockActive: false, shockFreeStreak: 0, reasonCodes: [],
+          },
+        },
+      } as any;
+      const mission = chooseAiMission(state, 'ai-egypt');
+      expect(mission).toBe('gather_intel');
+    });
+
+    it('with no opponentAI/national intent recorded, falls back to the pre-#1087 trait-only behavior', () => {
+      const state = makeAiTestState();
+      state.civilizations['ai-egypt'].civType = 'annuvin';
+      state.civilizations['ai-egypt'].techState.completed = [
+        'espionage-scouting', 'espionage-informants', 'spy-networks', 'cryptography',
+      ];
+      const mission = chooseAiMission(state, 'ai-egypt');
+      expect(['steal_tech', 'sabotage_production', 'arms_smuggling']).toContain(mission);
+    });
+
     // #526 MR7: sabotage_relief is human-initiated only in this arc.
     it('never chooses sabotage_relief, even when it is the only mission covert-operations unlocks', () => {
       const state = makeAiTestState();

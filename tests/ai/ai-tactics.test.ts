@@ -155,6 +155,34 @@ function context(
   };
 }
 
+// #1087 tactical-parity invariant: fixed battlefield + fixed plan + fixed challenge must
+// produce identical tactical output regardless of personality. `AITacticalContext` (above)
+// structurally carries no personality field -- confirmed by grep across ai-tactics.ts and
+// ai-unit-roles.ts (zero `personality`/`PersonalityTraits`/`getPersonality` references) --
+// so this test proves the invariant end-to-end through the real GameState pathway rather
+// than only by that structural absence.
+describe('#1087 tactical parity — personality must not affect tactical execution', () => {
+  it('two civilizations with very different personalities (rome: aggressive/high warLikelihood vs egypt: diplomatic/low warLikelihood) produce byte-identical tactical sequences for the same battlefield, plan, and challenge', () => {
+    const buildScenario = (civType: 'rome' | 'egypt') => {
+      const state = makeState('veteran');
+      state.civilizations[AI].civType = civType;
+      const attacker = addUnit(state, 'attacker', 'archer', AI, { q: 0, r: 0 });
+      const swordsman = addUnit(state, 'swordsman', 'swordsman', AI, { q: 1, r: 0 });
+      const defender = addUnit(state, 'defender', 'warrior', HUMAN, { q: 2, r: 0 });
+      const plan = makePlan(
+        { kind: 'unit', id: defender.id, lastKnownPosition: defender.position },
+        [attacker.id, swordsman.id],
+      );
+      return chooseTacticalSequence(context(state, plan));
+    };
+
+    const romeActions = buildScenario('rome');
+    const egyptActions = buildScenario('egypt');
+    expect(romeActions).toEqual(egyptActions);
+    expect(romeActions.length).toBeGreaterThan(0);
+  });
+});
+
 describe('AI tactical action ranking', () => {
   it('uses the canonical pair seed for attack previews and simulations', () => {
     const state = makeState('veteran');
