@@ -713,6 +713,16 @@ export function isCityProductionLocked(city: City): boolean {
 }
 
 // --- Rebel spawning ---
+//
+// #1089: rebels are deliberately inert once spawned -- no per-turn AI, no movement, nothing in
+// turn-manager.ts touches a 'rebels'-owned unit after this function creates it. They exist only
+// as a siege obstacle the player must clear to resolve the revolt. This is an honest, staged
+// deferral, not an oversight: giving rebels a real decision loop is a separably-sized feature
+// (they have no movement path today at all), out of #1089's own scope. The intended future
+// grammar (survive under-strength → hold position near the city once a minimum force is present
+// → spread to a second pressured city if regional unrest supports it → potentially feed a future
+// legitimacy/breakaway mechanic, which does not exist in this codebase) is written out in full in
+// docs/superpowers/specs/2026-09-22-issue-1089-nonmajor-archetypes-design.md §6.
 
 function spawnRebelUnits(city: City, state: GameState, seed: string): GameState['units'] {
   const rng = createRng(seed);

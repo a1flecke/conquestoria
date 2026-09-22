@@ -1661,8 +1661,12 @@ describe('processTurn', () => {
     flattenMapToPlains(state);
     state.turn = 30;
     state.era = 3;
+    // #1089: 'camp-a' resolves to the 'warlord' archetype for this gameId, which requires
+    // mobilizing 4+ assigned units before it will ever advance on a city -- this test's single
+    // raider would sit at camp forever, never attacking. 'camp-a-search-0' resolves to
+    // 'raider', which raids a weak city unconditionally, matching this test's actual intent.
     state.barbarianCamps = {
-      'camp-a': { id: 'camp-a', position: { q: 5, r: 5 }, strength: 6, spawnCooldown: 4 },
+      'camp-a-search-0': { id: 'camp-a-search-0', position: { q: 5, r: 5 }, strength: 6, spawnCooldown: 4 },
     };
     const raider = createUnit('warrior', 'barbarian', { q: 11, r: 5 }, state.idCounters);
     raider.id = 'raider';

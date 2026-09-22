@@ -1944,7 +1944,11 @@ export type AIPlanReason =
   | 'camp-defense'
   | 'visible-stampede'
   | 'opportunistic-raid'
-  | 'domination-pursuit';
+  | 'domination-pursuit'
+  // #1089: barbarian archetype-specific target selection (predator/warlord); see
+  // src/systems/barbarian-archetype.ts.
+  | 'predator-hunt'
+  | 'warlord-mobilizing';
 
 export type AIPlanPhase =
   | 'scouting'

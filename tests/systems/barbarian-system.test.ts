@@ -17,6 +17,7 @@ import { applyPillageToState } from '@/systems/pillage-system';
 import { executeUnitMove } from '@/systems/unit-movement-system';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { selectBarbarianReinforcement } from '@/systems/barbarian-force-composer';
+import { getBarbarianArchetypeDefinition, resolveBarbarianArchetype, type BarbarianArchetype } from '@/systems/barbarian-archetype';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -66,11 +67,11 @@ describe('camp pressure cleanup', () => {
   it('removes a camp pressure record when the camp is destroyed', () => {
     const state = createNewGame('rome', 'camp-pressure-cleanup', 'small');
     state.barbarianCamps = {
-      'camp-a': { id: 'camp-a', position: { q: 3, r: 3 }, strength: 5, spawnCooldown: 3 },
+      'camp-a-alt-4': { id: 'camp-a-alt-4', position: { q: 3, r: 3 }, strength: 5, spawnCooldown: 3 },
     };
-    state.barbarianCampPressure = { 'camp-a': { armorLastObservedTurn: state.turn } };
+    state.barbarianCampPressure = { 'camp-a-alt-4': { armorLastObservedTurn: state.turn } };
 
-    expect(applyCampDestruction(state, 'player', 'camp-a', state.turn).state.barbarianCampPressure)
+    expect(applyCampDestruction(state, 'player', 'camp-a-alt-4', state.turn).state.barbarianCampPressure)
       .toEqual({});
   });
 });
@@ -110,7 +111,7 @@ describe('destroyCamp', () => {
   });
 
   it('records the killer civ on a Hunt crisis (MR3) when its bandit camp is destroyed', () => {
-    const state = createNewGame('egypt', 'hunt-camp-attribution', 'small');
+    const state = createNewGame('egypt', 'hunt-camp-a-alt-4ttribution', 'small');
     state.barbarianCamps['camp-1'] = {
       id: 'camp-1', position: { q: 4, r: 4 }, strength: 5, spawnCooldown: 0, banditLordName: 'Test Lord',
     };
@@ -227,8 +228,8 @@ describe('processPurposefulBarbarians', () => {
       tile.improvementTurnsLeft = 0;
     }
     state.barbarianCamps = {
-      'camp-a': {
-        id: 'camp-a',
+      'camp-a-alt-4': {
+        id: 'camp-a-alt-4',
         position: { q: 5, r: 5 },
         strength: 6,
         spawnCooldown: 4,
@@ -259,8 +260,8 @@ describe('processPurposefulBarbarians', () => {
     state.civilizations.player.cities = ['far'];
 
     const first = processPurposefulBarbarians(state);
-    expect(first.opponentAI.barbarianHomeCampByUnitId.raider).toBe('camp-a');
-    expect(first.opponentAI.barbarianCamps['camp-a']).toMatchObject({
+    expect(first.opponentAI.barbarianHomeCampByUnitId.raider).toBe('camp-a-alt-4');
+    expect(first.opponentAI.barbarianCamps['camp-a-alt-4']).toMatchObject({
       objective: 'raid',
       target: { kind: 'unit', id: 'worker' },
     });
@@ -270,7 +271,7 @@ describe('processPurposefulBarbarians', () => {
       opponentAI: first.opponentAI,
       turn: state.turn + 1,
     });
-    expect(persisted.opponentAI.barbarianCamps['camp-a'].target).toMatchObject({
+    expect(persisted.opponentAI.barbarianCamps['camp-a-alt-4'].target).toMatchObject({
       kind: 'unit',
       id: 'worker',
     });
@@ -290,7 +291,7 @@ describe('processPurposefulBarbarians', () => {
 
     const result = processPurposefulBarbarians(state);
 
-    expect(result.opponentAI.barbarianCamps['camp-a'].target)
+    expect(result.opponentAI.barbarianCamps['camp-a-alt-4'].target)
       .toMatchObject({ kind: 'unit', id: worker.id });
   });
 
@@ -306,7 +307,7 @@ describe('processPurposefulBarbarians', () => {
       ...state.map.tiles['6,5']!, owner: 'player', resource: 'iron', improvement: 'mine', improvementTurnsLeft: 0,
     };
 
-    expect(processPurposefulBarbarians(state).opponentAI.barbarianCamps['camp-a'].target)
+    expect(processPurposefulBarbarians(state).opponentAI.barbarianCamps['camp-a-alt-4'].target)
       .toMatchObject({ kind: 'unit', id: worker.id });
   });
 
@@ -323,7 +324,7 @@ describe('processPurposefulBarbarians', () => {
 
     const result = processPurposefulBarbarians(state);
 
-    expect(result.opponentAI.barbarianCamps['camp-a']).toMatchObject({
+    expect(result.opponentAI.barbarianCamps['camp-a-alt-4']).toMatchObject({
       objective: 'defend',
       target: { kind: 'unit', id: 'camp-threat' },
     });
@@ -339,35 +340,37 @@ describe('processPurposefulBarbarians', () => {
 
     const result = processPurposefulBarbarians(state);
 
-    expect(result.barbarianCampPressure).toEqual({ 'camp-a': { armorLastObservedTurn: state.turn } });
+    expect(result.barbarianCampPressure).toEqual({ 'camp-a-alt-4': { armorLastObservedTurn: state.turn } });
     expect(JSON.stringify(result.barbarianCampPressure)).not.toContain(distantTank.id);
   });
 
   it('uses the deterministic catalog selector for a due camp reinforcement', () => {
     const state = purposefulState();
     state.turn = 20;
-    state.barbarianCamps['camp-a'] = { ...state.barbarianCamps['camp-a'], spawnCooldown: 1 };
+    state.barbarianCamps['camp-a-alt-4'] = { ...state.barbarianCamps['camp-a-alt-4'], spawnCooldown: 1 };
     state.cities.town = { id: 'town', owner: 'player', position: { q: 7, r: 5 }, hp: 50 } as never;
     state.civilizations.player.cities = ['town'];
     state.civilizations.player.techState.completed = TECH_TREE
       .filter(tech => tech.era <= 10)
       .map(tech => tech.id);
-    state.barbarianCampPressure = { 'camp-a': { armorLastObservedTurn: 20, airLastObservedTurn: 20 } };
+    state.barbarianCampPressure = { 'camp-a-alt-4': { armorLastObservedTurn: 20, airLastObservedTurn: 20 } };
 
-    const seed = [...`${state.gameId ?? 'game'}:${state.turn}:camp-a`]
+    const seed = [...`${state.gameId ?? 'game'}:${state.turn}:camp-a-alt-4`]
       .reduce((value, character) => (value * 31 + character.charCodeAt(0)) >>> 0, 1);
+    const archetype = resolveBarbarianArchetype(state, 'camp-a-alt-4');
     const expected = selectBarbarianReinforcement({
       era: 10, assignedUnitTypes: [], observedThreats: ['armor', 'air'], escalated: false, seed,
+      roleWeightMultipliers: getBarbarianArchetypeDefinition(archetype).roleWeightMultipliers,
     });
 
     expect(processPurposefulBarbarians(state).spawnedUnits)
-      .toContainEqual(expect.objectContaining({ campId: 'camp-a', unitType: expected }));
+      .toContainEqual(expect.objectContaining({ campId: 'camp-a-alt-4', unitType: expected }));
   });
 
   it('caps a quiet camp at ten assigned raiders without bypassing its cooldown', () => {
     const state = purposefulState();
-    state.barbarianCamps['camp-a'] = {
-      ...state.barbarianCamps['camp-a'], strength: 10, spawnCooldown: 1,
+    state.barbarianCamps['camp-a-alt-4'] = {
+      ...state.barbarianCamps['camp-a-alt-4'], strength: 10, spawnCooldown: 1,
     };
     const raiders = Array.from({ length: 10 }, (_, index) => {
       const raider = createUnit('warrior', 'barbarian', { q: 5, r: 5 }, state.idCounters);
@@ -380,7 +383,7 @@ describe('processPurposefulBarbarians', () => {
 
     expect(result.spawnedUnits).toEqual([]);
     expect(result.updatedCamps).toContainEqual(expect.objectContaining({
-      id: 'camp-a', strength: 10, spawnCooldown: expect.any(Number),
+      id: 'camp-a-alt-4', strength: 10, spawnCooldown: expect.any(Number),
     }));
     expect(result.updatedCamps[0]!.spawnCooldown).toBeGreaterThan(0);
   });
@@ -388,12 +391,12 @@ describe('processPurposefulBarbarians', () => {
   it('enforces the cap per camp without suppressing another due camp', () => {
     const state = purposefulState();
     state.barbarianCamps = {
-      'camp-a': { id: 'camp-a', position: { q: 5, r: 5 }, strength: 10, spawnCooldown: 1 },
+      'camp-a-alt-4': { id: 'camp-a-alt-4', position: { q: 5, r: 5 }, strength: 10, spawnCooldown: 1 },
       'camp-b': { id: 'camp-b', position: { q: 20, r: 5 }, strength: 6, spawnCooldown: 1 },
     };
     const raiders = Array.from({ length: 10 }, (_, index) => {
       const raider = createUnit('warrior', 'barbarian', { q: 5, r: 5 }, state.idCounters);
-      raider.id = `camp-a-raider-${index}`;
+      raider.id = `camp-a-alt-4-raider-${index}`;
       return raider;
     });
     state.units = Object.fromEntries(raiders.map(raider => [raider.id, raider]));
@@ -401,7 +404,7 @@ describe('processPurposefulBarbarians', () => {
     const result = processPurposefulBarbarians(state);
 
     expect(result.spawnedUnits.map(spawn => spawn.campId)).toEqual(['camp-b']);
-    expect(result.updatedCamps.find(camp => camp.id === 'camp-a')).toMatchObject({ strength: 10 });
+    expect(result.updatedCamps.find(camp => camp.id === 'camp-a-alt-4')).toMatchObject({ strength: 10 });
   });
 
   it('uses the final roster band beyond its declared maximum era', () => {
@@ -430,7 +433,7 @@ describe('processPurposefulBarbarians', () => {
       opponentAI: planned.opponentAI,
     });
 
-    expect(result.opponentAI.barbarianCamps['camp-a'].phase).toBe('withdrawing');
+    expect(result.opponentAI.barbarianCamps['camp-a-alt-4'].phase).toBe('withdrawing');
     expect(result.moveOrders).toContainEqual({
       unitId: raider.id,
       toCoord: { q: 6, r: 5 },
@@ -536,7 +539,7 @@ describe('processPurposefulBarbarians', () => {
     };
     state.opponentAI = {
       barbarianCamps: {
-        'camp-a': {
+        'camp-a-alt-4': {
           objective: 'raid',
           target: { kind: 'resource', resource: 'iron', position: { q: 7, r: 5 } },
           phase: 'raiding',
@@ -547,14 +550,14 @@ describe('processPurposefulBarbarians', () => {
           assignedUnitIds: ['raider'],
         },
       },
-      barbarianHomeCampByUnitId: { raider: 'camp-a' },
+      barbarianHomeCampByUnitId: { raider: 'camp-a-alt-4' },
     } as never;
 
     const result = processPurposefulBarbarians(state);
 
     expect(result.pillageOrders).toContainEqual({ unitId: 'raider', tileKey: '7,5' });
     expect(result.moveOrders.some(order => order.unitId === 'raider')).toBe(true);
-    expect(result.opponentAI.barbarianCamps['camp-a']).toMatchObject({ phase: 'withdrawing' });
+    expect(result.opponentAI.barbarianCamps['camp-a-alt-4']).toMatchObject({ phase: 'withdrawing' });
   });
 
   it('pillages the tile even though a same-turn withdrawal move is also queued, because pillage applies first (#541 second-pass review)', () => {
@@ -575,7 +578,7 @@ describe('processPurposefulBarbarians', () => {
     };
     state.opponentAI = {
       barbarianCamps: {
-        'camp-a': {
+        'camp-a-alt-4': {
           objective: 'raid',
           target: { kind: 'resource', resource: 'iron', position: { q: 7, r: 5 } },
           phase: 'raiding',
@@ -586,7 +589,7 @@ describe('processPurposefulBarbarians', () => {
           assignedUnitIds: ['raider'],
         },
       },
-      barbarianHomeCampByUnitId: { raider: 'camp-a' },
+      barbarianHomeCampByUnitId: { raider: 'camp-a-alt-4' },
     } as never;
 
     const result = processPurposefulBarbarians(state);
@@ -622,7 +625,7 @@ describe('processPurposefulBarbarians', () => {
 
     const result = processPurposefulBarbarians(state);
 
-    expect(result.opponentAI.barbarianCamps['camp-a']).toMatchObject({
+    expect(result.opponentAI.barbarianCamps['camp-a-alt-4']).toMatchObject({
       target: { kind: 'resource' },
     });
   });
@@ -643,8 +646,228 @@ describe('processPurposefulBarbarians', () => {
 
     const result = processPurposefulBarbarians(state);
 
-    expect(result.opponentAI.barbarianCamps['camp-a']).toMatchObject({
+    expect(result.opponentAI.barbarianCamps['camp-a-alt-4']).toMatchObject({
       target: { kind: 'unit', id: 'worker' },
+    });
+  });
+
+  // #1089: archetype-specific integration tests. Reuses purposefulState()'s fixed gameId
+  // ('purposeful-barbarians') and searches a small set of candidate camp ids for one that
+  // resolves to the archetype under test, rather than hardcoding a magic id string that would
+  // silently break if resolveBarbarianArchetype's derivation ever changes.
+  function findCampIdForArchetype(state: ReturnType<typeof purposefulState>, archetype: BarbarianArchetype): string {
+    for (let i = 0; i < 50; i++) {
+      const candidate = `camp-search-${i}`;
+      if (resolveBarbarianArchetype(state, candidate) === archetype) return candidate;
+    }
+    throw new Error(`no camp id resolved to ${archetype} within search bound`);
+  }
+
+  function campWithArchetype(archetype: BarbarianArchetype) {
+    const state = purposefulState();
+    const campId = findCampIdForArchetype(state, archetype);
+    state.barbarianCamps = {
+      [campId]: { id: campId, position: { q: 5, r: 5 }, strength: 6, spawnCooldown: 4 },
+    };
+    return { state, campId };
+  }
+
+  describe('#1089 archetype-specific behavior', () => {
+    it('predator hunts a wounded isolated unit that raider/warlord would not target via the hunt path', () => {
+      const { state, campId } = campWithArchetype('predator');
+      // Placed outside BARBARIAN_DEFENSE_RADIUS (4) but inside BARBARIAN_SENSE_RADIUS (7) --
+      // any hostile unit within the defense radius triggers the universal camp-defense
+      // override regardless of archetype (by design), so this test must place its target
+      // beyond that radius to actually exercise predator's own hunt-selection path.
+      const wounded = createUnit('warrior', 'player', { q: 11, r: 5 }, state.idCounters);
+      wounded.id = 'wounded-isolated';
+      wounded.health = 30;
+      state.units = { [wounded.id]: wounded };
+      state.civilizations.player.units = [wounded.id];
+
+      const result = processPurposefulBarbarians(state);
+
+      expect(result.opponentAI.barbarianCamps[campId]).toMatchObject({
+        target: { kind: 'unit', id: 'wounded-isolated' },
+        reasonCodes: ['predator-hunt'],
+      });
+    });
+
+    it('predator never targets a raidable city, even when nothing else is sensed', () => {
+      const { state, campId } = campWithArchetype('predator');
+      state.cities.town = { id: 'town', owner: 'player', position: { q: 6, r: 5 }, hp: 10 } as never;
+      state.civilizations.player.cities = ['town'];
+
+      const result = processPurposefulBarbarians(state);
+
+      expect(result.opponentAI.barbarianCamps[campId].target.kind).not.toBe('city');
+    });
+
+    it('raider (not predator) does target a weak nearby city when nothing else is sensed', () => {
+      const { state, campId } = campWithArchetype('raider');
+      state.cities.town = { id: 'town', owner: 'player', position: { q: 6, r: 5 }, hp: 10 } as never;
+      state.civilizations.player.cities = ['town'];
+
+      const result = processPurposefulBarbarians(state);
+
+      expect(result.opponentAI.barbarianCamps[campId]).toMatchObject({ target: { kind: 'city', id: 'town' } });
+    });
+
+    it('warlord under its mobilization threshold sets phase=mobilizing and does not move its single assigned unit toward the city', () => {
+      const { state, campId } = campWithArchetype('warlord');
+      const raider = createUnit('warrior', 'barbarian', { q: 5, r: 5 }, state.idCounters);
+      raider.id = 'lone-warlord-unit';
+      state.units = { [raider.id]: raider };
+      state.cities.town = { id: 'town', owner: 'player', position: { q: 6, r: 5 }, hp: 10 } as never;
+      state.civilizations.player.cities = ['town'];
+
+      const result = processPurposefulBarbarians(state);
+
+      expect(result.opponentAI.barbarianCamps[campId]).toMatchObject({
+        phase: 'mobilizing',
+        reasonCodes: ['warlord-mobilizing'],
+        target: { kind: 'city', id: 'town' },
+      });
+      expect(result.moveOrders.some(order => order.unitId === raider.id)).toBe(false);
+    });
+
+    it('warlord at/above its mobilization threshold advances toward the city', () => {
+      const { state, campId } = campWithArchetype('warlord');
+      const units: Record<string, ReturnType<typeof createUnit>> = {};
+      for (let i = 0; i < 4; i++) {
+        const raider = createUnit('warrior', 'barbarian', { q: 5 + (i % 2), r: 5 }, state.idCounters);
+        raider.id = `warlord-force-${i}`;
+        units[raider.id] = raider;
+      }
+      state.units = units;
+      state.cities.town = { id: 'town', owner: 'player', position: { q: 9, r: 5 }, hp: 10 } as never;
+      state.civilizations.player.cities = ['town'];
+
+      const result = processPurposefulBarbarians(state);
+
+      expect(result.opponentAI.barbarianCamps[campId]).toMatchObject({
+        phase: 'advancing',
+        target: { kind: 'city', id: 'town' },
+      });
+      expect(result.moveOrders.some(order => Object.keys(units).includes(order.unitId))).toBe(true);
+    });
+
+    it('discards a stale city-raid plan a since-resolved Predator camp inherited from a pre-#1089 save instead of retaining it', () => {
+      const { state, campId } = campWithArchetype('predator');
+      const raider = createUnit('warrior', 'barbarian', { q: 5, r: 5 }, state.idCounters);
+      raider.id = 'predator-legacy-unit';
+      state.units = { [raider.id]: raider };
+      state.cities.town = { id: 'town', owner: 'player', position: { q: 6, r: 5 }, hp: 10 } as never;
+      state.civilizations.player.cities = ['town'];
+      // A city-raid plan this exact camp could never have created post-#1089 (predator
+      // avoidsCities), simulating a plan inherited from a pre-#1089 save.
+      state.opponentAI = {
+        barbarianCamps: {
+          [campId]: {
+            id: `plan:${campId}`, actorId: campId, objective: 'raid',
+            target: { kind: 'city', id: 'town', lastKnownPosition: { q: 6, r: 5 } },
+            theaterId: `camp:${campId}`, phase: 'advancing', reasonCodes: ['nearby-opportunity'],
+            commitment: 0.7, createdTurn: state.turn - 1, reconsiderAfterTurn: state.turn + 5,
+            expiresAfterTurn: state.turn + 8, lastProgressTurn: state.turn - 1,
+            assignedUnitIds: [raider.id],
+          },
+        },
+        barbarianHomeCampByUnitId: { [raider.id]: campId },
+      } as never;
+
+      const result = processPurposefulBarbarians(state);
+
+      expect(result.opponentAI.barbarianCamps[campId].target.kind).not.toBe('city');
+    });
+
+    it('every archetype defends the camp identically when threatened (universal camp-defense invariant)', () => {
+      const results = (['raider', 'predator', 'warlord'] as const).map(archetype => {
+        const { state, campId } = campWithArchetype(archetype);
+        const threat = createUnit('warrior', 'player', { q: 6, r: 5 }, state.idCounters);
+        threat.id = 'threat';
+        state.units = { [threat.id]: threat };
+        state.civilizations.player.units = ['threat'];
+        const result = processPurposefulBarbarians(state);
+        return { objective: result.opponentAI.barbarianCamps[campId].objective, reasonCodes: result.opponentAI.barbarianCamps[campId].reasonCodes };
+      });
+      for (const result of results) {
+        expect(result).toEqual({ objective: 'defend', reasonCodes: ['camp-defense'] });
+      }
+    });
+
+    it('raider enters a recovery cooldown after fully returning from a completed raid, and does not immediately re-raid', () => {
+      const { state, campId } = campWithArchetype('raider');
+      const raider = createUnit('warrior', 'barbarian', { q: 5, r: 5 }, state.idCounters);
+      raider.id = 'returning-raider';
+      state.units = { [raider.id]: raider };
+      // Sensed raidable worker so a fresh raid WOULD otherwise be selected.
+      const worker = createUnit('worker', 'player', { q: 6, r: 5 }, state.idCounters);
+      worker.id = 'available-worker';
+      state.units[worker.id] = worker;
+      state.civilizations.player.units = [worker.id];
+      state.opponentAI = {
+        barbarianCamps: {
+          [campId]: {
+            id: `plan:${campId}`, actorId: campId, objective: 'raid',
+            target: { kind: 'unit', id: 'already-gone', lastKnownPosition: { q: 5, r: 5 } },
+            theaterId: `camp:${campId}`, phase: 'withdrawing', reasonCodes: ['opportunistic-raid'],
+            commitment: 0.7, createdTurn: state.turn - 2, reconsiderAfterTurn: state.turn + 2,
+            expiresAfterTurn: state.turn + 6, lastProgressTurn: state.turn - 1,
+            assignedUnitIds: [raider.id],
+          },
+        },
+        barbarianHomeCampByUnitId: { [raider.id]: campId },
+      } as never;
+
+      const result = processPurposefulBarbarians(state);
+
+      expect(result.opponentAI.barbarianCamps[campId]).toMatchObject({
+        target: { kind: 'region' },
+        reasonCodes: ['homeland-secure'],
+      });
+      expect(result.opponentAI.barbarianCamps[campId].reconsiderAfterTurn).toBeGreaterThan(state.turn);
+    });
+
+    it('hidden information: an enemy unit outside the camp sensing radius does not change the plan (positive control: inside radius does)', () => {
+      const { state: outsideState, campId } = campWithArchetype('predator');
+      const farAway = createUnit('warrior', 'player', { q: 25, r: 25 }, outsideState.idCounters);
+      farAway.id = 'far-away-wounded';
+      farAway.health = 10;
+      outsideState.units = { [farAway.id]: farAway };
+      outsideState.civilizations.player.units = [farAway.id];
+      const baselineResult = processPurposefulBarbarians({ ...outsideState, units: {} });
+      const withFarUnitResult = processPurposefulBarbarians(outsideState);
+      expect(withFarUnitResult.opponentAI.barbarianCamps[campId]).toEqual(baselineResult.opponentAI.barbarianCamps[campId]);
+
+      // Positive control: the identical wounded unit INSIDE sensing range (but outside the
+      // camp-defense radius, so this exercises predator's hunt path specifically, not the
+      // universal camp-defense override) does change the plan.
+      const { state: insideState, campId: insideCampId } = campWithArchetype('predator');
+      const nearby = createUnit('warrior', 'player', { q: 11, r: 5 }, insideState.idCounters);
+      nearby.id = 'near-wounded';
+      nearby.health = 10;
+      insideState.units = { [nearby.id]: nearby };
+      insideState.civilizations.player.units = [nearby.id];
+      const withNearUnitResult = processPurposefulBarbarians(insideState);
+      expect(withNearUnitResult.opponentAI.barbarianCamps[insideCampId]).toMatchObject({
+        target: { kind: 'unit', id: 'near-wounded' },
+        reasonCodes: ['predator-hunt'],
+      });
+    });
+
+    it('archetype and plan survive a save/reload boundary (an equivalent rebuilt state resolves identically)', () => {
+      const { state, campId } = campWithArchetype('raider');
+      const worker = createUnit('worker', 'player', { q: 6, r: 5 }, state.idCounters);
+      worker.id = 'reload-worker';
+      state.units = { [worker.id]: worker };
+      state.civilizations.player.units = [worker.id];
+
+      const before = processPurposefulBarbarians(state);
+      const reloadedState = JSON.parse(JSON.stringify({ ...state, opponentAI: before.opponentAI, barbarianCamps: Object.fromEntries(before.updatedCamps.map(c => [c.id, c])) }));
+      const after = processPurposefulBarbarians(reloadedState);
+
+      expect(resolveBarbarianArchetype(reloadedState, campId)).toBe(resolveBarbarianArchetype(state, campId));
+      expect(after.opponentAI.barbarianCamps[campId].reasonCodes).toEqual(before.opponentAI.barbarianCamps[campId].reasonCodes);
     });
   });
 });

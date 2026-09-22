@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   createSimulationRng,
+  createStableIdentityRng,
   type SimulationDomainKey,
 } from '@/systems/simulation-rng';
 import { createNewGame } from '@/core/game-state';
@@ -139,5 +140,40 @@ describe('#1021 — real GameState integration', () => {
     const before = JSON.stringify(state);
     createSimulationRng(state, { domain: 'x', actorId: 'y' })();
     expect(JSON.stringify(state)).toBe(before);
+  });
+});
+
+describe('#1089 — createStableIdentityRng', () => {
+  it('is turn-independent: identical gameId/key produces the identical stream across different turn values', () => {
+    const key: SimulationDomainKey = { domain: 'barbarian-archetype', actorId: 'camp-1' };
+    const early = draw(createStableIdentityRng({ gameId: 'game-1' }, key), 5);
+    const late = draw(createStableIdentityRng({ gameId: 'game-1' }, key), 5);
+    expect(early).toEqual(late);
+    // The type signature itself proves turn-independence (Pick<GameState, 'gameId'> only,
+    // no 'turn'), but assert it behaviorally too: passing a state-shaped object with an
+    // extra 'turn' field the function never reads still produces the identical stream.
+    const withTurn5 = draw(createStableIdentityRng({ gameId: 'game-1', turn: 5 } as never, key), 5);
+    const withTurn500 = draw(createStableIdentityRng({ gameId: 'game-1', turn: 500 } as never, key), 5);
+    expect(withTurn5).toEqual(withTurn500);
+  });
+
+  it('differs from createSimulationRng for the identical gameId/key/domain', () => {
+    const key: SimulationDomainKey = { domain: 'barbarian-archetype', actorId: 'camp-1' };
+    const stable = draw(createStableIdentityRng({ gameId: 'game-1' }, key), 5);
+    const perTurn = draw(createSimulationRng({ gameId: 'game-1', turn: 0 }, key), 5);
+    expect(stable).not.toEqual(perTurn);
+  });
+
+  it('two different camp ids diverge', () => {
+    const a = draw(createStableIdentityRng({ gameId: 'game-1' }, { domain: 'barbarian-archetype', actorId: 'camp-1' }), 3);
+    const b = draw(createStableIdentityRng({ gameId: 'game-1' }, { domain: 'barbarian-archetype', actorId: 'camp-2' }), 3);
+    expect(a).not.toEqual(b);
+  });
+
+  it('two different campaigns (gameId) diverge for the identical key', () => {
+    const key: SimulationDomainKey = { domain: 'barbarian-archetype', actorId: 'camp-1' };
+    const a = draw(createStableIdentityRng({ gameId: 'game-1' }, key), 3);
+    const b = draw(createStableIdentityRng({ gameId: 'game-2' }, key), 3);
+    expect(a).not.toEqual(b);
   });
 });
