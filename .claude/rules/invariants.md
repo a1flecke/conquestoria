@@ -74,7 +74,7 @@ every implicit assumption an invariant... short enough to read").
 | `marketplace.tradeRoutes` / `.purchasedResources` | A route/purchase names a real, living civ | `SAVE_STATE_INVARIANTS: marketplace-references` (**#1083, closed**) |
 | `nationalProjectChoices` | A dead civ makes no resource choice | `ELIMINATED_CIV_AREAS.nationalProjectChoices` (teardown) |
 | `economyStatusByCiv` | A dead civ has no economy status | `ELIMINATED_CIV_AREAS.economyStatusByCiv` (teardown) |
-| `idCounters` | Every counter has both a `scanIdCounters` reconstruction block and an `emptyIdCounters` default | Discipline only — an "EXTENSION CONTRACT" comment in `id-counters.ts`, no compile-enforced coverage (unlike `ELIMINATED_CIV_AREAS`'s `Record<keyof …>` pattern) — **#1082** |
+| `idCounters` | Every counter has both a `scanIdCounters` reconstruction block and an `emptyIdCounters` default | `ID_COUNTER_SPECS` (`src/core/id-counters.ts`) `satisfies Record<keyof IdCounters, IdCounterSpec>` — a new `IdCounters` field is a type error until it defines both `initial` and `scanMax`; `emptyIdCounters()`, `scanIdCounters()`, and `normalizeIdCounters` all derive from that table (**#1082, closed**) |
 
 ## AI
 
@@ -101,7 +101,7 @@ every implicit assumption an invariant... short enough to read").
 ## Structural (no relational invariant — a scalar, enum, or civ-free area)
 
 `turn`, `era`, `saveSchemaVersion`, `gameId`, `playthroughId`, `gameTitle`, `opponentChallenge`,
-`pendingOpponentChallenge`, `map`, `settings`, `idCounters` (coverage discipline aside, see above),
+`pendingOpponentChallenge`, `map`, `settings`, `idCounters` (per-counter coverage enforced via `ID_COUNTER_SPECS`, see above),
 `tutorial`, `gameOver`, `gameOverReason`, `mapScript`, `startPlacementMode`, `barbarianCamps`,
 `barbarianCampPressure`, `tribalVillages`, `reconReveals`, `patrolReveals`, `minorCivLeagues`,
 `legendaryWonderAvailability`, `hotSeat` (the fixed seat roster — cycling correctness is covered
@@ -166,9 +166,10 @@ already landed the movement-specific slice).
    not for a living civ whose unit died in ordinary combat. **Closed** —
    `SAVE_STATE_INVARIANTS: opponent-ai-portfolio-integrity`.
 3. **#1082** — `IdCounters`' extension contract is discipline-only — no compile-enforced coverage
-   the way `ELIMINATED_CIV_AREAS` enforces its own.
+   the way `ELIMINATED_CIV_AREAS` enforces its own. **Closed** — `ID_COUNTER_SPECS`
+   `satisfies Record<keyof IdCounters, IdCounterSpec>` with derived init/scan/normalize.
 4. **#1083** — Trade-route / marketplace civ references are checked only on elimination, not for a
    living civ. **Closed** — `SAVE_STATE_INVARIANTS: marketplace-references`.
 
 None had a demonstrated break; each was cheap to close by extending one of the three mechanisms
-above. #1082 remains open. See #1003's own non-goal against fixing every invariant in one PR.
+above. All four are now closed. See #1003's own non-goal against fixing every invariant in one PR.

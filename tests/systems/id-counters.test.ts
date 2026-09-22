@@ -3,7 +3,7 @@ import { createUnit } from '@/systems/unit-system';
 import { foundCity } from '@/systems/city-system';
 import { spawnBarbarianCamp } from '@/systems/barbarian-system';
 import { generateQuest } from '@/systems/quest-system';
-import { emptyIdCounters, scanIdCounters } from '@/core/id-counters';
+import { emptyIdCounters, scanIdCounters, ID_COUNTER_SPECS } from '@/core/id-counters';
 import type { IdCounters } from '@/core/types';
 
 // Minimal map fixture
@@ -213,5 +213,112 @@ describe('emptyIdCounters', () => {
     const b = emptyIdCounters();
     a.nextUnitId = 99;
     expect(b.nextUnitId).toBe(1);
+  });
+
+  it('covers every IdCounters key with the spec initial value (#1082)', () => {
+    const specKeys = Object.keys(ID_COUNTER_SPECS).sort();
+    const emptyKeys = Object.keys(emptyIdCounters()).sort();
+    expect(emptyKeys).toEqual(specKeys);
+    const empty = emptyIdCounters();
+    for (const key of specKeys as (keyof IdCounters)[]) {
+      expect(empty[key]).toBe(ID_COUNTER_SPECS[key].initial);
+    }
+  });
+});
+
+// ── scanIdCounters: full-catalog behavioral coverage (#1082) ───────────────
+
+describe('scanIdCounters full catalog (#1082)', () => {
+  it('scan result covers every spec key', () => {
+    const scanned = scanIdCounters({});
+    expect(Object.keys(scanned).sort()).toEqual(Object.keys(ID_COUNTER_SPECS).sort());
+  });
+
+  it('reconstructs trade route IDs from marketplace.tradeRoutes', () => {
+    const result = scanIdCounters({
+      marketplace: { tradeRoutes: [{ id: 'route-3' }, { id: 'route-11' }] },
+    });
+    expect(result.nextRouteId).toBe(12);
+  });
+
+  it('uses maximum numeric suffix for routes, ignoring malformed IDs', () => {
+    const result = scanIdCounters({
+      marketplace: { tradeRoutes: [{ id: 'route-2' }, { id: 'route-847' }, { id: 'caravan-5' }, {}] },
+    });
+    expect(result.nextRouteId).toBe(848);
+  });
+
+  it('returns the initial route value when marketplace is missing', () => {
+    expect(scanIdCounters({}).nextRouteId).toBe(ID_COUNTER_SPECS.nextRouteId.initial);
+  });
+
+  it('merges pirate faction IDs from factions and history', () => {
+    const result = scanIdCounters({
+      pirates: {
+        factions: { 'pirate-7': { id: 'pirate-7' } },
+        history: [{ factionId: 'pirate-4' }, { factionId: 'pirate-19' }],
+      },
+    });
+    expect(result.nextPirateFactionId).toBe(20);
+  });
+
+  it('ignores malformed pirate IDs and missing pirate state', () => {
+    const malformed = scanIdCounters({
+      pirates: { factions: { corsairs: { id: 'corsairs' } }, history: [{ factionId: 'rogue' }] },
+    });
+    expect(malformed.nextPirateFactionId).toBe(ID_COUNTER_SPECS.nextPirateFactionId.initial);
+    expect(scanIdCounters({}).nextPirateFactionId).toBe(ID_COUNTER_SPECS.nextPirateFactionId.initial);
+  });
+
+  it('reconstructs notification IDs across per-recipient logs', () => {
+    const result = scanIdCounters({
+      notificationLog: {
+        player: [{ id: 'notification-2' }, { id: 'notification-12' }],
+        ai1: [{ id: 'notification-5' }],
+      },
+    });
+    expect(result.nextNotificationId).toBe(13);
+  });
+
+  it('ignores malformed notification IDs and missing log', () => {
+    const result = scanIdCounters({ notificationLog: { player: [{ id: 'toast-9' }, {}] } });
+    expect(result.nextNotificationId).toBe(ID_COUNTER_SPECS.nextNotificationId.initial);
+    expect(scanIdCounters({}).nextNotificationId).toBe(ID_COUNTER_SPECS.nextNotificationId.initial);
+  });
+
+  it('reconstructs network plan IDs from autonomy plans', () => {
+    const result = scanIdCounters({
+      autonomyByCiv: {
+        player: { plans: { 'network-plan-3': {}, 'network-plan-11': {} }, detections: {} },
+      },
+    });
+    expect(result.nextNetworkPlanId).toBe(12);
+  });
+
+  it('returns the initial network-plan value when autonomy state is missing', () => {
+    expect(scanIdCounters({}).nextNetworkPlanId).toBe(ID_COUNTER_SPECS.nextNetworkPlanId.initial);
+  });
+
+  it('reconstructs every counter independently in one pass', () => {
+    const result = scanIdCounters({
+      units: { 'unit-5': { id: 'unit-5' } },
+      cities: { 'city-3': { id: 'city-3' } },
+      barbarianCamps: { 'camp-10': { id: 'camp-10' } },
+      minorCivs: { 'mc-a': { activeQuests: { player: { id: 'quest-9' } } } },
+      marketplace: { tradeRoutes: [{ id: 'route-4' }] },
+      pirates: { factions: { 'pirate-6': { id: 'pirate-6' } }, history: [] },
+      notificationLog: { player: [{ id: 'notification-8' }] },
+      autonomyByCiv: { player: { plans: { 'network-plan-2': {} }, detections: {} } },
+    });
+    expect(result).toMatchObject({
+      nextUnitId: 6,
+      nextCityId: 4,
+      nextCampId: 11,
+      nextQuestId: 10,
+      nextRouteId: 5,
+      nextPirateFactionId: 7,
+      nextNotificationId: 9,
+      nextNetworkPlanId: 3,
+    });
   });
 });
