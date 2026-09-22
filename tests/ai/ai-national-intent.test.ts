@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   NATIONAL_INTENT_MIN_HOLD_TURNS,
+  NATIONAL_INTENT_POSTURE,
   NATIONAL_INTENT_RECOVERY_STABLE_TURNS,
   NATIONAL_INTENT_SWITCH_MARGIN,
   resolveNationalIntent,
@@ -300,5 +301,49 @@ describe('#1086 resolveNationalIntent', () => {
     expect(NATIONAL_INTENT_MIN_HOLD_TURNS).toBeGreaterThan(0);
     expect(NATIONAL_INTENT_SWITCH_MARGIN).toBeGreaterThan(0);
     expect(NATIONAL_INTENT_RECOVERY_STABLE_TURNS).toBeGreaterThan(0);
+  });
+});
+
+// #1087: every intent's posture row must carry the diplomacy/research bias fields this
+// issue adds -- a missing field on a new future intent row would otherwise be a silent
+// TS-safe `undefined` read at every reconciled call site instead of a compile error, since
+// Record<NationalIntent, NationalIntentPosture> is only checked at the table's own definition.
+describe('#1087 NATIONAL_INTENT_POSTURE diplomacy/research bias fields', () => {
+  const intents = Object.keys(NATIONAL_INTENT_POSTURE) as (keyof typeof NATIONAL_INTENT_POSTURE)[];
+
+  it('every row defines researchMilitaryTrackWeight, warDeclarationBias, diplomaticOpennessBias, vassalageSeekingBias as finite numbers', () => {
+    for (const intent of intents) {
+      const row = NATIONAL_INTENT_POSTURE[intent];
+      for (const field of ['researchMilitaryTrackWeight', 'warDeclarationBias', 'diplomaticOpennessBias', 'vassalageSeekingBias'] as const) {
+        expect(Number.isFinite(row[field]), `${intent}.${field}`).toBe(true);
+      }
+    }
+  });
+
+  it('recover has the strongest de-escalating bias of any intent (war declaration lowest, diplomatic openness and vassalage seeking highest)', () => {
+    const recover = NATIONAL_INTENT_POSTURE.recover;
+    for (const intent of intents) {
+      if (intent === 'recover') continue;
+      const row = NATIONAL_INTENT_POSTURE[intent];
+      expect(recover.warDeclarationBias).toBeLessThanOrEqual(row.warDeclarationBias);
+      expect(recover.diplomaticOpennessBias).toBeGreaterThanOrEqual(row.diplomaticOpennessBias);
+      expect(recover.vassalageSeekingBias).toBeGreaterThanOrEqual(row.vassalageSeekingBias);
+    }
+  });
+
+  it('dominate has the strongest escalating bias (war declaration highest, diplomatic openness and vassalage seeking lowest)', () => {
+    const dominate = NATIONAL_INTENT_POSTURE.dominate;
+    for (const intent of intents) {
+      if (intent === 'dominate') continue;
+      const row = NATIONAL_INTENT_POSTURE[intent];
+      expect(dominate.warDeclarationBias).toBeGreaterThanOrEqual(row.warDeclarationBias);
+      expect(dominate.diplomaticOpennessBias).toBeLessThanOrEqual(row.diplomaticOpennessBias);
+      expect(dominate.vassalageSeekingBias).toBeLessThanOrEqual(row.vassalageSeekingBias);
+    }
+  });
+
+  it('recover does not penalize military-track research weight relative to develop (recovery invariant: never worse than baseline for defensive capability)', () => {
+    expect(NATIONAL_INTENT_POSTURE.recover.researchMilitaryTrackWeight)
+      .toBeGreaterThanOrEqual(NATIONAL_INTENT_POSTURE.develop.researchMilitaryTrackWeight);
   });
 });

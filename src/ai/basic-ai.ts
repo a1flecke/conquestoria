@@ -36,6 +36,7 @@ import { evaluateStrategicLaunchDecision } from './ai-strategic-doctrine';
 
 import { chooseProduction } from './ai-strategy';
 import { evaluateDiplomacy, evaluateMinorCivDiplomacy, evaluateVassalage, evaluateEmbargoResponse, evaluateLeagueResponse } from './ai-diplomacy';
+import { NATIONAL_INTENT_POSTURE } from './ai-national-intent';
 import {
   declareMajorWar,
   proposeTreatyAgreement,
@@ -628,6 +629,10 @@ function processAITurnInternal(
     structuredClone(newState),
     civId,
   );
+  // #1087: single per-turn posture lookup, threaded into every reconciled diplomacy call
+  // site below -- mirrors ai-production.ts's/ai-research.ts's own #1086 precedent rather
+  // than each call site deriving it independently.
+  const posture = NATIONAL_INTENT_POSTURE[preparedForTurn.nationalIntent?.current ?? 'develop'];
 
   // #1066 follow-up: `getIdleExplorerUnitIds` only ever *starts* administrative
   // auto-explore for a genuinely idle combat unit -- nothing ever cleared it once a
@@ -1196,6 +1201,7 @@ function processAITurnInternal(
       strategicDeterrenceCautionWeight,
       civHasArmsControlTreaty,
       actorHasKnownCapability,
+      posture,
     );
     {
       const plannedWarTarget = preparedForTurn.perception.knownCivIds
@@ -1314,8 +1320,8 @@ function processAITurnInternal(
     const eligibleOverlords = Object.fromEntries(Object.entries(otherStrengths).filter(([id]) =>
       getVassalageEligibility(newState, civId, id).ok));
     const vassalageDecision = evaluateVassalage(
-      personality, currentVassalCandidate.diplomacy, civilizationEra, selfStrength,
-      currentCities, currentMilitary, eligibleOverlords,
+      currentVassalCandidate.diplomacy, civilizationEra, selfStrength,
+      currentCities, currentMilitary, eligibleOverlords, posture,
     );
     if (vassalageDecision && vassalageDecision.action === 'offer_vassalage') {
       const overlordId = vassalageDecision.targetCiv;
@@ -1334,7 +1340,7 @@ function processAITurnInternal(
         const proposerId = embargo.participants[0];
         if (!proposerId) continue;
         const shouldJoin = evaluateEmbargoResponse(
-          personality, civ.diplomacy.relationships, proposerId, embargo.targetCivId,
+          personality, civ.diplomacy.relationships, proposerId, embargo.targetCivId, posture,
         );
         if (shouldJoin) {
           newState.embargoes = joinEmbargo(newState.embargoes, embargo.id, civId);
@@ -1347,7 +1353,7 @@ function processAITurnInternal(
       for (const league of newState.defensiveLeagues) {
         if (league.members.includes(civId)) continue;
         const shouldJoin = evaluateLeagueResponse(
-          personality, civ.diplomacy.relationships, league.members,
+          personality, civ.diplomacy.relationships, league.members, posture,
         );
         if (shouldJoin) {
           newState.defensiveLeagues = inviteToLeague(newState.defensiveLeagues, league.id, civId);
@@ -1385,7 +1391,7 @@ function processAITurnInternal(
   // --- Minor civ diplomacy ---
   if (newState.minorCivs) {
     const mcDecisions = evaluateMinorCivDiplomacy(
-      personality, newState.minorCivs, civId, civ.gold,
+      personality, newState.minorCivs, civId, civ.gold, posture,
     );
     for (const d of mcDecisions) {
       if (d.action === 'gift_gold') {
@@ -1831,6 +1837,31 @@ export function chooseAiSpyTarget(
   };
 }
 
+const AGGRESSIVE_STAGE5_MISSION_ORDER: SpyMissionType[] = [
+  'flip_loyalty', 'cyber_attack', 'misinformation_campaign', 'satellite_surveillance',
+  'election_interference', 'expose_scandal', 'intercept_courier', 'bribe_official', 'steal_tech', 'sabotage_production',
+  'arms_smuggling', 'incite_unrest', 'signals_intercept', 'gather_intel', 'monitor_troops',
+  'monitor_diplomacy', 'identify_resources', 'scout_area',
+];
+const AGGRESSIVE_MISSION_ORDER: SpyMissionType[] = [
+  'flip_loyalty', 'signals_intercept', 'intercept_courier', 'bribe_official', 'steal_tech', 'sabotage_production', 'arms_smuggling',
+  'incite_unrest', 'gather_intel', 'monitor_troops',
+  'monitor_diplomacy', 'identify_resources', 'scout_area',
+];
+const DIPLOMATIC_MISSION_ORDER: SpyMissionType[] = [
+  'forge_documents', 'expose_scandal', 'flip_loyalty', 'bribe_official', 'intercept_courier', 'incite_unrest', 'fund_rebels',
+  'gather_intel', 'monitor_diplomacy', 'identify_resources',
+  'monitor_troops', 'scout_area', 'steal_tech',
+];
+// #1087: also the deter/recover defensive-leaning order -- no offensive first-strike
+// missions (flip_loyalty, cyber_attack, arms_smuggling) appear at all, so it already
+// satisfies "defensive-leaning" without inventing new authored content for the purpose.
+const NEUTRAL_MISSION_ORDER: SpyMissionType[] = [
+  'gather_intel', 'monitor_diplomacy', 'identify_resources',
+  'monitor_troops', 'scout_area', 'steal_tech',
+  'sabotage_production', 'incite_unrest', 'intercept_courier', 'bribe_official', 'expose_scandal', 'signals_intercept',
+];
+
 export function chooseAiMission(
   state: GameState,
   aiCivId: string,
@@ -1846,34 +1877,25 @@ export function chooseAiMission(
 
   const personality = getPersonality(state, civ.civType ?? 'generic');
   const traits = new Set(personality.traits);
+  // #1087: a civ currently pursuing conquest (dominate) plays aggressive espionage
+  // regardless of base personality, and a civ under threat or recovering (deter/recover)
+  // plays defensively regardless of base personality -- the civ's current *situation*
+  // overrides its fixed trait, which the pre-#1087 trait-only branch could never express.
+  // expand/develop keep the original trait-based fallback unchanged.
+  const intent = state.opponentAI?.nationalIntentByCiv[aiCivId]?.current ?? 'develop';
+  const hasStage5 = available.includes('cyber_attack') || available.includes('misinformation_campaign');
 
   let preferredOrder: SpyMissionType[];
-  const hasStage5 = available.includes('cyber_attack') || available.includes('misinformation_campaign');
-  if (hasStage5 && (civ.civType === 'annuvin' || traits.has('aggressive'))) {
-    preferredOrder = [
-      'flip_loyalty', 'cyber_attack', 'misinformation_campaign', 'satellite_surveillance',
-      'election_interference', 'expose_scandal', 'intercept_courier', 'bribe_official', 'steal_tech', 'sabotage_production',
-      'arms_smuggling', 'incite_unrest', 'signals_intercept', 'gather_intel', 'monitor_troops',
-      'monitor_diplomacy', 'identify_resources', 'scout_area',
-    ];
-  } else if (traits.has('aggressive')) {
-    preferredOrder = [
-      'flip_loyalty', 'signals_intercept', 'intercept_courier', 'bribe_official', 'steal_tech', 'sabotage_production', 'arms_smuggling',
-      'incite_unrest', 'gather_intel', 'monitor_troops',
-      'monitor_diplomacy', 'identify_resources', 'scout_area',
-    ];
+  if (intent === 'deter' || intent === 'recover') {
+    preferredOrder = NEUTRAL_MISSION_ORDER;
+  } else if (hasStage5 && (civ.civType === 'annuvin' || intent === 'dominate' || traits.has('aggressive'))) {
+    preferredOrder = AGGRESSIVE_STAGE5_MISSION_ORDER;
+  } else if (intent === 'dominate' || traits.has('aggressive')) {
+    preferredOrder = AGGRESSIVE_MISSION_ORDER;
   } else if (traits.has('diplomatic') || traits.has('trader')) {
-    preferredOrder = [
-      'forge_documents', 'expose_scandal', 'flip_loyalty', 'bribe_official', 'intercept_courier', 'incite_unrest', 'fund_rebels',
-      'gather_intel', 'monitor_diplomacy', 'identify_resources',
-      'monitor_troops', 'scout_area', 'steal_tech',
-    ];
+    preferredOrder = DIPLOMATIC_MISSION_ORDER;
   } else {
-    preferredOrder = [
-      'gather_intel', 'monitor_diplomacy', 'identify_resources',
-      'monitor_troops', 'scout_area', 'steal_tech',
-      'sabotage_production', 'incite_unrest', 'intercept_courier', 'bribe_official', 'expose_scandal', 'signals_intercept',
-    ];
+    preferredOrder = NEUTRAL_MISSION_ORDER;
   }
 
   for (const mission of preferredOrder) {

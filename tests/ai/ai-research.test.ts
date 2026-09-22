@@ -16,6 +16,7 @@ import { TRAINABLE_UNITS, foundCity } from '@/systems/city-system';
 import { prepareMajorCivStrategicPlan } from '@/ai/ai-prepared-turn';
 import { calculateCivResearchOutput } from '@/systems/research-output-system';
 import { simulateResearchQueueTiming } from '@/systems/tech-progression';
+import { NATIONAL_INTENT_POSTURE } from '@/ai/ai-national-intent';
 
 const neutral: PersonalityTraits = {
   traits: [],
@@ -49,6 +50,7 @@ function context(
   return {
     techState: createTechState(),
     personality: neutral,
+    posture: NATIONAL_INTENT_POSTURE.develop,
     modernizationDemand: 0,
     forceDemands: [],
     coastalEmpire: false,
@@ -188,6 +190,22 @@ describe('AI strategic research planning', () => {
       .toBe('arms');
     expect(planAIResearch(context(techs, { personality: trader }))?.frontierTechId)
       .toBe('markets');
+  });
+
+  it('#1087: the same (trait-neutral) personality breaks an otherwise-exact tie toward military under a dominate posture and toward economy under a develop posture', () => {
+    // Both techs are identical in every score component except track -- with a
+    // trait-neutral personality, weightTechChoice is 1 for both before posture, so
+    // posture's military-only multiplier (0.85 develop / 1.3 dominate) is the sole
+    // differentiator, proving the bias is live end-to-end through planAIResearch, not
+    // just at the weightTechChoice unit level (already covered in ai-personality.test.ts).
+    const techs = [
+      tech('arms', 'military'),
+      tech('markets', 'economy'),
+    ];
+    expect(planAIResearch(context(techs, { personality: neutral, posture: NATIONAL_INTENT_POSTURE.develop }))?.frontierTechId)
+      .toBe('markets');
+    expect(planAIResearch(context(techs, { personality: neutral, posture: NATIONAL_INTENT_POSTURE.dominate }))?.frontierTechId)
+      .toBe('arms');
   });
 
   it('scores era advancement and unlock breadth', () => {

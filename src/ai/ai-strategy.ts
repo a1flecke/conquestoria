@@ -1,16 +1,22 @@
 import type { PersonalityTraits, Tech, HexCoord } from '@/core/types';
 import { weightTechChoice, weightProductionChoice } from './ai-personality';
+import { NATIONAL_INTENT_POSTURE } from './ai-national-intent';
 
+// #1087 Phase 0 audit: `chooseTech` has zero callers outside its own test file --
+// `ai-research.ts` calls `weightTechChoice` directly through its real candidate pipeline.
+// Left as dead code (not this issue's scope to remove); the neutral `develop` posture below
+// keeps this compiling without pretending a real intent flows through an unused function.
 export function chooseTech(personality: PersonalityTraits, availableTechs: Tech[]): Tech {
   if (availableTechs.length === 0) {
     throw new Error('No available techs');
   }
 
+  const posture = NATIONAL_INTENT_POSTURE.develop;
   let bestTech = availableTechs[0];
-  let bestWeight = weightTechChoice(personality, bestTech);
+  let bestWeight = weightTechChoice(personality, bestTech, posture);
 
   for (let i = 1; i < availableTechs.length; i++) {
-    const w = weightTechChoice(personality, availableTechs[i]);
+    const w = weightTechChoice(personality, availableTechs[i], posture);
     if (w > bestWeight) {
       bestWeight = w;
       bestTech = availableTechs[i];

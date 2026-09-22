@@ -5,6 +5,7 @@ import { createNewGame } from '@/core/game-state';
 import type { GameState } from '@/core/types';
 import { getAvailableActions, hasArmsControlTreaty } from '@/systems/diplomacy-system';
 import { evaluateDiplomacy } from '@/ai/ai-diplomacy';
+import { NATIONAL_INTENT_POSTURE } from '@/ai/ai-national-intent';
 import { resolveCivilizationEra, resolveWorldAge, TECH_TREE } from '@/systems/tech-definitions';
 
 const LAGGARD = 'player';
@@ -208,6 +209,7 @@ describe('#1027 — diplomacy action gates must use the acting civ\'s own era', 
       0,
       false,
       false,
+      NATIONAL_INTENT_POSTURE.develop,
     );
     for (const decision of decisions) {
       expect(canonical, decision.action).toContain(decision.action);

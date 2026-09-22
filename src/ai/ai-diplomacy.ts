@@ -6,6 +6,7 @@ import {
   canOfferVassalage,
 } from '@/systems/diplomacy-system';
 import { shouldDeclareWar } from './ai-personality';
+import type { NationalIntentPosture } from './ai-national-intent';
 import type { MilitaryStrengthEstimate } from './ai-strength';
 
 export interface DiplomaticDecision {
@@ -39,6 +40,7 @@ export function evaluateDiplomacy(
   strategicDeterrenceCautionWeight: number,
   hasArmsControlTreaty: boolean,
   actorHasKnownCapability: boolean,
+  posture: NationalIntentPosture,
 ): DiplomaticDecision[] {
   const decisions: DiplomaticDecision[] = [];
 
@@ -68,6 +70,7 @@ export function evaluateDiplomacy(
         context.hasBorderPressure,
         context.targetHasKnownStrategicCapability,
         strategicDeterrenceCautionWeight,
+        posture,
       )) {
         decisions.push({ action: 'declare_war', targetCiv: civId });
         continue;
@@ -77,7 +80,7 @@ export function evaluateDiplomacy(
         decisions.push({ action: 'alliance', targetCiv: civId });
       } else if (actions.includes('trade_agreement') && relationship > 10) {
         decisions.push({ action: 'trade_agreement', targetCiv: civId });
-      } else if (actions.includes('non_aggression_pact') && relationship > 0 && personality.diplomacyFocus > 0.4) {
+      } else if (actions.includes('non_aggression_pact') && relationship > 0 && personality.diplomacyFocus + posture.diplomaticOpennessBias > 0.4) {
         decisions.push({ action: 'non_aggression_pact', targetCiv: civId });
       }
 
@@ -91,7 +94,7 @@ export function evaluateDiplomacy(
       // the already-threaded DiplomaticContext field).
       if (
         actions.includes('arms_control_pact')
-        && relationship > 0 && personality.diplomacyFocus > 0.4
+        && relationship > 0 && personality.diplomacyFocus + posture.diplomaticOpennessBias > 0.4
         && actorHasKnownCapability
         && context.targetHasKnownStrategicCapability
       ) {
@@ -113,6 +116,7 @@ export function evaluateMinorCivDiplomacy(
   minorCivs: Record<string, MinorCivState>,
   civId: string,
   gold: number,
+  posture: NationalIntentPosture,
 ): MinorCivDecision[] {
   const decisions: MinorCivDecision[] = [];
   const GIFT_COST = 25;
@@ -123,7 +127,7 @@ export function evaluateMinorCivDiplomacy(
     const rel = mc.diplomacy.relationships[civId] ?? 0;
 
     // Diplomatic AIs gift gold to improve relations
-    if (personality.diplomacyFocus > 0.4 && rel < 40 && gold >= GIFT_COST) {
+    if (personality.diplomacyFocus + posture.diplomaticOpennessBias > 0.4 && rel < 40 && gold >= GIFT_COST) {
       decisions.push({ mcId, action: 'gift_gold' });
     }
   }
@@ -137,15 +141,20 @@ export function evaluateMinorCivDiplomacy(
 // `evaluateTreatyConsent` / `evaluatePeaceConsent`
 // (`src/ai/ai-treaty-consent.ts`), invoked by `proposeTreatyAgreement`.
 
-/** `civilizationEra` must be the acting civ's own `resolveCivilizationEra(...)` result, never World Age. */
+/**
+ * `civilizationEra` must be the acting civ's own `resolveCivilizationEra(...)` result, never
+ * World Age. #1087: the strength-ratio acceptance test is the correct place for `posture`,
+ * not raw personality traits -- this used to take an unused `personality` parameter (a real
+ * Phase-0-audit finding: vassalage-seeking had zero personality/intent differentiation).
+ */
 export function evaluateVassalage(
-  personality: PersonalityTraits,
   diplomacy: DiplomacyState,
   civilizationEra: number,
   selfStrength: MilitaryStrengthEstimate,
   currentCities: number,
   currentMilitary: number,
   otherStrengths: Record<string, MilitaryStrengthEstimate>,
+  posture: NationalIntentPosture,
 ): DiplomaticDecision | null {
   if (!canOfferVassalage(
     currentCities, diplomacy.vassalage.peakCities,
@@ -164,7 +173,7 @@ export function evaluateVassalage(
     }
   }
 
-  if (bestTarget && selfStrength.midpoint < bestStrength * 0.4) {
+  if (bestTarget && selfStrength.midpoint < bestStrength * (0.4 + posture.vassalageSeekingBias)) {
     return { action: 'offer_vassalage', targetCiv: bestTarget };
   }
   return null;
@@ -175,11 +184,21 @@ export function evaluateEmbargoResponse(
   relationships: Record<string, number>,
   proposerId: string,
   targetCivId: string,
+  posture: NationalIntentPosture,
 ): boolean {
   const relWithProposer = relationships[proposerId] ?? 0;
   const relWithTarget = relationships[targetCivId] ?? 0;
-  const threshold = personality.traits.includes('aggressive') ? 10 :
+  const baseThreshold = personality.traits.includes('aggressive') ? 10 :
                     personality.traits.includes('diplomatic') ? 30 : 20;
+  // #1087: unlike evaluateLeagueResponse below, a HIGHER threshold here means LESS likely
+  // to join (the 'diplomatic' trait already gets the highest base threshold of the three --
+  // diplomatic civs are the most reluctant to join a punitive embargo). So a positive
+  // diplomaticOpennessBias must RAISE this threshold, the opposite sign from every other
+  // reconciled surface in this file, to stay consistent with the trait's own existing
+  // direction rather than contradicting it. Caught in #1087's own mandatory review pass --
+  // the naive same-sign-everywhere version made a more diplomatically open civ MORE eager
+  // to join embargoes, which inverted the trait table's established meaning.
+  const threshold = baseThreshold + posture.diplomaticOpennessBias * 20;
   return relWithProposer > relWithTarget + threshold;
 }
 
@@ -187,10 +206,12 @@ export function evaluateLeagueResponse(
   personality: PersonalityTraits,
   relationships: Record<string, number>,
   leagueMembers: string[],
+  posture: NationalIntentPosture,
 ): boolean {
   if (leagueMembers.length === 0) return false;
   const avgRel = leagueMembers.reduce((sum, m) => sum + (relationships[m] ?? 0), 0) / leagueMembers.length;
-  const threshold = personality.traits.includes('aggressive') ? 30 :
+  const baseThreshold = personality.traits.includes('aggressive') ? 30 :
                     personality.traits.includes('diplomatic') ? 5 : 10;
+  const threshold = baseThreshold - posture.diplomaticOpennessBias * 20;
   return avgRel > threshold;
 }
