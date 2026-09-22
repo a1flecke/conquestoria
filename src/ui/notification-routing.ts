@@ -1,4 +1,4 @@
-import type { CombatModifierFact, CombatResult, CombatRewardNotification, GameEvents, GameState, ProductionDropReason, SpyMissionType, TreatyType, UnitType } from '@/core/types';
+import type { CombatModifierFact, CombatResult, CombatRewardNotification, GameEvents, GameState, ProductionDropReason, SpyMissionType, TreatyDeclineReason, TreatyType, UnitType } from '@/core/types';
 import type { CombatNotificationDetails } from '@/core/notification-log';
 import { hexKey } from '@/systems/hex-utils';
 import { getImprovementDisplayName } from '@/systems/improvement-system';
@@ -280,6 +280,16 @@ export function routeTreatyAccepted(
   sink(event.civB, `You accepted the ${label} with ${civA}.`, 'success');
 }
 
+// #1090: authored, bounded copy per TreatyDeclineReason -- shared by every decline
+// notification (treaty, vassalage, peace) so the same reason always reads the same way.
+// Never invents new reasons; a value here must correspond to one ai-treaty-consent.ts can
+// actually compute.
+export const TREATY_DECLINE_REASON_TEXT: Record<TreatyDeclineReason, string> = {
+  'relations-too-strained': 'Relations are too strained for them to agree.',
+  'strategic-caution': 'They remain cautious about deeper commitments right now.',
+  'peace-not-acceptable': 'They believe they can still prevail and refuse peace.',
+};
+
 export function routeTreatyDeclined(
   state: GameState,
   event: GameEvents['diplomacy:treaty-declined'],
@@ -289,7 +299,22 @@ export function routeTreatyDeclined(
   // player whose offer was declined learns why, without leaking the decision
   // to any onlooker.
   const targetName = state.civilizations[event.targetCivId]?.name ?? 'Unknown';
-  sink(event.proposerCivId, `${targetName} declined your ${TREATY_LABELS[event.treaty]}.`, 'warning');
+  // #1090: `reason` is only present when a computed AI consent evaluation produced one
+  // (the synchronous proposeTreatyAgreement/proposeVassalage refusal paths) -- a human's own
+  // explicit decline of an AI's proposal (rejectDiplomaticRequest) has no reason to append,
+  // and this keeps that case's message byte-identical to before.
+  const reasonSuffix = event.reason ? ` ${TREATY_DECLINE_REASON_TEXT[event.reason]}` : '';
+  sink(event.proposerCivId, `${targetName} declined your ${TREATY_LABELS[event.treaty]}.${reasonSuffix}`, 'warning');
+}
+
+export function routePeaceDeclined(
+  state: GameState,
+  event: GameEvents['diplomacy:peace-declined'],
+  sink: NotificationSink,
+): void {
+  const targetName = state.civilizations[event.targetCivId]?.name ?? 'Unknown';
+  const reasonSuffix = event.reason ? ` ${TREATY_DECLINE_REASON_TEXT[event.reason]}` : '';
+  sink(event.proposerCivId, `${targetName} refused your peace offer.${reasonSuffix}`, 'warning');
 }
 
 export function routeWarDeclared(

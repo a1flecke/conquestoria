@@ -12,6 +12,7 @@ import {
 import { EventBus } from '@/core/event-bus';
 import { createEmptyPirateState } from '@/core/pirate-state';
 import { foundCity } from '@/systems/city-system';
+import { resolveBarbarianArchetype, type BarbarianArchetype } from '@/systems/barbarian-archetype';
 
 function makePlan(
   actorId: string,
@@ -488,5 +489,176 @@ describe('strategic warning transition derivation', () => {
       .toHaveLength(1);
     expect(after).toEqual(snapshot);
     expect(deriveStrategicWarningTransitions(before, applied, 'player')).toEqual([]);
+  });
+
+  // #1090: barbarian archetype (#1089) and strategic posture (#1086) differentiation.
+  function findCampIdForArchetype(state: GameState, archetype: BarbarianArchetype): string {
+    for (let i = 0; i < 50; i++) {
+      const candidate = `posture-camp-${i}`;
+      if (resolveBarbarianArchetype(state, candidate) === archetype) return candidate;
+    }
+    throw new Error(`no camp id resolved to ${archetype} within search bound`);
+  }
+
+  it('#1090: a raid warning names the actual archetype, differing per camp', () => {
+    const { before, after } = fixture();
+    const raiderCampId = findCampIdForArchetype(after, 'raider');
+    const predatorCampId = findCampIdForArchetype(after, 'predator');
+    const raiderId = 'archetype-raider-unit';
+    const predatorId = 'archetype-predator-unit';
+    const targetCoord = after.cities[after.civilizations.player.cities[0]!].position;
+    for (const [unitId, campId] of [[raiderId, raiderCampId], [predatorId, predatorCampId]] as const) {
+      after.units[unitId] = {
+        id: unitId, type: 'warrior', owner: 'barbarian', position: targetCoord,
+        movementPointsLeft: 2, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      };
+      setVisibility(after, 'player', targetCoord, 'visible');
+      const plan = makePlan(campId, unitId, { kind: 'unit', id: 'x', lastKnownPosition: targetCoord }, 'advancing');
+      plan.objective = 'raid';
+      after.opponentAI!.barbarianCamps[campId] = plan;
+    }
+
+    const warnings = deriveStrategicWarningTransitions(before, after, 'player');
+    const raiderWarning = warnings.find(w => w.actorId === `barbarian:${raiderCampId}`);
+    const predatorWarning = warnings.find(w => w.actorId === `barbarian:${predatorCampId}`);
+    expect(raiderWarning?.actorName).toBe('Raiders');
+    expect(predatorWarning?.actorName).toBe('Predators');
+    expect(raiderWarning?.actorName).not.toBe(predatorWarning?.actorName);
+  });
+
+  it('#1090: a Warlord camp mobilizing (not yet raiding) surfaces as kind:mobilizing, not kind:raid', () => {
+    const { before, after } = fixture();
+    const warlordCampId = findCampIdForArchetype(after, 'warlord');
+    const unitId = 'archetype-warlord-unit';
+    const targetCoord = after.cities[after.civilizations.player.cities[0]!].position;
+    after.units[unitId] = {
+      id: unitId, type: 'warrior', owner: 'barbarian', position: targetCoord,
+      movementPointsLeft: 2, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    };
+    setVisibility(after, 'player', targetCoord, 'visible');
+    const plan = makePlan(warlordCampId, unitId, { kind: 'city', id: 'town', lastKnownPosition: targetCoord }, 'mobilizing');
+    plan.objective = 'raid'; // #1089: Warlord's mobilizing plan keeps objective 'raid'
+    after.opponentAI!.barbarianCamps[warlordCampId] = plan;
+
+    const warnings = deriveStrategicWarningTransitions(before, after, 'player');
+    expect(warnings).toEqual([
+      expect.objectContaining({ actorId: `barbarian:${warlordCampId}`, actorName: 'Warlords', kind: 'mobilizing' }),
+    ]);
+  });
+
+  it('#1090 differential privacy: an unseen camp\'s archetype identity never reaches the viewer, but the same camp seen legitimately does', () => {
+    const { before, after } = fixture();
+    const predatorCampId = findCampIdForArchetype(after, 'predator');
+    const unitId = 'archetype-hidden-unit';
+    // A distant, deliberately fogged tile -- not the player's own city, which is always
+    // visible and would make this negative case vacuous.
+    const targetCoord = { q: 25, r: 25 };
+    after.units[unitId] = {
+      id: unitId, type: 'warrior', owner: 'barbarian', position: targetCoord,
+      movementPointsLeft: 2, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    };
+    const plan = makePlan(predatorCampId, unitId, { kind: 'unit', id: 'x', lastKnownPosition: targetCoord }, 'advancing');
+    plan.objective = 'raid';
+    after.opponentAI!.barbarianCamps[predatorCampId] = plan;
+    setVisibility(after, 'player', targetCoord, 'fog');
+    // The authoritative world has a real, differentiable archetype threat, but the viewer has
+    // neither visible nor remembered evidence of it.
+    expect(deriveStrategicWarningTransitions(before, after, 'player')).toEqual([]);
+
+    // Positive control: the SAME camp/plan, but the viewer has legitimately scouted it.
+    const seenAfter = structuredClone(after);
+    setVisibility(seenAfter, 'player', targetCoord, 'visible');
+    const seenWarnings = deriveStrategicWarningTransitions(before, seenAfter, 'player');
+    expect(seenWarnings).toEqual([
+      expect.objectContaining({ actorId: `barbarian:${predatorCampId}`, actorName: 'Predators' }),
+    ]);
+  });
+
+  it('#1090: a major civ entering dominate posture surfaces a posture-shift warning when the viewer has met them', () => {
+    const { before, after, aiId } = fixture();
+    before.civilizations.player.knownCivilizations = [aiId];
+    before.civilizations[aiId].knownCivilizations = ['player'];
+    after.civilizations.player.knownCivilizations = [aiId];
+    after.civilizations[aiId].knownCivilizations = ['player'];
+    after.opponentAI!.nationalIntentByCiv[aiId] = {
+      current: 'dominate', previous: 'expand', selectedTurn: after.turn, reconsiderAfterTurn: after.turn + 15,
+      shockActive: false, shockFreeStreak: 0, reasonCodes: ['intent-domination-pursuit'],
+    };
+
+    expect(deriveStrategicWarningTransitions(before, after, 'player')).toEqual([
+      expect.objectContaining({ actorId: aiId, kind: 'posture-shift', posture: 'dominate', evidence: 'earned-intel' }),
+    ]);
+  });
+
+  it('#1090: an unmet civ\'s dominate posture produces no warning at all (structural contact gate, not cosmetic)', () => {
+    const { before, after, aiId } = fixture();
+    // Deliberately no knownCivilizations / contact evidence set up for either side.
+    after.opponentAI!.nationalIntentByCiv[aiId] = {
+      current: 'dominate', previous: 'expand', selectedTurn: after.turn, reconsiderAfterTurn: after.turn + 15,
+      shockActive: false, shockFreeStreak: 0, reasonCodes: [],
+    };
+
+    expect(deriveStrategicWarningTransitions(before, after, 'player')).toEqual([]);
+  });
+
+  it('#1090: an unchanged posture (still dominate) does not re-fire', () => {
+    const { before, after, aiId } = fixture();
+    before.civilizations.player.knownCivilizations = [aiId];
+    before.civilizations[aiId].knownCivilizations = ['player'];
+    after.civilizations.player.knownCivilizations = [aiId];
+    after.civilizations[aiId].knownCivilizations = ['player'];
+    const intentState = {
+      current: 'dominate' as const, previous: 'expand' as const, selectedTurn: before.turn, reconsiderAfterTurn: before.turn + 15,
+      shockActive: false, shockFreeStreak: 0, reasonCodes: [],
+    };
+    before.opponentAI!.nationalIntentByCiv[aiId] = intentState;
+    after.opponentAI!.nationalIntentByCiv[aiId] = intentState;
+
+    expect(deriveStrategicWarningTransitions(before, after, 'player')).toEqual([]);
+  });
+
+  it('#1090: expand/develop transitions never surface a posture-shift warning (spam guard)', () => {
+    const { before, after, aiId } = fixture();
+    before.civilizations.player.knownCivilizations = [aiId];
+    before.civilizations[aiId].knownCivilizations = ['player'];
+    after.civilizations.player.knownCivilizations = [aiId];
+    after.civilizations[aiId].knownCivilizations = ['player'];
+    before.opponentAI!.nationalIntentByCiv[aiId] = {
+      current: 'develop', previous: null, selectedTurn: before.turn, reconsiderAfterTurn: before.turn + 15,
+      shockActive: false, shockFreeStreak: 0, reasonCodes: [],
+    };
+    after.opponentAI!.nationalIntentByCiv[aiId] = {
+      current: 'expand', previous: 'develop', selectedTurn: after.turn, reconsiderAfterTurn: after.turn + 15,
+      shockActive: false, shockFreeStreak: 0, reasonCodes: [],
+    };
+
+    expect(deriveStrategicWarningTransitions(before, after, 'player')).toEqual([]);
+  });
+
+  it('#1090 differential privacy: an unmet civ\'s hidden posture change does not alter the viewer-facing warning set, while an identical CHANGE for a met civ does', () => {
+    const { before, after, aiId } = fixture();
+    // No contact set up -- the authoritative world differs (posture flips to dominate) but
+    // the viewer's earned knowledge does not (still unmet).
+    const hiddenAfter = structuredClone(after);
+    hiddenAfter.opponentAI!.nationalIntentByCiv[aiId] = {
+      current: 'dominate', previous: 'expand', selectedTurn: hiddenAfter.turn, reconsiderAfterTurn: hiddenAfter.turn + 15,
+      shockActive: false, shockFreeStreak: 0, reasonCodes: [],
+    };
+    const baseline = deriveStrategicWarningTransitions(before, after, 'player');
+    const withHiddenChange = deriveStrategicWarningTransitions(before, hiddenAfter, 'player');
+    expect(withHiddenChange).toEqual(baseline); // byte-identical -- the hidden change is invisible
+
+    // Positive control: the SAME change, but the viewer has legitimately met the civ.
+    const metBefore = structuredClone(before);
+    const metAfter = structuredClone(hiddenAfter);
+    metBefore.civilizations.player.knownCivilizations = [aiId];
+    metBefore.civilizations[aiId].knownCivilizations = ['player'];
+    metAfter.civilizations.player.knownCivilizations = [aiId];
+    metAfter.civilizations[aiId].knownCivilizations = ['player'];
+    const withMetChange = deriveStrategicWarningTransitions(metBefore, metAfter, 'player');
+    expect(withMetChange).not.toEqual(baseline);
+    expect(withMetChange).toEqual([
+      expect.objectContaining({ actorId: aiId, kind: 'posture-shift', posture: 'dominate' }),
+    ]);
   });
 });

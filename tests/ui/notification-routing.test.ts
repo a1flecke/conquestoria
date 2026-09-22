@@ -18,6 +18,7 @@ import {
   routeVassalAutoPeace,
   routeTreatyAccepted,
   routeTreatyDeclined,
+  routePeaceDeclined,
   routeWarDeclared,
   routeStrategicWarning,
   routeCrisisStarted,
@@ -220,6 +221,49 @@ describe('notification routing', () => {
     expect(calls[0].civId).toBe('p1');
     expect(calls[0].type).toBe('warning');
     expect(calls[0].message).toMatch(/declined your/i);
+  });
+
+  it('#1090: treaty decline with no reason keeps the exact pre-#1090 message (proves the change is additive)', () => {
+    const state = makeState();
+    const { sink, calls } = makeSink();
+
+    routeTreatyDeclined(state, { proposerCivId: 'p1', targetCivId: 'p2', treaty: 'alliance' }, sink);
+
+    expect(calls[0].message).toBe('Bob declined your Alliance.');
+  });
+
+  it('#1090: treaty decline with a reason appends reason-specific text, differing per reason', () => {
+    const state = makeState();
+
+    const strained = makeSink();
+    routeTreatyDeclined(state, { proposerCivId: 'p1', targetCivId: 'p2', treaty: 'alliance', reason: 'relations-too-strained' }, strained.sink);
+    const caution = makeSink();
+    routeTreatyDeclined(state, { proposerCivId: 'p1', targetCivId: 'p2', treaty: 'alliance', reason: 'strategic-caution' }, caution.sink);
+
+    expect(strained.calls[0].message).toBe('Bob declined your Alliance. Relations are too strained for them to agree.');
+    expect(caution.calls[0].message).toBe('Bob declined your Alliance. They remain cautious about deeper commitments right now.');
+    expect(strained.calls[0].message).not.toBe(caution.calls[0].message);
+  });
+
+  it('#1090: peace decline notifies only the proposer, with reason text when present', () => {
+    const state = makeState();
+    const { sink, calls } = makeSink();
+
+    routePeaceDeclined(state, { proposerCivId: 'p1', targetCivId: 'p2', reason: 'peace-not-acceptable' }, sink);
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].civId).toBe('p1');
+    expect(calls[0].type).toBe('warning');
+    expect(calls[0].message).toBe('Bob refused your peace offer. They believe they can still prevail and refuse peace.');
+  });
+
+  it('#1090: peace decline with no reason omits the reason sentence', () => {
+    const state = makeState();
+    const { sink, calls } = makeSink();
+
+    routePeaceDeclined(state, { proposerCivId: 'p1', targetCivId: 'p2' }, sink);
+
+    expect(calls[0].message).toBe('Bob refused your peace offer.');
   });
 
   it('routes treasury strain to the affected civilization with the rush-buy consequence', () => {

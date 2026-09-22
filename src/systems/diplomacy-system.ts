@@ -477,7 +477,11 @@ export function proposeTreatyAgreement(state: GameState, fromCivId: string, toCi
       targetHasKnownStrategicCapability: false,
       actorHasKnownStrategicCapability: false,
     });
-    if (!consent.accepted) return state;
+    if (!consent.accepted) {
+      // #1090: previously silent -- the computed refusal reason reached nobody.
+      bus.emit('diplomacy:peace-declined', { proposerCivId: fromCivId, targetCivId: toCivId, reason: consent.reason });
+      return state;
+    }
     bus.emit('diplomacy:peace-made', { civA: fromCivId, civB: toCivId });
     const peaced = makeMajorPeace(state, fromCivId, toCivId, bus);
     return cancelInvalidNetworkPlans({
@@ -499,7 +503,10 @@ export function proposeTreatyAgreement(state: GameState, fromCivId: string, toCi
     targetHasKnownStrategicCapability: hasManhattanProject(state, toCivId),
     actorHasKnownStrategicCapability: hasKnownStrategicCapability(state, toCivId, fromCivId),
   });
-  return consent.accepted ? commitTreatyAgreement(state, fromCivId, toCivId, kind, bus) : state;
+  if (consent.accepted) return commitTreatyAgreement(state, fromCivId, toCivId, kind, bus);
+  // #1090: previously silent -- the computed refusal reason reached nobody.
+  bus.emit('diplomacy:treaty-declined', { proposerCivId: fromCivId, targetCivId: toCivId, treaty: kind, reason: consent.reason });
+  return state;
 }
 
 export function canReabsorbBreakaway(
@@ -963,7 +970,9 @@ export function proposeVassalage(state: GameState, vassalId: string, overlordId:
     warCount: majorCivWarOpponentIds(overlord.diplomacy.atWarWith).length,
   });
   if (consent.accepted) return commitVassalageAgreement(current, vassalId, overlordId, bus);
-  bus.emit('diplomacy:treaty-declined', { proposerCivId: vassalId, targetCivId: overlordId, treaty: 'vassalage' });
+  // #1090: reason was previously always dropped -- routeTreatyDeclined always rendered the
+  // same generic sentence regardless of why the overlord actually refused.
+  bus.emit('diplomacy:treaty-declined', { proposerCivId: vassalId, targetCivId: overlordId, treaty: 'vassalage', reason: consent.reason });
   return current;
 }
 

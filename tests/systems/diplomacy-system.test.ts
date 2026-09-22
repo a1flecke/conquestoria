@@ -21,11 +21,14 @@ import {
   rejectDiplomaticRequest,
   enqueueTreatyProposal,
   pruneExpiredDiplomaticRequests,
+  proposeVassalage,
 } from '@/systems/diplomacy-system';
 import { EventBus } from '@/core/event-bus';
 import { createNewGame } from '@/core/game-state';
 import type { GameState } from '@/core/types';
 import { makeBreakawayFixture } from './helpers/breakaway-fixture';
+import { TECH_TREE } from '@/systems/tech-definitions';
+import { foundCity } from '@/systems/city-system';
 
 function makeWarState(): GameState {
   const state = createNewGame(undefined, 'peace-request-test', 'small');
@@ -340,6 +343,87 @@ describe('diplomacy-system', () => {
       expect(result.pendingDiplomacyRequests).toContainEqual(
         expect.objectContaining({ fromCivId: 'ai-1', toCivId: 'player', type: 'peace' }),
       );
+    });
+
+    // #1090: before this, a human proposing peace directly to an AI target (the synchronous
+    // evaluatePeaceConsent path -- target is not human, so no pending request is ever created)
+    // silently discarded the computed refusal reason: no event, no notification, nothing.
+    it('#1090: a human peace proposal an AI target refuses emits diplomacy:peace-declined with the computed reason', () => {
+      const state = makeWarState(); // relationship -25 both sides -> evaluatePeaceConsent refuses
+      const bus = new EventBus();
+      const declined: unknown[] = [];
+      bus.on('diplomacy:peace-declined', e => declined.push(e));
+
+      const result = applyDiplomaticAction(state, 'player', 'ai-1', 'request_peace', bus);
+
+      expect(result.civilizations.player.diplomacy.atWarWith).toContain('ai-1'); // still at war -- refused
+      expect(declined).toEqual([{ proposerCivId: 'player', targetCivId: 'ai-1', reason: 'peace-not-acceptable' }]);
+    });
+
+    it('#1090: a human treaty proposal an AI target refuses emits diplomacy:treaty-declined with the computed reason', () => {
+      const state = createNewGame(undefined, 'treaty-decline-test', 'small');
+      state.civilizations.player.knownCivilizations = ['ai-1'];
+      state.civilizations['ai-1'].knownCivilizations = ['player'];
+      // Deeply negative relationship forces evaluateTreatyConsent's NAP branch to refuse
+      // ('relations-too-strained') regardless of the AI civ's personality diplomacyFocus.
+      state.civilizations.player.diplomacy.relationships['ai-1'] = -80;
+      state.civilizations['ai-1'].diplomacy.relationships.player = -80;
+      state.pendingDiplomacyRequests = [];
+      const bus = new EventBus();
+      const declined: unknown[] = [];
+      bus.on('diplomacy:treaty-declined', e => declined.push(e));
+
+      const result = applyDiplomaticAction(state, 'player', 'ai-1', 'non_aggression_pact', bus);
+
+      expect(result.civilizations.player.diplomacy.treaties ?? []).toEqual([]);
+      expect(declined).toEqual([{
+        proposerCivId: 'player', targetCivId: 'ai-1', treaty: 'non_aggression_pact', reason: 'relations-too-strained',
+      }]);
+    });
+
+    it('#1090: a vassalage offer an AI overlord refuses now carries the computed reason', () => {
+      const state = createNewGame(undefined, 'vassalage-decline-test', 'small');
+      state.civilizations.player.knownCivilizations = ['ai-1'];
+      state.civilizations['ai-1'].knownCivilizations = ['player'];
+      state.civilizations.player.techState.completed = TECH_TREE.filter(tech => tech.era <= 2).map(tech => tech.id);
+      state.civilizations.player.diplomacy.vassalage = {
+        overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 4, peakMilitary: 0,
+      };
+      // getVassalageEligibility requires both civs to currently own a city.
+      const playerCity = foundCity('player', { q: 2, r: 2 }, state.map, state.idCounters);
+      state.cities[playerCity.id] = playerCity;
+      state.civilizations.player.cities = [playerCity.id];
+      const aiCity = foundCity('ai-1', { q: 8, r: 8 }, state.map, state.idCounters);
+      state.cities[aiCity.id] = aiCity;
+      state.civilizations['ai-1'].cities = [aiCity.id];
+      // Negative relationship forces evaluateVassalageConsent's unconditional refusal branch
+      // ('relations-too-strained') regardless of the overlord's personality/military counts.
+      state.civilizations.player.diplomacy.relationships['ai-1'] = -10;
+      state.civilizations['ai-1'].diplomacy.relationships.player = -10;
+      const bus = new EventBus();
+      const declined: unknown[] = [];
+      bus.on('diplomacy:treaty-declined', e => declined.push(e));
+
+      const result = proposeVassalage(state, 'player', 'ai-1', bus);
+
+      expect(result.civilizations.player.diplomacy.vassalage.overlord).toBeNull();
+      expect(declined).toEqual([{
+        proposerCivId: 'player', targetCivId: 'ai-1', treaty: 'vassalage', reason: 'relations-too-strained',
+      }]);
+    });
+
+    it('#1090: a human peace proposal an AI target accepts emits no diplomacy:peace-declined', () => {
+      const state = makeWarState();
+      state.civilizations.player.diplomacy.relationships['ai-1'] = 10;
+      state.civilizations['ai-1'].diplomacy.relationships.player = 10;
+      const bus = new EventBus();
+      const declined: unknown[] = [];
+      bus.on('diplomacy:peace-declined', e => declined.push(e));
+
+      const result = applyDiplomaticAction(state, 'player', 'ai-1', 'request_peace', bus);
+
+      expect(result.civilizations.player.diplomacy.atWarWith).not.toContain('ai-1'); // peace made
+      expect(declined).toEqual([]);
     });
 
     it('clears a stale opposite-direction peace request when an AI consents to peace immediately', () => {
