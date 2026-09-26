@@ -7,6 +7,15 @@ import { processNonHumanMajorRound } from '@/ai/ai-round-scheduler';
 import { processImprovementTurns } from '@/systems/improvement-turn-system';
 import { normalizeLoadedState } from '@/storage/save-manager';
 import type { GameState } from '@/core/types';
+import { hasMetCivilization, syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
+import { shouldListMajorCivForViewer } from '@/systems/viewer-intel';
+import { expectViewerSafety, type ViewerSurface } from '../helpers/viewer-safety';
+import {
+  driftAllRelationships,
+  makeMet,
+  setNationalIntent,
+  signTreatyForTest,
+} from '../helpers/viewer-knowledge-fixtures';
 
 // Regression test for issue #435: loading a long-played save "encountered" every civ
 // at once on the next round.
@@ -105,5 +114,68 @@ describe('issue #435 — loading an old save must not mass-discover civilization
     const newKnown = [...knownPairs(state)].filter(pair => !baselineKnown.has(pair));
     expect(newKnown).toEqual([]);
     expect(contactEvents).toEqual([]);
+  });
+});
+
+// #1002 — the #435 leak shape pinned on the READER side. The writer-side fix above stops the AI
+// minting treaties with unmet civs; this proves that whatever cross-civ relationship state exists
+// in an authoritative save (AI↔AI treaties and wars, drift-capped relationship scores, AI national
+// intent) survives a real save → load → normalize → contact-sync round trip without making the
+// viewer acquainted with, able to list, or "meet" any civilization it has not met.
+describe('issue #435 (reader side, #1002) — authoritative relationship state never grants acquaintance', () => {
+  const viewerId = 'player';
+
+  const acquaintanceAfterLoad: ViewerSurface<GameState, unknown> = {
+    name: 'viewer acquaintance after save/load',
+    project: (state, viewer) => {
+      const loaded = normalizeLoadedState(JSON.parse(JSON.stringify(state)) as GameState);
+      const others = Object.keys(loaded.civilizations).filter(id => id !== viewer).sort();
+      const synced = structuredClone(loaded);
+      const minted = syncCivilizationContactsFromVisibility(synced, viewer);
+      return {
+        known: [...(loaded.civilizations[viewer]!.knownCivilizations ?? [])].sort(),
+        listable: others.filter(id => shouldListMajorCivForViewer(loaded, viewer, id)),
+        met: others.filter(id => hasMetCivilization(loaded, viewer, id)),
+        mintedOnNextSync: minted,
+        knownAfterSync: [...(synced.civilizations[viewer]!.knownCivilizations ?? [])].sort(),
+      };
+    },
+  };
+
+  function unmetWorld(): GameState {
+    const state = createNewGame({
+      civType: 'egypt', mapSize: 'medium', opponentCount: 3, gameTitle: 'Issue 435 Reader Side', seed: 'issue-435-reader-side',
+    });
+    state.turn = 101;
+    state.era = 3;
+    return state;
+  }
+
+  function aiIds(state: GameState): string[] {
+    return Object.keys(state.civilizations).filter(id => id !== viewerId).sort();
+  }
+
+  it('AI↔AI treaties, wars, drift and intent survive load without any new acquaintance', () => {
+    const world = unmetWorld();
+    const [first, second, third] = aiIds(world);
+    expect(acquaintanceAfterLoad.project(world, viewerId)).toMatchObject({ known: [], listable: [], met: [] });
+
+    expectViewerSafety(acquaintanceAfterLoad, {
+      world,
+      viewerId,
+      hidden: [
+        { label: 'every AI pair signs a trade agreement', apply: s => {
+          for (const [a, b] of [[first, second], [first, third], [second, third]] as const) signTreatyForTest(s, a!, b!);
+        } },
+        { label: 'relationship drift caps every pair at +30, met or not', apply: s => driftAllRelationships(s, 30) },
+        { label: 'two AIs go to war with each other', apply: s => {
+          s.civilizations[first!]!.diplomacy.atWarWith.push(second!);
+          s.civilizations[second!]!.diplomacy.atWarWith.push(first!);
+        } },
+        { label: 'AIs know each other (contact between OTHER civs)', apply: s => makeMet(s, first!, second!) },
+        { label: 'every AI turns to open conquest', apply: s => { for (const id of aiIds(s)) setNationalIntent(s, id, 'dominate'); } },
+      ],
+      earned: [{ label: `the viewer meets ${first}`, apply: s => makeMet(s, viewerId, first!) }],
+    });
   });
 });

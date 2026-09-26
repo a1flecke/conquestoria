@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import {
+  VIEWER_BOUNDARY_RULES,
+  findViewerBoundaryViolations,
+} from '../helpers/viewer-safety-boundaries';
 
 const main = readFileSync(resolve(__dirname, '../../src/main.ts'), 'utf8');
 
@@ -287,3 +291,70 @@ it('no app/presentation/ui file mutates the object returned by session.getState(
     }
   }
 });
+
+describe('#1002 — player-facing modules stay behind the viewer projection', () => {
+  const repoRoot = resolve(__dirname, '../..');
+
+  function walk(dir: string): string[] {
+    return readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
+      const full = resolve(dir, entry.name);
+      if (entry.isDirectory()) return walk(full);
+      return /\.tsx?$/.test(entry.name) ? [full] : [];
+    });
+  }
+
+  const playerFacingFiles = [
+    ...['src/ui', 'src/presentation', 'src/renderer', 'src/input', 'src/app'].flatMap(dir => walk(resolve(repoRoot, dir))),
+    resolve(repoRoot, 'src/main.ts'),
+  ].map(file => file.slice(repoRoot.length + 1));
+
+  it('rejects realistic regressions (fixture sources)', () => {
+    // A #989-style rival panel reading the AI's private intent straight off state.
+    const rivalPanel = [
+      "import type { GameState } from '@/core/types';",
+      'export function rivalLine(state: GameState, rivalId: string): string {',
+      '  const intent = state.opponentAI?.nationalIntentByCiv[rivalId]?.current;',
+      "  return intent === 'dominate' ? 'Your rival is pursuing conquest.' : '';",
+      '}',
+    ].join('\n');
+    expect(findViewerBoundaryViolations('src/ui/rival-panel.ts', rivalPanel))
+      .toEqual([expect.objectContaining({ rule: 'ai-internals', line: 3 })]);
+
+    // A renderer importing an AI module to decorate enemy armies.
+    const overlay = "import { planTheaterOffensive } from '@/ai/ai-theater-planner';\n";
+    expect(findViewerBoundaryViolations('src/renderer/war-overlay.ts', overlay))
+      .toEqual([expect.objectContaining({ rule: 'ai-modules' })]);
+
+    // An input handler surfacing the omniscient movement resolver's copy.
+    const tapHandler = [
+      "import { resolveUnitMoveIntent } from '@/systems/unit-movement-validation';",
+      'export const why = (s: never, id: string, to: never) => {',
+      "  const r = resolveUnitMoveIntent(s, id, to, { actor: 'player', civId: 'x' });",
+      "  return r.ok ? '' : r.message;",
+      '};',
+    ].join('\n');
+    expect(findViewerBoundaryViolations('src/input/quick-move.ts', tapHandler).map(v => v.rule))
+      .toEqual(['raw-movement-resolver', 'raw-movement-resolver']);
+
+    // Comments describing the rule are not violations; systems code is out of scope.
+    expect(findViewerBoundaryViolations('src/ui/notes.ts', '// never read state.opponentAI here\n')).toEqual([]);
+    expect(findViewerBoundaryViolations('src/systems/strategic-warning-system.ts', rivalPanel)).toEqual([]);
+  });
+
+  it('the current tree has no violations', () => {
+    const violations = playerFacingFiles.flatMap(file =>
+      findViewerBoundaryViolations(file, readFileSync(resolve(repoRoot, file), 'utf8')));
+    expect(violations.map(v => `${v.file}:${v.line} [${v.rule}] ${v.text}`)).toEqual([]);
+  });
+
+  it('every allowlist entry is still needed (no stale exemptions)', () => {
+    for (const spec of VIEWER_BOUNDARY_RULES) {
+      for (const file of Object.keys(spec.allow)) {
+        const source = readFileSync(resolve(repoRoot, file), 'utf8')
+          .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+        expect(spec.pattern.test(source), `${spec.rule}: ${file} no longer needs its exemption`).toBe(true);
+      }
+    }
+  });
+});
+

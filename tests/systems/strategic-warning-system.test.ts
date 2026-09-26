@@ -13,6 +13,18 @@ import { EventBus } from '@/core/event-bus';
 import { createEmptyPirateState } from '@/core/pirate-state';
 import { foundCity } from '@/systems/city-system';
 import { resolveBarbarianArchetype, type BarbarianArchetype } from '@/systems/barbarian-archetype';
+import { presentStrategicWarning } from '@/ui/strategic-warning-presentation';
+import { expectHotSeatDifferential, expectViewerSafety, type ViewerSurface } from '../helpers/viewer-safety';
+import {
+  AI_A,
+  AI_B,
+  HUMAN_A,
+  HUMAN_B,
+  createTwoViewerWorld,
+  makeMet,
+  setNationalIntent,
+  signTreatyForTest,
+} from '../helpers/viewer-knowledge-fixtures';
 
 function makePlan(
   actorId: string,
@@ -660,5 +672,70 @@ describe('strategic warning transition derivation', () => {
     expect(withMetChange).toEqual([
       expect.objectContaining({ actorId: aiId, kind: 'posture-shift', posture: 'dominate' }),
     ]);
+  });
+});
+
+// #1002 — the shared viewer-safety harness over the LIVE presentation (copy, type, map-focus
+// target, audio flag), not just the derived DTO: a hidden fact must not reach any of them.
+describe('#1002 strategic warnings through the shared viewer-safety harness', () => {
+  interface RoundWorld { before: GameState; after: GameState }
+  const presentedWarnings: ViewerSurface<RoundWorld, unknown[]> = {
+    name: 'strategic warnings (presented)',
+    project: ({ before, after }, viewerId) => deriveStrategicWarningTransitions(before, after, viewerId)
+      .map(warning => ({ ...presentStrategicWarning(warning), playAudio: warning.playAudio })),
+  };
+
+  function roundWorld(): RoundWorld {
+    const before = createTwoViewerWorld('viewer-safety-strategic');
+    const after = structuredClone(before);
+    after.turn = before.turn + 1;
+    return { before, after };
+  }
+
+  it('an unmet civ\'s posture, its treaties with third parties, and an anonymised count never reach the viewer', () => {
+    expectViewerSafety(presentedWarnings, {
+      world: roundWorld(),
+      viewerId: HUMAN_A,
+      hidden: [
+        { label: `unmet ${AI_B} turns to open conquest`, apply: w => setNationalIntent(w.after, AI_B, 'dominate') },
+        { label: `unmet ${AI_B} recovers from a setback`, apply: w => setNationalIntent(w.after, AI_B, 'recover') },
+        {
+          label: `unmet ${AI_B} signs an alliance with ${AI_A} (the #435 treaty shape) and turns to conquest`,
+          apply: w => {
+            signTreatyForTest(w.after, AI_A, AI_B, 'alliance');
+            setNationalIntent(w.after, AI_B, 'dominate');
+          },
+        },
+      ],
+      earned: [{
+        label: `${HUMAN_A} has met ${AI_B}, who turns to open conquest`,
+        apply: w => {
+          makeMet(w.before, HUMAN_A, AI_B);
+          makeMet(w.after, HUMAN_A, AI_B);
+          setNationalIntent(w.after, AI_B, 'dominate');
+        },
+      }],
+    });
+  });
+
+  it('hot seat: one world, a posture shift only Bob has earned reaches Bob and never Alice', () => {
+    const world = roundWorld();
+    // Asymmetric knowledge on ONE shared world: Alice knows AI_A, Bob knows AI_B.
+    for (const state of [world.before, world.after]) {
+      makeMet(state, HUMAN_A, AI_A);
+      makeMet(state, HUMAN_B, AI_B);
+    }
+    expectHotSeatDifferential(presentedWarnings, {
+      world,
+      viewers: [HUMAN_A, HUMAN_B],
+      knownOnlyTo: HUMAN_B,
+      mutation: { label: `${AI_B} turns to open conquest`, apply: w => setNationalIntent(w.after, AI_B, 'dominate') },
+    });
+    expectHotSeatDifferential(presentedWarnings, {
+      world,
+      viewers: [HUMAN_A, HUMAN_B],
+      knownOnlyTo: HUMAN_A,
+      mutation: { label: `${AI_A} turns to open conquest`, apply: w => setNationalIntent(w.after, AI_A, 'dominate') },
+    });
   });
 });

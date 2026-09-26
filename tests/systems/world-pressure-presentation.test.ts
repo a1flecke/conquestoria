@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { getWorldPressurePresentationForViewer } from '@/systems/world-pressure-presentation';
 import { hexKey } from '@/systems/hex-utils';
 import type { GameState } from '@/core/types';
+import { expectViewerSafety, type ViewerSurface } from '../helpers/viewer-safety';
 
 function baseCrisisState(): GameState {
   return {
@@ -135,5 +136,38 @@ describe('getWorldPressurePresentationForViewer', () => {
     state.cities['ai-city'].name = 'Alexandria';
     const result = getWorldPressurePresentationForViewer(state, 'viewer');
     expect(result.statusLinesByCivId['ai-1'].detail).toContain('Alexandria');
+  });
+});
+
+// #1002 — unmet-civ identity through the shared harness: a crisis striking an empire the viewer
+// has never met must not change the viewer's presentation at all (no status line, no badge, no
+// "unknown empire" placeholder); the same crisis becomes visible once contact is earned.
+describe('#1002 world pressure through the shared viewer-safety harness', () => {
+  const worldPressure: ViewerSurface<GameState, ReturnType<typeof getWorldPressurePresentationForViewer>> = {
+    name: 'world pressure presentation',
+    project: (state, viewerId) => getWorldPressurePresentationForViewer(state, viewerId),
+  };
+
+  function withUnmetCrisis(): GameState {
+    const state = baseCrisisState();
+    state.civilizations['ai-2'] = { id: 'ai-2', isHuman: false, cities: ['hidden-city'] } as never;
+    state.cities['hidden-city'] = { id: 'hidden-city', name: 'Hidden', owner: 'ai-2', position: { q: 9, r: 9 } } as never;
+    state.activeCrises!['crisis-2'] = {
+      ...state.activeCrises!['crisis-1']!, id: 'crisis-2', targetCivId: 'ai-2', cityIds: ['hidden-city'],
+    };
+    return state;
+  }
+
+  it('a crisis on an unmet civ is invisible until contact is earned', () => {
+    expectViewerSafety(worldPressure, {
+      world: withUnmetCrisis(),
+      viewerId: 'viewer',
+      hidden: [
+        { label: 'the unmet civ\'s crisis worsens', apply: s => { s.activeCrises!['crisis-2']!.turnsInStage = 9; } },
+        { label: 'the unmet civ\'s crisis changes archetype', apply: s => { s.activeCrises!['crisis-2']!.archetype = 'famine'; } },
+        { label: 'the unmet civ\'s crisis ends', apply: s => { delete s.activeCrises!['crisis-2']; } },
+      ],
+      earned: [{ label: 'the viewer meets the stricken civ', apply: s => { s.civilizations.viewer!.knownCivilizations!.push('ai-2'); } }],
+    });
   });
 });
