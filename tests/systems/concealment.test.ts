@@ -153,6 +153,10 @@ describe('isUnitConcealedFrom', () => {
 
   it('never conceals an ordinary enemy land unit', () => {
     const state = setup();
+    // Pin the tile: setup() is unseeded, so an ambient forest here combined
+    // with a forest-guardian opponent (lothlorien) legitimately conceals —
+    // a ~0.15% flake (proven 3/2000 across seeds) unrelated to this assertion.
+    setTerrain(state, { q: 5, r: 5 }, 'plains');
     const warrior = placeUnit(state, 'ai-1', 'warrior', { q: 5, r: 5 });
     expect(isUnitConcealedFrom(state, warrior, 'player')).toBe(false);
   });
