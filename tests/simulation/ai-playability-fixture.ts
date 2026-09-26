@@ -27,7 +27,7 @@ import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { CRISIS_FORCE_OWNER } from '@/core/owner-kind';
 import { serializeSaveFile, parseSaveFile } from '@/storage/save-file-transfer';
 import { normalizeLoadedState } from '@/storage/save-manager';
-import { assertAirBaseIntegrity, assertBilateralWar, assertCargoReciprocity, assertEliminatedCivHasNoLiveEntities } from '../helpers/save-state-invariants';
+import { assertAirBaseIntegrity, assertBilateralWar, assertCargoReciprocity, assertEliminatedCivHasNoLiveEntities, assertNoIllegalBlockingOccupancy } from '../helpers/save-state-invariants';
 import {
   buildCampaignRoundSample,
   emptyCivCounters,
@@ -646,6 +646,7 @@ export function runAICampaign(options: AICampaignOptions): AICampaignResult {
     assertCargoReciprocity(state); // #1000 — transport/cargo dual-reference stays reciprocal across AI load/unload + combat cascades
     assertAirBaseIntegrity(state); // #1000 — carrier/city air basing stays within capacity and owner across AI rebase + carrier loss
     assertEliminatedCivHasNoLiveEntities(state); // #1001 — a civ the AI wipes out mid-run leaves no live entity or obligation anywhere
+    assertNoIllegalBlockingOccupancy(state); // #994 — no AI move/spawn/capture leaves a unit on a tile canonical movement legality would refuse
     assertPlanInvariants(state, options.seed);
     assertLegalChoices(state, traces, options.seed, lateEra);
     metrics.roundDurationsMs.push(performance.now() - roundStart);

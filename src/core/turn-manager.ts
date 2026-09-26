@@ -1,7 +1,7 @@
 import type { AdvisorType, GameEvents, GameState } from './types';
 import { EventBus } from './event-bus';
 import { finalizeDominationVictory } from '@/systems/victory-system';
-import { resetUnitTurn, createUnit, healUnit, findPath, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { resetUnitTurn, createUnit, healUnit, findPath, UNIT_DEFINITIONS, getBlockingMapEntityKeysForOwner } from '@/systems/unit-system';
 import { getLocalCityHealingBonus, processCity, TRAINABLE_UNITS, BUILDINGS } from '@/systems/city-system';
 import { transferCapturedCityOwnership } from '@/systems/city-capture-system';
 import { baseNewAirUnit, canCompleteAirUnitProduction } from '@/systems/air-operations-system';
@@ -1203,6 +1203,10 @@ export function processTurn(
     // turn*7919-seeded sites (city-bombardment-system.ts, crisis-system.ts),
     // which is now handled by the 'beast-tick' domain tag instead.
     const beastSeed = Math.floor(createSimulationRng(newState, { domain: 'beast-tick', eventId: 'beast-tick' })() * 2147483647);
+    // #994: beasts have no live Unit until a lair actually spawns one, so this is keyed by the
+    // fixed BEAST_OWNER constant rather than a specific beast instance — every beast/lair shares
+    // the same blocking rules regardless.
+    const beastBlockedHexKeys = getBlockingMapEntityKeysForOwner(newState, BEAST_OWNER);
     const beastResult = processBeasts(
       Object.values(newState.beasts!.lairs),
       newState.map,
@@ -1211,6 +1215,7 @@ export function processTurn(
       lair => resolveNeutralPressureEra(newState, lair.position) ?? 1,
       newState.beasts!.mode,
       beastSeed,
+      beastBlockedHexKeys,
     );
     // Rebuild lairs map from updated results (immutable)
     let updatedLairs: Record<string, import('./types').BeastLair> = {};
@@ -1250,6 +1255,9 @@ export function processTurn(
     // Commit final lairs into state
     newState = { ...newState, beasts: { ...newState.beasts!, lairs: updatedLairs } };
 
+    // #994: a raw position write, not moveUnitWithZoneOfControl/executeUnitMove — safe only
+    // because processBeasts already filtered every candidate step against beastBlockedHexKeys
+    // above (see .claude/rules/movement-actions.md's "World-actor step/spawn placement" section).
     for (const move of beastResult.moveOrders) {
       const beast = newState.units[move.unitId];
       if (beast) {

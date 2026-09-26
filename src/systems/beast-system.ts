@@ -128,6 +128,11 @@ export function processBeasts(
   era: number | ((lair: BeastLair) => number),
   mode: BeastsMode,
   seed: number,
+  // #994: hexes canonical movement legality would refuse to place a BEAST_OWNER unit on
+  // (foreign city / barbarian camp / pirate coastal-enclave — `getBlockingMapEntityKeysForOwner`).
+  // Optional, defaulting to none, so every pre-existing caller/test keeps its exact behavior;
+  // `turn-manager.ts` is the one caller that must pass the real computed set.
+  blockedHexKeys: ReadonlySet<string> = new Set(),
 ): BeastProcessResult {
   const empty: BeastProcessResult = { updatedLairs: lairs, spawnOrders: [], moveOrders: [], attackOrders: [], awakenings: [], regenOrders: [] };
   if (mode === 'off') return empty;
@@ -152,11 +157,11 @@ export function processBeasts(
       awakenings.push({ lairId: lair.id, beastId: lair.beastId, position: lair.position });
       // Spawn packSize beasts on lair tile then free passable neighbors
       const spawnTiles: HexCoord[] = [];
-      if (!occupied.has(hexKey(lair.position))) spawnTiles.push(lair.position);
+      if (!occupied.has(hexKey(lair.position)) && !blockedHexKeys.has(hexKey(lair.position))) spawnTiles.push(lair.position);
       for (const n of mapNeighbors(map, lair.position)) {
         if (spawnTiles.length >= def.packSize) break;
         const tile = map.tiles[hexKey(n)];
-        if (tile && isTerrainPassableForBeast(def.unitType, tile.terrain) && !occupied.has(hexKey(n))) spawnTiles.push(n);
+        if (tile && isTerrainPassableForBeast(def.unitType, tile.terrain) && !occupied.has(hexKey(n)) && !blockedHexKeys.has(hexKey(n))) spawnTiles.push(n);
       }
       for (const pos of spawnTiles.slice(0, def.packSize)) {
         spawnOrders.push({ lairId: lair.id, beastId: lair.beastId, position: { ...pos } });
@@ -208,7 +213,7 @@ export function processBeasts(
     const step = mapNeighbors(map, beast.position)
       .filter(n => {
         const tile = map.tiles[hexKey(n)];
-        return tile && isTerrainPassableForBeast(def.unitType, tile.terrain) && !occupied.has(hexKey(n)) && inLeash(n);
+        return tile && isTerrainPassableForBeast(def.unitType, tile.terrain) && !occupied.has(hexKey(n)) && !blockedHexKeys.has(hexKey(n)) && inLeash(n);
       })
       .sort((a, b) => mapDistance(map, a, goal) - mapDistance(map, b, goal))[0];
     if (step && mapDistance(map, step, goal) < mapDistance(map, beast.position, goal)) {
