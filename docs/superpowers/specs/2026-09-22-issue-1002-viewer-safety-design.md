@@ -1,6 +1,6 @@
 # #1002 — Viewer Information Safety: Design + Plan
 
-**Base:** `origin/main` @ `bc193715` (#1090 merged). **Issue:** #1002 (Phase A of #1026).
+**Base:** `origin/main` @ `f510491a` (audited at `bc193715`, #1090 merged; #1082 landed in between, unrelated). **Issue:** #1002 (Phase A of #1026).
 
 ## Stage 0 — what is actually true on `main`
 
@@ -33,17 +33,14 @@ No universal object walker (it cannot tell a civ id from a flavour string). Inst
 
 ## 2. Knowledge fixtures — `tests/helpers/viewer-knowledge-fixtures.ts`
 
-Real `createHotSeatGame` world (two humans + AIs). Composable helpers: `makeUnmet`, `makeMet`, `setTileVisibility`, `placeUnit`, `signBilateralTreatyForTest` (AI↔AI, the #435 class), `setNationalIntent`.
+Real `createHotSeatGame` world (two humans + AIs). Composable helpers: `makeMet`, `expectUnmet` (fails if the "unmet" case would be vacuous), `setTileVisibility`, `setNationalIntent`, `signTreatyForTest` (AI↔AI, the #435 class), `driftAllRelationships` (with a spare-the-known-pairs option — the harness caught a first draft that also drifted the viewer's known relationship).
 
 ## 3. Path-aware movement redaction
 
-- `validateUnitMove` attaches typed **evidence** to the rejections that depend on an actor or map entity (`{ kind: 'units', coord, unitIds }` / `{ kind: 'map-entity', coord }`). Additive only: identical `ok`/`reason`/`message`/`path`; legality and the executor are unchanged (parity test).
-- `presentMovementRejectionForViewer(state, viewerId, rejection)` is the ONE redaction rule:
-  1. destination unexplored → "Too far away to spot." (existing);
-  2. evidence tile unexplored → same generic;
-  3. unit evidence: entitled only if the tile is **visible** and at least one blocking unit is not concealed from the viewer (units are never remembered in fog) — otherwise `hidden-obstacle`: "Something out of sight is in the way.";
-  4. map-entity evidence (city / camp / enclave): entitled when the tile is **explored**, matching `hasDiscoveredCity` — remembered structures stay explained.
-- `getMovementBlockerReason` takes the viewer to be `unit.owner` (owner-scoped, as #1025 MR4 required) and reads that civ's visibility itself — callers can no longer pass a partial or wrong visibility. ZoC copy uses `getZoneOfControlAt(...).sourceUnitIds` as unit evidence.
+- *Revised during implementation.* A first draft tagged rejections with evidence inside `validateUnitMove`. It was dropped: redacting an unexplored-path blocker to a generic string still **differs** from what the viewer would see with no blocker ("Move one step at a time into unexplored territory"), so the differential test fails. The correct answer is *what the canonical resolver says over the viewer's knowledge*.
+- `projectMovementKnowledgeForViewer(state, viewerId)` — explanation-only view: foreign units only on **visible** tiles and not concealed (units are never remembered in fog); cities / camps / pirate enclaves only on **explored** tiles (matching `hasDiscoveredCity`, so remembered structures stay explained); terrain untouched.
+- `presentMovementRejectionForViewer(state, unitId, to, viewerId)` is the ONE rule: destination unexplored → "Too far away to spot."; else re-resolve with the unchanged `resolveUnitMoveIntent` over that projection → its reason if still refused; the ZoC copy if the viewer can see the ZoC source; otherwise `hidden-obstacle`: "Something out of sight is in the way." `validateUnitMove` is not modified at all.
+- `getMovementBlockerReason` takes the viewer to be `unit.owner` (owner-scoped, as #1025 MR4 required) and reads that civ's visibility itself — callers can no longer pass a partial or wrong visibility. A civ with no visibility map knows nothing.
 - `executeAnimatedUnitMove` routes executor failures through the same function (sibling leak).
 - **Bounded residue (documented):** `unreachable` answers terrain connectivity (no actor evidence); the tap-range highlight is canonical legality and necessarily reflects hidden blockers — hiding legal moves or offering illegal ones is worse (#998). The explainer never says *what* or *where*.
 
@@ -73,6 +70,6 @@ False confidence is bounded by requiring an earned control per case and a non-va
 ## Plan / verification
 
 1. RED: movement explainer + feedback tests; #435 reader-side regression; harness self-tests; boundary matcher fixtures.
-2. GREEN: validation evidence → explainer rule → selection-controller → harness/fixtures → migrate consumers.
+2. GREEN: knowledge projection + explainer rule → selection-controller → harness/fixtures → migrate consumers.
 3. Docs: `invariants.md` (#1002 row), `movement-actions.md`, `ui-panels.md`.
 4. `check-src-rule-violations.sh` on changed src; targeted tests; shard allocation for the new test file; `yarn build`; `yarn test:durable` + status. AI-long skipped (no AI/simulation semantics change).
