@@ -3,7 +3,6 @@ import type { PendingMapIntent, SelectionSnapshot } from '@/app/ports';
 import type { MovementBlockerReason } from '@/systems/unit-system';
 import { getMovementBlockerReason } from '@/systems/unit-movement-explainer';
 import { isWorkerBusy } from '@/systems/unit-movement-system';
-import { getVisibility } from '@/systems/fog-of-war';
 import { hexKey } from '@/systems/hex-utils';
 import { canUnitAttackBeast } from '@/systems/beast-system';
 import { resolvePirateHeadquartersSelection } from '@/input/pirate-headquarters-selection';
@@ -154,13 +153,9 @@ export function resolveMapTapIntent(
           return { kind: 'blocked-naval-gate', unitId: selectedUnitId, reason: navalGate.reason ?? 'Cannot attack that target.' };
         }
       }
-      const reason = getMovementBlockerReason(state, selectedUnitId, coord, {
-        // #1025 MR4: redact against the UNIT OWNER's fog, never state.currentPlayer —
-        // legality and its explanation are owner-scoped for hot seat.
-        visibilityState: state.civilizations[selectedUnit.owner]?.visibility
-          ? getVisibility(state.civilizations[selectedUnit.owner]!.visibility, coord)
-          : undefined,
-      });
+      // #1025 MR4 / #1002: redacted against the UNIT OWNER's knowledge (path-aware), never
+      // state.currentPlayer — legality and its explanation are owner-scoped for hot seat.
+      const reason = getMovementBlockerReason(state, selectedUnitId, coord);
       if (reason) {
         return { kind: 'blocked-movement', unitId: selectedUnitId, reason };
       }

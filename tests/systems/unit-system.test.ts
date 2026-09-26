@@ -593,6 +593,8 @@ describe('#965 pirate coastal-enclave anchor blocks land units', () => {
     // #1025 MR4: the explainer now derives the blocking entity from state itself,
     // rather than the caller passing it in.
     const state = enclaveBlockState({ q: 1, r: 0 });
+    // #1002: the explanation is scoped to the owner's knowledge — the enclave must be explored.
+    for (const key of ['0,0', '1,0', '2,0', '3,0']) state.civilizations.player.visibility.tiles[key] = 'visible';
     const reason = getMovementBlockerReason(state, 'mover', { q: 2, r: 0 });
     expect(reason?.code).toBe('pirate-enclave');
     expect(reason?.message.toLowerCase()).toMatch(/sea|warship|ship/);
@@ -1005,7 +1007,12 @@ describe('getMovementBlockerReason (#1025 MR4: derives from resolveUnitMoveInten
     const map = createWrappedGrasslandMap(5, 5);
     map.tiles['2,2'] = { ...map.tiles['2,2'], terrain: 'coast' };
     const scout = createUnit('scout', 'player', { q: 2, r: 1 }, mkC());
-    expect(getMovementBlockerReason(explainerState(scout, map), scout.id, { q: 2, r: 2 }, { visibilityState: 'unexplored' }))
+    // #1002: the explainer reads the owner's own visibility map rather than a caller option.
+    const state = explainerState(scout, map);
+    state.civilizations[scout.owner]!.visibility = {
+      tiles: { ...state.civilizations[scout.owner]!.visibility.tiles, '2,2': 'unexplored' },
+    };
+    expect(getMovementBlockerReason(state, scout.id, { q: 2, r: 2 }))
       .toEqual({ code: 'unexplored', message: 'Too far away to spot.' });
   });
 

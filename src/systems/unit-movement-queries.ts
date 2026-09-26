@@ -41,7 +41,10 @@ export interface MovementBlockerReason {
     | 'pirate-enclave'
     | 'unreachable'
     | 'insufficient-movement'
-    | 'zone-of-control';
+    | 'zone-of-control'
+    // #1002: canonical legality refused (or would stop) the move for a reason the viewer
+    // cannot see. Produced only by the viewer-scoped explainer, never by the resolver.
+    | 'hidden-obstacle';
   message: string;
 }
 
