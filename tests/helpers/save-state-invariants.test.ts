@@ -102,6 +102,68 @@ describe('#1006 assertCityRosters', () => {
     expect(() => assertCityRosters(state)).toThrow(/its owner is "ai-2"/s);
   });
 
+  it('throws when the same city id sits in two major civ rosters', () => {
+    const { state, cityId } = stateWithPlayerCity('inv-city-tworoosters');
+    state.civilizations['ai-1'].cities.push(cityId); // owned by player, also rostered by ai-1
+    expect(() => assertCityRosters(state)).toThrow(/ai-1.*its owner is "player"/s);
+  });
+
+  it('throws when a civ roster lists the same city id twice', () => {
+    const { state, cityId } = stateWithPlayerCity('inv-city-duplicate');
+    state.civilizations.player.cities.push(cityId);
+    expect(() => assertCityRosters(state)).toThrow(/player.*more than once/s);
+  });
+
+  it('throws when a major-owned city names an owner civ that does not exist', () => {
+    const { state, cityId } = stateWithPlayerCity('inv-city-ghostowner');
+    state.cities[cityId].owner = 'ai-ghost';
+    state.civilizations.player.cities = state.civilizations.player.cities.filter(id => id !== cityId);
+    expect(() => assertCityRosters(state)).toThrow(/city .*neither a civilization nor a minor civ/s);
+  });
+
+  it('throws when a barbarian-owned city has no roster to belong to', () => {
+    const { state, cityId } = stateWithPlayerCity('inv-city-barbarian');
+    state.cities[cityId].owner = 'barbarian';
+    state.civilizations.player.cities = state.civilizations.player.cities.filter(id => id !== cityId);
+    expect(() => assertCityRosters(state)).toThrow(/city .*neither a civilization nor a minor civ/s);
+  });
+
+  it('throws when a minor-civ-owned city is also listed in a major civ roster', () => {
+    const state = freshState('inv-city-minor-in-major');
+    const minorCityId = Object.keys(state.cities).find(id => state.cities[id].owner.startsWith('mc-'))!;
+    state.civilizations.player.cities.push(minorCityId);
+    expect(() => assertCityRosters(state)).toThrow(new RegExp(`${minorCityId}.*its owner is`, 's'));
+  });
+
+  it('throws when a minor civ cityId disagrees with the city owner', () => {
+    const state = freshState('inv-city-minor-mismatch');
+    const mcId = Object.keys(state.minorCivs).find(id => !state.minorCivs[id].isDestroyed)!;
+    const otherCityId = Object.keys(state.cities).find(id => state.cities[id].owner !== mcId)!;
+    state.minorCivs[mcId].cityId = otherCityId;
+    expect(() => assertCityRosters(state)).toThrow(new RegExp(`minor civ "${mcId}" names city`, 's'));
+  });
+
+  it('accepts a destroyed minor civ whose city is gone', () => {
+    const state = freshState('inv-city-minor-destroyed');
+    const mcId = Object.keys(state.minorCivs)[0];
+    const mcCityId = state.minorCivs[mcId].cityId;
+    delete state.cities[mcCityId];
+    state.minorCivs[mcId].isDestroyed = true;
+    expect(() => assertCityRosters(state)).not.toThrow();
+  });
+
+  it('accepts a destroyed minor civ whose former city now belongs to a major civ', () => {
+    // conquestMinorCiv / peacefullyAbsorbMinorCiv transfer the city and flag the
+    // minor destroyed; the stale cityId pointer is historical, not corruption.
+    const state = freshState('inv-city-minor-absorbed');
+    const mcId = Object.keys(state.minorCivs)[0];
+    const mcCityId = state.minorCivs[mcId].cityId;
+    state.cities[mcCityId].owner = 'player';
+    state.civilizations.player.cities.push(mcCityId);
+    state.minorCivs[mcId].isDestroyed = true;
+    expect(() => assertCityRosters(state)).not.toThrow();
+  });
+
   it('throws when a civ roster names a nonexistent city', () => {
     const state = freshState('inv-city-ghost');
     state.civilizations.player.cities.push('city-ghost');

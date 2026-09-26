@@ -97,7 +97,8 @@ export function assertBilateralWar(state: GameState): void {
  * `city.owner` lists `city.id` in its roster, and every rostered city id
  * exists and is owned by that civ. Applies to both major civs (`civ.cities`)
  * and minor civs (`minorCiv.cityId`, the single city a city-state holds).
- * (#997)
+ * A major roster holds each city id exactly once — duplicates inflate every
+ * roster-length consumer the same way a ghost entry does. (#997)
  */
 export function assertCityRosters(state: GameState): void {
   const problems: string[] = [];
@@ -116,7 +117,13 @@ export function assertCityRosters(state: GameState): void {
   }
 
   for (const [civId, civ] of Object.entries(state.civilizations)) {
+    const seen = new Set<string>();
     for (const cityId of civ.cities) {
+      if (seen.has(cityId)) {
+        problems.push(`${civId}'s roster lists city "${cityId}" more than once`);
+        continue;
+      }
+      seen.add(cityId);
       const city = state.cities[cityId];
       if (!city) {
         problems.push(`${civId}'s roster names city "${cityId}" which does not exist`);
