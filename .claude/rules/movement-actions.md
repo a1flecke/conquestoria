@@ -63,13 +63,33 @@ no cycles.
 
 `getMovementBlockerReason` (`unit-movement-explainer.ts`) is the **viewer-scoped projection** of
 the resolver, not a second legality implementation (#1025 MR4). It resolves through
-`resolveUnitMoveIntent`, then applies exactly one redaction rule
-(`redactMovementRejectionForViewer`): when the destination is unexplored to the viewer every
-reason collapses to "Too far away to spot." Validation is deliberately omniscient; the preview
-is deliberately viewer-scoped. **Never surface a resolver rejection to a player without passing
-it through the redaction rule** — that is the information leak #1002 tracks. Redaction is
-destination-only today; path-aware redaction is #1002's scope. Parity is pinned by
-`tests/systems/unit-movement-resolver-parity.test.ts`.
+`resolveUnitMoveIntent`; when that refuses (or would stop the unit short on Zone of Control) it
+hands off to exactly one redaction rule, `presentMovementRejectionForViewer` (path-aware since
+#1002):
+
+1. destination unexplored → "Too far away to spot.";
+2. otherwise **re-run the same canonical resolver** over `projectMovementKnowledgeForViewer`
+   (the owner's knowledge: foreign units only on currently *visible* tiles and not concealed;
+   cities / camps / pirate enclaves only on *explored* tiles, i.e. remembered structures stay;
+   terrain untouched) and explain only from that answer — a still-refused move gets its
+   viewer-knowable reason, a ZoC stop the viewer can see gets the ZoC copy, anything else is
+   `hidden-obstacle`: "Something out of sight is in the way."
+
+The viewer is always `unit.owner`, read from that civ's own visibility (no caller-supplied
+visibility option; a civ with no visibility map knows nothing). Validation is deliberately
+omniscient; the explanation is deliberately viewer-scoped. **Never surface a resolver
+rejection's `message` to a player** — the tap explainer and the executor-failure toast
+(`executeAnimatedUnitMove` → `explainMovementFailureForViewer`) both go through the rule above,
+and `tests/helpers/viewer-safety-boundaries.ts` (`raw-movement-resolver`) rejects a new
+player-facing import of `resolveUnitMoveIntent` / `validateUnitMove`. The knowledge projection is
+**explanation-only** — never feed it to legality, the executor or the AI.
+
+Documented residue (legality necessarily reveals *that* a move is refused; never *what/where*):
+the movement-range highlight is canonical legality and reflects hidden blockers (hiding legal
+moves or offering illegal ones is worse, #998); `unreachable` answers terrain connectivity,
+which the knowledge projection leaves untouched. Parity is pinned by
+`tests/systems/unit-movement-resolver-parity.test.ts`; the viewer rule by the differential
+cases in `tests/systems/unit-movement-explainer.test.ts`.
 
 The explainer lives in its own module (**not** re-exported through the `unit-system` barrel):
 `unit-movement-validation` → `unit-occupancy` → `air-operations-system` → the `unit-system`

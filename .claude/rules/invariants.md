@@ -54,7 +54,7 @@ every implicit assumption an invariant... short enough to read").
 | `currentPlayer` | Turn cycling never hands the turn to an eliminated civ | `ELIMINATED_CIV_AREAS.currentPlayer` (teardown) |
 | `map` / any occupying-entity check | No successful action leaves an illegal blocking entity on a tile | discipline + partial `getBlockingMapEntityAt` centralization; **#994 open** |
 | Any legality-checked action | A legal preview stays executable under unchanged state; a rejected action cannot succeed via an alternate executor | **#998 / #999 open** — `resolveCityInteraction`'s single-source-of-truth pattern (`.claude/rules/game-balance.md`) is the model other action families should converge on; **#1025 open** owns generalizing it (movement's slice already landed, #1042) |
-| `hotSeat`, `currentPlayer`, presentation everywhere | A viewer never sees information their fog/discovery state doesn't allow | discipline, spread across UI/renderer call sites; **#1002 open** |
+| `hotSeat`, `currentPlayer`, presentation everywhere | A viewer never sees information their fog/discovery state doesn't allow | Differential harness `tests/helpers/viewer-safety.ts` (`expectViewerSafety` / `expectHotSeatDifferential`, required earned control) + knowledge fixtures, used by strategic warnings, movement explainer, diplomacy panel, legendary-wonder intel, world pressure and the #435 reader-side regression; structural rule `tests/helpers/viewer-safety-boundaries.ts` (enforced in `architecture-boundaries.test.ts`) — see `.claude/rules/ui-panels.md#viewer-safety-contract-1002` (**#1002, closed**) |
 | Any code centralizing "which cities/units does X actually own" | Stop re-deriving ownership ad hoc from stale rosters | **#1019 (cities) / #1020 (units) open** |
 
 ## Diplomacy beyond war/treaties/vassalage
@@ -151,7 +151,7 @@ cross-system state; this lists only the ones that are)
 | #999 | Rejected actions can't succeed via alternate executors | OPEN |
 | #1000 | Cargo/carrier reciprocity | **CLOSED** |
 | #1001 | Eliminated civs retain no live entity | **CLOSED** |
-| #1002 | Viewer information safety | OPEN |
+| #1002 | Viewer information safety | **CLOSED** |
 
 Related architecture issues (out of scope for #1003 to fix, referenced for context): #1014
 (caller-discipline → structure, the general umbrella), #1019/#1020 (centralize owned-city/unit

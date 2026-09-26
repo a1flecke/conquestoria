@@ -87,6 +87,37 @@ Exceptions: AI internal decisions that legitimately mean "capital" (e.g., `src/a
 - `getMinorCivPresentationForPlayer`, `getQuest*ForPlayer`, `getLegendaryWonderIntel*`, and any other `*ForPlayer` helper must mask EVERY player-visible field — name, color, icon, flavor text — behind the `known` / `discovered` check. Returning the real color while masking the name is a leak.
 - UI code must prefer `*ForPlayer` helpers; never read `state.minorCivs[id].color` etc. directly from a viewer-side render path.
 
+## Viewer Safety Contract (#1002)
+
+Three layers: omniscient authoritative state → a viewer-scoped projection (`*ForViewer` helpers,
+`deriveStrategicWarningTransitions(…, viewerId)`, `getMovementBlockerReason`) → UI that renders
+only the projection. The invariant is proved at the projection, and the bypass is blocked in UI:
+
+- **Differential harness — required for every new viewer-sensitive surface** (#989 rival, #991
+  named wars, #992 world races, #993 big moments, any new notification/panel/badge naming a
+  foreign actor): `tests/helpers/viewer-safety.ts`. Define a `ViewerSurface` that returns what
+  the player is actually shown (rendered text + tooltip/ARIA via `domProjection`, copy, map-focus
+  target, audio flag — counts and ordering are information too), then:
+  - `expectViewerSafety` — every `hidden` mutation (a fact the viewer has not earned) leaves the
+    projection deep-equal; at least one `earned` control must change it (a surface that shows
+    nothing cannot pass); a mutation that changes nothing fails as vacuous.
+  - `expectHotSeatDifferential` — ONE shared world, two humans: a change only one has earned
+    reaches that one and never the other.
+  - Build worlds with `tests/helpers/viewer-knowledge-fixtures.ts`; never compute visibility or
+    contact in a test helper — entitlement is always the production predicate's answer.
+- **Remembered knowledge is not a leak.** Stored intel, explored terrain, discovered structures
+  and prior contact stay visible; a "hidden" mutation must not target them (the legendary-wonder
+  intel case asserts stored intel survives live changes).
+- **Anonymised is not entitled.** "Unknown empire …" copy, a rival count, or a reordered list
+  still reveals an unmet civ exists — the differential harness catches all of these.
+- **Structural rule** (`tests/helpers/viewer-safety-boundaries.ts`, enforced by
+  `tests/app/architecture-boundaries.test.ts`): player-facing modules (`src/ui`,
+  `src/presentation`, `src/renderer`, `src/input`, `src/app`) may not read `opponentAI` (AI
+  strategic internals), may not import `src/ai/**` (UI/renderer/input), and may not import the
+  raw movement resolver. Each allowlist entry carries its reason and fails when no longer needed.
+- Presentation projections are never AI perception: AI reasons over its own perception layer,
+  not a human viewer's.
+
 ## No Silent Destructive UI
 - Never silently replace a player-visible list (production queue, research queue, unit stack, trade route roster) when the player takes an action.
 - If starting a new activity would discard scheduled work, preserve it (prepend/append the new item, keep the tail) or prompt for explicit confirmation.
