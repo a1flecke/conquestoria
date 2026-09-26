@@ -318,7 +318,11 @@ describe('SelectionController', () => {
     const ceremonies = fakeCeremonies();
     const deps = baseDeps(state, { ceremonies });
     const controller = createSelectionController(deps);
-    const moveResult = { ok: false, message: 'Blocked.' } as unknown as ExecuteUnitMoveResult;
+    // A realistic resolver rejection: omniscient copy aimed at a tile the owner has never explored.
+    const moveResult = {
+      ok: false, reason: 'occupied', message: 'An enemy unit is blocking the way.',
+      from: { q: 0, r: 0 }, to: { q: 999, r: 999 }, path: [], revealedTiles: [], discoveredWonders: [],
+    } as unknown as ExecuteUnitMoveResult;
 
     const result = controller.executeAnimatedUnitMove('u1', () => moveResult);
 
@@ -326,7 +330,10 @@ describe('SelectionController', () => {
     expect(ceremonies.beginDeferredAction).toHaveBeenCalledTimes(1);
     expect(ceremonies.endAction).toHaveBeenCalledTimes(1);
     expect(deps.renderLoop.animateUnitMove).not.toHaveBeenCalled();
-    expect(deps.showNotification).toHaveBeenCalledWith('Blocked.', 'warning');
+    // #1002: the raw resolver message is never echoed; the refusal is explained from the owner's
+    // knowledge only (here: the destination is unexplored).
+    expect(deps.showNotification).toHaveBeenCalledWith('Too far away to spot.', 'warning');
+    expect(deps.showNotification).not.toHaveBeenCalledWith('An enemy unit is blocking the way.', expect.anything());
   });
 
   it('refreshSelectedUnitAfterCombat deselects when the selected unit died', () => {
@@ -459,7 +466,10 @@ describe('SelectionController', () => {
       const controller = createSelectionController(deps);
       controller.selectUnit('u1');
 
-      controller.executeAnimatedUnitMove('u1', () => ({ ok: false, message: 'Blocked.' } as unknown as ExecuteUnitMoveResult));
+      controller.executeAnimatedUnitMove('u1', () => ({
+        ok: false, reason: 'occupied', message: 'Blocked.',
+        from: { q: 0, r: 0 }, to: { q: 1, r: 0 }, path: [], revealedTiles: [], discoveredWonders: [],
+      } as unknown as ExecuteUnitMoveResult));
       vi.runAllTimers();
 
       expect(deps.selection.getSelectedUnitId()).toBe('u1');
