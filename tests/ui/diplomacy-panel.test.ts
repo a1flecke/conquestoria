@@ -12,6 +12,18 @@ import { EventBus } from '@/core/event-bus';
 import { getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentation';
 import { makeDiplomacyFixture } from './helpers/diplomacy-fixture';
 import { createUnit } from '@/systems/unit-system';
+import type { GameState } from '@/core/types';
+import { domProjection, expectHotSeatDifferential, expectViewerSafety, type ViewerSurface } from '../helpers/viewer-safety';
+import {
+  AI_A,
+  AI_B,
+  HUMAN_A,
+  HUMAN_B,
+  createTwoViewerWorld,
+  driftAllRelationships,
+  makeMet,
+  signTreatyForTest,
+} from '../helpers/viewer-knowledge-fixtures';
 
 describe('diplomacy-panel cityless rivals', () => {
   it('keeps a met cityless rival with a settler in the visible diplomacy list', () => {
@@ -1091,5 +1103,55 @@ describe('arms control pact (#545 MR6)', () => {
 
     const rendered = (panel as unknown as { innerHTML?: string; textContent?: string }).innerHTML ?? panel.textContent ?? '';
     expect(rendered.toLowerCase()).toContain('arms control pact');
+  });
+});
+
+// #1002 — the rendered panel (visible text AND tooltip/ARIA/data attributes) through the shared
+// harness. Diplomacy is where authoritative relationship state lives, so it is the natural
+// place for the #435 shape to leak: cross-civ treaties, drift-capped relationships, or an unmet
+// civ's own changes must not alter what the current player sees.
+describe('#1002 diplomacy panel through the shared viewer-safety harness', () => {
+  const renderedPanel: ViewerSurface<GameState, ReturnType<typeof domProjection>> = {
+    name: 'diplomacy panel (rendered)',
+    project: (state, viewerId) => {
+      const viewing = { ...state, currentPlayer: viewerId };
+      const panel = createDiplomacyPanel(document.createElement('div'), viewing, { onAction: () => {}, onClose: () => {} });
+      return domProjection(panel);
+    },
+  };
+
+  function world(): GameState {
+    const state = createTwoViewerWorld('viewer-safety-diplomacy');
+    makeMet(state, HUMAN_A, AI_A);
+    return state;
+  }
+
+  it('authoritative relationship facts about an unmet civ never change the panel', () => {
+    expectViewerSafety(renderedPanel, {
+      world: world(),
+      viewerId: HUMAN_A,
+      hidden: [
+        { label: `unmet ${AI_B} signs a trade agreement with the known ${AI_A}`, apply: s => signTreatyForTest(s, AI_A, AI_B) },
+        {
+          label: 'relationship drift across every pair the viewer has not met (the #435 precondition)',
+          apply: s => driftAllRelationships(s, 30, { viewerId: HUMAN_A, known: [AI_A] }),
+        },
+        { label: `unmet ${AI_B} and ${AI_A} go to war with each other`, apply: s => {
+          s.civilizations[AI_A]!.diplomacy.atWarWith.push(AI_B);
+          s.civilizations[AI_B]!.diplomacy.atWarWith.push(AI_A);
+        } },
+        { label: `unmet ${AI_B} renames itself`, apply: s => { s.civilizations[AI_B]!.name = 'Hidden Dominion'; } },
+      ],
+      earned: [{ label: `${HUMAN_A} meets ${AI_B}`, apply: s => makeMet(s, HUMAN_A, AI_B) }],
+    });
+  });
+
+  it('hot seat: one world, Bob\'s contact never appears on Alice\'s panel', () => {
+    expectHotSeatDifferential(renderedPanel, {
+      world: world(),
+      viewers: [HUMAN_A, HUMAN_B],
+      knownOnlyTo: HUMAN_B,
+      mutation: { label: `${HUMAN_B} meets ${AI_B}`, apply: s => makeMet(s, HUMAN_B, AI_B) },
+    });
   });
 });
