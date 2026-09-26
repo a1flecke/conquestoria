@@ -144,6 +144,54 @@ describe('processBeasts', () => {
   });
 });
 
+// #994: a real live-play beast walked onto a foreign city tile (caught by
+// assertNoIllegalBlockingOccupancy in the AI-playability simulation) because processBeasts had
+// no awareness of canonical movement-blocking entities (foreign city / barbarian camp / pirate
+// enclave) at all -- only of other units via its own `occupied` map. `blockedHexKeys` (computed
+// by the caller from `getBlockingMapEntityKeysForOwner(state, BEAST_OWNER)`) closes that gap for
+// both step selection and spawn-tile selection, the same defect shape in both places.
+describe('processBeasts blocking-entity awareness (#994)', () => {
+  it('does not step a beast onto a hex blocked by canonical movement legality', () => {
+    const lair = makeLair({ position: { q: 0, r: 0 }, status: 'awake', unitIds: ['beast-1'] });
+    const beast = makeUnit({ id: 'beast-1', type: 'beast_boar', owner: 'beasts', position: { q: 0, r: 0 }, movementPointsLeft: 1 });
+    const intruder = makeUnit({ id: 'u1', position: { q: 2, r: 0 } });
+    const map = tinyMap({ '0,0': 'plains', '1,0': 'plains', '2,0': 'plains' });
+    const blockedHexKeys = new Set([hexKey({ q: 1, r: 0 })]);
+
+    const result = processBeasts([lair], map, [intruder], [beast], 1, 'wild', 7, blockedHexKeys);
+
+    expect(result.moveOrders.some(order => hexKey(order.toCoord) === '1,0')).toBe(false);
+  });
+
+  it('still steps toward the intruder when the blocked-hex set is empty (no behavior change for existing callers)', () => {
+    const lair = makeLair({ position: { q: 0, r: 0 }, status: 'awake', unitIds: ['beast-1'] });
+    const beast = makeUnit({ id: 'beast-1', type: 'beast_boar', owner: 'beasts', position: { q: 0, r: 0 }, movementPointsLeft: 1 });
+    const intruder = makeUnit({ id: 'u1', position: { q: 2, r: 0 } });
+    const map = tinyMap({ '0,0': 'plains', '1,0': 'plains', '2,0': 'plains' });
+
+    const result = processBeasts([lair], map, [intruder], [beast], 1, 'wild', 7);
+
+    expect(result.moveOrders).toEqual([{ unitId: 'beast-1', toCoord: { q: 1, r: 0 } }]);
+  });
+
+  it('never spawns a beast onto a hex blocked by canonical movement legality', () => {
+    const map = tinyMap({
+      '10,10': 'plains', '11,10': 'plains', '11,9': 'plains',
+      '10,9': 'plains', '9,10': 'plains', '9,11': 'plains', '10,11': 'plains',
+    });
+    const blockedHexKeys = new Set([hexKey({ q: 10, r: 10 })]); // the lair tile itself is blocked
+    let sawAnySpawn = false;
+    for (let seed = 1; seed <= 200; seed++) {
+      const result = processBeasts([makeLair()], map, [], [], 1, 'wild', seed, blockedHexKeys);
+      if (result.spawnOrders.length > 0) sawAnySpawn = true;
+      for (const spawn of result.spawnOrders) {
+        expect(hexKey(spawn.position)).not.toBe('10,10');
+      }
+    }
+    expect(sawAnySpawn).toBe(true); // sanity: this seed sweep does exercise awakening/spawn
+  });
+});
+
 // ---- Task 6: slay reward tests ----
 
 describe('recordBeastSlain', () => {

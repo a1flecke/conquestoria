@@ -29,7 +29,7 @@
 # --- barbarian-system.ts ---
 src/systems/barbarian-system.ts:44 # [LOW] lcg() recurrence body — hand-rolled duplicate of seededLcg
 src/systems/barbarian-system.ts:323 # [OK] gameId:turn:campId folded over the full string, no truncation
-src/systems/barbarian-system.ts:399 # [OK] gameId:turn:campId folded over the full string, no truncation
+src/systems/barbarian-system.ts:403 # [OK] gameId:turn:campId folded over the full string, no truncation
 
 # --- beast-system.ts ---
 src/systems/beast-system.ts:74 # [LOW] lcg() recurrence body — hand-rolled duplicate of seededLcg

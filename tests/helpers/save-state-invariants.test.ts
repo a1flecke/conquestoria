@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import type { GameState, Unit } from '@/core/types';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
+import { createUnit } from '@/systems/unit-system';
+import { createEmptyPirateState } from '@/core/pirate-state';
 import {
   assertBilateralWar,
   assertCityRosters,
@@ -13,6 +15,7 @@ import {
   assertNationalProjectUniqueness,
   assertMarketplaceReferences,
   assertOpponentAIPortfolioIntegrity,
+  assertNoIllegalBlockingOccupancy,
   assertNoEliminatedCivEntities,
   assertSaveStateInvariants,
   SAVE_STATE_INVARIANTS,
@@ -952,6 +955,136 @@ describe('#1081 assertOpponentAIPortfolioIntegrity', () => {
   });
 });
 
+describe('#994 assertNoIllegalBlockingOccupancy', () => {
+  it('passes for a fresh game', () => {
+    expect(() => assertNoIllegalBlockingOccupancy(freshState('occ-fresh'))).not.toThrow();
+  });
+
+  // #843: a unit ending up on a foreign, unallied city's tile is exactly the shape ordinary
+  // movement now refuses via getBlockingMapEntityAt — this proves the final-state validator
+  // reuses that same canonical predicate rather than re-deriving ownership rules.
+  it('throws when a unit sits on a foreign, unallied city tile (#843)', () => {
+    const state = freshState('occ-foreign-city');
+    const aiSettler = Object.values(state.units).find(u => u.owner === 'ai-1' && u.type === 'settler')!;
+    const city = foundCity('ai-1', aiSettler.position, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    state.civilizations['ai-1'].cities.push(city.id);
+
+    const intruder = createUnit('warrior', 'player', city.position, state.idCounters);
+    state.units[intruder.id] = intruder;
+
+    expect(() => assertNoIllegalBlockingOccupancy(state)).toThrow(new RegExp(`${intruder.id}.*foreign-city|foreign-city.*${intruder.id}`, 's'));
+  });
+
+  it('does not throw when a unit garrisons its own city', () => {
+    const { state, cityId } = stateWithPlayerCity('occ-own-city');
+    const city = state.cities[cityId];
+    const garrison = createUnit('warrior', 'player', city.position, state.idCounters);
+    state.units[garrison.id] = garrison;
+
+    expect(() => assertNoIllegalBlockingOccupancy(state)).not.toThrow();
+  });
+
+  // #845: an undefended barbarian camp had zero representation in the movement system before
+  // getBlockingMapEntityAt covered it. A unit walking onto (or being spawned onto) one is the
+  // same illegal-final-state shape.
+  it('throws when a non-barbarian unit sits on a barbarian camp tile (#845)', () => {
+    const state = freshState('occ-camp');
+    state.barbarianCamps['camp-1'] = { id: 'camp-1', position: { q: 3, r: 3 }, strength: 10, spawnCooldown: 3 };
+    const intruder = createUnit('warrior', 'player', { q: 3, r: 3 }, state.idCounters);
+    state.units[intruder.id] = intruder;
+
+    expect(() => assertNoIllegalBlockingOccupancy(state)).toThrow(new RegExp(`${intruder.id}.*barbarian-camp|barbarian-camp.*${intruder.id}`, 's'));
+  });
+
+  it('does not throw when a barbarian unit sits on its own camp', () => {
+    const state = freshState('occ-camp-own');
+    state.barbarianCamps['camp-1'] = { id: 'camp-1', position: { q: 3, r: 3 }, strength: 10, spawnCooldown: 3 };
+    const raider = createUnit('warrior', 'barbarian', { q: 3, r: 3 }, state.idCounters);
+    state.units[raider.id] = raider;
+
+    expect(() => assertNoIllegalBlockingOccupancy(state)).not.toThrow();
+  });
+
+  // #965: a pirate faction's coastal-enclave headquarters anchor had zero representation
+  // either — a land unit could walk onto (and stack on) it.
+  it('throws when a non-pirate unit sits on a pirate coastal-enclave anchor tile (#965)', () => {
+    const state = freshState('occ-enclave');
+    state.pirates = createEmptyPirateState();
+    state.pirates.factions['pirate-1'] = {
+      id: 'pirate-1', name: 'The Salt Reavers', spawnedRound: 1, behavior: 'raiding',
+      maritimeStage: 2, notoriety: 2, shipIds: [],
+      headquarters: { kind: 'coastal-enclave', position: { q: 4, r: 4 }, integrity: 100, maxIntegrity: 100 },
+      tributeByCiv: {}, demandByCiv: {}, contract: null, intent: null,
+      transitionGuards: { emittedEventKeys: [] },
+    };
+    const intruder = createUnit('warrior', 'player', { q: 4, r: 4 }, state.idCounters);
+    state.units[intruder.id] = intruder;
+
+    expect(() => assertNoIllegalBlockingOccupancy(state)).toThrow(new RegExp(`${intruder.id}.*pirate-enclave|pirate-enclave.*${intruder.id}`, 's'));
+  });
+
+  it('does not throw when a pirate unit sits on its own faction enclave', () => {
+    const state = freshState('occ-enclave-own');
+    state.pirates = createEmptyPirateState();
+    state.pirates.factions['pirate-1'] = {
+      id: 'pirate-1', name: 'The Salt Reavers', spawnedRound: 1, behavior: 'raiding',
+      maritimeStage: 2, notoriety: 2, shipIds: [],
+      headquarters: { kind: 'coastal-enclave', position: { q: 4, r: 4 }, integrity: 100, maxIntegrity: 100 },
+      tributeByCiv: {}, demandByCiv: {}, contract: null, intent: null,
+      transitionGuards: { emittedEventKeys: [] },
+    };
+    const raider = createUnit('warrior', 'pirate-1', { q: 4, r: 4 }, state.idCounters);
+    state.units[raider.id] = raider;
+
+    expect(() => assertNoIllegalBlockingOccupancy(state)).not.toThrow();
+  });
+
+  // #970's own bug shape generalized: an executor (airborne landing, transport unload, or any
+  // future one) placing a unit on a tile a hostile-owned unit already occupies, bypassing
+  // ordinary combat. This is the final-state net for a *fifth* executor with no blocking check.
+  it('throws when two units of different owners occupy the same tile', () => {
+    const state = freshState('occ-hostile-stack');
+    const a = createUnit('warrior', 'player', { q: 1, r: 1 }, state.idCounters);
+    const b = createUnit('warrior', 'ai-1', { q: 1, r: 1 }, state.idCounters);
+    state.units[a.id] = a;
+    state.units[b.id] = b;
+
+    expect(() => assertNoIllegalBlockingOccupancy(state)).toThrow(new RegExp(`${a.id}.*${b.id}|${b.id}.*${a.id}`, 's'));
+  });
+
+  it('does not throw when two units of the same owner occupy the same tile', () => {
+    const state = freshState('occ-friendly-stack');
+    const a = createUnit('warrior', 'player', { q: 1, r: 1 }, state.idCounters);
+    const b = createUnit('archer', 'player', { q: 1, r: 1 }, state.idCounters);
+    state.units[a.id] = a;
+    state.units[b.id] = b;
+
+    expect(() => assertNoIllegalBlockingOccupancy(state)).not.toThrow();
+  });
+
+  it('reports every violation, not just the first, in one throw', () => {
+    const state = freshState('occ-multi');
+    state.barbarianCamps['camp-1'] = { id: 'camp-1', position: { q: 3, r: 3 }, strength: 10, spawnCooldown: 3 };
+    const campIntruder = createUnit('warrior', 'player', { q: 3, r: 3 }, state.idCounters);
+    state.units[campIntruder.id] = campIntruder;
+    const a = createUnit('warrior', 'player', { q: 1, r: 1 }, state.idCounters);
+    const b = createUnit('warrior', 'ai-1', { q: 1, r: 1 }, state.idCounters);
+    state.units[a.id] = a;
+    state.units[b.id] = b;
+
+    let message = '';
+    try {
+      assertNoIllegalBlockingOccupancy(state);
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toMatch(new RegExp(campIntruder.id));
+    expect(message).toMatch(new RegExp(a.id));
+    expect(message).toMatch(new RegExp(b.id));
+  });
+});
+
 describe('#1006 assertSaveStateInvariants (aggregate)', () => {
   it('passes for a fresh solo game', () => {
     expect(() => assertSaveStateInvariants(freshState('inv-agg-solo'))).not.toThrow();
@@ -972,7 +1105,7 @@ describe('#1006 assertSaveStateInvariants (aggregate)', () => {
     expect(message).toMatch(/unit-ghost/);
   });
 
-  it('SAVE_STATE_INVARIANTS lists exactly the eleven documented checks', () => {
+  it('SAVE_STATE_INVARIANTS lists exactly the twelve documented checks', () => {
     expect(SAVE_STATE_INVARIANTS.map(inv => inv.name).sort()).toEqual([
       'air-base-integrity',
       'bilateral-war',
@@ -981,6 +1114,7 @@ describe('#1006 assertSaveStateInvariants (aggregate)', () => {
       'marketplace-references',
       'national-project-uniqueness',
       'no-eliminated-civ-entities',
+      'no-illegal-blocking-occupancy',
       'opponent-ai-portfolio-integrity',
       'treaty-reciprocity',
       'unit-rosters',

@@ -113,6 +113,38 @@ They are not folded into `resolveUnitMoveIntent` (a paradrop is not a walk), but
 the same rule: **anything a `can*` offers must be executable, anything it withholds comes back
 as a typed reason with player-facing copy, and the executor never re-derives legality.**
 
+### World-actor step/spawn placement (#994)
+
+Beast and barbarian raider AI (`beast-system.ts`'s `processBeasts`, `barbarian-system.ts`'s
+`processPurposefulBarbarians`) choose their own next step / spawn tile with a hand-rolled
+candidate filter (leash radius, terrain passability, an `occupied`-units set) — not a full
+`resolveUnitMoveIntent` walk, and not a call to `moveUnitWithZoneOfControl`/`moveUnit` either
+(`turn-manager.ts` applies the resulting order with a raw `unit.position = …` spread), so neither
+the `Unit`-taking blocking predicates nor the low-level-mover source rule ever saw them. An
+AI-playability run caught a beast standing on a foreign city tile as a direct result (#994) —
+`getBlockingMapEntitiesByHex`/`getBlockingMapEntityKeys` require a live `Unit`, which a
+not-yet-spawned beast or raider doesn't have.
+
+`getBlockingMapEntitiesByOwner` / `getBlockingMapEntityKeysForOwner` (`unit-movement-legality.ts`)
+are the same single source of truth keyed by `ownerId: string` instead of a `Unit` — every
+`Unit`-taking predicate above delegates to them internally. Both `processBeasts` and
+`processPurposefulBarbarians` now filter their own candidate tiles through
+`getBlockingMapEntityKeysForOwner(state, BEAST_OWNER | 'barbarian')`, computed once per turn
+(owner-keyed, not per-instance) by the caller. This is the correct shape for this family: not a
+`resolveUnitMoveIntent` walk (no player-chosen destination, no movement-point path cost — a beast
+spends a flat one point per step), and not a `moveUnitWithZoneOfControl` call either (nothing
+world-actor here calls it), so it does not fit the `movement-contract-exempt` annotation literally
+— but it is the same principle as that annotation: a world-actor mover that consults the canonical
+blocking rule directly rather than re-deriving it, documented here instead of at an unmatched call
+site.
+
+**Any future world-actor system that places a unit without going through `executeUnitMove`/
+`moveUnitWithZoneOfControl` (a new crisis force, a new spawn system) must consult
+`getBlockingMapEntityKeysForOwner` (or a live-`Unit` predicate above) for its own candidate
+filtering — never re-derive foreign-city/barbarian-camp/pirate-enclave blocking from scratch, and
+never assume "no blockers reachable" without checking, the mistake this file's own pirate exemption
+comment already earns its keep by stating explicitly.**
+
 ## Enforcement
 
 `scripts/check-src-rule-violations.sh` and its `.claude/hooks/check-src-edit.sh` mirror flag any
