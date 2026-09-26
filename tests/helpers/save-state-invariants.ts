@@ -1,9 +1,10 @@
 import type { AirBaseRef, GameState } from '@/core/types';
 import { classifyOwner } from '@/core/owner-kind';
 import { BUILDINGS } from '@/systems/city-system';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS, getBlockingMapEntityAt, BLOCKING_MAP_ENTITY_MESSAGES } from '@/systems/unit-system';
 import { getTransportCapacity, getUnitCargoSize, isNavalTransportUnit } from '@/systems/transport-system';
-import { getAirBaseCapacity, getAirBaseRoster } from '@/systems/air-operations-system';
+import { getAirBaseCapacity, getAirBaseRoster, isBasedAirUnit } from '@/systems/air-operations-system';
+import { buildUnitOccupancy } from '@/systems/unit-occupancy';
 import { assertEliminatedCivHasNoLiveEntities, scanOpponentAIPortfolioDanglingUnitRefs } from './eliminated-civ-areas';
 
 /**
@@ -647,6 +648,54 @@ export function assertOpponentAIPortfolioIntegrity(state: GameState): void {
 }
 
 /**
+ * Final-state blocking-occupancy invariant (#994): after any successful action, no unit may
+ * sit on a tile a canonical movement-legality check would refuse to place it on. Reuses the
+ * exact two primitives ordinary movement / transport unload / paradrop / air assault already
+ * resolve legality through — `getBlockingMapEntityAt` (foreign city / barbarian camp / pirate
+ * coastal-enclave, `.claude/rules/movement-actions.md`) and `buildUnitOccupancy`'s owner-based
+ * stacking rule (`unit-occupancy.ts`) — rather than re-deriving either rule a third time here.
+ *
+ * Historical regressions this is the final-state net for: #843 (foreign city), #845 (barbarian
+ * camp), #965 (pirate coastal-enclave), #970 (airborne landing / transport unload bypassing the
+ * blocking-entity check entirely). All four are now caught at legality-check time by their own
+ * executor (see `.claude/rules/movement-actions.md`'s sibling-action table); this assert exists
+ * to catch a *fifth* executor that grows without consulting it, the same role `assertBilateralWar`
+ * plays for a new diplomacy caller that forgets to update both sides.
+ *
+ * Transported cargo (`unit.transportId`) and based aircraft (`isBasedAirUnit`) are not occupying
+ * map units (`.claude/rules/game-systems.md`'s "Transport Cargo" / two-carriage-model sections) —
+ * skipped here exactly as `buildUnitOccupancy` already skips them for movement's own stacking
+ * check, so a carrier's air wing or a transport's cargo manifest never double-reports the same
+ * tile its hull already covers.
+ */
+export function assertNoIllegalBlockingOccupancy(state: GameState): void {
+  const problems: string[] = [];
+  const occupancy = buildUnitOccupancy(state.units);
+
+  for (const [unitId, unit] of Object.entries(state.units)) {
+    if (unit.transportId || isBasedAirUnit(unit)) continue;
+    const blocker = getBlockingMapEntityAt(state, unit, unit.position);
+    if (blocker) {
+      problems.push(
+        `unit "${unitId}" (owner "${unit.owner}") sits on tile (${unit.position.q},${unit.position.r}) blocked by ${blocker.reason} "${blocker.entityId}"`,
+      );
+    }
+  }
+
+  for (const unitIds of Object.values(occupancy.unitIdsByHex)) {
+    const owners = new Set(unitIds.map(id => occupancy.ownersByUnitId[id]));
+    if (owners.size > 1) {
+      const position = state.units[unitIds[0]].position;
+      problems.push(
+        `tile (${position.q},${position.r}) holds units from ${owners.size} different owners: ${unitIds.map(id => `"${id}" (${occupancy.ownersByUnitId[id]})`).join(', ')}`,
+      );
+    }
+  }
+
+  if (problems.length > 0) throw new InvariantError(`no-illegal-blocking-occupancy invariant violated:\n  - ${problems.join('\n  - ')}`);
+}
+
+/**
  * An `isEliminated` civ holds no live entities and no active obligations
  * anywhere in `GameState` — not just no owned cities/units/wars, but nothing in
  * espionage, AI planning, crises, trade, the minor-civ layer, and so on. The
@@ -671,6 +720,7 @@ export const SAVE_STATE_INVARIANTS: ReadonlyArray<{ name: string; check: (state:
   { name: 'marketplace-references', check: assertMarketplaceReferences },
   { name: 'opponent-ai-portfolio-integrity', check: assertOpponentAIPortfolioIntegrity },
   { name: 'no-eliminated-civ-entities', check: assertNoEliminatedCivEntities },
+  { name: 'no-illegal-blocking-occupancy', check: assertNoIllegalBlockingOccupancy },
 ];
 
 /**

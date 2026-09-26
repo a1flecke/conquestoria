@@ -367,6 +367,31 @@ describe('processPurposefulBarbarians', () => {
       .toContainEqual(expect.objectContaining({ campId: 'camp-a-alt-4', unitType: expected }));
   });
 
+  // #994: the same defect family the AI-playability run caught in beast-system.ts. The spawn
+  // candidate filter here only ever excluded already-occupied unit tiles, never a foreign city
+  // or pirate enclave — a raider could spawn directly onto one the instant the camp's own tile
+  // is unavailable (e.g. already holding an assigned raider).
+  it('does not spawn a raider onto a foreign city tile adjacent to the camp', () => {
+    const state = purposefulState();
+    state.turn = 20;
+    state.barbarianCamps['camp-a-alt-4'] = { ...state.barbarianCamps['camp-a-alt-4'], spawnCooldown: 1 };
+    const sentry = createUnit('warrior', 'barbarian', { q: 5, r: 5 }, state.idCounters); // occupies the camp tile itself
+    state.units = { [sentry.id]: sentry };
+    // (4,5) is the closest free neighbor by the spawn-position tie-break once (5,5) is occupied.
+    state.cities.foreign = { id: 'foreign', owner: 'player', position: { q: 4, r: 5 }, hp: 30 } as never;
+    state.civilizations.player.cities = ['foreign'];
+    state.civilizations.player.techState.completed = TECH_TREE
+      .filter(tech => tech.era <= 10)
+      .map(tech => tech.id);
+    state.barbarianCampPressure = { 'camp-a-alt-4': { armorLastObservedTurn: 20, airLastObservedTurn: 20 } };
+
+    const result = processPurposefulBarbarians(state);
+
+    const spawn = result.spawnedUnits.find(candidate => candidate.campId === 'camp-a-alt-4');
+    expect(spawn).toBeDefined();
+    expect(hexKey(spawn!.position)).not.toBe(hexKey({ q: 4, r: 5 }));
+  });
+
   it('caps a quiet camp at ten assigned raiders without bypassing its cooldown', () => {
     const state = purposefulState();
     state.barbarianCamps['camp-a-alt-4'] = {

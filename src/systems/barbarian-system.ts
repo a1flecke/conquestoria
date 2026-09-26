@@ -21,7 +21,7 @@ import {
 import { selectDefenderForAttack } from './combat-system';
 import { getCityGarrisonUnit } from './city-siege-system';
 import { applyQuestGameplayAction, type ChainTransition } from './quest-chain-system';
-import { UNIT_DEFINITIONS } from './unit-system';
+import { UNIT_DEFINITIONS, getBlockingMapEntityKeysForOwner } from './unit-system';
 import { recordHuntCampKillerIfApplicable } from './hunt-crisis-linkage';
 import { resolveCivilizationEra } from './tech-definitions';
 import { classifyOwner } from '@/core/owner-kind';
@@ -366,6 +366,10 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
   const cityAttackOrders: BarbarianCityAttackOrder[] = [];
   const pillageOrders: BarbarianPillageOrder[] = [];
   let observationState = state;
+  // #994: hexes canonical movement legality would refuse to place a barbarian-owned unit on
+  // (foreign city / pirate coastal-enclave — a camp is never one of these to its own owner, so
+  // this is safe to compute once for every camp this turn rather than per-camp).
+  const blockedHexKeys = getBlockingMapEntityKeysForOwner(state, 'barbarian');
 
   for (const camp of camps) {
     const assigned = barbarianUnits.filter(unit =>
@@ -390,7 +394,7 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
         .filter(unit => !unit.transportId)
         .map(unit => hexKey(unit.position)));
       const spawnPosition = [spawn.position, ...mapNeighbors(state.map, spawn.position)]
-        .filter(coord => isPassableBarbarianTile(state, coord) && !occupied.has(hexKey(coord)))
+        .filter(coord => isPassableBarbarianTile(state, coord) && !occupied.has(hexKey(coord)) && !blockedHexKeys.has(hexKey(coord)))
         .sort((a, b) =>
           barbarianDistance(state, a, camp.position) - barbarianDistance(state, b, camp.position)
           || a.q - b.q

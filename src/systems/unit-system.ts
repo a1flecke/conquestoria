@@ -28,6 +28,7 @@ export {
   isBlockingCityFor,
   getBlockingMapEntityAt,
   getBlockingMapEntityKeys,
+  getBlockingMapEntityKeysForOwner,
   type UnitMovementBlockerCode,
   type BlockingMapEntity,
 } from './unit-movement-legality';

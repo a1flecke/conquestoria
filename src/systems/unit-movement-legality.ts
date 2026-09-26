@@ -38,8 +38,8 @@ export interface BlockingMapEntity {
 // owns it -- a land unit cannot walk in, stack, or "capture" it. The enclave is
 // resolved only by a naval assault from an adjacent sea tile
 // (see getEnclaveAssaultPreview); it never transfers ownership to a civ.
-function isBlockingPirateEnclaveFor(unit: Unit): boolean {
-  return !isPirateOwner(unit.owner);
+function isBlockingPirateEnclaveForOwner(ownerId: string): boolean {
+  return !isPirateOwner(ownerId);
 }
 
 /** Land anchors of every intact pirate coastal-enclave headquarters. */
@@ -55,16 +55,60 @@ function pirateEnclaveAnchorEntries(state: GameState): Array<{ id: string; key: 
   return entries;
 }
 
+function isBlockingCityForOwner(state: GameState, ownerId: string, city: City): boolean {
+  return city.owner !== ownerId && !hasAllianceTreaty(state, ownerId, city.owner);
+}
+
 export function isBlockingCityFor(state: GameState, unit: Unit, city: City): boolean {
-  return city.owner !== unit.owner && !hasAllianceTreaty(state, unit.owner, city.owner);
+  return isBlockingCityForOwner(state, unit.owner, city);
 }
 
 // Camps have no owner field -- they're always barbarian-hostile to every civ (#845), the same
 // way `isAlwaysHostilePair` treats the 'barbarian' owner class elsewhere. The one exception is
 // a barbarian-owned mover itself (e.g. a raider that spawned on/near its own camp), which must
 // not be blocked from its own camp the same way a city never blocks its own owner.
-function isBlockingCampFor(unit: Unit): boolean {
-  return unit.owner !== 'barbarian';
+function isBlockingCampForOwner(ownerId: string): boolean {
+  return ownerId !== 'barbarian';
+}
+
+/**
+ * Canonical owner-keyed blocker lookup — the actual single source of truth every predicate
+ * above and `getBlockingMapEntitiesByHex` (its `Unit`-taking convenience wrapper, used by every
+ * existing movement/transport/airborne caller) ultimately delegates to. Exists as its own
+ * `ownerId`-keyed entry point for callers that have no live `Unit` instance to hand yet — e.g. a
+ * world-actor system computing spawn/step legality for a fixed constant owner such as
+ * `BEAST_OWNER` before any beast of that lair has been created (#994).
+ */
+export function getBlockingMapEntitiesByOwner(
+  state: GameState,
+  ownerId: string,
+): ReadonlyMap<string, BlockingMapEntity> {
+  const blockers = new Map<string, BlockingMapEntity>();
+  const seenCityKeys = new Set<string>();
+  for (const city of Object.values(state.cities)) {
+    const key = hexKey(city.position);
+    if (seenCityKeys.has(key)) continue;
+    seenCityKeys.add(key);
+    if (isBlockingCityForOwner(state, ownerId, city)) {
+      blockers.set(key, { reason: 'foreign-city', entityId: city.id });
+    }
+  }
+  if (isBlockingCampForOwner(ownerId)) {
+    for (const camp of Object.values(state.barbarianCamps ?? {})) {
+      const key = hexKey(camp.position);
+      if (!blockers.has(key)) {
+        blockers.set(key, { reason: 'barbarian-camp', entityId: camp.id });
+      }
+    }
+  }
+  if (isBlockingPirateEnclaveForOwner(ownerId)) {
+    for (const enclave of pirateEnclaveAnchorEntries(state)) {
+      if (!blockers.has(enclave.key)) {
+        blockers.set(enclave.key, { reason: 'pirate-enclave', entityId: enclave.id });
+      }
+    }
+  }
+  return blockers;
 }
 
 /**
@@ -76,32 +120,12 @@ export function getBlockingMapEntitiesByHex(
   state: GameState,
   unit: Unit,
 ): ReadonlyMap<string, BlockingMapEntity> {
-  const blockers = new Map<string, BlockingMapEntity>();
-  const seenCityKeys = new Set<string>();
-  for (const city of Object.values(state.cities)) {
-    const key = hexKey(city.position);
-    if (seenCityKeys.has(key)) continue;
-    seenCityKeys.add(key);
-    if (isBlockingCityFor(state, unit, city)) {
-      blockers.set(key, { reason: 'foreign-city', entityId: city.id });
-    }
-  }
-  if (isBlockingCampFor(unit)) {
-    for (const camp of Object.values(state.barbarianCamps ?? {})) {
-      const key = hexKey(camp.position);
-      if (!blockers.has(key)) {
-        blockers.set(key, { reason: 'barbarian-camp', entityId: camp.id });
-      }
-    }
-  }
-  if (isBlockingPirateEnclaveFor(unit)) {
-    for (const enclave of pirateEnclaveAnchorEntries(state)) {
-      if (!blockers.has(enclave.key)) {
-        blockers.set(enclave.key, { reason: 'pirate-enclave', entityId: enclave.id });
-      }
-    }
-  }
-  return blockers;
+  return getBlockingMapEntitiesByOwner(state, unit.owner);
+}
+
+/** `getBlockingMapEntityKeys`'s owner-keyed counterpart — see `getBlockingMapEntitiesByOwner`. */
+export function getBlockingMapEntityKeysForOwner(state: GameState, ownerId: string): Set<string> {
+  return new Set(getBlockingMapEntitiesByOwner(state, ownerId).keys());
 }
 
 /**
