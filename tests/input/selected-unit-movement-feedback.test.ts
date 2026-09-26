@@ -109,6 +109,40 @@ describe('selected-unit blocked movement feedback', () => {
     expect(playError).toHaveBeenCalledTimes(1);
   });
 
+  it('#1002: an unseen raider on a fogged tile is never named in the live notification', () => {
+    const state = feedbackState(false);
+    state.civilizations.player.visibility.tiles['2,1'] = 'fog';
+    const raider = { ...createUnit('warrior', 'barbarian', { q: 2, r: 1 }, mkC()), id: 'raider' };
+    state.units.raider = raider;
+    const showNotification = vi.fn();
+    const playError = vi.fn();
+
+    const handled = handleSelectedUnitMovementBlocker(
+      state,
+      'warrior',
+      { q: 2, r: 1 },
+      getLandUnitWaterRecovery(state, 'warrior', []),
+      { showNotification, reselectUnit: vi.fn(), playError },
+    );
+
+    // The move is still refused (canonical legality), but the copy names no enemy.
+    expect(handled).toBe(true);
+    expect(showNotification).toHaveBeenCalledWith('Something out of sight is in the way.', 'info');
+    expect(playError).not.toHaveBeenCalled();
+
+    // Earned control: once the tile is in view the specific reason returns.
+    state.civilizations.player.visibility.tiles['2,1'] = 'visible';
+    const seen = vi.fn();
+    handleSelectedUnitMovementBlocker(
+      state,
+      'warrior',
+      { q: 2, r: 1 },
+      getLandUnitWaterRecovery(state, 'warrior', []),
+      { showNotification: seen, reselectUnit: vi.fn(), playError: vi.fn() },
+    );
+    expect(seen).toHaveBeenCalledWith('An enemy unit is blocking the way.', 'warning');
+  });
+
   it('does not play the error cue for informational fog feedback', () => {
     // #1025 MR4: redaction now applies to a REJECTION, not a legal move. (2,1) is made
     // impassable water AND unexplored, so the tap is genuinely refused and then redacted

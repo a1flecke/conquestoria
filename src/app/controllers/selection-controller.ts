@@ -30,6 +30,7 @@ import type { AdvisorSystem } from '@/ui/advisor-system';
 import type { CeremonyCoordinator } from '@/app/controllers/ceremony-coordinator';
 import type { UnitTurnFlow } from '@/ui/unit-turn-flow';
 import type { ExecuteUnitMoveResult } from '@/systems/unit-movement-system';
+import { explainMovementFailureForViewer } from '@/systems/unit-movement-explainer';
 import { UNIT_DEFINITIONS, findPath } from '@/systems/unit-system';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
 import { hexKey, mapHexesInRange } from '@/systems/hex-utils';
@@ -846,7 +847,9 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
       const moveResult = move();
       if (!moveResult.ok) {
         ceremonies.endAction();
-        deps.showNotification(moveResult.message, 'warning');
+        // #1002: never echo the omniscient resolver's message — explain the refusal only from
+        // what the unit owner has earned (same rule as the tap preview).
+        deps.showNotification(explainMovementFailureForViewer(session.getState(), unitId, moveResult), 'warning');
         SFX.error();
         return moveResult;
       }

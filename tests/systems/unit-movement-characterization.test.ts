@@ -387,7 +387,14 @@ describe('#1010 golden — getMovementBlockerReason', () => {
   const at = (type: UnitType, to: HexCoord, opts: { visibilityState?: 'unexplored' | 'fog' | 'visible' } = {}, mp = 2) => {
     const u = createUnit(type, 'player', { q: 0, r: 0 }, mkC());
     u.movementPointsLeft = mp;
-    return getMovementBlockerReason(explainerState(u, map), u.id, to, opts);
+    // #1002: the explainer reads the owner's own visibility; model the old option on the map.
+    const state = explainerState(u, map);
+    if (opts.visibilityState) {
+      state.civilizations.player!.visibility = {
+        tiles: { ...state.civilizations.player!.visibility.tiles, [`${to.q},${to.r}`]: opts.visibilityState },
+      };
+    }
+    return getMovementBlockerReason(state, u.id, to);
   };
   it('null for a legal move', () => {
     expect(at('warrior', { q: 1, r: 0 })).toBeNull();
