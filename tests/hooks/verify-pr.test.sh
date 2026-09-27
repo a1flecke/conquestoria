@@ -2,6 +2,10 @@
 # Smoke test the durable PR verifier without running the real build or suite.
 
 set -eu
+# Pin the thresholds under test: a caller's own one-off override (e.g. a
+# verify:pr run with a raised runaway ceiling, whose full suite runs this
+# file) must not change what these scenarios assert.
+unset VERIFY_PR_MAX_SECONDS VERIFY_PR_HARD_MAX_SECONDS || true
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 VERIFY="$ROOT/scripts/verify-pr.sh"
@@ -82,19 +86,62 @@ PATH="$tmp/bin:$PATH" \
   sh "$VERIFY" > "$tmp/slow.out" 2>&1
 slow_status=$?
 set -e
-[ "$slow_status" -ne 0 ] || {
-  echo "verify-pr.sh accepted a suite exceeding eight minutes"
+# #1166: 480s is a latency SLO, not a correctness gate -- contention the
+# scheduler deliberately permits must never turn a healthy run into a failure.
+[ "$slow_status" -eq 0 ] || {
+  echo "verify-pr.sh failed a passing suite solely for exceeding the 480s SLO"
+  cat "$tmp/slow.out"
   exit 1
 }
-grep -Fq 'exceeded the 480s ceiling' "$tmp/slow.out" || {
-  echo "verify-pr.sh did not explain the eight-minute failure"
+grep -Fq 'over the 480s latency SLO' "$tmp/slow.out" || {
+  echo "verify-pr.sh did not warn about the SLO overrun"
+  exit 1
+}
+grep -Fxq 'slo_exceeded=1' "$tmp/artifacts/pr-verification.status" || {
+  echo "verify-pr.sh did not record slo_exceeded=1"
+  exit 1
+}
+VERIFY_PR_ARTIFACT_DIR="$tmp/artifacts" sh "$STATUS" > "$tmp/slow-status.out" 2>&1 || {
+  echo "PR verification status reader rejected a passing result that only exceeded the SLO"
+  cat "$tmp/slow-status.out"
+  exit 1
+}
+grep -Fq 'latency SLO' "$tmp/slow-status.out" || {
+  echo "PR verification status reader did not surface the SLO warning"
+  exit 1
+}
+
+# A runaway past the hard ceiling is still an infrastructure failure.
+: > "$call_log"
+: > "$date_state"
+set +e
+PATH="$tmp/bin:$PATH" \
+  VERIFY_PR_CALL_LOG="$call_log" \
+  VERIFY_PR_DATE_STATE="$date_state" \
+  VERIFY_PR_ARTIFACT_DIR="$tmp/artifacts" \
+  VERIFY_PR_START_SECONDS=0 \
+  VERIFY_PR_END_SECONDS=1801 \
+  HOST_VERIFICATION_LEASE_ROOT="$lease_root" \
+  sh "$VERIFY" > "$tmp/runaway.out" 2>&1
+runaway_status=$?
+set -e
+[ "$runaway_status" -ne 0 ] || {
+  echo "verify-pr.sh accepted a run past the 1800s runaway ceiling"
+  exit 1
+}
+grep -Fq 'exceeded the 1800s runaway ceiling' "$tmp/runaway.out" || {
+  echo "verify-pr.sh did not explain the runaway failure"
+  exit 1
+}
+grep -Fxq 'failure_kind=runaway' "$tmp/artifacts/pr-verification.status" || {
+  echo "verify-pr.sh did not record failure_kind=runaway"
   exit 1
 }
 set +e
-VERIFY_PR_ARTIFACT_DIR="$tmp/artifacts" sh "$STATUS" > "$tmp/slow-status.out" 2>&1
+VERIFY_PR_ARTIFACT_DIR="$tmp/artifacts" sh "$STATUS" > /dev/null 2>&1
 status_reader_exit=$?
 set -e
 [ "$status_reader_exit" -ne 0 ] || {
-  echo "PR verification status reader accepted an over-budget result"
+  echo "PR verification status reader accepted a runaway result"
   exit 1
 }

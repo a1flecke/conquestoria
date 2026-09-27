@@ -12,6 +12,8 @@ import {
   getLegendaryWonderQueueItemMetadata,
 } from './legendary-wonder-production';
 import { evaluateProductionPrerequisites } from './production-prerequisites';
+import { civilizationEraFromNumber } from './era-types';
+import type { CivilizationEra } from './era-types';
 import { getTerminalCombatUnitReasons, getUnitRoleDefinition } from './combat-role-definitions';
 
 export const CITY_NAMES = DEFAULT_CITY_NAMES;
@@ -1474,9 +1476,10 @@ export interface ProductionCostContext {
   bonusEffect: CivBonusEffect | undefined;
   /**
    * The owning civilization's own technology-derived era
-   * (`resolveCivilizationEra`). Never `state.era`, which is World Age.
+   * (`resolveCivilizationEra`). Never `state.era`, which is World Age — the
+   * `CivilizationEra` brand makes that a compile error (#1016/#1017).
    */
-  era: number;
+  era: CivilizationEra;
   completedTechs: string[];
   activeNationalProjects: ActiveNationalProjectRef[];
   /** `undefined` means "do not filter by resources at all", not "owns none". */
@@ -1502,7 +1505,7 @@ export function createProductionCostContext(
   return {
     city: null,
     bonusEffect: undefined,
-    era: 1,
+    era: civilizationEraFromNumber(1),
     completedTechs: [],
     activeNationalProjects: [],
     availableResources: undefined,
@@ -2069,7 +2072,8 @@ export function getAvailableBuildings(
   completedTechs: string[],
   map: GameMap,
   availableResources?: Set<ResourceType>,
-  era?: number,
+  /** The acting civilization's own era. Never World Age (`state.era`). */
+  era?: CivilizationEra,
   builtNationalProjectKeys?: Set<string>,
   civId?: string,
   /** #545: omit to skip this gate entirely (matches every other optional filter
@@ -2093,7 +2097,7 @@ export function getAvailableBuildings(
       if (!b.requiresBuildings.every((req: string) => city.buildings.includes(req))) return false;
     }
     if (b.nationalProject) {
-      const currentEra = era ?? 1;
+      const currentEra = era ?? civilizationEraFromNumber(1);
       const belowWindow = currentEra < b.nationalProject.homeEra;
       // Milestone NPs (#591 MR4) have no upper build-window bound -- they're buildable
       // from homeEra onward forever, unlike a normal NP's homeEra..homeEra+1 window.

@@ -13,6 +13,7 @@ import {
   onVassalAttacked,
   isVassalBlocked,
 } from '@/systems/diplomacy-system';
+import { civilizationEraFromNumber } from '@/systems/era-types';
 import type { DiplomacyState } from '@/core/types';
 
 function makeDipState(overrides?: Partial<DiplomacyState>): DiplomacyState {
@@ -33,19 +34,19 @@ function makeDipState(overrides?: Partial<DiplomacyState>): DiplomacyState {
 describe('vassalage', () => {
   describe('canOfferVassalage', () => {
     it('returns true when below 50% peak cities in era >= 2', () => {
-      expect(canOfferVassalage(1, 3, 2, 5, 2)).toBe(true);
+      expect(canOfferVassalage(1, 3, 2, 5, civilizationEraFromNumber(2))).toBe(true);
     });
 
     it('returns false in era 1', () => {
-      expect(canOfferVassalage(1, 3, 2, 5, 1)).toBe(false);
+      expect(canOfferVassalage(1, 3, 2, 5, civilizationEraFromNumber(1))).toBe(false);
     });
 
     it('returns false when peak cities < 2', () => {
-      expect(canOfferVassalage(0, 1, 2, 5, 2)).toBe(false);
+      expect(canOfferVassalage(0, 1, 2, 5, civilizationEraFromNumber(2))).toBe(false);
     });
 
     it('returns false when above 50% peak', () => {
-      expect(canOfferVassalage(2, 3, 4, 5, 2)).toBe(false);
+      expect(canOfferVassalage(2, 3, 4, 5, civilizationEraFromNumber(2))).toBe(false);
     });
   });
 

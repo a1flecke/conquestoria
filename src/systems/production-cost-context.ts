@@ -27,8 +27,9 @@ export type { ProductionCostContext } from '@/systems/city-system';
  * `era` is always the owning civilization's own technology-derived era
  * (`resolveCivilizationEra`). `state.era` is World Age -- the era a *majority*
  * of living civilizations has reached -- and is more than 2x the civ era for a
- * laggard. Passing it into a production cost is the defect this module exists
- * to make unrepresentable.
+ * laggard. Passing it into a production cost was the defect this module
+ * existed to make unrepresentable; the `CivilizationEra` brand on
+ * `ProductionCostContext.era` now makes it a compile error (#1016/#1017).
  *
  * Deterministic, side-effect free, and never mutates state. It reads only the
  * owning civilization's own records, so it is safe on an AI turn and in hot

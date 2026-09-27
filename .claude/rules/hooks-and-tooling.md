@@ -46,7 +46,7 @@ paths:
 
 **Plain `git push` defers to the real `.githooks/pre-push` hook when it is wired (#1133).** Before invoking the verifier itself, the Claude hook checks whether this worktree's `core.hooksPath` resolves to `.githooks` and `.githooks/pre-push` is executable; if so it exits 0 immediately and lets the actual Git hook own verification, so a clean push doesn't pay for the regular test+build gate twice. This only applies to a literal `git push` — `gh pr create`/`gh pr merge` never trigger a git pre-push hook, so those always run the verifier here. If hooks aren't correctly wired (the `#608` worktree regression this repo already guards against), the Claude hook falls through to running `verify-before-push.sh --regular` itself, unchanged from before. Because that fallback path is still live, the hook's own `.claude/settings.json` `timeout` must stay at or above the `900s` budget below — it must never be shorter than the verification it is meant to govern.
 
-- **Local gate** (the real `.githooks/pre-push` hook, and this Claude Code hook): both call `verify-before-push.sh --regular`, which runs `yarn test:regular` — the local regular selection only, see "Local selections and CI shards" below.
+- **Local gate** (the real `.githooks/pre-push` hook, and this Claude Code hook): both call `verify-before-push.sh --regular`, which runs `yarn test:regular` — the local regular selection only, see "Local selections and CI shards" below. **Since #1166 it first checks for a `yarn verify:pr` proof** (build + full suite) for this exact clean `HEAD`; when one exists it skips the redundant regular suite and build entirely. It runs in the reserved foreground capacity lane otherwise. See "Capacity lanes, collision locks, and proof reuse (#1166)" below.
 - **CI** (`yarn verify:push`, `test-suite-shard-a`, `test-suite-shard-b`, `test-suite-shard-c`, `test-suite-shard-d`, and `merge-gate` in `.github/workflows/deploy.yml`): runs the complete default Vitest suite exactly once across four explicit shards. `merge-gate` requires all four results, so neither the local selection nor a skipped expensive simulation can weaken merge coverage.
 
 **Set Bash tool timeout to match the command, not the hook:**
@@ -56,11 +56,19 @@ paths:
 
 ## Concurrent local verification
 
-Routine `yarn test`, `test:regular`, `test:intensive-simulations`, `build`, and `build:tauri` --
-run directly by a developer or agent, not through the orchestrators below --
-stay fully concurrent across linked worktrees. Do not add a lock around
-those: it turns unrelated agents into a queue and does not make a test suite
-safer.
+Local coordination separates three different concerns (#1166) -- keep them
+separate when changing anything below:
+
+1. **Collision locks** (mutexes) only where overlap is semantically invalid:
+   the publication lease (one push/PR verification at a time), the ai-long
+   singleton, and the worktree-local durable lock.
+2. **Host capacity** (counting semaphores) bounds concurrent heavyweight
+   Vitest runs. `yarn test`, `test:regular` and `test:intensive-simulations`
+   *are* admitted through it (#1133) -- the old "never lock routine `yarn
+   test`" guidance is superseded. `build`, `build:tauri`, focused `yarn
+   vitest run <file>` and watch mode are not gated.
+3. **Priority**: publication verification has its own reserved foreground
+   capacity; everything else is background.
 
 When an agent needs a durable complete-suite result, use `yarn test:durable`.
 It writes only under the active worktree's ignored `.verification/` directory,
@@ -134,7 +142,11 @@ narrower than "a repository-wide verification lock": it does not touch
 routine commands listed above -- only the three orchestrators do:
 
 - `run-durable-test-suite.sh` acquires it around the test command it runs,
-  after its own worktree-local `.lock` (see "Lock order" below).
+  after its own worktree-local `.lock` (see "Lock order" below) -- **only
+  for foreground (publication) runs since #1166**, i.e. when `verify-pr.sh`
+  invokes `yarn test:durable`. A plain background `yarn test:durable` is
+  admitted by background capacity alone and never holds this lease, so it
+  can never make a `git push` wait behind it.
 - `verify-before-push.sh` acquires it around its test-phase-then-build-phase
   sequence (both under one acquisition -- there is nothing else in that
   script worth releasing the slot in between for).
@@ -237,7 +249,21 @@ other script in this repo acquires both locks, so there is no ordering
 inversion to guard against between callers -- `verify-before-push.sh` and
 `verify-pr.sh` only ever acquire (2).
 
+**Mutex before capacity, always (#1166).** Every caller that takes both a
+collision lock and a host-capacity slot takes the lock first and the slot
+second, and holds the slot only around an actively running job:
+`verify-before-push.sh`/`verify-pr.sh` hold the publication lease and their
+child `run-test-suite.sh` takes the foreground slot; `run-ai-long-horizon.sh`
+takes the ai-long singleton, then a background slot per attempt. No process
+may hold a capacity slot while waiting on a mutex -- that is exactly how
+#1133 MR7's ai-long burned a slot doing nothing.
+
 ### Host resource budget (#1133 items H/J)
+
+> #1166 split this single budget into a foreground lane (1) and a background
+> lane (2); see "Capacity lanes, collision locks, and proof reuse" below. The
+> slot mechanics described here (atomic `mkdir` slots, reclaim rules,
+> domain-keyed reentrancy) are unchanged and apply to each lane.
 
 The host-wide lease above is a single-slot **mutex**: at most one push-
 verification-scale run at a time. It never gated the most common command,
@@ -368,6 +394,12 @@ catches the mkdir-then-write-metadata race directly.
 
 ### AI-long-horizon participates in the shared budget too (#1133 MR7)
 
+> **Lock order and holding window superseded by #1166** (next section):
+> ai-long still counts against host capacity, but now takes its singleton
+> mutex *first* and holds one *background* slot only while a Vitest attempt
+> is running -- never while waiting for the mutex or during retry backoff.
+> The paragraphs below are the historical MR7 record.
+
 `scripts/run-ai-long-horizon.sh` acquires ONE shared host-budget slot
 (`hvl_acquire_budget_slot ai-long`) for its entire run — including stall-retry
 attempts and their backoff sleeps — in ADDITION to its own separate
@@ -418,6 +450,88 @@ not a wrapper-chain defect. The budget-slot fix above is the real, durable
 mitigation for this class of condition under *normal* two-agent usage; see
 `docs/superpowers/plans/2026-09-20-issue-1133-verification-orchestration-arc.md`'s
 MR7 section for the full bisection evidence.
+
+### Capacity lanes, collision locks, and proof reuse (#1166)
+
+#1133 ended with one fungible 3-slot budget that *everything* heavyweight
+shared, including a 40-90+ minute `test:ai-long` that held its slot for its
+whole lifetime (retry backoff included). With three agents active, a normal
+state was ai-long + two regular/full runs = 3/3, and a `git push` queued
+behind all of them -- even right after `verify:pr` had already proved the
+same commit. #1166 separates the concerns:
+
+| Work | Collision lock | Capacity | Notes |
+|---|---|---|---|
+| `git push` pre-push / Claude push hook (`verify-before-push.sh --regular`) | publication lease | **foreground** lane | Skipped entirely when a matching `verify:pr` proof exists |
+| `yarn verify:pr` (build + `test:durable`) | publication lease | **foreground** lane | Records the proof |
+| `yarn test` / `test:regular` / `test:intensive-simulations` / background `test:durable` | worktree durable lock (durable only) | background lane | No publication lease |
+| `yarn test:ai-long` | ai-long singleton | background lane, **per attempt only** | Released during retry backoff |
+| `yarn build`, focused `vitest run <file>`, watch | -- | not gated | unchanged |
+| CI | -- | -- | Everything is a no-op under `CI` |
+
+**Lanes.** `HOST_VERIFICATION_FOREGROUND_BUDGET` (default 1, dir
+`<scope>/budget-foreground`) and `HOST_VERIFICATION_BACKGROUND_BUDGET`
+(default 2, dir `<scope>/budget`, the pre-#1166 path;
+`HOST_VERIFICATION_LEASE_BUDGET` is a deprecated alias). Same 3-job host
+ceiling as before, but the lanes are **non-borrowable in both directions**:
+background work never takes the foreground slot, and a second concurrent
+push waits for the first rather than eating background capacity. Borrowing
+was deliberately not added -- it is the first thing that would need
+fairness/starvation policy, and there is no measured evidence it is needed.
+Pathological frequent pushes cannot starve background work because the
+foreground lane is only ever one slot.
+
+**Selecting a lane.** A caller exports `HVL_CAPACITY_LANE=foreground`
+before starting the process that calls `hvl_acquire_budget_slot`. The
+request is **consumed** by that acquisition (unset in the acquiring
+process), so its descendants -- the Vitest pool and the hook tests with their
+own isolated lease roots -- default to background instead of inheriting a
+claim they never made. An invalid value fails loudly. Only
+`verify-before-push.sh` and `verify-pr.sh` set foreground.
+
+**Proof reuse.** `verify-pr.sh` writes `proof_format=1` and
+`capabilities=build,test:full` into `.verification/pr-verification.status`
+only when the run passed, the worktree was clean before *and* after, and
+`HEAD` did not move. `scripts/read-verification-proof.sh <capability>...`
+accepts it only for the same worktree path, same `HEAD`, a currently clean
+tree, and `exit_code=0`; `test:full` satisfies `test:regular` (same default
+Vitest config and hook suite; regular only excludes `SLOW_TEST_FILES`). A
+clean tree is required because a porcelain checksum cannot see further edits
+to an already-modified file -- with a clean tree, `HEAD` pins every input,
+including the verification scripts, lockfile and `mise.toml`, so no separate
+tooling fingerprint is needed. Unknown `proof_format` is rejected. Only the
+local `--regular` gate consumes proofs; CI never does; `VERIFY_REUSE_PROOF=0`
+opts out.
+
+**`verify:pr` time semantics.** 480s (`VERIFY_PR_MAX_SECONDS`) is now a
+latency SLO: exceeding it records `slo_exceeded=1` and warns, but a passing
+run stays passing. `VERIFY_PR_HARD_MAX_SECONDS` (1800s, ~3x the slowest
+three-way-contended full suite #1133 measured) is the runaway ceiling that
+still fails, as `failure_kind=runaway`. Correctness failures (build/test)
+and STALL retries are unchanged. The ceiling is sized for the 10-core dev
+host: on a small machine where the 25% worker cap means one Vitest worker
+(a 4-core cloud container measured 1626s for the full suite alone), raise
+`VERIFY_PR_HARD_MAX_SECONDS` or `VITEST_MAX_WORKERS` for that run rather
+than treating the overrun as a code failure.
+
+**Invariants and their tests:**
+
+| Invariant | Test |
+|---|---|
+| Foreground admission never waits on background capacity | `host-verification-lease-budget.test.sh` scenario 6 |
+| A background durable run never holds the publication lease | `run-durable-test-suite-no-lease.test.sh` scenario 2 |
+| ai-long holds no capacity during backoff or while waiting for its mutex; at most one ai-long runs | `run-ai-long-horizon-stall-retry.test.sh` scenarios 5-6 |
+| Lane requests are not inherited; invalid lanes rejected | `host-verification-lease-budget.test.sh` scenario 6 |
+| Stronger proof satisfies weaker; stale/dirty/failed/unknown proof never skips | `verification-proof.test.sh` |
+| Publication verifiers really run in the foreground lane | `verification-proof.test.sh` scenarios 1, 3 |
+| SLO overrun passes; runaway fails | `verify-pr.test.sh` |
+| Status shows lane per row and per-lane counts, plus ai-long mutex | `verify-local-status.test.sh` |
+
+**Not yet measured** (needs the real 10-core, three-agent host): whether 1+2
+is the right split, AI-long `fileParallelism:false` vs the current setting,
+focused-test latency under two heavyweight jobs, and asymmetric-join timings.
+The shell-vs-Node decision and the benchmark plan live in
+`docs/superpowers/specs/2026-09-27-issue-1166-verification-scheduler-design.md`.
 
 ### PID-liveness checks must not trust `kill -0` alone across a privilege boundary (#1133 MR8)
 
@@ -472,6 +586,10 @@ metadata and durable `.verification/` files already described above --
   holder (if any) and each live budget slot holder.
 - `QUEUED <command> worktree=... waited=...` for any process currently
   blocked in `hvl_acquire`'s or `hvl_acquire_budget_slot`'s own wait loop.
+- Since #1166: capacity rows carry `lane=foreground|background`, each lane
+  prints `<lane> capacity: N/M slots in use`, and the ai-long singleton
+  shows as `ACTIVE`/`QUEUED ai-long-mutex` (a second ai-long now waits there
+  holding no capacity, so it would otherwise be invisible).
 - `RUNNING` / `DONE` / `ABANDONED` / `STALE` / `NONE` for each of the four
   durable scopes (`full`, `ai-long`, `ai-playability`, `perf`), delegating
   entirely to the existing `read-durable-test-result.sh <scope>` for the
@@ -615,6 +733,18 @@ bypasses it entirely for a one-off case that needs to. See
 `tests/hooks/run-with-timeout.test.sh` for the positive (stalled sleeper,
 killed well inside a much larger ceiling), negative (a genuinely CPU-busy
 process is never killed), and disable-switch cases.
+
+**Progress is cumulative, and new processes count (#1166).** The sample
+keeps each pid's last-seen CPU time after that process exits, and any pid
+not seen before counts as progress. The original live-only sum reported
+false STALLs on a healthy run: Vitest forks a fresh worker per test file, so
+once a heavy file's worker exited, the light workers after it never pushed
+the live sum above the earlier peak. That failed `verify-before-push.sh
+--regular` 3/3 in a 4-core container while the active worker sat at 97% CPU,
+and it may account for some of #1133's "genuine" stalls. A truly hung group
+neither accrues CPU nor spawns processes, so the real stall case still fires
+(`tests/hooks/run-with-timeout.test.sh` covers both, including a recycling
+pool fixture that fails on the old sampler).
 
 Do not "fix" a future stall by only raising the affected script's absolute
 ceiling -- that repeats exactly the silent-wait failure mode this watchdog

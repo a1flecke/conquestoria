@@ -79,14 +79,46 @@ printf '%s' "$stall_output" | grep -Fq 'STALL: stall-sleeper produced zero CPU p
 # False-positive guard: a process that is genuinely burning CPU the whole time
 # must NOT be killed by the stall watchdog, even with the same tight grace
 # windows -- only a true zero-progress stall may trigger it.
+#
+# #1166: the windows here span several `ps` TIME ticks. TIME has 1-second
+# resolution, so with 1s boot/grace windows a genuinely busy spinner that got
+# less than a full CPU-second in one window -- normal on a loaded host, e.g.
+# right after a full Vitest run inside `yarn verify:pr` -- read as "zero
+# progress" and was killed (observed twice in a row on a 4-core container).
+# That is exactly host contention misreported as a failure. The stall case
+# above keeps its 1s windows: it must still fire fast.
 set +e
-STALL_BOOT_GRACE_SECONDS=1 STALL_GRACE_SECONDS=1 STALL_CHECK_INTERVAL_SECONDS=1 \
-  run_node "$RUNNER" 5 busy-spinner -- \
-  node -e 'const end = Date.now() + 3000; while (Date.now() < end) { /* spin */ }'
+STALL_BOOT_GRACE_SECONDS=3 STALL_GRACE_SECONDS=4 STALL_CHECK_INTERVAL_SECONDS=1 \
+  run_node "$RUNNER" 20 busy-spinner -- \
+  node -e 'const end = Date.now() + 9000; while (Date.now() < end) { /* spin */ }'
 busy_status=$?
 set -e
 [ "$busy_status" -eq 0 ] || {
   echo "a genuinely CPU-busy child was wrongly treated as stalled (exit $busy_status)"
+  exit 1
+}
+
+# #1166: a RECYCLING worker pool is progress, not a stall. Vitest forks a fresh
+# worker per test file; one heavy worker exiting used to take its CPU time out of
+# a live-only sum, so the following light workers never beat that peak and a
+# genuinely running suite was killed as a STALL (3/3 on the real push gate). The
+# fixture: one heavy worker (~3s CPU), then a stream of short-lived light ones.
+set +e
+recycle_output="$(
+  STALL_BOOT_GRACE_SECONDS=1 STALL_GRACE_SECONDS=3 STALL_CHECK_INTERVAL_SECONDS=1 \
+    run_node "$RUNNER" 60 recycling-pool -- sh -c '
+      node -e "const e = Date.now() + 3000; while (Date.now() < e) {}"
+      i=0
+      while [ "$i" -lt 12 ]; do
+        node -e "const e = Date.now() + 200; while (Date.now() < e) {}"
+        sleep 0.3
+        i=$((i + 1))
+      done' 2>&1
+)"
+recycle_status=$?
+set -e
+[ "$recycle_status" -eq 0 ] || {
+  echo "a recycling worker pool was wrongly treated as stalled (exit $recycle_status): $recycle_output"
   exit 1
 }
 

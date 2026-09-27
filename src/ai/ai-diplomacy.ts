@@ -1,4 +1,5 @@
 import type { PersonalityTraits, DiplomacyState, DiplomaticAction, MinorCivState, WarGoalStatus } from '@/core/types';
+import type { CivilizationEra } from '@/systems/era-types';
 import {
   getRelationship,
   isAtWar,
@@ -32,7 +33,7 @@ export function evaluateDiplomacy(
   personality: PersonalityTraits,
   diplomacy: DiplomacyState,
   completedTechs: string[],
-  civilizationEra: number,
+  civilizationEra: CivilizationEra,
   militaryStrengths: Record<string, MilitaryStrengthEstimate>,
   selfStrength: MilitaryStrengthEstimate,
   currentTurn: number,
@@ -163,7 +164,7 @@ export function evaluateMinorCivDiplomacy(
  */
 export function evaluateVassalage(
   diplomacy: DiplomacyState,
-  civilizationEra: number,
+  civilizationEra: CivilizationEra,
   selfStrength: MilitaryStrengthEstimate,
   currentCities: number,
   currentMilitary: number,

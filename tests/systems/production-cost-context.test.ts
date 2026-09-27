@@ -8,6 +8,7 @@ import {
   createProductionCostContext,
   foundCity,
   getProductionCostForItem,
+  getSettlerProductionCost,
   processCity,
 } from '@/systems/city-system';
 import {
@@ -23,6 +24,7 @@ import type { AIForceDemand } from '@/ai/ai-unit-assignment';
 import { getAIStrategicRoles } from '@/ai/ai-unit-roles';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { resolveCivilizationEra, resolveWorldAge, TECH_TREE } from '@/systems/tech-definitions';
+import { civilizationEraFromNumber } from '@/systems/era-types';
 import { getActiveNationalProjectsForCiv } from '@/systems/national-project-system';
 import { hexKey } from '@/systems/hex-utils';
 
@@ -104,13 +106,17 @@ describe('#984 A — every production cost uses the owning civilization era', ()
   it('prices a settler from the civ era, so World Age cannot inflate it', () => {
     const { state, city } = laggardWorldState('context-settler');
     const civEraCost = getProductionCostForCivItem(state, LAGGARD, city.id, 'settler');
-    const worldAgeCost = getProductionCostForItem('settler', {
-      ...buildProductionCostContext(state, LAGGARD, city.id),
-      era: state.era,
-    });
+    // The raw formula tier stays a plain number, so the old inflation shape is
+    // still observable numerically: World Age 5 prices the same settler higher.
+    expect(getSettlerProductionCost(state.era)).toBeGreaterThan(getSettlerProductionCost(1));
+    expect(civEraCost).toBe(getProductionCostForItem('settler', { era: civilizationEraFromNumber(1) }));
+  });
 
-    expect(worldAgeCost).toBeGreaterThan(civEraCost);
-    expect(civEraCost).toBe(getProductionCostForItem('settler', { era: 1 }));
+  it('type level: World Age cannot be supplied to the production-cost context', () => {
+    const { state, city } = laggardWorldState('context-era-type');
+    const context = buildProductionCostContext(state, LAGGARD, city.id);
+    // @ts-expect-error World Age must never price production (#984, now structural via #1016/#1017)
+    expect(getProductionCostForItem('settler', { ...context, era: state.era })).toBeGreaterThan(0);
   });
 });
 

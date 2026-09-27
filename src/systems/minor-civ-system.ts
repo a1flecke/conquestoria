@@ -15,6 +15,7 @@ import { isAlwaysHostilePair } from '@/core/owner-kind';
 import { MINOR_CIV_DEFINITIONS } from './minor-civ-definitions';
 import { createSimulationRng } from './simulation-rng';
 import { resolveWorldAge } from './tech-definitions';
+import type { WorldAge } from './era-types';
 import { resolveCombatEra, resolveNeutralPressureEra } from './era-resolution';
 import { createDiplomacyState, modifyRelationship, applyVassalageWarConsequences } from './diplomacy-system';
 import { applyResearchBonus } from './tech-system';
@@ -944,7 +945,7 @@ export function checkCampEvolution(
 
 // === Era Advancement ===
 
-export function checkEraAdvancement(state: GameState): number {
+export function checkEraAdvancement(state: GameState): WorldAge {
   return resolveWorldAge(state);
 }
 

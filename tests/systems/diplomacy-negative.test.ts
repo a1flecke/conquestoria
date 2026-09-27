@@ -6,31 +6,32 @@ import {
   canProposeLeague,
   isVassalBlocked,
 } from '@/systems/diplomacy-system';
+import { civilizationEraFromNumber } from '@/systems/era-types';
 
 describe('negative tests — blocked actions', () => {
   it('vassal cannot offer vassalage in era 1', () => {
-    expect(canOfferVassalage(1, 3, 1, 5, 1)).toBe(false);
+    expect(canOfferVassalage(1, 3, 1, 5, civilizationEraFromNumber(1))).toBe(false);
   });
 
   it('vassal cannot offer with peak cities < 2', () => {
-    expect(canOfferVassalage(0, 1, 0, 5, 2)).toBe(false);
+    expect(canOfferVassalage(0, 1, 0, 5, civilizationEraFromNumber(2))).toBe(false);
   });
 
   it('civ above 50% peak cannot offer vassalage', () => {
-    expect(canOfferVassalage(3, 3, 5, 5, 2)).toBe(false);
+    expect(canOfferVassalage(3, 3, 5, 5, civilizationEraFromNumber(2))).toBe(false);
   });
 
   it('cannot propose embargo without currency tech in era 1', () => {
-    expect(canProposeEmbargo([], 1, [], 'target')).toBe(false);
+    expect(canProposeEmbargo([], civilizationEraFromNumber(1), [], 'target')).toBe(false);
   });
 
   it('cannot propose embargo against ally', () => {
     const alliances = [{ type: 'alliance' as const, civA: 'self', civB: 'target', turnsRemaining: -1 }];
-    expect(canProposeEmbargo(['currency'], 2, alliances, 'target')).toBe(false);
+    expect(canProposeEmbargo(['currency'], civilizationEraFromNumber(2), alliances, 'target')).toBe(false);
   });
 
   it('vassal cannot propose embargo', () => {
-    expect(canProposeEmbargo(['currency'], 2, [], 'target', true)).toBe(false);
+    expect(canProposeEmbargo(['currency'], civilizationEraFromNumber(2), [], 'target', true)).toBe(false);
   });
 
   it('cannot propose league without writing tech', () => {

@@ -82,26 +82,42 @@ function parseTimeToSeconds(timeText) {
 // any further descendants it forks, such as a Vitest worker pool, inherit that same
 // pgid). Returns null on any sampling failure so the watchdog can skip a cycle rather
 // than ever risk a false kill from a transient `ps` hiccup.
-function processGroupCpuSeconds(pgid) {
+//
+// #1166: the sum is CUMULATIVE over every process ever seen in the group, not just
+// the ones alive right now. Vitest recycles a fresh worker process per test file;
+// with a live-only sum, a heavy file's worker exiting took its CPU time out of the
+// total, and the following short-lived workers never pushed the live sum back above
+// that earlier peak -- so a suite that was genuinely running was declared a STALL 90s
+// later (reproduced 3/3 on `verify-before-push.sh --regular` in a 4-core container
+// while the current worker showed 97% CPU). `cpuByPid` keeps each pid's last-seen
+// time after it exits, and `newProcesses` reports pids not seen before: a truly hung
+// group neither accrues CPU nor spawns anything, a recycling pool does one or both.
+const cpuByPid = new Map();
+function sampleProcessGroup(pgid) {
   let output;
   try {
-    output = execFileSync('ps', ['-eo', 'pgid=,time='], { encoding: 'utf8' });
+    output = execFileSync('ps', ['-eo', 'pid=,pgid=,time='], { encoding: 'utf8' });
   } catch {
     return null;
   }
-  let total = 0;
   let sawAny = false;
+  let newProcesses = 0;
   for (const line of output.split('\n')) {
     const trimmed = line.trim();
     if (!trimmed) continue;
-    const [pgidText, timeText] = trimmed.split(/\s+/);
+    const [pidText, pgidText, timeText] = trimmed.split(/\s+/);
     if (Number(pgidText) !== pgid) continue;
     const seconds = parseTimeToSeconds(timeText);
     if (seconds === null) continue;
-    total += seconds;
     sawAny = true;
+    const previous = cpuByPid.get(pidText);
+    if (previous === undefined) newProcesses += 1;
+    cpuByPid.set(pidText, Math.max(previous ?? 0, seconds));
   }
-  return sawAny ? total : null;
+  if (!sawAny) return null;
+  let cumulative = 0;
+  for (const seconds of cpuByPid.values()) cumulative += seconds;
+  return { cumulative, newProcesses };
 }
 
 let stallTimer;
@@ -114,9 +130,10 @@ if (!stallWatchdogDisabled && detached
   stallTimer = setInterval(() => {
     if (child.pid === undefined || timedOut) return;
     if ((Date.now() - startedAt) / 1000 < stallBootGraceSeconds) return;
-    const cpuSeconds = processGroupCpuSeconds(child.pid);
-    if (cpuSeconds === null) return;
-    if (lastCpuSeconds === null || cpuSeconds > lastCpuSeconds + 0.01) {
+    const sample = sampleProcessGroup(child.pid);
+    if (sample === null) return;
+    const cpuSeconds = sample.cumulative;
+    if (lastCpuSeconds === null || cpuSeconds > lastCpuSeconds + 0.01 || sample.newProcesses > 0) {
       lastCpuSeconds = cpuSeconds;
       lastProgressAt = Date.now();
       return;

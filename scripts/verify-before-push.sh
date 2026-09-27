@@ -114,6 +114,33 @@ run_phase() {
 # with CI=true) hvl_acquire is a no-op; ordinary `yarn test`/`yarn build`
 # run directly by a developer are unaffected -- only this orchestrated
 # verify-before-push.sh entrypoint acquires it.
+#
+# #1166 proof reuse: the local --regular gate first asks whether `yarn
+# verify:pr` already proved a STRONGER verification (build + full suite) for
+# exactly this clean HEAD. If so, re-running the regular subset and the build
+# would redo work that just passed, and compete for host capacity to do it.
+# read-verification-proof.sh never starts a job; any mismatch (different
+# HEAD, dirty tree, failed run, unknown format) falls through to the real
+# verification below. CI (`verify:push`, --no-mise, full scope) never reuses a
+# proof. VERIFY_REUSE_PROOF=0 opts out.
+if [ "$TEST_SCOPE" = regular ] && [ "$USE_MISE" -eq 1 ] && [ -z "${CI:-}" ] \
+  && [ "${VERIFY_REUSE_PROOF:-1}" != 0 ]; then
+  if sh "$REPO_ROOT/scripts/read-verification-proof.sh" build test:regular > /dev/null; then
+    echo "Pre-push verification: reusing verify:pr proof (build + full suite) for $(git -C "$REPO_ROOT" rev-parse HEAD); skipping the redundant regular suite and build."
+    exit 0
+  fi
+  echo "Pre-push verification: no reusable verify:pr proof for this state; running the regular gate."
+fi
+
+#
+# #1166: publication verification runs in the FOREGROUND capacity lane. The
+# `yarn test:regular` child below inherits this request and admits into the
+# reserved foreground slot, so a push never waits solely behind background
+# diagnostics (the long-horizon AI campaign, another agent's test:durable or
+# yarn test). The
+# mutex itself is now held only by publication work (this script and
+# verify-pr.sh), never by a background durable run.
+export HVL_CAPACITY_LANE=foreground
 hvl_acquire "pre-push verification"
 trap hvl_release EXIT
 trap 'hvl_cancel_and_release INT 130' INT

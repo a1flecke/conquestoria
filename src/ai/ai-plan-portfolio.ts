@@ -8,6 +8,7 @@ import type {
   MajorCivPlanPortfolio,
 } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
+import type { CivilizationEra, WorldAge } from '@/systems/era-types';
 import { targetStableKey } from './ai-objective-scoring';
 import { createEmptyMajorCivPlanPortfolio } from '@/core/opponent-ai-state';
 
@@ -43,8 +44,10 @@ export interface AICityThreat {
 export interface AIModernizationFactors {
   bestTrainableStrength: number;
   deployedStrength: number;
-  actorEra: number;
-  globalEra: number;
+  /** The acting civilization's own era. Never World Age (`state.era`). */
+  actorEra: CivilizationEra;
+  /** Global campaign progression. Never a civilization's own era. */
+  globalEra: WorldAge;
   knownRivalMaxStrength: number;
   obsoleteUnitShare: number;
   treasuryCanAct: boolean;

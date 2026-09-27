@@ -68,9 +68,10 @@
 #                         lease, and exits <exit-code> (130/143 by
 #                         convention).
 #   hvl_acquire_budget_slot [label]
-#                         Block until fewer than HOST_VERIFICATION_LEASE_
-#                         BUDGET (default 3) other processes hold a slot in
-#                         the SAME resolved budget domain (or until CI mode
+#                         Block until fewer than the capacity of the
+#                         requested lane (#1166: foreground 1 / background
+#                         2 by default) other processes hold a slot in that
+#                         lane of the SAME resolved budget domain (or until CI mode
 #                         causes an immediate no-op). [label] (default
 #                         "budget") is recorded into the won slot's owner
 #                         file, and into a self-registered waiting record
@@ -148,15 +149,20 @@
 #                                           (hvl_cancel_and_release /
 #                                           hvl_wait_cancel) writes
 #                                           `cancelled` to this path.
-#   HOST_VERIFICATION_LEASE_BUDGET         Max concurrent holders of the
-#                                           counting semaphore
-#                                           (hvl_acquire_budget_slot).
-#                                           Default 3 -- see that function's
-#                                           own comment for the measured
-#                                           evidence and its limits. CI is
-#                                           unaffected (budget acquisition
-#                                           is a no-op there, same as the
-#                                           mutex above).
+#   HVL_CAPACITY_LANE                      `foreground` or `background`
+#                                           (default). Which capacity lane
+#                                           the next hvl_acquire_budget_slot
+#                                           call admits into (#1166); see
+#                                           "Capacity lanes" below.
+#   HOST_VERIFICATION_FOREGROUND_BUDGET    Foreground-lane slots. Default 1.
+#   HOST_VERIFICATION_BACKGROUND_BUDGET    Background-lane slots. Default 2.
+#   HOST_VERIFICATION_LEASE_BUDGET         Deprecated alias for
+#                                           HOST_VERIFICATION_BACKGROUND_
+#                                           BUDGET (the pre-#1166 single,
+#                                           fungible budget, default 3).
+#                                           CI is unaffected (budget
+#                                           acquisition is a no-op there,
+#                                           same as the mutex above).
 #   HVL_DEBUG_TRACE                        Any non-empty value makes
 #                                           hvl_acquire_budget_slot print one
 #                                           stderr line per ENTER/WON/
@@ -364,6 +370,56 @@ hvl_resolve_root() {
 
   hvl_host_scope_dir="$(hvl_resolve_host_scope_dir)" || return 1
   printf '%s/push-verification-lease\n' "$hvl_host_scope_dir"
+}
+
+# --- Capacity lanes (#1166) ---------------------------------------------
+#
+# Host capacity is split into two independent, NON-borrowable lanes so that
+# latency-sensitive publication work (git push, verify:pr) never waits solely
+# behind long-running background diagnostics (test:ai-long, another agent's
+# test:durable, plain yarn test):
+#
+#   foreground  HOST_VERIFICATION_FOREGROUND_BUDGET slots (default 1),
+#               slot dir <scope>/budget-foreground. Requested only by the
+#               publication verifiers (verify-before-push.sh, verify-pr.sh).
+#   background  HOST_VERIFICATION_BACKGROUND_BUDGET slots (default 2; the
+#               pre-#1166 HOST_VERIFICATION_LEASE_BUDGET is honored as a
+#               deprecated alias), slot dir <scope>/budget -- the same path
+#               the single pre-#1166 budget used, so an older checkout's
+#               holders still count against it.
+#
+# A caller requests a lane by exporting HVL_CAPACITY_LANE before the process
+# that calls hvl_acquire_budget_slot. The request is CONSUMED by that call
+# (unset in the acquiring process), so the acquirer's own descendants -- the
+# Vitest pool, and the hook-test suite whose fixtures run their own isolated
+# lease roots -- default to background instead of inheriting a foreground
+# claim they never made. A later acquire in the SAME process reuses the lane
+# it already resolved (HVL_BUDGET_LANE, deliberately never exported).
+hvl_capacity_lane() {
+  hvl_lane_request="${HVL_CAPACITY_LANE:-${HVL_BUDGET_LANE:-background}}"
+  case "$hvl_lane_request" in
+    foreground|background) printf '%s\n' "$hvl_lane_request" ;;
+    *)
+      echo "ERROR: HVL_CAPACITY_LANE must be 'foreground' or 'background', got '$hvl_lane_request'." >&2
+      return 1
+      ;;
+  esac
+}
+
+# hvl_lane_budget_dir <host-scope-dir> <lane>
+hvl_lane_budget_dir() {
+  case "$2" in
+    foreground) printf '%s/budget-foreground\n' "$1" ;;
+    *) printf '%s/budget\n' "$1" ;;
+  esac
+}
+
+# hvl_lane_capacity <lane>
+hvl_lane_capacity() {
+  case "$1" in
+    foreground) printf '%s\n' "${HOST_VERIFICATION_FOREGROUND_BUDGET:-1}" ;;
+    *) printf '%s\n' "${HOST_VERIFICATION_BACKGROUND_BUDGET:-${HOST_VERIFICATION_LEASE_BUDGET:-2}}" ;;
+  esac
 }
 
 hvl_write_metadata() {
@@ -631,6 +687,12 @@ hvl_release() {
 # revisit this default if future measurement pins the real threshold more
 # precisely.
 #
+# #1166: that single fungible 3-slot budget is now two non-borrowable lanes
+# (see "Capacity lanes" above) -- 1 foreground + 2 background, the same
+# 3-job host ceiling, but a background diagnostic can no longer occupy the
+# capacity a publication verification needs. The 1+2 split is a starting
+# hypothesis from #1166, not a benchmark-proven optimum.
+#
 # Implemented as HOST_VERIFICATION_LEASE_BUDGET pre-named, NUMBERED slot
 # directories (slot-0, slot-1, ...), each claimed with the exact same atomic
 # `mkdir` primitive the single-slot mutex above already relies on. An
@@ -659,7 +721,10 @@ hvl_acquire_budget_slot() {
   fi
 
   hvl_budget_host_scope_dir="$(hvl_resolve_host_scope_dir)" || exit 2
-  hvl_budget_dir="$hvl_budget_host_scope_dir/budget"
+  hvl_budget_lane="$(hvl_capacity_lane)" || exit 2
+  HVL_BUDGET_LANE="$hvl_budget_lane"
+  unset HVL_CAPACITY_LANE
+  hvl_budget_dir="$(hvl_lane_budget_dir "$hvl_budget_host_scope_dir" "$hvl_budget_lane")"
 
   # Reentrancy is tracked with a DEPTH counter, KEYED BY THE RESOLVED BUDGET
   # DIRECTORY (hashed into the env var name), not a single global counter.
@@ -693,9 +758,9 @@ hvl_acquire_budget_slot() {
     return 0
   fi
 
-  [ -z "${HVL_DEBUG_TRACE:-}" ] || echo "$(hvl_now) pid=$$ dir=$hvl_budget_dir ENTER budget=${HOST_VERIFICATION_LEASE_BUDGET:-3} root_env=[${HOST_VERIFICATION_LEASE_ROOT:-unset}]"  >&2
+  hvl_budget_max="$(hvl_lane_capacity "$hvl_budget_lane")"
+  [ -z "${HVL_DEBUG_TRACE:-}" ] || echo "$(hvl_now) pid=$$ dir=$hvl_budget_dir ENTER lane=$hvl_budget_lane budget=$hvl_budget_max root_env=[${HOST_VERIFICATION_LEASE_ROOT:-unset}]"  >&2
   mkdir -p "$hvl_budget_dir"
-  hvl_budget_max="${HOST_VERIFICATION_LEASE_BUDGET:-3}"
   hvl_budget_self_marker="$(hvl_start_marker "$$")"
   hvl_budget_report_interval="${HOST_VERIFICATION_LEASE_REPORT_SECONDS:-15}"
   hvl_budget_start_wait="$(hvl_now)"
@@ -713,8 +778,8 @@ hvl_acquire_budget_slot() {
       hvl_budget_owner_file="$hvl_budget_slot_dir/owner"
 
       if mkdir "$hvl_budget_slot_dir" 2>/dev/null; then
-        printf 'pid=%s\nstart_marker=%s\ncommand=%s\nworktree=%s\nacquired_at=%s\nacquired_at_iso=%s\n' \
-          "$$" "$hvl_budget_self_marker" "$HVL_BUDGET_LABEL" "$(pwd)" "$(hvl_now)" \
+        printf 'pid=%s\nstart_marker=%s\ncommand=%s\nlane=%s\nworktree=%s\nacquired_at=%s\nacquired_at_iso=%s\n' \
+          "$$" "$hvl_budget_self_marker" "$HVL_BUDGET_LABEL" "$hvl_budget_lane" "$(pwd)" "$(hvl_now)" \
           "$(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || true)" > "$hvl_budget_owner_file"
         hvl_budget_marker="$hvl_budget_slot_dir"
         [ -z "${HVL_DEBUG_TRACE:-}" ] || echo "$(hvl_now) pid=$$ dir=$hvl_budget_dir WON slot=$hvl_budget_slot_index marker=[$hvl_budget_self_marker]"  >&2
@@ -795,14 +860,14 @@ hvl_acquire_budget_slot() {
       hvl_budget_waiting_dir="$hvl_budget_dir/waiting"
       mkdir -p "$hvl_budget_waiting_dir"
       hvl_budget_waiting_file="$hvl_budget_waiting_dir/$$"
-      printf 'pid=%s\ncommand=%s\nworktree=%s\nwait_started_at=%s\n' \
-        "$$" "$HVL_BUDGET_LABEL" "$(pwd)" "$hvl_budget_start_wait" > "$hvl_budget_waiting_file"
+      printf 'pid=%s\ncommand=%s\nlane=%s\nworktree=%s\nwait_started_at=%s\n' \
+        "$$" "$HVL_BUDGET_LABEL" "$hvl_budget_lane" "$(pwd)" "$hvl_budget_start_wait" > "$hvl_budget_waiting_file"
     fi
 
     hvl_budget_now_epoch="$(hvl_now)"
     hvl_budget_waited=$(( hvl_budget_now_epoch - hvl_budget_start_wait ))
     if [ -z "$hvl_budget_last_report" ] || [ $(( hvl_budget_now_epoch - hvl_budget_last_report )) -ge "$hvl_budget_report_interval" ]; then
-      echo "host-verification-lease: waiting for a host resource budget slot ($hvl_budget_max/$hvl_budget_max in use, ${hvl_budget_waited}s)..." >&2
+      echo "host-verification-lease: waiting for a $hvl_budget_lane host capacity slot ($hvl_budget_max/$hvl_budget_max in use, ${hvl_budget_waited}s; see yarn verify:local:status)..." >&2
       hvl_budget_last_report="$hvl_budget_now_epoch"
     fi
     sleep 1
@@ -813,7 +878,7 @@ hvl_acquire_budget_slot() {
   hvl_budget_acquired_at="$(hvl_now)"
   hvl_budget_waited_seconds=$(( hvl_budget_acquired_at - hvl_budget_start_wait ))
   if [ "$hvl_budget_waited_seconds" -gt 0 ]; then
-    echo "host-verification-lease: acquired a host resource budget slot after ${hvl_budget_waited_seconds}s wait" >&2
+    echo "host-verification-lease: acquired a $hvl_budget_lane host capacity slot after ${hvl_budget_waited_seconds}s wait" >&2
   fi
 }
 

@@ -12,7 +12,7 @@ set -eu
 # host-verification-lease-process-group.test.sh unset CI: GitHub Actions
 # always sets CI=true, which this budget (like the mutex) treats as
 # "do not coordinate at all" by design.
-unset CI || true
+unset CI HVL_CAPACITY_LANE HOST_VERIFICATION_FOREGROUND_BUDGET HOST_VERIFICATION_BACKGROUND_BUDGET HOST_VERIFICATION_LEASE_BUDGET || true
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 LIB="$ROOT/scripts/host-verification-lease.sh"
@@ -325,5 +325,75 @@ grep -Fxq 'descendant_nested=0' "$domain_out" || {
   echo "domain B's slot was not actually released" >&2
   exit 1
 }
+
+# --- 6. #1166 capacity lanes: foreground and background are independent,
+#        non-borrowable pools; a lane request is consumed by the acquirer and
+#        never inherited by its descendants -------------------------------
+rm -rf "$lease_root" "$budget_dir" "$tmpdir/budget-foreground"; mkdir -p "$lease_root"
+unset HOST_VERIFICATION_LEASE_BUDGET
+export HOST_VERIFICATION_FOREGROUND_BUDGET=1
+export HOST_VERIFICATION_BACKGROUND_BUDGET=2
+lane_holder="$tmpdir/lane-holder.sh"
+cat > "$lane_holder" <<EOF
+#!/bin/sh
+set -eu
+. "$LIB"
+hvl_acquire_budget_slot "\$3"
+# What a descendant of this holder would inherit:
+printf '%s\n' "\${HVL_CAPACITY_LANE:-unset}" > "\$1.child-lane"
+: > "\$1"
+while [ ! -e "\$2" ]; do sleep 0.1; done
+hvl_release_budget_slot
+EOF
+lane_release="$tmpdir/lane-release"
+rm -f "$lane_release"
+
+# Two background holders saturate the background lane...
+HVL_CAPACITY_LANE=background sh "$lane_holder" "$tmpdir/bg1" "$lane_release" bg1 2>/dev/null &
+bg1_pid=$!
+sh "$lane_holder" "$tmpdir/bg2" "$lane_release" bg2 2>/dev/null &
+bg2_pid=$!
+wait_for_marker "$tmpdir/bg1"
+wait_for_marker "$tmpdir/bg2"
+# ...a third background request must queue...
+sh "$lane_holder" "$tmpdir/bg3" "$lane_release" bg3 2>/dev/null &
+bg3_pid=$!
+attempts=0
+until [ -n "$(ls "$budget_dir/waiting" 2>/dev/null)" ]; do
+  attempts=$((attempts + 1))
+  [ "$attempts" -lt 100 ] || { echo "the third background holder never queued" >&2; exit 1; }
+  sleep 0.1
+done
+# ...but a foreground request is admitted immediately (not borrowing: it has
+# its own reserved slot).
+HVL_CAPACITY_LANE=foreground sh "$lane_holder" "$tmpdir/fg1" "$lane_release" fg1 2>/dev/null &
+fg1_pid=$!
+wait_for_marker "$tmpdir/fg1"
+[ ! -e "$tmpdir/bg3" ] || { echo "a third background holder got in while the background lane (2) was full" >&2; exit 1; }
+grep -Fxq 'lane=foreground' "$tmpdir/budget-foreground/slot-0/owner" \
+  || { echo "the foreground holder did not land in the foreground lane" >&2; exit 1; }
+[ "$(cat "$tmpdir/fg1.child-lane")" = unset ] \
+  || { echo "a foreground lane request leaked to the acquirer's descendants" >&2; exit 1; }
+[ "$(cat "$tmpdir/bg1.child-lane")" = unset ] \
+  || { echo "a background lane request leaked to the acquirer's descendants" >&2; exit 1; }
+
+# A second foreground request queues behind the first; background slots
+# being busy or free is irrelevant to it, and it never takes a background slot.
+HVL_CAPACITY_LANE=foreground sh "$lane_holder" "$tmpdir/fg2" "$lane_release" fg2 2>/dev/null &
+fg2_pid=$!
+sleep 1
+[ ! -e "$tmpdir/fg2" ] || { echo "a second foreground holder exceeded the foreground lane (1)" >&2; exit 1; }
+touch "$lane_release"
+for p in "$bg1_pid" "$bg2_pid" "$bg3_pid" "$fg1_pid" "$fg2_pid"; do
+  wait "$p" || { echo "a lane holder exited non-zero" >&2; exit 1; }
+done
+[ -z "$(ls "$budget_dir" 2>/dev/null | grep '^slot-')" ] && [ -z "$(ls "$tmpdir/budget-foreground" 2>/dev/null | grep '^slot-')" ] \
+  || { echo "lane slots leaked after every holder released" >&2; exit 1; }
+
+# An invalid lane request fails loudly instead of silently picking a lane.
+if ( HVL_CAPACITY_LANE=urgent sh -c ". '$LIB'; hvl_acquire_budget_slot bad" ) 2>/dev/null; then
+  echo "an invalid HVL_CAPACITY_LANE was accepted" >&2
+  exit 1
+fi
 
 echo "all host-verification-lease budget scenarios passed"

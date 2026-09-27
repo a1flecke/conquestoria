@@ -26,6 +26,7 @@ import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 import { calculateCityYields } from '@/systems/resource-system';
 import { TECH_TREE } from '@/systems/tech-definitions';
+import { civilizationEraFromNumber } from '@/systems/era-types';
 import { resolveNeutralPressureEra } from '@/systems/era-resolution';
 import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { UNIT_CLASS_BY_TYPE, type UnitClass } from '@/systems/unit-modifier-definitions';
@@ -361,8 +362,12 @@ export function getMinorCivBuildCandidates(
 
   const completedTechs = getMinorCivCompletedTechBand(state, minorCivId);
   const resources = getMinorCivAvailableResources(state, minorCivId);
+  // A minor civ has no CivilizationEra of its own, so the local pressure tier
+  // stands in as the build-window era (#1016/#1017 sanctioned conversion: the
+  // only caller that may pass a non-civ era here, mirroring the production
+  // context below).
   const pressureEra = resolveNeutralPressureEra(state, city.position) ?? 1;
-  const buildings = getAvailableBuildings(city, completedTechs, state.map, resources, pressureEra)
+  const buildings = getAvailableBuildings(city, completedTechs, state.map, resources, civilizationEraFromNumber(pressureEra))
     .filter(building => !building.nationalProject && !building.uniquePerEmpire && !UNSAFE_BUILDING_IDS.has(building.id));
   // minor civs never found a religion — missionary never trainable here
   // Land-only for v1 (#952) — see SAFE_MINOR_CIV_UNIT_TYPES above for the full rationale.
@@ -895,7 +900,10 @@ export function processMinorCivEconomyTurn(
   // no Stampede/Host reward charges, and a synthetic tech band plus local
   // pressure era instead of `resolveCivilizationEra`. This is the one
   // documented caller that assembles a context directly (#984); every field is
-  // required, so nothing can be silently omitted here either.
+  // required, so nothing can be silently omitted here either. The pressure
+  // tier crosses into `CivilizationEra` explicitly here because a minor civ
+  // has no civ era of its own and the settler-cost tier is the only era-scaled
+  // input (#1016/#1017 sanctioned conversion).
   const processed = processCity(
     cityForProcessing,
     nextState.map,
@@ -903,7 +911,7 @@ export function processMinorCivEconomyTurn(
     productionYield,
     createProductionCostContext({
       city: cityForProcessing,
-      era: resolveNeutralPressureEra(nextState, cityForYields.position) ?? 1,
+      era: civilizationEraFromNumber(resolveNeutralPressureEra(nextState, cityForYields.position) ?? 1),
       completedTechs,
       availableResources,
     }),
