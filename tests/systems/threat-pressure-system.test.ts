@@ -259,7 +259,7 @@ describe('processLandResurgence', () => {
   });
 });
 
-describe('processThreatPressure -- hot-seat isolation', () => {
+describe('processThreatPressure — hot-seat isolation', () => {
   it('excludes AI civs from resurgence when aiPressure is off', () => {
     const state = makeTestState({ era: 3, turn: 30 });
     state.civilizations['p1'].isHuman = false;
@@ -650,10 +650,10 @@ describe('independent threat pressure governor', () => {
 describe('processPirateSpawn', () => {
   function makeCoastalState(): GameState {
     const state = makeTestState({ era: 2, turn: 40 });
-    // High idle -- score ≥ 4.0 needed for pirate spawn
+    // High idle — score ≥ 4.0 needed for pirate spawn
     state.civilizations['p1'].lastCombatTurnByLandmass = { 'continent-0': 0 }; // 40 turns idle
     // City at 0,0 (coast). Landmass tiles at 0,0 through 9,0 (from makeTestState).
-    // Ocean tiles at 10..15,0 -- adjacent to 9,0 (continent-0), 10+ tiles from city.
+    // Ocean tiles at 10..15,0 — adjacent to 9,0 (continent-0), 10+ tiles from city.
     state.map.tiles['0,0'] = { ...state.map.tiles['0,0'], terrain: 'coast', owner: 'p1' };
     for (let q = 10; q <= 15; q++) {
       state.map.tiles[`${q},0`] = {
