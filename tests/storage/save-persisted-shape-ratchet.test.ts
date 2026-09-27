@@ -78,6 +78,14 @@ const ADDITIVE_WITHOUT_MIGRATION: Readonly<Record<string, string>> = {
   // very next AI round populates every living AI major's entry exactly like `majorCivs`
   // already does for a civ with no portfolio yet — old saves need no migration for it.
   'opponentAI.nationalIntentByCiv': '#1086 — new OpponentAIState sibling map, self-normalizing exactly like majorCivs/pressureByCiv; every reader tolerates absence via optional chaining and a sensible default.',
+  // #988 — a civ's own declared war goal against a specific opponent. Absent
+  // means "no declared goal" (a pre-existing war loads exactly as before);
+  // every reader (war-goal-system.ts, city-capture-system.ts,
+  // civilization-elimination-system.ts, basic-ai.ts, diplomacy-panel.ts) goes
+  // through `?.` optional chaining. `makePeace` and civilization elimination
+  // both already clear it, so it can never persist stale across a war ending
+  // or a civ dying — old saves need no migration to introduce it.
+  'civilizations.*.diplomacy.warGoals': '#988 — new optional DiplomacyState field; absent means no declared goal; every reader tolerates absence via optional chaining.',
 };
 
 describe('#1023 persisted-save-shape ratchet', () => {
