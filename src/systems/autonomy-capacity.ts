@@ -1,5 +1,6 @@
 import type { GameState } from '@/core/types';
 import { isAutonomyActivated } from './autonomy-activation';
+import { getOwnedCities } from './city-ownership';
 import { getNetworkPlanDefinition, getNetworkPlanLoad } from './network-plan-definitions';
 
 export interface AutonomyCapacity {
@@ -15,7 +16,7 @@ export interface AutonomyLoad {
 
 export function getAutonomyCapacity(state: GameState, civId: string): AutonomyCapacity {
   if (!isAutonomyActivated(state, civId)) return { unrestricted: 0, restricted: {} };
-  const cities = Object.values(state.cities).filter(city => city.owner === civId);
+  const cities = getOwnedCities(state, civId);
   const completed = state.civilizations[civId]?.techState.completed ?? [];
   const hasQuantumNetworking = completed.includes('quantum-networking');
   const generalPurposeAiCapacity = completed.includes('general-purpose-ai') ? 2 : 0;

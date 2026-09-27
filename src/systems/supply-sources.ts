@@ -1,6 +1,7 @@
 import type { City, GameState, HexCoord } from '@/core/types';
 import { hexKey, mapDistance, mapNeighbors } from './hex-utils';
 import { getFortificationTier } from './fortification-system';
+import { getOwnedCities } from './city-ownership';
 
 /**
  * Conservative initial values (contract §29 — intentionally not locked,
@@ -67,7 +68,7 @@ export interface CivSupplySourceCandidates {
  */
 export function getCivSupplySourceCandidates(state: GameState, civId: string): CivSupplySourceCandidates {
   const tier = getFortificationTier(state.civilizations[civId]?.techState.completed ?? []);
-  const cities = Object.values(state.cities).filter(city => city.owner === civId && isCityStabilized(state, city));
+  const cities = getOwnedCities(state, civId).filter(city => isCityStabilized(state, city));
   const fortCoords = Object.values(state.map.tiles)
     .filter(tile => tile.improvement === 'fort' && tile.owner === civId && tile.improvementTurnsLeft === 0 && isFortStabilized(state, tile.coord))
     .map(tile => tile.coord);

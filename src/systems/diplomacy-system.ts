@@ -30,6 +30,7 @@ import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { reconcileMinorCivLeagues } from '@/systems/minor-civ-league-system';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { declareWarRecord, recordParticipantLeft } from '@/systems/war-history-system';
+import { getOwnedCityCount } from '@/systems/city-ownership';
 
 export function resolveOpponentKind(civId: string): 'major' | 'minor' | 'barbarian' {
   if (civId.startsWith('barbarian')) return 'barbarian';
@@ -982,8 +983,8 @@ export function getVassalageEligibility(state: GameState, vassalId: string, over
   if (vassalId === overlordId || !vassal || !overlord
     || !getCivilizationLiveness(state, vassalId).living
     || !getCivilizationLiveness(state, overlordId).living
-    || !Object.values(state.cities).some(city => city.owner === vassalId)
-    || !Object.values(state.cities).some(city => city.owner === overlordId)) {
+    || getOwnedCityCount(state, vassalId) === 0
+    || getOwnedCityCount(state, overlordId) === 0) {
     return { ok: false, reason: 'Both civilizations must still have a city.' };
   }
   if (!hasMetCivilization(state, vassalId, overlordId)) return { ok: false, reason: 'You must have met first.' };

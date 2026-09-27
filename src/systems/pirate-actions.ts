@@ -8,6 +8,7 @@ import { getWrappedHexNeighbors, hexDistance, hexKey, hexNeighbors, wrappedHexDi
 import { applyRegionalSuppression } from './pirate-ecology';
 import { PIRATE_ACTION_RULES, getPirateBounty, getPirateTributeCost } from './pirate-definitions';
 import { UNIT_DEFINITIONS } from './unit-system';
+import { getOwnedCityCount } from './city-ownership';
 
 export interface PirateActionQuote {
   available: boolean;
@@ -260,7 +261,7 @@ export function getPirateContractQuote(
   const employer = state.civilizations[employerId];
   const target = state.civilizations[targetId];
   if (!employer || !target || employerId === targetId) return unavailable('Select another living major civilization.');
-  if (!target.cities.some(cityId => state.cities[cityId]?.owner === targetId)) return unavailable('The selected rival has been eliminated.');
+  if (getOwnedCityCount(state, targetId) === 0) return unavailable('The selected rival has been eliminated.');
   if (!hasEarnedTargetSighting(state, employerId, targetId)) return unavailable('No known coastal city or naval unit for that rival.');
   if (employer.gold < cost) return unavailable(`Requires ${cost} gold without creating debt.`);
   return { available: true, reason: null, cost, durationRounds: PIRATE_ACTION_RULES.contractDurationRounds };

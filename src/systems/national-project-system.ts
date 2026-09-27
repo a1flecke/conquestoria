@@ -1,5 +1,6 @@
 import type { GameState, ResourceType, ResourceYield } from '@/core/types';
 import { BUILDINGS } from '@/systems/city-system';
+import { getOwnedCityCount } from './city-ownership';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 
 export function getNationalProjectMultiplier(currentEra: number, eraBuilt: number): 0 | 0.5 | 1 {
@@ -145,11 +146,11 @@ function scaleYield(y: Partial<ResourceYield>, multiplier: number): Partial<Reso
 // Per-city-scaling allowlist — see .claude/rules/game-balance.md
 function computePerCityGold(buildingId: string, state: GameState, civId: string): number | null {
   if (buildingId === 'grand_bazaar') {
-    const cityCount = Object.values(state.cities).filter(c => c.owner === civId).length;
+    const cityCount = getOwnedCityCount(state, civId);
     return cityCount; // +1 gold per city
   }
   if (buildingId === 'colonial_administration') {
-    const cityCount = Object.values(state.cities).filter(c => c.owner === civId).length;
+    const cityCount = getOwnedCityCount(state, civId);
     return Math.max(0, cityCount - 4) * 2; // +2 gold per city beyond 4th
   }
   return null;

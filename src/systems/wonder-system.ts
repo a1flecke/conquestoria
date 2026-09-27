@@ -4,6 +4,7 @@ import { hexKey, hexDistance, hexNeighbors } from './hex-utils';
 import { createRng } from './map-generator';
 import { applyResearchBonus } from './tech-system';
 import { recordLegendaryWonderDiscoverySite } from './legendary-wonder-history';
+import { getOwnedCities } from './city-ownership';
 
 const WONDER_COUNTS = { small: 5, medium: 8, large: 15 } as const;
 
@@ -111,9 +112,7 @@ export function processWonderDiscovery(
           // Find nearest city to the wonder
           let nearestCity = null;
           let nearestDist = Infinity;
-          for (const cityId of civ.cities) {
-            const city = state.cities[cityId];
-            if (!city) continue;
+          for (const city of getOwnedCities(state, civId)) {
             const dist = hexDistance(wonderPosition, city.position);
             if (dist < nearestDist) {
               nearestDist = dist;
