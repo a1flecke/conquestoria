@@ -1,5 +1,7 @@
 import type { GameState, Tech } from '@/core/types';
 import { getCivilizationLiveness } from './civilization-liveness';
+import { civilizationEraFromNumber, worldAgeFromNumber } from './era-types';
+import type { CivilizationEra, WorldAge } from './era-types';
 import { TECH_TREE_ERAS_1_4 } from './tech-definitions-eras1-4';
 import { TECH_TREE_ERAS_5_7 } from './tech-definitions-eras5-7';
 import { TECH_TREE_ERAS_8 } from './tech-definitions-eras8';
@@ -48,7 +50,7 @@ export function hasReachedEraThreshold(completedTechIds: readonly string[], era:
   return completedCount >= Math.ceil(advancementTechs.length * getEraAdvancementFraction(era));
 }
 
-export function resolveCivilizationEra(completedTechIds: readonly string[]): number {
+export function resolveCivilizationEra(completedTechIds: readonly string[]): CivilizationEra {
   const maxEra = Math.max(1, ...TECH_TREE.map(tech => tech.era));
   let era = 1;
 
@@ -57,15 +59,15 @@ export function resolveCivilizationEra(completedTechIds: readonly string[]): num
     era = candidate;
   }
 
-  return era;
+  return civilizationEraFromNumber(era);
 }
 
-export function resolveWorldAge(state: Pick<GameState, 'civilizations' | 'cities' | 'units'>): number {
+export function resolveWorldAge(state: Pick<GameState, 'civilizations' | 'cities' | 'units'>): WorldAge {
   const active = Object.keys(state.civilizations)
     .filter(civId => getCivilizationLiveness(state, civId).living)
     .map(civId => state.civilizations[civId]!);
-  if (active.length === 0) return 1;
+  if (active.length === 0) return worldAgeFromNumber(1);
   const required = Math.floor(active.length / 2) + 1;
   const eras = active.map(civ => resolveCivilizationEra(civ.techState?.completed ?? []));
-  return Math.max(1, ...eras.filter(candidate => eras.filter(era => era >= candidate).length >= required));
+  return worldAgeFromNumber(Math.max(1, ...eras.filter(candidate => eras.filter(era => era >= candidate).length >= required)));
 }

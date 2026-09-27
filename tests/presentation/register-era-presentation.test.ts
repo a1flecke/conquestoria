@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { EventBus } from '@/core/event-bus';
 import { SFX } from '@/audio/sfx';
 import { registerEraPresentation } from '@/presentation/register-era-presentation';
+import { civilizationEraFromNumber, worldAgeFromNumber } from '@/systems/era-types';
 import { makePresentationContext } from '../helpers/presentation-context';
 
 function civ(overrides: { isHuman?: boolean; name?: string } = {}) {
@@ -21,7 +22,7 @@ describe('era presentation', () => {
     });
 
     registerEraPresentation(bus, ctx);
-    bus.emit('era:advanced', { era: 3 });
+    bus.emit('era:advanced', { era: worldAgeFromNumber(3) });
 
     expect(ctx.deliver).toHaveBeenCalledWith('p1', expect.any(String), expect.any(String));
     expect(ctx.deliver).not.toHaveBeenCalledWith('ai1', expect.anything(), expect.anything());
@@ -39,10 +40,10 @@ describe('era presentation', () => {
     });
 
     registerEraPresentation(bus, ctx);
-    bus.emit('civilization:era-advanced', { civId: 'ai1', previousEra: 2, era: 3 });
+    bus.emit('civilization:era-advanced', { civId: 'ai1', previousEra: civilizationEraFromNumber(2), era: civilizationEraFromNumber(3) });
     expect(ctx.deliver).not.toHaveBeenCalled();
 
-    bus.emit('civilization:era-advanced', { civId: 'p1', previousEra: 2, era: 3 });
+    bus.emit('civilization:era-advanced', { civId: 'p1', previousEra: civilizationEraFromNumber(2), era: civilizationEraFromNumber(3) });
     expect(ctx.deliver).toHaveBeenCalledWith('p1', expect.stringContaining('Era 3'), 'success');
   });
 
@@ -57,10 +58,10 @@ describe('era presentation', () => {
     const notification = vi.spyOn(SFX, 'notification').mockImplementation(() => {});
 
     registerEraPresentation(bus, ctx);
-    bus.emit('civilization:era-advanced', { civId: 'p2', previousEra: 2, era: 3 });
+    bus.emit('civilization:era-advanced', { civId: 'p2', previousEra: civilizationEraFromNumber(2), era: civilizationEraFromNumber(3) });
     expect(notification).not.toHaveBeenCalled();
 
-    bus.emit('civilization:era-advanced', { civId: 'p1', previousEra: 2, era: 3 });
+    bus.emit('civilization:era-advanced', { civId: 'p1', previousEra: civilizationEraFromNumber(2), era: civilizationEraFromNumber(3) });
     expect(notification).toHaveBeenCalledTimes(1);
 
     notification.mockRestore();
@@ -74,8 +75,8 @@ describe('era presentation', () => {
     const dispose = registerEraPresentation(bus, ctx);
 
     dispose();
-    bus.emit('era:advanced', { era: 3 });
-    bus.emit('civilization:era-advanced', { civId: 'p1', previousEra: 2, era: 3 });
+    bus.emit('era:advanced', { era: worldAgeFromNumber(3) });
+    bus.emit('civilization:era-advanced', { civId: 'p1', previousEra: civilizationEraFromNumber(2), era: civilizationEraFromNumber(3) });
 
     expect(ctx.deliver).not.toHaveBeenCalled();
   });

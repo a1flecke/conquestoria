@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MusicDirector } from '../../src/audio/music-director';
+import { worldAgeFromNumber } from '@/systems/era-types';
 import { STINGER, resolveEra } from '../../src/audio/audio-catalog';
 import type { AudioMixer } from '../../src/audio/audio-mixer';
 import type { AudioLoader } from '../../src/audio/audio-loader';
@@ -46,19 +47,19 @@ describe('MusicDirector', () => {
   // --- handleEraAdvanced ---
 
   it('transitions to peace snapshot when era advances from silent', () => {
-    director.handleEraAdvanced({ era: 1, civType: 'rome' });
+    director.handleEraAdvanced({ era: worldAgeFromNumber(1), civType: 'rome' });
     expect(mixer.setSnapshot).toHaveBeenCalledWith('peace', expect.any(Number));
   });
 
   it('stays at-war when era advances while at war', () => {
     director.handleWarDeclared({ aggressor: 'player', defender: 'enemy', opponentKind: 'major' });
     vi.mocked(mixer.setSnapshot).mockClear();
-    director.handleEraAdvanced({ era: 2, civType: 'rome' });
+    director.handleEraAdvanced({ era: worldAgeFromNumber(2), civType: 'rome' });
     expect(mixer.setSnapshot).toHaveBeenCalledWith('at-war', expect.any(Number));
   });
 
   it('plays era-transition stinger when era advances', async () => {
-    director.handleEraAdvanced({ era: 2, civType: 'rome' });
+    director.handleEraAdvanced({ era: worldAgeFromNumber(2), civType: 'rome' });
     await flushPromises();
     expect(mixer.playOneShot).toHaveBeenCalledWith('stinger', fakeBuffer);
   });
@@ -80,20 +81,20 @@ describe('MusicDirector', () => {
   });
 
   it('plays eraAdvance stinger for the resolved era', async () => {
-    director.handleEraAdvanced({ era: 3, civType: 'rome' });
+    director.handleEraAdvanced({ era: worldAgeFromNumber(3), civType: 'rome' });
     await flushPromises();
     expect(loader.get).toHaveBeenCalledWith(STINGER.eraAdvance[resolveEra(3)].file);
   });
 
   it('era advance fires both transition-cue and eraAdvance stingers (2 playOneShot calls)', async () => {
-    director.handleEraAdvanced({ era: 2, civType: 'rome' });
+    director.handleEraAdvanced({ era: worldAgeFromNumber(2), civType: 'rome' });
     await flushPromises();
     const stingerCalls = vi.mocked(mixer.playOneShot).mock.calls.filter(([bus]) => bus === 'stinger');
     expect(stingerCalls).toHaveLength(2);
   });
 
   it('era advance stingers duck and restore sequentially — cue finishes before advance starts', async () => {
-    director.handleEraAdvanced({ era: 1, civType: 'rome' });
+    director.handleEraAdvanced({ era: worldAgeFromNumber(1), civType: 'rome' });
     await flushPromises();
     const snapshots = vi.mocked(mixer.setSnapshot).mock.calls.map(([s]) => s);
     // Filter to snapshot-duck/restore sequence only (excludes CROSSFADE_MS era/war transitions)
@@ -153,14 +154,14 @@ describe('MusicDirector', () => {
   // --- handleCityFounded ---
 
   it('plays city-founded stinger', async () => {
-    director.handleEraAdvanced({ era: 1, civType: 'rome' });
+    director.handleEraAdvanced({ era: worldAgeFromNumber(1), civType: 'rome' });
     director.handleCityFounded({ civType: 'rome' });
     await flushPromises();
     expect(mixer.playOneShot).toHaveBeenCalledWith('stinger', fakeBuffer);
   });
 
   it('city-founded stinger does not change intendedSnapshot', async () => {
-    director.handleEraAdvanced({ era: 1, civType: 'rome' });
+    director.handleEraAdvanced({ era: worldAgeFromNumber(1), civType: 'rome' });
     await flushPromises();
     vi.mocked(mixer.setSnapshot).mockClear();
     director.handleCityFounded({ civType: 'rome' });
@@ -172,9 +173,9 @@ describe('MusicDirector', () => {
   // --- handlePlayerChanged ---
 
   it('reloads current music context without changing snapshot', () => {
-    director.handleEraAdvanced({ era: 1, civType: 'rome' });
+    director.handleEraAdvanced({ era: worldAgeFromNumber(1), civType: 'rome' });
     vi.mocked(mixer.setSnapshot).mockClear();
-    director.handlePlayerChanged({ civId: civId('egypt'), civType: 'egypt', era: 1, atWar: false, unrestCityCount: 0, nearDefeat: false, inBeastTerritory: false });
+    director.handlePlayerChanged({ civId: civId('egypt'), civType: 'egypt', era: worldAgeFromNumber(1), atWar: false, unrestCityCount: 0, nearDefeat: false, inBeastTerritory: false });
     // Snapshot re-applied to reload the correct accent track for the new civ
     expect(mixer.setSnapshot).toHaveBeenCalledWith('peace', expect.any(Number));
   });
@@ -187,7 +188,7 @@ describe('MusicDirector', () => {
     director.handlePlayerChanged({
       civId: 'rome',
       civType: 'rome',
-      era: 1,
+      era: worldAgeFromNumber(1),
       atWar: true,
       unrestCityCount: 0,
       nearDefeat: false,
@@ -197,7 +198,7 @@ describe('MusicDirector', () => {
     director.handlePlayerChanged({
       civId: 'egypt',
       civType: 'egypt',
-      era: 4,
+      era: worldAgeFromNumber(4),
       atWar: true,
       unrestCityCount: 0,
       nearDefeat: false,
@@ -223,7 +224,7 @@ describe('MusicDirector', () => {
   // --- handleGameEnded ---
 
   it('transitions to silent on game end after stinger', async () => {
-    director.handleEraAdvanced({ era: 1, civType: 'rome' });
+    director.handleEraAdvanced({ era: worldAgeFromNumber(1), civType: 'rome' });
     await director.handleGameEnded({ outcome: 'victory' });
     const snapshotCalls = vi.mocked(mixer.setSnapshot).mock.calls.map(c => c[0]);
     expect(snapshotCalls).toContain('silent');
@@ -246,7 +247,7 @@ describe('MusicDirector', () => {
   // --- transition-event regressions ---
 
   it('regression: war then peace then war returns to at-war (not peace)', async () => {
-    director.handleEraAdvanced({ era: 1, civType: 'rome' });
+    director.handleEraAdvanced({ era: worldAgeFromNumber(1), civType: 'rome' });
     director.handleWarDeclared({ aggressor: 'player', defender: 'a', opponentKind: 'major' });
     director.handlePeaceSigned({ remainingWars: 0 });
     director.handleWarDeclared({ aggressor: 'player', defender: 'b', opponentKind: 'major' });
@@ -256,7 +257,7 @@ describe('MusicDirector', () => {
   });
 
   it('regression: overlapping stinger duck resolves correctly', () => {
-    director.handleEraAdvanced({ era: 1, civType: 'rome' });
+    director.handleEraAdvanced({ era: worldAgeFromNumber(1), civType: 'rome' });
     // Two stingers fired in succession — second should still duck to stinger-duck
     director.handleWarDeclared({ aggressor: 'p', defender: 'a', opponentKind: 'major' });
     director.handleCityFounded({ civType: 'rome' });
@@ -313,7 +314,7 @@ import {
 // catch comparisons that accidentally use one where the other is required.
 function makeDirectorWithPlayer(civType: string, atWar = false, unrestCityCount = 0, nearDefeat = false): MusicDirector {
   const d = new MusicDirector(makeMixer(), makeLoader());
-  d.handlePlayerChanged({ civId: `civ-${civType}`, civType, era: 1, atWar, unrestCityCount, nearDefeat, inBeastTerritory: false });
+  d.handlePlayerChanged({ civId: `civ-${civType}`, civType, era: worldAgeFromNumber(1), atWar, unrestCityCount, nearDefeat, inBeastTerritory: false });
   return d;
 }
 
@@ -344,17 +345,17 @@ describe('resolveSnapshot — priority chain (Spec 3)', () => {
   });
   it('beastTerritory alone → beast-territory', () => {
     const d = new MusicDirector(makeMixer(), makeLoader());
-    d.handlePlayerChanged({ civId: civId('rome'), civType: 'rome', era: 1, atWar: false, unrestCityCount: 0, nearDefeat: false, inBeastTerritory: true });
+    d.handlePlayerChanged({ civId: civId('rome'), civType: 'rome', era: worldAgeFromNumber(1), atWar: false, unrestCityCount: 0, nearDefeat: false, inBeastTerritory: true });
     expect(d.resolveSnapshot()).toBe('beast-territory');
   });
   it('beastTerritory + atWar → at-war (atWar wins over beastTerritory)', () => {
     const d = new MusicDirector(makeMixer(), makeLoader());
-    d.handlePlayerChanged({ civId: civId('rome'), civType: 'rome', era: 1, atWar: true, unrestCityCount: 0, nearDefeat: false, inBeastTerritory: true });
+    d.handlePlayerChanged({ civId: civId('rome'), civType: 'rome', era: worldAgeFromNumber(1), atWar: true, unrestCityCount: 0, nearDefeat: false, inBeastTerritory: true });
     expect(d.resolveSnapshot()).toBe('at-war');
   });
   it('beastTerritory + inUnrest → unrest (inUnrest wins over beastTerritory)', () => {
     const d = new MusicDirector(makeMixer(), makeLoader());
-    d.handlePlayerChanged({ civId: civId('rome'), civType: 'rome', era: 1, atWar: false, unrestCityCount: 2, nearDefeat: false, inBeastTerritory: true });
+    d.handlePlayerChanged({ civId: civId('rome'), civType: 'rome', era: worldAgeFromNumber(1), atWar: false, unrestCityCount: 2, nearDefeat: false, inBeastTerritory: true });
     expect(d.resolveSnapshot()).toBe('unrest');
   });
   it('all flags false → peace', () => {
@@ -413,24 +414,24 @@ describe('handlePlayerChanged — hot-seat drift reset (Spec 3)', () => {
   });
 
   it('handoff with atWar:true resets to at-war', () => {
-    director.handlePlayerChanged({ civId: civId('egypt'), civType: 'egypt', era: 1, atWar: true, unrestCityCount: 0, nearDefeat: false, inBeastTerritory: false });
+    director.handlePlayerChanged({ civId: civId('egypt'), civType: 'egypt', era: worldAgeFromNumber(1), atWar: true, unrestCityCount: 0, nearDefeat: false, inBeastTerritory: false });
     expect(director.resolveSnapshot()).toBe('at-war');
   });
 
   it('handoff with nearDefeat:true resets to brink-of-defeat', () => {
-    director.handlePlayerChanged({ civId: civId('viking'), civType: 'viking', era: 1, atWar: false, unrestCityCount: 0, nearDefeat: true, inBeastTerritory: false });
+    director.handlePlayerChanged({ civId: civId('viking'), civType: 'viking', era: worldAgeFromNumber(1), atWar: false, unrestCityCount: 0, nearDefeat: true, inBeastTerritory: false });
     expect(director.resolveSnapshot()).toBe('brink-of-defeat');
   });
 
   it('handoff clears prior unrest for incoming player at peace', () => {
     director.handleUnrestStarted({ owner: civId('rome') });
     director.handleUnrestStarted({ owner: civId('rome') });
-    director.handlePlayerChanged({ civId: civId('egypt'), civType: 'egypt', era: 1, atWar: false, unrestCityCount: 0, nearDefeat: false, inBeastTerritory: false });
+    director.handlePlayerChanged({ civId: civId('egypt'), civType: 'egypt', era: worldAgeFromNumber(1), atWar: false, unrestCityCount: 0, nearDefeat: false, inBeastTerritory: false });
     expect(director.resolveSnapshot()).toBe('peace');
   });
 
   it('handoff with unrestCityCount:2 resolves to unrest', () => {
-    director.handlePlayerChanged({ civId: civId('aztec'), civType: 'aztec', era: 1, atWar: false, unrestCityCount: 2, nearDefeat: false, inBeastTerritory: false });
+    director.handlePlayerChanged({ civId: civId('aztec'), civType: 'aztec', era: worldAgeFromNumber(1), atWar: false, unrestCityCount: 2, nearDefeat: false, inBeastTerritory: false });
     expect(director.resolveSnapshot()).toBe('unrest');
   });
 });

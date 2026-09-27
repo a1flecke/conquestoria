@@ -7,25 +7,26 @@ import {
   enforceEmbargoes,
   cleanupEmbargoes,
 } from '@/systems/diplomacy-system';
+import { civilizationEraFromNumber } from '@/systems/era-types';
 import type { Embargo } from '@/core/types';
 
 describe('embargoes', () => {
   describe('canProposeEmbargo', () => {
     it('returns true with currency tech in era >= 2', () => {
-      expect(canProposeEmbargo(['currency'], 2, [], 'target')).toBe(true);
+      expect(canProposeEmbargo(['currency'], civilizationEraFromNumber(2), [], 'target')).toBe(true);
     });
 
     it('returns false in era 1 without currency tech', () => {
-      expect(canProposeEmbargo([], 1, [], 'target')).toBe(false);
+      expect(canProposeEmbargo([], civilizationEraFromNumber(1), [], 'target')).toBe(false);
     });
 
     it('returns false if target is ally', () => {
       const alliances = [{ type: 'alliance' as const, civA: 'self', civB: 'target', turnsRemaining: -1 }];
-      expect(canProposeEmbargo(['currency'], 2, alliances, 'target')).toBe(false);
+      expect(canProposeEmbargo(['currency'], civilizationEraFromNumber(2), alliances, 'target')).toBe(false);
     });
 
     it('returns false if vassal', () => {
-      expect(canProposeEmbargo(['currency'], 2, [], 'target', true)).toBe(false);
+      expect(canProposeEmbargo(['currency'], civilizationEraFromNumber(2), [], 'target', true)).toBe(false);
     });
   });
 

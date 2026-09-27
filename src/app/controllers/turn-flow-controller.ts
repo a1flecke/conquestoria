@@ -40,6 +40,7 @@ import type { PanelRouter } from '@/app/panel-router';
 import type { CeremonyCoordinator } from '@/app/controllers/ceremony-coordinator';
 import type { UserSettingsStore } from '@/app/user-settings-store';
 import { RoundPresentationGate } from '@/presentation/round-presentation-gate';
+import { worldAgeFromNumber } from '@/systems/era-types';
 import { emitMinorCivLeagueNotices } from '@/systems/minor-civ-league-presentation';
 import { reconcileMinorCivLeagues } from '@/systems/minor-civ-league-system';
 import { SFX } from '@/audio/sfx';
@@ -437,7 +438,7 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
     bus.emit('currentPlayer:changed-after-handoff', {
       civId,
       civType: civ?.civType ?? civId,
-      era: session.getState().era,
+      era: worldAgeFromNumber(session.getState().era),
       // Deliberately the raw count (incl. city-state wars), unlike the #1041
       // "major wars only" surfaces. This only drives war ambience on/off in
       // AudioSystem; a city-state coalition war is a real military threat, so

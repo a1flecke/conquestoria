@@ -12,6 +12,7 @@ import type {
 } from '@/core/types';
 import { cancelInvalidNetworkPlans } from '@/systems/network-plan-system';
 import type { EventBus } from '@/core/event-bus';
+import type { CivilizationEra } from '@/systems/era-types';
 import { majorCivWarOpponentIds } from '@/core/owner-kind';
 import {
   REABSORB_GOLD_COST,
@@ -322,15 +323,16 @@ export const NAP_TECHS = ['diplomacy-tech']; // its unlock text: "Unlock Non-Agg
  * living civs has reached) into what the human path
  * (`diplomacy-panel.ts`) correctly filled with `resolveCivilizationEra(...)`.
  * A bare positional number let that drift silently; a required named field
- * makes every call site spell out `civilizationEra: <expr>`, so a caller that
- * writes `civilizationEra: state.era` is now visibly wrong rather than
- * silently wrong. See `.claude/rules/game-balance.md`'s Production Cost
- * Context section (#984) for the same lesson applied to a different system.
+ * makes every call site spell out `civilizationEra: <expr>`, and the
+ * `CivilizationEra` brand makes writing `civilizationEra: state.era` a
+ * compile error rather than a silent bug (#1016/#1017). See
+ * `.claude/rules/game-balance.md`'s Production Cost Context section (#984)
+ * for the same lesson applied to a different system.
  */
 export interface DiplomacyActionContext {
   completedTechs: string[];
   /** The acting civilization's own technology-derived era (`resolveCivilizationEra`). Never World Age (`state.era`). */
-  civilizationEra: number;
+  civilizationEra: CivilizationEra;
   hasArmsControlTreaty: boolean;
 }
 
@@ -1039,7 +1041,7 @@ export function canOfferVassalage(
   currentMilitary: number,
   peakMilitary: number,
   /** The acting civilization's own technology-derived era. Never World Age. */
-  civilizationEra: number,
+  civilizationEra: CivilizationEra,
 ): boolean {
   if (civilizationEra < 2) return false;
   if (peakCities < 2) return false;
@@ -1227,7 +1229,7 @@ export const EMBARGO_TECHS = ['currency', 'banking'];
 export function canProposeEmbargo(
   completedTechs: string[],
   /** The acting civilization's own technology-derived era. Never World Age. */
-  civilizationEra: number,
+  civilizationEra: CivilizationEra,
   treaties: Treaty[],
   targetCivId: string,
   isVassal: boolean = false,

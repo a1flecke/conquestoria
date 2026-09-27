@@ -1,6 +1,7 @@
 import type { NotificationCityAction, NotificationLog } from './notification-log';
 import type { PirateFactionId, PirateHeadquarters, PirateMaritimeStage, PirateState } from './pirate-state';
 import type { DominationIntelState } from '@/systems/domination-types';
+import type { CivilizationEra, WorldAge } from '@/systems/era-types';
 
 // --- Hex Coordinates ---
 
@@ -2702,12 +2703,12 @@ export interface GameEvents {
   'diplomacy:settlement-proposed': { fromCivId: string; toCivId: string; termCount: number };
   'diplomacy:settlement-declined': { proposerCivId: string; targetCivId: string; reason?: TreatyDeclineReason };
   'diplomacy:settlement-signed': { civA: string; civB: string; termCount: number };
-  'era:advanced': { era: number };
-  'civilization:era-advanced': { civId: string; previousEra: number; era: number };
+  'era:advanced': { era: WorldAge };
+  'civilization:era-advanced': { civId: string; previousEra: CivilizationEra; era: CivilizationEra };
   'currentPlayer:changed-after-handoff': {
     civId: string;
     civType: string;
-    era: number;
+    era: WorldAge;
     atWarCount: number;    // exact war count so AudioSystem can track remainingWars precisely
     unrestCityCount: number;
     nearDefeat: boolean;

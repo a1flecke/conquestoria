@@ -23,6 +23,7 @@ import {
   pruneExpiredDiplomaticRequests,
   proposeVassalage,
 } from '@/systems/diplomacy-system';
+import { civilizationEraFromNumber } from '@/systems/era-types';
 import { EventBus } from '@/core/event-bus';
 import { createNewGame } from '@/core/game-state';
 import type { GameState } from '@/core/types';
@@ -254,55 +255,55 @@ describe('diplomacy-system', () => {
   describe('getAvailableActions', () => {
     it('always includes declare_war when not at war', () => {
       const state = createDiplomacyState(civIds, 'player');
-      const actions = getAvailableActions(state, 'ai-egypt', { completedTechs: [], civilizationEra: 1, hasArmsControlTreaty: false });
+      const actions = getAvailableActions(state, 'ai-egypt', { completedTechs: [], civilizationEra: civilizationEraFromNumber(1), hasArmsControlTreaty: false });
       expect(actions).toContain('declare_war');
     });
 
     it('includes request_peace when at war', () => {
       let state = createDiplomacyState(civIds, 'player');
       state = declareWar(state, 'ai-egypt', 1);
-      const actions = getAvailableActions(state, 'ai-egypt', { completedTechs: [], civilizationEra: 1, hasArmsControlTreaty: false });
+      const actions = getAvailableActions(state, 'ai-egypt', { completedTechs: [], civilizationEra: civilizationEraFromNumber(1), hasArmsControlTreaty: false });
       expect(actions).toContain('request_peace');
       expect(actions).not.toContain('declare_war');
     });
 
     it('includes non_aggression_pact with diplomacy-tech', () => {
       const state = createDiplomacyState(civIds, 'player');
-      const actions = getAvailableActions(state, 'ai-egypt', { completedTechs: ['diplomacy-tech'], civilizationEra: 1, hasArmsControlTreaty: false });
+      const actions = getAvailableActions(state, 'ai-egypt', { completedTechs: ['diplomacy-tech'], civilizationEra: civilizationEraFromNumber(1), hasArmsControlTreaty: false });
       expect(actions).toContain('non_aggression_pact');
     });
 
     it('includes trade_agreement with trade-routes tech and positive relationship', () => {
       let state = createDiplomacyState(civIds, 'player');
       state = modifyRelationship(state, 'ai-egypt', 10);
-      const actions = getAvailableActions(state, 'ai-egypt', { completedTechs: ['trade-routes'], civilizationEra: 1, hasArmsControlTreaty: false });
+      const actions = getAvailableActions(state, 'ai-egypt', { completedTechs: ['trade-routes'], civilizationEra: civilizationEraFromNumber(1), hasArmsControlTreaty: false });
       expect(actions).toContain('trade_agreement');
     });
 
     it('offers arms_control_pact once the proposer has hasArmsControlTreaty', () => {
       const state = createDiplomacyState(civIds, 'player');
-      const actions = getAvailableActions(state, 'ai-egypt', { completedTechs: [], civilizationEra: 1, hasArmsControlTreaty: true });
+      const actions = getAvailableActions(state, 'ai-egypt', { completedTechs: [], civilizationEra: civilizationEraFromNumber(1), hasArmsControlTreaty: true });
       expect(actions).toContain('arms_control_pact');
     });
 
     it('omits arms_control_pact without the national project, regardless of relationship/era/tech', () => {
       let state = createDiplomacyState(civIds, 'player');
       state = modifyRelationship(state, 'ai-egypt', 90);
-      const actions = getAvailableActions(state, 'ai-egypt', { completedTechs: ['diplomacy-tech', 'trade-routes'], civilizationEra: 12, hasArmsControlTreaty: false });
+      const actions = getAvailableActions(state, 'ai-egypt', { completedTechs: ['diplomacy-tech', 'trade-routes'], civilizationEra: civilizationEraFromNumber(12), hasArmsControlTreaty: false });
       expect(actions).not.toContain('arms_control_pact');
     });
 
     it('omits arms_control_pact once already signed with that specific civ, matching every other treaty type\'s not-already-signed guard (#545 MR6)', () => {
       let state = createDiplomacyState(civIds, 'player');
       state = signTreaty(state, 'player', 'ai-egypt', 'arms_control_pact', -1, 1, 4);
-      const actions = getAvailableActions(state, 'ai-egypt', { completedTechs: [], civilizationEra: 1, hasArmsControlTreaty: true });
+      const actions = getAvailableActions(state, 'ai-egypt', { completedTechs: [], civilizationEra: civilizationEraFromNumber(1), hasArmsControlTreaty: true });
       expect(actions).not.toContain('arms_control_pact');
     });
 
     it('still offers arms_control_pact to a DIFFERENT civ even after signing one with another', () => {
       let state = createDiplomacyState(civIds, 'player');
       state = signTreaty(state, 'player', 'ai-egypt', 'arms_control_pact', -1, 1, 4);
-      const actions = getAvailableActions(state, 'ai-rome', { completedTechs: [], civilizationEra: 1, hasArmsControlTreaty: true });
+      const actions = getAvailableActions(state, 'ai-rome', { completedTechs: [], civilizationEra: civilizationEraFromNumber(1), hasArmsControlTreaty: true });
       expect(actions).toContain('arms_control_pact');
     });
   });

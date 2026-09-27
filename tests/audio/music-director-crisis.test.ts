@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MusicDirector } from '../../src/audio/music-director';
+import { worldAgeFromNumber } from '@/systems/era-types';
 import { STINGER } from '../../src/audio/audio-catalog';
 import type { AudioMixer } from '../../src/audio/audio-mixer';
 import type { AudioLoader } from '../../src/audio/audio-loader';
@@ -43,7 +44,7 @@ describe('MusicDirector crisis snapshot', () => {
   });
 
   it('resolves to unrest snapshot when a crisis is active for the current player, at peace otherwise', () => {
-    director.handleEraAdvanced({ era: 1, civType: 'rome' });
+    director.handleEraAdvanced({ era: worldAgeFromNumber(1), civType: 'rome' });
     expect(director.resolveSnapshot()).toBe('peace');
 
     director.setCrisisActiveForCurrentPlayer(true);

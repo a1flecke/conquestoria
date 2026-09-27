@@ -5,6 +5,7 @@ import {
   TRAINABLE_UNITS,
   foundCity,
   getProductionCostForItem,
+  getSettlerProductionCost,
   processCity,
 } from '@/systems/city-system';
 import { ECONOMY_RULES, getRushBuyQuote } from '@/systems/economy-system';
@@ -70,7 +71,10 @@ describe('#984 — World Age must never price production', () => {
       era: resolveCivilizationEra(completedTechs),
       completedTechs,
     });
-    const worldAgeCost = getProductionCostForItem('settler', { city, era: state.era, completedTechs });
+    // World Age can no longer be supplied to the context at all (compile
+    // error since #1016/#1017); the old inflation shape survives only as a
+    // numeric fact about the raw formula tier, which stays plain `number`.
+    const worldAgeCost = getSettlerProductionCost(state.era);
 
     // Guards the fixture: if these ever coincide the regressions below prove nothing.
     expect(worldAgeCost).toBeGreaterThan(civEraCost);

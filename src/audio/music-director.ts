@@ -1,5 +1,6 @@
 import type { AudioMixer, SnapshotId } from './audio-mixer';
 import type { AudioLoader } from './audio-loader';
+import type { WorldAge } from '@/systems/era-types';
 import { STINGER, UNREST_LAYER, DEFEAT_LAYER, WAR_LAYER, BEAST_TERRITORY_LAYER, resolveEra, type TrackEntry } from './audio-catalog';
 
 export interface WarDeclaredPayload {
@@ -13,7 +14,8 @@ export interface PeaceSignedPayload {
 }
 
 export interface EraAdvancedPayload {
-  era: number;
+  /** World Age by construction (turn-manager's world-age check or the stored state.era). */
+  era: WorldAge;
   civType: string;
 }
 
@@ -25,7 +27,8 @@ export interface CityFoundedPayload {
 export interface PlayerChangedPayload {
   civId: string;   // civ ID (e.g. 'player', 'cpu-1') — used to filter mid-game events
   civType: string; // civ type (e.g. 'rome') — used for accent/era track selection
-  era: number;
+  /** World Age by construction (the handoff snapshot reads state.era). */
+  era: WorldAge;
   atWar: boolean;
   unrestCityCount: number;
   nearDefeat: boolean;

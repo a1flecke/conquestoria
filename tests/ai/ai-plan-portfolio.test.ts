@@ -6,6 +6,7 @@ import {
   type AIPlanCandidate,
   type AICityThreat,
 } from '@/ai/ai-plan-portfolio';
+import { civilizationEraFromNumber, worldAgeFromNumber } from '@/systems/era-types';
 
 function candidate(id: string, score: number, overrides: Partial<AIPlanCandidate> = {}): AIPlanCandidate {
   return {
@@ -59,8 +60,8 @@ function context(overrides: Record<string, unknown> = {}) {
     modernization: {
       bestTrainableStrength: 30,
       deployedStrength: 25,
-      actorEra: 3,
-      globalEra: 3,
+      actorEra: civilizationEraFromNumber(3),
+      globalEra: worldAgeFromNumber(3),
       knownRivalMaxStrength: 30,
       obsoleteUnitShare: 0.1,
       treasuryCanAct: true,
@@ -481,8 +482,8 @@ describe('major-civilization plan portfolios', () => {
       modernization: {
         bestTrainableStrength: 100,
         deployedStrength: 10,
-        actorEra: 2,
-        globalEra: 5,
+        actorEra: civilizationEraFromNumber(2),
+        globalEra: worldAgeFromNumber(5),
         knownRivalMaxStrength: 100,
         obsoleteUnitShare: 0.9,
         treasuryCanAct: false,
@@ -541,7 +542,7 @@ describe('#1064 settle-plan stability', () => {
       cityThreats: [],
       ownedCityIds: new Set<string>(),
       modernization: {
-        bestTrainableStrength: 10, deployedStrength: 10, actorEra: 1, globalEra: 1,
+        bestTrainableStrength: 10, deployedStrength: 10, actorEra: civilizationEraFromNumber(1), globalEra: worldAgeFromNumber(1),
         knownRivalMaxStrength: 0, obsoleteUnitShare: 0, treasuryCanAct: true,
       },
     });
@@ -563,7 +564,7 @@ describe('#1064 settle-plan stability', () => {
       cityThreats: [],
       ownedCityIds: new Set<string>(),
       modernization: {
-        bestTrainableStrength: 10, deployedStrength: 10, actorEra: 1, globalEra: 1,
+        bestTrainableStrength: 10, deployedStrength: 10, actorEra: civilizationEraFromNumber(1), globalEra: worldAgeFromNumber(1),
         knownRivalMaxStrength: 0, obsoleteUnitShare: 0, treasuryCanAct: true,
       },
     });

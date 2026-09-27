@@ -76,3 +76,41 @@ it('#919 MR2: magistracy does not gate era advancement, so no save loses an era 
   expect(resolveCivilizationEra(['tribal-council', 'code-of-laws', ...fifteenEra2])).toBe(2);
   expect(resolveCivilizationEra(['tribal-council', 'code-of-laws', 'magistracy', ...fifteenEra2])).toBe(2);
 });
+
+describe('#1016/#1017 — blended eras stay honestly unbranded', () => {
+  it('resolveCombatEra accepts either domain and returns a plain combat tier', () => {
+    const state = createNewGame(undefined, 'combat-tier-honest', 'small');
+    const player = state.civilizations.player;
+    const ai = Object.values(state.civilizations).find(civ => !civ.isHuman)!;
+    player.techState.completed = [];
+    ai.techState.completed = getEraAdvancementTechs(2).slice(0, Math.ceil(getEraAdvancementTechs(2).length * 0.5)).map(tech => tech.id);
+    const playerUnit = { ...state.units[player.units[0]]!, owner: player.id };
+    const aiUnit = { ...state.units[ai.units[0]]!, owner: ai.id };
+
+    // The combat tier blends two civ eras with a World Age fallback for
+    // non-major owners, so it is neither domain: branded values from both
+    // sides flow in, and the result stays a plain number.
+    const civEra = resolveCivilizationEra(ai.techState.completed);
+    expect(resolveCombatEra(state, playerUnit, aiUnit)).toBe(Math.min(1, civEra));
+  });
+
+  it('type level: the combat tier is not a CivilizationEra', () => {
+    const state = createNewGame(undefined, 'combat-tier-type', 'small');
+    const player = state.civilizations.player;
+    const ai = Object.values(state.civilizations).find(civ => !civ.isHuman)!;
+    const playerUnit = { ...state.units[player.units[0]]!, owner: player.id };
+    const aiUnit = { ...state.units[ai.units[0]]!, owner: ai.id };
+    // @ts-expect-error a blended combat tier must never claim to be one civ's era (#1017)
+    const tier: import('@/systems/era-types').CivilizationEra = resolveCombatEra(state, playerUnit, aiUnit);
+    expect(tier).toBeGreaterThanOrEqual(1);
+  });
+
+  it('type level: the neutral pressure tier is not a CivilizationEra', () => {
+    const state = createNewGame(undefined, 'pressure-tier-type', 'small');
+    const aiId = Object.values(state.civilizations).find(civ => !civ.isHuman)!.id;
+    advanceCivToEra(state, aiId, 3);
+    // @ts-expect-error a local-median pressure tier must never claim to be one civ's era (#1017)
+    const tier: import('@/systems/era-types').CivilizationEra = resolveNeutralPressureEra(state, { q: 0, r: 0 }, aiId);
+    expect(tier).toBe(3);
+  });
+});

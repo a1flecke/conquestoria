@@ -7,6 +7,7 @@ import { getAvailableActions, hasArmsControlTreaty } from '@/systems/diplomacy-s
 import { evaluateDiplomacy } from '@/ai/ai-diplomacy';
 import { NATIONAL_INTENT_POSTURE } from '@/ai/ai-national-intent';
 import { resolveCivilizationEra, resolveWorldAge, TECH_TREE } from '@/systems/tech-definitions';
+import { civilizationEraFromNumber } from '@/systems/era-types';
 
 const LAGGARD = 'player';
 
@@ -51,18 +52,42 @@ describe('#1027 — diplomacy action gates must use the acting civ\'s own era', 
     const state = laggardWorldState('human-ai-parity');
     const civ = state.civilizations[LAGGARD];
     const civEra = resolveCivilizationEra(civ.techState.completed);
+    civ.diplomacy.relationships['ai-1'] = 90;
 
     // Human path (diplomacy-panel.ts): always uses the actor's own civ era.
     const humanActions = getAvailableActions(civ.diplomacy, 'ai-1', { completedTechs: civ.techState.completed, civilizationEra: civEra, hasArmsControlTreaty: hasArmsControlTreaty(state, LAGGARD) });
 
-    // AI path as basic-ai.ts calls it today: `newState.era` (World Age).
-    const aiActionsToday = getAvailableActions(civ.diplomacy, 'ai-1', { completedTechs: civ.techState.completed, civilizationEra: state.era, hasArmsControlTreaty: hasArmsControlTreaty(state, LAGGARD) });
-
-    // This is the bug: with World Age > civ era, the AI path currently
-    // unlocks treaties the human path (correctly) denies.
-    expect(aiActionsToday).not.toEqual(humanActions);
-    expect(aiActionsToday).toContain('non_aggression_pact');
+    // AI path (basic-ai.ts -> evaluateDiplomacy): the same civ era since #1027.
+    // Before #1027 this received `newState.era` (World Age) and unlocked
+    // treaties an equally-behind human could not; that shape is now a compile
+    // error (see the type-level test below), so this pins the fixed call chain.
+    const decisions = evaluateDiplomacy(
+      { traits: ['diplomatic'], warLikelihood: 0, diplomacyFocus: 0.9, expansionDrive: 0 },
+      civ.diplomacy,
+      civ.techState.completed,
+      civEra,
+      {},
+      { exactVisible: 10, remembered: 10, uncertaintyLower: 10, uncertaintyUpper: 10, midpoint: 10 },
+      state.turn,
+      { 'ai-1': { hasMet: true, hasBorderPressure: false, targetHasKnownStrategicCapability: false } },
+      0,
+      false,
+      false,
+      NATIONAL_INTENT_POSTURE.develop,
+    );
+    for (const decision of decisions) {
+      expect(humanActions, decision.action).toContain(decision.action);
+    }
+    // At civ era 1 the era gate denies every treaty on both paths alike.
     expect(humanActions).not.toContain('non_aggression_pact');
+    expect(decisions).toEqual([]);
+  });
+
+  it('type level: World Age cannot be supplied where a civ era is required', () => {
+    const state = laggardWorldState('diplomacy-era-type');
+    const civ = state.civilizations[LAGGARD];
+    // @ts-expect-error World Age must never gate diplomacy (#1027, now structural via #1016/#1017)
+    expect(getAvailableActions(civ.diplomacy, 'ai-1', { completedTechs: civ.techState.completed, civilizationEra: state.era, hasArmsControlTreaty: false })).toBeDefined();
   });
 
   it('NAP: unavailable below civ era 2 with no bypass tech, even at high World Age', () => {
@@ -265,7 +290,7 @@ describe('#1027 — vassalage keeps exactly one eligibility rule', () => {
     const civ = state.civilizations[LAGGARD];
     const actions = getAvailableActions(civ.diplomacy, 'ai-1', {
       completedTechs: techsThroughEra(6),
-      civilizationEra: 6,
+      civilizationEra: civilizationEraFromNumber(6),
       hasArmsControlTreaty: false,
     });
     expect(actions).not.toContain('offer_vassalage');

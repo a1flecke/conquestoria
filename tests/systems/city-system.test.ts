@@ -26,6 +26,7 @@ import { generateMap } from '@/systems/map-generator';
 import { hexKey } from '@/systems/hex-utils';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { createNewGame } from '@/core/game-state';
+import { civilizationEraFromNumber } from '@/systems/era-types';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -513,7 +514,7 @@ describe('getAvailableBuildings', () => {
     const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
     const city = { ...foundCity('p1', landTile.coord, map, mkC()), buildings: ['temple'] };
     // era 10 is far past sacred_council's homeEra(3) + 1 = 4 -- a normal NP would drop out.
-    const available = getAvailableBuildings(city, ['philosophy'], map, undefined, 10);
+    const available = getAvailableBuildings(city, ['philosophy'], map, undefined, civilizationEraFromNumber(10));
     expect(available.find(b => b.id === 'sacred_council')).toBeDefined();
   });
 
@@ -521,7 +522,7 @@ describe('getAvailableBuildings', () => {
     const map = generateMap(30, 30, 'city-test');
     const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
     const city = foundCity('p1', landTile.coord, map, mkC()); // no temple built
-    const available = getAvailableBuildings(city, ['philosophy'], map, undefined, 3);
+    const available = getAvailableBuildings(city, ['philosophy'], map, undefined, civilizationEraFromNumber(3));
     expect(available.find(b => b.id === 'sacred_council')).toBeUndefined();
   });
 });
@@ -1030,7 +1031,7 @@ describe('processCity', () => {
       map,
       2,
       100,
-      createProductionCostContext({ era: 1, completedTechs: ['aviation'] }),
+      createProductionCostContext({ era: civilizationEraFromNumber(1), completedTechs: ['aviation'] }),
       undefined,
       undefined,
       () => 'air-base-unavailable',
@@ -1066,7 +1067,7 @@ describe('processCity', () => {
       map,
       2,
       100,
-      createProductionCostContext({ era: 1, completedTechs: ['bronze-working'], availableResources: new Set() }),
+      createProductionCostContext({ era: civilizationEraFromNumber(1), completedTechs: ['bronze-working'], availableResources: new Set() }),
     );
 
     expect(result.droppedProductionItems).toEqual([{ itemId: 'swordsman', itemKind: 'unit', reason: 'resource-lost' }]);
@@ -1221,7 +1222,7 @@ describe('processCity', () => {
     const city = foundCity('player', { q: 15, r: 15 }, map, mkC());
     const queued = { ...city, productionQueue: ['herbalist'], productionProgress: 12 };
 
-    const result = processCity(queued, map, 0, 4, createProductionCostContext({ era: 1, completedTechs: [] }));
+    const result = processCity(queued, map, 0, 4, createProductionCostContext({ era: civilizationEraFromNumber(1), completedTechs: [] }));
 
     expect(result.completedBuilding).toBe('herbalist');
     expect(result.city.buildings).toContain('herbalist');
@@ -1233,8 +1234,8 @@ describe('processCity', () => {
     const city = foundCity('player', { q: 15, r: 15 }, map, mkC());
     const queued = { ...city, productionQueue: ['settler'], productionProgress: 39 };
 
-    const era3Result = processCity(queued, map, 0, 1, createProductionCostContext({ era: 3, completedTechs: [] }));
-    const era4Result = processCity(queued, map, 0, 1, createProductionCostContext({ era: 4, completedTechs: [] }));
+    const era3Result = processCity(queued, map, 0, 1, createProductionCostContext({ era: civilizationEraFromNumber(3), completedTechs: [] }));
+    const era4Result = processCity(queued, map, 0, 1, createProductionCostContext({ era: civilizationEraFromNumber(4), completedTechs: [] }));
 
     expect(era3Result.completedUnit).toBe('settler');
     expect(era3Result.city.productionQueue).toEqual([]);
@@ -1259,7 +1260,7 @@ describe('processCity — droppedProductionItems (issue #457)', () => {
       map,
       2,
       100,
-      createProductionCostContext({ era: 1, completedTechs: ['stone-weapons'], availableResources: new Set() }),
+      createProductionCostContext({ era: civilizationEraFromNumber(1), completedTechs: ['stone-weapons'], availableResources: new Set() }),
     );
 
     expect(result.droppedProductionItems).toEqual([{ itemId: 'bronze-workshop', itemKind: 'building', reason: 'resource-lost' }]);
@@ -1280,7 +1281,7 @@ describe('processCity — droppedProductionItems (issue #457)', () => {
       map,
       2,
       1,
-      createProductionCostContext({ era: 1, completedTechs: ['stone-weapons'], availableResources: new Set(['copper']) }),
+      createProductionCostContext({ era: civilizationEraFromNumber(1), completedTechs: ['stone-weapons'], availableResources: new Set(['copper']) }),
     );
 
     expect(result.droppedProductionItems).toEqual([]);
@@ -1297,7 +1298,7 @@ describe('processCity — droppedProductionItems (issue #457)', () => {
     };
 
     // sacred_grove has nationalProject.homeEra: 1, so era 3 is outside homeEra..homeEra+1.
-    const result = processCity(city, map, 2, 100, createProductionCostContext({ era: 3, completedTechs: ['animism'] }));
+    const result = processCity(city, map, 2, 100, createProductionCostContext({ era: civilizationEraFromNumber(3), completedTechs: ['animism'] }));
 
     expect(result.droppedProductionItems).toEqual([{ itemId: 'sacred_grove', itemKind: 'building', reason: 'build-window-expired' }]);
     expect(result.city.productionQueue).not.toContain('sacred_grove');
@@ -1312,7 +1313,7 @@ describe('processCity — droppedProductionItems (issue #457)', () => {
       productionProgress: 0,
     };
 
-    const result = processCity(city, map, 2, 1, createProductionCostContext({ era: 2, completedTechs: ['animism'] }));
+    const result = processCity(city, map, 2, 1, createProductionCostContext({ era: civilizationEraFromNumber(2), completedTechs: ['animism'] }));
 
     expect(result.droppedProductionItems).toEqual([]);
     expect(result.city.productionQueue).toContain('sacred_grove');
@@ -1331,7 +1332,7 @@ describe('processCity — droppedProductionItems (issue #457)', () => {
     // already completed in a different city — see #1080's design doc.
     const result = processCity(
       city, map, 2, 100,
-      createProductionCostContext({ era: 1, completedTechs: ['animism'] }),
+      createProductionCostContext({ era: civilizationEraFromNumber(1), completedTechs: ['animism'] }),
       undefined,
       new Set(['p1:sacred_grove']),
     );
@@ -1351,7 +1352,7 @@ describe('processCity — droppedProductionItems (issue #457)', () => {
 
     const result = processCity(
       city, map, 2, 1,
-      createProductionCostContext({ era: 1, completedTechs: ['animism'] }),
+      createProductionCostContext({ era: civilizationEraFromNumber(1), completedTechs: ['animism'] }),
       undefined,
       new Set(),
     );
@@ -1371,7 +1372,7 @@ describe('processCity — droppedProductionItems (issue #457)', () => {
 
     const result = processCity(
       city, map, 2, 1,
-      createProductionCostContext({ era: 1, completedTechs: ['granary-design'] }),
+      createProductionCostContext({ era: civilizationEraFromNumber(1), completedTechs: ['granary-design'] }),
       undefined,
       new Set(['p1:granary']), // granary is not a national project — the coincidental key is inert
     );
@@ -1392,7 +1393,7 @@ describe('processCity — droppedProductionItems (issue #457)', () => {
 
     // sacred_council has nationalProject.homeEra: 3, milestone: true -- a normal NP
     // would be dropped at era 10 (far past homeEra + 1 = 4), a milestone NP must not be.
-    const result = processCity(city, map, 2, 1, createProductionCostContext({ era: 10, completedTechs: ['philosophy'] }));
+    const result = processCity(city, map, 2, 1, createProductionCostContext({ era: civilizationEraFromNumber(10), completedTechs: ['philosophy'] }));
 
     expect(result.droppedProductionItems).toEqual([]);
     expect(result.city.productionQueue).toContain('sacred_council');
@@ -1409,7 +1410,7 @@ describe('processCity — droppedProductionItems (issue #457)', () => {
       map,
       2,
       100,
-      createProductionCostContext({ era: 1, completedTechs: ['bronze-working'], availableResources: new Set() }),
+      createProductionCostContext({ era: civilizationEraFromNumber(1), completedTechs: ['bronze-working'], availableResources: new Set() }),
     );
     expect(resourceLostResult.droppedProductionItems).toEqual([{ itemId: 'swordsman', itemKind: 'unit', reason: 'resource-lost' }]);
 
@@ -1420,7 +1421,7 @@ describe('processCity — droppedProductionItems (issue #457)', () => {
       map,
       2,
       100,
-      createProductionCostContext({ era: 1, completedTechs: ['bronze-working', 'rifled-infantry'], availableResources: new Set(['iron']) }),
+      createProductionCostContext({ era: civilizationEraFromNumber(1), completedTechs: ['bronze-working', 'rifled-infantry'], availableResources: new Set(['iron']) }),
     );
     expect(obsoletedResult.droppedProductionItems).toEqual([{ itemId: 'swordsman', itemKind: 'unit', reason: 'obsoleted' }]);
 
@@ -1431,7 +1432,7 @@ describe('processCity — droppedProductionItems (issue #457)', () => {
       map,
       2,
       100,
-      createProductionCostContext({ era: 1, completedTechs: ['bronze-working', 'rifled-infantry'], availableResources: new Set() }),
+      createProductionCostContext({ era: civilizationEraFromNumber(1), completedTechs: ['bronze-working', 'rifled-infantry'], availableResources: new Set() }),
     );
     expect(tieResult.droppedProductionItems).toEqual([{ itemId: 'swordsman', itemKind: 'unit', reason: 'obsoleted' }]);
   });
@@ -1476,7 +1477,7 @@ describe('processCity — droppedProductionItems (issue #457)', () => {
       map,
       2,
       100,
-      createProductionCostContext({ era: 5, completedTechs: [], availableResources: new Set() }),
+      createProductionCostContext({ era: civilizationEraFromNumber(5), completedTechs: [], availableResources: new Set() }),
     );
 
     expect(result.droppedProductionItems).toEqual([]);
@@ -2457,7 +2458,7 @@ describe('processCity — resource dequeue', () => {
       map,
       2,
       3,
-      createProductionCostContext({ era: 1, completedTechs: ['stone-weapons'], availableResources: new Set<ResourceType>() }),
+      createProductionCostContext({ era: civilizationEraFromNumber(1), completedTechs: ['stone-weapons'], availableResources: new Set<ResourceType>() }),
     );
     expect(result.city.productionQueue).not.toContain('axeman');
     expect(result.city.productionProgress).toBe(0);
@@ -2471,7 +2472,7 @@ describe('processCity — resource dequeue', () => {
       map,
       2,
       3,
-      createProductionCostContext({ era: 1, completedTechs: ['stone-weapons'], availableResources: new Set<ResourceType>(['copper']) }),
+      createProductionCostContext({ era: civilizationEraFromNumber(1), completedTechs: ['stone-weapons'], availableResources: new Set<ResourceType>(['copper']) }),
     );
     expect(result.city.productionQueue).toContain('axeman');
   });
@@ -2484,7 +2485,7 @@ describe('processCity — resource dequeue', () => {
       map,
       2,
       3,
-      createProductionCostContext({ era: 1, completedTechs: ['stone-weapons'], availableResources: new Set<ResourceType>() }),
+      createProductionCostContext({ era: civilizationEraFromNumber(1), completedTechs: ['stone-weapons'], availableResources: new Set<ResourceType>() }),
     );
     expect(result.city.productionQueue).not.toContain('bronze-workshop');
     expect(result.city.productionProgress).toBe(0);
@@ -2498,7 +2499,7 @@ describe('processCity — resource dequeue', () => {
       map,
       2,
       3,
-      createProductionCostContext({ era: 1, completedTechs: [], availableResources: new Set<ResourceType>() }),
+      createProductionCostContext({ era: civilizationEraFromNumber(1), completedTechs: [], availableResources: new Set<ResourceType>() }),
     );
     expect(result.city.productionQueue).toContain('granary');
   });
@@ -2511,7 +2512,7 @@ describe('processCity — resource dequeue', () => {
       map,
       2,
       3,
-      createProductionCostContext({ era: 1, completedTechs: [], availableResources: new Set<ResourceType>(['iron']) }),
+      createProductionCostContext({ era: civilizationEraFromNumber(1), completedTechs: [], availableResources: new Set<ResourceType>(['iron']) }),
     );
     expect(result.city.productionQueue).not.toContain('swordsman');
   });
@@ -2527,7 +2528,7 @@ describe('processCity — resource dequeue', () => {
       map,
       2,
       3,
-      createProductionCostContext({ era: 1, completedTechs: ['bronze-working'], availableResources: new Set<ResourceType>() }),
+      createProductionCostContext({ era: civilizationEraFromNumber(1), completedTechs: ['bronze-working'], availableResources: new Set<ResourceType>() }),
     );
     expect(result.city.productionQueue).not.toContain('warrior');
     expect(result.city.productionProgress).toBe(0);
@@ -2541,7 +2542,7 @@ describe('processCity — resource dequeue', () => {
       map,
       2,
       3,
-      createProductionCostContext({ era: 1, completedTechs: [], availableResources: new Set<ResourceType>() }),
+      createProductionCostContext({ era: civilizationEraFromNumber(1), completedTechs: [], availableResources: new Set<ResourceType>() }),
     );
     expect(result.city.productionQueue).toContain('warrior');
   });
@@ -2562,7 +2563,7 @@ describe('Cavalry retime save compatibility and #429 AI training selection', () 
       map,
       2,
       1,
-      createProductionCostContext({ era: 2, completedTechs: ['horseback-riding'], availableResources: new Set<ResourceType>(['horses']) }),
+      createProductionCostContext({ era: civilizationEraFromNumber(2), completedTechs: ['horseback-riding'], availableResources: new Set<ResourceType>(['horses']) }),
     );
 
     expect(result.city.productionQueue).toEqual([]);
@@ -2584,7 +2585,7 @@ describe('Cavalry retime save compatibility and #429 AI training selection', () 
       map,
       2,
       1,
-      createProductionCostContext({ era: 2, completedTechs: [], availableResources: new Set<ResourceType>(['horses']) }),
+      createProductionCostContext({ era: civilizationEraFromNumber(2), completedTechs: [], availableResources: new Set<ResourceType>(['horses']) }),
     );
 
     expect(result.city.productionQueue).toEqual([]);
@@ -2607,7 +2608,7 @@ describe('Cavalry retime save compatibility and #429 AI training selection', () 
       map,
       2,
       1,
-      createProductionCostContext({ era: 2, completedTechs: ['horseback-riding'], availableResources: new Set<ResourceType>(['horses']) }),
+      createProductionCostContext({ era: civilizationEraFromNumber(2), completedTechs: ['horseback-riding'], availableResources: new Set<ResourceType>(['horses']) }),
     );
 
     expect(result.completedUnit).toBe('cavalry');
@@ -2619,7 +2620,7 @@ describe('Cavalry retime save compatibility and #429 AI training selection', () 
       map,
       2,
       1,
-      createProductionCostContext({ era: 2, completedTechs: ['horseback-riding'], availableResources: new Set<ResourceType>(['horses']) }),
+      createProductionCostContext({ era: civilizationEraFromNumber(2), completedTechs: ['horseback-riding'], availableResources: new Set<ResourceType>(['horses']) }),
     );
     expect(secondResult.completedUnit).toBe('cavalry');
     expect(secondResult.city.productionQueue).toEqual([]);
@@ -2641,7 +2642,7 @@ describe('Cavalry retime save compatibility and #429 AI training selection', () 
       map,
       2,
       1,
-      createProductionCostContext({ era: 2, completedTechs: ['iron-forging', 'rifle-tactics', 'professional-army'], availableResources: new Set<ResourceType>(['horses', 'iron']) }),
+      createProductionCostContext({ era: civilizationEraFromNumber(2), completedTechs: ['iron-forging', 'rifle-tactics', 'professional-army'], availableResources: new Set<ResourceType>(['horses', 'iron']) }),
     );
 
     expect(result.completedUnit).toBe('knight');
@@ -2653,7 +2654,7 @@ describe('Cavalry retime save compatibility and #429 AI training selection', () 
       map,
       2,
       1,
-      createProductionCostContext({ era: 2, completedTechs: ['iron-forging', 'rifle-tactics', 'professional-army'], availableResources: new Set<ResourceType>(['horses', 'iron']) }),
+      createProductionCostContext({ era: civilizationEraFromNumber(2), completedTechs: ['iron-forging', 'rifle-tactics', 'professional-army'], availableResources: new Set<ResourceType>(['horses', 'iron']) }),
     );
     expect(secondResult.completedUnit).toBe('knight');
     expect(secondResult.city.productionQueue).toEqual([]);
@@ -2780,7 +2781,7 @@ describe('Herding Insight production', () => {
       map,
       0,
       0,
-      createProductionCostContext({ era: 3, completedTechs: ['horseback-riding'], herdingInsight: true }),
+      createProductionCostContext({ era: civilizationEraFromNumber(3), completedTechs: ['horseback-riding'], herdingInsight: true }),
     ).completedUnit).toBe('beast_handler');
   });
 });
@@ -2800,7 +2801,7 @@ describe('#927 Regional Capital production contract', () => {
   it('never offers the project in the true capital when capital context is supplied', () => {
     const map = generateMap(20, 20, 'regional-capital-legality');
     const capital: City = { ...foundCity('player', { q: 0, r: 0 }, map, mkC()), id: 'capital' };
-    expect(getAvailableBuildings(capital, ['political-philosophy'], map, undefined, 4, new Set(), 'player', undefined, 'capital')
+    expect(getAvailableBuildings(capital, ['political-philosophy'], map, undefined, civilizationEraFromNumber(4), new Set(), 'player', undefined, 'capital')
       .some(building => building.id === 'regional_capital')).toBe(false);
   });
 });

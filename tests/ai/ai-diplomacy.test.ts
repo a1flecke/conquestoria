@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { evaluateDiplomacy, evaluateMinorCivDiplomacy, evaluateVassalage, evaluateEmbargoResponse, evaluateLeagueResponse } from '@/ai/ai-diplomacy';
+import { civilizationEraFromNumber } from '@/systems/era-types';
 import { NATIONAL_INTENT_POSTURE } from '@/ai/ai-national-intent';
 import type { PersonalityTraits, GameState, MinorCivState, DiplomacyState } from '@/core/types';
 import type { MilitaryStrengthEstimate } from '@/ai/ai-strength';
@@ -119,7 +120,7 @@ describe('evaluateDiplomacy', () => {
       aggressivePersonality,
       makeDiplomacy({ relationships: { player: -60 } }),
       [],
-      1,
+      civilizationEraFromNumber(1),
       { player: strength(10) },
       strength(100),
       1,
@@ -138,7 +139,7 @@ describe('evaluateDiplomacy', () => {
       aggressivePersonality,
       makeDiplomacy({ relationships: { player: -100 } }),
       [],
-      4,
+      civilizationEraFromNumber(4),
       { player: strength(10) },
       strength(100),
       20,
@@ -157,7 +158,7 @@ describe('evaluateDiplomacy', () => {
       diplomaticPersonality,
       makeDiplomacy({ relationships: { player: 80 } }),
       [],
-      4,
+      civilizationEraFromNumber(4),
       { player: strength(40) },
       strength(40),
       20,
@@ -176,7 +177,7 @@ describe('evaluateDiplomacy', () => {
       aggressivePersonality,
       makeDiplomacy({ relationships: { player: -60 } }),
       [],
-      4,
+      civilizationEraFromNumber(4),
       { player: strength(120) },
       strength(40),
       20,
@@ -201,7 +202,7 @@ describe('evaluateDiplomacy', () => {
       aggressivePersonality,
       makeDiplomacy({ relationships: { player: -60 } }),
       [],
-      4,
+      civilizationEraFromNumber(4),
       { player: strength(105) },
       strength(120),
       20,
@@ -217,7 +218,7 @@ describe('evaluateDiplomacy', () => {
       aggressivePersonality,
       makeDiplomacy({ relationships: { player: -60 } }),
       [],
-      4,
+      civilizationEraFromNumber(4),
       { player: strength(105) },
       strength(120),
       20,
@@ -235,7 +236,7 @@ describe('evaluateDiplomacy', () => {
       diplomaticPersonality, // diplomacyFocus: 0.8, well above the 0.4 bar
       makeDiplomacy({ relationships: { player: 10 } }), // above the >0 bar
       [],
-      12,
+      civilizationEraFromNumber(12),
       { player: strength(50) },
       strength(50),
       20,
@@ -253,7 +254,7 @@ describe('evaluateDiplomacy', () => {
       diplomaticPersonality,
       makeDiplomacy({ relationships: { player: 10 } }),
       [],
-      12,
+      civilizationEraFromNumber(12),
       { player: strength(50) },
       strength(50),
       20,
@@ -271,7 +272,7 @@ describe('evaluateDiplomacy', () => {
       diplomaticPersonality,
       makeDiplomacy({ relationships: { player: 10 } }),
       [],
-      12,
+      civilizationEraFromNumber(12),
       { player: strength(50) },
       strength(50),
       20,
@@ -289,7 +290,7 @@ describe('evaluateDiplomacy', () => {
       diplomaticPersonality,
       makeDiplomacy({ relationships: { player: 90 } }), // maximally friendly
       [],
-      12,
+      civilizationEraFromNumber(12),
       { player: strength(50) },
       strength(50),
       20,
@@ -307,7 +308,7 @@ describe('evaluateDiplomacy', () => {
       diplomaticPersonality,
       makeDiplomacy({ relationships: { player: 60 } }), // clears alliance's own >50 bar too
       [],
-      12,
+      civilizationEraFromNumber(12),
       { player: strength(50) },
       strength(50),
       20,
@@ -330,7 +331,7 @@ describe('evaluateDiplomacy', () => {
 
     it('keeps fighting while an active goal exists and the AI is not losing', () => {
       const decisions = evaluateDiplomacy(
-        aggressivePersonality, atWarNoDisadvantage, [], 4,
+        aggressivePersonality, atWarNoDisadvantage, [], civilizationEraFromNumber(4),
         { player: strength(100) }, strength(100), 20,
         { player: { hasMet: true, hasBorderPressure: false, targetHasKnownStrategicCapability: false } },
         0, false, false, NEUTRAL_POSTURE,
@@ -341,7 +342,7 @@ describe('evaluateDiplomacy', () => {
 
     it('seeks peace once the declared goal is satisfied', () => {
       const decisions = evaluateDiplomacy(
-        aggressivePersonality, atWarNoDisadvantage, [], 4,
+        aggressivePersonality, atWarNoDisadvantage, [], civilizationEraFromNumber(4),
         { player: strength(100) }, strength(100), 20,
         { player: { hasMet: true, hasBorderPressure: false, targetHasKnownStrategicCapability: false } },
         0, false, false, NEUTRAL_POSTURE,
@@ -352,7 +353,7 @@ describe('evaluateDiplomacy', () => {
 
     it('seeks peace once the declared goal is exceeded', () => {
       const decisions = evaluateDiplomacy(
-        aggressivePersonality, atWarNoDisadvantage, [], 4,
+        aggressivePersonality, atWarNoDisadvantage, [], civilizationEraFromNumber(4),
         { player: strength(100) }, strength(100), 20,
         { player: { hasMet: true, hasBorderPressure: false, targetHasKnownStrategicCapability: false } },
         0, false, false, NEUTRAL_POSTURE,
@@ -363,7 +364,7 @@ describe('evaluateDiplomacy', () => {
 
     it('still seeks peace with an active goal when outmatched', () => {
       const decisions = evaluateDiplomacy(
-        aggressivePersonality, atWarNoDisadvantage, [], 4,
+        aggressivePersonality, atWarNoDisadvantage, [], civilizationEraFromNumber(4),
         { player: strength(200) }, strength(100), 20,
         { player: { hasMet: true, hasBorderPressure: false, targetHasKnownStrategicCapability: false } },
         0, false, false, NEUTRAL_POSTURE,
@@ -374,7 +375,7 @@ describe('evaluateDiplomacy', () => {
 
     it('preserves the legacy relationship-only heuristic when no goal is declared', () => {
       const decisions = evaluateDiplomacy(
-        aggressivePersonality, atWarNoDisadvantage, [], 4,
+        aggressivePersonality, atWarNoDisadvantage, [], civilizationEraFromNumber(4),
         { player: strength(100) }, strength(100), 20,
         { player: { hasMet: true, hasBorderPressure: false, targetHasKnownStrategicCapability: false } },
         0, false, false, NEUTRAL_POSTURE,
@@ -396,7 +397,7 @@ describe('#1087 recovery-competence — recover posture is never worse than deve
       cautious,
       makeDiplomacy({ relationships: { player: 10 } }),
       [],
-      4,
+      civilizationEraFromNumber(4),
       { player: strength(50) },
       strength(50),
       20,
@@ -410,7 +411,7 @@ describe('#1087 recovery-competence — recover posture is never worse than deve
       cautious,
       makeDiplomacy({ relationships: { player: 10 } }),
       [],
-      4,
+      civilizationEraFromNumber(4),
       { player: strength(50) },
       strength(50),
       20,
@@ -435,10 +436,10 @@ describe('#1087 recovery-competence — recover posture is never worse than deve
     // self=80, other=150 -> ratio 0.533: above develop's unbiased 0.4 threshold (refuses)
     // but below recover's 0.4+0.25=0.65 threshold (offers).
     const developResult = evaluateVassalage(
-      diplomacy, 4, strength(80), 1, 1, otherStrengths, NATIONAL_INTENT_POSTURE.develop,
+      diplomacy, civilizationEraFromNumber(4), strength(80), 1, 1, otherStrengths, NATIONAL_INTENT_POSTURE.develop,
     );
     const recoverResult = evaluateVassalage(
-      diplomacy, 4, strength(80), 1, 1, otherStrengths, NATIONAL_INTENT_POSTURE.recover,
+      diplomacy, civilizationEraFromNumber(4), strength(80), 1, 1, otherStrengths, NATIONAL_INTENT_POSTURE.recover,
     );
     expect(developResult).toBeNull();
     expect(recoverResult).not.toBeNull();
