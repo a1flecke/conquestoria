@@ -82,6 +82,28 @@ job_tree_any_alive() {
   return 1
 }
 
+# live_count_after_reap <pid...> -- how many of the given pids are still alive
+# once they have had up to 5s to exit. The signals are already delivered by
+# the time this runs; a fixed 0.3s wait before counting failed 4/4 on a
+# 4-core cloud container simply because TERM delivery/reaping across the
+# nested sh -> sh -> sleep tree took longer than 300ms there, not because
+# anything survived. Polling keeps the assertion ("nothing survives
+# cancellation") while removing the wall-clock race.
+live_count_after_reap() {
+  reap_attempts=0
+  while :; do
+    reap_live=0
+    for p in "$@"; do
+      kill -0 "$p" 2>/dev/null && reap_live=$((reap_live + 1))
+    done
+    [ "$reap_live" -eq 0 ] && break
+    reap_attempts=$((reap_attempts + 1))
+    [ "$reap_attempts" -lt 50 ] || break
+    sleep 0.1
+  done
+  printf '%s\n' "$reap_live"
+}
+
 # --- 1. the registered job_pid is real, and its descendant tree includes
 #        the nested grandchild -------------------------------------------
 
@@ -118,8 +140,7 @@ printf '%s\n' "$descendant_comms" | grep -q 'sleep' || {
 
 kill -TERM "$holder_pid" 2>/dev/null || true
 wait "$holder_pid" 2>/dev/null || true
-sleep 0.3
-job_tree_any_alive "$job_pid" && {
+[ "$(live_count_after_reap $tree_members)" -eq 0 ] || {
   echo "cancelling the wrapper left members of the registered job's tree alive" >&2
   exit 1
 }
@@ -159,12 +180,8 @@ done
 
 kill -TERM "$holder_pid" 2>/dev/null || true
 wait "$holder_pid" 2>/dev/null || true
-sleep 0.3
 
-after_count=0
-for p in $before_members; do
-  kill -0 "$p" 2>/dev/null && after_count=$((after_count + 1))
-done
+after_count="$(live_count_after_reap $before_members)"
 [ "$after_count" -eq 0 ] || {
   echo "cancellation left $after_count process(es) alive from job_pid $job_pid's tree" >&2
   exit 1

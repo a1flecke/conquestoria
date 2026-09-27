@@ -69,7 +69,9 @@ printf '%s\n' "$out1" | grep -Fq 'push-verification lease: idle' || {
   printf '%s\n' "$out1" >&2
   exit 1
 }
-printf '%s\n' "$out1" | grep -Eq 'resource budget: 0/[0-9]+ slots in use' || {
+printf '%s\n' "$out1" | grep -Eq '^background capacity: 0/[0-9]+ slots in use' \
+  && printf '%s\n' "$out1" | grep -Eq '^foreground capacity: 0/[0-9]+ slots in use' \
+  && printf '%s\n' "$out1" | grep -Fxq 'ai-long singleton lease: idle' || {
   echo "idle budget was not reported as 0 in use:" >&2
   printf '%s\n' "$out1" >&2
   exit 1
@@ -234,25 +236,42 @@ sh "$budget_waiter_script" &
 budget_waiter_pid=$!
 sleep 1
 
+# #1166: a foreground (publication) holder is shown in its own lane.
+fg_marker="$tmpdir/fg-budget-marker"
+HVL_CAPACITY_LANE=foreground sh "$budget_holder_script" "$fg_marker" &
+fg_holder_pid=$!
+wait_for "$fg_marker"
+
 out6="$(HOST_VERIFICATION_LEASE_BUDGET=1 sh "$STATUS_SCRIPT")"
-printf '%s\n' "$out6" | grep -Eq '^ACTIVE +status-view-budget-holder .*slot=0' || {
-  echo "a live budget holder was not reported ACTIVE with its slot:" >&2
+printf '%s\n' "$out6" | grep -Eq '^ACTIVE +status-view-budget-holder +lane=background .*slot=0' || {
+  echo "a live background holder was not reported ACTIVE with its lane and slot:" >&2
   printf '%s\n' "$out6" >&2
   exit 1
 }
-printf '%s\n' "$out6" | grep -Eq '^QUEUED +status-view-budget-waiter .*waited=' || {
-  echo "a live budget waiter was not reported QUEUED:" >&2
+printf '%s\n' "$out6" | grep -Eq '^ACTIVE +status-view-budget-holder +lane=foreground .*slot=0' || {
+  echo "a live foreground holder was not reported ACTIVE in the foreground lane:" >&2
   printf '%s\n' "$out6" >&2
   exit 1
 }
-printf '%s\n' "$out6" | grep -Fxq 'resource budget: 1/1 slots in use' || {
-  echo "budget in-use count did not reflect the one live holder:" >&2
+printf '%s\n' "$out6" | grep -Eq '^QUEUED +status-view-budget-waiter +lane=background .*waited=' || {
+  echo "a live background waiter was not reported QUEUED with its lane:" >&2
+  printf '%s\n' "$out6" >&2
+  exit 1
+}
+printf '%s\n' "$out6" | grep -Fxq 'background capacity: 1/1 slots in use' || {
+  echo "background in-use count did not reflect the one live holder:" >&2
+  printf '%s\n' "$out6" >&2
+  exit 1
+}
+printf '%s\n' "$out6" | grep -Fxq 'foreground capacity: 1/1 slots in use' || {
+  echo "foreground in-use count did not reflect the one live holder:" >&2
   printf '%s\n' "$out6" >&2
   exit 1
 }
 
-kill "$budget_holder_pid" "$budget_waiter_pid" 2>/dev/null || true
+kill "$budget_holder_pid" "$budget_waiter_pid" "$fg_holder_pid" 2>/dev/null || true
 wait "$budget_holder_pid" 2>/dev/null || true
 wait "$budget_waiter_pid" 2>/dev/null || true
+wait "$fg_holder_pid" 2>/dev/null || true
 
 echo "all verify-local-status scenarios passed"

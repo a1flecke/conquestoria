@@ -92,13 +92,20 @@ grep -Fxq 'exit_code=0' "$repo/.verification/no-lease-scope-suite.status" || {
   exit 1
 }
 
-# --- 2. the default (no flag) still acquires the shared lease as before --
+# --- 2. #1166: without --no-lease, the shared (publication) lease is taken
+#        only by FOREGROUND durable runs (verify:pr). A background `yarn
+#        test:durable` never waits behind a publication holder -- and so can
+#        never make a `git push` wait behind it either. Both halves hold the
+#        lease until an explicit release file, so neither depends on timing.
 
 rm -rf "$lease_root"; mkdir -p "$lease_root"
 holder_log2="$tmpdir/holder2.log"
+release2="$tmpdir/release2"
+rm -f "$release2"
 (
   HOST_VERIFICATION_LEASE_ROOT="$lease_root" \
-    exec sh "$ROOT/scripts/run-under-host-lease.sh" unrelated-holder-2 -- sh -c 'sleep 2'
+    exec sh "$ROOT/scripts/run-under-host-lease.sh" unrelated-holder-2 -- \
+    sh -c "while [ ! -e '$release2' ]; do sleep 0.1; done"
 ) > "$holder_log2" 2>&1 &
 holder_pid2=$!
 attempts=0
@@ -113,19 +120,47 @@ while [ ! -f "$lease_root/active/owner" ]; do
   sleep 0.1
 done
 
-start_epoch2="$(date +%s)"
+# 2a. background: completes while the lease is still held.
 (
   cd "$repo"
-  sh scripts/run-durable-test-suite.sh leased-scope -- sh -c 'exit 0'
-) > "$tmpdir/leased-run.log" 2>&1
-elapsed2=$(( $(date +%s) - start_epoch2 ))
-wait "$holder_pid2" 2>/dev/null || true
+  sh scripts/run-durable-test-suite.sh background-scope -- sh -c 'exit 0'
+) > "$tmpdir/background-run.log" 2>&1 || {
+  echo "background durable run failed" >&2
+  cat "$tmpdir/background-run.log" >&2
+  exit 1
+}
+[ -f "$lease_root/active/owner" ] || {
+  echo "test setup error: the publication holder released before the background check" >&2
+  exit 1
+}
 
-[ "$elapsed2" -ge 1 ] || {
-  echo "default (leased) run did not wait behind a concurrent holder of the shared lease (elapsed ${elapsed2}s)" >&2
+# 2b. foreground: queues on the lease until the holder releases.
+(
+  cd "$repo"
+  HVL_CAPACITY_LANE=foreground sh scripts/run-durable-test-suite.sh leased-scope -- sh -c 'exit 0'
+) > "$tmpdir/leased-run.log" 2>&1 &
+leased_pid=$!
+attempts=0
+until [ -n "$(ls "$lease_root/waiting" 2>/dev/null)" ]; do
+  attempts=$((attempts + 1))
+  if [ "$attempts" -ge 200 ]; then
+    echo "foreground durable run never queued behind the publication lease" >&2
+    cat "$tmpdir/leased-run.log" >&2
+    exit 1
+  fi
+  sleep 0.1
+done
+[ ! -f "$repo/.verification/leased-scope-suite.status" ] || {
+  echo "foreground durable run completed while the publication lease was held" >&2
+  exit 1
+}
+touch "$release2"
+wait "$leased_pid" || {
+  echo "foreground durable run failed after the lease was released" >&2
   cat "$tmpdir/leased-run.log" >&2
   exit 1
 }
+wait "$holder_pid2" 2>/dev/null || true
 
 # --- 3. a FAILING wrapped command still records its real exit code (#1133
 #        MR6) -----------------------------------------------------------

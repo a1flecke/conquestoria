@@ -134,4 +134,112 @@ run_matrix "9"
   exit 1
 }
 
+# --- #1166 lock order / capacity-holding scenarios -------------------------
+#
+# The budget for this fixture resolves to dirname(HOST_VERIFICATION_LEASE_
+# ROOT) = $tmpdir, so background slots live at $tmpdir/budget/slot-N and the
+# foreground lane at $tmpdir/budget-foreground.
+budget_dir="$tmpdir/budget"
+held_slots() {
+  # Prints one line per slot with a live owner file (lane=... value).
+  for owner in "$budget_dir"/slot-*/owner "$tmpdir/budget-foreground"/slot-*/owner; do
+    [ -f "$owner" ] || continue
+    sed -n 's/^lane=//p' "$owner"
+  done
+}
+slot_probe_log="$tmpdir/slot-probe.log"
+
+# yarn records which lanes hold a slot while an attempt RUNS; the fake
+# `sleep` records the same while the retry BACKOFF sleeps (backoff seconds is
+# the sentinel 7; every other sleep -- the lease library's own wait polling --
+# is passed to the real sleep). No wall-clock dependence: both probes run at
+# exactly the moment they describe.
+cat > "$fake_bin/yarn" <<'EOF'
+#!/bin/sh
+count=$(( $(cat "$CALL_COUNT_FILE" 2>/dev/null || echo 0) + 1 ))
+echo "$count" > "$CALL_COUNT_FILE"
+printf 'attempt %s:%s\n' "$count" "$(for o in "$BUDGET_DIR"/slot-*/owner "$FG_BUDGET_DIR"/slot-*/owner; do [ -f "$o" ] && sed -n 's/^lane=//p' "$o"; done | tr '\n' ' ')" >> "$SLOT_PROBE_LOG"
+if [ -n "${HOLD_UNTIL_FILE:-}" ]; then
+  while [ ! -f "$HOLD_UNTIL_FILE" ]; do /bin/sleep 0.1; done
+fi
+status=0
+i=0
+for s in ${STATUS_SEQUENCE:-0}; do
+  i=$((i + 1))
+  status="$s"
+  [ "$i" -ge "$count" ] && break
+done
+exit "$status"
+EOF
+real_sleep="$(command -v sleep)"
+cat > "$fake_bin/sleep" <<EOF
+#!/bin/sh
+if [ "\$1" = 7 ]; then
+  printf 'backoff:%s\n' "\$(for o in "\$BUDGET_DIR"/slot-*/owner "\$FG_BUDGET_DIR"/slot-*/owner; do [ -f "\$o" ] && sed -n 's/^lane=//p' "\$o"; done | tr '\n' ' ')" >> "\$SLOT_PROBE_LOG"
+  exit 0
+fi
+exec "$real_sleep" "\$@"
+EOF
+chmod +x "$fake_bin/yarn" "$fake_bin/sleep"
+
+run_probe() {
+  # $1 = exit-code sequence; extra env may be passed by the caller.
+  (
+    cd "$tmpdir"
+    PATH="$fake_bin:$PATH" \
+      CALL_COUNT_FILE="$tmpdir/call-count" \
+      STATUS_SEQUENCE="$1" \
+      BUDGET_DIR="$budget_dir" \
+      FG_BUDGET_DIR="$tmpdir/budget-foreground" \
+      SLOT_PROBE_LOG="$slot_probe_log" \
+      AI_LONG_HORIZON_STALL_RETRY_BACKOFF_SECONDS=7 \
+      bash scripts/run-ai-long-horizon.sh
+  )
+}
+
+# Scenario 5: capacity is held (background lane only) while each attempt
+# runs, and released for the retry backoff sleep in between.
+rm -f "$slot_probe_log" "$tmpdir/call-count"
+set +e
+run_probe "125 0" >"$tmpdir/stderr.log" 2>&1
+probe_status=$?
+set -e
+[ "$probe_status" -eq 0 ] || { echo "scenario 5: expected success after one stall, got $probe_status"; cat "$tmpdir/stderr.log"; exit 1; }
+expected_probe="$(printf 'attempt 1:background \nbackoff:\nattempt 2:background ')"
+[ "$(cat "$slot_probe_log")" = "$expected_probe" ] || {
+  echo "scenario 5: ai-long must hold exactly one BACKGROUND slot per running attempt and none while backing off; probes were:"
+  cat "$slot_probe_log"
+  exit 1
+}
+[ -z "$(held_slots)" ] || { echo "scenario 5: a capacity slot leaked after the run finished"; exit 1; }
+
+# Scenario 6: an accidental second ai-long request waits on the ai-long
+# mutex WITHOUT holding any host capacity, and still runs only after the first
+# finishes (at most one ai-long workload at a time).
+rm -f "$slot_probe_log" "$tmpdir/call-count" "$tmpdir/release-first"
+( HOLD_UNTIL_FILE="$tmpdir/release-first" run_probe "0" ) >"$tmpdir/first.log" 2>&1 &
+first_pid=$!
+attempts=0
+until [ -f "$tmpdir/call-count" ]; do
+  attempts=$((attempts + 1)); [ "$attempts" -lt 100 ] || { echo "scenario 6: first ai-long never started"; exit 1; }
+  "$real_sleep" 0.1
+done
+( run_probe "0" ) >"$tmpdir/second.log" 2>&1 &
+second_pid=$!
+attempts=0
+until [ -n "$(ls "$tmpdir/ai-long-horizon-lease/waiting" 2>/dev/null)" ]; do
+  attempts=$((attempts + 1)); [ "$attempts" -lt 100 ] || { echo "scenario 6: second ai-long never queued on the ai-long mutex"; cat "$tmpdir/second.log"; exit 1; }
+  "$real_sleep" 0.1
+done
+[ "$(held_slots | wc -l | tr -d ' ')" -eq 1 ] || {
+  echo "scenario 6: while the second ai-long waits for the mutex, only the first should hold capacity; held: $(held_slots | tr '\n' ' ')"
+  exit 1
+}
+[ "$(cat "$tmpdir/call-count")" -eq 1 ] || { echo "scenario 6: two ai-long workloads ran concurrently"; exit 1; }
+touch "$tmpdir/release-first"
+wait "$first_pid" || { echo "scenario 6: first ai-long failed"; cat "$tmpdir/first.log"; exit 1; }
+wait "$second_pid" || { echo "scenario 6: second ai-long failed"; cat "$tmpdir/second.log"; exit 1; }
+[ "$(cat "$tmpdir/call-count")" -eq 2 ] || { echo "scenario 6: second ai-long never ran after the first released"; exit 1; }
+[ -z "$(held_slots)" ] || { echo "scenario 6: a capacity slot leaked"; exit 1; }
+
 echo "all run-ai-long-horizon stall-retry scenarios passed"
