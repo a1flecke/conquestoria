@@ -734,6 +734,18 @@ bypasses it entirely for a one-off case that needs to. See
 killed well inside a much larger ceiling), negative (a genuinely CPU-busy
 process is never killed), and disable-switch cases.
 
+**Progress is cumulative, and new processes count (#1166).** The sample
+keeps each pid's last-seen CPU time after that process exits, and any pid
+not seen before counts as progress. The original live-only sum reported
+false STALLs on a healthy run: Vitest forks a fresh worker per test file, so
+once a heavy file's worker exited, the light workers after it never pushed
+the live sum above the earlier peak. That failed `verify-before-push.sh
+--regular` 3/3 in a 4-core container while the active worker sat at 97% CPU,
+and it may account for some of #1133's "genuine" stalls. A truly hung group
+neither accrues CPU nor spawns processes, so the real stall case still fires
+(`tests/hooks/run-with-timeout.test.sh` covers both, including a recycling
+pool fixture that fails on the old sampler).
+
 Do not "fix" a future stall by only raising the affected script's absolute
 ceiling -- that repeats exactly the silent-wait failure mode this watchdog
 exists to shorten. If a *legitimate* slow-but-real-CPU-work phase ever needs

@@ -31,6 +31,16 @@ set -eu
   exit 2
 }
 
+# Its main caller is the git pre-push hook, and git exports GIT_DIR (and friends)
+# to hooks. With GIT_DIR set but no GIT_WORK_TREE, `git -C scripts rev-parse
+# --show-toplevel` answers with the scripts directory itself, so the recorded
+# worktree never matched and a valid proof was silently ignored. Resolve the
+# repository from this script's location only (same approach as
+# scripts/run-with-mise.sh).
+for hook_git_var in $(git rev-parse --local-env-vars 2>/dev/null); do
+  unset "$hook_git_var"
+done
+
 script_dir="$(cd "$(dirname "$0")" && pwd)"
 repo_root="$(git -C "$script_dir" rev-parse --show-toplevel)"
 artifact_dir="${VERIFY_PR_ARTIFACT_DIR:-$repo_root/.verification}"
