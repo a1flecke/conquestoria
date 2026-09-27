@@ -44,6 +44,7 @@ import { buildMajorCivPerception } from './ai-perception';
 import { getChallengeProfileForCiv } from '@/core/opponent-challenge';
 import { computeResearchScoringBaseline, getMarginalCivResearchGain } from '@/systems/research-output-system';
 import { getCapitalCityId } from '@/systems/capital-system';
+import { getOwnedCities } from '@/systems/city-ownership';
 import { majorCivWarOpponentIds } from '@/core/owner-kind';
 
 export interface AIProductionCandidate {
@@ -95,9 +96,7 @@ function validQueuedUnitRoles(
   const civ = state.civilizations[civId];
   if (!civ) return [];
   const resources = getCivAvailableResources(state, civId);
-  return civ.cities.flatMap(cityId => {
-    const city = state.cities[cityId];
-    if (!city) return [];
+  return getOwnedCities(state, civId).flatMap(city => {
     const validTypes = new Set(
       getTrainableUnitsForCity(
         city,
@@ -393,9 +392,7 @@ function getVisibleAirDefenseThreatenedCityIds(
 ): ReadonlySet<string> {
   const civ = state.civilizations[civId];
   if (!civ) return new Set();
-  const cities = civ.cities
-    .map(cityId => state.cities[cityId])
-    .filter((city): city is NonNullable<typeof city> => city?.owner === civId);
+  const cities = getOwnedCities(state, civId);
   const threatenedCityIds = new Set<string>();
 
   for (const unit of Object.values(state.units)) {
@@ -786,9 +783,8 @@ export function applyAIProduction(
   const civ = state.civilizations[civId];
   if (!civ) return state;
   const residual = residualDemands(state, civId, demands);
-  const idle = civ.cities
-    .map(cityId => state.cities[cityId])
-    .filter(city => city?.owner === civId && city.productionQueue.length === 0);
+  const idle = getOwnedCities(state, civId)
+    .filter(city => city.productionQueue.length === 0);
   // The comparator used to call generateWithResidual TWICE per comparison -- O(n log n)
   // full candidate generations per civ per round, each one costing a city-yield
   // projection. Precomputing is provably order-identical: the comparator already read
