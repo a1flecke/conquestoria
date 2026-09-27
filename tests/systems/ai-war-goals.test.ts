@@ -1,6 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import { chooseWarGoal } from '@/ai/ai-war-goals';
 import { NATIONAL_INTENT_POSTURE } from '@/ai/ai-national-intent';
+import type { NationalIntentPosture } from '@/ai/ai-national-intent';
+
+/** A posture between the `'rival'` and ordinary dominate capture-bias
+ * thresholds (#989), so the two can be told apart in a test. */
+const MID_CAPTURE_BIAS_POSTURE: NationalIntentPosture = {
+  expandBias: 0, captureBias: 5, resourceBias: 0,
+  settlementRoleWeight: 1, economyRoleWeight: 1, combatRoleWeight: 1,
+  researchMilitaryTrackWeight: 1, warDeclarationBias: 0, diplomaticOpennessBias: 0,
+  vassalageSeekingBias: 0,
+};
 
 describe('chooseWarGoal (#988)', () => {
   it('picks the nearest known enemy city under a non-dominate posture', () => {
@@ -13,6 +23,7 @@ describe('chooseWarGoal (#988)', () => {
         { id: 'far-city', position: { q: 10, r: 10 } },
         { id: 'near-city', position: { q: 1, r: 1 } },
       ],
+      isRecognizedRival: false,
     });
     expect(result).toEqual({ kind: 'conquer_city', targetCityId: 'near-city' });
   });
@@ -27,6 +38,7 @@ describe('chooseWarGoal (#988)', () => {
         { id: 'city-b', position: { q: 2, r: 0 } },
         { id: 'city-a', position: { q: 0, r: 2 } },
       ],
+      isRecognizedRival: false,
     });
     expect(result?.targetCityId).toBe('city-a');
   });
@@ -38,6 +50,7 @@ describe('chooseWarGoal (#988)', () => {
       actorIsVassal: false,
       ownCapitalPosition: { q: 0, r: 0 },
       knownEnemyCities: [{ id: 'city-a', position: { q: 1, r: 1 } }],
+      isRecognizedRival: false,
     });
     expect(result).toEqual({ kind: 'force_vassalage' });
   });
@@ -49,6 +62,7 @@ describe('chooseWarGoal (#988)', () => {
       actorIsVassal: false,
       ownCapitalPosition: { q: 0, r: 0 },
       knownEnemyCities: [{ id: 'city-a', position: { q: 1, r: 1 } }],
+      isRecognizedRival: false,
     });
     expect(result?.kind).toBe('conquer_city');
   });
@@ -60,6 +74,7 @@ describe('chooseWarGoal (#988)', () => {
       actorIsVassal: true,
       ownCapitalPosition: { q: 0, r: 0 },
       knownEnemyCities: [{ id: 'city-a', position: { q: 1, r: 1 } }],
+      isRecognizedRival: false,
     });
     expect(result).toBeNull();
   });
@@ -71,6 +86,7 @@ describe('chooseWarGoal (#988)', () => {
       actorIsVassal: false,
       ownCapitalPosition: { q: 0, r: 0 },
       knownEnemyCities: [],
+      isRecognizedRival: false,
     });
     expect(result).toBeNull();
   });
@@ -82,6 +98,7 @@ describe('chooseWarGoal (#988)', () => {
       actorIsVassal: false,
       ownCapitalPosition: null,
       knownEnemyCities: [{ id: 'city-a', position: { q: 1, r: 1 } }],
+      isRecognizedRival: false,
     });
     expect(result).toBeNull();
   });
@@ -96,7 +113,58 @@ describe('chooseWarGoal (#988)', () => {
         { id: 'no-position', position: null },
         { id: 'has-position', position: { q: 3, r: 3 } },
       ],
+      isRecognizedRival: false,
     });
     expect(result).toEqual({ kind: 'conquer_city', targetCityId: 'has-position' });
+  });
+});
+
+describe('chooseWarGoal rivalry bias (#989)', () => {
+  it('at a mid capture bias, a non-rival still gets ordinary conquer_city', () => {
+    const result = chooseWarGoal({
+      posture: MID_CAPTURE_BIAS_POSTURE,
+      opponentHasOverlord: false,
+      actorIsVassal: false,
+      ownCapitalPosition: { q: 0, r: 0 },
+      knownEnemyCities: [{ id: 'city-a', position: { q: 1, r: 1 } }],
+      isRecognizedRival: false,
+    });
+    expect(result).toEqual({ kind: 'conquer_city', targetCityId: 'city-a' });
+  });
+
+  it('at the SAME mid capture bias, a recognized rival gets force_vassalage instead -- a measurable behaviour change from rivalry alone', () => {
+    const result = chooseWarGoal({
+      posture: MID_CAPTURE_BIAS_POSTURE,
+      opponentHasOverlord: false,
+      actorIsVassal: false,
+      ownCapitalPosition: { q: 0, r: 0 },
+      knownEnemyCities: [{ id: 'city-a', position: { q: 1, r: 1 } }],
+      isRecognizedRival: true,
+    });
+    expect(result).toEqual({ kind: 'force_vassalage' });
+  });
+
+  it('a low-aggression posture never triggers force_vassalage even for a recognized rival', () => {
+    const result = chooseWarGoal({
+      posture: NATIONAL_INTENT_POSTURE.expand,
+      opponentHasOverlord: false,
+      actorIsVassal: false,
+      ownCapitalPosition: { q: 0, r: 0 },
+      knownEnemyCities: [{ id: 'city-a', position: { q: 1, r: 1 } }],
+      isRecognizedRival: true,
+    });
+    expect(result?.kind).toBe('conquer_city');
+  });
+
+  it('a vassal still proposes no goal at all, even against a recognized rival', () => {
+    const result = chooseWarGoal({
+      posture: MID_CAPTURE_BIAS_POSTURE,
+      opponentHasOverlord: false,
+      actorIsVassal: true,
+      ownCapitalPosition: { q: 0, r: 0 },
+      knownEnemyCities: [{ id: 'city-a', position: { q: 1, r: 1 } }],
+      isRecognizedRival: true,
+    });
+    expect(result).toBeNull();
   });
 });

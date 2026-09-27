@@ -1390,3 +1390,79 @@ describe('#991 war conference panel through the shared viewer-safety harness', (
     });
   });
 });
+
+// #989: rivalry is rendered directly on the existing diplomacy panel row (not
+// a separate sub-panel), but it is a new fact the panel exposes -- a
+// qualifying rivalry between the viewer and an opponent it derives from
+// state.wars -- so it needs its own coverage per the Viewer Safety Contract.
+describe('#989 rivalry through the shared diplomacy panel viewer-safety harness', () => {
+  const renderedPanel: ViewerSurface<GameState, ReturnType<typeof domProjection>> = {
+    name: 'diplomacy panel (rendered)',
+    project: (state, viewerId) => {
+      const viewing = { ...state, currentPlayer: viewerId };
+      const panel = createDiplomacyPanel(document.createElement('div'), viewing, { onAction: () => {}, onClose: () => {} });
+      return domProjection(panel);
+    },
+  };
+
+  /** Two concluded wars between `civId` and `opponentId`, the second with a
+   * capital capture -- enough real history to cross the `'rival'` threshold. */
+  function withQualifyingRivalry(state: GameState, civId: string, opponentId: string): GameState {
+    const warA = {
+      id: `war-${civId}-${opponentId}-1`, nameTemplateIndex: 0,
+      originalAggressorId: civId, originalDefenderId: opponentId,
+      startTurn: 1, endTurn: 2, outcome: 'white-peace' as const,
+      participants: [
+        { civId, side: 'aggressor' as const, joinedTurn: 1, leftTurn: 2, leaveReason: 'peace' as const },
+        { civId: opponentId, side: 'defender' as const, joinedTurn: 1, leftTurn: 2, leaveReason: 'peace' as const },
+      ],
+      events: [{ type: 'declared' as const, turn: 1, aggressorId: civId, defenderId: opponentId }],
+    };
+    const warB = {
+      id: `war-${civId}-${opponentId}-2`, nameTemplateIndex: 0,
+      originalAggressorId: civId, originalDefenderId: opponentId,
+      startTurn: 5, endTurn: 6, outcome: 'settled' as const,
+      participants: [
+        { civId, side: 'aggressor' as const, joinedTurn: 5, leftTurn: 6, leaveReason: 'peace' as const },
+        { civId: opponentId, side: 'defender' as const, joinedTurn: 5, leftTurn: 6, leaveReason: 'peace' as const },
+      ],
+      events: [
+        { type: 'declared' as const, turn: 5, aggressorId: civId, defenderId: opponentId },
+        { type: 'city-captured' as const, turn: 5, cityId: 'capital-city', cityName: 'Their Capital', fromCivId: opponentId, toCivId: civId, wasCapital: true },
+      ],
+    };
+    return { ...state, wars: { ...state.wars, [warA.id]: warA, [warB.id]: warB } };
+  }
+
+  it('a real qualifying rivalry with an unmet civ never surfaces; meeting them reveals it', () => {
+    const world = withQualifyingRivalry(createTwoViewerWorld('viewer-safety-rivalry'), HUMAN_A, AI_B);
+    expectViewerSafety(renderedPanel, {
+      world,
+      viewerId: HUMAN_A,
+      hidden: [
+        { label: `unmet ${AI_B} renames itself`, apply: s => { s.civilizations[AI_B]!.name = 'Hidden Dominion'; } },
+        {
+          label: `unmet ${AI_B} escalates the SAME rivalry further while still unmet`,
+          apply: s => {
+            const warId = `war-${HUMAN_A}-${AI_B}-2`;
+            s.wars = { ...s.wars, [warId]: { ...s.wars![warId]!, events: [...s.wars![warId]!.events, { type: 'settlement-signed', turn: 6, termCount: 1 }] } };
+          },
+        },
+      ],
+      earned: [{ label: `${HUMAN_A} meets ${AI_B}`, apply: s => makeMet(s, HUMAN_A, AI_B) }],
+    });
+  });
+
+  it('hot seat: a rivalry only HUMAN_B has actually fought stays invisible on HUMAN_A\'s panel, and only reveals on HUMAN_B\'s once HUMAN_B meets the opponent', () => {
+    // The war history exists in state before contact is established (state.wars
+    // is authoritative, independent of discovery) -- exactly like #991's own
+    // war records can predate a viewer's knowledge of a participant.
+    const world = withQualifyingRivalry(createTwoViewerWorld('viewer-safety-rivalry-hotseat'), HUMAN_B, AI_A);
+    expectHotSeatDifferential(renderedPanel, {
+      world,
+      viewers: [HUMAN_A, HUMAN_B],
+      knownOnlyTo: HUMAN_B,
+      mutation: { label: `${HUMAN_B} meets ${AI_A}`, apply: s => makeMet(s, HUMAN_B, AI_A) },
+    });
+  });
+});

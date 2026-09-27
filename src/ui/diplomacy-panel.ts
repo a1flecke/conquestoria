@@ -14,6 +14,7 @@ import {
 import { describeWarGoalLabel } from '@/systems/war-goal-system';
 import { getPendingSettlementOfferForPair } from '@/systems/settlement-system';
 import { findActiveWarBetween } from '@/systems/war-history-system';
+import { getRivalryForViewer } from '@/systems/rivalry-system';
 import { openWarGoalPanel } from '@/ui/war-goal-panel';
 import { openSettlementOfferPanel } from '@/ui/settlement-offer-panel';
 import { openWarConferencePanel } from '@/ui/war-conference-panel';
@@ -92,6 +93,25 @@ function describeWarGoal(state: GameState, viewerId: string, opponentCivId: stri
   return label ? `War Goal: ${label}` : null;
 }
 
+// #989: a viewer-safe rivalry label -- getRivalryForViewer already redacts
+// (returns null entirely for an opponent the viewer hasn't met, or one with
+// no qualifying history), so this only formats what it returns. Cites the
+// most recent concrete fact so the label is never an opaque score.
+const RIVALRY_STATUS_LABEL: Record<string, string> = {
+  rival: 'Longstanding Rival',
+  cooling: 'Cooling Rivalry',
+  'respected-foe': 'Fallen Rival',
+  'reconciled-ally': 'Reconciled Rival',
+};
+
+function describeRivalry(state: GameState, viewerId: string, opponentCivId: string): string | null {
+  const rivalry = getRivalryForViewer(state, viewerId, opponentCivId);
+  if (!rivalry) return null;
+  const mostRecent = rivalry.facts[rivalry.facts.length - 1];
+  const label = RIVALRY_STATUS_LABEL[rivalry.status] ?? 'Rivalry';
+  return mostRecent ? `${label}: ${mostRecent.text} (turn ${mostRecent.turn})` : label;
+}
+
 // #988: summarize a settlement offer's terms for display to the recipient.
 // The offer's own terms are the only information source -- it was
 // constructed by the proposer and already names whatever it names.
@@ -138,6 +158,8 @@ interface CivRowData {
   sendAidDisabled: boolean;
   sendAidDisabledReason: string | null;
   strategicCautionNoteText: string | null;
+  // #989
+  rivalryText: string | null;
   // #988
   warGoalStatusText: string | null;
   canDeclareWarGoal: boolean;
@@ -348,6 +370,11 @@ export function createDiplomacyPanel(
       ? `${civ.name} is wary of your strategic capability.`
       : null;
 
+    // #989: not gated on `atWar` -- a rivalry can persist through peace
+    // ('cooling'), an alliance ('reconciled-ally'), or the opponent's
+    // elimination ('respected-foe').
+    const rivalryText = describeRivalry(state, state.currentPlayer, civId);
+
     // #988
     const isVassal = Boolean(playerDiplomacy.vassalage.overlord);
     const warGoalStatusText = atWar ? describeWarGoal(state, state.currentPlayer, civId) : null;
@@ -393,6 +420,7 @@ export function createDiplomacyPanel(
       sendAidDisabled,
       sendAidDisabledReason,
       strategicCautionNoteText,
+      rivalryText,
       warGoalStatusText,
       canDeclareWarGoal,
       canProposeSettlement,
@@ -540,6 +568,11 @@ export function createDiplomacyPanel(
       ? `<div style="font-size:11px;color:#e8c170;margin-bottom:8px;" data-text="strategic-caution-${row.civIdx}"></div>`
       : '';
 
+    // #989
+    const rivalryHtml = row.rivalryText
+      ? `<div style="font-size:11px;color:#d97757;margin-bottom:8px;" data-text="rivalry-${row.civIdx}"></div>`
+      : '';
+
     // #988
     const warGoalStatusHtml = row.warGoalStatusText
       ? `<div style="font-size:11px;color:#e8c170;margin-bottom:8px;" data-text="war-goal-status-${row.civIdx}"></div>`
@@ -587,6 +620,7 @@ export function createDiplomacyPanel(
             ${worldPressureHtml}
             ${worldPressureDetailHtml}
             ${strategicCautionNoteHtml}
+            ${rivalryHtml}
             ${warGoalStatusHtml}
             ${treatyProposalsHtml}
           </div>
@@ -693,6 +727,9 @@ export function createDiplomacyPanel(
     }
     if (row.strategicCautionNoteText) {
       setText(`strategic-caution-${row.civIdx}`, row.strategicCautionNoteText);
+    }
+    if (row.rivalryText) {
+      setText(`rivalry-${row.civIdx}`, row.rivalryText);
     }
     if (row.warGoalStatusText) {
       setText(`war-goal-status-${row.civIdx}`, row.warGoalStatusText);

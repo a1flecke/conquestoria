@@ -72,7 +72,7 @@ import { preach } from '@/systems/religion-system';
 import { createUnitDeleteConfirmationPanel } from '@/ui/unit-delete-confirmation-panel';
 import { UNIT_DEFINITIONS, canHeal, restUnit, createUnit, getBlockingMapEntityAt } from '@/systems/unit-system';
 import { isMajorCivOwner } from '@/core/owner-kind';
-import { declareMajorWar, modifyRelationship, resolveOpponentKind } from '@/systems/diplomacy-system';
+import { declareMajorWar, modifyRelationship, recordSpyCaught, resolveOpponentKind } from '@/systems/diplomacy-system';
 import { applyOpportunisticWarPenaltyIfCrisisStruck } from '@/systems/crisis-interaction-system';
 import { getSpyCaptureRelationshipPenalty, expelSpy, executeSpy, startInterrogation } from '@/systems/espionage-system';
 import { getCapitalCity } from '@/systems/capital-system';
@@ -342,21 +342,22 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
           }
           // Bilateral: captor's view of spy owner AND spy owner's view of captor
           const captorId = deps.session.getState().currentPlayer;
+          const expelTurn = deps.session.getState().turn;
           deps.session.setStateWithoutRefresh({
             ...deps.session.getState(),
             civilizations: {
               ...deps.session.getState().civilizations,
               [captorId]: {
                 ...deps.session.getState().civilizations[captorId],
-                diplomacy: modifyRelationship(
+                diplomacy: recordSpyCaught(modifyRelationship(
                   deps.session.getState().civilizations[captorId].diplomacy, spyOwner, relPenalty,
-                ),
+                ), spyOwner, expelTurn),
               },
               [spyOwner]: {
                 ...deps.session.getState().civilizations[spyOwner],
-                diplomacy: modifyRelationship(
+                diplomacy: recordSpyCaught(modifyRelationship(
                   deps.session.getState().civilizations[spyOwner].diplomacy, captorId, relPenalty,
-                ),
+                ), captorId, expelTurn),
               },
             },
           });
@@ -381,6 +382,7 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
                 danger: true,
                 onClick: () => {
                   const captorId = deps.session.getState().currentPlayer;
+                  const executeTurn = deps.session.getState().turn;
                   deps.session.setStateWithoutRefresh({
                     ...deps.session.getState(),
                     espionage: {
@@ -392,15 +394,15 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
                       ...deps.session.getState().civilizations,
                       [captorId]: {
                         ...deps.session.getState().civilizations[captorId],
-                        diplomacy: modifyRelationship(
+                        diplomacy: recordSpyCaught(modifyRelationship(
                           deps.session.getState().civilizations[captorId].diplomacy, spyOwner, relPenalty * 2,
-                        ),
+                        ), spyOwner, executeTurn),
                       },
                       [spyOwner]: {
                         ...deps.session.getState().civilizations[spyOwner],
-                        diplomacy: modifyRelationship(
+                        diplomacy: recordSpyCaught(modifyRelationship(
                           deps.session.getState().civilizations[spyOwner].diplomacy, captorId, relPenalty * 2,
-                        ),
+                        ), captorId, executeTurn),
                       },
                     },
                   });

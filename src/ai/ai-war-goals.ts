@@ -22,6 +22,12 @@ export interface WarGoalCandidateInput {
   actorIsVassal: boolean;
   ownCapitalPosition: HexCoord | null;
   knownEnemyCities: ReadonlyArray<{ id: string; position: HexCoord | null }>;
+  /** #989: has the actor's OWN recorded history with this opponent (repeated
+   * wars, lost cities/capitals, broken treaties, etc. -- see
+   * `rivalry-system.ts`) crossed the `'rival'` threshold? This is the one
+   * measurable AI behaviour change #989 requires: a recognized rival is
+   * pursued more punitively than a first-time opponent at the same posture. */
+  isRecognizedRival: boolean;
 }
 
 export interface WarGoalChoice {
@@ -32,10 +38,16 @@ export interface WarGoalChoice {
 /** A posture aggressive enough to prefer imposing vassalage over ordinary conquest. */
 const DOMINATE_CAPTURE_BIAS_THRESHOLD = 10;
 
+/** #989: a recognized rival earns force-vassalage at a much lower capture
+ * bias than a stranger would -- the AI does not need to be in an all-out
+ * dominate posture to want to finally settle an old score. */
+const RIVAL_CAPTURE_BIAS_THRESHOLD = 4;
+
 export function chooseWarGoal(input: WarGoalCandidateInput): WarGoalChoice | null {
   if (input.actorIsVassal) return null;
 
-  if (!input.opponentHasOverlord && input.posture.captureBias >= DOMINATE_CAPTURE_BIAS_THRESHOLD) {
+  const captureBiasThreshold = input.isRecognizedRival ? RIVAL_CAPTURE_BIAS_THRESHOLD : DOMINATE_CAPTURE_BIAS_THRESHOLD;
+  if (!input.opponentHasOverlord && input.posture.captureBias >= captureBiasThreshold) {
     return { kind: 'force_vassalage' };
   }
 
