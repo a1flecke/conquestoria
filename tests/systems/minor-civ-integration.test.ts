@@ -45,6 +45,7 @@ describe('minor civ integration', () => {
     const city = state.cities[mc.cityId];
     expect(city).toBeDefined();
     expect(city.owner).toBe(mcId);
+    state.civilizations.player.diplomacy.atWarWith = [mcId];
 
     const result = conquestMinorCiv(state, mcId, 'player');
 

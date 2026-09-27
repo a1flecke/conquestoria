@@ -687,6 +687,13 @@ export function conquestMinorCiv(
 ): { state: GameState; transitions: ChainTransition[]; conquered: boolean } {
   const existing = state.minorCivs[mcId];
   if (!existing || existing.isDestroyed) return { state, transitions: [], conquered: false };
+  // #999: every real caller (AI's executeMinorCityCapture, both player UI paths via
+  // resolveSelectedUnitTapIntent's war-gated 'assault-minor-civ' dispatch or the post-combat
+  // auto-conquest branch, which is only reachable after defeating a garrison combat itself
+  // requires being at war to initiate) already independently verifies this before calling here
+  // -- caller-discipline-only enforcement of the same shape #843/#845/#965/#970 already showed
+  // is fragile for movement. Checked here too so a future caller cannot reintroduce the bypass.
+  if (!isMinorCivAtWar(state, conquerorId, mcId)) return { state, transitions: [], conquered: false };
   const nextState = structuredClone(state);
   const mc = nextState.minorCivs[mcId];
   const transitions: ChainTransition[] = [];

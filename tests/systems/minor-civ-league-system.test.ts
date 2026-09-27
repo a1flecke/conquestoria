@@ -194,6 +194,7 @@ describe('minor-civ league lifecycle', () => {
     };
     const conquered = makeCompactedState('minor-civ-league-conquest');
     const absorbed = makeCompactedState('minor-civ-league-absorption');
+    conquered.state.civilizations.player.diplomacy.atWarWith = [conquered.first.id];
 
     const afterConquest = conquestMinorCiv(conquered.state, conquered.first.id, 'player').state;
     const afterAbsorption = peacefullyAbsorbMinorCiv(absorbed.state, absorbed.first.id, 'player').state;
