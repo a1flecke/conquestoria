@@ -52,6 +52,12 @@ export function spawnBarbarianCamp(
   existingCamps: BarbarianCamp[],
   seed: number,
   counters: IdCounters,
+  // Mid-game callers (a live crisis-driven hunt) must exclude tiles a unit already
+  // occupies -- a camp landing under an existing unit trips assertNoIllegalBlockingOccupancy
+  // exactly like the reverse (a unit spawning onto an existing camp). Initial game-creation
+  // callers pass no `state` and rely on the >=6-distance-from-city filter below, which
+  // already excludes every starting unit's tile.
+  occupiedHexKeys?: ReadonlySet<string>,
 ): BarbarianCamp | null {
   const rng = lcg(seed);
   const existingPositions = new Set(existingCamps.map(c => hexKey(c.position)));
@@ -60,6 +66,7 @@ export function spawnBarbarianCamp(
     if (tile.terrain === 'ocean' || tile.terrain === 'coast' ||
         tile.terrain === 'mountain' || tile.terrain === 'snow') return false;
     if (existingPositions.has(hexKey(tile.coord))) return false;
+    if (occupiedHexKeys?.has(hexKey(tile.coord))) return false;
 
     // Must be far from cities
     for (const cityPos of cityPositions) {
