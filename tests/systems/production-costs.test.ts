@@ -6,6 +6,7 @@ import {
   getProductionCostForItem,
   getSettlerProductionCost,
 } from '@/systems/city-system';
+import { civilizationEraFromNumber } from '@/systems/era-types';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getResourceAdvantageMultiplier } from '@/systems/resource-advantages';
 
@@ -73,9 +74,9 @@ describe('production cost catalog', () => {
     const cityWithSafehouse = { buildings: ['safehouse'] };
     const cityWithoutSafehouse = { buildings: [] };
 
-    expect(getProductionCostForItem('spy_scout', { city: cityWithSafehouse, era: 1 })).toBe(23);
-    expect(getProductionCostForItem('spy_scout', { city: cityWithoutSafehouse, era: 1 })).toBe(30);
-    expect(getProductionCostForItem('settler', { city: cityWithSafehouse, era: 2 })).toBe(24);
+    expect(getProductionCostForItem('spy_scout', { city: cityWithSafehouse, era: civilizationEraFromNumber(1) })).toBe(23);
+    expect(getProductionCostForItem('spy_scout', { city: cityWithoutSafehouse, era: civilizationEraFromNumber(1) })).toBe(30);
+    expect(getProductionCostForItem('settler', { city: cityWithSafehouse, era: civilizationEraFromNumber(2) })).toBe(24);
   });
 
   it('keeps trainable unit costs aligned with unit definitions', () => {
@@ -91,8 +92,8 @@ describe('production cost catalog', () => {
   });
 
   it('does not apply the buildings-only vaulted-ceilings discount to units', () => {
-    const baseline = getProductionCostForItem('settler', { era: 1 });
-    expect(getProductionCostForItem('settler', { era: 1, completedTechs: ['vaulted-ceilings'] })).toBe(baseline);
+    const baseline = getProductionCostForItem('settler', { era: civilizationEraFromNumber(1) });
+    expect(getProductionCostForItem('settler', { era: civilizationEraFromNumber(1), completedTechs: ['vaulted-ceilings'] })).toBe(baseline);
   });
 
   it('stacks vaulted-ceilings multiplicatively with the masonry-works walls discount', () => {
@@ -112,26 +113,26 @@ describe('production cost catalog', () => {
   });
 
   it('applies manifest-destiny -20% only to settlers', () => {
-    const baseline = getProductionCostForItem('settler', { era: 3 });
-    expect(getProductionCostForItem('settler', { era: 3, completedTechs: ['manifest-destiny'] })).toBe(Math.ceil(baseline * 0.8));
-    expect(getProductionCostForItem('worker', { era: 3, completedTechs: ['manifest-destiny'] })).toBe(getProductionCostForItem('worker', { era: 3 }));
+    const baseline = getProductionCostForItem('settler', { era: civilizationEraFromNumber(3) });
+    expect(getProductionCostForItem('settler', { era: civilizationEraFromNumber(3), completedTechs: ['manifest-destiny'] })).toBe(Math.ceil(baseline * 0.8));
+    expect(getProductionCostForItem('worker', { era: civilizationEraFromNumber(3), completedTechs: ['manifest-destiny'] })).toBe(getProductionCostForItem('worker', { era: civilizationEraFromNumber(3) }));
   });
 
   it('applies general-mobilization -15% to a military unit (musketeer)', () => {
-    const baseline = getProductionCostForItem('musketeer', { era: 8 });
-    expect(getProductionCostForItem('musketeer', { era: 8, completedTechs: ['general-mobilization'] })).toBe(Math.ceil(baseline * 0.85));
+    const baseline = getProductionCostForItem('musketeer', { era: civilizationEraFromNumber(8) });
+    expect(getProductionCostForItem('musketeer', { era: civilizationEraFromNumber(8), completedTechs: ['general-mobilization'] })).toBe(Math.ceil(baseline * 0.85));
   });
 
   it('does not apply general-mobilization to civilian or spy units', () => {
-    expect(getProductionCostForItem('settler', { era: 8, completedTechs: ['general-mobilization'] })).toBe(getProductionCostForItem('settler', { era: 8 }));
-    expect(getProductionCostForItem('worker', { era: 8, completedTechs: ['general-mobilization'] })).toBe(getProductionCostForItem('worker', { era: 8 }));
-    expect(getProductionCostForItem('spy_scout', { era: 8, completedTechs: ['general-mobilization'] })).toBe(getProductionCostForItem('spy_scout', { era: 8 }));
+    expect(getProductionCostForItem('settler', { era: civilizationEraFromNumber(8), completedTechs: ['general-mobilization'] })).toBe(getProductionCostForItem('settler', { era: civilizationEraFromNumber(8) }));
+    expect(getProductionCostForItem('worker', { era: civilizationEraFromNumber(8), completedTechs: ['general-mobilization'] })).toBe(getProductionCostForItem('worker', { era: civilizationEraFromNumber(8) }));
+    expect(getProductionCostForItem('spy_scout', { era: civilizationEraFromNumber(8), completedTechs: ['general-mobilization'] })).toBe(getProductionCostForItem('spy_scout', { era: civilizationEraFromNumber(8) }));
   });
 
   it('stacks general-mobilization multiplicatively with mass-production', () => {
-    const baseline = getProductionCostForItem('musketeer', { era: 8 });
+    const baseline = getProductionCostForItem('musketeer', { era: civilizationEraFromNumber(8) });
     const stacked = getProductionCostForItem('musketeer', {
-      era: 8,
+      era: civilizationEraFromNumber(8),
       completedTechs: ['general-mobilization', 'mass-production'],
     });
     expect(stacked).toBe(Math.ceil(baseline * 0.85 * 0.95));

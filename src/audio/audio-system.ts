@@ -3,6 +3,7 @@ import type { GameState } from '../core/types';
 import { AudioLoader } from './audio-loader';
 import { AudioMixer } from './audio-mixer';
 import { MusicDirector } from './music-director';
+import { worldAgeFromNumber } from '@/systems/era-types';
 import { NaturalWonderAudioDirector, type NaturalWonderAmbientStopReason } from './natural-wonder-audio-director';
 import { getFamilyForCiv } from './civ-audio-family';
 import { ERA_BASE, WAR_LAYER, ACCENT, resolveEra } from './audio-catalog';
@@ -99,7 +100,7 @@ export class AudioSystem {
     // Restore correct snapshot state machine when resuming a saved game mid-era.
     // Guard on era only, not musicEnabled — director state must be correct even when muted.
     if (state.era > 1) {
-      this.director.handleEraAdvanced({ era: state.era, civType: this.currentCivType });
+      this.director.handleEraAdvanced({ era: worldAgeFromNumber(state.era), civType: this.currentCivType });
     } else {
       // Era-1 new game: delegate to director so intendedSnapshot stays in sync.
       // initPeaceSnapshot is synchronous and idempotent — safe before preloadForEra resolves.
@@ -249,7 +250,7 @@ export class AudioSystem {
     this.director.handlePlayerChanged({
       civId: this.currentPlayerId,
       civType: this.currentCivType,
-      era: state.era,
+      era: worldAgeFromNumber(state.era),
       atWar: this.warCount > 0,
       unrestCityCount,
       nearDefeat: civ?.nearDefeat ?? false,
@@ -327,7 +328,7 @@ export class AudioSystem {
 
       bus.on('currentPlayer:changed-after-handoff', p => {
         const currentState = this.stateProvider?.();
-        const era = p.era ?? currentState?.era ?? 1;
+        const era = p.era ?? worldAgeFromNumber(currentState?.era ?? 1);
         this.currentPlayerId = p.civId;
         this.currentCivType = p.civType
           ?? this.civTypeById[p.civId]

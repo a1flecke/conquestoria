@@ -529,7 +529,7 @@ tech list, national projects, resources, material substitution or reward charges
 belong in a cost.
 
 **`era` is always `resolveCivilizationEra(civ.techState.completed)` — the owning
-civilization's own technology-derived era.** `state.era` is *World Age*: the era
+civilization's own technology-derived era, typed `CivilizationEra`.** `state.era` is *World Age*: the era
 a **majority** of living civilizations has reached (`resolveWorldAge`). For a
 civ behind the curve the two differ by more than 2x, and `SETTLER_COST_BY_ERA`
 turns that straight into a wrong price. `resolveCombatEra` and

@@ -22,6 +22,7 @@ import { isVisible } from '@/systems/fog-of-war';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { isTrustedObservedLastSeenTile } from '@/systems/last-seen-presentation';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
+import { worldAgeFromNumber } from '@/systems/era-types';
 import { findPath, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
@@ -854,7 +855,7 @@ export function prepareMajorCivStrategicPlan(
         ...deployedCombat.map(unit => UNIT_DEFINITIONS[unit.type].strength),
       ),
       actorEra,
-      globalEra: state.era,
+      globalEra: worldAgeFromNumber(state.era),
       knownRivalMaxStrength: Math.max(
         0,
         ...perception.units

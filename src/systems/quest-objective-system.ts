@@ -11,6 +11,7 @@ import {
   type ProductionCostContext,
 } from '@/systems/production-cost-context';
 import { resolveCivilizationEra } from './tech-definitions';
+import type { CivilizationEra } from './era-types';
 import { hasDiscoveredCity, hasDiscoveredMinorCiv } from './discovery-system';
 import { getVisibility } from './fog-of-war';
 import { hexDistance } from './hex-utils';
@@ -40,7 +41,7 @@ export interface QuestObjectiveHandler {
   describe(state: GameState, playerId: string, quest: Quest): string;
 }
 
-function questEra(era: number): QuestEra {
+function questEra(era: CivilizationEra): QuestEra {
   return Math.max(1, Math.min(4, era)) as QuestEra;
 }
 

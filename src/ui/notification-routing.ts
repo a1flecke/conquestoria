@@ -8,6 +8,7 @@ import { getLegendaryWonderNotification } from '@/ui/legendary-wonder-notificati
 import { describeDroppedProductionItem } from '@/systems/city-system';
 import type { NotificationCityAction, NotificationEntry } from '@/core/notification-log';
 import { presentStrategicWarning } from '@/ui/strategic-warning-presentation';
+import type { WorldAge } from '@/systems/era-types';
 import { getCrisisFlavor, getCrisisDisplayName } from '@/systems/crisis-flavor-definitions';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { resolveWorldPressureFlags } from '@/systems/world-pressure-flags';
@@ -563,7 +564,7 @@ export function routeBarbarianSpawned(
 // happens to be at emit time (#551) -- deliver to every human civ via the
 // delivery contract, which handles hot-seat queueing and solo toasting itself.
 export function routeEraAdvanced(
-  era: number,
+  era: WorldAge,
   humanCivIds: string[],
   sink: NotificationSink,
 ): void {

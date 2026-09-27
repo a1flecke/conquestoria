@@ -43,6 +43,7 @@ import {
   routeIntelReportAcquired,
   type NotificationSink,
 } from '@/ui/notification-routing';
+import { worldAgeFromNumber } from '@/systems/era-types';
 
 vi.mock('@/systems/discovery-system', () => ({
   hasMetCivilization: (_s: unknown, viewer: string, target: string) => viewer === 'p2' && target === 'p1',
@@ -1443,7 +1444,7 @@ describe('era:advanced routing', () => {
   it('era 2 delivers to every human civ, with an extra unrest-primer line per civ', () => {
     const { sink, calls } = makeSink();
 
-    routeEraAdvanced(2, ['p1', 'p2'], sink);
+    routeEraAdvanced(worldAgeFromNumber(2), ['p1', 'p2'], sink);
 
     // Each human civ gets both the era announcement and the era-2 unrest primer.
     const p1Calls = calls.filter(c => c.civId === 'p1');
@@ -1460,7 +1461,7 @@ describe('era:advanced routing', () => {
   it('era 3 delivers only the announcement line to each human civ, no unrest primer', () => {
     const { sink, calls } = makeSink();
 
-    routeEraAdvanced(3, ['p1'], sink);
+    routeEraAdvanced(worldAgeFromNumber(3), ['p1'], sink);
 
     expect(calls).toHaveLength(1);
     expect(calls[0]!.civId).toBe('p1');
@@ -1470,14 +1471,14 @@ describe('era:advanced routing', () => {
   it('delivers to no one when there are no human civs', () => {
     const { sink, calls } = makeSink();
 
-    routeEraAdvanced(2, [], sink);
+    routeEraAdvanced(worldAgeFromNumber(2), [], sink);
 
     expect(calls).toHaveLength(0);
   });
 
   it('#919 MR3: the Era-2 onset primer names only era-appropriate levers (no happiness-building dead promise)', () => {
     const { sink, calls } = makeSink();
-    routeEraAdvanced(2, ['p1'], sink);
+    routeEraAdvanced(worldAgeFromNumber(2), ['p1'], sink);
     const primer = calls.find(c => c.type === 'info')!.message;
     expect(primer).not.toMatch(/happiness improvement/i);
     expect(primer).toMatch(/garrison/i);

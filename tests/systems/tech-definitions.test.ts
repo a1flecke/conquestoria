@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { TECH_TREE, getEraAdvancementFraction, getEraAdvancementTechs, resolveCivilizationEra, resolveWorldAge } from '@/systems/tech-definitions';
+import type { CivilizationEra, WorldAge } from '@/systems/era-types';
+import { civilizationEraFromNumber, worldAgeFromNumber } from '@/systems/era-types';
 import {
   estimateTurnsToComplete,
   getResearchOutputProfileForTech,
@@ -408,5 +410,57 @@ describe('opening research pacing data', () => {
         ).toBe(true);
       });
     }
+  });
+});
+
+describe('#1016/#1017 — WorldAge and CivilizationEra are distinct compile-time domains', () => {
+  it('the resolvers produce their own branded domain', () => {
+    const civEra: CivilizationEra = resolveCivilizationEra([]);
+    const worldAge: WorldAge = resolveWorldAge({ civilizations: {}, cities: {}, units: {} });
+    expect(civEra).toBe(1);
+    expect(worldAge).toBe(1);
+    // Brands erase: runtime values stay plain numbers, so saves are untouched.
+    expect(typeof civEra).toBe('number');
+    expect(typeof worldAge).toBe('number');
+  });
+
+  it('numeric era math still works on branded values without casts', () => {
+    const civEra = resolveCivilizationEra([]);
+    const worldAge = resolveWorldAge({ civilizations: {}, cities: {}, units: {} });
+    expect(civEra + 1).toBe(2);
+    expect(Math.max(1, civEra)).toBe(1);
+    expect(Math.min(civEra, worldAge)).toBe(1);
+  });
+
+  it('type level: a CivilizationEra cannot stand in for a WorldAge', () => {
+    const civEra = resolveCivilizationEra([]);
+    // @ts-expect-error WorldAge and CivilizationEra are mutually unassignable (#1016/#1017)
+    const worldAge: WorldAge = civEra;
+    expect(worldAge).toBe(1);
+  });
+
+  it('type level: a WorldAge cannot stand in for a CivilizationEra', () => {
+    const worldAge = resolveWorldAge({ civilizations: {}, cities: {}, units: {} });
+    // @ts-expect-error WorldAge and CivilizationEra are mutually unassignable (#1016/#1017)
+    const civEra: CivilizationEra = worldAge;
+    expect(civEra).toBe(1);
+  });
+
+  it('type level: a plain number satisfies neither brand without a boundary', () => {
+    // @ts-expect-error bare numbers must cross worldAgeFromNumber (#1016)
+    const worldAge: WorldAge = 3;
+    // @ts-expect-error bare numbers must cross civilizationEraFromNumber (#1017)
+    const civEra: CivilizationEra = 3;
+    expect(worldAge).toBe(3);
+    expect(civEra).toBe(3);
+  });
+
+  it('the number boundaries normalize like the production-cost era clamp', () => {
+    expect(worldAgeFromNumber(0)).toBe(1);
+    expect(worldAgeFromNumber(2.7)).toBe(2);
+    expect(worldAgeFromNumber(Number.NaN)).toBe(1);
+    expect(civilizationEraFromNumber(0)).toBe(1);
+    expect(civilizationEraFromNumber(4.9)).toBe(4);
+    expect(civilizationEraFromNumber(Number.NaN)).toBe(1);
   });
 });
