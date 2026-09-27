@@ -39,12 +39,14 @@ import { evaluateDiplomacy, evaluateMinorCivDiplomacy, evaluateVassalage, evalua
 import { NATIONAL_INTENT_POSTURE } from './ai-national-intent';
 import { chooseWarGoal } from './ai-war-goals';
 import { declareWarGoal, getWarGoalStatus } from '@/systems/war-goal-system';
+import { getRivalryProfile } from '@/systems/rivalry-system';
 import { proposeSettlement } from '@/systems/settlement-system';
 
 import {
   declareMajorWar,
   proposeTreatyAgreement,
   modifyRelationship,
+  recordSpyCaught,
   getRelationship,
   proposeVassalage,
   getVassalageEligibility,
@@ -1319,6 +1321,9 @@ function processAITurnInternal(
                 actorIsVassal: newState.civilizations[civId]?.diplomacy.vassalage.overlord != null,
                 ownCapitalPosition: getCapitalCity(newState, civId)?.position ?? null,
                 knownEnemyCities: perception.knownCities.filter(city => city.owner === decision.targetCiv),
+                // #989: derived purely from civId's OWN war/diplomacy records
+                // with this exact opponent -- never a global/hidden fact.
+                isRecognizedRival: getRivalryProfile(newState, civId, decision.targetCiv).status === 'rival',
               });
               if (goalChoice) {
                 newState = declareWarGoal(newState, civId, decision.targetCiv, goalChoice.kind, goalChoice.targetCityId, newState.turn);
@@ -1715,11 +1720,11 @@ function processAITurnInternal(
               ...newState.civilizations,
               [civId]: {
                 ...newState.civilizations[civId],
-                diplomacy: modifyRelationship(newState.civilizations[civId].diplomacy, victimCivId, relPenalty),
+                diplomacy: recordSpyCaught(modifyRelationship(newState.civilizations[civId].diplomacy, victimCivId, relPenalty), victimCivId, newState.turn),
               },
               [victimCivId]: {
                 ...newState.civilizations[victimCivId],
-                diplomacy: modifyRelationship(newState.civilizations[victimCivId].diplomacy, civId, relPenalty),
+                diplomacy: recordSpyCaught(modifyRelationship(newState.civilizations[victimCivId].diplomacy, civId, relPenalty), civId, newState.turn),
               },
             },
           };
@@ -1738,11 +1743,11 @@ function processAITurnInternal(
               ...newState.civilizations,
               [civId]: {
                 ...newState.civilizations[civId],
-                diplomacy: modifyRelationship(newState.civilizations[civId].diplomacy, victimCivId, relPenalty * 2),
+                diplomacy: recordSpyCaught(modifyRelationship(newState.civilizations[civId].diplomacy, victimCivId, relPenalty * 2), victimCivId, newState.turn),
               },
               [victimCivId]: {
                 ...newState.civilizations[victimCivId],
-                diplomacy: modifyRelationship(newState.civilizations[victimCivId].diplomacy, civId, relPenalty * 2),
+                diplomacy: recordSpyCaught(modifyRelationship(newState.civilizations[victimCivId].diplomacy, civId, relPenalty * 2), civId, newState.turn),
               },
             },
           };

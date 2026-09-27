@@ -263,6 +263,20 @@ export function breakTreaty(
   return modifyRelationship(newState, otherCivId, -30);
 }
 
+/**
+ * #989: logs a spy-catch incident into the existing (unversioned, open-string)
+ * `DiplomaticEvent.type` -- reuses the same array every other event type
+ * already lives in, so this needs no new persisted field and no migration.
+ * Call this alongside the existing bilateral `modifyRelationship` at every
+ * spy-capture-verdict site (expel/execute; interrogate carries no relationship
+ * penalty today and is deliberately not recorded here either). Symmetric: the
+ * caller applies this to BOTH the capturing civ's and the spy owner's own
+ * diplomacy state, each naming the other as `otherCiv`.
+ */
+export function recordSpyCaught(state: DiplomacyState, otherCivId: string, turn: number): DiplomacyState {
+  return { ...state, events: [...state.events, { type: 'spy_caught', turn, otherCiv: otherCivId, weight: 1 }] };
+}
+
 export function processRelationshipDrift(
   state: DiplomacyState,
   unitsNearBorder: Record<string, boolean>,

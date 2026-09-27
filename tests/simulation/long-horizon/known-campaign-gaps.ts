@@ -350,6 +350,16 @@ export interface KnownCampaignGap {
  *   comment names it") or leave it pointing at a closed issue, #1127 was filed to
  *   re-triage this specific shape fresh, with the same rigor #1094/#1108/#1113 used
  *   for this same finding code previously. Not yet root-caused -- #1127 owns that.
+ *
+ * F14 (#989's own required known-gap check, run after landing a rivalry-aware
+ * war-goal bias in `chooseWarGoal`/`ai-war-goals.ts`): `gold-hoard` widened to include
+ * `lh-veteran-large` (gold rose 2383 across 61 rounds with no fall) -- the same
+ * already-tracked "downstream of a production-idle window" mechanism (see F9),
+ * reproducing on a seventh scenario. Not caused by #989's diff: that diff only
+ * changes which `WarGoalKind` an AI declares as a war's stated purpose for a
+ * recognized rival (force_vassalage vs. conquer_city); confirmed by grep that no
+ * gold/production/rush-buy path (`ai-treasury.ts`, `ai-production.ts`) reads
+ * `WarGoalKind` or rivalry status at all.
  */
 export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
   {
@@ -373,10 +383,18 @@ export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
       + '#1125\'s known-gap reconciliation (F13) widened this further to '
       + 'lh-standard-medium (ai-1 rounds 293-352, ai-3 rounds 307-371) -- same '
       + 'already-tracked mechanism, not touched by #1125\'s own diff (an AI-treasury '
-      + 'economy-projection caching fix, never production/gold decisions).',
+      + 'economy-projection caching fix, never production/gold decisions). #989\'s '
+      + 'rivalry-aware war-goal bias (chooseWarGoal in ai-war-goals.ts) widened this '
+      + 'again to lh-veteran-large (gold rose 2383 with no fall across 61 rounds) -- '
+      + 'not touched by #989\'s own diff, which only changes which WarGoalKind an AI '
+      + 'declares as a war\'s stated purpose (force_vassalage vs. conquer_city) for a '
+      + 'recognized rival; nothing in ai-treasury.ts, ai-production.ts, or any '
+      + 'rush-buy/gold path reads WarGoalKind or rivalry status at all -- confirmed '
+      + 'by grep, not assumed. Same already-tracked production-idle-driven mechanism '
+      + 'reproducing on a seventh scenario, not a new defect.',
     scenarios: [
       'lh-standard-small', 'lh-veteran-small', 'lh-standard-large',
-      'lh-veteran-medium', 'lh-hotseat-medium', 'lh-standard-medium',
+      'lh-veteran-medium', 'lh-hotseat-medium', 'lh-standard-medium', 'lh-veteran-large',
     ],
   },
   {
