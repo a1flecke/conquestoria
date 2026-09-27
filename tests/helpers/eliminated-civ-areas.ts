@@ -145,7 +145,7 @@ export const ELIMINATED_CIV_AREAS: Record<keyof GameState, EliminatedCivArea> = 
   },
   civilizations: {
     kind: 'teardown',
-    why: 'the dead civ owns no cities/units/wars/treaties/relationships/events/vassalage; no other civ references it, including satelliteSurveillanceTargets',
+    why: 'the dead civ owns no cities/units/wars/treaties/relationships/events/vassalage/war-goals; no other civ references it, including satelliteSurveillanceTargets',
     scan: (state, ctx) => {
       const problems: string[] = [];
       for (const civId of ctx.eliminated) {
@@ -161,6 +161,7 @@ export const ELIMINATED_CIV_AREAS: Record<keyof GameState, EliminatedCivArea> = 
         if (d?.vassalage?.overlord) problems.push(`eliminated civ "${civId}" still has an overlord (${d.vassalage.overlord})`);
         if ((d?.vassalage?.vassals ?? []).length > 0) problems.push(`eliminated civ "${civId}" still has vassals: ${d!.vassalage!.vassals.join(', ')}`);
         if ((d?.vassalage?.protectionTimers ?? []).length > 0) problems.push(`eliminated civ "${civId}" still has vassalage protection timers`);
+        if (Object.keys(d?.warGoals ?? {}).length > 0) problems.push(`eliminated civ "${civId}" still holds war-goal records`);
       }
       for (const [otherId, other] of Object.entries(state.civilizations)) {
         if (ctx.eliminated.has(otherId)) continue;
@@ -174,6 +175,7 @@ export const ELIMINATED_CIV_AREAS: Record<keyof GameState, EliminatedCivArea> = 
           if ((d?.vassalage?.vassals ?? []).includes(deadId)) problems.push(`${otherId} still has eliminated civ "${deadId}" as a vassal`);
           if ((d?.vassalage?.protectionTimers ?? []).some(timer => timer.attackerCivId === deadId)) problems.push(`${otherId} still has a vassalage protection timer against eliminated civ "${deadId}"`);
           if (Object.hasOwn(other.satelliteSurveillanceTargets ?? {}, deadId)) problems.push(`${otherId} still surveils eliminated civ "${deadId}"`);
+          if (Object.hasOwn(d?.warGoals ?? {}, deadId)) problems.push(`${otherId} still holds a war-goal record against eliminated civ "${deadId}"`);
         }
       }
       return problems;

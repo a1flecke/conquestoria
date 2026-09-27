@@ -29,7 +29,7 @@ import type { EventBus } from '@/core/event-bus';
 import type { GameSession } from '@/app/ports';
 import type { HudController } from '@/app/controllers/hud-controller';
 import type { SelectionController } from '@/app/controllers/selection-controller';
-import type { DiplomaticAction, GameState, TreatyType } from '@/core/types';
+import type { DiplomaticAction, GameState, SettlementTerm, TreatyType, WarGoalKind } from '@/core/types';
 import {
   acceptDiplomaticRequest,
   applyDiplomaticAction,
@@ -42,6 +42,8 @@ import {
   canPetitionIndependence,
   rejectDiplomaticRequest,
 } from '@/systems/diplomacy-system';
+import { declareWarGoal, canDeclareWarGoal } from '@/systems/war-goal-system';
+import { proposeSettlement, acceptSettlementOffer } from '@/systems/settlement-system';
 import { TREATY_LABELS } from '@/ui/notification-routing';
 import { appeaseFaction, concedeToMovement } from '@/systems/faction-system';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
@@ -72,6 +74,10 @@ export interface DiplomacyActionsController {
   handleAppeaseFaction(cityId: string): GameState;
   handleConcedeToMovement(cityId: string): GameState;
   handleEstablishRoute(caravanId: string): void;
+  handleDeclareWarGoal(targetCivId: string, kind: WarGoalKind, targetCityId?: string): void;
+  handleProposeSettlement(targetCivId: string, terms: SettlementTerm[]): void;
+  handleAcceptSettlementOffer(requestId: string): void;
+  handleRejectSettlementOffer(requestId: string): void;
 }
 
 export interface DiplomacyActionsControllerDeps {
@@ -329,6 +335,59 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
     });
   }
 
+  // #988: state a purpose for an ongoing war. A no-op (canDeclareWarGoal fails)
+  // gets a plain "no longer available" notice -- same convention as every
+  // other proposal above -- rather than a silent failure.
+  function handleDeclareWarGoal(targetCivId: string, kind: WarGoalKind, targetCityId?: string): void {
+    const before = deps.session.getState();
+    const cp = before.currentPlayer;
+    if (!canDeclareWarGoal(before, cp, targetCivId, kind, targetCityId).ok) {
+      deps.showNotification('That war goal is no longer available.', 'warning');
+      return;
+    }
+    deps.session.commit(declareWarGoal(before, cp, targetCivId, kind, targetCityId, before.turn));
+    deps.openDiplomacyPanel();
+  }
+
+  // #988: the real negotiated-peace path -- typed terms bundled with the war's
+  // end, executed atomically or not at all. Mirrors handleDiplomaticAction's
+  // request_peace branch for player feedback.
+  function handleProposeSettlement(targetCivId: string, terms: SettlementTerm[]): void {
+    const before = deps.session.getState();
+    const cp = before.currentPlayer;
+    const targetWasHuman = before.civilizations[targetCivId]?.isHuman === true;
+    const targetName = before.civilizations[targetCivId]?.name ?? 'They';
+    const relationship = before.civilizations[cp]?.diplomacy.relationships[targetCivId] ?? 0;
+    const after = proposeSettlement(before, cp, targetCivId, terms, deps.bus, { relationship });
+    deps.session.commit(after);
+    emitMinorCivLeagueNotices(before, after, deps.bus);
+    deps.openDiplomacyPanel();
+    const resolved = after !== before;
+    const stillAtWar = isAtWar(after.civilizations[cp]?.diplomacy ?? before.civilizations[cp]!.diplomacy, targetCivId);
+    if (!resolved) {
+      deps.showNotification(`${targetName} rejected the terms, or the offer was no longer legal.`, 'warning');
+    } else if (!stillAtWar) {
+      deps.showNotification(`Settlement signed with ${targetName}.`, 'success');
+    } else if (targetWasHuman) {
+      deps.showNotification(`Settlement offer sent to ${targetName}.`, 'info');
+    }
+  }
+
+  function handleAcceptSettlementOffer(requestId: string): void {
+    const before = deps.session.getState();
+    const after = acceptSettlementOffer(before, before.currentPlayer, requestId, deps.bus);
+    deps.session.commit(after);
+    emitMinorCivLeagueNotices(before, after, deps.bus);
+    deps.openDiplomacyPanel();
+    deps.showNotification(after === before ? 'This offer is no longer available.' : 'Settlement accepted.', after === before ? 'warning' : 'success');
+  }
+
+  function handleRejectSettlementOffer(requestId: string): void {
+    deps.session.commit(rejectDiplomaticRequest(deps.session.getState(), deps.session.getState().currentPlayer, requestId, deps.bus));
+    deps.openDiplomacyPanel();
+    deps.showNotification('Settlement offer rejected.', 'info');
+  }
+
   return {
     handleDiplomaticAction,
     handleAcceptPeaceRequest,
@@ -344,5 +403,9 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
     handleAppeaseFaction,
     handleConcedeToMovement,
     handleEstablishRoute,
+    handleDeclareWarGoal,
+    handleProposeSettlement,
+    handleAcceptSettlementOffer,
+    handleRejectSettlementOffer,
   };
 }

@@ -173,6 +173,7 @@ export interface PanelActionsControllerDeps {
     | 'handleAcceptTreatyProposal' | 'handleDeclineTreatyProposal' | 'handleBreakTreaty'
     | 'handleGiftGold' | 'handleSponsorFestival' | 'handleMinorCivReparations' | 'handleSendAid'
     | 'handleMinorCivWarPeace' | 'handleAppeaseFaction' | 'handleConcedeToMovement' | 'handleEstablishRoute'
+    | 'handleDeclareWarGoal' | 'handleProposeSettlement' | 'handleAcceptSettlementOffer' | 'handleRejectSettlementOffer'
   >;
   /** `main.ts`-local function (phase 13's `PlayerActionController` domain) -- injected to avoid a forward reference. */
   readonly executeUpgrade: (unitId: string, targetType: UnitType) => boolean;
@@ -492,6 +493,10 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
       onMinorCivReparations: deps.diplomacyActions.handleMinorCivReparations,
       onMinorCivWarPeace: deps.diplomacyActions.handleMinorCivWarPeace,
       onSendAid: deps.diplomacyActions.handleSendAid,
+      onDeclareWarGoal: deps.diplomacyActions.handleDeclareWarGoal,
+      onProposeSettlement: deps.diplomacyActions.handleProposeSettlement,
+      onAcceptSettlementOffer: deps.diplomacyActions.handleAcceptSettlementOffer,
+      onRejectSettlementOffer: deps.diplomacyActions.handleRejectSettlementOffer,
       onClose: () => {},
     });
   }

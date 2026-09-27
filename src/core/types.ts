@@ -1178,7 +1178,7 @@ export type TreatyType = 'non_aggression_pact' | 'trade_agreement' | 'open_borde
  * payload type can reference it without creating a core -> ai dependency. `ai-treaty-consent.ts`
  * is the sole computer of a `TreatyDeclineReason` value; this file only names the shape.
  */
-export type TreatyDeclineReason = 'relations-too-strained' | 'strategic-caution' | 'peace-not-acceptable';
+export type TreatyDeclineReason = 'relations-too-strained' | 'strategic-caution' | 'peace-not-acceptable' | 'terms-too-costly';
 
 export interface Treaty {
   type: TreatyType;
@@ -1227,6 +1227,59 @@ export interface DiplomacyState {
    * `DiplomacyState` literal without it. Always read via `?? []`; see
    * strategic-launch-system.ts's isStrategicStrikeRetaliation. */
   strategicStrikesReceivedFrom?: string[];
+  /** #988: this civ's own declared purpose for each war it holds, keyed by
+   * opponent civ id. Absent map, or a missing key for an opponent this civ is
+   * at war with, both mean "no declared goal" (a war can exist without one --
+   * white peace stays available either way). Never persist derived
+   * satisfaction here; {@link getWarGoalStatus} recomputes it from live state
+   * every time. */
+  warGoals?: Record<string, WarGoal>;
+}
+
+export type WarGoalKind = 'conquer_city' | 'liberate_city' | 'force_vassalage';
+
+export interface WarGoal {
+  kind: WarGoalKind;
+  opponentCivId: string;
+  /** Required for 'conquer_city' and 'liberate_city'; unused for 'force_vassalage'. */
+  targetCityId?: string;
+  declaredTurn: number;
+  /** Bookkeeping for overreach detection (#988) -- every city taken from
+   * `opponentCivId` while this goal is active increments this, regardless of
+   * whether it was the declared target. Not a history ledger: a per-war
+   * counter only, cleared by peace (see `makePeace`). Redeclaring a goal
+   * against the same still-at-war opponent deliberately carries this forward
+   * rather than resetting it -- see `declareWarGoal`'s doc comment for why. */
+  citiesCapturedFromOpponent: number;
+  /** One-time guard so exceeding the goal costs reputation exactly once per
+   * war, not once per turn it stays exceeded. */
+  overreachPenaltyApplied: boolean;
+}
+
+export type WarGoalStatus = 'none' | 'active' | 'satisfied' | 'exceeded' | 'abandoned';
+
+export type SettlementTermKind = 'transfer_city' | 'reparations' | 'vassalize' | 'release_vassal';
+
+/**
+ * One executable peace term. Every variant maps onto a canonical state
+ * transition that already exists elsewhere (`transferCapturedCityOwnership`,
+ * plain gold arithmetic, `commitVassalageAgreement`, `releaseVassal`) -- a
+ * term the engine cannot enforce must never be constructed (#988).
+ */
+export interface SettlementTerm {
+  kind: SettlementTermKind;
+  /** transfer_city only: the city changing hands. */
+  cityId?: string;
+  /** transfer_city: current owner ceding the city. reparations: the payer. */
+  fromCivId?: string;
+  /** transfer_city: the recipient. reparations: the payee. */
+  toCivId?: string;
+  /** reparations only: one-time gold amount. */
+  goldAmount?: number;
+  /** vassalize / release_vassal: the civ becoming/ceasing to be a vassal. */
+  vassalId?: string;
+  /** vassalize only: the civ becoming overlord. */
+  overlordId?: string;
 }
 
 export interface Embargo {
@@ -1244,9 +1297,14 @@ export interface DefensiveLeague {
 
 export interface PendingDiplomaticRequest {
   id: string;
-  type: 'peace' | 'treaty' | 'independence';
+  type: 'peace' | 'treaty' | 'independence' | 'settlement';
   treatyType?: TreatyType;        // set when type === 'treaty'
   turnsRemaining?: number;         // treaty duration to sign with (mirrors AI decision: 10 for NAP, -1 otherwise)
+  /** #988: set when type === 'settlement' -- a negotiated peace offer with
+   * executable terms. An empty array is a valid (if unusual) settlement offer
+   * carrying no terms beyond ending the war; plain unconditional white peace
+   * keeps using type 'peace' with no terms field at all. */
+  terms?: SettlementTerm[];
   fromCivId: string;
   toCivId: string;
   turnIssued: number;
@@ -2637,6 +2695,13 @@ export interface GameEvents {
   // existing diplomacy:peace-made / diplomacy:treaty-accepted split. `reason` is present only
   // when computed by an AI consent evaluation; absent for any other resolution path.
   'diplomacy:peace-declined': { proposerCivId: string; targetCivId: string; reason?: TreatyDeclineReason };
+  // #988: fired the instant a war goal's status flips to 'exceeded' (never
+  // per-turn while it stays exceeded -- see overreachPenaltyApplied).
+  'diplomacy:war-goal-exceeded': { civId: string; opponentCivId: string; turn: number };
+  // #988: a settlement offer (typed peace terms) was proposed, accepted, or executed.
+  'diplomacy:settlement-proposed': { fromCivId: string; toCivId: string; termCount: number };
+  'diplomacy:settlement-declined': { proposerCivId: string; targetCivId: string; reason?: TreatyDeclineReason };
+  'diplomacy:settlement-signed': { civA: string; civB: string; termCount: number };
   'era:advanced': { era: number };
   'civilization:era-advanced': { civId: string; previousEra: number; era: number };
   'currentPlayer:changed-after-handoff': {

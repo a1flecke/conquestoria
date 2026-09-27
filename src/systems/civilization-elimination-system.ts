@@ -125,6 +125,9 @@ export function eliminateCivilization(
       atWarWith: [],
       treaties: [],
       events: [],
+      // #988: a dead civ pursues no war goal -- its own declared purposes
+      // against everyone else are moot the instant it is eliminated.
+      warGoals: {},
       vassalage: { ...defaultVassalage, ...(next.civilizations[civId].diplomacy.vassalage ?? {}), overlord: null, vassals: [], protectionScore: 100, protectionTimers: [] },
     },
   };
@@ -136,6 +139,12 @@ export function eliminateCivilization(
     const satelliteSurveillanceTargets = { ...other.satelliteSurveillanceTargets };
     const otherVassalage = { ...defaultVassalage, ...(other.diplomacy.vassalage ?? {}) };
     delete satelliteSurveillanceTargets[civId];
+    // #988: no living civ can keep pursuing a war goal against a now-dead one.
+    let otherWarGoals = other.diplomacy.warGoals;
+    if (otherWarGoals?.[civId]) {
+      const { [civId]: _cleared, ...rest } = otherWarGoals;
+      otherWarGoals = rest;
+    }
     next.civilizations[otherId] = {
       ...other,
       satelliteSurveillanceTargets,
@@ -147,6 +156,7 @@ export function eliminateCivilization(
           treaty => treaty.civA !== civId && treaty.civB !== civId,
         ),
         events: other.diplomacy.events.filter(event => event.otherCiv !== civId),
+        warGoals: otherWarGoals,
         vassalage: {
           ...otherVassalage,
           overlord: otherVassalage.overlord === civId

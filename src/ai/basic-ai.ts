@@ -37,10 +37,15 @@ import { evaluateStrategicLaunchDecision } from './ai-strategic-doctrine';
 import { chooseProduction } from './ai-strategy';
 import { evaluateDiplomacy, evaluateMinorCivDiplomacy, evaluateVassalage, evaluateEmbargoResponse, evaluateLeagueResponse } from './ai-diplomacy';
 import { NATIONAL_INTENT_POSTURE } from './ai-national-intent';
+import { chooseWarGoal } from './ai-war-goals';
+import { declareWarGoal, getWarGoalStatus } from '@/systems/war-goal-system';
+import { proposeSettlement } from '@/systems/settlement-system';
+
 import {
   declareMajorWar,
   proposeTreatyAgreement,
   modifyRelationship,
+  getRelationship,
   proposeVassalage,
   getVassalageEligibility,
   getVassalageMilitaryCount,
@@ -131,6 +136,12 @@ import { getAvailableWorkerActions, getKnownTileResourceForWorkerAction } from '
 import { chooseRoadBuilderUnit } from '@/systems/road-network';
 import { canBuildRoad } from '@/systems/road-system';
 import { chooseAiBoon, chooseBoon } from '@/systems/religion-system';
+
+/** #988: how decisive a military advantage must be before the AI converts a
+ * force_vassalage goal into an actual settlement offer -- deliberately much
+ * higher than the 0.7 "losing, sue for peace" bar; forcing vassalage is a
+ * severe term and should require a rout, not a mere edge. */
+const FORCE_VASSALAGE_SETTLEMENT_ADVANTAGE_THRESHOLD = 2.0;
 
 function addAlwaysHostileOwners(
   state: GameState,
@@ -1188,6 +1199,10 @@ function processAITurnInternal(
       OPPONENT_CHALLENGE_PROFILES[resolveOpponentChallenge(newState)].strategicDeterrenceCautionWeight;
     const civHasArmsControlTreaty = hasArmsControlTreaty(newState, civId);
     const actorHasKnownCapability = hasManhattanProject(newState, civId);
+    const warGoalStatusByCiv: Record<string, ReturnType<typeof getWarGoalStatus>> = {};
+    for (const opponentId of civ.diplomacy.atWarWith) {
+      warGoalStatusByCiv[opponentId] = getWarGoalStatus(newState, civId, opponentId);
+    }
 
     let decisions = evaluateDiplomacy(
       personality,
@@ -1202,6 +1217,7 @@ function processAITurnInternal(
       civHasArmsControlTreaty,
       actorHasKnownCapability,
       posture,
+      warGoalStatusByCiv,
     );
     {
       const plannedWarTarget = preparedForTurn.perception.knownCivIds
@@ -1292,6 +1308,22 @@ function processAITurnInternal(
             newState = declareMajorWar(newState, civId, decision.targetCiv, bus);
             if (newState === beforeWar) break;
             bus.emit('diplomacy:war-declared', { attackerId: civId, defenderId: decision.targetCiv, opponentKind: resolveOpponentKind(decision.targetCiv) });
+            // #988: the AI states a purpose for a war it just started, from
+            // only what it has perceived/knows publicly -- never omniscient
+            // enemy state. A minor-civ target has no war-goal support (yet);
+            // this only fires for major-civ opponents.
+            if (resolveOpponentKind(decision.targetCiv) === 'major') {
+              const goalChoice = chooseWarGoal({
+                posture,
+                opponentHasOverlord: newState.civilizations[decision.targetCiv]?.diplomacy.vassalage.overlord != null,
+                actorIsVassal: newState.civilizations[civId]?.diplomacy.vassalage.overlord != null,
+                ownCapitalPosition: getCapitalCity(newState, civId)?.position ?? null,
+                knownEnemyCities: perception.knownCities.filter(city => city.owner === decision.targetCiv),
+              });
+              if (goalChoice) {
+                newState = declareWarGoal(newState, civId, decision.targetCiv, goalChoice.kind, goalChoice.targetCityId, newState.turn);
+              }
+            }
           }
           // #526 MR7 Task 7.1: AI-declarer parity -- an AI that happens to declare war
           // on a crisis-struck civ eats the same opportunistic-war reputation penalty a
@@ -1311,6 +1343,31 @@ function processAITurnInternal(
           break;
         }
       }
+    }
+
+    // #988: convert decisive military advantage into the actual
+    // force_vassalage goal via a real settlement offer -- ordinary combat
+    // alone can never satisfy this goal (see war-goal-system.ts's
+    // getWarGoalStatus: it is only 'satisfied' once the opponent's
+    // vassalage.overlord is actually set, which only a settlement can do).
+    for (const opponentId of newState.civilizations[civId]?.diplomacy.atWarWith ?? []) {
+      const goal = newState.civilizations[civId]?.diplomacy.warGoals?.[opponentId];
+      if (goal?.kind !== 'force_vassalage') continue;
+      if (getWarGoalStatus(newState, civId, opponentId) !== 'active') continue;
+      const theirStrength = otherStrengths[opponentId]?.midpoint ?? 0;
+      const ownStrength = selfStrength.midpoint;
+      const advantage = ownStrength > 0 && theirStrength > 0 ? ownStrength / theirStrength : 1;
+      if (advantage < FORCE_VASSALAGE_SETTLEMENT_ADVANTAGE_THRESHOLD) continue;
+      newState = proposeSettlement(
+        newState, civId, opponentId,
+        [{ kind: 'vassalize', vassalId: opponentId, overlordId: civId }],
+        bus,
+        {
+          relationship: getRelationship(newState.civilizations[civId].diplomacy, opponentId),
+          targetVisibleStrength: theirStrength,
+          proposerVisibleStrength: ownStrength,
+        },
+      );
     }
 
     // AI vassalage: offer vassalage if very weak

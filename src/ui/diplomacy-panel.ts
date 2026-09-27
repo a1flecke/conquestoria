@@ -1,5 +1,5 @@
 import { createVassalageControls } from '@/ui/vassalage-controls';
-import type { GameState, DiplomaticAction, TreatyType } from '@/core/types';
+import type { GameState, DiplomaticAction, SettlementTerm, TreatyType, WarGoalKind } from '@/core/types';
 import {
   canReabsorbBreakaway,
   getRelationship,
@@ -11,6 +11,10 @@ import {
   hasArmsControlTreaty,
   PENDING_DIPLOMATIC_REQUEST_TTL_TURNS,
 } from '@/systems/diplomacy-system';
+import { getWarGoalStatus } from '@/systems/war-goal-system';
+import { getPendingSettlementOfferForPair } from '@/systems/settlement-system';
+import { openWarGoalPanel } from '@/ui/war-goal-panel';
+import { openSettlementOfferPanel } from '@/ui/settlement-offer-panel';
 import { TREATY_LABELS, describeWarReason } from '@/ui/notification-routing';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
@@ -50,6 +54,10 @@ export interface DiplomacyPanelCallbacks {
   onMinorCivReparations?: (mcId: string) => void;
   onMinorCivWarPeace?: (mcId: string, currentlyAtWar: boolean) => void;
   onSendAid?: (crisisId: string) => void;
+  onDeclareWarGoal?: (targetCivId: string, kind: WarGoalKind, targetCityId?: string) => void;
+  onProposeSettlement?: (targetCivId: string, terms: SettlementTerm[]) => void;
+  onAcceptSettlementOffer?: (requestId: string) => void;
+  onRejectSettlementOffer?: (requestId: string) => void;
   onClose: () => void;
 }
 
@@ -72,6 +80,39 @@ function describeSendAidDisabledReason(
     case 'no-crisis':
       return 'Unavailable.';
   }
+}
+
+// #988: a viewer-safe war-goal label. City names come from the viewer's own
+// declared goal (they picked the city, so it is already known to them) --
+// this never reads a foreign civ's undiscovered state.
+function describeWarGoal(state: GameState, viewerId: string, opponentCivId: string): string | null {
+  const goal = state.civilizations[viewerId]?.diplomacy.warGoals?.[opponentCivId];
+  if (!goal) return null;
+  const status = getWarGoalStatus(state, viewerId, opponentCivId);
+  const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
+  const kindLabel = goal.kind === 'force_vassalage'
+    ? 'Force Vassalage'
+    : `${goal.kind === 'conquer_city' ? 'Conquer' : 'Liberate'} ${goal.targetCityId ? (state.cities[goal.targetCityId]?.name ?? 'a city') : 'a city'}`;
+  return `War Goal: ${kindLabel} — ${statusLabel}`;
+}
+
+// #988: summarize a settlement offer's terms for display to the recipient.
+// The offer's own terms are the only information source -- it was
+// constructed by the proposer and already names whatever it names.
+function summarizeSettlementTerms(state: GameState, terms: SettlementTerm[]): string {
+  if (terms.length === 0) return 'Unconditional (white) peace.';
+  return terms.map(term => {
+    switch (term.kind) {
+      case 'transfer_city':
+        return `Cede ${state.cities[term.cityId ?? '']?.name ?? 'a city'} to ${state.civilizations[term.toCivId ?? '']?.name ?? 'them'}`;
+      case 'reparations':
+        return `${term.goldAmount ?? 0} gold from ${state.civilizations[term.fromCivId ?? '']?.name ?? 'them'} to ${state.civilizations[term.toCivId ?? '']?.name ?? 'them'}`;
+      case 'vassalize':
+        return `${state.civilizations[term.vassalId ?? '']?.name ?? 'They'} becomes ${state.civilizations[term.overlordId ?? '']?.name ?? 'their'}'s vassal`;
+      case 'release_vassal':
+        return `${state.civilizations[term.vassalId ?? '']?.name ?? 'They'} is released from vassalage`;
+    }
+  }).join('; ');
 }
 
 interface CivRowData {
@@ -101,6 +142,13 @@ interface CivRowData {
   sendAidDisabled: boolean;
   sendAidDisabledReason: string | null;
   strategicCautionNoteText: string | null;
+  // #988
+  warGoalStatusText: string | null;
+  canDeclareWarGoal: boolean;
+  canProposeSettlement: boolean;
+  settlementOfferState: 'none' | 'incoming' | 'outgoing';
+  settlementOfferId: string | null;
+  settlementOfferSummaryText: string | null;
 }
 
 interface MinorCivRowData {
@@ -303,6 +351,20 @@ export function createDiplomacyPanel(
       ? `${civ.name} is wary of your strategic capability.`
       : null;
 
+    // #988
+    const isVassal = Boolean(playerDiplomacy.vassalage.overlord);
+    const warGoalStatusText = atWar ? describeWarGoal(state, state.currentPlayer, civId) : null;
+    const canDeclareWarGoal = atWar && !isVassal && !warGoalStatusText;
+    const canProposeSettlement = atWar && !isVassal;
+    const pendingSettlementOffer = getPendingSettlementOfferForPair(state, state.currentPlayer, civId);
+    const settlementOfferState: 'none' | 'incoming' | 'outgoing' = !pendingSettlementOffer ? 'none'
+      : pendingSettlementOffer.toCivId === state.currentPlayer ? 'incoming'
+      : pendingSettlementOffer.fromCivId === state.currentPlayer ? 'outgoing'
+      : 'none';
+    const settlementOfferSummaryText = settlementOfferState === 'incoming'
+      ? summarizeSettlementTerms(state, pendingSettlementOffer!.terms ?? [])
+      : null;
+
     civRows.push({
       civId,
       civIdx,
@@ -333,6 +395,12 @@ export function createDiplomacyPanel(
       sendAidDisabled,
       sendAidDisabledReason,
       strategicCautionNoteText,
+      warGoalStatusText,
+      canDeclareWarGoal,
+      canProposeSettlement,
+      settlementOfferState,
+      settlementOfferId: pendingSettlementOffer?.id ?? null,
+      settlementOfferSummaryText,
     });
     civIdx++;
   }
@@ -473,6 +541,20 @@ export function createDiplomacyPanel(
       ? `<div style="font-size:11px;color:#e8c170;margin-bottom:8px;" data-text="strategic-caution-${row.civIdx}"></div>`
       : '';
 
+    // #988
+    const warGoalStatusHtml = row.warGoalStatusText
+      ? `<div style="font-size:11px;color:#e8c170;margin-bottom:8px;" data-text="war-goal-status-${row.civIdx}"></div>`
+      : '';
+    const settlementOfferHtml = row.settlementOfferState === 'incoming' && row.settlementOfferId
+      ? `<div style="margin-bottom:8px;background:rgba(232,193,112,0.12);border-radius:6px;padding:6px 8px;">
+          <div style="font-size:11px;margin-bottom:6px;">Settlement proposed: <span data-text="settlement-offer-summary-${row.civIdx}"></span></div>
+          <button class="diplo-accept-settlement" data-request-id="${row.settlementOfferId}" style="padding:5px 10px;background:rgba(74,155,74,0.3);border:1px solid #4a9b4a;border-radius:6px;color:white;cursor:pointer;font-size:11px;">Accept</button>
+          <button class="diplo-reject-settlement" data-request-id="${row.settlementOfferId}" style="padding:5px 10px;background:rgba(217,148,74,0.25);border:1px solid #d9944a;border-radius:6px;color:white;cursor:pointer;font-size:11px;">Reject</button>
+        </div>`
+      : row.settlementOfferState === 'outgoing'
+        ? '<div style="margin-bottom:8px;"><span style="display:inline-block;padding:6px 12px;background:rgba(232,193,112,0.2);border:1px solid rgba(232,193,112,0.5);border-radius:6px;color:#e8c170;font-size:11px;">Settlement Offered</span></div>'
+        : '';
+
     let actionsHtml = '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
     if (row.peaceRequestState === 'incoming' && row.peaceRequestId) {
       actionsHtml += `<button class="diplo-accept-peace" data-request-id="${row.peaceRequestId}" data-action="accept-peace-request" style="padding:6px 12px;background:rgba(74,155,74,0.3);border:1px solid #4a9b4a;border-radius:6px;color:white;cursor:pointer;font-size:11px;">Accept Peace</button>`;
@@ -485,6 +567,13 @@ export function createDiplomacyPanel(
       const borderColor = a.isHostile ? '#d94a4a' : 'rgba(255,255,255,0.2)';
       actionsHtml += `<button class="diplo-action" data-civ-id="${row.civId}" data-action="${a.action}" style="padding:6px 12px;background:${btnColor};border:1px solid ${borderColor};border-radius:6px;color:white;cursor:pointer;font-size:11px;text-transform:capitalize;" data-text="action-label-${row.civIdx}-${aIdx}"></button>`;
     });
+    // #988
+    if (row.canDeclareWarGoal) {
+      actionsHtml += `<button class="diplo-open-war-goal" data-civ-id="${row.civId}" style="padding:6px 12px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:6px;color:white;cursor:pointer;font-size:11px;">Declare War Goal</button>`;
+    }
+    if (row.canProposeSettlement) {
+      actionsHtml += `<button class="diplo-open-settlement" data-civ-id="${row.civId}" style="padding:6px 12px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:6px;color:white;cursor:pointer;font-size:11px;">Propose Settlement</button>`;
+    }
     actionsHtml += '</div>';
 
     civRowsHtml += `
@@ -498,6 +587,7 @@ export function createDiplomacyPanel(
             ${worldPressureHtml}
             ${worldPressureDetailHtml}
             ${strategicCautionNoteHtml}
+            ${warGoalStatusHtml}
             ${treatyProposalsHtml}
           </div>
         </div>
@@ -510,6 +600,7 @@ export function createDiplomacyPanel(
         ${sendAidHtml}
         ${treatiesHtml}
         <div data-role="vassalage-${row.civIdx}"></div>
+        ${settlementOfferHtml}
         ${actionsHtml}
       </div>
     `;
@@ -602,6 +693,12 @@ export function createDiplomacyPanel(
     }
     if (row.strategicCautionNoteText) {
       setText(`strategic-caution-${row.civIdx}`, row.strategicCautionNoteText);
+    }
+    if (row.warGoalStatusText) {
+      setText(`war-goal-status-${row.civIdx}`, row.warGoalStatusText);
+    }
+    if (row.settlementOfferSummaryText) {
+      setText(`settlement-offer-summary-${row.civIdx}`, row.settlementOfferSummaryText);
     }
     if (row.sendAidCrisisId) {
       setText(`send-aid-help-${row.civIdx}`, row.sendAidHelpText ?? '');
@@ -704,6 +801,41 @@ export function createDiplomacyPanel(
       const requestId = (btn as HTMLElement).dataset.requestId!;
       panel.remove();
       callbacks.onRejectPeaceRequest?.(requestId);
+    });
+  });
+
+  // #988
+  panel.querySelectorAll('.diplo-open-war-goal').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const civId = (btn as HTMLElement).dataset.civId!;
+      openWarGoalPanel(container, state, civId, (kind, targetCityId) => {
+        callbacks.onDeclareWarGoal?.(civId, kind, targetCityId);
+      });
+    });
+  });
+
+  panel.querySelectorAll('.diplo-open-settlement').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const civId = (btn as HTMLElement).dataset.civId!;
+      openSettlementOfferPanel(container, state, civId, terms => {
+        callbacks.onProposeSettlement?.(civId, terms);
+      });
+    });
+  });
+
+  panel.querySelectorAll('.diplo-accept-settlement').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const requestId = (btn as HTMLElement).dataset.requestId!;
+      panel.remove();
+      callbacks.onAcceptSettlementOffer?.(requestId);
+    });
+  });
+
+  panel.querySelectorAll('.diplo-reject-settlement').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const requestId = (btn as HTMLElement).dataset.requestId!;
+      panel.remove();
+      callbacks.onRejectSettlementOffer?.(requestId);
     });
   });
 

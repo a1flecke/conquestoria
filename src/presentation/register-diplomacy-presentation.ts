@@ -16,6 +16,10 @@ import {
   routePeaceMade,
   routePeaceDeclined,
   routeOpportunisticWar,
+  routeWarGoalExceeded,
+  routeSettlementProposed,
+  routeSettlementDeclined,
+  routeSettlementSigned,
 } from '@/ui/notification-routing';
 
 export const registerDiplomacyPresentation: PresentationRegistrar = (bus, ctx) => {
@@ -60,6 +64,18 @@ export const registerDiplomacyPresentation: PresentationRegistrar = (bus, ctx) =
     }),
     bus.on('diplomacy:opportunistic-war', event => {
       routeOpportunisticWar(ctx.session.getState(), event, ctx.notifier.deliver);
+    }),
+    bus.on('diplomacy:war-goal-exceeded', event => {
+      routeWarGoalExceeded(ctx.session.getState(), event, ctx.notifier.deliver);
+    }),
+    bus.on('diplomacy:settlement-proposed', event => {
+      routeSettlementProposed(ctx.session.getState(), event, ctx.notifier.deliver);
+    }),
+    bus.on('diplomacy:settlement-declined', event => {
+      routeSettlementDeclined(ctx.session.getState(), event, ctx.notifier.deliver);
+    }),
+    bus.on('diplomacy:settlement-signed', event => {
+      routeSettlementSigned(ctx.session.getState(), event, ctx.notifier.deliver);
     }),
     bus.on('minor-civ:league-changed', event => {
       ctx.notifier.withHappenedTurn(event.happenedTurn, () => {

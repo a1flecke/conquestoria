@@ -23,6 +23,14 @@ function stateWithDefeatedActor() {
     .filter(unitId => unitId !== settlerId);
   state.civilizations['player-1'].diplomacy.relationships['player-2'] = -80;
   state.civilizations['player-1'].diplomacy.atWarWith = ['player-2'];
+  // #988: both the winner's goal against the defeated civ, and the defeated
+  // civ's own goal against the winner, must not survive elimination.
+  state.civilizations['player-1'].diplomacy.warGoals = {
+    'player-2': { kind: 'force_vassalage', opponentCivId: 'player-2', declaredTurn: 1, citiesCapturedFromOpponent: 0, overreachPenaltyApplied: false },
+  };
+  state.civilizations['player-2'].diplomacy.warGoals = {
+    'player-1': { kind: 'force_vassalage', opponentCivId: 'player-1', declaredTurn: 1, citiesCapturedFromOpponent: 0, overreachPenaltyApplied: false },
+  };
   state.civilizations['player-1'].diplomacy.treaties = [{
     type: 'open_borders',
     civA: 'player-1',
@@ -116,6 +124,8 @@ describe('civilization elimination', () => {
     expect(result.state.civilizations['player-1'].diplomacy.atWarWith)
       .not.toContain('player-2');
     expect(result.state.civilizations['player-1'].diplomacy.treaties).toEqual([]);
+    expect(result.state.civilizations['player-1'].diplomacy.warGoals?.['player-2']).toBeUndefined();
+    expect(result.state.civilizations['player-2'].diplomacy.warGoals).toEqual({});
     expect(result.state.embargoes).toEqual([]);
     expect(result.state.defensiveLeagues).toEqual([]);
     expect(result.state.pendingDiplomacyRequests).toEqual([]);
