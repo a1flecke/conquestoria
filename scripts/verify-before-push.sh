@@ -136,7 +136,8 @@ fi
 # #1166: publication verification runs in the FOREGROUND capacity lane. The
 # `yarn test:regular` child below inherits this request and admits into the
 # reserved foreground slot, so a push never waits solely behind background
-# diagnostics (test:ai-long, another agent's test:durable or yarn test). The
+# diagnostics (the long-horizon AI campaign, another agent's test:durable or
+# yarn test). The
 # mutex itself is now held only by publication work (this script and
 # verify-pr.sh), never by a background durable run.
 export HVL_CAPACITY_LANE=foreground
