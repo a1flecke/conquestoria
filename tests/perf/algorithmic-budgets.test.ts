@@ -5,6 +5,7 @@ import { UNCONDITIONAL_PASSES } from '@/storage/migrations/pipeline';
 import { serializeSaveFile } from '@/storage/save-file-transfer';
 import { firstSimulationDivergence } from '../helpers/deterministic-state';
 import { buildCrowdedGame } from './fixtures/crowded-state';
+import { measureRenderFrame } from './fixtures/render-frame';
 import {
   buildPerfFixtures,
   CHEAP_AREAS,
@@ -88,6 +89,11 @@ function computeBaseline(runs: Record<PerfArea, AreaSample[]>, priorAuditedCommi
         entityBytes: cap(a['saveSerialize@e2'].entityBytes!),
       },
       saveLoad: { structuredCloneWholeState: cap(a['saveLoad@e2'].structuredCloneWholeState!) },
+      render: {
+        renderOps: cap(a['render@expanded'].renderOps!),
+        renderDrawImage: cap(a['render@expanded'].renderDrawImage!),
+        renderText: cap(a['render@expanded'].renderText!),
+      },
       unconditionalPasses: { count: UNCONDITIONAL_PASSES.length + PASS_HEADROOM },
     },
     ratios: {
@@ -313,5 +319,38 @@ describe('#1007 algorithmic budgets', () => {
     expect(e2.structuredCloneWholeState, 'save-load clone count must not scale with entities')
       .toBe(e1.structuredCloneWholeState);
     expect(e2.structuredCloneWholeState!).toBeLessThanOrEqual(base.budgets.saveLoad!.structuredCloneWholeState!);
+  });
+
+  it('GUARD 9 — #1072: an ordinary frame does no more draw work when off-screen world state grows', () => {
+    // The render fixtures hold the visible scene constant (same camera,
+    // viewport, viewer, fog basis, selection, time) while the expanded state
+    // adds 24 cities + 160 units strictly outside the viewport. Every base
+    // pass culls per item via `camera.isHexVisible`, so recorded canvas work
+    // must be EXACTLY equal — proportional off-screen draw work is always a
+    // bug to fix, never a number to bump.
+    //
+    // Sabotage: measure with culling disabled (`cullEverything`) → expanded
+    // totalOps jumps ~59× → the equality below fails.
+    const b = S('render@base');
+    const e = S('render@expanded');
+    expect(b.renderOps!, 'the render fixture must perform a non-empty frame').toBeGreaterThan(0);
+    expect(e.renderOps, 'frame draw work must not scale with off-screen world state').toBe(b.renderOps);
+    expect(e.renderDrawImage).toBe(b.renderDrawImage);
+    expect(e.renderText).toBe(b.renderText);
+    expect(e.renderOps!).toBeLessThanOrEqual(base.budgets.render!.renderOps!);
+    expect(e.renderDrawImage!).toBeLessThanOrEqual(base.budgets.render!.renderDrawImage!);
+    expect(e.renderText!).toBeLessThanOrEqual(base.budgets.render!.renderText!);
+  });
+
+  it('GUARD 9 sabotage proof — a frame that draws the whole world fails the guard', () => {
+    const wide = measureRenderFrame(fx.render.expanded, { cullEverything: true });
+    expect(wide.totalOps, 'culling-disabled frame must do far more work (else the guard is vacuous)')
+      .toBeGreaterThan(S('render@expanded').renderOps! * 2);
+  });
+
+  it('render measurement never mutates game state', () => {
+    const before = JSON.stringify(fx.render.expanded.state);
+    measureRenderFrame(fx.render.expanded);
+    expect(JSON.stringify(fx.render.expanded.state), 'rendering must not mutate save state').toBe(before);
   });
 });
