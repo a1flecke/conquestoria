@@ -29,6 +29,16 @@
       "blockingEntityAtCalls": 0,
       "blockingMapEntityLookupBuilds": 1
     },
+    "render@base": {
+      "renderDrawImage": 0,
+      "renderOps": 4687,
+      "renderText": 253
+    },
+    "render@expanded": {
+      "renderDrawImage": 0,
+      "renderOps": 4687,
+      "renderText": 253
+    },
     "saveLoad@e1": {
       "structuredCloneWholeState": 3
     },
@@ -72,6 +82,11 @@
     "findPath": {
       "heapPops": 105,
       "heapPushes": 170
+    },
+    "render": {
+      "renderDrawImage": 0,
+      "renderOps": 7031,
+      "renderText": 380
     },
     "saveLoad": {
       "structuredCloneWholeState": 5

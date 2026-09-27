@@ -15,6 +15,11 @@ import { serializeSaveFile, parseSaveFile } from '@/storage/save-file-transfer';
 import { normalizeLoadedState } from '@/storage/save-manager';
 import { withPerfProbe, type PerfCounts } from './perf-probe';
 import { buildCrowdedGame, pathfindingFixture, type PathfindingFixture } from './fixtures/crowded-state';
+import {
+  buildRenderFrameFixtures,
+  measureRenderFrame,
+  type RenderFrameFixtures,
+} from './fixtures/render-frame';
 
 export const PERF_AREAS = [
   'turn@e1', 'turn@e2',
@@ -23,6 +28,7 @@ export const PERF_AREAS = [
   'moveRange@e1', 'moveRange@e2',
   'saveSerialize@e1', 'saveSerialize@e2',
   'saveLoad@e1', 'saveLoad@e2',
+  'render@base', 'render@expanded',
 ] as const;
 export type PerfArea = (typeof PERF_AREAS)[number];
 
@@ -30,13 +36,14 @@ export type PerfArea = (typeof PERF_AREAS)[number];
 export const CHEAP_AREAS = new Set<PerfArea>([
   'turn@e1', 'turn@e2', 'findPath',
   'moveRange@e1', 'moveRange@e2', 'saveSerialize@e1', 'saveSerialize@e2',
-  'saveLoad@e1', 'saveLoad@e2',
+  'saveLoad@e1', 'saveLoad@e2', 'render@base', 'render@expanded',
 ]);
 
 export interface PerfFixtures {
   e1: GameState;
   e2: GameState;
   pf: PathfindingFixture;
+  render: RenderFrameFixtures;
 }
 
 export function buildPerfFixtures(): PerfFixtures {
@@ -44,6 +51,7 @@ export function buildPerfFixtures(): PerfFixtures {
     e1: buildCrowdedGame({ entityScale: 1 }),
     e2: buildCrowdedGame({ entityScale: 2 }),
     pf: pathfindingFixture(),
+    render: buildRenderFrameFixtures(),
   };
 }
 
@@ -51,6 +59,12 @@ export interface AreaSample extends Partial<PerfCounts> {
   bytes?: number;
   entityBytes?: number;
   routeLength?: number;
+  /** total recorded canvas ops for one ordinary base frame (#1072) */
+  renderOps?: number;
+  /** `drawImage` calls within that frame */
+  renderDrawImage?: number;
+  /** `fillText` + `strokeText` calls within that frame */
+  renderText?: number;
 }
 
 /**
@@ -151,6 +165,16 @@ export function measurePerfArea(area: PerfArea, fx: PerfFixtures): AreaSample {
         return normalizeLoadedState(parsed.state);
       });
       return { structuredCloneWholeState: counts.structuredCloneWholeState };
+    }
+    case 'render@base':
+    case 'render@expanded': {
+      const fixture = area === 'render@base' ? fx.render.base : fx.render.expanded;
+      const counts = measureRenderFrame(fixture);
+      return {
+        renderOps: counts.totalOps,
+        renderDrawImage: counts.drawImage,
+        renderText: counts.text,
+      };
     }
   }
 }
