@@ -79,10 +79,18 @@ printf '%s' "$stall_output" | grep -Fq 'STALL: stall-sleeper produced zero CPU p
 # False-positive guard: a process that is genuinely burning CPU the whole time
 # must NOT be killed by the stall watchdog, even with the same tight grace
 # windows -- only a true zero-progress stall may trigger it.
+#
+# #1166: the windows here span several `ps` TIME ticks. TIME has 1-second
+# resolution, so with 1s boot/grace windows a genuinely busy spinner that got
+# less than a full CPU-second in one window -- normal on a loaded host, e.g.
+# right after a full Vitest run inside `yarn verify:pr` -- read as "zero
+# progress" and was killed (observed twice in a row on a 4-core container).
+# That is exactly host contention misreported as a failure. The stall case
+# above keeps its 1s windows: it must still fire fast.
 set +e
-STALL_BOOT_GRACE_SECONDS=1 STALL_GRACE_SECONDS=1 STALL_CHECK_INTERVAL_SECONDS=1 \
-  run_node "$RUNNER" 5 busy-spinner -- \
-  node -e 'const end = Date.now() + 3000; while (Date.now() < end) { /* spin */ }'
+STALL_BOOT_GRACE_SECONDS=3 STALL_GRACE_SECONDS=4 STALL_CHECK_INTERVAL_SECONDS=1 \
+  run_node "$RUNNER" 20 busy-spinner -- \
+  node -e 'const end = Date.now() + 9000; while (Date.now() < end) { /* spin */ }'
 busy_status=$?
 set -e
 [ "$busy_status" -eq 0 ] || {
