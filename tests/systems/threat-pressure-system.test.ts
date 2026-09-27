@@ -213,6 +213,29 @@ describe('processLandResurgence', () => {
     expect(camp?.strength).toBeLessThanOrEqual(10);   // era-2 maximum
   });
 
+  it('never lands a camp on a tile a live unit already occupies (regression)', () => {
+    // A long-horizon campaign run hit assertNoIllegalBlockingOccupancy because this
+    // candidate filter checked terrain/distance-from-city/distance-from-camp but never
+    // consulted live unit occupancy -- so a resurgent camp could spawn directly under an
+    // existing unit (any owner), which the invariant then flags for that unit's own owner.
+    const state = makeResurgenceState();
+    // Occupy every tile that would otherwise be a legal candidate (>=4 from the city at
+    // q=0,r=0 on this single-row test map -- q=4..9).
+    for (let q = 4; q <= 9; q++) {
+      const unitId = `occupier-${q}`;
+      state.units[unitId] = {
+        id: unitId, type: 'warrior', owner: 'barbarian', position: { q, r: 0 },
+        health: 100, movementPointsLeft: 0, hasMoved: true, hasActed: true,
+      } as any;
+    }
+    const bus = { emit: () => {} } as any;
+
+    const updated = processLandResurgence(state, 'p1', 'continent-0', bus);
+
+    const resurgentCamps = Object.values(updated.barbarianCamps).filter(c => c.resurgent);
+    expect(resurgentCamps.length).toBe(0);
+  });
+
   it('does not consume IDs, cooldown, or events when a governed resurgence is denied', () => {
     const state = makeResurgenceState();
     const beforeCounters = structuredClone(state.idCounters);
@@ -236,7 +259,7 @@ describe('processLandResurgence', () => {
   });
 });
 
-describe('processThreatPressure — hot-seat isolation', () => {
+describe('processThreatPressure -- hot-seat isolation', () => {
   it('excludes AI civs from resurgence when aiPressure is off', () => {
     const state = makeTestState({ era: 3, turn: 30 });
     state.civilizations['p1'].isHuman = false;
@@ -627,10 +650,10 @@ describe('independent threat pressure governor', () => {
 describe('processPirateSpawn', () => {
   function makeCoastalState(): GameState {
     const state = makeTestState({ era: 2, turn: 40 });
-    // High idle — score ≥ 4.0 needed for pirate spawn
+    // High idle -- score ≥ 4.0 needed for pirate spawn
     state.civilizations['p1'].lastCombatTurnByLandmass = { 'continent-0': 0 }; // 40 turns idle
     // City at 0,0 (coast). Landmass tiles at 0,0 through 9,0 (from makeTestState).
-    // Ocean tiles at 10..15,0 — adjacent to 9,0 (continent-0), 10+ tiles from city.
+    // Ocean tiles at 10..15,0 -- adjacent to 9,0 (continent-0), 10+ tiles from city.
     state.map.tiles['0,0'] = { ...state.map.tiles['0,0'], terrain: 'coast', owner: 'p1' };
     for (let q = 10; q <= 15; q++) {
       state.map.tiles[`${q},0`] = {
