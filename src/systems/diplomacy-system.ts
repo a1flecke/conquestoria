@@ -632,9 +632,9 @@ function isPeaceRequestPair(
 /**
  * #988: a plain white-peace request and a typed settlement offer both end the
  * same war between the same two civs -- resolving either one moots the
- * other. Used only for cleanup sweeps, never for the "does a request already
- * exist" dedup checks (those stay type-specific, see
- * {@link isSamePeaceRequest} / {@link isSameSettlementOffer}).
+ * other, and a pending request of *either* type against the same pair blocks
+ * enqueueing a new one of either type (see `enqueuePeaceRequest` /
+ * `enqueueSettlementOffer`) so a civ can never hold both at once.
  */
 export function isWarResolutionRequestPair(
   request: PendingDiplomaticRequest,
@@ -646,16 +646,6 @@ export function isWarResolutionRequestPair(
       (request.fromCivId === civA && request.toCivId === civB)
       || (request.fromCivId === civB && request.toCivId === civA)
     );
-}
-
-function isSameSettlementOffer(
-  request: PendingDiplomaticRequest,
-  fromCivId: string,
-  toCivId: string,
-): boolean {
-  return request.type === 'settlement'
-    && request.fromCivId === fromCivId
-    && request.toCivId === toCivId;
 }
 
 export function getPendingPeaceRequestForPair(
