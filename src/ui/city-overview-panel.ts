@@ -1,4 +1,5 @@
 import type { GameState, City } from '@/core/types';
+import { getOwnedCities } from '@/systems/city-ownership';
 import { getCityAppeaseCost, getConcessionCost, computeUnrestPressure, CONCESSION_IMMUNITY_TURNS } from '@/systems/faction-system';
 import { getCivHappinessFromResources } from '@/systems/resource-acquisition-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
@@ -32,7 +33,7 @@ export function createCityOverviewPanel(
   panel.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;z-index:30;background:rgba(8,12,20,0.96);overflow-y:auto;padding:16px;';
 
   function ownedCities(): City[] {
-    return Object.values(state.cities).filter(c => c.owner === state.currentPlayer);
+    return [...getOwnedCities(state, state.currentPlayer)];
   }
 
   function unrestPressureFor(city: City): number {

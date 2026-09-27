@@ -1,4 +1,5 @@
 import type { GameState, TutorialStep, AdvisorType, Unit } from '@/core/types';
+import { getOwnedCityCount } from '@/systems/city-ownership';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
 import { resolveGeneralDefinition } from '@/systems/great-general-definitions';
 import { resolveGeneralMechanics } from '@/systems/great-general-specialties';
@@ -53,7 +54,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     advisor: 'builder',
     icon: '🏗️',
     message: 'Excellent! Your city is growing. Build a Shrine to start generating science, or train a Warrior to defend your borders. Tap your city to see options.',
-    trigger: (state) => Object.values(state.cities).some(c => c.owner === state.currentPlayer),
+    trigger: (state) => getOwnedCityCount(state, state.currentPlayer) > 0,
     tutorialStep: 'found_city',
   },
   {
@@ -79,7 +80,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     advisor: 'explorer',
     icon: '🔭',
     message: 'The world awaits! Select your Scout and send them into the unknown. Who knows what we might find out there?',
-    trigger: (state) => Object.values(state.cities).some(c => c.owner === state.currentPlayer),
+    trigger: (state) => getOwnedCityCount(state, state.currentPlayer) > 0,
     tutorialStep: 'explore',
   },
   {

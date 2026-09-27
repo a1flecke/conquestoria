@@ -1,4 +1,5 @@
 import type { CouncilInterrupt, GameState, GameEvent } from './types';
+import { getOwnedCityCount } from '@/systems/city-ownership';
 import { majorCivWarOpponentIds } from './owner-kind';
 
 export function collectEvent(
@@ -81,7 +82,7 @@ export function generateSummary(
     turn: state.turn,
     era: state.era,
     gold: civ?.gold ?? 0,
-    cities: civ?.cities.length ?? 0,
+    cities: civ ? getOwnedCityCount(state, civId) : 0,
     units: civ?.units.length ?? 0,
     currentResearch: civ?.techState.currentResearch ?? null,
     researchProgress: civ?.techState.researchProgress ?? 0,
