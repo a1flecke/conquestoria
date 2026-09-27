@@ -2,6 +2,10 @@
 # Smoke test the durable PR verifier without running the real build or suite.
 
 set -eu
+# Pin the thresholds under test: a caller's own one-off override (e.g. a
+# verify:pr run with a raised runaway ceiling, whose full suite runs this
+# file) must not change what these scenarios assert.
+unset VERIFY_PR_MAX_SECONDS VERIFY_PR_HARD_MAX_SECONDS || true
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 VERIFY="$ROOT/scripts/verify-pr.sh"

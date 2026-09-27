@@ -12,7 +12,7 @@ set -eu
 # Same reason every other host-lease test unsets CI: GitHub Actions always
 # sets CI=true, which the coordination layer treats as "do not coordinate at
 # all" by design, defeating every live-holder/waiter scenario below.
-unset CI || true
+unset CI HVL_CAPACITY_LANE HOST_VERIFICATION_FOREGROUND_BUDGET HOST_VERIFICATION_BACKGROUND_BUDGET HOST_VERIFICATION_LEASE_BUDGET || true
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 LIB="$ROOT/scripts/host-verification-lease.sh"
