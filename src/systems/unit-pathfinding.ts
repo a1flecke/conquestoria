@@ -49,7 +49,13 @@ export function findPath(
   to: HexCoord,
   map: GameMap,
   domain: 'land' | 'naval' | 'air' = 'land',
-  options: UnitMovementContext & { unit?: Unit; unitType?: UnitType } = {},
+  // #998: `blockedHexKeys` is passed as plain hex-key data, never a `BlockingMapEntity` type or
+  // an import from `unit-movement-legality.ts` — this module must stay below legality in the
+  // movement-subsystem layering (`.claude/rules/movement-actions.md`). The one caller that
+  // computes it (`unit-movement-validation.ts`) already guarantees `to` itself is unblocked
+  // before ever calling here, but this function tolerates `to` being in the set anyway rather
+  // than assume that guarantee — it only ever refuses a blocked hex as an intermediate waypoint.
+  options: UnitMovementContext & { unit?: Unit; unitType?: UnitType; blockedHexKeys?: ReadonlySet<string> } = {},
 ): HexCoord[] | null {
   const toKey = hexKey(to);
   const toTile = map.tiles[toKey];
@@ -132,6 +138,7 @@ export function findPath(
 
       const tile = map.tiles[nKey];
       if (!tile) continue;
+      if (nKey !== toKey && options.blockedHexKeys?.has(nKey)) continue;
       const stepCost = getMovementStepCostFor(costParams, map, currentCoord, neighbor);
       if (stepCost === Infinity) continue;
 

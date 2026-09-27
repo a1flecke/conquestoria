@@ -393,17 +393,15 @@ export function getAvailableActions(
     // properly would require this function to also receive city/military
     // counts it has no other use for.
 
-    // Embargo (requires currency tech or civilizationEra >= 2, not vassal)
-    const hasEmbargoTech = completedTechs.some(t => EMBARGO_TECHS.includes(t));
-    if ((civilizationEra >= 2 || hasEmbargoTech) && !state.vassalage?.overlord) {
-      actions.push('propose_embargo');
-    }
-
-    // League (requires writing tech, not in a league, not vassal)
-    const hasWritingTech = completedTechs.some(t => WRITING_TECHS.includes(t));
-    if (hasWritingTech && !state.vassalage?.overlord) {
-      actions.push('propose_league');
-    }
+    // #998 / #1030: `propose_embargo` and `propose_league` were offered here (re-deriving
+    // era/tech gating instead of calling the canonical `canProposeEmbargo`/`canProposeLeague`,
+    // and without their `isAllied`/`currentLeague`/relationship checks) but had NO execution
+    // path anywhere — `applyDiplomaticAction`'s switch has no case for either, no UI button
+    // ever rendered them via a different route, and no AI logic ever selects them. A complete,
+    // silent dead end for both actions. Removed rather than wired up: the underlying join/leave/
+    // enforce/dissolve mechanics are real and tested (`diplomacy-embargo.test.ts`), but shipping
+    // a *player-initiated* propose flow (UI, AI-initiation heuristics, balance) is separate,
+    // larger feature work, not something this invariant-testing issue's scope covers.
   }
 
   return actions.filter(action => !isVassalBlocked(action, Boolean(state.vassalage?.overlord)));

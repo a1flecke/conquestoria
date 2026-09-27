@@ -230,6 +230,11 @@ describe('#1002 — path-aware movement redaction', () => {
   it('a remembered (explored, fogged) barbarian camp on the path is still explained', () => {
     const world = movementWorld({ to: { q: 2, r: 0 }, width: 3, visibility: { '1,0': 'fog', '1,1': 'fog' } });
     placeCamp(world, { q: 1, r: 0 });
+    // #998: findPath now routes around a blocking entity when a detour exists (row r=1 here) —
+    // make it genuinely impassable (mountain is merely expensive, not impassable, and still fit
+    // this land warrior's budget exactly) so this scenario stays truly blocked, matching the
+    // test's actual intent (a fogged camp is still explained), not an incidental now-legal detour.
+    world.state.map.tiles['1,1'] = { ...world.state.map.tiles['1,1']!, terrain: 'ocean' };
     expect(movementExplainerSurface.project(world, 'civ-a')?.code).toBe('barbarian-camp');
   });
 

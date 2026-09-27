@@ -5,7 +5,7 @@ import { hexKey, wrappedHexDistance, hexDistance } from '@/systems/hex-utils';
 import { buildUnitOccupancy, getUnitIdsAtCoord } from '@/systems/unit-occupancy';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { canHullEnterOcean, getMovementCostForUnitInContext, getMovementStepCost } from '@/systems/unit-movement-cost';
-import { getBlockingMapEntityAt, BLOCKING_MAP_ENTITY_MESSAGES, type UnitMovementBlockerCode, type BlockingMapEntity } from '@/systems/unit-movement-legality';
+import { getBlockingMapEntityAt, getBlockingMapEntityKeys, BLOCKING_MAP_ENTITY_MESSAGES, type UnitMovementBlockerCode, type BlockingMapEntity } from '@/systems/unit-movement-legality';
 import { findPath } from '@/systems/unit-pathfinding';
 
 /**
@@ -176,7 +176,16 @@ export function validateUnitMove(
   }
 
   const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
-  const path = findPath(from, target, state.map, domain, { unit, completedTechs });
+  // #998: the BFS behind `getMovementRangeDetails` already treats a blocking map entity as
+  // impassable and routes around it; `findPath`'s A* previously had no such awareness and could
+  // pick a shorter path straight through one, which the check below then rejected wholesale —
+  // even when a walkable detour to the same `target` existed within the mover's movement points.
+  // Try the detour-aware path first; when no detour exists at all, fall back to the plain
+  // (blocking-unaware) path so the rejection below still names the SPECIFIC entity in the way
+  // (`foreign-city` / `barbarian-camp` / `pirate-enclave`) rather than a generic `unreachable`.
+  const blockedHexKeys = getBlockingMapEntityKeys(state, unit);
+  const path = findPath(from, target, state.map, domain, { unit, completedTechs, blockedHexKeys })
+    ?? findPath(from, target, state.map, domain, { unit, completedTechs });
   if (!path) return movementFailure(from, target, [from], 'unreachable', 'No passable route to that tile.');
   const pathCrossesHostileOccupant = path.slice(1, -1).some(coord =>
     getUnitIdsAtCoord(occupancy, coord).some(id =>
