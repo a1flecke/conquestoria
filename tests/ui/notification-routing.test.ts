@@ -19,6 +19,10 @@ import {
   routeTreatyAccepted,
   routeTreatyDeclined,
   routePeaceDeclined,
+  routeWarGoalExceeded,
+  routeSettlementProposed,
+  routeSettlementDeclined,
+  routeSettlementSigned,
   routeWarDeclared,
   routeStrategicWarning,
   routeCrisisStarted,
@@ -143,6 +147,42 @@ describe('notification routing', () => {
     const state = makeState();
     const { sink, calls } = makeSink();
     routePeaceMade(state, 'p1', 'p2', sink);
+    expect(calls.map(c => c.civId).sort()).toEqual(['p1', 'p2']);
+    expect(calls.every(c => c.type === 'success')).toBe(true);
+    expect(calls.find(c => c.civId === 'p3')).toBeUndefined();
+  });
+
+  it('#988 war-goal-exceeded notifies only the overreaching civ', () => {
+    const state = makeState();
+    const { sink, calls } = makeSink();
+    routeWarGoalExceeded(state, { civId: 'p1', opponentCivId: 'p2', turn: 20 }, sink);
+    expect(calls).toEqual([
+      expect.objectContaining({ civId: 'p1', message: expect.stringMatching(/beyond its declared goal/i), type: 'warning' }),
+    ]);
+  });
+
+  it('#988 settlement-proposed notifies only the recipient', () => {
+    const state = makeState();
+    const { sink, calls } = makeSink();
+    routeSettlementProposed(state, { fromCivId: 'p1', toCivId: 'p2', termCount: 2 }, sink);
+    expect(calls).toEqual([
+      expect.objectContaining({ civId: 'p2', message: expect.stringMatching(/Alice proposes a peace settlement \(2 terms\)/i), type: 'info' }),
+    ]);
+  });
+
+  it('#988 settlement-declined notifies only the proposer, with the decline reason', () => {
+    const state = makeState();
+    const { sink, calls } = makeSink();
+    routeSettlementDeclined(state, { proposerCivId: 'p1', targetCivId: 'p2', reason: 'terms-too-costly' }, sink);
+    expect(calls).toEqual([
+      expect.objectContaining({ civId: 'p1', message: expect.stringMatching(/rejected your settlement offer.*too costly/i), type: 'warning' }),
+    ]);
+  });
+
+  it('#988 settlement-signed writes to both parties', () => {
+    const state = makeState();
+    const { sink, calls } = makeSink();
+    routeSettlementSigned(state, { civA: 'p1', civB: 'p2', termCount: 1 }, sink);
     expect(calls.map(c => c.civId).sort()).toEqual(['p1', 'p2']);
     expect(calls.every(c => c.type === 'success')).toBe(true);
     expect(calls.find(c => c.civId === 'p3')).toBeUndefined();
