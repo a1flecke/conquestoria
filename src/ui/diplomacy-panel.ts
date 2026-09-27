@@ -11,10 +11,12 @@ import {
   hasArmsControlTreaty,
   PENDING_DIPLOMATIC_REQUEST_TTL_TURNS,
 } from '@/systems/diplomacy-system';
-import { getWarGoalStatus } from '@/systems/war-goal-system';
+import { describeWarGoalLabel } from '@/systems/war-goal-system';
 import { getPendingSettlementOfferForPair } from '@/systems/settlement-system';
+import { findActiveWarBetween } from '@/systems/war-history-system';
 import { openWarGoalPanel } from '@/ui/war-goal-panel';
 import { openSettlementOfferPanel } from '@/ui/settlement-offer-panel';
+import { openWarConferencePanel } from '@/ui/war-conference-panel';
 import { TREATY_LABELS, describeWarReason } from '@/ui/notification-routing';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
@@ -82,18 +84,12 @@ function describeSendAidDisabledReason(
   }
 }
 
-// #988: a viewer-safe war-goal label. City names come from the viewer's own
-// declared goal (they picked the city, so it is already known to them) --
-// this never reads a foreign civ's undiscovered state.
+// #988: a viewer-safe war-goal label -- see `describeWarGoalLabel`'s own doc
+// comment (war-goal-system.ts) for why this never reads a foreign civ's
+// undiscovered state.
 function describeWarGoal(state: GameState, viewerId: string, opponentCivId: string): string | null {
-  const goal = state.civilizations[viewerId]?.diplomacy.warGoals?.[opponentCivId];
-  if (!goal) return null;
-  const status = getWarGoalStatus(state, viewerId, opponentCivId);
-  const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
-  const kindLabel = goal.kind === 'force_vassalage'
-    ? 'Force Vassalage'
-    : `${goal.kind === 'conquer_city' ? 'Conquer' : 'Liberate'} ${goal.targetCityId ? (state.cities[goal.targetCityId]?.name ?? 'a city') : 'a city'}`;
-  return `War Goal: ${kindLabel} — ${statusLabel}`;
+  const label = describeWarGoalLabel(state, viewerId, opponentCivId);
+  return label ? `War Goal: ${label}` : null;
 }
 
 // #988: summarize a settlement offer's terms for display to the recipient.
@@ -146,6 +142,7 @@ interface CivRowData {
   warGoalStatusText: string | null;
   canDeclareWarGoal: boolean;
   canProposeSettlement: boolean;
+  activeWarId: string | null;
   settlementOfferState: 'none' | 'incoming' | 'outgoing';
   settlementOfferId: string | null;
   settlementOfferSummaryText: string | null;
@@ -356,6 +353,7 @@ export function createDiplomacyPanel(
     const warGoalStatusText = atWar ? describeWarGoal(state, state.currentPlayer, civId) : null;
     const canDeclareWarGoal = atWar && !isVassal && !warGoalStatusText;
     const canProposeSettlement = atWar && !isVassal;
+    const activeWarId = atWar ? (findActiveWarBetween(state, state.currentPlayer, civId)?.id ?? null) : null;
     const pendingSettlementOffer = getPendingSettlementOfferForPair(state, state.currentPlayer, civId);
     const settlementOfferState: 'none' | 'incoming' | 'outgoing' = !pendingSettlementOffer ? 'none'
       : pendingSettlementOffer.toCivId === state.currentPlayer ? 'incoming'
@@ -398,6 +396,7 @@ export function createDiplomacyPanel(
       warGoalStatusText,
       canDeclareWarGoal,
       canProposeSettlement,
+      activeWarId,
       settlementOfferState,
       settlementOfferId: pendingSettlementOffer?.id ?? null,
       settlementOfferSummaryText,
@@ -572,7 +571,8 @@ export function createDiplomacyPanel(
       actionsHtml += `<button class="diplo-open-war-goal" data-civ-id="${row.civId}" style="padding:6px 12px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:6px;color:white;cursor:pointer;font-size:11px;">Declare War Goal</button>`;
     }
     if (row.canProposeSettlement) {
-      actionsHtml += `<button class="diplo-open-settlement" data-civ-id="${row.civId}" style="padding:6px 12px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:6px;color:white;cursor:pointer;font-size:11px;">Propose Settlement</button>`;
+      const label = row.activeWarId ? 'War Conference' : 'Propose Settlement';
+      actionsHtml += `<button class="diplo-open-settlement" data-civ-id="${row.civId}" data-war-id="${row.activeWarId ?? ''}" style="padding:6px 12px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:6px;color:white;cursor:pointer;font-size:11px;">${label}</button>`;
     }
     actionsHtml += '</div>';
 
@@ -817,9 +817,17 @@ export function createDiplomacyPanel(
   panel.querySelectorAll('.diplo-open-settlement').forEach(btn => {
     btn.addEventListener('click', () => {
       const civId = (btn as HTMLElement).dataset.civId!;
-      openSettlementOfferPanel(container, state, civId, terms => {
-        callbacks.onProposeSettlement?.(civId, terms);
-      });
+      const warId = (btn as HTMLElement).dataset.warId;
+      const onPropose = (terms: SettlementTerm[]) => callbacks.onProposeSettlement?.(civId, terms);
+      // #991: the war conference is the real negotiation surface once a war
+      // record exists; it embeds the same settlement builder. Falls back to
+      // the plain builder directly if no record exists yet (defensive only --
+      // every major-vs-major war gets one via addWarPair).
+      if (warId) {
+        openWarConferencePanel(container, state, civId, warId, onPropose);
+        return;
+      }
+      openSettlementOfferPanel(container, state, civId, onPropose);
     });
   });
 

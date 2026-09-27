@@ -1283,6 +1283,68 @@ export interface SettlementTerm {
   overlordId?: string;
 }
 
+// --- War History (#991) ---
+
+export type WarParticipantSide = 'aggressor' | 'defender';
+export type WarLeaveReason = 'peace' | 'eliminated';
+export type WarOutcome = 'settled' | 'white-peace' | 'aggressor-eliminated' | 'defender-eliminated';
+
+/** One civ's membership span in a war. A civ dragged in later (vassal, league)
+ * gets its own entry with `joinedTurn` after `war.startTurn`. */
+export interface WarParticipant {
+  civId: string;
+  side: WarParticipantSide;
+  joinedTurn: number;
+  /** Absent while still a combatant. */
+  leftTurn?: number;
+  leaveReason?: WarLeaveReason;
+}
+
+/**
+ * A recorded, deterministic fact about a war -- never a heuristic "importance
+ * score." Every variant is something the engine can determine exactly at the
+ * moment it happens (#991: "a turning point must be defined by rule... not by
+ * heuristic scoring, or the record becomes unreproducible"). Plain
+ * serializable facts only, matching `GeneralCareerEvent`'s own convention --
+ * presentation resolves names/copy later, never stored here.
+ */
+export type WarHistoryEvent =
+  | { type: 'declared'; turn: number; aggressorId: string; defenderId: string }
+  | { type: 'participant-joined'; turn: number; civId: string; side: WarParticipantSide }
+  | { type: 'participant-left'; turn: number; civId: string; reason: WarLeaveReason }
+  | { type: 'participant-eliminated'; turn: number; civId: string }
+  | { type: 'city-captured'; turn: number; cityId: string; cityName: string; fromCivId: string; toCivId: string; wasCapital: boolean }
+  | { type: 'goal-declared'; turn: number; civId: string; opponentCivId: string; kind: WarGoalKind }
+  | { type: 'settlement-signed'; turn: number; termCount: number }
+  | { type: 'concluded'; turn: number; outcome: WarOutcome };
+
+/**
+ * A persistent, named historical record of one war -- the object #991 exists
+ * to create. Distinct from, and never a replacement for, the capped rolling
+ * `DiplomaticEvent` log on `DiplomacyState` (#991's own non-goal). Survives
+ * elimination of any participant (`historical` in `ELIMINATED_CIV_AREAS`) --
+ * a chronicle entry, like `GeneralHistoryEntry`/discovered wonders.
+ */
+export interface WarRecord {
+  id: string;
+  /** Deterministic template choice (index into a fixed candidate array) so a
+   * viewer missing knowledge of a participant can re-render the SAME chosen
+   * template with a redacted name, rather than a different canonical string
+   * being computed twice. Never re-rolled. */
+  nameTemplateIndex: number;
+  /** The two civs at the moment of declaration -- distinct from `participants`,
+   * which also carries every later join/leave. */
+  originalAggressorId: string;
+  originalDefenderId: string;
+  startTurn: number;
+  /** Absent while the war is ongoing. */
+  endTurn?: number;
+  participants: WarParticipant[];
+  /** Append-only, soft-capped (see `MAX_WAR_HISTORY_EVENTS` in war-history-system.ts). */
+  events: WarHistoryEvent[];
+  outcome?: WarOutcome;
+}
+
 export interface Embargo {
   id: string;
   targetCivId: string;
@@ -2283,6 +2345,7 @@ export interface IdCounters {
   nextPirateFactionId?: number;
   nextNotificationId?: number;
   nextNetworkPlanId?: number;
+  nextWarId?: number;
 }
 
 // --- Game State (the whole thing) ---
@@ -2365,6 +2428,13 @@ export interface GameState {
   embargoes: Embargo[];
   defensiveLeagues: DefensiveLeague[];
   pendingDiplomacyRequests?: PendingDiplomaticRequest[];
+  /** #991: a persistent, named historical record per major-vs-major war,
+   * keyed by `WarRecord.id`. Absent means no war has ever produced a record
+   * yet (old saves, or a fresh game) -- additive, no migration needed; see
+   * `war-history-system.ts`'s own header for why. Never deleted, including
+   * for a war a now-eliminated civ fought (`historical` in
+   * `ELIMINATED_CIV_AREAS`). */
+  wars?: Record<string, WarRecord>;
   territoryFrontiers?: Record<string, TerritoryFrontierState>;
   mapScript?: MapScript;  // undefined on old saves → treat as 'procedural'
   startPlacementMode?: StartPlacementMode;

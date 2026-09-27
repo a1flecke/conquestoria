@@ -13,6 +13,7 @@ describe('emptyIdCounters', () => {
       nextPirateFactionId: 1,
       nextNotificationId: 1,
       nextNetworkPlanId: 1,
+      nextWarId: 1,
     });
   });
 

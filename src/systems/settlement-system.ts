@@ -13,6 +13,7 @@ import {
 import { transferCapturedCityOwnership } from '@/systems/city-capture-system';
 import { cancelInvalidNetworkPlans } from '@/systems/network-plan-system';
 import { evaluateSettlementConsent } from '@/ai/ai-settlement-consent';
+import { recordSettlementSigned } from '@/systems/war-history-system';
 
 export type SettlementEligibility = { ok: true } | { ok: false; reason: string };
 
@@ -155,7 +156,12 @@ export function executeSettlement(
   bus: EventBus,
 ): GameState {
   if (!validateSettlementOffer(state, proposerCivId, recipientCivId, terms).ok) return state;
-  let next = makeMajorPeace(state, proposerCivId, recipientCivId, bus);
+  // #991: recorded BEFORE the peace transition below -- war-history-system.ts's
+  // `concludeIfResolved` looks for this exact event to decide the war
+  // concluded with outcome 'settled' rather than the plain-peace default
+  // 'white-peace'. Order matters; see that function's own doc comment.
+  const withHistory = recordSettlementSigned(state, proposerCivId, recipientCivId, terms.length, turn);
+  let next = makeMajorPeace(withHistory, proposerCivId, recipientCivId, bus);
   for (const term of terms) {
     next = applySettlementTerm(next, term, turn, bus);
   }

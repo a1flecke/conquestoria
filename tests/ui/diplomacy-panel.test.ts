@@ -10,6 +10,8 @@ import {
 } from '@/systems/diplomacy-system';
 import { EventBus } from '@/core/event-bus';
 import { declareWarGoal } from '@/systems/war-goal-system';
+import { declareWarRecord } from '@/systems/war-history-system';
+import { openWarConferencePanel } from '@/ui/war-conference-panel';
 import { enqueueSettlementOffer } from '@/systems/settlement-system';
 import { getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentation';
 import { makeDiplomacyFixture } from './helpers/diplomacy-fixture';
@@ -704,6 +706,46 @@ describe('diplomacy-panel war goals and settlements (#988)', () => {
   });
 });
 
+describe('diplomacy-panel war conference (#991)', () => {
+  function makeAtWarStateWithRecord() {
+    const { container, state: baseState } = makeDiplomacyFixture({
+      currentPlayer: 'player',
+      includeThirdCiv: true,
+    });
+    baseState.civilizations.player.diplomacy.atWarWith = ['outsider'];
+    baseState.civilizations.outsider.diplomacy.atWarWith = ['player'];
+    const state = declareWarRecord(baseState, 'player', 'outsider', baseState.turn);
+    return { container, state };
+  }
+
+  it('shows "War Conference" instead of "Propose Settlement" once a war record exists, and opens it', () => {
+    const { container, state } = makeAtWarStateWithRecord();
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {} });
+    const btn = panel.querySelector('.diplo-open-settlement') as HTMLButtonElement;
+    expect(btn.textContent).toBe('War Conference');
+    btn.click();
+    const conference = container.querySelector('#war-conference-panel') as HTMLElement;
+    expect(conference).toBeTruthy();
+    expect(conference.textContent).toContain('Active since turn');
+  });
+
+  it('the conference embeds the real settlement builder, and proposing through it calls the same callback', () => {
+    const { container, state } = makeAtWarStateWithRecord();
+    const onProposeSettlement = vi.fn();
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onProposeSettlement, onClose: () => {} });
+    (panel.querySelector('.diplo-open-settlement') as HTMLButtonElement).click();
+    const conference = container.querySelector('#war-conference-panel') as HTMLElement;
+    const negotiateBtn = Array.from(conference.querySelectorAll('button')).find(b => b.textContent === 'Build Settlement Offer') as HTMLButtonElement;
+    expect(negotiateBtn).toBeTruthy();
+    negotiateBtn.click();
+    const offerPanel = container.querySelector('#settlement-offer-panel') as HTMLElement;
+    expect(offerPanel).toBeTruthy();
+    const sendBtn = Array.from(offerPanel.querySelectorAll('button')).find(b => b.textContent === 'Send Offer') as HTMLButtonElement;
+    sendBtn.click();
+    expect(onProposeSettlement).toHaveBeenCalledWith('outsider', []);
+  });
+});
+
 describe('diplomacy-panel treaty proposals + war attribution (#554)', () => {
   it('renders an incoming treaty proposal with accept/decline and fires callbacks', () => {
     const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player', includeThirdCiv: true });
@@ -1284,6 +1326,67 @@ describe('#1002 diplomacy panel through the shared viewer-safety harness', () =>
           };
         },
       },
+    });
+  });
+});
+
+// #991: the war conference is a new viewer-sensitive surface in its own
+// right (a separate sub-panel, not part of createDiplomacyPanel's own
+// output), so it needs its own differential coverage per
+// .claude/rules/ui-panels.md's Viewer Safety Contract.
+describe('#991 war conference panel through the shared viewer-safety harness', () => {
+  const conferencePanel: ViewerSurface<GameState, ReturnType<typeof domProjection>> = {
+    name: 'war conference panel (rendered)',
+    project: (state, viewerId) => {
+      const viewing = { ...state, currentPlayer: viewerId };
+      const container = document.createElement('div');
+      const warId = Object.keys(viewing.wars ?? {})[0]!;
+      openWarConferencePanel(container, viewing, AI_A, warId, () => {});
+      return domProjection(container);
+    },
+  };
+
+  function worldWithWar(): GameState {
+    const state = createTwoViewerWorld('viewer-safety-war-conference');
+    makeMet(state, HUMAN_A, AI_A);
+    state.civilizations[HUMAN_A]!.diplomacy.atWarWith.push(AI_A);
+    state.civilizations[AI_A]!.diplomacy.atWarWith.push(HUMAN_A);
+    return declareWarRecord(state, HUMAN_A, AI_A, state.turn);
+  }
+
+  it('unmet-civ facts unrelated to this war never change the conference; meeting a third participant reveals it', () => {
+    const world = worldWithWar();
+    const warId = Object.keys(world.wars!)[0]!;
+    // Drag AI_B into the SAME war record as an aggressor-side participant,
+    // simulating a vassal/coalition join, without yet being known to HUMAN_A.
+    const withThirdParty = {
+      ...world,
+      wars: {
+        ...world.wars,
+        [warId]: {
+          ...world.wars![warId]!,
+          participants: [...world.wars![warId]!.participants, { civId: AI_B, side: 'aggressor' as const, joinedTurn: world.turn }],
+        },
+      },
+    };
+    expectViewerSafety(conferencePanel, {
+      world: withThirdParty,
+      viewerId: HUMAN_A,
+      hidden: [
+        { label: `unmet ${AI_B} renames itself`, apply: s => { s.civilizations[AI_B]!.name = 'Hidden Dominion'; } },
+        { label: `unmet ${AI_B} and known ${AI_A} sign an unrelated treaty`, apply: s => signTreatyForTest(s, AI_A, AI_B) },
+      ],
+      earned: [{ label: `${HUMAN_A} meets ${AI_B}`, apply: s => makeMet(s, HUMAN_A, AI_B) }],
+    });
+  });
+
+  it('hot seat: a war HUMAN_A knows about does not surface for HUMAN_B until HUMAN_B also learns of a participant', () => {
+    const world = worldWithWar();
+    expectHotSeatDifferential(conferencePanel, {
+      world,
+      viewers: [HUMAN_A, HUMAN_B],
+      knownOnlyTo: HUMAN_B,
+      mutation: { label: `${HUMAN_B} meets ${AI_A}`, apply: s => makeMet(s, HUMAN_B, AI_A) },
     });
   });
 });
