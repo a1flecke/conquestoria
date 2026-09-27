@@ -633,6 +633,10 @@ describe('PlayerActionController', () => {
       const mcId = Object.keys(state.minorCivs)[0]!;
       const cityId = state.minorCivs[mcId].cityId;
       placeUnit(state, 'warrior', 'attacker-1', { q: 0, r: 0 });
+      // #999: real callers only ever reach executeMinorCivConquest after the tap-intent
+      // dispatch's own war check (map-interaction-controller.ts's 'confirm-war-minor-civ' /
+      // 'assault-minor-civ' cases) -- conquestMinorCiv itself now enforces this too.
+      state.civilizations.player.diplomacy.atWarWith = [mcId];
       const { deps, controller } = build(state);
       const listener = vi.fn();
       deps.session.subscribe(listener);

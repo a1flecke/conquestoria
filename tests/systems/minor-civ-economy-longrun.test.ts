@@ -123,7 +123,8 @@ describe('#949 — city-state conquered mid-run', () => {
 
     const trace = runMinorCivLongRun(state, minorCivId, 40, bus, (turnState, turn) => {
       if (turn !== 20) return turnState;
-      return conquestMinorCiv(turnState, minorCivId, 'player').state;
+      const atWar = { ...turnState, civilizations: { ...turnState.civilizations, player: { ...turnState.civilizations.player, diplomacy: { ...turnState.civilizations.player.diplomacy, atWarWith: [minorCivId] } } } };
+      return conquestMinorCiv(atWar, minorCivId, 'player').state;
     });
 
     // onSample fires when nextState.turn === 20, before that turn's sample is captured, so the

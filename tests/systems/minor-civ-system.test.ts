@@ -636,10 +636,29 @@ describe('minor civ era upgrades', () => {
 });
 
 describe('conquest mechanics', () => {
+  // #999: every real caller of conquestMinorCiv (AI, both player UI paths) independently
+  // verifies war status BEFORE calling it -- `conquestMinorCiv` itself has never checked this.
+  // That is caller-discipline-only enforcement of a canonical rule, the exact shape #843/#845/
+  // #965/#970 already showed is fragile for movement. This pins the executor itself refusing,
+  // so a future caller cannot reintroduce the bypass by forgetting the check.
+  it('refuses to conquer a minor civ the conqueror is not at war with', () => {
+    const state = createNewGame(undefined, 'mc-conquer-no-war', 'small');
+    const mcId = Object.keys(state.minorCivs)[0];
+    if (!mcId) return;
+    expect(state.civilizations.player.diplomacy.atWarWith).not.toContain(mcId);
+
+    const result = conquestMinorCiv(state, mcId, 'player');
+
+    expect(result.conquered).toBe(false);
+    expect(result.state.minorCivs[mcId].isDestroyed).toBe(false);
+    expect(result.state.cities[state.minorCivs[mcId].cityId].owner).toBe(mcId);
+  });
+
   it('marks minor civ as destroyed on conquest', () => {
     const state = createNewGame(undefined, 'mc-conquer', 'small');
     const mcId = Object.keys(state.minorCivs)[0];
     if (!mcId) return;
+    state.civilizations.player.diplomacy.atWarWith = [mcId];
 
     const result = conquestMinorCiv(state, mcId, 'player');
     expect(result.state.minorCivs[mcId].isDestroyed).toBe(true);
@@ -651,6 +670,7 @@ describe('conquest mechanics', () => {
     const mcId = Object.keys(state.minorCivs)[0];
     if (!mcId) return;
     const mc = state.minorCivs[mcId];
+    state.civilizations.player.diplomacy.atWarWith = [mcId];
 
     const result = conquestMinorCiv(state, mcId, 'player');
     expect(result.state.cities[mc.cityId].owner).toBe('player');
@@ -666,6 +686,7 @@ describe('conquest mechanics', () => {
     const distant = state.minorCivs[mcIds[2]];
     state.cities[nearby.cityId].position = { ...state.cities[conquered.cityId].position, q: state.cities[conquered.cityId].position.q + 11 };
     state.cities[distant.cityId].position = { ...state.cities[conquered.cityId].position, q: state.cities[conquered.cityId].position.q + 20 };
+    state.civilizations.player.diplomacy.atWarWith = [conquered.id];
 
     const result = conquestMinorCiv(state, conquered.id, 'player');
 
@@ -686,6 +707,7 @@ describe('conquest mechanics', () => {
     const conquered = state.minorCivs[mcIds[0]];
     const nearby = state.minorCivs[mcIds[1]];
     state.cities[nearby.cityId].position = { ...state.cities[conquered.cityId].position, q: state.cities[conquered.cityId].position.q + 11 };
+    state.civilizations.player.diplomacy.atWarWith = [conquered.id];
 
     const result = conquestMinorCiv(state, conquered.id, 'player');
 
@@ -701,6 +723,7 @@ describe('conquest mechanics', () => {
     const conquered = state.minorCivs[mcIds[0]];
     const nearby = state.minorCivs[mcIds[1]];
     state.cities[nearby.cityId].position = { ...state.cities[conquered.cityId].position, q: state.cities[conquered.cityId].position.q + 11 };
+    state.civilizations[aiId].diplomacy.atWarWith = [conquered.id];
 
     const result = conquestMinorCiv(state, conquered.id, aiId);
 
