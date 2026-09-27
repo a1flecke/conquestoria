@@ -6,6 +6,7 @@
 # retries around.
 
 set -eu
+unset CI HVL_CAPACITY_LANE HOST_VERIFICATION_FOREGROUND_BUDGET HOST_VERIFICATION_BACKGROUND_BUDGET HOST_VERIFICATION_LEASE_BUDGET || true
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 RUNNER="$ROOT/scripts/run-ai-long-horizon.sh"

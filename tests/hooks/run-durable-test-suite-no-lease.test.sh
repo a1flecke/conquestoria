@@ -16,7 +16,7 @@ set -eu
 # to get that real behavior regardless of the ambient environment -- same
 # as host-verification-lease.test.sh and
 # host-verification-lease-process-group.test.sh already do.
-unset CI || true
+unset CI HVL_CAPACITY_LANE HOST_VERIFICATION_FOREGROUND_BUDGET HOST_VERIFICATION_BACKGROUND_BUDGET HOST_VERIFICATION_LEASE_BUDGET || true
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 RUNNER="$ROOT/scripts/run-durable-test-suite.sh"

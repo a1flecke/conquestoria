@@ -5,7 +5,7 @@
 # stale or mismatched proof must never skip verification.
 
 set -eu
-unset CI || true
+unset CI VERIFY_REUSE_PROOF VERIFY_PR_MAX_SECONDS VERIFY_PR_HARD_MAX_SECONDS HVL_CAPACITY_LANE || true
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 
