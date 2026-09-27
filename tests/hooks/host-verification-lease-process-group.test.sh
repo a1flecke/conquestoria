@@ -118,7 +118,12 @@ printf '%s\n' "$descendant_comms" | grep -q 'sleep' || {
 
 kill -TERM "$holder_pid" 2>/dev/null || true
 wait "$holder_pid" 2>/dev/null || true
-sleep 0.3
+# Same bounded poll as scenario 2 below: exit can lag the signal on a slow host.
+attempts=0
+while job_tree_any_alive "$job_pid" && [ "$attempts" -lt 50 ]; do
+  attempts=$((attempts + 1))
+  sleep 0.1
+done
 job_tree_any_alive "$job_pid" && {
   echo "cancelling the wrapper left members of the registered job's tree alive" >&2
   exit 1
@@ -159,11 +164,22 @@ done
 
 kill -TERM "$holder_pid" 2>/dev/null || true
 wait "$holder_pid" 2>/dev/null || true
-sleep 0.3
 
+# Poll rather than a fixed sleep: on a loaded or slow host the tree can take
+# longer than a few hundred ms to exit after the group signal. The deadline
+# stays far below the nested `sleep 20`, so a cancellation that never signals
+# the tree still fails here.
 after_count=0
-for p in $before_members; do
-  kill -0 "$p" 2>/dev/null && after_count=$((after_count + 1))
+attempts=0
+while :; do
+  after_count=0
+  for p in $before_members; do
+    kill -0 "$p" 2>/dev/null && after_count=$((after_count + 1))
+  done
+  [ "$after_count" -eq 0 ] && break
+  attempts=$((attempts + 1))
+  [ "$attempts" -lt 50 ] || break
+  sleep 0.1
 done
 [ "$after_count" -eq 0 ] || {
   echo "cancellation left $after_count process(es) alive from job_pid $job_pid's tree" >&2
