@@ -63,7 +63,7 @@ describe('city-ownership', () => {
       const state = stateFixture({
         cities: { 'city-1': city },
         civilizations: {
-          'civ-1': { id: 'civ-1', cities: ['city-1', 'city-ghost'] } as unknown as unknown as Civilization,
+          'civ-1': { id: 'civ-1', cities: ['city-1', 'city-ghost'] } as unknown as Civilization,
         },
       });
 
