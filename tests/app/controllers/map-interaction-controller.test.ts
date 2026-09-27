@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import { createUnit } from '@/systems/unit-system';
@@ -182,6 +182,23 @@ function baseDeps(state: GameState, overrides: Partial<MapInteractionControllerD
 }
 
 describe('MapInteractionController', () => {
+  // A completed move schedules a real setTimeout (executeAnimatedUnitMove's
+  // settleFocusAfterMove, #1039) that otherwise outlives this file's jsdom
+  // environment once Vitest tears it down between files -- the callback then
+  // fires against a torn-down `document` and fails an unrelated CI shard with
+  // "Vitest caught 1 unhandled error" despite every individual test passing.
+  // Fake timers make that schedule deterministic and flush it inside each
+  // test's own synchronous lifetime instead. Safe file-wide: nothing else
+  // here uses real async/setTimeout/Promise timing.
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.runOnlyPendingTimers();
+    vi.useRealTimers();
+  });
+
   describe('handleHexTap', () => {
     it('dispatches deselect on an empty visible hex with nothing selected', () => {
       const state = makeFixture();

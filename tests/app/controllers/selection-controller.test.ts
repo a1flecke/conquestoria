@@ -286,29 +286,39 @@ describe('SelectionController', () => {
   });
 
   it('executeAnimatedUnitMove brackets the ceremony defer window around a successful move', () => {
-    const state = makeFixture();
-    placePlayerUnit(state, 'u1');
-    document.body.innerHTML = '<div id="info-panel"></div>';
-    const ceremonies = fakeCeremonies();
-    const deps = baseDeps(state, { ceremonies });
-    const controller = createSelectionController(deps);
-    const moveResult: ExecuteUnitMoveResult = {
-      ok: true,
-      path: [{ q: 0, r: 0 }, { q: 1, r: 0 }],
-      state: deps.session.getState(),
-      events: [],
-    } as unknown as ExecuteUnitMoveResult;
+    // A successful move schedules a real setTimeout (settleFocusAfterMove,
+    // #1039) that would otherwise outlive this test -- fake timers make it
+    // deterministic and flush it before teardown, matching the pattern
+    // already used below for the #1039 tests themselves.
+    vi.useFakeTimers();
+    try {
+      const state = makeFixture();
+      placePlayerUnit(state, 'u1');
+      document.body.innerHTML = '<div id="info-panel"></div>';
+      const ceremonies = fakeCeremonies();
+      const deps = baseDeps(state, { ceremonies });
+      const controller = createSelectionController(deps);
+      const moveResult: ExecuteUnitMoveResult = {
+        ok: true,
+        path: [{ q: 0, r: 0 }, { q: 1, r: 0 }],
+        state: deps.session.getState(),
+        events: [],
+      } as unknown as ExecuteUnitMoveResult;
 
-    const callOrder: string[] = [];
-    (ceremonies.beginDeferredAction as ReturnType<typeof vi.fn>).mockImplementation(() => callOrder.push('begin'));
-    (deps.renderLoop.animateUnitMove as ReturnType<typeof vi.fn>).mockImplementation(() => callOrder.push('animate'));
+      const callOrder: string[] = [];
+      (ceremonies.beginDeferredAction as ReturnType<typeof vi.fn>).mockImplementation(() => callOrder.push('begin'));
+      (deps.renderLoop.animateUnitMove as ReturnType<typeof vi.fn>).mockImplementation(() => callOrder.push('animate'));
 
-    const result = controller.executeAnimatedUnitMove('u1', () => moveResult);
+      const result = controller.executeAnimatedUnitMove('u1', () => moveResult);
 
-    expect(result).toBe(moveResult);
-    expect(ceremonies.beginDeferredAction).toHaveBeenCalledTimes(1);
-    expect(deps.renderLoop.animateUnitMove).toHaveBeenCalledTimes(1);
-    expect(callOrder).toEqual(['begin', 'animate']);
+      expect(result).toBe(moveResult);
+      expect(ceremonies.beginDeferredAction).toHaveBeenCalledTimes(1);
+      expect(deps.renderLoop.animateUnitMove).toHaveBeenCalledTimes(1);
+      expect(callOrder).toEqual(['begin', 'animate']);
+      vi.runOnlyPendingTimers();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('executeAnimatedUnitMove still ends the ceremony defer window when the move fails, and does not animate', () => {
