@@ -61,6 +61,25 @@ describe('spawnBarbarianCamp', () => {
 
     expect(camp).toBeNull();
   });
+
+  it('never chooses a tile a live unit already occupies (regression)', () => {
+    // A crisis-driven barbarian hunt (spawnBarbarianHunt in crisis-system.ts) calls this
+    // mid-game, when units already exist on the map. Without an occupancy exclusion, a
+    // camp could land directly on an existing unit's tile, tripping
+    // assertNoIllegalBlockingOccupancy for that unit's owner the moment the camp exists.
+    // No cityPositions/existingCamps constraint here -- isolate the occupancy check alone,
+    // away from the city-distance and wrap-seam filters exercised by the tests above.
+    const onlyCandidateMap = generateMap(30, 12, 'barb-occupied-placement');
+    for (const tile of Object.values(onlyCandidateMap.tiles)) {
+      tile.terrain = 'ocean';
+    }
+    onlyCandidateMap.tiles['15,5'].terrain = 'grassland';
+    const occupiedHexKeys = new Set([hexKey({ q: 15, r: 5 })]);
+
+    const camp = spawnBarbarianCamp(onlyCandidateMap, [], [], 12345, mkC(), occupiedHexKeys);
+
+    expect(camp).toBeNull();
+  });
 });
 
 describe('camp pressure cleanup', () => {
@@ -369,7 +388,7 @@ describe('processPurposefulBarbarians', () => {
 
   // #994: the same defect family the AI-playability run caught in beast-system.ts. The spawn
   // candidate filter here only ever excluded already-occupied unit tiles, never a foreign city
-  // or pirate enclave — a raider could spawn directly onto one the instant the camp's own tile
+  // or pirate enclave -- a raider could spawn directly onto one the instant the camp's own tile
   // is unavailable (e.g. already holding an assigned raider).
   it('does not spawn a raider onto a foreign city tile adjacent to the camp', () => {
     const state = purposefulState();
@@ -549,7 +568,7 @@ describe('processPurposefulBarbarians', () => {
     // toward the tile for several turns (the realistic case) arrives with an
     // ALREADY-EXISTING plan, so completedResourceRaid IS true this turn, the plan flips to
     // 'withdrawing', and the same unit gets a moveOrder queued in the very same call that
-    // queued its pillageOrder — turn-manager.ts must apply pillage before move, or the
+    // queued its pillageOrder -- turn-manager.ts must apply pillage before move, or the
     // raider steps off the tile before applyPillageToState ever runs.
     const state = purposefulState();
     const raider = createUnit('warrior', 'barbarian', { q: 7, r: 5 }, state.idCounters);
@@ -588,7 +607,7 @@ describe('processPurposefulBarbarians', () => {
   it('pillages the tile even though a same-turn withdrawal move is also queued, because pillage applies first (#541 second-pass review)', () => {
     // Proves the actual fix at the level turn-manager.ts consumes these orders: applying
     // the queued pillageOrder before the queued moveOrder still burns the tile (and the
-    // subsequent move — now blocked by 0 movementPointsLeft — correctly fails validation
+    // subsequent move -- now blocked by 0 movementPointsLeft -- correctly fails validation
     // instead of silently relocating the "arrived" raider first).
     const state = purposefulState();
     const raider = createUnit('warrior', 'barbarian', { q: 7, r: 5 }, state.idCounters);
@@ -1010,7 +1029,7 @@ describe('barbarian camp evolution', () => {
   });
 });
 
-describe('processBarbarians — city targeting', () => {
+describe('processBarbarians -- city targeting', () => {
   const seed = 99999;
 
   function flatMap(size = 16): GameMap {
