@@ -164,7 +164,7 @@ function maybeStartCrisis(state: GameState, civId: string, bus: EventBus): GameS
   return nextState;
 }
 
-// ── Outbreak resolver ────────────────────────────────────────────────────────
+// ── Outbreak resolver ─────────────────────────────────────────────────────────────────
 
 // Single source of truth for the per-crisis yield multiplier — shared with
 // city-panel.ts's display so the shown percentage always matches the applied
@@ -322,7 +322,7 @@ function tickOutbreakCrisis(
   return { crisis: working, state: nextState };
 }
 
-// ── Famine resolver (#590 MR3) ───────────────────────────────────────────────
+// ── Famine resolver (#590 MR3) ──────────────────────────────────────────────────
 
 // Consecutive turns a city's food surplus must stay positive before the famine
 // auto-resolves out of that city — independent of remedy/quarantine (issue #590:
@@ -600,7 +600,7 @@ function tickCatastropheCrisis(
   return { crisis: null, state: nextState };
 }
 
-// ── Hunt resolver ────────────────────────────────────────────────────────────
+// ── Hunt resolver ──────────────────────────────────────────────────────────────────────────
 
 const HUNT_ESCALATION_TURNS = 5;
 
@@ -679,7 +679,8 @@ function spawnBarbarianHunt(
   // signature, since #982 only requires the *root* seed to be gameId-rooted,
   // not every downstream consumer's parameter shape.
   const seed = Math.floor(rng() * 2147483647);
-  const camp = spawnBarbarianCamp(state.map, cityPositions, existingCamps, seed, state.idCounters);
+  const occupiedHexKeys = new Set(Object.keys(buildUnitOccupancy(state.units).unitIdsByHex));
+  const camp = spawnBarbarianCamp(state.map, cityPositions, existingCamps, seed, state.idCounters, occupiedHexKeys);
   if (!camp) return { crisis: null, state };
 
   const foeName = pickBanditName(civ?.civType ?? 'generic', rng);
