@@ -1,0 +1,358 @@
+import { describe, it, expect } from 'vitest';
+import {
+  declareWarRecord,
+  recordParticipantLeft,
+  recordParticipantEliminated,
+  recordCityCaptured,
+  recordGoalDeclared,
+  recordSettlementSigned,
+  findActiveWarForCiv,
+  getWarOrdinal,
+  getWarPresentationForViewer,
+  getWarsForViewer,
+  isActiveParticipant,
+  sideOf,
+  MAX_WAR_HISTORY_EVENTS,
+} from '@/systems/war-history-system';
+import { declareMajorWar, makeMajorPeace } from '@/systems/diplomacy-system';
+import { resolveMajorCityCapture } from '@/systems/city-capture-system';
+import { eliminateCivilization } from '@/systems/civilization-elimination-system';
+import { declareWarGoal } from '@/systems/war-goal-system';
+import { executeSettlement } from '@/systems/settlement-system';
+import { EventBus } from '@/core/event-bus';
+import { makeWarHistoryFixture } from './helpers/war-history-fixture';
+import type { GameState } from '@/core/types';
+
+// hasMetCivilization is reciprocal (viewer knows target OR target knows
+// viewer) -- the fixture starts with everyone knowing everyone, so both
+// directions must be cleared to simulate "never met."
+function clearMutualContact(state: GameState, a: string, b: string): GameState {
+  return {
+    ...state,
+    civilizations: {
+      ...state.civilizations,
+      [a]: { ...state.civilizations[a], knownCivilizations: (state.civilizations[a].knownCivilizations ?? []).filter(id => id !== b) },
+      [b]: { ...state.civilizations[b], knownCivilizations: (state.civilizations[b].knownCivilizations ?? []).filter(id => id !== a) },
+    },
+  };
+}
+
+describe('war history system (#991)', () => {
+  describe('declareWarRecord', () => {
+    it('creates a new record with both original participants', () => {
+      const state = makeWarHistoryFixture();
+      const next = declareWarRecord(state, 'attacker', 'defender', state.turn);
+      const record = findActiveWarForCiv(next, 'attacker');
+      expect(record).toBeDefined();
+      expect(record!.originalAggressorId).toBe('attacker');
+      expect(record!.originalDefenderId).toBe('defender');
+      expect(sideOf(record!, 'attacker')).toBe('aggressor');
+      expect(sideOf(record!, 'defender')).toBe('defender');
+      expect(record!.events[0]).toMatchObject({ type: 'declared', aggressorId: 'attacker', defenderId: 'defender' });
+    });
+
+    it('is idempotent when the pair is already an active war', () => {
+      const state = makeWarHistoryFixture();
+      let next = declareWarRecord(state, 'attacker', 'defender', state.turn);
+      const before = next;
+      next = declareWarRecord(next, 'attacker', 'defender', next.turn);
+      expect(next).toBe(before);
+    });
+
+    it('is deterministic: same state produces the same war id and name template every time', () => {
+      const state = makeWarHistoryFixture();
+      const a = declareWarRecord(state, 'attacker', 'defender', state.turn);
+      const b = declareWarRecord(state, 'attacker', 'defender', state.turn);
+      const recordA = findActiveWarForCiv(a, 'attacker')!;
+      const recordB = findActiveWarForCiv(b, 'attacker')!;
+      expect(recordA.id).toBe(recordB.id);
+      expect(recordA.nameTemplateIndex).toBe(recordB.nameTemplateIndex);
+    });
+
+    it('assigns a stable, incrementing war id via idCounters.nextWarId', () => {
+      const state = makeWarHistoryFixture();
+      const next = declareWarRecord(state, 'attacker', 'defender', state.turn);
+      const record = findActiveWarForCiv(next, 'attacker')!;
+      expect(record.id).toMatch(/^war-\d+$/);
+      expect(next.idCounters.nextWarId).toBe(Number(record.id.split('-')[1]) + 1);
+    });
+  });
+
+  describe('drag-in: a new bilateral pair joins an existing active record', () => {
+    it('a vassal dragged into its overlord\'s war joins the SAME record, on the overlord\'s side', () => {
+      const state = makeWarHistoryFixture();
+      let next = declareWarRecord(state, 'attacker', 'defender', state.turn);
+      const warIdBefore = findActiveWarForCiv(next, 'attacker')!.id;
+      // Simulate the drag-in `addWarPair` performs: the vassal becomes hostile to the same defender.
+      next = declareWarRecord(next, 'vassal', 'defender', next.turn);
+      const record = findActiveWarForCiv(next, 'attacker')!;
+      expect(record.id).toBe(warIdBefore);
+      expect(isActiveParticipant(record, 'vassal')).toBe(true);
+      expect(sideOf(record, 'vassal')).toBe('aggressor');
+      expect(Object.keys(next.wars ?? {})).toHaveLength(1);
+    });
+
+    it('records a participant-joined event for the drag-in', () => {
+      const state = makeWarHistoryFixture();
+      let next = declareWarRecord(state, 'attacker', 'defender', state.turn);
+      next = declareWarRecord(next, 'vassal', 'defender', next.turn + 1);
+      const record = findActiveWarForCiv(next, 'vassal')!;
+      expect(record.events.some(e => e.type === 'participant-joined' && e.civId === 'vassal')).toBe(true);
+    });
+
+    it('a genuinely separate pair (neither side already at war) starts its own new record', () => {
+      const state = makeWarHistoryFixture();
+      let next = declareWarRecord(state, 'attacker', 'defender', state.turn);
+      next = declareWarRecord(next, 'vassal', 'bystander', next.turn);
+      expect(Object.keys(next.wars ?? {})).toHaveLength(2);
+    });
+  });
+
+  describe('recordParticipantLeft / conclusion', () => {
+    it('a two-party peace concludes the war with outcome white-peace', () => {
+      const state = makeWarHistoryFixture();
+      let next = declareWarRecord(state, 'attacker', 'defender', state.turn);
+      const warId = findActiveWarForCiv(next, 'attacker')!.id;
+      next = recordParticipantLeft(next, 'attacker', 'defender', next.turn + 5);
+      next = recordParticipantLeft(next, 'defender', 'attacker', next.turn + 5);
+      const record = next.wars![warId]!;
+      expect(record.endTurn).toBe(next.turn + 5);
+      expect(record.outcome).toBe('white-peace');
+    });
+
+    it('a war stays active while only ONE side has left (multi-party still fighting)', () => {
+      const state = makeWarHistoryFixture();
+      let next = declareWarRecord(state, 'attacker', 'defender', state.turn);
+      next = declareWarRecord(next, 'vassal', 'defender', next.turn);
+      const warId = findActiveWarForCiv(next, 'attacker')!.id;
+      // 'attacker' alone leaves; 'vassal' is still fighting on the same (aggressor) side.
+      next = recordParticipantLeft(next, 'attacker', 'defender', next.turn + 2);
+      expect(next.wars![warId]!.endTurn).toBeUndefined();
+      expect(isActiveParticipant(next.wars![warId]!, 'vassal')).toBe(true);
+    });
+
+    it('is a no-op when there is no active war between the pair', () => {
+      const state = makeWarHistoryFixture();
+      const next = recordParticipantLeft(state, 'attacker', 'defender', state.turn);
+      expect(next).toBe(state);
+    });
+  });
+
+  describe('recordParticipantEliminated', () => {
+    it('marks the civ left in every active war it holds and concludes a now-empty side', () => {
+      const state = makeWarHistoryFixture();
+      let next = declareWarRecord(state, 'attacker', 'defender', state.turn);
+      const warId = findActiveWarForCiv(next, 'attacker')!.id;
+      next = recordParticipantEliminated(next, 'defender', next.turn + 10);
+      const record = next.wars![warId]!;
+      expect(record.outcome).toBe('defender-eliminated');
+      expect(record.endTurn).toBe(next.turn + 10);
+      expect(record.events.some(e => e.type === 'participant-eliminated' && e.civId === 'defender')).toBe(true);
+    });
+  });
+
+  describe('recordCityCaptured / recordGoalDeclared', () => {
+    it('records a city capture event on the active war between the two civs', () => {
+      const state = makeWarHistoryFixture();
+      let next = declareWarRecord(state, 'attacker', 'defender', state.turn);
+      const cityId = state.civilizations['defender'].cities[0];
+      next = recordCityCaptured(next, cityId, 'Thebes', 'defender', 'attacker', next.turn + 3, false);
+      const record = findActiveWarForCiv(next, 'attacker')!;
+      expect(record.events).toContainEqual({ type: 'city-captured', turn: next.turn + 3, cityId, cityName: 'Thebes', fromCivId: 'defender', toCivId: 'attacker', wasCapital: false });
+    });
+
+    it('is a no-op when the two civs are not at war', () => {
+      const state = makeWarHistoryFixture();
+      const next = recordCityCaptured(state, 'city-x', 'X', 'defender', 'attacker', state.turn, false);
+      expect(next).toBe(state);
+    });
+
+    it('records a goal-declared event', () => {
+      const state = makeWarHistoryFixture();
+      let next = declareWarRecord(state, 'attacker', 'defender', state.turn);
+      next = recordGoalDeclared(next, 'attacker', 'defender', 'conquer_city', next.turn);
+      const record = findActiveWarForCiv(next, 'attacker')!;
+      expect(record.events.some(e => e.type === 'goal-declared' && e.kind === 'conquer_city')).toBe(true);
+    });
+  });
+
+  describe('recordSettlementSigned + peace ordering', () => {
+    it('produces outcome "settled" (not "white-peace") when logged before the peace transition', () => {
+      const state = makeWarHistoryFixture();
+      let next = declareWarRecord(state, 'attacker', 'defender', state.turn);
+      next = recordSettlementSigned(next, 'attacker', 'defender', 2, next.turn);
+      next = recordParticipantLeft(next, 'attacker', 'defender', next.turn);
+      next = recordParticipantLeft(next, 'defender', 'attacker', next.turn);
+      const record = findActiveWarForCiv(next, 'attacker') ?? Object.values(next.wars!).find(w => w.originalAggressorId === 'attacker');
+      expect(record!.outcome).toBe('settled');
+    });
+  });
+
+  describe('event cap', () => {
+    it('never exceeds MAX_WAR_HISTORY_EVENTS, keeping the declared event', () => {
+      const state = makeWarHistoryFixture();
+      let next = declareWarRecord(state, 'attacker', 'defender', state.turn);
+      for (let i = 0; i < MAX_WAR_HISTORY_EVENTS + 20; i++) {
+        next = recordGoalDeclared(next, 'attacker', 'defender', 'conquer_city', next.turn + i);
+      }
+      const record = findActiveWarForCiv(next, 'attacker')!;
+      expect(record.events.length).toBeLessThanOrEqual(MAX_WAR_HISTORY_EVENTS);
+      expect(record.events[0]!.type).toBe('declared');
+    });
+  });
+
+  describe('naming and ordinal', () => {
+    it('a second war between the same pair gets a higher ordinal than the first', () => {
+      const state = makeWarHistoryFixture();
+      let next = declareWarRecord(state, 'attacker', 'defender', state.turn);
+      const firstWarId = findActiveWarForCiv(next, 'attacker')!.id;
+      next = recordParticipantLeft(next, 'attacker', 'defender', next.turn + 1);
+      next = recordParticipantLeft(next, 'defender', 'attacker', next.turn + 1);
+      next = declareWarRecord(next, 'attacker', 'defender', next.turn + 10);
+      const secondWarId = findActiveWarForCiv(next, 'attacker')!.id;
+      expect(getWarOrdinal(next, firstWarId)).toBe(1);
+      expect(getWarOrdinal(next, secondWarId)).toBe(2);
+    });
+  });
+
+  describe('getWarPresentationForViewer (#1002 viewer safety)', () => {
+    it('returns null for a viewer who has met neither participant', () => {
+      const state = makeWarHistoryFixture();
+      let next = declareWarRecord(state, 'attacker', 'defender', state.turn);
+      next = clearMutualContact(next, 'bystander', 'attacker');
+      next = clearMutualContact(next, 'bystander', 'defender');
+      expect(getWarPresentationForViewer(next, 'bystander', findActiveWarForCiv(next, 'attacker')!.id)).toBeNull();
+    });
+
+    it('redacts an unmet participant\'s name but still shows the war to a viewer who knows the other side', () => {
+      const state = makeWarHistoryFixture();
+      let next = declareWarRecord(state, 'attacker', 'defender', state.turn);
+      // 'bystander' knows 'attacker' but has never met 'defender'.
+      next = clearMutualContact(next, 'bystander', 'defender');
+      const warId = findActiveWarForCiv(next, 'attacker')!.id;
+      const presentation = getWarPresentationForViewer(next, 'bystander', warId);
+      expect(presentation).not.toBeNull();
+      const defenderRow = presentation!.participants.find(p => p.side === 'defender')!;
+      expect(defenderRow.civId).toBeNull();
+      expect(defenderRow.name).toBe('an unknown civilization');
+      const aggressorRow = presentation!.participants.find(p => p.side === 'aggressor')!;
+      expect(aggressorRow.civId).toBe('attacker');
+    });
+
+    it('a participant sees the full record, including its own war', () => {
+      const state = makeWarHistoryFixture();
+      const next = declareWarRecord(state, 'attacker', 'defender', state.turn);
+      const warId = findActiveWarForCiv(next, 'attacker')!.id;
+      const presentation = getWarPresentationForViewer(next, 'attacker', warId);
+      expect(presentation).not.toBeNull();
+      expect(presentation!.participants.every(p => p.civId !== null)).toBe(true);
+    });
+  });
+
+  describe('getWarsForViewer', () => {
+    it('lists only wars the viewer is entitled to know about, newest first', () => {
+      const state = makeWarHistoryFixture();
+      let next = declareWarRecord(state, 'attacker', 'defender', state.turn);
+      next = recordParticipantLeft(next, 'attacker', 'defender', next.turn + 1);
+      next = recordParticipantLeft(next, 'defender', 'attacker', next.turn + 1);
+      next = declareWarRecord(next, 'attacker', 'defender', next.turn + 20);
+      next = clearMutualContact(next, 'bystander', 'attacker');
+      next = clearMutualContact(next, 'bystander', 'defender');
+      expect(getWarsForViewer(next, 'bystander')).toEqual([]);
+      const forAttacker = getWarsForViewer(next, 'attacker');
+      expect(forAttacker).toHaveLength(2);
+      expect(forAttacker[0]!.startTurn).toBeGreaterThan(forAttacker[1]!.startTurn);
+    });
+  });
+
+  describe('end-to-end wiring through the real diplomacy transitions', () => {
+    it('declareMajorWar creates a war record via addWarPair', () => {
+      const state = makeWarHistoryFixture();
+      const next = declareMajorWar(state, 'attacker', 'defender');
+      const record = findActiveWarForCiv(next, 'attacker');
+      expect(record).toBeDefined();
+      expect(record!.originalAggressorId).toBe('attacker');
+      expect(record!.originalDefenderId).toBe('defender');
+    });
+
+    it('a vassal declaring war alongside its overlord drags the vassal into the SAME record (via applyVassalageWarConsequences)', () => {
+      const state = makeWarHistoryFixture();
+      const next = declareMajorWar(state, 'attacker', 'defender');
+      const record = findActiveWarForCiv(next, 'attacker')!;
+      expect(isActiveParticipant(record, 'vassal')).toBe(true);
+      expect(sideOf(record, 'vassal')).toBe('aggressor');
+      expect(Object.keys(next.wars ?? {})).toHaveLength(1);
+    });
+
+    it('makeMajorPeace concludes the record with outcome white-peace', () => {
+      const state = makeWarHistoryFixture();
+      let next = declareMajorWar(state, 'attacker', 'defender');
+      const warId = findActiveWarForCiv(next, 'attacker')!.id;
+      next = makeMajorPeace(next, 'attacker', 'defender');
+      expect(next.wars![warId]!.endTurn).toBeDefined();
+      expect(next.wars![warId]!.outcome).toBe('white-peace');
+    });
+
+    it('makeMajorPeace between the overlord and the enemy also frees the vassal from the same record (#1054)', () => {
+      const state = makeWarHistoryFixture();
+      let next = declareMajorWar(state, 'attacker', 'defender');
+      const warId = findActiveWarForCiv(next, 'attacker')!.id;
+      next = makeMajorPeace(next, 'attacker', 'defender');
+      const record = next.wars![warId]!;
+      expect(isActiveParticipant(record, 'vassal')).toBe(false);
+      expect(record.participants.find(p => p.civId === 'vassal')?.leaveReason).toBe('peace');
+    });
+
+    it('resolveMajorCityCapture records a city-captured event, correctly flagging a capital capture', () => {
+      const state = makeWarHistoryFixture();
+      let next = declareMajorWar(state, 'attacker', 'defender');
+      const capitalId = next.civilizations['defender'].cities[0]!;
+      const capitalName = next.cities[capitalId]!.name;
+      const bus = new EventBus();
+      next = resolveMajorCityCapture(next, capitalId, 'attacker', 'occupy', next.turn, bus).state;
+      const record = findActiveWarForCiv(next, 'attacker')!;
+      expect(record.events).toContainEqual(expect.objectContaining({
+        type: 'city-captured', cityId: capitalId, cityName: capitalName, fromCivId: 'defender', toCivId: 'attacker', wasCapital: true,
+      }));
+    });
+
+    it('eliminateCivilization concludes the war with outcome defender-eliminated', () => {
+      const state = makeWarHistoryFixture();
+      let next = declareMajorWar(state, 'attacker', 'defender');
+      const warId = findActiveWarForCiv(next, 'attacker')!.id;
+      // Strip 'defender' of every owned asset so it qualifies for elimination.
+      next = {
+        ...next,
+        cities: Object.fromEntries(Object.entries(next.cities).map(([id, c]) => [id, c.owner === 'defender' ? { ...c, owner: 'attacker' } : c])),
+        civilizations: { ...next.civilizations, defender: { ...next.civilizations['defender'], cities: [], units: [] } },
+      };
+      const result = eliminateCivilization(next, 'defender', 'attacker');
+      expect(result.eliminated).toBe(true);
+      if (!result.eliminated) return;
+      const record = result.state.wars![warId]!;
+      expect(record.outcome).toBe('defender-eliminated');
+      expect(record.events.some(e => e.type === 'participant-eliminated' && e.civId === 'defender')).toBe(true);
+    });
+
+    it('declareWarGoal records a goal-declared event on the active war', () => {
+      const state = makeWarHistoryFixture();
+      let next = declareMajorWar(state, 'attacker', 'defender');
+      const targetCityId = next.civilizations['defender'].cities[0]!;
+      next = declareWarGoal(next, 'attacker', 'defender', 'conquer_city', targetCityId, next.turn);
+      const record = findActiveWarForCiv(next, 'attacker')!;
+      expect(record.events.some(e => e.type === 'goal-declared' && e.civId === 'attacker' && e.kind === 'conquer_city')).toBe(true);
+    });
+
+    it('executeSettlement records a settlement-signed event and concludes the war with outcome settled', () => {
+      const state = makeWarHistoryFixture();
+      let next = declareMajorWar(state, 'attacker', 'defender');
+      const warId = findActiveWarForCiv(next, 'attacker')!.id;
+      const bus = new EventBus();
+      next = executeSettlement(next, 'attacker', 'defender', [], next.turn, bus);
+      const record = next.wars![warId]!;
+      expect(record.events.some(e => e.type === 'settlement-signed')).toBe(true);
+      expect(record.outcome).toBe('settled');
+      expect(record.endTurn).toBeDefined();
+    });
+  });
+});

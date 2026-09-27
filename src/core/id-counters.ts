@@ -19,6 +19,7 @@ type ScanableState = {
     plans?: Record<string, unknown>;
     detections?: Record<string, unknown>;
   }>;
+  wars?: Record<string, { id: string }>;
 };
 
 /** One counter's new-game default plus its max-suffix reconstruction. */
@@ -112,6 +113,10 @@ export const ID_COUNTER_SPECS = {
       }
       return maxSuffix(ids, /^network-plan-(\d+)$/);
     },
+  },
+  nextWarId: {
+    initial: 1,
+    scanMax: (state) => maxSuffix(Object.keys(state.wars ?? {}), /^war-(\d+)$/),
   },
 } satisfies Record<keyof IdCounters, IdCounterSpec>;
 

@@ -487,6 +487,7 @@ export const ELIMINATED_CIV_AREAS: Record<keyof GameState, EliminatedCivArea> = 
   hotSeat: { kind: 'historical', why: 'the fixed seat roster the game was set up with; turn cycling skips an eliminated seat, it is not struck from the config' },
   notificationLog: { kind: 'historical', why: "a per-recipient message history; a dead civ's log is inert (nothing routes to it) and records what happened to them" },
   dominationIntel: { kind: 'historical', why: "domination-victory observational intel (#985) — `defeatsByCivId` exists precisely to record eliminations; `reconcileCivilizationLiveness` -> `recordDominationDefeat` writes the dead civ's defeat into every witness's ledger (and the civ's own final snapshot) at elimination time, by design. A chronicle, not a live obligation." },
+  wars: { kind: 'historical', why: '#991: a persistent war record outlives every participant — a war a now-dead civ fought is exactly the kind of history the record exists to preserve, matching generatedGenerals/discoveredWonders.' },
 };
 
 /**

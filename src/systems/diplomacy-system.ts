@@ -29,6 +29,7 @@ import { hasAICombatRole } from '@/ai/ai-unit-roles';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { reconcileMinorCivLeagues } from '@/systems/minor-civ-league-system';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
+import { declareWarRecord, recordParticipantLeft } from '@/systems/war-history-system';
 
 export function resolveOpponentKind(civId: string): 'major' | 'minor' | 'barbarian' {
   if (civId.startsWith('barbarian')) return 'barbarian';
@@ -1549,6 +1550,14 @@ function addWarPair(state: GameState, attackerId: string, defenderId: string, vo
       if (ended.brokenChainId) bus?.emit('minor-civ:alliance-broken', { minorCivId: defenderId, majorCivId: attackerId, chainId: ended.brokenChainId, state: next });
     }
   }
+  // #991: a persistent named war record -- major-vs-major only (see
+  // war-history-system.ts's own scope note); a minor-civ/city-state defender
+  // never gets one. `addWarPair` is the single choke point for every
+  // major-civ bilateral war pair (voluntary declaration, vassal drag-in), so
+  // hooking here covers all of them without a caller-by-caller wiring.
+  if (next.civilizations[defenderId]) {
+    next = declareWarRecord(next, attackerId, defenderId, state.turn);
+  }
   return next;
 }
 
@@ -1565,7 +1574,15 @@ function removeMajorWarPair(state: GameState, aId: string, bId: string): GameSta
   const b = state.civilizations[bId];
   if (!a || !b || aId === bId) return state;
   let next = state;
-  if (isAtWar(a.diplomacy, bId)) next = withDiplomacy(next, aId, makePeace(a.diplomacy, bId, state.turn));
+  // #991: record BOTH directions leaving the same war record before mutating
+  // diplomacy state -- recordParticipantLeft reads isAtWar-equivalent war-record
+  // membership, not `atWarWith`, so order relative to the makePeace calls below
+  // does not matter, but doing it first keeps this function's own bilateral
+  // isAtWar checks meaningful (a war-goal/settlement hook elsewhere may already
+  // have concluded the record without touching atWarWith).
+  if (isAtWar(a.diplomacy, bId)) next = recordParticipantLeft(next, aId, bId, state.turn);
+  if (isAtWar(b.diplomacy, aId)) next = recordParticipantLeft(next, bId, aId, state.turn);
+  if (isAtWar(a.diplomacy, bId)) next = withDiplomacy(next, aId, makePeace(next.civilizations[aId].diplomacy, bId, state.turn));
   if (isAtWar(next.civilizations[bId].diplomacy, aId)) {
     next = withDiplomacy(next, bId, makePeace(next.civilizations[bId].diplomacy, aId, state.turn));
   }

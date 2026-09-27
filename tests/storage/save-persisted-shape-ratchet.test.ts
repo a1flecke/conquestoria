@@ -86,6 +86,17 @@ const ADDITIVE_WITHOUT_MIGRATION: Readonly<Record<string, string>> = {
   // both already clear it, so it can never persist stale across a war ending
   // or a civ dying — old saves need no migration to introduce it.
   'civilizations.*.diplomacy.warGoals': '#988 — new optional DiplomacyState field; absent means no declared goal; every reader tolerates absence via optional chaining.',
+  // #991 — a new optional IdCounters field, following the exact established
+  // pattern of nextRouteId/nextPirateFactionId/nextNotificationId/
+  // nextNetworkPlanId (all pre-date this ratchet, so none needed a written
+  // exemption; this is the first NEW counter added since). ID_COUNTER_SPECS's
+  // own `scanMax`/`initial` entry (src/core/id-counters.ts) makes
+  // normalizeIdCounters -- the existing unconditional load-time pass every
+  // counter already goes through -- backfill it for any pre-#991 save with no
+  // reconstruction gap: no war record can exist on a save older than this
+  // field, so scanning finds no `war-*` ids and the counter correctly starts
+  // at 1, identical to a fresh game.
+  'idCounters.nextWarId': '#991 — new optional IdCounters field; self-normalizing via the existing ID_COUNTER_SPECS/normalizeIdCounters mechanism, same as every other optional counter.',
 };
 
 describe('#1023 persisted-save-shape ratchet', () => {

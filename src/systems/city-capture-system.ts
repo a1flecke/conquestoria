@@ -20,6 +20,8 @@ import {
 import { normalizeCityWorkAfterTerritoryChange } from '@/systems/city-work-system';
 import { isAtWar, modifyRelationship } from '@/systems/diplomacy-system';
 import { recordWarGoalCityCapture, applyWarGoalOverreachIfNeeded } from '@/systems/war-goal-system';
+import { recordCityCaptured } from '@/systems/war-history-system';
+import { getCapitalCityId } from '@/systems/capital-system';
 import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { executeUnitMove } from '@/systems/unit-movement-system';
 import { buildUnitOccupancy, getUnitIdsAtCoord } from '@/systems/unit-occupancy';
@@ -37,20 +39,30 @@ import {
 } from '@/systems/city-siege-system';
 
 /**
- * #988: every combat capture (occupy or raze) counts toward the capturing
- * civ's own war-goal overreach bookkeeping, regardless of which specific city
- * was declared as the goal -- see war-goal-system.ts. A no-op when the
- * capturing civ has no active goal against `previousOwnerId`.
+ * #988/#991: every combat capture (occupy or raze) counts toward the
+ * capturing civ's own war-goal overreach bookkeeping (a no-op when it has no
+ * active goal against `previousOwnerId`) and, separately, is recorded as a
+ * fact on the active war record between the two civs, if one exists (a
+ * no-op otherwise -- e.g. a breakaway reconquest, which returns before this
+ * is ever reached). `wasCapital` is read from `beforeState` (the state as of
+ * the START of this whole resolution, before any ownership change), since by
+ * the time this runs the previous owner's `cities` roster may already have
+ * dropped the captured city.
  */
-function applyWarGoalCaptureBookkeeping(
+function applyCaptureBookkeeping(
   state: GameState,
+  beforeState: GameState,
   capturingCivId: string,
   previousOwnerId: string,
+  cityId: string,
+  cityName: string,
   turn: number,
   bus?: EventBus,
 ): GameState {
-  const withCapture = recordWarGoalCityCapture(state, capturingCivId, previousOwnerId);
-  return applyWarGoalOverreachIfNeeded(withCapture, capturingCivId, previousOwnerId, turn, bus);
+  const withWarGoal = recordWarGoalCityCapture(state, capturingCivId, previousOwnerId);
+  const withOverreach = applyWarGoalOverreachIfNeeded(withWarGoal, capturingCivId, previousOwnerId, turn, bus);
+  const wasCapital = getCapitalCityId(beforeState, previousOwnerId) === cityId;
+  return recordCityCaptured(withOverreach, cityId, cityName, previousOwnerId, capturingCivId, turn, wasCapital);
 }
 
 export type MajorCityCaptureDisposition = 'occupy' | 'raze';
@@ -686,7 +698,7 @@ export function resolveMajorCityCapture(
     const liveness = reconcileCivilizationLiveness(state, afterAircraft, newOwnerId);
     const elimination = liveness.transitions.find(transition =>
       transition.kind === 'eliminated' && transition.civId === previousOwnerId);
-    const stateAfterWarGoals = applyWarGoalCaptureBookkeeping(liveness.state, newOwnerId, previousOwnerId, turn, bus);
+    const stateAfterWarGoals = applyCaptureBookkeeping(liveness.state, state, newOwnerId, previousOwnerId, cityId, city.name, turn, bus);
     const territoryResult = recalculateTerritory(stateAfterWarGoals, {
       reason: 'capture',
       preserveCurrentHolderOnTie: true,
@@ -751,7 +763,7 @@ export function resolveMajorCityCapture(
   const liveness = reconcileCivilizationLiveness(state, afterProjectLoss, newOwnerId);
   const elimination = liveness.transitions.find(transition =>
     transition.kind === 'eliminated' && transition.civId === previousOwnerId);
-  const stateAfterWarGoals = applyWarGoalCaptureBookkeeping(liveness.state, newOwnerId, previousOwnerId, turn, bus);
+  const stateAfterWarGoals = applyCaptureBookkeeping(liveness.state, state, newOwnerId, previousOwnerId, cityId, city.name, turn, bus);
   const territoryResult = recalculateTerritory(stateAfterWarGoals, {
     reason: 'raze',
     preserveCurrentHolderOnTie: true,

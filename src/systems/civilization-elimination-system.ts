@@ -7,6 +7,7 @@ import type { EventBus } from '@/core/event-bus';
 import { cancelInvalidNetworkPlans } from '@/systems/network-plan-system';
 import { getCivilizationLiveness } from './civilization-liveness';
 import { recordDominationDefeat } from './domination-intel';
+import { recordParticipantEliminated } from './war-history-system';
 
 export type CivilizationEliminationResult =
   | { state: GameState; eliminated: false }
@@ -297,8 +298,15 @@ export function eliminateCivilization(
     }
   }
 
+  // #991: a war this civ was fighting concludes with an attributed outcome
+  // rather than lingering "active" forever once every combatant on its side
+  // is gone. Recorded before the (unrelated) warGoals scrub above already ran
+  // -- order between the two does not matter, since neither reads the other's
+  // output.
+  const withWarHistory = recordParticipantEliminated(next, civId, state.turn);
+
   return {
-    state: cancelInvalidNetworkPlans(next).state,
+    state: cancelInvalidNetworkPlans(withWarHistory).state,
     eliminated: true,
     civId,
     eliminatedBy,

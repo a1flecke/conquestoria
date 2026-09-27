@@ -1,6 +1,7 @@
 import type { EventBus } from '@/core/event-bus';
 import type { GameState, WarGoal, WarGoalKind, WarGoalStatus } from '@/core/types';
 import { isAtWar, applyTreachery, broadcastTreacheryPenalty } from '@/systems/diplomacy-system';
+import { recordGoalDeclared } from '@/systems/war-history-system';
 
 export const WAR_GOAL_KINDS: readonly WarGoalKind[] = ['conquer_city', 'liberate_city', 'force_vassalage'];
 
@@ -70,7 +71,7 @@ export function declareWarGoal(
     citiesCapturedFromOpponent: existingGoal?.citiesCapturedFromOpponent ?? 0,
     overreachPenaltyApplied: existingGoal?.overreachPenaltyApplied ?? false,
   };
-  return {
+  const next = {
     ...state,
     civilizations: {
       ...state.civilizations,
@@ -83,6 +84,7 @@ export function declareWarGoal(
       },
     },
   };
+  return recordGoalDeclared(next, civId, opponentCivId, kind, turn);
 }
 
 /** Pure, queryable status -- AI and UI both read this instead of inferring from military power. */
@@ -102,6 +104,24 @@ export function getWarGoalStatus(state: GameState, civId: string, opponentCivId:
 
   const overreachThreshold = goal.kind === 'force_vassalage' ? 0 : 1;
   return goal.citiesCapturedFromOpponent > overreachThreshold ? 'exceeded' : 'satisfied';
+}
+
+/**
+ * Viewer-safe "kind — status" war-goal label (e.g. "Conquer Rome — Achieved"),
+ * shared by every UI surface that shows a civ's own declared goal
+ * (`diplomacy-panel.ts`, `war-conference-panel.ts`). City names come from the
+ * viewer's own declared goal (they picked the city, so it is already known to
+ * them) -- this never reads a foreign civ's undiscovered state.
+ */
+export function describeWarGoalLabel(state: GameState, civId: string, opponentCivId: string): string | null {
+  const goal = state.civilizations[civId]?.diplomacy.warGoals?.[opponentCivId];
+  if (!goal) return null;
+  const status = getWarGoalStatus(state, civId, opponentCivId);
+  const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
+  const kindLabel = goal.kind === 'force_vassalage'
+    ? 'Force Vassalage'
+    : `${goal.kind === 'conquer_city' ? 'Conquer' : 'Liberate'} ${goal.targetCityId ? (state.cities[goal.targetCityId]?.name ?? 'a city') : 'a city'}`;
+  return `${kindLabel} — ${statusLabel}`;
 }
 
 /**
