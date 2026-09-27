@@ -77,16 +77,38 @@ printf '%s' "$stall_output" | grep -Fq 'STALL: stall-sleeper produced zero CPU p
 }
 
 # False-positive guard: a process that is genuinely burning CPU the whole time
-# must NOT be killed by the stall watchdog, even with the same tight grace
-# windows -- only a true zero-progress stall may trigger it.
+# must NOT be killed by the stall watchdog -- only a true zero-progress stall
+# may trigger it.
+#
+# The watchdog reads `ps` TIME, which truncates to whole seconds. A spinner
+# only shows "progress" when its CPU total crosses an integer boundary, so with
+# a 1s grace it would need ~100% of a core in every 1s window. Under host load
+# (a parallel Vitest run, `yes` on every core) it gets a fraction of a core and
+# was wrongly killed. A 5s grace tolerates down to ~20% of a core while still
+# being a tight window: a false-positive watchdog kills the spinner well
+# before it finishes.
+busy_boot_grace=1
+busy_stall_grace=5
+busy_spin_seconds=$(( busy_boot_grace + busy_stall_grace + 3 ))
+started="$(date +%s)"
 set +e
-STALL_BOOT_GRACE_SECONDS=1 STALL_GRACE_SECONDS=1 STALL_CHECK_INTERVAL_SECONDS=1 \
-  run_node "$RUNNER" 5 busy-spinner -- \
-  node -e 'const end = Date.now() + 3000; while (Date.now() < end) { /* spin */ }'
+busy_output="$(
+  STALL_BOOT_GRACE_SECONDS="$busy_boot_grace" STALL_GRACE_SECONDS="$busy_stall_grace" STALL_CHECK_INTERVAL_SECONDS=1 \
+    run_node "$RUNNER" 30 busy-spinner -- \
+    node -e "const end = Date.now() + ${busy_spin_seconds}000; while (Date.now() < end) { /* spin */ }" 2>&1
+)"
 busy_status=$?
 set -e
+elapsed="$(( $(date +%s) - started ))"
 [ "$busy_status" -eq 0 ] || {
+  printf '%s\n' "$busy_output"
   echo "a genuinely CPU-busy child was wrongly treated as stalled (exit $busy_status)"
+  exit 1
+}
+# Non-vacuous: the spinner must have outlived boot + stall grace, so the
+# watchdog had several chances to (wrongly) fire before it exited on its own.
+[ "$elapsed" -ge "$busy_spin_seconds" ] || {
+  echo "busy spinner exited after ${elapsed}s, before the ${busy_spin_seconds}s it was meant to spin"
   exit 1
 }
 

@@ -624,6 +624,19 @@ which are pure test/build execution with no slow network/install phase
 wrapped inside the timeout), widen `STALL_GRACE_SECONDS` for that call site
 rather than disabling the watchdog outright.
 
+**`ps` TIME has 1-second resolution, so a grace window must span several
+ticks.** The watchdog only sees progress when a group's CPU total crosses a
+whole second. A child getting a fraction `f` of one core shows a tick only
+about every `1/f` seconds, so any grace window must be well above `1/f`. The
+production 90s grace misfires only below ~1% of a core, which is not a real
+risk. A 1s grace needs ~100% of a core in every window: the test's
+busy-spinner case used one and was wrongly killed (exit 125) during a
+full `yarn verify:pr` on a 4-core host (3 Vitest workers alongside). That
+negative case now uses a 5s grace, tolerating down to ~20% of a core, and
+asserts the spinner outlived boot + grace so a pass is not vacuous. The
+positive stalled-sleeper case keeps its 1s windows, since a true stall has
+no ticks to miss. Do not tighten the busy-spinner grace back toward 1s.
+
 ### `verify-before-push.sh` retries a STALL automatically (#1133 follow-up)
 
 A STALL's own message already asserts "safe to retry immediately" -- it is a
