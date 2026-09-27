@@ -1,5 +1,6 @@
 import type { NetworkPlanDefinitionId } from '@/core/autonomy-state';
 import type { GameState } from '@/core/types';
+import { getOwnedCities } from '@/systems/city-ownership';
 import { getAutonomyCapacity, getAutonomyLoad } from '@/systems/autonomy-capacity';
 import { getAutonomySurgeRules } from '@/systems/autonomy-postures';
 import { getNetworkPlanDefinition } from '@/systems/network-plan-definitions';
@@ -62,7 +63,7 @@ export function getNetworkPanelModel(state: GameState, civId: string): NetworkPa
   const autonomy = state.autonomyByCiv?.[civId];
   const load = getAutonomyLoad(state, civId);
   const candidates: NetworkPanelCandidate[] = [];
-  const ownedCities = Object.values(state.cities).filter(candidate => candidate.owner === civId).sort((a, b) => a.id.localeCompare(b.id));
+  const ownedCities = getOwnedCities(state, civId).slice().sort((a, b) => a.id.localeCompare(b.id));
   for (const city of ownedCities) {
     for (const definitionId of CITY_PLAN_IDS) {
       const definition = getNetworkPlanDefinition(definitionId);
