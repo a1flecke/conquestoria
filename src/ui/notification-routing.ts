@@ -288,6 +288,7 @@ export const TREATY_DECLINE_REASON_TEXT: Record<TreatyDeclineReason, string> = {
   'relations-too-strained': 'Relations are too strained for them to agree.',
   'strategic-caution': 'They remain cautious about deeper commitments right now.',
   'peace-not-acceptable': 'They believe they can still prevail and refuse peace.',
+  'terms-too-costly': 'They consider your proposed terms too costly to accept.',
 };
 
 export function routeTreatyDeclined(
@@ -354,6 +355,50 @@ export function routePeaceRequested(
 ): void {
   const fromName = state.civilizations[fromCivId]?.name ?? 'Unknown';
   sink(toCivId, `${fromName} requests peace.`, 'info');
+}
+
+// #988: writes only to the recipient civ's log, mirroring routePeaceRequested --
+// the proposer already gets direct action feedback from the initiating UI/AI path.
+export function routeSettlementProposed(
+  state: GameState,
+  event: GameEvents['diplomacy:settlement-proposed'],
+  sink: NotificationSink,
+): void {
+  const fromName = state.civilizations[event.fromCivId]?.name ?? 'Unknown';
+  const termWord = event.termCount === 1 ? 'term' : 'terms';
+  sink(event.toCivId, `${fromName} proposes a peace settlement (${event.termCount} ${termWord}).`, 'info');
+}
+
+export function routeSettlementDeclined(
+  state: GameState,
+  event: GameEvents['diplomacy:settlement-declined'],
+  sink: NotificationSink,
+): void {
+  const targetName = state.civilizations[event.targetCivId]?.name ?? 'Unknown';
+  const reasonSuffix = event.reason ? ` ${TREATY_DECLINE_REASON_TEXT[event.reason]}` : '';
+  sink(event.proposerCivId, `${targetName} rejected your settlement offer.${reasonSuffix}`, 'warning');
+}
+
+// Writes to both parties' logs, mirroring routePeaceMade.
+export function routeSettlementSigned(
+  state: GameState,
+  event: GameEvents['diplomacy:settlement-signed'],
+  sink: NotificationSink,
+): void {
+  const a = state.civilizations[event.civA]?.name ?? 'Unknown';
+  const b = state.civilizations[event.civB]?.name ?? 'Unknown';
+  const termWord = event.termCount === 1 ? 'term' : 'terms';
+  sink(event.civA, `Peace settlement with ${b} signed (${event.termCount} ${termWord}).`, 'success');
+  sink(event.civB, `Peace settlement with ${a} signed (${event.termCount} ${termWord}).`, 'success');
+}
+
+export function routeWarGoalExceeded(
+  state: GameState,
+  event: GameEvents['diplomacy:war-goal-exceeded'],
+  sink: NotificationSink,
+): void {
+  const opponentName = state.civilizations[event.opponentCivId]?.name ?? 'Unknown';
+  sink(event.civId, `Your war against ${opponentName} has gone beyond its declared goal. Other civilizations take note.`, 'warning');
 }
 
 export function routeFirstContact(

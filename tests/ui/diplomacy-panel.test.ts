@@ -9,6 +9,8 @@ import {
   rejectDiplomaticRequest,
 } from '@/systems/diplomacy-system';
 import { EventBus } from '@/core/event-bus';
+import { declareWarGoal } from '@/systems/war-goal-system';
+import { enqueueSettlementOffer } from '@/systems/settlement-system';
 import { getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentation';
 import { makeDiplomacyFixture } from './helpers/diplomacy-fixture';
 import { createUnit } from '@/systems/unit-system';
@@ -606,6 +608,102 @@ describe('diplomacy-panel breakaway rows', () => {
   });
 });
 
+describe('diplomacy-panel war goals and settlements (#988)', () => {
+  function makeAtWarState() {
+    const { container, state: baseState } = makeDiplomacyFixture({
+      currentPlayer: 'player',
+      includeThirdCiv: true,
+    });
+    const state = baseState;
+    state.civilizations.player.diplomacy.atWarWith = ['outsider'];
+    state.civilizations.outsider.diplomacy.atWarWith = ['player'];
+    return { container, state };
+  }
+
+  it('shows a Declare War Goal button while at war with no declared goal, and it opens a working sub-panel', () => {
+    const { container, state } = makeAtWarState();
+    const onDeclareWarGoal = vi.fn();
+    const panel = createDiplomacyPanel(container, state, {
+      onAction: () => {},
+      onDeclareWarGoal,
+      onClose: () => {},
+    });
+
+    const declareBtn = panel.querySelector('.diplo-open-war-goal') as HTMLButtonElement;
+    expect(declareBtn).toBeTruthy();
+    declareBtn.click();
+
+    const subPanel = container.querySelector('#war-goal-panel') as HTMLElement;
+    expect(subPanel).toBeTruthy();
+    expect(subPanel.textContent).toContain('Force Vassalage');
+
+    // The player has not discovered any of 'outsider's cities in this fixture,
+    // so Force Vassalage is the only guaranteed row -- its Declare button is
+    // the last "Declare" button in the sub-panel.
+    const declareButtons = Array.from(subPanel.querySelectorAll('button')).filter(b => b.textContent === 'Declare');
+    expect(declareButtons.length).toBeGreaterThan(0);
+    declareButtons[declareButtons.length - 1].click();
+    expect(onDeclareWarGoal).toHaveBeenCalledWith('outsider', 'force_vassalage', undefined);
+  });
+
+  it('shows the declared war goal status once one exists, and no longer offers to declare a new one', () => {
+    const { container, state } = makeAtWarState();
+    const cityId = state.civilizations.outsider.cities[0];
+    const next = declareWarGoal(state, 'player', 'outsider', 'conquer_city', cityId, state.turn);
+
+    const panel = createDiplomacyPanel(container, next, { onAction: () => {}, onClose: () => {} });
+    expect(panel.textContent).toContain('War Goal:');
+    expect(panel.textContent).toContain('Active');
+    expect(panel.querySelector('.diplo-open-war-goal')).toBeNull();
+  });
+
+  it('shows a Propose Settlement button while at war and opens a working sub-panel that proposes terms', () => {
+    const { container, state } = makeAtWarState();
+    const onProposeSettlement = vi.fn();
+    const panel = createDiplomacyPanel(container, state, {
+      onAction: () => {},
+      onProposeSettlement,
+      onClose: () => {},
+    });
+
+    const openBtn = panel.querySelector('.diplo-open-settlement') as HTMLButtonElement;
+    expect(openBtn).toBeTruthy();
+    openBtn.click();
+
+    const subPanel = container.querySelector('#settlement-offer-panel') as HTMLElement;
+    expect(subPanel).toBeTruthy();
+    const sendBtn = Array.from(subPanel.querySelectorAll('button')).find(b => b.textContent === 'Send Offer') as HTMLButtonElement;
+    sendBtn.click();
+    expect(onProposeSettlement).toHaveBeenCalledWith('outsider', []);
+  });
+
+  it('renders an incoming settlement offer with Accept/Reject and fires callbacks', () => {
+    const { container, state } = makeAtWarState();
+    const withOffer = enqueueSettlementOffer(state, 'outsider', 'player', []);
+    const onAccept = vi.fn();
+    const onReject = vi.fn();
+
+    const panel = createDiplomacyPanel(container, withOffer, {
+      onAction: () => {},
+      onAcceptSettlementOffer: onAccept,
+      onRejectSettlementOffer: onReject,
+      onClose: () => {},
+    });
+
+    expect(panel.textContent).toContain('Settlement proposed');
+    expect(panel.textContent).toContain('Unconditional (white) peace');
+    (panel.querySelector('.diplo-accept-settlement') as HTMLButtonElement).click();
+    expect(onAccept).toHaveBeenCalled();
+  });
+
+  it('shows an outgoing settlement offer as a pill, not the propose button', () => {
+    const { container, state } = makeAtWarState();
+    const withOffer = enqueueSettlementOffer(state, 'player', 'outsider', []);
+    const panel = createDiplomacyPanel(container, withOffer, { onAction: () => {}, onClose: () => {} });
+    expect(panel.textContent).toContain('Settlement Offered');
+  });
+});
+
 describe('diplomacy-panel treaty proposals + war attribution (#554)', () => {
   it('renders an incoming treaty proposal with accept/decline and fires callbacks', () => {
     const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player', includeThirdCiv: true });
@@ -1141,6 +1239,20 @@ describe('#1002 diplomacy panel through the shared viewer-safety harness', () =>
           s.civilizations[AI_B]!.diplomacy.atWarWith.push(AI_A);
         } },
         { label: `unmet ${AI_B} renames itself`, apply: s => { s.civilizations[AI_B]!.name = 'Hidden Dominion'; } },
+        {
+          // #988: a war goal is stored only on the declaring civ's OWN
+          // diplomacy state and the panel only ever reads the viewer's own
+          // record -- a war between two other civs, and a goal one of them
+          // declares in it, must never surface on the viewer's own panel.
+          label: `unmet ${AI_B} declares a war goal against known ${AI_A}`,
+          apply: s => {
+            s.civilizations[AI_B]!.diplomacy.atWarWith.push(AI_A);
+            s.civilizations[AI_A]!.diplomacy.atWarWith.push(AI_B);
+            s.civilizations[AI_B]!.diplomacy.warGoals = {
+              [AI_A]: { kind: 'conquer_city', opponentCivId: AI_A, declaredTurn: 1, citiesCapturedFromOpponent: 0, overreachPenaltyApplied: false },
+            };
+          },
+        },
       ],
       earned: [{ label: `${HUMAN_A} meets ${AI_B}`, apply: s => makeMet(s, HUMAN_A, AI_B) }],
     });
@@ -1152,6 +1264,26 @@ describe('#1002 diplomacy panel through the shared viewer-safety harness', () =>
       viewers: [HUMAN_A, HUMAN_B],
       knownOnlyTo: HUMAN_B,
       mutation: { label: `${HUMAN_B} meets ${AI_B}`, apply: s => makeMet(s, HUMAN_B, AI_B) },
+    });
+  });
+
+  it('hot seat: a war goal Alice declares against a civ Bob also knows never appears on Bob\'s panel (#988)', () => {
+    const twoHumanWorld = world();
+    makeMet(twoHumanWorld, HUMAN_B, AI_A);
+    twoHumanWorld.civilizations[HUMAN_A]!.diplomacy.atWarWith.push(AI_A);
+    twoHumanWorld.civilizations[AI_A]!.diplomacy.atWarWith.push(HUMAN_A);
+    expectHotSeatDifferential(renderedPanel, {
+      world: twoHumanWorld,
+      viewers: [HUMAN_A, HUMAN_B],
+      knownOnlyTo: HUMAN_A,
+      mutation: {
+        label: `${HUMAN_A} declares a war goal against ${AI_A}`,
+        apply: s => {
+          s.civilizations[HUMAN_A]!.diplomacy.warGoals = {
+            [AI_A]: { kind: 'force_vassalage', opponentCivId: AI_A, declaredTurn: 1, citiesCapturedFromOpponent: 0, overreachPenaltyApplied: false },
+          };
+        },
+      },
     });
   });
 });

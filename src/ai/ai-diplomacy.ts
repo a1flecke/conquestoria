@@ -1,4 +1,4 @@
-import type { PersonalityTraits, DiplomacyState, DiplomaticAction, MinorCivState } from '@/core/types';
+import type { PersonalityTraits, DiplomacyState, DiplomaticAction, MinorCivState, WarGoalStatus } from '@/core/types';
 import {
   getRelationship,
   isAtWar,
@@ -41,6 +41,11 @@ export function evaluateDiplomacy(
   hasArmsControlTreaty: boolean,
   actorHasKnownCapability: boolean,
   posture: NationalIntentPosture,
+  /** #988: this civ's own war-goal status against each opponent it holds a
+   * goal for (absent/'none' means "no declared goal" -- keeps every existing
+   * caller's legacy relationship-only peace-seeking exactly unchanged). Only
+   * `getWarGoalStatus`'s pure result belongs here -- never derive it locally. */
+  warGoalStatusByCiv: Record<string, WarGoalStatus> = {},
 ): DiplomaticDecision[] {
   const decisions: DiplomaticDecision[] = [];
 
@@ -54,7 +59,16 @@ export function evaluateDiplomacy(
       : 1;
 
     if (isAtWar(diplomacy, civId)) {
-      if (advantage < 0.7 || relationship > -20) {
+      const goalStatus = warGoalStatusByCiv[civId] ?? 'none';
+      const outmatched = advantage < 0.7;
+      // A declared goal that is still actively being pursued (and not losing)
+      // means "keep fighting" -- the AI stops suing for peace on relationship
+      // alone the instant it has something real to fight for (#988). With no
+      // declared goal, the legacy relationship-only heuristic is unchanged.
+      const seeksPeace = goalStatus === 'none'
+        ? (outmatched || relationship > -20)
+        : (goalStatus !== 'active' || outmatched);
+      if (seeksPeace) {
         decisions.push({ action: 'request_peace', targetCiv: civId });
       }
     } else {

@@ -320,6 +320,68 @@ describe('evaluateDiplomacy', () => {
     expect(decisions.find(d => d.action === 'alliance')).toBeDefined();
     expect(decisions.find(d => d.action === 'arms_control_pact')).toBeDefined();
   });
+
+  describe('#988 goal-aware peace-seeking', () => {
+    // At war, decent relationship, no military disadvantage -- the legacy
+    // `relationship > -20` heuristic alone would already seek peace here, so
+    // every case below deliberately sits in that same "would legacy-seek-peace"
+    // zone to prove the goal actually changes the outcome.
+    const atWarNoDisadvantage = makeDiplomacy({ relationships: { player: 0 }, atWarWith: ['player'] });
+
+    it('keeps fighting while an active goal exists and the AI is not losing', () => {
+      const decisions = evaluateDiplomacy(
+        aggressivePersonality, atWarNoDisadvantage, [], 4,
+        { player: strength(100) }, strength(100), 20,
+        { player: { hasMet: true, hasBorderPressure: false, targetHasKnownStrategicCapability: false } },
+        0, false, false, NEUTRAL_POSTURE,
+        { player: 'active' },
+      );
+      expect(decisions.find(d => d.action === 'request_peace')).toBeUndefined();
+    });
+
+    it('seeks peace once the declared goal is satisfied', () => {
+      const decisions = evaluateDiplomacy(
+        aggressivePersonality, atWarNoDisadvantage, [], 4,
+        { player: strength(100) }, strength(100), 20,
+        { player: { hasMet: true, hasBorderPressure: false, targetHasKnownStrategicCapability: false } },
+        0, false, false, NEUTRAL_POSTURE,
+        { player: 'satisfied' },
+      );
+      expect(decisions.find(d => d.action === 'request_peace')).toBeDefined();
+    });
+
+    it('seeks peace once the declared goal is exceeded', () => {
+      const decisions = evaluateDiplomacy(
+        aggressivePersonality, atWarNoDisadvantage, [], 4,
+        { player: strength(100) }, strength(100), 20,
+        { player: { hasMet: true, hasBorderPressure: false, targetHasKnownStrategicCapability: false } },
+        0, false, false, NEUTRAL_POSTURE,
+        { player: 'exceeded' },
+      );
+      expect(decisions.find(d => d.action === 'request_peace')).toBeDefined();
+    });
+
+    it('still seeks peace with an active goal when outmatched', () => {
+      const decisions = evaluateDiplomacy(
+        aggressivePersonality, atWarNoDisadvantage, [], 4,
+        { player: strength(200) }, strength(100), 20,
+        { player: { hasMet: true, hasBorderPressure: false, targetHasKnownStrategicCapability: false } },
+        0, false, false, NEUTRAL_POSTURE,
+        { player: 'active' },
+      );
+      expect(decisions.find(d => d.action === 'request_peace')).toBeDefined();
+    });
+
+    it('preserves the legacy relationship-only heuristic when no goal is declared', () => {
+      const decisions = evaluateDiplomacy(
+        aggressivePersonality, atWarNoDisadvantage, [], 4,
+        { player: strength(100) }, strength(100), 20,
+        { player: { hasMet: true, hasBorderPressure: false, targetHasKnownStrategicCapability: false } },
+        0, false, false, NEUTRAL_POSTURE,
+      );
+      expect(decisions.find(d => d.action === 'request_peace')).toBeDefined();
+    });
+  });
 });
 
 // #1087 recovery-competence invariant: a civ in `recover` national intent must never be

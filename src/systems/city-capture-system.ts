@@ -19,6 +19,7 @@ import {
 } from '@/systems/city-territory-system';
 import { normalizeCityWorkAfterTerritoryChange } from '@/systems/city-work-system';
 import { isAtWar, modifyRelationship } from '@/systems/diplomacy-system';
+import { recordWarGoalCityCapture, applyWarGoalOverreachIfNeeded } from '@/systems/war-goal-system';
 import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { executeUnitMove } from '@/systems/unit-movement-system';
 import { buildUnitOccupancy, getUnitIdsAtCoord } from '@/systems/unit-occupancy';
@@ -34,6 +35,23 @@ import {
   getCityCounterFireDamage,
   resolveCityAssault,
 } from '@/systems/city-siege-system';
+
+/**
+ * #988: every combat capture (occupy or raze) counts toward the capturing
+ * civ's own war-goal overreach bookkeeping, regardless of which specific city
+ * was declared as the goal -- see war-goal-system.ts. A no-op when the
+ * capturing civ has no active goal against `previousOwnerId`.
+ */
+function applyWarGoalCaptureBookkeeping(
+  state: GameState,
+  capturingCivId: string,
+  previousOwnerId: string,
+  turn: number,
+  bus?: EventBus,
+): GameState {
+  const withCapture = recordWarGoalCityCapture(state, capturingCivId, previousOwnerId);
+  return applyWarGoalOverreachIfNeeded(withCapture, capturingCivId, previousOwnerId, turn, bus);
+}
 
 export type MajorCityCaptureDisposition = 'occupy' | 'raze';
 
@@ -668,14 +686,14 @@ export function resolveMajorCityCapture(
     const liveness = reconcileCivilizationLiveness(state, afterAircraft, newOwnerId);
     const elimination = liveness.transitions.find(transition =>
       transition.kind === 'eliminated' && transition.civId === previousOwnerId);
-    const stateAfterElimination = liveness.state;
-    const territoryResult = recalculateTerritory(stateAfterElimination, {
+    const stateAfterWarGoals = applyWarGoalCaptureBookkeeping(liveness.state, newOwnerId, previousOwnerId, turn, bus);
+    const territoryResult = recalculateTerritory(stateAfterWarGoals, {
       reason: 'capture',
       preserveCurrentHolderOnTie: true,
     });
 
     return buildCaptureResult(
-      stateAfterElimination,
+      stateAfterWarGoals,
       territoryResult,
       'occupied',
       0,
@@ -733,14 +751,14 @@ export function resolveMajorCityCapture(
   const liveness = reconcileCivilizationLiveness(state, afterProjectLoss, newOwnerId);
   const elimination = liveness.transitions.find(transition =>
     transition.kind === 'eliminated' && transition.civId === previousOwnerId);
-  const stateAfterElimination = liveness.state;
-  const territoryResult = recalculateTerritory(stateAfterElimination, {
+  const stateAfterWarGoals = applyWarGoalCaptureBookkeeping(liveness.state, newOwnerId, previousOwnerId, turn, bus);
+  const territoryResult = recalculateTerritory(stateAfterWarGoals, {
     reason: 'raze',
     preserveCurrentHolderOnTie: true,
   });
 
   return buildCaptureResult(
-    stateAfterElimination,
+    stateAfterWarGoals,
     territoryResult,
     'razed',
     goldAwarded,

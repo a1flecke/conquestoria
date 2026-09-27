@@ -181,11 +181,21 @@ export function makePeace(
   targetCivId: string,
   turn: number,
 ): DiplomacyState {
-  let newState = {
+  // #988: this side's own declared war goal against targetCivId does not
+  // survive the war it was declared for -- a fresh war starts clean, and
+  // status can never be queried against a goal from a prior, already-ended
+  // conflict.
+  let warGoals = state.warGoals;
+  if (warGoals?.[targetCivId]) {
+    const { [targetCivId]: _cleared, ...rest } = warGoals;
+    warGoals = rest;
+  }
+  let newState: DiplomacyState = {
     ...state,
     vassalage: { ...state.vassalage, protectionTimers: state.vassalage.protectionTimers.filter(t => t.attackerCivId !== targetCivId) },
     atWarWith: state.atWarWith.filter(id => id !== targetCivId),
     events: [...state.events],
+    warGoals,
   };
   newState = modifyRelationship(newState, targetCivId, 10);
   newState.events.push({
@@ -484,11 +494,12 @@ export function proposeTreatyAgreement(state: GameState, fromCivId: string, toCi
     const peaced = makeMajorPeace(state, fromCivId, toCivId, bus);
     return cancelInvalidNetworkPlans({
       ...peaced,
-      // Same pair-level peace-request cleanup acceptDiplomaticRequest does on
-      // commit -- an immediate AI-consented peace must not leave the other
-      // side's now-moot "incoming peace request" rotting in the panel.
+      // Same pair-level war-resolution-request cleanup acceptDiplomaticRequest
+      // does on commit -- an immediate AI-consented peace must not leave the
+      // other side's now-moot "incoming peace/settlement request" rotting in
+      // the panel.
       pendingDiplomacyRequests: (peaced.pendingDiplomacyRequests ?? []).filter(
-        candidate => !isPeaceRequestPair(candidate, fromCivId, toCivId),
+        candidate => !isWarResolutionRequestPair(candidate, fromCivId, toCivId),
       ),
     }).state;
   }
@@ -618,6 +629,35 @@ function isPeaceRequestPair(
     );
 }
 
+/**
+ * #988: a plain white-peace request and a typed settlement offer both end the
+ * same war between the same two civs -- resolving either one moots the
+ * other. Used only for cleanup sweeps, never for the "does a request already
+ * exist" dedup checks (those stay type-specific, see
+ * {@link isSamePeaceRequest} / {@link isSameSettlementOffer}).
+ */
+export function isWarResolutionRequestPair(
+  request: PendingDiplomaticRequest,
+  civA: string,
+  civB: string,
+): boolean {
+  return (request.type === 'peace' || request.type === 'settlement')
+    && (
+      (request.fromCivId === civA && request.toCivId === civB)
+      || (request.fromCivId === civB && request.toCivId === civA)
+    );
+}
+
+function isSameSettlementOffer(
+  request: PendingDiplomaticRequest,
+  fromCivId: string,
+  toCivId: string,
+): boolean {
+  return request.type === 'settlement'
+    && request.fromCivId === fromCivId
+    && request.toCivId === toCivId;
+}
+
 export function getPendingPeaceRequestForPair(
   state: GameState,
   civA: string,
@@ -736,7 +776,7 @@ export function enqueuePeaceRequest(
   const requests = state.pendingDiplomacyRequests ?? [];
   if (
     requests.some(request => isSamePeaceRequest(request, fromCivId, toCivId))
-    || getPendingPeaceRequestForPair(state, fromCivId, toCivId)
+    || requests.some(request => isWarResolutionRequestPair(request, fromCivId, toCivId))
   ) {
     return state;
   }
@@ -808,7 +848,7 @@ export function acceptDiplomaticRequest(
   return cancelInvalidNetworkPlans({
     ...peaced,
     pendingDiplomacyRequests: (peaced.pendingDiplomacyRequests ?? []).filter(
-      candidate => !isPeaceRequestPair(candidate, request.fromCivId, request.toCivId),
+      candidate => !isWarResolutionRequestPair(candidate, request.fromCivId, request.toCivId),
     ),
   }).state;
 }
@@ -843,6 +883,9 @@ export function rejectDiplomaticRequest(
       treaty: request.treatyType,
     });
   }
+  if (bus && request.type === 'settlement') {
+    bus.emit('diplomacy:settlement-declined', { proposerCivId: request.fromCivId, targetCivId: request.toCivId });
+  }
 
   return {
     ...state,
@@ -862,6 +905,9 @@ const TREACHERY_AMOUNTS: Record<string, number> = {
   vassalage_independence: 20,
   leave_embargo: 5,
   leave_league: 10,
+  // #988: conquering far past a declared war goal. Bounded and applied at most
+  // once per war -- see war-goal-system.ts's overreachPenaltyApplied guard.
+  war_goal_overreach: 10,
 };
 
 export function applyTreachery(
