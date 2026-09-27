@@ -709,6 +709,36 @@ describe('#951 — emergency levy eligibility', () => {
     expect(evaluateMinorCivEmergencyLevy(state, minorCiv.id)).toEqual({ eligible: false, reason: 'no-spawn' });
   });
 
+  it('treats a barbarian camp as a spawn blocker, never spawning onto its tile (regression)', () => {
+    // A long-horizon campaign run (lh-veteran-small) hit `assertNoIllegalBlockingOccupancy`
+    // because `legalSpawnPositions` built its own `occupied` set from live units only and never
+    // consulted `getBlockingMapEntityKeysForOwner` — so a barbarian camp sitting on the city's
+    // only free adjacent tile was invisible to it, and the levy spawned a minor-civ unit directly
+    // onto the camp. See .claude/rules/movement-actions.md's "World-actor step/spawn placement".
+    const { state, minorCiv, city } = makeSeverelyThreatenedMinorCiv('mc-levy-camp-spawn-gate');
+    const candidatePositions = [city.position, ...getWrappedHexNeighbors(city.position, state.map.width)];
+    // Block every tile except the city center with the camp, and occupy the city center itself
+    // with a unit — leaving zero legal spawn tiles, exactly like the unit-only test above but via
+    // a barbarian camp instead of barbarian units.
+    const [cityCenter, ...neighbors] = candidatePositions;
+    const occupier = createUnit('warrior', 'barbarian', cityCenter, state.idCounters);
+    occupier.id = 'levy-camp-spawn-gate-occupier';
+    state.units[occupier.id] = occupier;
+    for (const [index, coord] of neighbors.entries()) {
+      // Force plains so terrain legality never masks the camp-blocking behavior under test.
+      const tile = state.map.tiles[hexKey(coord)];
+      if (tile) tile.terrain = 'plains';
+      state.barbarianCamps[`levy-camp-spawn-gate-${index}`] = {
+        id: `levy-camp-spawn-gate-${index}`,
+        position: coord,
+        strength: 10,
+        spawnCooldown: 3,
+      };
+    }
+
+    expect(evaluateMinorCivEmergencyLevy(state, minorCiv.id)).toEqual({ eligible: false, reason: 'no-spawn' });
+  });
+
   it('never selects a naval or air unit even when the build catalog includes one', () => {
     const { state, minorCiv } = makeSeverelyThreatenedMinorCiv('mc-levy-land-only', 6);
 

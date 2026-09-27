@@ -34,6 +34,7 @@ import {
   getMinorCivLeagueScoreBonus,
 } from '@/systems/minor-civ-league-definitions';
 import { getMinorCivLeaguePreference } from '@/systems/minor-civ-league-system';
+import { getBlockingMapEntityKeysForOwner } from '@/systems/unit-movement-legality';
 
 export const MINOR_CIV_ECONOMY_TUNING = {
   explorer: {
@@ -551,6 +552,12 @@ function legalSpawnPositions(state: GameState, minorCivId: string, unitType: Uni
       .filter(unit => !unit.transportId)
       .map(unit => hexKey(unit.position)),
   );
+  // #994/#1025 world-actor spawn placement: a barbarian camp, foreign city, or intact
+  // pirate enclave blocks a minor-civ spawn exactly like it blocks ordinary movement —
+  // this must not re-derive that set from scratch (see .claude/rules/movement-actions.md).
+  for (const key of getBlockingMapEntityKeysForOwner(state, minorCivId)) {
+    occupied.add(key);
+  }
   const adjacent = state.map.wrapsHorizontally
     ? getWrappedHexNeighbors(city.position, state.map.width)
     : hexNeighbors(city.position);
