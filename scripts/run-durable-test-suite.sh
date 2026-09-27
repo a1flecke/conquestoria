@@ -21,9 +21,9 @@ shift
 # their own header comments), so wrapping them here must not force them into
 # it. --no-lease skips the host-wide lease acquisition below entirely while
 # still getting durable evidence + job-pid liveness tracking (via
-# hvl_run_registering_job directly); omitting it preserves the original
-# behavior (used by the "full" scope / yarn test:durable), acquiring the
-# shared lease via run-under-host-lease.sh.
+# hvl_run_registering_job directly). Omitting it acquires the shared lease
+# via run-under-host-lease.sh -- but only for foreground (publication) runs
+# since #1166; see below.
 use_lease=1
 if [ "${1:-}" = '--no-lease' ]; then
   use_lease=0
@@ -32,6 +32,15 @@ fi
 [ "${1:-}" = '--' ] || usage
 shift
 [ "$#" -ge 1 ] || usage
+
+# #1166: the shared push-verification mutex is the PUBLICATION collision
+# lock. A durable run takes it only when it is itself publication work
+# (verify-pr.sh exports HVL_CAPACITY_LANE=foreground); an ordinary background
+# `yarn test:durable` is admitted by background host capacity alone (acquired
+# inside run-test-suite.sh), so it can never make a `git push` wait behind it.
+if [ "${HVL_CAPACITY_LANE:-background}" != foreground ]; then
+  use_lease=0
+fi
 
 script_dir="$(cd "$(dirname "$0")" && pwd)"
 repo_root="$(git -C "$script_dir" rev-parse --show-toplevel)"

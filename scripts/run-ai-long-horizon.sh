@@ -45,33 +45,41 @@ cd "$ROOT"
 # lease, per the header comment above.
 . "$ROOT/scripts/host-verification-lease.sh"
 
-# #1133 (2026-09-21 benchmark/closure pass): this suite previously held ONLY
-# its own separate ai-long-horizon-lease mutex below, with NO coordination
-# against the shared host-wide budget scripts/run-test-suite.sh's three
-# modes (full/regular/intensive-simulations) already respect. That let up to
-# HOST_VERIFICATION_LEASE_BUDGET (3) of those PLUS one ai-long run proceed
-# fully simultaneously -- one MORE heavyweight Vitest invocation than the
-# documented host-wide ceiling. This is not theoretical: directly reproduced
-# during this benchmark pass, where an ai-long run's stall-retry attempt
-# genuinely overlapped with another agent's real `regular` push-verification
-# run (both visible as concurrent ACTIVE rows in `yarn verify:local:status`
-# at the same instant). Fixed by having ai-long also hold ONE shared-budget
-# slot for its entire run (including stall-retry attempts and their backoff
-# sleeps below) -- its own per-ai-long mutex still separately prevents two
-# ai-long runs from double-booking each other, so this adds one more
-# constraint rather than replacing that one. This is deliberately the
-# simplest sufficient policy (one slot, not a weighted multi-slot cost):
-# it gives a single known host-wide ceiling across every heavyweight class,
-# matching the issue's own stated preference for the simplest policy that
-# achieves that. Acquired BEFORE the ai-long-specific
-# HOST_VERIFICATION_LEASE_ROOT override below so it resolves against the
-# real SHARED root (the same one full/regular/intensive-simulations use),
-# not ai-long's own separate domain.
-hvl_acquire_budget_slot ai-long
-trap hvl_release_budget_slot EXIT
-
+# #1166: three distinct coordination concepts, acquired in this order.
+#
+#   1. COLLISION LOCK -- the ai-long singleton mutex (its own lease root,
+#      `<scope>/ai-long-horizon-lease`), held for the whole logical run
+#      including retries: at most one ai-long workload per clone at a time.
+#   2. HOST CAPACITY -- one BACKGROUND-lane slot of the shared budget
+#      (`<scope>/budget`), acquired only once the mutex is ours and held only
+#      while a Vitest attempt is actually running. It is released before any
+#      stall-retry backoff sleep and re-acquired for the next attempt.
+#   3. PRIORITY -- ai-long is background work: it can never occupy the
+#      reserved foreground slot a `git push` / `verify:pr` needs.
+#
+# Before #1166 (#1133 MR7) this acquired the shared budget slot FIRST and
+# held it for the entire wrapper lifetime -- so a second, accidental ai-long
+# request burned a capacity slot merely waiting for this mutex, and every
+# retry backoff sleep held a slot while consuming no CPU. MR7's real fix (ai-
+# long must count against the host ceiling) is kept; only the lock order and
+# the holding window changed.
 hvl_host_scope_dir="$(hvl_resolve_host_scope_dir)" || exit 2
+# The budget below resolves against dirname(HOST_VERIFICATION_LEASE_ROOT) --
+# i.e. $hvl_host_scope_dir -- so it is still the SHARED budget every other
+# heavyweight class uses, while the mutex gets ai-long's own root.
 export HOST_VERIFICATION_LEASE_ROOT="$hvl_host_scope_dir/ai-long-horizon-lease"
+export HVL_CAPACITY_LANE=background
+
+hvl_acquire "ai-long-horizon"
+trap 'hvl_release_budget_slot; hvl_release' EXIT
+# hvl_acquire/hvl_acquire_budget_slot reset INT/TERM when they return, so the
+# cancel handler (forward to the job's whole tree, release, exit) is
+# re-installed after every acquisition.
+install_cancel_traps() {
+  trap 'hvl_cancel_and_release INT 130' INT
+  trap 'hvl_cancel_and_release TERM 143' TERM
+}
+install_cancel_traps
 
 # #1125: this outer wrapper must stay LARGER than campaign-scenarios.ts's own
 # SCENARIO_TIMEOUT_MS (the per-scenario Vitest timeout), or a legitimately slow
@@ -83,8 +91,8 @@ export HOST_VERIFICATION_LEASE_ROOT="$hvl_host_scope_dir/ai-long-horizon-lease"
 # ceiling + the other 8 scenarios' historical combined ~720s, x1.5 for the matrix
 # and continuity files' own concurrent CPU contention -- see campaign-scenarios.ts's
 # header comment for the per-scenario numbers this is derived from. This budget
-# starts only AFTER the lease above is acquired, so waiting for another
-# long-horizon run to finish never eats into it.
+# starts only AFTER the mutex and a capacity slot are acquired, so waiting for
+# another long-horizon run (or for background capacity) never eats into it.
 # Follow-up to #1133 (see verify-before-push.sh's run_phase and
 # .claude/rules/hooks-and-tooling.md's "verify-before-push.sh retries a STALL
 # automatically" section for the full rationale): only exit 125 (STALL --
@@ -97,9 +105,10 @@ AI_LONG_HORIZON_STALL_RETRY_BACKOFF_SECONDS="${AI_LONG_HORIZON_STALL_RETRY_BACKO
 attempt=0
 while :; do
   attempt=$((attempt + 1))
+  hvl_acquire_budget_slot ai-long
+  install_cancel_traps
   set +e
-  sh ./scripts/run-under-host-lease.sh "ai-long-horizon" -- \
-    ./scripts/run-with-mise.sh node ./scripts/run-with-timeout.mjs 8400 ai-long-horizon -- \
+  hvl_run_registering_job ./scripts/run-with-mise.sh node ./scripts/run-with-timeout.mjs 8400 ai-long-horizon -- \
     ./scripts/run-with-mise.sh yarn vitest run \
     --config vitest.long-horizon.config.ts \
     --testTimeout=1800000 \
@@ -107,11 +116,12 @@ while :; do
     "$@"
   matrix_status=$?
   set -e
+  hvl_release_budget_slot
 
   [ "$matrix_status" -eq 0 ] && exit 0
   if [ "$matrix_status" -ne 125 ] || [ "$attempt" -gt "$AI_LONG_HORIZON_STALL_MAX_RETRIES" ]; then
     exit "$matrix_status"
   fi
-  echo "run-ai-long-horizon: stalled (attempt $attempt/$((AI_LONG_HORIZON_STALL_MAX_RETRIES + 1))) -- host contention, not a code problem. Backing off ${AI_LONG_HORIZON_STALL_RETRY_BACKOFF_SECONDS}s before retrying." >&2
+  echo "run-ai-long-horizon: stalled (attempt $attempt/$((AI_LONG_HORIZON_STALL_MAX_RETRIES + 1))) -- host contention, not a code problem. Released host capacity; backing off ${AI_LONG_HORIZON_STALL_RETRY_BACKOFF_SECONDS}s before retrying." >&2
   sleep "$AI_LONG_HORIZON_STALL_RETRY_BACKOFF_SECONDS"
 done

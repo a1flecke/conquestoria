@@ -135,17 +135,22 @@ reports an active run; do not call a completed durable run "still running"
 solely because its terminal stream ended early.
 Never chain `yarn build && yarn test` in one terminal session. Run the build
 separately, then use `yarn verify:pr` followed by `yarn verify:pr:status` for
-a bounded build-plus-durable-suite proof. The result is worktree/HEAD-bound,
-records elapsed time, and fails when verification exceeds 480 seconds.
+a bounded build-plus-durable-suite proof. The result is worktree/HEAD-bound
+and records elapsed time. Exceeding 480 seconds is a latency-SLO warning
+(host contention), not a failure; only a runaway past 1800 seconds fails
+(#1166). When that run passed on a clean worktree, the pre-push gate reuses
+it as proof for the same `HEAD` and skips its redundant regular suite and
+build -- so run `yarn verify:pr` on the exact commit you are about to push.
 If a push terminal stream is incomplete after its process exits, verify the remote branch ref equals local `HEAD` before treating the push as successful; do not infer success from partial hook output.
-Do not point two worktrees at a shared durable-artifact directory. `yarn
-test:durable`, `verify-before-push.sh`'s test+build phases, and
-`verify-pr.sh`'s build step do coordinate through one host-wide verification
-lease (`.claude/rules/hooks-and-tooling.md` -> "Host verification lease") so
-suite-scale Vitest worker pools on different worktrees don't oversubscribe
-the same machine -- that lease never touches `.verification/` or any
-Vite/Vitest cache, and routine `yarn test`/`yarn build` run directly by a
-developer or agent are never gated by it.
+Do not point two worktrees at a shared durable-artifact directory. Heavy
+Vitest runs are admitted through host capacity lanes (#1166,
+`.claude/rules/hooks-and-tooling.md` -> "Capacity lanes, collision locks,
+and proof reuse"): push/PR verification uses a reserved foreground slot,
+and everything else (`yarn test`, `test:durable`, `test:ai-long`) shares
+background slots, so a long diagnostic never blocks a push. If a command
+says it is waiting for a slot, run `yarn verify:local:status` to see who
+holds it instead of retrying. None of this touches `.verification/` or any
+Vite/Vitest cache.
 
 When `HEAD` is ahead of `origin/main`, also review both:
 

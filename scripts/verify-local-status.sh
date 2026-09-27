@@ -8,9 +8,10 @@
 # reading durable state):
 #   - the host-wide mutex's current holder (if any) and any process
 #     currently blocked waiting for it;
-#   - the host-wide resource budget's current holders (up to
-#     HOST_VERIFICATION_LEASE_BUDGET) and any process currently blocked
-#     waiting for a slot;
+#   - the ai-long singleton mutex's holder and waiters (#1166);
+#   - each host capacity lane's (#1166: foreground / background) current
+#     holders and any process currently blocked waiting for a slot, every
+#     row tagged lane=<lane>, plus an in-use/capacity line per lane;
 #   - each of the four durable scopes (full, ai-long, ai-playability, perf)
 #     this worktree has ever run via `yarn <scope>:durable`: its last known
 #     RUNNING/DONE/ABANDONED/NONE state.
@@ -97,45 +98,76 @@ else
   fi
   [ "$mutex_active" -eq 1 ] || echo 'push-verification lease: idle'
 
-  budget_max="${HOST_VERIFICATION_LEASE_BUDGET:-3}"
   hvl_status_scope_dir="$(hvl_resolve_host_scope_dir)" || hvl_status_scope_dir=""
-  budget_in_use=0
+
+  # #1166: the ai-long singleton mutex (a collision lock, not capacity).
+  # A second ai-long request now waits HERE without holding any capacity,
+  # so without this row it would be invisible.
   if [ -n "$hvl_status_scope_dir" ]; then
-    budget_dir="$hvl_status_scope_dir/budget"
-    if [ -d "$budget_dir" ]; then
-      slot_index=0
-      while [ "$slot_index" -lt "$budget_max" ]; do
-        slot_owner="$budget_dir/slot-$slot_index/owner"
-        if [ -f "$slot_owner" ]; then
-          s_pid="$(hvl_field "$slot_owner" pid)"
-          if [ -n "$s_pid" ] && hvl_pid_is_live "$s_pid"; then
-            budget_in_use=$((budget_in_use + 1))
-            s_cmd="$(hvl_field "$slot_owner" command)"
-            s_wt="$(hvl_field "$slot_owner" worktree)"
-            s_at="$(hvl_field "$slot_owner" acquired_at)"
-            s_elapsed=$(( now - ${s_at:-$now} ))
-            print_row ACTIVE "${s_cmd:-budget}" "worktree=${s_wt:-?} elapsed=${s_elapsed}s pid=$s_pid slot=$slot_index"
-          fi
-        fi
-        slot_index=$((slot_index + 1))
-      done
+    ai_long_root="$hvl_status_scope_dir/ai-long-horizon-lease"
+    ai_long_owner="$ai_long_root/active/owner"
+    ai_long_active=0
+    if [ -f "$ai_long_owner" ]; then
+      a_pid="$(hvl_field "$ai_long_owner" pid)"
+      if [ -n "$a_pid" ] && hvl_pid_is_live "$a_pid"; then
+        ai_long_active=1
+        a_wt="$(hvl_field "$ai_long_owner" worktree)"
+        a_at="$(hvl_field "$ai_long_owner" acquired_at)"
+        print_row ACTIVE ai-long-mutex "worktree=${a_wt:-?} elapsed=$(( now - ${a_at:-$now} ))s pid=$a_pid"
+      fi
     fi
-    budget_waiting_dir="$budget_dir/waiting"
-    if [ -d "$budget_waiting_dir" ]; then
-      for f in "$budget_waiting_dir"/*; do
+    if [ -d "$ai_long_root/waiting" ]; then
+      for f in "$ai_long_root/waiting"/*; do
         [ -f "$f" ] || continue
         w_pid="$(hvl_field "$f" pid)"
         if [ -n "$w_pid" ] && hvl_pid_is_live "$w_pid"; then
-          w_cmd="$(hvl_field "$f" command)"
           w_wt="$(hvl_field "$f" worktree)"
           w_at="$(hvl_field "$f" wait_started_at)"
-          w_waited=$(( now - ${w_at:-$now} ))
-          print_row QUEUED "${w_cmd:-budget}" "worktree=${w_wt:-?} waited=${w_waited}s pid=$w_pid"
+          print_row QUEUED ai-long-mutex "worktree=${w_wt:-?} waited=$(( now - ${w_at:-$now} ))s pid=$w_pid"
         fi
       done
     fi
+    [ "$ai_long_active" -eq 1 ] || echo 'ai-long singleton lease: idle'
   fi
-  echo "resource budget: $budget_in_use/$budget_max slots in use"
+
+  # #1166: host capacity is two non-borrowable lanes. Rows carry lane=...;
+  # every slot-* directory is scanned (not just 0..capacity-1) so a slot
+  # held by an older checkout with a larger budget is still shown.
+  for lane in foreground background; do
+    lane_max="$(hvl_lane_capacity "$lane")"
+    lane_in_use=0
+    if [ -n "$hvl_status_scope_dir" ]; then
+      budget_dir="$(hvl_lane_budget_dir "$hvl_status_scope_dir" "$lane")"
+      for slot_dir in "$budget_dir"/slot-*; do
+        slot_owner="$slot_dir/owner"
+        [ -f "$slot_owner" ] || continue
+        s_pid="$(hvl_field "$slot_owner" pid)"
+        if [ -n "$s_pid" ] && hvl_pid_is_live "$s_pid"; then
+          lane_in_use=$((lane_in_use + 1))
+          s_cmd="$(hvl_field "$slot_owner" command)"
+          s_wt="$(hvl_field "$slot_owner" worktree)"
+          s_at="$(hvl_field "$slot_owner" acquired_at)"
+          s_elapsed=$(( now - ${s_at:-$now} ))
+          print_row ACTIVE "${s_cmd:-budget}" "lane=$lane worktree=${s_wt:-?} elapsed=${s_elapsed}s pid=$s_pid slot=${slot_dir##*/slot-}"
+        fi
+      done
+      budget_waiting_dir="$budget_dir/waiting"
+      if [ -d "$budget_waiting_dir" ]; then
+        for f in "$budget_waiting_dir"/*; do
+          [ -f "$f" ] || continue
+          w_pid="$(hvl_field "$f" pid)"
+          if [ -n "$w_pid" ] && hvl_pid_is_live "$w_pid"; then
+            w_cmd="$(hvl_field "$f" command)"
+            w_wt="$(hvl_field "$f" worktree)"
+            w_at="$(hvl_field "$f" wait_started_at)"
+            w_waited=$(( now - ${w_at:-$now} ))
+            print_row QUEUED "${w_cmd:-budget}" "lane=$lane worktree=${w_wt:-?} waited=${w_waited}s pid=$w_pid"
+          fi
+        done
+      fi
+    fi
+    echo "$lane capacity: $lane_in_use/$lane_max slots in use"
+  done
 fi
 
 echo ''
