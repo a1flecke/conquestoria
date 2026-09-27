@@ -1391,6 +1391,55 @@ describe('#991 war conference panel through the shared viewer-safety harness', (
   });
 });
 
+/** Two concluded wars between `civId` and `opponentId`, the second with a
+ * capital capture -- enough real history to cross the `'rival'` threshold. */
+function withQualifyingRivalry(state: GameState, civId: string, opponentId: string): GameState {
+  const warA = {
+    id: `war-${civId}-${opponentId}-1`, nameTemplateIndex: 0,
+    originalAggressorId: civId, originalDefenderId: opponentId,
+    startTurn: 1, endTurn: 2, outcome: 'white-peace' as const,
+    participants: [
+      { civId, side: 'aggressor' as const, joinedTurn: 1, leftTurn: 2, leaveReason: 'peace' as const },
+      { civId: opponentId, side: 'defender' as const, joinedTurn: 1, leftTurn: 2, leaveReason: 'peace' as const },
+    ],
+    events: [{ type: 'declared' as const, turn: 1, aggressorId: civId, defenderId: opponentId }],
+  };
+  const warB = {
+    id: `war-${civId}-${opponentId}-2`, nameTemplateIndex: 0,
+    originalAggressorId: civId, originalDefenderId: opponentId,
+    startTurn: 5, endTurn: 6, outcome: 'settled' as const,
+    participants: [
+      { civId, side: 'aggressor' as const, joinedTurn: 5, leftTurn: 6, leaveReason: 'peace' as const },
+      { civId: opponentId, side: 'defender' as const, joinedTurn: 5, leftTurn: 6, leaveReason: 'peace' as const },
+    ],
+    events: [
+      { type: 'declared' as const, turn: 5, aggressorId: civId, defenderId: opponentId },
+      { type: 'city-captured' as const, turn: 5, cityId: 'capital-city', cityName: 'Their Capital', fromCivId: opponentId, toCivId: civId, wasCapital: true },
+    ],
+  };
+  return { ...state, wars: { ...state.wars, [warA.id]: warA, [warB.id]: warB } };
+}
+
+describe('diplomacy-panel rivalry rendering (#989)', () => {
+  it('shows a rivalry line citing a concrete fact and turn once real qualifying history exists', () => {
+    const state = withQualifyingRivalry(createTwoViewerWorld('rivalry-rendering'), HUMAN_A, AI_A);
+    makeMet(state, HUMAN_A, AI_A);
+    const viewing = { ...state, currentPlayer: HUMAN_A };
+    const panel = createDiplomacyPanel(document.createElement('div'), viewing, { onAction: () => {}, onClose: () => {} });
+    expect(panel.textContent).toContain('Longstanding Rival');
+    expect(panel.textContent).toContain('captured their capital');
+    expect(panel.textContent).toContain('turn 5');
+  });
+
+  it('shows no rivalry line for a civ with no shared history', () => {
+    const state = createTwoViewerWorld('rivalry-rendering-none');
+    makeMet(state, HUMAN_A, AI_A);
+    const viewing = { ...state, currentPlayer: HUMAN_A };
+    const panel = createDiplomacyPanel(document.createElement('div'), viewing, { onAction: () => {}, onClose: () => {} });
+    expect(panel.textContent).not.toContain('Rival');
+  });
+});
+
 // #989: rivalry is rendered directly on the existing diplomacy panel row (not
 // a separate sub-panel), but it is a new fact the panel exposes -- a
 // qualifying rivalry between the viewer and an opponent it derives from
@@ -1404,35 +1453,6 @@ describe('#989 rivalry through the shared diplomacy panel viewer-safety harness'
       return domProjection(panel);
     },
   };
-
-  /** Two concluded wars between `civId` and `opponentId`, the second with a
-   * capital capture -- enough real history to cross the `'rival'` threshold. */
-  function withQualifyingRivalry(state: GameState, civId: string, opponentId: string): GameState {
-    const warA = {
-      id: `war-${civId}-${opponentId}-1`, nameTemplateIndex: 0,
-      originalAggressorId: civId, originalDefenderId: opponentId,
-      startTurn: 1, endTurn: 2, outcome: 'white-peace' as const,
-      participants: [
-        { civId, side: 'aggressor' as const, joinedTurn: 1, leftTurn: 2, leaveReason: 'peace' as const },
-        { civId: opponentId, side: 'defender' as const, joinedTurn: 1, leftTurn: 2, leaveReason: 'peace' as const },
-      ],
-      events: [{ type: 'declared' as const, turn: 1, aggressorId: civId, defenderId: opponentId }],
-    };
-    const warB = {
-      id: `war-${civId}-${opponentId}-2`, nameTemplateIndex: 0,
-      originalAggressorId: civId, originalDefenderId: opponentId,
-      startTurn: 5, endTurn: 6, outcome: 'settled' as const,
-      participants: [
-        { civId, side: 'aggressor' as const, joinedTurn: 5, leftTurn: 6, leaveReason: 'peace' as const },
-        { civId: opponentId, side: 'defender' as const, joinedTurn: 5, leftTurn: 6, leaveReason: 'peace' as const },
-      ],
-      events: [
-        { type: 'declared' as const, turn: 5, aggressorId: civId, defenderId: opponentId },
-        { type: 'city-captured' as const, turn: 5, cityId: 'capital-city', cityName: 'Their Capital', fromCivId: opponentId, toCivId: civId, wasCapital: true },
-      ],
-    };
-    return { ...state, wars: { ...state.wars, [warA.id]: warA, [warB.id]: warB } };
-  }
 
   it('a real qualifying rivalry with an unmet civ never surfaces; meeting them reveals it', () => {
     const world = withQualifyingRivalry(createTwoViewerWorld('viewer-safety-rivalry'), HUMAN_A, AI_B);
