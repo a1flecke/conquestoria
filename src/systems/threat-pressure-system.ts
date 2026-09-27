@@ -17,6 +17,7 @@ import { createUnit } from './unit-system';
 import { createSimulationRng } from './simulation-rng';
 import { isPiratePressureEligible } from './world-pressure-eligibility';
 import { resolveCivilizationEra } from './tech-definitions';
+import { buildUnitOccupancy } from './unit-occupancy';
 
 export const PIRATE_OWNER = 'pirate';
 
@@ -318,7 +319,7 @@ export function processIndependentThreatPressure(
   return nextState;
 }
 
-// ── Pure helpers ─────────────────────────────────────────────────────────────
+// ── Pure helpers ────────────────────────────────────────────────────────────
 
 export function empireShare(state: GameState, civId: string, landmassId: string): number {
   const tiles = Object.values(state.map.tiles).filter(t => t.regionKey === landmassId);
@@ -370,7 +371,7 @@ export function computeThreatScore(state: GameState, civId: string, landmassId: 
   return resolveCivilizationEra(civ.techState.completed) * (1.0 + share + idleFactor);
 }
 
-// ── Bandit lord name pool ────────────────────────────────────────────────────
+// ── Bandit lord name pool ──────────────────────────────────────────────
 const BANDIT_LORD_NAMES: Record<string, string[]> = {
   generic: ['The Iron Fist', 'Greymantle', 'The Scarred One', 'Black Hand', 'The Reaver'],
   egypt: ['Amenhotep the Black', 'Kha-em-waset', 'Neferkare', 'Paneb', 'Userhat'],
@@ -386,7 +387,7 @@ const BANDIT_LORD_NAMES: Record<string, string[]> = {
   viking: ['Ragnar Lothbrok', 'Eric Bloodaxe', 'Ivar the Boneless', 'Harald Hardrada', 'Björn Ironside', 'Leif Erikson'],
   gondor: ['Aragorn', 'Boromir', 'Faramir', 'Denethor', 'Isildur', 'Anárion'],
   rohan: ['Théoden', 'Éomer', 'Helm Hammerhand', 'Erkenbrand', 'Grimbold'],
-  isengard: ['Saruman', 'Grima Wormtongue', 'Uglúk', 'Grishnákh', 'Mauhúr'],
+  isengard: ['Saruman', 'Grima Wormtongue', 'Uglúk', 'Grishákrh', 'Mauhúr'],
 };
 
 export function pickBanditName(civType: string, rng: () => number): string {
@@ -394,7 +395,7 @@ export function pickBanditName(civType: string, rng: () => number): string {
   return pool[Math.floor(rng() * pool.length)];
 }
 
-// ── Resurgent camp strength by era ───────────────────────────────────────────
+// ── Resurgent camp strength by era ───────────────────────────────────────
 const ERA_STRENGTH: Record<number, [number, number]> = {
   1: [3, 6], 2: [6, 10], 3: [10, 14], 4: [14, 18],
 };
@@ -404,7 +405,7 @@ function resurgenceCampStrength(era: number, rng: () => number): number {
   return low + Math.floor(rng() * (high - low));
 }
 
-// ── Land resurgence ──────────────────────────────────────────────────────────
+// ── Land resurgence ──────────────────────────────────────────────────
 
 const RESURGENCE_CAP = 2;
 const RESURGENCE_COOLDOWN_TURNS = 8;
@@ -439,10 +440,14 @@ export function processLandResurgence(
   // #982: one resurgence roll per (civ, landmass) per invocation -- the caller
   // (processThreatPressure) only visits each landmassId once per civ per turn.
   const rng = createSimulationRng(state, { domain: 'threat-pressure-land-spawn', actorId: civId, targetId: landmassId });
+  // A resurgent camp must never land on a tile a live unit already occupies (any owner) --
+  // otherwise assertNoIllegalBlockingOccupancy trips for that unit the moment the camp exists.
+  const occupiedHexKeys = buildUnitOccupancy(state.units).unitIdsByHex;
 
   const candidates = landmassTiles.filter(tile => {
     if (NON_VIABLE_TERRAIN.has(tile.terrain)) return false;
     if (state.barbarianCamps[hexKey(tile.coord)]) return false;
+    if (occupiedHexKeys[hexKey(tile.coord)]) return false;
     // Must be far from cities and existing camps
     for (const pos of cityPositions) {
       if (mapDistance(state.map, tile.coord, pos) < 4) return false;
@@ -507,7 +512,7 @@ export function processLandResurgence(
   return updatedState;
 }
 
-// ── Pirate fleet spawn ────────────────────────────────────────────────────────
+// ── Pirate fleet spawn ─────────────────────────────────────────────────────
 
 const PIRATE_FLEET_THRESHOLD = 4.0;
 const PIRATE_FLEET_CAP = 2;
@@ -651,7 +656,7 @@ export function processPirateSpawn(
   return updatedState;
 }
 
-// ── Pirate fleet movement + plunder/siege ─────────────────────────────────────
+// ── Pirate fleet movement + plunder/siege ────────────────────────────────────────────
 
 const PLUNDER_COOLDOWN_TURNS = 3;
 const ADJACENT_HEX_DIST = 2;
@@ -794,7 +799,7 @@ export function processPirateFleets(state: GameState, bus: EventBus): GameState 
   return nextState;
 }
 
-// ── Spawn-phase dispatcher ────────────────────────────────────────────────────
+// ── Spawn-phase dispatcher ────────────────────────────────────────────
 
 export function processThreatPressure(
   state: GameState,
