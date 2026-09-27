@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { City, Civilization, GameState, MinorCiv } from '@/core/types';
+import type { City, Civilization, GameState, MinorCivState } from '@/core/types';
 import { getOwnedCities, getOwnedCityCount } from '@/systems/city-ownership';
 
 function cityFixture(id: string, owner: string): City {
@@ -50,7 +50,7 @@ describe('city-ownership', () => {
     const city = cityFixture('city-1', 'civ-2');
     const state = stateFixture({
       cities: { 'city-1': city },
-      civilizations: { 'civ-1': { id: 'civ-1', cities: [] } as Civilization },
+      civilizations: { 'civ-1': { id: 'civ-1', cities: [] } as unknown as Civilization },
     });
 
     expect(getOwnedCities(state, 'civ-1')).toEqual([]);
@@ -63,7 +63,7 @@ describe('city-ownership', () => {
       const state = stateFixture({
         cities: { 'city-1': city },
         civilizations: {
-          'civ-1': { id: 'civ-1', cities: ['city-1', 'city-ghost'] } as Civilization,
+          'civ-1': { id: 'civ-1', cities: ['city-1', 'city-ghost'] } as unknown as unknown as Civilization,
         },
       });
 
@@ -76,8 +76,8 @@ describe('city-ownership', () => {
       const state = stateFixture({
         cities: { 'city-1': city },
         civilizations: {
-          'civ-1': { id: 'civ-1', cities: ['city-1'] } as Civilization,
-          'civ-2': { id: 'civ-2', cities: [] } as Civilization,
+          'civ-1': { id: 'civ-1', cities: ['city-1'] } as unknown as Civilization,
+          'civ-2': { id: 'civ-2', cities: [] } as unknown as Civilization,
         },
       });
 
@@ -90,7 +90,7 @@ describe('city-ownership', () => {
       const state = stateFixture({
         cities: { 'city-1': city },
         civilizations: {
-          'civ-1': { id: 'civ-1', cities: [] } as Civilization,
+          'civ-1': { id: 'civ-1', cities: [] } as unknown as Civilization,
         },
       });
 
@@ -103,7 +103,7 @@ describe('city-ownership', () => {
       const state = stateFixture({
         cities: { 'city-1': city },
         civilizations: {
-          'civ-1': { id: 'civ-1', cities: ['city-1', 'city-1'] } as Civilization,
+          'civ-1': { id: 'civ-1', cities: ['city-1', 'city-1'] } as unknown as Civilization,
         },
       });
 
@@ -115,7 +115,7 @@ describe('city-ownership', () => {
       const state = stateFixture({
         cities: { 'city-mc': city },
         minorCivs: {
-          'mc-1': { id: 'mc-1', cityId: 'city-mc' } as MinorCiv,
+          'mc-1': { id: 'mc-1', cityId: 'city-mc' } as unknown as MinorCivState,
         },
       });
 
@@ -128,10 +128,10 @@ describe('city-ownership', () => {
       const state = stateFixture({
         cities: { 'city-mc': city },
         civilizations: {
-          'civ-1': { id: 'civ-1', cities: ['city-mc'] } as Civilization,
+          'civ-1': { id: 'civ-1', cities: ['city-mc'] } as unknown as Civilization,
         },
         minorCivs: {
-          'mc-1': { id: 'mc-1', cityId: 'city-mc' } as MinorCiv,
+          'mc-1': { id: 'mc-1', cityId: 'city-mc' } as unknown as MinorCivState,
         },
       });
 
