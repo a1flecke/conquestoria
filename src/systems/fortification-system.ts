@@ -2,6 +2,7 @@ import type { GameState, HexCoord, Unit } from '@/core/types';
 import { hexDistance, hexKey, mapNeighbors, wrappedHexDistance } from './hex-utils';
 import { UNIT_DEFINITIONS } from './unit-system';
 import { isAtWar } from './diplomacy-system';
+import { getOwnedCityCount } from './city-ownership';
 
 export interface FortificationTier {
   id: 'fort' | 'citadel';
@@ -43,7 +44,7 @@ export function getFortificationCapacity(
   state: Pick<GameState, 'map' | 'cities'>,
   ownerId: string,
 ): FortificationCapacity {
-  const cityCount = Object.values(state.cities).filter(city => city.owner === ownerId).length;
+  const cityCount = getOwnedCityCount(state, ownerId);
   const built = Object.values(state.map.tiles).filter(candidate => candidate.owner === ownerId && candidate.improvement === 'fort').length;
   return { built, limit: cityCount + Math.floor(cityCount / 3) };
 }
@@ -66,7 +67,7 @@ export function getFortificationPlacement(
   const neighbors = mapNeighbors(state.map, coord);
   if (neighbors.some(neighbor => state.map.tiles[hexKey(neighbor)]?.improvement === 'fort')) return { ok: false, reason: 'adjacent-fort' };
 
-  const cityCount = Object.values(state.cities).filter(city => city.owner === ownerId).length;
+  const cityCount = getOwnedCityCount(state, ownerId);
   const capacity = getFortificationCapacity(state, ownerId);
   const isFrontier = neighbors.some(neighbor => {
     const neighborTile = state.map.tiles[hexKey(neighbor)];

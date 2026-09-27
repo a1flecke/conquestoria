@@ -11,7 +11,7 @@ import type { City, GameState } from '@/core/types';
  * civilizations, minor civs, and unsupported owner kinds (the latter return an
  * empty result).
  */
-export function getOwnedCities(state: GameState, ownerId: string): readonly City[] {
+export function getOwnedCities(state: { readonly cities: GameState['cities'] }, ownerId: string): readonly City[] {
   return Object.values(state.cities ?? {}).filter(city => city.owner === ownerId);
 }
 
@@ -19,7 +19,7 @@ export function getOwnedCities(state: GameState, ownerId: string): readonly City
  * Count of cities owned by `ownerId`. Equivalent to `getOwnedCities(...).length`
  * but avoids allocating an intermediate array.
  */
-export function getOwnedCityCount(state: GameState, ownerId: string): number {
+export function getOwnedCityCount(state: { readonly cities: GameState['cities'] }, ownerId: string): number {
   let count = 0;
   for (const city of Object.values(state.cities ?? {})) {
     if (city.owner === ownerId) count += 1;
