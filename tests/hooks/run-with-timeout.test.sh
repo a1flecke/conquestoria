@@ -112,6 +112,37 @@ elapsed="$(( $(date +%s) - started ))"
   exit 1
 }
 
+# Worker churn: a parent that keeps replacing short-lived busy workers (Vitest's
+# pool) is making progress even though each exited worker's CPU time vanishes
+# from `ps`. A group-wide CPU sum never climbs past one worker's lifetime here,
+# so a sum-based watchdog kills this; progress must be judged per process.
+churn_seconds=9
+started="$(date +%s)"
+set +e
+churn_output="$(
+  STALL_BOOT_GRACE_SECONDS=1 STALL_GRACE_SECONDS=3 STALL_CHECK_INTERVAL_SECONDS=1 \
+    run_node "$RUNNER" 30 churning-pool -- \
+    node -e "
+      const { spawnSync } = require('node:child_process');
+      const end = Date.now() + ${churn_seconds}000;
+      while (Date.now() < end) {
+        spawnSync(process.execPath, ['-e', 'const e = Date.now() + 1500; while (Date.now() < e) {}']);
+      }
+    " 2>&1
+)"
+churn_status=$?
+set -e
+elapsed="$(( $(date +%s) - started ))"
+[ "$churn_status" -eq 0 ] || {
+  printf '%s\n' "$churn_output"
+  echo "a parent recycling busy workers was wrongly treated as stalled (exit $churn_status)"
+  exit 1
+}
+[ "$elapsed" -ge "$churn_seconds" ] || {
+  echo "churning pool exited after ${elapsed}s, before the ${churn_seconds}s it was meant to run"
+  exit 1
+}
+
 # Disable switch: STALL_WATCHDOG_DISABLE=1 must suppress the stall path even
 # when the grace windows would otherwise fire, falling back to the absolute
 # ceiling only.

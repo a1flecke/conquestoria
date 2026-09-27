@@ -601,10 +601,12 @@ run or a production build), so unlike stdout activity (Vitest's default
 reporter is silent for the whole duration of a single long-running test --
 a stdout-based heartbeat would false-positive on real work), **zero CPU
 progress across the whole process group genuinely cannot be legitimate slow
-work**. The watchdog samples `ps -eo pgid=,time=` every
-`STALL_CHECK_INTERVAL_SECONDS` (default 15s), summed across every process
-sharing the spawned child's process group (the `detached: true` group leader
-plus any workers it forks, which inherit the same pgid), and treats
+work**. The watchdog samples `ps -eo pid=,pgid=,time=` every
+`STALL_CHECK_INTERVAL_SECONDS` (default 15s) for every process sharing the
+spawned child's process group (the `detached: true` group leader plus any
+workers it forks, which inherit the same pgid). A sample counts as progress
+when any pid seen in both samples gained CPU time, or a new pid appeared. It
+treats
 `STALL_GRACE_SECONDS` (default 90s) of literally zero increase -- after an
 initial `STALL_BOOT_GRACE_SECONDS` (default 20s) startup allowance -- as a
 stall rather than a legitimately slow run. A stall exits **125** with a
@@ -614,7 +616,16 @@ never started and is safe to retry immediately." `STALL_WATCHDOG_DISABLE=1`
 bypasses it entirely for a one-off case that needs to. See
 `tests/hooks/run-with-timeout.test.sh` for the positive (stalled sleeper,
 killed well inside a much larger ceiling), negative (a genuinely CPU-busy
-process is never killed), and disable-switch cases.
+process is never killed), worker-churn, and disable-switch cases.
+
+**Never judge progress from a group-wide CPU sum.** `ps` only reports live
+processes, so an exited worker's CPU time disappears. A Vitest pool recycles
+workers, so the group sum dropped from 28s to 16–23s and took ~115s to pass
+its earlier peak while the suite was working flat out. On a 4-core container
+that outlasted the 90s grace, and a healthy `yarn test:regular` was killed as
+stalled three times in a row. The per-pid comparison above is what makes the
+production defaults safe. The worker-churn test case pins it: it fails against
+a sum-based watchdog.
 
 Do not "fix" a future stall by only raising the affected script's absolute
 ceiling -- that repeats exactly the silent-wait failure mode this watchdog

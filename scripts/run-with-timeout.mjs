@@ -77,31 +77,47 @@ function parseTimeToSeconds(timeText) {
   return seconds;
 }
 
-// Sums accumulated CPU time across every process sharing `pgid` (the whole detached
-// process group -- `detached: true` gives the child a pgid equal to its own pid, and
-// any further descendants it forks, such as a Vitest worker pool, inherit that same
-// pgid). Returns null on any sampling failure so the watchdog can skip a cycle rather
-// than ever risk a false kill from a transient `ps` hiccup.
-function processGroupCpuSeconds(pgid) {
+// Samples accumulated CPU time per pid for every process sharing `pgid` (the whole
+// detached process group -- `detached: true` gives the child a pgid equal to its own
+// pid, and any further descendants it forks, such as a Vitest worker pool, inherit
+// that same pgid). Returns a Map<pid, cpuSeconds>, or null on any sampling failure so
+// the watchdog can skip a cycle rather than ever risk a false kill from a transient
+// `ps` hiccup.
+//
+// Progress is judged per pid (see `hasCpuProgress`), never from a group-wide sum: a
+// Vitest pool recycles its workers, and an exited worker's CPU time vanishes from
+// `ps`, so a group sum can sit below its earlier high-water mark for minutes while
+// fresh workers are doing real work -- observed on a 4-core container, where that
+// dip outlasted the 90s grace and a healthy `yarn test:regular` was killed as stalled.
+function sampleProcessGroupCpu(pgid) {
   let output;
   try {
-    output = execFileSync('ps', ['-eo', 'pgid=,time='], { encoding: 'utf8' });
+    output = execFileSync('ps', ['-eo', 'pid=,pgid=,time='], { encoding: 'utf8' });
   } catch {
     return null;
   }
-  let total = 0;
-  let sawAny = false;
+  const sample = new Map();
   for (const line of output.split('\n')) {
     const trimmed = line.trim();
     if (!trimmed) continue;
-    const [pgidText, timeText] = trimmed.split(/\s+/);
+    const [pidText, pgidText, timeText] = trimmed.split(/\s+/);
     if (Number(pgidText) !== pgid) continue;
     const seconds = parseTimeToSeconds(timeText);
     if (seconds === null) continue;
-    total += seconds;
-    sawAny = true;
+    sample.set(Number(pidText), seconds);
   }
-  return sawAny ? total : null;
+  return sample.size > 0 ? sample : null;
+}
+
+// True when any process present in both samples gained CPU time, or a process
+// appeared that was not there before (a fork is activity; a genuinely stalled run
+// never spawns anything).
+function hasCpuProgress(previous, current) {
+  for (const [pid, seconds] of current) {
+    const before = previous.get(pid);
+    if (before === undefined || seconds > before + 0.01) return true;
+  }
+  return false;
 }
 
 let stallTimer;
@@ -109,15 +125,16 @@ if (!stallWatchdogDisabled && detached
   && Number.isFinite(stallBootGraceSeconds) && Number.isFinite(stallGraceSeconds)
   && Number.isFinite(stallCheckIntervalSeconds) && stallCheckIntervalSeconds > 0) {
   const startedAt = Date.now();
-  let lastCpuSeconds = null;
+  let lastSample = null;
   let lastProgressAt = startedAt;
   stallTimer = setInterval(() => {
     if (child.pid === undefined || timedOut) return;
     if ((Date.now() - startedAt) / 1000 < stallBootGraceSeconds) return;
-    const cpuSeconds = processGroupCpuSeconds(child.pid);
-    if (cpuSeconds === null) return;
-    if (lastCpuSeconds === null || cpuSeconds > lastCpuSeconds + 0.01) {
-      lastCpuSeconds = cpuSeconds;
+    const sample = sampleProcessGroupCpu(child.pid);
+    if (sample === null) return;
+    const progressed = lastSample === null || hasCpuProgress(lastSample, sample);
+    lastSample = sample;
+    if (progressed) {
       lastProgressAt = Date.now();
       return;
     }
