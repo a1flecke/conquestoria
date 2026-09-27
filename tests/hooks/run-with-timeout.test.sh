@@ -98,6 +98,30 @@ set -e
   exit 1
 }
 
+# #1166: a RECYCLING worker pool is progress, not a stall. Vitest forks a fresh
+# worker per test file; one heavy worker exiting used to take its CPU time out of
+# a live-only sum, so the following light workers never beat that peak and a
+# genuinely running suite was killed as a STALL (3/3 on the real push gate). The
+# fixture: one heavy worker (~3s CPU), then a stream of short-lived light ones.
+set +e
+recycle_output="$(
+  STALL_BOOT_GRACE_SECONDS=1 STALL_GRACE_SECONDS=3 STALL_CHECK_INTERVAL_SECONDS=1 \
+    run_node "$RUNNER" 60 recycling-pool -- sh -c '
+      node -e "const e = Date.now() + 3000; while (Date.now() < e) {}"
+      i=0
+      while [ "$i" -lt 12 ]; do
+        node -e "const e = Date.now() + 200; while (Date.now() < e) {}"
+        sleep 0.3
+        i=$((i + 1))
+      done' 2>&1
+)"
+recycle_status=$?
+set -e
+[ "$recycle_status" -eq 0 ] || {
+  echo "a recycling worker pool was wrongly treated as stalled (exit $recycle_status): $recycle_output"
+  exit 1
+}
+
 # Disable switch: STALL_WATCHDOG_DISABLE=1 must suppress the stall path even
 # when the grace windows would otherwise fire, falling back to the absolute
 # ceiling only.

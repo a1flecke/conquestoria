@@ -121,4 +121,31 @@ proof test:regular build || fail "scenario 8: an explicit test:regular capabilit
 sed -i.bak 's/^proof_format=.*/proof_format=2/' "$status_file"
 if proof build; then fail "scenario 8: an unknown proof_format was accepted"; fi
 
+# 9. End to end through a REAL `git push` and the real .githooks/pre-push.
+#    Git exports GIT_DIR and friends to hooks; the proof reader must still
+#    resolve this worktree (it silently rejected a valid proof before).
+mkdir -p "$repo/.githooks"
+cp "$ROOT/.githooks/pre-push" "$repo/.githooks/pre-push"
+chmod +x "$repo/.githooks/pre-push"
+git_repo add -A
+git_repo commit -qm "wire hooks"
+git_repo config core.hooksPath .githooks
+git init -q --bare "$tmp/remote.git"
+git_repo remote add origin "$tmp/remote.git"
+# Agents push from LINKED worktrees, where git's hook environment differs from
+# a plain checkout -- so push from one.
+git_repo worktree add -q "$tmp/linked" -b linked-branch
+repo="$tmp/linked"
+verify_pr || fail "scenario 9: verify-pr failed"
+: > "$YARN_LOG"
+git_repo push -q origin HEAD:refs/heads/proof-branch > "$tmp/push.out" 2>&1 || fail "scenario 9: git push with a valid proof failed"
+[ ! -s "$YARN_LOG" ] || fail "scenario 9: the real pre-push hook ignored a valid proof and re-ran verification"
+grep -Fq 'reusing verify:pr proof' "$tmp/push.out" || fail "scenario 9: the real pre-push hook did not report proof reuse"
+# ...and a commit with no proof still gets the full regular gate.
+printf 'three\n' > "$repo/source.txt"
+git_repo commit -qam third
+: > "$YARN_LOG"
+git_repo push -q origin HEAD:refs/heads/proof-branch > "$tmp/push.out" 2>&1 || fail "scenario 9: git push without a proof failed"
+printf 'test:regular\nbuild\n' | cmp -s - "$YARN_LOG" || fail "scenario 9: a commit without a proof skipped the pre-push gate"
+
 echo "all verification-proof scenarios passed"
