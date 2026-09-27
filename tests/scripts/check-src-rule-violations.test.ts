@@ -333,4 +333,53 @@ describe('check-src-rule-violations.sh', () => {
       expect(good.stderr).toBe('');
     });
   });
+
+  describe('#1019 canonical city ownership rule', () => {
+    it('blocks a new roster-length ownership decision outside sanctioned files', () => {
+      const workspace = makeWorkspace();
+      writeWorkspaceFile(
+        workspace,
+        'src/ui/rogue-panel.ts',
+        [
+          'export function isEliminated(civ: { cities: string[] }): boolean {',
+          '  return civ.cities.length === 0;',
+          '}',
+        ].join('\n'),
+      );
+
+      const result = runScript(workspace, 'src/ui/rogue-panel.ts');
+
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain('Roster-length ownership decision');
+      expect(result.stderr).toContain('getOwnedCityCount');
+    });
+
+    it('allows roster-length reads inside turn-manager (ordered processing)', () => {
+      const workspace = makeWorkspace();
+      writeWorkspaceFile(
+        workspace,
+        'src/core/turn-manager.ts',
+        'const cityCount = civ.cities.length;\n',
+      );
+
+      const result = runScript(workspace, 'src/core/turn-manager.ts');
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe('');
+    });
+
+    it('allows roster-length reads inside city-capture-system (roster maintenance)', () => {
+      const workspace = makeWorkspace();
+      writeWorkspaceFile(
+        workspace,
+        'src/systems/city-capture-system.ts',
+        'const remaining = owner.cities.length;\n',
+      );
+
+      const result = runScript(workspace, 'src/systems/city-capture-system.ts');
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe('');
+    });
+  });
 });

@@ -73,6 +73,23 @@ for file_path in "$@"; do
       ;;
   esac
 
+  # --- canonical city ownership (#1019): decision code must not use roster
+  # length as a proxy for "does this owner have cities". Use
+  # getOwnedCityCount(state, ownerId) instead. Capital/ordering, roster
+  # maintenance, turn processing, serialization, and the canonical ownership
+  # module are exempt.
+  case "$file_path" in
+    src/systems/capital-system.ts|src/systems/city-capture-system.ts|src/systems/city-founding-system.ts|src/systems/civilization-elimination-system.ts|src/core/turn-manager.ts|src/systems/city-ownership.ts|src/storage/*|src/storage/**/*|src/testing/*|src/testing/**/*)
+      : # sanctioned roster-maintenance/ordering/serialization uses
+      ;;
+    *)
+      if grep -nE '\.cities\.length' "$file_path" >/dev/null; then
+        lines="$(grep -nE '\.cities\.length' "$file_path" | head -5)"
+        append_match_block "Roster-length ownership decision — use getOwnedCityCount(state, ownerId) instead of civ.cities.length (see src/systems/city-ownership.ts)" "$lines"
+      fi
+      ;;
+  esac
+
   if grep -nE 'state\.(cities|units|civilizations)\[[^]]+\]\s*=' "$file_path" >/dev/null; then
     lines="$(grep -nE 'state\.(cities|units|civilizations)\[[^]]+\]\s*=' "$file_path" | head -5)"
     append_match_block "Direct state mutation detected. Turn-processing systems must return a new GameState (see .claude/rules/game-systems.md#immutable-turn-processing)" "$lines"
