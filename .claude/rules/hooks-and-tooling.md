@@ -508,7 +508,11 @@ latency SLO: exceeding it records `slo_exceeded=1` and warns, but a passing
 run stays passing. `VERIFY_PR_HARD_MAX_SECONDS` (1800s, ~3x the slowest
 three-way-contended full suite #1133 measured) is the runaway ceiling that
 still fails, as `failure_kind=runaway`. Correctness failures (build/test)
-and STALL retries are unchanged.
+and STALL retries are unchanged. The ceiling is sized for the 10-core dev
+host: on a small machine where the 25% worker cap means one Vitest worker
+(a 4-core cloud container measured 1626s for the full suite alone), raise
+`VERIFY_PR_HARD_MAX_SECONDS` or `VITEST_MAX_WORKERS` for that run rather
+than treating the overrun as a code failure.
 
 **Invariants and their tests:**
 
