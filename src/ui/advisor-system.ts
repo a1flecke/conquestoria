@@ -496,7 +496,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     trigger: (state) => {
       const civ = state.civilizations[state.currentPlayer];
       if (!civ) return false;
-      if (civ.cities.length === 0 || state.turn < 5) return false;
+      if (getOwnedCityCount(state, state.currentPlayer) === 0 || state.turn < 5) return false;
       return civ.gold < 10;
     },
   },
@@ -700,11 +700,11 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
       const playerEsp = state.espionage[state.currentPlayer];
       if (!playerEsp) return false;
       const playerCiv = state.civilizations[state.currentPlayer];
-      if (!playerCiv || playerCiv.cities.length === 0) return false;
+      if (!playerCiv || getOwnedCityCount(state, state.currentPlayer) === 0) return false;
       const hasEspTech = playerCiv.techState.completed.some(t => t.startsWith('espionage-'));
       if (!hasEspTech) return false;
-      const hasAnyCi = playerCiv.cities.some(
-        cityId => (playerEsp.counterIntelligence[cityId] ?? 0) > 0,
+      const hasAnyCi = getOwnedCities(state, state.currentPlayer).some(
+        city => (playerEsp.counterIntelligence[city.id] ?? 0) > 0,
       );
       return !hasAnyCi && Object.values(playerEsp.spies).filter(s => s.status !== 'captured').length > 0;
     },

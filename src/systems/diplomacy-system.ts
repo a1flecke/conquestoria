@@ -998,7 +998,7 @@ export function getVassalageEligibility(state: GameState, vassalId: string, over
     || hasTreatyBetween(state, overlordId, vassalId, 'vassalage')) {
     return { ok: false, reason: 'An existing vassal relationship prevents this offer.' };
   }
-  if (!canOfferVassalage(vassal.cities.length, vassal.diplomacy.vassalage.peakCities,
+  if (!canOfferVassalage(getOwnedCityCount(state, vassalId), vassal.diplomacy.vassalage.peakCities,
     getVassalageMilitaryCount(state, vassalId), vassal.diplomacy.vassalage.peakMilitary,
     resolveCivilizationEra(vassal.techState.completed))) {
     return { ok: false, reason: 'Requires era 2, a past peak of two cities, and fewer than half your peak cities or military units.' };
