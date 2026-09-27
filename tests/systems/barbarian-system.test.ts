@@ -61,6 +61,25 @@ describe('spawnBarbarianCamp', () => {
 
     expect(camp).toBeNull();
   });
+
+  it('never chooses a tile a live unit already occupies (regression)', () => {
+    // A crisis-driven barbarian hunt (spawnBarbarianHunt in crisis-system.ts) calls this
+    // mid-game, when units already exist on the map. Without an occupancy exclusion, a
+    // camp could land directly on an existing unit's tile, tripping
+    // assertNoIllegalBlockingOccupancy for that unit's owner the moment the camp exists.
+    // No cityPositions/existingCamps constraint here -- isolate the occupancy check alone,
+    // away from the city-distance and wrap-seam filters exercised by the tests above.
+    const onlyCandidateMap = generateMap(30, 12, 'barb-occupied-placement');
+    for (const tile of Object.values(onlyCandidateMap.tiles)) {
+      tile.terrain = 'ocean';
+    }
+    onlyCandidateMap.tiles['15,5'].terrain = 'grassland';
+    const occupiedHexKeys = new Set([hexKey({ q: 15, r: 5 })]);
+
+    const camp = spawnBarbarianCamp(onlyCandidateMap, [], [], 12345, mkC(), occupiedHexKeys);
+
+    expect(camp).toBeNull();
+  });
 });
 
 describe('camp pressure cleanup', () => {

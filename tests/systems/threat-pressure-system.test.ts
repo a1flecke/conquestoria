@@ -213,6 +213,29 @@ describe('processLandResurgence', () => {
     expect(camp?.strength).toBeLessThanOrEqual(10);   // era-2 maximum
   });
 
+  it('never lands a camp on a tile a live unit already occupies (regression)', () => {
+    // A long-horizon campaign run hit assertNoIllegalBlockingOccupancy because this
+    // candidate filter checked terrain/distance-from-city/distance-from-camp but never
+    // consulted live unit occupancy -- so a resurgent camp could spawn directly under an
+    // existing unit (any owner), which the invariant then flags for that unit's own owner.
+    const state = makeResurgenceState();
+    // Occupy every tile that would otherwise be a legal candidate (>=4 from the city at
+    // q=0,r=0 on this single-row test map -- q=4..9).
+    for (let q = 4; q <= 9; q++) {
+      const unitId = `occupier-${q}`;
+      state.units[unitId] = {
+        id: unitId, type: 'warrior', owner: 'barbarian', position: { q, r: 0 },
+        health: 100, movementPointsLeft: 0, hasMoved: true, hasActed: true,
+      } as any;
+    }
+    const bus = { emit: () => {} } as any;
+
+    const updated = processLandResurgence(state, 'p1', 'continent-0', bus);
+
+    const resurgentCamps = Object.values(updated.barbarianCamps).filter(c => c.resurgent);
+    expect(resurgentCamps.length).toBe(0);
+  });
+
   it('does not consume IDs, cooldown, or events when a governed resurgence is denied', () => {
     const state = makeResurgenceState();
     const beforeCounters = structuredClone(state.idCounters);
