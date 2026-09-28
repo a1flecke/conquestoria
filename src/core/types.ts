@@ -1988,7 +1988,7 @@ export type MapScript =
   | 'single-continent';
 
 export type StartPlacementMode = 'balanced' | 'historical';
-export type GameOverReason = 'domination' | 'all-humans-eliminated';
+export type GameOverReason = 'domination' | 'all-humans-eliminated' | 'science';
 
 // --- Game Modes ---
 
@@ -2654,7 +2654,7 @@ export interface GameEvents {
   };
   'victory:resolved': {
     winnerId: string;
-    reason: 'domination';
+    reason: GameOverReason;
     turn: number;
   };
   'city:founded': { city: City; founderId: string };
@@ -3071,7 +3071,7 @@ export interface ActiveEventChain {
 // which public milestones have fired (so they announce exactly once) and the
 // eventual winner (a permanent chronicle, like a legendary wonder's
 // first-discoverer credit).
-export type WorldRaceKind = 'first-satellite';
+export type WorldRaceKind = 'first-satellite' | 'interstellar-colony';
 
 export interface ActiveWorldRace {
   kind: WorldRaceKind;

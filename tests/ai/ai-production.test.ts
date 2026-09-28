@@ -1070,6 +1070,40 @@ describe('#992 world race AI production scoring', () => {
   });
 });
 
+describe('#986 Science Victory (Interstellar Colony) AI production scoring', () => {
+  const era13Techs = TECH_TREE.filter(tech => tech.era <= 13 && tech.countsForEraAdvancement !== false)
+    .map(tech => tech.id);
+
+  it('scores the component (Mars Robotics Initiative) positively once reachable', () => {
+    const state = setupState(era13Techs);
+    const candidate = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
+      .find(c => c.itemId === 'mars_robotics_initiative');
+    expect(candidate).toBeDefined();
+    expect(candidate!.worldRaceScore).toBeGreaterThan(0);
+  });
+
+  it('scores the launch attempt zero until the component is built, positive once it is, zero again once a rival wins', () => {
+    const state = setupState(era13Techs);
+    grantResources(state, ['uranium']);
+
+    const beforeComponent = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
+      .find(c => c.itemId === 'interstellar_launch_program');
+    expect(beforeComponent?.worldRaceScore ?? 0).toBe(0);
+
+    state.cities['city-a']!.buildings = [...state.cities['city-a']!.buildings, 'mars_robotics_initiative'];
+    state.builtNationalProjects = { 'ai-1:mars_robotics_initiative': { civId: 'ai-1', cityId: 'city-a', eraBuilt: 13 } };
+
+    const afterComponent = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
+      .find(c => c.itemId === 'interstellar_launch_program');
+    expect(afterComponent!.worldRaceScore).toBeGreaterThan(0);
+
+    state.worldRaces = { 'interstellar-colony': { kind: 'interstellar-colony', winnerCivId: 'someone-else', completedTurn: 5 } };
+    const afterRivalWon = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
+      .find(c => c.itemId === 'interstellar_launch_program');
+    expect(afterRivalWon?.worldRaceScore ?? 0).toBe(0);
+  });
+});
+
 describe('#592 MR5 — missionary production scoring', () => {
   function withFoundedReligion(state: GameState, cityId: string, boon?: 'serenity' | 'tithes' | 'fervor'): GameState {
     const religionId = 'religion-ai-1';

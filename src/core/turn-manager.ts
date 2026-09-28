@@ -1,6 +1,6 @@
 import type { AdvisorType, GameEvents, GameState } from './types';
 import { EventBus } from './event-bus';
-import { finalizeDominationVictory } from '@/systems/victory-system';
+import { finalizeDominationVictory, finalizeScienceVictory } from '@/systems/victory-system';
 import { resetUnitTurn, createUnit, healUnit, findPath, UNIT_DEFINITIONS, getBlockingMapEntityKeysForOwner } from '@/systems/unit-system';
 import { getLocalCityHealingBonus, processCity, TRAINABLE_UNITS, BUILDINGS } from '@/systems/city-system';
 import { transferCapturedCityOwnership } from '@/systems/city-capture-system';
@@ -1635,6 +1635,7 @@ export function processTurn(
   // --- Advance turn ---
   newState.turn += 1;
   newState = finalizeDominationVictory(newState, bus);
+  newState = finalizeScienceVictory(newState, bus);
   bus.emit('turn:start', { turn: newState.turn, playerId: newState.currentPlayer });
 
   return newState;
