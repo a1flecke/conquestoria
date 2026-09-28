@@ -33,6 +33,7 @@ Expect the new scenario to fail with abandoned evidence.
 
 **Files:**
 - Modify: `scripts/run-durable-test-suite.sh`
+- Modify: `scripts/read-durable-test-result.sh`
 - Test: `tests/hooks/run-durable-test-suite.test.sh`
 
 - [x] **Step 1: Implement the minimal signal cleanup handler**
@@ -45,6 +46,13 @@ to the registered test process. Append receipt and completed-cleanup messages
 to the durable log. Persist terminal status and remove liveness markers before
 waiting for the worker, because an external watchdog can force-kill a process
 that is still cleaning up after `TERM`.
+
+- [x] **Step 1a: Explain force-killed cancellation evidence**
+
+When a dead `.running` marker has a sibling failure-kind file containing
+`cancelled`, report `STATUS: failed` with the retained supervisor/job IDs and
+the log location. Keep `STATUS: abandoned` for a dead marker that has no
+cancellation record.
 
 - [x] **Step 2: Re-run the focused test**
 

@@ -38,6 +38,11 @@ evidence.
 6. A hook-level regression test starts a sleeping no-lease durable run,
    signals the actual durable supervisor, waits for it to exit, and verifies
    the terminal cancelled status and artifact cleanup.
+7. If an external force-kill prevents terminal status from being written but
+   the worker persisted `failure_kind=cancelled`, the reader reports a failed
+   cancellation with the recorded supervisor/job IDs and directs the agent to
+   the durable log. It reserves `abandoned` for evidence with no cancellation
+   record.
 
 ## Non-goals
 
