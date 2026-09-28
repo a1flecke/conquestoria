@@ -12,6 +12,8 @@ import {
   cityFollowsOwnFaith,
 } from '@/systems/city-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
+import { getAllWorldRaceKinds, getWorldRaceDefinition } from '@/systems/world-race-definitions';
+import { hasCompletedWorldRaceComponent } from '@/systems/world-race-system';
 import {
   calculateCivUnitMaintenance,
   calculateMaintenance,
@@ -63,6 +65,7 @@ export interface AIProductionCandidate {
   carrierCompositionScore: number;
   strategicArsenalValueScore: number;
   unrestReliefScore: number;
+  worldRaceScore: number;
   fulfilledRole?: AIStrategicRole;
   score: number;
 }
@@ -361,6 +364,29 @@ function unrestReliefScore(
   return drop * UNREST_RELIEF_AI_WEIGHT * (urgent ? UNREST_RELIEF_AI_URGENCY_MULT : 1);
 }
 
+// #992: data-table-driven, like unrestReliefScore above — a new race adds a row to
+// WORLD_RACE_DEFINITIONS, never a building-id branch here. Scores the component and
+// launch buildings only while this civ can still plausibly win: a race someone else has
+// already won gets zero (the building would be dequeued/refunded anyway once queued —
+// see world-race-system.ts — so bidding it up here would only waste a turn of production
+// choice). The launch building additionally scores 0 until its own component prerequisite
+// is built, matching `requiresBuildings`' real legality gate rather than guessing early.
+const WORLD_RACE_COMPONENT_AI_WEIGHT = 8;
+const WORLD_RACE_LAUNCH_AI_WEIGHT = 14;
+
+function worldRaceScore(state: GameState, civId: string, buildingId: string): number {
+  for (const kind of getAllWorldRaceKinds()) {
+    const definition = getWorldRaceDefinition(kind);
+    const race = state.worldRaces?.[kind];
+    if (race?.winnerCivId && race.winnerCivId !== civId) continue;
+    if (buildingId === definition.componentBuildingId) return WORLD_RACE_COMPONENT_AI_WEIGHT;
+    if (buildingId === definition.launchBuildingId) {
+      return hasCompletedWorldRaceComponent(state, civId, kind) ? WORLD_RACE_LAUNCH_AI_WEIGHT : 0;
+    }
+  }
+  return 0;
+}
+
 function getVisibleAirDefenseThreatenedCityIds(
   state: GameState,
   civId: string,
@@ -602,6 +628,7 @@ function generateWithResidual(
       carrierCompositionScore: unitCarrierCompositionScore,
       strategicArsenalValueScore: 0,
       unrestReliefScore: 0,
+      worldRaceScore: 0,
       fulfilledRole: fulfilled.role,
       score,
     });
@@ -654,6 +681,7 @@ function generateWithResidual(
           carrierCompositionScore: 0,
           strategicArsenalValueScore: 0,
           unrestReliefScore: 0,
+          worldRaceScore: 0,
           score,
         });
       }
@@ -694,6 +722,7 @@ function generateWithResidual(
     );
     const buildingStrategicArsenalScore = strategicArsenalValueScore(state, civId, building.id);
     const buildingUnrestReliefScore = unrestReliefScore(state, civId, cityId, building.id);
+    const buildingWorldRaceScore = worldRaceScore(state, civId, building.id);
     const score = economyScore * 2
       + personalityScore
       + citySpecializationScore
@@ -701,6 +730,7 @@ function generateWithResidual(
       + buildingAirDefenseScore
       + buildingStrategicArsenalScore
       + buildingUnrestReliefScore
+      + buildingWorldRaceScore
       - productionTurns * 1.5
       - maintenanceRisk * 3;
     candidates.push({
@@ -722,6 +752,7 @@ function generateWithResidual(
       carrierCompositionScore: 0,
       strategicArsenalValueScore: buildingStrategicArsenalScore,
       unrestReliefScore: buildingUnrestReliefScore,
+      worldRaceScore: buildingWorldRaceScore,
       score,
     });
   }

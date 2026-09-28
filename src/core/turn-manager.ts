@@ -110,6 +110,7 @@ import { processBreakawayTurn } from '@/systems/breakaway-system';
 import { processCrisisTurn, processCrisisScheduler, getCrisisYieldMultiplier } from '@/systems/crisis-system';
 import { processEventChainTurn } from '@/systems/event-chain-lifecycle';
 import { processEventChainScheduler } from '@/systems/event-chain-scheduling';
+import { processWorldRacesTurn } from '@/systems/world-race-system';
 import { processReligionTurn, foundReligion } from '@/systems/religion-system';
 import { addWarheadToArsenal } from '@/systems/strategic-arsenal-system';
 import { processLoyaltyTurn } from '@/systems/religion-loyalty-system';
@@ -199,6 +200,7 @@ export function processTurn(
   newState = processBreakawayTurn(newState, bus);
   newState = processCrisisTurn(newState, bus);
   newState = processEventChainTurn(newState, bus);
+  newState = processWorldRacesTurn(newState, bus);
   newState = processReligionTurn(newState, bus);
   newState = processLoyaltyTurn(newState, bus);
   liveness = reconcileCivilizationLiveness(newState, newState);

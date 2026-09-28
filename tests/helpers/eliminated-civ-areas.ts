@@ -488,6 +488,7 @@ export const ELIMINATED_CIV_AREAS: Record<keyof GameState, EliminatedCivArea> = 
   discoveredWonders: { kind: 'historical', why: '"civ X was the first to discover wonder Y" — a permanent chronicle fact' },
   wonderDiscoverers: { kind: 'historical', why: '"civ X discovered wonder Y" — permanent, even after X is gone' },
   completedLegendaryWonders: { kind: 'historical', why: '"civ X built legendary wonder Z on turn T" — a Hall-of-Fame record' },
+  worldRaces: { kind: 'historical', why: '#992: winnerCivId is a permanent chronicle ("civ X won the first-satellite race on turn T"), like a legendary wonder\'s first-discoverer credit; the announced* public milestones name no civ at all' },
   legendaryWonderHistory: { kind: 'historical', why: 'destroyed strongholds / discovered sites / military facts — an audit chronicle by construction' },
   generatedGenerals: { kind: 'historical', why: 'a General identity + career ledger ("served civ X") survives the civ, like a Hall-of-Fame entry' },
   religions: { kind: 'historical', why: 'a religion outlives its founder; ownerCivId records who founded it, and the holy city is immune to conversion under any owner' },

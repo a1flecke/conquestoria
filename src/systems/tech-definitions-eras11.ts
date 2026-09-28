@@ -43,7 +43,7 @@ const ERA_11_TECHS: Tech[] = [
   { id: 'space-exploration', name: 'Space Exploration', track: 'exploration', cost: 1360,
     prerequisites: ['rocketry', 'radar-systems'],
     unlocks: ['Humans and satellites leave Earth; the space race reshapes science, strategy, and national prestige'],
-    unlocksBuildings: ['space_center'], era: 11 },
+    unlocksBuildings: ['space_center', 'first_satellite_launch'], era: 11 },
   { id: 'deep-sea-drilling', name: 'Deep-Sea Drilling', track: 'exploration', cost: 1360,
     prerequisites: ['polar-operations', 'synthetic-polymers'],
     unlocks: ['+1 food +2 gold empire-wide; engineering platforms tap oil and mineral reserves on the ocean floor'], era: 11 },

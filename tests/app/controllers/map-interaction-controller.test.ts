@@ -83,6 +83,7 @@ function fakeCeremonies(): CeremonyCoordinator {
     enqueueWonderDiscovery: vi.fn(),
     enqueueLegendaryCompletion: vi.fn(),
     enqueueEventChainConclusion: vi.fn(),
+    enqueueWorldRaceConclusion: vi.fn(),
     enqueueVictory: vi.fn(),
     beginDeferredAction: vi.fn(),
     endAction: vi.fn(),

@@ -14,6 +14,7 @@ import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { resolveWorldPressureFlags } from '@/systems/world-pressure-flags';
 import { getWitnessCivIds } from '@/systems/crisis-interaction-system';
 import { hasMetCivilization } from '@/systems/discovery-system';
+import { getWorldRaceDefinition } from '@/systems/world-race-definitions';
 
 export type NotificationSink = (
   civId: string,
@@ -834,6 +835,52 @@ export function routeEventChainResolved(
   const name = EVENT_CHAIN_DISPLAY_NAME[event.kind] ?? 'The situation';
   const type: NotificationEntry['type'] = event.outcome === 'resolved' ? 'success' : 'info';
   sink(event.civId, `${name} ${EVENT_CHAIN_OUTCOME_MESSAGE[event.outcome]}`, type);
+}
+
+// #992 world races. 'unlocked' and 'launch-begun' are genuinely public --
+// they name no civ, so every civ gets the identical message regardless of
+// contact/discovery. 'completed' follows the SAME fan-out-and-anonymize
+// convention as legendary-wonder completion (see routeReligionFounded's own
+// comment contrasting the two): everyone learns the race is over, but the
+// winner's name is redacted for a viewer who hasn't met them.
+export function routeWorldRaceUnlocked(
+  state: GameState,
+  event: GameEvents['worldrace:unlocked'],
+  sink: NotificationSink,
+): void {
+  const name = getWorldRaceDefinition(event.kind).displayName;
+  for (const civId of Object.keys(state.civilizations)) {
+    sink(civId, `The ${name} race has become possible.`, 'info');
+  }
+}
+
+export function routeWorldRaceLaunchBegun(
+  state: GameState,
+  event: GameEvents['worldrace:launch-begun'],
+  sink: NotificationSink,
+): void {
+  const name = getWorldRaceDefinition(event.kind).displayName;
+  for (const civId of Object.keys(state.civilizations)) {
+    sink(civId, `A ${name} launch attempt has begun somewhere in the world.`, 'info');
+  }
+}
+
+export function routeWorldRaceCompleted(
+  state: GameState,
+  event: GameEvents['worldrace:completed'],
+  sink: NotificationSink,
+): void {
+  const name = getWorldRaceDefinition(event.kind).displayName;
+  const winner = state.civilizations[event.winnerCivId];
+  for (const civId of Object.keys(state.civilizations)) {
+    const isWinner = civId === event.winnerCivId;
+    const message = isWinner
+      ? `Your empire has won the ${name} race!`
+      : hasMetCivilization(state, civId, event.winnerCivId)
+        ? `${winner?.name ?? 'A rival civilization'} has won the ${name} race.`
+        : `A civilization you have not yet met has won the ${name} race.`;
+    sink(civId, message, isWinner ? 'success' : 'info');
+  }
 }
 
 // Hunt-their-foe (#526 MR6 Task 6.2): "Rome slew the beast menacing Carthage!" to

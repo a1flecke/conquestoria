@@ -36,6 +36,9 @@ import {
   routeCrisisAidSent,
   routeEventChainStarted,
   routeEventChainResolved,
+  routeWorldRaceUnlocked,
+  routeWorldRaceLaunchBegun,
+  routeWorldRaceCompleted,
   routeOpportunisticWar,
   routeSabotageReliefDiscovered,
   routeCityFlipped,
@@ -1200,6 +1203,57 @@ describe('crisis:foe-hunted-by-ally routing (#526 MR6 Task 6.2)', () => {
       sink,
     );
     expect(calls[0]!.message).toContain('their foe');
+  });
+});
+
+describe('world race notification routing (#992)', () => {
+  function raceState(): GameState {
+    return makeState({
+      civilizations: {
+        p1: { id: 'p1', name: 'Rome' },
+        p2: { id: 'p2', name: 'Egypt' },
+        p3: { id: 'p3', name: 'Nubia' },
+      } as any,
+    });
+  }
+
+  it('routes worldrace:unlocked identically to every civ, naming no civ', () => {
+    const { sink, calls } = makeSink();
+    routeWorldRaceUnlocked(raceState(), { kind: 'first-satellite', turn: 10 }, sink);
+    expect(calls).toHaveLength(3);
+    for (const call of calls) {
+      expect(call.message).toBe('The First Satellite race has become possible.');
+      expect(call.message).not.toMatch(/Rome|Egypt|Nubia/);
+    }
+  });
+
+  it('routes worldrace:launch-begun identically to every civ, naming no civ', () => {
+    const { sink, calls } = makeSink();
+    routeWorldRaceLaunchBegun(raceState(), { kind: 'first-satellite', turn: 10 }, sink);
+    expect(calls).toHaveLength(3);
+    for (const call of calls) {
+      expect(call.message).toBe('A First Satellite launch attempt has begun somewhere in the world.');
+    }
+  });
+
+  it('routes worldrace:completed with a personal victory message for the winner', () => {
+    const { sink, calls } = makeSink();
+    routeWorldRaceCompleted(raceState(), { kind: 'first-satellite', winnerCivId: 'p1', hostCityId: 'c1', turn: 10 }, sink);
+    const own = calls.find(c => c.civId === 'p1')!;
+    expect(own.message).toBe('Your empire has won the First Satellite race!');
+    expect(own.type).toBe('success');
+  });
+
+  it('names the winner to a viewer who has met them, redacts it for one who has not', () => {
+    const { sink, calls } = makeSink();
+    routeWorldRaceCompleted(raceState(), { kind: 'first-satellite', winnerCivId: 'p1', hostCityId: 'c1', turn: 10 }, sink);
+    // The mocked hasMetCivilization at the top of this file is deliberately narrow:
+    // true only for viewer 'p2' looking at target 'p1'.
+    const metViewer = calls.find(c => c.civId === 'p2')!;
+    expect(metViewer.message).toBe('Rome has won the First Satellite race.');
+    const unmetViewer = calls.find(c => c.civId === 'p3')!;
+    expect(unmetViewer.message).toBe('A civilization you have not yet met has won the First Satellite race.');
+    expect(unmetViewer.type).toBe('info');
   });
 });
 

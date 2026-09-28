@@ -53,6 +53,7 @@ import type { PanelHost } from '@/app/panel-host';
 import type { WonderDiscoveryRevealItem } from '@/systems/wonder-discovery-reveal';
 import type { LegendaryWonderCompletionCeremonyItem } from '@/systems/legendary-wonder-completion-presentation';
 import type { EventChainConclusionMomentItem } from '@/systems/event-chain-presentation';
+import type { WorldRaceConclusionMomentItem } from '@/systems/world-race-presentation';
 import type { VictoryPanelOptions } from '@/ui/victory-panel';
 import { createWonderDiscoveryRevealQueue, type WonderDiscoveryRevealQueueOptions } from '@/ui/wonder-discovery-queue';
 import {
@@ -61,6 +62,7 @@ import {
 } from '@/ui/legendary-wonder-completion-queue';
 import { createBigMomentQueue } from '@/systems/big-moment-queue';
 import { createEventChainConclusionCeremony } from '@/ui/event-chain-conclusion-ceremony';
+import { createWorldRaceConclusionCeremony } from '@/ui/world-race-conclusion-ceremony';
 import { showVictoryPanel } from '@/ui/victory-panel';
 
 export interface CeremonyCoordinator {
@@ -70,6 +72,8 @@ export interface CeremonyCoordinator {
   enqueueLegendaryCompletion(item: LegendaryWonderCompletionCeremonyItem): void;
   /** Queue a resolved event chain's conclusion moment. Never deferred by an animated move. */
   enqueueEventChainConclusion(item: EventChainConclusionMomentItem | null): void;
+  /** Queue a world race's conclusion moment (#992). Never deferred by an animated move. */
+  enqueueWorldRaceConclusion(item: WorldRaceConclusionMomentItem): void;
   /**
    * Queue the game's terminal victory/defeat moment. Clears every other
    * queue's backlog immediately and blocks every further `enqueue*` call
@@ -113,6 +117,7 @@ export interface CeremonyCoordinatorDeps {
   readonly presentWonderDiscovery?: WonderDiscoveryRevealQueueOptions['present'];
   readonly presentLegendaryCompletion?: LegendaryWonderCompletionQueueOptions['present'];
   readonly presentEventChainConclusion?: (item: EventChainConclusionMomentItem) => Promise<void>;
+  readonly presentWorldRaceConclusion?: (item: WorldRaceConclusionMomentItem) => Promise<void>;
   readonly presentVictory?: (options: VictoryPanelOptions) => Promise<void>;
 }
 
@@ -158,6 +163,26 @@ export function createCeremonyCoordinator(deps: CeremonyCoordinatorDeps): Ceremo
     present: presentEventChainConclusion,
   });
 
+  const presentWorldRaceConclusion = deps.presentWorldRaceConclusion
+    ?? ((item: WorldRaceConclusionMomentItem) => new Promise<void>(resolve => {
+      deps.host.setBlockingOverlay('world-race-conclusion-ceremony');
+      createWorldRaceConclusionCeremony(deps.host.layer, item, {
+        onResolve: () => {
+          deps.host.setBlockingOverlay(null);
+          resolve();
+        },
+      });
+    }));
+
+  const worldRaceConclusionQueue = createBigMomentQueue<WorldRaceConclusionMomentItem>({
+    isInteractionBlocked: () => deps.host.isInteractionBlocked(),
+    // Keyed by kind+turn, not civId: this moment is world-scoped (every viewer's
+    // currentPlayer sees the SAME conclusion for a given race), unlike the event-chain
+    // queue above which is genuinely per-civ.
+    keyFor: item => `${item.kind}:${item.turn}`,
+    present: presentWorldRaceConclusion,
+  });
+
   const presentVictory = deps.presentVictory
     ?? ((options: VictoryPanelOptions) => new Promise<void>(resolve => {
       deps.host.setBlockingOverlay('victory-panel');
@@ -185,6 +210,7 @@ export function createCeremonyCoordinator(deps: CeremonyCoordinatorDeps): Ceremo
     wonderDiscoveryQueue.pump();
     legendaryCompletionQueue.pump();
     eventChainQueue.pump();
+    worldRaceConclusionQueue.pump();
     victoryQueue.pump();
   });
 
@@ -206,11 +232,17 @@ export function createCeremonyCoordinator(deps: CeremonyCoordinatorDeps): Ceremo
       eventChainQueue.enqueue(item);
       eventChainQueue.notifyActionSettled();
     },
+    enqueueWorldRaceConclusion(item) {
+      if (terminal) return;
+      worldRaceConclusionQueue.enqueue(item);
+      worldRaceConclusionQueue.notifyActionSettled();
+    },
     enqueueVictory(options) {
       terminal = true;
       wonderDiscoveryQueue.clear();
       legendaryCompletionQueue.clear();
       eventChainQueue.clear();
+      worldRaceConclusionQueue.clear();
       victoryQueue.enqueue(options);
       victoryQueue.notifyActionSettled();
     },
@@ -226,6 +258,7 @@ export function createCeremonyCoordinator(deps: CeremonyCoordinatorDeps): Ceremo
       wonderDiscoveryQueue.clear();
       legendaryCompletionQueue.clear();
       eventChainQueue.clear();
+      worldRaceConclusionQueue.clear();
     },
     clearForNewGame() {
       deferUntilMoveSettles = false;
@@ -239,6 +272,7 @@ export function createCeremonyCoordinator(deps: CeremonyCoordinatorDeps): Ceremo
       wonderDiscoveryQueue.reset();
       legendaryCompletionQueue.reset();
       eventChainQueue.reset();
+      worldRaceConclusionQueue.reset();
       victoryQueue.reset();
     },
   };

@@ -1016,6 +1016,60 @@ describe('#591 MR4 — milestone national project AI scoring', () => {
   });
 });
 
+describe('#992 world race AI production scoring', () => {
+  const era11Techs = TECH_TREE.filter(tech => tech.era <= 11 && tech.countsForEraAdvancement !== false)
+    .map(tech => tech.id);
+
+  it('scores the component (Space Program Initiative) positively once reachable', () => {
+    const state = setupState(era11Techs);
+    const candidate = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
+      .find(c => c.itemId === 'space_program_initiative');
+    expect(candidate).toBeDefined();
+    expect(candidate!.worldRaceScore).toBeGreaterThan(0);
+  });
+
+  it('scores the launch attempt zero until the component is actually built, positive once it is', () => {
+    const state = setupState(era11Techs);
+    grantResources(state, ['aluminum']);
+
+    const beforeComponent = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
+      .find(c => c.itemId === 'first_satellite_launch');
+    expect(beforeComponent?.worldRaceScore ?? 0).toBe(0);
+
+    state.cities['city-a']!.buildings = [...state.cities['city-a']!.buildings, 'space_program_initiative'];
+    state.builtNationalProjects = { 'ai-1:space_program_initiative': { civId: 'ai-1', cityId: 'city-a', eraBuilt: 11 } };
+
+    const afterComponent = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
+      .find(c => c.itemId === 'first_satellite_launch');
+    expect(afterComponent).toBeDefined();
+    expect(afterComponent!.worldRaceScore).toBeGreaterThan(0);
+  });
+
+  it('scores the launch attempt zero once a rival has already won the race', () => {
+    const state = setupState(era11Techs);
+    grantResources(state, ['aluminum']);
+    state.cities['city-a']!.buildings = [...state.cities['city-a']!.buildings, 'space_program_initiative'];
+    state.builtNationalProjects = { 'ai-1:space_program_initiative': { civId: 'ai-1', cityId: 'city-a', eraBuilt: 11 } };
+    state.worldRaces = { 'first-satellite': { kind: 'first-satellite', winnerCivId: 'someone-else', completedTurn: 5 } };
+
+    const candidate = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
+      .find(c => c.itemId === 'first_satellite_launch');
+    expect(candidate?.worldRaceScore ?? 0).toBe(0);
+  });
+
+  it('still scores the launch attempt positively when THIS civ is already the recorded winner', () => {
+    const state = setupState(era11Techs);
+    grantResources(state, ['aluminum']);
+    state.cities['city-a']!.buildings = [...state.cities['city-a']!.buildings, 'space_program_initiative'];
+    state.builtNationalProjects = { 'ai-1:space_program_initiative': { civId: 'ai-1', cityId: 'city-a', eraBuilt: 11 } };
+    state.worldRaces = { 'first-satellite': { kind: 'first-satellite', winnerCivId: 'ai-1', completedTurn: 5 } };
+
+    const candidate = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
+      .find(c => c.itemId === 'first_satellite_launch');
+    expect(candidate?.worldRaceScore ?? 0).toBeGreaterThan(0);
+  });
+});
+
 describe('#592 MR5 — missionary production scoring', () => {
   function withFoundedReligion(state: GameState, cityId: string, boon?: 'serenity' | 'tithes' | 'fervor'): GameState {
     const religionId = 'religion-ai-1';
