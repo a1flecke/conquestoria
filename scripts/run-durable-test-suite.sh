@@ -57,6 +57,12 @@ failure_kind_file="$prefix.failure-kind"
 job_pid_file="$prefix.job-pid"
 head_sha="$(git -C "$repo_root" rev-parse HEAD)"
 started_at="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+completion_reason='command'
+termination_signal='none'
+terminal_job_pid='none'
+worker_pid=''
+tee_pid=''
+stream_dir=''
 
 mkdir -p "$artifact_dir"
 
@@ -137,9 +143,14 @@ finish() {
     printf 'completed_at=%s\n' "$completed_at"
     printf 'exit_code=%s\n' "$exit_code"
     printf 'failure_kind=%s\n' "$failure_kind"
+    printf 'completion_reason=%s\n' "$completion_reason"
+    printf 'termination_signal=%s\n' "$termination_signal"
+    printf 'supervisor_pid=%s\n' "$$"
+    printf 'job_pid=%s\n' "$terminal_job_pid"
   } > "$status_tmp"
   mv "$status_tmp" "$status"
   rm -f "$running" "$job_pid_file"
+  [ -z "$stream_dir" ] || rm -rf "$stream_dir"
 }
 
 on_exit() {
@@ -148,6 +159,38 @@ on_exit() {
   release_lock
 }
 trap on_exit EXIT
+
+cancel_durable() {
+  cancel_signal="$1"
+  cancel_exit_code="$2"
+  completion_reason='signal'
+  termination_signal="$cancel_signal"
+  terminal_job_pid="$(cat "$job_pid_file" 2>/dev/null || printf 'unknown')"
+  printf 'cancelled\n' > "$failure_kind_file"
+  printf 'DURABLE CANCELLATION: received signal=%s supervisor_pid=%s worker_pid=%s job_pid=%s\n' \
+    "$cancel_signal" "$$" "${worker_pid:-unknown}" "$terminal_job_pid" >> "$log"
+
+  # The worker owns hvl_run_registering_job, so signal it rather than waiting
+  # for the foreground log stream. Its trap forwards the signal to the real
+  # test process and releases any host lease before exiting.
+  if [ -n "$worker_pid" ]; then
+    kill -"$cancel_signal" "$worker_pid" 2>/dev/null || true
+    wait "$worker_pid" 2>/dev/null || true
+  fi
+  if [ -n "$tee_pid" ]; then
+    wait "$tee_pid" 2>/dev/null || true
+  fi
+
+  printf 'DURABLE CANCELLATION: cleanup completed signal=%s supervisor_pid=%s job_pid=%s\n' \
+    "$cancel_signal" "$$" "$terminal_job_pid" >> "$log"
+  trap - EXIT
+  finish "$cancel_exit_code"
+  release_lock
+  exit "$cancel_exit_code"
+}
+trap 'cancel_durable HUP 129' HUP
+trap 'cancel_durable INT 130' INT
+trap 'cancel_durable TERM 143' TERM
 
 # Lock order: the worktree-local durable lock above is always acquired
 # before the host-wide verification lease below -- this is the one
@@ -160,31 +203,38 @@ trap on_exit EXIT
 #
 # #1133 items C/D: DURABLE_JOB_PID_FILE asks run-under-host-lease.sh's own
 # hvl_run_registering_job to also drop the real job's pid into this file,
-# independent of the (worktree-local) lock/marker above. read-durable-test-
-# result.sh reads it directly off disk while this is still running -- it
-# does not need to wait for this script to finish, so a concurrent reader
-# can tell a genuinely-active run apart from an abandoned one (a stale
-# `.running` marker whose process actually died). The output is piped
-# through `tee` (not just redirected) so a `.running` job streams live
-# instead of only appearing in $log after the fact -- `set -e` must be off
-# across the pipeline for the same reason run-test-suite.sh's own internal
-# pipeline needs it: a mid-group failure would otherwise abort this script
-# before `echo "$?"` ever runs, losing the real exit code.
+# independent of the (worktree-local) lock/marker above. The stream is a
+# named pipe, rather than a foreground `... | tee` pipeline: the supervisor
+# can now receive a catchable signal immediately, forward it to the worker,
+# and record an explicit cancelled result instead of leaving stale liveness
+# artifacts after waiting for a foreground pipeline to return.
 exit_file="$(mktemp)"
-set +e
-if [ "$use_lease" -eq 1 ]; then
-  {
+stream_dir="$(mktemp -d)"
+stream_fifo="$stream_dir/output"
+mkfifo "$stream_fifo"
+tee "$log" < "$stream_fifo" &
+tee_pid=$!
+(
+  trap 'hvl_cancel_and_release HUP 129' HUP
+  trap 'hvl_cancel_and_release INT 130' INT
+  trap 'hvl_cancel_and_release TERM 143' TERM
+  set +e
+  if [ "$use_lease" -eq 1 ]; then
     DURABLE_FAILURE_KIND_FILE="$failure_kind_file" DURABLE_JOB_PID_FILE="$job_pid_file" \
       sh "$repo_root/scripts/run-under-host-lease.sh" "durable $scope suite" -- "$@"
-    echo "$?" > "$exit_file"
-  } 2>&1 | tee "$log"
-else
-  {
+  else
     DURABLE_FAILURE_KIND_FILE="$failure_kind_file" DURABLE_JOB_PID_FILE="$job_pid_file" \
       hvl_run_registering_job "$@"
-    echo "$?" > "$exit_file"
-  } 2>&1 | tee "$log"
-fi
+  fi
+  command_status=$?
+  printf '%s\n' "$command_status" > "$exit_file"
+  exit "$command_status"
+) > "$stream_fifo" 2>&1 &
+worker_pid=$!
+
+set +e
+wait "$worker_pid"
+wait "$tee_pid"
 set -e
 test_exit_code="$(cat "$exit_file")"
 rm -f "$exit_file"

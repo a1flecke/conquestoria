@@ -104,7 +104,12 @@ exit_code="$(field exit_code)"
 if [ "$exit_code" != '0' ]; then
   echo 'STATUS: failed'
   failure_kind="$(field failure_kind)"
-  if [ -n "$failure_kind" ] && [ "$failure_kind" != 'none' ]; then
+  if [ "$failure_kind" = 'cancelled' ]; then
+    termination_signal="$(field termination_signal)"
+    supervisor_pid="$(field supervisor_pid)"
+    job_pid="$(field job_pid)"
+    echo "Durable $scope test run was cancelled by ${termination_signal:-an unknown signal} (supervisor_pid=${supervisor_pid:-unknown}, job_pid=${job_pid:-unknown}); inspect $status and its sibling log." >&2
+  elif [ -n "$failure_kind" ] && [ "$failure_kind" != 'none' ]; then
     echo "Durable $scope test run failed with exit code ${exit_code:-unknown} (failure_kind=$failure_kind); inspect $status." >&2
   else
     echo "Durable $scope test run failed with exit code ${exit_code:-unknown}; inspect $status." >&2
