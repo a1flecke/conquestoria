@@ -9,7 +9,7 @@
 // `buildCouncilAgenda`'s existing per-viewer call convention
 // (`buildCouncilAgenda(state, civId)`, always called with `state.currentPlayer`)
 // already guarantees hot-seat isolation for.
-import type { CouncilCard, GameState } from '@/core/types';
+import type { CouncilCard, GameEvents, GameState } from '@/core/types';
 import { getEventChainDefinition } from './event-chain-definitions';
 
 export const EVENT_CHAIN_CARD_ID_PREFIX = 'event-chain-choice:';
@@ -60,4 +60,43 @@ export function getEventChainDramaCards(state: GameState, civId: string): Counci
     }
   }
   return cards;
+}
+
+/** #993: the "big moment" ceremony payload for a chain's genuine conclusion.
+ * Viewer-scoped identically to `getEventChainDramaCards` -- a chain belongs to
+ * exactly one civ, and this is never built for anyone else. Only the
+ * currently-active human ever sees a full-screen moment: an AI civ's or a
+ * different hot-seat player's chain still reaches them through the ordinary
+ * `routeEventChainResolved` notification (their own log entry), never a
+ * ceremony they can't be looking at. */
+export interface EventChainConclusionMomentItem {
+  civId: string;
+  chainId: string;
+  kind: GameEvents['eventchain:resolved']['kind'];
+  title: string;
+  optionLabel: string;
+  optionDescription: string;
+}
+
+export function buildEventChainConclusionMomentItem(
+  state: GameState,
+  event: GameEvents['eventchain:resolved'],
+): EventChainConclusionMomentItem | null {
+  if (event.outcome !== 'resolved') return null;
+  if (state.currentPlayer !== event.civId) return null;
+
+  const definition = getEventChainDefinition(event.kind);
+  const onsetChoice = event.priorChoices.find(choice => choice.stageId === 'onset');
+  const onsetStage = definition.stages.find(stage => stage.id === 'onset');
+  const option = onsetChoice && onsetStage?.options?.find(candidate => candidate.id === onsetChoice.optionId);
+  if (!option) return null;
+
+  return {
+    civId: event.civId,
+    chainId: event.chainId,
+    kind: event.kind,
+    title: CHAIN_TITLE_BY_KIND[event.kind] ?? 'A Decision Point',
+    optionLabel: option.label,
+    optionDescription: option.description,
+  };
 }

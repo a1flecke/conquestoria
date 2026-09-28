@@ -3,11 +3,12 @@ import type { ViewerSurface } from '../helpers/viewer-safety';
 import { expectViewerSafety, expectHotSeatDifferential } from '../helpers/viewer-safety';
 import {
   buildEventChainCardId,
+  buildEventChainConclusionMomentItem,
   getEventChainDramaCards,
   parseEventChainCardId,
 } from '@/systems/event-chain-presentation';
 import { makeCrisisFixture } from './helpers/crisis-fixture';
-import type { ActiveEventChain, CouncilCard, GameState } from '@/core/types';
+import type { ActiveEventChain, CouncilCard, EventChainChoiceRecord, GameEvents, GameState } from '@/core/types';
 
 function pendingChain(targetCivId: string, id = 'chain-1'): ActiveEventChain {
   return {
@@ -92,5 +93,64 @@ describe('event-chain-presentation viewer safety (#990)', () => {
 
   it('parseEventChainCardId rejects a non-event-chain card id', () => {
     expect(parseEventChainCardId('survey-frontier')).toBeNull();
+  });
+});
+
+describe('buildEventChainConclusionMomentItem (#993)', () => {
+  function resolvedEvent(overrides: Partial<GameEvents['eventchain:resolved']> = {}): GameEvents['eventchain:resolved'] {
+    const priorChoices: EventChainChoiceRecord[] = [
+      { stageId: 'onset', optionId: 'bailout', turn: 40, actorCivId: 'player' },
+    ];
+    return {
+      chainId: 'chain-1',
+      kind: 'financial-panic',
+      civId: 'player',
+      outcome: 'resolved',
+      priorChoices,
+      ...overrides,
+    };
+  }
+
+  it('builds a moment for the currently-active viewer whose own chain resolved', () => {
+    const { state: base } = makeCrisisFixture({ turn: 50 });
+    const state: GameState = { ...base, currentPlayer: 'player' };
+
+    const item = buildEventChainConclusionMomentItem(state, resolvedEvent());
+
+    expect(item).toEqual({
+      civId: 'player',
+      chainId: 'chain-1',
+      kind: 'financial-panic',
+      title: 'Financial Panic',
+      optionLabel: 'Emergency Bailout',
+      optionDescription: 'Pay a gold sum now to guarantee the treasury crisis passes quietly.',
+    });
+  });
+
+  it('never builds a moment for anyone but the currently-active viewer', () => {
+    // An AI civ's, or a different hot-seat human's, own chain resolving must
+    // never pop a full-screen ceremony on a screen someone else is looking
+    // at -- it still gets its own toast via routeEventChainResolved,
+    // unaffected by this gate.
+    const { state: base } = makeCrisisFixture({ turn: 50, includeSecondHuman: true });
+    const state: GameState = { ...base, currentPlayer: 'p2' };
+
+    expect(buildEventChainConclusionMomentItem(state, resolvedEvent({ civId: 'player' }))).toBeNull();
+  });
+
+  it('builds nothing for a cancellation outcome, even for the active viewer', () => {
+    const { state: base } = makeCrisisFixture({ turn: 50 });
+    const state: GameState = { ...base, currentPlayer: 'player' };
+
+    for (const outcome of ['city-lost', 'civ-eliminated', 'invalid'] as const) {
+      expect(buildEventChainConclusionMomentItem(state, resolvedEvent({ outcome }))).toBeNull();
+    }
+  });
+
+  it('builds nothing when no matching onset choice can be found (defensive)', () => {
+    const { state: base } = makeCrisisFixture({ turn: 50 });
+    const state: GameState = { ...base, currentPlayer: 'player' };
+
+    expect(buildEventChainConclusionMomentItem(state, resolvedEvent({ priorChoices: [] }))).toBeNull();
   });
 });

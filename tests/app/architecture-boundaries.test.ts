@@ -474,6 +474,58 @@ describe('#990 — event-chain engine boundaries', () => {
   });
 });
 
+describe('#993 — big-moment queue engine boundaries', () => {
+  const root = resolve(__dirname, '../..');
+  function read(relPath: string): string {
+    return readFileSync(resolve(root, relPath), 'utf8');
+  }
+  function importsModuleSpecifier(source: string, specifier: string): boolean {
+    const escaped = specifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`from\\s+'${escaped}'`).test(source);
+  }
+
+  it('big-moment-queue.ts is domain-free: no wonder/legendary/event-chain/victory/coordinator import', () => {
+    const source = read('src/systems/big-moment-queue.ts');
+    for (const specifier of [
+      '@/ui/wonder-discovery-queue',
+      '@/ui/legendary-wonder-completion-queue',
+      '@/ui/event-chain-conclusion-ceremony',
+      '@/ui/victory-panel',
+      '@/systems/event-chain-presentation',
+      '@/systems/wonder-discovery-reveal',
+      '@/systems/legendary-wonder-completion-presentation',
+      '@/app/controllers/ceremony-coordinator',
+    ]) {
+      expect(importsModuleSpecifier(source, specifier), `big-moment-queue.ts must not import ${specifier}`).toBe(false);
+    }
+  });
+
+  it('every queue the ceremony coordinator owns consumes the one shared engine', () => {
+    for (const file of [
+      'src/ui/wonder-discovery-queue.ts',
+      'src/ui/legendary-wonder-completion-queue.ts',
+      'src/app/controllers/ceremony-coordinator.ts',
+    ]) {
+      expect(
+        importsModuleSpecifier(read(file), '@/systems/big-moment-queue'),
+        `${file} must import the shared big-moment-queue engine rather than re-implementing its own sequencing loop`,
+      ).toBe(true);
+    }
+  });
+
+  it('victory presentation is routed through the ceremony coordinator, not called directly', () => {
+    // #993 fixed a real overlay-stacking race by moving victory presentation
+    // behind the same isInteractionBlocked()-gated engine every other
+    // ceremony uses -- a direct showVictoryPanel() call from turn-flow-
+    // controller.ts would silently reintroduce it.
+    const source = read('src/app/controllers/turn-flow-controller.ts');
+    expect(
+      importsModuleSpecifier(source, '@/ui/victory-panel'),
+      'turn-flow-controller.ts must not import showVictoryPanel directly -- route through ceremonies.enqueueVictory instead',
+    ).toBe(false);
+  });
+});
+
 it('no app/presentation/ui file mutates the object returned by session.getState() directly', () => {
   // GameSession.commit()/update() are the only sanctioned publish path (see
   // src/app/ports.ts's GameSession doc comment). Mutating getState()'s return

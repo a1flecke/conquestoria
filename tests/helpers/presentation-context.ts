@@ -75,9 +75,12 @@ export function makePresentationContext(overrides: {
     ceremonies: {
       enqueueWonderDiscovery: vi.fn(),
       enqueueLegendaryCompletion: vi.fn(),
+      enqueueEventChainConclusion: vi.fn(),
+      enqueueVictory: vi.fn(),
       beginDeferredAction: vi.fn(),
       endAction: vi.fn(),
       clearForHandoff: vi.fn(),
+      clearForNewGame: vi.fn(),
     },
     selection: makeSelectionStoreDouble(),
     requestDeliveryVisual: vi.fn(),

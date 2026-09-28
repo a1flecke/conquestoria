@@ -59,6 +59,11 @@ describe('wonder-discovery-queue', () => {
 
     expect(document.body.dataset.activeWonder).toBe('great_volcano');
     resolvers[0]('continue');
+    // #993: the queue now sits on the shared `BigMomentQueue` engine, one
+    // async layer deeper than the old bespoke loop -- an extra microtask
+    // tick is needed for that layer's own `await` to settle before the
+    // engine's `pump()` starts the next item.
+    await Promise.resolve();
     await Promise.resolve();
     expect(requestMapHighlight).toHaveBeenCalledWith(expect.objectContaining({ wonderId: 'great_volcano' }), false);
     expect(document.body.dataset.activeWonder).toBe('crystal_caverns');
@@ -135,6 +140,7 @@ describe('wonder-discovery-queue', () => {
 
     queue.enqueue(item('great_volcano', 2));
     queue.notifyActionSettled();
+    await Promise.resolve();
     await Promise.resolve();
     expect(present).toHaveBeenCalledTimes(1);
 

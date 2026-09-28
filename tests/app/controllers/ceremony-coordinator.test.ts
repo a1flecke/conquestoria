@@ -3,6 +3,9 @@ import { describe, expect, it, vi } from 'vitest';
 import type { WonderDiscoveryRevealItem } from '@/systems/wonder-discovery-reveal';
 import type { LegendaryWonderCompletionCeremonyItem } from '@/systems/legendary-wonder-completion-presentation';
 import type { LegendaryWonderCompletionCeremonyAction } from '@/ui/legendary-wonder-completion-ceremony';
+import type { WonderDiscoveryCeremonyAction } from '@/ui/wonder-discovery-ceremony';
+import type { EventChainConclusionMomentItem } from '@/systems/event-chain-presentation';
+import type { VictoryPanelOptions } from '@/ui/victory-panel';
 import { getWonderVisualDefinition } from '@/systems/wonder-visual-catalog';
 import { createPanelHost } from '@/app/panel-host';
 import { createCeremonyCoordinator, type CeremonyCoordinatorDeps } from '@/app/controllers/ceremony-coordinator';
@@ -40,6 +43,29 @@ function legendaryItem(overrides: Partial<LegendaryWonderCompletionCeremonyItem>
   };
 }
 
+function eventChainItem(overrides: Partial<EventChainConclusionMomentItem> = {}): EventChainConclusionMomentItem {
+  return {
+    civId: 'player',
+    chainId: 'chain-1',
+    kind: 'financial-panic',
+    title: 'Financial Panic',
+    optionLabel: 'Emergency Bailout',
+    optionDescription: 'Pay a gold sum now to guarantee the treasury crisis passes quietly.',
+    ...overrides,
+  };
+}
+
+function victoryOptions(overrides: Partial<VictoryPanelOptions> = {}): VictoryPanelOptions {
+  return {
+    winnerName: 'Rome',
+    victoryType: 'Domination Victory',
+    outcome: 'victory',
+    turn: 120,
+    onNewGame: () => {},
+    ...overrides,
+  };
+}
+
 function baseDeps(overrides: Partial<CeremonyCoordinatorDeps> = {}): CeremonyCoordinatorDeps {
   return {
     host: createPanelHost(document.createElement('div')),
@@ -53,6 +79,8 @@ function baseDeps(overrides: Partial<CeremonyCoordinatorDeps> = {}): CeremonyCoo
     // portion of ceremony playback unless they explicitly await resolution.
     presentWonderDiscovery: () => new Promise(() => {}),
     presentLegendaryCompletion: () => new Promise(() => {}),
+    presentEventChainConclusion: () => new Promise(() => {}),
+    presentVictory: () => new Promise(() => {}),
     ...overrides,
   };
 }
@@ -219,5 +247,186 @@ describe('ceremony coordinator', () => {
     coordinator.enqueueWonderDiscovery(wonderItem());
 
     expect(playDiscoveryAudio).toHaveBeenCalledTimes(1);
+  });
+
+  describe('event-chain conclusion (#993)', () => {
+    it('plays a resolved chain conclusion once nothing blocks the UI', () => {
+      const presentEventChainConclusion = vi.fn(() => new Promise<void>(() => {}));
+      const coordinator = createCeremonyCoordinator(baseDeps({ presentEventChainConclusion }));
+
+      coordinator.enqueueEventChainConclusion(eventChainItem());
+
+      expect(presentEventChainConclusion).toHaveBeenCalledTimes(1);
+      expect(presentEventChainConclusion).toHaveBeenCalledWith(expect.objectContaining({ chainId: 'chain-1' }));
+    });
+
+    it('is never deferred by a move, like a legendary completion', () => {
+      const presentEventChainConclusion = vi.fn(() => new Promise<void>(() => {}));
+      const coordinator = createCeremonyCoordinator(baseDeps({ presentEventChainConclusion }));
+
+      coordinator.beginDeferredAction();
+      coordinator.enqueueEventChainConclusion(eventChainItem());
+
+      expect(presentEventChainConclusion).toHaveBeenCalledTimes(1);
+    });
+
+    it('ignores a null item (a different civ/outcome that built no moment)', () => {
+      const presentEventChainConclusion = vi.fn(() => new Promise<void>(() => {}));
+      const coordinator = createCeremonyCoordinator(baseDeps({ presentEventChainConclusion }));
+
+      coordinator.enqueueEventChainConclusion(null);
+
+      expect(presentEventChainConclusion).not.toHaveBeenCalled();
+    });
+
+    it('dedupes repeat enqueue of the same civ/chain', () => {
+      const presentEventChainConclusion = vi.fn(() => new Promise<void>(() => {}));
+      const coordinator = createCeremonyCoordinator(baseDeps({ presentEventChainConclusion }));
+
+      coordinator.enqueueEventChainConclusion(eventChainItem());
+      coordinator.enqueueEventChainConclusion(eventChainItem());
+
+      expect(presentEventChainConclusion).toHaveBeenCalledTimes(1);
+    });
+
+    it('clearForHandoff drops a queued chain conclusion, same as the wonder ceremonies', () => {
+      const host = createPanelHost(document.createElement('div'));
+      const presentEventChainConclusion = vi.fn(() => new Promise<void>(() => {}));
+      const coordinator = createCeremonyCoordinator(baseDeps({ host, presentEventChainConclusion }));
+
+      host.setBlockingOverlay('city-panel');
+      coordinator.enqueueEventChainConclusion(eventChainItem());
+      coordinator.clearForHandoff();
+
+      host.setBlockingOverlay(null);
+
+      expect(presentEventChainConclusion).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('victory (#993)', () => {
+    it('plays immediately when nothing is presenting', () => {
+      const presentVictory = vi.fn(() => new Promise<void>(() => {}));
+      const coordinator = createCeremonyCoordinator(baseDeps({ presentVictory }));
+
+      coordinator.enqueueVictory(victoryOptions({ winnerName: 'Rome' }));
+
+      expect(presentVictory).toHaveBeenCalledWith(expect.objectContaining({ winnerName: 'Rome' }));
+    });
+
+    it('waits for a currently-presenting ceremony to finish before showing, instead of stacking on top of it', async () => {
+      // Reproduces a confirmed pre-#993 race: a legendary wonder can complete
+      // on the exact round the game ends (its ceremony begins presenting
+      // synchronously during round processing, before handleVictoryIfNeeded
+      // ever runs), and the old direct showVictoryPanel() call had no
+      // awareness of that in-flight ceremony's own overlay.
+      let resolveLegendary: (() => void) | undefined;
+      const presentLegendaryCompletion = vi.fn(() => new Promise<LegendaryWonderCompletionCeremonyAction>(resolve => {
+        resolveLegendary = () => resolve('continue');
+      }));
+      const presentVictory = vi.fn(() => new Promise<void>(() => {}));
+      const coordinator = createCeremonyCoordinator(baseDeps({ presentLegendaryCompletion, presentVictory }));
+
+      coordinator.enqueueLegendaryCompletion(legendaryItem());
+      expect(presentLegendaryCompletion).toHaveBeenCalledTimes(1);
+
+      coordinator.enqueueVictory(victoryOptions());
+      expect(presentVictory).not.toHaveBeenCalled();
+
+      resolveLegendary!();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(presentVictory).toHaveBeenCalledTimes(1);
+    });
+
+    it('drops any wonder/legendary/event-chain backlog not yet presenting once the game ends', () => {
+      const presentWonderDiscovery = vi.fn(() => new Promise<WonderDiscoveryCeremonyAction>(() => {}));
+      const presentEventChainConclusion = vi.fn(() => new Promise<void>(() => {}));
+      const presentVictory = vi.fn(() => new Promise<void>(() => {}));
+      const host = createPanelHost(document.createElement('div'));
+      const coordinator = createCeremonyCoordinator(baseDeps({
+        host, presentWonderDiscovery, presentEventChainConclusion, presentVictory,
+      }));
+
+      // Block the UI so the wonder/chain moments queue but never start.
+      host.setBlockingOverlay('city-panel');
+      coordinator.enqueueWonderDiscovery(wonderItem());
+      coordinator.enqueueEventChainConclusion(eventChainItem());
+      expect(presentWonderDiscovery).not.toHaveBeenCalled();
+      expect(presentEventChainConclusion).not.toHaveBeenCalled();
+
+      coordinator.enqueueVictory(victoryOptions());
+      host.setBlockingOverlay(null);
+
+      // Victory itself still shows; the dropped backlog never plays.
+      expect(presentVictory).toHaveBeenCalledTimes(1);
+      expect(presentWonderDiscovery).not.toHaveBeenCalled();
+      expect(presentEventChainConclusion).not.toHaveBeenCalled();
+    });
+
+    it('blocks every further enqueue* call once victory has been shown, until clearForNewGame', () => {
+      const presentWonderDiscovery = vi.fn(() => new Promise<WonderDiscoveryCeremonyAction>(() => {}));
+      const presentVictory = vi.fn(() => new Promise<void>(() => {}));
+      const coordinator = createCeremonyCoordinator(baseDeps({ presentWonderDiscovery, presentVictory }));
+
+      coordinator.enqueueVictory(victoryOptions());
+      expect(presentVictory).toHaveBeenCalledTimes(1);
+
+      coordinator.enqueueWonderDiscovery(wonderItem());
+      expect(presentWonderDiscovery).not.toHaveBeenCalled();
+
+      coordinator.clearForNewGame();
+      coordinator.enqueueWonderDiscovery(wonderItem());
+      expect(presentWonderDiscovery).toHaveBeenCalledTimes(1);
+    });
+
+    it('a repeat enqueueVictory call while already presenting is a safe no-op', () => {
+      // handleVictoryIfNeeded() is called from several turn-flow-controller
+      // call sites and can legitimately run more than once against an
+      // already-gameOver state. The dedupe key makes a second call inert
+      // rather than pushing a second overlay on top of the first.
+      const presentVictory = vi.fn(() => new Promise<void>(() => {}));
+      const coordinator = createCeremonyCoordinator(baseDeps({ presentVictory }));
+
+      coordinator.enqueueVictory(victoryOptions({ winnerName: 'Rome' }));
+      coordinator.enqueueVictory(victoryOptions({ winnerName: 'Rome' }));
+
+      expect(presentVictory).toHaveBeenCalledTimes(1);
+    });
+
+    it('clearForNewGame drops a still-queued victory so it never resurfaces in the next game', () => {
+      const host = createPanelHost(document.createElement('div'));
+      const presentVictory = vi.fn(() => new Promise<void>(() => {}));
+      const coordinator = createCeremonyCoordinator(baseDeps({ host, presentVictory }));
+
+      host.setBlockingOverlay('turn-handoff');
+      coordinator.enqueueVictory(victoryOptions());
+      expect(presentVictory).not.toHaveBeenCalled();
+
+      coordinator.clearForNewGame();
+      host.setBlockingOverlay(null);
+
+      expect(presentVictory).not.toHaveBeenCalled();
+    });
+
+    it('clearForNewGame resets the terminal guard, so loading a different already-game-over save can show its own victory', () => {
+      // campaign-entry-controller.ts's enterCampaign() calls startGame()
+      // (which clears) immediately before handleVictoryIfNeeded() whenever
+      // the state it's entering is already gameOver -- without resetting
+      // `terminal`, a second game-over save loaded in the same browser tab
+      // would silently never show its own victory panel.
+      const presentVictory = vi.fn(() => new Promise<void>(() => {}));
+      const coordinator = createCeremonyCoordinator(baseDeps({ presentVictory }));
+
+      coordinator.enqueueVictory(victoryOptions({ winnerName: 'Rome' }));
+      expect(presentVictory).toHaveBeenCalledTimes(1);
+
+      coordinator.clearForNewGame();
+      coordinator.enqueueVictory(victoryOptions({ winnerName: 'Carthage' }));
+
+      expect(presentVictory).toHaveBeenCalledTimes(2);
+      expect(presentVictory).toHaveBeenLastCalledWith(expect.objectContaining({ winnerName: 'Carthage' }));
+    });
   });
 });
