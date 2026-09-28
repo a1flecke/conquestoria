@@ -79,9 +79,11 @@ import {
 import { applyOpportunisticWarPenaltyIfCrisisStruck } from '@/systems/crisis-interaction-system';
 import { createRng } from '@/systems/map-generator';
 import {
-  appeaseFaction, getUnrestPressureBreakdown, setFederalismStance, canToggleFederalism, FEDERALISM_TECH_ID,
+  appeaseFaction, getUnrestPressureBreakdown, computeUnrestPressure, setFederalismStance, canToggleFederalism, FEDERALISM_TECH_ID,
 } from '@/systems/faction-system';
 import { getEconomyStatusForCiv } from '@/systems/economy-system';
+import { GOVERNANCE_POLICY_DEFINITIONS } from '@/systems/governance-policy-definitions';
+import { setGovernancePolicy, isGovernancePolicyActive, canToggleGovernancePolicy } from '@/systems/governance-policy-system';
 import {
   getEligibleLegendaryWonders,
   initializeLegendaryWonderProjectsForAllCities,
@@ -1101,6 +1103,31 @@ function processAITurnInternal(
     if (pressuredOverextendedCities >= 2 && economyStatus.strainLevel !== 'critical') {
       const toggled = setFederalismStance(newState, civId, true);
       if (toggled.success) newState = toggled.state;
+    }
+    civ = newState.civilizations[civId];
+  }
+
+  // #987: AI governance policies. Table-driven over GOVERNANCE_POLICY_DEFINITIONS —
+  // never a policy-id branch. A policy that relieves pressure (negative
+  // pressureAmount) is worth its load cost once the empire is meaningfully
+  // pressured; a policy that adds pressure is only adopted when the empire has
+  // slack (comfortably under pressure, economy not in critical strain) to
+  // absorb its cost. setGovernancePolicy's own capacity/lock validation is the
+  // only gate beyond this — never bypassed here.
+  if (civ.cities.length > 0) {
+    const averagePressure = civ.cities.reduce((sum, cityId) => sum + computeUnrestPressure(cityId, newState), 0) / civ.cities.length;
+    const economyStatus = getEconomyStatusForCiv(newState, civId);
+    const pressured = averagePressure >= 20;
+    for (const policy of GOVERNANCE_POLICY_DEFINITIONS) {
+      if (!canToggleGovernancePolicy(newState, civId, policy.id)) continue;
+      const active = isGovernancePolicyActive(newState, civId, policy.id);
+      const shouldBeActive = policy.pressureAmount < 0
+        ? pressured
+        : !pressured && economyStatus.strainLevel !== 'critical';
+      if (shouldBeActive !== active) {
+        const toggled = setGovernancePolicy(newState, civId, policy.id, shouldBeActive);
+        if (toggled.success) newState = toggled.state;
+      }
     }
     civ = newState.civilizations[civId];
   }

@@ -3165,6 +3165,59 @@ describe('#927 Rung 6 — AI Federal Autonomy', () => {
   });
 });
 
+describe('#987 AI governance policies', () => {
+  function buildAiStateWithCities(cityCount: number, seed: string): GameState {
+    const state = createNewGame(undefined, seed, 'small');
+    const civ = state.civilizations['ai-1'];
+    const settler = civ.units.map(id => state.units[id]).find(unit => unit?.type === 'settler')!;
+    civ.cities = [];
+    for (let i = 1; i <= cityCount; i++) {
+      const position = { q: settler.position.q + (i % 5), r: settler.position.r + Math.floor(i / 5) };
+      const city = foundCity(civ.id, position, state.map, state.idCounters);
+      city.id = i === 1 ? 'ai1-capital' : `ai1-city-${i}`;
+      city.buildings = [];
+      city.productionQueue = [];
+      state.cities[city.id] = city;
+      civ.cities.push(city.id);
+    }
+    civ.gold = 1000;
+    return state;
+  }
+
+  it('adopts angering-but-affordable policies for a compact, unpressured empire with governance headroom', () => {
+    // 2 close-together cities -> no Empire overextension row, governance load
+    // stays low (all cities near the capital), so there is room to adopt both
+    // policies that trade a small pressure cost for their intended benefit.
+    const state = buildAiStateWithCities(2, 'mr987-compact');
+    const result = processAITurn(state, 'ai-1', new EventBus());
+    expect(result.civilizations['ai-1'].governancePolicies?.['conscription-levy']).toBe(true);
+    expect(result.civilizations['ai-1'].governancePolicies?.['free-trade-charter']).toBe(true);
+    expect(result.civilizations['ai-1'].governancePolicies?.['local-autonomy-writ']).not.toBe(true);
+  });
+
+  it('adopts the relief policy (not the angering ones) for a wide, pressured empire', () => {
+    // 15 cities -> Empire overextension pressure on every city, well above
+    // the AI's pressured threshold (average >= 20).
+    const state = buildAiStateWithCities(15, 'mr987-wide');
+    const result = processAITurn(state, 'ai-1', new EventBus());
+    expect(result.civilizations['ai-1'].governancePolicies?.['local-autonomy-writ']).toBe(true);
+    expect(result.civilizations['ai-1'].governancePolicies?.['conscription-levy']).not.toBe(true);
+    expect(result.civilizations['ai-1'].governancePolicies?.['free-trade-charter']).not.toBe(true);
+  });
+
+  it('never toggles a locked policy twice in a row (no thrash across AI turns)', () => {
+    let state = buildAiStateWithCities(2, 'mr987-lock');
+    state = processAITurn(state, 'ai-1', new EventBus());
+    const changedTurn = state.civilizations['ai-1'].governancePolicyChangedTurn?.['conscription-levy'];
+    expect(changedTurn).toBe(state.turn);
+
+    const nextTurn = { ...state, turn: state.turn + 1 };
+    const secondPass = processAITurn(nextTurn, 'ai-1', new EventBus());
+    // Still locked -- the changed-turn stamp must not move again immediately.
+    expect(secondPass.civilizations['ai-1'].governancePolicyChangedTurn?.['conscription-levy']).toBe(changedTurn);
+  });
+});
+
 // #910 exercises the shipped turn, not only its offer-scoring helper.
 describe('#910 AI vassalage offer wiring', () => {
   it.each([true, false])('creates a real offer/commit for recipient human=%s using personal era', human => {
