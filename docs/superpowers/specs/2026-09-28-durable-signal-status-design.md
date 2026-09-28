@@ -28,11 +28,14 @@ evidence.
    abandoned`.
 3. Existing successful and ordinary failed durable runs retain their current
    status format and exit semantics.
-4. The terminal status records `completion_reason=signal`, the received
-   signal, and the supervisor/job PIDs. The log records receipt of the signal
-   and completion of cleanup so a later agent can distinguish a user or tool
-   cancellation from a product-test failure.
-5. A hook-level regression test starts a sleeping no-lease durable run,
+4. The runner persists terminal cancelled status and removes liveness markers
+   before waiting for child cleanup. This survives external execution layers
+   that follow `TERM` with `SIGKILL`.
+5. The terminal status records `completion_reason=signal`, the received
+   signal, and the supervisor/job PIDs. The log records receipt of the signal,
+   durable-status persistence, and completed cleanup so a later agent can
+   distinguish a user or tool cancellation from a product-test failure.
+6. A hook-level regression test starts a sleeping no-lease durable run,
    signals the actual durable supervisor, waits for it to exit, and verifies
    the terminal cancelled status and artifact cleanup.
 
