@@ -186,6 +186,7 @@ describe('#997 minor-civ conquest and absorption keep owner and roster in agreem
     const state = createNewGame(undefined, '997-conquest', 'small');
     const mcId = freshMinor(state);
     const mcCityId = state.minorCivs[mcId].cityId;
+    state.minorCivs[mcId].diplomacy.atWarWith = ['player'];
 
     const { state: next, conquered } = conquestMinorCiv(state, mcId, 'player');
 
