@@ -373,6 +373,107 @@ describe('#1012 — crisis-system decomposition boundaries', () => {
   });
 });
 
+describe('#990 — event-chain engine boundaries', () => {
+  const sys = resolve(__dirname, '../../src/systems');
+  const read = (name: string) => readFileSync(resolve(sys, name), 'utf8');
+
+  function localImportsOf(file: string): string[] {
+    const src = read(file).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    return [...src.matchAll(/from\s+'\.\/([^']+)'/g)].map(m => m[1]);
+  }
+
+  function namedImportsFrom(file: string, specifier: string): string[] {
+    const src = read(file).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    const escaped = specifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const names: string[] = [];
+    const re = new RegExp(`import\\s+(?:type\\s+)?\\{([^}]*)\\}\\s+from\\s+'${escaped}'`, 'g');
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(src))) names.push(...m[1].split(',').map(s => s.trim()).filter(Boolean));
+    return names;
+  }
+
+  const EVENT_CHAIN_MODULES = [
+    'event-chain-definitions',
+    'event-chain-scheduling',
+    'event-chain-progression',
+    'event-chain-lifecycle',
+    'event-chain-choices',
+    'event-chain-presentation',
+  ];
+
+  it('staged-lifecycle-engine.ts is domain-free: no crisis-* or event-chain-* import', () => {
+    const imports = localImportsOf('staged-lifecycle-engine.ts');
+    for (const m of [...EVENT_CHAIN_MODULES, 'crisis-scheduling', 'crisis-effects', 'crisis-progression', 'crisis-lifecycle', 'crisis-interventions']) {
+      expect(imports, `staged-lifecycle-engine must not import ${m}`).not.toContain(m);
+    }
+  });
+
+  it('both crisis-lifecycle.ts and event-chain-lifecycle.ts consume the one shared engine', () => {
+    expect(localImportsOf('crisis-lifecycle.ts')).toContain('staged-lifecycle-engine');
+    expect(localImportsOf('event-chain-lifecycle.ts')).toContain('staged-lifecycle-engine');
+  });
+
+  it('event-chain-lifecycle.ts reaches chain-kind policy through exactly one seam', () => {
+    const imports = localImportsOf('event-chain-lifecycle.ts');
+    expect(imports).not.toContain('event-chain-scheduling');
+    expect(imports).not.toContain('event-chain-choices');
+    expect(imports).not.toContain('event-chain-definitions');
+    expect(imports).toContain('event-chain-progression');
+    expect(namedImportsFrom('event-chain-lifecycle.ts', './event-chain-progression')).toEqual(['tickEventChainByKind']);
+  });
+
+  it('event-chain-definitions.ts and event-chain-presentation.ts depend on no turn-orchestration module', () => {
+    for (const file of ['event-chain-definitions.ts', 'event-chain-presentation.ts']) {
+      const imports = localImportsOf(file);
+      for (const m of ['event-chain-scheduling', 'event-chain-progression', 'event-chain-lifecycle', 'event-chain-choices']) {
+        expect(imports, `${file} must not import ${m}`).not.toContain(m);
+      }
+    }
+  });
+
+  it('the event-chain-* modules (plus the shared engine and crisis-*) form an acyclic import graph', () => {
+    const nodes = [...EVENT_CHAIN_MODULES, 'staged-lifecycle-engine', 'crisis-scheduling', 'crisis-effects', 'crisis-progression', 'crisis-lifecycle', 'crisis-interventions'];
+    const graph = new Map(nodes.map(n => [n, localImportsOf(`${n}.ts`).filter(s => nodes.includes(s))]));
+    const state = new Map<string, 'visiting' | 'done'>();
+    const stack: string[] = [];
+    const cycles: string[] = [];
+    const visit = (n: string) => {
+      if (state.get(n) === 'done') return;
+      if (state.get(n) === 'visiting') { cycles.push([...stack.slice(stack.indexOf(n)), n].join(' → ')); return; }
+      state.set(n, 'visiting');
+      stack.push(n);
+      for (const dep of graph.get(n) ?? []) visit(dep);
+      stack.pop();
+      state.set(n, 'done');
+    };
+    for (const n of nodes) visit(n);
+    expect(cycles, cycles.join('\n')).toEqual([]);
+  });
+
+  it('no UI/renderer file imports an event-chain engine module directly (presentation.ts is the sanctioned UI-facing surface)', () => {
+    function walk(dir: string): string[] {
+      return readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
+        const full = resolve(dir, entry.name);
+        if (entry.isDirectory()) return walk(full);
+        return /\.tsx?$/.test(entry.name) ? [full] : [];
+      });
+    }
+    const ENGINE_MODULES = EVENT_CHAIN_MODULES.filter(m => m !== 'event-chain-presentation');
+    const offenders: string[] = [];
+    for (const dir of ['src/ui', 'src/renderer']) {
+      for (const file of walk(resolve(__dirname, '../..', dir))) {
+        const source = readFileSync(file, 'utf8');
+        for (const m of ENGINE_MODULES) {
+          if (new RegExp(`from '(@/systems/${m}|\\./${m})'`).test(source)) {
+            offenders.push(`${file}: imports ${m} directly`);
+          }
+        }
+      }
+    }
+    expect(offenders, offenders.join('\n')).toEqual([]);
+  });
+});
+
 it('no app/presentation/ui file mutates the object returned by session.getState() directly', () => {
   // GameSession.commit()/update() are the only sanctioned publish path (see
   // src/app/ports.ts's GameSession doc comment). Mutating getState()'s return

@@ -102,6 +102,11 @@ export function eliminateCivilization(
   for (const [crisisId, crisis] of Object.entries(next.activeCrises ?? {})) {
     if (crisis.targetCivId === civId) delete next.activeCrises![crisisId];
   }
+  // #990 — same one-time teardown as activeCrises above: a dead civ has no
+  // pending decision to make and no delayed consequence left to receive.
+  for (const [chainId, chain] of Object.entries(next.activeEventChains ?? {})) {
+    if (chain.targetCivId === civId) delete next.activeEventChains![chainId];
+  }
   for (const [stampedeId, stampede] of Object.entries(next.stampedes ?? {})) {
     if (stampede.targetCivId === civId) delete next.stampedes![stampedeId];
   }

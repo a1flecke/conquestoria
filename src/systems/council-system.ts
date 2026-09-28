@@ -8,6 +8,9 @@ import {
   getReachableLegendaryWonderProjects,
   initializeLegendaryWonderProjectsForAllCities,
 } from '@/systems/legendary-wonder-system';
+import { EVENT_CHAIN_CARD_ID_PREFIX, getEventChainDramaCards } from '@/systems/event-chain-presentation';
+
+export { EVENT_CHAIN_CARD_ID_PREFIX };
 
 function getPrimaryCity(state: GameState, civId: string) {
   for (const cityId of state.civilizations[civId]?.cities ?? []) {
@@ -189,6 +192,7 @@ export function buildCouncilAgenda(state: GameState, civId: string): CouncilAgen
       },
     ],
     drama: [
+      ...getEventChainDramaCards(state, civId),
       {
         id: 'council-murmur',
         advisor: 'chancellor',

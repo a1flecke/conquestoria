@@ -323,6 +323,13 @@ export const ELIMINATED_CIV_AREAS: Record<keyof GameState, EliminatedCivArea> = 
       .filter(([, c]) => isEliminatedId(c.targetCivId, ctx))
       .map(([id, c]) => `activeCrises["${id}"] still targets eliminated civ "${c.targetCivId}"`),
   },
+  activeEventChains: {
+    kind: 'teardown',
+    why: '#990: an event chain targeting a dead civ has no decision-maker and no one left to receive its delayed consequence',
+    scan: (state, ctx) => Object.entries(state.activeEventChains ?? {})
+      .filter(([, c]) => isEliminatedId(c.targetCivId, ctx))
+      .map(([id, c]) => `activeEventChains["${id}"] still targets eliminated civ "${c.targetCivId}"`),
+  },
   crisisForces: {
     kind: 'teardown',
     why: 'a crisis force targeting a dead civ has no target',

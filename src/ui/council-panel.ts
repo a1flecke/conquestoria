@@ -1,10 +1,20 @@
 import type { CouncilCard, CouncilTalkLevel, GameState } from '@/core/types';
 import { buildCouncilAgenda } from '@/systems/council-system';
 import { formatCouncilMemoryEntry, getCouncilMemoryEntries } from '@/systems/council-memory';
+import { createGameButton } from '@/ui/ui-kit';
+import { EVENT_CHAIN_CARD_ID_PREFIX } from '@/systems/event-chain-presentation';
 
 export interface CouncilPanelCallbacks {
   onClose: () => void;
   onTalkLevelChange: (level: CouncilTalkLevel) => void;
+  /** Fired when the player clicks an event-chain decision card's action
+   * button, with that card's `id`. Several OTHER cards already carry an
+   * `actionLabel` (survey-frontier, food-warning, quest/wonder cards) that
+   * this panel has never rendered as a button — #990 does not fix that
+   * pre-existing gap (a real behavior for each of those needs its own
+   * scoped change); this callback and its rendering are deliberately scoped
+   * to `EVENT_CHAIN_CARD_ID_PREFIX` cards only, see `createBucket` below. */
+  onCardAction?: (cardId: string) => void;
 }
 
 const BUCKET_COLORS: Record<string, string> = {
@@ -16,7 +26,7 @@ const BUCKET_COLORS: Record<string, string> = {
 
 const TALK_LEVELS: CouncilTalkLevel[] = ['quiet', 'normal', 'chatty', 'chaos'];
 
-function createBucket(title: string, cards: CouncilCard[], accent: string): HTMLElement {
+function createBucket(title: string, cards: CouncilCard[], accent: string, onCardAction?: (cardId: string) => void): HTMLElement {
   const section = document.createElement('section');
   section.style.cssText = `margin-top:14px;padding:10px 12px;background:rgba(255,255,255,0.03);border-left:4px solid ${accent};border-radius:8px;`;
 
@@ -52,6 +62,14 @@ function createBucket(title: string, cards: CouncilCard[], accent: string): HTML
     why.textContent = `Why: ${card.why}`;
     why.style.cssText = 'margin:0;font-size:11px;opacity:0.65;';
     article.appendChild(why);
+
+    if (card.actionLabel && onCardAction && card.id.startsWith(EVENT_CHAIN_CARD_ID_PREFIX)) {
+      const actionButton = createGameButton(card.actionLabel, 'secondary');
+      actionButton.dataset.cardId = card.id;
+      actionButton.style.marginTop = '8px';
+      actionButton.addEventListener('click', () => onCardAction(card.id));
+      article.appendChild(actionButton);
+    }
 
     section.appendChild(article);
   }
@@ -164,7 +182,7 @@ export function createCouncilPanel(
   panel.appendChild(createBucket('Do Now', agenda.doNow, BUCKET_COLORS['Do Now']));
   panel.appendChild(createBucket('Soon', agenda.soon, BUCKET_COLORS['Soon']));
   panel.appendChild(createBucket('To Win', agenda.toWin, BUCKET_COLORS['To Win']));
-  panel.appendChild(createBucket('Council Drama', agenda.drama, BUCKET_COLORS['Council Drama']));
+  panel.appendChild(createBucket('Council Drama', agenda.drama, BUCKET_COLORS['Council Drama'], callbacks.onCardAction));
 
   // --- Memory ---
   const memoryEntries = getCouncilMemoryEntries(state, state.currentPlayer);
