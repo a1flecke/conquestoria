@@ -137,4 +137,42 @@ describe('council system', () => {
 
     expect(oracleCards).toHaveLength(1);
   });
+
+  it('#992 surfaces a world-race card once the race is unlocked, and updates it as the player progresses', () => {
+    const { state } = makeCouncilFixture();
+    state.civilizations.player.techState.completed = ['space-exploration'];
+
+    const notUnlocked = buildCouncilAgenda(state, 'player').toWin
+      .find(card => card.id === 'worldrace-first-satellite');
+    expect(notUnlocked?.actionLabel).toBe('Prepare');
+
+    let cityId = state.civilizations.player.cities[0];
+    if (!cityId) {
+      const settler = Object.values(state.units).find(unit => unit.owner === 'player' && unit.type === 'settler');
+      const city = foundCity('player', settler!.position, state.map, mkC());
+      state.cities[city.id] = city;
+      state.civilizations.player.cities.push(city.id);
+      cityId = city.id;
+    }
+    state.builtNationalProjects = { 'player:space_program_initiative': { civId: 'player', cityId, eraBuilt: 11 } };
+    const readyToLaunch = buildCouncilAgenda(state, 'player').toWin
+      .find(card => card.id === 'worldrace-first-satellite');
+    expect(readyToLaunch?.actionLabel).toBe('Enter the race');
+
+    state.cities[cityId]!.productionQueue = ['first_satellite_launch'];
+    state.cities[cityId]!.productionProgress = 100;
+    const launching = buildCouncilAgenda(state, 'player').toWin
+      .find(card => card.id === 'worldrace-first-satellite');
+    expect(launching?.actionLabel).toBe('Track launch');
+    expect(launching?.summary).toContain('%');
+  });
+
+  it('#992 omits the world-race card once the race has already resolved', () => {
+    const { state } = makeCouncilFixture();
+    state.civilizations.player.techState.completed = ['space-exploration'];
+    state.worldRaces = { 'first-satellite': { kind: 'first-satellite', winnerCivId: 'ai-1', completedTurn: 5 } };
+
+    const card = buildCouncilAgenda(state, 'player').toWin.find(card => card.id === 'worldrace-first-satellite');
+    expect(card).toBeUndefined();
+  });
 });

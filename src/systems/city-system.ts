@@ -999,6 +999,26 @@ export const BUILDINGS: Record<string, Building> = {
     uniquePerEmpire: true, nationalProject: { homeEra: 11 },
     civYieldBonus: { food: 5 },
   },
+  // #992: the "launch" stage of the First Satellite world race
+  // (world-race-definitions.ts). A milestone NP -- see game-balance.md's
+  // "Milestone National Projects" -- so it never expires and carries no
+  // civYieldBonus/cityYieldBonus of its own; the race's one-time winner
+  // reward is applied directly by world-race-system.ts at the moment a
+  // winner is decided, not as an ongoing yield. requiresBuildings gates it on
+  // space_program_initiative (the existing era-10 rocketry national project)
+  // already being built -- reusing that building as the race's "component"
+  // stage instead of inventing a parallel one. resourceRequired makes
+  // blockading/denying aluminum a real, already-generic counterplay lever.
+  first_satellite_launch: {
+    id: 'first_satellite_launch', name: 'First Satellite Launch', category: 'science',
+    yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 380,
+    description: 'A committed attempt to place the world\'s first satellite into orbit. Whichever civilization completes this first wins the race; every other in-progress attempt is stood down with a partial refund.',
+    techRequired: 'space-exploration',
+    requiresBuildings: ['space_program_initiative'],
+    resourceRequired: ['aluminum'],
+    pacing: { band: 'marquee', role: 'world-race', impact: 1.6, scope: 'empire', snowball: 1.3, urgency: 1.4, situationality: 1.4, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 11, milestone: true },
+  },
   strategic_air_command: {
     id: 'strategic_air_command', name: 'Strategic Air Command', category: 'military',
     // Single key: production 6 ≤ 9 (era 7+ ceiling) ✓
@@ -1813,6 +1833,7 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   // era 11 national projects
   arms_control_treaty: '🕊️',
   green_revolution_program: '🌾',
+  first_satellite_launch: '🛰️',
   strategic_air_command: '✈️',
   // era 11 units
   attack_helicopter: '🚁',

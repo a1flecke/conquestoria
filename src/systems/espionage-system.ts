@@ -16,6 +16,7 @@ import { resolveCivDefinition } from './civ-registry';
 import { applySatelliteSurveillance } from './fog-of-war';
 import { getCapitalCityId } from './capital-system';
 import { getActiveNationalProjectsForCiv } from './national-project-system';
+import { buildWorldRaceIntelSnapshot } from './world-race-system';
 import { recordDominationPoliticalReport } from './domination-intel';
 import { isSpyUnitType } from './spy-unit-types';
 import {
@@ -1830,6 +1831,11 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
             const originalSpy = civEspBefore.spies[evt.spyId];
             const targetCivId = originalSpy?.targetCivId;
             if (targetCivId) {
+              // #992: rides the same report gather_intel already produces -- never a
+              // separate race-specific intel channel. Reads the target's CURRENT real
+              // state (national projects, production queue), same as every other field
+              // on this report; omitted entirely if the target has entered no race.
+              const worldRaceProgress = buildWorldRaceIntelSnapshot(state, targetCivId);
               updatedEsp = {
                 ...updatedEsp,
                 intelReports: {
@@ -1841,6 +1847,7 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
                     researchProgress: result.techProgress.researchProgress,
                     treasury: result.treasury ?? 0,
                     treaties: result.treaties ?? [],
+                    ...(worldRaceProgress ? { worldRaceProgress } : {}),
                   },
                 },
               };

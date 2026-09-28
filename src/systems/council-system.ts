@@ -9,6 +9,8 @@ import {
   initializeLegendaryWonderProjectsForAllCities,
 } from '@/systems/legendary-wonder-system';
 import { EVENT_CHAIN_CARD_ID_PREFIX, getEventChainDramaCards } from '@/systems/event-chain-presentation';
+import { getAllWorldRaceKinds } from '@/systems/world-race-definitions';
+import { getWorldRacePresentationForViewer } from '@/systems/world-race-presentation';
 
 export { EVENT_CHAIN_CARD_ID_PREFIX };
 
@@ -102,6 +104,57 @@ function getWonderRecommendationCards(state: GameState, civId: string): CouncilC
     .slice(0, 3);
 }
 
+/** #992: the council's "progress surface, position indicator" for world races -- reads
+ * only the viewer-safe presentation, never state.worldRaces/civ.builtNationalProjects
+ * directly. A race with no tech access yet contributes nothing (nothing to recommend);
+ * a race that already resolved (won, lost, or someone else won) also contributes nothing --
+ * that moment already had its own ceremony via #993's framework. */
+function getWorldRaceRecommendationCards(state: GameState, civId: string): CouncilCard[] {
+  const cards: CouncilCard[] = [];
+
+  for (const kind of getAllWorldRaceKinds()) {
+    const presentation = getWorldRacePresentationForViewer(state, civId, kind);
+    if (!presentation.unlocked || presentation.completion) continue;
+
+    const { own, knownRivals, displayName } = presentation;
+    const progressPercent = own.launchCost > 0 ? Math.round((own.launchProgress / own.launchCost) * 100) : 0;
+
+    let summary: string;
+    let actionLabel: string;
+    let priority: number;
+    if (!own.componentBuilt) {
+      summary = `Lay the groundwork for the ${displayName} race before committing to the launch attempt itself.`;
+      actionLabel = 'Prepare';
+      priority = 35;
+    } else if (!own.launchQueued) {
+      summary = `${displayName}: the groundwork is complete. Queue the launch attempt to enter the race.`;
+      actionLabel = 'Enter the race';
+      priority = 55;
+    } else {
+      summary = `${own.hostCityName ?? 'A city'} is ${progressPercent}% toward the ${displayName} launch.`;
+      actionLabel = 'Track launch';
+      priority = 65;
+    }
+    if (knownRivals.length > 0) {
+      summary += ` ${knownRivals.length} known rival${knownRivals.length === 1 ? '' : 's'} ${knownRivals.length === 1 ? 'is' : 'are'} also pursuing it.`;
+      priority += 10;
+    }
+
+    cards.push({
+      id: `worldrace-${kind}`,
+      advisor: 'scholar',
+      bucket: 'to-win',
+      title: `World Race: ${displayName}`,
+      summary,
+      why: 'Whoever completes the launch first claims a one-time empire reward; everyone else is refunded half their invested production.',
+      priority,
+      actionLabel,
+    });
+  }
+
+  return cards;
+}
+
 export function buildCouncilAgenda(state: GameState, civId: string): CouncilAgenda {
   const primaryCity = getPrimaryCity(state, civId);
   const civBonus = resolveCivDefinition(state, state.civilizations[civId]?.civType ?? '')?.bonusEffect;
@@ -165,6 +218,7 @@ export function buildCouncilAgenda(state: GameState, civId: string): CouncilAgen
   }
 
   const wonderCards = getWonderRecommendationCards(state, civId);
+  const worldRaceCards = getWorldRaceRecommendationCards(state, civId);
 
   return {
     doNow: doNow.sort((a, b) => b.priority - a.priority),
@@ -181,6 +235,7 @@ export function buildCouncilAgenda(state: GameState, civId: string): CouncilAgen
     ],
     toWin: [
       ...wonderCards,
+      ...worldRaceCards,
       {
         id: 'pick-a-victory-lane',
         advisor: 'scholar',

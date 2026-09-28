@@ -120,8 +120,14 @@ describe('era 10 national project coverage', () => {
 describe('era 11 national project coverage', () => {
   const era11NPs = nationalProjects.filter(np => np.nationalProject?.homeEra === 11);
 
-  it('has exactly 3 era 11 national projects', () => {
-    expect(era11NPs).toHaveLength(3);
+  it('has exactly 4 era 11 national projects', () => {
+    expect(era11NPs).toHaveLength(4);
+  });
+
+  it('first_satellite_launch is a milestone NP with no civYieldBonus (#992)', () => {
+    const np = era11NPs.find(np => np.id === 'first_satellite_launch');
+    expect(np?.nationalProject?.milestone).toBe(true);
+    expect(np?.civYieldBonus).toBeUndefined();
   });
 
   it('arms_control_treaty has single gold civYieldBonus', () => {

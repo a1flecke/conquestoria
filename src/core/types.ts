@@ -1509,7 +1509,15 @@ export interface EspionageCivState {
   // progress is summarized as a count + current research rather than the full completed
   // list, to keep the stored payload a small bounded snapshot rather than an
   // ever-growing raw dump of target-civ state.
-  intelReports?: Record<string, { turn: number; completedTechCount: number; currentResearch: string | null; researchProgress: number; treasury: number; treaties: Treaty[] }>;
+  // #992: worldRaceProgress rides the same report and the same overwrite-on-refresh
+  // convention -- deliberately NOT a separate race-specific intel channel (see
+  // world-race-presentation.ts's own header comment). Present only for a race
+  // kind the target civ has actually entered (built the component or queued the
+  // launch); absent otherwise, so gathering intel on a non-racing civ adds no key.
+  intelReports?: Record<string, {
+    turn: number; completedTechCount: number; currentResearch: string | null; researchProgress: number; treasury: number; treaties: Treaty[];
+    worldRaceProgress?: Partial<Record<WorldRaceKind, { componentBuilt: boolean; launchQueued: boolean; launchProgress: number; launchCost: number }>>;
+  }>;
   // identify_resources: city-territory resource snapshot, keyed by the surveyed city.
   resourceReports?: Record<string, { turn: number; targetCivId: string; resources: string[] }>;
   // monitor_diplomacy: civ-wide relationship/trade-partner snapshot, keyed by target civ.
@@ -2449,6 +2457,7 @@ export interface GameState {
    * only (no dedicated load-time normalizer needed — there is no prior shape to
    * repair, this field never existed before this schema). */
   activeEventChains?: Record<string, ActiveEventChain>;
+  worldRaces?: Partial<Record<WorldRaceKind, ActiveWorldRace>>;
   /** Non-diplomatic world-pressure actors; normalized on load. */
   crisisForces?: Record<string, CrisisForce>;
   /** Target-scoped Beast Stampede recurrence and lifecycle state; normalized on load. */
@@ -2925,6 +2934,16 @@ export interface GameEvents {
   // #993 big-moment presentation) can derive from — #990 does not itself wire
   // this into any history ledger; see event-chain-lifecycle.ts's header comment.
   'eventchain:resolved':    { chainId: string; kind: EventChainKind; civId: string; outcome: 'resolved' | EventChainCancellationReason; priorChoices: EventChainChoiceRecord[] };
+  // #992 world races. All three are world-scoped, never civ-specific except
+  // 'completed' -- 'unlocked' and 'launch-begun' are the two public milestones
+  // and deliberately carry no civId (see world-race-system.ts / ActiveWorldRace
+  // doc comment). 'entry-mooted' fires for every OTHER entrant still holding
+  // the launch building queued once a winner is decided -- their own private
+  // notification, not a public milestone.
+  'worldrace:unlocked':      { kind: WorldRaceKind; turn: number };
+  'worldrace:launch-begun':  { kind: WorldRaceKind; turn: number };
+  'worldrace:completed':     { kind: WorldRaceKind; winnerCivId: string; hostCityId: string; turn: number };
+  'worldrace:entry-mooted':  { kind: WorldRaceKind; civId: string; cityId: string; goldRefund: number };
   /** One-time, target-scoped Beast Stampede presentation transition. */
   'stampede:lifecycle':
     | { kind: 'warning'; targetCivId: string }
@@ -3041,4 +3060,25 @@ export interface ActiveEventChain {
    * `defaultOptionId` applied automatically — a chain must never wait forever
    * on player input. Ignored for AI-controlled civs, which resolve same-turn. */
   pendingChoiceExpiresTurn?: number;
+}
+
+// #992: one shared framework for a competitive global objective every living
+// civ can race toward. Deliberately minimal persisted state -- see
+// `world-race-system.ts`'s header for why: own progress and a rival's current
+// state are both DERIVED live from canonical systems (national projects,
+// city production, espionage intel) rather than snapshotted here. This
+// record only holds the few world-level facts nothing else already tracks:
+// which public milestones have fired (so they announce exactly once) and the
+// eventual winner (a permanent chronicle, like a legendary wonder's
+// first-discoverer credit).
+export type WorldRaceKind = 'first-satellite';
+
+export interface ActiveWorldRace {
+  kind: WorldRaceKind;
+  /** Public milestone: the prerequisite tech exists somewhere in the world. Names no civ. */
+  announcedUnlocked?: true;
+  /** Public milestone: some entrant has begun the final launch stage. Names no civ -- see world-race-presentation.ts. */
+  announcedLaunchBegun?: true;
+  winnerCivId?: string;
+  completedTurn?: number;
 }
