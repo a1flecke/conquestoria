@@ -51,8 +51,8 @@ describe('world race save/reload continuity (#992)', () => {
     state.worldRaces = {
       'first-satellite': { kind: 'first-satellite', announcedUnlocked: true, announcedLaunchBegun: true, winnerCivId: civId, completedTurn: state.turn },
     };
-    state.espionage[civId] = {
-      ...(state.espionage[civId] ?? { spies: {} }),
+    state.espionage![civId] = {
+      ...(state.espionage![civId] ?? { spies: {} }),
       intelReports: {
         [rivalId]: { turn: state.turn, worldRaceProgress: { 'first-satellite': { componentBuilt: true, launchQueued: true, launchProgress: 42, launchCost: 380 } } },
       },

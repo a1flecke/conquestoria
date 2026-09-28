@@ -63,9 +63,10 @@ function setIntelReport(
   turn: number,
   progress: { componentBuilt: boolean; launchQueued: boolean; launchProgress: number; launchCost: number },
 ): void {
-  const espionage = (state.espionage ??= {} as GameState['espionage']);
-  const viewerState = (espionage[viewerId] ??= { intelReports: {} } as never);
-  (viewerState as { intelReports: Record<string, unknown> }).intelReports[targetId] = {
+  if (!state.espionage) state.espionage = {} as GameState['espionage'];
+  const espionage = state.espionage as unknown as Record<string, { intelReports: Record<string, unknown> }>;
+  if (!espionage[viewerId]) espionage[viewerId] = { intelReports: {} };
+  espionage[viewerId].intelReports[targetId] = {
     turn,
     worldRaceProgress: { [RACE]: progress },
   };

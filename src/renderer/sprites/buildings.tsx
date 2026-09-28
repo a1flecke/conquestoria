@@ -2910,6 +2910,45 @@ export function SpaceCenterSprite({ palette, svgOnly = false }: BuildingSpritePr
   );
 }
 
+// #992: the "launch" stage of the First Satellite world race -- a compact single-payload
+// booster with visible satellite fairing and orbit rings, distinct from SpaceCenterSprite's
+// full Saturn-V-scale rocket (this is a smaller, one-shot launch attempt, not a standing
+// space program) and from SpaceProgramInitiativeSprite's mission-control-console motif.
+export function FirstSatelliteLaunchSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  return (
+    <BuildingFrame label="First Satellite Launch" category="science" svgOnly={svgOnly}>
+      <BuildingPlinth w={148} />
+      {/* launch platform */}
+      <rect x="20" y="118" width="60" height="18" rx="2" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1" />
+      {/* flame trench */}
+      <rect x="36" y="128" width="28" height="10" rx="1" fill="#1a1a1a" stroke={P.ink.line} strokeWidth="0.7" />
+      {/* single-stage booster */}
+      <rect x="42" y="66" width="16" height="62" rx="3" fill="#f0f0f0" stroke={P.ink.line} strokeWidth="1" />
+      <path d="M42,66 L58,66 L50,48 Z" fill={palette.bright} stroke={P.ink.line} strokeWidth="0.9" />
+      {/* satellite fairing window */}
+      <rect x="45" y="52" width="10" height="10" rx="1" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.6" opacity="0.85" />
+      {/* fins */}
+      <path d="M42,120 L32,132 L42,128 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.7" />
+      <path d="M58,120 L68,132 L58,128 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.7" />
+      {/* launch flame */}
+      <path d="M43,128 L57,128 L54,140 L46,140 Z" fill="#ff8800" opacity="0.8" />
+      {/* gantry arm */}
+      <line x1="20" y1="70" x2="42" y2="70" stroke={P.metal.iron} strokeWidth="2" />
+      <line x1="20" y1="60" x2="20" y2="118" stroke={P.metal.iron} strokeWidth="2.5" />
+      {/* orbit rings + payload, right side -- reads as "the satellite this launch delivers" */}
+      <ellipse cx="128" cy="88" rx="38" ry="16" fill="none" stroke={palette.dark} strokeWidth="1.3" strokeDasharray="3 3" />
+      <ellipse cx="128" cy="88" rx="20" ry="30" fill="none" stroke={palette.dark} strokeWidth="1" strokeDasharray="2 3" opacity="0.7" />
+      <rect x="122" y="82" width="12" height="12" rx="1" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.8" />
+      <rect x="106" y="86" width="14" height="5" fill={palette.bright} stroke={P.ink.line} strokeWidth="0.5" />
+      <rect x="136" y="86" width="14" height="5" fill={palette.bright} stroke={P.ink.line} strokeWidth="0.5" />
+      {/* mission control shack, small */}
+      <rect x="98" y="118" width="36" height="18" rx="2" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="104" y="122" width="8" height="8" fill={palette.bright} stroke={P.ink.line} strokeWidth="0.5" opacity="0.7" />
+      <Banner x={30} y={18} palette={palette} scale={0.72} />
+    </BuildingFrame>
+  );
+}
+
 export function AgriculturalStationSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Agricultural Station" category="food" svgOnly={svgOnly}>
