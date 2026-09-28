@@ -258,11 +258,12 @@ describe('#1012 — crisis-system decomposition boundaries', () => {
   const sys = resolve(__dirname, '../../src/systems');
   const read = (name: string) => readFileSync(resolve(sys, name), 'utf8');
 
-  /** Named imports pulled from a given module specifier, e.g. importsFrom('crisis-lifecycle.ts', './crisis-progression'). */
+  /** Named imports pulled from a given module specifier, e.g. namedImportsFrom('crisis-lifecycle.ts', './crisis-progression'). */
   function namedImportsFrom(file: string, specifier: string): string[] {
     const src = read(file).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    const escaped = specifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const names: string[] = [];
-    const re = new RegExp(`import\\s+(?:type\\s+)?\\{([^}]*)\\}\\s+from\\s+'${specifier.replace('.', '\\.')}'`, 'g');
+    const re = new RegExp(`import\\s+(?:type\\s+)?\\{([^}]*)\\}\\s+from\\s+'${escaped}'`, 'g');
     let m: RegExpExecArray | null;
     while ((m = re.exec(src))) {
       names.push(...m[1].split(',').map(s => s.trim()).filter(Boolean));
@@ -306,7 +307,7 @@ describe('#1012 — crisis-system decomposition boundaries', () => {
     expect(imports).not.toContain('crisis-interventions');
     expect(imports).not.toContain('crisis-effects');
     expect(imports).toContain('crisis-progression');
-    expect(namedImportsFrom('crisis-lifecycle.ts', '\\./crisis-progression')).toEqual(['tickCrisisByArchetype']);
+    expect(namedImportsFrom('crisis-lifecycle.ts', './crisis-progression')).toEqual(['tickCrisisByArchetype']);
   });
 
   it('crisis-interventions.ts (player commands) does not import the turn-tick loop or scheduler', () => {
