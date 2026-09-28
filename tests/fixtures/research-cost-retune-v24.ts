@@ -205,7 +205,7 @@ export const RECOMMENDED_TECH_COST_BY_ID: Readonly<Record<string, number>> = Obj
   "machine-ethics": 2150,
   "magistracy": 70,
   "manifest-destiny": 555,
-  "mars-mission-architecture": 2150,
+  "mars-mission-architecture": 2975,
   "masonry": 50,
   "mass-firepower": 1420,
   "mass-media": 1740,

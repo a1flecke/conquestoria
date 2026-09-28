@@ -5,7 +5,7 @@
      Regenerate: UPDATE_SAVE_COMPAT_DOC=1 yarn vitest run tests/storage/save-migration-registries.test.ts
      Enforced by: tests/storage/save-migration-registries.test.ts -->
 
-Current schema version: **29**
+Current schema version: **30**
 
 Save compatibility is three separate mechanisms (#1023). They are deliberately
 not interchangeable: a normalizer silently standing in for a migration that was
@@ -50,6 +50,7 @@ Never on an already-current save.
 | 27 | `vassalage` | #910 made vassalage bilateral; a one-sided or dangling role silently breaks protection obligations and independence checks. |
 | 28 | `minor-civ-leagues` | #496 added the regional-compact container. Additive persistent container only; formation stays a world-turn action. |
 | 29 | `domination-intel` | #985 MR2 persists only earned Domination observations; older saves receive an empty ledger rather than omniscient historical backfill. |
+| 30 | `mars-mission-architecture-cost` | #986 added a building that requires Mars Robotics Initiative, flipping mars-mission-architecture's automatic pacing band and its research-pacing-formula cost from 2150 to 2975; in-flight research on it must keep its invested percentage, same pattern as migration 24. |
 
 ## 2. Compatibility normalization
 

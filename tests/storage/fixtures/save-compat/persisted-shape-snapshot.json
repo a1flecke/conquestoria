@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 29,
+  "schemaVersion": 30,
   "paths": [
     "autonomyByCiv",
     "autonomyByCiv.*.detections",
@@ -78,6 +78,7 @@
     "civilizations.*.diplomacy.vassalage.protectionScore",
     "civilizations.*.diplomacy.vassalage.protectionTimers",
     "civilizations.*.diplomacy.vassalage.vassals",
+    "civilizations.*.diplomacy.warGoals",
     "civilizations.*.gold",
     "civilizations.*.id",
     "civilizations.*.isEliminated",
@@ -1074,6 +1075,7 @@
     "idCounters.nextQuestId",
     "idCounters.nextRouteId",
     "idCounters.nextUnitId",
+    "idCounters.nextWarId",
     "legendaryWonderHistory",
     "legendaryWonderHistory.destroyedStrongholds",
     "legendaryWonderHistory.discoveredSites",
