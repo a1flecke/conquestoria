@@ -34,6 +34,8 @@ import {
   routeWorldPressureCrisisResolved,
   routeCrisisFoeHuntedByAlly,
   routeCrisisAidSent,
+  routeEventChainStarted,
+  routeEventChainResolved,
   routeOpportunisticWar,
   routeSabotageReliefDiscovered,
   routeCityFlipped,
@@ -1024,6 +1026,45 @@ describe('crisis notification routing', () => {
     expect(calls).toHaveLength(1);
     expect(calls[0]!.civId).toBe('p1');
     expect(calls[0]!.message).toContain('feast');
+  });
+});
+
+describe('event-chain notification routing (#990)', () => {
+  it('routes eventchain:started only to the target civ, prompting them to check the Council', () => {
+    const state = makeState();
+    const { sink, calls } = makeSink();
+
+    routeEventChainStarted(state, { chainId: 'chain-1', kind: 'financial-panic', civId: 'p1', cityIds: [] }, sink);
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.civId).toBe('p1');
+    expect(calls[0]!.message).toContain('Financial Panic');
+    expect(calls[0]!.message).toMatch(/council/i);
+  });
+
+  it('routes eventchain:resolved with a positive message for a real resolution', () => {
+    const state = makeState();
+    const { sink, calls } = makeSink();
+
+    routeEventChainResolved(
+      state,
+      { chainId: 'chain-1', kind: 'financial-panic', civId: 'p1', outcome: 'resolved', priorChoices: [] },
+      sink,
+    );
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.type).toBe('success');
+    expect(calls[0]!.message).toContain('Financial Panic');
+    expect(calls[0]!.message).toContain('passed');
+  });
+
+  it('routes a cancellation outcome (city-lost/civ-eliminated/invalid) as informational, not a success chime', () => {
+    const state = makeState();
+    for (const outcome of ['city-lost', 'civ-eliminated', 'invalid'] as const) {
+      const { sink, calls } = makeSink();
+      routeEventChainResolved(state, { chainId: 'chain-1', kind: 'financial-panic', civId: 'p1', outcome, priorChoices: [] }, sink);
+      expect(calls[0]!.type, outcome).toBe('info');
+    }
   });
 });
 
