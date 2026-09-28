@@ -104,6 +104,7 @@ function baseDeps(state: GameState, overrides: Partial<GameSessionControllerDeps
       enterCampaignForE2E: vi.fn().mockResolvedValue(undefined),
       enterCampaign: vi.fn().mockResolvedValue(undefined),
     },
+    ceremonies: { clearForNewGame: vi.fn() },
     getElementById: id => elements.get(id) ?? document.getElementById(id),
     showNotification: vi.fn(),
     foundCityAction: vi.fn(),
@@ -171,6 +172,16 @@ describe('GameSessionController', () => {
       expect(deps.advisorSystem.check).toHaveBeenCalledTimes(1);
       expect(deps.turnFlow.showRequiredChoicesIfNeeded).toHaveBeenCalledTimes(1);
       expect(deps.renderLoop.start).toHaveBeenCalledTimes(1);
+    });
+
+    it('clears any previous game\'s ceremony/victory backlog before presenting this GameState (#993)', async () => {
+      const state = makeFixture();
+      const deps = baseDeps(state);
+      const gameSession = createGameSessionController(deps);
+
+      void gameSession.startGame();
+
+      expect(deps.ceremonies.clearForNewGame).toHaveBeenCalledTimes(1);
     });
 
     it('wires input handlers only once across repeated calls', async () => {

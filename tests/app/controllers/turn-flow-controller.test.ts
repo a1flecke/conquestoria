@@ -11,6 +11,8 @@ import type { GameState, HotSeatPlayer, Religion, Unit } from '@/core/types';
 import { createGameSession } from '@/app/game-session';
 import { createSelectionStore } from '@/app/selection-store';
 import { createPanelHost } from '@/app/panel-host';
+import { createCeremonyCoordinator } from '@/app/controllers/ceremony-coordinator';
+import { showVictoryPanel, type VictoryPanelOptions } from '@/ui/victory-panel';
 import { RoundPresentationGate } from '@/presentation/round-presentation-gate';
 import * as saveManager from '@/storage/save-manager';
 import * as aiRoundScheduler from '@/ai/ai-round-scheduler';
@@ -133,16 +135,30 @@ function fakeAudio(overrides: Partial<TurnFlowAudio> = {}): TurnFlowAudio {
 function baseDeps(state: GameState, overrides: Partial<TurnFlowControllerDeps> = {}): TurnFlowControllerDeps {
   const session = overrides.session ?? createGameSession(state);
   const elements = new Map<string, HTMLElement>();
+  const uiLayer = overrides.uiLayer ?? document.createElement('div');
+  const setBlockingOverlay = overrides.setBlockingOverlay ?? vi.fn();
   return {
     session,
     selection: createSelectionStore(),
     renderLoop: fakeRenderer(),
     bus: new EventBus(),
-    uiLayer: document.createElement('div'),
+    uiLayer,
     audio: fakeAudio(),
     router: { close: vi.fn(), open: vi.fn() },
     roundPresentationGate: new RoundPresentationGate(),
-    ceremonies: { clearForHandoff: vi.fn() },
+    ceremonies: {
+      clearForHandoff: vi.fn(),
+      // #993: mirrors the real coordinator's default victory presentation
+      // (block + render) closely enough for tests that only care about the
+      // panel appearing, without requiring a real PanelHost/coordinator in
+      // every one of them. Tests exercising the coordinator's own
+      // overlay-depth/backlog behavior construct a real one explicitly (see
+      // the hot-seat handoff describe block below).
+      enqueueVictory: vi.fn((options: VictoryPanelOptions) => {
+        setBlockingOverlay('victory');
+        showVictoryPanel(uiLayer, options);
+      }),
+    },
     notifier: { withHappenedTurn: (_turn, fn) => fn() },
     userSettingsStore: { getMasterVolume: () => 0.8 },
     getElementById: id => elements.get(id) ?? null,
@@ -151,7 +167,7 @@ function baseDeps(state: GameState, overrides: Partial<TurnFlowControllerDeps> =
     refreshVictoryProgressPanel: vi.fn(),
     showNotification: vi.fn(),
     updateHUD: vi.fn(),
-    setBlockingOverlay: vi.fn(),
+    setBlockingOverlay,
     currentCiv: () => session.getState().civilizations[session.getState().currentPlayer],
     getUnitTurnFlow: () => ({ showEndTurnUnitWarningIfNeeded: () => false }),
     deselectUnit: vi.fn(),
@@ -648,8 +664,24 @@ describe('createTurnFlowController', () => {
         nextHumanId: null,
       }));
 
-      const host = createPanelHost(document.createElement('div'));
-      const deps = baseDeps(state, { setBlockingOverlay: host.setBlockingOverlay });
+      const uiLayer = document.createElement('div');
+      const host = createPanelHost(uiLayer);
+      // #993: victory presentation now goes through the ceremony coordinator,
+      // not a direct setBlockingOverlay('victory') + showVictoryPanel call --
+      // use the real coordinator sharing this test's own `host`/`uiLayer` so
+      // the overlay-depth interaction across 'turn-handoff' and the
+      // coordinator's own victory overlay is genuinely exercised, not
+      // stubbed away.
+      const ceremonies = createCeremonyCoordinator({
+        host,
+        reducedMotion: () => false,
+        requestMapHighlight: vi.fn(),
+        playDiscoveryAudio: vi.fn(),
+        openAtlas: vi.fn(),
+        openCity: vi.fn(),
+        openJournal: vi.fn(),
+      });
+      const deps = baseDeps(state, { uiLayer, setBlockingOverlay: host.setBlockingOverlay, ceremonies });
       const turnFlow = createTurnFlowController(deps);
 
       const endTurnPromise = turnFlow.endTurn();

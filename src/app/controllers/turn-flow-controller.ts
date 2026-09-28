@@ -49,7 +49,6 @@ import { isCivUnitInBeastTerritory } from '@/systems/beast-system';
 import { closePlanningPanels, createRequiredChoicePanel } from '@/ui/required-choice-panel';
 import { createReligionBoonModal } from '@/ui/religion-boon-modal';
 import { chooseBoon } from '@/systems/religion-system';
-import { showVictoryPanel } from '@/ui/victory-panel';
 import { getCouncilInterrupt } from '@/systems/council-system';
 import { collectCouncilInterrupt } from '@/core/hotseat-events';
 import { getIdleCityIds, getRecommendedIdleCityChoice, needsResearchChoice, enqueueResearch, enqueueCityProduction } from '@/systems/planning-system';
@@ -109,7 +108,7 @@ export interface TurnFlowControllerDeps {
   readonly router: Pick<PanelRouter, 'close' | 'open'>;
   /** The concrete class -- `RoundPresentationGate` has a private field, same reasoning as `bus` above. */
   readonly roundPresentationGate: RoundPresentationGate;
-  readonly ceremonies: Pick<CeremonyCoordinator, 'clearForHandoff'>;
+  readonly ceremonies: Pick<CeremonyCoordinator, 'clearForHandoff' | 'enqueueVictory'>;
   readonly notifier: Pick<Notifier, 'withHappenedTurn'>;
   readonly userSettingsStore: Pick<UserSettingsStore, 'getMasterVolume'>;
   /** Substitutes for `document.getElementById` -- see file docblock and `.claude/rules`'s port-purity note. */
@@ -365,8 +364,13 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
     if (!state.gameOver) return false;
     const outcome = projectDominationOutcome(state, state.hotSeat ? null : state.currentPlayer);
     deps.closeVictoryProgressPanel();
-    deps.setBlockingOverlay('victory');
-    showVictoryPanel(uiLayer, {
+    // #993: routed through the ceremony coordinator's shared big-moment engine
+    // instead of an unconditional direct call -- this waits for a
+    // currently-presenting wonder/legendary ceremony's own overlay to clear
+    // first (see ceremony-coordinator.ts's docblock for the overlay-stacking
+    // race this closes) and drops any backlog those ceremonies still had
+    // queued, since none of it matters once the game is over.
+    ceremonies.enqueueVictory({
       winnerName: outcome.winnerName,
       victoryType: outcome.sharedResult ? 'Campaign Finished' : outcome.outcome === 'victory' ? 'Domination Victory' : 'Campaign Defeat',
       outcome: outcome.outcome,
@@ -377,7 +381,6 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
       turn: state.turn,
       onNewGame: () => {
         deps.getElementById('victory-panel')?.remove();
-        deps.setBlockingOverlay(null);
         deps.showGameModeSelection();
       },
     });

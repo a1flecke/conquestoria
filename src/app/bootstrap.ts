@@ -542,6 +542,7 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     selectionController,
     hud,
     campaignEntry,
+    ceremonies,
     getElementById: id => document.getElementById(id),
     showNotification,
     foundCityAction: playerActions.foundCityAction,

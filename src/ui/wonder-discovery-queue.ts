@@ -1,5 +1,6 @@
 import type { WonderDiscoveryRevealItem } from '@/systems/wonder-discovery-reveal';
 import { createWonderDiscoveryCeremony, type WonderDiscoveryCeremonyAction } from '@/ui/wonder-discovery-ceremony';
+import { createBigMomentQueue, type BigMomentQueue } from '@/systems/big-moment-queue';
 
 export interface WonderDiscoveryRevealQueueOptions {
   container: HTMLElement;
@@ -12,30 +13,14 @@ export interface WonderDiscoveryRevealQueueOptions {
   setBlockingOverlay?: (id: string | null) => void;
 }
 
-export interface WonderDiscoveryRevealQueue {
-  enqueue(item: WonderDiscoveryRevealItem): void;
-  notifyActionSettled(): void;
-  pump(): void;
-  pendingCount(): number;
-  /**
-   * Drops every reveal not already presenting. Does not interrupt one in
-   * progress, and does not un-dedupe anything that already played -- only
-   * the dropped items' own keys are freed, so a wonder shown before this
-   * call can never silently replay after it.
-   */
-  clear(): void;
-}
+/** #993: a thin domain adapter over the generic `BigMomentQueue` engine. */
+export type WonderDiscoveryRevealQueue = BigMomentQueue<WonderDiscoveryRevealItem>;
 
 function keyFor(item: WonderDiscoveryRevealItem): string {
   return `${item.civId}:${item.wonderId}`;
 }
 
 export function createWonderDiscoveryRevealQueue(options: WonderDiscoveryRevealQueueOptions): WonderDiscoveryRevealQueue {
-  const pending: WonderDiscoveryRevealItem[] = [];
-  const seen = new Set<string>();
-  let presenting = false;
-  let actionSettled = false;
-
   const present = options.present ?? ((item: WonderDiscoveryRevealItem) => new Promise<WonderDiscoveryCeremonyAction>(resolve => {
     createWonderDiscoveryCeremony(
       options.container,
@@ -45,61 +30,27 @@ export function createWonderDiscoveryRevealQueue(options: WonderDiscoveryRevealQ
     );
   }));
 
-  async function play(item: WonderDiscoveryRevealItem): Promise<void> {
-    presenting = true;
-    options.setBlockingOverlay?.('wonder-discovery-ceremony');
-    options.onRevealStarted?.(item);
-    const reducedMotion = options.reducedMotion();
-    let action: WonderDiscoveryCeremonyAction = 'continue';
+  return createBigMomentQueue<WonderDiscoveryRevealItem>({
+    isInteractionBlocked: options.isInteractionBlocked,
+    keyFor,
+    present: async item => {
+      options.setBlockingOverlay?.('wonder-discovery-ceremony');
+      options.onRevealStarted?.(item);
+      const reducedMotion = options.reducedMotion();
+      let action: WonderDiscoveryCeremonyAction = 'continue';
 
-    try {
-      action = await present(item);
-    } catch {
-      action = 'continue';
-    } finally {
-      options.setBlockingOverlay?.(null);
-    }
-
-    options.requestMapHighlight(item, reducedMotion);
-    if (action === 'open-atlas') {
-      options.openAtlas(item.wonderId);
-    }
-    presenting = false;
-    pump();
-  }
-
-  function pump(): void {
-    if (!actionSettled || presenting || options.isInteractionBlocked()) return;
-    const next = pending.shift();
-    if (!next) return;
-    void play(next);
-  }
-
-  return {
-    enqueue(item) {
-      const key = keyFor(item);
-      if (seen.has(key)) return;
-      seen.add(key);
-      if (!presenting && pending.length === 0) {
-        actionSettled = false;
+      try {
+        action = await present(item);
+      } catch {
+        action = 'continue';
+      } finally {
+        options.setBlockingOverlay?.(null);
       }
-      pending.push(item);
-      pump();
-    },
-    notifyActionSettled() {
-      actionSettled = true;
-      pump();
-    },
-    pump,
-    pendingCount() {
-      return pending.length;
-    },
-    clear() {
-      for (const dropped of pending) {
-        seen.delete(keyFor(dropped));
+
+      options.requestMapHighlight(item, reducedMotion);
+      if (action === 'open-atlas') {
+        options.openAtlas(item.wonderId);
       }
-      pending.length = 0;
-      actionSettled = false;
     },
-  };
+  });
 }

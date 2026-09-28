@@ -35,6 +35,7 @@ import type { MapInteractionController } from '@/app/controllers/map-interaction
 import type { SelectionController } from '@/app/controllers/selection-controller';
 import type { HudController } from '@/app/controllers/hud-controller';
 import type { CampaignEntryController } from '@/app/controllers/campaign-entry-controller';
+import type { CeremonyCoordinator } from '@/app/controllers/ceremony-coordinator';
 import type { GameState } from '@/core/types';
 import { RoundPresentationGate } from '@/presentation/round-presentation-gate';
 import { createGameShell } from '@/ui/game-shell';
@@ -105,6 +106,8 @@ export interface GameSessionControllerDeps {
   readonly selectionController: Pick<SelectionController, 'selectNextUnit' | 'selectUnit'>;
   readonly hud: HudController;
   readonly campaignEntry: Pick<CampaignEntryController, 'showStartSavePanel' | 'showGameModeSelection' | 'enterCampaignForE2E' | 'enterCampaign'>;
+  /** #993: `startGame()` clears any previous game's ceremony/victory backlog before presenting this `GameState` -- see its own call site comment. */
+  readonly ceremonies: Pick<CeremonyCoordinator, 'clearForNewGame'>;
   readonly getElementById: (id: string) => HTMLElement | null;
   readonly showNotification: (message: string, type?: 'info' | 'success' | 'warning') => void;
   /** Phase 13's future home -- passed as a dep until `PlayerActionController` exists. */
@@ -229,6 +232,15 @@ export function createGameSessionController(deps: GameSessionControllerDeps): Ga
   }
 
   function startGame(): Promise<void> {
+    // #993: this is the single choke point every "begin actively presenting
+    // this GameState" path funnels through -- a brand-new game, a loaded
+    // save, and hot-seat re-entry into the next player's turn all call this.
+    // A ceremony (or victory) backlog left mid-flight by whatever was on
+    // screen before this call must never resurface once this GameState takes
+    // over the UI -- see ceremony-coordinator.ts's own docblock for the
+    // confirmed bug this closes (neither the victory panel's nor the pause
+    // menu's "New Game" ever cleared it before this).
+    deps.ceremonies.clearForNewGame();
     deps.hud.ensureDrawerMounted();
 
     // Warm sprite cache non-blocking — renderers fall back to emoji while loading

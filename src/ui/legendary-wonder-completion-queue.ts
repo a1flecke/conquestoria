@@ -3,6 +3,7 @@ import {
   createLegendaryWonderCompletionCeremony,
   type LegendaryWonderCompletionCeremonyAction,
 } from '@/ui/legendary-wonder-completion-ceremony';
+import { createBigMomentQueue, type BigMomentQueue } from '@/systems/big-moment-queue';
 
 export interface LegendaryWonderCompletionQueueOptions {
   container: HTMLElement;
@@ -14,19 +15,8 @@ export interface LegendaryWonderCompletionQueueOptions {
   setBlockingOverlay?: (id: string | null) => void;
 }
 
-export interface LegendaryWonderCompletionQueue {
-  enqueue(item: LegendaryWonderCompletionCeremonyItem | null): void;
-  notifyActionSettled(): void;
-  pump(): void;
-  pendingCount(): number;
-  /**
-   * Drops every completion not already presenting. Does not interrupt one in
-   * progress, and does not un-dedupe anything that already played -- only
-   * the dropped items' own keys are freed, so a completion shown before this
-   * call can never silently replay after it.
-   */
-  clear(): void;
-}
+/** #993: a thin domain adapter over the generic `BigMomentQueue` engine. */
+export type LegendaryWonderCompletionQueue = BigMomentQueue<LegendaryWonderCompletionCeremonyItem>;
 
 function keyFor(item: LegendaryWonderCompletionCeremonyItem): string {
   return `${item.civId}:${item.wonderId}:${item.turnCompleted}`;
@@ -35,11 +25,6 @@ function keyFor(item: LegendaryWonderCompletionCeremonyItem): string {
 export function createLegendaryWonderCompletionQueue(
   options: LegendaryWonderCompletionQueueOptions,
 ): LegendaryWonderCompletionQueue {
-  const pending: LegendaryWonderCompletionCeremonyItem[] = [];
-  const seen = new Set<string>();
-  let presenting = false;
-  let actionSettled = false;
-
   const present = options.present ?? ((item: LegendaryWonderCompletionCeremonyItem) => new Promise<LegendaryWonderCompletionCeremonyAction>(resolve => {
     createLegendaryWonderCompletionCeremony(
       options.container,
@@ -49,62 +34,26 @@ export function createLegendaryWonderCompletionQueue(
     );
   }));
 
-  async function play(item: LegendaryWonderCompletionCeremonyItem): Promise<void> {
-    presenting = true;
-    options.setBlockingOverlay?.('legendary-wonder-completion-ceremony');
-    let action: LegendaryWonderCompletionCeremonyAction = 'continue';
+  return createBigMomentQueue<LegendaryWonderCompletionCeremonyItem>({
+    isInteractionBlocked: options.isInteractionBlocked,
+    keyFor,
+    present: async item => {
+      options.setBlockingOverlay?.('legendary-wonder-completion-ceremony');
+      let action: LegendaryWonderCompletionCeremonyAction = 'continue';
 
-    try {
-      action = await present(item);
-    } catch {
-      action = 'continue';
-    } finally {
-      options.setBlockingOverlay?.(null);
-    }
-
-    if (action === 'open-city') {
-      options.openCity(item.cityId);
-    } else if (action === 'open-journal') {
-      options.openJournal(item.cityId, item.wonderId);
-    }
-
-    presenting = false;
-    pump();
-  }
-
-  function pump(): void {
-    if (!actionSettled || presenting || options.isInteractionBlocked()) return;
-    const next = pending.shift();
-    if (!next) return;
-    void play(next);
-  }
-
-  return {
-    enqueue(item) {
-      if (!item) return;
-      const key = keyFor(item);
-      if (seen.has(key)) return;
-      seen.add(key);
-      if (!presenting && pending.length === 0) {
-        actionSettled = false;
+      try {
+        action = await present(item);
+      } catch {
+        action = 'continue';
+      } finally {
+        options.setBlockingOverlay?.(null);
       }
-      pending.push(item);
-      pump();
-    },
-    notifyActionSettled() {
-      actionSettled = true;
-      pump();
-    },
-    pump,
-    pendingCount() {
-      return pending.length;
-    },
-    clear() {
-      for (const dropped of pending) {
-        seen.delete(keyFor(dropped));
+
+      if (action === 'open-city') {
+        options.openCity(item.cityId);
+      } else if (action === 'open-journal') {
+        options.openJournal(item.cityId, item.wonderId);
       }
-      pending.length = 0;
-      actionSettled = false;
     },
-  };
+  });
 }
