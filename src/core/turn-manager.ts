@@ -108,6 +108,8 @@ import { processFactionTurn, getUnrestYieldMultiplier, isCityProductionLocked, g
 import { getOccupiedCityYieldMultiplier, tickOccupiedCities } from '@/systems/city-occupation-system';
 import { processBreakawayTurn } from '@/systems/breakaway-system';
 import { processCrisisTurn, processCrisisScheduler, getCrisisYieldMultiplier } from '@/systems/crisis-system';
+import { processEventChainTurn } from '@/systems/event-chain-lifecycle';
+import { processEventChainScheduler } from '@/systems/event-chain-scheduling';
 import { processReligionTurn, foundReligion } from '@/systems/religion-system';
 import { addWarheadToArsenal } from '@/systems/strategic-arsenal-system';
 import { processLoyaltyTurn } from '@/systems/religion-loyalty-system';
@@ -196,6 +198,7 @@ export function processTurn(
   newState = processFactionTurn(newState, bus);
   newState = processBreakawayTurn(newState, bus);
   newState = processCrisisTurn(newState, bus);
+  newState = processEventChainTurn(newState, bus);
   newState = processReligionTurn(newState, bus);
   newState = processLoyaltyTurn(newState, bus);
   liveness = reconcileCivilizationLiveness(newState, newState);
@@ -1309,6 +1312,7 @@ export function processTurn(
   // --- Threat pressure (spawn phase: land resurgence + pirate spawn) ---
   newState = processIndependentThreatPressure(newState, bus);
   newState = processCrisisScheduler(newState, bus);
+  newState = processEventChainScheduler(newState, bus);
   const stampedesBeforeScheduling = newState.stampedes;
   const hostsBeforeScheduling = newState.rogueElephantHosts;
   newState = processStampedeScheduling(newState);

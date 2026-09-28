@@ -1625,6 +1625,10 @@ export interface Civilization {
   pendingChallenge?: OpponentChallenge; // applied at the start of this civ's next turn
   recentCrisisHistory?: string[]; // last 4 crisis flavor ids, for anti-repeat weighting
   lastCrisisOnsetTurn?: number;
+  // #990: mirrors lastCrisisOnsetTurn's cooldown-tracking role for the separate
+  // event-chain scheduler — deliberately not reused, since a chain and a crisis
+  // are scheduled independently and must not share one cooldown clock.
+  lastEventChainOnsetTurn?: number;
   feastUntilTurn?: number; // beast-slayer's feast (hunt crisis): +2 happiness while active
   /** #544 MR3: civ-wide Great General earn progress. Absent = no progress yet. */
   generalProgress?: GeneralProgressState;
@@ -2439,6 +2443,12 @@ export interface GameState {
   mapScript?: MapScript;  // undefined on old saves → treat as 'procedural'
   startPlacementMode?: StartPlacementMode;
   activeCrises?: Record<string, ActiveCrisis>;
+  /** #990: generalized multi-turn historical event chains — crises' sibling
+   * consumer of the shared staged-lifecycle engine (`staged-lifecycle-engine.ts`),
+   * not a parallel state machine. Absent-means-none; normalized on elimination
+   * only (no dedicated load-time normalizer needed — there is no prior shape to
+   * repair, this field never existed before this schema). */
+  activeEventChains?: Record<string, ActiveEventChain>;
   /** Non-diplomatic world-pressure actors; normalized on load. */
   crisisForces?: Record<string, CrisisForce>;
   /** Target-scoped Beast Stampede recurrence and lifecycle state; normalized on load. */
@@ -2908,6 +2918,13 @@ export interface GameEvents {
   'crisis:aid-sent': { crisisId: string; actorCivId: string; targetCivId: string; goldCost: number };
   // #919 MR1: fired once when a civ funds a nationwide remedy (applyEmpireContainment).
   'crisis:contained': { crisisId: string; civId: string; cityCount: number; goldCost: number };
+  // #990 event chains. Transition-owned, same discipline as the crisis:* events above.
+  'eventchain:started':     { chainId: string; kind: EventChainKind; civId: string; cityIds: string[] };
+  'eventchain:choice-made': { chainId: string; stageId: string; optionId: string; actorCivId: string; wasDefaulted: boolean };
+  // A typed canonical completion event other systems (council memory, future
+  // #993 big-moment presentation) can derive from — #990 does not itself wire
+  // this into any history ledger; see event-chain-lifecycle.ts's header comment.
+  'eventchain:resolved':    { chainId: string; kind: EventChainKind; civId: string; outcome: 'resolved' | EventChainCancellationReason; priorChoices: EventChainChoiceRecord[] };
   /** One-time, target-scoped Beast Stampede presentation transition. */
   'stampede:lifecycle':
     | { kind: 'warning'; targetCivId: string }
@@ -2971,4 +2988,57 @@ export interface ActiveCrisis {
   // #919 MR1: cityId -> turn through which a just-cured city is immune to re-infection
   // by THIS crisis. Optional; absent on older saves. Pruned once entries expire.
   curedUntilTurn?: Record<string, number>;
+}
+
+// --- Event Chains (#990) ---
+//
+// Deliberately its own type family, not a merge of ActiveCrisis into a single
+// generic shape — see `staged-lifecycle-engine.ts`'s header comment for why:
+// crises and chains share the reusable turn-processing LOOP, not their record
+// shape, so each keeps its own type safety (crisis's cityIds/tileKeys/hunt
+// fields have no chain equivalent, and a chain's priorChoices/pendingChoice
+// have no crisis equivalent).
+
+/** One extensible chain-kind id. #990 ships exactly one ('financial-panic') —
+ * see `event-chain-definitions.ts`'s own non-goal note against pre-declaring
+ * kinds with no shipped definition. */
+export type EventChainKind = 'financial-panic';
+
+export interface EventChainChoiceRecord {
+  stageId: string;
+  optionId: string;
+  turn: number;
+  actorCivId: string;
+}
+
+export type EventChainCancellationReason =
+  | 'city-lost'       // a participating city (per `cityIds`) changed owner
+  | 'civ-eliminated'  // the target civ was eliminated
+  | 'invalid';        // a stage's own eligibility predicate refused (definition-specific)
+
+export interface ActiveEventChain {
+  id: string;
+  kind: EventChainKind;
+  targetCivId: string;
+  /** Participating cities, same convention as `ActiveCrisis.cityIds` — empty for
+   * an empire-scoped chain with no single-city dependency. */
+  cityIds: string[];
+  /** Current stage id within `getEventChainDefinition(kind).stages`. */
+  stageId: string;
+  startedTurn: number;
+  turnsInStage: number;
+  /** The turn this stage next auto-evaluates (a timer-driven stage) — ignored
+   * while `pendingChoice` is set, since that stage instead waits on a decision. */
+  nextEvaluationTurn: number;
+  /** Ordered, append-only — never rewritten. A later stage reads this to know
+   * what was decided earlier; never re-derived from other state. */
+  priorChoices: EventChainChoiceRecord[];
+  /** Present exactly while this instance is waiting on a decision (human input
+   * or AI policy) for its current stage. Absent otherwise — never a separate
+   * boolean flag duplicating this presence check. */
+  pendingChoice?: { stageId: string; optionIds: string[] };
+  /** A human decision-maker that hasn't chosen by this turn gets the stage's
+   * `defaultOptionId` applied automatically — a chain must never wait forever
+   * on player input. Ignored for AI-controlled civs, which resolve same-turn. */
+  pendingChoiceExpiresTurn?: number;
 }

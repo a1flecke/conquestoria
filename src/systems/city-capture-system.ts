@@ -30,6 +30,7 @@ import { resolveAirBaseLoss } from '@/systems/air-operations-system';
 import { buildMovePresentationByViewer } from '@/systems/viewer-event-presentation';
 import { reconcileCivilizationLiveness } from '@/systems/civilization-elimination-system';
 import { handleCityLeftCiv } from '@/systems/crisis-system';
+import { handleCityLeftForEventChains } from '@/systems/event-chain-lifecycle';
 import { cancelInvalidNetworkPlans } from '@/systems/network-plan-system';
 import { createSimulationRng } from '@/systems/simulation-rng';
 import {
@@ -478,6 +479,7 @@ function buildCaptureResult(
     : territoryResult.state;
   if (capturedCityId && bus) {
     postWorkState = handleCityLeftCiv(postWorkState, capturedCityId, bus);
+    postWorkState = handleCityLeftForEventChains(postWorkState, capturedCityId, bus);
   }
   postWorkState = cancelInvalidNetworkPlans(postWorkState).state;
   return {

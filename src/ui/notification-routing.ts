@@ -801,6 +801,41 @@ export function routeCrisisResolved(
   sink(event.civId, `${name} ${outcomeMessage[event.outcome]}`, type, undefined, undefined, sfxCue);
 }
 
+// #990 event chains. Always sinks to `event.civId` only — a chain has no
+// public rule, so no other civ is ever a recipient (see
+// event-chain-presentation.ts's header comment for the full viewer-safety
+// rationale). No map target: the shipped chain (financial-panic) is
+// empire-scoped, not tied to a visible tile.
+const EVENT_CHAIN_DISPLAY_NAME: Record<GameEvents['eventchain:started']['kind'], string> = {
+  'financial-panic': 'Financial Panic',
+};
+
+export function routeEventChainStarted(
+  _state: GameState,
+  event: GameEvents['eventchain:started'],
+  sink: NotificationSink,
+): void {
+  const name = EVENT_CHAIN_DISPLAY_NAME[event.kind] ?? 'A situation';
+  sink(event.civId, `${name}! The Council has a decision for you.`, 'warning');
+}
+
+const EVENT_CHAIN_OUTCOME_MESSAGE: Record<GameEvents['eventchain:resolved']['outcome'], string> = {
+  resolved: 'has passed.',
+  'city-lost': 'no longer applies — the city at its center changed hands.',
+  'civ-eliminated': 'no longer applies.',
+  invalid: 'no longer applies.',
+};
+
+export function routeEventChainResolved(
+  _state: GameState,
+  event: GameEvents['eventchain:resolved'],
+  sink: NotificationSink,
+): void {
+  const name = EVENT_CHAIN_DISPLAY_NAME[event.kind] ?? 'The situation';
+  const type: NotificationEntry['type'] = event.outcome === 'resolved' ? 'success' : 'info';
+  sink(event.civId, `${name} ${EVENT_CHAIN_OUTCOME_MESSAGE[event.outcome]}`, type);
+}
+
 // Hunt-their-foe (#526 MR6 Task 6.2): "Rome slew the beast menacing Carthage!" to
 // third-party viewers who know either civ (killer or target) -- deliberately broader
 // than the witness-reputation set in crisis-interaction-system.ts, which requires

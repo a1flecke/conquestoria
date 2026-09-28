@@ -103,6 +103,8 @@ import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { chooseCircularManufacturingMaterial } from '@/systems/national-project-system';
 import { rushBuyActiveProduction } from '@/systems/economy-system';
 import { applyEmpireContainment, applyQuarantine, applyRemedy } from '@/systems/crisis-system';
+import { chooseEventChainOption } from '@/systems/event-chain-choices';
+import { parseEventChainCardId } from '@/systems/event-chain-presentation';
 import { UNIT_DEFINITIONS, createUnit } from '@/systems/unit-system';
 import { evaluateUnitUpgrade } from '@/systems/unit-upgrade-system';
 import { hexKey, hexesInRange } from '@/systems/hex-utils';
@@ -585,6 +587,19 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
       onTalkLevelChange: (level) => {
         deps.session.commit({ ...deps.session.getState(), settings: { ...deps.session.getState().settings, councilTalkLevel: level } });
         void saveSettings(deps.session.getState().settings);
+      },
+      onCardAction: (cardId) => {
+        const parsed = parseEventChainCardId(cardId);
+        if (!parsed) return; // not an event-chain card (see council-panel.ts's callback doc comment)
+        const state = deps.session.getState();
+        const result = chooseEventChainOption(state, parsed.chainId, parsed.optionId, state.currentPlayer, deps.bus);
+        if (!result.success) {
+          deps.showNotification(result.message, 'warning');
+          return;
+        }
+        deps.session.commit(result.state);
+        deps.showNotification('Decision recorded.', 'success');
+        openCouncilPanel(); // re-render: the chosen card's whole option set must disappear (#787 "panel rerender after interaction")
       },
     });
   }

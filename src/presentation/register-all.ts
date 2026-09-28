@@ -19,6 +19,7 @@ import { registerNetworkPresentation } from '@/presentation/register-network-pre
 import { registerWonderPresentation } from '@/presentation/register-wonder-presentation';
 import { registerCityPresentation } from '@/presentation/register-city-presentation';
 import { registerFactionCrisisPresentation } from '@/presentation/register-faction-crisis-presentation';
+import { registerEventChainPresentation } from '@/presentation/register-event-chain-presentation';
 import { registerEspionagePresentation } from '@/presentation/register-espionage-presentation';
 import { registerBeastPresentation } from '@/presentation/register-beast-presentation';
 import { registerStampedePresentation } from '@/presentation/register-stampede-presentation';
@@ -104,6 +105,7 @@ const ALL_REGISTRARS: readonly PresentationRegistrar[] = [
   registerWonderPresentation,
   registerCityPresentation,
   registerFactionCrisisPresentation,
+  registerEventChainPresentation,
   registerEspionagePresentation,
   registerBeastPresentation,
   registerStampedePresentation,

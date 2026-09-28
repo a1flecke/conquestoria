@@ -4,45 +4,38 @@
 // crisis-progression.ts, dispatched to generically here) and NO scheduling/eligibility
 // policy (crisis-scheduling.ts).
 //
-// This module is the candidate basis #990 generalizes into a reusable multi-turn chain
-// engine, per #1012's acceptance criteria. Concretely:
-//   - `processCrisisTurn`'s loop ("for each active instance, in stable id order, apply a
-//     tick, then either replace it or drop it") is the reusable shape. Its ONE
-//     crisis-specific assumption is calling `tickCrisisByArchetype`, which switches on
-//     `ActiveCrisis.archetype` — a generalized engine would take a per-instance-kind
-//     stage-handler lookup (or a handler carried on the instance/definition itself)
-//     instead of a hardcoded archetype switch.
-//   - `handleCityLeftCiv` is the existing precedent for dynamic invalidation the #990
-//     issue explicitly calls out: a participating city changing owner mid-crisis either
-//     drops that one city (crisis continues with the rest) or resolves the whole
-//     instance 'abandoned' (no participants left). A generalized engine's invalidation
-//     hook would need the same two shapes (partial invalidation vs. full cancellation),
-//     generalized to more triggers (civ eliminated, war ended, faction gone — see #990).
-//   - `resolveCrisis` is direct/explicit resolution (used when some other system, not a
-//     tick, needs to end an instance outright). Its crisis-specific assumption is only
-//     the `CrisisOutcome` type of its `outcome` parameter.
-//   - Neither this module nor `tickCrisisByArchetype` carries any concept of "prior
-//     choices" or a branching decision history — #990 must add that; `ActiveCrisis` has
-//     no such field today.
+// #990 generalized the turn-tick loop this module used to own directly into
+// `staged-lifecycle-engine.ts`'s `runStagedLifecycleTurn` — crises are now a
+// CONSUMER of that one shared engine (also used by `event-chain-lifecycle.ts`),
+// not a copy of it. This module's remaining crisis-specific pieces:
+//   - `processCrisisTurn` adapts `tickCrisisByArchetype`'s `{ crisis, state }`
+//     return shape to the engine's generic `{ record, state }` contract and
+//     supplies the `state.activeCrises` accessor — its only crisis-specific
+//     coupling, same as #1012 already documented.
+//   - `handleCityLeftCiv` is the existing precedent for dynamic invalidation
+//     #990's `event-chain-lifecycle.ts` mirrors (not shares — see that file's
+//     header comment for why a fully generic invalidation helper was rejected).
+//   - `resolveCrisis` is direct/explicit resolution, crisis-specific only in its
+//     `CrisisOutcome` parameter type.
+//   - Prior choices / branching decision history is #990's `ActiveEventChain`
+//     concept, deliberately not retrofitted onto `ActiveCrisis` — no crisis
+//     archetype needs it, and the issue's own guardrail says not to erase type
+//     safety in the name of premature generality.
 import type { ActiveCrisis, CrisisOutcome, GameState } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
 import { tickCrisisByArchetype } from './crisis-progression';
+import { runStagedLifecycleTurn } from './staged-lifecycle-engine';
 
 export function processCrisisTurn(state: GameState, bus: EventBus): GameState {
-  let nextState = state;
-  const crisisIds = Object.keys(state.activeCrises ?? {}).sort();
-  for (const crisisId of crisisIds) {
-    const crisis = nextState.activeCrises?.[crisisId];
-    if (!crisis) continue;
-    const { crisis: updated, state: tickedState } = tickCrisisByArchetype(nextState, crisis, bus);
-    if (updated) {
-      nextState = { ...tickedState, activeCrises: { ...(tickedState.activeCrises ?? {}), [crisisId]: updated } };
-    } else {
-      const { [crisisId]: _removed, ...rest } = tickedState.activeCrises ?? {};
-      nextState = { ...tickedState, activeCrises: rest };
-    }
-  }
-  return nextState;
+  return runStagedLifecycleTurn(
+    state,
+    bus,
+    { get: s => s.activeCrises, set: (s, activeCrises) => ({ ...s, activeCrises }) },
+    (s, crisis, b) => {
+      const { crisis: record, state: nextState } = tickCrisisByArchetype(s, crisis, b);
+      return { record, state: nextState };
+    },
+  );
 }
 
 export function resolveCrisis(
