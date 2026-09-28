@@ -4073,3 +4073,58 @@ export function MarsRoboticsInitiativeSprite({ palette, svgOnly = false }: Build
     </BuildingFrame>
   );
 }
+
+// #986: the "launch" stage of the Interstellar Colony world race (Science Victory).
+// Distinct from MarsRoboticsInitiativeSprite (a robotics rover precursor mission) by
+// carrying a crewed-habitat dome payload instead of a rover, and from
+// FirstSatelliteLaunchSprite by scale -- this is the heavy-lift final stage, not the
+// compact single-payload booster.
+export function InterstellarLaunchProgramSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  return (
+    <BuildingFrame label="Interstellar Launch Program" sub="National Project" category="science" svgOnly={svgOnly}>
+      <BuildingPlinth w={175} />
+      {/* launch pad + flame trench */}
+      <rect x="76" y="128" width="48" height="12" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="1" />
+      <path d="M92,128 L108,128 L104,140 L96,140 Z" fill="#1a1410" />
+      <g className="cq-fire" style="transform-box:view-box;transform-origin:100px 141px">
+        <ellipse cx="100" cy="138" rx="8" ry="3.4" fill="#ff8800" opacity="0.85" />
+        <ellipse cx="100" cy="139" rx="5" ry="2" fill="#cc5500" />
+      </g>
+      {/* heavy-lift gantry */}
+      <rect x="62" y="24" width="5" height="114" fill={P.metal.steel} />
+      <rect x="82" y="24" width="5" height="114" fill={P.metal.steel} />
+      <g stroke={P.metal.iron} strokeWidth="1.7">
+        <line x1="67" y1="38" x2="82" y2="52" /><line x1="82" y1="38" x2="67" y2="52" />
+        <line x1="67" y1="66" x2="82" y2="80" /><line x1="82" y1="66" x2="67" y2="80" />
+        <line x1="67" y1="94" x2="82" y2="108" /><line x1="82" y1="94" x2="67" y2="108" />
+        <line x1="67" y1="38" x2="82" y2="38" /><line x1="67" y1="94" x2="82" y2="94" /><line x1="67" y1="122" x2="82" y2="122" />
+      </g>
+      {/* heavy launch vehicle body */}
+      <rect x="93" y="36" width="26" height="92" rx="3" fill={palette.mid} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="93" y="36" width="9" height="92" fill={palette.dark} opacity="0.3" />
+      <path d="M93,36 Q106,10 119,36 Z" fill={P.metal.shine} stroke={P.ink.line} strokeWidth="1" />
+      {/* fins */}
+      <path d="M93,112 L82,132 L93,128 Z" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      <path d="M119,112 L130,132 L119,128 Z" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      {/* crewed-habitat payload window in the fairing */}
+      <circle cx="106" cy="60" r="9" fill="#0a1a30" stroke={P.metal.shine} strokeWidth="1.4" />
+      <circle className="cq-glow" cx="106" cy="60" r="5" fill="#4fd0ff" opacity="0.85" />
+      {/* control building */}
+      <rect x="126" y="98" width="42" height="40" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="126" y="98" width="42" height="40" fill="url(#stoneTexture)" opacity="0.4" />
+      <rect x="126" y="94" width="42" height="5" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.5" />
+      <rect className="cq-glow" x="131" y="106" width="32" height="10" rx="1.5" fill="#0a0a20" stroke={P.metal.steel} strokeWidth="0.7" />
+      <rect x="133" y="108.5" width="18" height="5" rx="1" fill="#00ff88" opacity="0.9" />
+      <rect x="153" y="108.5" width="10" height="5" rx="1" fill="#112244" />
+      <circle className="cq-glow" cx="164" cy="102" r="1.5" fill="#00aaff" />
+      {/* habitat-dome payload waiting pre-launch */}
+      <g transform="translate(38 122)">
+        <ellipse cx="0" cy="0" rx="16" ry="10" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.9" />
+        <path d="M-16,0 A16,16 0 0 1 16,0" fill="#4fd0ff" opacity="0.35" stroke={P.metal.shine} strokeWidth="0.8" />
+        <circle cx="-6" cy="-2" r="2.4" fill="#0a1a30" stroke={P.metal.shine} strokeWidth="0.5" />
+        <circle cx="6" cy="-2" r="2.4" fill="#0a1a30" stroke={P.metal.shine} strokeWidth="0.5" />
+      </g>
+      <Banner x={70} y={30} palette={palette} scale={0.75} />
+    </BuildingFrame>
+  );
+}

@@ -122,4 +122,21 @@ describe('showVictoryPanel', () => {
     expect(container.textContent).toContain('Alice: Not winner');
     expect(container.textContent).toContain('Bob: Winner');
   });
+
+  it('#986: renders the Science Victory rule text, not the Domination one, when reason is science', () => {
+    const container = document.createElement('div');
+    showVictoryPanel(container, {
+      winnerName: 'Rome',
+      victoryType: 'Science Victory',
+      outcome: 'victory',
+      reason: 'science',
+      turn: 500,
+      summary: 'Your empire completed humanity\'s first interstellar colony mission.',
+      onNewGame: () => {},
+    });
+
+    expect(container.textContent).toContain('Science Victory');
+    expect(container.textContent).toContain('interstellar colony mission');
+    expect(container.textContent).not.toContain('last independent empire');
+  });
 });

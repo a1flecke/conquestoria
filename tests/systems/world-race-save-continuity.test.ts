@@ -92,3 +92,41 @@ describe('world race save/reload continuity (#992)', () => {
     assertSimulationEquivalent(continuedFromLive, continuedFromLoad, 'live vs. save/reload, no prior race state');
   });
 });
+
+/** #986 — a completed Science Victory (state.gameOver already true) is ordinary persisted
+ * state (state.gameOver/winner/gameOverReason all pre-date this feature); this proves the
+ * race-derived path to that outcome round-trips too, and that a save/reload of an ALREADY
+ * finished campaign does not somehow re-run or re-resolve the victory. */
+describe('Science Victory save/reload continuity (#986)', () => {
+  it('preserves a completed Science Victory through serialize/parse without re-resolving it', () => {
+    const state = createNewGame('rome', 'science-victory-save-continuity');
+    const winnerId = 'player';
+    const cityId = ensureCity(state, winnerId);
+    state.civilizations[winnerId]!.techState.completed = ['mars-mission-architecture'];
+    state.builtNationalProjects = {
+      [`${winnerId}:interstellar_launch_program`]: { civId: winnerId, cityId, eraBuilt: 13 },
+    };
+    state.worldRaces = {
+      'interstellar-colony': { kind: 'interstellar-colony', winnerCivId: winnerId, completedTurn: state.turn },
+    };
+    state.gameOver = true;
+    state.winner = winnerId;
+    state.gameOverReason = 'science';
+
+    const serialized = serializeSaveFile(state);
+    const parsed = parseSaveFile(serialized);
+    if (parsed.status !== 'success') throw new Error(`expected successful parse, got: ${parsed.message}`);
+    const loaded = parsed.state;
+
+    expect(loaded.gameOver).toBe(true);
+    expect(loaded.winner).toBe(winnerId);
+    expect(loaded.gameOverReason).toBe('science');
+    expect(loaded.worldRaces).toEqual(state.worldRaces);
+
+    // finalizeScienceVictory must stay a no-op on an already-finished load -- processing a
+    // turn from the reloaded save must not move the trajectory relative to the live original.
+    const continuedFromLive = processTurn(state, new EventBus());
+    const continuedFromLoad = processTurn(loaded, new EventBus());
+    assertSimulationEquivalent(continuedFromLive, continuedFromLoad, 'live vs. save/reload, completed Science Victory');
+  });
+});

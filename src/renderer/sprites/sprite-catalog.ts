@@ -68,7 +68,7 @@ import {
   // era 13 batch B
   CircularFabricatorSprite, ModularArcologySprite, CarbonCaptureGridSprite,
   ImmersiveArtsLabSprite, NationalAiAssuranceProgramSprite,
-  CircularManufacturingNetworkSprite, MarsRoboticsInitiativeSprite,
+  CircularManufacturingNetworkSprite, MarsRoboticsInitiativeSprite, InterstellarLaunchProgramSprite,
 } from './buildings';
 import {
   PyramidsSprite, ColosseumSprite, GreatLibrarySprite, LighthouseSprite, WrightFlyerSprite,
@@ -599,6 +599,7 @@ export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = 
   national_ai_assurance_program:  NationalAiAssuranceProgramSprite,
   circular_manufacturing_network: CircularManufacturingNetworkSprite,
   mars_robotics_initiative:       MarsRoboticsInitiativeSprite,
+  interstellar_launch_program:    InterstellarLaunchProgramSprite,
 };
 
 export const PIRATE_HEADQUARTERS_SPRITE_CATALOG: Record<PirateHeadquartersSpriteId, LandmarkSpriteComponent> = {

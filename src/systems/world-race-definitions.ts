@@ -1,7 +1,8 @@
-// #992: static data for the world-race framework. One exemplar ships
-// ('first-satellite') per the issue's own non-goal against multiple races at
-// once; a future race adds a row here, not a new engine.
-import type { ResourceType, WorldRaceKind } from '@/core/types';
+// #992: static data for the world-race framework. One exemplar shipped at launch
+// ('first-satellite'); #986 adds a second row ('interstellar-colony') that also
+// terminates the game -- see that entry's own `endsGameAs` field -- rather than a
+// new engine or a parallel victory subsystem.
+import type { ResourceType, WorldRaceKind, GameOverReason } from '@/core/types';
 
 export interface WorldRaceDefinition {
   kind: WorldRaceKind;
@@ -23,6 +24,15 @@ export interface WorldRaceDefinition {
   /** One-time reward applied directly to the winner at completion — never an ongoing yield
    * (milestone national projects carry no civYieldBonus/cityYieldBonus, see game-balance.md). */
   winnerReward: { summary: string; goldBonus: number };
+  /**
+   * #986: when set, winning this race is ALSO a victory condition -- read only by
+   * `finalizeScienceVictory` (victory-system.ts), which is the single place a race
+   * outcome turns into `state.gameOver`. `world-race-system.ts` itself stays completely
+   * unaware of this field; it always just picks a winner and refunds the rest, whether
+   * or not that winner also ends the game. Kept off the base `WorldRaceDefinition` shape
+   * as optional so a purely-cosmetic race (first-satellite) needs no victory wiring at all.
+   */
+  endsGameAs?: GameOverReason;
 }
 
 export const WORLD_RACE_DEFINITIONS: Record<WorldRaceKind, WorldRaceDefinition> = {
@@ -38,6 +48,21 @@ export const WORLD_RACE_DEFINITIONS: Record<WorldRaceKind, WorldRaceDefinition> 
       goldBonus: 200,
     },
   },
+  'interstellar-colony': {
+    kind: 'interstellar-colony',
+    displayName: 'Interstellar Colony',
+    unlockTechId: 'mars-mission-architecture',
+    componentBuildingId: 'mars_robotics_initiative',
+    launchBuildingId: 'interstellar_launch_program',
+    launchResource: 'uranium',
+    winnerReward: {
+      // goldBonus is 0 -- the game ends immediately for every civ, so a gold grant would
+      // be a dead artifact (see finalizeScienceVictory).
+      summary: 'Humanity\'s first permanent extraterrestrial colony marks the dawn of a new era.',
+      goldBonus: 0,
+    },
+    endsGameAs: 'science',
+  },
 };
 
 export function getWorldRaceDefinition(kind: WorldRaceKind): WorldRaceDefinition {
@@ -47,3 +72,4 @@ export function getWorldRaceDefinition(kind: WorldRaceKind): WorldRaceDefinition
 export function getAllWorldRaceKinds(): WorldRaceKind[] {
   return Object.keys(WORLD_RACE_DEFINITIONS) as WorldRaceKind[];
 }
+
