@@ -142,6 +142,63 @@ describe('council-panel', () => {
     expect(panel.textContent).not.toContain('World Archive');
   });
 
+  it('#990: renders an event-chain decision as real, clickable buttons and reports the clicked card id', () => {
+    const onCardAction = vi.fn();
+    const { state, container } = makeCouncilFixture();
+    state.activeEventChains = {
+      'chain-1': {
+        id: 'chain-1',
+        kind: 'financial-panic',
+        targetCivId: 'player',
+        cityIds: [],
+        stageId: 'onset',
+        startedTurn: state.turn,
+        turnsInStage: 0,
+        nextEvaluationTurn: state.turn,
+        priorChoices: [],
+        pendingChoice: { stageId: 'onset', optionIds: ['bailout', 'austerity-reform', 'do-nothing'] },
+      },
+    };
+
+    const panel = createCouncilPanel(container, state, {
+      onClose: () => {},
+      onTalkLevelChange: () => {},
+      onCardAction,
+    });
+
+    expect(panel.textContent).toContain('Financial Panic');
+    const bailoutButton = Array.from(panel.querySelectorAll('button')).find(b => b.textContent === 'Emergency Bailout');
+    expect(bailoutButton).toBeTruthy();
+    bailoutButton!.click();
+
+    expect(onCardAction).toHaveBeenCalledWith('event-chain-choice:chain-1:bailout');
+  });
+
+  it('#990: a resolved event chain (no pendingChoice) leaves no decision card behind on re-render', () => {
+    const { state, container } = makeCouncilFixture();
+    state.activeEventChains = {
+      'chain-1': {
+        id: 'chain-1',
+        kind: 'financial-panic',
+        targetCivId: 'player',
+        cityIds: [],
+        stageId: 'consequence',
+        startedTurn: state.turn - 4,
+        turnsInStage: 4,
+        nextEvaluationTurn: state.turn + 10,
+        priorChoices: [{ stageId: 'onset', optionId: 'bailout', turn: state.turn - 4, actorCivId: 'player' }],
+      },
+    };
+
+    const panel = createCouncilPanel(container, state, {
+      onClose: () => {},
+      onTalkLevelChange: () => {},
+      onCardAction: () => {},
+    });
+
+    expect(panel.textContent).not.toContain('Financial Panic');
+  });
+
   it('renders remembered disagreements and callback-safe memory labels', () => {
     const { state, container } = makeCouncilFixture({ metForeignCiv: true, discoveredForeignCity: false });
     state.councilMemory = {
