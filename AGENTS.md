@@ -16,6 +16,88 @@ Start new implementation work from a fresh branch or worktree based on the lates
 
 Before editing, read the rule files that match the files you will touch. While implementing, keep gameplay mutations in canonical systems/helpers, wire player-visible behavior all the way to the live UI/renderer path, and add the smallest regression that proves the exact behavior. Before reporting completion, run the required checks, inspect both committed and uncommitted diffs, and call out any checks you could not run.
 
+## OpenCode Workflow and Permission Hygiene
+
+This repository's normal development work happens in a fresh linked worktree,
+never in the `main` checkout. Start every implementation task from the latest
+`origin/main`; do not edit, commit, rebase, merge, or switch branches in the
+base checkout. Prefer OpenCode's worktree flow. If Git worktree creation is
+needed directly, create a new task branch from `origin/main` and use the
+requester's explicit branch name or the active agent's approved prefix (Codex
+uses `codex/<issue-or-task>-<short-name>`).
+
+In every new worktree, complete this bootstrap before meaningful work:
+
+1. `./scripts/setup-git-hooks.sh`
+2. `git config --worktree --get core.hooksPath` — it must print `.githooks`.
+3. `mise trust mise.toml` only if Mise requires trust for this worktree.
+4. `./scripts/run-with-mise.sh yarn install` when the worktree needs its own
+   generated Yarn PnP map. An unchanged lockfile install is routine; a changed
+   `package.json` or `yarn.lock` requires review before installation.
+
+Use one direct shell command per tool call. Do not wrap routine checks in
+`echo`, command substitution (`$(...)`), backticks, pipes, `&&`, `;`, loops,
+or shell variables. Compare outputs in reasoning instead. This keeps commands
+auditable and lets the approval system recognize the narrow safe forms below.
+
+### Common command recipes
+
+- Inspect before work with direct `git status --short --branch`, `git diff`,
+  `git log`, `rg`, and the scoped rule files named above.
+- Use `./scripts/run-with-mise.sh yarn test --run <mirrored-test-path>` for
+  focused tests. For changed `src/` files, first run
+  `scripts/check-src-rule-violations.sh <changed-source-paths>` and then every
+  mirrored test identified by the test-selection rule.
+- Run `./scripts/run-with-mise.sh yarn build` whenever TypeScript correctness
+  matters. Follow the existing dual-release and domain-specific verification
+  requirements; do not substitute bare `yarn`, `npm`, `npx`, or `node`.
+- Before a push, PR, or merge, run the required build and durable verification:
+  `./scripts/run-with-mise.sh yarn build`,
+  `./scripts/run-with-mise.sh yarn test:durable`, and
+  `./scripts/run-with-mise.sh yarn test:durable:status`. Inspect both the
+  branch diff and the uncommitted diff before reporting completion.
+
+### Rebase, publish, and pull-request workflow
+
+For a feature branch that needs the latest base, issue these as separate direct
+operations: `git fetch origin`, then `git rebase origin/main`. Resolve a
+conflict, explicitly stage only the resolved non-sensitive paths with
+`git add -- <paths>`, then use `GIT_EDITOR=true git rebase --continue`. Never
+use `git rebase --skip`, a rebase-merges mode, a merge into the feature branch,
+or an arbitrary editor prefix without explaining why and obtaining approval.
+
+Before an ordinary feature-branch push, inspect only that branch's remote head
+with `git ls-remote origin refs/heads/<current-branch>` if needed, then publish
+with `git push origin HEAD`. Never use `+HEAD:...`, `--force`,
+`--force-with-lease`, `-f`, tags, deletion refspecs, or an alternate remote
+without explicit user authorization. If a normal push rejects because the
+remote moved, rebase or ask; do not rewrite remote history.
+
+Create a GitHub pull request with
+`gh pr create --base main --head <current-branch> --fill`; inspect it with
+`gh pr view` and `gh pr checks`. A PR/MR can be created after the required
+verification, but an agent must not self-approve, call `gh pr review --approve`,
+merge, close, or delete a PR/MR or issue unless the user explicitly authorizes
+that exact remote action.
+
+### Permission behavior
+
+Use the canonical commands above before requesting approval. The local
+approver automatically recognizes only a trusted GitHub worktree, the current
+feature branch, and the exact command forms: direct `git fetch origin`,
+`git rebase origin/main`, `git ls-remote origin refs/heads/<current-branch>`,
+non-force feature-branch pushes, explicit safe staging, the repository's
+verification commands, and filled PR creation. It intentionally asks for
+ambiguous, composed, destructive, credentials-related, dependency-changing,
+or remote-history-changing operations.
+
+When an expected routine operation still prompts, do not request a broad
+"Allow always" rule and do not disguise it with shell composition. First use a
+canonical direct form; if it still prompts, state the exact operation and why
+the narrower policy is insufficient. Never remove a worktree, reset/clean,
+stash/drop state, alter credentials, publish/deploy, or approve/merge a remote
+change without explicit user authorization.
+
 ## Project Structure & Module Organization
 Core game code lives in `src/`. Use the existing domain split: `src/core/` for shared state and turn flow, `src/systems/` for gameplay rules, `src/renderer/` for Canvas rendering, `src/ui/` for DOM panels, `src/input/` for controls, `src/ai/` for opponents, `src/audio/` for sound, and `src/storage/` for saves. Static assets and PWA files live in `public/`. Tests live in `tests/` and generally mirror `src/` paths, for example `src/systems/map-generator.ts` pairs with `tests/systems/map-generator.test.ts`.
 
