@@ -54,7 +54,7 @@ import {
   ManhattanProjectSprite, PostwarReconstructionSprite, SpaceProgramInitiativeSprite,
   // era 11
   HelicopterBaseSprite, MissileSiloSprite, SemiconductorFabSprite, GeneticResearchLabSprite,
-  EnvironmentalAgencySprite, SpaceCenterSprite, AgriculturalStationSprite, TransplantHospitalSprite,
+  EnvironmentalAgencySprite, SpaceCenterSprite, FirstSatelliteLaunchSprite, AgriculturalStationSprite, TransplantHospitalSprite,
   ContainerPortSprite, ResearchNetworkSprite, SurveillanceAgencySprite,
   ArmsControlTreatySprite, GreenRevolutionProgramSprite, StrategicAirCommandSprite,
   // era 12
@@ -552,6 +552,7 @@ export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = 
   genetic_research_lab:           GeneticResearchLabSprite,
   environmental_agency:           EnvironmentalAgencySprite,
   space_center:                   SpaceCenterSprite,
+  first_satellite_launch:         FirstSatelliteLaunchSprite,
   agricultural_station:           AgriculturalStationSprite,
   transplant_hospital:            TransplantHospitalSprite,
   container_port:                 ContainerPortSprite,
