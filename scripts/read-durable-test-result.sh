@@ -30,6 +30,7 @@ running="$prefix.running"
 status="$prefix.status"
 log="$prefix.log"
 job_pid_file="$prefix.job-pid"
+failure_kind_file="$prefix.failure-kind"
 
 if [ -f "$running" ]; then
   running_pid="$(sed -n 's/^pid=//p' "$running" 2>/dev/null | head -n 1)"
@@ -59,6 +60,13 @@ if [ -f "$running" ]; then
       tail -n 20 "$log" >&2
     fi
     exit 3
+  fi
+
+  persisted_failure_kind="$(sed -n '1p' "$failure_kind_file" 2>/dev/null || true)"
+  if [ "$persisted_failure_kind" = 'cancelled' ]; then
+    echo 'STATUS: failed'
+    echo "Durable $scope cancellation was recorded before process ended (supervisor_pid=${running_pid:-unknown}, job_pid=${job_pid:-unknown}); the external runner stopped before terminal status could be written. Inspect $log for the completed work and cancellation context." >&2
+    exit 1
   fi
 
   echo 'STATUS: abandoned'

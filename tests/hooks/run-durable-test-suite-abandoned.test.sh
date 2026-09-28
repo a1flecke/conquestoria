@@ -118,4 +118,31 @@ grep -Fxq 'STATUS: abandoned' "$tmpdir/abandoned-read.log" || {
   exit 1
 }
 
+# --- 3. a dead marker with persisted cancellation evidence is a failed,
+#        explained cancellation, not ambiguous abandonment ----------------
+
+printf 'cancelled\n' > "$repo/.verification/full-suite.failure-kind"
+set +e
+(
+  cd "$repo"
+  sh scripts/read-durable-test-result.sh full
+) > "$tmpdir/cancelled-read.log" 2>&1
+cancelled_status=$?
+set -e
+[ "$cancelled_status" -eq 1 ] || {
+  echo "expected exit 1 for persisted cancelled evidence, got $cancelled_status" >&2
+  cat "$tmpdir/cancelled-read.log" >&2
+  exit 1
+}
+grep -Fxq 'STATUS: failed' "$tmpdir/cancelled-read.log" || {
+  echo "reader did not print STATUS: failed for persisted cancelled evidence" >&2
+  cat "$tmpdir/cancelled-read.log" >&2
+  exit 1
+}
+grep -Fq 'cancellation was recorded before process ended' "$tmpdir/cancelled-read.log" || {
+  echo "reader did not explain persisted cancelled evidence" >&2
+  cat "$tmpdir/cancelled-read.log" >&2
+  exit 1
+}
+
 echo "all run-durable-test-suite live-tee/abandoned-detection scenarios passed"
