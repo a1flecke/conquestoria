@@ -252,6 +252,36 @@ introduce a policy-id branch anywhere in `faction-system.ts`,
 `governance-capacity.ts`, `basic-ai.ts`, or `governance-panel.ts` — all four
 are generic over `GOVERNANCE_POLICY_DEFINITIONS`.
 
+## Governor Inventory (#928)
+
+Governors are an abstract, capped administrative slot — **not** a unit and
+**not** a dynasty/great-person character (both out of scope per this arc's own
+non-goals). "Capped set of assignable administrators" is answered by spending
+#987's existing governance capacity/load resource (`governance-capacity.ts`)
+rather than a second, parallel scarcity counter — the issue's own cross-link
+note: "a governor assignment is a capacity expenditure under a posture".
+
+| Knob | Value | Meaning |
+|---|---:|---|
+| `GOVERNOR_LOAD_COST` | 2 | Governance load one assignment consumes — heavier than a policy's 1, reflecting a bigger one-city administrative commitment. |
+| `GOVERNOR_UNREST_RELIEF` | 6 | Flat unrest-pressure relief on the governed city, as its own `'Governor'` row in `getUnrestPressureBreakdown` — independent of the #927 ladder's own rows/formulas. |
+| `GOVERNOR_REASSIGNMENT_LOCK_TURNS` | 5 | Anti-thrash lock in either direction (assign or remove), same rationale as `GOVERNANCE_POLICY_LOCK_TURNS`/`FEDERALISM_LOCK_TURNS` — makes placement "a real decision" rather than a free per-turn optimization. |
+
+`assignGovernor` / `removeGovernor` / `moveGovernor` (`governor-system.ts`) are
+the only mutation paths and are the sole place capacity/lock validation
+happens. A city losing its owner (captured, razed) needs **no** teardown code:
+every reader (`getGovernanceLoad`, the `'Governor'` relief row, the
+presentation layer) filters a `civ.governorAssignments` entry to
+`state.cities[cityId]?.owner === civId`, so a stale assignment on a city the
+civ no longer owns is already inert — the former owner's capacity frees up
+automatically, and the captor never inherits it, matching Regional Capital's
+"captor does not inherit it" precedent with zero capture-path code.
+
+**Rule:** any change to governor scarcity, cost, or relief must update this
+table, and must not introduce a city-id or civ-id branch anywhere in
+`governor-system.ts`, `governance-capacity.ts`, `basic-ai.ts`, or
+`governance-panel.ts`.
+
 ## Minor-Civ Economy (#950)
 
 Every minor-civ (city-state) economy balance knob lived only in code until now —

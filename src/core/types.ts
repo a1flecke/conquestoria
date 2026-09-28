@@ -1667,6 +1667,17 @@ export interface Civilization {
   /** Turn of each policy's most recent toggle (either direction); enforces
    * GOVERNANCE_POLICY_LOCK_TURNS per-policy in governance-policy-system.ts. */
   governancePolicyChangedTurn?: Partial<Record<GovernancePolicyId, number>>;
+  /** #928: cities (by id) this civ has assigned a governor to. Absent, or a
+   * key present with `false`, both mean ungoverned — the safe default for
+   * legacy saves. Keyed by the OWNING civ's own city ids only; a stale entry
+   * for a city this civ no longer owns (captured/razed) is inert by
+   * construction — every reader filters to `state.cities[id]?.owner ===
+   * civId` — so no capture-path teardown is needed. See governor-system.ts. */
+  governorAssignments?: Record<string, true>;
+  /** Turn of each city's most recent governor assign/remove (either
+   * direction); enforces GOVERNOR_REASSIGNMENT_LOCK_TURNS per-city in
+   * governor-system.ts. */
+  governorAssignmentChangedTurn?: Record<string, number>;
 }
 
 export interface BreakawayMetadata {

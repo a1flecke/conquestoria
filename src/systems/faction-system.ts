@@ -15,6 +15,7 @@ import { getForeignFaithPressure } from './religion-loyalty-system';
 import { canConnectCityToCapitalByOwnedRoad, getCitiesConnectedToCapital } from './road-network';
 import { majorCivWarOpponentIds } from '../core/owner-kind';
 import { GOVERNANCE_POLICY_DEFINITIONS } from './governance-policy-definitions';
+import { GOVERNOR_UNREST_RELIEF } from './governor-system';
 
 // --- Thresholds ---
 export const UNREST_TRIGGER_PRESSURE = 40;
@@ -537,6 +538,12 @@ export function getUnrestPressureBreakdown(
     if (civ.governancePolicies?.[policy.id] === true) {
       rows.push({ label: policy.pressureRowLabel, amount: policy.pressureAmount });
     }
+  }
+
+  // #928: a governor assigned to this specific city — a flat, attributable
+  // relief row, independent of the #927 ladder's own rows/formulas.
+  if (civ.governorAssignments?.[cityId] === true) {
+    rows.push({ label: 'Governor', amount: -GOVERNOR_UNREST_RELIEF });
   }
 
   // #919 MR2: administration-ladder relief rows (Courthouse today) subtract from the

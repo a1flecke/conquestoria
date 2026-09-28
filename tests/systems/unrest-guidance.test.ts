@@ -511,3 +511,31 @@ describe('#987 governance policy guidance', () => {
     expect(recs.some(rec => rec.kind === 'repeal-governance-policy')).toBe(false);
   });
 });
+
+describe('#928 governor guidance', () => {
+  it('recommends assigning a governor to a meaningfully pressured, ungoverned city with free capacity', () => {
+    const state = makeState({ atWarCount: 3 }); // war weariness pressure 24 >= 20
+    const recs = getUnrestRecommendations('city-1', state);
+    expect(recs.some(rec => rec.kind === 'assign-governor')).toBe(true);
+  });
+
+  it('NEGATIVE: does not recommend a governor for a calm city', () => {
+    const state = makeState({});
+    const recs = getUnrestRecommendations('city-1', state);
+    expect(recs.some(rec => rec.kind === 'assign-governor')).toBe(false);
+  });
+
+  it('NEGATIVE: does not recommend a governor for an already-governed city', () => {
+    const state = makeState({ atWarCount: 3 });
+    state.civilizations.player.governorAssignments = { 'city-1': true };
+    const recs = getUnrestRecommendations('city-1', state);
+    expect(recs.some(rec => rec.kind === 'assign-governor')).toBe(false);
+  });
+
+  it('NEGATIVE: does not recommend a governor while the city is locked', () => {
+    const state = makeState({ atWarCount: 3 });
+    state.civilizations.player.governorAssignmentChangedTurn = { 'city-1': state.turn };
+    const recs = getUnrestRecommendations('city-1', state);
+    expect(recs.some(rec => rec.kind === 'assign-governor')).toBe(false);
+  });
+});
