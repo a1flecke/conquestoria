@@ -183,3 +183,108 @@ git -C "$repo" worktree add -qb durable-sibling "$repo_b"
   echo "separate worktrees did not retain independent durable artifacts" >&2
   exit 1
 }
+
+# A catchable cancellation is terminal evidence, not an abandoned marker.
+rm -rf "$repo/.verification"
+(
+  cd "$repo"
+  exec > "$tmpdir/cancelled-run.log" 2>&1
+  exec sh scripts/run-durable-test-suite.sh cancelled-scope --no-lease -- sleep 30
+) &
+cancelled_wrapper_pid=$!
+
+attempts=0
+while [ ! -s "$repo/.verification/cancelled-scope-suite.running" ] || [ ! -s "$repo/.verification/cancelled-scope-suite.job-pid" ]; do
+  attempts=$((attempts + 1))
+  [ "$attempts" -lt 100 ] || {
+    echo "durable cancellation fixture never recorded its supervisor and job" >&2
+    cat "$tmpdir/cancelled-run.log" >&2
+    exit 1
+  }
+  sleep 0.1
+done
+
+cancelled_supervisor_pid="$(sed -n 's/^pid=//p' "$repo/.verification/cancelled-scope-suite.running" | head -n 1)"
+cancelled_job_pid="$(cat "$repo/.verification/cancelled-scope-suite.job-pid")"
+kill -TERM "$cancelled_supervisor_pid"
+
+# The supervisor must forward the signal to its registered child instead of
+# leaving an orphaned test process behind.
+attempts=0
+while kill -0 "$cancelled_supervisor_pid" 2>/dev/null; do
+  attempts=$((attempts + 1))
+  [ "$attempts" -lt 100 ] || {
+    echo "durable cancellation supervisor did not terminate" >&2
+    exit 1
+  }
+  sleep 0.1
+done
+attempts=0
+while kill -0 "$cancelled_job_pid" 2>/dev/null; do
+  attempts=$((attempts + 1))
+  if [ "$attempts" -ge 100 ]; then
+    kill -TERM "$cancelled_job_pid" 2>/dev/null || true
+    echo "durable cancellation left the registered job running" >&2
+    exit 1
+  fi
+  sleep 0.1
+done
+
+set +e
+wait "$cancelled_wrapper_pid"
+cancelled_runner_status=$?
+(
+  cd "$repo"
+  sh scripts/read-durable-test-result.sh cancelled-scope
+) > "$tmpdir/cancelled-read.log" 2>&1
+cancelled_reader_status=$?
+set -e
+
+[ "$cancelled_runner_status" -eq 143 ] || {
+  echo "durable cancellation did not preserve TERM exit status: $cancelled_runner_status" >&2
+  cat "$tmpdir/cancelled-run.log" >&2
+  exit 1
+}
+[ "$cancelled_reader_status" -eq 1 ] || {
+  echo "durable cancellation did not record a terminal failed result: $cancelled_reader_status" >&2
+  cat "$tmpdir/cancelled-read.log" >&2
+  exit 1
+}
+grep -Fq 'was cancelled by TERM' "$tmpdir/cancelled-read.log" || {
+  echo "durable reader did not explain the cancellation signal" >&2
+  cat "$tmpdir/cancelled-read.log" >&2
+  exit 1
+}
+grep -Fxq 'failure_kind=cancelled' "$repo/.verification/cancelled-scope-suite.status" || {
+  echo "durable cancellation was not classified as cancelled" >&2
+  cat "$repo/.verification/cancelled-scope-suite.status" >&2
+  exit 1
+}
+grep -Fxq 'completion_reason=signal' "$repo/.verification/cancelled-scope-suite.status" || {
+  echo "durable cancellation did not record the signal completion reason" >&2
+  cat "$repo/.verification/cancelled-scope-suite.status" >&2
+  exit 1
+}
+grep -Fxq 'termination_signal=TERM' "$repo/.verification/cancelled-scope-suite.status" || {
+  echo "durable cancellation did not record the received signal" >&2
+  cat "$repo/.verification/cancelled-scope-suite.status" >&2
+  exit 1
+}
+grep -Fq 'DURABLE CANCELLATION: received signal=TERM' "$repo/.verification/cancelled-scope-suite.log" || {
+  echo "durable cancellation log did not record the received signal" >&2
+  cat "$repo/.verification/cancelled-scope-suite.log" >&2
+  exit 1
+}
+grep -Fq 'DURABLE CANCELLATION: cleanup completed signal=TERM' "$repo/.verification/cancelled-scope-suite.log" || {
+  echo "durable cancellation log did not record cleanup completion" >&2
+  cat "$repo/.verification/cancelled-scope-suite.log" >&2
+  exit 1
+}
+[ ! -e "$repo/.verification/cancelled-scope-suite.running" ] || {
+  echo "durable cancellation left a stale running marker" >&2
+  exit 1
+}
+[ ! -e "$repo/.verification/cancelled-scope-suite.job-pid" ] || {
+  echo "durable cancellation left a stale job pid" >&2
+  exit 1
+}
