@@ -123,7 +123,7 @@ initial_worktree_state="$(worktree_state)"
 printf 'pid=%s\nworktree=%s\nhead=%s\nstarted_at=%s\n' \
   "$$" "$repo_root" "$head_sha" "$started_at" > "$running"
 
-finish() {
+write_status() {
   exit_code="$1"
   completed_at="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
   failure_kind='none'
@@ -149,8 +149,16 @@ finish() {
     printf 'job_pid=%s\n' "$terminal_job_pid"
   } > "$status_tmp"
   mv "$status_tmp" "$status"
+}
+
+cleanup_terminal_artifacts() {
   rm -f "$running" "$job_pid_file"
   [ -z "$stream_dir" ] || rm -rf "$stream_dir"
+}
+
+finish() {
+  write_status "$1"
+  cleanup_terminal_artifacts
 }
 
 on_exit() {
@@ -170,6 +178,15 @@ cancel_durable() {
   printf 'DURABLE CANCELLATION: received signal=%s supervisor_pid=%s worker_pid=%s job_pid=%s\n' \
     "$cancel_signal" "$$" "${worker_pid:-unknown}" "$terminal_job_pid" >> "$log"
 
+  # External runners may follow TERM with SIGKILL. Persist the terminal
+  # cancellation result and retire its liveness markers before waiting for
+  # child cleanup, so that a forced kill cannot leave ambiguous abandoned
+  # evidence behind.
+  write_status "$cancel_exit_code"
+  rm -f "$running" "$job_pid_file"
+  printf 'DURABLE CANCELLATION: terminal status recorded signal=%s supervisor_pid=%s job_pid=%s\n' \
+    "$cancel_signal" "$$" "$terminal_job_pid" >> "$log"
+
   # The worker owns hvl_run_registering_job, so signal it rather than waiting
   # for the foreground log stream. Its trap forwards the signal to the real
   # test process and releases any host lease before exiting.
@@ -184,7 +201,7 @@ cancel_durable() {
   printf 'DURABLE CANCELLATION: cleanup completed signal=%s supervisor_pid=%s job_pid=%s\n' \
     "$cancel_signal" "$$" "$terminal_job_pid" >> "$log"
   trap - EXIT
-  finish "$cancel_exit_code"
+  cleanup_terminal_artifacts
   release_lock
   exit "$cancel_exit_code"
 }

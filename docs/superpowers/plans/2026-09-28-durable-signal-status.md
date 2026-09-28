@@ -42,7 +42,9 @@ pipe. Install `INT`, `TERM`, and `HUP` traps in both the supervisor and worker:
 the supervisor forwards the signal, waits for cleanup, writes terminal status,
 and records the signal and supervisor/job PIDs; the worker forwards the signal
 to the registered test process. Append receipt and completed-cleanup messages
-to the durable log.
+to the durable log. Persist terminal status and remove liveness markers before
+waiting for the worker, because an external watchdog can force-kill a process
+that is still cleaning up after `TERM`.
 
 - [x] **Step 2: Re-run the focused test**
 

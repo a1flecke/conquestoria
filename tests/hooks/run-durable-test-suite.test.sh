@@ -275,6 +275,11 @@ grep -Fq 'DURABLE CANCELLATION: received signal=TERM' "$repo/.verification/cance
   cat "$repo/.verification/cancelled-scope-suite.log" >&2
   exit 1
 }
+grep -Fq 'DURABLE CANCELLATION: terminal status recorded signal=TERM' "$repo/.verification/cancelled-scope-suite.log" || {
+  echo "durable cancellation log did not record durable terminal evidence" >&2
+  cat "$repo/.verification/cancelled-scope-suite.log" >&2
+  exit 1
+}
 grep -Fq 'DURABLE CANCELLATION: cleanup completed signal=TERM' "$repo/.verification/cancelled-scope-suite.log" || {
   echo "durable cancellation log did not record cleanup completion" >&2
   cat "$repo/.verification/cancelled-scope-suite.log" >&2
