@@ -63,8 +63,10 @@ For a feature branch that needs the latest base, issue these as separate direct
 operations: `git fetch origin`, then `git rebase origin/main`. Resolve a
 conflict, explicitly stage only the resolved non-sensitive paths with
 `git add -- <paths>`, then use `GIT_EDITOR=true git rebase --continue`. Never
-use `git rebase --skip`, a rebase-merges mode, a merge into the feature branch,
-or an arbitrary editor prefix without explaining why and obtaining approval.
+prefix the initial rebase with `GIT_EDITOR=true`, filter its output with
+`tail`/a pipe, use `git rebase --skip`, select a rebase-merges mode, merge into
+the feature branch, or use an arbitrary editor prefix without explaining why
+and obtaining approval.
 
 Before an ordinary feature-branch push, inspect only that branch's remote head
 with `git ls-remote origin refs/heads/<current-branch>` if needed, then publish
