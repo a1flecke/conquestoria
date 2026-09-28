@@ -2,6 +2,7 @@ import type { NotificationCityAction, NotificationLog } from './notification-log
 import type { PirateFactionId, PirateHeadquarters, PirateMaritimeStage, PirateState } from './pirate-state';
 import type { DominationIntelState } from '@/systems/domination-types';
 import type { CivilizationEra, WorldAge } from '@/systems/era-types';
+import type { GovernancePolicyId } from '@/systems/governance-types';
 
 // --- Hex Coordinates ---
 
@@ -1659,6 +1660,13 @@ export interface Civilization {
   /** Turn of the most recent federalismEnabled toggle (either direction);
    * enforces FEDERALISM_LOCK_TURNS in faction-system.ts. */
   federalismChangedTurn?: number;
+  /** #987: governance policies this civ has chosen to enable. Absent, or a key
+   * present with `false`, both mean disabled — the safe "no policies" default
+   * for legacy saves. See governance-policy-system.ts's setGovernancePolicy. */
+  governancePolicies?: Partial<Record<GovernancePolicyId, boolean>>;
+  /** Turn of each policy's most recent toggle (either direction); enforces
+   * GOVERNANCE_POLICY_LOCK_TURNS per-policy in governance-policy-system.ts. */
+  governancePolicyChangedTurn?: Partial<Record<GovernancePolicyId, number>>;
 }
 
 export interface BreakawayMetadata {

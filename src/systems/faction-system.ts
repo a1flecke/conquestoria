@@ -14,6 +14,7 @@ import { BUILDINGS } from './city-system';
 import { getForeignFaithPressure } from './religion-loyalty-system';
 import { canConnectCityToCapitalByOwnedRoad, getCitiesConnectedToCapital } from './road-network';
 import { majorCivWarOpponentIds } from '../core/owner-kind';
+import { GOVERNANCE_POLICY_DEFINITIONS } from './governance-policy-definitions';
 
 // --- Thresholds ---
 export const UNREST_TRIGGER_PRESSURE = 40;
@@ -526,6 +527,16 @@ export function getUnrestPressureBreakdown(
   // a flat +2 unrest pressure row instead of a literal defection risk.
   if (civ.isHuman && getForeignFaithPressure(state, cityId)) {
     rows.push({ label: 'Foreign faith pressure', amount: 2 });
+  }
+
+  // #987: governance policy rows. Independent of the #919/#927 ladder above —
+  // a flat, empire-wide, attributable pressure delta per active policy, the
+  // same row-model convention as 'Luxury resources'/'Religious serenity'.
+  // Table-driven — see GOVERNANCE_POLICY_DEFINITIONS.
+  for (const policy of GOVERNANCE_POLICY_DEFINITIONS) {
+    if (civ.governancePolicies?.[policy.id] === true) {
+      rows.push({ label: policy.pressureRowLabel, amount: policy.pressureAmount });
+    }
   }
 
   // #919 MR2: administration-ladder relief rows (Courthouse today) subtract from the

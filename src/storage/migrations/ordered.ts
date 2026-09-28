@@ -30,6 +30,7 @@ import { normalizeGeneratedGenerals } from './steps/generated-generals';
 import { migrateResearchCostsV24 } from './steps/research-costs';
 import { migrateMarsMissionArchitectureCostV30 } from './steps/mars-mission-architecture-cost';
 import { repairFederalismFields } from './steps/federalism';
+import { repairGovernancePolicyFields } from './steps/governance-policies';
 import { repairCityBombardmentTallies } from './steps/bombardment';
 
 /**
@@ -227,6 +228,12 @@ export const ORDERED_MIGRATIONS: readonly OrderedMigration[] = [
     id: 'mars-mission-architecture-cost',
     reason: '#986 added a building that requires Mars Robotics Initiative, flipping mars-mission-architecture\'s automatic pacing band and its research-pacing-formula cost from 2150 to 2975; in-flight research on it must keep its invested percentage, same pattern as migration 24.',
     apply: migrateMarsMissionArchitectureCostV30,
+  },
+  {
+    version: 31,
+    id: 'governance-policy-fields',
+    reason: '#987 added two optional Civilization fields for governance policies. Like 25, scrub-only — the number exists to give the repair a version boundary.',
+    apply: repairGovernancePolicyFields,
   },
 ];
 

@@ -22,6 +22,8 @@ import { canConnectCityToCapitalByOwnedRoad, getCitiesConnectedToCapital } from 
 import { getCapitalCityId } from './capital-system';
 import { getReservedNationalProjectKeys } from './national-project-system';
 import { majorCivWarOpponentIds } from '@/core/owner-kind';
+import { GOVERNANCE_POLICY_DEFINITIONS } from './governance-policy-definitions';
+import type { GovernancePolicyId } from './governance-types';
 
 // #919 MR3 — "given this city's pressure breakdown, what should the player do?"
 // This module is the single source of truth for that answer, and it returns
@@ -41,7 +43,7 @@ export type UnrestRecommendationKind =
   | 'make-peace' | 'await-conquest-settle' | 'research-constitutional-law'
   | 'fix-economy' | 'counter-espionage' | 'stabilise-contagion-source'
   | 'build-faith-building' | 'acquire-luxury' | 'build-happiness-building'
-  | 'appease-or-concede';
+  | 'appease-or-concede' | 'repeal-governance-policy';
 
 export interface UnrestRecommendation {
   kind: UnrestRecommendationKind;
@@ -264,9 +266,26 @@ const FAITH_RESOLVER: GuidanceResolver = {
   },
 };
 
+// #987: a governance policy the player chose is now costing them pressure.
+// Table-driven over GOVERNANCE_POLICY_DEFINITIONS — matches any policy row
+// with positive amount (an "angers" policy currently active), never an id
+// branch. A policy that relieves pressure (Local Autonomy Writ) never
+// matches here since its row amount is negative.
+const GOVERNANCE_POLICY_RESOLVER: GuidanceResolver = {
+  matchesRow: label => GOVERNANCE_POLICY_DEFINITIONS.some(policy => policy.pressureRowLabel === label && policy.pressureAmount > 0),
+  resolve: ({ row }) => {
+    const policy = GOVERNANCE_POLICY_DEFINITIONS.find(p => p.pressureRowLabel === row.label);
+    const policyId: GovernancePolicyId | undefined = policy?.id;
+    return {
+      rowLabel: row.label, amount: row.amount, kind: 'repeal-governance-policy', availability: 'now',
+      params: { policyId },
+    };
+  },
+};
+
 const UNREST_GUIDANCE_RESOLVERS: GuidanceResolver[] = [
   SPRAWL_RESOLVER, WAR_RESOLVER, CONQUEST_RESOLVER, ECONOMY_RESOLVER,
-  ESPIONAGE_RESOLVER, CONTAGION_RESOLVER, FAITH_RESOLVER,
+  ESPIONAGE_RESOLVER, CONTAGION_RESOLVER, FAITH_RESOLVER, GOVERNANCE_POLICY_RESOLVER,
 ];
 
 function resolveRow(city: City, state: GameState, row: UnrestPressureRow): UnrestRecommendation[] {

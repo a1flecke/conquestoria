@@ -487,3 +487,27 @@ describe('#927 Federal Autonomy guidance', () => {
     expect(recs.some(rec => rec.kind === 'enable-federalism')).toBe(false);
   });
 });
+
+describe('#987 governance policy guidance', () => {
+  it('recommends repealing an active angering policy that is contributing pressure', () => {
+    const state = makeState({});
+    state.civilizations.player.governancePolicies = { 'conscription-levy': true };
+    const rec = getUnrestRecommendations('city-1', state).find(r => r.rowLabel === 'Conscription Levy');
+    expect(rec?.kind).toBe('repeal-governance-policy');
+    expect(rec?.availability).toBe('now');
+    expect(rec?.params?.policyId).toBe('conscription-levy');
+  });
+
+  it('NEGATIVE: never recommends repealing the relief policy (its row is negative, not a pressure source)', () => {
+    const state = makeState({});
+    state.civilizations.player.governancePolicies = { 'local-autonomy-writ': true };
+    const recs = getUnrestRecommendations('city-1', state);
+    expect(recs.some(rec => rec.kind === 'repeal-governance-policy')).toBe(false);
+  });
+
+  it('NEGATIVE: no governance recommendation appears when no policy is active', () => {
+    const state = makeState({});
+    const recs = getUnrestRecommendations('city-1', state);
+    expect(recs.some(rec => rec.kind === 'repeal-governance-policy')).toBe(false);
+  });
+});

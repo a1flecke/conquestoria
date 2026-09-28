@@ -206,6 +206,52 @@ challenge profile scales unrest *pressure* only, not action cost). The AI uses
 (a bot cannot value the 15-turn immunity payoff) and stays rational as long as
 the invariant above holds.
 
+## Governance Policy Inventory (#987)
+
+A separate table from the Unrest Relief Inventory above — governance policies
+are a player *choice* with a real tradeoff, not an infrastructure investment
+that only relieves pressure. Each policy is a flat, deterministic, attributable
+unrest-pressure row (`src/systems/governance-policy-definitions.ts`,
+consumed generically by `getUnrestPressureBreakdown` in `faction-system.ts`)
+plus a governance-load cost (`src/systems/governance-capacity.ts`). None of
+these touch the #927 relief ladder's own rows or `UNREST_RELIEF_SOURCES` table.
+
+| Policy | Pleases | Angers | Pressure row | Amount | Load cost |
+|---|---|---|---|---:|---:|
+| Conscription Levy | military | commons | Conscription Levy | +3 | 1 |
+| Free Trade Charter | merchants | clergy | Free Trade Charter | +2 | 1 |
+| Local Autonomy Writ | commons | military | Local Autonomy Writ | −3 | 1 |
+
+**Administrative capacity** (`getGovernanceCapacity`) is structural only — 3
+base, +1 each (max +4) for an owned Courthouse, an owned Regional Capital,
+`separation-of-powers`, and `railway-expansion`, plus a posture bonus:
+`+floor(cityCount / 3)` (max +4) under `centralized` posture, +0 under
+`autonomous`. **Load** (`getGovernanceLoad`) is purely distance-from-capital
+sprawl — `floor(distanceFromCapital / 5)` per city, halved (floored) under
+`autonomous` posture (the tall-vs-wide difference: autonomy dampens
+distant-city load, centralized does not) — plus the sum of active policies'
+load costs. Deliberately not a flat per-city charge: capacity's own per-city
+bonus is capped, so an unbounded per-city load term would make governance
+capacity permanently unusable for the largest, most sprawling empires — a
+city close to the capital costs zero load. A policy can only be
+enabled if doing so would not push load over capacity —
+`setGovernancePolicy` in `governance-policy-system.ts` is the only mutation
+path and enforces this, plus a per-policy `GOVERNANCE_POLICY_LOCK_TURNS` (5)
+toggle lock in either direction (same anti-thrash rationale as
+`FEDERALISM_LOCK_TURNS`).
+
+**Posture** (`getGovernancePosture`) is not a new field: `'autonomous'` is
+exactly `civ.federalismEnabled === true` (Federal Autonomy, rung 6 of the
+relief ladder above) and `'centralized'` is its absence — the posture getter
+is a thin reframing of the existing toggle, not a parallel mechanism. Toggling
+posture still goes through `setFederalismStance`/`canToggleFederalism`
+unchanged.
+
+**Rule:** any new governance policy must add a row above, and must not
+introduce a policy-id branch anywhere in `faction-system.ts`,
+`governance-capacity.ts`, `basic-ai.ts`, or `governance-panel.ts` — all four
+are generic over `GOVERNANCE_POLICY_DEFINITIONS`.
+
 ## Minor-Civ Economy (#950)
 
 Every minor-civ (city-state) economy balance knob lived only in code until now —
