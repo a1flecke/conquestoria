@@ -101,7 +101,7 @@ describe('unrestRecommendationCopy', () => {
       'connect-city-road-network', 'garrison-unit', 'train-garrison-unit',
       'make-peace', 'await-conquest-settle', 'research-constitutional-law', 'fix-economy',
       'counter-espionage', 'stabilise-contagion-source', 'build-faith-building',
-      'acquire-luxury', 'build-happiness-building', 'appease-or-concede', 'repeal-governance-policy',
+      'acquire-luxury', 'build-happiness-building', 'appease-or-concede', 'repeal-governance-policy', 'assign-governor',
     ];
     for (const kind of kinds) {
       const { icon, text } = unrestRecommendationCopy(rec({ kind }));
@@ -112,6 +112,12 @@ describe('unrestRecommendationCopy', () => {
 
   it('#987: repeal-governance-policy names the Governance screen', () => {
     const { icon, text } = unrestRecommendationCopy(rec({ kind: 'repeal-governance-policy', rowLabel: 'Conscription Levy', amount: 3 }));
+    expect(icon.length).toBeGreaterThan(0);
+    expect(text).toMatch(/governance screen/i);
+  });
+
+  it('#928: assign-governor names the Governance screen', () => {
+    const { icon, text } = unrestRecommendationCopy(rec({ kind: 'assign-governor' }));
     expect(icon.length).toBeGreaterThan(0);
     expect(text).toMatch(/governance screen/i);
   });

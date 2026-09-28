@@ -62,5 +62,7 @@ export function unrestRecommendationCopy(rec: UnrestRecommendation): { icon: str
       return { icon: '🪙', text: 'Use Appease (quick, cheap) or Concede (costs more, lasts longer) below for now.' };
     case 'repeal-governance-policy':
       return { icon: '📜', text: 'A governance policy you adopted is costing you unrest here — you can repeal it from the Governance screen.' };
+    case 'assign-governor':
+      return { icon: '🎩', text: 'Assign a governor to this city (Governance screen) to calm it down.' };
   }
 }

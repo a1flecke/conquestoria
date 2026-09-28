@@ -27,11 +27,21 @@ export interface GovernanceLoad {
   total: number;
   byCity: Record<string, number>;
   byPolicy: Record<string, number>;
+  byGovernor: Record<string, number>;
 }
 
 const INFRA_CAPACITY_MAX = 4;
 const POSTURE_CAPACITY_MAX = 4;
 const CENTRALIZED_CAPACITY_PER_CITIES = 3; // +1 capacity per 3 owned cities, capped
+
+/** #928: a governor assignment's own load cost — heavier than a policy's (1),
+ * reflecting a bigger administrative commitment to one city. Lives here, not
+ * in governor-system.ts, because this file already owns every load-cost
+ * constant (see byPolicy below); governor-system.ts imports it from here
+ * rather than the reverse, avoiding a governance-capacity <-> governor-system
+ * import cycle (governor-system.ts needs getGovernanceCapacity/getGovernanceLoad
+ * to validate an assignment). */
+export const GOVERNOR_LOAD_COST = 2;
 
 /**
  * `'autonomous'` reuses `civ.federalismEnabled` exactly as-is — see
@@ -87,7 +97,7 @@ export function getGovernanceCapacity(state: GameState, civId: string): Governan
  */
 export function getGovernanceLoad(state: GameState, civId: string): GovernanceLoad {
   const civ = state.civilizations[civId];
-  if (!civ) return { total: 0, byCity: {}, byPolicy: {} };
+  if (!civ) return { total: 0, byCity: {}, byPolicy: {}, byGovernor: {} };
 
   const cities = Object.values(state.cities).filter(city => city.owner === civId);
   const capital = getCapitalCity(state, civId);
@@ -111,5 +121,18 @@ export function getGovernanceLoad(state: GameState, civId: string): GovernanceLo
     policyTotal += policy.loadCost;
   }
 
-  return { total: cityTotal + policyTotal, byCity, byPolicy };
+  // #928: a governor assignment for a city this civ no longer owns (captured,
+  // razed) is inert -- filtered out here rather than scrubbed on capture, so
+  // the former owner's capacity frees up automatically and the captor never
+  // inherits it, with no city-capture-system.ts teardown code needed.
+  const byGovernor: Record<string, number> = {};
+  let governorTotal = 0;
+  for (const cityId of Object.keys(civ.governorAssignments ?? {})) {
+    if (civ.governorAssignments?.[cityId] !== true) continue;
+    if (state.cities[cityId]?.owner !== civId) continue;
+    byGovernor[cityId] = GOVERNOR_LOAD_COST;
+    governorTotal += GOVERNOR_LOAD_COST;
+  }
+
+  return { total: cityTotal + policyTotal + governorTotal, byCity, byPolicy, byGovernor };
 }

@@ -1,7 +1,7 @@
 {
   "e1": {
     "state": {
-      "__whole": "4f4a8313046e",
+      "__whole": "579a6fd1b392",
       "autonomyByCiv": "95313c912b48",
       "barbarianCampPressure": "44136fa355b3",
       "barbarianCamps": "c9c75b490ac4",
@@ -48,7 +48,7 @@
       "religions": "44136fa355b3",
       "resurgentCampCooldownByCivLandmass": "44136fa355b3",
       "rogueElephantHosts": "44136fa355b3",
-      "saveSchemaVersion": "eb1e33e8a81b",
+      "saveSchemaVersion": "e29c9c180c62",
       "settings": "666ce98eb188",
       "stampedes": "44136fa355b3",
       "startPlacementMode": "61eb5aa337d3",
@@ -64,7 +64,7 @@
   },
   "e2": {
     "state": {
-      "__whole": "fbd867405e27",
+      "__whole": "448a3e2cce76",
       "autonomyByCiv": "95313c912b48",
       "barbarianCampPressure": "44136fa355b3",
       "barbarianCamps": "5148e5b9b58d",
@@ -111,7 +111,7 @@
       "religions": "44136fa355b3",
       "resurgentCampCooldownByCivLandmass": "44136fa355b3",
       "rogueElephantHosts": "44136fa355b3",
-      "saveSchemaVersion": "eb1e33e8a81b",
+      "saveSchemaVersion": "e29c9c180c62",
       "settings": "666ce98eb188",
       "stampedes": "44136fa355b3",
       "startPlacementMode": "61eb5aa337d3",

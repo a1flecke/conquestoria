@@ -31,6 +31,7 @@ import { migrateResearchCostsV24 } from './steps/research-costs';
 import { migrateMarsMissionArchitectureCostV30 } from './steps/mars-mission-architecture-cost';
 import { repairFederalismFields } from './steps/federalism';
 import { repairGovernancePolicyFields } from './steps/governance-policies';
+import { repairGovernorAssignmentFields } from './steps/governor-assignments';
 import { repairCityBombardmentTallies } from './steps/bombardment';
 
 /**
@@ -234,6 +235,12 @@ export const ORDERED_MIGRATIONS: readonly OrderedMigration[] = [
     id: 'governance-policy-fields',
     reason: '#987 added two optional Civilization fields for governance policies. Like 25, scrub-only — the number exists to give the repair a version boundary.',
     apply: repairGovernancePolicyFields,
+  },
+  {
+    version: 32,
+    id: 'governor-assignment-fields',
+    reason: '#928 added two optional Civilization fields for governor assignments. Like 25/31, scrub-only — the number exists to give the repair a version boundary.',
+    apply: repairGovernorAssignmentFields,
   },
 ];
 

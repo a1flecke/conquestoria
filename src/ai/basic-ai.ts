@@ -84,6 +84,8 @@ import {
 import { getEconomyStatusForCiv } from '@/systems/economy-system';
 import { GOVERNANCE_POLICY_DEFINITIONS } from '@/systems/governance-policy-definitions';
 import { setGovernancePolicy, isGovernancePolicyActive, canToggleGovernancePolicy } from '@/systems/governance-policy-system';
+import { getGovernanceCapacity, getGovernanceLoad, GOVERNOR_LOAD_COST } from '@/systems/governance-capacity';
+import { assignGovernor, isCityGoverned, canToggleGovernor } from '@/systems/governor-system';
 import {
   getEligibleLegendaryWonders,
   initializeLegendaryWonderProjectsForAllCities,
@@ -1128,6 +1130,28 @@ function processAITurnInternal(
         const toggled = setGovernancePolicy(newState, civId, policy.id, shouldBeActive);
         if (toggled.success) newState = toggled.state;
       }
+    }
+    civ = newState.civilizations[civId];
+  }
+
+  // #928: AI governor assignment. Assign-only (never proactively reassigns an
+  // already-placed governor) — thrash-free by construction, and a defensible
+  // bounded scope: capacity/lock validation inside assignGovernor is the only
+  // gate, same as the governance-policy block above. Cities are considered in
+  // descending pressure order so scarce capacity goes to the worst city first.
+  if (civ.cities.length > 0) {
+    const pressureByCityId = new Map(civ.cities.map(cityId => [cityId, computeUnrestPressure(cityId, newState)]));
+    const candidateCityIds = civ.cities
+      .filter(cityId => (pressureByCityId.get(cityId) ?? 0) >= 20)
+      .filter(cityId => !isCityGoverned(newState, cityId))
+      .filter(cityId => canToggleGovernor(newState, civId, cityId))
+      .sort((a, b) => (pressureByCityId.get(b) ?? 0) - (pressureByCityId.get(a) ?? 0));
+    for (const cityId of candidateCityIds) {
+      const capacity = getGovernanceCapacity(newState, civId).total;
+      const load = getGovernanceLoad(newState, civId).total;
+      if (load + GOVERNOR_LOAD_COST > capacity) break;
+      const assigned = assignGovernor(newState, civId, cityId);
+      if (assigned.success) newState = assigned.state;
     }
     civ = newState.civilizations[civId];
   }

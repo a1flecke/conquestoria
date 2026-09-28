@@ -1,6 +1,7 @@
 import type { GameState, City } from '@/core/types';
 import {
   getUnrestPressureBreakdown,
+  computeUnrestPressure,
   getRegionalCapitalReliefAmount,
   canGarrisonCity,
   getContagionSpread,
@@ -24,6 +25,8 @@ import { getReservedNationalProjectKeys } from './national-project-system';
 import { majorCivWarOpponentIds } from '@/core/owner-kind';
 import { GOVERNANCE_POLICY_DEFINITIONS } from './governance-policy-definitions';
 import type { GovernancePolicyId } from './governance-types';
+import { getGovernanceCapacity, getGovernanceLoad, GOVERNOR_LOAD_COST } from './governance-capacity';
+import { isCityGoverned, canToggleGovernor } from './governor-system';
 
 // #919 MR3 — "given this city's pressure breakdown, what should the player do?"
 // This module is the single source of truth for that answer, and it returns
@@ -43,7 +46,7 @@ export type UnrestRecommendationKind =
   | 'make-peace' | 'await-conquest-settle' | 'research-constitutional-law'
   | 'fix-economy' | 'counter-espionage' | 'stabilise-contagion-source'
   | 'build-faith-building' | 'acquire-luxury' | 'build-happiness-building'
-  | 'appease-or-concede' | 'repeal-governance-policy';
+  | 'appease-or-concede' | 'repeal-governance-policy' | 'assign-governor';
 
 export interface UnrestRecommendation {
   kind: UnrestRecommendationKind;
@@ -308,6 +311,20 @@ function emptyStateRecommendations(city: City, state: GameState): UnrestRecommen
   }
   if (anyHappinessBuildingAvailable(state, city)) {
     out.push({ kind: 'build-happiness-building', rowLabel: '', amount: 0, availability: 'now' });
+  }
+  // #928: a genuinely pressured (>= 20 net, matching the AI's own threshold),
+  // ungoverned, unlocked city with free governance capacity can be helped by
+  // assigning a governor. Empire-state-keyed like the two recommendations
+  // above, not a specific pressure row — a governor relieves total pressure,
+  // not one named cause.
+  if (!isCityGoverned(state, city.id)
+    && canToggleGovernor(state, city.owner, city.id)
+    && computeUnrestPressure(city.id, state) >= 20) {
+    const capacity = getGovernanceCapacity(state, city.owner).total;
+    const load = getGovernanceLoad(state, city.owner).total;
+    if (load + GOVERNOR_LOAD_COST <= capacity) {
+      out.push({ kind: 'assign-governor', rowLabel: '', amount: 0, availability: 'now' });
+    }
   }
   return out;
 }

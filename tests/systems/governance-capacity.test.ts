@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getGovernanceCapacity, getGovernanceLoad, getGovernancePosture } from '@/systems/governance-capacity';
+import { getGovernanceCapacity, getGovernanceLoad, getGovernancePosture, GOVERNOR_LOAD_COST } from '@/systems/governance-capacity';
 import { makeGovernanceTestState } from './helpers/governance-fixture';
 
 describe('#987 governance capacity/load', () => {
@@ -74,5 +74,34 @@ describe('#987 governance capacity/load', () => {
   it('a policy present but explicitly false does not add load', () => {
     const state = makeGovernanceTestState({ civOverrides: { governancePolicies: { 'conscription-levy': false } } });
     expect(getGovernanceLoad(state, 'player').byPolicy['conscription-levy']).toBeUndefined();
+  });
+
+  it('#928: an active governor assignment adds GOVERNOR_LOAD_COST, attributed by city id', () => {
+    const state = makeGovernanceTestState({ civOverrides: { governorAssignments: { 'city-1': true } } });
+    const load = getGovernanceLoad(state, 'player');
+    expect(load.byGovernor['city-1']).toBe(GOVERNOR_LOAD_COST);
+    expect(load.total).toBe(GOVERNOR_LOAD_COST);
+  });
+
+  it('#928: governors and policies share the same capacity pool — a real scarcity tradeoff', () => {
+    // 1 city -> capacity 3. A governor (2) plus a policy (1) exactly fills it;
+    // a second policy would not fit.
+    const state = makeGovernanceTestState({
+      civOverrides: {
+        governorAssignments: { 'city-1': true },
+        governancePolicies: { 'conscription-levy': true },
+      },
+    });
+    const load = getGovernanceLoad(state, 'player');
+    expect(load.total).toBe(GOVERNOR_LOAD_COST + 1);
+    expect(load.total).toBe(getGovernanceCapacity(state, 'player').total);
+  });
+
+  it('#928: a governor assignment for a city no longer owned by this civ contributes no load', () => {
+    const state = makeGovernanceTestState({ civOverrides: { governorAssignments: { 'city-1': true } } });
+    const captured = { ...state, cities: { ...state.cities, 'city-1': { ...state.cities['city-1']!, owner: 'someone-else' } } };
+    const load = getGovernanceLoad(captured, 'player');
+    expect(load.byGovernor['city-1']).toBeUndefined();
+    expect(load.total).toBe(0);
   });
 });

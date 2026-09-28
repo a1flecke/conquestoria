@@ -1,8 +1,10 @@
 import type { GameState } from '../core/types';
 import type { GovernanceFaction, GovernancePolicyId, GovernancePosture } from './governance-types';
 import { GOVERNANCE_POLICY_DEFINITIONS } from './governance-policy-definitions';
-import { getGovernanceCapacity, getGovernanceLoad, getGovernancePosture } from './governance-capacity';
+import { getGovernanceCapacity, getGovernanceLoad, getGovernancePosture, GOVERNOR_LOAD_COST } from './governance-capacity';
 import { isGovernancePolicyActive, canToggleGovernancePolicy, getGovernancePolicyLockedUntilTurn } from './governance-policy-system';
+import { isCityGoverned, canToggleGovernor, getGovernorLockedUntilTurn } from './governor-system';
+import { computeUnrestPressure } from './faction-system';
 
 /**
  * #987 — own-empire-only governance projection. Deliberately does not expose
@@ -26,11 +28,22 @@ export interface GovernancePolicyPresentation {
   lockedUntilTurn: number | null;
 }
 
+export interface GovernorCityPresentation {
+  cityId: string;
+  cityName: string;
+  pressure: number;
+  governed: boolean;
+  /** Whether assign (if ungoverned) or remove (if governed) is legal right now. */
+  canToggle: boolean;
+  lockedUntilTurn: number | null;
+}
+
 export interface GovernancePresentation {
   posture: GovernancePosture;
   capacityTotal: number;
   loadTotal: number;
   policies: GovernancePolicyPresentation[];
+  governorCities: GovernorCityPresentation[];
 }
 
 export function getGovernancePresentation(state: GameState, civId: string): GovernancePresentation {
@@ -56,5 +69,23 @@ export function getGovernancePresentation(state: GameState, civId: string): Gove
     };
   });
 
-  return { posture, capacityTotal: capacity.total, loadTotal: load.total, policies };
+  const governorCities: GovernorCityPresentation[] = Object.values(state.cities)
+    .filter(city => city.owner === civId)
+    .map(city => {
+      const governed = isCityGoverned(state, city.id);
+      const lockedUntilTurn = getGovernorLockedUntilTurn(state, civId, city.id);
+      const lockOpen = canToggleGovernor(state, civId, city.id);
+      const wouldFitCapacity = governed || load.total + GOVERNOR_LOAD_COST <= capacity.total;
+      return {
+        cityId: city.id,
+        cityName: city.name,
+        pressure: computeUnrestPressure(city.id, state),
+        governed,
+        canToggle: lockOpen && wouldFitCapacity,
+        lockedUntilTurn: Number.isFinite(lockedUntilTurn) ? lockedUntilTurn : null,
+      };
+    })
+    .sort((a, b) => b.pressure - a.pressure);
+
+  return { posture, capacityTotal: capacity.total, loadTotal: load.total, policies, governorCities };
 }
