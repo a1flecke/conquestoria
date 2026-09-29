@@ -45,6 +45,11 @@
         { "action": "shell", "resource": "git fetch *", "effect": "allow" },
         { "action": "shell", "resource": "git pull *", "effect": "allow" },
         { "action": "shell", "resource": "git push *", "effect": "allow" },
+        // Exact match only — the global AGENTS.md's sanctioned initial
+        // feature-branch rebase form. "--continue", "-i", and other rebase
+        // invocations fall through to the default "ask" above, since
+        // resuming an in-progress rebase needs the state verified first.
+        { "action": "shell", "resource": "git rebase origin/main", "effect": "allow" },
 
         { "action": "shell", "resource": "gh issue *", "effect": "allow" },
         { "action": "shell", "resource": "gh pr *", "effect": "allow" },
