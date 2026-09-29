@@ -254,11 +254,13 @@ export function collectCombatRewards(
 function removeUnitFromCopies(
   units: Record<string, Unit>,
   civilizations: GameState['civilizations'],
+  minorCivs: GameState['minorCivs'],
   espionage: NonNullable<GameState['espionage']> | undefined,
   unitId: string,
 ): {
   units: Record<string, Unit>;
   civilizations: GameState['civilizations'];
+  minorCivs: GameState['minorCivs'];
   espionage: NonNullable<GameState['espionage']> | undefined;
 } {
   const removed = units[unitId];
@@ -279,6 +281,7 @@ function removeUnitFromCopies(
   }
 
   let nextCivilizations = { ...civilizations };
+  let nextMinorCivs = { ...minorCivs };
   let nextEspionage = espionage;
 
   for (const [civId, civ] of Object.entries(civilizations)) {
@@ -291,6 +294,19 @@ function removeUnitFromCopies(
     };
   }
 
+  // #996: a minor civ's garrison roster is a real index too. A minor-civ-owned
+  // unit destroyed in combat must be scrubbed from `minorCivs[owner].units`
+  // exactly as a major unit is scrubbed from `civilizations[owner].units`, or
+  // the roster keeps a ghost id that the unit-rosters invariant rejects.
+  for (const [mcId, mc] of Object.entries(minorCivs)) {
+    if (mc.units.some(id => removedIds.has(id))) {
+      nextMinorCivs = {
+        ...nextMinorCivs,
+        [mcId]: { ...mc, units: mc.units.filter(id => !removedIds.has(id)) },
+      };
+    }
+  }
+
   for (const removedId of removedIds) {
     const removedUnit = units[removedId];
     if (removedUnit) {
@@ -298,7 +314,7 @@ function removeUnitFromCopies(
     }
   }
 
-  return { units: remainingUnits, civilizations: nextCivilizations, espionage: nextEspionage };
+  return { units: remainingUnits, civilizations: nextCivilizations, minorCivs: nextMinorCivs, espionage: nextEspionage };
 }
 
 /**
@@ -338,15 +354,16 @@ function checkLastStandHold(unitBefore: Unit, currentTurn: number): boolean {
 function destroyEscortedGeneralAtPosition(
   units: Record<string, Unit>,
   civilizations: GameState['civilizations'],
+  minorCivs: GameState['minorCivs'],
   espionage: NonNullable<GameState['espionage']> | undefined,
   position: Unit['position'],
   ownerId: string,
-): { units: Record<string, Unit>; civilizations: GameState['civilizations']; espionage: NonNullable<GameState['espionage']> | undefined } {
+): { units: Record<string, Unit>; civilizations: GameState['civilizations']; minorCivs: GameState['minorCivs']; espionage: NonNullable<GameState['espionage']> | undefined } {
   const general = Object.values(units).find(
     u => u.type === 'great_general' && u.owner === ownerId && hexKey(u.position) === hexKey(position),
   );
-  if (!general) return { units, civilizations, espionage };
-  return removeUnitFromCopies(units, civilizations, espionage, general.id);
+  if (!general) return { units, civilizations, minorCivs, espionage };
+  return removeUnitFromCopies(units, civilizations, minorCivs, espionage, general.id);
 }
 
 /**
@@ -629,13 +646,15 @@ export function applyCombatOutcomeToState(
     attackerCaptured = true;
   } else {
     defeatedUnitIds.add(result.attackerId);
-    const removed = removeUnitFromCopies(units, civilizations, espionage, result.attackerId);
+    const removed = removeUnitFromCopies(units, civilizations, minorCivs, espionage, result.attackerId);
     units = removed.units;
     civilizations = removed.civilizations;
+    minorCivs = removed.minorCivs;
     espionage = removed.espionage;
-    const escortCascade = destroyEscortedGeneralAtPosition(units, civilizations, espionage, attackerBefore.position, attackerBefore.owner);
+    const escortCascade = destroyEscortedGeneralAtPosition(units, civilizations, minorCivs, espionage, attackerBefore.position, attackerBefore.owner);
     units = escortCascade.units;
     civilizations = escortCascade.civilizations;
+    minorCivs = escortCascade.minorCivs;
     espionage = escortCascade.espionage;
   }
 
@@ -717,13 +736,15 @@ export function applyCombatOutcomeToState(
     defenderCaptured = true;
   } else {
     defeatedUnitIds.add(result.defenderId);
-    const removed = removeUnitFromCopies(units, civilizations, espionage, result.defenderId);
+    const removed = removeUnitFromCopies(units, civilizations, minorCivs, espionage, result.defenderId);
     units = removed.units;
     civilizations = removed.civilizations;
+    minorCivs = removed.minorCivs;
     espionage = removed.espionage;
-    const escortCascade = destroyEscortedGeneralAtPosition(units, civilizations, espionage, defenderBefore.position, defenderBefore.owner);
+    const escortCascade = destroyEscortedGeneralAtPosition(units, civilizations, minorCivs, espionage, defenderBefore.position, defenderBefore.owner);
     units = escortCascade.units;
     civilizations = escortCascade.civilizations;
+    minorCivs = escortCascade.minorCivs;
     espionage = escortCascade.espionage;
   }
 
@@ -746,13 +767,15 @@ export function applyCombatOutcomeToState(
       continue;
     }
     defeatedUnitIds.add(hit.unitId);
-    const removed = removeUnitFromCopies(units, civilizations, espionage, hit.unitId);
+    const removed = removeUnitFromCopies(units, civilizations, minorCivs, espionage, hit.unitId);
     units = removed.units;
     civilizations = removed.civilizations;
+    minorCivs = removed.minorCivs;
     espionage = removed.espionage;
-    const escortCascade = destroyEscortedGeneralAtPosition(units, civilizations, espionage, target.position, target.owner);
+    const escortCascade = destroyEscortedGeneralAtPosition(units, civilizations, minorCivs, espionage, target.position, target.owner);
     units = escortCascade.units;
     civilizations = escortCascade.civilizations;
+    minorCivs = escortCascade.minorCivs;
     espionage = escortCascade.espionage;
   }
 

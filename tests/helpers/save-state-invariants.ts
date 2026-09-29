@@ -154,7 +154,9 @@ export function assertCityRosters(state: GameState): void {
 /**
  * Same contract as cities, for units, across major and minor civ rosters.
  * Units owned by non-roster actors (`barbarian` / `pirate` / `beasts` /
- * crisis owners) are skipped. (#997)
+ * crisis owners) are skipped. A roster holds each unit id exactly once —
+ * duplicates inflate every roster-length consumer the same way a ghost entry
+ * does, and a duplicate id is never a legitimate shape. (#996)
  */
 export function assertUnitRosters(state: GameState): void {
   const problems: string[] = [];
@@ -173,7 +175,13 @@ export function assertUnitRosters(state: GameState): void {
     ...Object.entries(state.minorCivs ?? {}).map(([id, mc]) => [id, mc.units] as [string, string[]]),
   ];
   for (const [ownerId, roster] of rosters) {
+    const seen = new Set<string>();
     for (const unitId of roster) {
+      if (seen.has(unitId)) {
+        problems.push(`${ownerId}'s roster lists unit "${unitId}" more than once`);
+        continue;
+      }
+      seen.add(unitId);
       const unit = state.units[unitId];
       if (!unit) {
         problems.push(`${ownerId}'s roster names unit "${unitId}" which does not exist`);

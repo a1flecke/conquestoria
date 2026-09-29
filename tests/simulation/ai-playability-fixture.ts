@@ -27,7 +27,7 @@ import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { CRISIS_FORCE_OWNER } from '@/core/owner-kind';
 import { serializeSaveFile, parseSaveFile } from '@/storage/save-file-transfer';
 import { normalizeLoadedState } from '@/storage/save-manager';
-import { assertAirBaseIntegrity, assertBilateralWar, assertCargoReciprocity, assertCityRosters, assertEliminatedCivHasNoLiveEntities, assertNoIllegalBlockingOccupancy } from '../helpers/save-state-invariants';
+import { assertAirBaseIntegrity, assertBilateralWar, assertCargoReciprocity, assertCityRosters, assertEliminatedCivHasNoLiveEntities, assertNoIllegalBlockingOccupancy, assertUnitRosters } from '../helpers/save-state-invariants';
 import {
   buildCampaignRoundSample,
   emptyCivCounters,
@@ -644,6 +644,7 @@ export function runAICampaign(options: AICampaignOptions): AICampaignResult {
     assertOwnersAndReferences(state, options.seed);
     assertBilateralWar(state); // #995 — major-war state stays bilateral across every AI diplomacy transition
     assertCityRosters(state); // #997 — city.owner stays consistent with the major/minor city roster across AI founding/capture/breakaway
+    assertUnitRosters(state); // #996 — unit.owner stays consistent with the major/minor unit roster across AI production/capture/prize-crew/upgrade/death/elimination
     assertCargoReciprocity(state); // #1000 — transport/cargo dual-reference stays reciprocal across AI load/unload + combat cascades
     assertAirBaseIntegrity(state); // #1000 — carrier/city air basing stays within capacity and owner across AI rebase + carrier loss
     assertEliminatedCivHasNoLiveEntities(state); // #1001 — a civ the AI wipes out mid-run leaves no live entity or obligation anywhere
