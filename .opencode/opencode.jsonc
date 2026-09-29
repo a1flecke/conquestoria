@@ -59,6 +59,12 @@
         { "action": "shell", "resource": "git checkout -- *", "effect": "deny" },
         { "action": "shell", "resource": "git push --force *", "effect": "deny" },
         { "action": "shell", "resource": "git push * --force *", "effect": "deny" },
+        // Keep the lease form as ask so the approval plugin can verify the
+        // trusted worktree, current feature branch, exact refspec, and clean
+        // rebase state before allowing it. Do not turn this into a broad
+        // static allow rule.
+        { "action": "shell", "resource": "git push --force-with-lease *", "effect": "ask" },
+        { "action": "shell", "resource": "git push * --force-with-lease", "effect": "ask" },
         { "action": "shell", "resource": "git push * --force-with-lease *", "effect": "ask" },
         { "action": "shell", "resource": "tailscale *", "effect": "deny" },
         { "action": "shell", "resource": "networksetup *", "effect": "deny" },
