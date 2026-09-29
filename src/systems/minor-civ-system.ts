@@ -12,6 +12,7 @@ import type { EventBus } from '@/core/event-bus';
 import { createEmptyOpponentAIState } from '@/core/opponent-ai-state';
 import { OPPONENT_CHALLENGE_PROFILES, resolveOpponentChallenge } from '@/core/opponent-challenge';
 import { isAlwaysHostilePair } from '@/core/owner-kind';
+import { getOwnedUnitCount } from '@/systems/unit-ownership';
 import { MINOR_CIV_DEFINITIONS } from './minor-civ-definitions';
 import { createSimulationRng } from './simulation-rng';
 import { resolveWorldAge } from './tech-definitions';
@@ -793,7 +794,7 @@ export function processGuerrilla(state: GameState, mc: MinorCivState, bus: Event
     .find(civId => isMinorCivAtWar(state, civId, mc.id));
   if (!targetCivId) return state;
 
-  const guerrillaCount = mc.units.filter(uid => state.units[uid]).length - 1;
+  const guerrillaCount = getOwnedUnitCount(state, mc.id) - 1;
   if (guerrillaCount >= 2) return state;
 
   const city = state.cities[mc.cityId];

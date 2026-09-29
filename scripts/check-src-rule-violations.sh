@@ -90,6 +90,26 @@ for file_path in "$@"; do
       ;;
   esac
 
+  # --- canonical unit ownership (#1020): decision code must not use roster
+  # length as a proxy for "how many units does this owner have". Use
+  # getOwnedUnitCount(state, ownerId) / getOwnedUnits(state, ownerId) instead.
+  # Roster maintenance, elimination, turn processing, serialization, testing
+  # fixtures, and the canonical ownership module are exempt. `snapshot.units`
+  # is a persisted perception DTO (espionage signals/troop intel), not a civ
+  # roster, so its `.length` is excluded explicitly rather than exempting the
+  # whole file.
+  case "$file_path" in
+    src/core/turn-manager.ts|src/systems/civilization-elimination-system.ts|src/systems/unit-ownership.ts|src/storage/*|src/storage/**/*|src/testing/*|src/testing/**/*)
+      : # sanctioned roster-maintenance/ordering/serialization uses
+      ;;
+    *)
+      unit_roster_lines="$(grep -nE '\.units\.length' "$file_path" | grep -vE 'snapshot\.units\.length' | head -5 || true)"
+      if [ -n "$unit_roster_lines" ]; then
+        append_match_block "Roster-length ownership decision — use getOwnedUnitCount(state, ownerId) instead of civ.units.length (see src/systems/unit-ownership.ts)" "$unit_roster_lines"
+      fi
+      ;;
+  esac
+
   if grep -nE 'state\.(cities|units|civilizations)\[[^]]+\]\s*=' "$file_path" >/dev/null; then
     lines="$(grep -nE 'state\.(cities|units|civilizations)\[[^]]+\]\s*=' "$file_path" | head -5)"
     append_match_block "Direct state mutation detected. Turn-processing systems must return a new GameState (see .claude/rules/game-systems.md#immutable-turn-processing)" "$lines"

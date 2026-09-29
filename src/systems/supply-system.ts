@@ -6,6 +6,7 @@ import { getCivSupplySourceCandidates, getLandSupplySourceCoverage } from './sup
 import { getNavalShoreSupplyAssignments } from './supply-naval';
 import { advanceOverextensionStage, resolveSupplyRecoveryForUnit } from './supply-progression';
 import { getPassiveStabilizationTargets } from './great-general-system';
+import { getFreeStandingOwnedUnits } from '@/systems/unit-ownership';
 
 /**
  * Thin composition root — the only supply module `turn-manager.ts` imports
@@ -26,8 +27,7 @@ export function resolveLandSupplyForCiv(state: GameState, civId: string): GameSt
   let units = state.units;
   let changed = false;
 
-  for (const unit of Object.values(state.units)) {
-    if (unit.owner !== civId || unit.transportId) continue;
+  for (const unit of getFreeStandingOwnedUnits(state, civId)) {
     if (!unitParticipatesInLandSupply(unit)) continue;
 
     const tile = state.map.tiles[hexKey(unit.position)];
