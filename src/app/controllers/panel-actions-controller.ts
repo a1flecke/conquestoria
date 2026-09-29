@@ -58,7 +58,7 @@ import type { HudController } from '@/app/controllers/hud-controller';
 import type { SelectionController } from '@/app/controllers/selection-controller';
 import type { DiplomacyActionsController } from '@/app/controllers/diplomacy-actions-controller';
 import type { PanelRouter } from '@/app/panel-router';
-import type { City, CivDefinition, Civilization, GameState, HexCoord, SpyMissionType, UnitType } from '@/core/types';
+import type { City, CivDefinition, Civilization, CouncilCardAction, GameState, HexCoord, SpyMissionType, UnitType } from '@/core/types';
 import type { NotificationEntry } from '@/core/notification-log';
 import { createPacingDebugPanel } from '@/ui/pacing-debug-panel';
 import { getBestiaryEntriesForPlayer } from '@/systems/beast-presentation';
@@ -127,7 +127,7 @@ export interface PanelActionsController {
   openPirateWaters(focus?: { factionId?: string; historyId?: string }): void;
   openPirateHeadquartersAssault(factionId: string, unitId: string): void;
   openNotificationLog(): void;
-  openDiplomacyPanel(): void;
+  openDiplomacyPanel(focusMinorCivId?: string): void;
   openMarketplacePanel(): void;
   openWonderPanelForCityId(selectedCityId: string): void;
   openCityOverviewPanel(): void;
@@ -164,7 +164,7 @@ export interface PanelActionsControllerDeps {
   readonly uiLayer: HTMLDivElement;
   readonly getElementById: (id: string) => HTMLElement | null;
   readonly selection: Pick<SelectionStore, 'setPirateSelection' | 'getPirateSelection' | 'getSelectedUnitId'>;
-  readonly selectionController: Pick<SelectionController, 'selectUnit' | 'deselectUnit'>;
+  readonly selectionController: Pick<SelectionController, 'selectUnit' | 'deselectUnit' | 'startAutoExplore'>;
   readonly hud: Pick<HudController, 'closeDrawer' | 'update'>;
   readonly audio: PanelActionsAudio;
   readonly renderLoop: PanelActionsRenderer;
@@ -529,10 +529,11 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
     }, 100);
   }
 
-  function openDiplomacyPanel(): void {
+  function openDiplomacyPanel(focusMinorCivId?: string): void {
     deps.hud.closeDrawer();
     deps.getElementById('diplomacy-panel')?.remove();
     createDiplomacyPanel(deps.uiLayer, deps.session.getState(), {
+      focusMinorCivId,
       onAction: deps.diplomacyActions.handleDiplomaticAction,
       onAcceptPeaceRequest: deps.diplomacyActions.handleAcceptPeaceRequest,
       onRejectPeaceRequest: deps.diplomacyActions.handleRejectPeaceRequest,
@@ -637,20 +638,75 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
         deps.session.commit({ ...deps.session.getState(), settings: { ...deps.session.getState().settings, councilTalkLevel: level } });
         void saveSettings(deps.session.getState().settings);
       },
-      onCardAction: (cardId) => {
+      onCardAction: (cardId, action) => {
         const parsed = parseEventChainCardId(cardId);
-        if (!parsed) return; // not an event-chain card (see council-panel.ts's callback doc comment)
-        const state = deps.session.getState();
-        const result = chooseEventChainOption(state, parsed.chainId, parsed.optionId, state.currentPlayer, deps.bus);
-        if (!result.success) {
-          deps.showNotification(result.message, 'warning');
+        if (parsed) {
+          const state = deps.session.getState();
+          const result = chooseEventChainOption(state, parsed.chainId, parsed.optionId, state.currentPlayer, deps.bus);
+          if (!result.success) {
+            deps.showNotification(result.message, 'warning');
+            return;
+          }
+          deps.session.commit(result.state);
+          deps.showNotification('Decision recorded.', 'success');
+          openCouncilPanel(); // re-render: the chosen card's whole option set must disappear (#787 "panel rerender after interaction")
           return;
         }
-        deps.session.commit(result.state);
-        deps.showNotification('Decision recorded.', 'success');
-        openCouncilPanel(); // re-render: the chosen card's whole option set must disappear (#787 "panel rerender after interaction")
+        if (!action) return; // no typed action either (see council-panel.ts's callback doc comment)
+        dispatchCouncilCardAction(action);
       },
     });
+  }
+
+  /** Dispatches a non-event-chain `CouncilCard.action` (see `council-system.ts`'s
+   * `CouncilCardAction` doc comment) -- the survey-frontier/food-warning/quest/wonder
+   * card action wiring. Each branch removes the council panel before opening the next
+   * one so the two full-height overlays never stack. */
+  function dispatchCouncilCardAction(action: CouncilCardAction): void {
+    switch (action.kind) {
+      case 'scout': {
+        const state = deps.session.getState();
+        const civ = state.civilizations[state.currentPlayer];
+        const candidateId = civ.units.find(unitId => {
+          const unit = state.units[unitId];
+          if (!unit || unit.hasActed || unit.movementPointsLeft <= 0) return false;
+          if (unit.automation?.mode === 'auto-explore') return false;
+          if (UNIT_DEFINITIONS[unit.type].strength <= 0) return false;
+          return true;
+        });
+        if (!candidateId) {
+          deps.showNotification('No units are ready to scout right now.', 'info');
+          return;
+        }
+        deps.getElementById('council-panel')?.remove();
+        deps.selectionController.startAutoExplore(candidateId);
+        return;
+      }
+      case 'open-city': {
+        const city = deps.session.getState().cities[action.cityId];
+        if (!city || city.owner !== deps.session.getState().currentPlayer) {
+          deps.showNotification('That city is no longer available.', 'warning');
+          return;
+        }
+        deps.getElementById('council-panel')?.remove();
+        openCityPanelForCity(city);
+        return;
+      }
+      case 'open-quest': {
+        deps.getElementById('council-panel')?.remove();
+        openDiplomacyPanel(action.minorCivId);
+        return;
+      }
+      case 'open-wonder': {
+        if (!deps.session.getState().cities[action.cityId]) {
+          deps.showNotification('That city is no longer available.', 'warning');
+          return;
+        }
+        deps.getElementById('council-panel')?.remove();
+        openWonderPanelForCityId(action.cityId);
+        return;
+      }
+    }
   }
 
   function openTechPanel(): void {

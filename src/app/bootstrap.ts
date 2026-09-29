@@ -305,6 +305,7 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     selectionController: {
       selectUnit: (unitId, opts) => selectionController.selectUnit(unitId, opts),
       deselectUnit: () => selectionController.deselectUnit(),
+      startAutoExplore: (unitId) => selectionController.startAutoExplore(unitId),
     },
   });
 

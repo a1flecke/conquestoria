@@ -62,6 +62,10 @@ export interface DiplomacyPanelCallbacks {
   onAcceptSettlementOffer?: (requestId: string) => void;
   onRejectSettlementOffer?: (requestId: string) => void;
   onClose: () => void;
+  /** A minor civ id to scroll to and highlight on open (e.g. the Council's
+   * "Review quest" card action) -- matches `WonderAtlasCallbacks.initialWonderId`'s
+   * precedent of carrying a render-time focus target alongside the callbacks. */
+  focusMinorCivId?: string;
 }
 
 // Reasons canSendAid can disable the button for -- all player-facing, per spec's "cost,
@@ -644,7 +648,9 @@ export function createDiplomacyPanel(
   if (minorCivRows.length > 0) {
     minorCivsHtml = `<h3 style="font-size:15px;color:#e8c170;margin:20px 0 10px;">City-States</h3>`;
     for (const row of minorCivRows) {
-      minorCivsHtml += `<div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:10px;margin-bottom:8px;">`;
+      const isFocused = row.mcId === callbacks.focusMinorCivId;
+      const focusStyle = isFocused ? 'outline:2px solid #e8c170;' : '';
+      minorCivsHtml += `<div data-mc-row-id="${row.mcId}" style="background:rgba(255,255,255,0.05);border-radius:8px;padding:10px;margin-bottom:8px;${focusStyle}">`;
       minorCivsHtml += `<div style="display:flex;justify-content:space-between;align-items:center;">`;
       minorCivsHtml += `<span style="font-size:13px;">${row.archIcon} <strong style="color:${row.defColor};" data-text="mc-name-${row.mcIdx}"></strong></span>`;
       minorCivsHtml += `<span style="font-size:12px;color:${row.statusColor};" data-text="mc-status-${row.mcIdx}"></span>`;
@@ -967,6 +973,10 @@ export function createDiplomacyPanel(
       callbacks.onMinorCivReparations?.(mcId);
     });
   });
+
+  if (callbacks.focusMinorCivId) {
+    panel.querySelector(`[data-mc-row-id="${callbacks.focusMinorCivId}"]`)?.scrollIntoView({ block: 'center' });
+  }
 
   return panel;
 }

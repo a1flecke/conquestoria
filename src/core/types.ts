@@ -2251,6 +2251,19 @@ export type AdvisorType =
 
 export type CouncilTalkLevel = 'quiet' | 'normal' | 'chatty' | 'chaos';
 
+/**
+ * Typed dispatch context for a `CouncilCard.actionLabel` button -- avoids
+ * parsing a city/wonder id back out of a concatenated card `id` (both
+ * `city-<n>` and wonder ids contain hyphens, so that string cannot be split
+ * unambiguously). Event-chain drama cards omit this and are still dispatched
+ * via their own id-prefix parse (`parseEventChainCardId`), unchanged from #990.
+ */
+export type CouncilCardAction =
+  | { kind: 'scout' }
+  | { kind: 'open-city'; cityId: string }
+  | { kind: 'open-quest'; minorCivId: string }
+  | { kind: 'open-wonder'; cityId: string; wonderId: string };
+
 export interface CouncilCard {
   id: string;
   advisor: AdvisorType;
@@ -2261,6 +2274,7 @@ export interface CouncilCard {
   why: string;
   priority: number;
   actionLabel?: string;
+  action?: CouncilCardAction;
 }
 
 export interface CouncilAgenda {

@@ -147,7 +147,7 @@ function makeDeps(state: GameState, overrides: Partial<PanelActionsControllerDep
       getPirateSelection: vi.fn(() => ({ factionId: null, historyId: null })),
       getSelectedUnitId: vi.fn(() => null),
     },
-    selectionController: { selectUnit: vi.fn(), deselectUnit: vi.fn() },
+    selectionController: { selectUnit: vi.fn(), deselectUnit: vi.fn(), startAutoExplore: vi.fn() },
     hud: { closeDrawer: vi.fn(), update: vi.fn() },
     audio: {
       stopNaturalWonderAmbient: vi.fn(), startNaturalWonderCodexAmbient: vi.fn(), playNaturalWonderReplay: vi.fn(),
@@ -601,6 +601,95 @@ describe('PanelActionsController', () => {
 
       expect(deps.session.getState().settings.councilTalkLevel).toBe('chatty');
       expect(listener).toHaveBeenCalled();
+    });
+
+    describe('onCardAction (pre-existing actionLabel cards)', () => {
+      function openCouncilCardActionCallback(state: GameState, overrides: Partial<PanelActionsControllerDeps> = {}) {
+        const { deps, controller } = build(state, overrides);
+        controller.openCouncilPanel();
+        const options = mockedCallArg<{ onCardAction: (cardId: string, action?: unknown) => void }>(createCouncilPanel, 0, 2);
+        return { deps, onCardAction: options.onCardAction };
+      }
+
+      it('scout: starts auto-explore on the first idle, non-settler/worker unit and closes the panel', () => {
+        const { state } = makeFixture('council-scout');
+        const eligibleUnitId = state.civilizations.player.units.find(unitId => {
+          const unit = state.units[unitId];
+          return Boolean(unit && !unit.hasActed && unit.movementPointsLeft > 0 && unit.type !== 'settler');
+        });
+        expect(eligibleUnitId).toBeTruthy();
+        const { deps, onCardAction } = openCouncilCardActionCallback(state);
+
+        onCardAction('survey-frontier', { kind: 'scout' });
+
+        expect(deps.selectionController.startAutoExplore).toHaveBeenCalledWith(eligibleUnitId);
+      });
+
+      it('scout: notifies instead of starting auto-explore when no unit is eligible', () => {
+        const { state } = makeFixture('council-scout-none');
+        for (const unit of Object.values(state.units)) {
+          unit.hasActed = true;
+        }
+        const { deps, onCardAction } = openCouncilCardActionCallback(state);
+
+        onCardAction('survey-frontier', { kind: 'scout' });
+
+        expect(deps.selectionController.startAutoExplore).not.toHaveBeenCalled();
+        expect(deps.showNotification).toHaveBeenCalledWith('No units are ready to scout right now.', 'info');
+      });
+
+      it('open-city: opens the real city panel for the referenced city', () => {
+        const { state } = makeFixture('council-open-city');
+        state.cities['test-city'] = makeCity('test-city');
+        state.civilizations.player.cities.push('test-city');
+        const { onCardAction } = openCouncilCardActionCallback(state);
+
+        onCardAction('food-warning', { kind: 'open-city', cityId: 'test-city' });
+
+        expect(createCityPanel).toHaveBeenCalledWith(expect.anything(), state.cities['test-city'], expect.anything(), expect.anything());
+      });
+
+      it('open-city: notifies instead when the city is no longer owned by the player', () => {
+        const { state } = makeFixture('council-open-city-foreign');
+        state.cities['test-city'] = makeCity('test-city', { owner: 'ai-1' });
+        const { deps, onCardAction } = openCouncilCardActionCallback(state);
+
+        onCardAction('food-warning', { kind: 'open-city', cityId: 'test-city' });
+
+        expect(createCityPanel).not.toHaveBeenCalled();
+        expect(deps.showNotification).toHaveBeenCalledWith('That city is no longer available.', 'warning');
+      });
+
+      it('open-quest: opens the diplomacy panel focused on the referenced minor civ', () => {
+        const { state } = makeFixture('council-open-quest');
+        const { onCardAction } = openCouncilCardActionCallback(state);
+
+        onCardAction('quest-quest-1', { kind: 'open-quest', minorCivId: 'mc-sparta' });
+
+        const diploOptions = mockedCallArg<{ focusMinorCivId?: string }>(createDiplomacyPanel, 0, 2);
+        expect(diploOptions.focusMinorCivId).toBe('mc-sparta');
+      });
+
+      it('open-wonder: opens the wonder panel for the referenced city', () => {
+        const { state } = makeFixture('council-open-wonder');
+        state.cities['test-city'] = makeCity('test-city');
+        const { onCardAction } = openCouncilCardActionCallback(state);
+
+        onCardAction('wonder-test-city-oracle-of-delphi', { kind: 'open-wonder', cityId: 'test-city', wonderId: 'oracle-of-delphi' });
+
+        expect(createWonderPanel).toHaveBeenCalledTimes(1);
+        expect(mockedCallArg<string>(createWonderPanel, 0, 2)).toBe('test-city');
+      });
+
+      it('open-wonder: notifies instead when the city no longer exists', () => {
+        const { state } = makeFixture('council-open-wonder-missing');
+        const { deps, onCardAction } = openCouncilCardActionCallback(state);
+
+        onCardAction('wonder-no-such-city-oracle-of-delphi', { kind: 'open-wonder', cityId: 'no-such-city', wonderId: 'oracle-of-delphi' });
+
+        expect(createWonderPanel).not.toHaveBeenCalled();
+        expect(deps.showNotification).toHaveBeenCalledWith('That city is no longer available.', 'warning');
+      });
     });
   });
 

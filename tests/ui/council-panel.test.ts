@@ -171,7 +171,7 @@ describe('council-panel', () => {
     expect(bailoutButton).toBeTruthy();
     bailoutButton!.click();
 
-    expect(onCardAction).toHaveBeenCalledWith('event-chain-choice:chain-1:bailout');
+    expect(onCardAction).toHaveBeenCalledWith('event-chain-choice:chain-1:bailout', undefined);
   });
 
   it('#990: a resolved event chain (no pendingChoice) leaves no decision card behind on re-render', () => {
@@ -241,6 +241,120 @@ describe('council-panel', () => {
     expect(panel.textContent).toContain('Council Disagreements');
     expect(panel.textContent).toContain('an undiscovered foreign city');
     expect(panel.textContent).not.toContain('Rome');
+  });
+});
+
+describe('council-panel pre-existing actionLabel card wiring', () => {
+  function findButtonByText(panel: HTMLElement, text: string): HTMLButtonElement {
+    const button = Array.from(panel.querySelectorAll('button')).find(b => b.textContent === text);
+    if (!button) throw new Error(`expected a button with text "${text}"`);
+    return button;
+  }
+
+  it('renders the Scout button on the survey-frontier card and reports a typed scout action', () => {
+    const onCardAction = vi.fn();
+    const { state, container } = makeCouncilFixture();
+
+    const panel = createCouncilPanel(container, state, {
+      onClose: () => {},
+      onTalkLevelChange: () => {},
+      onCardAction,
+    });
+
+    findButtonByText(panel, 'Scout').click();
+
+    expect(onCardAction).toHaveBeenCalledWith('survey-frontier', { kind: 'scout' });
+  });
+
+  it('renders the Add food button on a food card and reports the primary city to open', () => {
+    const onCardAction = vi.fn();
+    const { state, container } = makeCouncilFixture({ lowPriorityFoodWarning: true });
+    const playerCity = Object.values(state.cities).find(city => city.owner === state.currentPlayer);
+    if (!playerCity) throw new Error('expected a player city from the food-warning fixture');
+
+    const panel = createCouncilPanel(container, state, {
+      onClose: () => {},
+      onTalkLevelChange: () => {},
+      onCardAction,
+    });
+
+    findButtonByText(panel, 'Add food').click();
+
+    expect(onCardAction).toHaveBeenCalledWith('food-warning', { kind: 'open-city', cityId: playerCity.id });
+  });
+
+  it('renders the Review quest button on a minor-civ quest card and reports the minor civ to open', () => {
+    const onCardAction = vi.fn();
+    const { state, container } = makeCouncilFixture();
+    state.minorCivs['mc-sparta'] = {
+      id: 'mc-sparta', definitionId: 'sparta', cityId: 'mc-city', units: [],
+      diplomacy: state.civilizations.player.diplomacy,
+      activeQuests: {
+        player: {
+          id: 'quest-gift', type: 'gift_gold', description: 'Gift gold to earn favor.',
+          target: { type: 'gift_gold', amount: 25 },
+          reward: { relationshipBonus: 10 }, progress: 0, status: 'active', turnIssued: 1, expiresOnTurn: state.turn + 10,
+        },
+      },
+      chainStatusByCiv: {}, questCooldownUntilByCiv: {}, lastNotifiedStatusByCiv: {},
+      isDestroyed: false, garrisonCooldown: 0, lastEraUpgrade: 1,
+    };
+    state.cities['mc-city'] = {
+      id: 'mc-city', name: 'Sparta', owner: 'mc-sparta', position: { q: 8, r: 8 },
+      population: 3, food: 0, foodNeeded: 20, buildings: [], productionQueue: [], productionProgress: 0,
+      ownedTiles: [{ q: 8, r: 8 }], workedTiles: [], focus: 'balanced', maturity: 'outpost',
+      unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0,
+    };
+    state.civilizations.player.visibility.tiles['8,8'] = 'visible';
+
+    const panel = createCouncilPanel(container, state, {
+      onClose: () => {},
+      onTalkLevelChange: () => {},
+      onCardAction,
+    });
+
+    findButtonByText(panel, 'Review quest').click();
+
+    expect(onCardAction).toHaveBeenCalledWith('quest-quest-gift', { kind: 'open-quest', minorCivId: 'mc-sparta' });
+  });
+
+  it('renders the Track quest button on a reachable wonder card and reports the city/wonder to open', () => {
+    const onCardAction = vi.fn();
+    const { state, container } = makeCouncilFixture();
+    let cityId = state.civilizations.player.cities[0];
+    if (!cityId) {
+      const settler = Object.values(state.units).find(unit => unit.owner === 'player' && unit.type === 'settler');
+      if (settler) {
+        const city = foundCity('player', settler.position, state.map, mkC());
+        state.cities[city.id] = city;
+        state.civilizations.player.cities.push(city.id);
+        cityId = city.id;
+      }
+    }
+    if (!cityId) throw new Error('expected player city for wonder recommendation test');
+    const city = state.cities[cityId];
+    state.civilizations.player.techState.completed = ['gathering', 'philosophy', 'sacred-sites'];
+    for (const coord of city.ownedTiles) {
+      const key = `${coord.q},${coord.r}`;
+      if (state.map.tiles[key]) {
+        state.map.tiles[key].resource = 'stone';
+        state.map.tiles[key].improvement = 'quarry';
+      }
+    }
+
+    const panel = createCouncilPanel(container, state, {
+      onClose: () => {},
+      onTalkLevelChange: () => {},
+      onCardAction,
+    });
+
+    expect(panel.textContent).toContain('Oracle of Delphi');
+    findButtonByText(panel, 'Track quest').click();
+
+    expect(onCardAction).toHaveBeenCalledWith(
+      `wonder-${cityId}-oracle-of-delphi`,
+      { kind: 'open-wonder', cityId, wonderId: 'oracle-of-delphi' },
+    );
   });
 });
 
