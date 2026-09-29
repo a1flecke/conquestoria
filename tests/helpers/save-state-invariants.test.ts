@@ -214,6 +214,23 @@ describe('#1006 assertUnitRosters', () => {
     state.minorCivs[mcId].units.push('unit-mc-ghost');
     expect(() => assertUnitRosters(state)).toThrow(/unit-mc-ghost.* does not exist/s);
   });
+
+  it('throws when a major civ roster lists the same unit id twice', () => {
+    const state = freshState('inv-unit-duplicate-major');
+    const unitId = state.civilizations.player.units[0];
+    state.civilizations.player.units.push(unitId);
+    expect(() => assertUnitRosters(state)).toThrow(new RegExp(`${unitId}.*more than once`));
+  });
+
+  it('throws when a minor civ roster lists the same unit id twice', () => {
+    const state = freshState('inv-unit-duplicate-minor');
+    const unitId = state.civilizations.player.units[0];
+    const mcId = Object.keys(state.minorCivs)[0];
+    state.units[unitId] = { ...state.units[unitId], owner: mcId };
+    state.civilizations.player.units = state.civilizations.player.units.filter(id => id !== unitId);
+    state.minorCivs[mcId].units.push(unitId, unitId);
+    expect(() => assertUnitRosters(state)).toThrow(new RegExp(`${unitId}.*more than once`));
+  });
 });
 
 /**
