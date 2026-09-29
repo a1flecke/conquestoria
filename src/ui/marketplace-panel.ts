@@ -1,7 +1,7 @@
 import type { GameState, ResourceType } from '@/core/types';
 import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
 import { getCivAvailableResources, canBuyResourceAccess, getResourceAccessCost } from '@/systems/resource-acquisition-system';
-import { isAtWar } from '@/systems/diplomacy-system';
+import { isAtWar } from '@/systems/diplomacy-queries';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { createGameButton } from './ui-kit';
 import { buildPlayerRouteListSection } from './trade-route-presentation';

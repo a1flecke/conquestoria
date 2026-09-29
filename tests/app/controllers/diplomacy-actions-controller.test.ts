@@ -3,11 +3,8 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import { createGameSession } from '@/app/game-session';
-import {
-  enqueuePeaceRequest,
-  enqueueTreatyProposal,
-  signTreaty,
-} from '@/systems/diplomacy-system';
+import { enqueuePeaceRequest, enqueueTreatyProposal } from '@/systems/diplomacy-requests';
+import { signTreaty } from '@/systems/diplomacy-treaties';
 import { createUnit } from '@/systems/unit-system';
 import type { City, GameState, HexCoord } from '@/core/types';
 import {

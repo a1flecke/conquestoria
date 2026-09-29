@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { City, GameState, HexTile, Unit } from '@/core/types';
-import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { createDiplomacyState } from '@/systems/diplomacy-state';
 import { applyWorkerAction, clearCompletedWorkerTasksForRoad } from '@/systems/worker-action-system';
 import { canBuildRoad, getRoadBlockerReason, getRoadBuildTurns } from '@/systems/road-system';
 import { processImprovementTurns } from '@/systems/improvement-turn-system';

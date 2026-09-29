@@ -60,22 +60,15 @@ import { MISSIONARY_BASE_CHARGES, MISSIONARY_ZEAL_CHARGES } from '@/systems/reli
 import { getHealingBonus, getVisionBonus, isWithinRangeOfNeuralRehabilitationCenter, isWithinRangeOfTelemedicineHub } from '@/systems/unit-modifier-system';
 import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
-import {
-  processRelationshipDrift,
-  decayEvents,
-  tickTreaties,
-  processVassalageTribute,
-  processVassalageTurn,
-  getVassalageMilitaryCount,
-  isAtWar,
-  decayTreachery,
-  joinEmbargo,
-  cleanupEmbargoes,
-  checkLeagueDissolution,
-  triggerLeagueDefense,
-  getLeagueForCiv,
-  pruneExpiredDiplomaticRequests,
-} from '@/systems/diplomacy-system';
+import { joinEmbargo, cleanupEmbargoes } from '@/systems/diplomacy-embargoes';
+import { checkLeagueDissolution, triggerLeagueDefense, getLeagueForCiv } from '@/systems/diplomacy-leagues';
+import { isAtWar } from '@/systems/diplomacy-queries';
+import { pruneExpiredDiplomaticRequests } from '@/systems/diplomacy-requests';
+import { processRelationshipDrift, decayEvents } from '@/systems/diplomacy-state';
+import { decayTreachery } from '@/systems/diplomacy-treachery';
+import { tickTreaties } from '@/systems/diplomacy-treaties';
+import { processVassalageTribute, getVassalageMilitaryCount } from '@/systems/diplomacy-vassal-rules';
+import { processVassalageTurn } from '@/systems/diplomacy-vassalage';
 import { processTradeRouteIncome, processFashionCycle, updatePrices, removeRouteForUnit, scrubStaleForeignRoutes, scrubEmbargoedRoutes, removeRouteById } from '@/systems/trade-system';
 import { advanceRouteRunners } from '@/systems/unit-movement-system';
 import { processWonderEffects } from '@/systems/wonder-system';

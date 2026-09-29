@@ -30,7 +30,7 @@ import {
 } from '@/systems/unit-system';
 import type { GameMap, GameState, HexCoord, HexTile, TerrainType, Unit, UnitType } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
-import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { createDiplomacyState } from '@/systems/diplomacy-state';
 import { createEmptyPirateState } from '@/core/pirate-state';
 import { getMovementBlockerReason } from '@/systems/unit-movement-explainer';
 import { getBlockingMapEntitiesByHex } from '@/systems/unit-movement-legality';

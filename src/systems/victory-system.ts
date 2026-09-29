@@ -1,7 +1,8 @@
 import type { GameState } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
 import { isMajorCivOwner } from '@/core/owner-kind';
-import { canPetitionIndependence, isDiplomaticRequestLive } from './diplomacy-system';
+import { isDiplomaticRequestLive } from './diplomacy-requests';
+import { canPetitionIndependence } from './diplomacy-vassal-rules';
 import { evaluateDominationFacts, type DominationProgress } from './domination-rules';
 import { buildDominationActorFacts } from './domination-sovereignty';
 import { getAllWorldRaceKinds, getWorldRaceDefinition } from './world-race-definitions';

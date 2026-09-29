@@ -4,7 +4,7 @@ import { EventBus } from '@/core/event-bus';
 import type { CustomCivDefinition, GameState, HexCoord, Unit, UnitType } from '@/core/types';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { foundCity } from '@/systems/city-system';
-import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { createDiplomacyState } from '@/systems/diplomacy-state';
 import { createVisibilityMap, getVisibility } from '@/systems/fog-of-war';
 import { getAvailableTechs, getEffectiveTechCost, getTechById } from '@/systems/tech-system';
 import { hexKey } from '@/systems/hex-utils';

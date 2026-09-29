@@ -1,6 +1,6 @@
 import type { BreakawayMetadata, Civilization, GameState } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
-import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { createDiplomacyState } from '@/systems/diplomacy-state';
 import {
   emitCivilizationLivenessTransitions,
   reconcileCivilizationLiveness,

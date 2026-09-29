@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { EventBus } from '@/core/event-bus';
 import type { ActiveCrisis, GameState } from '@/core/types';
 import { getAvailableMissions, resolveMissionResult, processEspionageTurn } from '@/systems/espionage-system';
-import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { createDiplomacyState } from '@/systems/diplomacy-state';
 
 // #526 MR7 Task 7.2 -- sabotage_relief mission gating and eligibility.
 

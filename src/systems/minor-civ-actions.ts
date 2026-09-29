@@ -1,6 +1,9 @@
 import type { EventBus } from '@/core/event-bus';
 import type { GameState } from '@/core/types';
-import { declareWar, makePeace, modifyRelationship, applyVassalageWarConsequences, getActiveVassalIds } from './diplomacy-system';
+import { modifyRelationship } from './diplomacy-state';
+import { applyVassalageWarConsequences } from './diplomacy-system';
+import { getActiveVassalIds } from './diplomacy-vassal-rules';
+import { declareWar, makePeace } from './diplomacy-war';
 import { hasAccessibleLuxury } from './quest-objective-system';
 import { applyQuestGameplayAction, type ChainTransition } from './quest-chain-system';
 import { isMinorCivAtWar, endMinorCivQuestForWar } from './minor-civ-diplomacy';

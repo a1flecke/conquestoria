@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { GameState, City, HexCoord } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
-import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { createDiplomacyState } from '@/systems/diplomacy-state';
 import {
   computeUnrestPressure,
   processFactionTurn,

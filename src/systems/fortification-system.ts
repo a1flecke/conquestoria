@@ -1,7 +1,7 @@
 import type { GameState, HexCoord, Unit } from '@/core/types';
 import { hexDistance, hexKey, mapNeighbors, wrappedHexDistance } from './hex-utils';
 import { UNIT_DEFINITIONS } from './unit-system';
-import { isAtWar } from './diplomacy-system';
+import { isAtWar } from './diplomacy-queries';
 import { getOwnedCityCount } from './city-ownership';
 
 export interface FortificationTier {

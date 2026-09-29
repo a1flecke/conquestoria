@@ -4,13 +4,13 @@
 // without a circular import. crisis-interaction-system.ts (send_aid's canSendAid/
 // applySendAid) needs faction-system.ts, which imports city-system.ts, which imports
 // espionage-system.ts (isSpyUnitType) -- so crisis-interaction-system.ts is NOT safe
-// for espionage-system.ts to import. This module only depends on diplomacy-system.ts,
+// for espionage-system.ts to import. This module only depends on diplomacy-state.ts,
 // discovery-system.ts, and world-pressure-flags.ts, none of which reach back to
 // city-system.ts, so it is safe for both crisis-interaction-system.ts (which re-exports
 // everything below for existing callers) and espionage-system.ts to import directly.
 import type { ActiveCrisis, CrisisArchetype, GameState } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
-import { modifyRelationship } from './diplomacy-system';
+import { modifyRelationship } from './diplomacy-state';
 import { hasMetCivilization } from './discovery-system';
 import { resolveWorldPressureFlags } from './world-pressure-flags';
 
@@ -125,8 +125,8 @@ export function applyInteractionReputation(
 // only gates the bonus intel detail (world-pressure-presentation.ts), not this consequence.
 // Actor-complete: called from every real war-declaration path (main.ts's diplomacy-panel
 // handler and ensurePlayerWarState, basic-ai.ts's AI decision loop) rather than being
-// threaded through declareWar itself, which would create a diplomacy-system.ts <->
-// crisis-interaction-system.ts import cycle (diplomacy-system.ts is already imported BY
+// threaded through declareWar itself, which would create a diplomacy-war.ts <->
+// crisis-interaction-system.ts import cycle (diplomacy-state.ts is already imported BY
 // this module for modifyRelationship).
 export function applyOpportunisticWarPenaltyIfCrisisStruck(
   state: GameState,

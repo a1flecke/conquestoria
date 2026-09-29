@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { City, Civilization, GameState, HexCoord, HexTile } from '@/core/types';
 import { executeStrategicLaunch } from '@/systems/strategic-launch-execution-system';
-import { getRelationship } from '@/systems/diplomacy-system';
+import { getRelationship } from '@/systems/diplomacy-queries';
 import { hexKey, hexesInRange } from '@/systems/hex-utils';
 
 const ACTOR_CITY_POS: HexCoord = { q: -10, r: -10 };

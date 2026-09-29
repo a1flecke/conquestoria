@@ -1,15 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  canProposeLeague,
-  proposeLeague,
-  inviteToLeague,
-  petitionLeague,
-  votePetition,
-  leaveLeague,
-  checkLeagueDissolution,
-  getLeagueForCiv,
-  triggerLeagueDefense,
-} from '@/systems/diplomacy-system';
+import { canProposeLeague, proposeLeague, inviteToLeague, petitionLeague, votePetition, leaveLeague, checkLeagueDissolution, getLeagueForCiv, triggerLeagueDefense } from '@/systems/diplomacy-leagues';
 import type { DefensiveLeague, DiplomacyState } from '@/core/types';
 
 function makeDipState(overrides?: Partial<DiplomacyState>): DiplomacyState {

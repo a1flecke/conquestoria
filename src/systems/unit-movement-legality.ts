@@ -1,7 +1,7 @@
 import type { City, GameState, HexCoord, Unit } from '@/core/types';
 import { hexKey } from './hex-utils';
 import { isPirateOwner } from '@/core/owner-kind';
-import { hasAllianceTreaty } from './diplomacy-system';
+import { hasAllianceTreaty } from './diplomacy-queries';
 
 /**
  * Movement legality (#1010) — the single source of truth for "does a map entity

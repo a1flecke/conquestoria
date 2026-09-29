@@ -31,7 +31,7 @@ import {
   getConnectedCityTechGold,
 } from './tech-yield-system';
 import { getOwnedRoadTileCount, getCitiesConnectedToCapital } from './road-network';
-import { isAtWar } from './diplomacy-system';
+import { isAtWar } from './diplomacy-queries';
 
 export const ECONOMY_RULES = {
   rushBuyMultiplier: 2.5,

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { GameState, City, HexCoord } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
-import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { createDiplomacyState } from '@/systems/diplomacy-state';
 import {
   REVOLT_UNREST_TURNS,
   BREAKAWAY_REVOLT_TURNS,

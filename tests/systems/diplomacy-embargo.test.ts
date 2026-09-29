@@ -1,12 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  canProposeEmbargo,
-  proposeEmbargo,
-  joinEmbargo,
-  leaveEmbargo,
-  enforceEmbargoes,
-  cleanupEmbargoes,
-} from '@/systems/diplomacy-system';
+import { canProposeEmbargo, proposeEmbargo, joinEmbargo, leaveEmbargo, enforceEmbargoes, cleanupEmbargoes } from '@/systems/diplomacy-embargoes';
 import { civilizationEraFromNumber } from '@/systems/era-types';
 import type { Embargo } from '@/core/types';
 

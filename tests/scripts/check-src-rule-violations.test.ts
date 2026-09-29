@@ -188,7 +188,7 @@ describe('check-src-rule-violations.sh', () => {
   });
 
   describe('#995 single-side war/peace mutation rule', () => {
-    it('blocks single-side declareWar()/makePeace() outside diplomacy-system', () => {
+    it('blocks single-side declareWar()/makePeace() outside diplomacy-war', () => {
       const workspace = makeWorkspace();
       writeWorkspaceFile(
         workspace,
@@ -204,7 +204,7 @@ describe('check-src-rule-violations.sh', () => {
       const result = runScript(workspace, 'src/ai/war-planner.ts');
 
       expect(result.status).toBe(2);
-      expect(result.stderr).toContain('Single-side declareWar()/makePeace() outside diplomacy-system');
+      expect(result.stderr).toContain('Single-side declareWar()/makePeace() outside diplomacy-war');
     });
 
     it('allows declareMajorWar()/makeMajorPeace() (the bilateral transitions)', () => {
@@ -237,7 +237,7 @@ describe('check-src-rule-violations.sh', () => {
   });
 
   describe('#1003 single-side treaty mutation rule', () => {
-    it('blocks single-side signTreaty() outside diplomacy-system', () => {
+    it('blocks single-side signTreaty() outside diplomacy-treaties', () => {
       const workspace = makeWorkspace();
       writeWorkspaceFile(
         workspace,
@@ -252,14 +252,14 @@ describe('check-src-rule-violations.sh', () => {
       const result = runScript(workspace, 'src/ai/treaty-planner.ts');
 
       expect(result.status).toBe(2);
-      expect(result.stderr).toContain('Single-side signTreaty() outside diplomacy-system');
+      expect(result.stderr).toContain('Single-side signTreaty() outside diplomacy-treaties');
     });
 
-    it('allows signTreaty() inside diplomacy-system.ts (commitTreatyAgreement)', () => {
+    it('allows signTreaty() inside diplomacy-treaties.ts (commitTreatyAgreement)', () => {
       const workspace = makeWorkspace();
       writeWorkspaceFile(
         workspace,
-        'src/systems/diplomacy-system.ts',
+        'src/systems/diplomacy-treaties.ts',
         [
           'export function commitTreatyAgreement(state: GameState, civAId: string, civBId: string, type: TreatyType, bus: EventBus): GameState {',
           '  const aState = signTreaty(civA.diplomacy, civAId, civBId, type, turns, state.turn, cap);',
@@ -269,7 +269,7 @@ describe('check-src-rule-violations.sh', () => {
         ].join('\n'),
       );
 
-      const result = runScript(workspace, 'src/systems/diplomacy-system.ts');
+      const result = runScript(workspace, 'src/systems/diplomacy-treaties.ts');
 
       expect(result.status).toBe(0);
       expect(result.stderr).toBe('');

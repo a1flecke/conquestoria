@@ -1,5 +1,5 @@
 import type { GameState } from '@/core/types';
-import { isAtWar } from '@/systems/diplomacy-system';
+import { isAtWar } from '@/systems/diplomacy-queries';
 import { hexDistance } from '@/systems/hex-utils';
 import { usePropagandistAction } from '@/systems/propagandist-system';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';

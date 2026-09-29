@@ -9,7 +9,8 @@ import type {
   MinorCivRegionalGrievanceStatus,
 } from '@/core/types';
 import { resolveOpponentChallenge } from '@/core/opponent-challenge';
-import { declareWar, modifyRelationship } from '@/systems/diplomacy-system';
+import { modifyRelationship } from '@/systems/diplomacy-state';
+import { declareWar } from '@/systems/diplomacy-war';
 import { hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { resolveNeutralPressureEra } from '@/systems/era-resolution';

@@ -1,6 +1,6 @@
 import type { GameState } from '@/core/types';
 import { hexDistance } from './hex-utils';
-import { isAtWar } from './diplomacy-system';
+import { isAtWar } from './diplomacy-queries';
 import { isAutonomyActivated } from './network-plan-system';
 import { createSimulationRng } from './simulation-rng';
 

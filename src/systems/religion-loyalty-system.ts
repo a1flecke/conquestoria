@@ -8,7 +8,7 @@ import {
 } from '@/systems/religion-definitions';
 import { resolveOpponentChallenge } from '@/core/opponent-challenge';
 import { transferCapturedCityOwnership } from '@/systems/city-capture-system';
-import { modifyRelationship } from '@/systems/diplomacy-system';
+import { modifyRelationship } from '@/systems/diplomacy-state';
 import { peacefullyAbsorbMinorCiv } from '@/systems/minor-civ-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 

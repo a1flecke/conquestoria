@@ -47,7 +47,7 @@ import {
   type LandUnitWaterRecovery,
 } from '@/systems/unit-water-recovery';
 import { isAutonomyActivated } from '@/systems/network-plan-system';
-import { isAtWar } from '@/systems/diplomacy-system';
+import { isAtWar } from '@/systems/diplomacy-queries';
 import type { PropagandistAction } from '@/systems/propagandist-system';
 import { canPreachTarget } from '@/systems/religion-system';
 import { getAirBaseCapacity, getAirBaseRoster } from '@/systems/air-operations-system';

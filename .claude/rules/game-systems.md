@@ -147,6 +147,23 @@ lastKnownHeadquarters` is optional for exactly this reason.
 
 ## Bilateral Diplomacy
 
+### Diplomacy module map (#1011)
+
+`diplomacy-system.ts` is the **integration layer and public command surface**, not the implementation. Domain logic lives in `src/systems/diplomacy-*.ts`, layered downward only (pinned by `tests/app/architecture-boundaries.test.ts` → "#1011"):
+
+| Module | Owns |
+|---|---|
+| `diplomacy-queries` | Read-only, types-only seam: `getRelationship`, `isAtWar`, `hasTreatyBetween`, `hasAllianceTreaty`. **Anything that merely asks "what agreements/war exist?" (movement, supply, combat, economy, AI) imports this, never the integration layer.** What an agreement *permits* is decided by each consuming domain, not here. |
+| `diplomacy-state` | `createDiplomacyState`, `modifyRelationship`, drift/decay, `recordSpyCaught`, `withDiplomacy` |
+| `diplomacy-treachery` / `-leagues` / `-embargoes` / `-requests` | betrayal reputation; defensive leagues; embargoes; the pending-request queue |
+| `diplomacy-treaties` | `signTreaty` (single side), `breakTreaty`, `tickTreaties`, `commitTreatyAgreement` (the bilateral commit) |
+| `diplomacy-vassal-rules` | vassalage constants, eligibility, pure transitions, `hasActiveVassalage` / `getActiveVassalIds` |
+| `diplomacy-war` | `declareMajorWar` / `makeMajorPeace`, war-history hooks (`addWarPair`), war-bloc propagation |
+| `diplomacy-vassalage` | GameState-level vassalage commands + per-turn tick (depends on war, never the reverse) |
+| `diplomacy-actions` | `getAvailableActions` projection |
+
+The barrel exports only cross-domain commands. A new module must be added to the `ALLOWED` layering table in that test; a new read that other domains need belongs in `diplomacy-queries`.
+
 ## Domination authority
 
 - `domination-sovereignty.ts` and `victory-system.ts` are authoritative world
@@ -169,13 +186,13 @@ espionage import it there. `scripts/check-src-rule-violations.sh` and the
 ### Major-war state is bilateral by construction (#995)
 
 - **Never hand-roll both sides.** Major↔major war/peace goes through the bilateral
-  transitions in `diplomacy-system.ts`: `declareMajorWar(state, a, b, bus?)` and
+  transitions in `diplomacy-war.ts` (re-exported from the `diplomacy-system.ts` barrel): `declareMajorWar(state, a, b, bus?)` and
   `makeMajorPeace(state, a, b, bus?)` (each writes/clears BOTH `atWarWith` arrays
   and dedupes on insert; `makeMajorPeace` also reconciles vassals — see #1054
   below). The single-side `declareWar()` / `makePeace()` are
   module-internal building blocks — `scripts/check-src-rule-violations.sh` (mirrored
   in `.claude/hooks/check-src-edit.sh`) blocks a new caller of them outside
-  `diplomacy-system.ts`. The minor-civ war paths (`minor-civ-actions.ts`,
+  `diplomacy-war.ts` (and the `diplomacy-system.ts` barrel does not re-export them; #1011 pins the import list in `architecture-boundaries.test.ts`). The minor-civ war paths (`minor-civ-actions.ts`,
   `minor-civ-coalition-system.ts`) are the only sanctioned external callers and
   update both sides themselves; `addWarPair` already handles a minor-civ defender.
 - **Test-time validator:** `assertBilateralWar(state)` (`tests/helpers/save-state-invariants.ts`)
@@ -195,7 +212,7 @@ A vassal is blocked from `declare_war`, `request_peace` **and**
 `setMinorCivWarState` — its overlord's foreign policy is its own, and it can
 never end a war itself. So **every path that ends a war on an overlord's behalf
 must free that overlord's vassals from the same war, or they are stranded
-forever.** `getActiveVassalIds(state, overlordId)` (`diplomacy-system.ts`) is the
+forever.** `getActiveVassalIds(state, overlordId)` (`diplomacy-vassal-rules.ts`) is the
 single definition of "who this civ's peace speaks for"; the vassalage graph is a
 depth-1 star (`getVassalageEligibility` refuses a vassal-of-a-vassal), so it is
 never recursive.

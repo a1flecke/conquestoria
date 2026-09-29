@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { classifyLandSupplyTerritory } from '@/systems/supply-territory';
-import { createDiplomacyState, signTreaty } from '@/systems/diplomacy-system';
+import { createDiplomacyState } from '@/systems/diplomacy-state';
+import { signTreaty } from '@/systems/diplomacy-treaties';
 
 describe('classifyLandSupplyTerritory', () => {
   function makeTwoCivState() {

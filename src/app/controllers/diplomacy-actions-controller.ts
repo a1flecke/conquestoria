@@ -30,18 +30,11 @@ import type { GameSession } from '@/app/ports';
 import type { HudController } from '@/app/controllers/hud-controller';
 import type { SelectionController } from '@/app/controllers/selection-controller';
 import type { DiplomaticAction, GameState, SettlementTerm, TreatyType, WarGoalKind } from '@/core/types';
-import {
-  acceptDiplomaticRequest,
-  applyDiplomaticAction,
-  breakTreaty,
-  CONSENT_TREATY_TYPES,
-  hasPendingTreatyProposalBetween,
-  isAtWar,
-  isDiplomaticRequestLive,
-  getVassalageEligibility,
-  canPetitionIndependence,
-  rejectDiplomaticRequest,
-} from '@/systems/diplomacy-system';
+import { isAtWar } from '@/systems/diplomacy-queries';
+import { CONSENT_TREATY_TYPES, hasPendingTreatyProposalBetween, isDiplomaticRequestLive } from '@/systems/diplomacy-requests';
+import { acceptDiplomaticRequest, applyDiplomaticAction, rejectDiplomaticRequest } from '@/systems/diplomacy-system';
+import { breakTreaty } from '@/systems/diplomacy-treaties';
+import { getVassalageEligibility, canPetitionIndependence } from '@/systems/diplomacy-vassal-rules';
 import { declareWarGoal, canDeclareWarGoal } from '@/systems/war-goal-system';
 import { proposeSettlement, acceptSettlementOffer } from '@/systems/settlement-system';
 import { TREATY_LABELS } from '@/ui/notification-routing';

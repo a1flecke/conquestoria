@@ -18,7 +18,8 @@ import {
   type TerritoryRecalculationResult,
 } from '@/systems/city-territory-system';
 import { normalizeCityWorkAfterTerritoryChange } from '@/systems/city-work-system';
-import { isAtWar, modifyRelationship } from '@/systems/diplomacy-system';
+import { isAtWar } from '@/systems/diplomacy-queries';
+import { modifyRelationship } from '@/systems/diplomacy-state';
 import { recordWarGoalCityCapture, applyWarGoalOverreachIfNeeded } from '@/systems/war-goal-system';
 import { recordCityCaptured } from '@/systems/war-history-system';
 import { getCapitalCityId } from '@/systems/capital-system';

@@ -1,11 +1,8 @@
 import type { GameState } from '@/core/types';
 import type { DiplomacyPanelCallbacks } from '@/ui/diplomacy-panel';
 import { createGameButton } from '@/ui/ui-kit';
-import {
-  canPetitionIndependence, getVassalageEligibility, isDiplomaticRequestLive,
-  PENDING_DIPLOMATIC_REQUEST_TTL_TURNS, VASSALAGE_TRIBUTE_RATE,
-  VASSALAGE_PROTECTION_TURNS, VASSALAGE_PROTECTION_PENALTY,
-} from '@/systems/diplomacy-system';
+import { isDiplomaticRequestLive, PENDING_DIPLOMATIC_REQUEST_TTL_TURNS } from '@/systems/diplomacy-requests';
+import { canPetitionIndependence, getVassalageEligibility, VASSALAGE_TRIBUTE_RATE, VASSALAGE_PROTECTION_TURNS, VASSALAGE_PROTECTION_PENALTY } from '@/systems/diplomacy-vassal-rules';
 
 /** Viewer-owned controls mounted by the live diplomacy panel. */
 export function createVassalageControls(state: GameState, otherId: string, callbacks: DiplomacyPanelCallbacks): HTMLElement {

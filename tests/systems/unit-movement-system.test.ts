@@ -7,7 +7,7 @@ import { hexKey } from '@/systems/hex-utils';
 import { abandonWorkerTask, executeUnitMove } from '@/systems/unit-movement-system';
 import { makeAutoExploreFixture } from './helpers/auto-explore-fixture';
 import { makeEdgeMoveState } from './unit-movement-system.test-helpers';
-import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { createDiplomacyState } from '@/systems/diplomacy-state';
 import { createEmptyPirateState } from '@/core/pirate-state';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });

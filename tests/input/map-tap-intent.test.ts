@@ -8,7 +8,7 @@ import { NO_LAND_UNIT_WATER_RECOVERY } from '@/systems/unit-water-recovery';
 import type { PendingMapIntent, SelectionSnapshot } from '@/app/ports';
 import { resolveMapTapIntent } from '@/input/map-tap-intent';
 import { handleSelectedUnitMovementBlocker } from '@/input/selected-unit-movement-feedback';
-import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { createDiplomacyState } from '@/systems/diplomacy-state';
 import { hexKey } from '@/systems/hex-utils';
 import { explainerState } from '../systems/helpers/movement-explainer-fixture';
 

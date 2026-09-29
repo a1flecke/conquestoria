@@ -1,5 +1,5 @@
 import type { GameMap, GameState, Unit } from '@/core/types';
-import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { createDiplomacyState } from '@/systems/diplomacy-state';
 import { hexKey } from '@/systems/hex-utils';
 
 function createWrappedGrasslandMap(width: number, height: number): GameMap {

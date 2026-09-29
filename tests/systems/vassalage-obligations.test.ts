@@ -3,7 +3,9 @@ import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { eliminateCivilization } from '@/systems/civilization-elimination-system';
 import { describe, it, expect, vi } from 'vitest';
 import { EventBus } from '@/core/event-bus';
-import { applyDiplomaticAction, acceptDiplomaticRequest, rejectDiplomaticRequest, processVassalageTurn, makePeace } from '@/systems/diplomacy-system';
+import { applyDiplomaticAction, acceptDiplomaticRequest, rejectDiplomaticRequest } from '@/systems/diplomacy-system';
+import { processVassalageTurn } from '@/systems/diplomacy-vassalage';
+import { makePeace } from '@/systems/diplomacy-war';
 import { processTurn } from '@/core/turn-manager';
 import { makeVassalageFixture } from './helpers/vassalage-fixture';
 

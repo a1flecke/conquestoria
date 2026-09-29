@@ -2,7 +2,7 @@ import type { MarketplaceState, TradeRoute, GameState, Unit, City, UnitType } fr
 import { EventBus } from '@/core/event-bus';
 import { findPathToCity, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
-import { isAtWar, getRelationship } from '@/systems/diplomacy-system';
+import { isAtWar, getRelationship } from '@/systems/diplomacy-queries';
 import { isMinorCivAtWar } from './minor-civ-diplomacy';
 import { RESOURCE_DEFINITIONS } from './resource-definitions';
 import { isCityCoastal } from './city-system';

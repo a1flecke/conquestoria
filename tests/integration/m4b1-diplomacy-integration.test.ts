@@ -3,11 +3,9 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { EventBus } from '@/core/event-bus';
 import { processTurn } from '@/core/turn-manager';
 import { createNewGame, createHotSeatGame } from '@/core/game-state';
-import {
-  acceptVassalage,
-  proposeEmbargo,
-  triggerLeagueDefense,
-} from '@/systems/diplomacy-system';
+import { proposeEmbargo } from '@/systems/diplomacy-embargoes';
+import { triggerLeagueDefense } from '@/systems/diplomacy-leagues';
+import { acceptVassalage } from '@/systems/diplomacy-vassal-rules';
 import { getCivDefinition } from '@/systems/civ-definitions';
 import { foundCity } from '@/systems/city-system';
 

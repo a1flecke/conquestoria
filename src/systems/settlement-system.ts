@@ -1,15 +1,10 @@
 import type { EventBus } from '@/core/event-bus';
 import type { GameState, PendingDiplomaticRequest, SettlementTerm } from '@/core/types';
-import {
-  isAtWar,
-  makeMajorPeace,
-  getVassalageEligibility,
-  commitVassalageAgreement,
-  releaseVassal,
-  isDiplomaticRequestLive,
-  isWarResolutionRequestPair,
-  rejectDiplomaticRequest,
-} from '@/systems/diplomacy-system';
+import { isAtWar } from '@/systems/diplomacy-queries';
+import { isDiplomaticRequestLive, isWarResolutionRequestPair } from '@/systems/diplomacy-requests';
+import { makeMajorPeace, rejectDiplomaticRequest } from '@/systems/diplomacy-system';
+import { getVassalageEligibility } from '@/systems/diplomacy-vassal-rules';
+import { commitVassalageAgreement, releaseVassal } from '@/systems/diplomacy-vassalage';
 import { transferCapturedCityOwnership } from '@/systems/city-capture-system';
 import { cancelInvalidNetworkPlans } from '@/systems/network-plan-system';
 import { evaluateSettlementConsent } from '@/ai/ai-settlement-consent';

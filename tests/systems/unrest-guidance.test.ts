@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { GameState, City, HexCoord } from '@/core/types';
-import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { createDiplomacyState } from '@/systems/diplomacy-state';
 import { getEraAdvancementTechs } from '@/systems/tech-definitions';
 import { getUnrestRecommendations, getTopUnrestLever } from '@/systems/unrest-guidance';
 

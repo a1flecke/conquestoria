@@ -1,4 +1,4 @@
-import { acceptVassalage } from '@/systems/diplomacy-system';
+import { acceptVassalage } from '@/systems/diplomacy-vassal-rules';
 import { EventBus } from '@/core/event-bus';
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';

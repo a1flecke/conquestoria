@@ -1,5 +1,5 @@
 import type { City, Civilization, GameState, HexCoord } from '@/core/types';
-import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { createDiplomacyState } from '@/systems/diplomacy-state';
 
 function makeCity(id: string, owner: string, position: HexCoord, overrides: Partial<City> = {}): City {
   return {

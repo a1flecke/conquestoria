@@ -1,7 +1,7 @@
 /**
  * #991 -- a persistent, named historical record per major-vs-major war.
  * Deliberately a cycle-free-in-one-direction leaf (imports only `@/core/types`
- * and `@/systems/simulation-rng`): `diplomacy-system.ts`, `city-capture-system.ts`,
+ * and `@/systems/simulation-rng`): `diplomacy-war.ts`, `city-capture-system.ts`,
  * `civilization-elimination-system.ts`, `war-goal-system.ts` and
  * `settlement-system.ts` all import FROM here to record facts at their own
  * canonical mutation points; nothing here imports back, so there is no cycle.

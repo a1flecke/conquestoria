@@ -1,6 +1,6 @@
 import type { GameMap, GameState, Unit } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
-import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { createDiplomacyState } from '@/systems/diplomacy-state';
 
 /**
  * Wraps a bare `Unit` + `GameMap` in the minimal `GameState` that

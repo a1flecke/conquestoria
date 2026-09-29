@@ -10,7 +10,7 @@ import type { EventBus } from '../core/event-bus';
 import { applyResearchCompletionConsequences } from './tech-completion-system';
 import { createRng } from './map-generator'; // Reuse existing seeded RNG
 import { hexDistance } from './hex-utils';
-import { modifyRelationship } from './diplomacy-system';
+import { modifyRelationship } from './diplomacy-state';
 import { createUnit } from './unit-system';
 import { resolveCivDefinition } from './civ-registry';
 import { applySatelliteSurveillance } from './fog-of-war';
@@ -1669,7 +1669,7 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
           // closes a real import cycle (city-system -> espionage-system ->
           // city-capture-system -> city-system, since city-capture-system imports
           // BUILDINGS from city-system). The bilateral relationship penalty is applied
-          // here since diplomacy-system has no such cycle.
+          // here since diplomacy-state has no such cycle.
           // -30: steeper than forge_documents (-25, no territorial loss) but shallower
           // than a raze (-40, destructive), reflecting a non-destructive but direct
           // territorial loss.

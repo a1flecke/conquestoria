@@ -1,5 +1,5 @@
 import type { City, GameState, HexCoord, HexTile } from '@/core/types';
-import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { createDiplomacyState } from '@/systems/diplomacy-state';
 import { createMarketplaceState } from '@/systems/trade-system';
 import { hexKey } from '@/systems/hex-utils';
 

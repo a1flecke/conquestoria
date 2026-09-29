@@ -1,7 +1,8 @@
 import type { EventBus } from '@/core/event-bus';
 import type { GameState } from '@/core/types';
 import { beginPlayerCityAssaultChoice, type PlayerCityAssaultChoiceResult } from '@/input/city-assault-flow';
-import { declareMajorWar, resolveOpponentKind } from '@/systems/diplomacy-system';
+import { declareMajorWar } from '@/systems/diplomacy-system';
+import { resolveOpponentKind } from '@/systems/diplomacy-war';
 
 export function beginConfirmedForeignCityEntry(
   state: GameState,

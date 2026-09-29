@@ -1,5 +1,5 @@
 import type { City, GameState, HexCoord, Unit } from '@/core/types';
-import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { createDiplomacyState } from '@/systems/diplomacy-state';
 
 function makeTile(coord: HexCoord, owner: string | null) {
   return {

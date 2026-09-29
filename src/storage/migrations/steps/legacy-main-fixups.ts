@@ -1,6 +1,6 @@
 import type { GameState, TradeRoute, Unit } from '@/core/types';
 import { createMarketplaceState } from '@/systems/trade-system';
-import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { createDiplomacyState } from '@/systems/diplomacy-state';
 
 /**
  * Schema 12 (#787) — the eighteen versioned fixups that used to live in

@@ -3,7 +3,7 @@ import { appendNotification, createNotificationLog } from '@/core/notification-l
 import { createEmptyPirateState, type PirateFactionState, type PirateHistoryEntry } from '@/core/pirate-state';
 import { isMajorCivOwner } from '@/core/owner-kind';
 import { calculateCivEconomy } from './economy-system';
-import { modifyRelationship } from './diplomacy-system';
+import { modifyRelationship } from './diplomacy-state';
 import { getWrappedHexNeighbors, hexDistance, hexKey, hexNeighbors, wrappedHexDistance } from './hex-utils';
 import { applyRegionalSuppression } from './pirate-ecology';
 import { PIRATE_ACTION_RULES, getPirateBounty, getPirateTributeCost } from './pirate-definitions';

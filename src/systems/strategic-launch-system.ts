@@ -3,7 +3,7 @@ import { BUILDINGS } from '@/systems/city-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getStrategicArsenal } from '@/systems/strategic-arsenal-system';
 import { hasDiscoveredCity } from '@/systems/discovery-system';
-import { isAtWar } from '@/systems/diplomacy-system';
+import { isAtWar } from '@/systems/diplomacy-queries';
 import { mapDistance } from '@/systems/hex-utils';
 import { isSuperweaponsEnabled } from '@/systems/superweapons-flag';
 

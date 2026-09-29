@@ -26,7 +26,8 @@ import { worldAgeFromNumber } from '@/systems/era-types';
 import { findPath, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
-import { getAvailableActions, hasArmsControlTreaty } from '@/systems/diplomacy-system';
+import { getAvailableActions } from '@/systems/diplomacy-system';
+import { hasArmsControlTreaty } from '@/systems/diplomacy-treaties';
 import { buildDominationKnowledge } from '@/systems/domination-knowledge';
 import {
   buildMajorCivPerception,

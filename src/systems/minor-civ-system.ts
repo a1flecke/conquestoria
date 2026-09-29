@@ -18,7 +18,8 @@ import { createSimulationRng } from './simulation-rng';
 import { resolveWorldAge } from './tech-definitions';
 import type { WorldAge } from './era-types';
 import { resolveCombatEra, resolveNeutralPressureEra } from './era-resolution';
-import { createDiplomacyState, modifyRelationship, applyVassalageWarConsequences } from './diplomacy-system';
+import { createDiplomacyState, modifyRelationship } from './diplomacy-state';
+import { applyVassalageWarConsequences } from './diplomacy-system';
 import { applyResearchBonus } from './tech-system';
 import {
   hexKey,

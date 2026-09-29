@@ -1,5 +1,5 @@
 import type { ActiveCrisis, City, GameState, HexCoord, HexTile, OpponentChallenge } from '@/core/types';
-import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { createDiplomacyState } from '@/systems/diplomacy-state';
 import { hexKey } from '@/systems/hex-utils';
 import { createEmptyOpponentAIState } from '@/core/opponent-ai-state';
 import { TECH_TREE } from '@/systems/tech-definitions';
