@@ -65,7 +65,7 @@ export function getGovernancePresentation(state: GameState, civId: string): Gove
       angers: def.angers,
       active,
       canToggle: lockOpen && wouldFitCapacity,
-      lockedUntilTurn: Number.isFinite(lockedUntilTurn) ? lockedUntilTurn : null,
+      lockedUntilTurn: Number.isFinite(lockedUntilTurn) && state.turn < lockedUntilTurn ? lockedUntilTurn : null,
     };
   });
 
@@ -82,7 +82,7 @@ export function getGovernancePresentation(state: GameState, civId: string): Gove
         pressure: computeUnrestPressure(city.id, state),
         governed,
         canToggle: lockOpen && wouldFitCapacity,
-        lockedUntilTurn: Number.isFinite(lockedUntilTurn) ? lockedUntilTurn : null,
+        lockedUntilTurn: Number.isFinite(lockedUntilTurn) && state.turn < lockedUntilTurn ? lockedUntilTurn : null,
       };
     })
     .sort((a, b) => b.pressure - a.pressure);
