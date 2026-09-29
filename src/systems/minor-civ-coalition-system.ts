@@ -13,6 +13,7 @@ import { declareWar, modifyRelationship } from '@/systems/diplomacy-system';
 import { hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { resolveNeutralPressureEra } from '@/systems/era-resolution';
+import { getOwnedUnitCount } from '@/systems/unit-ownership';
 
 export const MINOR_CIV_REGIONAL_GRIEVANCE_RADIUS = 14;
 const CONQUEST_PRESSURE = 35;
@@ -256,7 +257,7 @@ function isRegionMatureForCoalition(state: GameState, memberIds: string[]): bool
     const minorCiv = state.minorCivs[memberId];
     if (!minorCiv || minorCiv.isDestroyed) return false;
     totalPopulation += state.cities[minorCiv.cityId]?.population ?? 0;
-    livingCombatUnits += minorCiv.units.filter(unitId => Boolean(state.units[unitId])).length;
+    livingCombatUnits += getOwnedUnitCount(state, memberId);
   }
   return totalPopulation >= 6 || livingCombatUnits >= 2;
 }

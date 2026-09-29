@@ -6,6 +6,7 @@ import type {
 import type { EventBus } from '@/core/event-bus';
 import { cancelInvalidNetworkPlans } from '@/systems/network-plan-system';
 import { getCivilizationLiveness } from './civilization-liveness';
+import { getOwnedUnits } from '@/systems/unit-ownership';
 import { recordDominationDefeat } from './domination-intel';
 import { recordParticipantEliminated } from './war-history-system';
 
@@ -85,9 +86,7 @@ export function eliminateCivilization(
     peakCities: 0,
     peakMilitary: 0,
   };
-  const removedUnitIds = Object.values(next.units)
-    .filter(unit => unit.owner === civId)
-    .map(unit => unit.id);
+  const removedUnitIds = getOwnedUnits(next, civId).map(unit => unit.id);
 
   // #1001 — world threats aimed at the dead civ dissipate: the crisis / stampede
   // / rogue-host records and the units their forces spawned go with the target.

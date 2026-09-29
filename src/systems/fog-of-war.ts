@@ -48,7 +48,7 @@ function visibilityDistance(a: HexCoord, b: HexCoord, map: GameMap): number {
  */
 export function updateVisibility(
   vis: VisibilityMap,
-  units: Unit[],
+  units: readonly Unit[],
   map: GameMap,
   cityPositions: HexCoord[] = [],
   getVisionBonus?: (unit: Unit) => number,

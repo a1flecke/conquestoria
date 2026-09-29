@@ -6,6 +6,7 @@ import { seededLcg, weightedPick } from '@/systems/seeded-lcg';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { createUnit } from '@/systems/unit-system';
 import { mapDistance } from '@/systems/hex-utils';
+import { getOwnedUnits } from '@/systems/unit-ownership';
 import {
   describeGeneralCareerHighlights,
   summarizeGeneralCareer,
@@ -338,7 +339,7 @@ export function getPassiveStabilizationTargets(state: GameState, civId: string):
   const civ = state.civilizations[civId];
   if (!civ) return new Set();
 
-  const civUnits = civ.units.map(id => state.units[id]).filter((u): u is Unit => Boolean(u));
+  const civUnits = getOwnedUnits(state, civId);
   const generals = civUnits.filter(
     u => u.type === 'great_general' && u.generalDefinitionId && !u.generalNoCommandThisTurn,
   );

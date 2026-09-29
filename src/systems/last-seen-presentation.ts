@@ -5,7 +5,6 @@ import type {
   LastSeenHealthBand,
   LastSeenTilePresentation,
   LastSeenUnitPresentation,
-  Unit,
 } from '@/core/types';
 import { applyReconReveals, getVisibility, updateVisibility } from '@/systems/fog-of-war';
 import { isUnitConcealedFrom } from '@/systems/concealment';
@@ -15,6 +14,7 @@ import { resolveTileHasRail } from '@/systems/road-network';
 import { hexKey, parseHexKey, wrapHexCoord } from '@/systems/hex-utils';
 import { canInspectUnitForViewer } from './viewer-intel';
 import { getVisibleUnitsForPlayer } from './espionage-stealth';
+import { getOwnedUnits } from '@/systems/unit-ownership';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -175,9 +175,7 @@ export function reconstructLastSeenFromMap(state: GameState, civId: string): voi
 export function updateAndRefreshVisibility(state: GameState, civId: string): void {
   const civ = state.civilizations[civId];
   if (!civ?.visibility) return;
-  const units = civ.units
-    .map(id => state.units[id])
-    .filter((u): u is Unit => u !== undefined);
+  const units = getOwnedUnits(state, civId);
   const cityPositions = civ.cities
     .map(id => state.cities[id]?.position)
     .filter((p): p is HexCoord => p !== undefined);

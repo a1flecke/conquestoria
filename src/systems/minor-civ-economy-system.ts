@@ -22,6 +22,7 @@ import {
 import { assignCityFocus, normalizeWorkedTilesForCity } from '@/systems/city-work-system';
 import { getWrappedHexNeighbors, hexDistance, hexKey, hexNeighbors, wrappedHexDistance } from '@/systems/hex-utils';
 import { getMinorCivMobilizationBudget } from '@/systems/minor-civ-coalition-system';
+import { getOwnedUnitCount } from '@/systems/unit-ownership';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 import { calculateCityYields } from '@/systems/resource-system';
@@ -424,7 +425,7 @@ export function evaluateMinorCivEconomyPosture(state: GameState, minorCivId: str
     return 'mobilizing';
   }
 
-  const liveUnitCount = minorCiv.units.filter(unitId => Boolean(state.units[unitId])).length;
+  const liveUnitCount = getOwnedUnitCount(state, minorCiv.id);
   if (grievances.some(grievance => grievance.status === 'wary' && grievance.pressure >= 20) || liveUnitCount === 0) {
     return 'fortifying';
   }
@@ -506,7 +507,7 @@ export function chooseMinorCivQueueItem(state: GameState, minorCivId: string): s
   const budget = getMinorCivMobilizationBudget(state, minorCivId);
   const effectivePosture = budget.wantsDefender ? 'mobilizing' : posture;
   const cap = getMinorCivUnitCap(state, minorCivId, effectivePosture);
-  const currentUnits = minorCiv.units.filter(unitId => Boolean(state.units[unitId])).length;
+  const currentUnits = getOwnedUnitCount(state, minorCiv.id);
   const candidates = getMinorCivBuildCandidates(state, minorCivId);
   const preference = getMinorCivLeaguePreference(state, minorCivId, posture);
   const scored = [
@@ -674,7 +675,7 @@ export function evaluateMinorCivEmergencyLevy(state: GameState, minorCivId: stri
   // is deliberately below every currently tuned 'mobilizing' cap, so in practice the force-floor
   // gate below is what fires day-to-day — this ordering just means an already-at-cap city-state
   // (however that happened) is never blamed on "enough force" when the real blocker is the cap.
-  const currentUnits = minorCiv.units.filter(unitId => Boolean(state.units[unitId])).length;
+  const currentUnits = getOwnedUnitCount(state, minorCiv.id);
   const cap = getMinorCivUnitCap(state, minorCivId, 'mobilizing');
   if (currentUnits + 1 > cap) {
     return { eligible: false, reason: 'unit-cap' };

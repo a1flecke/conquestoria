@@ -6,6 +6,7 @@ import { getVisionBonus } from '@/systems/unit-modifier-system';
 import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { cancelInvalidNetworkPlans } from '@/systems/network-plan-system';
 import { hexKey } from '@/systems/hex-utils';
+import { getFreeStandingOwnedUnits } from '@/systems/unit-ownership';
 import {
   moveUnitWithZoneOfControl,
   getMovementStepCost,
@@ -96,12 +97,6 @@ export function abandonWorkerTask(state: GameState, unitId: string): void {
     ...state.units,
     [unitId]: { ...unit, workerTask: undefined },
   };
-}
-
-function getCivUnits(state: GameState, civId: string) {
-  return state.civilizations[civId]?.units
-    .map(id => state.units[id])
-    .filter((unit): unit is NonNullable<typeof unit> => unit !== undefined && !unit.transportId) ?? [];
 }
 
 function getCivCityPositions(state: GameState, civId: string): HexCoord[] {
@@ -217,7 +212,7 @@ export function executeValidatedUnitMove(
   const movementActiveNPs = getActiveNationalProjectsForCiv(state, options.civId);
   const revealedTiles = updateVisibility(
     state.civilizations[options.civId].visibility,
-    getCivUnits(state, options.civId),
+    getFreeStandingOwnedUnits(state, options.civId),
     state.map,
     getCivCityPositions(state, options.civId),
     unit => getVisionBonus(unit.type, movementCompletedTechs, movementActiveNPs),

@@ -382,4 +382,67 @@ describe('check-src-rule-violations.sh', () => {
       expect(result.stderr).toBe('');
     });
   });
+
+  describe('#1020 canonical unit ownership rule', () => {
+    it('blocks a new roster-length ownership decision outside sanctioned files', () => {
+      const workspace = makeWorkspace();
+      writeWorkspaceFile(
+        workspace,
+        'src/ui/rogue-panel.ts',
+        [
+          'export function hasArmy(civ: { units: string[] }): boolean {',
+          '  return civ.units.length > 0;',
+          '}',
+        ].join('\n'),
+      );
+
+      const result = runScript(workspace, 'src/ui/rogue-panel.ts');
+
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain('Roster-length ownership decision');
+      expect(result.stderr).toContain('getOwnedUnitCount');
+    });
+
+    it('allows roster-length reads inside turn-manager (ordered processing)', () => {
+      const workspace = makeWorkspace();
+      writeWorkspaceFile(
+        workspace,
+        'src/core/turn-manager.ts',
+        'const unitCount = civ.units.length;\n',
+      );
+
+      const result = runScript(workspace, 'src/core/turn-manager.ts');
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe('');
+    });
+
+    it('allows roster-length reads inside civilization-elimination-system (roster maintenance)', () => {
+      const workspace = makeWorkspace();
+      writeWorkspaceFile(
+        workspace,
+        'src/systems/civilization-elimination-system.ts',
+        'const rosterSize = civ.units.length;\n',
+      );
+
+      const result = runScript(workspace, 'src/systems/civilization-elimination-system.ts');
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe('');
+    });
+
+    it('does not flag the persistence DTO snapshot.units.length', () => {
+      const workspace = makeWorkspace();
+      writeWorkspaceFile(
+        workspace,
+        'src/ui/espionage-panel.ts',
+        'const unitCount = snapshot.units.length;\n',
+      );
+
+      const result = runScript(workspace, 'src/ui/espionage-panel.ts');
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe('');
+    });
+  });
 });

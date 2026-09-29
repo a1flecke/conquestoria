@@ -1,5 +1,6 @@
 import type { CouncilInterrupt, GameState, GameEvent } from './types';
 import { getOwnedCityCount } from '@/systems/city-ownership';
+import { getOwnedUnitCount } from '@/systems/unit-ownership';
 import { majorCivWarOpponentIds } from './owner-kind';
 
 export function collectEvent(
@@ -83,7 +84,7 @@ export function generateSummary(
     era: state.era,
     gold: civ?.gold ?? 0,
     cities: civ ? getOwnedCityCount(state, civId) : 0,
-    units: civ?.units.length ?? 0,
+    units: civ ? getOwnedUnitCount(state, civId) : 0,
     currentResearch: civ?.techState.currentResearch ?? null,
     researchProgress: civ?.techState.researchProgress ?? 0,
     // Handoff card lists these as enemy empires — major-civ wars only (#1041).

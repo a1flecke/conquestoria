@@ -1,5 +1,6 @@
 import type { GameState, Unit } from '@/core/types';
 import { isMajorCivOwner } from '@/core/owner-kind';
+import { getOwnedUnits } from '@/systems/unit-ownership';
 
 export type CivilizationLivenessState = Pick<GameState, 'civilizations' | 'cities' | 'units'>;
 
@@ -39,8 +40,7 @@ export function getCivilizationLiveness(
   if (Object.values(state.cities ?? {}).some(city => city.owner === civId)) {
     return { living: true, reason: 'city' };
   }
-  if (Object.values(state.units ?? {}).some(unit =>
-    unit.owner === civId && isSurvivingSettler(state, unit))) {
+  if (getOwnedUnits(state, civId).some(unit => isSurvivingSettler(state, unit))) {
     return { living: true, reason: 'settler' };
   }
   return { living: false, reason: 'no-survival-assets' };

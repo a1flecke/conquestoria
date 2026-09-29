@@ -1,5 +1,6 @@
 import type { GameState, TutorialStep, AdvisorType, Unit } from '@/core/types';
 import { getOwnedCities, getOwnedCityCount } from '@/systems/city-ownership';
+import { getOwnedUnitCount } from '@/systems/unit-ownership';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
 import { resolveGeneralDefinition } from '@/systems/great-general-definitions';
 import { resolveGeneralMechanics } from '@/systems/great-general-specialties';
@@ -603,7 +604,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     message: 'An undefended city-state could be easy pickings...',
     trigger: (state: GameState) =>
       Object.values(state.minorCivs ?? {}).some(mc =>
-        hasDiscoveredMinorCiv(state, state.currentPlayer, mc.id) && mc.units.filter(uid => state.units[uid]).length === 0
+        hasDiscoveredMinorCiv(state, state.currentPlayer, mc.id) && getOwnedUnitCount(state, mc.id) === 0
       ),
   },
   {
@@ -613,7 +614,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     message: 'City-state guerrillas are harassing our borders!',
     trigger: (state: GameState) =>
       Object.values(state.minorCivs ?? {}).some(mc =>
-        !mc.isDestroyed && isMinorCivAtWar(state, state.currentPlayer, mc.id) && mc.units.length > 1
+        !mc.isDestroyed && isMinorCivAtWar(state, state.currentPlayer, mc.id) && getOwnedUnitCount(state, mc.id) > 1
       ),
   },
   {
