@@ -39,6 +39,34 @@ describe('#987 governance presentation', () => {
     expect(freeTrade.lockedUntilTurn).toBeNull();
   });
 
+  it('reports a null lockedUntilTurn once a past lock has actually expired, even though the policy was toggled before (regression)', () => {
+    // Toggled at turn 5, lock window is 5 turns (unlocks at turn 10). The
+    // fixture's default state.turn is 10, so the lock has already expired --
+    // the only real blocker left is capacity, which this state also exhausts
+    // via a second, capacity-consuming active policy.
+    const state = makeGovernanceTestState({
+      cityCount: 2, spacingQ: 10,
+      civOverrides: {
+        governancePolicies: { 'conscription-levy': true },
+        governancePolicyChangedTurn: { 'free-trade-charter': 5 },
+      },
+    });
+    const freeTrade = getGovernancePresentation(state, 'player').policies.find(p => p.id === 'free-trade-charter')!;
+    expect(freeTrade.canToggle).toBe(false);
+    expect(freeTrade.lockedUntilTurn).toBeNull();
+  });
+
+  it('reports a non-null lockedUntilTurn while the lock is still actually active', () => {
+    // Toggled at turn 8, lock window is 5 turns (unlocks at turn 13). The
+    // fixture's default state.turn is 10, so the lock is still active.
+    const state = makeGovernanceTestState({
+      civOverrides: { governancePolicyChangedTurn: { 'free-trade-charter': 8 } },
+    });
+    const freeTrade = getGovernancePresentation(state, 'player').policies.find(p => p.id === 'free-trade-charter')!;
+    expect(freeTrade.canToggle).toBe(false);
+    expect(freeTrade.lockedUntilTurn).toBe(13);
+  });
+
   it('reports autonomous posture', () => {
     const state = makeGovernanceTestState({ civOverrides: { federalismEnabled: true } });
     expect(getGovernancePresentation(state, 'player').posture).toBe('autonomous');
@@ -73,6 +101,34 @@ describe('#987 governance presentation', () => {
       expect(city2.governed).toBe(false);
       expect(city2.canToggle).toBe(false);
       expect(city2.lockedUntilTurn).toBeNull();
+    });
+
+    it('reports a null lockedUntilTurn once a past reassignment lock has actually expired, even though the city was toggled before (regression)', () => {
+      // Toggled at turn 5, lock window is 5 turns (unlocks at turn 10). The
+      // fixture's default state.turn is 10, so the lock has already expired --
+      // the only real blocker left is capacity, exhausted here by a second
+      // city already holding a governor.
+      const state = makeGovernanceTestState({
+        cityCount: 2, spacingQ: 10,
+        civOverrides: {
+          governorAssignments: { 'city-1': true },
+          governorAssignmentChangedTurn: { 'city-2': 5 },
+        },
+      });
+      const city2 = getGovernancePresentation(state, 'player').governorCities.find(c => c.cityId === 'city-2')!;
+      expect(city2.canToggle).toBe(false);
+      expect(city2.lockedUntilTurn).toBeNull();
+    });
+
+    it('reports a non-null lockedUntilTurn while a reassignment lock is still actually active', () => {
+      // Toggled at turn 8, lock window is 5 turns (unlocks at turn 13). The
+      // fixture's default state.turn is 10, so the lock is still active.
+      const state = makeGovernanceTestState({
+        civOverrides: { governorAssignmentChangedTurn: { 'city-1': 8 } },
+      });
+      const city1 = getGovernancePresentation(state, 'player').governorCities.find(c => c.cityId === 'city-1')!;
+      expect(city1.canToggle).toBe(false);
+      expect(city1.lockedUntilTurn).toBe(13);
     });
   });
 });
