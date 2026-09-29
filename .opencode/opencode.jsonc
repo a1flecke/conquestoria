@@ -45,11 +45,18 @@
         { "action": "shell", "resource": "git fetch *", "effect": "allow" },
         { "action": "shell", "resource": "git pull *", "effect": "allow" },
         { "action": "shell", "resource": "git push *", "effect": "allow" },
-        // Exact match only — the global AGENTS.md's sanctioned initial
-        // feature-branch rebase form. "--continue", "-i", and other rebase
-        // invocations fall through to the default "ask" above, since
-        // resuming an in-progress rebase needs the state verified first.
-        { "action": "shell", "resource": "git rebase origin/main", "effect": "allow" },
+        // Deliberately no static allow for "git rebase origin/main" here.
+        // Root-caused after this commit: the real reason it prompted was a
+        // field-name bug in the model-approval plugin (checked "cwd"/
+        // "directory" but OpenCode's shell tool input is "workdir"), fixed
+        // upstream in that plugin. With that fixed, "ask" (the default
+        // below) already routes to the plugin's deterministic
+        // trusted-worktree preflight, which verifies this exact command
+        // per-invocation and allows it reliably. A static allow here would
+        // be worse: "git rebase" is in the plugin's sensitive-even-if-
+        // allowed list but not its allow-bypass shortlist, so an "allow"
+        // arriving from this layer gets overwritten by a full model review
+        // instead of using the reliable deterministic path.
 
         { "action": "shell", "resource": "gh issue *", "effect": "allow" },
         { "action": "shell", "resource": "gh pr *", "effect": "allow" },
