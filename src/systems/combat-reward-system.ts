@@ -264,7 +264,7 @@ function removeUnitFromCopies(
   espionage: NonNullable<GameState['espionage']> | undefined;
 } {
   const removed = units[unitId];
-  if (!removed) return { units, civilizations, espionage };
+  if (!removed) return { units, civilizations, minorCivs, espionage };
   const removedIds = new Set([unitId, ...(removed.cargoUnitIds ?? [])]);
   const remainingUnits: Record<string, Unit> = {};
   for (const [candidateId, candidate] of Object.entries(units)) {
