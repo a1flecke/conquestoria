@@ -31,13 +31,13 @@ import { civilizationEraFromNumber } from '@/systems/era-types';
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
 describe('Era 13 production catalog', () => {
-  it('ships twelve buildings and three national projects unlocked by Era 13 technologies', () => {
+  it('ships twelve buildings and four national projects unlocked by Era 13 technologies', () => {
     const era13TechIds = new Set(TECH_TREE.filter(tech => tech.era === 13).map(tech => tech.id));
     const era13Buildings = Object.values(BUILDINGS)
       .filter(building => building.techRequired && era13TechIds.has(building.techRequired));
 
     expect(era13Buildings.filter(building => !building.nationalProject)).toHaveLength(12);
-    expect(era13Buildings.filter(building => building.nationalProject)).toHaveLength(3);
+    expect(era13Buildings.filter(building => building.nationalProject)).toHaveLength(4);
   });
 });
 

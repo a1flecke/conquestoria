@@ -75,6 +75,7 @@ import { processTurn } from '@/core/turn-manager';
 import { applyStrategicWarningTransitions } from '@/systems/strategic-warning-system';
 import { applySupplyWarningTransitions } from '@/systems/supply-warning-system';
 import { projectDominationOutcome } from '@/systems/domination-presentation';
+import { projectScienceVictoryOutcome } from '@/systems/science-victory-presentation';
 
 /** The narrow slice of `RenderLoop` this controller needs. */
 export type TurnFlowRenderer = Pick<RenderLoop, 'setGameState' | 'animateUnitMove' | 'setSelectedPirateFactionId' | 'setStrategicLaunchPreview'> & {
@@ -362,7 +363,9 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
   function handleVictoryIfNeeded(): boolean {
     const state = session.getState();
     if (!state.gameOver) return false;
-    const outcome = projectDominationOutcome(state, state.hotSeat ? null : state.currentPlayer);
+    const outcome = state.gameOverReason === 'science'
+      ? projectScienceVictoryOutcome(state, state.hotSeat ? null : state.currentPlayer)
+      : projectDominationOutcome(state, state.hotSeat ? null : state.currentPlayer);
     deps.closeVictoryProgressPanel();
     // #993: routed through the ceremony coordinator's shared big-moment engine
     // instead of an unconditional direct call -- this waits for a
@@ -372,7 +375,11 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
     // queued, since none of it matters once the game is over.
     ceremonies.enqueueVictory({
       winnerName: outcome.winnerName,
-      victoryType: outcome.sharedResult ? 'Campaign Finished' : outcome.outcome === 'victory' ? 'Domination Victory' : 'Campaign Defeat',
+      victoryType: outcome.sharedResult
+        ? 'Campaign Finished'
+        : state.gameOverReason === 'science'
+          ? 'Science Victory'
+          : outcome.outcome === 'victory' ? 'Domination Victory' : 'Campaign Defeat',
       outcome: outcome.outcome,
       reason: state.gameOverReason ?? 'domination',
       sharedResult: outcome.sharedResult,

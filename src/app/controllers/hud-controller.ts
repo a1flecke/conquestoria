@@ -221,6 +221,18 @@ export function createHudController(deps: HudControllerDeps): HudController {
         yieldsRow.appendChild(federalismButton);
       }
 
+      // #987: governance panel entry point. Shown once unrest itself starts
+      // mattering (era >= 2, matching processFactionTurn's own era<=1 skip) —
+      // no point sending a brand-new empire to a panel with nothing to report.
+      if (resolveCivilizationEra(civ.techState.completed) >= 2) {
+        const governanceButton = document.createElement('button');
+        governanceButton.type = 'button';
+        governanceButton.style.cssText = 'background:transparent;color:inherit;border:1px solid rgba(232,193,112,0.45);border-radius:6px;font:inherit;padding:4px 8px;min-height:44px;';
+        governanceButton.textContent = '📜 Governance';
+        governanceButton.addEventListener('click', () => deps.router.open('governance'));
+        yieldsRow.appendChild(governanceButton);
+      }
+
       if (isAutonomyActivated(state, civ.id)) {
         const networkButton = document.createElement('button');
         networkButton.type = 'button';

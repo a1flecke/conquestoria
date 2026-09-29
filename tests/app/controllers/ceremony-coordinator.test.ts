@@ -6,6 +6,7 @@ import type { LegendaryWonderCompletionCeremonyAction } from '@/ui/legendary-won
 import type { WonderDiscoveryCeremonyAction } from '@/ui/wonder-discovery-ceremony';
 import type { EventChainConclusionMomentItem } from '@/systems/event-chain-presentation';
 import type { VictoryPanelOptions } from '@/ui/victory-panel';
+import type { WorldRaceConclusionMomentItem } from '@/systems/world-race-presentation';
 import { getWonderVisualDefinition } from '@/systems/wonder-visual-catalog';
 import { createPanelHost } from '@/app/panel-host';
 import { createCeremonyCoordinator, type CeremonyCoordinatorDeps } from '@/app/controllers/ceremony-coordinator';
@@ -62,6 +63,18 @@ function victoryOptions(overrides: Partial<VictoryPanelOptions> = {}): VictoryPa
     outcome: 'victory',
     turn: 120,
     onNewGame: () => {},
+    ...overrides,
+  };
+}
+
+function worldRaceItem(overrides: Partial<WorldRaceConclusionMomentItem> = {}): WorldRaceConclusionMomentItem {
+  return {
+    kind: 'interstellar-colony',
+    displayName: 'Interstellar Colony',
+    turn: 500,
+    won: true,
+    winnerName: 'Rome',
+    rewardSummary: 'Humanity\'s first permanent extraterrestrial colony marks the dawn of a new era.',
     ...overrides,
   };
 }
@@ -340,29 +353,35 @@ describe('ceremony coordinator', () => {
       expect(presentVictory).toHaveBeenCalledTimes(1);
     });
 
-    it('drops any wonder/legendary/event-chain backlog not yet presenting once the game ends', () => {
+    it('drops any wonder/legendary/event-chain/world-race backlog not yet presenting once the game ends', () => {
       const presentWonderDiscovery = vi.fn(() => new Promise<WonderDiscoveryCeremonyAction>(() => {}));
       const presentEventChainConclusion = vi.fn(() => new Promise<void>(() => {}));
+      const presentWorldRaceConclusion = vi.fn(() => new Promise<void>(() => {}));
       const presentVictory = vi.fn(() => new Promise<void>(() => {}));
       const host = createPanelHost(document.createElement('div'));
       const coordinator = createCeremonyCoordinator(baseDeps({
-        host, presentWonderDiscovery, presentEventChainConclusion, presentVictory,
+        host, presentWonderDiscovery, presentEventChainConclusion, presentWorldRaceConclusion, presentVictory,
       }));
 
-      // Block the UI so the wonder/chain moments queue but never start.
+      // Block the UI so the wonder/chain/race moments queue but never start.
       host.setBlockingOverlay('city-panel');
       coordinator.enqueueWonderDiscovery(wonderItem());
       coordinator.enqueueEventChainConclusion(eventChainItem());
+      coordinator.enqueueWorldRaceConclusion(worldRaceItem());
       expect(presentWonderDiscovery).not.toHaveBeenCalled();
       expect(presentEventChainConclusion).not.toHaveBeenCalled();
+      expect(presentWorldRaceConclusion).not.toHaveBeenCalled();
 
       coordinator.enqueueVictory(victoryOptions());
       host.setBlockingOverlay(null);
 
-      // Victory itself still shows; the dropped backlog never plays.
+      // Victory itself still shows; the dropped backlog never plays -- this is what stops a
+      // player who wins a Science Victory (#986) from seeing the "you won the Interstellar
+      // Colony race" ceremony immediately followed by the real victory screen.
       expect(presentVictory).toHaveBeenCalledTimes(1);
       expect(presentWonderDiscovery).not.toHaveBeenCalled();
       expect(presentEventChainConclusion).not.toHaveBeenCalled();
+      expect(presentWorldRaceConclusion).not.toHaveBeenCalled();
     });
 
     it('blocks every further enqueue* call once victory has been shown, until clearForNewGame', () => {

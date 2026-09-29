@@ -96,6 +96,10 @@ import { createStrategicLaunchFlow } from '@/ui/strategic-launch-flow';
 import { executeStrategicLaunch } from '@/systems/strategic-launch-execution-system';
 import { createStrategicArsenalPanel } from '@/ui/strategic-arsenal-panel';
 import { getStrategicArsenalSummaryPresentation } from '@/systems/strategic-arsenal-summary-presentation';
+import { createGovernancePanel } from '@/ui/governance-panel';
+import { getGovernancePresentation } from '@/systems/governance-presentation';
+import { setGovernancePolicy } from '@/systems/governance-policy-system';
+import { assignGovernor, removeGovernor, moveGovernor } from '@/systems/governor-system';
 import { createEspionagePanel } from '@/ui/espionage-panel';
 import { createVictoryProgressPanel } from '@/ui/victory-progress-panel';
 import { projectDominationProgressForViewer } from '@/systems/domination-presentation';
@@ -135,6 +139,7 @@ export interface PanelActionsController {
   openCityPanelForCity(city: City): void;
   openEspionagePanel(): void;
   openStrategicArsenalPanel(): void;
+  openGovernancePanel(): void;
   openVictoryProgressPanel(): void;
   closeVictoryProgressPanel(): void;
   refreshVictoryProgressPanel(): void;
@@ -219,6 +224,50 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
   function openStrategicArsenalPanel(): void {
     const presentation = getStrategicArsenalSummaryPresentation(deps.session.getState(), deps.session.getState().currentPlayer);
     createStrategicArsenalPanel(deps.uiLayer, presentation, () => {});
+  }
+
+  function openGovernancePanel(): void {
+    const civId = deps.session.getState().currentPlayer;
+    const rerender = () => {
+      createGovernancePanel(
+        deps.uiLayer,
+        getGovernancePresentation(deps.session.getState(), civId),
+        (policyId, enabled) => {
+          const result = setGovernancePolicy(deps.session.getState(), civId, policyId, enabled);
+          if (!result.success) {
+            deps.showNotification(result.message, 'warning');
+            return;
+          }
+          deps.session.commit(result.state);
+          deps.showNotification(result.message, 'success');
+          rerender();
+        },
+        (cityId, assign) => {
+          const result = assign
+            ? assignGovernor(deps.session.getState(), civId, cityId)
+            : removeGovernor(deps.session.getState(), civId, cityId);
+          if (!result.success) {
+            deps.showNotification(result.message, 'warning');
+            return;
+          }
+          deps.session.commit(result.state);
+          deps.showNotification(result.message, 'success');
+          rerender();
+        },
+        (fromCityId, toCityId) => {
+          const result = moveGovernor(deps.session.getState(), civId, fromCityId, toCityId);
+          if (!result.success) {
+            deps.showNotification(result.message, 'warning');
+            return;
+          }
+          deps.session.commit(result.state);
+          deps.showNotification(result.message, 'success');
+          rerender();
+        },
+        () => {},
+      );
+    };
+    rerender();
   }
 
   function closeVictoryProgressPanel(): void {
@@ -1243,6 +1292,7 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
     openCityPanelForCity,
     openEspionagePanel,
     openStrategicArsenalPanel,
+    openGovernancePanel,
     openVictoryProgressPanel,
     closeVictoryProgressPanel,
     refreshVictoryProgressPanel,

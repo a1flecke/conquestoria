@@ -52,7 +52,9 @@ export function showVictoryPanel(container: HTMLElement, options: VictoryPanelOp
 
   const rule = document.createElement('p');
   rule.style.cssText = 'font-size:14px;color:#ccc;margin:0 0 12px;max-width:420px;line-height:1.5;';
-  rule.textContent = 'Domination means becoming the last independent empire: defeat other empires or make them your vassals.';
+  rule.textContent = options.reason === 'science'
+    ? 'A Science Victory is won by completing humanity\'s first interstellar colony mission before any rival.'
+    : 'Domination means becoming the last independent empire: defeat other empires or make them your vassals.';
 
   const summary = document.createElement('p');
   summary.style.cssText = 'font-size:16px;color:white;margin:0 0 12px;max-width:420px;line-height:1.5;';

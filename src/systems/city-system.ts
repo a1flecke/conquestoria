@@ -1180,6 +1180,20 @@ export const BUILDINGS: Record<string, Building> = {
   national_ai_assurance_program: { id: 'national_ai_assurance_program', name: 'National AI Assurance Program', category: 'science', yields: { food: 0, production: 0, gold: 0, science: 6 }, productionCost: 392, description: 'A temporary empire-wide +6 science program with +2 Network Capacity.', techRequired: 'algorithmic-accountability', uniquePerEmpire: true, nationalProject: { homeEra: 13 }, civYieldBonus: { science: 6 }, pacing: { band: 'marquee', role: 'national-project', impact: 1.6, scope: 'empire', snowball: 1.5, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
   circular_manufacturing_network: { id: 'circular_manufacturing_network', name: 'Circular Manufacturing Network', category: 'production', yields: { food: 0, production: 6, gold: 0, science: 0 }, productionCost: 392, description: 'A temporary empire-wide production program. Choose one advanced material substitution when completed.', techRequired: 'molecular-fabrication', uniquePerEmpire: true, nationalProject: { homeEra: 13 }, civYieldBonus: { production: 6 }, pacing: { band: 'marquee', role: 'national-project', impact: 1.6, scope: 'empire', snowball: 1.5, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
   mars_robotics_initiative: { id: 'mars_robotics_initiative', name: 'Mars Robotics Initiative', category: 'science', yields: { food: 0, production: 0, gold: 3, science: 3 }, productionCost: 392, description: 'A temporary empire-wide +3 gold and +3 science program.', techRequired: 'mars-mission-architecture', uniquePerEmpire: true, nationalProject: { homeEra: 13 }, civYieldBonus: { gold: 3, science: 3 }, pacing: { band: 'marquee', role: 'national-project', impact: 1.6, scope: 'empire', snowball: 1.5, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
+  // #986: the "launch" stage of the Interstellar Colony world race (Science Victory) --
+  // see world-race-definitions.ts. Reuses mars_robotics_initiative above as its "component"
+  // stage rather than inventing a parallel one, mirroring first_satellite_launch's own
+  // reuse of space_program_initiative.
+  interstellar_launch_program: {
+    id: 'interstellar_launch_program', name: 'Interstellar Launch Program', category: 'science',
+    yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 400,
+    description: 'A committed attempt to establish humanity\'s first permanent extraterrestrial colony. Whichever civilization completes this first wins a Science Victory; every other in-progress attempt is stood down with a partial refund.',
+    techRequired: 'mars-mission-architecture',
+    requiresBuildings: ['mars_robotics_initiative'],
+    resourceRequired: ['uranium'],
+    pacing: { band: 'marquee', role: 'world-race', impact: 1.7, scope: 'empire', snowball: 1.3, urgency: 1.5, situationality: 1.4, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 13, milestone: true },
+  },
 };
 
 export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pacing'] }> = [
@@ -1619,6 +1633,7 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   national_ai_assurance_program: '🛡️',
   circular_manufacturing_network: '♻️',
   mars_robotics_initiative: '🚀',
+  interstellar_launch_program: '🌌',
   // Units
   warrior: '⚔️',
   archer: '🏹',

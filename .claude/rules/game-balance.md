@@ -206,6 +206,82 @@ challenge profile scales unrest *pressure* only, not action cost). The AI uses
 (a bot cannot value the 15-turn immunity payoff) and stays rational as long as
 the invariant above holds.
 
+## Governance Policy Inventory (#987)
+
+A separate table from the Unrest Relief Inventory above — governance policies
+are a player *choice* with a real tradeoff, not an infrastructure investment
+that only relieves pressure. Each policy is a flat, deterministic, attributable
+unrest-pressure row (`src/systems/governance-policy-definitions.ts`,
+consumed generically by `getUnrestPressureBreakdown` in `faction-system.ts`)
+plus a governance-load cost (`src/systems/governance-capacity.ts`). None of
+these touch the #927 relief ladder's own rows or `UNREST_RELIEF_SOURCES` table.
+
+| Policy | Pleases | Angers | Pressure row | Amount | Load cost |
+|---|---|---|---|---:|---:|
+| Conscription Levy | military | commons | Conscription Levy | +3 | 1 |
+| Free Trade Charter | merchants | clergy | Free Trade Charter | +2 | 1 |
+| Local Autonomy Writ | commons | military | Local Autonomy Writ | −3 | 1 |
+
+**Administrative capacity** (`getGovernanceCapacity`) is structural only — 3
+base, +1 each (max +4) for an owned Courthouse, an owned Regional Capital,
+`separation-of-powers`, and `railway-expansion`, plus a posture bonus:
+`+floor(cityCount / 3)` (max +4) under `centralized` posture, +0 under
+`autonomous`. **Load** (`getGovernanceLoad`) is purely distance-from-capital
+sprawl — `floor(distanceFromCapital / 5)` per city, halved (floored) under
+`autonomous` posture (the tall-vs-wide difference: autonomy dampens
+distant-city load, centralized does not) — plus the sum of active policies'
+load costs. Deliberately not a flat per-city charge: capacity's own per-city
+bonus is capped, so an unbounded per-city load term would make governance
+capacity permanently unusable for the largest, most sprawling empires — a
+city close to the capital costs zero load. A policy can only be
+enabled if doing so would not push load over capacity —
+`setGovernancePolicy` in `governance-policy-system.ts` is the only mutation
+path and enforces this, plus a per-policy `GOVERNANCE_POLICY_LOCK_TURNS` (5)
+toggle lock in either direction (same anti-thrash rationale as
+`FEDERALISM_LOCK_TURNS`).
+
+**Posture** (`getGovernancePosture`) is not a new field: `'autonomous'` is
+exactly `civ.federalismEnabled === true` (Federal Autonomy, rung 6 of the
+relief ladder above) and `'centralized'` is its absence — the posture getter
+is a thin reframing of the existing toggle, not a parallel mechanism. Toggling
+posture still goes through `setFederalismStance`/`canToggleFederalism`
+unchanged.
+
+**Rule:** any new governance policy must add a row above, and must not
+introduce a policy-id branch anywhere in `faction-system.ts`,
+`governance-capacity.ts`, `basic-ai.ts`, or `governance-panel.ts` — all four
+are generic over `GOVERNANCE_POLICY_DEFINITIONS`.
+
+## Governor Inventory (#928)
+
+Governors are an abstract, capped administrative slot — **not** a unit and
+**not** a dynasty/great-person character (both out of scope per this arc's own
+non-goals). "Capped set of assignable administrators" is answered by spending
+#987's existing governance capacity/load resource (`governance-capacity.ts`)
+rather than a second, parallel scarcity counter — the issue's own cross-link
+note: "a governor assignment is a capacity expenditure under a posture".
+
+| Knob | Value | Meaning |
+|---|---:|---|
+| `GOVERNOR_LOAD_COST` | 2 | Governance load one assignment consumes — heavier than a policy's 1, reflecting a bigger one-city administrative commitment. |
+| `GOVERNOR_UNREST_RELIEF` | 6 | Flat unrest-pressure relief on the governed city, as its own `'Governor'` row in `getUnrestPressureBreakdown` — independent of the #927 ladder's own rows/formulas. |
+| `GOVERNOR_REASSIGNMENT_LOCK_TURNS` | 5 | Anti-thrash lock in either direction (assign or remove), same rationale as `GOVERNANCE_POLICY_LOCK_TURNS`/`FEDERALISM_LOCK_TURNS` — makes placement "a real decision" rather than a free per-turn optimization. |
+
+`assignGovernor` / `removeGovernor` / `moveGovernor` (`governor-system.ts`) are
+the only mutation paths and are the sole place capacity/lock validation
+happens. A city losing its owner (captured, razed) needs **no** teardown code:
+every reader (`getGovernanceLoad`, the `'Governor'` relief row, the
+presentation layer) filters a `civ.governorAssignments` entry to
+`state.cities[cityId]?.owner === civId`, so a stale assignment on a city the
+civ no longer owns is already inert — the former owner's capacity frees up
+automatically, and the captor never inherits it, matching Regional Capital's
+"captor does not inherit it" precedent with zero capture-path code.
+
+**Rule:** any change to governor scarcity, cost, or relief must update this
+table, and must not introduce a city-id or civ-id branch anywhere in
+`governor-system.ts`, `governance-capacity.ts`, `basic-ai.ts`, or
+`governance-panel.ts`.
+
 ## Minor-Civ Economy (#950)
 
 Every minor-civ (city-state) economy balance knob lived only in code until now —

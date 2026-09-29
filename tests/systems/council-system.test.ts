@@ -175,4 +175,14 @@ describe('council system', () => {
     const card = buildCouncilAgenda(state, 'player').toWin.find(card => card.id === 'worldrace-first-satellite');
     expect(card).toBeUndefined();
   });
+
+  it('#986 also surfaces the Interstellar Colony (Science Victory) card via the same generic race machinery', () => {
+    const { state } = makeCouncilFixture();
+    state.civilizations.player.techState.completed = ['mars-mission-architecture'];
+
+    const card = buildCouncilAgenda(state, 'player').toWin
+      .find(card => card.id === 'worldrace-interstellar-colony');
+    expect(card?.title).toContain('Interstellar Colony');
+    expect(card?.actionLabel).toBe('Prepare');
+  });
 });

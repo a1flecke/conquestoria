@@ -487,3 +487,55 @@ describe('#927 Federal Autonomy guidance', () => {
     expect(recs.some(rec => rec.kind === 'enable-federalism')).toBe(false);
   });
 });
+
+describe('#987 governance policy guidance', () => {
+  it('recommends repealing an active angering policy that is contributing pressure', () => {
+    const state = makeState({});
+    state.civilizations.player.governancePolicies = { 'conscription-levy': true };
+    const rec = getUnrestRecommendations('city-1', state).find(r => r.rowLabel === 'Conscription Levy');
+    expect(rec?.kind).toBe('repeal-governance-policy');
+    expect(rec?.availability).toBe('now');
+    expect(rec?.params?.policyId).toBe('conscription-levy');
+  });
+
+  it('NEGATIVE: never recommends repealing the relief policy (its row is negative, not a pressure source)', () => {
+    const state = makeState({});
+    state.civilizations.player.governancePolicies = { 'local-autonomy-writ': true };
+    const recs = getUnrestRecommendations('city-1', state);
+    expect(recs.some(rec => rec.kind === 'repeal-governance-policy')).toBe(false);
+  });
+
+  it('NEGATIVE: no governance recommendation appears when no policy is active', () => {
+    const state = makeState({});
+    const recs = getUnrestRecommendations('city-1', state);
+    expect(recs.some(rec => rec.kind === 'repeal-governance-policy')).toBe(false);
+  });
+});
+
+describe('#928 governor guidance', () => {
+  it('recommends assigning a governor to a meaningfully pressured, ungoverned city with free capacity', () => {
+    const state = makeState({ atWarCount: 3 }); // war weariness pressure 24 >= 20
+    const recs = getUnrestRecommendations('city-1', state);
+    expect(recs.some(rec => rec.kind === 'assign-governor')).toBe(true);
+  });
+
+  it('NEGATIVE: does not recommend a governor for a calm city', () => {
+    const state = makeState({});
+    const recs = getUnrestRecommendations('city-1', state);
+    expect(recs.some(rec => rec.kind === 'assign-governor')).toBe(false);
+  });
+
+  it('NEGATIVE: does not recommend a governor for an already-governed city', () => {
+    const state = makeState({ atWarCount: 3 });
+    state.civilizations.player.governorAssignments = { 'city-1': true };
+    const recs = getUnrestRecommendations('city-1', state);
+    expect(recs.some(rec => rec.kind === 'assign-governor')).toBe(false);
+  });
+
+  it('NEGATIVE: does not recommend a governor while the city is locked', () => {
+    const state = makeState({ atWarCount: 3 });
+    state.civilizations.player.governorAssignmentChangedTurn = { 'city-1': state.turn };
+    const recs = getUnrestRecommendations('city-1', state);
+    expect(recs.some(rec => rec.kind === 'assign-governor')).toBe(false);
+  });
+});

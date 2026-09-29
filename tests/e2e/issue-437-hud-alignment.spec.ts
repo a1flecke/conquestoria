@@ -54,7 +54,10 @@ test('Tauri-sized HUD keeps every yield on one visual baseline', async ({ page }
   await expect(yieldsRow).toBeVisible();
   await expect(yieldsRow).toContainText('☺ 1 (stability)');
   const textTops = await readTextTops(page);
-  expect(textTops).toHaveLength(5);
+  // #987: this fixture's civ is past era 2, so the new Governance HUD button
+  // now also renders in this row (6 elements, up from 5) -- still all on one
+  // baseline, which is what this test actually verifies below.
+  expect(textTops).toHaveLength(6);
   expect(Math.max(...textTops) - Math.min(...textTops)).toBeLessThanOrEqual(1);
 
   const rowStyles = await yieldsRow.evaluate(element => ({

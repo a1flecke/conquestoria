@@ -79,9 +79,13 @@ import {
 import { applyOpportunisticWarPenaltyIfCrisisStruck } from '@/systems/crisis-interaction-system';
 import { createRng } from '@/systems/map-generator';
 import {
-  appeaseFaction, getUnrestPressureBreakdown, setFederalismStance, canToggleFederalism, FEDERALISM_TECH_ID,
+  appeaseFaction, getUnrestPressureBreakdown, computeUnrestPressure, setFederalismStance, canToggleFederalism, FEDERALISM_TECH_ID,
 } from '@/systems/faction-system';
 import { getEconomyStatusForCiv } from '@/systems/economy-system';
+import { GOVERNANCE_POLICY_DEFINITIONS } from '@/systems/governance-policy-definitions';
+import { setGovernancePolicy, isGovernancePolicyActive, canToggleGovernancePolicy } from '@/systems/governance-policy-system';
+import { getGovernanceCapacity, getGovernanceLoad, GOVERNOR_LOAD_COST } from '@/systems/governance-capacity';
+import { assignGovernor, isCityGoverned, canToggleGovernor } from '@/systems/governor-system';
 import {
   getEligibleLegendaryWonders,
   initializeLegendaryWonderProjectsForAllCities,
@@ -1101,6 +1105,53 @@ function processAITurnInternal(
     if (pressuredOverextendedCities >= 2 && economyStatus.strainLevel !== 'critical') {
       const toggled = setFederalismStance(newState, civId, true);
       if (toggled.success) newState = toggled.state;
+    }
+    civ = newState.civilizations[civId];
+  }
+
+  // #987: AI governance policies. Table-driven over GOVERNANCE_POLICY_DEFINITIONS —
+  // never a policy-id branch. A policy that relieves pressure (negative
+  // pressureAmount) is worth its load cost once the empire is meaningfully
+  // pressured; a policy that adds pressure is only adopted when the empire has
+  // slack (comfortably under pressure, economy not in critical strain) to
+  // absorb its cost. setGovernancePolicy's own capacity/lock validation is the
+  // only gate beyond this — never bypassed here.
+  if (civ.cities.length > 0) {
+    const averagePressure = civ.cities.reduce((sum, cityId) => sum + computeUnrestPressure(cityId, newState), 0) / civ.cities.length;
+    const economyStatus = getEconomyStatusForCiv(newState, civId);
+    const pressured = averagePressure >= 20;
+    for (const policy of GOVERNANCE_POLICY_DEFINITIONS) {
+      if (!canToggleGovernancePolicy(newState, civId, policy.id)) continue;
+      const active = isGovernancePolicyActive(newState, civId, policy.id);
+      const shouldBeActive = policy.pressureAmount < 0
+        ? pressured
+        : !pressured && economyStatus.strainLevel !== 'critical';
+      if (shouldBeActive !== active) {
+        const toggled = setGovernancePolicy(newState, civId, policy.id, shouldBeActive);
+        if (toggled.success) newState = toggled.state;
+      }
+    }
+    civ = newState.civilizations[civId];
+  }
+
+  // #928: AI governor assignment. Assign-only (never proactively reassigns an
+  // already-placed governor) — thrash-free by construction, and a defensible
+  // bounded scope: capacity/lock validation inside assignGovernor is the only
+  // gate, same as the governance-policy block above. Cities are considered in
+  // descending pressure order so scarce capacity goes to the worst city first.
+  if (civ.cities.length > 0) {
+    const pressureByCityId = new Map(civ.cities.map(cityId => [cityId, computeUnrestPressure(cityId, newState)]));
+    const candidateCityIds = civ.cities
+      .filter(cityId => (pressureByCityId.get(cityId) ?? 0) >= 20)
+      .filter(cityId => !isCityGoverned(newState, cityId))
+      .filter(cityId => canToggleGovernor(newState, civId, cityId))
+      .sort((a, b) => (pressureByCityId.get(b) ?? 0) - (pressureByCityId.get(a) ?? 0));
+    for (const cityId of candidateCityIds) {
+      const capacity = getGovernanceCapacity(newState, civId).total;
+      const load = getGovernanceLoad(newState, civId).total;
+      if (load + GOVERNOR_LOAD_COST > capacity) break;
+      const assigned = assignGovernor(newState, civId, cityId);
+      if (assigned.success) newState = assigned.state;
     }
     civ = newState.civilizations[civId];
   }
