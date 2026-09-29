@@ -28,7 +28,7 @@ import {
   missionRequiresPlacedSpy,
   MISSION_BASE_SUCCESS,
   } from '@/systems/espionage-system';
-import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { createDiplomacyState } from '@/systems/diplomacy-state';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
 import { transferCapturedCityOwnership } from '@/systems/city-capture-system';

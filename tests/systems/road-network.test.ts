@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { City, GameState, HexTile } from '@/core/types';
-import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { createDiplomacyState } from '@/systems/diplomacy-state';
 import {
   canConnectCityToCapitalByOwnedRoad,
   getCitiesConnectedToCapital,

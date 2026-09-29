@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  applyTreachery,
-  broadcastTreacheryPenalty,
-  decayTreachery,
-} from '@/systems/diplomacy-system';
+import { applyTreachery, broadcastTreacheryPenalty, decayTreachery } from '@/systems/diplomacy-treachery';
 import type { DiplomacyState } from '@/core/types';
 
 function makeDipState(overrides?: Partial<DiplomacyState>): DiplomacyState {

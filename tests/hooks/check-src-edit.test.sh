@@ -128,14 +128,14 @@ nextState = removeUnit(nextState, updatedUnit);
 EOF
 expect_allow "$tmp/src/systems/lifecycle.ts" "removeUnit is not a movement-executor bypass"
 
-# --- #995: block single-side declareWar()/makePeace() outside diplomacy-system ---
+# --- #995: block single-side declareWar()/makePeace() outside diplomacy-war ---
 cat > "$tmp/src/ai/war-planner.ts" <<'EOF'
 export function plan(state, a, b) {
   const next = declareWar(state.civilizations[a].diplomacy, b, state.turn);
   return makePeace(next, b, state.turn);
 }
 EOF
-expect_block "$tmp/src/ai/war-planner.ts" "single-side declareWar/makePeace outside diplomacy-system"
+expect_block "$tmp/src/ai/war-planner.ts" "single-side declareWar/makePeace outside diplomacy-war"
 
 # --- #995: allow declareMajorWar()/makeMajorPeace() (the bilateral transitions) ---
 cat > "$tmp/src/ai/war-planner-ok.ts" <<'EOF'
@@ -152,23 +152,37 @@ nextMinor.diplomacy = makePeace(nextMinor.diplomacy, majorCivId, state.turn);
 EOF
 expect_allow "$tmp/src/systems/minor-civ-actions.ts" "single-side forms allowed in minor-civ-actions.ts"
 
-# --- #1003: block single-side signTreaty() outside diplomacy-system ---
+# --- #1003: block single-side signTreaty() outside diplomacy-treaties ---
 cat > "$tmp/src/ai/treaty-planner.ts" <<'EOF'
 export function propose(state, a, b) {
   return signTreaty(state.civilizations[a].diplomacy, a, b, 'alliance', -1, state.turn);
 }
 EOF
-expect_block "$tmp/src/ai/treaty-planner.ts" "single-side signTreaty outside diplomacy-system"
+expect_block "$tmp/src/ai/treaty-planner.ts" "single-side signTreaty outside diplomacy-treaties"
 
-# --- #1003: allow signTreaty() inside diplomacy-system.ts (commitTreatyAgreement) ---
-cat > "$tmp/src/systems/diplomacy-system.ts" <<'EOF'
+# --- #1003: allow signTreaty() inside diplomacy-treaties.ts (commitTreatyAgreement) ---
+cat > "$tmp/src/systems/diplomacy-treaties.ts" <<'EOF'
 export function commitTreatyAgreement(state, civAId, civBId, type, bus) {
   const aState = signTreaty(civA.diplomacy, civAId, civBId, type, turns, state.turn, cap);
   const bState = signTreaty(civB.diplomacy, civBId, civAId, type, turns, state.turn, cap);
   return state;
 }
 EOF
-expect_allow "$tmp/src/systems/diplomacy-system.ts" "signTreaty allowed inside diplomacy-system.ts"
+expect_allow "$tmp/src/systems/diplomacy-treaties.ts" "signTreaty allowed inside diplomacy-treaties.ts"
+
+# --- #1011: the integration module (diplomacy-system.ts) is no longer sanctioned ---
+cat > "$tmp/src/systems/diplomacy-system.ts" <<'EOF'
+export function sneak(state, a, b) {
+  return signTreaty(state.civilizations[a].diplomacy, a, b, 'alliance', -1, state.turn);
+}
+EOF
+expect_block "$tmp/src/systems/diplomacy-system.ts" "signTreaty is blocked in the integration module"
+
+# --- #1011: single-side war forms are allowed only where they are defined ---
+cat > "$tmp/src/systems/diplomacy-war.ts" <<'EOF'
+next = withDiplomacy(next, aId, makePeace(next.civilizations[aId].diplomacy, bId, state.turn));
+EOF
+expect_allow "$tmp/src/systems/diplomacy-war.ts" "single-side forms allowed inside diplomacy-war.ts"
 
 # --- #1003: allow signTreaty() inside the #846 scenario builder ---
 mkdir -p "$tmp/src/testing/scenario-steps"

@@ -1,7 +1,7 @@
 import type { NetworkPlanDefinitionId } from '@/core/autonomy-state';
 import type { GameState } from '@/core/types';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
-import { isAtWar } from '@/systems/diplomacy-system';
+import { isAtWar } from '@/systems/diplomacy-queries';
 import { hexDistance } from '@/systems/hex-utils';
 import { NETWORK_PLAN_DEFINITIONS } from '@/systems/network-plan-definitions';
 import { createGameButton } from '@/ui/ui-kit';

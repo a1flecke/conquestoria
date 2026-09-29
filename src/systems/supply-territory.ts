@@ -1,5 +1,5 @@
 import type { GameState } from '@/core/types';
-import { hasAllianceTreaty } from './diplomacy-system';
+import { hasAllianceTreaty } from './diplomacy-queries';
 
 export type LandSupplyTerritoryClass = 'friendly' | 'allied' | 'unclaimed' | 'hostile';
 

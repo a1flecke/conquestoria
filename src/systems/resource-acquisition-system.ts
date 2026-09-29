@@ -9,7 +9,7 @@ import type {
 import { isAlwaysHostilePair } from '@/core/owner-kind';
 import { hexKey } from './hex-utils';
 import { RESOURCE_DEFINITIONS } from './resource-definitions';
-import { isAtWar } from './diplomacy-system';
+import { isAtWar } from './diplomacy-queries';
 
 /**
  * Returns the set of resource IDs that a civ currently has access to.

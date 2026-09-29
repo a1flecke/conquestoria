@@ -46,7 +46,7 @@ every implicit assumption an invariant... short enough to read").
 | `civilizations`, `units`, `cities` — unit ownership | `unit.owner` ⟺ owner's unit roster (major civ `civ.units` or minor civ `mc.units`) | `SAVE_STATE_INVARIANTS: unit-rosters` (shared assert exists); **#996 open** for the exhaustive/property-level suite beyond this shared check |
 | `civilizations`, `units`, `cities` — city ownership | `city.owner` ⟺ owner's city roster (major `civ.cities` or minor `mc.cityId`) | `SAVE_STATE_INVARIANTS: city-rosters` (shared assert exists); **#997 open** for the exhaustive/property-level suite |
 | `civilizations.*.diplomacy.atWarWith` | Major↔major war is bilateral, deduplicated, no self-war | `SAVE_STATE_INVARIANTS: bilateral-war` + `normalizeBilateralWar` repair (**#995, closed**) |
-| `civilizations.*.diplomacy.treaties` | A treaty recorded by one side has a matching record on the other (same type); no self-treaty; no duplicate same-type treaty with the same partner | `SAVE_STATE_INVARIANTS: treaty-reciprocity` (**new, this MR**) + source rule blocking a stray `signTreaty(` call outside `diplomacy-system.ts`/`diplomacy-step.ts` (**new, this MR**) |
+| `civilizations.*.diplomacy.treaties` | A treaty recorded by one side has a matching record on the other (same type); no self-treaty; no duplicate same-type treaty with the same partner | `SAVE_STATE_INVARIANTS: treaty-reciprocity` (**new, this MR**) + source rule blocking a stray `signTreaty(` call outside `diplomacy-treaties.ts`/`diplomacy-step.ts` (**new, this MR**) |
 | `civilizations.*.diplomacy.vassalage` | Overlord/vassal reciprocal both directions; depth-1 star (an overlord has no overlord; a vassal has no vassals); no self-vassalage | `SAVE_STATE_INVARIANTS: vassalage-reciprocity` (**new, this MR** — was repair-only via `normalizeVassalage`, no live-state assert existed before) |
 | `civilizations.*` — elimination | An eliminated civ retains no live entity or obligation anywhere in `GameState` | `ELIMINATED_CIV_AREAS` + `assertEliminatedCivHasNoLiveEntities` (**#1001, closed**) |
 | `units.*.cargoUnitIds` / `.transportId` | Naval transport↔cargo dual reference stays reciprocal, capacity-bounded, same-tile, land-only cargo | `SAVE_STATE_INVARIANTS: cargo-reciprocity` (**#1000, closed**) |
@@ -130,8 +130,8 @@ cross-system state; this lists only the ones that are)
 
 | Rule | Prevents |
 |---|---|
-| Single-side `declareWar()`/`makePeace()` outside `diplomacy-system.ts` | Reintroducing the pre-#995 one-sided-war bug class |
-| Single-side `signTreaty()` outside `diplomacy-system.ts`/`diplomacy-step.ts` | The identical bug class, applied to treaties (**new, this MR**) |
+| Single-side `declareWar()`/`makePeace()` outside `diplomacy-war.ts` (import list also pinned in `architecture-boundaries.test.ts`, #1011) | Reintroducing the pre-#995 one-sided-war bug class |
+| Single-side `signTreaty()` outside `diplomacy-treaties.ts`/`diplomacy-step.ts` | The identical bug class, applied to treaties (**new, this MR**) |
 | Domination authority boundary | UI/AI reading the omniscient sovereignty/victory query directly instead of an observer-safe DTO |
 | `victory-system.ts` roster-length liveness | Victory inferring survival from `civilizations.*.cities/units.length` instead of canonical sovereignty facts |
 | `city-system.ts` importing the espionage runtime | A catalog-initialization cycle between production content and espionage state |

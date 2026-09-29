@@ -5,7 +5,7 @@
  * `DiplomacyState.events`/`strategicStrikesReceivedFrom` (pre-existing), and
  * the one new event *value* this file's sibling change adds to the already
  * open-ended `DiplomaticEvent.type: string` (`'spy_caught'` -- see
- * `recordSpyCaught` in `diplomacy-system.ts`; that string needs no schema
+ * `recordSpyCaught` in `diplomacy-state.ts`; that string needs no schema
  * change since the field was never a closed union).
  *
  * Scope, deliberately narrow (#989's own guardrails):
@@ -24,7 +24,7 @@
  *    function anything player-facing or AI-facing may call.
  */
 import type { GameState, WarRecord } from '@/core/types';
-import { hasAllianceTreaty } from '@/systems/diplomacy-system';
+import { hasAllianceTreaty } from '@/systems/diplomacy-queries';
 import { hasMetCivilization } from '@/systems/discovery-system';
 
 export type RivalryFactType =

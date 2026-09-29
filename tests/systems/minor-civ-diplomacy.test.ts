@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createNewGame } from '@/core/game-state';
-import { declareWar, makePeace } from '@/systems/diplomacy-system';
+import { declareWar, makePeace } from '@/systems/diplomacy-war';
 import { isMinorCivHostileToOwner } from '@/systems/minor-civ-diplomacy';
 
 describe('minor civ war/peace bilateral updates', () => {

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { createDiplomacyState, getAvailableActions } from '@/systems/diplomacy-system';
+import { createDiplomacyState } from '@/systems/diplomacy-state';
+import { getAvailableActions } from '@/systems/diplomacy-system';
 import { civilizationEraFromNumber } from '@/systems/era-types';
 
 describe('diplomacy tech gates', () => {

@@ -20,7 +20,7 @@ import { checkAndQueueGeneralCandidateChoice } from '@/systems/great-general-sys
 import { getStrategicArsenal, getStrategicArsenalCapacity } from '@/systems/strategic-arsenal-system';
 import { isSuperweaponsEnabled } from '@/systems/superweapons-flag';
 import { getEligibleStrategicLaunchPlatforms } from '@/systems/strategic-launch-system';
-import { hasArmsControlTreaty } from '@/systems/diplomacy-system';
+import { hasArmsControlTreaty } from '@/systems/diplomacy-treaties';
 import { getEffectiveTechCost, getTechById } from '@/systems/tech-system';
 import { PRE_V24_TECH_COST_BY_ID } from '@/storage/research-cost-migration-v24';
 

@@ -9,7 +9,8 @@ import {
   acceptSettlementOffer,
   getPendingSettlementOfferForPair,
 } from '@/systems/settlement-system';
-import { isAtWar, enqueuePeaceRequest } from '@/systems/diplomacy-system';
+import { isAtWar } from '@/systems/diplomacy-queries';
+import { enqueuePeaceRequest } from '@/systems/diplomacy-requests';
 import { makeWarGoalFixture } from './helpers/war-goal-fixture';
 import type { SettlementTerm } from '@/core/types';
 

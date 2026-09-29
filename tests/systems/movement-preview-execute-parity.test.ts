@@ -12,7 +12,7 @@ import type { GameMap, GameState, HexCoord } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
 import { createNewGame } from '@/core/game-state';
 import { hexKey } from '@/systems/hex-utils';
-import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { createDiplomacyState } from '@/systems/diplomacy-state';
 import { createEmptyPirateState } from '@/core/pirate-state';
 import { createUnit } from '@/systems/unit-system';
 import { getBlockingMapEntityAt } from '@/systems/unit-movement-legality';

@@ -1,28 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import {
-  acceptDiplomaticRequest,
-  applyDiplomaticAction,
-  createDiplomacyState,
-  enqueuePeaceRequest,
-  getRelationship,
-  getPendingPeaceRequestForPair,
-  modifyRelationship,
-  declareWar,
-  makePeace,
-  signTreaty,
-  breakTreaty,
-  processRelationshipDrift,
-  recordMilitaryAttack,
-  decayEvents,
-  getAvailableActions,
-  isAtWar,
-  hasAllianceTreaty,
-  hasArmsControlTreaty,
-  rejectDiplomaticRequest,
-  enqueueTreatyProposal,
-  pruneExpiredDiplomaticRequests,
-  proposeVassalage,
-} from '@/systems/diplomacy-system';
+import { getRelationship, isAtWar, hasAllianceTreaty, hasTreatyBetween } from '@/systems/diplomacy-queries';
+import { enqueuePeaceRequest, getPendingPeaceRequestForPair, enqueueTreatyProposal, pruneExpiredDiplomaticRequests } from '@/systems/diplomacy-requests';
+import { createDiplomacyState, modifyRelationship, processRelationshipDrift, decayEvents } from '@/systems/diplomacy-state';
+import { acceptDiplomaticRequest, applyDiplomaticAction, getAvailableActions, rejectDiplomaticRequest } from '@/systems/diplomacy-system';
+import { signTreaty, breakTreaty, hasArmsControlTreaty } from '@/systems/diplomacy-treaties';
+import { proposeVassalage } from '@/systems/diplomacy-vassalage';
+import { declareWar, makePeace, recordMilitaryAttack } from '@/systems/diplomacy-war';
 import { civilizationEraFromNumber } from '@/systems/era-types';
 import { EventBus } from '@/core/event-bus';
 import { createNewGame } from '@/core/game-state';
@@ -43,6 +26,43 @@ function makeWarState(): GameState {
 
 describe('diplomacy-system', () => {
   const civIds = ['player', 'ai-egypt', 'ai-rome'];
+
+  describe('treaty queries (#1011 seam)', () => {
+    function withTreaty(type: 'alliance' | 'open_borders', sides: Array<'player' | 'ai-1'>): GameState {
+      const state = createNewGame(undefined, 'treaty-query-test', 'small');
+      for (const side of sides) {
+        const other = side === 'player' ? 'ai-1' : 'player';
+        state.civilizations[side].diplomacy.treaties = [{ type, civA: side, civB: other, turnsRemaining: -1 }];
+      }
+      return state;
+    }
+
+    it('answers symmetrically regardless of argument order or which party signed as civA', () => {
+      const state = withTreaty('open_borders', ['player', 'ai-1']);
+      expect(hasTreatyBetween(state, 'player', 'ai-1', 'open_borders')).toBe(true);
+      expect(hasTreatyBetween(state, 'ai-1', 'player', 'open_borders')).toBe(true);
+    });
+
+    it('distinguishes treaty types: open borders is not an alliance and vice versa', () => {
+      const openBorders = withTreaty('open_borders', ['player', 'ai-1']);
+      expect(hasAllianceTreaty(openBorders, 'player', 'ai-1')).toBe(false);
+      const alliance = withTreaty('alliance', ['player', 'ai-1']);
+      expect(hasTreatyBetween(alliance, 'player', 'ai-1', 'open_borders')).toBe(false);
+      expect(hasAllianceTreaty(alliance, 'ai-1', 'player')).toBe(true);
+    });
+
+    it('reads either party\'s ledger, so one recorded side is enough (one shared semantic for every query)', () => {
+      const state = withTreaty('alliance', ['ai-1']);
+      expect(hasTreatyBetween(state, 'player', 'ai-1', 'alliance')).toBe(true);
+      expect(hasTreatyBetween(state, 'ai-1', 'player', 'alliance')).toBe(true);
+    });
+
+    it('is false for an unrelated third civ and for unknown civ ids', () => {
+      const state = withTreaty('alliance', ['player', 'ai-1']);
+      expect(hasTreatyBetween(state, 'player', 'ai-2', 'alliance')).toBe(false);
+      expect(hasTreatyBetween(state, 'nobody', 'ai-1', 'alliance')).toBe(false);
+    });
+  });
 
   describe('createDiplomacyState', () => {
     it('creates state with zero relationships', () => {

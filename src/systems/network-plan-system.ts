@@ -6,7 +6,7 @@ import type {
 } from '@/core/autonomy-state';
 import { createEmptyAutonomyCivState } from '@/core/autonomy-state';
 import type { GameState, LegendaryWonderNetworkPlanResolutionRecord } from '@/core/types';
-import { isAtWar } from '@/systems/diplomacy-system';
+import { isAtWar } from '@/systems/diplomacy-queries';
 import { hexDistance } from '@/systems/hex-utils';
 import { isAutonomyActivated as isAutonomyActivatedForCiv } from './autonomy-activation';
 import { getNetworkPlanDefinition, getNetworkPlanLoad, isConstructiveSpecialistPlan } from './network-plan-definitions';

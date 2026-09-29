@@ -6,7 +6,7 @@ import {
   presentMovementRejectionForViewer,
 } from '@/systems/unit-movement-explainer';
 import { createUnit } from '@/systems/unit-system';
-import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { createDiplomacyState } from '@/systems/diplomacy-state';
 import { hexKey } from '@/systems/hex-utils';
 import type { GameMap, GameState } from '@/core/types';
 import { resolveUnitMoveIntent } from '@/systems/unit-movement-validation';

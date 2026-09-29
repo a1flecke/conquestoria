@@ -1,6 +1,6 @@
 /**
  * #901 target-side treaty/peace consent policy. Deliberately a **cycle-free
- * leaf** (imports only `@/core/types`) so `diplomacy-system.ts` can call it
+ * leaf** (imports only `@/core/types`) so `diplomacy-system.ts` and `diplomacy-vassalage.ts` can call it
  * without an import cycle -- the plan's stated architecture. Pure functions of
  * relationship + personality + already-known strategic capability: no
  * `GameState`, no RNG, no difficulty input (Explorer / Standard / Veteran

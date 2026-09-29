@@ -1,5 +1,5 @@
 import type { Civilization, GameMap, GameState, HexCoord, Unit } from '@/core/types';
-import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { createDiplomacyState } from '@/systems/diplomacy-state';
 import { createTechState } from '@/systems/tech-system';
 
 interface AutoExploreFixtureOptions {

@@ -4,7 +4,7 @@ import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { buildUnitOccupancy, getStackRelationship } from '@/systems/unit-occupancy';
 import { getMovementRange, getBlockingMapEntityKeys, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getEmbarkedAssaultTarget } from '@/systems/transport-system';
-import { hasAllianceTreaty } from '@/systems/diplomacy-system';
+import { hasAllianceTreaty } from '@/systems/diplomacy-queries';
 
 export type SelectedUnitTapIntent =
   | { kind: 'move' }

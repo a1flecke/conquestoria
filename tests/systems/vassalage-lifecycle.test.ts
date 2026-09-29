@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { EventBus } from '@/core/event-bus';
-import { applyDiplomaticAction, acceptDiplomaticRequest, rejectDiplomaticRequest, processVassalageTribute } from '@/systems/diplomacy-system';
+import { applyDiplomaticAction, acceptDiplomaticRequest, rejectDiplomaticRequest } from '@/systems/diplomacy-system';
+import { processVassalageTribute } from '@/systems/diplomacy-vassal-rules';
 import { makeVassalageFixture } from './helpers/vassalage-fixture';
 import type { GameState } from '@/core/types';
 

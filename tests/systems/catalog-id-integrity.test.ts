@@ -1,12 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { TECH_TREE } from '@/systems/tech-definitions';
-import {
-  TRADE_TECHS,
-  ALLIANCE_TECHS,
-  NAP_TECHS,
-  EMBARGO_TECHS,
-  WRITING_TECHS,
-} from '@/systems/diplomacy-system';
+import { TRADE_TECHS, ALLIANCE_TECHS, NAP_TECHS } from '@/systems/diplomacy-actions';
+import { EMBARGO_TECHS } from '@/systems/diplomacy-embargoes';
+import { WRITING_TECHS } from '@/systems/diplomacy-leagues';
 import { ESPIONAGE_TECH_MAX_SPIES } from '@/systems/espionage-system';
 import { MELEE_RANGED_UNIT_TYPES, BUILDINGS } from '@/systems/city-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';

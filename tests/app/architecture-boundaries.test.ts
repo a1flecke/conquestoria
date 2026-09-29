@@ -630,3 +630,143 @@ describe('#1002 — player-facing modules stay behind the viewer projection', ()
   });
 });
 
+
+describe('#1011 — diplomacy decomposition boundaries', () => {
+  const srcRoot = resolve(__dirname, '../../src');
+  const sys = resolve(srcRoot, 'systems');
+  const strip = (source: string) => source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  const readSys = (name: string) => strip(readFileSync(resolve(sys, `${name}.ts`), 'utf8'));
+
+  /**
+   * Explicit layering: each diplomacy domain module -> the diplomacy modules it
+   * may import. Everything below `diplomacy-system` (the integration layer, which
+   * may import all of them) may only point down this table.
+   */
+  const ALLOWED: Record<string, string[]> = {
+    'diplomacy-queries': [],
+    'diplomacy-state': [],
+    'diplomacy-leagues': [],
+    'diplomacy-embargoes': [],
+    'diplomacy-requests': [],
+    'diplomacy-treachery': ['diplomacy-state'],
+    'diplomacy-vassal-rules': ['diplomacy-state', 'diplomacy-treachery', 'diplomacy-leagues', 'diplomacy-queries'],
+    'diplomacy-war': ['diplomacy-state', 'diplomacy-treachery', 'diplomacy-queries', 'diplomacy-vassal-rules'],
+    'diplomacy-treaties': ['diplomacy-state', 'diplomacy-queries'],
+    'diplomacy-actions': ['diplomacy-queries', 'diplomacy-vassal-rules'],
+    'diplomacy-vassalage': [
+      'diplomacy-state', 'diplomacy-queries', 'diplomacy-treachery', 'diplomacy-requests',
+      'diplomacy-vassal-rules', 'diplomacy-war',
+    ],
+  };
+  const DOMAIN_MODULES = Object.keys(ALLOWED);
+
+  /** Every diplomacy-* module a file imports (either `@/systems/x` or `./x`). */
+  function diplomacyImportsOf(name: string): string[] {
+    return [...readSys(name).matchAll(/from\s+'(?:@\/systems\/|\.\/)(diplomacy-[a-z-]+)'/g)].map(m => m[1]);
+  }
+
+  it('each domain module only imports diplomacy modules that sit below it', () => {
+    for (const mod of DOMAIN_MODULES) {
+      const bad = diplomacyImportsOf(mod).filter(dep => !ALLOWED[mod].includes(dep));
+      expect(bad, `${mod} imports ${bad.join(', ')}`).toEqual([]);
+    }
+  });
+
+  it('no domain module imports the diplomacy-system integration layer', () => {
+    for (const mod of DOMAIN_MODULES) {
+      expect(diplomacyImportsOf(mod), `${mod} must not import the integration module`).not.toContain('diplomacy-system');
+    }
+  });
+
+  it('the domain modules (plus the integration layer) form an acyclic import graph', () => {
+    const graph = new Map<string, string[]>([
+      ...DOMAIN_MODULES.map(m => [m, diplomacyImportsOf(m)] as [string, string[]]),
+      ['diplomacy-system', diplomacyImportsOf('diplomacy-system')],
+    ]);
+    const state = new Map<string, 'visiting' | 'done'>();
+    const stack: string[] = [];
+    const cycles: string[] = [];
+    const visit = (n: string) => {
+      if (state.get(n) === 'done') return;
+      if (state.get(n) === 'visiting') { cycles.push([...stack.slice(stack.indexOf(n)), n].join(' → ')); return; }
+      state.set(n, 'visiting');
+      stack.push(n);
+      for (const dep of graph.get(n) ?? []) visit(dep);
+      stack.pop();
+      state.set(n, 'done');
+    };
+    for (const n of graph.keys()) visit(n);
+    expect(cycles, cycles.join('\n')).toEqual([]);
+  });
+
+  it('the read-only query seam is a types-only leaf (movement/supply/AI consume it without the integration graph)', () => {
+    const src = readSys('diplomacy-queries');
+    const runtimeImports = [...src.matchAll(/^import\s+(?!type\b)[^;]*from\s+'([^']+)'/gm)].map(m => m[1]);
+    expect(runtimeImports).toEqual([]);
+    expect(diplomacyImportsOf('diplomacy-queries')).toEqual([]);
+    // No state-writing function belongs in the query seam.
+    expect(src).not.toMatch(/\bexport function (modify|declare|make|sign|break|commit|enqueue|apply)\w*/);
+  });
+
+  it('diplomacy-system.ts keeps exactly the audited public surface (single-side building blocks and every read are excluded)', async () => {
+    const mod = await import('@/systems/diplomacy-system');
+    expect(Object.keys(mod).sort()).toEqual([
+      'acceptDiplomaticRequest',
+      'applyDiplomaticAction',
+      'applyVassalageWarConsequences',
+      'canReabsorbBreakaway',
+      'declareMajorWar',
+      'getAvailableActions',
+      'makeMajorPeace',
+      'proposeTreatyAgreement',
+      'rejectDiplomaticRequest',
+    ]);
+  });
+
+  /** Names a src file (outside the diplomacy-* modules) imports from a given diplomacy module. */
+  function externalNamedImports(moduleName: string): Map<string, string[]> {
+    const byName = new Map<string, string[]>();
+    const walkTs = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
+      const full = resolve(dir, entry.name);
+      if (entry.isDirectory()) return walkTs(full);
+      return /\.tsx?$/.test(entry.name) ? [full] : [];
+    });
+    const re = new RegExp(`import\\s+(?:type\\s+)?\\{([^}]*)\\}\\s+from\\s+'(?:@/systems/|\\./)${moduleName}'`, 'g');
+    for (const file of walkTs(srcRoot)) {
+      const rel = file.slice(srcRoot.length + 1);
+      if (rel.startsWith('systems/diplomacy-')) continue;
+      const source = strip(readFileSync(file, 'utf8'));
+      for (const m of source.matchAll(re)) {
+        for (const raw of m[1].split(',')) {
+          const name = raw.trim().replace(/^type\s+/, '').split(/\s+as\s+/)[0];
+          if (!name) continue;
+          byName.set(name, [...(byName.get(name) ?? []), rel]);
+        }
+      }
+    }
+    return byName;
+  }
+
+  it('single-side war/peace/treaty building blocks are imported only by their sanctioned callers (#995 / #1003, structural)', () => {
+    const war = externalNamedImports('diplomacy-war');
+    const sanctionedMinorCivWar = ['systems/minor-civ-actions.ts', 'systems/minor-civ-coalition-system.ts'];
+    for (const name of ['declareWar', 'makePeace']) {
+      const importers = (war.get(name) ?? []).sort();
+      for (const importer of importers) expect(sanctionedMinorCivWar, `${name} imported by ${importer}`).toContain(importer);
+    }
+    expect(war.get('addWarPair') ?? [], 'addWarPair is diplomacy-internal').toEqual([]);
+    const treaties = externalNamedImports('diplomacy-treaties');
+    for (const importer of treaties.get('signTreaty') ?? []) {
+      expect(importer).toBe('testing/scenario-steps/diplomacy-step.ts');
+    }
+  });
+
+  it('only the integration layer and diplomacy-vassalage import addWarPair', () => {
+    for (const mod of DOMAIN_MODULES) {
+      const src = readSys(mod);
+      const importsIt = /import\s*\{[^}]*\baddWarPair\b[^}]*\}\s*from/.test(src);
+      if (mod !== 'diplomacy-vassalage') expect(importsIt, `${mod} must not import addWarPair`).toBe(false);
+    }
+    expect(/\baddWarPair\b/.test(readSys('diplomacy-system'))).toBe(false);
+  });
+});

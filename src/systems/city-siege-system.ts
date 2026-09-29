@@ -5,7 +5,7 @@ import { getCityDefenseBreakdown } from '@/systems/combat-system';
 import { getVeterancyCombatModifier } from '@/systems/combat-reward-system';
 import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { isAlwaysHostilePair } from '@/core/owner-kind';
-import { isAtWar } from '@/systems/diplomacy-system';
+import { isAtWar } from '@/systems/diplomacy-queries';
 import { getRiverDefensePenalty, isRiverBetween } from '@/systems/river-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 

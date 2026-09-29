@@ -42,23 +42,16 @@ import { declareWarGoal, getWarGoalStatus } from '@/systems/war-goal-system';
 import { getRivalryProfile } from '@/systems/rivalry-system';
 import { proposeSettlement } from '@/systems/settlement-system';
 
-import {
-  declareMajorWar,
-  proposeTreatyAgreement,
-  modifyRelationship,
-  recordSpyCaught,
-  getRelationship,
-  proposeVassalage,
-  getVassalageEligibility,
-  getVassalageMilitaryCount,
-  joinEmbargo,
-  inviteToLeague,
-  getAvailableActions,
-  getPendingPeaceRequestForPair,
-  hasPendingTreatyProposalBetween,
-  resolveOpponentKind,
-  hasArmsControlTreaty,
-} from '@/systems/diplomacy-system';
+import { joinEmbargo } from '@/systems/diplomacy-embargoes';
+import { inviteToLeague } from '@/systems/diplomacy-leagues';
+import { getRelationship } from '@/systems/diplomacy-queries';
+import { getPendingPeaceRequestForPair, hasPendingTreatyProposalBetween } from '@/systems/diplomacy-requests';
+import { modifyRelationship, recordSpyCaught } from '@/systems/diplomacy-state';
+import { declareMajorWar, proposeTreatyAgreement, getAvailableActions } from '@/systems/diplomacy-system';
+import { hasArmsControlTreaty } from '@/systems/diplomacy-treaties';
+import { getVassalageEligibility, getVassalageMilitaryCount } from '@/systems/diplomacy-vassal-rules';
+import { proposeVassalage } from '@/systems/diplomacy-vassalage';
+import { resolveOpponentKind } from '@/systems/diplomacy-war';
 import { buildDominationKnowledge } from '@/systems/domination-knowledge';
 import {
   chooseDominationCounterplayDiplomacyAction,
@@ -137,7 +130,7 @@ import { processAIResourceMarketplace } from './ai-resource-marketplace';
 import { getCrisisRestoreAssignments } from './ai-crisis-response';
 import { applyWorkerAction, getWorkerChargesRemaining } from '@/systems/worker-action-system';
 import { applyPillageToState, canPillageTile } from '@/systems/pillage-system';
-import { isAtWar } from '@/systems/diplomacy-system';
+import { isAtWar } from '@/systems/diplomacy-queries';
 import { getAvailableWorkerActions, getKnownTileResourceForWorkerAction } from '@/systems/improvement-system';
 import { chooseRoadBuilderUnit } from '@/systems/road-network';
 import { canBuildRoad } from '@/systems/road-system';

@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createNewGame } from '@/core/game-state';
 import type { GameState } from '@/core/types';
-import { getAvailableActions, hasArmsControlTreaty } from '@/systems/diplomacy-system';
+import { getAvailableActions } from '@/systems/diplomacy-system';
+import { hasArmsControlTreaty } from '@/systems/diplomacy-treaties';
 import { evaluateDiplomacy } from '@/ai/ai-diplomacy';
 import { NATIONAL_INTENT_POSTURE } from '@/ai/ai-national-intent';
 import { resolveCivilizationEra, resolveWorldAge, TECH_TREE } from '@/systems/tech-definitions';
@@ -247,6 +248,8 @@ describe('#1027 — diplomacy action gates must use the acting civ\'s own era', 
 
 describe('#1027 — the diplomacy era-gate stays fixed', () => {
   const DIPLOMACY_FILES = [
+    resolve(__dirname, '../../src/systems/diplomacy-actions.ts'),
+    resolve(__dirname, '../../src/systems/diplomacy-vassal-rules.ts'),
     resolve(__dirname, '../../src/systems/diplomacy-system.ts'),
     resolve(__dirname, '../../src/ai/ai-diplomacy.ts'),
     resolve(__dirname, '../../src/ai/basic-ai.ts'),
@@ -259,7 +262,7 @@ describe('#1027 — the diplomacy era-gate stays fixed', () => {
   }
 
   it('getAvailableActions takes a required DiplomacyActionContext, not a bare era number', () => {
-    const source = readFileSync(resolve(__dirname, '../../src/systems/diplomacy-system.ts'), 'utf8');
+    const source = readFileSync(resolve(__dirname, '../../src/systems/diplomacy-actions.ts'), 'utf8');
     expect(source).toMatch(/export function getAvailableActions\(\s*state: DiplomacyState,\s*targetCivId: string,\s*context: DiplomacyActionContext,/);
   });
 

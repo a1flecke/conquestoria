@@ -2,12 +2,8 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { createDiplomacyPanel } from '@/ui/diplomacy-panel';
-import {
-  acceptDiplomaticRequest,
-  enqueuePeaceRequest,
-  enqueueTreatyProposal,
-  rejectDiplomaticRequest,
-} from '@/systems/diplomacy-system';
+import { enqueuePeaceRequest, enqueueTreatyProposal } from '@/systems/diplomacy-requests';
+import { acceptDiplomaticRequest, rejectDiplomaticRequest } from '@/systems/diplomacy-system';
 import { EventBus } from '@/core/event-bus';
 import { declareWarGoal } from '@/systems/war-goal-system';
 import { declareWarRecord } from '@/systems/war-history-system';

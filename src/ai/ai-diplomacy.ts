@@ -1,11 +1,8 @@
 import type { PersonalityTraits, DiplomacyState, DiplomaticAction, MinorCivState, WarGoalStatus } from '@/core/types';
 import type { CivilizationEra } from '@/systems/era-types';
-import {
-  getRelationship,
-  isAtWar,
-  getAvailableActions,
-  canOfferVassalage,
-} from '@/systems/diplomacy-system';
+import { getRelationship, isAtWar } from '@/systems/diplomacy-queries';
+import { getAvailableActions } from '@/systems/diplomacy-system';
+import { canOfferVassalage } from '@/systems/diplomacy-vassal-rules';
 import { shouldDeclareWar } from './ai-personality';
 import type { NationalIntentPosture } from './ai-national-intent';
 import type { MilitaryStrengthEstimate } from './ai-strength';

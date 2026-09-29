@@ -7,7 +7,8 @@ import {
   getRivalryForViewer,
   getRivalriesForViewer,
 } from '@/systems/rivalry-system';
-import { declareMajorWar, makeMajorPeace, signTreaty } from '@/systems/diplomacy-system';
+import { declareMajorWar, makeMajorPeace } from '@/systems/diplomacy-system';
+import { signTreaty } from '@/systems/diplomacy-treaties';
 import { resolveMajorCityCapture } from '@/systems/city-capture-system';
 import { eliminateCivilization } from '@/systems/civilization-elimination-system';
 import { EventBus } from '@/core/event-bus';

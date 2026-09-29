@@ -1,5 +1,6 @@
 import type { GameState } from '@/core/types';
-import { declareMajorWar, makeMajorPeace, signTreaty } from '@/systems/diplomacy-system';
+import { declareMajorWar, makeMajorPeace } from '@/systems/diplomacy-system';
+import { signTreaty } from '@/systems/diplomacy-treaties';
 import { ScenarioError, type DiplomacyStep } from '@/testing/scenario-types';
 
 const ALLIANCE_TURNS_REMAINING = 999; // scenarios don't tick turns; effectively permanent

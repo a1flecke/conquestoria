@@ -1,5 +1,5 @@
 import type { City, GameState, HexCoord } from '@/core/types';
-import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { createDiplomacyState } from '@/systems/diplomacy-state';
 import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 
 function makeTile(coord: HexCoord, owner: string | null, overrides: Partial<GameState['map']['tiles'][string]> = {}) {

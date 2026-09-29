@@ -11,7 +11,8 @@ import { describe, it, expect, vi } from 'vitest';
 import type { GameState } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
 import { createNewGame } from '@/core/game-state';
-import { getAvailableActions, applyDiplomaticAction, hasArmsControlTreaty } from '@/systems/diplomacy-system';
+import { getAvailableActions, applyDiplomaticAction } from '@/systems/diplomacy-system';
+import { hasArmsControlTreaty } from '@/systems/diplomacy-treaties';
 import { resolveCivilizationEra, TECH_TREE } from '@/systems/tech-definitions';
 import { assertPreviewExecutable } from '../helpers/preview-execute-parity';
 

@@ -1,6 +1,7 @@
 import type { EventBus } from '@/core/event-bus';
 import type { GameState, WarGoal, WarGoalKind, WarGoalStatus } from '@/core/types';
-import { isAtWar, applyTreachery, broadcastTreacheryPenalty } from '@/systems/diplomacy-system';
+import { isAtWar } from '@/systems/diplomacy-queries';
+import { applyTreachery, broadcastTreacheryPenalty } from '@/systems/diplomacy-treachery';
 import { recordGoalDeclared } from '@/systems/war-history-system';
 
 export const WAR_GOAL_KINDS: readonly WarGoalKind[] = ['conquer_city', 'liberate_city', 'force_vassalage'];

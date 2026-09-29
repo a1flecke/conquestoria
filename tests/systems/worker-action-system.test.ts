@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { City, GameState, HexTile, Unit } from '@/core/types';
 import { recalculateTerritory } from '@/systems/city-territory-system';
-import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { createDiplomacyState } from '@/systems/diplomacy-state';
 import { applyWorkerAction, clearCompletedWorkerTasksForImprovement, getWorkerChargesRemaining } from '@/systems/worker-action-system';
 import { getAvailableWorkerActions } from '@/systems/improvement-system';
 

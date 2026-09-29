@@ -2,17 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { createNewGame, createHotSeatGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import type { GameState, DiplomacyState } from '@/core/types';
-import {
-  declareMajorWar,
-  makeMajorPeace,
-  acceptVassalage,
-  applyVassalageWarConsequences,
-  proposeTreatyAgreement,
-  acceptDiplomaticRequest,
-  enqueuePeaceRequest,
-  releaseVassal,
-  isAtWar,
-} from '@/systems/diplomacy-system';
+import { isAtWar } from '@/systems/diplomacy-queries';
+import { enqueuePeaceRequest } from '@/systems/diplomacy-requests';
+import { declareMajorWar, makeMajorPeace, applyVassalageWarConsequences, proposeTreatyAgreement, acceptDiplomaticRequest } from '@/systems/diplomacy-system';
+import { acceptVassalage } from '@/systems/diplomacy-vassal-rules';
+import { releaseVassal } from '@/systems/diplomacy-vassalage';
 import { setMinorCivWarState } from '@/systems/minor-civ-actions';
 import { normalizeLoadedState } from '@/storage/save-manager';
 import { assertBilateralWar } from '../helpers/save-state-invariants';

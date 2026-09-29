@@ -2,12 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import type { GameState } from '@/core/types';
-import {
-  declareMajorWar,
-  makeMajorPeace,
-  acceptVassalage,
-  isAtWar,
-} from '@/systems/diplomacy-system';
+import { isAtWar } from '@/systems/diplomacy-queries';
+import { declareMajorWar, makeMajorPeace } from '@/systems/diplomacy-system';
+import { acceptVassalage } from '@/systems/diplomacy-vassal-rules';
 import { applyDiplomacyStep } from '@/testing/scenario-steps/diplomacy-step';
 import { normalizeBilateralWar } from '@/storage/migrations/steps/bilateral-war';
 import { normalizeLoadedState } from '@/storage/save-manager';

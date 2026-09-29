@@ -7,7 +7,7 @@ import type {
 } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
 import { applyResearchBonus } from './tech-system';
-import { modifyRelationship } from './diplomacy-system';
+import { modifyRelationship } from './diplomacy-state';
 import { isMinorCivAtWar } from './minor-civ-diplomacy';
 import { createUnit } from './unit-system';
 import { hexKey, hexNeighbors } from './hex-utils';

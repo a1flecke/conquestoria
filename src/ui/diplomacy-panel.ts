@@ -1,16 +1,10 @@
 import { createVassalageControls } from '@/ui/vassalage-controls';
 import type { GameState, DiplomaticAction, SettlementTerm, TreatyType, WarGoalKind } from '@/core/types';
-import {
-  canReabsorbBreakaway,
-  getRelationship,
-  isAtWar,
-  isVassalBlocked,
-  getAvailableActions,
-  getPendingPeaceRequestForPair,
-  getPendingTreatyProposalsFor,
-  hasArmsControlTreaty,
-  PENDING_DIPLOMATIC_REQUEST_TTL_TURNS,
-} from '@/systems/diplomacy-system';
+import { getRelationship, isAtWar } from '@/systems/diplomacy-queries';
+import { getPendingPeaceRequestForPair, getPendingTreatyProposalsFor, PENDING_DIPLOMATIC_REQUEST_TTL_TURNS } from '@/systems/diplomacy-requests';
+import { canReabsorbBreakaway, getAvailableActions } from '@/systems/diplomacy-system';
+import { hasArmsControlTreaty } from '@/systems/diplomacy-treaties';
+import { isVassalBlocked } from '@/systems/diplomacy-vassal-rules';
 import { describeWarGoalLabel } from '@/systems/war-goal-system';
 import { getPendingSettlementOfferForPair } from '@/systems/settlement-system';
 import { findActiveWarBetween } from '@/systems/war-history-system';

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { City, GameMap, GameState, HexCoord, HexTile, Unit } from '@/core/types';
-import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { createDiplomacyState } from '@/systems/diplomacy-state';
 import { hexKey } from '@/systems/hex-utils';
 import { BLOCKING_MAP_ENTITY_MESSAGES } from '@/systems/unit-system';
 import {

@@ -1,11 +1,8 @@
 // tests/systems/diplomacy-negative.test.ts
 import { describe, it, expect } from 'vitest';
-import {
-  canOfferVassalage,
-  canProposeEmbargo,
-  canProposeLeague,
-  isVassalBlocked,
-} from '@/systems/diplomacy-system';
+import { canProposeEmbargo } from '@/systems/diplomacy-embargoes';
+import { canProposeLeague } from '@/systems/diplomacy-leagues';
+import { canOfferVassalage, isVassalBlocked } from '@/systems/diplomacy-vassal-rules';
 import { civilizationEraFromNumber } from '@/systems/era-types';
 
 describe('negative tests — blocked actions', () => {

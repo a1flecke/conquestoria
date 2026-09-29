@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { EventBus } from '@/core/event-bus';
 import { processCrisisTurn } from '@/systems/crisis-system';
-import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { createDiplomacyState } from '@/systems/diplomacy-state';
 import { hexesInRange, hexKey, hexDistance } from '@/systems/hex-utils';
 import { BEAST_OWNER } from '@/systems/beast-system';
 import type { ActiveCrisis, City, GameState, HexCoord, HexTile, OpponentChallenge } from '@/core/types';

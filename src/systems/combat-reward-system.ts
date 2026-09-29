@@ -15,7 +15,8 @@ import {
   destroyPirateFaction,
   type PirateActionEvent,
 } from '@/systems/pirate-actions';
-import { recordMilitaryAttack, applyVassalageWarConsequences } from './diplomacy-system';
+import { applyVassalageWarConsequences } from './diplomacy-system';
+import { recordMilitaryAttack } from './diplomacy-war';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
 import { resolveBoundedSplash } from '@/systems/combat-system';
 import { recordCampPressureFromCombatOutcome } from '@/systems/barbarian-pressure';

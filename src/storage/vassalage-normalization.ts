@@ -1,5 +1,6 @@
 import type { GameState, PendingDiplomaticRequest, VassalageState } from '@/core/types';
-import { PENDING_DIPLOMATIC_REQUEST_TTL_TURNS, VASSALAGE_PROTECTION_TURNS } from '@/systems/diplomacy-system';
+import { PENDING_DIPLOMATIC_REQUEST_TTL_TURNS } from '@/systems/diplomacy-requests';
+import { VASSALAGE_PROTECTION_TURNS } from '@/systems/diplomacy-vassal-rules';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 
 function count(value: unknown, fallback = 0): number {
