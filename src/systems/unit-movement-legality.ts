@@ -9,10 +9,11 @@ import { hasAllianceTreaty } from './diplomacy-queries';
  * unallied city, a barbarian camp, an intact pirate coastal-enclave anchor.
  *
  * This module MUST NOT import pathfinding, the movement-queries module, or the
- * cost module. Territorial access (#870 / #871) is added here as a new
- * `BlockingMapEntity['reason']` variant plus a predicate — `getBlockingMapEntityAt`
- * / `getBlockingMapEntityKeys` / `BLOCKING_MAP_ENTITY_MESSAGES` then pick it up
- * for free.
+ * cost module. Territorial access (#871) is deliberately NOT a `BlockingMapEntity`
+ * variant: a blocker is a physical occupant of one tile, sovereignty is a standing
+ * permission over every tile a polity owns. It is a peer predicate in
+ * `territorial-access.ts` (its reason code, `'closed-border'`, lives in
+ * `UnitMovementBlockerCode` above so the resolver's rejection channel stays one type).
  */
 export type UnitMovementBlockerCode =
   | 'unknown-tile'
@@ -24,6 +25,8 @@ export type UnitMovementBlockerCode =
   | 'foreign-city'
   | 'barbarian-camp'
   | 'pirate-enclave'
+  // #871: a peaceful sovereign's closed border (see `territorial-access.ts`). Not a map entity.
+  | 'closed-border'
   | 'unreachable'
   | 'insufficient-movement';
 

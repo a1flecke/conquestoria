@@ -2,6 +2,7 @@ import type { EventBus } from '@/core/event-bus';
 import type { CombatResult, GameState, HexCoord, Unit } from '@/core/types';
 import { getAirBaseKind, getAirBaseRoster, selectInterceptor } from '@/systems/air-operations-system';
 import { UNIT_DEFINITIONS, getMovementCostForUnit, getBlockingMapEntityAt, getBlockingMapEntityKeys, BLOCKING_MAP_ENTITY_MESSAGES } from '@/systems/unit-system';
+import { getDeniedTerritoryOwners, getTerritorialAccessDenial, isTileDeniedBy, TERRITORIAL_ACCESS_MESSAGE } from '@/systems/territorial-access';
 import { isVisible } from '@/systems/fog-of-war';
 import { buildUnitOccupancy, getUnitIdsAtCoord } from '@/systems/unit-occupancy';
 import { hexKey, hexesInRange, getWrappedHexesInRange, hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
@@ -20,7 +21,7 @@ import { isHostileOwnerTo } from '@/systems/owner-hostility';
 export type ParadropFailureReason =
   | 'not-airborne-unit' | 'no-launch-base' | 'already-acted'
   | 'out-of-range' | 'unexplored' | 'impassable-terrain'
-  | 'destination-occupied' | 'foreign-city' | 'barbarian-camp' | 'pirate-enclave';
+  | 'destination-occupied' | 'foreign-city' | 'barbarian-camp' | 'pirate-enclave' | 'closed-border';
 
 export type ParadropLaunchState =
   | { ok: true }
@@ -38,6 +39,8 @@ export const PARADROP_FAILURE_MESSAGES: Record<ParadropFailureReason, string> = 
   'foreign-city': BLOCKING_MAP_ENTITY_MESSAGES['foreign-city'],
   'barbarian-camp': BLOCKING_MAP_ENTITY_MESSAGES['barbarian-camp'],
   'pirate-enclave': BLOCKING_MAP_ENTITY_MESSAGES['pirate-enclave'],
+  // #871: an armed paratrooper is a border-obeying mover the moment it lands.
+  'closed-border': TERRITORIAL_ACCESS_MESSAGE,
 };
 
 function paradropDistance(state: GameState, from: HexCoord, to: HexCoord): number {
@@ -76,6 +79,7 @@ function isLegalAirborneLandingTile(
   coord: HexCoord,
   occupancy: ReturnType<typeof buildUnitOccupancy>,
   blockingKeys: ReadonlySet<string>,
+  deniedOwnerIds: ReadonlySet<string>,
 ): boolean {
   const visibility = state.civilizations[unit.owner]?.visibility;
   if (visibility && !isVisible(visibility, coord)) return false;
@@ -86,6 +90,8 @@ function isLegalAirborneLandingTile(
   // Canonical hostile-structure gate (#970): a foreign city, a barbarian camp,
   // or a pirate coastal-enclave anchor is never a legal landing tile.
   if (blockingKeys.has(key)) return false;
+  // #871: and never onto a peaceful sovereign's closed territory (same denied set the walk uses).
+  if (isTileDeniedBy(deniedOwnerIds, tile)) return false;
   return true;
 }
 
@@ -96,11 +102,12 @@ export function getParadropTargets(state: GameState, unitId: string): HexCoord[]
   const capability = UNIT_DEFINITIONS[unit.type].paradrop!;
   const occupancy = buildUnitOccupancy(state.units);
   const blockingKeys = getBlockingMapEntityKeys(state, unit);
+  const deniedOwnerIds = getDeniedTerritoryOwners(state, unit);
   const candidates = state.map.wrapsHorizontally
     ? getWrappedHexesInRange(unit.position, capability.range, state.map.width)
     : hexesInRange(unit.position, capability.range);
 
-  return candidates.filter(coord => isLegalAirborneLandingTile(state, unit, coord, occupancy, blockingKeys));
+  return candidates.filter(coord => isLegalAirborneLandingTile(state, unit, coord, occupancy, blockingKeys, deniedOwnerIds));
 }
 
 export function canParadrop(state: GameState, unitId: string, destination: HexCoord): { ok: true } | { ok: false; reason: ParadropFailureReason } {
@@ -120,6 +127,7 @@ export function canParadrop(state: GameState, unitId: string, destination: HexCo
   if (getUnitIdsAtCoord(occupancy, destination).length > 0) return { ok: false, reason: 'destination-occupied' };
   const blocker = getBlockingMapEntityAt(state, unit, destination);
   if (blocker) return { ok: false, reason: blocker.reason };
+  if (getTerritorialAccessDenial(state, unit, destination)) return { ok: false, reason: 'closed-border' };
 
   // Cross-check against getParadropTargets rather than trusting the individual
   // checks above to stay in sync forever -- if the two diverge, out-of-range
@@ -132,7 +140,7 @@ export function canParadrop(state: GameState, unitId: string, destination: HexCo
 export type AirAssaultFailureReason =
   | 'not-eligible-passenger' | 'no-launch-base' | 'no-launch-helicopter' | 'already-acted'
   | 'out-of-range' | 'unexplored' | 'impassable-terrain'
-  | 'destination-occupied' | 'foreign-city' | 'barbarian-camp' | 'pirate-enclave';
+  | 'destination-occupied' | 'foreign-city' | 'barbarian-camp' | 'pirate-enclave' | 'closed-border';
 
 export const AIR_ASSAULT_FAILURE_MESSAGES: Record<AirAssaultFailureReason, string> = {
   'not-eligible-passenger': 'This unit cannot be air-assaulted.',
@@ -147,6 +155,8 @@ export const AIR_ASSAULT_FAILURE_MESSAGES: Record<AirAssaultFailureReason, strin
   'foreign-city': BLOCKING_MAP_ENTITY_MESSAGES['foreign-city'],
   'barbarian-camp': BLOCKING_MAP_ENTITY_MESSAGES['barbarian-camp'],
   'pirate-enclave': BLOCKING_MAP_ENTITY_MESSAGES['pirate-enclave'],
+  // #871: an armed paratrooper is a border-obeying mover the moment it lands.
+  'closed-border': TERRITORIAL_ACCESS_MESSAGE,
 };
 
 function findLaunchCity(state: GameState, unit: Unit) {
@@ -193,11 +203,12 @@ export function getAirAssaultTargets(state: GameState, unitId: string): HexCoord
   const range = airAssaultRange(state, launchCity.id);
   const occupancy = buildUnitOccupancy(state.units);
   const blockingKeys = getBlockingMapEntityKeys(state, unit);
+  const deniedOwnerIds = getDeniedTerritoryOwners(state, unit);
   const candidates = state.map.wrapsHorizontally
     ? getWrappedHexesInRange(unit.position, range, state.map.width)
     : hexesInRange(unit.position, range);
 
-  return candidates.filter(coord => isLegalAirborneLandingTile(state, unit, coord, occupancy, blockingKeys));
+  return candidates.filter(coord => isLegalAirborneLandingTile(state, unit, coord, occupancy, blockingKeys, deniedOwnerIds));
 }
 
 export function canAirAssault(state: GameState, unitId: string, destination: HexCoord): { ok: true; helicopterId: string } | { ok: false; reason: AirAssaultFailureReason } {
@@ -218,6 +229,7 @@ export function canAirAssault(state: GameState, unitId: string, destination: Hex
   if (getUnitIdsAtCoord(occupancy, destination).length > 0) return { ok: false, reason: 'destination-occupied' };
   const blocker = getBlockingMapEntityAt(state, unit, destination);
   if (blocker) return { ok: false, reason: blocker.reason };
+  if (getTerritorialAccessDenial(state, unit, destination)) return { ok: false, reason: 'closed-border' };
 
   const inTargets = getAirAssaultTargets(state, unitId).some(t => hexKey(t) === hexKey(destination));
   if (!inTargets) return { ok: false, reason: 'out-of-range' };

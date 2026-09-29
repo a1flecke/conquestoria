@@ -22,6 +22,7 @@ import { declareWarRecord, recordParticipantLeft } from '@/systems/war-history-s
 import { modifyRelationship, withDiplomacy } from '@/systems/diplomacy-state';
 import { applyTreachery } from '@/systems/diplomacy-treachery';
 import { isAtWar } from '@/systems/diplomacy-queries';
+import { emitAccessLossNotices } from '@/systems/territorial-access';
 import { getActiveVassalIds, hasActiveVassalage, onVassalAttacked } from '@/systems/diplomacy-vassal-rules';
 
 export function resolveOpponentKind(civId: string): 'major' | 'minor' | 'barbarian' {
@@ -251,6 +252,9 @@ export function makeMajorPeace(state: GameState, aId: string, bId: string, bus?:
       }
     }
   }
+  // #871: war granted passage; peace ends it. Units left inside the other side's land are told
+  // (once, at the transition) -- they may leave but not re-enter.
+  emitAccessLossNotices(state, next, bus);
   return next;
 }
 

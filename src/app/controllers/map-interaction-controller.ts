@@ -66,6 +66,7 @@ import { createTerritoryInspectionPanel } from '@/ui/territory-inspection-panel'
 import { getVisibility } from '@/systems/fog-of-war';
 import { getLastStandPreview, issueLastStand } from '@/systems/great-general-abilities';
 import { createLastStandPanel } from '@/ui/general-command-panel';
+import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
 
 /** The narrow slice of `RenderLoop` this controller needs. */
 export type MapInteractionRenderer = Pick<RenderLoop, 'setGameState' | 'animateUnitAppear'> & {
@@ -139,7 +140,7 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
             if (unit) {
               const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
               const completedTechs = session.getState().civilizations[unit.owner]?.techState.completed ?? [];
-              const path = findPath(unit.position, coord, session.getState().map, domain, { unit, completedTechs });
+              const path = findPath(unit.position, coord, session.getState().map, domain, { unit, completedTechs, deniedOwnerIds: getDeniedTerritoryOwners(session.getState(), unit) });
               if (!path || path.length < 2) {
                 deps.showNotification('No path to that destination.', 'warning');
               } else {

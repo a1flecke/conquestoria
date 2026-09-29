@@ -29,6 +29,7 @@ import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import type { PreparedMajorCivPlan } from './ai-prepared-turn';
 import { getAIStrategicRoles, hasAICombatRole } from './ai-unit-roles';
 import { isAIHostileOwner } from './ai-hostility';
+import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
 
 export interface ProcessAIUpgradesResult {
   state: GameState;
@@ -164,7 +165,7 @@ function routePath(
     city.position,
     state.map,
     UNIT_DEFINITIONS[unit.type].domain ?? 'land',
-    { unit, completedTechs: [...completedTechs] },
+    { unit, completedTechs: [...completedTechs], deniedOwnerIds: getDeniedTerritoryOwners(state, unit) },
   );
 }
 

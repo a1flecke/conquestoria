@@ -831,3 +831,65 @@ describe('#970 air assault cannot land on a hostile map structure', () => {
     expect(canAirAssault(camped, unitId, { q: 1, r: 1 }).ok).toBe(false);
   });
 });
+
+describe('#871 airborne landings obey closed borders like a walk would', () => {
+  function ownedBy(state: GameState, coord: { q: number; r: number }, owner: string): GameState {
+    const key = hexKey(coord);
+    return { ...state, map: { ...state.map, tiles: { ...state.map.tiles, [key]: { ...state.map.tiles[key]!, owner } } } } as GameState;
+  }
+  function withOpenBorders(state: GameState): GameState {
+    const treaty = (civA: string, civB: string) => ({ type: 'open_borders', civA, civB, turnsRemaining: -1 });
+    return {
+      ...state,
+      civilizations: {
+        ...state.civilizations,
+        'civ-a': { ...state.civilizations['civ-a']!, diplomacy: { ...state.civilizations['civ-a']!.diplomacy, treaties: [treaty('civ-a', 'civ-b')] } },
+        'civ-b': { ...state.civilizations['civ-b']!, diplomacy: { ...state.civilizations['civ-b']!.diplomacy, treaties: [treaty('civ-b', 'civ-a')] } },
+      },
+    } as unknown as GameState;
+  }
+  function atWar(state: GameState): GameState {
+    return {
+      ...state,
+      civilizations: {
+        ...state.civilizations,
+        'civ-a': { ...state.civilizations['civ-a']!, diplomacy: { ...state.civilizations['civ-a']!.diplomacy, atWarWith: ['civ-b'] } },
+        'civ-b': { ...state.civilizations['civ-b']!, diplomacy: { ...state.civilizations['civ-b']!.diplomacy, atWarWith: ['civ-a'] } },
+      },
+    } as unknown as GameState;
+  }
+
+  it('paradrop: a closed rival tile is refused with the typed reason, offered by no preview, and executes nowhere', () => {
+    const { state, unitId } = makeParadropFixture();
+    const closed = ownedBy(state, { q: 1, r: 1 }, 'civ-b');
+    expect(canParadrop(closed, unitId, { q: 1, r: 1 })).toEqual({ ok: false, reason: 'closed-border' });
+    expect(getParadropTargets(closed, unitId).map(hexKey)).not.toContain('1,1');
+    const result = executeParadrop(closed, unitId, { q: 1, r: 1 });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('closed-border');
+    expect(PARADROP_FAILURE_MESSAGES['closed-border']).toMatch(/borders are closed/);
+  });
+
+  it.each([['open borders', withOpenBorders], ['war', atWar]])('paradrop: %s lifts the refusal, preview and executor agreeing', (_name, arrange) => {
+    const { state, unitId } = makeParadropFixture();
+    const open = arrange(ownedBy(state, { q: 1, r: 1 }, 'civ-b'));
+    expect(canParadrop(open, unitId, { q: 1, r: 1 })).toEqual({ ok: true });
+    expect(getParadropTargets(open, unitId).map(hexKey)).toContain('1,1');
+  });
+
+  it('paradrop: the unit\'s own land is always open', () => {
+    const { state, unitId } = makeParadropFixture();
+    expect(canParadrop(ownedBy(state, { q: 1, r: 1 }, 'civ-a'), unitId, { q: 1, r: 1 })).toEqual({ ok: true });
+  });
+
+  it('air assault: same refusal, same preview/executor agreement', () => {
+    const { state, unitId } = makeAirAssaultFixture();
+    const closed = ownedBy(state, { q: 1, r: 1 }, 'civ-b');
+    expect(canAirAssault(closed, unitId, { q: 1, r: 1 })).toEqual({ ok: false, reason: 'closed-border' });
+    expect(getAirAssaultTargets(closed, unitId).map(hexKey)).not.toContain('1,1');
+    expect(AIR_ASSAULT_FAILURE_MESSAGES['closed-border']).toBe(PARADROP_FAILURE_MESSAGES['closed-border']);
+    const open = withOpenBorders(closed);
+    expect(canAirAssault(open, unitId, { q: 1, r: 1 }).ok).toBe(true);
+    expect(getAirAssaultTargets(open, unitId).map(hexKey)).toContain('1,1');
+  });
+});

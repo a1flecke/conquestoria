@@ -8,6 +8,7 @@ paths:
   - "src/systems/unit-movement-legality.ts"
   - "src/systems/unit-pathfinding.ts"
   - "src/systems/unit-movement-queries.ts"
+  - "src/systems/territorial-access.ts"
   - "src/systems/unit-definitions.ts"
   - "src/systems/airborne-system.ts"
   - "src/systems/transport-system.ts"
@@ -113,6 +114,65 @@ They are not folded into `resolveUnitMoveIntent` (a paradrop is not a walk), but
 the same rule: **anything a `can*` offers must be executable, anything it withholds comes back
 as a typed reason with player-facing copy, and the executor never re-derives legality.**
 
+## Territorial access (#871)
+
+"May this unit enter territory owned by that polity?" is a **fourth, separate** legality question,
+answered once by `src/systems/territorial-access.ts` (a leaf: it imports no movement module).
+It is a peer of the map-entity blocker, not a `BlockingMapEntity` variant: a blocker occupies one
+tile; sovereignty is a standing permission over every tile a polity owns and follows treaties. The
+four questions stay separate: terrain/domain (`unit-movement-cost`), occupancy
+(`unit-movement-legality`), **territorial access (here)**, and the special-action `can*` rules.
+
+`tile.owner` is the only sovereignty fact. Access is *derived* from it plus the treaty/war records
+on every call — nothing is persisted, so there is no save migration and save/reload cannot change
+an outcome.
+
+**Relationship matrix** (`classifyTerritorialRelation`; only `closed` denies):
+
+| Mover's owner vs tile owner | Result |
+|---|---|
+| same owner / unclaimed | open |
+| at war | open (war is the explicit act; pathfinding never causes it) |
+| alliance, Open Borders | open |
+| overlord ↔ vassal (either direction) | open |
+| non-aggression pact, trade agreement, defensive league only | **closed** — a promise not to attack is not permission to be present |
+| peaceful major civ, no access agreement (met or unmet) | **closed** |
+| city-state, barbarian, dead civ (`non-sovereign`) | open — no diplomatic standing exists to grant or refuse |
+
+**Mover matrix** (`BORDER_OBEDIENCE`, derived from owner kind + `UNIT_DEFINITIONS.domain` +
+`UNIT_CLASS_BY_TYPE`, never a hardcoded list): only `armed-land` obeys. Civilians (settler, worker,
+missionary, caravan, expedition, Great General), recon, spies, naval and air are exempt (naval/air
+are #883/#884's), as are all non-major owners (barbarians, pirates, beasts, crisis forces, rebels,
+city-state units). Cargo carries its own category: a naval hull is exempt but the armed unit it
+unloads is not, so unload/paradrop/air-assault check the landing tile.
+
+**One rule, derived once.** `getDeniedTerritoryOwners(state, unit)` projects the relation rule into
+a set of owner ids, computed once per resolve/range/path call; per-tile lookup is O(1)
+(`isTileDeniedBy`). `findPath` takes it as plain data (`deniedOwnerIds`) exactly like
+`blockedHexKeys`, so pathfinding stays below legality. Every consumer of "may this land here?"
+asks it: `validateUnitMove` (destination + every path step → `'closed-border'`), the range BFS
+(`getMovementRangeDetails` and the decomposed `getMovementRange`), transport unload, paradrop / air
+assault (`getParadropTargets`/`canParadrop`/…), auto-explore, tap intent, and every `findPath`
+caller that routes an armed land unit (journey, AI upgrades, AI plan travel estimates,
+`planNeedsTransport`). `tests/app/architecture-boundaries.test.ts` pins the consumer list and that
+no movement module reads treaty types itself.
+
+**Egress is stateless.** The owner of the tile a unit currently stands on is never in its denied
+set. A unit caught inside by a treaty ending / peace / released vassal can always keep moving
+inside and leave, but cannot re-enter once out — no teleport, no persisted grace timer, no
+dead-lock. `emitAccessLossNotices` (called by `makeMajorPeace`, vassal release/independence/tick and
+the break-treaty action) tells each affected owner **once, at the transition**
+(`diplomacy:access-lost`; names no civilization).
+
+**Information.** Legality is omniscient (`tile.owner`); the explanation is viewer-scoped: the
+knowledge projection blanks `owner` on unexplored tiles, and the refusal copy names no
+civilization. AI legality is the same resolver, and the AI's own planning reads only its own
+relations plus its fog-bounded known map.
+
+Deliberately not here: implicit war on entry (never), what a relationship *supports* once entry is
+legal — supply, healing, basing — which is #870's decision using the same `TerritorialRelation`
+vocabulary, and naval/air access (#883/#884).
+
 ### World-actor step/spawn placement (#994)
 
 Beast and barbarian raider AI (`beast-system.ts`'s `processBeasts`, `barbarian-system.ts`'s
@@ -163,8 +223,8 @@ reachable): `pirate-system.ts` raider step, `pirate-behavior.ts` armada placemen
 
 ## Rule
 
-Any new way to move a unit — an ability, a world actor, an automation mode, territorial-access
-gating (#870/#871) — goes through `resolveUnitMoveIntent` / `executeValidatedUnitMove`, OR adds
+Any new way to move a unit — an ability, a world actor, an automation mode — goes through `resolveUnitMoveIntent` / `executeValidatedUnitMove`, OR adds
 a sibling `can*`/`execute*` pair to this table with a typed reason channel, OR marks a
 world-actor call `movement-contract-exempt: <reason>` and adds a row above. Never a fifth
-ad-hoc `moveUnitWithZoneOfControl` caller.
+ad-hoc `moveUnitWithZoneOfControl` caller. Any mover or landing that can put an armed land unit on a
+tile also asks `territorial-access` (see above) — never a hand-rolled `tile.owner !== unit.owner`.

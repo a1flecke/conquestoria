@@ -6,6 +6,7 @@ import {
 } from '@/systems/attack-targeting';
 import { getWrappedHexNeighbors, hexDistance, hexKey, hexNeighbors, wrapHexCoord, wrappedHexDistance } from '@/systems/hex-utils';
 import { UNIT_DEFINITIONS, getMovementCostForUnit, getBlockingMapEntityAt, BLOCKING_MAP_ENTITY_MESSAGES } from '@/systems/unit-system';
+import { getTerritorialAccessDenial, TERRITORIAL_ACCESS_MESSAGE } from '@/systems/territorial-access';
 import { buildUnitOccupancy, getUnitIdsAtCoord } from '@/systems/unit-occupancy';
 
 export type TransportFailureReason =
@@ -27,7 +28,10 @@ export type TransportFailureReason =
   // (#843 / #845 / #965). Mirrors `getBlockingMapEntityAt`'s reason union.
   | 'foreign-city'
   | 'barbarian-camp'
-  | 'pirate-enclave';
+  | 'pirate-enclave'
+  // #871: cargo is an armed land unit the moment it disembarks, so a peaceful sovereign's
+  // closed border denies the unload tile exactly as it would deny the same unit walking there.
+  | 'closed-border';
 
 export type TransportCheckResult =
   | { ok: true }
@@ -134,10 +138,17 @@ function blockingStructureAt(state: GameState, cargo: Unit, destination: HexCoor
   return getBlockingMapEntityAt(state, cargo, normalizeDestination(state, destination));
 }
 
-/** Typed denial for a blocked unload tile, reusing movement's player-facing copy. */
-function blockingStructureFailure(state: GameState, cargo: Unit, destination: HexCoord): TransportCheckResult | null {
+/**
+ * Typed denial for an unload tile the cargo may not arrive on, reusing movement's player-facing
+ * copy: first a physical blocker (#970), then territorial access (#871) -- the same two peer
+ * questions `validateUnitMove` asks, in the same order. Cargo carries its own category, so the
+ * transport hull (naval, exempt) never smuggles an armed unit across a closed border.
+ */
+function unloadTileFailure(state: GameState, cargo: Unit, destination: HexCoord): TransportCheckResult | null {
   const blocker = blockingStructureAt(state, cargo, destination);
-  return blocker ? failure(blocker.reason, BLOCKING_MAP_ENTITY_MESSAGES[blocker.reason]) : null;
+  if (blocker) return failure(blocker.reason, BLOCKING_MAP_ENTITY_MESSAGES[blocker.reason]);
+  const denial = getTerritorialAccessDenial(state, cargo, normalizeDestination(state, destination));
+  return denial ? failure(denial.reason, TERRITORIAL_ACCESS_MESSAGE) : null;
 }
 
 function canCargoSpendUnloadAction(cargo: Unit): boolean {
@@ -322,7 +333,7 @@ export function getUnloadDestinations(state: GameState, transportId: string, car
   return transportNeighbors(state, transport.position).filter(destination =>
     isLandDestination(state, cargo, destination)
     && !isDestinationOccupied(state, destination)
-    && !blockingStructureAt(state, cargo, destination)
+    && !unloadTileFailure(state, cargo, destination)
   );
 }
 
@@ -346,7 +357,7 @@ export function canUnloadUnitFromTransport(
   if (!isLandDestination(state, cargo, normalizedDestination)) return failure('destination-not-land', 'Unload onto land');
   if (transportDistance(state, transport.position, normalizedDestination) !== 1) return failure('invalid-destination', 'Unload next to land');
   if (isDestinationOccupied(state, normalizedDestination)) return failure('destination-occupied', 'Unload tile is occupied');
-  const blocked = blockingStructureFailure(state, cargo, normalizedDestination);
+  const blocked = unloadTileFailure(state, cargo, normalizedDestination);
   if (blocked) return blocked;
   return { ok: true };
 }

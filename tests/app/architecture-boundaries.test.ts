@@ -770,3 +770,50 @@ describe('#1011 — diplomacy decomposition boundaries', () => {
     expect(/\baddWarPair\b/.test(readSys('diplomacy-system'))).toBe(false);
   });
 });
+
+describe('#871 — territorial access is one peer rule, consumed everywhere movement lands', () => {
+  const readSrc = (rel: string) =>
+    readFileSync(resolve(__dirname, '../../src', rel), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  const importsTerritorial = (rel: string) => /from\s+'(?:@\/systems\/|\.\/)territorial-access'/.test(readSrc(rel));
+
+  it('the layering holds: pathfinding takes plain data, legality stays about map entities', () => {
+    // findPath receives `deniedOwnerIds` as a plain set (like `blockedHexKeys`); it never imports the rule.
+    expect(importsTerritorial('systems/unit-pathfinding.ts')).toBe(false);
+    expect(importsTerritorial('systems/unit-movement-legality.ts')).toBe(false);
+    expect(importsTerritorial('systems/unit-movement-cost.ts')).toBe(false);
+  });
+
+  it('territorial-access.ts is a leaf: no movement-subsystem, integration-layer or UI import', () => {
+    const imports = [...readSrc('systems/territorial-access.ts').matchAll(/from\s+'([^']+)'/g)].map(m => m[1]);
+    const allowed = new Set([
+      '@/core/types', '@/core/event-bus', '@/core/owner-kind', '@/systems/hex-utils',
+      '@/systems/diplomacy-queries', '@/systems/unit-definitions', '@/systems/unit-modifier-definitions',
+    ]);
+    expect(imports.filter(spec => !allowed.has(spec)), 'unexpected import in territorial-access.ts').toEqual([]);
+  });
+
+  it('every consumer of "may this land here?" asks it: resolver, range, unload, airborne, auto-explore, tap intent', () => {
+    for (const rel of [
+      'systems/unit-movement-validation.ts',
+      'systems/unit-movement-queries.ts',
+      'systems/transport-system.ts',
+      'systems/airborne-system.ts',
+      'systems/auto-explore-system.ts',
+      'input/selected-unit-tap-intent.ts',
+    ]) {
+      expect(importsTerritorial(rel), `${rel} must consume territorial-access`).toBe(true);
+    }
+  });
+
+  it('no movement module re-derives access from treaties: only territorial-access reads open_borders', () => {
+    for (const rel of [
+      'systems/unit-movement-validation.ts', 'systems/unit-movement-queries.ts', 'systems/unit-pathfinding.ts',
+      'systems/unit-movement-cost.ts', 'systems/unit-movement-explainer.ts', 'systems/transport-system.ts',
+      'systems/airborne-system.ts', 'systems/auto-explore-system.ts', 'input/selected-unit-tap-intent.ts',
+    ]) {
+      expect(readSrc(rel), `${rel} must not read treaty types itself`).not.toMatch(/open_borders|['"]alliance['"]/);
+    }
+    expect(readSrc('systems/territorial-access.ts')).toMatch(/open_borders/);
+  });
+});

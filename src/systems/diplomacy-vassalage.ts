@@ -28,6 +28,7 @@ import {
   petitionIndependence,
   processProtectionTimers,
 } from '@/systems/diplomacy-vassal-rules';
+import { emitAccessLossNotices } from '@/systems/territorial-access';
 import { addWarPair, applyVassalageWarConsequences, resolveOpponentKind } from '@/systems/diplomacy-war';
 
 export function proposeVassalage(state: GameState, vassalId: string, overlordId: string, bus: EventBus): GameState {
@@ -115,6 +116,7 @@ export function resolveIndependence(state: GameState, vassalId: string, overlord
   const next = accepted ? ended : applyVassalageWarConsequences(state, ended, bus);
   bus.emit('diplomacy:independence-petition', { vassalId, overlordId, accepted });
   bus.emit('diplomacy:vassalage-ended', { vassalId, overlordId, reason: accepted ? 'independence' : 'war' });
+  emitAccessLossNotices(state, next, bus); // #871 (a refused petition is war, which keeps passage open)
   return next;
 }
 
@@ -123,6 +125,7 @@ export function releaseVassal(state: GameState, overlordId: string, vassalId: st
   const result = endVassalage(state.civilizations[vassalId].diplomacy, state.civilizations[overlordId].diplomacy, vassalId, overlordId);
   const next = applyVassalageEnd(state, vassalId, overlordId, result.vassalState, applyTreachery(result.overlordState, 'vassalage'));
   bus.emit('diplomacy:vassalage-ended', { vassalId, overlordId, reason: 'released' });
+  emitAccessLossNotices(state, next, bus); // #871: vassal/overlord passage ends with the link
   return next;
 }
 
@@ -169,5 +172,6 @@ export function processVassalageTurn(state: GameState, bus: EventBus): GameState
       next = proposeIndependence(next, vassalId, overlordId, bus);
     }
   }
+  emitAccessLossNotices(state, next, bus); // #871: overlord eliminated / auto-breakaway end passage
   return next;
 }

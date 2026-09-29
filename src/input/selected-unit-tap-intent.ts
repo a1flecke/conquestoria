@@ -3,6 +3,7 @@ import { getUnitAttackProfile } from '@/systems/attack-targeting';
 import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { buildUnitOccupancy, getStackRelationship } from '@/systems/unit-occupancy';
 import { getMovementRange, getBlockingMapEntityKeys, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
 import { getEmbarkedAssaultTarget } from '@/systems/transport-system';
 import { hasAllianceTreaty } from '@/systems/diplomacy-queries';
 
@@ -78,6 +79,7 @@ export function resolveSelectedUnitTapIntent(
       hostileOwners,
       { completedTechs: civ?.techState.completed ?? [] },
       getBlockingMapEntityKeys(state, unit),
+      getDeniedTerritoryOwners(state, unit),
     );
   })();
 

@@ -737,3 +737,82 @@ describe('transport system', () => {
   });
 
 });
+
+// #871: cargo is an armed land unit the instant it disembarks, so it obeys the same closed
+// borders as the same unit walking there -- the (exempt) naval hull cannot smuggle it in.
+describe('#871 cargo unload obeys closed borders', () => {
+  function loadedNextToRival(mutate: (s: GameState) => void = () => {}): GameState {
+    const loaded = loadUnitOntoTransport(state(), 'warrior-1', 'transport-1');
+    if (!loaded.ok) throw new Error('setup: expected load to succeed');
+    const ready: GameState = {
+      ...loaded.state,
+      units: {
+        ...loaded.state.units,
+        'warrior-1': { ...loaded.state.units['warrior-1']!, hasMoved: false, hasActed: false, movementPointsLeft: 2 },
+      },
+    };
+    // (1,-1) becomes the rival's land; (0,1) stays the player's own shore.
+    ready.map.tiles['1,-1'] = tile({ q: 1, r: -1 }, 'grassland', 'ai-1');
+    ready.civilizations['ai-1'] = {
+      ...ready.civilizations.player,
+      id: 'ai-1', name: 'AI', isHuman: false, cities: [], units: [],
+      diplomacy: createDiplomacyState(['player', 'ai-1'], 'ai-1'),
+    };
+    mutate(ready);
+    return ready;
+  }
+  const treaty = (type: 'open_borders' | 'alliance', a: string, b: string) => ({ type, civA: a, civB: b, turnsRemaining: -1 });
+
+  it('refuses a closed rival shore with the typed reason and never offers it', () => {
+    const ready = loadedNextToRival();
+    expect(getUnloadDestinations(ready, 'transport-1', 'warrior-1').map(hexKey)).not.toContain('1,-1');
+    expect(canUnloadUnitFromTransport(ready, 'transport-1', 'warrior-1', { q: 1, r: -1 })).toMatchObject({
+      ok: false, reason: 'closed-border',
+    });
+    const result = unloadUnitFromTransport(ready, 'transport-1', 'warrior-1', { q: 1, r: -1 });
+    expect(result.ok).toBe(false);
+    // Nothing moved, nothing corrupted: cargo is still aboard, reciprocally.
+    expect(result.state.units['warrior-1']!.transportId).toBe('transport-1');
+    assertCargoReciprocity(result.state);
+  });
+
+  it('own shore is unaffected, so the unit is never stranded aboard', () => {
+    const ready = loadedNextToRival();
+    expect(getUnloadDestinations(ready, 'transport-1', 'warrior-1').map(hexKey)).toContain('0,1');
+    expect(unloadUnitFromTransport(ready, 'transport-1', 'warrior-1', { q: 0, r: 1 }).ok).toBe(true);
+  });
+
+  it.each([
+    ['open borders', (s: GameState) => {
+      s.civilizations.player!.diplomacy.treaties = [treaty('open_borders', 'player', 'ai-1')];
+      s.civilizations['ai-1']!.diplomacy.treaties = [treaty('open_borders', 'ai-1', 'player')];
+    }],
+    ['alliance', (s: GameState) => {
+      s.civilizations.player!.diplomacy.treaties = [treaty('alliance', 'player', 'ai-1')];
+      s.civilizations['ai-1']!.diplomacy.treaties = [treaty('alliance', 'ai-1', 'player')];
+    }],
+    ['war', (s: GameState) => {
+      s.civilizations.player!.diplomacy.atWarWith = ['ai-1'];
+      s.civilizations['ai-1']!.diplomacy.atWarWith = ['player'];
+    }],
+  ])('%s makes the same shore legal, preview and executor agreeing', (_name, grant) => {
+    const ready = loadedNextToRival(grant);
+    expect(getUnloadDestinations(ready, 'transport-1', 'warrior-1').map(hexKey)).toContain('1,-1');
+    expect(canUnloadUnitFromTransport(ready, 'transport-1', 'warrior-1', { q: 1, r: -1 }).ok).toBe(true);
+  });
+
+  it('an exempt land unit (worker) may still disembark on the closed shore', () => {
+    const loaded = loadUnitOntoTransport(state(), 'worker-1', 'transport-1');
+    if (!loaded.ok) throw new Error('setup: expected load to succeed');
+    const ready: GameState = {
+      ...loaded.state,
+      units: { ...loaded.state.units, 'worker-1': { ...loaded.state.units['worker-1']!, hasMoved: false, hasActed: false, movementPointsLeft: 2 } },
+    };
+    ready.map.tiles['1,-1'] = tile({ q: 1, r: -1 }, 'grassland', 'ai-1');
+    ready.civilizations['ai-1'] = {
+      ...ready.civilizations.player, id: 'ai-1', name: 'AI', isHuman: false, cities: [], units: [],
+      diplomacy: createDiplomacyState(['player', 'ai-1'], 'ai-1'),
+    };
+    expect(canUnloadUnitFromTransport(ready, 'transport-1', 'worker-1', { q: 1, r: -1 }).ok).toBe(true);
+  });
+});

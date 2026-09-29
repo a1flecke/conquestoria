@@ -2701,6 +2701,9 @@ export interface GameEvents {
   'diplomacy:protection-failed': { overlordId: string; vassalId: string; attackerId: string };
   'diplomacy:vassal-auto-war': { vassalId: string; overlordId: string; targetCivId: string };
   'diplomacy:vassal-auto-peace': { vassalId: string; overlordId: string; targetCivId: string };
+  // #871: a diplomatic transition left `unitCount` of `civId`'s armed units standing inside a
+  // border that is now closed to them. Names no civilization -- the recipient's own units only.
+  'diplomacy:access-lost': { civId: string; unitCount: number };
   'diplomacy:treachery': { civId: string; action: string; newScore: number };
   'diplomacy:embargo-proposed': { proposerId: string; targetCivId: string; embargoId: string };
   'diplomacy:embargo-joined': { civId: string; embargoId: string };

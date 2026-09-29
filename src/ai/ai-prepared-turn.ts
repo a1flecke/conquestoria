@@ -83,6 +83,7 @@ import {
   scoreIntents,
   type NationalIntentPosture,
 } from './ai-national-intent';
+import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
 
 export interface PreparedMajorCivPlan {
   civId: string;
@@ -892,7 +893,14 @@ export function prepareMajorCivStrategicPlan(
           plan.rallyPoint ?? planTargetPosition(plan),
           knownMap,
           UNIT_DEFINITIONS[unit.type].domain ?? 'land',
-          { unit, completedTechs: civ.techState.completed },
+          {
+            unit,
+            completedTechs: civ.techState.completed,
+            // #871: travel estimates use the executor's denied set (this civ's own relations over
+            // the fog-bounded `knownMap`, which carries `owner` only for tiles it currently sees),
+            // so a plan is never costed through a border its units cannot cross.
+            deniedOwnerIds: state.units[unit.id] ? getDeniedTerritoryOwners(state, state.units[unit.id]!) : undefined,
+          },
         );
         return [
           plan.id,

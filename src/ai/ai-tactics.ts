@@ -79,6 +79,7 @@ import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
 import { resolveCombatEra } from '@/systems/era-resolution';
 import { previewUnitCityBombardment, resolveUnitCityBombardment } from '@/systems/city-bombardment-system';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
+import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
 
 export type AITacticalAction =
   | { kind: 'attack'; unitId: string; targetUnitId: string }
@@ -868,6 +869,8 @@ function rankCivilianAndTransportActions(
       {
         unit,
         completedTechs: context.state.civilizations[context.actorId]?.techState.completed ?? [],
+        // #871: the same denied set the executor uses, so "no land route" means the same thing.
+        deniedOwnerIds: getDeniedTerritoryOwners(context.state, unit),
       },
     ) === null;
   if (!planNeedsTransport || (UNIT_DEFINITIONS[unit.type].domain ?? 'land') !== 'land') {
