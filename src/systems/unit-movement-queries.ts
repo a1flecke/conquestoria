@@ -12,6 +12,7 @@ import {
   type UnitMovementContext,
 } from './unit-movement-cost';
 import { getBlockingMapEntitiesByHex } from './unit-movement-legality';
+import { getDeniedTerritoryOwners, isTileDeniedBy } from './territorial-access';
 
 /**
  * Movement queries (#1010). Read-only derived answers for a UI / AI consumer,
@@ -39,6 +40,7 @@ export interface MovementBlockerReason {
     | 'foreign-city'
     | 'barbarian-camp'
     | 'pirate-enclave'
+    | 'closed-border'
     | 'unreachable'
     | 'insufficient-movement'
     | 'zone-of-control'
@@ -66,6 +68,9 @@ export function getMovementRange(
   hostileOwners?: Set<string>,
   options: UnitMovementContext = {},
   blockingKeys?: ReadonlySet<string>,
+  // #871: owners whose closed territory this mover may not enter (`getDeniedTerritoryOwners`).
+  // A denied tile is impassable outright -- unlike a blocking entity it is never a tap target.
+  deniedOwnerIds?: ReadonlySet<string>,
 ): HexCoord[] {
   const reachable: HexCoord[] = [];
   const visited = new Map<string, number>();
@@ -85,6 +90,7 @@ export function getMovementRange(
       const key = hexKey(neighbor);
       const tile = map.tiles[key];
       if (!tile || !isPassableForUnitInContext(unit, tile.terrain, options)) continue;
+      if (deniedOwnerIds && isTileDeniedBy(deniedOwnerIds, tile)) continue;
 
       const cost = getMovementStepCost(unit, map, current.coord, neighbor, options);
       const remaining = current.remaining - cost;
@@ -166,6 +172,7 @@ export function getMovementRangeDetails(
   const unit = state.units[unitId];
   if (!unit) return { reachable: [], zocLimited: [] };
   const blockingEntitiesByHex = getBlockingMapEntitiesByHex(state, unit);
+  const deniedOwners = getDeniedTerritoryOwners(state, unit);
   const unitPositions: Record<string, string | string[]> = {};
   const unitOwners: Record<string, string> = {};
   for (const candidate of Object.values(state.units)) {
@@ -196,6 +203,7 @@ export function getMovementRangeDetails(
       if (!tile || !isPassableForUnitInContext(unit, tile.terrain, {
         completedTechs: state.civilizations[unit.owner]?.techState.completed ?? [],
       })) continue;
+      if (isTileDeniedBy(deniedOwners, tile)) continue;
       const cost = getMovementStepCost(unit, state.map, current.coord, neighbor, {
         completedTechs: state.civilizations[unit.owner]?.techState.completed ?? [],
       });

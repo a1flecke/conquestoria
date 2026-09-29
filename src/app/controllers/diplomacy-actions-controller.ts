@@ -34,6 +34,7 @@ import { isAtWar } from '@/systems/diplomacy-queries';
 import { CONSENT_TREATY_TYPES, hasPendingTreatyProposalBetween, isDiplomaticRequestLive } from '@/systems/diplomacy-requests';
 import { acceptDiplomaticRequest, applyDiplomaticAction, rejectDiplomaticRequest } from '@/systems/diplomacy-system';
 import { breakTreaty } from '@/systems/diplomacy-treaties';
+import { emitAccessLossNotices } from '@/systems/territorial-access';
 import { getVassalageEligibility, canPetitionIndependence } from '@/systems/diplomacy-vassal-rules';
 import { declareWarGoal, canDeclareWarGoal } from '@/systems/war-goal-system';
 import { proposeSettlement, acceptSettlementOffer } from '@/systems/settlement-system';
@@ -200,14 +201,17 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
     const actor = deps.session.getState().civilizations[actorId];
     const target = deps.session.getState().civilizations[civId];
     if (!actor || !target) return;
+    const beforeBreak = deps.session.getState();
     deps.session.commit({
-      ...deps.session.getState(),
+      ...beforeBreak,
       civilizations: {
-        ...deps.session.getState().civilizations,
-        [actorId]: { ...actor, diplomacy: breakTreaty(actor.diplomacy, civId, treatyType, deps.session.getState().turn) },
-        [civId]: { ...target, diplomacy: breakTreaty(target.diplomacy, actorId, treatyType, deps.session.getState().turn) },
+        ...beforeBreak.civilizations,
+        [actorId]: { ...actor, diplomacy: breakTreaty(actor.diplomacy, civId, treatyType, beforeBreak.turn) },
+        [civId]: { ...target, diplomacy: breakTreaty(target.diplomacy, actorId, treatyType, beforeBreak.turn) },
       },
     });
+    // #871: breaking Open Borders / an alliance ends passage; tell whoever has units inside.
+    emitAccessLossNotices(beforeBreak, deps.session.getState(), deps.bus);
     deps.openDiplomacyPanel();
     deps.showNotification(`${TREATY_LABELS[treatyType]} broken with ${target.name}.`, 'warning');
   }

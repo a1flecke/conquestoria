@@ -11,6 +11,7 @@ import {
   getBlockingMapEntityKeys,
 } from '@/systems/unit-system';
 import { executeUnitMove, type ExecuteUnitMoveResult } from '@/systems/unit-movement-system';
+import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
 
 export interface AutoExploreOrder {
   unitId: string;
@@ -163,7 +164,7 @@ export function chooseAutoExploreMove(state: GameState, unitId: string, leash?: 
   const completedTechs = state.civilizations[unit.owner]?.techState.completed ?? [];
   const blockingKeys = getBlockingMapEntityKeys(state, unit);
   const exploreTarget = findNearestUnexploredTile(state, unitId, leash);
-  const best = getMovementRange(unit, state.map, occupancy.unitIdsByHex, occupancy.ownersByUnitId, undefined, { completedTechs }, blockingKeys)
+  const best = getMovementRange(unit, state.map, occupancy.unitIdsByHex, occupancy.ownersByUnitId, undefined, { completedTechs }, blockingKeys, getDeniedTerritoryOwners(state, unit))
     // A blocking entity's own tile (e.g. an undefended foreign city) stays in the reachable
     // set for consistency with the rest of the movement system (see getBlockingMapEntityAt),
     // but auto-explore must never nominate it as an ordinary move destination -- entering it

@@ -136,6 +136,7 @@ import { checkAndQueueGeneralCandidateChoice, retireGeneralsAtTurnEnd, spawnGene
 import { chooseBestGeneralCandidate } from '@/ai/ai-general-command';
 import { resolveGeneralDefinition, type GeneralDefinition } from '@/systems/great-general-definitions';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
+import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
 
 // #544 MR3: same char-folding convention combat-reward-system.ts's seededRoll and
 // city-capture-system.ts's assault seed already use -- turns a (gameId, turn, civId)
@@ -692,7 +693,7 @@ export function processTurn(
       } else if (unit?.automation?.mode === 'journey') {
         const destination = unit.automation.destination;
         const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
-        const path = findPath(unit.position, destination, newState.map, domain, { unit, completedTechs: healCompletedTechs });
+        const path = findPath(unit.position, destination, newState.map, domain, { unit, completedTechs: healCompletedTechs, deniedOwnerIds: getDeniedTerritoryOwners(newState, unit) });
         if (!path || path.length < 2) {
           newState.units[unitId] = { ...unit, automation: undefined };
           bus.emit('unit:journey-blocked', { unitId, position: { ...unit.position } });

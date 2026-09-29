@@ -55,7 +55,16 @@ export function findPath(
   // computes it (`unit-movement-validation.ts`) already guarantees `to` itself is unblocked
   // before ever calling here, but this function tolerates `to` being in the set anyway rather
   // than assume that guarantee — it only ever refuses a blocked hex as an intermediate waypoint.
-  options: UnitMovementContext & { unit?: Unit; unitType?: UnitType; blockedHexKeys?: ReadonlySet<string> } = {},
+  options: UnitMovementContext & {
+    unit?: Unit;
+    unitType?: UnitType;
+    blockedHexKeys?: ReadonlySet<string>;
+    // #871: owner ids whose territory this mover may not enter (from `getDeniedTerritoryOwners`).
+    // Plain data for the same layering reason as `blockedHexKeys` -- this module never imports
+    // `territorial-access.ts`. Unlike `blockedHexKeys` it is enforced on the destination too: a
+    // denied destination has no route at all.
+    deniedOwnerIds?: ReadonlySet<string>;
+  } = {},
 ): HexCoord[] | null {
   const toKey = hexKey(to);
   const toTile = map.tiles[toKey];
@@ -67,6 +76,8 @@ export function findPath(
     { completedTechs: options.completedTechs, owner: options.unit?.owner },
   );
   if (!isPassableForParams(costParams, toTile.terrain)) return null;
+  const deniedOwners = options.deniedOwnerIds;
+  if (deniedOwners && toTile.owner && deniedOwners.has(toTile.owner)) return null;
 
   const minStepCost = costParams.domain === 'land'
     && hasRoadMovementDiscount(costParams.completedTechs ?? [])
@@ -139,6 +150,7 @@ export function findPath(
       const tile = map.tiles[nKey];
       if (!tile) continue;
       if (nKey !== toKey && options.blockedHexKeys?.has(nKey)) continue;
+      if (deniedOwners && tile.owner && deniedOwners.has(tile.owner)) continue;
       const stepCost = getMovementStepCostFor(costParams, map, currentCoord, neighbor);
       if (stepCost === Infinity) continue;
 
@@ -173,7 +185,7 @@ export function findPathToCity(
   cityPosition: HexCoord,
   map: GameMap,
   domain: 'land' | 'naval' | 'air' = 'land',
-  options: UnitMovementContext & { unit?: Unit; unitType?: UnitType } = {},
+  options: UnitMovementContext & { unit?: Unit; unitType?: UnitType; deniedOwnerIds?: ReadonlySet<string> } = {},
 ): HexCoord[] | null {
   const direct = findPath(from, cityPosition, map, domain, options);
   if (direct) return direct;

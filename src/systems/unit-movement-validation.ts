@@ -7,6 +7,7 @@ import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { canHullEnterOcean, getMovementCostForUnitInContext, getMovementStepCost } from '@/systems/unit-movement-cost';
 import { getBlockingMapEntityAt, getBlockingMapEntityKeys, BLOCKING_MAP_ENTITY_MESSAGES, type UnitMovementBlockerCode, type BlockingMapEntity } from '@/systems/unit-movement-legality';
 import { findPath } from '@/systems/unit-pathfinding';
+import { getDeniedTerritoryOwners, isTileDeniedBy, TERRITORIAL_ACCESS_MESSAGE } from '@/systems/territorial-access';
 
 /**
  * Movement validation (#1025 / #1010) — the ONE legality + cost answer for ordinary
@@ -161,6 +162,14 @@ export function validateUnitMove(
     );
   }
 
+  // #871: territorial access is a peer of the blocker above, not a variant of it -- one set of
+  // denied owners derived once here (and once per range/path call elsewhere), then a constant-time
+  // per-tile lookup. Pathfinding never declares war: a closed border is a plain rejection.
+  const deniedOwners = getDeniedTerritoryOwners(state, unit);
+  if (isTileDeniedBy(deniedOwners, tile)) {
+    return movementFailure(from, target, [from, target], 'closed-border', TERRITORIAL_ACCESS_MESSAGE);
+  }
+
   const completedTechs = getOwnerCompletedTechs(state, unit.owner);
   const targetCost = getMovementCostForUnitInContext(unit, tile.terrain, { completedTechs });
   if (targetCost === Infinity) {
@@ -184,7 +193,7 @@ export function validateUnitMove(
   // (blocking-unaware) path so the rejection below still names the SPECIFIC entity in the way
   // (`foreign-city` / `barbarian-camp` / `pirate-enclave`) rather than a generic `unreachable`.
   const blockedHexKeys = getBlockingMapEntityKeys(state, unit);
-  const path = findPath(from, target, state.map, domain, { unit, completedTechs, blockedHexKeys })
+  const path = findPath(from, target, state.map, domain, { unit, completedTechs, blockedHexKeys, deniedOwnerIds: deniedOwners })
     ?? findPath(from, target, state.map, domain, { unit, completedTechs });
   if (!path) return movementFailure(from, target, [from], 'unreachable', 'No passable route to that tile.');
   const pathCrossesHostileOccupant = path.slice(1, -1).some(coord =>
@@ -201,6 +210,9 @@ export function validateUnitMove(
   }
   let blockedPathEntity: BlockingMapEntity | undefined;
   for (const coord of path.slice(1)) {
+    if (isTileDeniedBy(deniedOwners, state.map.tiles[hexKey(coord)])) {
+      return movementFailure(from, target, path, 'closed-border', TERRITORIAL_ACCESS_MESSAGE);
+    }
     const entity = getBlockingMapEntityAt(state, unit, coord);
     if (!entity) continue;
     const isExplicitEntryToThisEntity = options.actor !== 'world'

@@ -68,6 +68,7 @@ import { createStrategicLaunchFlow } from '@/ui/strategic-launch-flow';
 import { executeStrategicLaunch } from '@/systems/strategic-launch-execution-system';
 import { resolveGeneralDefinition } from '@/systems/great-general-definitions';
 import { getEffectiveCommandStats } from '@/systems/great-general-system';
+import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
 
 /** The narrow slice of `RenderLoop` this controller needs. */
 export type SelectionControllerRenderer = Pick<
@@ -188,7 +189,7 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
     if (unit.automation?.mode === 'journey') {
       const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
       const completedTechs = session.getState().civilizations[unit.owner]?.techState.completed ?? [];
-      const path = findPath(unit.position, unit.automation.destination, session.getState().map, domain, { unit, completedTechs });
+      const path = findPath(unit.position, unit.automation.destination, session.getState().map, domain, { unit, completedTechs, deniedOwnerIds: getDeniedTerritoryOwners(session.getState(), unit) });
       renderLoop.setJourneyPath(path);
     } else {
       renderLoop.setJourneyPath(null);

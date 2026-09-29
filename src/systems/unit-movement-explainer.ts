@@ -40,6 +40,10 @@ export const HIDDEN_OBSTACLE: MovementBlockerReason = {
  * - Cities, barbarian camps and pirate-enclave anchors survive on any **explored** tile — the
  *   same "discovered once explored" rule `hasDiscoveredCity` uses — so a remembered structure in
  *   fog stays explained, and one on an unexplored tile never is.
+ * - Tile ownership (#871) survives only on **explored** tiles -- the same rule the map's border
+ *   drawing follows. On an unexplored tile the projection blanks `owner`, so a closed-border
+ *   refusal there re-resolves as legal and is reported as `hidden-obstacle`, never as "that land
+ *   belongs to someone". (The refusal copy names no civilization either way.)
  * - Terrain is left untouched: fog/unexplored terrain is not re-derived (see the `unreachable`
  *   residue documented in `.claude/rules/movement-actions.md`).
  *
@@ -82,7 +86,15 @@ export function projectMovementKnowledgeForViewer(state: GameState, viewerId: st
     pirates = { ...pirates, factions };
   }
 
-  return { ...state, units, cities, barbarianCamps, ...(pirates ? { pirates } : {}) };
+  let tiles = state.map.tiles;
+  for (const [key, tile] of Object.entries(state.map.tiles)) {
+    if (!tile.owner || explored(tile.coord)) continue;
+    if (tiles === state.map.tiles) tiles = { ...state.map.tiles };
+    tiles[key] = { ...tile, owner: null };
+  }
+  const map = tiles === state.map.tiles ? state.map : { ...state.map, tiles };
+
+  return { ...state, map, units, cities, barbarianCamps, ...(pirates ? { pirates } : {}) };
 }
 
 /**

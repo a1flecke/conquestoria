@@ -1154,6 +1154,16 @@ export function routeVassalAutoWar(state: GameState, event: GameEvents['diplomac
   sink(event.vassalId, `You joined your overlord's war against ${target}, without a treachery penalty.`, 'warning');
 }
 
+export function routeAccessLost(event: GameEvents['diplomacy:access-lost'], sink: NotificationSink): void {
+  const one = event.unitCount === 1;
+  const who = one ? 'One of your units is' : `${event.unitCount} of your units are`;
+  sink(
+    event.civId,
+    `${who} now inside borders that are closed to ${one ? 'it' : 'them'}. ${one ? 'It' : 'They'} can keep moving and leave, but cannot come back in without Open Borders, an alliance, or war.`,
+    'warning',
+  );
+}
+
 export function routeVassalAutoPeace(state: GameState, event: GameEvents['diplomacy:vassal-auto-peace'], sink: NotificationSink): void {
   // Same fallback as routeVassalAutoWar: a target that is not in `civilizations`
   // is a city-state, and its real name is discovery-gated — never read it here.
