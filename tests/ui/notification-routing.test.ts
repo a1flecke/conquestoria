@@ -16,6 +16,7 @@ import {
   routePeaceMade,
   routePeaceRequested,
   routeVassalAutoPeace,
+  routeAccessLost,
   routeTreatyAccepted,
   routeTreatyDeclined,
   routePeaceDeclined,
@@ -1579,5 +1580,26 @@ describe('era:advanced routing', () => {
     expect(primer).toMatch(/garrison/i);
     expect(primer).toMatch(/appease/i);
     expect(primer).toMatch(/magistracy/i); // points at the real Era-2 answer
+  });
+});
+
+describe('#871 routeAccessLost', () => {
+  const collect = (unitCount: number) => {
+    const calls: Array<{ civId: string; message: string; type: string }> = [];
+    routeAccessLost({ civId: 'p1', unitCount }, (civId, message, type) => { calls.push({ civId, message, type }); });
+    return calls;
+  };
+
+  it('tells only the owner of the stranded units, as a warning that names no civilization', () => {
+    const [only, ...rest] = collect(2);
+    expect(rest).toEqual([]);
+    expect(only).toMatchObject({ civId: 'p1', type: 'warning' });
+    expect(only!.message).toBe(
+      '2 of your units are now inside borders that are closed to them. They can keep moving and leave, but cannot come back in without Open Borders, an alliance, or war.',
+    );
+  });
+
+  it('uses singular copy for one unit', () => {
+    expect(collect(1)[0]!.message).toMatch(/^One of your units is now inside borders that are closed to it\. It can keep moving/);
   });
 });
