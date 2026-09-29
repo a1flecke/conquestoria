@@ -2,17 +2,17 @@
   "__doc__": "#1007 machine-independent algorithmic baselines + budgets. Integers/ratios ONLY (contamination-tested). Regenerate with `UPDATE_PERF_BASELINE=1 yarn vitest run tests/perf/algorithmic-budgets.test.ts`. See .claude/rules/performance-budgets.md.",
   "areas": {
     "aiRound@e1": {
-      "blockingEntityAtCalls": 261,
-      "cityYieldCalls": 2184,
-      "heapPops": 2658,
+      "blockingEntityAtCalls": 264,
+      "cityYieldCalls": 2260,
+      "heapPops": 2464,
       "pathQueries": 181,
       "structuredCloneWholeState": 21
     },
     "aiRound@e2": {
-      "blockingEntityAtCalls": 509,
-      "cityYieldCalls": 5220,
-      "heapPops": 5704,
-      "pathQueries": 313,
+      "blockingEntityAtCalls": 499,
+      "cityYieldCalls": 5283,
+      "heapPops": 8072,
+      "pathQueries": 310,
       "structuredCloneWholeState": 21
     },
     "findPath": {
@@ -46,16 +46,16 @@
       "structuredCloneWholeState": 3
     },
     "saveSerialize@e1": {
-      "bytes": 5218972,
-      "entityBytes": 1212334
+      "bytes": 5223677,
+      "entityBytes": 1213871
     },
     "saveSerialize@e2": {
-      "bytes": 7771552,
-      "entityBytes": 2179603
+      "bytes": 7780065,
+      "entityBytes": 2183156
     },
     "turn@e1": {
       "blockingEntityAtCalls": 0,
-      "cityYieldCalls": 111,
+      "cityYieldCalls": 99,
       "heapPops": 0,
       "pathQueries": 0,
       "structuredCloneWholeState": 2,
@@ -63,7 +63,7 @@
     },
     "turn@e2": {
       "blockingEntityAtCalls": 0,
-      "cityYieldCalls": 285,
+      "cityYieldCalls": 231,
       "heapPops": 0,
       "pathQueries": 0,
       "structuredCloneWholeState": 2,
@@ -73,10 +73,10 @@
   "auditedCommit": "6be5a726",
   "budgets": {
     "aiRound": {
-      "blockingEntityAtCalls": 764,
-      "cityYieldCalls": 7830,
-      "heapPops": 8556,
-      "pathQueries": 470,
+      "blockingEntityAtCalls": 749,
+      "cityYieldCalls": 7925,
+      "heapPops": 12108,
+      "pathQueries": 465,
       "structuredCloneWholeState": 32
     },
     "findPath": {
@@ -92,8 +92,8 @@
       "structuredCloneWholeState": 5
     },
     "saveSerialize": {
-      "bytes": 11657328,
-      "entityBytes": 3269405
+      "bytes": 11670098,
+      "entityBytes": 3274734
     },
     "turn": {
       "blockingEntityAtCalls": 0,
@@ -106,9 +106,9 @@
     }
   },
   "ratios": {
-    "aiRoundCityYieldCalls": 3.11,
-    "aiRoundHeapPops": 2.79,
-    "aiRoundPathQueries": 2.25,
+    "aiRoundCityYieldCalls": 3.04,
+    "aiRoundHeapPops": 4.26,
+    "aiRoundPathQueries": 2.23,
     "findPathPopsPerRouteStep": 3.64,
     "saveBytes": 1.94,
     "saveEntityBytes": 2.34,

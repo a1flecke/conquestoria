@@ -64,14 +64,14 @@
   },
   "e2": {
     "state": {
-      "__whole": "448a3e2cce76",
+      "__whole": "09ce799b0ef8",
       "autonomyByCiv": "95313c912b48",
       "barbarianCampPressure": "44136fa355b3",
       "barbarianCamps": "5148e5b9b58d",
       "beasts": "59b9eb6fa030",
       "cities": "ca705c5dcd01",
       "cityFaith": "44136fa355b3",
-      "civilizations": "df9c150d0fee",
+      "civilizations": "a84433ce2df0",
       "crisisForces": "44136fa355b3",
       "currentPlayer": "f4fd498bf9ac",
       "defensiveLeagues": "4f53cda18c2b",
@@ -118,7 +118,7 @@
       "tribalVillages": "ef2f2a33f67f",
       "turn": "6b86b273ff34",
       "tutorial": "8036676ee8e5",
-      "units": "0996cec2bb54",
+      "units": "eae9787812cc",
       "wars": "77b5821c1dcf",
       "winner": "74234e98afe7",
       "wonderDiscoverers": "950939e22b2c"
