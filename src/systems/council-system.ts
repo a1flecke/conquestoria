@@ -98,6 +98,7 @@ function getWonderRecommendationCards(state: GameState, civId: string): CouncilC
         why: `${definition?.reward.summary ?? 'A major empire bonus.'} Keep the Council pointed at one grand story at a time.`,
         priority,
         actionLabel: isReady ? 'Build wonder' : 'Track quest',
+        action: { kind: 'open-wonder' as const, cityId: project.cityId, wonderId: project.wonderId },
       };
     })
     .sort((left, right) => right.priority - left.priority)
@@ -108,7 +109,14 @@ function getWonderRecommendationCards(state: GameState, civId: string): CouncilC
  * only the viewer-safe presentation, never state.worldRaces/civ.builtNationalProjects
  * directly. A race with no tech access yet contributes nothing (nothing to recommend);
  * a race that already resolved (won, lost, or someone else won) also contributes nothing --
- * that moment already had its own ceremony via #993's framework. */
+ * that moment already had its own ceremony via #993's framework.
+ *
+ * These cards' `actionLabel`s ("Prepare"/"Enter the race"/"Track launch") intentionally
+ * have no `action` yet -- wiring them to a real panel is out of scope for the
+ * survey-frontier/food-warning/quest/wonder action wiring elsewhere in this file.
+ * `council-panel.ts`'s button gate only renders a card as a clickable button when
+ * `card.action` (or the event-chain id prefix) is present, so these stay inert text,
+ * not dead buttons. */
 function getWorldRaceRecommendationCards(state: GameState, civId: string): CouncilCard[] {
   const cards: CouncilCard[] = [];
 
@@ -168,6 +176,7 @@ export function buildCouncilAgenda(state: GameState, civId: string): CouncilAgen
       why: 'Fresh information helps the Council give better advice.',
       priority: 100,
       actionLabel: 'Scout',
+      action: { kind: 'scout' },
     },
   ];
 
@@ -184,6 +193,7 @@ export function buildCouncilAgenda(state: GameState, civId: string): CouncilAgen
         why: 'Food keeps growth alive. If the pantry is flat, every future plan slows down.',
         priority: 95,
         actionLabel: 'Fix food',
+        action: { kind: 'open-city', cityId: primaryCity.id },
       });
     } else if (foodSurplus === 0) {
       doNow.push({
@@ -195,6 +205,7 @@ export function buildCouncilAgenda(state: GameState, civId: string): CouncilAgen
         why: 'A city that only treads water stops feeling lively fast.',
         priority: 20,
         actionLabel: 'Add food',
+        action: { kind: 'open-city', cityId: primaryCity.id },
       });
     }
   }
@@ -213,6 +224,7 @@ export function buildCouncilAgenda(state: GameState, civId: string): CouncilAgen
       why: 'Helping friendly powers gives the Council concrete momentum, rewards, and a sense of purpose.',
       priority: 55,
       actionLabel: 'Review quest',
+      action: { kind: 'open-quest', minorCivId: minorCiv.id },
     });
     break;
   }

@@ -426,6 +426,48 @@ describe('diplomacy-panel breakaway rows', () => {
     expect(repaired).toBe('mc-sparta');
   });
 
+  it('marks and scrolls to the city-state row named by focusMinorCivId (Council "Review quest" action)', () => {
+    const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player' });
+    state.minorCivs['mc-sparta'] = {
+      id: 'mc-sparta', definitionId: 'sparta', cityId: 'mc-city', units: [],
+      diplomacy: state.civilizations.player.diplomacy,
+      activeQuests: {}, chainStatusByCiv: {}, questCooldownUntilByCiv: {}, lastNotifiedStatusByCiv: {},
+      isDestroyed: false, garrisonCooldown: 0, lastEraUpgrade: 1,
+    };
+    state.minorCivs['mc-carthage'] = {
+      id: 'mc-carthage', definitionId: 'carthage', cityId: 'mc-city-2', units: [],
+      diplomacy: state.civilizations.player.diplomacy,
+      activeQuests: {}, chainStatusByCiv: {}, questCooldownUntilByCiv: {}, lastNotifiedStatusByCiv: {},
+      isDestroyed: false, garrisonCooldown: 0, lastEraUpgrade: 1,
+    };
+    state.cities['mc-city'] = {
+      ...state.cities['city-border'], id: 'mc-city', owner: 'mc-sparta',
+      position: { q: 6, r: 0 }, ownedTiles: [{ q: 6, r: 0 }],
+    };
+    state.cities['mc-city-2'] = {
+      ...state.cities['city-border'], id: 'mc-city-2', owner: 'mc-carthage',
+      position: { q: 7, r: 0 }, ownedTiles: [{ q: 7, r: 0 }],
+    };
+    state.civilizations.player.visibility.tiles['6,0'] = 'visible';
+    state.civilizations.player.visibility.tiles['7,0'] = 'visible';
+    const scrollIntoView = vi.fn();
+    (window.HTMLElement.prototype as unknown as { scrollIntoView: () => void }).scrollIntoView = scrollIntoView;
+
+    const panel = createDiplomacyPanel(container, state, {
+      onAction: () => {},
+      onClose: () => {},
+      focusMinorCivId: 'mc-sparta',
+    });
+
+    const spartaRow = panel.querySelector('[data-mc-row-id="mc-sparta"]');
+    const carthageRow = panel.querySelector('[data-mc-row-id="mc-carthage"]');
+    expect(spartaRow).toBeTruthy();
+    expect(carthageRow).toBeTruthy();
+    expect((spartaRow as HTMLElement).style.outline).not.toBe('');
+    expect((carthageRow as HTMLElement).style.outline).toBe('');
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+  });
+
   it('renders broad economy posture without hiding city-state actions', () => {
     const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player' });
     state.minorCivs['mc-sparta'] = {
