@@ -36,6 +36,7 @@ import { evaluateStrategicLaunchDecision } from './ai-strategic-doctrine';
 
 import { chooseProduction } from './ai-strategy';
 import { evaluateDiplomacy, evaluateMinorCivDiplomacy, evaluateVassalage, evaluateEmbargoResponse, evaluateLeagueResponse } from './ai-diplomacy';
+import { getKnownSharedBorderOwners } from './ai-known-borders';
 import { NATIONAL_INTENT_POSTURE } from './ai-national-intent';
 import { chooseWarGoal } from './ai-war-goals';
 import { declareWarGoal, getWarGoalStatus } from '@/systems/war-goal-system';
@@ -1205,7 +1206,8 @@ function processAITurnInternal(
       perception,
       civilizationEra,
     );
-    const diplomacyContext: Record<string, { hasMet: boolean; hasBorderPressure: boolean; targetHasKnownStrategicCapability: boolean }> = {};
+    const sharedKnownBorders = getKnownSharedBorderOwners(newState, civId);
+    const diplomacyContext: Record<string, { hasMet: boolean; hasBorderPressure: boolean; targetHasKnownStrategicCapability: boolean; sharesKnownBorder: boolean }> = {};
     for (const otherId of perception.knownCivIds) {
       const otherCities = perception.knownCities
         .filter(city => city.owner === otherId && city.position !== null);
@@ -1238,6 +1240,7 @@ function processAITurnInternal(
         hasMet: hasMetCivilization(newState, civId, otherId),
         hasBorderPressure,
         targetHasKnownStrategicCapability: hasKnownStrategicCapability(newState, civId, otherId),
+        sharesKnownBorder: sharedKnownBorders.has(otherId),
       };
     }
 

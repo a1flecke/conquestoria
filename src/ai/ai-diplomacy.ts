@@ -18,7 +18,22 @@ export interface DiplomaticContext {
   // #545 MR5: does this civ know the potential war target has strategic
   // (nuclear) capability -- see hasKnownStrategicCapability.
   targetHasKnownStrategicCapability: boolean;
+  /**
+   * #870: this civ can currently SEE a border it shares with the target (an owned tile of
+   * each side adjacent, both on tiles this civ has in view). Built from the civ's own
+   * visibility only -- never from hidden ownership. Open Borders is passage (#871), so it
+   * has a real use exactly where two territories touch. Absent = not known to share one.
+   */
+  sharesKnownBorder?: boolean;
 }
+
+/**
+ * Minimum relationship for the AI to PROPOSE Open Borders. Deliberately above the target's
+ * own consent floor (`evaluateTreatyConsent`: relationship > 20) so a proposal is one the
+ * target will usually accept rather than a request spammed against refusal. Not tiered by
+ * difficulty: legality and thresholds are identical for Explorer / Standard / Veteran.
+ */
+export const OPEN_BORDERS_PROPOSAL_MIN_RELATIONSHIP = 25;
 
 /**
  * `civilizationEra` must be the acting civ's own `resolveCivilizationEra(...)`
@@ -94,6 +109,19 @@ export function evaluateDiplomacy(
         decisions.push({ action: 'trade_agreement', targetCiv: civId });
       } else if (actions.includes('non_aggression_pact') && relationship > 0 && personality.diplomacyFocus + posture.diplomaticOpennessBias > 0.4) {
         decisions.push({ action: 'non_aggression_pact', targetCiv: civId });
+      }
+
+      // #870: Open Borders is real passage now (#871: closed borders stop armed land units), so
+      // an AI whose territory visibly touches this civ's proposes it -- bounded to a border it
+      // can see, a friendly-enough relationship, and not on top of an alliance proposal (which
+      // already includes passage). Consent stays the target's own decision.
+      if (
+        actions.includes('open_borders')
+        && context.sharesKnownBorder === true
+        && relationship > OPEN_BORDERS_PROPOSAL_MIN_RELATIONSHIP
+        && !decisions.some(decision => decision.targetCiv === civId && decision.action === 'alliance')
+      ) {
+        decisions.push({ action: 'open_borders', targetCiv: civId });
       }
 
       // #545 MR6 spec §12: a separate, independent condition -- not part of

@@ -29,7 +29,7 @@ export function isAtWar(state: DiplomacyState, civId: string): boolean {
  * either side's ledger keeps the answer symmetric even for a save whose two
  * records disagree. Treaty order and direction (`civA`/`civB`) never matter.
  */
-export function hasTreatyBetween(state: GameState, civA: string, civB: string, type: TreatyType): boolean {
+export function hasTreatyBetween(state: Pick<GameState, 'civilizations'>, civA: string, civB: string, type: TreatyType): boolean {
   const recordedBy = (holderId: string): boolean =>
     (state.civilizations[holderId]?.diplomacy?.treaties ?? []).some(treaty =>
       treaty.type === type
@@ -38,6 +38,6 @@ export function hasTreatyBetween(state: GameState, civA: string, civB: string, t
 }
 
 /** An alliance treaty exists between the two civs (either party's record). */
-export function hasAllianceTreaty(state: GameState, civA: string, civB: string): boolean {
+export function hasAllianceTreaty(state: Pick<GameState, 'civilizations'>, civA: string, civB: string): boolean {
   return hasTreatyBetween(state, civA, civB, 'alliance');
 }

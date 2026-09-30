@@ -184,6 +184,39 @@ describe('land-supply status line (#544)', () => {
     expect(collectAllText(container).join(' ')).toContain('Overextended — Stage 3 of 3 · -10% Combat, -1 Movement');
   });
 
+  describe('#870 Open Borders is passage, not supply', () => {
+    function onPartnerLand(seed: string, type: 'open_borders' | 'alliance' | null) {
+      const state = makeUnitState(seed, 'warrior', { state: 'grace', hostileUnsupportedTurns: 1, suppliedTurnsSinceRecovery: 0 });
+      const ai = Object.keys(state.civilizations).find(id => id !== 'player')!;
+      state.map.tiles['15,15'] = { ...state.map.tiles['15,15']!, owner: ai };
+      if (type) {
+        for (const [a, b] of [['player', ai], [ai, 'player']] as const) {
+          const civ = state.civilizations[a]!;
+          civ.diplomacy = { ...civ.diplomacy, treaties: [{ type, civA: a, civB: b, turnsRemaining: -1 }] };
+        }
+      }
+      return { state, ai };
+    }
+
+    it('says so on Open Borders land, naming no civilization', () => {
+      const { state, ai } = onPartnerLand('supply-open-borders-line', 'open_borders');
+      const container = new MockElement('div');
+      renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+      const text = collectAllText(container).join(' ');
+      expect(text).toContain('Open Borders allow passage, not supply — this land resupplies no one');
+      expect(text).not.toContain(state.civilizations[ai]!.name);
+    });
+
+    it('does not appear on allied land, on closed foreign land, or at home', () => {
+      for (const type of ['alliance', null] as const) {
+        const { state } = onPartnerLand(`supply-no-line-${type}`, type);
+        const container = new MockElement('div');
+        renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+        expect(collectAllText(container).join(' ')).not.toContain('Open Borders allow passage');
+      }
+    });
+  });
+
   it('shows no supply line at all for a unit that does not participate in land supply', () => {
     const state = makeUnitState('supply-status-naval', 'trireme');
     const container = new MockElement('div');

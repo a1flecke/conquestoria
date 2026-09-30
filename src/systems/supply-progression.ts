@@ -26,7 +26,13 @@ export function advanceOverextensionStage(
   if (isSupplied) {
     return { state: 'full', hostileUnsupportedTurns: 0, suppliedTurnsSinceRecovery: current.suppliedTurnsSinceRecovery };
   }
-  if (territoryClass !== 'hostile') {
+  // #870: Open Borders ('permitted') is passage, not logistics -- an unsupplied army there
+  // attrits exactly like one in enemy land. Only friendly / allied (incl. vassal) / unclaimed
+  // ground is merely 'stable but unsupported'. This is an explicit allow-list of the
+  // attrition-free classes, so a future territory class attrits by default until someone
+  // decides otherwise, never the reverse.
+  const attritionFree = territoryClass === 'friendly' || territoryClass === 'allied' || territoryClass === 'unclaimed';
+  if (attritionFree) {
     return { state: 'stable-unsupported', hostileUnsupportedTurns: 0, suppliedTurnsSinceRecovery: 0 };
   }
   // #544 MR4 contract §16: passive command stabilization "pauses" degradation
