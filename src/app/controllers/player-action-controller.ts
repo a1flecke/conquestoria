@@ -93,7 +93,6 @@ import { applyCombatOutcomeToState, getCaptureNotificationLabel } from '@/system
 import { recordCombatForCiv } from '@/systems/threat-pressure-system';
 import { resolveCombatEra } from '@/systems/era-resolution';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
-import { recordBeastSlain } from '@/systems/beast-system';
 import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
 import { SFX } from '@/audio/sfx';
 import { conquestMinorCiv, applyDiplomaticReaction } from '@/systems/minor-civ-system';
@@ -821,15 +820,13 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
       if (applied.defenderDefeated) {
         deps.showNotification('Enemy unit destroyed!', 'success');
 
-        const slayResult = recordBeastSlain(deps.session.getState(), defender, attacker);
-        deps.session.commit(slayResult.state);
-        if (slayResult.slain) {
-          deps.bus.emit('beast:slain', slayResult.slain);
-        }
+        // The slay itself (lair, hoard, victor heal, `beast:slain`) already happened inside
+        // applyCombatOutcomeToState for whichever executor made the kill (#1014).
         // Tier 3+ beasts use the slay ceremony (beast:slain listener); ceremony calls
         // maybeShowPendingHoardChoice via onContinue so the choice panel appears after
         // the ceremony is dismissed rather than racing with it.
-        if (!slayResult.slain || BEAST_DEFINITIONS[slayResult.slain.beastId].tier < 3) {
+        const slain = applied.beastsSlain[0];
+        if (!slain || BEAST_DEFINITIONS[slain.beastId].tier < 3) {
           deps.maybeShowPendingHoardChoice();
         }
 

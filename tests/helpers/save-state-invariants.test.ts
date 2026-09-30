@@ -10,6 +10,7 @@ import {
   assertUnitRosters,
   assertCargoReciprocity,
   assertAirBaseIntegrity,
+  assertBeastLairIntegrity,
   assertVassalageReciprocity,
   assertTreatyReciprocity,
   assertNationalProjectUniqueness,
@@ -1184,9 +1185,74 @@ describe('#1006 assertSaveStateInvariants (aggregate)', () => {
     expect(message).toMatch(/unit-ghost/);
   });
 
-  it('SAVE_STATE_INVARIANTS lists exactly the twelve documented checks', () => {
+  describe('assertBeastLairIntegrity (#1014)', () => {
+    function beastState(seed: string) {
+      const state = freshState(seed);
+      const src = Object.values(state.units).find(u => u.owner === 'player')!;
+      const beast = { ...src, id: 'beast-1', type: 'beast_boar' as const, owner: 'beasts' };
+      state.units[beast.id] = beast;
+      state.beasts = {
+        mode: 'wild',
+        lairs: {
+          'lair-giant_boar': {
+            id: 'lair-giant_boar', beastId: 'giant_boar', position: { q: 10, r: 10 },
+            status: 'awake', strength: 0, unitIds: [beast.id],
+          },
+        },
+        sightingsByCiv: {},
+      };
+      return state;
+    }
+
+    it('passes for a state without beasts, and for a lair whose listed beast exists', () => {
+      expect(() => assertBeastLairIntegrity(freshState('inv-beast-none'))).not.toThrow();
+      expect(() => assertBeastLairIntegrity(beastState('inv-beast-ok'))).not.toThrow();
+    });
+
+    it('throws when a lair lists a beast that no longer exists (the AI-kill bug: unit gone, lair still awake)', () => {
+      const state = beastState('inv-beast-ghost');
+      delete state.units['beast-1'];
+      expect(() => assertBeastLairIntegrity(state)).toThrow(/beast-lair-integrity invariant violated/s);
+      expect(() => assertBeastLairIntegrity(state)).toThrow(/lists beast "beast-1" which does not exist/s);
+    });
+
+    it('throws when a lair lists a unit the beasts do not own', () => {
+      const state = beastState('inv-beast-owner');
+      state.units['beast-1'] = { ...state.units['beast-1'], owner: 'player' };
+      expect(() => assertBeastLairIntegrity(state)).toThrow(/not by the beasts/s);
+    });
+
+    it('throws when a slain or claimed lair still lists beasts', () => {
+      const slain = beastState('inv-beast-slain-lists');
+      slain.beasts!.lairs['lair-giant_boar'] = { ...slain.beasts!.lairs['lair-giant_boar'], status: 'slain' };
+      expect(() => assertBeastLairIntegrity(slain)).toThrow(/is slain but still lists 1 beast/s);
+      const claimed = beastState('inv-beast-claimed-lists');
+      claimed.beasts!.lairs['lair-giant_boar'] = { ...claimed.beasts!.lairs['lair-giant_boar'], status: 'claimed' };
+      expect(() => assertBeastLairIntegrity(claimed)).toThrow(/is claimed but still lists 1 beast/s);
+    });
+
+    it('throws when a pending hoard choice names a missing lair or a lair that is not slain', () => {
+      const missing = beastState('inv-beast-choice-missing');
+      missing.beasts!.pendingHoardChoices = [{ lairId: 'lair-nope', civId: 'player' }];
+      expect(() => assertBeastLairIntegrity(missing)).toThrow(/names lair "lair-nope" which does not exist/s);
+      const notSlain = beastState('inv-beast-choice-awake');
+      notSlain.beasts!.pendingHoardChoices = [{ lairId: 'lair-giant_boar', civId: 'player' }];
+      expect(() => assertBeastLairIntegrity(notSlain)).toThrow(/whose status is awake, not slain/s);
+    });
+
+    it('passes for a properly slain lair with a pending choice (the state applyCombatOutcomeToState leaves)', () => {
+      const state = beastState('inv-beast-slain-ok');
+      delete state.units['beast-1'];
+      state.beasts!.lairs['lair-giant_boar'] = { ...state.beasts!.lairs['lair-giant_boar'], status: 'slain', unitIds: [], slainBy: 'player' };
+      state.beasts!.pendingHoardChoices = [{ lairId: 'lair-giant_boar', civId: 'player' }];
+      expect(() => assertBeastLairIntegrity(state)).not.toThrow();
+    });
+  });
+
+  it('SAVE_STATE_INVARIANTS lists exactly the thirteen documented checks', () => {
     expect(SAVE_STATE_INVARIANTS.map(inv => inv.name).sort()).toEqual([
       'air-base-integrity',
+      'beast-lair-integrity',
       'bilateral-war',
       'cargo-reciprocity',
       'city-rosters',

@@ -170,6 +170,30 @@ describe('unit-turn-flow', () => {
     expect(overlayStates).toEqual(['unit-delete-confirmation', null]);
   });
 
+  it('the delete confirmation names every other unit the removal takes with it (#1014)', () => {
+    const state = makeState();
+    const anchor = state.units['unit-warrior'];
+    const transport = { ...createUnit('transport', 'player', anchor.position, mkC()), id: 'unit-transport', cargoUnitIds: ['unit-cargo'] };
+    const cargo = { ...createUnit('archer', 'player', anchor.position, mkC()), id: 'unit-cargo', transportId: transport.id };
+    state.units[transport.id] = transport;
+    state.units[cargo.id] = cargo;
+    state.civilizations.player.units.push(transport.id, cargo.id);
+    const { flow } = makeFlow(state);
+
+    flow.showDeleteUnitConfirmation('unit-transport');
+
+    const panelText = document.querySelector('#unit-delete-confirmation-panel')?.textContent ?? '';
+    expect(panelText).toMatch(/also remove 1 other unit it carries or hosts: Archer/);
+  });
+
+  it('a unit that takes nothing with it gets no cascade sentence', () => {
+    const { flow } = makeFlow(makeState());
+
+    flow.showDeleteUnitConfirmation('unit-scout');
+
+    expect(document.querySelector('#unit-delete-confirmation-panel')?.textContent ?? '').not.toMatch(/also remove/);
+  });
+
   it('confirms deletion, refreshes visibility, clears overlay, and advances unit cycling', () => {
     const { flow, getState, calls, overlayStates } = makeFlow(makeState());
 

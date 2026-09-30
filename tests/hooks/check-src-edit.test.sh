@@ -391,4 +391,25 @@ unpublished.adopt(next, 'viewer-not-yet-revealed');
 EOF
 expect_allow "$tmp/src/app/controllers/turn-flow-controller.ts" "unpublished.adopt from a sanctioned owner"
 
+# --- #1014: single-entry-point consequences ---
+cat > "$tmp/src/ui/quick-strike.ts" <<'EOF'
+const r = resolveStrategicStrike(state, civ, city);
+EOF
+expect_block "$tmp/src/ui/quick-strike.ts" "resolveStrategicStrike outside its wrapper"
+
+cat > "$tmp/src/systems/strategic-launch-execution-system.ts" <<'EOF'
+const r = resolveStrategicStrike(state, civ, city);
+EOF
+expect_allow "$tmp/src/systems/strategic-launch-execution-system.ts" "resolveStrategicStrike from its sanctioned wrapper"
+
+cat > "$tmp/src/ai/some-executor.ts" <<'EOF'
+const r = recordBeastSlain(state, beast, hero);
+EOF
+expect_block "$tmp/src/ai/some-executor.ts" "recordBeastSlain outside combat-reward-system"
+
+cat > "$tmp/src/systems/combat-reward-system.ts" <<'EOF'
+const r = recordBeastSlain(state, beast, hero);
+EOF
+expect_allow "$tmp/src/systems/combat-reward-system.ts" "recordBeastSlain from combat-reward-system"
+
 exit "$fail"

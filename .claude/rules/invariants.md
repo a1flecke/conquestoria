@@ -51,6 +51,7 @@ every implicit assumption an invariant... short enough to read").
 | `civilizations.*` — elimination | An eliminated civ retains no live entity or obligation anywhere in `GameState` | `ELIMINATED_CIV_AREAS` + `assertEliminatedCivHasNoLiveEntities` (**#1001, closed**) |
 | `units.*.cargoUnitIds` / `.transportId` | Naval transport↔cargo dual reference stays reciprocal, capacity-bounded, same-tile, land-only cargo | `SAVE_STATE_INVARIANTS: cargo-reciprocity` (**#1000, closed**) |
 | `units.*.airBase` | Carrier/city-based aircraft resolve to a live, capacity-bounded, same-owner, same-tile host | `SAVE_STATE_INVARIANTS: air-base-integrity` (**#1000, closed**) |
+| `beasts.lairs.*.unitIds` / `.pendingHoardChoices` | A lair names only beasts that exist (owned by the beasts); a `slain`/`claimed` lair names none; a pending hoard choice names a real `slain` lair | `SAVE_STATE_INVARIANTS: beast-lair-integrity` (**#1014**) — the slay itself is applied by `applyCombatOutcomeToState` for every executor, so this fails if a future path deletes a beast around it |
 | `currentPlayer` | Turn cycling never hands the turn to an eliminated civ | `ELIMINATED_CIV_AREAS.currentPlayer` (teardown) |
 | `map` / any occupying-entity check | No successful action leaves an illegal blocking entity on a tile | discipline + partial `getBlockingMapEntityAt` centralization; **#994 open** |
 | Any legality-checked action | A legal preview stays executable under unchanged state; a rejected action cannot succeed via an alternate executor | **#998 / #999 open** — `resolveCityInteraction`'s single-source-of-truth pattern (`.claude/rules/game-balance.md`) is the model other action families should converge on; **#1025 open** owns generalizing it (movement's slice already landed, #1042) |
@@ -136,6 +137,9 @@ cross-system state; this lists only the ones that are)
 | `victory-system.ts` roster-length liveness | Victory inferring survival from `civilizations.*.cities/units.length` instead of canonical sovereignty facts |
 | `city-building-catalog.ts`/`city-unit-catalog.ts` importing the espionage runtime | A catalog-initialization cycle between production content and espionage state |
 | Low-level unit mover called outside the movement system | Bypassing `resolveUnitMoveIntent`/`executeValidatedUnitMove`'s omniscient legality+cost check |
+| `resolveStrategicStrike(` outside `strategic-launch-execution-system.ts` (#1014) | A strike that skips `executeStrategicLaunch`'s reputation, witness and retaliation-tracking consequences |
+| `recordBeastSlain(` outside `beast-system.ts`/`combat-reward-system.ts` (#1014) | A second executor re-implementing (or forgetting) the beast-slay consequence |
+| `setStateWithoutRefresh` anywhere, `unpublished.adopt(` outside its owners (#1015) | A state write that leaves the renderer/HUD/panels stale |
 | Direct state mutation (`state.x[...] = `) in turn-processing systems | Breaking immutable turn processing (`.claude/rules/game-systems.md#immutable-turn-processing`) |
 | `cities[0]` in a UI/recommendation path | Silently ignoring every city but the first in a multi-city empire |
 

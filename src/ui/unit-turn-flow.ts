@@ -88,6 +88,10 @@ export function createUnitTurnFlow(deps: UnitTurnFlowDeps): UnitTurnFlow {
     const preview = removePlayerUnitFromState(state, state.currentPlayer, unitId);
     const before = getCivilizationLiveness(state, state.currentPlayer);
     const after = getCivilizationLiveness(preview, state.currentPlayer);
+    // #1014: removal cascades (a transport takes its cargo, a carrier its air wing). Say so, or the
+    // player disbands one unit and silently loses several. Elimination has its own, stronger text.
+    const alsoRemoved = Object.values(state.units)
+      .filter(candidate => candidate.id !== unitId && candidate.owner === state.currentPlayer && !preview.units[candidate.id]);
     if (before.living && !after.living) {
       const carriesFinalSettler = Object.values(state.units).some(candidate =>
         candidate.owner === state.currentPlayer
@@ -99,6 +103,10 @@ export function createUnitTurnFlow(deps: UnitTurnFlowDeps): UnitTurnFlow {
         ? 'This ship carries your last city-founding settler. Removing it will end your civilization and its remaining units will stand down.'
         : 'This is your last city-founding settler. Removing it will end your civilization and its remaining units will stand down.';
       bodyText = bodyText ? `${bodyText}\n\n${consequence}` : consequence;
+    } else if (alsoRemoved.length > 0) {
+      const names = alsoRemoved.map(candidate => UNIT_DEFINITIONS[candidate.type].name).join(', ');
+      const cascade = `This will also remove ${alsoRemoved.length} other unit${alsoRemoved.length === 1 ? '' : 's'} it carries or hosts: ${names}.`;
+      bodyText = bodyText ? `${bodyText}\n\n${cascade}` : cascade;
     }
 
     deps.setBlockingOverlay('unit-delete-confirmation');

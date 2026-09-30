@@ -52,15 +52,29 @@ export function removePlayerUnitFromState(
         && removedUnitIds.has(candidate.transportId);
       const isListedCargo = [...removedUnitIds].some(removedId =>
         state.units[removedId]?.cargoUnitIds?.includes(candidate.id));
-      if ((isCargoOfRemovedTransport || isListedCargo) && !removedUnitIds.has(candidate.id)) {
+      // #1014: a carrier's based aircraft go with it -- the same consequence losing the carrier in
+      // combat has (`destroyCarrierBasedAircraft`). Disbanding one used to leave the jets alive
+      // on an airBase that no longer exists (air-base-integrity violated).
+      const isBasedOnRemovedCarrier = candidate.airBase?.kind === 'carrier'
+        && removedUnitIds.has(candidate.airBase.unitId);
+      if ((isCargoOfRemovedTransport || isListedCargo || isBasedOnRemovedCarrier) && !removedUnitIds.has(candidate.id)) {
         removedUnitIds.add(candidate.id);
         changed = true;
       }
     }
   }
 
+  // #1014: a removed unit that was cargo of a SURVIVING transport must leave its manifest too, or the
+  // transport keeps naming a unit that no longer exists (cargo-reciprocity violated).
   const remainingUnits = Object.fromEntries(
-    Object.entries(state.units).filter(([id]) => !removedUnitIds.has(id)),
+    Object.entries(state.units)
+      .filter(([id]) => !removedUnitIds.has(id))
+      .map(([id, candidate]) => [
+        id,
+        candidate.cargoUnitIds?.some(cargoId => removedUnitIds.has(cargoId))
+          ? { ...candidate, cargoUnitIds: candidate.cargoUnitIds.filter(cargoId => !removedUnitIds.has(cargoId)) }
+          : candidate,
+      ]),
   );
   let nextEspionage = state.espionage;
   for (const removedId of removedUnitIds) {

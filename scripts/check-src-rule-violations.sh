@@ -222,6 +222,39 @@ for file_path in "$@"; do
       ;;
   esac
 
+  # --- single-entry-point consequences (#1014): some transitions carry consequences that
+  # must happen exactly once, in one place. Calling the inner step directly skips them.
+  #  * A strategic strike goes through executeStrategicLaunch() (reputation, witnesses,
+  #    retaliation tracking); only strategic-launch-execution-system.ts may call
+  #    resolveStrategicStrike().
+  #  * A beast slay is applied by applyCombatOutcomeToState() for whichever executor made
+  #    the kill; only beast-system.ts (defines it) and combat-reward-system.ts may call
+  #    recordBeastSlain().
+  case "$file_path" in
+    src/systems/strategic-strike-system.ts|src/systems/strategic-launch-execution-system.ts)
+      : # sanctioned: defines the primitive / is its single wrapper
+      ;;
+    *)
+      ss_lines="$(grep -nE 'resolveStrategicStrike\(' "$file_path" \
+        | grep -vE '^[0-9]+:[[:space:]]*(//|\*|/\*)' | head -5 || true)"
+      if [ -n "$ss_lines" ]; then
+        append_match_block "resolveStrategicStrike() called outside strategic-launch-execution-system.ts — a strike must go through executeStrategicLaunch(), which applies the reputation, witness and retaliation-tracking consequences (see .claude/rules/caller-discipline.md)" "$ss_lines"
+      fi
+      ;;
+  esac
+  case "$file_path" in
+    src/systems/beast-system.ts|src/systems/combat-reward-system.ts)
+      : # sanctioned: defines the slay / applies it for every combat executor
+      ;;
+    *)
+      bs_lines="$(grep -nE 'recordBeastSlain\(' "$file_path" \
+        | grep -vE '^[0-9]+:[[:space:]]*(//|\*|/\*)' | head -5 || true)"
+      if [ -n "$bs_lines" ]; then
+        append_match_block "recordBeastSlain() called outside combat-reward-system.ts — the slay is a consequence of the kill and is applied by applyCombatOutcomeToState() for every executor; read its beastsSlain result instead (see .claude/rules/caller-discipline.md)" "$bs_lines"
+      fi
+      ;;
+  esac
+
   if grep -nE 'innerHTML\s*=\s*`[^`]*\$\{' "$file_path" >/dev/null; then
     lines="$(grep -nE 'innerHTML\s*=\s*`[^`]*\$\{' "$file_path" | head -5)"
     append_match_block "innerHTML with interpolated game data — use textContent or data-text placeholders (see .claude/rules/ui-panels.md#unit-info-panels)" "$lines"

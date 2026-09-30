@@ -46,6 +46,7 @@ Detailed rules live in `.claude/rules/` and auto-apply based on the files you ed
 - `.claude/rules/spec-fidelity.md` — spec conjunctions, gating preservation, visible-UI contract preservation, and **keeping `docs/superpowers/plans/*.md` phase-status annotations synced with merged PRs in the same PR that completes the phase**
 - `.claude/rules/incremental-mr-completion.md` — partial-MR PR title/body requirements and dead-end UX prevention
 - `.claude/rules/hooks-and-tooling.md` — hook stdin/jq contract, exit codes, and required smoke tests
+- `.claude/rules/caller-discipline.md` — how "caller must remember" contracts are turned into structure; the inventory, the mechanisms, and the decision procedure for a new contract
 - `.claude/rules/session-publication.md` — `GameSession` publication: `commit`/`update`/`batch`, the closed set of silent-write reasons, no hand-written renderer/HUD refresh
 - `.claude/rules/sprites.md` — unit/building/terrain/improvement extension recipes, FactionPalette contract, catalog coverage, animation class reference, terrain tile contracts
 - `.claude/rules/game-balance.md` — wonder/national-project yield ceilings, movement stacking policy, national-project production-discount table pattern, **canonical production-cost context (Civilization Era vs World Age)**
@@ -84,7 +85,7 @@ When planning interactive UI or queue work, use `docs/superpowers/plans/README.m
 
 ## Hot Seat Multiplayer Rules
 - NEVER hardcode `'player'` for ownership checks — always use `state.currentPlayer`
-- Diplomacy operations MUST update BOTH sides (bilateral state updates)
+- Major↔major war, peace and treaties are bilateral **by construction**: use `declareMajorWar`/`makeMajorPeace`; the single-side writers are unreachable from the `diplomacy-system` barrel and their importers are pinned (see `.claude/rules/caller-discipline.md`)
 - Renderer must accept `currentPlayer` for context-dependent visuals (borders, fog)
 - Advisors, UI panels, and HUD must all use `state.currentPlayer`
 

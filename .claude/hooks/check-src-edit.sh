@@ -202,6 +202,37 @@ $adopt_lines"
     ;;
 esac
 
+# --- single-entry-point consequences (#1014) ---
+# resolveStrategicStrike() is the primitive; executeStrategicLaunch() is the only entry point
+# (reputation, witnesses, retaliation tracking). recordBeastSlain() is applied by
+# applyCombatOutcomeToState() for every combat executor; nothing else calls it.
+case "$file_path" in
+  */src/systems/strategic-strike-system.ts|*/src/systems/strategic-launch-execution-system.ts)
+    : # sanctioned
+    ;;
+  *)
+    ss_lines="$(grep -nE 'resolveStrategicStrike\(' "$file_path" \
+      | grep -vE '^[0-9]+:[[:space:]]*(//|\*|/\*)' | head -5 || true)"
+    if [ -n "$ss_lines" ]; then
+      append "resolveStrategicStrike() called outside strategic-launch-execution-system.ts — a strike must go through executeStrategicLaunch(), which applies the reputation, witness and retaliation-tracking consequences (see .claude/rules/caller-discipline.md):
+$ss_lines"
+    fi
+    ;;
+esac
+case "$file_path" in
+  */src/systems/beast-system.ts|*/src/systems/combat-reward-system.ts)
+    : # sanctioned
+    ;;
+  *)
+    bs_lines="$(grep -nE 'recordBeastSlain\(' "$file_path" \
+      | grep -vE '^[0-9]+:[[:space:]]*(//|\*|/\*)' | head -5 || true)"
+    if [ -n "$bs_lines" ]; then
+      append "recordBeastSlain() called outside combat-reward-system.ts — the slay is a consequence of the kill and is applied by applyCombatOutcomeToState() for every executor; read its beastsSlain result instead (see .claude/rules/caller-discipline.md):
+$bs_lines"
+    fi
+    ;;
+esac
+
 # --- single-side war/peace mutation (#995) ---
 # declareWar() / makePeace() write ONE side of a war. Major↔major war state must
 # stay bilateral by construction — use declareMajorWar() / makeMajorPeace().

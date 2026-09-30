@@ -42,8 +42,8 @@ src/systems/combat-system.ts:431 # [LOW] resolveCombat's LCG recurrence body —
 src/systems/city-siege-system.ts:135 # [LOW] createSeededRng() recurrence body — hand-rolled duplicate of seededLcg
 
 # --- combat-reward-system.ts (seededRoll's seed always traces back to deterministicCombatSeed via applyCombatOutcomeToState) ---
-src/systems/combat-reward-system.ts:145 # [OK] full victorId:defeatedId fold, no truncation; caller-supplied seed is already gameId-rooted
-src/systems/combat-reward-system.ts:147 # [LOW] LCG recurrence body — hand-rolled duplicate of seededLcg
+src/systems/combat-reward-system.ts:142 # [OK] full victorId:defeatedId fold, no truncation; caller-supplied seed is already gameId-rooted
+src/systems/combat-reward-system.ts:144 # [LOW] LCG recurrence body — hand-rolled duplicate of seededLcg
 
 # --- pirate-actions.ts (deterministicRoll is parameterized; its one caller already builds gameId:turn:factionId:raidKey) ---
 src/systems/pirate-actions.ts:305 # [OK] full-string FNV-1a fold, no truncation; caller already supplies gameId:turn:factionId:raidKey
