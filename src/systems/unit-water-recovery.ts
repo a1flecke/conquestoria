@@ -1,6 +1,6 @@
 import type { GameState, HexCoord } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 
 export type LandUnitWaterRecovery =
   | { kind: 'none'; destinations: [] }

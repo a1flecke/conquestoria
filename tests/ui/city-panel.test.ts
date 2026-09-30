@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createCityPanel } from '@/ui/city-panel';
 import { SESSION_SHOWN_TIPS } from '@/ui/advisor-system';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { EventBus } from '@/core/event-bus';
 import { ECONOMY_RULES, getRushBuyQuote, rushBuyActiveProduction } from '@/systems/economy-system';
 import { BUILDINGS, TRAINABLE_UNITS, processCity } from '@/systems/city-system';

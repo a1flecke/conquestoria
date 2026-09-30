@@ -1,6 +1,6 @@
 import type { GameState, HexCoord } from '@/core/types';
 import { getWrappedHexNeighbors, hexKey, hexNeighbors } from '@/systems/hex-utils';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { appendNotification } from '@/core/notification-log';
 import { syncTransportCargoPositions } from '@/systems/transport-system';
 

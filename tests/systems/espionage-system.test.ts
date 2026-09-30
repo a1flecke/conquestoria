@@ -1900,11 +1900,11 @@ describe('spy unit definitions', () => {
 
   for (const t of SPY_TYPES) {
     it(`UNIT_DEFINITIONS has entry for ${t}`, async () => {
-      const { UNIT_DEFINITIONS } = await import('@/systems/unit-system');
+      const { UNIT_DEFINITIONS } = await import('@/systems/unit-definitions');
       expect(UNIT_DEFINITIONS[t]).toBeDefined();
     });
     it(`UNIT_DESCRIPTIONS has entry for ${t}`, async () => {
-      const { UNIT_DESCRIPTIONS } = await import('@/systems/unit-system');
+      const { UNIT_DESCRIPTIONS } = await import('@/systems/unit-descriptions');
       expect(UNIT_DESCRIPTIONS[t]).toBeTruthy();
     });
   }

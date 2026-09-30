@@ -16,7 +16,7 @@ import { hexKey, mapDistance, mapHexesInRange } from './hex-utils';
 import { spawnBarbarianCamp } from './barbarian-system';
 import { BEAST_DEFINITIONS } from './beast-definitions';
 import { BEAST_OWNER, isTerrainPassableForBeast } from './beast-system';
-import { createUnit } from './unit-system';
+import { createUnit } from './unit-lifecycle';
 import { buildUnitOccupancy, getUnitIdsAtCoord } from './unit-occupancy';
 import { resolveWorldPressureFlags } from './world-pressure-flags';
 import { applyInteractionReputation, getCrisisInteractionDefinition } from './crisis-interaction-system';

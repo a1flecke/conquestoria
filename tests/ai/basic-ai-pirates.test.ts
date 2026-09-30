@@ -5,7 +5,7 @@ import { createNewGame } from '@/core/game-state';
 import { createEmptyPirateState, type PirateFactionState } from '@/core/pirate-state';
 import type { GameState, HexCoord, UnitType } from '@/core/types';
 import { hexDistance, hexKey } from '@/systems/hex-utils';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 
 function fixture(): GameState {
   const state = createNewGame(undefined, 'ai-pirates', 'small');

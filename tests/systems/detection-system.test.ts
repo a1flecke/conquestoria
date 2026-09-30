@@ -279,13 +279,13 @@ describe('scout_hound detection', () => {
 
 describe('civ-unique detection units', () => {
   it('shadow_warden is defined in UNIT_DEFINITIONS', async () => {
-    const { UNIT_DEFINITIONS } = await import('@/systems/unit-system');
+    const { UNIT_DEFINITIONS } = await import('@/systems/unit-definitions');
     expect(UNIT_DEFINITIONS['shadow_warden']).toBeDefined();
     expect(UNIT_DEFINITIONS['shadow_warden'].spyDetectionChance).toBe(0.50);
   });
 
   it('war_hound is defined in UNIT_DEFINITIONS', async () => {
-    const { UNIT_DEFINITIONS } = await import('@/systems/unit-system');
+    const { UNIT_DEFINITIONS } = await import('@/systems/unit-definitions');
     expect(UNIT_DEFINITIONS['war_hound']).toBeDefined();
     expect(UNIT_DEFINITIONS['war_hound'].strength).toBeGreaterThan(10);
     expect(UNIT_DEFINITIONS['war_hound'].spyDetectionChance).toBe(0.30);

@@ -72,7 +72,7 @@ it('the movement family has exactly one low-level position executor (#1025)', ()
   }
   const srcRoot = resolve(__dirname, '../../src');
   const sanctioned = new Set([
-    resolve(srcRoot, 'systems/unit-system.ts'),
+    resolve(srcRoot, 'systems/unit-low-level-move.ts'),
     resolve(srcRoot, 'systems/unit-movement-system.ts'),
   ]);
   const callPattern = /moveUnitWithZoneOfControl\(|(^|[^.A-Za-z_])moveUnit\(/;
@@ -90,7 +90,7 @@ it('the movement family has exactly one low-level position executor (#1025)', ()
   expect(offenders, offenders.join('\n')).toEqual([]);
 });
 
-describe('#1010 — unit-system movement decomposition boundaries', () => {
+describe('#1010 — unit-system decomposition boundaries', () => {
   const sys = resolve(__dirname, '../../src/systems');
   const read = (name: string) => readFileSync(resolve(sys, name), 'utf8');
 
@@ -110,6 +110,11 @@ describe('#1010 — unit-system movement decomposition boundaries', () => {
     'unit-movement-validation',
     'unit-movement-queries',
     'unit-movement-explainer',
+    'unit-descriptions',
+    'unit-lifecycle',
+    'unit-healing',
+    'unit-order-state',
+    'unit-low-level-move',
     'unit-system',
   ];
 
@@ -196,32 +201,69 @@ describe('#1010 — unit-system movement decomposition boundaries', () => {
     expect(importsOf('unit-pathfinding.ts')).toContain('binary-heap');
   });
 
-  it('unit-system.ts is a barrel: pre-split public surface preserved, sibling internals excluded', async () => {
+  it('unit-system.ts is a shrink-only deprecated facade: exact export list, guarded movers and cycle-prone modules excluded', async () => {
     const mod = await import('@/systems/unit-system');
-    const PRE_SPLIT_PUBLIC = [
-      'UNIT_DEFINITIONS', 'UNIT_DESCRIPTIONS',
-      'createUnit', 'moveUnit', 'moveUnitWithZoneOfControl', 'resetUnitTurn',
-      'HEAL_PASSIVE', 'HEAL_RESTING', 'HEAL_IN_CITY', 'HEAL_IN_TERRITORY',
-      'canHeal', 'healUnit', 'restUnit', 'getUnmovedUnits', 'isUnitAwaitingOrders',
-      'getMovementCost', 'getMovementCostForUnit', 'canHullEnterOcean',
-      'getMovementCostForUnitInContext', 'getMovementStepCostFor',
-      'movementStepCostParamsForType', 'getMovementStepCost',
-      'BLOCKING_MAP_ENTITY_MESSAGES', 'isBlockingCityFor', 'getBlockingMapEntityAt',
-      'getBlockingMapEntityKeys', 'findPath', 'findPathToCity',
-      'getMovementRange', 'getMovementRangeDetails',
-    ];
-    for (const name of PRE_SPLIT_PUBLIC) {
-      expect(mod, `unit-system barrel must re-export ${name}`).toHaveProperty(name);
+    // The list may only ever shrink. Adding an export here is what #1010 removed.
+    expect(Object.keys(mod).sort()).toEqual([
+      'BLOCKING_MAP_ENTITY_MESSAGES', 'HEAL_IN_CITY', 'HEAL_IN_TERRITORY', 'HEAL_PASSIVE', 'HEAL_RESTING',
+      'UNIT_DEFINITIONS', 'UNIT_DESCRIPTIONS', 'canHeal', 'canHullEnterOcean', 'createUnit',
+      'findPath', 'findPathToCity', 'getBlockingMapEntityAt', 'getBlockingMapEntityKeys',
+      'getBlockingMapEntityKeysForOwner', 'getMovementCost', 'getMovementCostForUnit',
+      'getMovementCostForUnitInContext', 'getMovementRange', 'getMovementRangeDetails',
+      'getMovementStepCost', 'getMovementStepCostFor', 'getUnmovedUnits', 'healUnit',
+      'isBlockingCityFor', 'isUnitAwaitingOrders', 'movementStepCostParamsForType', 'resetUnitTurn', 'restUnit',
+    ]);
+    // The guarded low-level movers are NOT reachable through the facade.
+    for (const guarded of ['moveUnit', 'moveUnitWithZoneOfControl']) {
+      expect(mod, `${guarded} must not be re-exported`).not.toHaveProperty(guarded);
     }
-    // The four sibling-only cost helpers must NOT leak into the barrel.
+    // The four sibling-only cost helpers must NOT leak into the facade.
     for (const internal of ['terrainCostForParams', 'isPassableForParams', 'hasRoadMovementDiscount', 'isPassableForUnitInContext']) {
       expect(mod, `${internal} must stay internal to unit-movement-cost`).not.toHaveProperty(internal);
     }
-    // #1025 MR4: getMovementBlockerReason moved OUT of the barrel (cycle) to its own module;
-    // the MovementBlockerReason *type* is still re-exported here.
-    expect(mod, 'getMovementBlockerReason must NOT be on the barrel post-#1025-MR4').not.toHaveProperty('getMovementBlockerReason');
+    // #1025 MR4: getMovementBlockerReason lives in its own module (cycle); the type is still re-exported.
+    expect(mod, 'getMovementBlockerReason must NOT be on the facade').not.toHaveProperty('getMovementBlockerReason');
     const explainer = await import('@/systems/unit-movement-explainer');
     expect(explainer).toHaveProperty('getMovementBlockerReason');
+  });
+
+  it('nothing in src/ or tests/ imports the unit-system facade: every importer names its owning module', () => {
+    function walkTs(dir: string): string[] {
+      return readdirSync(dir, { withFileTypes: true }).flatMap(e => {
+        const full = resolve(dir, e.name);
+        return e.isDirectory() ? walkTs(full) : /\.tsx?$/.test(e.name) ? [full] : [];
+      });
+    }
+    const root = resolve(__dirname, '../..');
+    const offenders: string[] = [];
+    for (const file of [...walkTs(resolve(root, 'src')), ...walkTs(resolve(root, 'tests'))]) {
+      if (file.endsWith('src/systems/unit-system.ts') || file.endsWith('tests/app/architecture-boundaries.test.ts')) continue;
+      const source = readFileSync(file, 'utf8');
+      if (/(?:from|import\()\s*['"](?:@\/systems\/|\.\/|\.\.\/systems\/)unit-system['"]/.test(source)) {
+        offenders.push(file.slice(root.length + 1));
+      }
+    }
+    expect(offenders, `import the owning unit-* module instead of the deprecated facade:\n${offenders.join('\n')}`).toEqual([]);
+  });
+
+  it('the split modules keep their single responsibility: leaves stay leaves, nothing imports the facade', () => {
+    const TYPE_LEAVES = ['unit-descriptions', 'unit-healing', 'unit-order-state'];
+    for (const leaf of TYPE_LEAVES) {
+      // Pure data / pure rules: types only, no other system module at all.
+      expect(importsOf(`${leaf}.ts`).filter(s => s !== '@/core/types'), `${leaf} must be a types-only leaf`).toEqual([]);
+    }
+    // Lifecycle depends on the catalog leaf and nothing else.
+    expect(importsOf('unit-lifecycle.ts').filter(s => !['@/core/types', 'unit-definitions'].includes(s))).toEqual([]);
+    // The guarded movers depend only on zone-of-control (for the ZoC stop) and types.
+    expect(importsOf('unit-low-level-move.ts').filter(s => !['@/core/types', 'zone-of-control-system'].includes(s))).toEqual([]);
+    for (const mod of ['unit-descriptions', 'unit-healing', 'unit-order-state', 'unit-lifecycle', 'unit-low-level-move']) {
+      expect(importsOf(`${mod}.ts`), `${mod} must not import the facade`).not.toContain('unit-system');
+    }
+  });
+
+  it('healing never reads a treaty, territory or diplomacy fact: passage and support are different questions (#870)', () => {
+    const healing = read('unit-healing.ts').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    expect(healing).not.toMatch(/open_borders|alliance|treat|territorial|diplomacy|classifyLandSupply|\.owner\b/);
   });
 
   it('unit-system.ts sheds the coupling that moved with the movement subsystem', () => {
@@ -248,9 +290,27 @@ describe('#1010 — unit-system movement decomposition boundaries', () => {
     expect(defsOf(/function getRoadMovementDiscount\(/)).toEqual([]);
   });
 
-  it('the low-level position movers stay in unit-system.ts (keeps the #1025 guard valid)', () => {
-    expect(read('unit-system.ts')).toMatch(/export function moveUnitWithZoneOfControl\(/);
-    expect(read('unit-system.ts')).toMatch(/export function moveUnit\(/);
+  it('the low-level position movers are a guarded primitive: defined once, importable only by the executor and the named world-actor exemptions', () => {
+    expect(read('unit-low-level-move.ts')).toMatch(/export function moveUnitWithZoneOfControl\(/);
+    expect(read('unit-low-level-move.ts')).toMatch(/export function moveUnit\(/);
+    function walkSrc(dir: string): string[] {
+      return readdirSync(dir, { withFileTypes: true }).flatMap(e => {
+        const full = resolve(dir, e.name);
+        return e.isDirectory() ? walkSrc(full) : /\.tsx?$/.test(e.name) ? [full] : [];
+      });
+    }
+    const srcRoot = resolve(__dirname, '../../src');
+    const importers = walkSrc(srcRoot)
+      .filter(file => /from\s+['"](?:@\/systems\/|\.\/)unit-low-level-move['"]/.test(readFileSync(file, 'utf8')))
+      .map(file => file.slice(srcRoot.length + 1))
+      .sort();
+    // The canonical executor, plus the two ocean-only world-actor call sites carrying
+    // `movement-contract-exempt` markers (see .claude/rules/movement-actions.md).
+    expect(importers).toEqual([
+      'systems/pirate-behavior.ts',
+      'systems/pirate-system.ts',
+      'systems/unit-movement-system.ts',
+    ]);
   });
 });
 

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { GameState, Unit } from '@/core/types';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { createEmptyPirateState } from '@/core/pirate-state';
 import {
   assertBilateralWar,

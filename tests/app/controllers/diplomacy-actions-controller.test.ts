@@ -5,7 +5,7 @@ import { EventBus } from '@/core/event-bus';
 import { createGameSession } from '@/app/game-session';
 import { enqueuePeaceRequest, enqueueTreatyProposal } from '@/systems/diplomacy-requests';
 import { signTreaty } from '@/systems/diplomacy-treaties';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import type { City, GameState, HexCoord } from '@/core/types';
 import {
   createDiplomacyActionsController,

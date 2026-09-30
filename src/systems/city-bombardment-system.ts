@@ -17,7 +17,7 @@ import {
 import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { createSimulationRng } from '@/systems/simulation-rng';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 
 export type CityBombardmentSource = 'player' | 'ai';
 

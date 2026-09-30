@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { foundCity } from '@/systems/city-system';
 import { spawnBarbarianCamp } from '@/systems/barbarian-system';
 import { generateQuest } from '@/systems/quest-system';

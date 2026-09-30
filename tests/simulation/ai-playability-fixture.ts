@@ -23,7 +23,8 @@ import { applyStrategicWarningTransitions } from '@/systems/strategic-warning-sy
 import { TECH_TREE, resolveCivilizationEra } from '@/systems/tech-definitions';
 import { getAvailableTechs } from '@/systems/tech-system';
 import { processTurn } from '@/core/turn-manager';
-import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { CRISIS_FORCE_OWNER } from '@/core/owner-kind';
 import { serializeSaveFile, parseSaveFile } from '@/storage/save-file-transfer';
 import { normalizeLoadedState } from '@/storage/save-manager';

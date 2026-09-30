@@ -17,7 +17,7 @@ import { getAvailableBuildings } from './city-system';
 import { getEconomyStatusForCiv, getRushBuyQuote } from './economy-system';
 import { getCivHappinessFromResources, getCivAvailableResources } from './resource-acquisition-system';
 import { resolveCivilizationEra } from './tech-definitions';
-import { UNIT_DEFINITIONS } from './unit-system';
+import { UNIT_DEFINITIONS } from './unit-definitions';
 import { hexDistance } from './hex-utils';
 import { canConnectCityToCapitalByOwnedRoad, getCitiesConnectedToCapital } from './road-network';
 import { getCapitalCityId } from './capital-system';

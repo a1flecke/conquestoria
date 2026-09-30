@@ -1,7 +1,7 @@
 import type { GameMap, GameState, Treaty, TreatyType, Unit, UnitType } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 import { createDiplomacyState } from '@/systems/diplomacy-state';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 
 /**
  * #871 fixture: a flat grassland board where three civs stand in a row.

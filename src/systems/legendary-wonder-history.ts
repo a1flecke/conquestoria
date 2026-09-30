@@ -8,7 +8,7 @@ import type {
   LegendaryWonderNetworkPlanResolutionRecord,
 } from '@/core/types';
 import { getUnitRoleDefinition } from '@/systems/combat-role-definitions';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 
 export function recordLegendaryWonderDiscoverySite(
   state: GameState,

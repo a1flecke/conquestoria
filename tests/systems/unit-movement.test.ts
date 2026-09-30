@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { createUnit, getMovementCost, getMovementRange, resetUnitTurn, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { createUnit, resetUnitTurn } from '@/systems/unit-lifecycle';
+import { getMovementCost } from '@/systems/unit-movement-cost';
+import { getMovementRange } from '@/systems/unit-movement-queries';
 import { getMovementBlockerReason } from '@/systems/unit-movement-explainer';
 // Static imports prevent module compilation from eating into the 5000ms test timeout.
 import { EventBus } from '@/core/event-bus';

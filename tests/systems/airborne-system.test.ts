@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { getParadropLaunchState, getParadropTargets, canParadrop, executeParadrop, getAirAssaultLaunchState, getAirAssaultTargets, canAirAssault, executeAirAssault, PARADROP_FAILURE_MESSAGES, AIR_ASSAULT_FAILURE_MESSAGES } from '@/systems/airborne-system';
-import { BLOCKING_MAP_ENTITY_MESSAGES } from '@/systems/unit-system';
+import { BLOCKING_MAP_ENTITY_MESSAGES } from '@/systems/unit-movement-legality';
 import { createNewGame } from '@/core/game-state';
 import { processTurn } from '@/core/turn-manager';
 import { EventBus } from '@/core/event-bus';

@@ -19,7 +19,8 @@ import {
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
 import { getWrappedHexNeighbors, hexKey, hexNeighbors } from '@/systems/hex-utils';
-import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { getEraAdvancementTechs } from '@/systems/tech-definitions';
 import { advancePlayerCivToEra as setPlayerCivEra, fixtureCoastal } from './helpers/minor-civ-scenario-fixtures';
 

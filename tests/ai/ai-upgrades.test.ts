@@ -8,7 +8,7 @@ import { createEmptyMajorCivPlanPortfolio } from '@/core/opponent-ai-state';
 import type { GameState, HexCoord, UnitType } from '@/core/types';
 import { foundCity } from '@/systems/city-system';
 import { EventBus } from '@/core/event-bus';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { hexKey } from '@/systems/hex-utils';
 import * as pathfindingModule from '@/systems/unit-pathfinding';
 

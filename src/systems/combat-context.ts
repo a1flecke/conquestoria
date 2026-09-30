@@ -3,7 +3,7 @@ import type { CombatContext } from './combat-system';
 import { resolveCivDefinition } from './civ-registry';
 import { hexKey, hexDistance, wrappedHexDistance } from './hex-utils';
 import { isCityCoastal } from './city-system';
-import { UNIT_DEFINITIONS } from './unit-system';
+import { UNIT_DEFINITIONS } from './unit-definitions';
 import { getActiveNationalProjectsForCiv } from './national-project-system';
 import { getCombatModifier } from './unit-modifier-system';
 import { getCombatAdjacentOccupiedTileCount } from './zone-of-control-system';

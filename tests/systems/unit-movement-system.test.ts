@@ -1,6 +1,6 @@
 import { EventBus } from '@/core/event-bus';
 import type { GameEvents, GameMap, GameState, HexCoord, HexTile, TerrainType, Unit } from '@/core/types';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { foundCity } from '@/systems/city-system';
 import { getVisibility } from '@/systems/fog-of-war';
 import { hexKey } from '@/systems/hex-utils';

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import type { GameMap, GameState } from '@/core/types';
 import { foundCity } from '@/systems/city-system';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { createEmptyPirateState } from '@/core/pirate-state';
 import { NO_LAND_UNIT_WATER_RECOVERY } from '@/systems/unit-water-recovery';
 import type { PendingMapIntent, SelectionSnapshot } from '@/app/ports';

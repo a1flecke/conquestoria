@@ -4,7 +4,7 @@ import { getVisibleUnitsForPlayer } from '@/systems/espionage-stealth';
 import { getVisibility } from '@/systems/fog-of-war';
 import { isUnitConcealedFrom } from '@/systems/concealment';
 import { sortUnitsForStackPicker } from '@/systems/unit-occupancy';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { civTypeToFaction } from './civilization-visual-family';
 import { resolveUnitVisual, type UnitRoleMarker } from './unit-visual-resolver';
 import { isAlwaysHostilePair, isCrisisForceOwner, isPirateOwner } from '@/core/owner-kind';

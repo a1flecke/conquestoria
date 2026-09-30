@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import { resolveUnitVisual } from '@/renderer/unit-visual-resolver';
-import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { createUnit } from '@/systems/unit-lifecycle';
 import type { UnitType } from '@/core/types';
 import { PIRATE_HULL_TYPES } from '@/systems/pirate-definitions';
 

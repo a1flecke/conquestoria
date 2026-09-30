@@ -11,7 +11,7 @@ import type {
 } from '@/core/types';
 import { getRogueElephantCommandFact } from '@/systems/rogue-elephant-host-system';
 import { hexDistance, hexKey } from './hex-utils';
-import { UNIT_DEFINITIONS } from './unit-system';
+import { UNIT_DEFINITIONS } from './unit-definitions';
 import { getWonderCombatBonus } from './wonder-system';
 import { getVeterancyCombatModifier } from './combat-reward-system';
 import { getRiverDefensePenalty, isRiverBetween } from './river-system';

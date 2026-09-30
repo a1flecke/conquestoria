@@ -1,6 +1,6 @@
 import type { CombatModifierFact, GameState, HexCoord, TerrainType, UnitType } from '@/core/types';
 import { hexDistance } from './hex-utils';
-import { UNIT_DEFINITIONS } from './unit-system';
+import { UNIT_DEFINITIONS } from './unit-definitions';
 import {
   CLASS_COUNTERS,
   UNIT_CLASS_BY_TYPE,

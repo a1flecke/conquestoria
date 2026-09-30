@@ -17,7 +17,7 @@ import { parseSaveFile, serializeSaveFile } from '@/storage/save-file-transfer';
 import type { CustomCivDefinition, GameState, MinorCivRelationshipStatus } from '@/core/types';
 import { foundCity } from '@/systems/city-system';
 import { hexKey } from '@/systems/hex-utils';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { CURRENT_SAVE_SCHEMA_VERSION } from '@/storage/save-migrations';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });

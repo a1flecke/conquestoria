@@ -1,6 +1,6 @@
 import type { AirBaseRef, GameState, Unit } from '@/core/types';
 import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 
 /**
  * Schema 4 — re-home aircraft that were saved without a valid air base, landing

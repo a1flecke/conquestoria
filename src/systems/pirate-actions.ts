@@ -7,7 +7,7 @@ import { modifyRelationship } from './diplomacy-state';
 import { getWrappedHexNeighbors, hexDistance, hexKey, hexNeighbors, wrappedHexDistance } from './hex-utils';
 import { applyRegionalSuppression } from './pirate-ecology';
 import { PIRATE_ACTION_RULES, getPirateBounty, getPirateTributeCost } from './pirate-definitions';
-import { UNIT_DEFINITIONS } from './unit-system';
+import { UNIT_DEFINITIONS } from './unit-definitions';
 import { getOwnedCityCount } from './city-ownership';
 
 export interface PirateActionQuote {

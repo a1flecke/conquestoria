@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { foundCity } from '@/systems/city-system';
 import { getAvailableTechs } from '@/systems/tech-system';
 import type { GameState, HotSeatPlayer, Religion, Unit } from '@/core/types';

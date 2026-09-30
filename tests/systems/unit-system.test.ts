@@ -1,20 +1,13 @@
-import {
-  createUnit,
-  getMovementRange,
-  getMovementRangeDetails,
-  getBlockingMapEntityAt,
-  getBlockingMapEntityKeys,
-  moveUnit,
-  findPath,
-  findPathToCity,
-  resetUnitTurn,
-  UNIT_DEFINITIONS,
-  getUnmovedUnits,
-  healUnit,
-  getMovementCostForUnit,
-  isBlockingCityFor,
-  UNIT_DESCRIPTIONS,
-} from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { UNIT_DESCRIPTIONS } from '@/systems/unit-descriptions';
+import { healUnit } from '@/systems/unit-healing';
+import { createUnit, resetUnitTurn } from '@/systems/unit-lifecycle';
+import { moveUnit } from '@/systems/unit-low-level-move';
+import { getMovementCostForUnit } from '@/systems/unit-movement-cost';
+import { getBlockingMapEntityAt, getBlockingMapEntityKeys, isBlockingCityFor } from '@/systems/unit-movement-legality';
+import { getMovementRange, getMovementRangeDetails } from '@/systems/unit-movement-queries';
+import { getUnmovedUnits } from '@/systems/unit-order-state';
+import { findPath, findPathToCity } from '@/systems/unit-pathfinding';
 import type { GameMap, GameState } from '@/core/types';
 import { generateMap } from '@/systems/map-generator';
 import { hexKey } from '@/systems/hex-utils';

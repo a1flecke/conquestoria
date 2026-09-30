@@ -18,7 +18,7 @@ import {
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import * as cityWorkSystem from '@/systems/city-work-system';
 import { foundCity } from '@/systems/city-system';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 
 function makeState(): GameState {
   const state = createNewGame(undefined, 'economy-test', 'small');

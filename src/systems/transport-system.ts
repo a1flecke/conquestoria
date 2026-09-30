@@ -5,7 +5,9 @@ import {
   type AttackTargetResult,
 } from '@/systems/attack-targeting';
 import { getWrappedHexNeighbors, hexDistance, hexKey, hexNeighbors, wrapHexCoord, wrappedHexDistance } from '@/systems/hex-utils';
-import { UNIT_DEFINITIONS, getMovementCostForUnit, getBlockingMapEntityAt, BLOCKING_MAP_ENTITY_MESSAGES } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { getMovementCostForUnit } from '@/systems/unit-movement-cost';
+import { getBlockingMapEntityAt, BLOCKING_MAP_ENTITY_MESSAGES } from '@/systems/unit-movement-legality';
 import { getTerritorialAccessDenial, TERRITORIAL_ACCESS_MESSAGE } from '@/systems/territorial-access';
 import { buildUnitOccupancy, getUnitIdsAtCoord } from '@/systems/unit-occupancy';
 

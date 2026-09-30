@@ -1,6 +1,6 @@
 import type { GameMap, HexCoord, GameState, TechState, Unit, TribalVillage, VillageOutcomeType } from '@/core/types';
 import { hexKey, mapDistance, mapNeighbors } from './hex-utils';
-import { createUnit } from './unit-system';
+import { createUnit } from './unit-lifecycle';
 import { TECH_TREE, applyResearchBonus, getEffectiveTechCost } from './tech-system';
 import { createRng } from './map-generator';
 import { recordLegendaryWonderDiscoverySite } from './legendary-wonder-history';

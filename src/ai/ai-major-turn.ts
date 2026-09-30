@@ -50,7 +50,8 @@ import {
   getUnitIdsAtCoord,
   hasHostileUnitAtCoord,
 } from '@/systems/unit-occupancy';
-import { restUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { restUnit } from '@/systems/unit-healing';
 import { buildCombatPresentation } from '@/systems/viewer-event-presentation';
 import { applyWorkerAction } from '@/systems/worker-action-system';
 import {

@@ -5,7 +5,7 @@ import { EventBus } from '@/core/event-bus';
 import { createGameSession } from '@/app/game-session';
 import { createEmptyPirateState, type PirateFactionState } from '@/core/pirate-state';
 import { createEmptyAutonomyCivState } from '@/core/autonomy-state';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { createEspionageCivState } from '@/systems/espionage-system';
 import type { PirateFocusTarget } from '@/systems/pirate-presentation';
 import type { NotificationMapTarget } from '@/core/notification-log';

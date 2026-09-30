@@ -3,7 +3,7 @@ import { getAIStrategicRoles, hasAICombatRole, hasAITradeRole } from '@/ai/ai-un
 import type { UnitType } from '@/core/types';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
 import { isSpyUnitType } from '@/systems/espionage-system';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { UNIT_ROLE_DEFINITIONS } from '@/systems/combat-role-definitions';
 
 describe('AI strategic unit roles', () => {

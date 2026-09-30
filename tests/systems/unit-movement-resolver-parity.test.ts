@@ -9,7 +9,7 @@ import type { GameMap, GameState } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 import { createDiplomacyState } from '@/systems/diplomacy-state';
 import { createEmptyPirateState } from '@/core/pirate-state';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { getMovementBlockerReason } from '@/systems/unit-movement-explainer';
 import { resolveUnitMoveIntent } from '@/systems/unit-movement-system';
 

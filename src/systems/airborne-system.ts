@@ -1,7 +1,9 @@
 import type { EventBus } from '@/core/event-bus';
 import type { CombatResult, GameState, HexCoord, Unit } from '@/core/types';
 import { getAirBaseKind, getAirBaseRoster, selectInterceptor } from '@/systems/air-operations-system';
-import { UNIT_DEFINITIONS, getMovementCostForUnit, getBlockingMapEntityAt, getBlockingMapEntityKeys, BLOCKING_MAP_ENTITY_MESSAGES } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { getMovementCostForUnit } from '@/systems/unit-movement-cost';
+import { getBlockingMapEntityAt, getBlockingMapEntityKeys, BLOCKING_MAP_ENTITY_MESSAGES } from '@/systems/unit-movement-legality';
 import { getDeniedTerritoryOwners, getTerritorialAccessDenial, isTileDeniedBy, TERRITORIAL_ACCESS_MESSAGE } from '@/systems/territorial-access';
 import { isVisible } from '@/systems/fog-of-war';
 import { buildUnitOccupancy, getUnitIdsAtCoord } from '@/systems/unit-occupancy';

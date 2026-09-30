@@ -7,7 +7,7 @@ import {
 } from './production-cost-context';
 import { getCivAvailableResources } from './resource-acquisition-system';
 import { baseNewAirUnit, canCompleteAirUnitProduction } from './air-operations-system';
-import { UNIT_DEFINITIONS } from './unit-system';
+import { UNIT_DEFINITIONS } from './unit-definitions';
 import { evaluateProductionPrerequisites } from './production-prerequisites';
 
 export type UpgradeMissingRequirement =

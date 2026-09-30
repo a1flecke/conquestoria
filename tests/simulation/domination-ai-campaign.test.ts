@@ -15,7 +15,7 @@ import { updateAndRefreshVisibility } from '@/systems/last-seen-presentation';
 import { applyStrategicWarningTransitions } from '@/systems/strategic-warning-system';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { processTurn } from '@/core/turn-manager';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { checkDominationVictory } from '@/systems/victory-system';
 import { normalizeLoadedState } from '@/storage/save-manager';
 import { parseSaveFile, serializeSaveFile } from '@/storage/save-file-transfer';

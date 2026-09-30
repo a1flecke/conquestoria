@@ -22,7 +22,8 @@ import {
   scrubStaleForeignRoutes,
   scrubEmbargoedRoutes,
 } from '@/systems/trade-system';
-import { UNIT_DEFINITIONS, UNIT_DESCRIPTIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { UNIT_DESCRIPTIONS } from '@/systems/unit-descriptions';
 import { TRAINABLE_UNITS, PRODUCTION_ICONS } from '@/systems/city-system';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import type { GameState } from '@/core/types';

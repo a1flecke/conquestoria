@@ -3,7 +3,7 @@ import { applyResearchBonus } from '@/systems/tech-system';
 import { BEAST_DEFINITIONS, getBeastDefinitionByUnitType, type BeastDefinition } from '@/systems/beast-definitions';
 import { hexKey, mapDistance, mapNeighbors } from '@/systems/hex-utils';
 import { createRng } from '@/systems/map-generator';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { VETERANCY_TIERS } from '@/systems/combat-reward-system';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 

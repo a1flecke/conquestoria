@@ -21,7 +21,8 @@ import {
   describeDroppedProductionItem,
 } from '@/systems/city-system';
 import type { City, GameMap, GameState, HexCoord, ResourceType, UnitType } from '@/core/types';
-import { UNIT_DEFINITIONS, UNIT_DESCRIPTIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { UNIT_DESCRIPTIONS } from '@/systems/unit-descriptions';
 import { generateMap } from '@/systems/map-generator';
 import { hexKey } from '@/systems/hex-utils';
 import { TECH_TREE } from '@/systems/tech-definitions';

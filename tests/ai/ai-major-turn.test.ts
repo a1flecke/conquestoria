@@ -19,7 +19,7 @@ import {
   MIN_CITY_CENTER_DISTANCE,
 } from '@/systems/city-territory-system';
 import { hexKey } from '@/systems/hex-utils';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { deterministicCombatSeed, resolveCombat } from '@/systems/combat-system';
 

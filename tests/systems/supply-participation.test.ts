@@ -4,7 +4,7 @@ import {
   getUnitLandSupplyCost,
   unitParticipatesInLandSupply,
 } from '@/systems/supply-participation';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
 import { BEAST_OWNER } from '@/systems/beast-system';
 

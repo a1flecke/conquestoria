@@ -4,7 +4,7 @@ import { createNewGame } from '@/core/game-state';
 import type { GameState } from '@/core/types';
 import { foundCity } from '@/systems/city-system';
 import { hexKey } from '@/systems/hex-utils';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import {
   beginPlayerCityAssaultChoice,
   finalizePlayerCityAssaultChoice,

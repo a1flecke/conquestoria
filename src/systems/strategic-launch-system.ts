@@ -1,6 +1,6 @@
 import type { City, GameState, HexCoord, UnitType } from '@/core/types';
 import { BUILDINGS } from '@/systems/city-system';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { getStrategicArsenal } from '@/systems/strategic-arsenal-system';
 import { hasDiscoveredCity } from '@/systems/discovery-system';
 import { isAtWar } from '@/systems/diplomacy-queries';

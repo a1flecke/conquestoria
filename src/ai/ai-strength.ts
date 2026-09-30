@@ -1,7 +1,7 @@
 import type { UnitType } from '@/core/types';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
 import { TECH_TREE } from '@/systems/tech-system';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { getAIStrategicRoles, hasAICombatRole } from './ai-unit-roles';
 
 export interface AIStrengthObservation {

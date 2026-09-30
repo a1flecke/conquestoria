@@ -1,7 +1,7 @@
 import type { EventBus } from '@/core/event-bus';
 import type { CombatResult, CombatRewardNotification, GameState, Unit, UnitType } from '@/core/types';
 import { cleanupDeadSpyUnit } from '@/systems/espionage-system';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { applyQuestGameplayAction, type ChainTransition } from '@/systems/quest-chain-system';
 import { canCaptureDefeatedUnits, canReceiveCivilizationCombatRewards, CRISIS_FORCE_OWNER, isMajorCivOwner, isPirateOwner } from '@/core/owner-kind';
 import { awardGeneralProgress, GENERAL_PROGRESS_AWARDS, GENERAL_PROGRESS_XP_RATIO, STRONGER_FORCE_MARGIN, describeGeneralCareerEnd } from '@/systems/great-general-system';

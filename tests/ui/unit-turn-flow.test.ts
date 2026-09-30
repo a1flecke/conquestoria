@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EventBus } from '@/core/event-bus';
 import type { GameState, HexCoord } from '@/core/types';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { createUnitTurnFlow, type UnitTurnFlowDeps } from '@/ui/unit-turn-flow';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });

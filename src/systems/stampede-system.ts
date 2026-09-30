@@ -2,7 +2,7 @@ import type { GameState, OpponentChallenge, StampedeState, UnitType } from '@/co
 import { countActiveCrisesForCiv } from '@/systems/crisis-system';
 import { CRISIS_FORCE_OWNER } from '@/core/owner-kind';
 import { normalizeCrisisForces, registerCrisisForce } from '@/systems/crisis-force-system';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { hexKey, mapNeighbors } from '@/systems/hex-utils';
 import { commitHerdRouteForTurn } from '@/systems/stampede-route-system';
 import { executeUnitMove } from '@/systems/unit-movement-system';

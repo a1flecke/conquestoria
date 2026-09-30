@@ -26,7 +26,7 @@ import { getCapitalCityId } from '@/systems/capital-system';
 import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { executeUnitMove } from '@/systems/unit-movement-system';
 import { buildUnitOccupancy, getUnitIdsAtCoord } from '@/systems/unit-occupancy';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { resolveAirBaseLoss } from '@/systems/air-operations-system';
 import { buildMovePresentationByViewer } from '@/systems/viewer-event-presentation';
 import { reconcileCivilizationLiveness } from '@/systems/civilization-elimination-system';

@@ -26,7 +26,8 @@ import {
 import { calculateProjectedCityYields } from './city-work-system';
 import { resolveCivDefinition } from './civ-registry';
 import { createRng } from './map-generator';
-import { createUnit, UNIT_DEFINITIONS } from './unit-system';
+import { UNIT_DEFINITIONS } from './unit-definitions';
+import { createUnit } from './unit-lifecycle';
 import {
   PIRATE_FACTION_CAP_BY_MAP_SIZE,
   PIRATE_HULL_TYPES,

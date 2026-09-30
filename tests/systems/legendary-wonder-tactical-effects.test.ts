@@ -3,7 +3,7 @@ import { createNewGame } from '@/core/game-state';
 import type { LegendaryWonderDefinition } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 import { mapNeighbors } from '@/systems/hex-utils';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import {
   applyLegendaryWonderTrainingEffects,
   getTacticalFortOccupantHealingBonus,

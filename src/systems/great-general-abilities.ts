@@ -4,7 +4,7 @@ import { BASELINE_GENERAL_MECHANICS, resolveGeneralMechanics } from '@/systems/g
 import { getEffectiveCommandStats } from '@/systems/great-general-system';
 import { appendGeneralCareerEvent } from '@/systems/great-general-career';
 import { mapDistance, mapHexesInRange } from '@/systems/hex-utils';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
 
 export interface HeroicCommandEligibility {

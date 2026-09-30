@@ -23,7 +23,9 @@ import {
   MIN_CITY_CENTER_DISTANCE,
 } from '@/systems/city-territory-system';
 import { hexDistance, hexKey } from '@/systems/hex-utils';
-import { createUnit, findPath, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { createUnit } from '@/systems/unit-lifecycle';
+import { findPath } from '@/systems/unit-pathfinding';
 import * as combatSystem from '@/systems/combat-system';
 import { canParadrop, getAirAssaultTargets } from '@/systems/airborne-system';
 import { getLegalAirMissionTargets } from '@/systems/air-operations-system';

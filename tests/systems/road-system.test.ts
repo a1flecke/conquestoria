@@ -5,7 +5,8 @@ import { applyWorkerAction, clearCompletedWorkerTasksForRoad } from '@/systems/w
 import { canBuildRoad, getRoadBlockerReason, getRoadBuildTurns } from '@/systems/road-system';
 import { processImprovementTurns } from '@/systems/improvement-turn-system';
 import { EventBus } from '@/core/event-bus';
-import { getMovementStepCost, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { getMovementStepCost } from '@/systems/unit-movement-cost';
 
 function tile(overrides: Partial<HexTile>): HexTile {
   return {

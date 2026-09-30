@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import type { City, Civilization, GameState } from '@/core/types';
 import { applyCityHpRegeneration, applyCitySiegeOutcome, calculateCityAssaultStrengths, CITY_BOMBARDMENT_MAX_HP_LOSS_PER_TURN, CITY_HP_DEFENSE_FLOOR, getRemainingBombardmentCap, recordBombardment, cityHpDefenseScale, getCityCounterFireDamage, getCityIntrinsicStrength, getEffectiveCityAssaultDefense, isCityHpRegenerating, resolveCityAssault, resolveCitySiegeDamage } from '@/systems/city-siege-system';
 

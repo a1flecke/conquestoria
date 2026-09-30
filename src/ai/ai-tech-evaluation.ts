@@ -5,7 +5,7 @@ import type {
 } from '@/core/types';
 import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
 import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { evaluateProductionPrerequisites } from '@/systems/production-prerequisites';
 import { getAIStrategicRoles } from './ai-unit-roles';
 

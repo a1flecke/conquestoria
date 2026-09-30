@@ -3,7 +3,7 @@ import { createNewGame } from '@/core/game-state';
 import type { HexCoord, Unit, UnitType } from '@/core/types';
 import { canAttackByProfileOnMap, canUnitAttackTarget, getAttackTargets, getUnitAttackProfile } from '@/systems/attack-targeting';
 import { hexKey } from '@/systems/hex-utils';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 

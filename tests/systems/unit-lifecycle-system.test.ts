@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
-import { createUnit, moveUnit, resetUnitTurn } from '@/systems/unit-system';
+import { createUnit, resetUnitTurn } from '@/systems/unit-lifecycle';
+import { moveUnit } from '@/systems/unit-low-level-move';
 import {
   getUnmovedUnitsForEndTurn,
   removePlayerUnitFromState,

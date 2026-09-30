@@ -4,12 +4,9 @@ import { getVisibility } from '@/systems/fog-of-war';
 import { hexKey, hexDistance, hexNeighbors, getWrappedHexNeighbors } from '@/systems/hex-utils';
 import { isThreatenedByVisibleHostiles } from '@/systems/movement-safety';
 import { buildUnitOccupancy, getStackRelationship } from '@/systems/unit-occupancy';
-import {
-  getMovementCost,
-  getMovementCostForUnitInContext,
-  getMovementRange,
-  getBlockingMapEntityKeys,
-} from '@/systems/unit-system';
+import { getMovementCost, getMovementCostForUnitInContext } from '@/systems/unit-movement-cost';
+import { getBlockingMapEntityKeys } from '@/systems/unit-movement-legality';
+import { getMovementRange } from '@/systems/unit-movement-queries';
 import { executeUnitMove, type ExecuteUnitMoveResult } from '@/systems/unit-movement-system';
 import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
 

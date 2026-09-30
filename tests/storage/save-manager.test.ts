@@ -34,7 +34,7 @@ import { appendNotification } from '@/core/notification-log';
 import type { CustomCivDefinition } from '@/core/types';
 import { makeAutoExploreFixture } from '../systems/helpers/auto-explore-fixture';
 import { dbGet } from '@/storage/db';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { isUnitConcealedFrom } from '@/systems/concealment';
 
 const customCiv: CustomCivDefinition = {

@@ -4,7 +4,7 @@ import {
   getUnitRoleDefinition,
   validateUnitRoleDefinitions,
 } from '@/systems/combat-role-definitions';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { TECH_TREE } from '@/systems/tech-definitions';
 
 describe('combat role definitions', () => {

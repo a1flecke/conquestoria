@@ -5,7 +5,7 @@ import { getVisibility } from '@/systems/fog-of-war';
 import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { getAvailableWorkerActions, getKnownTileResourceForWorkerAction } from '@/systems/improvement-system';
 import { buildUnitOccupancy } from '@/systems/unit-occupancy';
-import { getMovementRangeDetails } from '@/systems/unit-system';
+import { getMovementRangeDetails } from '@/systems/unit-movement-queries';
 import {
   getLandUnitWaterRecovery,
   NO_LAND_UNIT_WATER_RECOVERY,
@@ -13,7 +13,7 @@ import {
 } from '@/systems/unit-water-recovery';
 import { getEmbarkedAssaultTargets } from '@/systems/transport-system';
 import { resolveCityInteraction } from '@/systems/city-interaction';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { getShoreSupplyCapability } from '@/systems/supply-participation';
 import { LAND_SUPPLY_RADII } from '@/systems/supply-sources';
 import { getFortificationPlacement, getFortificationTier } from '@/systems/fortification-system';

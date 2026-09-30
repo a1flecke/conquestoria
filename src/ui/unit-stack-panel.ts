@@ -2,7 +2,9 @@ import type { GameState, HexCoord, Unit } from '@/core/types';
 import { getVeterancyTier } from '@/systems/combat-reward-system';
 import { hexKey } from '@/systems/hex-utils';
 import { sortUnitsForStackPicker } from '@/systems/unit-occupancy';
-import { canHeal, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { UNIT_DESCRIPTIONS } from '@/systems/unit-descriptions';
+import { canHeal } from '@/systems/unit-healing';
 import { resolveSuperweaponContentDescription } from '@/systems/superweapon-content-honesty';
 
 export interface UnitStackPanelCallbacks {

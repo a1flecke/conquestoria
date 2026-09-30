@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import { QUEST_TYPES } from '@/core/types';
 import { emptyIdCounters } from '@/core/id-counters';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { hexKey } from '@/systems/hex-utils';
 import {
   canReachGoldRequirement,

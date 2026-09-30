@@ -9,31 +9,17 @@
  * changes during the decomposition, a verbatim move became a behaviour change.
  */
 import { describe, it, expect } from 'vitest';
-import {
-  createUnit,
-  getMovementCost,
-  getMovementCostForUnit,
-  getMovementCostForUnitInContext,
-  getMovementStepCost,
-  getMovementStepCostFor,
-  movementStepCostParamsForType,
-  canHullEnterOcean,
-  getMovementRange,
-  getMovementRangeDetails,
-  getBlockingMapEntityAt,
-  getBlockingMapEntityKeys,
-  isBlockingCityFor,
-  findPath,
-  findPathToCity,
-  BLOCKING_MAP_ENTITY_MESSAGES,
-  UNIT_DEFINITIONS,
-} from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { createUnit } from '@/systems/unit-lifecycle';
+import { getMovementCost, getMovementCostForUnit, getMovementCostForUnitInContext, getMovementStepCost, getMovementStepCostFor, movementStepCostParamsForType, canHullEnterOcean } from '@/systems/unit-movement-cost';
+import { getBlockingMapEntityAt, getBlockingMapEntityKeys, isBlockingCityFor, BLOCKING_MAP_ENTITY_MESSAGES, getBlockingMapEntitiesByHex } from '@/systems/unit-movement-legality';
+import { getMovementRange, getMovementRangeDetails } from '@/systems/unit-movement-queries';
+import { findPath, findPathToCity } from '@/systems/unit-pathfinding';
 import type { GameMap, GameState, HexCoord, HexTile, TerrainType, Unit, UnitType } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 import { createDiplomacyState } from '@/systems/diplomacy-state';
 import { createEmptyPirateState } from '@/core/pirate-state';
 import { getMovementBlockerReason } from '@/systems/unit-movement-explainer';
-import { getBlockingMapEntitiesByHex } from '@/systems/unit-movement-legality';
 import { explainerState } from './helpers/movement-explainer-fixture';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });

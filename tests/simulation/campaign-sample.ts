@@ -17,7 +17,7 @@ import type { GameState, UnitType } from '@/core/types';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { getAvailableTechs } from '@/systems/tech-system';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 
 /** Cumulative, per-civ counters the fixture accrues from the round's event bus. */
 export interface CampaignCivCounters {

@@ -188,8 +188,8 @@ for file_path in "$@"; do
   # .claude/rules/movement-actions.md). A genuinely special world-actor path
   # marks the call line 'movement-contract-exempt: <reason>'.
   case "$file_path" in
-    src/systems/unit-system.ts|src/systems/unit-movement-system.ts)
-      : # sanctioned: unit-system.ts defines the primitives; unit-movement-system.ts is the canonical executor
+    src/systems/unit-low-level-move.ts|src/systems/unit-movement-system.ts)
+      : # sanctioned: unit-low-level-move.ts defines the primitives; unit-movement-system.ts is the canonical executor
       ;;
     *)
       mv_lines="$(grep -nE 'moveUnitWithZoneOfControl\(|(^|[^.A-Za-z_])moveUnit\(' "$file_path" \

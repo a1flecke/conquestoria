@@ -2,7 +2,7 @@ import type { AirDefenseCoverageProvider, AirDefenseCoverageResult, CombatModifi
 import { getVisibility } from './fog-of-war';
 import { hexDistance, wrappedHexDistance } from './hex-utils';
 import { BUILDINGS } from './city-system';
-import { UNIT_DEFINITIONS } from './unit-system';
+import { UNIT_DEFINITIONS } from './unit-definitions';
 import { isHostileOwnerTo } from './owner-hostility';
 import { getTacticalSamRadius } from './legendary-wonder-tactical-effects';
 

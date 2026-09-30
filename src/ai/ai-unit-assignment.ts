@@ -4,7 +4,7 @@ import type {
   MajorCivPlanPortfolio,
   UnitType,
 } from '@/core/types';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { canUnitFulfillAIStrategicRole, countAIStrategicRoleCapabilities, getAIStrategicRoles } from './ai-unit-roles';
 
 export interface AIUnitAssignmentCandidate {

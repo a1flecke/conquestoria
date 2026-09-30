@@ -31,7 +31,7 @@ import type { CombatNotificationFact, NotificationEntry, NotificationLog } from 
 import { dbGet, dbPut, dbDelete, dbGetAllKeys } from './db';
 import { tagLandmassRegions } from '@/systems/landmass-tagger';
 import { getPirateStageDefinition, PIRATE_NOTORIETY, PIRATE_PRESSURE } from '@/systems/pirate-definitions';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { isOpponentChallenge } from '@/core/opponent-challenge';
 import { createEmptyOpponentAIState, normalizeOpponentAIState } from '@/core/opponent-ai-state';
 import { getCrisisFlavor } from '@/systems/crisis-flavor-definitions';

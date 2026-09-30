@@ -1,6 +1,6 @@
 import type { GameState, HexTile, ImprovementType } from '@/core/types';
 import { IMPROVEMENT_BUILD_TURNS } from '@/systems/improvement-system';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { hexKey } from '@/systems/hex-utils';
 
 /** Deliberately flat, non-era-scaled — matches calculateDefeatReward's baseGold

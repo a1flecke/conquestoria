@@ -19,7 +19,7 @@ import { SpriteOverlay } from './sprite-overlay';
 import type { SpriteEntity } from './sprite-overlay';
 import { buildUnitMapPresentations } from './unit-map-presentation';
 import { isCrisisForceOwner, isPirateOwner } from '@/core/owner-kind';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import {
   CIVTYPE_TO_FACTION,
   civTypeToFaction,

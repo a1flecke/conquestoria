@@ -1,6 +1,6 @@
 import type { GameState, HexCoord, Unit } from '@/core/types';
 import { hexDistance, hexKey, mapNeighbors, wrappedHexDistance } from './hex-utils';
-import { UNIT_DEFINITIONS } from './unit-system';
+import { UNIT_DEFINITIONS } from './unit-definitions';
 import { isAtWar } from './diplomacy-queries';
 import { getOwnedCityCount } from './city-ownership';
 

@@ -1,7 +1,7 @@
 import type { City, GameState, OpponentChallenge, Unit } from '@/core/types';
 import { getCapitalCity } from '@/systems/capital-system';
 import { getLegalStrategicLaunchTargets, isStrategicStrikeRetaliation } from '@/systems/strategic-launch-system';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { mapDistance } from '@/systems/hex-utils';
 import { isHostileOwnerTo } from '@/systems/owner-hostility';
 import { OPPONENT_CHALLENGE_PROFILES } from '@/core/opponent-challenge';

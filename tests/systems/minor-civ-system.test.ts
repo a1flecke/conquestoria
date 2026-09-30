@@ -7,7 +7,8 @@ import { parseSaveFile, serializeSaveFile } from '@/storage/save-file-transfer';
 import { normalizeLoadedStateForTest } from '@/storage/save-manager';
 import { TECH_TREE, getEraAdvancementTechs } from '@/systems/tech-definitions';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
-import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { processMinorCivRegionalGrievanceTurn } from '@/systems/minor-civ-coalition-system';
 import { advancePlayerCivToEra as setTargetCivEra } from './helpers/minor-civ-scenario-fixtures';
 

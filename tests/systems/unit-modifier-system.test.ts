@@ -9,7 +9,8 @@ import {
   type HealingModifierContext,
 } from '@/systems/unit-modifier-system';
 import { UNIT_CLASS_BY_TYPE, UNIT_MODIFIERS } from '@/systems/unit-modifier-definitions';
-import { UNIT_DEFINITIONS, createUnit } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { calculateCombatStrengths, resolveCombat } from '@/systems/combat-system';
 import { getTerrainDefenseBonus } from '@/systems/combat-system';
 import { generateMap } from '@/systems/map-generator';

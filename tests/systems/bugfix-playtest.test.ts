@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { UNIT_DEFINITIONS, getMovementCost, moveUnit, createUnit } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { createUnit } from '@/systems/unit-lifecycle';
+import { moveUnit } from '@/systems/unit-low-level-move';
+import { getMovementCost } from '@/systems/unit-movement-cost';
 import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });

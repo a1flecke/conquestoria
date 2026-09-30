@@ -3,7 +3,7 @@ import { getUnitRoleDefinition } from '@/systems/combat-role-definitions';
 import { getLegendaryWonderDefinitions } from '@/systems/legendary-wonder-definitions';
 import { hexKey, mapNeighbors } from '@/systems/hex-utils';
 import { getFortificationTier } from '@/systems/fortification-system';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 
 export function getCompletedLegendaryWonderTacticalEffects(
   state: GameState,

@@ -2,7 +2,7 @@
 import type { GameState, City, HexCoord, UnitType } from '../core/types';
 import type { EventBus } from '../core/event-bus';
 import { createRng } from './map-generator';
-import { createUnit } from './unit-system';
+import { createUnit } from './unit-lifecycle';
 import { hexDistance } from './hex-utils';
 import { createBreakawayFromCity } from './breakaway-system';
 import { getEconomyStatusForCiv } from './economy-system';

@@ -6,7 +6,7 @@ import {
 } from '@/renderer/sprites/sprite-catalog';
 import { derivePalette } from '@/renderer/sprites/sprite-system';
 import { BUILDINGS } from '@/systems/city-system';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { PIRATE_HULL_TYPES } from '@/systems/pirate-definitions';
 import {
   JetFighterSprite, IroncladSprite, MachineGunnerSprite, MissionarySprite, SpyHackerSprite,

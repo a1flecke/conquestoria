@@ -5,7 +5,7 @@ import {
   getMovementBlockerReason,
   presentMovementRejectionForViewer,
 } from '@/systems/unit-movement-explainer';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { createDiplomacyState } from '@/systems/diplomacy-state';
 import { hexKey } from '@/systems/hex-utils';
 import type { GameMap, GameState } from '@/core/types';

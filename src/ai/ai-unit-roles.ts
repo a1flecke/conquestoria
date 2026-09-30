@@ -1,6 +1,6 @@
 import type { AIStrategicRole, UnitType } from '@/core/types';
 import { getUnitRoleDefinition } from '@/systems/combat-role-definitions';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 
 const COMBAT_ROLES = new Set<AIStrategicRole>([
   'capture',

@@ -8,7 +8,7 @@ import {
 import {
   CONVERSION_THRESHOLD, OCCUPATION_ACCRUAL, MISSIONARY_ACTION_COOLDOWN_TURNS,
 } from '@/systems/religion-definitions';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { hexKey } from '@/systems/hex-utils';
 import { makeReligionFixture } from './helpers/religion-fixture';
 

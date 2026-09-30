@@ -12,7 +12,7 @@ import type { PreparedMajorCivPlan } from '@/ai/ai-prepared-turn';
 import { EXPANSION_SEARCH_RADIUS } from '@/ai/ai-expansion-sites';
 import type { AutoExploreLeash } from '@/systems/auto-explore-system';
 import { hexDistance } from '@/systems/hex-utils';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 
 /**
  * Combat-capable units (strength > 0) that no plan, health-driven recovery, or

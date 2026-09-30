@@ -1,5 +1,5 @@
 import type { HexTile } from '@/core/types';
-import { getMovementCostForUnit } from './unit-system';
+import { getMovementCostForUnit } from './unit-movement-cost';
 
 export const ROAD_BUILD_TURNS = 2;
 export const ROAD_BUILD_TURNS_FAST = 1; // road_corps national project: "Roads built faster"

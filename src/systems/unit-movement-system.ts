@@ -7,12 +7,10 @@ import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-syst
 import { cancelInvalidNetworkPlans } from '@/systems/network-plan-system';
 import { hexKey } from '@/systems/hex-utils';
 import { getFreeStandingOwnedUnits } from '@/systems/unit-ownership';
-import {
-  moveUnitWithZoneOfControl,
-  getMovementStepCost,
-  findPathToCity,
-  UNIT_DEFINITIONS,
-} from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { moveUnitWithZoneOfControl } from '@/systems/unit-low-level-move';
+import { getMovementStepCost } from '@/systems/unit-movement-cost';
+import { findPathToCity } from '@/systems/unit-pathfinding';
 import {
   getOwnerCompletedTechs,
   resolveUnitMoveIntent,

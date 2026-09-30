@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { ERA_NAMES } from '@/ui/tech-panel';
 import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { UNIT_SFX } from '@/audio/sfx-catalog';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { processTurn } from '@/core/turn-manager';

@@ -1,5 +1,5 @@
 import type { GameState, Unit } from '@/core/types';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { getTransportCapacity, getUnitCargoSize, isNavalTransportUnit } from '@/systems/transport-system';
 
 /**

@@ -9,7 +9,7 @@ import {
   type BarbarianArchetype,
 } from '@/systems/barbarian-archetype';
 import type { GameMap, Unit } from '@/core/types';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { generateMap } from '@/systems/map-generator';
 
 function unit(id: string, owner: string, position: { q: number; r: number }, overrides: Partial<Unit> = {}): Unit {

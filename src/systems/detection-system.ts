@@ -1,7 +1,7 @@
 // src/systems/detection-system.ts
 import type { GameState, Unit } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
-import { UNIT_DEFINITIONS } from './unit-system';
+import { UNIT_DEFINITIONS } from './unit-definitions';
 import { hexDistance } from './hex-utils';
 import { createRng } from './map-generator';
 import { isSpyUnitType } from './espionage-system';

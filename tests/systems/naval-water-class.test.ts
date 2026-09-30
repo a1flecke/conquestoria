@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { UNIT_DEFINITIONS, createUnit } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { getMovementBlockerReason } from '@/systems/unit-movement-explainer';
 import { explainerState } from './helpers/movement-explainer-fixture';
 import { PIRATE_HULL_DEFINITIONS, PIRATE_HULL_TYPES } from '@/systems/pirate-definitions';

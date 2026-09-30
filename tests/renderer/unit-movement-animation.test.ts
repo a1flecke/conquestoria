@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { GameMap, Unit } from '@/core/types';
 import { createMovementAnimation, getMovementAnimationPosition, getMovementDurationMs, getMovingUnitIds, MOVEMENT_MS_PER_HEX, MOVEMENT_MAX_MS } from '@/renderer/unit-movement-animation';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 

@@ -5,7 +5,7 @@ import { canFoundCityAt, isCityCenterTerrain } from '@/systems/city-territory-sy
 import { getVisibility } from '@/systems/fog-of-war';
 import { hexKey } from '@/systems/hex-utils';
 import { getUnloadDestinations, unloadUnitFromTransport } from '@/systems/transport-system';
-import { findPath } from '@/systems/unit-system';
+import { findPath } from '@/systems/unit-pathfinding';
 import { executeUnitMove } from '@/systems/unit-movement-system';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 

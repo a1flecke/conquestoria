@@ -6,7 +6,7 @@ import { hexKey } from '@/systems/hex-utils';
 import { foundCity } from '@/systems/city-system';
 import { resolveCombat } from '@/systems/combat-system';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { makeBreakawayFixture } from './helpers/breakaway-fixture';
 import {
   beginMajorCityAssault,

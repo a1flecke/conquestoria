@@ -2,7 +2,8 @@ import type { City, GameState, HexCoord } from '@/core/types';
 import { hexKey, hexNeighbors, getWrappedHexNeighbors } from './hex-utils';
 import { getCapitalCityId } from './capital-system';
 import { canBuildRoad } from './road-system';
-import { findPath, getMovementCostForUnit } from './unit-system';
+import { getMovementCostForUnit } from './unit-movement-cost';
+import { findPath } from './unit-pathfinding';
 import { getWorkerChargesRemaining } from './worker-action-system';
 
 export type CapitalRoadPolicy = 'any-road' | 'owned-road';

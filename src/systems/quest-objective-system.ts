@@ -15,7 +15,7 @@ import type { CivilizationEra } from './era-types';
 import { hasDiscoveredCity, hasDiscoveredMinorCiv } from './discovery-system';
 import { getVisibility } from './fog-of-war';
 import { hexDistance } from './hex-utils';
-import { findPath } from './unit-system';
+import { findPath } from './unit-pathfinding';
 import { canEstablishRoute } from './trade-system';
 import { isMinorCivAtWar } from './minor-civ-diplomacy';
 import { areTaggedLandmassesConnected } from './landmass-tagger';

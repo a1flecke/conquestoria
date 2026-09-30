@@ -17,7 +17,7 @@ import {
   notifyPlayer,
   applyPirateActionResult,
 } from '@/app/cross-cutting-helpers';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 
 function makeFixture(seed = 'cross-cutting-helpers'): GameState {
   const state = createNewGame(undefined, seed, 'small');

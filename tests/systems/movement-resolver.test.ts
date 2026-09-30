@@ -9,7 +9,7 @@ import { describe, it, expect } from 'vitest';
 import type { GameMap, GameState, HexCoord, Unit } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 import { createDiplomacyState } from '@/systems/diplomacy-state';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import {
   resolveUnitMoveIntent,
   executeUnitMove,

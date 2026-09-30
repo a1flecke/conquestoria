@@ -7,7 +7,7 @@ import type {
   HexCoord,
 } from '@/core/types';
 import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
-import { findPath } from '@/systems/unit-system';
+import { findPath } from '@/systems/unit-pathfinding';
 import { createAIDecisionTrace, type AIDecisionTrace } from './ai-decision-trace';
 import type { RegionCrossing } from './ai-amphibious-routing';
 
