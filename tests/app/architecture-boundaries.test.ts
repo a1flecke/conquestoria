@@ -850,6 +850,183 @@ describe('#1008 — city-system decomposition boundaries', () => {
   });
 });
 
+describe('#1009 — espionage-system decomposition boundaries', () => {
+  const sys = resolve(__dirname, '../../src/systems');
+  const readSys = (name: string) => readFileSync(resolve(sys, name), 'utf8');
+
+  function importsOf(name: string): string[] {
+    const src = readSys(name).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    return [...src.matchAll(/(?:from|import)\s+['"]([^'"]+)['"]/g)]
+      .map(m => m[1]!)
+      .map(spec => spec.replace(/^@\/systems\//, './').replace(/^\.\//, '').replace(/\.ts$/, ''));
+  }
+
+  const ESPIONAGE_MODULES = [
+    'espionage-catalog',
+    'espionage-state',
+    'espionage-probability',
+    'espionage-spy-lifecycle',
+    'espionage-counterintel',
+    'espionage-missions',
+    'espionage-interrogation',
+    'espionage-turn',
+    'espionage-presentation',
+  ];
+
+  const siblingsOnly = (name: string) => importsOf(name).filter(s => ESPIONAGE_MODULES.includes(s));
+
+  it('catalog/state/counterintel/interrogation are leaf-ward and reach no app/ui/renderer', () => {
+    expect(siblingsOnly('espionage-catalog.ts'), 'catalog must import no sibling').toEqual([]);
+    expect(siblingsOnly('espionage-counterintel.ts')).toEqual([]);
+    expect(siblingsOnly('espionage-interrogation.ts')).toEqual([]);
+    expect(siblingsOnly('espionage-state.ts')).toEqual(['espionage-catalog']);
+    for (const name of [
+      'espionage-catalog.ts', 'espionage-state.ts', 'espionage-probability.ts',
+      'espionage-counterintel.ts', 'espionage-interrogation.ts',
+    ]) {
+      const imports = importsOf(name);
+      expect(
+        imports.some(s => s.startsWith('@/app') || s.startsWith('@/ui') || s.startsWith('@/renderer')),
+        `${name} must not reach into app/ui/renderer`,
+      ).toBe(false);
+    }
+  });
+
+  it('probability depends only on the catalog', () => {
+    expect(siblingsOnly('espionage-probability.ts')).toEqual(['espionage-catalog']);
+  });
+
+  it('the spy lifecycle does not import turn, missions, interrogation or state', () => {
+    const imports = siblingsOnly('espionage-spy-lifecycle.ts');
+    for (const forbidden of ['espionage-turn', 'espionage-missions', 'espionage-interrogation', 'espionage-state']) {
+      expect(imports, `lifecycle must not import ${forbidden}`).not.toContain(forbidden);
+    }
+    expect(imports).toContain('espionage-counterintel');
+  });
+
+  it('mission commands do not import the turn loop, lifecycle or counterintel', () => {
+    const imports = siblingsOnly('espionage-missions.ts');
+    for (const forbidden of [
+      'espionage-turn', 'espionage-spy-lifecycle', 'espionage-counterintel',
+      'espionage-interrogation', 'espionage-probability', 'espionage-state',
+    ]) {
+      expect(imports, `missions must not import ${forbidden}`).not.toContain(forbidden);
+    }
+    expect(imports).toContain('espionage-catalog');
+  });
+
+  it('turn orchestration consumes the domain transitions but never presentation or state', () => {
+    const imports = siblingsOnly('espionage-turn.ts');
+    for (const needed of [
+      'espionage-catalog', 'espionage-probability', 'espionage-counterintel',
+      'espionage-missions', 'espionage-spy-lifecycle',
+    ]) {
+      expect(imports, `turn must import ${needed}`).toContain(needed);
+    }
+    expect(imports).not.toContain('espionage-presentation');
+    expect(imports).not.toContain('espionage-state');
+  });
+
+  it('presentation re-exports only the read surface (catalog + probability)', () => {
+    expect([...new Set(siblingsOnly('espionage-presentation.ts'))].sort())
+      .toEqual(['espionage-catalog', 'espionage-probability']);
+    const src = readSys('espionage-presentation.ts');
+    for (const mutation of [
+      'processEspionageTurn', 'resolveMissionResult', 'startMission',
+      'turnCapturedSpy', 'executeSpy', 'attemptInfiltration',
+    ]) {
+      expect(src, `presentation must not surface ${mutation}`).not.toContain(mutation);
+    }
+  });
+
+  it('the espionage-* modules form an acyclic import graph', () => {
+    const graph = new Map(ESPIONAGE_MODULES.map(n => [n, siblingsOnly(`${n}.ts`)]));
+    const state = new Map<string, 'visiting' | 'done'>();
+    const stack: string[] = [];
+    const cycles: string[] = [];
+    const visit = (n: string) => {
+      if (state.get(n) === 'done') return;
+      if (state.get(n) === 'visiting') { cycles.push([...stack.slice(stack.indexOf(n)), n].join(' → ')); return; }
+      state.set(n, 'visiting');
+      stack.push(n);
+      for (const dep of graph.get(n) ?? []) visit(dep);
+      stack.pop();
+      state.set(n, 'done');
+    };
+    for (const n of ESPIONAGE_MODULES) visit(n);
+    expect(cycles, cycles.join('\n')).toEqual([]);
+  });
+
+  it('espionage-system.ts stays a barrel: the full pre-split public value surface is preserved', async () => {
+    const mod = await import('@/systems/espionage-system');
+    const PRE_SPLIT_PUBLIC_VALUES = [
+      'MISSION_BASE_SUCCESS', 'createEspionageCivState', 'getSpySuccessChance',
+      'getEspionageModifierBreakdown', 'getMissionDuration', 'createSpyFromUnit',
+      'setDisguise', 'cleanupDeadSpyUnit', 'embedSpy', 'unembedSpy', 'attemptSweep',
+      'recallSpy', 'getAvailableMissions', 'missionRequiresPlacedSpy', 'startMission',
+      'checkAndApplyPromotion', 'processSpyTurn', 'resolveMissionResult',
+      'handleSpyExpelled', 'handleSpyCaptured', 'setCounterIntelligence', 'applyBuildingCI',
+      'getSpyCaptureRelationshipPenalty', 'expelSpy', 'executeSpy', 'startInterrogation',
+      'processInterrogation', 'turnCapturedSpy', 'verifyAgent', 'ESPIONAGE_TECH_MAX_SPIES',
+      'initializeEspionage', 'processEspionageTurn', 'getInfiltrationSuccessChance',
+      'attemptInfiltration', 'isSpyUnitType',
+    ];
+    for (const name of PRE_SPLIT_PUBLIC_VALUES) {
+      expect(mod, `espionage-system barrel must re-export ${name}`).toHaveProperty(name);
+    }
+    for (const internal of [
+      'MISSION_DURATIONS', 'XP_PER_MISSION', 'getMissionXp', 'INFILTRATOR_MISSIONS',
+      'HANDLER_MISSIONS', 'PROMOTION_XP_THRESHOLD', 'SPY_NAMES', 'INFILTRATION_BASE',
+      'EXPULSION_COOLDOWN', 'EXPOSE_SCANDAL_PENALTY', 'resolveInterrogationIntel',
+    ]) {
+      expect(mod, `${internal} must stay internal to its espionage domain module`).not.toHaveProperty(internal);
+    }
+  });
+
+  it('each security-relevant computation has exactly one implementation', () => {
+    function walk(dir: string): string[] {
+      return readdirSync(dir, { withFileTypes: true }).flatMap(e => {
+        const full = resolve(dir, e.name);
+        return e.isDirectory() ? walk(full) : e.name.endsWith('.ts') ? [full] : [];
+      });
+    }
+    const srcRoot = resolve(__dirname, '../../src');
+    const defsOf = (re: RegExp) => walk(srcRoot).filter(f => re.test(readFileSync(f, 'utf8')))
+      .map(f => f.slice(srcRoot.length + 1));
+    expect(defsOf(/export function resolveMissionResult\(/)).toEqual(['systems/espionage-missions.ts']);
+    expect(defsOf(/export function processEspionageTurn\(/)).toEqual(['systems/espionage-turn.ts']);
+    expect(defsOf(/export function getSpySuccessChance\(/)).toEqual(['systems/espionage-probability.ts']);
+    expect(defsOf(/export function getAvailableMissions\(/)).toEqual(['systems/espionage-catalog.ts']);
+    expect(defsOf(/export function turnCapturedSpy\(/)).toEqual(['systems/espionage-counterintel.ts']);
+  });
+
+  it('src/ui may only reach the viewer-facing espionage read surface', () => {
+    const repoRoot = resolve(__dirname, '../..');
+    function walk(dir: string): string[] {
+      return readdirSync(dir, { withFileTypes: true }).flatMap(e => {
+        const full = resolve(dir, e.name);
+        return e.isDirectory() ? walk(full) : /\.tsx?$/.test(e.name) ? [full] : [];
+      });
+    }
+    const offenders: string[] = [];
+    for (const file of walk(resolve(repoRoot, 'src/ui'))) {
+      const source = readFileSync(file, 'utf8');
+      for (const m of ESPIONAGE_MODULES) {
+        if (m === 'espionage-presentation') continue;
+        if (new RegExp(`from '(@/systems/${m}|\\.\\./systems/${m})'`).test(source)) {
+          offenders.push(`${file.slice(repoRoot.length + 1)}: imports ${m} directly`);
+        }
+      }
+      if (/from '(?:@\/systems\/espionage-system|\.\.\/systems\/espionage-system)'/.test(source)) {
+        offenders.push(`${file.slice(repoRoot.length + 1)}: imports the espionage barrel directly`);
+      }
+    }
+    expect(offenders, offenders.join('\n')).toEqual([]);
+    const panel = readFileSync(resolve(repoRoot, 'src/ui/espionage-panel.ts'), 'utf8');
+    expect(panel).toContain("from '../systems/espionage-presentation'");
+  });
+});
+
 
 describe('#1011 — diplomacy decomposition boundaries', () => {
   const srcRoot = resolve(__dirname, '../../src');

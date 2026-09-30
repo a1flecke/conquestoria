@@ -558,6 +558,20 @@ describe('check-src-rule-violations.sh', () => {
       expect(result.stderr).toContain('city production modules must import the spy classifier');
     });
 
+    it('blocks any espionage runtime module, not only the barrel (#1009)', () => {
+      const workspace = makeWorkspace();
+      writeWorkspaceFile(
+        workspace,
+        'src/systems/city-production-cost.ts',
+        "import { getSpySuccessChance } from './espionage-probability';\n",
+      );
+
+      const result = runScript(workspace, 'src/systems/city-production-cost.ts');
+
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain('city production modules must import the spy classifier');
+    });
+
     it('allows the spy catalog leaf in the cost module', () => {
       const workspace = makeWorkspace();
       writeWorkspaceFile(

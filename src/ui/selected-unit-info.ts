@@ -18,7 +18,7 @@ import { classifyLandSupplyTerritory } from '@/systems/supply-territory';
 import { getParadropLaunchState, PARADROP_FAILURE_MESSAGES, getAirAssaultLaunchState, AIR_ASSAULT_FAILURE_MESSAGES } from '@/systems/airborne-system';
 import { getSubmarineRevealState } from '@/systems/concealment';
 import { getExperienceToNextTier, getVeterancyCombatModifier, getVeterancyTier } from '@/systems/combat-reward-system';
-import { isSpyUnitType } from '@/systems/espionage-system';
+import { isSpyUnitType } from '@/systems/spy-unit-types';
 import { getStrategicArsenal } from '@/systems/strategic-arsenal-system';
 import { evaluateUnitUpgrade, type UpgradeMissingRequirement } from '@/systems/unit-upgrade-system';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
