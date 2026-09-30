@@ -82,6 +82,33 @@ verification, but an agent must not self-approve, call `gh pr review --approve`,
 merge, close, or delete a PR/MR or issue unless the user explicitly authorizes
 that exact remote action.
 
+### Shared host: launching, stopping, and PR bodies
+
+Claude, Codex and OpenCode agents run on this one machine at the same time, in different
+worktrees, running the same scripts. Two consequences (full detail in
+`.claude/rules/hooks-and-tooling.md`, "Launching and stopping runs on a shared host" and "PR
+bodies"):
+
+- **Never select a process by name or process group.** No `pkill`, `killall`,
+  `kill $(pgrep …)`, `… | xargs kill`, `kill -- -PGID`: they terminate every agent's matching
+  run, including another agent's multi-hour `ai-long` run in a different worktree (this has
+  already happened). Stop only a specific numeric pid you started, or use
+  `./scripts/run-with-mise.sh yarn verify:stop <scope>|--all [--dry-run]`, which acts only on
+  pids recorded in *this* worktree's `.verification/` files. `.opencode/opencode.jsonc` denies
+  `pkill *`/`killall *`; `.claude/hooks/block-pattern-kill.sh` blocks the same in Claude Code.
+- **Launch long verification through the helper.**
+  `./scripts/run-with-mise.sh yarn verify:launch <full|ai-long|ai-playability|perf> [--wait]`
+  shows what else is running/queued on the host first, refuses a duplicate or a third concurrent
+  run from one worktree, refuses a dirty tree (durable evidence is only valid for the exact tree
+  it ran on; do not edit files while a run is in progress), and starts the run detached so it
+  survives the tool call. `yarn verify:local:status` is the read-only view of everyone's runs.
+- **PR bodies live in `/tmp/pr-bodies/<name>.md` and nowhere else.** Use
+  `./scripts/pr-body.sh new <name> [--issue N]`, edit or `write` the file, `check <name>`, then
+  `create <name> --title "…" [gh flags]` (or `update <pr> <name>`). Do not create a body file
+  anywhere else (no repo-root scratch files, no ad-hoc `/tmp/foo.md`): that directory is the one
+  the permission rules allow. Use the shell form `./scripts/pr-body.sh write <name>` if your
+  editor tool cannot write outside the repo.
+
 ### Permission behavior
 
 Use the canonical commands above before requesting approval. The local

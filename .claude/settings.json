@@ -1,4 +1,20 @@
 {
+  "permissions": {
+    "allow": [
+      "Read(//tmp/pr-bodies/**)",
+      "Write(//tmp/pr-bodies/**)",
+      "Edit(//tmp/pr-bodies/**)",
+      "Read(//private/tmp/pr-bodies/**)",
+      "Write(//private/tmp/pr-bodies/**)",
+      "Edit(//private/tmp/pr-bodies/**)",
+      "Bash(bash scripts/pr-body.sh:*)",
+      "Bash(./scripts/pr-body.sh:*)",
+      "Bash(sh scripts/stop-local-verification.sh:*)",
+      "Bash(./scripts/stop-local-verification.sh:*)",
+      "Bash(sh scripts/launch-local-verification.sh:*)",
+      "Bash(./scripts/launch-local-verification.sh:*)"
+    ]
+  },
   "hooks": {
     "PostToolUse": [
       {
@@ -24,6 +40,11 @@
           {
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/block-commit-on-main.sh",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/block-pattern-kill.sh",
             "timeout": 5
           },
           {

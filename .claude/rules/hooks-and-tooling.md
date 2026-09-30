@@ -827,6 +827,78 @@ scenarios (stall-then-success, retries-exhausted, 124-never-retries,
 real-failure-never-retries), built with the identical fake-`node`/`yarn`
 fixture technique.
 
+## Launching and stopping runs on a shared host
+
+Claude, Codex and OpenCode agents run on this one machine **at the same time**, in different
+worktrees, executing the same scripts. Two rules follow, both enforced mechanically:
+
+**1. Never select a process by name or by process group.** `pkill -f run-ai-long-horizon.sh`
+(or `killall`, `kill $(pgrep …)`, `… | xargs kill`, `kill -- -PGID`) terminates *every* agent's
+matching run. It killed another agent's multi-hour `ai-long` run in a different worktree. Stop only
+a specific numeric pid you started. `.claude/hooks/block-pattern-kill.sh` (PreToolUse, `Bash`)
+blocks these forms with exit 2 and points at the safe command; `.opencode/opencode.jsonc` denies
+`pkill *` / `killall *`. `tests/hooks/block-pattern-kill.test.sh` covers block, allow, and the
+"merely mentions pkill in a commit/PR message" case.
+
+**2. Launch and stop through the repo scripts**, which act only on this worktree's own recorded state:
+
+| Command | What it does |
+|---|---|
+| `yarn verify:launch <scope> [--wait] [--allow-dirty] [--max-mine N]` (`scripts/launch-local-verification.sh`) | Prints the host snapshot (who else is running/queued) first; refuses a duplicate of the same scope in this worktree and a pile-on beyond `--max-mine` (default 2); refuses a dirty tree unless `--allow-dirty` (durable evidence is only valid for the exact tree it ran on — never edit files while a run is in progress); starts the run **detached in its own session** (`setsid`, or `perl POSIX::setsid` on macOS) so it survives the launching tool call — a plain `&` dies with the caller's process group and silently loses the run; logs to `.verification/launch-<scope>.log`, pid in `.verification/launch-<scope>.pid`. `--wait` blocks and exits 0 only if the durable result is `passed`. It queues like every other run (host capacity, ai-long singleton). |
+| `yarn verify:stop <scope>… \| --all [--dry-run] [--grace N]` (`scripts/stop-local-verification.sh`) | Stops **only** runs recorded in this worktree's `.verification/<scope>-suite.running` / `.job-pid`. A recorded pid is trusted only if the record's `worktree=` is this worktree (physical-path compare), the pid is live, and its command line is that scope's durable-run supervisor (guards pid reuse). It sends SIGTERM to the supervisor — whose own trap tears the job tree down, releases the lease/slot and records `cancelled` — and only escalates (TERM, then KILL) against the explicit recorded tree, walked by parent/child descent (`hvl_job_tree_pids`), never by name, never by process group. |
+
+Scopes: `full`, `ai-long`, `ai-playability`, `perf` (the four durable scopes). To find out what else
+is on the box use `yarn verify:local:status`; those rows belong to other agents and are never yours
+to stop. `tests/hooks/launch-local-verification.test.sh` and
+`tests/hooks/stop-local-verification.test.sh` are the contract — the stop test keeps a same-named
+"sibling agent" run alive in a second worktree in every scenario, and asserts the scripts contain no
+`pkill`/`killall`/`pgrep` and no negative-pid kill. Do not add a name-based or process-group
+signal to either script (see "Job-tree ownership" above for the CI-runner incident that
+process-group signalling already caused once).
+
+Agents whose tool runner has a background mode (Claude's `run_in_background`) may use it for the
+durable commands directly; `verify:launch` exists for agents that do not, and for the guard
+rails above.
+
+## PR bodies
+
+`gh pr create` needs a body file; agents used to improvise one in random locations outside the
+repo, each a fresh permission prompt (or a refused write). **Every PR body lives in one directory:
+`/tmp/pr-bodies/<name>.md`** (override with `PR_BODY_DIR`), managed by `scripts/pr-body.sh`
+(`yarn pr-body …`):
+
+```bash
+bash scripts/pr-body.sh new issue-871 --issue 871   # seed a template, prints /tmp/pr-bodies/issue-871.md
+# ...edit that file with your editor tool, OR: bash scripts/pr-body.sh write issue-871  (body on stdin)
+bash scripts/pr-body.sh check  issue-871            # non-empty, no TODO(pr-body), has "## Summary"
+bash scripts/pr-body.sh create issue-871 --title "feat(x): y (#871)" --base main
+bash scripts/pr-body.sh update 1190 issue-871       # gh pr edit --body-file
+```
+
+Names are validated (no separators, `..`, leading dots), the directory must be a real directory you
+own (a symlink is refused), and nothing touches a path outside it — so allowing the directory does
+not widen what an agent can write. `check` prints every "Closes/Fixes/Resolves #N" line as a
+reminder that merging will close those issues (never write one for a follow-up MR's issue). Set
+`PR_BODY_FOOTER` to have `create`/`update` append an attribution line (to a temporary copy, once).
+`clean --days N` removes old bodies from that directory only.
+
+**Permissions.** The project `.claude/settings.json` already allows `Read/Write/Edit` on
+`//tmp/pr-bodies/**` (and the macOS `//private/tmp/pr-bodies/**` spelling) and the three scripts. To
+allow it everywhere (all projects, all agents), add the same to your **global** config — the repo
+deliberately does not edit user-level settings:
+
+```jsonc
+// ~/.claude/settings.json
+{ "permissions": { "allow": [
+  "Read(//tmp/pr-bodies/**)", "Write(//tmp/pr-bodies/**)", "Edit(//tmp/pr-bodies/**)",
+  "Read(//private/tmp/pr-bodies/**)", "Write(//private/tmp/pr-bodies/**)", "Edit(//private/tmp/pr-bodies/**)"
+] } }
+```
+
+For OpenCode, allow `/tmp/pr-bodies` as an external directory in your global OpenCode
+permissions; `.opencode/opencode.jsonc` already allows `./scripts/pr-body.sh *` for the shell route
+(`pr-body.sh write <name>` needs no external-directory write permission at all).
+
 ## Worktree command-runner contract
 
 `scripts/run-with-mise.sh` executes all project behavior from the active
