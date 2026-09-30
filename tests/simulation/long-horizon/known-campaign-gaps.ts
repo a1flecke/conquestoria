@@ -391,10 +391,17 @@ export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
       + 'recognized rival; nothing in ai-treasury.ts, ai-production.ts, or any '
       + 'rush-buy/gold path reads WarGoalKind or rivalry status at all -- confirmed '
       + 'by grep, not assumed. Same already-tracked production-idle-driven mechanism '
-      + 'reproducing on a seventh scenario, not a new defect.',
+      + 'reproducing on a seventh scenario, not a new defect. #996\'s AI-long run '
+      + '(full matrix) additionally observed this code on lh-late-era-medium (gold '
+      + 'rose 27444 over 69 rounds) -- the same downstream mechanism, and #996\'s only '
+      + 'src change (a minor-civ combat roster scrub in combat-reward-system.ts) is '
+      + 'outcome-neutral (the committed aiRound-1069 equivalence digest and the '
+      + 'determinism guards are unchanged), so not caused by that MR. Widened here '
+      + 'rather than filed as a duplicate of #1113.',
     scenarios: [
       'lh-standard-small', 'lh-veteran-small', 'lh-standard-large',
       'lh-veteran-medium', 'lh-hotseat-medium', 'lh-standard-medium', 'lh-veteran-large',
+      'lh-late-era-medium',
     ],
   },
   {
