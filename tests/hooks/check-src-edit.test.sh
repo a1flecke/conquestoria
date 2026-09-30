@@ -352,4 +352,10 @@ import { isSpyUnitType } from './espionage-system';
 EOF
 expect_block "$tmp/src/systems/city-system.ts" "city system runtime espionage import"
 
+# ...and the same guard covers the #1008 city-domain family, not just the barrel.
+cat > "$tmp/src/systems/city-building-catalog.ts" <<'EOF'
+import { isSpyUnitType } from './espionage-system';
+EOF
+expect_block "$tmp/src/systems/city-building-catalog.ts" "city catalog runtime espionage import"
+
 exit "$fail"

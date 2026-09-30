@@ -677,7 +677,7 @@ Enforced by `tests/systems/production-cost-context.test.ts`:
 
 | Rule | Why |
 |---|---|
-| Only `city-system.ts` and `production-cost-context.ts` may reference `getProductionCostForItem` | the raw formula is not a gameplay entry point |
+| Only `city-production-cost.ts` (owner), `city-turn.ts` (completion threshold) and `production-cost-context.ts` may reference `getProductionCostForItem`; the `city-system.ts` barrel re-exports it | the raw formula is not a gameplay entry point |
 | Only `minor-civ-economy-system.ts` may call `createProductionCostContext` | a minor civ has no `Civilization` record to derive one from — it supplies a synthetic tech band and local pressure era. This is the single documented exception |
 | No file that touches a production cost may write `era: <something>.era` | the acceptance criterion from #984 |
 
@@ -718,7 +718,7 @@ chooses*; they never change what an item costs.
 
 MR12 added a second class of national-project effect distinct from `civYieldBonus`: empire-wide *production cost discounts* (e.g. Tribal Muster Ground: era-1/2 melee units train 10% cheaper). These are cost multipliers, not yields, so the yield ceilings above do not apply to them — but they have their own rules:
 
-- Defined in `NP_PRODUCTION_DISCOUNTS` in `src/systems/city-system.ts`, a data table (`{ nationalProjectId, appliesTo, discount }`) consumed generically by `getNationalProjectDiscountMultiplier`. **Add a new discount by appending a row — never add another `if (project.id === '...')` branch to that function.** The whole point of the table is that a new discount NP requires zero changes to the resolver.
+- Defined in `NP_PRODUCTION_DISCOUNTS` in `src/systems/city-production-cost.ts` (#1008), a data table (`{ nationalProjectId, appliesTo, discount }`) consumed generically by `getNationalProjectDiscountMultiplier`. **Add a new discount by appending a row — never add another `if (project.id === '...')` branch to that function.** The whole point of the table is that a new discount NP requires zero changes to the resolver.
 - `appliesTo` is either a `UnitClass` (checked via `UNIT_CLASS_BY_TYPE`, e.g. `'gunpowder'`, `'siege'`) or an explicit `UnitType[]` for discounts that don't map to one class (e.g. `ERA_1_2_MELEE_UNIT_TYPES`). Prefer the class form — it stays correct if new units are added to that class later; only use an explicit list when the discount's boundary is genuinely not a `UnitClass` (era-scoped melee is the only current example).
 - Discounts are fade-scaled by the project's `fadeMultiplier` (same 1.0 / 0.5 / 0.0 curve as yields) and are **multiplicative** with building discounts and tech discounts — not `Math.min`'d like same-class building discounts are. See `tests/systems/city-system.test.ts` "MR12 — national-project production discounts" for the exact-value regression.
 - Discounts reach a cost through the canonical production-cost context (see "Production Cost Context" below), which derives `activeNationalProjects` from `getActiveNationalProjectsForCiv` for you. MR12 shipped this as a per-caller option that five call sites had to remember; #984 found `processCity` — the threshold a city actually completes at — had never been one of them, so a discounted unit was displayed at the discounted price and produced at the full one. Do not reintroduce a per-caller option.

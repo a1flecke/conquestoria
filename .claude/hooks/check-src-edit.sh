@@ -144,16 +144,16 @@ if grep -nE "=== ['\"]player['\"]|owner === ['\"]player['\"]" "$file_path" >/dev
 $lines"
 fi
 
-# --- catalog/runtime dependency boundary (#985): city-system owns static
-# production catalogs and may consume the spy catalog leaf, but importing the
-# runtime espionage system closes a catalog-initialization cycle once
-# espionage records Domination intelligence. Keep the classifier in
+# --- catalog/runtime dependency boundary (#985/#1008): the city production
+# modules own static catalogs and may consume the spy catalog leaf, but
+# importing the runtime espionage system closes a catalog-initialization cycle
+# once espionage records Domination intelligence. Keep the classifier in
 # spy-unit-types.ts so either system can depend on it safely.
 case "$file_path" in
-  */src/systems/city-system.ts)
+  */src/systems/city-*.ts)
     spy_runtime_lines="$(grep -nE "^[[:space:]]*import[[:space:]].*from[[:space:]]+['\"][^'\"]*espionage-system['\"]" "$file_path" | head -5 || true)"
     if [ -n "$spy_runtime_lines" ]; then
-      append "city-system.ts must import the spy classifier from spy-unit-types.ts, not runtime espionage-system.ts — that dependency closes a catalog-initialization cycle (see .claude/rules/game-systems.md#catalog-runtime-dependency-boundary):
+      append "city production modules must import the spy classifier from spy-unit-types.ts, not runtime espionage-system.ts — that dependency closes a catalog-initialization cycle (see .claude/rules/game-systems.md#catalog-runtime-dependency-boundary):
 $spy_runtime_lines"
     fi
     ;;

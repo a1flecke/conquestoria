@@ -630,6 +630,166 @@ describe('#1002 — player-facing modules stay behind the viewer projection', ()
   });
 });
 
+describe('#1008 — city-system decomposition boundaries', () => {
+  const sys = resolve(__dirname, '../../src/systems');
+  const read = (name: string) => readFileSync(resolve(sys, name), 'utf8');
+
+  /** All imported module specifiers in a source file, reduced to a bare sibling name. */
+  function importsOf(name: string): string[] {
+    const src = read(name).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    return [...src.matchAll(/(?:from|import)\s+['"]([^'"]+)['"]/g)]
+      .map(m => m[1]!)
+      .map(spec => spec.replace(/^@\/systems\//, './').replace(/^\.\//, '').replace(/\.ts$/, ''));
+  }
+
+  const CITY_MODULES = [
+    'city-building-catalog',
+    'city-unit-catalog',
+    'city-local-infrastructure',
+    'city-lifecycle',
+    'city-availability',
+    'city-production-cost',
+    'city-production-presentation',
+    'city-turn',
+  ];
+
+  it('the catalogs are leaves: no sibling city module, no app/ui/renderer dependency', () => {
+    for (const file of ['city-building-catalog.ts', 'city-unit-catalog.ts']) {
+      const imports = importsOf(file);
+      for (const m of CITY_MODULES) {
+        expect(imports, `${file} must not import ${m}`).not.toContain(m);
+      }
+      expect(
+        imports.some(s => s.startsWith('@/app') || s.startsWith('@/ui') || s.startsWith('@/renderer')),
+        `${file} must not reach into app/ui/renderer`,
+      ).toBe(false);
+    }
+    // The unit catalog is the only catalog that needs the combat-role metadata.
+    expect(importsOf('city-unit-catalog.ts')).toContain('combat-role-definitions');
+    expect(importsOf('city-building-catalog.ts')).not.toContain('combat-role-definitions');
+  });
+
+  it('presentation imports no simulation module (turn/availability/cost/lifecycle)', () => {
+    const imports = importsOf('city-production-presentation.ts');
+    for (const forbidden of ['city-turn', 'city-availability', 'city-production-cost', 'city-lifecycle', 'city-local-infrastructure']) {
+      expect(imports, `presentation must not import ${forbidden}`).not.toContain(forbidden);
+    }
+    expect(imports).toContain('city-building-catalog');
+    expect(imports).toContain('city-unit-catalog');
+  });
+
+  it('availability imports neither cost, turn, presentation, nor catalog data it cannot need', () => {
+    const imports = importsOf('city-availability.ts');
+    for (const forbidden of ['city-turn', 'city-production-cost', 'city-production-presentation', 'city-local-infrastructure']) {
+      expect(imports, `availability must not import ${forbidden}`).not.toContain(forbidden);
+    }
+    expect(imports).toContain('city-lifecycle');
+  });
+
+  it('the cost model imports no availability, turn, presentation or lifecycle module', () => {
+    const imports = importsOf('city-production-cost.ts');
+    for (const forbidden of ['city-turn', 'city-availability', 'city-production-presentation', 'city-lifecycle']) {
+      expect(imports, `cost must not import ${forbidden}`).not.toContain(forbidden);
+    }
+    expect(imports).toContain('city-building-catalog');
+    expect(imports).toContain('city-unit-catalog');
+    expect(imports).toContain('city-local-infrastructure');
+  });
+
+  it('lifecycle is leaf-ward: it imports no cost/availability/turn/presentation/catalog', () => {
+    const imports = importsOf('city-lifecycle.ts');
+    for (const forbidden of ['city-turn', 'city-availability', 'city-production-cost', 'city-production-presentation', 'city-building-catalog', 'city-unit-catalog', 'city-local-infrastructure']) {
+      expect(imports, `lifecycle must not import ${forbidden}`).not.toContain(forbidden);
+    }
+  });
+
+  it('turn orchestration may consume the domain transitions but never presentation', () => {
+    const imports = importsOf('city-turn.ts');
+    expect(imports).toContain('city-availability');
+    expect(imports).toContain('city-production-cost');
+    expect(imports).toContain('city-lifecycle');
+    expect(imports).toContain('city-building-catalog');
+    expect(imports).toContain('city-unit-catalog');
+    expect(imports).not.toContain('city-production-presentation');
+  });
+
+  it('the city-* modules form an acyclic import graph', () => {
+    const graph = new Map(CITY_MODULES.map(n => [n, importsOf(`${n}.ts`).filter(s => CITY_MODULES.includes(s))]));
+    const state = new Map<string, 'visiting' | 'done'>();
+    const stack: string[] = [];
+    const cycles: string[] = [];
+    const visit = (n: string) => {
+      if (state.get(n) === 'done') return;
+      if (state.get(n) === 'visiting') { cycles.push([...stack.slice(stack.indexOf(n)), n].join(' → ')); return; }
+      state.set(n, 'visiting');
+      stack.push(n);
+      for (const dep of graph.get(n) ?? []) visit(dep);
+      stack.pop();
+      state.set(n, 'done');
+    };
+    for (const n of CITY_MODULES) visit(n);
+    expect(cycles, cycles.join('\n')).toEqual([]);
+  });
+
+  it('city-system.ts stays a barrel: the full pre-split public value surface is preserved', async () => {
+    const mod = await import('@/systems/city-system');
+    const PRE_SPLIT_PUBLIC_VALUES = [
+      'BUILDINGS', 'TRAINABLE_UNITS', 'TERMINAL_COMBAT_UNITS', 'MELEE_RANGED_UNIT_TYPES',
+      'ERA_1_2_MELEE_UNIT_TYPES', 'LOCAL_INFRASTRUCTURE_BUILDINGS', 'getLocalCityHealingBonus',
+      'CITY_NAMES', 'foundCity', 'isPositionCoastal', 'isCityCoastal', 'civHasCoastalCity',
+      'razeForestForProduction', 'getAvailableBuildings', 'getTrainableUnitsForCiv',
+      'getTrainableUnitsForCity', 'isBuildingObsolete', 'isUnitObsolete', 'cityFollowsOwnFaith',
+      'getDetectionUnitTypeForCiv', 'SETTLER_COST_BY_ERA', 'getSettlerProductionCost',
+      'getCatalogProductionCost', 'getProductionCostForItem', 'createProductionCostContext',
+      'applyProductionBonus', 'PRODUCTION_ICONS', 'PRODUCTION_ICON_FALLBACK',
+      'getProductionDisplayName', 'getProductionIconForItem', 'describeDroppedProductionItem',
+      'completeCityProductionItem', 'processCity',
+    ];
+    for (const name of PRE_SPLIT_PUBLIC_VALUES) {
+      expect(mod, `city-system barrel must re-export ${name}`).toHaveProperty(name);
+    }
+    // Helpers that were private before the split must stay private.
+    for (const internal of [
+      'requiresResource', 'getBuildingDiscountMultiplier', 'getTechCostDiscountMultiplier',
+      'getNationalProjectDiscountMultiplier', 'normalizeProductionEra', 'NP_PRODUCTION_DISCOUNTS',
+    ]) {
+      expect(mod, `${internal} must stay internal to its city domain module`).not.toHaveProperty(internal);
+    }
+  });
+
+  it('pricing has exactly one implementation, and the state-derived context consumes it directly', () => {
+    function walk(dir: string): string[] {
+      return readdirSync(dir, { withFileTypes: true }).flatMap(e => {
+        const full = resolve(dir, e.name);
+        return e.isDirectory() ? walk(full) : e.name.endsWith('.ts') ? [full] : [];
+      });
+    }
+    const srcRoot = resolve(__dirname, '../../src');
+    const defsOf = (re: RegExp) => walk(srcRoot).filter(f => re.test(readFileSync(f, 'utf8')))
+      .map(f => f.slice(srcRoot.length + 1));
+    expect(defsOf(/export function getProductionCostForItem\(/)).toEqual(['systems/city-production-cost.ts']);
+    // production-cost-context.ts is the canonical GameState -> context adapter (#984);
+    // it must read the pricing core from the cost module, not through the barrel.
+    const contextImports = readFileSync(resolve(sys, 'production-cost-context.ts'), 'utf8');
+    expect(contextImports).toContain("from '@/systems/city-production-cost'");
+    expect(contextImports).not.toContain("from '@/systems/city-system'");
+  });
+
+  it('presentation is consumed from the presentation module, not the simulation barrel', () => {
+    const repoRoot = resolve(__dirname, '../..');
+    const presentationConsumers = [
+      'src/ui/notification-routing.ts',
+      'src/ui/city-panel-building-icon.ts',
+      'src/ui/city-panel.ts',
+      'src/app/controllers/panel-actions-controller.ts',
+    ];
+    for (const file of presentationConsumers) {
+      const source = readFileSync(resolve(repoRoot, file), 'utf8');
+      expect(source, `${file} must import presentation from city-production-presentation`).toContain("from '@/systems/city-production-presentation'");
+    }
+  });
+});
+
 
 describe('#1011 — diplomacy decomposition boundaries', () => {
   const srcRoot = resolve(__dirname, '../../src');

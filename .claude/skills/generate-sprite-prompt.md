@@ -16,7 +16,7 @@ Read these files to build the complete inventory of what's missing:
 1. `src/renderer/sprites/sprite-catalog.ts` — find every `// fallback`, `// TBD`, or reused-sprite comment
 2. `src/renderer/hex-renderer.ts` — find emoji values in `IMPROVEMENT_ICONS` and `TERRAIN_COLORS` (flat colors = no terrain tile)
 3. `src/core/types.ts` — enumerate `TerrainType` and `UnitType`
-4. `src/systems/city-system.ts` — enumerate `BUILDINGS` keys
+4. `src/systems/city-building-catalog.ts` — enumerate `BUILDINGS` keys
 
 Cross-reference with `docs/sprite-design-system.md` (the canonical inventory) to confirm which items are already done vs. missing.
 

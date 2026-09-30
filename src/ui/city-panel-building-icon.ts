@@ -1,5 +1,5 @@
 import { BUILDING_SPRITE_CATALOG } from '@/renderer/sprites/sprite-catalog';
-import { PRODUCTION_ICON_FALLBACK } from '@/systems/city-system';
+import { PRODUCTION_ICON_FALLBACK } from '@/systems/city-production-presentation';
 import { hashCode } from '@/renderer/sprite-overlay';
 import type { FactionPalette } from '@/renderer/sprites/sprite-system';
 
