@@ -3,7 +3,7 @@
 #
 # Several agents (Claude, Codex, OpenCode) run the same verification scripts on
 # this host at the same time. Stopping "the ai-long run" by matching a process
-# name (`pkill -f run-ai-long-horizon.sh`, `killall node`, ...) terminates
+# name (`pkill -f run-some-suite.sh`, `killall node`, ...) terminates
 # EVERY agent's run, which is exactly the incident this script exists to make
 # impossible. So this script never selects a process by name, never uses
 # `pgrep`/`pkill`/`killall`, and never signals a process group. It acts only on

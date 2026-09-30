@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # scripts/stop-local-verification.sh must stop THIS worktree's own runs and
-# nothing else. The regression it exists for: `pkill -f run-ai-long-horizon.sh`
+# nothing else. The regression it exists for: `pkill -f run-some-suite.sh`
 # killed another agent's multi-hour run in a different worktree. Every scenario
 # below keeps a "sibling agent" process with the SAME script name and scope
 # alive in a second worktree and asserts it survives.
