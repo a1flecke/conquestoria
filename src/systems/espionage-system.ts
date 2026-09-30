@@ -11,7 +11,7 @@ import { applyResearchCompletionConsequences } from './tech-completion-system';
 import { createRng } from './map-generator'; // Reuse existing seeded RNG
 import { hexDistance } from './hex-utils';
 import { modifyRelationship } from './diplomacy-state';
-import { createUnit } from './unit-system';
+import { createUnit } from './unit-lifecycle';
 import { resolveCivDefinition } from './civ-registry';
 import { applySatelliteSurveillance } from './fog-of-war';
 import { getCapitalCityId } from './capital-system';

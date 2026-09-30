@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createNewGame } from '@/core/game-state';
-import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { BUILDINGS } from '@/systems/city-system';
 import { hexKey } from '@/systems/hex-utils';
 import {

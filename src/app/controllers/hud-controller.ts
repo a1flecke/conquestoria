@@ -30,7 +30,7 @@ import { getStrategicArsenal, getStrategicArsenalCapacity } from '@/systems/stra
 import { isSuperweaponsEnabled } from '@/systems/superweapons-flag';
 import { getNetworkPanelModel } from '@/ui/network-panel';
 import { getPirateWatersPresentation } from '@/systems/pirate-presentation';
-import { getUnmovedUnits } from '@/systems/unit-system';
+import { getUnmovedUnits } from '@/systems/unit-order-state';
 import { createResearchBreakdown } from '@/ui/research-breakdown';
 import { FEDERALISM_TECH_ID, canToggleFederalism, getFederalismLockedUntilTurn, setFederalismStance } from '@/systems/faction-system';
 import { getCivilizationStatusForViewer } from '@/systems/civilization-status-presentation';

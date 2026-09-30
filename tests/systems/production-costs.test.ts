@@ -7,7 +7,7 @@ import {
   getSettlerProductionCost,
 } from '@/systems/city-system';
 import { civilizationEraFromNumber } from '@/systems/era-types';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { getResourceAdvantageMultiplier } from '@/systems/resource-advantages';
 
 describe('production cost catalog', () => {

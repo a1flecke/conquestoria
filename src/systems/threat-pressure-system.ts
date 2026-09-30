@@ -13,7 +13,7 @@ import { createEmptyOpponentAIState } from '@/core/opponent-ai-state';
 import { getChallengeProfileForCiv } from '@/core/opponent-challenge';
 import { BEAST_DEFINITIONS } from './beast-definitions';
 import { hexKey, mapDistance, mapNeighbors } from './hex-utils';
-import { createUnit } from './unit-system';
+import { createUnit } from './unit-lifecycle';
 import { createSimulationRng } from './simulation-rng';
 import { isPiratePressureEligible } from './world-pressure-eligibility';
 import { resolveCivilizationEra } from './tech-definitions';

@@ -6,7 +6,7 @@ import {
   type CityDefenseInput,
 } from '@/systems/combat-system';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { generateMap } from '@/systems/map-generator';
 import type { GameMap, GameState } from '@/core/types';
 

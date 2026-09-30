@@ -7,7 +7,7 @@ import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { isAlwaysHostilePair } from '@/core/owner-kind';
 import { isAtWar } from '@/systems/diplomacy-queries';
 import { getRiverDefensePenalty, isRiverBetween } from '@/systems/river-system';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 
 // Retuned from the design doc's original 5/3 (#522 pre-merge review): a population-1
 // unwalled outpost at 5+1*3=8 put a warrior (strength 10, the cheapest and most common

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { calculateCombatStrengths } from '@/systems/combat-system';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { getAirBaseRoster, getAirBaseCapacity } from '@/systems/air-operations-system';

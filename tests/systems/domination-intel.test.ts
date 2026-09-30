@@ -7,7 +7,7 @@ import { eliminateCivilization } from '@/systems/civilization-elimination-system
 import { makeLivenessGame, withoutOwnedAssets } from './helpers/civilization-liveness-fixture';
 import { makeVassalageFixture } from './helpers/vassalage-fixture';
 import { hexKey } from '@/systems/hex-utils';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 
 describe('Domination earned intelligence', () => {
   it('records only direct vassalage facts already known by the observing civilization', () => {

@@ -1,6 +1,6 @@
 import type { Unit, UnitDefinition, UnitType } from '@/core/types';
 import { classifyOwner } from '@/core/owner-kind';
-import { UNIT_DEFINITIONS } from './unit-system';
+import { UNIT_DEFINITIONS } from './unit-definitions';
 import { isMilitaryUnitType } from './unit-modifier-definitions';
 
 /**

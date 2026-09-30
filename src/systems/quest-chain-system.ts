@@ -9,7 +9,7 @@ import type { EventBus } from '@/core/event-bus';
 import { applyResearchBonus } from './tech-system';
 import { modifyRelationship } from './diplomacy-state';
 import { isMinorCivAtWar } from './minor-civ-diplomacy';
-import { createUnit } from './unit-system';
+import { createUnit } from './unit-lifecycle';
 import { hexKey, hexNeighbors } from './hex-utils';
 import { MINOR_CIV_DEFINITIONS } from './minor-civ-definitions';
 import {

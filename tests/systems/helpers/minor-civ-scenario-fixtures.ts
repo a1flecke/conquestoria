@@ -5,7 +5,7 @@ import { processTurn } from '@/core/turn-manager';
 import { resolveOpponentChallenge } from '@/core/opponent-challenge';
 import { hexKey, hexNeighbors } from '@/systems/hex-utils';
 import { getEraAdvancementTechs } from '@/systems/tech-definitions';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { resolveNeutralPressureEra } from '@/systems/era-resolution';
 import {
   getMinorCivPopulationCeiling,

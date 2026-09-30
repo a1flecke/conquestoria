@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { BUILDINGS } from '@/systems/city-system';
-import { UNIT_DEFINITIONS, UNIT_DESCRIPTIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { UNIT_DESCRIPTIONS } from '@/systems/unit-descriptions';
 import { resolveSuperweaponContentDescription } from '@/systems/superweapon-content-honesty';
 import type { GameState } from '@/core/types';
 

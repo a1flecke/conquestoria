@@ -21,7 +21,8 @@ import {
 import { selectDefenderForAttack } from './combat-system';
 import { getCityGarrisonUnit } from './city-siege-system';
 import { applyQuestGameplayAction, type ChainTransition } from './quest-chain-system';
-import { UNIT_DEFINITIONS, getBlockingMapEntityKeysForOwner } from './unit-system';
+import { UNIT_DEFINITIONS } from './unit-definitions';
+import { getBlockingMapEntityKeysForOwner } from './unit-movement-legality';
 import { recordHuntCampKillerIfApplicable } from './hunt-crisis-linkage';
 import { resolveCivilizationEra } from './tech-definitions';
 import { classifyOwner } from '@/core/owner-kind';

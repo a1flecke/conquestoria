@@ -29,7 +29,8 @@ import { calculateCityYields } from '@/systems/resource-system';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { civilizationEraFromNumber } from '@/systems/era-types';
 import { resolveNeutralPressureEra } from '@/systems/era-resolution';
-import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { UNIT_CLASS_BY_TYPE, type UnitClass } from '@/systems/unit-modifier-definitions';
 import {
   getMinorCivLeagueScoreBonus,

@@ -3,7 +3,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import { createGameSession } from '@/app/game-session';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { createEspionageCivState } from '@/systems/espionage-system';
 import { foundReligion } from '@/systems/religion-system';
 import { hexKey } from '@/systems/hex-utils';

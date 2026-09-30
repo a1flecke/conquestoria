@@ -5,7 +5,10 @@ import { getDetectionUnitTypeForCiv, cityFollowsOwnFaith } from '@/systems/city-
 import { preach, isPreachTargetEligible } from '@/systems/religion-system';
 import { foundCityInState } from '@/systems/city-founding-system';
 import { canFoundCityAt } from '@/systems/city-territory-system';
-import { getMovementRangeDetails, findPath, createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { createUnit } from '@/systems/unit-lifecycle';
+import { getMovementRangeDetails } from '@/systems/unit-movement-queries';
+import { findPath } from '@/systems/unit-pathfinding';
 import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
 import { getIdleExplorerUnitIds, computeAdministrativeExploreLeash } from './ai-exploration';
 import { executeUnitMove } from '@/systems/unit-movement-system';

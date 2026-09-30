@@ -4,7 +4,7 @@ import { resolveGeneralMechanics } from '@/systems/great-general-specialties';
 import { generateFallbackGeneralCandidates } from '@/systems/great-general-fallback-content';
 import { seededLcg, weightedPick } from '@/systems/seeded-lcg';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { mapDistance } from '@/systems/hex-utils';
 import { getOwnedUnits } from '@/systems/unit-ownership';
 import {

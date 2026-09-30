@@ -7,7 +7,7 @@ import {
   updateAndRefreshVisibility,
   reconstructLastSeenFromMap,
 } from '@/systems/last-seen-presentation';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import {
   createEspionageCivState,
   createSpyFromUnit,

@@ -26,7 +26,10 @@ import {
   PIRATE_SIEGE_DAMAGE,
   PIRATE_SIEGE_MIN_STAGE,
 } from './pirate-definitions';
-import { findPath, getMovementStepCost, moveUnitWithZoneOfControl, UNIT_DEFINITIONS } from './unit-system';
+import { UNIT_DEFINITIONS } from './unit-definitions';
+import { moveUnitWithZoneOfControl } from './unit-low-level-move';
+import { getMovementStepCost } from './unit-movement-cost';
+import { findPath } from './unit-pathfinding';
 
 export type PirateIntent = PirateIntentState;
 

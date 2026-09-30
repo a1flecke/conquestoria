@@ -15,7 +15,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import type { GameMap, HexTile } from '@/core/types';
-import { findPath } from '@/systems/unit-system';
+import { findPath } from '@/systems/unit-pathfinding';
 import { hexKey } from '@/systems/hex-utils';
 
 function buildMap(specs: Record<string, HexTile['terrain']>): GameMap {

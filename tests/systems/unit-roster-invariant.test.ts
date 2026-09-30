@@ -3,7 +3,7 @@ import { EventBus } from '@/core/event-bus';
 import { createNewGame } from '@/core/game-state';
 import type { CombatResult, GameState, HexCoord, Unit } from '@/core/types';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { getOwnedUnitCount, getOwnedUnits } from '@/systems/unit-ownership';
 import { removePlayerUnitFromState } from '@/systems/unit-lifecycle-system';
 import { eliminateCivilization } from '@/systems/civilization-elimination-system';

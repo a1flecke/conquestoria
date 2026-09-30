@@ -14,7 +14,7 @@ import { createNewGame } from '@/core/game-state';
 import { hexKey } from '@/systems/hex-utils';
 import { createDiplomacyState } from '@/systems/diplomacy-state';
 import { createEmptyPirateState } from '@/core/pirate-state';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { getBlockingMapEntityAt } from '@/systems/unit-movement-legality';
 import { getMovementRangeDetails } from '@/systems/unit-movement-queries';
 import { resolveUnitMoveIntent } from '@/systems/unit-movement-system';

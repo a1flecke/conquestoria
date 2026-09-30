@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import type { GameState, HexCoord, UnitType } from '@/core/types';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import {
   getLandUnitWaterRecovery,
   getLandUnitWaterRecoveryPanelMessage,

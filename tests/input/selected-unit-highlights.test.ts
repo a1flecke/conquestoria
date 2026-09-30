@@ -3,7 +3,7 @@ import { createNewGame } from '@/core/game-state';
 import { buildSelectedUnitHighlights } from '@/input/selected-unit-highlights';
 import { foundCity } from '@/systems/city-system';
 import { hexDistance, hexKey } from '@/systems/hex-utils';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { resolveMapTapIntent } from '@/input/map-tap-intent';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });

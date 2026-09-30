@@ -122,6 +122,22 @@ const movement = moveUnitWithZoneOfControl(state, moved, step, cost);
 EOF
 expect_allow "$tmp/src/systems/unit-movement-system.ts" "moveUnitWithZoneOfControl in unit-movement-system.ts"
 
+# --- #1010: the movers now live in unit-low-level-move.ts (sanctioned); the deprecated
+#     unit-system.ts facade is no longer a place they may be called from ---
+cat > "$tmp/src/systems/unit-low-level-move.ts" <<'EOF'
+export function moveUnitWithZoneOfControl(state, unit, to, cost) {
+  const moved = moveUnit(unit, to, cost);
+  return { unit: moved, stopped: false };
+}
+EOF
+expect_allow "$tmp/src/systems/unit-low-level-move.ts" "the low-level movers may call each other in their defining module"
+cat > "$tmp/src/systems/unit-system.ts" <<'EOF'
+export function sneak(state, unit, to) {
+  return moveUnit(unit, to, 1);
+}
+EOF
+expect_block "$tmp/src/systems/unit-system.ts" "moveUnit in the deprecated unit-system facade is no longer sanctioned"
+
 # --- #1025: removeUnit() must not trip the moveUnit( substring match ---
 cat > "$tmp/src/systems/lifecycle.ts" <<'EOF'
 nextState = removeUnit(nextState, updatedUnit);

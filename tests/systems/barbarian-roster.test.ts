@@ -1,4 +1,4 @@
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { getBarbarianRosterForEra } from '@/systems/barbarian-system';
 import {
   BARBARIAN_ELIGIBILITY_BY_UNIT,

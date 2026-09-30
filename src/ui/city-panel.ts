@@ -33,7 +33,7 @@ import {
 } from '@/systems/legendary-wonder-presentation';
 import { getLegendaryLandmarkPreviewViewForCity } from '@/systems/legendary-wonder-landmark-presentation';
 import { canUpgradeUnit, getUpgradeCost } from '@/systems/unit-upgrade-system';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { getUnitRolePresentation } from '@/ui/unit-role-presentation';
 import {
   getUnrestYieldMultiplier,

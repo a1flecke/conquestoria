@@ -14,7 +14,7 @@ import { createNewGame } from '@/core/game-state';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { hexKey, mapNeighbors } from '@/systems/hex-utils';
 import { foundCity } from '@/systems/city-system';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 
 describe('Rogue Elephant Host definitions', () => {
   it('emits one target-scoped warning transition when a Host is first scheduled', () => {

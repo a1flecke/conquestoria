@@ -4,7 +4,7 @@ import { createEspionageCivState, createSpyFromUnit, setDisguise } from '@/syste
 import type { GameState, HexCoord, UnitType } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 import { createNewGame } from '@/core/game-state';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { registerCrisisForce } from '@/systems/crisis-force-system';
 import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
 

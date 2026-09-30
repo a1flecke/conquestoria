@@ -1,5 +1,7 @@
 import type { BuildableImprovementType, GameState, DisguiseType, HexCoord, Unit, WorkerActionType } from '@/core/types';
-import { UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, canHeal } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { UNIT_DESCRIPTIONS } from '@/systems/unit-descriptions';
+import { canHeal } from '@/systems/unit-healing';
 import { resolveSuperweaponContentDescription } from '@/systems/superweapon-content-honesty';
 import { isSuperweaponsEnabled } from '@/systems/superweapons-flag';
 import { resolveGeneralDefinition } from '@/systems/great-general-definitions';

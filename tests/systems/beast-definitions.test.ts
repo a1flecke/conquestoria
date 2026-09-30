@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { BEAST_DEFINITIONS, getBeastDefinitionByUnitType } from '@/systems/beast-definitions';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 
 describe('beast definitions', () => {
   it('every beast has a real unit definition with positive strength', () => {

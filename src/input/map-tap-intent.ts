@@ -1,6 +1,6 @@
 import type { GameState, HexCoord } from '@/core/types';
 import type { PendingMapIntent, SelectionSnapshot } from '@/app/ports';
-import type { MovementBlockerReason } from '@/systems/unit-system';
+import type { MovementBlockerReason } from '@/systems/unit-movement-queries';
 import { getMovementBlockerReason } from '@/systems/unit-movement-explainer';
 import { isWorkerBusy } from '@/systems/unit-movement-system';
 import { hexKey } from '@/systems/hex-utils';

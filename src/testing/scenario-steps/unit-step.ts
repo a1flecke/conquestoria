@@ -1,5 +1,5 @@
 import type { GameState, Unit } from '@/core/types';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { hexKey } from '@/systems/hex-utils';
 import { ScenarioError, type UnitStep } from '@/testing/scenario-types';

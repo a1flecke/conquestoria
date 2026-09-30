@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { GameState, HexCoord } from '@/core/types';
 import { BUILDINGS } from '@/systems/city-system';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { getEligibleStrategicLaunchPlatforms } from '@/systems/strategic-launch-system';
 import { hexKey } from '@/systems/hex-utils';
 

@@ -1,7 +1,7 @@
 import type { GameState, Unit } from '@/core/types';
 import { hexDistance } from './hex-utils';
 import { getNetworkPlanDefinition } from './network-plan-definitions';
-import { UNIT_DEFINITIONS } from './unit-system';
+import { UNIT_DEFINITIONS } from './unit-definitions';
 
 export interface NetworkCombatCoordination {
   strengthBonus: number;

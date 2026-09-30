@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { City, GameState } from '@/core/types';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import type { LegendaryWonderMapEntry } from '@/systems/legendary-wonder-map-presentation';
 import { getEraAdvancementTechs } from '@/systems/tech-definitions';
 import {

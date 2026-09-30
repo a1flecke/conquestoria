@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { executeParadrop, getParadropTargets, executeAirAssault, getAirAssaultTargets } from '@/systems/airborne-system';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
 import { MAP_DIMENSIONS } from '@/core/game-state';
 import { hexesInRange } from '@/systems/hex-utils';

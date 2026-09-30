@@ -5,7 +5,7 @@ import { EMBARGO_TECHS } from '@/systems/diplomacy-embargoes';
 import { WRITING_TECHS } from '@/systems/diplomacy-leagues';
 import { ESPIONAGE_TECH_MAX_SPIES } from '@/systems/espionage-system';
 import { MELEE_RANGED_UNIT_TYPES, BUILDINGS } from '@/systems/city-system';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { UNIT_MODIFIERS } from '@/systems/unit-modifier-definitions';
 
 const techIds = new Set(TECH_TREE.map(t => t.id));

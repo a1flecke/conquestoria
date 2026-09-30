@@ -1,8 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import {
-  createUnit, resetUnitTurn, healUnit, restUnit, canHeal,
-  getUnmovedUnits, HEAL_PASSIVE, HEAL_RESTING, HEAL_IN_CITY, HEAL_IN_TERRITORY,
-} from '@/systems/unit-system';
+import { healUnit, restUnit, canHeal, HEAL_PASSIVE, HEAL_RESTING, HEAL_IN_CITY, HEAL_IN_TERRITORY } from '@/systems/unit-healing';
+import { createUnit, resetUnitTurn } from '@/systems/unit-lifecycle';
+import { getUnmovedUnits } from '@/systems/unit-order-state';
 import { resolveCombat } from '@/systems/combat-system';
 import { buildCouncilAgenda } from '@/systems/council-system';
 import { createNewGame } from '@/core/game-state';

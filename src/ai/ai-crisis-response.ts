@@ -7,7 +7,8 @@ import { applyEmpireContainment, applyQuarantine, applyRemedy } from '@/systems/
 import { getCityAppeaseCost } from '@/systems/faction-system';
 import { canRestoreLand } from '@/systems/improvement-system';
 import { getWorkerChargesRemaining } from '@/systems/worker-action-system';
-import { findPath, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { findPath } from '@/systems/unit-pathfinding';
 import { hexDistance, hexKey, mapNeighbors } from '@/systems/hex-utils';
 import { getHerdRoutePresentationForViewer } from '@/systems/stampede-route-system';
 

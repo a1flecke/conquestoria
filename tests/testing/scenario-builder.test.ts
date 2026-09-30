@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { buildScenario } from '@/testing/scenario-builder';
 import { ScenarioError, type ScenarioDefinition, type ScenarioStep } from '@/testing/scenario-types';
 import { hexKey } from '@/systems/hex-utils';
-import { getBlockingMapEntityAt, getMovementRangeDetails } from '@/systems/unit-system';
+import { getBlockingMapEntityAt } from '@/systems/unit-movement-legality';
+import { getMovementRangeDetails } from '@/systems/unit-movement-queries';
 
 // playthroughId is deliberately unique per build (see GameState field docs in
 // core/types.ts -- it disambiguates separate playthroughs sharing the same

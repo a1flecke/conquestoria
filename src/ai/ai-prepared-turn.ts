@@ -23,7 +23,8 @@ import { getCivAvailableResources } from '@/systems/resource-acquisition-system'
 import { isTrustedObservedLastSeenTile } from '@/systems/last-seen-presentation';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { worldAgeFromNumber } from '@/systems/era-types';
-import { findPath, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { findPath } from '@/systems/unit-pathfinding';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { getAvailableActions } from '@/systems/diplomacy-system';

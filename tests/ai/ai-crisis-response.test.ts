@@ -3,7 +3,7 @@ import type { ActiveCrisis, City, GameState, HexCoord, HexTile, Unit } from '@/c
 import { getCrisisDispatchCandidates, getCrisisResponseActions, applyCrisisResponses } from '@/ai/ai-crisis-response';
 import { EventBus } from '@/core/event-bus';
 import { createNewGame } from '@/core/game-state';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { hexKey } from '@/systems/hex-utils';
 import { processTurn } from '@/core/turn-manager';
 import { processNonHumanMajorRound } from '@/ai/ai-round-scheduler';

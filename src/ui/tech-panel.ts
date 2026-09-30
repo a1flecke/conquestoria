@@ -12,7 +12,7 @@ import {
 } from '@/systems/tech-progression';
 import { TECH_TREE, getEffectiveTechCost } from '@/systems/tech-system';
 import { getEraAdvancementFraction, getEraAdvancementTechs, resolveCivilizationEra } from '@/systems/tech-definitions';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { evaluateProductionPrerequisites } from '@/systems/production-prerequisites';
 import { getUnitRolePresentation } from '@/ui/unit-role-presentation';
 

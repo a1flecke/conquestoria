@@ -1,5 +1,5 @@
 import type { GameState, HexCoord, Unit, UnitType } from '@/core/types';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import { isBeastConcealedFrom } from '@/systems/beast-system';
 import { isForestConcealedUnit } from '@/systems/fog-of-war';

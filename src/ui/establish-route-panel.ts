@@ -7,7 +7,7 @@ import {
 } from '@/systems/trade-system';
 import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import { createGameButton } from '@/ui/ui-kit';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 
 export function openEstablishRoutePanel(
   container: HTMLElement,

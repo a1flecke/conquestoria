@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import type { GameState, UnitType } from '@/core/types';
 import { foundCity } from '@/systems/city-system';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { rankUnitTacticalActions, AI_BOMBARDMENT_FOLLOWUP_RADIUS, type AITacticalContext } from '@/ai/ai-tactics';
 import { resolveCityInteraction } from '@/systems/city-interaction';
 

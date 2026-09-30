@@ -1,5 +1,5 @@
 import type { GameState } from '@/core/types';
-import { UNIT_DEFINITIONS } from './unit-system';
+import { UNIT_DEFINITIONS } from './unit-definitions';
 
 // Charges every combat unit (strength > 0) owned by civId on gene-therapy research completion.
 // Strength-0 civilians (settler, worker, caravan, expedition, cyber_unit, transports) are left

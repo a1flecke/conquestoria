@@ -1,7 +1,7 @@
 import type { GameState, HexCoord, Unit } from '@/core/types';
 import { getVisibility } from '@/systems/fog-of-war';
 import { wrappedHexDistance, hexDistance } from '@/systems/hex-utils';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { isMinorCivAtWar } from '@/systems/minor-civ-diplomacy';
 import { isAlwaysHostilePair } from '@/core/owner-kind';
 

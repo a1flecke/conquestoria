@@ -18,7 +18,7 @@ import { createNewGame } from '@/core/game-state';
 import type { GameState, TribalVillage, Unit } from '@/core/types';
 import { createSimulationRng } from '@/systems/simulation-rng';
 import { visitVillage } from '@/systems/village-system';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 
 function makeState(seed: string, turn: number): GameState {
   const state = createNewGame(undefined, seed, 'small');

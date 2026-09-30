@@ -187,6 +187,35 @@ describe('check-src-rule-violations.sh', () => {
     });
   });
 
+  describe('#1025 / #1010 low-level unit mover rule', () => {
+    const run = (path: string, source: string) => {
+      const workspace = makeWorkspace();
+      writeWorkspaceFile(workspace, path, source);
+      return runScript(workspace, path);
+    };
+    const CALL = 'export const step = (s: GameState, u: Unit) => moveUnit(u, { q: 1, r: 0 }, 1);\n';
+
+    it('blocks a low-level mover call outside the sanctioned modules', () => {
+      const result = run('src/ai/sneaky-move.ts', CALL);
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain('Low-level unit mover called outside the movement system');
+    });
+
+    it('allows the defining module and the canonical executor', () => {
+      expect(run('src/systems/unit-low-level-move.ts', CALL).status).toBe(0);
+      expect(run('src/systems/unit-movement-system.ts', CALL).status).toBe(0);
+    });
+
+    it('no longer treats the deprecated unit-system facade as a place the movers may be called', () => {
+      expect(run('src/systems/unit-system.ts', CALL).status).toBe(2);
+    });
+
+    it('allows a marked world-actor exemption', () => {
+      const marked = 'export const step = (u: Unit) => moveUnit(u, { q: 1, r: 0 }, 1); // movement-contract-exempt: ocean-only raider step\n';
+      expect(run('src/systems/pirate-system.ts', marked).status).toBe(0);
+    });
+  });
+
   describe('#995 single-side war/peace mutation rule', () => {
     it('blocks single-side declareWar()/makePeace() outside diplomacy-war', () => {
       const workspace = makeWorkspace();

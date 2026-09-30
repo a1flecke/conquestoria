@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import type { GameState, HexCoord } from '@/core/types';
 import { handleSelectedUnitMovementBlocker } from '@/input/selected-unit-movement-feedback';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { getLandUnitWaterRecovery } from '@/systems/unit-water-recovery';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });

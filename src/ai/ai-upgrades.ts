@@ -18,7 +18,8 @@ import {
 } from '@/systems/city-system';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
-import { findPath, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { findPath } from '@/systems/unit-pathfinding';
 import { executeUnitMove } from '@/systems/unit-movement-system';
 import {
   applyUnitUpgradeToState,

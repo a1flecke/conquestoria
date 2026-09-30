@@ -49,14 +49,11 @@ import {
   deliverPirateActivationWarnings,
   type PirateNotificationEvent,
 } from './pirate-notifications';
-import {
-  createUnit,
-  findPath,
-  getMovementStepCost,
-  moveUnitWithZoneOfControl,
-  resetUnitTurn,
-  UNIT_DEFINITIONS,
-} from './unit-system';
+import { UNIT_DEFINITIONS } from './unit-definitions';
+import { createUnit, resetUnitTurn } from './unit-lifecycle';
+import { moveUnitWithZoneOfControl } from './unit-low-level-move';
+import { getMovementStepCost } from './unit-movement-cost';
+import { findPath } from './unit-pathfinding';
 import { executeUnitMove } from './unit-movement-system';
 import { removeRouteForUnit } from './trade-system';
 import { emitMinorCivQuestTransitions } from './quest-chain-system';

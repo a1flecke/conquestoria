@@ -1,7 +1,7 @@
 import type { EventBus } from '@/core/event-bus';
 import type { AirBaseRef, AirMission, CombatResult, GameState, HexCoord, Unit, UnitType } from '@/core/types';
 import { hexDistance, hexesInRange, getWrappedHexesInRange, wrappedHexDistance } from './hex-utils';
-import { UNIT_DEFINITIONS } from './unit-system';
+import { UNIT_DEFINITIONS } from './unit-definitions';
 import { deterministicCombatSeed, resolveCombat } from './combat-system';
 import { buildCombatContextForDefender } from './combat-context';
 import { getVisibility } from './fog-of-war';

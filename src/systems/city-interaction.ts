@@ -5,7 +5,7 @@ import { canUnitBombardCity, previewUnitCityBombardment } from '@/systems/city-b
 import { calculateCityAssaultStrengths, getCityIntrinsicStrength } from '@/systems/city-siege-system';
 import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { isHostileOwnerTo } from '@/systems/owner-hostility';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 
 /**
  * #966: the single source of truth for "what can this unit do to this city".

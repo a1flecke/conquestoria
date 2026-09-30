@@ -2,7 +2,7 @@ import { CRISIS_FORCE_OWNER } from '@/core/owner-kind';
 import type { CrisisForce, GameState, HerdRoute, HexCoord, Unit } from '@/core/types';
 import { getFortificationTier } from './fortification-system';
 import { hexKey, mapDistance, mapNeighbors } from './hex-utils';
-import { UNIT_DEFINITIONS } from './unit-system';
+import { UNIT_DEFINITIONS } from './unit-definitions';
 import { getVisibility } from './fog-of-war';
 import { isHostileOwnerTo } from './owner-hostility';
 

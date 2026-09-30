@@ -5,7 +5,7 @@ import {
   reconcileCivilizationLiveness,
 } from '@/systems/civilization-elimination-system';
 import { cleanupDeadSpyUnit } from '@/systems/espionage-system';
-import { getUnmovedUnits } from '@/systems/unit-system';
+import { getUnmovedUnits } from '@/systems/unit-order-state';
 
 export function skipUnitForTurn(unit: Unit): Unit {
   return {

@@ -18,7 +18,7 @@ import { appeaseFaction, getCityAppeaseCost, setFederalismStance, FEDERALISM_LOC
 import { createEspionageCivState, createSpyFromUnit } from '@/systems/espionage-system';
 import { hexKey, hexDistance } from '@/systems/hex-utils';
 import { tickLegendaryWonderProjects } from '@/systems/legendary-wonder-system';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import type { ResourceType } from '@/core/types';
 import { makeVassalageFixture } from '../systems/helpers/vassalage-fixture';

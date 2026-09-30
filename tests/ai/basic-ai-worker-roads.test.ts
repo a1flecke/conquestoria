@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { City, GameState, HexCoord, HexTile } from '@/core/types';
 import { createNewGame } from '@/core/game-state';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { hexKey } from '@/systems/hex-utils';
 import { EventBus } from '@/core/event-bus';
 import { processTurn } from '@/core/turn-manager';

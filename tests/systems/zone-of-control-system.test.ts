@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
-import { createUnit } from '@/systems/unit-system';
-import { getMovementRangeDetails } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
+import { getMovementRangeDetails } from '@/systems/unit-movement-queries';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { calculateCombatStrengths } from '@/systems/combat-system';
 import {

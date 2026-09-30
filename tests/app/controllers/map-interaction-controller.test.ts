@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { foundCity } from '@/systems/city-system';
 import type { GameState, Unit, City } from '@/core/types';
 import { createGameSession } from '@/app/game-session';

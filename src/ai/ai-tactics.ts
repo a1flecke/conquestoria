@@ -53,12 +53,10 @@ import {
   syncTransportCargoPositions,
   unloadUnitFromTransport,
 } from '@/systems/transport-system';
-import {
-  findPath,
-  getMovementRangeDetails,
-  getBlockingMapEntityAt,
-  UNIT_DEFINITIONS,
-} from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { getBlockingMapEntityAt } from '@/systems/unit-movement-legality';
+import { getMovementRangeDetails } from '@/systems/unit-movement-queries';
+import { findPath } from '@/systems/unit-pathfinding';
 import {
   buildUnitOccupancy,
   getUnitIdsAtCoord,

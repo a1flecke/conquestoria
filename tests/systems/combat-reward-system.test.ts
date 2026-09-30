@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { CRISIS_FORCE_OWNER } from '@/core/owner-kind';
 import {
   applyCombatOutcomeToState,

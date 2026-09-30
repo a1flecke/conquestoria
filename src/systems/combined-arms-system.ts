@@ -1,6 +1,6 @@
 import type { CombatModifierFact, GameState, Unit } from '@/core/types';
 import { hexDistance, wrappedHexDistance } from './hex-utils';
-import { UNIT_DEFINITIONS } from './unit-system';
+import { UNIT_DEFINITIONS } from './unit-definitions';
 
 export interface CombinedArmsResult {
   multiplier: number;

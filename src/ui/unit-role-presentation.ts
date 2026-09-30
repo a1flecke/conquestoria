@@ -3,7 +3,7 @@ import { TRAINABLE_UNITS } from '@/systems/city-system';
 import { getUnitRoleDefinition } from '@/systems/combat-role-definitions';
 import { evaluateProductionPrerequisites } from '@/systems/production-prerequisites';
 import { TECH_TREE } from '@/systems/tech-definitions';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 
 export interface IconTextFact {
   icon: string;

@@ -16,7 +16,7 @@ import {
 } from '@/systems/last-seen-presentation';
 import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 import { TECH_TREE } from '@/systems/tech-system';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { canInspectUnitForViewer } from '@/systems/viewer-intel';
 import { getVisibleUnitsForPlayer } from '@/systems/espionage-stealth';
 import { decayRememberedConfidence } from '@/systems/actor-perception';

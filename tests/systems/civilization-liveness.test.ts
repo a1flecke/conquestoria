@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { GameState, UnitType } from '@/core/types';
-import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { makeLivenessGame, withoutOwnedAssets } from './helpers/civilization-liveness-fixture';
 

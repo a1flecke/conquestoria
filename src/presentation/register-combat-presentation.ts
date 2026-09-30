@@ -2,7 +2,7 @@
  * Combat resolution, combat rewards, unit obsolescence, and blocked-journey
  * notifications (#787 phase 7). Moved verbatim from `main.ts`.
  */
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { handleCombatResolvedEvent } from '@/ui/combat-resolved-presentation';
 import { routeCombatRewardEarned } from '@/ui/notification-routing';
 import type { PresentationRegistrar } from '@/presentation/register-all';

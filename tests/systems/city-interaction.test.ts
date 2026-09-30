@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import type { GameState, Unit, UnitType } from '@/core/types';
 import { foundCity } from '@/systems/city-system';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { resolveCityInteraction } from '@/systems/city-interaction';
 import { beginMajorCityAssault } from '@/systems/city-capture-system';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';

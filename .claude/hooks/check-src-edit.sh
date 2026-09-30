@@ -165,7 +165,7 @@ esac
 # executeValidatedUnitMove() (see .claude/rules/movement-actions.md). A genuinely
 # special world-actor path marks the call line 'movement-contract-exempt: <reason>'.
 case "$file_path" in
-  */src/systems/unit-system.ts|*/src/systems/unit-movement-system.ts)
+  */src/systems/unit-low-level-move.ts|*/src/systems/unit-movement-system.ts)
     : # sanctioned
     ;;
   *)

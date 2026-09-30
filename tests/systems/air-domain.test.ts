@@ -1,10 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import {
-  getMovementCostForUnit,
-  getMovementStepCost,
-  UNIT_DEFINITIONS,
-  createUnit,
-} from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { createUnit } from '@/systems/unit-lifecycle';
+import { getMovementCostForUnit, getMovementStepCost } from '@/systems/unit-movement-cost';
 import { calculateCombatStrengths } from '@/systems/combat-system';
 import { getCombatModifier } from '@/systems/unit-modifier-system';
 import { generateMap } from '@/systems/map-generator';

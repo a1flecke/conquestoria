@@ -9,7 +9,8 @@ import {
 } from '@/systems/combat-system';
 import { createNewGame } from '@/core/game-state';
 import type { GameMap, GameState } from '@/core/types';
-import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { generateMap } from '@/systems/map-generator';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { hexKey, mapNeighbors } from '@/systems/hex-utils';

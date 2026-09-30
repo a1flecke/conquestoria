@@ -14,7 +14,7 @@ import { calculateCityYields } from '@/systems/resource-system';
 import { makeBreakawayFixture } from '../systems/helpers/breakaway-fixture';
 import { makeAutoExploreFixture } from '../systems/helpers/auto-explore-fixture';
 import { makeLegendaryWonderFixture } from '../systems/helpers/legendary-wonder-fixture';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { deterministicCombatSeed, resolveCombat } from '@/systems/combat-system';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { createTechState } from '@/systems/tech-system';

@@ -14,7 +14,7 @@ import { processAIResourceMarketplace } from '@/ai/ai-resource-marketplace';
 import { resolveCivilizationEra, resolveWorldAge, TECH_TREE } from '@/systems/tech-definitions';
 import { buildProductionCostContext } from '@/systems/production-cost-context';
 import { hexKey } from '@/systems/hex-utils';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 
 const LAGGARD = 'player';
 

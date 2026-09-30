@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { resolveCombat } from '@/systems/combat-system';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { generateMap } from '@/systems/map-generator';
 import type { Unit, UnitType } from '@/core/types';
 

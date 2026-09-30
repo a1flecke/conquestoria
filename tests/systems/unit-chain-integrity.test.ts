@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
-import { UNIT_DEFINITIONS, createUnit } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { resolveCombat } from '@/systems/combat-system';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { isSpyUnitType } from '@/systems/espionage-system';

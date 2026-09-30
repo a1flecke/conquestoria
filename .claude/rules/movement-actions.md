@@ -4,6 +4,9 @@ paths:
   - "src/systems/unit-movement-validation.ts"
   - "src/systems/unit-movement-explainer.ts"
   - "src/systems/unit-system.ts"
+  - "src/systems/unit-low-level-move.ts"
+  - "src/systems/unit-lifecycle.ts"
+  - "src/systems/unit-healing.ts"
   - "src/systems/unit-movement-cost.ts"
   - "src/systems/unit-movement-legality.ts"
   - "src/systems/unit-pathfinding.ts"
@@ -56,8 +59,7 @@ scan, pinned by `referenceFindPath` in `tests/systems/unit-pathfinding-cost.test
 `unit-movement-system.ts` in #1025 MR4 so the explainer can derive from it without a cycle;
 `unit-movement-system.ts` re-exports the API), `unit-movement-queries.ts`
 (read-only derived answers: `getMovementRange*`), and `unit-movement-explainer.ts`
-(`getMovementBlockerReason` — see below). `unit-system.ts` re-exports the first four and keeps
-unit lifecycle + healing + `UNIT_DESCRIPTIONS`. Layering is guarded by
+(`getMovementBlockerReason` — see below). `unit-system.ts` is a deprecated shrink-only facade (#1010) that no module imports; unit lifecycle, healing, order-state and player-facing copy have their own modules (`unit-lifecycle`, `unit-healing`, `unit-order-state`, `unit-descriptions`), and the low-level position movers live in the guarded `unit-low-level-move.ts`. Layering is guarded by
 `tests/app/architecture-boundaries.test.ts`: pathfinding→cost,
 validation→cost+legality+pathfinding, explainer→validation, legality→nothing in the subsystem,
 no cycles.
@@ -92,9 +94,9 @@ which the knowledge projection leaves untouched. Parity is pinned by
 `tests/systems/unit-movement-resolver-parity.test.ts`; the viewer rule by the differential
 cases in `tests/systems/unit-movement-explainer.test.ts`.
 
-The explainer lives in its own module (**not** re-exported through the `unit-system` barrel):
+The explainer lives in its own module (**not** re-exported through the `unit-system` facade):
 `unit-movement-validation` → `unit-occupancy` → `air-operations-system` → the `unit-system`
-barrel, so re-exporting the explainer there closes an import cycle that leaves
+facade, so re-exporting the explainer there closes an import cycle that leaves
 `TRAINABLE_UNITS` / `BUILDINGS` undefined at load time. `src/input` and its tests import
 `getMovementBlockerReason` from `@/systems/unit-movement-explainer` directly.
 
@@ -209,7 +211,11 @@ comment already earns its keep by stating explicitly.**
 
 `scripts/check-src-rule-violations.sh` and its `.claude/hooks/check-src-edit.sh` mirror flag any
 call to the low-level position movers (`moveUnitWithZoneOfControl(`, `moveUnit(`) **outside**
-`unit-system.ts` (defines them) and `unit-movement-system.ts` (the canonical executor). A
+`unit-low-level-move.ts` (defines them) and `unit-movement-system.ts` (the canonical executor). Since #1010 the
+movers are also **unreachable by import**: they are not re-exported by any facade, and
+`tests/app/architecture-boundaries.test.ts` pins the exact importers (the executor plus the two
+world-actor `movement-contract-exempt` sites, `pirate-system.ts` and `pirate-behavior.ts`), so a new
+caller fails the architecture test even before the call-shape rule runs. A
 genuinely special world-actor path marks the call line:
 
 ```ts

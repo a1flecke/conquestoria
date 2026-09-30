@@ -6,7 +6,7 @@ import { OLD_WORLD_TILES, OLD_WORLD_RIVERS } from '@/systems/old-world-map-data'
 import { NEW_WORLD_TILES, NEW_WORLD_RIVERS } from '@/systems/new-world-map-data';
 import { generateBalancedMap } from '@/systems/balanced-map-generator';
 import { generateContinentMap } from '@/systems/continent-map-generator';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { createTechState } from '@/systems/tech-system';
 import { createVisibilityMap, updateVisibility } from '@/systems/fog-of-war';
 import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';

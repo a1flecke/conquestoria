@@ -1,5 +1,5 @@
 import { createHotSeatGame } from '@/core/game-state';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { foundCity } from '@/systems/city-system';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { declareMajorWar } from '@/systems/diplomacy-system';

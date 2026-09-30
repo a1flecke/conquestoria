@@ -6,18 +6,11 @@
  * range (`getMovementRangeDetails`) use — not a hex-count-first approximation.
  */
 import { describe, it, expect } from 'vitest';
-import {
-  createUnit,
-  findPath,
-  findPathToCity,
-  getMovementStepCost,
-  getMovementStepCostFor,
-  getMovementRangeDetails,
-  movementStepCostParamsForType,
-  UNIT_DEFINITIONS,
-  type MovementStepCostParams,
-} from '@/systems/unit-system';
-import { isPassableForParams, hasRoadMovementDiscount } from '@/systems/unit-movement-cost';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { createUnit } from '@/systems/unit-lifecycle';
+import { getMovementStepCost, getMovementStepCostFor, movementStepCostParamsForType, type MovementStepCostParams, isPassableForParams, hasRoadMovementDiscount } from '@/systems/unit-movement-cost';
+import { getMovementRangeDetails } from '@/systems/unit-movement-queries';
+import { findPath, findPathToCity } from '@/systems/unit-pathfinding';
 import { seededLcg } from '@/systems/seeded-lcg';
 import type { GameMap, GameState, HexCoord, HexTile, UnitType } from '@/core/types';
 import { hexKey, hexNeighbors, getWrappedHexNeighbors, hexDistance, wrappedHexDistance } from '@/systems/hex-utils';

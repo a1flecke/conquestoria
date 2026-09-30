@@ -8,7 +8,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import type { GameState, Unit } from '@/core/types';
 import { createGameSession } from '@/app/game-session';
 import { createSelectionStore } from '@/app/selection-store';

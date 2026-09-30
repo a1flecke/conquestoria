@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { GameMap, Unit, UnitType } from '@/core/types';
 import { PIRATE_STAGE_DEFINITIONS, composePirateFleet } from '@/systems/pirate-definitions';
 import { resolveCombat } from '@/systems/combat-system';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 
 const OCEAN_MAP: GameMap = {
   width: 2,

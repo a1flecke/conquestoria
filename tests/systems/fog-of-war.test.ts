@@ -203,7 +203,7 @@ describe('wrapped fog-of-war', () => {
   });
 
   it('matches movement wrapping: a wrapped reachable tile is also visible', async () => {
-    const { getMovementRange } = await import('@/systems/unit-system');
+    const { getMovementRange } = await import('@/systems/unit-movement-queries');
     const map = createWrappedGrasslandMap(5, 4);
     const vis = createVisibilityMap();
     const unit = makeWarrior({ q: 0, r: 1 });

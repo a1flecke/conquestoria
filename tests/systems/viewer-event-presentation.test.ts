@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createNewGame, createHotSeatGame } from '@/core/game-state';
 import { buildMovePresentationByViewer, buildCombatPresentation } from '@/systems/viewer-event-presentation';
 import { isUnitConcealedFrom } from '@/systems/concealment';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { hexKey } from '@/systems/hex-utils';
 import type { GameState, HexCoord, Unit, UnitType } from '@/core/types';
 

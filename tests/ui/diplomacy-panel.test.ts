@@ -11,7 +11,7 @@ import { openWarConferencePanel } from '@/ui/war-conference-panel';
 import { enqueueSettlementOffer } from '@/systems/settlement-system';
 import { getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentation';
 import { makeDiplomacyFixture } from './helpers/diplomacy-fixture';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import type { GameState } from '@/core/types';
 import { domProjection, expectHotSeatDifferential, expectViewerSafety, type ViewerSurface } from '../helpers/viewer-safety';
 import {

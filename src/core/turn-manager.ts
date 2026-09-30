@@ -1,7 +1,11 @@
 import type { AdvisorType, GameEvents, GameState } from './types';
 import { EventBus } from './event-bus';
 import { finalizeDominationVictory, finalizeScienceVictory } from '@/systems/victory-system';
-import { resetUnitTurn, createUnit, healUnit, findPath, UNIT_DEFINITIONS, getBlockingMapEntityKeysForOwner } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { healUnit } from '@/systems/unit-healing';
+import { resetUnitTurn, createUnit } from '@/systems/unit-lifecycle';
+import { getBlockingMapEntityKeysForOwner } from '@/systems/unit-movement-legality';
+import { findPath } from '@/systems/unit-pathfinding';
 import { getLocalCityHealingBonus, processCity, TRAINABLE_UNITS, BUILDINGS } from '@/systems/city-system';
 import { transferCapturedCityOwnership } from '@/systems/city-capture-system';
 import { baseNewAirUnit, canCompleteAirUnitProduction } from '@/systems/air-operations-system';

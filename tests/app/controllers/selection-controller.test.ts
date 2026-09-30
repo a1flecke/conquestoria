@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { createEspionageCivState } from '@/systems/espionage-system';
 import type { GameState, Unit } from '@/core/types';
 import { createGameSession } from '@/app/game-session';

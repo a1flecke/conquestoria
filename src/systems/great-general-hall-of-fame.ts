@@ -15,7 +15,7 @@ import {
 import { resolveGeneralDefinition } from '@/systems/great-general-definitions';
 import { getGeneralProfile } from '@/systems/great-general-profiles';
 import { getGeneralSpecialtyPresentation } from '@/systems/great-general-specialties';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 
 export interface HallOfFameMoment {
   turn: number;

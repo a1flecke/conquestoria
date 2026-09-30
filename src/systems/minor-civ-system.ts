@@ -26,7 +26,8 @@ import {
   mapDistance,
   mapNeighbors,
 } from './hex-utils';
-import { createUnit, resetUnitTurn, UNIT_DEFINITIONS } from './unit-system';
+import { UNIT_DEFINITIONS } from './unit-definitions';
+import { createUnit, resetUnitTurn } from './unit-lifecycle';
 import { foundCity } from './city-system';
 import { collectUsedCityNames } from './city-name-system';
 import { generateQuest } from './quest-system';

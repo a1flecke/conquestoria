@@ -4,7 +4,7 @@ import {
   decayRememberedConfidence,
   getLocallySensedUnits,
 } from '@/systems/actor-perception';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 
 describe('actor perception', () => {
   it('uses wrapped distance and sorts sensed units by distance then id', () => {

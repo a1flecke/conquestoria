@@ -27,7 +27,8 @@ import {
 } from '@/systems/faction-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { buildProductionCostContext, getContextualProductionCost } from '@/systems/production-cost-context';
-import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { canCompleteAirUnitProduction, getAirBaseRoster } from '@/systems/air-operations-system';
 import { enqueueCityProduction } from '@/systems/planning-system';
 import { getReservedNationalProjectKeys } from '@/systems/national-project-system';

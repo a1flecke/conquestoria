@@ -31,7 +31,8 @@ import type { CeremonyCoordinator } from '@/app/controllers/ceremony-coordinator
 import type { UnitTurnFlow } from '@/ui/unit-turn-flow';
 import type { ExecuteUnitMoveResult } from '@/systems/unit-movement-system';
 import { explainMovementFailureForViewer } from '@/systems/unit-movement-explainer';
-import { UNIT_DEFINITIONS, findPath } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { findPath } from '@/systems/unit-pathfinding';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
 import { hexKey, mapHexesInRange } from '@/systems/hex-utils';
 import { isMajorCivOwner } from '@/core/owner-kind';
@@ -58,7 +59,7 @@ import { autoSave } from '@/storage/save-manager';
 import { applyWorkerAction } from '@/systems/worker-action-system';
 import { formatImprovementYieldLabel } from '@/systems/improvement-system';
 import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
-import { getUnmovedUnits } from '@/systems/unit-system';
+import { getUnmovedUnits } from '@/systems/unit-order-state';
 import { updateAndRefreshVisibility } from '@/systems/last-seen-presentation';
 import { fireResourceDiscoveredTip } from '@/ui/advisor-system';
 import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';

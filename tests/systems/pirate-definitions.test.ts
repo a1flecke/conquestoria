@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
 import { TECH_TREE } from '@/systems/tech-definitions';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import {
   PIRATE_BOUNTY_BASE,
   PIRATE_FACTION_CAP_BY_MAP_SIZE,

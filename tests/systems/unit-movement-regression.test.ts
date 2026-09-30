@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { executeUnitMove } from '@/systems/unit-movement-system';
-import { createUnit, getMovementCost } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
+import { getMovementCost } from '@/systems/unit-movement-cost';
 import type { GameState, HexCoord, TerrainType } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 

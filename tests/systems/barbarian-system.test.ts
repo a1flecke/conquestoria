@@ -12,7 +12,7 @@ import { hexKey, hexDistance } from '@/systems/hex-utils';
 import { checkCampEvolution } from '@/systems/minor-civ-system';
 import { createNewGame } from '@/core/game-state';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { applyPillageToState } from '@/systems/pillage-system';
 import { executeUnitMove } from '@/systems/unit-movement-system';
 import { TECH_TREE } from '@/systems/tech-definitions';
