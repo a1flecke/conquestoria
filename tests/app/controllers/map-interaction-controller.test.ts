@@ -6,6 +6,7 @@ import { createUnit } from '@/systems/unit-lifecycle';
 import { foundCity } from '@/systems/city-system';
 import type { GameState, Unit, City } from '@/core/types';
 import { createGameSession } from '@/app/game-session';
+import type { GameSession } from '@/app/ports';
 import { createSelectionStore } from '@/app/selection-store';
 import { createPanelHost } from '@/app/panel-host';
 import type { CeremonyCoordinator } from '@/app/controllers/ceremony-coordinator';
@@ -101,7 +102,7 @@ function fakeUnitTurnFlow(): UnitTurnFlow {
 }
 
 /** A real SelectionController, backed by fakes only at the renderer/platform boundary. */
-function makeRealSelectionController(session: ReturnType<typeof createGameSession>, selection: ReturnType<typeof createSelectionStore>) {
+function makeRealSelectionController(session: GameSession, selection: ReturnType<typeof createSelectionStore>) {
   const deps: SelectionControllerDeps = {
     session,
     selection,
@@ -150,7 +151,7 @@ function fakeAudio(): MapInteractionAudio {
 
 function baseDeps(state: GameState, overrides: Partial<MapInteractionControllerDeps> = {}): {
   deps: MapInteractionControllerDeps;
-  session: ReturnType<typeof createGameSession>;
+  session: GameSession;
   selection: ReturnType<typeof createSelectionStore>;
 } {
   const session = overrides.session ?? createGameSession(state);
@@ -182,6 +183,9 @@ function baseDeps(state: GameState, overrides: Partial<MapInteractionControllerD
     finalizePendingCityCaptureChoice: vi.fn(),
     ...overrides,
   };
+  // Mirrors bootstrap.ts: renderer and HUD are session subscribers (#1015).
+  deps.session.subscribe(next => deps.renderLoop.setGameState(next));
+  deps.session.subscribe(() => deps.updateHUD());
   return { deps, session, selection };
 }
 

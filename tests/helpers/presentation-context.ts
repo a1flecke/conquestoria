@@ -56,7 +56,7 @@ export function makePresentationContext(overrides: {
       getState: () => state,
       commit: vi.fn(),
       update: vi.fn(),
-      setStateWithoutRefresh: vi.fn(),
+      batch: fn => fn(),
       subscribe: () => () => {},
     },
     notifier: {

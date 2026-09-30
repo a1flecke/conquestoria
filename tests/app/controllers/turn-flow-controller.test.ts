@@ -133,12 +133,14 @@ function fakeAudio(overrides: Partial<TurnFlowAudio> = {}): TurnFlowAudio {
 }
 
 function baseDeps(state: GameState, overrides: Partial<TurnFlowControllerDeps> = {}): TurnFlowControllerDeps {
-  const session = overrides.session ?? createGameSession(state);
+  const handle = createGameSession(state);
+  const session = overrides.session ?? handle;
   const elements = new Map<string, HTMLElement>();
   const uiLayer = overrides.uiLayer ?? document.createElement('div');
   const setBlockingOverlay = overrides.setBlockingOverlay ?? vi.fn();
   return {
     session,
+    unpublished: handle.unpublished,
     selection: createSelectionStore(),
     renderLoop: fakeRenderer(),
     bus: new EventBus(),
@@ -265,6 +267,29 @@ describe('createTurnFlowController', () => {
       expect(saveManager.autoSave).toHaveBeenCalled();
     });
 
+    it('publishes the finished round to subscribers even when it ends the game (#1015)', async () => {
+      // The round is adopted silently ('presentation-deferred') so AI moves can be captured
+      // for replay. The victory branch returns before the normal refresh, so it must publish
+      // itself -- otherwise the renderer and HUD keep showing the pre-round world behind the
+      // victory ceremony.
+      const actual = await vi.importActual<typeof aiRoundScheduler>('@/ai/ai-round-scheduler');
+      vi.mocked(aiRoundScheduler.processNonHumanMajorRound).mockImplementationOnce((current, eventBus) => {
+        const result = actual.processNonHumanMajorRound(current, eventBus);
+        return { ...result, state: { ...result.state, gameOver: true, gameOverReason: 'domination' as const } };
+      });
+      const state = makeFixture();
+      const deps = baseDeps(state);
+      const published: GameState[] = [];
+      deps.session.subscribe(next => published.push(next));
+      const turnFlow = createTurnFlowController(deps);
+
+      await turnFlow.endTurn();
+
+      expect(deps.session.getState().gameOver).toBe(true);
+      expect(published.length).toBeGreaterThanOrEqual(1);
+      expect(published.at(-1)).toBe(deps.session.getState());
+    });
+
     it('is a no-op when state.gameOver is true', async () => {
       const state = makeFixture();
       state.gameOver = true;
@@ -330,6 +355,35 @@ describe('createTurnFlowController', () => {
       expect(saveManager.autoSave).toHaveBeenCalled();
       expect(deps.audio.setMasterVolume).toHaveBeenCalledWith(0.6);
       expect(deps.roundPresentationGate.isSuppressed()).toBe(false);
+    });
+
+    it('adopts the incoming player silently: no subscriber sees their state until the viewer is revealed (#1015)', async () => {
+      // Publishing would flash the next player's fog, yields and units through the renderer/HUD
+      // while the previous viewer is still looking at the screen. This is the one place the
+      // silence is a privacy requirement, not a shortcut ('viewer-not-yet-revealed').
+      const state = makeHotSeatFixture();
+      const previousViewer = state.currentPlayer;
+      const deps = baseDeps(state);
+      const published: GameState[] = [];
+      deps.session.subscribe(next => published.push(next));
+
+      const endTurnPromise = createTurnFlowController(deps).endTurn();
+      await flushMicrotasks();
+
+      // The handoff veil is up and the session already holds the next player...
+      expect(document.querySelector('#handoff-confirm')).not.toBeNull();
+      expect(deps.session.getState().currentPlayer).not.toBe(previousViewer);
+      // ...but nothing was published for them.
+      expect(published.filter(next => next.currentPlayer !== previousViewer)).toEqual([]);
+
+      document.querySelector<HTMLButtonElement>('#handoff-confirm')?.click();
+      await flushMicrotasks();
+      document.querySelector<HTMLButtonElement>('#handoff-start')?.click();
+      await flushMicrotasks();
+      await endTurnPromise;
+
+      // Once the viewer is revealed, publication happens.
+      expect(published.some(next => next.currentPlayer === deps.session.getState().currentPlayer)).toBe(true);
     });
 
     it('removes the private diplomacy inbox before the hot-seat veil mounts (#910)', async () => {
@@ -484,6 +538,9 @@ describe('createTurnFlowController', () => {
           return null;
         }),
       });
+      // Mirrors bootstrap.ts: the renderer then the HUD are session subscribers (#1015).
+      deps.session.subscribe(next => deps.renderLoop.setGameState(next));
+      deps.session.subscribe(() => deps.updateHUD());
 
       createTurnFlowController(deps).enterViewerTurn('player');
 

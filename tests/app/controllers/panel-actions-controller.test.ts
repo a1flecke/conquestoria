@@ -137,7 +137,7 @@ function addPirateFixture(state: GameState, hqPosition: HexCoord, unitPosition: 
 
 function makeDeps(state: GameState, overrides: Partial<PanelActionsControllerDeps> = {}) {
   const session = createGameSession(state);
-  return {
+  const deps = {
     session,
     bus: new EventBus(),
     uiLayer: document.createElement('div'),
@@ -188,6 +188,11 @@ function makeDeps(state: GameState, overrides: Partial<PanelActionsControllerDep
     router: { open: vi.fn() },
     ...overrides,
   };
+  // Mirrors bootstrap.ts: the renderer and HUD are session subscribers, so handlers
+  // publish through `commit`/`batch` instead of refreshing by hand (#1015).
+  deps.session.subscribe(next => deps.renderLoop.setGameState(next));
+  deps.session.subscribe(() => deps.hud.update());
+  return deps;
 }
 
 function build(state: GameState, overrides: Partial<PanelActionsControllerDeps> = {}) {
@@ -247,7 +252,7 @@ describe('PanelActionsController', () => {
             reportsByContenderId: {},
           },
         };
-        deps.session.setStateWithoutRefresh(next);
+        deps.session.commit(next);
         controller.refreshVictoryProgressPanel();
 
         expect(deps.uiLayer.querySelector('#victory-progress-panel')?.textContent).toContain('Recorded Rival');

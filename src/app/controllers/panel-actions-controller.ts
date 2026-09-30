@@ -460,10 +460,8 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
             viewerIds: [deps.session.getState().currentPlayer],
           });
         }
-        deps.session.setStateWithoutRefresh(result.state);
+        deps.session.commit(result.state);
         panel.remove();
-        deps.renderLoop.setGameState(deps.session.getState());
-        deps.hud.update();
         SFX.combat();
         const bountyAwarded = result.events.find(event => event.type === 'faction-destroyed')?.bountyAwarded ?? 0;
         deps.showNotification(
@@ -508,7 +506,7 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
         openWonderPanelForCityId(city.id);
       },
       onMarkRead: notificationId => {
-        deps.session.setStateWithoutRefresh(markNotificationRead(deps.session.getState(), deps.session.getState().currentPlayer, notificationId));
+        deps.session.commit(markNotificationRead(deps.session.getState(), deps.session.getState().currentPlayer, notificationId));
       },
       onReviewPirate: review => {
         const resolved = resolvePirateNotificationReview(deps.session.getState(), deps.session.getState().currentPlayer, review);
@@ -582,11 +580,9 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
       deps.getElementById('wonder-panel')?.remove();
       createWonderPanel(deps.uiLayer, deps.session.getState(), selectedCityId, {
         onStartBuild: (buildCityId, wonderId) => {
-          deps.session.setStateWithoutRefresh(startLegendaryWonderBuild(deps.session.getState(), deps.session.getState().currentPlayer, buildCityId, wonderId, deps.bus));
+          deps.session.commit(startLegendaryWonderBuild(deps.session.getState(), deps.session.getState().currentPlayer, buildCityId, wonderId, deps.bus));
           const targetCity = deps.session.getState().cities[buildCityId];
           if (targetCity) {
-            deps.renderLoop.setGameState(deps.session.getState());
-            deps.hud.update();
             const productionItemId = `legendary:${wonderId}`;
             if (targetCity.productionQueue[0] === productionItemId) {
               deps.showNotification(`${targetCity.name}: preparing ${getProductionDisplayName(productionItemId)}`, 'info');
@@ -601,7 +597,9 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
         },
       });
     };
-    deps.session.setStateWithoutRefresh(initializeLegendaryWonderProjectsForCity(deps.session.getState(), deps.session.getState().currentPlayer, selectedCityId));
+    // Opening the panel lazily initialises its project records; publish only if that changed anything.
+    const initialized = initializeLegendaryWonderProjectsForCity(deps.session.getState(), deps.session.getState().currentPlayer, selectedCityId);
+    if (initialized !== deps.session.getState()) deps.session.commit(initialized);
     openWonderPanel();
   }
 
@@ -1064,12 +1062,11 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
       },
       onChooseCircularManufacturingMaterial: (material) => {
         try {
-          deps.session.setStateWithoutRefresh(chooseCircularManufacturingMaterial(deps.session.getState(), deps.session.getState().currentPlayer, material));
+          deps.session.commit(chooseCircularManufacturingMaterial(deps.session.getState(), deps.session.getState().currentPlayer, material));
         } catch (error) {
           deps.showNotification(error instanceof Error ? error.message : 'That material choice is unavailable.', 'warning');
           return;
         }
-        deps.renderLoop.setGameState(deps.session.getState());
         deps.showNotification(`Circular Manufacturing Network will substitute ${material.replaceAll('-', ' ')} when it helps.`, 'success');
         const refreshedCity = deps.session.getState().cities[city.id];
         if (refreshedCity) openCityPanelForCity(refreshedCity);

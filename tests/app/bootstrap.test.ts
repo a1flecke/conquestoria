@@ -109,6 +109,7 @@ function makeCompositionDeps(overrides: Partial<AppCompositionDeps> = {}): AppCo
     playNaturalWonderDiscovery: vi.fn().mockResolvedValue(undefined),
   } as unknown as AudioSystem;
   let notifier: Notifier | undefined;
+  const sessionHandle = createGameSession(createNewGame(undefined, 'bootstrap-composition-test', 'small'));
 
   return {
     canvas,
@@ -118,7 +119,8 @@ function makeCompositionDeps(overrides: Partial<AppCompositionDeps> = {}): AppCo
     bus,
     roundPresentationGate: new RoundPresentationGate(),
     advisorSystem: new AdvisorSystem(bus),
-    session: createGameSession(createNewGame(undefined, 'bootstrap-composition-test', 'small')),
+    session: sessionHandle,
+    unpublished: sessionHandle.unpublished,
     selection: createSelectionStore(),
     userSettingsStore: createUserSettingsStore({ load: async () => undefined }),
     getNotifier: () => notifier as Notifier,

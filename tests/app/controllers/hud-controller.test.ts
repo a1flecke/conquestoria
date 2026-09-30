@@ -181,14 +181,14 @@ describe('HudController', () => {
     const hud = createHudController(deps);
 
     state.civilizations.player.generalHistory = [];
-    deps.session.setStateWithoutRefresh(state);
+    deps.session.commit(state);
     hud.update();
     expect(button.hidden).toBe(true);
 
     state.civilizations.player.generalHistory = [
       { unitId: 'u1', generalDefinitionId: 'gen_caesar', spawnedTurn: 2, careerEvents: [{ type: 'spawned', turn: 2 }] },
     ];
-    deps.session.setStateWithoutRefresh(state);
+    deps.session.commit(state);
     hud.update();
     expect(button.hidden).toBe(false);
 
@@ -196,7 +196,7 @@ describe('HudController', () => {
     const aiId = Object.keys(state.civilizations).find(id => id !== 'player')!;
     state.currentPlayer = aiId;
     state.civilizations[aiId].generalHistory = [];
-    deps.session.setStateWithoutRefresh(state);
+    deps.session.commit(state);
     hud.update();
     expect(button.hidden).toBe(true);
   });

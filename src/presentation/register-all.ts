@@ -49,8 +49,8 @@ export interface PresentationContext {
   /**
    * Opens the (multi-step, stateful) espionage capture verdict dialog. Kept
    * as a callback into `main.ts` rather than moved here -- it mutates state
-   * directly via `session.setStateWithoutRefresh` and touches `renderLoop`,
-   * `bus.emit`, and `showNotification`, none of which belong in a
+   * through `session.commit`/`batch` and touches `bus.emit` and
+   * `showNotification`, none of which belong in a
    * subscription-wiring registrar. A candidate for its own extraction in a
    * later phase, not this one.
    */
@@ -65,8 +65,8 @@ export interface PresentationContext {
   /**
    * Opens the queued beast-hoard-choice panel for the active viewer, if one
    * is pending. Kept as a callback -- it mutates state via
-   * `session.setStateWithoutRefresh`, emits `beast:hoard-claimed`, and calls
-   * `updateHUD()`, none of which belong in a subscription-wiring registrar.
+   * `session.commit` and emits `beast:hoard-claimed`, neither of
+   * which belongs in a subscription-wiring registrar.
    */
   readonly maybeShowPendingHoardChoice: () => void;
   /**

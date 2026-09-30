@@ -5,6 +5,7 @@ import { EventBus } from '@/core/event-bus';
 import type { GameState, HexCoord } from '@/core/types';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { createUnitTurnFlow, type UnitTurnFlowDeps } from '@/ui/unit-turn-flow';
+import { createGameSession } from '@/app/game-session';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -91,7 +92,7 @@ function makeState(): GameState {
 }
 
 function makeFlow(initialState: GameState, bus?: EventBus) {
-  let state = initialState;
+  const session = createGameSession(initialState);
   let selectedUnitId: string | null = 'unit-scout';
   const overlayStates: Array<string | null> = [];
   const calls = {
@@ -107,15 +108,15 @@ function makeFlow(initialState: GameState, bus?: EventBus) {
   };
   const deps: UnitTurnFlowDeps = {
     uiLayer: document.body,
-    getState: () => state,
-    setState: next => { state = next; },
+    getState: () => session.getState(),
+    commit: next => session.commit(next),
+    batch: fn => session.batch(fn),
     getSelectedUnitId: () => selectedUnitId,
     selectUnit: calls.selectUnit,
     deselectUnit: calls.deselectUnit,
     selectNextUnit: calls.selectNextUnit,
     centerOn: calls.centerOn,
     refreshVisibility: calls.refreshVisibility,
-    setRenderState: calls.setRenderState,
     updateHUD: calls.updateHUD,
     showNotification: calls.showNotification,
     setBlockingOverlay: id => { overlayStates.push(id); },
@@ -123,9 +124,13 @@ function makeFlow(initialState: GameState, bus?: EventBus) {
     bus,
   };
 
+  // Mirrors bootstrap.ts: the renderer and HUD are session subscribers (#1015).
+  session.subscribe(next => calls.setRenderState(next));
+  session.subscribe(() => calls.updateHUD());
+
   return {
     flow: createUnitTurnFlow(deps),
-    getState: () => state,
+    getState: () => session.getState(),
     calls,
     overlayStates,
   };

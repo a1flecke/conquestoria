@@ -413,14 +413,12 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
           const unit = session.getState().units[uid];
           if (!unit || unit.owner !== session.getState().currentPlayer) return;
           if (unit.isFortified) {
-            session.setStateWithoutRefresh(unfortifyUnitInState(session.getState(), session.getState().currentPlayer, uid));
+            session.commit(unfortifyUnitInState(session.getState(), session.getState().currentPlayer, uid));
             deps.showNotification('Unit unfortified.', 'info');
           } else {
-            session.setStateWithoutRefresh(fortifyUnitInState(session.getState(), session.getState().currentPlayer, uid));
+            session.commit(fortifyUnitInState(session.getState(), session.getState().currentPlayer, uid));
             deps.showNotification('Unit fortified. +25% defense until unfortified or moved.', 'info');
           }
-          renderLoop.setGameState(session.getState());
-          deps.updateHUD();
           selectUnit(uid);
         },
         onPillage: uid => {
@@ -443,13 +441,11 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
 
           const result = applyPillageToState(session.getState(), uid);
           if (!result.ok) return;
-          session.setStateWithoutRefresh(result.state);
+          session.commit(result.state);
           deps.showNotification(
             result.goldAwarded! > 0 ? `Pillaged ${targetLabel} for ${result.goldAwarded} gold.` : `Pillaged ${targetLabel}.`,
             'success',
           );
-          renderLoop.setGameState(session.getState());
-          deps.updateHUD();
           selectUnit(uid);
         },
         onStartAutoExplore: uid => startAutoExplore(uid),
@@ -730,12 +726,10 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
         },
         onEstablishOutpost: (unitId) => {
           if (!canEstablishOutpost(session.getState(), unitId)) return;
-          session.setStateWithoutRefresh(performEstablishOutpost(session.getState(), unitId));
+          session.commit(performEstablishOutpost(session.getState(), unitId));
           autoSave(session.getState()).catch(() => {});
           selection.setSelectedUnitId(null);
           renderLoop.setSelectedUnitId(null);
-          renderLoop.setGameState(session.getState());
-          deps.updateHUD();
           deps.showNotification('Expedition planted a flag! Outpost completes in 2 turns.', 'success');
         },
         onEstablishRoute: deps.handleEstablishRoute,
@@ -761,7 +755,7 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
             onConfirm: () => {
               const result = applyWorkerAction(session.getState(), uid, action, { allowReplacement: true });
               if (!result.ok) return;
-              session.setStateWithoutRefresh(result.state);
+              session.commit(result.state);
               for (const event of result.events) {
                 if (event.type === 'improvement:started') {
                   bus.emit('improvement:started', event.payload);
@@ -771,8 +765,6 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
                   bus.emit('unit:destroyed', event.payload);
                 }
               }
-              renderLoop.setGameState(session.getState());
-              deps.updateHUD();
               if (result.workerConsumed || result.workerLost || !session.getState().units[uid]) {
                 deselectUnit();
               } else {
@@ -862,7 +854,7 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
       if (movingUnit?.automation?.mode === 'journey') {
         const movedUnit = session.getState().units[unitId];
         if (movedUnit) {
-          session.setStateWithoutRefresh({
+          session.commit({
             ...session.getState(),
             units: { ...session.getState().units, [unitId]: { ...movedUnit, automation: undefined } },
           });

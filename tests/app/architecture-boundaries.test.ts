@@ -1076,3 +1076,83 @@ describe('#870 — sovereignty, passage and logistical support stay three separa
     expect(borders).not.toMatch(/\.civilizations\[(?!civId)/);
   });
 });
+
+describe('#1015 — GameSession publication boundary', () => {
+  function walkTs(dir: string): string[] {
+    return readdirSync(dir, { withFileTypes: true }).flatMap(e => {
+      const full = resolve(dir, e.name);
+      return e.isDirectory() ? walkTs(full) : /\.tsx?$/.test(e.name) ? [full] : [];
+    });
+  }
+  const root = resolve(__dirname, '../..');
+  const srcFiles = walkTs(resolve(root, 'src'));
+  const rel = (file: string) => file.slice(root.length + 1);
+
+  it('the removed silent write never comes back: no code in src/ or tests/ calls setStateWithoutRefresh', () => {
+    const offenders = [...srcFiles, ...walkTs(resolve(root, 'tests'))]
+      // These three name the removed API only to assert (or check the rule for) its absence.
+      .filter(file => !['tests/app/architecture-boundaries.test.ts', 'tests/app/game-session.test.ts', 'tests/scripts/check-src-rule-violations.test.ts']
+        .some(allowed => file.endsWith(allowed)))
+      .filter(file => stripComments(readFileSync(file, 'utf8')).includes('setStateWithoutRefresh'))
+      .map(rel);
+    expect(offenders).toEqual([]);
+  });
+
+  it('the controller-facing GameSession port is exactly getState/commit/update/batch/subscribe', () => {
+    const ports = stripComments(readFileSync(resolve(root, 'src/app/ports.ts'), 'utf8'));
+    const body = ports.slice(ports.indexOf('export interface GameSession {'));
+    const iface = body.slice(0, body.indexOf('\n}\n'));
+    const members = [...iface.matchAll(/^  (\w+)[<(]/gm)].map(m => m[1]).sort();
+    expect(members).toEqual(['batch', 'commit', 'getState', 'subscribe', 'update']);
+  });
+
+  it('the set of reasons a transition may be silent is closed and reviewed here', () => {
+    const ports = stripComments(readFileSync(resolve(root, 'src/app/ports.ts'), 'utf8'));
+    const union = ports.slice(ports.indexOf('export type UnpublishedReason ='), ports.indexOf('export interface UnpublishedStateWriter'));
+    expect([...union.matchAll(/'([a-z-]+)'/g)].map(m => m[1]).sort()).toEqual([
+      'derived-bookkeeping', 'pre-world-entry', 'presentation-deferred', 'viewer-not-yet-revealed',
+    ]);
+  });
+
+  it('every silent transition in src/ is one of the pinned (owner, reason) pairs', () => {
+    const found: Record<string, string[]> = {};
+    for (const file of srcFiles) {
+      if (file.endsWith('src/app/game-session.ts')) continue; // defines adopt()
+      const code = stripComments(readFileSync(file, 'utf8'));
+      const reasons = [...code.matchAll(/unpublished\.adopt\([\s\S]*?,\s*'([a-z-]+)'\)/g)].map(m => m[1]);
+      if (reasons.length > 0) found[rel(file)] = reasons.sort();
+    }
+    // Adding a row is a design decision: name the reason, and say in the PR why publishing is wrong.
+    expect(found).toEqual({
+      'src/app/controllers/campaign-entry-controller.ts': [
+        'pre-world-entry', 'pre-world-entry', 'pre-world-entry', 'viewer-not-yet-revealed',
+      ],
+      'src/app/controllers/turn-flow-controller.ts': [
+        'presentation-deferred', 'presentation-deferred',
+        'viewer-not-yet-revealed', 'viewer-not-yet-revealed', 'viewer-not-yet-revealed', 'viewer-not-yet-revealed',
+      ],
+      'src/app/cross-cutting-helpers.ts': ['derived-bookkeeping'],
+    });
+  });
+
+  it('the wide session handle (with the silent writer) is only ever named by its factory', () => {
+    const importers = srcFiles
+      .filter(file => !file.endsWith('src/app/game-session.ts'))
+      .filter(file => stripComments(readFileSync(file, 'utf8')).includes('GameSessionHandle'))
+      .map(rel);
+    expect(importers).toEqual([]);
+  });
+
+  it('a session-owning module never re-implements publication by hand: renderer.setGameState is never paired with hud.update() in app controllers', () => {
+    // The old discipline was `write silently; renderLoop.setGameState(state); hud.update();`.
+    // Publication is the session's job now (bootstrap subscribes both once).
+    const offenders = srcFiles
+      .filter(file => file.includes('/src/app/controllers/'))
+      .filter(file => {
+        const code = stripComments(readFileSync(file, 'utf8'));
+        return /renderLoop\.setGameState\([^)]*\);\s*(?:deps\.)?(?:hud\.update|updateHUD)\(\)/.test(code);
+      })
+      .map(rel);
+    expect(offenders).toEqual([]);
+  });
+});

@@ -24,10 +24,8 @@
  * in this arc. Only concrete platform services, sibling controllers, and the
  * main.ts-local `openDiplomacyPanel` function are threaded through as deps.
  */
-import type { RenderLoop } from '@/renderer/render-loop';
 import type { EventBus } from '@/core/event-bus';
 import type { GameSession } from '@/app/ports';
-import type { HudController } from '@/app/controllers/hud-controller';
 import type { SelectionController } from '@/app/controllers/selection-controller';
 import type { DiplomaticAction, GameState, SettlementTerm, TreatyType, WarGoalKind } from '@/core/types';
 import { isAtWar } from '@/systems/diplomacy-queries';
@@ -77,8 +75,6 @@ export interface DiplomacyActionsController {
 export interface DiplomacyActionsControllerDeps {
   readonly session: GameSession;
   readonly bus: EventBus;
-  readonly renderLoop: Pick<RenderLoop, 'setGameState'>;
-  readonly hud: Pick<HudController, 'update'>;
   readonly selectionController: Pick<SelectionController, 'selectUnit'>;
   readonly uiLayer: HTMLDivElement;
   readonly showNotification: (message: string, type?: 'info' | 'success' | 'warning') => void;
@@ -96,14 +92,15 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
     const cp = deps.session.getState().currentPlayer;
     const before = deps.session.getState();
     const targetWasHuman = before.civilizations[targetCivId]?.isHuman === true;
-    deps.session.setStateWithoutRefresh(applyDiplomaticAction(before, cp, targetCivId, action, deps.bus));
-    if (action === 'declare_war' && deps.session.getState() !== before) {
-      deps.session.setStateWithoutRefresh(applyOpportunisticWarPenaltyIfCrisisStruck(deps.session.getState(), cp, targetCivId, deps.bus));
-    }
-    const after = deps.session.getState();
-    emitMinorCivLeagueNotices(before, after, deps.bus);
-    deps.renderLoop.setGameState(after);
-    deps.hud.update();
+    const after = deps.session.batch(() => {
+      deps.session.commit(applyDiplomaticAction(before, cp, targetCivId, action, deps.bus));
+      if (action === 'declare_war' && deps.session.getState() !== before) {
+        deps.session.commit(applyOpportunisticWarPenaltyIfCrisisStruck(deps.session.getState(), cp, targetCivId, deps.bus));
+      }
+      const settled = deps.session.getState();
+      emitMinorCivLeagueNotices(before, settled, deps.bus);
+      return settled;
+    });
     deps.openDiplomacyPanel();
 
     // #901: bilateral treaties/peace now route through propose -> consent ->
@@ -222,11 +219,9 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
       deps.showNotification(result.reason ?? 'Gift unavailable.', 'warning');
       return;
     }
-    deps.session.setStateWithoutRefresh(result.state);
+    deps.session.commit(result.state);
     emitMinorCivQuestTransitions(deps.bus, result.transitions, deps.session.getState());
     deps.showNotification('Gift delivered.', 'info');
-    deps.renderLoop.setGameState(deps.session.getState());
-    deps.hud.update();
     deps.openDiplomacyPanel();
   }
 
@@ -236,11 +231,9 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
       deps.showNotification(result.reason ?? 'Festival unavailable.', 'warning');
       return;
     }
-    deps.session.setStateWithoutRefresh(result.state);
+    deps.session.commit(result.state);
     emitMinorCivQuestTransitions(deps.bus, result.transitions, deps.session.getState());
     deps.showNotification('Festival sponsored.', 'success');
-    deps.renderLoop.setGameState(deps.session.getState());
-    deps.hud.update();
     deps.openDiplomacyPanel();
   }
 
@@ -251,11 +244,9 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
       deps.showNotification(result.reason ?? 'Reparations unavailable.', 'warning');
       return;
     }
-    deps.session.setStateWithoutRefresh(result.state);
+    deps.session.commit(result.state);
     emitMinorCivLeagueNotices(before, result.state, deps.bus);
     deps.showNotification('Reparations paid.', 'success');
-    deps.renderLoop.setGameState(deps.session.getState());
-    deps.hud.update();
     deps.openDiplomacyPanel();
   }
 
@@ -265,10 +256,8 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
       deps.showNotification('Send Aid unavailable.', 'warning');
       return;
     }
-    deps.session.setStateWithoutRefresh(applySendAid(deps.session.getState(), deps.session.getState().currentPlayer, crisisId, deps.bus));
+    deps.session.commit(applySendAid(deps.session.getState(), deps.session.getState().currentPlayer, crisisId, deps.bus));
     deps.showNotification('Aid sent.', 'success');
-    deps.renderLoop.setGameState(deps.session.getState());
-    deps.hud.update();
     deps.openDiplomacyPanel();
   }
 
@@ -276,12 +265,10 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
     const before = deps.session.getState();
     const result = setMinorCivWarState(before, before.currentPlayer, mcId, !currentlyAtWar, deps.bus);
     if (!result.ok) return;
-    deps.session.setStateWithoutRefresh(result.state);
+    deps.session.commit(result.state);
     emitMinorCivLeagueNotices(before, result.state, deps.bus);
     emitMinorCivQuestTransitions(deps.bus, result.transitions, deps.session.getState());
     deps.showNotification(currentlyAtWar ? 'Peace with city-state' : 'War declared on city-state!', currentlyAtWar ? 'success' : 'warning');
-    deps.renderLoop.setGameState(deps.session.getState());
-    deps.hud.update();
     deps.openDiplomacyPanel();
   }
 
@@ -306,11 +293,9 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
       deps.showNotification(result.message, 'warning');
       return deps.session.getState();
     }
-    deps.session.setStateWithoutRefresh(result.state);
+    deps.session.commit(result.state);
     deps.bus.emit('faction:unrest-resolved', { cityId, owner: deps.session.getState().currentPlayer });
     deps.bus.emit('faction:concession-made', { cityId, owner: deps.session.getState().currentPlayer, concessionType: 'charter' });
-    deps.renderLoop.setGameState(deps.session.getState());
-    deps.hud.update();
     deps.showNotification(result.message, 'success');
     return deps.session.getState();
   }
@@ -322,11 +307,9 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
     openEstablishRoutePanel(deps.uiLayer, deps.session.getState(), caravanId, (toCityId) => {
       const resourceDiversity = getCivAvailableResources(deps.session.getState(), deps.session.getState().currentPlayer).size;
       const routeResult = establishQuestAwareRoute(deps.session.getState(), caravanId, toCityId, resourceDiversity);
-      deps.session.setStateWithoutRefresh(routeResult.state);
+      deps.session.commit(routeResult.state);
       emitMinorCivQuestTransitions(deps.bus, routeResult.questTransitions, deps.session.getState());
       deps.bus.emit('trade:route-created', { route: routeResult.route });
-      deps.renderLoop.setGameState(deps.session.getState());
-      deps.hud.update();
       deps.selectionController.selectUnit(caravanId);
       deps.showNotification('Trade route established!', 'success');
     });
