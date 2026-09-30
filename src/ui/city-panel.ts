@@ -5,9 +5,11 @@ import {
   TRAINABLE_UNITS,
   getTrainableUnitsForCity,
   cityFollowsOwnFaith,
+} from '@/systems/city-system';
+import {
   getProductionDisplayName,
   getProductionIconForItem,
-} from '@/systems/city-system';
+} from '@/systems/city-production-presentation';
 import { getCivAvailableResources, getCivHappinessFromResources } from '@/systems/resource-acquisition-system';
 import { RESOURCE_DEFINITIONS, getRouteCapacity, resolveFromCity } from '@/systems/trade-system';
 import { getResourceEffectLabel } from '@/systems/resource-definitions';

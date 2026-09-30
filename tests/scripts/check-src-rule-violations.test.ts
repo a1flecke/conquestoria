@@ -445,4 +445,34 @@ describe('check-src-rule-violations.sh', () => {
       expect(result.stderr).toBe('');
     });
   });
+
+  describe('#985/#1008 catalog runtime dependency boundary', () => {
+    it('blocks the runtime espionage system from any city production module', () => {
+      const workspace = makeWorkspace();
+      writeWorkspaceFile(
+        workspace,
+        'src/systems/city-building-catalog.ts',
+        "import { isSpyUnitType } from './espionage-system';\n",
+      );
+
+      const result = runScript(workspace, 'src/systems/city-building-catalog.ts');
+
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain('city production modules must import the spy classifier');
+    });
+
+    it('allows the spy catalog leaf in the cost module', () => {
+      const workspace = makeWorkspace();
+      writeWorkspaceFile(
+        workspace,
+        'src/systems/city-production-cost.ts',
+        "import { isSpyUnitType } from './spy-unit-types';\n",
+      );
+
+      const result = runScript(workspace, 'src/systems/city-production-cost.ts');
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe('');
+    });
+  });
 });

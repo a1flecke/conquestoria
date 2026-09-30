@@ -134,7 +134,7 @@ cross-system state; this lists only the ones that are)
 | Single-side `signTreaty()` outside `diplomacy-treaties.ts`/`diplomacy-step.ts` | The identical bug class, applied to treaties (**new, this MR**) |
 | Domination authority boundary | UI/AI reading the omniscient sovereignty/victory query directly instead of an observer-safe DTO |
 | `victory-system.ts` roster-length liveness | Victory inferring survival from `civilizations.*.cities/units.length` instead of canonical sovereignty facts |
-| `city-system.ts` importing the espionage runtime | A catalog-initialization cycle between production content and espionage state |
+| `city-building-catalog.ts`/`city-unit-catalog.ts` importing the espionage runtime | A catalog-initialization cycle between production content and espionage state |
 | Low-level unit mover called outside the movement system | Bypassing `resolveUnitMoveIntent`/`executeValidatedUnitMove`'s omniscient legality+cost check |
 | Direct state mutation (`state.x[...] = `) in turn-processing systems | Breaking immutable turn processing (`.claude/rules/game-systems.md#immutable-turn-processing`) |
 | `cities[0]` in a UI/recommendation path | Silently ignoring every city but the first in a multi-city empire |

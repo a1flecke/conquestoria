@@ -175,7 +175,8 @@ The barrel exports only cross-domain commands. A new module must be added to the
 
 ### Catalog/runtime dependency boundary
 
-`city-system.ts` owns the static building and trainable-unit catalogs. It must
+`city-building-catalog.ts` / `city-unit-catalog.ts` own the static building and
+trainable-unit catalogs. They must
 not import `espionage-system.ts`: the runtime espionage module may gain
 Domination, visibility, or mission dependencies that return to city production
 before those catalogs initialize. Shared static facts belong in a dependency-light

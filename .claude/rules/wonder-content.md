@@ -15,7 +15,7 @@ These came out of MR10 (#469), where four legendary wonders had `requiredTechs` 
 - **A wonder's name must not collide with any building, tech, or trainable unit name.** Players see wonder names in notifications, the wonder codex, council advice, and the build queue — a collision (e.g. a national project also called "Manhattan Project") makes those surfaces ambiguous.
   - Enforced by: `wonder-definitions.test.ts` → `no legendary or natural wonder shares its display name with a building, tech, or trainable unit`.
   - This check is intentionally scoped to *wonders* colliding with something else — a tech sharing a name with the building it unlocks (e.g. "Blast Furnace" tech → `blast_furnace` building) is a deliberate, harmless convention elsewhere in this codebase and is not flagged.
-  - When adding a wonder: grep the exact display name across `src/systems/city-system.ts` (BUILDINGS), `src/systems/tech-definitions-eras*.ts`, and `TRAINABLE_UNITS` before finalizing.
+  - When adding a wonder: grep the exact display name across `src/systems/city-building-catalog.ts` (BUILDINGS), `src/systems/tech-definitions-eras*.ts`, and `src/systems/city-unit-catalog.ts` (TRAINABLE_UNITS) before finalizing.
 
 ## research_count Quest Steps
 

@@ -3,7 +3,7 @@ import {
   createProductionCostContext,
   getProductionCostForItem,
   type ProductionCostContext,
-} from '@/systems/city-system';
+} from '@/systems/city-production-cost';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import {
   getActiveNationalProjectsForCiv,
@@ -14,7 +14,7 @@ import { hasActiveRecoveredHarnesses } from '@/systems/rogue-elephant-host-syste
 import { hasActiveHerdingInsight } from '@/systems/stampede-system';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 
-export type { ProductionCostContext } from '@/systems/city-system';
+export type { ProductionCostContext } from '@/systems/city-production-cost';
 
 /**
  * The one place a production cost's inputs are derived from game state (#984).

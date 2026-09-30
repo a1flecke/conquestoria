@@ -90,7 +90,7 @@ When planning interactive UI or queue work, use `docs/superpowers/plans/README.m
 ## Game System Rules
 - NEVER use `Math.random()` — all randomness must use seeded RNG for determinism
 - When an event fires (e.g., `city:unit-trained`), the corresponding state mutation MUST also happen — events are notifications, not commands
-- All unit types defined in `types.ts` must be trainable in `city-system.ts` (gate by tech if needed)
+- All unit types defined in `types.ts` must be trainable in `city-unit-catalog.ts` (gate by tech if needed)
 - `declareWar` must deduplicate `atWarWith` — never add the same civ twice
 - AI must check `isAtWar()` before initiating combat against non-barbarian units
 - City panels must cycle through all cities, not just `cities[0]`

@@ -265,20 +265,23 @@ describe('#984 G — production cost does not vary by difficulty', () => {
 describe('#984 — the canonical path stays canonical', () => {
   const files = eachSourceFile(SRC);
 
-  it('only city-system and the context module import the raw cost formula', () => {
+  it('only the cost module, the context module and the completion threshold import the raw formula', () => {
     const offenders = files.filter(file =>
       /\bgetProductionCostForItem\b/.test(readFileSync(file, 'utf8'))
-      && !file.endsWith('/city-system.ts')
-      && !file.endsWith('/production-cost-context.ts'));
+      && !file.endsWith('/city-production-cost.ts')      // defines the formula
+      && !file.endsWith('/city-turn.ts')                  // processCity's completion threshold
+      && !file.endsWith('/production-cost-context.ts')    // the canonical state-derived adapter
+      && !file.endsWith('/city-system.ts'));              // compatibility barrel re-export (#1008)
     expect(offenders.map(file => file.slice(SRC.length + 1))).toEqual([]);
   });
 
   it('only the minor-civ economy builds a context by hand', () => {
     const offenders = files.filter(file =>
       /\bcreateProductionCostContext\b/.test(readFileSync(file, 'utf8'))
-      && !file.endsWith('/city-system.ts')
+      && !file.endsWith('/city-production-cost.ts')
       && !file.endsWith('/production-cost-context.ts')
-      && !file.endsWith('/minor-civ-economy-system.ts'));
+      && !file.endsWith('/minor-civ-economy-system.ts')
+      && !file.endsWith('/city-system.ts'));
     expect(offenders.map(file => file.slice(SRC.length + 1))).toEqual([]);
   });
 

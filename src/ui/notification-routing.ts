@@ -5,7 +5,7 @@ import { getImprovementDisplayName } from '@/systems/improvement-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { REVOLT_UNREST_TURNS, BREAKAWAY_REVOLT_TURNS, CONCESSION_IMMUNITY_TURNS, getCityAppeaseCost } from '@/systems/faction-system';
 import { getLegendaryWonderNotification } from '@/ui/legendary-wonder-notifications';
-import { describeDroppedProductionItem } from '@/systems/city-system';
+import { describeDroppedProductionItem } from '@/systems/city-production-presentation';
 import type { NotificationCityAction, NotificationEntry } from '@/core/notification-log';
 import { presentStrategicWarning } from '@/ui/strategic-warning-presentation';
 import type { WorldAge } from '@/systems/era-types';

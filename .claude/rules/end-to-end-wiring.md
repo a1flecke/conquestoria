@@ -36,7 +36,7 @@ paths:
 - Prefer returning explicit transition payloads from the mutating helper over re-deriving one-time events by re-reading final state.
 
 ## Trainable units must be wired end-to-end
-- When you add a `UnitType` to `TRAINABLE_UNITS` in `src/systems/city-system.ts`, the same change MUST also wire:
+- When you add a `UnitType` to `TRAINABLE_UNITS` in `src/systems/city-unit-catalog.ts` (#1008), the same change MUST also wire:
   1. **`UNIT_DEFINITIONS` + `UNIT_DESCRIPTIONS`** entries in `src/systems/unit-system.ts`.
   2. **Unit-renderer icon** in `src/renderer/unit-renderer.ts`.
   3. **Production-completion side-effects.** If the unit type has matching system state (e.g. spies → `state.espionage[civId].spies`, settlers → `state.cities` foundation), `src/core/turn-manager.ts` MUST create that state record at the same moment the `Unit` is added to `state.units`.
@@ -61,6 +61,6 @@ paths:
 - `Tech.unlocks` must contain **effect text only** (e.g. `'Farms yield +1 food'`, `'Reveal Copper resource'`) — never a bare building or unit name. Entity names belong exclusively in `unlocksUnits`/`unlocksBuildings`. A test in `tech-unlocks-consistency.test.ts` enforces this: any string in `unlocks` that exactly matches a building or unit name will fail the suite.
 
 ## Production icons must be wired end-to-end
-- When you add an entry to `BUILDINGS` or `TRAINABLE_UNITS` in `src/systems/city-system.ts`, you MUST also add a matching entry to `PRODUCTION_ICONS` in the same file.
+- When you add an entry to `BUILDINGS` in `src/systems/city-building-catalog.ts` or to `TRAINABLE_UNITS` in `src/systems/city-unit-catalog.ts`, you MUST also add a matching entry to `PRODUCTION_ICONS` in `src/systems/city-production-presentation.ts` (#1008).
 - The icon-coverage regression tests in `tests/systems/city-system.test.ts` will fail if a building or unit lacks an icon, but the rule catches it before the failed test cycle.
 - Legendary wonders intentionally fall through to `PRODUCTION_ICON_FALLBACK` (`'🏗️'`); they are not required to have entries in this map until a follow-up issue adds wonder-specific icons.
