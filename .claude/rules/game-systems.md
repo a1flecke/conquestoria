@@ -177,12 +177,13 @@ The barrel exports only cross-domain commands. A new module must be added to the
 
 `city-building-catalog.ts` / `city-unit-catalog.ts` own the static building and
 trainable-unit catalogs. They must
-not import `espionage-system.ts`: the runtime espionage module may gain
-Domination, visibility, or mission dependencies that return to city production
-before those catalogs initialize. Shared static facts belong in a dependency-light
-leaf instead. The spy classifier is `spy-unit-types.ts`; both city production and
-espionage import it there. `scripts/check-src-rule-violations.sh` and the
-`check-src-edit.sh` hook enforce this boundary.
+not import any espionage runtime module (`espionage-system.ts` and the
+`espionage-*` domain modules it is split across, #1009): the espionage runtime
+may gain Domination, visibility, or mission dependencies that return to city
+production before those catalogs initialize. Shared static facts belong in a
+dependency-light leaf instead. The spy classifier is `spy-unit-types.ts`; both city
+production and espionage import it there. `scripts/check-src-rule-violations.sh` and
+the `check-src-edit.sh` hook enforce this boundary.
 
 ### Major-war state is bilateral by construction (#995)
 
