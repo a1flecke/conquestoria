@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { evaluateDiplomacy, evaluateMinorCivDiplomacy, evaluateVassalage, evaluateEmbargoResponse, evaluateLeagueResponse } from '@/ai/ai-diplomacy';
+import { OPEN_BORDERS_PROPOSAL_MIN_RELATIONSHIP, evaluateDiplomacy, evaluateMinorCivDiplomacy, evaluateVassalage, evaluateEmbargoResponse, evaluateLeagueResponse } from '@/ai/ai-diplomacy';
 import { civilizationEraFromNumber } from '@/systems/era-types';
 import { NATIONAL_INTENT_POSTURE } from '@/ai/ai-national-intent';
 import type { PersonalityTraits, GameState, MinorCivState, DiplomacyState } from '@/core/types';
@@ -474,5 +474,61 @@ describe('#1087 evaluateEmbargoResponse / evaluateLeagueResponse — posture bia
     const dominateJoins = evaluateLeagueResponse(neutral, relationships, ['ally'], NATIONAL_INTENT_POSTURE.dominate);
     expect(developJoins).toBe(true);
     expect(dominateJoins).toBe(false);
+  });
+});
+
+describe('#870 AI values Open Borders now that it is real passage', () => {
+  function decide(opts: {
+    relationship?: number;
+    sharesKnownBorder?: boolean | undefined;
+    hasMet?: boolean;
+    treaties?: DiplomacyState['treaties'];
+    atWar?: boolean;
+  } = {}) {
+    return evaluateDiplomacy(
+      diplomaticPersonality,
+      makeDiplomacy({
+        relationships: { player: opts.relationship ?? 30 },
+        treaties: opts.treaties ?? [],
+        atWarWith: opts.atWar ? ['player'] : [],
+      }),
+      [],
+      civilizationEraFromNumber(4),
+      { player: strength(40) },
+      strength(40),
+      20,
+      { player: { hasMet: opts.hasMet ?? true, hasBorderPressure: false, targetHasKnownStrategicCapability: false, sharesKnownBorder: opts.sharesKnownBorder } },
+      0,
+      false,
+      false,
+      NEUTRAL_POSTURE,
+    );
+  }
+  const proposesOpenBorders = (decisions: ReturnType<typeof decide>) =>
+    decisions.some(decision => decision.action === 'open_borders' && decision.targetCiv === 'player');
+
+  it('proposes Open Borders to a friendly civ whose border it can see', () => {
+    expect(proposesOpenBorders(decide({ relationship: 30, sharesKnownBorder: true }))).toBe(true);
+  });
+
+  it('does not propose without a visible shared border (the treaty has nothing to do there)', () => {
+    expect(proposesOpenBorders(decide({ sharesKnownBorder: false }))).toBe(false);
+    expect(proposesOpenBorders(decide({ sharesKnownBorder: undefined }))).toBe(false);
+  });
+
+  it('stays above the target\'s own consent floor: no proposal at or below the minimum relationship', () => {
+    expect(proposesOpenBorders(decide({ relationship: OPEN_BORDERS_PROPOSAL_MIN_RELATIONSHIP, sharesKnownBorder: true }))).toBe(false);
+    expect(proposesOpenBorders(decide({ relationship: OPEN_BORDERS_PROPOSAL_MIN_RELATIONSHIP + 1, sharesKnownBorder: true }))).toBe(true);
+    expect(OPEN_BORDERS_PROPOSAL_MIN_RELATIONSHIP).toBeGreaterThan(20); // evaluateTreatyConsent's open_borders floor
+  });
+
+  it('never proposes what it already has, at war, to an unmet civ, or on top of an alliance proposal', () => {
+    const already = [{ type: 'open_borders' as const, civA: 'ai_civ', civB: 'player', turnsRemaining: -1 }];
+    expect(proposesOpenBorders(decide({ sharesKnownBorder: true, treaties: already }))).toBe(false);
+    expect(proposesOpenBorders(decide({ sharesKnownBorder: true, atWar: true }))).toBe(false);
+    expect(proposesOpenBorders(decide({ sharesKnownBorder: true, hasMet: false }))).toBe(false);
+    const withAlliance = decide({ relationship: 80, sharesKnownBorder: true });
+    expect(withAlliance.some(decision => decision.action === 'alliance')).toBe(true);
+    expect(proposesOpenBorders(withAlliance)).toBe(false);
   });
 });

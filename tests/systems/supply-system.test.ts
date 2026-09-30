@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { City, GameMap, GameState, HexCoord, Unit } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 import { resolveLandSupplyForCiv } from '@/systems/supply-system';
+import { createDiplomacyState } from '@/systems/diplomacy-state';
 
 function makeStateWithSource(opts: {
   sourceCoord: HexCoord;
@@ -100,5 +101,81 @@ describe('difficulty invariance (#544 contract §3.3/§25)', () => {
     const explorerResult = resolveLandSupplyForCiv(explorerState, 'rome');
     const veteranResult = resolveLandSupplyForCiv(veteranState, 'rome');
     expect(explorerResult.units.u1!.landSupply).toEqual(veteranResult.units.u1!.landSupply);
+  });
+});
+
+// #870 — what a territorial relationship SUPPORTS is a separate question from whether the unit
+// may be there (#871). Open Borders is passage, not logistics.
+describe('#870 relationship -> logistics (supply system integration)', () => {
+  function abroad(relate: (state: GameState) => void): GameState {
+    const state = makeStateWithSource({ sourceCoord: { q: 0, r: 0 }, sourceKind: 'city', ownerId: 'rome' });
+    const ids = ['rome', 'carthage'];
+    state.civilizations.rome = { ...state.civilizations.rome!, diplomacy: createDiplomacyState(ids, 'rome') } as any;
+    state.civilizations.carthage = { techState: { completed: [] }, units: [], cities: [], diplomacy: createDiplomacyState(ids, 'carthage') } as any;
+    // The partner also has a city right beside the unit: it must NOT resupply a foreign army.
+    state.cities.foreign = { id: 'foreign', owner: 'carthage', position: { q: 18, r: 19 } } as City;
+    state.units = {
+      u1: { id: 'u1', type: 'warrior', owner: 'rome', position: { q: 19, r: 19 }, health: 100, movementPointsLeft: 1, hasMoved: false, hasActed: false } as Unit,
+    };
+    state.map.tiles[hexKey({ q: 19, r: 19 })] = { ...state.map.tiles[hexKey({ q: 19, r: 19 })]!, owner: 'carthage' };
+    relate(state);
+    return state;
+  }
+  const signBothWays = (state: GameState, type: 'open_borders' | 'alliance') => {
+    for (const [a, b] of [['rome', 'carthage'], ['carthage', 'rome']] as const) {
+      const civ = state.civilizations[a] as any;
+      civ.diplomacy = { ...civ.diplomacy, treaties: [...civ.diplomacy.treaties, { type, civA: a, civB: b, turnsRemaining: -1 }] };
+    }
+  };
+  const turnsUnsupported = (state: GameState, n: number) => {
+    let current = state;
+    for (let i = 0; i < n; i++) current = resolveLandSupplyForCiv(current, 'rome');
+    return current.units.u1!.landSupply!;
+  };
+
+  it('Open Borders: passage but no supply -- the partner\'s city does not cover the army, and it attrits like enemy land', () => {
+    const open = abroad(s => signBothWays(s, 'open_borders'));
+    const hostile = abroad(() => {}); // closed border, unit is an intruder
+    expect(turnsUnsupported(open, 1)).toEqual({ state: 'grace', hostileUnsupportedTurns: 1, suppliedTurnsSinceRecovery: 0 });
+    for (const turns of [1, 3, 5, 7]) {
+      expect(turnsUnsupported(open, turns), `after ${turns} turns`).toEqual(turnsUnsupported(hostile, turns));
+    }
+    expect(turnsUnsupported(open, 5).state).toBe('severe');
+  });
+
+  it('alliance: stable but unsupported, no attrition (unchanged) -- and still no resupply from the ally\'s city', () => {
+    const allied = abroad(s => signBothWays(s, 'alliance'));
+    expect(turnsUnsupported(allied, 6)).toEqual({ state: 'stable-unsupported', hostileUnsupportedTurns: 0, suppliedTurnsSinceRecovery: 0 });
+  });
+
+  it('an alliance signed on top of Open Borders is what removes attrition; Open Borders alone never does', () => {
+    const both = abroad(s => { signBothWays(s, 'open_borders'); signBothWays(s, 'alliance'); });
+    expect(turnsUnsupported(both, 4).state).toBe('stable-unsupported');
+  });
+
+  it('vassal and overlord stand as allies on each other\'s land: no attrition', () => {
+    const vassalage = abroad(s => {
+      const rome = s.civilizations.rome as any;
+      const carthage = s.civilizations.carthage as any;
+      rome.diplomacy = { ...rome.diplomacy, vassalage: { ...rome.diplomacy.vassalage, overlord: 'carthage' } };
+      carthage.diplomacy = { ...carthage.diplomacy, vassalage: { ...carthage.diplomacy.vassalage, vassals: ['rome'] } };
+    });
+    expect(turnsUnsupported(vassalage, 6).state).toBe('stable-unsupported');
+  });
+
+  it('Open Borders cancelled while the army is inside: support changes at once and deterministically -- the stage counter resumes as hostile, and graceful egress does not preserve supply', () => {
+    const open = abroad(s => signBothWays(s, 'open_borders'));
+    const afterOneTurn = resolveLandSupplyForCiv(open, 'rome');
+    expect(afterOneTurn.units.u1!.landSupply!.state).toBe('grace');
+    // Treaty ends (both records removed), unit still standing there and still free to leave (#871).
+    for (const id of ['rome', 'carthage']) {
+      const civ = afterOneTurn.civilizations[id] as any;
+      civ.diplomacy = { ...civ.diplomacy, treaties: [] };
+    }
+    const reloaded: GameState = JSON.parse(JSON.stringify(afterOneTurn));
+    const next = resolveLandSupplyForCiv(reloaded, 'rome');
+    expect(next.units.u1!.landSupply).toEqual({ state: 'grace', hostileUnsupportedTurns: 2, suppliedTurnsSinceRecovery: 0 });
+    // Same outcome without the save/reload boundary.
+    expect(resolveLandSupplyForCiv(afterOneTurn, 'rome').units.u1!.landSupply).toEqual(next.units.u1!.landSupply);
   });
 });

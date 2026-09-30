@@ -817,3 +817,42 @@ describe('#871 — territorial access is one peer rule, consumed everywhere move
     expect(readSrc('systems/territorial-access.ts')).toMatch(/open_borders/);
   });
 });
+
+describe('#870 — sovereignty, passage and logistical support stay three separate answers', () => {
+  const readSrc = (rel: string) =>
+    readFileSync(resolve(__dirname, '../../src', rel), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  const SUPPORT_LEAKS = /open_borders|hasAllianceTreaty|hasTreatyBetween|territorial-access|classifyTerritorialRelation|classifyLandSupplyTerritory|vassalage/;
+
+  it('land supply derives its territory class from the one relation vocabulary, and only there', () => {
+    const territory = readSrc('systems/supply-territory.ts');
+    expect(territory).toMatch(/from '\.\/territorial-access'/);
+    // No second treaty read: the class is a mapping of `TerritorialRelation`, nothing else.
+    expect(territory).not.toMatch(/open_borders|hasAllianceTreaty|hasTreatyBetween|diplomacy-/);
+    for (const rel of ['systems/supply-system.ts', 'systems/supply-progression.ts', 'systems/supply-sources.ts']) {
+      expect(readSrc(rel), `${rel} must not read treaties itself`).not.toMatch(/open_borders|hasAllianceTreaty|hasTreatyBetween|diplomacy-/);
+    }
+  });
+
+  it('support rights other than attrition remain own-territory only: Open Borders promotes none of them', () => {
+    // Supply SOURCES are the civ's own cities/forts; air basing requires the same owner.
+    expect(readSrc('systems/supply-sources.ts')).not.toMatch(SUPPORT_LEAKS);
+    expect(readSrc('systems/air-operations-system.ts')).not.toMatch(SUPPORT_LEAKS);
+    expect(readSrc('systems/supply-naval.ts')).not.toMatch(SUPPORT_LEAKS);
+    // Healing derives "friendly" only from the civ's own tile owner.
+    const turnManager = readFileSync(resolve(__dirname, '../../src/core/turn-manager.ts'), 'utf8');
+    const start = turnManager.indexOf('Heal units BEFORE resetting');
+    const end = turnManager.indexOf('getRestAvailability(unit.landSupply)', start);
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    const healBlock = turnManager.slice(start, end).replace(/\/\/.*$/gm, '');
+    expect(healBlock).toMatch(/inFriendlyTerritory = !inFriendlyCity && \(tile\?\.owner === civId\)/);
+    expect(healBlock).not.toMatch(SUPPORT_LEAKS);
+  });
+
+  it('the AI\'s border signal is built from its own visibility only', () => {
+    const borders = readSrc('ai/ai-known-borders.ts');
+    expect(borders).toMatch(/getVisibility\(visibility, neighbor\) !== 'visible'/);
+    expect(borders).not.toMatch(/\.civilizations\[(?!civId)/);
+  });
+});

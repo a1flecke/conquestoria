@@ -12,6 +12,7 @@ import { createGameButton } from '@/ui/ui-kit';
 import { unitParticipatesInLandSupply } from '@/systems/supply-participation';
 import { getPrimarySupplySource } from '@/systems/supply-sources';
 import { getTurnsUntilNextSupplyStage } from '@/systems/supply-progression';
+import { classifyLandSupplyTerritory } from '@/systems/supply-territory';
 import { getParadropLaunchState, PARADROP_FAILURE_MESSAGES, getAirAssaultLaunchState, AIR_ASSAULT_FAILURE_MESSAGES } from '@/systems/airborne-system';
 import { getSubmarineRevealState } from '@/systems/concealment';
 import { getExperienceToNextTier, getVeterancyCombatModifier, getVeterancyTier } from '@/systems/combat-reward-system';
@@ -222,6 +223,13 @@ function getLandSupplyStatusLines(state: GameState, unit: Unit): string[] | null
   else if (status.state === 'grace') lines.push('Overextended — Stage 1 of 3');
   else if (status.state === 'degraded') lines.push('Overextended — Stage 2 of 3 · -10% Combat');
   else lines.push('Overextended — Stage 3 of 3 · -10% Combat, -1 Movement');
+
+  // #870: on land that Open Borders lets the army cross, say plainly why it is unsupplied --
+  // passage is not logistics. Own unit, own tile, own treaty: names no civilization.
+  const tileOwner = state.map.tiles[hexKey(unit.position)]?.owner ?? null;
+  if (classifyLandSupplyTerritory(state, unit.owner, tileOwner) === 'permitted') {
+    lines.push('Open Borders allow passage, not supply — this land resupplies no one');
+  }
 
   const turnsUntilNext = getTurnsUntilNextSupplyStage(status);
   if (turnsUntilNext !== null) {

@@ -252,6 +252,59 @@ introduce a policy-id branch anywhere in `faction-system.ts`,
 `governance-capacity.ts`, `basic-ai.ts`, or `governance-panel.ts` — all four
 are generic over `GOVERNANCE_POLICY_DEFINITIONS`.
 
+## Passage vs Support Inventory (#871 / #870)
+
+Three answers, three homes, never one boolean: **sovereignty** is `tile.owner` (city-territory);
+**passage** ("may this armed land unit be there?") is `territorial-access.ts`
+(`classifyTerritorialRelation`, see `.claude/rules/movement-actions.md`); **support** ("what does
+the host owe it there?") is decided per capability, below. Both later answers read the *same*
+`TerritorialRelation`, so they cannot disagree about who the owner is or what treaty exists.
+
+| Relationship (mover ↔ tile owner) | Move through | Land supply (attrition) | Heal / reinforce | Air base | Naval port support | Trade route |
+|---|---|---|---|---|---|---|
+| own | ✔ | source of supply (own cities/forts) | ✔ (own tile / city) | ✔ (own city/carrier) | own | abstract |
+| alliance | ✔ | *no supply*, **no attrition** (`allied`) | ✘ (own tiles only) | ✘ (same-owner only) | deferred #883 | abstract |
+| vassal ↔ overlord | ✔ | *no supply*, **no attrition** (`allied`) | ✘ | ✘ | deferred #883 | abstract |
+| **Open Borders** | ✔ | **no supply, attrits like enemy land** (`permitted`) | ✘ | ✘ | deferred #883 | abstract |
+| war | ✔ | hostile: attrits | ✘ | ✘ | — | — |
+| peaceful, closed | ✘ (egress only, #871) | hostile if standing there | ✘ | ✘ | — | — |
+| unclaimed | ✔ | `unclaimed`: no supply, no attrition | own-tile rule | ✘ | — | — |
+| city-state / barbarian owner | ✔ | hostile: attrits | ✘ | ✘ | — | — |
+
+Reading the table:
+
+- **Open Borders grants passage, not logistics.** `LandSupplyTerritoryClass` gained `permitted`,
+  which attrits exactly like `hostile` (`advanceOverextensionStage` lists the attrition-free classes
+  explicitly — `friendly`, `allied`, `unclaimed` — so a new class attrits until decided
+  otherwise). No number was retuned: Open Borders' supply behaviour is bit-for-bit what it was
+  when the treaty was inert (it was classified `hostile`); what changed is that the intent is now
+  an explicit, tested class, the player is told why (`selected-unit-info.ts`), and the AI can value
+  the treaty. Alliance is the *additional* value: no attrition on the ally's land.
+- **Vassalage** joins alliance as `allied` (overlord and vassal are bound by protection). This is
+  the only behavioural change in supply: units of either standing on the other's land no longer
+  attrit.
+- **Supply sources stay the civ's own** (`getCivSupplySourceCandidates`): no relationship — not
+  even alliance — makes a partner's city or fort a source. Healing reads `tile.owner === civId`
+  only; air basing requires the same owner; naval shore supply is the civ's own ships. Pinned by
+  `tests/app/architecture-boundaries.test.ts` "#870". Do not add a treaty read to any of them
+  without adding a row here first.
+- **Trade routes** are abstract (`findPathToCity` measures a route between cities); caravans are
+  civilian and exempt from border obedience (#871), so the route model is unchanged.
+- **Naval port support and air basing beyond same-owner** are #883 / #884, not here.
+- **AI:** `evaluateDiplomacy` proposes Open Borders only to a friendly civ (relationship >
+  `OPEN_BORDERS_PROPOSAL_MIN_RELATIONSHIP`, 25, above the target's own consent floor of 20) whose
+  border it can **see** (`getKnownSharedBorderOwners` — built from the civ's own visibility, never
+  hidden ownership), never over an alliance proposal, never when already held. Thresholds are
+  identical across difficulty tiers.
+- **Treaty ending while units are inside:** #871's stateless egress decides movement; supply
+  reclassifies the next round from the *current* relationship (Open Borders gone → `hostile`,
+  the stage counter continues). Graceful egress does not preserve supply. Derived every call:
+  nothing persisted, no cache.
+
+**Rule:** any new support right (a new heal source, a new basing rule, a treaty-granted supply
+source) adds a column or row here, reads `classifyTerritorialRelation` (never a treaty type
+directly), and must not equate "may enter" with "is supported".
+
 ## Governor Inventory (#928)
 
 Governors are an abstract, capped administrative slot — **not** a unit and

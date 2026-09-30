@@ -64,7 +64,7 @@ export function relationGrantsPassage(relation: TerritorialRelation): boolean {
 }
 
 export function classifyTerritorialRelation(
-  state: GameState,
+  state: Pick<GameState, 'civilizations'>,
   moverOwnerId: string,
   tileOwnerId: string | null | undefined,
 ): TerritorialRelation {

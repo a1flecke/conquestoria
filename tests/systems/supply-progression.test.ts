@@ -6,6 +6,7 @@ import {
   resolveSupplyRecoveryForUnit,
 } from '@/systems/supply-progression';
 import type { UnitLandSupplyStatus } from '@/core/types';
+import type { LandSupplyTerritoryClass } from '@/systems/supply-territory';
 
 describe('advanceOverextensionStage', () => {
   const start: UnitLandSupplyStatus = { state: 'full', hostileUnsupportedTurns: 0, suppliedTurnsSinceRecovery: 0 };
@@ -143,5 +144,42 @@ describe('getTurnsUntilNextSupplyStage', () => {
 
   it('in degraded turn 4 (the last degraded turn), 1 turn remains until severe next turn', () => {
     expect(getTurnsUntilNextSupplyStage({ state: 'degraded', hostileUnsupportedTurns: 4, suppliedTurnsSinceRecovery: 0 })).toBe(1);
+  });
+});
+
+describe('#870 territory class -> unsupported-unit consequence (one table, exhaustive)', () => {
+  const start = { state: 'full', hostileUnsupportedTurns: 0, suppliedTurnsSinceRecovery: 0 } as const;
+  const OUTCOME: Record<LandSupplyTerritoryClass, 'stable-unsupported' | 'grace'> = {
+    friendly: 'stable-unsupported',
+    allied: 'stable-unsupported',
+    unclaimed: 'stable-unsupported',
+    permitted: 'grace', // Open Borders: passage, not logistics
+    hostile: 'grace',
+  };
+
+  it.each(Object.entries(OUTCOME))('%s -> %s on the first unsupported turn', (klass, expected) => {
+    expect(advanceOverextensionStage({ ...start }, klass as LandSupplyTerritoryClass, false).state).toBe(expected);
+  });
+
+  it('permitted progresses through every attrition stage identically to hostile', () => {
+    let permitted = { ...start } as UnitLandSupplyStatus;
+    let hostile = { ...start } as UnitLandSupplyStatus;
+    for (let turn = 1; turn <= 8; turn++) {
+      permitted = advanceOverextensionStage(permitted, 'permitted', false);
+      hostile = advanceOverextensionStage(hostile, 'hostile', false);
+      expect(permitted).toEqual(hostile);
+    }
+    expect(permitted.state).toBe('severe');
+  });
+
+  it('a General\'s stabilization pauses attrition in permitted land just as in hostile land', () => {
+    const grace = advanceOverextensionStage({ ...start }, 'permitted', false);
+    expect(advanceOverextensionStage(grace, 'permitted', false, true)).toEqual(grace);
+  });
+
+  it('being supplied is unaffected by the class (a source in range beats any territory)', () => {
+    for (const klass of Object.keys(OUTCOME)) {
+      expect(advanceOverextensionStage({ ...start, state: 'degraded', hostileUnsupportedTurns: 3 }, klass as LandSupplyTerritoryClass, true).state).toBe('full');
+    }
   });
 });
