@@ -30,6 +30,12 @@ This is enforced by the user and is not optional.
 - `bash scripts/run-with-mise.sh yarn test:intensive-simulations` — Run the expensive local simulation selection.
 - `bash scripts/run-with-mise.sh yarn test:ci:shard-a` / `test:ci:shard-b` / `test:ci:shard-c` / `test:ci:shard-d` — Run one duration-balanced full-suite CI shard; these are not local tiers.
 - `bash scripts/run-with-mise.sh yarn test:watch` — Run tests in watch mode
+- `bash scripts/run-with-mise.sh yarn verify:launch <full|ai-long|ai-playability|perf> [--wait]` — Start a durable verification run detached, after showing who else is running on the host; refuses duplicates, a dirty tree (without `--allow-dirty`) and pile-ons.
+- `bash scripts/run-with-mise.sh yarn verify:stop <scope>|--all [--dry-run]` — Stop **only this worktree's own** durable runs, by recorded pid.
+- `bash scripts/run-with-mise.sh yarn verify:local:status` — See every agent's active/queued heavyweight runs on this host (read-only).
+- `bash scripts/pr-body.sh new|write|check|create|update <name> …` — Write PR bodies in `/tmp/pr-bodies/<name>.md` (the one directory that is pre-allowed), then `create`/`update` from there. Never improvise a body file elsewhere.
+
+**Shared host — several agents run at once.** Never kill processes by name or process group: no `pkill`, `killall`, `kill $(pgrep …)`, `… | xargs kill`, `kill -- -PGID`. That terminates other agents' runs in other worktrees (it already killed someone's multi-hour `ai-long` run). Stop only a specific numeric pid you started, or use `yarn verify:stop`. `.claude/hooks/block-pattern-kill.sh` blocks these. Do not edit files in a worktree while a durable run of it is in progress. Details: `.claude/rules/hooks-and-tooling.md` → "Launching and stopping runs on a shared host" and "PR bodies".
 
 **Bash tool timeout guidance** — set `timeout` to match what the command actually does:
 - `git commit` → **30 000 ms** (commit itself < 1s; no hook runs tests on commit)
@@ -45,7 +51,7 @@ Detailed rules live in `.claude/rules/` and auto-apply based on the files you ed
 - `.claude/rules/end-to-end-wiring.md` — computed-data-must-render
 - `.claude/rules/spec-fidelity.md` — spec conjunctions, gating preservation, visible-UI contract preservation, and **keeping `docs/superpowers/plans/*.md` phase-status annotations synced with merged PRs in the same PR that completes the phase**
 - `.claude/rules/incremental-mr-completion.md` — partial-MR PR title/body requirements and dead-end UX prevention
-- `.claude/rules/hooks-and-tooling.md` — hook stdin/jq contract, exit codes, and required smoke tests
+- `.claude/rules/hooks-and-tooling.md` — hook stdin/jq contract, exit codes, and required smoke tests; **shared-host launch/stop of verification runs (never `pkill`/`killall`)** and **PR bodies in `/tmp/pr-bodies`**
 - `.claude/rules/caller-discipline.md` — how "caller must remember" contracts are turned into structure; the inventory, the mechanisms, and the decision procedure for a new contract
 - `.claude/rules/session-publication.md` — `GameSession` publication: `commit`/`update`/`batch`, the closed set of silent-write reasons, no hand-written renderer/HUD refresh
 - `.claude/rules/sprites.md` — unit/building/terrain/improvement extension recipes, FactionPalette contract, catalog coverage, animation class reference, terrain tile contracts

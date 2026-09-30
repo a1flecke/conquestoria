@@ -28,6 +28,15 @@
         { "action": "shell", "resource": "./scripts/run-with-mise.sh yarn *", "effect": "allow" },
         { "action": "shell", "resource": "mise *", "effect": "allow" },
 
+        // Shared host: launch/stop verification runs and write PR bodies through the repo's
+        // helpers. PR bodies live only in /tmp/pr-bodies (scripts/pr-body.sh); a run is stopped
+        // by recorded pid (scripts/stop-local-verification.sh), never by name.
+        { "action": "shell", "resource": "./scripts/pr-body.sh *", "effect": "allow" },
+        { "action": "shell", "resource": "./scripts/launch-local-verification.sh *", "effect": "allow" },
+        { "action": "shell", "resource": "./scripts/stop-local-verification.sh *", "effect": "allow" },
+        { "action": "shell", "resource": "pkill *", "effect": "deny" },
+        { "action": "shell", "resource": "killall *", "effect": "deny" },
+
         { "action": "shell", "resource": "git status *", "effect": "allow" },
         { "action": "shell", "resource": "git diff *", "effect": "allow" },
         { "action": "shell", "resource": "git log *", "effect": "allow" },
