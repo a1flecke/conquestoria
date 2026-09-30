@@ -2,7 +2,7 @@
 # PreToolUse hook -- blocks killing processes by NAME or by process GROUP.
 #
 # Several agents (Claude, Codex, OpenCode) run the same test/verification scripts on
-# this host at the same time. `pkill -f run-ai-long-horizon.sh` (or killall, or
+# this host at the same time. `pkill -f run-some-suite.sh` (or killall, or
 # `kill $(pgrep ...)`) selects every process with that name -- including another
 # agent's multi-hour run in a different worktree. That happened; it is now blocked.
 #

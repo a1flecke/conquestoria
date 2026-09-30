@@ -30,12 +30,12 @@ expect_allow() {
 }
 
 # --- blocked: selection by name -------------------------------------------------
-expect_block 'pkill -f run-ai-long-horizon.sh'
+expect_block 'pkill -f run-some-suite.sh'
 expect_block 'pkill vitest'
 expect_block 'killall node'
 expect_block 'cd /tmp && pkill -f vitest'
 expect_block 'sh -c "pkill -f foo"'
-expect_block 'kill $(pgrep -f run-ai-long-horizon.sh)'
+expect_block 'kill $(pgrep -f run-some-suite.sh)'
 expect_block 'kill -9 `pidof node`'
 expect_block 'kill $(ps aux | grep vitest | awk "{print \$2}")'
 expect_block "ps aux | grep vitest | awk '{print \$2}' | xargs kill -9"
