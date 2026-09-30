@@ -10,14 +10,16 @@ import { createUnitDeleteConfirmationPanel } from '@/ui/unit-delete-confirmation
 export interface UnitTurnFlowDeps {
   uiLayer: HTMLElement;
   getState: () => GameState;
-  setState: (state: GameState) => void;
+  /** Publishing write (`GameSession.commit`): renderer, HUD and panels refresh (#1015). */
+  commit: (state: GameState) => void;
+  /** `GameSession.batch`: coalesce several writes into one publication. */
+  batch: <T>(fn: () => T) => T;
   getSelectedUnitId: () => string | null;
   selectUnit: (unitId: string) => void;
   deselectUnit: () => void;
   selectNextUnit: () => void;
   centerOn: (coord: HexCoord) => void;
   refreshVisibility: () => void;
-  setRenderState: (state: GameState) => void;
   updateHUD: () => void;
   showNotification: (message: string, type: 'info' | 'success' | 'warning') => void;
   setBlockingOverlay: (id: string | null) => void;
@@ -49,10 +51,8 @@ export function createUnitTurnFlow(deps: UnitTurnFlowDeps): UnitTurnFlow {
     if (!unit || unit.owner !== state.currentPlayer) return;
 
     const nextState = skipUnitInState(state, state.currentPlayer, unitId);
-    deps.setState(nextState);
+    deps.commit(nextState);
     deps.showNotification(`${UNIT_DEFINITIONS[unit.type].name} will hold position this turn.`, 'info');
-    deps.setRenderState(deps.getState());
-    deps.updateHUD();
 
     if (deps.getSelectedUnitId() === unitId) {
       deps.selectNextUnit();
@@ -110,24 +110,25 @@ export function createUnitTurnFlow(deps: UnitTurnFlowDeps): UnitTurnFlow {
         const currentUnit = currentState.units[unitId];
         const deletedName = currentUnit ? UNIT_DEFINITIONS[currentUnit.type].name : UNIT_DEFINITIONS[unit.type].name;
         closeUnitDeleteConfirmation();
-        // Clean up trade route before removing the unit
-        const routeId = currentUnit?.committedToRouteId;
-        if (routeId && deps.onUnitDisbanded) {
-          currentState = deps.onUnitDisbanded(currentState, unitId, routeId);
-          deps.setState(currentState);
-        }
-        deps.setState(removePlayerUnitFromState(
-          deps.getState(),
-          deps.getState().currentPlayer,
-          unitId,
-          deps.bus,
-        ));
-        if (deps.getSelectedUnitId() === unitId) {
-          deps.deselectUnit();
-        }
-        deps.refreshVisibility();
-        deps.setRenderState(deps.getState());
-        deps.updateHUD();
+        // One publication, after visibility is recomputed for the smaller roster.
+        deps.batch(() => {
+          // Clean up trade route before removing the unit
+          const routeId = currentUnit?.committedToRouteId;
+          if (routeId && deps.onUnitDisbanded) {
+            currentState = deps.onUnitDisbanded(currentState, unitId, routeId);
+            deps.commit(currentState);
+          }
+          deps.commit(removePlayerUnitFromState(
+            deps.getState(),
+            deps.getState().currentPlayer,
+            unitId,
+            deps.bus,
+          ));
+          if (deps.getSelectedUnitId() === unitId) {
+            deps.deselectUnit();
+          }
+          deps.refreshVisibility();
+        });
         deps.showNotification(`${deletedName} deleted.`, 'warning');
         deps.selectNextUnit();
       },

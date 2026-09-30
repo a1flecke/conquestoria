@@ -216,6 +216,41 @@ describe('check-src-rule-violations.sh', () => {
     });
   });
 
+  describe('#1015 silent session write rule', () => {
+    const run = (path: string, source: string) => {
+      const workspace = makeWorkspace();
+      writeWorkspaceFile(workspace, path, source);
+      return runScript(workspace, path);
+    };
+
+    it('blocks the removed setStateWithoutRefresh anywhere in src', () => {
+      const result = run('src/app/controllers/new-controller.ts', 'session.setStateWithoutRefresh(next);\n');
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain('setStateWithoutRefresh was removed from GameSession');
+    });
+
+    it('does not trip on a comment that merely names the removed API', () => {
+      expect(run('src/app/controllers/new-controller.ts', '// setStateWithoutRefresh was removed in #1015\nexport const x = 1;\n').status).toBe(0);
+    });
+
+    it('blocks unpublished.adopt() outside a sanctioned owner', () => {
+      const result = run('src/app/controllers/player-action-controller.ts', "deps.unpublished.adopt(next, 'pre-world-entry');\n");
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain('unpublished.adopt() called outside a sanctioned owner');
+    });
+
+    it('allows the named owners', () => {
+      const call = "deps.unpublished.adopt(next, 'viewer-not-yet-revealed');\n";
+      for (const owner of [
+        'src/app/controllers/campaign-entry-controller.ts',
+        'src/app/controllers/turn-flow-controller.ts',
+        'src/app/cross-cutting-helpers.ts',
+      ]) {
+        expect(run(owner, call).status, owner).toBe(0);
+      }
+    });
+  });
+
   describe('#995 single-side war/peace mutation rule', () => {
     it('blocks single-side declareWar()/makePeace() outside diplomacy-war', () => {
       const workspace = makeWorkspace();

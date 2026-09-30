@@ -172,12 +172,12 @@ export function createGameSessionController(deps: GameSessionControllerDeps): Ga
           opponentChallenge: resolveOpponentChallenge(deps.session.getState()),
           pendingOpponentChallenge: deps.session.getState().pendingOpponentChallenge,
           onOpponentChallengeChange: (challenge) => {
-            deps.session.setStateWithoutRefresh(setPendingOpponentChallenge(deps.session.getState(), challenge));
+            deps.session.commit(setPendingOpponentChallenge(deps.session.getState(), challenge));
           },
           personalChallenge: resolveChallengeForCiv(deps.session.getState(), deps.session.getState().currentPlayer),
           pendingPersonalChallenge: deps.session.getState().civilizations[deps.session.getState().currentPlayer]?.pendingChallenge,
           onPersonalChallengeChange: (challenge) => {
-            deps.session.setStateWithoutRefresh(setPendingChallengeForCiv(deps.session.getState(), deps.session.getState().currentPlayer, challenge));
+            deps.session.commit(setPendingChallengeForCiv(deps.session.getState(), deps.session.getState().currentPlayer, challenge));
           },
           // Spec 3: per-channel audio settings
           audioSettings: {
@@ -210,7 +210,7 @@ export function createGameSessionController(deps: GameSessionControllerDeps): Ga
           supplyWarningPreference: deps.session.getState().settings.supplyWarningPreference ?? 'all',
           onChangeSupplyWarningPreference: (preference) => {
             const state = deps.session.getState();
-            deps.session.setStateWithoutRefresh({
+            deps.session.commit({
               ...state,
               settings: { ...state.settings, supplyWarningPreference: preference },
             });
@@ -219,7 +219,8 @@ export function createGameSessionController(deps: GameSessionControllerDeps): Ga
           superweaponsPreference: resolveSuperweaponsFlag(deps.session.getState().settings),
           onChangeSuperweaponsPreference: (preference) => {
             const state = deps.session.getState();
-            deps.session.setStateWithoutRefresh({
+            // Publishes: the HUD's strategic-arsenal button is gated on this flag (#1015).
+            deps.session.commit({
               ...state,
               settings: { ...state.settings, superweapons: preference },
             });
@@ -300,14 +301,12 @@ export function createGameSessionController(deps: GameSessionControllerDeps): Ga
           const unit = deps.session.getState().units[selectedUnitId];
           if (!unit || unit.hasActed || unit.owner !== deps.session.getState().currentPlayer) return;
           if (unit.isFortified) {
-            deps.session.setStateWithoutRefresh(unfortifyUnitInState(deps.session.getState(), deps.session.getState().currentPlayer, selectedUnitId));
+            deps.session.commit(unfortifyUnitInState(deps.session.getState(), deps.session.getState().currentPlayer, selectedUnitId));
             deps.showNotification('Unit unfortified.', 'info');
           } else {
-            deps.session.setStateWithoutRefresh(fortifyUnitInState(deps.session.getState(), deps.session.getState().currentPlayer, selectedUnitId));
+            deps.session.commit(fortifyUnitInState(deps.session.getState(), deps.session.getState().currentPlayer, selectedUnitId));
             deps.showNotification('Unit fortified. +25% defense until unfortified or moved.', 'info');
           }
-          deps.renderLoop.setGameState(deps.session.getState());
-          deps.hud.update();
           deps.selectionController.selectUnit(selectedUnitId);
         },
         onSettle: () => {

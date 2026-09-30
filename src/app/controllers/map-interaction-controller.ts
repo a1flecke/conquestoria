@@ -730,7 +730,7 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
           defenderName: defender?.name ?? intent.defenderId,
           onConfirm: () => {
             const begun = beginConfirmedForeignCityEntry(session.getState(), selectedId, intent.cityId, bus);
-            session.setStateWithoutRefresh(begun.state);
+            session.commit(begun.state);
             if (!begun.ok) {
               deps.showNotification(
                 begun.reason === 'repelled-by-city-defense'
@@ -738,8 +738,6 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
                   : 'The attack could not proceed.',
                 'warning',
               );
-              renderLoop.setGameState(session.getState());
-              deps.updateHUD();
               return;
             }
             selection.setPendingIntent({ kind: 'city-capture', choice: begun.pending });
@@ -754,8 +752,6 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
               });
             }
             SFX.tap();
-            renderLoop.setGameState(session.getState());
-            deps.updateHUD();
           },
           onCancel: () => selectionController.selectUnit(selectedId),
         });
@@ -773,26 +769,12 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
           onConfirm: () => {
             const war = setMinorCivWarState(session.getState(), session.getState().currentPlayer, intent.minorCivId, true, bus);
             if (!war.ok) return;
-            session.setStateWithoutRefresh(war.state);
+            // Publishes immediately: a declared war changes how a foreign stack picks its
+            // lead sprite on the canvas (unit-map-presentation's chooseLead reads
+            // atWarWith), and executeMinorCivConquest below can return early with no
+            // refresh of its own (#787 phase 14, #1015).
+            session.commit(war.state);
             emitMinorCivQuestTransitions(bus, war.transitions, session.getState());
-            // #787 phase 14: this used to rely entirely on
-            // executeMinorCivConquest below to flush the renderer/HUD -- but
-            // that function returns early with no refresh at all when the
-            // follow-up move fails. A declared war has a real, immediate
-            // canvas effect: unit-map-presentation.ts's chooseLead reads
-            // viewerDiplomacy.atWarWith every render() frame from the
-            // renderer's own cached state to decide whether a foreign unit
-            // stack picks its "lead" sprite by combat-defender strength
-            // (selectDefenderForAttack) or by plain id sort -- and the city
-            // the player just tapped to declare this war is on-screen right
-            // now, typically with a garrison stack. Without this refresh that
-            // stack keeps rendering its pre-war (non-hostile) lead unit until
-            // some later unrelated commit happens to flush it. Explicit
-            // refresh here (matching every sibling case in this switch) also
-            // keeps this case consistent regardless of what the conquest
-            // attempt does next.
-            renderLoop.setGameState(session.getState());
-            deps.updateHUD();
             deps.executeMinorCivConquest(selectedId, coord, intent.minorCivId, intent.cityId);
           },
           onCancel: () => selectionController.selectUnit(selectedId),

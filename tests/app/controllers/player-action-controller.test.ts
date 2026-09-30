@@ -72,7 +72,7 @@ function placeSpy(state: GameState, civId: string, spyId: string, overrides: Par
 }
 
 function makeDeps(state: GameState, overrides: Partial<PlayerActionControllerDeps> = {}) {
-  return {
+  const deps = {
     session: createGameSession(state),
     bus: new EventBus(),
     uiLayer: document.createElement('div'),
@@ -92,6 +92,11 @@ function makeDeps(state: GameState, overrides: Partial<PlayerActionControllerDep
     maybeShowPendingHoardChoice: vi.fn(),
     ...overrides,
   };
+  // Mirrors bootstrap.ts: the renderer and HUD are session subscribers, so handlers
+  // publish through `commit`/`batch` instead of refreshing by hand (#1015).
+  deps.session.subscribe(next => deps.renderLoop.setGameState(next));
+  deps.session.subscribe(() => deps.hud.update());
+  return deps;
 }
 
 function build(state: GameState, overrides: Partial<PlayerActionControllerDeps> = {}) {
@@ -499,6 +504,30 @@ describe('PlayerActionController', () => {
       const onComplete = mockedCallArg<() => void>(deps.renderLoop.animations.add, 0, 3);
       onComplete();
       expect(deps.selectionController.selectNextUnit).toHaveBeenCalledTimes(1);
+    });
+
+    it('publishes a whole fight (outcome, combat record, follow-on consequences) exactly once, with the final state (#1015)', () => {
+      // renderLoop.setGameState recomputes several presentations per call, so a handler that
+      // writes six times must not publish six times -- and it must not publish a half-applied
+      // fight either. The batch defers to the end; the selection refresh that follows sees it.
+      const base = buildCombatBaseState('attack-single-publication');
+      base.units['defender-1']!.health = 1;
+      base.cities = {};
+      const state = structuredClone(base);
+      state.turn = 1;
+      const { deps, controller } = build(state);
+      const published: GameState[] = [];
+      deps.session.subscribe(next => published.push(next));
+      let sawPublicationBeforeRefresh = false;
+      vi.mocked(deps.selectionController.refreshSelectedUnitAfterCombat).mockImplementation(() => {
+        sawPublicationBeforeRefresh = published.length === 1;
+      });
+
+      controller.executeAttack('attacker-1', hexKey(state.units['defender-1']!.position));
+
+      expect(published).toHaveLength(1);
+      expect(published[0]).toBe(deps.session.getState());
+      expect(sawPublicationBeforeRefresh).toBe(true);
     });
 
     it('refreshes the open selected-unit panel before returning through the city-capture branch', () => {

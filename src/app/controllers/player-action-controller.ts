@@ -171,14 +171,14 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
     return createUnitTurnFlow({
       uiLayer: deps.uiLayer,
       getState: () => deps.session.getState(),
-      setState: nextState => { deps.session.setStateWithoutRefresh(nextState); },
+      commit: nextState => { deps.session.commit(nextState); },
+      batch: fn => deps.session.batch(fn),
       getSelectedUnitId: () => deps.selection.getSelectedUnitId(),
       selectUnit: deps.selectionController.selectUnit,
       deselectUnit: deps.selectionController.deselectUnit,
       selectNextUnit: deps.selectionController.selectNextUnit,
       centerOn: coord => deps.renderLoop.camera.centerOn(coord),
       refreshVisibility: deps.selectionController.refreshCurrentPlayerVisibility,
-      setRenderState: state => deps.renderLoop.setGameState(state),
       updateHUD: () => deps.hud.update(),
       showNotification: deps.showNotification,
       setBlockingOverlay: deps.setBlockingOverlay,
@@ -196,7 +196,7 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
     const result = applyWorkerAction(deps.session.getState(), selectedUnitId, action);
     if (!result.ok) return;
 
-    deps.session.setStateWithoutRefresh(result.state);
+    deps.session.commit(result.state);
     for (const event of result.events) {
       if (event.type === 'improvement:started') {
         deps.bus.emit('improvement:started', event.payload);
@@ -207,8 +207,6 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
       }
     }
 
-    deps.renderLoop.setGameState(deps.session.getState());
-    deps.hud.update();
 
     if (result.workerConsumed || result.workerLost || !deps.session.getState().units[selectedUnitId]) {
       deps.selectionController.deselectUnit();
@@ -316,58 +314,60 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
       {
         label: `Expel (${relPenalty} relations)`,
         onClick: () => {
-          const updatedOwnerEsp = expelSpy(deps.session.getState().espionage![spyOwner], spyId, 15);
-          const capital = getCapitalCity(deps.session.getState(), spyOwner);
-          if (capital) {
-            const newUnit = createUnit(spy.unitType, spyOwner, capital.position, deps.session.getState().idCounters);
-            deps.session.setStateWithoutRefresh({
+          // Three writes, one publication (#1015).
+          deps.session.batch(() => {
+            const updatedOwnerEsp = expelSpy(deps.session.getState().espionage![spyOwner], spyId, 15);
+            const capital = getCapitalCity(deps.session.getState(), spyOwner);
+            if (capital) {
+              const newUnit = createUnit(spy.unitType, spyOwner, capital.position, deps.session.getState().idCounters);
+              deps.session.commit({
+                ...deps.session.getState(),
+                units: { ...deps.session.getState().units, [newUnit.id]: newUnit },
+                civilizations: {
+                  ...deps.session.getState().civilizations,
+                  [spyOwner]: {
+                    ...deps.session.getState().civilizations[spyOwner],
+                    units: [...deps.session.getState().civilizations[spyOwner].units, newUnit.id],
+                  },
+                },
+              });
+              const { [spyId]: _old, ...rest } = updatedOwnerEsp.spies;
+              deps.session.commit({
+                ...deps.session.getState(),
+                espionage: {
+                  ...deps.session.getState().espionage,
+                  [spyOwner]: {
+                    ...updatedOwnerEsp,
+                    spies: { ...rest, [newUnit.id]: { ...updatedOwnerEsp.spies[spyId]!, id: newUnit.id } },
+                  },
+                },
+              });
+            } else {
+              deps.session.commit({ ...deps.session.getState(), espionage: { ...deps.session.getState().espionage, [spyOwner]: updatedOwnerEsp } });
+            }
+            // Bilateral: captor's view of spy owner AND spy owner's view of captor
+            const captorId = deps.session.getState().currentPlayer;
+            const expelTurn = deps.session.getState().turn;
+            deps.session.commit({
               ...deps.session.getState(),
-              units: { ...deps.session.getState().units, [newUnit.id]: newUnit },
               civilizations: {
                 ...deps.session.getState().civilizations,
+                [captorId]: {
+                  ...deps.session.getState().civilizations[captorId],
+                  diplomacy: recordSpyCaught(modifyRelationship(
+                    deps.session.getState().civilizations[captorId].diplomacy, spyOwner, relPenalty,
+                  ), spyOwner, expelTurn),
+                },
                 [spyOwner]: {
                   ...deps.session.getState().civilizations[spyOwner],
-                  units: [...deps.session.getState().civilizations[spyOwner].units, newUnit.id],
+                  diplomacy: recordSpyCaught(modifyRelationship(
+                    deps.session.getState().civilizations[spyOwner].diplomacy, captorId, relPenalty,
+                  ), captorId, expelTurn),
                 },
               },
             });
-            const { [spyId]: _old, ...rest } = updatedOwnerEsp.spies;
-            deps.session.setStateWithoutRefresh({
-              ...deps.session.getState(),
-              espionage: {
-                ...deps.session.getState().espionage,
-                [spyOwner]: {
-                  ...updatedOwnerEsp,
-                  spies: { ...rest, [newUnit.id]: { ...updatedOwnerEsp.spies[spyId]!, id: newUnit.id } },
-                },
-              },
-            });
-          } else {
-            deps.session.setStateWithoutRefresh({ ...deps.session.getState(), espionage: { ...deps.session.getState().espionage, [spyOwner]: updatedOwnerEsp } });
-          }
-          // Bilateral: captor's view of spy owner AND spy owner's view of captor
-          const captorId = deps.session.getState().currentPlayer;
-          const expelTurn = deps.session.getState().turn;
-          deps.session.setStateWithoutRefresh({
-            ...deps.session.getState(),
-            civilizations: {
-              ...deps.session.getState().civilizations,
-              [captorId]: {
-                ...deps.session.getState().civilizations[captorId],
-                diplomacy: recordSpyCaught(modifyRelationship(
-                  deps.session.getState().civilizations[captorId].diplomacy, spyOwner, relPenalty,
-                ), spyOwner, expelTurn),
-              },
-              [spyOwner]: {
-                ...deps.session.getState().civilizations[spyOwner],
-                diplomacy: recordSpyCaught(modifyRelationship(
-                  deps.session.getState().civilizations[spyOwner].diplomacy, captorId, relPenalty,
-                ), captorId, expelTurn),
-              },
-            },
+            deps.showNotification(`${spy.name} expelled. Will return to their capital after 15 turns.`, 'info');
           });
-          deps.showNotification(`${spy.name} expelled. Will return to their capital after 15 turns.`, 'info');
-          deps.renderLoop.setGameState(deps.session.getState());
         },
       },
       {
@@ -388,7 +388,7 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
                 onClick: () => {
                   const captorId = deps.session.getState().currentPlayer;
                   const executeTurn = deps.session.getState().turn;
-                  deps.session.setStateWithoutRefresh({
+                  deps.session.commit({
                     ...deps.session.getState(),
                     espionage: {
                       ...deps.session.getState().espionage,
@@ -415,7 +415,6 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
                     executingCivId: captorId, spyOwner, spyId, spyName: spy.name,
                   });
                   deps.showNotification(`${spy.name} has been executed.`, 'warning');
-                  deps.renderLoop.setGameState(deps.session.getState());
                 },
               },
             ],
@@ -426,7 +425,7 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
         label: 'Interrogate (4 turns)',
         onClick: () => {
           const ownerEsp = deps.session.getState().espionage![spyOwner];
-          deps.session.setStateWithoutRefresh({
+          deps.session.commit({
             ...deps.session.getState(),
             espionage: {
               ...deps.session.getState().espionage,
@@ -442,7 +441,6 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
             },
           });
           deps.showNotification(`${spy.name} is being interrogated. Check the Intel panel for results.`, 'info');
-          deps.renderLoop.setGameState(deps.session.getState());
         },
       },
     ]);
@@ -501,21 +499,21 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
       );
       return;
     }
-    deps.session.setStateWithoutRefresh(result.state);
+    // One publication, after the new city's visibility is recomputed.
+    deps.session.batch(() => {
+      deps.session.commit(result.state);
 
-    deps.selectionController.deselectUnit();
-    const foundedCity = deps.session.getState().cities[result.cityId];
-    deps.showNotification(`${foundedCity.name} has been founded!`, 'success');
-    SFX.foundCity();
+      deps.selectionController.deselectUnit();
+      const foundedCity = deps.session.getState().cities[result.cityId];
+      deps.showNotification(`${foundedCity.name} has been founded!`, 'success');
+      SFX.foundCity();
 
-    // Update visibility
-    updateAndRefreshVisibility(deps.session.getState(), deps.session.getState().currentPlayer);
-    for (const contact of syncCivilizationContactsFromVisibility(deps.session.getState(), deps.session.getState().currentPlayer)) {
-      deps.bus.emit('civilization:first-contact', contact);
-    }
-
-    deps.renderLoop.setGameState(deps.session.getState());
-    deps.hud.update();
+      // Update visibility
+      updateAndRefreshVisibility(deps.session.getState(), deps.session.getState().currentPlayer);
+      for (const contact of syncCivilizationContactsFromVisibility(deps.session.getState(), deps.session.getState().currentPlayer)) {
+        deps.bus.emit('civilization:first-contact', contact);
+      }
+    });
   }
 
   /**
@@ -539,7 +537,7 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
       return;
     }
 
-    deps.session.setStateWithoutRefresh(bombardment.state);
+    deps.session.commit(bombardment.state);
     if (bombardment.cityEvent) deps.bus.emit('city:bombarded', bombardment.cityEvent);
     if (bombardment.batteryEvent) deps.bus.emit('city:coastal-battery-fired', bombardment.batteryEvent);
     // Bombardment gets its own duller cue, distinct from a unit-vs-unit exchange (#974).
@@ -554,8 +552,6 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
       bombardment.attackerDied ? 'warning' : 'info',
     );
 
-    deps.renderLoop.setGameState(after);
-    deps.hud.update();
     deps.selectionController.refreshSelectedUnitAfterCombat();
     deps.selectionController.selectNextUnit();
   }
@@ -573,7 +569,7 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
     // The unit may have died to counter-fire, or the city may already be gone.
     if (!unit || !city) return;
 
-    deps.session.setStateWithoutRefresh({
+    deps.session.commit({
       ...state,
       units: {
         ...state.units,
@@ -581,7 +577,6 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
       },
     });
     deps.showNotification(`Your unit will keep bombarding ${city.name}.`, 'info');
-    deps.renderLoop.setGameState(deps.session.getState());
   }
 
   function beginPlayerCityAssault(
@@ -607,7 +602,7 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
       attackerMultiplier = getAmphibiousAssaultMultiplier(deps.session.getState(), attacker, city.position);
       const detached = detachCargoForEmbarkedAssault(deps.session.getState(), attackerId);
       if (!detached.ok) return 'resolved';
-      deps.session.setStateWithoutRefresh(detached.state);
+      deps.session.commit(detached.state);
     }
     const begun = beginPlayerCityAssaultChoice(
       deps.session.getState(),
@@ -617,7 +612,7 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
       precedingCombat,
       attackerMultiplier,
     );
-    deps.session.setStateWithoutRefresh(begun.state);
+    deps.session.commit(begun.state);
 
     if (!begun.ok) {
       deps.showNotification(
@@ -626,8 +621,6 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
           : 'The attack could not proceed.',
         'warning',
       );
-      deps.renderLoop.setGameState(deps.session.getState());
-      deps.hud.update();
       return 'resolved';
     }
 
@@ -685,7 +678,7 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
     }
 
     const banditLordName = camp.banditLordName;
-    deps.session.setStateWithoutRefresh({
+    deps.session.commit({
       ...state,
       units: {
         ...state.units,
@@ -700,7 +693,7 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
       deps.session.getState().turn,
     );
     if (destroyedCamp.campId) {
-      deps.session.setStateWithoutRefresh(destroyedCamp.state);
+      deps.session.commit(destroyedCamp.state);
       emitMinorCivQuestTransitions(deps.bus, destroyedCamp.questTransitions, deps.session.getState());
       const label = banditLordName ? `${banditLordName}'s camp` : 'Barbarian camp';
       deps.showNotification(`${label} destroyed! +${destroyedCamp.reward} gold`, 'success');
@@ -712,8 +705,6 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
     }
 
     SFX.combat();
-    deps.renderLoop.setGameState(deps.session.getState());
-    deps.hud.update();
   }
 
   function executeAttack(attackerId: string, targetKey: string): void {
@@ -746,11 +737,9 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
         deps.showNotification('That city cannot be bombarded by this unit.', 'warning');
         return;
       }
-      deps.session.setStateWithoutRefresh(bombardment.state);
+      deps.session.commit(bombardment.state);
       if (bombardment.cityEvent) deps.bus.emit('city:bombarded', bombardment.cityEvent);
       if (bombardment.batteryEvent) deps.bus.emit('city:coastal-battery-fired', bombardment.batteryEvent);
-      deps.renderLoop.setGameState(deps.session.getState());
-      deps.hud.update();
       deps.selectionController.refreshSelectedUnitAfterCombat();
       deps.selectionController.selectNextUnit();
       return;
@@ -772,7 +761,7 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
         deps.showNotification('That coastal assault is no longer possible.', 'warning');
         return;
       }
-      deps.session.setStateWithoutRefresh(detached.state);
+      deps.session.commit(detached.state);
       attacker = detached.attacker;
     }
 
@@ -799,104 +788,108 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
       ...buildCombatPresentation(deps.session.getState(), result, attacker, defender),
     });
 
-    const applied = applyCombatOutcomeToState(deps.session.getState(), result, seed, deps.bus);
-    deps.session.setStateWithoutRefresh(applied.state);
-    deps.session.setStateWithoutRefresh(recordCombatForCiv(deps.session.getState(), deps.session.getState().currentPlayer, defenderPosition));
-    emitMinorCivQuestTransitions(deps.bus, applied.questTransitions, deps.session.getState());
-    // Clean up trade routes for any committed caravans that died or were captured
-    if (applied.attackerDefeated && attackerRouteId) {
-      deps.session.setStateWithoutRefresh(removeRouteForUnit(deps.session.getState(), result.attackerId, deps.bus, 'unit-died', attackerRouteId));
-    } else if (applied.attackerCaptured && attackerRouteId) {
-      deps.session.setStateWithoutRefresh(removeRouteForUnit(deps.session.getState(), result.attackerId, deps.bus, 'unit-captured', attackerRouteId));
-    }
-    if (applied.defenderDefeated && defenderRouteId) {
-      deps.session.setStateWithoutRefresh(removeRouteForUnit(deps.session.getState(), result.defenderId, deps.bus, 'unit-died', defenderRouteId));
-    } else if (applied.defenderCaptured && defenderRouteId) {
-      deps.session.setStateWithoutRefresh(removeRouteForUnit(deps.session.getState(), result.defenderId, deps.bus, 'unit-captured', defenderRouteId));
-    }
-
-    if (applied.attackerDefeated) {
-      deps.showNotification('Our unit was destroyed!', 'warning');
-    } else if (applied.attackerCaptured) {
-      deps.showNotification(`Our ${getCaptureNotificationLabel(attacker.type)}`, 'warning');
-    }
-
-    for (const reward of applied.rewards) {
-      deps.bus.emit('combat:reward-earned', { reward });
-    }
-
-    if (applied.defenderDefeated) {
-      deps.showNotification('Enemy unit destroyed!', 'success');
-
-      const slayResult = recordBeastSlain(deps.session.getState(), defender, attacker);
-      deps.session.setStateWithoutRefresh(slayResult.state);
-      if (slayResult.slain) {
-        deps.bus.emit('beast:slain', slayResult.slain);
+    // Every state write of the fight, its consequences and any city assault it triggers is one
+    // publication (#1015): renderLoop.setGameState recomputes several presentations, and the
+    // UI that follows (selection refresh, animation) must see the published final state.
+    const assault = deps.session.batch((): { assaultStatus: 'pending' | 'resolved' } | null => {
+      const applied = applyCombatOutcomeToState(deps.session.getState(), result, seed, deps.bus);
+      deps.session.commit(applied.state);
+      deps.session.commit(recordCombatForCiv(deps.session.getState(), deps.session.getState().currentPlayer, defenderPosition));
+      emitMinorCivQuestTransitions(deps.bus, applied.questTransitions, deps.session.getState());
+      // Clean up trade routes for any committed caravans that died or were captured
+      if (applied.attackerDefeated && attackerRouteId) {
+        deps.session.commit(removeRouteForUnit(deps.session.getState(), result.attackerId, deps.bus, 'unit-died', attackerRouteId));
+      } else if (applied.attackerCaptured && attackerRouteId) {
+        deps.session.commit(removeRouteForUnit(deps.session.getState(), result.attackerId, deps.bus, 'unit-captured', attackerRouteId));
       }
-      // Tier 3+ beasts use the slay ceremony (beast:slain listener); ceremony calls
-      // maybeShowPendingHoardChoice via onContinue so the choice panel appears after
-      // the ceremony is dismissed rather than racing with it.
-      if (!slayResult.slain || BEAST_DEFINITIONS[slayResult.slain.beastId].tier < 3) {
-        deps.maybeShowPendingHoardChoice();
+      if (applied.defenderDefeated && defenderRouteId) {
+        deps.session.commit(removeRouteForUnit(deps.session.getState(), result.defenderId, deps.bus, 'unit-died', defenderRouteId));
+      } else if (applied.defenderCaptured && defenderRouteId) {
+        deps.session.commit(removeRouteForUnit(deps.session.getState(), result.defenderId, deps.bus, 'unit-captured', defenderRouteId));
       }
 
-      const destroyedCamp = applyCampDestructionAtTarget(deps.session.getState(), deps.session.getState().currentPlayer, defender.position, deps.session.getState().turn);
-      if (destroyedCamp.campId) {
-        deps.session.setStateWithoutRefresh(destroyedCamp.state);
-        emitMinorCivQuestTransitions(deps.bus, destroyedCamp.questTransitions, deps.session.getState());
-        deps.showNotification(`Barbarian camp destroyed! +${destroyedCamp.reward} gold`, 'success');
-        deps.advisorSystem.resetMessage('treasurer_camp_reward');
-        deps.advisorSystem.check(deps.session.getState());
-        for (const mcId of Object.keys(deps.session.getState().minorCivs)) {
-          applyDiplomaticReaction(deps.session.getState(), 'camp_destroyed_nearby', deps.session.getState().currentPlayer, mcId);
+      if (applied.attackerDefeated) {
+        deps.showNotification('Our unit was destroyed!', 'warning');
+      } else if (applied.attackerCaptured) {
+        deps.showNotification(`Our ${getCaptureNotificationLabel(attacker.type)}`, 'warning');
+      }
+
+      for (const reward of applied.rewards) {
+        deps.bus.emit('combat:reward-earned', { reward });
+      }
+
+      if (applied.defenderDefeated) {
+        deps.showNotification('Enemy unit destroyed!', 'success');
+
+        const slayResult = recordBeastSlain(deps.session.getState(), defender, attacker);
+        deps.session.commit(slayResult.state);
+        if (slayResult.slain) {
+          deps.bus.emit('beast:slain', slayResult.slain);
         }
-      }
+        // Tier 3+ beasts use the slay ceremony (beast:slain listener); ceremony calls
+        // maybeShowPendingHoardChoice via onContinue so the choice panel appears after
+        // the ceremony is dismissed rather than racing with it.
+        if (!slayResult.slain || BEAST_DEFINITIONS[slayResult.slain.beastId].tier < 3) {
+          deps.maybeShowPendingHoardChoice();
+        }
 
-      const cityAtTarget = Object.values(deps.session.getState().cities).find(c => hexKey(c.position) === targetKey);
-      if (cityAtTarget) {
-        const occupancy = buildUnitOccupancy(deps.session.getState().units);
-        const remainingHostileDefenders = hasHostileUnitAtCoord(occupancy, cityAtTarget.position, deps.session.getState().currentPlayer);
-        if (!remainingHostileDefenders) {
-          if (cityAtTarget.owner.startsWith('mc-')) {
-            const conqueredCityName = cityAtTarget.name;
-            const beforeConquest = deps.session.getState();
-            const conquered = conquestMinorCiv(beforeConquest, cityAtTarget.owner, beforeConquest.currentPlayer);
-            deps.session.setStateWithoutRefresh(conquered.state);
-            emitMinorCivLeagueNotices(beforeConquest, conquered.state, deps.bus);
-            emitMinorCivQuestTransitions(deps.bus, conquered.transitions, deps.session.getState());
-            if (conquered.conquered) {
-              deps.bus.emit('minor-civ:destroyed', { minorCivId: cityAtTarget.owner, conquerorId: deps.session.getState().currentPlayer });
-            }
-            deps.showNotification(`${conqueredCityName} has been conquered!`, 'success');
-          }
-          if (!cityAtTarget.owner.startsWith('mc-') && cityAtTarget.owner !== deps.session.getState().currentPlayer) {
-            const assaultStatus = beginPlayerCityAssault(
-              attackerId,
-              cityAtTarget.id,
-              attackerBonus,
-              result,
-              amphibiousAssault,
-            );
-            SFX.combat();
-            deps.renderLoop.setGameState(deps.session.getState());
-            deps.hud.update();
-            deps.selectionController.refreshSelectedUnitAfterCombat();
-            if (assaultStatus === 'resolved') {
-              setTimeout(() => deps.selectionController.selectNextUnit(), 400);
-            }
-            return;
+        const destroyedCamp = applyCampDestructionAtTarget(deps.session.getState(), deps.session.getState().currentPlayer, defender.position, deps.session.getState().turn);
+        if (destroyedCamp.campId) {
+          deps.session.commit(destroyedCamp.state);
+          emitMinorCivQuestTransitions(deps.bus, destroyedCamp.questTransitions, deps.session.getState());
+          deps.showNotification(`Barbarian camp destroyed! +${destroyedCamp.reward} gold`, 'success');
+          deps.advisorSystem.resetMessage('treasurer_camp_reward');
+          deps.advisorSystem.check(deps.session.getState());
+          for (const mcId of Object.keys(deps.session.getState().minorCivs)) {
+            applyDiplomaticReaction(deps.session.getState(), 'camp_destroyed_nearby', deps.session.getState().currentPlayer, mcId);
           }
         }
+
+        const cityAtTarget = Object.values(deps.session.getState().cities).find(c => hexKey(c.position) === targetKey);
+        if (cityAtTarget) {
+          const occupancy = buildUnitOccupancy(deps.session.getState().units);
+          const remainingHostileDefenders = hasHostileUnitAtCoord(occupancy, cityAtTarget.position, deps.session.getState().currentPlayer);
+          if (!remainingHostileDefenders) {
+            if (cityAtTarget.owner.startsWith('mc-')) {
+              const conqueredCityName = cityAtTarget.name;
+              const beforeConquest = deps.session.getState();
+              const conquered = conquestMinorCiv(beforeConquest, cityAtTarget.owner, beforeConquest.currentPlayer);
+              deps.session.commit(conquered.state);
+              emitMinorCivLeagueNotices(beforeConquest, conquered.state, deps.bus);
+              emitMinorCivQuestTransitions(deps.bus, conquered.transitions, deps.session.getState());
+              if (conquered.conquered) {
+                deps.bus.emit('minor-civ:destroyed', { minorCivId: cityAtTarget.owner, conquerorId: deps.session.getState().currentPlayer });
+              }
+              deps.showNotification(`${conqueredCityName} has been conquered!`, 'success');
+            }
+            if (!cityAtTarget.owner.startsWith('mc-') && cityAtTarget.owner !== deps.session.getState().currentPlayer) {
+              const assaultStatus = beginPlayerCityAssault(
+                attackerId,
+                cityAtTarget.id,
+                attackerBonus,
+                result,
+                amphibiousAssault,
+              );
+              return { assaultStatus };
+            }
+          }
+        }
+      } else if (applied.defenderCaptured) {
+        deps.showNotification(getCaptureNotificationLabel(defender.type), 'success');
       }
-    } else if (applied.defenderCaptured) {
-      deps.showNotification(getCaptureNotificationLabel(defender.type), 'success');
+      return null;
+    });
+
+    SFX.combat();
+    deps.selectionController.refreshSelectedUnitAfterCombat();
+    if (assault) {
+      if (assault.assaultStatus === 'resolved') {
+        setTimeout(() => deps.selectionController.selectNextUnit(), 400);
+      }
+      return;
     }
 
     // `attacker` was captured before applyCombatOutcomeToState — safe even if attacker was destroyed
-    SFX.combat();
-    deps.renderLoop.setGameState(deps.session.getState());
-    deps.hud.update();
-    deps.selectionController.refreshSelectedUnitAfterCombat();
     deps.renderLoop.animations.add('combat-flash', 400, { coord: attacker.position }, () => deps.selectionController.selectNextUnit());
   }
 

@@ -146,6 +146,41 @@ describe('GameSessionController', () => {
     });
   });
 
+  describe('pause-menu preference toggles publish to session subscribers (#1015)', () => {
+    function openPauseMenu(state: GameState) {
+      const deps = baseDeps(state);
+      const gameSession = createGameSessionController(deps);
+      gameSession.createUI();
+      const published: GameState[] = [];
+      deps.session.subscribe(next => published.push(next));
+      (document.getElementById('btn-pause-menu') as HTMLButtonElement).click();
+      return { deps, published };
+    }
+
+    it('flipping Superweapons refreshes subscribers, because the HUD strategic-arsenal button is gated on it', () => {
+      const state = makeFixture();
+      state.settings.superweapons = 'off';
+      const { deps, published } = openPauseMenu(state);
+
+      (document.querySelector('[data-superweapons-option="on"]') as HTMLButtonElement).click();
+
+      expect(deps.session.getState().settings.superweapons).toBe('on');
+      // RED before #1015: this write was silent, so the HUD kept hiding the button until an unrelated refresh.
+      expect(published).toHaveLength(1);
+      expect(published[0]).toBe(deps.session.getState());
+    });
+
+    it('changing the supply-warning preference also publishes', () => {
+      const state = makeFixture();
+      const { deps, published } = openPauseMenu(state);
+
+      (document.querySelector('[data-supply-warning-option="off"]') as HTMLButtonElement).click();
+
+      expect(deps.session.getState().settings.supplyWarningPreference).toBe('off');
+      expect(published).toHaveLength(1);
+    });
+  });
+
   describe('startGame', () => {
     it('mounts the drawer, refreshes the map/HUD, autosaves, and starts the render loop', async () => {
       const state = makeFixture();

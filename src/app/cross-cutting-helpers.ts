@@ -44,7 +44,7 @@
  *   (the `bootstrap({...})` call) and was inlined directly there instead of
  *   moved here at all.
  */
-import type { GameSession, SelectionStore, Notifier } from '@/app/ports';
+import type { GameSession, SelectionStore, Notifier, UnpublishedStateWriter } from '@/app/ports';
 import type { RenderLoop } from '@/renderer/render-loop';
 import type { EventBus } from '@/core/event-bus';
 import type { Civilization, CivDefinition } from '@/core/types';
@@ -83,7 +83,7 @@ export function prefersReducedMotion(): boolean {
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-export function scanBeastSightings(session: GameSession, bus: EventBus): void {
+export function scanBeastSightings(session: GameSession, unpublished: UnpublishedStateWriter, bus: EventBus): void {
   const visTiles = getCurrentCiv(session)?.visibility?.tiles;
   if (!visTiles) return;
   const state = session.getState();
@@ -98,7 +98,9 @@ export function scanBeastSightings(session: GameSession, bus: EventBus): void {
     }
   }
   const sightingResult = recordBeastSightings(state, state.currentPlayer, visibleKeys);
-  session.setStateWithoutRefresh(sightingResult.state);
+  // Runs inside every visibility refresh (which can itself execute during a publication) and
+  // writes only sighting bookkeeping no renderer/HUD/panel projects, so it must not re-publish.
+  unpublished.adopt(sightingResult.state, 'derived-bookkeeping');
   for (const beastId of sightingResult.newSightings) {
     bus.emit('beast:sighted', { beastId, civId: state.currentPlayer });
   }
@@ -186,8 +188,6 @@ export function notifyPlayer(
 export interface ApplyPirateActionResultDeps {
   readonly session: GameSession;
   readonly bus: EventBus;
-  readonly renderLoop: Pick<RenderLoop, 'setGameState'>;
-  readonly updateHUD: () => void;
   readonly showNotification: (message: string, type?: NotificationEntry['type']) => void;
 }
 
@@ -200,7 +200,7 @@ export function applyPirateActionResult(
     deps.showNotification(result.reason ?? 'That pirate action is no longer available.', 'warning');
     return;
   }
-  deps.session.setStateWithoutRefresh(result.state);
+  deps.session.commit(result.state);
   for (const event of result.events) {
     if (event.type === 'tribute-paid') {
       deps.bus.emit('pirate:audio-cue', { cue: 'tribute', factionId: event.factionId, viewerIds: [event.civId] });
@@ -208,7 +208,5 @@ export function applyPirateActionResult(
       deps.bus.emit('pirate:audio-cue', { cue: 'contract-accepted', factionId: event.factionId, viewerIds: [event.employerId] });
     }
   }
-  deps.renderLoop.setGameState(deps.session.getState());
-  deps.updateHUD();
   deps.showNotification(successMessage, 'success');
 }

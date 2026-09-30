@@ -21,7 +21,8 @@ import { createGameSession } from '@/app/game-session';
  * cast reproduces that binding's pre-assignment `undefined` so the existing
  * `if (session.getState())` guards keep their current meaning.
  */
-const session: GameSession = createGameSession(undefined as unknown as GameState);
+const sessionHandle = createGameSession(undefined as unknown as GameState);
+const session: GameSession = sessionHandle;
 /**
  * Owns the selected unit, its highlight ranges, the pirate-panel focus, and the
  * pending-map-intent union that replaced four independent nullable flags.
@@ -81,6 +82,7 @@ const composition: AppComposition = createAppComposition({
   roundPresentationGate,
   advisorSystem,
   session,
+  unpublished: sessionHandle.unpublished,
   selection,
   userSettingsStore,
   getNotifier: () => notifierBox.current!,

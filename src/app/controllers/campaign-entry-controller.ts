@@ -19,7 +19,7 @@
 import type { EventBus } from '@/core/event-bus';
 import type { AudioSystem } from '@/audio/audio-system';
 import type { GameState } from '@/core/types';
-import type { GameSession } from '@/app/ports';
+import type { GameSession, UnpublishedStateWriter } from '@/app/ports';
 import type { PanelHost } from '@/app/panel-host';
 import type { UserSettingsStore } from '@/app/user-settings-store';
 import type { TurnFlowController } from '@/app/controllers/turn-flow-controller';
@@ -49,6 +49,8 @@ export interface CampaignEntryController {
 
 export interface CampaignEntryControllerDeps {
   readonly session: GameSession;
+  /** #1015: `pre-world-entry` / `viewer-not-yet-revealed` are the only reasons this controller may write silently. */
+  readonly unpublished: UnpublishedStateWriter;
   readonly uiLayer: HTMLDivElement;
   readonly audio: Pick<AudioSystem, 'setMasterVolume'>;
   readonly bus: EventBus;
@@ -70,7 +72,7 @@ export function createCampaignEntryController(deps: CampaignEntryControllerDeps)
     persistBeforeReady: boolean = false,
   ): Promise<void> | null {
     deps.getElementById('save-panel')?.remove();
-    deps.session.setStateWithoutRefresh(applyPersistedUserSettings(state, deps.userSettingsStore.getPersisted()));
+    deps.unpublished.adopt(applyPersistedUserSettings(state, deps.userSettingsStore.getPersisted()), 'pre-world-entry');
     if (deps.session.getState().gameOver) {
       const spritesReady = deps.startGame();
       deps.turnFlow.handleVictoryIfNeeded();
@@ -103,7 +105,7 @@ export function createCampaignEntryController(deps: CampaignEntryControllerDeps)
             viewerId,
             summary,
           );
-          deps.session.setStateWithoutRefresh(acknowledgement.state);
+          deps.unpublished.adopt(acknowledgement.state, 'viewer-not-yet-revealed');
           try {
             await autoSave(deps.session.getState());
           } catch {
@@ -233,7 +235,7 @@ export function createCampaignEntryController(deps: CampaignEntryControllerDeps)
               startPlacementMode: config.startPlacementMode,
               opponentChallenge: config.opponentChallenge,
             });
-            deps.session.setStateWithoutRefresh(applyCouncilTalkLevelOverride(newGame, currentSettings.councilTalkLevel));
+            deps.unpublished.adopt(applyCouncilTalkLevelOverride(newGame, currentSettings.councilTalkLevel), 'pre-world-entry');
             deps.startGame();
           },
           onCustomCivilizationsChanged: (customCivilizations) => {
@@ -251,7 +253,7 @@ export function createCampaignEntryController(deps: CampaignEntryControllerDeps)
         showHotSeatSetup(deps.uiLayer, {
           onComplete: (config, opponentChallenge) => {
             const newGame = createHotSeatGame(config, undefined, title, opponentChallenge ?? 'standard');
-            deps.session.setStateWithoutRefresh(applyCouncilTalkLevelOverride(newGame, currentSettings.councilTalkLevel));
+            deps.unpublished.adopt(applyCouncilTalkLevelOverride(newGame, currentSettings.councilTalkLevel), 'pre-world-entry');
             enterCampaign(
               deps.session.getState(),
               `Hot seat game started! ${config.players.filter(p => p.isHuman).length} players`,

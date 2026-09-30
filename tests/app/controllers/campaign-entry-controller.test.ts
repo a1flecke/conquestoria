@@ -81,10 +81,12 @@ function makeHotSeatFixture(): GameState {
 }
 
 function baseDeps(state: GameState, overrides: Partial<CampaignEntryControllerDeps> = {}): CampaignEntryControllerDeps {
-  const session = overrides.session ?? createGameSession(state);
+  const handle = createGameSession(state);
+  const session = overrides.session ?? handle;
   const host = createPanelHost(document.createElement('div'));
   return {
     session,
+    unpublished: handle.unpublished,
     uiLayer: document.createElement('div'),
     audio: { setMasterVolume: vi.fn() },
     bus: new EventBus(),

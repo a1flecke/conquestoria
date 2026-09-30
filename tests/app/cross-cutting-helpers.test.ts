@@ -132,7 +132,7 @@ describe('scanBeastSightings', () => {
     const bus = new EventBus();
     const emit = vi.spyOn(bus, 'emit');
 
-    scanBeastSightings(session, bus);
+    scanBeastSightings(session, session.unpublished, bus);
 
     expect(session.getState().beasts!.sightingsByCiv.player ?? []).toEqual([]);
     expect(emit).not.toHaveBeenCalled();
@@ -145,7 +145,7 @@ describe('scanBeastSightings', () => {
     const bus = new EventBus();
     const emit = vi.spyOn(bus, 'emit');
 
-    scanBeastSightings(session, bus);
+    scanBeastSightings(session, session.unpublished, bus);
 
     expect(session.getState().beasts!.sightingsByCiv.player).toEqual(['giant_boar']);
     expect(emit).toHaveBeenCalledWith('beast:sighted', { beastId: 'giant_boar', civId: 'player' });
@@ -159,7 +159,7 @@ describe('scanBeastSightings', () => {
     const bus = new EventBus();
     const emit = vi.spyOn(bus, 'emit');
 
-    scanBeastSightings(session, bus);
+    scanBeastSightings(session, session.unpublished, bus);
 
     expect(emit).not.toHaveBeenCalled();
   });
@@ -352,13 +352,17 @@ describe('notifyPlayer', () => {
 
 describe('applyPirateActionResult', () => {
   function makeDeps(state: GameState) {
-    return {
+    const deps = {
       session: createGameSession(state),
       bus: new EventBus(),
       renderLoop: { setGameState: vi.fn() },
       updateHUD: vi.fn(),
       showNotification: vi.fn(),
     };
+    // Mirrors bootstrap.ts: renderer and HUD are session subscribers (#1015).
+    deps.session.subscribe(next => deps.renderLoop.setGameState(next));
+    deps.session.subscribe(() => deps.updateHUD());
+    return deps;
   }
 
   it('shows the failure reason and does not touch state on failure', () => {

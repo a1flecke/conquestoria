@@ -35,7 +35,7 @@ import type { RenderLoop } from '@/renderer/render-loop';
 import type { AudioSystem } from '@/audio/audio-system';
 import type { UnitTurnFlow } from '@/ui/unit-turn-flow';
 import type { GameState, HexCoord, Unit, Civilization, CivBonusEffect } from '@/core/types';
-import type { GameSession, SelectionStore, Notifier } from '@/app/ports';
+import type { GameSession, SelectionStore, Notifier, UnpublishedStateWriter } from '@/app/ports';
 import type { PanelRouter } from '@/app/panel-router';
 import type { CeremonyCoordinator } from '@/app/controllers/ceremony-coordinator';
 import type { UserSettingsStore } from '@/app/user-settings-store';
@@ -93,6 +93,8 @@ type AIMoveRecord = {
 
 export interface TurnFlowControllerDeps {
   readonly session: GameSession;
+  /** #1015: hot-seat handoff (`viewer-not-yet-revealed`) and solo round adoption (`presentation-deferred`) are the only silent writes here. */
+  readonly unpublished: UnpublishedStateWriter;
   readonly selection: SelectionStore;
   readonly renderLoop: TurnFlowRenderer;
   /**
@@ -159,7 +161,7 @@ export interface TurnFlowController {
 }
 
 export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlowController {
-  const { session, selection, renderLoop, bus, uiLayer, audio, router, roundPresentationGate, ceremonies, notifier, userSettingsStore } = deps;
+  const { session, unpublished, selection, renderLoop, bus, uiLayer, audio, router, roundPresentationGate, ceremonies, notifier, userSettingsStore } = deps;
 
   function closeRequiredChoicePanel(): void {
     deps.getElementById('required-choice-panel')?.remove();
@@ -186,12 +188,10 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
     createReligionBoonModal(uiLayer, {
       religionName: ownReligion.name,
       onChooseBoon: (boon) => {
-        session.setStateWithoutRefresh(chooseBoon(session.getState(), ownReligion.id, boon));
+        session.commit(chooseBoon(session.getState(), ownReligion.id, boon));
         deps.getElementById('religion-boon-modal')?.remove();
         deps.setBlockingOverlay(null);
         deps.showNotification(`${ownReligion.name} now grants ${boon}.`, 'success');
-        renderLoop.setGameState(session.getState());
-        deps.updateHUD();
       },
     });
     return true;
@@ -333,30 +333,29 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
 
     selection.setPendingIntent({ kind: 'none' });
     deps.getElementById('city-capture-panel')?.remove();
-    session.setStateWithoutRefresh(result.state);
-    deps.refreshVictoryProgressPanel();
-    emitMajorCityCaptureEvents(
-      beforeCapture,
-      result,
-      pending.cityId,
-      session.getState().currentPlayer,
-      previousOwner,
-      bus,
-    );
+    session.batch(() => {
+      session.commit(result.state);
+      deps.refreshVictoryProgressPanel();
+      emitMajorCityCaptureEvents(
+        beforeCapture,
+        result,
+        pending.cityId,
+        session.getState().currentPlayer,
+        previousOwner,
+        bus,
+      );
 
-    if (result.outcome === 'occupied') {
-      const capturingCiv = deps.currentCiv();
-      if (capturingCiv && attackerBonus?.type === 'naval_raiding') {
-        capturingCiv.gold += 30;
-        deps.showNotification('Viking raid spoils! +30 gold', 'success');
+      if (result.outcome === 'occupied') {
+        const capturingCiv = deps.currentCiv();
+        if (capturingCiv && attackerBonus?.type === 'naval_raiding') {
+          capturingCiv.gold += 30;
+          deps.showNotification('Viking raid spoils! +30 gold', 'success');
+        }
+        deps.showNotification(`We have captured ${cityName}!`, 'success');
+      } else {
+        deps.showNotification(`${cityName} was razed! +${result.goldAwarded} gold`, 'success');
       }
-      deps.showNotification(`We have captured ${cityName}!`, 'success');
-    } else {
-      deps.showNotification(`${cityName} was razed! +${result.goldAwarded} gold`, 'success');
-    }
-
-    renderLoop.setGameState(session.getState());
-    deps.updateHUD();
+    });
     setTimeout(() => deps.selectNextUnit(), 400);
   }
 
@@ -468,7 +467,7 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
     const viewerId = session.getState().currentPlayer;
     if (!session.getState().civilizations[viewerId]?.isHuman) return;
     const result = beginNetworkPlansForVictimTurn(session.getState(), viewerId);
-    session.setStateWithoutRefresh(result.state);
+    unpublished.adopt(result.state, 'presentation-deferred');
     for (const warning of result.warnings) {
       const plan = Object.values(session.getState().autonomyByCiv ?? {})
         .map(autonomy => autonomy.plans[warning.planId])
@@ -492,8 +491,9 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
   /** Renamed from `releaseHandoffToViewer` -- see file docblock. */
   function enterViewerTurn(nextSlotId: string): void {
     centerOnCurrentPlayer();
-    renderLoop.setGameState(session.getState());
-    deps.updateHUD();
+    // The viewer is revealed: publish the state adopted under the handoff veil
+    // ('viewer-not-yet-revealed') to the renderer, HUD and panels in one step (#1015).
+    session.commit(session.getState());
     deps.scanBeastSightings();
     deps.scanSubmarineSightings();
     deps.maybeShowPendingHoardChoice();
@@ -559,7 +559,7 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
             resolvedNextSlotId,
             summary,
           );
-          session.setStateWithoutRefresh(acknowledgement.state);
+          unpublished.adopt(acknowledgement.state, 'viewer-not-yet-revealed');
           beginNetworkPlansForCurrentViewer();
           let acknowledgementFailed = false;
           try {
@@ -603,7 +603,7 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
 
     if (!completesRound) {
       if (!resolvedNextSlotId) {
-        session.setStateWithoutRefresh(resolveHotSeatPostSimulation(preSimulationState, previousHumanId).state);
+        unpublished.adopt(resolveHotSeatPostSimulation(preSimulationState, previousHumanId).state, 'viewer-not-yet-revealed');
         controller.remove();
         // #787 phase 12 (#794): release 'turn-handoff' explicitly before
         // handleVictoryIfNeeded() may push 'victory' -- an implicit
@@ -615,10 +615,10 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
         handleVictoryIfNeeded();
         return;
       }
-      session.setStateWithoutRefresh(applyPendingChallengeForCiv(
+      unpublished.adopt(applyPendingChallengeForCiv(
         { ...preSimulationState, currentPlayer: resolvedNextSlotId },
         resolvedNextSlotId,
-      ));
+      ), 'viewer-not-yet-revealed');
       void persistIntermediateHandoff();
       return;
     }
@@ -630,7 +630,7 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
         resolveHotSeatPostSimulation(state, previousHumanId).state,
       eventTarget: bus,
       adoptState: state => {
-        session.setStateWithoutRefresh(state);
+        unpublished.adopt(state, 'viewer-not-yet-revealed');
       },
       persistState: autoSave,
       onCommitErrors: errors => {
@@ -747,7 +747,7 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
         const roundTurn = session.getState().turn;
         const result = runCurrentCompletedRound(session.getState());
         if (!result.ok) throw result.error;
-        session.setStateWithoutRefresh(result.state);
+        unpublished.adopt(result.state, 'presentation-deferred');
         beginNetworkPlansForCurrentViewer();
         const soloMoves = captureAIMoves(() => {
           notifier.withHappenedTurn(roundTurn, () => {
@@ -755,7 +755,12 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
           });
         });
 
-        if (handleVictoryIfNeeded()) return;
+        if (handleVictoryIfNeeded()) {
+          // The round was adopted unpublished so AI moves could be captured for replay;
+          // a finished game replays nothing, but it must still publish (#1015).
+          session.commit(session.getState());
+          return;
+        }
 
         renderLoop.setGameState(session.getState());
         await replayAIMoves(soloMoves);

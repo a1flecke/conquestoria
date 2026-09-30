@@ -374,4 +374,21 @@ import { isSpyUnitType } from './espionage-system';
 EOF
 expect_block "$tmp/src/systems/city-building-catalog.ts" "city catalog runtime espionage import"
 
+# --- #1015: GameSession has no silent write; adopt() has pinned owners only ---
+mkdir -p "$tmp/src/app/controllers"
+cat > "$tmp/src/app/controllers/new-controller.ts" <<'EOF'
+session.setStateWithoutRefresh(next);
+EOF
+expect_block "$tmp/src/app/controllers/new-controller.ts" "removed setStateWithoutRefresh"
+
+cat > "$tmp/src/app/controllers/player-action-controller.ts" <<'EOF'
+deps.unpublished.adopt(next, 'pre-world-entry');
+EOF
+expect_block "$tmp/src/app/controllers/player-action-controller.ts" "unpublished.adopt outside a sanctioned owner"
+
+cat > "$tmp/src/app/controllers/turn-flow-controller.ts" <<'EOF'
+unpublished.adopt(next, 'viewer-not-yet-revealed');
+EOF
+expect_allow "$tmp/src/app/controllers/turn-flow-controller.ts" "unpublished.adopt from a sanctioned owner"
+
 exit "$fail"

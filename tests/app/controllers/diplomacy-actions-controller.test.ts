@@ -46,7 +46,7 @@ function makeFixture(seed = 'diplomacy-actions-controller'): { state: GameState;
 }
 
 function makeDeps(state: GameState, overrides: Partial<DiplomacyActionsControllerDeps> = {}) {
-  return {
+  const deps = {
     session: createGameSession(state),
     bus: new EventBus(),
     renderLoop: { setGameState: vi.fn() },
@@ -57,6 +57,11 @@ function makeDeps(state: GameState, overrides: Partial<DiplomacyActionsControlle
     openDiplomacyPanel: vi.fn(),
     ...overrides,
   };
+  // Mirrors bootstrap.ts: the renderer and HUD are session subscribers, so every
+  // handler publishes through `commit`/`batch` rather than refreshing by hand (#1015).
+  deps.session.subscribe(next => deps.renderLoop.setGameState(next));
+  deps.session.subscribe(() => deps.hud.update());
+  return deps;
 }
 
 function build(state: GameState, overrides: Partial<DiplomacyActionsControllerDeps> = {}) {

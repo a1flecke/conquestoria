@@ -178,6 +178,30 @@ $mv_lines"
     ;;
 esac
 
+# --- silent session writes (#1015) ---
+# GameSession has no silent write. setStateWithoutRefresh was removed; the restricted
+# unpublished.adopt() (closed set of named reasons, UnpublishedReason in
+# src/app/ports.ts) may only be called from the controllers that own a reason.
+sw_lines="$(grep -nE 'setStateWithoutRefresh' "$file_path" \
+  | grep -vE '^[0-9]+:[[:space:]]*(//|\*|/\*)' | head -5 || true)"
+if [ -n "$sw_lines" ]; then
+  append "setStateWithoutRefresh was removed from GameSession (#1015) — publish with session.commit()/update()/batch(); a genuinely silent transition uses unpublished.adopt(state, reason) from a pinned owner (see .claude/rules/session-publication.md):
+$sw_lines"
+fi
+case "$file_path" in
+  */src/app/game-session.ts|*/src/app/controllers/campaign-entry-controller.ts|*/src/app/controllers/turn-flow-controller.ts|*/src/app/cross-cutting-helpers.ts)
+    : # sanctioned owners of a named UnpublishedReason
+    ;;
+  *)
+    adopt_lines="$(grep -nE 'unpublished\.adopt\(' "$file_path" \
+      | grep -vE '^[0-9]+:[[:space:]]*(//|\*|/\*)' | head -5 || true)"
+    if [ -n "$adopt_lines" ]; then
+      append "unpublished.adopt() called outside a sanctioned owner (#1015) — use session.commit()/update()/batch(); adding an owner is a design decision pinned in tests/app/architecture-boundaries.test.ts (see .claude/rules/session-publication.md):
+$adopt_lines"
+    fi
+    ;;
+esac
+
 # --- single-side war/peace mutation (#995) ---
 # declareWar() / makePeace() write ONE side of a war. Major↔major war state must
 # stay bilateral by construction — use declareMajorWar() / makeMajorPeace().

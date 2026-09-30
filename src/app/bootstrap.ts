@@ -32,7 +32,7 @@ import type { AudioSystem } from '@/audio/audio-system';
 import type { EventBus } from '@/core/event-bus';
 import type { AdvisorSystem } from '@/ui/advisor-system';
 import type { RoundPresentationGate } from '@/presentation/round-presentation-gate';
-import type { GameSession, Notifier, SelectionStore } from '@/app/ports';
+import type { GameSession, Notifier, SelectionStore, UnpublishedStateWriter } from '@/app/ports';
 import type { UserSettingsStore } from '@/app/user-settings-store';
 import type { NotificationEntry } from '@/core/notification-log';
 import { createCeremonyCoordinator, type CeremonyCoordinator } from '@/app/controllers/ceremony-coordinator';
@@ -95,6 +95,8 @@ export interface AppCompositionDeps {
   readonly roundPresentationGate: RoundPresentationGate;
   readonly advisorSystem: AdvisorSystem;
   readonly session: GameSession;
+  /** #1015: the restricted silent writer, handed only to the controllers that own a named reason. */
+  readonly unpublished: UnpublishedStateWriter;
   readonly selection: SelectionStore;
   readonly userSettingsStore: UserSettingsStore;
   readonly getNotifier: () => Notifier;
@@ -113,7 +115,7 @@ export interface AppComposition {
 export function createAppComposition(deps: AppCompositionDeps): AppComposition {
   const {
     canvas, uiLayer, renderLoop, audio, bus, roundPresentationGate, advisorSystem,
-    session, selection, userSettingsStore, getNotifier, setNotifier,
+    session, unpublished, selection, userSettingsStore, getNotifier, setNotifier,
   } = deps;
 
   // Thin wrapper (not extracted, see cross-cutting-helpers.ts's module docblock
@@ -147,15 +149,12 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     const preview = getHoardChoicePreview(session.getState(), pending.lairId);
     const lair = session.getState().beasts!.lairs[pending.lairId];
     createBeastHoardPanel(uiLayer, preview, choice => {
-      // #787 phase 14: audited -- setStateWithoutRefresh here is correct, not
-      // a bug. hex-renderer.ts's lair glyph treats 'slain' and 'claimed'
-      // identically (both draw 🏆), so the 'trophy' choice has no canvas
-      // effect; the 'gold'/'lore' choices' effects (civ.gold, tech name/rate)
-      // are already covered by the explicit hud.update() below. No renderer-
-      // or HUD-visible field goes stale here.
-      session.setStateWithoutRefresh(applyHoardChoice(session.getState(), pending.lairId, pending.civId, choice));
+      // #1015: this used to be a silent write justified by an audit of hex-renderer's
+      // lair glyph ('slain' and 'claimed' both draw the trophy) plus a hand-written
+      // hud.update(). That justification lived in a comment and would rot the moment
+      // the renderer drew a claimed lair differently; publishing is now unconditional.
+      session.commit(applyHoardChoice(session.getState(), pending.lairId, pending.civId, choice));
       bus.emit('beast:hoard-claimed', { lairId: pending.lairId, beastId: lair.beastId, civId: pending.civId, choice });
-      hud.update();
       maybeShowPendingHoardChoice();
     });
   }
@@ -248,11 +247,9 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
   const diplomacyActions: DiplomacyActionsController = createDiplomacyActionsController({
     session,
     bus,
-    renderLoop,
     uiLayer,
     showNotification,
     openDiplomacyPanel: () => panelActions.openDiplomacyPanel(),
-    hud: { update: () => hud.update() },
     selectionController: { selectUnit: (unitId, opts) => selectionController.selectUnit(unitId, opts) },
   });
 
@@ -289,7 +286,7 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     focusNotificationTarget: target => focusNotificationTarget(renderLoop, getNotifier(), session, target),
     focusPirateTarget: target => focusPirateTarget(renderLoop, getNotifier(), target),
     applyPirateActionResult: (result, successMessage) => applyPirateActionResult(
-      { session, bus, renderLoop, updateHUD: () => hud.update(), showNotification },
+      { session, bus, showNotification },
       result,
       successMessage,
     ),
@@ -341,7 +338,7 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     handleEstablishRoute: diplomacyActions.handleEstablishRoute,
     executeUpgrade: (unitId, targetType) => playerActions.executeUpgrade(unitId, targetType),
     ensurePlayerWarState: targetCivId => playerActions.ensurePlayerWarState(targetCivId),
-    scanBeastSightings: () => scanBeastSightings(session, bus),
+    scanBeastSightings: () => scanBeastSightings(session, unpublished, bus),
     scanSubmarineSightings: () => scanSubmarineSightings(session, bus),
     currentCiv: () => getCurrentCiv(session),
     advisorSystem,
@@ -359,6 +356,7 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
    */
   const turnFlow: TurnFlowController = createTurnFlowController({
     session,
+    unpublished,
     selection,
     renderLoop,
     bus,
@@ -388,7 +386,7 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     getUnitTurnFlow: () => playerActions.getUnitTurnFlow(),
     deselectUnit: selectionController.deselectUnit,
     selectNextUnit: selectionController.selectNextUnit,
-    scanBeastSightings: () => scanBeastSightings(session, bus),
+    scanBeastSightings: () => scanBeastSightings(session, unpublished, bus),
     scanSubmarineSightings: () => scanSubmarineSightings(session, bus),
     maybeShowPendingHoardChoice,
     maybeShowPendingGeneralChoice,
@@ -501,6 +499,7 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
   let gameSession: GameSessionController;
   const campaignEntry: CampaignEntryController = createCampaignEntryController({
     session,
+    unpublished,
     uiLayer,
     audio,
     bus,

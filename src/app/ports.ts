@@ -21,6 +21,9 @@ import type { LandUnitWaterRecovery } from '@/systems/unit-water-recovery';
  * three statements in the right order (`gameState = …`, `renderLoop.setGameState(…)`,
  * `updateHUD()`), and 46 of 93 assignment sites in `main.ts` did not write all
  * three. `commit()` makes that invariant structural instead of a discipline.
+ * #1015 finished that job: the silent write is gone from this interface (68 call
+ * sites converted to `commit`/`batch`, four named exceptions behind
+ * `UnpublishedStateWriter`). See `.claude/rules/session-publication.md`.
  */
 export interface GameSession {
   /** The single source of truth. Never cache the result across an await. */
@@ -39,18 +42,54 @@ export interface GameSession {
   update(fn: (state: GameState) => GameState): void;
 
   /**
-   * Replace the state WITHOUT refreshing subscribers.
+   * Run a multi-step transition and publish ONCE, synchronously, when the
+   * outermost `batch` returns (or throws). Every `commit`/`update` inside applies
+   * to `getState()` immediately but defers publication, so a handler that writes
+   * several times, emits bus events and shows notifications refreshes the
+   * renderer/HUD/panels exactly once, at the end, with the final state -- the
+   * same observable result the old "write silently, then refresh by hand" code
+   * aimed for, without a hand-written refresh to forget (#1015).
    *
-   * Deliberately ugly. It exists only so Phase 2 can be a mechanically
-   * behavior-identical refactor of the 46 existing assignment sites that do not
-   * currently refresh. Every remaining call site is an open question about
-   * whether the player is looking at stale data. Phase 11 drives this to zero
-   * or to a documented allowlist.
+   * Nested batches coalesce into the outermost one. A batch that never wrote
+   * publishes nothing. Do NOT `await` inside `fn`: publication would be deferred
+   * across an async gap. Wrap the whole synchronous body and `return` its value:
+   * a bare `return` inside the callback only leaves the callback.
    */
-  setStateWithoutRefresh(next: GameState): void;
+  batch<T>(fn: () => T): T;
 
   /** Returns an unsubscribe function, matching EventBus.on's contract. */
   subscribe(listener: (state: GameState) => void): () => void;
+}
+
+/**
+ * Why a transition is allowed to change `GameSession` state WITHOUT publishing.
+ * Closed set: a new reason is a design decision, made here and pinned in
+ * `architecture-boundaries.test.ts`, never at a call site.
+ *
+ * - `pre-world-entry`: state is being installed before the renderer/HUD/panels
+ *   exist for it; `startGame()` (or the handoff overlay) publishes it.
+ * - `viewer-not-yet-revealed`: hot-seat handoff. The next player's state is
+ *   adopted while an overlay hides it; publishing would flash their fog, yields
+ *   and units to the previous viewer. `enterViewerTurn` publishes.
+ * - `presentation-deferred`: a caller publishes after it has captured something
+ *   the publication would destroy (e.g. AI moves to animate).
+ * - `derived-bookkeeping`: a field with no renderer/HUD/panel projection, written
+ *   from inside a visibility refresh that may itself run during a publication.
+ */
+export type UnpublishedReason =
+  | 'pre-world-entry'
+  | 'viewer-not-yet-revealed'
+  | 'presentation-deferred'
+  | 'derived-bookkeeping';
+
+/**
+ * The ONLY way to change session state without publishing (#1015). It is not on
+ * `GameSession`; `bootstrap.ts` hands it to the few controllers that own one of
+ * the reasons above, and `architecture-boundaries.test.ts` pins the exact
+ * callers and counts. Everything else uses `commit`/`update`/`batch`.
+ */
+export interface UnpublishedStateWriter {
+  adopt(next: GameState, reason: UnpublishedReason): void;
 }
 
 /**
