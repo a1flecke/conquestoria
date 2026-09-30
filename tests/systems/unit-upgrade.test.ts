@@ -3,7 +3,6 @@ import {
   applyUnitUpgradeToState,
   canUpgradeUnit,
   getUpgradeCost,
-  applyUpgrade,
   evaluateUnitUpgrade,
 } from '@/systems/unit-upgrade-system';
 import { EventBus } from '@/core/event-bus';
@@ -313,27 +312,6 @@ describe('getUpgradeCost', () => {
   });
 });
 
-describe('applyUpgrade', () => {
-  it('changes unit type, preserves health and experience, and consumes action', () => {
-    const unit = makeUnit('spy_scout');
-    unit.experience = 3;
-    const upgraded = applyUpgrade(unit, 'spy_informant');
-    expect(upgraded.type).toBe('spy_informant');
-    expect(upgraded.health).toBe(70);
-    expect(upgraded.experience).toBe(3);
-    expect(upgraded.hasActed).toBe(true);
-    expect(upgraded.movementPointsLeft).toBe(0);
-  });
-
-  it('preserves identity fields (id, owner, position) so spy record can sync by unitId', () => {
-    const unit = makeUnit('spy_scout', { q: 3, r: 4 });
-    const upgraded = applyUpgrade(unit, 'spy_informant');
-    expect(upgraded.id).toBe(unit.id);
-    expect(upgraded.owner).toBe(unit.owner);
-    expect(upgraded.position).toEqual({ q: 3, r: 4 });
-  });
-});
-
 describe('applyUnitUpgradeToState', () => {
   function setup() {
     const state = createNewGame(undefined, 'whole-state-upgrade', 'small');
@@ -351,6 +329,43 @@ describe('applyUnitUpgradeToState', () => {
     civ.gold = 100;
     return { state, city, source };
   }
+
+  it('an upgrade changes the type, preserves health/experience/identity, consumes the action, AND pays the cost in one step (#1014)', () => {
+    // The unpaid primitive (`applyUpgrade`, "caller is responsible for deducting civ.gold") is no
+    // longer exported: the only way to upgrade a unit is the command that takes the gold with it.
+    const { state, source } = setup();
+    state.units['upgrade-unit'].experience = 3;
+    const goldBefore = state.civilizations.player.gold;
+
+    const result = applyUnitUpgradeToState(state, 'upgrade-unit', 'spy_informant');
+
+    expect(result.upgraded).toBe(true);
+    const upgraded = result.state.units['upgrade-unit'];
+    expect(upgraded.type).toBe('spy_informant');
+    expect(upgraded.health).toBe(41);
+    expect(upgraded.experience).toBe(3);
+    expect(upgraded.hasActed).toBe(true);
+    expect(upgraded.movementPointsLeft).toBe(0);
+    expect(upgraded.id).toBe(source.id);
+    expect(upgraded.owner).toBe(source.owner);
+    expect(upgraded.position).toEqual(source.position);
+    expect(result.state.civilizations.player.gold).toBe(goldBefore - 25);
+  });
+
+  it('a refused upgrade takes no gold and changes nothing', () => {
+    const { state } = setup();
+    state.civilizations.player.gold = 1;
+
+    const result = applyUnitUpgradeToState(state, 'upgrade-unit', 'spy_informant');
+
+    expect(result.upgraded).toBe(false);
+    expect(result.state).toBe(state);
+  });
+
+  it('the unpaid primitive is not exported', async () => {
+    const mod = await import('@/systems/unit-upgrade-system');
+    expect(mod).not.toHaveProperty('applyUpgrade');
+  });
 
   it('evaluates a legal upgrade with its cost and preserved-state preview', () => {
     const { state } = setup();

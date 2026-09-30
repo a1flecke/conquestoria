@@ -18,7 +18,7 @@ import {
   processPurposefulBarbarians,
 } from '@/systems/barbarian-system';
 import {
-  processBeasts, placeBeastLairs, recordBeastSlain, BEAST_OWNER,
+  processBeasts, placeBeastLairs, BEAST_OWNER,
   LAIR_GROWTH_INTERVAL_TURNS, LAIR_GROWTH_CAP, LAIR_GROWTH_EXPERIENCE,
   applyHoardChoice, getClaimedTrophyGoldPerTurn,
 } from '@/systems/beast-system';
@@ -1295,12 +1295,7 @@ export function processTurn(
         newState = recordCombatForCiv(newState, defender.owner, defenderPosBeast);
       }
       emitMinorCivQuestTransitions(bus, applied.questTransitions, newState);
-      // If the beast died on counterattack, record the slay
-      if (applied.attackerDefeated) {
-        const { state: afterSlay, slain } = recordBeastSlain(newState, attacker, defender);
-        newState = afterSlay as typeof newState;
-        if (slain) bus.emit('beast:slain', slain);
-      }
+      // A beast that died on its own counterattack is slain inside applyCombatOutcomeToState (#1014).
       // If the intruder died, no hoard — the beast attacked, not the player
       bus.emit('combat:resolved', { result, ...combatPresentation });
       for (const reward of applied.rewards) {

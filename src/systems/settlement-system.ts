@@ -8,7 +8,7 @@ import { commitVassalageAgreement, releaseVassal } from '@/systems/diplomacy-vas
 import { transferCapturedCityOwnership } from '@/systems/city-capture-system';
 import { cancelInvalidNetworkPlans } from '@/systems/network-plan-system';
 import { evaluateSettlementConsent } from '@/ai/ai-settlement-consent';
-import { recordSettlementSigned } from '@/systems/war-history-system';
+import { withSettlementSigned } from '@/systems/war-history-system';
 
 export type SettlementEligibility = { ok: true } | { ok: false; reason: string };
 
@@ -151,12 +151,17 @@ export function executeSettlement(
   bus: EventBus,
 ): GameState {
   if (!validateSettlementOffer(state, proposerCivId, recipientCivId, terms).ok) return state;
-  // #991: recorded BEFORE the peace transition below -- war-history-system.ts's
-  // `concludeIfResolved` looks for this exact event to decide the war
-  // concluded with outcome 'settled' rather than the plain-peace default
-  // 'white-peace'. Order matters; see that function's own doc comment.
-  const withHistory = recordSettlementSigned(state, proposerCivId, recipientCivId, terms.length, turn);
-  let next = makeMajorPeace(withHistory, proposerCivId, recipientCivId, bus);
+  // #991 / #1014: the settlement is logged BEFORE the peace transition so the war
+  // concludes 'settled', not 'white-peace'. `withSettlementSigned` owns that order:
+  // it runs this transition itself, after logging.
+  let next = withSettlementSigned(
+    state,
+    proposerCivId,
+    recipientCivId,
+    terms.length,
+    turn,
+    withEvent => makeMajorPeace(withEvent, proposerCivId, recipientCivId, bus),
+  );
   for (const term of terms) {
     next = applySettlementTerm(next, term, turn, bus);
   }

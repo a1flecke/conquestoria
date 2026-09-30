@@ -184,10 +184,12 @@ function sideIsEmpty(record: WarRecord, side: WarParticipantSide): boolean {
 
 /**
  * `defaultOutcome` is overridden to `'settled'` when the record already logged
- * a `settlement-signed` event -- `recordSettlementSigned` must run BEFORE the
- * peace transition that triggers this, so the settlement's own event is
- * already present the moment either side empties out. This is the one place
- * that decides the final `WarOutcome`; nothing else writes `endTurn`.
+ * a `settlement-signed` event. That event is only ever written by
+ * {@link withSettlementSigned}, which runs the peace transition itself AFTER
+ * logging it, so the settlement's own event is always present the moment either
+ * side empties out (#1014: this ordering used to be a comment asking the caller to
+ * call two functions in the right order). This is the one place that decides the
+ * final `WarOutcome`; nothing else writes `endTurn`.
  */
 function concludeIfResolved(state: GameState, record: WarRecord, turn: number, defaultOutcome: WarOutcome): GameState {
   if (record.endTurn !== undefined) return withRecord(state, record);
@@ -277,23 +279,35 @@ export function recordGoalDeclared(
 }
 
 /**
- * Records that a negotiated settlement was signed between two still-active
- * combatants. MUST be called BEFORE the peace transition that ends their war
- * (see `concludeIfResolved`'s doc comment) -- callers (`settlement-system.ts`)
- * append this event first, then call `makeMajorPeace`, so the war concludes
- * with outcome `'settled'` rather than the plain-peace default `'white-peace'`.
+ * Signs a negotiated settlement between two combatants: logs the
+ * `settlement-signed` event, THEN runs `peaceTransition` on the result, so the war
+ * concludes with outcome `'settled'` rather than the plain-peace default
+ * `'white-peace'`.
+ *
+ * The order is the whole point and is not the caller's to get right (#1014): the
+ * event is only reachable through this function, which hands `peaceTransition` a
+ * state that already carries it. The previous shape -- an exported
+ * `recordSettlementSigned` plus "call it BEFORE `makeMajorPeace`" -- failed
+ * silently when called after: `findActiveWarBetween` finds no active war once peace
+ * has concluded it, so the settlement was dropped and the war was mislabelled
+ * `'white-peace'`.
+ *
+ * With no active war record between the pair there is nothing to annotate and the
+ * transition still runs (peace is not conditional on the war history).
  */
-export function recordSettlementSigned(
+export function withSettlementSigned(
   state: GameState,
   civA: string,
   civB: string,
   termCount: number,
   turn: number,
+  peaceTransition: (withEvent: GameState) => GameState,
 ): GameState {
   const record = findActiveWarBetween(state, civA, civB);
-  if (!record) return state;
-  const next: WarRecord = { ...record, events: pushEvent(record, { type: 'settlement-signed', turn, termCount }) };
-  return withRecord(state, next);
+  const withEvent = record
+    ? withRecord(state, { ...record, events: pushEvent(record, { type: 'settlement-signed', turn, termCount }) })
+    : state;
+  return peaceTransition(withEvent);
 }
 
 // --- Viewer-safe presentation ---

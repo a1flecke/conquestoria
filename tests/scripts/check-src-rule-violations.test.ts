@@ -251,6 +251,39 @@ describe('check-src-rule-violations.sh', () => {
     });
   });
 
+  describe('#1014 single-entry-point consequence rules', () => {
+    const run = (path: string, source: string) => {
+      const workspace = makeWorkspace();
+      writeWorkspaceFile(workspace, path, source);
+      return runScript(workspace, path);
+    };
+
+    it('blocks resolveStrategicStrike() outside the launch-execution wrapper', () => {
+      const result = run('src/ui/quick-strike.ts', 'const r = resolveStrategicStrike(state, civ, city);\n');
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain('resolveStrategicStrike() called outside strategic-launch-execution-system.ts');
+    });
+
+    it('allows the primitive, its single wrapper, and comments that merely name it', () => {
+      const call = 'const r = resolveStrategicStrike(state, civ, city);\n';
+      expect(run('src/systems/strategic-launch-execution-system.ts', call).status).toBe(0);
+      expect(run('src/systems/strategic-strike-system.ts', call).status).toBe(0);
+      expect(run('src/ai/some-ai.ts', '// never resolveStrategicStrike( directly\nexport const x = 1;\n').status).toBe(0);
+    });
+
+    it('blocks recordBeastSlain() outside the beast/combat-reward modules', () => {
+      const result = run('src/core/some-executor.ts', 'const r = recordBeastSlain(state, beast, hero);\n');
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain('recordBeastSlain() called outside combat-reward-system.ts');
+    });
+
+    it('allows the two sanctioned modules to call recordBeastSlain()', () => {
+      const call = 'const r = recordBeastSlain(state, beast, hero);\n';
+      expect(run('src/systems/combat-reward-system.ts', call).status).toBe(0);
+      expect(run('src/systems/beast-system.ts', call).status).toBe(0);
+    });
+  });
+
   describe('#995 single-side war/peace mutation rule', () => {
     it('blocks single-side declareWar()/makePeace() outside diplomacy-war', () => {
       const workspace = makeWorkspace();

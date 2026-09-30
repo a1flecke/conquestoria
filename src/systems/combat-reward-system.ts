@@ -23,6 +23,8 @@ import { recordCampPressureFromCombatOutcome } from '@/systems/barbarian-pressur
 import { normalizeCrisisForces } from '@/systems/crisis-force-system';
 import { resolveRogueElephantHostHandlerDeaths } from '@/systems/rogue-elephant-host-system';
 import { hexKey } from '@/systems/hex-utils';
+import { recordBeastSlain, type BeastSlainPayload } from '@/systems/beast-system';
+import { VETERANCY_TIERS, type VeterancyTier } from '@/systems/veterancy-tiers';
 import { getUnitRoleDefinition } from '@/systems/combat-role-definitions';
 import { appendLegendaryWonderMilitaryFacts } from '@/systems/legendary-wonder-history';
 import { getFortificationTier } from '@/systems/fortification-system';
@@ -85,14 +87,10 @@ export function getCaptureNotificationLabel(type: UnitType): string {
   return `${name} captured!`;
 }
 
-export type VeterancyTierId = 'recruit' | 'seasoned' | 'veteran' | 'elite';
-
-export interface VeterancyTier {
-  id: VeterancyTierId;
-  label: string;
-  minExperience: number;
-  combatModifier: number;
-}
+// The table moved to a leaf (`veterancy-tiers.ts`, #1014) so `beast-system` can use it without
+// importing this module; re-exported here so existing importers are unchanged.
+export type { VeterancyTier, VeterancyTierId } from '@/systems/veterancy-tiers';
+export { VETERANCY_TIERS } from '@/systems/veterancy-tiers';
 
 export interface CombatRewardSurprise {
   type: 'battlefield_insight' | 'salvaged_supplies';
@@ -126,14 +124,13 @@ export interface CombatOutcomeApplication {
   defenderCaptured: boolean;
   questTransitions: ChainTransition[];
   pirateEvents: PirateActionEvent[];
+  /**
+   * Lairs whose last beast this fight destroyed (#1014). The state consequence is already
+   * applied; a real executor emits `beast:slain` for each so every civ is told and the
+   * slayer's ceremony/choice panel opens. Empty for a hypothetical (simulated) fight.
+   */
+  beastsSlain: BeastSlainPayload[];
 }
-
-export const VETERANCY_TIERS: VeterancyTier[] = [
-  { id: 'recruit', label: 'Recruit', minExperience: 0, combatModifier: 0 },
-  { id: 'seasoned', label: 'Seasoned', minExperience: 10, combatModifier: 0.05 },
-  { id: 'veteran', label: 'Veteran', minExperience: 25, combatModifier: 0.1 },
-  { id: 'elite', label: 'Elite', minExperience: 50, combatModifier: 0.15 },
-];
 
 function normalizedExperience(unit: Pick<Unit, 'experience'>): number {
   return Math.max(0, unit.experience ?? 0);
@@ -495,7 +492,7 @@ export function applyCombatOutcomeToState(
   const attackerBefore = state.units[result.attackerId];
   const defenderBefore = state.units[result.defenderId];
   if (!attackerBefore || !defenderBefore) {
-    return { state, rewards: [], attackerDefeated: false, defenderDefeated: false, attackerCaptured: false, defenderCaptured: false, questTransitions: [], pirateEvents: [] };
+    return { state, rewards: [], attackerDefeated: false, defenderDefeated: false, attackerCaptured: false, defenderCaptured: false, questTransitions: [], pirateEvents: [], beastsSlain: [] };
   }
 
   let units = { ...state.units };
@@ -890,6 +887,26 @@ export function applyCombatOutcomeToState(
     nextState = recordHuntKillerIfApplicable(nextState, attackerBefore.id, attackerBefore.owner, defenderBefore.owner);
   }
 
+  // #1014: a beast slay is a consequence of the kill, not of whichever executor made it.
+  // Whoever destroyed the beast is the slayer: the attacker for a defender or splash victim, the
+  // defender for a beast that died on its own attack. `recordBeastSlain` runs on the post-combat
+  // state so the victor's full-heal overrides this fight's damage, exactly as the old caller-side
+  // call (after the state was committed) did.
+  const slayCandidates: Array<{ defeated: Unit; victor: Unit }> = [];
+  if (defenderActuallyDefeated) slayCandidates.push({ defeated: defenderBefore, victor: attackerBefore });
+  if (attackerActuallyDefeated) slayCandidates.push({ defeated: attackerBefore, victor: defenderBefore });
+  for (const splashVictimId of [...defeatedUnitIds].sort()) {
+    if (splashVictimId === attackerBefore.id || splashVictimId === defenderBefore.id) continue;
+    const splashVictim = state.units[splashVictimId];
+    if (splashVictim) slayCandidates.push({ defeated: splashVictim, victor: attackerBefore });
+  }
+  const beastsSlain: BeastSlainPayload[] = [];
+  for (const { defeated, victor } of slayCandidates) {
+    const slay = recordBeastSlain(nextState, defeated, nextState.units[victor.id] ?? victor);
+    nextState = slay.state;
+    if (slay.slain) beastsSlain.push(slay.slain);
+  }
+
   // #582: any carrier-family hull, not just plain 'carrier' -- a destroyed
   // Supercarrier must also lose (or evacuate) its based aircraft, or they
   // become zombie units referencing a dead airBase.
@@ -968,6 +985,10 @@ export function applyCombatOutcomeToState(
     ? reconcileCivilizationLiveness(state, afterVassalage, eliminatedBy)
     : { state: afterVassalage, transitions: [] };
   if (bus) emitCivilizationLivenessTransitions(liveness, bus);
+  // Same convention as the liveness events above: a bus means a real execution, so the
+  // transition is announced here, once, for every executor (#1014). A hypothetical fight
+  // (AI lookahead) passes no bus and stays silent.
+  if (bus) for (const slain of beastsSlain) bus.emit('beast:slain', slain);
 
   return {
     state: liveness.state,
@@ -978,6 +999,7 @@ export function applyCombatOutcomeToState(
     defenderCaptured,
     questTransitions,
     pirateEvents,
+    beastsSlain,
   };
 }
 

@@ -263,8 +263,8 @@ never recursive.
 - **Exception — beast units:** `UnitType` values prefixed `beast_` are legendary-beast units spawned exclusively by `beast-system.ts`. They are intentionally NOT in `TRAINABLE_UNITS`, have `productionCost: 0`, and are owned by the `'beasts'` owner constant. Do not add them to city production, AI training, or tech `unlocksUnits`.
 
 ## Production Bonuses
-- `applyProductionBonus()` must be called when processing city production
-- Civ-specific bonuses come from `getCivDefinition(civ.civType).bonusEffect`
+- Civ-specific production bonuses are applied **inside** `getProductionCostForItem` (`src/systems/city-production-cost.ts` calls `applyProductionBonus` itself), fed by `bonusEffect` on the canonical `ProductionCostContext`. There is nothing for a caller to remember to call: price an item through `buildProductionCostContext` and the bonus is in the number (see "Production Cost Context" in `.claude/rules/game-balance.md`).
+- The bonus itself comes from `getCivDefinition(civ.civType).bonusEffect`.
 
 ## Immutable Turn Processing
 - Systems that process a turn (faction, minor-civ, diplomacy, wonder tick, etc.) MUST return a new `GameState`; never mutate `state.cities[id] = ...`, `state.units[id] = ...`, `state.civilizations[id] = ...`, or nested fields on those objects.

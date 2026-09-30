@@ -13,7 +13,10 @@ import {
   meetsCaptureMargin,
 } from '@/systems/combat-reward-system';
 import { createEmptyPirateState, type PirateFactionState } from '@/core/pirate-state';
-import type { City, CombatResult, GameState, GeneralCareerEvent } from '@/core/types';
+import type { BeastLair, City, CombatResult, GameState, GeneralCareerEvent } from '@/core/types';
+import { createNewGame } from '@/core/game-state';
+import { EventBus } from '@/core/event-bus';
+import { BEAST_OWNER } from '@/systems/beast-system';
 import { selectDefenderForAttack } from '@/systems/combat-system';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
@@ -1845,5 +1848,103 @@ describe('#887 MR1 — combat career events (unit-saved, battle-influenced, city
 
     expect(applied.state.units.defender.health).toBe(1);
     expect(eventsFor(applied.state, 'ai-1', 'gen_ramesses')).toEqual([]);
+  });
+});
+
+describe('beast slay is a consequence of the kill, not of the caller (#1014)', () => {
+  // The contract used to be a comment on recordBeastSlain: "MUST be called from every path
+  // that kills a beast". Only the player attack and one turn-manager path called it, so an AI
+  // (or any other executor) that killed a beast left its lair `awake`, still naming a unit
+  // that no longer exists, and paid no hoard. Every executor already funnels through
+  // applyCombatOutcomeToState, so the consequence lives there.
+  function beastFight(opts: { beastIsDefender: boolean }) {
+    const state = createNewGame('rome', 'beast-slay-consequence', 'small', 'Beast Slay');
+    const civIds = Object.keys(state.civilizations);
+    const slayerCivId = civIds.find(id => id !== state.currentPlayer) ?? civIds[0]!;
+    const hero = { ...createUnit('warrior', slayerCivId, { q: 11, r: 10 }, mkC()), id: 'hero-1', health: 100 };
+    const beast = { ...createUnit('warrior', BEAST_OWNER, { q: 10, r: 10 }, mkC()), id: 'beast-1', type: 'beast_boar' as const, health: 1 };
+    state.units = { [hero.id]: hero, [beast.id]: beast };
+    state.civilizations[slayerCivId].units = [hero.id];
+    const lair: BeastLair = {
+      id: 'lair-giant_boar', beastId: 'giant_boar', position: { q: 10, r: 10 },
+      status: 'awake', strength: 0, unitIds: [beast.id],
+    };
+    state.beasts = { mode: 'wild', lairs: { [lair.id]: lair }, sightingsByCiv: {} };
+    const attacker = opts.beastIsDefender ? hero : beast;
+    const defender = opts.beastIsDefender ? beast : hero;
+    const result: CombatResult = {
+      attackerId: attacker.id, defenderId: defender.id,
+      attackerDamage: opts.beastIsDefender ? 0 : 100, defenderDamage: opts.beastIsDefender ? 100 : 0,
+      attackerSurvived: opts.beastIsDefender, defenderSurvived: !opts.beastIsDefender,
+      attackerStrength: 30, defenderStrength: 10,
+      attackerPosition: { ...attacker.position }, defenderPosition: { ...defender.position },
+    };
+    return { state, result, slayerCivId };
+  }
+
+  it('slays the lair when a NON-player executor kills the beast as the defender', () => {
+    const { state, result, slayerCivId } = beastFight({ beastIsDefender: true });
+    const goldBefore = state.civilizations[slayerCivId].gold;
+
+    const applied = applyCombatOutcomeToState(state, result, 7);
+
+    expect(applied.defenderDefeated).toBe(true);
+    expect(applied.state.units['beast-1']).toBeUndefined();
+    const lair = applied.state.beasts!.lairs['lair-giant_boar'];
+    expect(lair.status).toBe('slain');
+    expect(lair.unitIds).toEqual([]);
+    expect(lair.slainBy).toBe(slayerCivId);
+    expect(applied.beastsSlain).toHaveLength(1);
+    expect(applied.beastsSlain[0]).toMatchObject({ lairId: 'lair-giant_boar', slayerCivId });
+    expect(applied.state.civilizations[slayerCivId].gold).toBeGreaterThan(goldBefore);
+  });
+
+  it('slays the lair when the beast dies on its own counterattack (it was the attacker)', () => {
+    const { state, result, slayerCivId } = beastFight({ beastIsDefender: false });
+
+    const applied = applyCombatOutcomeToState(state, result, 7);
+
+    expect(applied.attackerDefeated).toBe(true);
+    expect(applied.state.beasts!.lairs['lair-giant_boar'].status).toBe('slain');
+    expect(applied.state.beasts!.lairs['lair-giant_boar'].slainBy).toBe(slayerCivId);
+    expect(applied.beastsSlain).toHaveLength(1);
+  });
+
+  it('does nothing beast-related when the beast survives, or the defeated unit is not a beast', () => {
+    const { state, result } = beastFight({ beastIsDefender: true });
+    const survived = applyCombatOutcomeToState(state, { ...result, defenderSurvived: true, defenderDamage: 10 }, 7);
+    expect(survived.beastsSlain).toEqual([]);
+    expect(survived.state.beasts!.lairs['lair-giant_boar'].status).toBe('awake');
+
+    const noBeasts = { ...state, beasts: undefined };
+    const plain = applyCombatOutcomeToState(noBeasts, result, 7);
+    expect(plain.beastsSlain).toEqual([]);
+  });
+
+  it('announces beast:slain exactly once per slain lair when a bus is given (a real execution), and never for a simulation', () => {
+    const { state, result, slayerCivId } = beastFight({ beastIsDefender: true });
+    const heard: unknown[] = [];
+    const bus = new EventBus();
+    bus.on('beast:slain', payload => heard.push(payload));
+
+    applyCombatOutcomeToState(state, result, 7, bus);
+    expect(heard).toHaveLength(1);
+    expect(heard[0]).toMatchObject({ lairId: 'lair-giant_boar', beastId: 'giant_boar', slayerCivId, slayerUnitId: 'hero-1' });
+
+    heard.length = 0;
+    applyCombatOutcomeToState(state, result, 7); // AI lookahead: no bus
+    expect(heard).toHaveLength(0);
+  });
+
+  it('is idempotent with a caller that still records the slay itself (nothing is paid twice)', async () => {
+    const { recordBeastSlain } = await import('@/systems/beast-system');
+    const { state, result, slayerCivId } = beastFight({ beastIsDefender: true });
+    const applied = applyCombatOutcomeToState(state, result, 7);
+    const goldAfterCombat = applied.state.civilizations[slayerCivId].gold;
+
+    const again = recordBeastSlain(applied.state, state.units['beast-1']!, state.units['hero-1']!);
+
+    expect(again.slain).toBeUndefined();
+    expect(again.state.civilizations[slayerCivId].gold).toBe(goldAfterCombat);
   });
 });

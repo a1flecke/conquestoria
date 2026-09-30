@@ -12,6 +12,7 @@ import {
   unfortifyUnitInState,
 } from '@/systems/unit-lifecycle-system';
 import { createEspionageCivState, createSpyFromUnit } from '@/systems/espionage-system';
+import { assertAirBaseIntegrity, assertCargoReciprocity } from '../helpers/save-state-invariants';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -124,6 +125,60 @@ describe('unit-lifecycle-system', () => {
     expect(next.units[cargoId]).toBeUndefined();
     expect(next.civilizations[civId].units).not.toContain(transport.id);
     expect(next.civilizations[civId].units).not.toContain(cargoId);
+  });
+
+  // #1014: every unit-removal site used to remember its own cascade. This one forgot two of them.
+  it('deleting an EMBARKED unit removes it from its surviving transport manifest (cargo-reciprocity holds)', () => {
+    const state = createNewGame(undefined, 'delete-embarked-cargo', 'small');
+    const civId = state.currentPlayer;
+    const anchor = Object.values(state.units).find(unit => unit.owner === civId)!;
+    const transport = { ...createUnit('transport', civId, anchor.position, { ...mkC(), nextUnitId: 900 }), id: 'transport-1', cargoUnitIds: ['cargo-1'] };
+    const cargo = { ...createUnit('warrior', civId, anchor.position, { ...mkC(), nextUnitId: 901 }), id: 'cargo-1', transportId: transport.id };
+    state.units[transport.id] = transport;
+    state.units[cargo.id] = cargo;
+    state.civilizations[civId].units.push(transport.id, cargo.id);
+    expect(() => assertCargoReciprocity(state)).not.toThrow();
+
+    const next = removePlayerUnitFromState(state, civId, cargo.id);
+
+    expect(next.units[cargo.id]).toBeUndefined();
+    expect(next.units[transport.id]).toBeDefined();
+    expect(next.units[transport.id]!.cargoUnitIds ?? []).not.toContain(cargo.id);
+    expect(() => assertCargoReciprocity(next)).not.toThrow();
+  });
+
+  it('deleting a carrier removes its based aircraft with it, exactly as losing it in combat does (air-base-integrity holds)', () => {
+    const state = createNewGame(undefined, 'delete-carrier-air-wing', 'small');
+    const civId = state.currentPlayer;
+    const anchor = Object.values(state.units).find(unit => unit.owner === civId)!;
+    const carrier = { ...createUnit('carrier', civId, anchor.position, { ...mkC(), nextUnitId: 910 }), id: 'carrier-1' };
+    const jet = { ...createUnit('biplane', civId, anchor.position, { ...mkC(), nextUnitId: 911 }), id: 'jet-1', airBase: { kind: 'carrier' as const, unitId: carrier.id } };
+    state.units[carrier.id] = carrier;
+    state.units[jet.id] = jet;
+    state.civilizations[civId].units.push(carrier.id, jet.id);
+    expect(() => assertAirBaseIntegrity(state)).not.toThrow();
+
+    const next = removePlayerUnitFromState(state, civId, carrier.id);
+
+    expect(next.units[carrier.id]).toBeUndefined();
+    expect(next.units[jet.id]).toBeUndefined();
+    expect(next.civilizations[civId].units).not.toContain(jet.id);
+    expect(() => assertAirBaseIntegrity(next)).not.toThrow();
+  });
+
+  it('deleting a city-based aircraft leaves the city and every other unit alone', () => {
+    const state = createNewGame(undefined, 'delete-city-based-aircraft', 'small');
+    const civId = state.currentPlayer;
+    const anchor = Object.values(state.units).find(unit => unit.owner === civId)!;
+    const jet = { ...createUnit('biplane', civId, anchor.position, { ...mkC(), nextUnitId: 920 }), id: 'jet-city' };
+    state.units[jet.id] = jet;
+    state.civilizations[civId].units.push(jet.id);
+    const others = Object.keys(state.units).filter(id => id !== jet.id);
+
+    const next = removePlayerUnitFromState(state, civId, jet.id);
+
+    expect(next.units[jet.id]).toBeUndefined();
+    for (const id of others) expect(next.units[id]).toBeDefined();
   });
 
   it('finalizes a cityless civilization when its last settler is voluntarily deleted', () => {

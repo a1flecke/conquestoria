@@ -1156,3 +1156,71 @@ describe('#1015 — GameSession publication boundary', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+describe('#1014 — caller-discipline contracts are structural, not remembered', () => {
+  function walkTs(dir: string): string[] {
+    return readdirSync(dir, { withFileTypes: true }).flatMap(e => {
+      const full = resolve(dir, e.name);
+      return e.isDirectory() ? walkTs(full) : /\.tsx?$/.test(e.name) ? [full] : [];
+    });
+  }
+  const root = resolve(__dirname, '../..');
+  const srcFiles = walkTs(resolve(root, 'src'));
+  const rel = (file: string) => file.slice(root.length + 1);
+  /** src files whose (comment-stripped) code mentions `symbol` as an identifier. */
+  const filesMentioning = (symbol: string): string[] => srcFiles
+    .filter(file => new RegExp(`\\b${symbol}\\b`).test(stripComments(readFileSync(file, 'utf8'))))
+    .map(rel)
+    .sort();
+
+  it('a beast slay is applied only by applyCombatOutcomeToState, for every executor', () => {
+    // Defined in beast-system.ts, applied in combat-reward-system.ts. Any other src file naming it is
+    // a second executor re-implementing the consequence (or forgetting it: the pre-#1014 state).
+    expect(filesMentioning('recordBeastSlain')).toEqual([
+      'src/systems/beast-system.ts',
+      'src/systems/combat-reward-system.ts',
+    ]);
+  });
+
+  it('every combat executor that announces the fight reads beastsSlain from the shared result, never re-derives it', () => {
+    const combatReward = stripComments(readFileSync(resolve(root, 'src/systems/combat-reward-system.ts'), 'utf8'));
+    expect(combatReward).toMatch(/beastsSlain: BeastSlainPayload\[\]/);
+    // The event is owned by the same function, alongside the liveness transitions it already owned.
+    expect(combatReward).toMatch(/if \(bus\) for \(const slain of beastsSlain\) bus\.emit\('beast:slain', slain\)/);
+    // ...so no executor emits it a second time.
+    const emitters = srcFiles
+      .filter(file => /emit\(\s*'beast:slain'/.test(stripComments(readFileSync(file, 'utf8'))))
+      .map(rel);
+    expect(emitters).toEqual(['src/systems/combat-reward-system.ts']);
+  });
+
+  it('a strategic strike is launched only through executeStrategicLaunch: resolveStrategicStrike has one caller', () => {
+    expect(filesMentioning('resolveStrategicStrike')).toEqual([
+      'src/systems/strategic-launch-execution-system.ts',
+      'src/systems/strategic-strike-system.ts',
+    ]);
+  });
+
+  it('single-side vassalage mutators are reachable only through diplomacy-vassalage (the bilateral committer)', () => {
+    for (const symbol of ['acceptVassalage', 'endVassalage', 'endVassalageUnilateral']) {
+      expect(filesMentioning(symbol), symbol).toEqual([
+        'src/systems/diplomacy-vassal-rules.ts',
+        'src/systems/diplomacy-vassalage.ts',
+      ]);
+    }
+  });
+
+  it('the settlement event cannot be written out of order: war-history exposes only the ordering-owning function', () => {
+    expect(filesMentioning('recordSettlementSigned')).toEqual([]);
+    expect(filesMentioning('withSettlementSigned')).toEqual([
+      'src/systems/settlement-system.ts',
+      'src/systems/war-history-system.ts',
+    ]);
+  });
+
+  it('a unit upgrade cannot be applied without paying: the unpaid primitive has no importers and is not exported', () => {
+    const upgrade = stripComments(readFileSync(resolve(root, 'src/systems/unit-upgrade-system.ts'), 'utf8'));
+    expect(upgrade).not.toMatch(/export function applyUpgrade\b/);
+    expect(filesMentioning('applyUpgrade')).toEqual(['src/systems/unit-upgrade-system.ts']);
+  });
+});

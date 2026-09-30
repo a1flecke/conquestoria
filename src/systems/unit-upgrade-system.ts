@@ -213,9 +213,11 @@ export function getCanonicalUpgradeTarget(
   return target.type;
 }
 
-// Returns a new Unit with the upgraded type and action consumed.
-// Caller is responsible for deducting civ.gold by getUpgradeCost(targetType).
-export function applyUpgrade(unit: Unit, targetType: UnitType): Unit {
+// Returns a new Unit with the upgraded type and action consumed. NOT exported (#1014): it
+// does not take the gold, and it used to be an exported function whose comment asked the caller
+// to deduct `getUpgradeCost(targetType)` itself. `applyUnitUpgradeToState` is the one command
+// that validates, pays and upgrades together.
+function applyUpgrade(unit: Unit, targetType: UnitType): Unit {
   return {
     ...unit,
     type: targetType,

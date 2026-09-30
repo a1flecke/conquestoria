@@ -4,7 +4,7 @@ import { BEAST_DEFINITIONS, getBeastDefinitionByUnitType, type BeastDefinition }
 import { hexKey, mapDistance, mapNeighbors } from '@/systems/hex-utils';
 import { createRng } from '@/systems/map-generator';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
-import { VETERANCY_TIERS } from '@/systems/combat-reward-system';
+import { VETERANCY_TIERS } from '@/systems/veterancy-tiers';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 
 export const BEAST_OWNER = 'beasts';
@@ -265,9 +265,15 @@ export interface BeastSlainPayload {
 }
 
 /**
- * Shared slay consequence — MUST be called from every path that kills a beast
- * (player attack in main.ts, AI/beast combat in turn-manager.ts).
- * Returns a new GameState; never mutates the input.
+ * The slay consequence: marks the lair slain, pays the hoard, queues the choice, heals the
+ * victor. Returns a new GameState; never mutates the input.
+ *
+ * NOT a function callers invoke (#1014). It used to be "MUST be called from every path that
+ * kills a beast", and only two of a dozen combat executors did, so an AI kill left the lair
+ * `awake` and unpaid. `applyCombatOutcomeToState` -- the one function every executor already
+ * funnels through -- now applies it for every unit the fight destroys and returns the payloads
+ * as `beastsSlain`; the architecture test pins that nothing else imports this. Idempotent by
+ * construction: once the beast is gone from `lair.unitIds` a second call is a no-op.
  */
 export function recordBeastSlain(
   state: GameState,

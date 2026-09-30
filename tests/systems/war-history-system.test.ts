@@ -1,11 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   declareWarRecord,
   recordParticipantLeft,
   recordParticipantEliminated,
   recordCityCaptured,
   recordGoalDeclared,
-  recordSettlementSigned,
+  withSettlementSigned,
   findActiveWarForCiv,
   getWarOrdinal,
   getWarPresentationForViewer,
@@ -176,15 +176,47 @@ describe('war history system (#991)', () => {
     });
   });
 
-  describe('recordSettlementSigned + peace ordering', () => {
-    it('produces outcome "settled" (not "white-peace") when logged before the peace transition', () => {
+  describe('withSettlementSigned owns the settlement-before-peace ordering (#1014)', () => {
+    const endWar = (s: GameState) => {
+      const left = recordParticipantLeft(s, 'attacker', 'defender', s.turn);
+      return recordParticipantLeft(left, 'defender', 'attacker', left.turn);
+    };
+
+    it('produces outcome "settled" (not "white-peace") because the event exists before the transition runs', () => {
       const state = makeWarHistoryFixture();
-      let next = declareWarRecord(state, 'attacker', 'defender', state.turn);
-      next = recordSettlementSigned(next, 'attacker', 'defender', 2, next.turn);
-      next = recordParticipantLeft(next, 'attacker', 'defender', next.turn);
-      next = recordParticipantLeft(next, 'defender', 'attacker', next.turn);
-      const record = findActiveWarForCiv(next, 'attacker') ?? Object.values(next.wars!).find(w => w.originalAggressorId === 'attacker');
-      expect(record!.outcome).toBe('settled');
+      const declared = declareWarRecord(state, 'attacker', 'defender', state.turn);
+      let seenBeforeTransition = false;
+
+      const next = withSettlementSigned(declared, 'attacker', 'defender', 2, declared.turn, withEvent => {
+        seenBeforeTransition = Object.values(withEvent.wars!).some(w => w.events.some(e => e.type === 'settlement-signed'));
+        return endWar(withEvent);
+      });
+
+      expect(seenBeforeTransition).toBe(true);
+      const record = Object.values(next.wars!).find(w => w.originalAggressorId === 'attacker')!;
+      expect(record.outcome).toBe('settled');
+    });
+
+    it('a plain peace with no settlement still concludes "white-peace" (the contrast that makes the ordering matter)', () => {
+      const state = makeWarHistoryFixture();
+      const next = endWar(declareWarRecord(state, 'attacker', 'defender', state.turn));
+      const record = Object.values(next.wars!).find(w => w.originalAggressorId === 'attacker')!;
+      expect(record.outcome).toBe('white-peace');
+    });
+
+    it('still runs the peace transition when there is no active war record to annotate', () => {
+      const state = makeWarHistoryFixture();
+      const ran = vi.fn((s: GameState) => s);
+
+      const next = withSettlementSigned(state, 'attacker', 'defender', 1, state.turn, ran);
+
+      expect(ran).toHaveBeenCalledTimes(1);
+      expect(next).toBe(state);
+    });
+
+    it('the wrong-order primitive is not exported: the event can only be written through the ordering-owning function', async () => {
+      const mod = await import('@/systems/war-history-system');
+      expect(mod).not.toHaveProperty('recordSettlementSigned');
     });
   });
 

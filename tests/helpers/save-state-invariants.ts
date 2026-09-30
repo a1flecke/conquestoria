@@ -366,6 +366,54 @@ export function assertAirBaseIntegrity(state: GameState): void {
 }
 
 /**
+ * Beast lair integrity (#1014): a lair only names beasts that exist, and a lair that has been
+ * slain or claimed names none.
+ *
+ * The slay consequence used to live in a function every combat executor had to remember to call
+ * ("MUST be called from every path that kills a beast"). Only two of a dozen did, so a beast killed
+ * by any other executor left its lair `awake` and pointing at a unit that no longer existed --
+ * with no hoard paid. The consequence now lives in `applyCombatOutcomeToState`; this is the
+ * relational assert that fails if any future path deletes a beast without going through it.
+ *
+ * Also checked: a pending hoard choice always names a real, slain lair (a choice for a lair that
+ * is not slain could never be resolved and would block the required-choices flow).
+ *
+ * Deliberately NOT checked: that every live beast unit is listed by some lair. Ephemeral crisis
+ * hunt lairs (`crisis-progression.ts`) register their beast on purpose and legacy saves carry
+ * unlisted beasts; neither is this bug.
+ */
+export function assertBeastLairIntegrity(state: GameState): void {
+  const beasts = state.beasts;
+  if (!beasts) return;
+  const problems: string[] = [];
+
+  for (const [lairId, lair] of Object.entries(beasts.lairs ?? {})) {
+    for (const unitId of lair.unitIds ?? []) {
+      const unit = state.units[unitId];
+      if (!unit) {
+        problems.push(`lair "${lairId}" (${lair.status}) lists beast "${unitId}" which does not exist`);
+      } else if (unit.owner !== 'beasts') {
+        problems.push(`lair "${lairId}" lists unit "${unitId}" owned by "${unit.owner}", not by the beasts`);
+      }
+    }
+    if ((lair.status === 'slain' || lair.status === 'claimed') && (lair.unitIds?.length ?? 0) > 0) {
+      problems.push(`lair "${lairId}" is ${lair.status} but still lists ${lair.unitIds.length} beast(s)`);
+    }
+  }
+
+  for (const choice of beasts.pendingHoardChoices ?? []) {
+    const lair = beasts.lairs?.[choice.lairId];
+    if (!lair) {
+      problems.push(`pending hoard choice for "${choice.civId}" names lair "${choice.lairId}" which does not exist`);
+    } else if (lair.status !== 'slain') {
+      problems.push(`pending hoard choice for "${choice.civId}" names lair "${choice.lairId}" whose status is ${lair.status}, not slain`);
+    }
+  }
+
+  if (problems.length > 0) throw new InvariantError(`beast-lair-integrity invariant violated:\n  - ${problems.join('\n  - ')}`);
+}
+
+/**
  * Vassalage reciprocity (#1054, #1003): a depth-1 star, both directions
  * agree, no self-vassalage. `normalizeVassalage` (a `CORRUPTION_REPAIRS`
  * entry, `src/storage/vassalage-normalization.ts`) repairs exactly these
@@ -730,6 +778,7 @@ export const SAVE_STATE_INVARIANTS: ReadonlyArray<{ name: string; check: (state:
   { name: 'unit-rosters', check: assertUnitRosters },
   { name: 'cargo-reciprocity', check: assertCargoReciprocity },
   { name: 'air-base-integrity', check: assertAirBaseIntegrity },
+  { name: 'beast-lair-integrity', check: assertBeastLairIntegrity },
   { name: 'vassalage-reciprocity', check: assertVassalageReciprocity },
   { name: 'treaty-reciprocity', check: assertTreatyReciprocity },
   { name: 'national-project-uniqueness', check: assertNationalProjectUniqueness },
