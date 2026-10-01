@@ -3174,3 +3174,52 @@ describe('renderSelectedUnitInfo — Air Assault button (#543 Phase 2)', () => {
     expect(findButtons(container).find(b => b.textContent === 'Air Assault')).toBeUndefined();
   });
 });
+
+describe('naval operational state line (#883)', () => {
+  beforeEach(installMockDocument);
+  afterEach(restoreMockDocument);
+
+  function navalState(seed: string, navalOps?: { awayTurns: number }, owner = 'player') {
+    const state = createNewGame(undefined, seed, 'small');
+    const unit = {
+      ...createUnit('trireme', owner, { q: 15, r: 15 }, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 }),
+      id: 'u1',
+      navalOps,
+    };
+    state.currentPlayer = 'player';
+    state.units = { u1: unit };
+    if (state.civilizations[owner]) state.civilizations[owner].units = ['u1'];
+    return state;
+  }
+
+  it('says Ready for a fresh ship, with an icon and text rather than colour alone', () => {
+    const state = navalState('naval-ops-ready');
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+    const text = collectAllText(container).join(' ');
+    expect(text).toContain('⚓ Operational: Ready');
+  });
+
+  it('says Extended or Depleted and offers expandable specifics', () => {
+    for (const [awayTurns, label] of [[6, 'Extended'], [12, 'Depleted']] as const) {
+      const state = navalState(`naval-ops-${label}`, { awayTurns });
+      const container = new MockElement('div');
+      renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+      const text = collectAllText(container).join(' ');
+      expect(text).toContain(`Operational: ${label}`);
+      expect(text).toMatch(/less combat strength/);
+      expect(text).toMatch(/from support|no port to return to/);
+    }
+  });
+
+  it('shows nothing about a foreign ship (no logistics leak to another viewer)', () => {
+    const state = navalState('naval-ops-foreign', { awayTurns: 12 });
+    const other = Object.keys(state.civilizations).find(id => id !== 'player')!;
+    state.units.u1!.owner = other;
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+    const text = collectAllText(container).join(' ');
+    expect(text).not.toContain('Operational');
+    expect(text).not.toContain('Depleted');
+  });
+});

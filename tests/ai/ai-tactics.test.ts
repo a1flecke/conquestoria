@@ -1790,3 +1790,41 @@ describe('#1123 engagement order: capture vs self-bombardment', () => {
     expect(after).toEqual(before);
   });
 });
+
+describe('#883 naval endurance: AI fleets recover instead of sailing to exhaustion', () => {
+  function navalState() {
+    const state = makeState('standard');
+    for (const tile of Object.values(state.map.tiles)) {
+      if (tile.coord.q >= 2) tile.terrain = 'ocean';
+    }
+    const city = addCity(state, 'home', AI, { q: 1, r: 0 });
+    return { state, city };
+  }
+
+  it('withdraws a depleted fleet toward its own port', () => {
+    const { state, city } = navalState();
+    addUnit(state, 'fleet', 'frigate', AI, { q: 12, r: 0 }, { movementPointsLeft: 3, navalOps: { awayTurns: 12 } });
+    const plan = makePlan({ kind: 'region', id: 'frontier', anchor: { q: 20, r: 0 } }, ['fleet']);
+    const action = chooseUnitTacticalAction(context(state, plan), 'fleet');
+    expect(action).toMatchObject({ kind: 'withdraw', unitId: 'fleet' });
+    expect(hexDistance(action.kind === 'withdraw' ? action.destination : { q: 99, r: 0 }, city.position))
+      .toBeLessThan(hexDistance({ q: 12, r: 0 }, city.position));
+  });
+
+  it('keeps operating while ready or extended, and resumes after recovery', () => {
+    for (const navalOps of [undefined, { awayTurns: 6 }, { awayTurns: 11 }]) {
+      const { state } = navalState();
+      addUnit(state, 'fleet', 'frigate', AI, { q: 12, r: 0 }, { movementPointsLeft: 3, ...(navalOps ? { navalOps } : {}) });
+      const plan = makePlan({ kind: 'region', id: 'frontier', anchor: { q: 20, r: 0 } }, ['fleet']);
+      expect(chooseUnitTacticalAction(context(state, plan), 'fleet').kind).not.toBe('withdraw');
+    }
+  });
+
+  it('does not turn a depleted fleet with no port into a land-bound retreat', () => {
+    const state = makeState('standard');
+    for (const tile of Object.values(state.map.tiles)) tile.terrain = 'ocean';
+    addUnit(state, 'fleet', 'frigate', AI, { q: 12, r: 0 }, { movementPointsLeft: 3, navalOps: { awayTurns: 12 } });
+    const plan = makePlan({ kind: 'region', id: 'frontier', anchor: { q: 20, r: 0 } }, ['fleet']);
+    expect(chooseUnitTacticalAction(context(state, plan), 'fleet').kind).not.toBe('withdraw');
+  });
+});

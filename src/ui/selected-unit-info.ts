@@ -16,6 +16,7 @@ import { getPrimarySupplySource } from '@/systems/supply-sources';
 import { getTurnsUntilNextSupplyStage } from '@/systems/supply-progression';
 import { classifyLandSupplyTerritory } from '@/systems/supply-territory';
 import { getParadropLaunchState, PARADROP_FAILURE_MESSAGES, getAirAssaultLaunchState, AIR_ASSAULT_FAILURE_MESSAGES } from '@/systems/airborne-system';
+import { getNavalOperationsPresentation } from '@/ui/naval-operations-presentation';
 import { getSubmarineRevealState } from '@/systems/concealment';
 import { getExperienceToNextTier, getVeterancyCombatModifier, getVeterancyTier } from '@/systems/combat-reward-system';
 import { isSpyUnitType } from '@/systems/spy-unit-types';
@@ -533,6 +534,24 @@ export function renderSelectedUnitInfo(
       helpLink.addEventListener('click', () => callbacks.onReopenSupplyTutorial!());
       wrapper.appendChild(helpLink);
     }
+  }
+
+  const navalOps = getNavalOperationsPresentation(state, unit);
+  if (navalOps) {
+    const opsDetails = document.createElement('details');
+    opsDetails.setAttribute('data-testid', 'naval-operations');
+    opsDetails.style.cssText = 'margin-top:4px;color:#c9d6e3;font-size:11px;';
+    const opsSummary = document.createElement('summary');
+    opsSummary.style.cssText = 'cursor:pointer;min-height:44px;display:flex;align-items:center;font-weight:600;';
+    opsSummary.textContent = `${navalOps.icon} ${navalOps.headline}`;
+    opsDetails.appendChild(opsSummary);
+    for (const detail of navalOps.details) {
+      const opsLine = document.createElement('div');
+      opsLine.style.cssText = 'margin-top:2px;line-height:1.35;';
+      opsLine.textContent = detail;
+      opsDetails.appendChild(opsLine);
+    }
+    wrapper.appendChild(opsDetails);
   }
 
   const revealState = getSubmarineRevealState(state, unit, state.currentPlayer);

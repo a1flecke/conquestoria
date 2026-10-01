@@ -252,8 +252,11 @@ describe('#1010 — unit-system decomposition boundaries', () => {
       // Pure data / pure rules: types only, no other system module at all.
       expect(importsOf(`${leaf}.ts`).filter(s => s !== '@/core/types'), `${leaf} must be a types-only leaf`).toEqual([]);
     }
-    // Lifecycle depends on the catalog leaf and nothing else.
-    expect(importsOf('unit-lifecycle.ts').filter(s => !['@/core/types', 'unit-definitions'].includes(s))).toEqual([]);
+    // Lifecycle depends on the catalog leaf and the naval-endurance leaf (#883: the depleted-fleet movement
+    // penalty feeds the one per-turn allowance) and nothing else.
+    expect(importsOf('unit-lifecycle.ts').filter(s => !['@/core/types', 'unit-definitions', 'naval-endurance'].includes(s))).toEqual([]);
+    // #883: the endurance leaf must stay light enough for lifecycle/combat to read.
+    expect(importsOf('naval-endurance.ts').filter(s => !['@/core/types', '@/core/owner-kind', 'unit-definitions', 'unit-modifier-definitions'].includes(s))).toEqual([]);
     // The guarded movers depend only on zone-of-control (for the ZoC stop) and types.
     expect(importsOf('unit-low-level-move.ts').filter(s => !['@/core/types', 'zone-of-control-system'].includes(s))).toEqual([]);
     for (const mod of ['unit-descriptions', 'unit-healing', 'unit-order-state', 'unit-lifecycle', 'unit-low-level-move']) {

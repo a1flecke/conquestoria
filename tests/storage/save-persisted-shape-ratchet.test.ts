@@ -96,6 +96,12 @@ const ADDITIVE_WITHOUT_MIGRATION: Readonly<Record<string, string>> = {
   // reconstruction gap: no war record can exist on a save older than this
   // field, so scanning finds no `war-*` ids and the counter correctly starts
   // at 1, identical to a fresh game.
+  // #883 — a ship's accumulated operating-away-from-port history. Absent means "fully ready",
+  // which is exactly what every pre-#883 ship is: every reader goes through `readAwayTurns`
+  // (naval-endurance.ts), which also treats a negative / NaN / non-numeric value as ready, so
+  // neither an old save nor a hand-edited one can strand a navy depleted.
+  // `tests/systems/naval-operations.test.ts` proves an old save loads and processes a turn unchanged.
+  'units.*.navalOps': '#883 — new optional Unit field; absent means ready; a tolerant reader treats malformed values as ready.',
   'idCounters.nextWarId': '#991 — new optional IdCounters field; self-normalizing via the existing ID_COUNTER_SPECS/normalizeIdCounters mechanism, same as every other optional counter.',
 };
 
