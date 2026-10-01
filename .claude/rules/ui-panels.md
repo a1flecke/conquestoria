@@ -124,3 +124,28 @@ only the projection. The invariant is proved at the projection, and the bypass i
 - Regression tests must assert that pre-existing queue entries survive the operation.
 - Queue UIs must show the active item, the queued follow-ups, and visible ETA/order feedback if the order matters to the player.
 - Reorder/remove interactions must have regression coverage that clicks through the control and verifies the rendered queue state afterward, not just the underlying array mutation.
+
+
+## Battle Forecast (#1135)
+
+The unit-vs-unit attack preview (`combat-preview` tap intent) is a *forecast*, not a second resolver.
+
+- **One math.** `src/systems/battle-forecast.ts` calls `resolveCombatStrengths` (the function
+  `resolveCombat` uses, incl. crisis command facts) and `computeExchangeDamage` (the one damage
+  formula) over a fixed 11×11 grid of the two uniform rolls plus the four corner rolls, so the
+  expectation, the range and the kill chances come from the real formula without touching RNG or the
+  seed. A seeded real fight always lands inside the forecast range (test-pinned). Bands:
+  `classifyBattleOutcome` / `BAND_THRESHOLDS`.
+- **Viewer-safe by construction.** UI/controllers must use `src/ui/battle-forecast-projection.ts`
+  (source rule `raw-battle-forecast`). It forecasts over `redactCombatContextForViewer`: any
+  owner-visibility fact on a side the viewer does not own (enemy tech, supply/readiness/endurance
+  state, combined arms, networks, air-defense, city-defense tech, concealed supporters) is
+  neutralised *before* the numbers exist, so the numbers cannot encode it. A constant note says
+  unseen factors are excluded; whether any exist is never revealed. Held by the differential harness
+  (`tests/ui/battle-forecast-projection.test.ts`, incl. hot seat). A new `CombatContext` fact field
+  must be classified in `neutraliseSide` or it leaks.
+- **Layers.** Headline (icon + words) → two damage lines → one-line why → `More details`
+  (working for/against you, not-active, tips, constant caveat). Tips are keyed by canonical fact key
+  (`TIP_BY_FACT_KEY`); never a parallel rule evaluator. No hover, 44px targets, no animation.
+- **Not covered (follow-ups, not promised):** air strike and interception have no confirm step;
+  city assault/bombardment keep their own truthful `resolveCityInteraction` preview.

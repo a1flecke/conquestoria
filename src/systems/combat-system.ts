@@ -430,21 +430,18 @@ export function deterministicCombatSeed(
   return Math.max(1, hash >>> 0);
 }
 
-export function resolveCombat(
+/**
+ * The strengths a fight is actually resolved with: the canonical breakdown plus the state-scoped
+ * crisis command facts. The one place those are applied, so `resolveCombat` and the battle forecast
+ * (`battle-forecast.ts`) can never disagree about strength.
+ */
+export function resolveCombatStrengths(
   attacker: Unit,
   defender: Unit,
   map: GameMap,
-  seed: number,
   context?: CombatContext,
-  era?: number,
   state?: GameState,
-): CombatResult {
-  // Seeded RNG for deterministic combat
-  let rngState = seed;
-  const rng = () => {
-    rngState = (rngState * 48271) % 2147483647;
-    return rngState / 2147483647;
-  };
+): CombatStrengthBreakdown {
   const strengths = calculateCombatStrengths(attacker, defender, map, context);
   // Host coordination is a state-scoped crisis fact, not a unit-ID multiplier in callers.
   if (state && getRogueElephantCommandFact(state, attacker.id)) {
@@ -469,6 +466,74 @@ export function resolveCombat(
       outcome: 'applied',
     }];
   }
+  return strengths;
+}
+
+export interface ExchangeDamageInput {
+  atkStrength: number;
+  defStrength: number;
+  attacker: Unit;
+  defender: Unit;
+  context?: CombatContext;
+  era?: number;
+  exchange: CombatExchangeModifiers;
+  /** Uniform [0,1): drives the +/-20% strength-ratio variance. */
+  ratioRoll: number;
+  /** Uniform [0,1): drives the 30-50 base damage. */
+  baseRoll: number;
+}
+
+/**
+ * The exchange damage formula for both sides, as a pure function of the two uniform rolls.
+ * `resolveCombat` feeds it its seeded rolls; the battle forecast feeds it a fixed grid of rolls --
+ * one formula, so a preview cannot drift from the fight.
+ */
+export function computeExchangeDamage(input: ExchangeDamageInput): { attackerDamage: number; defenderDamage: number } {
+  const { atkStrength, defStrength, attacker, defender, context, era, exchange } = input;
+  const totalStrength = atkStrength + defStrength;
+  const atkRatio = atkStrength / totalStrength;
+
+  // Add randomness (±20%)
+  const randomFactor = 0.8 + input.ratioRoll * 0.4;
+  const adjustedRatio = Math.min(0.95, Math.max(0.05, atkRatio * randomFactor));
+
+  // Era-scaled base damage: early eras deal more for faster combat
+  // Era 0-1 (Stone/Tribal): 45-70, Era 2 (Bronze): 36-60, Era 3+ (Iron+): 30-50
+  const eraScale = era !== undefined && era <= 1 ? 1.5 : era === 2 ? 1.2 : 1.0;
+  const baseDamage = (30 + input.baseRoll * 20) * eraScale;
+
+  // Ottoman siege bonus
+  let siegeMultiplier = 1;
+  if (context?.attackerBonus?.type === 'siege_bonus' && context?.defenderCity) {
+    siegeMultiplier = context.attackerBonus.damageMultiplier;
+  }
+
+  const defenderDamage = Math.round(
+    baseDamage * adjustedRatio * siegeMultiplier * exchange.defenderIncomingDamageMultiplier,
+  );
+  const distance = hexDistance(attacker.position, defender.position);
+  const attackerDamage = canCounterAttackAtDistance(defender, distance)
+    ? Math.round(baseDamage * (1 - adjustedRatio) * exchange.defenderCounterDamageMultiplier)
+    : 0;
+  return { attackerDamage, defenderDamage };
+}
+
+export function resolveCombat(
+  attacker: Unit,
+  defender: Unit,
+  map: GameMap,
+  seed: number,
+  context?: CombatContext,
+  era?: number,
+  state?: GameState,
+): CombatResult {
+  // Seeded RNG for deterministic combat
+  let rngState = seed;
+  const rng = () => {
+    rngState = (rngState * 48271) % 2147483647;
+    return rngState / 2147483647;
+  };
+  const strengths = resolveCombatStrengths(attacker, defender, map, context, state);
   const atkStrength = strengths.attackerStrength;
   const defStrength = strengths.defenderStrength;
 
@@ -505,33 +570,13 @@ export function resolveCombat(
     };
   }
 
-  // Combat formula: damage ratio based on strength comparison with randomness
-  const totalStrength = atkStrength + defStrength;
-  const atkRatio = atkStrength / totalStrength;
-
-  // Add randomness (±20%)
-  const randomFactor = 0.8 + rng() * 0.4;
-  const adjustedRatio = Math.min(0.95, Math.max(0.05, atkRatio * randomFactor));
-
-  // Era-scaled base damage: early eras deal more for faster combat
-  // Era 0-1 (Stone/Tribal): 45-70, Era 2 (Bronze): 36-60, Era 3+ (Iron+): 30-50
-  const eraScale = era !== undefined && era <= 1 ? 1.5 : era === 2 ? 1.2 : 1.0;
-  const baseDamage = (30 + rng() * 20) * eraScale;
-
-  // Ottoman siege bonus
-  let siegeMultiplier = 1;
-  if (context?.attackerBonus?.type === 'siege_bonus' && context?.defenderCity) {
-    siegeMultiplier = context.attackerBonus.damageMultiplier;
-  }
-
+  // The two seeded rolls are drawn in the same order as before (ratio first, then base damage).
+  const ratioRoll = rng();
+  const baseRoll = rng();
   const exchange = strengths.exchange;
-  const defenderDamage = Math.round(
-    baseDamage * adjustedRatio * siegeMultiplier * exchange.defenderIncomingDamageMultiplier,
-  );
-  const distance = hexDistance(attacker.position, defender.position);
-  const attackerDamage = canCounterAttackAtDistance(defender, distance)
-    ? Math.round(baseDamage * (1 - adjustedRatio) * exchange.defenderCounterDamageMultiplier)
-    : 0;
+  const { attackerDamage, defenderDamage } = computeExchangeDamage({
+    atkStrength, defStrength, attacker, defender, context, era, exchange, ratioRoll, baseRoll,
+  });
 
   const attackerHealthAfter = attacker.health - attackerDamage;
   const defenderHealthAfter = defender.health - defenderDamage;

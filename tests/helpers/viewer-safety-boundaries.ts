@@ -15,9 +15,11 @@
  * - `ai-modules`: `src/ai/**` reasons over omniscient state; UI/renderer/input must not import it.
  * - `raw-movement-resolver`: `resolveUnitMoveIntent` / `validateUnitMove` messages are
  *   omniscient. Player copy must come from `unit-movement-explainer` (path-aware redaction).
+ * - `raw-battle-forecast` (#1135): the omniscient forecast carries every applied modifier fact,
+ *   including the enemy's hidden ones. Player surfaces must use `battle-forecast-projection`.
  */
 
-export type ViewerBoundaryRule = 'ai-internals' | 'ai-modules' | 'raw-movement-resolver';
+export type ViewerBoundaryRule = 'ai-internals' | 'ai-modules' | 'raw-movement-resolver' | 'raw-battle-forecast';
 
 export interface ViewerBoundaryViolation {
   rule: ViewerBoundaryRule;
@@ -65,6 +67,14 @@ export const VIEWER_BOUNDARY_RULES: readonly RuleSpec[] = [
     allow: {
       'src/input/worker-movement-flow.ts':
         'legality gate only; its failure flows to executeAnimatedUnitMove, which explains it via explainMovementFailureForViewer',
+    },
+  },
+  {
+    rule: 'raw-battle-forecast',
+    scope: PLAYER_FACING,
+    pattern: /@\/systems\/battle-forecast['"]/,
+    allow: {
+      'src/ui/battle-forecast-projection.ts': 'the viewer projection itself: the only place the omniscient forecast is read',
     },
   },
 ];

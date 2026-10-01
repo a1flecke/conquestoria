@@ -36,7 +36,7 @@ src/systems/beast-system.ts:74 # [LOW] lcg() recurrence body — hand-rolled dup
 # note: the seed this feeds (turn-manager.ts, beast-tick) is now #982-converted and gameId-rooted.
 
 # --- combat-system.ts (resolveCombat's own seed always comes from deterministicCombatSeed, already correct) ---
-src/systems/combat-system.ts:445 # [LOW] resolveCombat's LCG recurrence body — hand-rolled duplicate of seededLcg; caller-supplied seed is already gameId-rooted
+src/systems/combat-system.ts:533 # [LOW] resolveCombat's LCG recurrence body — hand-rolled duplicate of seededLcg; caller-supplied seed is already gameId-rooted
 
 # --- city-siege-system.ts (createSeededRng is parameterized; every current caller already supplies a correct or #982-converted seed) ---
 src/systems/city-siege-system.ts:135 # [LOW] createSeededRng() recurrence body — hand-rolled duplicate of seededLcg

@@ -302,6 +302,11 @@ describe('MapInteractionController', () => {
       const cancelBtn = panel.querySelector<HTMLButtonElement>('#btn-cancel-attack');
       expect(attackBtn).not.toBeNull();
       expect(cancelBtn).not.toBeNull();
+      // #1135: the card leads with a plain outcome headline and expected damage, before any button.
+      expect(panel.querySelector('[data-testid="battle-forecast-headline"]')!.textContent)
+        .toMatch(/Strong advantage|Advantage|Even fight|Risky|Severe risk/);
+      expect(panel.textContent).toMatch(/HP lost|expected to be destroyed/);
+      expect(panel.querySelector('details')).not.toBeNull();
 
       cancelBtn!.click();
       expect(selection.getSelectedUnitId()).toBeNull();

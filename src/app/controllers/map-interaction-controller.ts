@@ -44,9 +44,9 @@ import { resolveAirStrike, resolveReconMission, resolvePatrolMission } from '@/s
 import { executeParadrop, PARADROP_FAILURE_MESSAGES, executeAirAssault, AIR_ASSAULT_FAILURE_MESSAGES } from '@/systems/airborne-system';
 import { unloadUnitFromTransport } from '@/systems/transport-system';
 import { getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentation';
-import { calculateCombatStrengths } from '@/systems/combat-system';
-import { buildCombatContextForDefender, getAmphibiousAssaultMultiplier } from '@/systems/combat-context';
-import { formatCombatPreviewDetails } from '@/ui/combat-preview';
+import { getAmphibiousAssaultMultiplier } from '@/systems/combat-context';
+import { buildBattleForecastView } from '@/ui/battle-forecast-projection';
+import { renderBattleForecastCard, type BattleForecastCardInput } from '@/ui/battle-forecast-card';
 import { getBeastDefinitionByUnitType } from '@/systems/beast-definitions';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { getEmbarkedAssaultTarget } from '@/systems/transport-system';
@@ -484,16 +484,7 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
         const previewAttacker = amphibiousAssault
           ? { ...unit, position: { ...session.getState().units[unit.transportId!].position }, transportId: undefined }
           : unit;
-        const atkDef = UNIT_DEFINITIONS[unit.type];
         const defDef = UNIT_DEFINITIONS[defender.type];
-        const strengthPreview = calculateCombatStrengths(
-          previewAttacker,
-          defender,
-          session.getState().map,
-          buildCombatContextForDefender(session.getState(), previewAttacker, defender, { amphibiousAssault }),
-        );
-        const atkStr = Math.round(strengthPreview.attackerStrength);
-        const defStr = Math.round(strengthPreview.defenderStrength);
 
         const ownerKind = classifyOwner(defender.owner);
         const isMinorCiv = ownerKind === 'minor';
@@ -513,93 +504,48 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
           ownerName = session.getState().civilizations[defender.owner]?.name ?? defender.owner;
         }
 
-        const odds = atkStr > defStr ? 'Favorable' : atkStr === defStr ? 'Even' : 'Risky';
-        const oddsColor = atkStr > defStr ? '#6b9b4b' : atkStr === defStr ? '#e8c170' : '#d94a4a';
+        const viewerId = session.getState().currentPlayer;
+        const view = buildBattleForecastView({
+          state: session.getState(),
+          viewerId,
+          attacker: previewAttacker,
+          defender,
+          ownerName,
+          options: { amphibiousAssault },
+        });
 
         const panel = deps.getElementById('info-panel');
         if (panel) {
           panel.style.display = 'block';
-          const previewDiv = document.createElement('div');
-          previewDiv.style.cssText = 'background:rgba(100,0,0,0.9);border-radius:12px;padding:12px 16px;';
-
-          const title = document.createElement('div');
-          title.style.cssText = 'font-size:13px;color:#e8c170;margin-bottom:6px;';
-          title.textContent = 'Combat Preview';
-          previewDiv.appendChild(title);
-
-          const stats = document.createElement('div');
-          stats.style.cssText = 'display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px;';
-          const atkSpan = document.createElement('span');
-          atkSpan.textContent = `${atkDef.name} (${atkStr})`;
-          const oddsSpan = document.createElement('span');
-          oddsSpan.style.cssText = `color:${oddsColor};font-weight:bold;`;
-          oddsSpan.textContent = odds;
-          const defSpan = document.createElement('span');
-          defSpan.textContent = `${defDef.name} (${defStr})`;
-          stats.appendChild(atkSpan);
-          stats.appendChild(oddsSpan);
-          stats.appendChild(defSpan);
-          previewDiv.appendChild(stats);
-
-          const info = document.createElement('div');
-          info.style.cssText = 'font-size:10px;opacity:0.6;margin-bottom:8px;';
-          info.textContent = formatCombatPreviewDetails(ownerName, defender.health, strengthPreview);
-          previewDiv.appendChild(info);
-
+          const notes: BattleForecastCardInput['notes'] = [];
           const defenderBeastDef = getBeastDefinitionByUnitType(defender.type);
           if (defenderBeastDef?.regenPerTurn) {
-            const traitLine = document.createElement('div');
-            traitLine.style.cssText = 'font-size:10px;color:#f4c842;margin-bottom:6px;';
-            traitLine.textContent = `⚠ Regenerates ${defenderBeastDef.regenPerTurn} HP every turn`;
-            previewDiv.appendChild(traitLine);
+            notes.push({ text: `⚠ Regenerates ${defenderBeastDef.regenPerTurn} HP every turn`, emphasis: 'warning' });
           }
           if (defenderBeastDef?.navalOnly) {
-            const traitLine = document.createElement('div');
-            traitLine.style.cssText = 'font-size:10px;color:#f4c842;margin-bottom:6px;';
-            traitLine.textContent = '⚠ Only ships and ranged units can fight it';
-            previewDiv.appendChild(traitLine);
+            notes.push({ text: '⚠ Only ships and ranged units can fight it', emphasis: 'warning' });
           }
-
           const hostileStackSize = visibleHostileUnitEntriesAtKey(session.getState(), key).length;
           if (hostileStackSize > 1) {
-            const stackInfo = document.createElement('div');
-            stackInfo.style.cssText = 'font-size:10px;opacity:0.72;margin-bottom:8px;';
-            stackInfo.textContent = `${defDef.name} defends this stack. ${hostileStackSize} enemy units present.`;
-            previewDiv.appendChild(stackInfo);
+            notes.push({ text: `${defDef.name} defends this stack. ${hostileStackSize} enemy units present.`, emphasis: 'info' });
           }
-
-          const btnRow = document.createElement('div');
-          btnRow.style.cssText = 'display:flex;gap:8px;';
-          const attackBtn = document.createElement('button');
-          attackBtn.id = 'btn-attack-confirm';
-          attackBtn.textContent = 'Attack';
-          attackBtn.style.cssText = 'flex:1;padding:8px;border-radius:8px;background:#d94a4a;border:none;color:white;font-weight:bold;cursor:pointer;';
-          const cancelBtn = document.createElement('button');
-          cancelBtn.id = 'btn-cancel-attack';
-          cancelBtn.textContent = 'Cancel';
-          cancelBtn.style.cssText = 'flex:1;padding:8px;border-radius:8px;background:rgba(255,255,255,0.15);border:none;color:white;cursor:pointer;';
-          btnRow.appendChild(attackBtn);
-          btnRow.appendChild(cancelBtn);
-          previewDiv.appendChild(btnRow);
-
-          panel.innerHTML = '';
-          panel.appendChild(previewDiv);
-
-          cancelBtn.addEventListener('click', selectionController.deselectUnit);
-          attackBtn.addEventListener('click', () => {
-            // Read live: the player may have changed selection between the
-            // preview rendering and this confirmation.
-            const attackerId = selection.getSelectedUnitId();
-            const attacker = attackerId ? session.getState().units[attackerId] : undefined;
-            const legality = attacker?.transportId
-              ? getEmbarkedAssaultTarget(session.getState(), attacker.id, coord, { viewerId: session.getState().currentPlayer })
-              : canUnitAttackTarget(session.getState(), attacker, coord, { viewerId: session.getState().currentPlayer });
-            if (!legality.ok || legality.targetType !== 'unit') {
-              deps.showNotification('That target is no longer attackable.', 'warning');
-              if (attackerId) selectionController.selectUnit(attackerId);
-              return;
-            }
-            deps.executeAttack(attackerId!, key);
+          renderBattleForecastCard(panel, { view, notes }, {
+            onCancel: selectionController.deselectUnit,
+            onAttack: () => {
+              // Read live: the player may have changed selection between the
+              // preview rendering and this confirmation.
+              const attackerId = selection.getSelectedUnitId();
+              const attacker = attackerId ? session.getState().units[attackerId] : undefined;
+              const legality = attacker?.transportId
+                ? getEmbarkedAssaultTarget(session.getState(), attacker.id, coord, { viewerId: session.getState().currentPlayer })
+                : canUnitAttackTarget(session.getState(), attacker, coord, { viewerId: session.getState().currentPlayer });
+              if (!legality.ok || legality.targetType !== 'unit') {
+                deps.showNotification('That target is no longer attackable.', 'warning');
+                if (attackerId) selectionController.selectUnit(attackerId);
+                return;
+              }
+              deps.executeAttack(attackerId!, key);
+            },
           });
         }
         return; // Wait for button press
