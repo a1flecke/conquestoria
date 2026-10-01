@@ -1,6 +1,8 @@
 import type { EventBus } from '@/core/event-bus';
 import type { CombatResult, CombatRewardNotification, GameState, Unit, UnitType } from '@/core/types';
-import { emitEndedTradeRoutes, removeUnitsFromSlice, type EndedTradeRoute } from '@/systems/unit-removal-system';
+import { emitEndedTradeRoutes, releaseCapturedUnitsFromRoutes, removeUnitsFromSlice, type EndedTradeRoute } from '@/systems/unit-removal-system';
+import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
+import { recordCombatForCiv } from '@/systems/threat-pressure-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { applyQuestGameplayAction, type ChainTransition } from '@/systems/quest-chain-system';
 import { canCaptureDefeatedUnits, canReceiveCivilizationCombatRewards, CRISIS_FORCE_OWNER, isMajorCivOwner, isPirateOwner } from '@/core/owner-kind';
@@ -130,6 +132,12 @@ export interface CombatOutcomeApplication {
    * slayer's ceremony/choice panel opens. Empty for a hypothetical (simulated) fight.
    */
   beastsSlain: BeastSlainPayload[];
+  /**
+   * The barbarian camp this fight's kill destroyed (#1200): a defender a major civ defeats on a camp tile
+   * destroys the camp, whoever the executor is. Reward, quest progress and `barbarian:camp-destroyed` (bus
+   * only) are applied here; a player-facing executor reads this for its toast and advisor.
+   */
+  campDestroyed?: { campId: string; reward: number };
 }
 
 function normalizedExperience(unit: Pick<Unit, 'experience'>): number {
@@ -435,6 +443,11 @@ export function applyCombatOutcomeToState(
     ({ units, civilizations, minorCivs, espionage, marketplace } = removal.slice);
     endedRoutes.push(...removal.endedRoutes);
   };
+  const releaseCaptured = (unitId: string): void => {
+    const release = releaseCapturedUnitsFromRoutes({ units, civilizations, minorCivs, espionage, marketplace }, [unitId]);
+    ({ units, marketplace } = release.slice);
+    endedRoutes.push(...release.endedRoutes);
+  };
   const destroyUnitAndEscort = (unitId: string, position: Unit['position'], ownerId: string): void => {
     removeFromWorkingCopies([unitId]);
     const escortId = findEscortedGeneralId(units, position, ownerId);
@@ -553,6 +566,7 @@ export function applyCombatOutcomeToState(
       },
     };
     attackerActuallyDefeated = false;
+    releaseCaptured(result.attackerId);
     attackerCaptured = true;
   } else if (
     result.defenderSurvived
@@ -581,6 +595,7 @@ export function applyCombatOutcomeToState(
       },
     };
     attackerActuallyDefeated = false;
+    releaseCaptured(result.attackerId);
     attackerCaptured = true;
   } else {
     defeatedUnitIds.add(result.attackerId);
@@ -637,6 +652,7 @@ export function applyCombatOutcomeToState(
       },
     };
     defenderActuallyDefeated = false;
+    releaseCaptured(result.defenderId);
     defenderCaptured = true;
   } else if (
     result.attackerSurvived
@@ -662,6 +678,7 @@ export function applyCombatOutcomeToState(
       },
     };
     defenderActuallyDefeated = false;
+    releaseCaptured(result.defenderId);
     defenderCaptured = true;
   } else {
     defeatedUnitIds.add(result.defenderId);
@@ -763,6 +780,28 @@ export function applyCombatOutcomeToState(
     });
     nextState = progress.state;
     questTransitions.push(...progress.transitions);
+  }
+
+  // #1200: a defender a major civ defeats on a barbarian camp tile destroys the camp. It is a consequence of
+  // the kill, so every executor gets it here (the player and AI turn used to be the only ones); only a major
+  // killer is paid, because the reward lands in `civilizations[owner].gold`.
+  let campDestroyed: CombatOutcomeApplication['campDestroyed'];
+  if (defenderActuallyDefeated && isMajorCivOwner(attackerBefore.owner) && nextState.civilizations[attackerBefore.owner] && nextState.barbarianCamps) {
+    const camp = applyCampDestructionAtTarget(nextState, attackerBefore.owner, defenderBefore.position, state.turn);
+    if (camp.campId) {
+      nextState = camp.state;
+      questTransitions.push(...camp.questTransitions);
+      campDestroyed = { campId: camp.campId, reward: camp.reward };
+    }
+  }
+
+  // #1200: idle-pressure bookkeeping (`lastCombatTurnByLandmass` feeds the pirate/threat pressure score) is
+  // per MAJOR civ in the fight, attacker and defender alike -- not just whoever happened to be the executor's
+  // actor. Rosterless owners (barbarians, pirates, beasts) have no record to keep.
+  if (nextState.map?.tiles) {
+    for (const ownerId of new Set([attackerBefore.owner, defenderBefore.owner])) {
+      if (nextState.civilizations[ownerId]) nextState = recordCombatForCiv(nextState, ownerId, defenderBefore.position);
+    }
   }
 
   if (
@@ -895,6 +934,7 @@ export function applyCombatOutcomeToState(
   // A bus means a real execution: a caravan lost in this fight announces its ended route here, once,
   // for every executor (#1198). A hypothetical fight (AI lookahead) passes no bus and stays silent.
   emitEndedTradeRoutes(bus, endedRoutes);
+  if (bus && campDestroyed) bus.emit('barbarian:camp-destroyed', campDestroyed);
   if (bus) emitCivilizationLivenessTransitions(liveness, bus);
   // Same convention as the liveness events above: a bus means a real execution, so the
   // transition is announced here, once, for every executor (#1014). A hypothetical fight
@@ -911,5 +951,6 @@ export function applyCombatOutcomeToState(
     questTransitions,
     pirateEvents,
     beastsSlain,
+    campDestroyed,
   };
 }

@@ -55,7 +55,7 @@ export interface EndedTradeRoute {
   routeId: string;
   fromCityId: string;
   toCityId: string;
-  reason: 'unit-died' | 'unit-disbanded' | 'trips-exhausted';
+  reason: 'unit-died' | 'unit-disbanded' | 'trips-exhausted' | 'unit-captured';
 }
 
 export interface UnitRemovalResult<S> {
@@ -113,6 +113,40 @@ function scrubRosters<R extends { units: string[] }>(
   return next ?? rosters;
 }
 
+/** Closes the named routes in a marketplace; returns the new marketplace (same object when nothing closed). */
+function dropTradeRoutes(
+  marketplace: GameState['marketplace'],
+  routeIds: readonly string[],
+  reason: EndedTradeRoute['reason'],
+): { marketplace: GameState['marketplace']; endedRoutes: EndedTradeRoute[] } {
+  if (!marketplace || routeIds.length === 0) return { marketplace, endedRoutes: [] };
+  const ids = new Set(routeIds);
+  const ended: TradeRoute[] = marketplace.tradeRoutes.filter(route => ids.has(route.id));
+  if (ended.length === 0) return { marketplace, endedRoutes: [] };
+  return {
+    marketplace: { ...marketplace, tradeRoutes: marketplace.tradeRoutes.filter(route => !ids.has(route.id)) },
+    endedRoutes: ended.map(route => ({ routeId: route.id, fromCityId: route.fromCityId, toCityId: route.toCityId, reason })),
+  };
+}
+
+/**
+ * A caravan that CHANGES OWNER (captured) is not removed, but its route is just as over: the new owner's
+ * prize must not stay committed to the old owner's route. Same closing logic as a removal.
+ */
+export function releaseCapturedUnitsFromRoutes<S extends UnitRemovalSlice>(
+  slice: S,
+  unitIds: Iterable<string>,
+): UnitRemovalResult<S> {
+  const captured = [...new Set(unitIds)].map(id => slice.units[id]).filter((unit): unit is Unit => Boolean(unit?.committedToRouteId));
+  if (captured.length === 0) return { slice, removed: [], endedRoutes: [] };
+  const released = dropTradeRoutes(slice.marketplace, captured.map(unit => unit.committedToRouteId!), 'unit-captured');
+  const units = { ...slice.units };
+  for (const unit of captured) units[unit.id] = { ...unit, committedToRouteId: undefined, tripsRemaining: undefined };
+  const next: S = { ...slice, units };
+  if (released.marketplace !== slice.marketplace) next.marketplace = released.marketplace;
+  return { slice: next, removed: [], endedRoutes: released.endedRoutes };
+}
+
 /** Removes `unitIds` (and the units that cannot outlive them) from a slice of state. */
 export function removeUnitsFromSlice<S extends UnitRemovalSlice>(
   slice: S,
@@ -143,18 +177,10 @@ export function removeUnitsFromSlice<S extends UnitRemovalSlice>(
     for (const unit of removed) espionage = cleanupDeadSpyUnit(espionage, unit.owner, unit.id);
   }
 
-  let marketplace = slice.marketplace;
-  const endedRoutes: EndedTradeRoute[] = [];
-  const routeIds = new Set(removed.flatMap(unit => (unit.committedToRouteId ? [unit.committedToRouteId] : [])));
-  if (marketplace && routeIds.size > 0) {
-    const ended: TradeRoute[] = marketplace.tradeRoutes.filter(route => routeIds.has(route.id));
-    if (ended.length > 0) {
-      marketplace = { ...marketplace, tradeRoutes: marketplace.tradeRoutes.filter(route => !routeIds.has(route.id)) };
-      for (const route of ended) {
-        endedRoutes.push({ routeId: route.id, fromCityId: route.fromCityId, toCityId: route.toCityId, reason: routeEndReason(reason) });
-      }
-    }
-  }
+  const routeIds = removed.flatMap(unit => (unit.committedToRouteId ? [unit.committedToRouteId] : []));
+  const released = dropTradeRoutes(slice.marketplace, routeIds, routeEndReason(reason));
+  const marketplace = released.marketplace;
+  const endedRoutes = released.endedRoutes;
 
   const next: S = { ...slice, units, civilizations, minorCivs };
   if (espionage !== slice.espionage) next.espionage = espionage;

@@ -94,7 +94,6 @@ import { getReservedNationalProjectKeys } from '@/systems/national-project-syste
 import { assignCityFocus, calculateProjectedCityYields } from '@/systems/city-work-system';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 import { getLegendaryWonderTacticalEffectAiValue } from '@/systems/legendary-wonder-tactical-effects';
-import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { BEAST_OWNER, isBeastUnit, canUnitAttackBeast } from '@/systems/beast-system';
 import { applyDiplomaticReaction } from '@/systems/minor-civ-system';
 import { getCivAvailableResources, canEstablishOutpost, performEstablishOutpost } from '@/systems/resource-acquisition-system';

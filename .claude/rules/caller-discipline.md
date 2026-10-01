@@ -72,14 +72,22 @@ meanings, name the roles — but only when misuse is plausible. The ranked audit
   ledger (`generalHistory` outlives its unit). A hand-rolled `delete`/rest-destructure/filter-rebuild of
   `units` is blocked by the source rule and swept by `architecture-boundaries.test.ts` "#1198".
 - **A combat executor applies a fight through `applyCombatOutcomeToState`.** Everything that is a
-  *consequence of the kill* belongs inside it; everything that is a *presentation of the fight*
-  is emitted from the returned payload. Remaining per-executor consequences are tracked in #1200.
+  *consequence of the kill* belongs inside it (#1200): the kill's unit removal (#1198), the route of a
+  *captured* caravan, the camp under a defeated unit (`campDestroyed` fact; only a major killer is paid),
+  the beast slay, and the combat record (`lastCombatTurnByLandmass`) for **every major civ in the fight**.
+  Everything that is a *presentation of the fight* — toasts, advisor, animation, `combat:resolved`,
+  `combat:reward-earned`, quest-transition emission, city-assault follow-ups — is the executor's, driven
+  from the returned payload. A `bus` means a real execution; no bus (AI lookahead) stays silent. The
+  executor list is pinned in `architecture-boundaries.test.ts` "#1200": a new executor must be added there,
+  and no executor may name `recordCombatForCiv`/`removeRouteForUnit` itself. Occupying an *empty* camp is a
+  move, not a fight result, and is still the mover's (player, AI turn, AI tactics).
 
 ## What is enforced, and where
 
 | Contract | Mechanism | Pinned by |
 |---|---|---|
 | Settlement is logged before peace | `withSettlementSigned` owns the order; `recordSettlementSigned` no longer exists | `war-history-system.test.ts`, `architecture-boundaries.test.ts` "#1014" |
+| Camp, route-on-capture and combat record apply for every executor | folded into `applyCombatOutcomeToState` (`campDestroyed`, `releaseCapturedUnitsFromRoutes`, `recordCombatForCiv`) | `combat-reward-system.test.ts` "consequences of a kill belong to the shared outcome (#1200)", architecture pin "#1200" |
 | Beast slay applies for every executor | folded into `applyCombatOutcomeToState`; event owned there | `combat-reward-system.test.ts` "beast slay is a consequence of the kill", architecture pin, source rule, `beast-lair-integrity` |
 | An upgrade takes its gold | `applyUpgrade` private | `unit-upgrade.test.ts`, architecture pin |
 | Strategic strike consequences | `resolveStrategicStrike` has one caller | source rule, architecture pin |
@@ -90,6 +98,6 @@ meanings, name the roles — but only when misuse is plausible. The ranked audit
 
 ## Open follow-ups (evidence in each issue)
 
-#1199 finish #1015 (hand pushes, in-place mutation) · #1200 per-executor combat consequences ·
+#1199 finish #1015 (hand pushes, in-place mutation) ·
 #1201 espionage consequences/recipients · #1202 trainable-unit wiring items 3–4. (#1198 canonical unit
 removal: done.)

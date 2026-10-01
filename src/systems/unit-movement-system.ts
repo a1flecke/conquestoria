@@ -35,7 +35,6 @@ import { createSimulationRng } from '@/systems/simulation-rng';
 import { processWonderDiscovery } from '@/systems/wonder-system';
 import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
 import { isAtWar } from '@/systems/diplomacy-queries';
-import { removeRouteForUnit } from '@/systems/trade-system';
 import { buildUnitOccupancy, getUnitIdsAtCoord } from '@/systems/unit-occupancy';
 import { syncTransportCargoPositions } from '@/systems/transport-system';
 import { syncCarrierBasedAircraft } from '@/systems/air-operations-system';
