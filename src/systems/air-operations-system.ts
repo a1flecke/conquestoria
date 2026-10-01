@@ -16,6 +16,7 @@ import { appendNotification } from '@/core/notification-log';
 import { recordCampPressureFromAirStrike } from './barbarian-pressure';
 import { isWithinTacticalSamCoverage } from './air-defense-system';
 import { claimTacticalFirstOwnerTurnInterception } from './legendary-wonder-tactical-effects';
+import { removeUnits } from '@/systems/unit-removal-system';
 
 export type AirOperationResult =
   | { ok: true; state: GameState }
@@ -474,12 +475,7 @@ function stableAirLossRoll(state: GameState, base: AirBaseRef, aircraftId: strin
 }
 
 function removeAirUnits(state: GameState, removedIds: ReadonlySet<string>): GameState {
-  const units = Object.fromEntries(Object.entries(state.units).filter(([unitId]) => !removedIds.has(unitId)));
-  const civilizations = Object.fromEntries(Object.entries(state.civilizations).map(([civId, civilization]) => [
-    civId,
-    { ...civilization, units: civilization.units.filter(unitId => !removedIds.has(unitId)) },
-  ]));
-  return { ...state, units, civilizations };
+  return removeUnits(state, removedIds, { reason: 'destroyed' }).state;
 }
 
 export function syncCarrierBasedAircraft(state: GameState, carrierId: string): GameState {

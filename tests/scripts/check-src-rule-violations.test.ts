@@ -284,6 +284,39 @@ describe('check-src-rule-violations.sh', () => {
     });
   });
 
+  describe('#1198 unit removal is one transition', () => {
+    const run = (path: string, source: string) => {
+      const workspace = makeWorkspace();
+      writeWorkspaceFile(workspace, path, source);
+      return runScript(workspace, path);
+    };
+
+    const hand = [
+      ['delete', 'delete next.units[unit.id];\n'],
+      ['bare delete', 'delete units[id];\n'],
+      ['rest-destructure', 'const { [id]: _removed, ...remainingUnits } = state.units;\n'],
+      ['rest-destructure of a local', 'const { [uid]: _removed, ...remainingUnits } = nextUnits;\n'],
+      ['filter-rebuild', 'const units = Object.fromEntries(Object.entries(state.units).filter(([id]) => !gone.has(id)));\n'],
+    ] as const;
+
+    it.each(hand)('blocks a hand-rolled %s outside the module', (_name, source) => {
+      const result = run('src/systems/some-system.ts', source);
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain('Hand-rolled unit removal outside unit-removal-system.ts');
+    });
+
+    it('allows the canonical module and save repairs', () => {
+      expect(run('src/systems/unit-removal-system.ts', 'delete units[id];\n').status).toBe(0);
+      expect(run('src/storage/migrations/steps/some-step.ts', 'delete units[id];\n').status).toBe(0);
+    });
+
+    it('exempts comment lines and does not flag non-unit rest-destructures or reads', () => {
+      expect(run('src/systems/some-system.ts', '// we never delete units[id] by hand\n').status).toBe(0);
+      expect(run('src/systems/some-system.ts', 'const { [id]: _removed, ...rest } = state.cities;\n').status).toBe(0);
+      expect(run('src/systems/some-system.ts', 'const names = Object.entries(state.units).filter(([, u]) => u.hasMoved);\n').status).toBe(0);
+    });
+  });
+
   describe('#995 single-side war/peace mutation rule', () => {
     it('blocks single-side declareWar()/makePeace() outside diplomacy-war', () => {
       const workspace = makeWorkspace();

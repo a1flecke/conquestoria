@@ -9,6 +9,7 @@ import { applyRegionalSuppression } from './pirate-ecology';
 import { PIRATE_ACTION_RULES, getPirateBounty, getPirateTributeCost } from './pirate-definitions';
 import { UNIT_DEFINITIONS } from './unit-definitions';
 import { getOwnedCityCount } from './city-ownership';
+import { removeUnits } from '@/systems/unit-removal-system';
 
 export interface PirateActionQuote {
   available: boolean;
@@ -426,21 +427,6 @@ export function getEnclaveAssaultPreview(state: GameState, factionId: string, un
   };
 }
 
-function removeUnits(state: GameState, unitIds: Set<string>): GameState {
-  const expanded = new Set(unitIds);
-  for (const unitId of unitIds) {
-    for (const cargoId of state.units[unitId]?.cargoUnitIds ?? []) expanded.add(cargoId);
-  }
-  const units = Object.fromEntries(Object.entries(state.units).filter(([unitId, unit]) =>
-    !expanded.has(unitId) && !(unit.transportId && expanded.has(unit.transportId)),
-  ));
-  const civilizations = Object.fromEntries(Object.entries(state.civilizations).map(([civId, civ]) => [civId, {
-    ...civ,
-    units: civ.units.filter(unitId => !expanded.has(unitId)),
-  }]));
-  return { ...state, units, civilizations };
-}
-
 export function destroyPirateFaction(state: GameState, input: DestroyPirateFactionInput): PirateDestructionResult {
   const pirates = state.pirates ?? createEmptyPirateState();
   const faction = pirates.factions[input.factionId];
@@ -496,7 +482,7 @@ export function destroyPirateFaction(state: GameState, input: DestroyPirateFacti
   }));
   const unitIds = new Set(faction.shipIds);
   if (faction.headquarters.kind === 'deep-sea-flotilla') unitIds.add(faction.headquarters.flagshipUnitId);
-  let nextState = removeUnits(state, unitIds);
+  let nextState = removeUnits(state, unitIds, { reason: 'destroyed' }).state;
   nextState = {
     ...nextState,
     civilizations: majorDestroyer ? {
@@ -534,22 +520,12 @@ export function assaultPirateEnclave(state: GameState, factionId: string, unitId
   if (headquarters.kind !== 'coastal-enclave') return failure(state, 'This faction has no coastal enclave.');
   const attacker = state.units[unitId];
   const attackerHealth = Math.max(0, attacker.health - preview.counterfireDamage);
-  const units = { ...state.units };
-  const civilizations = { ...state.civilizations };
-  if (attackerHealth > 0) {
-    units[unitId] = { ...attacker, health: attackerHealth, movementPointsLeft: 0, hasMoved: true, hasActed: true };
-  } else {
-    delete units[unitId];
-    civilizations[attacker.owner] = {
-      ...civilizations[attacker.owner],
-      units: civilizations[attacker.owner].units.filter(id => id !== unitId),
-    };
-  }
   const nextHeadquarters = { ...headquarters, integrity: preview.integrityAfter };
   let nextState: GameState = {
     ...state,
-    units,
-    civilizations,
+    units: attackerHealth > 0
+      ? { ...state.units, [unitId]: { ...attacker, health: attackerHealth, movementPointsLeft: 0, hasMoved: true, hasActed: true } }
+      : state.units,
     pirates: {
       ...state.pirates!,
       factions: {
@@ -558,6 +534,7 @@ export function assaultPirateEnclave(state: GameState, factionId: string, unitId
       },
     },
   };
+  if (attackerHealth <= 0) nextState = removeUnits(nextState, [unitId], { reason: 'destroyed' }).state;
   const assaultEvent: PirateActionEvent = {
     type: 'enclave-assaulted', factionId, unitId,
     damage: preview.damageToHeadquarters, counterfireDamage: preview.counterfireDamage,

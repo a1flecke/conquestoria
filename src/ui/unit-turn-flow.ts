@@ -25,7 +25,6 @@ export interface UnitTurnFlowDeps {
   setBlockingOverlay: (id: string | null) => void;
   endTurn: (options: { allowUnmovedUnits?: boolean }) => void;
   bus?: EventBus;
-  onUnitDisbanded?: (state: GameState, unitId: string, routeId: string) => GameState;
 }
 
 export interface UnitTurnFlow {
@@ -114,18 +113,12 @@ export function createUnitTurnFlow(deps: UnitTurnFlowDeps): UnitTurnFlow {
       unitName: displayName,
       bodyText,
       onConfirm: () => {
-        let currentState = deps.getState();
-        const currentUnit = currentState.units[unitId];
+        const currentUnit = deps.getState().units[unitId];
         const deletedName = currentUnit ? UNIT_DEFINITIONS[currentUnit.type].name : UNIT_DEFINITIONS[unit.type].name;
         closeUnitDeleteConfirmation();
         // One publication, after visibility is recomputed for the smaller roster.
         deps.batch(() => {
-          // Clean up trade route before removing the unit
-          const routeId = currentUnit?.committedToRouteId;
-          if (routeId && deps.onUnitDisbanded) {
-            currentState = deps.onUnitDisbanded(currentState, unitId, routeId);
-            deps.commit(currentState);
-          }
+          // #1198: removal itself ends a caravan's route; there is no pre-step to remember.
           deps.commit(removePlayerUnitFromState(
             deps.getState(),
             deps.getState().currentPlayer,

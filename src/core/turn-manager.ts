@@ -141,6 +141,7 @@ import { chooseBestGeneralCandidate } from '@/ai/ai-general-command';
 import { resolveGeneralDefinition, type GeneralDefinition } from '@/systems/great-general-definitions';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
+import { removeUnits } from '@/systems/unit-removal-system';
 
 // #544 MR3: same char-folding convention combat-reward-system.ts's seededRoll and
 // city-capture-system.ts's assault seed already use -- turns a (gameId, turn, civId)
@@ -1093,17 +1094,7 @@ export function processTurn(
         const healthAfter = attackerUnit.health - counterFireDamage;
         const attackerDied = healthAfter <= 0;
         if (attackerDied) {
-          const units = { ...newState.units };
-          delete units[order.attackerUnitId];
-          const civilizations = { ...newState.civilizations };
-          const raiderOwner = civilizations[attackerUnit.owner];
-          if (raiderOwner) {
-            civilizations[attackerUnit.owner] = {
-              ...raiderOwner,
-              units: raiderOwner.units.filter(id => id !== order.attackerUnitId),
-            };
-          }
-          newState = { ...newState, units, civilizations };
+          newState = removeUnits(newState, [order.attackerUnitId], { reason: 'destroyed', bus }).state;
           // barbarianHomeCampByUnitId self-prunes stale entries for dead units on the
           // next processing pass (barbarian-system.ts) -- no further cleanup needed here.
         } else {

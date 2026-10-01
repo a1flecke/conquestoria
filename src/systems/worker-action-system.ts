@@ -19,6 +19,7 @@ import {
 import { getRoadBlockerReason, getRoadBuildTurns } from './road-system';
 import { getActiveNationalProjectsForCiv } from './national-project-system';
 import { getFortificationPlacement } from './fortification-system';
+import { removeUnits } from '@/systems/unit-removal-system';
 
 export const DEFAULT_WORKER_CHARGES = 2;
 export const MAX_WORKER_CHARGES = 5;
@@ -90,21 +91,7 @@ function isCityCenterTile(state: GameState, coord: HexCoord): boolean {
 }
 
 function removeUnit(state: GameState, unit: Unit): GameState {
-  const { [unit.id]: _removed, ...remainingUnits } = state.units;
-  const civ = state.civilizations[unit.owner];
-  if (!civ) return { ...state, units: remainingUnits };
-
-  return {
-    ...state,
-    units: remainingUnits,
-    civilizations: {
-      ...state.civilizations,
-      [unit.owner]: {
-        ...civ,
-        units: civ.units.filter(unitId => unitId !== unit.id),
-      },
-    },
-  };
+  return removeUnits(state, [unit.id], { reason: 'consumed' }).state;
 }
 
 function defaultDrainRng(state: GameState, unit: Unit, action: WorkerActionType): () => number {

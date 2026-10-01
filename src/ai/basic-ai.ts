@@ -139,6 +139,7 @@ import { getAvailableWorkerActions, getKnownTileResourceForWorkerAction } from '
 import { chooseRoadBuilderUnit } from '@/systems/road-network';
 import { canBuildRoad } from '@/systems/road-system';
 import { chooseAiBoon, chooseBoon } from '@/systems/religion-system';
+import { removeUnits } from '@/systems/unit-removal-system';
 
 /** #988: how decisive a military advantage must be before the AI converts a
  * force_vassalage goal into an actual settlement offer -- deliberately much
@@ -1527,12 +1528,8 @@ function processAITurnInternal(
         capital.id,
         capital.position,
       );
-      // Remove unit from map — embedded spy goes off-map
-      delete newState.units[idleSpy.id];
-      newState.civilizations[civId] = {
-        ...newState.civilizations[civId],
-        units: newState.civilizations[civId].units.filter(id => id !== idleSpy.id),
-      };
+      // Remove unit from map — embedded spy goes off-map ('consumed': its espionage record IS the spy now)
+      newState = removeUnits(newState, [idleSpy.id], { reason: 'consumed' }).state;
     }
   }
 
@@ -1621,14 +1618,11 @@ function processAITurnInternal(
         spies: { ...result.civEsp.spies, [spyUnitId]: { ...spyAfterAttempt, targetCivId: cityHere.owner } },
       };
       if (result.removeUnitFromMap) {
-        delete newState.units[spyUnitId];
-        newState.civilizations[civId].units =
-          (newState.civilizations[civId].units ?? []).filter(id => id !== spyUnitId);
+        newState = removeUnits(newState, [spyUnitId], { reason: 'consumed' }).state;
         bus.emit('espionage:spy-infiltrated', { civId, spyId: spyUnitId, cityId: cityHere.id });
       } else if (result.caught) {
-        delete newState.units[spyUnitId];
-        newState.civilizations[civId].units =
-          (newState.civilizations[civId].units ?? []).filter(id => id !== spyUnitId);
+        // Caught, not killed: the record stays (status 'captured'), so the unit is consumed, not destroyed.
+        newState = removeUnits(newState, [spyUnitId], { reason: 'consumed' }).state;
         bus.emit('espionage:spy-caught-infiltrating', {
           capturingCivId: cityHere.owner, spyOwner: civId, spyId: spyUnitId, cityId: cityHere.id,
         });

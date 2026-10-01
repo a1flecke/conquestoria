@@ -40,6 +40,7 @@ import { buildUnitOccupancy, getUnitIdsAtCoord } from '@/systems/unit-occupancy'
 import { syncTransportCargoPositions } from '@/systems/transport-system';
 import { syncCarrierBasedAircraft } from '@/systems/air-operations-system';
 import { buildMovePresentationByViewer } from '@/systems/viewer-event-presentation';
+import { removeUnits } from '@/systems/unit-removal-system';
 
 export interface WonderDiscoveryResult {
   wonderId: string;
@@ -280,19 +281,8 @@ function processCaravanArrival(
   const tripsRemaining = (caravan.tripsRemaining ?? 1) - 1;
 
   if (tripsRemaining <= 0) {
-    const { [caravanId]: _removed, ...remainingUnits } = state.units;
-    const ownerCiv = state.civilizations[caravan.owner];
-    const newCivs = ownerCiv
-      ? {
-          ...state.civilizations,
-          [caravan.owner]: {
-            ...ownerCiv,
-            units: ownerCiv.units.filter((id: string) => id !== caravanId),
-          },
-        }
-      : state.civilizations;
-    const stateWithoutCaravan = { ...state, units: remainingUnits, civilizations: newCivs };
-    return removeRouteForUnit(stateWithoutCaravan, caravanId, bus, 'trips-exhausted', route.id);
+    // The caravan's last trip is done: the canonical removal also closes its route (and announces it).
+    return removeUnits(state, [caravanId], { reason: 'trips-exhausted', bus }).state;
   }
 
   return {

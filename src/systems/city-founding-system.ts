@@ -17,6 +17,7 @@ import { resolveCivDefinition } from '@/systems/civ-registry';
 import { hexKey } from '@/systems/hex-utils';
 import { initializeLegendaryWonderProjectsForCity } from '@/systems/legendary-wonder-system';
 import { getFoundingBonusProduction } from '@/systems/tech-yield-definitions';
+import { removeUnits } from '@/systems/unit-removal-system';
 
 export interface FoundCityInStateResult {
   state: GameState;
@@ -73,10 +74,8 @@ export function foundCityInState(
   );
   const recoveredFromNearDefeat = nextCivilization.nearDefeat === true
     && existingOwnedCityIds.length >= 1;
-  const { [settlerId]: _removed, ...remainingUnits } = nextState.units;
   nextState = {
     ...nextState,
-    units: remainingUnits,
     cities: {
       ...nextState.cities,
       [city.id]: city,
@@ -85,7 +84,6 @@ export function foundCityInState(
       ...nextState.civilizations,
       [settler.owner]: {
         ...nextCivilization,
-        units: nextCivilization.units.filter(unitId => unitId !== settlerId),
         cities: [...existingOwnedCityIds, city.id],
         nearDefeat: recoveredFromNearDefeat
           ? false
@@ -93,6 +91,8 @@ export function foundCityInState(
       },
     },
   };
+  // The settler is spent founding the city (also scrubs it from a transport manifest).
+  nextState = removeUnits(nextState, [settlerId], { reason: 'consumed' }).state;
   nextState = initializeLegendaryWonderProjectsForCity(
     nextState,
     settler.owner,

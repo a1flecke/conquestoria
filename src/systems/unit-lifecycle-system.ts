@@ -4,7 +4,7 @@ import {
   emitCivilizationLivenessTransitions,
   reconcileCivilizationLiveness,
 } from '@/systems/civilization-elimination-system';
-import { cleanupDeadSpyUnit } from '@/systems/espionage-system';
+import { removeUnits } from '@/systems/unit-removal-system';
 import { getUnmovedUnits } from '@/systems/unit-order-state';
 
 export function skipUnitForTurn(unit: Unit): Unit {
@@ -43,59 +43,10 @@ export function removePlayerUnitFromState(
     return state;
   }
 
-  const removedUnitIds = new Set([unitId]);
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (const candidate of Object.values(state.units)) {
-      const isCargoOfRemovedTransport = candidate.transportId != null
-        && removedUnitIds.has(candidate.transportId);
-      const isListedCargo = [...removedUnitIds].some(removedId =>
-        state.units[removedId]?.cargoUnitIds?.includes(candidate.id));
-      // #1014: a carrier's based aircraft go with it -- the same consequence losing the carrier in
-      // combat has (`destroyCarrierBasedAircraft`). Disbanding one used to leave the jets alive
-      // on an airBase that no longer exists (air-base-integrity violated).
-      const isBasedOnRemovedCarrier = candidate.airBase?.kind === 'carrier'
-        && removedUnitIds.has(candidate.airBase.unitId);
-      if ((isCargoOfRemovedTransport || isListedCargo || isBasedOnRemovedCarrier) && !removedUnitIds.has(candidate.id)) {
-        removedUnitIds.add(candidate.id);
-        changed = true;
-      }
-    }
-  }
-
-  // #1014: a removed unit that was cargo of a SURVIVING transport must leave its manifest too, or the
-  // transport keeps naming a unit that no longer exists (cargo-reciprocity violated).
-  const remainingUnits = Object.fromEntries(
-    Object.entries(state.units)
-      .filter(([id]) => !removedUnitIds.has(id))
-      .map(([id, candidate]) => [
-        id,
-        candidate.cargoUnitIds?.some(cargoId => removedUnitIds.has(cargoId))
-          ? { ...candidate, cargoUnitIds: candidate.cargoUnitIds.filter(cargoId => !removedUnitIds.has(cargoId)) }
-          : candidate,
-      ]),
-  );
-  let nextEspionage = state.espionage;
-  for (const removedId of removedUnitIds) {
-    const removed = state.units[removedId];
-    if (removed && nextEspionage) {
-      nextEspionage = cleanupDeadSpyUnit(nextEspionage, removed.owner, removedId);
-    }
-  }
-  const civilizations = Object.fromEntries(Object.entries(state.civilizations).map(([id, candidate]) => [
-    id,
-    candidate.units.some(candidateUnitId => removedUnitIds.has(candidateUnitId))
-      ? { ...candidate, units: candidate.units.filter(candidateUnitId => !removedUnitIds.has(candidateUnitId)) }
-      : candidate,
-  ]));
-  const nextState: GameState = {
-    ...state,
-    units: remainingUnits,
-    civilizations,
-    espionage: nextEspionage,
-  };
-  const liveness = reconcileCivilizationLiveness(state, nextState);
+  // #1198: one canonical removal owns the cascade (cargo, air wing, manifests, spy record, trade route).
+  // Liveness is reconciled here because disbanding is the whole transition.
+  const removal = removeUnits(state, [unitId], { reason: 'disbanded', bus });
+  const liveness = reconcileCivilizationLiveness(state, removal.state);
   if (bus) emitCivilizationLivenessTransitions(liveness, bus);
   return liveness.state;
 }

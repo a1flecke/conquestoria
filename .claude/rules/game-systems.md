@@ -325,7 +325,7 @@ its coverage is now enumerated:
 ## Transport Cargo
 - Load/unload rules, cargo capacity, cargo position sync, and transport destruction cascades must live in shared system helpers, not in UI-only branches.
 - Loading and unloading consume the land unit/cargo action state, not the ship action state.
-- If a transport is removed by combat or another actor-agnostic lifecycle path, all cargo must be removed from `state.units` and owner unit rosters in the same mutation.
+- If a transport is removed by combat or another actor-agnostic lifecycle path, all cargo must be removed from `state.units` and owner unit rosters in the same mutation. This is not a convention a caller keeps: `removeUnits` (`unit-removal-system.ts`, #1198) computes the cargo/air-wing closure itself, and is the only way a unit leaves `GameState`.
 
 ### Two carriage models, kept separate on purpose (#1000)
 

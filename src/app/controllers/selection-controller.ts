@@ -70,6 +70,7 @@ import { executeStrategicLaunch } from '@/systems/strategic-launch-execution-sys
 import { resolveGeneralDefinition } from '@/systems/great-general-definitions';
 import { getEffectiveCommandStats } from '@/systems/great-general-system';
 import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
+import { removeUnits } from '@/systems/unit-removal-system';
 
 /** The narrow slice of `RenderLoop` this controller needs. */
 export type SelectionControllerRenderer = Pick<
@@ -617,15 +618,13 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
           // 'espionage:spy-caught-infiltrating' handler) observes the post-mutation state,
           // not the state as it stood before this action published.
           let runSideEffects: () => void;
+          // The spy leaves the map by design (stationed or caught): its espionage record stays, so the unit is
+          // 'consumed', not destroyed. Removal itself is the canonical transition (#1198).
+          let spyLeavesMap = false;
 
           if (result.removeUnitFromMap) {
             // Era 2+: spy removed from map, stationed inside city
-            const { [uid]: _removed, ...remainingUnits } = nextUnits;
-            nextUnits = remainingUnits;
-            const civUnits = nextCivilizations[currentPlayer].units;
-            nextCivilizations = civUnits
-              ? { ...nextCivilizations, [currentPlayer]: { ...nextCivilizations[currentPlayer], units: civUnits.filter(id => id !== uid) } }
-              : nextCivilizations;
+            spyLeavesMap = true;
             runSideEffects = () => {
               deps.showNotification(`Spy successfully infiltrated ${targetCity.name}. Open Intel panel to issue orders.`, 'success');
               bus.emit('espionage:spy-infiltrated', { civId: currentPlayer, spyId: uid, cityId: targetCity.id });
@@ -652,12 +651,7 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
             };
           } else if (result.caught) {
             // Caught: remove unit from map (spy lost)
-            const { [uid]: _removed, ...remainingUnits } = nextUnits;
-            nextUnits = remainingUnits;
-            const civUnits = nextCivilizations[currentPlayer].units;
-            nextCivilizations = civUnits
-              ? { ...nextCivilizations, [currentPlayer]: { ...nextCivilizations[currentPlayer], units: civUnits.filter(id => id !== uid) } }
-              : nextCivilizations;
+            spyLeavesMap = true;
             runSideEffects = () => {
               bus.emit('espionage:spy-caught-infiltrating', { capturingCivId: targetCity.owner, spyOwner: currentPlayer, spyId: uid, cityId: targetCity.id });
               deselectUnit();
@@ -671,12 +665,13 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
             };
           }
 
-          session.commit({
+          const afterAttempt: GameState = {
             ...session.getState(),
             espionage: { ...session.getState().espionage, [currentPlayer]: civEspWithTarget },
             units: nextUnits,
             civilizations: nextCivilizations,
-          });
+          };
+          session.commit(spyLeavesMap ? removeUnits(afterAttempt, [uid], { reason: 'consumed' }).state : afterAttempt);
 
           runSideEffects();
 
@@ -694,19 +689,11 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
           );
           if (!city) return;
           const currentPlayer = session.getState().currentPlayer;
-          const { [uid]: _removed, ...remainingUnits } = session.getState().units;
-          session.commit({
+          // An embedded spy goes off-map but its record IS the spy now: 'consumed' keeps it.
+          session.commit(removeUnits({
             ...session.getState(),
             espionage: { ...session.getState().espionage, [currentPlayer]: embedSpy(civEsp, uid, city.id, city.position) },
-            units: remainingUnits,
-            civilizations: {
-              ...session.getState().civilizations,
-              [currentPlayer]: {
-                ...session.getState().civilizations[currentPlayer],
-                units: session.getState().civilizations[currentPlayer].units.filter(id => id !== uid),
-              },
-            },
-          });
+          }, [uid], { reason: 'consumed' }).state);
           deselectUnit();
           renderLoop.setGameState(session.getState());
           deps.updateHUD();

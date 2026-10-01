@@ -14,7 +14,15 @@ if [ -z "$COMMAND" ] || ! echo "$COMMAND" | grep -qE '(^|[[:space:]&;|])git[[:sp
   exit 0
 fi
 
-CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+# The harness may run hooks from a different checkout than the one the session works in (e.g. the main
+# checkout while the session is in a linked worktree), so ask git about the session's own cwd, which the
+# hook payload carries. Fall back to the process cwd when the payload has none.
+SESSION_CWD=$(echo "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)
+if [ -n "$SESSION_CWD" ] && [ -d "$SESSION_CWD" ]; then
+  CURRENT_BRANCH=$(git -C "$SESSION_CWD" rev-parse --abbrev-ref HEAD 2>/dev/null)
+else
+  CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+fi
 
 if [ "$CURRENT_BRANCH" = "main" ] || [ "$CURRENT_BRANCH" = "master" ]; then
   echo "ERROR: Direct '$COMMAND' on '$CURRENT_BRANCH' is blocked. Create a branch and open a PR instead." >&2

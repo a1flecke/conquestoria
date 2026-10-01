@@ -89,4 +89,30 @@ describe('resolveCoastalBatteryCounterfire', () => {
     });
     expect(nextTurn.damage).toBe(8);
   });
+
+  // #1198: a carrier is a legal siege attacker (strength 45, ranged vs 'city'). Losing it to a Battery
+  // must take its air wing with it, exactly as losing it in combat does -- the hand-rolled delete used to
+  // leave the aircraft alive on an airBase that no longer exists (air-base-integrity violated).
+  it('a carrier destroyed by the Battery takes its based aircraft with it (#1198)', () => {
+    const state = makeState();
+    state.units.carrier = {
+      id: 'carrier', type: 'carrier', owner: 'ai-1', position: { q: 1, r: 0 },
+      movementPointsLeft: 0, health: 3, experience: 0, hasMoved: true, hasActed: true, isResting: false,
+    } as GameState['units'][string];
+    state.units.jet = {
+      id: 'jet', type: 'biplane', owner: 'ai-1', position: { q: 1, r: 0 },
+      movementPointsLeft: 0, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      airBase: { kind: 'carrier', unitId: 'carrier' },
+    } as GameState['units'][string];
+    state.civilizations = { 'ai-1': { id: 'ai-1', units: ['carrier', 'jet'] } } as unknown as GameState['civilizations'];
+
+    const result = resolveCoastalBatteryCounterfire(state, {
+      cityId: 'port', attackerUnitId: 'carrier', attackerDomain: 'naval', cityDamage: 40, source: 'ai',
+    });
+
+    expect(result.event?.attackerDied).toBe(true);
+    expect(result.state.units.carrier).toBeUndefined();
+    expect(result.state.units.jet).toBeUndefined();
+    expect(result.state.civilizations['ai-1'].units).toEqual([]);
+  });
 });

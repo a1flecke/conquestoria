@@ -120,6 +120,7 @@ import {
   recallSpy, startMission, verifyAgent,
 } from '@/systems/espionage-system';
 import { SFX } from '@/audio/sfx';
+import { removeUnits } from '@/systems/unit-removal-system';
 
 export interface PanelActionsController {
   openPacingDebugPanel(): void;
@@ -1153,17 +1154,9 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
           ...deps.session.getState().espionage,
           [currentPlayer]: embedSpy(deps.session.getState().espionage![currentPlayer], spyId, target.cityId, target.position),
         };
-        let nextUnits = deps.session.getState().units;
-        let nextCivilizations = deps.session.getState().civilizations;
-        if (unit) {
-          const { [spyId]: _removed, ...remainingUnits } = nextUnits;
-          nextUnits = remainingUnits;
-          nextCivilizations = {
-            ...nextCivilizations,
-            [currentPlayer]: { ...nextCivilizations[currentPlayer], units: nextCivilizations[currentPlayer].units.filter(id => id !== spyId) },
-          };
-        }
-        deps.session.commit({ ...deps.session.getState(), espionage: nextEspionage, units: nextUnits, civilizations: nextCivilizations });
+        // The spy goes off-map but its record IS the spy now: 'consumed' keeps it (#1198).
+        const withEspionage: GameState = { ...deps.session.getState(), espionage: nextEspionage };
+        deps.session.commit(unit ? removeUnits(withEspionage, [spyId], { reason: 'consumed' }).state : withEspionage);
         deps.renderLoop.setGameState(deps.session.getState());
         deps.hud.update();
         deps.router.open('espionage');

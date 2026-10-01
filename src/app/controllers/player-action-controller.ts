@@ -183,8 +183,6 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
       setBlockingOverlay: deps.setBlockingOverlay,
       endTurn: options => { void deps.turnFlow.endTurn(options); },
       bus: deps.bus,
-      onUnitDisbanded: (state, unitId, routeId) =>
-        removeRouteForUnit(state, unitId, deps.bus, 'unit-disbanded', routeId),
     });
   }
 

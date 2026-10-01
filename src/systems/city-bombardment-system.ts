@@ -18,6 +18,7 @@ import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { createSimulationRng } from '@/systems/simulation-rng';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { removeUnits } from '@/systems/unit-removal-system';
 
 export type CityBombardmentSource = 'player' | 'ai';
 
@@ -295,16 +296,7 @@ export function resolveUnitCityBombardment(
       const healthAfter = current.health - counterFireDamage;
       if (healthAfter <= 0) {
         attackerDied = true;
-        const units = { ...nextState.units };
-        delete units[attacker.id];
-        const civ = nextState.civilizations[attacker.owner];
-        nextState = {
-          ...nextState,
-          units,
-          ...(civ
-            ? { civilizations: { ...nextState.civilizations, [attacker.owner]: { ...civ, units: civ.units.filter(id => id !== attacker.id) } } }
-            : {}),
-        };
+        nextState = removeUnits(nextState, [attacker.id], { reason: 'destroyed' }).state;
       } else {
         nextState = {
           ...nextState,

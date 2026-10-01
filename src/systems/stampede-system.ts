@@ -15,6 +15,7 @@ import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
 import { isHostileOwnerTo } from '@/systems/owner-hostility';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
+import { removeUnits } from '@/systems/unit-removal-system';
 
 export interface StampedeProfile {
   cooldownTurns: number;
@@ -373,8 +374,7 @@ export function processStampedeTurn(state: GameState, targetCivId: string): Game
     ? 'contained'
     : 'survived';
   const withoutHerds = {
-    ...next,
-    units: Object.fromEntries(Object.entries(next.units).filter(([unitId]) => !force.unitIds.includes(unitId))),
+    ...removeUnits(next, force.unitIds, { reason: 'eliminated' }).state,
     stampedes: { ...next.stampedes, [targetCivId]: { ...currentStampede, activeTurns } },
   };
   return removeStampedeForce(resolveStampedeOutcome(withoutHerds, targetCivId, outcome), force.id);

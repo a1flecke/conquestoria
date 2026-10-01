@@ -412,4 +412,25 @@ const r = recordBeastSlain(state, beast, hero);
 EOF
 expect_allow "$tmp/src/systems/combat-reward-system.ts" "recordBeastSlain from combat-reward-system"
 
+cat > "$tmp/src/systems/some-system.ts" <<'EOF'
+const { [id]: _removed, ...remainingUnits } = state.units;
+EOF
+expect_block "$tmp/src/systems/some-system.ts" "hand-rolled unit removal (rest-destructure) outside unit-removal-system"
+
+cat > "$tmp/src/systems/some-system.ts" <<'EOF'
+delete next.units[unit.id];
+EOF
+expect_block "$tmp/src/systems/some-system.ts" "hand-rolled unit removal (delete) outside unit-removal-system"
+
+cat > "$tmp/src/systems/unit-removal-system.ts" <<'EOF'
+delete units[id];
+EOF
+expect_allow "$tmp/src/systems/unit-removal-system.ts" "delete units[id] from the canonical removal module"
+
+mkdir -p "$tmp/src/storage/migrations/steps"
+cat > "$tmp/src/storage/migrations/steps/some-step.ts" <<'EOF'
+delete units[id];
+EOF
+expect_allow "$tmp/src/storage/migrations/steps/some-step.ts" "delete units[id] from a save migration"
+
 exit "$fail"

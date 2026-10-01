@@ -1401,3 +1401,50 @@ describe('#1014 — caller-discipline contracts are structural, not remembered',
     expect(filesMentioning('applyUpgrade')).toEqual(['src/systems/unit-upgrade-system.ts']);
   });
 });
+
+describe('#1198 — a unit leaves GameState through exactly one transition', () => {
+  function walkTs(dir: string): string[] {
+    return readdirSync(dir, { withFileTypes: true }).flatMap(e => {
+      const full = resolve(dir, e.name);
+      return e.isDirectory() ? walkTs(full) : /\.tsx?$/.test(e.name) ? [full] : [];
+    });
+  }
+  const root = resolve(__dirname, '../..');
+  const srcFiles = walkTs(resolve(root, 'src'));
+  const rel = (file: string) => file.slice(root.length + 1);
+  const code = (file: string) => stripComments(readFileSync(file, 'utf8'));
+  const filesMentioning = (symbol: string): string[] => srcFiles
+    .filter(file => new RegExp(`\\b${symbol}\\b`).test(code(file)))
+    .map(rel)
+    .sort();
+
+  // The three shapes a hand-rolled removal takes: delete, rest-destructure, filter-rebuild. Same patterns as the
+  // `check-src-rule-violations.sh` source rule, but swept over every file so a rule that was bypassed (a hook
+  // that never ran) still fails CI.
+  const HAND_ROLLED_REMOVAL = [
+    /delete\s+[\w.!()]*[uU]nits\[/,
+    /\]:\s*_\w*,\s*\.\.\.\w+\s*\}\s*=\s*[\w.()]*[uU]nits\s*;?\s*$/m,
+    /fromEntries\(Object\.entries\([\w.()]*[uU]nits\)\.(filter|flatMap)/,
+  ];
+
+  it('no production file hand-rolls a unit removal outside the canonical module and save repairs', () => {
+    const offenders = srcFiles
+      .filter(file => !rel(file).startsWith('src/storage/') && rel(file) !== 'src/systems/unit-removal-system.ts')
+      .filter(file => HAND_ROLLED_REMOVAL.some(pattern => pattern.test(code(file))))
+      .map(rel);
+    expect(offenders).toEqual([]);
+  });
+
+  it('the two helpers that used to disagree are gone, and a dead spy is cleaned only by the canonical removal', () => {
+    expect(filesMentioning('removeUnitFromCopies')).toEqual([]);
+    expect(filesMentioning('destroyCarrierBasedAircraft')).toEqual([]);
+    expect(filesMentioning('cleanupDeadSpyUnit')).toEqual([
+      'src/systems/espionage-system.ts',
+      'src/systems/unit-removal-system.ts',
+    ]);
+  });
+
+  it('removal does not reconcile civilization liveness: that stays with the orchestrator that owns the whole transition', () => {
+    expect(code(resolve(root, 'src/systems/unit-removal-system.ts'))).not.toMatch(/reconcileCivilizationLiveness/);
+  });
+});

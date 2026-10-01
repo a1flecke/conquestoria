@@ -46,11 +46,11 @@ src/systems/combat-reward-system.ts:142 # [OK] full victorId:defeatedId fold, no
 src/systems/combat-reward-system.ts:144 # [LOW] LCG recurrence body — hand-rolled duplicate of seededLcg
 
 # --- pirate-actions.ts (deterministicRoll is parameterized; its one caller already builds gameId:turn:factionId:raidKey) ---
-src/systems/pirate-actions.ts:305 # [OK] full-string FNV-1a fold, no truncation; caller already supplies gameId:turn:factionId:raidKey
+src/systems/pirate-actions.ts:306 # [OK] full-string FNV-1a fold, no truncation; caller already supplies gameId:turn:factionId:raidKey
 
 # --- air-operations-system.ts (self-contained; already correct) ---
-src/systems/air-operations-system.ts:470 # [OK] gameId:turn:baseId:aircraftId folded over the full string, no truncation
+src/systems/air-operations-system.ts:471 # [OK] gameId:turn:baseId:aircraftId folded over the full string, no truncation
 
 # --- turn-manager.ts (deriveGeneralCandidateSeed, #932 — already gameId-rooted) ---
-src/core/turn-manager.ts:159 # [LOW] deriveGeneralCandidateSeed (#932) — already gameId-rooted; recurrence body duplicates seededLcg
-src/core/turn-manager.ts:161 # [LOW] deriveGeneralCandidateSeed (#932) LCG fold — hand-rolled duplicate of seededLcg
+src/core/turn-manager.ts:160 # [LOW] deriveGeneralCandidateSeed (#932) — already gameId-rooted; recurrence body duplicates seededLcg
+src/core/turn-manager.ts:162 # [LOW] deriveGeneralCandidateSeed (#932) LCG fold — hand-rolled duplicate of seededLcg
