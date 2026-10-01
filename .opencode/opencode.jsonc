@@ -26,6 +26,10 @@
         { "action": "shell", "resource": "command -v *", "effect": "allow" },
 
         { "action": "shell", "resource": "./scripts/run-with-mise.sh yarn *", "effect": "allow" },
+        // Agent-authored throwaway analysis scripts live in OpenCode's scratch dir; run them through
+        // the mise wrapper (never bare node), and only from that dir.
+        { "action": "shell", "resource": "./scripts/run-with-mise.sh node /private/var/folders/*/*/T/opencode/*", "effect": "allow" },
+        { "action": "shell", "resource": "./scripts/run-with-mise.sh node /var/folders/*/*/T/opencode/*", "effect": "allow" },
         { "action": "shell", "resource": "mise *", "effect": "allow" },
 
         // Shared host: launch/stop verification runs and write PR bodies through the repo's
