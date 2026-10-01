@@ -76,4 +76,3 @@ export function getNavalOperationsCombatPenalty(unit: Pick<Unit, 'type' | 'owner
 export function getNavalOperationsMovementPenalty(unit: Pick<Unit, 'type' | 'owner' | 'navalOps'>): number {
   return getNavalEnduranceStatus(unit) === 'depleted' ? NAVAL_DEPLETED_MOVEMENT_PENALTY : 0;
 }
-
