@@ -1,6 +1,6 @@
 import type { EventBus } from '@/core/event-bus';
 import type { GameState, TradeRoute, Unit } from '@/core/types';
-import { cleanupDeadSpyUnit } from '@/systems/espionage-system';
+import { cleanupDeadSpyUnit } from '@/systems/espionage-spy-lifecycle';
 
 /**
  * #1198 — the one transition that takes a unit out of `GameState`.

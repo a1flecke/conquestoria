@@ -1438,7 +1438,10 @@ describe('#1198 — a unit leaves GameState through exactly one transition', () 
   it('the two helpers that used to disagree are gone, and a dead spy is cleaned only by the canonical removal', () => {
     expect(filesMentioning('removeUnitFromCopies')).toEqual([]);
     expect(filesMentioning('destroyCarrierBasedAircraft')).toEqual([]);
+    // Defined in espionage-spy-lifecycle.ts (#1009), re-exported by the espionage barrel; only the canonical
+    // removal calls it.
     expect(filesMentioning('cleanupDeadSpyUnit')).toEqual([
+      'src/systems/espionage-spy-lifecycle.ts',
       'src/systems/espionage-system.ts',
       'src/systems/unit-removal-system.ts',
     ]);
