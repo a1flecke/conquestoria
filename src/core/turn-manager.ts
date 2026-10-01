@@ -8,7 +8,7 @@ import { getBlockingMapEntityKeysForOwner } from '@/systems/unit-movement-legali
 import { findPath } from '@/systems/unit-pathfinding';
 import { getLocalCityHealingBonus, processCity, TRAINABLE_UNITS, BUILDINGS } from '@/systems/city-system';
 import { transferCapturedCityOwnership } from '@/systems/city-capture-system';
-import { baseNewAirUnit, canCompleteAirUnitProduction } from '@/systems/air-operations-system';
+import { canCompleteAirUnitProduction } from '@/systems/air-operations-system';
 import { applyCityMaturity } from '@/systems/city-maturity-system';
 import { assignCityFocus, normalizeWorkedTilesForCity } from '@/systems/city-work-system';
 import { applyResearchBonus, processResearch, getTechById, getEffectiveTechCost } from '@/systems/tech-system';
@@ -58,8 +58,6 @@ import type { HexCoord } from './types';
 import { applyReconReveals, updateVisibility, revealMinorCivCities, applySharedVision, applySatelliteSurveillance, applyMassSurveillanceReveal } from '@/systems/fog-of-war';
 import { chooseCircularManufacturingMaterial, getActiveNationalProjectsForCiv } from '@/systems/national-project-system';
 import { buildProductionCostContext } from '@/systems/production-cost-context';
-import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
-import { MISSIONARY_BASE_CHARGES, MISSIONARY_ZEAL_CHARGES } from '@/systems/religion-definitions';
 import { getHealingBonus, getVisionBonus, isWithinRangeOfNeuralRehabilitationCenter, isWithinRangeOfTelemedicineHub } from '@/systems/unit-modifier-system';
 import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
@@ -91,7 +89,7 @@ import {
   resolveNetworkPlansForVictimTurnEnd,
   resolveStableNetworkPlansForOwnerTurn,
 } from '@/systems/network-plan-system';
-import { processEspionageTurn, isSpyUnitType, createSpyFromUnit, processInterrogation, applyBuildingCI } from '@/systems/espionage-system';
+import { processEspionageTurn, processInterrogation, applyBuildingCI } from '@/systems/espionage-system';
 import { processDetection } from '@/systems/detection-system';
 import { applyPendingOpponentChallenge, resolveChallengeForCiv } from '@/core/opponent-challenge';
 import { applyCityHpRegeneration, applyCitySiegeOutcome, getCityCounterFireDamage, getCityGarrisonUnit, resolveCitySiegeDamage } from '@/systems/city-siege-system';
@@ -124,7 +122,8 @@ import {
   reconcileLegendaryWonderAvailability,
   tickLegendaryWonderProjects,
 } from '@/systems/legendary-wonder-system';
-import { applyLegendaryWonderTrainingEffects, getTacticalFortOccupantHealingBonus } from '@/systems/legendary-wonder-tactical-effects';
+import { getTacticalFortOccupantHealingBonus } from '@/systems/legendary-wonder-tactical-effects';
+import { announceUnitProduction, completeUnitProduction } from '@/systems/unit-production-completion';
 import { applyEconomyTurn, emitEconomyStrainIfNeeded } from '@/systems/economy-system';
 import {
   getNationalProjectCivYieldBonus,
@@ -133,8 +132,8 @@ import {
 import type { PirateEconomyModifiers } from '@/systems/economy-system';
 import { processPiratesForCompletedRound } from '@/systems/pirate-system';
 import { classifyOwner } from './owner-kind';
-import { consumeHerdingInsight, getStampedeLifecycleTransition, processStampedeScheduling, processStampedeTurn } from '@/systems/stampede-system';
-import { consumeRecoveredHarnesses, getRogueElephantHostLifecycleTransition, processRogueElephantHostScheduling, processRogueElephantHostTurn } from '@/systems/rogue-elephant-host-system';
+import { getStampedeLifecycleTransition, processStampedeScheduling, processStampedeTurn } from '@/systems/stampede-system';
+import { getRogueElephantHostLifecycleTransition, processRogueElephantHostScheduling, processRogueElephantHostTurn } from '@/systems/rogue-elephant-host-system';
 import { checkAndQueueGeneralCandidateChoice, retireGeneralsAtTurnEnd, spawnGeneralForCiv } from '@/systems/great-general-system';
 import { chooseBestGeneralCandidate } from '@/ai/ai-general-command';
 import { resolveGeneralDefinition, type GeneralDefinition } from '@/systems/great-general-definitions';
@@ -442,71 +441,13 @@ export function processTurn(
         });
       }
       if (result.completedUnit) {
-        newState = consumeHerdingInsight(newState, civId, result.completedUnit);
-        newState = consumeRecoveredHarnesses(newState, civId, result.completedUnit);
-        bus.emit('city:unit-trained', { cityId, unitType: result.completedUnit });
-        const newUnit = createUnit(result.completedUnit, civId, city.position, newState.idCounters, civDef?.bonusEffect);
-        if (result.completedUnit === 'missionary') {
-          // #592 MR5: charges are baked in from the owner's tech state AT BUILD TIME, never
-          // re-derived later — a missionary built before missionary-zeal completes keeps 2
-          // charges forever, even if the civ researches it afterward.
-          newUnit.chargesRemaining = civ.techState.completed.includes('missionary-zeal')
-            ? MISSIONARY_ZEAL_CHARGES
-            : MISSIONARY_BASE_CHARGES;
+        // #1202: one completion for the turn path and the rush-buy (`unit-production-completion.ts`).
+        const completion = completeUnitProduction(newState, { civId, cityId, unitType: result.completedUnit });
+        if (!completion.ok) {
+          throw new Error(`Production of ${result.completedUnit} completed without a legal place for it: ${completion.reason}`);
         }
-        const unitDef = UNIT_DEFINITIONS[result.completedUnit];
-        if (unitDef?.domain === 'naval') {
-          let navalMoveBonus = 0;
-          if (newState.completedLegendaryWonders?.['navigators-compass']?.ownerId === civId) navalMoveBonus += 1;
-          if (civ.techState.completed.includes('trade-winds')) navalMoveBonus += 1;
-          if (navalMoveBonus > 0) {
-            newUnit.movementPointsLeft += navalMoveBonus;
-            newUnit.movementBonus = (newUnit.movementBonus ?? 0) + navalMoveBonus;
-          }
-        }
-        if (unitDef?.domain === 'air' && civ.techState.completed.includes('private-spaceflight')) {
-          newUnit.movementPointsLeft += 1;
-          newUnit.movementBonus = (newUnit.movementBonus ?? 0) + 1;
-        }
-        if (civ.techState.completed.includes('gene-therapy')) {
-          newUnit.geneTherapyReady = newState.cities[cityId]?.buildings.includes('gene_therapy_clinic') ?? false;
-        }
-        const isLandCombatUnit = (unitDef?.domain ?? 'land') === 'land'
-          && !isSpyUnitType(result.completedUnit)
-          && !(UNIT_CLASS_BY_TYPE[result.completedUnit] ?? []).includes('civilian');
-        if (isLandCombatUnit && city.buildings.includes('barracks')) {
-          newUnit.experience += 10;
-        }
-        const tacticalTraining = applyLegendaryWonderTrainingEffects(newState, {
-          civId,
-          unitType: result.completedUnit,
-          era: resolveCivilizationEra(civ.techState.completed),
-          isEligibleLandCombatUnit: isLandCombatUnit,
-        });
-        newState = tacticalTraining.state;
-        newUnit.experience += tacticalTraining.experienceBonus;
-        if (unitDef?.airOperation) {
-          const based = baseNewAirUnit(newState, cityId, newUnit);
-          if (!based.ok) {
-            throw new Error(`Air production for ${newUnit.type} completed without a legal base: ${based.reason}`);
-          }
-          newState = based.state;
-        } else {
-          newState.units[newUnit.id] = newUnit;
-        }
-        newState.civilizations[civId].units.push(newUnit.id);
-
-        if (isSpyUnitType(result.completedUnit) && newState.espionage?.[civId]) {
-          const { state: updatedEsp, spy } = createSpyFromUnit(
-            newState.espionage[civId],
-            newUnit.id,
-            civId,
-            result.completedUnit,
-            `spy-unit-${newUnit.id}-${newState.turn}`,
-          );
-          newState.espionage[civId] = updatedEsp;
-          bus.emit('espionage:spy-recruited', { civId, spy });
-        }
+        newState = completion.state;
+        announceUnitProduction(bus, cityId, civId, completion);
       }
     }
 
