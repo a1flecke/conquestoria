@@ -701,7 +701,8 @@
     "tests/systems/wonder-codex/presentation.test.ts": 221.16943359375,
     "tests/systems/wonder-codex/related.test.ts": 4.142822265625,
     "tests/systems/wonder-codex/sources.test.ts": 38.330078125,
-    "tests/renderer/sprites/v2/index.test.ts": 30.040771484375
+    "tests/renderer/sprites/v2/index.test.ts": 30.040771484375,
+    "tests/systems/naval-operations.test.ts": 20.0
   },
   "shards": {
     "test-suite-shard-a": [
@@ -1093,6 +1094,7 @@
       "tests/systems/minor-civ-league-integration.test.ts",
       "tests/systems/minor-civ-system.test.ts",
       "tests/systems/movement-resolver.test.ts",
+      "tests/systems/naval-operations.test.ts",
       "tests/systems/network-plan-definitions.test.ts",
       "tests/systems/pirate-actions.test.ts",
       "tests/systems/pirate-behavior.test.ts",
