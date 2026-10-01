@@ -1508,3 +1508,39 @@ describe('#1200 — the consequences of a kill belong to the shared combat outco
     ]);
   });
 });
+
+describe('#1202 — a finished trainable unit enters GameState through one completion', () => {
+  function walkTs(dir: string): string[] {
+    return readdirSync(dir, { withFileTypes: true }).flatMap(e => {
+      const full = resolve(dir, e.name);
+      return e.isDirectory() ? walkTs(full) : /\.tsx?$/.test(e.name) ? [full] : [];
+    });
+  }
+  const root = resolve(__dirname, '../..');
+  const srcFiles = walkTs(resolve(root, 'src'));
+  const rel = (file: string) => file.slice(root.length + 1);
+  const filesMentioning = (symbol: string): string[] => srcFiles
+    .filter(file => new RegExp(`\\b${symbol}\\b`).test(stripComments(readFileSync(file, 'utf8'))))
+    .map(rel)
+    .sort();
+
+  it('the turn path and the gold rush-buy both complete units through completeUnitProduction, and nothing else does', () => {
+    expect(filesMentioning('completeUnitProduction')).toEqual([
+      'src/core/turn-manager.ts',
+      'src/systems/economy-system.ts',
+      'src/systems/unit-production-completion.ts',
+    ]);
+  });
+
+  it('the completion side effects have one owner: missionary charges and the spy record are applied only there', () => {
+    expect(filesMentioning('MISSIONARY_BASE_CHARGES')).toEqual([
+      'src/systems/religion-definitions.ts',
+      'src/systems/unit-production-completion.ts',
+    ]);
+    expect(filesMentioning('createSpyFromUnit')).toEqual([
+      'src/systems/espionage-spy-lifecycle.ts',
+      'src/systems/espionage-system.ts',
+      'src/systems/unit-production-completion.ts',
+    ]);
+  });
+});

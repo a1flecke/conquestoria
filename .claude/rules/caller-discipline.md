@@ -94,10 +94,11 @@ meanings, name the roles — but only when misuse is plausible. The ranked audit
 | Single-side vassalage mutators | importable only by `diplomacy-vassalage.ts` | architecture pin |
 | Any unit removal takes cargo/air wing/manifest entry/spy record/trade route with it | `removeUnits` is the only transition; raw `units` deletes are a source-rule violation | `unit-removal-system.test.ts`, source rule + hook mirror, architecture pin "#1198", `SAVE_STATE_INVARIANTS` |
 | Disband confirmation names the extra units | `removePlayerUnitFromState` = `removeUnits` + liveness; the dialog previews it | `unit-lifecycle-system.test.ts`, `unit-turn-flow.test.ts` |
+| A finished unit gets every completion side effect, on both entry points | `completeUnitProduction` is the only completion (turn path + rush-buy) | `unit-production-completion.test.ts` matrix + footprint guard, architecture pin "#1202" |
 | Publication after a state write | `commit`/`batch`; no silent write | `session-publication.md` |
 
 ## Open follow-ups (evidence in each issue)
 
 #1199 finish #1015 (hand pushes, in-place mutation) ·
-#1201 espionage consequences/recipients · #1202 trainable-unit wiring items 3–4. (#1198 canonical unit
-removal: done.)
+#1201 espionage consequences/recipients. (#1198 canonical unit removal, #1200 combat consequences and
+#1202 trainable-unit wiring: done.)

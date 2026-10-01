@@ -36,16 +36,23 @@ paths:
 - Prefer returning explicit transition payloads from the mutating helper over re-deriving one-time events by re-reading final state.
 
 ## Trainable units must be wired end-to-end
-- When you add a `UnitType` to `TRAINABLE_UNITS` in `src/systems/city-unit-catalog.ts` (#1008), the same change MUST also wire:
-  1. **`UNIT_DEFINITIONS`** (`src/systems/unit-definitions.ts`) **+ `UNIT_DESCRIPTIONS`** (`src/systems/unit-descriptions.ts`) entries.
-  2. **Unit-renderer icon** in `src/renderer/unit-renderer.ts`.
-  3. **Production-completion side-effects.** If the unit type has matching system state (e.g. spies → `state.espionage[civId].spies`, settlers → `state.cities` foundation), `src/core/turn-manager.ts` MUST create that state record at the same moment the `Unit` is added to `state.units`.
-  4. **Death cleanup.** If the unit type has matching system state, every removal path must clean it up to avoid zombie records. Every removal goes through `removeUnits` (`src/systems/unit-removal-system.ts`, #1198); a hand-rolled delete is a source-rule violation. A *new kind of* companion record (the spy's `state.espionage[civId].spies` entry is the one today) must be scrubbed inside that module — never at a caller — and the generic per-lifecycle-category production/removal test for items 3–4 is #1202. (The old text pointed at `main.ts` death branches, which no longer exist.)
-  5. **AI usage.** The catalog-driven candidate and role paths in `src/ai/ai-production.ts` and `src/ai/ai-unit-roles.ts` MUST classify and consider the new unit. Add a narrow role override only for genuinely special behavior; do not add a one-off production branch to `src/ai/basic-ai.ts`.
-  6. **Tech-gated dequeue.** `processCity` MUST consult `getTrainableUnitsForCiv(civ.techState.completed)` — or an equivalent — so an obsolete queued unit silently dequeues instead of producing forever.
+
+Adding a `UnitType` to `TRAINABLE_UNITS` (`src/systems/city-unit-catalog.ts`) no longer means remembering six places. Each wiring is owned by a mechanism and a test that fails when it is missing (#1202):
+
+| # | Wiring | Owner | Fails when missing |
+|---|---|---|---|
+| 1 | `UNIT_DEFINITIONS` + `UNIT_DESCRIPTIONS` | `unit-definitions.ts`, `unit-descriptions.ts` | per-unit catalog tests (`trade-system.test.ts`, `city-system.test.ts`) |
+| 2 | Renderer icon | `resolveUnitVisual().fallbackIcon` (`src/renderer/unit-visual-resolver.ts`) | `unit-visual-resolver.test.ts` "provides a concrete fallback icon for every defined unit type" (loops **all** `UNIT_DEFINITIONS`, a superset of the catalog). Bespoke sprite art is a separate, optional layer (`.claude/rules/sprites.md`). |
+| 3 | Production-completion side effects (missionary charges, naval/air bonuses, gene therapy, barracks/wonder XP, air basing, **the spy's `state.espionage` record**) | `completeUnitProduction` (`src/systems/unit-production-completion.ts`) — the **only** completion, used by the turn path (`turn-manager.ts`) and the gold rush-buy (`economy-system.ts`); the buy path used to be a partial second copy | `unit-production-completion.test.ts`: every `TRAINABLE_UNITS` entry is produced, rosters/cargo/air-base invariants hold, its lifecycle category's companion contract holds, and a **footprint guard** fails if production writes any `GameState` key its category has not declared. `architecture-boundaries.test.ts` "#1202" pins the single owner. |
+| 4 | Death cleanup | `removeUnits` (`src/systems/unit-removal-system.ts`, #1198) — the only way a unit leaves `GameState`; a hand-rolled delete is a source-rule violation | `unit-production-completion.test.ts` removal matrix (one representative per lifecycle category: ordinary, settler, missionary, spy, air-based, carrier, transport, trade) plus the #1198 architecture sweep |
+| 5 | AI usage | catalog-driven candidates in `src/ai/ai-production.ts`, `ai-unit-roles.ts` | catalog-vs-candidate comparison tests |
+| 6 | Tech-gated dequeue | `processCity` consults `getTrainableUnitsForCiv` | `processCity` tests |
+
+- **A new kind of unit with companion state** (a unit that needs its own record, like the spy's) is added in one place: `completeUnitProduction` creates it, `removeUnits` scrubs it, and `categoryOf` + `FOOTPRINT` in `unit-production-completion.test.ts` gain a category with its companion contract. Until then the footprint guard fails the new unit — it cannot ship uncategorised.
+- Categories are **derived from typed definition metadata** (`isSpyUnitType`, `airOperation`, `carrierDeckCapacity`, `isNavalTransportUnit`, `hasAITradeRole`, `canFoundCity`), never a hand-kept list of unit names.
+- Out of scope by design: units that are not produced by a civilization's city queue (beasts, barbarians, pirates, crisis forces, rebels, village/quest rewards) and **minor-civ production**, which has no `Civilization`/tech/espionage record and its own land-only rules (`minor-civ-economy-system.ts`, `.claude/rules/game-balance.md` #950).
 - If the unit is terrain- or city-location-gated (for example a naval unit requiring a coastal city), both the production chooser and city processing/dequeue path must consult the same city-aware eligibility helper.
 - If the unit replaces another unit, add `obsoletedByTech` to the source and an explicit `upgradesTo` target. Upgrade targets must never be inferred only from two units sharing a technology ID.
-- Adding a `UnitType` to `TRAINABLE_UNITS` without all six wirings is "dead computed data" and is a bug.
 
 ## AI content catalogs must stay generic
 - New trainable units and buildings must flow into AI candidates from `TRAINABLE_UNITS`, `BUILDINGS`, and the shared eligibility helpers. Tests must compare the currently eligible catalogs to generated AI candidates so future additions fail loudly if they are skipped.
