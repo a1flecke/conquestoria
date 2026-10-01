@@ -70,6 +70,8 @@ import { canBuildRoad } from '@/systems/road-system';
 import { findFortificationCandidate } from '@/systems/fortification-system';
 import { getAIStrategicRoles, hasAICombatRole } from './ai-unit-roles';
 import { isAIHostileOwner } from './ai-hostility';
+import { getNavalEnduranceStatus } from '@/systems/naval-endurance';
+import { getNavalPorts } from '@/systems/naval-operations';
 import { getLegalRebaseDestinations, resolveAirStrike, resolveReconMission, resolvePatrolMission, getLegalAirMissionTargets, rebaseAircraft, startIntercept, getAirBaseRoster } from '@/systems/air-operations-system';
 import { getParadropTargets, executeParadrop, getAirAssaultLaunchState, getAirAssaultTargets, executeAirAssault } from '@/systems/airborne-system';
 import { getKnownHostileAirDefenseThreat } from '@/systems/air-defense-system';
@@ -283,7 +285,10 @@ function rankWithdrawals(
   // difficulty-scaled, unchanged here.
   const healthTrigger = unit.health < profile.retreatHealthPercent;
   const supplyTrigger = unit.landSupply?.state === 'severe';
-  if ((!healthTrigger && !supplyTrigger) || unit.hasActed) return [];
+  // #883: a depleted fleet falls back to its own ports -- the AI reads the same canonical status
+  // a human sees (own unit only; no enemy logistics are consulted).
+  const navalTrigger = getNavalEnduranceStatus(unit) === 'depleted';
+  if ((!healthTrigger && !supplyTrigger && !navalTrigger) || unit.hasActed) return [];
   const ownCities = Object.values(context.state.cities)
     .filter(city => city.owner === context.actorId);
   const isOnlyImmediateDefender = context.plan.objective === 'defend'
@@ -300,12 +305,17 @@ function rankWithdrawals(
       .length === 1;
   if (isOnlyImmediateDefender) return [];
 
-  const healingPositions = [
-    ...ownCities.map(city => city.position),
-    ...Object.values(context.state.map.tiles)
-      .filter(tile => tile.owner === context.actorId)
-      .map(tile => tile.coord),
-  ];
+  const isNavalUnit = UNIT_DEFINITIONS[unit.type].domain === 'naval';
+  // Ships recover at sea-side ports, never on land tiles they cannot reach.
+  const healingPositions = isNavalUnit
+    ? getNavalPorts(context.state, context.actorId).map(port => port.position)
+    : [
+      ...ownCities.map(city => city.position),
+      ...Object.values(context.state.map.tiles)
+        .filter(tile => tile.owner === context.actorId)
+        .map(tile => tile.coord),
+    ];
+  if (isNavalUnit && healingPositions.length === 0) return [];
   if (healingPositions.length === 0) {
     return [ranked({ kind: 'rest', unitId: unit.id }, 1_100, true)];
   }

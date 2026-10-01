@@ -263,9 +263,9 @@ the host owe it there?") is decided per capability, below. Both later answers re
 | Relationship (mover ↔ tile owner) | Move through | Land supply (attrition) | Heal / reinforce | Air base | Naval port support | Trade route |
 |---|---|---|---|---|---|---|
 | own | ✔ | source of supply (own cities/forts) | ✔ (own tile / city) | ✔ (own city/carrier) | own | abstract |
-| alliance | ✔ | *no supply*, **no attrition** (`allied`) | ✘ (own tiles only) | ✘ (same-owner only) | deferred #883 | abstract |
-| vassal ↔ overlord | ✔ | *no supply*, **no attrition** (`allied`) | ✘ | ✘ | deferred #883 | abstract |
-| **Open Borders** | ✔ | **no supply, attrits like enemy land** (`permitted`) | ✘ | ✘ | deferred #883 | abstract |
+| alliance | ✔ | *no supply*, **no attrition** (`allied`) | ✘ (own tiles only) | ✘ (same-owner only) | ✘ (#883: own ports only) | abstract |
+| vassal ↔ overlord | ✔ | *no supply*, **no attrition** (`allied`) | ✘ | ✘ | ✘ (#883: own ports only) | abstract |
+| **Open Borders** | ✔ | **no supply, attrits like enemy land** (`permitted`) | ✘ | ✘ | ✘ (#883: own ports only) | abstract |
 | war | ✔ | hostile: attrits | ✘ | ✘ | — | — |
 | peaceful, closed | ✘ (egress only, #871) | hostile if standing there | ✘ | ✘ | — | — |
 | unclaimed | ✔ | `unclaimed`: no supply, no attrition | own-tile rule | ✘ | — | — |
@@ -290,7 +290,7 @@ Reading the table:
   without adding a row here first.
 - **Trade routes** are abstract (`findPathToCity` measures a route between cities); caravans are
   civilian and exempt from border obedience (#871), so the route model is unchanged.
-- **Naval port support and air basing beyond same-owner** are #883 / #884, not here.
+- **Naval port support (#883) is own ports only.** Open Borders and alliance grant *passage*, not replenishment: `getNavalPorts` reads the civ's own coastal cities, never a treaty. Air basing beyond same-owner stays #884.
 - **AI:** `evaluateDiplomacy` proposes Open Borders only to a friendly civ (relationship >
   `OPEN_BORDERS_PROPOSAL_MIN_RELATIONSHIP`, 25, above the target's own consent floor of 20) whose
   border it can **see** (`getKnownSharedBorderOwners` — built from the civ's own visibility, never
@@ -304,6 +304,39 @@ Reading the table:
 **Rule:** any new support right (a new heal source, a new basing rule, a treaty-granted supply
 source) adds a column or row here, reads `classifyTerritorialRelation` (never a treaty type
 directly), and must not equate "may enter" with "is supported".
+
+## Naval Operational Endurance (#883)
+
+A warship or transport operating far from a friendly port gets worse; nothing about land supply
+(`supply-system.ts`, `supply-naval.ts` — which projects supply onto *land* units) is reused.
+One owner: `src/systems/naval-operations.ts` (geography, support, progression) over the light
+leaf `naval-endurance.ts` (thresholds, participation, status/penalties from the persisted
+history). Consumers read facts, never thresholds: combat (`combat-context.ts`, fact key
+`naval-operations`, `sourceVisibility: 'owner'`), the per-turn movement allowance
+(`resetUnitTurn`), the AI withdrawal rule (`rankWithdrawals`), the selected-unit panel.
+
+| Knob | Value | Meaning |
+|---|---:|---|
+| `NAVAL_EXTENDED_AT` / `NAVAL_DEPLETED_AT` | 6 / 12 | Rounds away from support before **extended** / **depleted** |
+| `NAVAL_MAX_AWAY_TURNS` | 16 | Cap — recovery after any cruise is a handful of turns |
+| `NAVAL_ACTION_COST` | +1 | Extra endurance burned by a round the ship acted (not resting) |
+| `NAVAL_PORT_RADIUS` / `NAVAL_HARBOR_RADIUS_BONUS` | 2 / +2 | Own stabilized coastal city support range; a Harbor adds |
+| `NAVAL_NEAR_PORT_RECOVERY` | 2 per round | Within range but not in port (no recovery on a round it acted) |
+| in port | resets to ready | Standing on the port tile at end of round |
+| Extended | −10% combat | `NAVAL_EXTENDED_COMBAT_MULTIPLIER` |
+| Depleted | −20% combat, −1 movement (floor 1) | The consequences do not stack beyond these two |
+
+Only major-civ warships and transports participate (`unitParticipatesInNavalOperations`);
+traders, minor civs, pirates and beasts never do. Support is derived each round from *current*
+city ownership, so a captured or razed port stops supporting the fleet immediately. Only
+`Unit.navalOps.awayTurns` persists; absent (every pre-#883 save) means ready, and malformed
+values read as ready, so no migration or version bump (`ADDITIVE_WITHOUT_MIGRATION`). Difficulty
+never changes any value above. Units never change owner except through city capture, which
+removes them, so there is no captured-ship case.
+
+**Rule:** a new fleet consequence (a heal change, an action restriction) reads
+`getNavalOperationalState`/`getNavalEnduranceStatus`; it must not re-derive a threshold, and
+air readiness (#884) gets its own owner rather than sharing this enum's mechanics.
 
 ## Governor Inventory (#928)
 

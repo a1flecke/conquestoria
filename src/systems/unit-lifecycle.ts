@@ -1,5 +1,6 @@
 import type { UnitType, Unit, HexCoord, CivBonusEffect, IdCounters } from '@/core/types';
 import { UNIT_DEFINITIONS } from './unit-definitions';
+import { getNavalOperationsMovementPenalty } from './naval-endurance';
 
 /**
  * Unit creation and per-turn reset (#1010). Depends only on the catalog leaf.
@@ -60,11 +61,13 @@ export function resetUnitTurn(unit: Unit): Unit {
   } = unit;
   // #544: severe overextension reduces movement by 1, never below 1 (contract §3.3/§29).
   const severeSupplyPenalty = unit.landSupply?.state === 'severe' ? 1 : 0;
+  // #883: a depleted fleet loses one movement point the same way, from the same one allowance.
+  const navalPenalty = getNavalOperationsMovementPenalty(unit);
   const base: Unit = {
     ...rest,
     movementPointsLeft: Math.max(
       1,
-      UNIT_DEFINITIONS[unit.type].movementPoints + (unit.movementBonus ?? 0) - severeSupplyPenalty,
+      UNIT_DEFINITIONS[unit.type].movementPoints + (unit.movementBonus ?? 0) - severeSupplyPenalty - navalPenalty,
     ),
     hasMoved: false,
     hasActed: false,

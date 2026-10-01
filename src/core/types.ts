@@ -706,6 +706,16 @@ export interface UnitDefinition {
 
 export type LandSupplyState = 'full' | 'stable-unsupported' | 'grace' | 'degraded' | 'severe';
 
+/**
+ * #883 naval operational endurance. Only the history that cannot be re-derived is stored: how many
+ * rounds this ship has been operating away from a friendly port (weighted by high-intensity action).
+ * The ready / extended / depleted status is derived from it (`naval-operations.ts`). Absent means
+ * "fully ready", so old saves load with every navy at full readiness.
+ */
+export interface UnitNavalOperations {
+  awayTurns: number;
+}
+
 export interface UnitLandSupplyStatus {
   state: LandSupplyState;
   /** Consecutive owner-turns ending in hostile territory with no covering source. Resets to 0 the instant either condition is false. */
@@ -757,6 +767,8 @@ export interface Unit {
   // undefined = tech never researched; true = charged and ready; false = cooldown (must rest in city to reset)
   /** #544 land-supply progression. Absent means "never resolved" — treated identically to Full Supply. */
   landSupply?: UnitLandSupplyStatus;
+  /** #883 naval endurance history. Absent = ready. Never read directly; use `naval-operations.ts`. */
+  navalOps?: UnitNavalOperations;
   automation?:
     | { mode: 'auto-explore'; lastTargets: string[]; startedTurn: number }
     | { mode: 'journey'; destination: HexCoord }
