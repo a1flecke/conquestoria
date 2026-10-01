@@ -1451,3 +1451,60 @@ describe('#1198 — a unit leaves GameState through exactly one transition', () 
     expect(code(resolve(root, 'src/systems/unit-removal-system.ts'))).not.toMatch(/reconcileCivilizationLiveness/);
   });
 });
+
+describe('#1200 — the consequences of a kill belong to the shared combat outcome, not to each executor', () => {
+  function walkTs(dir: string): string[] {
+    return readdirSync(dir, { withFileTypes: true }).flatMap(e => {
+      const full = resolve(dir, e.name);
+      return e.isDirectory() ? walkTs(full) : /\.tsx?$/.test(e.name) ? [full] : [];
+    });
+  }
+  const root = resolve(__dirname, '../..');
+  const srcFiles = walkTs(resolve(root, 'src'));
+  const rel = (file: string) => file.slice(root.length + 1);
+  const filesMentioning = (symbol: string): string[] => srcFiles
+    .filter(file => new RegExp(`\\b${symbol}\\b`).test(stripComments(readFileSync(file, 'utf8'))))
+    .map(rel)
+    .sort();
+
+  // Every code path that applies a real fight. A new executor must be added here deliberately: it then
+  // inherits camp destruction, the combat record, route cleanup and the rest by construction.
+  const EXECUTORS = [
+    'src/ai/ai-major-turn.ts',
+    'src/ai/ai-tactics.ts',
+    'src/ai/basic-ai.ts',
+    'src/app/controllers/player-action-controller.ts',
+    'src/core/turn-manager.ts',
+    'src/systems/air-operations-system.ts',
+    'src/systems/airborne-system.ts',
+    'src/systems/minor-civ-system.ts',
+    'src/systems/pirate-system.ts',
+    'src/systems/stampede-system.ts',
+  ];
+
+  it('the executor list is exactly the set of files that apply a fight', () => {
+    const appliers = filesMentioning('applyCombatOutcomeToState').filter(file => file !== 'src/systems/combat-reward-system.ts');
+    // Files that merely name it in a doc string are not executors.
+    const real = appliers.filter(file => /applyCombatOutcomeToState\(/.test(stripComments(readFileSync(resolve(root, file), 'utf8'))));
+    expect(real).toEqual(EXECUTORS);
+  });
+
+  it('no executor re-applies the combat record or route cleanup for a fight result', () => {
+    expect(filesMentioning('recordCombatForCiv')).toEqual([
+      'src/systems/combat-reward-system.ts',
+      'src/systems/threat-pressure-system.ts',
+    ]);
+    // trade-system defines it and unit-movement/etc. never call it for a fight; nothing else may name it.
+    expect(filesMentioning('removeRouteForUnit').filter(file => EXECUTORS.includes(file))).toEqual([]);
+  });
+
+  it('a camp under a defeated unit is destroyed only by the shared outcome; the remaining callers occupy an EMPTY camp', () => {
+    expect(filesMentioning('applyCampDestructionAtTarget')).toEqual([
+      'src/ai/ai-major-turn.ts',          // occupy-an-undefended-camp, not a fight result
+      'src/ai/ai-tactics.ts',             // same, as a tactical action
+      'src/app/controllers/player-action-controller.ts', // same, the player's move onto a camp
+      'src/systems/barbarian-system.ts',
+      'src/systems/combat-reward-system.ts',
+    ]);
+  });
+});

@@ -394,6 +394,118 @@ describe('applyCombatOutcomeToState', () => {
     });
   });
 
+  // #1200: these are consequences of the FIGHT, not of whichever executor ran it. They used to be re-applied
+  // (or forgotten) by the player controller, the AI turn and the barbarian loop separately.
+  describe('consequences of a kill belong to the shared outcome (#1200)', () => {
+    const killResult = (): CombatResult => ({
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false, attackerStrength: 30, defenderStrength: 1,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    });
+    const withCamp = (state: GameState): GameState => {
+      state.barbarianCamps = { 'camp-1': { id: 'camp-1', position: { q: 1, r: 0 }, strength: 5, spawnCooldown: 5 } } as GameState['barbarianCamps'];
+      return state;
+    };
+    const barbarianDefender = (state: GameState): GameState => {
+      state.units.defender = { ...state.units.defender, owner: 'barbarian' };
+      state.civilizations['ai-1'].units = [];
+      return state;
+    };
+
+    it('destroys the camp under a unit a major civ kills, and reports it as a fact', () => {
+      const control = applyCombatOutcomeToState(barbarianDefender(makeRewardState()), killResult(), 64);
+      const applied = applyCombatOutcomeToState(withCamp(barbarianDefender(makeRewardState())), killResult(), 64);
+
+      expect(applied.campDestroyed).toEqual({ campId: 'camp-1', reward: 25 });
+      expect(applied.state.barbarianCamps).toEqual({});
+      expect(applied.state.civilizations.player.gold - control.state.civilizations.player.gold).toBe(25);
+    });
+
+    it('announces the destroyed camp once, for a real execution only', () => {
+      const bus = new EventBus();
+      const destroyed: unknown[] = [];
+      bus.on('barbarian:camp-destroyed', payload => destroyed.push(payload));
+
+      applyCombatOutcomeToState(withCamp(barbarianDefender(makeRewardState())), killResult(), 64);
+      expect(destroyed).toEqual([]);
+      applyCombatOutcomeToState(withCamp(barbarianDefender(makeRewardState())), killResult(), 64, bus);
+      expect(destroyed).toEqual([{ campId: 'camp-1', reward: 25 }]);
+    });
+
+    it('leaves the camp alone when the defender survives, or the killer is not a major civ', () => {
+      const survives = { ...killResult(), defenderSurvived: true, defenderDamage: 0 };
+      expect(applyCombatOutcomeToState(withCamp(barbarianDefender(makeRewardState())), survives, 64).state.barbarianCamps)
+        .toHaveProperty('camp-1');
+
+      const pirateKill = withCamp(barbarianDefender(makeRewardState()));
+      pirateKill.units.attacker = { ...pirateKill.units.attacker, owner: 'pirate-1' };
+      pirateKill.civilizations.player.units = [];
+      const applied = applyCombatOutcomeToState(pirateKill, killResult(), 64);
+      expect(applied.campDestroyed).toBeUndefined();
+      expect(applied.state.barbarianCamps).toHaveProperty('camp-1');
+    });
+
+    it('ends the route of a caravan that is CAPTURED, and frees the prize from its commitment', () => {
+      const state = makeRewardState();
+      state.marketplace = {
+        prices: {}, priceHistory: {}, fashionable: null, fashionTurnsLeft: 0,
+        tradeRoutes: [{ id: 'route-1', fromCityId: 'a', toCityId: 'b', goldPerTrip: 5, turnsPerTrip: 3 }],
+      } as unknown as GameState['marketplace'];
+      state.units.defender = { ...state.units.defender, type: 'caravan', committedToRouteId: 'route-1', tripsRemaining: 2 };
+      const bus = new EventBus();
+      const ended: unknown[] = [];
+      bus.on('trade:route-ended', payload => ended.push(payload));
+
+      const applied = applyCombatOutcomeToState(state, killResult(), 64, bus);
+
+      expect(applied.defenderCaptured).toBe(true);
+      expect(applied.state.units.defender.owner).toBe('player');
+      expect(applied.state.units.defender.committedToRouteId).toBeUndefined();
+      expect(applied.state.units.defender.tripsRemaining).toBeUndefined();
+      expect(applied.state.marketplace!.tradeRoutes).toEqual([]);
+      expect(ended).toEqual([{ routeId: 'route-1', fromCityId: 'a', toCityId: 'b', reason: 'unit-captured' }]);
+    });
+
+    it('records the fight for EVERY major civ in it, at the fight\'s landmass (idle-pressure bookkeeping)', () => {
+      const state = makeRewardState();
+      state.map.tiles['1,0'] = { coord: { q: 1, r: 0 }, terrain: 'grassland', regionKey: 'land-1' } as unknown as GameState['map']['tiles'][string];
+      const applied = applyCombatOutcomeToState(state, { ...killResult(), defenderSurvived: true, defenderDamage: 10 }, 64);
+
+      expect(applied.state.civilizations.player.lastCombatTurnByLandmass).toEqual({ 'land-1': 3 });
+      expect(applied.state.civilizations['ai-1'].lastCombatTurnByLandmass).toEqual({ 'land-1': 3 });
+    });
+
+    // The actor-complete parity the issue asks for, at the one function every executor funnels through
+    // (the architecture pin in architecture-boundaries.test.ts proves they all do): the same kill by a human
+    // and by an AI civ yields the same consequences.
+    it.each([
+      ['player', 'ai-1'],
+      ['ai-1', 'player'],
+    ])('applies identical consequences whether the killer is %s (human) or its mirror (%s)', (killer, bystander) => {
+      const state = barbarianDefender(withCamp(makeRewardState()));
+      state.units.attacker = { ...state.units.attacker, owner: killer };
+      state.civilizations.player.units = killer === 'player' ? ['attacker'] : [];
+      state.civilizations['ai-1'].units = killer === 'ai-1' ? ['attacker'] : [];
+      state.map.tiles['1,0'] = { coord: { q: 1, r: 0 }, terrain: 'grassland', regionKey: 'land-1' } as unknown as GameState['map']['tiles'][string];
+
+      const applied = applyCombatOutcomeToState(state, killResult(), 64);
+
+      expect(applied.campDestroyed).toEqual({ campId: 'camp-1', reward: 25 });
+      expect(applied.state.barbarianCamps).toEqual({});
+      expect(applied.state.civilizations[killer].lastCombatTurnByLandmass).toEqual({ 'land-1': 3 });
+      expect(applied.state.civilizations[killer].gold).toBeGreaterThanOrEqual(25);
+      expect(applied.state.civilizations[bystander].gold).toBe(0);
+    });
+
+    it('does not invent a record for a rosterless owner', () => {
+      const state = barbarianDefender(makeRewardState());
+      state.map.tiles['1,0'] = { coord: { q: 1, r: 0 }, terrain: 'grassland', regionKey: 'land-1' } as unknown as GameState['map']['tiles'][string];
+      const applied = applyCombatOutcomeToState(state, killResult(), 64);
+      expect(Object.keys(applied.state.civilizations).sort()).toEqual(['ai-1', 'player']);
+      expect(applied.state.civilizations['ai-1'].lastCombatTurnByLandmass).toBeUndefined();
+    });
+  });
+
   it.each([
     ['player', 'ai-1'],
     ['ai-1', 'player'],
