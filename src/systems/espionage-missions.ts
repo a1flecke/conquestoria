@@ -119,7 +119,7 @@ export interface MissionResult {
   flippedCityId?: string;
   flippedFromCivId?: string;
   // intercept_courier (#442 MR1): the trade route to sever, if the target city has one.
-  // Actual removal happens in turn-manager.ts — see 'espionage:courier-intercepted'.
+  // processEspionageTurn owns the removal through trade-system's removeRouteById (#1201).
   interceptedRouteId?: string;
   interceptedFromCityId?: string;
   interceptedToCityId?: string;

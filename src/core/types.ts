@@ -3008,10 +3008,9 @@ export interface GameEvents {
   // detection roll at mission-success time) -- an undiscovered sabotage fires nothing,
   // per spec §Interactions "Undiscovered: no penalty."
   'espionage:sabotage-relief-discovered': { crisisId: string; actorCivId: string; targetCivId: string };
-  // #442 MR1 intercept_courier: espionage-system.ts cannot import trade-system.ts's
-  // removeRouteById directly (import cycle through city-system.ts, same reason
-  // 'espionage:city-flipped' is applied in turn-manager.ts rather than inline) — the
-  // caller subscribes to this event and performs the actual route removal.
+  // #442 MR1 intercept_courier: the espionage turn severs the route through
+  // trade-system's canonical removeRouteById and emits this event only afterwards
+  // (#1201), so a listener never observes an interception that has not happened.
   'espionage:courier-intercepted': { civId: string; targetCivId: string; routeId: string; fromCityId: string; toCityId: string };
   'espionage:official-bribed': { civId: string; targetCivId: string; amount: number };
   // #442 MR2 expose_scandal: bounded multilateral reputation broadcast — fires once per

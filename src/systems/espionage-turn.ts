@@ -1,6 +1,7 @@
 import type {
   AdvisorType,
   EspionageCivState,
+  GameEvents,
   GameState,
   HexCoord,
   SpyMissionType,
@@ -10,6 +11,8 @@ import type { EventBus } from '@/core/event-bus';
 import { createRng } from './map-generator';
 import { hexDistance } from './hex-utils';
 import { modifyRelationship } from './diplomacy-state';
+import { transferCapturedCityOwnership } from './city-capture-system';
+import { removeRouteById } from './trade-system';
 import { applyResearchCompletionConsequences } from './tech-completion-system';
 import { createUnit } from './unit-lifecycle';
 import { resolveCivDefinition } from './civ-registry';
@@ -38,6 +41,16 @@ export interface SpyTurnEvent {
   promotion?: SpyPromotion;
   result?: Record<string, unknown>;
 }
+
+/**
+ * #1201: an authoritative state transition a mission earned. `processEspionageTurn`
+ * applies these itself, through the canonical city/trade transitions, before the
+ * matching domain event is emitted — so the event can never claim a city flip or
+ * courier interception that the espionage turn did not actually perform.
+ */
+export type EspionageConsequence =
+  | { kind: 'transfer-city'; event: GameEvents['espionage:city-flipped'] }
+  | { kind: 'remove-trade-route'; event: GameEvents['espionage:courier-intercepted'] };
 
 export function processSpyTurn(
   state: EspionageCivState,
@@ -203,6 +216,7 @@ function applySpyTurnEvents(
   initialEsp: EspionageCivState,
   events: SpyTurnEvent[],
   bus: EventBus,
+  consequences: EspionageConsequence[],
 ): { state: GameState; espionageCiv: EspionageCivState } {
   let state = initialState;
   let updatedEsp = initialEsp;
@@ -420,14 +434,11 @@ function applySpyTurnEvents(
           });
         }
 
-        // flip_loyalty (#524 MR2a): the actual ownership transfer happens in
-        // turn-manager.ts (subscribed to 'espionage:city-flipped'), via the shared
-        // non-combat ownership-transfer helper in city-capture-system.ts -- NOT here.
-        // espionage-system.ts cannot import city-capture-system.ts directly: doing so
-        // closes a real import cycle (city-system -> espionage-system ->
-        // city-capture-system -> city-system, since city-capture-system imports
-        // BUILDINGS from city-system). The bilateral relationship penalty is applied
-        // here since diplomacy-state has no such cycle.
+        // flip_loyalty (#524 MR2a): record the authoritative transfer as an explicit
+        // consequence; processEspionageTurn applies it after the per-civ loop through
+        // city-capture-system's canonical non-combat ownership transfer, and only then
+        // emits 'espionage:city-flipped' (#1201). The bilateral relationship penalty is
+        // applied here inline since diplomacy-state is a leaf.
         // -30: steeper than forge_documents (-25, no territorial loss) but shallower
         // than a raze (-40, destructive), reflecting a non-destructive but direct
         // territorial loss.
@@ -445,8 +456,9 @@ function applySpyTurnEvents(
                 state.civilizations[victimCivId].diplomacy, civId, -30,
               );
             }
-            bus.emit('espionage:city-flipped', {
-              civId, victimCivId, cityId: flippedCityId,
+            consequences.push({
+              kind: 'transfer-city',
+              event: { civId, victimCivId, cityId: flippedCityId },
             });
           }
         }
@@ -462,22 +474,23 @@ function applySpyTurnEvents(
           }
         }
 
-        // intercept_courier (#442 MR1): the actual route removal happens in
-        // turn-manager.ts (subscribed to 'espionage:courier-intercepted'), via
-        // trade-system.ts's existing removeRouteById -- espionage-system.ts cannot
-        // import trade-system.ts directly (trade-system -> city-system ->
-        // espionage-system is a real cycle, same reason flip_loyalty's transfer above
-        // is applied by the caller instead of here).
+        // intercept_courier (#442 MR1): record the removal as an explicit consequence;
+        // processEspionageTurn severs it through trade-system's canonical
+        // removeRouteById, then emits 'espionage:courier-intercepted' (#1201) — so the
+        // event is never observable before the route is actually gone.
         if (evt.missionType === 'intercept_courier' && result.interceptedRouteId) {
           const originalSpy = civEspBefore.spies[evt.spyId];
           const targetCivId = originalSpy?.targetCivId;
           if (targetCivId) {
-            bus.emit('espionage:courier-intercepted', {
-              civId,
-              targetCivId,
-              routeId: result.interceptedRouteId,
-              fromCityId: result.interceptedFromCityId!,
-              toCityId: result.interceptedToCityId!,
+            consequences.push({
+              kind: 'remove-trade-route',
+              event: {
+                civId,
+                targetCivId,
+                routeId: result.interceptedRouteId,
+                fromCityId: result.interceptedFromCityId!,
+                toCityId: result.interceptedToCityId!,
+              },
             });
           }
         }
@@ -939,6 +952,43 @@ function decaySpyUnrest(state: GameState): GameState {
 }
 
 /**
+ * Apply the mission consequences the turn earned (#1201). Each goes through the
+ * canonical transition that owns it, and its domain event is emitted only after the
+ * state mutation — so an observer never sees a flip/interception event whose state
+ * has not actually changed.
+ */
+function applyEspionageConsequences(
+  state: GameState,
+  consequences: EspionageConsequence[],
+  bus: EventBus,
+): GameState {
+  for (const consequence of consequences) {
+    switch (consequence.kind) {
+      case 'transfer-city': {
+        const { cityId, civId, victimCivId } = consequence.event;
+        if (state.cities[cityId]?.owner === victimCivId) {
+          state = transferCapturedCityOwnership(state, cityId, civId, state.turn);
+          bus.emit('espionage:city-flipped', consequence.event);
+        }
+        break;
+      }
+      case 'remove-trade-route': {
+        if (state.marketplace?.tradeRoutes.some(r => r.id === consequence.event.routeId)) {
+          state = removeRouteById(state, consequence.event.routeId, bus, 'espionage');
+          bus.emit('espionage:courier-intercepted', consequence.event);
+        }
+        break;
+      }
+      default: {
+        const unhandled: never = consequence;
+        throw new Error(`Unhandled espionage consequence: ${JSON.stringify(unhandled)}`);
+      }
+    }
+  }
+  return state;
+}
+
+/**
  * The espionage turn orchestrator (#1009): one named phase per responsibility,
  * in the exact pre-split order. It owns no rule of its own -- it sequences the
  * domain transitions above.
@@ -947,6 +997,10 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
   if (!state.espionage) return state;
 
   const turnSeed = `esp-turn-${state.turn}`;
+  // #1201: authoritative mission consequences are collected during the per-civ loop
+  // and applied here, by the turn itself, after `decaySpyUnrest` (where turn-manager.ts
+  // used to apply them from the emitted events).
+  const consequences: EspionageConsequence[] = [];
 
   for (const civId of Object.keys(state.espionage!)) {
     state = turnEligibleCapturedSpiesForCiv(state, civId, bus);
@@ -959,7 +1013,7 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
     const events = spyTurnResult.events;
     state.espionage![civId] = spyTurnResult.state;
 
-    const eventOutcome = applySpyTurnEvents(state, civId, civEspBefore, spyTurnResult.state, events, bus);
+    const eventOutcome = applySpyTurnEvents(state, civId, civEspBefore, spyTurnResult.state, events, bus, consequences);
     state = eventOutcome.state;
     state.espionage![civId] = eventOutcome.espionageCiv;
 
@@ -970,5 +1024,6 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
     state = refreshMaxSpies(state, civId);
   }
 
-  return decaySpyUnrest(state);
+  state = decaySpyUnrest(state);
+  return applyEspionageConsequences(state, consequences, bus);
 }

@@ -963,6 +963,20 @@ describe('#1009 — espionage-system decomposition boundaries', () => {
     expect(cycles, cycles.join('\n')).toEqual([]);
   });
 
+  it('#1201: the espionage turn owns its consequence appliers; classifier consumers stay on the leaf', () => {
+    // flip_loyalty/intercept_courier now apply the canonical city/trade transitions
+    // inside processEspionageTurn (no caller glue). That is only safe because the
+    // spy-classifier consumers import the leaf — importing the barrel there is what
+    // previously pulled the turn into the city-capture/unit-movement component.
+    const turn = importsOf('espionage-turn.ts');
+    expect(turn).toContain('city-capture-system');
+    expect(turn).toContain('trade-system');
+    for (const consumer of ['espionage-stealth.ts', 'detection-system.ts']) {
+      expect(importsOf(consumer), `${consumer} must import the leaf`).toContain('spy-unit-types');
+      expect(importsOf(consumer), `${consumer} must not import the barrel`).not.toContain('espionage-system');
+    }
+  });
+
   it('espionage-system.ts stays a barrel: the full pre-split public value surface is preserved', async () => {
     const mod = await import('@/systems/espionage-system');
     const PRE_SPLIT_PUBLIC_VALUES = [

@@ -901,6 +901,36 @@ describe('flip_loyalty gating and end-to-end resolution (#524 MR2a)', () => {
       expect(result.cities[capitalId].owner).not.toBe('player');
     }
   });
+
+  it('owns the transfer itself: processEspionageTurn flips the city with no caller glue (#1201)', () => {
+    // #1201: before this, the flip event was data and turn-manager.ts had to remember
+    // to call transferCapturedCityOwnership afterwards. A caller that only ran the
+    // espionage turn produced an event claiming a flip that never happened.
+    const { state: baseState, nonCapitalId } = makeFlipLoyaltyFixture();
+    let flippedByTurn = false;
+    for (let turn = 1; turn <= 200 && !flippedByTurn; turn++) {
+      const state: GameState = {
+        ...baseState,
+        turn,
+        espionage: {
+          ...baseState.espionage!,
+          player: {
+            ...baseState.espionage!.player,
+            spies: {
+              'spy-1': startMission(baseState.espionage!.player, 'spy-1', 'flip_loyalty').spies['spy-1'],
+            },
+          },
+        },
+      };
+      state.espionage!.player.spies['spy-1'].currentMission!.turnsRemaining = 1;
+
+      // Deliberately no caller-applied transferCapturedCityOwnership: the espionage
+      // turn must own the authoritative state transition.
+      const result = processEspionageTurn(state, new EventBus());
+      if (result.cities[nonCapitalId].owner === 'player') flippedByTurn = true;
+    }
+    expect(flippedByTurn).toBe(true);
+  });
 });
 
 describe('era 5 missions — intercept_courier and bribe_official (#442 MR1)', () => {
@@ -1074,6 +1104,32 @@ describe('era 5 missions — intercept_courier and bribe_official (#442 MR1)', (
         }
       }
       expect(succeeded).toBe(true);
+    });
+
+    it('owns the route removal itself: processEspionageTurn severs the route with no caller glue (#1201)', () => {
+      const { state: baseState } = makeCourierFixture();
+      let removedByTurn = false;
+      for (let turn = 1; turn <= 200 && !removedByTurn; turn++) {
+        const state: GameState = {
+          ...baseState,
+          turn,
+          espionage: {
+            ...baseState.espionage!,
+            player: {
+              ...baseState.espionage!.player,
+              spies: {
+                'spy-1': startMission(baseState.espionage!.player, 'spy-1', 'intercept_courier').spies['spy-1'],
+              },
+            },
+          },
+        };
+        state.espionage!.player.spies['spy-1'].currentMission!.turnsRemaining = 1;
+
+        // No caller-applied removeRouteById here: the espionage turn owns the removal.
+        const result = processEspionageTurn(state, new EventBus());
+        if (!result.marketplace!.tradeRoutes.some(r => r.id === 'route-only')) removedByTurn = true;
+      }
+      expect(removedByTurn).toBe(true);
     });
   });
 

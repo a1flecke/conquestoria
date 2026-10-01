@@ -1,7 +1,7 @@
 // src/systems/espionage-stealth.ts
 import type { Unit, GameState, UnitType } from '@/core/types';
 import { UNIT_DEFINITIONS } from './unit-definitions';
-import { isSpyUnitType } from './espionage-system';
+import { isSpyUnitType } from './spy-unit-types';
 import { hexDistance } from './hex-utils';
 import { isUnitConcealedFrom } from './concealment';
 
