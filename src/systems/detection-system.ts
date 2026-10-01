@@ -4,7 +4,7 @@ import type { EventBus } from '@/core/event-bus';
 import { UNIT_DEFINITIONS } from './unit-definitions';
 import { hexDistance } from './hex-utils';
 import { createRng } from './map-generator';
-import { isSpyUnitType } from './espionage-system';
+import { isSpyUnitType } from './spy-unit-types';
 
 export function getPassiveDetectionChance(cityPopulation: number): number {
   return Math.min(0.20, 0.033 + cityPopulation * 0.017);

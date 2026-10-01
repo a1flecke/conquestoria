@@ -1,4 +1,4 @@
-import type { AdvisorType, GameEvents, GameState } from './types';
+import type { AdvisorType, GameState } from './types';
 import { EventBus } from './event-bus';
 import { finalizeDominationVictory, finalizeScienceVictory } from '@/systems/victory-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
@@ -7,7 +7,6 @@ import { resetUnitTurn, createUnit } from '@/systems/unit-lifecycle';
 import { getBlockingMapEntityKeysForOwner } from '@/systems/unit-movement-legality';
 import { findPath } from '@/systems/unit-pathfinding';
 import { getLocalCityHealingBonus, processCity, TRAINABLE_UNITS, BUILDINGS } from '@/systems/city-system';
-import { transferCapturedCityOwnership } from '@/systems/city-capture-system';
 import { canCompleteAirUnitProduction } from '@/systems/air-operations-system';
 import { applyCityMaturity } from '@/systems/city-maturity-system';
 import { assignCityFocus, normalizeWorkedTilesForCity } from '@/systems/city-work-system';
@@ -72,7 +71,7 @@ import { decayTreachery } from '@/systems/diplomacy-treachery';
 import { tickTreaties } from '@/systems/diplomacy-treaties';
 import { processVassalageTribute, getVassalageMilitaryCount } from '@/systems/diplomacy-vassal-rules';
 import { processVassalageTurn } from '@/systems/diplomacy-vassalage';
-import { processTradeRouteIncome, processFashionCycle, updatePrices, scrubStaleForeignRoutes, scrubEmbargoedRoutes, removeRouteById } from '@/systems/trade-system';
+import { processTradeRouteIncome, processFashionCycle, updatePrices, scrubStaleForeignRoutes, scrubEmbargoedRoutes } from '@/systems/trade-system';
 import { advanceRouteRunners } from '@/systems/unit-movement-system';
 import { processWonderEffects } from '@/systems/wonder-system';
 import { createRng } from '@/systems/map-generator';
@@ -1241,31 +1240,10 @@ export function processTurn(
   }
 
   // --- Process espionage ---
-  // flip_loyalty (#524 MR2a): espionage-system.ts cannot import
-  // transferCapturedCityOwnership directly (it would close an import cycle through
-  // city-system.ts — see the comment at the 'espionage:city-flipped' emit site), so the
-  // actual ownership transfer is applied here, immediately after the espionage turn,
-  // using the events that turn just emitted.
-  const pendingCityFlips: GameEvents['espionage:city-flipped'][] = [];
-  const unsubscribeCityFlip = bus.on('espionage:city-flipped', (evt) => pendingCityFlips.push(evt));
-  // intercept_courier (#442 MR1): same import-cycle reason as the city-flip collection
-  // above — trade-system.ts's removeRouteById can't be called from inside
-  // espionage-system.ts, so it's applied here from the event it emits.
-  const pendingCourierIntercepts: GameEvents['espionage:courier-intercepted'][] = [];
-  const unsubscribeCourierIntercept = bus.on('espionage:courier-intercepted', (evt) => pendingCourierIntercepts.push(evt));
+  // #1201: processEspionageTurn owns flip_loyalty's city transfer and
+  // intercept_courier's route removal (through the canonical city/trade transitions),
+  // so no caller-side event glue is required here.
   newState = processEspionageTurn(newState, bus);
-  unsubscribeCityFlip();
-  unsubscribeCourierIntercept();
-  for (const flip of pendingCityFlips) {
-    if (newState.cities[flip.cityId]?.owner === flip.victimCivId) {
-      newState = transferCapturedCityOwnership(newState, flip.cityId, flip.civId, newState.turn);
-    }
-  }
-  for (const intercept of pendingCourierIntercepts) {
-    if (newState.marketplace?.tradeRoutes.some(r => r.id === intercept.routeId)) {
-      newState = removeRouteById(newState, intercept.routeId, bus, 'espionage');
-    }
-  }
   newState = processDetection(newState, bus);
 
   // Process active interrogations and apply extracted intel to game state

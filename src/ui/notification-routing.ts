@@ -15,6 +15,11 @@ import { resolveWorldPressureFlags } from '@/systems/world-pressure-flags';
 import { getWitnessCivIds } from '@/systems/crisis-interaction-system';
 import { hasMetCivilization } from '@/systems/discovery-system';
 import { getWorldRaceDefinition } from '@/systems/world-race-definitions';
+import {
+  getEspionageNotificationAudience,
+  type EspionageNotificationEvent,
+  type EspionageNotificationEventType,
+} from '@/ui/espionage-notification-audience';
 
 export type NotificationSink = (
   civId: string,
@@ -959,22 +964,21 @@ export function routeSabotageReliefDiscovered(
   const targetName = state.civilizations[event.targetCivId]?.name ?? 'a civilization';
   const message = `${actorName}'s spies were caught sabotaging ${targetName}'s relief!`;
 
-  sink(event.targetCivId, message, 'warning');
-  for (const witnessId of getWitnessCivIds(state, event.actorCivId, event.targetCivId)) {
-    sink(witnessId, message, 'warning');
+  for (const { civId } of getEspionageNotificationAudience(state, { type: 'espionage:sabotage-relief-discovered', ...event })) {
+    sink(civId, message, 'warning');
   }
 }
 
-// flip_loyalty (#524 MR2a review fix): the flip itself already happened by the time
-// this event fires -- turn-manager.ts applies transferCapturedCityOwnership right after
-// processEspionageTurn returns, before any listener runs. Both sides must be told: the
-// victim especially, since losing a city with zero in-game feedback (the original gap
-// this router closes) is far worse than any other espionage consequence.
+// flip_loyalty (#524 MR2a review fix): the flip is already applied when this fires --
+// processEspionageTurn owns the transferCapturedCityOwnership transition and emits the
+// event only afterwards (#1201). Both sides must be told: the victim especially, since
+// losing a city with zero in-game feedback (the original gap this router closes) is far
+// worse than any other espionage consequence.
 // intercept_courier (#442 MR1): mirrors routeSabotageReliefDiscovered's shape — the
-// route is already gone by the time this fires (turn-manager.ts applies removeRouteById
-// right after processEspionageTurn returns, before any listener runs), so both sides
-// need telling: the victim especially, since a silently vanished trade route with zero
-// feedback is exactly the "invisible consequence" pattern the brief warns against.
+// route is already gone when this fires (processEspionageTurn owns removeRouteById and
+// emits afterwards, #1201), so both sides need telling: the victim especially, since a
+// silently vanished trade route with zero feedback is exactly the "invisible
+// consequence" pattern the brief warns against.
 export function routeCourierIntercepted(
   state: GameState,
   event: GameEvents['espionage:courier-intercepted'],
@@ -986,8 +990,13 @@ export function routeCourierIntercepted(
   const actorName = state.civilizations[event.civId]?.name ?? 'A rival';
   const targetName = state.civilizations[event.targetCivId]?.name ?? 'a rival';
 
-  sink(event.targetCivId, `${actorName}'s spies intercepted a courier, severing the ${routeLabel} trade route!`, 'warning');
-  sink(event.civId, `Your spy intercepted a courier, severing ${targetName}'s ${routeLabel} trade route.`, 'success');
+  for (const { civId, role } of getEspionageNotificationAudience(state, { type: 'espionage:courier-intercepted', ...event })) {
+    if (role === 'actor') {
+      sink(civId, `Your spy intercepted a courier, severing ${targetName}'s ${routeLabel} trade route.`, 'success');
+    } else {
+      sink(civId, `${actorName}'s spies intercepted a courier, severing the ${routeLabel} trade route!`, 'warning');
+    }
+  }
 }
 
 // bribe_official (#442 MR1): same both-sides pattern — the victim needs to know their
@@ -1000,8 +1009,13 @@ export function routeOfficialBribed(
   const actorName = state.civilizations[event.civId]?.name ?? 'A rival';
   const targetName = state.civilizations[event.targetCivId]?.name ?? 'a rival';
 
-  sink(event.targetCivId, `${actorName}'s spies bribed an official and siphoned ${event.amount} gold from your treasury!`, 'warning');
-  sink(event.civId, `Your spy bribed an official in ${targetName}'s court, siphoning ${event.amount} gold into your treasury.`, 'success');
+  for (const { civId, role } of getEspionageNotificationAudience(state, { type: 'espionage:official-bribed', ...event })) {
+    if (role === 'actor') {
+      sink(civId, `Your spy bribed an official in ${targetName}'s court, siphoning ${event.amount} gold into your treasury.`, 'success');
+    } else {
+      sink(civId, `${actorName}'s spies bribed an official and siphoned ${event.amount} gold from your treasury!`, 'warning');
+    }
+  }
 }
 
 // expose_scandal (#442 MR2): the first multilateral espionage notification — unlike every
@@ -1017,15 +1031,19 @@ export function routeScandalExposed(
   const targetName = state.civilizations[event.targetCivId]?.name ?? 'a rival';
   const partnerNames = event.partnerCivIds.map(id => state.civilizations[id]?.name ?? id);
 
-  sink(
-    event.targetCivId,
-    `${actorName}'s spies exposed your secret dealings — ${partnerNames.join(', ')} now trust${partnerNames.length === 1 ? 's' : ''} you less.`,
-    'warning',
-  );
-  for (const partnerId of event.partnerCivIds) {
-    sink(partnerId, `${actorName}'s spies revealed ${targetName}'s secret dealings with you — your relationship has soured.`, 'warning');
+  for (const { civId, role } of getEspionageNotificationAudience(state, { type: 'espionage:scandal-exposed', ...event })) {
+    if (role === 'actor') {
+      sink(civId, `Your spy exposed ${targetName}'s secret dealings with ${partnerNames.length} other ${partnerNames.length === 1 ? 'civilization' : 'civilizations'}.`, 'success');
+    } else if (role === 'target') {
+      sink(
+        civId,
+        `${actorName}'s spies exposed your secret dealings — ${partnerNames.join(', ')} now trust${partnerNames.length === 1 ? 's' : ''} you less.`,
+        'warning',
+      );
+    } else {
+      sink(civId, `${actorName}'s spies revealed ${targetName}'s secret dealings with you — your relationship has soured.`, 'warning');
+    }
   }
-  sink(event.civId, `Your spy exposed ${targetName}'s secret dealings with ${partnerNames.length} other ${partnerNames.length === 1 ? 'civilization' : 'civilizations'}.`, 'success');
 }
 
 // Post-#442 audit fix: monitor_troops/gather_intel/identify_resources/monitor_diplomacy
@@ -1047,7 +1065,9 @@ export function routeIntelReportAcquired(
 ): void {
   const targetName = state.civilizations[event.targetCivId]?.name ?? 'a rival';
   const label = INTEL_REPORT_LABELS[event.missionType] ?? 'intelligence';
-  sink(event.civId, `Your spy gathered ${label} on ${targetName}. View it in the Espionage panel.`, 'success');
+  for (const { civId } of getEspionageNotificationAudience(state, { type: 'espionage:intel-report-acquired', ...event })) {
+    sink(civId, `Your spy gathered ${label} on ${targetName}. View it in the Espionage panel.`, 'success');
+  }
 }
 
 export function routeCityFlipped(
@@ -1059,9 +1079,36 @@ export function routeCityFlipped(
   const flipperName = state.civilizations[event.civId]?.name ?? 'a rival';
   const victimName = state.civilizations[event.victimCivId]?.name ?? 'a rival';
 
-  sink(event.civId, `${cityName} defected to you after a propaganda campaign against ${victimName}!`, 'success');
-  sink(event.victimCivId, `${cityName} defected to ${flipperName} after a propaganda campaign!`, 'warning');
+  for (const { civId, role } of getEspionageNotificationAudience(state, { type: 'espionage:city-flipped', ...event })) {
+    if (role === 'actor') {
+      sink(civId, `${cityName} defected to you after a propaganda campaign against ${victimName}!`, 'success');
+    } else {
+      sink(civId, `${cityName} defected to ${flipperName} after a propaganda campaign!`, 'warning');
+    }
+  }
 }
+
+/**
+ * The exhaustive espionage notification route table (#1201). Typed over
+ * `EspionageNotificationEventType`, so adding a new notification event without a route
+ * (and therefore without an audience contract) is a compile error; the generic
+ * meta-test drives each entry here and asserts its delivered recipients equal
+ * `getEspionageNotificationAudience`'s.
+ */
+export const ESPIONAGE_NOTIFICATION_ROUTES: {
+  [K in EspionageNotificationEventType]: (
+    state: GameState,
+    event: Omit<Extract<EspionageNotificationEvent, { type: K }>, 'type'>,
+    sink: NotificationSink,
+  ) => void;
+} = {
+  'espionage:sabotage-relief-discovered': routeSabotageReliefDiscovered,
+  'espionage:city-flipped': routeCityFlipped,
+  'espionage:courier-intercepted': routeCourierIntercepted,
+  'espionage:official-bribed': routeOfficialBribed,
+  'espionage:scandal-exposed': routeScandalExposed,
+  'espionage:intel-report-acquired': routeIntelReportAcquired,
+};
 
 // Fans out to viewers who know the AI target civ (met-civ gate, spec §Visibility).
 // AI-targeted crises only -- a human's own crisis already notifies its owner via

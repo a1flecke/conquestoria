@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import type { CombatResult, GameState } from '@/core/types';
 import { BREAKAWAY_REVOLT_TURNS } from '@/systems/faction-system';
 import {
@@ -47,8 +49,16 @@ import {
   routeOfficialBribed,
   routeScandalExposed,
   routeIntelReportAcquired,
+  ESPIONAGE_NOTIFICATION_ROUTES,
   type NotificationSink,
 } from '@/ui/notification-routing';
+import {
+  ESPIONAGE_NOTIFICATION_EVENT_TYPES,
+  findUncoveredEspionageNotifications,
+  getEspionageNotificationAudience,
+  type EspionageNotificationEvent,
+  type EspionageNotificationEventType,
+} from '@/ui/espionage-notification-audience';
 import { worldAgeFromNumber } from '@/systems/era-types';
 
 vi.mock('@/systems/discovery-system', () => ({
@@ -1601,5 +1611,79 @@ describe('#871 routeAccessLost', () => {
 
   it('uses singular copy for one unit', () => {
     expect(collect(1)[0]!.message).toMatch(/^One of your units is now inside borders that are closed to it\. It can keep moving/);
+  });
+});
+
+// #1201: the espionage notification audience must come from one typed contract, and no
+// router may tell a party twice or skip a required one. The negative coverage check below
+// is the non-vacuity proof: an espionage event with no contract is reported.
+describe('espionage notification audience contract (#1201)', () => {
+  function audienceState(): GameState {
+    return makeState({
+      civilizations: {
+        rome: { id: 'rome', name: 'Rome', cities: [], units: [], diplomacy: { relationships: {} }, visibility: { tiles: {} } },
+        carthage: { id: 'carthage', name: 'Carthage', cities: [], units: [], diplomacy: { relationships: {} }, visibility: { tiles: {} } },
+        egypt: { id: 'egypt', name: 'Egypt', cities: [], units: [], diplomacy: { relationships: {} }, visibility: { tiles: {} } },
+      } as any,
+      cities: {
+        'city-1': { id: 'city-1', name: 'Utica', owner: 'rome', position: { q: 0, r: 0 } },
+        'city-2': { id: 'city-2', name: 'Carthago Nova', owner: 'carthage', position: { q: 1, r: 0 } },
+      } as any,
+    });
+  }
+
+  // One representative event per contract type. Typed over the union, so adding a new
+  // notification event forces this fixture to grow — the test cannot silently skip it.
+  const SAMPLES: {
+    [K in EspionageNotificationEventType]: Omit<Extract<EspionageNotificationEvent, { type: K }>, 'type'>;
+  } = {
+    'espionage:sabotage-relief-discovered': { crisisId: 'crisis-1', actorCivId: 'rome', targetCivId: 'carthage' },
+    'espionage:city-flipped': { civId: 'rome', victimCivId: 'carthage', cityId: 'city-1' },
+    'espionage:courier-intercepted': { civId: 'rome', targetCivId: 'carthage', routeId: 'route-1', fromCityId: 'city-1', toCityId: 'city-2' },
+    'espionage:official-bribed': { civId: 'rome', targetCivId: 'carthage', amount: 15 },
+    'espionage:scandal-exposed': { civId: 'rome', targetCivId: 'carthage', partnerCivIds: ['egypt'] },
+    'espionage:intel-report-acquired': { civId: 'rome', spyId: 'spy-1', missionType: 'gather_intel', targetCivId: 'carthage' },
+  };
+
+  for (const type of ESPIONAGE_NOTIFICATION_EVENT_TYPES) {
+    it(`tells every intended party exactly once for ${type}`, () => {
+      const state = audienceState();
+      const event = { type, ...SAMPLES[type] } as EspionageNotificationEvent;
+      const audience = getEspionageNotificationAudience(state, event);
+      expect(audience.length).toBeGreaterThan(0);
+
+      const { sink, calls } = makeSink();
+      const route = ESPIONAGE_NOTIFICATION_ROUTES[type] as (s: GameState, e: unknown, k: NotificationSink) => void;
+      route(state, SAMPLES[type], sink);
+
+      const expected = audience.map(r => r.civId);
+      const delivered = calls.map(c => c.civId);
+      expect([...delivered].sort()).toEqual([...expected].sort());
+      expect(delivered.length).toBe(expected.length);
+      expect(new Set(delivered).size).toBe(delivered.length);
+    });
+  }
+
+  it('the exhaustive route table covers exactly the contract event types', () => {
+    expect(Object.keys(ESPIONAGE_NOTIFICATION_ROUTES).sort())
+      .toEqual([...ESPIONAGE_NOTIFICATION_EVENT_TYPES].sort());
+  });
+
+  it('the coverage check is non-vacuous: an event with no contract is reported', () => {
+    expect(findUncoveredEspionageNotifications(ESPIONAGE_NOTIFICATION_EVENT_TYPES)).toEqual([]);
+    expect(findUncoveredEspionageNotifications(['espionage:not-a-real-event']))
+      .toEqual(['espionage:not-a-real-event']);
+  });
+
+  it('every routed espionage notification registered for presentation has a contract', () => {
+    // Auto-updating source: a new `bus.on('espionage:…', event => { route…` registration
+    // without a contract entry fails this even though only production knows the list.
+    const src = readFileSync(
+      resolve(__dirname, '../../src/presentation/register-espionage-presentation.ts'),
+      'utf8',
+    );
+    const routed = [...src.matchAll(/bus\.on\('(espionage:[^']+)',\s*event\s*=>\s*\{\s*route/g)].map(m => m[1]!);
+    expect(routed.length).toBeGreaterThan(0);
+    expect(findUncoveredEspionageNotifications(routed)).toEqual([]);
   });
 });
