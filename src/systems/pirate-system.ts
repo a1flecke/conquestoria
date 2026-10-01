@@ -55,7 +55,6 @@ import { moveUnitWithZoneOfControl } from './unit-low-level-move';
 import { getMovementStepCost } from './unit-movement-cost';
 import { findPath } from './unit-pathfinding';
 import { executeUnitMove } from './unit-movement-system';
-import { removeRouteForUnit } from './trade-system';
 import { emitMinorCivQuestTransitions } from './quest-chain-system';
 import {
   buildCombatPresentation,
@@ -214,42 +213,10 @@ function attackTarget(
     buildCombatContextForDefender(state, attacker, defender),
     resolveCombatEra(state, attacker, defender),
   );
-  const applied = applyCombatOutcomeToState(state, result, seed);
-  let appliedState = applied.state;
-  if (bus && applied.attackerDefeated && attacker.committedToRouteId) {
-    appliedState = removeRouteForUnit(
-      appliedState,
-      attacker.id,
-      bus,
-      'unit-died',
-      attacker.committedToRouteId,
-    );
-  } else if (bus && applied.attackerCaptured && attacker.committedToRouteId) {
-    appliedState = removeRouteForUnit(
-      appliedState,
-      attacker.id,
-      bus,
-      'unit-captured',
-      attacker.committedToRouteId,
-    );
-  }
-  if (bus && applied.defenderDefeated && defender.committedToRouteId) {
-    appliedState = removeRouteForUnit(
-      appliedState,
-      defender.id,
-      bus,
-      'unit-died',
-      defender.committedToRouteId,
-    );
-  } else if (bus && applied.defenderCaptured && defender.committedToRouteId) {
-    appliedState = removeRouteForUnit(
-      appliedState,
-      defender.id,
-      bus,
-      'unit-captured',
-      defender.committedToRouteId,
-    );
-  }
+  // #1200: route cleanup, camp, combat record and kill consequences are the shared outcome's job; a bus is a
+  // real execution and announces them from there.
+  const applied = applyCombatOutcomeToState(state, result, seed, bus);
+  const appliedState = applied.state;
   if (bus) {
     emitMinorCivQuestTransitions(bus, applied.questTransitions, appliedState);
     for (const reward of applied.rewards) bus.emit('combat:reward-earned', { reward });

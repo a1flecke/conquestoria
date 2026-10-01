@@ -37,7 +37,6 @@ import {
   canEstablishOutpost,
   performEstablishOutpost,
 } from '@/systems/resource-acquisition-system';
-import { recordCombatForCiv } from '@/systems/threat-pressure-system';
 import {
   loadUnitOntoTransport,
   detachCargoForEmbarkedAssault,
@@ -225,11 +224,7 @@ function executeAttack(
   );
   const presentation = buildCombatPresentation(next, combat, attacker, defender);
   const applied = applyCombatOutcomeToState(next, combat, seed, bus);
-  let working = recordCombatForCiv(
-    applied.state,
-    civId,
-    defender.position,
-  );
+  let working = applied.state;
   emitMinorCivQuestTransitions(bus, applied.questTransitions, working);
   bus.emit('combat:resolved', { result: combat, ...presentation });
   for (const reward of applied.rewards) {
@@ -238,21 +233,6 @@ function executeAttack(
 
   const followUps: AITacticalAction[] = [];
   if (applied.defenderDefeated) {
-    const camp = applyCampDestructionAtTarget(
-      working,
-      civId,
-      defender.position,
-      working.turn,
-    );
-    if (camp.campId) {
-      working = camp.state;
-      emitMinorCivQuestTransitions(bus, camp.questTransitions, working);
-      bus.emit('barbarian:camp-destroyed', {
-        campId: camp.campId,
-        reward: camp.reward,
-      });
-    }
-
     const city = Object.values(working.cities).find(candidate =>
       hexKey(candidate.position) === hexKey(defender.position)
       && candidate.owner !== civId);

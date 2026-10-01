@@ -33,8 +33,7 @@ import { applyPillageToState } from '@/systems/pillage-system';
 import {
   PIRATE_OWNER,
   processIndependentThreatPressure,
-  recordCombatForCiv,
-} from '@/systems/threat-pressure-system';
+  } from '@/systems/threat-pressure-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
 import { computeAdministrativeExploreLeash } from '@/ai/ai-exploration';
@@ -73,7 +72,7 @@ import { decayTreachery } from '@/systems/diplomacy-treachery';
 import { tickTreaties } from '@/systems/diplomacy-treaties';
 import { processVassalageTribute, getVassalageMilitaryCount } from '@/systems/diplomacy-vassal-rules';
 import { processVassalageTurn } from '@/systems/diplomacy-vassalage';
-import { processTradeRouteIncome, processFashionCycle, updatePrices, removeRouteForUnit, scrubStaleForeignRoutes, scrubEmbargoedRoutes, removeRouteById } from '@/systems/trade-system';
+import { processTradeRouteIncome, processFashionCycle, updatePrices, scrubStaleForeignRoutes, scrubEmbargoedRoutes, removeRouteById } from '@/systems/trade-system';
 import { advanceRouteRunners } from '@/systems/unit-movement-system';
 import { processWonderEffects } from '@/systems/wonder-system';
 import { createRng } from '@/systems/map-generator';
@@ -1017,10 +1016,6 @@ export function processTurn(
     const legality = canUnitAttackTarget(newState, attacker, defender.position, { requireVisibility: false });
     if (!legality.ok || legality.targetType !== 'unit' || legality.targetUnitId !== defender.id) continue;
     const combatSeed = deterministicCombatSeed(newState.gameId, newState.turn, attacker.id, defender.id);
-    // Capture route IDs before combat (units may be removed from state after)
-    const attackerRouteId = attacker.committedToRouteId;
-    const defenderRouteId = defender.committedToRouteId;
-    const defenderPosBarbarian = { ...defender.position };
     const result = resolveCombat(
       attacker,
       defender,
@@ -1032,21 +1027,7 @@ export function processTurn(
     const combatPresentation = buildCombatPresentation(newState, result, attacker, defender);
     const applied = applyCombatOutcomeToState(newState, result, combatSeed, bus);
     newState = applied.state;
-    if (newState.civilizations[defender.owner]?.isHuman) {
-      newState = recordCombatForCiv(newState, defender.owner, defenderPosBarbarian);
-    }
     emitMinorCivQuestTransitions(bus, applied.questTransitions, newState);
-    // Clean up trade routes for any committed caravans that died or were captured
-    if (applied.attackerDefeated && attackerRouteId) {
-      newState = removeRouteForUnit(newState, result.attackerId, bus, 'unit-died', attackerRouteId);
-    } else if (applied.attackerCaptured && attackerRouteId) {
-      newState = removeRouteForUnit(newState, result.attackerId, bus, 'unit-captured', attackerRouteId);
-    }
-    if (applied.defenderDefeated && defenderRouteId) {
-      newState = removeRouteForUnit(newState, result.defenderId, bus, 'unit-died', defenderRouteId);
-    } else if (applied.defenderCaptured && defenderRouteId) {
-      newState = removeRouteForUnit(newState, result.defenderId, bus, 'unit-captured', defenderRouteId);
-    }
     bus.emit('combat:resolved', { result, ...combatPresentation });
     for (const reward of applied.rewards) {
       bus.emit('combat:reward-earned', { reward });
@@ -1270,7 +1251,6 @@ export function processTurn(
       const defender = newState.units[order.defenderUnitId];
       if (!attacker || !defender) continue;
       const combatSeed = deterministicCombatSeed(newState.gameId, newState.turn, attacker.id, defender.id);
-      const defenderPosBeast = { ...defender.position };
       const result = resolveCombat(
         attacker,
         defender,
@@ -1282,9 +1262,6 @@ export function processTurn(
       const combatPresentation = buildCombatPresentation(newState, result, attacker, defender);
       const applied = applyCombatOutcomeToState(newState, result, combatSeed, bus);
       newState = applied.state;
-      if (newState.civilizations[defender.owner]?.isHuman) {
-        newState = recordCombatForCiv(newState, defender.owner, defenderPosBeast);
-      }
       emitMinorCivQuestTransitions(bus, applied.questTransitions, newState);
       // A beast that died on its own counterattack is slain inside applyCombatOutcomeToState (#1014).
       // If the intruder died, no hoard — the beast attacked, not the player

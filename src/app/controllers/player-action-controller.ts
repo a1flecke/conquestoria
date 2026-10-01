@@ -66,7 +66,6 @@ import { fireFirstBombardmentTip } from '@/ui/advisor-system';
 import type { Civilization, CivBonusEffect, CombatResult, HexCoord, UnitType, WorkerActionType } from '@/core/types';
 import type { UnitTurnFlow } from '@/ui/unit-turn-flow';
 import { createUnitTurnFlow } from '@/ui/unit-turn-flow';
-import { removeRouteForUnit } from '@/systems/trade-system';
 import { applyWorkerAction } from '@/systems/worker-action-system';
 import { preach } from '@/systems/religion-system';
 import { createUnitDeleteConfirmationPanel } from '@/ui/unit-delete-confirmation-panel';
@@ -90,7 +89,6 @@ import { buildCombatContextForDefender, getAmphibiousAssaultMultiplier } from '@
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { resolveUnitCityBombardment } from '@/systems/city-bombardment-system';
 import { applyCombatOutcomeToState, getCaptureNotificationLabel } from '@/systems/combat-reward-system';
-import { recordCombatForCiv } from '@/systems/threat-pressure-system';
 import { resolveCombatEra } from '@/systems/era-resolution';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
@@ -766,11 +764,6 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
 
     const seed = deterministicCombatSeed(deps.session.getState().gameId, deps.session.getState().turn, attacker.id, defender.id);
     const attackerBonus = getCurrentCivDef(deps.session)?.bonusEffect;
-    // Capture defender position before combat (defender may be removed from state after)
-    const defenderPosition = { ...defender.position };
-    // Capture route IDs before combat (units may be removed from state after)
-    const attackerRouteId = attacker.committedToRouteId;
-    const defenderRouteId = defender.committedToRouteId;
     const result = resolveCombat(
       attacker,
       deps.session.getState().units[defenderId] ?? defender,
@@ -791,19 +784,7 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
     const assault = deps.session.batch((): { assaultStatus: 'pending' | 'resolved' } | null => {
       const applied = applyCombatOutcomeToState(deps.session.getState(), result, seed, deps.bus);
       deps.session.commit(applied.state);
-      deps.session.commit(recordCombatForCiv(deps.session.getState(), deps.session.getState().currentPlayer, defenderPosition));
       emitMinorCivQuestTransitions(deps.bus, applied.questTransitions, deps.session.getState());
-      // Clean up trade routes for any committed caravans that died or were captured
-      if (applied.attackerDefeated && attackerRouteId) {
-        deps.session.commit(removeRouteForUnit(deps.session.getState(), result.attackerId, deps.bus, 'unit-died', attackerRouteId));
-      } else if (applied.attackerCaptured && attackerRouteId) {
-        deps.session.commit(removeRouteForUnit(deps.session.getState(), result.attackerId, deps.bus, 'unit-captured', attackerRouteId));
-      }
-      if (applied.defenderDefeated && defenderRouteId) {
-        deps.session.commit(removeRouteForUnit(deps.session.getState(), result.defenderId, deps.bus, 'unit-died', defenderRouteId));
-      } else if (applied.defenderCaptured && defenderRouteId) {
-        deps.session.commit(removeRouteForUnit(deps.session.getState(), result.defenderId, deps.bus, 'unit-captured', defenderRouteId));
-      }
 
       if (applied.attackerDefeated) {
         deps.showNotification('Our unit was destroyed!', 'warning');
@@ -828,11 +809,10 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
           deps.maybeShowPendingHoardChoice();
         }
 
-        const destroyedCamp = applyCampDestructionAtTarget(deps.session.getState(), deps.session.getState().currentPlayer, defender.position, deps.session.getState().turn);
-        if (destroyedCamp.campId) {
-          deps.session.commit(destroyedCamp.state);
-          emitMinorCivQuestTransitions(deps.bus, destroyedCamp.questTransitions, deps.session.getState());
-          deps.showNotification(`Barbarian camp destroyed! +${destroyedCamp.reward} gold`, 'success');
+        // The camp itself (reward, quests, event) was destroyed inside applyCombatOutcomeToState (#1200);
+        // this is only its player-facing presentation.
+        if (applied.campDestroyed) {
+          deps.showNotification(`Barbarian camp destroyed! +${applied.campDestroyed.reward} gold`, 'success');
           deps.advisorSystem.resetMessage('treasurer_camp_reward');
           deps.advisorSystem.check(deps.session.getState());
           for (const mcId of Object.keys(deps.session.getState().minorCivs)) {
