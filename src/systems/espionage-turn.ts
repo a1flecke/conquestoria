@@ -75,12 +75,11 @@ export function processSpyTurn(
         // Resolve mission
         const counterIntel = newState.counterIntelligence[mission.targetCityId] ?? 0;
         const modifierBreakdown = modifierContext && updated.targetCivId
-          ? getEspionageModifierBreakdown(
-            modifierContext.gameState,
-            modifierContext.civId,
-            updated.targetCivId,
-            mission.targetCityId,
-          )
+          ? getEspionageModifierBreakdown(modifierContext.gameState, {
+            actingCivId: modifierContext.civId,
+            targetCivId: updated.targetCivId,
+            targetCityId: mission.targetCityId,
+          })
           : null;
         const successChance = getSpySuccessChance(
           updated.experience, counterIntel, mission.type, updated.promotion,
@@ -180,7 +179,7 @@ function turnEligibleCapturedSpiesForCiv(state: GameState, civId: string, bus: E
         const turnRng = createRng(`sec-bureau-${spy.id}-${state.turn}`);
         if (turnRng() < 0.5) continue; // Security bureau blocks 50% of turning attempts
       }
-      state.espionage = turnCapturedSpy(state.espionage!, captorId, civId, spy.id, state.turn);
+      state.espionage = turnCapturedSpy(state.espionage!, { captorId, spyOwner: civId, spyId: spy.id, turn: state.turn });
       bus.emit('espionage:spy-detected', {
         detectingCivId: captorId,
         spyOwner: civId,
@@ -714,7 +713,7 @@ function applySpyTurnEvents(
           }
           const targetTechs = state.civilizations[targetCivId].techState.completed ?? [];
           if (targetTechs.includes('counter-intelligence') || targetTechs.includes('digital-surveillance')) {
-            state.espionage = turnCapturedSpy(state.espionage!, targetCivId, civId, evt.spyId, state.turn);
+            state.espionage = turnCapturedSpy(state.espionage!, { captorId: targetCivId, spyOwner: civId, spyId: evt.spyId, turn: state.turn });
             bus.emit('espionage:spy-detected', {
               detectingCivId: targetCivId,
               spyOwner: civId,
@@ -846,7 +845,7 @@ function applyPassiveCaptureDetection(state: GameState, civId: string, bus: Even
       }
       const targetTechs = state.civilizations[capturedById].techState.completed ?? [];
       if (targetTechs.includes('counter-intelligence') || targetTechs.includes('digital-surveillance')) {
-        state.espionage = turnCapturedSpy(state.espionage!, capturedById, civId, spyId, state.turn);
+        state.espionage = turnCapturedSpy(state.espionage!, { captorId: capturedById, spyOwner: civId, spyId, turn: state.turn });
         bus.emit('espionage:spy-detected', {
           detectingCivId: capturedById, spyOwner: civId, spyId,
           cityId: spy.infiltrationCityId ?? '',

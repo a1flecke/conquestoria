@@ -25,10 +25,34 @@ row that fits and build that instead:
 | **A single legal entry point** ("UI must never call the inner step") | A source rule (`scripts/check-src-rule-violations.sh` + the hook mirror + both smoke tests) **and** an importer pin in `architecture-boundaries.test.ts` | `resolveStrategicStrike` has one caller; the low-level unit movers; the single-side diplomacy writers |
 | **A relationship between two parts of state** ("index A must agree with index B") | A `SAVE_STATE_INVARIANTS` assert, with an earned-control test per violation, wired into the AI-playability fixture | `beast-lair-integrity`, `cargo-reciprocity`, `air-base-integrity`, `bilateral-war` |
 | **A table the AI/UI must consult** ("new X must add a row") | A data table read generically, plus a completeness test | `UNREST_RELIEF_SOURCES`, `NP_PRODUCTION_DISCOUNTS` |
+| **Two same-representation primitives in different roles** ("this string is the actor, that string the target") | Make the roles structural: a required-field options object, or a brand built only by one boundary helper | `EspionageModifierQuery` / `TurnCapturedSpyCommand` / `SensedUnits` (#1022) |
 | **A note about a fact** ("both sides' notifications were already logged") | Leave it. Say why it is safe. | — |
 
 Do not convert a contract whose enforcement would cost more than the bug it prevents, and say so
 in the inventory rather than leaving it unclassified.
+
+## Ambiguous primitives (#1022)
+
+When an exported API takes several values with the same runtime representation but different
+meanings, name the roles — but only when misuse is plausible. The ranked audit and the
+"leave as-is" list live in [`docs/type-safety-inventory.md`](../../docs/type-safety-inventory.md).
+
+- **Prefer named roles over positional ones** when two-or-more same-typed arguments sit next to
+  each other and swapping them compiles:
+  `getEspionageModifierBreakdown(state, { actingCivId, targetCivId, targetCityId })`. Use
+  **required** fields — an options object with optional fields is *less* safe than positional
+  parameters (see the `ProductionCostContext` history).
+- **Prefer a brand confined to one constructor** when the value is a capability that must come
+  from exactly one place: `SensedUnits` can only be built by `campSensedUnits(...)`, so passing a
+  global unit scan is a compile error.
+- **Do not brand** a primitive whose casts would outnumber the mistakes it prevents (`UnitId`,
+  `HexKey`, a vague `TurnNumber`), and do not brand a concept already covered by a canonical
+  query or classifier (`getCivilizationLiveness`, `classifyOwner`, `WorldAge`/`CivilizationEra`).
+  Classify it in the inventory instead.
+- Prefer compile-time-only types: making a mistake unrepresentable must not change runtime
+  representation, save format or require a migration.
+- Ship a compile-time negative fixture (`@ts-expect-error`) per adopted change; `tsc` in
+  `yarn build` enforces it.
 
 ## Rules
 

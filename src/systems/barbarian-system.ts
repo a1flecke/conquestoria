@@ -27,7 +27,7 @@ import { recordHuntCampKillerIfApplicable } from './hunt-crisis-linkage';
 import { resolveCivilizationEra } from './tech-definitions';
 import { classifyOwner } from '@/core/owner-kind';
 import { resolveNeutralPressureEra } from './era-resolution';
-import { getActiveCampPressure, observeCampPressureFromSensedUnits } from './barbarian-pressure';
+import { campSensedUnits, getActiveCampPressure, observeCampPressureFromSensedUnits } from './barbarian-pressure';
 import { selectBarbarianReinforcement } from './barbarian-force-composer';
 import { createSimulationRng } from './simulation-rng';
 import { getCivilizationLiveness } from './civilization-liveness';
@@ -387,14 +387,16 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
     // barbarian-archetype.ts and the #1089 design doc for the full rationale.
     const archetype = resolveBarbarianArchetype(state, camp.id);
     const archetypeDef = getBarbarianArchetypeDefinition(archetype);
-    const sensedUnits = Object.values(state.units)
-      .filter(unit =>
-        unit.owner !== 'barbarian'
-        && !unit.transportId
-        && sensedByCamp(state, camp, assigned, unit.position))
-      .sort((a, b) =>
-        barbarianDistance(state, camp.position, a.position) - barbarianDistance(state, camp.position, b.position)
-        || a.id.localeCompare(b.id));
+    const sensedUnits = campSensedUnits(
+      Object.values(state.units)
+        .filter(unit =>
+          unit.owner !== 'barbarian'
+          && !unit.transportId
+          && sensedByCamp(state, camp, assigned, unit.position))
+        .sort((a, b) =>
+          barbarianDistance(state, camp.position, a.position) - barbarianDistance(state, camp.position, b.position)
+          || a.id.localeCompare(b.id)),
+    );
     observationState = observeCampPressureFromSensedUnits(observationState, camp.id, sensedUnits);
     const spawn = campTick.spawnedUnits.find(candidate => candidate.campId === camp.id);
     if (spawn && assigned.length < Math.min(camp.strength, MAX_BARBARIAN_CAMP_STRENGTH)) {

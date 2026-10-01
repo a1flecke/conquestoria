@@ -8,6 +8,7 @@ import {
   resolveBarbarianArchetype,
   type BarbarianArchetype,
 } from '@/systems/barbarian-archetype';
+import { campSensedUnits } from '@/systems/barbarian-pressure';
 import type { GameMap, Unit } from '@/core/types';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { generateMap } from '@/systems/map-generator';
@@ -102,7 +103,7 @@ describe('#1089 findPredatorHuntTarget', () => {
     const target = findPredatorHuntTarget(
       { map },
       { q: 5, r: 6 },
-      [wounded, escort, healthy],
+      campSensedUnits([wounded, escort, healthy]),
       isCombatCapable,
     );
     expect(target?.id).toBe('u-wounded');
@@ -115,7 +116,7 @@ describe('#1089 findPredatorHuntTarget', () => {
     const target = findPredatorHuntTarget(
       { map },
       { q: 5, r: 5 },
-      [isolated, escortedA, escortedB],
+      campSensedUnits([isolated, escortedA, escortedB]),
       isCombatCapable,
     );
     expect(target?.id).toBe('u-isolated');
@@ -124,20 +125,20 @@ describe('#1089 findPredatorHuntTarget', () => {
   it('returns undefined when every sensed unit is healthy and escorted', () => {
     const escortedA = unit('u-a', 'player', { q: 2, r: 2 }, { health: 100 });
     const escortedB = unit('u-b', 'player', { q: 3, r: 2 }, { health: 100 });
-    const target = findPredatorHuntTarget({ map }, { q: 5, r: 5 }, [escortedA, escortedB], isCombatCapable);
+    const target = findPredatorHuntTarget({ map }, { q: 5, r: 5 }, campSensedUnits([escortedA, escortedB]), isCombatCapable);
     expect(target).toBeUndefined();
   });
 
   it('an escort of a DIFFERENT owner does not count as protection (isolation is per-owner)', () => {
     const target1 = unit('u-target', 'ownerA', { q: 5, r: 5 }, { health: 100 });
     const otherOwnerNearby = unit('u-other', 'ownerB', { q: 5, r: 6 }, { health: 100 });
-    const result = findPredatorHuntTarget({ map }, { q: 0, r: 0 }, [target1, otherOwnerNearby], isCombatCapable);
+    const result = findPredatorHuntTarget({ map }, { q: 0, r: 0 }, campSensedUnits([target1, otherOwnerNearby]), isCombatCapable);
     expect(result?.id).toBe('u-target');
   });
 
   it('respects the isCombatCapable predicate (never hunts a non-combat unit)', () => {
     const worker = unit('u-worker', 'player', { q: 5, r: 5 }, { health: 20 });
-    const target = findPredatorHuntTarget({ map }, { q: 0, r: 0 }, [worker], () => false);
+    const target = findPredatorHuntTarget({ map }, { q: 0, r: 0 }, campSensedUnits([worker]), () => false);
     expect(target).toBeUndefined();
   });
 });
