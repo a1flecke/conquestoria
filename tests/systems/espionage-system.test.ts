@@ -28,6 +28,7 @@ import {
   missionRequiresPlacedSpy,
   MISSION_BASE_SUCCESS,
   } from '@/systems/espionage-system';
+import type { EspionageModifierQuery, TurnCapturedSpyCommand } from '@/systems/espionage-system';
 import { createDiplomacyState } from '@/systems/diplomacy-state';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
@@ -321,7 +322,7 @@ describe('espionage-system', () => {
           },
         },
       };
-      const atCapital = getEspionageModifierBreakdown(withTech, 'player', targetCivId, targetCityId);
+      const atCapital = getEspionageModifierBreakdown(withTech, { actingCivId: 'player', targetCivId, targetCityId });
       expect(atCapital.missionSuccessDelta).toBeCloseTo(0.20);
 
       const nonCapitalCity = { ...state.cities[targetCityId], id: 'non-capital-city' };
@@ -329,7 +330,7 @@ describe('espionage-system', () => {
         ...withTech,
         cities: { ...withTech.cities, 'non-capital-city': nonCapitalCity },
       };
-      const elsewhere = getEspionageModifierBreakdown(withExtraCity, 'player', targetCivId, 'non-capital-city');
+      const elsewhere = getEspionageModifierBreakdown(withExtraCity, { actingCivId: 'player', targetCivId, targetCityId: 'non-capital-city' });
       expect(elsewhere.missionSuccessDelta).toBe(0);
     });
 
@@ -345,7 +346,7 @@ describe('espionage-system', () => {
           },
         },
       };
-      const breakdown = getEspionageModifierBreakdown(withDefense, 'player', targetCivId, targetCityId);
+      const breakdown = getEspionageModifierBreakdown(withDefense, { actingCivId: 'player', targetCivId, targetCityId });
       expect(breakdown.missionSuccessDelta).toBeCloseTo(-0.25);
     });
 
@@ -361,7 +362,7 @@ describe('espionage-system', () => {
           },
         },
       };
-      const breakdown = getEspionageModifierBreakdown(actingHasDefenseTech, 'player', targetCivId, targetCityId);
+      const breakdown = getEspionageModifierBreakdown(actingHasDefenseTech, { actingCivId: 'player', targetCivId, targetCityId });
       expect(breakdown.missionSuccessDelta).toBe(0);
     });
 
@@ -377,7 +378,7 @@ describe('espionage-system', () => {
           },
         },
       };
-      const breakdown = getEspionageModifierBreakdown(withSecretPolice, 'player', targetCivId, targetCityId);
+      const breakdown = getEspionageModifierBreakdown(withSecretPolice, { actingCivId: 'player', targetCivId, targetCityId });
       expect(breakdown.missionSuccessDelta).toBeCloseTo(-0.30);
       expect(breakdown.detectionDelta).toBeCloseTo(0.10);
     });
@@ -394,8 +395,14 @@ describe('espionage-system', () => {
           },
         },
       };
-      const breakdown = getEspionageModifierBreakdown(withCdc, 'player', targetCivId, targetCityId);
+      const breakdown = getEspionageModifierBreakdown(withCdc, { actingCivId: 'player', targetCivId, targetCityId });
       expect(breakdown.missionSuccessDelta).toBeCloseTo(-0.15);
+    });
+
+    it('type level: actor/target roles cannot be passed as positional strings (#1022)', () => {
+      // @ts-expect-error three same-typed ids are transposable; roles must be named (#1022)
+      const positional: EspionageModifierQuery = ['player', 'ai-1', 'city-1'];
+      expect(positional).toBeDefined();
     });
   });
 });
@@ -1729,7 +1736,7 @@ describe('espionage diplomatic consequences', () => {
         'ai-egypt': createEspionageCivState(),
       };
 
-      const turned = turnCapturedSpy(espionage, 'ai-egypt', 'player', spy.id);
+      const turned = turnCapturedSpy(espionage, { captorId: 'ai-egypt', spyOwner: 'player', spyId: spy.id });
 
       expect(turned.player.spies[spy.id].turnedBy).toBe('ai-egypt');
       expect(turned.player.spies[spy.id].feedsFalseIntel).toBe(true);
@@ -1755,7 +1762,7 @@ describe('espionage diplomatic consequences', () => {
         'ai-egypt': createEspionageCivState(),
       };
 
-      const turned = turnCapturedSpy(espionage, 'ai-egypt', 'player', spy.id, 12);
+      const turned = turnCapturedSpy(espionage, { captorId: 'ai-egypt', spyOwner: 'player', spyId: spy.id, turn: 12 });
 
       expect(turned['ai-egypt'].detectedThreats?.[spy.id]).toEqual({
         cityId: 'city-egypt-1',
@@ -1763,6 +1770,15 @@ describe('espionage diplomatic consequences', () => {
         detectedTurn: 12,
         expiresOnTurn: 17,
       });
+    });
+
+    it('type level: turn-captured command names its roles and requires captor (#1022)', () => {
+      // @ts-expect-error captorId/spyOwner/spyId must be named, not positional (#1022)
+      const positional: TurnCapturedSpyCommand = ['ai-egypt', 'player', 'spy-1'];
+      // @ts-expect-error captorId is required (#1022)
+      const missingCaptor: TurnCapturedSpyCommand = { spyOwner: 'player', spyId: 'spy-1' };
+      expect(positional).toBeDefined();
+      expect(missingCaptor).toBeDefined();
     });
   });
 

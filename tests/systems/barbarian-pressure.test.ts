@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import type { Unit } from '@/core/types';
 import { createNewGame } from '@/core/game-state';
 import { createUnit } from '@/systems/unit-lifecycle';
 import {
+  campSensedUnits,
+  type SensedUnits,
   getActiveCampPressure,
   observeCampPressureFromSensedUnits,
   recordCampPressureFromCombatOutcome,
@@ -45,7 +48,7 @@ describe('barbarian camp pressure', () => {
     const distantTank = createUnit('tank', 'player', { q: 20, r: 5 }, state.idCounters);
     state.units = { [nearbyTank.id]: nearbyTank, [distantTank.id]: distantTank };
 
-    const observed = observeCampPressureFromSensedUnits(state, 'camp-a', [nearbyTank]);
+    const observed = observeCampPressureFromSensedUnits(state, 'camp-a', campSensedUnits([nearbyTank]));
 
     expect(getActiveCampPressure(observed, 'camp-a', state.turn)).toEqual(['armor']);
     expect(JSON.stringify(observed.barbarianCampPressure)).not.toContain(distantTank.id);
@@ -60,10 +63,10 @@ describe('barbarian camp pressure', () => {
     aircraft.airBase = { kind: 'city', cityId: 'airfield' };
     state.units = { [aircraft.id]: aircraft };
 
-    expect(getActiveCampPressure(observeCampPressureFromSensedUnits(state, 'camp-a', [aircraft]), 'camp-a', state.turn))
+    expect(getActiveCampPressure(observeCampPressureFromSensedUnits(state, 'camp-a', campSensedUnits([aircraft])), 'camp-a', state.turn))
       .toEqual(['air']);
     state.cities.airfield.position = { q: 20, r: 5 };
-    expect(getActiveCampPressure(observeCampPressureFromSensedUnits(state, 'camp-a', [aircraft]), 'camp-a', state.turn))
+    expect(getActiveCampPressure(observeCampPressureFromSensedUnits(state, 'camp-a', campSensedUnits([aircraft])), 'camp-a', state.turn))
       .toEqual([]);
   });
 
@@ -83,5 +86,19 @@ describe('barbarian camp pressure', () => {
       .toEqual(['armor']);
     expect(getActiveCampPressure(recordCampPressureFromCombatOutcome(state, { ...tank, type: 'warrior' }, raider), 'camp-a', state.turn))
       .toEqual([]);
+  });
+});
+
+describe('#1022 SensedUnits brand', () => {
+  it('type level: a bare unit array is not camp-sensed perception', () => {
+    const globalScan: readonly Unit[] = [];
+    // @ts-expect-error a global scan must cross campSensedUnits() (#1022)
+    const perception: SensedUnits = globalScan;
+    expect(perception).toBe(globalScan);
+  });
+
+  it('campSensedUnits is the supported constructor', () => {
+    const perception = campSensedUnits([]);
+    expect(perception).toHaveLength(0);
   });
 });

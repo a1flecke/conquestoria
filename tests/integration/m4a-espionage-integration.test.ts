@@ -546,7 +546,7 @@ describe('M4a full integration', () => {
     });
     state.espionage['player'] = addSpy(state.espionage['player'], spy);
 
-    state.espionage = turnCapturedSpy(state.espionage, 'ai-egypt', 'player', spy.id, state.turn);
+    state.espionage = turnCapturedSpy(state.espionage, { captorId: 'ai-egypt', spyOwner: 'player', spyId: spy.id, turn: state.turn });
     expect(state.espionage['player'].spies[spy.id].feedsFalseIntel).toBe(true);
     expect(state.espionage['ai-egypt'].detectedThreats?.[spy.id]).toBeDefined();
 

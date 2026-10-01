@@ -65,12 +65,25 @@ export interface EspionageModifierBreakdown {
 // Offense rows apply when the acting civ owns the source; defense rows apply when the
 // target civ owns the source. National-project rows fade-scale like other NP effects
 // (see getActiveNationalProjectsForCiv / getNationalProjectMultiplier).
+/**
+ * Required, named roles for a modifier query (#1022). Three bare `string`s
+ * passed positionally could be transposed silently, which inverts every
+ * offense row against every defense row and misreports the odds.
+ */
+export interface EspionageModifierQuery {
+  /** The civ performing the mission. */
+  actingCivId: string;
+  /** The civ the mission is aimed at. */
+  targetCivId: string;
+  /** The target city the mission is scoped to. */
+  targetCityId: string;
+}
+
 export function getEspionageModifierBreakdown(
   state: GameState,
-  actingCivId: string,
-  targetCivId: string,
-  targetCityId: string,
+  query: EspionageModifierQuery,
 ): EspionageModifierBreakdown {
+  const { actingCivId, targetCivId, targetCityId } = query;
   const actingTechs = state.civilizations[actingCivId]?.techState.completed ?? [];
   const targetTechs = state.civilizations[targetCivId]?.techState.completed ?? [];
   const targetCity = state.cities[targetCityId];

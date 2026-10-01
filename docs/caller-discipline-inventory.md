@@ -54,7 +54,7 @@ same reason `invariants.md` excludes them: they are enforced by their own generi
 | `unit-upgrade-system.ts:217` | Caller deducts `civ.gold` | **C** | `applyUpgrade` is private; `applyUnitUpgradeToState` validates, pays and upgrades |
 | `strategic-launch-execution-system.ts:51` | UI must never call `resolveStrategicStrike` | **C** | Only that module calls it (architecture pin) + new source rule with script and hook tests |
 | `types.ts:659` | Air-assault range and `operationalRange` must not drift | **D** | Single-source: range is *read from* `airOperation.operationalRange`, not duplicated; nothing to call |
-| `barbarian-pressure.ts:78` | Never pass a global unit scan as `sensedUnits` | **D** | Single caller (the camp-local planner); the argument is typed `readonly Unit[]`, so a stronger fix needs a branded type — belongs with #1022 |
+| `barbarian-pressure.ts` | Never pass a global unit scan as `sensedUnits` | **C** | `SensedUnits` brand + `campSensedUnits(...)` constructor (#1022) — see [`type-safety-inventory.md`](./type-safety-inventory.md) |
 | `gene-therapy-system.ts:27` | Callers must pass a pre-production snapshot | **D** | One caller (`turn-manager.ts`); the `unitIds` override is the whole mechanism |
 | `concealment.ts:105`, `great-general-definitions.ts:105` | Every consumer must call the canonical predicate/resolver | **S** | No raw bypass remains (`GENERAL_DEFINITIONS.find` has no src caller; concealment is pinned by the viewer-safety boundary rule) |
 | `legendary-wonder-history.ts:66`, `network-plan-system.ts:406`, `stampede-system.ts:46` | "Callers must not reconstruct transition facts / must retain the pre-mutation record" | **D** | Transition-owned payload convention (`end-to-end-wiring.md`), covered by per-feature once-only regressions |
@@ -85,7 +85,7 @@ same reason `invariants.md` excludes them: they are enforced by their own generi
 
 ## Contracts deliberately not converted
 
-- **`barbarian-pressure.ts` `sensedUnits`**: enforcing it needs a branded "camp-sensed units" type; that is the #1022 type-safety audit's territory (open, not in flight), and a single caller makes the risk low today.
+- **`barbarian-pressure.ts` `sensedUnits`**: adopted by #1022 as the `SensedUnits` brand (`campSensedUnits(...)`), so a global unit scan is a compile error; see [`type-safety-inventory.md`](./type-safety-inventory.md).
 - **Documentation-only rows above** are notes about facts, not instructions to a future caller. Deleting them would lose context for no safety gain.
 
 ## Result

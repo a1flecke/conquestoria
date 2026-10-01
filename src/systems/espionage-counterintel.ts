@@ -159,13 +159,26 @@ export function executeSpy(
   return { ...state, spies: remainingSpies };
 }
 
+/**
+ * Required, named roles for turning a captured spy (#1022). `captorId` and
+ * `spyOwner` are both bare ids and semantically opposite, so a positional call
+ * could transpose them and silently hand the spy to the wrong civilization.
+ */
+export interface TurnCapturedSpyCommand {
+  /** The civ that holds the captured spy and turns it. */
+  captorId: string;
+  /** The civ the spy originally belonged to. */
+  spyOwner: string;
+  spyId: string;
+  /** Absolute turn the turning happens on; defaults to 0 to preserve the old optional argument. */
+  turn?: number;
+}
+
 export function turnCapturedSpy(
   state: EspionageState,
-  captorId: string,
-  spyOwner: string,
-  spyId: string,
-  turn: number = 0,
+  command: TurnCapturedSpyCommand,
 ): EspionageState {
+  const { captorId, spyOwner, spyId, turn = 0 } = command;
   const ownerState = state[spyOwner];
   const spy = ownerState?.spies[spyId];
   if (!ownerState || !spy) return state;

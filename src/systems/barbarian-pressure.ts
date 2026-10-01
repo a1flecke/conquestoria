@@ -6,6 +6,31 @@ export type BarbarianPressureKind = 'armor' | 'air';
 
 export const BARBARIAN_PRESSURE_EXPIRY_TURNS = 10;
 
+declare const campSensedUnitsBrand: unique symbol;
+
+/**
+ * A barbarian camp's perception set (#1022): the units the camp may actually
+ * sense this turn, already filtered by `barbarian-system.ts`'s `sensedByCamp`
+ * check. A bare `readonly Unit[]` is intentionally NOT assignable: passing a
+ * global unit scan here would silently make camps omniscient -- they would
+ * record armor/air pressure from anywhere on the map, and
+ * `findPredatorHuntTarget` would see escorts the camp cannot actually sense.
+ *
+ * Compile-time only: erases to a plain array at runtime, so saves, AI
+ * decisions and deterministic output are unchanged. Construct one with
+ * `campSensedUnits(...)` at the one sanctioned boundary (the per-camp loop in
+ * `barbarian-system.ts`); never wrap a global scan.
+ */
+export type SensedUnits = readonly Unit[] & { readonly [campSensedUnitsBrand]: 'CampSensedUnits' };
+
+/**
+ * The one sanctioned constructor for `SensedUnits`. Call it only with an
+ * already perception-filtered unit list.
+ */
+export function campSensedUnits(units: readonly Unit[]): SensedUnits {
+  return units as SensedUnits;
+}
+
 const pressureFieldByKind: Record<BarbarianPressureKind, keyof BarbarianCampPressure> = {
   armor: 'armorLastObservedTurn',
   air: 'airLastObservedTurn',
@@ -74,13 +99,14 @@ function airBasePosition(state: GameState, unit: Unit) {
 }
 
 /**
- * Records only observations already supplied by the camp-local planner; callers
- * must never pass a global unit scan as its sensedUnits argument.
+ * Records only observations already supplied by the camp-local planner.
+ * `sensedUnits` is typed `SensedUnits` (#1022), so a raw global unit scan is a
+ * compile error rather than a prose contract -- see `campSensedUnits`.
  */
 export function observeCampPressureFromSensedUnits(
   state: GameState,
   campId: string,
-  sensedUnits: readonly Unit[],
+  sensedUnits: SensedUnits,
 ): GameState {
   const camp = state.barbarianCamps[campId];
   if (!camp) return state;

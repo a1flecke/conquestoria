@@ -39,6 +39,7 @@ export {
 export type {
   EspionageModifierBreakdown,
   EspionageModifierBreakdownPart,
+  EspionageModifierQuery,
 } from './espionage-probability';
 
 export {
@@ -65,6 +66,7 @@ export {
   setCounterIntelligence,
   turnCapturedSpy,
 } from './espionage-counterintel';
+export type { TurnCapturedSpyCommand } from './espionage-counterintel';
 
 export { resolveMissionResult, startMission } from './espionage-missions';
 export type { MissionResult } from './espionage-missions';

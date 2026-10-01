@@ -1,6 +1,7 @@
 import type { BarbarianRoleSlot, GameState, Unit } from '@/core/types';
 import { createStableIdentityRng } from './simulation-rng';
 import { mapDistance } from './hex-utils';
+import type { SensedUnits } from './barbarian-pressure';
 
 /**
  * #1089: bounded, legible behavioral identities for barbarian camps. Each archetype changes
@@ -87,15 +88,15 @@ const PREDATOR_ISOLATION_RADIUS = 2;
  * Predator's proactive hunt target: any sensed hostile combat unit (any type with positive
  * strength -- reuses the same `UNIT_DEFINITIONS[type].strength > 0` combat-capability test the
  * orchestrator's own camp-defense branch already applies) that is either wounded or has no
- * other sensed unit of the same owner within `PREDATOR_ISOLATION_RADIUS`. `sensedUnits` MUST be
- * the camp's own already-locally-filtered set (see `barbarian-system.ts`'s `sensedByCamp`) --
- * this function never widens visibility, so "isolated" correctly means "the camp cannot sense
- * an escort," not "no escort exists anywhere in the world."
+ * other sensed unit of the same owner within `PREDATOR_ISOLATION_RADIUS`. `sensedUnits` is the
+ * typed camp-local perception set (#1022, `SensedUnits`), so this function cannot be handed a
+ * global unit scan -- "isolated" correctly means "the camp cannot sense an escort," not "no
+ * escort exists anywhere in the world."
  */
 export function findPredatorHuntTarget(
   state: Pick<GameState, 'map'>,
   campPosition: { q: number; r: number },
-  sensedUnits: readonly Unit[],
+  sensedUnits: SensedUnits,
   isCombatCapable: (unit: Unit) => boolean,
 ): Unit | undefined {
   const candidates = sensedUnits.filter(isCombatCapable);

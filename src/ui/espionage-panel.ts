@@ -895,12 +895,11 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
   if (stationedSpy) {
     const enemyCIMap = state.espionage?.[stationedSpy.targetCivId!]?.counterIntelligence ?? {};
     const ci = enemyCIMap[stationedSpy.infiltrationCityId!] ?? 0;
-    const modifiers = getEspionageModifierBreakdown(
-      state,
-      state.currentPlayer,
-      stationedSpy.targetCivId!,
-      stationedSpy.infiltrationCityId!,
-    );
+    const modifiers = getEspionageModifierBreakdown(state, {
+      actingCivId: state.currentPlayer,
+      targetCivId: stationedSpy.targetCivId!,
+      targetCityId: stationedSpy.infiltrationCityId!,
+    });
     const breakdownText = modifiers.parts.length > 0
       ? modifiers.parts.map(part => `${part.label} ${part.delta >= 0 ? '+' : ''}${Math.round(part.delta * 100)}%`).join(', ')
       : undefined;
