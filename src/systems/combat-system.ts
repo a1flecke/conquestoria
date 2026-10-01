@@ -209,6 +209,11 @@ export interface CombatContext {
   attackerNavalOperationsFact?: CombatModifierFact;
   defenderNavalOperationsMultiplier?: number;
   defenderNavalOperationsFact?: CombatModifierFact;
+  /** #884: aircraft readiness (air-readiness.ts); same fact feeds preview and execution. */
+  attackerAirReadinessMultiplier?: number;
+  attackerAirReadinessFact?: CombatModifierFact;
+  defenderAirReadinessMultiplier?: number;
+  defenderAirReadinessFact?: CombatModifierFact;
   defenderLastStandMultiplier?: number;
   defenderLastStandFact?: CombatModifierFact;
   attackerNetworkStrengthBonus?: number;
@@ -318,10 +323,12 @@ export function calculateCombatStrengths(
   attackerStrength *= context?.attackerCombinedArmsMultiplier ?? 1;
   attackerStrength *= context?.attackerLandSupplyMultiplier ?? 1;
   attackerStrength *= context?.attackerNavalOperationsMultiplier ?? 1;
+  attackerStrength *= context?.attackerAirReadinessMultiplier ?? 1;
   defenderStrength *= context?.defenderPositioningMultiplier ?? 1;
   defenderStrength *= context?.defenderCombinedArmsMultiplier ?? 1;
   defenderStrength *= context?.defenderLandSupplyMultiplier ?? 1;
   defenderStrength *= context?.defenderNavalOperationsMultiplier ?? 1;
+  defenderStrength *= context?.defenderAirReadinessMultiplier ?? 1;
   defenderStrength *= context?.defenderLastStandMultiplier ?? 1;
   attackerStrength += context?.attackerNetworkStrengthBonus ?? 0;
   defenderStrength += context?.defenderNetworkStrengthBonus ?? 0;
@@ -393,8 +400,8 @@ export function calculateCombatStrengths(
     cityDefense,
     attackerModifierParts: [...(context?.attackerModifiers?.parts ?? []), ...(context?.attackerPositioningPart ? [context.attackerPositioningPart] : []), ...(context?.attackerAmphibiousParts ?? []), ...(context?.attackerInterceptionPart ? [context.attackerInterceptionPart] : [])],
     defenderModifierParts: [...(context?.defenderModifiers?.parts ?? []), ...(context?.defenderPositioningPart ? [context.defenderPositioningPart] : [])],
-    attackerModifierFacts: [...(context?.attackerModifiers?.facts ?? []), ...(context?.attackerInterceptionFact ? [context.attackerInterceptionFact] : []), ...(context?.attackerCombinedArmsFact ? [context.attackerCombinedArmsFact] : []), ...(context?.attackerLandSupplyFact ? [context.attackerLandSupplyFact] : []), ...(context?.attackerNavalOperationsFact ? [context.attackerNavalOperationsFact] : [])],
-    defenderModifierFacts: [...(context?.defenderModifiers?.facts ?? []), ...(airDefenseApplies ? airDefenseCoverage.facts : []), ...(context?.defenderCombinedArmsFact ? [context.defenderCombinedArmsFact] : []), ...(context?.defenderFortificationFact ? [context.defenderFortificationFact] : []), ...(context?.defenderTacticalCitadelFact ? [context.defenderTacticalCitadelFact] : []), ...(context?.defenderLandSupplyFact ? [context.defenderLandSupplyFact] : []), ...(context?.defenderNavalOperationsFact ? [context.defenderNavalOperationsFact] : [])],
+    attackerModifierFacts: [...(context?.attackerModifiers?.facts ?? []), ...(context?.attackerInterceptionFact ? [context.attackerInterceptionFact] : []), ...(context?.attackerCombinedArmsFact ? [context.attackerCombinedArmsFact] : []), ...(context?.attackerLandSupplyFact ? [context.attackerLandSupplyFact] : []), ...(context?.attackerNavalOperationsFact ? [context.attackerNavalOperationsFact] : []), ...(context?.attackerAirReadinessFact ? [context.attackerAirReadinessFact] : [])],
+    defenderModifierFacts: [...(context?.defenderModifiers?.facts ?? []), ...(airDefenseApplies ? airDefenseCoverage.facts : []), ...(context?.defenderCombinedArmsFact ? [context.defenderCombinedArmsFact] : []), ...(context?.defenderFortificationFact ? [context.defenderFortificationFact] : []), ...(context?.defenderTacticalCitadelFact ? [context.defenderTacticalCitadelFact] : []), ...(context?.defenderLandSupplyFact ? [context.defenderLandSupplyFact] : []), ...(context?.defenderNavalOperationsFact ? [context.defenderNavalOperationsFact] : []), ...(context?.defenderAirReadinessFact ? [context.defenderAirReadinessFact] : [])],
     defenderDefendsPoorly: defendsPoorly(defenderDefinition.attackProfile),
     exchange: getCombatExchangeModifiers(attacker, defender),
   };

@@ -16,6 +16,7 @@ import { getPrimarySupplySource } from '@/systems/supply-sources';
 import { getTurnsUntilNextSupplyStage } from '@/systems/supply-progression';
 import { classifyLandSupplyTerritory } from '@/systems/supply-territory';
 import { getParadropLaunchState, PARADROP_FAILURE_MESSAGES, getAirAssaultLaunchState, AIR_ASSAULT_FAILURE_MESSAGES } from '@/systems/airborne-system';
+import { getAirReadinessPresentation } from '@/ui/air-readiness-presentation';
 import { getNavalOperationsPresentation } from '@/ui/naval-operations-presentation';
 import { getSubmarineRevealState } from '@/systems/concealment';
 import { getExperienceToNextTier, getVeterancyCombatModifier, getVeterancyTier } from '@/systems/combat-reward-system';
@@ -623,6 +624,24 @@ export function renderSelectedUnitInfo(
     wrapper.appendChild(baseLine);
   }
 
+  const airReadiness = getAirReadinessPresentation(state, unit);
+  if (airReadiness) {
+    const readinessDetails = document.createElement('details');
+    readinessDetails.setAttribute('data-testid', 'air-readiness');
+    readinessDetails.style.cssText = 'margin-top:4px;color:#c9d6e3;font-size:11px;';
+    const readinessSummary = document.createElement('summary');
+    readinessSummary.style.cssText = 'cursor:pointer;min-height:44px;display:flex;align-items:center;font-weight:600;';
+    readinessSummary.textContent = `${airReadiness.icon} ${airReadiness.headline}`;
+    readinessDetails.appendChild(readinessSummary);
+    for (const detail of airReadiness.details) {
+      const readinessLine = document.createElement('div');
+      readinessLine.style.cssText = 'margin-top:2px;line-height:1.35;';
+      readinessLine.textContent = detail;
+      readinessDetails.appendChild(readinessLine);
+    }
+    wrapper.appendChild(readinessDetails);
+  }
+
   const huntFoeName = findHuntFoeNameForUnit(state, unitId);
   if (huntFoeName) {
     const huntLine = document.createElement('div');
@@ -1047,7 +1066,8 @@ export function renderSelectedUnitInfo(
       const row = document.createElement('div');
       row.style.cssText = 'margin-top:4px;font-size:12px;';
       const status = aircraft.hasActed ? 'Used' : 'Ready';
-      row.textContent = `• ${UNIT_DEFINITIONS[aircraft.type].name} — ${status}`;
+      const strain = getAirReadinessPresentation(state, aircraft);
+      row.textContent = `• ${UNIT_DEFINITIONS[aircraft.type].name} — ${status}${strain && strain.status !== 'ready' ? ` · ${strain.status === 'worn' ? 'Worn' : 'Spent'}` : ''}`;
       actionsDiv.appendChild(row);
     }
     for (let i = roster.length; i < capacity; i++) {
@@ -1076,7 +1096,23 @@ export function renderSelectedUnitInfo(
     actionsDiv.appendChild(makeButton(`Cancel ${presentation.airMissionPending === 'strike' ? 'Air Strike' : presentation.airMissionPending === 'recon' ? 'Recon' : 'Patrol'}`, '#6b7280', () => callbacks.onCancelAirMission!(unitId)));
   } else if (unit.airBase && !unit.hasActed && callbacks.onStartAirMission) {
     if (def.airOperation?.missions.includes('strike')) {
-      actionsDiv.appendChild(makeButton('Air Strike', '#b45309', () => callbacks.onStartAirMission!(unitId, 'strike')));
+      const strikeDenial = getAirReadinessPresentation(state, unit)?.strikeDenial ?? null;
+      if (strikeDenial) {
+        // #884: never silently drop the mission -- say why it is unavailable.
+        const blocked = makeButton('Air Strike', '#b45309');
+        blocked.disabled = true;
+        blocked.style.opacity = '0.5';
+        blocked.style.cursor = 'not-allowed';
+        blocked.title = strikeDenial.message;
+        blocked.setAttribute('aria-label', `Air Strike unavailable: ${strikeDenial.message}`);
+        actionsDiv.appendChild(blocked);
+        const why = document.createElement('div');
+        why.style.cssText = 'font-size:11px;margin-top:2px;color:#f8d28a;';
+        why.textContent = strikeDenial.message;
+        actionsDiv.appendChild(why);
+      } else {
+        actionsDiv.appendChild(makeButton('Air Strike', '#b45309', () => callbacks.onStartAirMission!(unitId, 'strike')));
+      }
     }
     if (def.airOperation?.missions.includes('recon')) {
       actionsDiv.appendChild(makeButton('Recon', '#2563eb', () => callbacks.onStartAirMission!(unitId, 'recon')));

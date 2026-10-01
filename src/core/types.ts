@@ -769,6 +769,8 @@ export interface Unit {
   landSupply?: UnitLandSupplyStatus;
   /** #883 naval endurance history. Absent = ready. Never read directly; use `naval-operations.ts`. */
   navalOps?: UnitNavalOperations;
+  /** #884 aircraft strain from flown missions. Absent = ready. Never read directly; use `air-readiness.ts`. */
+  airStrain?: number;
   automation?:
     | { mode: 'auto-explore'; lastTargets: string[]; startedTurn: number }
     | { mode: 'journey'; destination: HexCoord }

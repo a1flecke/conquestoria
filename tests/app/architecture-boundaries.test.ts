@@ -256,6 +256,9 @@ describe('#1010 — unit-system decomposition boundaries', () => {
     // penalty feeds the one per-turn allowance) and nothing else.
     expect(importsOf('unit-lifecycle.ts').filter(s => !['@/core/types', 'unit-definitions', 'naval-endurance'].includes(s))).toEqual([]);
     // #883: the endurance leaf must stay light enough for lifecycle/combat to read.
+    // #884: air readiness may read the naval leaf (a carrier's #883 state) and nothing heavier -- it must
+    // never import the air-operations system (which imports it).
+    expect(importsOf('air-readiness.ts').filter(s => !['@/core/types', '@/core/owner-kind', 'unit-definitions', 'naval-endurance'].includes(s))).toEqual([]);
     expect(importsOf('naval-endurance.ts').filter(s => !['@/core/types', '@/core/owner-kind', 'unit-definitions', 'unit-modifier-definitions'].includes(s))).toEqual([]);
     // The guarded movers depend only on zone-of-control (for the ZoC stop) and types.
     expect(importsOf('unit-low-level-move.ts').filter(s => !['@/core/types', 'zone-of-control-system'].includes(s))).toEqual([]);

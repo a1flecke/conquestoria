@@ -102,6 +102,11 @@ const ADDITIVE_WITHOUT_MIGRATION: Readonly<Record<string, string>> = {
   // neither an old save nor a hand-edited one can strand a navy depleted.
   // `tests/systems/naval-operations.test.ts` proves an old save loads and processes a turn unchanged.
   'units.*.navalOps': '#883 — new optional Unit field; absent means ready; a tolerant reader treats malformed values as ready.',
+  // #884 — an aircraft's accumulated mission strain. Absent means "fully ready", which is exactly
+  // what every pre-#884 aircraft is; every reader goes through `readStrain` (air-readiness.ts),
+  // which treats negative / NaN / non-numeric values as ready. `tests/systems/air-readiness.test.ts`
+  // pins the malformed-value case and the fresh-aircraft default.
+  'units.*.airStrain': '#884 — new optional Unit field; absent means ready; a tolerant reader treats malformed values as ready.',
   'idCounters.nextWarId': '#991 — new optional IdCounters field; self-normalizing via the existing ID_COUNTER_SPECS/normalizeIdCounters mechanism, same as every other optional counter.',
 };
 

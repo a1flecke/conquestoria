@@ -1828,3 +1828,45 @@ describe('#883 naval endurance: AI fleets recover instead of sailing to exhausti
     expect(chooseUnitTacticalAction(context(state, plan), 'fleet').kind).not.toBe('withdraw');
   });
 });
+
+describe('#884 air readiness: AI wings rest and rebase instead of burning out', () => {
+  function airState(strain?: number, baseHp?: number) {
+    const state = makeState('standard');
+    const base = addCity(state, 'drone-base', AI, { q: 0, r: 0 });
+    base.buildings = [...base.buildings, 'airfield'];
+    if (baseHp !== undefined) base.hp = baseHp;
+    const drone = addUnit(state, 'drone', 'combat_drone', AI, { q: 0, r: 0 }, {
+      airBase: { kind: 'city', cityId: base.id },
+      ...(strain ? { airStrain: strain } : {}),
+    });
+    const defender = addUnit(state, 'defender', 'warrior', HUMAN, { q: 1, r: 0 });
+    const plan = makePlan({ kind: 'unit', id: defender.id, lastKnownPosition: defender.position }, [drone.id], { objective: 'repel' });
+    return { state, plan, drone };
+  }
+
+  it('strikes while ready or worn, but keeps a spent aircraft on the ground to recover', () => {
+    for (const strain of [undefined, 3]) {
+      const { state, plan, drone } = airState(strain);
+      expect(chooseUnitTacticalAction(context(state, plan), drone.id)).toMatchObject({ kind: 'air-strike' });
+    }
+    const spent = airState(6);
+    const action = chooseUnitTacticalAction(context(spent.state, spent.plan), spent.drone.id);
+    expect(['air-strike', 'air-recon', 'air-intercept', 'patrol', 'air-rebase']).not.toContain(action.kind);
+  });
+
+  it('resumes striking once recovered', () => {
+    const spent = airState(6);
+    const recovered = { ...spent.state, units: { ...spent.state.units, drone: { ...spent.state.units.drone!, airStrain: undefined } } } as GameState;
+    expect(chooseUnitTacticalAction(context(recovered, spent.plan), 'drone')).toMatchObject({ kind: 'air-strike' });
+  });
+
+  it('a worn wing on a damaged airfield rebases to a healthy base', () => {
+    const { state, plan, drone } = airState(4, 20);
+    const second = addCity(state, 'second-base', AI, { q: 0, r: 3 });
+    second.buildings = [...second.buildings, 'airfield'];
+    // no hostile target in range so rebasing is the sensible use of the turn
+    delete state.units.defender;
+    const action = chooseUnitTacticalAction(context(state, plan), drone.id);
+    expect(action).toMatchObject({ kind: 'air-rebase', unitId: drone.id });
+  });
+});
