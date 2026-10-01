@@ -256,6 +256,24 @@ for file_path in "$@"; do
       ;;
   esac
 
+  # --- unit removal is ONE transition (#1198): a unit leaves GameState through removeUnits()
+  # (src/systems/unit-removal-system.ts), which owns the whole cascade (owner roster, minor roster,
+  # transport manifests, carrier air wing, spy record, trade route). Hand-rolling the delete, the
+  # rest-destructure or the filter-rebuild of `units` forgets some of it. Sanctioned: the module
+  # itself, and save normalizers/migrations (src/storage), which repair persisted data.
+  case "$file_path" in
+    src/systems/unit-removal-system.ts|src/storage/*)
+      : # sanctioned
+      ;;
+    *)
+      ur_lines="$(grep -nE 'delete[[:space:]]+[A-Za-z_.!()]*[uU]nits\[|\]:[[:space:]]*_[A-Za-z]*,[[:space:]]*\.\.\.[A-Za-z]+[[:space:]]*\}[[:space:]]*=[[:space:]]*[A-Za-z_.()]*[uU]nits[[:space:]]*;?[[:space:]]*$|fromEntries\(Object\.entries\([A-Za-z_.()]*[uU]nits\)\.(filter|flatMap)' "$file_path" \
+        | grep -vE '^[0-9]+:[[:space:]]*(//|\*|/\*)' | head -5 || true)"
+      if [ -n "$ur_lines" ]; then
+        append_match_block "Hand-rolled unit removal outside unit-removal-system.ts — call removeUnits() (or removeUnitsFromSlice() on working copies); it owns the roster, minor-roster, cargo-manifest, air-wing, spy-record and trade-route cascade (see .claude/rules/caller-discipline.md, #1198)" "$ur_lines"
+      fi
+      ;;
+  esac
+
   if grep -nE 'innerHTML\s*=\s*`[^`]*\$\{' "$file_path" >/dev/null; then
     lines="$(grep -nE 'innerHTML\s*=\s*`[^`]*\$\{' "$file_path" | head -5)"
     append_match_block "innerHTML with interpolated game data — use textContent or data-text placeholders (see .claude/rules/ui-panels.md#unit-info-panels)" "$lines"

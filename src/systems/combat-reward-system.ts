@@ -1,6 +1,6 @@
 import type { EventBus } from '@/core/event-bus';
 import type { CombatResult, CombatRewardNotification, GameState, Unit, UnitType } from '@/core/types';
-import { cleanupDeadSpyUnit } from '@/systems/espionage-system';
+import { emitEndedTradeRoutes, removeUnitsFromSlice, type EndedTradeRoute } from '@/systems/unit-removal-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { applyQuestGameplayAction, type ChainTransition } from '@/systems/quest-chain-system';
 import { canCaptureDefeatedUnits, canReceiveCivilizationCombatRewards, CRISIS_FORCE_OWNER, isMajorCivOwner, isPirateOwner } from '@/core/owner-kind';
@@ -248,72 +248,6 @@ export function collectCombatRewards(
   return rewards;
 }
 
-function removeUnitFromCopies(
-  units: Record<string, Unit>,
-  civilizations: GameState['civilizations'],
-  minorCivs: GameState['minorCivs'],
-  espionage: NonNullable<GameState['espionage']> | undefined,
-  unitId: string,
-): {
-  units: Record<string, Unit>;
-  civilizations: GameState['civilizations'];
-  minorCivs: GameState['minorCivs'];
-  espionage: NonNullable<GameState['espionage']> | undefined;
-} {
-  const removed = units[unitId];
-  if (!removed) return { units, civilizations, minorCivs, espionage };
-  const removedIds = new Set([unitId, ...(removed.cargoUnitIds ?? [])]);
-  const remainingUnits: Record<string, Unit> = {};
-  for (const [candidateId, candidate] of Object.entries(units)) {
-    if (removedIds.has(candidateId)) continue;
-    if (candidate.transportId === unitId) continue;
-    if (removed.transportId && candidateId === removed.transportId) {
-      remainingUnits[candidateId] = {
-        ...candidate,
-        cargoUnitIds: (candidate.cargoUnitIds ?? []).filter(cargoUnitId => cargoUnitId !== unitId),
-      };
-    } else {
-      remainingUnits[candidateId] = candidate;
-    }
-  }
-
-  let nextCivilizations = { ...civilizations };
-  let nextMinorCivs = { ...minorCivs };
-  let nextEspionage = espionage;
-
-  for (const [civId, civ] of Object.entries(civilizations)) {
-    nextCivilizations = {
-      ...nextCivilizations,
-      [civId]: {
-        ...civ,
-        units: civ.units.filter(id => !removedIds.has(id)),
-      },
-    };
-  }
-
-  // #996: a minor civ's garrison roster is a real index too. A minor-civ-owned
-  // unit destroyed in combat must be scrubbed from `minorCivs[owner].units`
-  // exactly as a major unit is scrubbed from `civilizations[owner].units`, or
-  // the roster keeps a ghost id that the unit-rosters invariant rejects.
-  for (const [mcId, mc] of Object.entries(minorCivs)) {
-    if (mc.units.some(id => removedIds.has(id))) {
-      nextMinorCivs = {
-        ...nextMinorCivs,
-        [mcId]: { ...mc, units: mc.units.filter(id => !removedIds.has(id)) },
-      };
-    }
-  }
-
-  for (const removedId of removedIds) {
-    const removedUnit = units[removedId];
-    if (removedUnit) {
-      nextEspionage = nextEspionage ? cleanupDeadSpyUnit(nextEspionage, removedUnit.owner, removedId) : nextEspionage;
-    }
-  }
-
-  return { units: remainingUnits, civilizations: nextCivilizations, minorCivs: nextMinorCivs, espionage: nextEspionage };
-}
-
 /**
  * #544 MR4 contract §20/§27: the canonical Last Stand Hold-save check,
  * shared by all three lethal-resolution sites in this function (attacker
@@ -344,23 +278,17 @@ function checkLastStandHold(unitBefore: Unit, currentTurn: number): boolean {
  * when that unit is destroyed (by direct combat or splash), any co-located
  * friendly great_general goes down with it. Transport-destroyed-kills-
  * General is handled separately and automatically: a General loaded as
- * transport cargo has its id in the transport's cargoUnitIds, which
- * removeUnitFromCopies already cascades on transport destruction — no
- * extra call needed for that case.
+ * transport cargo is part of the transport's removal closure
+ * (`unit-removal-system.ts`) — no extra call needed for that case.
  */
-function destroyEscortedGeneralAtPosition(
+function findEscortedGeneralId(
   units: Record<string, Unit>,
-  civilizations: GameState['civilizations'],
-  minorCivs: GameState['minorCivs'],
-  espionage: NonNullable<GameState['espionage']> | undefined,
   position: Unit['position'],
   ownerId: string,
-): { units: Record<string, Unit>; civilizations: GameState['civilizations']; minorCivs: GameState['minorCivs']; espionage: NonNullable<GameState['espionage']> | undefined } {
-  const general = Object.values(units).find(
+): string | undefined {
+  return Object.values(units).find(
     u => u.type === 'great_general' && u.owner === ownerId && hexKey(u.position) === hexKey(position),
-  );
-  if (!general) return { units, civilizations, minorCivs, espionage };
-  return removeUnitFromCopies(units, civilizations, minorCivs, espionage, general.id);
+  )?.id;
 }
 
 /**
@@ -499,6 +427,19 @@ export function applyCombatOutcomeToState(
   let civilizations = { ...state.civilizations };
   let minorCivs = { ...state.minorCivs };
   let espionage = state.espionage ? { ...state.espionage } : state.espionage;
+  let marketplace = state.marketplace;
+  const endedRoutes: EndedTradeRoute[] = [];
+  // #1198: every kill in this fight leaves through the one canonical removal, applied to the working copies.
+  const removeFromWorkingCopies = (unitIds: readonly string[]): void => {
+    const removal = removeUnitsFromSlice({ units, civilizations, minorCivs, espionage, marketplace }, unitIds, 'destroyed');
+    ({ units, civilizations, minorCivs, espionage, marketplace } = removal.slice);
+    endedRoutes.push(...removal.endedRoutes);
+  };
+  const destroyUnitAndEscort = (unitId: string, position: Unit['position'], ownerId: string): void => {
+    removeFromWorkingCopies([unitId]);
+    const escortId = findEscortedGeneralId(units, position, ownerId);
+    if (escortId) removeFromWorkingCopies([escortId]);
+  };
   // #887 MR1: units whose otherwise-lethal outcome was clamped by a Last Stand
   // Hold this resolution. Collected at the 3 clamp sites; turned into
   // `unit-saved` career events after the outcome. Precise (no post-hoc guessing).
@@ -643,16 +584,7 @@ export function applyCombatOutcomeToState(
     attackerCaptured = true;
   } else {
     defeatedUnitIds.add(result.attackerId);
-    const removed = removeUnitFromCopies(units, civilizations, minorCivs, espionage, result.attackerId);
-    units = removed.units;
-    civilizations = removed.civilizations;
-    minorCivs = removed.minorCivs;
-    espionage = removed.espionage;
-    const escortCascade = destroyEscortedGeneralAtPosition(units, civilizations, minorCivs, espionage, attackerBefore.position, attackerBefore.owner);
-    units = escortCascade.units;
-    civilizations = escortCascade.civilizations;
-    minorCivs = escortCascade.minorCivs;
-    espionage = escortCascade.espionage;
+    destroyUnitAndEscort(result.attackerId, attackerBefore.position, attackerBefore.owner);
   }
 
   if (result.defenderSurvived) {
@@ -733,16 +665,7 @@ export function applyCombatOutcomeToState(
     defenderCaptured = true;
   } else {
     defeatedUnitIds.add(result.defenderId);
-    const removed = removeUnitFromCopies(units, civilizations, minorCivs, espionage, result.defenderId);
-    units = removed.units;
-    civilizations = removed.civilizations;
-    minorCivs = removed.minorCivs;
-    espionage = removed.espionage;
-    const escortCascade = destroyEscortedGeneralAtPosition(units, civilizations, minorCivs, espionage, defenderBefore.position, defenderBefore.owner);
-    units = escortCascade.units;
-    civilizations = escortCascade.civilizations;
-    minorCivs = escortCascade.minorCivs;
-    espionage = escortCascade.espionage;
+    destroyUnitAndEscort(result.defenderId, defenderBefore.position, defenderBefore.owner);
   }
 
   const splashHits = result.splashHits ?? resolveBoundedSplash(state, attackerBefore, defenderBefore, result.defenderDamage);
@@ -764,16 +687,7 @@ export function applyCombatOutcomeToState(
       continue;
     }
     defeatedUnitIds.add(hit.unitId);
-    const removed = removeUnitFromCopies(units, civilizations, minorCivs, espionage, hit.unitId);
-    units = removed.units;
-    civilizations = removed.civilizations;
-    minorCivs = removed.minorCivs;
-    espionage = removed.espionage;
-    const escortCascade = destroyEscortedGeneralAtPosition(units, civilizations, minorCivs, espionage, target.position, target.owner);
-    units = escortCascade.units;
-    civilizations = escortCascade.civilizations;
-    minorCivs = escortCascade.minorCivs;
-    espionage = escortCascade.espionage;
+    destroyUnitAndEscort(hit.unitId, target.position, target.owner);
   }
 
   const rewards = collectCombatRewards(result, attackerBefore, defenderBefore, seed);
@@ -823,6 +737,7 @@ export function applyCombatOutcomeToState(
       civilizations,
       minorCivs,
       espionage,
+      ...(marketplace !== state.marketplace ? { marketplace } : {}),
   };
   const pirateEvents: PirateActionEvent[] = [];
   const defenderFaction = state.pirates?.factions[defenderBefore.owner];
@@ -907,15 +822,8 @@ export function applyCombatOutcomeToState(
     if (slay.slain) beastsSlain.push(slay.slain);
   }
 
-  // #582: any carrier-family hull, not just plain 'carrier' -- a destroyed
-  // Supercarrier must also lose (or evacuate) its based aircraft, or they
-  // become zombie units referencing a dead airBase.
-  if (attackerActuallyDefeated && UNIT_DEFINITIONS[attackerBefore.type].carrierDeckCapacity != null) {
-    nextState = destroyCarrierBasedAircraft(nextState, attackerBefore.id);
-  }
-  if (defenderActuallyDefeated && UNIT_DEFINITIONS[defenderBefore.type].carrierDeckCapacity != null) {
-    nextState = destroyCarrierBasedAircraft(nextState, defenderBefore.id);
-  }
+  // #582 / #1198: a destroyed carrier-family hull takes its based aircraft with it as part of the canonical
+  // removal closure (`unit-removal-system.ts`), however the carrier died (direct kill, splash or escort).
   // Resolve command breaks before force normalization removes the dead Handler
   // from its force membership; the recorded death ids are the canonical trigger.
   nextState = normalizeCrisisForces(resolveRogueElephantHostHandlerDeaths(
@@ -984,6 +892,9 @@ export function applyCombatOutcomeToState(
   const liveness = state.cities
     ? reconcileCivilizationLiveness(state, afterVassalage, eliminatedBy)
     : { state: afterVassalage, transitions: [] };
+  // A bus means a real execution: a caravan lost in this fight announces its ended route here, once,
+  // for every executor (#1198). A hypothetical fight (AI lookahead) passes no bus and stays silent.
+  emitEndedTradeRoutes(bus, endedRoutes);
   if (bus) emitCivilizationLivenessTransitions(liveness, bus);
   // Same convention as the liveness events above: a bus means a real execution, so the
   // transition is announced here, once, for every executor (#1014). A hypothetical fight
@@ -1000,20 +911,5 @@ export function applyCombatOutcomeToState(
     questTransitions,
     pirateEvents,
     beastsSlain,
-  };
-}
-
-function destroyCarrierBasedAircraft(state: GameState, carrierId: string): GameState {
-  const aircraftIds = new Set(Object.values(state.units)
-    .filter(unit => unit.airBase?.kind === 'carrier' && unit.airBase.unitId === carrierId)
-    .map(unit => unit.id));
-  if (aircraftIds.size === 0) return state;
-  return {
-    ...state,
-    units: Object.fromEntries(Object.entries(state.units).filter(([unitId]) => !aircraftIds.has(unitId))),
-    civilizations: Object.fromEntries(Object.entries(state.civilizations).map(([civId, civilization]) => [
-      civId,
-      { ...civilization, units: civilization.units.filter(unitId => !aircraftIds.has(unitId)) },
-    ])),
   };
 }

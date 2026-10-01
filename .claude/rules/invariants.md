@@ -137,6 +137,7 @@ cross-system state; this lists only the ones that are)
 | `victory-system.ts` roster-length liveness | Victory inferring survival from `civilizations.*.cities/units.length` instead of canonical sovereignty facts |
 | `city-building-catalog.ts`/`city-unit-catalog.ts` importing the espionage runtime | A catalog-initialization cycle between production content and espionage state |
 | Low-level unit mover called outside the movement system | Bypassing `resolveUnitMoveIntent`/`executeValidatedUnitMove`'s omniscient legality+cost check |
+| Hand-rolled `units` removal (`delete`, rest-destructure, filter-rebuild) outside `unit-removal-system.ts` / `src/storage` (#1198) | A removal that forgets the roster, minor roster, cargo manifest, air wing, spy record or trade route |
 | `resolveStrategicStrike(` outside `strategic-launch-execution-system.ts` (#1014) | A strike that skips `executeStrategicLaunch`'s reputation, witness and retaliation-tracking consequences |
 | `recordBeastSlain(` outside `beast-system.ts`/`combat-reward-system.ts` (#1014) | A second executor re-implementing (or forgetting) the beast-slay consequence |
 | `setStateWithoutRefresh` anywhere, `unpublished.adopt(` outside its owners (#1015) | A state write that leaves the renderer/HUD/panels stale |

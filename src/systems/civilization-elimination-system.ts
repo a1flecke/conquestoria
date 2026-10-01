@@ -9,6 +9,7 @@ import { getCivilizationLiveness } from './civilization-liveness';
 import { getOwnedUnits } from '@/systems/unit-ownership';
 import { recordDominationDefeat } from './domination-intel';
 import { recordParticipantEliminated } from './war-history-system';
+import { removeUnits } from '@/systems/unit-removal-system';
 
 export type CivilizationEliminationResult =
   | { state: GameState; eliminated: false }
@@ -77,7 +78,7 @@ export function eliminateCivilization(
     return { state, eliminated: false };
   }
 
-  const next = structuredClone(state);
+  let next = structuredClone(state);
   const defaultVassalage = {
     overlord: null,
     vassals: [],
@@ -116,9 +117,7 @@ export function eliminateCivilization(
     if (frontier.holderCivId === civId || frontier.challengerCivId === civId) delete next.territoryFrontiers![frontierKey];
   }
 
-  for (const unitId of removedUnits) {
-    delete next.units[unitId];
-  }
+  next = removeUnits(next, removedUnits, { reason: 'eliminated' }).state;
   next.civilizations[civId] = {
     ...next.civilizations[civId],
     cities: [],

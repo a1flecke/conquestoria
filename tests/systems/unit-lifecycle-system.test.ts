@@ -166,6 +166,30 @@ describe('unit-lifecycle-system', () => {
     expect(() => assertAirBaseIntegrity(next)).not.toThrow();
   });
 
+  // #1198: disbanding a caravan ends its route inside the removal itself. The UI used to remember to end the
+  // route in a pre-step; any other caller of removePlayerUnitFromState left a route running with no runner.
+  it('disbanding a committed caravan ends its trade route and announces it (#1198)', () => {
+    const state = createNewGame(undefined, 'delete-caravan-route', 'small');
+    const civId = state.currentPlayer;
+    const anchor = Object.values(state.units).find(unit => unit.owner === civId)!;
+    const caravan = { ...createUnit('caravan', civId, anchor.position, { ...mkC(), nextUnitId: 930 }), id: 'caravan-1', committedToRouteId: 'route-1' };
+    state.units[caravan.id] = caravan;
+    state.civilizations[civId].units.push(caravan.id);
+    state.marketplace = {
+      prices: {}, priceHistory: {}, fashionable: null, fashionTurnsLeft: 0,
+      tradeRoutes: [{ id: 'route-1', fromCityId: 'a', toCityId: 'b', goldPerTrip: 5, turnsPerTrip: 3 }],
+    };
+    const bus = new EventBus();
+    const ended = vi.fn();
+    bus.on('trade:route-ended', ended);
+
+    const next = removePlayerUnitFromState(state, civId, caravan.id, bus);
+
+    expect(next.units[caravan.id]).toBeUndefined();
+    expect(next.marketplace!.tradeRoutes).toEqual([]);
+    expect(ended).toHaveBeenCalledWith({ routeId: 'route-1', fromCityId: 'a', toCityId: 'b', reason: 'unit-disbanded' });
+  });
+
   it('deleting a city-based aircraft leaves the city and every other unit alone', () => {
     const state = createNewGame(undefined, 'delete-city-based-aircraft', 'small');
     const civId = state.currentPlayer;

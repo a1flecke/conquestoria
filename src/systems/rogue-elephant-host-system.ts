@@ -13,6 +13,7 @@ import { getCivAvailableResources } from '@/systems/resource-acquisition-system'
 import { getTrainableUnitsForCiv } from '@/systems/city-system';
 import { commitHerdRouteForTurn } from '@/systems/stampede-route-system';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
+import { removeUnits } from '@/systems/unit-removal-system';
 
 export interface RogueElephantHostProfile {
   elephantCount: number;
@@ -209,13 +210,13 @@ export function breakRogueElephantHostCommand(state: GameState, handlerUnitId: s
   const force = host?.forceId ? state.crisisForces?.[host.forceId] : undefined;
   if (!host || !force) return state;
   const herdIds = force.unitIds.filter(unitId => unitId !== handlerUnitId && state.units[unitId]?.type === 'rogue_elephant');
-  const units = Object.fromEntries(Object.entries(state.units).flatMap(([unitId, unit]) => {
-    if (unitId === handlerUnitId) return [];
-    return [[unitId, unit.type === 'rogue_elephant' ? { ...unit, type: 'beast_stampede_herd' as const } : unit]];
-  }));
+  // The Handler is already gone when combat killed it; removing it here is idempotent either way.
+  const withoutHandler = removeUnits(state, [handlerUnitId], { reason: 'destroyed' }).state;
+  const units = Object.fromEntries(Object.entries(withoutHandler.units).map(([unitId, unit]) =>
+    [unitId, unit.type === 'rogue_elephant' ? { ...unit, type: 'beast_stampede_herd' as const } : unit]));
   const crisisForces = { ...state.crisisForces, [force.id]: { ...force, unitIds: herdIds } };
   return {
-    ...state,
+    ...withoutHandler,
     units,
     crisisForces,
     rogueElephantHosts: {
@@ -240,8 +241,7 @@ function removeHostForce(state: GameState, forceId: string): GameState {
   const force = state.crisisForces?.[forceId];
   if (!force) return state;
   return {
-    ...state,
-    units: Object.fromEntries(Object.entries(state.units).filter(([unitId]) => !force.unitIds.includes(unitId))),
+    ...removeUnits(state, force.unitIds, { reason: 'eliminated' }).state,
     crisisForces: Object.fromEntries(Object.entries(state.crisisForces ?? {}).filter(([candidateId]) => candidateId !== forceId)),
   };
 }

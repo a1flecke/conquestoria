@@ -61,6 +61,7 @@ import {
   buildCombatPresentation,
   buildMovePresentationByViewer,
 } from './viewer-event-presentation';
+import { removeUnits } from '@/systems/unit-removal-system';
 
 export const PIRATE_ROUND_TRACE = [
   'normalize',
@@ -687,8 +688,7 @@ function advanceStageAndReinforce(state: GameState, bus: EventBus): GameState {
       .map(tile => tile.coord);
     if (positions.length < additions.length) continue;
 
-    const units = { ...nextState.units };
-    for (const id of retiredIds) delete units[id];
+    const units = { ...removeUnits(nextState, retiredIds, { reason: 'consumed' }).state.units };
     const idCounters = { ...nextState.idCounters };
     const created = additions.map((type, index) => {
       const unit = createUnit(type, faction.id, positions[index], idCounters);
@@ -898,9 +898,7 @@ export function processPiratesForCompletedRound(
           const healthAfter = targetShip.health - counterFireDamage;
           const attackerDied = healthAfter <= 0;
           if (attackerDied) {
-            const units = { ...nextState.units };
-            delete units[targetShip.id];
-            nextState = { ...nextState, units };
+            nextState = removeUnits(nextState, [targetShip.id], { reason: 'destroyed' }).state;
             // faction.shipIds is left with this now-dead id, same as any other
             // pirate-combat kill in this file (normalizeRoundState only prunes shipIds
             // in the deep-sea-flotilla flagship-replacement branch, not generally) --

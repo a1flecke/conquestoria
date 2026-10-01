@@ -3,6 +3,7 @@ import type { CrisisForce, GameState, OpponentChallenge } from '@/core/types';
 import { resolvePressureSeverityForCiv } from '@/core/opponent-challenge';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import type { HerdRoute } from '@/core/types';
+import { removeUnits } from '@/systems/unit-removal-system';
 
 export { CRISIS_FORCE_OWNER } from '@/core/owner-kind';
 
@@ -77,10 +78,10 @@ export function normalizeCrisisForces(state: GameState): GameState {
     crisisForces[recordId] = normalized;
   }
 
-  const units = Object.fromEntries(Object.entries(state.units).filter(([unitId, unit]) =>
-    unit.owner !== CRISIS_FORCE_OWNER || claimedUnitIds.has(unitId),
-  ));
-  return { ...state, crisisForces, units };
+  const unclaimedIds = Object.values(state.units)
+    .filter(unit => unit.owner === CRISIS_FORCE_OWNER && !claimedUnitIds.has(unit.id))
+    .map(unit => unit.id);
+  return removeUnits({ ...state, crisisForces }, unclaimedIds, { reason: 'eliminated' }).state;
 }
 
 export function resolveCrisisForceSeverity(

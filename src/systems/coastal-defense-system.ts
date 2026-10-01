@@ -1,4 +1,5 @@
 import type { GameState } from '@/core/types';
+import { removeUnits } from '@/systems/unit-removal-system';
 
 export type CoastalBatterySource = 'player' | 'ai' | 'barbarian' | 'pirate';
 
@@ -54,23 +55,9 @@ export function resolveCoastalBatteryCounterfire(
   if (damage <= 0) return { state: { ...state, cities }, damage: 0 };
 
   const attackerDied = attacker.health <= damage;
-  const units = { ...state.units };
-  if (attackerDied) {
-    delete units[attacker.id];
-  } else {
-    units[attacker.id] = { ...attacker, health: attacker.health - damage };
-  }
-
-  const owner = state.civilizations?.[attacker.owner];
-  const civilizations = attackerDied && owner
-    ? {
-      ...state.civilizations,
-      [attacker.owner]: { ...owner, units: owner.units.filter(unitId => unitId !== attacker.id) },
-    }
-    : state.civilizations;
-  const nextState = attackerDied && owner
-    ? { ...state, cities, units, civilizations }
-    : { ...state, cities, units };
+  const nextState: GameState = attackerDied
+    ? removeUnits({ ...state, cities }, [attacker.id], { reason: 'destroyed' }).state
+    : { ...state, cities, units: { ...state.units, [attacker.id]: { ...attacker, health: attacker.health - damage } } };
 
   return {
     state: nextState,

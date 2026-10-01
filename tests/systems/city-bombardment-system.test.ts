@@ -221,4 +221,25 @@ describe('resolveUnitCityBombardment', () => {
     if (!result.ok) return;
     expect(result.state.units.cruiser.experience).toBe(0);
   });
+
+  // #1198: the same carrier shape through the bombardment executor's own counter-fire kill.
+  it('a carrier killed by counter-fire takes its based aircraft with it (#1198)', () => {
+    const state = makeState({ attackerType: 'carrier', cityBuildings: ['walls'] });
+    state.units.cruiser = { ...state.units.cruiser, health: 1 };
+    (state.units as Record<string, unknown>).jet = {
+      id: 'jet', type: 'biplane', owner: 'ai-1', position: { q: 1, r: 0 },
+      movementPointsLeft: 0, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      airBase: { kind: 'carrier', unitId: 'cruiser' },
+    };
+    state.civilizations['ai-1'].units = ['cruiser', 'jet'];
+
+    const result = resolveUnitCityBombardment(state, { attackerUnitId: 'cruiser', cityId: 'port', source: 'ai' });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.attackerDied).toBe(true);
+    expect(result.state.units.cruiser).toBeUndefined();
+    expect(result.state.units.jet).toBeUndefined();
+    expect(result.state.civilizations['ai-1'].units).toEqual([]);
+  });
 });

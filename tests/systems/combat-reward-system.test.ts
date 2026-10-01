@@ -326,6 +326,74 @@ describe('applyCombatOutcomeToState', () => {
     expect(applied.state.civilizations['ai-1'].units).not.toContain('based');
   });
 
+  // #1198: the air wing used to be destroyed only when the carrier was the attacker/defender of the fight. A
+  // carrier killed by SPLASH went through the same removal but kept its jets alive (air-base-integrity violated).
+  it('a carrier killed by splash takes its based aircraft with it (#1198)', () => {
+    const state = makeRewardState();
+    const carrier = { ...state.units.defender, id: 'carrier', type: 'carrier' as const, owner: 'ai-1', health: 10, position: { q: 2, r: 0 } };
+    state.units = {
+      attacker: state.units.attacker,
+      defender: state.units.defender,
+      carrier,
+      based: { ...carrier, id: 'based', type: 'biplane', health: 100, airBase: { kind: 'carrier', unitId: 'carrier' } },
+    };
+    state.civilizations['ai-1'].units = ['defender', 'carrier', 'based'];
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 10,
+      attackerSurvived: true, defenderSurvived: true, attackerStrength: 20, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+      splashHits: [{ unitId: 'carrier', damage: 50 }],
+    } as CombatResult;
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.state.units.carrier).toBeUndefined();
+    expect(applied.state.units.based).toBeUndefined();
+    expect(applied.state.civilizations['ai-1'].units).toEqual(['defender']);
+  });
+
+  // #1198: a caravan killed in combat ends the route it was running, whoever the executor is. The removal is
+  // the one place that knows; the route event is announced from the shared result, once, only for a real
+  // execution (a bus), never for a hypothetical fight.
+  describe('a caravan killed in combat (#1198)', () => {
+    function withCaravan() {
+      const state = makeRewardState();
+      state.marketplace = {
+        prices: {}, priceHistory: {}, fashionable: null, fashionTurnsLeft: 0,
+        tradeRoutes: [{ id: 'route-1', fromCityId: 'a', toCityId: 'b', goldPerTrip: 5, turnsPerTrip: 3 }],
+      } as unknown as GameState['marketplace'];
+      // A barbarian cannot take prisoners (`canCaptureDefeatedUnits`), so the caravan is destroyed, not captured.
+      // (A caravan *captured* by a major civ keeps its route commitment: that is #1200's scope.)
+      state.units.attacker = { ...state.units.attacker, owner: 'barbarian' };
+      state.units.defender = { ...state.units.defender, type: 'caravan', committedToRouteId: 'route-1' };
+      const result: CombatResult = {
+        attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+        attackerSurvived: true, defenderSurvived: false, attackerStrength: 20, defenderStrength: 1,
+        attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+      };
+      return { state, result };
+    }
+
+    it('ends its route in state and announces it exactly once', () => {
+      const { state, result } = withCaravan();
+      const bus = new EventBus();
+      const ended: unknown[] = [];
+      bus.on('trade:route-ended', payload => ended.push(payload));
+
+      const applied = applyCombatOutcomeToState(state, result, 64, bus);
+
+      expect(applied.state.units.defender).toBeUndefined();
+      expect(applied.state.marketplace!.tradeRoutes).toEqual([]);
+      expect(ended).toEqual([{ routeId: 'route-1', fromCityId: 'a', toCityId: 'b', reason: 'unit-died' }]);
+    });
+
+    it('still ends the route without a bus, but announces nothing (lookahead)', () => {
+      const { state, result } = withCaravan();
+      const applied = applyCombatOutcomeToState(state, result, 64);
+      expect(applied.state.marketplace!.tradeRoutes).toEqual([]);
+    });
+  });
+
   it.each([
     ['player', 'ai-1'],
     ['ai-1', 'player'],

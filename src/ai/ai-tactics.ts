@@ -78,6 +78,7 @@ import { resolveCombatEra } from '@/systems/era-resolution';
 import { previewUnitCityBombardment, resolveUnitCityBombardment } from '@/systems/city-bombardment-system';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
+import { removeUnits } from '@/systems/unit-removal-system';
 
 export type AITacticalAction =
   | { kind: 'attack'; unitId: string; targetUnitId: string }
@@ -1330,15 +1331,13 @@ function applyPredictedAction(
       next.civilizations[context.actorId] = {
         ...civ,
         cities: [...civ.cities, city.id],
-        units: civ.units.filter(unitId => unitId !== unit.id),
       };
       for (const coord of city.ownedTiles) {
         const key = hexKey(coord);
         const tile = next.map.tiles[key];
         if (tile) next.map.tiles[key] = { ...tile, owner: context.actorId };
       }
-      delete next.units[unit.id];
-      return next;
+      return removeUnits(next, [unit.id], { reason: 'consumed' }).state;
     }
     case 'establish-outpost':
       return performEstablishOutpost(next, unit.id);

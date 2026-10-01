@@ -10,6 +10,7 @@ import { isAlwaysHostilePair } from '@/core/owner-kind';
 import { hexKey } from './hex-utils';
 import { RESOURCE_DEFINITIONS } from './resource-definitions';
 import { isAtWar } from './diplomacy-queries';
+import { removeUnits } from '@/systems/unit-removal-system';
 
 /**
  * Returns the set of resource IDs that a civ currently has access to.
@@ -292,21 +293,9 @@ export function performEstablishOutpost(state: GameState, unitId: string): GameS
     improvementOwner: civId,
   };
 
-  const { [unitId]: _removed, ...remainingUnits } = state.units;
-  const civilization = state.civilizations[civId];
-
+  // The worker is spent building the outpost.
   return {
-    ...state,
-    units: remainingUnits,
-    civilizations: civilization
-      ? {
-          ...state.civilizations,
-          [civId]: {
-            ...civilization,
-            units: civilization.units.filter(id => id !== unitId),
-          },
-        }
-      : state.civilizations,
+    ...removeUnits(state, [unitId], { reason: 'consumed' }).state,
     map: {
       ...state.map,
       tiles: {

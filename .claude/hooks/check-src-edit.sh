@@ -234,6 +234,24 @@ $bs_lines"
     ;;
 esac
 
+# --- unit removal is ONE transition (#1198) ---
+# A unit leaves GameState through removeUnits() (src/systems/unit-removal-system.ts), which owns the
+# whole cascade. Hand-rolled `delete units[...]`, rest-destructure or filter-rebuild forget some of it.
+# Sanctioned: the module itself and src/storage (save normalizers/migrations repair persisted data).
+case "$file_path" in
+  */src/systems/unit-removal-system.ts|*/src/storage/*)
+    : # sanctioned
+    ;;
+  */src/*.ts)
+    ur_lines="$(grep -nE 'delete[[:space:]]+[A-Za-z_.!()]*[uU]nits\[|\]:[[:space:]]*_[A-Za-z]*,[[:space:]]*\.\.\.[A-Za-z]+[[:space:]]*\}[[:space:]]*=[[:space:]]*[A-Za-z_.()]*[uU]nits[[:space:]]*;?[[:space:]]*$|fromEntries\(Object\.entries\([A-Za-z_.()]*[uU]nits\)\.(filter|flatMap)' "$file_path" \
+      | grep -vE '^[0-9]+:[[:space:]]*(//|\*|/\*)' | head -5 || true)"
+    if [ -n "$ur_lines" ]; then
+      append "Hand-rolled unit removal outside unit-removal-system.ts — call removeUnits() (or removeUnitsFromSlice() on working copies); it owns the roster, minor-roster, cargo-manifest, air-wing, spy-record and trade-route cascade (see .claude/rules/caller-discipline.md, #1198):
+$ur_lines"
+    fi
+    ;;
+esac
+
 # --- single-side war/peace mutation (#995) ---
 # declareWar() / makePeace() write ONE side of a war. Major↔major war state must
 # stay bilateral by construction — use declareMajorWar() / makeMajorPeace().

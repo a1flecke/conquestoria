@@ -125,7 +125,6 @@ describe('PlayerActionController', () => {
         centerOn: (coord: HexCoord) => void;
         refreshVisibility: () => void;
         endTurn: (options: { allowUnmovedUnits?: boolean }) => void;
-        onUnitDisbanded: (state: GameState, unitId: string, routeId: string) => GameState;
       }>(createUnitTurnFlow, 0, 0);
 
       flowDeps.selectUnit('unit-1');
@@ -140,11 +139,6 @@ describe('PlayerActionController', () => {
       expect(deps.renderLoop.camera.centerOn).toHaveBeenCalledWith({ q: 2, r: 2 });
       flowDeps.endTurn({ allowUnmovedUnits: true });
       expect(deps.turnFlow.endTurn).toHaveBeenCalledWith({ allowUnmovedUnits: true });
-
-      // onUnitDisbanded delegates to the real removeRouteForUnit -- a unit with no
-      // committed route is a real no-op (state returned unchanged), not a stub.
-      const result = flowDeps.onUnitDisbanded(deps.session.getState(), 'no-such-unit', 'route-1');
-      expect(result).toStrictEqual(deps.session.getState());
     });
   });
 

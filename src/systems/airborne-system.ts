@@ -15,6 +15,7 @@ import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { getHostileAirDefenseThreat } from '@/systems/air-defense-system';
 import { appendNotification } from '@/core/notification-log';
 import { isHostileOwnerTo } from '@/systems/owner-hostility';
+import { removeUnits } from '@/systems/unit-removal-system';
 
 // `foreign-city` / `barbarian-camp` / `pirate-enclave` mirror the canonical
 // hostile-structure blocker reasons from `getBlockingMapEntityAt` (#970): an
@@ -311,14 +312,7 @@ function resolveAirborneLanding(state: GameState, unit: Unit, destination: HexCo
     flak = { damage: threat.flatDefenseModifier, providerId: strongestProvider.id, providerLabel: strongestProvider.label };
     const health = workingUnit.health - threat.flatDefenseModifier;
     if (health <= 0) {
-      const { [unit.id]: _removed, ...remainingUnits } = state.units;
-      const owner = state.civilizations[unit.owner];
-      const strippedState: GameState = {
-        ...state,
-        units: remainingUnits,
-        civilizations: owner ? { ...state.civilizations, [unit.owner]: { ...owner, units: owner.units.filter(id => id !== unit.id) } } : state.civilizations,
-      };
-      return { state: strippedState, flak, survived: false };
+      return { state: removeUnits(state, [unit.id], { reason: 'destroyed' }).state, flak, survived: false };
     }
     workingUnit = { ...workingUnit, health };
   }

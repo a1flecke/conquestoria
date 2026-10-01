@@ -62,10 +62,15 @@ meanings, name the roles — but only when misuse is plausible. The ranked audit
 - **A new source rule extends the two existing mechanisms** (`check-src-rule-violations.sh` and its
   `check-src-edit.sh` mirror). It ships with a script test and a hook smoke test, exempts comment
   lines, and names the sanctioned files in a `case` block.
-- **A unit is removed by one function, not by `delete`.** That function does not exist yet —
-  see #1198. Until it does, a new removal site must copy the *complete* cascade of
-  `removeUnitFromCopies` (roster, minor roster, cargo manifest, spy record) plus the carrier air
-  wing, and add a test that `assertCargoReciprocity`/`assertAirBaseIntegrity` still hold.
+- **A unit is removed by one function, not by `delete`.** `removeUnits` / `removeUnitsFromSlice`
+  (`src/systems/unit-removal-system.ts`, #1198) owns the whole cascade: unit table, major and minor
+  rosters, cargo of a removed transport, a surviving transport's manifest, a removed carrier's air
+  wing (to any depth), a dead spy's record, a removed caravan's trade route. Pick a `reason`
+  (`destroyed`/`disbanded`/`eliminated`/`consumed`/`trips-exhausted`); only two things vary by it —
+  `consumed` keeps a spy's record, and the route-ended reason. It does **not** reconcile civilization
+  liveness (the orchestrator that owns the whole transition does) and does not touch the Great General
+  ledger (`generalHistory` outlives its unit). A hand-rolled `delete`/rest-destructure/filter-rebuild of
+  `units` is blocked by the source rule and swept by `architecture-boundaries.test.ts` "#1198".
 - **A combat executor applies a fight through `applyCombatOutcomeToState`.** Everything that is a
   *consequence of the kill* belongs inside it; everything that is a *presentation of the fight*
   is emitted from the returned payload. Remaining per-executor consequences are tracked in #1200.
@@ -79,10 +84,12 @@ meanings, name the roles — but only when misuse is plausible. The ranked audit
 | An upgrade takes its gold | `applyUpgrade` private | `unit-upgrade.test.ts`, architecture pin |
 | Strategic strike consequences | `resolveStrategicStrike` has one caller | source rule, architecture pin |
 | Single-side vassalage mutators | importable only by `diplomacy-vassalage.ts` | architecture pin |
-| Disband takes cargo/air wing with it | `removePlayerUnitFromState` cascade; confirmation names the extra units | `unit-lifecycle-system.test.ts`, `unit-turn-flow.test.ts` |
+| Any unit removal takes cargo/air wing/manifest entry/spy record/trade route with it | `removeUnits` is the only transition; raw `units` deletes are a source-rule violation | `unit-removal-system.test.ts`, source rule + hook mirror, architecture pin "#1198", `SAVE_STATE_INVARIANTS` |
+| Disband confirmation names the extra units | `removePlayerUnitFromState` = `removeUnits` + liveness; the dialog previews it | `unit-lifecycle-system.test.ts`, `unit-turn-flow.test.ts` |
 | Publication after a state write | `commit`/`batch`; no silent write | `session-publication.md` |
 
 ## Open follow-ups (evidence in each issue)
 
-#1198 canonical unit removal · #1199 finish #1015 (hand pushes, in-place mutation) · #1200 per-executor
-combat consequences · #1201 espionage consequences/recipients · #1202 trainable-unit wiring items 3–4.
+#1199 finish #1015 (hand pushes, in-place mutation) · #1200 per-executor combat consequences ·
+#1201 espionage consequences/recipients · #1202 trainable-unit wiring items 3–4. (#1198 canonical unit
+removal: done.)

@@ -39,6 +39,7 @@ import {
   getCityCounterFireDamage,
   resolveCityAssault,
 } from '@/systems/city-siege-system';
+import { removeUnits } from '@/systems/unit-removal-system';
 
 /**
  * #988/#991: every combat capture (occupy or raze) counts toward the
@@ -352,18 +353,10 @@ export function beginMajorCityAssault(
       if (counterFireDamage > 0) {
         const healthAfter = attacker.health - counterFireDamage;
         if (healthAfter <= 0) {
-          const civilizations = { ...nextState.civilizations };
-          civilizations[attacker.owner] = {
-            ...civilizations[attacker.owner],
-            units: civilizations[attacker.owner].units.filter(id => id !== attackerId),
-          };
           nextState = awardDefenseProgress(
-            { ...nextState, civilizations },
+            removeUnits(nextState, [attackerId], { reason: 'destroyed' }).state,
             city.owner,
           );
-          const units = { ...nextState.units };
-          delete units[attackerId];
-          nextState = { ...nextState, units };
           return assaultFailure(nextState, 'repelled-by-city-defense');
         }
         nextState.units[attackerId] = {

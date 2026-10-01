@@ -11,6 +11,7 @@ import {
 import { getCapitalCityId } from './capital-system';
 import { mapDistance } from './hex-utils';
 import { hasDiscoveredCity } from './discovery-system';
+import { removeUnits } from '@/systems/unit-removal-system';
 
 function pickReligionName(civType: string, rng: () => number): string {
   const pool = NAME_CANDIDATES[civType] ?? NEUTRAL_NAME_CANDIDATES;
@@ -372,30 +373,21 @@ export function preach(state: GameState, unitId: string, cityId: string, bus: Ev
   const chargesRemaining = (unit.chargesRemaining ?? 0) - 1;
   const unitConsumed = chargesRemaining <= 0;
 
-  let units = state.units;
-  if (unitConsumed) {
-    const { [unitId]: _removed, ...rest } = state.units;
-    units = rest;
-  } else {
-    units = {
-      ...state.units,
-      [unitId]: { ...unit, chargesRemaining, missionaryCooldownUntilTurn: state.turn + MISSIONARY_ACTION_COOLDOWN_TURNS },
+  const afterAction: GameState = unitConsumed
+    ? removeUnits(state, [unitId], { reason: 'consumed' }).state
+    : {
+      ...state,
+      units: {
+        ...state.units,
+        [unitId]: { ...unit, chargesRemaining, missionaryCooldownUntilTurn: state.turn + MISSIONARY_ACTION_COOLDOWN_TURNS },
+      },
     };
-  }
-
-  let civilizations = state.civilizations;
-  if (unitConsumed) {
-    civilizations = {
-      ...state.civilizations,
-      [unit.owner]: { ...owner, units: owner.units.filter(id => id !== unitId) },
-    };
-  }
 
   bus.emit('religion:preached', { cityId, unitId, civId: unit.owner, points: pointsGranted, unitConsumed });
 
   return {
     ok: true,
-    state: { ...state, cityFaith, units, civilizations },
+    state: { ...afterAction, cityFaith },
     converted,
     unitConsumed,
   };

@@ -58,6 +58,7 @@ import {
   processMinorCivLeagueTurn,
   reconcileMinorCivLeagues,
 } from './minor-civ-league-system';
+import { removeUnits } from '@/systems/unit-removal-system';
 
 const PLACEMENT_COUNTS: Record<string, [number, number]> = {
   small: [2, 4],
@@ -722,14 +723,14 @@ export function conquestMinorCiv(
     }
   }
 
-  for (const uid of mc.units) {
-    delete nextState.units[uid];
-  }
-  mc.units = [];
+  // The garrison goes with its city-state. `nextState` is our own clone, so the roster reset below (for ids
+  // that no longer name a live unit) is safe to write in place.
+  const garrisonRemoved = removeUnits(nextState, mc.units, { reason: 'eliminated' }).state;
+  garrisonRemoved.minorCivs[mcId] = { ...garrisonRemoved.minorCivs[mcId], units: [] };
 
   return {
     state: reconcileMinorCivLeagues(
-      applyRegionalGrievanceForMinorCivConquest(nextState, mcId, conquerorId),
+      applyRegionalGrievanceForMinorCivConquest(garrisonRemoved, mcId, conquerorId),
     ),
     transitions,
     conquered: true,

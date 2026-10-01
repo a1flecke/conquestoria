@@ -13,6 +13,7 @@ import {
   type GeneralCareerSummary,
 } from '@/systems/great-general-career';
 import type { EventBus } from '@/core/event-bus';
+import { removeUnits } from '@/systems/unit-removal-system';
 
 /**
  * Threshold formula (contract §13 — "data-driven and not yet locked", this
@@ -411,13 +412,9 @@ export function retireGeneralsAtTurnEnd(state: GameState, civId: string, bus?: E
     });
   if (retiring.length === 0) return state;
 
-  let units = { ...state.units };
-  let civUnits = civ.units;
   let generalHistory = civ.generalHistory ?? [];
   for (const general of retiring) {
     const definition = resolveGeneralDefinition(state, general.generalDefinitionId)!;
-    delete units[general.id];
-    civUnits = civUnits.filter(id => id !== general.id);
     // #887 MR1: enrich the end-of-career line with a factual campaign-stat
     // clause, and append the terminal `retired` event. The summary is computed
     // from the pre-terminal entry — the `retired` event itself carries no
@@ -452,12 +449,10 @@ export function retireGeneralsAtTurnEnd(state: GameState, civId: string, bus?: E
     bus?.emit('general:retired', { civId, generalName: definition.name, message: endOfCareerLine });
   }
 
-  return {
-    ...state,
-    units,
-    civilizations: {
-      ...state.civilizations,
-      [civId]: { ...civ, units: civUnits, generalHistory },
-    },
-  };
+  // The career ledger (`generalHistory`) intentionally outlives the unit; only the live unit leaves.
+  return removeUnits(
+    { ...state, civilizations: { ...state.civilizations, [civId]: { ...civ, generalHistory } } },
+    retiring.map(general => general.id),
+    { reason: 'consumed' },
+  ).state;
 }
