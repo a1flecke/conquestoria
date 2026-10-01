@@ -123,8 +123,8 @@ describe('check-src-rule-violations.sh', () => {
 
     it('allows a pre-existing occurrence recorded in the legacy baseline at its exact path:line', () => {
       const workspace = makeWorkspace();
-      const paddingLines = Array.from({ length: 430 }, (_, i) => `// padding line ${i + 1}`);
-      // Real baseline entry: src/systems/combat-system.ts:431 (#982 left this
+      const paddingLines = Array.from({ length: 437 }, (_, i) => `// padding line ${i + 1}`);
+      // Real baseline entry: src/systems/combat-system.ts:438 (#982 left this
       // [LOW]-tagged LCG recurrence body in place — it's already fed a
       // gameId-rooted seed by its caller, just a hand-rolled duplicate of
       // seededLcg's body, not a live seed-construction bug).
