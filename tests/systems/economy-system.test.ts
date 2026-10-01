@@ -433,6 +433,36 @@ describe('rush buy', () => {
     expect(unitListener).toHaveBeenCalledWith({ cityId: 'capital', unitType: 'warrior' });
   });
 
+  // #1202: the buy path used to be a second, partial copy of unit completion. Everything the turn path applies at
+  // completion (charges, barracks XP, wonder/tech adjustments, air basing, spy record) now comes from the same
+  // `completeUnitProduction`, so a bought unit is the same unit.
+  it('a rush-bought missionary carries its charges, exactly like a trained one (#1202)', () => {
+    const state = makeState();
+    state.civilizations.player.gold = 500;
+    city(state).productionQueue = ['missionary'];
+
+    const result = rushBuyActiveProduction(state, 'player', 'capital', new EventBus());
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    const unit = result.state.units[result.state.civilizations.player.units[0]];
+    expect(unit.type).toBe('missionary');
+    expect(unit.chargesRemaining ?? 0).toBeGreaterThan(0);
+  });
+
+  it('a rush-bought land unit gets the barracks veteran bonus a trained one gets (#1202)', () => {
+    const state = makeState();
+    state.civilizations.player.gold = 500;
+    city(state).buildings = [...city(state).buildings, 'barracks'];
+    city(state).productionQueue = ['warrior'];
+
+    const result = rushBuyActiveProduction(state, 'player', 'capital', new EventBus());
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.state.units[result.state.civilizations.player.units[0]].experience).toBeGreaterThanOrEqual(10);
+  });
+
   it('formats the HUD around net gold, not gross income', () => {
     const state = makeState();
     const status = calculateCivEconomy(state, 'player', {

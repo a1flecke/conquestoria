@@ -10,14 +10,13 @@ import type {
 import type { EventBus } from '@/core/event-bus';
 import { BUILDINGS, completeCityProductionItem, isBuildingObsolete, TRAINABLE_UNITS } from './city-system';
 import { calculateProjectedCityYields } from './city-work-system';
-import { createSpyFromUnit, isSpyUnitType } from './espionage-system';
 import { getLegendaryWonderCityYieldBonus, getLegendaryWonderCivYieldBonus } from './legendary-wonder-system';
 import { getNationalProjectCivYieldBonus } from './national-project-system';
 import { processTradeRouteIncome } from './trade-system';
 import { getClaimedTrophyGoldPerTurn } from './beast-system';
 import { getReligionTithesGold } from './religion-system';
 import { UNIT_DEFINITIONS } from './unit-definitions';
-import { createUnit } from './unit-lifecycle';
+import { announceUnitProduction, completeUnitProduction } from './unit-production-completion';
 import { resolveCivDefinition } from './civ-registry';
 import { getProductionCostForCivItem } from './production-cost-context';
 import { getCivHappinessFromResources } from './resource-acquisition-system';
@@ -810,32 +809,13 @@ export function rushBuyActiveProduction(
   }
 
   if (completion.completedUnit) {
-    const civDef = resolveCivDefinition(nextState, civ.civType ?? '');
-    const newUnit = createUnit(completion.completedUnit, civId, city.position, nextState.idCounters, civDef?.bonusEffect);
-    nextState.units = { ...nextState.units, [newUnit.id]: newUnit };
-    nextState.civilizations = {
-      ...nextState.civilizations,
-      [civId]: {
-        ...nextState.civilizations[civId],
-        units: [...nextState.civilizations[civId].units, newUnit.id],
-      },
-    };
-    bus.emit('city:unit-trained', { cityId, unitType: completion.completedUnit });
-
-    if (isSpyUnitType(completion.completedUnit) && nextState.espionage?.[civId]) {
-      const { state: updatedEspionage, spy } = createSpyFromUnit(
-        nextState.espionage[civId],
-        newUnit.id,
-        civId,
-        completion.completedUnit,
-        `spy-unit-${newUnit.id}-${nextState.turn}`,
-      );
-      nextState.espionage = {
-        ...nextState.espionage,
-        [civId]: updatedEspionage,
-      };
-      bus.emit('espionage:spy-recruited', { civId, spy });
+    // #1202: the same completion the turn path runs, so a bought unit is not a second-class unit.
+    const made = completeUnitProduction(nextState, { civId, cityId, unitType: completion.completedUnit });
+    if (!made.ok) {
+      return { success: false, state, reason: 'invalid-active-item', message: 'This unit cannot be completed here right now.' };
     }
+    nextState = made.state;
+    announceUnitProduction(bus, cityId, civId, made);
   }
 
   const status = calculateCivEconomy(nextState, civId);
