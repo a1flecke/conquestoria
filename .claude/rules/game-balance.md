@@ -338,6 +338,33 @@ removes them, so there is no captured-ship case.
 `getNavalOperationalState`/`getNavalEnduranceStatus`; it must not re-derive a threshold, and
 air readiness (#884) gets its own owner rather than sharing this enum's mechanics.
 
+## Air Readiness (#884)
+
+Air basing already existed (`air-operations-system.ts`); #884 adds the missing multi-turn *tempo*
+dimension. One owner: `src/systems/air-readiness.ts`. It is not `hasActed` (one mission per turn,
+resets every turn) and not naval endurance (#883, distance-from-port) — it is a strain ledger that
+only matters across turns. Persisted state is `Unit.airStrain` (absent = ready, malformed = ready, no
+migration — `ADDITIVE_WITHOUT_MIGRATION`); status, base support and carrier limits are derived.
+
+| Knob | Value | Meaning |
+|---|---:|---|
+| `AIR_WORN_AT` / `AIR_SPENT_AT` / `AIR_MAX_STRAIN` | 3 / 6 / 8 | Strain thresholds and cap |
+| `AIR_MISSION_STRAIN` | strike 2, recon 1, patrol 1, interception 1 | Added by the mission executors via `withAirStrain`; rebase and intercept stance add none and pause recovery |
+| `AIR_RECOVERY_PER_ROUND` | 2 | Idle round (no mission/rebase/stance) at a supporting base |
+| `AIR_DEGRADED_BASE_RECOVERY` | 1 | Damaged city base (`city.hp` < `AIR_DAMAGED_BASE_HP` = 50) or carrier on **extended** #883 operations |
+| depleted #883 carrier | 0 recovery, strikes denied | Read through `getNavalEnduranceStatus`, never a copy of its math |
+| Worn / Spent | −10% / −20% combat; Spent cannot strike | Fact key `air-readiness`, owner-visible, in the one combat context (strikes, interception, city-strike damage) |
+
+"Damaged base" uses the only persistent damage that exists today (city HP); no airfield-damage
+system was invented. A captured aircraft comes up fresh; an evacuated one keeps its strain.
+Support is the aircraft's own base only — Open Borders/alliance grant no air basing. Denial copy is
+typed (`getAirMissionDenial`) and is what the panel shows; the AI consults the same gate (spent wings
+stay grounded, impaired bases trigger a rebase to a healthy one) with no extra range or free recovery
+at any difficulty.
+
+**Rule:** a new aircraft mission adds a row to `AIR_MISSION_STRAIN` and calls `withAirStrain` in its
+executor; a new recovery modifier lives in `getAirBaseSupport`.
+
 ## Governor Inventory (#928)
 
 Governors are an abstract, capped administrative slot — **not** a unit and
