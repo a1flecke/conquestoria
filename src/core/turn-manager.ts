@@ -29,6 +29,7 @@ import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { resolveLandSupplyForCiv } from '@/systems/supply-system';
 import { resolveNavalOperationsForCiv } from '@/systems/naval-operations';
+import { resolveAirReadinessForCiv } from '@/systems/air-readiness';
 import { getRestAvailability } from '@/systems/supply-combat';
 import { applyPillageToState } from '@/systems/pillage-system';
 import {
@@ -230,6 +231,7 @@ export function processTurn(
     if (!getCivilizationLiveness(newState, civId).living) continue;
     newState = resolveLandSupplyForCiv(newState, civId);
     newState = resolveNavalOperationsForCiv(newState, civId);
+    newState = resolveAirReadinessForCiv(newState, civId);
     const stampedeBefore = newState.stampedes?.[civId];
     newState = processStampedeTurn(newState, civId);
     const hostBefore = newState.rogueElephantHosts?.[civId];

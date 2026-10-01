@@ -702,7 +702,8 @@
     "tests/systems/wonder-codex/related.test.ts": 4.142822265625,
     "tests/systems/wonder-codex/sources.test.ts": 38.330078125,
     "tests/renderer/sprites/v2/index.test.ts": 30.040771484375,
-    "tests/systems/naval-operations.test.ts": 20.0
+    "tests/systems/naval-operations.test.ts": 20.0,
+    "tests/systems/air-readiness.test.ts": 20.0
   },
   "shards": {
     "test-suite-shard-a": [
@@ -799,6 +800,7 @@
       "tests/storage/vassalage-normalization.test.ts",
       "tests/systems/ai-roster-selection.test.ts",
       "tests/systems/air-operations-system.test.ts",
+      "tests/systems/air-readiness.test.ts",
       "tests/systems/airborne-hotseat.test.ts",
       "tests/systems/airborne-system.test.ts",
       "tests/systems/attack-targeting.test.ts",

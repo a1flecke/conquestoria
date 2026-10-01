@@ -17,6 +17,7 @@ import { recordCampPressureFromAirStrike } from './barbarian-pressure';
 import { isWithinTacticalSamCoverage } from './air-defense-system';
 import { claimTacticalFirstOwnerTurnInterception } from './legendary-wonder-tactical-effects';
 import { removeUnits } from '@/systems/unit-removal-system';
+import { getAirMissionDenial, getAirReadinessCombatPenalty, withAirStrain } from './air-readiness';
 
 export type AirOperationResult =
   | { ok: true; state: GameState }
@@ -215,6 +216,8 @@ export function getLegalAirMissionTargets(state: GameState, unitId: string, miss
   const definition = unit && UNIT_DEFINITIONS[unit.type].airOperation;
   if (!unit || !definition?.missions.includes(mission) || !unit.airBase || unit.hasActed) return [];
   if (mission === 'strike') {
+    // #884: readiness is one gate; the UI shows its typed denial, so an empty list is never unexplained.
+    if (getAirMissionDenial(state, unitId, 'strike')) return [];
     const visibility = state.civilizations[unit.owner]?.visibility;
     return Object.values(state.units)
       .filter(candidate => !candidate.airBase
@@ -245,7 +248,7 @@ export function resolveReconMission(state: GameState, unitId: string, center: He
       ...state,
       units: {
         ...state.units,
-        [unitId]: { ...unit, movementPointsLeft: 0, hasMoved: true, hasActed: true },
+        [unitId]: withAirStrain({ ...unit, movementPointsLeft: 0, hasMoved: true, hasActed: true }, 'recon'),
       },
       reconReveals: [
         ...(state.reconReveals ?? []).filter(reveal => reveal.expiresAtTurn >= state.turn),
@@ -268,7 +271,7 @@ export function resolvePatrolMission(state: GameState, unitId: string, center: H
       ...state,
       units: {
         ...state.units,
-        [unitId]: { ...unit, movementPointsLeft: 0, hasMoved: true, hasActed: true },
+        [unitId]: withAirStrain({ ...unit, movementPointsLeft: 0, hasMoved: true, hasActed: true }, 'patrol'),
       },
       // Ordinary reconnaissance half -- reused verbatim, same array and
       // consumer (applyReconReveals) 'recon' missions already use.
@@ -296,6 +299,8 @@ export function resolveAirStrike(state: GameState, unitId: string, target: HexCo
   if (!striker || !definition?.missions.includes('strike') || !striker.airBase || striker.hasActed) {
     return { ok: false, state, reason: 'ineligible-strike' };
   }
+  const readinessDenial = getAirMissionDenial(state, unitId, 'strike');
+  if (readinessDenial) return { ok: false, state, reason: readinessDenial.reason };
   if (airDistance(state, striker.position, target) > definition.operationalRange) return { ok: false, state, reason: 'out-of-range' };
   if (!getLegalAirMissionTargets(state, unitId, 'strike').some(candidate => candidate.q === target.q && candidate.r === target.r)) {
     return { ok: false, state, reason: 'invalid-strike-target' };
@@ -318,7 +323,7 @@ export function resolveAirStrike(state: GameState, unitId: string, target: HexCo
       tacticalInterceptionMultiplier: tacticalClaim.multiplier,
     }), resolveCombatEra(state, interceptor, striker));
     nextState = applyAirCombatResult(nextState, result, deterministicCombatSeed(state.gameId, state.turn, interceptor.id, striker.id), bus);
-    if (nextState.units[interceptor.id]) nextState = { ...nextState, units: { ...nextState.units, [interceptor.id]: { ...nextState.units[interceptor.id]!, interceptedTurn: state.turn } } };
+    if (nextState.units[interceptor.id]) nextState = { ...nextState, units: { ...nextState.units, [interceptor.id]: withAirStrain({ ...nextState.units[interceptor.id]!, interceptedTurn: state.turn }, 'interception') } };
     if (nextState.units[interceptor.id] && !nextState.units[striker.id]) {
       nextState = appendLegendaryWonderMilitaryFacts(nextState, [{
         id: `interception:${state.turn}:${interceptor.id}:${striker.id}`,
@@ -339,7 +344,7 @@ export function resolveAirStrike(state: GameState, unitId: string, target: HexCo
     const cityResult = resolveCitySiegeDamage({
       city: currentCity,
       ownerCiv,
-      rawDamage: Math.max(1, Math.round(UNIT_DEFINITIONS[currentStriker.type].strength * currentStriker.health / 100)),
+      rawDamage: Math.max(1, Math.round(UNIT_DEFINITIONS[currentStriker.type].strength * currentStriker.health / 100 * getAirReadinessCombatPenalty(currentStriker).multiplier)),
       attackerDomain: 'air',
       hasGarrison: getCityGarrisonUnit(nextState.units, currentCity) !== undefined,
       isOwnersLastCity: ownerCiv.cities.length <= 1,
@@ -347,14 +352,14 @@ export function resolveAirStrike(state: GameState, unitId: string, target: HexCo
       challenge: resolveChallengeForCiv(nextState, currentCity.owner),
     });
     nextState = applyCitySiegeOutcome(nextState, currentCity.id, cityResult);
-    if (nextState.units[unitId]) nextState = { ...nextState, units: { ...nextState.units, [unitId]: { ...nextState.units[unitId]!, movementPointsLeft: 0, hasMoved: true, hasActed: true } } };
+    if (nextState.units[unitId]) nextState = { ...nextState, units: { ...nextState.units, [unitId]: withAirStrain({ ...nextState.units[unitId]!, movementPointsLeft: 0, hasMoved: true, hasActed: true }, 'strike') } };
     return { ok: true, state: recordCampPressureFromAirStrike(nextState, striker, target), interception, cityResult: { cityId: currentCity.id, result: cityResult } };
   }
   const currentTarget = targetUnit && nextState.units[targetUnit.id];
-  if (!currentTarget) return { ok: true, state: { ...nextState, units: { ...nextState.units, [unitId]: { ...currentStriker, movementPointsLeft: 0, hasMoved: true, hasActed: true } } }, interception };
+  if (!currentTarget) return { ok: true, state: { ...nextState, units: { ...nextState.units, [unitId]: withAirStrain({ ...currentStriker, movementPointsLeft: 0, hasMoved: true, hasActed: true }, 'strike') } }, interception };
   const targetResult = resolveCombat(currentStriker, currentTarget, nextState.map, deterministicCombatSeed(nextState.gameId, nextState.turn, currentStriker.id, currentTarget.id), buildCombatContextForDefender(nextState, currentStriker, currentTarget), resolveCombatEra(nextState, currentStriker, currentTarget));
   nextState = applyAirCombatResult(nextState, targetResult, deterministicCombatSeed(nextState.gameId, nextState.turn, currentStriker.id, currentTarget.id), bus);
-  if (nextState.units[unitId]) nextState = { ...nextState, units: { ...nextState.units, [unitId]: { ...nextState.units[unitId]!, movementPointsLeft: 0, hasMoved: true, hasActed: true } } };
+  if (nextState.units[unitId]) nextState = { ...nextState, units: { ...nextState.units, [unitId]: withAirStrain({ ...nextState.units[unitId]!, movementPointsLeft: 0, hasMoved: true, hasActed: true }, 'strike') } };
   return { ok: true, state: recordCampPressureFromAirStrike(nextState, striker, target), interception, targetResult };
 }
 
@@ -407,7 +412,8 @@ export function resolveAirBaseLoss(
       } else if (resolution === 'destroyed') {
         nextState = removeAirUnits(nextState, new Set([unit.id]));
       } else {
-        const current = nextState.units[unit.id]!;
+        // #884: a captured aircraft comes up fresh for its new owner; strain is the old owner's tempo.
+        const { airStrain: _capturedStrain, ...current } = nextState.units[unit.id]!;
         const previousOwner = current.owner;
         nextState = {
           ...nextState,

@@ -13,6 +13,7 @@ import { resolveCombinedArms } from './combined-arms-system';
 import { resolveFortificationDefense } from './fortification-system';
 import { resolveLandSupplyCombatPenalty } from './supply-combat';
 import { getNavalOperationsCombatPenalty } from './naval-endurance';
+import { getAirReadinessCombatPenalty } from './air-readiness';
 import { resolveLastStandDefenseBonus } from './great-general-abilities';
 import { getTacticalAdjacentCitadelDefense } from './legendary-wonder-tactical-effects';
 
@@ -99,6 +100,8 @@ export function buildCombatContextForDefender(
   const defenderSupplyPenalty = resolveLandSupplyCombatPenalty(defender);
   const attackerNavalOps = getNavalOperationsCombatPenalty(attacker);
   const defenderNavalOps = getNavalOperationsCombatPenalty(defender);
+  const attackerAirReadiness = getAirReadinessCombatPenalty(attacker);
+  const defenderAirReadiness = getAirReadinessCombatPenalty(defender);
   const defenderLastStand = resolveLastStandDefenseBonus(defender, state.turn);
   const tacticalCitadel = getTacticalAdjacentCitadelDefense(state, defender);
 
@@ -177,6 +180,14 @@ export function buildCombatContextForDefender(
     defenderNavalOperationsMultiplier: defenderNavalOps.multiplier,
     defenderNavalOperationsFact: defenderNavalOps.label
       ? { key: 'naval-operations', label: defenderNavalOps.label, sourceVisibility: 'owner', operation: 'multiplier', value: defenderNavalOps.multiplier, outcome: 'applied' }
+      : undefined,
+    attackerAirReadinessMultiplier: attackerAirReadiness.multiplier,
+    attackerAirReadinessFact: attackerAirReadiness.label
+      ? { key: 'air-readiness', label: attackerAirReadiness.label, sourceVisibility: 'owner', operation: 'multiplier', value: attackerAirReadiness.multiplier, outcome: 'applied' }
+      : undefined,
+    defenderAirReadinessMultiplier: defenderAirReadiness.multiplier,
+    defenderAirReadinessFact: defenderAirReadiness.label
+      ? { key: 'air-readiness', label: defenderAirReadiness.label, sourceVisibility: 'owner', operation: 'multiplier', value: defenderAirReadiness.multiplier, outcome: 'applied' }
       : undefined,
     // #544 MR4: 'public' (not 'owner' like land-supply) -- Last Stand's
     // defense bonus is a visible battlefield effect the attacker should see

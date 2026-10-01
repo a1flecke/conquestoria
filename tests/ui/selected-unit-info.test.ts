@@ -5,6 +5,7 @@ import type { GameState, HexCoord, UnitType } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 import { createNewGame } from '@/core/game-state';
 import { createUnit } from '@/systems/unit-lifecycle';
+import { foundCity } from '@/systems/city-system';
 import { registerCrisisForce } from '@/systems/crisis-force-system';
 import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
 
@@ -3221,5 +3222,57 @@ describe('naval operational state line (#883)', () => {
     const text = collectAllText(container).join(' ');
     expect(text).not.toContain('Operational');
     expect(text).not.toContain('Depleted');
+  });
+});
+
+describe('air readiness line (#884)', () => {
+  beforeEach(installMockDocument);
+  afterEach(restoreMockDocument);
+
+  function airState(seed: string, airStrain?: number, owner = 'player') {
+    const state = createNewGame(undefined, seed, 'small');
+    const city = foundCity('player', { q: 15, r: 15 }, state.map, state.idCounters);
+    city.buildings = [...city.buildings, 'airfield'];
+    state.cities = { [city.id]: city };
+    state.civilizations.player.cities = [city.id];
+    const unit = {
+      ...createUnit('bomber', owner, city.position, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 }),
+      id: 'u1',
+      airBase: { kind: 'city' as const, cityId: city.id },
+      ...(airStrain ? { airStrain } : {}),
+    };
+    state.currentPlayer = 'player';
+    state.units = { u1: unit };
+    state.civilizations.player.units = ['u1'];
+    return state;
+  }
+  const render = (state: GameState) => {
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', { onStartAirMission: () => {} });
+    return collectAllText(container).join(' ');
+  };
+
+  it('shows readiness with icon and text, plus the base', () => {
+    expect(render(airState('air-ready'))).toContain('✈️ Readiness: Ready — based at');
+  });
+
+  it('explains a spent aircraft and why Air Strike is unavailable instead of hiding it', () => {
+    const text = render(airState('air-spent', 6));
+    expect(text).toContain('Readiness: Spent');
+    expect(text).toContain('Air Strike');
+    expect(text).toMatch(/spent — let it rest/);
+  });
+
+  it('shows a ready aircraft no denial', () => {
+    expect(render(airState('air-ready-2'))).not.toMatch(/let it rest/);
+  });
+
+  it('shows nothing about a foreign aircraft’s readiness', () => {
+    const state = airState('air-foreign', 6);
+    const other = Object.keys(state.civilizations).find(id => id !== 'player')!;
+    state.units.u1!.owner = other;
+    const text = render(state);
+    expect(text).not.toContain('Readiness:');
+    expect(text).not.toMatch(/let it rest/);
   });
 });

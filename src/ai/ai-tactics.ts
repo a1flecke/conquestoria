@@ -72,6 +72,7 @@ import { getAIStrategicRoles, hasAICombatRole } from './ai-unit-roles';
 import { isAIHostileOwner } from './ai-hostility';
 import { getNavalEnduranceStatus } from '@/systems/naval-endurance';
 import { getNavalPorts } from '@/systems/naval-operations';
+import { AIR_RECOVERY_PER_ROUND, getAirBaseSupport, getAirMissionDenial, getAirReadinessStatus } from '@/systems/air-readiness';
 import { getLegalRebaseDestinations, resolveAirStrike, resolveReconMission, resolvePatrolMission, getLegalAirMissionTargets, rebaseAircraft, startIntercept, getAirBaseRoster } from '@/systems/air-operations-system';
 import { getParadropTargets, executeParadrop, getAirAssaultLaunchState, getAirAssaultTargets, executeAirAssault } from '@/systems/airborne-system';
 import { getKnownHostileAirDefenseThreat } from '@/systems/air-defense-system';
@@ -493,6 +494,8 @@ function rankAirStrikes(
 ): RankedAITacticalAction[] {
   const operation = UNIT_DEFINITIONS[unit.type].airOperation;
   if (context.allowOffensiveActions === false || !operation?.missions.includes('strike') || !unit.airBase || unit.hasActed) return [];
+  // #884: the same readiness gate the player's target list and the executor use (own unit only).
+  if (getAirMissionDenial(context.state, unit.id, 'strike')) return [];
   return Object.values(context.state.units)
     .filter(target => !target.airBase && target.owner !== context.actorId && isAIHostileOwner(context.state, context.actorId, target.owner))
     .filter(target => getVisibility(context.state.civilizations[context.actorId].visibility, target.position) === 'visible')
@@ -508,7 +511,17 @@ function rankAirSupport(
   const operation = UNIT_DEFINITIONS[unit.type].airOperation;
   if (!operation || !unit.airBase || unit.hasActed) return [];
   const actions: RankedAITacticalAction[] = [];
-  if (operation.missions.includes('recon')) {
+  // #884: a non-ready wing recovers by idling at a supporting base. A spent aircraft stays on the
+  // ground; a worn one only answers a real threat. If its base cannot restore it (damaged airfield,
+  // depleted carrier) and a fully-supporting base is in ferry range, it rebases instead.
+  const readiness = getAirReadinessStatus(unit);
+  if (readiness !== 'ready' && getAirBaseSupport(context.state, unit).recoveryPerRound < AIR_RECOVERY_PER_ROUND) {
+    const better = getLegalRebaseDestinations(context.state, unit.id)
+      .find(base => getAirBaseSupport(context.state, { owner: unit.owner, airBase: base }).recoveryPerRound >= AIR_RECOVERY_PER_ROUND);
+    if (better) return [ranked({ kind: 'air-rebase', unitId: unit.id, base: better }, 480)];
+  }
+  if (readiness === 'spent') return [];
+  if (readiness === 'ready' && operation.missions.includes('recon')) {
     const target = targetPosition(context.plan);
     if (distance(context.state, unit.position, target) <= operation.operationalRange) {
       actions.push(ranked({ kind: 'air-recon', unitId: unit.id, target }, 420));
@@ -522,7 +535,7 @@ function rankAirSupport(
     if (threatened) actions.push(ranked({ kind: 'air-intercept', unitId: unit.id }, 460));
   }
   const destination = getLegalRebaseDestinations(context.state, unit.id)[0];
-  if (destination && context.plan.objective === 'defend') {
+  if (destination && context.plan.objective === 'defend' && readiness === 'ready') {
     actions.push(ranked({ kind: 'air-rebase', unitId: unit.id, base: destination }, 300));
   }
   return actions;
@@ -608,6 +621,7 @@ function rankPatrol(
 ): RankedAITacticalAction[] {
   const operation = UNIT_DEFINITIONS[unit.type].airOperation;
   if (!operation?.missions.includes('patrol') || !unit.airBase || unit.hasActed) return [];
+  if (getAirReadinessStatus(unit) !== 'ready') return [];
   const legalTargets = getLegalAirMissionTargets(context.state, unit.id, 'patrol');
   if (legalTargets.length === 0) return [];
   const legalTargetKeys = new Set(legalTargets.map(hexKey));
