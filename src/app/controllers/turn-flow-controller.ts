@@ -348,7 +348,18 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
       if (result.outcome === 'occupied') {
         const capturingCiv = deps.currentCiv();
         if (capturingCiv && attackerBonus?.type === 'naval_raiding') {
-          capturingCiv.gold += 30;
+          // #1199: the spoils are a committed transition, not a mutation of the live
+          // civ object the assault already committed.
+          session.update(state => ({
+            ...state,
+            civilizations: {
+              ...state.civilizations,
+              [capturingCiv.id]: {
+                ...state.civilizations[capturingCiv.id],
+                gold: state.civilizations[capturingCiv.id].gold + 30,
+              },
+            },
+          }));
           deps.showNotification('Viking raid spoils! +30 gold', 'success');
         }
         deps.showNotification(`We have captured ${cityName}!`, 'success');
