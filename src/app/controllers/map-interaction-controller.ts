@@ -40,13 +40,15 @@ import { classifyOwner, isAlwaysHostilePair } from '@/core/owner-kind';
 import { resolveMapTapIntent } from '@/input/map-tap-intent';
 import { visibleHostileUnitEntriesAtKey } from '@/input/hex-defender-selection';
 import { handleSelectedUnitMovementBlocker } from '@/input/selected-unit-movement-feedback';
-import { resolveAirStrike, resolveReconMission, resolvePatrolMission } from '@/systems/air-operations-system';
+import { resolveAirStrike, resolveAirStrikeTarget, resolveReconMission, resolvePatrolMission } from '@/systems/air-operations-system';
+import { getAirMissionDenial } from '@/systems/air-readiness';
 import { executeParadrop, PARADROP_FAILURE_MESSAGES, executeAirAssault, AIR_ASSAULT_FAILURE_MESSAGES } from '@/systems/airborne-system';
 import { unloadUnitFromTransport } from '@/systems/transport-system';
 import { getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentation';
 import { getAmphibiousAssaultMultiplier } from '@/systems/combat-context';
 import { buildBattleForecastView } from '@/ui/battle-forecast-projection';
 import { renderBattleForecastCard, type BattleForecastCardInput } from '@/ui/battle-forecast-card';
+import { airForecastSignature, buildAirStrikeForecastView } from '@/ui/air-strike-forecast-projection';
 import { getBeastDefinitionByUnitType } from '@/systems/beast-definitions';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { getEmbarkedAssaultTarget } from '@/systems/transport-system';
@@ -120,6 +122,86 @@ export interface MapInteractionController {
 export function createMapInteractionController(deps: MapInteractionControllerDeps): MapInteractionController {
   const { session, selection, selectionController, renderLoop, audio, bus, uiLayer } = deps;
 
+  /** Player-facing name of the owner of a foreign unit/city, masked by what the current viewer has earned. */
+  function describeForeignOwner(ownerId: string): string {
+    const ownerKind = classifyOwner(ownerId);
+    if (ownerKind === 'barbarian') return 'Barbarian';
+    if (ownerKind === 'pirate') return 'Pirates';
+    if (ownerKind === 'rebel') return 'Rebels';
+    if (ownerKind === 'beast') return 'Legendary Beasts';
+    if (ownerKind === 'minor') {
+      return getMinorCivPresentationForPlayer(session.getState(), session.getState().currentPlayer, ownerId, 'City-State').name;
+    }
+    return session.getState().civilizations[ownerId]?.name ?? ownerId;
+  }
+
+  /**
+   * #1213: a player-initiated air strike is previewed before it is flown. The forecast is information, not
+   * authorisation: Confirm re-runs the canonical strike against the live state, and if the forecast the player
+   * agreed to no longer matches the live one the new forecast is shown instead of executing on stale numbers.
+   */
+  function showAirStrikeForecast(unitId: string, coord: HexCoord, notice?: string): void {
+    const state = session.getState();
+    const viewerId = state.currentPlayer;
+    const striker = state.units[unitId];
+    if (!striker) return;
+    const targetOwner = resolveAirStrikeTarget(state, striker, coord);
+    const ownerId = targetOwner.city?.owner ?? targetOwner.unit?.owner;
+    const forecast = buildAirStrikeForecastView({
+      state, viewerId, unitId, target: coord, ownerName: ownerId ? describeForeignOwner(ownerId) : 'Unknown',
+    });
+    if (!forecast.ok) {
+      deps.showNotification(forecast.message, 'warning');
+      return; // pending intent stays: the player may pick another target or cancel
+    }
+    const panel = deps.getElementById('info-panel');
+    if (!panel) return;
+    panel.style.display = 'block';
+    const signature = airForecastSignature(forecast.view);
+    let spent = false;
+    renderBattleForecastCard(panel, {
+      view: forecast.view,
+      notes: notice ? [{ text: notice, emphasis: 'warning' }] : [],
+      action: { label: 'Strike', title: 'Air Strike Preview' },
+    }, {
+      onCancel: () => {
+        spent = true;
+        selection.setPendingIntent({ kind: 'none' });
+        selectionController.selectUnit(unitId);
+      },
+      onAttack: () => {
+        if (spent) return; // a rapid second tap must never fly the mission twice
+        spent = true;
+        const live = session.getState();
+        const fresh = buildAirStrikeForecastView({
+          state: live, viewerId: live.currentPlayer, unitId, target: coord, ownerName: ownerId ? describeForeignOwner(ownerId) : 'Unknown',
+        });
+        if (!fresh.ok) {
+          deps.showNotification(fresh.message, 'warning');
+          selection.setPendingIntent({ kind: 'none' });
+          selectionController.selectUnit(unitId);
+          return;
+        }
+        if (airForecastSignature(fresh.view) !== signature) {
+          showAirStrikeForecast(unitId, coord, 'Things changed since this preview was shown. Review the updated forecast before striking.');
+          return;
+        }
+        const result = resolveAirStrike(live, unitId, coord, bus);
+        selection.setPendingIntent({ kind: 'none' });
+        if (!result.ok) {
+          deps.showNotification(getAirMissionDenial(live, unitId, 'strike')?.message ?? 'That air mission target is no longer legal.', 'warning');
+          selectionController.selectUnit(unitId);
+          return;
+        }
+        session.commit(result.state);
+        selectionController.refreshCurrentPlayerVisibility();
+        deps.updateHUD();
+        SFX.combat();
+        selectionController.selectUnit(unitId);
+      },
+    });
+  }
+
   function handleHexTap(rawCoord: HexCoord): void {
     const coord = session.getState().map.wrapsHorizontally
       ? wrapHexCoord(rawCoord, session.getState().map.width)
@@ -163,11 +245,13 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
 
           case 'air-mission': {
             const pending = intent.pending;
-            const result = pending.mission === 'strike'
-              ? resolveAirStrike(session.getState(), pending.unitId, coord, bus)
-              : pending.mission === 'recon'
-                ? resolveReconMission(session.getState(), pending.unitId, coord)
-                : resolvePatrolMission(session.getState(), pending.unitId, coord);
+            if (pending.mission === 'strike') {
+              showAirStrikeForecast(pending.unitId, coord);
+              return;
+            }
+            const result = pending.mission === 'recon'
+              ? resolveReconMission(session.getState(), pending.unitId, coord)
+              : resolvePatrolMission(session.getState(), pending.unitId, coord);
             if (!result.ok) {
               deps.showNotification('That air mission target is no longer legal.', 'warning');
               return;
@@ -176,8 +260,7 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
             session.commit(result.state);
             selectionController.refreshCurrentPlayerVisibility();
             deps.updateHUD();
-            if (pending.mission === 'recon' || pending.mission === 'patrol') SFX.airRecon();
-            else SFX.combat();
+            SFX.airRecon();
             selectionController.selectUnit(pending.unitId);
             return;
           }
@@ -486,23 +569,7 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
           : unit;
         const defDef = UNIT_DEFINITIONS[defender.type];
 
-        const ownerKind = classifyOwner(defender.owner);
-        const isMinorCiv = ownerKind === 'minor';
-        let ownerName: string;
-        if (ownerKind === 'barbarian') {
-          ownerName = 'Barbarian';
-        } else if (ownerKind === 'pirate') {
-          ownerName = 'Pirates';
-        } else if (ownerKind === 'rebel') {
-          ownerName = 'Rebels';
-        } else if (ownerKind === 'beast') {
-          ownerName = 'Legendary Beasts';
-        } else if (isMinorCiv) {
-          const presentation = getMinorCivPresentationForPlayer(session.getState(), session.getState().currentPlayer, defender.owner, 'City-State');
-          ownerName = presentation.name;
-        } else {
-          ownerName = session.getState().civilizations[defender.owner]?.name ?? defender.owner;
-        }
+        const ownerName = describeForeignOwner(defender.owner);
 
         const viewerId = session.getState().currentPlayer;
         const view = buildBattleForecastView({

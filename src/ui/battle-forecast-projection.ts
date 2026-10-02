@@ -36,6 +36,12 @@ export interface BattleSideView {
   summary: string;
 }
 
+/** The "what if it is intercepted" block of an air-strike forecast (#1213). Absent for ordinary attacks. */
+export interface BattleInterceptionView {
+  headline: string;
+  lines: string[];
+}
+
 export interface BattleForecastView {
   band: BattleOutcomeBand;
   icon: string;
@@ -51,9 +57,11 @@ export interface BattleForecastView {
   tips: string[];
   ownerName: string;
   ariaLabel: string;
+  /** Air strikes only: the conditional interception exchange that would precede the target strike. */
+  interception?: BattleInterceptionView;
 }
 
-const BAND_PRESENTATION: Record<BattleOutcomeBand, { icon: string; label: string }> = {
+export const BAND_PRESENTATION: Record<BattleOutcomeBand, { icon: string; label: string }> = {
   'strong-advantage': { icon: '✅', label: 'Strong advantage' },
   advantage: { icon: '👍', label: 'Advantage' },
   even: { icon: '⚖️', label: 'Even fight' },

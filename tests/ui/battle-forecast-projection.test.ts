@@ -143,3 +143,177 @@ describe('battle forecast projection (#1135) is viewer-safe', () => {
     expect(JSON.stringify(state)).toBe(before);
   });
 });
+
+// ───────────────────────── #1213 — air-strike forecast ─────────────────────────
+import { buildAirStrikeForecastView, airForecastSignature } from '@/ui/air-strike-forecast-projection';
+import { resolveAirStrike } from '@/systems/air-operations-system';
+
+function airWorld(opts: { target?: 'unit' | 'city'; visibleInterceptor?: boolean; garrison?: boolean; fighter?: boolean } = {}): GameState {
+  const { target = 'unit', visibleInterceptor = false, garrison = false, fighter = true } = opts;
+  const air = (id: string, type: Unit['type'], owner: string, pos: { q: number; r: number }, extra: Partial<Unit> = {}): Unit => ({
+    id, type, owner, position: pos, movementPointsLeft: 4, health: 100, experience: 0,
+    hasMoved: false, hasActed: false, isResting: false, ...extra,
+  });
+  const units: Record<string, Unit> = {
+    striker: air('striker', 'bomber', 'player', { q: 2, r: 2 }, { airBase: { kind: 'city', cityId: 'city-1' } }),
+  };
+  if (target === 'unit') units.target = air('target', 'warrior', 'enemy', { q: 5, r: 2 });
+  if (garrison) units.garrison = air('garrison', 'warrior', 'enemy', { q: 5, r: 2 });
+  // an enemy fighter on an intercept stance, based at an enemy airfield within range of the target
+  if (fighter) units.fighter = air('fighter', 'jet_fighter', 'enemy', { q: 4, r: 2 }, { airBase: { kind: 'city', cityId: 'enemy-base' }, airMission: 'intercept' });
+  const tiles: Record<string, 'visible'> = { '5,2': 'visible', '2,2': 'visible' };
+  if (visibleInterceptor) tiles['4,2'] = 'visible';
+  return {
+    gameId: 'air-forecast', turn: 9, currentPlayer: 'player',
+    map: { width: 10, height: 10, wrapsHorizontally: false, tiles: {}, rivers: [] },
+    units,
+    cities: {
+      'city-1': { id: 'city-1', name: 'Home', owner: 'player', position: { q: 2, r: 2 }, buildings: ['airfield'], hp: 100 },
+      'enemy-base': { id: 'enemy-base', name: 'Base', owner: 'enemy', position: { q: 4, r: 2 }, buildings: ['airfield'], hp: 100 },
+      ...(target === 'city' ? { 'enemy-city': { id: 'enemy-city', name: 'Rome', owner: 'enemy', position: { q: 5, r: 2 }, buildings: [], hp: 100 } } : {}),
+    },
+    civilizations: {
+      player: { id: 'player', name: 'Player', units: ['striker'], cities: ['city-1'], techState: { completed: [] }, visibility: { tiles, lastSeen: {} }, diplomacy: { atWarWith: ['enemy'], events: [] } },
+      enemy: { id: 'enemy', name: 'Enemy', units: Object.keys(units).filter(id => id !== 'striker'), cities: ['enemy-base', ...(target === 'city' ? ['enemy-city'] : [])], techState: { completed: [] }, diplomacy: { atWarWith: ['player'], events: [] } },
+    },
+    minorCivs: {},
+  } as unknown as GameState;
+}
+
+function airView(state: GameState, viewerId = 'player'): BattleForecastView {
+  const result = buildAirStrikeForecastView({ state, viewerId, unitId: 'striker', target: { q: 5, r: 2 }, ownerName: 'Enemy' });
+  if (!result.ok) throw new Error(result.message);
+  return result.view;
+}
+
+const airSurface: ViewerSurface<GameState, BattleForecastView> = { name: 'air strike forecast', project: airView };
+
+describe('air-strike forecast (#1213)', () => {
+  it('forecasts a unit-target strike with no interception block when no capable aircraft is visible', () => {
+    const view = airView(airWorld());
+    expect(view.ariaLabel).toContain('Air strike preview');
+    expect(view.interception).toBeUndefined();
+    expect(view.them.name).toBe('Warrior');
+  });
+
+  it('shows a truthful two-stage conditional when a capable hostile fighter is visible in range', () => {
+    const view = airView(airWorld({ visibleInterceptor: true }));
+    expect(view.interception).toBeDefined();
+    expect(view.interception!.headline).toContain('Jet Fighter');
+    const text = view.interception!.lines.join(' ');
+    expect(text).toMatch(/shot down before it reaches the target: \d+%/);
+    expect(text).toMatch(/after interception, against \d+ HP if nothing intercepts/);
+  });
+
+  it('a hidden fighter, hidden base, hidden stance/readiness/tech or hidden air defence never moves the forecast', () => {
+    for (const visibleInterceptor of [false, true]) {
+      expectViewerSafety(airSurface, {
+        world: airWorld({ visibleInterceptor }),
+        viewerId: 'player',
+        hidden: [
+          { label: 'the enemy researches a tech', apply: w => { w.civilizations.enemy!.techState.completed.push('radar'); } },
+          { label: 'an unseen enemy SAM-style building appears at the enemy base', apply: w => { w.cities['enemy-base']!.buildings.push('sam_site'); } },
+          { label: 'the enemy fighter\'s intercept stance, strain and spent-this-turn marker change', apply: w => {
+            const f = w.units.fighter as Unit; f.airStrain = 7; f.interceptedTurn = w.turn; f.airMission = undefined;
+          } },
+          { label: 'a second unseen enemy fighter on stance at another unseen base', apply: w => {
+            w.units.fighter2 = { ...(w.units.fighter as Unit), id: 'fighter2', position: { q: 5, r: 3 } };
+            w.civilizations.enemy!.units.push('fighter2');
+          } },
+        ],
+        earned: visibleInterceptor
+          ? [{ label: 'the visible fighter is visibly wounded', apply: w => { w.units.fighter!.health = 30; } }]
+          : [{ label: 'the enemy fighter comes into view', apply: w => { (w.civilizations.player!.visibility!.tiles as Record<string, string>)['4,2'] = 'visible'; } }],
+      });
+    }
+  });
+
+  it('own readiness is shown to its owner, and a spent aircraft gets the typed denial instead of a forecast', () => {
+    const worn = airWorld(); (worn.units.striker as Unit).airStrain = 4;
+    const wornView = airView(worn);
+    expect([...wornView.workingAgainstYou, ...wornView.workingForYou].join(' ')).toMatch(/[Rr]eadiness|[Ww]orn/);
+    const spent = airWorld(); (spent.units.striker as Unit).airStrain = 7;
+    const denied = buildAirStrikeForecastView({ state: spent, viewerId: 'player', unitId: 'striker', target: { q: 5, r: 2 }, ownerName: 'Enemy' });
+    expect(denied.ok).toBe(false);
+    expect(!denied.ok && denied.message.length).toBeGreaterThan(5);
+  });
+
+  it('is pure: nothing mutates, repeated builds agree, no interceptor/readiness marker moves', () => {
+    const state = airWorld({ visibleInterceptor: true });
+    const before = JSON.stringify(state);
+    const first = airView(state);
+    const second = airView(state);
+    expect(JSON.stringify(state)).toBe(before);
+    expect(second).toEqual(first);
+    expect((state.units.fighter as Unit).interceptedTurn).toBeUndefined();
+    expect((state.units.striker as Unit).airStrain).toBeUndefined();
+    expect(state.units.striker!.hasActed).toBe(false);
+  });
+
+  it('refuses a target that is not a legal strike target, and a foreign viewer', () => {
+    const state = airWorld();
+    expect(buildAirStrikeForecastView({ state, viewerId: 'player', unitId: 'striker', target: { q: 9, r: 9 }, ownerName: 'x' }).ok).toBe(false);
+    expect(buildAirStrikeForecastView({ state, viewerId: 'enemy', unitId: 'striker', target: { q: 5, r: 2 }, ownerName: 'x' }).ok).toBe(false);
+  });
+
+  it('city target: the forecast loss matches the real strike (parity) and is hedged about destruction', () => {
+    const state = airWorld({ target: 'city', fighter: false });
+    const view = airView(state);
+    const real = resolveAirStrike(state, 'striker', { q: 5, r: 2 });
+    expect(real.ok).toBe(true);
+    const realLoss = 100 - real.state.cities['enemy-city']!.hp!;
+    expect(view.them.damage.expected).toBe(realLoss);
+    expect(view.them.name).toBe('Rome');
+    expect(view.headline).toContain('never captures');
+  });
+
+  it('city target: a visible garrison blocks the strike and the card says so; an unseen owner tech changes nothing', () => {
+    const view = airView(airWorld({ target: 'city', garrison: true }));
+    expect(view.them.damage.expected).toBe(0);
+    expect(view.headline).toContain('garrison');
+    expectViewerSafety(airSurface, {
+      world: airWorld({ target: 'city' }),
+      viewerId: 'player',
+      hidden: [{ label: 'the city owner researches a defensive tech', apply: w => { w.civilizations.enemy!.techState.completed.push('steel-plate-armor'); w.civilizations.enemy!.techState.completed.push('gunpowder'); } }],
+      earned: [{ label: 'the city is visibly wounded', apply: w => { w.cities['enemy-city']!.hp = 40; } }],
+    });
+  });
+
+  it('hot seat: each seat forecasts its own strike; a fact only one seat has earned reaches that seat alone', () => {
+    const shared = airWorld({ fighter: false });
+    shared.units.estriker = {
+      id: 'estriker', type: 'bomber', owner: 'enemy', position: { q: 4, r: 2 }, movementPointsLeft: 4, health: 100, experience: 0,
+      hasMoved: false, hasActed: false, isResting: false, airBase: { kind: 'city', cityId: 'enemy-base' },
+    } as Unit;
+    shared.units.ptarget = { ...(shared.units.target as Unit), id: 'ptarget', owner: 'player', position: { q: 1, r: 2 } };
+    shared.civilizations.enemy!.units.push('estriker');
+    shared.civilizations.player!.units.push('ptarget');
+    (shared.civilizations.player!.visibility!.tiles as Record<string, string>)['1,2'] = 'visible';
+    shared.civilizations.enemy!.visibility = { tiles: { '1,2': 'visible', '4,2': 'visible' }, lastSeen: {} } as never;
+    const seatSurface: ViewerSurface<GameState, BattleForecastView> = {
+      name: 'air strike forecast (seat)',
+      project: (state, viewer) => {
+        const mine = viewer === 'player'
+          ? { unitId: 'striker', target: { q: 5, r: 2 } }
+          : { unitId: 'estriker', target: { q: 1, r: 2 } };
+        const result = buildAirStrikeForecastView({ state, viewerId: viewer, ...mine, ownerName: 'Rival' });
+        if (!result.ok) throw new Error(result.message);
+        return result.view;
+      },
+    };
+    expectHotSeatDifferential(seatSurface, {
+      world: shared,
+      viewers: ['enemy', 'player'] as const,
+      knownOnlyTo: 'player',
+      mutation: { label: 'the player\'s own striker is worn (only its owner reads its readiness)', apply: w => { (w.units.striker as Unit).airStrain = 4; } },
+    });
+  });
+
+  it('the signature changes when the live forecast changes (stale-confirm guard) and not otherwise', () => {
+    const a = airWorld({ visibleInterceptor: true });
+    const b = airWorld({ visibleInterceptor: true });
+    expect(airForecastSignature(airView(a))).toBe(airForecastSignature(airView(b)));
+    (b.units.fighter as Unit).health = 20;
+    expect(airForecastSignature(airView(b))).not.toBe(airForecastSignature(airView(a)));
+  });
+});

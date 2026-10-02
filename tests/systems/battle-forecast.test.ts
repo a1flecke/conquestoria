@@ -111,3 +111,97 @@ describe('battle forecast outcome bands', () => {
     expect(f.band).toBe('severe-risk');
   });
 });
+
+// ───────────────────────── #1213 — two-stage air-strike chain ─────────────────────────
+import { forecastAirStrike } from '@/systems/air-strike-forecast';
+import { resolveAirStrike } from '@/systems/air-operations-system';
+import { buildCombatContextForDefender } from '@/systems/combat-context';
+import { resolveCombatEra } from '@/systems/era-resolution';
+import type { GameState } from '@/core/types';
+
+describe('air-strike forecast chain (#1213)', () => {
+  const base = (id: string, type: Unit['type'], owner: string, pos: { q: number; r: number }, extra: Partial<Unit> = {}): Unit => ({
+    id, type, owner, position: pos, movementPointsLeft: 4, health: 100, experience: 0,
+    hasMoved: false, hasActed: false, isResting: false, ...extra,
+  });
+  const world = (turn: number, strikerHealth = 100): GameState => ({
+    gameId: 'air-chain', turn, currentPlayer: 'player',
+    map: { width: 10, height: 10, wrapsHorizontally: false, tiles: {}, rivers: [] },
+    units: {
+      striker: base('striker', 'bomber', 'player', { q: 2, r: 2 }, { health: strikerHealth, airBase: { kind: 'city', cityId: 'city-1' } }),
+      interceptor: base('interceptor', 'jet_fighter', 'enemy', { q: 4, r: 2 }, { airBase: { kind: 'city', cityId: 'enemy-city' }, airMission: 'intercept' }),
+      target: base('target', 'swordsman', 'enemy', { q: 5, r: 2 }),
+    },
+    cities: {
+      'city-1': { id: 'city-1', owner: 'player', position: { q: 2, r: 2 }, buildings: ['airfield'] },
+      'enemy-city': { id: 'enemy-city', owner: 'enemy', position: { q: 4, r: 2 }, buildings: ['airfield'] },
+    },
+    civilizations: {
+      player: { units: ['striker'], cities: ['city-1'], techState: { completed: [] }, diplomacy: { atWarWith: ['enemy'], events: [] } },
+      enemy: { units: ['interceptor', 'target'], cities: ['enemy-city'], techState: { completed: [] }, diplomacy: { atWarWith: ['player'], events: [] } },
+    },
+  } as unknown as GameState);
+
+  const forecastFor = (state: GameState) => {
+    const striker = state.units.striker!; const interceptor = state.units.interceptor!; const target = state.units.target!;
+    return forecastAirStrike({
+      state, map: state.map, striker,
+      leg: { kind: 'unit', target, era: resolveCombatEra(state, striker, target), context: buildCombatContextForDefender(state, striker, target) },
+      interception: { interceptor, era: resolveCombatEra(state, interceptor, striker), context: buildCombatContextForDefender(state, interceptor, striker, { isIntercepting: true }) },
+    });
+  };
+
+  it('every real strike (many seeds) lands inside the forecast ranges of the branch it took', () => {
+    for (let turn = 1; turn <= 60; turn++) {
+      const state = world(turn);
+      const f = forecastFor(state).ifIntercepted!;
+      const real = resolveAirStrike(state, 'striker', { q: 5, r: 2 });
+      expect(real.ok).toBe(true);
+      expect(real.ok && real.interception?.interceptorId).toBe('interceptor');
+      const after = real.state;
+      const strikerLoss = after.units.striker ? 100 - after.units.striker.health : 100;
+      const interceptorLoss = after.units.interceptor ? 100 - after.units.interceptor.health : 100;
+      const targetLoss = after.units.target ? 100 - after.units.target.health : 100;
+      expect(strikerLoss, `turn ${turn} striker`).toBeGreaterThanOrEqual(f.strikerDamage.min);
+      expect(strikerLoss, `turn ${turn} striker`).toBeLessThanOrEqual(f.strikerDamage.max);
+      expect(interceptorLoss, `turn ${turn} interceptor`).toBeLessThanOrEqual(f.stage.interceptorDamage.max);
+      expect(targetLoss, `turn ${turn} target`).toBeGreaterThanOrEqual(f.targetDamage.min);
+      expect(targetLoss, `turn ${turn} target`).toBeLessThanOrEqual(f.targetDamage.max);
+      if (!after.units.striker) expect(f.strikerDeathChance).toBeGreaterThan(0);
+    }
+  });
+
+  it('conditions the target leg on what interception did to the striker (not a full-health striker)', () => {
+    const f = forecastFor(world(5));
+    expect(f.ifIntercepted!.targetDamage.expected).toBeLessThan(f.withoutInterception.targetDamage.expected);
+    expect(f.ifIntercepted!.reachesTargetChance).toBeLessThan(1);
+    expect(f.ifIntercepted!.strikerDamage.expected).toBeGreaterThan(f.withoutInterception.strikerDamage.expected - 1);
+  });
+
+  it('a striker that is nearly dead is almost certainly lost before it reaches the target', () => {
+    const f = forecastFor(world(5, 3)).ifIntercepted!;
+    expect(f.stage.strikerDestroyedChance).toBeGreaterThan(0.9);
+    expect(f.targetDamage.expected).toBeLessThanOrEqual(5);
+  });
+
+  it('without an interceptor it is exactly the ordinary forecast for the target leg', () => {
+    const state = world(5);
+    const striker = state.units.striker!; const target = state.units.target!;
+    const ctx = buildCombatContextForDefender(state, striker, target);
+    const era = resolveCombatEra(state, striker, target);
+    const chain = forecastAirStrike({ state, map: state.map, striker, leg: { kind: 'unit', target, era, context: ctx } });
+    const direct = forecastCombat(striker, target, state.map, ctx, era, state);
+    expect(chain.ifIntercepted).toBeUndefined();
+    expect(chain.withoutInterception.targetDamage).toEqual(direct.defenderDamage);
+    expect(chain.withoutInterception.strikerDamage).toEqual(direct.attackerDamage);
+    expect(chain.withoutInterception.band).toBe(direct.band);
+  });
+
+  it('consumes no randomness: a spied Math.random is never touched and repeated forecasts agree', () => {
+    const spy = vi.spyOn(Math, 'random');
+    const a = forecastFor(world(7)); const b = forecastFor(world(7));
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+    expect(b).toEqual(a);
+  });
+});

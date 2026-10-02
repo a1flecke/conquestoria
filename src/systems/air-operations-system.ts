@@ -1,5 +1,5 @@
 import type { EventBus } from '@/core/event-bus';
-import type { AirBaseRef, AirMission, CombatResult, GameState, HexCoord, Unit, UnitType } from '@/core/types';
+import type { AirBaseRef, AirMission, City, CombatResult, GameState, HexCoord, Unit, UnitType } from '@/core/types';
 import { hexDistance, hexesInRange, getWrappedHexesInRange, wrappedHexDistance } from './hex-utils';
 import { UNIT_DEFINITIONS } from './unit-definitions';
 import { deterministicCombatSeed, resolveCombat } from './combat-system';
@@ -187,22 +187,39 @@ export function getInterceptCoverage(state: GameState, unitId: string): HexCoord
     : hexesInRange(unit.position, definition.operationalRange);
 }
 
+/**
+ * Could `unit` ever intercept `incoming` over `target`? Capability only — hostile, based, interceptor-
+ * capable, in range. Whether it is actually on an intercept stance, or already spent its interception
+ * this turn, is private to its owner and is `selectInterceptor`'s extra condition, not this one's.
+ * The strike forecast (#1213) uses this alone, so it can only ever reason about what is public.
+ */
+export function canInterceptIncomingStrike(state: GameState, unit: Unit, incoming: Unit, target: { q: number; r: number }): boolean {
+  const definition = UNIT_DEFINITIONS[unit.type].airOperation;
+  return isHostileOwnerTo(state, unit.owner, incoming.owner)
+    && unit.airBase !== undefined
+    && definition?.missions.includes('intercept') === true
+    && airDistance(state, unit.position, target) <= definition.operationalRange;
+}
+
+/** The interception order: strongest effective interception strength, then health, then id. */
+export function pickStrongestInterceptor(candidates: readonly Unit[]): Unit | undefined {
+  return [...candidates].sort((left, right) => {
+    const leftStrength = getInterceptionStrength(left);
+    const rightStrength = getInterceptionStrength(right);
+    return rightStrength - leftStrength || right.health - left.health || left.id.localeCompare(right.id);
+  })[0];
+}
+
 export function selectInterceptor(state: GameState, incoming: Unit, target: { q: number; r: number }): Unit | undefined {
-  return Object.values(state.units)
-    .filter(unit => {
-      const definition = UNIT_DEFINITIONS[unit.type].airOperation;
-      return isHostileOwnerTo(state, unit.owner, incoming.owner)
-        && unit.airMission === 'intercept'
-        && unit.airBase !== undefined
-        && (unit.interceptedTurn === undefined || unit.interceptedTurn !== state.turn)
-        && definition?.missions.includes('intercept') === true
-        && airDistance(state, unit.position, target) <= definition.operationalRange;
-    })
-    .sort((left, right) => {
-      const leftStrength = getInterceptionStrength(left);
-      const rightStrength = getInterceptionStrength(right);
-      return rightStrength - leftStrength || right.health - left.health || left.id.localeCompare(right.id);
-    })[0];
+  return pickStrongestInterceptor(Object.values(state.units)
+    .filter(unit => canInterceptIncomingStrike(state, unit, incoming, target)
+      && unit.airMission === 'intercept'
+      && (unit.interceptedTurn === undefined || unit.interceptedTurn !== state.turn)));
+}
+
+/** Raw damage an air strike deals a city: strength x health x readiness (the one formula; see `resolveAirStrike`). */
+export function getAirStrikeCityRawDamage(striker: Unit): number {
+  return Math.max(1, Math.round(UNIT_DEFINITIONS[striker.type].strength * striker.health / 100 * getAirReadinessCombatPenalty(striker).multiplier));
 }
 
 function getInterceptionStrength(unit: Unit): number {
@@ -293,6 +310,14 @@ function applyAirCombatResult(state: GameState, result: CombatResult, seed: numb
   return applyCombatOutcomeToState(state, result, seed, bus).state;
 }
 
+/** What a strike at `target` hits: a city if one stands there, else the first non-based enemy unit. Shared with the forecast. */
+export function resolveAirStrikeTarget(state: GameState, striker: Unit, target: HexCoord): { city?: City; unit?: Unit } {
+  const city = Object.values(state.cities).find(candidate => candidate.position.q === target.q && candidate.position.r === target.r);
+  if (city) return { city };
+  const unit = Object.values(state.units).find(candidate => !candidate.airBase && candidate.owner !== striker.owner && candidate.position.q === target.q && candidate.position.r === target.r);
+  return { unit };
+}
+
 export function resolveAirStrike(state: GameState, unitId: string, target: HexCoord, bus?: EventBus): AirStrikeResult {
   const striker = state.units[unitId];
   const definition = striker && UNIT_DEFINITIONS[striker.type].airOperation;
@@ -305,8 +330,7 @@ export function resolveAirStrike(state: GameState, unitId: string, target: HexCo
   if (!getLegalAirMissionTargets(state, unitId, 'strike').some(candidate => candidate.q === target.q && candidate.r === target.r)) {
     return { ok: false, state, reason: 'invalid-strike-target' };
   }
-  const targetCity = Object.values(state.cities).find(city => city.position.q === target.q && city.position.r === target.r);
-  const targetUnit = targetCity ? undefined : Object.values(state.units).find(unit => !unit.airBase && unit.owner !== striker.owner && unit.position.q === target.q && unit.position.r === target.r);
+  const { city: targetCity, unit: targetUnit } = resolveAirStrikeTarget(state, striker, target);
   if (!targetUnit && !targetCity) return { ok: false, state, reason: 'missing-target' };
   let nextState = state;
   const interceptor = selectInterceptor(state, striker, target);
@@ -344,7 +368,7 @@ export function resolveAirStrike(state: GameState, unitId: string, target: HexCo
     const cityResult = resolveCitySiegeDamage({
       city: currentCity,
       ownerCiv,
-      rawDamage: Math.max(1, Math.round(UNIT_DEFINITIONS[currentStriker.type].strength * currentStriker.health / 100 * getAirReadinessCombatPenalty(currentStriker).multiplier)),
+      rawDamage: getAirStrikeCityRawDamage(currentStriker),
       attackerDomain: 'air',
       hasGarrison: getCityGarrisonUnit(nextState.units, currentCity) !== undefined,
       isOwnersLastCity: ownerCiv.cities.length <= 1,

@@ -11,6 +11,8 @@ export interface BattleForecastCardInput {
   view: BattleForecastView;
   /** Extra always-visible notes (beast traits, stack info) the controller already knows. */
   notes: Array<{ text: string; emphasis: 'warning' | 'info' }>;
+  /** Confirm button label and card title; defaults to the ordinary-attack wording. Air strikes (#1213) use "Strike". */
+  action?: { label: string; title: string };
 }
 
 export interface BattleForecastCardCallbacks {
@@ -54,7 +56,7 @@ export function renderBattleForecastCard(
   card.setAttribute('aria-label', view.ariaLabel);
   card.setAttribute('data-testid', 'battle-forecast');
 
-  card.appendChild(line('Battle Preview', 'font-size:13px;color:#e8c170;margin-bottom:6px;'));
+  card.appendChild(line(input.action?.title ?? 'Battle Preview', 'font-size:13px;color:#e8c170;margin-bottom:6px;'));
 
   const headline = line(`${view.icon} ${view.headline}`, `font-size:14px;font-weight:700;margin-bottom:6px;color:${BAND_COLOR[view.band]};`);
   headline.setAttribute('data-testid', 'battle-forecast-headline');
@@ -63,6 +65,15 @@ export function renderBattleForecastCard(
   card.appendChild(line(view.you.summary + (view.you.fate ? ` ${capitalise(view.you.fate)}.` : ''), 'font-size:12px;margin-bottom:2px;'));
   card.appendChild(line(view.them.summary + (view.them.fate ? ` ${capitalise(view.them.fate)}.` : ''), 'font-size:12px;margin-bottom:6px;'));
   card.appendChild(line(view.why, 'font-size:11px;opacity:0.85;margin-bottom:6px;'));
+
+  if (view.interception) {
+    const block = document.createElement('div');
+    block.setAttribute('data-testid', 'battle-forecast-interception');
+    block.style.cssText = 'margin-bottom:8px;padding:6px 8px;border-left:3px solid #e08a3c;background:rgba(0,0,0,0.25);';
+    block.appendChild(line(`⚠ ${view.interception.headline}`, 'font-size:11px;font-weight:600;margin-bottom:3px;'));
+    for (const text of view.interception.lines) block.appendChild(line(text, 'font-size:11px;line-height:1.35;opacity:0.92;'));
+    card.appendChild(block);
+  }
 
   for (const note of input.notes) {
     card.appendChild(line(note.text, note.emphasis === 'warning'
@@ -95,7 +106,7 @@ export function renderBattleForecastCard(
   const attackBtn = document.createElement('button');
   attackBtn.id = 'btn-attack-confirm';
   attackBtn.type = 'button';
-  attackBtn.textContent = 'Attack';
+  attackBtn.textContent = input.action?.label ?? 'Attack';
   attackBtn.style.cssText = 'flex:1;min-height:44px;padding:8px;border-radius:8px;background:#d94a4a;border:none;color:white;font-weight:bold;cursor:pointer;';
   const cancelBtn = document.createElement('button');
   cancelBtn.id = 'btn-cancel-attack';
