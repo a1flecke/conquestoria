@@ -50,7 +50,7 @@ import { fortifyUnitInState, unfortifyUnitInState } from '@/systems/unit-lifecyc
 import { initSprites } from '@/renderer/sprites/sprite-loader';
 import { preloadOutpostMarker } from '@/renderer/improvements/resource-outpost-marker';
 import { preloadFortMarker } from '@/renderer/improvements/fort-marker';
-import { preloadFamineBadgeMarker } from '@/renderer/improvements/famine-badge-marker';
+import { preloadCrisisBadgeMarkers } from '@/renderer/improvements/crisis-badge-markers';
 import { preloadReligionBadgeMarker } from '@/renderer/improvements/religion-badge-marker';
 import { preloadRailSegment } from '@/renderer/improvements/rail-segment-loader';
 import { preloadTerrainTiles } from '@/renderer/terrain/terrain-tile-loader';
@@ -253,7 +253,7 @@ export function createGameSessionController(deps: GameSessionControllerDeps): Ga
     void spritesReady.catch(() => {});
     preloadOutpostMarker().catch(() => {});
     preloadFortMarker().catch(() => {});
-    preloadFamineBadgeMarker().catch(() => {});
+    preloadCrisisBadgeMarkers().catch(() => {});
     preloadReligionBadgeMarker().catch(() => {});
     preloadRailSegment().catch(() => {});
     preloadTerrainTiles().catch(() => {});

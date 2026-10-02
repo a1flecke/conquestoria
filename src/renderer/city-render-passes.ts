@@ -6,7 +6,7 @@ import {
   selectPrimaryCityWonder,
   type CityMapPresentation,
 } from '@/renderer/city-map-presentation';
-import { getFamineBadgeMarkerImage } from '@/renderer/improvements/famine-badge-marker';
+import { getCrisisBadgeMarkerImage } from '@/renderer/improvements/crisis-badge-markers';
 import { getReligionBadgeMarkerImage } from '@/renderer/improvements/religion-badge-marker';
 import { spriteCache } from '@/renderer/sprites/sprite-loader';
 import {
@@ -541,8 +541,8 @@ export function drawCityIntelBadgePass(ctx: CanvasRenderingContext2D, item: City
 
 // Reuses drawCityIntelBadgePass's dark-circle "intel" style. Its dedicated shared
 // layout slot never collides with the other city indicators. One glyph for every
-// archetype (matches city-panel's existing '⚠️' crisis convention) -- this is player
-// intel about a rival's crisis, not the rival's own detailed diagnosis.
+// archetype's silhouette badge (crisis-badge-markers.ts); ⚠️ is the load/unknown fallback. This is
+// player intel about a rival's crisis, not the rival's own detailed diagnosis.
 export function drawCityWorldPressureBadgePass(ctx: CanvasRenderingContext2D, item: CityRenderItem): void {
   if (item.projection.renderMode === 'landmark-only') return;
   markPass(ctx, 'world-pressure');
@@ -550,16 +550,12 @@ export function drawCityWorldPressureBadgePass(ctx: CanvasRenderingContext2D, it
 
   const { center, bounds } = getCityBadgeLayout(item.screen, item.size).worldPressure;
 
-  // #594 MR7: famine gets bespoke badge art; every other archetype (outbreak,
-  // catastrophe, hunt) keeps the generic ⚠️ glyph -- the badge fires for ANY active
-  // crisis (item.worldPressureCrisis carries the real archetype), so this must stay
-  // conditional rather than swapping the glyph unconditionally.
-  if (item.worldPressureCrisis === 'famine') {
-    const famineImg = getFamineBadgeMarkerImage();
-    if (famineImg) {
-      ctx.drawImage(famineImg, bounds.x, bounds.y, bounds.width, bounds.height);
-      return;
-    }
+  // #594 MR7 / #618: every archetype has its own silhouette badge. The generic ⚠️ below is only
+  // for an image that has not loaded yet or an archetype this build does not know (corrupt save).
+  const crisisImg = getCrisisBadgeMarkerImage(item.worldPressureCrisis);
+  if (crisisImg) {
+    ctx.drawImage(crisisImg, bounds.x, bounds.y, bounds.width, bounds.height);
+    return;
   }
 
   ctx.beginPath();
