@@ -705,14 +705,15 @@ export function processTurn(
     {
       const visionCompletedTechs = newState.civilizations[civId].techState.completed;
       const visionActiveNPs = getActiveNationalProjectsForCiv(newState, civId);
-      updateVisibility(
+      const { visibility: visionAfterUpdate } = updateVisibility(
         newState.civilizations[civId].visibility,
         civUnits,
         newState.map,
         cityPositions,
         unit => getVisionBonus(unit.type, visionCompletedTechs, visionActiveNPs) + getNetworkUnitVisionBonus(newState, unit.id),
       );
-      applyReconReveals(newState, civId);
+      newState.civilizations[civId].visibility = visionAfterUpdate;
+      newState = applyReconReveals(newState, civId);
     }
 
     if (civ.techState.completed.includes('mass-surveillance')) {
@@ -777,7 +778,7 @@ export function processTurn(
     for (const contact of syncCivilizationContactsFromVisibility(newState, civId)) {
       bus.emit('civilization:first-contact', contact);
     }
-    refreshLastSeenPresentationsForCiv(newState, civId);
+    newState = refreshLastSeenPresentationsForCiv(newState, civId);
 
     // Clear expired advisor disable timers after all start-of-turn effects are processed.
     if (currentCivState.advisorDisabledUntil) {
@@ -1372,7 +1373,7 @@ export function processTurn(
   // before they transition back to fog. This must run after all visibility.tiles mutations
   // in the espionage block (processEspionageTurn, processDetection, spy city vision).
   for (const civId of Object.keys(newState.civilizations)) {
-    refreshLastSeenPresentationsForCiv(newState, civId);
+    newState = refreshLastSeenPresentationsForCiv(newState, civId);
   }
 
   // #910: human decisions remain recipient-owned; this only advances obligations.

@@ -46,10 +46,14 @@ function refreshVisibilityAndContacts(state: GameState): GameState {
     const cityPositions = Object.values(state.cities)
       .filter(city => city.owner === civId)
       .map(city => city.position);
-    updateVisibility(civ.visibility, civUnits, state.map, cityPositions);
+    civ.visibility = updateVisibility(civ.visibility, civUnits, state.map, cityPositions).visibility;
   }
   for (const civId of Object.keys(state.civilizations)) {
-    refreshLastSeenPresentationsForCiv(state, civId);
+    const refreshed = refreshLastSeenPresentationsForCiv(state, civId);
+    state = {
+      ...state,
+      civilizations: { ...state.civilizations, [civId]: refreshed.civilizations[civId] },
+    };
     syncCivilizationContactsFromVisibility(state, civId);
   }
   return state;

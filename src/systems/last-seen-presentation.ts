@@ -129,21 +129,32 @@ export function createLastSeenTilePresentation(
   );
 }
 
-export function refreshLastSeenPresentationsForCiv(state: GameState, viewerId: string): void {
+export function refreshLastSeenPresentationsForCiv(state: GameState, viewerId: string): GameState {
   const civ = state.civilizations[viewerId];
-  if (!civ?.visibility) return;
+  if (!civ?.visibility) return state;
 
-  civ.visibility.lastSeen ??= {};
+  const lastSeen = { ...(civ.visibility.lastSeen ?? {}) };
   const unitsByTile = visibleUnitsByTile(state, viewerId);
   for (const [key, tile] of Object.entries(state.map.tiles)) {
     const coord = tile.coord ?? parseHexKey(key);
     if (getVisibility(civ.visibility, coord) !== 'visible') continue;
-    civ.visibility.lastSeen[key] = createTilePresentation(
+    lastSeen[key] = createTilePresentation(
       state,
       { ...tile, coord },
       unitsByTile.get(key) ?? [],
     );
   }
+
+  return {
+    ...state,
+    civilizations: {
+      ...state.civilizations,
+      [viewerId]: {
+        ...civ,
+        visibility: { ...civ.visibility, lastSeen },
+      },
+    },
+  };
 }
 
 /**
@@ -172,16 +183,29 @@ export function reconstructLastSeenFromMap(state: GameState, civId: string): voi
   }
 }
 
-export function updateAndRefreshVisibility(state: GameState, civId: string): void {
+export function updateAndRefreshVisibility(state: GameState, civId: string): GameState {
   const civ = state.civilizations[civId];
-  if (!civ?.visibility) return;
+  if (!civ?.visibility) return state;
   const units = getOwnedUnits(state, civId);
   const cityPositions = civ.cities
     .map(id => state.cities[id]?.position)
     .filter((p): p is HexCoord => p !== undefined);
   const activeNPs = getActiveNationalProjectsForCiv(state, civId);
-  updateVisibility(civ.visibility, units, state.map, cityPositions,
-    unit => getVisionBonus(unit.type, civ.techState.completed, activeNPs));
-  refreshLastSeenPresentationsForCiv(state, civId);
-  applyReconReveals(state, civId);
+  const { visibility } = updateVisibility(
+    civ.visibility,
+    units,
+    state.map,
+    cityPositions,
+    unit => getVisionBonus(unit.type, civ.techState.completed, activeNPs),
+  );
+  let next: GameState = {
+    ...state,
+    civilizations: {
+      ...state.civilizations,
+      [civId]: { ...civ, visibility },
+    },
+  };
+  next = refreshLastSeenPresentationsForCiv(next, civId);
+  next = applyReconReveals(next, civId);
+  return next;
 }

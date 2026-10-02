@@ -138,8 +138,7 @@ function requiredEraForUnit(type: UnitType): number {
 
 export function refreshMajorCivIntel(state: GameState, civId: string): GameState {
   const nextState = structuredClone(state);
-  refreshLastSeenPresentationsForCiv(nextState, civId);
-  return nextState;
+  return refreshLastSeenPresentationsForCiv(nextState, civId);
 }
 
 export function buildMajorCivPerception(

@@ -1191,7 +1191,7 @@ function processAITurnInternal(
 
   // --- Handle diplomacy ---
   if (civ.diplomacy) {
-    updateAndRefreshVisibility(newState, civId);
+    newState = updateAndRefreshVisibility(newState, civId);
     for (const contact of syncCivilizationContactsFromVisibility(newState, civId)) {
       bus.emit('civilization:first-contact', contact);
     }
@@ -1820,7 +1820,7 @@ function processAITurnInternal(
   }
 
   // Update AI visibility
-  updateAndRefreshVisibility(newState, civId);
+  newState = updateAndRefreshVisibility(newState, civId);
   for (const contact of syncCivilizationContactsFromVisibility(newState, civId)) {
     bus.emit('civilization:first-contact', contact);
   }

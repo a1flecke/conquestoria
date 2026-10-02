@@ -118,7 +118,7 @@ describe('discovery-system', () => {
       isResting: false,
     };
 
-    updateVisibility(state.civilizations.player.visibility, [spottingScout], state.map);
+    state.civilizations.player.visibility = updateVisibility(state.civilizations.player.visibility, [spottingScout], state.map).visibility;
 
     expect(state.civilizations.player.knownCivilizations ?? []).not.toContain('outsider');
 
@@ -225,9 +225,9 @@ describe('discovery-system', () => {
       position: { q: 0, r: 0 },
     };
 
-    updateVisibility(state.civilizations.player.visibility, [spottingScout], state.map);
+    state.civilizations.player.visibility = updateVisibility(state.civilizations.player.visibility, [spottingScout], state.map).visibility;
     syncCivilizationContactsFromVisibility(state, 'player');
-    updateVisibility(state.civilizations.player.visibility, [retreatingScout], state.map);
+    state.civilizations.player.visibility = updateVisibility(state.civilizations.player.visibility, [retreatingScout], state.map).visibility;
 
     expect(hasMetCivilization(state, 'player', 'outsider')).toBe(true);
   });
