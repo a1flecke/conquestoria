@@ -19,5 +19,6 @@ export function confirmBusyWorkerMove(
   }
   abandonWorkerTask(state, unitId);
   const result = executeUnitMove(state, unitId, to, options);
-  return { ...result, state };
+  if (!result.ok) return { ...result, state };
+  return { ...result, state: result.state };
 }

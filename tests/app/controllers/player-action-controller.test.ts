@@ -667,7 +667,10 @@ describe('PlayerActionController', () => {
       expect(updated.units['attacker-1']?.movementPointsLeft).toBe(0);
       expect(deps.showNotification).toHaveBeenCalledWith(expect.stringContaining('conquered'), 'success');
       expect(deps.hud.update).toHaveBeenCalled();
-      expect(listener).toHaveBeenCalledTimes(1);
+      // #1199: the move now publishes its own state (transient write-back is
+      // not a publication), then the conquest commits the ownership change.
+      expect(listener).toHaveBeenCalledTimes(2);
+      expect(deps.session.getState().units['attacker-1']?.movementPointsLeft).toBe(0);
     });
   });
 

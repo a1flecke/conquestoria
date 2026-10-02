@@ -820,11 +820,15 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
           turnsLeft: (isRoadTask ? taskTile?.roadTurnsLeft : taskTile?.improvementTurnsLeft) ?? 1,
           onCancel: () => selectionController.selectUnit(selectedId),
           onConfirm: () => {
-            selectionController.executeAnimatedUnitMove(selectedId, () => confirmBusyWorkerMove(session.getState(), selectedId, intent.coord, {
-              actor: 'player',
-              civId: session.getState().currentPlayer,
-              bus,
-            }));
+            selectionController.executeAnimatedUnitMove(selectedId, () => {
+              const moveResult = confirmBusyWorkerMove(session.getState(), selectedId, intent.coord, {
+                actor: 'player',
+                civId: session.getState().currentPlayer,
+                bus,
+              });
+              if (moveResult.ok) session.commit(moveResult.state);
+              return moveResult;
+            });
             SFX.tap();
             renderLoop.setGameState(session.getState());
             deps.updateHUD();
@@ -834,11 +838,15 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
       }
 
       case 'move': {
-        selectionController.executeAnimatedUnitMove(intent.unitId, () => executeUnitMove(session.getState(), intent.unitId, intent.coord, {
-          actor: 'player',
-          civId: session.getState().currentPlayer,
-          bus,
-        }));
+        selectionController.executeAnimatedUnitMove(intent.unitId, () => {
+          const moveResult = executeUnitMove(session.getState(), intent.unitId, intent.coord, {
+            actor: 'player',
+            civId: session.getState().currentPlayer,
+            bus,
+          });
+          if (moveResult.ok) session.commit(moveResult.state);
+          return moveResult;
+        });
         SFX.tap();
         renderLoop.setGameState(session.getState());
         deps.updateHUD();

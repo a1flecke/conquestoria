@@ -450,10 +450,11 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
       foreignCityEntryId: cityId,
     }));
     if (!movement.ok) return;
-    const movedUnit = deps.session.getState().units[unitId];
+    deps.session.commit(movement.state);
+    const movedUnit = movement.state.units[unitId];
     const stateAfterMove = movedUnit
-      ? { ...deps.session.getState(), units: { ...deps.session.getState().units, [unitId]: { ...movedUnit, movementPointsLeft: 0 } } }
-      : deps.session.getState();
+      ? { ...movement.state, units: { ...movement.state.units, [unitId]: { ...movedUnit, movementPointsLeft: 0 } } }
+      : movement.state;
     const conquered = conquestMinorCiv(stateAfterMove, minorCivId, stateAfterMove.currentPlayer);
     deps.session.commit(conquered.state);
     emitMinorCivLeagueNotices(stateAfterMove, conquered.state, deps.bus);

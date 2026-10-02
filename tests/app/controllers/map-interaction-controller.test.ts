@@ -22,6 +22,7 @@ import {
   type MapInteractionRenderer,
   type MapInteractionAudio,
 } from '@/app/controllers/map-interaction-controller';
+import * as airOperations from '@/systems/air-operations-system';
 
 const idCounters = { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 };
 
@@ -350,12 +351,15 @@ describe('MapInteractionController', () => {
         const { controller, session, selection, deps } = airStrikeFixture();
         controller.handleHexTap({ q: 2, r: 0 });
         const confirm = document.querySelector<HTMLButtonElement>('#btn-attack-confirm')!;
-        const commit = vi.spyOn(session, 'commit');
+        const strike = vi.spyOn(airOperations, 'resolveAirStrike');
 
         confirm.click();
         confirm.click();
 
-        expect(commit).toHaveBeenCalledTimes(1);
+        // The air-strike transition runs once. (#1199: the following
+        // refreshCurrentPlayerVisibility publishes its own commit, so total
+        // session commits is no longer a valid "flew once" proxy.)
+        expect(strike).toHaveBeenCalledTimes(1);
         expect(session.getState().units.b1!.hasActed).toBe(true);
         expect(selection.snapshot().pendingIntent.kind).toBe('none');
         void deps;
