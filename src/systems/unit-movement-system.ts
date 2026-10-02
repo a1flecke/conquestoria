@@ -50,6 +50,9 @@ export interface WonderDiscoveryResult {
 export type ExecuteUnitMoveResult =
   | {
       ok: true;
+      /** #1199: the resulting state. Until Task 4d this is a new object while,
+       *  transitionally, the input state is also written back in place. */
+      state: GameState;
       from: HexCoord;
       to: HexCoord;
       path: HexCoord[];
@@ -115,6 +118,16 @@ export function executeUnitMove(
 }
 
 /**
+ * #1199 TODO(4d): transitionally mirror a pure transition's result back onto the
+ * input `GameState` object in place, so every existing caller that still relies
+ * on the old in-place mutation contract keeps observing the same state. Remove
+ * this (and its call sites) once all callers consume `result.state`.
+ */
+function writeBackStateInPlace(target: GameState, source: GameState): void {
+  Object.assign(target, source);
+}
+
+/**
  * The raw executor. Accepts only a `ValidatedUnitMove` produced by
  * `resolveUnitMoveIntent`, so a caller structurally cannot execute an
  * unvalidated move. Every other movement executor in the codebase either calls
@@ -146,22 +159,23 @@ export function executeValidatedUnitMove(
   }
   const actualTo = moved.position;
   const presentationByViewer = buildMovePresentationByViewer(state, unit, executedPath);
-  state.units = {
-    ...state.units,
-    [unitId]: moved,
+  let nextState: GameState = {
+    ...state,
+    units: {
+      ...state.units,
+      [unitId]: moved,
+    },
   };
   if (unit.type === 'transport') {
-    const synced = syncTransportCargoPositions(state, unitId);
-    state.units = synced.units;
+    nextState = syncTransportCargoPositions(nextState, unitId);
   }
   // #582: any carrier-family hull, not just plain 'carrier' -- a moving
   // Supercarrier must also carry its based aircraft along with it.
   if (UNIT_DEFINITIONS[unit.type].carrierDeckCapacity != null) {
-    const synced = syncCarrierBasedAircraft(state, unitId);
-    state.units = synced.units;
+    nextState = syncCarrierBasedAircraft(nextState, unitId);
   }
-  const networkCleanup = cancelInvalidNetworkPlans(state);
-  state.autonomyByCiv = networkCleanup.state.autonomyByCiv;
+  const networkCleanup = cancelInvalidNetworkPlans(nextState);
+  nextState.autonomyByCiv = networkCleanup.state.autonomyByCiv;
   options.bus?.emit('unit:move', {
     unitId,
     from,
@@ -171,8 +185,11 @@ export function executeValidatedUnitMove(
   });
 
   if (options.actor === 'world') {
+    // #1199 TODO(4d): remove this transitional in-place write-back once all callers consume result.state.
+    writeBackStateInPlace(state, nextState);
     return {
       ok: true,
+      state: nextState,
       from,
       to: actualTo,
       path: executedPath,
@@ -183,7 +200,7 @@ export function executeValidatedUnitMove(
   }
 
   let villageOutcome: Extract<ExecuteUnitMoveResult, { ok: true }>['villageOutcome'];
-  const villageAtDestination = Object.values(state.tribalVillages).find(village => hexKey(village.position) === hexKey(actualTo));
+  const villageAtDestination = Object.values(nextState.tribalVillages).find(village => hexKey(village.position) === hexKey(actualTo));
   if (villageAtDestination) {
     // #983: was `turn*16807 + unit.id.charCodeAt(0)` -- every normal unit id
     // starts with 'unit-', so charCodeAt(0) was 117 for every unit in the
@@ -191,8 +208,8 @@ export function executeValidatedUnitMove(
     // never in the seed either. No ordinal is needed: a village is deleted on
     // visit (village-system.ts), so (turn, villageId, unitId) can only ever
     // occur once.
-    const villageRng = createSimulationRng(state, { domain: 'village-visit', actorId: unit.id, targetId: villageAtDestination.id });
-    const result = visitVillage(state, villageAtDestination.id, state.units[unitId], villageRng);
+    const villageRng = createSimulationRng(nextState, { domain: 'village-visit', actorId: unit.id, targetId: villageAtDestination.id });
+    const result = visitVillage(nextState, villageAtDestination.id, nextState.units[unitId], villageRng);
     villageOutcome = {
       outcome: result.outcome,
       message: result.message,
@@ -206,22 +223,28 @@ export function executeValidatedUnitMove(
     });
   }
 
-  const movementCompletedTechs = state.civilizations[options.civId]?.techState.completed ?? [];
-  const movementActiveNPs = getActiveNationalProjectsForCiv(state, options.civId);
+  const movementCompletedTechs = nextState.civilizations[options.civId]?.techState.completed ?? [];
+  const movementActiveNPs = getActiveNationalProjectsForCiv(nextState, options.civId);
   const visibilityResult = updateVisibility(
-    state.civilizations[options.civId].visibility,
-    getFreeStandingOwnedUnits(state, options.civId),
-    state.map,
-    getCivCityPositions(state, options.civId),
+    nextState.civilizations[options.civId].visibility,
+    getFreeStandingOwnedUnits(nextState, options.civId),
+    nextState.map,
+    getCivCityPositions(nextState, options.civId),
     unit => getVisionBonus(unit.type, movementCompletedTechs, movementActiveNPs),
   );
-  // #1199: `updateVisibility` is pure now; write its result back until the
-  // executor itself returns a new state (Task 4).
-  state.civilizations[options.civId].visibility = visibilityResult.visibility;
-  state.civilizations[options.civId].visibility =
-    refreshLastSeenPresentationsForCiv(state, options.civId).civilizations[options.civId].visibility;
+  nextState = {
+    ...nextState,
+    civilizations: {
+      ...nextState.civilizations,
+      [options.civId]: {
+        ...nextState.civilizations[options.civId],
+        visibility: visibilityResult.visibility,
+      },
+    },
+  };
+  nextState = refreshLastSeenPresentationsForCiv(nextState, options.civId);
   const revealedTiles = visibilityResult.newlyRevealed;
-  const contacts = syncCivilizationContactsFromVisibility(state, options.civId);
+  const contacts = syncCivilizationContactsFromVisibility(nextState, options.civId);
   for (const contact of contacts) {
     options.bus?.emit('civilization:first-contact', contact);
   }
@@ -231,11 +254,11 @@ export function executeValidatedUnitMove(
 
   const discoveredWonders: WonderDiscoveryResult[] = [];
   for (const revealedCoord of revealedTiles) {
-    const revealedTile = state.map.tiles[hexKey(revealedCoord)];
+    const revealedTile = nextState.map.tiles[hexKey(revealedCoord)];
     if (!revealedTile?.wonder) {
       continue;
     }
-    const isFirstDiscoverer = processWonderDiscovery(state, options.civId, revealedTile.wonder);
+    const isFirstDiscoverer = processWonderDiscovery(nextState, options.civId, revealedTile.wonder);
     const discovery = {
       wonderId: revealedTile.wonder,
       position: revealedCoord,
@@ -250,8 +273,12 @@ export function executeValidatedUnitMove(
     });
   }
 
+  // #1199 TODO(4d): remove this transitional in-place write-back once all callers consume result.state.
+  writeBackStateInPlace(state, nextState);
+
   return {
     ok: true,
+    state: nextState,
     from,
     to: actualTo,
     path: executedPath,
