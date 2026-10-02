@@ -16,7 +16,7 @@ import {
 } from '@/renderer/city-render-passes';
 import { getLegendaryWonderLandmarkMetadata } from '@/systems/legendary-wonder-landmark-catalog';
 import type { LegendaryWonderMapEntry } from '@/systems/legendary-wonder-map-presentation';
-import * as famineBadgeMarker from '@/renderer/improvements/famine-badge-marker';
+import * as crisisBadgeMarkers from '@/renderer/improvements/crisis-badge-markers';
 import * as religionBadgeMarker from '@/renderer/improvements/religion-badge-marker';
 import { spriteCache } from '@/renderer/sprites/sprite-loader';
 
@@ -280,7 +280,7 @@ describe('city icon and badge text bounds', () => {
   });
 
   it('#594 MR7: draws the famine badge marker image (not the ⚠️ glyph) when worldPressureCrisis is famine and the marker image is loaded', () => {
-    const getFamineBadgeMarkerImageSpy = vi.spyOn(famineBadgeMarker, 'getFamineBadgeMarkerImage')
+    const getFamineBadgeMarkerImageSpy = vi.spyOn(crisisBadgeMarkers, 'getCrisisBadgeMarkerImage')
       .mockReturnValue({} as HTMLImageElement);
     const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
     const city = {
@@ -296,7 +296,7 @@ describe('city icon and badge text bounds', () => {
   });
 
   it('#594 MR7: falls back to the ⚠️ glyph for famine when the marker image has not loaded yet', () => {
-    const getFamineBadgeMarkerImageSpy = vi.spyOn(famineBadgeMarker, 'getFamineBadgeMarkerImage')
+    const getFamineBadgeMarkerImageSpy = vi.spyOn(crisisBadgeMarkers, 'getCrisisBadgeMarkerImage')
       .mockReturnValue(null);
     const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
     const city = {
@@ -310,6 +310,38 @@ describe('city icon and badge text bounds', () => {
     expect((ctx as unknown as MockCtx).fillTextCalls).toHaveLength(1);
     expect((ctx as unknown as MockCtx).fillTextCalls[0]!.text).toBe('⚠️');
     getFamineBadgeMarkerImageSpy.mockRestore();
+  });
+
+  it.each(['outbreak', 'catastrophe', 'hunt', 'famine'] as const)(
+    '#618: %s draws its own archetype badge image, never the generic ⚠️ glyph',
+    archetype => {
+      const spy = vi.spyOn(crisisBadgeMarkers, 'getCrisisBadgeMarkerImage')
+        .mockImplementation(a => (a === archetype ? ({ tag: a } as unknown as HTMLImageElement) : null));
+      const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
+      const city = {
+        id: 'city-1', owner: 'ai-1', productionQueue: [] as string[], idleProduction: null, unrestLevel: 0,
+      } as CityRenderItem['city'];
+
+      drawCityWorldPressureBadgePass(ctx, makeItem({ city, worldPressureCrisis: archetype }));
+
+      expect(spy).toHaveBeenCalledWith(archetype);
+      expect((ctx as unknown as MockCtx).drawImageCalls).toHaveLength(1);
+      expect((ctx as unknown as MockCtx).fillTextCalls).toHaveLength(0);
+      spy.mockRestore();
+    },
+  );
+
+  it('#618: an unknown/corrupt archetype falls back to the generic ⚠️ glyph without throwing', () => {
+    const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
+    const city = {
+      id: 'city-1', owner: 'ai-1', productionQueue: [] as string[], idleProduction: null, unrestLevel: 0,
+    } as CityRenderItem['city'];
+    const item = makeItem({ city, worldPressureCrisis: 'plague-of-frogs' as never });
+
+    expect(() => drawCityWorldPressureBadgePass(ctx, item)).not.toThrow();
+
+    expect((ctx as unknown as MockCtx).drawImageCalls).toHaveLength(0);
+    expect((ctx as unknown as MockCtx).fillTextCalls[0]!.text).toBe('⚠️');
   });
 
   it('#658: draws the queued building sprite (not the emoji) when the sprite is cached for the city owner', () => {

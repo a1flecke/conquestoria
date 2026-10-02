@@ -245,8 +245,11 @@ Improvement Marker asset contract (`viewBox 0 0 48 48`, no palette, no animation
 
 | Badge | Status | Trigger |
 |-------|--------|---------|
-| world-pressure (generic crisis) | ⚠️ `'⚠️'` emoji (outbreak/catastrophe/hunt tracked: #618) | any active crisis (`worldPressureCrisis`), any archetype |
-| famine crisis | ✅ SVG marker (`src/renderer/improvements/famine-badge-marker.ts`, #594 MR7) | `worldPressureCrisis === 'famine'` — overrides the generic ⚠️ for famine only |
+| world-pressure crisis — famine | ✅ SVG marker (`src/renderer/improvements/crisis-badge-markers.ts`, #594 MR7 / #618) — teardrop | `worldPressureCrisis === 'famine'` |
+| world-pressure crisis — outbreak | ✅ SVG marker (same file, #618) — spore cluster joined to a core | `worldPressureCrisis === 'outbreak'` |
+| world-pressure crisis — catastrophe | ✅ SVG marker (same file, #618) — jagged bolt | `worldPressureCrisis === 'catastrophe'` |
+| world-pressure crisis — hunt | ✅ SVG marker (same file, #618) — three claw slashes | `worldPressureCrisis === 'hunt'` |
+| world-pressure (load / unknown-archetype fallback) | `'⚠️'` emoji — **load fallback** only, drawn until the archetype's image is cached or for an archetype this build has no badge for | any active crisis |
 | loyalty-pressure | ⚠️ `'🙏'` emoji (tracked by the placeholder audit: #622) | active foreign-faith loyalty pressure (`loyaltyPressure`) |
 | religion badge | ✅ SVG marker (`src/renderer/improvements/religion-badge-marker.ts`, #594 MR7), two variants (own-faith / foreign-faith) | city has a resolved `cityFaith` entry (`religionBadge`) |
 
