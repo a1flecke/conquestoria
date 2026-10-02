@@ -1,8 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // @ts-expect-error jsdom is installed for tests but this repo does not ship @types/jsdom.
 import { JSDOM } from 'jsdom';
 import type { City } from '@/core/types';
-import { createCityDistrictsTab } from '@/ui/city-districts';
+import { createCityDistrictsTab, resetUnknownBuildingDiagnostics } from '@/ui/city-districts';
+import { BUILDINGS } from '@/systems/city-building-catalog';
+import { PRODUCTION_ICONS, PRODUCTION_ICON_FALLBACK } from '@/systems/city-production-presentation';
 
 function makeCity(overrides: Partial<City> = {}): City {
   return {
@@ -113,12 +115,35 @@ describe('createCityDistrictsTab', () => {
     });
   });
 
-  it('unknown building ID is skipped silently', () => {
+  it('unknown building ID is safe, shown generically, and reported once (#614)', () => {
+    resetUnknownBuildingDiagnostics();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      withDom(() => {
+        const city = makeCity({ buildings: ['nonexistent-building', 'granary'] });
+        expect(() => createCityDistrictsTab(city)).not.toThrow();
+        const el = createCityDistrictsTab(city);
+        expect(el.querySelectorAll('[data-district]').length).toBe(1); // only food
+        const row = el.querySelector('[data-building-row="nonexistent-building"]');
+        expect(row, 'unknown id must stay visible, not vanish').toBeTruthy();
+        expect(row!.querySelector('[data-building-icon]')!.textContent).toBe(PRODUCTION_ICON_FALLBACK);
+        expect(row!.textContent).toContain('nonexistent-building');
+      });
+      // two renders -> one diagnostic (not spammy)
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(String(warn.mock.calls[0][0])).toContain('nonexistent-building');
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('a city holding only unknown buildings still renders them instead of the empty state', () => {
     withDom(() => {
-      const city = makeCity({ buildings: ['nonexistent-building', 'granary'] });
-      expect(() => createCityDistrictsTab(city)).not.toThrow();
-      const el = createCityDistrictsTab(city);
-      expect(el.querySelectorAll('[data-district]').length).toBe(1); // only food
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const el = createCityDistrictsTab(makeCity({ buildings: ['mystery'] }));
+      warn.mockRestore();
+      expect(el.textContent).not.toContain('No districts yet');
+      expect(el.querySelector('[data-unknown-building]')).toBeTruthy();
     });
   });
 
@@ -139,6 +164,36 @@ describe('createCityDistrictsTab', () => {
       });
       const el = createCityDistrictsTab(city);
       expect(el.querySelectorAll('[data-district]').length).toBe(7);
+    });
+  });
+
+  describe('building icons come from the canonical production presentation (#614)', () => {
+    const iconOf = (id: string): string =>
+      withDom(() => {
+        const el = createCityDistrictsTab(makeCity({ buildings: [id] }));
+        return el.querySelector(`[data-building-row="${id}"] [data-building-icon]`)!.textContent!;
+      });
+
+    it('every catalog building shows its own non-generic icon (derived from BUILDINGS, so additions fail loudly)', () => {
+      const ids = Object.keys(BUILDINGS);
+      expect(ids.length).toBeGreaterThan(100); // non-vacuous
+      for (const id of ids) {
+        const icon = iconOf(id);
+        expect(icon, `${id} fell back to the generic icon`).not.toBe(PRODUCTION_ICON_FALLBACK);
+        expect(icon).toBe(PRODUCTION_ICONS[id]);
+      }
+    });
+
+    it('covers an early, an Era 9 and an Era 12 building', () => {
+      expect(iconOf('granary')).toBe(PRODUCTION_ICONS.granary);
+      expect(iconOf('oil_refinery')).toBe(PRODUCTION_ICONS.oil_refinery);
+      expect(iconOf('data_center')).toBe(PRODUCTION_ICONS.data_center);
+    });
+
+    it('covers national projects (they are buildings in this catalog)', () => {
+      const projects = Object.values(BUILDINGS).filter(b => b.nationalProject);
+      expect(projects.length).toBeGreaterThan(10);
+      for (const p of projects) expect(iconOf(p.id)).not.toBe(PRODUCTION_ICON_FALLBACK);
     });
   });
 });

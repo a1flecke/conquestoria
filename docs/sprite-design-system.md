@@ -70,8 +70,8 @@ that, 24 when #759 was originally filed) rather than trusting a pasted snapshot.
 | pre_dreadnought | ✅ sprite | naval |
 | tank | ✅ sprite | melee |
 | submarine | ✅ sprite | naval |
-| observation_balloon | ⚠️ placeholder | air |
-| biplane | ⚠️ placeholder | air |
+| observation_balloon | ⚠️ placeholder (tracked: #621) | air |
+| biplane | ⚠️ placeholder (tracked: #621) | air |
 
 ### Legendary Beasts — `src/renderer/sprites/beasts.tsx`
 Registered in `UNIT_SPRITE_CATALOG` in `src/renderer/sprites/sprite-catalog.ts`.
@@ -151,8 +151,8 @@ sheet: `docs/reviews/assets/issue-712/sprite-preview.html` (regenerate with
 | caravanserai | ✅ sprite | gold |
 | bank | ✅ sprite | gold |
 | stock_exchange | ✅ sprite | gold |
-| anti_air_battery | ⚠️ placeholder | military |
-| air_force_command | ⚠️ placeholder | military |
+| anti_air_battery | ⚠️ placeholder (tracked: #615) | military |
+| air_force_command | ⚠️ placeholder (tracked: #615) | military |
 
 **Note:** this table predates Eras 5–13 and was never kept current for them — treat any
 building/unit not listed above as unverified by this table rather than assuming placeholder
@@ -191,22 +191,33 @@ would have caught this and now guards against it recurring.
 | swamp | ✅ 4 tile variants (animated) | `#4a6b4a` |
 | volcanic | ✅ 4 tile variants (animated) | `#5a3a3a` |
 
-### Improvement Markers — `src/renderer/hex-renderer.ts` → `IMPROVEMENT_ICONS`
-Canvas-drawn emoji icons. Target: replace with proper SVG marker images.
+### Improvement Markers — `src/renderer/improvements/improvement-treatment.ts`
+The strategic map draws improvements through `drawImprovementTreatment` (a deterministic
+canvas treatment per family) — **not** as emoji. `IMPROVEMENT_ICONS` in `src/renderer/hex-renderer.ts`
+is a *compatibility/inspection* table for UI consumers; the map renderer never reads it for
+anything except `resource_outpost`'s pre-load fallback. Do **not** open replacement-art work for
+a deterministic treatment: it is the intended production renderer.
 
-| Improvement | Status |
-|-------------|--------|
-| farm | ⚠️ `'🌾'` emoji |
-| mine | ⚠️ `'⛏️'` emoji |
-| lumber_camp | ⚠️ `'🪵'` emoji |
-| watermill | ⚠️ `'💧'` emoji |
-| plantation | ⚠️ `'🌿'` emoji |
-| pasture | ⚠️ `'🐂'` emoji |
-| camp | ⚠️ `'⛺'` emoji |
-| quarry | ⚠️ `'⚒️'` emoji |
-| resource_outpost | ✅ SVG marker (`src/renderer/improvements/resource-outpost-marker.ts`) |
-| fort | ✅ SVG marker, Fort tier (`src/renderer/improvements/fort-marker.ts`, #712) — earthwork berm + timber palisade + blockhouse; Canvas-primitive fallback before `preloadFortMarker()` resolves |
-| fort (Citadel tier) | ✅ SVG marker, Citadel tier (same file, #712) — same enclosure in masonry with corner bastions + a tall crenellated keep; tier chosen by `getFortMarkerTierForPresentation` (owner has `fortification-engineering`) |
+Status vocabulary used below: **treatment** = deterministic canvas production renderer;
+**asset** = SVG/image normal path; **load fallback** = safe stand-in only while an asset
+loads/fails; **placeholder** = genuinely unresolved, links an open issue.
+
+| Improvement | Map renderer (live) | Status | `IMPROVEMENT_ICONS` (inspection only) |
+|-------------|---------------------|--------|----------------------------------------|
+| farm | `field-rows` treatment | ✅ treatment | `'🌾'` |
+| mine | `worked-rock` treatment | ✅ treatment | `'⛏️'` |
+| quarry | `worked-rock` treatment | ✅ treatment | `'⚒️'` |
+| oil_well | `worked-rock` treatment | ✅ treatment | `'🛢️'` |
+| lumber_camp | `managed-timber` treatment | ✅ treatment | `'🪵'` |
+| watermill | `water-wheel` treatment | ✅ treatment | `'💧'` |
+| plantation | `orchard-rows` treatment | ✅ treatment | `'🌿'` |
+| pasture | `fence-lines` treatment | ✅ treatment | `'🐂'` |
+| camp | `small-camp` treatment | ✅ treatment | `'⛺'` |
+| resource_outpost | SVG marker, `src/renderer/improvements/resource-outpost-marker.ts` (inline SVG string rasterised once by `preloadOutpostMarker()`, no network fetch) | ✅ asset; `'🚩'` emoji is a **load fallback** only (drawn until the image is cached) | `'🚩'` |
+| fort | SVG marker, Fort tier (`src/renderer/improvements/fort-marker.ts`, #712) — earthwork berm + timber palisade + blockhouse; Canvas-primitive fallback before `preloadFortMarker()` resolves | ✅ asset | `'🏰'` |
+| fort (Citadel tier) | SVG marker, Citadel tier (same file, #712) — same enclosure in masonry with corner bastions + a tall crenellated keep; tier chosen by `getFortMarkerTierForPresentation` (owner has `fortification-engineering`) | ✅ asset | `'🏰'` |
+
+No improvement is currently a genuine placeholder.
 
 Fort/Citadel markers are **faction-neutral** like every other improvement marker (earthy
 palette, one neutral amber pennant). They are drawn via `drawImprovementTreatment` →
@@ -234,9 +245,9 @@ Improvement Marker asset contract (`viewBox 0 0 48 48`, no palette, no animation
 
 | Badge | Status | Trigger |
 |-------|--------|---------|
-| world-pressure (generic crisis) | ⚠️ `'⚠️'` emoji | any active crisis (`worldPressureCrisis`), any archetype |
+| world-pressure (generic crisis) | ⚠️ `'⚠️'` emoji (outbreak/catastrophe/hunt tracked: #618) | any active crisis (`worldPressureCrisis`), any archetype |
 | famine crisis | ✅ SVG marker (`src/renderer/improvements/famine-badge-marker.ts`, #594 MR7) | `worldPressureCrisis === 'famine'` — overrides the generic ⚠️ for famine only |
-| loyalty-pressure | ⚠️ `'🙏'` emoji | active foreign-faith loyalty pressure (`loyaltyPressure`) |
+| loyalty-pressure | ⚠️ `'🙏'` emoji (tracked by the placeholder audit: #622) | active foreign-faith loyalty pressure (`loyaltyPressure`) |
 | religion badge | ✅ SVG marker (`src/renderer/improvements/religion-badge-marker.ts`, #594 MR7), two variants (own-faith / foreign-faith) | city has a resolved `cityFaith` entry (`religionBadge`) |
 
 ### Legendary Wonders — `src/systems/legendary-wonder-definitions.ts`
@@ -250,7 +261,7 @@ Building-sprite placeholders exist for these wonders (registered in `BUILDING_SP
 | colosseum | ✅ SVG sprite | 3 | — |
 | great_library | ✅ SVG sprite | 2 | — |
 | lighthouse | ✅ SVG sprite | 4 | — |
-| wright-flyer | ⚠️ placeholder SVG + bespoke canvas | 9 | `drawWrightFlyer` in `legendary-wonder-bespoke-assets.ts` |
+| wright-flyer | ⚠️ placeholder SVG + bespoke canvas (tracked: #619) | 9 | `drawWrightFlyer` in `legendary-wonder-bespoke-assets.ts` |
 
 ---
 
