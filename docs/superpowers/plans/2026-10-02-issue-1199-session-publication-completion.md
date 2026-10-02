@@ -312,16 +312,21 @@ export function updateVisibility(
 
 - [ ] **Step 4: Update callers to commit/thread the result**
 
-- `selection-controller.refreshCurrentPlayerVisibility`:
+Full caller set (audited — update all of them):
+- `selection-controller.ts:955` (`refreshCurrentPlayerVisibility`):
   ```ts
   function refreshCurrentPlayerVisibility(): void {
     // ... existing guards ...
-    const next = updateAndRefreshVisibility(session.getState(), session.getState().currentPlayer);
-    session.commit(next);
+    session.commit(updateAndRefreshVisibility(session.getState(), session.getState().currentPlayer));
   }
   ```
 - `player-action-controller.ts:507`: `deps.session.commit(updateAndRefreshVisibility(deps.session.getState(), deps.session.getState().currentPlayer));`
-- `ai/basic-ai.ts:1194,1823`: assign the result into the local `next`/`newState` the surrounding code already threads (`newState = updateAndRefreshVisibility(newState, civId)`).
+- `ai/basic-ai.ts:1194,1823`: `newState = updateAndRefreshVisibility(newState, civId);`
+- `ai/ai-perception.ts:141`: `nextState = refreshLastSeenPresentationsForCiv(nextState, civId);`
+- `core/turn-manager.ts:708,715,780,1375`: thread the returned visibility/state (`updateVisibility` at 708 returns `{ visibility, newlyRevealed }`; `applyReconReveals`/`refreshLastSeenPresentationsForCiv` return new state).
+- `core/game-state.ts:370,374,457,571,656`: new-game setup — these run on a state being constructed, so they may keep using the returned value locally (`civ.visibility = updateVisibility(...).visibility`) without a session commit.
+- `systems/unit-movement-system.ts:211,218`: the movement executor consumes `updateVisibility(...).newlyRevealed` and `refreshLastSeenPresentationsForCiv` while building its own next state (this is why Task 4 follows).
+- `testing/scenario-builder.ts:49,52`: test scaffolding — adopt the returned values.
 
 - [ ] **Step 5: Run all affected suites — expect PASS**
 
