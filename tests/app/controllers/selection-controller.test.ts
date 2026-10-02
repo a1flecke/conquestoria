@@ -18,6 +18,7 @@ import {
   type SelectionControllerDeps,
   type SelectionControllerRenderer,
 } from '@/app/controllers/selection-controller';
+import { subscribeRecordingViews } from '../../helpers/session-subscribers';
 
 function makeFixture(): GameState {
   const state = createNewGame(undefined, 'selection-controller', 'small');
@@ -160,6 +161,23 @@ function baseDeps(state: GameState, overrides: Partial<SelectionControllerDeps> 
 }
 
 describe('SelectionController', () => {
+  it('a state write publishes through the session subscription, not a controller push (#1199)', () => {
+    const state = makeFixture();
+    placePlayerUnit(state, 'u1');
+    document.body.innerHTML = '<div id="info-panel"></div>';
+    const deps = baseDeps(state);
+    const views = subscribeRecordingViews(deps.session);
+    const controller = createSelectionController(deps);
+    controller.selectUnit('u1');
+    const before = views.renderer.setGameState.mock.calls.length;
+
+    deps.session.commit({ ...deps.session.getState(), turn: deps.session.getState().turn + 1 });
+
+    expect(views.renderer.setGameState.mock.calls.length).toBe(before + 1);
+    expect(views.renderer.setGameState.mock.calls.at(-1)![0]).toBe(deps.session.getState());
+    expect(views.hud.update).toHaveBeenCalled();
+  });
+
   it('selecting a unit sets movement and attack ranges from its highlights', () => {
     const state = makeFixture();
     placePlayerUnit(state, 'u1');
