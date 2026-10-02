@@ -179,6 +179,20 @@ describe('GameSessionController', () => {
       expect(deps.session.getState().settings.supplyWarningPreference).toBe('off');
       expect(published).toHaveLength(1);
     });
+
+    it('#1199: a non-master audio setting write publishes (no silent in-place settings mutation)', () => {
+      const state = makeFixture();
+      const { deps, published } = openPauseMenu(state);
+      const slider = document.querySelector('input[aria-label="Music volume"]') as HTMLInputElement;
+      expect(slider).not.toBeNull();
+
+      slider.value = '0.4';
+      slider.dispatchEvent(new Event('input', { bubbles: true }));
+
+      expect(deps.session.getState().settings.musicVolume).toBe(0.4);
+      expect(published).toHaveLength(1);
+      expect(published[0]).toBe(deps.session.getState());
+    });
   });
 
   describe('startGame', () => {
