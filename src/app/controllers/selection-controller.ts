@@ -874,7 +874,10 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
     session.commit({ ...session.getState(), units: { ...session.getState().units, [unitId]: withAutomation } });
 
     if (withAutomation.movementPointsLeft > 0 && !withAutomation.hasActed) {
-      applyAutoExploreOrder(session.getState(), unitId, { bus });
+      const explored = applyAutoExploreOrder(session.getState(), unitId, { bus });
+      if (explored?.ok) {
+        session.commit(explored.state);
+      }
     }
 
     renderLoop.setGameState(session.getState());

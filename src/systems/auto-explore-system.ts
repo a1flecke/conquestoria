@@ -210,19 +210,25 @@ export function applyAutoExploreOrder(
   if (!result.ok) {
     return result;
   }
-  const movedUnit = state.units[unitId];
+  // #1199: operate on the executor's returned state, not the input; callers
+  // commit/thread `result.state`.
+  const movedUnit = result.state.units[unitId];
+  let nextState = result.state;
   if (movedUnit) {
-    state.units = {
-      ...state.units,
-      [unitId]: {
-        ...movedUnit,
-        automation: {
-          mode: 'auto-explore',
-          startedTurn: unit.automation.startedTurn,
-          lastTargets: [...unit.automation.lastTargets, hexKey(order.to)].slice(-4),
+    nextState = {
+      ...result.state,
+      units: {
+        ...result.state.units,
+        [unitId]: {
+          ...movedUnit,
+          automation: {
+            mode: 'auto-explore',
+            startedTurn: unit.automation.startedTurn,
+            lastTargets: [...unit.automation.lastTargets, hexKey(order.to)].slice(-4),
+          },
         },
       },
     };
   }
-  return result;
+  return { ...result, state: nextState };
 }
