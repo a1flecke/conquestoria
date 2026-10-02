@@ -48,7 +48,7 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   neural_rehabilitation_center: '🧠',
   ocean_robotics_yard: '⚓',
   circular_fabricator: '♻️',
-  modular_arcology: '🏗️',
+  modular_arcology: '🏬',
   carbon_capture_grid: '🌿',
   immersive_arts_lab: '🥽',
   national_ai_assurance_program: '🛡️',
@@ -251,7 +251,7 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   signals_bureau: '📻',
   // era 10 national projects
   manhattan_project: '💣',
-  postwar_reconstruction: '🏗️',
+  postwar_reconstruction: '🏘️',
   warhead: '☢️',
   space_program_initiative: '🚀',
   // era 11 regular buildings
@@ -334,6 +334,17 @@ export function describeDroppedProductionItem(item: DroppedProductionItem, cityN
     case 'air-base-unavailable':
       return `${name} removed from ${cityName}'s build queue — it needs a compatible air base with an available slot.`;
   }
+}
+
+/**
+ * Icon for a building that exists in the live `BUILDINGS` catalog (#614). Returns `null` for an ID the
+ * catalog does not know (corrupt/legacy save data), so a caller can tell "known, show its icon" from
+ * "unknown, show the generic fallback and say so" — `getProductionIconForItem` cannot, because it
+ * folds both into `PRODUCTION_ICON_FALLBACK`.
+ */
+export function getKnownBuildingIcon(buildingId: string): string | null {
+  if (!BUILDINGS[buildingId]) return null;
+  return PRODUCTION_ICONS[buildingId] ?? null;
 }
 
 export function getProductionIconForItem(itemId: string): string {

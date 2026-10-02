@@ -1,5 +1,6 @@
 import type { City, ResourceYield } from '@/core/types';
 import { BUILDINGS } from '@/systems/city-system';
+import { PRODUCTION_ICON_FALLBACK, getKnownBuildingIcon } from '@/systems/city-production-presentation';
 
 type DistrictCategory = 'food' | 'production' | 'science' | 'economy' | 'military' | 'culture' | 'espionage';
 
@@ -23,15 +24,19 @@ const DISTRICT_META: Record<DistrictCategory, { name: string; icon: string; acce
   espionage: { name: 'Shadow Network',  icon: '🕵️', accent: '#7a8899' },
 };
 
-const BUILDING_ICONS: Record<string, string> = {
-  granary: '🌾', herbalist: '🌿', aqueduct: '💧',
-  workshop: '⚒️', forge: '🔥', lumbermill: '🪵', 'quarry-building': '🪨',
-  library: '📚', archive: '📜', observatory: '🔭',
-  marketplace: '🏪', harbor: '⚓', dock: '🚢',
-  barracks: '⚔️', walls: '🧱', stable: '🐴',
-  temple: '🕍', monument: '🗿', amphitheater: '🎭', shrine: '⛩️', forum: '🏛️',
-  safehouse: '🕵️', 'intelligence-agency': '🏢', 'security-bureau': '🛡️',
-};
+const reportedUnknownBuildings = new Set<string>();
+
+/** Observable, non-spammy diagnostic: one warning per unknown ID per session (#614). */
+function reportUnknownBuilding(id: string): void {
+  if (reportedUnknownBuildings.has(id)) return;
+  reportedUnknownBuildings.add(id);
+  console.warn(`[city-districts] unknown building id "${id}" in a city's building list; showing generic icon`);
+}
+
+/** Test seam: forget which unknown IDs were already reported. */
+export function resetUnknownBuildingDiagnostics(): void {
+  reportedUnknownBuildings.clear();
+}
 
 function allZero(y: ResourceYield): boolean {
   return y.food === 0 && y.production === 0 && y.gold === 0 && y.science === 0;
@@ -66,16 +71,21 @@ export function createCityDistrictsTab(city: City): HTMLElement {
 
   // Group buildings by category (preserving insertion order within each group)
   const grouped = new Map<DistrictCategory, string[]>();
+  const unknownIds: string[] = [];
   for (const id of city.buildings) {
     const def = BUILDINGS[id];
-    if (!def || !def.category) continue;
+    if (!def) {
+      unknownIds.push(id);
+      continue;
+    }
+    if (!def.category) continue;
     const cat = def.category as DistrictCategory;
     if (!DISTRICT_META[cat]) continue;
     if (!grouped.has(cat)) grouped.set(cat, []);
     grouped.get(cat)!.push(id);
   }
 
-  if (grouped.size === 0) {
+  if (grouped.size === 0 && unknownIds.length === 0) {
     const empty = document.createElement('p');
     empty.style.cssText = 'color:rgba(255,255,255,0.3);font-size:12px;text-align:center;padding:32px 16px;font-style:italic;';
     empty.textContent = 'No districts yet — build your first building to found one.';
@@ -130,7 +140,9 @@ export function createCityDistrictsTab(city: City): HTMLElement {
 
       const buildingIcon = document.createElement('span');
       buildingIcon.style.cssText = 'font-size:14px;';
-      buildingIcon.textContent = BUILDING_ICONS[id] ?? '🏗️';
+      buildingIcon.dataset.buildingIcon = '';
+      buildingIcon.setAttribute('aria-hidden', 'true');
+      buildingIcon.textContent = getKnownBuildingIcon(id) ?? PRODUCTION_ICON_FALLBACK;
 
       const buildingName = document.createElement('span');
       buildingName.style.cssText = 'flex:1;color:rgba(255,255,255,0.85);';
@@ -151,5 +163,41 @@ export function createCityDistrictsTab(city: City): HTMLElement {
     root.appendChild(card);
   }
 
+  if (unknownIds.length > 0) root.appendChild(createUnrecognizedCard(unknownIds));
+
   return root;
+}
+
+function createUnrecognizedCard(ids: string[]): HTMLElement {
+  const card = document.createElement('div');
+  card.dataset.unrecognizedBuildings = '';
+  card.style.cssText = 'background:rgba(255,255,255,0.04);border-radius:8px;overflow:hidden;border:1px dashed rgba(255,255,255,0.25);';
+
+  const header = document.createElement('div');
+  header.style.cssText = 'padding:10px 12px;font-size:13px;font-weight:bold;color:rgba(255,255,255,0.6);';
+  header.textContent = 'Unrecognised buildings';
+  card.appendChild(header);
+
+  const rows = document.createElement('div');
+  rows.style.cssText = 'padding:0 12px 10px;display:flex;flex-direction:column;gap:4px;';
+  for (const id of ids) {
+    reportUnknownBuilding(id);
+    const row = document.createElement('div');
+    row.dataset.buildingRow = id;
+    row.dataset.unknownBuilding = '';
+    row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:5px 8px;background:rgba(255,255,255,0.04);border-radius:5px;font-size:11px;';
+    const icon = document.createElement('span');
+    icon.dataset.buildingIcon = '';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.style.cssText = 'font-size:14px;';
+    icon.textContent = PRODUCTION_ICON_FALLBACK;
+    const label = document.createElement('span');
+    label.style.cssText = 'flex:1;color:rgba(255,255,255,0.6);';
+    label.textContent = `${id} (not in this version's catalog)`;
+    row.appendChild(icon);
+    row.appendChild(label);
+    rows.appendChild(row);
+  }
+  card.appendChild(rows);
+  return card;
 }
