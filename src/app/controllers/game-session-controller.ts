@@ -203,8 +203,13 @@ export function createGameSessionController(deps: GameSessionControllerDeps): Ga
               case 'soundEnabled':   deps.audio.setSfxEnabled(value as boolean);   break;
               case 'stingerEnabled': deps.audio.setStingerEnabled(value as boolean); break;
             }
-            // Persist all non-master settings to GameSettings (saved on next save)
-            (deps.session.getState().settings as unknown as Record<string, number | boolean>)[key] = value;
+            // Persist all non-master settings to GameSettings (saved on next save).
+            // #1199: publish through the session. Writing a nested settings field in
+            // place is not a write — subscribers were never told it changed.
+            deps.session.update(state => ({
+              ...state,
+              settings: { ...state.settings, [key]: value },
+            }));
           },
           // #544 MR2: end-turn supply-warning delivery filter
           supplyWarningPreference: deps.session.getState().settings.supplyWarningPreference ?? 'all',
