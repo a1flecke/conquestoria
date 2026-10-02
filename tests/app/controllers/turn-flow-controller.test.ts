@@ -901,6 +901,37 @@ describe('createTurnFlowController', () => {
       // emitter (not a divergent AI-only implementation) is covered by
       // tests/ai/ai-major-turn.test.ts, not re-asserted here.
     });
+
+    it('#1199: naval-raiding occupy spoils are a committed transition, not an in-place civ mutation', () => {
+      const state = makeFixture();
+      const deps = baseDeps(state);
+      const turnFlow = createTurnFlowController(deps);
+      const emitter = vi.mocked(cityCaptureSystem.emitMajorCityCaptureEvents);
+      emitter.mockClear();
+
+      const foreignCityId = Object.values(state.cities).find(city => city.owner !== 'player')!.id;
+      const city = state.cities[foreignCityId]!;
+      deps.selection.setPendingIntent({ kind: 'city-capture', choice: {
+        attackerId: 'irrelevant-for-this-resolution-step',
+        cityId: foreignCityId,
+        targetCoord: city.position,
+        occupiedPopulation: 1,
+        razeGold: 10,
+      } });
+      const goldBefore = deps.session.getState().civilizations.player.gold;
+
+      turnFlow.finalizePendingCityCaptureChoice('occupy', { type: 'naval_raiding' } as never);
+
+      // The emitter runs inside the batch, after the assault commit and before the
+      // spoils. Its snapshot is the player civ object as of the assault transition.
+      const resultAtEmit = emitter.mock.calls[0]![1] as { state: GameState };
+      const civAtEmit = resultAtEmit.state.civilizations.player;
+
+      expect(deps.session.getState().civilizations.player.gold).toBe(goldBefore + 30);
+      // The spoils must be a new civilizations/civ object, not a mutation of the one
+      // the assault already committed.
+      expect(deps.session.getState().civilizations.player).not.toBe(civAtEmit);
+    });
   });
 
   describe('captureAIMoves / replayAIMoves', () => {
