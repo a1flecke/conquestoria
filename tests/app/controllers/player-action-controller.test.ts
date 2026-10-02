@@ -16,10 +16,6 @@ import {
   type PlayerActionControllerDeps,
 } from '@/app/controllers/player-action-controller';
 
-function fakeSuccessfulMove(): ExecuteUnitMoveResult {
-  return { ok: true, from: { q: 0, r: 0 }, to: { q: 0, r: 0 }, path: [], revealedTiles: [], discoveredWonders: [] };
-}
-
 function fakeFailedMove(message: string): ExecuteUnitMoveResult {
   return {
     ok: false, from: { q: 0, r: 0 }, to: { q: 0, r: 0 }, path: [],
@@ -79,8 +75,7 @@ function makeDeps(state: GameState, overrides: Partial<PlayerActionControllerDep
     selection: { getSelectedUnitId: vi.fn(() => null), setPendingIntent: vi.fn() },
     selectionController: {
       selectUnit: vi.fn(), deselectUnit: vi.fn(), selectNextUnit: vi.fn(), refreshCurrentPlayerVisibility: vi.fn(),
-      executeAnimatedUnitMove: vi.fn(() => fakeSuccessfulMove()), refreshSelectedUnitAfterCombat: vi.fn(),
-    },
+      executeAnimatedUnitMove: vi.fn((_unitId: string, execute: () => ExecuteUnitMoveResult) => execute()), refreshSelectedUnitAfterCombat: vi.fn(),    },
     turnFlow: { endTurn: vi.fn(() => Promise.resolve()), finalizePendingCityCaptureChoice: vi.fn() },
     hud: { update: vi.fn() },
     renderLoop: { camera: { centerOn: vi.fn() }, setGameState: vi.fn(), animations: { add: vi.fn() } },

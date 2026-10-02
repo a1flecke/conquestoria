@@ -100,6 +100,19 @@ function movementState(
 }
 
 describe('unit-movement-system', () => {
+  it('#1199 (4a): executeUnitMove returns a new state carrying the move', () => {
+    const mover = { ...createUnit('warrior', 'player', { q: 0, r: 0 }, mkC()), id: 'mover', movementPointsLeft: 2 };
+    const state = movementState(mover, [tile({ q: 0, r: 0 }), tile({ q: 1, r: 0 })]);
+
+    const result = executeUnitMove(state, mover.id, { q: 1, r: 0 }, { actor: 'player', civId: 'player' });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state).not.toBe(state); // new object
+    expect(result.state.units[mover.id].position).toEqual({ q: 1, r: 0 });
+    expect(state.units[mover.id].position).toEqual({ q: 1, r: 0 }); // transitional: in-place still true
+  });
+
   it('ends movement after a legal zone-of-control entry', () => {
     const mover = { ...createUnit('warrior', 'player', { q: 0, r: 0 }, mkC()), id: 'mover', movementPointsLeft: 2 };
     const enemy = { ...createUnit('warrior', 'ai-1', { q: 2, r: -1 }, mkC()), id: 'enemy' };
