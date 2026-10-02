@@ -78,4 +78,25 @@ describe('battle forecast card (#1135)', () => {
       expect(panel.querySelector('[data-testid="battle-forecast-headline"]')!.textContent).toBe(`${icon} ${word} — x`);
     }
   });
+
+  it('#1213: renders the interception block in words (not colour alone) and a custom action label', () => {
+    const panel = document.createElement('div');
+    renderBattleForecastCard(panel, {
+      view: view({ interception: { headline: 'Interception risk: a Jet Fighter you can see is in range and may intercept.', lines: ['If it intercepts, it fights your Bomber first.'] } }),
+      notes: [],
+      action: { label: 'Strike', title: 'Air Strike Preview' },
+    }, { onAttack: () => {}, onCancel: () => {} });
+    const block = panel.querySelector('[data-testid="battle-forecast-interception"]')!;
+    expect(block.textContent).toContain('Interception risk');
+    expect(block.textContent).toContain('fights your Bomber first');
+    expect(panel.querySelector('#btn-attack-confirm')!.textContent).toBe('Strike');
+    expect(panel.textContent).toContain('Air Strike Preview');
+  });
+
+  it('#1213: an ordinary attack still has no interception block and says Attack', () => {
+    const panel = document.createElement('div');
+    renderBattleForecastCard(panel, { view: view(), notes: [] }, { onAttack: () => {}, onCancel: () => {} });
+    expect(panel.querySelector('[data-testid="battle-forecast-interception"]')).toBeNull();
+    expect(panel.querySelector('#btn-attack-confirm')!.textContent).toBe('Attack');
+  });
 });

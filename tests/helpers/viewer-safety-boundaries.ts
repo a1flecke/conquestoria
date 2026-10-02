@@ -72,9 +72,10 @@ export const VIEWER_BOUNDARY_RULES: readonly RuleSpec[] = [
   {
     rule: 'raw-battle-forecast',
     scope: PLAYER_FACING,
-    pattern: /@\/systems\/battle-forecast['"]/,
+    pattern: /@\/systems\/(battle-forecast|air-strike-forecast)['"]/,
     allow: {
       'src/ui/battle-forecast-projection.ts': 'the viewer projection itself: the only place the omniscient forecast is read',
+      'src/ui/air-strike-forecast-projection.ts': 'the viewer projection of the air-strike forecast (#1213): redacts every context before the chain is evaluated',
     },
   },
 ];

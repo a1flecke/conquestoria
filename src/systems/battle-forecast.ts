@@ -77,6 +77,33 @@ export function classifyBattleOutcome(
   return 'risky';
 }
 
+/**
+ * The fixed roll grid, evaluated: one equal-weight sample per (ratio roll, base roll) cell. Shared by
+ * `forecastCombat` and by multi-stage forecasts (#1213) that need the *distribution* of a first
+ * exchange to chain a second one from it, not just its summary.
+ */
+export function sampleExchangeGrid(
+  strengths: CombatStrengthBreakdown,
+  atkStrength: number,
+  defStrength: number,
+  attacker: Unit,
+  defender: Unit,
+  context: CombatContext | undefined,
+  era: number | undefined,
+): Array<{ attackerDamage: number; defenderDamage: number }> {
+  const n = FORECAST_GRID;
+  const samples: Array<{ attackerDamage: number; defenderDamage: number }> = [];
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      samples.push(computeExchangeDamage({
+        atkStrength, defStrength, attacker, defender, context, era, exchange: strengths.exchange,
+        ratioRoll: (i + 0.5) / n, baseRoll: (j + 0.5) / n,
+      }));
+    }
+  }
+  return samples;
+}
+
 export function forecastCombat(
   attacker: Unit,
   defender: Unit,
@@ -103,21 +130,15 @@ export function forecastCombat(
     };
   }
 
-  const n = FORECAST_GRID;
   let defTotal = 0; let atkTotal = 0; let kills = 0; let deaths = 0;
   let defMin = Infinity; let defMax = -Infinity; let atkMin = Infinity; let atkMax = -Infinity;
-  for (let i = 0; i < n; i++) {
-    for (let j = 0; j < n; j++) {
-      const { attackerDamage, defenderDamage } = computeExchangeDamage({
-        atkStrength, defStrength, attacker, defender, context, era, exchange: strengths.exchange,
-        ratioRoll: (i + 0.5) / n, baseRoll: (j + 0.5) / n,
-      });
-      defTotal += defenderDamage; atkTotal += attackerDamage;
-      defMin = Math.min(defMin, defenderDamage); defMax = Math.max(defMax, defenderDamage);
-      atkMin = Math.min(atkMin, attackerDamage); atkMax = Math.max(atkMax, attackerDamage);
-      if (defender.health - defenderDamage <= 0) kills++;
-      if (attacker.health - attackerDamage <= 0) deaths++;
-    }
+  const samples = sampleExchangeGrid(strengths, atkStrength, defStrength, attacker, defender, context, era);
+  for (const { attackerDamage, defenderDamage } of samples) {
+    defTotal += defenderDamage; atkTotal += attackerDamage;
+    defMin = Math.min(defMin, defenderDamage); defMax = Math.max(defMax, defenderDamage);
+    atkMin = Math.min(atkMin, attackerDamage); atkMax = Math.max(atkMax, attackerDamage);
+    if (defender.health - defenderDamage <= 0) kills++;
+    if (attacker.health - attackerDamage <= 0) deaths++;
   }
   // The grid's mid-point rolls never reach the extremes a real fight can draw, and both damages are
   // monotone in each roll, so the four corners bound the range exactly (rolls live in [0, 1)).
@@ -130,7 +151,7 @@ export function forecastCombat(
       atkMin = Math.min(atkMin, attackerDamage); atkMax = Math.max(atkMax, attackerDamage);
     }
   }
-  const cells = n * n;
+  const cells = samples.length;
   const clamp = (value: number, health: number) => Math.min(value, health);
   const defenderDamage: DamageRange = {
     min: clamp(defMin, defender.health), max: clamp(defMax, defender.health), expected: Math.round(clamp(defTotal / cells, defender.health)),

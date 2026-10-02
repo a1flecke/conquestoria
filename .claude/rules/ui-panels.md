@@ -147,5 +147,18 @@ The unit-vs-unit attack preview (`combat-preview` tap intent) is a *forecast*, n
 - **Layers.** Headline (icon + words) → two damage lines → one-line why → `More details`
   (working for/against you, not-active, tips, constant caveat). Tips are keyed by canonical fact key
   (`TIP_BY_FACT_KEY`); never a parallel rule evaluator. No hover, 44px targets, no animation.
-- **Not covered (follow-ups, not promised):** air strike and interception have no confirm step;
-  city assault/bombardment keep their own truthful `resolveCityInteraction` preview.
+- **Air strikes (#1213).** A player-initiated strike gets the same card (`Strike` / `Cancel`) before it is
+  flown; interception is *explained inside it*, never separately confirmed. `forecastAirStrike`
+  (`src/systems/air-strike-forecast.ts`) chains the interceptor exchange into the target leg over the
+  same roll grid (the target leg is conditioned on the striker's surviving health; a striker lost in stage
+  one deals nothing); the viewer entry is `src/ui/air-strike-forecast-projection.ts` (same `raw-battle-forecast`
+  rule). **Not radar:** an enemy's intercept stance, base, readiness, SAM cover and tech are owner-private, so
+  the projection reasons only about public capability — a hostile interceptor-capable aircraft the viewer can
+  currently see, in range (`canInterceptIncomingStrike`) — and shows a *conditional* "if it intercepts" block;
+  a hidden interceptor changes nothing (a surprise interception stays a surprise). City targets use the
+  shared city-siege formula (`getAirStrikeCityRawDamage`, `resolveCitySiegeDamage`) with the owner's tech
+  neutralised and destruction never promised. The forecast is information, not authorisation: **Confirm
+  rebuilds the forecast and re-runs `resolveAirStrike` against the live state**; if the forecast's signature
+  changed the new one is shown instead of striking, and a spent/illegal strike gets the typed denial.
+- **Not covered (follow-ups, not promised):** city assault/bombardment keep their own truthful
+  `resolveCityInteraction` preview.

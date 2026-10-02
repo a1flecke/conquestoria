@@ -312,6 +312,140 @@ describe('MapInteractionController', () => {
       expect(selection.getSelectedUnitId()).toBeNull();
     });
 
+    describe('air strike forecast + confirm (#1213)', () => {
+      function airStrikeFixture(extra: { second?: boolean } = {}) {
+        const state = makeFixture();
+        document.body.innerHTML = '<div id="info-panel"></div>';
+        placeCity(state, 'home', 'player', { q: 0, r: 0 });
+        const bomber = createUnit('bomber', 'player', { q: 0, r: 0 }, idCounters);
+        state.units.b1 = { ...bomber, id: 'b1', owner: 'player', position: { q: 0, r: 0 }, airBase: { kind: 'city', cityId: 'home' } };
+        state.civilizations.player.units.push('b1');
+        placeEnemyUnit(state, 'e1', 'ai-1', { position: { q: 2, r: 0 } });
+        if (extra.second) placeEnemyUnit(state, 'e2', 'ai-1', { position: { q: 3, r: 0 } });
+        state.civilizations.player.diplomacy.atWarWith.push('ai-1');
+        state.civilizations['ai-1']!.diplomacy.atWarWith.push('player');
+        makeVisible(state, { q: 2, r: 0 });
+        if (extra.second) makeVisible(state, { q: 3, r: 0 });
+        const harness = baseDeps(state);
+        const controller = createMapInteractionController(harness.deps);
+        harness.selection.setPendingIntent({ kind: 'air-mission', unitId: 'b1', mission: 'strike' });
+        return { state, controller, ...harness };
+      }
+
+      it('tapping a legal target shows the forecast and does not fly the strike', () => {
+        const { controller, session, selection } = airStrikeFixture();
+        const before = JSON.stringify(session.getState());
+
+        controller.handleHexTap({ q: 2, r: 0 });
+
+        const panel = document.getElementById('info-panel')!;
+        expect(panel.querySelector('[data-testid="battle-forecast-headline"]')).not.toBeNull();
+        expect(panel.querySelector('#btn-attack-confirm')!.textContent).toBe('Strike');
+        expect(JSON.stringify(session.getState())).toBe(before);
+        expect(session.getState().units.b1!.hasActed).toBe(false);
+        expect(selection.snapshot().pendingIntent.kind).toBe('air-mission'); // still armed so the player can retarget
+      });
+
+      it('Confirm flies the strike exactly once, even on a rapid second tap', () => {
+        const { controller, session, selection, deps } = airStrikeFixture();
+        controller.handleHexTap({ q: 2, r: 0 });
+        const confirm = document.querySelector<HTMLButtonElement>('#btn-attack-confirm')!;
+        const commit = vi.spyOn(session, 'commit');
+
+        confirm.click();
+        confirm.click();
+
+        expect(commit).toHaveBeenCalledTimes(1);
+        expect(session.getState().units.b1!.hasActed).toBe(true);
+        expect(selection.snapshot().pendingIntent.kind).toBe('none');
+        void deps;
+      });
+
+      it('Cancel mutates nothing and disarms the strike', () => {
+        const { controller, session, selection } = airStrikeFixture();
+        controller.handleHexTap({ q: 2, r: 0 });
+        const before = JSON.stringify(session.getState());
+
+        document.querySelector<HTMLButtonElement>('#btn-cancel-attack')!.click();
+
+        expect(JSON.stringify(session.getState())).toBe(before);
+        expect(selection.snapshot().pendingIntent.kind).toBe('none');
+      });
+
+      it('tapping a different legal target replaces the forecast', () => {
+        const { controller } = airStrikeFixture({ second: true });
+        controller.handleHexTap({ q: 2, r: 0 });
+        const first = document.getElementById('info-panel')!.textContent;
+        controller.handleHexTap({ q: 3, r: 0 });
+        expect(document.querySelectorAll('[data-testid="battle-forecast"]').length).toBe(1);
+        expect(document.getElementById('info-panel')!.textContent).toContain('Strike');
+        expect(first).toContain('Air Strike Preview');
+      });
+
+      it('an illegal target is denied with copy and shows no forecast', () => {
+        const { controller, deps, session } = airStrikeFixture();
+        controller.handleHexTap({ q: 5, r: 5 });
+        expect(document.querySelector('[data-testid="battle-forecast"]')).toBeNull();
+        expect(deps.showNotification).toHaveBeenCalledWith(expect.stringMatching(/out of range|no longer/), 'warning');
+        expect(session.getState().units.b1!.hasActed).toBe(false);
+      });
+
+      it('Confirm revalidates: a target destroyed after the preview is denied and nothing is struck', () => {
+        const { controller, session, selection, deps } = airStrikeFixture();
+        controller.handleHexTap({ q: 2, r: 0 });
+        const live = session.getState();
+        const { e1: _gone, ...rest } = live.units;
+        session.commit({ ...live, units: rest });
+        const commit = vi.spyOn(session, 'commit');
+
+        document.querySelector<HTMLButtonElement>('#btn-attack-confirm')!.click();
+
+        expect(commit).not.toHaveBeenCalled();
+        expect(session.getState().units.b1!.hasActed).toBe(false);
+        expect(deps.showNotification).toHaveBeenCalledWith(expect.any(String), 'warning');
+        expect(selection.snapshot().pendingIntent.kind).toBe('none');
+      });
+
+      it('Confirm after the aircraft became spent gives the typed denial, not a strike', () => {
+        const { controller, session, deps } = airStrikeFixture();
+        controller.handleHexTap({ q: 2, r: 0 });
+        const live = session.getState();
+        session.commit({ ...live, units: { ...live.units, b1: { ...live.units.b1!, airStrain: 8 } } });
+        const commit = vi.spyOn(session, 'commit');
+
+        document.querySelector<HTMLButtonElement>('#btn-attack-confirm')!.click();
+
+        expect(commit).not.toHaveBeenCalled();
+        expect(deps.showNotification).toHaveBeenCalledWith(expect.stringMatching(/rest|spent|ready/i), 'warning');
+      });
+
+      it('Confirm after the forecast changed shows the new forecast instead of striking on stale numbers', () => {
+        const { controller, session } = airStrikeFixture();
+        controller.handleHexTap({ q: 2, r: 0 });
+        const live = session.getState();
+        session.commit({ ...live, units: { ...live.units, e1: { ...live.units.e1!, health: 20 } } });
+        const commit = vi.spyOn(session, 'commit');
+
+        document.querySelector<HTMLButtonElement>('#btn-attack-confirm')!.click();
+
+        expect(commit).not.toHaveBeenCalled();
+        expect(session.getState().units.b1!.hasActed).toBe(false);
+        expect(document.getElementById('info-panel')!.textContent).toContain('Things changed');
+      });
+
+      it('has touch-sized, keyboard-reachable confirm/cancel buttons and a labelled group', () => {
+        const { controller } = airStrikeFixture();
+        controller.handleHexTap({ q: 2, r: 0 });
+        for (const id of ['btn-attack-confirm', 'btn-cancel-attack']) {
+          const btn = document.querySelector<HTMLButtonElement>(`#${id}`)!;
+          expect(btn.tagName).toBe('BUTTON');
+          expect(btn.type).toBe('button');
+          expect(btn.style.minHeight).toBe('44px');
+        }
+        expect(document.querySelector('[data-testid="battle-forecast"]')!.getAttribute('aria-label')).toContain('Air strike preview');
+      });
+    });
+
     it('confirming a minor-civ war declaration refreshes the renderer even if the follow-up conquest attempt never does (#787 phase 14)', () => {
       // Regression guard: this case used to call session.setStateWithoutRefresh(war.state)
       // and rely entirely on deps.executeMinorCivConquest to flush the renderer/HUD
