@@ -66,8 +66,8 @@ describe('fog-of-war', () => {
       health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
     };
 
-    const revealed = updateVisibility(vis, [unit], map);
-    expect(isVisible(vis, { q: 15, r: 15 })).toBe(true);
+    const { visibility: nextVis, newlyRevealed: revealed } = updateVisibility(vis, [unit], map);
+    expect(isVisible(nextVis, { q: 15, r: 15 })).toBe(true);
     expect(revealed.length).toBeGreaterThan(0);
   });
 
@@ -79,9 +79,9 @@ describe('fog-of-war', () => {
       airBase: { kind: 'city', cityId: 'airfield' },
     };
 
-    updateVisibility(vis, [basedAircraft], map);
+    const { visibility: nextVis } = updateVisibility(vis, [basedAircraft], map);
 
-    expect(isVisible(vis, basedAircraft.position)).toBe(false);
+    expect(isVisible(nextVis, basedAircraft.position)).toBe(false);
   });
 
   it('scout has larger vision than warrior', () => {
@@ -99,8 +99,8 @@ describe('fog-of-war', () => {
     const visScout = createVisibilityMap();
     const visWarrior = createVisibilityMap();
 
-    const scoutRevealed = updateVisibility(visScout, [scout], map);
-    const warriorRevealed = updateVisibility(visWarrior, [warrior], map);
+    const scoutRevealed = updateVisibility(visScout, [scout], map).newlyRevealed;
+    const warriorRevealed = updateVisibility(visWarrior, [warrior], map).newlyRevealed;
 
     expect(scoutRevealed.length).toBeGreaterThan(warriorRevealed.length);
   });
@@ -112,16 +112,55 @@ describe('fog-of-war', () => {
       health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
     };
 
-    updateVisibility(vis, [unit], map);
-    expect(isVisible(vis, { q: 15, r: 15 })).toBe(true);
+    const first = updateVisibility(vis, [unit], map);
+    expect(isVisible(first.visibility, { q: 15, r: 15 })).toBe(true);
 
     // Move unit far away
     unit.position = { q: 1, r: 1 };
-    updateVisibility(vis, [unit], map);
+    const second = updateVisibility(first.visibility, [unit], map);
 
     // Old position should be fog (seen before but no longer visible)
-    expect(isFog(vis, { q: 15, r: 15 })).toBe(true);
-    expect(isVisible(vis, { q: 15, r: 15 })).toBe(false);
+    expect(isFog(second.visibility, { q: 15, r: 15 })).toBe(true);
+    expect(isVisible(second.visibility, { q: 15, r: 15 })).toBe(false);
+  });
+});
+
+describe('#1199 visibility purity', () => {
+  it('updateVisibility returns a new VisibilityMap and does not mutate its input', () => {
+    const map = generateMap(30, 30, 'fog-purity');
+    const vis = createVisibilityMap();
+    vis.tiles['0,0'] = 'visible';
+    const unit: Unit = {
+      id: 'u1', type: 'scout', owner: 'p1',
+      position: { q: 15, r: 15 }, movementPointsLeft: 3,
+      health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    };
+    const frozen = structuredClone(vis);
+
+    const { visibility, newlyRevealed } = updateVisibility(vis, [unit], map);
+
+    expect(vis).toEqual(frozen); // input untouched
+    expect(visibility).not.toBe(vis); // new object
+    expect(visibility.tiles['0,0']).toBe('fog');
+    expect(newlyRevealed.length).toBeGreaterThan(0);
+  });
+
+  it('applyReconReveals returns a new GameState and does not mutate its input', () => {
+    const state = {
+      turn: 8,
+      map: createWrappedGrasslandMap(8, 6),
+      civilizations: {
+        player: { visibility: createVisibilityMap() },
+      },
+      reconReveals: [{ ownerCivId: 'player', center: { q: 0, r: 2 }, range: 2, expiresAtTurn: 8 }],
+    } as unknown as GameState;
+    const before = structuredClone(state);
+
+    const next = applyReconReveals(state, 'player');
+
+    expect(state).toEqual(before);
+    expect(next).not.toBe(state);
+    expect(getVisibility(next.civilizations.player!.visibility, { q: 7, r: 2 })).toBe('visible');
   });
 });
 
@@ -137,12 +176,12 @@ describe('temporary recon visibility', () => {
       reconReveals: [{ ownerCivId: 'player', center: { q: 0, r: 2 }, range: 2, expiresAtTurn: 8 }],
     } as unknown as GameState;
 
-    applyReconReveals(state, 'player');
-    applyReconReveals(state, 'opponent');
+    let next = applyReconReveals(state, 'player');
+    next = applyReconReveals(next, 'opponent');
 
-    expect(getVisibility(state.civilizations.player!.visibility, { q: 7, r: 2 })).toBe('visible');
-    expect(getVisibility(state.civilizations.opponent!.visibility, { q: 7, r: 2 })).toBe('unexplored');
-    expect(state.civilizations.player!.visibility.lastSeen).toEqual({});
+    expect(getVisibility(next.civilizations.player!.visibility, { q: 7, r: 2 })).toBe('visible');
+    expect(getVisibility(next.civilizations.opponent!.visibility, { q: 7, r: 2 })).toBe('unexplored');
+    expect(next.civilizations.player!.visibility.lastSeen).toEqual({});
   });
 });
 
@@ -152,12 +191,12 @@ describe('wrapped fog-of-war', () => {
     const vis = createVisibilityMap();
     const unit = makeWarrior({ q: 0, r: 1 });
 
-    const revealed = updateVisibility(vis, [unit], map);
+    const { visibility: revealedVis, newlyRevealed: revealed } = updateVisibility(vis, [unit], map);
 
-    expect(getVisibility(vis, { q: 4, r: 1 })).toBe('visible');
-    expect(getVisibility(vis, { q: 4, r: 2 })).toBe('visible');
+    expect(getVisibility(revealedVis, { q: 4, r: 1 })).toBe('visible');
+    expect(getVisibility(revealedVis, { q: 4, r: 2 })).toBe('visible');
     expect(revealed.map(hexKey)).toContain('4,1');
-    expect(Object.keys(vis.tiles).some(key => key.startsWith('-'))).toBe(false);
+    expect(Object.keys(revealedVis.tiles).some(key => key.startsWith('-'))).toBe(false);
   });
 
   it('reveals canonical wrapped tiles around a unit on the east map edge', () => {
@@ -165,21 +204,21 @@ describe('wrapped fog-of-war', () => {
     const vis = createVisibilityMap();
     const unit = makeWarrior({ q: 4, r: 1 });
 
-    updateVisibility(vis, [unit], map);
+    const { visibility: nextVis } = updateVisibility(vis, [unit], map);
 
-    expect(getVisibility(vis, { q: 0, r: 1 })).toBe('visible');
-    expect(getVisibility(vis, { q: 0, r: 0 })).toBe('visible');
-    expect(Object.keys(vis.tiles).some(key => Number(key.split(',')[0]) >= map.width)).toBe(false);
+    expect(getVisibility(nextVis, { q: 0, r: 1 })).toBe('visible');
+    expect(getVisibility(nextVis, { q: 0, r: 0 })).toBe('visible');
+    expect(Object.keys(nextVis.tiles).some(key => Number(key.split(',')[0]) >= map.width)).toBe(false);
   });
 
   it('uses wrapped range for city vision', () => {
     const map = createWrappedGrasslandMap(5, 4);
     const vis = createVisibilityMap();
 
-    updateVisibility(vis, [], map, [{ q: 0, r: 1 }]);
+    const { visibility: nextVis } = updateVisibility(vis, [], map, [{ q: 0, r: 1 }]);
 
-    expect(getVisibility(vis, { q: 4, r: 1 })).toBe('visible');
-    expect(getVisibility(vis, { q: 4, r: 2 })).toBe('visible');
+    expect(getVisibility(nextVis, { q: 4, r: 1 })).toBe('visible');
+    expect(getVisibility(nextVis, { q: 4, r: 2 })).toBe('visible');
   });
 
   it('uses wrapped range for shared vision', () => {
@@ -210,10 +249,10 @@ describe('wrapped fog-of-war', () => {
     const wrappedNeighbor = { q: 4, r: 1 };
 
     const movementRange = getMovementRange(unit, map, {}, {});
-    updateVisibility(vis, [unit], map);
+    const { visibility: nextVis } = updateVisibility(vis, [unit], map);
 
     expect(movementRange.map(hexKey)).toContain(hexKey(wrappedNeighbor));
-    expect(getVisibility(vis, wrappedNeighbor)).toBe('visible');
+    expect(getVisibility(nextVis, wrappedNeighbor)).toBe('visible');
   });
 });
 

@@ -504,7 +504,7 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
       SFX.foundCity();
 
       // Update visibility
-      updateAndRefreshVisibility(deps.session.getState(), deps.session.getState().currentPlayer);
+      deps.session.commit(updateAndRefreshVisibility(deps.session.getState(), deps.session.getState().currentPlayer));
       for (const contact of syncCivilizationContactsFromVisibility(deps.session.getState(), deps.session.getState().currentPlayer)) {
         deps.bus.emit('civilization:first-contact', contact);
       }

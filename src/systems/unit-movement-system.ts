@@ -208,14 +208,19 @@ export function executeValidatedUnitMove(
 
   const movementCompletedTechs = state.civilizations[options.civId]?.techState.completed ?? [];
   const movementActiveNPs = getActiveNationalProjectsForCiv(state, options.civId);
-  const revealedTiles = updateVisibility(
+  const visibilityResult = updateVisibility(
     state.civilizations[options.civId].visibility,
     getFreeStandingOwnedUnits(state, options.civId),
     state.map,
     getCivCityPositions(state, options.civId),
     unit => getVisionBonus(unit.type, movementCompletedTechs, movementActiveNPs),
   );
-  refreshLastSeenPresentationsForCiv(state, options.civId);
+  // #1199: `updateVisibility` is pure now; write its result back until the
+  // executor itself returns a new state (Task 4).
+  state.civilizations[options.civId].visibility = visibilityResult.visibility;
+  state.civilizations[options.civId].visibility =
+    refreshLastSeenPresentationsForCiv(state, options.civId).civilizations[options.civId].visibility;
+  const revealedTiles = visibilityResult.newlyRevealed;
   const contacts = syncCivilizationContactsFromVisibility(state, options.civId);
   for (const contact of contacts) {
     options.bus?.emit('civilization:first-contact', contact);

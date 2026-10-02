@@ -44,7 +44,8 @@ function visibilityDistance(a: HexCoord, b: HexCoord, map: GameMap): number {
 
 /**
  * Recalculates visibility for a player based on their units and cities.
- * Returns newly revealed tiles (were unexplored, now visible).
+ * Pure: returns a new `VisibilityMap` plus newly revealed tiles (were
+ * unexplored, now visible); the input map is never mutated.
  */
 export function updateVisibility(
   vis: VisibilityMap,
@@ -52,13 +53,13 @@ export function updateVisibility(
   map: GameMap,
   cityPositions: HexCoord[] = [],
   getVisionBonus?: (unit: Unit) => number,
-): HexCoord[] {
-  // Downgrade all 'visible' to 'fog'
+): { visibility: VisibilityMap; newlyRevealed: HexCoord[] } {
+  // Downgrade all 'visible' to 'fog' into a fresh tiles object.
+  const tiles: VisibilityMap['tiles'] = {};
   for (const key of Object.keys(vis.tiles)) {
-    if (vis.tiles[key] === 'visible') {
-      vis.tiles[key] = 'fog';
-    }
+    tiles[key] = vis.tiles[key] === 'visible' ? 'fog' : vis.tiles[key];
   }
+  const nextVis: VisibilityMap = { ...vis, tiles };
 
   const newlyRevealed: HexCoord[] = [];
 
@@ -67,8 +68,8 @@ export function updateVisibility(
     const key = hexKey(canonical);
     if (!map.tiles[key]) return; // off map
 
-    const prev = vis.tiles[key];
-    vis.tiles[key] = 'visible';
+    const prev = nextVis.tiles[key];
+    nextVis.tiles[key] = 'visible';
     if (!prev || prev === 'unexplored') {
       newlyRevealed.push(canonical);
     }
@@ -101,7 +102,7 @@ export function updateVisibility(
     }
   }
 
-  return newlyRevealed;
+  return { visibility: nextVis, newlyRevealed };
 }
 
 export function getTerrainVisionBonus(terrain: string): number {
@@ -185,17 +186,34 @@ export function applySharedVision(
 }
 
 /** Applies owner-scoped, one-turn reconnaissance without recording permanent intel. */
-export function applyReconReveals(state: GameState, viewerCivId: string): void {
-  const visibility = state.civilizations[viewerCivId]?.visibility;
-  if (!visibility) return;
+export function applyReconReveals(state: GameState, viewerCivId: string): GameState {
+  const civ = state.civilizations[viewerCivId];
+  const visibility = civ?.visibility;
+  if (!visibility) return state;
+
+  let tiles: VisibilityMap['tiles'] | undefined;
   for (const reveal of state.reconReveals ?? []) {
     if (reveal.ownerCivId !== viewerCivId || reveal.expiresAtTurn !== state.turn) continue;
     for (const coord of getVisibilityRange(reveal.center, reveal.range, state.map)) {
       const canonical = canonicalVisibilityCoord(coord, state.map);
       const key = hexKey(canonical);
-      if (state.map.tiles[key]) visibility.tiles[key] = 'visible';
+      if (!state.map.tiles[key]) continue;
+      if (!tiles) tiles = { ...visibility.tiles };
+      tiles[key] = 'visible';
     }
   }
+
+  if (!tiles) return state;
+  return {
+    ...state,
+    civilizations: {
+      ...state.civilizations,
+      [viewerCivId]: {
+        ...civ,
+        visibility: { ...visibility, tiles },
+      },
+    },
+  };
 }
 
 export function applySatelliteSurveillance(

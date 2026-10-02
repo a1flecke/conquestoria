@@ -367,11 +367,11 @@ export function createNewGame(
   }
 
   // Initial visibility
-  updateVisibility(playerCiv.visibility, [playerSettler, playerWarrior], map);
+  playerCiv.visibility = updateVisibility(playerCiv.visibility, [playerSettler, playerWarrior], map).visibility;
   for (let index = 0; index < aiCivDefs.length; index++) {
     const civId = `ai-${index + 1}`;
     const aiUnits = civilizations[civId].units.map(unitId => units[unitId]);
-    updateVisibility(civilizations[civId].visibility, aiUnits, map);
+    civilizations[civId].visibility = updateVisibility(civilizations[civId].visibility, aiUnits, map).visibility;
   }
 
   // Spawn initial barbarian camps
@@ -383,7 +383,7 @@ export function createNewGame(
     if (camp) barbarianCamps[camp.id] = camp;
   }
 
-  const state: GameState = {
+  let state: GameState = {
     turn: 1,
     era: 1,
     saveSchemaVersion: CURRENT_SAVE_SCHEMA_VERSION,
@@ -454,7 +454,11 @@ export function createNewGame(
   state.minorCivLeagues = createMinorCivLeagueState(state);
 
   for (const civId of Object.keys(state.civilizations)) {
-    refreshLastSeenPresentationsForCiv(state, civId);
+    const refreshed = refreshLastSeenPresentationsForCiv(state, civId);
+    state = {
+      ...state,
+      civilizations: { ...state.civilizations, [civId]: refreshed.civilizations[civId] },
+    };
     syncCivilizationContactsFromVisibility(state, civId);
   }
 
@@ -568,7 +572,7 @@ export function createHotSeatGame(
     units[settler.id] = settler;
     units[warrior.id] = warrior;
     civ.units = [settler.id, warrior.id];
-    updateVisibility(civ.visibility, [settler, warrior], map);
+    civ.visibility = updateVisibility(civ.visibility, [settler, warrior], map).visibility;
     civilizations[player.slotId] = civ;
   }
 
@@ -580,7 +584,7 @@ export function createHotSeatGame(
     if (camp) barbarianCamps[camp.id] = camp;
   }
 
-  const state: GameState = {
+  let state: GameState = {
     turn: 1,
     era: 1,
     saveSchemaVersion: CURRENT_SAVE_SCHEMA_VERSION,
@@ -653,7 +657,11 @@ export function createHotSeatGame(
   state.minorCivLeagues = createMinorCivLeagueState(state);
 
   for (const civId of Object.keys(state.civilizations)) {
-    refreshLastSeenPresentationsForCiv(state, civId);
+    const refreshed = refreshLastSeenPresentationsForCiv(state, civId);
+    state = {
+      ...state,
+      civilizations: { ...state.civilizations, [civId]: refreshed.civilizations[civId] },
+    };
     syncCivilizationContactsFromVisibility(state, civId);
   }
 

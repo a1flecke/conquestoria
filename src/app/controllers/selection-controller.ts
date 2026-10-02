@@ -952,7 +952,7 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
       Object.keys(visTiles).filter(k => visTiles[k] === 'unexplored'),
     );
 
-    updateAndRefreshVisibility(session.getState(), session.getState().currentPlayer);
+    session.commit(updateAndRefreshVisibility(session.getState(), session.getState().currentPlayer));
 
     // Fire at most one resource-discovered tip per visibility update to avoid
     // flooding the player when a scout reveals several resource tiles at once.

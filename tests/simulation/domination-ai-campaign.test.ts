@@ -76,7 +76,7 @@ function addCampaignTank(state: GameState, position: HexCoord): void {
  * treaty, or AI executor is faked after this setup.
  */
 function campaignStart(): GameState {
-  const state = createHotSeatGame(CAMPAIGN_CONFIG, SEED, 'Domination AI campaign', 'standard');
+  let state = createHotSeatGame(CAMPAIGN_CONFIG, SEED, 'Domination AI campaign', 'standard');
   const [left, center, right] = lane(state);
   for (const tile of Object.values(state.map.tiles)) {
     if (hexDistance(tile.coord, center) <= 6) {
@@ -109,7 +109,7 @@ function campaignStart(): GameState {
   ai.knownCivilizations = ['player-1', 'player-2'];
   state.civilizations['player-1'].knownCivilizations = ['ai-1'];
   state.civilizations['player-2'].knownCivilizations = ['ai-1'];
-  updateAndRefreshVisibility(state, 'ai-1');
+  state = updateAndRefreshVisibility(state, 'ai-1');
   let reported = recordDominationPoliticalReport(state, 'ai-1', 'player-1');
   reported = recordDominationPoliticalReport(reported, 'ai-1', 'player-2');
   // The real load path canonicalizes legacy-balanced-map region metadata.

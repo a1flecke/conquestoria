@@ -91,11 +91,11 @@ describe('last-seen-presentation', () => {
     state.map.tiles['0,0'].terrain = 'forest';
     state.map.tiles['1,0'].terrain = 'desert';
 
-    refreshLastSeenPresentationsForCiv(state, 'player');
+    const next = refreshLastSeenPresentationsForCiv(state, 'player');
 
-    expect(state.civilizations.player.visibility.lastSeen?.['0,0']?.terrain).toBe('forest');
-    expect(state.civilizations.player.visibility.lastSeen?.['0,0']?.units).toBeUndefined();
-    expect(state.civilizations.player.visibility.lastSeen?.['1,0']).toBeUndefined();
+    expect(next.civilizations.player.visibility.lastSeen?.['0,0']?.terrain).toBe('forest');
+    expect(next.civilizations.player.visibility.lastSeen?.['0,0']?.units).toBeUndefined();
+    expect(next.civilizations.player.visibility.lastSeen?.['1,0']).toBeUndefined();
   });
 
   it('keeps hot-seat viewers separate', () => {
@@ -103,10 +103,10 @@ describe('last-seen-presentation', () => {
     state.civilizations.player.visibility.tiles = { '0,0': 'visible' };
     state.civilizations['ai-1'].visibility.tiles = { '0,0': 'fog' };
 
-    refreshLastSeenPresentationsForCiv(state, 'player');
+    const next = refreshLastSeenPresentationsForCiv(state, 'player');
 
-    expect(state.civilizations.player.visibility.lastSeen?.['0,0']).toBeDefined();
-    expect(state.civilizations['ai-1'].visibility.lastSeen?.['0,0']).toBeUndefined();
+    expect(next.civilizations.player.visibility.lastSeen?.['0,0']).toBeDefined();
+    expect(next.civilizations['ai-1'].visibility.lastSeen?.['0,0']).toBeUndefined();
   });
 
   it('records trusted, coarse unit intel without transported or concealed units', () => {
@@ -140,9 +140,9 @@ describe('last-seen-presentation', () => {
     playerUnit.position = { q: 0, r: 0 };
     visible.owner = 'player';
 
-    refreshLastSeenPresentationsForCiv(state, 'player');
+    const next = refreshLastSeenPresentationsForCiv(state, 'player');
 
-    expect(state.civilizations.player.visibility.lastSeen?.[key]).toMatchObject({
+    expect(next.civilizations.player.visibility.lastSeen?.[key]).toMatchObject({
       observedTurn: 9,
       source: 'observed',
       units: [{
@@ -174,16 +174,16 @@ describe('last-seen-presentation', () => {
       'ai-1': setDisguise(created.state, spyUnit.id, 'barbarian'),
     };
 
-    refreshLastSeenPresentationsForCiv(state, 'player');
+    const next = refreshLastSeenPresentationsForCiv(state, 'player');
 
-    expect(state.civilizations.player.visibility.lastSeen?.[key]?.units).toContainEqual(
+    expect(next.civilizations.player.visibility.lastSeen?.[key]?.units).toContainEqual(
       expect.objectContaining({
         id: spyUnit.id,
         owner: 'barbarian',
         type: 'warrior',
       }),
     );
-    expect(state.civilizations.player.visibility.lastSeen?.[key]?.units)
+    expect(next.civilizations.player.visibility.lastSeen?.[key]?.units)
       .not.toContainEqual(expect.objectContaining({ type: 'spy_scout' }));
   });
 
@@ -209,13 +209,13 @@ describe('last-seen-presentation', () => {
       spyUnrestBonus: 0,
     };
     state.civilizations.player.visibility.tiles = { '0,0': 'visible' };
-    refreshLastSeenPresentationsForCiv(state, 'player');
+    let next = refreshLastSeenPresentationsForCiv(state, 'player');
 
-    state.civilizations.player.visibility.tiles = { '0,0': 'fog' };
-    state.cities.enemyCity = { ...state.cities.enemyCity, name: 'Live City', owner: 'player', population: 9 };
-    refreshLastSeenPresentationsForCiv(state, 'player');
+    next.civilizations.player.visibility.tiles = { '0,0': 'fog' };
+    next.cities.enemyCity = { ...next.cities.enemyCity, name: 'Live City', owner: 'player', population: 9 };
+    next = refreshLastSeenPresentationsForCiv(next, 'player');
 
-    expect(state.civilizations.player.visibility.lastSeen?.['0,0']?.city).toEqual({
+    expect(next.civilizations.player.visibility.lastSeen?.['0,0']?.city).toEqual({
       id: 'enemyCity',
       name: 'Old City',
       owner: 'ai-1',
@@ -227,19 +227,33 @@ describe('last-seen-presentation', () => {
 });
 
 describe('updateAndRefreshVisibility', () => {
+  it('#1199: returns a new GameState and leaves the input untouched', () => {
+    const state = createNewGame(undefined, 'atomic-helper-purity', 'small');
+    // Plant a stale visible tile that the refresh must downgrade; this makes the
+    // mutation observable instead of a net no-op.
+    state.civilizations.player.visibility.tiles['99,99'] = 'visible';
+    const before = structuredClone(state);
+
+    const next = updateAndRefreshVisibility(state, 'player');
+
+    expect(state).toEqual(before);
+    expect(next).not.toBe(state);
+    expect(next.civilizations.player.visibility.tiles['99,99']).toBe('fog');
+  });
+
   it('populates lastSeen for all visible tiles', () => {
     const state = createNewGame(undefined, 'atomic-helper-visible', 'small');
     // Clear any snapshots from game init so we prove the helper re-populates them
     state.civilizations.player.visibility.lastSeen = {};
 
-    updateAndRefreshVisibility(state, 'player');
+    const next = updateAndRefreshVisibility(state, 'player');
 
-    const visibleKeys = Object.entries(state.civilizations.player.visibility.tiles)
+    const visibleKeys = Object.entries(next.civilizations.player.visibility.tiles)
       .filter(([, v]) => v === 'visible')
       .map(([k]) => k);
     expect(visibleKeys.length).toBeGreaterThan(0);
     for (const key of visibleKeys) {
-      expect(state.civilizations.player.visibility.lastSeen?.[key]).toBeDefined();
+      expect(next.civilizations.player.visibility.lastSeen?.[key]).toBeDefined();
     }
   });
 
@@ -260,9 +274,9 @@ describe('updateAndRefreshVisibility', () => {
       },
     };
 
-    updateAndRefreshVisibility(state, 'player');
+    const next = updateAndRefreshVisibility(state, 'player');
 
-    expect(state.civilizations.player.visibility.lastSeen?.['99,99']?.terrain).toBe('plains');
+    expect(next.civilizations.player.visibility.lastSeen?.['99,99']?.terrain).toBe('plains');
   });
 });
 
