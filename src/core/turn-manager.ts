@@ -81,7 +81,6 @@ import { processWorldRacesTurn } from '@/systems/world-race-system';
 import { processReligionTurn, foundReligion } from '@/systems/religion-system';
 import { addWarheadToArsenal } from '@/systems/strategic-arsenal-system';
 import { processLoyaltyTurn } from '@/systems/religion-loyalty-system';
-import { applyTerritoryFrontierProgressWithEvents, buildTerritoryTileFlippedEvents, recalculateTerritory } from '@/systems/city-territory-system';
 import {
   getLegendaryWonderCityYieldBonus,
   getLegendaryWonderCivYieldBonus,
@@ -98,6 +97,7 @@ import { resolveGeneralDefinition, type GeneralDefinition } from '@/systems/grea
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
 import { createRoundPhaseContext } from './round-phases/types';
+import { territoryFrontierPhase } from './round-phases/territory-frontier';
 import { wondersMarketPhase } from './round-phases/wonders-market';
 import { minorCivsPhase } from './round-phases/minor-civs';
 import { barbariansPhase } from './round-phases/barbarians';
@@ -810,23 +810,7 @@ export function processTurn(
     }
   }
 
-  const territoryBefore = newState;
-  const territoryResult = recalculateTerritory(territoryBefore, {
-    reason: 'turn',
-    preserveCurrentHolderOnTie: true,
-  });
-  for (const event of buildTerritoryTileFlippedEvents(territoryBefore, territoryResult.state, territoryResult.resolutions)) {
-    bus.emit('territory:tile-flipped', event);
-  }
-  const frontierResult = applyTerritoryFrontierProgressWithEvents(territoryResult);
-  for (const event of buildTerritoryTileFlippedEvents(
-    territoryResult.state,
-    frontierResult.state,
-    frontierResult.flippedResolutions,
-  )) {
-    bus.emit('territory:tile-flipped', event);
-  }
-  newState = frontierResult.state;
+  newState = territoryFrontierPhase.run(newState, context);
 
   newState = wondersMarketPhase.run(newState, context);
 
