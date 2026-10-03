@@ -3,6 +3,7 @@ import { EventBus } from '@/core/event-bus';
 import { createNewGame } from '@/core/game-state';
 import { processAITurn } from '@/ai/basic-ai';
 import { evaluateDiplomacy } from '@/ai/ai-diplomacy';
+import { TRADE_TECHS } from '@/systems/diplomacy-actions';
 
 // Issue #435 defense-in-depth: even if the decision layer regresses and emits a
 // treaty or war decision for an unmet civ (the June 2026 mass-discovery bug),
@@ -59,6 +60,8 @@ describe('basic-ai treaty consent (#554)', () => {
     state.civilizations['ai-1'].diplomacy.relationships.player = 60;
     state.civilizations.player.diplomacy.relationships['ai-1'] = 60;
     state.pendingDiplomacyRequests = [];
+    // #1221: the mocked decision bypasses the AI's own tech gating, so grant the unlock the real one would have needed.
+    state.civilizations['ai-1'].techState.completed = [...TRADE_TECHS];
 
     const result = processAITurn(state, 'ai-1', new EventBus());
 
@@ -84,6 +87,7 @@ describe('basic-ai treaty consent (#554)', () => {
     state.civilizations['ai-1'].diplomacy.relationships[secondAiId] = 60;
     state.civilizations[secondAiId].diplomacy.relationships['ai-1'] = 60;
     state.pendingDiplomacyRequests = [];
+    state.civilizations['ai-1'].techState.completed = [...TRADE_TECHS]; // #1221: see above
 
     // Override this file's module-level mock (hardcoded to targetCiv: 'player')
     // for this one call, so the decision targets the other AI instead.
