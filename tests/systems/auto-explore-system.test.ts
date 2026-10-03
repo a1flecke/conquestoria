@@ -115,7 +115,9 @@ describe('auto-explore-system', () => {
     for (let turn = 0; turn < turns; turn++) {
       state.units[unitId].movementPointsLeft = 1;
       if (!chooseAutoExploreMove(state, unitId)) break;
-      applyAutoExploreOrder(state, unitId);
+      // #1199: applyAutoExploreOrder is a pure transition; adopt its returned state.
+      const explored = applyAutoExploreOrder(state, unitId);
+      if (explored?.ok) state = explored.state;
       trajectory.push(hexKey(state.units[unitId].position));
     }
     return trajectory;

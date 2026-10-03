@@ -339,8 +339,9 @@ function advanceDispersingHerds(state: GameState, forceId: string): GameState {
     next = commitHerdRouteForTurn(next, forceId, unitId);
     for (const step of next.crisisForces?.[forceId]?.herdRoutes?.[unitId]?.steps ?? []) {
       const moved = executeUnitMove(next, unitId, step, { actor: 'world' });
-      if (!moved.ok || moved.stopReason) break;
+      if (!moved.ok) break;
       next = moved.state;
+      if (moved.stopReason) break;
     }
   }
   return next;

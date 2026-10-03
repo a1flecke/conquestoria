@@ -84,11 +84,13 @@ describe('#1000 transport/cargo lifecycle keeps both representations reciprocal'
     assertSaveStateInvariants(state, 'lifecycle: after load 1');
 
     // --- Step 2: sail the transport one coast tile; cargo tracks the hull ---
-    // `executeUnitMove` mutates the passed state in place and returns move metadata.
+    // `executeUnitMove` is a pure transition: it returns a new state carrying the
+    // move (and the cargo/aircraft sync) and never mutates the passed state (#1199).
     state = { ...state, units: { ...state.units, [transport.id]: { ...state.units[transport.id], movementPointsLeft: 3, hasMoved: false, hasActed: false } } };
     const sailed = executeUnitMove(state, transport.id, lane[1], { actor: 'player', civId: 'player' });
     expect(sailed.ok).toBe(true);
     if (!sailed.ok) return;
+    state = sailed.state;
     expect(state.units[transport.id].position).toEqual(lane[1]);
     expect(state.units[rider1.id].position).toEqual(lane[1]); // cargo followed
     assertSaveStateInvariants(state, 'lifecycle: after sail');
@@ -107,6 +109,7 @@ describe('#1000 transport/cargo lifecycle keeps both representations reciprocal'
     const backHome = executeUnitMove(state, transport.id, lane[0], { actor: 'player', civId: 'player' });
     expect(backHome.ok).toBe(true);
     if (!backHome.ok) return;
+    state = backHome.state;
 
     state = { ...state, units: { ...state.units, [rider2.id]: { ...state.units[rider2.id], movementPointsLeft: 2, hasMoved: false, hasActed: false } } };
     const loaded2 = loadUnitOntoTransport(state, rider2.id, transport.id);
