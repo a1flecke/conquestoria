@@ -710,7 +710,8 @@
     "tests/ui/battle-forecast-card.test.ts": 20.0,
     "tests/app/battle-forecast-boundary.test.ts": 5.0,
     "tests/audio/sfx-coverage.test.ts": 40.0,
-    "tests/audio/sfx-unit-routing.test.ts": 60.0
+    "tests/audio/sfx-unit-routing.test.ts": 60.0,
+    "tests/systems/espionage-start-mission-contract.test.ts": 4.108154296875
   },
   "shards": {
     "test-suite-shard-a": [
@@ -1313,6 +1314,7 @@
       "tests/systems/era-resolution.test.ts",
       "tests/systems/espionage-infiltration.test.ts",
       "tests/systems/espionage-stage3-4.test.ts",
+      "tests/systems/espionage-start-mission-contract.test.ts",
       "tests/systems/espionage-system.test.ts",
       "tests/systems/event-chain-definitions.test.ts",
       "tests/systems/event-chain-lifecycle.test.ts",
