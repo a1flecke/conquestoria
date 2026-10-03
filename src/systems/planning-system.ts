@@ -1,5 +1,6 @@
 import type { City, GameState, TechState } from '@/core/types';
-import { BUILDINGS, getAvailableBuildings, getTrainableUnitsForCiv } from '@/systems/city-system';
+import { BUILDINGS, TRAINABLE_UNITS, getAvailableBuildings, getTrainableUnitsForCiv } from '@/systems/city-system';
+import { getQueueableProductionForCity } from '@/systems/city-production-eligibility';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { getAvailableTechs, startResearch, TECH_TREE } from '@/systems/tech-system';
 import { resolveBuildingPacingBand, resolveUnitPacingBand } from '@/systems/pacing-model';
@@ -15,23 +16,69 @@ import { getCapitalCityId } from '@/systems/capital-system';
 const MAX_CITY_QUEUE_ITEMS = 4;
 const MAX_RESEARCH_QUEUE_ITEMS = 3;
 
-export function enqueueCityProduction(city: City, itemId: string): City {
-  // #545: a consumedOnCompletion building (e.g. warhead) never persists into
-  // city.buildings on completion, so it's repeatable like a unit -- the dedup rule
-  // below exists to stop double-queuing a genuinely one-time building.
-  const isUniqueItem = (Boolean(BUILDINGS[itemId]) && !BUILDINGS[itemId]?.consumedOnCompletion)
-    || itemId.startsWith('legendary:');
-  if (isUniqueItem && city.productionQueue.includes(itemId)) {
-    return city;
-  }
+/** Why a production enqueue did nothing. Copy never names another civilization. */
+export type EnqueueDenialReason =
+  | 'city-not-found'
+  | 'legendary-wonder'
+  | 'unknown-item'
+  | 'duplicate'
+  | 'not-available'
+  | 'queue-full';
 
-  if (city.productionQueue.length >= MAX_CITY_QUEUE_ITEMS) {
-    throw new Error('Queue limit reached');
-  }
+export const ENQUEUE_DENIAL_MESSAGES: Record<EnqueueDenialReason, string> = {
+  'city-not-found': 'That city is no longer available.',
+  'legendary-wonder': 'Legendary wonders are started from the wonders panel.',
+  'unknown-item': 'That cannot be built.',
+  'duplicate': 'That is already in the queue.',
+  'not-available': 'That cannot be built here right now.',
+  'queue-full': 'Queue limit reached.',
+};
+
+export type EnqueueResult =
+  | { ok: true; state: GameState }
+  | { ok: false; state: GameState; reason: EnqueueDenialReason };
+
+/**
+ * Appends `itemId` to a city's production queue, after re-running the eligibility the Build tab is built from (#1220).
+ *
+ * `ok: false` returns the input state untouched with a typed reason (`ENQUEUE_DENIAL_MESSAGES`). The player's
+ * panel, the idle-city required choice and the AI's idle-city fill all call this, so an item the list withholds
+ * cannot be queued by a caller that forgot to filter. `processCity`'s dequeue stays as the backstop for state that
+ * changes while an item waits.
+ */
+export function enqueueCityProduction(state: GameState, cityId: string, itemId: string): EnqueueResult {
+  const refuse = (reason: EnqueueDenialReason): EnqueueResult => ({ ok: false, state, reason });
+  const city = state.cities[cityId];
+  if (!city || !state.civilizations[city.owner]) return refuse('city-not-found');
+  // Legendary wonders enter a queue only through `startLegendaryWonderBuild`, which runs the wonder system's own
+  // eligibility; a bare `legendary:` string has none.
+  if (itemId.startsWith('legendary:')) return refuse('legendary-wonder');
+
+  const building = BUILDINGS[itemId];
+  // #545: a consumedOnCompletion building (e.g. warhead) never persists into city.buildings on completion, so it's
+  // repeatable like a unit -- the dedup rule exists to stop double-queuing a genuinely one-time building.
+  if (building && !building.consumedOnCompletion && city.productionQueue.includes(itemId)) return refuse('duplicate');
+
+  const queueable = getQueueableProductionForCity(state, cityId);
+  if (!queueable) return refuse('city-not-found');
+  const known = Boolean(building) || TRAINABLE_UNITS.some(unit => unit.type === itemId);
+  if (!known) return refuse('unknown-item');
+  const offered = building
+    ? queueable.buildings.some(candidate => candidate.id === itemId)
+    : queueable.units.some(unit => unit.type === itemId);
+  if (!offered) return refuse('not-available');
+
+  if (city.productionQueue.length >= MAX_CITY_QUEUE_ITEMS) return refuse('queue-full');
 
   return {
-    ...city,
-    productionQueue: [...city.productionQueue, itemId],
+    ok: true,
+    state: {
+      ...state,
+      cities: {
+        ...state.cities,
+        [cityId]: { ...city, productionQueue: [...city.productionQueue, itemId] },
+      },
+    },
   };
 }
 
@@ -177,26 +224,14 @@ export function getRecommendedIdleCityChoice(
     return null;
   }
 
-  const completedTechs = civ.techState.completed ?? [];
-  const civEra = resolveCivilizationEra(completedTechs);
-  const reservedNationalProjects = getReservedNationalProjectKeys(state, civId);
-  const availableResources = getCivAvailableResources(state, civId);
+  // #1220: the recommendation draws from the very list `enqueueCityProduction` validates against, so it can
+  // never recommend something (a coastal unit for an inland city, an unreachable missionary) the queue refuses.
+  const queueable = getQueueableProductionForCity(state, cityId) ?? { buildings: [], units: [] };
   const bonusEffect = resolveCivDefinition(state, civ.civType)?.bonusEffect;
   const productionCostContext = buildProductionCostContext(state, civId, cityId);
   const productionPerTurn = Math.max(1, calculateProjectedCityYields(state, cityId, bonusEffect).production);
-  const arsenalStatus = getArsenalStatus(state, civId);
   const candidates = [
-    ...(state.map ? getAvailableBuildings(
-      city,
-      completedTechs,
-      state.map,
-      availableResources,
-      civEra,
-      reservedNationalProjects,
-      civId,
-      arsenalStatus,
-      getCapitalCityId(state, civId),
-    ) : []).map(building => {
+    ...queueable.buildings.map(building => {
       const cost = getContextualProductionCost(building.id, productionCostContext);
       return {
         itemId: building.id,
@@ -206,7 +241,7 @@ export function getRecommendedIdleCityChoice(
         priority: resolveBuildingPacingBand(building) === 'starter' ? 0 : 1,
       };
     }),
-    ...getTrainableUnitsForCiv(completedTechs, civ.civType, availableResources)
+    ...queueable.units
       .map(unit => {
         const cost = getContextualProductionCost(unit.type, productionCostContext);
         return {

@@ -10,6 +10,7 @@ import {
   getProductionDisplayName,
   getProductionIconForItem,
 } from '@/systems/city-production-presentation';
+import { getQueueableProductionForCity } from '@/systems/city-production-eligibility';
 import { getCivAvailableResources, getCivHappinessFromResources } from '@/systems/resource-acquisition-system';
 import { RESOURCE_DEFINITIONS, getRouteCapacity, resolveFromCity } from '@/systems/trade-system';
 import { getResourceEffectLabel } from '@/systems/resource-definitions';
@@ -25,7 +26,6 @@ import {
   getCircularManufacturingMaterial,
   CIRCULAR_MANUFACTURING_MATERIALS,
   getNationalProjectMultiplier,
-  getReservedNationalProjectKeys,
 } from '@/systems/national-project-system';
 import {
   getCompactLegendaryWonderEntriesForCity,
@@ -61,7 +61,7 @@ import { getCityTechYields } from '@/systems/tech-yield-system';
 import { buildProductionCostContext, getContextualProductionCost } from '@/systems/production-cost-context';
 import { TECH_TREE, resolveCivilizationEra } from '@/systems/tech-definitions';
 import { evaluateProductionPrerequisites } from '@/systems/production-prerequisites';
-import { getStrategicArsenal, getStrategicArsenalCapacity, hasManhattanProject, getArsenalStatus, getActiveArmsControlCap } from '@/systems/strategic-arsenal-system';
+import { getStrategicArsenal, getStrategicArsenalCapacity, hasManhattanProject, getActiveArmsControlCap } from '@/systems/strategic-arsenal-system';
 import { getCapitalCityId } from '@/systems/capital-system';
 import { isSuperweaponsEnabled } from '@/systems/superweapons-flag';
 import { resolveSuperweaponContentDescription } from '@/systems/superweapon-content-honesty';
@@ -284,18 +284,9 @@ export function createCityPanel(
       : '';
     return `<div style="font-size:10px;opacity:0.72;">Arsenal: ${current}/${effectiveCapacity}</div>${treatyNote}`;
   };
-  const builtNPKeys = getReservedNationalProjectKeys(state, city.owner);
-  const availableBuildings = getAvailableBuildings(
-    city,
-    currentCiv.techState.completed,
-    state.map,
-    playerResources,
-    currentCivEra,
-    builtNPKeys,
-    city.owner,
-    getArsenalStatus(state, city.owner),
-    getCapitalCityId(state, city.owner),
-  );
+  // #1220: the Build tab lists exactly what `enqueueCityProduction` will accept (one shared derivation).
+  const queueableProduction = getQueueableProductionForCity(state, city.id) ?? { buildings: [], units: [] };
+  const availableBuildings = queueableProduction.buildings;
   const cityWonderEntries = getLegendaryWonderPresentationForCity(state, state.currentPlayer, city.id);
   const compactWonderEntries = getCompactLegendaryWonderEntriesForCity(state, state.currentPlayer, city.id, 4);
   const activeLegendaryEntry = city.productionQueue[0]?.startsWith('legendary:')
@@ -675,7 +666,7 @@ export function createCityPanel(
   }
 
   const completedTechs = currentCiv.techState.completed;
-  const availableUnits = getTrainableUnitsForCity(city, completedTechs, state.map, currentCiv.civType, playerResources, cityFollowsOwnFaith(state, city));
+  const availableUnits = queueableProduction.units;
 
   // Trade Routes Overhaul (#553 MR4/4) — City panel Trade Routes section. Gated behind
   // the same 'trade-routes' tech marketplace-panel.ts already uses. Scoped to this

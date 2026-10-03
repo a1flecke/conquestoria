@@ -6,6 +6,7 @@ import { createGameSession } from '@/app/game-session';
 import { createEmptyPirateState, type PirateFactionState } from '@/core/pirate-state';
 import { createEmptyAutonomyCivState } from '@/core/autonomy-state';
 import { createUnit } from '@/systems/unit-lifecycle';
+import { ENQUEUE_DENIAL_MESSAGES } from '@/systems/planning-system';
 import { createEspionageCivState } from '@/systems/espionage-system';
 import type { PirateFocusTarget } from '@/systems/pirate-presentation';
 import type { NotificationMapTarget } from '@/core/notification-log';
@@ -939,6 +940,20 @@ describe('PanelActionsController', () => {
       expect(deps.renderLoop.setGameState).toHaveBeenCalled();
       expect(listener).toHaveBeenCalled();
       expect(deps.showNotification).toHaveBeenCalledWith(expect.stringContaining('Warrior'), 'info');
+    });
+
+    it('#1220: a build the city may not queue shows the denial copy, queues nothing, and returns nothing to re-render', () => {
+      const { state } = makeFixture('city-panel-build-denied');
+      state.cities['test-city'] = makeCity('test-city');
+      const { deps, controller } = build(state);
+
+      controller.openCityPanelForCity(state.cities['test-city']);
+      const options = mockedCallArg<{ onBuild: (cityId: string, itemId: string) => GameState | void }>(createCityPanel, 0, 3);
+      const returned = options.onBuild('test-city', 'definitely-not-a-thing');
+
+      expect(returned).toBeUndefined();
+      expect(deps.session.getState().cities['test-city'].productionQueue).not.toContain('definitely-not-a-thing');
+      expect(deps.showNotification).toHaveBeenCalledWith(expect.stringContaining(ENQUEUE_DENIAL_MESSAGES['unknown-item']), 'warning');
     });
 
     it('cycles to the next and previous city among the civ\'s real roster, recursively calling itself', () => {

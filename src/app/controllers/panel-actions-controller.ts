@@ -78,7 +78,7 @@ import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definit
 import { getLegendaryWonderEligibility, initializeLegendaryWonderProjectsForCity, startLegendaryWonderBuild } from '@/systems/legendary-wonder-system';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
 import { getProductionDisplayName } from '@/systems/city-production-presentation';
-import { enqueueCityProduction, enqueueResearch, moveQueuedId, removeQueuedId, reorderCityProduction, setIdleProduction } from '@/systems/planning-system';
+import { ENQUEUE_DENIAL_MESSAGES, enqueueCityProduction, enqueueResearch, moveQueuedId, removeQueuedId, reorderCityProduction, setIdleProduction } from '@/systems/planning-system';
 import { canBuyResourceAccess, performBuyResourceAccess } from '@/systems/resource-acquisition-system';
 import { assignNetworkPlan, cancelNetworkPlan, holdNetworkPlan, isAutonomyActivated, retargetNetworkPlan } from '@/systems/network-plan-system';
 import { beginAutonomySurge, requestAutonomyPosture } from '@/systems/autonomy-postures';
@@ -896,16 +896,15 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
     createCityPanel(deps.uiLayer, city, deps.session.getState(), {
       onBuild: (cityId, itemId) => {
         const targetCity = deps.session.getState().cities[cityId];
-        if (targetCity) {
-          try {
-            deps.session.commit({ ...deps.session.getState(), cities: { ...deps.session.getState().cities, [cityId]: enqueueCityProduction(targetCity, itemId) } });
-            deps.showNotification(`${targetCity.name}: queued ${getProductionDisplayName(itemId)}`, 'info');
-            return deps.session.getState();
-          } catch (error) {
-            const message = error instanceof Error ? error.message : 'Queue limit reached';
-            deps.showNotification(`${targetCity.name}: ${message}`, 'warning');
-          }
+        if (!targetCity) return;
+        const result = enqueueCityProduction(deps.session.getState(), cityId, itemId);
+        if (!result.ok) {
+          deps.showNotification(`${targetCity.name}: ${ENQUEUE_DENIAL_MESSAGES[result.reason]}`, 'warning');
+          return;
         }
+        deps.session.commit(result.state);
+        deps.showNotification(`${targetCity.name}: queued ${getProductionDisplayName(itemId)}`, 'info');
+        return deps.session.getState();
       },
       onPrepareStrategicLaunch: (cityId: string) => {
         const launchingCity = deps.session.getState().cities[cityId];
