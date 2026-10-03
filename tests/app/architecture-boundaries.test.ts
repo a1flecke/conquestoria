@@ -1549,6 +1549,7 @@ describe('#1200 — the consequences of a kill belong to the shared combat outco
     'src/ai/ai-tactics.ts',
     'src/ai/basic-ai.ts',
     'src/app/controllers/player-action-controller.ts',
+    'src/core/round-phases/beasts.ts',
     'src/core/turn-manager.ts',
     'src/systems/air-operations-system.ts',
     'src/systems/airborne-system.ts',
@@ -1961,7 +1962,7 @@ describe('#1219 — a unit-vs-unit exchange only starts through the canonical at
   it('the pinned exemptions are exactly the world actors, previews and air missions that exist', () => {
     expect(Object.keys(EXPECTED_EXEMPTIONS).sort()).toEqual([
       'src/ai/ai-tactics.ts',
-      'src/core/turn-manager.ts',
+      'src/core/round-phases/beasts.ts',
       'src/systems/air-operations-system.ts',
       'src/systems/airborne-system.ts',
       'src/systems/minor-civ-system.ts',
