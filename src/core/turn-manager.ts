@@ -133,7 +133,6 @@ import {
 } from '@/systems/legendary-wonder-system';
 import { getTacticalFortOccupantHealingBonus } from '@/systems/legendary-wonder-tactical-effects';
 import { announceUnitProduction, completeUnitProduction } from '@/systems/unit-production-completion';
-import { applyEconomyTurn, emitEconomyStrainIfNeeded } from '@/systems/economy-system';
 import { getNationalProjectCivYieldBonus, expireNationalProjects } from '@/systems/national-project-system';
 import { classifyOwner } from './owner-kind';
 import { getStampedeLifecycleTransition, processStampedeScheduling, processStampedeTurn } from '@/systems/stampede-system';
@@ -149,6 +148,7 @@ import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
 import { removeUnits } from '@/systems/unit-removal-system';
 import { createRoundPhaseContext } from './round-phases/types';
+import { economyPhase } from './round-phases/economy';
 import { piratesPhase } from './round-phases/pirates';
 import { preCivReconciliationPhase } from './round-phases/pre-civ-reconciliation';
 import { finalizationPhase } from './round-phases/finalization';
@@ -224,7 +224,7 @@ export function processTurn(
   newState = processReligionTurn(newState, bus);
   newState = processLoyaltyTurn(newState, bus);
   newState = preCivReconciliationPhase.run(newState, context);
-  const { grossGoldByCiv, previousEconomyStatusByCiv } = context;
+  const { grossGoldByCiv } = context;
 
   // --- Process each civilization ---
   for (const [civId, civ] of Object.entries(newState.civilizations)) {
@@ -1413,7 +1413,6 @@ export function processTurn(
   }
 
   newState = piratesPhase.run(newState, context);
-  const { pirateEconomyModifiers } = context;
 
   if (newState.marketplace) {
     for (const civId of Object.keys(newState.civilizations)) {
@@ -1509,11 +1508,7 @@ export function processTurn(
     }
   }
 
-  for (const civId of Object.keys(newState.civilizations)) {
-    if (!getCivilizationLiveness(newState, civId).living) continue;
-    newState = applyEconomyTurn(newState, civId, grossGoldByCiv[civId] ?? 0, pirateEconomyModifiers);
-    emitEconomyStrainIfNeeded(previousEconomyStatusByCiv[civId], newState.economyStatusByCiv![civId], bus, civId);
-  }
+  newState = economyPhase.run(newState, context);
 
   newState = finalizationPhase.run(newState, context);
   return newState;
