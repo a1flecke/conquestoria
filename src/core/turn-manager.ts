@@ -69,18 +69,12 @@ import {
   resolveNetworkPlansForVictimTurnEnd,
   resolveStableNetworkPlansForOwnerTurn,
 } from '@/systems/network-plan-system';
-import { normalizeOpponentAIState } from '@/core/opponent-ai-state';
-import { emitCivilizationLivenessTransitions, reconcileCivilizationLiveness } from '@/systems/civilization-elimination-system';
 import { getUnrestYieldMultiplier, isCityProductionLocked, getFederalismRemittanceLoss } from '@/systems/faction-system';
 import { getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
 import { getCrisisYieldMultiplier } from '@/systems/crisis-system';
 import { foundReligion } from '@/systems/religion-system';
 import { addWarheadToArsenal } from '@/systems/strategic-arsenal-system';
-import {
-  getLegendaryWonderCityYieldBonus,
-  getLegendaryWonderCivYieldBonus,
-  initializeLegendaryWonderProjectsForAllCities,
-} from '@/systems/legendary-wonder-system';
+import { getLegendaryWonderCityYieldBonus, getLegendaryWonderCivYieldBonus } from '@/systems/legendary-wonder-system';
 import { getTacticalFortOccupantHealingBonus } from '@/systems/legendary-wonder-tactical-effects';
 import { announceUnitProduction, completeUnitProduction } from '@/systems/unit-production-completion';
 import { getNationalProjectCivYieldBonus } from '@/systems/national-project-system';
@@ -92,6 +86,7 @@ import { resolveGeneralDefinition, type GeneralDefinition } from '@/systems/grea
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
 import { createRoundPhaseContext } from './round-phases/types';
+import { preludePhase } from './round-phases/prelude';
 import { instabilityPhase } from './round-phases/instability';
 import { postCivHousekeepingPhase } from './round-phases/post-civ-housekeeping';
 import { territoryFrontierPhase } from './round-phases/territory-frontier';
@@ -164,13 +159,7 @@ export function processTurn(
   bus: EventBus,
 ): GameState {
   const context = createRoundPhaseContext(state, bus);
-  let newState = initializeLegendaryWonderProjectsForAllCities(structuredClone(state));
-  let liveness = reconcileCivilizationLiveness(newState, newState);
-  emitCivilizationLivenessTransitions(liveness, bus);
-  newState = liveness.state;
-  newState = normalizeOpponentAIState(newState);
-
-  bus.emit('turn:end', { turn: newState.turn, playerId: newState.currentPlayer });
+  let newState = preludePhase.run(state, context);
 
   newState = instabilityPhase.run(newState, context);
   newState = preCivReconciliationPhase.run(newState, context);
