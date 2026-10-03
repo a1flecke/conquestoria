@@ -114,7 +114,7 @@ import {
 import { normalizeOpponentAIState } from '@/core/opponent-ai-state';
 import { emitCivilizationLivenessTransitions, reconcileCivilizationLiveness } from '@/systems/civilization-elimination-system';
 import { processFactionTurn, getUnrestYieldMultiplier, isCityProductionLocked, getFederalismRemittanceLoss } from '@/systems/faction-system';
-import { getOccupiedCityYieldMultiplier, tickOccupiedCities } from '@/systems/city-occupation-system';
+import { getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
 import { processBreakawayTurn } from '@/systems/breakaway-system';
 import { processCrisisTurn, processCrisisScheduler, getCrisisYieldMultiplier } from '@/systems/crisis-system';
 import { processEventChainTurn } from '@/systems/event-chain-lifecycle';
@@ -123,8 +123,6 @@ import { processWorldRacesTurn } from '@/systems/world-race-system';
 import { processReligionTurn, foundReligion } from '@/systems/religion-system';
 import { addWarheadToArsenal } from '@/systems/strategic-arsenal-system';
 import { processLoyaltyTurn } from '@/systems/religion-loyalty-system';
-import { applyCrisisResponses } from '@/ai/ai-crisis-response';
-import { resolveWorldPressureFlags } from '@/systems/world-pressure-flags';
 import { applyTerritoryFrontierProgressWithEvents, buildTerritoryTileFlippedEvents, recalculateTerritory } from '@/systems/city-territory-system';
 import {
   getLegendaryWonderCityYieldBonus,
@@ -153,6 +151,7 @@ import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
 import { removeUnits } from '@/systems/unit-removal-system';
 import { createRoundPhaseContext } from './round-phases/types';
+import { preCivReconciliationPhase } from './round-phases/pre-civ-reconciliation';
 import { finalizationPhase } from './round-phases/finalization';
 export { finalizeOpponentRoundState } from './round-phases/finalization';
 
@@ -225,29 +224,8 @@ export function processTurn(
   newState = processWorldRacesTurn(newState, bus);
   newState = processReligionTurn(newState, bus);
   newState = processLoyaltyTurn(newState, bus);
-  liveness = reconcileCivilizationLiveness(newState, newState);
-  emitCivilizationLivenessTransitions(liveness, bus);
-  newState = liveness.state;
-  // AI civ turns run later via the AI round scheduler, so responses recorded
-  // here (quarantine/fund-remedy) shape the same round's plans (#529 MR3 Task 3.2).
-  if (resolveWorldPressureFlags(newState.settings).aiPressure === 'full') {
-    newState = applyCrisisResponses(newState, bus);
-  }
-  newState = tickOccupiedCities(newState);
-  const { grossGoldByCiv } = context;
-  const previousEconomyStatusByCiv = newState.economyStatusByCiv ?? {};
-
-  // Clean up expired purchased-resource entries (Diplomatic Marketplace / S9)
-  if (newState.marketplace?.purchasedResources?.length) {
-    newState.marketplace = {
-      ...newState.marketplace,
-      purchasedResources: newState.marketplace.purchasedResources.filter(
-        e => e.expiresOnTurn > newState.turn,
-      ),
-    };
-  }
-
-  newState = reconcileLegendaryWonderAvailability(newState, bus);
+  newState = preCivReconciliationPhase.run(newState, context);
+  const { grossGoldByCiv, previousEconomyStatusByCiv } = context;
 
   // --- Process each civilization ---
   for (const [civId, civ] of Object.entries(newState.civilizations)) {
