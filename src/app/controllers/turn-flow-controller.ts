@@ -51,7 +51,7 @@ import { createReligionBoonModal } from '@/ui/religion-boon-modal';
 import { chooseBoon } from '@/systems/religion-system';
 import { getCouncilInterrupt } from '@/systems/council-system';
 import { collectCouncilInterrupt } from '@/core/hotseat-events';
-import { getIdleCityIds, getRecommendedIdleCityChoice, needsResearchChoice, enqueueResearch, enqueueCityProduction } from '@/systems/planning-system';
+import { getIdleCityIds, getRecommendedIdleCityChoice, needsResearchChoice, enqueueResearch, enqueueCityProduction, ENQUEUE_DENIAL_MESSAGES } from '@/systems/planning-system';
 import { calculateCivResearchOutput } from '@/systems/research-output-system';
 import { getAvailableTechs, getEffectiveTechCost } from '@/systems/tech-system';
 import { estimateTurnsToComplete } from '@/systems/pacing-model';
@@ -280,10 +280,13 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
       onChooseCityBuild: (cityId, itemId) => {
         const city = session.getState().cities[cityId];
         if (!city) return;
-        session.commit({
-          ...session.getState(),
-          cities: { ...session.getState().cities, [cityId]: enqueueCityProduction(city, itemId) },
-        });
+        const result = enqueueCityProduction(session.getState(), cityId, itemId);
+        if (!result.ok) {
+          deps.showNotification(`${city.name}: ${ENQUEUE_DENIAL_MESSAGES[result.reason]}`, 'warning');
+          refreshRequiredChoicesAfterAction();
+          return;
+        }
+        session.commit(result.state);
         deps.showNotification(`${city.name}: queued ${itemId}`, 'info');
         refreshRequiredChoicesAfterAction();
       },

@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
+import type { GameState } from '@/core/types';
+import { getQueueableProductionForCity } from '@/systems/city-production-eligibility';
+import { makeLegendaryWonderFixture } from './helpers/legendary-wonder-fixture';
 import { BUILDINGS, foundCity, TRAINABLE_UNITS } from '@/systems/city-system';
 import { generateMap } from '@/systems/map-generator';
 import { createTechState } from '@/systems/tech-system';
@@ -19,17 +22,30 @@ import {
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
+/** A real state with one city whose owner has every technology: enqueue validates against live eligibility. */
+function fixture() {
+  const state = makeLegendaryWonderFixture({ completedTechs: TECH_TREE.map(tech => tech.id) });
+  const unit = getQueueableProductionForCity(state, 'city-river')!.units[0].type;
+  return { state, unit };
+}
+
+function withQueue(state: GameState, queue: string[]): GameState {
+  return { ...state, cities: { ...state.cities, 'city-river': { ...state.cities['city-river'], productionQueue: queue } } };
+}
+
 describe('planning-system city queues', () => {
   it('appends new city builds up to the active item plus three follow-ups', () => {
-    const city = { productionQueue: ['warrior'] } as any;
-    const queued = enqueueCityProduction(city, 'shrine');
-    expect(queued.productionQueue).toEqual(['warrior', 'shrine']);
+    const { state, unit } = fixture();
+    const withActive = withQueue(state, [unit]);
+    const queued = enqueueCityProduction(withActive, 'city-river', 'library');
+    expect(queued.ok).toBe(true);
+    expect(queued.ok && queued.state.cities['city-river'].productionQueue).toEqual([unit, 'library']);
   });
 
   it('allows three follow-up city queue items beyond the active build', () => {
-    const city = { productionQueue: ['warrior', 'shrine', 'worker'] } as any;
-    const queued = enqueueCityProduction(city, 'library');
-    expect(queued.productionQueue).toEqual(['warrior', 'shrine', 'worker', 'library']);
+    const { state, unit } = fixture();
+    const queued = enqueueCityProduction(withQueue(state, [unit, 'library', unit]), 'city-river', 'shrine');
+    expect(queued.ok && queued.state.cities['city-river'].productionQueue).toEqual([unit, 'library', unit, 'shrine']);
   });
 
   it('reorders queue items without dropping them', () => {
@@ -123,27 +139,31 @@ describe('planning-system city queues', () => {
   });
 
   it('allows the same unit type to appear multiple times in the queue', () => {
-    const city = { productionQueue: ['warrior'] } as any;
-    const queued = enqueueCityProduction(city, 'warrior');
-    expect(queued.productionQueue).toEqual(['warrior', 'warrior']);
+    const { state, unit } = fixture();
+    const queued = enqueueCityProduction(withQueue(state, [unit]), 'city-river', unit);
+    expect(queued.ok && queued.state.cities['city-river'].productionQueue).toEqual([unit, unit]);
   });
 
-  it('prevents queuing a building that is already in the queue', () => {
-    const city = { productionQueue: ['warrior', 'shrine'] } as any;
-    const result = enqueueCityProduction(city, 'shrine');
-    expect(result.productionQueue).toEqual(['warrior', 'shrine']);
+  it('prevents queuing a building that is already in the queue (typed, state untouched)', () => {
+    const { state, unit } = fixture();
+    const queuedState = withQueue(state, [unit, 'shrine']);
+    const result = enqueueCityProduction(queuedState, 'city-river', 'shrine');
+    expect(result.ok).toBe(false);
+    expect(result.ok ? null : result.reason).toBe('duplicate');
+    expect(result.state).toBe(queuedState);
   });
 
-  it('prevents queuing a legendary wonder that is already in the queue', () => {
-    const city = { productionQueue: ['legendary:colosseum'] } as any;
-    const result = enqueueCityProduction(city, 'legendary:colosseum');
-    expect(result.productionQueue).toEqual(['legendary:colosseum']);
+  it('refuses a bare legendary wonder id: wonders are queued by startLegendaryWonderBuild with its own eligibility', () => {
+    const { state } = fixture();
+    const result = enqueueCityProduction(state, 'city-river', 'legendary:colosseum');
+    expect(result.ok ? null : result.reason).toBe('legendary-wonder');
   });
 
-  it('#545: allows a consumedOnCompletion building (warhead) to be queued multiple times, unlike a normal building', () => {
-    const city = { productionQueue: ['warhead'] } as any;
-    const result = enqueueCityProduction(city, 'warhead');
-    expect(result.productionQueue).toEqual(['warhead', 'warhead']);
+  it('#545: a consumedOnCompletion building (warhead) is never refused as a duplicate, unlike a normal building', () => {
+    const { state } = fixture();
+    const result = enqueueCityProduction(withQueue(state, ['warhead']), 'city-river', 'warhead');
+    // Without a Manhattan Project it is (correctly) unavailable; the point is that it is not a duplicate.
+    expect(result.ok ? null : result.reason).not.toBe('duplicate');
   });
 
   it('recommends a truly fast opening option instead of the first registered building', () => {

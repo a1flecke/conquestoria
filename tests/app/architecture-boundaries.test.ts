@@ -1695,6 +1695,60 @@ describe('#1013 — the import graph cannot drift silently', () => {
   });
 });
 
+describe('#1220 — a production queue grows through exactly one validated enqueue', () => {
+  function walkTs(dir: string): string[] {
+    return readdirSync(dir, { withFileTypes: true }).flatMap(e => {
+      const full = resolve(dir, e.name);
+      return e.isDirectory() ? walkTs(full) : /\.tsx?$/.test(e.name) ? [full] : [];
+    });
+  }
+  const root = resolve(__dirname, '../..');
+  const files = walkTs(resolve(root, 'src')).map(file => ({
+    path: file.slice(root.length + 1),
+    source: readFileSync(file, 'utf8'),
+  }));
+  const strip = (source: string) => source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  /** `[...something.productionQueue, <item>]`: appending to a queue by hand. Prepends/filters are different shapes. */
+  const APPEND = /\[\s*\.\.\.[\w.?!\[\]'"]*productionQueue\s*,/;
+  const appenders = (list: Array<{ path: string; source: string }>) =>
+    list.filter(file => APPEND.test(strip(file.source))).map(file => file.path);
+
+  it('only planning-system appends to a production queue by hand', () => {
+    expect(appenders(files)).toEqual(['src/systems/planning-system.ts']);
+  });
+
+  it('every caller of enqueueCityProduction reads the typed result instead of assuming success', () => {
+    const callers = files.filter(file => /\benqueueCityProduction\(/.test(strip(file.source))
+      && file.path !== 'src/systems/planning-system.ts');
+    expect(callers.map(file => file.path).sort()).toEqual([
+      'src/ai/ai-production.ts',
+      'src/app/controllers/panel-actions-controller.ts',
+      'src/app/controllers/turn-flow-controller.ts',
+    ]);
+    for (const caller of callers) {
+      expect(strip(caller.source), caller.path).toMatch(/enqueueCityProduction\([^)]*\)[\s\S]{0,400}\.ok\b|\.ok\b[\s\S]{0,400}enqueueCityProduction\(/);
+    }
+  });
+
+  it('the Build tab and the idle-city recommendation read the same list the enqueue validates against', () => {
+    const planning = files.find(file => file.path === 'src/systems/planning-system.ts')!.source;
+    const panel = files.find(file => file.path === 'src/ui/city-panel.ts')!.source;
+    expect(strip(planning).match(/getQueueableProductionForCity\(/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(strip(panel)).toMatch(/getQueueableProductionForCity\(/);
+  });
+
+  describe('the check itself is not vacuous', () => {
+    it('catches a hand-appended queue in a new file', () => {
+      expect(appenders([{ path: 'src/x.ts', source: 'const c = { ...city, productionQueue: [...city.productionQueue, id] };' }])).toEqual(['src/x.ts']);
+      expect(appenders([{ path: 'src/x.ts', source: 'const c = { productionQueue: [...state.cities[id].productionQueue, "a"] };' }])).toEqual(['src/x.ts']);
+    });
+    it('ignores prepends, filters and comments', () => {
+      expect(appenders([{ path: 'src/x.ts', source: 'productionQueue: [id, ...city.productionQueue.filter(i => i !== id)]' }])).toEqual([]);
+      expect(appenders([{ path: 'src/x.ts', source: '// productionQueue: [...city.productionQueue, id]' }])).toEqual([]);
+    });
+  });
+});
+
 describe('#1221 — a diplomatic action runs only after the one eligibility the offer surface uses', () => {
   const root = resolve(__dirname, '../..');
   const read = (path: string) => readFileSync(resolve(root, path), 'utf8');
