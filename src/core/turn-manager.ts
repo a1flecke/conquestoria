@@ -62,7 +62,6 @@ import { processVassalageTribute, getVassalageMilitaryCount } from '@/systems/di
 import { processFashionCycle, updatePrices } from '@/systems/trade-system';
 import { processWonderEffects } from '@/systems/wonder-system';
 import { createRng } from '@/systems/map-generator';
-import { processMinorCivTurn, checkCampEvolution } from '@/systems/minor-civ-system';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { createSimulationRng } from '@/systems/simulation-rng';
 import { resolveCivDefinition } from '@/systems/civ-registry';
@@ -105,6 +104,7 @@ import { resolveGeneralDefinition, type GeneralDefinition } from '@/systems/grea
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
 import { createRoundPhaseContext } from './round-phases/types';
+import { minorCivsPhase } from './round-phases/minor-civs';
 import { barbariansPhase } from './round-phases/barbarians';
 import { beastsPhase } from './round-phases/beasts';
 import { threatSchedulingPhase } from './round-phases/threat-scheduling';
@@ -876,27 +876,7 @@ export function processTurn(
 
   newState = barbariansPhase.run(newState, context);
 
-  // --- Minor civ turn phase ---
-  newState = processMinorCivTurn(newState, bus);
-
-  // --- Barbarian evolution check ---
-  const evolution = checkCampEvolution(newState, newState.turn);
-  if (evolution) {
-    delete newState.barbarianCamps[evolution.removeCampId];
-    newState.cities[evolution.newCity.id] = evolution.newCity;
-    newState.units[evolution.newGarrison.id] = evolution.newGarrison;
-    for (const uid of evolution.transferUnitIds) {
-      if (newState.units[uid]) {
-        newState.units[uid].owner = evolution.newMinorCiv.id;
-      }
-    }
-    newState.minorCivs[evolution.newMinorCiv.id] = evolution.newMinorCiv;
-    bus.emit('minor-civ:evolved', {
-      campId: evolution.removeCampId,
-      minorCivId: evolution.newMinorCiv.id,
-      position: evolution.newCity.position,
-    });
-  }
+  newState = minorCivsPhase.run(newState, context);
 
   newState = beastsPhase.run(newState, context);
 
