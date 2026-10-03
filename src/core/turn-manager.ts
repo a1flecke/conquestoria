@@ -135,8 +135,6 @@ import { getTacticalFortOccupantHealingBonus } from '@/systems/legendary-wonder-
 import { announceUnitProduction, completeUnitProduction } from '@/systems/unit-production-completion';
 import { applyEconomyTurn, emitEconomyStrainIfNeeded } from '@/systems/economy-system';
 import { getNationalProjectCivYieldBonus, expireNationalProjects } from '@/systems/national-project-system';
-import type { PirateEconomyModifiers } from '@/systems/economy-system';
-import { processPiratesForCompletedRound } from '@/systems/pirate-system';
 import { classifyOwner } from './owner-kind';
 import { getStampedeLifecycleTransition, processStampedeScheduling, processStampedeTurn } from '@/systems/stampede-system';
 import {
@@ -151,6 +149,7 @@ import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
 import { removeUnits } from '@/systems/unit-removal-system';
 import { createRoundPhaseContext } from './round-phases/types';
+import { piratesPhase } from './round-phases/pirates';
 import { preCivReconciliationPhase } from './round-phases/pre-civ-reconciliation';
 import { finalizationPhase } from './round-phases/finalization';
 export { finalizeOpponentRoundState } from './round-phases/finalization';
@@ -1413,10 +1412,8 @@ export function processTurn(
     newState = advanceRouteRunners(newState, bus);
   }
 
-  let pirateEconomyModifiers: PirateEconomyModifiers | undefined;
-  const pirateRound = processPiratesForCompletedRound(newState, bus);
-  newState = pirateRound.state;
-  pirateEconomyModifiers = pirateRound.economyModifiers;
+  newState = piratesPhase.run(newState, context);
+  const { pirateEconomyModifiers } = context;
 
   if (newState.marketplace) {
     for (const civId of Object.keys(newState.civilizations)) {
