@@ -19,7 +19,38 @@ export const MOVEMENT_SFX: Record<LocomotionClass, TrackEntry> = {
   humanoid: real('sfx-humanoid-move-step', 'audio/sfx/humanoid-move-step.ogg', 0.778, 'movement'),
   animal:   real('sfx-animal-move-step',   'audio/sfx/animal-move-step.ogg',   0.274, 'movement'),
   naval:    real('sfx-naval-move-step',    'audio/sfx/naval-move-step.ogg',    0.266, 'movement'),
-  air:      real('sfx-air-move-step',      'audio/sfx/air-move-step.ogg',      0.380, 'movement'),
+  // #612: engine-free fluttering airflow (scripts/generate-unit-sfx.sh) for balloons and as the fallback for an
+  // unmapped aircraft; replaces the humanoid-footstep placeholder. Engines have their own cues: AIR_MOVEMENT_SFX.
+  air:      real('sfx-air-move-step',      'audio/sfx/air-move-step.ogg',      1.20, 'movement'),
+};
+
+// #612: aircraft do not all sound alike, and they are heard once per move (see SfxDirector), so each cue is a
+// sustained ~1.3 s swell with soft edges.
+// Aircraft do not all sound alike. Every unit whose locomotion class is 'air' must name how it flies
+// (enforced by tests/audio/sfx-coverage.test.ts); MOVEMENT_SFX.air stays as the engine-free fallback.
+export type AirPropulsion = 'lighter-than-air' | 'propeller' | 'jet' | 'rotor' | 'drone';
+export const AIR_MOVEMENT_SFX: Record<AirPropulsion, TrackEntry> = {
+  'lighter-than-air': MOVEMENT_SFX.air,
+  propeller: real('sfx-air-move-prop', 'audio/sfx/air-move-prop.ogg', 1.30, 'movement'),
+  jet:       real('sfx-air-move-jet',  'audio/sfx/air-move-jet.ogg',  1.40, 'movement'),
+  rotor:     real('sfx-air-move-rotor', 'audio/sfx/air-move-rotor.ogg', 1.30, 'movement'),
+  drone:     real('sfx-air-move-drone', 'audio/sfx/air-move-drone.ogg', 1.30, 'movement'),
+};
+export const AIR_PROPULSION: Partial<Record<UnitType, AirPropulsion>> = {
+  observation_balloon: 'lighter-than-air',
+  biplane: 'propeller',
+  wwii_fighter: 'propeller',
+  air_freighter: 'propeller',
+  recon_aircraft: 'jet',
+  jet_fighter: 'jet',
+  bomber: 'jet',
+  stealth_bomber: 'jet',
+  naval_strike_aircraft: 'jet',
+  maritime_patrol_aircraft: 'jet',
+  jet_freighter: 'jet',
+  global_air_cargo: 'jet',
+  attack_helicopter: 'rotor',
+  combat_drone: 'drone',
 };
 
 export const PIRATE_MOVEMENT_SFX: Record<PirateUnitType, TrackEntry> = {
@@ -120,6 +151,43 @@ const CATAPULT_SFX = {
   death:          real('sfx-catapult-death',         'audio/sfx/catapult-death.ogg',         0.779, 'death'),
 };
 
+// ── #612 shared families ─────────────────────────────────────────────────────────────────
+// Cues come from scripts/generate-unit-sfx.sh: either synthetic or derived from CC0 recordings
+// (see AUDIO-CREDITS.md and docs/audio/unit-sfx-manifest.md). Units that deliberately sound alike
+// point at the SAME entry object — the duplicate-id/file checks in allSfxEntries() then see one
+// entry — and tests/audio/helpers/sfx-coverage-policy.ts requires every shared file to belong to a
+// named INTENTIONAL_SFX_FAMILIES entry. Bespoke per-unit batches (#425 #426 #427 #714 #715 #716
+// #717) replace one unit's mapping; they never need to touch a family a sibling still uses.
+const RIFLE_BOLT = real('sfx-rifle-bolt', 'audio/sfx/rifle-bolt.ogg', 0.60);
+const RIFLE_SEMI = real('sfx-rifle-semi', 'audio/sfx/rifle-semi.ogg', 0.50);
+const MACHINE_GUN_BURST = real('sfx-machine-gun-burst', 'audio/sfx/machine-gun-burst.ogg', 0.72);
+const AUTOCANNON_BURST = real('sfx-autocannon-burst', 'audio/sfx/autocannon-burst.ogg', 0.55);
+const GRENADE_LAUNCH = real('sfx-grenade-launch', 'audio/sfx/grenade-launch.ogg', 0.60);
+const CANNON_FIRE = real('sfx-cannon-fire', 'audio/sfx/cannon-fire.ogg', 1.00);
+const FIELD_GUN_FIRE = real('sfx-field-gun-fire', 'audio/sfx/field-gun-fire.ogg', 1.10);
+const NAVAL_GUN_FIRE = real('sfx-naval-gun-fire', 'audio/sfx/naval-gun-fire.ogg', 1.30);
+const TANK_GUN_FIRE = real('sfx-tank-gun-fire', 'audio/sfx/tank-gun-fire.ogg', 0.70);
+const ROCKET_LAUNCH = real('sfx-rocket-launch', 'audio/sfx/rocket-launch.ogg', 1.00);
+const TORPEDO_LAUNCH = real('sfx-torpedo-launch', 'audio/sfx/torpedo-launch.ogg', 1.40);
+const SHELL_BLAST = real('sfx-shell-blast', 'audio/sfx/shell-blast.ogg', 0.80);
+const HEAVY_BLAST = real('sfx-heavy-blast', 'audio/sfx/heavy-blast.ogg', 1.30);
+const AIRCRAFT_HIT = real('sfx-aircraft-hit', 'audio/sfx/aircraft-hit.ogg', 0.30);
+const INFANTRY_HIT = real('sfx-infantry-hit', 'audio/sfx/infantry-hit.ogg', 0.27);
+const BOMB_BLAST = real('sfx-bomb-blast', 'audio/sfx/bomb-blast.ogg', 1.20);
+const SOLDIER_DEFEAT = real('sfx-soldier-defeat', 'audio/sfx/soldier-defeat.ogg', 0.79, 'death');
+const CIVILIAN_DEFEAT = real('sfx-civilian-defeat', 'audio/sfx/civilian-defeat.ogg', 0.50, 'death');
+const CANNON_WRECK = real('sfx-cannon-wreck', 'audio/sfx/cannon-wreck.ogg', 0.80, 'death');
+const VEHICLE_DESTROYED = real('sfx-vehicle-destroyed', 'audio/sfx/vehicle-destroyed.ogg', 1.20, 'death');
+const AIRCRAFT_CRASH = real('sfx-aircraft-crash', 'audio/sfx/aircraft-crash.ogg', 1.40, 'death');
+const BALLOON_BURST = real('sfx-balloon-burst', 'audio/sfx/balloon-burst.ogg', 0.80, 'death');
+const HULL_WOOD = real('sfx-hull-wood', 'audio/sfx/hull-wood.ogg', 1.20, 'death');
+const HULL_IRON = real('sfx-hull-iron', 'audio/sfx/hull-iron.ogg', 1.40, 'death');
+const HULL_MODERN = real('sfx-hull-modern', 'audio/sfx/hull-modern.ogg', 1.30, 'death');
+
+// Reading the table below: SfxDirector plays the ATTACKER's attack voice and the DEFENDER's own hit cue
+// (attack-impact ?? ranged-impact ?? siege-impact), so a unit's impact entry is "the sound of this unit
+// being hit", not "the sound of its weapon landing". Aircraft therefore take a metal strike and
+// submarines an underwater blast, whatever they carry.
 // Unit SFX — keyed by UnitType, then by SfxClass. Non-combat units have death only.
 export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEntry>>>> = {
 
@@ -262,6 +330,9 @@ export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEn
 
   // === Non-Combat (death only) ===
   settler:    { death: real('sfx-settler-death',    'audio/sfx/settler-death.ogg',    0.118, 'death') },
+  // #612: #594 owns missionary preaching; #889 owns richer General audio.
+  missionary: { death: CIVILIAN_DEFEAT },
+  great_general: { death: CIVILIAN_DEFEAT },
   worker:     { death: real('sfx-worker-death',     'audio/sfx/worker-death.ogg',     0.183, 'death') },
   caravan:    { death: real('sfx-caravan-death',    'audio/sfx/caravan-death.ogg',    0.135, 'death') },
   // Trade Routes Overhaul (#553 MR2/4) — Land trade line successors to Caravan
@@ -334,6 +405,45 @@ export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEn
     'attack-swing': real('sfx-beast_dragon-attack', 'audio/sfx/beast-dragon-attack.ogg', 1.090),
     death:          real('sfx-beast_dragon-death',  'audio/sfx/beast-dragon-death.ogg',  2.590, 'death'),
   },
+
+  // === #612: gunpowder, industrial and modern units — families above ===
+  // Black-powder and early field artillery (bombard: siege-fire / siege-impact).
+  cannon: { 'siege-fire': CANNON_FIRE, 'siege-impact': SHELL_BLAST, death: CANNON_WRECK },
+  artillery: { 'siege-fire': FIELD_GUN_FIRE, 'siege-impact': SHELL_BLAST, death: VEHICLE_DESTROYED },
+  rocket_artillery: { 'siege-fire': ROCKET_LAUNCH, 'siege-impact': SHELL_BLAST, death: VEHICLE_DESTROYED },
+  grenadier: { 'siege-fire': GRENADE_LAUNCH, 'siege-impact': SHELL_BLAST, death: SOLDIER_DEFEAT },
+  // Rifle-era infantry: a sharp strike plus a real male grunt when hit, a cry when defeated. Marine's profile is
+  // melee (class attack-swing), but it fights with a rifle.
+  marine: { 'attack-swing': RIFLE_SEMI, 'attack-impact': INFANTRY_HIT, death: SOLDIER_DEFEAT },
+  rifleman: { 'ranged-loose': RIFLE_BOLT, 'ranged-impact': INFANTRY_HIT, death: SOLDIER_DEFEAT },
+  infantry: { 'ranged-loose': RIFLE_SEMI, 'ranged-impact': INFANTRY_HIT, death: SOLDIER_DEFEAT },
+  paratrooper: { 'ranged-loose': RIFLE_SEMI, 'ranged-impact': INFANTRY_HIT, death: SOLDIER_DEFEAT },
+  machine_gunner: { 'ranged-loose': MACHINE_GUN_BURST, 'ranged-impact': INFANTRY_HIT, death: SOLDIER_DEFEAT },
+  // Armour and anti-armour: direct-fire gun. #715 owns the bespoke vehicle batch.
+  tank: { 'ranged-loose': TANK_GUN_FIRE, 'ranged-impact': SHELL_BLAST, death: VEHICLE_DESTROYED },
+  main_battle_tank: { 'ranged-loose': TANK_GUN_FIRE, 'ranged-impact': SHELL_BLAST, death: VEHICLE_DESTROYED },
+  anti_tank_gun: { 'ranged-loose': TANK_GUN_FIRE, 'ranged-impact': SHELL_BLAST, death: VEHICLE_DESTROYED },
+  // Surface warships. Battleship / Missile Cruiser keep their documented fallback (#717).
+  frigate: { 'ranged-loose': CANNON_FIRE, 'ranged-impact': SHELL_BLAST, death: HULL_WOOD },
+  ironclad: { 'ranged-loose': NAVAL_GUN_FIRE, 'ranged-impact': SHELL_BLAST, death: HULL_IRON },
+  pre_dreadnought: { 'ranged-loose': NAVAL_GUN_FIRE, 'ranged-impact': SHELL_BLAST, death: HULL_IRON },
+  destroyer: { 'ranged-loose': NAVAL_GUN_FIRE, 'ranged-impact': SHELL_BLAST, death: HULL_MODERN },
+  // Carriers fight with ship guns; their aircraft carry the air-combat cues.
+  carrier: { 'ranged-loose': NAVAL_GUN_FIRE, 'ranged-impact': SHELL_BLAST, death: HULL_MODERN },
+  supercarrier: { 'ranged-loose': NAVAL_GUN_FIRE, 'ranged-impact': SHELL_BLAST, death: HULL_MODERN },
+  submarine: { 'ranged-loose': TORPEDO_LAUNCH, 'ranged-impact': HEAVY_BLAST, death: HULL_MODERN },
+  missile_submarine: { 'ranged-loose': ROCKET_LAUNCH, 'ranged-impact': HEAVY_BLAST, death: HULL_MODERN },
+  // Aircraft. Recon and Maritime Patrol are unarmed (defeat only); a balloon has no engine to crash.
+  // Bomber's attack voice is the sound of its bombs landing (a real explosion).
+  observation_balloon: { death: BALLOON_BURST },
+  biplane: { 'ranged-loose': MACHINE_GUN_BURST, 'ranged-impact': AIRCRAFT_HIT, death: AIRCRAFT_CRASH },
+  wwii_fighter: { 'ranged-loose': MACHINE_GUN_BURST, 'ranged-impact': AIRCRAFT_HIT, death: AIRCRAFT_CRASH },
+  jet_fighter: { 'ranged-loose': AUTOCANNON_BURST, 'ranged-impact': AIRCRAFT_HIT, death: AIRCRAFT_CRASH },
+  attack_helicopter: { 'ranged-loose': AUTOCANNON_BURST, 'ranged-impact': AIRCRAFT_HIT, death: AIRCRAFT_CRASH },
+  bomber: { 'ranged-loose': BOMB_BLAST, 'ranged-impact': AIRCRAFT_HIT, death: AIRCRAFT_CRASH },
+  naval_strike_aircraft: { 'ranged-loose': ROCKET_LAUNCH, 'ranged-impact': AIRCRAFT_HIT, death: AIRCRAFT_CRASH },
+  recon_aircraft: { death: AIRCRAFT_CRASH },
+  maritime_patrol_aircraft: { death: AIRCRAFT_CRASH },
 
   // === Era 12 units ===
   cyber_unit: {
@@ -496,11 +606,21 @@ export function getLocomotionClass(unitType: UnitType): LocomotionClass {
   return LOCOMOTION_CLASS[unitType];
 }
 
+/** The per-hex movement cue for a unit: a propulsion-specific one for aircraft, otherwise its locomotion class's. */
+export function getMovementSfx(unitType: UnitType): TrackEntry {
+  const locomotion = getLocomotionClass(unitType);
+  if (locomotion === 'air') {
+    const propulsion = AIR_PROPULSION[unitType];
+    return propulsion ? AIR_MOVEMENT_SFX[propulsion] : MOVEMENT_SFX.air;
+  }
+  return MOVEMENT_SFX[locomotion];
+}
+
 // Load/unload SFX for transport operations. loopEnd values are estimates;
 // update to actual file durations (via ffprobe) when OGGs are sourced.
 export const TRANSPORT_SFX = {
-  load:   real('sfx-transport-load',   'audio/sfx/transport-load.ogg',   0.600, 'movement'),
-  unload: real('sfx-transport-unload', 'audio/sfx/transport-unload.ogg', 0.600, 'movement'),
+  load:   real('sfx-transport-load',   'audio/sfx/transport-load.ogg',   0.675, 'movement'),
+  unload: real('sfx-transport-unload', 'audio/sfx/transport-unload.ogg', 0.675, 'movement'),
 };
 
 // Flat list of all catalog entries — used for preloading and catalog integrity tests.
@@ -519,6 +639,7 @@ export function allSfxEntries(): TrackEntry[] {
   return [
     ...entries,
     ...Object.values(MOVEMENT_SFX),
+    ...Object.values(AIR_MOVEMENT_SFX).filter(entry => entry !== MOVEMENT_SFX.air),
     ...Object.values(PIRATE_MOVEMENT_SFX),
     ...Object.values(PIRATE_HEADQUARTERS_SFX),
     ...Object.values(PIRATE_STRATEGIC_SFX),

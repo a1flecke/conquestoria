@@ -22,6 +22,8 @@
 
 **What remains (this plan, in priority order):**
 
+> 🟡 **#612 partial progress (does not complete SFX MR1–MR3):** every live unit now has structurally-derived SFX coverage through shared, fully synthetic families (`scripts/generate-unit-sfx.sh`, `docs/audio/unit-sfx-manifest.md`) — including all 14 units named in Priority 2 and `air-move-step.ogg`. The *bespoke per-unit Kenney-sourced files* described in MR1–MR3 below are **not** done; those units currently share family cues, and replacing one is now a one-entry edit in `src/audio/sfx-catalog.ts`.
+
 ---
 
 ## Priority 2: Era 6-12 Combat SFX
@@ -319,9 +321,9 @@ One MR per era cluster: MR1 = era 6, MR2 = era 7, MR3 = era 8.
 
 | Work item | Unit | Status | Priority |
 |---|---|---|---|
-| SFX MR1: cannon + grenadier + rifleman | 11 OGGs + catalog | Not started | P2 |
-| SFX MR2: ironclad + machine_gunner + pre_dreadnought | 10 OGGs + catalog | Not started | P2 |
-| SFX MR3: modern/air (8 unit types) | 22 OGGs + catalog | Not started | P2 |
+| SFX MR1: cannon + grenadier + rifleman | 11 OGGs + catalog | 🟡 family coverage via #612; bespoke files not started | P2 |
+| SFX MR2: ironclad + machine_gunner + pre_dreadnought | 10 OGGs + catalog | 🟡 family coverage via #612; bespoke files not started | P2 |
+| SFX MR3: modern/air (8 unit types) | 22 OGGs + catalog | 🟡 family coverage via #612; bespoke files not started | P2 |
 | Music MR0: EraId expand to 8, placeholders | Code + 18 OGGs | Not started | P3 |
 | Music MR1: Era 6 curation | 6 tracks curated | Not started | P3 |
 | Music MR2: Era 7 curation | 6 tracks curated | Not started | P3 |
