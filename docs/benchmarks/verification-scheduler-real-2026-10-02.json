@@ -1,0 +1,1115 @@
+{
+ "schema": 1,
+ "date": "2026-10-02",
+ "mode": "real",
+ "host": {
+  "cpus": 10,
+  "memGiB": 32,
+  "platform": "darwin",
+  "arch": "arm64"
+ },
+ "baseCommit": "03cd3180",
+ "notes": [
+  "Real commands against an isolated lease domain (so the benchmark cannot queue behind or block other agents). Foreground = verify-before-push.sh --regular (regular suite + production build); background = run-test-suite.sh full on tests/systems (+ the hook suite); AI-long = run-ai-long-horizon.sh on a miniature of the long-horizon matrix (lh-standard-medium, lh-veteran-medium and the determinism tests -- the two-file shape that fileParallelism acts on); focused = one vitest file.",
+  "Scenario 10 ran twice. Run 1 (kept here) has valid timings; its recorded failed check was a defect in the harness (foreground was timed from a job that was itself still queued) and was fixed. Run 2 is an observation, not a pass: another agent was running a full suite in the real lease domain, so four heavyweight jobs ran at once (above the scheduler design ceiling of three) and the foreground job hit the former fixed 600s test ceiling.",
+  "The hook suite (which the full/regular jobs run) includes a short synthetic burn of this harness itself; it adds a few seconds of CPU to those jobs."
+ ],
+ "scenarios": [
+  {
+   "id": 1,
+   "name": "foreground alone",
+   "wallSec": 297.4,
+   "jobs": [
+    {
+     "id": "fg",
+     "kind": "fg",
+     "lane": "foreground",
+     "queueSec": 0.6,
+     "runSec": 296.5,
+     "totalSec": 297.1,
+     "exit": 0,
+     "peakProcs": 36,
+     "peakBusyProcs": 8,
+     "meanTreeCpuPct": 153
+    }
+   ],
+   "checks": [
+    {
+     "name": "every job exited 0",
+     "ok": true,
+     "detail": "fg=0"
+    },
+    {
+     "name": "no scenario timeout",
+     "ok": true,
+     "detail": "{\"phase\":{\"ps\":69,\"status\":0,\"gap\":697},\"hang\":null}"
+    },
+    {
+     "name": "foreground lane never above 1",
+     "ok": true,
+     "detail": "peak 1"
+    },
+    {
+     "name": "background lane never above 2",
+     "ok": true,
+     "detail": "peak 1"
+    },
+    {
+     "name": "never two AI-long attempts holding capacity at once",
+     "ok": true,
+     "detail": "peak 0"
+    },
+    {
+     "name": "a job waiting for admission never holds capacity",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "foreground publication ran in the foreground lane",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "verify:local:status returned promptly (never hangs)",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "verify:local:status capacity rows match the real slot holders",
+     "ok": true,
+     "detail": "rows 1, holders 1..1"
+    },
+    {
+     "name": "verify:local:status per-lane in-use counts agree with its own rows",
+     "ok": true,
+     "detail": "foreground capacity: 1/1 slots in use | background capacity: 0/2 slots in use"
+    }
+   ],
+   "peak": {
+    "foreground": 1,
+    "background": 1,
+    "aiSingleton": 0
+   },
+   "hostPeakCpuPct": 77,
+   "minFreeMemGiB": 0.1,
+   "statusRows": {
+    "capacity": 1,
+    "queued": 0
+   },
+   "retries": 0
+  },
+  {
+   "id": 2,
+   "name": "background full alone",
+   "wallSec": 251.3,
+   "jobs": [
+    {
+     "id": "bg1",
+     "kind": "bg",
+     "lane": "background",
+     "queueSec": 0.6,
+     "runSec": 250.6,
+     "totalSec": 251.1,
+     "exit": 0,
+     "peakProcs": 31,
+     "peakBusyProcs": 8,
+     "meanTreeCpuPct": 162
+    }
+   ],
+   "checks": [
+    {
+     "name": "every job exited 0",
+     "ok": true,
+     "detail": "bg1=0"
+    },
+    {
+     "name": "no scenario timeout",
+     "ok": true,
+     "detail": "{\"phase\":{\"ps\":173,\"status\":0,\"gap\":691},\"hang\":null}"
+    },
+    {
+     "name": "foreground lane never above 1",
+     "ok": true,
+     "detail": "peak 0"
+    },
+    {
+     "name": "background lane never above 2",
+     "ok": true,
+     "detail": "peak 1"
+    },
+    {
+     "name": "never two AI-long attempts holding capacity at once",
+     "ok": true,
+     "detail": "peak 0"
+    },
+    {
+     "name": "a job waiting for admission never holds capacity",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "verify:local:status returned promptly (never hangs)",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "verify:local:status capacity rows match the real slot holders",
+     "ok": true,
+     "detail": "rows 1, holders 1..1"
+    },
+    {
+     "name": "verify:local:status per-lane in-use counts agree with its own rows",
+     "ok": true,
+     "detail": "foreground capacity: 0/1 slots in use | background capacity: 1/2 slots in use"
+    }
+   ],
+   "peak": {
+    "foreground": 0,
+    "background": 1,
+    "aiSingleton": 0
+   },
+   "hostPeakCpuPct": 63,
+   "minFreeMemGiB": 0.1,
+   "statusRows": {
+    "capacity": 1,
+    "queued": 0
+   },
+   "retries": 0
+  },
+  {
+   "id": 3,
+   "name": "AI-long alone",
+   "wallSec": 957.4,
+   "jobs": [
+    {
+     "id": "ai",
+     "kind": "ai",
+     "lane": "background",
+     "queueSec": 0.6,
+     "runSec": 956.3,
+     "totalSec": 956.9,
+     "exit": 0,
+     "peakProcs": 10,
+     "peakBusyProcs": 3,
+     "meanTreeCpuPct": 112
+    }
+   ],
+   "checks": [
+    {
+     "name": "every job exited 0",
+     "ok": true,
+     "detail": "ai=0"
+    },
+    {
+     "name": "no scenario timeout",
+     "ok": true,
+     "detail": "{\"phase\":{\"ps\":51,\"status\":0,\"gap\":706},\"hang\":null}"
+    },
+    {
+     "name": "foreground lane never above 1",
+     "ok": true,
+     "detail": "peak 0"
+    },
+    {
+     "name": "background lane never above 2",
+     "ok": true,
+     "detail": "peak 1"
+    },
+    {
+     "name": "never two AI-long attempts holding capacity at once",
+     "ok": true,
+     "detail": "peak 1"
+    },
+    {
+     "name": "a job waiting for admission never holds capacity",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "verify:local:status returned promptly (never hangs)",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "verify:local:status capacity rows match the real slot holders",
+     "ok": true,
+     "detail": "rows 1, holders 1..1"
+    },
+    {
+     "name": "verify:local:status per-lane in-use counts agree with its own rows",
+     "ok": true,
+     "detail": "foreground capacity: 0/1 slots in use | background capacity: 1/2 slots in use"
+    }
+   ],
+   "peak": {
+    "foreground": 0,
+    "background": 1,
+    "aiSingleton": 1
+   },
+   "hostPeakCpuPct": 25,
+   "minFreeMemGiB": 0.1,
+   "statusRows": {
+    "capacity": 1,
+    "queued": 0
+   },
+   "retries": 0
+  },
+  {
+   "id": 4,
+   "name": "AI-long + one background",
+   "wallSec": 1018.3,
+   "jobs": [
+    {
+     "id": "ai",
+     "kind": "ai",
+     "lane": "background",
+     "queueSec": 0.6,
+     "runSec": 1017.6,
+     "totalSec": 1018.2,
+     "exit": 0,
+     "peakProcs": 9,
+     "peakBusyProcs": 3,
+     "meanTreeCpuPct": 115
+    },
+    {
+     "id": "bg1",
+     "kind": "bg",
+     "lane": "background",
+     "queueSec": 0.6,
+     "runSec": 274.9,
+     "totalSec": 275.5,
+     "exit": 0,
+     "peakProcs": 31,
+     "peakBusyProcs": 8,
+     "meanTreeCpuPct": 174
+    }
+   ],
+   "checks": [
+    {
+     "name": "every job exited 0",
+     "ok": true,
+     "detail": "ai=0 bg1=0"
+    },
+    {
+     "name": "no scenario timeout",
+     "ok": true,
+     "detail": "{\"phase\":{\"ps\":85,\"status\":0,\"gap\":707},\"hang\":null}"
+    },
+    {
+     "name": "foreground lane never above 1",
+     "ok": true,
+     "detail": "peak 0"
+    },
+    {
+     "name": "background lane never above 2",
+     "ok": true,
+     "detail": "peak 2"
+    },
+    {
+     "name": "never two AI-long attempts holding capacity at once",
+     "ok": true,
+     "detail": "peak 1"
+    },
+    {
+     "name": "a job waiting for admission never holds capacity",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "verify:local:status returned promptly (never hangs)",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "verify:local:status capacity rows match the real slot holders",
+     "ok": true,
+     "detail": "rows 2, holders 2..2"
+    },
+    {
+     "name": "verify:local:status per-lane in-use counts agree with its own rows",
+     "ok": true,
+     "detail": "foreground capacity: 0/1 slots in use | background capacity: 2/2 slots in use"
+    }
+   ],
+   "peak": {
+    "foreground": 0,
+    "background": 2,
+    "aiSingleton": 1
+   },
+   "hostPeakCpuPct": 85,
+   "minFreeMemGiB": 0.1,
+   "statusRows": {
+    "capacity": 2,
+    "queued": 0
+   },
+   "retries": 0
+  },
+  {
+   "id": 5,
+   "name": "AI-long + foreground",
+   "wallSec": 1030.3,
+   "jobs": [
+    {
+     "id": "ai",
+     "kind": "ai",
+     "lane": "background",
+     "queueSec": 0.6,
+     "runSec": 1029.3,
+     "totalSec": 1029.8,
+     "exit": 0,
+     "peakProcs": 9,
+     "peakBusyProcs": 3,
+     "meanTreeCpuPct": 114
+    },
+    {
+     "id": "fg",
+     "kind": "fg",
+     "lane": "foreground",
+     "queueSec": 0.6,
+     "runSec": 316.7,
+     "totalSec": 317.3,
+     "exit": 0,
+     "peakProcs": 37,
+     "peakBusyProcs": 9,
+     "meanTreeCpuPct": 165
+    }
+   ],
+   "checks": [
+    {
+     "name": "every job exited 0",
+     "ok": true,
+     "detail": "ai=0 fg=0"
+    },
+    {
+     "name": "no scenario timeout",
+     "ok": true,
+     "detail": "{\"phase\":{\"ps\":88,\"status\":0,\"gap\":678},\"hang\":null}"
+    },
+    {
+     "name": "foreground lane never above 1",
+     "ok": true,
+     "detail": "peak 1"
+    },
+    {
+     "name": "background lane never above 2",
+     "ok": true,
+     "detail": "peak 2"
+    },
+    {
+     "name": "never two AI-long attempts holding capacity at once",
+     "ok": true,
+     "detail": "peak 1"
+    },
+    {
+     "name": "a job waiting for admission never holds capacity",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "foreground publication ran in the foreground lane",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "foreground admitted while background work was still running (not queued behind it)",
+     "ok": true,
+     "detail": "fg admitted at 21.2s, first background ended at 1029.8s"
+    },
+    {
+     "name": "verify:local:status returned promptly (never hangs)",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "verify:local:status capacity rows match the real slot holders",
+     "ok": true,
+     "detail": "rows 1, holders 1..1"
+    },
+    {
+     "name": "verify:local:status per-lane in-use counts agree with its own rows",
+     "ok": true,
+     "detail": "foreground capacity: 0/1 slots in use | background capacity: 1/2 slots in use"
+    }
+   ],
+   "peak": {
+    "foreground": 1,
+    "background": 2,
+    "aiSingleton": 1
+   },
+   "hostPeakCpuPct": 90,
+   "minFreeMemGiB": 0.1,
+   "statusRows": {
+    "capacity": 1,
+    "queued": 0
+   },
+   "retries": 0
+  },
+  {
+   "id": 6,
+   "name": "AI-long + background + foreground",
+   "wallSec": 1109.1,
+   "jobs": [
+    {
+     "id": "ai",
+     "kind": "ai",
+     "lane": "background",
+     "queueSec": 0.6,
+     "runSec": 1108.5,
+     "totalSec": 1109.1,
+     "exit": 0,
+     "peakProcs": 10,
+     "peakBusyProcs": 3,
+     "meanTreeCpuPct": 115
+    },
+    {
+     "id": "bg1",
+     "kind": "bg",
+     "lane": "background",
+     "queueSec": 0.6,
+     "runSec": 339.9,
+     "totalSec": 340.5,
+     "exit": 0,
+     "peakProcs": 31,
+     "peakBusyProcs": 8,
+     "meanTreeCpuPct": 180
+    },
+    {
+     "id": "fg",
+     "kind": "fg",
+     "lane": "foreground",
+     "queueSec": 1.2,
+     "runSec": 385.8,
+     "totalSec": 387,
+     "exit": 0,
+     "peakProcs": 37,
+     "peakBusyProcs": 10,
+     "meanTreeCpuPct": 179
+    }
+   ],
+   "checks": [
+    {
+     "name": "every job exited 0",
+     "ok": true,
+     "detail": "ai=0 bg1=0 fg=0"
+    },
+    {
+     "name": "no scenario timeout",
+     "ok": true,
+     "detail": "{\"phase\":{\"ps\":99,\"status\":0,\"gap\":779},\"hang\":null}"
+    },
+    {
+     "name": "foreground lane never above 1",
+     "ok": true,
+     "detail": "peak 1"
+    },
+    {
+     "name": "background lane never above 2",
+     "ok": true,
+     "detail": "peak 2"
+    },
+    {
+     "name": "never two AI-long attempts holding capacity at once",
+     "ok": true,
+     "detail": "peak 1"
+    },
+    {
+     "name": "a job waiting for admission never holds capacity",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "foreground publication ran in the foreground lane",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "foreground admitted while background work was still running (not queued behind it)",
+     "ok": true,
+     "detail": "fg admitted at 21.9s, first background ended at 340.5s"
+    },
+    {
+     "name": "verify:local:status returned promptly (never hangs)",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "verify:local:status capacity rows match the real slot holders",
+     "ok": true,
+     "detail": "rows 2, holders 2..2"
+    },
+    {
+     "name": "verify:local:status per-lane in-use counts agree with its own rows",
+     "ok": true,
+     "detail": "foreground capacity: 0/1 slots in use | background capacity: 2/2 slots in use"
+    }
+   ],
+   "peak": {
+    "foreground": 1,
+    "background": 2,
+    "aiSingleton": 1
+   },
+   "hostPeakCpuPct": 91,
+   "minFreeMemGiB": 0.1,
+   "statusRows": {
+    "capacity": 2,
+    "queued": 0
+   },
+   "retries": 0
+  },
+  {
+   "id": 7,
+   "name": "two background + foreground",
+   "wallSec": 431.2,
+   "jobs": [
+    {
+     "id": "bg1",
+     "kind": "bg",
+     "lane": "background",
+     "queueSec": 0.6,
+     "runSec": 372.2,
+     "totalSec": 372.8,
+     "exit": 0,
+     "peakProcs": 32,
+     "peakBusyProcs": 8,
+     "meanTreeCpuPct": 178
+    },
+    {
+     "id": "bg2",
+     "kind": "bg",
+     "lane": "background",
+     "queueSec": 0.6,
+     "runSec": 370.4,
+     "totalSec": 371,
+     "exit": 0,
+     "peakProcs": 37,
+     "peakBusyProcs": 8,
+     "meanTreeCpuPct": 178
+    },
+    {
+     "id": "fg",
+     "kind": "fg",
+     "lane": "foreground",
+     "queueSec": 1.2,
+     "runSec": 409,
+     "totalSec": 410.2,
+     "exit": 0,
+     "peakProcs": 37,
+     "peakBusyProcs": 8,
+     "meanTreeCpuPct": 178
+    }
+   ],
+   "checks": [
+    {
+     "name": "every job exited 0",
+     "ok": true,
+     "detail": "bg1=0 bg2=0 fg=0"
+    },
+    {
+     "name": "no scenario timeout",
+     "ok": true,
+     "detail": "{\"phase\":{\"ps\":152,\"status\":0,\"gap\":735},\"hang\":null}"
+    },
+    {
+     "name": "foreground lane never above 1",
+     "ok": true,
+     "detail": "peak 1"
+    },
+    {
+     "name": "background lane never above 2",
+     "ok": true,
+     "detail": "peak 2"
+    },
+    {
+     "name": "never two AI-long attempts holding capacity at once",
+     "ok": true,
+     "detail": "peak 0"
+    },
+    {
+     "name": "a job waiting for admission never holds capacity",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "foreground publication ran in the foreground lane",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "foreground admitted while background work was still running (not queued behind it)",
+     "ok": true,
+     "detail": "fg admitted at 22s, first background ended at 371s"
+    },
+    {
+     "name": "verify:local:status returned promptly (never hangs)",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "verify:local:status capacity rows match the real slot holders",
+     "ok": true,
+     "detail": "rows 2, holders 2..2"
+    },
+    {
+     "name": "verify:local:status per-lane in-use counts agree with its own rows",
+     "ok": true,
+     "detail": "foreground capacity: 0/1 slots in use | background capacity: 2/2 slots in use"
+    }
+   ],
+   "peak": {
+    "foreground": 1,
+    "background": 2,
+    "aiSingleton": 0
+   },
+   "hostPeakCpuPct": 96,
+   "minFreeMemGiB": 0.1,
+   "statusRows": {
+    "capacity": 2,
+    "queued": 0
+   },
+   "retries": 0
+  },
+  {
+   "id": 8,
+   "name": "focused test while AI-long active",
+   "wallSec": 966.3,
+   "jobs": [
+    {
+     "id": "ai",
+     "kind": "ai",
+     "lane": "background",
+     "queueSec": 0.6,
+     "runSec": 965.6,
+     "totalSec": 966.2,
+     "exit": 0,
+     "peakProcs": 10,
+     "peakBusyProcs": 3,
+     "meanTreeCpuPct": 112
+    },
+    {
+     "id": "focused",
+     "kind": "focused",
+     "lane": "ungated",
+     "queueSec": 0,
+     "runSec": 2.8,
+     "totalSec": 2.8,
+     "exit": 0,
+     "peakProcs": 5,
+     "peakBusyProcs": 3,
+     "meanTreeCpuPct": 91
+    }
+   ],
+   "checks": [
+    {
+     "name": "every job exited 0",
+     "ok": true,
+     "detail": "ai=0 focused=0"
+    },
+    {
+     "name": "no scenario timeout",
+     "ok": true,
+     "detail": "{\"phase\":{\"ps\":56,\"status\":0,\"gap\":709},\"hang\":null}"
+    },
+    {
+     "name": "foreground lane never above 1",
+     "ok": true,
+     "detail": "peak 0"
+    },
+    {
+     "name": "background lane never above 2",
+     "ok": true,
+     "detail": "peak 1"
+    },
+    {
+     "name": "never two AI-long attempts holding capacity at once",
+     "ok": true,
+     "detail": "peak 1"
+    },
+    {
+     "name": "a job waiting for admission never holds capacity",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "verify:local:status returned promptly (never hangs)",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "verify:local:status capacity rows match the real slot holders",
+     "ok": true,
+     "detail": "rows 1, holders 1..1"
+    },
+    {
+     "name": "verify:local:status per-lane in-use counts agree with its own rows",
+     "ok": true,
+     "detail": "foreground capacity: 0/1 slots in use | background capacity: 1/2 slots in use"
+    }
+   ],
+   "peak": {
+    "foreground": 0,
+    "background": 1,
+    "aiSingleton": 1
+   },
+   "hostPeakCpuPct": 38,
+   "minFreeMemGiB": 0.1,
+   "statusRows": {
+    "capacity": 1,
+    "queued": 0
+   },
+   "retries": 0
+  },
+  {
+   "id": 9,
+   "name": "focused test while two background active",
+   "wallSec": 304.8,
+   "jobs": [
+    {
+     "id": "bg1",
+     "kind": "bg",
+     "lane": "background",
+     "queueSec": 0.6,
+     "runSec": 303.9,
+     "totalSec": 304.5,
+     "exit": 0,
+     "peakProcs": 29,
+     "peakBusyProcs": 6,
+     "meanTreeCpuPct": 185
+    },
+    {
+     "id": "bg2",
+     "kind": "bg",
+     "lane": "background",
+     "queueSec": 0.6,
+     "runSec": 302.5,
+     "totalSec": 303,
+     "exit": 0,
+     "peakProcs": 31,
+     "peakBusyProcs": 8,
+     "meanTreeCpuPct": 186
+    },
+    {
+     "id": "focused",
+     "kind": "focused",
+     "lane": "ungated",
+     "queueSec": 0,
+     "runSec": 4.9,
+     "totalSec": 4.9,
+     "exit": 0,
+     "peakProcs": 5,
+     "peakBusyProcs": 2,
+     "meanTreeCpuPct": 93
+    }
+   ],
+   "checks": [
+    {
+     "name": "every job exited 0",
+     "ok": true,
+     "detail": "bg1=0 bg2=0 focused=0"
+    },
+    {
+     "name": "no scenario timeout",
+     "ok": true,
+     "detail": "{\"phase\":{\"ps\":110,\"status\":0,\"gap\":699},\"hang\":null}"
+    },
+    {
+     "name": "foreground lane never above 1",
+     "ok": true,
+     "detail": "peak 0"
+    },
+    {
+     "name": "background lane never above 2",
+     "ok": true,
+     "detail": "peak 2"
+    },
+    {
+     "name": "never two AI-long attempts holding capacity at once",
+     "ok": true,
+     "detail": "peak 0"
+    },
+    {
+     "name": "a job waiting for admission never holds capacity",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "verify:local:status returned promptly (never hangs)",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "verify:local:status capacity rows match the real slot holders",
+     "ok": true,
+     "detail": "rows 2, holders 2..2"
+    },
+    {
+     "name": "verify:local:status per-lane in-use counts agree with its own rows",
+     "ok": true,
+     "detail": "foreground capacity: 0/1 slots in use | background capacity: 2/2 slots in use"
+    }
+   ],
+   "peak": {
+    "foreground": 0,
+    "background": 2,
+    "aiSingleton": 0
+   },
+   "hostPeakCpuPct": 91,
+   "minFreeMemGiB": 0.1,
+   "statusRows": {
+    "capacity": 2,
+    "queued": 0
+   },
+   "retries": 0
+  },
+  {
+   "id": 10,
+   "name": "asymmetric join: foreground starts after background is busy",
+   "wallSec": 1150,
+   "jobs": [
+    {
+     "id": "bg1",
+     "kind": "bg",
+     "lane": "background",
+     "queueSec": 269.1,
+     "runSec": 315,
+     "totalSec": 584.2,
+     "exit": 0,
+     "peakProcs": 31,
+     "peakBusyProcs": 8,
+     "meanTreeCpuPct": 91
+    },
+    {
+     "id": "bg2",
+     "kind": "bg",
+     "lane": "background",
+     "queueSec": 0.6,
+     "runSec": 268,
+     "totalSec": 268.6,
+     "exit": 0,
+     "peakProcs": 31,
+     "peakBusyProcs": 8,
+     "meanTreeCpuPct": 170
+    },
+    {
+     "id": "ai",
+     "kind": "ai",
+     "lane": "background",
+     "queueSec": 0.6,
+     "runSec": 1149,
+     "totalSec": 1149.6,
+     "exit": 0,
+     "peakProcs": 9,
+     "peakBusyProcs": 3,
+     "meanTreeCpuPct": 113
+    },
+    {
+     "id": "fg",
+     "kind": "fg",
+     "lane": "foreground",
+     "queueSec": 1.2,
+     "runSec": 360.3,
+     "totalSec": 361.5,
+     "exit": 0,
+     "peakProcs": 36,
+     "peakBusyProcs": 9,
+     "meanTreeCpuPct": 175
+    }
+   ],
+   "checks": [
+    {
+     "name": "every job exited 0",
+     "ok": true,
+     "detail": "bg1=0 bg2=0 ai=0 fg=0"
+    },
+    {
+     "name": "no scenario timeout",
+     "ok": true,
+     "detail": "{\"phase\":{\"ps\":113,\"status\":0,\"gap\":784},\"hang\":null}"
+    },
+    {
+     "name": "foreground lane never above 1",
+     "ok": true,
+     "detail": "peak 1"
+    },
+    {
+     "name": "background lane never above 2",
+     "ok": true,
+     "detail": "peak 2"
+    },
+    {
+     "name": "never two AI-long attempts holding capacity at once",
+     "ok": true,
+     "detail": "peak 1"
+    },
+    {
+     "name": "a job waiting for admission never holds capacity",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "foreground publication ran in the foreground lane",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "foreground admitted while background work was still running (not queued behind it)",
+     "ok": false,
+     "detail": "fg admitted at 330.3s, first background ended at 268.6s"
+    },
+    {
+     "name": "verify:local:status returned promptly (never hangs)",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "verify:local:status capacity rows match the real slot holders",
+     "ok": true,
+     "detail": "rows 2, holders 2..2"
+    },
+    {
+     "name": "verify:local:status per-lane in-use counts agree with its own rows",
+     "ok": true,
+     "detail": "foreground capacity: 0/1 slots in use | background capacity: 2/2 slots in use"
+    }
+   ],
+   "peak": {
+    "foreground": 1,
+    "background": 2,
+    "aiSingleton": 1
+   },
+   "hostPeakCpuPct": 89,
+   "minFreeMemGiB": 0.1,
+   "statusRows": {
+    "capacity": 2,
+    "queued": 1
+   },
+   "retries": 0
+  },
+  {
+   "id": 11,
+   "name": "second AI-long while one owns the singleton",
+   "wallSec": 2059.8,
+   "jobs": [
+    {
+     "id": "ai",
+     "kind": "ai",
+     "lane": "background",
+     "queueSec": 0.6,
+     "runSec": 1017.2,
+     "totalSec": 1017.7,
+     "exit": 0,
+     "peakProcs": 9,
+     "peakBusyProcs": 3,
+     "meanTreeCpuPct": 111
+    },
+    {
+     "id": "ai2",
+     "kind": "ai",
+     "lane": "background",
+     "queueSec": 1016,
+     "runSec": 1041.4,
+     "totalSec": 2057.4,
+     "exit": 0,
+     "peakProcs": 9,
+     "peakBusyProcs": 3,
+     "meanTreeCpuPct": 57
+    }
+   ],
+   "checks": [
+    {
+     "name": "every job exited 0",
+     "ok": true,
+     "detail": "ai=0 ai2=0"
+    },
+    {
+     "name": "no scenario timeout",
+     "ok": true,
+     "detail": "{\"phase\":{\"ps\":493,\"status\":0,\"gap\":997},\"hang\":null}"
+    },
+    {
+     "name": "foreground lane never above 1",
+     "ok": true,
+     "detail": "peak 0"
+    },
+    {
+     "name": "background lane never above 2",
+     "ok": true,
+     "detail": "peak 1"
+    },
+    {
+     "name": "never two AI-long attempts holding capacity at once",
+     "ok": true,
+     "detail": "peak 1"
+    },
+    {
+     "name": "a job waiting for admission never holds capacity",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "second AI-long ran only after the first finished",
+     "ok": true,
+     "detail": "first ended 1017.7s, second admitted 1018.3s"
+    },
+    {
+     "name": "second AI-long held no capacity while queued on the singleton",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "verify:local:status returned promptly (never hangs)",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "verify:local:status capacity rows match the real slot holders",
+     "ok": true,
+     "detail": "rows 1, holders 1..1"
+    },
+    {
+     "name": "verify:local:status per-lane in-use counts agree with its own rows",
+     "ok": true,
+     "detail": "foreground capacity: 0/1 slots in use | background capacity: 1/2 slots in use"
+    }
+   ],
+   "peak": {
+    "foreground": 0,
+    "background": 1,
+    "aiSingleton": 1
+   },
+   "hostPeakCpuPct": 25,
+   "minFreeMemGiB": 0,
+   "statusRows": {
+    "capacity": 1,
+    "queued": 0
+   },
+   "retries": 0
+  }
+ ],
+ "scenario10_contended_rerun": {
+  "wallSec": 1574.1,
+  "fgExit": 124,
+  "fgSeconds": 599.1,
+  "note": "killed by the former fixed 600s ceiling while making CPU progress; host load ~9; see report"
+ },
+ "aiLongFileParallelism": {
+  "current_default_maxWorkers25pct": [
+   {
+    "run": "matrix scenario 4",
+    "ai": 1017.6,
+    "bg": 274.9
+   },
+   {
+    "run": "repeat",
+    "ai": 1079.4,
+    "bg": 323.4
+   }
+  ],
+  "fileParallelism_false": [
+   {
+    "run": "A",
+    "ai": 1205.9,
+    "bg": 355.6
+   }
+  ]
+ }
+}

@@ -26,6 +26,8 @@ export HOST_VERIFICATION_LEASE_ROOT="$tmpdir/host-lease-root"
 
 cat > "$fake_bin/node" <<'EOF'
 #!/bin/sh
+# run-with-timeout.mjs <runner> <seconds> <label> -- cmd...; record "<label> <seconds>" for the ceiling test below
+[ -z "${VERIFY_TIMEOUT_LOG:-}" ] || printf '%s|%s\n' "$3" "$2" >> "$VERIFY_TIMEOUT_LOG"
 shift
 shift
 shift
@@ -60,6 +62,26 @@ run_verifier() {
   verifier_status=$?
   set -e
 }
+
+# #1166: the phase ceilings are runaway guards (the stall watchdog catches hangs), wide enough that a healthy
+# run under permitted contention is never failed for being slow; both stay env-overridable.
+timeout_log="$tmpdir/timeouts.log"
+rm -f "$timeout_log"
+(
+  cd "$tmpdir"
+  PATH="$fake_bin:$PATH" VERIFY_COMMAND_LOG="$tmpdir/ceiling-commands.log" VERIFY_TIMEOUT_LOG="$timeout_log" \
+    sh scripts/verify-before-push.sh --no-mise
+) >/dev/null 2>&1
+[ "$(grep '^test suite|' "$timeout_log" | cut -d'|' -f2)" = "1200" ] || { echo "default test-phase ceiling is not 1200s: $(cat "$timeout_log")"; exit 1; }
+[ "$(grep '^production build|' "$timeout_log" | cut -d'|' -f2)" = "600" ] || { echo "default build-phase ceiling is not 600s: $(cat "$timeout_log")"; exit 1; }
+rm -f "$timeout_log"
+(
+  cd "$tmpdir"
+  PATH="$fake_bin:$PATH" VERIFY_COMMAND_LOG="$tmpdir/ceiling-commands.log" VERIFY_TIMEOUT_LOG="$timeout_log" \
+    VERIFY_TEST_TIMEOUT_SECONDS=17 VERIFY_BUILD_TIMEOUT_SECONDS=9 sh scripts/verify-before-push.sh --no-mise
+) >/dev/null 2>&1
+grep -q '^test suite|17$' "$timeout_log" && grep -q '^production build|9$' "$timeout_log" \
+  || { echo "VERIFY_*_TIMEOUT_SECONDS overrides were not honoured: $(cat "$timeout_log")"; exit 1; }
 
 run_verifier 0 0
 [ "$verifier_status" -eq 0 ] || {

@@ -46,6 +46,7 @@
     "verify:pr:status": "sh scripts/read-pr-verification-result.sh",
     "verify:push": "sh scripts/verify-before-push.sh --no-mise",
     "verify:local:status": "sh scripts/verify-local-status.sh",
+    "bench:verification-scheduler": "node scripts/benchmark-verification-scheduler.mjs",
     "verify:launch": "sh scripts/launch-local-verification.sh",
     "verify:stop": "sh scripts/stop-local-verification.sh",
     "pr-body": "bash scripts/pr-body.sh",
