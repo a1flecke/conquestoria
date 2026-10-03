@@ -82,8 +82,11 @@ Work keeps landing on `origin/main`; rebase your branch onto it routinely. The
 one-step form needs no approval from any agent: `./scripts/sync-main.sh` (no arguments; it
 runs `git fetch origin main` then `git rebase origin/main`, and refuses `main`, a detached HEAD,
 a dirty tracked tree and a rebase already in progress). If it reports a conflict, follow its printed
-steps. Publishing a rebased branch that was already pushed needs `--force-with-lease`, which stays a
-human-approved operation (see below).
+steps. Publish the result with `./scripts/push-branch.sh` (also no approval needed): it pushes only
+the current branch under the same name, refuses unless the branch contains the latest `origin/main`,
+and uses a lease pinned to the remote tip your clone last saw when the branch was rebased, so it
+never overwrites a newer push. If it refuses because the remote moved, fetch and inspect that
+branch before doing anything else. Hand-written force pushes stay forbidden (see below).
 
 The two-step form is equivalent: issue these as separate direct operations:
 `git fetch origin`, then `git rebase origin/main`. Resolve a

@@ -77,6 +77,10 @@
         // `git fetch origin main` + `git rebase origin/main` and refuses main, a detached HEAD, a dirty
         // tree and a rebase already in progress. No wildcard, so it cannot take an argument.
         { "action": "shell", "resource": "./scripts/sync-main.sh", "effect": "allow" },
+        // Publishing the rebased branch (#1260): a fixed, no-argument script that pushes only the current
+        // feature branch to origin under the same name, with a lease pinned to the remote tip this clone last
+        // saw, and only once the branch contains the latest origin/main. Raw force pushes stay denied/asking.
+        { "action": "shell", "resource": "./scripts/push-branch.sh", "effect": "allow" },
         // Deliberately no static allow for the raw "git rebase origin/main" here.
         // Root-caused after this commit: the real reason it prompted was a
         // field-name bug in the model-approval plugin (checked "cwd"/

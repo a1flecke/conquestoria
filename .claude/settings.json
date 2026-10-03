@@ -15,6 +15,8 @@
       "Bash(./scripts/launch-local-verification.sh:*)",
       "Bash(./scripts/sync-main.sh)",
       "Bash(bash scripts/sync-main.sh)",
+      "Bash(./scripts/push-branch.sh)",
+      "Bash(bash scripts/push-branch.sh)",
       "Bash(git fetch origin)",
       "Bash(git fetch origin main)",
       "Bash(git rebase origin/main)"
