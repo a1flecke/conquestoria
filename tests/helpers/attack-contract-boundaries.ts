@@ -24,7 +24,7 @@ export interface SourceFile { path: string; source: string }
 /** The exemptions that exist today, by file and category. Adding one is a deliberate edit to this table. */
 export const EXPECTED_EXEMPTIONS: Readonly<Record<string, Partial<Record<ExemptCategory, number>>>> = {
   'src/ai/ai-tactics.ts': { preview: 2 },
-  'src/core/turn-manager.ts': { 'world-actor': 1 },
+  'src/core/round-phases/beasts.ts': { 'world-actor': 1 },
   'src/systems/minor-civ-system.ts': { 'world-actor': 1 },
   'src/systems/stampede-system.ts': { 'world-actor': 1 },
   'src/systems/air-operations-system.ts': { 'air-mission': 2 },
