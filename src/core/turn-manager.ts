@@ -54,7 +54,6 @@ import {
 import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
 import { isAtWar } from '@/systems/diplomacy-queries';
-import { pruneExpiredDiplomaticRequests } from '@/systems/diplomacy-requests';
 import { processRelationshipDrift, decayEvents } from '@/systems/diplomacy-state';
 import { decayTreachery } from '@/systems/diplomacy-treachery';
 import { tickTreaties } from '@/systems/diplomacy-treaties';
@@ -97,6 +96,7 @@ import { resolveGeneralDefinition, type GeneralDefinition } from '@/systems/grea
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
 import { createRoundPhaseContext } from './round-phases/types';
+import { postCivHousekeepingPhase } from './round-phases/post-civ-housekeeping';
 import { territoryFrontierPhase } from './round-phases/territory-frontier';
 import { wondersMarketPhase } from './round-phases/wonders-market';
 import { minorCivsPhase } from './round-phases/minor-civs';
@@ -799,16 +799,7 @@ export function processTurn(
     }
   }
 
-  // #554: expire stale peace requests / treaty proposals once per turn (not
-  // once per civ) -- a proposal the recipient never opens the diplomacy panel
-  // to act on should not persist forever.
-  newState = pruneExpiredDiplomaticRequests(newState);
-
-  for (const city of Object.values(newState.cities)) {
-    if ((city.productionDisabledTurns ?? 0) > 0) {
-      city.productionDisabledTurns = Math.max(0, (city.productionDisabledTurns ?? 0) - 1);
-    }
-  }
+  newState = postCivHousekeepingPhase.run(newState, context);
 
   newState = territoryFrontierPhase.run(newState, context);
 
