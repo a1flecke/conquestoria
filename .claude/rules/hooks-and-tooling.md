@@ -923,6 +923,44 @@ For OpenCode, allow `/tmp/pr-bodies` as an external directory in your global Ope
 permissions; `.opencode/opencode.jsonc` already allows `./scripts/pr-body.sh *` for the shell route
 (`pr-body.sh write <name>` needs no external-directory write permission at all).
 
+## Task dispatcher (`scripts/dev.sh`) and `scripts/sync-main.sh` (#1256)
+
+`./scripts/dev.sh <task> [test paths]` is a **narrow** dispatcher: a closed task table (`build`,
+`typecheck`, `test <paths>`, `test-all`, `test-regular`, `hooks`, `install`, `setup-hooks`, `verify-pr`,
+`verify-pr-status`, `verify-status`, `durable`, `durable-status`, `ai-playability`, `ai-long`, `web-smoke`,
+`docs-lifecycle`, plus the read-only `log <task> [N]`), each a hard-coded argv through
+`scripts/run-with-mise.sh`. It exists so an approval layer can trust *one* script by name.
+
+**Why `run-with-mise.sh` is intentionally not the trusted script.** It ends in `mise exec -- "$@"`, so
+trusting it would also trust `run-with-mise.sh gh pr merge 5`, `… git push origin main` and `… node <any
+file an agent wrote>`. `dev.sh` can only run its table; it contains no `eval`, no `sh -c`, no `"$@"` in
+command position, no `git`/`gh`/`rm`/`kill*`. Do not add a task for dependency changes, `node -e`, `npx`,
+git, gh, deletion, process signalling (`verify:stop`) or release; those stay human-approved on purpose.
+
+**Constraints that shape the design** (the OpenCode auto-approval plugin, `a1flecke/opencode-auto-approval`,
+runs a trusted script unprompted only when all hold): the command is exactly `./scripts/dev.sh` + arguments
+with no shell composition (`|`, `;`, `&&`, `>`, `$VAR`, backticks, `cd … &&`, `VAR=x`); every argument matches
+`^[A-Za-z0-9_@+][A-Za-z0-9._/@+-]*$` and is an in-worktree path-like token (no `..`, absolute path, `~`, glob,
+secret-like name); and nothing under `scripts/` differs from `HEAD`. Hence: hyphenated task names (no
+colons), no flags, and output captured by the script itself — `.verification/logs/<task>.log`, a
+`== dev.sh <task> exit=<N> log=… ==` header and the last 60 lines — instead of the caller's `| tail`.
+
+`validate_test_path` is the single legality source for `test`: the argument regex, no `..`, no hidden
+component (`.env`), under `tests/`, exists, not a symlink and resolves inside `tests/`, a file ends
+`.test.ts`/`.test.tsx`. A refusal exits 2 naming the rule; nothing reaches the wrapper. Adding a task means
+a `case` arm in `is_task` and `execute`, a usage line, and a row in `tests/hooks/dev-dispatcher.test.sh`'s
+table (the test fails if usage and table disagree).
+
+**`scripts/sync-main.sh`** is the same idea for routine rebasing: no arguments, only `git fetch origin main`
+and `git rebase origin/main`, refuses `main`/detached/dirty/already-rebasing, leaves a conflict for the agent
+to resolve (`git add -- <paths>`, `GIT_EDITOR=true git rebase --continue`, never `--skip`). Claude's project
+settings, `.opencode/opencode.jsonc` and Codex's user-level rules (outside this repo; they already allow `git rebase`) allow it without a
+prompt. Publishing a rebased, already-pushed branch needs `--force-with-lease`, which remains an ask.
+`tests/hooks/sync-main.test.sh` runs it against a real bare-repo fixture and has the same structural guard.
+
+**Enabling the plugin side (one-time, user config, not this repo's job):** add `"scripts/dev.sh"` and
+`"scripts/sync-main.sh"` to the plugin's `trustedScripts` and restart OpenCode.
+
 ## Worktree command-runner contract
 
 `scripts/run-with-mise.sh` executes all project behavior from the active

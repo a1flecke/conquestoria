@@ -32,6 +32,9 @@
         { "action": "shell", "resource": "command -v *", "effect": "allow" },
 
         { "action": "shell", "resource": "./scripts/run-with-mise.sh yarn *", "effect": "allow" },
+        // Narrow task dispatcher (#1256): a fixed task table, no flags, only validated tests/ paths are
+        // forwarded. It can run nothing outside that table, unlike the generic wrapper above.
+        { "action": "shell", "resource": "./scripts/dev.sh *", "effect": "allow" },
         // Agent-authored throwaway analysis scripts live in OpenCode's scratch dir; run them through
         // the mise wrapper (never bare node), and only from that dir.
         { "action": "shell", "resource": "./scripts/run-with-mise.sh node /private/var/folders/*/*/T/opencode/*", "effect": "allow" },
@@ -70,7 +73,11 @@
         { "action": "shell", "resource": "git fetch *", "effect": "allow" },
         { "action": "shell", "resource": "git pull *", "effect": "allow" },
         { "action": "shell", "resource": "git push *", "effect": "allow" },
-        // Deliberately no static allow for "git rebase origin/main" here.
+        // Routine rebase onto the latest origin/main (#1256): a fixed, no-argument script that only runs
+        // `git fetch origin main` + `git rebase origin/main` and refuses main, a detached HEAD, a dirty
+        // tree and a rebase already in progress. No wildcard, so it cannot take an argument.
+        { "action": "shell", "resource": "./scripts/sync-main.sh", "effect": "allow" },
+        // Deliberately no static allow for the raw "git rebase origin/main" here.
         // Root-caused after this commit: the real reason it prompted was a
         // field-name bug in the model-approval plugin (checked "cwd"/
         // "directory" but OpenCode's shell tool input is "workdir"), fixed
