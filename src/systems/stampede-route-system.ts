@@ -1,3 +1,4 @@
+import { fnv1a32 } from './deterministic-hash';
 import { CRISIS_FORCE_OWNER } from '@/core/owner-kind';
 import type { CrisisForce, GameState, HerdRoute, HexCoord, Unit } from '@/core/types';
 import { getFortificationTier } from './fortification-system';
@@ -12,9 +13,7 @@ export interface HerdRoutePresentation { routes: HerdRoutePresentationItem[]; }
 const LAND_TERRAINS = new Set(['grassland', 'plains', 'desert', 'tundra', 'snow', 'forest', 'hills', 'jungle', 'swamp', 'volcanic']);
 
 function seededRank(seed: string): number {
-  let hash = 2166136261;
-  for (let index = 0; index < seed.length; index++) hash = Math.imul(hash ^ seed.charCodeAt(index), 16777619);
-  return hash >>> 0;
+  return fnv1a32(seed);
 }
 
 function force(state: GameState, forceId: string): CrisisForce | undefined {

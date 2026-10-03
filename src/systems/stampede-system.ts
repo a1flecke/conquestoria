@@ -1,3 +1,4 @@
+import { fnv1a32 } from './deterministic-hash';
 import type { GameState, OpponentChallenge, StampedeState, UnitType } from '@/core/types';
 import { countActiveCrisesForCiv } from '@/systems/crisis-system';
 import { CRISIS_FORCE_OWNER } from '@/core/owner-kind';
@@ -125,9 +126,7 @@ export function advanceStampedePressure(state: GameState, targetCivId: string): 
 }
 
 function deterministicPercent(seed: string): number {
-  let hash = 2166136261;
-  for (let index = 0; index < seed.length; index += 1) hash = Math.imul(hash ^ seed.charCodeAt(index), 16777619);
-  return (hash >>> 0) % 100;
+  return fnv1a32(seed) % 100;
 }
 
 /** Schedules independent, target-scoped warnings after the pressure cooldown. */

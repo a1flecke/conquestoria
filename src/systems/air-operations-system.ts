@@ -1,3 +1,4 @@
+import { fnv1a32CodePointLead } from './deterministic-hash';
 import type { EventBus } from '@/core/event-bus';
 import type { AirBaseRef, AirMission, City, CombatResult, GameState, HexCoord, Unit, UnitType } from '@/core/types';
 import { hexDistance, hexesInRange, getWrappedHexesInRange, wrappedHexDistance } from './hex-utils';
@@ -525,12 +526,7 @@ function appendAirBaseLossNotifications(
 
 function stableAirLossRoll(state: GameState, base: AirBaseRef, aircraftId: string): number {
   const baseId = base.kind === 'city' ? base.cityId : base.unitId;
-  let hash = 2166136261;
-  for (const character of `${state.gameId ?? 'legacy'}:${state.turn}:${baseId}:${aircraftId}`) {
-    hash ^= character.charCodeAt(0);
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 0) % 3;
+  return fnv1a32CodePointLead(`${state.gameId ?? 'legacy'}:${state.turn}:${baseId}:${aircraftId}`) % 3;
 }
 
 function removeAirUnits(state: GameState, removedIds: ReadonlySet<string>): GameState {

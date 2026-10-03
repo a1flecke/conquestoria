@@ -1,3 +1,4 @@
+import { djb2XorUnsigned } from '@/systems/deterministic-hash';
 import { hexToPixel } from '@/systems/hex-utils';
 import { getHorizontalWrapRenderCoords } from './wrap-rendering';
 import { LOD_SPRITE_ZOOM_THRESHOLD } from './sprites/sprite-system';
@@ -80,13 +81,9 @@ interface PoolEntry {
   anchorOffsetFactor: { x: number; y: number };
 }
 
-// djb2 hash — deterministic, no external dependency
+// djb2 hash — deterministic, no external dependency (the canonical `djb2XorUnsigned`, #1234)
 export function hashCode(str: string): number {
-  let h = 5381;
-  for (let i = 0; i < str.length; i++) {
-    h = ((h << 5) + h) ^ str.charCodeAt(i);
-  }
-  return h >>> 0;
+  return djb2XorUnsigned(str);
 }
 
 export class SpriteOverlay {

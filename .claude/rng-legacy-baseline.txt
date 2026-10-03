@@ -18,6 +18,10 @@
 #              `seededLcg` already provides — a cosmetic unification
 #              opportunity, not a live bug.
 #
+# #1234 moved every string-hash loop (the [OK] full-string folds in barbarian-system, combat-reward-system,
+# pirate-actions and air-operations-system, and deriveGeneralCandidateSeed's fold) into
+# src/systems/deterministic-hash.ts, which is exempt as the canonical implementation, so those entries are gone.
+#
 # #982 converted every [FIX-982]-tagged entry that used to live here (the
 # under-keyed simulation RNG call sites — missing gameId, and/or a truncated
 # character standing in for a full entity id) to `createSimulationRng`. Only
@@ -27,30 +31,20 @@
 # when a *future* audit finds a call site missed here.
 
 # --- barbarian-system.ts ---
-src/systems/barbarian-system.ts:45 # [LOW] lcg() recurrence body — hand-rolled duplicate of seededLcg
-src/systems/barbarian-system.ts:331 # [OK] gameId:turn:campId folded over the full string, no truncation
-src/systems/barbarian-system.ts:413 # [OK] gameId:turn:campId folded over the full string, no truncation
+src/systems/barbarian-system.ts:46 # [LOW] lcg() recurrence body — hand-rolled duplicate of seededLcg
 
 # --- beast-system.ts ---
 src/systems/beast-system.ts:74 # [LOW] lcg() recurrence body — hand-rolled duplicate of seededLcg
 # note: the seed this feeds (turn-manager.ts, beast-tick) is now #982-converted and gameId-rooted.
 
 # --- combat-system.ts (resolveCombat's own seed always comes from deterministicCombatSeed, already correct) ---
-src/systems/combat-system.ts:533 # [LOW] resolveCombat's LCG recurrence body — hand-rolled duplicate of seededLcg; caller-supplied seed is already gameId-rooted
+src/systems/combat-system.ts:529 # [LOW] resolveCombat's LCG recurrence body — hand-rolled duplicate of seededLcg; caller-supplied seed is already gameId-rooted
 
 # --- city-siege-system.ts (createSeededRng is parameterized; every current caller already supplies a correct or #982-converted seed) ---
 src/systems/city-siege-system.ts:135 # [LOW] createSeededRng() recurrence body — hand-rolled duplicate of seededLcg
 
 # --- combat-reward-system.ts (seededRoll's seed always traces back to deterministicCombatSeed via applyCombatOutcomeToState) ---
-src/systems/combat-reward-system.ts:150 # [OK] full victorId:defeatedId fold, no truncation; caller-supplied seed is already gameId-rooted
-src/systems/combat-reward-system.ts:152 # [LOW] LCG recurrence body — hand-rolled duplicate of seededLcg
-
-# --- pirate-actions.ts (deterministicRoll is parameterized; its one caller already builds gameId:turn:factionId:raidKey) ---
-src/systems/pirate-actions.ts:306 # [OK] full-string FNV-1a fold, no truncation; caller already supplies gameId:turn:factionId:raidKey
-
-# --- air-operations-system.ts (self-contained; already correct) ---
-src/systems/air-operations-system.ts:530 # [OK] gameId:turn:baseId:aircraftId folded over the full string, no truncation
+src/systems/combat-reward-system.ts:150 # [LOW] LCG recurrence body — hand-rolled duplicate of seededLcg
 
 # --- turn-manager.ts (deriveGeneralCandidateSeed, #932 — already gameId-rooted) ---
-src/core/turn-manager.ts:159 # [LOW] deriveGeneralCandidateSeed (#932) — already gameId-rooted; recurrence body duplicates seededLcg
-src/core/turn-manager.ts:161 # [LOW] deriveGeneralCandidateSeed (#932) LCG fold — hand-rolled duplicate of seededLcg
+src/core/turn-manager.ts:160 # [LOW] deriveGeneralCandidateSeed (#932) — already gameId-rooted; its fold is now deterministic-hash.ts's lehmerFoldByCodePoint (#1234), this line only chooses the turn-derived start

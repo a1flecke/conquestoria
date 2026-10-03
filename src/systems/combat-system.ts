@@ -1,3 +1,4 @@
+import { fnv1a32 } from './deterministic-hash';
 import type {
   Unit,
   CombatExchangeKind,
@@ -422,12 +423,7 @@ export function deterministicCombatSeed(
   defenderId: string,
 ): number {
   const source = [gameId ?? 'legacy', turn, attackerId, defenderId].join(':');
-  let hash = 2166136261;
-  for (let index = 0; index < source.length; index++) {
-    hash ^= source.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-  return Math.max(1, hash >>> 0);
+  return Math.max(1, fnv1a32(source));
 }
 
 /**

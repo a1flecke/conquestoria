@@ -1,3 +1,4 @@
+import { fnv1a32 } from './deterministic-hash';
 import type {
   GameMap,
   HexCoord,
@@ -56,12 +57,7 @@ function isGeographicMapScript(script: MapScript): script is GeographicMapScript
 }
 
 function stableHash(value: string): number {
-  let hash = 2166136261;
-  for (let i = 0; i < value.length; i++) {
-    hash ^= value.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
+  return fnv1a32(value);
 }
 
 function candidateQuality(map: GameMap, coord: HexCoord): number {

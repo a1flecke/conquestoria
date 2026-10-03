@@ -1,3 +1,4 @@
+import { fnv1a32CodePointLeadRaw } from './deterministic-hash';
 import type { GameState, HexCoord, Unit } from '@/core/types';
 import { appendNotification, createNotificationLog } from '@/core/notification-log';
 import { createEmptyPirateState, type PirateFactionState, type PirateHistoryEntry } from '@/core/pirate-state';
@@ -302,8 +303,7 @@ export function hirePirateFlotilla(
 }
 
 function deterministicRoll(seed: string): number {
-  let hash = 2166136261;
-  for (const character of seed) hash = Math.imul(hash ^ character.charCodeAt(0), 16777619);
+  let hash = fnv1a32CodePointLeadRaw(seed);
   hash += 0x6D2B79F5;
   let value = hash;
   value = Math.imul(value ^ value >>> 15, value | 1);

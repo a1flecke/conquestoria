@@ -1,3 +1,4 @@
+import { rolling31Signed } from './deterministic-hash';
 import type { GameState } from '@/core/types';
 import { seededLcg } from './seeded-lcg';
 
@@ -68,20 +69,12 @@ export type SimulationDomainKey = RequireAtLeastOneIdentity<
 >;
 
 /**
- * Rolling string hash -> 32-bit int. Same `Math.imul(31, h) + charCode`
- * convention already used (independently, in three separate files) by
- * `game-state.ts`'s `hashSeed`, `crisis-system.ts`'s `hashString`, and
- * `minor-civ-system.ts`'s file-local `hashSeed` -- kept as its own copy here
- * rather than importing one of those, since none of them is a shared,
- * intentionally-public utility and this module must not depend on any
- * subsystem it may be used from.
+ * Rolling string hash -> 32-bit int: `rolling31Signed`, the one canonical copy of the `Math.imul(31, h) + charCode`
+ * convention (#1234; `game-state.ts` hashSeed, the map generators and this module used to carry their own). The
+ * leaf is import-free, so this module still depends on no subsystem it may be used from.
  */
 function hashToSeed(source: string): number {
-  let h = 0;
-  for (let i = 0; i < source.length; i++) {
-    h = (Math.imul(31, h) + source.charCodeAt(i)) | 0;
-  }
-  return h;
+  return rolling31Signed(source);
 }
 
 /**

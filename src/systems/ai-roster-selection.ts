@@ -1,3 +1,4 @@
+import { fnv1a32 } from './deterministic-hash';
 import type {
   CivDefinition,
   HexCoord,
@@ -29,12 +30,7 @@ export interface AIRosterSelection {
 const MAP_WIDTHS = { small: 30, medium: 50, large: 80 } as const;
 
 function stableHash(value: string): number {
-  let hash = 2166136261;
-  for (let i = 0; i < value.length; i++) {
-    hash ^= value.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
+  return fnv1a32(value);
 }
 
 function isGeographic(script: MapScript): script is GeographicMapScript {
