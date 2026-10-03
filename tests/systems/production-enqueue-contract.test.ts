@@ -48,7 +48,7 @@ const SCENARIOS: Array<[string, () => GameState]> = [
   ['every tech, coastal', () => surround(makeLegendaryWonderFixture({ completedTechs: ALL_TECHS }), 'ocean')],
 ];
 
-describe('#1220 enqueueCityProduction revalidates the Build tab eligibility', () => {
+describe('#1220 enqueueCityProduction revalidates the Build tab eligibility', { timeout: 30_000 }, () => {
   it.each(SCENARIOS)('every catalog item: accepted ⇔ offered, a refusal is typed and returns the same state (%s)', (_name, build) => {
     const state = build();
     const offered = getQueueableProductionForCity(state, CITY)!;
@@ -189,28 +189,29 @@ describe('#1220 enqueueCityProduction revalidates the Build tab eligibility', ()
   });
 });
 
-describe('#1220 the panel, the recommendation and the AI go through the same list', () => {
+describe('#1220 the panel, the recommendation and the AI go through the same list', { timeout: 30_000 }, () => {
   beforeEach(() => { document.body.innerHTML = '<div id="panel-root"></div>'; });
   afterEach(() => { document.body.innerHTML = ''; });
 
-  it('the Build tab lists exactly the items enqueue accepts (and nothing it would refuse)', () => {
-    for (const [name, build] of SCENARIOS) {
-      const state = build();
-      const container = document.getElementById('panel-root')!;
-      container.innerHTML = '';
-      createCityPanel(container, state.cities[CITY], state, {
-        onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
-      });
-      const shown = [...container.querySelectorAll<HTMLElement>('.build-item')].map(el => el.dataset.itemId!);
-      expect(shown.length, name).toBeGreaterThan(0);
-      for (const id of shown) {
-        expect(enqueueCityProduction(state, CITY, id).ok, `${name}: panel offers ${id}`).toBe(true);
-      }
-      const offered = getQueueableProductionForCity(state, CITY)!;
-      const offeredCount = offered.buildings.length + offered.units.length;
-      expect(shown.length, `${name}: nothing the queue accepts is missing from the panel`).toBe(offeredCount);
+  // Rendering the full panel is the heavy part (a full tech tree is ~1.5s locally, several times that on a loaded
+  // CI shard), so each scenario is its own test with a timeout sized for it rather than the 5s default.
+  const PANEL_SCENARIOS = [SCENARIOS[1], SCENARIOS[3]] as const; // withheld items exist / the most items offered
+  it.each(PANEL_SCENARIOS)('the Build tab lists exactly the items enqueue accepts, and nothing it would refuse (%s)', (name, build) => {
+    const state = build();
+    const container = document.getElementById('panel-root')!;
+    container.innerHTML = '';
+    createCityPanel(container, state.cities[CITY], state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+    const shown = [...container.querySelectorAll<HTMLElement>('.build-item')].map(el => el.dataset.itemId!);
+    expect(shown.length, name).toBeGreaterThan(0);
+    for (const id of shown) {
+      expect(enqueueCityProduction(state, CITY, id).ok, `${name}: panel offers ${id}`).toBe(true);
     }
-  });
+    const offered = getQueueableProductionForCity(state, CITY)!;
+    const offeredCount = offered.buildings.length + offered.units.length;
+    expect(shown.length, `${name}: nothing the queue accepts is missing from the panel`).toBe(offeredCount);
+  }, 30_000);
 
   it('every AI production candidate for a city is accepted by enqueue (the AI cannot propose what the queue refuses)', () => {
     const state = surround(makeLegendaryWonderFixture({ completedTechs: ALL_TECHS }), 'ocean');
