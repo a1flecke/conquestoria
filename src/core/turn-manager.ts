@@ -59,11 +59,7 @@ import { processRelationshipDrift, decayEvents } from '@/systems/diplomacy-state
 import { decayTreachery } from '@/systems/diplomacy-treachery';
 import { tickTreaties } from '@/systems/diplomacy-treaties';
 import { processVassalageTribute, getVassalageMilitaryCount } from '@/systems/diplomacy-vassal-rules';
-import { processFashionCycle, updatePrices } from '@/systems/trade-system';
-import { processWonderEffects } from '@/systems/wonder-system';
-import { createRng } from '@/systems/map-generator';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
-import { createSimulationRng } from '@/systems/simulation-rng';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { applyGeneTherapyRecharge } from '@/systems/gene-therapy-system';
 import { applyResearchCompletionConsequences } from '@/systems/tech-completion-system';
@@ -90,8 +86,6 @@ import {
   getLegendaryWonderCityYieldBonus,
   getLegendaryWonderCivYieldBonus,
   initializeLegendaryWonderProjectsForAllCities,
-  reconcileLegendaryWonderAvailability,
-  tickLegendaryWonderProjects,
 } from '@/systems/legendary-wonder-system';
 import { getTacticalFortOccupantHealingBonus } from '@/systems/legendary-wonder-tactical-effects';
 import { announceUnitProduction, completeUnitProduction } from '@/systems/unit-production-completion';
@@ -104,6 +98,7 @@ import { resolveGeneralDefinition, type GeneralDefinition } from '@/systems/grea
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
 import { createRoundPhaseContext } from './round-phases/types';
+import { wondersMarketPhase } from './round-phases/wonders-market';
 import { minorCivsPhase } from './round-phases/minor-civs';
 import { barbariansPhase } from './round-phases/barbarians';
 import { beastsPhase } from './round-phases/beasts';
@@ -833,46 +828,7 @@ export function processTurn(
   }
   newState = frontierResult.state;
 
-  newState = tickLegendaryWonderProjects(newState, bus);
-  newState = reconcileLegendaryWonderAvailability(newState, bus);
-
-  // --- Process marketplace ---
-  if (newState.marketplace) {
-    // #982: one global fashion-cycle roll per turn. Was `turn*16807` alone --
-    // no gameId, so two campaigns at the same turn shared one fashion cycle.
-    const simpleRng = createSimulationRng(newState, { domain: 'marketplace-fashion-cycle', eventId: 'fashion-cycle' });
-    newState.marketplace = processFashionCycle(newState.marketplace, simpleRng);
-
-    // Compute supply (resource tiles in city territory) and demand (population)
-    const supply: Record<string, number> = {};
-    const demand: Record<string, number> = {};
-    for (const city of Object.values(newState.cities)) {
-      // Count resource-bearing tiles in the city's territory for supply
-      for (const coord of city.ownedTiles) {
-        const tile = newState.map.tiles[`${coord.q},${coord.r}`];
-        if (tile?.resource) {
-          supply[tile.resource] = (supply[tile.resource] ?? 0) + 1;
-        }
-      }
-      // Population drives demand for all resources
-      const pop = city.population;
-      for (const r of Object.keys(newState.marketplace.prices)) {
-        demand[r] = (demand[r] ?? 0) + pop;
-      }
-    }
-    newState.marketplace = updatePrices(newState.marketplace, supply, demand);
-  }
-
-  // --- Process wonder effects (after city processing) ---
-  const wonderRng = createRng(`wonder-${newState.turn}`);
-  const eruptions = processWonderEffects(newState, wonderRng);
-  for (const eruption of eruptions) {
-    bus.emit('wonder:eruption', {
-      wonderId: eruption.wonderId,
-      position: eruption.position,
-      tilesAffected: eruption.tilesAffected,
-    });
-  }
+  newState = wondersMarketPhase.run(newState, context);
 
   newState = barbariansPhase.run(newState, context);
 
