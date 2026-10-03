@@ -289,7 +289,6 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
     });
     deps.showNotification(`${UNIT_DEFINITIONS[unit.type].name} is resting and will heal +15 HP next turn`, 'info');
     deps.selectionController.deselectUnit();
-    deps.renderLoop.setGameState(deps.session.getState());
   }
 
   function showEspionageCaptureChoice(spyId: string, spyOwner: string): void {
@@ -462,8 +461,6 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
     if (conquered.conquered) deps.bus.emit('minor-civ:destroyed', { minorCivId, conquerorId: deps.session.getState().currentPlayer });
     deps.showNotification(`${cityName} has been conquered!`, 'success');
     SFX.tap();
-    deps.renderLoop.setGameState(deps.session.getState());
-    deps.hud.update();
   }
 
   function executeUpgrade(unitId: string, targetType: UnitType): boolean {

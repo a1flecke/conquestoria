@@ -195,7 +195,6 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
         }
         session.commit(result.state);
         selectionController.refreshCurrentPlayerVisibility();
-        deps.updateHUD();
         SFX.combat();
         selectionController.selectUnit(unitId);
       },
@@ -259,7 +258,6 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
             selection.setPendingIntent({ kind: 'none' });
             session.commit(result.state);
             selectionController.refreshCurrentPlayerVisibility();
-            deps.updateHUD();
             SFX.airRecon();
             selectionController.selectUnit(pending.unitId);
             return;
@@ -284,7 +282,6 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
             selection.setPendingIntent({ kind: 'none' });
             session.commit(result.state);
             selectionController.refreshCurrentPlayerVisibility();
-            deps.updateHUD();
             const outcomeParts: string[] = [];
             if (result.flak) outcomeParts.push(`${result.flak.damage} flak damage from ${result.flak.providerLabel}`);
             if (result.interception) outcomeParts.push('intercepted');
@@ -320,7 +317,6 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
             selection.setPendingIntent({ kind: 'none' });
             session.commit(result.state);
             selectionController.refreshCurrentPlayerVisibility();
-            deps.updateHUD();
             const outcomeParts: string[] = [];
             if (result.flak) outcomeParts.push(`${result.flak.damage} flak damage from ${result.flak.providerLabel}`);
             if (result.interception) outcomeParts.push('intercepted');
@@ -673,8 +669,6 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
               // Read live, as the module binding this replaced did.
               const assaultStatus = deps.beginPlayerCityAssault(selection.getSelectedUnitId()!, intent.cityId, undefined, undefined, intent.embarkedAssault);
               SFX.combat();
-              renderLoop.setGameState(session.getState());
-              deps.updateHUD();
               if (assaultStatus === 'resolved') {
                 setTimeout(() => selectionController.selectNextUnit(), 400);
               }
@@ -726,8 +720,6 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
           attackBtn.addEventListener('click', () => {
             // Read live, as the assault-preview branch above does.
             deps.beginPlayerCampAssault(selection.getSelectedUnitId()!, intent.campId);
-            renderLoop.setGameState(session.getState());
-            deps.updateHUD();
             setTimeout(() => selectionController.selectNextUnit(), 400);
           });
         }
@@ -801,8 +793,6 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
           deps.executeMinorCivConquest(intent.attackerId, intent.coord, intent.minorCivId, intent.cityId);
         } else {
           SFX.tap();
-          renderLoop.setGameState(session.getState());
-          deps.updateHUD();
           setTimeout(() => selectionController.selectNextUnit(), 400);
         }
         return;
@@ -830,8 +820,6 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
               return moveResult;
             });
             SFX.tap();
-            renderLoop.setGameState(session.getState());
-            deps.updateHUD();
           },
         });
         return;
@@ -848,8 +836,6 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
           return moveResult;
         });
         SFX.tap();
-        renderLoop.setGameState(session.getState());
-        deps.updateHUD();
         return;
       }
 

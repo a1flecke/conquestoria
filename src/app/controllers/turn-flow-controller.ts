@@ -200,8 +200,8 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
   function refreshRequiredChoicesAfterAction(): void {
     deps.getElementById('required-choice-panel')?.remove();
     closePlanningPanels(document);
-    renderLoop.setGameState(session.getState());
-    deps.updateHUD();
+    // #1199: the action's mutation was already committed, so the session
+    // subscription published it; re-pushing renderer/HUD here was redundant.
     // #787 phase 12 (#794): release 'required-choice' before
     // showRequiredChoicesIfNeeded() may push it again for the next
     // outstanding choice. With 2+ idle cities (or an idle city plus missing
@@ -773,6 +773,9 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
           return;
         }
 
+        // #1199: this is the one intentional presentation-deferred publication --
+        // the renderer must show the new round before the captured AI moves replay,
+        // and the HUD updates after the replay completes.
         renderLoop.setGameState(session.getState());
         await replayAIMoves(soloMoves);
         deps.updateHUD();
