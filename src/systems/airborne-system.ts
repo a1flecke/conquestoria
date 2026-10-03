@@ -324,6 +324,7 @@ function resolveAirborneLanding(state: GameState, unit: Unit, destination: HexCo
   let interception: { interceptorId: string; result: CombatResult } | undefined;
   if (interceptor) {
     const seed = deterministicCombatSeed(nextState.gameId, nextState.turn, interceptor.id, workingUnit.id);
+    // attack-contract-exempt: air-mission: interception of a landing air-assault/paradrop unit follows the air-mission contract, see #1223
     const result = resolveCombat(
       interceptor,
       workingUnit,

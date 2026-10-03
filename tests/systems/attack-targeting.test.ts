@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import type { HexCoord, Unit, UnitType } from '@/core/types';
-import { canAttackByProfileOnMap, canUnitAttackTarget, getAttackTargets, getUnitAttackProfile } from '@/systems/attack-targeting';
+import {
+  canAttackByProfileOnMap, canUnitAttackTarget, getAttackTargets, getUnitAttackProfile, resolveUnitVsUnitAttack,
+} from '@/systems/attack-targeting';
 import { hexKey } from '@/systems/hex-utils';
 import { createUnit } from '@/systems/unit-lifecycle';
 
@@ -464,5 +466,54 @@ describe('attack-targeting', () => {
     expect(canUnitAttackTarget(state, destroyer, sub.position, { viewerId: 'player' })).toMatchObject({
       ok: true, targetUnitId: 'sub',
     });
+  });
+});
+
+describe('#1219 resolveUnitVsUnitAttack — the one "may A fight THIS unit B now" check', () => {
+  function duel(extra: Record<string, Unit> = {}) {
+    const attacker = unit('attacker', 'warrior', 'player', { q: 0, r: 0 });
+    const defender = unit('defender', 'warrior', 'ai-1', { q: 1, r: 0 });
+    const state = stateWithUnits({ attacker, defender, ...extra }, { '1,0': 'visible' });
+    return { state, attacker, defender };
+  }
+
+  it('accepts exactly what canUnitAttackTarget accepts, naming the defender', () => {
+    const { state, attacker, defender } = duel();
+    expect(resolveUnitVsUnitAttack(state, attacker, defender, { viewerId: 'player' }))
+      .toEqual({ ok: true, targetUnitId: 'defender', range: 1 });
+  });
+
+  it('passes the canonical denial through unchanged', () => {
+    const { state, attacker, defender } = duel();
+    attacker.hasActed = true;
+    expect(resolveUnitVsUnitAttack(state, attacker, defender, { viewerId: 'player' }))
+      .toEqual({ ok: false, reason: 'no-action-points' });
+  });
+
+  it('refuses a unit that is not the tile\'s defender: a stack can only be fought through its defender', () => {
+    // Two enemy units share a hex. The weak one is not what an attack on that tile resolves against.
+    const weak = unit('weak', 'scout', 'ai-1', { q: 1, r: 0 });
+    const { state, attacker, defender } = duel({ weak });
+    const canonical = canUnitAttackTarget(state, attacker, defender.position, { viewerId: 'player' });
+    expect(canonical.ok && canonical.targetType === 'unit' ? canonical.targetUnitId : null).toBe('defender');
+    expect(resolveUnitVsUnitAttack(state, attacker, weak, { viewerId: 'player' }))
+      .toEqual({ ok: false, reason: 'not-the-defender' });
+    expect(resolveUnitVsUnitAttack(state, attacker, defender, { viewerId: 'player' }).ok).toBe(true);
+  });
+
+  it('refuses a missing attacker or defender with a typed reason, never a throw', () => {
+    const { state, attacker, defender } = duel();
+    expect(resolveUnitVsUnitAttack(state, undefined, defender)).toEqual({ ok: false, reason: 'missing-attacker' });
+    expect(resolveUnitVsUnitAttack(state, attacker, undefined)).toEqual({ ok: false, reason: 'no-target' });
+  });
+
+  it('a unit defending a city tile is still the unit-vs-unit defender (the city is not what this check attacks)', () => {
+    const { state, attacker, defender } = duel();
+    state.cities['c1'] = {
+      id: 'c1', name: 'C', owner: 'ai-1', position: { q: 1, r: 0 }, population: 1, food: 0, foodNeeded: 15,
+      buildings: [], productionQueue: [], productionProgress: 0, ownedTiles: [], workedTiles: [], focus: 'balanced',
+      maturity: 'outpost', unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0, idleProduction: null,
+    } as never;
+    expect(resolveUnitVsUnitAttack(state, attacker, defender, { viewerId: 'player' }).ok).toBe(true);
   });
 });

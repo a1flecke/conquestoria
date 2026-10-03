@@ -6,7 +6,7 @@ import { resolveCombatEra } from './era-resolution';
 import { resolveCivilizationEra } from './tech-definitions';
 import { resolveChallengeForCiv } from '@/core/opponent-challenge';
 import { isPiratePressureEligible } from './world-pressure-eligibility';
-import { canUnitAttackTarget } from './attack-targeting';
+import { resolveUnitVsUnitAttack } from './attack-targeting';
 import { applyCombatOutcomeToState } from './combat-reward-system';
 import { deterministicCombatSeed, resolveCombat } from './combat-system';
 import { buildCombatContextForDefender } from './combat-context';
@@ -201,7 +201,7 @@ function attackTarget(
 } {
   const defender = targetUnitId ? state.units[targetUnitId] : undefined;
   if (!defender || !isMajorCivOwner(defender.owner)) return { state, result: null, presentation: null, transportKill: null, events: [] };
-  if (!canUnitAttackTarget(state, attacker, defender.position, { requireVisibility: false }).ok) {
+  if (!resolveUnitVsUnitAttack(state, attacker, defender, { requireVisibility: false }).ok) {
     return { state, result: null, presentation: null, transportKill: null, events: [] };
   }
   const seed = deterministicCombatSeed(state.gameId, state.turn, attacker.id, defender.id);

@@ -217,6 +217,38 @@ describe('AI pirate response', () => {
     expect(result.units[hunter.id]).toBeDefined();
   });
 
+  it('#1219 fights a stacked pirate only through the ship an attack on that tile actually resolves against', () => {
+    const state = fixture();
+    addUnit(state, 'hunter', 'trireme', 'ai-1', { q: 1, r: 0 });
+    // Two favourable pirate ships share a hex. The lowest id sorts first, but an attack on a tile fights
+    // that tile's defender (the strongest), so `a-galley` is not a fight the player could ever start there.
+    const weak = addUnit(state, 'a-galley', 'pirate_galley', 'pirate-1', { q: 2, r: 0 });
+    const strong = addUnit(state, 'b-corsair', 'pirate_corsair', 'pirate-1', { q: 2, r: 0 });
+    addFaction(state, { shipIds: [weak.id, strong.id], maritimeStage: 2 });
+    state.civilizations['ai-1'].visibility.tiles['2,0'] = 'visible';
+    revealFaction(state, { observedUnitIds: [weak.id, strong.id] });
+
+    const result = applyPirateAiResponse(state, 'ai-1', new EventBus());
+
+    expect(result.units[weak.id].health).toBe(100);
+    expect(result.units[strong.id].health).toBeLessThan(100);
+  });
+
+  it('#1219 declines a favourable adjacent pirate the canonical legality refuses (nothing is mutated)', () => {
+    const state = fixture();
+    const hunter = addUnit(state, 'hunter', 'trireme', 'ai-1', { q: 1, r: 0 });
+    const galley = addUnit(state, 'galley', 'pirate_galley', 'pirate-1', { q: 2, r: 0 });
+    addFaction(state, { shipIds: [galley.id], maritimeStage: 2 });
+    // The target tile is not visible to the actor: the player could not order this attack either.
+    state.civilizations['ai-1'].visibility.tiles['2,0'] = 'fog';
+    revealFaction(state, { observedUnitIds: [galley.id] });
+
+    const result = applyPirateAiResponse(state, 'ai-1', new EventBus());
+
+    expect(result.units[galley.id].health).toBe(100);
+    expect(result.units[hunter.id].health).toBe(100);
+  });
+
   it('declines a materially unfavorable known pirate fight', () => {
     const state = fixture();
     const hunter = addUnit(state, 'hunter', 'galley', 'ai-1', { q: 1, r: 0 });

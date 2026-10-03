@@ -15,6 +15,7 @@ import {
   canAttackByProfileOnMap,
   getRangedAttackersThreateningUnit,
   getAttackTargets,
+  resolveUnitVsUnitAttack,
   getUnitAttackProfile,
 } from '@/systems/attack-targeting';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
@@ -47,6 +48,7 @@ import {
 import {
   canLoadUnitOntoTransport,
   detachCargoForEmbarkedAssault,
+  getEmbarkedAssaultTarget,
   getEmbarkedAssaultTargets,
   getUnloadDestinations,
   loadUnitOntoTransport,
@@ -441,6 +443,7 @@ function rankAttacks(
       unitId: unit.id,
       targetUnitId: defender.id,
     };
+    // attack-contract-exempt: preview: scored to rank candidates; the result is never applied to any state
     const preview = resolveCombat(
       unit,
       defender,
@@ -1150,6 +1153,7 @@ function rankEmbarkedAttacks(
       if (!transport) return [];
       const attacker = { ...unit, position: { ...transport.position }, transportId: undefined };
       const combatContext = buildCombatContextForDefender(context.state, attacker, defender, { amphibiousAssault: true });
+      // attack-contract-exempt: preview: scored to rank embarked candidates; the result is never applied to any state
       const preview = resolveCombat(
         attacker,
         defender,
@@ -1206,7 +1210,13 @@ function combatSeed(
   return deterministicCombatSeed(state.gameId, state.turn, attackerId, defenderId);
 }
 
-function applyPredictedAction(
+/**
+ * Applies one chosen action to a scratch clone for lookahead scoring; it never touches authoritative state.
+ * The attack cases run the SAME legality the real executors run (ai-major-turn), so a prediction can never
+ * resolve a fight the real turn would refuse (#1219): an illegal attack leaves the scratch state unchanged,
+ * like every `ok:false` executor in this switch.
+ */
+export function applyPredictedAction(
   state: GameState,
   context: AITacticalContext,
   action: AITacticalAction,
@@ -1234,6 +1244,7 @@ function applyPredictedAction(
     case 'attack': {
       const defender = next.units[action.targetUnitId];
       if (!defender) return next;
+      if (!resolveUnitVsUnitAttack(next, unit, defender, { viewerId: context.actorId, requireVisibility: true }).ok) return next;
       const seed = combatSeed(next, unit.id, defender.id);
       const result = resolveCombat(
         unit,
@@ -1255,8 +1266,12 @@ function applyPredictedAction(
     }
     case 'embarked-attack': {
       const defender = next.units[action.targetUnitId];
+      if (!defender) return next;
+      const embarked = getEmbarkedAssaultTarget(next, unit.id, defender.position, { viewerId: context.actorId, requireVisibility: true });
+      if (!embarked.ok || embarked.targetType !== 'unit' || embarked.targetUnitId !== defender.id) return next;
       const detached = detachCargoForEmbarkedAssault(next, action.unitId);
-      if (!defender || !detached.ok) return next;
+      if (!detached.ok) return next;
+      if (!resolveUnitVsUnitAttack(detached.state, detached.attacker, defender, { viewerId: context.actorId, requireVisibility: true }).ok) return next;
       const seed = combatSeed(detached.state, detached.attacker.id, defender.id);
       const result = resolveCombat(
         detached.attacker,

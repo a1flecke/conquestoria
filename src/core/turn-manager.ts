@@ -24,7 +24,7 @@ import {
 import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
 import { deterministicCombatSeed, getUnitCombatStrength, resolveCombat } from '@/systems/combat-system';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
-import { canUnitAttackTarget } from '@/systems/attack-targeting';
+import { resolveUnitVsUnitAttack } from '@/systems/attack-targeting';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { resolveLandSupplyForCiv } from '@/systems/supply-system';
 import { resolveNavalOperationsForCiv } from '@/systems/naval-operations';
@@ -961,8 +961,7 @@ export function processTurn(
     const attacker = newState.units[attack.attackerUnitId];
     const defender = newState.units[attack.defenderUnitId];
     if (!attacker || !defender) continue;
-    const legality = canUnitAttackTarget(newState, attacker, defender.position, { requireVisibility: false });
-    if (!legality.ok || legality.targetType !== 'unit' || legality.targetUnitId !== defender.id) continue;
+    if (!resolveUnitVsUnitAttack(newState, attacker, defender, { requireVisibility: false }).ok) continue;
     const combatSeed = deterministicCombatSeed(newState.gameId, newState.turn, attacker.id, defender.id);
     const result = resolveCombat(
       attacker,
@@ -1199,6 +1198,7 @@ export function processTurn(
       const defender = newState.units[order.defenderUnitId];
       if (!attacker || !defender) continue;
       const combatSeed = deterministicCombatSeed(newState.gameId, newState.turn, attacker.id, defender.id);
+      // attack-contract-exempt: world-actor: legendary beasts pick their own targets in beast-system (processBeasts); not a civ's attack order
       const result = resolveCombat(
         attacker,
         defender,
