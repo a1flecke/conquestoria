@@ -142,6 +142,7 @@ import { resolveGeneralDefinition, type GeneralDefinition } from '@/systems/grea
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
 import { removeUnits } from '@/systems/unit-removal-system';
+import { createRoundPhaseContext } from './round-phases/types';
 
 // #544 MR3: same char-folding convention combat-reward-system.ts's seededRoll and
 // city-capture-system.ts's assault seed already use -- turns a (gameId, turn, civId)
@@ -211,7 +212,8 @@ export function processTurn(
   state: GameState,
   bus: EventBus,
 ): GameState {
-  const previousEraByCiv = Object.fromEntries(Object.entries(state.civilizations).map(([civId, civ]) => [civId, resolveCivilizationEra(civ.techState.completed)]));
+  const context = createRoundPhaseContext(state, bus);
+  const { previousEraByCiv } = context;
   let newState = initializeLegendaryWonderProjectsForAllCities(structuredClone(state));
   let liveness = reconcileCivilizationLiveness(newState, newState);
   emitCivilizationLivenessTransitions(liveness, bus);
@@ -237,7 +239,7 @@ export function processTurn(
     newState = applyCrisisResponses(newState, bus);
   }
   newState = tickOccupiedCities(newState);
-  const grossGoldByCiv: Record<string, number> = {};
+  const { grossGoldByCiv } = context;
   const previousEconomyStatusByCiv = newState.economyStatusByCiv ?? {};
 
   // Clean up expired purchased-resource entries (Diplomatic Marketplace / S9)
