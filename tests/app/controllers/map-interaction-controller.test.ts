@@ -23,6 +23,7 @@ import {
   type MapInteractionAudio,
 } from '@/app/controllers/map-interaction-controller';
 import * as airOperations from '@/systems/air-operations-system';
+import { AIR_MISSION_FAILURE_MESSAGES } from '@/systems/air-operations-system';
 
 const idCounters = { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 };
 
@@ -390,7 +391,7 @@ describe('MapInteractionController', () => {
         const { controller, deps, session } = airStrikeFixture();
         controller.handleHexTap({ q: 5, r: 5 });
         expect(document.querySelector('[data-testid="battle-forecast"]')).toBeNull();
-        expect(deps.showNotification).toHaveBeenCalledWith(expect.stringMatching(/out of range|no longer/), 'warning');
+        expect(deps.showNotification).toHaveBeenCalledWith(AIR_MISSION_FAILURE_MESSAGES['out-of-range'], 'warning');
         expect(session.getState().units.b1!.hasActed).toBe(false);
       });
 
@@ -421,6 +422,43 @@ describe('MapInteractionController', () => {
 
         expect(commit).not.toHaveBeenCalled();
         expect(deps.showNotification).toHaveBeenCalledWith(expect.stringMatching(/rest|spent|ready/i), 'warning');
+      });
+
+      // #1223: one failure vocabulary. Confirm never invents its own copy.
+      it('Confirm after the target vanished explains it with the executor\'s typed copy (#1223)', () => {
+        const { controller, session, deps } = airStrikeFixture();
+        controller.handleHexTap({ q: 2, r: 0 });
+        const live = session.getState();
+        const { e1: _gone, ...rest } = live.units;
+        session.commit({ ...live, units: rest });
+
+        document.querySelector<HTMLButtonElement>('#btn-attack-confirm')!.click();
+
+        expect(deps.showNotification).toHaveBeenCalledWith(AIR_MISSION_FAILURE_MESSAGES['invalid-strike-target'], 'warning');
+      });
+
+      it('Confirm names the typed reason when the canonical strike refuses a forecast that looked fine (#1223)', () => {
+        const { controller, session, deps } = airStrikeFixture();
+        controller.handleHexTap({ q: 2, r: 0 });
+        const live = session.getState();
+        vi.spyOn(airOperations, 'resolveAirStrike').mockReturnValueOnce({ ok: false, state: live, reason: 'out-of-range' });
+        const commit = vi.spyOn(session, 'commit');
+
+        document.querySelector<HTMLButtonElement>('#btn-attack-confirm')!.click();
+
+        expect(commit).not.toHaveBeenCalled();
+        expect(deps.showNotification).toHaveBeenCalledWith(AIR_MISSION_FAILURE_MESSAGES['out-of-range'], 'warning');
+      });
+
+      it('a recon or patrol tap refused by the executor shows that reason\'s copy and keeps the mission armed (#1223)', () => {
+        const { controller, session, selection, deps } = airStrikeFixture();
+        selection.setPendingIntent({ kind: 'air-mission', unitId: 'b1', mission: 'recon' });
+        vi.spyOn(airOperations, 'resolveReconMission').mockReturnValueOnce({ ok: false, state: session.getState(), reason: 'already-acted' });
+
+        controller.handleHexTap({ q: 2, r: 0 });
+
+        expect(deps.showNotification).toHaveBeenCalledWith(AIR_MISSION_FAILURE_MESSAGES['already-acted'], 'warning');
+        expect(selection.snapshot().pendingIntent.kind).toBe('air-mission');
       });
 
       it('Confirm after the forecast changed shows the new forecast instead of striking on stale numbers', () => {

@@ -4,6 +4,7 @@ import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { createEspionageCivState } from '@/systems/espionage-system';
+import { AIR_MISSION_FAILURE_MESSAGES } from '@/systems/air-operations-system';
 import type { GameState, Unit } from '@/core/types';
 import { createGameSession } from '@/app/game-session';
 import { createSelectionStore } from '@/app/selection-store';
@@ -590,6 +591,57 @@ describe('SelectionController', () => {
 
     expect(() => controller.refreshCurrentPlayerVisibility()).not.toThrow();
     expect(deps.scanBeastSightings).toHaveBeenCalledTimes(1);
+  });
+
+  describe('stale air actions give typed copy (#1223)', () => {
+    function airFixture() {
+      const state = makeFixture();
+      const template = Object.values(state.cities)[0]!;
+      state.cities.airfield = { ...template, id: 'airfield', name: 'Avalon', owner: 'player', position: { q: 3, r: 3 }, buildings: ['airfield'] };
+      state.cities.reserve = { ...template, id: 'reserve', name: 'Reserve', owner: 'player', position: { q: 5, r: 3 }, buildings: ['airfield'] };
+      state.civilizations.player.cities = ['airfield', 'reserve'];
+      placePlayerUnit(state, 'fighter', {
+        type: 'biplane', position: { q: 3, r: 3 }, airBase: { kind: 'city', cityId: 'airfield' },
+      });
+      document.body.innerHTML = '<div id="info-panel"></div>';
+      const deps = baseDeps(state);
+      const controller = createSelectionController(deps);
+      controller.selectUnit('fighter');
+      const spend = () => {
+        const live = deps.session.getState();
+        deps.session.commit({ ...live, units: { ...live.units, fighter: { ...live.units.fighter!, hasActed: true } } });
+      };
+      return { deps, controller, spend };
+    }
+
+    it('Intercept clicked after the fighter already acted explains why instead of a generic refusal', () => {
+      const { deps, spend } = airFixture();
+      const panel = document.getElementById('info-panel')!;
+      const button = findButtonByText(panel, 'Intercept');
+      spend();
+      vi.mocked(deps.showNotification).mockClear();
+      const before = deps.session.getState();
+
+      button.click();
+
+      expect(deps.showNotification).toHaveBeenCalledWith(AIR_MISSION_FAILURE_MESSAGES['already-acted'], 'warning');
+      expect(deps.session.getState()).toBe(before);
+    });
+
+    it('Rebase clicked after the fighter already acted explains why instead of a generic refusal', () => {
+      const { deps, spend } = airFixture();
+      const panel = document.getElementById('info-panel')!;
+      const button = Array.from(panel.querySelectorAll('button')).find(b => (b.textContent ?? '').startsWith('Rebase: Reserve'));
+      expect(button).toBeDefined();
+      spend();
+      vi.mocked(deps.showNotification).mockClear();
+      const before = deps.session.getState();
+
+      (button as HTMLButtonElement).click();
+
+      expect(deps.showNotification).toHaveBeenCalledWith(AIR_MISSION_FAILURE_MESSAGES['already-acted'], 'warning');
+      expect(deps.session.getState()).toBe(before);
+    });
   });
 
   describe('Prepare Strategic Launch (#545 MR4)', () => {

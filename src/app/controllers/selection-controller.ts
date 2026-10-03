@@ -42,7 +42,7 @@ import { renderSelectedUnitInfo } from '@/ui/selected-unit-info';
 import { createContextMenu } from '@/ui/context-menu';
 import { createWorkerReplacementConfirmPanel } from '@/ui/worker-task-warning-panel';
 import { handleFriendlyUnitStackTap } from '@/input/unit-stack-selection';
-import { startIntercept, getInterceptCoverage, getLegalRebaseDestinations, getAirBaseRoster, getAirBaseCapacity, rebaseAircraft, getLegalAirMissionTargets } from '@/systems/air-operations-system';
+import { AIR_MISSION_FAILURE_MESSAGES, startIntercept, getInterceptCoverage, getLegalRebaseDestinations, getAirBaseRoster, getAirBaseCapacity, rebaseAircraft, getLegalAirMissionTargets } from '@/systems/air-operations-system';
 import { getParadropTargets, getAirAssaultTargets, getAirAssaultLaunchState, AIR_ASSAULT_FAILURE_MESSAGES } from '@/systems/airborne-system';
 import { getKnownHostileAirDefenseThreat } from '@/systems/air-defense-system';
 import { usePropagandistAction } from '@/systems/propagandist-system';
@@ -267,7 +267,7 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
         onStartIntercept: uid => {
           const result = startIntercept(session.getState(), uid);
           if (!result.ok) {
-            deps.showNotification('That fighter cannot enter intercept stance now.', 'warning');
+            deps.showNotification(AIR_MISSION_FAILURE_MESSAGES[result.reason], 'warning');
             return;
           }
           session.commit(result.state);
@@ -285,7 +285,7 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
         onRebaseAircraft: (uid, base) => {
           const result = rebaseAircraft(session.getState(), uid, base);
           if (!result.ok) {
-            deps.showNotification('That base is no longer reachable.', 'warning');
+            deps.showNotification(AIR_MISSION_FAILURE_MESSAGES[result.reason], 'warning');
             return;
           }
           session.commit(result.state);
