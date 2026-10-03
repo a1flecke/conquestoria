@@ -727,8 +727,6 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
           ...deps.session.getState(),
           civilizations: { ...deps.session.getState().civilizations, [deps.session.getState().currentPlayer]: { ...civ, techState: nextTechState } },
         });
-        deps.renderLoop.setGameState(deps.session.getState());
-        deps.hud.update();
         deps.showNotification(`Queued research: ${techId}`, 'info');
         // Return fresh state so the open panel reopens from the committed object,
         // not the pre-click reference it captured (#915).
@@ -746,8 +744,6 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
             },
           },
         });
-        deps.renderLoop.setGameState(deps.session.getState());
-        deps.hud.update();
         return deps.session.getState();
       },
       onRemoveQueuedResearch: (index) => {
@@ -762,8 +758,6 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
             },
           },
         });
-        deps.renderLoop.setGameState(deps.session.getState());
-        deps.hud.update();
         return deps.session.getState();
       },
       onClose: () => {},
@@ -905,7 +899,6 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
         if (targetCity) {
           try {
             deps.session.commit({ ...deps.session.getState(), cities: { ...deps.session.getState().cities, [cityId]: enqueueCityProduction(targetCity, itemId) } });
-            deps.renderLoop.setGameState(deps.session.getState());
             deps.showNotification(`${targetCity.name}: queued ${getProductionDisplayName(itemId)}`, 'info');
             return deps.session.getState();
           } catch (error) {
@@ -924,7 +917,6 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
             const result = executeStrategicLaunch(deps.session.getState(), launchingCity.owner, targetCityId);
             if (result.ok && targetCivId) {
               deps.session.commit(result.state);
-              deps.renderLoop.setGameState(deps.session.getState());
               deps.showNotification('Strategic strike launched.', 'warning');
               deps.bus.emit('city:strategic-strike', { cityId: targetCityId, recipientCivId: targetCivId, actorCivId: launchingCity.owner, goldLost: result.goldLost });
             }
@@ -936,7 +928,6 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
         const targetCity = deps.session.getState().cities[cityId];
         if (!targetCity) return;
         deps.session.commit({ ...deps.session.getState(), cities: { ...deps.session.getState().cities, [cityId]: reorderCityProduction(targetCity, fromIndex, toIndex) } });
-        deps.renderLoop.setGameState(deps.session.getState());
         return deps.session.getState();
       },
       onRemoveQueueItem: (cityId, index) => {
@@ -953,7 +944,6 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
             },
           },
         });
-        deps.renderLoop.setGameState(deps.session.getState());
         return deps.session.getState();
       },
       onOpenWonderPanel: (selectedCityId) => {
@@ -1008,7 +998,6 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
         const targetCity = deps.session.getState().cities[cityId];
         if (!targetCity) return;
         deps.session.commit({ ...deps.session.getState(), cities: { ...deps.session.getState().cities, [cityId]: setIdleProduction(targetCity, mode) } });
-        deps.renderLoop.setGameState(deps.session.getState());
         return deps.session.getState();
       },
       onRushBuyActiveProduction: (cityId) => {
@@ -1157,8 +1146,6 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
         // The spy goes off-map but its record IS the spy now: 'consumed' keeps it (#1198).
         const withEspionage: GameState = { ...deps.session.getState(), espionage: nextEspionage };
         deps.session.commit(unit ? removeUnits(withEspionage, [spyId], { reason: 'consumed' }).state : withEspionage);
-        deps.renderLoop.setGameState(deps.session.getState());
-        deps.hud.update();
         deps.router.open('espionage');
         const cityName = deps.session.getState().cities[target.cityId]?.name ?? target.cityId;
         deps.showNotification(`Spy embedded in ${cityName}. Counter-intelligence boosted.`, 'info');
@@ -1184,8 +1171,6 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
             [currentPlayer]: startMission(deps.session.getState().espionage![currentPlayer], spyId, mission, deps.currentCivDef()?.bonusEffect, targetCivId, targetCityId),
           },
         });
-        deps.renderLoop.setGameState(deps.session.getState());
-        deps.hud.update();
         deps.router.open('espionage');
         deps.showNotification(`Mission ${mission} started.`, 'info');
       },
@@ -1195,8 +1180,6 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
           ...deps.session.getState(),
           espionage: { ...deps.session.getState().espionage, [currentPlayer]: recallSpy(deps.session.getState().espionage![currentPlayer], spyId) },
         });
-        deps.renderLoop.setGameState(deps.session.getState());
-        deps.hud.update();
         deps.router.open('espionage');
         deps.showNotification('Spy recalled.', 'info');
       },
@@ -1206,8 +1189,6 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
           ...deps.session.getState(),
           espionage: { ...deps.session.getState().espionage, [currentPlayer]: verifyAgent(deps.session.getState().espionage![currentPlayer], spyId) },
         });
-        deps.renderLoop.setGameState(deps.session.getState());
-        deps.hud.update();
         deps.router.open('espionage');
         deps.showNotification('Agent verified and cleared.', 'success');
       },
@@ -1252,7 +1233,6 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
           },
           espionage: { ...deps.session.getState().espionage, [currentPlayer]: { ...ownerEsp!, spies: { ...rest, [newUnit.id]: updatedSpy } } },
         });
-        deps.renderLoop.setGameState(deps.session.getState());
         // Refresh panel in place
         deps.getElementById('espionage-panel')?.remove();
         deps.router.open('espionage');
@@ -1297,7 +1277,6 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
           },
           espionage: { ...deps.session.getState().espionage, [currentPlayer]: { ...unembedded, spies: { ...rest, [newUnit.id]: rekeyed } } },
         });
-        deps.renderLoop.setGameState(deps.session.getState());
         deps.getElementById('espionage-panel')?.remove();
         deps.router.open('espionage');
         deps.showNotification(`Spy recalled from ${city.name}. Available in 5 turns.`, 'info');
@@ -1313,7 +1292,6 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
         } else {
           deps.showNotification('Sweep complete — no enemy spies detected.', 'info');
         }
-        deps.renderLoop.setGameState(deps.session.getState());
         deps.getElementById('espionage-panel')?.remove();
         deps.router.open('espionage');
       },

@@ -234,7 +234,6 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
               const result = executeStrategicLaunch(session.getState(), unit.owner, targetCityId);
               if (result.ok && targetCivId) {
                 session.commit(result.state);
-                deps.renderLoop.setGameState(session.getState());
                 deps.showNotification('Strategic strike launched.', 'warning');
                 deps.bus.emit('city:strategic-strike', { cityId: targetCityId, recipientCivId: targetCivId, actorCivId: unit.owner, goldLost: result.goldLost });
               }
@@ -572,8 +571,6 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
               ? { ...session.getState().units, [uid]: { ...unit, hasActed: true, movementPointsLeft: 0 } }
               : session.getState().units,
           });
-          renderLoop.setGameState(session.getState());
-          deps.updateHUD();
           selectUnit(uid);
           deps.showNotification(disguise ? `Spy disguised as ${disguise}.` : 'Disguise removed.', 'info');
         },
@@ -674,9 +671,6 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
           session.commit(spyLeavesMap ? removeUnits(afterAttempt, [uid], { reason: 'consumed' }).state : afterAttempt);
 
           runSideEffects();
-
-          renderLoop.setGameState(session.getState());
-          deps.updateHUD();
         },
         onEmbed: (uid) => {
           const unit = session.getState().units[uid];
@@ -695,8 +689,6 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
             espionage: { ...session.getState().espionage, [currentPlayer]: embedSpy(civEsp, uid, city.id, city.position) },
           }, [uid], { reason: 'consumed' }).state);
           deselectUnit();
-          renderLoop.setGameState(session.getState());
-          deps.updateHUD();
           deps.showNotification(`Spy embedded in ${city.name}. Counter-intelligence boosted.`, 'info');
         },
         onUpgradeUnit: (uid, cityId) => {
@@ -799,8 +791,6 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
     deps.clearUnloadState();
     renderLoop.clearHighlights();
     renderLoop.animateUnitMove({ ...movedUnit, position: path[0]! }, path, () => {
-      renderLoop.setGameState(session.getState());
-      deps.updateHUD();
       ceremonies.endAction();
     });
   }
@@ -880,8 +870,6 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
       }
     }
 
-    renderLoop.setGameState(session.getState());
-    deps.updateHUD();
     selectUnit(unitId);
   }
 
@@ -890,8 +878,6 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
     if (!unit?.automation) return;
     const { automation: _removed, ...withoutAutomation } = unit;
     session.commit({ ...session.getState(), units: { ...session.getState().units, [unitId]: withoutAutomation } });
-    renderLoop.setGameState(session.getState());
-    deps.updateHUD();
     if (selection.getSelectedUnitId() === unitId) {
       selectUnit(unitId);
     }
@@ -905,7 +891,6 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
       units: { ...session.getState().units, [unitId]: { ...unit, automation: undefined } },
     });
     renderLoop.setJourneyPath(null);
-    deps.updateHUD();
     if (selection.getSelectedUnitId() === unitId) {
       selectUnit(unitId);
     }
