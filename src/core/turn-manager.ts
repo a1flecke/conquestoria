@@ -3,7 +3,7 @@ import type { AdvisorType, GameState } from './types';
 import { EventBus } from './event-bus';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { healUnit } from '@/systems/unit-healing';
-import { resetUnitTurn, createUnit } from '@/systems/unit-lifecycle';
+import { resetUnitTurn } from '@/systems/unit-lifecycle';
 import { findPath } from '@/systems/unit-pathfinding';
 import { getLocalCityHealingBonus, processCity, BUILDINGS } from '@/systems/city-system';
 import { canCompleteAirUnitProduction } from '@/systems/air-operations-system';
@@ -12,24 +12,16 @@ import { assignCityFocus, normalizeWorkedTilesForCity } from '@/systems/city-wor
 import { processResearch } from '@/systems/tech-system';
 import { calculateCivResearchOutput } from '@/systems/research-output-system';
 import { appendLegendaryWonderNetworkPlanResolutions } from '@/systems/legendary-wonder-history';
-import { processPurposefulBarbarians } from '@/systems/barbarian-system';
-import { deterministicCombatSeed, getUnitCombatStrength, resolveCombat } from '@/systems/combat-system';
-import { buildCombatContextForDefender } from '@/systems/combat-context';
-import { resolveUnitVsUnitAttack } from '@/systems/attack-targeting';
-import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { resolveLandSupplyForCiv } from '@/systems/supply-system';
 import { resolveNavalOperationsForCiv } from '@/systems/naval-operations';
 import { resolveAirReadinessForCiv } from '@/systems/air-readiness';
 import { getRestAvailability } from '@/systems/supply-combat';
-import { applyPillageToState } from '@/systems/pillage-system';
-import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
 import { computeAdministrativeExploreLeash } from '@/ai/ai-exploration';
 import { hexKey } from '@/systems/hex-utils';
 import { executeUnitMove } from '@/systems/unit-movement-system';
 import { resolveUnitCityBombardment } from '@/systems/city-bombardment-system';
 import { resolveCityInteraction } from '@/systems/city-interaction';
-import { buildCombatPresentation } from '@/systems/viewer-event-presentation';
 import { calculateCityYields } from '@/systems/resource-system';
 import { getNetworkCityYieldBonus, getNetworkUnitVisionBonus } from '@/systems/network-infrastructure-plans';
 import { advanceAutonomySurge, applyPendingAutonomyPosture } from '@/systems/autonomy-postures';
@@ -73,7 +65,6 @@ import { createRng } from '@/systems/map-generator';
 import { processMinorCivTurn, checkCampEvolution } from '@/systems/minor-civ-system';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { createSimulationRng } from '@/systems/simulation-rng';
-import { resolveCombatEra } from '@/systems/era-resolution';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { applyGeneTherapyRecharge } from '@/systems/gene-therapy-system';
 import { applyResearchCompletionConsequences } from '@/systems/tech-completion-system';
@@ -84,14 +75,6 @@ import {
   resolveNetworkPlansForVictimTurnEnd,
   resolveStableNetworkPlansForOwnerTurn,
 } from '@/systems/network-plan-system';
-import { resolveChallengeForCiv } from '@/core/opponent-challenge';
-import {
-  applyCityHpRegeneration,
-  applyCitySiegeOutcome,
-  getCityCounterFireDamage,
-  getCityGarrisonUnit,
-  resolveCitySiegeDamage,
-} from '@/systems/city-siege-system';
 import { normalizeOpponentAIState } from '@/core/opponent-ai-state';
 import { emitCivilizationLivenessTransitions, reconcileCivilizationLiveness } from '@/systems/civilization-elimination-system';
 import { processFactionTurn, getUnrestYieldMultiplier, isCityProductionLocked, getFederalismRemittanceLoss } from '@/systems/faction-system';
@@ -121,8 +104,8 @@ import { chooseBestGeneralCandidate } from '@/ai/ai-general-command';
 import { resolveGeneralDefinition, type GeneralDefinition } from '@/systems/great-general-definitions';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
-import { removeUnits } from '@/systems/unit-removal-system';
 import { createRoundPhaseContext } from './round-phases/types';
+import { barbariansPhase } from './round-phases/barbarians';
 import { beastsPhase } from './round-phases/beasts';
 import { threatSchedulingPhase } from './round-phases/threat-scheduling';
 import { espionagePhase } from './round-phases/espionage';
@@ -891,163 +874,7 @@ export function processTurn(
     });
   }
 
-  // --- Process barbarians ---
-  // Reset barbarian unit movement each turn (they are not in any civ's units array)
-  for (const [unitId, unit] of Object.entries(newState.units)) {
-    if (unit.owner === 'barbarian') {
-      newState.units[unitId] = resetUnitTurn(unit);
-    }
-  }
-  const barbResult = processPurposefulBarbarians(newState);
-  newState.opponentAI = barbResult.opponentAI;
-  newState.barbarianCampPressure = barbResult.barbarianCampPressure;
-  newState.barbarianCamps = {};
-  for (const camp of barbResult.updatedCamps) {
-    newState.barbarianCamps[camp.id] = camp;
-  }
-
-  // Spawn barbarian raiders
-  for (const spawn of barbResult.spawnedUnits) {
-    const raider = createUnit(spawn.unitType ?? 'warrior', 'barbarian', spawn.position, newState.idCounters);
-    newState.units[raider.id] = raider;
-    if (newState.opponentAI) {
-      newState.opponentAI.barbarianHomeCampByUnitId[raider.id] = spawn.campId;
-    }
-    bus.emit('barbarian:spawned', { campId: spawn.campId, unitId: raider.id });
-  }
-
-  // Barbarian pillage-on-arrival. Must run BEFORE moves: an arriving raider's plan
-  // transitions to 'withdrawing' in the same processPurposefulBarbarians call that
-  // queues its pillageOrder, which also queues a withdrawal moveOrder for that same
-  // unit this turn (#541 second-pass review — the original order had moves first,
-  // so the raider stepped away from the resource tile before applyPillageToState
-  // re-derived the tile from the unit's now-stale position, silently pillaging
-  // nothing). Pillaging first sets movementPointsLeft to 0, so the queued
-  // withdrawal move correctly fails validation and simply doesn't fire this turn —
-  // the raider retreats next turn instead.
-  for (const order of barbResult.pillageOrders) {
-    const result = applyPillageToState(newState, order.unitId);
-    if (result.ok) newState = result.state;
-  }
-
-  // Move barbarian units
-  for (const order of barbResult.moveOrders) {
-    const unit = newState.units[order.unitId];
-    if (unit) {
-      const movement = executeUnitMove(newState, order.unitId, order.toCoord, { actor: 'world', bus });
-      if (movement.ok) newState = movement.state;
-    }
-  }
-
-  // Barbarian attacks
-  for (const attack of barbResult.attackOrders) {
-    const attacker = newState.units[attack.attackerUnitId];
-    const defender = newState.units[attack.defenderUnitId];
-    if (!attacker || !defender) continue;
-    if (!resolveUnitVsUnitAttack(newState, attacker, defender, { requireVisibility: false }).ok) continue;
-    const combatSeed = deterministicCombatSeed(newState.gameId, newState.turn, attacker.id, defender.id);
-    const result = resolveCombat(
-      attacker,
-      defender,
-      newState.map,
-      combatSeed,
-      buildCombatContextForDefender(newState, attacker, defender),
-      resolveCombatEra(newState, attacker, defender),
-    );
-    const combatPresentation = buildCombatPresentation(newState, result, attacker, defender);
-    const applied = applyCombatOutcomeToState(newState, result, combatSeed, bus);
-    newState = applied.state;
-    emitMinorCivQuestTransitions(bus, applied.questTransitions, newState);
-    bus.emit('combat:resolved', { result, ...combatPresentation });
-    for (const reward of applied.rewards) {
-      bus.emit('combat:reward-earned', { reward });
-    }
-  }
-
-  // Barbarian city attacks — routed through the shared siege helper (#522): a
-  // garrisoned city fully blocks damage, walls/techs mitigate it, and the 0-HP
-  // outcome is sack-vs-destroy gated by era + the owner's resolved difficulty.
-  for (const order of barbResult.cityAttackOrders) {
-    const city = newState.cities[order.cityId];
-    if (!city) continue;
-    const currentHp = city.hp ?? 100;
-    if (currentHp <= 0) continue; // already at zero (shouldn't persist, but guard against legacy saves)
-    const ownerCiv = newState.civilizations[city.owner];
-    if (!ownerCiv) continue;
-
-    const result = resolveCitySiegeDamage({
-      city,
-      ownerCiv,
-      rawDamage: order.damage,
-      attackerDomain: 'land',
-      hasGarrison: getCityGarrisonUnit(newState.units, city) !== undefined,
-      isOwnersLastCity: ownerCiv.cities.length <= 1,
-      era: resolveCivilizationEra(ownerCiv.techState.completed),
-      challenge: resolveChallengeForCiv(newState, city.owner),
-    });
-    newState = applyCitySiegeOutcome(newState, order.cityId, result);
-    if (result.outcome === 'blocked') continue;
-
-    // Counter-fire (#522): a walled, ungarrisoned city fights back against the raider
-    // that's damaging it. #982: same 'city-counter-fire' domain tag as
-    // city-bombardment-system.ts/pirate-system.ts's own counter-fire rolls.
-    // Was `barbSeed ^ attackerUnitId.charCodeAt(0)`, where barbSeed itself
-    // (`turn*31337 + camp count`) had no gameId and no per-attack identity,
-    // shared by every barbarian counter-fire event in the game this turn.
-    const attackerUnit = newState.units[order.attackerUnitId];
-    if (attackerUnit) {
-      const attackerStrength = getUnitCombatStrength(attackerUnit) * (attackerUnit.health / 100);
-      const counterFireSeed = Math.floor(createSimulationRng(newState, { domain: 'city-counter-fire', actorId: order.attackerUnitId, targetId: order.cityId })() * 2147483647);
-      const counterFireDamage = getCityCounterFireDamage(
-        city, ownerCiv, 'land', attackerStrength, false, counterFireSeed,
-      );
-      if (counterFireDamage > 0) {
-        const healthAfter = attackerUnit.health - counterFireDamage;
-        const attackerDied = healthAfter <= 0;
-        if (attackerDied) {
-          newState = removeUnits(newState, [order.attackerUnitId], { reason: 'destroyed', bus }).state;
-          // barbarianHomeCampByUnitId self-prunes stale entries for dead units on the
-          // next processing pass (barbarian-system.ts) -- no further cleanup needed here.
-        } else {
-          newState = {
-            ...newState,
-            units: { ...newState.units, [order.attackerUnitId]: { ...attackerUnit, health: healthAfter } },
-          };
-        }
-        bus.emit('city:counter-fire', {
-          cityId: order.cityId,
-          attackerUnitId: order.attackerUnitId,
-          source: 'barbarian',
-          damage: counterFireDamage,
-          attackerDied,
-        });
-      }
-    }
-
-    bus.emit('barbarian:city-attacked', { attackerUnitId: order.attackerUnitId, cityId: order.cityId, hpLost: result.hpLost });
-    if (newState.opponentAI) {
-      const campId = newState.opponentAI.barbarianHomeCampByUnitId[order.attackerUnitId];
-      const plan = campId ? newState.opponentAI.barbarianCamps[campId] : undefined;
-      if (plan?.target.kind === 'city' && plan.target.id === order.cityId) {
-        newState.opponentAI.barbarianCamps[campId] = {
-          ...plan,
-          phase: 'withdrawing',
-          lastProgressTurn: newState.turn,
-        };
-      }
-    }
-
-    if (result.outcome === 'sacked') {
-      bus.emit('city:sacked', { cityId: order.cityId, source: 'barbarian', goldLost: result.goldLost });
-    } else if (result.outcome === 'destroyed') {
-      bus.emit('barbarian:city-destroyed', { attackerUnitId: order.attackerUnitId, cityId: order.cityId, ownerId: city.owner });
-    }
-  }
-
-  // City HP regeneration (#522) — +5/turn for any city below max HP with no hostile
-  // unit adjacent, so damage from a raid that didn't destroy the city doesn't linger
-  // forever.
-  newState = applyCityHpRegeneration(newState);
+  newState = barbariansPhase.run(newState, context);
 
   // --- Minor civ turn phase ---
   newState = processMinorCivTurn(newState, bus);
