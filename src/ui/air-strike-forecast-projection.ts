@@ -5,13 +5,14 @@ import { resolveCombatEra } from '@/systems/era-resolution';
 import { getVisibility } from '@/systems/fog-of-war';
 import { isUnitConcealedFrom } from '@/systems/concealment';
 import {
+  AIR_MISSION_FAILURE_MESSAGES,
   canInterceptIncomingStrike,
   getAirStrikeCityRawDamage,
-  getLegalAirMissionTargets,
+  getAirStrikeDenial,
   pickStrongestInterceptor,
   resolveAirStrikeTarget,
+  type AirMissionFailureReason,
 } from '@/systems/air-operations-system';
-import { getAirMissionDenial } from '@/systems/air-readiness';
 import { forecastAirStrike, type AirStrikeBranch, type AirStrikeForecast } from '@/systems/air-strike-forecast';
 import { resolveCitySiegeDamage } from '@/systems/city-siege-system';
 import { resolveChallengeForCiv } from '@/core/opponent-challenge';
@@ -47,11 +48,18 @@ export type AirStrikeForecastRequest = {
   ownerName: string;
 };
 
+/**
+ * A refusal speaks the executor's own vocabulary (#1223): `reason` is the `AirMissionFailureReason` that
+ * `resolveAirStrike` would return for the same command, and `message` is its one copy. The forecast has no
+ * failure words of its own.
+ */
 export type AirStrikeForecastResult =
   | { ok: true; view: BattleForecastView }
-  | { ok: false; message: string };
+  | { ok: false; reason: AirMissionFailureReason; message: string };
 
-const NOT_LEGAL = 'That target is out of range or can no longer be struck.';
+function refusal(reason: AirMissionFailureReason): { ok: false; reason: AirMissionFailureReason; message: string } {
+  return { ok: false, reason, message: AIR_MISSION_FAILURE_MESSAGES[reason] };
+}
 
 function pct(chance: number): string {
   return `${Math.round(chance * 100)}%`;
@@ -139,15 +147,13 @@ function cityView(
 export function buildAirStrikeForecastView(request: AirStrikeForecastRequest): AirStrikeForecastResult {
   const { state, viewerId, unitId, target, ownerName } = request;
   const striker = state.units[unitId];
-  if (!striker || striker.owner !== viewerId) return { ok: false, message: NOT_LEGAL };
-  const denial = getAirMissionDenial(state, unitId, 'strike');
-  if (denial) return { ok: false, message: denial.message };
-  if (!getLegalAirMissionTargets(state, unitId, 'strike').some(c => c.q === target.q && c.r === target.r)) {
-    return { ok: false, message: NOT_LEGAL };
-  }
+  if (!striker || striker.owner !== viewerId) return refusal('ineligible-strike');
+  // The executor's own eligibility: what the forecast shows is what Confirm will be allowed to fly.
+  const denial = getAirStrikeDenial(state, unitId, target);
+  if (denial) return refusal(denial);
   const resolved = resolveAirStrikeTarget(state, striker, target);
   const targetPos = resolved.city?.position ?? resolved.unit?.position;
-  if (!targetPos) return { ok: false, message: NOT_LEGAL };
+  if (!targetPos) return refusal('missing-target');
 
   const candidate = findKnownInterceptCandidate(state, viewerId, striker, target);
   const interception = candidate
@@ -188,7 +194,7 @@ export function buildAirStrikeForecastView(request: AirStrikeForecastRequest): A
 
   const city = resolved.city!;
   const ownerCiv = state.civilizations[city.owner];
-  if (!ownerCiv) return { ok: false, message: NOT_LEGAL };
+  if (!ownerCiv) return refusal('missing-target');
   // The garrison counts only if the viewer can see it; the owner's tech never enters the number.
   const cityKey = hexKey(city.position);
   const visibleGarrison = Object.values(state.units).some(

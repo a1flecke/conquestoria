@@ -1637,7 +1637,7 @@ describe('#1025 — the action-contract inventory is complete and every gap has 
 
   it('every partially-structural or caller-discipline row names an issue that owns the gap', () => {
     const open = rows.filter(row => ['partially-structural', 'caller-discipline'].includes(statusOf(row) ?? ''));
-    expect(open.length).toBeGreaterThan(0);
+    // Since #1223 no row is open; a future gap is allowed, but only with an owning issue on its row.
     for (const row of open) expect(row, row.slice(0, 80)).toMatch(/→ #\d{3,5}/);
   });
 
@@ -1864,6 +1864,79 @@ describe('#1222 — starting a spy mission is a typed command that revalidates, 
     });
     it('does not count a throw that only appears in a comment', () => {
       expect(throwsOrSkipsEligibility('export function startMission() {\n  // used to throw new Error\n  getMissionStartDenial(a);\n}')).toBe(false);
+    });
+  });
+});
+
+describe('#1223 — an air mission failure is a closed typed reason with one copy map', () => {
+  const root = resolve(__dirname, '../..');
+  const read = (path: string) => readFileSync(resolve(root, path), 'utf8');
+  const stripComments = (source: string) => source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  /** True when `source` still declares a free-string failure reason on a result type. */
+  const hasFreeStringReason = (source: string): boolean => /\breason:\s*string\b/.test(stripComments(source));
+  /** Body of `export function <name>(` up to the next top-level `\n}`. */
+  const functionBody = (source: string, name: string): string | null => {
+    const clean = stripComments(source);
+    const start = clean.indexOf(`export function ${name}(`);
+    if (start < 0) return null;
+    const end = clean.indexOf('\n}', start);
+    return end < 0 ? null : clean.slice(start, end);
+  };
+  const asksBeforeWriting = (source: string, name: string): boolean => {
+    const body = functionBody(source, name);
+    if (body === null) return false;
+    const asked = body.search(/\bgetAirStrikeDenial\(/);
+    const wrote = body.search(/\bresolveCombat\(|\bapplyAirCombatResult\(|\bapplyCitySiegeOutcome\(/);
+    return asked >= 0 && wrote >= 0 && asked < wrote;
+  };
+
+  it('the air result types carry no free-string reason', () => {
+    expect(hasFreeStringReason(read('src/systems/air-operations-system.ts'))).toBe(false);
+    expect(hasFreeStringReason(read('src/systems/air-mission-failure.ts'))).toBe(false);
+  });
+
+  it('the executor and the #1213 forecast preflight share one strike eligibility source', () => {
+    expect(asksBeforeWriting(read('src/systems/air-operations-system.ts'), 'resolveAirStrike')).toBe(true);
+    const forecast = stripComments(read('src/ui/air-strike-forecast-projection.ts'));
+    expect(forecast).toMatch(/\bgetAirStrikeDenial\(/);
+    // No second, confirm-only vocabulary: the forecast neither re-derives legality nor words its own refusal.
+    expect(forecast).not.toMatch(/\bgetLegalAirMissionTargets\b/);
+    expect(forecast).not.toMatch(/\bgetAirMissionDenial\b/);
+    expect(forecast).toContain('AIR_MISSION_FAILURE_MESSAGES');
+  });
+
+  it('every player-facing air executor failure is worded from the one copy map', () => {
+    for (const path of [
+      'src/app/controllers/map-interaction-controller.ts',
+      'src/app/controllers/selection-controller.ts',
+    ]) {
+      expect(read(path), path).toContain('AIR_MISSION_FAILURE_MESSAGES[');
+    }
+  });
+
+  it('the AI never branches on an air failure reason: it only skips a refused action', () => {
+    for (const path of ['src/ai/ai-major-turn.ts', 'src/ai/ai-tactics.ts']) {
+      expect(stripComments(read(path)), path).not.toMatch(/\.reason\s*[!=]==?\s*'/);
+    }
+  });
+
+  describe('the checks themselves are not vacuous', () => {
+    it('rejects a result type that still allows any string', () => {
+      expect(hasFreeStringReason('type R = { ok: false; state: S; reason: string };')).toBe(true);
+    });
+    it('does not count a free-string reason that only appears in a comment', () => {
+      expect(hasFreeStringReason('// the old type was { reason: string }\ntype R = { reason: AirMissionFailureReason };')).toBe(false);
+    });
+    it('rejects an executor that writes before it asks the eligibility source', () => {
+      const source = 'export function resolveAirStrike() {\n  resolveCombat(a);\n  getAirStrikeDenial(a);\n}';
+      expect(asksBeforeWriting(source, 'resolveAirStrike')).toBe(false);
+    });
+    it('rejects an executor that never asks', () => {
+      expect(asksBeforeWriting('export function resolveAirStrike() {\n  resolveCombat(a);\n}', 'resolveAirStrike')).toBe(false);
+    });
+    it('accepts an executor that asks first', () => {
+      const source = 'export function resolveAirStrike() {\n  if (getAirStrikeDenial(a)) return;\n  resolveCombat(a);\n}';
+      expect(asksBeforeWriting(source, 'resolveAirStrike')).toBe(true);
     });
   });
 });

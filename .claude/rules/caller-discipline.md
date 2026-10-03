@@ -99,7 +99,7 @@ meanings, name the roles — but only when misuse is plausible. The ranked audit
 
 ## Open follow-ups (evidence in each issue)
 
-Action-contract gaps from the #1025 audit — air-mission reasons #1223 (attack legality #1219, queue enqueue #1220, diplomatic denial #1221 and espionage `startMission` #1222: done; see `docs/action-contract-inventory.md`) ·
+Action-contract gaps from the #1025 audit — none left open (attack legality #1219, queue enqueue #1220, diplomatic denial #1221, espionage `startMission` #1222 and air-mission reasons #1223: done; see `docs/action-contract-inventory.md`) ·
 #1199 finish #1015 (hand pushes, in-place mutation) ·
 #1201 espionage consequences/recipients. (#1198 canonical unit removal, #1200 combat consequences and
 #1202 trainable-unit wiring: done.)

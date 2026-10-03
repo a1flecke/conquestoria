@@ -18,18 +18,27 @@ import { isWithinTacticalSamCoverage } from './air-defense-system';
 import { claimTacticalFirstOwnerTurnInterception } from './legendary-wonder-tactical-effects';
 import { removeUnits } from '@/systems/unit-removal-system';
 import { getAirMissionDenial, getAirReadinessCombatPenalty, withAirStrain } from './air-readiness';
+import type { AirBaseFailureReason, AirOperationFailureReason, AirStrikeFailureReason } from './air-mission-failure';
+
+export { AIR_MISSION_FAILURE_MESSAGES } from './air-mission-failure';
+export type {
+  AirBaseFailureReason,
+  AirMissionFailureReason,
+  AirOperationFailureReason,
+  AirStrikeFailureReason,
+} from './air-mission-failure';
 
 export type AirOperationResult =
   | { ok: true; state: GameState }
-  | { ok: false; state: GameState; reason: string };
+  | { ok: false; state: GameState; reason: AirOperationFailureReason };
 
 export type AirStrikeResult =
   | { ok: true; state: GameState; interception?: { interceptorId: string; result: CombatResult }; targetResult?: CombatResult; cityResult?: { cityId: string; result: CitySiegeResult } }
-  | { ok: false; state: GameState; reason: string };
+  | { ok: false; state: GameState; reason: AirStrikeFailureReason };
 
 export type AirBaseCheck =
   | { ok: true; base: Extract<AirBaseRef, { kind: 'city' }> }
-  | { ok: false; reason: 'not-based-aircraft' | 'base-missing' | 'incompatible-base' | 'base-full' };
+  | { ok: false; reason: AirBaseFailureReason };
 
 export interface AirBaseLossResult {
   state: GameState;
@@ -255,7 +264,9 @@ export function getLegalAirMissionTargets(state: GameState, unitId: string, miss
 
 export function resolveReconMission(state: GameState, unitId: string, center: HexCoord): AirOperationResult {
   const unit = state.units[unitId];
-  if (!unit || !getLegalAirMissionTargets(state, unitId, 'recon')
+  if (!unit) return { ok: false, state, reason: 'missing-unit' };
+  if (unit.hasActed) return { ok: false, state, reason: 'already-acted' };
+  if (!getLegalAirMissionTargets(state, unitId, 'recon')
     .some(target => target.q === center.q && target.r === center.r)) {
     return { ok: false, state, reason: 'invalid-recon-target' };
   }
@@ -277,7 +288,9 @@ export function resolveReconMission(state: GameState, unitId: string, center: He
 
 export function resolvePatrolMission(state: GameState, unitId: string, center: HexCoord): AirOperationResult {
   const unit = state.units[unitId];
-  if (!unit || !getLegalAirMissionTargets(state, unitId, 'patrol')
+  if (!unit) return { ok: false, state, reason: 'missing-unit' };
+  if (unit.hasActed) return { ok: false, state, reason: 'already-acted' };
+  if (!getLegalAirMissionTargets(state, unitId, 'patrol')
     .some(target => target.q === center.q && target.r === center.r)) {
     return { ok: false, state, reason: 'invalid-patrol-target' };
   }
@@ -318,20 +331,34 @@ export function resolveAirStrikeTarget(state: GameState, striker: Unit, target: 
   return { unit };
 }
 
-export function resolveAirStrike(state: GameState, unitId: string, target: HexCoord, bus?: EventBus): AirStrikeResult {
+/**
+ * The one eligibility source for an air strike (#1223): the executor (`resolveAirStrike`) and the #1213 forecast
+ * preflight both ask it, so a strike the player is shown is a strike the executor will accept, and the two can only
+ * ever explain a refusal in the same words. `null` means legal. Viewer-blind by design: it reads the striker's own
+ * visibility the same way `getLegalAirMissionTargets` does, and an unseen hostile unit is refused exactly like an
+ * empty hex.
+ */
+export function getAirStrikeDenial(state: GameState, unitId: string, target: HexCoord): AirStrikeFailureReason | null {
   const striker = state.units[unitId];
   const definition = striker && UNIT_DEFINITIONS[striker.type].airOperation;
-  if (!striker || !definition?.missions.includes('strike') || !striker.airBase || striker.hasActed) {
-    return { ok: false, state, reason: 'ineligible-strike' };
-  }
+  if (!striker || !definition?.missions.includes('strike') || !striker.airBase) return 'ineligible-strike';
+  if (striker.hasActed) return 'already-acted';
   const readinessDenial = getAirMissionDenial(state, unitId, 'strike');
-  if (readinessDenial) return { ok: false, state, reason: readinessDenial.reason };
-  if (airDistance(state, striker.position, target) > definition.operationalRange) return { ok: false, state, reason: 'out-of-range' };
+  if (readinessDenial) return readinessDenial.reason;
+  if (airDistance(state, striker.position, target) > definition.operationalRange) return 'out-of-range';
   if (!getLegalAirMissionTargets(state, unitId, 'strike').some(candidate => candidate.q === target.q && candidate.r === target.r)) {
-    return { ok: false, state, reason: 'invalid-strike-target' };
+    return 'invalid-strike-target';
   }
+  const { city, unit } = resolveAirStrikeTarget(state, striker, target);
+  if (!unit && !city) return 'missing-target';
+  return null;
+}
+
+export function resolveAirStrike(state: GameState, unitId: string, target: HexCoord, bus?: EventBus): AirStrikeResult {
+  const denial = getAirStrikeDenial(state, unitId, target);
+  if (denial) return { ok: false, state, reason: denial };
+  const striker = state.units[unitId]!;
   const { city: targetCity, unit: targetUnit } = resolveAirStrikeTarget(state, striker, target);
-  if (!targetUnit && !targetCity) return { ok: false, state, reason: 'missing-target' };
   let nextState = state;
   const interceptor = selectInterceptor(state, striker, target);
   let interception: { interceptorId: string; result: CombatResult } | undefined;

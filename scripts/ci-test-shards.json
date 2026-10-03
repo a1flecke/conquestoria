@@ -711,7 +711,8 @@
     "tests/app/battle-forecast-boundary.test.ts": 5.0,
     "tests/audio/sfx-coverage.test.ts": 40.0,
     "tests/audio/sfx-unit-routing.test.ts": 60.0,
-    "tests/systems/espionage-start-mission-contract.test.ts": 4.108154296875
+    "tests/systems/espionage-start-mission-contract.test.ts": 4.108154296875,
+    "tests/systems/air-mission-failure-contract.test.ts": 5.0
   },
   "shards": {
     "test-suite-shard-a": [
@@ -1056,6 +1057,7 @@
       "tests/systems/ai-decision-debug.test.ts",
       "tests/systems/ai-war-goals.test.ts",
       "tests/systems/air-domain.test.ts",
+      "tests/systems/air-mission-failure-contract.test.ts",
       "tests/systems/airborne-save.test.ts",
       "tests/systems/autonomy-postures.test.ts",
       "tests/systems/barbarian-archetype.test.ts",
