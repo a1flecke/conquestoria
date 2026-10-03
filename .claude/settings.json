@@ -12,7 +12,12 @@
       "Bash(sh scripts/stop-local-verification.sh:*)",
       "Bash(./scripts/stop-local-verification.sh:*)",
       "Bash(sh scripts/launch-local-verification.sh:*)",
-      "Bash(./scripts/launch-local-verification.sh:*)"
+      "Bash(./scripts/launch-local-verification.sh:*)",
+      "Bash(./scripts/sync-main.sh)",
+      "Bash(bash scripts/sync-main.sh)",
+      "Bash(git fetch origin)",
+      "Bash(git fetch origin main)",
+      "Bash(git rebase origin/main)"
     ]
   },
   "hooks": {

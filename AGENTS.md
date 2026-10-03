@@ -57,10 +57,36 @@ auditable and lets the approval system recognize the narrow safe forms below.
   `./scripts/run-with-mise.sh yarn test:durable:status`. Inspect both the
   branch diff and the uncommitted diff before reporting completion.
 
+### Task dispatcher: `./scripts/dev.sh` (#1256)
+
+For build, typecheck, tests and verification use `./scripts/dev.sh <task> [paths]` — it is
+the form the local approver recognizes without a prompt:
+
+- `./scripts/dev.sh build`, `typecheck`, `test-all`, `test-regular`, `hooks`, `install`,
+  `setup-hooks`, `verify-pr`, `verify-pr-status`, `verify-status`, `durable`, `durable-status`,
+  `ai-playability`, `ai-long`, `web-smoke`, `docs-lifecycle` (run it with no arguments for the list).
+- Focused tests: `./scripts/dev.sh test tests/systems/city-system.test.ts` (one or more `*.test.ts(x)`
+  files or directories under `tests/`; anything else is rejected with the rule it broke).
+- Use the `./` form exactly. Do **not** prefix `cd <worktree> &&` (the shell already starts in the
+  worktree), and do **not** pipe or redirect build/test output (`| tail`, `2>&1`, `> log`): the
+  dispatcher saves the full output to `.verification/logs/<task>.log`, prints a header with the exit
+  status plus the last 60 lines, and `./scripts/dev.sh log <task> [N]` shows more (default 200, max 5000).
+- It takes no flags (no `--watch`, no `-t`); anything configurable is a separate task.
+- It is deliberately narrow. Installing or removing a dependency, `node -e`, `npx`, an arbitrary
+  `node <file>`, `git push` to `main`, `gh pr merge` and deletions are not tasks, and are expected to ask
+  for human approval — do not look for a way around that through `run-with-mise.sh`.
+
 ### Rebase, publish, and pull-request workflow
 
-For a feature branch that needs the latest base, issue these as separate direct
-operations: `git fetch origin`, then `git rebase origin/main`. Resolve a
+Work keeps landing on `origin/main`; rebase your branch onto it routinely. The
+one-step form needs no approval from any agent: `./scripts/sync-main.sh` (no arguments; it
+runs `git fetch origin main` then `git rebase origin/main`, and refuses `main`, a detached HEAD,
+a dirty tracked tree and a rebase already in progress). If it reports a conflict, follow its printed
+steps. Publishing a rebased branch that was already pushed needs `--force-with-lease`, which stays a
+human-approved operation (see below).
+
+The two-step form is equivalent: issue these as separate direct operations:
+`git fetch origin`, then `git rebase origin/main`. Resolve a
 conflict, explicitly stage only the resolved non-sensitive paths with
 `git add -- <paths>`, then use `GIT_EDITOR=true git rebase --continue`. Never
 prefix the initial rebase with `GIT_EDITOR=true`, filter its output with

@@ -21,6 +21,8 @@ This is enforced by the user and is not optional.
 
 **Always use `bash scripts/run-with-mise.sh yarn <cmd>` — never `eval "$(mise activate bash)" && yarn <cmd>`.** The script is pre-approved in `.claude/settings.local.json` and avoids permission prompts.
 
+- `./scripts/dev.sh <task> [paths]` — **Preferred for build/test/verify** (#1256): a narrow dispatcher with a fixed task table (`build`, `typecheck`, `test <tests/… paths>`, `test-all`, `test-regular`, `hooks`, `install`, `setup-hooks`, `verify-pr`, `verify-pr-status`, `verify-status`, `durable`, `durable-status`, `ai-playability`, `ai-long`, `web-smoke`, `docs-lifecycle`). No flags and no pipes needed: output is saved to `.verification/logs/<task>.log`, the last 60 lines print, and `./scripts/dev.sh log <task> [N]` shows more. Run it without arguments for the list. Details: `.claude/rules/hooks-and-tooling.md` → "Task dispatcher".
+- `./scripts/sync-main.sh` — **Bring your branch up to date with `origin/main`** (fetch + rebase, no arguments, no approval needed; refuses `main`, a dirty tree, a detached HEAD). Run it whenever work has landed on `origin/main`; on a conflict resolve, `git add -- <paths>`, then `GIT_EDITOR=true git rebase --continue`. Publishing a rebased, already-pushed branch still needs `--force-with-lease`.
 - `bash scripts/run-with-mise.sh yarn dev` — Start dev server
 - `bash scripts/run-with-mise.sh yarn build` — Production build
 - `bash scripts/run-with-mise.sh yarn test` — Run vitest + hook smoke tests. DOES NOT type-check — `yarn build` is the only path that runs `tsc`. Before any `git push`, `gh pr create`, or `gh pr merge`, run `yarn build` and `yarn test` and confirm both exit 0. The `require-green-before-push` hook enforces this, but catching it locally is faster.
