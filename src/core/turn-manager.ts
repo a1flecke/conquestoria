@@ -21,8 +21,6 @@ import {
   LAIR_GROWTH_INTERVAL_TURNS,
   LAIR_GROWTH_CAP,
   LAIR_GROWTH_EXPERIENCE,
-  applyHoardChoice,
-  getClaimedTrophyGoldPerTurn,
 } from '@/systems/beast-system';
 import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
 import { deterministicCombatSeed, getUnitCombatStrength, resolveCombat } from '@/systems/combat-system';
@@ -148,6 +146,7 @@ import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
 import { removeUnits } from '@/systems/unit-removal-system';
 import { createRoundPhaseContext } from './round-phases/types';
+import { beastRewardsPhase } from './round-phases/beast-rewards';
 import { economyPhase } from './round-phases/economy';
 import { piratesPhase } from './round-phases/pirates';
 import { preCivReconciliationPhase } from './round-phases/pre-civ-reconciliation';
@@ -1496,17 +1495,7 @@ export function processTurn(
     processMinorCivEraUpgrade(newState, mc);
   }
 
-  if (newState.beasts) {
-    for (const pending of [...(newState.beasts.pendingHoardChoices ?? [])]) {
-      if (pending.civId === newState.currentPlayer) continue;
-      newState = applyHoardChoice(newState, pending.lairId, pending.civId, 'gold');
-    }
-    for (const civId of Object.keys(newState.civilizations)) {
-      if (!getCivilizationLiveness(newState, civId).living) continue;
-      const trophyGold = getClaimedTrophyGoldPerTurn(newState, civId);
-      if (trophyGold > 0) grossGoldByCiv[civId] = (grossGoldByCiv[civId] ?? 0) + trophyGold;
-    }
-  }
+  newState = beastRewardsPhase.run(newState, context);
 
   newState = economyPhase.run(newState, context);
 
