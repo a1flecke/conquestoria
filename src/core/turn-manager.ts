@@ -635,7 +635,8 @@ export function processTurn(
     for (const unitId of civ.units) {
       const unit = newState.units[unitId];
       if (unit?.automation?.mode === 'auto-explore') {
-        applyAutoExploreOrder(newState, unitId, { bus, leash: computeAdministrativeExploreLeash(newState, unitId) ?? undefined });
+        const explored = applyAutoExploreOrder(newState, unitId, { bus, leash: computeAdministrativeExploreLeash(newState, unitId) ?? undefined });
+        if (explored?.ok) newState = explored.state;
       } else if (unit?.automation?.mode === 'hold-siege') {
         newState = applyHoldSiegeOrder(newState, unitId, unit.automation.cityId, bus);
       } else if (unit?.automation?.mode === 'journey') {
@@ -647,7 +648,8 @@ export function processTurn(
           bus.emit('unit:journey-blocked', { unitId, position: { ...unit.position } });
         } else {
           const nextStep = path[1];
-          executeUnitMove(newState, unitId, nextStep, { actor: 'automation', civId, bus });
+          const movement = executeUnitMove(newState, unitId, nextStep, { actor: 'automation', civId, bus });
+          if (movement.ok) newState = movement.state;
           if (hexKey(nextStep) === hexKey(destination)) {
             const movedUnit = newState.units[unitId];
             if (movedUnit) {
@@ -949,7 +951,8 @@ export function processTurn(
   for (const order of barbResult.moveOrders) {
     const unit = newState.units[order.unitId];
     if (unit) {
-      executeUnitMove(newState, order.unitId, order.toCoord, { actor: 'world', bus });
+      const movement = executeUnitMove(newState, order.unitId, order.toCoord, { actor: 'world', bus });
+      if (movement.ok) newState = movement.state;
     }
   }
 

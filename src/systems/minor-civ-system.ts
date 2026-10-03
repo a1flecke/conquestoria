@@ -498,7 +498,8 @@ function executePurposefulMinorCivOrders(
   for (const order of planned.moveOrders) {
     const unit = nextState.units[order.unitId];
     if (!unit || unit.hasActed || unit.movementPointsLeft <= 0) continue;
-    executeUnitMove(nextState, order.unitId, order.to, { actor: 'world', bus });
+    const moved = executeUnitMove(nextState, order.unitId, order.to, { actor: 'world', bus });
+    if (moved.ok) nextState = moved.state;
   }
   return nextState;
 }

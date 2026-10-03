@@ -340,6 +340,7 @@ function advanceDispersingHerds(state: GameState, forceId: string): GameState {
     for (const step of next.crisisForces?.[forceId]?.herdRoutes?.[unitId]?.steps ?? []) {
       const moved = executeUnitMove(next, unitId, step, { actor: 'world' });
       if (!moved.ok || moved.stopReason) break;
+      next = moved.state;
     }
   }
   return next;
@@ -351,13 +352,16 @@ export function processActiveRogueElephantHost(state: GameState, targetCivId: st
   const force = host?.phase === 'active' && host.forceId ? state.crisisForces?.[host.forceId] : undefined;
   const target = host?.target?.tileKey ? state.map.tiles[host.target.tileKey]?.coord : undefined;
   if (!force || !target) return state;
-  const next: GameState = { ...state, units: { ...state.units } };
+  let next: GameState = { ...state, units: { ...state.units } };
   for (const unitId of [...force.unitIds].sort()) {
     const unit = next.units[unitId];
     if (!unit || unit.health <= 0) continue;
     const path = findPath(unit.position, target, next.map, 'land', { unit });
     const step = path?.[1];
-    if (step) executeUnitMove(next, unit.id, step, { actor: 'world' });
+    if (step) {
+      const moved = executeUnitMove(next, unit.id, step, { actor: 'world' });
+      if (moved.ok) next = moved.state;
+    }
   }
   return next;
 }

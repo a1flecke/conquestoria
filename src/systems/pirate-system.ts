@@ -501,6 +501,7 @@ function processPurposefulMovementAndCombat(
           const beforeMove = nextState;
           const move = executeUnitMove(nextState, unitId, destination, { actor: 'world' });
           if (move.ok) {
+            nextState = move.state;
             facts.movements.push({
               unitId,
               from: move.from,

@@ -226,6 +226,7 @@ export function processAIUpgrades(
       delete portfolio.upgradeRoutesByUnitId[unitId];
       continue;
     }
+    working = movement.state;
     routedUnitIds.push(unitId);
   }
 
@@ -333,6 +334,7 @@ export function processAIUpgrades(
       delete portfolio.upgradeRoutesByUnitId[current.id];
       continue;
     }
+    if (movement) working = movement.state;
     routedUnitIds.push(current.id);
   }
 

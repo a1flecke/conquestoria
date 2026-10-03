@@ -326,7 +326,7 @@ function moveWarshipToward(state: GameState, civId: string, unit: Unit, target: 
   // same as every other executeUnitMove call in this file.
   const next = structuredClone(state);
   const result = executeUnitMove(next, unit.id, best.coord, { actor: 'ai', civId, bus });
-  return result.ok ? next : state;
+  return result.ok ? result.state : state;
 }
 
 function isFavorablePirateFight(attacker: Unit, defender: Unit): boolean {
@@ -751,7 +751,7 @@ function processAITurnInternal(
       if (path && path.length > 1) {
         const next = structuredClone(newState);
         const movement = executeUnitMove(next, worker.id, path[1]!, { actor: 'ai', civId, bus });
-        if (movement.ok) newState = next;
+        if (movement.ok) newState = movement.state;
       }
     }
   }
@@ -798,7 +798,7 @@ function processAITurnInternal(
         if (path && path.length > 1) {
           const next = structuredClone(newState);
           const movement = executeUnitMove(next, current.id, path[1]!, { actor: 'ai', civId, bus });
-          if (movement.ok) { newState = next; handled = true; }
+          if (movement.ok) { newState = movement.state; handled = true; }
         }
       }
     }
@@ -873,7 +873,7 @@ function processAITurnInternal(
         if (path && path.length > 1) {
           const next = structuredClone(newState);
           const movement = executeUnitMove(next, current.id, path[1]!, { actor: 'ai', civId, bus });
-          if (movement.ok) newState = next;
+          if (movement.ok) newState = movement.state;
         }
       }
     }
@@ -972,7 +972,8 @@ function processAITurnInternal(
         },
       },
     };
-    applyAutoExploreOrder(newState, unitId, { bus, leash: computeAdministrativeExploreLeash(newState, unitId) ?? undefined });
+    const explored = applyAutoExploreOrder(newState, unitId, { bus, leash: computeAdministrativeExploreLeash(newState, unitId) ?? undefined });
+    if (explored?.ok) newState = explored.state;
   }
   civ = newState.civilizations[civId];
 
@@ -1572,7 +1573,7 @@ function processAITurnInternal(
         u => u.id !== spyUnit.id && `${u.position.q},${u.position.r}` === nextKey,
       );
       if (occupied) continue;
-      executeUnitMove(
+      const movement = executeUnitMove(
         newState,
         spyUnit.id,
         next,
@@ -1585,6 +1586,7 @@ function processAITurnInternal(
             : undefined,
         },
       );
+      if (movement.ok) newState = movement.state;
     }
 
     // 2) Attempt infiltration when a spy is on an enemy city tile
