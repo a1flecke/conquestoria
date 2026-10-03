@@ -50,9 +50,16 @@ block `setStateWithoutRefresh` anywhere and `unpublished.adopt(` outside the own
 - **A multi-step handler wraps in `batch`**, it does not write silently and refresh at the
   end. The refresh at the end is the thing that gets forgotten on an early `return`.
 - **Never pair a write with `renderLoop.setGameState(...); hud.update()` in a controller.**
-  Pinned by the architecture test. In a controller test, subscribe the mock renderer/HUD to
-  the session exactly as `bootstrap.ts` does, so a handler that forgets to publish fails.
+  Pinned by the architecture test and `scripts/check-src-rule-violations.sh`. The sole
+  exception is `turn-flow-controller.ts`'s `presentation-deferred` solo end-turn pair
+  (renderer before `await replayAIMoves`, HUD after), pinned by content. The
+  `updateHUD: () => deps.hud.update(),` dep wiring is not a push. In a controller test,
+  subscribe the mock renderer/HUD to the session exactly as `bootstrap.ts` does, so a
+  handler that forgets to publish fails.
 - **Publication stays synchronous.** Do not add microtask coalescing: it would change
   observable ordering in `endTurn` and in the hot-seat handoff.
 - **Mutating a `GameState` object in place is not a write.** Subscribers are never told.
-  (Tracked as a follow-up; see the #1014 audit.)
+  The transaction boundary is now pure (#1199): movement
+  (`executeUnitMove`/`executeValidatedUnitMove`) and visibility
+  (`updateVisibility`/`updateAndRefreshVisibility`/`applyReconReveals`) return a new
+  `GameState` that the caller must `commit`/thread — no in-place mutation remains.

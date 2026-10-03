@@ -200,6 +200,10 @@ describe('GameSessionController', () => {
       const state = makeFixture();
       const deps = baseDeps(state);
       const gameSession = createGameSessionController(deps);
+      // Mirrors bootstrap.ts (#1199): startGame publishes through the session, so
+      // the renderer then the HUD must be subscribers to observe the refresh.
+      deps.session.subscribe(next => deps.renderLoop.setGameState(next));
+      deps.session.subscribe(() => deps.hud.update());
 
       // `startGame`'s returned promise is the (non-blocking, fire-and-forget)
       // sprite preload -- it never resolves under jsdom's fake image loading,

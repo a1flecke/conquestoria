@@ -37,6 +37,22 @@ is_rng_baselined() {
   return 1
 }
 
+# #1199: turn-flow-controller.ts may carry exactly the two documented
+# `presentation-deferred` pushes (renderer before `await replayAIMoves`, HUD after),
+# pinned by content. Any other count or order is a violation. A "push" is a call
+# statement terminated by `;`; the `updateHUD: () => deps.hud.update(),` dep wiring
+# ends in `,` and is not one.
+pinned_presentation_deferred_ok() {
+  local f="$1" rcount hcount rline hline
+  rcount="$(grep -E 'renderLoop\.setGameState\([^;]*;[[:space:]]*$' "$f" | grep -vcE '^[[:space:]]*(//|\*)' || true)"
+  hcount="$(grep -E '(hud\.update|updateHUD)\([^;]*;[[:space:]]*$' "$f" | grep -vcE '^[[:space:]]*(//|\*)' || true)"
+  [ "$rcount" -eq 1 ] && [ "$hcount" -eq 1 ] || return 1
+  rline="$(grep -nE 'renderLoop\.setGameState\([^;]*;[[:space:]]*$' "$f" | grep -vE '^[0-9]+:[[:space:]]*(//|\*)' | head -1 | cut -d: -f1)"
+  hline="$(grep -nE '(hud\.update|updateHUD)\([^;]*;[[:space:]]*$' "$f" | grep -vE '^[0-9]+:[[:space:]]*(//|\*)' | head -1 | cut -d: -f1)"
+  [ -n "$rline" ] && [ -n "$hline" ] && [ "$rline" -lt "$hline" ] || return 1
+  sed -n "$((rline + 1)),$((hline - 1))p" "$f" | grep -qE 'await[[:space:]]+replayAIMoves\('
+}
+
 status=0
 
 append_violation() {
@@ -219,6 +235,27 @@ for file_path in "$@"; do
         | grep -vE '^[0-9]+:[[:space:]]*(//|\*|/\*)' | head -5 || true)"
       if [ -n "$adopt_lines" ]; then
         append_match_block "unpublished.adopt() called outside a sanctioned owner (#1015) — use session.commit()/update()/batch(); adding an owner is a design decision pinned in tests/app/architecture-boundaries.test.ts (see .claude/rules/session-publication.md)" "$adopt_lines"
+      fi
+      ;;
+  esac
+
+  # --- controller publication (#1015/#1199): a controller must never hand-push the
+  # renderer or HUD. Publication is GameSession's job (bootstrap subscribes the
+  # renderer, then the HUD, once). The single pinned exception is
+  # turn-flow-controller.ts's `presentation-deferred` solo end-turn pair, allowed only
+  # when it is exactly one `renderLoop.setGameState(...)` before `await replayAIMoves`
+  # and one `updateHUD()`/`hud.update()` after. The
+  # `updateHUD: () => deps.hud.update(),` dep wiring is not a push.
+  case "$file_path" in
+    src/app/controllers/*)
+      pub_lines="$(grep -nE '(renderLoop\.setGameState|hud\.update|updateHUD)\([^;]*;[[:space:]]*$' "$file_path" \
+        | grep -vE '^[0-9]+:[[:space:]]*(//|\*)' || true)"
+      if [ -n "$pub_lines" ]; then
+        if [ "$file_path" = "src/app/controllers/turn-flow-controller.ts" ] && pinned_presentation_deferred_ok "$file_path"; then
+          : # the one pinned `presentation-deferred` pair
+        else
+          append_match_block "Controller pushes renderer/HUD state by hand — publish through GameSession (session.commit/update/batch); only turn-flow-controller.ts's presentation-deferred solo end-turn pair (renderer before 'await replayAIMoves', HUD after) is pinned (see .claude/rules/session-publication.md)" "$pub_lines"
+        fi
       fi
       ;;
   esac

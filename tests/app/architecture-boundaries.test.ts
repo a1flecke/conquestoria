@@ -1340,17 +1340,62 @@ describe('#1015 — GameSession publication boundary', () => {
     expect(importers).toEqual([]);
   });
 
-  it('a session-owning module never re-implements publication by hand: renderer.setGameState is never paired with hud.update() in app controllers', () => {
-    // The old discipline was `write silently; renderLoop.setGameState(state); hud.update();`.
-    // Publication is the session's job now (bootstrap subscribes both once).
-    const offenders = srcFiles
-      .filter(file => file.includes('/src/app/controllers/'))
-      .filter(file => {
-        const code = stripComments(readFileSync(file, 'utf8'));
-        return /renderLoop\.setGameState\([^)]*\);\s*(?:deps\.)?(?:hud\.update|updateHUD)\(\)/.test(code);
+  // #1199: a hand push is a *statement* — `renderLoop.setGameState(...);`,
+  // `hud.update();`, `deps.updateHUD();`. The `updateHUD: () => deps.hud.update(),`
+  // dep wiring ends in `,`, not `;`, so it is not a push. The one allowed statement
+  // push is turn-flow-controller.ts's `presentation-deferred` pair, pinned by
+  // content, not just by file: exactly one renderer push before `await replayAIMoves`
+  // and one HUD update after it.
+  const PUSH_RENDERER = /renderLoop\.setGameState\([^;]*;/;
+  const PUSH_HUD = /\b(?:hud\.update|updateHUD)\([^;]*;/;
+  const linesMatching = (code: string, pattern: RegExp): number[] =>
+    stripComments(code)
+      .split('\n')
+      .map((line, index) => (pattern.test(line) ? index : -1))
+      .filter(index => index >= 0);
+
+  function isPinnedPresentationDeferred(code: string): boolean {
+    const cleaned = stripComments(code);
+    const renderer = linesMatching(cleaned, PUSH_RENDERER);
+    const hud = linesMatching(cleaned, PUSH_HUD);
+    if (renderer.length !== 1 || hud.length !== 1 || renderer[0] >= hud[0]) return false;
+    const between = cleaned.split('\n').slice(renderer[0] + 1, hud[0]).join('\n');
+    return /await\s+replayAIMoves\s*\(/.test(between);
+  }
+
+  function controllerPublicationOffenders(files: Array<{ path: string; code: string }>): string[] {
+    const pinnedPath = 'src/app/controllers/turn-flow-controller.ts';
+    return files
+      .filter(({ path, code }) => {
+        const cleaned = stripComments(code);
+        if (path === pinnedPath && isPinnedPresentationDeferred(cleaned)) return false;
+        return linesMatching(cleaned, PUSH_RENDERER).length > 0
+          || linesMatching(cleaned, PUSH_HUD).length > 0;
       })
-      .map(rel);
-    expect(offenders).toEqual([]);
+      .map(({ path }) => path);
+  }
+
+  it('#1199: a controller never pushes renderer/HUD state by hand (only the pinned presentation-deferred pair)', () => {
+    // Publication is the session's job (bootstrap subscribes renderer then HUD once).
+    const controllers = srcFiles
+      .filter(file => file.includes('/src/app/controllers/'))
+      .map(file => ({ path: rel(file), code: readFileSync(file, 'utf8') }));
+
+    expect(controllerPublicationOffenders(controllers)).toEqual([]);
+
+    // The pin is by content: turn-flow-controller must still carry exactly the pair.
+    const turnFlow = controllers.find(({ path }) => path === 'src/app/controllers/turn-flow-controller.ts');
+    expect(turnFlow).toBeDefined();
+    expect(isPinnedPresentationDeferred(turnFlow!.code)).toBe(true);
+
+    // Non-vacuity: a synthetic controller with a hand push is reported...
+    expect(controllerPublicationOffenders([
+      { path: 'src/app/controllers/foo.ts', code: 'renderLoop.setGameState(x);\nhud.update();\n' },
+    ])).toEqual(['src/app/controllers/foo.ts']);
+    // ...and the `updateHUD: () => deps.hud.update(),` dep wiring is not.
+    expect(controllerPublicationOffenders([
+      { path: 'src/app/controllers/foo.ts', code: '      updateHUD: () => deps.hud.update(),\n' },
+    ])).toEqual([]);
   });
 });
 
