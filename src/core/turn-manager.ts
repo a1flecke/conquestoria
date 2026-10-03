@@ -1,26 +1,28 @@
 import { lehmerFoldByCodePoint } from '@/systems/deterministic-hash';
 import type { AdvisorType, GameState } from './types';
 import { EventBus } from './event-bus';
-import { finalizeDominationVictory, finalizeScienceVictory } from '@/systems/victory-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { healUnit } from '@/systems/unit-healing';
 import { resetUnitTurn, createUnit } from '@/systems/unit-lifecycle';
 import { getBlockingMapEntityKeysForOwner } from '@/systems/unit-movement-legality';
 import { findPath } from '@/systems/unit-pathfinding';
-import { getLocalCityHealingBonus, processCity, TRAINABLE_UNITS, BUILDINGS } from '@/systems/city-system';
+import { getLocalCityHealingBonus, processCity, BUILDINGS } from '@/systems/city-system';
 import { canCompleteAirUnitProduction } from '@/systems/air-operations-system';
 import { applyCityMaturity } from '@/systems/city-maturity-system';
 import { assignCityFocus, normalizeWorkedTilesForCity } from '@/systems/city-work-system';
 import { applyResearchBonus, processResearch, getTechById, getEffectiveTechCost } from '@/systems/tech-system';
 import { calculateCivResearchOutput } from '@/systems/research-output-system';
 import { appendLegendaryWonderNetworkPlanResolutions } from '@/systems/legendary-wonder-history';
+import { processPurposefulBarbarians } from '@/systems/barbarian-system';
 import {
-  processPurposefulBarbarians,
-} from '@/systems/barbarian-system';
-import {
-  processBeasts, placeBeastLairs, BEAST_OWNER,
-  LAIR_GROWTH_INTERVAL_TURNS, LAIR_GROWTH_CAP, LAIR_GROWTH_EXPERIENCE,
-  applyHoardChoice, getClaimedTrophyGoldPerTurn,
+  processBeasts,
+  placeBeastLairs,
+  BEAST_OWNER,
+  LAIR_GROWTH_INTERVAL_TURNS,
+  LAIR_GROWTH_CAP,
+  LAIR_GROWTH_EXPERIENCE,
+  applyHoardChoice,
+  getClaimedTrophyGoldPerTurn,
 } from '@/systems/beast-system';
 import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
 import { deterministicCombatSeed, getUnitCombatStrength, resolveCombat } from '@/systems/combat-system';
@@ -32,10 +34,7 @@ import { resolveNavalOperationsForCiv } from '@/systems/naval-operations';
 import { resolveAirReadinessForCiv } from '@/systems/air-readiness';
 import { getRestAvailability } from '@/systems/supply-combat';
 import { applyPillageToState } from '@/systems/pillage-system';
-import {
-  PIRATE_OWNER,
-  processIndependentThreatPressure,
-  } from '@/systems/threat-pressure-system';
+import { PIRATE_OWNER, processIndependentThreatPressure } from '@/systems/threat-pressure-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
 import { computeAdministrativeExploreLeash } from '@/ai/ai-exploration';
@@ -57,14 +56,26 @@ import {
   getCivRoutePartnerTechGold,
 } from '@/systems/tech-yield-system';
 import type { HexCoord } from './types';
-import { applyReconReveals, updateVisibility, revealMinorCivCities, applySharedVision, applySatelliteSurveillance, applyMassSurveillanceReveal } from '@/systems/fog-of-war';
+import {
+  applyReconReveals,
+  updateVisibility,
+  revealMinorCivCities,
+  applySharedVision,
+  applySatelliteSurveillance,
+  applyMassSurveillanceReveal,
+} from '@/systems/fog-of-war';
 import { chooseCircularManufacturingMaterial, getActiveNationalProjectsForCiv } from '@/systems/national-project-system';
 import { buildProductionCostContext } from '@/systems/production-cost-context';
-import { getHealingBonus, getVisionBonus, isWithinRangeOfNeuralRehabilitationCenter, isWithinRangeOfTelemedicineHub } from '@/systems/unit-modifier-system';
+import {
+  getHealingBonus,
+  getVisionBonus,
+  isWithinRangeOfNeuralRehabilitationCenter,
+  isWithinRangeOfTelemedicineHub,
+} from '@/systems/unit-modifier-system';
 import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
 import { joinEmbargo, cleanupEmbargoes } from '@/systems/diplomacy-embargoes';
-import { checkLeagueDissolution, triggerLeagueDefense, getLeagueForCiv } from '@/systems/diplomacy-leagues';
+import { checkLeagueDissolution } from '@/systems/diplomacy-leagues';
 import { isAtWar } from '@/systems/diplomacy-queries';
 import { pruneExpiredDiplomaticRequests } from '@/systems/diplomacy-requests';
 import { processRelationshipDrift, decayEvents } from '@/systems/diplomacy-state';
@@ -81,7 +92,6 @@ import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { createSimulationRng } from '@/systems/simulation-rng';
 import { resolveCombatEra, resolveNeutralPressureEra } from '@/systems/era-resolution';
 import { resolveCivDefinition } from '@/systems/civ-registry';
-import { applyProductionBonus } from '@/systems/city-system';
 import { applyGeneTherapyRecharge } from '@/systems/gene-therapy-system';
 import { applyResearchCompletionConsequences } from '@/systems/tech-completion-system';
 import { processCyberDrain } from '@/systems/cyber-warfare-system';
@@ -93,13 +103,16 @@ import {
 } from '@/systems/network-plan-system';
 import { processEspionageTurn, processInterrogation, applyBuildingCI } from '@/systems/espionage-system';
 import { processDetection } from '@/systems/detection-system';
-import { applyPendingOpponentChallenge, resolveChallengeForCiv } from '@/core/opponent-challenge';
-import { applyCityHpRegeneration, applyCitySiegeOutcome, getCityCounterFireDamage, getCityGarrisonUnit, resolveCitySiegeDamage } from '@/systems/city-siege-system';
-import { normalizeOpponentAIState } from '@/core/opponent-ai-state';
+import { resolveChallengeForCiv } from '@/core/opponent-challenge';
 import {
-  emitCivilizationLivenessTransitions,
-  reconcileCivilizationLiveness,
-} from '@/systems/civilization-elimination-system';
+  applyCityHpRegeneration,
+  applyCitySiegeOutcome,
+  getCityCounterFireDamage,
+  getCityGarrisonUnit,
+  resolveCitySiegeDamage,
+} from '@/systems/city-siege-system';
+import { normalizeOpponentAIState } from '@/core/opponent-ai-state';
+import { emitCivilizationLivenessTransitions, reconcileCivilizationLiveness } from '@/systems/civilization-elimination-system';
 import { processFactionTurn, getUnrestYieldMultiplier, isCityProductionLocked, getFederalismRemittanceLoss } from '@/systems/faction-system';
 import { getOccupiedCityYieldMultiplier, tickOccupiedCities } from '@/systems/city-occupation-system';
 import { processBreakawayTurn } from '@/systems/breakaway-system';
@@ -112,11 +125,7 @@ import { addWarheadToArsenal } from '@/systems/strategic-arsenal-system';
 import { processLoyaltyTurn } from '@/systems/religion-loyalty-system';
 import { applyCrisisResponses } from '@/ai/ai-crisis-response';
 import { resolveWorldPressureFlags } from '@/systems/world-pressure-flags';
-import {
-  applyTerritoryFrontierProgressWithEvents,
-  buildTerritoryTileFlippedEvents,
-  recalculateTerritory,
-} from '@/systems/city-territory-system';
+import { applyTerritoryFrontierProgressWithEvents, buildTerritoryTileFlippedEvents, recalculateTerritory } from '@/systems/city-territory-system';
 import {
   getLegendaryWonderCityYieldBonus,
   getLegendaryWonderCivYieldBonus,
@@ -127,15 +136,16 @@ import {
 import { getTacticalFortOccupantHealingBonus } from '@/systems/legendary-wonder-tactical-effects';
 import { announceUnitProduction, completeUnitProduction } from '@/systems/unit-production-completion';
 import { applyEconomyTurn, emitEconomyStrainIfNeeded } from '@/systems/economy-system';
-import {
-  getNationalProjectCivYieldBonus,
-  expireNationalProjects,
-} from '@/systems/national-project-system';
+import { getNationalProjectCivYieldBonus, expireNationalProjects } from '@/systems/national-project-system';
 import type { PirateEconomyModifiers } from '@/systems/economy-system';
 import { processPiratesForCompletedRound } from '@/systems/pirate-system';
 import { classifyOwner } from './owner-kind';
 import { getStampedeLifecycleTransition, processStampedeScheduling, processStampedeTurn } from '@/systems/stampede-system';
-import { getRogueElephantHostLifecycleTransition, processRogueElephantHostScheduling, processRogueElephantHostTurn } from '@/systems/rogue-elephant-host-system';
+import {
+  getRogueElephantHostLifecycleTransition,
+  processRogueElephantHostScheduling,
+  processRogueElephantHostTurn,
+} from '@/systems/rogue-elephant-host-system';
 import { checkAndQueueGeneralCandidateChoice, retireGeneralsAtTurnEnd, spawnGeneralForCiv } from '@/systems/great-general-system';
 import { chooseBestGeneralCandidate } from '@/ai/ai-general-command';
 import { resolveGeneralDefinition, type GeneralDefinition } from '@/systems/great-general-definitions';
@@ -143,6 +153,8 @@ import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
 import { removeUnits } from '@/systems/unit-removal-system';
 import { createRoundPhaseContext } from './round-phases/types';
+import { finalizationPhase } from './round-phases/finalization';
+export { finalizeOpponentRoundState } from './round-phases/finalization';
 
 // #544 MR3: same char-folding convention combat-reward-system.ts's seededRoll and
 // city-capture-system.ts's assault seed already use -- turns a (gameId, turn, civId)
@@ -159,23 +171,6 @@ import { createRoundPhaseContext } from './round-phases/types';
 // `${gameId}:${civId}` separator prevents ("ab","c") aliasing to ("a","bc").
 export function deriveGeneralCandidateSeed(gameId: string | undefined, turn: number, civId: string): number {
   return lehmerFoldByCodePoint(Math.abs(turn * 7919), `${gameId ?? 'legacy'}:${civId}`);
-}
-
-export function finalizeOpponentRoundState(state: GameState): GameState {
-  const normalized = normalizeOpponentAIState(state);
-  if (normalized.opponentAI!.lastFinalizedRound === normalized.turn) return state;
-  const withChallenge = applyPendingOpponentChallenge(normalized);
-  return {
-    ...withChallenge,
-    opponentAI: {
-      ...withChallenge.opponentAI!,
-      migrationGraceRoundsRemaining: Math.max(
-        0,
-        withChallenge.opponentAI!.migrationGraceRoundsRemaining - 1,
-      ),
-      lastFinalizedRound: state.turn,
-    },
-  };
 }
 
 /**
@@ -1545,16 +1540,7 @@ export function processTurn(
     emitEconomyStrainIfNeeded(previousEconomyStatusByCiv[civId], newState.economyStatusByCiv![civId], bus, civId);
   }
 
-  liveness = reconcileCivilizationLiveness(newState, newState);
-  emitCivilizationLivenessTransitions(liveness, bus);
-  newState = finalizeOpponentRoundState(liveness.state);
-
-  // --- Advance turn ---
-  newState.turn += 1;
-  newState = finalizeDominationVictory(newState, bus);
-  newState = finalizeScienceVictory(newState, bus);
-  bus.emit('turn:start', { turn: newState.turn, playerId: newState.currentPlayer });
-
+  newState = finalizationPhase.run(newState, context);
   return newState;
 }
 
