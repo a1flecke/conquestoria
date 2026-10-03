@@ -41,8 +41,16 @@ case "$TEST_SCOPE" in
   *) TEST_YARN_SCRIPT=test ;;
 esac
 
-TEST_TIMEOUT_SECONDS="${VERIFY_TEST_TIMEOUT_SECONDS:-600}"
-BUILD_TIMEOUT_SECONDS="${VERIFY_BUILD_TIMEOUT_SECONDS:-300}"
+# #1166: these two are RUNAWAY ceilings, not latency targets. A hang is the stall watchdog's job
+# (run-with-timeout.mjs exits 125 after zero CPU progress and is retried below); an absolute ceiling only has
+# to bound a process that keeps burning CPU forever. The real-host benchmark (docs/verification-scheduler-
+# benchmark.md) measured the regular suite taking 297s alone and 386-409s at the scheduler's permitted
+# 3-heavy-jobs ceiling, but 599s -- killed by the former fixed 600s limit with exit 124 while making CPU
+# progress -- when an unscheduled extra heavyweight job pushed the host to load ~9. Failing a healthy, slow
+# push for that is a correctness failure caused by contention, which #1166 set out to eliminate (verify:pr
+# already split latency SLO from runaway). 2x the old values keeps a bounded runaway guard with headroom.
+TEST_TIMEOUT_SECONDS="${VERIFY_TEST_TIMEOUT_SECONDS:-1200}"
+BUILD_TIMEOUT_SECONDS="${VERIFY_BUILD_TIMEOUT_SECONDS:-600}"
 
 # Follow-up to #1133: run-with-timeout.mjs's stall watchdog already proves,
 # by direct CPU-progress measurement rather than a guess, that a STALL (exit

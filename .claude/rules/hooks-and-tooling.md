@@ -44,14 +44,14 @@ paths:
 
 `require-green-before-push.sh` fires only for `git push`, `gh pr create`, and `gh pr merge` — not for `git commit`. It delegates to `scripts/verify-before-push.sh`, which runs `yarn test`, then `yarn build` — **sequentially**, not in parallel (each `run_phase` call blocks before the next line runs).
 
-**Plain `git push` defers to the real `.githooks/pre-push` hook when it is wired (#1133).** Before invoking the verifier itself, the Claude hook checks whether this worktree's `core.hooksPath` resolves to `.githooks` and `.githooks/pre-push` is executable; if so it exits 0 immediately and lets the actual Git hook own verification, so a clean push doesn't pay for the regular test+build gate twice. This only applies to a literal `git push` — `gh pr create`/`gh pr merge` never trigger a git pre-push hook, so those always run the verifier here. If hooks aren't correctly wired (the `#608` worktree regression this repo already guards against), the Claude hook falls through to running `verify-before-push.sh --regular` itself, unchanged from before. Because that fallback path is still live, the hook's own `.claude/settings.json` `timeout` must stay at or above the `900s` budget below — it must never be shorter than the verification it is meant to govern.
+**Plain `git push` defers to the real `.githooks/pre-push` hook when it is wired (#1133).** Before invoking the verifier itself, the Claude hook checks whether this worktree's `core.hooksPath` resolves to `.githooks` and `.githooks/pre-push` is executable; if so it exits 0 immediately and lets the actual Git hook own verification, so a clean push doesn't pay for the regular test+build gate twice. This only applies to a literal `git push` — `gh pr create`/`gh pr merge` never trigger a git pre-push hook, so those always run the verifier here. If hooks aren't correctly wired (the `#608` worktree regression this repo already guards against), the Claude hook falls through to running `verify-before-push.sh --regular` itself, unchanged from before. Because that fallback path is still live, the hook's own `.claude/settings.json` `timeout` must stay at or above the `1800s` budget below — it must never be shorter than the verification it is meant to govern.
 
 - **Local gate** (the real `.githooks/pre-push` hook, and this Claude Code hook): both call `verify-before-push.sh --regular`, which runs `yarn test:regular` — the local regular selection only, see "Local selections and CI shards" below. **Since #1166 it first checks for a `yarn verify:pr` proof** (build + full suite) for this exact clean `HEAD`; when one exists it skips the redundant regular suite and build entirely. It runs in the reserved foreground capacity lane otherwise. See "Capacity lanes, collision locks, and proof reuse (#1166)" below.
 - **CI** (`yarn verify:push`, `test-suite-shard-a`, `test-suite-shard-b`, `test-suite-shard-c`, `test-suite-shard-d`, and `merge-gate` in `.github/workflows/deploy.yml`): runs the complete default Vitest suite exactly once across four explicit shards. `merge-gate` requires all four results, so neither the local selection nor a skipped expensive simulation can weaken merge coverage.
 
 **Set Bash tool timeout to match the command, not the hook:**
 - `git commit` — **30 000 ms**. No hook runs tests; the commit itself takes < 1s.
-- `git push` / `gh pr create` / `gh pr merge` — allow **900 000 ms** for the local `--regular` gate (raised from 240 000ms — see "`verify-before-push.sh` retries a STALL automatically" above: a stalled attempt now backs off and retries up to `VERIFY_STALL_MAX_RETRIES` times before giving up, and a smaller external timeout would kill the *hook itself* mid-retry, which per Claude Code's own documented behavior lets the tool call through WITHOUT completing verification — worse than the stall it was retrying around). A 120-second tool window can interrupt its detached timeout child and leave Vitest workers behind. If you've changed an intensive-simulations file, first run `yarn test:intensive-simulations` or a targeted `yarn vitest run <file>` as its own step before pushing. If your own Bash tool call itself times out before the command finishes, it is moved to the background automatically rather than killed — this is expected on a stall-retry and not a failure; wait for it rather than re-issuing the same push.
+- `git push` / `gh pr create` / `gh pr merge` — allow **1 800 000 ms** for the local `--regular` gate (raised from 240 000ms — see "`verify-before-push.sh` retries a STALL automatically" above: a stalled attempt now backs off and retries up to `VERIFY_STALL_MAX_RETRIES` times before giving up, and a smaller external timeout would kill the *hook itself* mid-retry, which per Claude Code's own documented behavior lets the tool call through WITHOUT completing verification — worse than the stall it was retrying around). A 120-second tool window can interrupt its detached timeout child and leave Vitest workers behind. If you've changed an intensive-simulations file, first run `yarn test:intensive-simulations` or a targeted `yarn vitest run <file>` as its own step before pushing. If your own Bash tool call itself times out before the command finishes, it is moved to the background automatically rather than killed — this is expected on a stall-retry and not a failure; wait for it rather than re-issuing the same push.
 - A 360 000 ms timeout on `git commit` papers over the wrong symptom. Match the timeout to what the command actually does.
 
 ## Concurrent local verification
@@ -527,11 +527,22 @@ than treating the overrun as a code failure.
 | SLO overrun passes; runaway fails | `verify-pr.test.sh` |
 | Status shows lane per row and per-lane counts, plus ai-long mutex | `verify-local-status.test.sh` |
 
-**Not yet measured** (needs the real 10-core, three-agent host): whether 1+2
-is the right split, AI-long `fileParallelism:false` vs the current setting,
-focused-test latency under two heavyweight jobs, and asymmetric-join timings.
-The shell-vs-Node decision and the benchmark plan live in
-`docs/superpowers/specs/2026-09-27-issue-1166-verification-scheduler-design.md`.
+**Validated on the real host (2026-10-02).** `docs/verification-scheduler-benchmark.md` (raw data in
+`docs/benchmarks/`) records the 11-scenario real-host matrix produced by `yarn bench:verification-scheduler`
+(`scripts/benchmark-verification-scheduler.mjs`; `--mode synthetic` drives the same real scripts against
+CPU-burning shims and is a hook test, including a fault-injection run that must fail). Findings: the 1+2 lane split
+held in every scenario; a foreground publication was admitted in <= 1.2 s whatever background work held capacity;
+the background lane never exceeded 2 and the foreground lane never 1; a second AI-long queued on the singleton
+holding no capacity; focused tests were unaffected; `verify:local:status` matched the real holders; AI-long
+`fileParallelism:false` was ~15% slower (keep the current configuration). The shell-vs-Node decision stands (see
+`docs/superpowers/specs/2026-09-27-issue-1166-verification-scheduler-design.md`).
+
+**Push-gate phase ceilings are runaway guards (#1166).** `verify-before-push.sh` bounds the test phase at 1200 s and
+the build at 600 s (`VERIFY_TEST_TIMEOUT_SECONDS` / `VERIFY_BUILD_TIMEOUT_SECONDS`). Hangs are the stall
+watchdog's job; the ceiling only has to bound a process that keeps burning CPU. The former fixed 600 s limit killed
+a healthy, CPU-progressing foreground run at 599 s (exit 124) when an unscheduled extra heavyweight job pushed the
+host to load ~9; the measured worst *permitted* case is 409 s. The Claude push-gate hook timeout must stay above
+the verifier's total budget (now 1800 s), because a timed-out hook lets the push through unverified.
 
 ### PID-liveness checks must not trust `kill -0` alone across a privilege boundary (#1133 MR8)
 

@@ -14,6 +14,11 @@
 
 set -eu
 
+# This test is about the DEFAULT (no injected root) resolution. An inherited override -- exported by an agent
+# or by the #1166 scheduler benchmark to isolate its lease domain -- would be the root under test instead of
+# the default, and the test used to fail for exactly that reason. Clear every scheduler override up front.
+unset HOST_VERIFICATION_LEASE_ROOT HOST_VERIFICATION_FOREGROUND_BUDGET HOST_VERIFICATION_BACKGROUND_BUDGET HOST_VERIFICATION_LEASE_BUDGET HVL_CAPACITY_LANE || true
+
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 LIB="$ROOT/scripts/host-verification-lease.sh"
 RUNNER="$ROOT/scripts/run-under-host-lease.sh"
