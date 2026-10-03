@@ -713,7 +713,8 @@
     "tests/audio/sfx-unit-routing.test.ts": 60.0,
     "tests/systems/espionage-start-mission-contract.test.ts": 4.108154296875,
     "tests/systems/air-mission-failure-contract.test.ts": 5.0,
-    "tests/systems/deterministic-hash.test.ts": 5.0
+    "tests/systems/deterministic-hash.test.ts": 5.0,
+    "tests/core/round-phase-order.test.ts": 10300.0
   },
   "shards": {
     "test-suite-shard-a": [
@@ -992,6 +993,7 @@
       "tests/core/hotseat-outcome.test.ts",
       "tests/core/migrate-id-counters.test.ts",
       "tests/core/owner-kind.test.ts",
+      "tests/core/round-phase-order.test.ts",
       "tests/core/turn-manager.test.ts",
       "tests/helpers/preview-execute-parity.test.ts",
       "tests/helpers/rejected-action-bypass.test.ts",

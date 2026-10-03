@@ -177,6 +177,36 @@ export function finalizeOpponentRoundState(state: GameState): GameState {
   };
 }
 
+/**
+ * One completed round of world processing. The ORDER below is load-bearing and is pinned by
+ * `tests/core/round-phase-order.test.ts` (#1239): which system seams are entered in which order, how civilizations
+ * are visited, what is emitted, and a digest of the resulting state. Reordering a phase is a behaviour change, not
+ * a cleanup; if one is intended, change that test's literals in the same PR and say why.
+ *
+ * Phases, in the order they run (ids are the test's, and #1240's decomposition uses the same ones):
+ *   prelude                 clone, seed wonder projects, reconcile liveness, normalise the AI container, `turn:end`
+ *   instability             unrest/revolts, breakaway, crises, event chains, world races, religion, loyalty
+ *   pre-civ-reconciliation  liveness again, crisis responses, occupation, wonder availability, marketplace expiry
+ *   per-civ                 for each living civ in roster order: supply/naval/air, world-pressure turns, autonomy,
+ *                           network plans, city production and yields, gold, research, upkeep, healing, movement
+ *                           reset, standing orders, diplomacy drift, vision and contacts, advisors, general candidates
+ *   post-civ-housekeeping   expire diplomatic requests, tick production-disabled timers
+ *   territory-frontier      recalculate ownership, advance frontier contests
+ *   wonders-market          legendary-wonder projects and availability, fashion cycle and prices, wonder effects
+ *   barbarians              reset, plan, spawn, pillage, move, attack units and cities, city HP regeneration
+ *   minor-civs              city-state turn, camp evolution
+ *   beasts                  lairs, spawns, growth, moves, attacks
+ *   threat-scheduling       independent threats, crisis/event-chain/stampede/rogue-host scheduling and lifecycle events
+ *   espionage               missions, detection, interrogations, spy vision, counter-intelligence, last-seen re-snapshot
+ *   diplomacy-trade         vassalage turn, embargo auto-join, stale/embargoed route scrub, caravan runners
+ *   pirates                 pirate round
+ *   trade-income            route income credited to each civ
+ *   leagues                 defensive-league dissolution
+ *   era-progression         era advancement, national-project expiry and dequeue, civ and minor-civ era events
+ *   beast-rewards           auto-resolve AI hoard choices, trophy gold
+ *   economy                 `applyEconomyTurn` per civ (last: every phase above credits gold to it)
+ *   finalization            liveness, opponent-AI round state, `turn + 1`, victories, `turn:start`
+ */
 export function processTurn(
   state: GameState,
   bus: EventBus,
