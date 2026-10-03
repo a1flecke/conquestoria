@@ -6,7 +6,7 @@ import { createGameSession } from '@/app/game-session';
 import { enqueuePeaceRequest, enqueueTreatyProposal } from '@/systems/diplomacy-requests';
 import { signTreaty } from '@/systems/diplomacy-treaties';
 import { ALLIANCE_TECHS } from '@/systems/diplomacy-actions';
-import { DIPLOMATIC_REQUEST_DENIAL_MESSAGES } from '@/systems/diplomacy-system';
+import { DIPLOMATIC_ACTION_DENIAL_MESSAGES, DIPLOMATIC_REQUEST_DENIAL_MESSAGES } from '@/systems/diplomacy-system';
 import { createUnit } from '@/systems/unit-lifecycle';
 import type { City, GameState, HexCoord } from '@/core/types';
 import {
@@ -149,6 +149,19 @@ describe('DiplomacyActionsController', () => {
         expect.stringContaining('declined'),
         'warning',
       );
+    });
+
+    it('#1221: a treaty the civilization has not unlocked is refused with its own copy and changes nothing', () => {
+      const { state, aiCivId } = makeFixture('diplomatic-action-locked-treaty');
+      state.civilizations.player.knownCivilizations = [aiCivId];
+      state.civilizations[aiCivId].knownCivilizations = ['player'];
+      const { deps, controller } = build(state);
+
+      controller.handleDiplomaticAction(aiCivId, 'alliance');
+
+      expect(deps.showNotification).toHaveBeenCalledWith(DIPLOMATIC_ACTION_DENIAL_MESSAGES['not-yet-unlocked'], 'warning');
+      expect(deps.session.getState().civilizations.player.diplomacy.treaties).toHaveLength(0);
+      expect(deps.session.getState().pendingDiplomacyRequests).toHaveLength(0);
     });
 
     it('#901 review: a bilateral treaty to a HUMAN co-player reports it as proposed, not signed', () => {
