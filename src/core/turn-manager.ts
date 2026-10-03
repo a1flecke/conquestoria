@@ -80,7 +80,7 @@ import { decayTreachery } from '@/systems/diplomacy-treachery';
 import { tickTreaties } from '@/systems/diplomacy-treaties';
 import { processVassalageTribute, getVassalageMilitaryCount } from '@/systems/diplomacy-vassal-rules';
 import { processVassalageTurn } from '@/systems/diplomacy-vassalage';
-import { processTradeRouteIncome, processFashionCycle, updatePrices, scrubStaleForeignRoutes, scrubEmbargoedRoutes } from '@/systems/trade-system';
+import { processFashionCycle, updatePrices, scrubStaleForeignRoutes, scrubEmbargoedRoutes } from '@/systems/trade-system';
 import { advanceRouteRunners } from '@/systems/unit-movement-system';
 import { processWonderEffects } from '@/systems/wonder-system';
 import { createRng } from '@/systems/map-generator';
@@ -145,6 +145,7 @@ import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
 import { removeUnits } from '@/systems/unit-removal-system';
 import { createRoundPhaseContext } from './round-phases/types';
+import { tradeIncomePhase } from './round-phases/trade-income';
 import { leaguesPhase } from './round-phases/leagues';
 import { eraProgressionPhase } from './round-phases/era-progression';
 import { beastRewardsPhase } from './round-phases/beast-rewards';
@@ -1413,19 +1414,7 @@ export function processTurn(
 
   newState = piratesPhase.run(newState, context);
 
-  if (newState.marketplace) {
-    for (const civId of Object.keys(newState.civilizations)) {
-      if (!getCivilizationLiveness(newState, civId).living) continue;
-      const civRouteIncome = processTradeRouteIncome(
-        newState.marketplace.tradeRoutes.filter(route => {
-          const city = newState.cities[route.fromCityId];
-          return city?.owner === civId;
-        }),
-        newState,
-      );
-      grossGoldByCiv[civId] = (grossGoldByCiv[civId] ?? 0) + civRouteIncome;
-    }
-  }
+  newState = tradeIncomePhase.run(newState, context);
 
   newState = leaguesPhase.run(newState, context);
 
