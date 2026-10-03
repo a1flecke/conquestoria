@@ -11,7 +11,7 @@ import type {
   GameState,
   Unit,
 } from '@/core/types';
-import { canUnitAttackTarget } from '@/systems/attack-targeting';
+import { resolveUnitVsUnitAttack } from '@/systems/attack-targeting';
 import { rebaseAircraft, resolveAirStrike, resolveReconMission, resolvePatrolMission, startIntercept } from '@/systems/air-operations-system';
 import { executeParadrop, executeAirAssault } from '@/systems/airborne-system';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
@@ -199,17 +199,7 @@ function executeAttack(
   if (!attacker || !defender || attacker.owner !== civId) {
     return { state, followUps: [] };
   }
-  const legality = canUnitAttackTarget(
-    next,
-    attacker,
-    defender.position,
-    { viewerId: civId, requireVisibility: true },
-  );
-  if (
-    !legality.ok
-    || legality.targetType !== 'unit'
-    || legality.targetUnitId !== defender.id
-  ) {
+  if (!resolveUnitVsUnitAttack(next, attacker, defender, { viewerId: civId, requireVisibility: true }).ok) {
     return { state, followUps: [] };
   }
 

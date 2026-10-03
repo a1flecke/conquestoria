@@ -339,6 +339,7 @@ export function processStampedeTurn(state: GameState, targetCivId: string): Game
       const blocker = herd && Object.values(next.units).find(candidate => candidate.id !== unitId
         && !candidate.transportId && hexKey(candidate.position) === hexKey(step));
       if (herd && blocker && isHostileOwnerTo(next, herd.owner, blocker.owner)) {
+        // attack-contract-exempt: world-actor: a crisis herd tramples whatever hostile unit blocks its ordered route
         const combat = resolveCombat(
           herd,
           blocker,

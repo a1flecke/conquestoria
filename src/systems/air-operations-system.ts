@@ -342,6 +342,7 @@ export function resolveAirStrike(state: GameState, unitId: string, target: HexCo
       isWithinTacticalSamCoverage(nextState, interceptor.owner, interceptor.position),
     );
     nextState = tacticalClaim.state;
+    // attack-contract-exempt: air-mission: interception is part of the air-mission contract (getLegalAirMissionTargets / getAirMissionDenial), see #1223
     const result = resolveCombat(interceptor, striker, state.map, deterministicCombatSeed(state.gameId, state.turn, interceptor.id, striker.id), buildCombatContextForDefender(nextState, interceptor, striker, {
       isIntercepting: true,
       tacticalInterceptionMultiplier: tacticalClaim.multiplier,
@@ -381,6 +382,7 @@ export function resolveAirStrike(state: GameState, unitId: string, target: HexCo
   }
   const currentTarget = targetUnit && nextState.units[targetUnit.id];
   if (!currentTarget) return { ok: true, state: { ...nextState, units: { ...nextState.units, [unitId]: withAirStrain({ ...currentStriker, movementPointsLeft: 0, hasMoved: true, hasActed: true }, 'strike') } }, interception };
+  // attack-contract-exempt: air-mission: the strike target was validated by getLegalAirMissionTargets above, see #1223
   const targetResult = resolveCombat(currentStriker, currentTarget, nextState.map, deterministicCombatSeed(nextState.gameId, nextState.turn, currentStriker.id, currentTarget.id), buildCombatContextForDefender(nextState, currentStriker, currentTarget), resolveCombatEra(nextState, currentStriker, currentTarget));
   nextState = applyAirCombatResult(nextState, targetResult, deterministicCombatSeed(nextState.gameId, nextState.turn, currentStriker.id, currentTarget.id), bus);
   if (nextState.units[unitId]) nextState = { ...nextState, units: { ...nextState.units, [unitId]: withAirStrain({ ...nextState.units[unitId]!, movementPointsLeft: 0, hasMoved: true, hasActed: true }, 'strike') } };
