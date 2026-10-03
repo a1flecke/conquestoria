@@ -293,3 +293,21 @@ grep -Fq 'DURABLE CANCELLATION: cleanup completed signal=TERM' "$repo/.verificat
   echo "durable cancellation left a stale job pid" >&2
   exit 1
 }
+
+# --- the hook suite must not touch the enclosing durable run's evidence files ----------------------------------
+# tests/hooks/run.sh executes inside `yarn test:durable`; the lease tests it runs cancel fake jobs, which writes
+# `cancelled` to $DURABLE_FAILURE_KIND_FILE when that variable is inherited. run.sh must unset both.
+iso="$(mktemp -d)"
+trap 'rm -rf "$iso"' EXIT
+mkdir -p "$iso/tests/hooks"
+cp "$ROOT/tests/hooks/run.sh" "$iso/tests/hooks/run.sh"
+cat > "$iso/tests/hooks/probe.test.sh" <<'PROBE'
+#!/usr/bin/env bash
+[ -z "${DURABLE_FAILURE_KIND_FILE:-}" ] && [ -z "${DURABLE_JOB_PID_FILE:-}" ]
+PROBE
+chmod +x "$iso/tests/hooks/probe.test.sh"
+DURABLE_FAILURE_KIND_FILE="$iso/failure-kind" DURABLE_JOB_PID_FILE="$iso/job-pid" bash "$iso/tests/hooks/run.sh" >/dev/null 2>&1 || {
+  echo "tests/hooks/run.sh leaks DURABLE_* evidence variables into hook tests" >&2
+  exit 1
+}
+
