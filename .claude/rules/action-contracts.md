@@ -58,6 +58,8 @@ mechanism to build when a contract is "the caller must remember".
 
 Movement: `check-src-rule-violations.sh` + the `check-src-edit.sh` mirror + `architecture-boundaries.test.ts`
 (see `movement-actions.md`). Unit removal, combat consequences, trainable-unit completion, strategic strikes and
-single-side diplomacy writers: the pins in `caller-discipline.md`. Everything else relies on the paired
+single-side diplomacy writers: the pins in `caller-discipline.md`. Unit-vs-unit attacks (#1219): every `resolveCombat` call is
+preceded by `resolveUnitVsUnitAttack`/`canUnitAttackTarget` in its function or carries an `attack-contract-exempt:`
+marker (`preview`, `world-actor`, `air-mission`) listed in `tests/helpers/attack-contract-boundaries.ts`. Everything else relies on the paired
 `can*`/`execute*` convention and tests. Prefer a focused follow-up issue and a structural change over a
 speculative regex rule; add a source rule only for a bypass that has demonstrably recurred.

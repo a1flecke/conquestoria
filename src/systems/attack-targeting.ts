@@ -173,6 +173,39 @@ export function canUnitAttackTarget(
   return { ok: false, reason: 'no-target' };
 }
 
+/** Why a specific unit-vs-unit exchange may not start: the canonical denial, or "that unit is not who an attack on its tile fights". */
+export type UnitVsUnitAttackDenial = AttackTargetFailure | 'not-the-defender';
+
+export type UnitVsUnitAttackResult =
+  | { ok: true; targetUnitId: string; range: number }
+  | { ok: false; reason: UnitVsUnitAttackDenial };
+
+/**
+ * The single "may `attacker` fight THIS unit right now" check (#1219). Every executor that resolves a
+ * unit-vs-unit exchange runs it immediately before its first write, so a stale plan or a direct call cannot
+ * start a fight the player could not have ordered.
+ *
+ * It is `canUnitAttackTarget` plus the identity half that callers used to hand-copy: an attack on a tile
+ * fights that tile's defender (`selectDefenderForAttack`), so a unit that merely stands there but is not the
+ * defender is not a legal target, and a city tile is never a unit-vs-unit target.
+ * Favourability, scoring and "do I want to" stay with the caller: those are preference, not legality.
+ */
+export function resolveUnitVsUnitAttack(
+  state: GameState,
+  attacker: Unit | undefined,
+  defender: Unit | undefined,
+  options: AttackTargetOptions = {},
+): UnitVsUnitAttackResult {
+  if (!attacker) return { ok: false, reason: 'missing-attacker' };
+  if (!defender) return { ok: false, reason: 'no-target' };
+  const legality = canUnitAttackTarget(state, attacker, defender.position, options);
+  if (!legality.ok) return { ok: false, reason: legality.reason };
+  if (legality.targetType !== 'unit' || legality.targetUnitId !== defender.id) {
+    return { ok: false, reason: 'not-the-defender' };
+  }
+  return { ok: true, targetUnitId: legality.targetUnitId, range: legality.range };
+}
+
 export function getAttackTargets(
   state: GameState,
   attacker: Unit,

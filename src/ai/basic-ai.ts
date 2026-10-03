@@ -22,6 +22,7 @@ import {
   unloadUnitFromTransport,
 } from '@/systems/transport-system';
 import { deterministicCombatSeed, resolveCombat } from '@/systems/combat-system';
+import { resolveUnitVsUnitAttack } from '@/systems/attack-targeting';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { buildUnitOccupancy } from '@/systems/unit-occupancy';
@@ -429,6 +430,10 @@ export function applyPirateAiResponse(state: GameState, civId: string, bus: Even
       .map(pirateUnitId => nextState.units[pirateUnitId])
       .filter((unit): unit is Unit => Boolean(unit) && pirateDistance(nextState, warship.position, unit.position) === 1)
       .filter(unit => isFavorablePirateFight(warship, unit))
+      // #1219: favourability is only a preference. Whether this warship may fight this ship is the canonical
+      // unit-vs-unit legality (domain, profile, action points, visibility, and being the tile's defender),
+      // evaluated here against the same state the fight below resolves on.
+      .filter(unit => resolveUnitVsUnitAttack(nextState, warship, unit, { viewerId: civId, requireVisibility: true }).ok)
       .sort((left, right) => left.id.localeCompare(right.id))[0];
     if (adjacentPirate) {
       const seed = deterministicCombatSeed(nextState.gameId, nextState.turn, warship.id, adjacentPirate.id);

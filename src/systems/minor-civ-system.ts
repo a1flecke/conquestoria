@@ -45,7 +45,7 @@ import {
   reconcileMinorCivQuestTurn,
 } from './quest-chain-system';
 import { executeUnitMove } from './unit-movement-system';
-import { canUnitAttackTarget } from './attack-targeting';
+import { canUnitAttackTarget, resolveUnitVsUnitAttack } from './attack-targeting';
 import { applyCombatOutcomeToState } from './combat-reward-system';
 import { buildCombatPresentation } from './viewer-event-presentation';
 import {
@@ -477,8 +477,7 @@ function executePurposefulMinorCivOrders(
     const attacker = nextState.units[order.attackerUnitId];
     const defender = nextState.units[order.defenderUnitId];
     if (!attacker || !defender || attacker.hasActed) continue;
-    const legality = canUnitAttackTarget(nextState, attacker, defender.position, { requireVisibility: false });
-    if (!legality.ok || legality.targetType !== 'unit' || legality.targetUnitId !== defender.id) continue;
+    if (!resolveUnitVsUnitAttack(nextState, attacker, defender, { requireVisibility: false }).ok) continue;
     const seed = deterministicCombatSeed(nextState.gameId, nextState.turn, attacker.id, defender.id);
     const result = resolveCombat(
       attacker,
@@ -835,6 +834,7 @@ export function processScuffles(state: GameState, bus: EventBus): void {
         const defenderUnit = other.units.map(uid => state.units[uid]).find(u => u);
         if (attackerUnit && defenderUnit && canAttackByProfileOnMap(attackerUnit, defenderUnit, state.map)) {
           const seed = deterministicCombatSeed(state.gameId, state.turn, attackerUnit.id, defenderUnit.id);
+          // attack-contract-exempt: world-actor: neutral city-state scuffles are a flavour rule between minor civs, gated by canAttackByProfileOnMap, not by war state
           const result = resolveCombat(
             attackerUnit,
             defenderUnit,

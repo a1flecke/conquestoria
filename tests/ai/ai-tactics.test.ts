@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  applyPredictedAction,
   chooseTacticalSequence,
   chooseUnitTacticalAction,
   rankUnitTacticalActions,
@@ -1868,5 +1869,43 @@ describe('#884 air readiness: AI wings rest and rebase instead of burning out', 
     delete state.units.defender;
     const action = chooseUnitTacticalAction(context(state, plan), drone.id);
     expect(action).toMatchObject({ kind: 'air-rebase', unitId: drone.id });
+  });
+});
+
+describe('#1219 lookahead prediction runs the same attack legality as the real executor', () => {
+  const context = (state: GameState) => ({ actorId: AI, state }) as AITacticalContext;
+
+  it('predicts the exchange when the attack is legal', () => {
+    const state = makeState();
+    addUnit(state, 'att', 'warrior', AI, { q: 3, r: 3 });
+    addUnit(state, 'def', 'warrior', HUMAN, { q: 4, r: 3 });
+    const next = applyPredictedAction(state, context(state), { kind: 'attack', unitId: 'att', targetUnitId: 'def' });
+    expect(next.units.def?.health ?? 0).toBeLessThan(100);
+  });
+
+  it('leaves the scratch state unchanged for a stale attack: attacker already acted', () => {
+    const state = makeState();
+    const att = addUnit(state, 'att', 'warrior', AI, { q: 3, r: 3 });
+    addUnit(state, 'def', 'warrior', HUMAN, { q: 4, r: 3 });
+    att.hasActed = true;
+    const next = applyPredictedAction(state, context(state), { kind: 'attack', unitId: 'att', targetUnitId: 'def' });
+    expect(next.units).toEqual(state.units);
+  });
+
+  it('leaves the scratch state unchanged for a stale attack: target moved out of range', () => {
+    const state = makeState();
+    addUnit(state, 'att', 'warrior', AI, { q: 3, r: 3 });
+    addUnit(state, 'def', 'warrior', HUMAN, { q: 7, r: 3 });
+    const next = applyPredictedAction(state, context(state), { kind: 'attack', unitId: 'att', targetUnitId: 'def' });
+    expect(next.units).toEqual(state.units);
+  });
+
+  it('leaves the scratch state unchanged when the target is not at war with the actor', () => {
+    const state = makeState();
+    addUnit(state, 'att', 'warrior', AI, { q: 3, r: 3 });
+    addUnit(state, 'def', 'warrior', HUMAN, { q: 4, r: 3 });
+    state.civilizations[AI].diplomacy.atWarWith = [];
+    const next = applyPredictedAction(state, context(state), { kind: 'attack', unitId: 'att', targetUnitId: 'def' });
+    expect(next.units).toEqual(state.units);
   });
 });

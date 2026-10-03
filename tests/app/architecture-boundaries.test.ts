@@ -4,6 +4,10 @@ import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import {
+  findAttackContractViolations,
+  EXPECTED_EXEMPTIONS,
+} from '../helpers/attack-contract-boundaries';
+import {
   VIEWER_BOUNDARY_RULES,
   findViewerBoundaryViolations,
 } from '../helpers/viewer-safety-boundaries';
@@ -1673,6 +1677,82 @@ describe('#1013 — the import graph cannot drift silently', () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('#1219 — a unit-vs-unit exchange only starts through the canonical attack legality', () => {
+  function walkTs(dir: string): string[] {
+    return readdirSync(dir, { withFileTypes: true }).flatMap(e => {
+      const full = resolve(dir, e.name);
+      return e.isDirectory() ? walkTs(full) : /\.tsx?$/.test(e.name) ? [full] : [];
+    });
+  }
+  const root = resolve(__dirname, '../..');
+  const files = walkTs(resolve(root, 'src')).map(file => ({
+    path: file.slice(root.length + 1),
+    source: readFileSync(file, 'utf8'),
+  }));
+
+  it('every resolveCombat caller either ran the legality first or is a named, pinned exemption', () => {
+    expect(findAttackContractViolations(files)).toEqual([]);
+  });
+
+  it('the pinned exemptions are exactly the world actors, previews and air missions that exist', () => {
+    expect(Object.keys(EXPECTED_EXEMPTIONS).sort()).toEqual([
+      'src/ai/ai-tactics.ts',
+      'src/core/turn-manager.ts',
+      'src/systems/air-operations-system.ts',
+      'src/systems/airborne-system.ts',
+      'src/systems/minor-civ-system.ts',
+      'src/systems/stampede-system.ts',
+    ]);
+  });
+
+  describe('the check itself is not vacuous', () => {
+    const fighter = (body: string) => `function fightIt(state) {\n${body}\n}\n`;
+    const run = (path: string, source: string) => findAttackContractViolations([{ path, source }])
+      .filter(violation => violation.line !== 0);
+
+    it('rejects a new executor that resolves a fight with no legality', () => {
+      const violations = run('src/ai/new-executor.ts', fighter('  const result = resolveCombat(a, d, map, seed);'));
+      expect(violations).toHaveLength(1);
+      expect(violations[0]!.message).toMatch(/no canonical attack legality/);
+    });
+
+    it('accepts the same executor once it runs the canonical check first', () => {
+      for (const token of ['resolveUnitVsUnitAttack', 'canUnitAttackTarget', 'getEmbarkedAssaultTarget']) {
+        const source = fighter(`  if (!${token}(state, a, d).ok) return state;\n  const result = resolveCombat(a, d, map, seed);`);
+        expect(run('src/ai/new-executor.ts', source)).toEqual([]);
+      }
+    });
+
+    it('does not accept a legality token that only appears in a comment', () => {
+      const source = fighter('  // canUnitAttackTarget(...) was checked by the caller, trust me\n  const result = resolveCombat(a, d, map, seed);');
+      expect(run('src/ai/new-executor.ts', source)).toHaveLength(1);
+    });
+
+    it('does not accept legality that belongs to a different function', () => {
+      const source = 'function other(state) { return canUnitAttackTarget(state, a, c); }\n\n'
+        + 'function sneaky(state) {\n  return resolveCombat(a, d, map, seed);\n}\n';
+      expect(run('src/ai/new-executor.ts', source)).toHaveLength(1);
+    });
+
+    it('rejects an exemption with an unknown category, a throwaway reason, or no call beneath it', () => {
+      expect(run('src/x.ts', fighter('  // attack-contract-exempt: because: trust me please\n  resolveCombat(a, d, map, seed);'))[0]!.message)
+        .toMatch(/unknown attack-contract-exempt category/);
+      expect(run('src/x.ts', fighter('  // attack-contract-exempt: preview: ok\n  resolveCombat(a, d, map, seed);'))
+        .some(violation => /real reason/.test(violation.message))).toBe(true);
+      expect(run('src/x.ts', fighter('  // attack-contract-exempt: preview: scored only, never applied\n  const nothing = 1;'))
+        .some(violation => /stale/.test(violation.message))).toBe(true);
+    });
+
+    it('rejects an exemption that is not in the pinned table (no accidental exemptions)', () => {
+      const all = findAttackContractViolations([{
+        path: 'src/systems/brand-new-world-actor.ts',
+        source: fighter('  // attack-contract-exempt: world-actor: a new monster picks its own prey\n  resolveCombat(a, d, map, seed);'),
+      }]);
+      expect(all.some(violation => /expected 0 "world-actor" exemption\(s\), found 1/.test(violation.message))).toBe(true);
+    });
   });
 });
 
