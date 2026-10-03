@@ -27,6 +27,7 @@ import {
   type TurnFlowRenderer,
   type TurnFlowAudio,
 } from '@/app/controllers/turn-flow-controller';
+import { subscribeRecordingViews } from '../../helpers/session-subscribers';
 
 vi.mock('@/storage/save-manager', async () => {
   const actual = await vi.importActual<typeof saveManager>('@/storage/save-manager');
@@ -384,6 +385,36 @@ describe('createTurnFlowController', () => {
 
       // Once the viewer is revealed, publication happens.
       expect(published.some(next => next.currentPlayer === deps.session.getState().currentPlayer)).toBe(true);
+    });
+
+    it('#1199: the recording renderer/HUD never receive the incoming viewer state before reveal', async () => {
+      // Complements the published-array test above by using the same recording
+      // renderer + HUD subscriptions bootstrap.ts wires (#1199): a controller
+      // push, or an early publish, would reach them before the reveal.
+      const state = makeHotSeatFixture();
+      const previousViewer = state.currentPlayer;
+      const deps = baseDeps(state);
+      const views = subscribeRecordingViews(deps.session);
+
+      const endTurnPromise = createTurnFlowController(deps).endTurn();
+      await flushMicrotasks();
+
+      expect(document.querySelector('#handoff-confirm')).not.toBeNull();
+      const incomingViewer = deps.session.getState().currentPlayer;
+      expect(incomingViewer).not.toBe(previousViewer);
+      // Nothing reached the renderer for the incoming viewer: no controller push,
+      // no publication (the array may hold the outgoing viewer's own refreshes).
+      expect(views.renderer.setGameState.mock.calls.every(call => call[0].currentPlayer === previousViewer)).toBe(true);
+
+      document.querySelector<HTMLButtonElement>('#handoff-confirm')?.click();
+      await flushMicrotasks();
+      document.querySelector<HTMLButtonElement>('#handoff-start')?.click();
+      await flushMicrotasks();
+      await endTurnPromise;
+
+      // On reveal the incoming viewer's state does publish.
+      expect(views.renderer.setGameState.mock.calls.some(call => call[0].currentPlayer === incomingViewer)).toBe(true);
+      views.unsubscribe();
     });
 
     it('removes the private diplomacy inbox before the hot-seat veil mounts (#910)', async () => {
@@ -1122,6 +1153,43 @@ describe('createTurnFlowController', () => {
       const deps = baseDeps(state);
       createTurnFlowController(deps).maybeShowCouncilInterrupt();
       expect(deps.showNotification).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('#1199 — publication reaches every subscriber with one state', () => {
+    it('a single commit delivers the same state object to the renderer and the HUD', () => {
+      const state = makeFixture();
+      const deps = baseDeps(state);
+      const views = subscribeRecordingViews(deps.session);
+      // A subscriber in the HUD's position records the state the HUD reads.
+      const hudSeen: GameState[] = [];
+      const off = deps.session.subscribe(next => hudSeen.push(next));
+
+      const next: GameState = { ...deps.session.getState(), turn: deps.session.getState().turn + 7 };
+      deps.session.commit(next);
+
+      expect(views.renderer.setGameState).toHaveBeenCalledTimes(1);
+      expect(views.hud.update).toHaveBeenCalledTimes(1);
+      expect(hudSeen).toEqual([next]);
+      // No divergence: both views were handed/inspect the identical object.
+      expect(views.renderer.setGameState.mock.calls[0]![0]).toBe(hudSeen[0]);
+      expect(deps.session.getState()).toBe(hudSeen[0]);
+
+      off();
+      views.unsubscribe();
+    });
+
+    it('the viewer-not-yet-revealed adopt path publishes to neither subscriber', () => {
+      const state = makeFixture();
+      const deps = baseDeps(state);
+      const views = subscribeRecordingViews(deps.session);
+
+      deps.unpublished.adopt({ ...deps.session.getState(), turn: 99 }, 'viewer-not-yet-revealed');
+
+      expect(deps.session.getState().turn).toBe(99);
+      expect(views.renderer.setGameState).not.toHaveBeenCalled();
+      expect(views.hud.update).not.toHaveBeenCalled();
+      views.unsubscribe();
     });
   });
 });
