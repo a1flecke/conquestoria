@@ -118,16 +118,6 @@ export function executeUnitMove(
 }
 
 /**
- * #1199 TODO(4d): transitionally mirror a pure transition's result back onto the
- * input `GameState` object in place, so every existing caller that still relies
- * on the old in-place mutation contract keeps observing the same state. Remove
- * this (and its call sites) once all callers consume `result.state`.
- */
-function writeBackStateInPlace(target: GameState, source: GameState): void {
-  Object.assign(target, source);
-}
-
-/**
  * The raw executor. Accepts only a `ValidatedUnitMove` produced by
  * `resolveUnitMoveIntent`, so a caller structurally cannot execute an
  * unvalidated move. Every other movement executor in the codebase either calls
@@ -185,8 +175,6 @@ export function executeValidatedUnitMove(
   });
 
   if (options.actor === 'world') {
-    // #1199 TODO(4d): remove this transitional in-place write-back once all callers consume result.state.
-    writeBackStateInPlace(state, nextState);
     return {
       ok: true,
       state: nextState,
@@ -272,9 +260,6 @@ export function executeValidatedUnitMove(
       isFirstDiscoverer,
     });
   }
-
-  // #1199 TODO(4d): remove this transitional in-place write-back once all callers consume result.state.
-  writeBackStateInPlace(state, nextState);
 
   return {
     ok: true,

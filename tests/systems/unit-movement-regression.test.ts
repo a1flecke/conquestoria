@@ -60,9 +60,11 @@ describe('Unit Movement Regression', () => {
     const initialMovementPoints = unitBefore.movementPointsLeft;
     expect(initialMovementPoints).toBe(2);
 
-    executeUnitMove(state as GameState, 'unit-1', destPos, { actor: 'player', civId: 'player' });
+    const moveResult = executeUnitMove(state as GameState, 'unit-1', destPos, { actor: 'player', civId: 'player' });
 
-    const unitAfter = state.units!['unit-1'];
+    expect(moveResult.ok).toBe(true);
+    if (!moveResult.ok) return;
+    const unitAfter = moveResult.state.units!['unit-1'];
     const expectedPathCost = 2 * tileCost;
 
     expect(unitAfter.movementPointsLeft).toBe(initialMovementPoints - expectedPathCost);
@@ -119,9 +121,11 @@ describe('Unit Movement Regression', () => {
     const initialMovementPoints = unitBefore.movementPointsLeft;
     expect(initialMovementPoints).toBe(2);
 
-    executeUnitMove(state as GameState, 'unit-2', destPos, { actor: 'player', civId: 'player' });
+    const moveResult = executeUnitMove(state as GameState, 'unit-2', destPos, { actor: 'player', civId: 'player' });
 
-    const unitAfter = state.units!['unit-2'];
+    expect(moveResult.ok).toBe(true);
+    if (!moveResult.ok) return;
+    const unitAfter = moveResult.state.units!['unit-2'];
     const expectedPathCost = 1 * tileCost;
 
     expect(unitAfter.movementPointsLeft).toBe(initialMovementPoints - expectedPathCost);

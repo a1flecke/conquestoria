@@ -110,7 +110,19 @@ describe('unit-movement-system', () => {
     if (!result.ok) return;
     expect(result.state).not.toBe(state); // new object
     expect(result.state.units[mover.id].position).toEqual({ q: 1, r: 0 });
-    expect(state.units[mover.id].position).toEqual({ q: 1, r: 0 }); // transitional: in-place still true
+  });
+
+  it('#1199 (4d): executeUnitMove does not mutate the passed state', () => {
+    const mover = { ...createUnit('warrior', 'player', { q: 0, r: 0 }, mkC()), id: 'mover', movementPointsLeft: 2 };
+    const state = movementState(mover, [tile({ q: 0, r: 0 }), tile({ q: 1, r: 0 })]);
+    const before = structuredClone(state);
+
+    const result = executeUnitMove(state, mover.id, { q: 1, r: 0 }, { actor: 'player', civId: 'player' });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(state).toEqual(before); // input untouched
+    expect(result.state.units[mover.id].position).toEqual({ q: 1, r: 0 });
   });
 
   it('ends movement after a legal zone-of-control entry', () => {
@@ -119,11 +131,13 @@ describe('unit-movement-system', () => {
     const state = movementState(mover, [tile({ q: 0, r: 0 }), tile({ q: 1, r: 0 }), tile({ q: 2, r: -1 })], { extraUnits: [enemy] });
     state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
 
-    expect(executeUnitMove(state, mover.id, { q: 1, r: 0 }, { actor: 'player', civId: 'player' })).toMatchObject({
+    const result = executeUnitMove(state, mover.id, { q: 1, r: 0 }, { actor: 'player', civId: 'player' });
+    expect(result).toMatchObject({
       ok: true,
       stopReason: 'zone-of-control',
     });
-    expect(state.units[mover.id].movementPointsLeft).toBe(0);
+    if (!result.ok) return;
+    expect(result.state.units[mover.id].movementPointsLeft).toBe(0);
   });
 
   it('stops a multi-step move at the first zone-of-control entry', () => {
@@ -137,7 +151,8 @@ describe('unit-movement-system', () => {
     const result = executeUnitMove(state, mover.id, { q: 2, r: 0 }, { actor: 'player', civId: 'player' });
 
     expect(result).toMatchObject({ ok: true, to: { q: 1, r: 0 }, stopReason: 'zone-of-control' });
-    expect(state.units[mover.id].position).toEqual({ q: 1, r: 0 });
+    if (!result.ok) return;
+    expect(result.state.units[mover.id].position).toEqual({ q: 1, r: 0 });
   });
 
   it('moves world actors without civilization discovery consequences', () => {
@@ -172,9 +187,10 @@ describe('unit-movement-system', () => {
       revealedTiles: [],
       discoveredWonders: [],
     });
-    expect(state.units[mover.id].position).toEqual({ q: 1, r: 0 });
-    expect(state.tribalVillages[villageId]).toBeDefined();
-    expect(state.discoveredWonders).toEqual(beforeWonders);
+    if (!result.ok) return;
+    expect(result.state.units[mover.id].position).toEqual({ q: 1, r: 0 });
+    expect(result.state.tribalVillages[villageId]).toBeDefined();
+    expect(result.state.discoveredWonders).toEqual(beforeWonders);
     expect(contacts).toEqual([]);
     expect(moves).toHaveLength(1);
   });
@@ -213,8 +229,10 @@ describe('unit-movement-system', () => {
       'ai-1': { plans: {}, detections: {}, posture: 'integrated', pendingPosture: null, surgeRecoveryUntilTurn: null, surgeCooldownUntilTurn: null },
     };
 
-    expect(executeUnitMove(state, cyber.id, { q: 2, r: 0 }, { actor: 'player', civId: 'player' })).toMatchObject({ ok: true });
-    expect(state.autonomyByCiv.player.plans).toEqual({});
+    const cyberMove = executeUnitMove(state, cyber.id, { q: 2, r: 0 }, { actor: 'player', civId: 'player' });
+    expect(cyberMove).toMatchObject({ ok: true });
+    if (!cyberMove.ok) return;
+    expect(cyberMove.state.autonomyByCiv?.player.plans).toEqual({});
   });
 
   it('does not let world actors bypass occupancy', () => {
@@ -301,7 +319,8 @@ describe('unit-movement-system', () => {
       },
     );
     expect(captureMove.ok).toBe(true);
-    expect(state.units.mover.position).toEqual(city.position);
+    if (!captureMove.ok) return;
+    expect(captureMove.state.units.mover.position).toEqual(city.position);
   });
 
   it('does not path through a foreign city without an alliance', () => {
@@ -368,7 +387,8 @@ describe('unit-movement-system', () => {
     );
 
     expect(result.ok).toBe(true);
-    expect(state.units.mover.position).toEqual(city.position);
+    if (!result.ok) return;
+    expect(result.state.units.mover.position).toEqual(city.position);
   });
 
   // #845: an undefended barbarian camp had ZERO representation anywhere in the movement
@@ -427,7 +447,8 @@ describe('unit-movement-system', () => {
     const result = executeUnitMove(state, 'raider', { q: 1, r: 0 }, { actor: 'automation', civId: 'barbarian' });
 
     expect(result.ok).toBe(true);
-    expect(state.units.raider.position).toEqual({ q: 1, r: 0 });
+    if (!result.ok) return;
+    expect(result.state.units.raider.position).toEqual({ q: 1, r: 0 });
   });
 
   // #965: same defect class as the barbarian camp above, one structure later. A pirate
@@ -536,8 +557,9 @@ describe('unit-movement-system', () => {
     const result = executeUnitMove(state, 'mover', { q: 1, r: 0 }, { actor: 'player', civId: 'player' });
 
     expect(result.ok).toBe(true);
-    expect(state.units.mover.position).toEqual({ q: 1, r: 0 });
-    expect(state.units.mover.movementPointsLeft).toBe(0);
+    if (!result.ok) return;
+    expect(result.state.units.mover.position).toEqual({ q: 1, r: 0 });
+    expect(result.state.units.mover.movementPointsLeft).toBe(0);
   });
 
   it('refuses land-unit movement into water at execution time', () => {
@@ -615,8 +637,9 @@ describe('unit-movement-system', () => {
     const result = executeUnitMove(state, 'transport', { q: 1, r: 0 }, { actor: 'player', civId: 'player' });
 
     expect(result.ok).toBe(true);
-    expect(state.units.transport.position).toEqual({ q: 1, r: 0 });
-    expect(state.units.cargo.position).toEqual({ q: 1, r: 0 });
+    if (!result.ok) return;
+    expect(result.state.units.transport.position).toEqual({ q: 1, r: 0 });
+    expect(result.state.units.cargo.position).toEqual({ q: 1, r: 0 });
   });
 
   it('syncs based aircraft positions after a Carrier move', () => {
@@ -630,8 +653,10 @@ describe('unit-movement-system', () => {
       tile({ q: 1, r: 0 }, 'coast'),
     ], { completedTechs: ['galleys'], extraUnits: [aircraft] });
 
-    expect(executeUnitMove(state, 'carrier', { q: 1, r: 0 }, { actor: 'player', civId: 'player' })).toMatchObject({ ok: true });
-    expect(state.units.aircraft.position).toEqual({ q: 1, r: 0 });
+    const result = executeUnitMove(state, 'carrier', { q: 1, r: 0 }, { actor: 'player', civId: 'player' });
+    expect(result).toMatchObject({ ok: true });
+    if (!result.ok) return;
+    expect(result.state.units.aircraft.position).toEqual({ q: 1, r: 0 });
   });
 
   it('applies village rewards and removes the village when automation enters it', () => {
@@ -647,7 +672,7 @@ describe('unit-movement-system', () => {
     if (!result.ok) throw new Error('expected village move to succeed');
     expect(result.villageOutcome?.outcome).toBeDefined();
     expect(villageId).toBeDefined();
-    expect(state.tribalVillages[villageId!]).toBeUndefined();
+    expect(result.state.tribalVillages[villageId!]).toBeUndefined();
   });
 
   it('refreshes visibility and civilization contacts after an automated move', () => {
@@ -662,7 +687,7 @@ describe('unit-movement-system', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error('expected contact move to succeed');
     expect(result.revealedTiles.length).toBeGreaterThan(0);
-    expect(state.civilizations.player.knownCivilizations).toContain(hiddenCivId);
+    expect(result.state.civilizations.player.knownCivilizations).toContain(hiddenCivId);
   });
 
   it('emits first-contact when movement reveals a new civilization', () => {
@@ -735,7 +760,7 @@ describe('unit-movement-system', () => {
     expect(result.to).toEqual({ q: 4, r: 1 });
     expect(revealedKeys).toContain('0,1');
     expect(revealedKeys.some(key => Number(key.split(',')[0]) < 0 || Number(key.split(',')[0]) >= state.map.width)).toBe(false);
-    expect(getVisibility(state.civilizations.player.visibility, { q: 0, r: 1 })).toBe('visible');
+    expect(getVisibility(result.state.civilizations.player.visibility, { q: 0, r: 1 })).toBe('visible');
     expect(fogRevealed).toHaveBeenCalledWith(expect.objectContaining({
       tiles: expect.arrayContaining([{ q: 0, r: 1 }]),
     }));
@@ -773,7 +798,7 @@ describe('river crossing movement cost', () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error('expected move to succeed');
-    expect(state.units.mover.movementPointsLeft).toBe(0);
+    expect(result.state.units.mover.movementPointsLeft).toBe(0);
   });
 
   it('bridge-building saves 1 MP — warrior ends with 1 MP instead of 0 after crossing', () => {
@@ -791,7 +816,7 @@ describe('river crossing movement cost', () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error('expected bridge-building to allow crossing');
-    expect(state.units.mover.movementPointsLeft).toBe(1);
+    expect(result.state.units.mover.movementPointsLeft).toBe(1);
   });
 
   it('forced march applies: warrior with 1 MP can still cross a river (adjacent, single step)', () => {
@@ -809,7 +834,7 @@ describe('river crossing movement cost', () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error('expected forced march to allow 1-MP river crossing');
-    expect(state.units.mover.movementPointsLeft).toBe(0);
+    expect(result.state.units.mover.movementPointsLeft).toBe(0);
   });
 
   it('naval units pay no river crossing penalty', () => {
@@ -826,7 +851,7 @@ describe('river crossing movement cost', () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error('expected naval unit to cross without river penalty');
-    expect(state.units.galley.movementPointsLeft).toBe(2); // 3 MP - 1 coast step = 2 remaining
+    expect(result.state.units.galley.movementPointsLeft).toBe(2); // 3 MP - 1 coast step = 2 remaining
   });
 
   it('no crossing cost when no river segment exists between the two tiles', () => {
@@ -843,7 +868,7 @@ describe('river crossing movement cost', () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error('expected 1-MP plains move to succeed without river');
-    expect(state.units.mover.movementPointsLeft).toBe(0);
+    expect(result.state.units.mover.movementPointsLeft).toBe(0);
   });
 });
 

@@ -91,8 +91,10 @@ describe('#871 Open Borders ends while units are inside', () => {
       expect(resolveUnitMoveIntent(after, id, { q: 6, r: 1 }, asPlayer).ok, `${id} exits far side`).toBe(true);
     }
     // ...but a unit that has gone home cannot simply walk back in.
-    const home = structuredClone(after);
-    expect(executeUnitMove(home, 'unit-spear', { q: 2, r: 1 }, asPlayer).ok).toBe(true);
+    const moved = executeUnitMove(structuredClone(after), 'unit-spear', { q: 2, r: 1 }, asPlayer);
+    expect(moved.ok).toBe(true);
+    if (!moved.ok) return;
+    const home: GameState = moved.state;
     home.units['unit-spear'] = { ...home.units['unit-spear']!, movementPointsLeft: 12, hasMoved: false };
     expect(resolveUnitMoveIntent(home, 'unit-spear', { q: 3, r: 1 }, asPlayer).ok).toBe(false);
   });

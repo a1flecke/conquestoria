@@ -316,7 +316,10 @@ describe('#871 access disappearing while units are inside (stateless egress)', (
   it('once it has left it cannot walk back in', () => {
     const world = armyInsideRivalLand();
     const id = world.units.inside!;
-    expect(executeUnitMove(world.state, id, { q: 2, r: 1 }, asPlayer).ok).toBe(true);
+    const moved = executeUnitMove(world.state, id, { q: 2, r: 1 }, asPlayer);
+    expect(moved.ok).toBe(true);
+    if (!moved.ok) return;
+    world.state = moved.state;
     world.state.units[id] = { ...world.state.units[id]!, movementPointsLeft: 12, hasMoved: false };
     const back = resolveUnitMoveIntent(world.state, id, { q: 4, r: 1 }, asPlayer);
     expect(back.ok).toBe(false);
