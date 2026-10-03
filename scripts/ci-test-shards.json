@@ -706,7 +706,9 @@
     "tests/systems/battle-forecast.test.ts": 15.0,
     "tests/ui/battle-forecast-projection.test.ts": 40.0,
     "tests/ui/battle-forecast-card.test.ts": 20.0,
-    "tests/app/battle-forecast-boundary.test.ts": 5.0
+    "tests/app/battle-forecast-boundary.test.ts": 5.0,
+    "tests/audio/sfx-coverage.test.ts": 40.0,
+    "tests/audio/sfx-unit-routing.test.ts": 60.0
   },
   "shards": {
     "test-suite-shard-a": [
@@ -976,7 +978,9 @@
       "tests/audio/pirate-sfx-generator.test.ts",
       "tests/audio/religion-audio-director.test.ts",
       "tests/audio/sfx-catalog.test.ts",
+      "tests/audio/sfx-coverage.test.ts",
       "tests/audio/sfx-director.test.ts",
+      "tests/audio/sfx-unit-routing.test.ts",
       "tests/core/completed-round-orchestrator.test.ts",
       "tests/core/hot-seat-city-names.test.ts",
       "tests/core/hotseat-outcome.test.ts",

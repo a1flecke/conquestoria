@@ -442,3 +442,40 @@ download, voice recording, or player-specific audio data is used.
 `scripts/generate-network-sfx.sh` with deterministic ffmpeg lavfi sine/noise layers
 over the already-credited local Kenney CC0 clips named in that script. No external
 source, download, voice recording, or player-specific audio data is used.
+
+## Unit SFX Coverage + Air Movement (#612)
+
+The 24 cues listed in `docs/audio/unit-sfx-manifest.md` (in `public/audio/sfx/`: rifle, machine-gun, autocannon,
+grenade, cannon, field-gun, naval-gun, tank-gun, shell and underwater blasts, rocket and torpedo launches,
+aircraft hit/crash, balloon burst, vehicle/cannon/hull/soldier/civilian defeat cues and the replacement
+`air-move-step`) are generated locally by `scripts/generate-unit-sfx.sh` with ffmpeg 8. Five are fully
+synthetic (lavfi seeded noise and tones). The rest are cut, pitch-shifted, filtered and layered from three
+CC0 and CC-BY recordings on OpenGameArt, fetched and hash-verified by `scripts/fetch-unit-sfx-sources.sh`
+(never committed; retrieved 2026-10-02):
+
+- **The Free Firearm Sound Library** by Ben Jaszczak, Brian Nelson, Kevin Heras and Matthew Nanney,
+  CC0 1.0 — https://opengameart.org/content/the-free-firearm-sound-library
+  (archive SHA-256 `cc1ab5a99a0a365105c7c5dd783f4b0b1fe90938114d3ceec53856bfe005f7d6`)
+- **Tiny Naval Battle Sounds Set** by Iwan Gabovitch (qubodup), CC0 1.0, v2 with the corrected ExplosionMetal sounds —
+  https://opengameart.org/content/tiny-naval-battle-sounds-set
+  (`c2a75c2f93a558dd2a5d8420b6bc0375c2d0e41c1f59a78a925ac6052d6ef05c`)
+- **Sci-Fi RTS War Unit Sounds** by Iwan Gabovitch (qubodup), CC0 1.0 (relicensed from CC-BY-SA 3.0 on 2024-08-28;
+  upstream sources by Ferdinger, John Sipos and klankbeeld) — https://opengameart.org/content/sci-fi-rts-war-unit-sounds
+  (`b5dcbdd8e11151c2cb8a242fb9279690b2cb372fcb44d451c6df191a42a1de85`)
+
+- **Male Grunt/Yelling Sounds** by HaelDB, CC0 1.0 (dual-licensed CC0 / OGA-BY 3.0; CC0 chosen) —
+  https://opengameart.org/content/male-gruntyelling-sounds
+  (`e9100a4e3b9dcd146993089970dc6097dcf9935fa4683b196040012bad65d67a`)
+- **Airplane Prop Loop** by jakobthiesen (Freesound sound 188423), looped by AntumDeluge, licensed
+  CC-BY 3.0 — https://creativecommons.org/licenses/by/3.0/ — https://opengameart.org/content/airplane-prop-loop
+  (`f835c4f5ab4233058af5bd98fa58da2415ac174a26c29cdeca791bd4e8fa45f8`). Used as: propeller aircraft movement
+  (`air-move-prop.ogg`) and, pitched up, drone movement (`air-move-drone.ogg`). Modified: 1.4–2.6 s slice, filtered, faded, loudness-normalized.
+- **Jet Engine Takeoff** by dklon, licensed CC-BY 3.0 — https://creativecommons.org/licenses/by/3.0/ —
+  https://opengameart.org/content/jet-engine-takeoff
+  (`c7aa06c63a4fc5a638cab2b9f292a34ca03b3f3a1016d01e3b69cfd65f328e87`). Used as: jet aircraft movement
+  (`air-move-jet.ogg`). Modified: 1.5 s slice, high-passed, faded, loudness-normalized.
+
+The three first sets are CC0 and need no attribution; they are credited as courtesy. No voice, music or watermark material is used. `air-move-step.ogg`
+previously was a byte-identical copy of the humanoid footstep placeholder. The manifest records per-file source,
+size, duration, loudness, true peak and SHA-256. Many units deliberately share cues as named families
+(`INTENTIONAL_SFX_FAMILIES` in `tests/audio/helpers/sfx-coverage-policy.ts`).

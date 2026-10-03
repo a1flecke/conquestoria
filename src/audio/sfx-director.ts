@@ -2,7 +2,7 @@ import type { AudioMixer } from './audio-mixer';
 import type { AudioLoader } from './audio-loader';
 import type { EventBus } from '../core/event-bus';
 import type { Unit, UnitType, CombatResult, HexCoord, GameState } from '../core/types';
-import { UNIT_SFX, MOVEMENT_SFX, PIRATE_MOVEMENT_SFX, getLocomotionClass, type PirateUnitType } from './sfx-catalog';
+import { UNIT_SFX, PIRATE_MOVEMENT_SFX, getLocomotionClass, getMovementSfx, type PirateUnitType } from './sfx-catalog';
 import { getMovementDurationMs } from '../renderer/unit-movement-animation';
 import { getVisibility } from '@/systems/fog-of-war';
 
@@ -183,7 +183,13 @@ export class SfxDirector {
       this.scheduleFile(PIRATE_MOVEMENT_SFX[unitType as PirateUnitType].file, 0, viewerIds);
       return;
     }
-    const sfx = MOVEMENT_SFX[getLocomotionClass(unitType)];
+    const sfx = getMovementSfx(unitType);
+    // Aircraft are heard once per move, not once per hex: their cues are sustained, and retriggering one every
+    // 220 ms cut each short and ran them together. Like the pirate ships above, one cue spans the whole move.
+    if (getLocomotionClass(unitType) === 'air') {
+      this.scheduleFile(sfx.file, 0, viewerIds);
+      return;
+    }
     const totalDuration = getMovementDurationMs(stepCount);
     const interval = totalDuration / stepCount;
 

@@ -59,6 +59,7 @@ Detailed rules live in `.claude/rules/` and auto-apply based on the files you ed
 - `.claude/rules/sprites.md` — unit/building/terrain/improvement extension recipes, FactionPalette contract, catalog coverage, animation class reference, terrain tile contracts
 - `.claude/rules/game-balance.md` — wonder/national-project yield ceilings, movement stacking policy, national-project production-discount table pattern, **canonical production-cost context (Civilization Era vs World Age)**
 - `.claude/rules/wonder-content.md` — legendary/natural wonder gating, name collisions, quest-step baselines, codex ledger sync
+- `.claude/rules/audio-sfx.md` — capability-derived unit SFX coverage, named shared families, synthetic-cue provenance/manifest (#612)
 - `.claude/rules/content-description-honesty.md` — keeping `Tech.unlocks`/`Building.description`/`UNIT_DESCRIPTIONS` text honest about implemented mechanics
 
 A PostToolUse hook (`.claude/hooks/check-src-edit.sh`) greps every Write/Edit under `src/` for known rule violations and returns feedback in the same turn.
