@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { readdirSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import {
   VIEWER_BOUNDARY_RULES,
   findViewerBoundaryViolations,
@@ -1636,6 +1638,41 @@ describe('#1025 — the action-contract inventory is complete and every gap has 
     const rule = readFileSync(resolve(root, '.claude/rules/action-contracts.md'), 'utf8');
     expect(rule).toContain('docs/action-contract-inventory.md');
     expect(readFileSync(resolve(root, 'CLAUDE.md'), 'utf8')).toContain('.claude/rules/action-contracts.md');
+  });
+});
+
+describe('#1013 — the import graph cannot drift silently', () => {
+  const root = resolve(__dirname, '../..');
+  const script = resolve(root, 'scripts/maintainability-audit.mjs');
+  const runAudit = (...args: string[]) =>
+    spawnSync(process.execPath, [script, ...args], { cwd: root, encoding: 'utf8' });
+
+  it('matches the checked-in runtime-cycle / cross-layer baseline', () => {
+    const result = runAudit('--check');
+    expect(result.status, result.stderr || result.stdout).toBe(0);
+  });
+
+  it('is deterministic: two runs of --json are byte-identical', () => {
+    const first = runAudit('--json');
+    const second = runAudit('--json');
+    expect(first.status, first.stderr).toBe(0);
+    expect(second.status, second.stderr).toBe(0);
+    expect(first.stdout).toBe(second.stdout);
+  });
+
+  it('the drift check bites: a synthetic cycle-free baseline is rejected', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'maintainability-audit-'));
+    try {
+      const baseline = join(dir, 'baseline.json');
+      writeFileSync(baseline, JSON.stringify({
+        schema: 1, runtimeCycles: [], allEdgeCycles: [], crossLayerEdges: [],
+      }));
+      const result = runAudit('--check', '--baseline-path', baseline);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('NEW runtime cycle');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 
