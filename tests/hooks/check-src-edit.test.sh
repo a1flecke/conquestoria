@@ -313,17 +313,17 @@ EOF
 expect_allow "$tmp/src/systems/good-rng.ts" "createSimulationRng usage"
 
 # --- #1021: allow a pre-existing baselined occurrence (path:line exact match) ---
-# Real baseline entry: src/systems/combat-system.ts:533 (#982 left this
+# Real baseline entry: src/systems/combat-system.ts:529 (#982 left this
 # [LOW]-tagged LCG recurrence body in place -- it's already fed a
 # gameId-rooted seed by its caller, just a hand-rolled duplicate of
 # seededLcg's body, not a live seed-construction bug).
 mkdir -p "$tmp/src/systems"
 baselined_line='  rngState = (rngState * 48271) % 2147483647;'
 {
-  for i in $(seq 1 532); do echo "// padding line $i"; done
+  for i in $(seq 1 528); do echo "// padding line $i"; done
   printf '%s\n' "$baselined_line"
 } > "$tmp/src/systems/combat-system.ts"
-expect_allow "$tmp/src/systems/combat-system.ts" "baselined combat-system.ts:533 occurrence"
+expect_allow "$tmp/src/systems/combat-system.ts" "baselined combat-system.ts:529 occurrence"
 
 # --- #1021: the same offending pattern at a DIFFERENT (non-baselined) line in that
 # same file must still be blocked -- proves the baseline is line-precise, not file-wide.
@@ -341,6 +341,20 @@ export function createRng(seed: string): () => number {
 }
 EOF
 expect_allow "$tmp/src/systems/map-generator.ts" "map-generator.ts permanent RNG exemption"
+
+# --- #1234: deterministic-hash.ts (the canonical string-hash leaf) is permanently exempt, any other file is not ---
+cat > "$tmp/src/systems/deterministic-hash.ts" <<'EOF'
+export function lehmerFoldByCodePoint(initial: number, source: string): number {
+  let state = initial;
+  for (const character of source) state = (state * 48271 + character.charCodeAt(0)) % 2147483647;
+  return state;
+}
+EOF
+expect_allow "$tmp/src/systems/deterministic-hash.ts" "deterministic-hash.ts permanent RNG exemption"
+cat > "$tmp/src/systems/new-feature.ts" <<'EOF'
+export const fold = (source: string, state: number) => { for (const character of source) state = (state * 48271 + character.charCodeAt(0)) % 2147483647; return state; };
+EOF
+expect_block "$tmp/src/systems/new-feature.ts" "a hand-rolled hash loop outside deterministic-hash.ts"
 
 # --- #985: UI/AI may not import omniscient domination authority ---
 cat > "$tmp/src/ui/domination-panel.ts" <<'EOF'

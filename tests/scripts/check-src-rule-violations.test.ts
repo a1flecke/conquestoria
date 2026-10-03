@@ -123,8 +123,8 @@ describe('check-src-rule-violations.sh', () => {
 
     it('allows a pre-existing occurrence recorded in the legacy baseline at its exact path:line', () => {
       const workspace = makeWorkspace();
-      const paddingLines = Array.from({ length: 532 }, (_, i) => `// padding line ${i + 1}`);
-      // Real baseline entry: src/systems/combat-system.ts:533 (#982 left this
+      const paddingLines = Array.from({ length: 528 }, (_, i) => `// padding line ${i + 1}`);
+      // Real baseline entry: src/systems/combat-system.ts:529 (#982 left this
       // [LOW]-tagged LCG recurrence body in place — it's already fed a
       // gameId-rooted seed by its caller, just a hand-rolled duplicate of
       // seededLcg's body, not a live seed-construction bug).
@@ -166,6 +166,40 @@ describe('check-src-rule-violations.sh', () => {
 
       expect(result.status).toBe(0);
       expect(result.stderr).toBe('');
+    });
+
+    it('exempts deterministic-hash.ts permanently: it is the canonical home of every string-hash variant (#1234)', () => {
+      const workspace = makeWorkspace();
+      writeWorkspaceFile(
+        workspace,
+        'src/systems/deterministic-hash.ts',
+        [
+          'export function lehmerFoldByCodePoint(initial: number, source: string): number {',
+          '  let state = initial;',
+          '  for (const character of source) state = (state * 48271 + character.charCodeAt(0)) % 2147483647;',
+          '  return state;',
+          '}',
+        ].join('\n'),
+      );
+
+      const result = runScript(workspace, 'src/systems/deterministic-hash.ts');
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe('');
+    });
+
+    it('still blocks the same hash loop in any other file under src/systems (#1234)', () => {
+      const workspace = makeWorkspace();
+      writeWorkspaceFile(
+        workspace,
+        'src/systems/new-feature.ts',
+        '  for (const character of source) state = (state * 48271 + character.charCodeAt(0)) % 2147483647;\n',
+      );
+
+      const result = runScript(workspace, 'src/systems/new-feature.ts');
+
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain('Hand-rolled simulation RNG constant or truncated-id charCodeAt() detected');
     });
 
     it('never scans src/audio -- the rule is scoped to src/systems, src/ai, src/core only', () => {
