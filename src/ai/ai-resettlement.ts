@@ -85,9 +85,10 @@ export function processAIResettlement(
   const next = structuredClone(state);
   const movement = executeUnitMove(next, settler.id, path.path[1], { actor: 'ai', civId, bus });
   if (!movement.ok) return state;
-  const movedSettler = next.units[settler.id];
-  if (movedSettler && !movedSettler.hasActed && movedSettler.movementPointsLeft > 0 && canFoundCityAt(next, movedSettler.position)) {
-    return foundCityInState(next, movedSettler.id, bus).state;
+  const movedState = movement.state;
+  const movedSettler = movedState.units[settler.id];
+  if (movedSettler && !movedSettler.hasActed && movedSettler.movementPointsLeft > 0 && canFoundCityAt(movedState, movedSettler.position)) {
+    return foundCityInState(movedState, movedSettler.id, bus).state;
   }
-  return next;
+  return movedState;
 }

@@ -361,6 +361,7 @@ export function processStampedeTurn(state: GameState, targetCivId: string): Game
       }
       const moved = executeUnitMove(next, unitId, step, { actor: 'world' });
       if (!moved.ok) break;
+      next = moved.state;
       next = applyStampedePillage(next, targetCivId, unitId);
       if (moved.stopReason) break;
     }

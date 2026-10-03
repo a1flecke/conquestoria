@@ -323,7 +323,7 @@ function executeMinorCityCapture(
     },
   );
   if (!movement.ok) return { state, succeeded: false };
-  const conquest = conquestMinorCiv(next, city.owner, civId);
+  const conquest = conquestMinorCiv(movement.state, city.owner, civId);
   if (!conquest.conquered) return { state, succeeded: false };
   emitMinorCivQuestTransitions(bus, conquest.transitions, conquest.state);
   bus.emit('minor-civ:destroyed', {
@@ -445,7 +445,7 @@ function executeAction(
         { actor: 'ai', civId, bus },
       );
       return {
-        state: movement.ok ? next : state,
+        state: movement.ok ? movement.state : state,
         succeeded: movement.ok,
         followUps: [],
       };

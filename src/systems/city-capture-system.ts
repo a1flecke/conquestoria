@@ -391,6 +391,7 @@ export function beginMajorCityAssault(
     if (!movement.ok) {
       return assaultFailure(state, 'illegal-movement');
     }
+    nextState = movement.state;
     nextState.units[attackerId] = {
       ...nextState.units[attackerId],
       movementPointsLeft: 0,
