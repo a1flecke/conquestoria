@@ -362,14 +362,25 @@ describe('arsenalStatus threading into planning-system.ts (#545)', () => {
   // getArsenalStatus(state, civId) call (also now treaty-cap-aware) -- updated
   // to assert the new, better structure instead of the old duplicated pattern.
   it('getIdleCityIds and getRecommendedIdleCityChoice both compute and pass arsenalStatus to getAvailableBuildings', () => {
-    const source = readFileSync(resolve(__dirname, '../../src/systems/planning-system.ts'), 'utf-8');
-    const callSites = source.split('getAvailableBuildings(').slice(1);
-    expect(callSites.length).toBe(2);
-    for (const callSite of callSites) {
-      const argsBlock = callSite.slice(0, callSite.indexOf(')'));
-      expect(argsBlock).toMatch(/arsenalStatus/);
+    // #1220: getRecommendedIdleCityChoice no longer assembles its own getAvailableBuildings call; it reads
+    // getQueueableProductionForCity (city-production-eligibility.ts), which is the one place the arsenal gate is
+    // threaded for the panel, the recommendation and the enqueue. getIdleCityIds keeps its own call.
+    for (const [file, expectedSites] of [
+      ['planning-system.ts', 1],
+      ['city-production-eligibility.ts', 1],
+    ] as const) {
+      const source = readFileSync(resolve(__dirname, '../../src/systems', file), 'utf-8');
+      const callSites = source.split('getAvailableBuildings(').slice(1);
+      expect(callSites.length, file).toBe(expectedSites);
+      for (const callSite of callSites) {
+        // The helper nests calls inside the argument list, so look at the whole call (up to its closing `);`).
+        const argsBlock = callSite.slice(0, callSite.indexOf(');'));
+        expect(argsBlock, file).toMatch(/arsenalStatus|getArsenalStatus/);
+      }
+      expect(source, file).toMatch(/getArsenalStatus/);
     }
-    expect(source).toMatch(/getArsenalStatus/);
+    const planning = readFileSync(resolve(__dirname, '../../src/systems/planning-system.ts'), 'utf-8');
+    expect(planning).toMatch(/getQueueableProductionForCity\(state, cityId\)/);
   });
 });
 
