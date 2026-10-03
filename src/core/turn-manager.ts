@@ -72,16 +72,13 @@ import {
 } from '@/systems/unit-modifier-system';
 import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
-import { joinEmbargo, cleanupEmbargoes } from '@/systems/diplomacy-embargoes';
 import { isAtWar } from '@/systems/diplomacy-queries';
 import { pruneExpiredDiplomaticRequests } from '@/systems/diplomacy-requests';
 import { processRelationshipDrift, decayEvents } from '@/systems/diplomacy-state';
 import { decayTreachery } from '@/systems/diplomacy-treachery';
 import { tickTreaties } from '@/systems/diplomacy-treaties';
 import { processVassalageTribute, getVassalageMilitaryCount } from '@/systems/diplomacy-vassal-rules';
-import { processVassalageTurn } from '@/systems/diplomacy-vassalage';
-import { processFashionCycle, updatePrices, scrubStaleForeignRoutes, scrubEmbargoedRoutes } from '@/systems/trade-system';
-import { advanceRouteRunners } from '@/systems/unit-movement-system';
+import { processFashionCycle, updatePrices } from '@/systems/trade-system';
 import { processWonderEffects } from '@/systems/wonder-system';
 import { createRng } from '@/systems/map-generator';
 import { processMinorCivTurn, checkCampEvolution } from '@/systems/minor-civ-system';
@@ -145,6 +142,7 @@ import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
 import { removeUnits } from '@/systems/unit-removal-system';
 import { createRoundPhaseContext } from './round-phases/types';
+import { diplomacyTradePhase } from './round-phases/diplomacy-trade';
 import { tradeIncomePhase } from './round-phases/trade-income';
 import { leaguesPhase } from './round-phases/leagues';
 import { eraProgressionPhase } from './round-phases/era-progression';
@@ -1380,37 +1378,7 @@ export function processTurn(
     newState = refreshLastSeenPresentationsForCiv(newState, civId);
   }
 
-  // #910: human decisions remain recipient-owned; this only advances obligations.
-  newState = processVassalageTurn(newState, bus);
-
-  // --- Vassal auto-joins overlord's embargoes ---
-  if (newState.embargoes) {
-    for (const [civId, civ] of Object.entries(newState.civilizations)) {
-      const overlordId = civ.diplomacy?.vassalage.overlord;
-      if (!overlordId) continue;
-      for (const embargo of newState.embargoes) {
-        if (embargo.participants.includes(overlordId) && !embargo.participants.includes(civId)) {
-          newState.embargoes = joinEmbargo(newState.embargoes, embargo.id, civId);
-        }
-      }
-    }
-  }
-
-  // --- S6a: terminate stale foreign routes (war / hostile relations) ---
-  if (newState.marketplace) {
-    newState = scrubStaleForeignRoutes(newState, bus);
-  }
-
-  // --- S6a: terminate routes to embargoed civs ---
-  if (newState.embargoes && newState.marketplace) {
-    newState = scrubEmbargoedRoutes(newState, bus);
-    newState = { ...newState, embargoes: cleanupEmbargoes(newState.embargoes) };
-  }
-
-  // --- S6b: advance caravan route-runners ---
-  if (newState.marketplace) {
-    newState = advanceRouteRunners(newState, bus);
-  }
+  newState = diplomacyTradePhase.run(newState, context);
 
   newState = piratesPhase.run(newState, context);
 
