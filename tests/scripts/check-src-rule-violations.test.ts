@@ -619,4 +619,56 @@ describe('check-src-rule-violations.sh', () => {
       expect(result.stderr).toBe('');
     });
   });
+
+  describe('#1199 controller publication rule', () => {
+    const run = (path: string, source: string) => {
+      const workspace = makeWorkspace();
+      writeWorkspaceFile(workspace, path, source);
+      return runScript(workspace, path);
+    };
+
+    it('blocks a controller that hands renderer/HUD a state push', () => {
+      const result = run('src/app/controllers/foo.ts', 'renderLoop.setGameState(x);\nhud.update();\n');
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain('Controller pushes renderer/HUD state by hand');
+    });
+
+    it('blocks a lone renderer push or a lone HUD push', () => {
+      expect(run('src/app/controllers/foo.ts', 'renderLoop.setGameState(x);\n').status).toBe(2);
+      expect(run('src/app/controllers/foo.ts', 'deps.updateHUD();\n').status).toBe(2);
+      expect(run('src/app/controllers/foo.ts', 'deps.hud.update();\n').status).toBe(2);
+    });
+
+    it('allows the pinned presentation-deferred pair in turn-flow-controller', () => {
+      const source = [
+        'renderLoop.setGameState(session.getState());',
+        'await replayAIMoves(soloMoves);',
+        'deps.updateHUD();',
+      ].join('\n');
+      expect(run('src/app/controllers/turn-flow-controller.ts', source).status).toBe(0);
+    });
+
+    it('blocks the pair in turn-flow-controller when the order is reversed', () => {
+      const source = [
+        'deps.updateHUD();',
+        'await replayAIMoves(soloMoves);',
+        'renderLoop.setGameState(session.getState());',
+      ].join('\n');
+      expect(run('src/app/controllers/turn-flow-controller.ts', source).status).toBe(2);
+    });
+
+    it('blocks a third push alongside the pinned pair', () => {
+      const source = [
+        'renderLoop.setGameState(session.getState());',
+        'await replayAIMoves(soloMoves);',
+        'deps.updateHUD();',
+        'renderLoop.setGameState(session.getState());',
+      ].join('\n');
+      expect(run('src/app/controllers/turn-flow-controller.ts', source).status).toBe(2);
+    });
+
+    it('does not flag the `updateHUD: () => deps.hud.update(),` dep wiring', () => {
+      expect(run('src/app/controllers/foo.ts', '      updateHUD: () => deps.hud.update(),\n').status).toBe(0);
+    });
+  });
 });

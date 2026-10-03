@@ -267,8 +267,10 @@ export function createGameSessionController(deps: GameSessionControllerDeps): Ga
     // Center camera on current player's starting position
     deps.turnFlow.centerOnCurrentPlayer();
 
-    deps.renderLoop.setGameState(deps.session.getState());
-    deps.hud.update();
+    // #1199: publish the brand-new/loaded state through the session, never a
+    // controller hand-push. bootstrap.ts subscribes the renderer (then the HUD)
+    // before startGame can run, so this is the same renderer-before-HUD refresh.
+    deps.session.commit(deps.session.getState());
     deps.turnFlow.maybeShowCouncilInterrupt();
     deps.maybeShowPendingHoardChoice();
     deps.maybeShowPendingGeneralChoice();
