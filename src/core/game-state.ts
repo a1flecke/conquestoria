@@ -1,3 +1,4 @@
+import { rolling31Signed } from '@/systems/deterministic-hash';
 import type { GameState, Civilization, Unit, HotSeatConfig, GameSettings, SoloSetupConfig, MapScript, GameMap, HexCoord, OpponentChallenge, StartPlacementMode } from './types';
 import { generateMap, findStartPositions, createRng, guaranteeStartResources } from '@/systems/map-generator';
 import { loadGeoMap } from '@/systems/geo-map-loader';
@@ -33,11 +34,7 @@ import { tagLandmassRegions } from '@/systems/landmass-tagger';
 import { CURRENT_SAVE_SCHEMA_VERSION } from '@/storage/save-schema-version';
 
 function hashSeed(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) {
-    h = Math.imul(31, h) + s.charCodeAt(i) | 0;
-  }
-  return Math.abs(h) || 1;
+  return Math.abs(rolling31Signed(s)) || 1;
 }
 
 export const MAP_DIMENSIONS = {

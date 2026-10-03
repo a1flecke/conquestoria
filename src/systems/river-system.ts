@@ -1,3 +1,4 @@
+import { rolling31Signed } from './deterministic-hash';
 import type { GameMap, HexCoord, ResourceYield } from '@/core/types';
 import { hexKey, hexNeighbors } from './hex-utils';
 
@@ -9,10 +10,7 @@ export function generateRivers(
   const riverTiles = new Set<string>();
 
   // Simple seeded RNG
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) {
-    hash = ((hash << 5) - hash + seed.charCodeAt(i)) | 0;
-  }
+  let hash = rolling31Signed(seed);
   const rng = (): number => {
     hash = (hash * 1664525 + 1013904223) | 0;
     return (hash >>> 0) / 4294967296;

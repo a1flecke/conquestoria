@@ -1,3 +1,4 @@
+import { rolling31UnsignedByCodePoint } from './deterministic-hash';
 import type {
   AIStrategicPlan,
   BarbarianCamp,
@@ -327,8 +328,7 @@ function chooseBarbarianSpawnType(
   const rangedCount = assignedUnits.filter(unit => roster.ranged.includes(unit.type)).length;
   const canAddRanged = (rangedCount + 1) * 3 <= assignedUnits.length + 1;
   const pool = canAddRanged ? [...roster.melee, ...roster.ranged] : roster.melee;
-  const seed = [...`${state.gameId ?? 'game'}:${state.turn}:${campId}`]
-    .reduce((value, character) => (value * 31 + character.charCodeAt(0)) >>> 0, 1);
+  const seed = rolling31UnsignedByCodePoint(`${state.gameId ?? 'game'}:${state.turn}:${campId}`);
   return pool[seed % pool.length]!;
 }
 
@@ -409,8 +409,7 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
           barbarianDistance(state, a, camp.position) - barbarianDistance(state, b, camp.position)
           || a.q - b.q
           || a.r - b.r)[0];
-      const seed = [...`${state.gameId ?? 'game'}:${state.turn}:${camp.id}`]
-        .reduce((value, character) => (value * 31 + character.charCodeAt(0)) >>> 0, 1);
+      const seed = rolling31UnsignedByCodePoint(`${state.gameId ?? 'game'}:${state.turn}:${camp.id}`);
       const unitType = selectBarbarianReinforcement({
         era: resolveNeutralPressureEra(state, camp.position) ?? 1,
         assignedUnitTypes: assigned.map(unit => unit.type),

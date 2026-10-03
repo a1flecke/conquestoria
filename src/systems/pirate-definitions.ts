@@ -1,3 +1,4 @@
+import { fnv1a32Raw } from './deterministic-hash';
 import type { UnitType } from '@/core/types';
 import type { PirateBehavior, PirateMaritimeStage } from '@/core/pirate-state';
 
@@ -204,10 +205,7 @@ export function getPirateBounty(behavior: PirateBehavior, stage: PirateMaritimeS
 }
 
 function createPirateRng(seed: string): () => number {
-  let state = 2166136261;
-  for (let index = 0; index < seed.length; index++) {
-    state = Math.imul(state ^ seed.charCodeAt(index), 16777619);
-  }
+  let state = fnv1a32Raw(seed);
   return () => {
     state += 0x6D2B79F5;
     let value = state;

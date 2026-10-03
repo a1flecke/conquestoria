@@ -1,3 +1,4 @@
+import { lehmerFoldByCodePoint } from '@/systems/deterministic-hash';
 import type { AdvisorType, GameState } from './types';
 import { EventBus } from './event-bus';
 import { finalizeDominationVictory, finalizeScienceVictory } from '@/systems/victory-system';
@@ -156,11 +157,7 @@ import { removeUnits } from '@/systems/unit-removal-system';
 // parity with `deterministicCombatSeed`'s own guard, not a real code path. The
 // `${gameId}:${civId}` separator prevents ("ab","c") aliasing to ("a","bc").
 export function deriveGeneralCandidateSeed(gameId: string | undefined, turn: number, civId: string): number {
-  let seed = Math.abs(turn * 7919);
-  for (const char of `${gameId ?? 'legacy'}:${civId}`) {
-    seed = (seed * 48271 + char.charCodeAt(0)) % 2147483647;
-  }
-  return seed;
+  return lehmerFoldByCodePoint(Math.abs(turn * 7919), `${gameId ?? 'legacy'}:${civId}`);
 }
 
 export function finalizeOpponentRoundState(state: GameState): GameState {

@@ -1,3 +1,4 @@
+import { rolling31Signed } from './deterministic-hash';
 import type { GameMap, HexTile, HexCoord, TerrainType, Elevation, MapScript, ResourceType, LegendaryWonderDefinition } from '@/core/types';
 import {
   hexKey,
@@ -17,10 +18,7 @@ import { NEW_WORLD_START_POSITIONS } from './new-world-map-data';
 
 // Simple seeded PRNG (mulberry32)
 export function createRng(seed: string): () => number {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) {
-    h = Math.imul(31, h) + seed.charCodeAt(i) | 0;
-  }
+  let h = rolling31Signed(seed);
   return () => {
     h |= 0; h = h + 0x6D2B79F5 | 0;
     let t = Math.imul(h ^ h >>> 15, 1 | h);

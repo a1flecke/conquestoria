@@ -83,6 +83,7 @@ describe('#1021 — RNG legacy baseline stays honest', () => {
       'src/systems/river-system.ts',
       'src/systems/seeded-lcg.ts',
       'src/systems/simulation-rng.ts',
+      'src/systems/deterministic-hash.ts', // #1234: the canonical string-hash leaf holds every historical variant
     ]);
     const baselineKeys = new Set(entries.map(entry => `${entry.path}:${entry.line}`));
 

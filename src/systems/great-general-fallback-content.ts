@@ -19,6 +19,7 @@
  *     `Math.random`/`Date.now`.
  *   - Portraits reuse existing emoji only (no new assets — #889's scope).
  */
+import { fnv1a32 } from './deterministic-hash';
 import { seededLcg } from '@/systems/seeded-lcg';
 import { STANDARD_GENERAL_COMMAND_PROFILE, type GeneratedGeneralIdentity } from '@/systems/great-general-definitions';
 
@@ -270,16 +271,9 @@ const FAMILY_PORTRAIT_ICON: Record<GeneralCultureFamily, string> = {
 /** Bounded per-slot draw budget before the deterministic cross-product walk. */
 export const MAX_FALLBACK_ATTEMPTS = 40;
 
-const HEX_FOLD_PRIME = 16777619;
-
-/** Deterministic 32-bit FNV-style fold of a string → non-negative int. Mirrors
- * the folds already scattered across this codebase's seed helpers. */
+/** Deterministic 32-bit FNV-1a fold of a string → non-negative int (the canonical `fnv1a32`, #1234). */
 function foldString(input: string): number {
-  let hash = 2166136261;
-  for (let i = 0; i < input.length; i++) {
-    hash = Math.imul(hash ^ input.charCodeAt(i), HEX_FOLD_PRIME);
-  }
-  return hash >>> 0;
+  return fnv1a32(input);
 }
 
 export function resolveCultureFamily(civType: string | undefined): GeneralCultureFamily {

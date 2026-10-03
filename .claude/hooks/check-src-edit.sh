@@ -21,7 +21,7 @@ esac
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 RNG_BASELINE_FILE="$REPO_ROOT/.claude/rng-legacy-baseline.txt"
-RNG_EXEMPT_FILES="src/systems/map-generator.ts src/systems/river-system.ts src/systems/seeded-lcg.ts src/systems/simulation-rng.ts"
+RNG_EXEMPT_FILES="src/systems/map-generator.ts src/systems/river-system.ts src/systems/seeded-lcg.ts src/systems/simulation-rng.ts src/systems/deterministic-hash.ts"
 
 is_rng_exempt_file() {
   local f="$1" exempt

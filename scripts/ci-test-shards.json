@@ -712,7 +712,8 @@
     "tests/audio/sfx-coverage.test.ts": 40.0,
     "tests/audio/sfx-unit-routing.test.ts": 60.0,
     "tests/systems/espionage-start-mission-contract.test.ts": 4.108154296875,
-    "tests/systems/air-mission-failure-contract.test.ts": 5.0
+    "tests/systems/air-mission-failure-contract.test.ts": 5.0,
+    "tests/systems/deterministic-hash.test.ts": 5.0
   },
   "shards": {
     "test-suite-shard-a": [
@@ -835,6 +836,7 @@
       "tests/systems/cyber-warfare-system.test.ts",
       "tests/systems/description-honesty.test.ts",
       "tests/systems/determinism.test.ts",
+      "tests/systems/deterministic-hash.test.ts",
       "tests/systems/diplomacy-betrayal.test.ts",
       "tests/systems/diplomacy-negative.test.ts",
       "tests/systems/discovery-system.test.ts",

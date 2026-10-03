@@ -12,11 +12,13 @@ RNG_BASELINE_FILE="$REPO_ROOT/.claude/rng-legacy-baseline.txt"
 # Files that never need to route through createSimulationRng: map generation
 # (seeded once from the campaign seed string, before gameId exists), the
 # canonical LCG primitive it and createSimulationRng both build on, and
-# createSimulationRng's own module (#1021). Everywhere else, a NEW
+# createSimulationRng's own module (#1021), and the canonical string-hash leaf
+# (deterministic-hash.ts, #1234) that every historical hash variant now lives
+# in. Everywhere else, a NEW
 # hand-rolled LCG constant or truncated-id charCodeAt is flagged unless it is
 # in RNG_BASELINE_FILE -- see that file's header for what baselining does and
 # does not mean.
-RNG_EXEMPT_FILES="src/systems/map-generator.ts src/systems/river-system.ts src/systems/seeded-lcg.ts src/systems/simulation-rng.ts"
+RNG_EXEMPT_FILES="src/systems/map-generator.ts src/systems/river-system.ts src/systems/seeded-lcg.ts src/systems/simulation-rng.ts src/systems/deterministic-hash.ts"
 
 is_rng_exempt_file() {
   local f="$1" exempt

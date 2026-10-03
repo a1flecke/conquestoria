@@ -1,3 +1,4 @@
+import { lehmerFoldByCodePoint } from './deterministic-hash';
 import type { EventBus } from '@/core/event-bus';
 import type { CombatResult, CombatRewardNotification, GameState, Unit, UnitType } from '@/core/types';
 import { emitEndedTradeRoutes, releaseCapturedUnitsFromRoutes, removeUnitsFromSlice, type EndedTradeRoute } from '@/systems/unit-removal-system';
@@ -145,10 +146,7 @@ function normalizedExperience(unit: Pick<Unit, 'experience'>): number {
 }
 
 function seededRoll(seed: number, victorId: string, defeatedId: string): number {
-  let state = Math.abs(seed);
-  for (const char of `${victorId}:${defeatedId}`) {
-    state = (state * 48271 + char.charCodeAt(0)) % 2147483647;
-  }
+  let state = lehmerFoldByCodePoint(Math.abs(seed), `${victorId}:${defeatedId}`);
   state = (state * 48271) % 2147483647;
   return state / 2147483647;
 }

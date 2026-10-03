@@ -1,3 +1,4 @@
+import { fnv1a32 } from './deterministic-hash';
 import type { GameState, OpponentChallenge, RogueElephantHostOutcome, RogueElephantHostState, RogueHostTarget, UnitType } from '@/core/types';
 import { CRISIS_FORCE_OWNER } from '@/core/owner-kind';
 import { registerCrisisForce } from '@/systems/crisis-force-system';
@@ -123,9 +124,7 @@ export function startRogueElephantHostWarning(
 }
 
 function deterministicPercent(seed: string): number {
-  let hash = 2166136261;
-  for (let index = 0; index < seed.length; index += 1) hash = Math.imul(hash ^ seed.charCodeAt(index), 16777619);
-  return (hash >>> 0) % 100;
+  return fnv1a32(seed) % 100;
 }
 
 /** Schedules a bounded once-per-target Host without competing with an active Stampede. */
