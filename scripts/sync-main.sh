@@ -49,4 +49,4 @@ CONFLICT
 fi
 
 echo "sync-main: $branch is now based on $(git rev-parse --short origin/main)."
-echo "If this branch was already pushed, publishing it needs a force-with-lease push, which asks for approval."
+echo "If this branch was already pushed, publish the rebased branch with ./scripts/push-branch.sh."
