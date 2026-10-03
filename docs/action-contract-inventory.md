@@ -41,7 +41,7 @@ Re-derive the executor lists with `git grep -n "<executor>(" -- src`; the table 
 | Journey / automation orders | `map-interaction-controller` | — | `turn-manager` | `findPath` + movement resolver | via movement | journey path preview | `executeUnitMove` per step | no | — | movement source rule | **canonical** |
 | Governance policy | `panel-actions-controller` | `basic-ai` | — | `canToggleGovernancePolicy` | yes | same | `setGovernancePolicy` (the only mutation path) | no | — | tests (#987) | **canonical** |
 | Governor assignment | `panel-actions-controller` | `basic-ai` | — | `canToggleGovernor` | yes (`GovernorAssignmentResult`) | same | `assignGovernor` / `removeGovernor` / `moveGovernor` | no | — | tests (#928) | **canonical** |
-| Espionage missions | `panel-actions-controller` | `basic-ai` | `processEspionageTurn` (#1201 owns consequences) | `startMission` (throws on an invalid state) | **no** — `throw new Error(...)` | panel mission list | `startMission` | no, but failure is an exception, not a result | — | #1201 | **partially-structural** → #1222 |
+| Espionage missions | `panel-actions-controller` | `basic-ai` | `processEspionageTurn` (#1201 owns consequences) | `getMissionStartDenial` (spy state + target; tech gating stays in `getAvailableMissions`) | yes — typed `StartMissionFailureReason` + `START_MISSION_FAILURE_MESSAGES` | panel offer list (`getMissionStartDenial` with `targetToBeChosen` for remote missions) | `startMission` (revalidates, returns `StartMissionResult`, never throws) | no | — | `architecture-boundaries.test.ts` "#1222" | **canonical** |
 
 ## What this changes, and what it does not
 
@@ -50,6 +50,6 @@ Re-derive the executor lists with `git grep -n "<executor>(" -- src`; the table 
   canonical row reaches the same guarantee with a repository-native shape: the executor re-runs the same `can*`
   / `evaluate*` function and returns a typed `ok:false` before writing. That is what the rule asks for; a generic
   command framework is a non-goal.
-- Follow-ups for each **partially-structural** row are tracked as focused issues (#1222 espionage `startMission`, #1223 air-mission reasons; #1219 attack legality, #1220 queue enqueue and #1221 diplomatic denial are done and their rows are **canonical**); the umbrella is closed
+- Follow-ups for each **partially-structural** row are tracked as focused issues (#1223 air-mission reasons; #1219 attack legality, #1220 queue enqueue, #1221 diplomatic denial and #1222 espionage `startMission` are done and their rows are **canonical**); the umbrella is closed
   because the inventory exists, the pattern is proven end to end on movement, the generalised rule is checked
   in, and every remaining gap has an owner.

@@ -3,13 +3,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { EventBus } from '@/core/event-bus';
 import {
   createEspionageCivState,
-  startMission,
   processEspionageTurn,
   initializeEspionage,
   turnCapturedSpy,
   verifyAgent,
   } from '@/systems/espionage-system';
 import type { GameState, EspionageState, Spy } from '@/core/types';
+import { startMissionState } from '../helpers/espionage-mission';
 
 // MR1: legacy fixture helper — spies are now created via city production, not recruitSpy
 function makeTestSpy(id: string, owner: string, overrides: Partial<Spy> = {}): Spy {
@@ -339,7 +339,7 @@ describe('M4a full integration', () => {
     let newState = processEspionageTurn(state, bus);
 
     // 4. Start mission
-    newState.espionage!['player'] = startMission(
+    newState.espionage!['player'] = startMissionState(
       newState.espionage!['player'], spy.id, 'scout_area',
     );
     expect(newState.espionage!['player'].spies[spy.id].status).toBe('on_mission');
@@ -366,7 +366,7 @@ describe('M4a full integration', () => {
     expect(s.espionage!['player'].spies[spy.id].status).toBe('stationed');
 
     // Start gather_intel (3 turns)
-    s.espionage!['player'] = startMission(s.espionage!['player'], spy.id, 'gather_intel');
+    s.espionage!['player'] = startMissionState(s.espionage!['player'], spy.id, 'gather_intel');
 
     // Turn 2: mission progress (2 remaining)
     s.turn = 11;

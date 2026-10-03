@@ -68,8 +68,18 @@ export {
 } from './espionage-counterintel';
 export type { TurnCapturedSpyCommand } from './espionage-counterintel';
 
-export { resolveMissionResult, startMission } from './espionage-missions';
-export type { MissionResult } from './espionage-missions';
+export {
+  getMissionStartDenial,
+  resolveMissionResult,
+  START_MISSION_FAILURE_MESSAGES,
+  startMission,
+} from './espionage-missions';
+export type {
+  MissionResult,
+  MissionStartOptions,
+  StartMissionFailureReason,
+  StartMissionResult,
+} from './espionage-missions';
 
 export { processInterrogation, startInterrogation } from './espionage-interrogation';
 

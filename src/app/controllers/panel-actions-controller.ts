@@ -116,8 +116,8 @@ import { evaluateUnitUpgrade } from '@/systems/unit-upgrade-system';
 import { hexKey, hexesInRange } from '@/systems/hex-utils';
 import { getCapitalCity, getCapitalCityId } from '@/systems/capital-system';
 import {
-  embedSpy, unembedSpy, attemptSweep, getAvailableMissions, missionRequiresPlacedSpy,
-  recallSpy, startMission, verifyAgent,
+  embedSpy, unembedSpy, attemptSweep, getAvailableMissions, getMissionStartDenial, missionRequiresPlacedSpy,
+  recallSpy, START_MISSION_FAILURE_MESSAGES, startMission, verifyAgent,
 } from '@/systems/espionage-system';
 import { SFX } from '@/audio/sfx';
 import { removeUnits } from '@/systems/unit-removal-system';
@@ -1119,11 +1119,19 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
         spy?.targetCivId && spy.targetCityId
           && getCapitalCityId(deps.session.getState(), spy.targetCivId) === spy.targetCityId,
       );
-      const missions = getAvailableMissions(completedTechs)
-        .filter(mission => !missionRequiresPlacedSpy(mission) || Boolean(spy?.targetCivId))
+      const candidates = getAvailableMissions(completedTechs)
         .filter(mission => mission !== 'flip_loyalty' || !spyTargetsCapital);
+      // The same eligibility source `startMission` revalidates with (#1222): what we offer is
+      // exactly what can start. A remote mission's target is chosen after the offer.
+      const esp = deps.session.getState().espionage?.[deps.session.getState().currentPlayer];
+      const denials = candidates.map(mission => esp
+        ? getMissionStartDenial(esp, spyId, mission, undefined, undefined, { targetToBeChosen: !missionRequiresPlacedSpy(mission) })
+        : 'spy-not-found' as const);
+      const missions = candidates.filter((_, index) => denials[index] === null);
       if (missions.length === 0) {
-        deps.showNotification('No missions available for this spy.', 'info');
+        const denial = denials.find(reason => reason !== null);
+        if (denial) deps.showNotification(START_MISSION_FAILURE_MESSAGES[denial], 'warning');
+        else deps.showNotification('No missions available for this spy.', 'info');
         return null;
       }
       // `window.prompt` always returns a plain string -- cast once here to the real
@@ -1151,7 +1159,10 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
       },
       onStartMission: (spyId) => {
         const spy = deps.session.getState().espionage?.[deps.session.getState().currentPlayer]?.spies[spyId];
-        if (!spy) return;
+        if (!spy) {
+          deps.showNotification(START_MISSION_FAILURE_MESSAGES['spy-not-found'], 'warning');
+          return;
+        }
         const mission = chooseMission(spyId);
         if (!mission) return;
         let targetCivId = spy.targetCivId ?? undefined;
@@ -1163,11 +1174,17 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
           targetCityId = target.cityId;
         }
         const currentPlayer = deps.session.getState().currentPlayer;
+        // Revalidate against the live state: the prompts above can outlive the spy's status (#1222).
+        const started = startMission(deps.session.getState().espionage![currentPlayer], spyId, mission, deps.currentCivDef()?.bonusEffect, targetCivId, targetCityId);
+        if (!started.ok) {
+          deps.showNotification(START_MISSION_FAILURE_MESSAGES[started.reason], 'warning');
+          return;
+        }
         deps.session.commit({
           ...deps.session.getState(),
           espionage: {
             ...deps.session.getState().espionage,
-            [currentPlayer]: startMission(deps.session.getState().espionage![currentPlayer], spyId, mission, deps.currentCivDef()?.bonusEffect, targetCivId, targetCityId),
+            [currentPlayer]: started.state,
           },
         });
         deps.router.open('espionage');
