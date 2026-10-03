@@ -1,0 +1,3629 @@
+{
+ "schema": 1,
+ "policy": "Every markdown file under docs/superpowers/{plans,specs} must be classified here. entries = files that earn a place in the active tree (active: owned by an open issue; durable-reference: cited by source, tests or rules for rationale not restated there). deleted = delivered-stale | superseded | abandoned files removed from the tree; git history is the archive, and the guard fails if one reappears. Run `node scripts/docs-lifecycle.mjs refresh` to update issue-state snapshots; `check` is offline.",
+ "entries": {
+  "docs/superpowers/plans/audio-remaining-work.md": {
+   "category": "active",
+   "reason": "Remaining audio work, tracked by open issues #425-#428 (deferred until audio can be reviewed).",
+   "issues": [
+    425,
+    426,
+    427,
+    428
+   ],
+   "issueStates": {
+    "425": "OPEN",
+    "426": "OPEN",
+    "427": "OPEN",
+    "428": "OPEN"
+   }
+  },
+  "docs/superpowers/specs/2026-07-07-hidden-city-state-economy-design.md": {
+   "category": "active",
+   "reason": "Foundation design cited by the open minor-civ graduation issue #497.",
+   "issues": [
+    497
+   ],
+   "issueStates": {
+    "497": "OPEN"
+   }
+  },
+  "docs/superpowers/specs/2026-07-19-issue-541-pillage-capture-prize-crews-design.md": {
+   "category": "active",
+   "reason": "Design behind the open pillage/capture/prize-crew SFX issue #657.",
+   "issues": [
+    657
+   ],
+   "issueStates": {
+    "657": "OPEN"
+   }
+  },
+  "docs/superpowers/specs/2026-07-28-unit-sprite-v2-live-fallback-design.md": {
+   "category": "active",
+   "reason": "Design for the open v2-native unit sprite migration #759.",
+   "issues": [
+    759
+   ],
+   "issueStates": {
+    "759": "OPEN"
+   }
+  },
+  "docs/superpowers/specs/2026-08-23-issue-544-final-design.md": {
+   "category": "active",
+   "reason": "Great General final design that the open presentation issue #889 builds on.",
+   "issues": [
+    889
+   ],
+   "issueStates": {
+    "889": "OPEN"
+   }
+  },
+  "docs/superpowers/specs/2026-04-08-m4e-the-council-design.md": {
+   "category": "durable-reference",
+   "reason": "Origin of the approved legendary-wonder roster that src/systems/approved-legendary-wonder-roster.ts mirrors (its Appendix A).",
+   "issueStates": {},
+   "liveReferences": [
+    "src/systems/approved-legendary-wonder-roster.ts"
+   ]
+  },
+  "docs/superpowers/specs/2026-07-11-world-pressure-symmetry-design.md": {
+   "category": "durable-reference",
+   "reason": "Rationale for symmetric AI/human world-pressure exposure; cited by opponent-challenge.ts and espionage-panel.ts.",
+   "issueStates": {},
+   "liveReferences": [
+    "src/core/opponent-challenge.ts",
+    "src/ui/espionage-panel.ts"
+   ]
+  },
+  "docs/superpowers/specs/2026-08-15-gamesession-state-mutation-audit-design.md": {
+   "category": "durable-reference",
+   "reason": "The GameSession publication audit that the check-src-edit hook message and architecture-boundaries test point agents to.",
+   "issueStates": {},
+   "liveReferences": [
+    ".claude/hooks/check-src-edit.sh",
+    "tests/app/architecture-boundaries.test.ts"
+   ]
+  },
+  "docs/superpowers/specs/2026-08-16-issue-846-scenario-infrastructure-design.md": {
+   "category": "durable-reference",
+   "reason": "Design of the scenario infrastructure documented in docs/scenario-infrastructure.md and cited by scenario-builder.ts.",
+   "issueStates": {},
+   "liveReferences": [
+    "docs/scenario-infrastructure.md",
+    "src/testing/scenario-builder.ts"
+   ]
+  },
+  "docs/superpowers/specs/2026-08-18-issue-542-submarine-stealth-asw-design.md": {
+   "category": "durable-reference",
+   "reason": "Submarine stealth / ASW detection design cited by src/systems/concealment.ts for its invariants.",
+   "issueStates": {},
+   "liveReferences": [
+    "src/systems/concealment.ts"
+   ]
+  },
+  "docs/superpowers/specs/2026-09-05-issue-927-federalism-design.md": {
+   "category": "durable-reference",
+   "reason": "Federal Autonomy design brief cited by hud-controller.ts (rung 6 of the unrest relief ladder).",
+   "issueStates": {},
+   "liveReferences": [
+    "src/app/controllers/hud-controller.ts"
+   ]
+  },
+  "docs/superpowers/specs/2026-09-13-issue-1066-amphibious-objective-routing-design.md": {
+   "category": "durable-reference",
+   "reason": "Design of the AI amphibious routing module (ai-amphibious-routing.ts, ai-prepared-turn.ts).",
+   "issueStates": {},
+   "liveReferences": [
+    "src/ai/ai-amphibious-routing.ts",
+    "src/ai/ai-prepared-turn.ts"
+   ]
+  },
+  "docs/superpowers/specs/2026-09-14-issue-1107-coastal-city-recovery-design.md": {
+   "category": "durable-reference",
+   "reason": "Root-cause analysis of the coastal-city recovery gap cited by the long-horizon known-gaps registry.",
+   "issueStates": {},
+   "liveReferences": [
+    "tests/simulation/long-horizon/campaign-report.ts",
+    "tests/simulation/long-horizon/known-campaign-gaps.ts"
+   ]
+  },
+  "docs/superpowers/specs/2026-09-15-issue-1069-ai-round-perf-design.md": {
+   "category": "durable-reference",
+   "reason": "Section-anchored cache-validity proofs (5, 5b, 3) cited by ai-production, ai-upgrades and research-output-system.",
+   "issueStates": {},
+   "liveReferences": [
+    "src/ai/ai-production.ts",
+    "src/ai/ai-upgrades.ts",
+    "src/systems/research-output-system.ts",
+    "tests/systems/research-output-system-baseline.test.ts"
+   ]
+  },
+  "docs/superpowers/specs/2026-09-17-issue-1066-auto-explore-recency-trap-design.md": {
+   "category": "durable-reference",
+   "reason": "Design of the auto-explore recency-trap fix, cited by auto-explore-system.ts and four tests.",
+   "issueStates": {},
+   "liveReferences": [
+    "src/systems/auto-explore-system.ts",
+    "tests/ai/basic-ai.test.ts",
+    "tests/core/turn-manager.test.ts",
+    "tests/systems/auto-explore-system.test.ts"
+   ]
+  },
+  "docs/superpowers/specs/2026-09-18-issue-1088-military-operations-competence-design.md": {
+   "category": "durable-reference",
+   "reason": "Design of the AI military-operations competence arc cited by ai-plan-portfolio.ts.",
+   "issueStates": {},
+   "liveReferences": [
+    "src/ai/ai-plan-portfolio.ts"
+   ]
+  },
+  "docs/superpowers/specs/2026-09-20-issue-1126-remeasure-design.md": {
+   "category": "durable-reference",
+   "reason": "Measured super-linear-cost tables cited by the long-horizon scenario header and by open issue #1125.",
+   "issueStates": {},
+   "liveReferences": [
+    "tests/simulation/long-horizon/campaign-scenarios.ts"
+   ]
+  },
+  "docs/superpowers/specs/2026-09-22-issue-1089-nonmajor-archetypes-design.md": {
+   "category": "durable-reference",
+   "reason": "Non-major archetype design (barbarian-archetype.ts, faction-system.ts section 6).",
+   "issueStates": {},
+   "liveReferences": [
+    "src/systems/barbarian-archetype.ts",
+    "src/systems/faction-system.ts"
+   ]
+  },
+  "docs/superpowers/specs/2026-09-27-issue-1166-verification-scheduler-design.md": {
+   "category": "durable-reference",
+   "reason": "Scheduler design decisions (shell vs Node, lanes, proof reuse) cited by hooks-and-tooling.md.",
+   "issueStates": {},
+   "liveReferences": [
+    ".claude/rules/hooks-and-tooling.md"
+   ]
+  }
+ },
+ "deleted": {
+  "docs/superpowers/plans/2026-03-22-milestone1-the-first-evening.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-03-22-milestone2a-deeper-world.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-03-22-milestone2b-real-rivals.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-03-22-milestone2c-living-economy.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-03-23-milestone3a-hot-seat.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-03-24-milestone3b-exploration-rewards.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-03-27-hotfix-critical-bugs.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-03-27-milestone3c-tech-tree-minor-civs.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-03-29-m3-bugfix-code-review.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-03-29-m4a-eyes-and-ears.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-04-03-m4b1-diplomacy-and-civs.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-04-05-m4-playtest-fixes.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #14, #15, #20, #25, #26, #31 are closed. Git history is the record.",
+   "issues": [
+    38,
+    15,
+    25,
+    20,
+    26,
+    37,
+    14,
+    31
+   ]
+  },
+  "docs/superpowers/plans/2026-04-05-m5-fix-it-milestone.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-04-06-m4c-shadow-wars.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-04-07-m4d-grand-ambitions.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-04-08-fix-now-april-8th.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #47, #49, #50, #55, #57, #58 are closed. Git history is the record.",
+   "issues": [
+    67,
+    47,
+    49,
+    50,
+    55,
+    57,
+    58,
+    63,
+    66
+   ]
+  },
+  "docs/superpowers/plans/2026-04-08-m4e-the-council.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-04-11-m4e-slice5-review-followup.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-04-12-agents-md-codex-alignment.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-04-12-bug-sweep-issues-83-84-85-87.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #80, #83, #84, #85, #87 are closed. Git history is the record.",
+   "issues": [
+    83,
+    84,
+    85,
+    87,
+    80
+   ]
+  },
+  "docs/superpowers/plans/2026-04-12-code-review-milestone.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-04-12-cr-bundle0-backtest.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-04-12-cr-bundle0-prevention.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-04-12-cr-bundle1-correctness.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-04-12-cr-bundle2-rule-compliance.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-04-12-cr-bundle3-hardening.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-04-13-bug-fix-april-13-milestone/01-issue-78-bronze-working.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #78 are closed. Git history is the record.",
+   "issues": [
+    78
+   ]
+  },
+  "docs/superpowers/plans/2026-04-13-bug-fix-april-13-milestone/02-issue-80-notification-log.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #80 are closed. Git history is the record.",
+   "issues": [
+    80
+   ]
+  },
+  "docs/superpowers/plans/2026-04-13-bug-fix-april-13-milestone/03-issue-81-zoom-clamp.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #81 are closed. Git history is the record.",
+   "issues": [
+    81
+   ]
+  },
+  "docs/superpowers/plans/2026-04-13-bug-fix-april-13-milestone/04-issue-82-city-ui.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #82 are closed. Git history is the record.",
+   "issues": [
+    82
+   ]
+  },
+  "docs/superpowers/plans/2026-04-13-bug-fix-april-13-milestone/05-issue-79-council-ui.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #79 are closed. Git history is the record.",
+   "issues": [
+    79
+   ]
+  },
+  "docs/superpowers/plans/2026-04-13-bug-fix-april-13-milestone/README.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #78, #79, #80, #81, #82 are closed. Git history is the record.",
+   "issues": [
+    78,
+    79,
+    80,
+    81,
+    82
+   ]
+  },
+  "docs/superpowers/plans/2026-04-13-city-ui-improvements.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-04-16-game-pacing-overhaul.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-04-19-issue-118-city-capture-and-war-state.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #118 are closed. Git history is the record.",
+   "issues": [
+    118
+   ]
+  },
+  "docs/superpowers/plans/2026-04-19-issue-60-visibility-render-leak.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #60 are closed. Git history is the record.",
+   "issues": [
+    60
+   ]
+  },
+  "docs/superpowers/plans/2026-04-27-idle-production.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-05-03-idle-production-and-build-badges-plan.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #159 are closed. Git history is the record.",
+   "issues": [
+    159
+   ]
+  },
+  "docs/superpowers/plans/2026-05-03-issue-154-basic-ui-mechanics.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #154 are closed. Git history is the record.",
+   "issues": [
+    154
+   ]
+  },
+  "docs/superpowers/plans/2026-05-03-issue-173-stacked-combat-targeting.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #173 are closed. Git history is the record.",
+   "issues": [
+    173
+   ]
+  },
+  "docs/superpowers/plans/2026-05-13-map-scripts.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-05-14-tech-research-pacing.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #133 are closed. Git history is the record.",
+   "issues": [
+    133
+   ]
+  },
+  "docs/superpowers/plans/2026-05-14-visibility-movement-notification-fixes.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #134, #135, #136, #137 are closed. Git history is the record.",
+   "issues": [
+    134,
+    135,
+    136,
+    137
+   ]
+  },
+  "docs/superpowers/plans/2026-05-15-combat-visibility-unit-motion-bug-bundle.md": {
+   "category": "superseded",
+   "reason": "Marked superseded; the current implementation and rules replace it.",
+   "issues": [
+    974,
+    198,
+    201,
+    199,
+    200
+   ]
+  },
+  "docs/superpowers/plans/2026-05-15-cultural-territory-worker-improvements.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-05-16-cost-dynamics-implementation.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-05-16-cultural-territory-polish-and-qa.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #157 are closed. Git history is the record.",
+   "issues": [
+    157
+   ]
+  },
+  "docs/superpowers/plans/2026-05-16-id-counters-in-game-state.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-05-17-hotfix-bundle-138-210-211.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #138, #210, #211 are closed. Git history is the record.",
+   "issues": [
+    138,
+    211,
+    210
+   ]
+  },
+  "docs/superpowers/plans/2026-05-17-hotseat-map-type.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-05-17-v2-sprite-rollout/plan.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-05-18-fix-214-conquered-city-workers.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #214 are closed. Git history is the record.",
+   "issues": [
+    214
+   ]
+  },
+  "docs/superpowers/plans/2026-05-18-fix-215-encounter-fog.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #215 are closed. Git history is the record.",
+   "issues": [
+    215
+   ]
+  },
+  "docs/superpowers/plans/2026-05-18-fix-218-dock-building.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #218 are closed. Git history is the record.",
+   "issues": [
+    218
+   ]
+  },
+  "docs/superpowers/plans/2026-05-18-fix-219-building-placement-ux.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #219 are closed. Git history is the record.",
+   "issues": [
+    219
+   ]
+  },
+  "docs/superpowers/plans/2026-05-18-fix-220-worker-turns-remaining.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #220 are closed. Git history is the record.",
+   "issues": [
+    220
+   ]
+  },
+  "docs/superpowers/plans/2026-05-19-pike-thrust-and-quadruped-gait.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-05-20-cost-dynamics-drift-reconciliation.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-05-20-legendary-wonder-ui.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #217 are closed. Git history is the record.",
+   "issues": [
+    217
+   ]
+  },
+  "docs/superpowers/plans/2026-05-21-wonder-discovery-reveal.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-05-22-legendary-wonder-city-presence.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-05-22-marketplace-s1-plan-1-data.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-05-22-marketplace-s1-plan-2-renderer.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-05-22-marketplace-s1-plan-3-panels.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-05-22-marketplace-s1-resources-on-map.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-05-22-marketplace-s2ab-improvements-and-acquisition.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-05-23-marketplace-s3-tech-filter.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-05-23-marketplace-s4a-resource-effects.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #17, #21, #26, #28, #30, #31 are closed. Git history is the record.",
+   "issues": [
+    30,
+    17,
+    21,
+    26,
+    28,
+    31
+   ]
+  },
+  "docs/superpowers/plans/2026-05-25-s5-trade-unit.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record.",
+   "issues": [
+    256
+   ]
+  },
+  "docs/superpowers/plans/2026-05-26-natural-wonder-spectacle-expansion.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-05-26-s6b-caravan-route-running.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-05-26-stage-2f-atlas-intel-records.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-05-26-stage-2g-legendary-city-landmarks.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-05-27-resource-accessibility-mr1-map-gen-settler.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-06-01-issues-284-308-trust-and-transport-implementation.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #284, #297, #298, #299, #300, #301 are closed. Git history is the record.",
+   "issues": [
+    284,
+    297,
+    306,
+    308,
+    298,
+    299,
+    300,
+    301,
+    302,
+    303,
+    304,
+    305
+   ]
+  },
+  "docs/superpowers/plans/2026-06-01-resource-accessibility-mr5-diplomatic-marketplace.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-06-02-stage-2i-bespoke-legendary-landmark-art.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-06-04-stage-2i-mr2-knowledge-signal-bespoke-landmarks.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-06-04-stage-2j-legendary-landmark-intel-visibility.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-06-04-stage-2k-city-renderer-layer-architecture.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-06-05-stage-2i-mr3-material-maritime-bespoke-landmarks.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-06-06-sprite-overlay-renderer.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-06-06-stage-2i-mr4-civic-endgame-bespoke-landmarks.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-06-06-stage-3-real-video-spike.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-06-07-sprite-rendering-fixes.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #338, #339, #340, #341 are closed. Git history is the record.",
+   "issues": [
+    338,
+    339,
+    340,
+    341
+   ]
+  },
+  "docs/superpowers/plans/2026-06-07-stage-3b-wonder-video-batch-2.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-06-07-structured-tech-unlocks.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-06-08-river-mechanics.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-06-09-stage-3c-wonder-video-batch-3.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-06-11-legendary-beasts-index.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record.",
+   "issues": [
+    366,
+    367,
+    369,
+    371,
+    372
+   ]
+  },
+  "docs/superpowers/plans/2026-06-11-legendary-beasts-mr1-core-boar.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-06-11-legendary-beasts-mr2-bestiary.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-06-11-legendary-beasts-mr3-wolves-basilisk.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-06-11-legendary-beasts-mr4-hoard-trophies.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-06-11-legendary-beasts-mr5-serpent-wurm.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-06-11-legendary-beasts-mr6-roc-hydra.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-06-11-legendary-beasts-mr7-ancient-dragon.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-06-11-river-mechanics-completion.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-06-12-issue-365-strategic-map-presentation.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #365 are closed. Git history is the record.",
+   "issues": [
+    365
+   ]
+  },
+  "docs/superpowers/plans/2026-06-12-minor-civ-quest-chains.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-06-13-pirate-factions.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #353 are closed. Git history is the record.",
+   "issues": [
+    353
+   ]
+  },
+  "docs/superpowers/plans/2026-06-15-badge-clarity.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-06-15-bug-fixes.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #374, #385, #386, #387 are closed. Git history is the record.",
+   "issues": [
+    387,
+    385,
+    386,
+    374
+   ]
+  },
+  "docs/superpowers/plans/2026-06-15-threat-pressure-system.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-06-17-city-view-districts.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-06-20-tech-era-expansion-pr1.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-06-20-tech-era-expansion-pr2.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-06-20-tech-era-expansion-pr3.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-06-22-tech-era-expansion-pr4.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-06-23-tech-era-expansion-pr6.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-06-26-issue-396-wonder-ambitions-ui.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #396 are closed. Git history is the record.",
+   "issues": [
+    396
+   ]
+  },
+  "docs/superpowers/plans/2026-06-27-worktree-safe-verification.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-06-28-era12-information-age.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-07-03-appease-faction-ui.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #436 are closed. Git history is the record.",
+   "issues": [
+    436
+   ]
+  },
+  "docs/superpowers/plans/2026-07-03-cyber-warfare-stub-retirement.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-07-03-hud-alignment-service-worker-cache.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #437 are closed. Git history is the record.",
+   "issues": [
+    437
+   ]
+  },
+  "docs/superpowers/plans/2026-07-03-unit-obsolescence-coverage.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #429 are closed. Git history is the record.",
+   "issues": [
+    429
+   ]
+  },
+  "docs/superpowers/plans/2026-07-03-wonder-quest-text-resource-reachability.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #432 are closed. Git history is the record.",
+   "issues": [
+    432
+   ]
+  },
+  "docs/superpowers/plans/2026-07-04-building-obsolescence-implementation.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #429, #443 are closed. Git history is the record.",
+   "issues": [
+    443,
+    429
+   ]
+  },
+  "docs/superpowers/plans/2026-07-05-issue-437-hud-tauri-distribution.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #437 are closed. Git history is the record.",
+   "issues": [
+    437
+   ]
+  },
+  "docs/superpowers/plans/2026-07-05-issue-439-start-placement-elimination.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #439 are closed. Git history is the record.",
+   "issues": [
+    439
+   ]
+  },
+  "docs/superpowers/plans/2026-07-05-issue-447-water-recovery-ux.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #447 are closed. Git history is the record.",
+   "issues": [
+    447
+   ]
+  },
+  "docs/superpowers/plans/2026-07-06-mr13-pacing-recalibration.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #481 are closed. Git history is the record.",
+   "issues": [
+    481
+   ]
+  },
+  "docs/superpowers/plans/2026-07-07-issue-457-dropped-production-feedback.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #457 are closed. Git history is the record.",
+   "issues": [
+    457
+   ]
+  },
+  "docs/superpowers/plans/2026-07-07-minor-civ-regional-grievance-mobilization.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-07-08-hidden-city-state-economy.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #490 are closed. Git history is the record.",
+   "issues": [
+    490
+   ]
+  },
+  "docs/superpowers/plans/2026-07-09-crisis-events-and-revolutions.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #354, #381 are closed. Git history is the record.",
+   "issues": [
+    381,
+    354
+   ]
+  },
+  "docs/superpowers/plans/2026-07-11-bug-arc-mr2-notification-delivery-contract.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #551 are closed. Git history is the record.",
+   "issues": [
+    551
+   ]
+  },
+  "docs/superpowers/plans/2026-07-11-bug-arc-mr3-diplomacy-consent-war-visibility.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #554 are closed. Git history is the record.",
+   "issues": [
+    554
+   ]
+  },
+  "docs/superpowers/plans/2026-07-11-era13-mr3-cyber-intents.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-07-11-pirate-naval-siege.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record.",
+   "issues": [
+    549
+   ]
+  },
+  "docs/superpowers/plans/2026-07-11-world-pressure-symmetry.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #526 are closed. Git history is the record.",
+   "issues": [
+    526
+   ]
+  },
+  "docs/superpowers/plans/2026-07-12-city-combat-entity.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-07-12-unrest-happiness-empire-overview.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #552 are closed. Git history is the record.",
+   "issues": [
+    552
+   ]
+  },
+  "docs/superpowers/plans/2026-07-13-combat-rng-seeds.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-07-14-issue-537-air-interception-defense.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #537 are closed. Git history is the record.",
+   "issues": [
+    537
+   ]
+  },
+  "docs/superpowers/plans/2026-07-14-zone-of-control-flanking-support.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-07-16-air-power-rework.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #537 are closed. Git history is the record.",
+   "issues": [
+    537
+   ]
+  },
+  "docs/superpowers/plans/2026-07-17-amphibious-warfare.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #540 are closed. Git history is the record.",
+   "issues": [
+    540
+   ]
+  },
+  "docs/superpowers/plans/2026-07-17-issue-590-famine-crisis.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #590 are closed. Git history is the record.",
+   "issues": [
+    590
+   ]
+  },
+  "docs/superpowers/plans/2026-07-18-issue-493-production-budgeted-reference-economy.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #493 are closed. Git history is the record.",
+   "issues": [
+    493
+   ]
+  },
+  "docs/superpowers/plans/2026-07-18-issue-523-dual-era-pacing.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #523 are closed. Git history is the record.",
+   "issues": [
+    523
+   ]
+  },
+  "docs/superpowers/plans/2026-07-18-issue-591-religion-core.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #524, #591 are closed. Git history is the record.",
+   "issues": [
+    591,
+    524,
+    595,
+    600
+   ]
+  },
+  "docs/superpowers/plans/2026-07-18-issue-593-religious-loyalty.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #593 are closed. Git history is the record.",
+   "issues": [
+    593
+   ]
+  },
+  "docs/superpowers/plans/2026-07-18-issue-604-mr2a-flip-loyalty.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #587, #589, #604 are closed. Git history is the record.",
+   "issues": [
+    604,
+    587,
+    589
+   ]
+  },
+  "docs/superpowers/plans/2026-07-18-missionary-preach.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #524, #587, #592 are closed. Git history is the record.",
+   "issues": [
+    592,
+    587,
+    524
+   ]
+  },
+  "docs/superpowers/plans/2026-07-19-era13-mr4-autonomy-network.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #513 are closed. Git history is the record.",
+   "issues": [
+    513
+   ]
+  },
+  "docs/superpowers/plans/2026-07-19-era13-mr5-content-launch.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #512, #514, #515, #652 are closed. Git history is the record.",
+   "issues": [
+    652,
+    515,
+    512,
+    514
+   ]
+  },
+  "docs/superpowers/plans/2026-07-19-era13-mr6-wonders-audio-launch-hardening.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #418, #511, #515, #516, #517, #652 are closed. Git history is the record.",
+   "issues": [
+    656,
+    511,
+    515,
+    655,
+    516,
+    517,
+    418,
+    652
+   ]
+  },
+  "docs/superpowers/plans/2026-07-19-issue-441-espionage-building-era-rebalance.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #441 are closed. Git history is the record.",
+   "issues": [
+    441
+   ]
+  },
+  "docs/superpowers/plans/2026-07-19-issue-541-pillage-capture-prize-crews-plan.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #541 are closed. Git history is the record.",
+   "issues": [
+    541
+   ]
+  },
+  "docs/superpowers/plans/2026-07-19-issue-594-mr7-religion-audio-polish.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #524, #587, #594 are closed. Git history is the record.",
+   "issues": [
+    594,
+    524,
+    587
+   ]
+  },
+  "docs/superpowers/plans/2026-07-20-ci-action-pin-maintenance.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-07-21-network-plan-resolution-history.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-07-23-city-panel-building-animation.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record.",
+   "issues": [
+    659
+   ]
+  },
+  "docs/superpowers/plans/2026-07-23-issue-660-canvas-verification.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #660 are closed. Git history is the record.",
+   "issues": [
+    660
+   ]
+  },
+  "docs/superpowers/plans/2026-07-25-issue-665-upgrade-integrity.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #665 are closed. Git history is the record.",
+   "issues": [
+    665
+   ]
+  },
+  "docs/superpowers/plans/2026-07-25-issue-666-conjunctive-prerequisites.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #666 are closed. Git history is the record.",
+   "issues": [
+    666
+   ]
+  },
+  "docs/superpowers/plans/2026-07-25-issue-730-734-fixes.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #730 are closed. Git history is the record.",
+   "issues": [
+    730
+   ]
+  },
+  "docs/superpowers/plans/2026-07-25-issue-735-736-738-fixes.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #735, #736, #738 are closed. Git history is the record.",
+   "issues": [
+    735,
+    738,
+    736
+   ]
+  },
+  "docs/superpowers/plans/2026-07-25-remove-civ-voice-packs.md": {
+   "category": "delivered-stale",
+   "reason": "Its own work shipped; open #616 is a separate follow-up that does not need this document.",
+   "issues": [
+    616
+   ]
+  },
+  "docs/superpowers/plans/2026-07-25-vitest-worktree-concurrency.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-07-26-issue-668-unit-role-legibility.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #668 are closed. Git history is the record.",
+   "issues": [
+    668
+   ]
+  },
+  "docs/superpowers/plans/2026-07-26-issue-669-combat-modifier-facts.md": {
+   "category": "superseded",
+   "reason": "Marked superseded; the current implementation and rules replace it.",
+   "issues": [
+    669
+   ]
+  },
+  "docs/superpowers/plans/2026-07-26-issue-670-aa-coverage.md": {
+   "category": "superseded",
+   "reason": "Marked superseded; the current implementation and rules replace it.",
+   "issues": [
+    670
+   ]
+  },
+  "docs/superpowers/plans/2026-07-26-naval-water-class-plan.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #751 are closed. Git history is the record.",
+   "issues": [
+    751
+   ]
+  },
+  "docs/superpowers/plans/2026-07-29-rifleman-v2-native-sprite-migration.md": {
+   "category": "delivered-stale",
+   "reason": "Its own work shipped; open #759 is a separate follow-up that does not need this document.",
+   "issues": [
+    759
+   ]
+  },
+  "docs/superpowers/plans/2026-07-29-unit-sprite-v2-live-fallback.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #755 are closed. Git history is the record.",
+   "issues": [
+    755
+   ]
+  },
+  "docs/superpowers/plans/2026-07-30-combat-attack-hurt-sprite-state-wiring.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #546, #611, #755, #760 are closed. Git history is the record.",
+   "issues": [
+    760,
+    364,
+    622,
+    611,
+    755,
+    546
+   ]
+  },
+  "docs/superpowers/plans/2026-07-30-unify-build-unit-entities.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #755, #760 are closed. Git history is the record.",
+   "issues": [
+    760,
+    755
+   ]
+  },
+  "docs/superpowers/plans/2026-07-31-issue-673-beast-handler.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #673, #674, #677, #708 are closed. Git history is the record.",
+   "issues": [
+    673,
+    708,
+    714,
+    674,
+    677
+   ]
+  },
+  "docs/superpowers/plans/2026-08-01-issue-674-war-elephant.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #674, #708 are closed. Git history is the record.",
+   "issues": [
+    674,
+    708,
+    714
+   ]
+  },
+  "docs/superpowers/plans/2026-08-01-issue-675-cuirassier.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #675, #708 are closed. Git history is the record.",
+   "issues": [
+    675,
+    708,
+    714
+   ]
+  },
+  "docs/superpowers/plans/2026-08-01-issue-676-armored-car.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #676 are closed. Git history is the record.",
+   "issues": [
+    676
+   ]
+  },
+  "docs/superpowers/plans/2026-08-01-issue-678-air-eras.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #678 are closed. Git history is the record.",
+   "issues": [
+    678
+   ]
+  },
+  "docs/superpowers/plans/2026-08-01-issue-679-anti-tank-gun.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #679 are closed. Git history is the record.",
+   "issues": [
+    679
+   ]
+  },
+  "docs/superpowers/plans/2026-08-01-issue-680-mobile-aa.md": {
+   "category": "superseded",
+   "reason": "Marked superseded; the current implementation and rules replace it.",
+   "issues": [
+    680
+   ]
+  },
+  "docs/superpowers/plans/2026-08-02-issue-684-trebuchet.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #684, #690, #691 are closed. Git history is the record.",
+   "issues": [
+    684,
+    690,
+    691
+   ]
+  },
+  "docs/superpowers/plans/2026-08-04-composition-root-decomposition.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-08-08-issue-685-siege-workshop.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #685 are closed. Git history is the record.",
+   "issues": [
+    685
+   ]
+  },
+  "docs/superpowers/plans/2026-08-08-issue-686-rocket-artillery.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #686 are closed. Git history is the record.",
+   "issues": [
+    686
+   ]
+  },
+  "docs/superpowers/plans/2026-08-08-issue-687-main-battle-tank.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #687 are closed. Git history is the record.",
+   "issues": [
+    687
+   ]
+  },
+  "docs/superpowers/plans/2026-08-08-issue-688-tank-depot-armored-family.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #688 are closed. Git history is the record.",
+   "issues": [
+    688
+   ]
+  },
+  "docs/superpowers/plans/2026-08-08-issue-689-missile-cruiser.md": {
+   "category": "superseded",
+   "reason": "Marked superseded; the current implementation and rules replace it.",
+   "issues": [
+    689
+   ]
+  },
+  "docs/superpowers/plans/2026-08-08-issue-690-fort-citadel.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #667, #669, #684, #686, #690 are closed. Git history is the record.",
+   "issues": [
+    690,
+    667,
+    669,
+    684,
+    686
+   ]
+  },
+  "docs/superpowers/plans/2026-08-14-issue-692-coastal-battery.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #692 are closed. Git history is the record.",
+   "issues": [
+    692
+   ]
+  },
+  "docs/superpowers/plans/2026-08-14-issue-693-bunker.md": {
+   "category": "superseded",
+   "reason": "Marked superseded; the current implementation and rules replace it.",
+   "issues": [
+    693
+   ]
+  },
+  "docs/superpowers/plans/2026-08-14-issue-694-sam-site.md": {
+   "category": "superseded",
+   "reason": "Marked superseded; the current implementation and rules replace it.",
+   "issues": [
+    694,
+    695
+   ]
+  },
+  "docs/superpowers/plans/2026-08-14-issues-823-827-bug-squash.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #823, #826, #827 are closed. Git history is the record.",
+   "issues": [
+    823,
+    826,
+    827
+   ]
+  },
+  "docs/superpowers/plans/2026-08-15-gamesession-state-mutation-audit.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #787 are closed. Git history is the record.",
+   "issues": [
+    787
+   ]
+  },
+  "docs/superpowers/plans/2026-08-15-issue-698-camp-pressure.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #698, #699 are closed. Git history is the record.",
+   "issues": [
+    698,
+    699
+   ]
+  },
+  "docs/superpowers/plans/2026-08-16-issue-699-catalog-driven-barbarian-reinforcements.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #696, #697, #698, #699, #700 are closed. Git history is the record.",
+   "issues": [
+    699,
+    696,
+    697,
+    698,
+    700
+   ]
+  },
+  "docs/superpowers/plans/2026-08-16-issue-843-undefended-city-movement.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #843 are closed. Git history is the record.",
+   "issues": [
+    843
+   ]
+  },
+  "docs/superpowers/plans/2026-08-16-issue-845-camp-entry-and-naval-domain.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #843, #845 are closed. Git history is the record.",
+   "issues": [
+    845,
+    843
+   ]
+  },
+  "docs/superpowers/plans/2026-08-16-issue-846-scenario-infrastructure.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #547, #846 are closed. Git history is the record.",
+   "issues": [
+    846,
+    547
+   ]
+  },
+  "docs/superpowers/plans/2026-08-17-issue-855-espionage-unit-plateau.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #855 are closed. Git history is the record.",
+   "issues": [
+    855
+   ]
+  },
+  "docs/superpowers/plans/2026-08-18-submarine-stealth-asw.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-08-20-issue-700-barbarian-modernization-audit.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #700 are closed. Git history is the record.",
+   "issues": [
+    700
+   ]
+  },
+  "docs/superpowers/plans/2026-08-21-airborne-paratroopers.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-08-21-helicopter-air-assault.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-08-21-issue-701-crisis-force-ownership.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #701 are closed. Git history is the record.",
+   "issues": [
+    701
+   ]
+  },
+  "docs/superpowers/plans/2026-08-22-carrier-air-wing.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #539, #542 are closed. Git history is the record.",
+   "issues": [
+    542,
+    539
+   ]
+  },
+  "docs/superpowers/plans/2026-08-22-issue-702-roaming-herds.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #702 are closed. Git history is the record.",
+   "issues": [
+    702
+   ]
+  },
+  "docs/superpowers/plans/2026-08-22-issue-703-beast-stampede.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #702, #703 are closed. Git history is the record.",
+   "issues": [
+    703,
+    702
+   ]
+  },
+  "docs/superpowers/plans/2026-08-22-issue-704-stampede-response-status.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #547, #704 are closed. Git history is the record.",
+   "issues": [
+    704,
+    547,
+    719
+   ]
+  },
+  "docs/superpowers/plans/2026-08-23-issue-544-mr1-core-supply.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #544 are closed. Git history is the record.",
+   "issues": [
+    544
+   ]
+  },
+  "docs/superpowers/plans/2026-08-23-issue-544-mr2-supply-ui.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #544 are closed. Git history is the record.",
+   "issues": [
+    544,
+    872
+   ]
+  },
+  "docs/superpowers/plans/2026-08-23-issue-544-mr3-great-generals.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #544 are closed. Git history is the record.",
+   "issues": [
+    544
+   ]
+  },
+  "docs/superpowers/plans/2026-08-23-issue-705-rogue-elephant-host.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #705, #706 are closed. Git history is the record.",
+   "issues": [
+    705,
+    706
+   ]
+  },
+  "docs/superpowers/plans/2026-08-23-issue-707-elephant-crisis-audit.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #703, #704, #705, #706, #707 are closed. Git history is the record.",
+   "issues": [
+    707,
+    703,
+    704,
+    706,
+    705
+   ]
+  },
+  "docs/superpowers/plans/2026-08-24-issue-544-mr4-passive-command-heroic-abilities.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #544 are closed. Git history is the record.",
+   "issues": [
+    544
+   ]
+  },
+  "docs/superpowers/plans/2026-08-24-issue-544-mr5-ai.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #544 are closed. Git history is the record.",
+   "issues": [
+    544
+   ]
+  },
+  "docs/superpowers/plans/2026-08-24-issue-544-mr6-hot-seat-saves.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #544 are closed. Git history is the record.",
+   "issues": [
+    544
+   ]
+  },
+  "docs/superpowers/plans/2026-08-24-issue-708-visual-batch.md": {
+   "category": "superseded",
+   "reason": "Marked superseded; the current implementation and rules replace it.",
+   "issues": [
+    708
+   ]
+  },
+  "docs/superpowers/plans/2026-08-25-issue-544-mr1.1-road-rail-supply.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #544 are closed. Git history is the record.",
+   "issues": [
+    544
+   ]
+  },
+  "docs/superpowers/plans/2026-08-25-issue-544-mr7-balance-scenarios.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #544 are closed. Git history is the record.",
+   "issues": [
+    544
+   ]
+  },
+  "docs/superpowers/plans/2026-08-25-issue-545-mr1-arsenal-data-model.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #544, #545 are closed. Git history is the record.",
+   "issues": [
+    545,
+    895,
+    544
+   ]
+  },
+  "docs/superpowers/plans/2026-08-25-issue-545-mr2-launch-platforms-legality.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #545 are closed. Git history is the record.",
+   "issues": [
+    545,
+    897,
+    895
+   ]
+  },
+  "docs/superpowers/plans/2026-08-25-issue-545-mr3-strike-resolution-fallout.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #545 are closed. Git history is the record.",
+   "issues": [
+    545,
+    898,
+    897
+   ]
+  },
+  "docs/superpowers/plans/2026-08-25-issue-545-mr4-reputation-launch-ux.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #545 are closed. Git history is the record.",
+   "issues": [
+    545
+   ]
+  },
+  "docs/superpowers/plans/2026-08-25-issue-708-readable-mounted-sprites.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #708 are closed. Git history is the record.",
+   "issues": [
+    708
+   ]
+  },
+  "docs/superpowers/plans/2026-08-25-issue-708-rider-contact-corrections.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #708 are closed. Git history is the record.",
+   "issues": [
+    708,
+    878
+   ]
+  },
+  "docs/superpowers/plans/2026-08-25-issue-709-industrial-visuals.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #708, #709 are closed. Git history is the record.",
+   "issues": [
+    709,
+    708
+   ]
+  },
+  "docs/superpowers/plans/2026-08-25-issue-710-air-defense-and-orphaned-visuals.md": {
+   "category": "superseded",
+   "reason": "Marked superseded; the current implementation and rules replace it.",
+   "issues": [
+    710,
+    904,
+    709
+   ]
+  },
+  "docs/superpowers/plans/2026-08-25-issue-710-native-sprite-correction.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #709, #710 are closed. Git history is the record.",
+   "issues": [
+    710,
+    904,
+    709
+   ]
+  },
+  "docs/superpowers/plans/2026-08-26-issue-545-mr5-ai-doctrine.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #545 are closed. Git history is the record.",
+   "issues": [
+    545
+   ]
+  },
+  "docs/superpowers/plans/2026-08-27-issue-545-mr6-arms-control.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #545, #901 are closed. Git history is the record.",
+   "issues": [
+    545,
+    901
+   ]
+  },
+  "docs/superpowers/plans/2026-08-27-issue-545-mr7-superweapons-toggle.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #545 are closed. Git history is the record.",
+   "issues": [
+    545
+   ]
+  },
+  "docs/superpowers/plans/2026-08-27-issue-720-military-quest-facts.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #720, #725 are closed. Git history is the record.",
+   "issues": [
+    720,
+    725,
+    726
+   ]
+  },
+  "docs/superpowers/plans/2026-08-27-issue-721-tactical-wonder-rewards.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #720, #721, #722, #724 are closed. Git history is the record.",
+   "issues": [
+    721,
+    720,
+    903,
+    722,
+    724
+   ]
+  },
+  "docs/superpowers/plans/2026-08-28-issue-545-mr8-hotseat-privacy-final-audit.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #545 are closed. Git history is the record.",
+   "issues": [
+    545
+   ]
+  },
+  "docs/superpowers/plans/2026-08-29-issue-724-norad.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #724 are closed. Git history is the record.",
+   "issues": [
+    724
+   ]
+  },
+  "docs/superpowers/plans/2026-08-29-issue-901-bilateral-diplomacy-consent.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #901, #910 are closed. Git history is the record.",
+   "issues": [
+    901,
+    910
+   ]
+  },
+  "docs/superpowers/plans/2026-08-29-issue-919-mr1-outbreak-spread-fix.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #919 are closed. Git history is the record.",
+   "issues": [
+    919
+   ]
+  },
+  "docs/superpowers/plans/2026-08-30-issue-711-remote-sprite-review.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #711 are closed. Git history is the record.",
+   "issues": [
+    711
+   ]
+  },
+  "docs/superpowers/plans/2026-08-30-issue-711-siege-and-capital-ship-sprites.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #711 are closed. Git history is the record.",
+   "issues": [
+    711
+   ]
+  },
+  "docs/superpowers/plans/2026-08-30-issue-725-legendary-wonder-landmarks.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #725 are closed. Git history is the record.",
+   "issues": [
+    725
+   ]
+  },
+  "docs/superpowers/plans/2026-08-30-issue-917-research-pacing.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #917 are closed. Git history is the record.",
+   "issues": [
+    917
+   ]
+  },
+  "docs/superpowers/plans/2026-08-30-issue-919-mr2-administration-ladder-courthouse.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #919 are closed. Git history is the record.",
+   "issues": [
+    919
+   ]
+  },
+  "docs/superpowers/plans/2026-08-30-issue-919-mr3-actionable-unrest-guidance.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #919 are closed. Git history is the record.",
+   "issues": [
+    919,
+    925
+   ]
+  },
+  "docs/superpowers/plans/2026-09-01-issue-711-projectile-feedback.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #711 are closed. Git history is the record.",
+   "issues": [
+    711
+   ]
+  },
+  "docs/superpowers/plans/2026-09-01-issue-885-unique-general-mechanics.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #885, #888 are closed. Git history is the record.",
+   "issues": [
+    885,
+    888
+   ]
+  },
+  "docs/superpowers/plans/2026-09-01-issue-887-mr1-campaign-chronicle.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #887 are closed. Git history is the record.",
+   "issues": [
+    887
+   ]
+  },
+  "docs/superpowers/plans/2026-09-01-issue-887-phase-b-hall-of-fame.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #887 are closed. Git history is the record.",
+   "issues": [
+    887,
+    940
+   ]
+  },
+  "docs/superpowers/plans/2026-09-03-issue-927-road-post-administration.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #927 are closed. Git history is the record.",
+   "issues": [
+    927
+   ]
+  },
+  "docs/superpowers/plans/2026-09-03-war-weariness-occupation-relief.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-09-04-city-state-population-bounds.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #490, #496, #948, #949, #951, #954 are closed. Git history is the record.",
+   "issues": [
+    948,
+    490,
+    951,
+    949,
+    954,
+    496,
+    497
+   ]
+  },
+  "docs/superpowers/plans/2026-09-04-issue-927-regional-capital.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #927 are closed. Git history is the record.",
+   "issues": [
+    927,
+    955
+   ]
+  },
+  "docs/superpowers/plans/2026-09-05-issue-910-vassalage-lifecycle.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #901, #910 are closed. Git history is the record.",
+   "issues": [
+    910,
+    901
+   ]
+  },
+  "docs/superpowers/plans/2026-09-05-ranged-city-bombardment.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #966, #974 are closed. Git history is the record.",
+   "issues": [
+    975,
+    976,
+    966,
+    977,
+    978,
+    974
+   ]
+  },
+  "docs/superpowers/plans/2026-09-06-issue-496-city-state-leagues-implementation.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #496, #870, #871, #883, #910, #970 are closed. Git history is the record.",
+   "issues": [
+    496,
+    970,
+    910,
+    1029,
+    1035,
+    497,
+    870,
+    871,
+    883
+   ]
+  },
+  "docs/superpowers/plans/2026-09-07-findpath-binary-heap.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-09-07-issue-981-1018-civilization-liveness-implementation.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #496, #981, #985, #993, #1001, #1004 are closed. Git history is the record.",
+   "issues": [
+    981,
+    1018,
+    496,
+    1004,
+    1006,
+    985,
+    1019,
+    1020,
+    1001,
+    1023,
+    993
+   ]
+  },
+  "docs/superpowers/plans/2026-09-07-movement-blocker-reason-resolver.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-09-08-issue-985-domination-victory-implementation.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #910, #985, #993, #995, #1002, #1039 are closed. Git history is the record.",
+   "issues": [
+    985,
+    1055,
+    1058,
+    1060,
+    1041,
+    995,
+    1039,
+    1052,
+    1053,
+    910,
+    1050,
+    993,
+    1002
+   ]
+  },
+  "docs/superpowers/plans/2026-09-09-issue-985-domination-ai.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #985, #995 are closed. Git history is the record.",
+   "issues": [
+    985,
+    995,
+    1052
+   ]
+  },
+  "docs/superpowers/plans/2026-09-09-issue-985-domination-warnings.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #985 are closed. Git history is the record.",
+   "issues": [
+    985
+   ]
+  },
+  "docs/superpowers/plans/2026-09-10-issue-1075-ci-merge-gate.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1005, #1007, #1075 are closed. Git history is the record.",
+   "issues": [
+    1075,
+    1005,
+    1067,
+    1007,
+    1073
+   ]
+  },
+  "docs/superpowers/plans/2026-09-10-web-smoke-diagnostics.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-09-11-issue-1075-balanced-ci-shards.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #365, #1075 are closed. Git history is the record.",
+   "issues": [
+    1075,
+    365
+   ]
+  },
+  "docs/superpowers/plans/2026-09-11-issue-1075-browser-smoke-stability.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1075 are closed. Git history is the record.",
+   "issues": [
+    1075
+   ]
+  },
+  "docs/superpowers/plans/2026-09-12-conditional-macos-ci.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-09-12-issue-1064-1066-1069-ai-viability-arc.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1064, #1066, #1069 are closed. Git history is the record.",
+   "issues": [
+    1064,
+    1069,
+    1066
+   ]
+  },
+  "docs/superpowers/plans/2026-09-12-issue-1064-ai-expansion-mr1.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1064, #1066, #1069 are closed. Git history is the record.",
+   "issues": [
+    1064,
+    1066,
+    1069
+   ]
+  },
+  "docs/superpowers/plans/2026-09-12-issue-1075-fourth-test-shard.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1075 are closed. Git history is the record.",
+   "issues": [
+    1075,
+    1091
+   ]
+  },
+  "docs/superpowers/plans/2026-09-12-issue-1075-third-test-shard.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1075 are closed. Git history is the record.",
+   "issues": [
+    1075
+   ]
+  },
+  "docs/superpowers/plans/2026-09-12-web-smoke-hud-timeout.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-09-13-issue-1065-save-equivalence.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1065 are closed. Git history is the record.",
+   "issues": [
+    1065
+   ]
+  },
+  "docs/superpowers/plans/2026-09-13-issue-1066-amphibious-objective-routing.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1066 are closed. Git history is the record.",
+   "issues": [
+    1066
+   ]
+  },
+  "docs/superpowers/plans/2026-09-13-issue-1068-movement-query.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1010, #1068 are closed. Git history is the record.",
+   "issues": [
+    1068,
+    1010
+   ]
+  },
+  "docs/superpowers/plans/2026-09-14-issue-1107-coastal-city-recovery.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #386, #1107, #1108 are closed. Git history is the record.",
+   "issues": [
+    1107,
+    386,
+    1108
+   ]
+  },
+  "docs/superpowers/plans/2026-09-15-issue-1069-ai-round-perf.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1069 are closed. Git history is the record.",
+   "issues": [
+    1069
+   ]
+  },
+  "docs/superpowers/plans/2026-09-17-issue-1066-auto-explore-recency-trap.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1066 are closed. Git history is the record.",
+   "issues": [
+    1066
+   ]
+  },
+  "docs/superpowers/plans/2026-09-18-issue-1088-military-operations-competence.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1086, #1087, #1088, #1089, #1090 are closed. Git history is the record.",
+   "issues": [
+    1088,
+    1086,
+    1087,
+    1089,
+    1090
+   ]
+  },
+  "docs/superpowers/plans/2026-09-18-issue-1125-long-horizon-stability.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1066 are closed. Git history is the record.",
+   "issues": [
+    1125,
+    1066
+   ]
+  },
+  "docs/superpowers/plans/2026-09-19-issue-1122-capture-force-demand.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1122, #1124 are closed. Git history is the record.",
+   "issues": [
+    1122,
+    1124
+   ]
+  },
+  "docs/superpowers/plans/2026-09-19-issue-1127-science-starvation-tech-bonus.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #919, #1127 are closed. Git history is the record.",
+   "issues": [
+    1127,
+    919
+   ]
+  },
+  "docs/superpowers/plans/2026-09-20-issue-1080-national-project-uniqueness-plan.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1080, #1126 are closed. Git history is the record.",
+   "issues": [
+    1080,
+    1126
+   ]
+  },
+  "docs/superpowers/plans/2026-09-20-issue-1083-marketplace-references-plan.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1080, #1083, #1133 are closed. Git history is the record.",
+   "issues": [
+    1083,
+    1133,
+    1080
+   ]
+  },
+  "docs/superpowers/plans/2026-09-20-issue-1126-remeasure-plan.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1094, #1126, #1127 are closed. Git history is the record.",
+   "issues": [
+    1126,
+    1127,
+    1094,
+    1129,
+    1130,
+    1125
+   ]
+  },
+  "docs/superpowers/plans/2026-09-20-issue-1133-verification-orchestration-arc.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1133 are closed. Git history is the record.",
+   "issues": [
+    1133,
+    1131
+   ]
+  },
+  "docs/superpowers/plans/2026-09-20-opencode-tailscale-remote.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/2026-09-21-issue-1124-mobilization-deadline.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1064, #1122, #1124 are closed. Git history is the record.",
+   "issues": [
+    1124,
+    1064,
+    1122
+   ]
+  },
+  "docs/superpowers/plans/2026-09-22-issue-1086-national-intent.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1086 are closed. Git history is the record.",
+   "issues": [
+    1086
+   ]
+  },
+  "docs/superpowers/plans/2026-09-22-issue-1087-personality-strategy.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1087 are closed. Git history is the record.",
+   "issues": [
+    1087
+   ]
+  },
+  "docs/superpowers/plans/2026-09-22-issue-1089-nonmajor-archetypes.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1089 are closed. Git history is the record.",
+   "issues": [
+    1089
+   ]
+  },
+  "docs/superpowers/plans/2026-09-22-issue-1090-ai-legibility.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1090 are closed. Git history is the record.",
+   "issues": [
+    1090
+   ]
+  },
+  "docs/superpowers/plans/2026-09-22-issue-1123-engagement-order.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1122, #1123 are closed. Git history is the record.",
+   "issues": [
+    1123,
+    1122
+   ]
+  },
+  "docs/superpowers/plans/2026-09-27-issue-1019-canonical-owned-cities-plan.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1019 are closed. Git history is the record.",
+   "issues": [
+    1019
+   ]
+  },
+  "docs/superpowers/plans/2026-09-28-durable-signal-status.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/espionage-overhaul/README.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/espionage-overhaul/mr-01-physical-spy-units.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/espionage-overhaul/mr-02-detection-system.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/espionage-overhaul/mr-03-disguise-system.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/espionage-overhaul/mr-04-infiltration-system.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/espionage-overhaul/mr-05-mission-system.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/espionage-overhaul/mr-06-capture-system.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/espionage-overhaul/mr-07-counter-espionage-embedding.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/espionage-overhaul/mr-08-era-types-unit-upgrade.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/espionage-overhaul/mr-09-espionage-buildings.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/espionage-overhaul/mr-10-civ-unique-detection-units.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/plans/fix-it-mr1-pr106.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record.",
+   "issues": [
+    106
+   ]
+  },
+  "docs/superpowers/specs/2026-03-21-conquestoria-game-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-03-22-milestone2-real-rivals-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-03-23-milestone3a-hot-seat-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-03-24-milestone3b-exploration-rewards-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-03-27-milestone3c-tech-tree-minor-civs-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-03-29-milestone4-deep-strategy-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #47, #49, #50, #55, #57, #58 are closed. Git history is the record.",
+   "issues": [
+    47,
+    49,
+    50,
+    55,
+    57,
+    58,
+    63,
+    66
+   ]
+  },
+  "docs/superpowers/specs/2026-03-31-m4b1-diplomacy-and-civs-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-04-07-m4d-grand-ambitions-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-04-16-game-pacing-overhaul-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-05-02-idle-production-and-build-badges-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #159 are closed. Git history is the record.",
+   "issues": [
+    159
+   ]
+  },
+  "docs/superpowers/specs/2026-05-10-button-design-system.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #190 are closed. Git history is the record.",
+   "issues": [
+    190
+   ]
+  },
+  "docs/superpowers/specs/2026-05-10-pause-menu.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #192 are closed. Git history is the record.",
+   "issues": [
+    192
+   ]
+  },
+  "docs/superpowers/specs/2026-05-10-svg-sprite-system-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-05-10-tech-tree-overhaul.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #193 are closed. Git history is the record.",
+   "issues": [
+    193
+   ]
+  },
+  "docs/superpowers/specs/2026-05-13-map-scripts-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #132 are closed. Git history is the record.",
+   "issues": [
+    132
+   ]
+  },
+  "docs/superpowers/specs/2026-05-13-tech-research-pacing-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #133 are closed. Git history is the record.",
+   "issues": [
+    133
+   ]
+  },
+  "docs/superpowers/specs/2026-05-15-combat-visibility-unit-motion-bug-bundle-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #198, #199, #200, #201, #974 are closed. Git history is the record.",
+   "issues": [
+    974,
+    198,
+    199,
+    200,
+    201
+   ]
+  },
+  "docs/superpowers/specs/2026-05-15-cultural-territory-worker-improvements-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-05-16-cost-dynamics-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-05-16-id-counters-in-game-state.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-05-17-hotfix-bundle-138-210-211.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #138, #210, #211 are closed. Git history is the record.",
+   "issues": [
+    138,
+    211,
+    210
+   ]
+  },
+  "docs/superpowers/specs/2026-05-18-bug-bundle-214-215-218-219-220.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #214, #215, #218, #219, #220 are closed. Git history is the record.",
+   "issues": [
+    214,
+    218,
+    220,
+    215,
+    219
+   ]
+  },
+  "docs/superpowers/specs/2026-05-18-pike-thrust-and-quadruped-gait-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-05-20-cost-dynamics-drift-reconciliation-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-05-20-legendary-wonder-ui-and-spectacle-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #217 are closed. Git history is the record.",
+   "issues": [
+    217
+   ]
+  },
+  "docs/superpowers/specs/2026-05-20-marketplace-trade-roadmap.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #234 are closed. Git history is the record.",
+   "issues": [
+    234
+   ]
+  },
+  "docs/superpowers/specs/2026-05-21-marketplace-s1-resources-on-map-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #234 are closed. Git history is the record.",
+   "issues": [
+    234
+   ]
+  },
+  "docs/superpowers/specs/2026-05-21-wonder-atlas-and-map-identity-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #217 are closed. Git history is the record.",
+   "issues": [
+    217
+   ]
+  },
+  "docs/superpowers/specs/2026-05-21-wonder-discovery-reveal-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #217 are closed. Git history is the record.",
+   "issues": [
+    217
+   ]
+  },
+  "docs/superpowers/specs/2026-05-22-legendary-wonder-city-presence-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #217 are closed. Git history is the record.",
+   "issues": [
+    217
+   ]
+  },
+  "docs/superpowers/specs/2026-05-22-marketplace-s2ab-improvements-and-acquisition-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #234 are closed. Git history is the record.",
+   "issues": [
+    234
+   ]
+  },
+  "docs/superpowers/specs/2026-05-23-bug-batch-music-zoom-earth-map-coastal-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #246, #247, #251, #253 are closed. Git history is the record.",
+   "issues": [
+    246,
+    247,
+    251,
+    253
+   ]
+  },
+  "docs/superpowers/specs/2026-05-23-marketplace-s3-tech-filter-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-05-23-marketplace-s4a-resource-effects-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-05-24-marketplace-s4b-strategic-prerequisites-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-05-25-marketplace-s5-trade-unit-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record.",
+   "issues": [
+    256
+   ]
+  },
+  "docs/superpowers/specs/2026-05-26-issues-276-282-master-plan.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #276, #277, #278, #279, #280, #281 are closed. Git history is the record.",
+   "issues": [
+    276,
+    277,
+    278,
+    279,
+    280,
+    281,
+    282
+   ]
+  },
+  "docs/superpowers/specs/2026-05-26-marketplace-s6b-caravan-route-running-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-05-26-mr-a-worker-improvements-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #277, #280, #282 are closed. Git history is the record.",
+   "issues": [
+    277,
+    280,
+    282
+   ]
+  },
+  "docs/superpowers/specs/2026-05-26-mr-b-wonders-ui-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #278, #281 are closed. Git history is the record.",
+   "issues": [
+    278,
+    281
+   ]
+  },
+  "docs/superpowers/specs/2026-05-26-mr-c-polish-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #276, #279 are closed. Git history is the record.",
+   "issues": [
+    276,
+    279
+   ]
+  },
+  "docs/superpowers/specs/2026-05-26-natural-wonder-spectacle-expansion-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-05-26-resource-accessibility-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-05-26-stage-2f-atlas-intel-records-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-05-26-stage-2g-legendary-city-landmarks-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-06-01-issues-284-308-trust-and-transport-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #284, #297, #298, #299, #300, #301 are closed. Git history is the record.",
+   "issues": [
+    284,
+    297,
+    298,
+    299,
+    300,
+    301,
+    302,
+    303,
+    304,
+    305,
+    306,
+    308
+   ]
+  },
+  "docs/superpowers/specs/2026-06-02-stage-2i-bespoke-legendary-landmark-art-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-06-04-stage-2i-mr2-knowledge-signal-bespoke-landmarks-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-06-04-stage-2j-legendary-landmark-intel-visibility-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-06-04-stage-2k-city-renderer-layer-architecture-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-06-05-stage-2i-mr3-material-maritime-bespoke-landmarks-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-06-06-sprite-overlay-renderer-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-06-06-stage-2i-mr4-civic-endgame-bespoke-landmarks-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-06-06-stage-3-real-video-spike-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-06-07-stage-3b-wonder-video-batch-2-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-06-07-structured-tech-unlocks-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-06-09-stage-3c-wonder-video-batch-3-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-06-11-river-mechanics-completion-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #351 are closed. Git history is the record.",
+   "issues": [
+    351
+   ]
+  },
+  "docs/superpowers/specs/2026-06-12-issue-365-strategic-map-presentation-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #365 are closed. Git history is the record.",
+   "issues": [
+    365
+   ]
+  },
+  "docs/superpowers/specs/2026-06-12-minor-civ-quest-chains-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #352 are closed. Git history is the record.",
+   "issues": [
+    352
+   ]
+  },
+  "docs/superpowers/specs/2026-06-13-pirate-factions-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #353 are closed. Git history is the record.",
+   "issues": [
+    353
+   ]
+  },
+  "docs/superpowers/specs/2026-06-15-bug-fixes-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #374, #385, #386, #387 are closed. Git history is the record.",
+   "issues": [
+    387,
+    385,
+    386,
+    374
+   ]
+  },
+  "docs/superpowers/specs/2026-06-15-issue-377-badge-clarity-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #377 are closed. Git history is the record.",
+   "issues": [
+    377
+   ]
+  },
+  "docs/superpowers/specs/2026-06-15-threat-pressure-system-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #378, #381 are closed. Git history is the record.",
+   "issues": [
+    378,
+    381
+   ]
+  },
+  "docs/superpowers/specs/2026-06-16-economy-era-espionage-fixes-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #375, #376 are closed. Git history is the record.",
+   "issues": [
+    375,
+    376
+   ]
+  },
+  "docs/superpowers/specs/2026-06-17-issue-373-city-view-districts-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #373 are closed. Git history is the record.",
+   "issues": [
+    373
+   ]
+  },
+  "docs/superpowers/specs/2026-06-20-tech-era-expansion-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #356 are closed. Git history is the record.",
+   "issues": [
+    356
+   ]
+  },
+  "docs/superpowers/specs/2026-06-26-issue-396-wonder-ambitions-ui-brainstorm.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #396 are closed. Git history is the record.",
+   "issues": [
+    396
+   ]
+  },
+  "docs/superpowers/specs/2026-06-26-issue-396-wonder-ambitions-ui-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #396 are closed. Git history is the record.",
+   "issues": [
+    396
+   ]
+  },
+  "docs/superpowers/specs/2026-06-27-worktree-safe-verification-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-06-28-era12-information-age-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #356 are closed. Git history is the record.",
+   "issues": [
+    356
+   ]
+  },
+  "docs/superpowers/specs/2026-07-03-cyber-warfare-stub-retirement.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-07-04-building-obsolescence-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #429, #443 are closed. Git history is the record.",
+   "issues": [
+    443,
+    429
+   ]
+  },
+  "docs/superpowers/specs/2026-07-05-issue-437-hud-tauri-distribution-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #437 are closed. Git history is the record.",
+   "issues": [
+    437
+   ]
+  },
+  "docs/superpowers/specs/2026-07-05-issue-439-start-placement-elimination-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #439 are closed. Git history is the record.",
+   "issues": [
+    439
+   ]
+  },
+  "docs/superpowers/specs/2026-07-05-issue-447-water-recovery-ux-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #447 are closed. Git history is the record.",
+   "issues": [
+    447
+   ]
+  },
+  "docs/superpowers/specs/2026-07-07-issue-457-dropped-production-feedback-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #457 are closed. Git history is the record.",
+   "issues": [
+    457
+   ]
+  },
+  "docs/superpowers/specs/2026-07-07-minor-civ-regional-grievance-mobilization-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-07-09-crisis-events-and-revolutions-design.md": {
+   "category": "superseded",
+   "reason": "Marked superseded; the current implementation and rules replace it.",
+   "issues": [
+    381,
+    354
+   ]
+  },
+  "docs/superpowers/specs/2026-07-11-city-combat-entity-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #522 are closed. Git history is the record.",
+   "issues": [
+    522,
+    549,
+    556
+   ]
+  },
+  "docs/superpowers/specs/2026-07-11-combat-retaliation-and-city-siege-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #522, #537, #546 are closed. Git history is the record.",
+   "issues": [
+    537,
+    522,
+    546
+   ]
+  },
+  "docs/superpowers/specs/2026-07-11-era13-mr3-cyber-intent-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-07-11-pirate-naval-siege-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #522 are closed. Git history is the record.",
+   "issues": [
+    522,
+    549
+   ]
+  },
+  "docs/superpowers/specs/2026-07-11-playtest-bug-arc-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #550, #551, #552, #553, #554, #555 are closed. Git history is the record.",
+   "issues": [
+    550,
+    555,
+    551,
+    552,
+    553,
+    554
+   ]
+  },
+  "docs/superpowers/specs/2026-07-12-issue-555-wonder-availability-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #555 are closed. Git history is the record.",
+   "issues": [
+    555
+   ]
+  },
+  "docs/superpowers/specs/2026-07-12-trade-routes-overhaul-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #553 are closed. Git history is the record.",
+   "issues": [
+    553
+   ]
+  },
+  "docs/superpowers/specs/2026-07-12-unrest-happiness-empire-overview-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #354, #552 are closed. Git history is the record.",
+   "issues": [
+    552,
+    558,
+    354
+   ]
+  },
+  "docs/superpowers/specs/2026-07-13-combat-rng-seed-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #521 are closed. Git history is the record.",
+   "issues": [
+    521
+   ]
+  },
+  "docs/superpowers/specs/2026-07-14-issue-537-air-interception-defense-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #537 are closed. Git history is the record.",
+   "issues": [
+    537
+   ]
+  },
+  "docs/superpowers/specs/2026-07-14-zone-of-control-flanking-support-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #538 are closed. Git history is the record.",
+   "issues": [
+    538
+   ]
+  },
+  "docs/superpowers/specs/2026-07-15-air-power-rework-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #539, #543 are closed. Git history is the record.",
+   "issues": [
+    539,
+    543
+   ]
+  },
+  "docs/superpowers/specs/2026-07-17-amphibious-warfare-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #540 are closed. Git history is the record.",
+   "issues": [
+    540
+   ]
+  },
+  "docs/superpowers/specs/2026-07-18-issue-493-production-budgeted-reference-economy-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #493, #523 are closed. Git history is the record.",
+   "issues": [
+    493,
+    523
+   ]
+  },
+  "docs/superpowers/specs/2026-07-18-issue-523-dual-era-pacing-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #523 are closed. Git history is the record.",
+   "issues": [
+    523
+   ]
+  },
+  "docs/superpowers/specs/2026-07-19-era13-mr4-autonomy-network-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #513, #514 are closed. Git history is the record.",
+   "issues": [
+    514,
+    513
+   ]
+  },
+  "docs/superpowers/specs/2026-07-19-issue-441-espionage-building-era-rebalance-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #441 are closed. Git history is the record.",
+   "issues": [
+    441
+   ]
+  },
+  "docs/superpowers/specs/2026-07-20-ci-action-pin-maintenance-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-07-21-network-plan-resolution-history-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-07-22-issue-660-canvas-verification-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #660 are closed. Git history is the record.",
+   "issues": [
+    660
+   ]
+  },
+  "docs/superpowers/specs/2026-07-23-city-panel-building-animation-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record.",
+   "issues": [
+    659
+   ]
+  },
+  "docs/superpowers/specs/2026-07-24-issue-665-upgrade-integrity-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #547, #665, #676 are closed. Git history is the record.",
+   "issues": [
+    665,
+    547,
+    676
+   ]
+  },
+  "docs/superpowers/specs/2026-07-25-issue-730-734-fixes-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #730, #731, #732, #733, #734 are closed. Git history is the record.",
+   "issues": [
+    730,
+    731,
+    732,
+    733,
+    734
+   ]
+  },
+  "docs/superpowers/specs/2026-07-25-issue-735-736-738-fixes-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #735, #736, #738 are closed. Git history is the record.",
+   "issues": [
+    735,
+    738,
+    736
+   ]
+  },
+  "docs/superpowers/specs/2026-07-25-vitest-worktree-concurrency-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-07-26-issue-668-unit-role-legibility-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #668 are closed. Git history is the record.",
+   "issues": [
+    668
+   ]
+  },
+  "docs/superpowers/specs/2026-07-26-issue-669-combat-modifier-facts-design.md": {
+   "category": "superseded",
+   "reason": "Marked superseded; the current implementation and rules replace it.",
+   "issues": [
+    669
+   ]
+  },
+  "docs/superpowers/specs/2026-07-26-naval-water-class-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #751 are closed. Git history is the record.",
+   "issues": [
+    751
+   ]
+  },
+  "docs/superpowers/specs/2026-07-30-unify-build-unit-entities-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #760 are closed. Git history is the record.",
+   "issues": [
+    760
+   ]
+  },
+  "docs/superpowers/specs/2026-07-31-issue-673-beast-handler-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #673, #674 are closed. Git history is the record.",
+   "issues": [
+    673,
+    674
+   ]
+  },
+  "docs/superpowers/specs/2026-08-01-issue-674-war-elephant-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #666, #669, #673, #674, #708 are closed. Git history is the record.",
+   "issues": [
+    674,
+    708,
+    714,
+    666,
+    669,
+    673
+   ]
+  },
+  "docs/superpowers/specs/2026-08-01-issue-675-cuirassier-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #675 are closed. Git history is the record.",
+   "issues": [
+    675
+   ]
+  },
+  "docs/superpowers/specs/2026-08-01-issue-676-armored-car-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #676 are closed. Git history is the record.",
+   "issues": [
+    676
+   ]
+  },
+  "docs/superpowers/specs/2026-08-01-issue-679-anti-tank-gun-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #679 are closed. Git history is the record.",
+   "issues": [
+    679
+   ]
+  },
+  "docs/superpowers/specs/2026-08-01-issue-680-mobile-aa-design.md": {
+   "category": "superseded",
+   "reason": "Marked superseded; the current implementation and rules replace it.",
+   "issues": [
+    680
+   ]
+  },
+  "docs/superpowers/specs/2026-08-08-issue-685-siege-workshop-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #685 are closed. Git history is the record.",
+   "issues": [
+    685
+   ]
+  },
+  "docs/superpowers/specs/2026-08-08-issue-686-rocket-artillery-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #686 are closed. Git history is the record.",
+   "issues": [
+    686,
+    717
+   ]
+  },
+  "docs/superpowers/specs/2026-08-08-issue-687-main-battle-tank-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #687 are closed. Git history is the record.",
+   "issues": [
+    687
+   ]
+  },
+  "docs/superpowers/specs/2026-08-08-issue-688-tank-depot-armored-family-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #688 are closed. Git history is the record.",
+   "issues": [
+    688
+   ]
+  },
+  "docs/superpowers/specs/2026-08-08-issue-689-missile-cruiser-design.md": {
+   "category": "superseded",
+   "reason": "Marked superseded; the current implementation and rules replace it.",
+   "issues": [
+    689
+   ]
+  },
+  "docs/superpowers/specs/2026-08-14-issue-692-coastal-battery-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #692 are closed. Git history is the record.",
+   "issues": [
+    692
+   ]
+  },
+  "docs/superpowers/specs/2026-08-14-issue-693-bunker-design.md": {
+   "category": "superseded",
+   "reason": "Marked superseded; the current implementation and rules replace it.",
+   "issues": [
+    693
+   ]
+  },
+  "docs/superpowers/specs/2026-08-14-issue-694-integration-review-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #694 are closed. Git history is the record.",
+   "issues": [
+    694
+   ]
+  },
+  "docs/superpowers/specs/2026-08-14-issue-694-sam-site-design.md": {
+   "category": "superseded",
+   "reason": "Marked superseded; the current implementation and rules replace it.",
+   "issues": [
+    694,
+    547,
+    695
+   ]
+  },
+  "docs/superpowers/specs/2026-08-14-issues-823-827-bug-squash-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #823, #824, #825, #826, #827 are closed. Git history is the record.",
+   "issues": [
+    823,
+    824,
+    825,
+    826,
+    827
+   ]
+  },
+  "docs/superpowers/specs/2026-08-15-issue-698-camp-pressure-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #547, #698, #699 are closed. Git history is the record.",
+   "issues": [
+    698,
+    547,
+    699
+   ]
+  },
+  "docs/superpowers/specs/2026-08-16-issue-442-espionage-eras-5-9-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #442, #469, #526, #604 are closed. Git history is the record.",
+   "issues": [
+    442,
+    469,
+    604,
+    526
+   ]
+  },
+  "docs/superpowers/specs/2026-08-17-issue-855-espionage-unit-plateau-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #442, #855 are closed. Git history is the record.",
+   "issues": [
+    855,
+    442,
+    853,
+    854
+   ]
+  },
+  "docs/superpowers/specs/2026-08-20-issue-700-barbarian-modernization-audit-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #547, #696, #699, #700 are closed. Git history is the record.",
+   "issues": [
+    700,
+    547,
+    696,
+    699
+   ]
+  },
+  "docs/superpowers/specs/2026-08-21-airborne-paratroopers-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #539, #540, #543, #547 are closed. Git history is the record.",
+   "issues": [
+    543,
+    539,
+    540,
+    547
+   ]
+  },
+  "docs/superpowers/specs/2026-08-21-helicopter-air-assault-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #539, #540, #543, #547 are closed. Git history is the record.",
+   "issues": [
+    543,
+    539,
+    540,
+    547
+   ]
+  },
+  "docs/superpowers/specs/2026-08-21-issue-701-crisis-force-ownership-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #701, #702, #707 are closed. Git history is the record.",
+   "issues": [
+    701,
+    702,
+    707
+   ]
+  },
+  "docs/superpowers/specs/2026-08-22-carrier-air-wing-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #539, #540, #542, #543, #547, #582 are closed. Git history is the record.",
+   "issues": [
+    582,
+    539,
+    540,
+    542,
+    543,
+    547,
+    701,
+    702
+   ]
+  },
+  "docs/superpowers/specs/2026-08-22-issue-702-roaming-herds-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #702, #703, #704 are closed. Git history is the record.",
+   "issues": [
+    702,
+    703,
+    704
+   ]
+  },
+  "docs/superpowers/specs/2026-08-22-issue-703-beast-stampede-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #701, #702, #703, #704 are closed. Git history is the record.",
+   "issues": [
+    703,
+    701,
+    702,
+    704
+   ]
+  },
+  "docs/superpowers/specs/2026-08-23-issue-544-supply-generals-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #544 are closed. Git history is the record.",
+   "issues": [
+    544
+   ]
+  },
+  "docs/superpowers/specs/2026-08-24-issue-708-visual-batch-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #708 are closed. Git history is the record.",
+   "issues": [
+    708
+   ]
+  },
+  "docs/superpowers/specs/2026-08-25-issue-545-strategic-deterrence-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #524, #545 are closed. Git history is the record.",
+   "issues": [
+    545,
+    524
+   ]
+  },
+  "docs/superpowers/specs/2026-08-25-issue-708-rider-contact-correction-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #708 are closed. Git history is the record.",
+   "issues": [
+    708,
+    878
+   ]
+  },
+  "docs/superpowers/specs/2026-08-25-issue-709-industrial-visuals-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #709, #769 are closed. Git history is the record.",
+   "issues": [
+    709,
+    769,
+    784
+   ]
+  },
+  "docs/superpowers/specs/2026-08-25-issue-710-air-defense-and-orphaned-visuals-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #543, #544, #582, #710, #711 are closed. Git history is the record.",
+   "issues": [
+    710,
+    543,
+    582,
+    544,
+    711,
+    713
+   ]
+  },
+  "docs/superpowers/specs/2026-08-25-issue-710-native-sprite-correction-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #709, #710 are closed. Git history is the record.",
+   "issues": [
+    710,
+    709
+   ]
+  },
+  "docs/superpowers/specs/2026-08-26-issue-545-mr5-ai-doctrine-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #545 are closed. Git history is the record.",
+   "issues": [
+    545,
+    895,
+    897,
+    898,
+    899
+   ]
+  },
+  "docs/superpowers/specs/2026-08-27-issue-545-mr6-arms-control-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #545 are closed. Git history is the record.",
+   "issues": [
+    545
+   ]
+  },
+  "docs/superpowers/specs/2026-08-27-issue-545-mr7-superweapons-toggle-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #545 are closed. Git history is the record.",
+   "issues": [
+    545
+   ]
+  },
+  "docs/superpowers/specs/2026-08-27-issue-720-military-quest-facts-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #720 are closed. Git history is the record.",
+   "issues": [
+    720
+   ]
+  },
+  "docs/superpowers/specs/2026-08-27-issue-721-tactical-wonder-rewards-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #720, #721 are closed. Git history is the record.",
+   "issues": [
+    721,
+    720,
+    903
+   ]
+  },
+  "docs/superpowers/specs/2026-08-28-issue-545-mr8-hotseat-privacy-final-audit-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #545 are closed. Git history is the record.",
+   "issues": [
+    545
+   ]
+  },
+  "docs/superpowers/specs/2026-08-29-empire-unrest-guidance-and-scaling-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #919 are closed. Git history is the record.",
+   "issues": [
+    919
+   ]
+  },
+  "docs/superpowers/specs/2026-08-29-issue-901-bilateral-diplomacy-consent-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #901 are closed. Git history is the record.",
+   "issues": [
+    901
+   ]
+  },
+  "docs/superpowers/specs/2026-08-30-issue-711-remote-sprite-review-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #711 are closed. Git history is the record.",
+   "issues": [
+    711
+   ]
+  },
+  "docs/superpowers/specs/2026-08-30-issue-711-siege-and-capital-ship-sprites-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #711 are closed. Git history is the record.",
+   "issues": [
+    711
+   ]
+  },
+  "docs/superpowers/specs/2026-08-30-issue-725-legendary-wonder-landmarks-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #725 are closed. Git history is the record.",
+   "issues": [
+    725
+   ]
+  },
+  "docs/superpowers/specs/2026-08-30-issue-917-research-pacing-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #917 are closed. Git history is the record.",
+   "issues": [
+    917
+   ]
+  },
+  "docs/superpowers/specs/2026-08-31-issue-886-great-general-profiles-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #544, #885, #886, #887, #888 are closed. Git history is the record.",
+   "issues": [
+    886,
+    544,
+    885,
+    887,
+    889,
+    888
+   ]
+  },
+  "docs/superpowers/specs/2026-09-01-issue-711-projectile-feedback-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #711 are closed. Git history is the record.",
+   "issues": [
+    711
+   ]
+  },
+  "docs/superpowers/specs/2026-09-01-issue-885-unique-general-mechanics-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #544, #885, #886, #888, #919, #932 are closed. Git history is the record.",
+   "issues": [
+    885,
+    544,
+    888,
+    886,
+    932,
+    919
+   ]
+  },
+  "docs/superpowers/specs/2026-09-01-issue-887-mr1-campaign-chronicle-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #544, #885, #886, #887, #888, #932 are closed. Git history is the record.",
+   "issues": [
+    887,
+    544,
+    888,
+    886,
+    885,
+    932
+   ]
+  },
+  "docs/superpowers/specs/2026-09-01-issue-887-phase-b-hall-of-fame-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #887 are closed. Git history is the record.",
+   "issues": [
+    887,
+    940
+   ]
+  },
+  "docs/superpowers/specs/2026-09-03-issue-927-road-post-administration-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #927 are closed. Git history is the record.",
+   "issues": [
+    927
+   ]
+  },
+  "docs/superpowers/specs/2026-09-03-war-weariness-occupation-relief-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #926 are closed. Git history is the record.",
+   "issues": [
+    926
+   ]
+  },
+  "docs/superpowers/specs/2026-09-04-issue-927-regional-capital-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #927 are closed. Git history is the record.",
+   "issues": [
+    927
+   ]
+  },
+  "docs/superpowers/specs/2026-09-05-issue-910-vassalage-lifecycle-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #901, #910 are closed. Git history is the record.",
+   "issues": [
+    910,
+    901,
+    913,
+    958
+   ]
+  },
+  "docs/superpowers/specs/2026-09-05-issue-927-bureaucracy-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #927 are closed. Git history is the record.",
+   "issues": [
+    927,
+    957
+   ]
+  },
+  "docs/superpowers/specs/2026-09-05-issue-927-railway-administration-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #927 are closed. Git history is the record.",
+   "issues": [
+    927,
+    967
+   ]
+  },
+  "docs/superpowers/specs/2026-09-05-ranged-city-bombardment-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #965, #966 are closed. Git history is the record.",
+   "issues": [
+    966,
+    965,
+    971
+   ]
+  },
+  "docs/superpowers/specs/2026-09-06-issue-496-city-state-leagues-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #355, #490, #496, #910, #948, #951 are closed. Git history is the record.",
+   "issues": [
+    496,
+    1029,
+    1035,
+    970,
+    490,
+    948,
+    952,
+    954,
+    951,
+    355,
+    910
+   ]
+  },
+  "docs/superpowers/specs/2026-09-07-findpath-binary-heap-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1010, #1025, #1042 are closed. Git history is the record.",
+   "issues": [
+    1042,
+    1025,
+    1010,
+    1044,
+    1045,
+    1046,
+    1048
+   ]
+  },
+  "docs/superpowers/specs/2026-09-07-issue-981-1018-civilization-liveness-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #496, #910, #970, #981, #982, #983 are closed. Git history is the record.",
+   "issues": [
+    981,
+    1018,
+    985,
+    496,
+    1004,
+    1006,
+    910,
+    970,
+    984,
+    1021,
+    982,
+    983
+   ]
+  },
+  "docs/superpowers/specs/2026-09-07-movement-blocker-reason-resolver-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #998, #1002, #1010, #1025 are closed. Git history is the record.",
+   "issues": [
+    1025,
+    1002,
+    998,
+    1010
+   ]
+  },
+  "docs/superpowers/specs/2026-09-08-issue-985-domination-victory-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #910, #985 are closed. Git history is the record.",
+   "issues": [
+    985,
+    910,
+    1050
+   ]
+  },
+  "docs/superpowers/specs/2026-09-10-web-smoke-diagnostics-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-09-11-issue-1075-balanced-ci-shards-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1075 are closed. Git history is the record.",
+   "issues": [
+    1075
+   ]
+  },
+  "docs/superpowers/specs/2026-09-11-issue-1075-browser-smoke-stability-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1075 are closed. Git history is the record.",
+   "issues": [
+    1075
+   ]
+  },
+  "docs/superpowers/specs/2026-09-12-conditional-macos-ci-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  },
+  "docs/superpowers/specs/2026-09-12-issue-1064-1066-1069-ai-viability-arc-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1064, #1066, #1069 are closed. Git history is the record.",
+   "issues": [
+    1064,
+    1069,
+    1066
+   ]
+  },
+  "docs/superpowers/specs/2026-09-13-issue-1065-save-equivalence-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1065, #1068, #1070 are closed. Git history is the record.",
+   "issues": [
+    1065,
+    1068,
+    1070
+   ]
+  },
+  "docs/superpowers/specs/2026-09-13-issue-1068-movement-query-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1068 are closed. Git history is the record.",
+   "issues": [
+    1068
+   ]
+  },
+  "docs/superpowers/specs/2026-09-18-issue-1125-long-horizon-stability-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #928, #1066, #1069, #1088, #1094, #1108 are closed. Git history is the record.",
+   "issues": [
+    1125,
+    1026,
+    619,
+    928,
+    1094,
+    1069,
+    1108,
+    1113,
+    1116,
+    1066,
+    1088
+   ]
+  },
+  "docs/superpowers/specs/2026-09-19-issue-1122-capture-force-demand-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1122 are closed. Git history is the record.",
+   "issues": [
+    1122
+   ]
+  },
+  "docs/superpowers/specs/2026-09-19-issue-1127-science-starvation-tech-bonus.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1127 are closed. Git history is the record.",
+   "issues": [
+    1127
+   ]
+  },
+  "docs/superpowers/specs/2026-09-20-issue-1080-national-project-uniqueness-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1003, #1080, #1126 are closed. Git history is the record.",
+   "issues": [
+    1080,
+    1126,
+    1003
+   ]
+  },
+  "docs/superpowers/specs/2026-09-20-issue-1083-marketplace-references-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1080, #1081, #1083, #1122 are closed. Git history is the record.",
+   "issues": [
+    1083,
+    1080,
+    1081,
+    1122
+   ]
+  },
+  "docs/superpowers/specs/2026-09-20-verify-before-push-stall-retry-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1080, #1083, #1126, #1133 are closed. Git history is the record.",
+   "issues": [
+    1133,
+    1125,
+    1126,
+    1080,
+    1083
+   ]
+  },
+  "docs/superpowers/specs/2026-09-21-issue-1124-mobilization-deadline-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1088, #1122, #1124 are closed. Git history is the record.",
+   "issues": [
+    1124,
+    1088,
+    1122
+   ]
+  },
+  "docs/superpowers/specs/2026-09-22-issue-1002-viewer-safety-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #435, #1002, #1082, #1090 are closed. Git history is the record.",
+   "issues": [
+    1002,
+    1090,
+    1082,
+    1026,
+    435
+   ]
+  },
+  "docs/superpowers/specs/2026-09-22-issue-1086-national-intent-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1086, #1087 are closed. Git history is the record.",
+   "issues": [
+    1086,
+    1087
+   ]
+  },
+  "docs/superpowers/specs/2026-09-22-issue-1087-personality-strategy-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #10, #11, #12, #13, #14, #15 are closed. Git history is the record.",
+   "issues": [
+    1087,
+    1086,
+    10,
+    11,
+    13,
+    14,
+    15,
+    12,
+    16
+   ]
+  },
+  "docs/superpowers/specs/2026-09-22-issue-1090-ai-legibility-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1086, #1087, #1089, #1090 are closed. Git history is the record.",
+   "issues": [
+    1090,
+    1086,
+    1087,
+    1089
+   ]
+  },
+  "docs/superpowers/specs/2026-09-22-issue-1123-engagement-order-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #1122, #1123, #1124 are closed. Git history is the record.",
+   "issues": [
+    1123,
+    1124,
+    1122
+   ]
+  },
+  "docs/superpowers/specs/2026-09-27-issue-1019-canonical-owned-cities-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; its issue(s) #997, #1019 are closed. Git history is the record.",
+   "issues": [
+    1019,
+    997
+   ]
+  },
+  "docs/superpowers/specs/2026-09-28-durable-signal-status-design.md": {
+   "category": "delivered-stale",
+   "reason": "Delivered; no open issue or live reference needs it. Git history is the record."
+  }
+ },
+ "refreshedAt": "2026-10-03"
+}
