@@ -68,6 +68,16 @@ by `tests/hooks/benchmark-verification-scheduler.test.sh`, including a fault-inj
 - **Peak host CPU** reached 90–96% with three heavy jobs and ~25–38% with AI-long alone: AI-long is essentially
   single-core, so it is cheap to co-schedule.
 
+## Proof reuse (real, from a linked worktree)
+
+`yarn verify:pr` (build + full suite) passed in **389 s** and recorded a proof for the clean `HEAD`; the very next
+`git push` from the same linked worktree ran the real `.githooks/pre-push` and took **2.5 s** (it reported proof
+reuse and skipped the regular suite and the build). Without a matching proof the same gate runs the regular
+suite and the build (~5-7 min in the matrix above): the follow-up commit that added this paragraph changed `HEAD`,
+so its push is the stale-proof fallback and is timed in the PR. The valid / stale-or-dirty / linked-worktree /
+failed-run / weaker-capability / unknown-format / CI cases are asserted deterministically by
+`tests/hooks/verification-proof.test.sh` and exercised again by the harness (scenarios 13-15).
+
 ## AI-long parallelism: keep the current configuration
 
 AI-long runs the matrix file and the continuity/determinism file in two workers (`maxWorkers: 25%`). The candidate
