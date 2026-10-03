@@ -2,8 +2,7 @@ import { createVassalageControls } from '@/ui/vassalage-controls';
 import type { GameState, DiplomaticAction, SettlementTerm, TreatyType, WarGoalKind } from '@/core/types';
 import { getRelationship, isAtWar } from '@/systems/diplomacy-queries';
 import { getPendingPeaceRequestForPair, getPendingTreatyProposalsFor, PENDING_DIPLOMATIC_REQUEST_TTL_TURNS } from '@/systems/diplomacy-requests';
-import { canReabsorbBreakaway, getAvailableActions } from '@/systems/diplomacy-system';
-import { hasArmsControlTreaty } from '@/systems/diplomacy-treaties';
+import { canReabsorbBreakaway, getAvailableDiplomaticActions } from '@/systems/diplomacy-system';
 import { isVassalBlocked } from '@/systems/diplomacy-vassal-rules';
 import { describeWarGoalLabel } from '@/systems/war-goal-system';
 import { getPendingSettlementOfferForPair } from '@/systems/settlement-system';
@@ -36,7 +35,7 @@ import { minorCivReparationsCost } from '@/systems/minor-civ-actions';
 import { createGameButton } from '@/ui/ui-kit';
 import { getWorldPressurePresentationForViewer } from '@/systems/world-pressure-presentation';
 import { canSendAid, type SendAidFailureReason } from '@/systems/crisis-interaction-system';
-import { TECH_TREE, resolveCivilizationEra } from '@/systems/tech-definitions';
+import { TECH_TREE } from '@/systems/tech-definitions';
 import { hasKnownStrategicCapability } from '@/systems/strategic-arsenal-system';
 
 export interface DiplomacyPanelCallbacks {
@@ -245,11 +244,8 @@ export function createDiplomacyPanel(
       : pendingPeaceRequest.toCivId === state.currentPlayer ? 'incoming'
       : pendingPeaceRequest.fromCivId === state.currentPlayer ? 'outgoing'
       : 'none';
-    const actions = getAvailableActions(playerDiplomacy, civId, {
-      completedTechs: playerCiv.techState.completed,
-      civilizationEra: resolveCivilizationEra(playerCiv.techState.completed),
-      hasArmsControlTreaty: hasArmsControlTreaty(state, state.currentPlayer),
-    });
+    // #1221: the executor's own eligibility, so a button is shown exactly when pressing it can do something.
+    const actions = getAvailableDiplomaticActions(state, state.currentPlayer, civId);
 
     let barColor = '#888';
     if (relationship > 30) barColor = '#4a9b4a';

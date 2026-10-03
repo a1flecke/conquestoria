@@ -10,27 +10,27 @@ import { processTurn } from '@/core/turn-manager';
 import { makeVassalageFixture } from './helpers/vassalage-fixture';
 
 function active() {
-  const pending = applyDiplomaticAction(makeVassalageFixture(), 'vassal', 'overlord', 'offer_vassalage', new EventBus());
-  return acceptDiplomaticRequest(pending, 'overlord', pending.pendingDiplomacyRequests![0].id, new EventBus());
+  const pending = applyDiplomaticAction(makeVassalageFixture(), 'vassal', 'overlord', 'offer_vassalage', new EventBus()).state;
+  return acceptDiplomaticRequest(pending, 'overlord', pending.pendingDiplomacyRequests![0].id, new EventBus()).state;
 }
 
 describe('#910 protection and independence', () => {
   it('starts per-vassal protection on a real war declaration and clears it on defense', () => {
     const state = active();
-    const attacked = applyDiplomaticAction(state, 'third', 'vassal', 'declare_war', new EventBus());
+    const attacked = applyDiplomaticAction(state, 'third', 'vassal', 'declare_war', new EventBus()).state;
     expect(attacked.civilizations.vassal.diplomacy.vassalage.protectionTimers).toEqual([{ attackerCivId: 'third', turnsRemaining: 3 }]);
     expect(state.civilizations.vassal.diplomacy.atWarWith).toEqual([]);
-    const defended = applyDiplomaticAction(attacked, 'overlord', 'third', 'declare_war', new EventBus());
+    const defended = applyDiplomaticAction(attacked, 'overlord', 'third', 'declare_war', new EventBus()).state;
     expect(defended.civilizations.vassal.diplomacy.vassalage.protectionTimers).toEqual([]);
   });
   it('enforces vassal restrictions on the canonical human and AI action path', () => {
     const state = active();
     for (const action of ['declare_war', 'alliance', 'trade_agreement'] as const) {
-      expect(applyDiplomaticAction(state, 'vassal', 'third', action, new EventBus())).toBe(state);
+      expect(applyDiplomaticAction(state, 'vassal', 'third', action, new EventBus()).state).toBe(state);
     }
   });
   it('joins an overlord war without vassal treachery', () => {
-    const state = applyDiplomaticAction(active(), 'overlord', 'third', 'declare_war', new EventBus());
+    const state = applyDiplomaticAction(active(), 'overlord', 'third', 'declare_war', new EventBus()).state;
     expect(state.civilizations.vassal.diplomacy.atWarWith).toContain('third');
     expect(state.civilizations.third.diplomacy.atWarWith).toContain('vassal');
     expect(state.civilizations.vassal.diplomacy.treacheryScore).toBe(0);
@@ -45,15 +45,15 @@ describe('#910 protection and independence', () => {
   it.each([true, false])('human recipient owns independence resolution: accepted=%s', accepted => {
     const state = active();
     state.civilizations.overlord.units = [];
-    const pending = applyDiplomaticAction(state, 'vassal', 'overlord', 'petition_independence', new EventBus());
+    const pending = applyDiplomaticAction(state, 'vassal', 'overlord', 'petition_independence', new EventBus()).state;
     expect(pending.pendingDiplomacyRequests).toContainEqual(expect.objectContaining({ type: 'independence', fromCivId: 'vassal', toCivId: 'overlord' }));
     expect(pending.civilizations.vassal.diplomacy.vassalage.overlord).toBe('overlord');
     const id = pending.pendingDiplomacyRequests![0].id;
     const bus = new EventBus();
     const ended = vi.fn();
     bus.on('diplomacy:vassalage-ended', ended);
-    expect(acceptDiplomaticRequest(pending, 'third', id, bus)).toBe(pending);
-    const result = accepted ? acceptDiplomaticRequest(pending, 'overlord', id, bus) : rejectDiplomaticRequest(pending, 'overlord', id, bus);
+    expect(acceptDiplomaticRequest(pending, 'third', id, bus).state).toBe(pending);
+    const result = accepted ? acceptDiplomaticRequest(pending, 'overlord', id, bus).state : rejectDiplomaticRequest(pending, 'overlord', id, bus);
     expect(result.civilizations.vassal.diplomacy.vassalage.overlord).toBeNull();
     expect(result.civilizations.overlord.diplomacy.vassalage.vassals).toEqual([]);
     expect(result.civilizations.vassal.diplomacy.atWarWith.includes('overlord')).toBe(!accepted);
@@ -64,7 +64,7 @@ describe('#910 protection and independence', () => {
   it('overlord release clears both sides, protection and treaties with abandonment cost', () => {
     const state = active();
     state.civilizations.vassal.diplomacy.vassalage.protectionTimers = [{ attackerCivId: 'third', turnsRemaining: 2 }];
-    const result = applyDiplomaticAction(state, 'overlord', 'vassal', 'release_vassal', new EventBus());
+    const result = applyDiplomaticAction(state, 'overlord', 'vassal', 'release_vassal', new EventBus()).state;
     expect(result.civilizations.vassal.diplomacy.vassalage).toMatchObject({ overlord: null, protectionTimers: [] });
     expect(result.civilizations.overlord.diplomacy.vassalage.vassals).toEqual([]);
     expect(result.civilizations.overlord.diplomacy.treacheryScore).toBe(40);
@@ -75,7 +75,7 @@ describe('#910 protection and independence', () => {
 
 describe('#910 protection transitions', () => {
   it('ticks once, expires once, and becomes independent when protection reaches 20', () => {
-    let state = applyDiplomaticAction(active(), 'third', 'vassal', 'declare_war', new EventBus());
+    let state = applyDiplomaticAction(active(), 'third', 'vassal', 'declare_war', new EventBus()).state;
     state.civilizations.vassal.diplomacy.vassalage.protectionScore = 40;
     const bus = new EventBus(); const failed = vi.fn(); bus.on('diplomacy:protection-failed', failed);
     state = processVassalageTurn(state, bus);
@@ -86,14 +86,14 @@ describe('#910 protection transitions', () => {
     processVassalageTurn(state, bus); expect(failed).toHaveBeenCalledTimes(1);
   });
   it('an AI overlord answers the same protection obligation', () => {
-    const state = applyDiplomaticAction(active(), 'third', 'vassal', 'declare_war', new EventBus());
+    const state = applyDiplomaticAction(active(), 'third', 'vassal', 'declare_war', new EventBus()).state;
     state.civilizations.overlord.isHuman = false;
     const next = processVassalageTurn(state, new EventBus());
     expect(next.civilizations.overlord.diplomacy.atWarWith).toContain('third');
     expect(next.civilizations.vassal.diplomacy.vassalage.protectionTimers).toEqual([]);
   });
   it('military attacks restart a missed protection obligation without refreshing an existing timer', () => {
-    let state = applyDiplomaticAction(active(), 'third', 'vassal', 'declare_war', new EventBus());
+    let state = applyDiplomaticAction(active(), 'third', 'vassal', 'declare_war', new EventBus()).state;
     const attacker = state.units[state.civilizations.third.units[0]];
     const defender = state.units[state.civilizations.vassal.units[0]];
     const result = { attackerId: attacker.id, defenderId: defender.id, attackerDamage: 0, defenderDamage: 1, attackerSurvived: true, defenderSurvived: true, attackerStrength: 10, defenderStrength: 10, attackerPosition: attacker.position, defenderPosition: defender.position };
@@ -105,7 +105,7 @@ describe('#910 protection transitions', () => {
     expect(state.civilizations.vassal.diplomacy.vassalage.protectionTimers[0].turnsRemaining).toBe(2);
   });
   it('peace immediately clears the relevant protection timer', () => {
-    const state = applyDiplomaticAction(active(), 'third', 'vassal', 'declare_war', new EventBus());
+    const state = applyDiplomaticAction(active(), 'third', 'vassal', 'declare_war', new EventBus()).state;
     const peaceful = makePeace(state.civilizations.vassal.diplomacy, 'third', state.turn);
     expect(peaceful.vassalage.protectionTimers).toEqual([]);
   });
@@ -121,7 +121,7 @@ describe('#910 protection transitions', () => {
   });
   it('expired independence never starts a war or ends the agreement', () => {
     const state = active(); state.civilizations.overlord.units = [];
-    const pending = applyDiplomaticAction(state, 'vassal', 'overlord', 'petition_independence', new EventBus());
+    const pending = applyDiplomaticAction(state, 'vassal', 'overlord', 'petition_independence', new EventBus()).state;
     pending.turn += 10;
     const after = rejectDiplomaticRequest(pending, 'overlord', pending.pendingDiplomacyRequests![0].id, new EventBus());
     expect(after.civilizations.vassal.diplomacy.vassalage.overlord).toBe('overlord');
@@ -132,8 +132,8 @@ describe('#910 protection transitions', () => {
 
 it('cannot keep an active vassalage link while declaring war on your own vassal or inviting it to a new league', () => {
   const state = active(); const bus = new EventBus();
-  expect(applyDiplomaticAction(state, 'overlord', 'vassal', 'declare_war', bus)).toBe(state);
-  expect(applyDiplomaticAction(state, 'third', 'vassal', 'propose_league', bus)).toBe(state);
+  expect(applyDiplomaticAction(state, 'overlord', 'vassal', 'declare_war', bus).state).toBe(state);
+  expect(applyDiplomaticAction(state, 'third', 'vassal', 'propose_league', bus).state).toBe(state);
 });
 
 
@@ -167,7 +167,7 @@ it('ends incompatible treaties on both sides of a forced vassal war without char
   const treaty = {type: 'alliance' as const, civA: 'vassal', civB: 'third', turnsRemaining: -1};
   state.civilizations.vassal.diplomacy.treaties.push(treaty);
   state.civilizations.third.diplomacy.treaties.push(treaty);
-  const next = applyDiplomaticAction(state, 'overlord', 'third', 'declare_war', new EventBus());
+  const next = applyDiplomaticAction(state, 'overlord', 'third', 'declare_war', new EventBus()).state;
   expect(next.civilizations.vassal.diplomacy.treaties.some(t => t.type === 'alliance')).toBe(false);
   expect(next.civilizations.third.diplomacy.treaties.some(t => t.type === 'alliance')).toBe(false);
   expect(next.civilizations.vassal.diplomacy.treacheryScore).toBe(0);

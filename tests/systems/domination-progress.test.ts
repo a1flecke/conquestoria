@@ -28,10 +28,10 @@ describe('Domination progress adapter', () => {
     const bus = new EventBus();
     const pending = applyDiplomaticAction(
       makeVassalageFixture(), 'vassal', 'overlord', 'offer_vassalage', bus,
-    );
+    ).state;
     const accepted = acceptDiplomaticRequest(
       pending, 'overlord', pending.pendingDiplomacyRequests![0].id, bus,
-    );
+    ).state;
     const state = withoutOwnedAssets(accepted, 'third');
 
     expect(getDominationProgress(state, 'overlord')).toMatchObject({
@@ -46,10 +46,10 @@ describe('Domination progress adapter', () => {
   it('does not award victory to a vassal or a one-founder secession sandbox', () => {
     const vassalState = makeVassalageFixture();
     const bus = new EventBus();
-    const pending = applyDiplomaticAction(vassalState, 'vassal', 'overlord', 'offer_vassalage', bus);
+    const pending = applyDiplomaticAction(vassalState, 'vassal', 'overlord', 'offer_vassalage', bus).state;
     const accepted = acceptDiplomaticRequest(
       pending, 'overlord', pending.pendingDiplomacyRequests![0].id, bus,
-    );
+    ).state;
     expect(getDominationProgress(accepted, 'vassal')).toMatchObject({
       eligible: false,
       ineligibleReason: 'vassal',
@@ -69,10 +69,10 @@ describe('Domination progress adapter', () => {
     const bus = new EventBus();
     const pending = applyDiplomaticAction(
       makeVassalageFixture(), 'vassal', 'overlord', 'offer_vassalage', bus,
-    );
+    ).state;
     const accepted = acceptDiplomaticRequest(
       pending, 'overlord', pending.pendingDiplomacyRequests![0].id, bus,
-    );
+    ).state;
     const candidate = withoutOwnedAssets(accepted, 'third');
     candidate.civilizations.vassal.diplomacy.vassalage.protectionScore = 20;
     candidate.pendingDiplomacyRequests = [{

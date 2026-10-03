@@ -11,9 +11,9 @@ function candidateState() {
   const bus = new EventBus();
   const pending = applyDiplomaticAction(
     makeVassalageFixture(), 'vassal', 'overlord', 'offer_vassalage', bus,
-  );
+  ).state;
   return withoutOwnedAssets(
-    acceptDiplomaticRequest(pending, 'overlord', pending.pendingDiplomacyRequests![0].id, bus),
+    acceptDiplomaticRequest(pending, 'overlord', pending.pendingDiplomacyRequests![0].id, bus).state,
     'third',
   );
 }
@@ -32,7 +32,7 @@ describe('domination completed-round boundary', () => {
       },
       majors: (current, eventBus) => applyDiplomaticAction(
         current, 'overlord', 'vassal', 'release_vassal', eventBus,
-      ),
+      ).state,
       world: current => processTurn(current, bus),
     });
 

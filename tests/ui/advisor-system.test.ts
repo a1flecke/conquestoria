@@ -1079,7 +1079,7 @@ describe('#910 vassalage advice', () => {
     expect(messages.some(m => /vassalage/i.test(m))).toBe(false);
   });
   it('advises the actual human recipient of a live offer and explains its protection cost', () => {
-    const state = applyDiplomaticAction(makeVassalageFixture(), 'vassal', 'overlord', 'offer_vassalage', new EventBus());
+    const state = applyDiplomaticAction(makeVassalageFixture(), 'vassal', 'overlord', 'offer_vassalage', new EventBus()).state;
     state.currentPlayer = 'overlord'; state.tutorial.active = false;
     const bus = new EventBus(); const messages: string[] = [];
     bus.on('advisor:message', e => messages.push(e.message));

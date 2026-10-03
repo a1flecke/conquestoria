@@ -14,10 +14,10 @@ describe('Domination earned intelligence', () => {
     const bus = new EventBus();
     const pending = applyDiplomaticAction(
       makeVassalageFixture(), 'vassal', 'overlord', 'offer_vassalage', bus,
-    );
+    ).state;
     const accepted = acceptDiplomaticRequest(
       pending, 'overlord', pending.pendingDiplomacyRequests![0].id, bus,
-    );
+    ).state;
     accepted.civilizations.third.knownCivilizations = ['overlord'];
     accepted.civilizations.vassal.knownCivilizations = ['overlord'];
 

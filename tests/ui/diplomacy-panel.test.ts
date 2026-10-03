@@ -627,7 +627,7 @@ describe('diplomacy-panel breakaway rows', () => {
     const render = () => createDiplomacyPanel(container, nextState, {
       onAction: () => {},
       onAcceptPeaceRequest: (requestId) => {
-        nextState = acceptDiplomaticRequest(nextState, 'player', requestId, bus);
+        nextState = acceptDiplomaticRequest(nextState, 'player', requestId, bus).state;
         render();
       },
       onRejectPeaceRequest: (requestId) => {

@@ -52,7 +52,7 @@ import { inviteToLeague } from '@/systems/diplomacy-leagues';
 import { getRelationship } from '@/systems/diplomacy-queries';
 import { getPendingPeaceRequestForPair, hasPendingTreatyProposalBetween } from '@/systems/diplomacy-requests';
 import { modifyRelationship, recordSpyCaught } from '@/systems/diplomacy-state';
-import { declareMajorWar, proposeTreatyAgreement, getAvailableActions } from '@/systems/diplomacy-system';
+import { declareMajorWar, proposeTreatyAgreement, getAvailableActions, resolveDiplomaticAction } from '@/systems/diplomacy-system';
 import { hasArmsControlTreaty } from '@/systems/diplomacy-treaties';
 import { getVassalageEligibility, getVassalageMilitaryCount } from '@/systems/diplomacy-vassal-rules';
 import { proposeVassalage } from '@/systems/diplomacy-vassalage';
@@ -1350,6 +1350,12 @@ function processAITurnInternal(
       // Issue #435 guard: never write treaties or war records against an unmet
       // civ — those records count as contact evidence and mass-discover civs.
       if (!hasMetCivilization(newState, civId, decision.targetCiv)) {
+        continue;
+      }
+      // #1221: decisions were chosen as a batch from a snapshot, but each one runs against the state the earlier
+      // ones left behind. Re-ask the same eligibility the player's executor enforces before writing anything;
+      // a decision that is no longer legal is dropped, never forced through a bilateral writer.
+      if (!resolveDiplomaticAction(newState, civId, decision.targetCiv, decision.action).ok) {
         continue;
       }
       switch (decision.action) {

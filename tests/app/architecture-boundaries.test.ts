@@ -1134,15 +1134,19 @@ describe('#1011 — diplomacy decomposition boundaries', () => {
   it('diplomacy-system.ts keeps exactly the audited public surface (single-side building blocks and every read are excluded)', async () => {
     const mod = await import('@/systems/diplomacy-system');
     expect(Object.keys(mod).sort()).toEqual([
+      'DIPLOMATIC_ACTION_DENIAL_MESSAGES',
+      'DIPLOMATIC_REQUEST_DENIAL_MESSAGES',
       'acceptDiplomaticRequest',
       'applyDiplomaticAction',
       'applyVassalageWarConsequences',
       'canReabsorbBreakaway',
       'declareMajorWar',
       'getAvailableActions',
+      'getAvailableDiplomaticActions',
       'makeMajorPeace',
       'proposeTreatyAgreement',
       'rejectDiplomaticRequest',
+      'resolveDiplomaticAction',
     ]);
   });
 
@@ -1688,6 +1692,69 @@ describe('#1013 — the import graph cannot drift silently', () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('#1221 — a diplomatic action runs only after the one eligibility the offer surface uses', () => {
+  const root = resolve(__dirname, '../..');
+  const read = (path: string) => readFileSync(resolve(root, path), 'utf8');
+  /** Source of the first function/loop body starting at `start`, up to the next top-level closing brace. */
+  const stripComments = (source: string) => source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  const callsResolverBefore = (source: string, anchor: RegExp, writer: RegExp): boolean => {
+    const clean = stripComments(source);
+    const anchorAt = clean.search(anchor);
+    if (anchorAt < 0) return false;
+    const tail = clean.slice(anchorAt);
+    const writerAt = tail.search(writer);
+    const resolverAt = tail.search(/\bresolveDiplomaticAction\(/);
+    return resolverAt >= 0 && writerAt >= 0 && resolverAt < writerAt;
+  };
+
+  it('the player executor revalidates with resolveDiplomaticAction before its first bilateral write', () => {
+    expect(callsResolverBefore(
+      read('src/systems/diplomacy-system.ts'),
+      /export function applyDiplomaticAction\(/,
+      /\b(declareMajorWar|proposeTreatyAgreement|proposeVassalage|proposeIndependence|releaseVassal|defendVassal|reabsorbBreakaway)\(/,
+    )).toBe(true);
+  });
+
+  it('the AI decision loop revalidates each batched decision before it writes war, peace or a treaty', () => {
+    expect(callsResolverBefore(
+      read('src/ai/basic-ai.ts'),
+      /for \(const decision of decisions\)/,
+      /\b(declareMajorWar|proposeTreatyAgreement)\(/,
+    )).toBe(true);
+  });
+
+  it('the diplomacy panel shows the executor-derived offer list, not the raw state-less offer table', () => {
+    const panel = read('src/ui/diplomacy-panel.ts');
+    expect(panel).toMatch(/getAvailableDiplomaticActions\(/);
+    expect(stripComments(panel)).not.toMatch(/\bgetAvailableActions\b/);
+  });
+
+  it('the controller turns a refusal into player copy instead of swallowing it', () => {
+    const controller = read('src/app/controllers/diplomacy-actions-controller.ts');
+    expect(controller).toContain('DIPLOMATIC_ACTION_DENIAL_MESSAGES');
+    expect(controller).toContain('DIPLOMATIC_REQUEST_DENIAL_MESSAGES');
+  });
+
+  describe('the check itself is not vacuous', () => {
+    const writer = /\bproposeTreatyAgreement\(/;
+    it('rejects a path that writes before it asks', () => {
+      const source = 'export function applyDiplomaticAction() {\n  proposeTreatyAgreement(a);\n  resolveDiplomaticAction(a);\n}';
+      expect(callsResolverBefore(source, /export function applyDiplomaticAction\(/, writer)).toBe(false);
+    });
+    it('rejects a path that never asks', () => {
+      expect(callsResolverBefore('export function applyDiplomaticAction() { proposeTreatyAgreement(a); }', /export function applyDiplomaticAction\(/, writer)).toBe(false);
+    });
+    it('does not accept the resolver named only in a comment', () => {
+      const source = 'export function applyDiplomaticAction() {\n  // resolveDiplomaticAction(a) was run by the caller\n  proposeTreatyAgreement(a);\n}';
+      expect(callsResolverBefore(source, /export function applyDiplomaticAction\(/, writer)).toBe(false);
+    });
+    it('accepts the resolver first', () => {
+      const source = 'export function applyDiplomaticAction() {\n  if (!resolveDiplomaticAction(a).ok) return;\n  proposeTreatyAgreement(a);\n}';
+      expect(callsResolverBefore(source, /export function applyDiplomaticAction\(/, writer)).toBe(true);
+    });
   });
 });
 

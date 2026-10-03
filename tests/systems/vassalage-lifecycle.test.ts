@@ -5,7 +5,7 @@ import { processVassalageTribute } from '@/systems/diplomacy-vassal-rules';
 import { makeVassalageFixture } from './helpers/vassalage-fixture';
 import type { GameState } from '@/core/types';
 
-const offer = (state: GameState, bus = new EventBus()) => applyDiplomaticAction(state, 'vassal', 'overlord', 'offer_vassalage', bus);
+const offer = (state: GameState, bus = new EventBus()) => applyDiplomaticAction(state, 'vassal', 'overlord', 'offer_vassalage', bus).state;
 
 describe('#910 live formation', () => {
   it.each([true, false])('queues for human recipient with proposer human=%s, without early effects', human => {
@@ -25,14 +25,14 @@ describe('#910 live formation', () => {
     const pending = offer(makeVassalageFixture(), bus);
     const request = pending.pendingDiplomacyRequests![0];
     expect(request).toBeDefined();
-    const accepted = acceptDiplomaticRequest(pending, 'overlord', request.id, bus);
+    const accepted = acceptDiplomaticRequest(pending, 'overlord', request.id, bus).state;
     expect(accepted.civilizations.vassal.diplomacy.vassalage.overlord).toBe('overlord');
     expect(accepted.civilizations.overlord.diplomacy.vassalage.vassals).toEqual(['vassal']);
     for (const id of ['vassal', 'overlord']) expect(accepted.civilizations[id].diplomacy.treaties.filter(t => t.type === 'vassalage')).toHaveLength(1);
     expect(accepted.defensiveLeagues).toEqual([]);
     expect(pending.defensiveLeagues).toHaveLength(1);
     expect(accepted.pendingDiplomacyRequests).toEqual([]);
-    expect(acceptDiplomaticRequest(accepted, 'overlord', request.id, bus)).toBe(accepted);
+    expect(acceptDiplomaticRequest(accepted, 'overlord', request.id, bus).state).toBe(accepted);
     expect(acceptedEvent).toHaveBeenCalledTimes(1);
   });
 
@@ -41,7 +41,7 @@ describe('#910 live formation', () => {
     expect(pending.pendingDiplomacyRequests).toHaveLength(1);
     const id = pending.pendingDiplomacyRequests![0].id;
     for (const actor of ['vassal', 'third']) {
-      expect(acceptDiplomaticRequest(pending, actor, id, new EventBus())).toBe(pending);
+      expect(acceptDiplomaticRequest(pending, actor, id, new EventBus()).state).toBe(pending);
       expect(rejectDiplomaticRequest(pending, actor, id)).toBe(pending);
     }
     const declined = rejectDiplomaticRequest(pending, 'overlord', id);
@@ -68,10 +68,15 @@ describe('#910 live formation', () => {
     if (invalidation === 'war') state.civilizations.overlord.diplomacy.atWarWith.push('vassal');
     if (invalidation === 'recipient-vassal') state.civilizations.overlord.diplomacy.vassalage.overlord = 'third';
     if (invalidation === 'eliminated') state.civilizations.overlord.isEliminated = true;
-    const result = acceptDiplomaticRequest(state, 'overlord', id, new EventBus());
-    expect(result.pendingDiplomacyRequests).toEqual([]);
-    expect(result.civilizations).toEqual(state.civilizations);
-    expect(result.defensiveLeagues).toEqual(state.defensiveLeagues);
+    const outcome = acceptDiplomaticRequest(state, 'overlord', id, new EventBus());
+    // #1221: a stale accept is a typed refusal that leaves the state exactly as it was (no partial commitment,
+    // no quiet conversion into a decline). The stale request ages out via the per-turn prune or a player decline.
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) throw new Error('unreachable');
+    expect(outcome.reason).toBe('request-no-longer-valid');
+    expect(outcome.state).toBe(state);
+    expect(outcome.state.civilizations).toEqual(state.civilizations);
+    expect(outcome.state.defensiveLeagues).toEqual(state.defensiveLeagues);
   });
 
   it.each(['era', 'peak', 'loss', 'unmet', 'own-vassal', 'own-overlord', 'recipient-vassal', 'cityless'] as const)('blocks ineligible %s proposal', reason => {
@@ -132,10 +137,10 @@ it.each(['explorer', 'standard', 'veteran'] as const)('AI consent is stable acro
 
 it('allows separate independent vassals under one overlord without nesting or duplicate treaties', () => {
   let state = offer(makeVassalageFixture());
-  state = acceptDiplomaticRequest(state, 'overlord', state.pendingDiplomacyRequests![0].id, new EventBus());
+  state = acceptDiplomaticRequest(state, 'overlord', state.pendingDiplomacyRequests![0].id, new EventBus()).state;
   state.civilizations.third.diplomacy.vassalage.peakCities = 3;
-  const pending = applyDiplomaticAction(state, 'third', 'overlord', 'offer_vassalage', new EventBus());
-  const after = acceptDiplomaticRequest(pending, 'overlord', pending.pendingDiplomacyRequests![0].id, new EventBus());
+  const pending = applyDiplomaticAction(state, 'third', 'overlord', 'offer_vassalage', new EventBus()).state;
+  const after = acceptDiplomaticRequest(pending, 'overlord', pending.pendingDiplomacyRequests![0].id, new EventBus()).state;
   expect(after.civilizations.overlord.diplomacy.vassalage.vassals).toEqual(['vassal', 'third']);
   expect(after.civilizations.overlord.diplomacy.vassalage.overlord).toBeNull();
   expect(after.civilizations.overlord.diplomacy.treaties.filter(t => t.type === 'vassalage')).toHaveLength(2);

@@ -216,14 +216,14 @@ describe('Domination AI campaign', () => {
     const bus = new EventBus();
     const offered = applyDiplomaticAction(
       makeVassalageFixture(), 'vassal', 'overlord', 'offer_vassalage', bus,
-    );
+    ).state;
     const accepted = acceptDiplomaticRequest(
       offered, 'overlord', offered.pendingDiplomacyRequests![0]!.id, bus,
-    );
+    ).state;
     const nearWin = withoutOwnedAssets(accepted, 'third');
     expect(checkDominationVictory(nearWin)).toBe('overlord');
 
-    const reversed = applyDiplomaticAction(nearWin, 'overlord', 'vassal', 'release_vassal', bus);
+    const reversed = applyDiplomaticAction(nearWin, 'overlord', 'vassal', 'release_vassal', bus).state;
     expect(checkDominationVictory(reversed)).toBeNull();
     assertBilateralWar(reversed);
 
