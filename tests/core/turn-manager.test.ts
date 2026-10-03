@@ -1905,7 +1905,8 @@ describe('espionage post-loop snapshot', () => {
 
 describe('intercept_courier turn-manager wiring (#442 MR1)', () => {
   it('actually removes the intercepted trade route via processTurn, end to end', async () => {
-    const { startMission, createEspionageCivState } = await import('@/systems/espionage-system');
+    const { createEspionageCivState } = await import('@/systems/espionage-system');
+    const { startMissionState } = await import('../helpers/espionage-mission');
 
     let succeeded = false;
     for (let attempt = 1; attempt <= 200 && !succeeded; attempt++) {
@@ -1944,7 +1945,7 @@ describe('intercept_courier turn-manager wiring (#442 MR1)', () => {
           [targetCivId]: createEspionageCivState(),
         },
       };
-      state.espionage!.player.spies['spy-1'] = startMission(state.espionage!.player, 'spy-1', 'intercept_courier').spies['spy-1'];
+      state.espionage!.player.spies['spy-1'] = startMissionState(state.espionage!.player, 'spy-1', 'intercept_courier').spies['spy-1'];
       state.espionage!.player.spies['spy-1'].currentMission!.turnsRemaining = 1;
 
       const bus = new EventBus();

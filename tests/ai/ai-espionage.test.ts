@@ -381,6 +381,43 @@ describe('AI espionage decisions', () => {
   });
 });
 
+describe('AI mission start consumes the typed start-mission result (#1222)', () => {
+  function stateWithSpy(spyOverrides: Record<string, unknown>): GameState {
+    const state = makeAiTestState();
+    state.civilizations['ai-egypt'].techState.completed = ['espionage-scouting', 'espionage-informants'];
+    let aiEsp = { ...createEspionageCivState(), maxSpies: 1 };
+    ({ state: aiEsp } = createSpyFromUnit(aiEsp, 'spy-1', 'ai-egypt', 'spy_agent', 'seed-1222'));
+    aiEsp = { ...aiEsp, spies: { 'spy-1': { ...aiEsp.spies['spy-1'], currentMission: null, ...spyOverrides } } };
+    state.espionage = { ...state.espionage, 'ai-egypt': aiEsp };
+    return state;
+  }
+
+  it('skips a stale candidate whose spy has a target civ but no target city, without crashing the AI turn', () => {
+    // Stationed with a half-recorded target: the AI's guard (`stationed && targetCivId`) passes,
+    // but the command is not legal. It used to throw out of processAITurn.
+    const state = stateWithSpy({ status: 'stationed', targetCivId: 'player', targetCityId: null, infiltrationCityId: null });
+    const started: string[] = [];
+    const bus = new EventBus();
+    bus.on('espionage:mission-started', event => started.push(event.missionType));
+
+    expect(() => processAITurn(state, 'ai-egypt', bus)).not.toThrow();
+
+    const spy = state.espionage!['ai-egypt'].spies['spy-1'];
+    expect(spy.currentMission).toBeNull();
+    expect(started).toEqual([]);
+  });
+
+  it('still starts a legal mission for a fully-targeted stationed spy', () => {
+    const state = stateWithSpy({
+      status: 'stationed', targetCivId: 'player', targetCityId: 'city-player-1', infiltrationCityId: null,
+    });
+
+    const result = processAITurn(state, 'ai-egypt', new EventBus());
+
+    expect(result.espionage!['ai-egypt'].spies['spy-1'].currentMission).not.toBeNull();
+  });
+});
+
 describe('AI capture verdict', () => {
   it('resolves a captured enemy spy (expel/execute/interrogate) so it is no longer captured', () => {
     // Place a player spy in 'captured' status targeting ai-egypt

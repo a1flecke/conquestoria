@@ -1659,12 +1659,12 @@ function processAITurnInternal(
           if (!city) continue;
           const missionIdx = Math.floor(aiSpyRng() * infiltrationMissions.length);
           const missionType = infiltrationMissions[missionIdx];
-          try {
-            newState.espionage![civId] = startMission(
-              newState.espionage![civId], spy.id, missionType, undefined, city.owner, city.id,
-            );
-            bus.emit('espionage:mission-started', { civId, spyId: spy.id, missionType });
-          } catch { /* spy not eligible — skip */ }
+          const started = startMission(
+            newState.espionage![civId], spy.id, missionType, undefined, city.owner, city.id,
+          );
+          if (!started.ok) continue; // spy not eligible — skip
+          newState.espionage![civId] = started.state;
+          bus.emit('espionage:mission-started', { civId, spyId: spy.id, missionType });
         }
       }
     }
@@ -1683,12 +1683,13 @@ function processAITurnInternal(
       }
       if (missionRequiresPlacedSpy(mission)) {
         if (spy.status === 'stationed' && spy.targetCivId) {
-          newState.espionage![civId] = startMission(
+          const started = startMission(
             newState.espionage![civId],
             spy.id,
             mission,
             resolveCivDefinition(newState, civ.civType ?? '')?.bonusEffect,
           );
+          if (started.ok) newState.espionage![civId] = started.state;
         }
         continue;
       }
@@ -1703,7 +1704,7 @@ function processAITurnInternal(
             administrativePerception,
           );
       if (target) {
-        newState.espionage![civId] = startMission(
+        const started = startMission(
           newState.espionage![civId],
           spy.id,
           mission,
@@ -1711,6 +1712,7 @@ function processAITurnInternal(
           target.civId,
           target.cityId,
         );
+        if (started.ok) newState.espionage![civId] = started.state;
       }
     }
   }

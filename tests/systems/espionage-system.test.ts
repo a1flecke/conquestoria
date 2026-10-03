@@ -30,6 +30,7 @@ import {
   } from '@/systems/espionage-system';
 import type { EspionageModifierQuery, TurnCapturedSpyCommand } from '@/systems/espionage-system';
 import { createDiplomacyState } from '@/systems/diplomacy-state';
+import { startMissionState } from '../helpers/espionage-mission';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
 import { transferCapturedCityOwnership } from '@/systems/city-capture-system';
@@ -482,7 +483,7 @@ describe('missions', () => {
         status: 'stationed', targetCivId: 'ai-egypt', targetCityId: 'city-1', position: { q: 5, r: 3 },
       });
       const s2 = addSpy(createEspionageCivState(), spy);
-      const s3 = startMission(s2, spy.id, 'gather_intel');
+      const s3 = startMissionState(s2, spy.id, 'gather_intel');
       const missionSpy = s3.spies[spy.id];
       expect(missionSpy.status).toBe('on_mission');
       expect(missionSpy.currentMission).not.toBeNull();
@@ -494,15 +495,14 @@ describe('missions', () => {
     it('refuses mission on idle spy', () => {
       const spy = makeTestSpy('spy-1', 'player');
       const s1 = addSpy(createEspionageCivState(), spy);
-      expect(() => startMission(s1, spy.id, 'gather_intel'))
-        .toThrow('Spy must be stationed');
+      expect(startMission(s1, spy.id, 'gather_intel')).toEqual({ ok: false, state: s1, reason: 'spy-not-stationed' });
     });
 
     it('allows remote cyber missions (cyber_attack) from an idle spy when a target is supplied', () => {
       const spy = makeTestSpy('spy-1', 'player');
       const s1 = addSpy(createEspionageCivState(), spy);
 
-      const s2 = startMission(s1, spy.id, 'cyber_attack', undefined, 'ai-egypt', 'city-egypt-1');
+      const s2 = startMissionState(s1, spy.id, 'cyber_attack', undefined, 'ai-egypt', 'city-egypt-1');
 
       expect(s2.spies[spy.id].status).toBe('on_mission');
       expect(s2.spies[spy.id].currentMission?.type).toBe('cyber_attack');
@@ -513,8 +513,7 @@ describe('missions', () => {
     it('requires a target when starting a remote mission from an idle spy', () => {
       const spy = makeTestSpy('spy-1', 'player');
       const s1 = addSpy(createEspionageCivState(), spy);
-      expect(() => startMission(s1, spy.id, 'cyber_attack'))
-        .toThrow('Spy must have a valid target to start a mission');
+      expect(startMission(s1, spy.id, 'cyber_attack')).toEqual({ ok: false, state: s1, reason: 'target-missing' });
     });
   });
 
@@ -534,7 +533,7 @@ describe('missions', () => {
         status: 'stationed', targetCivId: 'ai-egypt', targetCityId: 'city-1', position: { q: 5, r: 3 },
       });
       const s2 = addSpy(createEspionageCivState(), spy);
-      const s3 = startMission(s2, spy.id, 'gather_intel'); // 3 turns
+      const s3 = startMissionState(s2, spy.id, 'gather_intel'); // 3 turns
       const { state: s4 } = processSpyTurn(s3, 'turn-seed-1');
       expect(s4.spies[spy.id].currentMission!.turnsRemaining).toBe(2);
       expect(s4.spies[spy.id].status).toBe('on_mission');
@@ -545,7 +544,7 @@ describe('missions', () => {
         status: 'stationed', targetCivId: 'ai-egypt', targetCityId: 'city-1', position: { q: 5, r: 3 },
       });
       const s2 = addSpy(createEspionageCivState(), spy);
-      const s3 = startMission(s2, spy.id, 'scout_area'); // 1 turn
+      const s3 = startMissionState(s2, spy.id, 'scout_area'); // 1 turn
       const { state: s4, events } = processSpyTurn(s3, 'turn-seed-1');
       expect(s4.spies[spy.id].status).not.toBe('on_mission');
       expect(s4.spies[spy.id].currentMission).toBeNull();
@@ -558,7 +557,7 @@ describe('missions', () => {
         status: 'stationed', targetCivId: 'ai-egypt', targetCityId: 'city-1', position: { q: 5, r: 3 },
       });
       const s2 = addSpy(createEspionageCivState(), spy);
-      const s3 = startMission(s2, spy.id, 'scout_area');
+      const s3 = startMissionState(s2, spy.id, 'scout_area');
       const { state: s4, events } = processSpyTurn(s3, 'success-seed');
       if (events.some(e => e.type === 'mission_succeeded')) {
         expect(s4.spies[spy.id].experience).toBeGreaterThan(0);
@@ -840,7 +839,7 @@ describe('flip_loyalty gating and end-to-end resolution (#524 MR2a)', () => {
           player: {
             ...baseState.espionage!.player,
             spies: {
-              'spy-1': startMission(baseState.espionage!.player, 'spy-1', 'flip_loyalty').spies['spy-1'],
+              'spy-1': startMissionState(baseState.espionage!.player, 'spy-1', 'flip_loyalty').spies['spy-1'],
             },
           },
         },
@@ -885,7 +884,7 @@ describe('flip_loyalty gating and end-to-end resolution (#524 MR2a)', () => {
           player: {
             ...baseState.espionage!.player,
             spies: {
-              'spy-1': startMission(baseState.espionage!.player, 'spy-1', 'flip_loyalty', undefined, undefined, capitalId).spies['spy-1'],
+              'spy-1': startMissionState(baseState.espionage!.player, 'spy-1', 'flip_loyalty', undefined, undefined, capitalId).spies['spy-1'],
             },
           },
         },
@@ -917,7 +916,7 @@ describe('flip_loyalty gating and end-to-end resolution (#524 MR2a)', () => {
           player: {
             ...baseState.espionage!.player,
             spies: {
-              'spy-1': startMission(baseState.espionage!.player, 'spy-1', 'flip_loyalty').spies['spy-1'],
+              'spy-1': startMissionState(baseState.espionage!.player, 'spy-1', 'flip_loyalty').spies['spy-1'],
             },
           },
         },
@@ -1072,7 +1071,7 @@ describe('era 5 missions — intercept_courier and bribe_official (#442 MR1)', (
             player: {
               ...baseState.espionage!.player,
               spies: {
-                'spy-1': startMission(baseState.espionage!.player, 'spy-1', 'intercept_courier').spies['spy-1'],
+                'spy-1': startMissionState(baseState.espionage!.player, 'spy-1', 'intercept_courier').spies['spy-1'],
               },
             },
           },
@@ -1118,7 +1117,7 @@ describe('era 5 missions — intercept_courier and bribe_official (#442 MR1)', (
             player: {
               ...baseState.espionage!.player,
               spies: {
-                'spy-1': startMission(baseState.espionage!.player, 'spy-1', 'intercept_courier').spies['spy-1'],
+                'spy-1': startMissionState(baseState.espionage!.player, 'spy-1', 'intercept_courier').spies['spy-1'],
               },
             },
           },
@@ -1174,7 +1173,7 @@ describe('era 5 missions — intercept_courier and bribe_official (#442 MR1)', (
             player: {
               ...baseState.espionage!.player,
               spies: {
-                'spy-1': startMission(baseState.espionage!.player, 'spy-1', 'bribe_official').spies['spy-1'],
+                'spy-1': startMissionState(baseState.espionage!.player, 'spy-1', 'bribe_official').spies['spy-1'],
               },
             },
           },
@@ -1356,7 +1355,7 @@ describe('era 8-9 missions — expose_scandal and signals_intercept (#442 MR2)',
             player: {
               ...baseState.espionage!.player,
               spies: {
-                'spy-1': startMission(baseState.espionage!.player, 'spy-1', 'expose_scandal').spies['spy-1'],
+                'spy-1': startMissionState(baseState.espionage!.player, 'spy-1', 'expose_scandal').spies['spy-1'],
               },
             },
           },
@@ -1430,7 +1429,7 @@ describe('era 8-9 missions — expose_scandal and signals_intercept (#442 MR2)',
             player: {
               ...baseState.espionage!.player,
               spies: {
-                'spy-1': startMission(
+                'spy-1': startMissionState(
                   baseState.espionage!.player, 'spy-1', 'signals_intercept', undefined, targetCivId, capitalCityId,
                 ).spies['spy-1'],
               },
@@ -1541,7 +1540,7 @@ describe('informational mission report persistence (post-#442 audit fix)', () =>
           player: {
             ...baseState.espionage!.player,
             spies: {
-              'spy-1': startMission(baseState.espionage!.player, 'spy-1', missionType).spies['spy-1'],
+              'spy-1': startMissionState(baseState.espionage!.player, 'spy-1', missionType).spies['spy-1'],
             },
           },
         },
@@ -1665,7 +1664,7 @@ describe('informational mission report persistence (post-#442 audit fix)', () =>
             player: {
               ...baseState.espionage!.player,
               spies: {
-                'spy-1': startMission(baseState.espionage!.player, 'spy-1', missionType as SpyMissionType).spies['spy-1'],
+                'spy-1': startMissionState(baseState.espionage!.player, 'spy-1', missionType as SpyMissionType).spies['spy-1'],
               },
             },
           },

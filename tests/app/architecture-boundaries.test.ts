@@ -1812,6 +1812,62 @@ describe('#1221 — a diplomatic action runs only after the one eligibility the 
   });
 });
 
+describe('#1222 — starting a spy mission is a typed command that revalidates, never a throw', () => {
+  const root = resolve(__dirname, '../..');
+  const read = (path: string) => readFileSync(resolve(root, path), 'utf8');
+  const stripComments = (source: string) => source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  /** Body of `export function <name>(` up to the next top-level `\n}`. */
+  const functionBody = (source: string, name: string): string | null => {
+    const clean = stripComments(source);
+    const start = clean.indexOf(`export function ${name}(`);
+    if (start < 0) return null;
+    const end = clean.indexOf('\n}', start);
+    return end < 0 ? null : clean.slice(start, end);
+  };
+  const throwsOrSkipsEligibility = (source: string): boolean => {
+    const body = functionBody(source, 'startMission');
+    return body === null || /\bthrow\b/.test(body) || !/\bgetMissionStartDenial\(/.test(body);
+  };
+
+  it('startMission asks getMissionStartDenial and never throws for an invalid command', () => {
+    expect(throwsOrSkipsEligibility(read('src/systems/espionage-missions.ts'))).toBe(false);
+  });
+
+  it('the only callers are the player handler and the AI, and each inspects the typed result', () => {
+    const callers = readdirSync(resolve(root, 'src'), { recursive: true, withFileTypes: true })
+      .filter(entry => entry.isFile() && /\.tsx?$/.test(entry.name))
+      .map(entry => resolve(entry.parentPath, entry.name))
+      .filter(file => /\bstartMission\(/.test(stripComments(readFileSync(file, 'utf8'))))
+      .map(file => file.slice(root.length + 1))
+      .filter(path => path !== 'src/systems/espionage-missions.ts')
+      .sort();
+    expect(callers).toEqual(['src/ai/basic-ai.ts', 'src/app/controllers/panel-actions-controller.ts']);
+    for (const path of callers) {
+      const source = stripComments(read(path));
+      const calls = source.match(/\bstartMission\(/g)?.length ?? 0;
+      const checks = source.match(/\bstarted\.ok\b|!started\.ok\b/g)?.length ?? 0;
+      expect(checks, `${path} must inspect every startMission result`).toBeGreaterThanOrEqual(calls);
+    }
+  });
+
+  it('the panel offers a mission only if the same eligibility source would let it start', () => {
+    expect(read('src/app/controllers/panel-actions-controller.ts')).toMatch(/getMissionStartDenial\(/);
+    expect(read('src/app/controllers/panel-actions-controller.ts')).toContain('START_MISSION_FAILURE_MESSAGES');
+  });
+
+  describe('the check itself is not vacuous', () => {
+    it('rejects a startMission that throws', () => {
+      expect(throwsOrSkipsEligibility('export function startMission() {\n  getMissionStartDenial(a);\n  throw new Error("x");\n}')).toBe(true);
+    });
+    it('rejects a startMission that never asks the eligibility source', () => {
+      expect(throwsOrSkipsEligibility('export function startMission() {\n  return { ok: true };\n}')).toBe(true);
+    });
+    it('does not count a throw that only appears in a comment', () => {
+      expect(throwsOrSkipsEligibility('export function startMission() {\n  // used to throw new Error\n  getMissionStartDenial(a);\n}')).toBe(false);
+    });
+  });
+});
+
 describe('#1219 — a unit-vs-unit exchange only starts through the canonical attack legality', () => {
   function walkTs(dir: string): string[] {
     return readdirSync(dir, { withFileTypes: true }).flatMap(e => {

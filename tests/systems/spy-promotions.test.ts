@@ -6,8 +6,8 @@ import {
   createSpyFromUnit,
   getSpySuccessChance,
   processSpyTurn,
-  startMission,
 } from '@/systems/espionage-system';
+import { startMissionState } from '../helpers/espionage-mission';
 
 function makeSpy(experience: number): Spy {
   return {
@@ -66,7 +66,7 @@ describe('spy promotions', () => {
     state.spies[spy.id].targetCivId = 'ai-1';
     state.spies[spy.id].targetCityId = 'city-1';
 
-    const started = startMission(
+    const started = startMissionState(
       state,
       spy.id,
       'gather_intel',

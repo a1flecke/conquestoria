@@ -19,13 +19,69 @@ import { getMissionDuration, missionRequiresPlacedSpy } from './espionage-catalo
 /**
  * Mission commands and pure result resolution (#1009).
  *
- * `startMission` mutates only the passed `EspionageCivState`.
+ * `startMission` returns a typed `StartMissionResult` (#1222) and never throws for a stale
+ * or invalid command; it mutates nothing on refusal.
  * `resolveMissionResult` is a pure read of `GameState` returning a
  * `MissionResult` payload; applying that payload (state mutation, events,
  * diplomacy) happens in `espionage-turn.ts`. Both preserve the original RNG
  * seed strings and draw order exactly.
  */
 // --- Mission lifecycle ---
+
+/**
+ * Why a mission could not be started (#1222). Every reason is about the acting civ's own spy,
+ * so none of them can reveal hidden information about a foreign city or civ.
+ */
+export type StartMissionFailureReason =
+  | 'spy-not-found'
+  | 'spy-not-stationed'
+  | 'spy-unavailable'
+  | 'target-missing';
+
+export const START_MISSION_FAILURE_MESSAGES: Record<StartMissionFailureReason, string> = {
+  'spy-not-found': 'That spy is no longer available.',
+  'spy-not-stationed': 'This spy is not stationed in a foreign city, so it cannot start that mission right now.',
+  'spy-unavailable': 'This spy is busy or out of action, so it cannot start a mission right now.',
+  'target-missing': 'This mission needs a target city, and none has been chosen.',
+};
+
+export type StartMissionResult =
+  | { ok: true; state: EspionageCivState }
+  | { ok: false; state: EspionageCivState; reason: StartMissionFailureReason };
+
+export interface MissionStartOptions {
+  /**
+   * The caller will pick the target after asking (the panel offers a remote mission before it
+   * prompts for the city). Skips only the target check; every spy-state check still applies.
+   */
+  targetToBeChosen?: boolean;
+}
+
+/**
+ * The one eligibility source for starting a mission: the panel's offer list and `startMission`
+ * both ask it, so "offered" cannot drift from "executable". Returns `null` when legal.
+ * Tech gating stays in `getAvailableMissions` (techs are never lost, so it cannot go stale).
+ */
+export function getMissionStartDenial(
+  state: EspionageCivState,
+  spyId: string,
+  missionType: SpyMissionType,
+  targetCivId?: string,
+  targetCityId?: string,
+  options: MissionStartOptions = {},
+): StartMissionFailureReason | null {
+  const spy = state.spies[spyId];
+  if (!spy) return 'spy-not-found';
+  if (missionRequiresPlacedSpy(missionType)) {
+    if (spy.status !== 'stationed') return 'spy-not-stationed';
+  } else if (!['idle', 'stationed'].includes(spy.status)) {
+    return 'spy-unavailable';
+  }
+  if (!options.targetToBeChosen) {
+    if (!(targetCivId ?? spy.targetCivId) || !(targetCityId ?? spy.targetCityId)) return 'target-missing';
+  }
+  return null;
+}
 
 export function startMission(
   state: EspionageCivState,
@@ -34,19 +90,12 @@ export function startMission(
   civBonusEffect?: CivBonusEffect,
   targetCivId?: string,
   targetCityId?: string,
-): EspionageCivState {
+): StartMissionResult {
+  const denial = getMissionStartDenial(state, spyId, missionType, targetCivId, targetCityId);
+  if (denial) return { ok: false, state, reason: denial };
   const spy = state.spies[spyId];
-  if (!spy) throw new Error(`Spy ${spyId} not found`);
-  if (missionRequiresPlacedSpy(missionType)) {
-    if (spy.status !== 'stationed') throw new Error('Spy must be stationed to start a mission');
-  } else if (!['idle', 'stationed'].includes(spy.status)) {
-    throw new Error('Spy must be idle or stationed to start a remote mission');
-  }
-  const effectiveTargetCivId = targetCivId ?? spy.targetCivId;
-  const effectiveTargetCityId = targetCityId ?? spy.targetCityId;
-  if (!effectiveTargetCivId || !effectiveTargetCityId) {
-    throw new Error('Spy must have a valid target to start a mission');
-  }
+  const effectiveTargetCivId = (targetCivId ?? spy.targetCivId) as string;
+  const effectiveTargetCityId = (targetCityId ?? spy.targetCityId) as string;
 
   let duration = getMissionDuration(missionType);
   if (civBonusEffect?.type === 'espionage_growth') {
@@ -61,15 +110,18 @@ export function startMission(
   };
 
   return {
-    ...state,
-    spies: {
-      ...state.spies,
-      [spyId]: {
-        ...spy,
-        targetCivId: effectiveTargetCivId,
-        targetCityId: effectiveTargetCityId,
-        status: 'on_mission',
-        currentMission: mission,
+    ok: true,
+    state: {
+      ...state,
+      spies: {
+        ...state.spies,
+        [spyId]: {
+          ...spy,
+          targetCivId: effectiveTargetCivId,
+          targetCityId: effectiveTargetCityId,
+          status: 'on_mission',
+          currentMission: mission,
+        },
       },
     },
   };

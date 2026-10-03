@@ -7,7 +7,7 @@ import { createEmptyPirateState, type PirateFactionState } from '@/core/pirate-s
 import { createEmptyAutonomyCivState } from '@/core/autonomy-state';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { ENQUEUE_DENIAL_MESSAGES } from '@/systems/planning-system';
-import { createEspionageCivState } from '@/systems/espionage-system';
+import { createEspionageCivState, START_MISSION_FAILURE_MESSAGES } from '@/systems/espionage-system';
 import type { PirateFocusTarget } from '@/systems/pirate-presentation';
 import type { NotificationMapTarget } from '@/core/notification-log';
 import type { CouncilTalkLevel, GameState, HexCoord, Spy } from '@/core/types';
@@ -1242,6 +1242,103 @@ describe('PanelActionsController', () => {
       expect(deps.session.getState().espionage!.player.spies['spy-1'].currentMission?.type).toBe('scout_area');
       expect(deps.router.open).toHaveBeenCalledWith('espionage');
       expect(deps.showNotification).toHaveBeenCalledWith(expect.stringContaining('scout_area'), 'info');
+      promptSpy.mockRestore();
+    });
+
+    // #1222: the stale-click regression. The panel rendered "Start Mission" for a stationed spy;
+    // a double-activation (or any state change between render and click) invokes the same callback
+    // again once the spy is already on a mission. That used to throw out of the click handler.
+    it('warns instead of throwing when a stale Start Mission click reaches a spy that is no longer stationed (#1222)', () => {
+      const { state } = makeFixture('espionage-stale-start-mission');
+      state.civilizations.player.techState.completed = ['espionage-scouting'];
+      placeSpy(state, 'spy-1', { status: 'stationed', targetCivId: 'ai-1', targetCityId: 'foreign-city' });
+      const promptSpy = vi.spyOn(window, 'prompt').mockImplementation((_msg, defaultValue) => defaultValue ?? null);
+      const { deps, controller } = build(state);
+      const listener = vi.fn();
+
+      controller.openEspionagePanel();
+      const options = mockedCallArg<{ onStartMission: (spyId: string) => void }>(createEspionagePanel, 0, 1);
+      options.onStartMission('spy-1'); // the first click legitimately starts the mission
+      expect(deps.session.getState().espionage!.player.spies['spy-1'].status).toBe('on_mission');
+
+      deps.session.subscribe(listener);
+      const before = deps.session.getState();
+      vi.mocked(deps.showNotification).mockClear();
+      promptSpy.mockClear();
+
+      expect(() => options.onStartMission('spy-1')).not.toThrow(); // the stale second click
+
+      expect(deps.showNotification).toHaveBeenCalledWith(START_MISSION_FAILURE_MESSAGES['spy-not-stationed'], 'warning');
+      expect(deps.session.getState()).toBe(before);
+      expect(listener).not.toHaveBeenCalled();
+      expect(promptSpy).not.toHaveBeenCalled();
+      promptSpy.mockRestore();
+    });
+
+    it('warns instead of throwing when the spy is recalled while the mission prompt is open (#1222)', () => {
+      const { state } = makeFixture('espionage-recalled-mid-prompt');
+      state.civilizations.player.techState.completed = ['espionage-scouting'];
+      placeSpy(state, 'spy-1', { status: 'stationed', targetCivId: 'ai-1', targetCityId: 'foreign-city' });
+      const { deps, controller } = build(state);
+      const listener = vi.fn();
+      const promptSpy = vi.spyOn(window, 'prompt').mockImplementation(() => {
+        const current = deps.session.getState();
+        const esp = current.espionage!.player;
+        deps.session.commit({
+          ...current,
+          espionage: {
+            ...current.espionage,
+            player: { ...esp, spies: { ...esp.spies, 'spy-1': { ...esp.spies['spy-1'], status: 'idle' } } },
+          },
+        });
+        // Watch publications only from here: the recall above is the test's own write.
+        deps.session.subscribe(listener);
+        return 'scout_area';
+      });
+
+      controller.openEspionagePanel();
+      const options = mockedCallArg<{ onStartMission: (spyId: string) => void }>(createEspionagePanel, 0, 1);
+      vi.mocked(deps.showNotification).mockClear();
+
+      expect(() => options.onStartMission('spy-1')).not.toThrow();
+
+      expect(deps.showNotification).toHaveBeenCalledWith(START_MISSION_FAILURE_MESSAGES['spy-not-stationed'], 'warning');
+      expect(deps.showNotification).not.toHaveBeenCalledWith(expect.stringContaining('started'), expect.anything());
+      expect(deps.session.getState().espionage!.player.spies['spy-1'].status).toBe('idle');
+      expect(deps.session.getState().espionage!.player.spies['spy-1'].currentMission).toBeNull();
+      expect(listener).not.toHaveBeenCalled();
+      promptSpy.mockRestore();
+    });
+
+    it('warns when the spy behind a stale Start Mission click no longer exists (#1222)', () => {
+      const { state } = makeFixture('espionage-stale-missing-spy');
+      state.civilizations.player.techState.completed = ['espionage-scouting'];
+      const { deps, controller } = build(state);
+
+      controller.openEspionagePanel();
+      const options = mockedCallArg<{ onStartMission: (spyId: string) => void }>(createEspionagePanel, 0, 1);
+      const before = deps.session.getState();
+
+      expect(() => options.onStartMission('spy-ghost')).not.toThrow();
+
+      expect(deps.showNotification).toHaveBeenCalledWith(START_MISSION_FAILURE_MESSAGES['spy-not-found'], 'warning');
+      expect(deps.session.getState()).toBe(before);
+    });
+
+    it('does not offer a placed-spy mission to an idle spy it could not start (#1222)', () => {
+      const { state } = makeFixture('espionage-idle-spy-offer');
+      state.civilizations.player.techState.completed = ['espionage-scouting'];
+      placeSpy(state, 'spy-1', { status: 'idle', targetCivId: 'ai-1', targetCityId: 'foreign-city' });
+      const promptSpy = vi.spyOn(window, 'prompt').mockImplementation((_msg, defaultValue) => defaultValue ?? null);
+      const { deps, controller } = build(state);
+
+      controller.openEspionagePanel();
+      const options = mockedCallArg<{ onStartMission: (spyId: string) => void }>(createEspionagePanel, 0, 1);
+      expect(() => options.onStartMission('spy-1')).not.toThrow();
+
+      expect(promptSpy).not.toHaveBeenCalled();
+      expect(deps.showNotification).toHaveBeenCalledWith(START_MISSION_FAILURE_MESSAGES['spy-not-stationed'], 'warning');
+      expect(deps.session.getState().espionage!.player.spies['spy-1'].status).toBe('idle');
       promptSpy.mockRestore();
     });
 
