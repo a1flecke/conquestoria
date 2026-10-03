@@ -61,6 +61,10 @@ Detailed rules live in `.claude/rules/` and auto-apply based on the files you ed
 - `.claude/rules/wonder-content.md` — legendary/natural wonder gating, name collisions, quest-step baselines, codex ledger sync
 - `.claude/rules/audio-sfx.md` — capability-derived unit SFX coverage, named shared families, synthetic-cue provenance/manifest (#612)
 - `.claude/rules/content-description-honesty.md` — keeping `Tech.unlocks`/`Building.description`/`UNIT_DESCRIPTIONS` text honest about implemented mechanics
+- `.claude/rules/ai-simulation.md` — long-horizon AI campaign/playability suites and their isolation from the default suite (#1005)
+- `.claude/rules/invariants.md` — the cross-system `GameState` invariant catalog and how each invariant is enforced (#1003)
+- `.claude/rules/performance-budgets.md` — turn/pathfinding/fog/storage performance budgets and their baselines
+- `.claude/rules/great-general-content.md` — authored Great General roster content: descriptor vs `GeneralProfile` layers, biography, facts, provenance
 
 A PostToolUse hook (`.claude/hooks/check-src-edit.sh`) greps every Write/Edit under `src/` for known rule violations and returns feedback in the same turn.
 

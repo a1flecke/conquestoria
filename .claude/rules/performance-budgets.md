@@ -46,7 +46,7 @@ entities at all", which `main` satisfies) or `main`'s current ratio `× 1.3`
 Regenerate with:
 
 ```
-UPDATE_PERF_BASELINE=1 yarn vitest run tests/perf/algorithmic-budgets.test.ts
+UPDATE_PERF_BASELINE=1 ./scripts/run-with-mise.sh yarn vitest run tests/perf/algorithmic-budgets.test.ts
 ```
 
 - A PR that **deliberately** changes an algorithm's work (a new per-turn system,

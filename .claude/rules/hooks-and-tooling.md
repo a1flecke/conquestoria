@@ -40,6 +40,20 @@ paths:
 - [ ] Has matching `tests/hooks/<name>.test.sh` covering pass and block paths
 - [ ] Registered in `.claude/settings.json` under the correct `matcher` for the tool it cares about
 
+## Agent policy parity (#1231)
+
+`scripts/check-agent-policy-parity.mjs` (run by `tests/hooks/agent-policy-parity.test.sh` in `yarn test:hooks`) is a small, literal contradiction detector across the agent-facing surfaces: `CLAUDE.md`, `AGENTS.md`, `.claude/rules/*.md`, `.opencode/opencode.jsonc`, and `.opencode/commands/*.md`. It is **not** a prose linter and does not require the files to be identical — `CLAUDE.md` + `.claude/rules/*.md` are canonical policy, `AGENTS.md` is tool-neutral workflow guidance, and `.opencode/*` is OpenCode config. It fails only when their shared command/invariant semantics disagree.
+
+Declared rules, each with a failing fixture in `tests/hooks/agent-policy-parity.test.sh`:
+
+- `no-mise-activate` — no surface may present `eval "$(mise activate …)"` as the way to run commands; state it as a prohibition, or use `scripts/run-with-mise.sh`.
+- `wrapper-required` — commands shown in fenced code blocks use the mise wrapper.
+- `scripts-exist` — referenced `scripts/<file>` paths and `yarn <script>` names exist.
+- `no-pattern-kill` — no instruction to `pkill`/`killall`/`kill $(pgrep …)` (prohibitions and OpenCode `deny` rules are allowed).
+- `canonical-list` — `AGENTS.md` names `CLAUDE.md` + `.claude/rules/` as canonical, and every `.claude/rules/*.md` file is listed in `CLAUDE.md` → `## Rules Index`.
+
+**Add a rule** by appending one entry to `RULES` in the script (`id` + `check`), adding a failing fixture to the hook test, and setting `scope: 'repo'` when the rule is repo-wide rather than per-file. Code is authoritative for the exact checks; do not duplicate the rule table in prose.
+
 ## Pre-push gate: what it runs and how long it takes
 
 `require-green-before-push.sh` fires only for `git push`, `gh pr create`, and `gh pr merge` — not for `git commit`. It delegates to `scripts/verify-before-push.sh`, which runs `yarn test`, then `yarn build` — **sequentially**, not in parallel (each `run_phase` call blocks before the next line runs).

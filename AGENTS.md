@@ -138,7 +138,7 @@ All automated coding agents must use the repository wrapper
 Do not invoke bare `yarn`, `npm`, `npx`, or `node` when an equivalent wrapper
 command exists.
 
-Prefer the repo wrapper `./scripts/run-with-mise.sh` for project commands. In a fresh interactive shell, `eval "$(mise activate bash)"` still works. Main commands:
+Prefer the repo wrapper `./scripts/run-with-mise.sh` for project commands. Do not run `eval "$(mise activate bash)"` yourself — agents must use the wrapper. Main commands:
 
 The wrapper always executes `package.json`, project scripts, configuration, sources, hooks, and outputs from the **active worktree**. Each worktree owns its generated Yarn PnP map because it represents that worktree's lockfile; Yarn may share its download cache, but never borrow another checkout's `.pnp.cjs`. Standard focused-test paths remain root-relative, for example `tests/systems/city-system.test.ts`.
 
