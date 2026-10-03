@@ -55,7 +55,7 @@ same reason `invariants.md` excludes them: they are enforced by their own generi
 | `strategic-launch-execution-system.ts:51` | UI must never call `resolveStrategicStrike` | **C** | Only that module calls it (architecture pin) + new source rule with script and hook tests |
 | `types.ts:659` | Air-assault range and `operationalRange` must not drift | **D** | Single-source: range is *read from* `airOperation.operationalRange`, not duplicated; nothing to call |
 | `barbarian-pressure.ts` | Never pass a global unit scan as `sensedUnits` | **C** | `SensedUnits` brand + `campSensedUnits(...)` constructor (#1022) — see [`type-safety-inventory.md`](./type-safety-inventory.md) |
-| `gene-therapy-system.ts:27` | Callers must pass a pre-production snapshot | **D** | One caller (`turn-manager.ts`); the `unitIds` override is the whole mechanism |
+| `gene-therapy-system.ts:27` | Callers must pass a pre-production snapshot | **D** | One caller (`round-phases/per-civ/unit-recovery.ts`); the `unitIds` override is the whole mechanism |
 | `concealment.ts:105`, `great-general-definitions.ts:105` | Every consumer must call the canonical predicate/resolver | **S** | No raw bypass remains (`GENERAL_DEFINITIONS.find` has no src caller; concealment is pinned by the viewer-safety boundary rule) |
 | `legendary-wonder-history.ts:66`, `network-plan-system.ts:406`, `stampede-system.ts:46` | "Callers must not reconstruct transition facts / must retain the pre-mutation record" | **D** | Transition-owned payload convention (`end-to-end-wiring.md`), covered by per-feature once-only regressions |
 | `landmass-tagger.ts:11`, `great-general-profiles.ts:655` | "Callers must handle `undefined`/use the fallback" | **S** | The return type is `T \| undefined`; the compiler enforces it |

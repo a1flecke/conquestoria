@@ -1,6 +1,7 @@
 ---
 paths:
   - "src/core/turn-manager.ts"
+  - "src/core/round-phases/**"
   - "src/core/completed-round-orchestrator.ts"
   - "src/systems/unit-pathfinding.ts"
   - "src/systems/binary-heap.ts"

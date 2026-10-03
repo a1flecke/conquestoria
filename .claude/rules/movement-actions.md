@@ -181,7 +181,7 @@ Beast and barbarian raider AI (`beast-system.ts`'s `processBeasts`, `barbarian-s
 `processPurposefulBarbarians`) choose their own next step / spawn tile with a hand-rolled
 candidate filter (leash radius, terrain passability, an `occupied`-units set) — not a full
 `resolveUnitMoveIntent` walk, and not a call to `moveUnitWithZoneOfControl`/`moveUnit` either
-(`turn-manager.ts` applies the resulting order with a raw `unit.position = …` spread), so neither
+(the `barbarians` and `beasts` round phases under `src/core/round-phases/` apply the resulting order with a raw `unit.position = …` spread), so neither
 the `Unit`-taking blocking predicates nor the low-level-mover source rule ever saw them. An
 AI-playability run caught a beast standing on a foreign city tile as a direct result (#994) —
 `getBlockingMapEntitiesByHex`/`getBlockingMapEntityKeys` require a live `Unit`, which a

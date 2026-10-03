@@ -94,10 +94,10 @@ for file_path in "$@"; do
   # --- canonical city ownership (#1019): decision code must not use roster
   # length as a proxy for "does this owner have cities". Use
   # getOwnedCityCount(state, ownerId) instead. Capital/ordering, roster
-  # maintenance, turn processing, serialization, and the canonical ownership
+  # maintenance, turn processing (turn-manager and the round phases it runs, #1240), serialization, and the canonical ownership
   # module are exempt.
   case "$file_path" in
-    src/systems/capital-system.ts|src/systems/city-capture-system.ts|src/systems/city-founding-system.ts|src/systems/civilization-elimination-system.ts|src/core/turn-manager.ts|src/systems/city-ownership.ts|src/storage/*|src/storage/**/*|src/testing/*|src/testing/**/*)
+    src/systems/capital-system.ts|src/systems/city-capture-system.ts|src/systems/city-founding-system.ts|src/systems/civilization-elimination-system.ts|src/core/turn-manager.ts|src/core/round-phases/*|src/core/round-phases/**/*|src/systems/city-ownership.ts|src/storage/*|src/storage/**/*|src/testing/*|src/testing/**/*)
       : # sanctioned roster-maintenance/ordering/serialization uses
       ;;
     *)
@@ -117,7 +117,7 @@ for file_path in "$@"; do
   # roster, so its `.length` is excluded explicitly rather than exempting the
   # whole file.
   case "$file_path" in
-    src/core/turn-manager.ts|src/systems/civilization-elimination-system.ts|src/systems/unit-ownership.ts|src/storage/*|src/storage/**/*|src/testing/*|src/testing/**/*)
+    src/core/turn-manager.ts|src/core/round-phases/*|src/core/round-phases/**/*|src/systems/civilization-elimination-system.ts|src/systems/unit-ownership.ts|src/storage/*|src/storage/**/*|src/testing/*|src/testing/**/*)
       : # sanctioned roster-maintenance/ordering/serialization uses
       ;;
     *)

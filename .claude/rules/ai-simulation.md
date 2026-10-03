@@ -136,7 +136,7 @@ Expansion is a real strategic-plan objective, not an administrative side-channel
   optional — without it, no civ that starts at peace with no visible rival can ever
   discover a legal expand site, for the entire game.
 - **`getIdleExplorerUnitIds` must exclude a unit already auto-exploring.**
-  `turn-manager.ts`'s per-civ turn-start loop (the same generic mechanism the player's own
+  The per-civ `standing-orders` step of `processTurn` (`src/core/round-phases/per-civ/standing-orders.ts`, the same generic mechanism the player's own
   auto-explore button drives) already re-issues that unit's move every round with
   freshly-reset movement, *before* the AI round scheduler ever calls into `basic-ai.ts`.
   Since that move often does not consume the unit's full movement budget, a still-idle

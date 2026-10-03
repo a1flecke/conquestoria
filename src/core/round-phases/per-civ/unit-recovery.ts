@@ -16,27 +16,28 @@ import { retireGeneralsAtTurnEnd } from '@/systems/great-general-system';
 import type { CivTurn } from './types';
 
 /**
- * Heals the civ's wounded units. Runs BEFORE movement is reset because healing checks `hasMoved`/`hasActed`.
+ * Heals the civ's wounded units, in place on the round's working clone. Runs BEFORE movement is reset because
+ * healing checks `hasMoved`/`hasActed`.
  */
-export function healCivUnits(state: GameState, turn: CivTurn, completedTechs: string[]): void {
+export function healCivUnits(newState: GameState, turn: CivTurn, completedTechs: string[]): void {
   const { civId, civ } = turn;
 
   // Heal units BEFORE resetting hasMoved/hasActed (healing checks those flags)
   const friendlyCitiesByPosition = new Map(
-    civ.cities.map(id => state.cities[id]).filter(Boolean).map(city => [`${city!.position.q},${city!.position.r}`, city!] as const),
+    civ.cities.map(id => newState.cities[id]).filter(Boolean).map(city => [`${city!.position.q},${city!.position.r}`, city!] as const),
   );
-  const healActiveNPs = getActiveNationalProjectsForCiv(state, civId);
+  const healActiveNPs = getActiveNationalProjectsForCiv(newState, civId);
   for (const unitId of civ.units) {
-    const unit = state.units[unitId];
+    const unit = newState.units[unitId];
     if (!unit || unit.health >= 100) continue;
     if (unit.committedToRouteId) continue; // committed caravans do not heal
     const posKey = `${unit.position.q},${unit.position.r}`;
-    const tile = state.map.tiles[posKey];
+    const tile = newState.map.tiles[posKey];
     const friendlyCity = friendlyCitiesByPosition.get(posKey as `${number},${number}`);
     const inFriendlyCity = Boolean(friendlyCity) && (tile?.owner === civId);
     const inFriendlyTerritory = !inFriendlyCity && (tile?.owner === civId);
-    const withinRangeOfFriendlyCity3 = isWithinRangeOfTelemedicineHub(state, civId, unit.position, 3);
-    const nearNeuralRehabilitationCenter = isWithinRangeOfNeuralRehabilitationCenter(state, civId, unit.position, 1);
+    const withinRangeOfFriendlyCity3 = isWithinRangeOfTelemedicineHub(newState, civId, unit.position, 3);
+    const nearNeuralRehabilitationCenter = isWithinRangeOfNeuralRehabilitationCenter(newState, civId, unit.position, 1);
     const healingBonus = getHealingBonus({
       completedTechs: completedTechs,
       activeNationalProjects: healActiveNPs,
@@ -47,10 +48,10 @@ export function healCivUnits(state: GameState, turn: CivTurn, completedTechs: st
       localCityHealingBonus: inFriendlyCity && friendlyCity
         ? getLocalCityHealingBonus(unit.type, friendlyCity.buildings)
         : 0,
-      tacticalFortHealingBonus: getTacticalFortOccupantHealingBonus(state, unit),
+      tacticalFortHealingBonus: getTacticalFortOccupantHealingBonus(newState, unit),
     });
     if (getRestAvailability(unit.landSupply).canRest) {
-      state.units[unitId] = healUnit(unit, inFriendlyCity, inFriendlyTerritory, healingBonus);
+      newState.units[unitId] = healUnit(unit, inFriendlyCity, inFriendlyTerritory, healingBonus);
     }
   }
 }
@@ -78,19 +79,19 @@ export function recoverUnitsAtTurnEnd(state: GameState, turn: CivTurn, bus: Even
 /**
  * Restores every unit's movement for the new turn; a committed caravan stays put.
  */
-export function resetCivUnitMovement(state: GameState, turn: CivTurn): void {
+export function resetCivUnitMovement(newState: GameState, turn: CivTurn): void {
   const { civ } = turn;
 
   // Reset unit movement
   for (const unitId of civ.units) {
-    const unit = state.units[unitId];
+    const unit = newState.units[unitId];
     if (unit) {
       let reset = resetUnitTurn(unit);
       // Committed caravans cannot move — zero restored movement so they don't appear in unmoved cycling
       if (reset.committedToRouteId) {
         reset = { ...reset, movementPointsLeft: 0, hasActed: true };
       }
-      state.units[unitId] = reset;
+      newState.units[unitId] = reset;
     }
   }
 }

@@ -35,7 +35,7 @@ src/systems/barbarian-system.ts:46 # [LOW] lcg() recurrence body — hand-rolled
 
 # --- beast-system.ts ---
 src/systems/beast-system.ts:74 # [LOW] lcg() recurrence body — hand-rolled duplicate of seededLcg
-# note: the seed this feeds (turn-manager.ts, beast-tick) is now #982-converted and gameId-rooted.
+# note: the seed this feeds (round-phases/beasts.ts, beast-tick) is now #982-converted and gameId-rooted.
 
 # --- combat-system.ts (resolveCombat's own seed always comes from deterministicCombatSeed, already correct) ---
 src/systems/combat-system.ts:529 # [LOW] resolveCombat's LCG recurrence body — hand-rolled duplicate of seededLcg; caller-supplied seed is already gameId-rooted
@@ -46,5 +46,5 @@ src/systems/city-siege-system.ts:135 # [LOW] createSeededRng() recurrence body �
 # --- combat-reward-system.ts (seededRoll's seed always traces back to deterministicCombatSeed via applyCombatOutcomeToState) ---
 src/systems/combat-reward-system.ts:150 # [LOW] LCG recurrence body — hand-rolled duplicate of seededLcg
 
-# --- turn-manager.ts (deriveGeneralCandidateSeed, #932 — already gameId-rooted) ---
-src/core/turn-manager.ts:160 # [LOW] deriveGeneralCandidateSeed (#932) — already gameId-rooted; its fold is now deterministic-hash.ts's lehmerFoldByCodePoint (#1234), this line only chooses the turn-derived start
+# --- round-phases/per-civ/general-candidates.ts (deriveGeneralCandidateSeed, #932 — already gameId-rooted) ---
+src/core/round-phases/per-civ/general-candidates.ts:23 # [LOW] deriveGeneralCandidateSeed (#932) — already gameId-rooted; its fold is now deterministic-hash.ts's lehmerFoldByCodePoint (#1234), this line only chooses the turn-derived start

@@ -38,7 +38,7 @@ const LEGACY = {
   fnvImul(seed: string): number { let hash = 2166136261; for (let index = 0; index < seed.length; index++) hash = Math.imul(hash ^ seed.charCodeAt(index), 16777619); return hash; },
   // pirate-actions.ts deterministicRoll, air-operations-system.ts stableAirLossRoll
   fnvCodePointLead(seed: string): number { let hash = 2166136261; for (const character of seed) hash = Math.imul(hash ^ character.charCodeAt(0), 16777619); return hash; },
-  // turn-manager.ts deriveGeneralCandidateSeed, combat-reward-system.ts seededRoll
+  // round-phases/per-civ/general-candidates.ts deriveGeneralCandidateSeed, combat-reward-system.ts seededRoll
   lehmer(initial: number, source: string): number { let seed = initial; for (const char of source) { seed = (seed * 48271 + char.charCodeAt(0)) % 2147483647; } return seed; },
   // sprite-overlay.ts hashCode
   djb2(str: string): number { let h = 5381; for (let i = 0; i < str.length; i++) { h = ((h << 5) + h) ^ str.charCodeAt(i); } return h >>> 0; },
@@ -211,7 +211,7 @@ const SOURCES = walk(resolve(ROOT, 'src')).map(file => ({
  */
 const SITES: Array<[path: string, uses: string[]]> = [
   ['src/core/game-state.ts', ['rolling31Signed']],
-  ['src/core/turn-manager.ts', ['lehmerFoldByCodePoint']],
+  ['src/core/round-phases/per-civ/general-candidates.ts', ['lehmerFoldByCodePoint']],
   ['src/renderer/sprite-overlay.ts', ['djb2XorUnsigned']],
   ['src/systems/ai-roster-selection.ts', ['fnv1a32']],
   ['src/systems/air-operations-system.ts', ['fnv1a32CodePointLead']],

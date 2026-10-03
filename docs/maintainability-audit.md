@@ -53,7 +53,7 @@ remains is scored on:
 | Module | Lines | Exports | Density | Fan-in | Assessment |
 |---|---:|---:|---:|---:|---|
 | `src/ui/notification-routing.ts` | 1221 | 62 | 5.08 | 15 | Confirmed: a giant presentation dispatcher; split by notification domain. |
-| `src/core/turn-manager.ts` | 1596 | 4 | 0.25 | 1 | Turn processing; decomposition already owned by #1239 (pin phase order) / #1240 (extract round phases). |
+| `src/core/turn-manager.ts` | 18 | 4 | — | 1 | Resolved by #1239 (phase order pinned) / #1240: `processTurn` is a reduce over `ROUND_PHASES`; the former 1596 lines are one module per phase under `src/core/round-phases/`. No longer over 500 lines. |
 | `src/ai/basic-ai.ts` | 2042 | 7 | 0.34 | 1 | AI turn orchestration; low API surface, large body. |
 | `src/ai/ai-tactics.ts` | 1402 | 7 | 0.5 | 1 | Tactical decision queries; cohesive, low fan-in. |
 | `src/ui/city-panel.ts` | 1920 | 2 | 0.1 | 1 | Large but well encapsulated (2 exports, 1 importer) — a UI-cohesion question, not an API-surface one. |
@@ -85,7 +85,7 @@ Two modules answering the same question differently is the highest-value find
 
 | Question | Canonical owner | Duplicate / residual | Status |
 |---|---|---|---|
-| Civilization liveness | `getCivilizationLiveness` (`src/systems/civilization-liveness.ts`) | `src/systems/pirate-system.ts:133-134` (`.cities.length > 0`), `src/core/turn-manager.ts:296`, `src/ai/basic-ai.ts:1117/1140/1431` | **Residual.** The #1019 source rule blocks new roster-length liveness outside sanctioned files; these are known/pre-existing. |
+| Civilization liveness | `getCivilizationLiveness` (`src/systems/civilization-liveness.ts`) | `src/systems/pirate-system.ts:133-134` (`.cities.length > 0`), `src/core/round-phases/per-civ/city-production.ts:56`, `src/ai/basic-ai.ts:1117/1140/1431` | **Residual.** The #1019 source rule blocks new roster-length liveness outside sanctioned files; these are known/pre-existing. |
 | Owned cities / units | `getOwnedCities`/`getOwnedCityCount`, `getOwnedUnits`/`getOwnedUnitCount` (`city-ownership.ts`, `unit-ownership.ts`) | none found outside the #1019/#1020-sanctioned files | **Healthy.** Adoption is broad (AI, systems, UI, core). |
 | Civilization era vs world age | `resolveCivilizationEra` (tech-derived) vs `worldAgeFromNumber(state.era)` | `ProductionCostContext.era` was the historical divergence | **Closed.** `ProductionCostContext.era` is branded `CivilizationEra` and `buildProductionCostContext` can only pass `resolveCivilizationEra` (#984/#1016/#1017). Re-verify `legendary-wonder-presentation.ts:134`, which reads `state.era` for a display threshold. |
 | Viewer safety | `getVisibility`/`isVisible` (`src/systems/fog-of-war.ts`) | direct `visibility.tiles[...]` reads in `pirate-actions.ts:231,239`, `pirate-ecology.ts:194`, `council-memory.ts:57`, `ai-prepared-turn.ts:297`, `pirate-presentation.ts:83`, `pirate-audio-director.ts:50`, `last-seen-presentation.ts:171` | **Residual.** Writes in `fog-of-war.ts`/`espionage-turn.ts` are canonical; the reads bypass the helper. |

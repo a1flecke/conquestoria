@@ -532,6 +532,18 @@ describe('check-src-rule-violations.sh', () => {
       expect(result.stderr).toBe('');
     });
 
+    it('allows roster-length reads inside the round phases that turn-manager runs (#1240)', () => {
+      const workspace = makeWorkspace();
+      writeWorkspaceFile(workspace, 'src/core/round-phases/barbarians.ts', 'const cityCount = civ.cities.length;\n');
+      writeWorkspaceFile(workspace, 'src/core/round-phases/per-civ/diplomacy-drift.ts', 'const cityCount = civ.cities.length;\n');
+
+      for (const file of ['src/core/round-phases/barbarians.ts', 'src/core/round-phases/per-civ/diplomacy-drift.ts']) {
+        const result = runScript(workspace, file);
+        expect(result.status).toBe(0);
+        expect(result.stderr).toBe('');
+      }
+    });
+
     it('allows roster-length reads inside city-capture-system (roster maintenance)', () => {
       const workspace = makeWorkspace();
       writeWorkspaceFile(
@@ -576,6 +588,16 @@ describe('check-src-rule-violations.sh', () => {
       );
 
       const result = runScript(workspace, 'src/core/turn-manager.ts');
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe('');
+    });
+
+    it('allows roster-length reads inside the round phases that turn-manager runs (#1240)', () => {
+      const workspace = makeWorkspace();
+      writeWorkspaceFile(workspace, 'src/core/round-phases/per-civ/unit-recovery.ts', 'const unitCount = civ.units.length;\n');
+
+      const result = runScript(workspace, 'src/core/round-phases/per-civ/unit-recovery.ts');
 
       expect(result.status).toBe(0);
       expect(result.stderr).toBe('');
