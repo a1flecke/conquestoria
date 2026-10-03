@@ -373,7 +373,7 @@ if (has('--check')) {
 }
 
 if (has('--json')) {
-  console.log(JSON.stringify({
+  const json = JSON.stringify({
     schema: 1,
     totals: {
       srcFiles: allFiles.length,
@@ -384,7 +384,11 @@ if (has('--json')) {
     runtimeCycles,
     allEdgeCycles,
     crossLayerEdges,
-  }, null, 1));
+  }, null, 1);
+  // The payload is hundreds of KB. When stdout is a pipe, a write that is still queued is lost if the process
+  // exits first (`console.log` + `process.exit(0)` truncated the output on Linux CI and made `--json` look
+  // non-deterministic), so wait for the flush before exiting.
+  await new Promise(resolveWrite => process.stdout.write(`${json}\n`, resolveWrite));
   process.exit(0);
 }
 

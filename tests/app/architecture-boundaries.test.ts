@@ -1661,7 +1661,18 @@ describe('#1013 — the import graph cannot drift silently', () => {
     const second = runAudit('--json');
     expect(first.status, first.stderr).toBe(0);
     expect(second.status, second.stderr).toBe(0);
+    // A payload that does not parse was cut short by the process exiting before stdout flushed (it did, on Linux CI).
+    expect(() => JSON.parse(first.stdout), 'first --json output is truncated').not.toThrow();
+    expect(() => JSON.parse(second.stdout), 'second --json output is truncated').not.toThrow();
     expect(first.stdout).toBe(second.stdout);
+  });
+
+  it('--json writes its whole payload through a pipe, not just the first 64 KB the pipe buffers', () => {
+    // `console.log(big) ; process.exit(0)` is cut off at the pipe buffer when the reader is not already draining
+    // (65,536 bytes of ~340,000 here). That is how it truncated on Linux CI.
+    const piped = spawnSync('sh', ['-c', '"$0" "$1" --json | wc -c', process.execPath, script], { cwd: root, encoding: 'utf8' });
+    expect(piped.status, piped.stderr).toBe(0);
+    expect(Number(piped.stdout.trim())).toBeGreaterThan(200_000);
   });
 
   it('the drift check bites: a synthetic cycle-free baseline is rejected', () => {
