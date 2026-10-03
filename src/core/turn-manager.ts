@@ -85,7 +85,7 @@ import { processTradeRouteIncome, processFashionCycle, updatePrices, scrubStaleF
 import { advanceRouteRunners } from '@/systems/unit-movement-system';
 import { processWonderEffects } from '@/systems/wonder-system';
 import { createRng } from '@/systems/map-generator';
-import { processMinorCivTurn, checkEraAdvancement, processMinorCivEraUpgrade, checkCampEvolution } from '@/systems/minor-civ-system';
+import { processMinorCivTurn, checkCampEvolution } from '@/systems/minor-civ-system';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { createSimulationRng } from '@/systems/simulation-rng';
 import { resolveCombatEra, resolveNeutralPressureEra } from '@/systems/era-resolution';
@@ -131,7 +131,7 @@ import {
 } from '@/systems/legendary-wonder-system';
 import { getTacticalFortOccupantHealingBonus } from '@/systems/legendary-wonder-tactical-effects';
 import { announceUnitProduction, completeUnitProduction } from '@/systems/unit-production-completion';
-import { getNationalProjectCivYieldBonus, expireNationalProjects } from '@/systems/national-project-system';
+import { getNationalProjectCivYieldBonus } from '@/systems/national-project-system';
 import { classifyOwner } from './owner-kind';
 import { getStampedeLifecycleTransition, processStampedeScheduling, processStampedeTurn } from '@/systems/stampede-system';
 import {
@@ -146,6 +146,7 @@ import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
 import { removeUnits } from '@/systems/unit-removal-system';
 import { createRoundPhaseContext } from './round-phases/types';
+import { eraProgressionPhase } from './round-phases/era-progression';
 import { beastRewardsPhase } from './round-phases/beast-rewards';
 import { economyPhase } from './round-phases/economy';
 import { piratesPhase } from './round-phases/pirates';
@@ -205,7 +206,6 @@ export function processTurn(
   bus: EventBus,
 ): GameState {
   const context = createRoundPhaseContext(state, bus);
-  const { previousEraByCiv } = context;
   let newState = initializeLegendaryWonderProjectsForAllCities(structuredClone(state));
   let liveness = reconcileCivilizationLiveness(newState, newState);
   emitCivilizationLivenessTransitions(liveness, bus);
@@ -1447,53 +1447,7 @@ export function processTurn(
     newState.defensiveLeagues = checkLeagueDissolution(newState.defensiveLeagues, warPairs);
   }
 
-  // --- Era advancement check ---
-  const newEra = checkEraAdvancement(newState);
-  if (newEra > newState.era) {
-    newState.era = newEra;
-    bus.emit('era:advanced', { era: newEra });
-  }
-
-  const { state: afterExpiry, expired } = expireNationalProjects(newState);
-  newState = afterExpiry;
-  for (const item of expired) bus.emit('city:national-project-expired', item);
-  for (const cityId of Object.keys(newState.cities)) {
-      const city = newState.cities[cityId];
-      if (!city) continue;
-      const staleNPs = city.productionQueue.filter((item: string) => {
-        const bldg = BUILDINGS[item];
-        const owner = newState.civilizations[city.owner];
-        return bldg?.nationalProject && owner && resolveCivilizationEra(owner.techState.completed) > bldg.nationalProject.homeEra + 1;
-      });
-      if (staleNPs.length === 0) continue;
-      newState = {
-        ...newState,
-        cities: {
-          ...newState.cities,
-          [cityId]: {
-            ...city,
-            productionQueue: city.productionQueue.filter((item: string) => {
-              const bldg = BUILDINGS[item];
-              const owner = newState.civilizations[city.owner];
-              return !(bldg?.nationalProject && owner && resolveCivilizationEra(owner.techState.completed) > bldg.nationalProject.homeEra + 1);
-            }),
-          },
-        },
-      };
-      for (const buildingId of staleNPs) {
-        bus.emit('city:national-project-dequeued', { civId: city.owner, cityId, buildingId });
-      }
-    }
-
-  for (const [civId, civ] of Object.entries(newState.civilizations)) {
-    const era = resolveCivilizationEra(civ.techState.completed);
-    if (era > (previousEraByCiv[civId] ?? era)) bus.emit('civilization:era-advanced', { civId, previousEra: previousEraByCiv[civId]!, era });
-  }
-  // Local minor-civ pressure is derived from nearby/target civilizations, so it
-  // must be checked every round rather than only when aggregate World Age moves.
-  for (const mc of Object.values(newState.minorCivs)) {
-    processMinorCivEraUpgrade(newState, mc);
-  }
+  newState = eraProgressionPhase.run(newState, context);
 
   newState = beastRewardsPhase.run(newState, context);
 
