@@ -98,6 +98,7 @@ When planning interactive UI or queue work, use `docs/superpowers/plans/README.m
 - Use vitest for testing
 - Keep files focused and small — one clear responsibility per file
 - Use mise for all tool installation (node, yarn, etc.)
+- Do not bypass the type system with `as unknown as`, `@ts-ignore`, or `@ts-expect-error` in `src/` (compile-time negative fixtures in `tests/` are the legitimate exception) — fix the types instead
 
 ## Hot Seat Multiplayer Rules
 - NEVER hardcode `'player'` for ownership checks — always use `state.currentPlayer`
