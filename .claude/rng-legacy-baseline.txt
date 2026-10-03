@@ -49,7 +49,7 @@ src/systems/combat-reward-system.ts:152 # [LOW] LCG recurrence body — hand-rol
 src/systems/pirate-actions.ts:306 # [OK] full-string FNV-1a fold, no truncation; caller already supplies gameId:turn:factionId:raidKey
 
 # --- air-operations-system.ts (self-contained; already correct) ---
-src/systems/air-operations-system.ts:503 # [OK] gameId:turn:baseId:aircraftId folded over the full string, no truncation
+src/systems/air-operations-system.ts:530 # [OK] gameId:turn:baseId:aircraftId folded over the full string, no truncation
 
 # --- turn-manager.ts (deriveGeneralCandidateSeed, #932 — already gameId-rooted) ---
 src/core/turn-manager.ts:159 # [LOW] deriveGeneralCandidateSeed (#932) — already gameId-rooted; recurrence body duplicates seededLcg
