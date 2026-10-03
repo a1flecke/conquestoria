@@ -42,7 +42,15 @@ import { hasKnownStrategicCapability, hasManhattanProject } from '@/systems/stra
 import { evaluatePeaceConsent, evaluateTreatyConsent, type AgreementKind } from '@/ai/ai-treaty-consent';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { getRelationship, isAtWar, hasTreatyBetween } from '@/systems/diplomacy-queries';
-import { commitTreatyAgreement } from '@/systems/diplomacy-treaties';
+import { commitTreatyAgreement, hasArmsControlTreaty } from '@/systems/diplomacy-treaties';
+import {
+  checkDiplomaticActionOffer,
+  isOfferedDiplomaticAction,
+  OFFERED_DIPLOMATIC_ACTIONS,
+  type DiplomacyActionContext,
+  type DiplomaticActionDenialReason,
+} from '@/systems/diplomacy-actions';
+import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import {
   enqueuePeaceRequest,
   enqueueTreatyProposal,
@@ -50,7 +58,12 @@ import {
   isWarResolutionRequestPair,
   removeDiplomaticRequest,
 } from '@/systems/diplomacy-requests';
-import { isVassalBlocked } from '@/systems/diplomacy-vassal-rules';
+import {
+  canPetitionIndependence,
+  getVassalageEligibility,
+  hasActiveVassalage,
+  isVassalBlocked,
+} from '@/systems/diplomacy-vassal-rules';
 import { declareMajorWar, makeMajorPeace, resolveOpponentKind } from '@/systems/diplomacy-war';
 import {
   commitVassalageAgreement,
@@ -63,7 +76,12 @@ import {
 
 // Public cross-domain command surface (#1011).
 export { declareMajorWar, makeMajorPeace, applyVassalageWarConsequences } from '@/systems/diplomacy-war';
-export { getAvailableActions, type DiplomacyActionContext } from '@/systems/diplomacy-actions';
+export {
+  getAvailableActions,
+  DIPLOMATIC_ACTION_DENIAL_MESSAGES,
+  type DiplomacyActionContext,
+  type DiplomaticActionDenialReason,
+} from '@/systems/diplomacy-actions';
 
 export function proposeTreatyAgreement(state: GameState, fromCivId: string, toCivId: string, kind: AgreementKind, bus: EventBus): GameState {
   const from = state.civilizations[fromCivId];
@@ -134,56 +152,143 @@ export function canReabsorbBreakaway(
   return relationship >= REABSORB_RELATIONSHIP_MINIMUM && owner.gold >= REABSORB_GOLD_COST;
 }
 
+/**
+ * The acting civ's own gating inputs for `getAvailableActions` / `checkDiplomaticActionOffer`, derived from state
+ * in one place. The panel, the AI and the executor all build the same context from this, so the tech / era /
+ * arms-control inputs cannot drift between "what is offered" and "what is allowed" (#1027's World-Age bug).
+ */
+function getDiplomacyActionContext(state: GameState, civId: string): DiplomacyActionContext {
+  const completedTechs = state.civilizations[civId]?.techState.completed ?? [];
+  return {
+    completedTechs,
+    civilizationEra: resolveCivilizationEra(completedTechs),
+    hasArmsControlTreaty: hasArmsControlTreaty(state, civId),
+  };
+}
+
+export type DiplomaticActionEligibility =
+  | { ok: true }
+  | { ok: false; reason: DiplomaticActionDenialReason };
+
+/** Actions that write a treaty or war record: never against a civ the actor has not met (#435). */
+const ACTIONS_REQUIRING_CONTACT: ReadonlySet<DiplomaticAction> = new Set<DiplomaticAction>([
+  'declare_war', 'non_aggression_pact', 'trade_agreement', 'open_borders', 'alliance', 'arms_control_pact',
+]);
+
+/**
+ * The single answer to "may `actorId` do `action` to `targetCivId` right now, and if not why" (#1221).
+ *
+ * The offer list (`getAvailableDiplomaticActions`), the player's executor (`applyDiplomaticAction`) and the AI's
+ * decision loop all ask this, so a direct call cannot do what the panel would withhold. It is omniscient
+ * validation; the copy for a refusal never names a civilization.
+ *
+ * Contact is checked before anything that would describe the other civ (vassal status, treaties), so a refusal
+ * towards an unmet civ cannot leak what it is. Legality is not willingness: an AI declining a legal proposal is
+ * an outcome, not a denial here.
+ */
+export function resolveDiplomaticAction(
+  state: GameState,
+  actorId: string,
+  targetCivId: string,
+  action: DiplomaticAction,
+): DiplomaticActionEligibility {
+  const deny = (reason: DiplomaticActionDenialReason): DiplomaticActionEligibility => ({ ok: false, reason });
+  const actor = state.civilizations[actorId];
+  const target = state.civilizations[targetCivId];
+  const needsContact = ACTIONS_REQUIRING_CONTACT.has(action);
+  if (!actor || !target) return deny(needsContact ? 'not-met' : 'not-available');
+  if (actorId === targetCivId) return deny('self-target');
+  // Issue #435 guard: a treaty (or war record) between unmet civs becomes contact "evidence" and cascades
+  // into mass discovery on the next visibility sync.
+  if (needsContact && !hasMetCivilization(state, actorId, targetCivId)) return deny('not-met');
+
+  if (isVassalBlocked(action, Boolean(actor.diplomacy.vassalage.overlord))) return deny('vassal-restricted');
+  if (action !== 'declare_war' && isVassalBlocked(action, Boolean(target.diplomacy.vassalage.overlord))) {
+    return deny('vassal-restricted');
+  }
+
+  if (isOfferedDiplomaticAction(action)) {
+    return checkDiplomaticActionOffer(actor.diplomacy, targetCivId, getDiplomacyActionContext(state, actorId), action);
+  }
+
+  // Actions outside the offer table keep their own canonical predicate; the executor below calls the same one.
+  switch (action) {
+    case 'offer_vassalage':
+      return getVassalageEligibility(state, actorId, targetCivId).ok ? { ok: true } : deny('not-available');
+    case 'petition_independence':
+      return hasActiveVassalage(state, actorId, targetCivId) && canPetitionIndependence(state, actorId)
+        ? { ok: true } : deny('not-available');
+    case 'release_vassal':
+    case 'defend_vassal':
+      return hasActiveVassalage(state, targetCivId, actorId) ? { ok: true } : deny('not-available');
+    case 'reabsorb_breakaway':
+      return canReabsorbBreakaway(state, actorId, targetCivId) ? { ok: true } : deny('not-available');
+    default:
+      // Embargo / league actions: removed from the offer surface in #998 / #1030 and never had an execution path.
+      return deny('not-available');
+  }
+}
+
+/**
+ * The actions `actorId` is offered against `targetCivId`: the offer table filtered by the executor's own
+ * eligibility, so a button is shown exactly when pressing it can do something (offered ⇒ executable).
+ */
+export function getAvailableDiplomaticActions(
+  state: GameState,
+  actorId: string,
+  targetCivId: string,
+): DiplomaticAction[] {
+  return OFFERED_DIPLOMATIC_ACTIONS.filter(action => resolveDiplomaticAction(state, actorId, targetCivId, action).ok);
+}
+
+export type DiplomaticActionResult =
+  | { ok: true; state: GameState }
+  | { ok: false; state: GameState; reason: DiplomaticActionDenialReason };
+
+/**
+ * Executes a diplomatic action after re-running `resolveDiplomaticAction` against the current state (#1221).
+ *
+ * `ok: false` means the action was mechanically unavailable: `state` is the input, untouched, and `reason`
+ * has copy in `DIPLOMATIC_ACTION_DENIAL_MESSAGES`. `ok: true` means the action was legal and was carried out
+ * as far as the other side allows: an AI that declines a legal treaty or peace proposal still returns
+ * `ok: true` with the state it left (the decline is announced by its own event). Callers that need to tell
+ * "done" from "declined" compare states, exactly as before.
+ */
 export function applyDiplomaticAction(
   state: GameState,
   actorId: string,
   targetCivId: string,
   action: DiplomaticAction,
   bus: EventBus,
-): GameState {
-  const actor = state.civilizations[actorId];
-  const target = state.civilizations[targetCivId];
-  if (!actor || !target) {
-    return state;
-  }
+): DiplomaticActionResult {
+  const eligibility = resolveDiplomaticAction(state, actorId, targetCivId, action);
+  if (!eligibility.ok) return { ok: false, state, reason: eligibility.reason };
 
-  if (isVassalBlocked(action, Boolean(actor.diplomacy.vassalage.overlord))) return state;
-  if (action !== 'declare_war' && isVassalBlocked(action, Boolean(target.diplomacy.vassalage.overlord))) return state;
-
-  // Issue #435 guard: a treaty (or war record) between unmet civs becomes contact
-  // "evidence" and cascades into mass discovery on the next visibility sync.
-  const requiresContact: DiplomaticAction[] = [
-    'declare_war', 'non_aggression_pact', 'trade_agreement', 'open_borders', 'alliance', 'arms_control_pact',
-  ];
-  if (requiresContact.includes(action) && !hasMetCivilization(state, actorId, targetCivId)) {
-    return state;
-  }
+  const target = state.civilizations[targetCivId]!;
+  const done = (next: GameState): DiplomaticActionResult => ({ ok: true, state: next });
 
   switch (action) {
     case 'offer_vassalage':
-      return proposeVassalage(state, actorId, targetCivId, bus);
+      return done(proposeVassalage(state, actorId, targetCivId, bus));
     case 'petition_independence':
-      return proposeIndependence(state, actorId, targetCivId, bus);
+      return done(proposeIndependence(state, actorId, targetCivId, bus));
     case 'release_vassal':
-      return releaseVassal(state, actorId, targetCivId, bus);
+      return done(releaseVassal(state, actorId, targetCivId, bus));
     case 'defend_vassal':
-      return defendVassal(state, actorId, targetCivId, bus);
+      return done(defendVassal(state, actorId, targetCivId, bus));
     case 'declare_war': {
       const next = declareMajorWar(state, actorId, targetCivId, bus);
       if (next !== state) bus.emit('diplomacy:war-declared', { attackerId: actorId, defenderId: targetCivId, opponentKind: resolveOpponentKind(targetCivId) });
-      return next;
+      return done(next);
     }
     case 'request_peace':
-      return proposeTreatyAgreement(state, actorId, targetCivId, 'peace', bus);
+      return done(proposeTreatyAgreement(state, actorId, targetCivId, 'peace', bus));
     case 'non_aggression_pact':
     case 'trade_agreement':
     case 'open_borders':
-    case 'alliance': {
-      return proposeTreatyAgreement(state, actorId, targetCivId, action, bus);
-    }
-    case 'arms_control_pact': {
-      return proposeTreatyAgreement(state, actorId, targetCivId, action, bus);
-    }
+    case 'alliance':
+    case 'arms_control_pact':
+      return done(proposeTreatyAgreement(state, actorId, targetCivId, action, bus));
     case 'reabsorb_breakaway': {
       const cityId = target.breakaway?.originCityId;
       const nextState = tryReabsorbBreakaway(state, actorId, targetCivId, bus);
@@ -194,49 +299,61 @@ export function applyDiplomaticAction(
           cityId,
         });
       }
-      return nextState;
+      return done(nextState);
     }
     default:
-      return state;
+      // Unreachable: `resolveDiplomaticAction` denies every action without an execution path.
+      return { ok: false, state, reason: 'not-available' };
   }
 }
 
+/** Why accepting a pending request did nothing. Copy never names a civilization. */
+export type DiplomaticRequestDenialReason = 'request-not-found' | 'request-no-longer-valid';
+
+export const DIPLOMATIC_REQUEST_DENIAL_MESSAGES: Record<DiplomaticRequestDenialReason, string> = {
+  'request-not-found': 'That proposal is no longer there.',
+  'request-no-longer-valid': 'That proposal is no longer valid, so nothing was signed.',
+};
+
+export type DiplomaticRequestResult =
+  | { ok: true; state: GameState }
+  | { ok: false; state: GameState; reason: DiplomaticRequestDenialReason };
+
+/**
+ * Accepts a pending request addressed to `actingCivId`.
+ *
+ * `ok: false` leaves the state exactly as it was. In particular a stale or no-longer-committable accept is NOT
+ * quietly turned into a rejection (which used to remove the request and read to the controller as success,
+ * #1221): it is a typed refusal, no decline event is sent, and the player can still decline the request
+ * themselves. A request past its time-to-live is removed by the per-turn prune, not here.
+ */
 export function acceptDiplomaticRequest(
   state: GameState,
   actingCivId: string,
   requestId: string,
   bus: EventBus,
-): GameState {
+): DiplomaticRequestResult {
+  const refuse = (reason: DiplomaticRequestDenialReason): DiplomaticRequestResult => ({ ok: false, state, reason });
+  const accepted = (next: GameState): DiplomaticRequestResult => ({ ok: true, state: next });
   const request = (state.pendingDiplomacyRequests ?? []).find(candidate => candidate.id === requestId);
-  if (!request || request.toCivId !== actingCivId) {
-    return state;
-  }
-  if (!isDiplomaticRequestLive(state, request)) {
-    return rejectDiplomaticRequest(state, actingCivId, requestId);
-  }
+  if (!request || request.toCivId !== actingCivId) return refuse('request-not-found');
+  if (!isDiplomaticRequestLive(state, request)) return refuse('request-no-longer-valid');
 
   const actor = state.civilizations[request.fromCivId];
   const target = state.civilizations[request.toCivId];
-  if (!actor || !target) {
-    return {
-      ...state,
-      pendingDiplomacyRequests: (state.pendingDiplomacyRequests ?? []).filter(candidate => candidate.id !== requestId),
-    };
-  }
+  if (!actor || !target) return refuse('request-no-longer-valid');
 
   if (request.type === 'independence') {
     const result = resolveIndependence(state, request.fromCivId, request.toCivId, true, bus);
-    return result === state ? removeDiplomaticRequest(state, requestId) : result;
+    return result === state ? refuse('request-no-longer-valid') : accepted(result);
   }
 
   if (request.type === 'treaty') {
-    if (!request.treatyType) return rejectDiplomaticRequest(state, actingCivId, requestId);
-    if (request.treatyType === 'vassalage') {
-      const committed = commitVassalageAgreement(state, request.fromCivId, request.toCivId, bus);
-      return committed === state ? rejectDiplomaticRequest(state, actingCivId, requestId) : committed;
-    }
-    const committed = commitTreatyAgreement(state, request.fromCivId, request.toCivId, request.treatyType, bus);
-    return committed === state ? rejectDiplomaticRequest(state, actingCivId, requestId) : committed;
+    if (!request.treatyType) return refuse('request-no-longer-valid');
+    const committed = request.treatyType === 'vassalage'
+      ? commitVassalageAgreement(state, request.fromCivId, request.toCivId, bus)
+      : commitTreatyAgreement(state, request.fromCivId, request.toCivId, request.treatyType, bus);
+    return committed === state ? refuse('request-no-longer-valid') : accepted(committed);
   }
 
   if (request.type !== 'peace'
@@ -244,17 +361,17 @@ export function acceptDiplomaticRequest(
     || !getCivilizationLiveness(state, request.toCivId).living
     || actor.diplomacy.vassalage.overlord || target.diplomacy.vassalage.overlord
     || !isAtWar(actor.diplomacy, request.toCivId) || !isAtWar(target.diplomacy, request.fromCivId)) {
-    return rejectDiplomaticRequest(state, actingCivId, requestId);
+    return refuse('request-no-longer-valid');
   }
 
   bus.emit('diplomacy:peace-made', { civA: request.fromCivId, civB: request.toCivId });
   const peaced = makeMajorPeace(state, request.fromCivId, request.toCivId, bus);
-  return cancelInvalidNetworkPlans({
+  return accepted(cancelInvalidNetworkPlans({
     ...peaced,
     pendingDiplomacyRequests: (peaced.pendingDiplomacyRequests ?? []).filter(
       candidate => !isWarResolutionRequestPair(candidate, request.fromCivId, request.toCivId),
     ),
-  }).state;
+  }).state);
 }
 
 export function rejectDiplomaticRequest(

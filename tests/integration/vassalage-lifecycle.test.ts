@@ -15,13 +15,13 @@ function reload(state: GameState): GameState {
   return normalizeLoadedState(parsed.state);
 }
 function accept(state: GameState) {
-  return acceptDiplomaticRequest(state, 'overlord', state.pendingDiplomacyRequests![0].id, new EventBus());
+  return acceptDiplomaticRequest(state, 'overlord', state.pendingDiplomacyRequests![0].id, new EventBus()).state;
 }
 
 describe('#910 real turns and save boundaries', () => {
   it('preserves pending consent across export/import, then accepts identically and continues the same economy', () => {
     const state = normalizeLoadedState(makeVassalageFixture());
-    const pending = applyDiplomaticAction(state, 'vassal', 'overlord', 'offer_vassalage', new EventBus());
+    const pending = applyDiplomaticAction(state, 'vassal', 'overlord', 'offer_vassalage', new EventBus()).state;
     const restored = reload(pending);
     expect(restored.pendingDiplomacyRequests).toEqual(pending.pendingDiplomacyRequests);
     expect(restored.defensiveLeagues).toEqual(pending.defensiveLeagues);
@@ -36,7 +36,7 @@ describe('#910 real turns and save boundaries', () => {
     const state = normalizeLoadedState(makeVassalageFixture()); state.defensiveLeagues = [];
     for (const civ of Object.values(state.civilizations)) civ.gold = 1000;
     if (reverse) state.civilizations = Object.fromEntries(Object.entries(state.civilizations).reverse());
-    const pending = applyDiplomaticAction(state, 'vassal', 'overlord', 'offer_vassalage', new EventBus());
+    const pending = applyDiplomaticAction(state, 'vassal', 'overlord', 'offer_vassalage', new EventBus()).state;
     const declined = rejectDiplomaticRequest(pending, 'overlord', pending.pendingDiplomacyRequests![0].id, new EventBus());
     const active = accept(pending);
     const baseline = processTurn(declined, new EventBus());
@@ -47,7 +47,7 @@ describe('#910 real turns and save boundaries', () => {
     expect(paid.civilizations.overlord.gold).toBe(baseline.civilizations.overlord.gold + tribute);
     const waiting = processTurn(pending, new EventBus());
     expect(waiting.civilizations.vassal.gold).toBe(baseline.civilizations.vassal.gold);
-    const released = applyDiplomaticAction(active, 'overlord', 'vassal', 'release_vassal', new EventBus());
+    const released = applyDiplomaticAction(active, 'overlord', 'vassal', 'release_vassal', new EventBus()).state;
     const ended = processTurn(reload(released), new EventBus());
     expect(ended.civilizations.vassal.diplomacy.vassalage.overlord).toBeNull();
     expect(ended.civilizations.overlord.gold).toBe(baseline.civilizations.overlord.gold);
@@ -58,7 +58,7 @@ describe('#910 real turns and save boundaries', () => {
     for (const tile of Object.values(state.map.tiles).slice(0, 20)) {
       tile.owner = 'vassal'; tile.improvement = 'resource_outpost'; tile.improvementTurnsLeft = 0;
     }
-    const pending = applyDiplomaticAction(state, 'vassal', 'overlord', 'offer_vassalage', new EventBus());
+    const pending = applyDiplomaticAction(state, 'vassal', 'overlord', 'offer_vassalage', new EventBus()).state;
     const before = processTurn(pending, new EventBus());
     const after = processTurn(accept(pending), new EventBus());
     expect(getEconomyStatusForCiv(before, 'vassal').grossGoldIncome).toBeLessThan(0);
@@ -66,10 +66,10 @@ describe('#910 real turns and save boundaries', () => {
     expect(after.civilizations.overlord.gold).toBe(before.civilizations.overlord.gold);
   });
   it('round-trips protection and an independence petition without making the decision on load', () => {
-    let state = accept(applyDiplomaticAction(makeVassalageFixture(), 'vassal', 'overlord', 'offer_vassalage', new EventBus()));
-    state = applyDiplomaticAction(state, 'third', 'vassal', 'declare_war', new EventBus());
+    let state = accept(applyDiplomaticAction(makeVassalageFixture(), 'vassal', 'overlord', 'offer_vassalage', new EventBus()).state);
+    state = applyDiplomaticAction(state, 'third', 'vassal', 'declare_war', new EventBus()).state;
     state.civilizations.overlord.units = [];
-    state = applyDiplomaticAction(state, 'vassal', 'overlord', 'petition_independence', new EventBus());
+    state = applyDiplomaticAction(state, 'vassal', 'overlord', 'petition_independence', new EventBus()).state;
     const restored = reload(state);
     expect(restored.civilizations.vassal.diplomacy.vassalage).toEqual(state.civilizations.vassal.diplomacy.vassalage);
     expect(restored.pendingDiplomacyRequests).toEqual(state.pendingDiplomacyRequests);
@@ -87,7 +87,7 @@ it('charges no tribute at exactly zero income after outpost upkeep', () => {
   const sites = Object.values(state.map.tiles).filter(tile => tile.owner === null).slice(0, income / 2);
   expect(sites.length * 2).toBe(income);
   for (const tile of sites) { tile.owner = 'vassal'; tile.improvement = 'resource_outpost'; tile.improvementTurnsLeft = 0; }
-  const pending = applyDiplomaticAction(state, 'vassal', 'overlord', 'offer_vassalage', new EventBus());
+  const pending = applyDiplomaticAction(state, 'vassal', 'overlord', 'offer_vassalage', new EventBus()).state;
   const waiting = processTurn(pending, new EventBus());
   const paid = processTurn(accept(pending), new EventBus());
   expect(getEconomyStatusForCiv(waiting, 'vassal').grossGoldIncome).toBe(0);

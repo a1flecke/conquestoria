@@ -49,7 +49,7 @@ describe('#998 diplomacy preview⇒execute parity', () => {
         // emitted nothing at all" means the action had no execution path whatsoever.
         const bus = new EventBus();
         const emitSpy = vi.spyOn(bus, 'emit');
-        const result = applyDiplomaticAction(state, 'player', 'ai-1', action, bus);
+        const result = applyDiplomaticAction(state, 'player', 'ai-1', action, bus).state;
         const changedState = result !== state;
         const emittedSomething = emitSpy.mock.calls.length > 0;
         return changedState || emittedSomething

@@ -25,10 +25,10 @@ describe('Domination sovereignty facts', () => {
     const bus = new EventBus();
     const pending = applyDiplomaticAction(
       makeVassalageFixture(), 'vassal', 'overlord', 'offer_vassalage', bus,
-    );
+    ).state;
     const accepted = acceptDiplomaticRequest(
       pending, 'overlord', pending.pendingDiplomacyRequests![0].id, bus,
-    );
+    ).state;
 
     expect(getDominationActorFact(accepted, 'vassal')).toEqual({
       civId: 'vassal',
@@ -41,10 +41,10 @@ describe('Domination sovereignty facts', () => {
     const bus = new EventBus();
     const pending = applyDiplomaticAction(
       makeVassalageFixture(), 'vassal', 'overlord', 'offer_vassalage', bus,
-    );
+    ).state;
     const accepted = acceptDiplomaticRequest(
       pending, 'overlord', pending.pendingDiplomacyRequests![0].id, bus,
-    );
+    ).state;
     accepted.civilizations.overlord.diplomacy.treaties = [];
 
     expect(getDominationActorFact(accepted, 'vassal')).toEqual({
@@ -208,6 +208,6 @@ function acceptVassalage() {
   const bus = new EventBus();
   const pending = applyDiplomaticAction(
     makeVassalageFixture(), 'vassal', 'overlord', 'offer_vassalage', bus,
-  );
-  return acceptDiplomaticRequest(pending, 'overlord', pending.pendingDiplomacyRequests![0].id, bus);
+  ).state;
+  return acceptDiplomaticRequest(pending, 'overlord', pending.pendingDiplomacyRequests![0].id, bus).state;
 }

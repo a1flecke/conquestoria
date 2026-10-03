@@ -20,19 +20,19 @@ describe('#910 vassalage save data', () => {
     expect(normalizeVassalage(next)).toEqual(next);
   });
   it.each([0, 24, 25, 26, CURRENT_SAVE_SCHEMA_VERSION])('preserves consent pending and atomic acceptance at schema %s', version => {
-    const pending = applyDiplomaticAction(makeVassalageFixture(), 'vassal', 'overlord', 'offer_vassalage', new EventBus());
+    const pending = applyDiplomaticAction(makeVassalageFixture(), 'vassal', 'overlord', 'offer_vassalage', new EventBus()).state;
     const restored = migrateSaveToCurrent(JSON.parse(JSON.stringify({ ...pending, saveSchemaVersion: version })));
     expect(restored.pendingDiplomacyRequests).toEqual(pending.pendingDiplomacyRequests);
     expect(restored.civilizations.vassal.diplomacy.vassalage.overlord).toBeNull();
     expect(restored.defensiveLeagues).toEqual(pending.defensiveLeagues);
-    const active = acceptDiplomaticRequest(restored, 'overlord', restored.pendingDiplomacyRequests![0].id, new EventBus());
+    const active = acceptDiplomaticRequest(restored, 'overlord', restored.pendingDiplomacyRequests![0].id, new EventBus()).state;
     expect(normalizeVassalage(active).civilizations.vassal.diplomacy.vassalage.overlord).toBe('overlord');
   });
   it('preserves active roles and human independence requests, and removes expired or dangling requests', () => {
-    const pending = applyDiplomaticAction(makeVassalageFixture(), 'vassal', 'overlord', 'offer_vassalage', new EventBus());
-    const active = acceptDiplomaticRequest(pending, 'overlord', pending.pendingDiplomacyRequests![0].id, new EventBus());
+    const pending = applyDiplomaticAction(makeVassalageFixture(), 'vassal', 'overlord', 'offer_vassalage', new EventBus()).state;
+    const active = acceptDiplomaticRequest(pending, 'overlord', pending.pendingDiplomacyRequests![0].id, new EventBus()).state;
     active.civilizations.overlord.units = [];
-    const petition = applyDiplomaticAction(active, 'vassal', 'overlord', 'petition_independence', new EventBus());
+    const petition = applyDiplomaticAction(active, 'vassal', 'overlord', 'petition_independence', new EventBus()).state;
     expect(normalizeVassalage(petition).pendingDiplomacyRequests).toEqual(petition.pendingDiplomacyRequests);
     const expired = normalizeVassalage({ ...petition, turn: petition.turn + 10 });
     expect(expired.pendingDiplomacyRequests).toEqual([]);
@@ -48,8 +48,8 @@ describe('#910 vassalage save data', () => {
 
 
 it('does not restart malformed or expired protection timers during load', () => {
-  const pending = applyDiplomaticAction(makeVassalageFixture(), 'vassal', 'overlord', 'offer_vassalage', new EventBus());
-  const active = acceptDiplomaticRequest(pending, 'overlord', pending.pendingDiplomacyRequests![0].id, new EventBus());
+  const pending = applyDiplomaticAction(makeVassalageFixture(), 'vassal', 'overlord', 'offer_vassalage', new EventBus()).state;
+  const active = acceptDiplomaticRequest(pending, 'overlord', pending.pendingDiplomacyRequests![0].id, new EventBus()).state;
   active.civilizations.vassal.diplomacy.atWarWith = ['third'];
   for (const turnsRemaining of [NaN, -1, 0, 'bad']) {
     (active.civilizations.vassal.diplomacy.vassalage as any).protectionTimers = [{attackerCivId: 'third', turnsRemaining}];

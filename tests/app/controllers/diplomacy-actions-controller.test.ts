@@ -5,6 +5,8 @@ import { EventBus } from '@/core/event-bus';
 import { createGameSession } from '@/app/game-session';
 import { enqueuePeaceRequest, enqueueTreatyProposal } from '@/systems/diplomacy-requests';
 import { signTreaty } from '@/systems/diplomacy-treaties';
+import { ALLIANCE_TECHS } from '@/systems/diplomacy-actions';
+import { DIPLOMATIC_REQUEST_DENIAL_MESSAGES } from '@/systems/diplomacy-system';
 import { createUnit } from '@/systems/unit-lifecycle';
 import type { City, GameState, HexCoord } from '@/core/types';
 import {
@@ -43,6 +45,11 @@ function makeFixture(seed = 'diplomacy-actions-controller'): { state: GameState;
   const aiCivId = Object.keys(state.civilizations).find(id => id !== 'player')!;
   const mcId = Object.keys(state.minorCivs)[0];
   return { state, aiCivId, mcId };
+}
+
+/** #1221: the executor enforces the same unlock gate the panel does, so an alliance test must have earned it. */
+function grantAllianceUnlock(state: GameState): void {
+  state.civilizations.player.techState.completed.push(...ALLIANCE_TECHS);
 }
 
 function makeDeps(state: GameState, overrides: Partial<DiplomacyActionsControllerDeps> = {}) {
@@ -132,6 +139,7 @@ describe('DiplomacyActionsController', () => {
       state.civilizations[aiCivId].knownCivilizations = ['player'];
       state.civilizations.player.diplomacy.relationships[aiCivId] = 0;
       state.civilizations[aiCivId].diplomacy.relationships.player = 0;
+      grantAllianceUnlock(state);
       const { deps, controller } = build(state);
 
       controller.handleDiplomaticAction(aiCivId, 'alliance');
@@ -148,6 +156,7 @@ describe('DiplomacyActionsController', () => {
       state.civilizations[aiCivId].isHuman = true; // hot-seat co-player
       state.civilizations.player.knownCivilizations = [aiCivId];
       state.civilizations[aiCivId].knownCivilizations = ['player'];
+      grantAllianceUnlock(state);
       const { deps, controller } = build(state);
 
       controller.handleDiplomaticAction(aiCivId, 'alliance');
@@ -172,6 +181,7 @@ describe('DiplomacyActionsController', () => {
       };
       state.civilizations.player.knownCivilizations = ['ai-egypt'];
       state.civilizations.player.diplomacy.relationships['ai-egypt'] = 50;
+      grantAllianceUnlock(state);
       const { deps, controller } = build(state);
 
       controller.handleDiplomaticAction('ai-egypt', 'alliance');
@@ -188,6 +198,7 @@ describe('DiplomacyActionsController', () => {
       state.civilizations.player.knownCivilizations = [aiCivId];
       state.civilizations[aiCivId].knownCivilizations = ['player'];
       // the co-player already proposed an alliance to us
+      grantAllianceUnlock(state);
       const seeded = enqueueTreatyProposal(state, aiCivId, 'player', 'alliance', -1);
       const { deps, controller } = build(seeded);
 
@@ -579,7 +590,7 @@ describe('#910 response truth', () => {
     const { deps, controller } = build(state);
     controller.handleAcceptTreatyProposal('expired-request');
     expect(deps.showNotification).not.toHaveBeenCalledWith('Treaty signed.', 'success');
-    expect(deps.showNotification).toHaveBeenCalledWith('This proposal is no longer available.', 'warning');
+    expect(deps.showNotification).toHaveBeenCalledWith(DIPLOMATIC_REQUEST_DENIAL_MESSAGES['request-not-found'], 'warning');
   });
   it('does not allow generic Break to bypass bilateral vassalage cleanup', () => {
     const { state, aiCivId } = makeFixture();

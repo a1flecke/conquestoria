@@ -18,9 +18,9 @@ function candidateState(): GameState {
   const bus = new EventBus();
   const pending = applyDiplomaticAction(
     makeVassalageFixture(), 'vassal', 'overlord', 'offer_vassalage', bus,
-  );
+  ).state;
   return withoutOwnedAssets(
-    acceptDiplomaticRequest(pending, 'overlord', pending.pendingDiplomacyRequests![0].id, bus),
+    acceptDiplomaticRequest(pending, 'overlord', pending.pendingDiplomacyRequests![0].id, bus).state,
     'third',
   );
 }
@@ -71,7 +71,7 @@ describe('domination save continuity', () => {
     candidate.civilizations.overlord.units = [];
     const pending = applyDiplomaticAction(
       candidate, 'vassal', 'overlord', 'petition_independence', new EventBus(),
-    );
+    ).state;
     const beforeRound = normalizeLoadedState(pending);
     const uninterrupted = runOneRealRound(structuredClone(beforeRound));
     const continued = runOneRealRound(reload(beforeRound));

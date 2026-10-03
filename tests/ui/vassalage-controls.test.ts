@@ -9,12 +9,12 @@ function harness() {
   let state = makeVassalageFixture();
   const container = document.createElement('div');
   const bus = new EventBus();
-  const action = vi.fn((target, choice) => { state = applyDiplomaticAction(state, state.currentPlayer, target, choice, bus); render(); });
+  const action = vi.fn((target, choice) => { state = applyDiplomaticAction(state, state.currentPlayer, target, choice, bus).state; render(); });
   function render() {
     container.replaceChildren();
     createDiplomacyPanel(container, state, {
       onAction: action, onClose: () => {},
-      onAcceptTreatyProposal: id => { state = acceptDiplomaticRequest(state, state.currentPlayer, id, bus); render(); },
+      onAcceptTreatyProposal: id => { state = acceptDiplomaticRequest(state, state.currentPlayer, id, bus).state; render(); },
       onDeclineTreatyProposal: id => { state = rejectDiplomaticRequest(state, state.currentPlayer, id, bus); render(); },
     });
   }

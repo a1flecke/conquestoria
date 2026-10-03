@@ -90,7 +90,7 @@ test('human receives an AI offer, accepts, and confirms release in the live pane
   test.slow();
   await page.setViewportSize({width: 390, height: 844});
   let state = fixture(false, true); state.currentPlayer = 'overlord';
-  state = applyDiplomaticAction(state, 'vassal', 'overlord', 'offer_vassalage', new EventBus());
+  state = applyDiplomaticAction(state, 'vassal', 'overlord', 'offer_vassalage', new EventBus()).state;
   await enterSoloAutosave(page, state, testInfo);
   await page.getByRole('button', {name: 'Diplo', exact: true}).click();
   await page.getByRole('button', {name: 'Accept Vassalage: Egypt', exact: true}).click();

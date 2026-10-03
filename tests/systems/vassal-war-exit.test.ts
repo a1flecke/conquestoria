@@ -116,7 +116,7 @@ describe('#1054 vassal leaves a war when its overlord makes peace', () => {
     state = enqueuePeaceRequest(state, E, O, bus);
     const req = state.pendingDiplomacyRequests!.find(r => r.type === 'peace');
     expect(req).toBeDefined();
-    state = acceptDiplomaticRequest(state, O, req!.id, bus);
+    state = acceptDiplomaticRequest(state, O, req!.id, bus).state;
 
     expect(atWar(state, O, E)).toBe(false);
     expect(atWar(state, V, E)).toBe(false);

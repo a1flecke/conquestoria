@@ -30,7 +30,13 @@ import type { SelectionController } from '@/app/controllers/selection-controller
 import type { DiplomaticAction, GameState, SettlementTerm, TreatyType, WarGoalKind } from '@/core/types';
 import { isAtWar } from '@/systems/diplomacy-queries';
 import { CONSENT_TREATY_TYPES, hasPendingTreatyProposalBetween, isDiplomaticRequestLive } from '@/systems/diplomacy-requests';
-import { acceptDiplomaticRequest, applyDiplomaticAction, rejectDiplomaticRequest } from '@/systems/diplomacy-system';
+import {
+  acceptDiplomaticRequest,
+  applyDiplomaticAction,
+  DIPLOMATIC_ACTION_DENIAL_MESSAGES,
+  DIPLOMATIC_REQUEST_DENIAL_MESSAGES,
+  rejectDiplomaticRequest,
+} from '@/systems/diplomacy-system';
 import { breakTreaty } from '@/systems/diplomacy-treaties';
 import { emitAccessLossNotices } from '@/systems/territorial-access';
 import { getVassalageEligibility, canPetitionIndependence } from '@/systems/diplomacy-vassal-rules';
@@ -92,8 +98,16 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
     const cp = deps.session.getState().currentPlayer;
     const before = deps.session.getState();
     const targetWasHuman = before.civilizations[targetCivId]?.isHuman === true;
+    // #1221: the executor re-checks the same eligibility the panel was built from. A refusal is typed and carries
+    // copy; the panel is rebuilt so a stale button disappears instead of staying clickable.
+    const attempt = applyDiplomaticAction(before, cp, targetCivId, action, deps.bus);
+    if (!attempt.ok) {
+      deps.showNotification(DIPLOMATIC_ACTION_DENIAL_MESSAGES[attempt.reason], 'warning');
+      deps.openDiplomacyPanel();
+      return;
+    }
     const after = deps.session.batch(() => {
-      deps.session.commit(applyDiplomaticAction(before, cp, targetCivId, action, deps.bus));
+      deps.session.commit(attempt.state);
       if (action === 'declare_war' && deps.session.getState() !== before) {
         deps.session.commit(applyOpportunisticWarPenaltyIfCrisisStruck(deps.session.getState(), cp, targetCivId, deps.bus));
       }
@@ -152,9 +166,15 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
 
   function handleAcceptPeaceRequest(requestId: string): void {
     const before = deps.session.getState();
-    const after = acceptDiplomaticRequest(before, before.currentPlayer, requestId, deps.bus);
-    deps.session.commit(after);
-    emitMinorCivLeagueNotices(before, after, deps.bus);
+    const accepted = acceptDiplomaticRequest(before, before.currentPlayer, requestId, deps.bus);
+    if (!accepted.ok) {
+      // #1221: a stale accept used to fall through to a silent rejection and still announce "Peace accepted."
+      deps.showNotification(DIPLOMATIC_REQUEST_DENIAL_MESSAGES[accepted.reason], 'warning');
+      deps.openDiplomacyPanel();
+      return;
+    }
+    deps.session.commit(accepted.state);
+    emitMinorCivLeagueNotices(before, accepted.state, deps.bus);
     deps.openDiplomacyPanel();
     deps.showNotification('Peace accepted.', 'success');
   }
@@ -168,8 +188,13 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
   function respondToProposal(requestId: string, accept: boolean): void {
     const before = deps.session.getState();
     const request = before.pendingDiplomacyRequests?.find(r => r.id === requestId && r.toCivId === before.currentPlayer);
-    const after = accept ? acceptDiplomaticRequest(before, before.currentPlayer, requestId, deps.bus)
-      : rejectDiplomaticRequest(before, before.currentPlayer, requestId, deps.bus);
+    const accepted = accept ? acceptDiplomaticRequest(before, before.currentPlayer, requestId, deps.bus) : null;
+    if (accepted && !accepted.ok) {
+      deps.showNotification(DIPLOMATIC_REQUEST_DENIAL_MESSAGES[accepted.reason], 'warning');
+      deps.openDiplomacyPanel();
+      return;
+    }
+    const after = accepted ? accepted.state : rejectDiplomaticRequest(before, before.currentPlayer, requestId, deps.bus);
     deps.session.commit(after);
     emitMinorCivLeagueNotices(before, after, deps.bus);
     deps.openDiplomacyPanel();

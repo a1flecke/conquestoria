@@ -60,6 +60,6 @@ Movement: `check-src-rule-violations.sh` + the `check-src-edit.sh` mirror + `arc
 (see `movement-actions.md`). Unit removal, combat consequences, trainable-unit completion, strategic strikes and
 single-side diplomacy writers: the pins in `caller-discipline.md`. Unit-vs-unit attacks (#1219): every `resolveCombat` call is
 preceded by `resolveUnitVsUnitAttack`/`canUnitAttackTarget` in its function or carries an `attack-contract-exempt:`
-marker (`preview`, `world-actor`, `air-mission`) listed in `tests/helpers/attack-contract-boundaries.ts`. Everything else relies on the paired
+marker (`preview`, `world-actor`, `air-mission`) listed in `tests/helpers/attack-contract-boundaries.ts`. Diplomatic actions (#1221): `applyDiplomaticAction` and the AI's decision loop both ask `resolveDiplomaticAction` (the offer table plus contact/vassal/own predicates) before their first write, and the panel lists `getAvailableDiplomaticActions`; pinned by `architecture-boundaries.test.ts` "#1221". Everything else relies on the paired
 `can*`/`execute*` convention and tests. Prefer a focused follow-up issue and a structural change over a
 speculative regex rule; add a source rule only for a bypass that has demonstrably recurred.

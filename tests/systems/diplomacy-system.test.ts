@@ -3,6 +3,7 @@ import { getRelationship, isAtWar, hasAllianceTreaty, hasTreatyBetween } from '@
 import { enqueuePeaceRequest, getPendingPeaceRequestForPair, enqueueTreatyProposal, pruneExpiredDiplomaticRequests } from '@/systems/diplomacy-requests';
 import { createDiplomacyState, modifyRelationship, processRelationshipDrift, decayEvents } from '@/systems/diplomacy-state';
 import { acceptDiplomaticRequest, applyDiplomaticAction, getAvailableActions, rejectDiplomaticRequest } from '@/systems/diplomacy-system';
+import { TRADE_TECHS, ALLIANCE_TECHS, NAP_TECHS } from '@/systems/diplomacy-actions';
 import { signTreaty, breakTreaty, hasArmsControlTreaty } from '@/systems/diplomacy-treaties';
 import { proposeVassalage } from '@/systems/diplomacy-vassalage';
 import { declareWar, makePeace, recordMilitaryAttack } from '@/systems/diplomacy-war';
@@ -358,7 +359,7 @@ describe('diplomacy-system', () => {
     it('request_peace enqueues a proposal instead of clearing war state', () => {
       const state = makeWarState();
 
-      const result = applyDiplomaticAction(state, 'ai-1', 'player', 'request_peace', new EventBus());
+      const result = applyDiplomaticAction(state, 'ai-1', 'player', 'request_peace', new EventBus()).state;
 
       expect(result.civilizations.player.diplomacy.atWarWith).toContain('ai-1');
       expect(result.pendingDiplomacyRequests).toContainEqual(
@@ -375,7 +376,7 @@ describe('diplomacy-system', () => {
       const declined: unknown[] = [];
       bus.on('diplomacy:peace-declined', e => declined.push(e));
 
-      const result = applyDiplomaticAction(state, 'player', 'ai-1', 'request_peace', bus);
+      const result = applyDiplomaticAction(state, 'player', 'ai-1', 'request_peace', bus).state;
 
       expect(result.civilizations.player.diplomacy.atWarWith).toContain('ai-1'); // still at war -- refused
       expect(declined).toEqual([{ proposerCivId: 'player', targetCivId: 'ai-1', reason: 'peace-not-acceptable' }]);
@@ -385,6 +386,7 @@ describe('diplomacy-system', () => {
       const state = createNewGame(undefined, 'treaty-decline-test', 'small');
       state.civilizations.player.knownCivilizations = ['ai-1'];
       state.civilizations['ai-1'].knownCivilizations = ['player'];
+      state.civilizations.player.techState.completed = [...NAP_TECHS]; // #1221: the executor enforces the unlock gate
       // Deeply negative relationship forces evaluateTreatyConsent's NAP branch to refuse
       // ('relations-too-strained') regardless of the AI civ's personality diplomacyFocus.
       state.civilizations.player.diplomacy.relationships['ai-1'] = -80;
@@ -394,7 +396,7 @@ describe('diplomacy-system', () => {
       const declined: unknown[] = [];
       bus.on('diplomacy:treaty-declined', e => declined.push(e));
 
-      const result = applyDiplomaticAction(state, 'player', 'ai-1', 'non_aggression_pact', bus);
+      const result = applyDiplomaticAction(state, 'player', 'ai-1', 'non_aggression_pact', bus).state;
 
       expect(result.civilizations.player.diplomacy.treaties ?? []).toEqual([]);
       expect(declined).toEqual([{
@@ -441,7 +443,7 @@ describe('diplomacy-system', () => {
       const declined: unknown[] = [];
       bus.on('diplomacy:peace-declined', e => declined.push(e));
 
-      const result = applyDiplomaticAction(state, 'player', 'ai-1', 'request_peace', bus);
+      const result = applyDiplomaticAction(state, 'player', 'ai-1', 'request_peace', bus).state;
 
       expect(result.civilizations.player.diplomacy.atWarWith).not.toContain('ai-1'); // peace made
       expect(declined).toEqual([]);
@@ -456,7 +458,7 @@ describe('diplomacy-system', () => {
       expect(withPending.pendingDiplomacyRequests).toHaveLength(1);
 
       // The player proposes peace straight back; the AI target consents this turn.
-      const result = applyDiplomaticAction(withPending, 'player', 'ai-1', 'request_peace', new EventBus());
+      const result = applyDiplomaticAction(withPending, 'player', 'ai-1', 'request_peace', new EventBus()).state;
 
       expect(result.civilizations.player.diplomacy.atWarWith).not.toContain('ai-1');
       expect(result.civilizations['ai-1'].diplomacy.atWarWith).not.toContain('player');
@@ -482,7 +484,7 @@ describe('diplomacy-system', () => {
         throw new Error('expected pending peace request');
       }
 
-      const wrongActorResult = acceptDiplomaticRequest(first, 'ai-1', pairRequestId, bus);
+      const wrongActorResult = acceptDiplomaticRequest(first, 'ai-1', pairRequestId, bus).state;
       expect(wrongActorResult).toBe(first);
 
       const second = {
@@ -499,7 +501,7 @@ describe('diplomacy-system', () => {
         ],
       };
 
-      const accepted = acceptDiplomaticRequest(second, 'player', pairRequestId, bus);
+      const accepted = acceptDiplomaticRequest(second, 'player', pairRequestId, bus).state;
       expect(accepted.pendingDiplomacyRequests).toEqual([]);
       expect(accepted.civilizations.player.diplomacy.atWarWith).not.toContain('ai-1');
       expect(accepted.civilizations['ai-1'].diplomacy.atWarWith).not.toContain('player');
@@ -539,7 +541,7 @@ describe('diplomacy-system', () => {
       state.civilizations['ai-1'].diplomacy.relationships.player = 30;
       state.civilizations.player.diplomacy.relationships['ai-1'] = 30;
 
-      const result = applyDiplomaticAction(state, 'ai-1', 'player', 'trade_agreement', new EventBus());
+      const result = applyDiplomaticAction(state, 'ai-1', 'player', 'trade_agreement', new EventBus()).state;
 
       expect(result.civilizations['ai-1'].diplomacy.treaties).toEqual([]);
       expect(result.civilizations.player.diplomacy.treaties).toEqual([]);
@@ -556,7 +558,7 @@ describe('diplomacy-system', () => {
       state.civilizations['ai-1'].knownCivilizations = [];
       state.civilizations.player.knownCivilizations = [];
 
-      const result = applyDiplomaticAction(state, 'ai-1', 'player', 'declare_war', new EventBus());
+      const result = applyDiplomaticAction(state, 'ai-1', 'player', 'declare_war', new EventBus()).state;
 
       expect(result.civilizations['ai-1'].diplomacy.atWarWith).toEqual([]);
       expect(result.civilizations.player.diplomacy.atWarWith).toEqual([]);
@@ -573,10 +575,11 @@ describe('diplomacy-system', () => {
       state.era = 3;
       state.civilizations['ai-1'].knownCivilizations = ['player'];
       state.civilizations.player.knownCivilizations = ['ai-1'];
+      state.civilizations['ai-1'].techState.completed = [...TRADE_TECHS]; // #1221: the executor enforces the unlock gate
       state.civilizations['ai-1'].diplomacy.relationships.player = 30;
       state.civilizations.player.diplomacy.relationships['ai-1'] = 30;
 
-      const result = applyDiplomaticAction(state, 'ai-1', 'player', 'trade_agreement', new EventBus());
+      const result = applyDiplomaticAction(state, 'ai-1', 'player', 'trade_agreement', new EventBus()).state;
 
       expect(result.civilizations['ai-1'].diplomacy.treaties).toHaveLength(0);
       expect(result.civilizations.player.diplomacy.treaties).toHaveLength(0);
@@ -593,6 +596,7 @@ describe('diplomacy-system', () => {
           player: {
             id: 'player',
             civType: 'narnia',
+            techState: { completed: [...ALLIANCE_TECHS] },
             knownCivilizations: ['ai-egypt'],
             diplomacy: createDiplomacyState(['player', 'ai-egypt'], 'player'),
           },
@@ -607,7 +611,7 @@ describe('diplomacy-system', () => {
       state.civilizations.player.diplomacy.relationships['ai-egypt'] = 50;
       state.civilizations['ai-egypt'].diplomacy.relationships.player = 50;
 
-      const result = applyDiplomaticAction(state, 'player', 'ai-egypt', 'alliance', bus);
+      const result = applyDiplomaticAction(state, 'player', 'ai-egypt', 'alliance', bus).state;
 
       expect(getRelationship(result.civilizations.player.diplomacy, 'ai-egypt')).toBe(65);
       expect(getRelationship(result.civilizations['ai-egypt'].diplomacy, 'player')).toBe(65);
@@ -621,7 +625,7 @@ describe('diplomacy-system', () => {
       });
       const bus = new EventBus();
 
-      const result = applyDiplomaticAction(state, 'player', breakawayId, 'reabsorb_breakaway', bus);
+      const result = applyDiplomaticAction(state, 'player', breakawayId, 'reabsorb_breakaway', bus).state;
 
       expect(result.cities[cityId].owner).toBe('player');
       expect(result.civilizations[breakawayId]).toBeUndefined();
@@ -637,8 +641,10 @@ describe('diplomacy-system', () => {
       });
       const bus = new EventBus();
 
-      expect(() => applyDiplomaticAction(state, 'outsider', breakawayId, 'reabsorb_breakaway', bus))
-        .toThrow(/origin owner/i);
+      // #1221: a typed refusal, not a thrown Error, and the state is returned untouched.
+      const outcome = applyDiplomaticAction(state, 'outsider', breakawayId, 'reabsorb_breakaway', bus);
+      expect(outcome.ok).toBe(false);
+      expect(outcome.state).toBe(state);
     });
 
     it('does not bypass AI arms-control consent without known capability (#545 MR6)', () => {
@@ -648,7 +654,7 @@ describe('diplomacy-system', () => {
       state.civilizations.player.strategicArsenal = 3;
       state.civilizations['ai-1'].strategicArsenal = 1;
 
-      const result = applyDiplomaticAction(state, 'player', 'ai-1', 'arms_control_pact', new EventBus());
+      const result = applyDiplomaticAction(state, 'player', 'ai-1', 'arms_control_pact', new EventBus()).state;
 
       expect(result.civilizations.player.diplomacy.treaties).toHaveLength(0);
       expect(result.civilizations['ai-1'].diplomacy.treaties).toHaveLength(0);
@@ -657,7 +663,7 @@ describe('diplomacy-system', () => {
     it('arms_control_pact requires prior contact, same #435 guard as every other treaty type', () => {
       const state = createNewGame(undefined, 'arms-control-no-contact-test', 'small');
       // No knownCivilizations set on either side -- unmet.
-      const result = applyDiplomaticAction(state, 'player', 'ai-1', 'arms_control_pact', new EventBus());
+      const result = applyDiplomaticAction(state, 'player', 'ai-1', 'arms_control_pact', new EventBus()).state;
       expect(result).toBe(state); // unchanged -- guard returns the input state verbatim
       expect(result.civilizations.player.diplomacy.treaties).toHaveLength(0);
     });
@@ -698,7 +704,7 @@ describe('diplomacy-system', () => {
       const bus = new EventBus();
       let next = enqueueTreatyProposal(state, 'ai-1', 'player', 'trade_agreement', -1, bus);
       const requestId = next.pendingDiplomacyRequests![0].id;
-      next = acceptDiplomaticRequest(next, 'player', requestId, bus);
+      next = acceptDiplomaticRequest(next, 'player', requestId, bus).state;
       expect(next.civilizations.player.diplomacy.treaties.some(t => t.type === 'trade_agreement')).toBe(true);
       expect(next.civilizations['ai-1'].diplomacy.treaties.some(t => t.type === 'trade_agreement')).toBe(true);
       expect(next.pendingDiplomacyRequests).toHaveLength(0);
@@ -709,21 +715,24 @@ describe('diplomacy-system', () => {
       const bus = new EventBus();
       let next = enqueueTreatyProposal(state, 'ai-1', 'player', 'alliance', -1);
       const requestId = next.pendingDiplomacyRequests![0].id;
-      const after = acceptDiplomaticRequest(next, 'ai-1', requestId, bus); // proposer cannot self-accept
+      const after = acceptDiplomaticRequest(next, 'ai-1', requestId, bus).state; // proposer cannot self-accept
       expect(after.civilizations.player.diplomacy.treaties).toHaveLength(0);
     });
 
-    it('drops a treaty proposal that becomes invalid before the recipient accepts it', () => {
+    it('refuses (typed, state untouched) a treaty proposal that becomes invalid before the recipient accepts it (#1221)', () => {
       const state = makeTreatyState();
       const proposed = enqueueTreatyProposal(state, 'ai-1', 'player', 'trade_agreement', -1);
       const requestId = proposed.pendingDiplomacyRequests![0].id;
       proposed.civilizations.player.diplomacy.atWarWith = ['ai-1'];
       proposed.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
 
-      const accepted = acceptDiplomaticRequest(proposed, 'player', requestId, new EventBus());
+      const outcome = acceptDiplomaticRequest(proposed, 'player', requestId, new EventBus());
 
-      expect(accepted.pendingDiplomacyRequests).toHaveLength(0);
-      expect(accepted.civilizations.player.diplomacy.treaties).toHaveLength(0);
+      expect(outcome.ok).toBe(false);
+      if (outcome.ok) throw new Error('unreachable');
+      expect(outcome.reason).toBe('request-no-longer-valid');
+      expect(outcome.state).toBe(proposed);
+      expect(outcome.state.civilizations.player.diplomacy.treaties).toHaveLength(0);
     });
 
     it('reject clears the request with no relationship penalty', () => {
@@ -809,7 +818,7 @@ describe('diplomacy-system', () => {
         },
       };
 
-      const accepted = acceptDiplomaticRequest(grown, 'player', requestId, new EventBus());
+      const accepted = acceptDiplomaticRequest(grown, 'player', requestId, new EventBus()).state;
       expect(accepted.civilizations.player.diplomacy.treaties).toContainEqual(
         expect.objectContaining({ type: 'arms_control_pact', arsenalCap: 5 }),
       );
