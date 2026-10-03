@@ -71,15 +71,11 @@ import {
 } from '@/systems/network-plan-system';
 import { normalizeOpponentAIState } from '@/core/opponent-ai-state';
 import { emitCivilizationLivenessTransitions, reconcileCivilizationLiveness } from '@/systems/civilization-elimination-system';
-import { processFactionTurn, getUnrestYieldMultiplier, isCityProductionLocked, getFederalismRemittanceLoss } from '@/systems/faction-system';
+import { getUnrestYieldMultiplier, isCityProductionLocked, getFederalismRemittanceLoss } from '@/systems/faction-system';
 import { getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
-import { processBreakawayTurn } from '@/systems/breakaway-system';
-import { processCrisisTurn, getCrisisYieldMultiplier } from '@/systems/crisis-system';
-import { processEventChainTurn } from '@/systems/event-chain-lifecycle';
-import { processWorldRacesTurn } from '@/systems/world-race-system';
-import { processReligionTurn, foundReligion } from '@/systems/religion-system';
+import { getCrisisYieldMultiplier } from '@/systems/crisis-system';
+import { foundReligion } from '@/systems/religion-system';
 import { addWarheadToArsenal } from '@/systems/strategic-arsenal-system';
-import { processLoyaltyTurn } from '@/systems/religion-loyalty-system';
 import {
   getLegendaryWonderCityYieldBonus,
   getLegendaryWonderCivYieldBonus,
@@ -96,6 +92,7 @@ import { resolveGeneralDefinition, type GeneralDefinition } from '@/systems/grea
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
 import { createRoundPhaseContext } from './round-phases/types';
+import { instabilityPhase } from './round-phases/instability';
 import { postCivHousekeepingPhase } from './round-phases/post-civ-housekeeping';
 import { territoryFrontierPhase } from './round-phases/territory-frontier';
 import { wondersMarketPhase } from './round-phases/wonders-market';
@@ -175,14 +172,7 @@ export function processTurn(
 
   bus.emit('turn:end', { turn: newState.turn, playerId: newState.currentPlayer });
 
-  // Resolve unrest and revolts before city yields so instability impacts the current turn.
-  newState = processFactionTurn(newState, bus);
-  newState = processBreakawayTurn(newState, bus);
-  newState = processCrisisTurn(newState, bus);
-  newState = processEventChainTurn(newState, bus);
-  newState = processWorldRacesTurn(newState, bus);
-  newState = processReligionTurn(newState, bus);
-  newState = processLoyaltyTurn(newState, bus);
+  newState = instabilityPhase.run(newState, context);
   newState = preCivReconciliationPhase.run(newState, context);
   const { grossGoldByCiv } = context;
 
