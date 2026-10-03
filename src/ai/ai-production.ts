@@ -818,13 +818,11 @@ export function applyAIProduction(
       personality,
     )[0];
     if (!selected) continue;
-    nextState = {
-      ...nextState,
-      cities: {
-        ...nextState.cities,
-        [city.id]: enqueueCityProduction(current, selected.itemId),
-      },
-    };
+    // #1220: the same validated enqueue the player's panel uses. Candidates come from the same eligibility, so a
+    // refusal means the candidate generator drifted from it; skip the city rather than queue something illegal.
+    const queued = enqueueCityProduction(nextState, city.id, selected.itemId);
+    if (!queued.ok) continue;
+    nextState = queued.state;
     if (selected.fulfilledRole) {
       const fulfilled = residual.find(entry => entry.role === selected.fulfilledRole);
       if (fulfilled) fulfilled.missing = Math.max(0, fulfilled.missing - 1);
