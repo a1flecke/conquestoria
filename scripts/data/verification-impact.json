@@ -1,0 +1,170 @@
+{
+  "schema": 1,
+  "note": "Machine-readable change-impact map for `yarn verify:impact` (#1232). Every rule is derived from a canonical policy source named in its `why`; do not add an obligation that policy does not already require. `evidence` is the ordered catalog; a rule's `require` refers to evidence ids. `baseline` always applies (pre-push obligations).",
+  "baseline": ["build", "durable-full"],
+  "evidence": [
+    {
+      "id": "src-rules",
+      "commands": ["scripts/check-src-rule-violations.sh <changed src files>"],
+      "why": "AGENTS.md → Required Verification: after editing files under src/, run the source-rule check."
+    },
+    {
+      "id": "mirrored-tests",
+      "commands": ["./scripts/run-with-mise.sh yarn test --run <mirrored test files>"],
+      "why": "AGENTS.md → Test-selection rule: run the mirrored tests/ file for each changed src/ file."
+    },
+    {
+      "id": "ai-playability",
+      "commands": ["./scripts/run-with-mise.sh yarn test:ai-playability"],
+      "why": ".claude/rules/ai-simulation.md governs src/ai/**; the focused AI behavior regression is tests/simulation/ai-playability.test.ts."
+    },
+    {
+      "id": "perf-report",
+      "commands": ["./scripts/run-with-mise.sh yarn perf:report"],
+      "why": ".claude/rules/performance-budgets.md → run before finishing a change to turn orchestration, a full AI round, pathfinding, the movement-cost model, visibility, or save serialize/parse/normalize."
+    },
+    {
+      "id": "wonder-regressions",
+      "commands": ["./scripts/run-wonder-regressions.sh"],
+      "why": "AGENTS.md → for legendary wonder, quest-race, or wonder-panel changes, run the wonder regressions."
+    },
+    {
+      "id": "build-tauri",
+      "commands": ["./scripts/run-with-mise.sh yarn build:tauri"],
+      "why": "AGENTS.md → when touching src/platform/**, src-tauri/**, Vite distribution config, service worker registration, or save import/export, run the Tauri frontend build."
+    },
+    {
+      "id": "ci-shard-allocation",
+      "commands": [
+        "./scripts/run-with-mise.sh yarn test:profile:default",
+        "./scripts/run-with-mise.sh yarn test:ci-shards:allocate",
+        "./scripts/run-with-mise.sh yarn test --run tests/scripts/ci-test-shard-selection.test.ts"
+      ],
+      "why": "AGENTS.md → CI-shard rule: adding, removing, or renaming a default-discovered Vitest test requires refreshing scripts/ci-test-shards.json."
+    },
+    {
+      "id": "docs-lifecycle",
+      "commands": ["./scripts/run-with-mise.sh node scripts/docs-lifecycle.mjs check"],
+      "why": "CLAUDE.md → Documentation Authority (#1024) and .claude/rules/spec-fidelity.md: docs/superpowers/{plans,specs} are classified in docs/docs-lifecycle-manifest.json."
+    },
+    {
+      "id": "hooks",
+      "commands": ["./scripts/run-with-mise.sh yarn test:hooks"],
+      "why": "AGENTS.md → after editing .claude/hooks/**, .claude/settings.json, or tests/hooks/**, run the hook suite."
+    },
+    {
+      "id": "unit-sfx-validate",
+      "commands": ["scripts/validate-unit-sfx.sh"],
+      "why": ".claude/rules/audio-sfx.md (#612): unit SFX assets are capability-derived and validated against docs/audio/unit-sfx-manifest.md."
+    },
+    {
+      "id": "ai-long",
+      "commands": ["./scripts/run-with-mise.sh yarn test:ai-long"],
+      "why": ".claude/rules/ai-simulation.md: the long-horizon campaign suite is explicit-run only; run it after changing the suite itself."
+    },
+    {
+      "id": "build",
+      "commands": ["./scripts/run-with-mise.sh yarn build"],
+      "why": "CLAUDE.md / AGENTS.md → Required Verification: run yarn build before any push, PR, or merge."
+    },
+    {
+      "id": "durable-full",
+      "commands": [
+        "./scripts/run-with-mise.sh yarn test:durable",
+        "./scripts/run-with-mise.sh yarn test:durable:status"
+      ],
+      "why": "CLAUDE.md / AGENTS.md → before git push, PR creation, or merge, run the durable full suite and confirm its status."
+    }
+  ],
+  "rules": [
+    {
+      "id": "src-files",
+      "match": ["src/**"],
+      "require": ["src-rules", "mirrored-tests"],
+      "why": "AGENTS.md → Required Verification / Test-selection rule for src/ changes."
+    },
+    {
+      "id": "ai-behavior",
+      "match": ["src/ai/**"],
+      "require": ["ai-playability"],
+      "why": ".claude/rules/ai-simulation.md (frontmatter paths: src/ai/**)."
+    },
+    {
+      "id": "ai-long-horizon",
+      "match": ["tests/simulation/long-horizon/**", "scripts/run-ai-long-horizon.sh"],
+      "require": ["ai-long"],
+      "why": ".claude/rules/ai-simulation.md: the long-horizon campaign suite is explicit-run only; run it after changing the suite or its wrapper."
+    },
+    {
+      "id": "performance-paths",
+      "match": [
+        "src/core/turn-manager.ts",
+        "src/core/completed-round-orchestrator.ts",
+        "src/systems/unit-pathfinding.ts",
+        "src/systems/binary-heap.ts",
+        "src/systems/unit-movement-cost.ts",
+        "src/systems/unit-movement-legality.ts",
+        "src/systems/unit-movement-queries.ts",
+        "src/systems/unit-movement-system.ts",
+        "src/systems/unit-movement-validation.ts",
+        "src/systems/fog-of-war.ts",
+        "src/systems/civilization-elimination-system.ts",
+        "src/storage/**",
+        "src/ai/ai-round-scheduler.ts",
+        "src/ai/ai-major-turn.ts",
+        "tests/perf/**",
+        "scripts/run-tests-by-local-tier.sh"
+      ],
+      "require": ["perf-report"],
+      "why": ".claude/rules/performance-budgets.md frontmatter `paths`."
+    },
+    {
+      "id": "wonder-content",
+      "match": ["src/**/*wonder*.ts", "src/**/quest*.ts", "tests/**/*wonder*.test.ts", "tests/**/quest*.test.ts"],
+      "require": ["wonder-regressions"],
+      "why": "AGENTS.md → legendary wonder, quest-race, or wonder-panel changes."
+    },
+    {
+      "id": "dual-release",
+      "match": ["src/platform/**", "src-tauri/**", "src/storage/**", "vite.config.*"],
+      "require": ["build-tauri"],
+      "why": "AGENTS.md → platform/Tauri/Vite distribution config/save import-export changes."
+    },
+    {
+      "id": "audio-sfx",
+      "match": [
+        "public/audio/sfx/**",
+        "scripts/generate-unit-sfx.sh",
+        "scripts/fetch-unit-sfx-sources.sh",
+        "docs/audio/unit-sfx-manifest.md"
+      ],
+      "require": ["unit-sfx-validate"],
+      "why": ".claude/rules/audio-sfx.md (#612)."
+    },
+    {
+      "id": "docs-lifecycle",
+      "match": ["docs/superpowers/**", "docs/docs-lifecycle-manifest.json", "scripts/docs-lifecycle.mjs"],
+      "require": ["docs-lifecycle"],
+      "why": "CLAUDE.md → Documentation Authority (#1024)."
+    },
+    {
+      "id": "hooks",
+      "match": [".claude/hooks/**", ".claude/settings.json", "tests/hooks/**"],
+      "require": ["hooks"],
+      "why": "AGENTS.md → after editing hook scripts/settings/tests."
+    },
+    {
+      "id": "shard-manifest",
+      "match": ["scripts/ci-test-shards.json"],
+      "require": ["ci-shard-allocation"],
+      "why": "AGENTS.md → CI-shard rule."
+    },
+    {
+      "id": "new-or-renamed-tests",
+      "match": ["tests/**/*.test.ts"],
+      "status": ["A", "D", "R"],
+      "require": ["ci-shard-allocation"],
+      "why": "AGENTS.md → CI-shard rule: adding, removing, or renaming a default-discovered Vitest test."
+    }
+  ]
+}

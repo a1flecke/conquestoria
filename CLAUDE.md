@@ -37,6 +37,7 @@ This is enforced by the user and is not optional.
 - `bash scripts/run-with-mise.sh yarn verify:stop <scope>|--all [--dry-run]` — Stop **only this worktree's own** durable runs, by recorded pid.
 - `bash scripts/run-with-mise.sh yarn verify:local:status` — See every agent's active/queued heavyweight runs on this host (read-only).
 - `bash scripts/pr-body.sh new|write|check|create|update <name> …` — Write PR bodies in `/tmp/pr-bodies/<name>.md` (the one directory that is pre-allowed), then `create`/`update` from there. Never improvise a body file elsewhere.
+- `bash scripts/run-with-mise.sh yarn verify:impact [files...]` — List the evidence the current change requires (source rules, mirrored tests, build, durable suite, perf, AI, docs, SFX, shards), each with a reason and command. Reports requirements; never runs them.
 
 **Shared host — several agents run at once.** Never kill processes by name or process group: no `pkill`, `killall`, `kill $(pgrep …)`, `… | xargs kill`, `kill -- -PGID`. That terminates other agents' runs in other worktrees (it already killed someone's multi-hour `ai-long` run). Stop only a specific numeric pid you started, or use `yarn verify:stop`. `.claude/hooks/block-pattern-kill.sh` blocks these. Do not edit files in a worktree while a durable run of it is in progress. Details: `.claude/rules/hooks-and-tooling.md` → "Launching and stopping runs on a shared host" and "PR bodies".
 
