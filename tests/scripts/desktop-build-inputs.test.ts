@@ -38,7 +38,7 @@ describe('desktop build input classifier', () => {
     'src/systems/city-system.ts',
     'src/ui/city-panel.ts',
     'tests/systems/city-system.test.ts',
-    'docs/superpowers/plans/example.md',
+    'docs/wonder-codex-source-ledger.md',
     'scripts/build-run-macos-app.sh',
   ])('does not require macOS packaging for %s', path => {
     const result = classify(`${path}\n`);

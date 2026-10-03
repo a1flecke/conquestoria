@@ -74,7 +74,7 @@ function simulatePressureExposure(seed: string): { humanExposure: number; aiExpo
 // overwhelming, once aiPressure is 'full'.
 //
 // Deviations from the plan's original snippet
-// (docs/superpowers/plans/2026-07-11-world-pressure-symmetry.md MR3 Task 3.3),
+// (the original #529 MR3 plan snippet),
 // both verified against actual code rather than assumed from the plan text:
 //
 // 1. createNewGame does not auto-found any civ's capital (confirmed against

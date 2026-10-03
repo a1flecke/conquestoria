@@ -6,7 +6,8 @@
  * That keeps test doubles drop-in replacements (LSP) and keeps `main.ts` the
  * only module that constructs concrete services (DIP).
  *
- * See docs/superpowers/plans/2026-08-04-composition-root-decomposition.md.
+ * Composition-root rules: CLAUDE.md ("`src/main.ts` is a composition root only") and
+ * `tests/app/architecture-boundaries.test.ts`.
  */
 import type { GameState, HexCoord } from '@/core/types';
 import type { NotificationEntry } from '@/core/notification-log';

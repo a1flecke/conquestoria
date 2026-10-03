@@ -186,6 +186,8 @@ If you touch files in these areas, read the matching rule file before editing:
 
 Use `CLAUDE.md` for repo-wide architecture, command, and gameplay conventions.
 
+**Documentation authority (#1024):** source + tests + the canonical rules describe what exists; `docs/superpowers/{plans,specs}/` contain only active work and cited rationale (listed in `docs/docs-lifecycle-manifest.json`); delivered plans are deleted, not annotated — git history is the archive. See `.claude/rules/spec-fidelity.md` ("Plan And Spec Lifecycle").
+
 When writing or updating implementation plans for interactive UI, queueing, or recommendation surfaces, also read `docs/superpowers/plans/README.md` and include its guardrail sections in the plan.
 
 ## Required Verification

@@ -4,8 +4,8 @@
 
 Astra design pass. Re-measures current `main` (not the stale issue body), attributes the
 super-linear work to exact call sites, and proposes two narrowly-scoped, provably-exact
-optimizations plus one perf-infrastructure gap fix. **Do not implement from this doc directly —
-see the companion plan at `docs/superpowers/plans/2026-09-15-issue-1069-ai-round-perf.md`.**
+optimizations plus one perf-infrastructure gap fix. **Delivered; retained as design rationale
+(source comments cite its section-anchored proofs). Do not implement from it — the companion plan was removed; see git history.**
 
 ## 1. The issue body is stale — re-measurement first
 

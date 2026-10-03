@@ -33,7 +33,7 @@ Detailed behavior policies are located in `.gemini/policies/`:
 - `ui-panels.md`: Hot-seat, city cycling, privacy, XSS safety.
 - `strategy-game-mechanics.md`: Combat, tech gating, victory, storage resilience.
 - `end-to-end-wiring.md`: Data flow from compute to rendering.
-- `spec-fidelity.md`: Adherence to documentation in `docs/superpowers/`.
+- `spec-fidelity.md`: Adherence to the active documentation in `docs/superpowers/` and its lifecycle: delivered plans are deleted (git history is the archive); `docs/docs-lifecycle-manifest.json` lists what remains; source, tests and rules are authoritative.
 
 ## Hot Seat Multiplayer Rules
 - NEVER hardcode `'player'`; use `state.currentPlayer`.

@@ -15,7 +15,7 @@ Do not rely on uncited AI-generated prose for factual claims. Museum-label prose
 
 Stage 2D implementation must add:
 
-- `docs/superpowers/specs/2026-05-23-wonder-codex-atlas-source-ledger.md` updates with final per-entry citations.
+- `docs/wonder-codex-source-ledger.md` updates with final per-entry citations.
 - `src/systems/wonder-codex/sources.ts` as a typed runtime/testable source manifest.
 - local image assets under `public/images/wonders/codex/`.
 

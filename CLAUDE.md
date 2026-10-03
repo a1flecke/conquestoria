@@ -49,7 +49,7 @@ Detailed rules live in `.claude/rules/` and auto-apply based on the files you ed
 - `.claude/rules/ui-panels.md` — hot-seat `currentPlayer`, **cities[0] is never the answer**, **privacy and discovery**, **no silent destructive UI**, **panel rerender after interaction**, XSS-safe rendering, **no bare buttons**
 - `.claude/rules/strategy-game-mechanics.md` — combat, tech gating, victory
 - `.claude/rules/end-to-end-wiring.md` — computed-data-must-render
-- `.claude/rules/spec-fidelity.md` — spec conjunctions, gating preservation, visible-UI contract preservation, and **keeping `docs/superpowers/plans/*.md` phase-status annotations synced with merged PRs in the same PR that completes the phase**
+- `.claude/rules/spec-fidelity.md` — spec conjunctions, gating preservation, visible-UI contract preservation, and the **plan/spec lifecycle**: delivered plans are deleted in the PR that completes them, every surviving plan/spec is classified in `docs/docs-lifecycle-manifest.json`
 - `.claude/rules/incremental-mr-completion.md` — partial-MR PR title/body requirements and dead-end UX prevention
 - `.claude/rules/hooks-and-tooling.md` — hook stdin/jq contract, exit codes, and required smoke tests; **shared-host launch/stop of verification runs (never `pkill`/`killall`)** and **PR bodies in `/tmp/pr-bodies`**
 - `.claude/rules/action-contracts.md` — one legality source per action family: previews/AI consume it, executors re-run it, typed denials; links the audited inventory
@@ -72,6 +72,13 @@ Project-level skills live in `.claude/skills/` and are invoked by the Skill tool
 When planning interactive UI or queue work, use `docs/superpowers/plans/README.md` as the minimum checklist for player-visible state transitions, misleading derived labels, and replayable interaction coverage.
 
 **Visual asset reference**: `docs/sprite-design-system.md` — canonical inventory of all sprites (units, buildings, terrain, improvements, wonders), placeholder list, full material palette, animation class map, and GitHub reference URLs for Claude Design prompts.
+
+## Documentation Authority (#1024)
+
+- **Source, tests and canonical rules** (`CLAUDE.md`, `AGENTS.md`, `.claude/rules/**`) describe what exists. When a doc and the code disagree, the code wins.
+- **`docs/superpowers/{plans,specs}/`** hold only what `docs/docs-lifecycle-manifest.json` lists: `active` work owned by an open issue, and `durable-reference` rationale that source, tests or rules cite. A delivered plan is **deleted** (git history is the archive), not annotated and kept. Treat any surviving doc as a snapshot and verify its claims against source before relying on them.
+- Other `docs/*.md` (inventories, sprite design system, benchmarks, ledgers) are current engineering references and are kept honest in the PR that changes what they describe.
+- `node scripts/docs-lifecycle.mjs check` (offline; run by the hooks job) enforces the above; see `.claude/rules/spec-fidelity.md` ("Plan And Spec Lifecycle").
 
 ## Architecture
 - Event-driven: systems communicate via EventBus, not direct imports

@@ -1,7 +1,8 @@
 # #1166 — Verification scheduler: collision locks, host capacity, foreground priority
 
-Status: implemented in this PR except the host-only benchmark items listed
-under "Not done here". Follow-up to #1133.
+Status: **implemented and validated on the real host (2026-10-02)**; the measurements
+are in `docs/verification-scheduler-benchmark.md`. Retained as design rationale (cited by
+`.claude/rules/hooks-and-tooling.md`). Follow-up to #1133.
 
 ## Problem, restated
 
@@ -112,25 +113,12 @@ Deterministic hook tests (no wall-clock assertions in the new scenarios):
 The new ai-long scenarios were confirmed to **fail against the pre-change
 script** (slot observed held during backoff).
 
-## Not done here (needs the real host)
+## Host validation (was "Not done here")
 
-These require the 10-core/32GB development host with Codex, OpenCode Go and
-Claude running concurrently, and could not be performed from the cloud
-container this was built in:
-
-1. Reproduce and record today's three-agent stall with `yarn
-   verify:local:status` + `ps`/CPU evidence.
-2. Benchmark matrix from the issue (items 1-14): AI-long alone; regular/full
-   alone; push alone; AI-long + background; AI-long + push; AI-long +
-   background + push; two background + push; focused-test latency with
-   AI-long and with two heavyweight jobs; asymmetric joins; accidental
-   second AI-long; AI-long current parallelism vs `fileParallelism:false`
-   under background load; retry backoff; proof reuse. Capture wall clock,
-   queue time, worker counts, CPU, memory, stalls, status accuracy.
-3. Validate from Codex, OpenCode Go and Claude execution contexts
-   (sandbox visibility, cancellation, wrappers).
-4. Decide from (2) whether 1+2 stays, and whether `build` needs a capacity
-   class (today it is ungated, unchanged).
-
-PID-namespace isolation remains the documented residual limitation of the
-liveness model; nothing here changes or claims to solve it.
+Done: the benchmark matrix, status accuracy, proof reuse and the AI-long parallelism comparison were run on the
+10-core/32 GB host and are recorded in `docs/verification-scheduler-benchmark.md` (raw data in `docs/benchmarks/`,
+harness `scripts/benchmark-verification-scheduler.mjs`). The 1 + 2 lane split held in every scenario; AI-long
+`fileParallelism:false` was ~15% slower, so the current configuration stays; the push gate's fixed phase ceilings
+were widened to runaway guards after a healthy run was killed at 599 s under out-of-design load. Per-agent
+(Codex / OpenCode Go / Claude) sandbox wrappers were not separately validated; PID-namespace isolation remains the
+documented residual limitation of the liveness model.

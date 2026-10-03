@@ -21,12 +21,40 @@ paths:
 - Before implementing any spec claim that describes *current* code state (a function's behavior, which registries need an entry, whether a system is wired a certain way), verify it directly against the actual file with grep/read — do not carry the claim forward into the implementation just because it's written down.
 - If a verified claim turns out to be wrong, do not silently "fix" the spec's mistake by implementing what you now believe is correct without saying so — make the pragmatic, defensible call, and note the deviation (in the PR body or a code comment) so a reviewer can see the spec and the implementation intentionally disagree and why.
 
-## Plan Docs Must Stay Synced With Merged Phases
+## Plan And Spec Lifecycle (#1024)
 
-The previous section is a reading-time caveat (verify before trusting). This one is the matching authoring-time obligation, added after three separate stale-plan-doc incidents hit the same file (`docs/superpowers/plans/2026-08-04-composition-root-decomposition.md`) inside about a week — see [#842](https://github.com/a1flecke/conquestoria/issues/842) for the incident history.
+**Authority.** Source, tests and the canonical rules (`CLAUDE.md`, `AGENTS.md`, `.claude/rules/**`) describe what
+exists. A plan or spec under `docs/superpowers/` describes *intended* or *historical* work, and it is only as current
+as its last edit. Git history is the archive for delivered implementation plans; the active tree keeps only what
+has a defensible reason to be there. Docs that remain are not "ignored" — they are the ones that earned their place.
 
-- When a PR completes a phase (or sub-phase) from a `docs/superpowers/plans/*.md` file, that same PR MUST update the plan doc: tick the phase's step checkboxes and add a status annotation to its `### Phase N — ...` header line (`✅ merged (#PR)` for a fully-landed phase).
-- If only part of a phase landed (e.g. a lettered sub-phase like "14a" merged but the parent phase has more sub-phases left), do NOT mark the parent phase merged. Use an honest partial-progress annotation instead (e.g. `🟡 Phase 14a merged (#830); remaining sub-phases not started`) plus a short status paragraph naming what's outstanding — see `2026-08-04-composition-root-decomposition.md`'s Phase 14 for the pattern.
-- This applies even when the phase's own PR body already states completion. The plan doc is what a fresh agent reads first — this repo has multiple concurrent agents with no shared memory across sessions, so a stale doc actively misleads rather than just being unhelpful. Don't rely on PR history alone to carry the "is this done" answer.
-- Do not defer this to "someone will sync it later." That's exactly how it broke three times: a phase-completing PR landed without touching the plan doc, and no later PR was obligated to catch up until a dedicated drift-check PR eventually found it.
-- Before starting any phase from an existing plan doc, verify its claimed status against the real PR history for that phase's tracking issue/arc number (`gh pr list --search "<number>"` or `git log --grep`) rather than trusting an unchecked box as proof the phase hasn't already shipped under a different PR — the doc can be behind reality in either direction.
+**Where things live.** `docs/superpowers/{plans,specs}/` holds exactly the files listed in
+`docs/docs-lifecycle-manifest.json`:
+
+| Category | Meaning | In the tree? |
+|---|---|---|
+| `active` | Owned by an **open** issue (lists it); describes current/future work | yes |
+| `durable-reference` | Cited by source, tests or rules for rationale that is *not* restated there (lists the citing files) | yes |
+| `delivered-stale` / `superseded` / `abandoned` | The work shipped, was replaced, or was dropped | **no** — listed under `deleted`, recoverable from git history |
+
+A durable decision that outlives its plan is **promoted**, not left as a "plan": into a `.claude/rules/` entry, a
+current invariant doc under `docs/`, or the code comment/test that needs it (the wonder-codex source ledger is now
+`docs/wonder-codex-source-ledger.md` for exactly this reason: it is a tested artifact, not a plan).
+
+**Enforcement (offline, deterministic).** `node scripts/docs-lifecycle.mjs check`, run by
+`tests/hooks/docs-lifecycle.test.sh` in the hooks job, fails when: a plan/spec is unclassified; a file classified
+as delivered/superseded/abandoned still exists (or reappears); an `active` entry has no issue, or its recorded issue is
+CLOSED; a `durable-reference`'s citing file is gone or no longer mentions it; any file names a `docs/superpowers/…`
+path that does not exist; or an asset under `docs/superpowers/` is orphaned. The check never calls GitHub. Run
+`node scripts/docs-lifecycle.mjs refresh` (uses `gh`) to update issue-state snapshots; `propose` prints the evidence
+and a proposed category for every file.
+
+**Authoring rules.**
+- A new plan/spec is added to the manifest as `active` with the open issue that owns it, in the same PR.
+- **The PR that completes the last phase of a plan deletes the plan** (and its manifest entry; add it under `deleted`
+  as `delivered-stale`) — do not leave a "✅ merged" annotation behind. While phases remain, keep the plan honest:
+  tick completed steps and annotate the phase header (`✅ merged (#PR)`, or `🟡 Phase 14a merged (#830); remaining
+  sub-phases not started` for a partial phase — never mark a parent phase merged while a sub-phase is outstanding).
+- Before starting a phase from an existing plan, verify its claimed status against the real PR history for its
+  tracking issue (`gh pr list --search "<number>"` or `git log --grep`) rather than trusting an unchecked box.
+- Code comments and rules should cite a durable doc (or an issue/PR number) — never a plan that will be deleted.

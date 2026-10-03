@@ -447,9 +447,8 @@ six stalls were genuine, self-inflicted host exhaustion from that session's
 own unusually aggressive back-to-back benchmark campaign (several
 4-way-concurrent full-suite runs within about an hour on one 10-core host),
 not a wrapper-chain defect. The budget-slot fix above is the real, durable
-mitigation for this class of condition under *normal* two-agent usage; see
-`docs/superpowers/plans/2026-09-20-issue-1133-verification-orchestration-arc.md`'s
-MR7 section for the full bisection evidence.
+mitigation for this class of condition under *normal* two-agent usage; see the #1133 MR7 PR
+for the full bisection evidence.
 
 ### Capacity lanes, collision locks, and proof reuse (#1166)
 
