@@ -73,7 +73,6 @@ import {
 import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
 import { joinEmbargo, cleanupEmbargoes } from '@/systems/diplomacy-embargoes';
-import { checkLeagueDissolution } from '@/systems/diplomacy-leagues';
 import { isAtWar } from '@/systems/diplomacy-queries';
 import { pruneExpiredDiplomaticRequests } from '@/systems/diplomacy-requests';
 import { processRelationshipDrift, decayEvents } from '@/systems/diplomacy-state';
@@ -146,6 +145,7 @@ import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
 import { removeUnits } from '@/systems/unit-removal-system';
 import { createRoundPhaseContext } from './round-phases/types';
+import { leaguesPhase } from './round-phases/leagues';
 import { eraProgressionPhase } from './round-phases/era-progression';
 import { beastRewardsPhase } from './round-phases/beast-rewards';
 import { economyPhase } from './round-phases/economy';
@@ -1427,25 +1427,7 @@ export function processTurn(
     }
   }
 
-  // --- League dissolution check ---
-  if (newState.defensiveLeagues) {
-    const warPairs: Array<{ civA: string; civB: string }> = [];
-    for (const civ of Object.values(newState.civilizations)) {
-      for (const enemyId of civ.diplomacy?.atWarWith ?? []) {
-        warPairs.push({ civA: civ.id, civB: enemyId });
-      }
-    }
-    const dissolved = newState.defensiveLeagues.filter(l => {
-      for (const pair of warPairs) {
-        if (l.members.includes(pair.civA) && l.members.includes(pair.civB)) return true;
-      }
-      return false;
-    });
-    for (const league of dissolved) {
-      bus.emit('diplomacy:league-dissolved', { leagueId: league.id, reason: 'members_at_war' });
-    }
-    newState.defensiveLeagues = checkLeagueDissolution(newState.defensiveLeagues, warPairs);
-  }
+  newState = leaguesPhase.run(newState, context);
 
   newState = eraProgressionPhase.run(newState, context);
 
