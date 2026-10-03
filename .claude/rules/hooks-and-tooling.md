@@ -923,7 +923,7 @@ For OpenCode, allow `/tmp/pr-bodies` as an external directory in your global Ope
 permissions; `.opencode/opencode.jsonc` already allows `./scripts/pr-body.sh *` for the shell route
 (`pr-body.sh write <name>` needs no external-directory write permission at all).
 
-## Task dispatcher (`scripts/dev.sh`) and `scripts/sync-main.sh` (#1256)
+## Task dispatcher (`scripts/dev.sh`), `scripts/sync-main.sh` and `scripts/push-branch.sh` (#1256, #1260)
 
 `./scripts/dev.sh <task> [test paths]` is a **narrow** dispatcher: a closed task table (`build`,
 `typecheck`, `test <paths>`, `test-all`, `test-regular`, `hooks`, `install`, `setup-hooks`, `verify-pr`,
@@ -955,11 +955,24 @@ table (the test fails if usage and table disagree).
 and `git rebase origin/main`, refuses `main`/detached/dirty/already-rebasing, leaves a conflict for the agent
 to resolve (`git add -- <paths>`, `GIT_EDITOR=true git rebase --continue`, never `--skip`). Claude's project
 settings, `.opencode/opencode.jsonc` and Codex's user-level rules (outside this repo; they already allow `git rebase`) allow it without a
-prompt. Publishing a rebased, already-pushed branch needs `--force-with-lease`, which remains an ask.
-`tests/hooks/sync-main.test.sh` runs it against a real bare-repo fixture and has the same structural guard.
+prompt. `tests/hooks/sync-main.test.sh` runs it against a real bare-repo fixture and has the same structural guard.
 
-**Enabling the plugin side (one-time, user config, not this repo's job):** add `"scripts/dev.sh"` and
-`"scripts/sync-main.sh"` to the plugin's `trustedScripts` and restart OpenCode.
+**`scripts/push-branch.sh` (#1260)** publishes the rebased branch, so the rebase workflow does not stop at an
+approval prompt. No arguments; it pushes only `HEAD:refs/heads/<current branch>` to `origin`, refuses
+`main`/`master`, detached HEAD, a rebase in progress, and a branch that does not contain the latest
+`origin/main` (run `sync-main.sh` first). New branch and fast-forward are plain pushes. A diverged (rebased)
+branch uses `--force-with-lease=refs/heads/<branch>:<sha>` **pinned to the remote tip this clone last saw**
+(`refs/remotes/origin/<branch>`), and only after `git ls-remote` confirms the remote still has exactly that
+tip; if another agent pushed since, or this clone has no record of the remote branch, it refuses and tells you
+to fetch and inspect. It never deletes, tags, mirrors, uses a bare force, passes `--no-verify` (the pre-push
+verification still runs) or pushes another ref. The *lease is the safety*, so a lease must never be widened to
+an unpinned `--force-with-lease`. Raw `git push --force*` stays denied/asking in every agent.
+`tests/hooks/push-branch.test.sh` covers first/fast-forward/no-op/rebased pushes, every refusal (stale base,
+main, detached, rebase in progress, remote moved, no last-seen tip) against a real bare-repo fixture, plus the
+structural guard.
+
+**Enabling the plugin side (one-time, user config, not this repo's job):** add `"scripts/dev.sh"`,
+`"scripts/sync-main.sh"` and `"scripts/push-branch.sh"` to the plugin's `trustedScripts` and restart OpenCode.
 
 ## Worktree command-runner contract
 
