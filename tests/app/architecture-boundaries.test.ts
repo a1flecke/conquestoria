@@ -1267,7 +1267,7 @@ describe('#870 — sovereignty, passage and logistical support stay three separa
     expect(readSrc('systems/air-operations-system.ts')).not.toMatch(SUPPORT_LEAKS);
     expect(readSrc('systems/supply-naval.ts')).not.toMatch(SUPPORT_LEAKS);
     // Healing derives "friendly" only from the civ's own tile owner.
-    const turnManager = readFileSync(resolve(__dirname, '../../src/core/turn-manager.ts'), 'utf8');
+    const turnManager = readFileSync(resolve(__dirname, '../../src/core/round-phases/per-civ.ts'), 'utf8');
     const start = turnManager.indexOf('Heal units BEFORE resetting');
     const end = turnManager.indexOf('getRestAvailability(unit.landSupply)', start);
     expect(start).toBeGreaterThan(-1);
@@ -1602,7 +1602,7 @@ describe('#1202 — a finished trainable unit enters GameState through one compl
 
   it('the turn path and the gold rush-buy both complete units through completeUnitProduction, and nothing else does', () => {
     expect(filesMentioning('completeUnitProduction')).toEqual([
-      'src/core/turn-manager.ts',
+      'src/core/round-phases/per-civ.ts',
       'src/systems/economy-system.ts',
       'src/systems/unit-production-completion.ts',
     ]);
