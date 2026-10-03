@@ -1564,3 +1564,33 @@ describe('#1202 — a finished trainable unit enters GameState through one compl
     ]);
   });
 });
+
+describe('#1025 — the action-contract inventory is complete and every gap has an owner', () => {
+  const root = resolve(__dirname, '../..');
+  const inventory = readFileSync(resolve(root, 'docs/action-contract-inventory.md'), 'utf8');
+  const rows = inventory.split('\n').filter(line => line.startsWith('| ') && !line.startsWith('| Action family') && !line.startsWith('|---') && !line.startsWith('| Status') && !line.startsWith('| **'));
+  const STATUSES = ['canonical-exempt', 'canonical', 'partially-structural', 'caller-discipline'] as const;
+  const statusOf = (row: string) => STATUSES.find(status => new RegExp(`\\*\\*${status}\\*\\*`).test(row));
+
+  it('lists every action family the audit covers, each with a defined status', () => {
+    expect(rows.length).toBeGreaterThanOrEqual(18);
+    for (const row of rows) expect(statusOf(row), row.slice(0, 80)).toBeDefined();
+    for (const family of ['Ordinary movement', 'Unit attack', 'City assault', 'Pillage', 'Production queue', 'Rush-buy', 'Diplomatic actions', 'Great General', 'Air strike', 'Auto-explore', 'Governance policy', 'Governor assignment', 'Espionage missions', 'Unit upgrade']) {
+      expect(rows.some(row => row.startsWith(`| ${family}`)), family).toBe(true);
+    }
+  });
+
+  it('every partially-structural or caller-discipline row names an issue that owns the gap', () => {
+    const open = rows.filter(row => ['partially-structural', 'caller-discipline'].includes(statusOf(row) ?? ''));
+    expect(open.length).toBeGreaterThan(0);
+    for (const row of open) expect(row, row.slice(0, 80)).toMatch(/→ #\d{3,5}/);
+  });
+
+  it('movement stays the branded-command exemplar and the generalised rule exists', () => {
+    expect(rows.find(row => row.startsWith('| Ordinary movement'))).toMatch(/ValidatedUnitMove/);
+    const rule = readFileSync(resolve(root, '.claude/rules/action-contracts.md'), 'utf8');
+    expect(rule).toContain('docs/action-contract-inventory.md');
+    expect(readFileSync(resolve(root, 'CLAUDE.md'), 'utf8')).toContain('.claude/rules/action-contracts.md');
+  });
+});
+

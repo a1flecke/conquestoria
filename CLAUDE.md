@@ -52,6 +52,8 @@ Detailed rules live in `.claude/rules/` and auto-apply based on the files you ed
 - `.claude/rules/spec-fidelity.md` — spec conjunctions, gating preservation, visible-UI contract preservation, and **keeping `docs/superpowers/plans/*.md` phase-status annotations synced with merged PRs in the same PR that completes the phase**
 - `.claude/rules/incremental-mr-completion.md` — partial-MR PR title/body requirements and dead-end UX prevention
 - `.claude/rules/hooks-and-tooling.md` — hook stdin/jq contract, exit codes, and required smoke tests; **shared-host launch/stop of verification runs (never `pkill`/`killall`)** and **PR bodies in `/tmp/pr-bodies`**
+- `.claude/rules/action-contracts.md` — one legality source per action family: previews/AI consume it, executors re-run it, typed denials; links the audited inventory
+- `.claude/rules/movement-actions.md` — the worked example: `resolveUnitMoveIntent` → `ValidatedUnitMove` → `executeValidatedUnitMove`
 - `.claude/rules/caller-discipline.md` — how "caller must remember" contracts are turned into structure; the inventory, the mechanisms, and the decision procedure for a new contract
 - `.claude/rules/session-publication.md` — `GameSession` publication: `commit`/`update`/`batch`, the closed set of silent-write reasons, no hand-written renderer/HUD refresh
 - `.claude/rules/sprites.md` — unit/building/terrain/improvement extension recipes, FactionPalette contract, catalog coverage, animation class reference, terrain tile contracts

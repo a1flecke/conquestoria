@@ -1,0 +1,55 @@
+# Action-Contract Inventory (#1025)
+
+Audited at `9540955e`. Every player- or AI-initiated gameplay **action family** in the repository: who executes
+it, where its legality lives, how a rejection is communicated, and whether execution can bypass the legality
+check. Companion to [`caller-discipline-inventory.md`](./caller-discipline-inventory.md) (which inventories
+"callers must remember X" *contracts*); this file inventories *action families*. The working rule is
+[`.claude/rules/action-contracts.md`](../.claude/rules/action-contracts.md).
+
+## Status vocabulary
+
+| Status | Meaning |
+|---|---|
+| **canonical** | One legality source; previews, AI and every executor consume it; the executor re-validates (or accepts only a validated type); a rejection reaching a player is typed. |
+| **canonical-exempt** | As above, plus a short, named list of world actors (beasts, pirates, minor civs, crisis forces) that are deliberately not subject to player legality. Each exemption is marked in source and pinned by an architecture test. |
+| **partially-structural** | Legality is single-sourced and consumed by previews/AI, but an executor can run without it, or a rejection is untyped/silent. A follow-up issue is filed. |
+| **caller-discipline** | The contract is "the caller must remember". A follow-up issue is filed. |
+
+Re-derive the executor lists with `git grep -n "<executor>(" -- src`; the table records what was true at the SHA above.
+
+## Inventory
+
+| Action family | Human executor | AI executor | World / automation executor | Canonical legality | Typed denial | Preview / query | Canonical executor | Execution can bypass validation? | Viewer-safe projection | Enforcement | Status |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| Ordinary movement | `player-action-controller`, `map-interaction-controller`, `worker-movement-flow` | `ai-major-turn`, `basic-ai`, `ai-resettlement`, `ai-upgrades` | auto-explore, journey (`turn-manager`); stampede, pirates, rogue elephant hosts, minor civs (exempt, marked `movement-contract-exempt:`) | `resolveUnitMoveIntent` | yes (`MoveRejection` + copy) | `getMovementRange*` derived from the same primitives | `executeValidatedUnitMove` (accepts only a `ValidatedUnitMove`) | no — brand is un-nameable | `getMovementBlockerReason` | source rule + `architecture-boundaries` | **canonical-exempt** |
+| Transport load / unload | `selection-controller`, `map-interaction-controller` | `ai-major-turn`, `ai-tactics`, `basic-ai`, `ai-resettlement` | — | `canLoadUnitOntoTransport` / `canUnloadUnitFromTransport` | yes (`TransportFailureReason`) | `getUnloadDestinations` | `loadUnitOntoTransport` / `unloadUnitFromTransport` re-run the `can*` check | no (`ok:false` before any write) | — | `movement-actions.md` | **canonical** |
+| Paradrop | `map-interaction-controller` | `ai-major-turn`, `ai-tactics` | — | `canParadrop` | yes (`ParadropFailureReason` + `PARADROP_FAILURE_MESSAGES`) | `getParadropTargets` | `executeParadrop` re-runs `canParadrop` | no | — | `movement-actions.md` | **canonical** |
+| Air assault | `map-interaction-controller` | `ai-major-turn`, `ai-tactics` | — | `canAirAssault` | yes (`AirAssaultFailureReason` + messages) | `getAirAssaultTargets` | `executeAirAssault` re-runs `canAirAssault` | no | — | `movement-actions.md` | **canonical** |
+| Unit attack (melee / ranged / naval vs unit) | `player-action-controller.executeAttack` (re-runs `canUnitAttackTarget` at execution) | `ai-major-turn` (`canUnitAttackTarget`), `ai-tactics` (`getAttackTargets`); `basic-ai` pirate-response | `turn-manager` beasts/barbarians (`canUnitAttackTarget`), pirates, stampede, minor civs | `canUnitAttackTarget` / `getAttackTargets` (`attack-targeting.ts`) | yes (`AttackTargetFailure`; generic player copy) | `getAttackTargets`; #1135 forecast (same strength + damage math) | `resolveCombat` → `applyCombatOutcomeToState` (#1200: every consequence of a kill) | **yes** — `resolveCombat` accepts any pair. `basic-ai`'s pirate-response executor attacks an adjacent pirate after only an ad-hoc adjacency + favourability filter (no domain / profile / `hasActed` check); `ai-tactics`' lookahead `attack` case does not re-run legality | #1135 `battle-forecast-projection` | consequences centralised (#1200); legality caller-supplied, no validated-command type | **partially-structural** → #1219 |
+| City assault / capture / bombard / hold siege | `player-action-controller`, `map-interaction-controller` | `ai-tactics`, `ai-major-turn` | barbarian / pirate siege ticks | `resolveCityInteraction` (`available` / `denied`) | yes | `resolveCityInteraction` | `beginMajorCityAssault`, `resolveUnitCityBombardment` (re-checks `canUnitBombardCity`) | no | `city-action-preview` | `game-balance.md` #974; "offered ⇒ executable" tests | **canonical** |
+| Pillage | `selection-controller` | `basic-ai` | `turn-manager` (barbarians) | `canPillageTile` (preview) + `applyPillageToState` (typed) | yes (`PillageBlockerReason`) | `canPillageTile` | `applyPillageToState` | no (re-validates); the *preview* predicate repeats three lines of the executor | — | tests | **canonical** (minor duplication, noted) |
+| Production queue add / reorder | `panel-actions-controller`, `turn-flow-controller` | `ai-production`, `basic-ai` | legendary-wonder queue insertion | `getAvailableBuildings` / `getTrainableUnitsForCity` (`city-availability.ts`) | no | the same lists | `enqueueCityProduction(city, itemId)` — accepts **any** string | **yes** — availability is the caller's choice; `processCity` later dequeues an illegal head (`DroppedProductionItem`) as a backstop | — | backstop only | **partially-structural** → #1220 |
+| Production completion | turn / rush-buy | same | minor-civ economy (documented exemption) | `processCity` + `ProductionCostContext` | n/a | cost context | `completeUnitProduction` (#1202) | no | — | `unit-production-completion.test.ts` footprint guard; architecture pin | **canonical-exempt** |
+| Rush-buy | `panel-actions-controller` | `ai-treasury` | — | `getRushBuyQuote` | yes (`RushBuyResult.reason` + message) | `getRushBuyQuote` | `rushBuyActiveProduction` re-derives the quote | no | — | tests | **canonical** |
+| Unit upgrade | `player-action-controller` | `ai-upgrades` | — | `evaluateUnitUpgrade` / `canUpgradeUnit` | yes (typed reason) | `evaluateUnitUpgrade` | `applyUnitUpgradeToState` (validates, pays, upgrades; `applyUpgrade` private) | no | — | architecture pin (#1014) | **canonical** |
+| Diplomatic actions / requests | `diplomacy-actions-controller` → `applyDiplomaticAction`, `acceptDiplomaticRequest` / `rejectDiplomaticRequest` | `basic-ai` (`proposeTreatyAgreement`, `declareMajorWar`, `getAvailableActions`) | — | `getAvailableActions` (the *offer* surface: tech, treaty and war gating) | **no** — `applyDiplomaticAction` returns the unchanged `state` on any refusal; an invalid accept falls through to `rejectDiplomaticRequest` | `getAvailableActions` (player panel and AI) | `applyDiplomaticAction`, `acceptDiplomaticRequest` | **yes** — `applyDiplomaticAction` enforces only vassal/contact guards; tech gating (`ALLIANCE_TECHS`, `NAP_TECHS`, `TRADE_TECHS`) lives only in the offer surface, so a direct call can execute what `getAvailableActions` would not offer | — | bilateral-by-construction war/peace writers (#1014) | **partially-structural** → #1221 |
+| War declaration / peace / settlement | `player-action-controller`, `foreign-city-entry-flow` | `basic-ai` | crisis / vassal consequences | `declareMajorWar` / `makeMajorPeace` / `withSettlementSigned` | no (identity-return) | — | the same, bilateral by construction | no — single-side writers unreachable (#1014, #988/#991) | — | architecture pins | **canonical** (denial copy is the offer surface's) |
+| Great General abilities (Rally / Last Stand / Seize) | `selection-controller`, `map-interaction-controller` | `ai-general-command` | — | `getHeroicCommandEligibility` + per-ability preview | yes (eligibility `reason`) | `get*Preview` | `issue*` re-derive the preview and no-op on ineligible | no | — | `great-general-specialties` tests | **canonical** (a direct ineligible call is a silent no-op, documented) |
+| Air strike | `map-interaction-controller` (forecast + confirm, #1213) | `ai-tactics`, `ai-major-turn` | — | `getLegalAirMissionTargets` + `getAirMissionDenial` | partial — readiness denial typed; other `reason`s are free strings | #1213 forecast | `resolveAirStrike` re-validates | no | #1213 projection (never consults owner-private interceptor state) | #1213 boundary test | **partially-structural** → #1223 |
+| Air recon / patrol / intercept stance / rebase | `selection-controller`, `map-interaction-controller` | `ai-tactics` | — | `getLegalAirMissionTargets`, `getLegalRebaseDestinations`, `startIntercept` | partial (`reason: string`) | the same | `resolveReconMission`, `resolvePatrolMission`, `startIntercept`, `rebaseAircraft` re-validate | no | — | tests | **partially-structural** → #1223 |
+| Auto-explore | `selection-controller` | — | per-turn automation | `chooseAutoExploreMove` → movement resolver | via movement | — | `applyAutoExploreOrder` → `executeUnitMove` | no (movement contract) | — | movement source rule | **canonical** |
+| Journey / automation orders | `map-interaction-controller` | — | `turn-manager` | `findPath` + movement resolver | via movement | journey path preview | `executeUnitMove` per step | no | — | movement source rule | **canonical** |
+| Governance policy | `panel-actions-controller` | `basic-ai` | — | `canToggleGovernancePolicy` | yes | same | `setGovernancePolicy` (the only mutation path) | no | — | tests (#987) | **canonical** |
+| Governor assignment | `panel-actions-controller` | `basic-ai` | — | `canToggleGovernor` | yes (`GovernorAssignmentResult`) | same | `assignGovernor` / `removeGovernor` / `moveGovernor` | no | — | tests (#928) | **canonical** |
+| Espionage missions | `panel-actions-controller` | `basic-ai` | `processEspionageTurn` (#1201 owns consequences) | `startMission` (throws on an invalid state) | **no** — `throw new Error(...)` | panel mission list | `startMission` | no, but failure is an exception, not a result | — | #1201 | **partially-structural** → #1222 |
+
+## What this changes, and what it does not
+
+- **No runtime behaviour changes.** This is an audit.
+- **Movement** is the only family converted to a *branded validated-command* type (#1045). Every other
+  canonical row reaches the same guarantee with a repository-native shape: the executor re-runs the same `can*`
+  / `evaluate*` function and returns a typed `ok:false` before writing. That is what the rule asks for; a generic
+  command framework is a non-goal.
+- Follow-ups for each **partially-structural** row are tracked as focused issues (#1219 attack legality, #1220 queue enqueue, #1221 diplomatic denial, #1222 espionage `startMission`, #1223 air-mission reasons); the umbrella is closed
+  because the inventory exists, the pattern is proven end to end on movement, the generalised rule is checked
+  in, and every remaining gap has an owner.
