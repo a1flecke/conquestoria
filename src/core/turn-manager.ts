@@ -32,7 +32,7 @@ import { resolveNavalOperationsForCiv } from '@/systems/naval-operations';
 import { resolveAirReadinessForCiv } from '@/systems/air-readiness';
 import { getRestAvailability } from '@/systems/supply-combat';
 import { applyPillageToState } from '@/systems/pillage-system';
-import { PIRATE_OWNER, processIndependentThreatPressure } from '@/systems/threat-pressure-system';
+import { PIRATE_OWNER } from '@/systems/threat-pressure-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
 import { computeAdministrativeExploreLeash } from '@/ai/ai-exploration';
@@ -108,9 +108,8 @@ import { emitCivilizationLivenessTransitions, reconcileCivilizationLiveness } fr
 import { processFactionTurn, getUnrestYieldMultiplier, isCityProductionLocked, getFederalismRemittanceLoss } from '@/systems/faction-system';
 import { getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
 import { processBreakawayTurn } from '@/systems/breakaway-system';
-import { processCrisisTurn, processCrisisScheduler, getCrisisYieldMultiplier } from '@/systems/crisis-system';
+import { processCrisisTurn, getCrisisYieldMultiplier } from '@/systems/crisis-system';
 import { processEventChainTurn } from '@/systems/event-chain-lifecycle';
-import { processEventChainScheduler } from '@/systems/event-chain-scheduling';
 import { processWorldRacesTurn } from '@/systems/world-race-system';
 import { processReligionTurn, foundReligion } from '@/systems/religion-system';
 import { addWarheadToArsenal } from '@/systems/strategic-arsenal-system';
@@ -127,12 +126,8 @@ import { getTacticalFortOccupantHealingBonus } from '@/systems/legendary-wonder-
 import { announceUnitProduction, completeUnitProduction } from '@/systems/unit-production-completion';
 import { getNationalProjectCivYieldBonus } from '@/systems/national-project-system';
 import { classifyOwner } from './owner-kind';
-import { getStampedeLifecycleTransition, processStampedeScheduling, processStampedeTurn } from '@/systems/stampede-system';
-import {
-  getRogueElephantHostLifecycleTransition,
-  processRogueElephantHostScheduling,
-  processRogueElephantHostTurn,
-} from '@/systems/rogue-elephant-host-system';
+import { getStampedeLifecycleTransition, processStampedeTurn } from '@/systems/stampede-system';
+import { getRogueElephantHostLifecycleTransition, processRogueElephantHostTurn } from '@/systems/rogue-elephant-host-system';
 import { checkAndQueueGeneralCandidateChoice, retireGeneralsAtTurnEnd, spawnGeneralForCiv } from '@/systems/great-general-system';
 import { chooseBestGeneralCandidate } from '@/ai/ai-general-command';
 import { resolveGeneralDefinition, type GeneralDefinition } from '@/systems/great-general-definitions';
@@ -140,6 +135,7 @@ import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
 import { removeUnits } from '@/systems/unit-removal-system';
 import { createRoundPhaseContext } from './round-phases/types';
+import { threatSchedulingPhase } from './round-phases/threat-scheduling';
 import { espionagePhase } from './round-phases/espionage';
 import { diplomacyTradePhase } from './round-phases/diplomacy-trade';
 import { tradeIncomePhase } from './round-phases/trade-income';
@@ -1218,28 +1214,7 @@ export function processTurn(
     }
   }
 
-  // --- Threat pressure (spawn phase: land resurgence + pirate spawn) ---
-  newState = processIndependentThreatPressure(newState, bus);
-  newState = processCrisisScheduler(newState, bus);
-  newState = processEventChainScheduler(newState, bus);
-  const stampedesBeforeScheduling = newState.stampedes;
-  const hostsBeforeScheduling = newState.rogueElephantHosts;
-  newState = processStampedeScheduling(newState);
-  newState = processRogueElephantHostScheduling(newState);
-  for (const civId of Object.keys(newState.stampedes ?? {}).sort()) {
-    const transition = getStampedeLifecycleTransition(
-      stampedesBeforeScheduling?.[civId],
-      newState.stampedes?.[civId],
-    );
-    if (transition) bus.emit('stampede:lifecycle', transition);
-  }
-  for (const civId of Object.keys(newState.rogueElephantHosts ?? {}).sort()) {
-    const transition = getRogueElephantHostLifecycleTransition(
-      hostsBeforeScheduling?.[civId],
-      newState.rogueElephantHosts?.[civId],
-    );
-    if (transition) bus.emit('rogue-elephant-host:lifecycle', transition);
-  }
+  newState = threatSchedulingPhase.run(newState, context);
 
   newState = espionagePhase.run(newState, context);
 
