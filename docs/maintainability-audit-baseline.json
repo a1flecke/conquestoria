@@ -1,0 +1,318 @@
+{
+ "schema": 1,
+ "note": "Runtime import cycles and cross-layer runtime edges. Regenerate with `node scripts/maintainability-audit.mjs --baseline`. The #1013 guard fails when this drifts.",
+ "runtimeCycles": [
+  [
+   "src/ai/ai-expansion-sites.ts",
+   "src/ai/ai-national-intent.ts",
+   "src/ai/ai-strategy.ts"
+  ],
+  [
+   "src/systems/air-operations-system.ts",
+   "src/systems/attack-targeting.ts",
+   "src/systems/barbarian-system.ts",
+   "src/systems/city-capture-system.ts",
+   "src/systems/city-siege-system.ts",
+   "src/systems/combat-reward-system.ts",
+   "src/systems/combat-system.ts",
+   "src/systems/crisis-interaction-system.ts",
+   "src/systems/crisis-interventions.ts",
+   "src/systems/crisis-lifecycle.ts",
+   "src/systems/crisis-progression.ts",
+   "src/systems/crisis-scheduling.ts",
+   "src/systems/crisis-system.ts",
+   "src/systems/economy-system.ts",
+   "src/systems/espionage-system.ts",
+   "src/systems/espionage-turn.ts",
+   "src/systems/faction-system.ts",
+   "src/systems/minor-civ-system.ts",
+   "src/systems/pirate-actions.ts",
+   "src/systems/pirate-ecology.ts",
+   "src/systems/production-cost-context.ts",
+   "src/systems/quest-chain-system.ts",
+   "src/systems/quest-objective-system.ts",
+   "src/systems/quest-presentation.ts",
+   "src/systems/quest-system.ts",
+   "src/systems/religion-loyalty-system.ts",
+   "src/systems/rogue-elephant-host-system.ts",
+   "src/systems/stampede-system.ts",
+   "src/systems/threat-pressure-system.ts",
+   "src/systems/transport-system.ts",
+   "src/systems/unit-movement-system.ts",
+   "src/systems/unit-movement-validation.ts",
+   "src/systems/unit-occupancy.ts",
+   "src/systems/unit-production-completion.ts",
+   "src/systems/world-race-system.ts"
+  ]
+ ],
+ "allEdgeCycles": [
+  [
+   "src/ai/ai-expansion-sites.ts",
+   "src/ai/ai-national-intent.ts",
+   "src/ai/ai-personality.ts",
+   "src/ai/ai-strategy.ts"
+  ],
+  [
+   "src/app/panel-registry.ts",
+   "src/app/panel-router.ts"
+  ],
+  [
+   "src/core/autonomy-state.ts",
+   "src/core/notification-log.ts",
+   "src/core/pirate-state.ts",
+   "src/core/types.ts"
+  ],
+  [
+   "src/platform/browser-save-file-adapter.ts",
+   "src/platform/save-file-adapter.ts",
+   "src/platform/tauri-save-file-adapter.ts"
+  ],
+  [
+   "src/presentation/register-all.ts",
+   "src/presentation/register-beast-presentation.ts",
+   "src/presentation/register-city-presentation.ts",
+   "src/presentation/register-civilization-presentation.ts",
+   "src/presentation/register-combat-presentation.ts",
+   "src/presentation/register-diplomacy-presentation.ts",
+   "src/presentation/register-era-presentation.ts",
+   "src/presentation/register-espionage-presentation.ts",
+   "src/presentation/register-event-chain-presentation.ts",
+   "src/presentation/register-faction-crisis-presentation.ts",
+   "src/presentation/register-general-presentation.ts",
+   "src/presentation/register-network-presentation.ts",
+   "src/presentation/register-raider-presentation.ts",
+   "src/presentation/register-religion-presentation.ts",
+   "src/presentation/register-rogue-elephant-host-presentation.ts",
+   "src/presentation/register-stampede-presentation.ts",
+   "src/presentation/register-strategic-strike-presentation.ts",
+   "src/presentation/register-supply-presentation.ts",
+   "src/presentation/register-trade-presentation.ts",
+   "src/presentation/register-wonder-presentation.ts",
+   "src/presentation/register-world-race-presentation.ts"
+  ],
+  [
+   "src/systems/air-operations-system.ts",
+   "src/systems/attack-targeting.ts",
+   "src/systems/barbarian-system.ts",
+   "src/systems/city-capture-system.ts",
+   "src/systems/city-siege-system.ts",
+   "src/systems/combat-context.ts",
+   "src/systems/combat-reward-system.ts",
+   "src/systems/combat-system.ts",
+   "src/systems/crisis-interaction-system.ts",
+   "src/systems/crisis-interventions.ts",
+   "src/systems/crisis-lifecycle.ts",
+   "src/systems/crisis-progression.ts",
+   "src/systems/crisis-scheduling.ts",
+   "src/systems/crisis-system.ts",
+   "src/systems/economy-system.ts",
+   "src/systems/espionage-system.ts",
+   "src/systems/espionage-turn.ts",
+   "src/systems/faction-system.ts",
+   "src/systems/minor-civ-system.ts",
+   "src/systems/pirate-actions.ts",
+   "src/systems/pirate-ecology.ts",
+   "src/systems/production-cost-context.ts",
+   "src/systems/quest-chain-system.ts",
+   "src/systems/quest-objective-system.ts",
+   "src/systems/quest-presentation.ts",
+   "src/systems/quest-system.ts",
+   "src/systems/religion-loyalty-system.ts",
+   "src/systems/rogue-elephant-host-system.ts",
+   "src/systems/stampede-system.ts",
+   "src/systems/threat-pressure-system.ts",
+   "src/systems/transport-system.ts",
+   "src/systems/unit-movement-system.ts",
+   "src/systems/unit-movement-validation.ts",
+   "src/systems/unit-occupancy.ts",
+   "src/systems/unit-production-completion.ts",
+   "src/systems/world-race-system.ts"
+  ],
+  [
+   "src/systems/minor-civ-league-definitions.ts",
+   "src/systems/minor-civ-league-system.ts"
+  ],
+  [
+   "src/ui/diplomacy-panel.ts",
+   "src/ui/vassalage-controls.ts"
+  ]
+ ],
+ "crossLayerEdges": [
+  {
+   "pair": "ai -> core",
+   "count": 22
+  },
+  {
+   "pair": "ai -> systems",
+   "count": 281
+  },
+  {
+   "pair": "app -> ai",
+   "count": 1
+  },
+  {
+   "pair": "app -> audio",
+   "count": 6
+  },
+  {
+   "pair": "app -> core",
+   "count": 16
+  },
+  {
+   "pair": "app -> input",
+   "count": 15
+  },
+  {
+   "pair": "app -> platform",
+   "count": 2
+  },
+  {
+   "pair": "app -> presentation",
+   "count": 4
+  },
+  {
+   "pair": "app -> renderer",
+   "count": 9
+  },
+  {
+   "pair": "app -> storage",
+   "count": 6
+  },
+  {
+   "pair": "app -> systems",
+   "count": 173
+  },
+  {
+   "pair": "app -> testing",
+   "count": 4
+  },
+  {
+   "pair": "app -> ui",
+   "count": 74
+  },
+  {
+   "pair": "audio -> renderer",
+   "count": 1
+  },
+  {
+   "pair": "audio -> systems",
+   "count": 5
+  },
+  {
+   "pair": "core -> ai",
+   "count": 3
+  },
+  {
+   "pair": "core -> storage",
+   "count": 1
+  },
+  {
+   "pair": "core -> systems",
+   "count": 123
+  },
+  {
+   "pair": "input -> renderer",
+   "count": 4
+  },
+  {
+   "pair": "input -> systems",
+   "count": 45
+  },
+  {
+   "pair": "main.ts -> app",
+   "count": 4
+  },
+  {
+   "pair": "main.ts -> audio",
+   "count": 1
+  },
+  {
+   "pair": "main.ts -> core",
+   "count": 1
+  },
+  {
+   "pair": "main.ts -> presentation",
+   "count": 1
+  },
+  {
+   "pair": "main.ts -> renderer",
+   "count": 1
+  },
+  {
+   "pair": "main.ts -> storage",
+   "count": 1
+  },
+  {
+   "pair": "main.ts -> ui",
+   "count": 1
+  },
+  {
+   "pair": "presentation -> audio",
+   "count": 4
+  },
+  {
+   "pair": "presentation -> systems",
+   "count": 16
+  },
+  {
+   "pair": "presentation -> ui",
+   "count": 16
+  },
+  {
+   "pair": "renderer -> core",
+   "count": 3
+  },
+  {
+   "pair": "renderer -> systems",
+   "count": 53
+  },
+  {
+   "pair": "storage -> core",
+   "count": 11
+  },
+  {
+   "pair": "storage -> systems",
+   "count": 51
+  },
+  {
+   "pair": "systems -> ai",
+   "count": 4
+  },
+  {
+   "pair": "systems -> core",
+   "count": 75
+  },
+  {
+   "pair": "testing -> core",
+   "count": 2
+  },
+  {
+   "pair": "testing -> systems",
+   "count": 17
+  },
+  {
+   "pair": "ui -> ai",
+   "count": 2
+  },
+  {
+   "pair": "ui -> core",
+   "count": 13
+  },
+  {
+   "pair": "ui -> platform",
+   "count": 1
+  },
+  {
+   "pair": "ui -> renderer",
+   "count": 5
+  },
+  {
+   "pair": "ui -> storage",
+   "count": 5
+  },
+  {
+   "pair": "ui -> systems",
+   "count": 268
+  }
+ ]
+}
