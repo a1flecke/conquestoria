@@ -2,8 +2,8 @@
  * Panel routing types shared by `panel-router.ts` and the real registry
  * `main.ts` builds from them (#787 phase 5).
  *
- * See docs/superpowers/plans/2026-08-04-composition-root-decomposition.md,
- * "Phase 5 — PanelHost, PanelRouter, registry, and global shortcuts".
+ * Composition-root rules: CLAUDE.md ("`src/main.ts` is a composition root only") and
+ * `tests/app/architecture-boundaries.test.ts`.
  */
 import type { GameSession, Notifier, SelectionStore } from '@/app/ports';
 import type { PanelHost } from '@/app/panel-host';

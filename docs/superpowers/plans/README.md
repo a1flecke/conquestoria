@@ -1,5 +1,10 @@
 # Plan Guardrails
 
+> **Lifecycle (#1024).** This directory holds only *active* plans and cited rationale (see
+> `docs/docs-lifecycle-manifest.json`). A plan is added to the manifest when it is written, and **deleted in the PR
+> that completes it** — git history is the archive. Source, tests and `.claude/rules/**` are authoritative about what
+> exists; a plan is a snapshot. The checklist below stays the minimum standard for any new interactive-UI plan.
+
 Use this checklist when writing or reviewing implementation plans for interactive UI, queueing, filtered catalogs, recommendation surfaces, or other player-visible derived views.
 
 These sections are not ceremony. They exist to catch the exact failure mode where a feature "works in state" but still lies to the player, fails to refresh, or hides the wrong things.

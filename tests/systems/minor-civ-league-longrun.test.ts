@@ -49,6 +49,6 @@ describe('#496 final arc — compact long-run envelope', () => {
     // Under real host contention (#1133's own benchmark matrix reproduced this 4/4 times: a
     // raw 4-way-concurrent `yarn test` run consistently took 23.5-24.8s here, vs the six
     // single-run siblings averaging ~12.3s each well inside 20000ms) the doubled workload
-    // needs a doubled budget, not the same one. See docs/superpowers/plans/2026-09-20-issue-1133-verification-orchestration-arc.md.
+    // needs a doubled budget, not the same one. See #1133 (verification orchestration benchmark).
   }, 40000);
 });

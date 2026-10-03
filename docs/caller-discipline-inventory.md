@@ -80,7 +80,7 @@ same reason `invariants.md` excludes them: they are enforced by their own generi
 | Hand-written `renderLoop.setGameState(` pushes; in-place `GameState` mutation | Do not mutate in place | **F** | #1199 |
 | `ui-panels.md` (hot-seat, `cities[0]`, viewer safety, no bare buttons) | UI conventions | **S/D** | `cities[0]` source rule, viewer-safety differential harness + boundary rule (#1002), `createGameButton`; the rest are review conventions |
 | `sprites.md:34,111` | `preloadTerrainTiles()`/`initSprites()` once at init | **D** | Single call site in `startGame`; a second call is idempotent, not corrupting |
-| `spec-fidelity.md` | Keep `docs/superpowers/plans/*.md` status in sync | **D** | Process rule about docs; no code contract to make structural |
+| `spec-fidelity.md` | Delivered plans/specs leave the active tree; every remaining one is classified | **S** | `scripts/docs-lifecycle.mjs check` + `docs/docs-lifecycle-manifest.json` (#1024), run by `tests/hooks/docs-lifecycle.test.sh` |
 | `hooks-and-tooling.md` | Hook stdin/jq contract; `mise trust` before push | **S** | Hook smoke tests (`tests/hooks/`), `run-with-mise-worktree.test.sh` blocks the push |
 
 ## Contracts deliberately not converted

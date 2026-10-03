@@ -5,7 +5,8 @@
  * No DOM, no renderer, no event bus — selection is data, and keeping it that way
  * is what lets `resolveMapTapIntent` become a pure function in a later phase.
  *
- * See docs/superpowers/plans/2026-08-04-composition-root-decomposition.md.
+ * Composition-root rules: CLAUDE.md ("`src/main.ts` is a composition root only") and
+ * `tests/app/architecture-boundaries.test.ts`.
  */
 import type { HexCoord } from '@/core/types';
 import type { PendingMapIntent, SelectionSnapshot, SelectionStore } from '@/app/ports';

@@ -263,7 +263,7 @@ describe('attack-targeting', () => {
 
   // #966: ranged units (Archer, Crossbowman, Ballista, ...) attack cities. Superseded
   // the earlier "ordinary Archer-style ranged attacks do not damage cities" rule from
-  // docs/superpowers/specs/2026-05-15-combat-visibility-unit-motion-bug-bundle-design.md.
+  // the 2026-05 combat-visibility bug-bundle design.
   it('allows an archer to target an enemy city within range', () => {
     const attacker = unit('attacker', 'archer', 'player', { q: 0, r: 0 });
     const state = stateWithUnits({ attacker }, { '2,0': 'visible' });

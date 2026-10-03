@@ -116,8 +116,7 @@ but its callback contract must change in lockstep with 4 of
   — verified by inspection to only read through `getState()`, never assign
   through it. Not touched.
 - `#787` Phase 14's `setStateWithoutRefresh` debt — different axis, tracked in
-  its own plan (`docs/superpowers/plans/2026-08-04-composition-root-decomposition.md`
-  Phase 14), already in progress. This audit does not change any
+  its own #787 plan (since delivered and removed; see git history), already in progress at the time. This audit does not change any
   `setStateWithoutRefresh` call that isn't also one of the 44 mutation sites.
 - Compile-time enforcement (`DeepReadonly<GameState>` on `getState()`'s return
   type) — considered and rejected. Every `src/systems/**` function accepts

@@ -9,8 +9,7 @@ import { hasMetCivilization } from '@/systems/discovery-system';
  * controllers; MR5 is the first MR where a strike can happen with no UI
  * controller in the loop at all (an AI striking the human, or another AI),
  * so this registrar is now the only place that plays the SFX -- see
- * docs/superpowers/plans/2026-08-26-issue-545-mr5-ai-doctrine.md Task 9 for
- * the design-review finding this fixes.
+ * the #545 MR5 design-review finding this fixes (recoverable from git history).
  *
  * Notification: the struck civ (recipientCivId) is always told, regardless
  * of visibility -- you always know when it happens to you (unchanged MR4

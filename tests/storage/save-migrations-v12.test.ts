@@ -6,8 +6,7 @@ import type { SoloSetupConfig } from '@/core/types';
 /**
  * Migration 12 absorbs the 18 versioned fixups that used to live in
  * main.ts's migrateLegacySave() -- 124 lines that mutated module-scope
- * gameState in place, were never exported, and had no tests. See #787 and
- * docs/superpowers/plans/2026-08-04-composition-root-decomposition.md.
+ * gameState in place, were never exported, and had no tests. See #787.
  */
 
 const CONFIG: SoloSetupConfig = {

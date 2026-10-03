@@ -14,7 +14,7 @@ Confirmed directly against current `main` (post-#1109) at round 200–250 of the
 
 ## The historical #386 constraint
 
-`docs/superpowers/specs/2026-06-15-bug-fixes-design.md`'s Bug #386 fix is exact and load-bearing: `isCityCoastal` was changed from `city.ownedTiles.some(coastal)` (any tile the city's *culture* has claimed, however distant) to `[city.position, ...hexNeighbors(city.position)].some(coastal)` (city center + its 6 immediate neighbors only), specifically because a landlocked city that culturally expanded to a distant coast tile was incorrectly gaining ship production, coastal buildings, and other coastal-only effects. The regression test locks this down explicitly: *"`isCityCoastal` returns `false` for a city whose `ownedTiles` contains a distant coast tile but whose 6 immediate neighbors and own tile are all inland."* This design must not touch that behavior.
+The 2026-06-15 bug-fixes design's Bug #386 fix (since delivered; recoverable from git history) is exact and load-bearing: `isCityCoastal` was changed from `city.ownedTiles.some(coastal)` (any tile the city's *culture* has claimed, however distant) to `[city.position, ...hexNeighbors(city.position)].some(coastal)` (city center + its 6 immediate neighbors only), specifically because a landlocked city that culturally expanded to a distant coast tile was incorrectly gaining ship production, coastal buildings, and other coastal-only effects. The regression test locks this down explicitly: *"`isCityCoastal` returns `false` for a city whose `ownedTiles` contains a distant coast tile but whose 6 immediate neighbors and own tile are all inland."* This design must not touch that behavior.
 
 ## Caller audit
 

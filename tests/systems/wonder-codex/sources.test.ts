@@ -133,7 +133,7 @@ describe('wonder-codex sources', () => {
 
   it('keeps the human-readable source ledger in sync with source ids', () => {
     const ledger = readFileSync(
-      resolve(repoRoot, 'docs/superpowers/specs/2026-05-23-wonder-codex-atlas-source-ledger.md'),
+      resolve(repoRoot, 'docs/wonder-codex-source-ledger.md'),
       'utf8',
     );
     for (const source of [...getWonderCodexFactSources(), ...getWonderCodexImageSources()]) {
@@ -150,7 +150,7 @@ describe('wonder-codex sources', () => {
 
   it('keeps one completed ledger row per codex entry', () => {
     const ledger = readFileSync(
-      resolve(repoRoot, 'docs/superpowers/specs/2026-05-23-wonder-codex-atlas-source-ledger.md'),
+      resolve(repoRoot, 'docs/wonder-codex-source-ledger.md'),
       'utf8',
     );
     for (const entry of getAllWonderCodexContent()) {

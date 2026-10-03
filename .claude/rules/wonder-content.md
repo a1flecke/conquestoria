@@ -31,7 +31,7 @@ These came out of MR10 (#469), where four legendary wonders had `requiredTechs` 
 
 ## Codex Source Ledger Sync
 
-- **`docs/superpowers/specs/2026-05-23-wonder-codex-atlas-source-ledger.md` is a hand-maintained mirror of `src/systems/wonder-codex/sources.ts` and is NOT derived from code.** If a new legendary wonder gets a `legendary-content.ts` entry with a new fact-source id (or reuses one that already exists but the wonder itself is new), the ledger needs two additions: a "Baseline Source Inventory" row for any *new* fact source, and a "Per-Entry Ledger Requirement" row for the wonder itself, in the exact `| \`id\` | \`factSourceIds\` | \`imageSourceId\` | localPath | license | attribution |` shape already used by every other row.
+- **`docs/wonder-codex-source-ledger.md` is a hand-maintained mirror of `src/systems/wonder-codex/sources.ts` and is NOT derived from code.** If a new legendary wonder gets a `legendary-content.ts` entry with a new fact-source id (or reuses one that already exists but the wonder itself is new), the ledger needs two additions: a "Baseline Source Inventory" row for any *new* fact source, and a "Per-Entry Ledger Requirement" row for the wonder itself, in the exact `| \`id\` | \`factSourceIds\` | \`imageSourceId\` | localPath | license | attribution |` shape already used by every other row.
   - Enforced by: `tests/systems/wonder-codex/sources.test.ts` → `keeps the human-readable source ledger in sync with source ids` and `keeps one completed ledger row per codex entry`. Both do literal substring matching against the raw markdown file — there is no fuzzy matching, so exact ids/URLs/paths must appear verbatim.
   - This file is easy to forget because it lives under `docs/`, not `src/` or `tests/`, so it doesn't show up when you're grepping for wonder wiring points. When adding wonder codex content, treat the ledger update as a required 7th file alongside the six presentation registries (definitions, roster, landmark catalog, bespoke assets, codex content, codex sources).
 
@@ -47,6 +47,6 @@ These came out of MR10 (#469), where four legendary wonders had `requiredTechs` 
 - [ ] Display name: grep it across buildings, techs, and trainable units — zero hits.
 - [ ] `research_count` steps: write descriptions as "Complete N more X" — baseline handling is automatic, no code change needed.
 - [ ] Natural wonders only: if the `validTerrain` is a terrain no existing wonder uses, run the claim/work tests above before assuming the yield is earnable.
-- [ ] Codex content: if you add fact sources or codex entries, update the ledger doc (`docs/superpowers/specs/2026-05-23-wonder-codex-atlas-source-ledger.md`) in the same change — see "Codex Source Ledger Sync" above.
+- [ ] Codex content: if you add fact sources or codex entries, update the ledger doc (`docs/wonder-codex-source-ledger.md`) in the same change — see "Codex Source Ledger Sync" above.
 - [ ] Search `tests/ui/wonder-panel.test.ts` for hardcoded "appears in recommended/top-N" assumptions your new wonder(s) might displace — see "Recommended-List Ranking Is Era-Ascending Within A State Tier" above.
 - [ ] Run `yarn test` — the four generic tests above will fail loudly if any of the above is missed.
