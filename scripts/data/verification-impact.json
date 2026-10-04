@@ -15,8 +15,11 @@
     },
     {
       "id": "ai-playability",
-      "commands": ["./scripts/run-with-mise.sh yarn test:ai-playability"],
-      "why": ".claude/rules/ai-simulation.md governs src/ai/**; the focused AI behavior regression is tests/simulation/ai-playability.test.ts."
+      "commands": [
+        "./scripts/run-with-mise.sh yarn test:ai-playability",
+        "./scripts/run-with-mise.sh yarn test:ai-playability:status"
+      ],
+      "why": ".claude/rules/ai-simulation.md governs src/ai/**; the focused AI behavior regression is tests/simulation/ai-playability.test.ts. #1132: the canonical command is durable; read its result back through :status."
     },
     {
       "id": "perf-report",
@@ -59,8 +62,11 @@
     },
     {
       "id": "ai-long",
-      "commands": ["./scripts/run-with-mise.sh yarn test:ai-long"],
-      "why": ".claude/rules/ai-simulation.md: the long-horizon campaign suite is explicit-run only; run it after changing the suite itself."
+      "commands": [
+        "./scripts/run-with-mise.sh yarn test:ai-long",
+        "./scripts/run-with-mise.sh yarn test:ai-long:status"
+      ],
+      "why": ".claude/rules/ai-simulation.md: the long-horizon campaign suite is explicit-run only; run it after changing the suite itself. #1132: the canonical command is durable; read its result back through :status."
     },
     {
       "id": "build",

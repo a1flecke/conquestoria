@@ -74,7 +74,9 @@ verify-status|yarn verify:local:status
 durable|yarn test:durable
 durable-status|yarn test:durable:status
 ai-playability|yarn test:ai-playability
+ai-playability-status|yarn test:ai-playability:status
 ai-long|yarn test:ai-long
+ai-long-status|yarn test:ai-long:status
 web-smoke|yarn test:web-smoke
 docs-lifecycle|node scripts/docs-lifecycle.mjs check
 maintainability-check|node scripts/maintainability-audit.mjs --check

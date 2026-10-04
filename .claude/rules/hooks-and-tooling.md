@@ -98,16 +98,19 @@ streamed output ended early. Inspect the process tree only when that command
 reports an active run; never report a completed durable run as still running
 solely because the terminal stream was truncated.
 
-**The same durable-evidence mechanism is also available for the other three
-heavyweight AI/perf commands (#1133 items C/D):** `yarn test:ai-long:durable`
-/ `:status`, `yarn test:ai-playability:durable` / `:status`, and `yarn
-perf:report:durable` / `:status`. These wrap the exact same underlying
-commands as their non-durable equivalents, via `run-durable-test-suite.sh
-<scope> --no-lease -- <command>` -- `--no-lease` is required for all three
-because each of those commands deliberately manages its own (or no) host-wide
-lease already (see their own header comments); only the "full" scope (`yarn
-test:durable`) acquires the shared push-verification lease, unchanged from
-before this MR.
+**The AI verification commands are durable by default (#1132).** `yarn
+test:ai-long` and `yarn test:ai-playability` are the canonical agent paths and
+each wraps its runner in `run-durable-test-suite.sh <scope> --no-lease --
+<command>`; read the result back with `yarn test:ai-long:status` /
+`yarn test:ai-playability:status`. The raw runners stay callable directly as
+`scripts/run-ai-long-horizon.sh` / `scripts/run-ai-playability-regressions.sh`.
+A targeted scenario passes through: `yarn test:ai-long -- -t lh-explorer-small`
+still runs a single scenario, and the durable `.status` records the exact
+`command` so the result is identifiable. `yarn perf:report:durable` / `:status`
+covers perf. `--no-lease` is required for all of these because each command
+deliberately manages its own (or no) host-wide lease already (see their own
+header comments); only the "full" scope (`yarn test:durable`) acquires the
+shared push-verification lease, unchanged from before this MR.
 
 Every `:status` reader now prints an unambiguous leading `STATUS: <word>` line
 to stdout, one of `active` / `passed` / `failed` / `abandoned` / `mismatched`
@@ -648,8 +651,8 @@ of what errexit state the caller had before calling it. Two real callers
 deliberately `set +e` around this exact call so they can capture `"$?"` or
 write it to a file immediately afterward: `run-under-host-lease.sh`'s own
 trailer, and `run-durable-test-suite.sh`'s `--no-lease` path (used by
-`test:ai-long:durable`, `test:ai-playability:durable`, and
-`perf:report:durable`). Under `set -e`, a function call returning non-zero
+`test:ai-long`, `test:ai-playability`, and `perf:report:durable`). Under
+`set -e`, a function call returning non-zero
 is itself a triggering command -- with errexit forced back on before
 control returned to the caller, the caller's very next statement (its own
 exit-code capture) never ran. Confirmed directly under both bash and dash

@@ -2,7 +2,7 @@
 # Launch one durable verification run for THIS worktree, politely, on a host that
 # several agents share.
 #
-# What it does that a bare `yarn test:ai-long:durable &` does not:
+# What it does that a bare `yarn test:ai-long &` does not:
 #   0. reuses a passing durable result for this exact clean HEAD instead of
 #      launching an identical run (`--force` overrides);
 #   1. shows who else is running/queued on the host first (`verify:local:status`),
@@ -75,8 +75,8 @@ done
 
 case "$scope" in
   full) yarn_script='test:durable' ;;
-  ai-long) yarn_script='test:ai-long:durable' ;;
-  ai-playability) yarn_script='test:ai-playability:durable' ;;
+  ai-long) yarn_script='test:ai-long' ;;
+  ai-playability) yarn_script='test:ai-playability' ;;
   perf) yarn_script='perf:report:durable' ;;
   *) usage ;;
 esac

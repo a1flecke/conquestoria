@@ -97,14 +97,14 @@ describe('#1005 long-horizon suite isolation', () => {
 
     for (const relPath of gatingFiles) {
       const contents = readFileSync(resolve(REPO_ROOT, relPath), 'utf8');
-      // package.json legitimately DEFINES the script, plus its #1133 durable
-      // variant (also explicit/opt-in -- yarn test:ai-long:durable, never
-      // reached by any default path, same as test:ai-long itself) -- those
-      // are the only allowed mentions anywhere in the gating set.
+      // package.json legitimately DEFINES the script, plus its #1132 durable
+      // status reader. Both are explicit/opt-in and never reached by any
+      // default path -- those are the only allowed mentions anywhere in the
+      // gating set. (#1132: `test:ai-long` is itself the durable entry point;
+      // it wraps `run-durable-test-suite.sh`, not a raw runner.)
       const allowedPackageJsonLines = [
         '"test:ai-long"',
-        '"test:ai-long:durable"',
-        '"test:ai-long:durable:status"',
+        '"test:ai-long:status"',
       ];
       const lines = contents.split('\n').filter(line => {
         if (relPath !== 'package.json') return true;

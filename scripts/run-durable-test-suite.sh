@@ -33,6 +33,12 @@ fi
 shift
 [ "$#" -ge 1 ] || usage
 
+# #1132: record the exact wrapped command so a durable result is identifiable
+# even for a TARGETED invocation (for example one scenario passed through with
+# `-t`), not just the scope. Joined with spaces; these commands never contain
+# newlines.
+invocation="$*"
+
 # #1166: the shared push-verification mutex is the PUBLICATION collision
 # lock. A durable run takes it only when it is itself publication work
 # (verify-pr.sh exports HVL_CAPACITY_LANE=foreground); an ordinary background
@@ -138,6 +144,7 @@ write_status() {
     printf 'scope=%s\n' "$scope"
     printf 'worktree=%s\n' "$repo_root"
     printf 'head=%s\n' "$head_sha"
+    printf 'command=%s\n' "$invocation"
     printf 'worktree_state=%s\n' "$initial_worktree_state"
     printf 'started_at=%s\n' "$started_at"
     printf 'completed_at=%s\n' "$completed_at"
