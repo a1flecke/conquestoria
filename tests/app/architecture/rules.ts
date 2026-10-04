@@ -427,6 +427,22 @@ export const ARCHITECTURE_RULES: readonly ArchitectureRule[] = [
     why: 'ai-strategy needs only the posture table; importing the resolver closed an ai-strategy -> ai-national-intent -> ai-expansion-sites -> ai-strategy import cycle (#1248).',
   },
   {
+    id: 'playtest-recorder-has-one-importer',
+    kind: 'only-imported-by',
+    target: 'src/app/playtest-recorder',
+    importers: ['src/app/bootstrap', 'tests/**'],
+    edges: 'all',
+    why: 'The #1244 playtest recorder is an observer built only behind ?playtest=1 at the composition root. No system, AI, core, UI or renderer module may import it: a simulation that depends on the recorder (or a second construction site) is exactly the analytics-in-the-game coupling the recorder is designed to avoid.',
+  },
+  {
+    id: 'playtest-export-button-has-one-importer',
+    kind: 'only-imported-by',
+    target: 'src/ui/playtest-export-button',
+    importers: ['src/app/bootstrap', 'tests/**'],
+    edges: 'all',
+    why: 'The export button is the recorder\'s only visible trace and must exist only when the composition root builds the recorder; any other importer could show it with the flag off.',
+  },
+  {
     id: 'src-has-no-runtime-import-cycles',
     kind: 'acyclic-group',
     members: 'src/**',

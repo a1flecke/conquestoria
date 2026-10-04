@@ -67,6 +67,14 @@ import { createBeastHoardPanel } from '@/ui/beast-hoard-panel';
 import { resolveGeneralDefinition, type GeneralDefinition } from '@/systems/great-general-definitions';
 import { getPendingGeneralChoiceForViewer, spawnGeneralForCiv } from '@/systems/great-general-system';
 import { createGeneralCandidatePanel } from '@/ui/general-candidate-panel';
+import {
+  createPlaytestRecorder,
+  isPlaytestRecorderEnabled,
+  withPlaytestEndTurn,
+  type PlaytestRecorder,
+} from '@/app/playtest-recorder';
+import { createPlaytestExportButton } from '@/ui/playtest-export-button';
+import { getSaveFileAdapter } from '@/platform/save-file-adapter';
 
 export interface AppServices {
   readonly bus: EventBus;
@@ -101,9 +109,16 @@ export interface AppCompositionDeps {
   readonly userSettingsStore: UserSettingsStore;
   readonly getNotifier: () => Notifier;
   readonly setNotifier: (notifier: Notifier) => void;
+  /**
+   * #1244: the page's `location.search`. The playtest recorder is constructed only when this says
+   * `?playtest=1`; absent (the default, and every test that does not opt in) means it is not built.
+   */
+  readonly playtestSearch?: string;
 }
 
 export interface AppComposition {
+  /** #1244: null unless `?playtest=1`. Nothing else in the app reads it. */
+  readonly playtestRecorder: PlaytestRecorder | null;
   readonly selectionController: SelectionController;
   readonly playerActions: PlayerActionController;
   readonly turnFlow: TurnFlowController;
@@ -117,6 +132,19 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     canvas, uiLayer, renderLoop, audio, bus, roundPresentationGate, advisorSystem,
     session, unpublished, selection, userSettingsStore, getNotifier, setNotifier,
   } = deps;
+
+  // #1244: an observer, built only behind the flag. `panelRegistry` is declared further down, so its DOM
+  // ids are read lazily, on the first UI mutation (after composition has finished).
+  const playtestRecorder: PlaytestRecorder | null = deps.playtestSearch !== undefined
+    && isPlaytestRecorderEnabled(deps.playtestSearch)
+    ? createPlaytestRecorder({
+      session,
+      uiLayer,
+      panelDomIds: () => Object.fromEntries(
+        Object.entries(panelRegistry).map(([panelId, descriptor]) => [descriptor.domId, panelId]),
+      ),
+    })
+    : null;
 
   // Thin wrapper (not extracted, see cross-cutting-helpers.ts's module docblock
   // for why): delegates to the pure `notifyPlayer`, but stays a sibling
@@ -354,7 +382,7 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
    * deferred-but-eager pattern as `presentationContext`'s
    * `get notifier()`/`get router()` getters further down.
    */
-  const turnFlow: TurnFlowController = createTurnFlowController({
+  const turnFlow: TurnFlowController = withPlaytestEndTurn(createTurnFlowController({
     session,
     unpublished,
     selection,
@@ -398,7 +426,7 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     showGameModeSelection: () => campaignEntry.showGameModeSelection(),
     reloadPage: () => window.location.reload(),
     openCityPanelForCity: panelActions.openCityPanelForCity,
-  });
+  }), playtestRecorder);
 
   /**
    * Owns the player-unit-action functions `getUnitTurnFlow`, `performWorkerAction`,
@@ -632,5 +660,15 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
 
   router = createPanelRouter({ host, registry: panelRegistry, context: panelContext });
 
-  return { selectionController, playerActions, turnFlow, hud, gameSession, presentationContext };
+  if (playtestRecorder) {
+    // The only visible trace of the recorder; the file goes through the platform's local save path.
+    createPlaytestExportButton(uiLayer, {
+      onExport: async () => {
+        const adapter = await getSaveFileAdapter();
+        return adapter.exportText('conquestoria-playtest-log.json', playtestRecorder.exportText());
+      },
+    });
+  }
+
+  return { selectionController, playerActions, turnFlow, hud, gameSession, presentationContext, playtestRecorder };
 }
