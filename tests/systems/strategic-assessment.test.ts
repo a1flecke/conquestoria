@@ -1,60 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import type { City, GameState } from '@/core/types';
-import { foundCity } from '@/systems/city-system';
-import { hexDistance, hexKey } from '@/systems/hex-utils';
+import type { GameState } from '@/core/types';
+import { hexKey } from '@/systems/hex-utils';
 import { buildStrategicAssessment, MAX_STRATEGIC_CONSTRAINTS } from '@/systems/strategic-assessment';
 import {
-  AI_A, AI_B, HUMAN_A, HUMAN_B, createTwoViewerWorld, makeMet, setNationalIntent,
+  AI_A, AI_B, HUMAN_A, HUMAN_B, makeMet, setNationalIntent,
 } from '../helpers/viewer-knowledge-fixtures';
+import { addCity, pickSites, twoCityWorld } from '../helpers/assessment-fixtures';
 import { expectViewerSafety, expectHotSeatDifferential, type ViewerSurface } from '../helpers/viewer-safety';
-
-const counters = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
-
-/** Land tiles at least `minGap` apart, in deterministic key order. */
-function pickSites(state: GameState, count: number, minGap = 7) {
-  const sites: Array<{ q: number; r: number }> = [];
-  for (const key of Object.keys(state.map.tiles).sort()) {
-    const tile = state.map.tiles[key];
-    if (tile.terrain !== 'grassland') continue;
-    if (sites.every(site => hexDistance(site, tile.coord) >= minGap)) sites.push(tile.coord);
-    if (sites.length === count) return sites;
-  }
-  throw new Error('fixture: map has too few grassland sites');
-}
-
-function addCity(state: GameState, owner: string, at: { q: number; r: number }, id: string, terrain: 'grassland' | 'desert'): City {
-  const city = foundCity(owner, at, state.map, counters());
-  const placed: City = { ...city, id, name: id.replace('city-', '').toUpperCase(), population: terrain === 'desert' ? 4 : 1 };
-  for (const coord of placed.ownedTiles) {
-    const tile = state.map.tiles[hexKey(coord)];
-    if (!tile) continue;
-    tile.terrain = terrain;
-    tile.improvement = 'none';
-    tile.improvementTurnsLeft = 0;
-    tile.resource = null as never;
-  }
-  state.cities[placed.id] = placed;
-  state.civilizations[owner].cities.push(placed.id);
-  return placed;
-}
-
-function emptyEmpire(owner = HUMAN_A): GameState {
-  const state = createTwoViewerWorld();
-  // The assessment is about cities, so start every civ from a clean roster.
-  for (const civ of Object.values(state.civilizations)) civ.cities = [];
-  state.cities = {};
-  for (const unit of Object.values(state.units)) if (unit.owner === owner) delete state.units[unit.id];
-  return state;
-}
-
-function twoCityWorld(secondStarves: boolean): GameState {
-  const state = emptyEmpire();
-  const [first, second] = pickSites(state, 2);
-  // Ids are chosen so the HEALTHY city sorts/lists first in every roster.
-  addCity(state, HUMAN_A, first, 'city-a-first', 'grassland');
-  addCity(state, HUMAN_A, second, 'city-b-second', secondStarves ? 'desert' : 'grassland');
-  return state;
-}
 
 describe('buildStrategicAssessment (#1236)', () => {
   it('names the starving SECOND city, not the first roster city (#1229 regression)', () => {
@@ -146,6 +98,40 @@ describe('buildStrategicAssessment (#1236)', () => {
       const firstSentence = constraint.why.split(/(?<=[.!?])\s/)[0];
       expect(firstSentence.split(/\s+/).length, constraint.why).toBeLessThanOrEqual(18);
     }
+  });
+
+  it('reports wasted science when no research is chosen, with the tech panel as destination', () => {
+    const state = twoCityWorld(false);
+    state.civilizations[HUMAN_A].techState.currentResearch = null;
+
+    const science = buildStrategicAssessment(state, HUMAN_A).constraints.find(c => c.kind === 'science');
+
+    expect(science?.destination).toEqual({ kind: 'open-tech' });
+    expect(science?.severity).toBeGreaterThanOrEqual(40);
+  });
+
+  it('reports no science constraint while a technology is being researched', () => {
+    const state = twoCityWorld(false);
+    state.civilizations[HUMAN_A].techState.currentResearch = 'pottery';
+
+    expect(buildStrategicAssessment(state, HUMAN_A).constraints.find(c => c.kind === 'science')).toBeUndefined();
+  });
+
+  it('reports a queue paused by disabled production, but leaves a revolt to the unrest constraint', () => {
+    const state = twoCityWorld(false);
+    state.cities['city-b-second'].productionQueue = ['warrior'];
+    state.cities['city-b-second'].productionDisabledTurns = 3;
+
+    const paused = buildStrategicAssessment(state, HUMAN_A).constraints.find(c => c.kind === 'production');
+    expect(paused?.focusCityId).toBe('city-b-second');
+
+    // A city in revolt is production-locked too, but that is the unrest constraint's story.
+    state.cities['city-b-second'].productionDisabledTurns = 0;
+    state.cities['city-b-second'].unrestLevel = 2;
+    state.cities['city-b-second'].unrestTurns = 1;
+    const kinds = buildStrategicAssessment(state, HUMAN_A).constraints.map(c => c.kind);
+    expect(kinds).toContain('unrest');
+    expect(kinds).not.toContain('production');
   });
 
   it('carries no functions (plain serialisable projection)', () => {

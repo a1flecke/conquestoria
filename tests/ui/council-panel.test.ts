@@ -266,7 +266,7 @@ describe('council-panel pre-existing actionLabel card wiring', () => {
     expect(onCardAction).toHaveBeenCalledWith('survey-frontier', { kind: 'scout' });
   });
 
-  it('renders the Add food button on a food card and reports the primary city to open', () => {
+  it('renders the Open city button on a food card and reports the starving city to open', () => {
     const onCardAction = vi.fn();
     const { state, container } = makeCouncilFixture({ lowPriorityFoodWarning: true });
     const playerCity = Object.values(state.cities).find(city => city.owner === state.currentPlayer);
@@ -278,9 +278,9 @@ describe('council-panel pre-existing actionLabel card wiring', () => {
       onCardAction,
     });
 
-    findButtonByText(panel, 'Add food').click();
+    findButtonByText(panel, 'Open city').click();
 
-    expect(onCardAction).toHaveBeenCalledWith('food-warning', { kind: 'open-city', cityId: playerCity.id });
+    expect(onCardAction).toHaveBeenCalledWith('constraint-food', { kind: 'open-city', cityId: playerCity.id });
   });
 
   it('renders the Review quest button on a minor-civ quest card and reports the minor civ to open', () => {

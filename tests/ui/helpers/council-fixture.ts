@@ -95,7 +95,8 @@ export function makeCouncilFixture(options: CouncilFixtureOptions = {}): { state
       }
     }
     if (playerCity) {
-      playerCity.population = 1;
+      // Starving (population outruns the desert's food): a food constraint below the "quiet" interrupt floor.
+      playerCity.population = 3;
       playerCity.food = 0;
       playerCity.foodNeeded = 20;
       for (const coord of playerCity.ownedTiles) {

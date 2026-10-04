@@ -2276,7 +2276,11 @@ export type CouncilCardAction =
   | { kind: 'scout' }
   | { kind: 'open-city'; cityId: string }
   | { kind: 'open-quest'; minorCivId: string }
-  | { kind: 'open-wonder'; cityId: string; wonderId: string };
+  | { kind: 'open-wonder'; cityId: string; wonderId: string }
+  /** #1237: no research chosen -- science is discarded until the player picks one in the tech panel. */
+  | { kind: 'open-tech' }
+  /** #1237: the Domination lane opens the victory-progress panel (it covers Domination only, not world races). */
+  | { kind: 'open-victory-progress' };
 
 export interface CouncilCard {
   id: string;

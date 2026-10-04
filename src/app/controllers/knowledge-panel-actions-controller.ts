@@ -27,7 +27,7 @@ import { enqueueResearch, moveQueuedId, removeQueuedId } from '@/systems/plannin
 import { saveSettings } from '@/storage/save-manager';
 import { chooseEventChainOption } from '@/systems/event-chain-choices';
 import { parseEventChainCardId } from '@/systems/event-chain-presentation';
-import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { findReadyScoutUnitId } from '@/systems/scout-readiness';
 import type { PanelActionsCommonDeps, PanelActionsCrossCalls } from './panel-actions-shared';
 
 export interface KnowledgePanelActionsController {
@@ -184,14 +184,8 @@ export function createKnowledgePanelActionsController(
     switch (action.kind) {
       case 'scout': {
         const state = deps.session.getState();
-        const civ = state.civilizations[state.currentPlayer];
-        const candidateId = civ.units.find(unitId => {
-          const unit = state.units[unitId];
-          if (!unit || unit.hasActed || unit.movementPointsLeft <= 0) return false;
-          if (unit.automation?.mode === 'auto-explore') return false;
-          if (UNIT_DEFINITIONS[unit.type].strength <= 0) return false;
-          return true;
-        });
+        // The same predicate the Council used to offer this card (scout-readiness.ts).
+        const candidateId = findReadyScoutUnitId(state, state.currentPlayer);
         if (!candidateId) {
           deps.showNotification('No units are ready to scout right now.', 'info');
           return;
@@ -223,6 +217,21 @@ export function createKnowledgePanelActionsController(
         deps.getElementById('council-panel')?.remove();
         cross.openWonderPanelForCityId(action.cityId);
         return;
+      }
+      case 'open-tech': {
+        deps.getElementById('council-panel')?.remove();
+        openTechPanel();
+        return;
+      }
+      case 'open-victory-progress': {
+        deps.getElementById('council-panel')?.remove();
+        deps.router.open('victory-progress');
+        return;
+      }
+      default: {
+        // Compile-time exhaustiveness: a new CouncilCardAction kind cannot ship without a branch here.
+        const unhandled: never = action;
+        return unhandled;
       }
     }
   }

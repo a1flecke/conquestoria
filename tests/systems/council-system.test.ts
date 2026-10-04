@@ -26,7 +26,7 @@ describe('council system', () => {
     const { state } = makeCouncilFixture({ lowPriorityFoodWarning: true });
 
     expect(getCouncilInterrupt(state, 'player', 'quiet')).toBeNull();
-    expect(getCouncilInterrupt(state, 'player', 'chaos')?.sourceCardId).toBe('food-warning');
+    expect(getCouncilInterrupt(state, 'player', 'chaos')?.sourceCardId).toBe('constraint-food');
   });
 
   it('does not recommend legendary wonders that are not yet eligible in the city', () => {
@@ -144,7 +144,10 @@ describe('council system', () => {
 
     const notUnlocked = buildCouncilAgenda(state, 'player').toWin
       .find(card => card.id === 'worldrace-first-satellite');
-    expect(notUnlocked?.actionLabel).toBe('Prepare');
+    expect(notUnlocked?.summary).toContain('groundwork');
+    // #1237: informational -- no victory-progress destination covers world races, so no inert button.
+    expect(notUnlocked?.actionLabel).toBeUndefined();
+    expect(notUnlocked?.action).toBeUndefined();
 
     let cityId = state.civilizations.player.cities[0];
     if (!cityId) {
@@ -157,13 +160,14 @@ describe('council system', () => {
     state.builtNationalProjects = { 'player:space_program_initiative': { civId: 'player', cityId, eraBuilt: 11 } };
     const readyToLaunch = buildCouncilAgenda(state, 'player').toWin
       .find(card => card.id === 'worldrace-first-satellite');
-    expect(readyToLaunch?.actionLabel).toBe('Enter the race');
+    expect(readyToLaunch?.summary).toContain('Queue the launch');
+    expect(readyToLaunch?.actionLabel).toBeUndefined();
 
     state.cities[cityId]!.productionQueue = ['first_satellite_launch'];
     state.cities[cityId]!.productionProgress = 100;
     const launching = buildCouncilAgenda(state, 'player').toWin
       .find(card => card.id === 'worldrace-first-satellite');
-    expect(launching?.actionLabel).toBe('Track launch');
+    expect(launching?.actionLabel).toBeUndefined();
     expect(launching?.summary).toContain('%');
   });
 
@@ -183,6 +187,6 @@ describe('council system', () => {
     const card = buildCouncilAgenda(state, 'player').toWin
       .find(card => card.id === 'worldrace-interstellar-colony');
     expect(card?.title).toContain('Interstellar Colony');
-    expect(card?.actionLabel).toBe('Prepare');
+    expect(card?.actionLabel).toBeUndefined();
   });
 });

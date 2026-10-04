@@ -27,6 +27,8 @@ import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { hasMetCivilization } from '@/systems/discovery-system';
 import { projectDominationProgressForViewer } from '@/systems/domination-presentation';
 import { getEconomyStatusForCiv } from '@/systems/economy-system';
+import { isCityProductionLocked } from '@/systems/faction-unrest-model';
+import { needsResearchChoice } from '@/systems/planning-system';
 import { getRivalriesForViewer } from '@/systems/rivalry-system';
 import { unitParticipatesInLandSupply } from '@/systems/supply-participation';
 import { getAllWorldRaceKinds } from '@/systems/world-race-definitions';
@@ -118,26 +120,41 @@ function buildConstraints(state: GameState, viewerCivId: string): StrategicConst
     });
   }
 
-  const stalled = projected.filter(entry => entry.city.productionQueue.length > 0 && entry.yields.production <= 0);
-  const production = pickWorst(stalled, e => e.city.productionQueue.length, e => e.city.id);
+  // Production: a queued city whose production is paused (`productionDisabledTurns`, e.g. sabotage).
+  // A city in revolt is also locked, but that is already the `unrest` constraint's story, so it is not
+  // reported twice. (A city's projected production is never <= 0: every city center yields 1.)
+  const paused = projected.filter(entry =>
+    entry.city.productionQueue.length > 0
+    && entry.city.unrestLevel !== 2
+    && isCityProductionLocked(entry.city));
+  const production = pickWorst(
+    paused,
+    e => (e.city.productionDisabledTurns ?? 0) * 10 + e.city.productionQueue.length,
+    e => e.city.id,
+  );
   if (production) {
+    const turns = production.city.productionDisabledTurns ?? 0;
     constraints.push({
       kind: 'production',
-      severity: clampSeverity(30 + 5 * Math.min(4, production.city.productionQueue.length)),
-      title: `${production.city.name} is not building`,
-      why: `${production.city.name} has ${production.city.productionQueue.length} item${production.city.productionQueue.length === 1 ? '' : 's'} queued but makes no production.`,
+      severity: clampSeverity(30 + 5 * Math.min(4, production.city.productionQueue.length) + Math.min(10, turns)),
+      title: `${production.city.name} cannot build`,
+      why: `${production.city.name} has ${production.city.productionQueue.length} item${production.city.productionQueue.length === 1 ? '' : 's'} queued, but its production is paused for ${turns} more turn${turns === 1 ? '' : 's'}.`,
       focusCityId: production.city.id,
       destination: { kind: 'open-city', cityId: production.city.id },
     });
   }
 
+  // Science: with no research chosen `processResearch` discards the turn's science, so every
+  // point is wasted. (A city's science is never <= 0 -- every city center yields 1 -- so "no
+  // science at all" is not a reachable constraint; "science that counts for nothing" is.)
   const totalScience = projected.reduce((sum, entry) => sum + entry.yields.science, 0);
-  if (civ.techState.currentResearch && cities.length > 0 && totalScience <= 0) {
+  if (cities.length > 0 && needsResearchChoice(state, viewerCivId)) {
     constraints.push({
       kind: 'science',
-      severity: clampSeverity(40 + 5 * Math.min(4, cities.length)),
-      title: 'Research has stopped',
-      why: 'Your cities make no science, so the current research cannot advance.',
+      severity: clampSeverity(40 + Math.min(30, 2 * totalScience)),
+      title: 'Choose your research',
+      why: `Your cities make ${totalScience} science a turn, and none of it counts until you pick research.`,
+      destination: { kind: 'open-tech' },
     });
   }
 

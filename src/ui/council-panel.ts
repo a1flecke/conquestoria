@@ -11,11 +11,11 @@ export interface CouncilPanelCallbacks {
    * `id` and (for a non-event-chain card) its typed `action` context. An
    * event-chain decision card (`EVENT_CHAIN_CARD_ID_PREFIX`) has no `action`
    * field — its id alone is parsed by the caller (`parseEventChainCardId`,
-   * unchanged from #990). Every other card with `actionLabel` now also
-   * carries a matching `action`; `createBucket` below only renders a button
-   * when one of the two is present, so an `actionLabel` with neither (e.g.
-   * the World Race cards, deliberately out of scope) stays inert text
-   * rather than a dead button. */
+   * unchanged from #990). Every other card with `actionLabel` carries a
+   * matching `action` (#1237: informational cards -- World Race, gold,
+   * supply, research -- have neither); `createBucket` below only renders a
+   * button when one of the two is present, so a card never shows a dead
+   * button. */
   onCardAction?: (cardId: string, action?: CouncilCardAction) => void;
 }
 
@@ -182,7 +182,7 @@ export function createCouncilPanel(
   // --- Agenda buckets ---
   const agenda = buildCouncilAgenda(state, state.currentPlayer);
   panel.appendChild(createBucket('Do Now', agenda.doNow, BUCKET_COLORS['Do Now'], callbacks.onCardAction));
-  panel.appendChild(createBucket('Soon', agenda.soon, BUCKET_COLORS['Soon']));
+  panel.appendChild(createBucket('Soon', agenda.soon, BUCKET_COLORS['Soon'], callbacks.onCardAction));
   panel.appendChild(createBucket('To Win', agenda.toWin, BUCKET_COLORS['To Win'], callbacks.onCardAction));
   panel.appendChild(createBucket('Council Drama', agenda.drama, BUCKET_COLORS['Council Drama'], callbacks.onCardAction));
 
