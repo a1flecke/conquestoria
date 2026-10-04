@@ -248,6 +248,7 @@ export function eliminateCivilization(
   delete next.nationalProjectChoices?.[civId];
   delete next.legendaryWonderIntel?.[civId];
   if (next.councilMemory) delete (next.councilMemory as Record<string, unknown>)[civId];
+  delete next.assessmentDigestByCiv?.[civId];
   if (next.legendaryWonderTacticalEffects) {
     delete next.legendaryWonderTacticalEffects.trainingGrantsByCiv?.[civId];
     delete next.legendaryWonderTacticalEffects.interceptionClaimTurnByCiv?.[civId];

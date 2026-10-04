@@ -20,7 +20,15 @@
 // be enabled -- nothing is penalised when load is high, so there is no constraint to report)
 // and `military` (no aggregate readiness fact exists). A healthy empire returns no
 // constraints; filler would teach the player to ignore the list.
-import type { CouncilCardAction, GameState, WorldRaceKind } from '@/core/types';
+import type {
+  AssessmentDigest,
+  AssessmentSeverityBucket,
+  CouncilCardAction,
+  GameState,
+  StrategicConstraintKind,
+  VictoryStage,
+  WorldRaceKind,
+} from '@/core/types';
 import { majorCivWarOpponentIds } from '@/core/owner-kind';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
@@ -34,7 +42,8 @@ import { unitParticipatesInLandSupply } from '@/systems/supply-participation';
 import { getAllWorldRaceKinds } from '@/systems/world-race-definitions';
 import { getWorldRacePresentationForViewer } from '@/systems/world-race-presentation';
 
-export type StrategicConstraintKind = 'food' | 'production' | 'science' | 'gold' | 'unrest' | 'supply';
+// The unions live in `core/types` so the persisted digest can name them; re-exported for callers.
+export type { StrategicConstraintKind, VictoryStage };
 
 /** Tie-break order, most pressing kind first. */
 const CONSTRAINT_KIND_ORDER: readonly StrategicConstraintKind[] = [
@@ -54,8 +63,6 @@ export interface StrategicConstraint {
   /** Absent when no real destination exists yet -- #1237 adds an action kind together with its wiring. */
   destination?: CouncilCardAction;
 }
-
-export type VictoryStage = 'not-started' | 'building' | 'competitive' | 'leading' | 'at-risk';
 
 export interface VictoryTrajectory {
   id: string;
@@ -310,4 +317,117 @@ export function buildStrategicAssessment(state: GameState, viewerCivId: string):
     victory: buildVictory(state, viewerCivId),
     threats: buildThreats(state, viewerCivId),
   };
+}
+
+// --- #1238: the digest a viewer leaves behind, and the "since your last turn" diff ---------------
+
+/** Severity bands, matching the header: 1-39 low, 40-69 mid, 70+ high. */
+export function getSeverityBucket(severity: number): AssessmentSeverityBucket {
+  if (severity >= 70) return 'high';
+  return severity >= 40 ? 'mid' : 'low';
+}
+
+const BUCKET_RANK: Record<AssessmentSeverityBucket, number> = { low: 0, mid: 1, high: 2 };
+
+/**
+ * What is worth remembering of an assessment: constraint kinds with their bucket (and focus city),
+ * and each lane's stage. Copy and exact severities are dropped on purpose, so a value that moves
+ * inside its band can never read as a change.
+ */
+export function buildAssessmentDigest(assessment: StrategicAssessment): AssessmentDigest {
+  return {
+    turn: assessment.turn,
+    constraints: assessment.constraints.map(constraint => ({
+      kind: constraint.kind,
+      bucket: getSeverityBucket(constraint.severity),
+      ...(constraint.focusCityId ? { focusCityId: constraint.focusCityId } : {}),
+    })),
+    victory: assessment.victory.map(lane => ({ id: lane.id, stage: lane.stage })),
+  };
+}
+
+export const MAX_ASSESSMENT_CHANGES = 3;
+
+export interface AssessmentChange {
+  kind: 'new' | 'worsened' | 'resolved' | 'victory-moved';
+  title: string;
+  /** One plain sentence saying why this is on the list. */
+  changedBecause: string;
+}
+
+const CONSTRAINT_KIND_LABEL: Record<StrategicConstraintKind, string> = {
+  food: 'Food',
+  production: 'Production',
+  science: 'Research',
+  gold: 'The treasury',
+  unrest: 'Unrest',
+  supply: 'Army supply',
+};
+
+const STAGE_PHRASE: Record<VictoryStage, string> = {
+  'not-started': 'not started',
+  building: 'under way',
+  competitive: 'contested',
+  leading: 'in the lead',
+  'at-risk': 'at risk',
+};
+
+function compareIds(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/**
+ * Pure and deterministic: what changed between the digest a viewer left behind and the assessment
+ * they see now, at most `MAX_ASSESSMENT_CHANGES` items. Order: constraints that are new or worse
+ * (highest current severity first, then kind order), then victory-lane moves (by lane id), then
+ * resolved constraints (kind order). No previous digest means no history, so nothing is invented.
+ *
+ * Only what the viewer's own assessment contains can appear here. A threat that stops being listed
+ * is never reported as destroyed or retreating, because the viewer may simply no longer see it, so
+ * threats are deliberately not diffed. A constraint is "resolved" only when it is absent from the
+ * full set: once the cap is reached a missing kind may merely have been displaced.
+ */
+export function diffAssessment(
+  previous: AssessmentDigest | undefined,
+  current: StrategicAssessment,
+): AssessmentChange[] {
+  if (!previous) return [];
+
+  const previousByKind = new Map(previous.constraints.map(constraint => [constraint.kind, constraint]));
+  const raised: Array<{ severity: number; kindOrder: number; change: AssessmentChange }> = [];
+  for (const constraint of current.constraints) {
+    const before = previousByKind.get(constraint.kind);
+    const kindOrder = CONSTRAINT_KIND_ORDER.indexOf(constraint.kind);
+    if (!before) {
+      raised.push({ severity: constraint.severity, kindOrder, change: { kind: 'new', title: constraint.title, changedBecause: constraint.why } });
+    } else if (BUCKET_RANK[getSeverityBucket(constraint.severity)] > BUCKET_RANK[before.bucket]) {
+      raised.push({ severity: constraint.severity, kindOrder, change: { kind: 'worsened', title: constraint.title, changedBecause: constraint.why } });
+    }
+  }
+  raised.sort((a, b) => b.severity - a.severity || a.kindOrder - b.kindOrder);
+
+  const previousStage = new Map(previous.victory.map(lane => [lane.id, lane.stage]));
+  const moved: AssessmentChange[] = [];
+  for (const lane of [...current.victory].sort((a, b) => compareIds(a.id, b.id))) {
+    const before = previousStage.get(lane.id);
+    // A lane that was not there before is news only once something has actually started on it.
+    const changed = before === undefined ? lane.stage !== 'not-started' : before !== lane.stage;
+    if (changed) {
+      moved.push({ kind: 'victory-moved', title: `${lane.title} is ${STAGE_PHRASE[lane.stage]}`, changedBecause: lane.summary });
+    }
+  }
+
+  const currentKinds = new Set(current.constraints.map(constraint => constraint.kind));
+  const resolved: AssessmentChange[] = current.constraints.length >= MAX_STRATEGIC_CONSTRAINTS
+    ? []
+    : previous.constraints
+      .filter(constraint => !currentKinds.has(constraint.kind))
+      .sort((a, b) => CONSTRAINT_KIND_ORDER.indexOf(a.kind) - CONSTRAINT_KIND_ORDER.indexOf(b.kind))
+      .map(constraint => ({
+        kind: 'resolved' as const,
+        title: `${CONSTRAINT_KIND_LABEL[constraint.kind]} is no longer a concern`,
+        changedBecause: 'The Council no longer sees it holding your empire back.',
+      }));
+
+  return [...raised.map(entry => entry.change), ...moved, ...resolved].slice(0, MAX_ASSESSMENT_CHANGES);
 }

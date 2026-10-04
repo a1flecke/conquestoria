@@ -107,7 +107,20 @@ const ADDITIVE_WITHOUT_MIGRATION: Readonly<Record<string, string>> = {
   // which treats negative / NaN / non-numeric values as ready. `tests/systems/air-readiness.test.ts`
   // pins the malformed-value case and the fresh-aircraft default.
   'units.*.airStrain': '#884 — new optional Unit field; absent means ready; a tolerant reader treats malformed values as ready.',
-  'idCounters.nextWarId': '#991 — new optional IdCounters field; self-normalizing via the existing ID_COUNTER_SPECS/normalizeIdCounters mechanism, same as every other optional counter.',
+  // #1238 — the Council's "Since your last turn" baseline: a per-civ digest of the viewer's own
+  // last assessment, written only when a human ends their turn (`recordAssessmentDigest`, called
+  // from `turn-flow-controller.ts`'s `endTurn`). Absent means "no previous assessment", which is
+  // exactly what every pre-#1238 save is: the only readers go through `readAssessmentDigest`
+  // (assessment-history.ts), which validates the shape and treats a missing, malformed or
+  // future-turn digest as no history, so the section simply stays hidden until the first end of
+  // turn writes one. No round phase, AI or other system reads or writes it. It is a teardown area
+  // for civ elimination (`ELIMINATED_CIV_AREAS`). `tests/storage/assessment-digest-save.test.ts`
+  // proves an old save loads, hides the section and processes a turn unchanged, that the digest
+  // round-trips through the real saveGame/loadGame path, and that malformed values are ignored.
+  // No fixture contains the field (the matrix runs rounds, not the app's end-turn), exactly like
+  // `councilMemory`, so this entry is the written proof rather than a snapshot path.
+  'assessmentDigestByCiv': '#1238 — new optional per-civ digest; absent means no history; a validating reader treats malformed values as no history; only a human ending their turn writes it.',
+  'idCounters.nextWarId':'#991 — new optional IdCounters field; self-normalizing via the existing ID_COUNTER_SPECS/normalizeIdCounters mechanism, same as every other optional counter.',
 };
 
 describe('#1023 persisted-save-shape ratchet', () => {

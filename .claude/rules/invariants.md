@@ -82,7 +82,7 @@ every implicit assumption an invariant... short enough to read").
 | Area | Invariant | Enforcement |
 |---|---|---|
 | `opponentAI.majorCivs.*` (`assignedUnitIds`, `upgradeRoutesByUnitId`), `.barbarianHomeCampByUnitId` | A portfolio references only a live unit it actually still owns (existence AND ownership — a unit can change owner without dying, via `combat-reward-system.ts`'s "prize crew" capture) | `SAVE_STATE_INVARIANTS: opponent-ai-portfolio-integrity` (**#1081, closed**) — runs unconditionally for every living civ, via `scanOpponentAIPortfolioDanglingUnitRefs` (`tests/helpers/eliminated-civ-areas.ts`), the same scan `ELIMINATED_CIV_AREAS.opponentAI` now delegates to for the elimination-teardown case |
-| `opponentAI.pressureByCiv`, `autonomyByCiv`, `networkCivicPressureByCity`, `councilMemory` | Keyed only by live civs/cities | `ELIMINATED_CIV_AREAS` (teardown, per-field) |
+| `opponentAI.pressureByCiv`, `autonomyByCiv`, `networkCivicPressureByCity`, `councilMemory`, `assessmentDigestByCiv` (#1238) | Keyed only by live civs/cities | `ELIMINATED_CIV_AREAS` (teardown, per-field) |
 | AI decision determinism | Same seed + state ⇒ identical AI trace and resulting state, in-process and across save/reload | `.claude/rules/game-systems.md`'s Deterministic Simulation Contract + `tests/app/simulation-determinism.test.ts` / `determinism-guard.test.ts` |
 | Domination sovereignty/victory queries | UI and AI consume observer-safe DTOs, never the omniscient query directly | Source rule (`check-src-rule-violations.sh`'s domination-authority block) |
 

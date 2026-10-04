@@ -316,6 +316,13 @@ export const ELIMINATED_CIV_AREAS: Record<keyof GameState, EliminatedCivArea> = 
       .filter(id => isEliminatedId(id, ctx))
       .map(id => `councilMemory still has a ledger for eliminated civ "${id}"`),
   },
+  assessmentDigestByCiv: {
+    kind: 'teardown',
+    why: 'a dead civ has no Council to tell what changed since its last turn (#1238; Record<civId, AssessmentDigest>)',
+    scan: (state, ctx) => Object.keys(state.assessmentDigestByCiv ?? {})
+      .filter(id => isEliminatedId(id, ctx))
+      .map(id => `assessmentDigestByCiv still has a digest for eliminated civ "${id}"`),
+  },
   activeCrises: {
     kind: 'teardown',
     why: 'a crisis targeting a dead civ has no target',

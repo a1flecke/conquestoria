@@ -2361,6 +2361,29 @@ export interface CouncilMemoryLedger {
 
 export type CouncilMemoryState = Record<string, CouncilMemoryLedger>;
 
+// --- Strategic assessment history (#1238) ---
+// The unions live here (not in `strategic-assessment.ts`) so the persisted digest can name them
+// without `core` importing a system; `strategic-assessment.ts` re-exports them.
+
+export type StrategicConstraintKind = 'food' | 'production' | 'science' | 'gold' | 'unrest' | 'supply';
+
+export type VictoryStage = 'not-started' | 'building' | 'competitive' | 'leading' | 'at-risk';
+
+/** Coarse severity band; edges match the bands documented in `strategic-assessment.ts` (1-39 / 40-69 / 70+). */
+export type AssessmentSeverityBucket = 'low' | 'mid' | 'high';
+
+/**
+ * What a viewer last saw of their own strategic assessment, kept only so the Council can say what
+ * changed since. A digest, never the full assessment: bucketed severities and lane stages, no copy,
+ * no rival facts. Written for one civ at the end of its own turn.
+ */
+export interface AssessmentDigest {
+  /** The turn the digest was recorded on. */
+  turn: number;
+  constraints: Array<{ kind: StrategicConstraintKind; bucket: AssessmentSeverityBucket; focusCityId?: string }>;
+  victory: Array<{ id: string; stage: VictoryStage }>;
+}
+
 // --- Save Slots ---
 
 export interface SaveSlotMeta {
@@ -2468,6 +2491,8 @@ export interface GameState {
   hotSeat?: HotSeatConfig;
   pendingEvents?: Record<string, GameEvent[]>;
   councilMemory?: CouncilMemoryState;
+  /** #1238: per-civ digest of the last strategic assessment that civ left behind (see `assessment-history.ts`). Absent = no history yet. */
+  assessmentDigestByCiv?: Record<string, AssessmentDigest>;
   tribalVillages: Record<string, TribalVillage>;
   beasts?: BeastsState;       // optional: legacy saves have no beasts
   pirateFleets?: Record<string, PirateFleet>;

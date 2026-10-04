@@ -1,5 +1,7 @@
 import type { CouncilCard, CouncilCardAction, CouncilTalkLevel, GameState } from '@/core/types';
 import { buildCouncilAgenda } from '@/systems/council-system';
+import { getAssessmentChangesForViewer } from '@/systems/assessment-history';
+import type { AssessmentChange } from '@/systems/strategic-assessment';
 import { formatCouncilMemoryEntry, getCouncilMemoryEntries } from '@/systems/council-memory';
 import { createGameButton } from '@/ui/ui-kit';
 import { EVENT_CHAIN_CARD_ID_PREFIX } from '@/systems/event-chain-presentation';
@@ -72,6 +74,45 @@ function createBucket(title: string, cards: CouncilCard[], accent: string, onCar
       actionButton.addEventListener('click', () => onCardAction(card.id, card.action));
       article.appendChild(actionButton);
     }
+
+    section.appendChild(article);
+  }
+
+  return section;
+}
+
+const CHANGE_LABEL: Record<AssessmentChange['kind'], string> = {
+  new: 'New',
+  worsened: 'Worse',
+  resolved: 'Resolved',
+  'victory-moved': 'Victory',
+};
+
+/** "Since your last turn": at most three changes versus the viewer's own previous assessment (#1238). */
+function createSinceLastTurnSection(changes: AssessmentChange[]): HTMLElement {
+  const section = document.createElement('section');
+  section.dataset.section = 'since-last-turn';
+  section.style.cssText = 'margin-top:14px;padding:10px 12px;background:rgba(255,255,255,0.03);border-left:4px solid #5b9bd5;border-radius:8px;';
+
+  const heading = document.createElement('h3');
+  heading.textContent = 'Since your last turn';
+  heading.style.cssText = 'margin:0 0 8px;font-size:14px;color:#5b9bd5;';
+  section.appendChild(heading);
+
+  for (const change of changes) {
+    const article = document.createElement('article');
+    article.dataset.changeKind = change.kind;
+    article.style.cssText = 'background:rgba(255,255,255,0.05);border-radius:6px;padding:8px 10px;margin:6px 0;';
+
+    const title = document.createElement('strong');
+    title.textContent = `${CHANGE_LABEL[change.kind]}: ${change.title}`;
+    title.style.cssText = 'display:block;font-size:13px;margin-bottom:2px;';
+    article.appendChild(title);
+
+    const because = document.createElement('p');
+    because.textContent = change.changedBecause;
+    because.style.cssText = 'margin:0;font-size:12px;opacity:0.8;';
+    article.appendChild(because);
 
     section.appendChild(article);
   }
@@ -181,6 +222,8 @@ export function createCouncilPanel(
 
   // --- Agenda buckets ---
   const agenda = buildCouncilAgenda(state, state.currentPlayer);
+  const changes = getAssessmentChangesForViewer(state, state.currentPlayer);
+  if (changes.length > 0) panel.appendChild(createSinceLastTurnSection(changes));
   panel.appendChild(createBucket('Do Now', agenda.doNow, BUCKET_COLORS['Do Now'], callbacks.onCardAction));
   panel.appendChild(createBucket('Soon', agenda.soon, BUCKET_COLORS['Soon'], callbacks.onCardAction));
   panel.appendChild(createBucket('To Win', agenda.toWin, BUCKET_COLORS['To Win'], callbacks.onCardAction));
