@@ -104,7 +104,8 @@ the feature branch, or use an arbitrary editor prefix without explaining why
 and obtaining approval.
 
 Before an ordinary feature-branch push, inspect only that branch's remote head
-with `git ls-remote origin refs/heads/<current-branch>` if needed, then publish
+with `git ls-remote origin refs/heads/<current-branch>` if needed (checking the
+default branch with `git ls-remote origin main` or `refs/heads/main` is also fine), then publish
 with `git push origin HEAD`. Never use `+HEAD:...`, `--force`,
 `--force-with-lease`, `-f`, tags, deletion refspecs, or an alternate remote
 without explicit user authorization. If a normal push rejects because the
@@ -150,7 +151,7 @@ bodies"):
 Use the canonical commands above before requesting approval. The local
 approver automatically recognizes only a trusted GitHub worktree, the current
 feature branch, and the exact command forms: direct `git fetch origin`,
-`git rebase origin/main`, `git ls-remote origin refs/heads/<current-branch>`,
+`git rebase origin/main`, `git ls-remote origin refs/heads/<current-branch>` (or `main`/`refs/heads/main`),
 non-force feature-branch pushes, explicit safe staging, the repository's
 verification commands, and filled PR creation. It intentionally asks for
 ambiguous, composed, destructive, credentials-related, dependency-changing,
