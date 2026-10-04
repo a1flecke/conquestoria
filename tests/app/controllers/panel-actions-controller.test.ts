@@ -687,6 +687,26 @@ describe('PanelActionsController', () => {
         expect(mockedCallArg<string>(createWonderPanel, 0, 2)).toBe('test-city');
       });
 
+      it('open-tech (#1237): closes the council panel and opens the tech panel', () => {
+        const { state } = makeFixture('council-open-tech');
+        const { deps, onCardAction } = openCouncilCardActionCallback(state);
+
+        onCardAction('constraint-science', { kind: 'open-tech' });
+
+        expect(deps.getElementById).toHaveBeenCalledWith('council-panel');
+        expect(createTechPanel).toHaveBeenCalledTimes(1);
+      });
+
+      it('open-victory-progress (#1237): closes the council panel and opens the victory-progress panel via the router', () => {
+        const { state } = makeFixture('council-open-victory-progress');
+        const { deps, onCardAction } = openCouncilCardActionCallback(state);
+
+        onCardAction('victory-domination', { kind: 'open-victory-progress' });
+
+        expect(deps.getElementById).toHaveBeenCalledWith('council-panel');
+        expect(deps.router.open).toHaveBeenCalledWith('victory-progress');
+      });
+
       it('open-wonder: notifies instead when the city no longer exists', () => {
         const { state } = makeFixture('council-open-wonder-missing');
         const { deps, onCardAction } = openCouncilCardActionCallback(state);
