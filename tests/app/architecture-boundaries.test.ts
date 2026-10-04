@@ -784,7 +784,7 @@ describe('#1008 — city-system decomposition boundaries', () => {
       'src/ui/notification-routes/empire-routes.ts',
       'src/ui/city-panel-building-icon.ts',
       'src/ui/city-panel.ts',
-      'src/app/controllers/panel-actions-controller.ts',
+      'src/app/controllers/city-panel-actions-controller.ts',
     ];
     for (const file of presentationConsumers) {
       const source = readFileSync(resolve(repoRoot, file), 'utf8');
@@ -1708,7 +1708,7 @@ describe('#1220 — a production queue grows through exactly one validated enque
       && file.path !== 'src/systems/planning-system.ts');
     expect(callers.map(file => file.path).sort()).toEqual([
       'src/ai/ai-production.ts',
-      'src/app/controllers/panel-actions-controller.ts',
+      'src/app/controllers/city-panel-actions-controller.ts',
       'src/app/controllers/turn-flow-controller.ts',
     ]);
     for (const caller of callers) {
@@ -1827,7 +1827,7 @@ describe('#1222 — starting a spy mission is a typed command that revalidates, 
       .map(file => file.slice(root.length + 1))
       .filter(path => path !== 'src/systems/espionage-missions.ts')
       .sort();
-    expect(callers).toEqual(['src/ai/basic-ai.ts', 'src/app/controllers/panel-actions-controller.ts']);
+    expect(callers).toEqual(['src/ai/basic-ai.ts', 'src/app/controllers/espionage-panel-actions-controller.ts']);
     for (const path of callers) {
       const source = stripComments(read(path));
       const calls = source.match(/\bstartMission\(/g)?.length ?? 0;
@@ -1837,8 +1837,8 @@ describe('#1222 — starting a spy mission is a typed command that revalidates, 
   });
 
   it('the panel offers a mission only if the same eligibility source would let it start', () => {
-    expect(read('src/app/controllers/panel-actions-controller.ts')).toMatch(/getMissionStartDenial\(/);
-    expect(read('src/app/controllers/panel-actions-controller.ts')).toContain('START_MISSION_FAILURE_MESSAGES');
+    expect(read('src/app/controllers/espionage-panel-actions-controller.ts')).toMatch(/getMissionStartDenial\(/);
+    expect(read('src/app/controllers/espionage-panel-actions-controller.ts')).toContain('START_MISSION_FAILURE_MESSAGES');
   });
 
   describe('the check itself is not vacuous', () => {
