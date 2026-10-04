@@ -351,13 +351,36 @@ if (has('--check')) {
   }
   const saved = JSON.parse(readFileSync(baselineFile, 'utf8'));
   const problems = [];
+  // A cycle is identified by its (sorted) membership and a cross-layer entry by its pair AND count, so a
+  // new cycle, a grown SCC, or a new edge inside an already-listed layer pair all drift the baseline.
+  // (Keying cycles by `entry.pair` made every cycle key `undefined`, so only an empty baseline ever bit.)
+  const keyOf = entry => {
+    if (typeof entry === 'string') return entry;
+    if (Array.isArray(entry)) return entry.join(' <-> ');
+    return `${entry.pair} (${entry.count} runtime edges)`;
+  };
   const compare = (label, current, expected) => {
-    const currentKeys = current.map(entry => (typeof entry === 'string' ? entry : entry.pair));
-    const expectedKeys = expected.map(entry => (typeof entry === 'string' ? entry : entry.pair));
+    const currentKeys = current.map(keyOf);
+    const expectedKeys = expected.map(keyOf);
     const added = currentKeys.filter(key => !expectedKeys.includes(key));
     const removed = expectedKeys.filter(key => !currentKeys.includes(key));
-    for (const key of added) problems.push(`NEW ${label}: ${key}`);
-    for (const key of removed) problems.push(`REMOVED ${label}: ${key}`);
+    // For a cycle, say how it changed against the closest baseline cycle instead of dumping both member lists.
+    const describe = (key, others) => {
+      if (!key.includes(' <-> ')) return key;
+      const members = key.split(' <-> ');
+      let best = null;
+      for (const other of others) {
+        const overlap = other.split(' <-> ').filter(member => members.includes(member)).length;
+        if (overlap > 0 && (!best || overlap > best.overlap)) best = { other, overlap };
+      }
+      if (!best) return `${members.length} modules: ${key}`;
+      const previous = best.other.split(' <-> ');
+      const gained = members.filter(member => !previous.includes(member));
+      const lost = previous.filter(member => !members.includes(member));
+      return `${members.length} modules (baseline counterpart had ${previous.length}); gained [${gained.join(', ')}]; lost [${lost.join(', ')}]`;
+    };
+    for (const key of added) problems.push(`NEW ${label}: ${describe(key, removed)}`);
+    for (const key of removed) problems.push(`REMOVED ${label}: ${describe(key, added)}`);
   };
   compare('runtime cycle', runtimeCycles, saved.runtimeCycles ?? []);
   compare('all-edge cycle', allEdgeCycles, saved.allEdgeCycles ?? []);
