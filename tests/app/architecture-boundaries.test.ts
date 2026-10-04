@@ -1581,6 +1581,40 @@ describe('#1013 — the import graph cannot drift silently', () => {
     expect(Number(piped.stdout.trim())).toBeGreaterThan(200_000);
   });
 
+  it('the drift check compares cycle membership and cross-layer counts, not just that some cycle exists', () => {
+    // The check used to key every cycle as `undefined`, so a grown/shrunk/new cycle passed against any
+    // non-empty baseline; and a cross-layer pair was keyed by name only, hiding new edges inside it.
+    const current = JSON.parse(runAudit('--json').stdout) as {
+      runtimeCycles: string[][]; allEdgeCycles: string[][]; crossLayerEdges: Array<{ pair: string; count: number }>;
+    };
+    const dir = mkdtempSync(join(tmpdir(), 'maintainability-audit-'));
+    try {
+      const check = (mutate: (baseline: typeof current) => void) => {
+        const baseline = structuredClone(current);
+        mutate(baseline);
+        const path = join(dir, 'baseline.json');
+        writeFileSync(path, JSON.stringify({ schema: 1, ...baseline }));
+        return runAudit('--check', '--baseline-path', path);
+      };
+      const biggest = current.runtimeCycles.reduce((a, b) => (b.length > a.length ? b : a));
+      const shrunk = check(baseline => {
+        const index = baseline.runtimeCycles.findIndex(cycle => cycle.length === biggest.length);
+        baseline.runtimeCycles[index] = biggest.slice(1); // as if a module were not in the cycle yet
+      });
+      expect(shrunk.status, 'a cycle that gained a member must drift').toBe(1);
+      expect(shrunk.stderr).toContain('NEW runtime cycle');
+      expect(shrunk.stderr).toContain(`gained [${biggest[0]}]`);
+
+      const edges = check(baseline => { baseline.crossLayerEdges[0]!.count -= 1; });
+      expect(edges.status, 'a new edge inside an already-listed layer pair must drift').toBe(1);
+      expect(edges.stderr).toContain('NEW cross-layer edge');
+
+      expect(check(() => {}).status).toBe(0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('the drift check bites: a synthetic cycle-free baseline is rejected', () => {
     const dir = mkdtempSync(join(tmpdir(), 'maintainability-audit-'));
     try {
