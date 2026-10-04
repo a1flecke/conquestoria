@@ -327,86 +327,9 @@ describe('#1010 — unit-system decomposition boundaries', () => {
 });
 
 describe('#1012 — crisis-system decomposition boundaries', () => {
-  const sys = resolve(__dirname, '../../src/systems');
-  const read = (name: string) => readFileSync(resolve(sys, name), 'utf8');
-
-  /** Named imports pulled from a given module specifier, e.g. namedImportsFrom('crisis-lifecycle.ts', './crisis-progression'). */
-  function namedImportsFrom(file: string, specifier: string): string[] {
-    const src = read(file).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-    const escaped = specifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const names: string[] = [];
-    const re = new RegExp(`import\\s+(?:type\\s+)?\\{([^}]*)\\}\\s+from\\s+'${escaped}'`, 'g');
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(src))) {
-      names.push(...m[1].split(',').map(s => s.trim()).filter(Boolean));
-    }
-    return names;
-  }
-
-  /** All local (`./…`) module specifiers a crisis-* file imports from, as bare basenames. */
-  function localImportsOf(file: string): string[] {
-    const src = read(file).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-    return [...src.matchAll(/from\s+'\.\/([^']+)'/g)].map(m => m[1]);
-  }
-
-  const CRISIS_MODULES = [
-    'crisis-scheduling',
-    'crisis-effects',
-    'crisis-progression',
-    'crisis-lifecycle',
-    'crisis-interventions',
-  ];
-
-  it('crisis-effects.ts (severity/queries) depends on no other crisis-* module', () => {
-    const imports = localImportsOf('crisis-effects.ts');
-    for (const m of CRISIS_MODULES) expect(imports).not.toContain(m);
-  });
-
-  it('crisis-scheduling.ts (eligibility/onset policy) depends on no turn-orchestration or intervention module', () => {
-    const imports = localImportsOf('crisis-scheduling.ts');
-    for (const m of ['crisis-progression', 'crisis-lifecycle', 'crisis-interventions']) {
-      expect(imports, `crisis-scheduling must not import ${m}`).not.toContain(m);
-    }
-  });
-
-  it('crisis-lifecycle.ts (reusable staged lifecycle) reaches archetype policy through exactly one seam', () => {
-    // The lifecycle loop is generic ("tick this instance, keep or drop the result"); its
-    // only crisis-specific coupling is calling the single dispatch function, never an
-    // individual archetype tick body directly. This is the exact seam #990 must
-    // generalize — see crisis-lifecycle.ts's header comment.
-    const imports = localImportsOf('crisis-lifecycle.ts');
-    expect(imports).not.toContain('crisis-scheduling');
-    expect(imports).not.toContain('crisis-interventions');
-    expect(imports).not.toContain('crisis-effects');
-    expect(imports).toContain('crisis-progression');
-    expect(namedImportsFrom('crisis-lifecycle.ts', './crisis-progression')).toEqual(['tickCrisisByArchetype']);
-  });
-
-  it('crisis-interventions.ts (player commands) does not import the turn-tick loop or scheduler', () => {
-    const imports = localImportsOf('crisis-interventions.ts');
-    expect(imports).not.toContain('crisis-lifecycle');
-    expect(imports).not.toContain('crisis-scheduling');
-    expect(imports).not.toContain('crisis-progression');
-  });
-
-  it('the crisis-* modules form an acyclic import graph', () => {
-    const graph = new Map(CRISIS_MODULES.map(m => [m, localImportsOf(`${m}.ts`).filter(s => CRISIS_MODULES.includes(s))]));
-    const state = new Map<string, 'visiting' | 'done'>();
-    const stack: string[] = [];
-    const cycles: string[] = [];
-    const visit = (n: string) => {
-      if (state.get(n) === 'done') return;
-      if (state.get(n) === 'visiting') { cycles.push([...stack.slice(stack.indexOf(n)), n].join(' → ')); return; }
-      state.set(n, 'visiting');
-      stack.push(n);
-      for (const dep of graph.get(n) ?? []) visit(dep);
-      stack.pop();
-      state.set(n, 'done');
-    };
-    for (const n of CRISIS_MODULES) visit(n);
-    expect(cycles, cycles.join('\n')).toEqual([]);
-  });
-
+  // The import-direction rules (leaf, seam, acyclic, no UI/renderer reach) are declarative: see
+  // tests/app/architecture/rules.ts (#1241). Only the barrel's export surface — a runtime-semantic
+  // check, not an import-graph fact — stays here.
   it('crisis-system.ts stays a barrel: re-exports the full pre-split public surface', async () => {
     const mod = await import('@/systems/crisis-system');
     const PRE_SPLIT_PUBLIC = [
@@ -420,28 +343,6 @@ describe('#1012 — crisis-system decomposition boundaries', () => {
     for (const name of PRE_SPLIT_PUBLIC) {
       expect(mod, `crisis-system barrel must re-export ${name}`).toHaveProperty(name);
     }
-  });
-
-  it('no UI/renderer file imports a crisis-* implementation module directly (barrel/controller only)', () => {
-    function walk(dir: string): string[] {
-      return readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
-        const full = resolve(dir, entry.name);
-        if (entry.isDirectory()) return walk(full);
-        return /\.tsx?$/.test(entry.name) ? [full] : [];
-      });
-    }
-    const offenders: string[] = [];
-    for (const dir of ['src/ui', 'src/renderer']) {
-      for (const file of walk(resolve(__dirname, '../..', dir))) {
-        const source = readFileSync(file, 'utf8');
-        for (const m of CRISIS_MODULES) {
-          if (new RegExp(`from '(@/systems/${m}|\\./${m})'`).test(source)) {
-            offenders.push(`${file}: imports ${m} directly`);
-          }
-        }
-      }
-    }
-    expect(offenders, offenders.join('\n')).toEqual([]);
   });
 });
 
