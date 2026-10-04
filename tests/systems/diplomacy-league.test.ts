@@ -1,15 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { canProposeLeague, proposeLeague, inviteToLeague, petitionLeague, votePetition, leaveLeague, checkLeagueDissolution, getLeagueForCiv, triggerLeagueDefense } from '@/systems/diplomacy-leagues';
-import type { DefensiveLeague, DiplomacyState } from '@/core/types';
-
-function makeDipState(overrides?: Partial<DiplomacyState>): DiplomacyState {
-  return {
-    relationships: {}, treaties: [], events: [], atWarWith: [],
-    treacheryScore: 0,
-    vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 3, peakMilitary: 5 },
-    ...overrides,
-  };
-}
+import { canProposeLeague, proposeLeague, inviteToLeague, votePetition, leaveLeague, checkLeagueDissolution, getLeagueForCiv, triggerLeagueDefense } from '@/systems/diplomacy-leagues';
+import type { DefensiveLeague } from '@/core/types';
 
 describe('defensive leagues', () => {
   describe('canProposeLeague', () => {

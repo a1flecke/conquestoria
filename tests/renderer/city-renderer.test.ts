@@ -14,8 +14,6 @@ import { getLegendaryWonderMapEntries } from '@/systems/legendary-wonder-map-pre
 import { makeBreakawayFixture } from '../systems/helpers/breakaway-fixture';
 import { getWorldPressurePresentationForViewer } from '@/systems/world-pressure-presentation';
 
-const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
-
 class MockCanvasContext {
   operations: string[] = [];
   fillTextCalls: Array<{ text: string; x: number; y: number; maxWidth?: number }> = [];

@@ -1,6 +1,6 @@
 import { makeVassalageFixture } from '../systems/helpers/vassalage-fixture';
 import { applyDiplomaticAction } from '@/systems/diplomacy-system';
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { AdvisorSystem, getAdvisorMessageIds, SESSION_SHOWN_TIPS, fireResourceDiscoveredTip, fireFirstBombardmentTip } from '@/ui/advisor-system';
 import { EventBus } from '@/core/event-bus';
 import { createNewGame } from '@/core/game-state';
@@ -8,8 +8,6 @@ import { foundCity } from '@/systems/city-system';
 import { hexKey } from '@/systems/hex-utils';
 import type { GameState, Unit } from '@/core/types';
 import { createEmptyPirateState, type PirateFactionState } from '@/core/pirate-state';
-
-const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
 function makeState(overrides?: Partial<GameState>): GameState {
   const state = createNewGame(undefined, 'advisor-test');

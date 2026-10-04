@@ -2,14 +2,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { EventBus } from '@/core/event-bus';
 import type {
-  Spy, SpyMission, SpyMissionType, EspionageState,
+  Spy, SpyMission, SpyMissionType,
   EspionageCivState, GameState,
 } from '@/core/types';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import {
   applyBuildingCI,
   createEspionageCivState,
-  createSpyFromUnit,
   embedSpy,
   recallSpy,
   getSpySuccessChance,

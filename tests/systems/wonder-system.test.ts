@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { placeWonders, processWonderDiscovery, getWonderYieldBonus, processWonderEffects, getWonderVisionBonus, getWonderCombatBonus } from '@/systems/wonder-system';
+import { placeWonders, processWonderDiscovery, processWonderEffects, getWonderVisionBonus, getWonderCombatBonus } from '@/systems/wonder-system';
 import { generateMap, findStartPositions } from '@/systems/map-generator';
 import { hexDistance, hexKey, hexNeighbors } from '@/systems/hex-utils';
 import { calculateCityYields } from '@/systems/resource-system';

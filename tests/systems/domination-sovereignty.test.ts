@@ -94,7 +94,6 @@ describe('Domination sovereignty facts', () => {
 
   it('does not exempt secessions with no city, an established status, or a lost origin', () => {
     const noCity = makeBreakawayFixture({ breakawayStartedTurn: 12, turn: 20 });
-    const city = noCity.state.cities[noCity.cityId];
     delete noCity.state.cities[noCity.cityId];
     noCity.state.units['settler-breakaway'] = { ...noCity.state.units['unit-breakaway'], id: 'settler-breakaway', type: 'settler' };
     expect(getDominationActorFact(noCity.state, noCity.breakawayId)).toMatchObject({

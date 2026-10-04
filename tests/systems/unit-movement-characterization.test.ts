@@ -15,7 +15,7 @@ import { getMovementCost, getMovementCostForUnit, getMovementCostForUnitInContex
 import { getBlockingMapEntityAt, getBlockingMapEntityKeys, isBlockingCityFor, BLOCKING_MAP_ENTITY_MESSAGES, getBlockingMapEntitiesByHex } from '@/systems/unit-movement-legality';
 import { getMovementRange, getMovementRangeDetails } from '@/systems/unit-movement-queries';
 import { findPath, findPathToCity } from '@/systems/unit-pathfinding';
-import type { GameMap, GameState, HexCoord, HexTile, TerrainType, Unit, UnitType } from '@/core/types';
+import type { GameMap, GameState, HexCoord, TerrainType, UnitType } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 import { createDiplomacyState } from '@/systems/diplomacy-state';
 import { createEmptyPirateState } from '@/core/pirate-state';

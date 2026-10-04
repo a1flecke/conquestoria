@@ -12,7 +12,7 @@ describe('minor civ integration', () => {
     const mcEntries = Object.entries(state.minorCivs);
     if (mcEntries.length === 0) return;
 
-    const [mcId, mc] = mcEntries[0];
+    const [, mc] = mcEntries[0];
     if (mc.units.length === 0) return;
 
     const mcUnit = state.units[mc.units[0]];

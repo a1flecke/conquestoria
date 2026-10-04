@@ -2,7 +2,6 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { UNCONDITIONAL_PASSES } from '@/storage/migrations/pipeline';
-import { serializeSaveFile } from '@/storage/save-file-transfer';
 import { firstSimulationDivergence } from '../helpers/deterministic-state';
 import { buildCrowdedGame } from './fixtures/crowded-state';
 import { measureRenderFrame } from './fixtures/render-frame';

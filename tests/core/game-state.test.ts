@@ -1,4 +1,4 @@
-import { createNewGame, createHotSeatGame, createDefaultSettings, MAP_DIMENSIONS } from '@/core/game-state';
+import { createNewGame, createHotSeatGame, createDefaultSettings } from '@/core/game-state';
 import type { CustomCivDefinition, GameState, HexCoord, HotSeatConfig, MapScript, ResourceType } from '@/core/types';
 import { getMinimumStartDistance, getStartPositionDistance } from '@/systems/map-generator';
 import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';

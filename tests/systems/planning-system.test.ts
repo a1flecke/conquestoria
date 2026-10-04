@@ -14,7 +14,6 @@ import {
   getIdleCityIds,
   getRecommendedIdleCityChoice,
   moveQueuedId,
-  needsResearchChoice,
   removeQueuedId,
   reorderCityProduction,
   setIdleProduction,

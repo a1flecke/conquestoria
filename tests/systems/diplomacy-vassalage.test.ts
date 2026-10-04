@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createDiplomacyState } from '@/systems/diplomacy-state';
-import { canOfferVassalage, offerVassalage, acceptVassalage, endVassalage, endVassalageUnilateral, processVassalageTribute, processProtectionTimers, checkIndependenceThreshold, petitionIndependence, onVassalAttacked, isVassalBlocked } from '@/systems/diplomacy-vassal-rules';
+import { canOfferVassalage, acceptVassalage, endVassalage, processVassalageTribute, processProtectionTimers, checkIndependenceThreshold, petitionIndependence, onVassalAttacked, isVassalBlocked } from '@/systems/diplomacy-vassal-rules';
 import { civilizationEraFromNumber } from '@/systems/era-types';
 import type { DiplomacyState } from '@/core/types';
 

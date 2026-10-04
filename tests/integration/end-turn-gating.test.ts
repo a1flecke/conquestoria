@@ -3,8 +3,6 @@ import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
 import { getIdleCityIds, needsResearchChoice } from '@/systems/planning-system';
 
-const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
-
 describe('end-turn gating', () => {
   it('detects when the player has no active research but valid options exist', () => {
     const state = createNewGame(undefined, 'end-turn-gating-seed', 'small');

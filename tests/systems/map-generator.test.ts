@@ -4,7 +4,6 @@ import {
   generateBaseTerrain,
   getLandTerrain,
   placeResources,
-  createNoise,
   createRng,
   getMinimumStartDistance,
   getStartPositionDistance,

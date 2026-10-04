@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { OPEN_BORDERS_PROPOSAL_MIN_RELATIONSHIP, evaluateDiplomacy, evaluateMinorCivDiplomacy, evaluateVassalage, evaluateEmbargoResponse, evaluateLeagueResponse } from '@/ai/ai-diplomacy';
 import { civilizationEraFromNumber } from '@/systems/era-types';
 import { NATIONAL_INTENT_POSTURE } from '@/ai/ai-national-intent-posture';
-import type { PersonalityTraits, GameState, MinorCivState, DiplomacyState } from '@/core/types';
+import type { PersonalityTraits, MinorCivState, DiplomacyState } from '@/core/types';
 import type { MilitaryStrengthEstimate } from '@/ai/ai-strength';
 
 const NEUTRAL_POSTURE = NATIONAL_INTENT_POSTURE.develop;
@@ -29,7 +29,7 @@ function makeDiplomacy(overrides: Partial<DiplomacyState> = {}): DiplomacyState 
   };
 }
 
-function makeMC(id: string, archetype: string, rel: number): MinorCivState {
+function makeMC(id: string, _archetype: string, rel: number): MinorCivState {
   return {
     id,
     definitionId: id,

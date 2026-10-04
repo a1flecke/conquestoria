@@ -261,7 +261,6 @@ describe('scout_hound detection', () => {
     state.units['unit-spy-1'].position = { q: 4, r: 1 };
     state.espionage!['player'].spies['unit-spy-1'].status = 'idle';
     // Ensure spy is no longer adjacent to enemy city so passive detection also won't fire
-    const bus = new EventBus();
     let detections = 0;
     for (let i = 0; i < 50; i++) {
       const s = buildDetectionState(`seed-hound-far-${i}`, { scoutHound: true });

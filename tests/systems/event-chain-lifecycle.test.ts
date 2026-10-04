@@ -65,7 +65,7 @@ describe('event-chain-lifecycle (#990)', () => {
   });
 
   it('resolveEventChain is a no-op for an unknown chain id', () => {
-    const { state, civId } = makeCrisisFixture({ turn: 54 });
+    const { state } = makeCrisisFixture({ turn: 54 });
     const bus = new EventBus();
 
     const next = resolveEventChain(state, 'no-such-chain', 'invalid', bus);

@@ -35,7 +35,7 @@ describe('generateContinentMap', () => {
   });
 
   it('continentHexes forms a connected set reachable from center', () => {
-    const { map, continentHexes } = generateContinentMap(30, 30, 'cont-4');
+    const { continentHexes } = generateContinentMap(30, 30, 'cont-4');
     const centerKey = hexKey({ q: 15, r: 15 });
     if (!continentHexes.has(centerKey)) return; // center might be ocean in edge cases
     const visited = new Set<string>();

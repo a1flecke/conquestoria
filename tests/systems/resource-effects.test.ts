@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 import {
-  getCivAvailableResources,
   getCivResourceYieldBonus,
   getCivHappinessFromResources,
 } from '@/systems/resource-acquisition-system';

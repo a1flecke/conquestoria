@@ -437,7 +437,6 @@ describe('getWorkerBlockerHints', () => {
   it('returns a tech hint naming the tech for a tech-gated improvement', () => {
     // plantation has requiredTech — verify we get a named tech hint
     // Use a tile with a matching resource but the tech not yet researched
-    const tileWithSilk = rt('grassland', 'silk');
     // Add requiredTech to plantation by using a tech that is not completed
     // (plantation has requiredTech: null in current definitions — use watermill with requiresRiver instead)
     // Use a tile where requires-river fires: watermill on plains without river

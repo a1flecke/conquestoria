@@ -1,7 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createHotSeatGame, createNewGame } from '@/core/game-state';
-import { EventBus } from '@/core/event-bus';
-import { processTurn } from '@/core/turn-manager';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 const dbState = new Map<string, unknown>();
 

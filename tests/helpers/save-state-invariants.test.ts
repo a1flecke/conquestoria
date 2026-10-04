@@ -326,13 +326,13 @@ describe('#1000 assertCargoReciprocity', () => {
   });
 
   it('throws when a transport is carried as cargo by another transport', () => {
-    const { state, shipId, cargoId } = loadedTransportState('inv-cargo-nested');
+    const { state, cargoId } = loadedTransportState('inv-cargo-nested');
     state.units[cargoId] = { ...state.units[cargoId], type: 'transport' };
     expect(() => assertCargoReciprocity(state)).toThrow(/carries another transport/s);
   });
 
   it('reports an unknown-type cargo cleanly instead of throwing a raw TypeError', () => {
-    const { state, shipId, cargoId } = loadedTransportState('inv-cargo-badtype');
+    const { state, cargoId } = loadedTransportState('inv-cargo-badtype');
     state.units[cargoId] = { ...state.units[cargoId], type: 'not_a_real_unit' as GameState['units'][string]['type'] };
     expect(() => assertCargoReciprocity(state)).toThrow(/cargo-reciprocity invariant violated/s);
     expect(() => assertCargoReciprocity(state)).toThrow(/of unknown type "not_a_real_unit"/s);

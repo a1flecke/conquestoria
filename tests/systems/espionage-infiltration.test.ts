@@ -6,7 +6,6 @@ import {
   createSpyFromUnit,
   attemptInfiltration,
   getInfiltrationSuccessChance,
-  getSpySuccessChance,
   resolveMissionResult,
   processEspionageTurn,
 } from '@/systems/espionage-system';
@@ -220,7 +219,6 @@ describe('city vision decrement via processTurn', () => {
       expect(remaining).toBe(i - 1);
     }
     // After 5 turns: vision is 0, tile should not be re-revealed
-    const tilesAfter = state.civilizations.player.visibility.tiles;
     // Tile may remain 'visible' from prior reveals — key assertion is turns = 0
     expect(state.espionage?.player.spies['spy-1']?.cityVisionTurnsLeft ?? 0).toBe(0);
   });
@@ -444,7 +442,6 @@ describe('mission success % in panel data', () => {
     const data = getEspionagePanelData(state);
     expect(data.missionSuccessChances).toBeDefined();
     expect(Object.keys(data.missionSuccessChances ?? {}).length).toBeGreaterThan(0);
-    const gi = data.missionSuccessChances!['gather_intel' as keyof typeof data.missionSuccessChances];
     // player has 'writing' tech which gates stage-1 only; gather_intel is stage-2, so might be absent
     // at minimum some chance should be present
     expect(Object.values(data.missionSuccessChances!).some(v => typeof v === 'number')).toBe(true);
@@ -510,7 +507,6 @@ describe('AI parity — steal-tech dedup', () => {
     } as unknown as Spy;
 
     // Run many turns to find one where mission succeeds
-    let found = false;
     for (let seed = 0; seed < 30; seed++) {
       const s = { ...state, turn: 20 + seed };
       const next = processEspionageTurn(s, bus);
@@ -520,7 +516,6 @@ describe('AI parity — steal-tech dedup', () => {
       if (newlyLearned.length > 0) {
         const rec = next.espionage!['player']!.spies['spy-1']?.stolenTechFrom?.['ai-egypt'] ?? [];
         expect(rec).toContain(newlyLearned[0]);
-        found = true;
         break;
       }
     }
