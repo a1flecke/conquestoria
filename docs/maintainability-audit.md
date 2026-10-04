@@ -15,6 +15,10 @@ issues.
 | `docs/maintainability-audit-baseline.json` | `./scripts/run-with-mise.sh yarn node scripts/maintainability-audit.mjs --baseline` | yes (the drift baseline) |
 | Drift check | `./scripts/run-with-mise.sh yarn node scripts/maintainability-audit.mjs --check` | run by `tests/app/architecture-boundaries.test.ts` ("#1013") |
 
+Agents should use the fixed `./scripts/dev.sh maintainability-check`, `maintainability-report` and
+`maintainability-baseline` tasks (same commands, no arguments): `run-with-mise.sh node <file>` is deliberately
+not pre-approved. `--report` and `--baseline` rewrite the checked-in file, so review the diff before committing.
+
 The script is dependency-free and deterministic (all traversal and reporting is
 sorted; the guard test runs `--json` twice and asserts byte-identical output).
 

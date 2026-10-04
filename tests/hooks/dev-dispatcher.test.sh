@@ -76,7 +76,10 @@ durable-status|yarn test:durable:status
 ai-playability|yarn test:ai-playability
 ai-long|yarn test:ai-long
 web-smoke|yarn test:web-smoke
-docs-lifecycle|node scripts/docs-lifecycle.mjs check'
+docs-lifecycle|node scripts/docs-lifecycle.mjs check
+maintainability-check|node scripts/maintainability-audit.mjs --check
+maintainability-report|node scripts/maintainability-audit.mjs --report
+maintainability-baseline|node scripts/maintainability-audit.mjs --baseline'
 
 while IFS='|' read -r task argv; do
   run "$task"

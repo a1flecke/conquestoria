@@ -44,6 +44,9 @@ tasks (output is saved to .verification/logs/<task>.log; the last 60 lines are p
   ai-long           yarn test:ai-long
   web-smoke         yarn test:web-smoke
   docs-lifecycle    node scripts/docs-lifecycle.mjs check
+  maintainability-check     node scripts/maintainability-audit.mjs --check (read-only drift check)
+  maintainability-report    node scripts/maintainability-audit.mjs --report (rewrites docs/maintainability-audit-report.md)
+  maintainability-baseline  node scripts/maintainability-audit.mjs --baseline (rewrites docs/maintainability-audit-baseline.json)
   log <task> [N]    last N lines (default 200, max 5000) of that task's saved log
 USAGE
 }
@@ -55,7 +58,7 @@ deny() {
 
 is_task() {
   case "$1" in
-    build|typecheck|test|test-all|test-regular|hooks|install|setup-hooks|verify-pr|verify-pr-status|verify-status|durable|durable-status|ai-playability|ai-long|web-smoke|docs-lifecycle) return 0 ;;
+    build|typecheck|test|test-all|test-regular|hooks|install|setup-hooks|verify-pr|verify-pr-status|verify-status|durable|durable-status|ai-playability|ai-long|web-smoke|docs-lifecycle|maintainability-check|maintainability-report|maintainability-baseline) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -119,6 +122,9 @@ execute() {
     ai-long) bash "$MISE" yarn test:ai-long ;;
     web-smoke) bash "$MISE" yarn test:web-smoke ;;
     docs-lifecycle) bash "$MISE" node scripts/docs-lifecycle.mjs check ;;
+    maintainability-check) bash "$MISE" node scripts/maintainability-audit.mjs --check ;;
+    maintainability-report) bash "$MISE" node scripts/maintainability-audit.mjs --report ;;
+    maintainability-baseline) bash "$MISE" node scripts/maintainability-audit.mjs --baseline ;;
   esac
 }
 

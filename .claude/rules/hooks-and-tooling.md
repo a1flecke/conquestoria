@@ -928,7 +928,7 @@ permissions; `.opencode/opencode.jsonc` already allows `./scripts/pr-body.sh *` 
 `./scripts/dev.sh <task> [test paths]` is a **narrow** dispatcher: a closed task table (`build`,
 `typecheck`, `test <paths>`, `test-all`, `test-regular`, `hooks`, `install`, `setup-hooks`, `verify-pr`,
 `verify-pr-status`, `verify-status`, `durable`, `durable-status`, `ai-playability`, `ai-long`, `web-smoke`,
-`docs-lifecycle`, plus the read-only `log <task> [N]`), each a hard-coded argv through
+`docs-lifecycle`, `maintainability-check|report|baseline`, plus the read-only `log <task> [N]`), each a hard-coded argv through
 `scripts/run-with-mise.sh`. It exists so an approval layer can trust *one* script by name.
 
 **Why `run-with-mise.sh` is intentionally not the trusted script.** It ends in `mise exec -- "$@"`, so
