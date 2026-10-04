@@ -4,12 +4,12 @@ import {
   getRogueElephantHostProfile,
   getRogueElephantStrength,
   getRogueHandlerStrength,
-  getRogueElephantCommandFact,
   getRogueElephantHostLifecycleTransition,
   getRogueElephantHostTarget,
   processRogueElephantHostTurn,
   startRogueElephantHostWarning,
 } from '@/systems/rogue-elephant-host-system';
+import { getRogueElephantCommandFact } from '@/systems/world-actor-queries';
 import { createNewGame } from '@/core/game-state';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { hexKey, mapNeighbors } from '@/systems/hex-utils';

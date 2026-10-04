@@ -2,7 +2,7 @@ import type { City, Civilization, GameMap, GameState, HexCoord, Unit } from '@/c
 import type { OpponentChallenge } from '@/core/types';
 import { OPPONENT_CHALLENGE_PROFILES } from '@/core/opponent-challenge';
 import { getCityDefenseBreakdown } from '@/systems/combat-system';
-import { getVeterancyCombatModifier } from '@/systems/combat-reward-system';
+import { getVeterancyCombatModifier } from '@/systems/veterancy-tiers';
 import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { isAlwaysHostilePair } from '@/core/owner-kind';
 import { isAtWar } from '@/systems/diplomacy-queries';

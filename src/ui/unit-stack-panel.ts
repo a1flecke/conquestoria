@@ -1,5 +1,5 @@
 import type { GameState, HexCoord, Unit } from '@/core/types';
-import { getVeterancyTier } from '@/systems/combat-reward-system';
+import { getVeterancyTier } from '@/systems/veterancy-tiers';
 import { hexKey } from '@/systems/hex-utils';
 import { sortUnitsForStackPicker } from '@/systems/unit-occupancy';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';

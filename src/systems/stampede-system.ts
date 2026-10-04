@@ -1,3 +1,4 @@
+import { hasActiveHerdingInsight } from './world-actor-queries';
 import { fnv1a32 } from './deterministic-hash';
 import type { GameState, OpponentChallenge, StampedeState, UnitType } from '@/core/types';
 import { countActiveCrisesForCiv } from '@/systems/crisis-scheduling';
@@ -214,12 +215,6 @@ export function resolveStampedeOutcome(
       },
     },
   };
-}
-
-/** A charge is usable before its expiry turn and exactly once. */
-export function hasActiveHerdingInsight(state: GameState, targetCivId: string): boolean {
-  const insight = state.stampedes?.[targetCivId]?.herdingInsight;
-  return Boolean(insight && !insight.consumed && state.turn < insight.expiresTurn);
 }
 
 /** Viewer-scoped core facts; never exposes another civilization's Stampede. */

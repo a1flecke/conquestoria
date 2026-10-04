@@ -49,6 +49,9 @@ const largestWithout = (dropped: ReadonlySet<string>): number => {
 console.log(`\nlargest component: ${largest.length} modules, ${edges.length} internal runtime edges`);
 console.log(largest.map(short).join('\n  ').replace(/^/, '  '));
 
+console.log('\ninternal runtime edges (importer -> imported {bindings}):');
+for (const edge of edges) console.log(`  ${short(edge.from)} -> ${short(edge.to)} {${edge.names.sort().join(', ')}}`);
+
 console.log('\nsingle-edge cuts that shrink it (edge -> largest component afterwards):');
 const single = edges
   .map(edge => ({ edge, after: largestWithout(new Set([pair(edge.from, edge.to)])) }))

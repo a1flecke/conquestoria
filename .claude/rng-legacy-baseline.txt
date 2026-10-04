@@ -45,7 +45,7 @@ src/systems/combat-system.ts:489 # [LOW] resolveCombat's LCG recurrence body —
 src/systems/city-siege-system.ts:135 # [LOW] createSeededRng() recurrence body — hand-rolled duplicate of seededLcg
 
 # --- combat-reward-system.ts (seededRoll's seed always traces back to deterministicCombatSeed via applyCombatOutcomeToState) ---
-src/systems/combat-reward-system.ts:150 # [LOW] LCG recurrence body — hand-rolled duplicate of seededLcg
+src/systems/combat-reward-system.ts:146 # [LOW] LCG recurrence body — hand-rolled duplicate of seededLcg
 
 # --- round-phases/per-civ/general-candidates.ts (deriveGeneralCandidateSeed, #932 — already gameId-rooted) ---
 src/core/round-phases/per-civ/general-candidates.ts:23 # [LOW] deriveGeneralCandidateSeed (#932) — already gameId-rooted; its fold is now deterministic-hash.ts's lehmerFoldByCodePoint (#1234), this line only chooses the turn-derived start
