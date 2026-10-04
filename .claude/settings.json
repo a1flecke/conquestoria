@@ -14,6 +14,7 @@
       "Bash(sh scripts/launch-local-verification.sh:*)",
       "Bash(./scripts/launch-local-verification.sh:*)",
       "Bash(./scripts/dev.sh:*)",
+      "Bash(./scripts/check-src-rule-violations.sh:*)",
       "Bash(./scripts/sync-main.sh)",
       "Bash(bash scripts/sync-main.sh)",
       "Bash(./scripts/push-branch.sh)",
