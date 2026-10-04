@@ -2,6 +2,30 @@
  "schema": 1,
  "policy": "Every markdown file under docs/superpowers/{plans,specs} must be classified here. entries = files that earn a place in the active tree (active: owned by an open issue; durable-reference: cited by source, tests or rules for rationale not restated there). deleted = delivered-stale | superseded | abandoned files removed from the tree; git history is the archive, and the guard fails if one reappears. Run `node scripts/docs-lifecycle.mjs refresh` to update issue-state snapshots; `check` is offline.",
  "entries": {
+  "docs/superpowers/plans/2026-10-04-issues-1301-1309-input-reliability.md": {
+   "category": "active",
+   "reason": "Implementation plan for the open primary-action reliability issues #1301 and #1309.",
+   "issues": [
+    1301,
+    1309
+   ],
+   "issueStates": {
+    "1301": "OPEN",
+    "1309": "OPEN"
+   }
+  },
+  "docs/superpowers/specs/2026-10-04-issues-1301-1309-input-reliability-design.md": {
+   "category": "active",
+   "reason": "Approved input-reliability design for the open issues #1301 and #1309.",
+   "issues": [
+    1301,
+    1309
+   ],
+   "issueStates": {
+    "1301": "OPEN",
+    "1309": "OPEN"
+   }
+  },
   "docs/superpowers/plans/audio-remaining-work.md": {
    "category": "active",
    "reason": "Remaining audio work, tracked by open issues #425-#428 (deferred until audio can be reviewed).",
