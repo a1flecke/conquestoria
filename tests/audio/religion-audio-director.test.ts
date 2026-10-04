@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { ReligionAudioDirector } from '@/audio/religion-audio-director';
 import type { EventBus } from '@/core/event-bus';
 import type { GameState } from '@/core/types';

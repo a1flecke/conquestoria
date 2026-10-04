@@ -375,7 +375,7 @@ describe('invalidateFaction', () => {
   });
 
   it('does not evict elements for other factions', () => {
-    const { overlay, mount } = mountOverlay();
+    const { overlay } = mountOverlay();
     overlay.sync(cam({ zoom: 1 }), [
       entity({ id: 'u1', faction: 'imperials' }),
       entity({ id: 'u2', faction: 'vikings' }),

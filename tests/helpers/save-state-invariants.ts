@@ -2,7 +2,7 @@ import type { AirBaseRef, GameState } from '@/core/types';
 import { classifyOwner } from '@/core/owner-kind';
 import { BUILDINGS } from '@/systems/city-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
-import { getBlockingMapEntityAt, BLOCKING_MAP_ENTITY_MESSAGES } from '@/systems/unit-movement-legality';
+import { getBlockingMapEntityAt } from '@/systems/unit-movement-legality';
 import { getTransportCapacity, getUnitCargoSize, isNavalTransportUnit } from '@/systems/transport-system';
 import { isBasedAirUnit } from '@/systems/air-base-state';
 import { getAirBaseCapacity, getAirBaseRoster } from '@/systems/air-operations-system';

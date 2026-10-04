@@ -1639,8 +1639,6 @@ describe('foundCity does not include grid fields', () => {
 
 describe('building intrinsic yield regression', () => {
   it('granary yields exactly +3 food', () => {
-    const map = generateMap(30, 30, 'yield-granary');
-    const city = foundCity('player', { q: 15, r: 15 }, map, mkC());
     expect(BUILDINGS['granary'].yields.food).toBe(3);
   });
 

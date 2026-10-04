@@ -42,7 +42,7 @@ describe('#593 MR6 — getForeignFaithPressure / isLoyaltyTrackEligible', () => 
   });
 
   it('is NEVER eligible for a human-owned city -- gets foreign faith pressure info but not loyalty-track eligibility', () => {
-    const { state, p1, p2, p1City } = makeLoyaltyFixture();
+    const { state, p2, p1City } = makeLoyaltyFixture();
     const withFaith = {
       ...state,
       cityFaith: { [p1City]: { religionId: `religion-${p2}` } },

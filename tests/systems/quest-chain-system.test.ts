@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { GameState, Quest } from '@/core/types';
+import type { Quest } from '@/core/types';
 import { createNewGame } from '@/core/game-state';
 import { hexKey } from '@/systems/hex-utils';
 import {

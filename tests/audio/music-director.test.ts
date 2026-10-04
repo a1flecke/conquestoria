@@ -305,11 +305,6 @@ describe('MusicDirector', () => {
 
 // ─── Spec 3 additions ──────────────────────────────────────────────────────
 
-import {
-  type UnrestChangedPayload,
-  type CivNearDefeatPayload,
-} from '../../src/audio/music-director';
-
 // civId ('civ-rome') and civType ('rome') are intentionally distinct so tests
 // catch comparisons that accidentally use one where the other is required.
 function makeDirectorWithPlayer(civType: string, atWar = false, unrestCityCount = 0, nearDefeat = false): MusicDirector {

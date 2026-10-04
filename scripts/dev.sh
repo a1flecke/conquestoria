@@ -28,7 +28,7 @@ usage: ./scripts/dev.sh <task> [args]
 
 tasks (output is saved to .verification/logs/<task>.log; the last 60 lines are printed):
   build             yarn build
-  typecheck         yarn tsc --noEmit
+  typecheck         bash scripts/typecheck.sh tests
   test <paths>      yarn vitest run <paths>; each path is a *.test.ts(x) file or a directory under tests/
   test-all          yarn test (full suite + hook tests)
   test-regular      yarn test:regular
@@ -109,7 +109,7 @@ execute() {
   shift
   case "$task" in
     build) bash "$MISE" yarn build ;;
-    typecheck) bash "$MISE" yarn tsc --noEmit ;;
+    typecheck) bash "$MISE" bash scripts/typecheck.sh tests ;;
     test) bash "$MISE" yarn vitest run "$@" ;;
     test-all) bash "$MISE" yarn test ;;
     test-regular) bash "$MISE" yarn test:regular ;;

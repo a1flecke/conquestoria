@@ -6,7 +6,7 @@ import {
   processReligionTurn,
 } from '@/systems/religion-system';
 import {
-  CONVERSION_THRESHOLD, OCCUPATION_ACCRUAL, MISSIONARY_ACTION_COOLDOWN_TURNS,
+  OCCUPATION_ACCRUAL, MISSIONARY_ACTION_COOLDOWN_TURNS,
 } from '@/systems/religion-definitions';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { hexKey } from '@/systems/hex-utils';

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createNewGame, createHotSeatGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
-import type { GameState, DiplomacyState } from '@/core/types';
+import type { GameState } from '@/core/types';
 import { isAtWar } from '@/systems/diplomacy-queries';
 import { enqueuePeaceRequest } from '@/systems/diplomacy-requests';
 import { declareMajorWar, makeMajorPeace, applyVassalageWarConsequences, proposeTreatyAgreement, acceptDiplomaticRequest } from '@/systems/diplomacy-system';

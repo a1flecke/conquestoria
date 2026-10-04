@@ -40,7 +40,7 @@ describe('#995 assertBilateralWar validator', () => {
 
   it('catches a one-sided war', () => {
     const state = twoCivStateAtWar();
-    const [a, b] = majorIds(state, 2);
+    const [, b] = majorIds(state, 2);
     state.civilizations[b].diplomacy.atWarWith = []; // drop the reciprocal side
     expect(() => assertBilateralWar(state)).toThrow(/one-sided war: .*\b/);
   });

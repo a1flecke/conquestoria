@@ -294,7 +294,7 @@ describe('processThreatPressure — hot-seat isolation', () => {
 });
 
 describe('independent threat pressure governor', () => {
-  function makeHuman(id: string, cityId: string, position: { q: number; r: number }): Civilization {
+  function makeHuman(id: string, cityId: string, _position: { q: number; r: number }): Civilization {
     return {
       ...structuredClone(makeTestState().civilizations.p1),
       id,

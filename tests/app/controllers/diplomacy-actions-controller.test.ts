@@ -11,7 +11,6 @@ import { createUnit } from '@/systems/unit-lifecycle';
 import type { City, GameState, HexCoord } from '@/core/types';
 import {
   createDiplomacyActionsController,
-  type DiplomacyActionsController,
   type DiplomacyActionsControllerDeps,
 } from '@/app/controllers/diplomacy-actions-controller';
 

@@ -6,7 +6,7 @@ import {
   updatePrices,
   processFashionCycle,
 } from '@/systems/marketplace-system';
-import { RESOURCE_DEFINITIONS, RESOURCE_ICONS, RESOURCE_TECH, BASE_PRICES } from '@/systems/resource-definitions';
+import { RESOURCE_DEFINITIONS, RESOURCE_ICONS, RESOURCE_TECH } from '@/systems/resource-definitions';
 import { canEstablishRoute, establishRoute, resolveFromCity } from '@/systems/trade-caravan-system';
 import {
   calculateTradeRouteGold,
@@ -595,7 +595,6 @@ describe('trade-system', () => {
       const state = makeMinimalState();
       const bus = new EventBus();
       let newState = establishRoute(state, 'caravan1', 'city2', bus, 0);
-      const routeId = newState.units['caravan1'].committedToRouteId!;
       newState = removeRouteForUnit(newState, 'caravan1', bus, 'unit-disbanded');
       expect(newState.marketplace!.tradeRoutes).toHaveLength(0);
       expect(newState.units['caravan1']?.committedToRouteId).toBeUndefined();

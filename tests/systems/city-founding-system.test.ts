@@ -233,7 +233,6 @@ describe('foundCityInState — colonial-charter founding production bonus', () =
   it('does not grant the bonus for a second city on an already-owned foreign landmass', () => {
     const { state, civId, settlerId } = setUpTwoLandmassCiv('founding-colonial-second');
     state.civilizations.player.techState.completed.push('colonial-charter');
-    const settlerPosition = state.units[settlerId].position;
 
     const firstResult = foundCityInState(state, settlerId, new EventBus());
     expect(firstResult.state.cities[firstResult.cityId].productionProgress).toBe(5);

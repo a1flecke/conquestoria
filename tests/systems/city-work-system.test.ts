@@ -15,8 +15,6 @@ import {
 import { hexKey } from '@/systems/hex-utils';
 import { WONDER_DEFINITIONS } from '@/systems/wonder-definitions';
 
-const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
-
 function addCity(state: GameState, owner: string, position: HexCoord) {
   const city = foundCity(owner, position, state.map, state.idCounters);
   state.cities[city.id] = city;

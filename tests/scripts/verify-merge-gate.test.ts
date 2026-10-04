@@ -12,19 +12,6 @@ type JobResult = {
 
 type Needs = Record<string, JobResult>;
 
-const REQUIRED_JOBS = [
-  'web-build',
-  'test-suite-shard-a',
-  'test-suite-shard-b',
-  'test-suite-shard-c',
-  'test-suite-shard-d',
-  'hooks',
-  'web-smoke',
-  'security-analysis',
-  'desktop-change-check',
-  'tauri-frontend-build',
-] as const;
-
 function successfulNeeds(desktopChanged = 'true'): Needs {
   return {
     'web-build': { result: 'success' },

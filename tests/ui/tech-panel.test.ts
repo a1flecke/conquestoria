@@ -9,8 +9,6 @@ import { enqueueResearch } from '@/systems/planning-system';
 import { getEffectiveTechCost, getTechById, startResearch, TECH_TREE } from '@/systems/tech-system';
 import { createTechPanel, formatTechNodeEta } from '@/ui/tech-panel';
 
-const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
-
 describe('tech-panel', () => {
   it('shows the complete Dreadnought Construction unlock in the live tech inspector', () => {
     const state = createNewGame(undefined, 'dreadnought-tech-panel');

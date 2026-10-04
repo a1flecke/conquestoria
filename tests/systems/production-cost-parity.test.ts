@@ -118,7 +118,7 @@ describe('#984 — national-project discounts reach every production consumer', 
     expect(result.completedUnit).toBe('axeman');
   });
 
-  function withCopperSeller(state: GameState, city: City): string {
+  function withCopperSeller(state: GameState, _city: City): string {
     const seller = state.civilizations['ai-1'];
     const sellerSettler = seller.units.map(id => state.units[id]).find(unit => unit?.type === 'settler')!;
     const sellerCity = foundCity(seller.id, sellerSettler.position, state.map, state.idCounters);

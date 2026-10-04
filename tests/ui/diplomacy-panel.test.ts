@@ -1078,7 +1078,7 @@ describe('diplomacy-panel Send Aid button (#526 MR6 Task 6.3)', () => {
   it('clicking Send Aid invokes the callback with the crisis id, and the panel re-renders', () => {
     const { container, state } = readyState();
     let currentState = state;
-    const onSendAid = vi.fn((crisisId: string) => {
+    const onSendAid = vi.fn((_crisisId: string) => {
       currentState = { ...currentState, activeCrises: {} }; // simulate main.ts applying aid + re-deriving state
       render();
     });

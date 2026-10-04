@@ -4,8 +4,6 @@ import { createUnit } from '@/systems/unit-lifecycle';
 import { getMovementCostForUnit, getMovementStepCost } from '@/systems/unit-movement-cost';
 import { calculateCombatStrengths } from '@/systems/combat-system';
 import { getCombatModifier } from '@/systems/unit-modifier-system';
-import { generateMap } from '@/systems/map-generator';
-import { hexKey } from '@/systems/hex-utils';
 import type { GameMap, Unit } from '@/core/types';
 
 // ============================================================

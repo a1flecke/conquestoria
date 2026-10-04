@@ -19,7 +19,6 @@ function ensureCity(state: ReturnType<typeof createNewGame>, civId: string): str
 }
 
 const LAUNCH = 'first_satellite_launch';
-const COMPONENT = 'space_program_initiative';
 
 /**
  * #992 — a save predating the world-race framework simply lacks `state.worldRaces` and

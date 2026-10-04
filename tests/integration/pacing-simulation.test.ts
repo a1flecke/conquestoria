@@ -8,8 +8,6 @@ import { hexKey } from '@/systems/hex-utils';
 import { calculateCivResearchOutput } from '@/systems/research-output-system';
 import { simulateResearchQueueTiming } from '@/systems/tech-progression';
 
-const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
-
 describe('pacing simulation', () => {
   it('produces an early completion within a few turns on a deterministic seed', () => {
     const state = createNewGame(undefined, 'pacing-sim-seed', 'small');

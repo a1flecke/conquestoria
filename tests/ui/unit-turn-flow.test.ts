@@ -2,7 +2,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EventBus } from '@/core/event-bus';
-import type { GameState, HexCoord } from '@/core/types';
+import type { GameState } from '@/core/types';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { createUnitTurnFlow, type UnitTurnFlowDeps } from '@/ui/unit-turn-flow';
 import { createGameSession } from '@/app/game-session';

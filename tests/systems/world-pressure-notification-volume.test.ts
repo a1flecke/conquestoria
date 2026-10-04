@@ -19,15 +19,6 @@ const TURNS = 60;
 // through the pre-existing routeCrisisStarted/routeCrisisResolved, which sink only
 // to that civ's own owner (never fanned out to other hot-seat viewers), so it isn't
 // "world-pressure" notification volume in the sense MR8's play-check cares about.
-const WORLD_PRESSURE_EVENTS = [
-  'crisis:started',
-  'crisis:resolved',
-  'crisis:foe-hunted-by-ally',
-  'crisis:aid-sent',
-  'diplomacy:opportunistic-war',
-  'espionage:sabotage-relief-discovered',
-] as const;
-
 function countWorldPressureNotifications(seed: string): number {
   let state = initializeScenario({
     seed, challenge: 'standard', turns: TURNS, mapSize: 'small',

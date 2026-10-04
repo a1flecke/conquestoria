@@ -3,7 +3,6 @@ import { TECH_TREE, getEraAdvancementFraction, getEraAdvancementTechs, resolveCi
 import type { CivilizationEra, WorldAge } from '@/systems/era-types';
 import { civilizationEraFromNumber, worldAgeFromNumber } from '@/systems/era-types';
 import {
-  estimateTurnsToComplete,
   getResearchOutputProfileForTech,
   isFirstRealUnlockTech,
   isStarterPrerequisiteTech,

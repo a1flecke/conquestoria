@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 // @ts-expect-error jsdom is installed for tests but this repo does not ship @types/jsdom.
 import { JSDOM } from 'jsdom';
 import type { City } from '@/core/types';

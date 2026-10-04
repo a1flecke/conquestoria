@@ -1,5 +1,5 @@
 // tests/integration/m4a-espionage-integration.test.ts
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { EventBus } from '@/core/event-bus';
 import {
   createEspionageCivState,
@@ -8,7 +8,7 @@ import {
   turnCapturedSpy,
   verifyAgent,
   } from '@/systems/espionage-system';
-import type { GameState, EspionageState, Spy } from '@/core/types';
+import type { GameState, Spy } from '@/core/types';
 import { startMissionState } from '../helpers/espionage-mission';
 
 // MR1: legacy fixture helper — spies are now created via city production, not recruitSpy
