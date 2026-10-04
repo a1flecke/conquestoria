@@ -28,28 +28,15 @@ const REP_FAITH = 'Temple/monastery science repeats on three techs.';
 const REP_MEDIA = 'Film/radio gold repeats on three techs.';
 const REP_LAB = 'research_institute science repeats on four techs.';
 
+const followUp = (child: TechAuditEntry['child'], note: string, issue: string): TechAuditEntry =>
+  ({ cls: 'FOLLOW-UP', rating: 1, note, followUp: issue, child });
+
+const PINNED_PERCENT = 'Unconditional percentage yield pinned into the reference economy that RESEARCH_OUTPUT_BY_ERA and every persisted tech cost derive from; replacing it is a pacing decision, not a tech-text edit.';
+
 const FLAT = 'Unconditional flat or percentage yield; value does not depend on any choice the player made.';
 
 export const TECH_AUDIT_ENTRIES: Record<string, TechAuditEntry> = {
   // ---- flat yields, Eras 5–8 (child 3) ----
-  'civic-humanism': replace(3, 'perPopulation gold (per 5 population) so the bonus follows city growth', FLAT),
-  'empiricism': replace(3, 'cityFlatConditional +2 science in cities that own a library-category building', FLAT),
-  'rationalism': replace(3, 'lowestCityScience: lift the weakest city, a catch-up verb for wide empires', FLAT),
-  'blast-furnace-tech': replace(3, 'perImprovement mine production, rewarding actual mining', FLAT),
-  'mercantilism': replace(3, 'perTradeRoute foreignOnly gold, so it pays only with foreign partners', FLAT),
-  'parliamentary-reform': replace(3, 'UNREST_RELIEF_SOURCES row (distance-from-capital relief) instead of +5% production', FLAT),
-  'land-survey': replace(3, 'foundingBonus food for newly founded cities: a settling decision', FLAT),
-  'newspaper-press': replace(3, 'perBuildingId library/printing houses science: scales with the investment', FLAT),
-  'mass-production': replace(3, 'perBuildingCategory production for owned workshop/factory buildings', FLAT),
-  'industrialization': replace(3, 'foodFromScience-style cross-track verb or perBuildingId factory science', FLAT),
-  'positivism': replace(3, 'cityFlatConditional science in cities with a university-class building', FLAT),
-  'engineering-exhibition': replace(3, 'perCompletedLegendaryWonder science', FLAT),
-  'public-records': replace(3, 'maintenanceDiscount for empires with many buildings', FLAT),
-  'refrigeration': replace(3, 'perBuildingId granary/market food: stores the harvest instead of flat food', FLAT),
-  'pragmatism': replace(3, 'lowestCityScience plus per-population gold; drop the +5% to everything', FLAT),
-  'grand-opera': replace(3, 'perBuildingCategory culture gold (a theatre/opera specialisation)', FLAT),
-  'sanitation-networks': replace(3, 'terrainYield food on river/coastal tiles, or perPopulation food above size 8', FLAT),
-  'shorthand-press': replace(3, 'perTradeRoute domesticOnly science (paperwork between own cities)', FLAT),
 
   // ---- flat yields, Eras 9–11 (child 4) ----
   'quantum-theory': replace(4, 'cityFlatConditional science in cities with a research_institute', FLAT),
@@ -83,19 +70,17 @@ export const TECH_AUDIT_ENTRIES: Record<string, TechAuditEntry> = {
   'lab-grown-food': { ...replace(0, 'terrainYield food on barren terrain', FLAT), note: `${FLAT} Era 12 is reference material for #420; left unscheduled.` },
 
   // ---- broad combat modifiers ----
-  'naval-gunnery': replace(3, 'UNIT_MODIFIERS: naval combatStrength vsCoastalCity or when attacking', 'Unconditional combat bonus across every unit.'),
   'tungsten-alloys': replace(4, 'UNIT_MODIFIERS scoped to armor/siege class instead of every unit', 'Unconditional combat bonus across every unit.'),
   'carbon-fiber': replace(4, 'UNIT_MODIFIERS scoped to air units or when defending in a friendly city', 'Unconditional combat bonus across every unit.'),
   'nanomaterials': { ...replace(0, 'UNIT_MODIFIERS: bonus conditional on fullHP (matches the Era 12 reference)', 'Unconditional combat bonus across every unit.'), note: 'Unconditional combat bonus across every unit. Era 12 is reference; left unscheduled.' },
 
   // ---- broad cost discounts ----
-  'vaulted-ceilings': tune(3, 'narrow TECH_COST_DISCOUNTS appliesTo to a building category', 'Whole-category discount with no condition.'),
-  'general-mobilization': tune(3, 'discount only the unit classes the text names, or only while at war', 'Whole-category discount with no condition.'),
+  'vaulted-ceilings': keep(2, 'Verified #1304: a 10% building discount is a modest efficiency; no narrower scope exists in TECH_COST_DISCOUNTS without a new discount shape. Left unchanged.', 3),
+  'general-mobilization': keep(2, 'Verified #1304: x0.85 on military units is the era-8 military-economy lever and already stacks multiplicatively by design (production-costs.test.ts). Left unchanged.', 3),
 
   // ---- text claims with no mechanic behind them (WIRE or textFix) ----
   'irrigation': keep(3, 'Verified in #1303: tile-yield.ts gives river farms +1 production once irrigation is known; the text was true.', 2),
-  'professional-army': wire(3, 'combat-system names the tech; move to a UNIT_MODIFIERS inFriendlyCity defender row so previews show it', 'Owner is bespoke combat code, invisible to the modifier table.', true),
-  'circumnavigation': wire(3, 'reword; no map-edge/uncharted mechanic exists. Candidate: vision modifier for scouts', 'Text promises faster continent reveal; no mechanic.', true),
+  'professional-army': keep(3, 'Verified #1304: combat-system applies +10% to defenders in cities, shown in the combat preview parts; text is true.', 3),
   'postal-service': keep(3, 'Owned by getRoadTileTechGold in tech-yield-system; conditional on roads. Text matches.', 3),
   'black-chambers': keep(3, 'Owned by espionage-catalog (mission) and spy slot logic. Verify slot claim.', 3),
   'diplomatic-networks': keep(3, 'Owned by espionage modifiers and crisis intelligence.', 3),
@@ -109,9 +94,6 @@ export const TECH_AUDIT_ENTRIES: Record<string, TechAuditEntry> = {
   'covert-operations': keep(3, 'Owned by espionage-catalog/modifiers.', 3),
   'secret-police': keep(3, 'Owned by espionage-modifier-definitions; same counter-intel niche as counter-espionage/disinformation-bureau.', 3),
   'transcontinental-rail': keep(3, 'Owned by getConnectedCityTechGold; third road-connected-gold tech in a row.', 3),
-  'public-health-service': wire(3, 'no owner found for plague immunity/halved spread; implement via crisis-effects or reword', 'Text promises plague immunity with no code owner.', true),
-  'naval-armor': wire(3, 'UNIT_MODIFIERS naval combatStrength +5 (flat) with coastal condition', 'Text promises +5 naval strength with no modifier row.', true),
-  'telephony': { cls: 'KEEP', rating: 0, note: 'Flavor text only; reword to what the telephone_exchange building does.', textFix: true, child: 3 },
   'political-intelligence': keep(3, 'Owned by espionage-catalog/modifiers.', 3),
   'disinformation-bureau': keep(3, 'Owned by espionage-catalog/modifiers.', 3),
   'welfare-state': { cls: 'KEEP', rating: 0, note: 'Flavor text only; its buildings carry the effect. Reword.', textFix: true, child: 4 },
@@ -123,28 +105,27 @@ export const TECH_AUDIT_ENTRIES: Record<string, TechAuditEntry> = {
   'precision-agriculture': keep(3, 'Owned by tile-yield via precision_farm. Era 12 reference.'),
 
   // ---- conditional, but the same shape repeats on three or more techs (differentiate, do not delete) ----
-  'plantation-farming': tune(3, 'keep per-improvement farm food as the one farm-improvement tech of the band', REP_FARM),
-  'improved-agriculture': tune(3, 'swap to terrainYield food on river/grass tiles; keep granary link out of it', REP_FARM),
-  'mechanized-farming': tune(3, 'perImprovement farm production (food→production conversion), distinct from granary food', REP_FARM),
-  'agricultural-machinery': tune(3, 'perPopulation food above a size, rewarding large farming cities', REP_FARM),
-  'scientific-breeding': tune(3, 'perImprovement pasture/plantation resource tiles rather than farm', REP_FARM),
+  'plantation-farming': keep(2, 'Verified #1304: scales with farms built. The seven-tech farm niche is reviewed for duplication in #1306, not changed piecemeal here.', 3),
+  'improved-agriculture': keep(2, 'Verified #1304: farm and granary rows scale with what is built; farm-niche duplication reviewed in #1306.', 3),
+  'mechanized-farming': keep(2, 'Verified #1304: farm production plus granary food scale with what is built; farm-niche duplication reviewed in #1306.', 3),
+  'agricultural-machinery': keep(2, 'Verified #1304: scales with farms built; farm-niche duplication reviewed in #1306.', 3),
+  'scientific-breeding': keep(2, 'Verified #1304: farm and granary rows scale with what is built; farm-niche duplication reviewed in #1306.', 3),
   'chemical-fertilizers': tune(4, 'terrainYield food on poor terrain (desert/tundra) so it lifts weak cities', REP_FARM),
   'pesticides': tune(4, 'crisis-effects hook: famine events halved (existing resolver)', REP_FARM),
   'green-revolution-crops': tune(4, 'foundingBonus food plus per-population food: a growth-for-new-cities verb', REP_FARM),
-  'guilds': tune(3, 'perTradeRoute domesticOnly gold (guild halls link own cities)', REP_ROUTE),
+  'guilds': keep(2, 'Verified #1304: +1 gold per active route scales with the routes the player opens; the any-route shape repeats (guilds/convoy-system/petrodollar-system) and is reviewed for duplication in #1306.', 3),
   'convoy-system': tune(4, 'perTradeRoute coastalOnly gold plus naval supply protection (naval-operations owner)', REP_ROUTE),
   'petrodollar-system': tune(4, 'perRoutePartnerCiv gold: scales with distinct partners', REP_ROUTE),
   'autonomous-shipping': tune(0, 'perTradeRoute coastalOnly gold; Era 12 reference', REP_ROUTE),
-  'renaissance-painting': tune(3, 'keep per-category culture gold as the band anchor', REP_CULTURE),
-  'separation-of-powers': tune(3, 'unrest relief verb (already in the ladder) replaces culture gold', REP_CULTURE),
-  'baroque-music': tune(3, 'perBuildingId concert_hall happiness/culture gold only', REP_CULTURE),
+  'renaissance-painting': keep(2, 'Verified #1304: per culture building, so it scales with culture investment; the culture-gold niche (six techs across five eras) is reviewed in #1306.', 3),
+  'separation-of-powers': keep(2, 'Verified #1304: Bureaucracy relief is a real code-owned effect; the culture-gold row scales with culture buildings. Niche reviewed in #1306.', 3),
   'existentialism': tune(4, 'perPopulation science for cities with a university, drop culture gold', REP_CULTURE),
   'postmodernism': tune(4, 'perLuxuryResource gold: culture trade value', REP_CULTURE),
   'video-games': tune(0, 'perBuildingCategory culture gold; Era 12 reference', REP_CULTURE),
-  'industrial-monopoly': tune(3, 'perLuxuryResource gold requires owning the resource (monopoly), not just a marketplace', REP_MARKET),
-  'social-contract': tune(3, 'unrest relief via UNREST_RELIEF_SOURCES (marketplace gold dropped)', REP_MARKET),
+  'industrial-monopoly': keep(2, 'Verified #1304: marketplace-conditional; retained so its text and inferred pacing scope stay unchanged. Reviewed in #1306.', 3),
+  'social-contract': keep(2, 'Verified #1304: marketplace-conditional; the three marketplace-gold techs are reviewed in #1306.', 3),
   'consumer-boom': tune(4, 'perPopulation gold above city size 8: large-city consumers', REP_MARKET),
-  'modernist-theology': tune(3, 'cityFlatConditional science only in a city with a temple and a university', REP_FAITH),
+  'modernist-theology': keep(2, 'Verified #1304: conditional on temple or monastery; the faith-science niche is reviewed in #1306.', 3),
   'religious-modernism': tune(4, 'faith-conditional science for cities where followers are own-faith (religion-system owner)', REP_FAITH),
   'interfaith-council': tune(4, 'cityFlatConditional science for cities with two or more faiths present', REP_FAITH),
   'propaganda-campaigns': tune(4, 'espionage/loyalty verb (propaganda mission) rather than a film-studio gold row', REP_MEDIA),
@@ -154,6 +135,12 @@ export const TECH_AUDIT_ENTRIES: Record<string, TechAuditEntry> = {
   'rocketry': tune(4, 'perBuildingId launch/air-base production rather than research_institute science', REP_LAB),
   'electronic-computing': tune(4, 'lowestCityScience or foodFromScience instead of research_institute science', REP_LAB),
   'integrated-circuits': tune(4, 'perBuildingCategory science for owned laboratory buildings', REP_LAB),
+
+  // ---- percentage techs held back on purpose (#1304): see the follow-up issue ----
+  'rationalism': followUp(3, PINNED_PERCENT, 'Tracked in #1311.'),
+  'parliamentary-reform': followUp(3, PINNED_PERCENT, 'Tracked in #1311.'),
+  'mass-production': followUp(3, `${PINNED_PERCENT} Its 5% unit discount stays, a documented stack with general-mobilization.`, 'Tracked in #1311.'),
+  'pragmatism': followUp(3, PINNED_PERCENT, 'Tracked in #1311.'),
 };
 
 export type WarfareStatus = 'shipped-elsewhere' | 'partial' | 'absent' | 'not-worth-adding' | 'separate-feature';

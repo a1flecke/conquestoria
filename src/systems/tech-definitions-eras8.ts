@@ -31,7 +31,7 @@ const ERA_8_TECHS: Tech[] = [
     unlocksBuildings: ['bacteriology_lab'], era: 8 },
   { id: 'engineering-exhibition', name: 'Engineering Exhibition', track: 'science', cost: 710,
     prerequisites: ['industrialization', 'urban-planning'],
-    unlocks: ['International industrial exhibitions showcase national achievements; +1 science empire-wide'],
+    unlocks: ['International industrial exhibitions showcase national achievements; +1 science in cities with a workshop or factory'],
     unlocksBuildings: ['exhibition_hall', 'world_fair'], era: 8 },
 
   // CIVICS (2)
@@ -41,7 +41,7 @@ const ERA_8_TECHS: Tech[] = [
     unlocksBuildings: ['labor_hall'], era: 8 },
   { id: 'public-records', name: 'Public Records', track: 'civics', cost: 710,
     prerequisites: ['nationalism', 'popular-press'],
-    unlocks: ['+1 science empire-wide from improved state documentation and civic transparency'],
+    unlocks: ['+1 science in cities with an archive'],
     unlocksBuildings: ['national_archives_building'], era: 8 },
 
   // EXPLORATION (2)
@@ -55,7 +55,7 @@ const ERA_8_TECHS: Tech[] = [
   // AGRICULTURE (2)
   { id: 'refrigeration', name: 'Refrigeration', track: 'agriculture', cost: 875,
     prerequisites: ['agricultural-machinery'],
-    unlocks: ['+2 food all cities; refrigerated storage keeps harvests from going to waste'], era: 8 },
+    unlocks: ['+1 food per 3 population in each city; refrigerated storage keeps harvests from going to waste'], era: 8 },
   { id: 'scientific-breeding', name: 'Scientific Breeding', track: 'agriculture', cost: 710,
     prerequisites: ['agricultural-machinery', 'mechanized-farming'],
     unlocks: ['+1 food per farm improvement; +1 additional food per granary'], era: 8 },
@@ -66,7 +66,7 @@ const ERA_8_TECHS: Tech[] = [
     unlocks: ['Units in friendly cities heal +3 HP per turn; surgical mortality rates drop'], era: 8 },
   { id: 'public-health-service', name: 'Public Health Service', track: 'medicine', cost: 710,
     prerequisites: ['germ-theory', 'germ-biology'],
-    unlocks: ['All cities immune to population-loss plague events; disease spread between cities halved'],
+    unlocks: [],
     unlocksBuildings: ['sanatorium'], era: 8 },
 
   // PHILOSOPHY (2)
@@ -83,13 +83,13 @@ const ERA_8_TECHS: Tech[] = [
     unlocks: ['+1 gold per culture building empire-wide; culture buildings grant +1 science each'], era: 8 },
   { id: 'grand-opera', name: 'Grand Opera', track: 'arts', cost: 875,
     prerequisites: ['industrial-realism'],
-    unlocks: ['+2 gold empire-wide; grand opera spreads cultural prestige across borders'],
+    unlocks: ['+3 gold per opera house; grand opera spreads cultural prestige across borders'],
     unlocksBuildings: ['opera_house'], era: 8 },
 
   // MARITIME (2)
   { id: 'naval-armor', name: 'Naval Armor', track: 'maritime', cost: 1315,
     prerequisites: ['ironclad-warships', 'steam-navigation'],
-    unlocks: ['Naval units +5 strength; armored warships dominate coastal waters'],
+    unlocks: ['Naval units +5 strength when defending'],
     unlocksUnits: ['pre_dreadnought'], unlocksBuildings: ['coastal_battery'], era: 8 },
   { id: 'torpedo-warfare', name: 'Torpedo Warfare', track: 'maritime', cost: 810,
     prerequisites: ['steam-navigation'],
@@ -112,16 +112,16 @@ const ERA_8_TECHS: Tech[] = [
     unlocksBuildings: ['bunker'], era: 8 },
   { id: 'sanitation-networks', name: 'Sanitation Networks', track: 'construction', cost: 710,
     prerequisites: ['iron-bridges', 'urban-planning'],
-    unlocks: ['+1 food all cities; municipal water and sewage systems transform urban health'], era: 8 },
+    unlocks: ['+2 food in coastal cities; municipal water and sewage systems transform urban health'], era: 8 },
 
   // COMMUNICATION (2)
   { id: 'telephony', name: 'Telephony', track: 'communication', cost: 710,
     prerequisites: ['electric-telegraph', 'popular-press'],
-    unlocks: ['Voice communication over wire; diplomatic exchanges faster; intelligence networks gain wider reach'],
+    unlocks: [],
     unlocksBuildings: ['telephone_exchange'], era: 8 },
   { id: 'shorthand-press', name: 'Shorthand Press', track: 'communication', cost: 875,
     prerequisites: ['popular-press'],
-    unlocks: ['+1 science and +1 gold per city; high-speed printing saturates markets with information'], era: 8 },
+    unlocks: ['+1 science and +1 gold per scribes hall; high-speed printing saturates markets with information'], era: 8 },
 
   // ESPIONAGE (2)
   { id: 'political-intelligence', name: 'Political Intelligence', track: 'espionage', cost: 710,

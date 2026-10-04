@@ -889,3 +889,26 @@ delivery:
 
 `requireResearchPacingScenario` must fail loudly for an authored era missing this data. Do not
 borrow the final known era's profile for a cost recommendation, audit, or report.
+
+## Tech Effects: Strategic Choice, AI Value and Hidden Couplings (#420)
+
+`docs/tech-strategic-choice-audit.md` (generated, pinned by `tests/systems/tech-strategic-audit.test.ts`) is the
+per-tech inventory. Working rules that came out of converting flat yields:
+
+- **Replace a flat bonus with an amount-preserving conditional one.** A `+N per city` tech becomes `+N in cities
+  with the building the tech is about` (or per such building, per population step, per route), sized so a city that
+  made the choice earns what the flat bonus gave it. The science and production reference economy
+  (`tests/systems/pacing-reference-economy.test.ts`) feeds `RESEARCH_OUTPUT_BY_ERA`, so a change that moves
+  the maximal profile outside the era 10-13 tolerance is a pacing change and needs a decision, not a snapshot edit.
+  Percentage techs in that pinned economy (`rationalism`, `parliamentary-reform`, `mass-production`, `pragmatism`)
+  are held back for #1311.
+- **The AI sees a tech's own effect rows.** `evaluateAITechCapabilities` adds `getTechEconomicEffectValue`
+  (yield and cost-discount rows, capped at 3) and `getTechCombatEffectValue` (combat rows, capped at 0.5). It is
+  state-independent and reads only the public catalog. A new table row is valued automatically; effects owned by
+  bespoke code are valued only through the unlocks that carry them.
+- **Unlock text is read by the pacing model.** For a tech with no explicit `pacing`, `inferTechScope`
+  (`research-pacing-model.ts`) takes its scope from the words "unit" (military), "building"/"library"/"monument"
+  (city) in `Tech.unlocks`, and the persisted cost recommendation follows. A rewrite that adds or drops those words
+  moves a tech's cost target (`research-pacing-report.test.ts` fails); keep the old scope class or add `pacing`.
+- **A tech's text must be backed by a mechanic** (`content-description-honesty.md`): the audit lists the claims
+  with no table effect and no code owner.
