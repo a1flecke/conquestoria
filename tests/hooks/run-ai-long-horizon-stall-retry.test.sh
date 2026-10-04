@@ -135,6 +135,41 @@ run_matrix "9"
   exit 1
 }
 
+# Scenario 5: `yarn test:ai-long -- -t <name>` forwards a literal `--` (Yarn does
+# not consume it). If the runner hands that `--` to Vitest, Vitest treats
+# everything after it as positional file filters and silently drops the `-t`
+# test-name filter, so the WHOLE matrix runs instead of the named scenario --
+# the trap that made #1095's targeted repro take 15+ minutes. The runner must
+# strip one leading `--` before forwarding.
+rm -f "$command_log" "$tmpdir/call-count"
+set +e
+(
+  cd "$tmpdir"
+  PATH="$fake_bin:$PATH" \
+    COMMAND_LOG="$command_log" \
+    CALL_COUNT_FILE="$tmpdir/call-count" \
+    STATUS_SEQUENCE=0 \
+    AI_LONG_HORIZON_STALL_RETRY_BACKOFF_SECONDS=0 \
+    bash scripts/run-ai-long-horizon.sh -- -t lh-explorer-small
+) >"$tmpdir/targeted.log" 2>&1
+targeted_status=$?
+set -e
+[ "$targeted_status" -eq 0 ] || {
+  echo "scenario 5: a targeted run exited $targeted_status"
+  cat "$tmpdir/targeted.log"
+  exit 1
+}
+grep -q -- '-t lh-explorer-small' "$command_log" || {
+  echo "scenario 5: the -t scenario filter never reached vitest"
+  cat "$command_log"
+  exit 1
+}
+if grep -q -- ' -- -t ' "$command_log"; then
+  echo "scenario 5: the leading -- was forwarded to vitest, disabling the -t filter"
+  cat "$command_log"
+  exit 1
+fi
+
 # --- #1166 lock order / capacity-holding scenarios -------------------------
 #
 # The budget for this fixture resolves to dirname(HOST_VERIFICATION_LEASE_
