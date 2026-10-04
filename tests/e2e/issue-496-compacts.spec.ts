@@ -2,6 +2,7 @@ import { expect, test, type ConsoleMessage, type Page, type TestInfo } from '@pl
 import { hexKey } from '@/systems/hex-utils';
 import { getAvailableTechs } from '@/systems/tech-system';
 import { installAutosave } from './helpers/save-fixture';
+import { openPrimaryPanel } from './helpers/primary-action-bar';
 import { addAuditCompact, makeMinorCivLeagueAuditFixture } from '../systems/helpers/minor-civ-league-audit-fixture';
 
 const CAMPAIGN_READY_TIMEOUT_MS = 45_000;
@@ -132,9 +133,7 @@ test('opens, keyboard-toggles, and reopens the safe compact disclosure on deskto
   test.slow();
   const browserErrors = captureBrowserErrors(page);
   await enterAutosave(page, testInfo, browserErrors);
-  await page.getByRole('button', { name: 'Diplo', exact: true }).click();
-
-  const panel = page.locator('#diplomacy-panel');
+  const panel = await openPrimaryPanel(page, 'Diplo', '#diplomacy-panel');
   const details = panel.locator('details.minor-civ-compact-details');
   const summary = details.locator('summary');
   await expectCompactSummary(page, testInfo, browserErrors);
@@ -149,7 +148,7 @@ test('opens, keyboard-toggles, and reopens the safe compact disclosure on deskto
 
   await panel.locator('#diplo-close').click();
   await expect(panel).toHaveCount(0);
-  await page.getByRole('button', { name: 'Diplo', exact: true }).click();
+  await openPrimaryPanel(page, 'Diplo', '#diplomacy-panel');
   await expectCompactSummary(page, testInfo, browserErrors);
 });
 
@@ -158,7 +157,7 @@ test('keeps compact disclosure readable at 390px', async ({ page }, testInfo) =>
   const browserErrors = captureBrowserErrors(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await enterAutosave(page, testInfo, browserErrors);
-  await page.getByRole('button', { name: 'Diplo', exact: true }).click();
+  await openPrimaryPanel(page, 'Diplo', '#diplomacy-panel');
 
   const details = page.locator('#diplomacy-panel details.minor-civ-compact-details');
   await details.locator('summary').click();

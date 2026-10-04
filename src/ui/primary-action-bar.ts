@@ -5,20 +5,21 @@ export interface PrimaryActionBarCallbacks {
   onOpenEspionage: () => void;
   onOpenDiplomacy: () => void;
   onOpenMarketplace: () => void;
-  onEndTurn: () => void;
+  onEndTurn: () => void | Promise<void>;
 }
 
 interface ActionButtonDefinition {
   label: string;
   icon: string;
   accent?: string;
-  onClick: () => void;
+  busyLabel?: string;
+  onClick: () => void | Promise<void>;
 }
 
 function createActionButton(definition: ActionButtonDefinition): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
-  button.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:2px;padding:0;background:none;border:0;color:white;font-size:10px;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;';
+  button.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:2px;min-height:44px;padding:0;background:none;border:0;color:white;font-size:10px;cursor:pointer;user-select:none;touch-action:manipulation;-webkit-tap-highlight-color:transparent;';
   button.setAttribute('aria-label', definition.label);
 
   const icon = document.createElement('span');
@@ -30,22 +31,29 @@ function createActionButton(definition: ActionButtonDefinition): HTMLButtonEleme
   label.textContent = definition.label;
   button.appendChild(label);
 
-  let handled = false;
-  const trigger = (event: Event) => {
+  const trigger = async (event: Event): Promise<void> => {
     event.preventDefault();
     event.stopPropagation();
-    if (handled) {
-      return;
+    const result = definition.onClick();
+    if (!definition.busyLabel || !result) return;
+
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+    button.style.opacity = '0.65';
+    label.textContent = definition.busyLabel;
+    try {
+      await result;
+    } finally {
+      button.disabled = false;
+      button.removeAttribute('aria-busy');
+      button.style.opacity = '';
+      label.textContent = definition.label;
     }
-    handled = true;
-    definition.onClick();
-    setTimeout(() => {
-      handled = false;
-    }, 300);
   };
 
-  button.addEventListener('touchend', trigger);
-  button.addEventListener('click', trigger);
+  button.addEventListener('click', event => {
+    void trigger(event);
+  });
 
   return button;
 }
@@ -62,7 +70,13 @@ export function createPrimaryActionBar(callbacks: PrimaryActionBarCallbacks): HT
     { label: 'Intel', icon: '🕵️', onClick: callbacks.onOpenEspionage },
     { label: 'Diplo', icon: '🤝', onClick: callbacks.onOpenDiplomacy },
     { label: 'Trade', icon: '💰', onClick: callbacks.onOpenMarketplace },
-    { label: 'End Turn', icon: '⏭️', accent: '#e8c170', onClick: callbacks.onEndTurn },
+    {
+      label: 'End Turn',
+      busyLabel: 'Ending…',
+      icon: '⏭️',
+      accent: '#e8c170',
+      onClick: callbacks.onEndTurn,
+    },
   ];
 
   for (const definition of buttons) {

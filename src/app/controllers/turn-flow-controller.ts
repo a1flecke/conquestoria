@@ -319,7 +319,7 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
     void simulate();
   }
 
-  async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<void> {
+  async function performEndTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<void> {
     if (session.getState().gameOver) return;
     if (selection.getPendingIntent().kind === 'city-capture') {
       deps.showNotification('Choose whether to occupy or raze the captured city before ending the turn.', 'info');
@@ -393,6 +393,19 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
       console.error('endTurn error:', err);
       deps.showNotification('Error processing turn!', 'warning');
     }
+  }
+
+  let endTurnInFlight: Promise<void> | null = null;
+
+  function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<void> {
+    if (endTurnInFlight) return endTurnInFlight;
+
+    const execution = performEndTurn(options);
+    const flight = execution.finally(() => {
+      if (endTurnInFlight === flight) endTurnInFlight = null;
+    });
+    endTurnInFlight = flight;
+    return flight;
   }
 
   return {

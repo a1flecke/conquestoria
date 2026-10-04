@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
+import { clickVisibleHex } from './helpers/canvas-interaction';
 
 const FIXTURE_PATH = join(__dirname, '..', 'fixtures', 'issue-365-crowded-map-save.json');
 const FIXTURE_TEXT = readFileSync(FIXTURE_PATH, 'utf8');
@@ -49,14 +50,6 @@ async function continueFixture(page: Page): Promise<void> {
   await requiredChoices.locator('section').first().getByRole('button').first().click();
   await expect(requiredChoices).toBeHidden();
   await expect(page.locator('#game-canvas')).toBeVisible();
-}
-
-async function clickVisibleHex(page: Page, coord: { q: number; r: number }): Promise<void> {
-  const point = await page.evaluate((target) => (
-    window.__CONQUESTORIA_E2E_GET_VISIBLE_HEX_COPIES__?.(target)[0]
-  ), coord);
-  expect(point, `Expected ${coord.q},${coord.r} to be visible in the live camera`).toBeDefined();
-  await page.mouse.click(point!.x, point!.y);
 }
 
 function findMoveTarget(origin: { q: number; r: number }): { q: number; r: number } {

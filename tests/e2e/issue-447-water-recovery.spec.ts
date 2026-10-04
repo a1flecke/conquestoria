@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
+import { clickVisibleHex } from './helpers/canvas-interaction';
 
 const FIXTURE_TEXT = readFileSync(
   join(__dirname, '..', 'fixtures', 'issue-365-crowded-map-save.json'),
@@ -58,14 +59,6 @@ async function continueFixture(page: Page): Promise<void> {
   await expect(page.locator('#game-canvas')).toBeVisible();
 }
 
-async function clickVisibleHex(page: Page, coord: { q: number; r: number }): Promise<void> {
-  const point = await page.evaluate((target) => (
-    window.__CONQUESTORIA_E2E_GET_VISIBLE_HEX_COPIES__?.(target)[0]
-  ), coord);
-  expect(point, `Expected ${coord.q},${coord.r} to be visible in the live camera`).toBeDefined();
-  await page.mouse.click(point!.x, point!.y);
-}
-
 async function selectLeadWarrior(page: Page): Promise<void> {
   await clickVisibleHex(page, ORIGIN);
   const leadButton = page.locator(
@@ -102,9 +95,11 @@ test('saved water unit stays selected after a blocked tap and can return ashore'
     fullPage: true,
   });
 
-  await clickVisibleHex(page, LAND_EXIT);
-
-  await expect(guidance).toHaveCount(0);
+  await expect(async () => {
+    if (await guidance.count() === 0) return;
+    await clickVisibleHex(page, LAND_EXIT);
+    await expect(guidance).toHaveCount(0, { timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
   await expect(page.locator(
     '#unit-sprites > [data-entity-id="issue-365-lead"]',
   )).not.toHaveCount(0);

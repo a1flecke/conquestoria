@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
+import { openPrimaryPanel } from './helpers/primary-action-bar';
 
 // #1238: the Council's "Since your last turn" section, driven through a real Continue Campaign load.
 // The crowded-map save has one city. Its land is turned to desert (so food has become a problem)
@@ -49,24 +50,12 @@ async function continueFixture(page: Page): Promise<void> {
   await expect(continueButton).toBeHidden();
 }
 
-// The Council button toggles the panel, and the HUD can still be settling right after Continue
-// Campaign. Click only while the panel is absent and retry until it is up, so a click that lands
-// during startup cannot be mistaken for the feature failing -- and a retry can never close it.
-async function openCouncil(page: Page): Promise<void> {
-  await expect(async () => {
-    if (await page.locator('#council-panel').count() === 0) {
-      await page.getByRole('button', { name: /Council/ }).first().click();
-    }
-    await expect(page.locator('#council-panel')).toBeVisible({ timeout: 1000 });
-  }).toPass({ timeout: 15_000 });
-}
-
 test('a stored baseline makes the Council say what changed, above Do Now', async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1280, height: 900 });
   await installFixture(page, true);
   await continueFixture(page);
-  await openCouncil(page);
+  await openPrimaryPanel(page, 'Council', '#council-panel');
 
   const section = page.locator('#council-panel [data-section="since-last-turn"]');
   await expect(section).toBeVisible();
@@ -81,7 +70,7 @@ test('a stored baseline makes the Council say what changed, above Do Now', async
   // Opening the Council does not consume it: closing and reopening shows the same section.
   await page.locator('#council-panel button[aria-label="Close council"]').click();
   await expect(page.locator('#council-panel')).toHaveCount(0);
-  await openCouncil(page);
+  await openPrimaryPanel(page, 'Council', '#council-panel');
   await expect(page.locator('#council-panel [data-section="since-last-turn"]')).toContainText('New: Feed Alexandria Metropolitan Works');
 });
 
@@ -90,7 +79,7 @@ test('an old save with no baseline shows no section, but still shows the current
   await page.setViewportSize({ width: 1280, height: 900 });
   await installFixture(page, false);
   await continueFixture(page);
-  await openCouncil(page);
+  await openPrimaryPanel(page, 'Council', '#council-panel');
 
   await expect(page.locator('#council-panel')).toContainText('Feed Alexandria Metropolitan Works');
   await expect(page.locator('#council-panel [data-section="since-last-turn"]')).toHaveCount(0);

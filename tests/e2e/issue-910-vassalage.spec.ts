@@ -6,6 +6,7 @@ import { EventBus } from '@/core/event-bus';
 import { getAvailableTechs } from '@/systems/tech-system';
 import { normalizeLoadedState } from '@/storage/save-manager';
 import { installAutosave } from './helpers/save-fixture';
+import { openPrimaryPanel } from './helpers/primary-action-bar';
 
 // This fixture mounts a complete small-map campaign. On GitHub's shared Linux
 // runners, the first mount has legitimately exceeded the default 30-second
@@ -77,7 +78,7 @@ async function handoff(page: Page) {
 test('human offers to AI, sees the active role immediately, and cannot declare an independent war', async ({page}, testInfo) => {
   test.slow();
   await enterSoloAutosave(page, fixture(), testInfo);
-  await page.getByRole('button', {name: 'Diplo', exact: true}).click();
+  await openPrimaryPanel(page, 'Diplo', '#diplomacy-panel');
   await page.getByRole('button', {name: 'Offer Vassalage: Rome', exact: true}).click();
   const panel = page.locator('#diplomacy-panel');
   await expect(panel).toContainText('Your overlord: Rome');
@@ -92,7 +93,7 @@ test('human receives an AI offer, accepts, and confirms release in the live pane
   let state = fixture(false, true); state.currentPlayer = 'overlord';
   state = applyDiplomaticAction(state, 'vassal', 'overlord', 'offer_vassalage', new EventBus()).state;
   await enterSoloAutosave(page, state, testInfo);
-  await page.getByRole('button', {name: 'Diplo', exact: true}).click();
+  await openPrimaryPanel(page, 'Diplo', '#diplomacy-panel');
   await page.getByRole('button', {name: 'Accept Vassalage: Egypt', exact: true}).click();
   await expect(page.locator('#diplomacy-panel')).toContainText('Your vassal: Egypt');
   await page.getByRole('button', {name: 'Release Vassal: Egypt', exact: true}).click();
@@ -106,14 +107,14 @@ test('hot-seat handoff removes the first player inbox and lets the recipient acc
   await installAutosave(page, fixture(true, true, true)); await page.goto('/');
   await page.getByRole('button', {name: 'Continue', exact: true}).click();
   await handoff(page);
-  await page.getByRole('button', {name: 'Diplo', exact: true}).click();
+  await openPrimaryPanel(page, 'Diplo', '#diplomacy-panel');
   await page.getByRole('button', {name: 'Offer Vassalage: Rome', exact: true}).click();
   await expect(page.locator('#diplomacy-panel')).toContainText('Awaiting');
   await page.keyboard.press('e');
   await expect(page.locator('#turn-handoff')).toBeVisible();
   await expect(page.locator('#diplomacy-panel')).toHaveCount(0);
   await handoff(page);
-  await page.getByRole('button', {name: 'Diplo', exact: true}).click();
+  await openPrimaryPanel(page, 'Diplo', '#diplomacy-panel');
   await page.getByRole('button', {name: 'Accept Vassalage: Egypt', exact: true}).click();
   await expect(page.locator('#diplomacy-panel')).toContainText('Your vassal: Egypt');
 });

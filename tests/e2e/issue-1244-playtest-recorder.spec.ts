@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
+import { openPrimaryPanel, requestEndTurn } from './helpers/primary-action-bar';
 
 // #1244: the local-only playtest recorder, driven through a real Continue Campaign load.
 //   - flag off (no query, or any value but 1): no recorder, no export button -- nothing changes;
@@ -45,17 +46,6 @@ async function continueFixture(page: Page, query = ''): Promise<void> {
   await expect(continueButton).toBeHidden();
 }
 
-// The Council button toggles the panel and the HUD can still be settling right after Continue
-// Campaign: click only while the panel is absent, and retry until it is up.
-async function openCouncil(page: Page): Promise<void> {
-  await expect(async () => {
-    if (await page.locator('#council-panel').count() === 0) {
-      await page.getByRole('button', { name: /Council/ }).first().click();
-    }
-    await expect(page.locator('#council-panel')).toBeVisible({ timeout: 1000 });
-  }).toPass({ timeout: 15_000 });
-}
-
 /**
  * One real end turn, handled the way a player handles the game's prompts: press End Turn; if the game
  * asks for a production choice take its recommendation and press End Turn again; confirm the
@@ -65,19 +55,17 @@ async function endTurn(page: Page, nextTurn: number): Promise<void> {
   const newTurn = page.getByText(new RegExp(`^Turn ${nextTurn} ·`));
   const warning = page.locator('#end-turn-warning-panel');
   const requiredChoice = page.locator('#required-choice-panel');
-  const endTurnButton = page.getByRole('button', { name: 'End Turn' });
+  const visibleOutcome = warning.or(requiredChoice).or(newTurn).first();
 
   // The game opens its end-of-round prompt (production choice) on its own schedule, sometimes just
-  // after the new turn's HUD appears. So pressing End Turn is a retry: whenever the click is blocked
-  // by that prompt, take its recommendation (as a player would) and press again.
+  // after the new turn's HUD appears. Each request is accepted only when the button becomes busy or
+  // one of these semantic outcomes appears; resolving the click task alone is not success.
   const pressEndTurn = async (): Promise<void> => {
-    await expect(async () => {
-      if (await requiredChoice.count() > 0) {
-        await requiredChoice.getByRole('button', { name: /turns?$/ }).first().click({ timeout: 2_000 });
-        await expect(requiredChoice).toHaveCount(0, { timeout: 2_000 });
-      }
-      await endTurnButton.click({ timeout: 2_000 });
-    }).toPass({ timeout: 30_000 });
+    if (await requiredChoice.count() > 0) {
+      await requiredChoice.getByRole('button', { name: /turns?$/ }).first().click({ timeout: 2_000 });
+      await expect(requiredChoice).toHaveCount(0, { timeout: 2_000 });
+    }
+    await requestEndTurn(page, visibleOutcome);
   };
 
   await pressEndTurn();
@@ -100,7 +88,7 @@ test.describe('playtest recorder (#1244)', () => {
       await page.setViewportSize({ width: 1280, height: 900 });
       await installFixture(page);
       await continueFixture(page, query);
-      await openCouncil(page);
+      await openPrimaryPanel(page, 'Council', '#council-panel');
 
       await expect(page.locator('[data-role="playtest-export"]')).toHaveCount(0);
       await expect(page.getByRole('button', { name: 'Export playtest log' })).toHaveCount(0);
@@ -117,7 +105,7 @@ test.describe('playtest recorder (#1244)', () => {
     await expect(exportButton).toBeVisible();
 
     // Turn 1: open the Council, act on its starving-city card.
-    await openCouncil(page);
+    await openPrimaryPanel(page, 'Council', '#council-panel');
     await page.locator('#council-panel').getByRole('button', { name: 'Open city', exact: true }).click();
     await expect(page.locator('#city-panel')).toBeVisible();
     // The city panel covers the End Turn button, as it would for a real player: close it first.
