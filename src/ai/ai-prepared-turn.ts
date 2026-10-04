@@ -9,7 +9,8 @@ import type {
   PersonalityTraits,
   UnitType,
 } from '@/core/types';
-import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
+import { hexDistance, hexKey, parseHexKey, wrappedHexDistance } from '@/systems/hex-utils';
+import { getVisibility } from '@/systems/fog-of-war';
 import {
   civHasCoastalCity,
   cityFollowsOwnFaith,
@@ -290,7 +291,8 @@ function buildKnownPathMap(
     return knownMap;
   }
   for (const key of Object.keys(knownMap.tiles)) {
-    const visibility = actor.visibility.tiles[key] ?? 'unexplored';
+    const coord = knownMap.tiles[key]?.coord ?? parseHexKey(key);
+    const visibility = getVisibility(actor.visibility, coord);
     if (visibility === 'visible') continue;
     const snapshot = actor.visibility.lastSeen?.[key];
     if (visibility !== 'fog' || !isTrustedObservedLastSeenTile(snapshot)) {

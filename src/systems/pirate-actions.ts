@@ -11,6 +11,7 @@ import { PIRATE_ACTION_RULES, getPirateBounty, getPirateTributeCost } from './pi
 import { UNIT_DEFINITIONS } from './unit-definitions';
 import { getOwnedCityCount } from './city-ownership';
 import { removeUnits } from '@/systems/unit-removal-system';
+import { getVisibility, isVisible } from './fog-of-war';
 
 export interface PirateActionQuote {
   available: boolean;
@@ -229,7 +230,7 @@ function hasEarnedTargetSighting(state: GameState, employerId: string, targetId:
   const visibility = employer.visibility;
   const knownCoastalCity = Object.values(state.cities).some(city => {
     if (city.owner !== targetId || !isCoastalCity(state, city.id)) return false;
-    const tileState = visibility.tiles[hexKey(city.position)] ?? 'unexplored';
+    const tileState = getVisibility(visibility, city.position);
     return tileState !== 'unexplored'
       || visibility.lastSeen?.[hexKey(city.position)]?.city?.owner === targetId;
   });
@@ -237,7 +238,7 @@ function hasEarnedTargetSighting(state: GameState, employerId: string, targetId:
   return Object.values(state.units).some(unit =>
     unit.owner === targetId
     && UNIT_DEFINITIONS[unit.type]?.domain === 'naval'
-    && visibility.tiles[hexKey(unit.position)] === 'visible',
+    && isVisible(visibility, unit.position),
   );
 }
 

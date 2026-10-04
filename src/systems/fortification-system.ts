@@ -3,6 +3,7 @@ import { hexDistance, hexKey, mapNeighbors, wrappedHexDistance } from './hex-uti
 import { UNIT_DEFINITIONS } from './unit-definitions';
 import { isAtWar } from './diplomacy-queries';
 import { getOwnedCityCount } from './city-ownership';
+import { isVisible } from './fog-of-war';
 
 export interface FortificationTier {
   id: 'fort' | 'citadel';
@@ -86,12 +87,12 @@ export interface FortificationDefense {
 export function findFortificationCandidate(state: GameState, ownerId: string): { coord: HexCoord } | null {
   const completedTechs = state.civilizations[ownerId]?.techState.completed ?? [];
   if (!completedTechs.includes('fortresses')) return null;
-  const visibleTiles = state.civilizations[ownerId]?.visibility.tiles ?? {};
+  const ownerVisibility = state.civilizations[ownerId]?.visibility;
   const threats = Object.values(state.units).filter(unit => {
     if (unit.owner === ownerId || unit.transportId || UNIT_DEFINITIONS[unit.type]?.strength <= 0) return false;
     const diplomacy = state.civilizations[ownerId]?.diplomacy;
     if (unit.owner !== 'barbarian' && (!diplomacy || !isAtWar(diplomacy, unit.owner))) return false;
-    return visibleTiles[hexKey(unit.position)] === 'visible';
+    return !!ownerVisibility && isVisible(ownerVisibility, unit.position);
   });
   if (threats.length === 0) return null;
   const candidates = Object.values(state.map.tiles)

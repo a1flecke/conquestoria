@@ -6,7 +6,7 @@ import type {
   LastSeenTilePresentation,
   LastSeenUnitPresentation,
 } from '@/core/types';
-import { applyReconReveals, getVisibility, updateVisibility } from '@/systems/fog-of-war';
+import { applyReconReveals, getVisibility, isFog, updateVisibility } from '@/systems/fog-of-war';
 import { isUnitConcealedFrom } from '@/systems/concealment';
 import { getActiveNationalProjectsForCiv } from '@/systems/national-project-system';
 import { getVisionBonus } from '@/systems/unit-modifier-system';
@@ -168,9 +168,9 @@ export function reconstructLastSeenFromMap(state: GameState, civId: string): voi
   if (!civ?.visibility) return;
   civ.visibility.lastSeen ??= {};
   for (const [key, tile] of Object.entries(state.map.tiles)) {
-    if (civ.visibility.tiles[key] !== 'fog') continue;
-    if (civ.visibility.lastSeen[key]) continue;
     const coord = tile.coord ?? parseHexKey(key);
+    if (!isFog(civ.visibility, coord)) continue;
+    if (civ.visibility.lastSeen[key]) continue;
     const {
       observedTurn: _observedTurn,
       units: _units,

@@ -53,11 +53,11 @@ import type { PirateFocusTarget } from '@/systems/pirate-presentation';
 import type { PirateActionResult } from '@/systems/pirate-actions';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { appendNotification } from '@/core/notification-log';
-import { getVisibility } from '@/systems/fog-of-war';
+import { getVisibility, isVisible } from '@/systems/fog-of-war';
 import { formatNotificationTargetFocusMessage } from '@/ui/notification-targets';
 import { isUnitConcealedFrom } from '@/systems/concealment';
 import { recordBeastSightings } from '@/systems/beast-presentation';
-import { hexKey } from '@/systems/hex-utils';
+import { hexKey, parseHexKey } from '@/systems/hex-utils';
 
 export function getCurrentCiv(session: GameSession): Civilization {
   return session.getState().civilizations[session.getState().currentPlayer];
@@ -84,11 +84,11 @@ export function prefersReducedMotion(): boolean {
 }
 
 export function scanBeastSightings(session: GameSession, unpublished: UnpublishedStateWriter, bus: EventBus): void {
-  const visTiles = getCurrentCiv(session)?.visibility?.tiles;
-  if (!visTiles) return;
+  const visibility = getCurrentCiv(session)?.visibility;
+  if (!visibility) return;
   const state = session.getState();
   const visibleKeys = new Set(
-    Object.entries(visTiles).filter(([, v]) => v === 'visible').map(([k]) => k),
+    Object.keys(visibility.tiles).filter(k => isVisible(visibility, parseHexKey(k))),
   );
   // A concealed unit (beast habitat, forest guardian, or submarine) cannot be
   // sighted even if the tile is visible.
