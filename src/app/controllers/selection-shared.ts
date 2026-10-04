@@ -21,6 +21,7 @@ import type { PanelHost } from '@/app/panel-host';
 import type { AdvisorSystem } from '@/ui/advisor-system';
 import type { CeremonyCoordinator } from '@/app/controllers/ceremony-coordinator';
 import type { UnitTurnFlow } from '@/ui/unit-turn-flow';
+import type { renderSelectedUnitInfo } from '@/ui/selected-unit-info';
 import type { ExecuteUnitMoveResult } from '@/systems/unit-movement-system';
 
 /** The narrow slice of `RenderLoop` the selection family needs. */
@@ -107,4 +108,13 @@ export interface SelectionCore {
   refreshSelectedUnitAfterCombat(): void;
   openUnitContextMenu(unitId: string): void;
   refreshCurrentPlayerVisibility(): void;
+}
+
+/** The callback bag `renderSelectedUnitInfo` takes; each unit-command slice supplies a `Pick` of it. */
+export type SelectedUnitCommands = Parameters<typeof renderSelectedUnitInfo>[3];
+
+/** What the unit-command slices need to know about the selection being rendered. */
+export interface SelectionCommandArgs {
+  unitId: string;
+  pendingUnloadUnitName?: string;
 }
