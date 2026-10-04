@@ -36,9 +36,13 @@ In every new worktree, complete this bootstrap before meaningful work:
    `package.json` or `yarn.lock` requires review before installation.
 
 Use one direct shell command per tool call. Do not wrap routine checks in
-`echo`, command substitution (`$(...)`), backticks, pipes, `&&`, `;`, loops,
-or shell variables. Compare outputs in reasoning instead. This keeps commands
-auditable and lets the approval system recognize the narrow safe forms below.
+`echo`, command substitution (`$(...)`), backticks, `&&`, `;`, loops, or shell
+variables. The one composition the OpenCode approval plugin accepts (v0.3.2+) is
+a closed set of read-only output filters after an already-allowed command:
+`[2>&1] | tail -N`, `head -N`, `grep <pattern>` or `wc -l` (at most three);
+`tee`, `> file`, `cd … &&`, `awk`/`sed`/`sort` and every other pipe still
+prompt. Compare outputs in reasoning instead. This keeps commands auditable and
+lets the approval system recognize the narrow safe forms below.
 
 ### Common command recipes
 
@@ -68,7 +72,8 @@ the form the local approver recognizes without a prompt:
 - Focused tests: `./scripts/dev.sh test tests/systems/city-system.test.ts` (one or more `*.test.ts(x)`
   files or directories under `tests/`; anything else is rejected with the rule it broke).
 - Use the `./` form exactly. Do **not** prefix `cd <worktree> &&` (the shell already starts in the
-  worktree), and do **not** pipe or redirect build/test output (`| tail`, `2>&1`, `> log`): the
+  worktree), and do **not** pipe or redirect build/test output (`| tail`, `2>&1`, `> log`). Filters
+  such as `| tail` would be accepted by the plugin, but they are redundant and `> log` is not: the
   dispatcher saves the full output to `.verification/logs/<task>.log`, prints a header with the exit
   status plus the last 60 lines, and `./scripts/dev.sh log <task> [N]` shows more (default 200, max 5000).
 - It takes no flags (no `--watch`, no `-t`); anything configurable is a separate task.
@@ -92,8 +97,8 @@ The two-step form is equivalent: issue these as separate direct operations:
 `git fetch origin`, then `git rebase origin/main`. Resolve a
 conflict, explicitly stage only the resolved non-sensitive paths with
 `git add -- <paths>`, then use `GIT_EDITOR=true git rebase --continue`. Never
-prefix the initial rebase with `GIT_EDITOR=true`, filter its output with
-`tail`/a pipe, use `git rebase --skip`, select a rebase-merges mode, merge into
+prefix the initial rebase with `GIT_EDITOR=true`, filter the output of the
+`GIT_EDITOR=true … --continue` forms with a pipe, use `git rebase --skip`, select a rebase-merges mode, merge into
 the feature branch, or use an arbitrary editor prefix without explaining why
 and obtaining approval.
 
