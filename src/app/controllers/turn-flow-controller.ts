@@ -319,13 +319,22 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
     void simulate();
   }
 
+  let endingTurn = false;
+
   async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<void> {
-    if (session.getState().gameOver) return;
-    if (selection.getPendingIntent().kind === 'city-capture') {
-      deps.showNotification('Choose whether to occupy or raze the captured city before ending the turn.', 'info');
+    if (endingTurn) {
+      console.warn('[endTurn] rejected: already ending turn');
       return;
     }
+    endingTurn = true;
     try {
+      if (session.getState().gameOver) {
+        return;
+      }
+      if (selection.getPendingIntent().kind === 'city-capture') {
+        deps.showNotification('Choose whether to occupy or raze the captured city before ending the turn.', 'info');
+        return;
+      }
       if (showReligionBoonIfNeeded()) {
         deps.showNotification('Choose a boon for your religion before ending the turn.', 'info');
         return;
@@ -392,6 +401,8 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
     } catch (err) {
       console.error('endTurn error:', err);
       deps.showNotification('Error processing turn!', 'warning');
+    } finally {
+      endingTurn = false;
     }
   }
 

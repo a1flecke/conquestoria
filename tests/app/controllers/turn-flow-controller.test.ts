@@ -333,6 +333,37 @@ describe('createTurnFlowController', () => {
       expect(saveManager.autoSave).not.toHaveBeenCalled();
     });
 
+    it('releases the endTurn guard after an early return so the next call is not stuck (#1309)', async () => {
+      const state = makeFixture();
+      state.gameOver = true;
+      const deps = baseDeps(state);
+      const turnFlow = createTurnFlowController(deps);
+
+      await turnFlow.endTurn();
+      await turnFlow.endTurn();
+
+      expect(deps.showNotification).not.toHaveBeenCalled();
+      expect(saveManager.autoSave).not.toHaveBeenCalled();
+    });
+
+    it('ignores concurrent endTurn calls while a turn is still ending (#1309)', async () => {
+      const state = makeFixture();
+      vi.mocked(saveManager.autoSave).mockImplementationOnce(
+        () => new Promise(resolve => setTimeout(resolve, 50)),
+      );
+      const deps = baseDeps(state);
+      const turnFlow = createTurnFlowController(deps);
+      const startingTurn = state.turn;
+
+      const first = turnFlow.endTurn();
+      const second = turnFlow.endTurn();
+
+      await Promise.all([first, second]);
+
+      expect(deps.session.getState().turn).toBeGreaterThan(startingTurn);
+      expect(saveManager.autoSave).toHaveBeenCalledTimes(1);
+    });
+
     it('a pending religion boon blocks endTurn and toasts, without advancing the turn', async () => {
       const state = makeFixture();
       const startingTurn = state.turn;
