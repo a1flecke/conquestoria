@@ -51,6 +51,7 @@ import { acknowledgeTurnHandoffSummary, showTurnHandoff } from '@/ui/turn-handof
 import { closePirateWatersPanels } from '@/ui/pirate-waters-panel';
 import { closeStrategicLaunchFlow } from '@/ui/strategic-launch-flow';
 import { beginNetworkPlansForVictimTurn } from '@/systems/network-plan-system';
+import { recordAssessmentDigest } from '@/systems/assessment-history';
 import { applyPendingChallengeForCiv } from '@/core/opponent-challenge';
 import { createCompletedRoundHandoffTransaction } from '@/core/completed-round-handoff';
 import { createTurnRequiredChoices } from './turn-required-choices';
@@ -338,6 +339,11 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
       if (!options.allowUnmovedUnits && deps.getUnitTurnFlow().showEndTurnUnitWarningIfNeeded()) {
         return;
       }
+
+      // #1238: the one place the Council's "Since your last turn" baseline advances -- as this
+      // civ leaves its turn, before the round changes anything. Never on Council open (see
+      // assessment-history.ts). In hot seat each human reaches here for their own seat only.
+      session.update(state => recordAssessmentDigest(state, state.currentPlayer));
 
       SFX.endTurn();
       deps.deselectUnit();

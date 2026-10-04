@@ -291,6 +291,35 @@ describe('createTurnFlowController', () => {
       expect(published.at(-1)).toBe(deps.session.getState());
     });
 
+    it('advances the ending player\'s Council baseline on the turn they leave, before the round runs (#1238)', async () => {
+      const state = makeFixture();
+      const deps = baseDeps(state);
+      expect(deps.session.getState().assessmentDigestByCiv).toBeUndefined();
+
+      await createTurnFlowController(deps).endTurn();
+
+      const digests = deps.session.getState().assessmentDigestByCiv;
+      expect(Object.keys(digests ?? {})).toEqual(['player']);
+      // Recorded as the player left (turn N), not after the round advanced the world to N+1.
+      expect(digests?.player.turn).toBe(state.turn);
+      expect(deps.session.getState().turn).toBeGreaterThan(state.turn);
+    });
+
+    it('a blocked end turn does not advance the baseline (#1238)', async () => {
+      const state = makeFixture();
+      const selection = createSelectionStore();
+      const city = Object.values(state.cities).find(candidate => candidate.owner !== 'player')!;
+      selection.setPendingIntent({
+        kind: 'city-capture',
+        choice: { attackerId: 'player', cityId: city.id, targetCoord: city.position, occupiedPopulation: city.population, razeGold: 0 },
+      });
+      const deps = baseDeps(state, { selection });
+
+      await createTurnFlowController(deps).endTurn({ allowUnmovedUnits: true });
+
+      expect(deps.session.getState().assessmentDigestByCiv).toBeUndefined();
+    });
+
     it('is a no-op when state.gameOver is true', async () => {
       const state = makeFixture();
       state.gameOver = true;
@@ -356,6 +385,27 @@ describe('createTurnFlowController', () => {
       expect(saveManager.autoSave).toHaveBeenCalled();
       expect(deps.audio.setMasterVolume).toHaveBeenCalledWith(0.6);
       expect(deps.roundPresentationGate.isSuppressed()).toBe(false);
+    });
+
+    it('records the baseline for the ending human seat only, never the next seat\'s (#1238)', async () => {
+      const state = makeHotSeatFixture();
+      const endingSeat = state.currentPlayer;
+      const otherHuman = Object.values(state.civilizations).find(civ => civ.isHuman && civ.id !== endingSeat);
+      expect(otherHuman, 'fixture needs a second human seat').toBeDefined();
+      const deps = baseDeps(state);
+      const turnFlow = createTurnFlowController(deps);
+
+      const endTurnPromise = turnFlow.endTurn();
+      // Recorded synchronously, before the handoff or the round: the ending seat only.
+      expect(Object.keys(deps.session.getState().assessmentDigestByCiv ?? {})).toEqual([endingSeat]);
+      expect(deps.session.getState().assessmentDigestByCiv?.[otherHuman!.id]).toBeUndefined();
+
+      await flushMicrotasks();
+      document.querySelector<HTMLButtonElement>('#handoff-confirm')?.click();
+      await flushMicrotasks();
+      document.querySelector<HTMLButtonElement>('#handoff-start')?.click();
+      await flushMicrotasks();
+      await endTurnPromise;
     });
 
     it('adopts the incoming player silently: no subscriber sees their state until the viewer is revealed (#1015)', async () => {

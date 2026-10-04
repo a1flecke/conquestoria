@@ -44,9 +44,15 @@ async function continueFixture(page: Page): Promise<void> {
   await expect(continueButton).toBeHidden();
 }
 
+// The Council button toggles the panel and the HUD can still be settling right after Continue
+// Campaign: click only while the panel is absent, and retry until it is up.
 async function openCouncil(page: Page): Promise<void> {
-  await page.getByRole('button', { name: /Council/ }).first().click();
-  await expect(page.locator('#council-panel')).toBeVisible();
+  await expect(async () => {
+    if (await page.locator('#council-panel').count() === 0) {
+      await page.getByRole('button', { name: /Council/ }).first().click();
+    }
+    await expect(page.locator('#council-panel')).toBeVisible({ timeout: 1000 });
+  }).toPass({ timeout: 15_000 });
 }
 
 test('Council names the starving city and its button opens that city', async ({ page }) => {
