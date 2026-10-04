@@ -3,6 +3,8 @@
 # several agents share.
 #
 # What it does that a bare `yarn test:ai-long:durable &` does not:
+#   0. reuses a passing durable result for this exact clean HEAD instead of
+#      launching an identical run (`--force` overrides);
 #   1. shows who else is running/queued on the host first (`verify:local:status`),
 #      so the decision to start is informed;
 #   2. refuses a duplicate of the same scope in this worktree (the durable runner
@@ -27,12 +29,17 @@ set -eu
 
 usage() {
   cat >&2 <<'USAGE'
-Usage: launch-local-verification.sh [--wait] [--allow-dirty] [--max-mine N] <scope>
+Usage: launch-local-verification.sh [--wait] [--allow-dirty] [--force] [--max-mine N] <scope>
 
   <scope>          full | ai-long | ai-playability | perf
   --wait           block until the run finishes; exit 0 only if it passed
   --allow-dirty    launch even though the worktree has uncommitted changes
+  --force          re-run even if a passing result already exists for this HEAD
   --max-mine N     max live durable runs this worktree may have (default 2)
+
+When the worktree is clean and a durable <scope> result for the current HEAD has
+already passed, the reason to run again is gone: this prints a one-line reuse
+notice and exits 0 without launching anything. Use --force to run anyway.
 
 Environment (tests): LAUNCH_VERIFICATION_COMMAND overrides the launched command.
 USAGE
@@ -41,6 +48,7 @@ USAGE
 
 wait_for=0
 allow_dirty=0
+force=0
 max_mine=2
 scope=''
 
@@ -48,6 +56,7 @@ while [ "$#" -gt 0 ]; do
   case "$1" in
     --wait) wait_for=1 ;;
     --allow-dirty) allow_dirty=1 ;;
+    --force) force=1 ;;
     --max-mine)
       shift
       [ "$#" -gt 0 ] || usage
@@ -88,6 +97,23 @@ live_run_of() {
   hvl_pid_is_live "$lr_pid" || return 1
   printf '%s\n' "$lr_pid"
 }
+
+# 0. Does this evidence need producing at all? If the current clean HEAD already
+# has a passing durable result for this scope, reuse it instead of burning shared
+# CPU on an identical run. This answers "must it run again"; verify:impact (#1232)
+# answers the separate "which evidence does this change require" and is not
+# conflated with it. The reader enforces the rest: only `passed` for the current
+# HEAD and tree reuses (`failed` / `mismatched` / `abandoned` / `none`, and any
+# dirty tree, all fall through to a real launch). `--force` skips this entirely.
+if [ "$force" -ne 1 ]; then
+  durable_result="$(sh "$repo_root/scripts/read-durable-test-result.sh" "$scope" 2>/dev/null || true)"
+  if printf '%s\n' "$durable_result" | grep -q '^STATUS: passed'; then
+    short_head="$(git -C "$repo_root" rev-parse --short HEAD)"
+    completed_at="$(sed -n 's/^completed_at=//p' "$artifact_dir/$scope-suite.status" 2>/dev/null | head -n 1)"
+    echo "Reusing durable $scope evidence for $short_head (passed at ${completed_at:-unknown}); pass --force to re-run."
+    exit 0
+  fi
+fi
 
 # 1. What is the rest of the host doing?
 echo '--- host snapshot (other agents included) ---'

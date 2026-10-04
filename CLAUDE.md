@@ -33,7 +33,7 @@ This is enforced by the user and is not optional.
 - `bash scripts/run-with-mise.sh yarn test:intensive-simulations` — Run the expensive local simulation selection.
 - `bash scripts/run-with-mise.sh yarn test:ci:shard-a` / `test:ci:shard-b` / `test:ci:shard-c` / `test:ci:shard-d` — Run one duration-balanced full-suite CI shard; these are not local tiers.
 - `bash scripts/run-with-mise.sh yarn test:watch` — Run tests in watch mode
-- `bash scripts/run-with-mise.sh yarn verify:launch <full|ai-long|ai-playability|perf> [--wait]` — Start a durable verification run detached, after showing who else is running on the host; refuses duplicates, a dirty tree (without `--allow-dirty`) and pile-ons.
+- `bash scripts/run-with-mise.sh yarn verify:launch <full|ai-long|ai-playability|perf> [--wait] [--force]` — Start a durable verification run detached, after showing who else is running on the host; when the worktree is clean and a durable result for this HEAD already passed, it reuses it (`Reusing durable …`; `--force` re-runs anyway); refuses duplicates, a dirty tree (without `--allow-dirty`) and pile-ons.
 - `bash scripts/run-with-mise.sh yarn verify:stop <scope>|--all [--dry-run]` — Stop **only this worktree's own** durable runs, by recorded pid.
 - `bash scripts/run-with-mise.sh yarn verify:local:status` — See every agent's active/queued heavyweight runs on this host (read-only).
 - `bash scripts/pr-body.sh new|write|check|create|update <name> …` — Write PR bodies in `/tmp/pr-bodies/<name>.md` (the one directory that is pre-allowed), then `create`/`update` from there. Never improvise a body file elsewhere.
