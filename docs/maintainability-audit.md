@@ -110,7 +110,7 @@ audit.
 Filed from this audit (no production refactoring here):
 
 - #1250 — decompose `src/ui/notification-routing.ts` (done: `src/ui/notification-routes/` — `notification-sink` and `notification-audience` leaves under eight domain routers; `notification-routing.ts` deleted).
-- #1248 — break the `src/systems` runtime import cycle.
+- #1248 — break the `src/systems` runtime import cycle (done: 35 → 0 modules in 5 PRs; `src/` has no runtime import cycle, pinned by the `src-has-no-runtime-import-cycles` rule and an empty `runtimeCycles` baseline).
 - #1246 — decompose `src/systems/faction-system.ts` (done: `faction-unrest-model` / `-federalism` / `-relief` / `-pressure` / `-commands`; `faction-system.ts` is now the turn orchestration only).
 - #1249 — decompose `src/systems/trade-system.ts` (done: `marketplace-system` / `trade-route-economy` / `trade-route-lifecycle` / `trade-caravan-system`; catalog lookups moved into `resource-definitions`; `trade-system.ts` deleted).
 - #1247 — route viewer-scoped tile reads through `getVisibility`/`isVisible`.

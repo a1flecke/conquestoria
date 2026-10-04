@@ -16,7 +16,7 @@ import { TRAINABLE_UNITS, foundCity } from '@/systems/city-system';
 import { prepareMajorCivStrategicPlan } from '@/ai/ai-prepared-turn';
 import { calculateCivResearchOutput } from '@/systems/research-output-system';
 import { simulateResearchQueueTiming } from '@/systems/tech-progression';
-import { NATIONAL_INTENT_POSTURE } from '@/ai/ai-national-intent';
+import { NATIONAL_INTENT_POSTURE } from '@/ai/ai-national-intent-posture';
 
 const neutral: PersonalityTraits = {
   traits: [],

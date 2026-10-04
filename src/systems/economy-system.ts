@@ -8,7 +8,7 @@ import type {
   UnitType,
 } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
-import { BUILDINGS, completeCityProductionItem, isBuildingObsolete, TRAINABLE_UNITS } from './city-system';
+import { BUILDINGS, isBuildingObsolete, TRAINABLE_UNITS } from './city-system';
 import { calculateProjectedCityYields } from './city-work-system';
 import { getLegendaryWonderCityYieldBonus, getLegendaryWonderCivYieldBonus } from './legendary-wonder-system';
 import { getNationalProjectCivYieldBonus } from './national-project-system';
@@ -16,7 +16,6 @@ import { processTradeRouteIncome } from './trade-route-economy';
 import { getClaimedTrophyGoldPerTurn } from './beast-system';
 import { getReligionTithesGold } from './religion-system';
 import { UNIT_DEFINITIONS } from './unit-definitions';
-import { announceUnitProduction, completeUnitProduction } from './unit-production-completion';
 import { resolveCivDefinition } from './civ-registry';
 import { getProductionCostForCivItem } from './production-cost-context';
 import { getCivHappinessFromResources } from './resource-acquisition-system';
@@ -195,10 +194,6 @@ export interface RushBuyQuote {
   message: string | null;
   status: EconomyProjection;
 }
-
-export type RushBuyResult =
-  | { success: true; state: GameState; itemId: string; label: string; cost: number }
-  | { success: false; state: GameState; reason: RushBuyDisabledReason; message: string };
 
 function getBuildingUpkeep(buildingId: string): number {
   if (ECONOMY_RULES.coreFreeBuildings.has(buildingId)) return 0;
@@ -621,7 +616,7 @@ export function calculateCivEconomy(
   };
 }
 
-function toResolvedEconomyStatus(result: EconomyProjection): EconomyStatus {
+export function toResolvedEconomyStatus(result: EconomyProjection): EconomyStatus {
   return {
     turn: result.turn,
     grossGoldIncome: result.grossGoldIncome,
@@ -756,84 +751,6 @@ export function getRushBuyQuote(
   }
 
   return { available: true, itemId, cost: rushCost, reason: null, message: null, status: ownerStatus };
-}
-
-export function rushBuyActiveProduction(
-  state: GameState,
-  civId: string,
-  cityId: string,
-  bus: EventBus,
-): RushBuyResult {
-  const quote = getRushBuyQuote(state, civId, cityId);
-  if (!quote.available || !quote.itemId) {
-    return {
-      success: false,
-      state,
-      reason: quote.reason ?? 'invalid-active-item',
-      message: quote.message ?? 'This production item cannot be bought.',
-    };
-  }
-
-  const city = state.cities[cityId];
-  const civ = state.civilizations[civId];
-  if (!city || !civ || city.owner !== civId) {
-    return { success: false, state, reason: 'not-owner', message: 'Only the owner can buy production.' };
-  }
-
-  const completion = completeCityProductionItem(city, quote.itemId);
-  const nextCiv = { ...civ, gold: civ.gold - quote.cost, units: [...civ.units] };
-  if (nextCiv.gold < 0) {
-    return { success: false, state, reason: 'not-enough-gold', message: `Not enough gold: need ${quote.cost}.` };
-  }
-  if (!completion.completedBuilding && !completion.completedUnit) {
-    return { success: false, state, reason: 'invalid-active-item', message: 'This production item cannot be bought.' };
-  }
-
-  let nextState: GameState = {
-    ...state,
-    idCounters: { ...state.idCounters },
-    cities: {
-      ...state.cities,
-      [cityId]: completion.city,
-    },
-    civilizations: {
-      ...state.civilizations,
-      [civId]: nextCiv,
-    },
-    units: { ...state.units },
-    espionage: state.espionage ? { ...state.espionage } : state.espionage,
-  };
-
-  if (completion.completedBuilding) {
-    bus.emit('city:building-complete', { cityId, buildingId: completion.completedBuilding });
-  }
-
-  if (completion.completedUnit) {
-    // #1202: the same completion the turn path runs, so a bought unit is not a second-class unit.
-    const made = completeUnitProduction(nextState, { civId, cityId, unitType: completion.completedUnit });
-    if (!made.ok) {
-      return { success: false, state, reason: 'invalid-active-item', message: 'This unit cannot be completed here right now.' };
-    }
-    nextState = made.state;
-    announceUnitProduction(bus, cityId, civId, made);
-  }
-
-  const status = calculateCivEconomy(nextState, civId);
-  nextState = {
-    ...nextState,
-    economyStatusByCiv: {
-      ...(nextState.economyStatusByCiv ?? {}),
-      [civId]: toResolvedEconomyStatus(status),
-    },
-  };
-
-  return {
-    success: true,
-    state: nextState,
-    itemId: quote.itemId,
-    label: getProductionLabel(quote.itemId),
-    cost: quote.cost,
-  };
 }
 
 export function formatGoldHudText(status: EconomyStatus | EconomyProjection, currentGold: number): string {

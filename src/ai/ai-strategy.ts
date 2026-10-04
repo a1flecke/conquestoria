@@ -1,6 +1,6 @@
 import type { PersonalityTraits, Tech, HexCoord } from '@/core/types';
 import { weightTechChoice, weightProductionChoice } from './ai-personality';
-import { NATIONAL_INTENT_POSTURE } from './ai-national-intent';
+import { NATIONAL_INTENT_POSTURE } from './ai-national-intent-posture';
 
 // #1087 Phase 0 audit: `chooseTech` has zero callers outside its own test file --
 // `ai-research.ts` calls `weightTechChoice` directly through its real candidate pipeline.

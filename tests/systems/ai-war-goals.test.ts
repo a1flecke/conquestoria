@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { chooseWarGoal } from '@/ai/ai-war-goals';
-import { NATIONAL_INTENT_POSTURE } from '@/ai/ai-national-intent';
-import type { NationalIntentPosture } from '@/ai/ai-national-intent';
+import { NATIONAL_INTENT_POSTURE } from '@/ai/ai-national-intent-posture';
+import type { NationalIntentPosture } from '@/ai/ai-national-intent-posture';
 
 /** A posture between the `'rival'` and ordinary dominate capture-bias
  * thresholds (#989), so the two can be told apart in a test. */

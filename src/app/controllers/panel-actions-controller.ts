@@ -106,7 +106,7 @@ import { createVictoryProgressPanel } from '@/ui/victory-progress-panel';
 import { projectDominationProgressForViewer } from '@/systems/domination-presentation';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { chooseCircularManufacturingMaterial } from '@/systems/national-project-system';
-import { rushBuyActiveProduction } from '@/systems/economy-system';
+import { rushBuyActiveProduction } from '@/systems/rush-buy-system';
 import { applyEmpireContainment, applyQuarantine, applyRemedy } from '@/systems/crisis-system';
 import { chooseEventChainOption } from '@/systems/event-chain-choices';
 import { parseEventChainCardId } from '@/systems/event-chain-presentation';

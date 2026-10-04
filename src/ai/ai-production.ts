@@ -34,7 +34,7 @@ import { getArsenalStatus } from '@/systems/strategic-arsenal-system';
 import type { AIForceDemand } from './ai-unit-assignment';
 import { getAIStrategicRoles } from './ai-unit-roles';
 import { weightProductionRoles } from './ai-personality';
-import { NATIONAL_INTENT_POSTURE } from './ai-national-intent';
+import { NATIONAL_INTENT_POSTURE } from './ai-national-intent-posture';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { getVisibility } from '@/systems/fog-of-war';
 import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';

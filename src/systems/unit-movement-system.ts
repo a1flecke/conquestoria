@@ -37,7 +37,7 @@ import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presenta
 import { isAtWar } from '@/systems/diplomacy-queries';
 import { buildUnitOccupancy, getUnitIdsAtCoord } from '@/systems/unit-occupancy';
 import { syncTransportCargoPositions } from '@/systems/transport-system';
-import { syncCarrierBasedAircraft } from '@/systems/air-operations-system';
+import { syncCarrierBasedAircraft } from '@/systems/air-base-state';
 import { buildMovePresentationByViewer } from '@/systems/viewer-event-presentation';
 import { removeUnits } from '@/systems/unit-removal-system';
 

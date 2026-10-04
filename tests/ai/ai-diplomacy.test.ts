@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { OPEN_BORDERS_PROPOSAL_MIN_RELATIONSHIP, evaluateDiplomacy, evaluateMinorCivDiplomacy, evaluateVassalage, evaluateEmbargoResponse, evaluateLeagueResponse } from '@/ai/ai-diplomacy';
 import { civilizationEraFromNumber } from '@/systems/era-types';
-import { NATIONAL_INTENT_POSTURE } from '@/ai/ai-national-intent';
+import { NATIONAL_INTENT_POSTURE } from '@/ai/ai-national-intent-posture';
 import type { PersonalityTraits, GameState, MinorCivState, DiplomacyState } from '@/core/types';
 import type { MilitaryStrengthEstimate } from '@/ai/ai-strength';
 

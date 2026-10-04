@@ -25,7 +25,7 @@ import type { AIForceDemand } from './ai-unit-assignment';
 import type { PreparedMajorCivPlan } from './ai-prepared-turn';
 import { evaluateAITechCapabilities, type AITechCapabilities } from './ai-tech-evaluation';
 import { weightTechChoice } from './ai-personality';
-import { NATIONAL_INTENT_POSTURE, type NationalIntentPosture } from './ai-national-intent';
+import { NATIONAL_INTENT_POSTURE, type NationalIntentPosture } from './ai-national-intent-posture';
 import { simulateResearchQueueTiming } from '@/systems/tech-progression';
 
 export interface AIResearchPlanningContext {

@@ -10,7 +10,7 @@
  * No RNG: ties are always broken by ascending city id.
  */
 import type { HexCoord } from '@/core/types';
-import type { NationalIntentPosture } from './ai-national-intent';
+import type { NationalIntentPosture } from './ai-national-intent-posture';
 import type { WarGoalKind } from '@/core/types';
 import { hexDistance } from '@/systems/hex-utils';
 
