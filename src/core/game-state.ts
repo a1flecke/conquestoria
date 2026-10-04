@@ -18,7 +18,7 @@ import { createEmptyPirateState } from '@/core/pirate-state';
 import { createNotificationLog } from '@/core/notification-log';
 import { getPlayableCivDefinitions, resolveCivDefinition } from '@/systems/civ-registry';
 import { createDiplomacyState } from '@/systems/diplomacy-state';
-import { createMarketplaceState } from '@/systems/trade-system';
+import { createMarketplaceState } from '@/systems/marketplace-system';
 import { placeWonders } from '@/systems/wonder-system';
 import { placeVillages } from '@/systems/village-system';
 import { placeBeastLairs } from '@/systems/beast-system';

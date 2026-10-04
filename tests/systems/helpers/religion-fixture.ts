@@ -1,6 +1,6 @@
 import type { City, GameState, HexCoord, HexTile } from '@/core/types';
 import { createDiplomacyState } from '@/systems/diplomacy-state';
-import { createMarketplaceState } from '@/systems/trade-system';
+import { createMarketplaceState } from '@/systems/marketplace-system';
 import { hexKey } from '@/systems/hex-utils';
 
 const LANDMASS = 'landmass-1';

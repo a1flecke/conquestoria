@@ -1,7 +1,7 @@
 import type { GameState } from '@/core/types';
 import { joinEmbargo, cleanupEmbargoes } from '@/systems/diplomacy-embargoes';
 import { processVassalageTurn } from '@/systems/diplomacy-vassalage';
-import { scrubStaleForeignRoutes, scrubEmbargoedRoutes } from '@/systems/trade-system';
+import { scrubStaleForeignRoutes, scrubEmbargoedRoutes } from '@/systems/trade-route-lifecycle';
 import { advanceRouteRunners } from '@/systems/unit-movement-system';
 import type { RoundPhase, RoundPhaseContext } from './types';
 

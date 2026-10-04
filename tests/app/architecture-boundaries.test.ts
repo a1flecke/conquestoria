@@ -877,7 +877,7 @@ describe('#1009 — espionage-system decomposition boundaries', () => {
     // previously pulled the turn into the city-capture/unit-movement component.
     const turn = importsOf('espionage-turn.ts');
     expect(turn).toContain('city-capture-system');
-    expect(turn).toContain('trade-system');
+    expect(turn).toContain('trade-route-lifecycle');
     for (const consumer of ['espionage-stealth.ts', 'detection-system.ts']) {
       expect(importsOf(consumer), `${consumer} must import the leaf`).toContain('spy-unit-types');
       expect(importsOf(consumer), `${consumer} must not import the barrel`).not.toContain('espionage-system');
@@ -1471,7 +1471,7 @@ describe('#1200 — the consequences of a kill belong to the shared combat outco
       'src/systems/combat-reward-system.ts',
       'src/systems/threat-pressure-system.ts',
     ]);
-    // trade-system defines it and unit-movement/etc. never call it for a fight; nothing else may name it.
+    // trade-route-lifecycle defines it and unit-movement/etc. never call it for a fight; nothing else may name it.
     expect(filesMentioning('removeRouteForUnit').filter(file => EXECUTORS.includes(file))).toEqual([]);
   });
 

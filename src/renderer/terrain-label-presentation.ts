@@ -1,6 +1,6 @@
 import type { GameState, HexCoord } from '@/core/types';
 import { getVisibility } from '@/systems/fog-of-war';
-import { RESOURCE_TECH } from '@/systems/trade-system';
+import { RESOURCE_TECH } from '@/systems/resource-definitions';
 import { resolveTilePresentationForViewer } from '@/renderer/tile-presentation';
 
 export interface TerrainLabelSuppressionOptions {

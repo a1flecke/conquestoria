@@ -11,7 +11,7 @@ import {
   guaranteeStartResources,
   getWonderRequiredResourceIds,
 } from '@/systems/map-generator';
-import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
+import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 import type { GameMap, HexCoord, HexTile, ResourceType, TerrainType } from '@/core/types';
 import { getWrappedHexesInRange, hexKey } from '@/systems/hex-utils';
 

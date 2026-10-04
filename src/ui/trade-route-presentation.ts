@@ -1,5 +1,5 @@
 import type { GameState, TradeRoute, City } from '@/core/types';
-import { getEffectiveGoldPerTurn, getRouteCapacity, getRouteTechGoldBonus } from '@/systems/trade-system';
+import { getEffectiveGoldPerTurn, getRouteCapacity, getRouteTechGoldBonus } from '@/systems/trade-route-economy';
 
 // Trade Routes Overhaul (#553 MR4/4) — shared route-list rendering, extracted from
 // marketplace-panel.ts's original inline buildRouteListSection so the Marketplace panel

@@ -41,7 +41,7 @@ import { DEFAULT_WORKER_CHARGES, getWorkerChargesRemaining } from '@/systems/wor
 import { getRoadBlockerReason, formatRoadBlockerReason } from '@/systems/road-system';
 import { hexDistance, hexKey } from '@/systems/hex-utils';
 import { canFoundCityAt, formatCityFoundingBlockerMessage, getCityFoundingBlockers } from '@/systems/city-territory-system';
-import { resolveFromCity } from '@/systems/trade-system';
+import { resolveFromCity } from '@/systems/trade-caravan-system';
 import { hasAITradeRole } from '@/ai/ai-unit-roles';
 import { canEstablishOutpost, getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { getTransportCargo, getTransportCapacity, getTransportCargoUsed } from '@/systems/transport-system';

@@ -4,7 +4,7 @@
  * "this group has no cycles" or "only these modules import X". See `rule-engine.ts` for semantics and
  * `.claude/rules/caller-discipline.md` for when to use it.
  *
- * Migrated so far: #1012 (crisis-system decomposition). New since: #1246 (faction-system decomposition). Other `architecture-boundaries.test.ts`
+ * Migrated so far: #1012 (crisis-system decomposition). New since: #1246 (faction-system decomposition), #1249 (trade-system decomposition). Other `architecture-boundaries.test.ts`
  * blocks still hold their own checks and move here one block at a time.
  */
 import type { ArchitectureRule } from './rule-engine';
@@ -38,6 +38,19 @@ const FACTION_MODULES = [
   `${S}/faction-system`,
 ] as const;
 const FACTION_ABOVE = (...names: string[]): string[] => names.map(name => `${S}/faction-${name}`);
+
+/**
+ * The #1249 trade family (trade-system.ts was split and deleted; there is no barrel). Layering:
+ *   resource-definitions (the catalog + its derived lookup tables; imports no system module)
+ *   marketplace-system | trade-route-economy | trade-route-lifecycle   (independent siblings)
+ *   trade-caravan-system (establishes a route; reads the other three)
+ */
+const TRADE_MODULES = [
+  `${S}/marketplace-system`,
+  `${S}/trade-route-economy`,
+  `${S}/trade-route-lifecycle`,
+  `${S}/trade-caravan-system`,
+] as const;
 
 export const ARCHITECTURE_RULES: readonly ArchitectureRule[] = [
   {
@@ -167,5 +180,45 @@ export const ARCHITECTURE_RULES: readonly ArchitectureRule[] = [
     to: FACTION_ABOVE('federalism', 'relief', 'pressure', 'commands', 'system'),
     edges: 'all',
     why: 'faction-pressure imports religion-loyalty (foreign-faith pressure); religion-loyalty may only read the faction model leaf, or the #1246 cycle break is undone.',
+  },
+
+  {
+    id: 'resource-catalog-is-a-leaf',
+    kind: 'forbidden-import',
+    from: `${S}/resource-definitions`,
+    to: ['src/systems/**', 'src/ui/**', 'src/app/**', 'src/renderer/**'],
+    edges: 'all',
+    why: 'The resource catalog and its derived tables (BASE_PRICES, RESOURCE_ICONS, RESOURCE_TECH) are data every layer reads; a system or UI dependency would make renderers and map generation depend on trade logic again.',
+  },
+  {
+    id: 'trade-siblings-are-independent',
+    kind: 'forbidden-import',
+    from: [`${S}/marketplace-system`, `${S}/trade-route-economy`, `${S}/trade-route-lifecycle`],
+    to: TRADE_MODULES,
+    edges: 'all',
+    why: 'Pricing, route value and route lifecycle are three separate questions; only the caravan module composes them, so none may reach a sibling (or the caravan module above them).',
+  },
+  {
+    id: 'trade-modules-not-in-presentation-layers',
+    kind: 'forbidden-import',
+    from: TRADE_MODULES,
+    to: ['src/ui/**', 'src/app/**', 'src/renderer/**', 'src/presentation/**', 'src/input/**'],
+    edges: 'all',
+    why: 'Trade rules are simulation: presentation depends on them, never the reverse.',
+  },
+  {
+    id: 'renderer-reads-resources-from-the-catalog',
+    kind: 'forbidden-import',
+    from: 'src/renderer/**',
+    to: [...TRADE_MODULES, `${S}/trade-route-classification`, `${S}/quest-aware-trade-system`],
+    edges: 'all',
+    why: 'The map renderer needs resource icons and reveal techs, which are catalog data; it must not depend on any trade logic module to get them (the pre-#1249 system barrel did exactly that).',
+  },
+  {
+    id: 'trade-modules-acyclic',
+    kind: 'acyclic-group',
+    members: TRADE_MODULES,
+    edges: 'all',
+    why: 'The sibling-then-caravan layering is only real if no cycle lets a lower trade module reach a higher one.',
   },
 ];

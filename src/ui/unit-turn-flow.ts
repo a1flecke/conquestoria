@@ -3,7 +3,7 @@ import type { GameState, HexCoord } from '@/core/types';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { getUnmovedUnitsForEndTurn, removePlayerUnitFromState, skipUnitInState } from '@/systems/unit-lifecycle-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
-import { getEffectiveGoldPerTurn, getRouteTechGoldBonus } from '@/systems/trade-system';
+import { getEffectiveGoldPerTurn, getRouteTechGoldBonus } from '@/systems/trade-route-economy';
 import { createEndTurnWarningPanel } from '@/ui/end-turn-warning-panel';
 import { createUnitDeleteConfirmationPanel } from '@/ui/unit-delete-confirmation-panel';
 

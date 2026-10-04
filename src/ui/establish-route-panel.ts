@@ -1,10 +1,6 @@
 import type { City, GameState } from '@/core/types';
-import {
-  resolveFromCity,
-  canEstablishRoute,
-  getTradeUnitTripBonus,
-  calculateTradeRouteGold,
-} from '@/systems/trade-system';
+import { resolveFromCity, canEstablishRoute } from '@/systems/trade-caravan-system';
+import { getTradeUnitTripBonus, calculateTradeRouteGold } from '@/systems/trade-route-economy';
 import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import { createGameButton } from '@/ui/ui-kit';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';

@@ -16,7 +16,7 @@ import { isMinorCivAtWar } from '@/systems/minor-civ-diplomacy';
 import { getNextCouncilCallback, markCouncilCallbackDelivered } from '@/systems/council-memory';
 import { getIdleCityIds, needsResearchChoice } from '@/systems/planning-system';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
-import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
+import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 import { getPirateWatersPresentation } from '@/systems/pirate-presentation';
 import { getPirateTributeQuote } from '@/systems/pirate-actions';
 import { getMinorCivLeaguesForPlayer } from '@/systems/minor-civ-league-presentation';

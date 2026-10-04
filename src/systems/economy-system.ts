@@ -12,7 +12,7 @@ import { BUILDINGS, completeCityProductionItem, isBuildingObsolete, TRAINABLE_UN
 import { calculateProjectedCityYields } from './city-work-system';
 import { getLegendaryWonderCityYieldBonus, getLegendaryWonderCivYieldBonus } from './legendary-wonder-system';
 import { getNationalProjectCivYieldBonus } from './national-project-system';
-import { processTradeRouteIncome } from './trade-system';
+import { processTradeRouteIncome } from './trade-route-economy';
 import { getClaimedTrophyGoldPerTurn } from './beast-system';
 import { getReligionTithesGold } from './religion-system';
 import { UNIT_DEFINITIONS } from './unit-definitions';

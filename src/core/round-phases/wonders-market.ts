@@ -1,5 +1,5 @@
 import type { GameState } from '@/core/types';
-import { processFashionCycle, updatePrices } from '@/systems/trade-system';
+import { processFashionCycle, updatePrices } from '@/systems/marketplace-system';
 import { processWonderEffects } from '@/systems/wonder-system';
 import { createRng } from '@/systems/map-generator';
 import { createSimulationRng } from '@/systems/simulation-rng';

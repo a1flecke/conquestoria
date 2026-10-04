@@ -5,7 +5,7 @@ import { getHorizontalWrapRenderCoords, nearestWrappedCoord } from './wrap-rende
 import { shouldRenderOwnedTileBorder, shouldRenderOwnedTileBorderForPresentation } from './render-visibility';
 import { resolveTilePresentationForViewer, type TilePresentationKind } from './tile-presentation';
 import { drawNaturalWonderLandmark } from './wonders/natural-wonder-renderer';
-import { RESOURCE_ICONS, RESOURCE_TECH } from '@/systems/trade-system';
+import { RESOURCE_ICONS, RESOURCE_TECH } from '@/systems/resource-definitions';
 import { LOD_SPRITE_ZOOM_THRESHOLD } from '@/renderer/sprites/sprite-system';
 import { getOutpostMarkerImage } from './improvements/resource-outpost-marker';
 import { getRailSegmentImage } from './improvements/rail-segment-loader';

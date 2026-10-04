@@ -1,5 +1,5 @@
 import type { GameState } from '@/core/types';
-import { processTradeRouteIncome } from '@/systems/trade-system';
+import { processTradeRouteIncome } from '@/systems/trade-route-economy';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import type { RoundPhase, RoundPhaseContext } from './types';
 

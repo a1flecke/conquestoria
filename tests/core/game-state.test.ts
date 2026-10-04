@@ -1,7 +1,7 @@
 import { createNewGame, createHotSeatGame, createDefaultSettings, MAP_DIMENSIONS } from '@/core/game-state';
 import type { CustomCivDefinition, GameState, HexCoord, HotSeatConfig, MapScript, ResourceType } from '@/core/types';
 import { getMinimumStartDistance, getStartPositionDistance } from '@/systems/map-generator';
-import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
+import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 import { getWrappedHexesInRange, hexKey } from '@/systems/hex-utils';
 
 const customCiv: CustomCivDefinition = {

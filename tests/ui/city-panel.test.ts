@@ -10,7 +10,7 @@ import { buildProductionCostContext, getProductionCostForCivItem } from '@/syste
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { hexKey, hexNeighbors } from '@/systems/hex-utils';
 import { TECH_TREE } from '@/systems/tech-definitions';
-import { createMarketplaceState } from '@/systems/trade-system';
+import { createMarketplaceState } from '@/systems/marketplace-system';
 import { collectText, makeWonderPanelFixture } from './helpers/wonder-panel-fixture';
 import type { City, HexCoord, ResourceType } from '@/core/types';
 

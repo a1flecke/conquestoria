@@ -12,7 +12,9 @@ import {
 } from '@/systems/city-production-presentation';
 import { getQueueableProductionForCity } from '@/systems/city-production-eligibility';
 import { getCivAvailableResources, getCivHappinessFromResources } from '@/systems/resource-acquisition-system';
-import { RESOURCE_DEFINITIONS, getRouteCapacity, resolveFromCity } from '@/systems/trade-system';
+import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
+import { resolveFromCity } from '@/systems/trade-caravan-system';
+import { getRouteCapacity } from '@/systems/trade-route-economy';
 import { getResourceEffectLabel } from '@/systems/resource-definitions';
 import { getResourceAdvantagesForItem, getResourceAdvantageMultiplier } from '@/systems/resource-advantages';
 import { SESSION_SHOWN_TIPS } from '@/ui/advisor-system';

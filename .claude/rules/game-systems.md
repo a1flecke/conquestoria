@@ -179,6 +179,20 @@ The barrel exports only cross-domain commands. A new module must be added to the
 
 A new unrest source or relief rung goes in `faction-relief` (register it per `game-balance.md`'s Unrest Relief Inventory); a new pressure row in `faction-pressure`; a new instant action in `faction-commands`. Do not re-export any of them from `faction-system.ts`.
 
+### Trade module map (#1249)
+
+`trade-system.ts` no longer exists — there is no barrel; import the module that owns what you need (layering pinned by the `trade-*` / `resource-catalog` rules in `tests/app/architecture/rules.ts`, exports by `tests/systems/trade-modules.test.ts`):
+
+| Module | Owns |
+|---|---|
+| `resource-definitions` | The resource catalog **and** its derived lookups (`BASE_PRICES`, `RESOURCE_ICONS`, `RESOURCE_TECH`). Imports no system module; renderers and panels read resource facts here. |
+| `marketplace-system` | `createMarketplaceState`, pricing, monopoly, supply/demand updates, the fashion cycle. Knows nothing about routes. |
+| `trade-route-economy` | What a route is worth and how many a city may hold: per-trip gold, tech/network bonus, capacity, trip bonus, `processTradeRouteIncome`. Pure queries. |
+| `trade-route-lifecycle` | How a route ends and stays valid: `removeRouteById`, `removeRouteForUnit`, `scrubStaleForeignRoutes`, `scrubEmbargoedRoutes` (all return a new state; none mutates its input) and `getRouteDiplomacy`, the one diplomacy read both establishment and the scrub consult. |
+| `trade-caravan-system` | Turning a caravan into a route: `resolveFromCity`, `canEstablishRoute`, `establishRoute`. The only module that composes the three above. |
+
+A new route rule goes in the module for its question; a new resource lookup derived from the catalog goes in `resource-definitions`. Do not re-create a trade barrel.
+
 ## Domination authority
 
 - `domination-sovereignty.ts` and `victory-system.ts` are authoritative world

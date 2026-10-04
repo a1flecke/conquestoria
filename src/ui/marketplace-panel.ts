@@ -1,5 +1,5 @@
 import type { GameState, ResourceType } from '@/core/types';
-import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
+import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 import { getCivAvailableResources, canBuyResourceAccess, getResourceAccessCost } from '@/systems/resource-acquisition-system';
 import { isAtWar } from '@/systems/diplomacy-queries';
 import { resolveCivDefinition } from '@/systems/civ-registry';

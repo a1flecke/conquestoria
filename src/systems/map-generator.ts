@@ -8,7 +8,7 @@ import {
   wrappedHexDistance,
 } from './hex-utils';
 import { generateRivers, applyRiversToMap } from './river-system';
-import { RESOURCE_DEFINITIONS } from './trade-system';
+import { RESOURCE_DEFINITIONS } from './resource-definitions';
 import { LEGENDARY_WONDER_DEFINITIONS } from './legendary-wonder-definitions';
 // Geo data imports — populated by `yarn generate-maps`. Placeholder empty exports are safe.
 import { EARTH_START_POSITIONS } from './earth-map-data';

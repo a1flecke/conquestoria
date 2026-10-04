@@ -73,3 +73,17 @@ export const RESOURCE_DEFINITIONS: ResourceDefinition[] = [
   { id: 'rare-earth-elements', name: 'Rare Earth Elements', type: 'strategic', terrain: ['hills', 'desert'], basePrice: 14, tech: 'nanomaterials', icon: '🧲', requiredImprovement: 'mine', effect: { type: 'science', amount: 1 }, materialFamily: 'rare-earth', codex: { summary: 'A family of seventeen elements used in magnets, sensors, and advanced electronics.' } },
   { id: 'battery-minerals', name: 'Battery Minerals', type: 'strategic', terrain: ['hills', 'desert', 'plains'], basePrice: 13, tech: 'smart-cities', icon: '🔋', requiredImprovement: 'mine', effect: { type: 'production', amount: 1 }, materialFamily: 'battery', codex: { summary: 'Lithium, nickel, cobalt, graphite, and related materials abstracted for energy storage.' } },
 ];
+
+// Lookup tables derived from the catalog above. They lived in trade-system.ts (#1249 moved them to
+// the catalog's owner so renderers and panels read resource facts from data, not a system module).
+export const BASE_PRICES: Record<string, number> = {};
+for (const r of RESOURCE_DEFINITIONS) {
+  BASE_PRICES[r.id] = r.basePrice;
+}
+
+export const RESOURCE_ICONS: Record<string, string> = {};
+export const RESOURCE_TECH: Record<string, string> = {};
+for (const r of RESOURCE_DEFINITIONS) {
+  RESOURCE_ICONS[r.id] = r.icon;
+  RESOURCE_TECH[r.id] = r.tech;
+}

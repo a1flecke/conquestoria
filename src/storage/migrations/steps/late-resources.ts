@@ -1,7 +1,7 @@
 import type { GameState } from '@/core/types';
 import { createRng } from '@/systems/map-generator';
 import { placeLateResources } from '@/systems/late-resource-placement';
-import { createMarketplaceState } from '@/systems/trade-system';
+import { createMarketplaceState } from '@/systems/marketplace-system';
 import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
 import { stableLegacyGameId } from './tech-identity';
 
