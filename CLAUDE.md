@@ -57,6 +57,7 @@ Detailed rules live in `.claude/rules/` and auto-apply based on the files you ed
 - `.claude/rules/spec-fidelity.md` — spec conjunctions, gating preservation, visible-UI contract preservation, and the **plan/spec lifecycle**: delivered plans are deleted in the PR that completes them, every surviving plan/spec is classified in `docs/docs-lifecycle-manifest.json`
 - `.claude/rules/incremental-mr-completion.md` — partial-MR PR title/body requirements and dead-end UX prevention
 - `.claude/rules/hooks-and-tooling.md` — hook stdin/jq contract, exit codes, and required smoke tests; **shared-host launch/stop of verification runs (never `pkill`/`killall`)** and **PR bodies in `/tmp/pr-bodies`**
+- `.claude/rules/input-reliability.md` — one semantic activation event, promise-owned single-flight mutations and busy UI, event-time touch classification, and outcome-driven Playwright actions
 - `.claude/rules/action-contracts.md` — one legality source per action family: previews/AI consume it, executors re-run it, typed denials; links the audited inventory
 - `.claude/rules/movement-actions.md` — the worked example: `resolveUnitMoveIntent` → `ValidatedUnitMove` → `executeValidatedUnitMove`
 - `.claude/rules/opencode-config.md` — the OpenCode approver plugin and `~/.config/opencode`: who may edit it, releases live in `plugin-releases/` (never `plugins/`, which is auto-loaded), the verified upgrade + idle-restart procedure, and what may be added to `trustedScripts` (never `run-with-mise.sh`)

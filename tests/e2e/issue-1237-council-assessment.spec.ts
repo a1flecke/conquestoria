@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
+import { openPrimaryPanel } from './helpers/primary-action-bar';
 
 // #1237: the Council shows the empire assessment, and every button it renders reaches a working panel.
 // The crowded-map save has one city; it is made to starve (its land turned to desert) and the civ is
@@ -44,23 +45,12 @@ async function continueFixture(page: Page): Promise<void> {
   await expect(continueButton).toBeHidden();
 }
 
-// The Council button toggles the panel and the HUD can still be settling right after Continue
-// Campaign: click only while the panel is absent, and retry until it is up.
-async function openCouncil(page: Page): Promise<void> {
-  await expect(async () => {
-    if (await page.locator('#council-panel').count() === 0) {
-      await page.getByRole('button', { name: /Council/ }).first().click();
-    }
-    await expect(page.locator('#council-panel')).toBeVisible({ timeout: 1000 });
-  }).toPass({ timeout: 15_000 });
-}
-
 test('Council names the starving city and its button opens that city', async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1280, height: 900 });
   await installFixture(page);
   await continueFixture(page);
-  await openCouncil(page);
+  await openPrimaryPanel(page, 'Council', '#council-panel');
 
   const council = page.locator('#council-panel');
   await expect(council).toContainText('Feed Alexandria Metropolitan Works');

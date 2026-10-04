@@ -246,6 +246,7 @@ If you touch files in these areas, read the matching rule file before editing:
 - `docs/superpowers/specs/**`, `docs/superpowers/plans/**`, or any spec-driven implementation -> `.claude/rules/spec-fidelity.md`
 - `src/**` or `docs/superpowers/**` for partial MR/slice work -> `.claude/rules/incremental-mr-completion.md`
 - `.claude/**` or `tests/hooks/**` -> `.claude/rules/hooks-and-tooling.md`
+- `src/input/**`, primary action controls/controllers, or `tests/e2e/**` interaction helpers -> `.claude/rules/input-reliability.md`
 - `src/renderer/sprites/**` -> `.claude/rules/sprites.md`
 
 Use `CLAUDE.md` for repo-wide architecture, command, and gameplay conventions.

@@ -243,6 +243,36 @@ describe('createTurnFlowController', () => {
   });
 
   describe('endTurn — solo mode', () => {
+    it('coalesces concurrent requests into one turn and accepts a new request after settlement', async () => {
+      const state = makeFixture();
+      const startingTurn = state.turn;
+      const deps = baseDeps(state);
+      let releaseSave!: () => void;
+      const pendingSave = new Promise<void>(resolveSave => {
+        releaseSave = resolveSave;
+      });
+      vi.mocked(saveManager.autoSave).mockImplementation(() => pendingSave);
+      const turnFlow = createTurnFlowController(deps);
+
+      const first = turnFlow.endTurn({ allowUnmovedUnits: true });
+      const second = turnFlow.endTurn({ allowUnmovedUnits: true });
+      const sharedTheSameFlight = second === first;
+
+      releaseSave();
+      await Promise.all([first, second]);
+
+      expect(sharedTheSameFlight).toBe(true);
+      expect(saveManager.autoSave).toHaveBeenCalledTimes(1);
+      expect(deps.session.getState().turn).toBe(startingTurn + 1);
+
+      const later = turnFlow.endTurn({ allowUnmovedUnits: true });
+      expect(later).not.toBe(first);
+      await later;
+
+      expect(saveManager.autoSave).toHaveBeenCalledTimes(2);
+      expect(deps.session.getState().turn).toBe(startingTurn + 2);
+    });
+
     it('runs the completed round, replays AI moves, then refreshes, then opens required choices, in order', async () => {
       const state = makeFixture();
       const order: string[] = [];
