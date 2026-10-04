@@ -424,16 +424,32 @@ describe('MR6: tradeRoutePercent (finance-capitalism)', () => {
   });
 });
 
-describe('MR6: empireFlat (e.g. decolonization)', () => {
+describe('MR6: empireFlat (synthetic rows since #1305)', () => {
+  // #1305 moved the last shipped empireFlat techs to conditional effects; the kind stays as vocabulary.
+  const rows: typeof TECH_YIELD_MODIFIERS = [
+    { techId: 'decolonization', label: 'synthetic +2 gold', effect: { kind: 'empireFlat', yields: { gold: 2 } } },
+    { techId: 'international-institutions', label: 'synthetic +1 gold +1 science', effect: { kind: 'empireFlat', yields: { gold: 1, science: 1 } } },
+  ];
+
   it('returns the flat civ-total yields once, not per city', () => {
-    expect(getEmpireFlatTechYields(['decolonization']).gold).toBe(2);
-    expect(getEmpireFlatTechYields([]).gold).toBe(0);
+    withSyntheticModifiers(rows, () => {
+      expect(getEmpireFlatTechYields(['decolonization']).gold).toBe(2);
+      expect(getEmpireFlatTechYields([]).gold).toBe(0);
+    });
   });
 
   it('sums multiple empireFlat techs', () => {
-    const yields = getEmpireFlatTechYields(['decolonization', 'international-institutions']);
+    const yields = withSyntheticModifiers(rows, () => getEmpireFlatTechYields(['decolonization', 'international-institutions']));
     expect(yields.gold).toBe(3);
     expect(yields.science).toBe(1);
+  });
+
+  it('no shipped tech through Era 11 grants an unconditional empireFlat or cityFlat yield (#1305)', () => {
+    const flat = TECH_YIELD_MODIFIERS
+      .filter(m => m.effect.kind === 'empireFlat' || m.effect.kind === 'cityFlat')
+      .map(m => m.techId)
+      .filter(id => (TECH_TREE.find(t => t.id === id)?.era ?? 99) <= 11);
+    expect(flat).toEqual([]);
   });
 });
 

@@ -14,7 +14,7 @@ const ERA_11_TECHS: Tech[] = [
   // ECONOMY (2)
   { id: 'stagflation-response', name: 'Stagflation Response', track: 'economy', cost: 1360,
     prerequisites: ['keynesian-economics', 'consumer-boom'],
-    unlocks: ['+3 gold all cities; oil shocks and stagflation force monetary discipline and structural economic reform'], era: 11 },
+    unlocks: ['-20% upkeep in cities with 8 or more constructions; oil shocks and stagflation force monetary discipline and structural economic reform'], era: 11 },
   { id: 'petrodollar-system', name: 'Petrodollar System', track: 'economy', cost: 1360,
     prerequisites: ['consumer-boom', 'highway-network'],
     unlocks: ['+2 gold per trade route empire-wide; oil-denominated exchange anchors the global financial system'], era: 11 },
@@ -26,17 +26,17 @@ const ERA_11_TECHS: Tech[] = [
     unlocksBuildings: ['semiconductor_fab'], era: 11 },
   { id: 'molecular-biology', name: 'Molecular Biology', track: 'science', cost: 1360,
     prerequisites: ['nuclear-physics', 'penicillin'],
-    unlocks: ['+2 science empire-wide; the double helix unlocks breakthroughs in medicine, agriculture, and materials science'],
+    unlocks: ['+2 science in cities with a genetic research lab; the double helix unlocks breakthroughs in medicine, agriculture, and materials science'],
     unlocksBuildings: ['genetic_research_lab'], era: 11 },
 
   // CIVICS (2)
   { id: 'arms-control-negotiations', name: 'Arms Control Negotiations', track: 'civics', cost: 1360,
     prerequisites: ['decolonization', 'international-institutions'],
-    unlocks: ['+5 gold empire-wide; superpowers agree to arsenal limits, opening a decade of diplomatic thaw'],
+    unlocks: ['+1 gold per distinct peacetime trade-route partner civilization; superpowers agree to arsenal limits, opening a decade of diplomatic thaw'],
     unlocksBuildings: ['arms_control_treaty'], era: 11 },
   { id: 'civil-rights-legislation', name: 'Civil Rights Legislation', track: 'civics', cost: 1885,
     prerequisites: ['human-rights-framework', 'universal-healthcare'],
-    unlocks: ['+2 food all cities; equal rights movements reshape democratic societies and expand civic participation'],
+    unlocks: ['+2 food in developed cities (10 or more constructions); equal rights movements reshape democratic societies and expand civic participation'],
     unlocksBuildings: ['environmental_agency'], era: 11 },
 
   // EXPLORATION (2)
@@ -46,7 +46,7 @@ const ERA_11_TECHS: Tech[] = [
     unlocksBuildings: ['space_center', 'first_satellite_launch'], era: 11 },
   { id: 'deep-sea-drilling', name: 'Deep-Sea Drilling', track: 'exploration', cost: 1360,
     prerequisites: ['polar-operations', 'synthetic-polymers'],
-    unlocks: ['+1 food +2 gold empire-wide; engineering platforms tap oil and mineral reserves on the ocean floor'], era: 11 },
+    unlocks: ['+1 gold and +1 production on worked ocean tiles; engineering platforms tap oil and mineral reserves on the ocean floor'], era: 11 },
 
   // AGRICULTURE (2)
   { id: 'green-revolution-crops', name: 'Green Revolution Crops', track: 'agriculture', cost: 1360,
@@ -55,7 +55,7 @@ const ERA_11_TECHS: Tech[] = [
     unlocksBuildings: ['agricultural_station', 'green_revolution_program'], era: 11 },
   { id: 'aquaculture', name: 'Aquaculture', track: 'agriculture', cost: 1360,
     prerequisites: ['mechanized-agriculture', 'polar-operations'],
-    unlocks: ['+2 food all cities; fish farming and mariculture extend food supply beyond natural ocean stocks'], era: 11 },
+    unlocks: ['+1 food on worked coast and ocean tiles; fish farming and mariculture extend food supply beyond natural ocean stocks'], era: 11 },
 
   // MEDICINE (2)
   { id: 'organ-transplantation', name: 'Organ Transplantation', track: 'medicine', cost: 1745,
@@ -64,12 +64,12 @@ const ERA_11_TECHS: Tech[] = [
     unlocksBuildings: ['transplant_hospital'], era: 11 },
   { id: 'vaccination-campaigns', name: 'Vaccination Campaigns', track: 'medicine', cost: 1360,
     prerequisites: ['universal-healthcare', 'liberation-theology'],
-    unlocks: ['+2 food all cities; mass immunization eliminates ancient diseases and raises life expectancy globally'], era: 11 },
+    unlocks: ['+2 food in cities with a sanatorium; mass immunization eliminates ancient diseases and raises life expectancy globally'], era: 11 },
 
   // PHILOSOPHY (2)
   { id: 'structuralism', name: 'Structuralism', track: 'philosophy', cost: 1360,
     prerequisites: ['post-colonial-theory', 'human-rights-framework'],
-    unlocks: ['+2 science empire-wide; systematic analysis reveals hidden patterns in language, culture, and society'], era: 11 },
+    unlocks: ['+2 science in cities with a natural history museum; systematic analysis reveals hidden patterns in language, culture, and society'], era: 11 },
   { id: 'postmodernism', name: 'Postmodernism', track: 'philosophy', cost: 1210,
     prerequisites: ['post-colonial-theory', 'abstract-expressionism'],
     unlocks: ['+1 gold per culture building empire-wide; suspicion of grand narratives opens space for pluralism and cultural diversity'], era: 11 },
@@ -99,7 +99,7 @@ const ERA_11_TECHS: Tech[] = [
   // METALLURGY (2)
   { id: 'carbon-fiber', name: 'Carbon Fibre', track: 'metallurgy', cost: 1260,
     prerequisites: ['titanium-processing', 'synthetic-polymers'],
-    unlocks: ['+2 strength all military units; lightweight carbon composite forges stronger aircraft frames and armored vehicles'], era: 11 },
+    unlocks: ['+2 strength air and armored units; lightweight carbon composite forges stronger aircraft frames and armored vehicles'], era: 11 },
   { id: 'precision-engineering', name: 'Precision Engineering', track: 'metallurgy', cost: 2725,
     prerequisites: ['titanium-processing', 'electronic-computing'],
     unlocks: ['+2 production in cities with a factory; computer-controlled machining achieves tolerances impossible by hand'], unlocksUnits: ['main_battle_tank'], era: 11 },
@@ -107,10 +107,10 @@ const ERA_11_TECHS: Tech[] = [
   // CONSTRUCTION (2)
   { id: 'megastructures', name: 'Megastructures', track: 'construction', cost: 1360,
     prerequisites: ['nuclear-power', 'highway-network'],
-    unlocks: ['+2 production all cities; precast concrete enables monolithic civic megaprojects and modular housing at unprecedented scale'], era: 11 },
+    unlocks: ['+2 production in cities with a power station; precast concrete enables monolithic civic megaprojects and modular housing at unprecedented scale'], era: 11 },
   { id: 'offshore-platforms', name: 'Offshore Platforms', track: 'construction', cost: 1360,
     prerequisites: ['nuclear-power', 'polar-operations'],
-    unlocks: ['+2 gold +1 production empire-wide; fixed drilling platforms transform shallow-sea resource extraction into industrial-scale operations'], era: 11 },
+    unlocks: ['+2 gold and +1 production in coastal cities with a harbor; fixed drilling platforms transform shallow-sea resource extraction into industrial-scale operations'], era: 11 },
 
   // COMMUNICATION (2)
   { id: 'arpanet', name: 'ARPANET', track: 'communication', cost: 1360,
@@ -128,12 +128,12 @@ const ERA_11_TECHS: Tech[] = [
     unlocksBuildings: ['surveillance_agency'], era: 11 },
   { id: 'black-ops-programs', name: 'Black Ops Programs', track: 'espionage', cost: 1360,
     prerequisites: ['cold-war-networks', 'signals-intelligence'],
-    unlocks: ['+2 gold empire-wide; intelligence agencies fund coups, sabotage, and proxy conflicts across the world'], era: 11 },
+    unlocks: ['+2 gold in cities with an intelligence agency; intelligence agencies fund coups, sabotage, and proxy conflicts across the world'], era: 11 },
 
   // SPIRITUALITY (2)
   { id: 'ecumenical-movement', name: 'Ecumenical Movement', track: 'spirituality', cost: 1360,
     prerequisites: ['liberation-theology', 'interfaith-council'],
-    unlocks: ['+1 science +1 food empire-wide; Christian and inter-faith reconciliation movements build civic bridges across traditions'], era: 11 },
+    unlocks: ['+1 science and +1 food in cities with both a temple and a monastery; Christian and inter-faith reconciliation movements build civic bridges across traditions'], era: 11 },
   { id: 'new-age-spirituality', name: 'New Age Spirituality', track: 'spirituality', cost: 1360,
     prerequisites: ['interfaith-council', 'rock-and-roll'],
     unlocks: ['+2 gold in cities with a temple or monastery; eastern philosophy and nature mysticism enter western popular culture'], era: 11 },

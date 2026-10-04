@@ -14,19 +14,12 @@ const replace = (child: TechAuditEntry['child'], candidate: string, note: string
   ({ cls: 'REPLACE', rating: 1, note, candidate, child });
 const tune = (child: TechAuditEntry['child'], candidate: string, note: string): TechAuditEntry =>
   ({ cls: 'TUNE', rating: 2, note, candidate, child });
-const wire = (child: TechAuditEntry['child'], candidate: string, note: string, textFix = false): TechAuditEntry =>
-  ({ cls: 'WIRE', rating: 1, note, candidate, textFix, child });
 const keep = (rating: TechAuditEntry['rating'], note: string, child: TechAuditEntry['child'] = 0): TechAuditEntry =>
   ({ cls: 'KEEP', rating, note, child });
 
 
-const REP_FARM = 'Farm/food niche repeats on seven techs; each should answer a different question.';
 const REP_ROUTE = 'Per-route gold repeats on four techs; split by route type or partner count.';
 const REP_CULTURE = 'Culture-building gold repeats on six techs across five eras.';
-const REP_MARKET = 'Marketplace gold repeats on three techs.';
-const REP_FAITH = 'Temple/monastery science repeats on three techs.';
-const REP_MEDIA = 'Film/radio gold repeats on three techs.';
-const REP_LAB = 'research_institute science repeats on four techs.';
 
 const followUp = (child: TechAuditEntry['child'], note: string, issue: string): TechAuditEntry =>
   ({ cls: 'FOLLOW-UP', rating: 1, note, followUp: issue, child });
@@ -39,39 +32,9 @@ export const TECH_AUDIT_ENTRIES: Record<string, TechAuditEntry> = {
   // ---- flat yields, Eras 5–8 (child 3) ----
 
   // ---- flat yields, Eras 9–11 (child 4) ----
-  'quantum-theory': replace(4, 'cityFlatConditional science in cities with a research_institute', FLAT),
-  'universal-suffrage': replace(4, 'UNREST_RELIEF_SOURCES row for happiness-driven cities instead of +1 food', FLAT),
-  'large-scale-irrigation': replace(4, 'perImprovement farm food next to river tiles (terrainYield)', FLAT),
-  'aluminium-smelting': replace(4, 'perImprovement mine production plus air-unit cost note', FLAT),
-  'wireless-telegraph': replace(4, 'perRoutePartnerCiv gold: grows with the number of distinct civilisations connected', FLAT),
-  'secular-humanism': replace(4, 'perPopulation science for cities with no majority faith, a relationship-sensitive verb', FLAT),
-  'keynesian-economics': replace(4, 'maintenanceDiscount keyed to treasury size, or perBuildingId bank gold', FLAT),
-  'nuclear-theory': replace(4, 'cityFlatConditional science in cities with a research_institute (distinct from quantum-theory by requiresBuilding)', FLAT),
-  'radar-systems': replace(4, 'UNIT_MODIFIERS vision +1 for air/naval units (conditional vision), not +2 science', FLAT),
-  'decolonization': replace(4, 'perRoutePartnerCiv gold limited to former-vassal partners, or UNREST_RELIEF_SOURCES for captured cities', FLAT),
-  'international-institutions': replace(4, 'perRoutePartnerCiv science and gold when at peace with the partner', FLAT),
-  'universal-healthcare': replace(4, 'perPopulation food for cities above size 10 (large cities only)', FLAT),
-  'post-colonial-theory': replace(4, 'cityFlatConditional science in cities that were conquered or have foreign-faith followers', FLAT),
-  'human-rights-framework': replace(4, 'UNREST_RELIEF_SOURCES row; gold only while not at war', FLAT),
-  'synthetic-polymers': replace(4, 'perBuildingCategory production for owned factory buildings', FLAT),
-  'highway-network': replace(4, 'perCityRoute gold requiring a market/airport building', FLAT),
-  'stagflation-response': replace(4, 'maintenanceDiscount: removes upkeep for the largest building counts instead of +3 gold', FLAT),
-  'molecular-biology': replace(4, 'foodFromScience: cross-track, scales with science invested', FLAT),
-  'arms-control-negotiations': replace(4, 'perRoutePartnerCiv gold while not at war: hurt by conflict', FLAT),
-  'civil-rights-legislation': replace(4, 'UNREST_RELIEF_SOURCES row for minority-faith cities instead of +2 food', FLAT),
-  'deep-sea-drilling': replace(4, 'terrainYield gold/production on ocean tiles worked by coastal cities', FLAT),
-  'aquaculture': replace(4, 'terrainYield food on coast/ocean tiles', FLAT),
-  'vaccination-campaigns': replace(4, 'crisis-effects hook: population-loss events halved (the existing epidemic resolver), not +2 food', FLAT),
-  'structuralism': replace(4, 'perBuildingCategory culture science', FLAT),
-  'megastructures': replace(4, 'perCompletedLegendaryWonder production', FLAT),
-  'offshore-platforms': replace(4, 'terrainYield production/gold on ocean tiles; distinct from deep-sea-drilling by yields', FLAT),
-  'black-ops-programs': replace(4, 'espionage modifier (mission success and a spy slot) instead of +2 gold', FLAT),
-  'ecumenical-movement': replace(4, 'cityFlatConditional science and food for cities with two or more faiths', FLAT),
   'lab-grown-food': { ...replace(0, 'terrainYield food on barren terrain', FLAT), note: `${FLAT} Era 12 is reference material for #420; left unscheduled.` },
 
   // ---- broad combat modifiers ----
-  'tungsten-alloys': replace(4, 'UNIT_MODIFIERS scoped to armor/siege class instead of every unit', 'Unconditional combat bonus across every unit.'),
-  'carbon-fiber': replace(4, 'UNIT_MODIFIERS scoped to air units or when defending in a friendly city', 'Unconditional combat bonus across every unit.'),
   'nanomaterials': { ...replace(0, 'UNIT_MODIFIERS: bonus conditional on fullHP (matches the Era 12 reference)', 'Unconditional combat bonus across every unit.'), note: 'Unconditional combat bonus across every unit. Era 12 is reference; left unscheduled.' },
 
   // ---- broad cost discounts ----
@@ -96,10 +59,8 @@ export const TECH_AUDIT_ENTRIES: Record<string, TechAuditEntry> = {
   'transcontinental-rail': keep(3, 'Owned by getConnectedCityTechGold; third road-connected-gold tech in a row.', 3),
   'political-intelligence': keep(3, 'Owned by espionage-catalog/modifiers.', 3),
   'disinformation-bureau': keep(3, 'Owned by espionage-catalog/modifiers.', 3),
-  'welfare-state': { cls: 'KEEP', rating: 0, note: 'Flavor text only; its buildings carry the effect. Reword.', textFix: true, child: 4 },
   'counterintelligence': keep(3, 'Owned by espionage-catalog/modifiers.', 4),
   'signals-intelligence': keep(3, 'Owned by espionage-counterintel and modifiers.', 4),
-  'cold-war-networks': wire(4, 'text promises +2 gold empire-wide with no row; either add espionage verb or reword', 'Unbacked +2 gold claim.', true),
   'cloud-computing': keep(3, 'Owned by tech-system cost discount for science techs. Era 12 reference.'),
   'private-spaceflight': keep(3, 'Owned by unit-production-completion and building. Era 12 reference.'),
   'precision-agriculture': keep(3, 'Owned by tile-yield via precision_farm. Era 12 reference.'),
@@ -110,37 +71,44 @@ export const TECH_AUDIT_ENTRIES: Record<string, TechAuditEntry> = {
   'mechanized-farming': keep(2, 'Verified #1304: farm production plus granary food scale with what is built; farm-niche duplication reviewed in #1306.', 3),
   'agricultural-machinery': keep(2, 'Verified #1304: scales with farms built; farm-niche duplication reviewed in #1306.', 3),
   'scientific-breeding': keep(2, 'Verified #1304: farm and granary rows scale with what is built; farm-niche duplication reviewed in #1306.', 3),
-  'chemical-fertilizers': tune(4, 'terrainYield food on poor terrain (desert/tundra) so it lifts weak cities', REP_FARM),
-  'pesticides': tune(4, 'crisis-effects hook: famine events halved (existing resolver)', REP_FARM),
-  'green-revolution-crops': tune(4, 'foundingBonus food plus per-population food: a growth-for-new-cities verb', REP_FARM),
+  'chemical-fertilizers': keep(2, 'Verified #1305: conditional on what the player builds or trades, so it scales with a choice; the farm food per improvement shape repeats across eras and is reviewed for duplication in #1306, not changed piecemeal here.', 4),
+  'pesticides': keep(2, 'Verified #1305: conditional on what the player builds or trades, so it scales with a choice; the farm food per improvement shape repeats across eras and is reviewed for duplication in #1306, not changed piecemeal here.', 4),
+  'green-revolution-crops': keep(2, 'Verified #1305: conditional on what the player builds or trades, so it scales with a choice; the farm food per improvement shape repeats across eras and is reviewed for duplication in #1306, not changed piecemeal here.', 4),
   'guilds': keep(2, 'Verified #1304: +1 gold per active route scales with the routes the player opens; the any-route shape repeats (guilds/convoy-system/petrodollar-system) and is reviewed for duplication in #1306.', 3),
-  'convoy-system': tune(4, 'perTradeRoute coastalOnly gold plus naval supply protection (naval-operations owner)', REP_ROUTE),
-  'petrodollar-system': tune(4, 'perRoutePartnerCiv gold: scales with distinct partners', REP_ROUTE),
+  'convoy-system': keep(2, 'Verified #1305: conditional on what the player builds or trades, so it scales with a choice; the any-route gold shape repeats across eras and is reviewed for duplication in #1306, not changed piecemeal here.', 4),
+  'petrodollar-system': keep(2, 'Verified #1305: conditional on what the player builds or trades, so it scales with a choice; the any-route gold shape repeats across eras and is reviewed for duplication in #1306, not changed piecemeal here.', 4),
   'autonomous-shipping': tune(0, 'perTradeRoute coastalOnly gold; Era 12 reference', REP_ROUTE),
   'renaissance-painting': keep(2, 'Verified #1304: per culture building, so it scales with culture investment; the culture-gold niche (six techs across five eras) is reviewed in #1306.', 3),
   'separation-of-powers': keep(2, 'Verified #1304: Bureaucracy relief is a real code-owned effect; the culture-gold row scales with culture buildings. Niche reviewed in #1306.', 3),
-  'existentialism': tune(4, 'perPopulation science for cities with a university, drop culture gold', REP_CULTURE),
-  'postmodernism': tune(4, 'perLuxuryResource gold: culture trade value', REP_CULTURE),
+  'existentialism': keep(2, 'Verified #1305: conditional on what the player builds or trades, so it scales with a choice; the culture-building gold shape repeats across eras and is reviewed for duplication in #1306, not changed piecemeal here.', 4),
+  'postmodernism': keep(2, 'Verified #1305: conditional on what the player builds or trades, so it scales with a choice; the culture-building gold shape repeats across eras and is reviewed for duplication in #1306, not changed piecemeal here.', 4),
   'video-games': tune(0, 'perBuildingCategory culture gold; Era 12 reference', REP_CULTURE),
   'industrial-monopoly': keep(2, 'Verified #1304: marketplace-conditional; retained so its text and inferred pacing scope stay unchanged. Reviewed in #1306.', 3),
   'social-contract': keep(2, 'Verified #1304: marketplace-conditional; the three marketplace-gold techs are reviewed in #1306.', 3),
-  'consumer-boom': tune(4, 'perPopulation gold above city size 8: large-city consumers', REP_MARKET),
+  'consumer-boom': keep(2, 'Verified #1305: conditional on what the player builds or trades, so it scales with a choice; the marketplace gold shape repeats across eras and is reviewed for duplication in #1306, not changed piecemeal here.', 4),
   'modernist-theology': keep(2, 'Verified #1304: conditional on temple or monastery; the faith-science niche is reviewed in #1306.', 3),
-  'religious-modernism': tune(4, 'faith-conditional science for cities where followers are own-faith (religion-system owner)', REP_FAITH),
-  'interfaith-council': tune(4, 'cityFlatConditional science for cities with two or more faiths present', REP_FAITH),
-  'propaganda-campaigns': tune(4, 'espionage/loyalty verb (propaganda mission) rather than a film-studio gold row', REP_MEDIA),
-  'television': tune(4, 'perBuildingId film_studio culture plus a vision-of-opinion modifier on loyalty', REP_MEDIA),
-  'satellite-television': tune(4, 'perRoutePartnerCiv gold: broadcast reach over foreign partners', REP_MEDIA),
-  'nuclear-physics': tune(4, 'keep as research_institute science anchor', REP_LAB),
-  'rocketry': tune(4, 'perBuildingId launch/air-base production rather than research_institute science', REP_LAB),
-  'electronic-computing': tune(4, 'lowestCityScience or foodFromScience instead of research_institute science', REP_LAB),
-  'integrated-circuits': tune(4, 'perBuildingCategory science for owned laboratory buildings', REP_LAB),
+  'religious-modernism': keep(2, 'Verified #1305: conditional on what the player builds or trades, so it scales with a choice; the temple/monastery science shape repeats across eras and is reviewed for duplication in #1306, not changed piecemeal here.', 4),
+  'interfaith-council': keep(2, 'Verified #1305: conditional on what the player builds or trades, so it scales with a choice; the temple/monastery science shape repeats across eras and is reviewed for duplication in #1306, not changed piecemeal here.', 4),
+  'propaganda-campaigns': keep(2, 'Verified #1305: conditional on what the player builds or trades, so it scales with a choice; the film/radio gold shape repeats across eras and is reviewed for duplication in #1306, not changed piecemeal here.', 4),
+  'television': keep(2, 'Verified #1305: conditional on what the player builds or trades, so it scales with a choice; the film/radio gold shape repeats across eras and is reviewed for duplication in #1306, not changed piecemeal here.', 4),
+  'satellite-television': keep(2, 'Verified #1305: conditional on what the player builds or trades, so it scales with a choice; the film/radio gold shape repeats across eras and is reviewed for duplication in #1306, not changed piecemeal here.', 4),
+  'nuclear-physics': keep(2, 'Verified #1305: conditional on what the player builds or trades, so it scales with a choice; the research-institute science shape repeats across eras and is reviewed for duplication in #1306, not changed piecemeal here.', 4),
+  'rocketry': keep(2, 'Verified #1305: conditional on what the player builds or trades, so it scales with a choice; the research-institute science shape repeats across eras and is reviewed for duplication in #1306, not changed piecemeal here.', 4),
+  'electronic-computing': keep(2, 'Verified #1305: conditional on what the player builds or trades, so it scales with a choice; the research-institute science shape repeats across eras and is reviewed for duplication in #1306, not changed piecemeal here.', 4),
+  'integrated-circuits': keep(2, 'Verified #1305: conditional on what the player builds or trades, so it scales with a choice; the research-institute science shape repeats across eras and is reviewed for duplication in #1306, not changed piecemeal here.', 4),
 
   // ---- percentage techs held back on purpose (#1304): see the follow-up issue ----
   'rationalism': followUp(3, PINNED_PERCENT, 'Tracked in #1311.'),
   'parliamentary-reform': followUp(3, PINNED_PERCENT, 'Tracked in #1311.'),
   'mass-production': followUp(3, `${PINNED_PERCENT} Its 5% unit discount stays, a documented stack with general-mobilization.`, 'Tracked in #1311.'),
   'pragmatism': followUp(3, PINNED_PERCENT, 'Tracked in #1311.'),
+
+  // ---- Era 9-11 outcomes that remain flagged by the generic rules (#1305) ----
+  'tungsten-alloys': keep(2, 'Scoped to armor and siege units: a class identity that matches its text, not an army-wide bonus. The class-scoped-and-unconditional shape is reviewed with the other naval/air rows in #1306.', 4),
+  'carbon-fiber': keep(2, 'Scoped to air and armored units, matching its text. Reviewed with the other class-scoped rows in #1306.', 4),
+  'mercantilism': keep(2, 'Per distinct peacetime trade partner (hurt by war). Shares its shape with arms-control-negotiations and globalization across eras 6, 11 and 12; duplication reviewed in #1306.', 3),
+  'arms-control-negotiations': keep(2, 'Per distinct peacetime trade partner; its text claimed +5 gold while the table gave +2 (a text/effect mismatch fixed in #1305). Shape shared with mercantilism and globalization; reviewed in #1306.', 4),
+  'globalization': keep(3, 'Era 12 reference: per distinct peacetime partner. Left unchanged.', 0),
 };
 
 export type WarfareStatus = 'shipped-elsewhere' | 'partial' | 'absent' | 'not-worth-adding' | 'separate-feature';
