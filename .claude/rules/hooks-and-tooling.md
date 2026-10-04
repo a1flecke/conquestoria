@@ -939,11 +939,14 @@ git, gh, deletion, process signalling (`verify:stop`) or release; those stay hum
 
 **Constraints that shape the design** (the OpenCode auto-approval plugin, `a1flecke/opencode-auto-approval`,
 runs a trusted script unprompted only when all hold): the command is exactly `./scripts/dev.sh` + arguments
-with no shell composition (`|`, `;`, `&&`, `>`, `$VAR`, backticks, `cd … &&`, `VAR=x`); every argument matches
+with no shell composition (`;`, `&&`, `>`, `$VAR`, backticks, `cd … &&`, `VAR=x`; the only pipes accepted, from plugin
+v0.3.2, are a closed set of read-only output filters — `tail`, `head`, `grep`, `wc -l`, optional `2>&1` — which are
+judged as if absent); every argument matches
 `^[A-Za-z0-9_@+][A-Za-z0-9._/@+-]*$` and is an in-worktree path-like token (no `..`, absolute path, `~`, glob,
 secret-like name); and nothing under `scripts/` differs from `HEAD`. Hence: hyphenated task names (no
 colons), no flags, and output captured by the script itself — `.verification/logs/<task>.log`, a
-`== dev.sh <task> exit=<N> log=… ==` header and the last 60 lines — instead of the caller's `| tail`.
+`== dev.sh <task> exit=<N> log=… ==` header and the last 60 lines — so the caller's `| tail` is unnecessary (the
+plugin would accept it, but a redirect such as `> log` would not).
 
 `validate_test_path` is the single legality source for `test`: the argument regex, no `..`, no hidden
 component (`.env`), under `tests/`, exists, not a symlink and resolves inside `tests/`, a file ends
