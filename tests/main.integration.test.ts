@@ -122,7 +122,7 @@ describe('map interaction controller wiring (#787 phase 8d)', () => {
     const controller = readFileSync(resolve(PROJECT_ROOT, 'src/app/controllers/map-interaction-controller.ts'), 'utf8');
     const handleHexTap = controller.slice(
       controller.indexOf('function handleHexTap('),
-      controller.indexOf('function openTerritoryInspectionPanel('),
+      controller.indexOf('return {\n    handleHexTap'),
     );
 
     expect(handleHexTap).toContain('resolveMapTapIntent(');
