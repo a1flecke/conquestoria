@@ -16,8 +16,6 @@ const tune = (child: TechAuditEntry['child'], candidate: string, note: string): 
   ({ cls: 'TUNE', rating: 2, note, candidate, child });
 const wire = (child: TechAuditEntry['child'], candidate: string, note: string, textFix = false): TechAuditEntry =>
   ({ cls: 'WIRE', rating: 1, note, candidate, textFix, child });
-const textOnly = (child: TechAuditEntry['child'], candidate: string, note: string): TechAuditEntry =>
-  ({ cls: 'TUNE', rating: 2, note, candidate, textFix: true, child });
 const keep = (rating: TechAuditEntry['rating'], note: string, child: TechAuditEntry['child'] = 0): TechAuditEntry =>
   ({ cls: 'KEEP', rating, note, child });
 
