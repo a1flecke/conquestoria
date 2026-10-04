@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { foundCity } from '@/systems/city-system';
-import { spawnBarbarianCamp } from '@/systems/barbarian-system';
+import { spawnBarbarianCamp } from '@/systems/barbarian-camp-placement';
 import { generateQuest } from '@/systems/quest-system';
 import { emptyIdCounters, scanIdCounters, ID_COUNTER_SPECS } from '@/core/id-counters';
 import type { IdCounters } from '@/core/types';

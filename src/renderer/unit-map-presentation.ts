@@ -1,5 +1,5 @@
 import type { GameState, HexCoord, Unit, VisibilityMap } from '@/core/types';
-import { selectDefenderForAttack } from '@/systems/combat-system';
+import { selectDefenderForAttack } from '@/systems/combat-defense-strength';
 import { getVisibleUnitsForPlayer } from '@/systems/espionage-stealth';
 import { getVisibility } from '@/systems/fog-of-war';
 import { isUnitConcealedFrom } from '@/systems/concealment';

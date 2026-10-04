@@ -68,7 +68,24 @@ export interface OnlyImportedByRule extends RuleBase {
   readonly edges: EdgeScope;
 }
 
-export type ArchitectureRule = ForbiddenImportRule | ImportSeamRule | AcyclicGroupRule | OnlyImportedByRule;
+/**
+ * Modules matching `from` import ONLY modules matching `allowed` — the closed dependency set of a leaf. Every
+ * allowance must be exercised by at least one of the `from` modules (a stale allowance fails), so a leaf's
+ * declared dependencies are exactly its real ones. Type-only imports count when `edges` is `all`.
+ */
+export interface AllowedImportsRule extends RuleBase {
+  readonly kind: 'allowed-imports';
+  readonly from: ModuleMatcher;
+  readonly allowed: readonly string[];
+  readonly edges: EdgeScope;
+}
+
+export type ArchitectureRule =
+  | ForbiddenImportRule
+  | ImportSeamRule
+  | AcyclicGroupRule
+  | OnlyImportedByRule
+  | AllowedImportsRule;
 
 export interface RuleViolation {
   readonly ruleId: string;
@@ -168,6 +185,25 @@ export function evaluateRules(graph: ImportGraph, rules: readonly ArchitectureRu
         const members = select(rule.members, 'members');
         for (const component of findCycleComponents(graph, members, rule.edges)) {
           report(`import cycle: ${describeCycle(graph, component, rule.edges)}`);
+        }
+        break;
+      }
+      case 'allowed-imports': {
+        const from = select(rule.from, 'from');
+        const used = new Set<string>();
+        const reported = new Set<string>();
+        for (const edge of graph.edges) {
+          if (!inScope(edge, rule.edges) || edge.from === edge.to || !from.has(edge.from)) continue;
+          const allowedBy = rule.allowed.filter(pattern => matchesModule(pattern, edge.to));
+          for (const pattern of allowedBy) used.add(pattern);
+          const key = `${edge.from} -> ${edge.to}`;
+          if (allowedBy.length === 0 && !reported.has(key)) {
+            reported.add(key);
+            report(`${edge.from} imports ${edge.to} (${edge.specifier}), outside its allowed set [${rule.allowed.join(', ')}]`);
+          }
+        }
+        for (const pattern of rule.allowed) {
+          if (!used.has(pattern)) report(`stale allowance "${pattern}": no module in scope imports it — delete it`);
         }
         break;
       }

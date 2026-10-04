@@ -19,7 +19,7 @@ import {
   mapDistance,
   mapNeighbors,
 } from './hex-utils';
-import { selectDefenderForAttack } from './combat-system';
+import { selectDefenderForAttack } from './combat-defense-strength';
 import { getCityGarrisonUnit } from './city-siege-system';
 import { applyQuestGameplayAction, type ChainTransition } from './quest-chain-system';
 import { UNIT_DEFINITIONS } from './unit-definitions';
@@ -30,6 +30,7 @@ import { classifyOwner } from '@/core/owner-kind';
 import { resolveNeutralPressureEra } from './era-resolution';
 import { campSensedUnits, getActiveCampPressure, observeCampPressureFromSensedUnits } from './barbarian-pressure';
 import { selectBarbarianReinforcement } from './barbarian-force-composer';
+import { lcg } from './barbarian-camp-placement';
 import { createSimulationRng } from './simulation-rng';
 import { getCivilizationLiveness } from './civilization-liveness';
 import {
@@ -38,62 +39,6 @@ import {
   isMobilizedForAssault,
   resolveBarbarianArchetype,
 } from './barbarian-archetype';
-
-// Seeded LCG — avoids Math.random() per project rules
-function lcg(seed: number): () => number {
-  let s = seed;
-  return () => {
-    s = (s * 48271) % 2147483647;
-    return s / 2147483647;
-  };
-}
-
-export function spawnBarbarianCamp(
-  map: GameMap,
-  cityPositions: HexCoord[],
-  existingCamps: BarbarianCamp[],
-  seed: number,
-  counters: IdCounters,
-  // Mid-game callers (a live crisis-driven hunt) must exclude tiles a unit already
-  // occupies -- a camp landing under an existing unit trips assertNoIllegalBlockingOccupancy
-  // exactly like the reverse (a unit spawning onto an existing camp). Initial game-creation
-  // callers pass no `state` and rely on the >=6-distance-from-city filter below, which
-  // already excludes every starting unit's tile.
-  occupiedHexKeys?: ReadonlySet<string>,
-): BarbarianCamp | null {
-  const rng = lcg(seed);
-  const existingPositions = new Set(existingCamps.map(c => hexKey(c.position)));
-
-  const candidates = Object.values(map.tiles).filter(tile => {
-    if (tile.terrain === 'ocean' || tile.terrain === 'coast' ||
-        tile.terrain === 'mountain' || tile.terrain === 'snow') return false;
-    if (existingPositions.has(hexKey(tile.coord))) return false;
-    if (occupiedHexKeys?.has(hexKey(tile.coord))) return false;
-
-    // Must be far from cities
-    for (const cityPos of cityPositions) {
-      if (mapDistance(map, tile.coord, cityPos) < 6) return false;
-    }
-
-    // Must be far from other camps
-    for (const camp of existingCamps) {
-      if (mapDistance(map, tile.coord, camp.position) < 4) return false;
-    }
-
-    return true;
-  });
-
-  if (candidates.length === 0) return null;
-
-  const chosen = candidates[Math.floor(rng() * candidates.length)];
-
-  return {
-    id: `camp-${counters.nextCampId++}`,
-    position: { ...chosen.coord },
-    strength: 5 + Math.floor(rng() * 5),
-    spawnCooldown: 5,
-  };
-}
 
 export function destroyCamp(camp: BarbarianCamp): number {
   return 15 + camp.strength * 2;

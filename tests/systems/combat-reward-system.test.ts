@@ -17,7 +17,7 @@ import type { BeastLair, City, CombatResult, GameState, GeneralCareerEvent } fro
 import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import { BEAST_OWNER } from '@/systems/beast-system';
-import { selectDefenderForAttack } from '@/systems/combat-system';
+import { selectDefenderForAttack } from '@/systems/combat-defense-strength';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 

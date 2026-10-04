@@ -2,11 +2,10 @@ import {
   calculateCombatStrengths,
   deterministicCombatSeed,
   getCombatExchangeModifiers,
-  getTerrainDefenseBonus,
   resolveBoundedSplash,
   resolveCombat,
-  selectDefenderForAttack,
 } from '@/systems/combat-system';
+import { getTerrainDefenseBonus, selectDefenderForAttack } from '@/systems/combat-defense-strength';
 import { createNewGame } from '@/core/game-state';
 import type { GameMap, GameState } from '@/core/types';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
