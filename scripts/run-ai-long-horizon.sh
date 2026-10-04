@@ -38,6 +38,15 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+# `yarn test:ai-long -- -t <name>` forwards the literal `--` (Yarn does not
+# consume it), and Vitest then treats everything after `--` as positional file
+# filters, silently dropping the `-t` test-name filter so the WHOLE matrix runs
+# instead of the named scenario. Drop one leading `--` so the documented
+# targeted form actually filters (#1095's lh-explorer-small repro).
+if [ "${1:-}" = '--' ]; then
+  shift
+fi
+
 # #1133: reuse host-verification-lease.sh's own sandbox-safe host-scope
 # resolution (see its hvl_resolve_host_scope_dir) instead of duplicating
 # git-common-dir logic here -- this lease still gets its own sub-path so it
