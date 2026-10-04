@@ -1,8 +1,6 @@
 import type { GameEvents, GameState } from '@/core/types';
-import {
-  routeCombatResolved,
-  type NotificationSink,
-} from '@/ui/notification-routing';
+import { routeCombatResolved } from '@/ui/notification-routes/combat-routes';
+import { type NotificationSink } from '@/ui/notification-routes/notification-sink';
 
 export interface CombatResolvedPresentationDependencies {
   isPresentationSuppressed: () => boolean;

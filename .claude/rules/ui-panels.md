@@ -40,6 +40,18 @@ paths:
   which is reserved for immediate feedback to the acting player's own input.
   Emit-time `currentPlayer` attribution is the #551 leak bug class.
 
+### Notification router map (#1250)
+
+`src/ui/notification-routing.ts` no longer exists — there is no barrel; import the router for the event family you need (direction pinned by the `notification-*` rules in `tests/app/architecture/rules.ts`, exports by `tests/ui/notification-routes-modules.test.ts`). Two leaves sit below eight independent domain routers in `src/ui/notification-routes/`:
+
+| Module | Owns |
+|---|---|
+| `notification-sink` | The `NotificationSink` type every router writes through. Type-only leaf. |
+| `notification-audience` | `getNotificationTargetsForEvent` — **the audience authority** for events whose recipients are derived from state. One asker today (`map-routes`); adding another is a reviewed edit to the `notification-audience-has-one-asker` rule. |
+| `map-routes` · `empire-routes` · `diplomacy-routes` · `combat-routes` · `crisis-routes` · `religion-routes` · `espionage-routes` · `world-routes` | Copy and recipients for their own event family. They never import each other (a shared audience or wording rule belongs in a leaf), never import `app`/`renderer`/`input`/`presentation`, and no system imports them. |
+
+A new notification goes in the router for its domain; it states its recipient rule in a comment, passes the viewer-safety harness above if it names a foreign actor, and is delivered through `deliver(civId, …)`. `describeWarReason` and `TREATY_LABELS` live in `diplomacy-routes` because the diplomacy panel reads the same strings.
+
 ## Tech Panel
 - Must list ALL tech tracks from the `TechTrack` type union — never hardcode a subset
 - Derive track list from the type definition or `TECH_TREE` data

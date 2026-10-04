@@ -5,7 +5,7 @@
  */
 import { SFX } from '@/audio/sfx';
 import type { PresentationRegistrar } from '@/presentation/register-all';
-import { routeEraAdvanced } from '@/ui/notification-routing';
+import { routeEraAdvanced } from '@/ui/notification-routes/world-routes';
 
 export const registerEraPresentation: PresentationRegistrar = (bus, ctx) => {
   const unsubscribers = [

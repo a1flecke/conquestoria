@@ -11,7 +11,7 @@ import { breakTreaty } from '@/systems/diplomacy-treaties';
 import { makeMajorPeace } from '@/systems/diplomacy-war';
 import { resolveUnitMoveIntent, executeUnitMove } from '@/systems/unit-movement-system';
 import { emitAccessLossNotices, findUnitsStrandedByAccessLoss } from '@/systems/territorial-access';
-import { routeAccessLost } from '@/ui/notification-routing';
+import { routeAccessLost } from '@/ui/notification-routes/diplomacy-routes';
 import {
   addUnit, asPlayer, makeTerritorialWorld, setWar, signBoth, type TerritorialWorld,
 } from './helpers/territorial-fixture';

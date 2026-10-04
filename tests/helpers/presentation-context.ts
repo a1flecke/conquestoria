@@ -3,7 +3,7 @@ import type { GameState } from '@/core/types';
 import type { SelectionStore } from '@/app/ports';
 import type { PresentationContext } from '@/presentation/register-all';
 import { NO_LAND_UNIT_WATER_RECOVERY } from '@/systems/unit-water-recovery';
-import type { NotificationSink } from '@/ui/notification-routing';
+import type { NotificationSink } from '@/ui/notification-routes/notification-sink';
 
 function makeSelectionStoreDouble(): SelectionStore {
   return {

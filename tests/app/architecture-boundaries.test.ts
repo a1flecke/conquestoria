@@ -751,7 +751,7 @@ describe('#1008 — city-system decomposition boundaries', () => {
   it('presentation is consumed from the presentation module, not the simulation barrel', () => {
     const repoRoot = resolve(__dirname, '../..');
     const presentationConsumers = [
-      'src/ui/notification-routing.ts',
+      'src/ui/notification-routes/empire-routes.ts',
       'src/ui/city-panel-building-icon.ts',
       'src/ui/city-panel.ts',
       'src/app/controllers/panel-actions-controller.ts',

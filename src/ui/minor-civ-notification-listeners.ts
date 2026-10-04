@@ -3,7 +3,7 @@ import type { GameEvent, GameState } from '@/core/types';
 import { collectEvent } from '@/core/hotseat-events';
 import { getMinorCivNotification } from '@/ui/minor-civ-notifications';
 import type { MinorCivNotificationEvent } from '@/ui/minor-civ-notifications';
-import type { NotificationSink } from '@/ui/notification-routing';
+import type { NotificationSink } from '@/ui/notification-routes/notification-sink';
 
 interface MinorCivNotificationListenerOptions {
   appendToCivLog: NotificationSink;

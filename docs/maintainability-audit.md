@@ -90,7 +90,7 @@ Two modules answering the same question differently is the highest-value find
 | Civilization era vs world age | `resolveCivilizationEra` (tech-derived) vs `worldAgeFromNumber(state.era)` | `ProductionCostContext.era` was the historical divergence | **Closed.** `ProductionCostContext.era` is branded `CivilizationEra` and `buildProductionCostContext` can only pass `resolveCivilizationEra` (#984/#1016/#1017). Re-verify `legendary-wonder-presentation.ts:134`, which reads `state.era` for a display threshold. |
 | Viewer safety | `getVisibility`/`isVisible` (`src/systems/fog-of-war.ts`) | direct `visibility.tiles[...]` reads in `pirate-actions.ts:231,239`, `pirate-ecology.ts:194`, `council-memory.ts:57`, `ai-prepared-turn.ts:297`, `pirate-presentation.ts:83`, `pirate-audio-director.ts:50`, `last-seen-presentation.ts:171` | **Residual.** Writes in `fog-of-war.ts`/`espionage-turn.ts` are canonical; the reads bypass the helper. |
 | Session publication | `GameSession.commit/update/batch` + `bootstrap` subscription | closed in #1199 | **Closed.** Enforced by `architecture-boundaries.test.ts` and `check-src-rule-violations.sh`. |
-| Notification audience | `getNotificationTargetsForEvent` (`notification-routing.ts`) | none | **Single owner.** |
+| Notification audience | `getNotificationTargetsForEvent` (`notification-routes/notification-audience.ts`, was `notification-routing.ts`) | none | **Single owner.** |
 | Roster / index authority | `city-ownership.ts`, `unit-ownership.ts` | rule-gated | **Healthy.** |
 
 ## Structural guard
@@ -109,7 +109,7 @@ audit.
 
 Filed from this audit (no production refactoring here):
 
-- #1250 — decompose `src/ui/notification-routing.ts`.
+- #1250 — decompose `src/ui/notification-routing.ts` (done: `src/ui/notification-routes/` — `notification-sink` and `notification-audience` leaves under eight domain routers; `notification-routing.ts` deleted).
 - #1248 — break the `src/systems` runtime import cycle.
 - #1246 — decompose `src/systems/faction-system.ts` (done: `faction-unrest-model` / `-federalism` / `-relief` / `-pressure` / `-commands`; `faction-system.ts` is now the turn orchestration only).
 - #1249 — decompose `src/systems/trade-system.ts` (done: `marketplace-system` / `trade-route-economy` / `trade-route-lifecycle` / `trade-caravan-system`; catalog lookups moved into `resource-definitions`; `trade-system.ts` deleted).

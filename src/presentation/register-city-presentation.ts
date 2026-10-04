@@ -7,7 +7,8 @@
 import { SFX } from '@/audio/sfx';
 import { BUILDINGS } from '@/systems/city-system';
 import { getTechById } from '@/systems/tech-system';
-import { routeDroppedProductionItem, routeTerritoryTileFlipped } from '@/ui/notification-routing';
+import { routeDroppedProductionItem } from '@/ui/notification-routes/empire-routes';
+import { routeTerritoryTileFlipped } from '@/ui/notification-routes/map-routes';
 import type { PresentationRegistrar } from '@/presentation/register-all';
 
 export const registerCityPresentation: PresentationRegistrar = (bus, ctx) => {

@@ -6,7 +6,6 @@
  */
 import type { PresentationRegistrar } from '@/presentation/register-all';
 import {
-  routeFactionTransition,
   routeCrisisStarted,
   routeCrisisSpread,
   routeCrisisEscalated,
@@ -16,9 +15,9 @@ import {
   routeWorldPressureCrisisResolved,
   routeCrisisFoeHuntedByAlly,
   routeCrisisAidSent,
-  routeEconomyTreasuryStrain,
-  type NotificationSink,
-} from '@/ui/notification-routing';
+} from '@/ui/notification-routes/crisis-routes';
+import { routeFactionTransition, routeEconomyTreasuryStrain } from '@/ui/notification-routes/empire-routes';
+import { type NotificationSink } from '@/ui/notification-routes/notification-sink';
 
 export const registerFactionCrisisPresentation: PresentationRegistrar = (bus, ctx) => {
   // #551: routeFactionTransition already delivers via the delivery contract, which

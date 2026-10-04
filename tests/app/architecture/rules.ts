@@ -4,7 +4,7 @@
  * "this group has no cycles" or "only these modules import X". See `rule-engine.ts` for semantics and
  * `.claude/rules/caller-discipline.md` for when to use it.
  *
- * Migrated so far: #1012 (crisis-system decomposition). New since: #1246 (faction-system decomposition), #1249 (trade-system decomposition). Other `architecture-boundaries.test.ts`
+ * Migrated so far: #1012 (crisis-system decomposition). New since: #1246 (faction-system decomposition), #1249 (trade-system decomposition), #1250 (notification-routing decomposition). Other `architecture-boundaries.test.ts`
  * blocks still hold their own checks and move here one block at a time.
  */
 import type { ArchitectureRule } from './rule-engine';
@@ -51,6 +51,15 @@ const TRADE_MODULES = [
   `${S}/trade-route-lifecycle`,
   `${S}/trade-caravan-system`,
 ] as const;
+
+/**
+ * The #1250 notification routers (src/ui/notification-routing.ts was split and deleted; no barrel).
+ * Two leaves below eight independent domain routers:
+ *   notification-sink     (the NotificationSink type)
+ *   notification-audience (getNotificationTargetsForEvent — the audience authority)
+ */
+const NR = 'src/ui/notification-routes';
+const NOTIFICATION_DOMAIN_ROUTERS = `${NR}/*-routes`;
 
 export const ARCHITECTURE_RULES: readonly ArchitectureRule[] = [
   {
@@ -220,5 +229,61 @@ export const ARCHITECTURE_RULES: readonly ArchitectureRule[] = [
     members: TRADE_MODULES,
     edges: 'all',
     why: 'The sibling-then-caravan layering is only real if no cycle lets a lower trade module reach a higher one.',
+  },
+
+  {
+    id: 'notification-sink-is-a-type-leaf',
+    kind: 'forbidden-import',
+    from: `${NR}/notification-sink`,
+    to: ['src/systems/**', 'src/ui/**', 'src/app/**', 'src/renderer/**', 'src/presentation/**'],
+    edges: 'all',
+    why: 'Every router writes through NotificationSink; the type must stay a leaf (only the notification-log shapes) so it can never pull a domain into the others.',
+  },
+  {
+    id: 'notification-audience-is-a-leaf',
+    kind: 'forbidden-import',
+    from: `${NR}/notification-audience`,
+    to: ['src/ui/**', 'src/app/**', 'src/renderer/**', 'src/presentation/**'],
+    edges: 'all',
+    why: 'getNotificationTargetsForEvent is the one audience authority; it sits below every router and must not depend on the routers or any UI that consumes it.',
+  },
+  {
+    id: 'notification-audience-has-one-asker',
+    kind: 'only-imported-by',
+    target: `${NR}/notification-audience`,
+    importers: [`${NR}/map-routes`, 'tests/**'],
+    edges: 'all',
+    why: 'Audience derivation is centralised; a router that imports the authority is a router deriving its audience from state, which must be a deliberate, reviewed addition (extend this list), never an incidental one.',
+  },
+  {
+    id: 'notification-domain-routers-are-independent',
+    kind: 'forbidden-import',
+    from: NOTIFICATION_DOMAIN_ROUTERS,
+    to: NOTIFICATION_DOMAIN_ROUTERS,
+    edges: 'all',
+    why: 'A domain router owns the copy and recipients for its own event family; importing a sibling means sharing audience or wording logic, which belongs in a shared leaf (the sink or the audience authority) instead.',
+  },
+  {
+    id: 'notification-routers-below-presentation-and-app',
+    kind: 'forbidden-import',
+    from: `${NR}/**`,
+    to: ['src/app/**', 'src/renderer/**', 'src/input/**', 'src/presentation/**'],
+    edges: 'all',
+    why: 'Routers decide who is told what; presentation registrars and controllers call them. A router reaching up would let delivery wiring leak into recipient rules.',
+  },
+  {
+    id: 'systems-do-not-import-notification-routers',
+    kind: 'forbidden-import',
+    from: 'src/systems/**',
+    to: `${NR}/**`,
+    edges: 'all',
+    why: 'Simulation emits events; presentation routes them. A system importing a router couples game rules to player-facing copy.',
+  },
+  {
+    id: 'notification-routers-acyclic',
+    kind: 'acyclic-group',
+    members: `${NR}/**`,
+    edges: 'all',
+    why: 'The two leaves below eight independent routers is only real if no cycle lets a leaf reach a router.',
   },
 ];

@@ -4,7 +4,14 @@
  * itself (`showEspionageCaptureChoice`) stays a `main.ts`-local function --
  * see `PresentationContext`'s doc comment for why.
  */
-import { routeCityFlipped, routeSabotageReliefDiscovered, routeCourierIntercepted, routeOfficialBribed, routeScandalExposed, routeIntelReportAcquired } from '@/ui/notification-routing';
+import {
+  routeCityFlipped,
+  routeSabotageReliefDiscovered,
+  routeCourierIntercepted,
+  routeOfficialBribed,
+  routeScandalExposed,
+  routeIntelReportAcquired,
+} from '@/ui/notification-routes/espionage-routes';
 import type { PresentationRegistrar } from '@/presentation/register-all';
 
 export const registerEspionagePresentation: PresentationRegistrar = (bus, ctx) => {

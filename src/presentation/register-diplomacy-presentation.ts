@@ -5,9 +5,15 @@
  * untouched.
  */
 import type { PresentationRegistrar } from '@/presentation/register-all';
+import { routeOpportunisticWar } from '@/ui/notification-routes/crisis-routes';
 import {
   routeWarDeclared,
-  routeIndependenceRequested, routeVassalageEnded, routeProtectionRequested, routeProtectionFailed, routeVassalAutoWar, routeVassalAutoPeace,
+  routeIndependenceRequested,
+  routeVassalageEnded,
+  routeProtectionRequested,
+  routeProtectionFailed,
+  routeVassalAutoWar,
+  routeVassalAutoPeace,
   routeTreatyProposed,
   routeTreatyAccepted,
   routeTreatyDeclined,
@@ -16,12 +22,11 @@ import {
   routeAccessLost,
   routePeaceMade,
   routePeaceDeclined,
-  routeOpportunisticWar,
   routeWarGoalExceeded,
   routeSettlementProposed,
   routeSettlementDeclined,
   routeSettlementSigned,
-} from '@/ui/notification-routing';
+} from '@/ui/notification-routes/diplomacy-routes';
 
 export const registerDiplomacyPresentation: PresentationRegistrar = (bus, ctx) => {
   const unsubscribers = [

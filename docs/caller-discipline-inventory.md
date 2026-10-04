@@ -35,7 +35,7 @@ same reason `invariants.md` excludes them: they are enforced by their own generi
 | `diplomacy-treaties.ts:18` | Both sides must be signed for a complete treaty | **S** | `signTreaty` source rule + `treaty-reciprocity` invariant |
 | `diplomacy-vassal-rules.ts:86` | Caller must apply `leagueUpdates` to `defensiveLeagues` | **C** | Only `diplomacy-vassalage.ts` may import `acceptVassalage`/`endVassalage`/`endVassalageUnilateral` (architecture pin) |
 | `war-history-system.ts:281` | `recordSettlementSigned` MUST run BEFORE the peace transition | **C** | Now `withSettlementSigned(…, peaceTransition)`: it logs, then runs the transition; the wrong-order primitive is not exported (it failed *silently* when called late: war mislabelled `white-peace`) |
-| `notification-routing.ts:970` | "Both sides must be told" (espionage consequences applied by the caller after `processEspionageTurn`) | **F** | #1201 |
+| `notification-routes/espionage-routes.ts` (`routeCourierIntercepted`, formerly `notification-routing.ts:970`) | "Both sides must be told" (espionage consequences applied by the caller after `processEspionageTurn`) | **F** | #1201 |
 | `airborne-system.ts:251`, `map-interaction-controller.ts:192,234` | "records/logged both sides' notifications" | **D** | Comments describing what a single function already does |
 | `loyalty-pressure-presentation.ts:15` | "both sides see a map badge" | **D** | Description of a presentation rule inside one function |
 | Movement/supply "ask the treaty yourself" | Every consumer must consult the treaty | **S** | `territorial-access.ts` (#871), `TerritorialRelation` vocabulary (#870), architecture pins |

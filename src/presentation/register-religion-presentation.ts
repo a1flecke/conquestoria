@@ -9,7 +9,7 @@ import {
   routeReligionCityConverted,
   routeLoyaltyWarning,
   routeCityDefected,
-} from '@/ui/notification-routing';
+} from '@/ui/notification-routes/religion-routes';
 
 export const registerReligionPresentation: PresentationRegistrar = (bus, ctx) => {
   const unsubscribers = [
