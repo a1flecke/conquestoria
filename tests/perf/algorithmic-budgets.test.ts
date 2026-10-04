@@ -9,6 +9,7 @@ import { measureRenderFrame } from './fixtures/render-frame';
 import {
   buildPerfFixtures,
   CHEAP_AREAS,
+  measureAiRoundCloneSites,
   measurePerfArea,
   PERF_AREAS,
   type AreaSample,
@@ -69,16 +70,30 @@ function computeBaseline(runs: Record<PerfArea, AreaSample[]>, priorAuditedCommi
     budgets: {
       turn: {
         structuredCloneWholeState: cap(a['turn@e2'].structuredCloneWholeState!),
+        structuredCloneWholeStateBytes: cap(a['turn@e2'].structuredCloneWholeStateBytes!),
         heapPops: cap(a['turn@e2'].heapPops!),
         blockingEntityAtCalls: cap(a['turn@e2'].blockingEntityAtCalls!),
         visibilityPasses: cap(a['turn@e2'].visibilityPasses!),
+        civEconomyCalls: cap(a['turn@e2'].civEconomyCalls!),
+        projectedGrossGoldCalls: cap(a['turn@e2'].projectedGrossGoldCalls!),
+        economyStatusCalls: cap(a['turn@e2'].economyStatusCalls!),
+        roadConnectivityCalls: cap(a['turn@e2'].roadConnectivityCalls!),
+        ownedRoadConnectivityCalls: cap(a['turn@e2'].ownedRoadConnectivityCalls!),
+        ownedRoadTileScans: cap(a['turn@e2'].ownedRoadTileScans!),
       },
       aiRound: {
         pathQueries: cap(a['aiRound@e2'].pathQueries!),
         heapPops: cap(a['aiRound@e2'].heapPops!),
         structuredCloneWholeState: cap(a['aiRound@e2'].structuredCloneWholeState!),
+        structuredCloneWholeStateBytes: cap(a['aiRound@e2'].structuredCloneWholeStateBytes!),
         blockingEntityAtCalls: cap(a['aiRound@e2'].blockingEntityAtCalls!),
         cityYieldCalls: cap(a['aiRound@e2'].cityYieldCalls!),
+        civEconomyCalls: cap(a['aiRound@e2'].civEconomyCalls!),
+        projectedGrossGoldCalls: cap(a['aiRound@e2'].projectedGrossGoldCalls!),
+        economyStatusCalls: cap(a['aiRound@e2'].economyStatusCalls!),
+        roadConnectivityCalls: cap(a['aiRound@e2'].roadConnectivityCalls!),
+        ownedRoadConnectivityCalls: cap(a['aiRound@e2'].ownedRoadConnectivityCalls!),
+        ownedRoadTileScans: cap(a['aiRound@e2'].ownedRoadTileScans!),
       },
       findPath: {
         heapPops: cap(a.findPath.heapPops!),
@@ -106,6 +121,10 @@ function computeBaseline(runs: Record<PerfArea, AreaSample[]>, priorAuditedCommi
       aiRoundPathQueries: Number((ratio(a['aiRound@e2'].pathQueries!, a['aiRound@e1'].pathQueries!) * RATIO_SLACK).toFixed(2)),
       aiRoundHeapPops: Number((ratio(a['aiRound@e2'].heapPops!, a['aiRound@e1'].heapPops!) * RATIO_SLACK).toFixed(2)),
       aiRoundCityYieldCalls: Number((ratio(a['aiRound@e2'].cityYieldCalls!, a['aiRound@e1'].cityYieldCalls!) * RATIO_SLACK).toFixed(2)),
+      // #1235: clone-volume and projection / road-BFS shape guards (main's ratio × slack).
+      aiRoundCloneBytes: Number((ratio(a['aiRound@e2'].structuredCloneWholeStateBytes!, a['aiRound@e1'].structuredCloneWholeStateBytes!) * RATIO_SLACK).toFixed(2)),
+      aiRoundProjectionCalls: Number((ratio(projectionCalls(a['aiRound@e2']), projectionCalls(a['aiRound@e1'])) * RATIO_SLACK).toFixed(2)),
+      aiRoundRoadCalls: Number((ratio(roadCalls(a['aiRound@e2']), roadCalls(a['aiRound@e1'])) * RATIO_SLACK).toFixed(2)),
       saveBytes: Number((ratio(a['saveSerialize@e2'].bytes!, a['saveSerialize@e1'].bytes!) * RATIO_SLACK).toFixed(2)),
       saveEntityBytes: Number((ratio(a['saveSerialize@e2'].entityBytes!, a['saveSerialize@e1'].entityBytes!) * RATIO_SLACK).toFixed(2)),
       // findPath: a directed A* pops at most a constant factor more nodes than
@@ -126,6 +145,50 @@ const S = (area: PerfArea): AreaSample => runs[area][0]!;
 function expectMoveRangeBlockerWork(sample: AreaSample): void {
   expect(sample.blockingEntityAtCalls, 'detailed BFS must not call the linear coordinate lookup').toBe(0);
   expect(sample.blockingMapEntityLookupBuilds, 'detailed query must build one blocker lookup').toBe(1);
+}
+
+/** Economy-projection calls (#1235): the three `economy-system` entry points, summed. */
+function projectionCalls(sample: AreaSample): number {
+  return (sample.civEconomyCalls ?? 0)
+    + (sample.projectedGrossGoldCalls ?? 0)
+    + (sample.economyStatusCalls ?? 0);
+}
+
+/** Road-network/BFS work (#1235): connectivity BFS + owned-road BFS + owned-road tile scan, summed. */
+function roadCalls(sample: AreaSample): number {
+  return (sample.roadConnectivityCalls ?? 0)
+    + (sample.ownedRoadConnectivityCalls ?? 0)
+    + (sample.ownedRoadTileScans ?? 0);
+}
+
+const AI_ROUND_PROJECTION_KEYS = ['civEconomyCalls', 'projectedGrossGoldCalls', 'economyStatusCalls'] as const;
+const ROAD_KEYS = ['roadConnectivityCalls', 'ownedRoadConnectivityCalls', 'ownedRoadTileScans'] as const;
+
+/** Assert each named counter in `sample` is within the matching budget entry. */
+function expectCounterBudgets(
+  sample: AreaSample,
+  budget: Record<string, number>,
+  keys: readonly (keyof AreaSample)[],
+  label: string,
+): void {
+  for (const key of keys) {
+    const measured = (sample[key] as number | undefined) ?? 0;
+    expect(measured, `${label} ${key}`).toBeLessThanOrEqual(budget[key as string]!);
+  }
+}
+
+/** GUARD 10 shape: AI-round whole-state clone count is entity-independent, and its bytes stay bounded. */
+function expectAiRoundCloneWork(e1: AreaSample, e2: AreaSample, base: Baseline): void {
+  expect(e2.structuredCloneWholeState, 'AI round whole-state clone count must not scale with entities')
+    .toBe(e1.structuredCloneWholeState);
+  expect(e2.structuredCloneWholeState!).toBeLessThanOrEqual(base.budgets.aiRound!.structuredCloneWholeState!);
+  expect(e2.structuredCloneWholeStateBytes!, 'AI round whole-state clone-byte budget')
+    .toBeLessThanOrEqual(base.budgets.aiRound!.structuredCloneWholeStateBytes!);
+  const e1Bytes = e1.structuredCloneWholeStateBytes ?? 0;
+  if (e1Bytes > 0) {
+    const r = e2.structuredCloneWholeStateBytes! / e1Bytes;
+    expect(r, `AI round clone-byte ratio ${r.toFixed(2)}`).toBeLessThanOrEqual(base.ratios.aiRoundCloneBytes!);
+  }
 }
 
 describe('#1007 algorithmic budgets', () => {
@@ -279,6 +342,103 @@ describe('#1007 algorithmic budgets', () => {
     if (e1.cityYieldCalls! > 0) {
       expect(e2.cityYieldCalls! / e1.cityYieldCalls!, 'AI round city-yield work must not get MORE super-linear')
         .toBeLessThanOrEqual(base.ratios.aiRoundCityYieldCalls!);
+    }
+  });
+
+  it('GUARD 10 — a full AI round\'s whole-state clone count and volume stay bounded', () => {
+    // #1235: GUARD 4 covers a *turn*; this covers a full AI round (the ~8
+    // ai-major-turn clones + scheduler/orchestrator clones). The count must be
+    // entity-independent; the bytes get an absolute budget and a shape ratio.
+    // Sabotage: a per-entity `structuredClone(state)` in an AI helper doubles
+    // both — see the sabotage-proof test below.
+    const e1 = S('aiRound@e1');
+    const e2 = S('aiRound@e2');
+    expect(e2.structuredCloneWholeState!, 'the fixture must actually clone whole state').toBeGreaterThan(0);
+    expect(e2.structuredCloneWholeStateBytes!, 'the fixture must actually clone state-shaped bytes').toBeGreaterThan(0);
+    expectAiRoundCloneWork(e1, e2, base);
+  });
+
+  it('GUARD 10 sabotage proof — a doubled clone count or cloned volume fails', () => {
+    const e1 = S('aiRound@e1');
+    const e2 = S('aiRound@e2');
+    expect(() =>
+      expectAiRoundCloneWork(e1, { ...e2, structuredCloneWholeState: e2.structuredCloneWholeState! * 2 }, base),
+    ).toThrow();
+    expect(() =>
+      expectAiRoundCloneWork(e1, { ...e2, structuredCloneWholeStateBytes: e2.structuredCloneWholeStateBytes! * 2 }, base),
+    ).toThrow();
+  });
+
+  it('INFORMATIONAL — attributes AI-round whole-state clones to their call sites', () => {
+    // #1235 output for the PR body, plus a real invariant: every counted clone is
+    // attributed to exactly one caller. Site labels are NOT a budget (they move
+    // when code moves); only the total is pinned elsewhere.
+    const sites = measureAiRoundCloneSites(fx);
+    const total = Object.values(sites).reduce((a, b) => a + b, 0);
+    console.log(`[#1235] AI-round whole-state clone sites:\n${JSON.stringify(sites, null, 2)}`);
+    expect(total).toBe(S('aiRound@e2').structuredCloneWholeState);
+  }, 120_000);
+
+  it('GUARD 11 — a full AI round\'s whole-empire economy projections stay bounded', () => {
+    // #1235: pins the economy-projection entry points #1125/#1126 flagged as
+    // redundant. Sabotage: a per-city projection in an AI planning loop doubles
+    // the counts — see the sabotage-proof test below.
+    const e1 = S('aiRound@e1');
+    const e2 = S('aiRound@e2');
+    expect(projectionCalls(e2), 'the fixture must actually call the economy projections').toBeGreaterThan(0);
+    expectCounterBudgets(e2, base.budgets.aiRound!, AI_ROUND_PROJECTION_KEYS, 'AI round projection');
+    if (projectionCalls(e1) > 0) {
+      expect(projectionCalls(e2) / projectionCalls(e1), 'AI round projection work must not get MORE super-linear')
+        .toBeLessThanOrEqual(base.ratios.aiRoundProjectionCalls!);
+    }
+  });
+
+  it('GUARD 11 sabotage proof — doubled economy-projection work fails', () => {
+    const e2 = S('aiRound@e2');
+    for (const key of AI_ROUND_PROJECTION_KEYS) {
+      if ((e2[key] ?? 0) > 0) {
+        expect(() =>
+          expectCounterBudgets(
+            { ...e2, [key]: (e2[key] ?? 0) * 2 },
+            base.budgets.aiRound!,
+            AI_ROUND_PROJECTION_KEYS,
+            'AI round projection',
+          ),
+        ).toThrow();
+      }
+    }
+  });
+
+  it('GUARD 12 — road-network/BFS work per turn and per AI round stays bounded', () => {
+    // #1235: the connectivity BFS (`getCitiesConnectedToCapital`), the owned-road
+    // connection BFS and the owned-road tile scan are called by unrest relief and
+    // AI road building. Sabotage: an extra uncached connectivity call per city
+    // doubles a counter — see the sabotage-proof test below.
+    const turn = S('turn@e2');
+    const ai = S('aiRound@e2');
+    expect(roadCalls(turn) + roadCalls(ai), 'the fixtures must actually exercise road/BFS work').toBeGreaterThan(0);
+    expectCounterBudgets(turn, base.budgets.turn!, ROAD_KEYS, 'turn road/BFS');
+    expectCounterBudgets(ai, base.budgets.aiRound!, ROAD_KEYS, 'AI round road/BFS');
+    const e1 = S('aiRound@e1');
+    if (roadCalls(e1) > 0) {
+      expect(roadCalls(ai) / roadCalls(e1), 'AI round road/BFS work must not get MORE super-linear')
+        .toBeLessThanOrEqual(base.ratios.aiRoundRoadCalls!);
+    }
+  });
+
+  it('GUARD 12 sabotage proof — doubled road/BFS work fails', () => {
+    const e2 = S('aiRound@e2');
+    for (const key of ROAD_KEYS) {
+      if ((e2[key] ?? 0) > 0) {
+        expect(() =>
+          expectCounterBudgets(
+            { ...e2, [key]: (e2[key] ?? 0) * 2 },
+            base.budgets.aiRound!,
+            ROAD_KEYS,
+            'AI round road/BFS',
+          ),
+        ).toThrow();
+      }
     }
   });
 

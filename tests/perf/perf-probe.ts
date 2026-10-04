@@ -19,10 +19,16 @@ import * as pathfinding from '@/systems/unit-pathfinding';
 import * as legality from '@/systems/unit-movement-legality';
 import * as fogOfWar from '@/systems/fog-of-war';
 import * as resourceSystem from '@/systems/resource-system';
+import * as economySystem from '@/systems/economy-system';
+import * as roadNetwork from '@/systems/road-network';
 
 export interface PerfCounts {
   /** whole-`GameState` `structuredClone(...)` calls (arg has `.civilizations`, `.units`, `.map`) */
   structuredCloneWholeState: number;
+  /** approximate serialized volume (`JSON.stringify(arg).length`) of those whole-state clones (#1235) */
+  structuredCloneWholeStateBytes: number;
+  /** those whole-state clones attributed to their first caller outside this probe (#1235, informational) */
+  structuredCloneWholeStateBySite: Record<string, number>;
   /** `BinaryHeap.prototype.pop` calls — A* node examinations across every `findPath` */
   heapPops: number;
   /** `BinaryHeap.prototype.push` calls — A* node relaxations */
@@ -37,11 +43,25 @@ export interface PerfCounts {
   visibilityPasses: number;
   /** `calculateCityYields` calls — per-city economic recompute */
   cityYieldCalls: number;
+  /** `calculateCivEconomy` calls — whole-empire economy projection (#1235) */
+  civEconomyCalls: number;
+  /** `projectCivGrossGold` calls — whole-empire gross-gold projection (#1235) */
+  projectedGrossGoldCalls: number;
+  /** `getEconomyStatusForCiv` calls — whole-empire economy-status projection (#1235) */
+  economyStatusCalls: number;
+  /** `getCitiesConnectedToCapital` calls — capital connectivity BFS (#1235) */
+  roadConnectivityCalls: number;
+  /** `canConnectCityToCapitalByOwnedRoad` calls — owned-road connection BFS (#1235) */
+  ownedRoadConnectivityCalls: number;
+  /** `getOwnedRoadTileCount` calls — full-map owned-road tile scan (#1235) */
+  ownedRoadTileScans: number;
 }
 
 function emptyCounts(): PerfCounts {
   return {
     structuredCloneWholeState: 0,
+    structuredCloneWholeStateBytes: 0,
+    structuredCloneWholeStateBySite: {},
     heapPops: 0,
     heapPushes: 0,
     blockingEntityAtCalls: 0,
@@ -49,6 +69,12 @@ function emptyCounts(): PerfCounts {
     pathQueries: 0,
     visibilityPasses: 0,
     cityYieldCalls: 0,
+    civEconomyCalls: 0,
+    projectedGrossGoldCalls: 0,
+    economyStatusCalls: 0,
+    roadConnectivityCalls: 0,
+    ownedRoadConnectivityCalls: 0,
+    ownedRoadTileScans: 0,
   };
 }
 
@@ -60,6 +86,40 @@ function isWholeState(value: unknown): boolean {
     && 'units' in value
     && 'map' in value
   );
+}
+
+/**
+ * #1235 — deterministic approximate serialized volume of a whole-state clone.
+ * `JSON.stringify(...).length` (the issue's suggested proxy), guarded so an
+ * unserializable argument can never make the instrumentation change behaviour.
+ */
+function approximateStateBytes(value: unknown): number {
+  try {
+    return JSON.stringify(value).length;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * #1235 — the first caller frame outside this probe, normalized to a repo-ish
+ * path, for the informational "where the clones are" attribution. Never part of
+ * a budget; only labels the measured total.
+ */
+function cloneSiteFromStack(): string {
+  const stack = new Error().stack ?? '';
+  for (const line of stack.split('\n').slice(1)) {
+    const match = line.match(/([^\s()]+\.(?:ts|tsx|js|mjs)):\d+:\d+/);
+    if (!match) continue;
+    const file = match[1]!;
+    // Skip this probe module itself (but NOT `perf-probe.test.ts`), plus vitest's
+    // own frames, so the first remaining frame is the real caller.
+    if (/(?:^|\/)perf-probe\.(?:ts|tsx|js|mjs)$/.test(file)) continue;
+    if (file.includes('node_modules') || file.includes('vitest')) continue;
+    const repoPath = file.match(/((?:src|tests|scripts)\/.*)$/);
+    return repoPath ? repoPath[1]! : file;
+  }
+  return 'unknown';
 }
 
 let active = false;
@@ -93,7 +153,12 @@ export function withPerfProbe<T>(fn: () => T): { result: T; counts: PerfCounts }
   const structuredCloneOrig = globalThis.structuredClone;
   spies.push(
     vi.spyOn(globalThis, 'structuredClone').mockImplementation((value: unknown, options?: unknown) => {
-      if (isWholeState(value)) counts.structuredCloneWholeState += 1;
+      if (isWholeState(value)) {
+        counts.structuredCloneWholeState += 1;
+        counts.structuredCloneWholeStateBytes += approximateStateBytes(value);
+        const site = cloneSiteFromStack();
+        counts.structuredCloneWholeStateBySite[site] = (counts.structuredCloneWholeStateBySite[site] ?? 0) + 1;
+      }
       return (structuredCloneOrig as (v: unknown, o?: unknown) => unknown)(value, options);
     }),
   );
@@ -136,6 +201,56 @@ export function withPerfProbe<T>(fn: () => T): { result: T; counts: PerfCounts }
     vi.spyOn(resourceSystem, 'calculateCityYields').mockImplementation((...args: Parameters<typeof cityYieldsOrig>) => {
       counts.cityYieldCalls += 1;
       return cityYieldsOrig(...args);
+    }),
+  );
+
+  // #1235 — whole-empire economy projections.
+  const civEconomyOrig = economySystem.calculateCivEconomy;
+  spies.push(
+    vi.spyOn(economySystem, 'calculateCivEconomy').mockImplementation((...args: Parameters<typeof civEconomyOrig>) => {
+      counts.civEconomyCalls += 1;
+      return civEconomyOrig(...args);
+    }),
+  );
+
+  const projectedGrossGoldOrig = economySystem.projectCivGrossGold;
+  spies.push(
+    vi.spyOn(economySystem, 'projectCivGrossGold').mockImplementation((...args: Parameters<typeof projectedGrossGoldOrig>) => {
+      counts.projectedGrossGoldCalls += 1;
+      return projectedGrossGoldOrig(...args);
+    }),
+  );
+
+  const economyStatusOrig = economySystem.getEconomyStatusForCiv;
+  spies.push(
+    vi.spyOn(economySystem, 'getEconomyStatusForCiv').mockImplementation((...args: Parameters<typeof economyStatusOrig>) => {
+      counts.economyStatusCalls += 1;
+      return economyStatusOrig(...args);
+    }),
+  );
+
+  // #1235 — road-network / BFS work.
+  const roadConnectivityOrig = roadNetwork.getCitiesConnectedToCapital;
+  spies.push(
+    vi.spyOn(roadNetwork, 'getCitiesConnectedToCapital').mockImplementation((...args: Parameters<typeof roadConnectivityOrig>) => {
+      counts.roadConnectivityCalls += 1;
+      return roadConnectivityOrig(...args);
+    }),
+  );
+
+  const ownedRoadConnectivityOrig = roadNetwork.canConnectCityToCapitalByOwnedRoad;
+  spies.push(
+    vi.spyOn(roadNetwork, 'canConnectCityToCapitalByOwnedRoad').mockImplementation((...args: Parameters<typeof ownedRoadConnectivityOrig>) => {
+      counts.ownedRoadConnectivityCalls += 1;
+      return ownedRoadConnectivityOrig(...args);
+    }),
+  );
+
+  const ownedRoadTileCountOrig = roadNetwork.getOwnedRoadTileCount;
+  spies.push(
+    vi.spyOn(roadNetwork, 'getOwnedRoadTileCount').mockImplementation((...args: Parameters<typeof ownedRoadTileCountOrig>) => {
+      counts.ownedRoadTileScans += 1;
+      return ownedRoadTileCountOrig(...args);
     }),
   );
 
