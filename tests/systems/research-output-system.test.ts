@@ -62,7 +62,7 @@ describe('calculateCivResearchOutput', () => {
     const state = createNewGame('rome', 'issue-917-empire-bonus-order', 'small');
     const player = state.civilizations.player;
     player.civType = 'narnia';
-    player.techState.completed = ['structuralism'];
+    player.techState.completed = []; // #1305: structuralism's +2 empire science became building-conditioned, so the bonus is civ + wonder + ally only
     player.diplomacy.treaties.push({ type: 'alliance', civA: 'player', civB: 'ai-1', turnsRemaining: -1 });
     player.researchPenaltyTurns = 1;
     player.researchPenaltyMultiplier = 0.25;
@@ -78,9 +78,9 @@ describe('calculateCivResearchOutput', () => {
     expect(breakdown).toMatchObject({
       grossCityScience: 13,
       coordinatedCityScience: 13,
-      empireBonusScience: 8,
+      empireBonusScience: 6,
       penaltyMultiplier: 0.25,
-      finalScience: 15,
+      finalScience: 14,
     });
     expect(breakdown.rows.map(row => row.kind)).toEqual([
       'city-gross',

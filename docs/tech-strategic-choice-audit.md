@@ -8,10 +8,10 @@ Scope: Eras 1–11 are audited for change; Era 12 is reference (listed, left uns
 
 | Class | Count |
 |---|---:|
-| KEEP | 314 |
-| TUNE | 19 |
-| REPLACE | 32 |
-| WIRE | 1 |
+| KEEP | 362 |
+| TUNE | 2 |
+| REPLACE | 2 |
+| WIRE | 0 |
 | FOLLOW-UP | 4 |
 | OBSOLETE | 0 |
 | **Total (Eras 1–12)** | 370 |
@@ -28,28 +28,24 @@ Scope: Eras 1–11 are audited for change; Era 12 is reference (listed, left uns
 | 6 | 30 | 0 | 0 | 1 | 0 | 14 | 3 | 12 |
 | 7 | 31 | 0 | 0 | 1 | 0 | 15 | 2 | 14 |
 | 8 | 31 | 0 | 0 | 1 | 0 | 18 | 4 | 7 |
-| 9 | 33 | 5 | 1 | 0 | 1 | 10 | 3 | 13 |
-| 10 | 32 | 7 | 3 | 0 | 0 | 13 | 2 | 7 |
-| 11 | 30 | 6 | 6 | 0 | 1 | 9 | 1 | 7 |
+| 9 | 33 | 0 | 0 | 0 | 1 | 16 | 3 | 13 |
+| 10 | 32 | 0 | 0 | 0 | 0 | 24 | 2 | 6 |
+| 11 | 30 | 0 | 0 | 0 | 1 | 21 | 1 | 7 |
 | 12 | 30 | 1 | 0 | 0 | 1 | 12 | 3 | 13 |
 
 "No table effect" techs act through unlocked content or bespoke code (see Code owners in the inventory); Eras 1–4 have no yield-table rows at all.
 
 ## Repeated niches (three or more techs, same shape)
 
-- `flat:food` ×8: aquaculture, civil-rights-legislation, lab-grown-food, large-scale-irrigation, secular-humanism, universal-healthcare, universal-suffrage, vaccination-campaigns
 - `per-improvement:farm:food` ×7: agricultural-machinery, chemical-fertilizers, green-revolution-crops, improved-agriculture, pesticides, plantation-farming, scientific-breeding
-- `empire-flat:gold` ×5: arms-control-negotiations, black-ops-programs, decolonization, highway-network, wireless-telegraph
-- `flat:science` ×5: molecular-biology, nuclear-theory, post-colonial-theory, quantum-theory, radar-systems
 - `per-category:culture:gold` ×5: existentialism, postmodernism, renaissance-painting, separation-of-powers, video-games
 - `city-if[any:research_institute]:science` ×4: electronic-computing, integrated-circuits, nuclear-physics, rocketry
 - `per-route:any` ×4: autonomous-shipping, convoy-system, guilds, petrodollar-system
 - `city-if[any:film_studio|radio_station]:gold` ×3: propaganda-campaigns, satellite-television, television
 - `city-if[any:marketplace]:gold` ×3: consumer-boom, industrial-monopoly, social-contract
 - `city-if[any:monastery|temple]:science` ×3: interfaith-council, modernist-theology, religious-modernism
-- `flat:gold` ×3: human-rights-framework, keynesian-economics, stagflation-response
-- `flat:production` ×3: aluminium-smelting, megastructures, synthetic-polymers
 - `per-building:granary:food` ×3: improved-agriculture, mechanized-farming, scientific-breeding
+- `per-route-partner` ×3: arms-control-negotiations, globalization, mercantilism
 
 ## AI valuation path
 
@@ -57,9 +53,9 @@ Scope: Eras 1–11 are audited for change; Era 12 is reference (listed, left uns
 
 | Path | Meaning | Techs |
 |---|---|---:|
-| unlock+effect-valued | unlocks valued; own table effect valued by the bounded term | 56 |
+| unlock+effect-valued | unlocks valued; own table effect valued by the bounded term | 57 |
 | effect-valued | table effect only, valued by the bounded term | 116 |
-| unlock-valued | valued through unlocks | 98 |
+| unlock-valued | valued through unlocks | 97 |
 | era-only | era progress only | 100 |
 
 The effect term is state-independent (it prices scaling rows at a small assumed count) so it never reads opponent state; it makes a rewritten effect visible to research planning without making any one tech dominate.
@@ -75,7 +71,7 @@ Verify only: `irrigation`
 
 ## Child 3 target list — Eras 5–8
 
-4 techs to change; 29 scheduled for verification/text only.
+4 techs to change; 30 scheduled for verification/text only.
 
 | Tech | Era | Class | Today | Candidate (existing mechanics) |
 |---|---:|---|---|---|
@@ -84,64 +80,16 @@ Verify only: `irrigation`
 | `mass-production` | 7 | FOLLOW-UP | +10% production empire-wide; discount units x0.95 |  |
 | `pragmatism` | 8 | FOLLOW-UP | +5% to all city yields |  |
 
-Verify only: `professional-army`, `guilds`, `plantation-farming`, `renaissance-painting`, `vaulted-ceilings`, `postal-service`, `black-chambers`, `diplomatic-networks`, `separation-of-powers`, `improved-agriculture`, `epidemic-control`, `social-contract`, `trade-winds`, `fortification-engineering`, `courier-network`, `counter-espionage`, `colonial-railways`, `mechanized-farming`, `agricultural-machinery`, `electric-telegraph`, `covert-operations`, `secret-police`, `general-mobilization`, `industrial-monopoly`, `transcontinental-rail`, `scientific-breeding`, `political-intelligence`, `disinformation-bureau`, `modernist-theology`
+Verify only: `professional-army`, `guilds`, `plantation-farming`, `renaissance-painting`, `vaulted-ceilings`, `postal-service`, `black-chambers`, `diplomatic-networks`, `mercantilism`, `separation-of-powers`, `improved-agriculture`, `epidemic-control`, `social-contract`, `trade-winds`, `fortification-engineering`, `courier-network`, `counter-espionage`, `colonial-railways`, `mechanized-farming`, `agricultural-machinery`, `electric-telegraph`, `covert-operations`, `secret-police`, `general-mobilization`, `industrial-monopoly`, `transcontinental-rail`, `scientific-breeding`, `political-intelligence`, `disinformation-bureau`, `modernist-theology`
 
 ## Child 4 target list — Eras 9–11
 
-48 techs to change; 3 scheduled for verification/text only.
+0 techs to change; 22 scheduled for verification/text only.
 
 | Tech | Era | Class | Today | Candidate (existing mechanics) |
 |---|---:|---|---|---|
-| `quantum-theory` | 9 | REPLACE | +2 science all cities | cityFlatConditional science in cities with a research_institute |
-| `universal-suffrage` | 9 | REPLACE | +1 food all cities | UNREST_RELIEF_SOURCES row for happiness-driven cities instead of +1 food |
-| `chemical-fertilizers` | 9 | TUNE | +2 food per farm improvement | terrainYield food on poor terrain (desert/tundra) so it lifts weak cities |
-| `large-scale-irrigation` | 9 | REPLACE | +1 food all cities | perImprovement farm food next to river tiles (terrainYield) |
-| `existentialism` | 9 | TUNE | +1 gold per culture building empire-wide | perPopulation science for cities with a university, drop culture gold |
-| `convoy-system` | 9 | TUNE | +2 gold per trade route empire-wide | perTradeRoute coastalOnly gold plus naval supply protection (naval-operations owner) |
-| `aluminium-smelting` | 9 | REPLACE | +1 production all cities | perImprovement mine production plus air-unit cost note |
-| `tungsten-alloys` | 9 | REPLACE | combatStrength +2 (all units; always; none) | UNIT_MODIFIERS scoped to armor/siege class instead of every unit |
-| `wireless-telegraph` | 9 | REPLACE | +2 gold empire-wide | perRoutePartnerCiv gold: grows with the number of distinct civilisations connected |
-| `propaganda-campaigns` | 9 | TUNE | +2 gold in cities with a film studio or radio station | espionage/loyalty verb (propaganda mission) rather than a film-studio gold row |
-| `religious-modernism` | 9 | TUNE | +1 science in cities with a religion building | faith-conditional science for cities where followers are own-faith (religion-system owner) |
-| `secular-humanism` | 9 | REPLACE | +1 food all cities | perPopulation science for cities with no majority faith, a relationship-sensitive verb |
-| `keynesian-economics` | 10 | REPLACE | +2 gold all cities | maintenanceDiscount keyed to treasury size, or perBuildingId bank gold |
-| `consumer-boom` | 10 | TUNE | +2 gold in cities with a market | perPopulation gold above city size 8: large-city consumers |
-| `nuclear-physics` | 10 | TUNE | +3 science in cities with a research institute | keep as research_institute science anchor |
-| `nuclear-theory` | 10 | REPLACE | +2 science empire-wide | cityFlatConditional science in cities with a research_institute (distinct from quantum-theory by requiresBuilding) |
-| `radar-systems` | 10 | REPLACE | +2 science empire-wide | UNIT_MODIFIERS vision +1 for air/naval units (conditional vision), not +2 science |
-| `decolonization` | 10 | REPLACE | +2 gold empire-wide | perRoutePartnerCiv gold limited to former-vassal partners, or UNREST_RELIEF_SOURCES for captured cities |
-| `international-institutions` | 10 | REPLACE | +1 gold and +1 science empire-wide | perRoutePartnerCiv science and gold when at peace with the partner |
-| `rocketry` | 10 | TUNE | +2 science in cities with a research institute | perBuildingId launch/air-base production rather than research_institute science |
-| `pesticides` | 10 | TUNE | +1 food per farm improvement | crisis-effects hook: famine events halved (existing resolver) |
-| `universal-healthcare` | 10 | REPLACE | +2 food all cities | perPopulation food for cities above size 10 (large cities only) |
-| `post-colonial-theory` | 10 | REPLACE | +1 science all cities | cityFlatConditional science in cities that were conquered or have foreign-faith followers |
-| `human-rights-framework` | 10 | REPLACE | +1 gold all cities | UNREST_RELIEF_SOURCES row; gold only while not at war |
-| `synthetic-polymers` | 10 | REPLACE | +1 production all cities | perBuildingCategory production for owned factory buildings |
-| `highway-network` | 10 | REPLACE | +2 gold empire-wide | perCityRoute gold requiring a market/airport building |
-| `television` | 10 | TUNE | +2 gold in cities with a film studio or radio station | perBuildingId film_studio culture plus a vision-of-opinion modifier on loyalty |
-| `electronic-computing` | 10 | TUNE | +3 science in cities with a research institute | lowestCityScience or foodFromScience instead of research_institute science |
-| `cold-war-networks` | 10 | WIRE + text | - | text promises +2 gold empire-wide with no row; either add espionage verb or reword |
-| `interfaith-council` | 10 | TUNE | +1 science in cities with a religion building | cityFlatConditional science for cities with two or more faiths present |
-| `stagflation-response` | 11 | REPLACE | +3 gold all cities | maintenanceDiscount: removes upkeep for the largest building counts instead of +3 gold |
-| `petrodollar-system` | 11 | TUNE | +2 gold per trade route empire-wide | perRoutePartnerCiv gold: scales with distinct partners |
-| `integrated-circuits` | 11 | TUNE | +3 science in cities with a research institute | perBuildingCategory science for owned laboratory buildings |
-| `molecular-biology` | 11 | REPLACE | +2 science empire-wide | foodFromScience: cross-track, scales with science invested |
-| `arms-control-negotiations` | 11 | REPLACE | +2 gold empire-wide | perRoutePartnerCiv gold while not at war: hurt by conflict |
-| `civil-rights-legislation` | 11 | REPLACE | +2 food all cities | UNREST_RELIEF_SOURCES row for minority-faith cities instead of +2 food |
-| `deep-sea-drilling` | 11 | REPLACE | +1 food and +2 gold empire-wide | terrainYield gold/production on ocean tiles worked by coastal cities |
-| `green-revolution-crops` | 11 | TUNE | +2 food per farm improvement | foundingBonus food plus per-population food: a growth-for-new-cities verb |
-| `aquaculture` | 11 | REPLACE | +2 food all cities | terrainYield food on coast/ocean tiles |
-| `vaccination-campaigns` | 11 | REPLACE | +2 food all cities | crisis-effects hook: population-loss events halved (the existing epidemic resolver), not +2 food |
-| `structuralism` | 11 | REPLACE | +2 science empire-wide | perBuildingCategory culture science |
-| `postmodernism` | 11 | TUNE | +1 gold per culture building empire-wide | perLuxuryResource gold: culture trade value |
-| `carbon-fiber` | 11 | REPLACE | combatStrength +2 (all units; always; none) | UNIT_MODIFIERS scoped to air units or when defending in a friendly city |
-| `megastructures` | 11 | REPLACE | +2 production all cities | perCompletedLegendaryWonder production |
-| `offshore-platforms` | 11 | REPLACE | +2 gold and +1 production empire-wide | terrainYield production/gold on ocean tiles; distinct from deep-sea-drilling by yields |
-| `satellite-television` | 11 | TUNE | +2 gold in cities with a film studio or radio station | perRoutePartnerCiv gold: broadcast reach over foreign partners |
-| `black-ops-programs` | 11 | REPLACE | +2 gold empire-wide | espionage modifier (mission success and a spy slot) instead of +2 gold |
-| `ecumenical-movement` | 11 | REPLACE | +1 science and +1 food empire-wide | cityFlatConditional science and food for cities with two or more faiths |
 
-Verify only: `welfare-state`, `counterintelligence`, `signals-intelligence`
+Verify only: `chemical-fertilizers`, `existentialism`, `convoy-system`, `tungsten-alloys`, `counterintelligence`, `propaganda-campaigns`, `religious-modernism`, `consumer-boom`, `nuclear-physics`, `rocketry`, `pesticides`, `television`, `electronic-computing`, `signals-intelligence`, `interfaith-council`, `petrodollar-system`, `integrated-circuits`, `arms-control-negotiations`, `green-revolution-crops`, `postmodernism`, `carbon-fiber`, `satellite-television`
 
 ## Warfare brainstorm reconciliation (#420 Part 2)
 
@@ -334,7 +282,7 @@ Class/rating: rating 0 flavor, 1 unconditional number, 2 conditional but weak or
 | `rifle-tactics` | 6 | military | KEEP | 3 | unlock-valued | - | - |
 | `grenade-warfare` | 6 | military | KEEP | 3 | unlock-valued | - | - |
 | `joint-stock-companies` | 6 | economy | KEEP | 3 | unlock-valued | - | - |
-| `mercantilism` | 6 | economy | KEEP | 3 | unlock+effect-valued | +1 gold per distinct peacetime trade-route partner civilization | systems/trade-route-economy |
+| `mercantilism` | 6 | economy | KEEP | 2 | unlock+effect-valued | +1 gold per distinct peacetime trade-route partner civilization | systems/trade-route-economy |
 | `natural-history` | 6 | science | KEEP | 3 | unlock+effect-valued | +2 science per natural wonder in empire territory | - |
 | `hydraulics` | 6 | science | KEEP | 2 | effect-valued | +2 production in river cities | - |
 | `separation-of-powers` | 6 | civics | KEEP | 2 | effect-valued | +1 gold per culture building empire-wide | systems/faction-relief, systems/governance-capacity |
@@ -428,95 +376,95 @@ Class/rating: rating 0 flavor, 1 unconditional number, 2 conditional but weak or
 | `air-superiority` | 9 | military | KEEP | 3 | unlock-valued | - | systems/combat-role-definitions, ui/unit-role-presentation |
 | `petroleum-industry` | 9 | economy | KEEP | 3 | unlock-valued | - | systems/improvement-system |
 | `fordist-manufacturing` | 9 | economy | KEEP | 3 | unlock-valued | - | - |
-| `quantum-theory` | 9 | science | REPLACE | 1 | unlock+effect-valued | +2 science all cities | - |
+| `quantum-theory` | 9 | science | KEEP | 2 | unlock+effect-valued | +2 science in cities with a university | - |
 | `aviation` | 9 | science | KEEP | 3 | unlock-valued | - | - |
-| `universal-suffrage` | 9 | civics | REPLACE | 1 | effect-valued | +1 food all cities | systems/unrest-guidance |
-| `welfare-state` | 9 | civics | KEEP | 0 | unlock-valued | - | - |
+| `universal-suffrage` | 9 | civics | KEEP | 2 | effect-valued | +1 food per 6 population in each city | systems/unrest-guidance |
+| `welfare-state` | 9 | civics | KEEP | 3 | unlock-valued | - | - |
 | `motorized-transport` | 9 | exploration | KEEP | 3 | unlock-valued | - | - |
 | `aerial-survey` | 9 | exploration | KEEP | 3 | effect-valued | vision +1 (class:air; always; none) | - |
-| `chemical-fertilizers` | 9 | agriculture | TUNE | 2 | effect-valued | +2 food per farm improvement | - |
-| `large-scale-irrigation` | 9 | agriculture | REPLACE | 1 | effect-valued | +1 food all cities | - |
+| `chemical-fertilizers` | 9 | agriculture | KEEP | 2 | effect-valued | +2 food per farm improvement | - |
+| `large-scale-irrigation` | 9 | agriculture | KEEP | 3 | effect-valued | +1 food on worked desert and plains tiles | - |
 | `blood-transfusion` | 9 | medicine | KEEP | 3 | effect-valued | healing +4 (all units; always; inFriendlyCity) | - |
 | `modern-psychiatry` | 9 | medicine | KEEP | 2 | effect-valued | +1 food in cities with a sanatorium | - |
 | `pragmatic-empiricism` | 9 | philosophy | KEEP | 2 | effect-valued | +2 science in cities with a library | - |
-| `existentialism` | 9 | philosophy | TUNE | 2 | effect-valued | +1 gold per culture building empire-wide | - |
+| `existentialism` | 9 | philosophy | KEEP | 2 | effect-valued | +1 gold per culture building empire-wide | - |
 | `cinema` | 9 | arts | KEEP | 3 | unlock-valued | - | - |
 | `jazz-age` | 9 | arts | KEEP | 2 | effect-valued | +2 gold in cities with an opera house | - |
 | `dreadnought-construction` | 9 | maritime | KEEP | 3 | unlock-valued | - | - |
 | `submarine-warfare` | 9 | maritime | KEEP | 3 | unlock-valued | - | - |
-| `convoy-system` | 9 | maritime | TUNE | 2 | unlock+effect-valued | +2 gold per trade route empire-wide | - |
-| `aluminium-smelting` | 9 | metallurgy | REPLACE | 1 | effect-valued | +1 production all cities | - |
-| `tungsten-alloys` | 9 | metallurgy | REPLACE | 1 | effect-valued | combatStrength +2 (all units; always; none) | - |
+| `convoy-system` | 9 | maritime | KEEP | 2 | unlock+effect-valued | +2 gold per trade route empire-wide | - |
+| `aluminium-smelting` | 9 | metallurgy | KEEP | 2 | effect-valued | +1 production in cities with a steel mill | - |
+| `tungsten-alloys` | 9 | metallurgy | KEEP | 2 | effect-valued | combatStrength +2 (class:armor/siege; always; none) | - |
 | `hydroelectric-power` | 9 | construction | KEEP | 2 | unlock+effect-valued | +2 production in river cities | - |
 | `steel-skyscrapers` | 9 | construction | KEEP | 2 | effect-valued | +2 production in cities with 6 or more buildings | - |
 | `radio-broadcast` | 9 | communication | KEEP | 3 | unlock-valued | - | - |
-| `wireless-telegraph` | 9 | communication | REPLACE | 1 | effect-valued | +2 gold empire-wide | - |
+| `wireless-telegraph` | 9 | communication | KEEP | 3 | effect-valued | +1 gold per route in cities with a telephone exchange | - |
 | `mass-media` | 9 | communication | KEEP | 3 | era-only | - | systems/city-maturity-system |
 | `counterintelligence` | 9 | espionage | KEEP | 3 | unlock-valued | - | systems/espionage-catalog, systems/espionage-modifier-definitions |
-| `propaganda-campaigns` | 9 | espionage | TUNE | 2 | unlock+effect-valued | +2 gold in cities with a film studio or radio station | systems/unrest-guidance |
-| `religious-modernism` | 9 | spirituality | TUNE | 2 | effect-valued | +1 science in cities with a religion building | - |
-| `secular-humanism` | 9 | spirituality | REPLACE | 1 | effect-valued | +1 food all cities | - |
+| `propaganda-campaigns` | 9 | espionage | KEEP | 2 | unlock+effect-valued | +2 gold in cities with a film studio or radio station | systems/unrest-guidance |
+| `religious-modernism` | 9 | spirituality | KEEP | 2 | effect-valued | +1 science in cities with a religion building | - |
+| `secular-humanism` | 9 | spirituality | KEEP | 2 | effect-valued | +1 food in cities without a temple | - |
 | `jet-aviation` | 10 | military | KEEP | 3 | unlock-valued | - | - |
 | `nuclear-weapons` | 10 | military | KEEP | 3 | unlock-valued | - | - |
-| `keynesian-economics` | 10 | economy | REPLACE | 1 | unlock+effect-valued | +2 gold all cities | - |
-| `consumer-boom` | 10 | economy | TUNE | 2 | effect-valued | +2 gold in cities with a market | - |
-| `nuclear-physics` | 10 | science | TUNE | 2 | unlock+effect-valued | +3 science in cities with a research institute | - |
-| `nuclear-theory` | 10 | science | REPLACE | 1 | effect-valued | +2 science empire-wide | - |
-| `radar-systems` | 10 | science | REPLACE | 1 | unlock+effect-valued | +2 science empire-wide | - |
-| `decolonization` | 10 | civics | REPLACE | 1 | effect-valued | +2 gold empire-wide | systems/faction-federalism |
-| `international-institutions` | 10 | civics | REPLACE | 1 | unlock+effect-valued | +1 gold and +1 science empire-wide | - |
-| `rocketry` | 10 | exploration | TUNE | 2 | unlock+effect-valued | +2 science in cities with a research institute | - |
+| `keynesian-economics` | 10 | economy | KEEP | 2 | unlock+effect-valued | +2 gold in cities with a bank | - |
+| `consumer-boom` | 10 | economy | KEEP | 2 | effect-valued | +2 gold in cities with a market | - |
+| `nuclear-physics` | 10 | science | KEEP | 2 | unlock+effect-valued | +3 science in cities with a research institute | - |
+| `nuclear-theory` | 10 | science | KEEP | 2 | effect-valued | +2 science in cities with an atomic laboratory | - |
+| `radar-systems` | 10 | science | KEEP | 2 | unlock+effect-valued | +2 science in cities with a radar station | - |
+| `decolonization` | 10 | civics | KEEP | 3 | effect-valued | +1 gold per trade route to a foreign civilization | systems/faction-federalism |
+| `international-institutions` | 10 | civics | KEEP | 2 | unlock+effect-valued | +1 gold and +1 science in cities with a UN delegation | - |
+| `rocketry` | 10 | exploration | KEEP | 2 | unlock+effect-valued | +2 science in cities with a research institute | - |
 | `polar-operations` | 10 | exploration | KEEP | 3 | effect-valued | +1 food and +1 production in tundra and snow tiles | - |
-| `pesticides` | 10 | agriculture | TUNE | 2 | effect-valued | +1 food per farm improvement | - |
+| `pesticides` | 10 | agriculture | KEEP | 2 | effect-valued | +1 food per farm improvement | - |
 | `mechanized-agriculture` | 10 | agriculture | KEEP | 2 | effect-valued | +2 production in cities with a granary | - |
 | `penicillin` | 10 | medicine | KEEP | 3 | effect-valued | healing +3 (all units; always; inFriendlyTerritory) | - |
-| `universal-healthcare` | 10 | medicine | REPLACE | 1 | unlock+effect-valued | +2 food all cities | - |
-| `post-colonial-theory` | 10 | philosophy | REPLACE | 1 | effect-valued | +1 science all cities | - |
-| `human-rights-framework` | 10 | philosophy | REPLACE | 1 | effect-valued | +1 gold all cities | - |
+| `universal-healthcare` | 10 | medicine | KEEP | 2 | unlock+effect-valued | +2 food in cities with a public hospital | - |
+| `post-colonial-theory` | 10 | philosophy | KEEP | 2 | effect-valued | +1 science in cities with a census office | - |
+| `human-rights-framework` | 10 | philosophy | KEEP | 2 | effect-valued | +1 gold per 6 population in each city | - |
 | `abstract-expressionism` | 10 | arts | KEEP | 2 | effect-valued | +2 gold in cities with an art gallery | - |
 | `rock-and-roll` | 10 | arts | KEEP | 2 | effect-valued | +2 gold in cities with a concert hall | - |
 | `carrier-warfare` | 10 | maritime | KEEP | 3 | unlock-valued | - | - |
 | `amphibious-assault` | 10 | maritime | KEEP | 3 | effect-valued | combatStrength +3 (class:naval; attacking; vsCoastalCity) | - |
 | `titanium-processing` | 10 | metallurgy | KEEP | 2 | effect-valued | +2 production in cities with a factory | - |
-| `synthetic-polymers` | 10 | metallurgy | REPLACE | 1 | unlock+effect-valued | +1 production all cities | - |
+| `synthetic-polymers` | 10 | metallurgy | KEEP | 2 | unlock+effect-valued | +1 production in cities with a chemical plant | - |
 | `nuclear-power` | 10 | construction | KEEP | 3 | unlock-valued | - | - |
-| `highway-network` | 10 | construction | REPLACE | 1 | unlock+effect-valued | +2 gold empire-wide | - |
-| `television` | 10 | communication | TUNE | 2 | unlock+effect-valued | +2 gold in cities with a film studio or radio station | - |
-| `electronic-computing` | 10 | communication | TUNE | 2 | effect-valued | +3 science in cities with a research institute | - |
+| `highway-network` | 10 | construction | KEEP | 3 | unlock+effect-valued | +1 gold per route in cities with a caravanserai | - |
+| `television` | 10 | communication | KEEP | 2 | unlock+effect-valued | +2 gold in cities with a film studio or radio station | - |
+| `electronic-computing` | 10 | communication | KEEP | 2 | effect-valued | +3 science in cities with a research institute | - |
 | `signals-intelligence` | 10 | espionage | KEEP | 3 | unlock-valued | - | systems/espionage-counterintel, systems/espionage-modifier-definitions, ui/espionage-panel |
-| `cold-war-networks` | 10 | espionage | WIRE | 1 | unlock-valued | - | systems/espionage-catalog |
+| `cold-war-networks` | 10 | espionage | KEEP | 2 | unlock+effect-valued | +2 gold in cities with a security bureau | systems/espionage-catalog |
 | `digital-surveillance` | 10 | espionage | KEEP | 3 | era-only | - | systems/espionage-counterintel, systems/espionage-turn, ui/espionage-panel |
 | `liberation-theology` | 10 | spirituality | KEEP | 2 | effect-valued | +1 food in cities with a temple | - |
-| `interfaith-council` | 10 | spirituality | TUNE | 2 | effect-valued | +1 science in cities with a religion building | - |
+| `interfaith-council` | 10 | spirituality | KEEP | 2 | effect-valued | +1 science in cities with a religion building | - |
 | `helicopter-warfare` | 11 | military | KEEP | 3 | unlock-valued | - | - |
 | `icbm-development` | 11 | military | KEEP | 3 | unlock-valued | - | - |
-| `stagflation-response` | 11 | economy | REPLACE | 1 | effect-valued | +3 gold all cities | - |
-| `petrodollar-system` | 11 | economy | TUNE | 2 | effect-valued | +2 gold per trade route empire-wide | - |
-| `integrated-circuits` | 11 | science | TUNE | 2 | unlock+effect-valued | +3 science in cities with a research institute | - |
-| `molecular-biology` | 11 | science | REPLACE | 1 | unlock+effect-valued | +2 science empire-wide | - |
-| `arms-control-negotiations` | 11 | civics | REPLACE | 1 | unlock+effect-valued | +2 gold empire-wide | - |
-| `civil-rights-legislation` | 11 | civics | REPLACE | 1 | unlock+effect-valued | +2 food all cities | - |
+| `stagflation-response` | 11 | economy | KEEP | 3 | effect-valued | -20% maintenance in cities with 8 or more constructions | - |
+| `petrodollar-system` | 11 | economy | KEEP | 2 | effect-valued | +2 gold per trade route empire-wide | - |
+| `integrated-circuits` | 11 | science | KEEP | 2 | unlock+effect-valued | +3 science in cities with a research institute | - |
+| `molecular-biology` | 11 | science | KEEP | 2 | unlock+effect-valued | +2 science in cities with a genetic research lab | - |
+| `arms-control-negotiations` | 11 | civics | KEEP | 2 | unlock+effect-valued | +1 gold per distinct peacetime trade-route partner civilization | - |
+| `civil-rights-legislation` | 11 | civics | KEEP | 2 | unlock+effect-valued | +2 food in developed cities (10 or more constructions) | - |
 | `space-exploration` | 11 | exploration | KEEP | 3 | unlock-valued | - | systems/world-race-definitions |
-| `deep-sea-drilling` | 11 | exploration | REPLACE | 1 | effect-valued | +1 food and +2 gold empire-wide | - |
-| `green-revolution-crops` | 11 | agriculture | TUNE | 2 | unlock+effect-valued | +2 food per farm improvement | - |
-| `aquaculture` | 11 | agriculture | REPLACE | 1 | effect-valued | +2 food all cities | - |
+| `deep-sea-drilling` | 11 | exploration | KEEP | 3 | effect-valued | +1 gold and +1 production on worked ocean tiles | - |
+| `green-revolution-crops` | 11 | agriculture | KEEP | 2 | unlock+effect-valued | +2 food per farm improvement | - |
+| `aquaculture` | 11 | agriculture | KEEP | 3 | effect-valued | +1 food on worked coast and ocean tiles | - |
 | `organ-transplantation` | 11 | medicine | KEEP | 3 | unlock+effect-valued | healing +3 (all units; always; inFriendlyCity) | - |
-| `vaccination-campaigns` | 11 | medicine | REPLACE | 1 | effect-valued | +2 food all cities | - |
-| `structuralism` | 11 | philosophy | REPLACE | 1 | effect-valued | +2 science empire-wide | - |
-| `postmodernism` | 11 | philosophy | TUNE | 2 | effect-valued | +1 gold per culture building empire-wide | - |
+| `vaccination-campaigns` | 11 | medicine | KEEP | 2 | effect-valued | +2 food in cities with a sanatorium | - |
+| `structuralism` | 11 | philosophy | KEEP | 2 | effect-valued | +2 science in cities with a natural history museum | - |
+| `postmodernism` | 11 | philosophy | KEEP | 2 | effect-valued | +1 gold per culture building empire-wide | - |
 | `pop-art` | 11 | arts | KEEP | 2 | effect-valued | +2 gold in cities with an art gallery | - |
 | `counterculture` | 11 | arts | KEEP | 2 | effect-valued | +2 gold in cities with a concert hall | - |
 | `nuclear-submarines` | 11 | maritime | KEEP | 3 | unlock-valued | - | - |
 | `container-shipping` | 11 | maritime | KEEP | 3 | unlock-valued | - | - |
-| `carbon-fiber` | 11 | metallurgy | REPLACE | 1 | effect-valued | combatStrength +2 (all units; always; none) | - |
+| `carbon-fiber` | 11 | metallurgy | KEEP | 2 | effect-valued | combatStrength +2 (class:air/armor; always; none) | - |
 | `precision-engineering` | 11 | metallurgy | KEEP | 2 | unlock+effect-valued | +2 production in cities with a factory | - |
-| `megastructures` | 11 | construction | REPLACE | 1 | effect-valued | +2 production all cities | - |
-| `offshore-platforms` | 11 | construction | REPLACE | 1 | effect-valued | +2 gold and +1 production empire-wide | - |
+| `megastructures` | 11 | construction | KEEP | 2 | effect-valued | +2 production in cities with a power station | - |
+| `offshore-platforms` | 11 | construction | KEEP | 2 | effect-valued | +2 gold and +1 production in coastal cities with a harbor | - |
 | `arpanet` | 11 | communication | KEEP | 3 | unlock-valued | - | - |
-| `satellite-television` | 11 | communication | TUNE | 2 | effect-valued | +2 gold in cities with a film studio or radio station | - |
+| `satellite-television` | 11 | communication | KEEP | 2 | effect-valued | +2 gold in cities with a film studio or radio station | - |
 | `satellite-surveillance` | 11 | espionage | KEEP | 3 | unlock-valued | - | systems/espionage-catalog |
-| `black-ops-programs` | 11 | espionage | REPLACE | 1 | effect-valued | +2 gold empire-wide | - |
-| `ecumenical-movement` | 11 | spirituality | REPLACE | 1 | effect-valued | +1 science and +1 food empire-wide | - |
+| `black-ops-programs` | 11 | espionage | KEEP | 2 | effect-valued | +2 gold in cities with an intelligence agency | - |
+| `ecumenical-movement` | 11 | spirituality | KEEP | 2 | effect-valued | +1 science and +1 food in cities with both a temple and a monastery | - |
 | `new-age-spirituality` | 11 | spirituality | KEEP | 2 | effect-valued | +2 gold in cities with a temple or monastery | - |
 | `cyber-warfare` | 12 | military | KEEP | 3 | unlock-valued | - | - |
 | `stealth-technology` | 12 | military | KEEP | 3 | unlock-valued | - | - |

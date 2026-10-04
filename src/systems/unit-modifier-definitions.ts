@@ -184,8 +184,8 @@ export const UNIT_MODIFIERS: UnitModifier[] = [
   { source: tech('naval-armor'), effect: 'combatStrength', mode: 'flat', value: 5, appliesTo: ['naval'], when: 'defending', label: 'Naval Armor' },
   { source: tech('precision-casting'), effect: 'combatStrength', mode: 'flat', value: 5, unitTypes: ['cannon'], when: 'always', label: 'Precision Casting' },
   { source: tech('steel-plate-armor'), effect: 'combatStrength', mode: 'flat', value: 3, appliesTo: ['melee'], when: 'defending', label: 'Steel Plate Armor' },
-  { source: tech('tungsten-alloys'), effect: 'combatStrength', mode: 'flat', value: 2, when: 'always', label: 'Tungsten Alloys' },
-  { source: tech('carbon-fiber'), effect: 'combatStrength', mode: 'flat', value: 2, when: 'always', label: 'Carbon Fibre' },
+  { source: tech('tungsten-alloys'), effect: 'combatStrength', mode: 'flat', value: 2, appliesTo: ['armor', 'siege'], when: 'always', label: 'Tungsten Alloys' },
+  { source: tech('carbon-fiber'), effect: 'combatStrength', mode: 'flat', value: 2, appliesTo: ['air', 'armor'], when: 'always', label: 'Carbon Fibre' },
   // Nanomaterials: text updated (effect-text-only rule) to drop newUnitsOnly — applies to
   // all units, all the time; simpler, save-safe, balance-equivalent within an era.
   { source: tech('nanomaterials'), effect: 'combatStrength', mode: 'flat', value: 3, when: 'always', label: 'Nanomaterials' },

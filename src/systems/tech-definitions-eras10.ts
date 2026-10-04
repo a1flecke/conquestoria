@@ -14,7 +14,7 @@ const ERA_10_TECHS: Tech[] = [
   // ECONOMY (2)
   { id: 'keynesian-economics', name: 'Keynesian Economics', track: 'economy', cost: 1040,
     prerequisites: ['welfare-state', 'fordist-manufacturing'],
-    unlocks: ['+2 gold all cities; state investment cycles stabilise the economy through boom and bust'],
+    unlocks: ['+2 gold in cities with a bank; state investment cycles stabilise the economy through boom and bust'],
     unlocksBuildings: ['central_bank', 'postwar_reconstruction'], era: 10 },
   { id: 'consumer-boom', name: 'Consumer Boom', track: 'economy', cost: 1040,
     prerequisites: ['fordist-manufacturing', 'radio-broadcast'],
@@ -30,22 +30,22 @@ const ERA_10_TECHS: Tech[] = [
   // row in tech-yield-definitions.ts).
   { id: 'nuclear-theory', name: 'Nuclear Theory', track: 'science', cost: 2080,
     prerequisites: ['quantum-theory'],
-    unlocks: ['+2 science empire-wide'], era: 10, countsForEraAdvancement: false },
+    unlocks: ['+2 science in cities with an atomic laboratory'], era: 10, countsForEraAdvancement: false },
   { id: 'radar-systems', name: 'Radar Systems', track: 'science', cost: 2080,
     prerequisites: ['radio-broadcast', 'aviation'],
-    unlocks: ['+2 science empire-wide; radar coverage accelerates navigation and early-warning networks', 'Surface-to-air missile sites also require Rocketry and local anti-aircraft infrastructure'],
+    unlocks: ['+2 science in cities with a radar station; radar coverage accelerates navigation and early-warning networks', 'Surface-to-air missile sites also require Rocketry and local anti-aircraft infrastructure'],
     unlocksBuildings: ['radar_station', 'sam_site'], unlocksUnits: ['maritime_patrol_aircraft'], era: 10 },
 
   // CIVICS (2)
   { id: 'decolonization', name: 'Decolonization', track: 'civics', cost: 1040,
     prerequisites: ['universal-suffrage', 'propaganda-campaigns'],
     unlocks: [
-      '+2 gold empire-wide; emerging nations pursue self-determination and reshape world order',
+      '+1 gold per trade route to a foreign civilization; emerging nations pursue self-determination and reshape world order',
       'Unlock Federal Autonomy: grant regions more self-government to ease unrest from empire size, in exchange for reduced central gold income',
     ], era: 10 },
   { id: 'international-institutions', name: 'International Institutions', track: 'civics', cost: 1040,
     prerequisites: ['universal-suffrage', 'welfare-state'],
-    unlocks: ['+1 gold +1 science empire-wide; multilateral bodies manage trade, disputes, and humanitarian aid'],
+    unlocks: ['+1 gold and +1 science in cities with a UN delegation; multilateral bodies manage trade, disputes, and humanitarian aid'],
     unlocksBuildings: ['un_delegation'], era: 10 },
 
   // EXPLORATION (2)
@@ -71,16 +71,16 @@ const ERA_10_TECHS: Tech[] = [
     unlocks: ['Units heal +3 HP per turn in friendly territory; antibiotic medicine transforms survival on and off the battlefield'], era: 10 },
   { id: 'universal-healthcare', name: 'Universal Healthcare', track: 'medicine', cost: 1040,
     prerequisites: ['modern-psychiatry', 'welfare-state'],
-    unlocks: ['+2 food all cities; publicly funded clinics raise life expectancy across the empire'],
+    unlocks: ['+2 food in cities with a public hospital; publicly funded clinics raise life expectancy across the empire'],
     unlocksBuildings: ['public_hospital'], era: 10 },
 
   // PHILOSOPHY (2)
   { id: 'post-colonial-theory', name: 'Post-Colonial Theory', track: 'philosophy', cost: 1040,
     prerequisites: ['existentialism', 'decolonization'],
-    unlocks: ['+1 science all cities; critical reassessment of empire opens new intellectual horizons'], era: 10 },
+    unlocks: ['+1 science in cities with a census office; critical reassessment of empire opens new intellectual horizons'], era: 10 },
   { id: 'human-rights-framework', name: 'Human Rights Framework', track: 'philosophy', cost: 1040,
     prerequisites: ['pragmatic-empiricism', 'universal-suffrage'],
-    unlocks: ['+1 gold all cities; universal rights doctrine legitimises civic investment and social cohesion'], era: 10 },
+    unlocks: ['+1 gold per 6 population in each city; universal rights doctrine legitimises civic investment and social cohesion'], era: 10 },
 
   // ARTS (2)
   { id: 'abstract-expressionism', name: 'Abstract Expressionism', track: 'arts', cost: 1040,
@@ -105,7 +105,7 @@ const ERA_10_TECHS: Tech[] = [
     unlocks: ['+2 production in cities with a factory; titanium unlocks aerospace frames and precision tooling'], era: 10 },
   { id: 'synthetic-polymers', name: 'Synthetic Polymers', track: 'metallurgy', cost: 1040,
     prerequisites: ['petroleum-industry', 'tungsten-alloys'],
-    unlocks: ['+1 production all cities; plastics replace scarce natural materials across manufacturing'],
+    unlocks: ['+1 production in cities with a chemical plant; plastics replace scarce natural materials across manufacturing'],
     unlocksBuildings: ['chemical_plant'], era: 10 },
 
   // CONSTRUCTION (2)
@@ -115,7 +115,7 @@ const ERA_10_TECHS: Tech[] = [
     unlocksBuildings: ['nuclear_power_plant'], era: 10 },
   { id: 'highway-network', name: 'Highway Network', track: 'construction', cost: 2080,
     prerequisites: ['motorized-transport', 'steel-skyscrapers'],
-    unlocks: ['+2 gold empire-wide; interstate highway networks slash transit costs and connect distant cities'],
+    unlocks: ['+1 gold per route in cities with a caravanserai; interstate highway networks slash transit costs and connect distant cities'],
     unlocksUnits: ['freight_convoy'], era: 10 },
 
   // COMMUNICATION (2)
@@ -134,7 +134,7 @@ const ERA_10_TECHS: Tech[] = [
     unlocksBuildings: ['signals_bureau'], era: 10 },
   { id: 'cold-war-networks', name: 'Cold War Networks', track: 'espionage', cost: 1040,
     prerequisites: ['propaganda-campaigns', 'counterintelligence'],
-    unlocks: ['+2 gold empire-wide; shadow networks of assets, couriers, and double agents span the globe'], unlocksBuildings: ['security-bureau'], era: 10 },
+    unlocks: ['+2 gold in cities with a security bureau; shadow networks of assets, couriers, and double agents span the globe'], unlocksBuildings: ['security-bureau'], era: 10 },
   // MR10: re-homed from a stub — digital-surveillance is no longer a legendary-wonder gate.
   { id: 'digital-surveillance', name: 'Digital Surveillance', track: 'espionage', cost: 1040,
     prerequisites: ['counterintelligence', 'signals-intelligence'],

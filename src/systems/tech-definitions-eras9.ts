@@ -29,7 +29,7 @@ const ERA_9_TECHS: Tech[] = [
   // SCIENCE (2)
   { id: 'quantum-theory', name: 'Quantum Theory', track: 'science', cost: 870,
     prerequisites: ['engineering-exhibition', 'dialectical-materialism'],
-    unlocks: ['+2 science all cities; atomic-scale physics unlocks the next frontier of research'],
+    unlocks: ['+2 science in cities with a university; atomic-scale physics unlocks the next frontier of research'],
     unlocksBuildings: ['research_institute'], era: 9 },
   { id: 'aviation', name: 'Aviation', track: 'science', cost: 1740,
     prerequisites: ['structural-engineering', 'aluminium-smelting'],
@@ -39,10 +39,10 @@ const ERA_9_TECHS: Tech[] = [
   // CIVICS (2)
   { id: 'universal-suffrage', name: 'Universal Suffrage', track: 'civics', cost: 870,
     prerequisites: ['labor-rights', 'public-records'],
-    unlocks: ['+1 food all cities; democratic legitimacy accelerates civic development'], era: 9 },
+    unlocks: ['+1 food per 6 population in each city; democratic legitimacy accelerates civic development'], era: 9 },
   { id: 'welfare-state', name: 'Welfare State', track: 'civics', cost: 870,
     prerequisites: ['labor-rights', 'social-justice'],
-    unlocks: ['State-funded insurance and pensions; citizens healthier and more productive'],
+    unlocks: [],
     unlocksBuildings: ['national_insurance', 'national_census'], era: 9 },
 
   // EXPLORATION (2)
@@ -60,7 +60,7 @@ const ERA_9_TECHS: Tech[] = [
     unlocks: ['+2 food per farm improvement; synthetic nitrogen transforms crop yields'], era: 9 },
   { id: 'large-scale-irrigation', name: 'Large-Scale Irrigation', track: 'agriculture', cost: 870,
     prerequisites: ['sanitation-networks', 'refrigeration'],
-    unlocks: ['+1 food all cities; engineered irrigation networks feed growing populations'], era: 9 },
+    unlocks: ['+1 food on worked desert and plains tiles; engineered irrigation networks feed growing populations'], era: 9 },
 
   // MEDICINE (2)
   { id: 'blood-transfusion', name: 'Blood Transfusion', track: 'medicine', cost: 805,
@@ -103,10 +103,10 @@ const ERA_9_TECHS: Tech[] = [
   // METALLURGY (2)
   { id: 'aluminium-smelting', name: 'Aluminium Smelting', track: 'metallurgy', cost: 870,
     prerequisites: ['bessemer-steel', 'structural-engineering'],
-    unlocks: ['+1 production all cities; lightweight aluminium enables aviation and modern machinery', 'Reveal Aluminum resource'], era: 9 },
+    unlocks: ['+1 production in cities with a steel mill; lightweight aluminium enables aviation and modern machinery', 'Reveal Aluminum resource'], era: 9 },
   { id: 'tungsten-alloys', name: 'Tungsten Alloys', track: 'metallurgy', cost: 805,
     prerequisites: ['bessemer-steel', 'reinforced-concrete'],
-    unlocks: ['+2 strength all military units; heat-resistant tungsten forges harder weapons and armor'], era: 9 },
+    unlocks: ['+2 strength armored and siege units; heat-resistant tungsten forges harder weapons and armor'], era: 9 },
 
   // CONSTRUCTION (2)
   { id: 'hydroelectric-power', name: 'Hydroelectric Power', track: 'construction', cost: 870,
@@ -124,7 +124,7 @@ const ERA_9_TECHS: Tech[] = [
     unlocksBuildings: ['radio_station'], era: 9 },
   { id: 'wireless-telegraph', name: 'Wireless Telegraph', track: 'communication', cost: 870,
     prerequisites: ['shorthand-press', 'telephony'],
-    unlocks: ['+2 gold empire-wide; wireless signals coordinate commerce and intelligence without cables'], era: 9 },
+    unlocks: ['+1 gold per route in cities with a telephone exchange; wireless signals coordinate commerce and intelligence without cables'], era: 9 },
   // MR10: re-homed from a stub — mass-media is no longer a legendary-wonder gate.
   { id: 'mass-media', name: 'Mass Media', track: 'communication', cost: 1740,
     prerequisites: ['radio-broadcast'],
@@ -146,7 +146,7 @@ const ERA_9_TECHS: Tech[] = [
     unlocks: ['+1 science in cities with any religion building; faith adapts to the modern world'], era: 9 },
   { id: 'secular-humanism', name: 'Secular Humanism', track: 'spirituality', cost: 870,
     prerequisites: ['social-justice', 'pragmatism'],
-    unlocks: ['+1 food all cities; humanist ethics grounds social policy in human welfare'], era: 9 },
+    unlocks: ['+1 food in cities without a temple; humanist ethics grounds social policy in human welfare'], era: 9 },
 ];
 
 export const TECH_TREE_ERAS_9: Tech[] = [

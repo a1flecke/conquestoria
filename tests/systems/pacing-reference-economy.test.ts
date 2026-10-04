@@ -34,11 +34,16 @@ describe('pacing reference economy (Part C exact-value pin)', () => {
   // engineering-exhibition, public-records, shorthand-press) became building-conditioned, so a city that does not own
   // the named building no longer earns them. The 'maximal' profile (the one RESEARCH_OUTPUT_BY_ERA targets) moves by
   // exactly -1 science from era 9 and stays inside the era 10-13 tolerance asserted below, so no cost target changes;
-  // the 'bounded' profile (older buildings are not built) loses 3-5 and the 60% representative cohort ~2.7%
+  // the 'bounded' profile (older buildings are not built) loses 3-5 and the 60% representative cohort ~1.7%
   // (948 -> 932 at era 12). Production is unchanged. This is the intended effect, not a retune: the constants in
   // pacing-model.ts are deliberately NOT edited.
+  // #1305 (#420 child 4): the Era 9-11 flat yields became building-conditioned with amount-preserving sizes, so the
+  // 'maximal' profile (every building built; the one RESEARCH_OUTPUT_BY_ERA targets) is exactly unchanged. The
+  // 'bounded' profile loses 2-7 science at eras 10-13 because older buildings are not built there, and the 60%
+  // representative cohort moves by -1.4% to +1.5% science and -1.0% to -1.6% production (era 12: 932 -> 941 science,
+  // 607 -> 600 production). RESEARCH_OUTPUT_BY_ERA is deliberately not edited.
   const expectedBoundedByEra: Record<number, number> = {
-    1: 2, 2: 6, 3: 8, 4: 9, 5: 9, 6: 24, 7: 35, 8: 47, 9: 63, 10: 70, 11: 99, 12: 109, 13: 110,
+    1: 2, 2: 6, 3: 8, 4: 9, 5: 9, 6: 24, 7: 35, 8: 47, 9: 63, 10: 68, 11: 96, 12: 102, 13: 103,
   };
   const expectedMaximalByEra: Record<number, number> = {
     1: 2, 2: 6, 3: 8, 4: 9, 5: 13, 6: 34, 7: 48, 8: 79, 9: 117, 10: 134, 11: 169, 12: 197, 13: 235,
@@ -188,10 +193,10 @@ describe('representative multi-city reference economy', () => {
       // MR3's deterministic all-era cost table changes when representative
       // infrastructure becomes available, so this timeline-derived diagnostic
       // is deliberately repinned alongside the report's scenario gates.
-      { era: 10, cityCount: 5, total: { science: 578, production: 504 }, averagePerCity: { science: 115.5, production: 100.8 } },
-      { era: 11, cityCount: 5, total: { science: 706, production: 589 }, averagePerCity: { science: 141.2, production: 117.8 } },
-      { era: 12, cityCount: 5, total: { science: 932, production: 607 }, averagePerCity: { science: 186.3, production: 121.4 } },
-      { era: 13, cityCount: 5, total: { science: 1176, production: 685 }, averagePerCity: { science: 235.1, production: 137 } },
+      { era: 10, cityCount: 5, total: { science: 570, production: 496 }, averagePerCity: { science: 113.96, production: 99.12 } },
+      { era: 11, cityCount: 5, total: { science: 715, production: 582 }, averagePerCity: { science: 143, production: 116.4 } },
+      { era: 12, cityCount: 5, total: { science: 941, production: 600 }, averagePerCity: { science: 188.1, production: 120 } },
+      { era: 13, cityCount: 5, total: { science: 1194, production: 678 }, averagePerCity: { science: 238.7, production: 135.6 } },
     ]);
     // Runs the representative multi-city simulation for four eras; ~21s locally
     // but exceeds the old 60s ceiling on a loaded CI runner (times out on main
