@@ -4,7 +4,7 @@
  * "this group has no cycles" or "only these modules import X". See `rule-engine.ts` for semantics and
  * `.claude/rules/caller-discipline.md` for when to use it.
  *
- * Migrated so far: #1012 (crisis-system decomposition). New since: #1246 (faction-system decomposition), #1249 (trade-system decomposition), #1250 (notification-routing decomposition). Other `architecture-boundaries.test.ts`
+ * Migrated so far: #1012 (crisis-system decomposition). New since: #1246 (faction-system decomposition), #1249 (trade-system decomposition), #1250 (notification-routing decomposition), #1248 (runtime SCC reduction seams). Other `architecture-boundaries.test.ts`
  * blocks still hold their own checks and move here one block at a time.
  */
 import type { ArchitectureRule } from './rule-engine';
@@ -285,5 +285,30 @@ export const ARCHITECTURE_RULES: readonly ArchitectureRule[] = [
     members: `${NR}/**`,
     edges: 'all',
     why: 'The two leaves below eight independent routers is only real if no cycle lets a leaf reach a router.',
+  },
+
+  {
+    id: 'production-completion-reads-the-spy-leaf',
+    kind: 'forbidden-import',
+    from: `${S}/unit-production-completion`,
+    to: [`${S}/espionage-system`, `${S}/espionage-turn`],
+    edges: 'all',
+    why: 'Completing a unit needs only the spy record builder (espionage-spy-lifecycle). The espionage barrel re-exports the whole turn (city capture, world races), so importing it pulled espionage-turn into the combat/economy/movement import cycle (#1248, same bug class as #1201).',
+  },
+  {
+    id: 'air-base-state-is-a-leaf',
+    kind: 'forbidden-import',
+    from: `${S}/air-base-state`,
+    to: ['src/systems/**', 'src/ui/**', 'src/app/**', 'src/ai/**'],
+    edges: 'all',
+    why: 'isBasedAirUnit is asked by occupancy, targeting and the air system itself; it must stay a one-field leaf so none of them has to import the air-operations system (strikes, interception) to ask it.',
+  },
+  {
+    id: 'occupancy-and-targeting-do-not-import-the-air-system',
+    kind: 'forbidden-import',
+    from: [`${S}/unit-occupancy`, `${S}/attack-targeting`],
+    to: `${S}/air-operations-system`,
+    edges: 'all',
+    why: 'unit-occupancy is read by movement, capture, threat pressure and crisis code; reaching up into air-operations (which imports combat and city-siege) closed a 28-module runtime cycle (#1248). Ask air-base-state instead.',
   },
 ];

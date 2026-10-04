@@ -1,3 +1,5 @@
+import { isBasedAirUnit } from '@/systems/air-base-state';
+import { getOwnedCityCount } from '@/systems/city-ownership';
 import { fnv1a32CodePointLead } from './deterministic-hash';
 import type { EventBus } from '@/core/event-bus';
 import type { AirBaseRef, AirMission, City, CombatResult, GameState, HexCoord, Unit, UnitType } from '@/core/types';
@@ -44,10 +46,6 @@ export type AirBaseCheck =
 export interface AirBaseLossResult {
   state: GameState;
   outcomes: Array<{ aircraftId: string; outcome: 'destroyed' | 'evacuated' | 'captured' }>;
-}
-
-export function isBasedAirUnit(unit: Unit): boolean {
-  return unit.airBase !== undefined;
 }
 
 export function getAirBaseRoster(state: GameState, base: AirBaseRef): Unit[] {
@@ -400,7 +398,7 @@ export function resolveAirStrike(state: GameState, unitId: string, target: HexCo
       rawDamage: getAirStrikeCityRawDamage(currentStriker),
       attackerDomain: 'air',
       hasGarrison: getCityGarrisonUnit(nextState.units, currentCity) !== undefined,
-      isOwnersLastCity: ownerCiv.cities.length <= 1,
+      isOwnersLastCity: getOwnedCityCount(nextState, currentCity.owner) <= 1,
       era: resolveCivilizationEra(ownerCiv.techState.completed),
       challenge: resolveChallengeForCiv(nextState, currentCity.owner),
     });
