@@ -20,7 +20,7 @@ import * as strategicWarningSystem from '@/systems/strategic-warning-system';
 import * as supplyWarningSystem from '@/systems/supply-warning-system';
 import * as cityCaptureSystem from '@/systems/city-capture-system';
 import * as hotseatOutcome from '@/core/hotseat-outcome';
-import { finalizePlayerCityAssaultChoice, type PendingCityCaptureChoice } from '@/input/city-assault-flow';
+import type { PendingCityCaptureChoice } from '@/input/city-assault-flow';
 import {
   createTurnFlowController,
   type TurnFlowControllerDeps,

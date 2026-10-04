@@ -29,34 +29,19 @@
  * `ceremonies`, `notifier`, `userSettingsStore`) and the main.ts-local
  * functions this phase does NOT move (`showNotification`, `updateHUD`,
  * `currentCiv`, `scanBeastSightings`, etc.) are threaded through as deps.
+ *
+ * #1243 split this by use case (the #1242 pattern). The hot-seat handoff, `endTurn` and the adoption of
+ * unpublished state (`presentation-deferred` / `viewer-not-yet-revealed`, pinned by content in
+ * `architecture-boundaries.test.ts`) deliberately stay here untouched. The rest moved out:
+ *   - `turn-required-choices.ts` -- idle-city / research chooser, religion-boon gate
+ *   - `turn-city-capture.ts`     -- occupy / raze resolution
+ *   - `turn-presentation.ts`     -- council interrupt, victory routing, audio snapshot, camera
+ *   - `turn-round-replay.ts`     -- completed-round run, AI-move capture and replay
+ *   - `turn-flow-shared.ts`      -- deps, public interface, shared types
  */
-import type { EventBus } from '@/core/event-bus';
-import type { RenderLoop } from '@/renderer/render-loop';
-import type { AudioSystem } from '@/audio/audio-system';
-import type { UnitTurnFlow } from '@/ui/unit-turn-flow';
-import type { GameState, HexCoord, Unit, Civilization, CivBonusEffect } from '@/core/types';
-import type { GameSession, SelectionStore, Notifier, UnpublishedStateWriter } from '@/app/ports';
-import type { PanelRouter } from '@/app/panel-router';
-import type { CeremonyCoordinator } from '@/app/controllers/ceremony-coordinator';
-import type { UserSettingsStore } from '@/app/user-settings-store';
-import { RoundPresentationGate } from '@/presentation/round-presentation-gate';
-import { worldAgeFromNumber } from '@/systems/era-types';
-import { emitMinorCivLeagueNotices } from '@/systems/minor-civ-league-presentation';
-import { reconcileMinorCivLeagues } from '@/systems/minor-civ-league-system';
+import type { GameState } from '@/core/types';
 import { SFX } from '@/audio/sfx';
 import { autoSave } from '@/storage/save-manager';
-import { isCivUnitInBeastTerritory } from '@/systems/beast-system';
-import { closePlanningPanels, createRequiredChoicePanel } from '@/ui/required-choice-panel';
-import { createReligionBoonModal } from '@/ui/religion-boon-modal';
-import { chooseBoon } from '@/systems/religion-system';
-import { getCouncilInterrupt } from '@/systems/council-system';
-import { collectCouncilInterrupt } from '@/core/hotseat-events';
-import { getIdleCityIds, getRecommendedIdleCityChoice, needsResearchChoice, enqueueResearch, enqueueCityProduction, ENQUEUE_DENIAL_MESSAGES } from '@/systems/planning-system';
-import { calculateCivResearchOutput } from '@/systems/research-output-system';
-import { getAvailableTechs, getEffectiveTechCost } from '@/systems/tech-system';
-import { estimateTurnsToComplete } from '@/systems/pacing-model';
-import { finalizePlayerCityAssaultChoice } from '@/input/city-assault-flow';
-import { emitMajorCityCaptureEvents } from '@/systems/city-capture-system';
 import {
   getNextActiveHumanPlayerId,
   isActiveHumanRoundComplete,
@@ -67,414 +52,29 @@ import { closePirateWatersPanels } from '@/ui/pirate-waters-panel';
 import { closeStrategicLaunchFlow } from '@/ui/strategic-launch-flow';
 import { beginNetworkPlansForVictimTurn } from '@/systems/network-plan-system';
 import { applyPendingChallengeForCiv } from '@/core/opponent-challenge';
-import { runCompletedRound, type CompletedRoundResult } from '@/core/completed-round-orchestrator';
 import { createCompletedRoundHandoffTransaction } from '@/core/completed-round-handoff';
-import { processImprovementTurns } from '@/systems/improvement-turn-system';
-import { processNonHumanMajorRound } from '@/ai/ai-round-scheduler';
-import { processTurn } from '@/core/turn-manager';
-import { applyStrategicWarningTransitions } from '@/systems/strategic-warning-system';
-import { applySupplyWarningTransitions } from '@/systems/supply-warning-system';
-import { projectDominationOutcome } from '@/systems/domination-presentation';
-import { projectScienceVictoryOutcome } from '@/systems/science-victory-presentation';
+import { createTurnRequiredChoices } from './turn-required-choices';
+import { createTurnCityCapture } from './turn-city-capture';
+import { createTurnPresentation } from './turn-presentation';
+import { createTurnRoundReplay } from './turn-round-replay';
+import type { TurnFlowController, TurnFlowControllerDeps } from './turn-flow-shared';
 
-/** The narrow slice of `RenderLoop` this controller needs. */
-export type TurnFlowRenderer = Pick<RenderLoop, 'setGameState' | 'animateUnitMove' | 'setSelectedPirateFactionId' | 'setStrategicLaunchPreview'> & {
-  readonly camera: Pick<RenderLoop['camera'], 'centerOn'>;
-};
-
-/** The narrow slice of `AudioSystem` this controller needs. */
-export type TurnFlowAudio = Pick<AudioSystem, 'setMasterVolume' | 'stopPirateAmbience'>;
-
-type AIMoveRecord = {
-  unit: Unit;
-  viewerId: string;
-  visibleSegments: HexCoord[][];
-};
-
-export interface TurnFlowControllerDeps {
-  readonly session: GameSession;
-  /** #1015: hot-seat handoff (`viewer-not-yet-revealed`) and solo round adoption (`presentation-deferred`) are the only silent writes here. */
-  readonly unpublished: UnpublishedStateWriter;
-  readonly selection: SelectionStore;
-  readonly renderLoop: TurnFlowRenderer;
-  /**
-   * The concrete class, not a narrowed `Pick<EventBus, 'emit'>` -- matches
-   * the lesson documented on `SelectionControllerDeps.bus`: several
-   * downstream pure functions this file calls (`runCompletedRound`,
-   * `beginNetworkPlansForVictimTurn`'s callers elsewhere) are typed to the
-   * concrete class in their own signatures, and `EventBus` has a private
-   * field so no object literal can structurally satisfy a narrowed type.
-   */
-  readonly bus: EventBus;
-  readonly uiLayer: HTMLElement;
-  readonly audio: TurnFlowAudio;
-  readonly router: Pick<PanelRouter, 'close' | 'open'>;
-  /** The concrete class -- `RoundPresentationGate` has a private field, same reasoning as `bus` above. */
-  readonly roundPresentationGate: RoundPresentationGate;
-  readonly ceremonies: Pick<CeremonyCoordinator, 'clearForHandoff' | 'enqueueVictory'>;
-  readonly notifier: Pick<Notifier, 'withHappenedTurn'>;
-  readonly userSettingsStore: Pick<UserSettingsStore, 'getMasterVolume'>;
-  /** Substitutes for `document.getElementById` -- see file docblock and `.claude/rules`'s port-purity note. */
-  readonly getElementById: (id: string) => HTMLElement | null;
-  /** Substitutes for `document.querySelector('[aria-label="Network intent"]')`. */
-  readonly getNetworkIntentPanel: () => Element | null;
-  /** Clears a viewer-private panel before the next hot-seat player can see it. */
-  readonly closeVictoryProgressPanel: () => void;
-  /** Refreshes the open viewer-private panel after a deliberate un-published capture write. */
-  readonly refreshVictoryProgressPanel: () => void;
-  readonly showNotification: (message: string, type?: 'info' | 'success' | 'warning') => void;
-  readonly updateHUD: () => void;
-  readonly setBlockingOverlay: (id: string | null) => void;
-  readonly currentCiv: () => Civilization;
-  readonly getUnitTurnFlow: () => Pick<UnitTurnFlow, 'showEndTurnUnitWarningIfNeeded'>;
-  readonly deselectUnit: () => void;
-  readonly selectNextUnit: () => void;
-  readonly scanBeastSightings: () => void;
-  readonly scanSubmarineSightings: () => void;
-  readonly maybeShowPendingHoardChoice: () => void;
-  readonly maybeShowPendingGeneralChoice: () => void;
-  readonly checkAdvisors: () => void;
-  readonly showGameModeSelection: () => void;
-  readonly reloadPage: () => void;
-  readonly openCityPanelForCity: (city: GameState['cities'][string]) => void;
-}
-
-export interface TurnFlowController {
-  endTurn(options?: { allowUnmovedUnits?: boolean }): Promise<void>;
-  beginHotSeatHandoff(hotSeat: NonNullable<GameState['hotSeat']>, completesRound: boolean): Promise<void>;
-  /** Renamed from `releaseHandoffToViewer` -- see file docblock. */
-  enterViewerTurn(nextSlotId: string): void;
-  closeNetworkPanelsForHandoff(): void;
-  beginNetworkPlansForCurrentViewer(): void;
-  runCurrentCompletedRound(state: GameState): CompletedRoundResult;
-  captureAIMoves(fn: () => void): AIMoveRecord[];
-  replayAIMoves(moves: AIMoveRecord[]): Promise<void>;
-  handleVictoryIfNeeded(): boolean;
-  centerOnCurrentPlayer(): void;
-  emitCurrentPlayerAudioSnapshot(civId: string): void;
-  maybeShowCouncilInterrupt(): void;
-  showRequiredChoicesIfNeeded(): boolean;
-  showReligionBoonIfNeeded(): boolean;
-  refreshRequiredChoicesAfterAction(): void;
-  closeRequiredChoicePanel(): void;
-  finalizePendingCityCaptureChoice(disposition: 'occupy' | 'raze', attackerBonus?: CivBonusEffect): void;
-}
+export type { TurnFlowController, TurnFlowControllerDeps, TurnFlowRenderer, TurnFlowAudio } from './turn-flow-shared';
 
 export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlowController {
   const { session, unpublished, selection, renderLoop, bus, uiLayer, audio, router, roundPresentationGate, ceremonies, notifier, userSettingsStore } = deps;
 
-  function closeRequiredChoicePanel(): void {
-    deps.getElementById('required-choice-panel')?.remove();
-    deps.setBlockingOverlay(null);
-  }
-
-  // #591 MR4: a founded-but-boonless religion has NO effects until the owner chooses --
-  // re-prompted every time the owner attempts to end their turn, same blocking pattern as
-  // showRequiredChoicesIfNeeded (the only other "must decide before proceeding" surface
-  // in this file), so a human owner can never leave their own religion pending forever.
-  function showReligionBoonIfNeeded(): boolean {
-    const civId = session.getState().currentPlayer;
-    const civ = session.getState().civilizations[civId];
-    if (!civ?.isHuman) return false;
-    const ownReligion = Object.values(session.getState().religions ?? {}).find(r => r.ownerCivId === civId);
-    if (!ownReligion || ownReligion.boon !== undefined) {
-      deps.getElementById('religion-boon-modal')?.remove();
-      return false;
-    }
-    if (deps.getElementById('religion-boon-modal')) return true;
-
-    closePlanningPanels(document);
-    deps.setBlockingOverlay('religion-boon');
-    createReligionBoonModal(uiLayer, {
-      religionName: ownReligion.name,
-      onChooseBoon: (boon) => {
-        session.commit(chooseBoon(session.getState(), ownReligion.id, boon));
-        deps.getElementById('religion-boon-modal')?.remove();
-        deps.setBlockingOverlay(null);
-        deps.showNotification(`${ownReligion.name} now grants ${boon}.`, 'success');
-      },
-    });
-    return true;
-  }
-
-  function refreshRequiredChoicesAfterAction(): void {
-    deps.getElementById('required-choice-panel')?.remove();
-    closePlanningPanels(document);
-    // #1199: the action's mutation was already committed, so the session
-    // subscription published it; re-pushing renderer/HUD here was redundant.
-    // #787 phase 12 (#794): release 'required-choice' before
-    // showRequiredChoicesIfNeeded() may push it again for the next
-    // outstanding choice. With 2+ idle cities (or an idle city plus missing
-    // research), a player resolving them one at a time re-enters this
-    // function once per choice -- under the old single-slot overlay each
-    // re-push was a harmless overwrite of the same id, but the
-    // reference-counted overlay nests them, and only the *last* choice's
-    // resolution ever pops (via closeRequiredChoicePanel below). Without
-    // this explicit release, resolving N required choices in one sitting
-    // leaves N-1 phantom pushes on the stack, permanently blocking
-    // interaction for the rest of the game.
-    deps.setBlockingOverlay(null);
-    showRequiredChoicesIfNeeded();
-  }
-
-  function showRequiredChoicesIfNeeded(): boolean {
-    const civId = session.getState().currentPlayer;
-    const idleCityIds = getIdleCityIds(session.getState(), civId);
-    const missingResearch = needsResearchChoice(session.getState(), civId);
-    const existing = deps.getElementById('required-choice-panel');
-
-    if (!idleCityIds.length && !missingResearch) {
-      closeRequiredChoicePanel();
-      return false;
-    }
-
-    if (existing) {
-      return true;
-    }
-
-    closePlanningPanels(document);
-
-    const civ = deps.currentCiv();
-    const sciencePerTurn = Math.max(1, calculateCivResearchOutput(session.getState(), civId).finalScience);
-    const researchChoices = missingResearch
-      ? getAvailableTechs(civ.techState).slice(0, 3).map(tech => ({
-        techId: tech.id,
-        label: tech.name,
-        turns: estimateTurnsToComplete({ cost: getEffectiveTechCost(tech, civ.techState.completed), outputPerTurn: sciencePerTurn }),
-      }))
-      : [];
-
-    const cityChoices = idleCityIds
-      .map(cityId => {
-        const city = session.getState().cities[cityId];
-        const choice = getRecommendedIdleCityChoice(session.getState(), civId, cityId);
-        if (!city || !choice) {
-          return null;
-        }
-        return {
-          cityId,
-          cityName: city.name,
-          itemId: choice.itemId,
-          label: choice.label,
-          turns: choice.turns,
-        };
-      })
-      .filter((choice): choice is NonNullable<typeof choice> => choice !== null);
-
-    deps.setBlockingOverlay('required-choice');
-    createRequiredChoicePanel(uiLayer, {
-      researchChoices,
-      cityChoices,
-      onChooseResearch: (techId) => {
-        const civ = deps.currentCiv();
-        session.commit({
-          ...session.getState(),
-          civilizations: {
-            ...session.getState().civilizations,
-            [session.getState().currentPlayer]: { ...civ, techState: enqueueResearch(civ.techState, techId) },
-          },
-        });
-        deps.showNotification(`Researching ${techId}...`, 'info');
-        refreshRequiredChoicesAfterAction();
-      },
-      onChooseCityBuild: (cityId, itemId) => {
-        const city = session.getState().cities[cityId];
-        if (!city) return;
-        const result = enqueueCityProduction(session.getState(), cityId, itemId);
-        if (!result.ok) {
-          deps.showNotification(`${city.name}: ${ENQUEUE_DENIAL_MESSAGES[result.reason]}`, 'warning');
-          refreshRequiredChoicesAfterAction();
-          return;
-        }
-        session.commit(result.state);
-        deps.showNotification(`${city.name}: queued ${itemId}`, 'info');
-        refreshRequiredChoicesAfterAction();
-      },
-      onOpenTech: () => {
-        closeRequiredChoicePanel();
-        router.open('tech');
-      },
-      onOpenCity: (cityId) => {
-        const city = session.getState().cities[cityId];
-        if (!city) return;
-        closeRequiredChoicePanel();
-        deps.openCityPanelForCity(city);
-      },
-    });
-    return true;
-  }
-
-  function maybeShowCouncilInterrupt(): void {
-    const state = session.getState();
-    if (!state) {
-      return;
-    }
-    const interrupt = getCouncilInterrupt(state, state.currentPlayer, state.settings.councilTalkLevel);
-    if (!interrupt) {
-      return;
-    }
-    if (state.hotSeat && state.pendingEvents && interrupt.civId !== state.currentPlayer) {
-      collectCouncilInterrupt(state.pendingEvents, interrupt.civId, interrupt, state.turn);
-      return;
-    }
-    deps.showNotification(interrupt.summary, 'info');
-  }
-
-  function finalizePendingCityCaptureChoice(
-    disposition: 'occupy' | 'raze',
-    attackerBonus?: CivBonusEffect,
-  ): void {
-    const captureIntent = selection.getPendingIntent();
-    if (captureIntent.kind !== 'city-capture') return;
-
-    const pending = captureIntent.choice;
-    const cityBeforeResolution = session.getState().cities[pending.cityId];
-    const previousOwner = cityBeforeResolution?.owner ?? '';
-    const cityName = cityBeforeResolution?.name ?? pending.cityId;
-    const beforeCapture = session.getState();
-    const result = finalizePlayerCityAssaultChoice(session.getState(), pending, disposition, session.getState().turn, bus);
-
-    selection.setPendingIntent({ kind: 'none' });
-    deps.getElementById('city-capture-panel')?.remove();
-    session.batch(() => {
-      session.commit(result.state);
-      deps.refreshVictoryProgressPanel();
-      emitMajorCityCaptureEvents(
-        beforeCapture,
-        result,
-        pending.cityId,
-        session.getState().currentPlayer,
-        previousOwner,
-        bus,
-      );
-
-      if (result.outcome === 'occupied') {
-        const capturingCiv = deps.currentCiv();
-        if (capturingCiv && attackerBonus?.type === 'naval_raiding') {
-          // #1199: the spoils are a committed transition, not a mutation of the live
-          // civ object the assault already committed.
-          session.update(state => ({
-            ...state,
-            civilizations: {
-              ...state.civilizations,
-              [capturingCiv.id]: {
-                ...state.civilizations[capturingCiv.id],
-                gold: state.civilizations[capturingCiv.id].gold + 30,
-              },
-            },
-          }));
-          deps.showNotification('Viking raid spoils! +30 gold', 'success');
-        }
-        deps.showNotification(`We have captured ${cityName}!`, 'success');
-      } else {
-        deps.showNotification(`${cityName} was razed! +${result.goldAwarded} gold`, 'success');
-      }
-    });
-    setTimeout(() => deps.selectNextUnit(), 400);
-  }
-
-  function handleVictoryIfNeeded(): boolean {
-    const state = session.getState();
-    if (!state.gameOver) return false;
-    const outcome = state.gameOverReason === 'science'
-      ? projectScienceVictoryOutcome(state, state.hotSeat ? null : state.currentPlayer)
-      : projectDominationOutcome(state, state.hotSeat ? null : state.currentPlayer);
-    deps.closeVictoryProgressPanel();
-    // #993: routed through the ceremony coordinator's shared big-moment engine
-    // instead of an unconditional direct call -- this waits for a
-    // currently-presenting wonder/legendary ceremony's own overlay to clear
-    // first (see ceremony-coordinator.ts's docblock for the overlay-stacking
-    // race this closes) and drops any backlog those ceremonies still had
-    // queued, since none of it matters once the game is over.
-    ceremonies.enqueueVictory({
-      winnerName: outcome.winnerName,
-      victoryType: outcome.sharedResult
-        ? 'Campaign Finished'
-        : state.gameOverReason === 'science'
-          ? 'Science Victory'
-          : outcome.outcome === 'victory' ? 'Domination Victory' : 'Campaign Defeat',
-      outcome: outcome.outcome,
-      reason: state.gameOverReason ?? 'domination',
-      sharedResult: outcome.sharedResult,
-      summary: outcome.summary,
-      standings: outcome.standings,
-      turn: state.turn,
-      onNewGame: () => {
-        deps.getElementById('victory-panel')?.remove();
-        deps.showGameModeSelection();
-      },
-    });
-    return true;
-  }
-
-  function captureAIMoves(fn: () => void): AIMoveRecord[] {
-    const moves: AIMoveRecord[] = [];
-    const unsub = bus.on('unit:move', ({ presentationByViewer }) => {
-      for (const [viewerId, presentation] of Object.entries(presentationByViewer)) {
-        moves.push({
-          unit: structuredClone(presentation.unit),
-          viewerId,
-          visibleSegments: structuredClone(presentation.visibleSegments),
-        });
-      }
-    });
-    fn();
-    unsub();
-    return moves;
-  }
-
-  async function replayAIMoves(moves: AIMoveRecord[]): Promise<void> {
-    if (roundPresentationGate.isSuppressed()) return;
-    const visibleMoves = moves
-      .filter(move => move.viewerId === session.getState().currentPlayer)
-      .slice(0, 6);
-    for (const { unit, visibleSegments } of visibleMoves) {
-      for (const path of visibleSegments.filter(segment => segment.length >= 2)) {
-        if (roundPresentationGate.isSuppressed() || session.getState().currentPlayer !== visibleMoves[0]?.viewerId) return;
-        await new Promise<void>(resolve => renderLoop.animateUnitMove(
-          { ...unit, position: path[0]! },
-          path,
-          resolve,
-        ));
-      }
-    }
-  }
-
-  function runCurrentCompletedRound(state: GameState): CompletedRoundResult {
-    return runCompletedRound(state, bus, {
-      improvements: (current, eventBus) => processImprovementTurns(current, eventBus),
-      majors: (current, eventBus) => processNonHumanMajorRound(current, eventBus).state,
-      world: (current, eventBus) => processTurn(current, eventBus),
-      postprocess: (beforeRound, current, eventBus) => {
-        const afterStrategic = applyStrategicWarningTransitions(beforeRound, current, eventBus);
-        const afterCompacts = reconcileMinorCivLeagues(afterStrategic);
-        applySupplyWarningTransitions(beforeRound, afterCompacts, eventBus);
-        emitMinorCivLeagueNotices(beforeRound, afterCompacts, eventBus);
-        return afterCompacts;
-      },
-    });
-  }
-
-  function emitCurrentPlayerAudioSnapshot(civId: string): void {
-    const civ = session.getState().civilizations[civId];
-    const cities = Object.values(session.getState().cities).filter(city => city.owner === civId);
-    bus.emit('currentPlayer:changed-after-handoff', {
-      civId,
-      civType: civ?.civType ?? civId,
-      era: worldAgeFromNumber(session.getState().era),
-      // Deliberately the raw count (incl. city-state wars), unlike the #1041
-      // "major wars only" surfaces. This only drives war ambience on/off in
-      // AudioSystem; a city-state coalition war is a real military threat, so
-      // martial ambience for it is intentional. AudioSystem also mutates this
-      // as `remainingWars` off diplomacy bus events, so the seed and that
-      // counter must stay the same shape — opponent-kind-aware war ambience is
-      // a separate audio follow-up, not part of #1041.
-      atWarCount: civ?.diplomacy?.atWarWith?.length ?? 0,
-      unrestCityCount: cities.filter(city => city.unrestLevel > 0).length,
-      nearDefeat: civ?.nearDefeat ?? false,
-      inBeastTerritory: isCivUnitInBeastTerritory(session.getState(), civId),
-    });
-  }
+  const requiredChoices = createTurnRequiredChoices(deps);
+  const cityCapture = createTurnCityCapture(deps);
+  const presentation = createTurnPresentation(deps);
+  const roundReplay = createTurnRoundReplay(deps);
+  const slices = { ...requiredChoices, ...cityCapture, ...presentation, ...roundReplay };
+  // Bare names keep the pinned `presentation-deferred` pair (renderer push, `await replayAIMoves(...)`, HUD
+  // push) textually identical to its pre-split form -- `architecture-boundaries.test.ts` pins it by content.
+  const {
+    showRequiredChoicesIfNeeded, showReligionBoonIfNeeded, handleVictoryIfNeeded, centerOnCurrentPlayer,
+    emitCurrentPlayerAudioSnapshot, runCurrentCompletedRound, captureAIMoves, replayAIMoves,
+  } = slices;
 
   /** Opens due Exploit warnings only after the human viewer's identity has been confirmed. */
   function beginNetworkPlansForCurrentViewer(): void {
@@ -492,13 +92,6 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
         victimCivId: viewerId,
         cityId: plan.target.cityId,
       });
-    }
-  }
-
-  function centerOnCurrentPlayer(): void {
-    const units = Object.values(session.getState().units).filter(u => u.owner === session.getState().currentPlayer);
-    if (units.length > 0) {
-      renderLoop.camera.centerOn(units[0].position);
     }
   }
 
@@ -797,22 +390,11 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
   }
 
   return {
+    ...slices,
     endTurn,
     beginHotSeatHandoff,
     enterViewerTurn,
     closeNetworkPanelsForHandoff,
     beginNetworkPlansForCurrentViewer,
-    runCurrentCompletedRound,
-    captureAIMoves,
-    replayAIMoves,
-    handleVictoryIfNeeded,
-    centerOnCurrentPlayer,
-    emitCurrentPlayerAudioSnapshot,
-    maybeShowCouncilInterrupt,
-    showRequiredChoicesIfNeeded,
-    showReligionBoonIfNeeded,
-    refreshRequiredChoicesAfterAction,
-    closeRequiredChoicePanel,
-    finalizePendingCityCaptureChoice,
   };
 }
