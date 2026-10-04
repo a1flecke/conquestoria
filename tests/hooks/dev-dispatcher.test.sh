@@ -79,6 +79,7 @@ ai-long|yarn test:ai-long
 ai-long-status|yarn test:ai-long:status
 web-smoke|yarn test:web-smoke
 docs-lifecycle|node scripts/docs-lifecycle.mjs check
+verify-impact|yarn verify:impact
 maintainability-check|node scripts/maintainability-audit.mjs --check
 maintainability-report|node scripts/maintainability-audit.mjs --report
 maintainability-baseline|node scripts/maintainability-audit.mjs --baseline'
