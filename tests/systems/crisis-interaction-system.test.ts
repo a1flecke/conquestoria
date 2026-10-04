@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { ActiveCrisis, City, GameState } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
 import { createDiplomacyState } from '@/systems/diplomacy-state';
-import { getCityAppeaseCost } from '@/systems/faction-system';
+import { getCityAppeaseCost } from '@/systems/faction-commands';
 import {
   CRISIS_INTERACTION_DEFINITIONS,
   getCrisisInteractionDefinition,

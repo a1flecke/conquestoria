@@ -165,6 +165,20 @@ lastKnownHeadquarters` is optional for exactly this reason.
 
 The barrel exports only cross-domain commands. A new module must be added to the `ALLOWED` layering table in that test; a new read that other domains need belongs in `diplomacy-queries`.
 
+### Faction module map (#1246)
+
+`faction-system.ts` is the **turn orchestration** (`processFactionTurn`, the unrest state machine, rebel spawn) and nothing else; one round-phase (`instability`) imports it. Callers import the module that owns what they need — there is no compatibility barrel. Layered downward only (pinned by the `faction-*` rules in `tests/app/architecture/rules.ts`, #1241):
+
+| Module | Owns |
+|---|---|
+| `faction-unrest-model` | The import-light leaf: row/relief/context types, thresholds (`UNREST_TRIGGER_PRESSURE`, revolt/breakaway/conquest durations), `canGarrisonCity`, `getUnrestYieldMultiplier`, `isCityProductionLocked`. Imports no faction module and nothing from economy/city/religion — `religion-loyalty-system` reads `canGarrisonCity` from here, which is what removed the old `faction-system` ↔ `religion-loyalty-system` cycle. |
+| `faction-federalism` | Federal Autonomy constants, the toggle lock, `setFederalismStance`, remittance loss. A leaf. |
+| `faction-relief` | The #919/#927 administration ladder: every relief amount and `UNREST_RELIEF_SOURCES` / `getUnrestReliefRows` (the table the AI production and research valuations read). |
+| `faction-pressure` | `getUnrestPressureBreakdown` / `computeUnrestPressure`, contagion, building happiness. Pure queries. |
+| `faction-commands` | Appease / Concede costs and commands. Self-contained. |
+
+A new unrest source or relief rung goes in `faction-relief` (register it per `game-balance.md`'s Unrest Relief Inventory); a new pressure row in `faction-pressure`; a new instant action in `faction-commands`. Do not re-export any of them from `faction-system.ts`.
+
 ## Domination authority
 
 - `domination-sovereignty.ts` and `victory-system.ts` are authoritative world

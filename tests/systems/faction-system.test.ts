@@ -3,32 +3,36 @@ import type { GameState, City, HexCoord } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
 import { createDiplomacyState } from '@/systems/diplomacy-state';
 import {
-  REVOLT_UNREST_TURNS,
-  BREAKAWAY_REVOLT_TURNS,
   CONCESSION_IMMUNITY_TURNS,
   CONCESSION_COST_MULTIPLIER,
   CONCESSION_COST_MULTIPLIER_CIVICS,
   appeaseFaction,
-  canGarrisonCity,
-  computeUnrestPressure,
   concedeToMovement,
   getCityAppeaseCost,
   getConcessionCost,
-  getContagionSpread,
-  getCityHappinessFromBuildings,
-  UNREST_RELIEF_SOURCES,
-  getUnrestPressureBreakdown,
-  getUnrestYieldMultiplier,
-  isCityProductionLocked,
-  processFactionTurn,
-  BUREAUCRACY_TECH_ID,
-  BUREAUCRACY_MAX_RELIEF,
-  OVEREXTENSION_FREE_CITIES,
+} from '@/systems/faction-commands';
+import {
   FEDERALISM_TECH_ID,
   FEDERALISM_LOCK_TURNS,
   setFederalismStance,
   getFederalismRemittanceLoss,
-} from '@/systems/faction-system';
+} from '@/systems/faction-federalism';
+import {
+  computeUnrestPressure,
+  getContagionSpread,
+  getCityHappinessFromBuildings,
+  getUnrestPressureBreakdown,
+} from '@/systems/faction-pressure';
+import { UNREST_RELIEF_SOURCES, BUREAUCRACY_TECH_ID, BUREAUCRACY_MAX_RELIEF } from '@/systems/faction-relief';
+import { processFactionTurn } from '@/systems/faction-system';
+import {
+  REVOLT_UNREST_TURNS,
+  BREAKAWAY_REVOLT_TURNS,
+  canGarrisonCity,
+  getUnrestYieldMultiplier,
+  isCityProductionLocked,
+  OVEREXTENSION_FREE_CITIES,
+} from '@/systems/faction-unrest-model';
 import { BUILDINGS } from '@/systems/city-system';
 import { getEraAdvancementTechs } from '@/systems/tech-definitions';
 

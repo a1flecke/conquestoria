@@ -1,7 +1,7 @@
 import type { City, GameMap, HexCoord, HexTile, ResourceYield } from '@/core/types';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { BUILDINGS } from '@/systems/city-system';
-import { UNREST_RELIEF_SOURCES } from '@/systems/faction-system';
+import { UNREST_RELIEF_SOURCES } from '@/systems/faction-relief';
 import { calculateCityYields } from '@/systems/resource-system';
 import { getEmpireTechPercents, applyEmpireTechPercents, getEmpireFlatTechYields } from '@/systems/tech-yield-system';
 import {

@@ -21,7 +21,7 @@ import {
   getTrainableUnitsForCity,
 } from '@/systems/city-system';
 import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
-import { computeUnrestPressure } from '@/systems/faction-system';
+import { computeUnrestPressure } from '@/systems/faction-pressure';
 import type { AIForceDemand } from '@/ai/ai-unit-assignment';
 import { getAIStrategicRoles } from '@/ai/ai-unit-roles';
 import { hexKey, hexNeighbors } from '@/systems/hex-utils';

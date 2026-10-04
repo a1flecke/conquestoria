@@ -5,7 +5,7 @@ import {
   getForeignFaithPressure, isLoyaltyTrackEligible, getLoyaltyThreshold, getLoyaltyTickAmount,
   executeLoyaltyDefection, setLoyaltyPoints, clearLoyaltyProgress, processLoyaltyTurn,
 } from '@/systems/religion-loyalty-system';
-import { getUnrestPressureBreakdown } from '@/systems/faction-system';
+import { getUnrestPressureBreakdown } from '@/systems/faction-pressure';
 import { getLoyaltyPressurePresentationForViewer } from '@/systems/loyalty-pressure-presentation';
 import { makeLoyaltyFixture } from './helpers/religion-loyalty-fixture';
 

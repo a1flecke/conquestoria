@@ -1,7 +1,7 @@
 import type { CivBonusEffect, GameState } from '@/core/types';
 import { resolveCivDefinition } from './civ-registry';
 import { assignCityFocus, normalizeWorkedTilesForCity } from './city-work-system';
-import { isCityProductionLocked, getUnrestYieldMultiplier } from './faction-system';
+import { isCityProductionLocked, getUnrestYieldMultiplier } from './faction-unrest-model';
 import { getLegendaryWonderCivYieldBonus } from './legendary-wonder-system';
 import { getLegendaryWonderCityYieldBonus } from './legendary-wonder-system';
 import { getNetworkCityYieldBonus } from './network-infrastructure-plans';

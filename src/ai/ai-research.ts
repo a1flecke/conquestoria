@@ -13,12 +13,9 @@ import {
 } from '@/systems/city-system';
 import { calculateCivResearchOutput } from '@/systems/research-output-system';
 import { getCivAvailableResources, getCivHappinessFromResources } from '@/systems/resource-acquisition-system';
-import {
-  UNREST_RELIEF_SOURCES,
-  UNREST_TRIGGER_PRESSURE,
-  createUnrestEvaluationContext,
-  getUnrestPressureBreakdown,
-} from '@/systems/faction-system';
+import { getUnrestPressureBreakdown } from '@/systems/faction-pressure';
+import { UNREST_RELIEF_SOURCES } from '@/systems/faction-relief';
+import { UNREST_TRIGGER_PRESSURE, createUnrestEvaluationContext } from '@/systems/faction-unrest-model';
 
 import {
   activateNextQueuedResearch,

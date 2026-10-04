@@ -3,7 +3,7 @@
 // specific policy; not part of the reusable staged-lifecycle machinery (crisis-lifecycle.ts).
 import type { ActiveCrisis, GameState } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
-import { getCityAppeaseCost } from './faction-system';
+import { getCityAppeaseCost } from './faction-commands';
 
 export function applyQuarantine(
   state: GameState,

@@ -4,7 +4,7 @@
  * "this group has no cycles" or "only these modules import X". See `rule-engine.ts` for semantics and
  * `.claude/rules/caller-discipline.md` for when to use it.
  *
- * Migrated so far: #1012 (crisis-system decomposition). Other `architecture-boundaries.test.ts`
+ * Migrated so far: #1012 (crisis-system decomposition). New since: #1246 (faction-system decomposition). Other `architecture-boundaries.test.ts`
  * blocks still hold their own checks and move here one block at a time.
  */
 import type { ArchitectureRule } from './rule-engine';
@@ -19,6 +19,25 @@ const CRISIS_MODULES = [
   `${S}/crisis-lifecycle`,
   `${S}/crisis-interventions`,
 ] as const;
+
+/**
+ * The #1246 faction family. Layering, leaf to root:
+ *   unrest-model (types, thresholds, tiny predicates; imports no faction module)
+ *   federalism   (policy constants + the one toggle command)
+ *   relief       (administration ladder; reads model + federalism constants)
+ *   pressure     (the pressure row model; reads relief)
+ *   commands     (Appease / Concede; self-contained)
+ *   system       (the faction turn: composes pressure + model; imported by one round-phase)
+ */
+const FACTION_MODULES = [
+  `${S}/faction-unrest-model`,
+  `${S}/faction-federalism`,
+  `${S}/faction-relief`,
+  `${S}/faction-pressure`,
+  `${S}/faction-commands`,
+  `${S}/faction-system`,
+] as const;
+const FACTION_ABOVE = (...names: string[]): string[] => names.map(name => `${S}/faction-${name}`);
 
 export const ARCHITECTURE_RULES: readonly ArchitectureRule[] = [
   {
@@ -76,5 +95,77 @@ export const ARCHITECTURE_RULES: readonly ArchitectureRule[] = [
     to: CRISIS_MODULES,
     edges: 'all',
     why: 'UI and renderer reach crisis behaviour through the crisis-system barrel or a controller, so the implementation modules stay free to be re-split.',
+  },
+
+  {
+    id: 'faction-model-is-a-leaf',
+    kind: 'forbidden-import',
+    from: `${S}/faction-unrest-model`,
+    to: [...FACTION_ABOVE('federalism', 'relief', 'pressure', 'commands', 'system'), `${S}/religion-loyalty-system`, `${S}/economy-system`, `${S}/city-system`],
+    edges: 'all',
+    why: 'The unrest model is the import-light leaf religion-loyalty and the faction layers all read (canGarrisonCity breaks the old faction-system <-> religion-loyalty cycle); reaching up or into the economy/city graph reintroduces it.',
+  },
+  {
+    id: 'faction-federalism-is-a-leaf',
+    kind: 'forbidden-import',
+    from: `${S}/faction-federalism`,
+    to: FACTION_ABOVE('unrest-model', 'relief', 'pressure', 'commands', 'system'),
+    edges: 'all',
+    why: 'The federalism policy (constants, lock, toggle) must not depend on the pressure model it reduces; relief imports it, never the reverse.',
+  },
+  {
+    id: 'faction-relief-below-pressure',
+    kind: 'forbidden-import',
+    from: `${S}/faction-relief`,
+    to: FACTION_ABOVE('pressure', 'commands', 'system'),
+    edges: 'all',
+    why: 'The relief ladder is read by the pressure breakdown, the AI production valuation and the AI research pull; it must stay beneath all of them.',
+  },
+  {
+    id: 'faction-pressure-is-queries-only',
+    kind: 'forbidden-import',
+    from: `${S}/faction-pressure`,
+    to: FACTION_ABOVE('commands', 'system'),
+    edges: 'all',
+    why: 'Pressure is a pure query model consumed by panels and the AI; it must not import the commands that spend gold or the turn orchestration that mutates cities.',
+  },
+  {
+    id: 'faction-commands-self-contained',
+    kind: 'forbidden-import',
+    from: `${S}/faction-commands`,
+    to: FACTION_ABOVE('unrest-model', 'federalism', 'relief', 'pressure', 'system'),
+    edges: 'all',
+    why: 'Appease and Concede are priced from a city and a tech list alone; coupling them to the pressure model would make a cost depend on a live unrest evaluation.',
+  },
+  {
+    id: 'faction-modules-not-in-presentation-layers',
+    kind: 'forbidden-import',
+    from: FACTION_MODULES,
+    to: ['src/ui/**', 'src/app/**', 'src/renderer/**', 'src/presentation/**', 'src/input/**'],
+    edges: 'all',
+    why: 'Faction rules are simulation: presentation layers depend on them, never the other way round.',
+  },
+  {
+    id: 'faction-modules-acyclic',
+    kind: 'acyclic-group',
+    members: FACTION_MODULES,
+    edges: 'all',
+    why: 'The leaf-to-root layering above is only real if no cycle lets a lower module reach a higher one.',
+  },
+  {
+    id: 'faction-turn-has-one-importer',
+    kind: 'only-imported-by',
+    target: `${S}/faction-system`,
+    importers: ['src/core/round-phases/instability', 'tests/**'],
+    edges: 'all',
+    why: 'faction-system is the orchestration (processFactionTurn) and was split from the model so callers import the focused module; a new src importer is the old kitchen-sink barrel growing back.',
+  },
+  {
+    id: 'religion-loyalty-reads-only-the-faction-model',
+    kind: 'forbidden-import',
+    from: `${S}/religion-loyalty-system`,
+    to: FACTION_ABOVE('federalism', 'relief', 'pressure', 'commands', 'system'),
+    edges: 'all',
+    why: 'faction-pressure imports religion-loyalty (foreign-faith pressure); religion-loyalty may only read the faction model leaf, or the #1246 cycle break is undone.',
   },
 ];

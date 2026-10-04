@@ -43,7 +43,7 @@ import { getVassalageEligibility, canPetitionIndependence } from '@/systems/dipl
 import { declareWarGoal, canDeclareWarGoal } from '@/systems/war-goal-system';
 import { proposeSettlement, acceptSettlementOffer } from '@/systems/settlement-system';
 import { TREATY_LABELS } from '@/ui/notification-routing';
-import { appeaseFaction, concedeToMovement } from '@/systems/faction-system';
+import { appeaseFaction, concedeToMovement } from '@/systems/faction-commands';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';

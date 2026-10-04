@@ -9,7 +9,7 @@ import {
   normalizeWorkedTilesForCity,
 } from '@/systems/city-work-system';
 import { getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
-import { getUnrestYieldMultiplier } from '@/systems/faction-system';
+import { getUnrestYieldMultiplier } from '@/systems/faction-unrest-model';
 import { createGameButton } from '@/ui/ui-kit';
 
 

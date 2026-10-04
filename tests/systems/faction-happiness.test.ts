@@ -2,10 +2,8 @@ import { describe, it, expect } from 'vitest';
 import type { GameState, City, HexCoord } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
 import { createDiplomacyState } from '@/systems/diplomacy-state';
-import {
-  computeUnrestPressure,
-  processFactionTurn,
-} from '@/systems/faction-system';
+import { computeUnrestPressure } from '@/systems/faction-pressure';
+import { processFactionTurn } from '@/systems/faction-system';
 
 function addBuilding(state: GameState, cityId: string, buildingId: string): GameState {
   const city = state.cities[cityId];

@@ -1,7 +1,7 @@
 import type { City, GameState, Religion } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
 import { hexKey, hexNeighbors } from '@/systems/hex-utils';
-import { canGarrisonCity } from '@/systems/faction-system';
+import { canGarrisonCity } from '@/systems/faction-unrest-model';
 import {
   LOYALTY_BASE_TICK, LOYALTY_THRESHOLD_BY_CHALLENGE, FERVOR_MULTIPLIER,
   AMBIENT_FAITH_DRIFT_PER_TURN, AMBIENT_FAITH_DRIFT_CAP,

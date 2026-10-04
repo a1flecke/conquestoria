@@ -10,7 +10,7 @@ import type {
   ResourceType,
   Unit,
 } from '@/core/types';
-import { getCityAppeaseCost } from '@/systems/faction-system';
+import { getCityAppeaseCost } from '@/systems/faction-commands';
 import { calculateMaintenance } from '@/systems/economy-system';
 import {
   TRAINABLE_UNITS,

@@ -4,7 +4,7 @@ import {
   setGovernancePolicy, isGovernancePolicyActive, canToggleGovernancePolicy,
   getGovernancePolicyLockedUntilTurn, GOVERNANCE_POLICY_LOCK_TURNS,
 } from '@/systems/governance-policy-system';
-import { getUnrestPressureBreakdown } from '@/systems/faction-system';
+import { getUnrestPressureBreakdown } from '@/systems/faction-pressure';
 import { makeGovernanceTestState } from './helpers/governance-fixture';
 
 describe('#987 governance policy system', () => {

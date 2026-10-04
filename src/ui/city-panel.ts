@@ -35,15 +35,9 @@ import { getLegendaryLandmarkPreviewViewForCity } from '@/systems/legendary-wond
 import { canUpgradeUnit, getUpgradeCost } from '@/systems/unit-upgrade-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { getUnitRolePresentation } from '@/ui/unit-role-presentation';
-import {
-  getUnrestYieldMultiplier,
-  getCityAppeaseCost,
-  isCityProductionLocked,
-  getContagionSpread,
-  getConcessionCost,
-  getUnrestPressureBreakdown,
-  CONCESSION_IMMUNITY_TURNS,
-} from '@/systems/faction-system';
+import { getCityAppeaseCost, getConcessionCost, CONCESSION_IMMUNITY_TURNS } from '@/systems/faction-commands';
+import { getContagionSpread, getUnrestPressureBreakdown } from '@/systems/faction-pressure';
+import { getUnrestYieldMultiplier, isCityProductionLocked } from '@/systems/faction-unrest-model';
 import { getUnrestRecommendations } from '@/systems/unrest-guidance';
 import { unrestRecommendationCopy } from '@/ui/unrest-guidance-copy';
 import { getCrisisFlavor, getCrisisDisplayName } from '@/systems/crisis-flavor-definitions';

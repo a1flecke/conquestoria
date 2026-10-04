@@ -20,11 +20,9 @@ import {
   getEconomyStatusForCiv,
 } from '@/systems/economy-system';
 import { getCivAvailableResources, getCivHappinessFromResources } from '@/systems/resource-acquisition-system';
-import {
-  UNREST_RELIEF_SOURCES,
-  UNREST_TRIGGER_PRESSURE,
-  computeUnrestPressure,
-} from '@/systems/faction-system';
+import { computeUnrestPressure } from '@/systems/faction-pressure';
+import { UNREST_RELIEF_SOURCES } from '@/systems/faction-relief';
+import { UNREST_TRIGGER_PRESSURE } from '@/systems/faction-unrest-model';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { buildProductionCostContext, getContextualProductionCost } from '@/systems/production-cost-context';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';

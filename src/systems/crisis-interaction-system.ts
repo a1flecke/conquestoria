@@ -1,6 +1,6 @@
 import type { ActiveCrisis, City, GameState } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
-import { getCityAppeaseCost } from './faction-system';
+import { getCityAppeaseCost } from './faction-commands';
 import { resolveWorldPressureFlags } from './world-pressure-flags';
 import {
   getCrisisInteractionDefinition,
