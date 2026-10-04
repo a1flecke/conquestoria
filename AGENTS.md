@@ -78,6 +78,11 @@ the form the local approver recognizes without a prompt:
   dispatcher saves the full output to `.verification/logs/<task>.log`, prints a header with the exit
   status plus the last 60 lines, and `./scripts/dev.sh log <task> [N]` shows more (default 200, max 5000).
 - It takes no flags (no `--watch`, no `-t`); anything configurable is a separate task.
+- For a one-off check that is not a task (for example `yarn tsc -p <custom tsconfig>`), expect a
+  single prompt and choose Allow once. Do not pick Allow always, do not widen the wrapper rule, do
+  not use the `bash scripts/run-with-mise.sh` spelling, and do not create an untracked tsconfig or
+  script just to get a check run. If the check will recur, propose a fixed `dev.sh` task backed by
+  a tracked config instead.
 - It is deliberately narrow. Installing or removing a dependency, `node -e`, `npx`, an arbitrary
   `node <file>`, `git push` to `main`, `gh pr merge` and deletions are not tasks, and are expected to ask
   for human approval — do not look for a way around that through `run-with-mise.sh`.
