@@ -1894,7 +1894,7 @@ describe('#1223 — an air mission failure is a closed typed reason with one cop
   it('every player-facing air executor failure is worded from the one copy map', () => {
     for (const path of [
       'src/app/controllers/map-interaction-controller.ts',
-      'src/app/controllers/selection-controller.ts',
+      'src/app/controllers/selection-unit-commands.ts',
     ]) {
       expect(read(path), path).toContain('AIR_MISSION_FAILURE_MESSAGES[');
     }
