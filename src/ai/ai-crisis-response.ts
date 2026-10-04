@@ -4,7 +4,7 @@ import { getPirateFleetLeader } from '@/systems/pirate-behavior';
 import { isVisible } from '@/systems/fog-of-war';
 import type { EventBus } from '@/core/event-bus';
 import { applyEmpireContainment, applyQuarantine, applyRemedy } from '@/systems/crisis-system';
-import { getCityAppeaseCost } from '@/systems/faction-system';
+import { getCityAppeaseCost } from '@/systems/faction-commands';
 import { canRestoreLand } from '@/systems/improvement-system';
 import { getWorkerChargesRemaining } from '@/systems/worker-action-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';

@@ -32,7 +32,12 @@ import { getNetworkPanelModel } from '@/ui/network-panel';
 import { getPirateWatersPresentation } from '@/systems/pirate-presentation';
 import { getUnmovedUnits } from '@/systems/unit-order-state';
 import { createResearchBreakdown } from '@/ui/research-breakdown';
-import { FEDERALISM_TECH_ID, canToggleFederalism, getFederalismLockedUntilTurn, setFederalismStance } from '@/systems/faction-system';
+import {
+  FEDERALISM_TECH_ID,
+  canToggleFederalism,
+  getFederalismLockedUntilTurn,
+  setFederalismStance,
+} from '@/systems/faction-federalism';
 import { getCivilizationStatusForViewer } from '@/systems/civilization-status-presentation';
 
 /** The narrow slice of `RenderLoop` this controller needs. */

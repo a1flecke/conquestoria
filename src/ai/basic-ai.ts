@@ -76,9 +76,9 @@ import {
 } from '@/systems/espionage-system';
 import { applyOpportunisticWarPenaltyIfCrisisStruck } from '@/systems/crisis-interaction-system';
 import { createRng } from '@/systems/map-generator';
-import {
-  appeaseFaction, getUnrestPressureBreakdown, computeUnrestPressure, setFederalismStance, canToggleFederalism, FEDERALISM_TECH_ID,
-} from '@/systems/faction-system';
+import { appeaseFaction } from '@/systems/faction-commands';
+import { setFederalismStance, canToggleFederalism, FEDERALISM_TECH_ID } from '@/systems/faction-federalism';
+import { getUnrestPressureBreakdown, computeUnrestPressure } from '@/systems/faction-pressure';
 import { getEconomyStatusForCiv } from '@/systems/economy-system';
 import { GOVERNANCE_POLICY_DEFINITIONS } from '@/systems/governance-policy-definitions';
 import { setGovernancePolicy, isGovernancePolicyActive, canToggleGovernancePolicy } from '@/systems/governance-policy-system';

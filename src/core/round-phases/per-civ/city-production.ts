@@ -19,7 +19,7 @@ import {
 } from '@/systems/national-project-system';
 import { buildProductionCostContext } from '@/systems/production-cost-context';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
-import { getUnrestYieldMultiplier, isCityProductionLocked } from '@/systems/faction-system';
+import { getUnrestYieldMultiplier, isCityProductionLocked } from '@/systems/faction-unrest-model';
 import { getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
 import { getCrisisYieldMultiplier } from '@/systems/crisis-system';
 import { foundReligion } from '@/systems/religion-system';

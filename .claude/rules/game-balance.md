@@ -110,7 +110,7 @@ reachable through `resolveCityInteraction`.
 
 Happiness reduces unrest pressure at 2 pressure per point
 (`computeUnrestPressure` / `getUnrestPressureBreakdown` in
-`faction-system.ts`). Unlike yields, happiness has no MR12-style ceiling rule
+`faction-pressure.ts`). Unlike yields, happiness has no MR12-style ceiling rule
 of its own yet — this table exists so future additions stay legible and
 proportionate to what's already here.
 
@@ -132,7 +132,7 @@ ceilings above, applied to happiness).
 ## Unrest Relief Inventory
 
 Distance-from-capital and empire-overextension unrest pressure
-(`getUnrestPressureBreakdown` in `faction-system.ts`) are deliberate,
+(`getUnrestPressureBreakdown` in `faction-pressure.ts`) are deliberate,
 permanent pressures — a wide empire is *meant* to feel scale. Every era where
 they bite gets a **bought, deliberate** counter: the administration ladder
 (#919). Each counter emits its own negative breakdown row via an entry in
@@ -154,7 +154,7 @@ bureaucracy, federalism, governors) or anything else — MUST:
 
 1. add a row to this table, and
 2. register an `UnrestReliefSource` entry in `UNREST_RELIEF_SOURCES`
-   (`src/systems/faction-system.ts`), keyed to `buildingId` or
+   (`src/systems/faction-relief.ts`), keyed to `buildingId` or
    `researchUnlockTechId` so AI production/research score it generically.
 
 It must keep a **residual floor** (the `COURTHOUSE_SPRAWL_FLOOR` pattern —
@@ -184,7 +184,7 @@ formula is owner-scoped, difficulty-invariant, and has no save migration.
 ## Unrest Instant-Action Costs (Appease vs Concede)
 
 Two gold-only instant actions clear/suppress a city's unrest
-(`src/systems/faction-system.ts`). They must stay a **real choice** — neither
+(`src/systems/faction-commands.ts`). They must stay a **real choice** — neither
 strictly dominates:
 
 | Action | Cost | Immediate effect | Persistent effect | Repeat limit |
@@ -212,7 +212,7 @@ A separate table from the Unrest Relief Inventory above — governance policies
 are a player *choice* with a real tradeoff, not an infrastructure investment
 that only relieves pressure. Each policy is a flat, deterministic, attributable
 unrest-pressure row (`src/systems/governance-policy-definitions.ts`,
-consumed generically by `getUnrestPressureBreakdown` in `faction-system.ts`)
+consumed generically by `getUnrestPressureBreakdown` in `faction-pressure.ts`)
 plus a governance-load cost (`src/systems/governance-capacity.ts`). None of
 these touch the #927 relief ladder's own rows or `UNREST_RELIEF_SOURCES` table.
 
@@ -248,7 +248,7 @@ posture still goes through `setFederalismStance`/`canToggleFederalism`
 unchanged.
 
 **Rule:** any new governance policy must add a row above, and must not
-introduce a policy-id branch anywhere in `faction-system.ts`,
+introduce a policy-id branch anywhere in `faction-pressure.ts`, `faction-relief.ts`,
 `governance-capacity.ts`, `basic-ai.ts`, or `governance-panel.ts` — all four
 are generic over `GOVERNANCE_POLICY_DEFINITIONS`.
 

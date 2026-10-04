@@ -4,7 +4,7 @@ import {
   canToggleGovernor, getGovernorLockedUntilTurn, GOVERNOR_REASSIGNMENT_LOCK_TURNS, GOVERNOR_UNREST_RELIEF,
 } from '@/systems/governor-system';
 import { getGovernanceLoad, GOVERNOR_LOAD_COST } from '@/systems/governance-capacity';
-import { getUnrestPressureBreakdown } from '@/systems/faction-system';
+import { getUnrestPressureBreakdown } from '@/systems/faction-pressure';
 import { makeGovernanceTestState } from './helpers/governance-fixture';
 
 describe('#928 governor system', () => {

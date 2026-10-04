@@ -15,8 +15,6 @@
    "src/systems/city-siege-system.ts",
    "src/systems/combat-reward-system.ts",
    "src/systems/combat-system.ts",
-   "src/systems/crisis-interaction-system.ts",
-   "src/systems/crisis-interventions.ts",
    "src/systems/crisis-lifecycle.ts",
    "src/systems/crisis-progression.ts",
    "src/systems/crisis-scheduling.ts",
@@ -24,16 +22,11 @@
    "src/systems/economy-system.ts",
    "src/systems/espionage-system.ts",
    "src/systems/espionage-turn.ts",
-   "src/systems/faction-system.ts",
-   "src/systems/minor-civ-system.ts",
    "src/systems/pirate-actions.ts",
    "src/systems/pirate-ecology.ts",
    "src/systems/production-cost-context.ts",
    "src/systems/quest-chain-system.ts",
    "src/systems/quest-objective-system.ts",
-   "src/systems/quest-presentation.ts",
-   "src/systems/quest-system.ts",
-   "src/systems/religion-loyalty-system.ts",
    "src/systems/rogue-elephant-host-system.ts",
    "src/systems/stampede-system.ts",
    "src/systems/threat-pressure-system.ts",
@@ -99,8 +92,6 @@
    "src/systems/combat-context.ts",
    "src/systems/combat-reward-system.ts",
    "src/systems/combat-system.ts",
-   "src/systems/crisis-interaction-system.ts",
-   "src/systems/crisis-interventions.ts",
    "src/systems/crisis-lifecycle.ts",
    "src/systems/crisis-progression.ts",
    "src/systems/crisis-scheduling.ts",
@@ -108,16 +99,11 @@
    "src/systems/economy-system.ts",
    "src/systems/espionage-system.ts",
    "src/systems/espionage-turn.ts",
-   "src/systems/faction-system.ts",
-   "src/systems/minor-civ-system.ts",
    "src/systems/pirate-actions.ts",
    "src/systems/pirate-ecology.ts",
    "src/systems/production-cost-context.ts",
    "src/systems/quest-chain-system.ts",
    "src/systems/quest-objective-system.ts",
-   "src/systems/quest-presentation.ts",
-   "src/systems/quest-system.ts",
-   "src/systems/religion-loyalty-system.ts",
    "src/systems/rogue-elephant-host-system.ts",
    "src/systems/stampede-system.ts",
    "src/systems/threat-pressure-system.ts",
@@ -144,7 +130,7 @@
   },
   {
    "pair": "ai -> systems",
-   "count": 281
+   "count": 288
   },
   {
    "pair": "app -> ai",
@@ -180,7 +166,7 @@
   },
   {
    "pair": "app -> systems",
-   "count": 173
+   "count": 172
   },
   {
    "pair": "app -> testing",
@@ -208,7 +194,7 @@
   },
   {
    "pair": "core -> systems",
-   "count": 123
+   "count": 181
   },
   {
    "pair": "input -> renderer",
@@ -264,7 +250,7 @@
   },
   {
    "pair": "renderer -> systems",
-   "count": 53
+   "count": 54
   },
   {
    "pair": "storage -> core",
@@ -312,7 +298,7 @@
   },
   {
    "pair": "ui -> systems",
-   "count": 268
+   "count": 271
   }
  ]
 }

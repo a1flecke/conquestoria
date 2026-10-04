@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import { createCityOverviewPanel } from '@/ui/city-overview-panel';
-import { getCityAppeaseCost, getConcessionCost } from '@/systems/faction-system';
+import { getCityAppeaseCost, getConcessionCost } from '@/systems/faction-commands';
 import { makeLegendaryWonderFixture } from '../systems/helpers/legendary-wonder-fixture';
 import type { City, GameState } from '@/core/types';
 

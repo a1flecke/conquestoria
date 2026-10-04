@@ -1,6 +1,7 @@
 import type { GameState, City } from '@/core/types';
 import { getOwnedCities } from '@/systems/city-ownership';
-import { getCityAppeaseCost, getConcessionCost, computeUnrestPressure, CONCESSION_IMMUNITY_TURNS } from '@/systems/faction-system';
+import { getCityAppeaseCost, getConcessionCost, CONCESSION_IMMUNITY_TURNS } from '@/systems/faction-commands';
+import { computeUnrestPressure } from '@/systems/faction-pressure';
 import { getCivHappinessFromResources } from '@/systems/resource-acquisition-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { getTopUnrestLever } from '@/systems/unrest-guidance';

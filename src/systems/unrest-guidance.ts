@@ -1,18 +1,13 @@
 import type { GameState, City } from '@/core/types';
+import { FEDERALISM_TECH_ID, canToggleFederalism } from './faction-federalism';
+import { getUnrestPressureBreakdown, computeUnrestPressure, getContagionSpread } from './faction-pressure';
 import {
-  getUnrestPressureBreakdown,
-  computeUnrestPressure,
   getRegionalCapitalReliefAmount,
-  canGarrisonCity,
-  getContagionSpread,
-  CONQUEST_UNREST_DURATION,
   BUREAUCRACY_TECH_ID,
   RAILWAY_ADMINISTRATION_TECH_ID,
-  FEDERALISM_TECH_ID,
   getFederalismReliefAmount,
-  canToggleFederalism,
-  type UnrestPressureRow,
-} from './faction-system';
+} from './faction-relief';
+import { canGarrisonCity, CONQUEST_UNREST_DURATION, type UnrestPressureRow } from './faction-unrest-model';
 import { getAvailableBuildings } from './city-system';
 import { getEconomyStatusForCiv, getRushBuyQuote } from './economy-system';
 import { getCivHappinessFromResources, getCivAvailableResources } from './resource-acquisition-system';

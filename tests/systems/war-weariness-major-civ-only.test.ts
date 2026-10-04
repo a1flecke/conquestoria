@@ -6,7 +6,7 @@ import { processMinorCivCoalitionsTurn } from '@/systems/minor-civ-coalition-sys
 import { declareMajorWar } from '@/systems/diplomacy-system';
 import { evaluateVassalageConsent } from '@/ai/ai-treaty-consent';
 import { majorCivWarOpponentIds } from '@/core/owner-kind';
-import { getUnrestPressureBreakdown } from '@/systems/faction-system';
+import { getUnrestPressureBreakdown } from '@/systems/faction-pressure';
 import { getUnrestRecommendations } from '@/systems/unrest-guidance';
 import { foundCityInState } from '@/systems/city-founding-system';
 import { normalizeLoadedState } from '@/storage/save-manager';

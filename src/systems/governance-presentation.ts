@@ -4,7 +4,7 @@ import { GOVERNANCE_POLICY_DEFINITIONS } from './governance-policy-definitions';
 import { getGovernanceCapacity, getGovernanceLoad, getGovernancePosture, GOVERNOR_LOAD_COST } from './governance-capacity';
 import { isGovernancePolicyActive, canToggleGovernancePolicy, getGovernancePolicyLockedUntilTurn } from './governance-policy-system';
 import { isCityGoverned, canToggleGovernor, getGovernorLockedUntilTurn } from './governor-system';
-import { computeUnrestPressure } from './faction-system';
+import { computeUnrestPressure } from './faction-pressure';
 
 /**
  * #987 — own-empire-only governance projection. Deliberately does not expose

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { CombatResult, GameState } from '@/core/types';
-import { BREAKAWAY_REVOLT_TURNS } from '@/systems/faction-system';
+import { BREAKAWAY_REVOLT_TURNS } from '@/systems/faction-unrest-model';
 import {
   formatEconomyTreasuryStrainMessage,
   getNotificationTargetsForEvent,

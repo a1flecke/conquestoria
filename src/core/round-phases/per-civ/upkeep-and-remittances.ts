@@ -1,6 +1,6 @@
 import type { GameState } from '@/core/types';
 import { processVassalageTribute } from '@/systems/diplomacy-vassal-rules';
-import { getFederalismRemittanceLoss } from '@/systems/faction-system';
+import { getFederalismRemittanceLoss } from '@/systems/faction-federalism';
 import type { CivTurn, CivIncome } from './types';
 
 /**

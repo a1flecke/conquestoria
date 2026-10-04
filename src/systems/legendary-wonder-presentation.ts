@@ -7,7 +7,7 @@ import {
 } from '@/systems/legendary-wonder-system';
 import { getTechById } from '@/systems/tech-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
-import { getUnrestYieldMultiplier } from '@/systems/faction-system';
+import { getUnrestYieldMultiplier } from '@/systems/faction-unrest-model';
 import { getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
 import { getLegendaryWonderQueueItemId } from '@/systems/legendary-wonder-production';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
