@@ -1,7 +1,7 @@
 import type { GameMap, GameState, HexCoord, Unit, UnitAttackProfile, UnitType } from '@/core/types';
 import { getVisibility } from '@/systems/fog-of-war';
 import { hexDistance, hexKey, hexesInRange, getWrappedHexesInRange, wrappedHexDistance } from '@/systems/hex-utils';
-import { selectDefenderForAttack } from '@/systems/combat-system';
+import { selectDefenderForAttack } from '@/systems/combat-defense-strength';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { canUnitAttackBeast } from '@/systems/beast-system';
 import { isUnitConcealedFrom } from '@/systems/concealment';

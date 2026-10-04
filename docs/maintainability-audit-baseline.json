@@ -9,14 +9,10 @@
   ],
   [
    "src/systems/air-operations-system.ts",
-   "src/systems/attack-targeting.ts",
    "src/systems/barbarian-system.ts",
    "src/systems/city-siege-system.ts",
    "src/systems/combat-reward-system.ts",
    "src/systems/combat-system.ts",
-   "src/systems/crisis-lifecycle.ts",
-   "src/systems/crisis-progression.ts",
-   "src/systems/crisis-system.ts",
    "src/systems/economy-system.ts",
    "src/systems/pirate-actions.ts",
    "src/systems/production-cost-context.ts",
@@ -24,7 +20,6 @@
    "src/systems/quest-objective-system.ts",
    "src/systems/rogue-elephant-host-system.ts",
    "src/systems/stampede-system.ts",
-   "src/systems/transport-system.ts",
    "src/systems/unit-movement-system.ts",
    "src/systems/unit-production-completion.ts"
   ]
@@ -76,15 +71,11 @@
   ],
   [
    "src/systems/air-operations-system.ts",
-   "src/systems/attack-targeting.ts",
    "src/systems/barbarian-system.ts",
    "src/systems/city-siege-system.ts",
    "src/systems/combat-context.ts",
    "src/systems/combat-reward-system.ts",
    "src/systems/combat-system.ts",
-   "src/systems/crisis-lifecycle.ts",
-   "src/systems/crisis-progression.ts",
-   "src/systems/crisis-system.ts",
    "src/systems/economy-system.ts",
    "src/systems/pirate-actions.ts",
    "src/systems/production-cost-context.ts",
@@ -92,7 +83,6 @@
    "src/systems/quest-objective-system.ts",
    "src/systems/rogue-elephant-host-system.ts",
    "src/systems/stampede-system.ts",
-   "src/systems/transport-system.ts",
    "src/systems/unit-movement-system.ts",
    "src/systems/unit-production-completion.ts"
   ],
@@ -176,7 +166,7 @@
   },
   {
    "pair": "core -> systems",
-   "count": 181
+   "count": 182
   },
   {
    "pair": "input -> renderer",

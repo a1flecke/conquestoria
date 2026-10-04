@@ -11,7 +11,7 @@ import { createUnit } from '@/systems/unit-lifecycle';
 import { createTechState } from '@/systems/tech-system';
 import { createVisibilityMap, updateVisibility } from '@/systems/fog-of-war';
 import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
-import { spawnBarbarianCamp } from '@/systems/barbarian-system';
+import { spawnBarbarianCamp } from '@/systems/barbarian-camp-placement';
 import { emptyIdCounters } from '@/core/id-counters';
 import { createEmptyAutonomyCivState } from '@/core/autonomy-state';
 import { createEmptyPirateState } from '@/core/pirate-state';

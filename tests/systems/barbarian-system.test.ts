@@ -1,5 +1,5 @@
+import { spawnBarbarianCamp } from '@/systems/barbarian-camp-placement';
 import {
-  spawnBarbarianCamp,
   processBarbarians,
   processPurposefulBarbarians,
   getBarbarianRosterForEra,

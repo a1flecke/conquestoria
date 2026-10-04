@@ -13,7 +13,7 @@ import { createPirateFleetNear, pickBanditName } from './threat-pressure-system'
 import { getCrisisFlavor, type CrisisFlavor } from './crisis-flavor-definitions';
 import { createSimulationRng } from './simulation-rng';
 import { hexKey, mapDistance, mapHexesInRange } from './hex-utils';
-import { spawnBarbarianCamp } from './barbarian-system';
+import { spawnBarbarianCamp } from './barbarian-camp-placement';
 import { BEAST_DEFINITIONS } from './beast-definitions';
 import { BEAST_OWNER, isTerrainPassableForBeast } from './beast-system';
 import { createUnit } from './unit-lifecycle';

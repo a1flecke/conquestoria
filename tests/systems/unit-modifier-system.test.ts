@@ -12,7 +12,7 @@ import { UNIT_CLASS_BY_TYPE, UNIT_MODIFIERS } from '@/systems/unit-modifier-defi
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { calculateCombatStrengths, resolveCombat } from '@/systems/combat-system';
-import { getTerrainDefenseBonus } from '@/systems/combat-system';
+import { getTerrainDefenseBonus } from '@/systems/combat-defense-strength';
 import { generateMap } from '@/systems/map-generator';
 import type { GameMap, GameState, UnitType } from '@/core/types';
 

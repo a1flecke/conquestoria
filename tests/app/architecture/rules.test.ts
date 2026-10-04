@@ -194,6 +194,28 @@ describe('#1241 — each rule kind fails when it should (fixture graphs)', () =>
     });
   });
 
+  describe('allowed-imports', () => {
+    const rule = (allowed: string[]): ArchitectureRule =>
+      ({ id: 'closed-leaf', kind: 'allowed-imports', from: 'src/leaf', allowed, edges: 'all', why }) as ArchitectureRule;
+    const files = { 'src/leaf.ts': "import type { T } from '@/core/types';\nimport { k } from './util';", 'src/core/types.ts': '', 'src/util.ts': '', 'src/heavy.ts': '' };
+    it('accepts exactly the declared set', () => {
+      expect(messages(buildImportGraph(files), [rule(['src/core/types', 'src/util'])])).toEqual([]);
+    });
+    it('rejects an import outside the set, naming the edge and the set', () => {
+      const wide = { ...files, 'src/leaf.ts': files['src/leaf.ts'] + "\nimport './heavy';" };
+      expect(messages(buildImportGraph(wide), [rule(['src/core/types', 'src/util'])]))
+        .toEqual(["src/leaf imports src/heavy (./heavy), outside its allowed set [src/core/types, src/util]"]);
+    });
+    it('rejects a stale allowance that nothing imports', () => {
+      expect(messages(buildImportGraph(files), [rule(['src/core/types', 'src/util', 'src/heavy'])]))
+        .toEqual(['stale allowance "src/heavy": no module in scope imports it — delete it']);
+    });
+    it('honours edge scope: a runtime rule ignores a type-only import', () => {
+      const runtimeRule = { ...rule(['src/util']), edges: 'runtime' } as ArchitectureRule;
+      expect(messages(buildImportGraph(files), [runtimeRule])).toEqual([]);
+    });
+  });
+
   it('rejects duplicate ids and a throwaway why', () => {
     const rule: ArchitectureRule = { id: 'dup', kind: 'acyclic-group', members: 'src/a', edges: 'all', why: 'short' };
     const result = messages(buildImportGraph({ 'src/a.ts': '' }), [rule, rule]);

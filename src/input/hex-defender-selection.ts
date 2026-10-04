@@ -2,7 +2,7 @@ import type { GameState, Unit } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 import { canInspectUnitForViewer } from '@/systems/viewer-intel';
 import { isUnitConcealedFrom } from '@/systems/concealment';
-import { selectDefenderForAttack } from '@/systems/combat-system';
+import { selectDefenderForAttack } from '@/systems/combat-defense-strength';
 
 /**
  * Mirrors `main.ts`'s `visibleUnitEntriesAtKey`/`visibleHostileUnitEntriesAtKey`/

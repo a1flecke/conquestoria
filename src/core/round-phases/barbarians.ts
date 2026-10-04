@@ -1,7 +1,8 @@
 import type { GameState } from '@/core/types';
 import { resetUnitTurn, createUnit } from '@/systems/unit-lifecycle';
 import { processPurposefulBarbarians } from '@/systems/barbarian-system';
-import { deterministicCombatSeed, getUnitCombatStrength, resolveCombat } from '@/systems/combat-system';
+import { deterministicCombatSeed, resolveCombat } from '@/systems/combat-system';
+import { getUnitCombatStrength } from '@/systems/combat-defense-strength';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { resolveUnitVsUnitAttack } from '@/systems/attack-targeting';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';

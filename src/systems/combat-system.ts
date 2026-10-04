@@ -15,6 +15,7 @@ import { hexDistance, hexKey } from './hex-utils';
 import { UNIT_DEFINITIONS } from './unit-definitions';
 import { getWonderCombatBonus } from './wonder-system';
 import { getVeterancyCombatModifier } from './combat-reward-system';
+import { getTerrainDefenseBonus, getUnitCombatStrength } from './combat-defense-strength';
 import { getRiverDefensePenalty, isRiverBetween } from './river-system';
 import type { ModifierPart } from './unit-modifier-system';
 import { COMBAT_EXCHANGE_RULES } from './unit-modifier-definitions';
@@ -45,47 +46,6 @@ export function resolveBoundedSplash(
     .sort((left, right) => left.id.localeCompare(right.id))
     .slice(0, splash.maxTargets)
     .map(candidate => ({ unitId: candidate.id, damage }));
-}
-
-export function getTerrainDefenseBonus(terrain: string): number {
-  const bonuses: Record<string, number> = {
-    hills: 0.25,
-    forest: 0.25,
-    mountain: 0.5,
-    jungle: 0.15,
-  };
-  return bonuses[terrain] ?? 0;
-}
-
-/** Scenario units can carry a save-safe strength override without mutating the global catalog. */
-export function getUnitCombatStrength(unit: Unit): number {
-  return unit.combatStrengthOverride ?? UNIT_DEFINITIONS[unit.type].strength;
-}
-
-export function getEffectiveDefenseStrength(defender: Unit, map: GameMap): number {
-  const def = UNIT_DEFINITIONS[defender.type];
-  let strength = getUnitCombatStrength(defender) * (defender.health / 100);
-  const tile = map.tiles[hexKey(defender.position)];
-  if (tile) {
-    strength *= (1 + getTerrainDefenseBonus(tile.terrain));
-    if (tile.wonder) {
-      strength *= (1 + getWonderCombatBonus(tile.wonder));
-    }
-  }
-  return strength;
-}
-
-export function selectDefenderForAttack(defenders: Unit[], map: GameMap): Unit | undefined {
-  return [...defenders].sort((a, b) => {
-    const aStrength = getEffectiveDefenseStrength(a, map);
-    const bStrength = getEffectiveDefenseStrength(b, map);
-    const aCanFight = aStrength > 0;
-    const bCanFight = bStrength > 0;
-    if (aCanFight !== bCanFight) return aCanFight ? -1 : 1;
-    if (aStrength !== bStrength) return bStrength - aStrength;
-    if (a.health !== b.health) return b.health - a.health;
-    return a.id.localeCompare(b.id);
-  })[0];
 }
 
 export interface CityDefenseInput {
