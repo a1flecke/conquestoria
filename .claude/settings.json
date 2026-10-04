@@ -21,6 +21,8 @@
       "Bash(bash scripts/push-branch.sh)",
       "Bash(git fetch origin)",
       "Bash(git fetch origin main)",
+      "Bash(git ls-remote origin main)",
+      "Bash(git ls-remote origin refs/heads/main)",
       "Bash(git rebase origin/main)"
     ]
   },
