@@ -2,13 +2,13 @@
   "turns": [
     {
       "state": {
-        "__whole": "6fb219f0b1df",
+        "__whole": "1a8efbf53e74",
         "activeEventChains": "e5c153358a49",
         "autonomyByCiv": "95313c912b48",
         "barbarianCampPressure": "44136fa355b3",
         "barbarianCamps": "6cb29d8bbba5",
         "beasts": "02b7d3487cce",
-        "cities": "7f61725b77c6",
+        "cities": "95ed4c32964c",
         "cityFaith": "44136fa355b3",
         "civilizations": "4cd732f9c255",
         "completedLegendaryWonders": "44136fa355b3",
@@ -26,7 +26,7 @@
         "gameTitle": "bc0b5d37a7a4",
         "generatedGenerals": "44136fa355b3",
         "hotSeat": "36ca84e10393",
-        "idCounters": "202beeb8ff88",
+        "idCounters": "3fec94fc7e0c",
         "legendaryWonderAvailability": "88cec4fa71cc",
         "legendaryWonderHistory": "745505658892",
         "legendaryWonderIntel": "44136fa355b3",
@@ -38,7 +38,7 @@
         "minorCivCoalitions": "44136fa355b3",
         "minorCivLeagues": "7b10dbc42e48",
         "minorCivRegionalCooldowns": "44136fa355b3",
-        "minorCivs": "cb8cc54c5da0",
+        "minorCivs": "c0f0338edfe2",
         "nationalProjectChoices": "44136fa355b3",
         "networkCivicPressureByCity": "44136fa355b3",
         "notificationLog": "1a039b051086",
@@ -66,18 +66,18 @@
         "wonderDiscoverers": "1679e898f916",
         "worldRaces": "9c3d03a50f52"
       },
-      "events": "444362906084",
+      "events": "d7a1da5b1b8b",
       "trace": "cda164346a35"
     },
     {
       "state": {
-        "__whole": "fa7663f3bba1",
+        "__whole": "d926d008ea24",
         "activeEventChains": "4ce55a23983b",
         "autonomyByCiv": "95313c912b48",
         "barbarianCampPressure": "44136fa355b3",
         "barbarianCamps": "b2a0738166e3",
         "beasts": "02b7d3487cce",
-        "cities": "666a05e23d84",
+        "cities": "eaf25ce64c4b",
         "cityFaith": "44136fa355b3",
         "civilizations": "4a408eac45c8",
         "completedLegendaryWonders": "44136fa355b3",
@@ -95,7 +95,7 @@
         "gameTitle": "bc0b5d37a7a4",
         "generatedGenerals": "44136fa355b3",
         "hotSeat": "36ca84e10393",
-        "idCounters": "b1152ac96831",
+        "idCounters": "ffaa0cf840c9",
         "legendaryWonderAvailability": "88cec4fa71cc",
         "legendaryWonderHistory": "745505658892",
         "legendaryWonderIntel": "44136fa355b3",
@@ -107,7 +107,7 @@
         "minorCivCoalitions": "44136fa355b3",
         "minorCivLeagues": "3753ee75ca95",
         "minorCivRegionalCooldowns": "44136fa355b3",
-        "minorCivs": "11fb997bcf13",
+        "minorCivs": "a06dd8260cac",
         "nationalProjectChoices": "44136fa355b3",
         "networkCivicPressureByCity": "44136fa355b3",
         "notificationLog": "1a039b051086",
@@ -135,18 +135,18 @@
         "wonderDiscoverers": "1679e898f916",
         "worldRaces": "9c3d03a50f52"
       },
-      "events": "4a3c05fd431d",
+      "events": "7a09b2d0290b",
       "trace": "e34cf6d78806"
     },
     {
       "state": {
-        "__whole": "3bfcbb5a6480",
+        "__whole": "e0a4e4c3438f",
         "activeEventChains": "6e262c6d14d8",
         "autonomyByCiv": "95313c912b48",
         "barbarianCampPressure": "44136fa355b3",
         "barbarianCamps": "e73853834888",
         "beasts": "8a920f36b7c3",
-        "cities": "e5acf61c99f1",
+        "cities": "1de15dcedaf8",
         "cityFaith": "44136fa355b3",
         "civilizations": "f72268c5ea07",
         "completedLegendaryWonders": "44136fa355b3",
@@ -164,7 +164,7 @@
         "gameTitle": "bc0b5d37a7a4",
         "generatedGenerals": "44136fa355b3",
         "hotSeat": "36ca84e10393",
-        "idCounters": "68df8c39061a",
+        "idCounters": "073bd573fb92",
         "legendaryWonderAvailability": "88cec4fa71cc",
         "legendaryWonderHistory": "e40832ad030f",
         "legendaryWonderIntel": "44136fa355b3",
@@ -176,7 +176,7 @@
         "minorCivCoalitions": "44136fa355b3",
         "minorCivLeagues": "b1a7573c9241",
         "minorCivRegionalCooldowns": "44136fa355b3",
-        "minorCivs": "65bbe0673b8d",
+        "minorCivs": "2c4f9e248f2a",
         "nationalProjectChoices": "44136fa355b3",
         "networkCivicPressureByCity": "44136fa355b3",
         "notificationLog": "1a039b051086",
@@ -204,7 +204,7 @@
         "wonderDiscoverers": "655edbf58914",
         "worldRaces": "9c3d03a50f52"
       },
-      "events": "5e2ea11e2f64",
+      "events": "dd04c078f526",
       "trace": "e34cf6d78806"
     }
   ]
