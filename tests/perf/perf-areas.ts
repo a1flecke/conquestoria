@@ -55,6 +55,17 @@ export function buildPerfFixtures(): PerfFixtures {
   };
 }
 
+/**
+ * #1235 — informational whole-state-clone attribution for one full AI round on
+ * the larger crowded fixture. NOT a budget and NOT recorded in the baseline; the
+ * fast `perf-probe.test.ts` proves the attribution mechanism, and the
+ * informational test asserts the sites sum to the measured clone total.
+ */
+export function measureAiRoundCloneSites(fx: PerfFixtures): Record<string, number> {
+  const { counts } = withPerfProbe(() => processNonHumanMajorRound(fx.e2, new EventBus()));
+  return counts.structuredCloneWholeStateBySite;
+}
+
 export interface AreaSample extends Partial<PerfCounts> {
   bytes?: number;
   entityBytes?: number;
@@ -102,11 +113,18 @@ export function measurePerfArea(area: PerfArea, fx: PerfFixtures): AreaSample {
       const { counts } = withPerfProbe(() => processTurn(state, new EventBus()));
       return {
         structuredCloneWholeState: counts.structuredCloneWholeState,
+        structuredCloneWholeStateBytes: counts.structuredCloneWholeStateBytes,
         heapPops: counts.heapPops,
         pathQueries: counts.pathQueries,
         blockingEntityAtCalls: counts.blockingEntityAtCalls,
         visibilityPasses: counts.visibilityPasses,
         cityYieldCalls: counts.cityYieldCalls,
+        civEconomyCalls: counts.civEconomyCalls,
+        projectedGrossGoldCalls: counts.projectedGrossGoldCalls,
+        economyStatusCalls: counts.economyStatusCalls,
+        roadConnectivityCalls: counts.roadConnectivityCalls,
+        ownedRoadConnectivityCalls: counts.ownedRoadConnectivityCalls,
+        ownedRoadTileScans: counts.ownedRoadTileScans,
       };
     }
     case 'aiRound@e1':
@@ -124,8 +142,15 @@ export function measurePerfArea(area: PerfArea, fx: PerfFixtures): AreaSample {
         pathQueries: counts.pathQueries,
         heapPops: counts.heapPops,
         structuredCloneWholeState: counts.structuredCloneWholeState,
+        structuredCloneWholeStateBytes: counts.structuredCloneWholeStateBytes,
         blockingEntityAtCalls: counts.blockingEntityAtCalls,
         cityYieldCalls: counts.cityYieldCalls,
+        civEconomyCalls: counts.civEconomyCalls,
+        projectedGrossGoldCalls: counts.projectedGrossGoldCalls,
+        economyStatusCalls: counts.economyStatusCalls,
+        roadConnectivityCalls: counts.roadConnectivityCalls,
+        ownedRoadConnectivityCalls: counts.ownedRoadConnectivityCalls,
+        ownedRoadTileScans: counts.ownedRoadTileScans,
       };
     }
     case 'findPath': {

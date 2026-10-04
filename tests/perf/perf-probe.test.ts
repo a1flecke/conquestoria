@@ -41,6 +41,8 @@ describe('withPerfProbe', () => {
     const { counts } = withPerfProbe(() => 42);
     expect(counts).toEqual({
       structuredCloneWholeState: 0,
+      structuredCloneWholeStateBytes: 0,
+      structuredCloneWholeStateBySite: {},
       heapPops: 0,
       heapPushes: 0,
       blockingEntityAtCalls: 0,
@@ -48,7 +50,22 @@ describe('withPerfProbe', () => {
       pathQueries: 0,
       visibilityPasses: 0,
       cityYieldCalls: 0,
+      civEconomyCalls: 0,
+      projectedGrossGoldCalls: 0,
+      economyStatusCalls: 0,
+      roadConnectivityCalls: 0,
+      ownedRoadConnectivityCalls: 0,
+      ownedRoadTileScans: 0,
     });
+  });
+
+  it('attributes whole-state clones to their caller (#1235)', () => {
+    const { counts } = withPerfProbe(() => structuredClone({ civilizations: {}, units: {}, map: {} }));
+    expect(counts.structuredCloneWholeState).toBe(1);
+    expect(counts.structuredCloneWholeStateBytes).toBeGreaterThan(0);
+    const bySite = counts.structuredCloneWholeStateBySite;
+    expect(Object.values(bySite).reduce((a, b) => a + b, 0)).toBe(1);
+    expect(Object.keys(bySite)[0]).toMatch(/perf-probe\.test\.ts/);
   });
 
   it('counts one canonical blocker lookup and no direct coordinate lookup for a detailed movement query', () => {
