@@ -530,19 +530,3 @@ function stableAirLossRoll(state: GameState, base: AirBaseRef, aircraftId: strin
 function removeAirUnits(state: GameState, removedIds: ReadonlySet<string>): GameState {
   return removeUnits(state, removedIds, { reason: 'destroyed' }).state;
 }
-
-export function syncCarrierBasedAircraft(state: GameState, carrierId: string): GameState {
-  const carrier = state.units[carrierId];
-  // #582: any carrier-family hull, not just plain 'carrier' -- same
-  // carrierDeckCapacity-driven check as getAirBaseKind above.
-  if (!carrier || UNIT_DEFINITIONS[carrier.type].carrierDeckCapacity == null) return state;
-  let changed = false;
-  const units = { ...state.units };
-  for (const unit of Object.values(units)) {
-    if (unit.airBase?.kind !== 'carrier' || unit.airBase.unitId !== carrierId) continue;
-    if (unit.position.q === carrier.position.q && unit.position.r === carrier.position.r) continue;
-    units[unit.id] = { ...unit, position: { ...carrier.position } };
-    changed = true;
-  }
-  return changed ? { ...state, units } : state;
-}

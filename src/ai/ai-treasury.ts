@@ -5,8 +5,8 @@ import {
   calculateMaintenance,
   type EconomyProjection,
   getRushBuyQuote,
-  rushBuyActiveProduction,
 } from '@/systems/economy-system';
+import { rushBuyActiveProduction } from '@/systems/rush-buy-system';
 
 /**
  * #1094: the AI never called `rushBuyActiveProduction` -- the same gold-for-

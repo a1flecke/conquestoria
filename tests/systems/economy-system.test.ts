@@ -13,8 +13,8 @@ import {
   getRushBuyQuote,
   normalizeEconomyStatus,
   projectCivGrossGold,
-  rushBuyActiveProduction,
 } from '@/systems/economy-system';
+import { rushBuyActiveProduction } from '@/systems/rush-buy-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import * as cityWorkSystem from '@/systems/city-work-system';
 import { foundCity } from '@/systems/city-system';

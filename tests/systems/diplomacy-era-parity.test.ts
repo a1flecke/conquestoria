@@ -6,7 +6,7 @@ import type { GameState } from '@/core/types';
 import { getAvailableActions } from '@/systems/diplomacy-system';
 import { hasArmsControlTreaty } from '@/systems/diplomacy-treaties';
 import { evaluateDiplomacy } from '@/ai/ai-diplomacy';
-import { NATIONAL_INTENT_POSTURE } from '@/ai/ai-national-intent';
+import { NATIONAL_INTENT_POSTURE } from '@/ai/ai-national-intent-posture';
 import { resolveCivilizationEra, resolveWorldAge, TECH_TREE } from '@/systems/tech-definitions';
 import { civilizationEraFromNumber } from '@/systems/era-types';
 

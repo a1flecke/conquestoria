@@ -5,7 +5,7 @@ import {
   weightProductionRoles,
   shouldDeclareWar,
 } from '@/ai/ai-personality';
-import { NATIONAL_INTENT_POSTURE } from '@/ai/ai-national-intent';
+import { NATIONAL_INTENT_POSTURE } from '@/ai/ai-national-intent-posture';
 import type { PersonalityTraits, Tech } from '@/core/types';
 
 const NEUTRAL_POSTURE = NATIONAL_INTENT_POSTURE.develop;

@@ -4,7 +4,7 @@ import { getRelationship, isAtWar } from '@/systems/diplomacy-queries';
 import { getAvailableActions } from '@/systems/diplomacy-system';
 import { canOfferVassalage } from '@/systems/diplomacy-vassal-rules';
 import { shouldDeclareWar } from './ai-personality';
-import type { NationalIntentPosture } from './ai-national-intent';
+import type { NationalIntentPosture } from './ai-national-intent-posture';
 import type { MilitaryStrengthEstimate } from './ai-strength';
 
 export interface DiplomaticDecision {

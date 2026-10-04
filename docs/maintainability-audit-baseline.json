@@ -1,33 +1,8 @@
 {
  "schema": 1,
  "note": "Runtime import cycles and cross-layer runtime edges. Regenerate with `node scripts/maintainability-audit.mjs --baseline`. The #1013 guard fails when this drifts.",
- "runtimeCycles": [
-  [
-   "src/ai/ai-expansion-sites.ts",
-   "src/ai/ai-national-intent.ts",
-   "src/ai/ai-strategy.ts"
-  ],
-  [
-   "src/systems/air-operations-system.ts",
-   "src/systems/barbarian-system.ts",
-   "src/systems/combat-reward-system.ts",
-   "src/systems/economy-system.ts",
-   "src/systems/pirate-actions.ts",
-   "src/systems/quest-chain-system.ts",
-   "src/systems/quest-objective-system.ts",
-   "src/systems/rogue-elephant-host-system.ts",
-   "src/systems/stampede-system.ts",
-   "src/systems/unit-movement-system.ts",
-   "src/systems/unit-production-completion.ts"
-  ]
- ],
+ "runtimeCycles": [],
  "allEdgeCycles": [
-  [
-   "src/ai/ai-expansion-sites.ts",
-   "src/ai/ai-national-intent.ts",
-   "src/ai/ai-personality.ts",
-   "src/ai/ai-strategy.ts"
-  ],
   [
    "src/app/panel-registry.ts",
    "src/app/panel-router.ts"
@@ -67,19 +42,6 @@
    "src/presentation/register-world-race-presentation.ts"
   ],
   [
-   "src/systems/air-operations-system.ts",
-   "src/systems/barbarian-system.ts",
-   "src/systems/combat-reward-system.ts",
-   "src/systems/economy-system.ts",
-   "src/systems/pirate-actions.ts",
-   "src/systems/quest-chain-system.ts",
-   "src/systems/quest-objective-system.ts",
-   "src/systems/rogue-elephant-host-system.ts",
-   "src/systems/stampede-system.ts",
-   "src/systems/unit-movement-system.ts",
-   "src/systems/unit-production-completion.ts"
-  ],
-  [
    "src/systems/minor-civ-league-definitions.ts",
    "src/systems/minor-civ-league-system.ts"
   ],
@@ -95,7 +57,7 @@
   },
   {
    "pair": "ai -> systems",
-   "count": 289
+   "count": 290
   },
   {
    "pair": "app -> ai",

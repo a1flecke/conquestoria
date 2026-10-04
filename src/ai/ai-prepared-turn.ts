@@ -78,12 +78,8 @@ import {
   type DominationDoctrine,
 } from './ai-domination';
 import { resolveCivDefinition } from '@/systems/civ-registry';
-import {
-  NATIONAL_INTENT_POSTURE,
-  resolveNationalIntent,
-  scoreIntents,
-  type NationalIntentPosture,
-} from './ai-national-intent';
+import { resolveNationalIntent, scoreIntents } from './ai-national-intent';
+import { NATIONAL_INTENT_POSTURE, type NationalIntentPosture } from './ai-national-intent-posture';
 import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
 
 export interface PreparedMajorCivPlan {

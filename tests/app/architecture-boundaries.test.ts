@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -1504,7 +1504,7 @@ describe('#1202 — a finished trainable unit enters GameState through one compl
   it('the turn path and the gold rush-buy both complete units through completeUnitProduction, and nothing else does', () => {
     expect(filesMentioning('completeUnitProduction')).toEqual([
       'src/core/round-phases/per-civ/city-production.ts',
-      'src/systems/economy-system.ts',
+      'src/systems/rush-buy-system.ts',
       'src/systems/unit-production-completion.ts',
     ]);
   });
@@ -1581,53 +1581,73 @@ describe('#1013 — the import graph cannot drift silently', () => {
     expect(Number(piped.stdout.trim())).toBeGreaterThan(200_000);
   });
 
-  it('the drift check compares cycle membership and cross-layer counts, not just that some cycle exists', () => {
-    // The check used to key every cycle as `undefined`, so a grown/shrunk/new cycle passed against any
-    // non-empty baseline; and a cross-layer pair was keyed by name only, hiding new edges inside it.
-    const current = JSON.parse(runAudit('--json').stdout) as {
-      runtimeCycles: string[][]; allEdgeCycles: string[][]; crossLayerEdges: Array<{ pair: string; count: number }>;
+  describe('the drift check bites (run against synthetic source trees, so the proof does not depend on the real graph)', () => {
+    // The audit derives its root from its own location, so each case copies the script into a temp tree that
+    // holds a tiny `src/` and a baseline, and runs `--check` there.
+    const runAuditIn = (files: Record<string, string>, baseline: { runtimeCycles: string[][]; allEdgeCycles: string[][]; crossLayerEdges: Array<{ pair: string; count: number }> }) => {
+      const dir = mkdtempSync(join(tmpdir(), 'maintainability-audit-'));
+      try {
+        mkdirSync(join(dir, 'scripts'), { recursive: true });
+        mkdirSync(join(dir, 'docs'), { recursive: true });
+        writeFileSync(join(dir, 'scripts/maintainability-audit.mjs'), readFileSync(script, 'utf8'));
+        for (const [path, source] of Object.entries(files)) {
+          mkdirSync(join(dir, path, '..'), { recursive: true });
+          writeFileSync(join(dir, path), source);
+        }
+        writeFileSync(join(dir, 'docs/maintainability-audit-baseline.json'), JSON.stringify({ schema: 1, ...baseline }));
+        return spawnSync(process.execPath, [join(dir, 'scripts/maintainability-audit.mjs'), '--check'], { cwd: dir, encoding: 'utf8' });
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
     };
-    const dir = mkdtempSync(join(tmpdir(), 'maintainability-audit-'));
-    try {
-      const check = (mutate: (baseline: typeof current) => void) => {
-        const baseline = structuredClone(current);
-        mutate(baseline);
-        const path = join(dir, 'baseline.json');
-        writeFileSync(path, JSON.stringify({ schema: 1, ...baseline }));
-        return runAudit('--check', '--baseline-path', path);
-      };
-      const biggest = current.runtimeCycles.reduce((a, b) => (b.length > a.length ? b : a));
-      const shrunk = check(baseline => {
-        const index = baseline.runtimeCycles.findIndex(cycle => cycle.length === biggest.length);
-        baseline.runtimeCycles[index] = biggest.slice(1); // as if a module were not in the cycle yet
-      });
-      expect(shrunk.status, 'a cycle that gained a member must drift').toBe(1);
-      expect(shrunk.stderr).toContain('NEW runtime cycle');
-      expect(shrunk.stderr).toContain(`gained [${biggest[0]}]`);
+    const none = { runtimeCycles: [], allEdgeCycles: [], crossLayerEdges: [] };
+    const ring = {
+      'src/systems/a.ts': "import { b } from './b';\nexport const a = b;",
+      'src/systems/b.ts': "import { a } from './a';\nexport const b = a;",
+    };
 
-      const edges = check(baseline => { baseline.crossLayerEdges[0]!.count -= 1; });
-      expect(edges.status, 'a new edge inside an already-listed layer pair must drift').toBe(1);
-      expect(edges.stderr).toContain('NEW cross-layer edge');
-
-      expect(check(() => {}).status).toBe(0);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-
-  it('the drift check bites: a synthetic cycle-free baseline is rejected', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'maintainability-audit-'));
-    try {
-      const baseline = join(dir, 'baseline.json');
-      writeFileSync(baseline, JSON.stringify({
-        schema: 1, runtimeCycles: [], allEdgeCycles: [], crossLayerEdges: [],
-      }));
-      const result = runAudit('--check', '--baseline-path', baseline);
+    it('a new runtime cycle fails against a cycle-free baseline', () => {
+      const result = runAuditIn(ring, { ...none, runtimeCycles: [], allEdgeCycles: [] });
       expect(result.status).toBe(1);
       expect(result.stderr).toContain('NEW runtime cycle');
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
+    });
+
+    it('a cycle that gained a member fails and names the member', () => {
+      const grown = {
+        ...ring,
+        'src/systems/b.ts': "import { c } from './c';\nexport const b = c;",
+        'src/systems/c.ts': "import { a } from './a';\nexport const c = a;",
+        'src/systems/a.ts': "import { b } from './b';\nexport const a = b;",
+      };
+      const baselineRing = ['src/systems/a.ts', 'src/systems/b.ts'];
+      const result = runAuditIn(grown, { ...none, runtimeCycles: [baselineRing], allEdgeCycles: [baselineRing] });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('NEW runtime cycle');
+      expect(result.stderr).toContain('gained [src/systems/c.ts]');
+    });
+
+    it('a cycle that no longer exists fails too (the baseline ratchets down, never lingers)', () => {
+      const dag = { 'src/systems/a.ts': "import { b } from './b';\nexport const a = b;", 'src/systems/b.ts': 'export const b = 1;' };
+      const result = runAuditIn(dag, { ...none, runtimeCycles: [['src/systems/a.ts', 'src/systems/b.ts']] });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('REMOVED runtime cycle');
+    });
+
+    it('a new edge inside an already-listed layer pair fails (pairs are compared with their counts)', () => {
+      const files = {
+        'src/ui/panel.ts': "import { x } from '../systems/x';\nexport const p = x;",
+        'src/ui/other.ts': "import { x } from '../systems/x';\nexport const o = x;",
+        'src/systems/x.ts': 'export const x = 1;',
+      };
+      const result = runAuditIn(files, { ...none, crossLayerEdges: [{ pair: 'ui -> systems', count: 1 }] });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('NEW cross-layer edge: ui -> systems (2 runtime edges)');
+    });
+
+    it('a matching baseline passes', () => {
+      const files = { 'src/systems/a.ts': 'export const a = 1;' };
+      expect(runAuditIn(files, none).status).toBe(0);
+    });
   });
 });
 

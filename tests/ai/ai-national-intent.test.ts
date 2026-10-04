@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   NATIONAL_INTENT_MIN_HOLD_TURNS,
-  NATIONAL_INTENT_POSTURE,
   NATIONAL_INTENT_RECOVERY_STABLE_TURNS,
   NATIONAL_INTENT_SWITCH_MARGIN,
   resolveNationalIntent,
   type NationalIntentInput,
 } from '@/ai/ai-national-intent';
+import { NATIONAL_INTENT_POSTURE } from '@/ai/ai-national-intent-posture';
 import type { DominationDoctrine } from '@/ai/ai-domination';
 import type { NationalIntentState, PersonalityTraits } from '@/core/types';
 
