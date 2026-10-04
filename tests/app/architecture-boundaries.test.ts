@@ -1479,7 +1479,7 @@ describe('#1200 — the consequences of a kill belong to the shared combat outco
     'src/ai/ai-major-turn.ts',
     'src/ai/ai-tactics.ts',
     'src/ai/basic-ai.ts',
-    'src/app/controllers/player-action-controller.ts',
+    'src/app/controllers/player-combat-actions.ts',
     'src/core/round-phases/barbarians.ts',
     'src/core/round-phases/beasts.ts',
     'src/systems/air-operations-system.ts',
@@ -1509,7 +1509,7 @@ describe('#1200 — the consequences of a kill belong to the shared combat outco
     expect(filesMentioning('applyCampDestructionAtTarget')).toEqual([
       'src/ai/ai-major-turn.ts',          // occupy-an-undefended-camp, not a fight result
       'src/ai/ai-tactics.ts',             // same, as a tactical action
-      'src/app/controllers/player-action-controller.ts', // same, the player's move onto a camp
+      'src/app/controllers/player-combat-actions.ts', // same, the player's move onto a camp
       'src/systems/barbarian-system.ts',
       'src/systems/combat-reward-system.ts',
     ]);
