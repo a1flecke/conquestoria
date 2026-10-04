@@ -10,8 +10,8 @@ import {
   getCircularManufacturingMaterial,
 } from '@/systems/national-project-system';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
-import { hasActiveRecoveredHarnesses } from '@/systems/rogue-elephant-host-system';
-import { hasActiveHerdingInsight } from '@/systems/stampede-system';
+import { hasActiveRecoveredHarnesses } from '@/systems/world-actor-queries';
+import { hasActiveHerdingInsight } from '@/systems/world-actor-queries';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 
 export type { ProductionCostContext } from '@/systems/city-production-cost';

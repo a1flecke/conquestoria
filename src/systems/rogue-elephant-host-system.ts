@@ -1,3 +1,4 @@
+import { hasActiveRecoveredHarnesses } from './world-actor-queries';
 import { fnv1a32 } from './deterministic-hash';
 import type { GameState, OpponentChallenge, RogueElephantHostOutcome, RogueElephantHostState, RogueHostTarget, UnitType } from '@/core/types';
 import { CRISIS_FORCE_OWNER } from '@/core/owner-kind';
@@ -184,24 +185,6 @@ export function getRogueElephantHostStatusForViewer(state: GameState, viewerId: 
   return undefined;
 }
 
-/** One viewer-independent combat fact; callers may present it only after visibility checks. */
-export function getRogueElephantCommandFact(
-  state: GameState,
-  elephantUnitId: string,
-): { percent: 20; handlerUnitId: string } | undefined {
-  const elephant = state.units[elephantUnitId];
-  if (!elephant || elephant.type !== 'rogue_elephant') return undefined;
-  for (const host of Object.values(state.rogueElephantHosts ?? {})) {
-    if (host.phase !== 'active' || !host.forceId) continue;
-    const force = state.crisisForces?.[host.forceId];
-    if (!force?.unitIds.includes(elephantUnitId)) continue;
-    const handler = force.unitIds.map(unitId => state.units[unitId])
-      .find((unit): unit is NonNullable<typeof unit> => unit?.type === 'rogue_handler' && unit.health > 0);
-    if (handler && hexDistance(handler.position, elephant.position) <= 2) return { percent: 20, handlerUnitId: handler.id };
-  }
-  return undefined;
-}
-
 /** Converts a broken Host into a three-turn dispersal state without invoking Stampede recurrence or rewards. */
 export function breakRogueElephantHostCommand(state: GameState, handlerUnitId: string): GameState {
   const host = Object.values(state.rogueElephantHosts ?? {}).find(candidate => candidate.phase === 'active'
@@ -267,11 +250,6 @@ export function resolveRogueElephantHostOutcome(
       },
     },
   };
-}
-
-export function hasActiveRecoveredHarnesses(state: GameState, targetCivId: string): boolean {
-  const charge = state.rogueElephantHosts?.[targetCivId]?.recoveredHarnesses;
-  return Boolean(charge && !charge.consumed && state.turn < charge.expiresTurn);
 }
 
 export function consumeRecoveredHarnesses(state: GameState, targetCivId: string, unitType: UnitType): GameState {

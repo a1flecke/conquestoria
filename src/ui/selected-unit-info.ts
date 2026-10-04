@@ -19,7 +19,7 @@ import { getParadropLaunchState, PARADROP_FAILURE_MESSAGES, getAirAssaultLaunchS
 import { getAirReadinessPresentation } from '@/ui/air-readiness-presentation';
 import { getNavalOperationsPresentation } from '@/ui/naval-operations-presentation';
 import { getSubmarineRevealState } from '@/systems/concealment';
-import { getExperienceToNextTier, getVeterancyCombatModifier, getVeterancyTier } from '@/systems/combat-reward-system';
+import { getExperienceToNextTier, getVeterancyCombatModifier, getVeterancyTier } from '@/systems/veterancy-tiers';
 import { isSpyUnitType } from '@/systems/spy-unit-types';
 import { getStrategicArsenal } from '@/systems/strategic-arsenal-system';
 import { evaluateUnitUpgrade, type UpgradeMissingRequirement } from '@/systems/unit-upgrade-system';
@@ -63,7 +63,7 @@ import { getFortificationCapacity, getFortificationPlacement, getFortificationTi
 import { isCrisisForceOwner } from '@/core/owner-kind';
 import { CRISIS_FORCE_PRESENTATION } from '@/systems/crisis-force-system';
 import { getHerdRoutePresentationForViewer } from '@/systems/stampede-route-system';
-import { getRogueElephantCommandFact } from '@/systems/rogue-elephant-host-system';
+import { getRogueElephantCommandFact } from '@/systems/world-actor-queries';
 
 export interface TransportLoadOption {
   transportId: string;

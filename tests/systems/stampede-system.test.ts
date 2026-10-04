@@ -2,7 +2,20 @@ import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
 import { mapNeighbors } from '@/systems/hex-utils';
-import { applyStampedePillage, advanceStampedePressure, consumeHerdingInsight, getStampedeLifecycleTransition, getStampedeProfile, hasActiveHerdingInsight, normalizeStampedes, processHerdingInsight, processStampedeScheduling, resolveStampedeOutcome, processStampedeTurn, startStampedeWarning } from '@/systems/stampede-system';
+import {
+  applyStampedePillage,
+  advanceStampedePressure,
+  consumeHerdingInsight,
+  getStampedeLifecycleTransition,
+  getStampedeProfile,
+  normalizeStampedes,
+  processHerdingInsight,
+  processStampedeScheduling,
+  resolveStampedeOutcome,
+  processStampedeTurn,
+  startStampedeWarning,
+} from '@/systems/stampede-system';
+import { hasActiveHerdingInsight } from '@/systems/world-actor-queries';
 import { getEraAdvancementTechs } from '@/systems/tech-definitions';
 
 describe('Stampede state', () => {

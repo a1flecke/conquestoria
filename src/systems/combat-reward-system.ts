@@ -27,7 +27,7 @@ import { normalizeCrisisForces } from '@/systems/crisis-force-system';
 import { resolveRogueElephantHostHandlerDeaths } from '@/systems/rogue-elephant-host-system';
 import { hexKey } from '@/systems/hex-utils';
 import { recordBeastSlain, type BeastSlainPayload } from '@/systems/beast-system';
-import { VETERANCY_TIERS, type VeterancyTier } from '@/systems/veterancy-tiers';
+import { VETERANCY_TIERS, normalizedExperience, type VeterancyTier } from '@/systems/veterancy-tiers';
 import { getUnitRoleDefinition } from '@/systems/combat-role-definitions';
 import { appendLegendaryWonderMilitaryFacts } from '@/systems/legendary-wonder-history';
 import { getFortificationTier } from '@/systems/fortification-system';
@@ -141,33 +141,10 @@ export interface CombatOutcomeApplication {
   campDestroyed?: { campId: string; reward: number };
 }
 
-function normalizedExperience(unit: Pick<Unit, 'experience'>): number {
-  return Math.max(0, unit.experience ?? 0);
-}
-
 function seededRoll(seed: number, victorId: string, defeatedId: string): number {
   let state = lehmerFoldByCodePoint(Math.abs(seed), `${victorId}:${defeatedId}`);
   state = (state * 48271) % 2147483647;
   return state / 2147483647;
-}
-
-export function getVeterancyTierForExperience(experience: number): VeterancyTier {
-  const xp = Math.max(0, experience);
-  return [...VETERANCY_TIERS].reverse().find(tier => xp >= tier.minExperience) ?? VETERANCY_TIERS[0];
-}
-
-export function getVeterancyTier(unit: Pick<Unit, 'experience'>): VeterancyTier {
-  return getVeterancyTierForExperience(normalizedExperience(unit));
-}
-
-export function getVeterancyCombatModifier(unit: Pick<Unit, 'experience'>): number {
-  return getVeterancyTier(unit).combatModifier;
-}
-
-export function getExperienceToNextTier(unit: Pick<Unit, 'experience'>): number | null {
-  const xp = normalizedExperience(unit);
-  const next = VETERANCY_TIERS.find(tier => tier.minExperience > xp);
-  return next ? next.minExperience - xp : null;
 }
 
 export function calculateDefeatReward(input: DefeatRewardInput): DefeatRewardResult {

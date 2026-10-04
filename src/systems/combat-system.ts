@@ -10,11 +10,11 @@ import type {
   GameState,
   CombatSplashHit,
 } from '@/core/types';
-import { getRogueElephantCommandFact } from '@/systems/rogue-elephant-host-system';
+import { getRogueElephantCommandFact } from '@/systems/world-actor-queries';
 import { hexDistance, hexKey } from './hex-utils';
 import { UNIT_DEFINITIONS } from './unit-definitions';
 import { getWonderCombatBonus } from './wonder-system';
-import { getVeterancyCombatModifier } from './combat-reward-system';
+import { getVeterancyCombatModifier } from './veterancy-tiers';
 import { getTerrainDefenseBonus, getUnitCombatStrength } from './combat-defense-strength';
 import { getRiverDefensePenalty, isRiverBetween } from './river-system';
 import type { ModifierPart } from './unit-modifier-system';

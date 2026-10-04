@@ -6,12 +6,10 @@ import {
   calculateDefeatReward,
   collectCombatRewards,
   getCaptureNotificationLabel,
-  getExperienceToNextTier,
-  getVeterancyCombatModifier,
-  getVeterancyTier,
   isCapturableNavalMilitary,
   meetsCaptureMargin,
 } from '@/systems/combat-reward-system';
+import { getExperienceToNextTier, getVeterancyCombatModifier, getVeterancyTier } from '@/systems/veterancy-tiers';
 import { createEmptyPirateState, type PirateFactionState } from '@/core/pirate-state';
 import type { BeastLair, City, CombatResult, GameState, GeneralCareerEvent } from '@/core/types';
 import { createNewGame } from '@/core/game-state';
