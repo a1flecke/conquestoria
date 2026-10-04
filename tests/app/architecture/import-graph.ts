@@ -17,6 +17,7 @@
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import { posix, resolve, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 
 export type EdgeScope = 'runtime' | 'all';
@@ -204,7 +205,8 @@ const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 // Loading the repository
 // ---------------------------------------------------------------------------
 
-const REPO_ROOT = resolve(__dirname, '../../..');
+// import.meta.url (not __dirname) so the same module loads under vitest and under `tsx` scripts.
+const REPO_ROOT = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
 export const DEFAULT_GRAPH_ROOTS: readonly string[] = ['src', 'tests'];
 
 function walkSources(dir: string): string[] {

@@ -44,6 +44,15 @@ Prove a new rule bites with a fixture graph in `rules.test.ts`. Barrel/export-su
 runtime-semantic checks stay in `architecture-boundaries.test.ts`; blocks there migrate one at a time
 (#1012 first).
 
+**Reducing a runtime import cycle (#1248).** `bash scripts/run-with-mise.sh yarn architecture:scc`
+(`scripts/report-runtime-scc.ts`, same graph, type-only edges excluded like the #1013 baseline) prints each runtime
+SCC, its internal edges with the bindings each carries, the single edges whose removal shrinks it, and a greedy cut
+sequence. The cheap wins have been *barrel-mediated* edges (import the leaf that defines the binding, not the module
+that re-exports it) and *tiny predicates stranded in a heavy module* (move them to a leaf); an edge carrying a real
+command or state transition is an ownership problem and needs its own slice. Each cut ships with a declarative rule
+that pins it and a regenerated `docs/maintainability-audit-baseline.json` (never regenerated to admit a larger SCC or a
+module that was not in it before — the `#1013` check reports membership, so a gained module is visible).
+
 ## Ambiguous primitives (#1022)
 
 When an exported API takes several values with the same runtime representation but different

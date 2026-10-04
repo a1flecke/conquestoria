@@ -53,7 +53,8 @@
     "verify:stop": "sh scripts/stop-local-verification.sh",
     "pr-body": "bash scripts/pr-body.sh",
     "generate-maps": "tsx scripts/generate-earth-maps.ts",
-    "research:pacing-report": "tsx scripts/report-research-pacing.ts"
+    "research:pacing-report": "tsx scripts/report-research-pacing.ts",
+    "architecture:scc": "tsx scripts/report-runtime-scc.ts"
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",
