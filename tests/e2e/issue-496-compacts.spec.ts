@@ -92,6 +92,25 @@ async function expectCompactSummary(
   }
 }
 
+/**
+ * Open the Diplomacy panel from the bottom action bar.
+ *
+ * The toolbar click has intermittently failed to mount the panel on a loaded CI
+ * runner even though Playwright dispatched it (issue #1301) -- the same
+ * "delivered input, no effect" class tracked by #1227. Retry the real user
+ * click until the panel mounts, so a single dropped input cannot fail the
+ * spec; a genuine product regression still fails after the bounded timeout and
+ * the diagnostic attachment in `expectCompactSummary` still fires.
+ */
+async function openDiplomacyPanelFromToolbar(page: Page): Promise<void> {
+  const panel = page.locator('#diplomacy-panel');
+  const diploButton = page.getByRole('button', { name: 'Diplo', exact: true });
+  await expect(async () => {
+    if ((await panel.count()) === 0) await diploButton.click();
+    await expect(panel).toHaveCount(1, { timeout: 1_000 });
+  }).toPass({ timeout: 20_000 });
+}
+
 function fixture() {
   const { state, firstId, secondId } = makeMinorCivLeagueAuditFixture('mc-496-e2e-disclosure');
   const compacted = addAuditCompact(state, firstId, secondId);
@@ -132,7 +151,7 @@ test('opens, keyboard-toggles, and reopens the safe compact disclosure on deskto
   test.slow();
   const browserErrors = captureBrowserErrors(page);
   await enterAutosave(page, testInfo, browserErrors);
-  await page.getByRole('button', { name: 'Diplo', exact: true }).click();
+  await openDiplomacyPanelFromToolbar(page);
 
   const panel = page.locator('#diplomacy-panel');
   const details = panel.locator('details.minor-civ-compact-details');
@@ -149,7 +168,7 @@ test('opens, keyboard-toggles, and reopens the safe compact disclosure on deskto
 
   await panel.locator('#diplo-close').click();
   await expect(panel).toHaveCount(0);
-  await page.getByRole('button', { name: 'Diplo', exact: true }).click();
+  await openDiplomacyPanelFromToolbar(page);
   await expectCompactSummary(page, testInfo, browserErrors);
 });
 
@@ -158,7 +177,7 @@ test('keeps compact disclosure readable at 390px', async ({ page }, testInfo) =>
   const browserErrors = captureBrowserErrors(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await enterAutosave(page, testInfo, browserErrors);
-  await page.getByRole('button', { name: 'Diplo', exact: true }).click();
+  await openDiplomacyPanelFromToolbar(page);
 
   const details = page.locator('#diplomacy-panel details.minor-civ-compact-details');
   await details.locator('summary').click();
