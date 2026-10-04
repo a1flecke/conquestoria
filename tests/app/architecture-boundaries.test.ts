@@ -521,11 +521,14 @@ describe('#993 — big-moment queue engine boundaries', () => {
     // behind the same isInteractionBlocked()-gated engine every other
     // ceremony uses -- a direct showVictoryPanel() call from turn-flow-
     // controller.ts would silently reintroduce it.
-    const source = read('src/app/controllers/turn-flow-controller.ts');
-    expect(
-      importsModuleSpecifier(source, '@/ui/victory-panel'),
-      'turn-flow-controller.ts must not import showVictoryPanel directly -- route through ceremonies.enqueueVictory instead',
-    ).toBe(false);
+    for (const path of ['src/app/controllers/turn-flow-controller.ts', 'src/app/controllers/turn-presentation.ts']) {
+      expect(
+        importsModuleSpecifier(read(path), '@/ui/victory-panel'),
+        `${path} must not import showVictoryPanel directly -- route through ceremonies.enqueueVictory instead`,
+      ).toBe(false);
+    }
+    // The routing itself lives in the presentation slice (#1243); pin that it is still the ceremony route.
+    expect(read('src/app/controllers/turn-presentation.ts')).toContain('ceremonies.enqueueVictory(');
   });
 });
 
@@ -1709,7 +1712,7 @@ describe('#1220 — a production queue grows through exactly one validated enque
     expect(callers.map(file => file.path).sort()).toEqual([
       'src/ai/ai-production.ts',
       'src/app/controllers/city-panel-actions-controller.ts',
-      'src/app/controllers/turn-flow-controller.ts',
+      'src/app/controllers/turn-required-choices.ts',
     ]);
     for (const caller of callers) {
       expect(strip(caller.source), caller.path).toMatch(/enqueueCityProduction\([^)]*\)[\s\S]{0,400}\.ok\b|\.ok\b[\s\S]{0,400}enqueueCityProduction\(/);
