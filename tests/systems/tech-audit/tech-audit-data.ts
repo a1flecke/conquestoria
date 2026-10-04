@@ -83,7 +83,6 @@ export const TECH_AUDIT_ENTRIES: Record<string, TechAuditEntry> = {
   'lab-grown-food': { ...replace(0, 'terrainYield food on barren terrain', FLAT), note: `${FLAT} Era 12 is reference material for #420; left unscheduled.` },
 
   // ---- broad combat modifiers ----
-  'tactics': replace(2, 'UNIT_MODIFIERS: combatStrength only when attacking at full HP, or on open ground', 'Unconditional combat bonus across every unit.'),
   'naval-gunnery': replace(3, 'UNIT_MODIFIERS: naval combatStrength vsCoastalCity or when attacking', 'Unconditional combat bonus across every unit.'),
   'tungsten-alloys': replace(4, 'UNIT_MODIFIERS scoped to armor/siege class instead of every unit', 'Unconditional combat bonus across every unit.'),
   'carbon-fiber': replace(4, 'UNIT_MODIFIERS scoped to air units or when defending in a friendly city', 'Unconditional combat bonus across every unit.'),
@@ -94,12 +93,7 @@ export const TECH_AUDIT_ENTRIES: Record<string, TechAuditEntry> = {
   'general-mobilization': tune(3, 'discount only the unit classes the text names, or only while at war', 'Whole-category discount with no condition.'),
 
   // ---- text claims with no mechanic behind them (WIRE or textFix) ----
-  'irrigation': wire(2, 'perImprovement farm/terrainYield river food+production, or reword to what tile-yield does', 'Text promises river-farm production; tile-yield owns only part of it.', true),
-  'mining-tech': wire(2, 'perImprovement mine production (kind exists, era 5+ only today)', 'Text promises +1 production on mines; no yield row exists for Era 3.', true),
-  'banking': wire(2, 'tradeRoutePercent or perBuildingId bank gold; replace "+20% in all cities" which no row implements', 'Text promises +20% gold; nothing implements it.', true),
-  'medicine': wire(2, 'keep the crisis-intervention verb; reword or implement "population grows faster" via food modifier', 'Crisis aid is real; the growth claim is not.', true),
-  'early-empire': wire(2, 'city-maturity-system owns the claim; confirm radius change is wired in territory claim', 'Text promises +1 claim radius; verify the city-maturity owner applies it.', true),
-  'sailing': wire(2, 'embarkation is a movement rule; confirm it is gated by this tech, else reword', 'Text promises embarkation on coast.', true),
+  'irrigation': keep(3, 'Verified in #1303: tile-yield.ts gives river farms +1 production once irrigation is known; the text was true.', 2),
   'professional-army': wire(3, 'combat-system names the tech; move to a UNIT_MODIFIERS inFriendlyCity defender row so previews show it', 'Owner is bespoke combat code, invisible to the modifier table.', true),
   'circumnavigation': wire(3, 'reword; no map-edge/uncharted mechanic exists. Candidate: vision modifier for scouts', 'Text promises faster continent reveal; no mechanic.', true),
   'postal-service': keep(3, 'Owned by getRoadTileTechGold in tech-yield-system; conditional on roads. Text matches.', 3),

@@ -9,7 +9,7 @@ export const TECH_TREE_ERAS_1_4: Tech[] = [
   { id: 'fortification', name: 'Fortification', track: 'military', cost: 120, prerequisites: ['bronze-working'], unlocks: [], unlocksUnits: ['pikeman'], unlocksBuildings: ['walls'], era: 3 },
   { id: 'iron-forging', name: 'Iron Forging', track: 'military', cost: 165, prerequisites: ['bronze-working', 'mining-tech'], unlocks: [], unlocksUnits: ['knight'], unlocksBuildings: ['iron-foundry', 'war-academy', 'iron_legion'], era: 3 },
   { id: 'siege-warfare', name: 'Siege Warfare', track: 'military', cost: 235, prerequisites: ['iron-forging', 'engineering'], unlocks: [], unlocksUnits: ['catapult', 'trebuchet', 'ballista'], unlocksBuildings: ['siege-workshop'], era: 4 },
-  { id: 'tactics', name: 'Tactics', track: 'military', cost: 155, prerequisites: ['iron-forging'], unlocks: ['Units get +10% combat bonus'], unlocksUnits: ['crossbowman', 'war_elephant'], unlocksBuildings: ['praetorian_legion'], era: 4 },
+  { id: 'tactics', name: 'Tactics', track: 'military', cost: 155, prerequisites: ['iron-forging'], unlocks: ['Units at full health get +10% combat strength'], unlocksUnits: ['crossbowman', 'war_elephant'], unlocksBuildings: ['praetorian_legion'], era: 4 },
 
   // === ECONOMY TRACK (9 techs, with Slice 3 late-era scaffolding) ===
   { id: 'gathering', name: 'Gathering', track: 'economy', cost: 20, prerequisites: [], unlocks: ['Foundational economy knowledge', 'Reveal Stone resource'], unlocksBuildings: ['communal_stores'], era: 1, pacing: { band: 'starter', role: 'foundational-economy', impact: 1, scope: 'empire', snowball: 1.1, urgency: 1.05, situationality: 1, unlockBreadth: 1.05 } },
@@ -19,7 +19,7 @@ export const TECH_TREE_ERAS_1_4: Tech[] = [
   { id: 'currency', name: 'Currency', track: 'economy', cost: 120, prerequisites: ['pottery'], unlocks: ['Reveal Incense resource', 'Reveal Gold resource'], unlocksBuildings: ['marketplace'], era: 3 },
   { id: 'mining-tech', name: 'Advanced Mining', track: 'economy', cost: 120, prerequisites: ['animal-husbandry'], unlocks: ['Mines yield +1 production', 'Reveal Gems resource', 'Reveal Silver resource'], era: 3 },
   { id: 'trade-routes', name: 'Trade Routes', track: 'economy', cost: 170, prerequisites: ['currency'], unlocks: ['Enable trade routes between cities', 'Send relief gold to a disaster-struck civilization you have met'], unlocksUnits: ['caravan'], era: 4 },
-  { id: 'banking', name: 'Banking', track: 'economy', cost: 235, prerequisites: ['trade-routes', 'mathematics'], unlocks: ['+20% gold in all cities'], unlocksBuildings: ['bank', 'royal_mint'], era: 4 },
+  { id: 'banking', name: 'Banking', track: 'economy', cost: 235, prerequisites: ['trade-routes', 'mathematics'], unlocks: ['+1 gold per trade route between two coastal cities'], unlocksBuildings: ['bank', 'royal_mint'], era: 4 },
 
   // === SCIENCE TRACK (9 techs, with Slice 3 late-era scaffolding) ===
   { id: 'fire', name: 'Fire', track: 'science', cost: 20, prerequisites: [], unlocks: ['Unlock basic research'], era: 1, pacing: { band: 'starter', role: 'foundational-science', impact: 1, scope: 'empire', snowball: 1.15, urgency: 1.1, situationality: 1, unlockBreadth: 1.1 } },
@@ -29,12 +29,12 @@ export const TECH_TREE_ERAS_1_4: Tech[] = [
   { id: 'engineering', name: 'Engineering', track: 'science', cost: 165, prerequisites: ['mathematics', 'wheel'], unlocks: [], unlocksBuildings: ['aqueduct', 'forge'], era: 3 },
   { id: 'philosophy', name: 'Philosophy', track: 'science', cost: 120, prerequisites: ['writing'], unlocks: [], unlocksBuildings: ['temple', 'philosophers_circle', 'sacred_council'], era: 3 },
   { id: 'astronomy', name: 'Astronomy', track: 'science', cost: 170, prerequisites: ['mathematics'], unlocks: [], unlocksBuildings: ['observatory'], era: 4 },
-  { id: 'medicine', name: 'Medicine', track: 'science', cost: 235, prerequisites: ['philosophy', 'pottery'], unlocks: ['City population grows faster', 'Send medical aid to a plague-struck civilization you have met'], era: 4 },
+  { id: 'medicine', name: 'Medicine', track: 'science', cost: 235, prerequisites: ['philosophy', 'pottery'], unlocks: ['Counts toward city maturity', 'Send medical aid to a plague-struck civilization you have met'], era: 4 },
 
   // === CIVICS TRACK (8 techs, existing) ===
   { id: 'tribal-council', name: 'Tribal Council', track: 'civics', cost: 19, prerequisites: [], unlocks: ['Basic governance'], era: 1, pacing: { band: 'starter', role: 'foundational-civics', impact: 1, scope: 'empire', snowball: 1, urgency: 1, situationality: 1, unlockBreadth: 1.05 } },
   { id: 'code-of-laws', name: 'Code of Laws', track: 'civics', cost: 55, prerequisites: ['tribal-council'], unlocks: [], unlocksBuildings: ['monument'], era: 1 },
-  { id: 'early-empire', name: 'Early Empire', track: 'civics', cost: 50, prerequisites: ['code-of-laws'], unlocks: ['Cities claim +1 tile radius'], era: 2 },
+  { id: 'early-empire', name: 'Early Empire', track: 'civics', cost: 50, prerequisites: ['code-of-laws'], unlocks: ['Counts toward city maturity; mature cities claim a wider territory'], era: 2 },
   // #919 MR2 — administration ladder rung 1.
   // - `countsForEraAdvancement: false`: an optional stability side-tech must not change
   //   how many era-2 techs gate era 3 (`getEraAdvancementTechs` / `hasReachedEraThreshold`).
@@ -52,7 +52,7 @@ export const TECH_TREE_ERAS_1_4: Tech[] = [
   // === EXPLORATION TRACK (8 techs, existing) ===
   { id: 'pathfinding', name: 'Pathfinding', track: 'exploration', cost: 17, prerequisites: [], unlocks: ['Scouts get +1 vision'], era: 1, pacing: { band: 'starter', role: 'foundational-exploration', impact: 1, scope: 'military', snowball: 1, urgency: 1.1, situationality: 1, unlockBreadth: 1 } },
   { id: 'cartography', name: 'Cartography', track: 'exploration', cost: 55, prerequisites: ['pathfinding'], unlocks: ['Reveal map edges', 'Reveal Spices resource'], era: 1 },
-  { id: 'sailing', name: 'Sailing', track: 'exploration', cost: 80, prerequisites: ['pathfinding'], unlocks: ['Units can embark on coast'], era: 2 },
+  { id: 'sailing', name: 'Sailing', track: 'exploration', cost: 80, prerequisites: ['pathfinding'], unlocks: ['Required for galleys, harbors and ocean-going ship hulls'], era: 2 },
   { id: 'celestial-navigation', name: 'Celestial Navigation', track: 'exploration', cost: 55, prerequisites: ['sailing', 'fire'], unlocks: ['Unlocks construction of ocean-going ship hulls'], era: 2 },
   { id: 'road-building', name: 'Road Building', track: 'exploration', cost: 165, prerequisites: ['wheel', 'pathfinding'], unlocks: ['Workers can build roads'], unlocksBuildings: ['road_corps'], era: 3 },
   { id: 'bridge-building', name: 'Bridge Building', track: 'exploration', cost: 120, prerequisites: ['road-building'], unlocks: ['River crossings cost no extra movement'], era: 3 },

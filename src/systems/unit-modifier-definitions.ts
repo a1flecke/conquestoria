@@ -179,7 +179,7 @@ const unit = (id: UnitType): ModifierSource => ({ kind: 'unit', id });
 
 export const UNIT_MODIFIERS: UnitModifier[] = [
   // --- Combat: techs ---
-  { source: tech('tactics'), effect: 'combatStrength', mode: 'multiplier', value: 1.10, when: 'always', label: 'Tactics' },
+  { source: tech('tactics'), effect: 'combatStrength', mode: 'multiplier', value: 1.10, when: 'always', condition: 'fullHP', label: 'Tactics' },
   { source: tech('naval-gunnery'), effect: 'combatStrength', mode: 'flat', value: 5, appliesTo: ['naval'], when: 'always', label: 'Naval Gunnery' },
   { source: tech('precision-casting'), effect: 'combatStrength', mode: 'flat', value: 5, unitTypes: ['cannon'], when: 'always', label: 'Precision Casting' },
   { source: tech('steel-plate-armor'), effect: 'combatStrength', mode: 'flat', value: 3, appliesTo: ['melee'], when: 'defending', label: 'Steel Plate Armor' },

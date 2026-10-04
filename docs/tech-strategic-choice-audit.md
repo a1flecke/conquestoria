@@ -8,10 +8,10 @@ Scope: Eras 1–11 are audited for change; Era 12 is reference (listed, left uns
 
 | Class | Count |
 |---|---:|
-| KEEP | 274 |
+| KEEP | 281 |
 | TUNE | 33 |
-| REPLACE | 52 |
-| WIRE | 11 |
+| REPLACE | 51 |
+| WIRE | 5 |
 | FOLLOW-UP | 0 |
 | OBSOLETE | 0 |
 | **Total (Eras 1–12)** | 370 |
@@ -22,8 +22,8 @@ Scope: Eras 1–11 are audited for change; Era 12 is reference (listed, left uns
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | 1 | 30 | 0 | 0 | 0 | 0 | 0 | 2 | 28 |
 | 2 | 31 | 0 | 0 | 0 | 0 | 0 | 0 | 31 |
-| 3 | 31 | 0 | 0 | 0 | 0 | 0 | 0 | 31 |
-| 4 | 30 | 0 | 0 | 0 | 1 | 0 | 1 | 28 |
+| 3 | 31 | 0 | 0 | 0 | 0 | 1 | 0 | 30 |
+| 4 | 30 | 0 | 0 | 0 | 0 | 1 | 2 | 27 |
 | 5 | 31 | 2 | 0 | 2 | 1 | 13 | 2 | 9 |
 | 6 | 30 | 2 | 0 | 2 | 0 | 11 | 3 | 12 |
 | 7 | 31 | 2 | 0 | 1 | 0 | 14 | 2 | 14 |
@@ -57,26 +57,21 @@ Scope: Eras 1–11 are audited for change; Era 12 is reference (listed, left uns
 
 | Path | Meaning | Techs |
 |---|---|---:|
-| unlock-valued-effect-blind | unlocks valued; own effect invisible | 54 |
-| effect-blind | effect only: AI sees era progress and nothing else | 115 |
-| unlock-valued | valued through unlocks | 100 |
-| era-only | era progress only | 101 |
+| unlock-valued-effect-blind | unlocks valued; own effect invisible | 55 |
+| effect-blind | effect only: AI sees era progress and nothing else | 116 |
+| unlock-valued | valued through unlocks | 99 |
+| era-only | era progress only | 100 |
 
 Changing a flat tech to a conditional one does not change AI behaviour on its own: each child that rewrites an effect must add or confirm a bounded valuation term (precedent: `unrestReliefTechBonus`, `scienceStarvationTechBonus`).
 
 ## Child 2 target list — Eras 1–4
 
-7 techs to change; 0 scheduled for verification/text only.
+0 techs to change; 1 scheduled for verification/text only.
 
 | Tech | Era | Class | Today | Candidate (existing mechanics) |
 |---|---:|---|---|---|
-| `tactics` | 4 | REPLACE | combatStrength x1.1 (all units; always; none) | UNIT_MODIFIERS: combatStrength only when attacking at full HP, or on open ground |
-| `irrigation` | 2 | WIRE + text | - | perImprovement farm/terrainYield river food+production, or reword to what tile-yield does |
-| `mining-tech` | 3 | WIRE + text | - | perImprovement mine production (kind exists, era 5+ only today) |
-| `banking` | 4 | WIRE + text | - | tradeRoutePercent or perBuildingId bank gold; replace "+20% in all cities" which no row implements |
-| `medicine` | 4 | WIRE + text | - | keep the crisis-intervention verb; reword or implement "population grows faster" via food modifier |
-| `early-empire` | 2 | WIRE + text | - | city-maturity-system owns the claim; confirm radius change is wired in territory claim |
-| `sailing` | 2 | WIRE + text | - | embarkation is a movement rule; confirm it is gated by this tech, else reword |
+
+Verify only: `irrigation`
 
 ## Child 3 target list — Eras 5–8
 
@@ -223,15 +218,15 @@ Class/rating: rating 0 flavor, 1 unconditional number, 2 conditional but weak or
 | `fortification` | 3 | military | KEEP | 3 | unlock-valued | - | systems/combat-context |
 | `iron-forging` | 3 | military | KEEP | 3 | unlock-valued | - | - |
 | `siege-warfare` | 4 | military | KEEP | 3 | unlock-valued | - | - |
-| `tactics` | 4 | military | REPLACE | 1 | unlock-valued-effect-blind | combatStrength x1.1 (all units; always; none) | systems/unrest-guidance |
+| `tactics` | 4 | military | KEEP | 3 | unlock-valued-effect-blind | combatStrength x1.1 (all units; always; fullHP) | systems/unrest-guidance |
 | `gathering` | 1 | economy | KEEP | 3 | unlock-valued | - | - |
 | `pottery` | 1 | economy | KEEP | 0 | era-only | - | - |
 | `animal-husbandry` | 2 | economy | KEEP | 3 | unlock-valued | - | - |
-| `irrigation` | 2 | economy | WIRE | 1 | era-only | - | systems/tile-yield |
+| `irrigation` | 2 | economy | KEEP | 3 | era-only | - | systems/tile-yield |
 | `currency` | 3 | economy | KEEP | 3 | unlock-valued | - | systems/city-maturity-system, systems/diplomacy-actions, systems/diplomacy-embargoes |
-| `mining-tech` | 3 | economy | WIRE | 1 | era-only | - | - |
+| `mining-tech` | 3 | economy | KEEP | 2 | effect-blind | Mines yield +1 production | - |
 | `trade-routes` | 4 | economy | KEEP | 3 | unlock-valued | - | systems/crisis-interaction-definitions, systems/diplomacy-actions, systems/quest-objective-system, ui/city-panel, ui/marketplace-panel |
-| `banking` | 4 | economy | WIRE | 1 | unlock-valued | - | systems/diplomacy-actions, systems/diplomacy-embargoes |
+| `banking` | 4 | economy | KEEP | 3 | unlock-valued-effect-blind | +1 gold per trade route between coastal cities | systems/diplomacy-actions, systems/diplomacy-embargoes |
 | `fire` | 1 | science | KEEP | 0 | era-only | - | - |
 | `writing` | 1 | science | KEEP | 3 | unlock-valued | - | systems/diplomacy-leagues |
 | `wheel` | 2 | science | KEEP | 3 | unlock-valued | - | - |
@@ -239,10 +234,10 @@ Class/rating: rating 0 flavor, 1 unconditional number, 2 conditional but weak or
 | `engineering` | 3 | science | KEEP | 3 | unlock-valued | - | systems/city-maturity-system |
 | `philosophy` | 3 | science | KEEP | 3 | unlock-valued | - | systems/unrest-guidance, ui/notification-routes/empire-routes |
 | `astronomy` | 4 | science | KEEP | 3 | unlock-valued | - | - |
-| `medicine` | 4 | science | WIRE | 1 | era-only | - | ai/ai-crisis-response, systems/city-maturity-system, systems/crisis-interaction-definitions, systems/crisis-interventions, ui/city-panel |
+| `medicine` | 4 | science | KEEP | 3 | era-only | - | ai/ai-crisis-response, systems/city-maturity-system, systems/crisis-interaction-definitions, systems/crisis-interventions, ui/city-panel |
 | `tribal-council` | 1 | civics | KEEP | 0 | era-only | - | - |
 | `code-of-laws` | 1 | civics | KEEP | 3 | unlock-valued | - | systems/unrest-guidance |
-| `early-empire` | 2 | civics | WIRE | 1 | era-only | - | systems/city-maturity-system |
+| `early-empire` | 2 | civics | KEEP | 3 | era-only | - | systems/city-maturity-system |
 | `magistracy` | 2 | civics | KEEP | 3 | unlock-valued | - | systems/unrest-guidance, ui/advisor-system, ui/notification-routes/empire-routes |
 | `state-workforce` | 2 | civics | KEEP | 3 | unlock-valued | - | systems/city-maturity-system |
 | `diplomacy-tech` | 3 | civics | KEEP | 3 | era-only | - | systems/diplomacy-actions |
@@ -251,7 +246,7 @@ Class/rating: rating 0 flavor, 1 unconditional number, 2 conditional but weak or
 | `political-philosophy` | 4 | civics | KEEP | 3 | unlock-valued | - | systems/diplomacy-actions, systems/faction-relief, systems/unrest-guidance |
 | `pathfinding` | 1 | exploration | KEEP | 3 | effect-blind | vision +1 (class:recon; always; none) | - |
 | `cartography` | 1 | exploration | KEEP | 0 | era-only | - | - |
-| `sailing` | 2 | exploration | WIRE | 1 | era-only | - | - |
+| `sailing` | 2 | exploration | KEEP | 0 | era-only | - | - |
 | `celestial-navigation` | 2 | exploration | KEEP | 0 | era-only | - | - |
 | `road-building` | 3 | exploration | KEEP | 3 | unlock-valued | - | systems/road-network, systems/road-system, systems/unrest-guidance |
 | `bridge-building` | 3 | exploration | KEEP | 3 | era-only | - | systems/unit-movement-cost |

@@ -49,6 +49,9 @@ export interface TechYieldModifier {
 }
 
 export const TECH_YIELD_MODIFIERS: TechYieldModifier[] = [
+  // --- Era 3-4 (#1303): the only pre-Era-5 rows; both scale with something the player builds ---
+  { techId: 'mining-tech', label: 'Mines yield +1 production', effect: { kind: 'perImprovement', improvement: 'mine', yields: { production: 1 } } },
+  { techId: 'banking', label: '+1 gold per trade route between coastal cities', effect: { kind: 'perTradeRoute', gold: 1, coastalOnly: true } },
   // --- Era 13 ---
   { techId: 'cooperative-platforms', label: '+1 gold per domestic trade route', effect: { kind: 'perTradeRoute', gold: 1, domesticOnly: true } },
   // --- Era 5 ---
