@@ -157,7 +157,10 @@ ambiguous, composed, destructive, credentials-related, dependency-changing,
 or remote-history-changing operations.
 
 When an expected routine operation still prompts, do not request a broad
-"Allow always" rule and do not disguise it with shell composition. First use a
+"Allow always" rule and do not disguise it with shell composition. In particular
+never run `./scripts/run-with-mise.sh node <file>` (it executes arbitrary code):
+use the matching `./scripts/dev.sh` task, such as `maintainability-check`, and
+if none exists, propose a new fixed task rather than a wider rule. First use a
 canonical direct form; if it still prompts, state the exact operation and why
 the narrower policy is insufficient. Never remove a worktree, reset/clean,
 stash/drop state, alter credentials, publish/deploy, or approve/merge a remote
