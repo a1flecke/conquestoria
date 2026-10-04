@@ -66,7 +66,7 @@ lets the approval system recognize the narrow safe forms below.
 For build, typecheck, tests and verification use `./scripts/dev.sh <task> [paths]` — it is
 the form the local approver recognizes without a prompt:
 
-- `./scripts/dev.sh build`, `typecheck`, `test-all`, `test-regular`, `hooks`, `install`,
+- `./scripts/dev.sh build`, `typecheck`, `typecheck-strict`, `test-all`, `test-regular`, `hooks`, `install`,
   `setup-hooks`, `verify-pr`, `verify-pr-status`, `verify-status`, `durable`, `durable-status`,
   `ai-playability`, `ai-long`, `web-smoke`, `docs-lifecycle`, `verify-impact`, `maintainability-check`, `maintainability-report`,
   `maintainability-baseline` (the last two rewrite a checked-in docs file; see `docs/maintainability-audit.md`) (run it with no arguments for the list).

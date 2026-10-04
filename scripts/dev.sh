@@ -29,6 +29,7 @@ usage: ./scripts/dev.sh <task> [args]
 tasks (output is saved to .verification/logs/<task>.log; the last 60 lines are printed):
   build             yarn build
   typecheck         yarn tsc --noEmit
+  typecheck-strict  yarn tsc --noEmit --noUnusedLocals --noUnusedParameters (dead locals/params; stricter than the build)
   test <paths>      yarn vitest run <paths>; each path is a *.test.ts(x) file or a directory under tests/
   test-all          yarn test (full suite + hook tests)
   test-regular      yarn test:regular
@@ -61,7 +62,7 @@ deny() {
 
 is_task() {
   case "$1" in
-    build|typecheck|test|test-all|test-regular|hooks|install|setup-hooks|verify-pr|verify-pr-status|verify-status|durable|durable-status|ai-playability|ai-playability-status|ai-long|ai-long-status|web-smoke|docs-lifecycle|verify-impact|maintainability-check|maintainability-report|maintainability-baseline) return 0 ;;
+    build|typecheck|typecheck-strict|test|test-all|test-regular|hooks|install|setup-hooks|verify-pr|verify-pr-status|verify-status|durable|durable-status|ai-playability|ai-playability-status|ai-long|ai-long-status|web-smoke|docs-lifecycle|verify-impact|maintainability-check|maintainability-report|maintainability-baseline) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -110,6 +111,7 @@ execute() {
   case "$task" in
     build) bash "$MISE" yarn build ;;
     typecheck) bash "$MISE" yarn tsc --noEmit ;;
+    typecheck-strict) bash "$MISE" yarn tsc --noEmit --noUnusedLocals --noUnusedParameters ;;
     test) bash "$MISE" yarn vitest run "$@" ;;
     test-all) bash "$MISE" yarn test ;;
     test-regular) bash "$MISE" yarn test:regular ;;

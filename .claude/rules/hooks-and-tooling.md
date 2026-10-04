@@ -929,7 +929,7 @@ permissions; `.opencode/opencode.jsonc` already allows `./scripts/pr-body.sh *` 
 ## Task dispatcher (`scripts/dev.sh`), `scripts/sync-main.sh` and `scripts/push-branch.sh` (#1256, #1260)
 
 `./scripts/dev.sh <task> [test paths]` is a **narrow** dispatcher: a closed task table (`build`,
-`typecheck`, `test <paths>`, `test-all`, `test-regular`, `hooks`, `install`, `setup-hooks`, `verify-pr`,
+`typecheck`, `typecheck-strict`, `test <paths>`, `test-all`, `test-regular`, `hooks`, `install`, `setup-hooks`, `verify-pr`,
 `verify-pr-status`, `verify-status`, `durable`, `durable-status`, `ai-playability`, `ai-long`, `web-smoke`,
 `docs-lifecycle`, `verify-impact`, `maintainability-check|report|baseline`, plus the read-only `log <task> [N]`), each a hard-coded argv through
 `scripts/run-with-mise.sh`. It exists so an approval layer can trust *one* script by name.
