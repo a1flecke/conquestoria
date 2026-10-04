@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -123,11 +123,15 @@ describe('check-src-rule-violations.sh', () => {
 
     it('allows a pre-existing occurrence recorded in the legacy baseline at its exact path:line', () => {
       const workspace = makeWorkspace();
-      const paddingLines = Array.from({ length: 528 }, (_, i) => `// padding line ${i + 1}`);
-      // Real baseline entry: src/systems/combat-system.ts:529 (#982 left this
-      // [LOW]-tagged LCG recurrence body in place — it's already fed a
-      // gameId-rooted seed by its caller, just a hand-rolled duplicate of
-      // seededLcg's body, not a live seed-construction bug).
+      // Read the real baseline entry instead of hard-coding its line: a refactor that moves the code above it
+      // re-keys the baseline entry, and this fixture must follow (it used to pin :529 and broke on a move).
+      const baseline = readFileSync(resolve(__dirname, '../../.claude/rng-legacy-baseline.txt'), 'utf8');
+      const entry = baseline.match(/^src\/systems\/combat-system\.ts:(\d+) /m);
+      expect(entry, 'combat-system.ts has a legacy baseline entry').not.toBeNull();
+      const entryLine = Number(entry![1]);
+      const paddingLines = Array.from({ length: entryLine - 1 }, (_, i) => `// padding line ${i + 1}`);
+      // The [LOW]-tagged LCG recurrence body #982 left in place — it's already fed a gameId-rooted seed by
+      // its caller, just a hand-rolled duplicate of the recurrence, not a live seed-construction bug.
       const lines = [...paddingLines, '  rngState = (rngState * 48271) % 2147483647;'];
       writeWorkspaceFile(workspace, 'src/systems/combat-system.ts', lines.join('\n'));
 
