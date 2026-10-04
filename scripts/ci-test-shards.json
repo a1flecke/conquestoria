@@ -373,6 +373,7 @@
     "tests/app/controllers/turn-flow-controller.test.ts": 1018.842041015625,
     "tests/app/architecture/rules.test.ts": 2118.14892578125,
     "tests/storage/assessment-digest-save.test.ts": 300.0,
+    "tests/app/playtest-recorder.test.ts": 300.0,
     "tests/systems/actor-perception.test.ts": 43.267822265625,
     "tests/systems/ai-decision-debug.test.ts": 81.166015625,
     "tests/systems/ai-roster-selection.test.ts": 10.1884765625,
@@ -725,7 +726,8 @@
     "tests/systems/wonder-codex/related.test.ts": 4.770263671875,
     "tests/systems/wonder-codex/sources.test.ts": 42.700439453125,
     "tests/renderer/sprites/v2/index.test.ts": 45.038330078125,
-    "tests/ui/council-since-last-turn.test.ts": 300.0
+    "tests/ui/council-since-last-turn.test.ts": 300.0,
+    "tests/ui/playtest-export-button.test.ts": 300.0
   },
   "shards": {
     "test-suite-shard-a": [
@@ -996,6 +998,7 @@
       "tests/app/controllers/selection-controller-establish-outpost.test.ts",
       "tests/app/cross-cutting-helpers.test.ts",
       "tests/app/game-session-controller-scenario-loader.test.ts",
+      "tests/app/playtest-recorder.test.ts",
       "tests/app/selection-store.test.ts",
       "tests/app/simulation-determinism.test.ts",
       "tests/app/user-settings-store.test.ts",
@@ -1202,6 +1205,7 @@
       "tests/ui/notification-routing.test.ts",
       "tests/ui/pacing-debug-panel.test.ts",
       "tests/ui/pirate-headquarters-assault-panel.test.ts",
+      "tests/ui/playtest-export-button.test.ts",
       "tests/ui/save-panel.test.ts",
       "tests/ui/strategic-arsenal-panel.test.ts",
       "tests/ui/strategic-warning-presentation.test.ts",

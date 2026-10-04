@@ -87,6 +87,8 @@ const composition: AppComposition = createAppComposition({
   userSettingsStore,
   getNotifier: () => notifierBox.current!,
   setNotifier: n => { notifierBox.current = n; },
+  // #1244: `?playtest=1` builds the local-only playtest recorder; any other query leaves it off.
+  playtestSearch: window.location.search,
 });
 
 // --- Bootstrap ---

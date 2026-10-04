@@ -139,6 +139,42 @@ function makeFakeNotifier(): Notifier {
 }
 
 describe('createAppComposition', () => {
+  describe('playtest recorder wiring (#1244)', () => {
+    const exportButton = (deps: AppCompositionDeps) => deps.uiLayer.querySelector('[data-role="playtest-export"]');
+
+    it('builds no recorder and no export button by default (no flag supplied)', () => {
+      const deps = makeCompositionDeps();
+
+      const composition = createAppComposition(deps);
+
+      expect(composition.playtestRecorder).toBeNull();
+      expect(exportButton(deps)).toBeNull();
+    });
+
+    it.each(['', '?', '?playtest', '?playtest=0', '?playtest=true', '?scenario=x'])(
+      'builds nothing for the query %j',
+      search => {
+        const deps = makeCompositionDeps({ playtestSearch: search });
+
+        const composition = createAppComposition(deps);
+
+        expect(composition.playtestRecorder).toBeNull();
+        expect(exportButton(deps)).toBeNull();
+      },
+    );
+
+    it('builds the recorder and its export button for ?playtest=1', () => {
+      const deps = makeCompositionDeps({ playtestSearch: '?playtest=1' });
+
+      const composition = createAppComposition(deps);
+
+      expect(composition.playtestRecorder).not.toBeNull();
+      expect(exportButton(deps)?.textContent).toContain('Export playtest log');
+      composition.playtestRecorder?.dispose();
+    });
+
+  });
+
   it('constructs every controller without throwing', () => {
     expect(() => createAppComposition(makeCompositionDeps())).not.toThrow();
   });
