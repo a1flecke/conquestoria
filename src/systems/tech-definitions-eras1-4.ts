@@ -52,7 +52,7 @@ export const TECH_TREE_ERAS_1_4: Tech[] = [
   // === EXPLORATION TRACK (8 techs, existing) ===
   { id: 'pathfinding', name: 'Pathfinding', track: 'exploration', cost: 17, prerequisites: [], unlocks: ['Scouts get +1 vision'], era: 1, pacing: { band: 'starter', role: 'foundational-exploration', impact: 1, scope: 'military', snowball: 1, urgency: 1.1, situationality: 1, unlockBreadth: 1 } },
   { id: 'cartography', name: 'Cartography', track: 'exploration', cost: 55, prerequisites: ['pathfinding'], unlocks: ['Reveal map edges', 'Reveal Spices resource'], era: 1 },
-  { id: 'sailing', name: 'Sailing', track: 'exploration', cost: 80, prerequisites: ['pathfinding'], unlocks: ['Required for galleys, harbors and ocean-going ship hulls'], era: 2 },
+  { id: 'sailing', name: 'Sailing', track: 'exploration', cost: 80, prerequisites: ['pathfinding'], unlocks: ['Opens naval units: required for galleys, harbors and ocean-going ship hulls'], era: 2 },
   { id: 'celestial-navigation', name: 'Celestial Navigation', track: 'exploration', cost: 55, prerequisites: ['sailing', 'fire'], unlocks: ['Unlocks construction of ocean-going ship hulls'], era: 2 },
   { id: 'road-building', name: 'Road Building', track: 'exploration', cost: 165, prerequisites: ['wheel', 'pathfinding'], unlocks: ['Workers can build roads'], unlocksBuildings: ['road_corps'], era: 3 },
   { id: 'bridge-building', name: 'Bridge Building', track: 'exploration', cost: 120, prerequisites: ['road-building'], unlocks: ['River crossings cost no extra movement'], era: 3 },
