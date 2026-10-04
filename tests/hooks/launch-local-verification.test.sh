@@ -23,7 +23,28 @@ make_worktree() {
   cp "$LAUNCH" "$ROOT/scripts/host-verification-lease.sh" "$repo/scripts/"
   # Fake host snapshot and result reader: the launcher only shells out to these.
   printf '#!/bin/sh\necho "ACTIVE    ai-long-mutex        worktree=/somewhere/else elapsed=1s pid=1"\necho "background capacity: 1/2 slots in use"\n' > "$repo/scripts/verify-local-status.sh"
-  printf '#!/bin/sh\necho "STATUS: ${FAKE_STATUS:-passed}"\n' > "$repo/scripts/read-durable-test-result.sh"
+  # Faithful stand-in for read-durable-test-result.sh: a live run reads `active`
+  # (so a duplicate is still refused), a dirty tree reads `mismatched` (so a dirty
+  # tree never reuses), and otherwise FAKE_STATUS decides -- default `none`, as a
+  # fresh worktree has no durable evidence yet.
+  cat > "$repo/scripts/read-durable-test-result.sh" <<'FAKE_READER'
+#!/bin/sh
+scope="${1:-full}"
+root="$(git -C "$(dirname "$0")/.." rev-parse --show-toplevel)"
+running="$root/.verification/$scope-suite.running"
+if [ -f "$running" ]; then
+  pid="$(sed -n 's/^pid=//p' "$running" | head -n 1)"
+  if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+    echo 'STATUS: active'
+    exit 3
+  fi
+fi
+if [ -n "$(git -C "$root" status --porcelain=v1 --untracked-files=all 2>/dev/null)" ]; then
+  echo 'STATUS: mismatched'
+  exit 1
+fi
+echo "STATUS: ${FAKE_STATUS:-none}"
+FAKE_READER
   printf '.verification/\n' > "$repo/.gitignore"
   git -C "$repo" init -q
   git -C "$repo" config user.email launch-test@example.invalid
@@ -94,8 +115,10 @@ LAUNCH_VERIFICATION_COMMAND='sleep 1' sh "$repo4/scripts/launch-local-verificati
 echo "ok 4: dirty tree refused unless --allow-dirty"
 
 # --- 5. --wait reflects the durable result -----------------------------------
+# --force here: without it a `passed` reader result would reuse and short-circuit,
+# which is scenario 8's subject, not this one.
 repo5="$(make_worktree five)"
-FAKE_STATUS=passed LAUNCH_VERIFICATION_COMMAND='sleep 1' sh "$repo5/scripts/launch-local-verification.sh" --wait full >"$tmpdir/out5" 2>&1 \
+FAKE_STATUS=passed LAUNCH_VERIFICATION_COMMAND='sleep 1' sh "$repo5/scripts/launch-local-verification.sh" --force --wait full >"$tmpdir/out5" 2>&1 \
   || fail "5: --wait failed for a passed result"
 grep -q 'STATUS: passed' "$tmpdir/out5" || fail "5: --wait did not print the result"
 set +e
@@ -112,5 +135,94 @@ code=$?
 set -e
 [ "$code" -eq 2 ] || fail "6: unknown scope exit code $code (want 2)"
 echo "ok 6: unknown scope is a usage error"
+
+# --- 7. a passing result for the current clean HEAD is reused ---------------
+repo7="$(make_worktree seven)"
+mkdir -p "$repo7/.verification"
+printf 'completed_at=2026-01-01T00:00:00Z\n' > "$repo7/.verification/full-suite.status"
+MARKER7="$tmpdir/runner7"
+set +e
+FAKE_STATUS=passed LAUNCH_VERIFICATION_COMMAND="touch $MARKER7" \
+  sh "$repo7/scripts/launch-local-verification.sh" full >"$tmpdir/out7" 2>&1
+code=$?
+set -e
+[ "$code" -eq 0 ] || fail "7: reuse exit code $code (want 0)"
+grep -q 'Reusing durable full evidence' "$tmpdir/out7" || fail "7: reuse was not reported"
+grep -q '2026-01-01T00:00:00Z' "$tmpdir/out7" || fail "7: reuse did not report completed_at"
+[ ! -e "$MARKER7" ] || fail "7: runner was invoked despite a passing same-HEAD result"
+[ ! -e "$repo7/.verification/launch-full.pid" ] || fail "7: reuse recorded a launcher pid"
+echo "ok 7: passing same-HEAD evidence is reused without launching"
+
+# --- 8. --wait reuses a passing result and exits 0 quickly -------------------
+repo8="$(make_worktree eight)"
+mkdir -p "$repo8/.verification"
+printf 'completed_at=2026-01-01T00:00:00Z\n' > "$repo8/.verification/full-suite.status"
+MARKER8="$tmpdir/runner8"
+SECONDS=0
+set +e
+FAKE_STATUS=passed LAUNCH_VERIFICATION_COMMAND="touch $MARKER8" \
+  sh "$repo8/scripts/launch-local-verification.sh" --wait full >"$tmpdir/out8" 2>&1
+code=$?
+set -e
+[ "$code" -eq 0 ] || fail "8: wait reuse exit code $code (want 0)"
+[ "$SECONDS" -lt 5 ] || fail "8: wait reuse took ${SECONDS}s (want <5s)"
+grep -q 'Reusing durable full evidence' "$tmpdir/out8" || fail "8: wait reuse was not reported"
+[ ! -e "$MARKER8" ] || fail "8: runner was invoked in wait reuse"
+echo "ok 8: --wait reuses a passing result and exits 0 without launching"
+
+# --- 9. --force bypasses reuse and launches ----------------------------------
+repo9="$(make_worktree nine)"
+mkdir -p "$repo9/.verification"
+printf 'completed_at=2026-01-01T00:00:00Z\n' > "$repo9/.verification/full-suite.status"
+MARKER9="$tmpdir/runner9"
+FAKE_STATUS=passed LAUNCH_VERIFICATION_COMMAND="touch $MARKER9" \
+  sh "$repo9/scripts/launch-local-verification.sh" --force full >"$tmpdir/out9" 2>&1 \
+  || { cat "$tmpdir/out9" >&2; fail "9: --force launch failed"; }
+if grep -q 'Reusing' "$tmpdir/out9"; then fail "9: --force still reported reuse"; fi
+waited=0
+while [ ! -e "$MARKER9" ] && [ "$waited" -lt 100 ]; do sleep 0.1; waited=$((waited + 1)); done
+[ -e "$MARKER9" ] || fail "9: --force did not invoke the runner"
+echo "ok 9: --force skips reuse and invokes the runner"
+
+# --- 10. mismatched evidence does not reuse ----------------------------------
+repo10="$(make_worktree ten)"
+MARKER10="$tmpdir/runner10"
+FAKE_STATUS=mismatched LAUNCH_VERIFICATION_COMMAND="touch $MARKER10" \
+  sh "$repo10/scripts/launch-local-verification.sh" full >"$tmpdir/out10" 2>&1 \
+  || { cat "$tmpdir/out10" >&2; fail "10: mismatched launch failed"; }
+waited=0
+while [ ! -e "$MARKER10" ] && [ "$waited" -lt 100 ]; do sleep 0.1; waited=$((waited + 1)); done
+[ -e "$MARKER10" ] || fail "10: mismatched evidence did not launch"
+if grep -q 'Reusing' "$tmpdir/out10"; then fail "10: mismatched evidence was reused"; fi
+echo "ok 10: mismatched evidence never reuses"
+
+# --- 11. failed evidence does not reuse --------------------------------------
+repo11="$(make_worktree eleven)"
+MARKER11="$tmpdir/runner11"
+FAKE_STATUS=failed LAUNCH_VERIFICATION_COMMAND="touch $MARKER11" \
+  sh "$repo11/scripts/launch-local-verification.sh" full >"$tmpdir/out11" 2>&1 \
+  || { cat "$tmpdir/out11" >&2; fail "11: failed-evidence launch failed"; }
+waited=0
+while [ ! -e "$MARKER11" ] && [ "$waited" -lt 100 ]; do sleep 0.1; waited=$((waited + 1)); done
+[ -e "$MARKER11" ] || fail "11: failed evidence did not launch"
+if grep -q 'Reusing' "$tmpdir/out11"; then fail "11: failed evidence was reused"; fi
+echo "ok 11: failed evidence never reuses"
+
+# --- 12. a dirty tree never reuses a passing result --------------------------
+repo12="$(make_worktree twelve)"
+mkdir -p "$repo12/.verification"
+printf 'completed_at=2026-01-01T00:00:00Z\n' > "$repo12/.verification/full-suite.status"
+echo change > "$repo12/untracked-edit.txt"
+MARKER12="$tmpdir/runner12"
+set +e
+FAKE_STATUS=passed LAUNCH_VERIFICATION_COMMAND="touch $MARKER12" \
+  sh "$repo12/scripts/launch-local-verification.sh" full >"$tmpdir/out12" 2>&1
+code=$?
+set -e
+[ "$code" -eq 4 ] || fail "12: dirty reuse exit code $code (want 4)"
+[ ! -e "$MARKER12" ] || fail "12: a dirty tree reused evidence and invoked the runner"
+grep -q 'uncommitted changes' "$tmpdir/out12" || fail "12: dirty refusal not explained"
+if grep -q 'Reusing' "$tmpdir/out12"; then fail "12: a dirty tree reported reuse"; fi
+echo "ok 12: a dirty tree never reuses a passing result"
 
 echo "all launch-local-verification scenarios passed"

@@ -126,8 +126,9 @@ bodies"):
   pids recorded in *this* worktree's `.verification/` files. `.opencode/opencode.jsonc` denies
   `pkill *`/`killall *`; `.claude/hooks/block-pattern-kill.sh` blocks the same in Claude Code.
 - **Launch long verification through the helper.**
-  `./scripts/run-with-mise.sh yarn verify:launch <full|ai-long|ai-playability|perf> [--wait]`
-  shows what else is running/queued on the host first, refuses a duplicate or a third concurrent
+  `./scripts/run-with-mise.sh yarn verify:launch <full|ai-long|ai-playability|perf> [--wait] [--force]`
+  shows what else is running/queued on the host first, reuses a passing durable result for the
+  current clean HEAD (`--force` re-runs anyway), refuses a duplicate or a third concurrent
   run from one worktree, refuses a dirty tree (durable evidence is only valid for the exact tree
   it ran on; do not edit files while a run is in progress), and starts the run detached so it
   survives the tool call. `yarn verify:local:status` is the read-only view of everyone's runs.
