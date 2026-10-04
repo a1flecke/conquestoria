@@ -159,9 +159,3 @@ function reselect(
     reasonCodes,
   };
 }
-
-// Deliberate single-consumer re-export (#1248): basic-ai.ts still imports the posture table from here. Migrating
-// that one import means editing basic-ai.ts, and the source-rule gate refuses a touched file that still has its
-// existing roster-length ownership reads (tracked in #1274, which now lists basic-ai.ts). Everything else imports
-// ai-national-intent-posture directly; delete this line when basic-ai.ts is next edited for that reason.
-export { NATIONAL_INTENT_POSTURE, type NationalIntentPosture } from './ai-national-intent-posture';
