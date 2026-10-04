@@ -30,18 +30,16 @@ function createActionButton(definition: ActionButtonDefinition): HTMLButtonEleme
   label.textContent = definition.label;
   button.appendChild(label);
 
-  let handled = false;
+  let lastTriggerTime = 0;
   const trigger = (event: Event) => {
     event.preventDefault();
     event.stopPropagation();
-    if (handled) {
+    const now = Date.now();
+    if (now - lastTriggerTime < 300) {
       return;
     }
-    handled = true;
+    lastTriggerTime = now;
     definition.onClick();
-    setTimeout(() => {
-      handled = false;
-    }, 300);
   };
 
   button.addEventListener('touchend', trigger);
