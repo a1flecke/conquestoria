@@ -24,6 +24,13 @@
       "Bash(git ls-remote origin main)",
       "Bash(git ls-remote origin refs/heads/main)",
       "Bash(git rebase origin/main)"
+    ],
+    "ask": [
+      "Edit(~/.config/opencode/**)",
+      "Write(~/.config/opencode/**)"
+    ],
+    "deny": [
+      "Read(~/.config/opencode/service.json)"
     ]
   },
   "hooks": {
