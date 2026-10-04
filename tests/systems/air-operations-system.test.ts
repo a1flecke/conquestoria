@@ -1,7 +1,8 @@
+import { isBasedAirUnit } from '@/systems/air-base-state';
 import { describe, expect, it } from 'vitest';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
-import { baseNewAirUnit, canCompleteAirUnitProduction, getAirBaseCapacity, getAirBaseKind, getAirBaseRoster, getInterceptCoverage, getLegalAirMissionTargets, getLegalRebaseDestinations, isBasedAirUnit, rebaseAircraft, resolveAirBaseLoss, resolveAirStrike, resolvePatrolMission, resolveReconMission, selectInterceptor, startIntercept, syncCarrierBasedAircraft } from '@/systems/air-operations-system';
+import { baseNewAirUnit, canCompleteAirUnitProduction, getAirBaseCapacity, getAirBaseKind, getAirBaseRoster, getInterceptCoverage, getLegalAirMissionTargets, getLegalRebaseDestinations, rebaseAircraft, resolveAirBaseLoss, resolveAirStrike, resolvePatrolMission, resolveReconMission, selectInterceptor, startIntercept, syncCarrierBasedAircraft } from '@/systems/air-operations-system';
 import { calculateCombatStrengths } from '@/systems/combat-system';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
 import type { GameState, Unit } from '@/core/types';

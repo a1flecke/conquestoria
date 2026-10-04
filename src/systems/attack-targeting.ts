@@ -6,7 +6,7 @@ import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { canUnitAttackBeast } from '@/systems/beast-system';
 import { isUnitConcealedFrom } from '@/systems/concealment';
 import { isPirateOwner } from '@/core/owner-kind';
-import { isBasedAirUnit } from './air-operations-system';
+import { isBasedAirUnit } from './air-base-state';
 import { isHostileOwnerTo } from './owner-hostility';
 
 export type AttackTargetFailure =

@@ -2,7 +2,7 @@ import type { EventBus } from '@/core/event-bus';
 import type { GameState, Spy, Unit, UnitType } from '@/core/types';
 import { baseNewAirUnit, canCompleteAirUnitProduction } from '@/systems/air-operations-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
-import { createSpyFromUnit } from '@/systems/espionage-system';
+import { createSpyFromUnit } from '@/systems/espionage-spy-lifecycle';
 import { isSpyUnitType } from '@/systems/spy-unit-types';
 import { applyLegendaryWonderTrainingEffects } from '@/systems/legendary-wonder-tactical-effects';
 import { MISSIONARY_BASE_CHARGES, MISSIONARY_ZEAL_CHARGES } from '@/systems/religion-definitions';

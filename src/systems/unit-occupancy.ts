@@ -2,7 +2,7 @@ import type { HexCoord, Unit } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 // #1025 MR4: catalog leaf, not the barrel — see fog-of-war.ts for why.
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
-import { isBasedAirUnit } from '@/systems/air-operations-system';
+import { isBasedAirUnit } from '@/systems/air-base-state';
 
 export interface UnitOccupancyIndex {
   unitIdsByHex: Record<string, string[]>;
