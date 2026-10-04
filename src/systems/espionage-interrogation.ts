@@ -6,6 +6,8 @@ import type {
   InterrogationRecord,
 } from '@/core/types';
 import { createRng } from './map-generator';
+import { isVisible } from './fog-of-war';
+import { parseHexKey } from './hex-utils';
 
 /**
  * Interrogation (#1009): starting an interrogation, ticking its reveal rolls
@@ -121,7 +123,11 @@ function resolveInterrogationIntel(
       return { type, data: { cityId: city.id, wonderId: city.productionQueue[0].replace('legendary:', '') } };
     }
     case 'map_area': {
-      const tiles = Object.keys(spyCiv.visibility?.tiles ?? {}).filter(k => spyCiv.visibility.tiles[k] === 'visible');
+      // Enumerate the spy's known tiles (the representation is the only source of
+      // keys), but answer "is it visible?" through the canonical helper.
+      const visibility = spyCiv.visibility;
+      const tiles = Object.keys(visibility?.tiles ?? {})
+        .filter(k => visibility !== undefined && isVisible(visibility, parseHexKey(k)));
       if (tiles.length === 0) return null;
       // Fisher-Yates shuffle using seeded rng, then take first 8
       const shuffled = [...tiles];

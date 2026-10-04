@@ -40,6 +40,7 @@ import {
 import { DEFAULT_WORKER_CHARGES, getWorkerChargesRemaining } from '@/systems/worker-action-system';
 import { getRoadBlockerReason, formatRoadBlockerReason } from '@/systems/road-system';
 import { hexDistance, hexKey } from '@/systems/hex-utils';
+import { isVisible } from '@/systems/fog-of-war';
 import { canFoundCityAt, formatCityFoundingBlockerMessage, getCityFoundingBlockers } from '@/systems/city-territory-system';
 import { resolveFromCity } from '@/systems/trade-caravan-system';
 import { hasAITradeRole } from '@/ai/ai-unit-roles';
@@ -344,7 +345,8 @@ export function renderSelectedUnitInfo(
       infoDiv.appendChild(routeLabel);
     }
     const command = getRogueElephantCommandFact(state, unit.id);
-    if (command && state.civilizations[state.currentPlayer]?.visibility?.tiles[`${unit.position.q},${unit.position.r}`] === 'visible') {
+    const currentCiv = state.civilizations[state.currentPlayer];
+    if (command && currentCiv?.visibility && isVisible(currentCiv.visibility, unit.position)) {
       const commandLabel = document.createElement('div');
       commandLabel.style.cssText = 'margin-top:6px;font-size:12px;color:#f6d365;';
       commandLabel.textContent = 'Handler command: +20% attack and defense within 2 hexes.';

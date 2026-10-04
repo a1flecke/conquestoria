@@ -209,6 +209,27 @@ describe('pirate contracts', () => {
     expect(getPirateContractQuote(state, current.id, 'player', 'ai-1').available).toBe(false);
   });
 
+  it('#1247 — a fully unexplored target is not an earned sighting, but a fogged tile is', () => {
+    const state = stateFixture();
+    const current = addFaction(state, faction('raiding', {
+      kind: 'deep-sea-flotilla', flagshipUnitId: 'flagship', relocation: { planned: null, lastRelocatedRound: null },
+    }, 5));
+    addUnit(state, 'flagship', 'pirate_mothership', current.id, { q: 4, r: 4 });
+    state.civilizations.player.diplomacy.relationships['ai-1'] = 0;
+    addCity(state, 'target-port', 'ai-1', { q: 8, r: 8 });
+    state.map.tiles['8,8'] = { ...state.map.tiles['8,8'], terrain: 'plains' };
+    state.map.tiles['8,7'] = { ...state.map.tiles['8,7'], terrain: 'coast' };
+
+    // Unexplored (absent key) is NOT knowledge — the query must answer through
+    // `getVisibility`, where "absent" means `unexplored`, not a false positive.
+    expect(state.civilizations.player.visibility.tiles['8,8']).toBeUndefined();
+    expect(getPirateContractQuote(state, current.id, 'player', 'ai-1').available).toBe(false);
+
+    // Seen-then-fogged is earned knowledge and must still count.
+    state.civilizations.player.visibility.tiles['8,8'] = 'fog';
+    expect(getPirateContractQuote(state, current.id, 'player', 'ai-1').available).toBe(true);
+  });
+
   it('costs twice tribute, lasts eight rounds, and is mutually exclusive with tribute', () => {
     const state = stateFixture();
     const current = addFaction(state, faction('blockading', {

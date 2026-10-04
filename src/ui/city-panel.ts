@@ -19,6 +19,7 @@ import { getResourceEffectLabel } from '@/systems/resource-definitions';
 import { getResourceAdvantagesForItem, getResourceAdvantageMultiplier } from '@/systems/resource-advantages';
 import { SESSION_SHOWN_TIPS } from '@/ui/advisor-system';
 import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
+import { getVisibility } from '@/systems/fog-of-war';
 import { createGameButton } from './ui-kit';
 import { getAnimatedBuildingIconHtml } from './city-panel-building-icon';
 import { derivePalette, NEUTRAL_FACTION_PALETTE } from '@/renderer/sprites/sprite-system';
@@ -1525,7 +1526,7 @@ export function createCityPanel(
           const highlights: HexCoord[] = [];
           const toasts: Array<{ message: string; type: 'info' | 'warning' }> = [];
           const seenResources = new Set<ResourceType>();
-          const vis = state.civilizations[state.currentPlayer]?.visibility?.tiles ?? {};
+          const visibility = state.civilizations[state.currentPlayer]?.visibility;
           const calcDist = state.map.wrapsHorizontally
             ? (a: HexCoord, b: HexCoord) => wrappedHexDistance(a, b, state.map.width)
             : hexDistance;
@@ -1537,9 +1538,9 @@ export function createCityPanel(
 
               let nearestCoord: HexCoord | null = null;
               let nearestDist = Infinity;
-              for (const [key, tile] of Object.entries(state.map.tiles)) {
+              for (const tile of Object.values(state.map.tiles)) {
                 if (tile.resource !== resourceId) continue;
-                const tileVis = vis[key];
+                const tileVis = visibility ? getVisibility(visibility, tile.coord) : 'unexplored';
                 if (tileVis !== 'visible' && tileVis !== 'fog') continue;
                 const dist = calcDist(city.position, tile.coord);
                 if (dist < nearestDist) {

@@ -8,6 +8,7 @@ import type {
 } from '@/core/pirate-state';
 import type { GameState, HexCoord } from '@/core/types';
 import { hexKey } from './hex-utils';
+import { isVisible } from './fog-of-war';
 import { getPirateContractQuote, getPirateTributeQuote, type PirateActionQuote } from './pirate-actions';
 
 export type PirateFocusTarget =
@@ -80,7 +81,8 @@ function headquartersPosition(state: GameState, factionId: string): HexCoord | n
 }
 
 function currentlyVisible(state: GameState, viewerId: string, position: HexCoord): boolean {
-  return state.civilizations[viewerId]?.visibility.tiles[hexKey(position)] === 'visible';
+  const visibility = state.civilizations[viewerId]?.visibility;
+  return visibility ? isVisible(visibility, position) : false;
 }
 
 function activeRelocationDirection(state: GameState, factionId: string): PirateRelocationDirection | undefined {

@@ -34,7 +34,8 @@ import { explainMovementFailureForViewer } from '@/systems/unit-movement-explain
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { findPath } from '@/systems/unit-pathfinding';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
-import { hexKey, mapHexesInRange } from '@/systems/hex-utils';
+import { hexKey, mapHexesInRange, parseHexKey } from '@/systems/hex-utils';
+import { getVisibility } from '@/systems/fog-of-war';
 import { isMajorCivOwner } from '@/core/owner-kind';
 import { SFX } from '@/audio/sfx';
 import { buildSelectedUnitHighlights } from '@/input/selected-unit-highlights';
@@ -935,18 +936,18 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
     if (!deps.currentCiv()?.visibility) return;
 
     // Snapshot unexplored tile keys before the update so we can detect fog-lift transitions
-    const visTiles = deps.currentCiv()!.visibility!.tiles;
+    const currentVisibility = deps.currentCiv()!.visibility!;
     const prevUnexplored = new Set(
-      Object.keys(visTiles).filter(k => visTiles[k] === 'unexplored'),
+      Object.keys(currentVisibility.tiles).filter(k => getVisibility(currentVisibility, parseHexKey(k)) === 'unexplored'),
     );
 
     session.commit(updateAndRefreshVisibility(session.getState(), session.getState().currentPlayer));
 
     // Fire at most one resource-discovered tip per visibility update to avoid
     // flooding the player when a scout reveals several resource tiles at once.
-    const updatedTiles = deps.currentCiv()?.visibility?.tiles ?? {};
+    const updatedVisibility = deps.currentCiv()?.visibility;
     for (const key of prevUnexplored) {
-      if (updatedTiles[key] !== 'unexplored') {
+      if ((updatedVisibility ? getVisibility(updatedVisibility, parseHexKey(key)) : 'unexplored') !== 'unexplored') {
         const tile = session.getState().map.tiles[key];
         if (tile?.resource) {
           const fired = fireResourceDiscoveredTip(tile.resource, session.getState(), bus);

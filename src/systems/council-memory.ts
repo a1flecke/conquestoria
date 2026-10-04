@@ -11,6 +11,7 @@ import type {
 } from '@/core/types';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 import { formatCityReference } from '@/systems/player-facing-labels';
+import { getVisibility } from '@/systems/fog-of-war';
 
 const CALLBACK_SPACING_TURNS = 10;
 const IGNORED_AFTER_TURNS = 15;
@@ -54,7 +55,8 @@ function getViewerVisibility(state: GameState, viewerId: string, cityId: string)
   const city = state.cities[cityId];
   if (!city) return 'unexplored';
   if (city.owner === viewerId) return 'visible';
-  return state.civilizations[viewerId]?.visibility.tiles[`${city.position.q},${city.position.r}`] ?? 'unexplored';
+  const civ = state.civilizations[viewerId];
+  return civ ? getVisibility(civ.visibility, city.position) : 'unexplored';
 }
 
 function knowsCivilization(state: GameState, viewerId: string, civId: string | undefined): boolean {

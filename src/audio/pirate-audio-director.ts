@@ -1,6 +1,6 @@
 import type { EventBus } from '@/core/event-bus';
 import type { GameState } from '@/core/types';
-import { hexKey } from '@/systems/hex-utils';
+import { isVisible } from '@/systems/fog-of-war';
 import type { AudioLoader } from './audio-loader';
 import type { AudioMixer } from './audio-mixer';
 import { PIRATE_HEADQUARTERS_SFX, PIRATE_STRATEGIC_SFX } from './sfx-catalog';
@@ -47,7 +47,7 @@ export class PirateAudioDirector {
     const faction = state.pirates?.factions[factionId];
     if (!faction || faction.headquarters.kind !== 'coastal-enclave') return this.rejectAmbience();
     const viewer = state.civilizations[state.currentPlayer];
-    if (viewer?.visibility.tiles[hexKey(faction.headquarters.position)] !== 'visible') return this.rejectAmbience();
+    if (!viewer?.visibility || !isVisible(viewer.visibility, faction.headquarters.position)) return this.rejectAmbience();
     if (!state.pirates?.intelByCiv[state.currentPlayer]?.[factionId]) return this.rejectAmbience();
     if (this.activeFactionId === factionId) return true;
     const requestId = ++this.requestId;

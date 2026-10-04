@@ -96,6 +96,36 @@ it('the movement family has exactly one low-level position executor (#1025)', ()
   expect(offenders, offenders.join('\n')).toEqual([]);
 });
 
+it('#1247 — viewer-scoped tile visibility is queried through fog-of-war helpers', () => {
+  // The visibility representation lives in src/systems/fog-of-war.ts
+  // (`getVisibility` / `isVisible` / `isFog`). Only the canonical writers the
+  // issue names may index `visibility.tiles[...]`; every viewer-scoped query
+  // must go through a helper, so changing the representation is no longer a
+  // wide, silent edit (#1013 measured the direct reads; #1247 removed them).
+  const CANONICAL_WRITERS = new Set([
+    'systems/espionage-turn.ts',
+    'core/round-phases/espionage.ts',
+  ]);
+  const pattern = /\.visibility[!?]?\.tiles[!?]?\s*\[/;
+  function walk(dir: string): string[] {
+    return readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
+      const full = resolve(dir, entry.name);
+      if (entry.isDirectory()) return walk(full);
+      return entry.name.endsWith('.ts') ? [full] : [];
+    });
+  }
+  const srcRoot = resolve(__dirname, '../../src');
+  const offenders: string[] = [];
+  for (const file of walk(srcRoot)) {
+    const rel = file.slice(srcRoot.length + 1);
+    if (CANONICAL_WRITERS.has(rel)) continue;
+    stripComments(readFileSync(file, 'utf8')).split('\n').forEach((line, i) => {
+      if (pattern.test(line)) offenders.push(`${rel}:${i + 1}  ${line.trim()}`);
+    });
+  }
+  expect(offenders, offenders.join('\n')).toEqual([]);
+});
+
 describe('#1010 — unit-system decomposition boundaries', () => {
   const sys = resolve(__dirname, '../../src/systems');
   const read = (name: string) => readFileSync(resolve(sys, name), 'utf8');

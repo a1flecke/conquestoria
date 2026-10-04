@@ -25,6 +25,7 @@ import {
 } from './threat-pressure-system';
 import { calculateProjectedCityYields } from './city-work-system';
 import { resolveCivDefinition } from './civ-registry';
+import { isVisible } from './fog-of-war';
 import { createRng } from './map-generator';
 import { UNIT_DEFINITIONS } from './unit-definitions';
 import { createUnit } from './unit-lifecycle';
@@ -191,7 +192,7 @@ export function getCoastalEnclaveCandidates(state: GameState): PirateHabitatCand
     let covertOwnerId: string | undefined;
     if (tile.owner !== null) {
       const owner = state.civilizations[tile.owner];
-      if (!owner || owner.visibility.tiles[hexKey(tile.coord)] === 'visible') continue;
+      if (!owner || isVisible(owner.visibility, tile.coord)) continue;
       if (hasMajorCombatUnitWithin(state, tile.coord, 3)) continue;
       covertOwnerId = tile.owner;
     }
