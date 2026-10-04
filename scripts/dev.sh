@@ -41,7 +41,9 @@ tasks (output is saved to .verification/logs/<task>.log; the last 60 lines are p
   durable           yarn test:durable
   durable-status    yarn test:durable:status
   ai-playability    yarn test:ai-playability
+  ai-playability-status  yarn test:ai-playability:status
   ai-long           yarn test:ai-long
+  ai-long-status    yarn test:ai-long:status
   web-smoke         yarn test:web-smoke
   docs-lifecycle    node scripts/docs-lifecycle.mjs check
   maintainability-check     node scripts/maintainability-audit.mjs --check (read-only drift check)
@@ -58,7 +60,7 @@ deny() {
 
 is_task() {
   case "$1" in
-    build|typecheck|test|test-all|test-regular|hooks|install|setup-hooks|verify-pr|verify-pr-status|verify-status|durable|durable-status|ai-playability|ai-long|web-smoke|docs-lifecycle|maintainability-check|maintainability-report|maintainability-baseline) return 0 ;;
+    build|typecheck|test|test-all|test-regular|hooks|install|setup-hooks|verify-pr|verify-pr-status|verify-status|durable|durable-status|ai-playability|ai-playability-status|ai-long|ai-long-status|web-smoke|docs-lifecycle|maintainability-check|maintainability-report|maintainability-baseline) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -119,7 +121,9 @@ execute() {
     durable) bash "$MISE" yarn test:durable ;;
     durable-status) bash "$MISE" yarn test:durable:status ;;
     ai-playability) bash "$MISE" yarn test:ai-playability ;;
+    ai-playability-status) bash "$MISE" yarn test:ai-playability:status ;;
     ai-long) bash "$MISE" yarn test:ai-long ;;
+    ai-long-status) bash "$MISE" yarn test:ai-long:status ;;
     web-smoke) bash "$MISE" yarn test:web-smoke ;;
     docs-lifecycle) bash "$MISE" node scripts/docs-lifecycle.mjs check ;;
     maintainability-check) bash "$MISE" node scripts/maintainability-audit.mjs --check ;;

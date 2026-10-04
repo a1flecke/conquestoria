@@ -109,6 +109,11 @@ if [ "$recorded_worktree_state" != "$current_worktree_state" ]; then
 fi
 
 exit_code="$(field exit_code)"
+# #1132: a durable result is bound to the exact wrapped command, so a targeted
+# run (e.g. one long-horizon scenario via `-t`) is identifiable when read back.
+recorded_command="$(field command)"
+command_suffix=''
+[ -z "$recorded_command" ] || command_suffix=" (command: $recorded_command)"
 if [ "$exit_code" != '0' ]; then
   echo 'STATUS: failed'
   failure_kind="$(field failure_kind)"
@@ -118,12 +123,12 @@ if [ "$exit_code" != '0' ]; then
     job_pid="$(field job_pid)"
     echo "Durable $scope test run was cancelled by ${termination_signal:-an unknown signal} (supervisor_pid=${supervisor_pid:-unknown}, job_pid=${job_pid:-unknown}); inspect $status and its sibling log." >&2
   elif [ -n "$failure_kind" ] && [ "$failure_kind" != 'none' ]; then
-    echo "Durable $scope test run failed with exit code ${exit_code:-unknown} (failure_kind=$failure_kind); inspect $status." >&2
+    echo "Durable $scope test run failed with exit code ${exit_code:-unknown} (failure_kind=$failure_kind)${command_suffix}; inspect $status." >&2
   else
-    echo "Durable $scope test run failed with exit code ${exit_code:-unknown}; inspect $status." >&2
+    echo "Durable $scope test run failed with exit code ${exit_code:-unknown}${command_suffix}; inspect $status." >&2
   fi
   exit 1
 fi
 
 echo 'STATUS: passed'
-printf 'Durable %s test run passed for %s.\n' "$scope" "$current_head"
+printf 'Durable %s test run passed for %s%s.\n' "$scope" "$current_head" "$command_suffix"

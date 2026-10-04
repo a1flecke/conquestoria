@@ -13,8 +13,10 @@
 #     holders and any process currently blocked waiting for a slot, every
 #     row tagged lane=<lane>, plus an in-use/capacity line per lane;
 #   - each of the four durable scopes (full, ai-long, ai-playability, perf)
-#     this worktree has ever run via `yarn <scope>:durable`: its last known
-#     RUNNING/DONE/ABANDONED/NONE state.
+#     this worktree has ever run via its canonical durable command
+#     (`yarn test:durable`, `yarn test:ai-long`, `yarn test:ai-playability`,
+#     `yarn perf:report:durable`): its last known RUNNING/DONE/ABANDONED/NONE
+#     state.
 #
 # Row states:
 #   ACTIVE     a live mutex or budget holder (command, worktree, elapsed).
