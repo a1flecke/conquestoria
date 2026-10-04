@@ -42,7 +42,7 @@ import { emitAccessLossNotices } from '@/systems/territorial-access';
 import { getVassalageEligibility, canPetitionIndependence } from '@/systems/diplomacy-vassal-rules';
 import { declareWarGoal, canDeclareWarGoal } from '@/systems/war-goal-system';
 import { proposeSettlement, acceptSettlementOffer } from '@/systems/settlement-system';
-import { TREATY_LABELS } from '@/ui/notification-routing';
+import { TREATY_LABELS } from '@/ui/notification-routes/diplomacy-routes';
 import { appeaseFaction, concedeToMovement } from '@/systems/faction-commands';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';

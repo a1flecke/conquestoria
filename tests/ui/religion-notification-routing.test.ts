@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import type { GameState } from '@/core/types';
-import { routeReligionFounded, routeReligionCityConverted, routeLoyaltyWarning, routeCityDefected } from '@/ui/notification-routing';
+import {
+  routeReligionFounded,
+  routeReligionCityConverted,
+  routeLoyaltyWarning,
+  routeCityDefected,
+} from '@/ui/notification-routes/religion-routes';
 
 // Deliberately a separate file from notification-routing.test.ts: that file mocks
 // @/systems/discovery-system at module scope with a narrow hardcoded stub built for an

@@ -4,7 +4,7 @@
  */
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { handleCombatResolvedEvent } from '@/ui/combat-resolved-presentation';
-import { routeCombatRewardEarned } from '@/ui/notification-routing';
+import { routeCombatRewardEarned } from '@/ui/notification-routes/combat-routes';
 import type { PresentationRegistrar } from '@/presentation/register-all';
 
 export const registerCombatPresentation: PresentationRegistrar = (bus, ctx) => {

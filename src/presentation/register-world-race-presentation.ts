@@ -8,12 +8,12 @@
  * with the single-civ-scoped event-chain conclusion above it).
  */
 import type { PresentationRegistrar } from '@/presentation/register-all';
+import { type NotificationSink } from '@/ui/notification-routes/notification-sink';
 import {
   routeWorldRaceUnlocked,
   routeWorldRaceLaunchBegun,
   routeWorldRaceCompleted,
-  type NotificationSink,
-} from '@/ui/notification-routing';
+} from '@/ui/notification-routes/world-routes';
 import { buildWorldRaceConclusionMomentItem } from '@/systems/world-race-presentation';
 
 export const registerWorldRacePresentation: PresentationRegistrar = (bus, ctx) => {

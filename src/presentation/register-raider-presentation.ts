@@ -6,7 +6,7 @@
  */
 import { SFX } from '@/audio/sfx';
 import { isVisible } from '@/systems/fog-of-war';
-import { routeBarbarianSpawned } from '@/ui/notification-routing';
+import { routeBarbarianSpawned } from '@/ui/notification-routes/map-routes';
 import type { PresentationRegistrar } from '@/presentation/register-all';
 
 export const registerRaiderPresentation: PresentationRegistrar = (bus, ctx) => {

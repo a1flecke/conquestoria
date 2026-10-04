@@ -3,7 +3,7 @@
  * other domain registrars (#787 phase 7): village-visit outcomes, advisor
  * toasts, and AI strategic warnings. Moved verbatim from `main.ts`.
  */
-import { routeStrategicWarning } from '@/ui/notification-routing';
+import { routeStrategicWarning } from '@/ui/notification-routes/world-routes';
 import type { PresentationRegistrar } from '@/presentation/register-all';
 
 export const registerGeneralPresentation: PresentationRegistrar = (bus, ctx) => {

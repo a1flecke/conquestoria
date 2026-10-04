@@ -3,17 +3,22 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { CombatResult, GameState } from '@/core/types';
 import { BREAKAWAY_REVOLT_TURNS } from '@/systems/faction-unrest-model';
+import { routeCombatRewardEarned, routeCombatResolved } from '@/ui/notification-routes/combat-routes';
 import {
-  formatEconomyTreasuryStrainMessage,
-  getNotificationTargetsForEvent,
-  routeBarbarianSpawned,
-  routeCombatRewardEarned,
-  routeCombatResolved,
-  routeDroppedProductionItem,
-  routeEconomyTreasuryStrain,
-  routeEraAdvanced,
-  routeLegendaryWonder,
-  routeFactionTransition,
+  routeCrisisStarted,
+  routeCrisisSpread,
+  routeCrisisEscalated,
+  routeCrisisContained,
+  routeCrisisResolved,
+  routeWorldPressureCrisisStarted,
+  routeWorldPressureCrisisResolved,
+  routeCrisisFoeHuntedByAlly,
+  routeCrisisAidSent,
+  routeEventChainStarted,
+  routeEventChainResolved,
+  routeOpportunisticWar,
+} from '@/ui/notification-routes/crisis-routes';
+import {
   routeFirstContact,
   routePeaceMade,
   routePeaceRequested,
@@ -27,22 +32,14 @@ import {
   routeSettlementDeclined,
   routeSettlementSigned,
   routeWarDeclared,
-  routeStrategicWarning,
-  routeCrisisStarted,
-  routeCrisisSpread,
-  routeCrisisEscalated,
-  routeCrisisContained,
-  routeCrisisResolved,
-  routeWorldPressureCrisisStarted,
-  routeWorldPressureCrisisResolved,
-  routeCrisisFoeHuntedByAlly,
-  routeCrisisAidSent,
-  routeEventChainStarted,
-  routeEventChainResolved,
-  routeWorldRaceUnlocked,
-  routeWorldRaceLaunchBegun,
-  routeWorldRaceCompleted,
-  routeOpportunisticWar,
+} from '@/ui/notification-routes/diplomacy-routes';
+import {
+  formatEconomyTreasuryStrainMessage,
+  routeDroppedProductionItem,
+  routeEconomyTreasuryStrain,
+  routeFactionTransition,
+} from '@/ui/notification-routes/empire-routes';
+import {
   routeSabotageReliefDiscovered,
   routeCityFlipped,
   routeCourierIntercepted,
@@ -50,8 +47,18 @@ import {
   routeScandalExposed,
   routeIntelReportAcquired,
   ESPIONAGE_NOTIFICATION_ROUTES,
-  type NotificationSink,
-} from '@/ui/notification-routing';
+} from '@/ui/notification-routes/espionage-routes';
+import { routeBarbarianSpawned } from '@/ui/notification-routes/map-routes';
+import { getNotificationTargetsForEvent } from '@/ui/notification-routes/notification-audience';
+import { type NotificationSink } from '@/ui/notification-routes/notification-sink';
+import {
+  routeEraAdvanced,
+  routeLegendaryWonder,
+  routeStrategicWarning,
+  routeWorldRaceUnlocked,
+  routeWorldRaceLaunchBegun,
+  routeWorldRaceCompleted,
+} from '@/ui/notification-routes/world-routes';
 import {
   ESPIONAGE_NOTIFICATION_EVENT_TYPES,
   findUncoveredEspionageNotifications,

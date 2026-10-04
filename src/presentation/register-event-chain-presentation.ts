@@ -12,11 +12,8 @@
  * only its own toast, unchanged.
  */
 import type { PresentationRegistrar } from '@/presentation/register-all';
-import {
-  routeEventChainStarted,
-  routeEventChainResolved,
-  type NotificationSink,
-} from '@/ui/notification-routing';
+import { routeEventChainStarted, routeEventChainResolved } from '@/ui/notification-routes/crisis-routes';
+import { type NotificationSink } from '@/ui/notification-routes/notification-sink';
 import { buildEventChainConclusionMomentItem } from '@/systems/event-chain-presentation';
 
 export const registerEventChainPresentation: PresentationRegistrar = (bus, ctx) => {

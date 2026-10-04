@@ -1,7 +1,7 @@
 import type { GameState } from '@/core/types';
 import { appendNotification, type NotificationCityAction, type NotificationEntry } from '@/core/notification-log';
 import { collectEvent } from '@/core/hotseat-events';
-import type { NotificationSink } from '@/ui/notification-routing';
+import type { NotificationSink } from '@/ui/notification-routes/notification-sink';
 
 export interface NotificationDeliveryDeps {
   getState: () => GameState;

@@ -11,7 +11,7 @@
  */
 import type { GameState, HexCoord } from '@/core/types';
 import type { NotificationEntry } from '@/core/notification-log';
-import type { NotificationSink } from '@/ui/notification-routing';
+import type { NotificationSink } from '@/ui/notification-routes/notification-sink';
 import type { PendingCityCaptureChoice } from '@/input/city-assault-flow';
 import type { LandUnitWaterRecovery } from '@/systems/unit-water-recovery';
 

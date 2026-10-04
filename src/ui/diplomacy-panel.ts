@@ -11,7 +11,7 @@ import { getRivalryForViewer } from '@/systems/rivalry-system';
 import { openWarGoalPanel } from '@/ui/war-goal-panel';
 import { openSettlementOfferPanel } from '@/ui/settlement-offer-panel';
 import { openWarConferencePanel } from '@/ui/war-conference-panel';
-import { TREATY_LABELS, describeWarReason } from '@/ui/notification-routing';
+import { TREATY_LABELS, describeWarReason } from '@/ui/notification-routes/diplomacy-routes';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { hasDiscoveredMinorCiv } from '@/systems/discovery-system';

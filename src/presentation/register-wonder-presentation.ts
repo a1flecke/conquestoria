@@ -6,7 +6,7 @@
 import { getWonderDefinition } from '@/systems/wonder-definitions';
 import { buildWonderDiscoveryRevealItem } from '@/systems/wonder-discovery-reveal';
 import { buildLegendaryWonderCompletionCeremonyItem } from '@/systems/legendary-wonder-completion-presentation';
-import { routeLegendaryWonder } from '@/ui/notification-routing';
+import { routeLegendaryWonder } from '@/ui/notification-routes/world-routes';
 import type { PresentationRegistrar } from '@/presentation/register-all';
 
 export const registerWonderPresentation: PresentationRegistrar = (bus, ctx) => {
