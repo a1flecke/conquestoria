@@ -131,6 +131,11 @@
         { "action": "shell", "resource": "security *", "effect": "deny" },
         { "action": "shell", "resource": "diskutil *", "effect": "deny" },
 
+        // The user's own OpenCode config holds the approver plugin settings and a credential. Changing it needs the
+        // human (see .claude/rules/opencode-config.md); reading the credential file is never allowed.
+        { "action": "external_directory", "resource": "/Users/*/.config/opencode/*", "effect": "ask" },
+        { "action": "shell", "resource": "* *.config/opencode/service.json*", "effect": "deny" },
+
         { "action": "subagent", "resource": "*", "effect": "deny" }
       ]
     }

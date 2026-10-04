@@ -87,6 +87,25 @@ the form the local approver recognizes without a prompt:
   `node <file>`, `git push` to `main`, `gh pr merge` and deletions are not tasks, and are expected to ask
   for human approval — do not look for a way around that through `run-with-mise.sh`.
 
+### The local approver plugin and `~/.config/opencode` (every agent)
+
+The OpenCode approver plugin (`a1flecke/opencode-auto-approval`) is a security control configured in the user's
+own `~/.config/opencode/opencode.jsonc`. Full rules: `.claude/rules/opencode-config.md`. In short:
+
+- Edit `~/.config/opencode/**` only when the user explicitly asks in this conversation; back it up to
+  `~/.config/opencode/backups/` first, change only the requested lines, and never copy anything from it (it holds a
+  credential) into a repo, issue, PR or log.
+- OpenCode **auto-loads every folder in `~/.config/opencode/plugins/`**, option-less, in addition to the config's
+  `plugins` entry. Plugin releases therefore live in `~/.config/opencode/plugin-releases/opencode-auto-approval@<version>`
+  and the config's `package` path points there. Never unpack a release, old version or dev checkout into `plugins/`.
+- Upgrade = verify the `.sha256` and `gh attestation verify`, unpack read-only, diff the config (only `package`
+  changes), restart **only when OpenCode is idle** by stopping the server by its exact pid (never `pkill`), then
+  confirm the log shows exactly one `loading plugin` and no `failed to load plugin`.
+- `trustedScripts` may list only narrow scripts with fixed behaviour (`dev.sh` and the sync/push helpers). Never list
+  `run-with-mise.sh`, `run-under-host-lease.sh`, `run-durable-test-suite.sh` or anything that runs its arguments: the
+  approver judges argument shape, so it would auto-approve `gh pr merge` or `git push origin main`.
+- The plugin repo is public: issues there stay generic (no private names, paths or secrets).
+
 ### Rebase, publish, and pull-request workflow
 
 Work keeps landing on `origin/main`; rebase your branch onto it routinely. The
