@@ -3,7 +3,7 @@
  * (#787 phase 7). Moved verbatim from `main.ts`.
  */
 import type { PresentationRegistrar } from '@/presentation/register-all';
-import { getEffectiveGoldPerTurn, getRouteTechGoldBonus } from '@/systems/trade-system';
+import { getEffectiveGoldPerTurn, getRouteTechGoldBonus } from '@/systems/trade-route-economy';
 
 export const registerTradePresentation: PresentationRegistrar = (bus, ctx) => {
   const unsubscribers = [

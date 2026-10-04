@@ -10,7 +10,8 @@ import {
 } from '@/storage/save-migrations';
 import { CURRENT_SAVE_SCHEMA_VERSION as LEAF_SCHEMA_VERSION } from '@/storage/save-schema-version';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
-import { getTradeUnitTripBonus, canEstablishRoute } from '@/systems/trade-system';
+import { canEstablishRoute } from '@/systems/trade-caravan-system';
+import { getTradeUnitTripBonus } from '@/systems/trade-route-economy';
 import { applyUnitUpgradeToState } from '@/systems/unit-upgrade-system';
 import { foundCity } from '@/systems/city-system';
 import { processPurposefulBarbarians } from '@/systems/barbarian-system';

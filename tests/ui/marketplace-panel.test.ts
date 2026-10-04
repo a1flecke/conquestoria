@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createMarketplacePanel } from '@/ui/marketplace-panel';
-import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
+import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 import type { GameState } from '@/core/types';
 
 function buildMarketState(overrides: Partial<NonNullable<GameState['marketplace']>> = {}): NonNullable<GameState['marketplace']> {

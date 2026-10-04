@@ -10,7 +10,7 @@ import { getCompletedLegendaryLandmarksForCity } from '@/systems/legendary-wonde
 import { getLegendaryWonderHostLocationIntelForViewer } from '@/systems/legendary-wonder-intel-presentation';
 import { renderTerritoryFrontierInfo } from '@/ui/territory-frontier-info';
 import { createGameButton } from '@/ui/ui-kit';
-import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
+import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 
 function titleCase(value: string): string {
   return value

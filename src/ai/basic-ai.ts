@@ -98,7 +98,8 @@ import { getLegendaryWonderTacticalEffectAiValue } from '@/systems/legendary-won
 import { BEAST_OWNER, isBeastUnit, canUnitAttackBeast } from '@/systems/beast-system';
 import { applyDiplomaticReaction } from '@/systems/minor-civ-system';
 import { getCivAvailableResources, canEstablishOutpost, performEstablishOutpost } from '@/systems/resource-acquisition-system';
-import { canEstablishRoute, RESOURCE_DEFINITIONS } from '@/systems/trade-system';
+import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
+import { canEstablishRoute } from '@/systems/trade-caravan-system';
 import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 import { performMinorCivFestival, performMinorCivGift } from '@/systems/minor-civ-actions';

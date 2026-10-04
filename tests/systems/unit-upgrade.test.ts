@@ -16,7 +16,7 @@ import {
   type ProductionCostContext,
 } from '@/systems/city-system';
 import { TECH_TREE, resolveCivilizationEra } from '@/systems/tech-definitions';
-import { createMarketplaceState } from '@/systems/trade-system';
+import { createMarketplaceState } from '@/systems/marketplace-system';
 
 const TECH_ERA_BY_ID = new Map(TECH_TREE.map(tech => [tech.id, tech.era]));
 

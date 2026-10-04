@@ -1,27 +1,26 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
-  RESOURCE_DEFINITIONS,
-  RESOURCE_ICONS,
-  RESOURCE_TECH,
-  BASE_PRICES,
   createMarketplaceState,
   calculatePrice,
   detectMonopoly,
-  calculateTradeRouteGold,
   updatePrices,
   processFashionCycle,
+} from '@/systems/marketplace-system';
+import { RESOURCE_DEFINITIONS, RESOURCE_ICONS, RESOURCE_TECH, BASE_PRICES } from '@/systems/resource-definitions';
+import { canEstablishRoute, establishRoute, resolveFromCity } from '@/systems/trade-caravan-system';
+import {
+  calculateTradeRouteGold,
   processTradeRouteIncome,
   getEffectiveGoldPerTurn,
   getRouteCapacity,
   getTradeUnitTripBonus,
-  canEstablishRoute,
-  establishRoute,
+} from '@/systems/trade-route-economy';
+import {
   removeRouteForUnit,
-  resolveFromCity,
   removeRouteById,
   scrubStaleForeignRoutes,
   scrubEmbargoedRoutes,
-} from '@/systems/trade-system';
+} from '@/systems/trade-route-lifecycle';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { UNIT_DESCRIPTIONS } from '@/systems/unit-descriptions';
 import { TRAINABLE_UNITS, PRODUCTION_ICONS } from '@/systems/city-system';

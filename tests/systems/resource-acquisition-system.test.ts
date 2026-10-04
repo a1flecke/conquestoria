@@ -10,7 +10,7 @@ import {
 } from '@/systems/resource-acquisition-system';
 import type { GameState } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
-import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
+import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 
 // Minimal GameState builder — only the fields getCivAvailableResources reads.
 function makeTechState(completed: string[] = []) {

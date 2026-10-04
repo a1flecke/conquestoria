@@ -12,7 +12,7 @@ import { createRng } from './map-generator';
 import { hexDistance } from './hex-utils';
 import { modifyRelationship } from './diplomacy-state';
 import { transferCapturedCityOwnership } from './city-capture-system';
-import { removeRouteById } from './trade-system';
+import { removeRouteById } from './trade-route-lifecycle';
 import { applyResearchCompletionConsequences } from './tech-completion-system';
 import { createUnit } from './unit-lifecycle';
 import { resolveCivDefinition } from './civ-registry';

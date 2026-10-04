@@ -112,7 +112,7 @@ Filed from this audit (no production refactoring here):
 - #1250 — decompose `src/ui/notification-routing.ts`.
 - #1248 — break the `src/systems` runtime import cycle.
 - #1246 — decompose `src/systems/faction-system.ts` (done: `faction-unrest-model` / `-federalism` / `-relief` / `-pressure` / `-commands`; `faction-system.ts` is now the turn orchestration only).
-- #1249 — decompose `src/systems/trade-system.ts`.
+- #1249 — decompose `src/systems/trade-system.ts` (done: `marketplace-system` / `trade-route-economy` / `trade-route-lifecycle` / `trade-caravan-system`; catalog lookups moved into `resource-definitions`; `trade-system.ts` deleted).
 - #1247 — route viewer-scoped tile reads through `getVisibility`/`isVisible`.
 
 ## Non-goals

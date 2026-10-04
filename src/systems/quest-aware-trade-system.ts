@@ -1,6 +1,6 @@
 import type { GameState, TradeRoute } from '@/core/types';
 import { applyQuestGameplayAction, type ChainTransition } from './quest-chain-system';
-import { establishRoute } from './trade-system';
+import { establishRoute } from './trade-caravan-system';
 
 export function establishQuestAwareRoute(
   state: GameState,

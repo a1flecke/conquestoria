@@ -67,7 +67,9 @@ import * as lastSeen from '@/systems/last-seen-presentation';
 import * as economy from '@/systems/economy-system';
 import * as diplomacyRequests from '@/systems/diplomacy-requests';
 import * as territory from '@/systems/city-territory-system';
-import * as trade from '@/systems/trade-system';
+import * as marketplace from '@/systems/marketplace-system';
+import * as tradeEconomy from '@/systems/trade-route-economy';
+import * as tradeLifecycle from '@/systems/trade-route-lifecycle';
 import * as wonder from '@/systems/wonder-system';
 import * as barbarians from '@/systems/barbarian-system';
 import * as citySiege from '@/systems/city-siege-system';
@@ -113,8 +115,8 @@ const SEAMS: readonly Seam[] = [
   [discovery, 'syncCivilizationContactsFromVisibility'], [lastSeen, 'refreshLastSeenPresentationsForCiv'],
   [economy, 'applyEconomyTurn'], [diplomacyRequests, 'pruneExpiredDiplomaticRequests'],
   [territory, 'recalculateTerritory'], [territory, 'applyTerritoryFrontierProgressWithEvents'],
-  [trade, 'processFashionCycle'], [trade, 'updatePrices'], [trade, 'scrubStaleForeignRoutes'],
-  [trade, 'scrubEmbargoedRoutes'], [trade, 'processTradeRouteIncome'], [wonder, 'processWonderEffects'],
+  [marketplace, 'processFashionCycle'], [marketplace, 'updatePrices'], [tradeLifecycle, 'scrubStaleForeignRoutes'],
+  [tradeLifecycle, 'scrubEmbargoedRoutes'], [tradeEconomy, 'processTradeRouteIncome'], [wonder, 'processWonderEffects'],
   [barbarians, 'processPurposefulBarbarians'], [citySiege, 'applyCityHpRegeneration'],
   [minorCiv, 'processMinorCivTurn'], [minorCiv, 'checkCampEvolution'], [minorCiv, 'checkEraAdvancement'],
   [minorCiv, 'processMinorCivEraUpgrade'], [beasts, 'processBeasts'], [beasts, 'applyHoardChoice'],

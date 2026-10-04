@@ -1,4 +1,4 @@
-import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
+import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 import { getResourceEffectLabel } from '@/systems/resource-definitions';
 
 const LEGEND_ITEMS = [
