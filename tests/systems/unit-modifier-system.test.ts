@@ -223,11 +223,25 @@ describe('getCombatModifier — tech rows', () => {
     expect(withoutTech.mult).toBe(1);
   });
 
-  it('naval-gunnery: +5 flat only for naval class (negative: land unit)', () => {
-    const naval = getCombatModifier('trireme', 'attacker', baseCombatCtx({ completedTechs: ['naval-gunnery'] }));
-    const land = getCombatModifier('warrior', 'attacker', baseCombatCtx({ completedTechs: ['naval-gunnery'] }));
-    expect(naval.flat).toBe(5);
+  it('naval-gunnery: +5 flat only for a naval attacker shelling a city or coastal target (#1304)', () => {
+    const techs = { completedTechs: ['naval-gunnery'] };
+    const vsCity = getCombatModifier('trireme', 'attacker', baseCombatCtx({ ...techs, targetIsCity: true }));
+    const vsCoast = getCombatModifier('trireme', 'attacker', baseCombatCtx({ ...techs, targetTerrain: 'coast' }));
+    const shipVsShip = getCombatModifier('trireme', 'attacker', baseCombatCtx(techs));
+    const defending = getCombatModifier('trireme', 'defender', baseCombatCtx({ ...techs, targetIsCity: true }));
+    const land = getCombatModifier('warrior', 'attacker', baseCombatCtx({ ...techs, targetIsCity: true }));
+    expect(vsCity.flat).toBe(5);
+    expect(vsCoast.flat).toBe(5);
+    expect(shipVsShip.flat).toBe(0);
+    expect(defending.flat).toBe(0);
     expect(land.flat).toBe(0);
+  });
+
+  it('naval-armor: +5 flat for a naval defender only (#1304)', () => {
+    const techs = { completedTechs: ['naval-armor'] };
+    expect(getCombatModifier('trireme', 'defender', baseCombatCtx(techs)).flat).toBe(5);
+    expect(getCombatModifier('trireme', 'attacker', baseCombatCtx(techs)).flat).toBe(0);
+    expect(getCombatModifier('warrior', 'defender', baseCombatCtx(techs)).flat).toBe(0);
   });
 
   it('precision-casting: +5 flat only for cannon (negative: catapult)', () => {

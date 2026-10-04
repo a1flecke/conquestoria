@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { evaluateAITechCapabilities } from '@/ai/ai-tech-evaluation';
+import {
+  evaluateAITechCapabilities,
+  getTechCombatEffectValue,
+  getTechEconomicEffectValue,
+  TECH_EFFECT_VALUE_CAP,
+} from '@/ai/ai-tech-evaluation';
 import type { Tech } from '@/core/types';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
@@ -69,5 +74,25 @@ describe('structured AI technology capabilities', () => {
     } finally {
       archer.requiredTechs = original;
     }
+  });
+
+  it('values a tech\'s own table effect through one bounded term (#1304)', () => {
+    const tech = (id: string) => TECH_TREE.find(t => t.id === id)!;
+    const effectOnly = evaluateAITechCapabilities(tech('empiricism'));
+    const noEffect = evaluateAITechCapabilities(tech('fire'));
+    expect(effectOnly.economicSupport).toBeGreaterThan(noEffect.economicSupport);
+    expect(getTechEconomicEffectValue('empiricism')).toBeGreaterThan(0);
+    expect(getTechEconomicEffectValue('fire')).toBe(0);
+    expect(getTechCombatEffectValue('naval-gunnery')).toBeGreaterThan(0);
+    for (const t of TECH_TREE) {
+      expect(getTechEconomicEffectValue(t.id)).toBeLessThanOrEqual(TECH_EFFECT_VALUE_CAP);
+      expect(getTechCombatEffectValue(t.id)).toBeLessThanOrEqual(0.5);
+    }
+  });
+
+  it('prices a scaling effect no higher than the flat effect it replaced', () => {
+    // Banking-style conditional rows must not outrank an unconditional city-wide bonus of the same size.
+    expect(getTechEconomicEffectValue('empiricism')).toBeLessThanOrEqual(TECH_EFFECT_VALUE_CAP);
+    expect(getTechEconomicEffectValue('banking')).toBeLessThan(TECH_EFFECT_VALUE_CAP);
   });
 });

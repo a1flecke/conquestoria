@@ -136,10 +136,10 @@ export function needsDecision(row: TechAuditRow, repeated: ReadonlySet<string>):
 }
 
 export type AiValuationPath =
-  /** Capability from unlocked units / buildings is valued; the tech's own yield effect is not. */
-  | 'unlock-valued-effect-blind'
-  /** Only a yield or modifier effect: the AI sees era progress and nothing about the effect. */
-  | 'effect-blind'
+  /** Capability from unlocked units / buildings plus the tech's own bounded effect value (#1304). */
+  | 'unlock+effect-valued'
+  /** Only a yield, discount or modifier effect, valued by the bounded effect term. */
+  | 'effect-valued'
   /** Valued through unlocks only; no effect to value. */
   | 'unlock-valued'
   /** Only era progress (and pacing metadata where present). */
@@ -147,12 +147,14 @@ export type AiValuationPath =
 
 /**
  * `evaluateAITechCapabilities` (src/ai/ai-tech-evaluation.ts) scores units unlocked, the unlocked buildings' own
- * yields, resources revealed, era and `tech.pacing` — it never reads the yield or unit-modifier tables.
- * `tests/systems/tech-strategic-audit.test.ts` pins that fact so this column cannot go stale silently.
+ * yields, resources revealed, era, `tech.pacing`, and — since #1304 — a small bounded value for the tech's own
+ * yield / discount / combat rows (`getTechEconomicEffectValue`, `getTechCombatEffectValue`). Bespoke code-owned
+ * effects (espionage, crisis, unrest) are still invisible to it unless an unlock carries them.
+ * `tests/systems/tech-strategic-audit.test.ts` pins both facts so this column cannot go stale silently.
  */
 export function aiValuationPath(row: TechAuditRow): AiValuationPath {
   const hasEffect = row.yieldEffects.length > 0 || row.unitModifiers.length > 0 || row.costDiscounts.length > 0;
   const hasUnlock = row.unitUnlocks > 0 || row.buildingUnlocks > 0;
-  if (hasEffect) return hasUnlock ? 'unlock-valued-effect-blind' : 'effect-blind';
+  if (hasEffect) return hasUnlock ? 'unlock+effect-valued' : 'effect-valued';
   return hasUnlock ? 'unlock-valued' : 'era-only';
 }

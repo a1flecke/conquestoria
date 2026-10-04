@@ -43,7 +43,7 @@ const ERA_5_TECHS: Tech[] = [
   // CIVICS (2)
   { id: 'civic-humanism', name: 'Civic Humanism', track: 'civics', cost: 315,
     prerequisites: ['political-philosophy', 'drama-poetry'],
-    unlocks: ['+5% gold empire-wide'], era: 5 },
+    unlocks: ['+1 gold per forum or courthouse'], era: 5 },
   { id: 'constitutional-law', name: 'Constitutional Law', track: 'civics', cost: 390,
     prerequisites: ['political-philosophy'],
     unlocks: ['Reduces unrest in newly captured cities'], era: 5 },
@@ -51,7 +51,7 @@ const ERA_5_TECHS: Tech[] = [
   // EXPLORATION (2)
   { id: 'circumnavigation', name: 'Circumnavigation', track: 'exploration', cost: 315,
     prerequisites: ['exploration-tech', 'celestial-navigation'],
-    unlocks: ['Scouts reveal uncharted continents faster'],
+    unlocks: ['Required for the Explorers Guild'],
     unlocksBuildings: ['explorers_guild'], era: 5 },
   { id: 'colonial-charter', name: 'Colonial Charter', track: 'exploration', cost: 315,
     prerequisites: ['exploration-tech', 'military-logistics'],
@@ -76,7 +76,7 @@ const ERA_5_TECHS: Tech[] = [
   // PHILOSOPHY (2)
   { id: 'empiricism', name: 'Empiricism', track: 'philosophy', cost: 390,
     prerequisites: ['natural-philosophy'],
-    unlocks: ['+1 science all cities'], era: 5 },
+    unlocks: ['+1 science per observatory'], era: 5 },
   { id: 'rationalism', name: 'Rationalism', track: 'philosophy', cost: 390,
     prerequisites: ['humanism'],
     unlocks: ['+5% science empire-wide'], era: 5 },
@@ -95,12 +95,12 @@ const ERA_5_TECHS: Tech[] = [
     unlocks: ['+1 gold per coastal city; naval trade reaches foreign continents'], unlocksBuildings: ['harbour_exchange'], era: 5 },
   { id: 'naval-gunnery', name: 'Naval Gunnery', track: 'maritime', cost: 360,
     prerequisites: ['naval-warfare'],
-    unlocks: ['Naval combat units gain +5 strength'], era: 5 },
+    unlocks: ['Naval combat units gain +5 strength when attacking a city or coastal target'], era: 5 },
 
   // METALLURGY (2)
   { id: 'blast-furnace-tech', name: 'Blast Furnace', track: 'metallurgy', cost: 390,
     prerequisites: ['steel-forging'],
-    unlocks: ['+1 production all cities'], unlocksBuildings: ['blast_furnace'], era: 5 },
+    unlocks: ['+1 production in cities with a forge'], unlocksBuildings: ['blast_furnace'], era: 5 },
   { id: 'cannon-casting', name: 'Cannon Casting', track: 'metallurgy', cost: 390,
     prerequisites: ['blast-furnace-tech'],
     unlocks: ['Cannon production cost reduced by 15%'], era: 5 },
@@ -160,7 +160,7 @@ const ERA_6_TECHS: Tech[] = [
   // audit's recommendedCost. See game-balance.md's Pacing Regression Prevention rule.
   { id: 'mercantilism', name: 'Mercantilism', track: 'economy', cost: 745,
     prerequisites: ['colonial-trade', 'banking'],
-    unlocks: ['Trade route capacity +1; +5% gold empire-wide'],
+    unlocks: ['Trade route capacity +1; +1 gold per distinct peacetime trade partner civilization'],
     unlocksUnits: ['merchant_wagon'], era: 6 },
 
   // SCIENCE (2)
@@ -182,7 +182,7 @@ const ERA_6_TECHS: Tech[] = [
   // EXPLORATION (2)
   { id: 'land-survey', name: 'Land Survey', track: 'exploration', cost: 370,
     prerequisites: ['colonial-charter', 'renaissance-architecture'],
-    unlocks: ['+1 food in all cities empire-wide'], era: 6 },
+    unlocks: ['New cities are founded with +3 food'], era: 6 },
   { id: 'colonial-administration', name: 'Colonial Administration', track: 'exploration', cost: 370,
     prerequisites: ['colonial-charter', 'mercantilism'],
     unlocks: ['Colonial Administration national project available'], unlocksBuildings: ['colonial_administration'], era: 6 },
@@ -214,7 +214,7 @@ const ERA_6_TECHS: Tech[] = [
   // ARTS (2)
   { id: 'baroque-music', name: 'Baroque Music', track: 'arts', cost: 405,
     prerequisites: ['classical-music-form'],
-    unlocks: ['+1 gold per culture building; morale bonus'], unlocksBuildings: ['concert_hall'], era: 6 },
+    unlocks: ['+2 gold per concert hall building'], unlocksBuildings: ['concert_hall'], era: 6 },
   { id: 'portrait-art', name: 'Portrait Art', track: 'arts', cost: 460,
     prerequisites: ['renaissance-painting'],
     unlocks: ['+1 gold per art gallery in empire'], era: 6 },
@@ -246,7 +246,7 @@ const ERA_6_TECHS: Tech[] = [
   // COMMUNICATION (2)
   { id: 'newspaper-press', name: 'Newspaper Press', track: 'communication', cost: 370,
     prerequisites: ['printing-press', 'postal-service'],
-    unlocks: ['+2 science empire-wide'], era: 6 },
+    unlocks: ['+2 science in developed cities (4 or more constructions)'], era: 6 },
   { id: 'courier-network', name: 'Courier Network', track: 'communication', cost: 460,
     prerequisites: ['postal-service'],
     unlocks: ['+1 gold per own city connected by road to your capital'], era: 6 },
@@ -292,7 +292,7 @@ const ERA_7_TECHS: Tech[] = [
   // SCIENCE (2)
   { id: 'industrialization', name: 'Industrialization', track: 'science', cost: 555,
     prerequisites: ['natural-history', 'hydraulics'],
-    unlocks: ['+2 science empire-wide; Peoples University national project available'], unlocksBuildings: ['peoples_university'], era: 7 },
+    unlocks: ['+2 science in cities with a factory; Peoples University national project available'], unlocksBuildings: ['peoples_university'], era: 7 },
   { id: 'applied-chemistry', name: 'Applied Chemistry', track: 'science', cost: 495,
     prerequisites: ['natural-history', 'precision-casting'],
     unlocks: ['+1 science per production building empire-wide'], era: 7 },
@@ -335,7 +335,7 @@ const ERA_7_TECHS: Tech[] = [
     unlocks: ['+1 gold per 3 population empire-wide'], era: 7 },
   { id: 'positivism', name: 'Positivism', track: 'philosophy', cost: 555,
     prerequisites: ['enlightenment', 'natural-history'],
-    unlocks: ['+2 science empire-wide; universities generate +1 additional science'], era: 7 },
+    unlocks: ['+2 science in cities with both an archive and a university; universities generate +1 additional science'], era: 7 },
 
   // ARTS (2)
   { id: 'romanticism', name: 'Romanticism', track: 'arts', cost: 495,

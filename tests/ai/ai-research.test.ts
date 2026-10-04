@@ -434,13 +434,15 @@ describe('AI strategic research planning', () => {
     expect(wide?.trace.candidates.find(c => c.id === 'separation-of-powers')?.reasonCodes)
       .toContain('unrest-relief');
 
-    // A compact empire (no pressured cities) does not get the bonus, so id
-    // tiebreak keeps the alphabetically-first plain tech.
+    // A compact empire (no pressured cities) does not get the relief bonus. Since #1304 the tech's own yield row
+    // is valued by the bounded effect term, so the frontier can still be separation-of-powers; what must not happen
+    // is an unrest-relief reason or bonus.
     const compact = planAIResearch(context(techs, {
       pressuredReliefCityIdsByBuildingId: { bureaucracy: [] },
     }));
-    expect(compact?.frontierTechId).toBe('aaa-plain');
     expect(compact?.scoreComponents.unrestReliefTechBonus).toBe(0);
+    expect(compact?.trace.candidates.find(c => c.id === 'separation-of-powers')?.reasonCodes)
+      .not.toContain('unrest-relief');
   });
 
   it('#927 Rung 6: generic relief research recognizes the Federal Autonomy direct-tech unlock', () => {
@@ -459,8 +461,9 @@ describe('AI strategic research planning', () => {
     const compact = planAIResearch(context(techs, {
       pressuredReliefCityIdsByBuildingId: { federalism: [] },
     }));
-    expect(compact?.frontierTechId).toBe('aaa-plain');
     expect(compact?.scoreComponents.unrestReliefTechBonus).toBe(0);
+    expect(compact?.trace.candidates.find(c => c.id === 'decolonization')?.reasonCodes)
+      .not.toContain('unrest-relief');
   });
 
   it('bounds search to four edges and twenty-four downstream targets', () => {

@@ -25,6 +25,20 @@ import { hexKey, hexNeighbors } from '@/systems/hex-utils';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
+/**
+ * #1304: the flat / percentage yield kinds stay as vocabulary but shipped techs are moving off them
+ * (tech-strategic-audit pins the remaining ones), so their resolvers are exercised through a synthetic row
+ * that is always removed again.
+ */
+function withSyntheticModifiers<T>(rows: typeof TECH_YIELD_MODIFIERS, run: () => T): T {
+  TECH_YIELD_MODIFIERS.push(...rows);
+  try {
+    return run();
+  } finally {
+    TECH_YIELD_MODIFIERS.splice(TECH_YIELD_MODIFIERS.length - rows.length, rows.length);
+  }
+}
+
 function forceTile(
   map: GameMap,
   coord: HexCoord,
@@ -107,7 +121,10 @@ describe('getCityTechYields — per-kind coverage', () => {
 
   it('cityFlat applies to every city regardless of buildings', () => {
     const city = makeCity();
-    const yields = getCityTechYields(city, map, ['empiricism']).total;
+    const yields = withSyntheticModifiers(
+      [{ techId: 'empiricism', label: 'synthetic +1 science', effect: { kind: 'cityFlat', yields: { science: 1 } } }],
+      () => getCityTechYields(city, map, ['empiricism']).total,
+    );
     expect(yields.science).toBe(1);
     const withoutTech = getCityTechYields(city, map, []).total;
     expect(withoutTech.science).toBe(0);
@@ -272,8 +289,13 @@ describe('getCityTechYields — per-kind coverage', () => {
 
 describe('getEmpireTechPercents / applyEmpireTechPercents', () => {
   it('sums two +5% gold entries to +10%', () => {
-    const percents = getEmpireTechPercents(['civic-humanism', 'mercantilism']);
+    const percents = withSyntheticModifiers([
+      { techId: 'civic-humanism', label: 'synthetic +5% gold', effect: { kind: 'empirePercent', resource: 'gold', percent: 5 } },
+      { techId: 'mercantilism', label: 'synthetic +5% gold', effect: { kind: 'empirePercent', resource: 'gold', percent: 5 } },
+    ], () => getEmpireTechPercents(['civic-humanism', 'mercantilism']));
     expect(percents.gold).toBe(10);
+    // The real percentage techs that remain stack the same way: rationalism (+5% science) with pragmatism (+5% all).
+    expect(getEmpireTechPercents(['rationalism', 'pragmatism']).science).toBe(10);
   });
 
   it('is empty without the qualifying tech', () => {

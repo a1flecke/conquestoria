@@ -77,16 +77,16 @@ export function renderTechAuditReport(rows: readonly TechAuditRow[]): string {
   out.push('');
 
   out.push('## AI valuation path', '');
-  out.push('`evaluateAITechCapabilities` (src/ai/ai-tech-evaluation.ts) values unlocked units, unlocked buildings, revealed resources, era and `tech.pacing`. It never reads the yield, cost-discount or unit-modifier tables.', '');
+  out.push('`evaluateAITechCapabilities` (src/ai/ai-tech-evaluation.ts) values unlocked units, unlocked buildings, revealed resources, era and `tech.pacing`, plus (since #1304) a bounded value for the tech\'s own yield, cost-discount and combat-modifier rows (`getTechEconomicEffectValue`, capped at 3; `getTechCombatEffectValue`, capped at 0.5). Effects owned by bespoke code (espionage, crisis, unrest) are valued only through the unlocks that carry them.', '');
   out.push('| Path | Meaning | Techs |', '|---|---|---:|');
   const meaning: Record<string, string> = {
-    'unlock-valued-effect-blind': 'unlocks valued; own effect invisible',
-    'effect-blind': 'effect only: AI sees era progress and nothing else',
+    'unlock+effect-valued': 'unlocks valued; own table effect valued by the bounded term',
+    'effect-valued': 'table effect only, valued by the bounded term',
     'unlock-valued': 'valued through unlocks',
     'era-only': 'era progress only',
   };
   for (const path of Object.keys(meaning)) out.push(`| ${path} | ${meaning[path]} | ${rows.filter(r => aiValuationPath(r) === path).length} |`);
-  out.push('', 'Changing a flat tech to a conditional one does not change AI behaviour on its own: each child that rewrites an effect must add or confirm a bounded valuation term (precedent: `unrestReliefTechBonus`, `scienceStarvationTechBonus`).', '');
+  out.push('', 'The effect term is state-independent (it prices scaling rows at a small assumed count) so it never reads opponent state; it makes a rewritten effect visible to research planning without making any one tech dominate.', '');
 
   for (const band of BANDS) {
     out.push(`## Child ${band.child} target list — ${band.label}`, '');

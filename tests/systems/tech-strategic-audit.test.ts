@@ -51,10 +51,15 @@ describe('tech strategic-choice audit (#420 child 1)', () => {
     expect(wrong).toEqual([]);
   });
 
-  it('leaves no flat yield in Eras 1–11 without a REPLACE decision', () => {
+  it('leaves no flat yield in Eras 1–11 without a REPLACE decision or a tracked FOLLOW-UP', () => {
     const flat = rows.filter(row => row.era <= 11 && row.yieldEffects.some(e => ['cityFlat', 'empireFlat', 'empirePercent'].includes(e.kind)));
     expect(flat.length).toBeGreaterThan(0);
-    expect(flat.filter(row => TECH_AUDIT_ENTRIES[row.id]?.cls !== 'REPLACE').map(row => row.id)).toEqual([]);
+    const undecided = flat.filter(row => {
+      const entry = TECH_AUDIT_ENTRIES[row.id];
+      if (entry?.cls === 'REPLACE') return false;
+      return !(entry?.cls === 'FOLLOW-UP' && /#\d+/.test(entry.followUp ?? ''));
+    });
+    expect(undecided.map(row => row.id)).toEqual([]);
   });
 
   it('reconciles all 24 warfare ideas, two per era, hard and soft', () => {
@@ -64,9 +69,12 @@ describe('tech strategic-choice audit (#420 child 1)', () => {
     }
   });
 
-  it('pins the fact the AI valuation column rests on: the evaluator never reads effect tables', () => {
+  it('pins the fact the AI valuation column rests on: the evaluator reads the effect tables through one bounded term', () => {
     const source = readFileSync(join(process.cwd(), 'src/ai/ai-tech-evaluation.ts'), 'utf8');
-    expect(source).not.toMatch(/TECH_YIELD_MODIFIERS|TECH_COST_DISCOUNTS|UNIT_MODIFIERS/);
+    expect(source).toMatch(/TECH_YIELD_MODIFIERS/);
+    expect(source).toMatch(/TECH_COST_DISCOUNTS/);
+    expect(source).toMatch(/UNIT_MODIFIERS/);
+    expect(source).toContain('getTechEconomicEffectValue(tech.id)');
     const research = readFileSync(join(process.cwd(), 'src/ai/ai-research.ts'), 'utf8');
     expect(research).not.toMatch(/TECH_YIELD_MODIFIERS|UNIT_MODIFIERS/);
   });
