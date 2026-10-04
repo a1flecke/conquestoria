@@ -5,6 +5,7 @@ import { getDetectionUnitTypeForCiv, cityFollowsOwnFaith } from '@/systems/city-
 import { preach, isPreachTargetEligible } from '@/systems/religion-system';
 import { foundCityInState } from '@/systems/city-founding-system';
 import { canFoundCityAt } from '@/systems/city-territory-system';
+import { getOwnedCities, getOwnedCityCount } from '@/systems/city-ownership';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { getMovementRangeDetails } from '@/systems/unit-movement-queries';
@@ -41,7 +42,7 @@ import { evaluateStrategicLaunchDecision } from './ai-strategic-doctrine';
 import { chooseProduction } from './ai-strategy';
 import { evaluateDiplomacy, evaluateMinorCivDiplomacy, evaluateVassalage, evaluateEmbargoResponse, evaluateLeagueResponse } from './ai-diplomacy';
 import { getKnownSharedBorderOwners } from './ai-known-borders';
-import { NATIONAL_INTENT_POSTURE } from './ai-national-intent';
+import { NATIONAL_INTENT_POSTURE } from './ai-national-intent-posture';
 import { chooseWarGoal } from './ai-war-goals';
 import { declareWarGoal, getWarGoalStatus } from '@/systems/war-goal-system';
 import { getRivalryProfile } from '@/systems/rivalry-system';
@@ -223,6 +224,9 @@ function abandonLostLegendaryWonderRace(state: GameState, civId: string): Abando
 
   let nextState = state;
   const lostEvents: AbandonLegendaryWonderRaceResult['lostEvents'] = [];
+  // #1274: hoist the canonical owned-city count once per civ instead of
+  // scanning `state.cities` for every project in the loop below.
+  const ownedCityCount = getOwnedCityCount(state, civId);
 
   for (const [projectKey] of Object.entries(state.legendaryWonderProjects)) {
     const project = nextState.legendaryWonderProjects?.[projectKey];
@@ -254,7 +258,7 @@ function abandonLostLegendaryWonderRace(state: GameState, civId: string): Abando
     const city = nextState.cities[project.cityId];
     const currentQueue = city?.productionQueue ?? [];
     const compensation = loseLegendaryWonderRace(projectInvestment);
-    const fallbackBuild = city ? chooseLegendaryWonderFallback(nextState, civId, city.id, personalitySafe(nextState, civId)) : 'warrior';
+    const fallbackBuild = city ? chooseLegendaryWonderFallback(nextState, civId, city.id, personalitySafe(nextState, civId), ownedCityCount) : 'warrior';
     const currentProjects = nextState.legendaryWonderProjects ?? {};
 
     nextState = {
@@ -481,6 +485,7 @@ function chooseLegendaryWonderFallback(
   civId: string,
   cityId: string,
   personality: PersonalityTraits,
+  ownedCityCount: number,
 ): string {
   const civilization = state.civilizations[civId];
   const city = state.cities[cityId];
@@ -538,7 +543,7 @@ function chooseLegendaryWonderFallback(
   }
 
   if (availableBuildings.length > 0) {
-    return chooseProduction(personality, availableBuildings, atWar, civilization.cities.length);
+    return chooseProduction(personality, availableBuildings, atWar, ownedCityCount);
   }
 
   return Object.keys(BUILDINGS).find(buildingId => !city.buildings.includes(buildingId)) ?? 'warrior';
@@ -1120,8 +1125,9 @@ function processAITurnInternal(
   // slack (comfortably under pressure, economy not in critical strain) to
   // absorb its cost. setGovernancePolicy's own capacity/lock validation is the
   // only gate beyond this — never bypassed here.
-  if (civ.cities.length > 0) {
-    const averagePressure = civ.cities.reduce((sum, cityId) => sum + computeUnrestPressure(cityId, newState), 0) / civ.cities.length;
+  const governanceOwnedCityIds = getOwnedCities(newState, civId).map(city => city.id);
+  if (governanceOwnedCityIds.length > 0) {
+    const averagePressure = governanceOwnedCityIds.reduce((sum, cityId) => sum + computeUnrestPressure(cityId, newState), 0) / governanceOwnedCityIds.length;
     const economyStatus = getEconomyStatusForCiv(newState, civId);
     const pressured = averagePressure >= 20;
     for (const policy of GOVERNANCE_POLICY_DEFINITIONS) {
@@ -1143,9 +1149,10 @@ function processAITurnInternal(
   // bounded scope: capacity/lock validation inside assignGovernor is the only
   // gate, same as the governance-policy block above. Cities are considered in
   // descending pressure order so scarce capacity goes to the worst city first.
-  if (civ.cities.length > 0) {
-    const pressureByCityId = new Map(civ.cities.map(cityId => [cityId, computeUnrestPressure(cityId, newState)]));
-    const candidateCityIds = civ.cities
+  const governorOwnedCityIds = getOwnedCities(newState, civId).map(city => city.id);
+  if (governorOwnedCityIds.length > 0) {
+    const pressureByCityId = new Map(governorOwnedCityIds.map(cityId => [cityId, computeUnrestPressure(cityId, newState)]));
+    const candidateCityIds = governorOwnedCityIds
       .filter(cityId => (pressureByCityId.get(cityId) ?? 0) >= 20)
       .filter(cityId => !isCityGoverned(newState, cityId))
       .filter(cityId => canToggleGovernor(newState, civId, cityId))
@@ -1440,7 +1447,7 @@ function processAITurnInternal(
 
     // AI vassalage: offer vassalage if very weak
     const currentVassalCandidate = newState.civilizations[civId];
-    const currentCities = currentVassalCandidate.cities.length;
+    const currentCities = getOwnedCityCount(newState, civId);
     const currentMilitary = getVassalageMilitaryCount(newState, civId);
     const eligibleOverlords = Object.fromEntries(Object.entries(otherStrengths).filter(([id]) =>
       getVassalageEligibility(newState, civId, id).ok));

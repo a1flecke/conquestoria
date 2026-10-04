@@ -606,6 +606,45 @@ describe('pirate naval siege (#522)', () => {
     expect(result.events.some(event => event.type === 'city-razed' && event.cityId === 'port')).toBe(true);
   });
 
+  // #1274: `isOwnersLastCity` must read the authoritative city set in `state.cities`,
+  // not the denormalized `civ.cities` roster. Both fixtures below are deliberately
+  // inconsistent on purpose (the roster invariant normally holds, asserted every
+  // round) so the *source* that decides is observable.
+  it('destroys a non-last city even when the owner roster is stale and lists only one (#1274)', () => {
+    const state = siegeReadyState(2);
+    state.era = 12;
+    state.civilizations.player.techState.completed = completedTechsForEra(12);
+    state.opponentChallenge = 'veteran';
+    // Authoritative ownership: the player owns TWO cities (port + second)...
+    state.cities.second = { ...state.cities.port!, id: 'second', hp: 100, position: { q: 8, r: 8 } };
+    // ...but the denormalized roster is stale and lists only the besieged one.
+    state.civilizations.player.cities = ['port'];
+
+    const bus = new EventBus();
+    const destroyedEvents: Array<{ cityId: string }> = [];
+    bus.on('pirate:city-destroyed', event => destroyedEvents.push(event));
+
+    const result = processPiratesForCompletedRound(state, bus);
+
+    expect(result.state.cities.port).toBeUndefined();
+    expect(destroyedEvents.map(event => event.cityId)).toEqual(['port']);
+  });
+
+  it('sacks the authoritative last city even when the owner roster overcounts (#1274)', () => {
+    const state = siegeReadyState(2);
+    state.era = 12;
+    state.civilizations.player.techState.completed = completedTechsForEra(12);
+    state.opponentChallenge = 'veteran';
+    // Authoritative ownership: the player owns ONLY port...
+    // ...but the roster overcounts with a city that no longer exists.
+    state.civilizations.player.cities = ['port', 'ghost'];
+
+    const result = processPiratesForCompletedRound(state, new EventBus());
+
+    expect(result.state.cities.port).toBeDefined();
+    expect(result.state.cities.port!.hp).toBe(1);
+  });
+
   it('emits exactly one "siege" alert on the transition into falling HP, not every damaging round', () => {
     const state = siegeReadyState(100);
 

@@ -11,6 +11,7 @@ import { applyCombatOutcomeToState } from './combat-reward-system';
 import { deterministicCombatSeed, resolveCombat } from './combat-system';
 import { buildCombatContextForDefender } from './combat-context';
 import { applyCitySiegeOutcome, getCityCounterFireDamage, getCityGarrisonUnit, resolveCitySiegeDamage } from './city-siege-system';
+import { getOwnedCityCount } from './city-ownership';
 import { resolveCoastalBatteryCounterfire } from './coastal-defense-system';
 import { createSimulationRng } from './simulation-rng';
 import type { PirateEconomyModifiers } from './economy-system';
@@ -130,10 +131,11 @@ function normalizeRoundState(
     }
     const tributeByCiv = Object.fromEntries(Object.entries(faction.tributeByCiv)
       .filter(([, record]) => record.protectedUntilRound > state.turn));
-    const employerAlive = faction.contract && nextState.civilizations[faction.contract.employerId]?.cities.length > 0;
-    const targetAlive = faction.contract && nextState.civilizations[faction.contract.targetId]?.cities.length > 0;
-    const contract = faction.contract && faction.contract.expiresAfterRound > state.turn && employerAlive && targetAlive
-      ? faction.contract
+    const contractSource = faction.contract;
+    const employerAlive = contractSource ? getOwnedCityCount(nextState, contractSource.employerId) > 0 : false;
+    const targetAlive = contractSource ? getOwnedCityCount(nextState, contractSource.targetId) > 0 : false;
+    const contract = contractSource && contractSource.expiresAfterRound > state.turn && employerAlive && targetAlive
+      ? contractSource
       : null;
     const nextFaction = { ...faction, tributeByCiv, contract };
     nextState = {
@@ -799,7 +801,7 @@ export function processPiratesForCompletedRound(
       rawDamage: siege.rawDamage,
       attackerDomain: 'naval',
       hasGarrison: getCityGarrisonUnit(nextState.units, city) !== undefined,
-      isOwnersLastCity: ownerCiv.cities.length <= 1,
+      isOwnersLastCity: getOwnedCityCount(nextState, city.owner) <= 1,
       era: resolveCivilizationEra(ownerCiv.techState.completed),
       challenge: resolveChallengeForCiv(nextState, city.owner),
     });

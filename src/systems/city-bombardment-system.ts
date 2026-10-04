@@ -14,6 +14,7 @@ import {
   recordBombardment,
   resolveCitySiegeDamage,
 } from '@/systems/city-siege-system';
+import { getOwnedCityCount } from '@/systems/city-ownership';
 import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { createSimulationRng } from '@/systems/simulation-rng';
@@ -169,7 +170,7 @@ export function previewUnitCityBombardment(
     hasGarrison,
     ignoreGarrison: true,
     garrisonMitigation: CITY_BOMBARDMENT_GARRISON_MITIGATION,
-    isOwnersLastCity: (ownerCiv?.cities.length ?? 0) <= 1,
+    isOwnersLastCity: getOwnedCityCount(state, city.owner) <= 1,
     preventDestruction: true,
     era: resolveCivilizationEra(ownerCiv?.techState.completed ?? []),
     challenge: resolveChallengeForCiv(state, city.owner),
@@ -242,7 +243,7 @@ export function resolveUnitCityBombardment(
     ignoreGarrison: true,
     garrisonMitigation: CITY_BOMBARDMENT_GARRISON_MITIGATION,
     maxHpLoss: getRemainingBombardmentCap(city, state.turn),
-    isOwnersLastCity: ownerCiv.cities.length <= 1,
+    isOwnersLastCity: getOwnedCityCount(state, city.owner) <= 1,
     preventDestruction: true,
     era: resolveCivilizationEra(ownerCiv.techState.completed),
     challenge: resolveChallengeForCiv(state, city.owner),
