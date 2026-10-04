@@ -313,17 +313,21 @@ EOF
 expect_allow "$tmp/src/systems/good-rng.ts" "createSimulationRng usage"
 
 # --- #1021: allow a pre-existing baselined occurrence (path:line exact match) ---
-# Real baseline entry: src/systems/combat-system.ts:529 (#982 left this
+# Real baseline entry for src/systems/combat-system.ts (#982 left this
 # [LOW]-tagged LCG recurrence body in place -- it's already fed a
-# gameId-rooted seed by its caller, just a hand-rolled duplicate of
-# seededLcg's body, not a live seed-construction bug).
+# gameId-rooted seed by its caller, just a hand-rolled duplicate of the
+# recurrence, not a live seed-construction bug). The line is READ from the real baseline rather than
+# hard-coded: a refactor that moves code above it re-keys the entry, and this fixture must follow.
+baseline_file="$(cd "$(dirname "$0")/../.." && pwd)/.claude/rng-legacy-baseline.txt"
+baselined_at="$(sed -n 's#^src/systems/combat-system\.ts:\([0-9][0-9]*\) .*#\1#p' "$baseline_file" | head -1)"
+if [ -z "$baselined_at" ]; then echo "FAIL: no combat-system.ts entry in $baseline_file"; exit 1; fi
 mkdir -p "$tmp/src/systems"
 baselined_line='  rngState = (rngState * 48271) % 2147483647;'
 {
-  for i in $(seq 1 528); do echo "// padding line $i"; done
+  for i in $(seq 1 $((baselined_at - 1))); do echo "// padding line $i"; done
   printf '%s\n' "$baselined_line"
 } > "$tmp/src/systems/combat-system.ts"
-expect_allow "$tmp/src/systems/combat-system.ts" "baselined combat-system.ts:529 occurrence"
+expect_allow "$tmp/src/systems/combat-system.ts" "baselined combat-system.ts:$baselined_at occurrence"
 
 # --- #1021: the same offending pattern at a DIFFERENT (non-baselined) line in that
 # same file must still be blocked -- proves the baseline is line-precise, not file-wide.
