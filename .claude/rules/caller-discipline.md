@@ -22,7 +22,7 @@ row that fits and build that instead:
 | **An ordering** ("A before B") | One function that runs B as a callback after doing A, and stop exporting A | `withSettlementSigned` (war-history): the settlement event can only be written by the function that then runs the peace transition |
 | **A paired cost/consequence** ("also deduct/record X") | One command that validates, applies and pays; make the unpaid primitive private | `applyUnitUpgradeToState` owns the gold; `applyUpgrade` is no longer exported |
 | **A consequence of a fact every executor shares** ("must be called from every path that…") | Move it into the function every path already funnels through; return a payload for the caller | Beast slay lives in `applyCombatOutcomeToState` (`beastsSlain`), announced there when a bus is given |
-| **A single legal entry point** ("UI must never call the inner step") | A source rule (`scripts/check-src-rule-violations.sh` + the hook mirror + both smoke tests) **and** an importer pin in `architecture-boundaries.test.ts` | `resolveStrategicStrike` has one caller; the low-level unit movers; the single-side diplomacy writers |
+| **A single legal entry point** ("UI must never call the inner step") | A source rule (`scripts/check-src-rule-violations.sh` + the hook mirror + both smoke tests) **and** an importer pin (an `only-imported-by` rule in `tests/app/architecture/rules.ts`, or for older blocks `architecture-boundaries.test.ts`) | `resolveStrategicStrike` has one caller; the low-level unit movers; the single-side diplomacy writers |
 | **A relationship between two parts of state** ("index A must agree with index B") | A `SAVE_STATE_INVARIANTS` assert, with an earned-control test per violation, wired into the AI-playability fixture | `beast-lair-integrity`, `cargo-reciprocity`, `air-base-integrity`, `bilateral-war` |
 | **A table the AI/UI must consult** ("new X must add a row") | A data table read generically, plus a completeness test | `UNREST_RELIEF_SOURCES`, `NP_PRODUCTION_DISCOUNTS` |
 | **Two same-representation primitives in different roles** ("this string is the actor, that string the target") | Make the roles structural: a required-field options object, or a brand built only by one boundary helper | `EspionageModifierQuery` / `TurnCapturedSpyCommand` / `SensedUnits` (#1022) |
@@ -30,6 +30,19 @@ row that fits and build that instead:
 
 Do not convert a contract whose enforcement would cost more than the bug it prevents, and say so
 in the inventory rather than leaving it unclassified.
+
+## Import-direction constraints are declarative (#1241)
+
+A constraint of the form "A must not import B", "A takes exactly this binding from B", "this group has
+no cycle" or "only these modules import X" is **a rule entry, not a new regex test**. Add it to
+`ARCHITECTURE_RULES` in `tests/app/architecture/rules.ts` (kinds and semantics: `rule-engine.ts`; the
+graph: `import-graph.ts`, TypeScript-parser based, `@/` aliases resolved, runtime vs type-only edges).
+Every rule has a stable `id`, an explicit edge scope (`runtime` | `all`) and a `why`; a failure prints
+all three plus the offending edge. A matcher that matches no module, an exception whose edge is gone,
+and an allowed importer that imports nothing all **fail** — a rule cannot rot silently after a rename.
+Prove a new rule bites with a fixture graph in `rules.test.ts`. Barrel/export-surface and other
+runtime-semantic checks stay in `architecture-boundaries.test.ts`; blocks there migrate one at a time
+(#1012 first).
 
 ## Ambiguous primitives (#1022)
 
