@@ -25,6 +25,7 @@ export const TECH_AUDIT_ENTRIES: Record<string, TechAuditEntry> = {
   // ---- flat yields, Eras 9–11 (child 4) ----
 
   // ---- broad combat modifiers ----
+  'lab-grown-food': keep(2, 'Reviewed #1318 KEEP: trialled as +2 food on worked barren tiles; that took the domination AI campaign from about 12 s to 37 s locally (54 s to 118-152 s on CI) because late-game food fell for typical empires, i.e. it was a balance change, not a strategic one. The flat +2 is retained and pinned in tech-era12-13-1318.test.ts.', 0),
   'nanomaterials': keep(2, 'Reviewed #1318 KEEP: a +3 flat to every unit at era 12 is about 3% of a late unit and applies to attack and defence alike. Making it defensive-only or class-scoped would change combat balance for every unit type for a small identity gain, and its re-text to all units was a deliberate simplification. Pinned in tech-era12-13-1318.test.ts.', 0),
 
   // ---- broad cost discounts ----

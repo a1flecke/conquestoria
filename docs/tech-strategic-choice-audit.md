@@ -31,7 +31,7 @@ Scope: Eras 1–11 are audited for change; Era 12 is reference (listed, left uns
 | 9 | 33 | 0 | 0 | 0 | 1 | 16 | 3 | 13 |
 | 10 | 32 | 0 | 0 | 0 | 0 | 24 | 2 | 6 |
 | 11 | 30 | 0 | 0 | 0 | 1 | 21 | 1 | 7 |
-| 12 | 30 | 0 | 0 | 0 | 1 | 13 | 3 | 13 |
+| 12 | 30 | 1 | 0 | 0 | 1 | 12 | 3 | 13 |
 
 "No table effect" techs act through unlocked content or bespoke code (see Code owners in the inventory); Eras 1–4 have no yield-table rows at all.
 
@@ -470,7 +470,7 @@ Class/rating: rating 0 flavor, 1 unconditional number, 2 conditional but weak or
 | `gps-navigation` | 12 | exploration | KEEP | 3 | era-only | - | systems/unit-movement-cost |
 | `private-spaceflight` | 12 | exploration | KEEP | 3 | unlock-valued | - | systems/unit-production-completion |
 | `precision-agriculture` | 12 | agriculture | KEEP | 3 | unlock-valued | - | - |
-| `lab-grown-food` | 12 | agriculture | KEEP | 3 | effect-valued | +2 food on worked desert, tundra, snow and mountain tiles | - |
+| `lab-grown-food` | 12 | agriculture | KEEP | 2 | effect-valued | +2 food all cities | - |
 | `gene-therapy` | 12 | medicine | KEEP | 3 | unlock-valued | - | systems/tech-completion-system, systems/unit-production-completion |
 | `telemedicine` | 12 | medicine | KEEP | 3 | unlock+effect-valued | healing +1 (all units; always; withinRangeOfFriendlyCity3) | - |
 | `autonomous-shipping` | 12 | maritime | KEEP | 3 | unlock+effect-valued | +1 gold per active trade route | - |

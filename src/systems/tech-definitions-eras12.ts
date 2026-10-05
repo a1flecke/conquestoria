@@ -58,7 +58,7 @@ const ERA_12_TECHS: Tech[] = [
     unlocksBuildings: ['precision_farm'], era: 12 },
   { id: 'lab-grown-food', name: 'Lab-Grown Food', track: 'agriculture', cost: 1530,
     prerequisites: ['aquaculture', 'organ-transplantation'],
-    unlocks: ['+2 food on worked desert, tundra, snow and mountain tiles'],
+    unlocks: ['+2 food all cities'],
     era: 12 },
 
   // MEDICINE (2)
