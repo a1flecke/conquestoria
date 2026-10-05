@@ -3,7 +3,7 @@ import { OPEN_BORDERS_PROPOSAL_MIN_RELATIONSHIP, evaluateDiplomacy, evaluateMino
 import { civilizationEraFromNumber } from '@/systems/era-types';
 import { NATIONAL_INTENT_POSTURE } from '@/ai/ai-national-intent-posture';
 import type { PersonalityTraits, MinorCivState, DiplomacyState } from '@/core/types';
-import type { MilitaryStrengthEstimate } from '@/ai/ai-strength';
+import type { MilitaryStrengthEstimate } from '@/systems/diplomatic-strength';
 
 const NEUTRAL_POSTURE = NATIONAL_INTENT_POSTURE.develop;
 
@@ -14,6 +14,8 @@ function strength(midpoint: number): MilitaryStrengthEstimate {
     uncertaintyLower: midpoint,
     uncertaintyUpper: midpoint,
     midpoint,
+    observedUnitCount: 1,
+    hasUsableObservation: true,
   };
 }
 

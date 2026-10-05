@@ -31,9 +31,9 @@ import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { getAvailableActions } from '@/systems/diplomacy-system';
 import { hasArmsControlTreaty } from '@/systems/diplomacy-treaties';
 import { buildDominationKnowledge } from '@/systems/domination-knowledge';
+import { estimatePerceivedCivStrength } from '@/systems/diplomatic-strength';
 import {
   buildMajorCivPerception,
-  estimatePerceivedCivStrength,
   type MajorCivPerception,
 } from './ai-perception';
 import { createAIDecisionTrace, type AIDecisionTrace } from './ai-decision-trace';

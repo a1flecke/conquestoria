@@ -111,10 +111,8 @@ import {
 } from '@/systems/pirate-actions';
 import { derivePirateBlockades } from '@/systems/pirate-behavior';
 import { buildCombatPresentation } from '@/systems/viewer-event-presentation';
-import {
-  buildDiplomaticStrengthEstimates,
-  type MajorCivPerception,
-} from './ai-perception';
+import { buildDiplomaticStrengthEstimates } from '@/systems/diplomatic-strength';
+import type { MajorCivPerception } from './ai-perception';
 import { processMajorCivStrategicTurnInPlace } from './ai-major-turn';
 import { processAIResettlement } from './ai-resettlement';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';

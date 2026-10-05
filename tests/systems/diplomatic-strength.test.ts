@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   estimateMilitaryStrength,
-  type AIStrengthObservation,
-} from '@/ai/ai-strength';
+  isMilitaryStrengthUnit,
+  type StrengthObservation,
+} from '@/systems/diplomatic-strength';
 
 function observation(
-  overrides: Partial<AIStrengthObservation> = {},
-): AIStrengthObservation {
+  overrides: Partial<StrengthObservation> = {},
+): StrengthObservation {
   return {
     type: 'warrior',
     health: 100,
@@ -79,6 +80,8 @@ describe('AI military strength estimation', () => {
       uncertaintyLower: 0,
       uncertaintyUpper: 0,
       midpoint: 0,
+      observedUnitCount: 0,
+      hasUsableObservation: false,
     });
   });
 
@@ -122,6 +125,35 @@ describe('AI military strength estimation', () => {
       uncertaintyLower: 0,
       uncertaintyUpper: 0,
       midpoint: 0,
+      observedUnitCount: 0,
+      hasUsableObservation: false,
     });
+  });
+
+  it('does not count a civilian, spy, scout or observation-only unit as military (#1334)', () => {
+    for (const type of ['worker', 'settler', 'spy_scout', 'scout', 'observation_balloon', 'transport'] as const) {
+      expect(isMilitaryStrengthUnit(type), type).toBe(false);
+      const estimate = estimateMilitaryStrength([observation({ type })]);
+      expect(estimate.exactVisible, type).toBe(0);
+      expect(estimate.hasUsableObservation, type).toBe(false);
+    }
+    for (const type of ['warrior', 'archer', 'galley', 'tank', 'jet_fighter', 'catapult'] as const) {
+      expect(isMilitaryStrengthUnit(type), type).toBe(true);
+    }
+  });
+
+  it('keeps "no usable observation" distinct from a measured zero (#1334)', () => {
+    const unknown = estimateMilitaryStrength([], { unknownReserveUpper: 8 });
+    expect(unknown.hasUsableObservation).toBe(false);
+    expect(unknown.uncertaintyUpper).toBe(8);
+    const seen = estimateMilitaryStrength([observation()], { unknownReserveUpper: 8 });
+    expect(seen.hasUsableObservation).toBe(true);
+    expect(seen.observedUnitCount).toBe(1);
+  });
+
+  it('stops counting a remembered unit once its confidence has decayed to zero (#1334)', () => {
+    const stale = estimateMilitaryStrength([observation({ source: 'remembered', confidence: 0, uncertainty: 1 })]);
+    expect(stale.hasUsableObservation).toBe(false);
+    expect(stale.remembered).toBe(0);
   });
 });
