@@ -67,14 +67,20 @@ function totalMaintenanceFor(state: GameState, civId: string): number {
  * exact, provable redundancy -- `ownerStatus` below gets the identical
  * cache/invalidate-on-purchase treatment `cachedMaintenance` already has.
  * `rushBuyActiveProduction` itself is deliberately left untouched (its own
- * internal re-validation quote call and its post-purchase `economyStatusByCiv`
- * persistence call both still do their own `calculateCivEconomy` work) --
- * threading a precomputed context into the one function BOTH the human "Rush
- * Buy" button and this AI loop share would special-case the AI caller's trust
- * level, which is exactly the divergent-legality pattern this module's own
- * design doc (docs/superpowers/specs/2026-09-18-issue-1125-long-horizon-
- * stability-design.md §5d) rules out. See that doc for the full call-graph
- * accounting.
+ * internal re-validation quote call still does its own `calculateCivEconomy`
+ * work, and it must -- see below) -- threading a precomputed context into the
+ * one function BOTH the human "Rush Buy" button and this AI loop share would
+ * special-case the AI caller's trust level, which is exactly the
+ * divergent-legality pattern this module's own design doc (docs/superpowers/
+ * specs/2026-09-18-issue-1125-long-horizon-stability-design.md §5d) rules out.
+ * See that doc for the full call-graph accounting. #1320 later removed the one
+ * remaining duplicate: `rushBuyActiveProduction` now RETURNS the post-purchase
+ * projection it computes to persist `economyStatusByCiv`, and this loop reuses
+ * it (below) for the next producing city instead of recomputing the identical
+ * value. Returning an already-computed value is not the "thread context in"
+ * shape §5d rules out -- the function still derives its own authoritative
+ * status and still re-validates every quote, so nothing about legality or
+ * trust changes.
  */
 export function applyAIGoldSpending(state: GameState, civId: string, bus: EventBus): GameState {
   const civ = state.civilizations[civId];
@@ -95,7 +101,13 @@ export function applyAIGoldSpending(state: GameState, civId: string, bus: EventB
     if (result.success) {
       nextState = result.state;
       cachedMaintenance = null;
-      ownerStatus = null;
+      // #1320: `result.status` is the whole-civ projection rushBuyActiveProduction
+      // already computed for this exact post-purchase `nextState` (it persists it
+      // to economyStatusByCiv). Reuse it instead of recomputing the identical
+      // projection for the next producing city -- every such recompute was a
+      // provable duplicate (same civ, byte-identical result) on the crowded
+      // fixtures.
+      ownerStatus = result.status;
     }
   }
   return nextState;

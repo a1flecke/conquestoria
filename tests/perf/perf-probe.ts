@@ -45,6 +45,8 @@ export interface PerfCounts {
   cityYieldCalls: number;
   /** `calculateCivEconomy` calls — whole-empire economy projection (#1235) */
   civEconomyCalls: number;
+  /** those `calculateCivEconomy` calls attributed to their caller frame (#1320, informational) */
+  civEconomyCallsBySite: Record<string, number>;
   /** `projectCivGrossGold` calls — whole-empire gross-gold projection (#1235) */
   projectedGrossGoldCalls: number;
   /** `getEconomyStatusForCiv` calls — whole-empire economy-status projection (#1235) */
@@ -70,6 +72,7 @@ function emptyCounts(): PerfCounts {
     visibilityPasses: 0,
     cityYieldCalls: 0,
     civEconomyCalls: 0,
+    civEconomyCallsBySite: {},
     projectedGrossGoldCalls: 0,
     economyStatusCalls: 0,
     roadConnectivityCalls: 0,
@@ -102,11 +105,12 @@ function approximateStateBytes(value: unknown): number {
 }
 
 /**
- * #1235 — the first caller frame outside this probe, normalized to a repo-ish
- * path, for the informational "where the clones are" attribution. Never part of
- * a budget; only labels the measured total.
+ * #1235/#1320 — the first caller frame outside this probe, normalized to a
+ * repo-ish path, for the informational "where the work is" attribution. Used
+ * for whole-state clones and `calculateCivEconomy` calls. Never part of a
+ * budget; only labels the measured total.
  */
-function cloneSiteFromStack(): string {
+function callSiteFromStack(): string {
   const stack = new Error().stack ?? '';
   for (const line of stack.split('\n').slice(1)) {
     const match = line.match(/([^\s()]+\.(?:ts|tsx|js|mjs)):\d+:\d+/);
@@ -156,7 +160,7 @@ export function withPerfProbe<T>(fn: () => T): { result: T; counts: PerfCounts }
       if (isWholeState(value)) {
         counts.structuredCloneWholeState += 1;
         counts.structuredCloneWholeStateBytes += approximateStateBytes(value);
-        const site = cloneSiteFromStack();
+        const site = callSiteFromStack();
         counts.structuredCloneWholeStateBySite[site] = (counts.structuredCloneWholeStateBySite[site] ?? 0) + 1;
       }
       return (structuredCloneOrig as (v: unknown, o?: unknown) => unknown)(value, options);
@@ -209,6 +213,9 @@ export function withPerfProbe<T>(fn: () => T): { result: T; counts: PerfCounts }
   spies.push(
     vi.spyOn(economySystem, 'calculateCivEconomy').mockImplementation((...args: Parameters<typeof civEconomyOrig>) => {
       counts.civEconomyCalls += 1;
+      // #1320: attribute each call to its first caller frame outside this probe.
+      const site = callSiteFromStack();
+      counts.civEconomyCallsBySite[site] = (counts.civEconomyCallsBySite[site] ?? 0) + 1;
       return civEconomyOrig(...args);
     }),
   );

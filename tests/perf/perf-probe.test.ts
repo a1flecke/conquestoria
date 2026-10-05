@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BinaryHeap } from '@/systems/binary-heap';
 import { findPath } from '@/systems/unit-pathfinding';
 import { createNewGame } from '@/core/game-state';
+import * as economySystem from '@/systems/economy-system';
 import { getMovementRangeDetails } from '@/systems/unit-movement-queries';
 import { withPerfProbe } from './perf-probe';
 
@@ -51,6 +52,7 @@ describe('withPerfProbe', () => {
       visibilityPasses: 0,
       cityYieldCalls: 0,
       civEconomyCalls: 0,
+      civEconomyCallsBySite: {},
       projectedGrossGoldCalls: 0,
       economyStatusCalls: 0,
       roadConnectivityCalls: 0,
@@ -64,6 +66,26 @@ describe('withPerfProbe', () => {
     expect(counts.structuredCloneWholeState).toBe(1);
     expect(counts.structuredCloneWholeStateBytes).toBeGreaterThan(0);
     const bySite = counts.structuredCloneWholeStateBySite;
+    expect(Object.values(bySite).reduce((a, b) => a + b, 0)).toBe(1);
+    expect(Object.keys(bySite)[0]).toMatch(/perf-probe\.test\.ts/);
+  });
+
+  it('attributes calculateCivEconomy calls to their caller (#1320)', () => {
+    const state = createNewGame({
+      civType: 'rome',
+      seed: 'perf-probe-economy-attribution',
+      mapSize: 'small',
+      opponentCount: 1,
+      gameTitle: 'probe-economy',
+      opponentChallenge: 'standard',
+    });
+    const civId = Object.keys(state.civilizations)[0];
+    if (!civId) throw new Error('fixture must create a civilization');
+
+    const { counts } = withPerfProbe(() => economySystem.calculateCivEconomy(state, civId));
+
+    expect(counts.civEconomyCalls).toBe(1);
+    const bySite = counts.civEconomyCallsBySite;
     expect(Object.values(bySite).reduce((a, b) => a + b, 0)).toBe(1);
     expect(Object.keys(bySite)[0]).toMatch(/perf-probe\.test\.ts/);
   });

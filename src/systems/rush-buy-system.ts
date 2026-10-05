@@ -13,11 +13,12 @@ import {
   getProductionLabel,
   getRushBuyQuote,
   toResolvedEconomyStatus,
+  type EconomyProjection,
   type RushBuyDisabledReason,
 } from './economy-system';
 
 export type RushBuyResult =
-  | { success: true; state: GameState; itemId: string; label: string; cost: number }
+  | { success: true; state: GameState; itemId: string; label: string; cost: number; status: EconomyProjection }
   | { success: false; state: GameState; reason: RushBuyDisabledReason; message: string };
 
 export function rushBuyActiveProduction(
@@ -95,5 +96,12 @@ export function rushBuyActiveProduction(
     itemId: quote.itemId,
     label: getProductionLabel(quote.itemId),
     cost: quote.cost,
+    // #1320: hand back the projection computed for the post-purchase state so a
+    // caller that needs the civ's economy again for this exact state (the AI
+    // treasury batch loop) can reuse it instead of recomputing the identical
+    // value. The projection depends only on state fields that this function
+    // does not touch after computing it (`economyStatusByCiv` is not an input to
+    // `calculateCivEconomy`), so it describes `state` exactly.
+    status,
   };
 }

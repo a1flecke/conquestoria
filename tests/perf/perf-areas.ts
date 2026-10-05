@@ -66,6 +66,22 @@ export function measureAiRoundCloneSites(fx: PerfFixtures): Record<string, numbe
   return counts.structuredCloneWholeStateBySite;
 }
 
+/**
+ * #1320 — informational attribution of one operation's `calculateCivEconomy`
+ * calls by caller frame. NOT a budget; the fast `perf-probe.test.ts` proves the
+ * mechanism and the informational test asserts the sites sum to the measured
+ * total.
+ */
+export function measureEconomyCallSites(
+  area: 'turn' | 'aiRound',
+  state: GameState,
+): Record<string, number> {
+  const { counts } = area === 'turn'
+    ? withPerfProbe(() => processTurn(state, new EventBus()))
+    : withPerfProbe(() => processNonHumanMajorRound(state, new EventBus()));
+  return counts.civEconomyCallsBySite;
+}
+
 export interface AreaSample extends Partial<PerfCounts> {
   bytes?: number;
   entityBytes?: number;
