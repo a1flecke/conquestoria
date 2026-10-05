@@ -65,6 +65,7 @@ import {
   isVassalBlocked,
 } from '@/systems/diplomacy-vassal-rules';
 import { declareMajorWar, makeMajorPeace, resolveOpponentKind } from '@/systems/diplomacy-war';
+import { acceptTributeDemand, refuseTributeDemand } from '@/systems/diplomacy-tribute';
 import {
   commitVassalageAgreement,
   defendVassal,
@@ -348,8 +349,13 @@ export function acceptDiplomaticRequest(
     return result === state ? refuse('request-no-longer-valid') : accepted(result);
   }
 
+  if (request.type === 'tribute') {
+    const result = acceptTributeDemand(state, actingCivId, requestId, bus);
+    return result.ok ? accepted(result.state) : refuse('request-no-longer-valid');
+  }
+
   if (request.type === 'treaty') {
-    if (!request.treatyType) return refuse('request-no-longer-valid');
+    if (!request.treatyType || request.treatyType === 'tribute') return refuse('request-no-longer-valid');
     const committed = request.treatyType === 'vassalage'
       ? commitVassalageAgreement(state, request.fromCivId, request.toCivId, bus)
       : commitTreatyAgreement(state, request.fromCivId, request.toCivId, request.treatyType, bus);
@@ -391,6 +397,14 @@ export function rejectDiplomaticRequest(
     if (!bus) return removeDiplomaticRequest(state, requestId);
     const result = resolveIndependence(state, request.fromCivId, request.toCivId, false, bus);
     return result === state ? removeDiplomaticRequest(state, requestId) : result;
+  }
+
+  // #1334: an *explicit* refusal of a tribute demand costs relations (once) and is recorded; a call with no bus is an
+  // internal drop (an expired or invalid request) and has no diplomatic consequence.
+  if (request.type === 'tribute') {
+    if (!bus) return removeDiplomaticRequest(state, requestId);
+    const refused = refuseTributeDemand(state, actingCivId, requestId, bus);
+    return refused.ok ? refused.state : state;
   }
 
   // #901: an *explicit* decline (caller passed a bus) of a treaty proposal

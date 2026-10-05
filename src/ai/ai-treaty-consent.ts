@@ -9,7 +9,7 @@
  */
 import type { TreatyDeclineReason, TreatyType } from '@/core/types';
 
-export type AgreementKind = Exclude<TreatyType, 'vassalage'> | 'peace';
+export type AgreementKind = Exclude<TreatyType, 'vassalage' | 'tribute'> | 'peace';
 export type { TreatyDeclineReason };
 
 export interface TreatyConsent {

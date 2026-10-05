@@ -93,6 +93,7 @@ wrote is a bug in the writer, not a reason to keep the repair.**
 | `bilateral-war` | Repairs one-sided, self-referential and duplicated MAJOR-civ war entries; a one-sided war silently drives war-weariness unrest, AI war-pressure and peace availability off a phantom (#995). | — |
 | `cargo-reciprocity` | Repairs transport/cargo and carrier-aircraft links the load/unload/rebase helpers never break: a dangling or one-sided transportId, an over-capacity or wrong-owner manifest, a transport listed as cargo, and a based aircraft whose air base is gone (removed, like the game does on air-base loss) (#1000). | — |
 | `vassalage` | Repairs one-sided, self-referential, duplicated and dangling vassalage roles; an impossible role silently breaks protection obligations and independence checks. | 27 |
+| `tribute-contracts` | Drops standalone tribute contracts without valid terms, with an out-of-range payment or term, duplicated, or recorded on only one civ; a phantom contract would charge gold or block a demand. No payment or consent is created on load. | — |
 | `domination-intel` | Drops malformed earned-Domination records from a current-version external save without reconstructing unearned history. | 29 |
 
 ## Dual registrations
@@ -129,13 +130,14 @@ as a refactor.
 7. `generated-generals` (repair)
 8. `general-career-ledger` (repair)
 9. `vassalage` (repair)
-10. `domination-intel` (repair)
-11. `bilateral-war` (repair)
-12. `cargo-reciprocity` (repair)
-13. `city-faith-conversion-progress` (compatibility)
-14. `retimed-biplane-queues` (compatibility)
-15. `coastal-battery-counterfire-turns` (repair)
-16. `improvement-values` (repair)
-17. `barbarian-camp-pressure` (compatibility)
-18. `legendary-wonder-military-facts` (repair)
-19. `legendary-wonder-tactical-effects` (repair)
+10. `tribute-contracts` (repair)
+11. `domination-intel` (repair)
+12. `bilateral-war` (repair)
+13. `cargo-reciprocity` (repair)
+14. `city-faith-conversion-progress` (compatibility)
+15. `retimed-biplane-queues` (compatibility)
+16. `coastal-battery-counterfire-turns` (repair)
+17. `improvement-values` (repair)
+18. `barbarian-camp-pressure` (compatibility)
+19. `legendary-wonder-military-facts` (repair)
+20. `legendary-wonder-tactical-effects` (repair)

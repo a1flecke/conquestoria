@@ -12,6 +12,7 @@ import { normalizeImprovementValues } from './steps/improvements';
 import { normalizeBilateralWar } from './steps/bilateral-war';
 import { normalizeCargoReciprocity } from './steps/cargo-reciprocity';
 import { repairDominationIntel } from './steps/domination-intel';
+import { normalizeTributeContracts } from './steps/tribute-contracts';
 
 /**
  * #1023 — corruption repair / defensive sanitation: unconditional, every load.
@@ -109,6 +110,11 @@ export const CORRUPTION_REPAIRS: readonly CorruptionRepair[] = [
       version: 27,
       why: 'Schema 27 made vassalage bilateral. The unconditional pass is the impossible-shape repair, which must apply to any file regardless of version.',
     },
+  },
+  {
+    id: 'tribute-contracts',
+    reason: 'Drops standalone tribute contracts without valid terms, with an out-of-range payment or term, duplicated, or recorded on only one civ; a phantom contract would charge gold or block a demand. No payment or consent is created on load.',
+    apply: normalizeTributeContracts,
   },
   {
     id: 'domination-intel',
