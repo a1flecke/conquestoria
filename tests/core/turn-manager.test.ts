@@ -22,6 +22,7 @@ import { processIndependentThreatPressure } from '@/systems/threat-pressure-syst
 import { resolveCombatEra } from '@/systems/era-resolution';
 import { isWithinRangeOfNeuralRehabilitationCenter } from '@/systems/unit-modifier-system';
 import { calculateCivResearchOutput } from '@/systems/research-output-system';
+import { simTimeout } from '../helpers/sim-timeout';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -336,7 +337,7 @@ describe('processTurn', () => {
     expect(result.economyStatusByCiv?.player.strainLevel).toBe('critical');
     expect(result.economyStatusByCiv?.player.unpaidMaintenance).toBeGreaterThan(0);
     expect(listener).toHaveBeenCalledWith(expect.objectContaining({ civId: 'player', level: 'critical' }));
-  });
+  }, simTimeout(300));
 
   it('applies occupied-city penalties and decrements the occupation timer during turn processing', () => {
     const state = createNewGame(undefined, 'occupied-turn', 'small');
@@ -1957,7 +1958,7 @@ describe('intercept_courier turn-manager wiring (#442 MR1)', () => {
       }
     }
     expect(succeeded).toBe(true);
-  });
+  }, simTimeout(300));
 });
 
 describe('journey automation', () => {

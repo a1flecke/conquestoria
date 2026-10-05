@@ -3,6 +3,7 @@ import { EventBus } from '@/core/event-bus';
 import { processTurn } from '@/core/turn-manager';
 import { normalizeLoadedStateForTest } from '@/storage/save-manager';
 import { conquestMinorCiv } from '@/systems/minor-civ-system';
+import { simTimeout } from '../helpers/sim-timeout';
 import {
   assertNoRunaway,
   fixtureAlliedWithMajor,
@@ -43,6 +44,8 @@ import {
 // observed solo durations to hold up under this machine's routine multi-worktree-agent
 // contention — see #608's heavy-simulation-test guidance for why this file also carries an entry
 // in SLOW_TEST_FILES.
+// Worst solo case is the coalition fixture at ~4.5 s; simTimeout() applies the shared CI/loaded-host factor.
+const LONGRUN_TIMEOUT_MS = simTimeout(4500);
 const FIXTURE_SWEEP_TURNS = 90;
 const FLAGSHIP_TURNS = 120;
 
@@ -70,7 +73,7 @@ describe('#949 — long-run scenario fixtures stay bounded', () => {
       const trace = runMinorCivLongRun(state, minorCivId, FIXTURE_SWEEP_TURNS, bus);
 
       expect(() => assertNoRunaway(trace)).not.toThrow();
-    }, 15000);
+    }, LONGRUN_TIMEOUT_MS);
   }
 
   it('coalition member: coalition state stays coherent and bounded over 90 turns', () => {
@@ -87,7 +90,7 @@ describe('#949 — long-run scenario fixtures stay bounded', () => {
     const finalCoalitions = Object.values(trace.finalState.minorCivCoalitions ?? {});
     expect(finalCoalitions.length).toBeGreaterThan(0);
     expect(finalCoalitions.every(coalition => coalition.status === 'active')).toBe(true);
-  }, 15000);
+  }, LONGRUN_TIMEOUT_MS);
 
   it('early-game near a young player: never levies or grants free population/units in the first 20 turns', () => {
     const { state, minorCivId } = fixtureEarlyGameNearYoungPlayer('mc-949-early-safety');
@@ -103,7 +106,7 @@ describe('#949 — long-run scenario fixtures stay bounded', () => {
     const last = trace.samples[trace.samples.length - 1];
     expect(last.population).toBeGreaterThanOrEqual(before.population);
     expect(last.liveUnitCount).toBeLessThanOrEqual(before.unitCount + 1); // at most one production-backed defender
-  }, 10000);
+  }, LONGRUN_TIMEOUT_MS);
 
   it('blocked spawn: pending-spawn attempts never exceed the tuned max and the civ never errors', () => {
     const { state, minorCivId } = fixtureBlockedSpawn('mc-949-blocked-spawn');
@@ -113,7 +116,7 @@ describe('#949 — long-run scenario fixtures stay bounded', () => {
 
     expect(() => assertNoRunaway(trace)).not.toThrow();
     expect(trace.finalState.minorCivs[minorCivId]).toBeDefined();
-  }, 15000);
+  }, LONGRUN_TIMEOUT_MS);
 });
 
 describe('#949 — city-state conquered mid-run', () => {
@@ -137,7 +140,7 @@ describe('#949 — city-state conquered mid-run', () => {
     expect(postConquest.every(sample => sample.destroyed)).toBe(true);
     expect(trace.finalState.minorCivs[minorCivId].isDestroyed).toBe(true);
     expect(trace.finalState.cities[trace.finalState.minorCivs[minorCivId].cityId].owner).toBe('player');
-  }, 10000);
+  }, LONGRUN_TIMEOUT_MS);
 });
 
 describe('#949 — flagship 100+ turn simulations', () => {
@@ -153,7 +156,7 @@ describe('#949 — flagship 100+ turn simulations', () => {
     // 'mobilizing' — a handful of turns is fine (garrison loss / transient), but not the whole run.
     const mobilizingTurns = trace.samples.filter(sample => sample.posture === 'mobilizing').length;
     expect(mobilizingTurns).toBeLessThan(FLAGSHIP_TURNS / 2);
-  }, 20000);
+  }, LONGRUN_TIMEOUT_MS);
 
   it('#16 — 100+ turn conflict simulation keeps levies rare, recovery bounded, and eventually exits recovery', () => {
     // #982: firstMinorCiv's own identity/position/archetype now differs
@@ -178,7 +181,7 @@ describe('#949 — flagship 100+ turn simulations', () => {
     // sensitive to exactly when the last levy happens to land relative to the run's end). This
     // holds regardless of where in the run recovery windows fall.
     expect(longestConsecutiveRun(trace.samples, sample => sample.recovering)).toBeLessThanOrEqual(MAX_RECOVERY_TURNS);
-  }, 20000);
+  }, LONGRUN_TIMEOUT_MS);
 });
 
 describe('#949 — determinism', () => {
@@ -193,7 +196,7 @@ describe('#949 — determinism', () => {
 
     expect(traceA.samples).toEqual(traceB.samples);
     expect(traceA.levyCount).toBe(traceB.levyCount);
-  }, 15000);
+  }, LONGRUN_TIMEOUT_MS);
 
   it('save -> reload -> process one turn matches the uninterrupted path', () => {
     const { state, minorCivId } = fixtureAtWarWithMajor('mc-949-determinism-reload');
@@ -214,5 +217,5 @@ describe('#949 — determinism', () => {
       .toBe(uninterrupted.cities[uninterrupted.minorCivs[minorCivId].cityId].population);
     expect(afterReload.minorCivs[minorCivId].units.length).toBe(uninterrupted.minorCivs[minorCivId].units.length);
     expect(afterReload.minorCivs[minorCivId].economy).toEqual(uninterrupted.minorCivs[minorCivId].economy);
-  }, 10000);
+  }, LONGRUN_TIMEOUT_MS);
 });

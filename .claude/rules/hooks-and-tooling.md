@@ -1045,6 +1045,16 @@ simulation-style test that forgets to override it will pass in isolation and the
 fail the moment a second agent's test run overlaps it — indistinguishable from a real regression
 until someone re-runs it alone.
 
+**Mechanism (since the #420 follow-up arc).** Hand-picked "about 2x what I saw locally" timeouts failed
+the first time a host was busy (the same flake was fixed by hand in #608, #1133 and again after
+`domination-ai-campaign` went from 54 s to 118-152 s on CI). Size a heavy test with
+`simTimeout(soloWorstCaseMs)` from `tests/helpers/sim-timeout.ts`: one documented factor (6x the solo worst
+case, floor 15 s; the worst observed CI/loaded-host slowdown is ~3.3x). `tests/scripts/heavy-sim-timeouts.test.ts`
+fails for any test that loops over 15+ turns/rounds of a simulation entry point on the 5 s default, so the shape
+cannot come back silently. A test whose work length depends on the game's economy (`domination-ai-campaign`: 21
+rounds, or 55 with one food row changed) bounds the work by rounds and fails with an explanation when the
+trajectory moves, rather than surfacing as a timeout.
+
 **When adding a test that simulates multiple cities/eras/seeds, builds a full timeline, or
 otherwise does real computational work rather than asserting against a small fixture:**
 

@@ -11,6 +11,7 @@ import { TECH_TREE } from '@/systems/tech-definitions';
 import { hexKey } from '@/systems/hex-utils';
 import { startStampedeWarning } from '@/systems/stampede-system';
 import type { ActiveCrisis, GameEvents, GameState, HexCoord } from '@/core/types';
+import { simTimeout } from '../helpers/sim-timeout';
 
 function findLandCoord(state: GameState): HexCoord {
   const tile = Object.values(state.map.tiles).find(t => t.terrain !== 'ocean' && t.terrain !== 'coast');
@@ -84,7 +85,7 @@ describe('turn-manager crisis wiring', () => {
     } finally {
       vi.useRealTimers();
     }
-  });
+  }, simTimeout(1500));
 
   it('emits one target-scoped Stampede activation from the owner-turn transition', () => {
     const state = createNewGame('rome', 'stampede-turn-event', 'small');
@@ -140,7 +141,7 @@ describe('turn-manager crisis wiring', () => {
       if (Object.keys(s.activeCrises ?? {}).length > 0) fired = true;
     }
     expect(fired).toBe(true);
-  });
+  }, simTimeout(300));
 
   it('loads a save with no crisis fields and completes one turn without throwing', () => {
     const state = createNewGame('rome', 'legacy-save-seed', 'small', 'Legacy Save Test');

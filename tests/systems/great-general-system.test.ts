@@ -23,6 +23,7 @@ import { summarizeGeneralCareer } from '@/systems/great-general-career';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
 import type { GeneralHistoryEntry, Unit } from '@/core/types';
+import { simTimeout } from '../helpers/sim-timeout';
 
 describe('getGeneralThreshold', () => {
   it('the first General costs less than the second', () => {
@@ -369,7 +370,7 @@ describe('spawnGeneralForCiv', () => {
     }
     const events = next.civilizations.player!.generalHistory![0]!.careerEvents ?? [];
     expect(events).toEqual([{ type: 'spawned', turn: state.turn }]);
-  });
+  }, simTimeout(300));
 
   it('is a total no-op when the civ itself does not exist', () => {
     const state = makeGeneralsTestState('gen-spawn-5');

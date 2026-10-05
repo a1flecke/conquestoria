@@ -23,11 +23,17 @@ import { assertSimulationEquivalent } from '../helpers/deterministic-state';
 import { assertBilateralWar } from '../helpers/save-state-invariants';
 import { withoutOwnedAssets } from '../systems/helpers/civilization-liveness-fixture';
 import { makeVassalageFixture } from '../systems/helpers/vassalage-fixture';
+import { simTimeout } from '../helpers/sim-timeout';
 
 const SEED = 'domination-ai-campaign-standard-v1';
 const SAVE_ROUND = 3;
-const MAX_ROUNDS = 200;
-const CAMPAIGN_TIMEOUT_MS = 90_000;
+// The campaign is deterministic work, but how many rounds it needs to reach domination depends on the economy: a single
+// food row moved it from 21 to 55 rounds (#1318 trial), which tripled the runtime past the old 90 s wall-clock limit on
+// CI and showed up as a flaky-looking timeout. Bound it by ROUNDS instead, fail with an explanation when the trajectory
+// moves, and derive the timeout from that budget: two campaigns x ROUND_BUDGET rounds x ~0.45 s solo per round.
+const ROUND_BUDGET = 40;
+const SOLO_MS_PER_ROUND = 450;
+const CAMPAIGN_TIMEOUT_MS = simTimeout(2 * ROUND_BUDGET * SOLO_MS_PER_ROUND);
 
 const CAMPAIGN_CONFIG: HotSeatConfig = {
   playerCount: 3,
@@ -134,7 +140,7 @@ function runCampaign(start: GameState, reloadAtSaveRound: boolean): CampaignResu
   let state = start;
   const traces: AIDecisionTrace[] = [];
   const rivalStatusChanges: string[] = [];
-  for (let round = 1; round <= MAX_ROUNDS && !state.gameOver; round += 1) {
+  for (let round = 1; round <= ROUND_BUDGET && !state.gameOver; round += 1) {
     // #1088: `recordDominationPoliticalReport`'s disposition fact decays to 'unknown'
     // after 5 turns without a fresh report (`domination-knowledge.ts`'s `staleRole`) --
     // a real, working-as-designed "earned knowledge" mechanic, unrelated to #1088. This
@@ -181,6 +187,9 @@ function runCampaign(start: GameState, reloadAtSaveRound: boolean): CampaignResu
     }
     if (round === SAVE_ROUND && reloadAtSaveRound) state = saveAndReload(state);
   }
+  if (!state.gameOver) {
+    throw new Error(`${SEED}: no domination win within ${ROUND_BUDGET} rounds (it won at turn ~21 when this budget was set). An economy, AI or tech change moved the campaign trajectory; investigate it, then re-measure and update ROUND_BUDGET deliberately.`);
+  }
   return { state, traces, rivalStatusChanges };
 }
 
@@ -195,7 +204,7 @@ describe('Domination AI campaign', () => {
     expect(uninterrupted.traces.some(trace =>
       trace.candidates.some(candidate => candidate.reasonCodes?.includes('domination-pursuit')),
     )).toBe(true);
-    expect(uninterrupted.state.turn).toBeLessThanOrEqual(MAX_ROUNDS + 1);
+    expect(uninterrupted.state.turn).toBeLessThanOrEqual(ROUND_BUDGET + 1);
     expect(reloaded.state.turn).toBe(uninterrupted.state.turn);
     expect(reloaded.traces).toEqual(uninterrupted.traces);
     expect(reloaded.rivalStatusChanges).toEqual(uninterrupted.rivalStatusChanges);
