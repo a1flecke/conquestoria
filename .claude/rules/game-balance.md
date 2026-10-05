@@ -911,4 +911,11 @@ per-tech inventory. Working rules that came out of converting flat yields:
   (city) in `Tech.unlocks`, and the persisted cost recommendation follows. A rewrite that adds or drops those words
   moves a tech's cost target (`research-pacing-report.test.ts` fails); keep the old scope class or add `pacing`.
 - **A tech's text must be backed by a mechanic** (`content-description-honesty.md`): the audit lists the claims
-  with no table effect and no code owner.
+  with no table effect and no code owner. `tests/systems/tech-strategic-validation.test.ts` also fails when a
+  yield row's label quotes a number its tech text does not (the check that would have caught Arms Control's
+  "+5 gold" text over a +2 row), when a condition names a building that does not exist, and when a repeated niche
+  appears that is not in its reviewed list.
+- **Open follow-ups from the #420 arc:** percentage techs pinned into the reference economy (#1311), repeated
+  niches (#1315), bespoke-effect AI valuation (#1316), warfare ideas that need their own subsystem (#1317),
+  Era 12-13 reference flats (#1318), explicit pacing scope instead of text inference (#1319), AI-round
+  economy-call attribution (#1320).
