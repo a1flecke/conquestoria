@@ -51,7 +51,7 @@ const OWNER_EXCLUDED_PREFIXES = [
 const OWNER_EXCLUDED_FRAGMENTS = [
   'tech-definitions', 'tech-yield-definitions', 'tech-progression', 'city-building-catalog', 'city-unit-catalog',
   'legendary-wonder-definitions', 'resource-definitions', 'wonder-codex', 'wonder-spectacle', 'pacing-model',
-  'unit-modifier-definitions', 'src/core/types.ts', 'era-pacing-profiles', 'tech-pacing-scope',
+  'unit-modifier-definitions', 'src/core/types.ts', 'era-pacing-profiles', 'tech-pacing-scope', 'ai-tech-bespoke-value',
 ];
 
 function walkTs(dir: string, out: string[] = []): string[] {
@@ -132,10 +132,10 @@ function unitModifierRow(modifier: UnitModifier): TechAuditRow['unitModifiers'][
   };
 }
 
-export function buildTechAuditInventory(root = process.cwd()): TechAuditRow[] {
+export function buildTechAuditInventory(root = process.cwd(), maxEra = AUDITED_ERA_MAX): TechAuditRow[] {
   const sources = loadOwnerSources(root);
   return TECH_TREE
-    .filter(tech => tech.era <= AUDITED_ERA_MAX)
+    .filter(tech => tech.era <= maxEra)
     .map(tech => {
       const owners = sources
         .filter(source => source.text.includes(`'${tech.id}'`) || source.text.includes(`"${tech.id}"`))

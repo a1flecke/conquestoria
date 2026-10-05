@@ -59,6 +59,8 @@ export interface AIResearchScoreComponents {
   modernizationFit: number;
   activePlanFit: number;
   economicSupport: number;
+  /** #1316: bounded value of the tech's own bespoke-system effects (spy slots, crisis, roads, maturity, ...). */
+  bespokeEffectValue: number;
   personalityTrackWeight: number;
   eraProgress: number;
   unlockBreadth: number;
@@ -184,6 +186,7 @@ function descendantsWithinLimit(
     const capabilities = evaluateAITechCapabilities(current.tech, completedAfterPath, knownTechIds);
     const preliminary = capabilities.militaryPowerSpike
       + capabilities.economicSupport
+      + capabilities.bespokeEffectValue
       + capabilities.eraProgress
       + Object.values(capabilities.rolesUnlocked)
         .reduce((sum, value) => sum + (value ?? 0), 0)
@@ -273,6 +276,7 @@ function convergentTargets(
     const capabilities = evaluateAITechCapabilities(candidate, completedAfterPath, knownTechIds);
     const preliminary = capabilities.militaryPowerSpike
       + capabilities.economicSupport
+      + capabilities.bespokeEffectValue
       + capabilities.eraProgress
       + Object.values(capabilities.rolesUnlocked)
         .reduce((sum, value) => sum + (value ?? 0), 0)
@@ -412,6 +416,7 @@ export function planAIResearch(
       modernizationFit,
       activePlanFit,
       economicSupport: capabilities.economicSupport,
+      bespokeEffectValue: capabilities.bespokeEffectValue,
       personalityTrackWeight,
       eraProgress: capabilities.eraProgress,
       unlockBreadth,
@@ -427,6 +432,7 @@ export function planAIResearch(
     const score = modernizationFit * 4
       + activePlanFit * 3
       + capabilities.economicSupport * 2
+      + capabilities.bespokeEffectValue
       + personalityTrackWeight
       + capabilities.eraProgress
       + unlockBreadth
@@ -443,6 +449,7 @@ export function planAIResearch(
         ...(modernizationFit > 0 ? ['modernization'] : []),
         ...(activePlanFit > 0 ? ['active-plan'] : []),
         ...(capabilities.economicSupport > 0 ? ['economic-support'] : []),
+        ...(capabilities.bespokeEffectValue > 0 ? ['bespoke-effect'] : []),
         ...(scoreComponents.unrestReliefTechBonus > 0 ? ['unrest-relief'] : []),
         ...(scoreComponents.scienceStarvationTechBonus > 0 ? ['science-starvation'] : []),
       ],
