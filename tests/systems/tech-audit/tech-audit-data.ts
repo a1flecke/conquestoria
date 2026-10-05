@@ -10,8 +10,6 @@ import type { TechJudgement } from '../../helpers/tech-audit-judgement';
  */
 export type TechAuditEntry = TechJudgement & { child: 0 | 2 | 3 | 4 };
 
-const replace = (child: TechAuditEntry['child'], candidate: string, note: string): TechAuditEntry =>
-  ({ cls: 'REPLACE', rating: 1, note, candidate, child });
 const keep = (rating: TechAuditEntry['rating'], note: string, child: TechAuditEntry['child'] = 0): TechAuditEntry =>
   ({ cls: 'KEEP', rating, note, child });
 
@@ -21,16 +19,13 @@ const followUp = (child: TechAuditEntry['child'], note: string, issue: string): 
 
 const PINNED_PERCENT = 'Unconditional percentage yield pinned into the reference economy that RESEARCH_OUTPUT_BY_ERA and every persisted tech cost derive from; replacing it is a pacing decision, not a tech-text edit.';
 
-const FLAT = 'Unconditional flat or percentage yield; value does not depend on any choice the player made.';
-
 export const TECH_AUDIT_ENTRIES: Record<string, TechAuditEntry> = {
   // ---- flat yields, Eras 5–8 (child 3) ----
 
   // ---- flat yields, Eras 9–11 (child 4) ----
-  'lab-grown-food': { ...replace(0, 'terrainYield food on barren terrain', FLAT), note: `${FLAT} Era 12 is reference material for #420; left unscheduled.` },
 
   // ---- broad combat modifiers ----
-  'nanomaterials': { ...replace(0, 'UNIT_MODIFIERS: bonus conditional on fullHP (matches the Era 12 reference)', 'Unconditional combat bonus across every unit.'), note: 'Unconditional combat bonus across every unit. Era 12 is reference; left unscheduled.' },
+  'nanomaterials': keep(2, 'Reviewed #1318 KEEP: a +3 flat to every unit at era 12 is about 3% of a late unit and applies to attack and defence alike. Making it defensive-only or class-scoped would change combat balance for every unit type for a small identity gain, and its re-text to all units was a deliberate simplification. Pinned in tech-era12-13-1318.test.ts.', 0),
 
   // ---- broad cost discounts ----
   'vaulted-ceilings': keep(2, 'Verified #1304: a 10% building discount is a modest efficiency; no narrower scope exists in TECH_COST_DISCOUNTS without a new discount shape. Left unchanged.', 3),
@@ -72,8 +67,8 @@ export const TECH_AUDIT_ENTRIES: Record<string, TechAuditEntry> = {
   'pragmatism': followUp(3, PINNED_PERCENT, 'Tracked in #1311.'),
 
   // ---- Era 9-11 outcomes that remain flagged by the generic rules (#1305) ----
-  'tungsten-alloys': keep(2, 'Scoped to armor and siege units: a class identity that matches its text, not an army-wide bonus. The class-scoped-and-unconditional shape is tracked in #1318.', 4),
-  'carbon-fiber': keep(2, 'Scoped to air and armored units, matching its text. Tracked in #1318.', 4),
+  'tungsten-alloys': keep(2, 'Reviewed #1318 KEEP: scoped to armor and siege units, a class identity that matches its text, not an army-wide bonus.', 4),
+  'carbon-fiber': keep(2, 'Reviewed #1318 KEEP: scoped to air and armored units, matching its text.', 4),
   'mercantilism': keep(2, 'Reviewed #1315 KEEP: per distinct peacetime trade partner (hurt by war). The partner-count shape recurs in arms-control-negotiations and globalization because each is the same diplomacy-scaled decision in a different era; no existing verb separates them without a new mechanic.', 3),
   'arms-control-negotiations': keep(2, 'Reviewed #1315 KEEP: per distinct peacetime partner; its text/effect mismatch was fixed in #1305. Shares the partner-count shape with mercantilism and globalization (see mercantilism).', 4),
   'globalization': keep(3, 'Era 12 reference: per distinct peacetime partner. Left unchanged.', 0),
