@@ -1,5 +1,5 @@
 import type { GameState } from '@/core/types';
-import { appendNotification, type NotificationEntry } from '@/core/notification-log';
+import type { NotificationEntry } from '@/core/notification-log';
 import { createNotificationDelivery } from '@/ui/notification-delivery';
 import type { ChoiceAction, Notifier } from '@/app/ports';
 

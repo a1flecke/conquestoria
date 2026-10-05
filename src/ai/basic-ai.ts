@@ -1,7 +1,7 @@
 import type { GameState, Unit, HexCoord, PersonalityTraits, SpyMissionType, City, UnitType } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
 import { hexKey, wrappedHexDistance, hexDistance, mapDistance } from '@/systems/hex-utils';
-import { getDetectionUnitTypeForCiv, cityFollowsOwnFaith } from '@/systems/city-system';
+import { cityFollowsOwnFaith } from '@/systems/city-system';
 import { preach, isPreachTargetEligible } from '@/systems/religion-system';
 import { foundCityInState } from '@/systems/city-founding-system';
 import { canFoundCityAt } from '@/systems/city-territory-system';
@@ -26,15 +26,13 @@ import { deterministicCombatSeed, resolveCombat } from '@/systems/combat-system'
 import { resolveUnitVsUnitAttack } from '@/systems/attack-targeting';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
-import { buildUnitOccupancy } from '@/systems/unit-occupancy';
-import { getAvailableTechs, startResearch } from '@/systems/tech-system';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { resolveCombatEra } from '@/systems/era-resolution';
 import { updateAndRefreshVisibility } from '@/systems/last-seen-presentation';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { hasMetCivilization, syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { OPPONENT_CHALLENGE_PROFILES, resolveOpponentChallenge } from '@/core/opponent-challenge';
-import { hasKnownStrategicCapability, hasManhattanProject, computeArmsControlCap } from '@/systems/strategic-arsenal-system';
+import { hasKnownStrategicCapability, hasManhattanProject } from '@/systems/strategic-arsenal-system';
 import { getEligibleStrategicLaunchPlatforms } from '@/systems/strategic-launch-system';
 import { executeStrategicLaunch } from '@/systems/strategic-launch-execution-system';
 import { evaluateStrategicLaunchDecision } from './ai-strategic-doctrine';
@@ -96,10 +94,8 @@ import { getReservedNationalProjectKeys } from '@/systems/national-project-syste
 import { assignCityFocus, calculateProjectedCityYields } from '@/systems/city-work-system';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 import { getLegendaryWonderTacticalEffectAiValue } from '@/systems/legendary-wonder-tactical-effects';
-import { BEAST_OWNER, isBeastUnit, canUnitAttackBeast } from '@/systems/beast-system';
-import { applyDiplomaticReaction } from '@/systems/minor-civ-system';
+import { BEAST_OWNER } from '@/systems/beast-system';
 import { getCivAvailableResources, canEstablishOutpost, performEstablishOutpost } from '@/systems/resource-acquisition-system';
-import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 import { canEstablishRoute } from '@/systems/trade-caravan-system';
 import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
@@ -117,7 +113,6 @@ import { derivePirateBlockades } from '@/systems/pirate-behavior';
 import { buildCombatPresentation } from '@/systems/viewer-event-presentation';
 import {
   buildDiplomaticStrengthEstimates,
-  buildMajorCivPerception,
   type MajorCivPerception,
 } from './ai-perception';
 import { processMajorCivStrategicTurn } from './ai-major-turn';
@@ -128,7 +123,7 @@ import {
   type PreparedMajorCivPlan,
 } from './ai-prepared-turn';
 import { isAIHostileOwner } from './ai-hostility';
-import { hasAICombatRole, hasAITradeRole } from './ai-unit-roles';
+import { hasAITradeRole } from './ai-unit-roles';
 import { applyAIProduction } from './ai-production';
 import { applyAIGoldSpending } from './ai-treasury';
 import { applyAIResearch } from './ai-research';
@@ -629,7 +624,6 @@ function processAITurnInternal(
   if (!civ) return newState;
 
   const personality = getPersonality(newState, civ.civType ?? 'generic');
-  const civDef = resolveCivDefinition(newState, civ.civType ?? '');
   const abandonment = abandonLostLegendaryWonderRace(newState, civId);
   newState = abandonment.state;
   civ = newState.civilizations[civId];
@@ -1000,8 +994,6 @@ function processAITurnInternal(
 
   newState = applyPirateAiResponse(newState, civId, bus);
   civ = newState.civilizations[civId];
-  const piratePresentation = getPirateWatersPresentation(newState, civId);
-  const knownPirateUnitIds = knownPirateResponseUnitIds(newState, civId, piratePresentation.factions);
 
   // Pursue assigned economic chain steps before discretionary spending.
   for (const minorCivId of Object.keys(newState.minorCivs).sort()) {
@@ -2032,31 +2024,3 @@ export function chooseAiMission(
   return available[0];
 }
 
-/**
- * Finds the nearest unowned resource tile that the civ has tech to exploit.
- * Used by the AI to direct Expedition movement.
- */
-function findNearestResourceTile(
-  state: GameState,
-  unit: Unit,
-  civId: string,
-): HexCoord | null {
-  const civ = state.civilizations[civId];
-  if (!civ) return null;
-  const completedTechs = new Set(civ.techState.completed);
-  const resourceDefMap = new Map<string, typeof RESOURCE_DEFINITIONS[number]>(RESOURCE_DEFINITIONS.map(d => [d.id as string, d]));
-
-  let best: { coord: HexCoord; dist: number } | null = null;
-  for (const tile of Object.values(state.map.tiles)) {
-    if (!tile.resource || tile.owner !== null || tile.improvement !== 'none') continue;
-    const def = resourceDefMap.get(tile.resource);
-    if (!def || !completedTechs.has(def.tech)) continue;
-
-    const dist = state.map.wrapsHorizontally
-      ? wrappedHexDistance(tile.coord, unit.position, state.map.width)
-      : hexDistance(tile.coord, unit.position);
-
-    if (!best || dist < best.dist) best = { coord: tile.coord, dist };
-  }
-  return best?.coord ?? null;
-}

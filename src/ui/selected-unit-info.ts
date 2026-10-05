@@ -44,7 +44,7 @@ import { isVisible } from '@/systems/fog-of-war';
 import { canFoundCityAt, formatCityFoundingBlockerMessage, getCityFoundingBlockers } from '@/systems/city-territory-system';
 import { resolveFromCity } from '@/systems/trade-caravan-system';
 import { hasAITradeRole } from '@/ai/ai-unit-roles';
-import { canEstablishOutpost, getCivAvailableResources } from '@/systems/resource-acquisition-system';
+import { canEstablishOutpost } from '@/systems/resource-acquisition-system';
 import { getTransportCargo, getTransportCapacity, getTransportCargoUsed } from '@/systems/transport-system';
 import { calculateCivUnitMaintenance } from '@/systems/economy-system';
 import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';

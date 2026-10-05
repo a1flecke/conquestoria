@@ -1,4 +1,4 @@
-import type { GameState, TradeRoute, Unit } from '@/core/types';
+import type { GameState, TradeRoute } from '@/core/types';
 import { createMarketplaceState } from '@/systems/marketplace-system';
 import { createDiplomacyState } from '@/systems/diplomacy-state';
 

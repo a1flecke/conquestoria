@@ -66,7 +66,6 @@ export function getNetworkPanelModel(state: GameState, civId: string): NetworkPa
   const ownedCities = getOwnedCities(state, civId).slice().sort((a, b) => a.id.localeCompare(b.id));
   for (const city of ownedCities) {
     for (const definitionId of CITY_PLAN_IDS) {
-      const definition = getNetworkPlanDefinition(definitionId);
       const request: NetworkPlanRequest = {
         ownerCivId: civId,
         source: { kind: 'city', cityId: city.id },

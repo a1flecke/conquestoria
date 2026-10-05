@@ -233,7 +233,7 @@ function visibleThreatCount(
   ).length;
 }
 
-function movementRange(state: GameState, actorId: string, unit: Unit): HexCoord[] {
+function movementRange(state: GameState, _actorId: string, unit: Unit): HexCoord[] {
   const occupancy = buildUnitOccupancy(state.units);
   return getMovementRangeDetails(state, unit.id).reachable.filter(destination =>
     getUnitIdsAtCoord(occupancy, destination)

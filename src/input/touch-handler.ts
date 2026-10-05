@@ -14,7 +14,6 @@ export class TouchHandler {
   private lastTouchDistance = 0;
   private lastTouchCenter = { x: 0, y: 0 };
   private touchStartTime = 0;
-  private touchStartPos = { x: 0, y: 0 };
   private longPressTimer: number | null = null;
   private isPanning = false;
   private tapCandidate = false;
@@ -46,7 +45,6 @@ export class TouchHandler {
     if (e.touches.length === 1) {
       const touch = e.touches[0];
       this.touchStartTime = e.timeStamp;
-      this.touchStartPos = { x: touch.clientX, y: touch.clientY };
       this.lastTouchCenter = { x: touch.clientX, y: touch.clientY };
       this.isPanning = false;
       this.tapCandidate = true;

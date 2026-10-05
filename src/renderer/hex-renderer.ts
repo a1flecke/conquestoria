@@ -147,7 +147,6 @@ export function drawHexMap(
       const screen = camera.worldToScreen(pixel.x, pixel.y);
       const scaledSize = size * camera.zoom;
       const presentation = resolveTilePresentationForViewer(map, viewerVisibility, renderCoord);
-      const isExplored = presentation.kind === 'live' || presentation.kind === 'last-seen';
       drawTileAtScreen(
         ctx,
         screen,

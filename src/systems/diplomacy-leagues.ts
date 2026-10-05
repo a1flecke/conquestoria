@@ -10,7 +10,7 @@ export const WRITING_TECHS = ['writing'];
 
 export function canProposeLeague(
   completedTechs: string[],
-  leagues: DefensiveLeague[],
+  _leagues: DefensiveLeague[],
   currentLeague: DefensiveLeague | null,
   isVassal: boolean = false,
   relationships?: Record<string, number>,

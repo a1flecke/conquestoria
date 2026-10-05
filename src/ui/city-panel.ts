@@ -35,7 +35,7 @@ import {
   getLegendaryWonderPresentationForCity,
 } from '@/systems/legendary-wonder-presentation';
 import { getLegendaryLandmarkPreviewViewForCity } from '@/systems/legendary-wonder-landmark-presentation';
-import { canUpgradeUnit, getUpgradeCost } from '@/systems/unit-upgrade-system';
+import { canUpgradeUnit } from '@/systems/unit-upgrade-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { getUnitRolePresentation } from '@/ui/unit-role-presentation';
 import { getCityAppeaseCost, getConcessionCost, CONCESSION_IMMUNITY_TURNS } from '@/systems/faction-commands';
@@ -454,7 +454,7 @@ export function createCityPanel(
     const recoveryPenaltyPct = Math.round((1 - getCatastropheRecoveryMultiplier(severity)) * 100);
     return { crisis, flavor, recoveryPenaltyPct };
   }).filter((c): c is NonNullable<typeof c> => c !== null);
-  const catastropheSectionHtml = catastropheChips.map((chip, idx) => `
+  const catastropheSectionHtml = catastropheChips.map((_chip, idx) => `
     <div style="background:rgba(217,80,80,0.12);border:1px solid rgba(217,80,80,0.35);border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:12px;">
       <div style="font-weight:bold;color:#e88;margin-bottom:4px;" data-text="catastrophe-stage-${idx}"></div>
       <div style="opacity:0.85;" data-text="catastrophe-advisor-${idx}"></div>

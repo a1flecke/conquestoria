@@ -11,7 +11,7 @@ import type {
 import { resolveOpponentChallenge } from '@/core/opponent-challenge';
 import { modifyRelationship } from '@/systems/diplomacy-state';
 import { declareWar } from '@/systems/diplomacy-war';
-import { hexKey, wrappedHexDistance } from '@/systems/hex-utils';
+import { wrappedHexDistance } from '@/systems/hex-utils';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { resolveNeutralPressureEra } from '@/systems/era-resolution';
 import { getOwnedUnitCount } from '@/systems/unit-ownership';
@@ -20,7 +20,6 @@ export const MINOR_CIV_REGIONAL_GRIEVANCE_RADIUS = 14;
 const CONQUEST_PRESSURE = 35;
 const REPEATED_CONQUEST_PRESSURE = 15;
 const REPEATED_CONQUEST_WINDOW = 12;
-const WARY_PRESSURE = 20;
 const MOBILIZING_PRESSURE = 45;
 const COALITION_TALKS_PRESSURE = 70;
 // Pressure at/above which a target grievance is severe enough to justify an emergency levy

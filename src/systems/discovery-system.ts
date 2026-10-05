@@ -1,5 +1,4 @@
 import type { GameState, HexCoord } from '@/core/types';
-import { hexKey } from './hex-utils';
 import { getVisibility } from './fog-of-war';
 
 export interface CivilizationContactTransition {

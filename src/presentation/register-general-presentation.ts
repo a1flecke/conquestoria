@@ -16,7 +16,7 @@ export const registerGeneralPresentation: PresentationRegistrar = (bus, ctx) => 
       ctx.notifier.deliver(civId, message, outcome === 'ambush' || outcome === 'illness' ? 'warning' : 'success');
     }),
     // viewer-scoped by design: advisors run for the active player only (#551).
-    bus.on('advisor:message', ({ advisor, message, icon }) => {
+    bus.on('advisor:message', ({ message, icon }) => {
       ctx.showNotification(`${icon} ${message}`, 'info');
     }),
     bus.on('ai:strategic-warning', event => {

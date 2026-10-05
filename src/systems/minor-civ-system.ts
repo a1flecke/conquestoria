@@ -513,7 +513,6 @@ function processQuests(
   const majorCivIds = Object.keys(state.civilizations);
   for (const civId of majorCivIds) {
     if (nextState.civilizations[civId]?.isEliminated) continue; // #1001: a dead civ gets no new / refreshed city-state quest
-    const mc = nextState.minorCivs[minorCivId];
     if (!hasDiscoveredMinorCiv(nextState, civId, minorCivId)) continue;
     if (isMinorCivAtWar(nextState, civId, minorCivId)) continue;
 
@@ -590,33 +589,6 @@ function applyAllyBonuses(state: GameState, mc: MinorCivState, def: { allyBonus:
     }
   }
   return state;
-}
-
-function processMovement(state: GameState, mc: MinorCivState): void {
-  const city = state.cities[mc.cityId];
-  if (!city) return;
-
-  for (const uid of mc.units) {
-    const unit = state.units[uid];
-    if (!unit) continue;
-
-    const dist = mapDistance(state.map, unit.position, city.position);
-    if (dist > 3) {
-      const neighbors = mapNeighbors(state.map, unit.position);
-      const closer = neighbors
-        .filter(n => mapDistance(state.map, n, city.position) < dist)
-        .filter(n => {
-          const tile = state.map.tiles[hexKey(n)];
-          return tile && tile.terrain !== 'ocean' && tile.terrain !== 'mountain';
-        })[0];
-      if (closer) {
-        unit.position = closer;
-      }
-    }
-
-    unit.movementPointsLeft = UNIT_DEFINITIONS[unit.type]?.movementPoints ?? 2;
-    unit.hasActed = false;
-  }
 }
 
 function emitRelationshipThresholds(state: GameState, mc: MinorCivState, bus: EventBus): void {

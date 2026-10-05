@@ -30,10 +30,6 @@ function isCityCenter(state: GameState, coord: HexCoord): boolean {
   return Object.values(state.cities).some(city => hexKey(city.position) === hexKey(coord));
 }
 
-function isOccupied(state: GameState, coord: HexCoord, ignoredUnitId: string): boolean {
-  return Object.values(state.units).some(unit => unit.id !== ignoredUnitId && !unit.transportId && hexKey(unit.position) === hexKey(coord));
-}
-
 function isFort(state: GameState, coord: HexCoord): boolean {
   const tile = state.map.tiles[hexKey(coord)];
   return tile?.improvement === 'fort' && tile.improvementTurnsLeft === 0;

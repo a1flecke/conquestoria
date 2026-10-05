@@ -68,7 +68,6 @@ export function createMarketplacePanel(
   // NOTE: Both this builder and the setText loop below are index-coupled on knownDefs;
   // they must iterate the same array in the same order. Tests catch any desync.
   const resourceRowsHtml = knownDefs.map((def, idx) => {
-    const price = marketplace.prices[def.id] ?? def.basePrice;
     const history = marketplace.priceHistory[def.id] ?? [def.basePrice];
     const trend = history.length >= 2 ? history[history.length - 1] - history[history.length - 2] : 0;
     const trendIcon = trend > 0 ? '📈' : trend < 0 ? '📉' : '➡️';

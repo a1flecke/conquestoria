@@ -14,7 +14,7 @@ export function drawStrategicLaunchPreviewOverlay(
   ctx: CanvasRenderingContext2D,
   presentation: StrategicLaunchPreviewPresentation,
   mapWidth: number,
-  mapHeight: number,
+  _mapHeight: number,
   camera: Camera,
   wrapsHorizontally: boolean,
 ): void {

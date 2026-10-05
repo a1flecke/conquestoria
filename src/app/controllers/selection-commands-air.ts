@@ -13,7 +13,7 @@ import type { SelectionCommonDeps, SelectionCore, SelectedUnitCommands, Selectio
 export function createAirCommands(
   deps: SelectionCommonDeps,
   core: SelectionCore,
-  args: SelectionCommandArgs,
+  _args: SelectionCommandArgs,
 ): Pick<SelectedUnitCommands, 'onStartIntercept' | 'getAirRebaseDestinations' | 'onRebaseAircraft' | 'onStartAirMission' | 'onCancelAirMission' | 'onStartParadrop' | 'onCancelParadrop' | 'onStartAirAssault' | 'onCancelAirAssault'> {
   const { session, selection, renderLoop } = deps;
 

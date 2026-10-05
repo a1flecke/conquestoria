@@ -6,7 +6,7 @@ import { resolveGeneralDefinition } from '@/systems/great-general-definitions';
 import { resolveGeneralMechanics } from '@/systems/great-general-specialties';
 import { mapDistance } from '@/systems/hex-utils';
 import { EventBus } from '@/core/event-bus';
-import { isAtWar, getRelationship } from '@/systems/diplomacy-queries';
+import { isAtWar } from '@/systems/diplomacy-queries';
 import { isDiplomaticRequestLive } from '@/systems/diplomacy-requests';
 import { getVassalageEligibility } from '@/systems/diplomacy-vassal-rules';
 import { NEW_WORLD_START_POSITIONS } from '@/systems/new-world-map-data';
@@ -20,7 +20,6 @@ import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 import { getPirateWatersPresentation } from '@/systems/pirate-presentation';
 import { getPirateTributeQuote } from '@/systems/pirate-actions';
 import { getMinorCivLeaguesForPlayer } from '@/systems/minor-civ-league-presentation';
-import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { unitParticipatesInLandSupply } from '@/systems/supply-participation';
 
 /**

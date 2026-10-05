@@ -72,15 +72,6 @@ function buildHeader(turn: number, civName: string): HTMLElement {
   return header;
 }
 
-/**
- * Build the 4-channel audio settings section.
- * Uses <input type="range"> and <input type="checkbox"> — no bare <button> elements.
- */
-const DEFAULT_AUDIO_SETTINGS: AudioSettingsSnapshot = {
-  masterVolume: 1.0, musicVolume: 0.5, sfxVolume: 0.7, stingerVolume: 1.0,
-  musicEnabled: true, soundEnabled: true, stingerEnabled: true,
-};
-
 /** #544 MR2: All/Critical only/Off end-turn supply-warning delivery filter. */
 function buildSupplyWarningSettings(callbacks: PauseMenuCallbacks): HTMLElement {
   const section = document.createElement('div');

@@ -24,7 +24,6 @@ export function getUnitCombatStrength(unit: Unit): number {
 }
 
 export function getEffectiveDefenseStrength(defender: Unit, map: GameMap): number {
-  const def = UNIT_DEFINITIONS[defender.type];
   let strength = getUnitCombatStrength(defender) * (defender.health / 100);
   const tile = map.tiles[hexKey(defender.position)];
   if (tile) {

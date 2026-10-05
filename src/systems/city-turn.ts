@@ -112,7 +112,7 @@ export function processCity(
   builtNationalProjectKeys?: Set<string>,
   unitCompletionBlocker?: (type: UnitType) => ProductionDropReason | null,
 ): CityProcessResult {
-  const { bonusEffect, era, completedTechs, availableResources } = productionCost;
+  const { era, completedTechs, availableResources } = productionCost;
   let grew = false;
   let completedBuilding: string | null = null;
   let completedUnit: UnitType | null = null;

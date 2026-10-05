@@ -84,7 +84,7 @@ export function createRallyPanel(
 
 export function createSeizeThePanelMoment(
   container: HTMLElement,
-  generalUnitId: string,
+  _generalUnitId: string,
   eligible: SeizeEligibleUnit[],
   onConfirm: (selectedUnitIds: string[]) => void,
   onCancel: () => void,

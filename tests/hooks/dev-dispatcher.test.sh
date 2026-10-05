@@ -62,7 +62,7 @@ recorded() { cat "$FAKE_ARGV_FILE"; }
 
 # --- 1. every task maps to exactly its documented argv (table-driven) ------------
 TABLE='build|yarn build
-typecheck|bash scripts/typecheck.sh tests
+typecheck|yarn tsc --noEmit
 test-all|yarn test
 test-regular|yarn test:regular
 hooks|bash tests/hooks/run.sh

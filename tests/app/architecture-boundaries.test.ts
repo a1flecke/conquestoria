@@ -346,11 +346,10 @@ describe('#1010 — unit-system decomposition boundaries', () => {
       .filter(file => /from\s+['"](?:@\/systems\/|\.\/)unit-low-level-move['"]/.test(readFileSync(file, 'utf8')))
       .map(file => file.slice(srcRoot.length + 1))
       .sort();
-    // The canonical executor, plus the two ocean-only world-actor call sites carrying
-    // `movement-contract-exempt` markers (see .claude/rules/movement-actions.md).
+    // The canonical executor, plus the ocean-only world-actor call site carrying
+    // a `movement-contract-exempt` marker (see .claude/rules/movement-actions.md).
     expect(importers).toEqual([
       'systems/pirate-behavior.ts',
-      'systems/pirate-system.ts',
       'systems/unit-movement-system.ts',
     ]);
   });

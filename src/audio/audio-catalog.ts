@@ -18,10 +18,6 @@ export interface TrackEntry {
   qualityTier?: 'low' | 'med' | 'high';
 }
 
-function ph(id: string, file: string, duration = 30): TrackEntry {
-  return { id, file, bpm: 0, key: 'placeholder', loop: { loopStart: 0, loopEnd: duration } };
-}
-
 export const ERA_BASE: Record<EraId, TrackEntry> = {
   1: { id: 'era1-base', file: 'audio/era/era1-base.ogg', bpm: 100, key: 'C#-minor',    loop: { loopStart: 0, loopEnd: 165.356 } },
   2: { id: 'era2-base', file: 'audio/era/era2-base.ogg', bpm: 112, key: 'C-minor',     loop: { loopStart: 0, loopEnd: 186.49 } },

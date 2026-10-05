@@ -1,5 +1,5 @@
 import { fnv1a32CodePointLeadRaw } from './deterministic-hash';
-import type { GameState, HexCoord, Unit } from '@/core/types';
+import type { GameState, HexCoord } from '@/core/types';
 import { appendNotification, createNotificationLog } from '@/core/notification-log';
 import { createEmptyPirateState, type PirateFactionState, type PirateHistoryEntry } from '@/core/pirate-state';
 import { isMajorCivOwner } from '@/core/owner-kind';

@@ -27,7 +27,7 @@ import { normalizeCrisisForces } from '@/systems/crisis-force-system';
 import { resolveRogueElephantHostHandlerDeaths } from '@/systems/rogue-elephant-host-system';
 import { hexKey } from '@/systems/hex-utils';
 import { recordBeastSlain, type BeastSlainPayload } from '@/systems/beast-system';
-import { VETERANCY_TIERS, normalizedExperience, type VeterancyTier } from '@/systems/veterancy-tiers';
+import { normalizedExperience } from '@/systems/veterancy-tiers';
 import { getUnitRoleDefinition } from '@/systems/combat-role-definitions';
 import { appendLegendaryWonderMilitaryFacts } from '@/systems/legendary-wonder-history';
 import { getFortificationTier } from '@/systems/fortification-system';

@@ -32,7 +32,7 @@ export function drawSupplyOverlay(
   ctx: CanvasRenderingContext2D,
   presentation: SupplyOverlayPresentation,
   mapWidth: number,
-  mapHeight: number,
+  _mapHeight: number,
   camera: Camera,
   wrapsHorizontally: boolean,
 ): void {
