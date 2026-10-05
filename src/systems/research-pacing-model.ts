@@ -2,6 +2,7 @@ import type { PacingBand, PacingMetadata, Tech, TrainableUnitEntry } from '@/cor
 import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
 import { getTerminalCombatUnitReasons } from '@/systems/combat-role-definitions';
 import { TECH_TREE } from '@/systems/tech-definitions';
+import { getAuthoredTechPacingScope } from '@/systems/tech-pacing-scope';
 import { getFrontierPacingProfile, requireEraPacingProfile, type EraPacingProfile } from '@/systems/era-pacing-profiles';
 
 export interface ResearchOutputProfile { name: string; outputPerTurn: number; }
@@ -64,12 +65,16 @@ export function getRecommendedTechTurnWindow(tech: Tech, techs: Tech[] = TECH_TR
 const RESEARCH_BAND_WINDOWS: Record<PacingBand, { early: [number, number]; late: [number, number] }> = {
   starter: { early: [2, 4], late: [2, 5] }, core: { early: [3, 5], late: [4, 7] }, specialist: { early: [4, 6], late: [5, 8] }, infrastructure: { early: [5, 8], late: [6, 10] }, 'power-spike': { early: [6, 9], late: [7, 11] }, marquee: { early: [10, 12], late: [10, 16] },
 };
-function inferTechScope(tech: Tech): PacingMetadata['scope'] {
-  const text = tech.unlocks.join(' ').toLowerCase();
-  return text.includes('unit') || text.includes('warrior') || text.includes('swordsman') ? 'military' : text.includes('building') || text.includes('library') || text.includes('monument') ? 'city' : 'empire';
-}
-function metadataForTech(tech: Tech): PacingMetadata {
-  return tech.pacing ?? { band: resolveTechPacingBand(tech), role: 'inferred', impact: 1, scope: inferTechScope(tech), snowball: 1, urgency: 1, situationality: 1, unlockBreadth: 1 };
+/**
+ * The effective pacing metadata for a tech: its own `pacing` block, or neutral weights with the scope authored in
+ * `tech-pacing-scope.ts`. Scope is never derived from player-facing text (#1319), and a tech with neither is an
+ * authoring error that fails loudly instead of defaulting.
+ */
+export function resolveTechPacingMetadata(tech: Tech): PacingMetadata {
+  if (tech.pacing) return tech.pacing;
+  const scope = getAuthoredTechPacingScope(tech.id);
+  if (!scope) throw new Error(`Tech ${tech.id} has no pacing block and no authored scope in tech-pacing-scope.ts`);
+  return { band: resolveTechPacingBand(tech), role: 'inferred', impact: 1, scope, snowball: 1, urgency: 1, situationality: 1, unlockBreadth: 1 };
 }
 export function getMetadataComplexityMultiplier(metadata: PacingMetadata, options: MetadataComplexityOptions = {}): number {
   const min = options.min ?? 0.75; const max = options.max ?? 1.35;
@@ -79,7 +84,7 @@ export function getMetadataComplexityMultiplier(metadata: PacingMetadata, option
 function roundRecommendedTechCost(cost: number): number { return cost < 20 ? Math.max(1, Math.round(cost)) : Math.max(5, Math.round(cost / 5) * 5); }
 export function getRecommendedTechCost(tech: Tech, techs: Tech[] = TECH_TREE): number {
   const profile = getResearchOutputProfileForTech(tech, techs); const window = getRecommendedTechTurnWindow(tech, techs);
-  return roundRecommendedTechCost(profile.outputPerTurn * Math.round((window.min + window.max) / 2) * getMetadataComplexityMultiplier(metadataForTech(tech)));
+  return roundRecommendedTechCost(profile.outputPerTurn * Math.round((window.min + window.max) / 2) * getMetadataComplexityMultiplier(resolveTechPacingMetadata(tech)));
 }
 
 /** Rounds authored research costs without hiding an infeasible pacing policy. */
@@ -93,7 +98,7 @@ export function recommendResearchCost(
   techs: Tech[] = TECH_TREE,
 ): ResearchCostRecommendation {
   const window = getRecommendedTechTurnWindow(tech, techs);
-  const multiplier = getMetadataComplexityMultiplier(metadataForTech(tech));
+  const multiplier = getMetadataComplexityMultiplier(resolveTechPacingMetadata(tech));
   const base = roundReadableResearchCost(scenario.standardNetScience * ((window.min + window.max) / 2) * multiplier);
   const band = resolveTechPacingBand(tech, techs);
   const wideMinimum = roundReadableResearchCost(

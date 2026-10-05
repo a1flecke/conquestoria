@@ -1,0 +1,2802 @@
+[
+ {
+  "id": "stone-weapons",
+  "band": "starter",
+  "scope": "military",
+  "multiplier": 1.01,
+  "recommendedCost": 4
+ },
+ {
+  "id": "archery",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 11
+ },
+ {
+  "id": "bronze-working",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 11
+ },
+ {
+  "id": "horseback-riding",
+  "band": "core",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 25
+ },
+ {
+  "id": "fortification",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 55
+ },
+ {
+  "id": "iron-forging",
+  "band": "power-spike",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 70
+ },
+ {
+  "id": "siege-warfare",
+  "band": "power-spike",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 95
+ },
+ {
+  "id": "tactics",
+  "band": "specialist",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 70
+ },
+ {
+  "id": "gathering",
+  "band": "starter",
+  "scope": "empire",
+  "multiplier": 1.14,
+  "recommendedCost": 5
+ },
+ {
+  "id": "pottery",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 11
+ },
+ {
+  "id": "animal-husbandry",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 11
+ },
+ {
+  "id": "irrigation",
+  "band": "core",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 25
+ },
+ {
+  "id": "currency",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 55
+ },
+ {
+  "id": "mining-tech",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 55
+ },
+ {
+  "id": "trade-routes",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 75
+ },
+ {
+  "id": "banking",
+  "band": "power-spike",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 95
+ },
+ {
+  "id": "fire",
+  "band": "starter",
+  "scope": "empire",
+  "multiplier": 1.18,
+  "recommendedCost": 5
+ },
+ {
+  "id": "writing",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 11
+ },
+ {
+  "id": "wheel",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 11
+ },
+ {
+  "id": "mathematics",
+  "band": "core",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 25
+ },
+ {
+  "id": "engineering",
+  "band": "power-spike",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 70
+ },
+ {
+  "id": "philosophy",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 55
+ },
+ {
+  "id": "astronomy",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 75
+ },
+ {
+  "id": "medicine",
+  "band": "power-spike",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 95
+ },
+ {
+  "id": "tribal-council",
+  "band": "starter",
+  "scope": "empire",
+  "multiplier": 1.1,
+  "recommendedCost": 4
+ },
+ {
+  "id": "code-of-laws",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 11
+ },
+ {
+  "id": "early-empire",
+  "band": "core",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 25
+ },
+ {
+  "id": "magistracy",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.06,
+  "recommendedCost": 35
+ },
+ {
+  "id": "state-workforce",
+  "band": "core",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 25
+ },
+ {
+  "id": "diplomacy-tech",
+  "band": "power-spike",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 70
+ },
+ {
+  "id": "civil-service",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 55
+ },
+ {
+  "id": "drama-poetry",
+  "band": "power-spike",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 95
+ },
+ {
+  "id": "political-philosophy",
+  "band": "power-spike",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 95
+ },
+ {
+  "id": "pathfinding",
+  "band": "starter",
+  "scope": "military",
+  "multiplier": 0.97,
+  "recommendedCost": 4
+ },
+ {
+  "id": "cartography",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 11
+ },
+ {
+  "id": "sailing",
+  "band": "specialist",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 10
+ },
+ {
+  "id": "celestial-navigation",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 30
+ },
+ {
+  "id": "road-building",
+  "band": "power-spike",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 70
+ },
+ {
+  "id": "bridge-building",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 55
+ },
+ {
+  "id": "harbor-tech",
+  "band": "power-spike",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 70
+ },
+ {
+  "id": "exploration-tech",
+  "band": "specialist",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 70
+ },
+ {
+  "id": "military-logistics",
+  "band": "power-spike",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 95
+ },
+ {
+  "id": "foraging",
+  "band": "starter",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 4
+ },
+ {
+  "id": "domestication",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 11
+ },
+ {
+  "id": "crop-rotation",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 30
+ },
+ {
+  "id": "granary-design",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 11
+ },
+ {
+  "id": "fertilization",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 55
+ },
+ {
+  "id": "livestock-breeding",
+  "band": "power-spike",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 70
+ },
+ {
+  "id": "selective-breeding",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 75
+ },
+ {
+  "id": "agricultural-science",
+  "band": "power-spike",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 95
+ },
+ {
+  "id": "herbalism",
+  "band": "starter",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 4
+ },
+ {
+  "id": "bone-setting",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 11
+ },
+ {
+  "id": "sanitation",
+  "band": "core",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 25
+ },
+ {
+  "id": "midwifery",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 11
+ },
+ {
+  "id": "surgery",
+  "band": "power-spike",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 70
+ },
+ {
+  "id": "quarantine",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 55
+ },
+ {
+  "id": "apothecary",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 75
+ },
+ {
+  "id": "anatomy",
+  "band": "power-spike",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 95
+ },
+ {
+  "id": "oral-tradition",
+  "band": "starter",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 4
+ },
+ {
+  "id": "mythology",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 11
+ },
+ {
+  "id": "ethics",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 30
+ },
+ {
+  "id": "rhetoric",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 11
+ },
+ {
+  "id": "logic",
+  "band": "power-spike",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 70
+ },
+ {
+  "id": "metaphysics",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 55
+ },
+ {
+  "id": "humanism",
+  "band": "power-spike",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 95
+ },
+ {
+  "id": "natural-philosophy",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 75
+ },
+ {
+  "id": "cave-painting",
+  "band": "starter",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 4
+ },
+ {
+  "id": "storytelling",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 11
+ },
+ {
+  "id": "pottery-arts",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 30
+ },
+ {
+  "id": "music",
+  "band": "core",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 25
+ },
+ {
+  "id": "sculpture",
+  "band": "specialist",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 45
+ },
+ {
+  "id": "drama",
+  "band": "power-spike",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 70
+ },
+ {
+  "id": "theater",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 75
+ },
+ {
+  "id": "architecture-arts",
+  "band": "power-spike",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 85
+ },
+ {
+  "id": "rafts",
+  "band": "starter",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 4
+ },
+ {
+  "id": "fishing",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 11
+ },
+ {
+  "id": "galleys",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 30
+ },
+ {
+  "id": "navigation",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 30
+ },
+ {
+  "id": "triremes",
+  "band": "power-spike",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 70
+ },
+ {
+  "id": "harbor-building",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 55
+ },
+ {
+  "id": "caravels",
+  "band": "power-spike",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 95
+ },
+ {
+  "id": "naval-warfare",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 75
+ },
+ {
+  "id": "copper-working",
+  "band": "starter",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 4
+ },
+ {
+  "id": "smelting",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 11
+ },
+ {
+  "id": "bronze-casting",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 30
+ },
+ {
+  "id": "tool-making",
+  "band": "core",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 25
+ },
+ {
+  "id": "iron-smelting",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 55
+ },
+ {
+  "id": "alloys",
+  "band": "power-spike",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 70
+ },
+ {
+  "id": "steel-forging",
+  "band": "power-spike",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 95
+ },
+ {
+  "id": "armor-craft",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 75
+ },
+ {
+  "id": "mud-brick",
+  "band": "starter",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 4
+ },
+ {
+  "id": "thatching",
+  "band": "core",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 10
+ },
+ {
+  "id": "masonry",
+  "band": "core",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 25
+ },
+ {
+  "id": "foundations",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 11
+ },
+ {
+  "id": "aqueducts",
+  "band": "power-spike",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 70
+ },
+ {
+  "id": "arches",
+  "band": "power-spike",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 70
+ },
+ {
+  "id": "fortresses",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 75
+ },
+ {
+  "id": "city-planning",
+  "band": "power-spike",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 95
+ },
+ {
+  "id": "drums",
+  "band": "starter",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 4
+ },
+ {
+  "id": "smoke-signals",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 11
+ },
+ {
+  "id": "pictographs",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 30
+ },
+ {
+  "id": "messengers",
+  "band": "core",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 25
+ },
+ {
+  "id": "courier-networks",
+  "band": "power-spike",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 70
+ },
+ {
+  "id": "ciphers",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 55
+ },
+ {
+  "id": "printing",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 75
+ },
+ {
+  "id": "diplomats",
+  "band": "power-spike",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 95
+ },
+ {
+  "id": "espionage-scouting",
+  "band": "core",
+  "scope": "empire",
+  "multiplier": 1.12,
+  "recommendedCost": 18
+ },
+ {
+  "id": "lookouts",
+  "band": "core",
+  "scope": "empire",
+  "multiplier": 1.07,
+  "recommendedCost": 17
+ },
+ {
+  "id": "espionage-informants",
+  "band": "core",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 25
+ },
+ {
+  "id": "disguise",
+  "band": "core",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 25
+ },
+ {
+  "id": "spy-networks",
+  "band": "power-spike",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 70
+ },
+ {
+  "id": "sabotage",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 55
+ },
+ {
+  "id": "cryptography",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 75
+ },
+ {
+  "id": "counter-intelligence",
+  "band": "power-spike",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 95
+ },
+ {
+  "id": "animism",
+  "band": "starter",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 4
+ },
+ {
+  "id": "burial-rites",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 11
+ },
+ {
+  "id": "shamanism",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 30
+ },
+ {
+  "id": "sacred-sites",
+  "band": "core",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 25
+ },
+ {
+  "id": "temples",
+  "band": "power-spike",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 70
+ },
+ {
+  "id": "priesthood",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 55
+ },
+ {
+  "id": "pilgrimages",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 75
+ },
+ {
+  "id": "theology-tech",
+  "band": "power-spike",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 95
+ },
+ {
+  "id": "amphibious-warfare",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 185
+ },
+ {
+  "id": "black-powder",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 185
+ },
+ {
+  "id": "professional-army",
+  "band": "infrastructure",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 105
+ },
+ {
+  "id": "guilds",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 100
+ },
+ {
+  "id": "colonial-trade",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 185
+ },
+ {
+  "id": "scientific-method",
+  "band": "specialist",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 85
+ },
+ {
+  "id": "optics",
+  "band": "infrastructure",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 105
+ },
+ {
+  "id": "civic-humanism",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 100
+ },
+ {
+  "id": "constitutional-law",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 110
+ },
+ {
+  "id": "circumnavigation",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 100
+ },
+ {
+  "id": "colonial-charter",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 100
+ },
+ {
+  "id": "plantation-farming",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 100
+ },
+ {
+  "id": "distillation",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 110
+ },
+ {
+  "id": "advanced-anatomy",
+  "band": "specialist",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 90
+ },
+ {
+  "id": "herbalist-guilds",
+  "band": "infrastructure",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 100
+ },
+ {
+  "id": "empiricism",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 110
+ },
+ {
+  "id": "rationalism",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 110
+ },
+ {
+  "id": "renaissance-painting",
+  "band": "infrastructure",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 100
+ },
+ {
+  "id": "classical-music-form",
+  "band": "infrastructure",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 100
+ },
+ {
+  "id": "deep-sea-routes",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 110
+ },
+ {
+  "id": "naval-gunnery",
+  "band": "infrastructure",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 105
+ },
+ {
+  "id": "blast-furnace-tech",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 110
+ },
+ {
+  "id": "cannon-casting",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 110
+ },
+ {
+  "id": "renaissance-architecture",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 100
+ },
+ {
+  "id": "vaulted-ceilings",
+  "band": "infrastructure",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 100
+ },
+ {
+  "id": "printing-press",
+  "band": "specialist",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 85
+ },
+ {
+  "id": "postal-service",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 110
+ },
+ {
+  "id": "black-chambers",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 100
+ },
+ {
+  "id": "diplomatic-networks",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 110
+ },
+ {
+  "id": "reformation",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 100
+ },
+ {
+  "id": "monastic-orders",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 110
+ },
+ {
+  "id": "rifle-tactics",
+  "band": "marquee",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 210
+ },
+ {
+  "id": "grenade-warfare",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 225
+ },
+ {
+  "id": "joint-stock-companies",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 120
+ },
+ {
+  "id": "mercantilism",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 225
+ },
+ {
+  "id": "natural-history",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 120
+ },
+ {
+  "id": "hydraulics",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 120
+ },
+ {
+  "id": "separation-of-powers",
+  "band": "infrastructure",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 125
+ },
+ {
+  "id": "parliamentary-reform",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 120
+ },
+ {
+  "id": "land-survey",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 120
+ },
+ {
+  "id": "colonial-administration",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 120
+ },
+ {
+  "id": "improved-agriculture",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 140
+ },
+ {
+  "id": "tobacco-trade",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 120
+ },
+ {
+  "id": "surgical-school",
+  "band": "specialist",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 110
+ },
+ {
+  "id": "epidemic-control",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 140
+ },
+ {
+  "id": "enlightenment",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 120
+ },
+ {
+  "id": "social-contract",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 120
+ },
+ {
+  "id": "baroque-music",
+  "band": "infrastructure",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 125
+ },
+ {
+  "id": "portrait-art",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 140
+ },
+ {
+  "id": "trade-winds",
+  "band": "specialist",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 110
+ },
+ {
+  "id": "frigate-construction",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 225
+ },
+ {
+  "id": "precision-casting",
+  "band": "infrastructure",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 130
+ },
+ {
+  "id": "steel-plate-armor",
+  "band": "infrastructure",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 130
+ },
+ {
+  "id": "fortification-engineering",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 140
+ },
+ {
+  "id": "aqueduct-expansion",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 120
+ },
+ {
+  "id": "newspaper-press",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 120
+ },
+ {
+  "id": "courier-network",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 140
+ },
+ {
+  "id": "counter-espionage",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 140
+ },
+ {
+  "id": "propaganda",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 140
+ },
+ {
+  "id": "ecumenical-council",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 140
+ },
+ {
+  "id": "missionary-zeal",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 140
+ },
+ {
+  "id": "rifled-infantry",
+  "band": "marquee",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 245
+ },
+ {
+  "id": "mass-mobilization",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 145
+ },
+ {
+  "id": "balloon-corps",
+  "band": "marquee",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 245
+ },
+ {
+  "id": "steam-power",
+  "band": "power-spike",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 165
+ },
+ {
+  "id": "mass-production",
+  "band": "specialist",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 135
+ },
+ {
+  "id": "industrialization",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 145
+ },
+ {
+  "id": "applied-chemistry",
+  "band": "specialist",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 130
+ },
+ {
+  "id": "nationalism",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 145
+ },
+ {
+  "id": "social-reform",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 145
+ },
+ {
+  "id": "colonial-railways",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 145
+ },
+ {
+  "id": "manifest-destiny",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 145
+ },
+ {
+  "id": "mechanized-farming",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 145
+ },
+ {
+  "id": "agricultural-machinery",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 145
+ },
+ {
+  "id": "field-hospitals",
+  "band": "specialist",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 135
+ },
+ {
+  "id": "germ-theory",
+  "band": "specialist",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 135
+ },
+ {
+  "id": "utilitarianism",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 145
+ },
+ {
+  "id": "positivism",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 145
+ },
+ {
+  "id": "romanticism",
+  "band": "specialist",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 130
+ },
+ {
+  "id": "industrial-realism",
+  "band": "specialist",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 130
+ },
+ {
+  "id": "ironclad-warships",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 265
+ },
+ {
+  "id": "steam-navigation",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 265
+ },
+ {
+  "id": "steel-production",
+  "band": "specialist",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 130
+ },
+ {
+  "id": "railway-expansion",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 145
+ },
+ {
+  "id": "urban-planning",
+  "band": "specialist",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 130
+ },
+ {
+  "id": "iron-bridges",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 145
+ },
+ {
+  "id": "popular-press",
+  "band": "specialist",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 130
+ },
+ {
+  "id": "electric-telegraph",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 145
+ },
+ {
+  "id": "covert-operations",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 265
+ },
+ {
+  "id": "secret-police",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 145
+ },
+ {
+  "id": "secularism",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 145
+ },
+ {
+  "id": "social-gospel",
+  "band": "specialist",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 135
+ },
+ {
+  "id": "mass-firepower",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 310
+ },
+ {
+  "id": "general-mobilization",
+  "band": "infrastructure",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 175
+ },
+ {
+  "id": "finance-capitalism",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 165
+ },
+ {
+  "id": "industrial-monopoly",
+  "band": "infrastructure",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 170
+ },
+ {
+  "id": "global-logistics",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 310
+ },
+ {
+  "id": "germ-biology",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 165
+ },
+ {
+  "id": "engineering-exhibition",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 165
+ },
+ {
+  "id": "labor-rights",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 165
+ },
+ {
+  "id": "public-records",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 165
+ },
+ {
+  "id": "transcontinental-rail",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 165
+ },
+ {
+  "id": "imperial-survey",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 165
+ },
+ {
+  "id": "refrigeration",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 190
+ },
+ {
+  "id": "scientific-breeding",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 165
+ },
+ {
+  "id": "antiseptic-surgery",
+  "band": "specialist",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 155
+ },
+ {
+  "id": "public-health-service",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 165
+ },
+ {
+  "id": "dialectical-materialism",
+  "band": "specialist",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 150
+ },
+ {
+  "id": "pragmatism",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 190
+ },
+ {
+  "id": "impressionism",
+  "band": "specialist",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 150
+ },
+ {
+  "id": "grand-opera",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 190
+ },
+ {
+  "id": "naval-armor",
+  "band": "marquee",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 285
+ },
+ {
+  "id": "torpedo-warfare",
+  "band": "infrastructure",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 175
+ },
+ {
+  "id": "bessemer-steel",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 165
+ },
+ {
+  "id": "structural-engineering",
+  "band": "specialist",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 150
+ },
+ {
+  "id": "reinforced-concrete",
+  "band": "specialist",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 150
+ },
+ {
+  "id": "sanitation-networks",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 165
+ },
+ {
+  "id": "telephony",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 165
+ },
+ {
+  "id": "shorthand-press",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 190
+ },
+ {
+  "id": "political-intelligence",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 165
+ },
+ {
+  "id": "disinformation-bureau",
+  "band": "infrastructure",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 190
+ },
+ {
+  "id": "modernist-theology",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 165
+ },
+ {
+  "id": "social-justice",
+  "band": "infrastructure",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 170
+ },
+ {
+  "id": "tank-warfare",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 350
+ },
+ {
+  "id": "armored-tactics",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 350
+ },
+ {
+  "id": "air-superiority",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 350
+ },
+ {
+  "id": "petroleum-industry",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 190
+ },
+ {
+  "id": "fordist-manufacturing",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 190
+ },
+ {
+  "id": "quantum-theory",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 190
+ },
+ {
+  "id": "aviation",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 350
+ },
+ {
+  "id": "universal-suffrage",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 190
+ },
+ {
+  "id": "welfare-state",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 190
+ },
+ {
+  "id": "motorized-transport",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 350
+ },
+ {
+  "id": "aerial-survey",
+  "band": "specialist",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 175
+ },
+ {
+  "id": "chemical-fertilizers",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 190
+ },
+ {
+  "id": "large-scale-irrigation",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 190
+ },
+ {
+  "id": "blood-transfusion",
+  "band": "specialist",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 175
+ },
+ {
+  "id": "modern-psychiatry",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 190
+ },
+ {
+  "id": "pragmatic-empiricism",
+  "band": "specialist",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 170
+ },
+ {
+  "id": "existentialism",
+  "band": "specialist",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 170
+ },
+ {
+  "id": "cinema",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 190
+ },
+ {
+  "id": "jazz-age",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 190
+ },
+ {
+  "id": "dreadnought-construction",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 350
+ },
+ {
+  "id": "submarine-warfare",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 350
+ },
+ {
+  "id": "convoy-system",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 350
+ },
+ {
+  "id": "aluminium-smelting",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 190
+ },
+ {
+  "id": "tungsten-alloys",
+  "band": "specialist",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 175
+ },
+ {
+  "id": "hydroelectric-power",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 190
+ },
+ {
+  "id": "steel-skyscrapers",
+  "band": "specialist",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 170
+ },
+ {
+  "id": "radio-broadcast",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 190
+ },
+ {
+  "id": "wireless-telegraph",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 190
+ },
+ {
+  "id": "mass-media",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 350
+ },
+ {
+  "id": "counterintelligence",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 350
+ },
+ {
+  "id": "propaganda-campaigns",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 190
+ },
+ {
+  "id": "religious-modernism",
+  "band": "specialist",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 170
+ },
+ {
+  "id": "secular-humanism",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 190
+ },
+ {
+  "id": "jet-aviation",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1895
+ },
+ {
+  "id": "nuclear-weapons",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1895
+ },
+ {
+  "id": "keynesian-economics",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1020
+ },
+ {
+  "id": "consumer-boom",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1020
+ },
+ {
+  "id": "nuclear-physics",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1020
+ },
+ {
+  "id": "nuclear-theory",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1895
+ },
+ {
+  "id": "radar-systems",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1895
+ },
+ {
+  "id": "decolonization",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1020
+ },
+ {
+  "id": "international-institutions",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1020
+ },
+ {
+  "id": "rocketry",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1895
+ },
+ {
+  "id": "polar-operations",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1020
+ },
+ {
+  "id": "pesticides",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1020
+ },
+ {
+  "id": "mechanized-agriculture",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1020
+ },
+ {
+  "id": "penicillin",
+  "band": "specialist",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 945
+ },
+ {
+  "id": "universal-healthcare",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1020
+ },
+ {
+  "id": "post-colonial-theory",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1020
+ },
+ {
+  "id": "human-rights-framework",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1020
+ },
+ {
+  "id": "abstract-expressionism",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1020
+ },
+ {
+  "id": "rock-and-roll",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1020
+ },
+ {
+  "id": "carrier-warfare",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1895
+ },
+ {
+  "id": "amphibious-assault",
+  "band": "specialist",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 945
+ },
+ {
+  "id": "titanium-processing",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1020
+ },
+ {
+  "id": "synthetic-polymers",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1020
+ },
+ {
+  "id": "nuclear-power",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1020
+ },
+ {
+  "id": "highway-network",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1895
+ },
+ {
+  "id": "television",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1020
+ },
+ {
+  "id": "electronic-computing",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1020
+ },
+ {
+  "id": "signals-intelligence",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1020
+ },
+ {
+  "id": "cold-war-networks",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1020
+ },
+ {
+  "id": "digital-surveillance",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1020
+ },
+ {
+  "id": "liberation-theology",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1020
+ },
+ {
+  "id": "interfaith-council",
+  "band": "specialist",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 905
+ },
+ {
+  "id": "helicopter-warfare",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 2385
+ },
+ {
+  "id": "icbm-development",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1285
+ },
+ {
+  "id": "stagflation-response",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1285
+ },
+ {
+  "id": "petrodollar-system",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1285
+ },
+ {
+  "id": "integrated-circuits",
+  "band": "power-spike",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1650
+ },
+ {
+  "id": "molecular-biology",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1285
+ },
+ {
+  "id": "arms-control-negotiations",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1285
+ },
+ {
+  "id": "civil-rights-legislation",
+  "band": "power-spike",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1650
+ },
+ {
+  "id": "space-exploration",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1285
+ },
+ {
+  "id": "deep-sea-drilling",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1285
+ },
+ {
+  "id": "green-revolution-crops",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1285
+ },
+ {
+  "id": "aquaculture",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1285
+ },
+ {
+  "id": "organ-transplantation",
+  "band": "power-spike",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 1530
+ },
+ {
+  "id": "vaccination-campaigns",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1285
+ },
+ {
+  "id": "structuralism",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1285
+ },
+ {
+  "id": "postmodernism",
+  "band": "specialist",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 1140
+ },
+ {
+  "id": "pop-art",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1285
+ },
+ {
+  "id": "counterculture",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1285
+ },
+ {
+  "id": "nuclear-submarines",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 2385
+ },
+ {
+  "id": "container-shipping",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 2385
+ },
+ {
+  "id": "carbon-fiber",
+  "band": "specialist",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 1190
+ },
+ {
+  "id": "precision-engineering",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 2385
+ },
+ {
+  "id": "megastructures",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1285
+ },
+ {
+  "id": "offshore-platforms",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1285
+ },
+ {
+  "id": "arpanet",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1285
+ },
+ {
+  "id": "satellite-television",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1285
+ },
+ {
+  "id": "satellite-surveillance",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1285
+ },
+ {
+  "id": "black-ops-programs",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1285
+ },
+ {
+  "id": "ecumenical-movement",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1285
+ },
+ {
+  "id": "new-age-spirituality",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1285
+ },
+ {
+  "id": "cyber-warfare",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 2780
+ },
+ {
+  "id": "stealth-technology",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 2780
+ },
+ {
+  "id": "globalization",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1495
+ },
+ {
+  "id": "digital-economy",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 2780
+ },
+ {
+  "id": "genomics",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1495
+ },
+ {
+  "id": "cloud-computing",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1495
+ },
+ {
+  "id": "digital-rights",
+  "band": "specialist",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 1330
+ },
+ {
+  "id": "network-governance",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1495
+ },
+ {
+  "id": "gps-navigation",
+  "band": "specialist",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 1385
+ },
+ {
+  "id": "private-spaceflight",
+  "band": "specialist",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 1385
+ },
+ {
+  "id": "precision-agriculture",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1495
+ },
+ {
+  "id": "lab-grown-food",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1495
+ },
+ {
+  "id": "gene-therapy",
+  "band": "specialist",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 1385
+ },
+ {
+  "id": "telemedicine",
+  "band": "specialist",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 1385
+ },
+ {
+  "id": "autonomous-shipping",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1495
+ },
+ {
+  "id": "deep-ocean-research",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1495
+ },
+ {
+  "id": "nanomaterials",
+  "band": "specialist",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 1385
+ },
+ {
+  "id": "3d-printing",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1495
+ },
+ {
+  "id": "smart-cities",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1495
+ },
+ {
+  "id": "green-architecture",
+  "band": "specialist",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 1330
+ },
+ {
+  "id": "internet",
+  "band": "power-spike",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 1710
+ },
+ {
+  "id": "social-media",
+  "band": "specialist",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 1330
+ },
+ {
+  "id": "cyber-intelligence",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1495
+ },
+ {
+  "id": "mass-surveillance",
+  "band": "specialist",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 1385
+ },
+ {
+  "id": "transhumanism",
+  "band": "specialist",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 1385
+ },
+ {
+  "id": "secular-rationalism",
+  "band": "specialist",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 1330
+ },
+ {
+  "id": "digital-art",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1495
+ },
+ {
+  "id": "video-games",
+  "band": "specialist",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 1330
+ },
+ {
+  "id": "mindfulness-movement",
+  "band": "specialist",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 1385
+ },
+ {
+  "id": "new-secularism",
+  "band": "specialist",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 1330
+ },
+ {
+  "id": "autonomous-weapons-systems",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 3315
+ },
+ {
+  "id": "hypersonic-coordination",
+  "band": "specialist",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 1650
+ },
+ {
+  "id": "cooperative-platforms",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1785
+ },
+ {
+  "id": "universal-basic-services",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1785
+ },
+ {
+  "id": "general-purpose-ai",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1785
+ },
+ {
+  "id": "quantum-computing",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1785
+ },
+ {
+  "id": "algorithmic-accountability",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1785
+ },
+ {
+  "id": "digital-democracy",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1785
+ },
+ {
+  "id": "autonomous-mobility",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1785
+ },
+ {
+  "id": "mars-mission-architecture",
+  "band": "power-spike",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 2295
+ },
+ {
+  "id": "vertical-agriculture",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1785
+ },
+ {
+  "id": "closed-loop-food-systems",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1785
+ },
+ {
+  "id": "precision-gene-editing",
+  "band": "specialist",
+  "scope": "military",
+  "multiplier": 1,
+  "recommendedCost": 1650
+ },
+ {
+  "id": "neural-prosthetics",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 3315
+ },
+ {
+  "id": "ocean-robotics",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 3315
+ },
+ {
+  "id": "seabed-stewardship",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1785
+ },
+ {
+  "id": "programmable-materials",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1785
+ },
+ {
+  "id": "molecular-fabrication",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1785
+ },
+ {
+  "id": "modular-arcologies",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1785
+ },
+ {
+  "id": "carbon-negative-infrastructure",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1785
+ },
+ {
+  "id": "quantum-networking",
+  "band": "specialist",
+  "scope": "city",
+  "multiplier": 0.96,
+  "recommendedCost": 1585
+ },
+ {
+  "id": "ambient-interfaces",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1785
+ },
+ {
+  "id": "adversarial-ai",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1785
+ },
+ {
+  "id": "synthetic-media-operations",
+  "band": "marquee",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 3315
+ },
+ {
+  "id": "machine-ethics",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1785
+ },
+ {
+  "id": "digital-personhood",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1785
+ },
+ {
+  "id": "co-creative-arts",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1785
+ },
+ {
+  "id": "immersive-worlds",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1785
+ },
+ {
+  "id": "digital-legacy",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1785
+ },
+ {
+  "id": "contemplative-technology",
+  "band": "specialist",
+  "scope": "empire",
+  "multiplier": 1.08,
+  "recommendedCost": 1785
+ }
+]

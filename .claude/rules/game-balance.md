@@ -906,10 +906,12 @@ per-tech inventory. Working rules that came out of converting flat yields:
   (yield and cost-discount rows, capped at 3) and `getTechCombatEffectValue` (combat rows, capped at 0.5). It is
   state-independent and reads only the public catalog. A new table row is valued automatically; effects owned by
   bespoke code are valued only through the unlocks that carry them.
-- **Unlock text is read by the pacing model.** For a tech with no explicit `pacing`, `inferTechScope`
-  (`research-pacing-model.ts`) takes its scope from the words "unit" (military), "building"/"library"/"monument"
-  (city) in `Tech.unlocks`, and the persisted cost recommendation follows. A rewrite that adds or drops those words
-  moves a tech's cost target (`research-pacing-report.test.ts` fails); keep the old scope class or add `pacing`.
+- **Player-facing text is not an input to pacing (#1319).** A tech's research-pacing scope is its own `pacing`
+  block or an entry in `src/systems/tech-pacing-scope.ts` (no default; a tech with neither throws).
+  `tests/systems/research-pacing-explicit-scope.test.ts` pins every tech's band, scope, multiplier and recommended
+  cost against `tests/fixtures/research-pacing-characterization.json` and proves rewording `name`/`unlocks` moves
+  nothing. A new authored tech must be added to the scope table or given a `pacing` block, and choosing a scope is
+  about what the tech is for (military = unit-centred, city = building-centred, empire = otherwise), not its copy.
 - **A tech's text must be backed by a mechanic** (`content-description-honesty.md`): the audit lists the claims
   with no table effect and no code owner. `tests/systems/tech-strategic-validation.test.ts` also fails when a
   yield row's label quotes a number its tech text does not (the check that would have caught Arms Control's
