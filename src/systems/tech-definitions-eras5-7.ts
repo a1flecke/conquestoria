@@ -79,7 +79,7 @@ const ERA_5_TECHS: Tech[] = [
     unlocks: ['+1 science per observatory'], era: 5 },
   { id: 'rationalism', name: 'Rationalism', track: 'philosophy', cost: 390,
     prerequisites: ['humanism'],
-    unlocks: ['+5% science empire-wide'], era: 5 },
+    unlocks: ['+1 science per science building'], era: 5 },
 
   // ARTS (2)
   { id: 'renaissance-painting', name: 'Renaissance Painting', track: 'arts', cost: 345,

@@ -8,11 +8,11 @@ Scope: Eras 1–11 are audited for change; Era 12 is reference (listed, left uns
 
 | Class | Count |
 |---|---:|
-| KEEP | 368 |
+| KEEP | 370 |
 | TUNE | 0 |
 | REPLACE | 0 |
 | WIRE | 0 |
-| FOLLOW-UP | 2 |
+| FOLLOW-UP | 0 |
 | OBSOLETE | 0 |
 | **Total (Eras 1–12)** | 370 |
 
@@ -24,10 +24,10 @@ Scope: Eras 1–11 are audited for change; Era 12 is reference (listed, left uns
 | 2 | 31 | 0 | 0 | 0 | 0 | 0 | 0 | 31 |
 | 3 | 31 | 0 | 0 | 0 | 0 | 1 | 0 | 30 |
 | 4 | 30 | 0 | 0 | 0 | 0 | 1 | 2 | 27 |
-| 5 | 31 | 0 | 0 | 1 | 0 | 16 | 3 | 9 |
+| 5 | 31 | 0 | 0 | 0 | 0 | 17 | 3 | 9 |
 | 6 | 30 | 0 | 0 | 0 | 0 | 15 | 3 | 12 |
 | 7 | 31 | 0 | 0 | 0 | 0 | 16 | 2 | 14 |
-| 8 | 31 | 0 | 0 | 1 | 0 | 18 | 4 | 7 |
+| 8 | 31 | 0 | 0 | 0 | 0 | 19 | 4 | 7 |
 | 9 | 33 | 0 | 0 | 0 | 1 | 16 | 3 | 13 |
 | 10 | 32 | 0 | 0 | 0 | 0 | 24 | 2 | 6 |
 | 11 | 30 | 0 | 0 | 0 | 1 | 21 | 1 | 7 |
@@ -65,12 +65,10 @@ Verify only: `irrigation`
 
 ## Child 3 target list — Eras 5–8
 
-2 techs to change; 22 scheduled for verification/text only.
+0 techs to change; 22 scheduled for verification/text only.
 
 | Tech | Era | Class | Today | Candidate (existing mechanics) |
 |---|---:|---|---|---|
-| `rationalism` | 5 | FOLLOW-UP | +5% science empire-wide |  |
-| `pragmatism` | 8 | FOLLOW-UP | +5% to all city yields |  |
 
 Verify only: `professional-army`, `plantation-farming`, `vaulted-ceilings`, `postal-service`, `black-chambers`, `diplomatic-networks`, `mercantilism`, `epidemic-control`, `trade-winds`, `fortification-engineering`, `courier-network`, `counter-espionage`, `mass-production`, `colonial-railways`, `agricultural-machinery`, `electric-telegraph`, `covert-operations`, `secret-police`, `general-mobilization`, `transcontinental-rail`, `political-intelligence`, `disinformation-bureau`
 
@@ -256,7 +254,7 @@ Class/rating: rating 0 flavor, 1 unconditional number, 2 conditional but weak or
 | `advanced-anatomy` | 5 | medicine | KEEP | 3 | effect-valued | healing +1 (all units; always; inFriendlyTerritory) | - |
 | `herbalist-guilds` | 5 | medicine | KEEP | 3 | unlock-valued | - | - |
 | `empiricism` | 5 | philosophy | KEEP | 2 | effect-valued | +1 science per observatory | - |
-| `rationalism` | 5 | philosophy | FOLLOW-UP | 1 | effect-valued | +5% science empire-wide | - |
+| `rationalism` | 5 | philosophy | KEEP | 2 | effect-valued | +1 science per science building | - |
 | `renaissance-painting` | 5 | arts | KEEP | 2 | unlock+effect-valued | +1 gold per culture building empire-wide | - |
 | `classical-music-form` | 5 | arts | KEEP | 2 | effect-valued | +1 science per culture building empire-wide | - |
 | `deep-sea-routes` | 5 | maritime | KEEP | 2 | unlock+effect-valued | +1 gold per coastal city | - |
@@ -348,7 +346,7 @@ Class/rating: rating 0 flavor, 1 unconditional number, 2 conditional but weak or
 | `antiseptic-surgery` | 8 | medicine | KEEP | 3 | effect-valued | healing +3 (all units; always; inFriendlyCity) | - |
 | `public-health-service` | 8 | medicine | KEEP | 3 | unlock-valued | - | - |
 | `dialectical-materialism` | 8 | philosophy | KEEP | 2 | effect-valued | +2 science in cities with a library | - |
-| `pragmatism` | 8 | philosophy | FOLLOW-UP | 1 | effect-valued | +5% to all city yields | - |
+| `pragmatism` | 8 | philosophy | KEEP | 2 | effect-valued | +5 science, +4 production, +3 gold and +3 food in cities with 12 or more buildings | - |
 | `impressionism` | 8 | arts | KEEP | 2 | effect-valued | Culture buildings generate +1 gold and +1 science | - |
 | `grand-opera` | 8 | arts | KEEP | 2 | unlock+effect-valued | +3 gold per opera house | - |
 | `naval-armor` | 8 | maritime | KEEP | 3 | unlock+effect-valued | combatStrength +5 (class:naval; defending; none) | - |

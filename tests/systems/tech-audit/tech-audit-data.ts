@@ -13,12 +13,6 @@ export type TechAuditEntry = TechJudgement & { child: 0 | 2 | 3 | 4 };
 const keep = (rating: TechAuditEntry['rating'], note: string, child: TechAuditEntry['child'] = 0): TechAuditEntry =>
   ({ cls: 'KEEP', rating, note, child });
 
-
-const followUp = (child: TechAuditEntry['child'], note: string, issue: string): TechAuditEntry =>
-  ({ cls: 'FOLLOW-UP', rating: 1, note, followUp: issue, child });
-
-const PINNED_PERCENT = 'Unconditional percentage yield pinned into the reference economy that RESEARCH_OUTPUT_BY_ERA and every persisted tech cost derive from; replacing it is a pacing decision, not a tech-text edit.';
-
 export const TECH_AUDIT_ENTRIES: Record<string, TechAuditEntry> = {
   // ---- flat yields, Eras 5–8 (child 3) ----
 
@@ -66,9 +60,6 @@ export const TECH_AUDIT_ENTRIES: Record<string, TechAuditEntry> = {
   'titanium-processing': keep(2, 'Reviewed #1340 KEEP: the era-10 rung of the Factory-city production ladder that begins with mass-production.', 4),
   'precision-engineering': keep(2, 'Reviewed #1340 KEEP: the era-11 rung of the Factory-city production ladder that begins with mass-production.', 4),
 
-  // ---- percentage techs held back on purpose (#1304): see the follow-up issue ----
-  'rationalism': followUp(3, PINNED_PERCENT, 'Tracked in #1311.'),
-  'pragmatism': followUp(3, PINNED_PERCENT, 'Tracked in #1311.'),
 
   // ---- Era 9-11 outcomes that remain flagged by the generic rules (#1305) ----
   'tungsten-alloys': keep(2, 'Reviewed #1318 KEEP: scoped to armor and siege units, a class identity that matches its text, not an army-wide bonus.', 4),

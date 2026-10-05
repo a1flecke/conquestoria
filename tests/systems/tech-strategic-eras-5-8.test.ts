@@ -8,7 +8,7 @@ import {
   getEmpireTechPercents,
   getCivRoutePartnerTechGold,
 } from '@/systems/tech-yield-system';
-import { foundCity } from '@/systems/city-system';
+import { foundCity, BUILDINGS } from '@/systems/city-system';
 import { generateMap } from '@/systems/map-generator';
 
 // #1304 (#420 child 3): the Era 5-8 flat and percentage yields now depend on what the player built, owns or traded.
@@ -24,11 +24,8 @@ function city(overrides: Partial<City> = {}): City {
 const yieldsFor = (c: City, ...techs: string[]) => getCityTechYields(c, map, techs).total;
 
 describe('Eras 5-8 strategic-choice pass (#1304)', () => {
-  it('only the two science-pair percentage techs keep an unconditional yield in Eras 5-8', () => {
-    // rationalism (+5% science) and pragmatism (+5% all) feed the pinned science reference economy that
-    // RESEARCH_OUTPUT_BY_ERA and every persisted tech cost are derived from
-    // (tests/systems/pacing-reference-economy.test.ts); they are the remaining #1311 follow-up. The production pair
-    // (mass-production, parliamentary-reform) became building-conditioned in #1340.
+  it('no Era 5-8 tech keeps an unconditional yield', () => {
+    // The last four percentage techs were replaced in #1340 (production pair) and #1341 (science pair).
     const flatKinds = new Set(['cityFlat', 'empireFlat', 'empirePercent']);
     const offenders = TECH_YIELD_MODIFIERS
       .filter(m => flatKinds.has(m.effect.kind))
@@ -38,7 +35,7 @@ describe('Eras 5-8 strategic-choice pass (#1304)', () => {
       })
       .map(m => m.techId)
       .sort();
-    expect(offenders).toEqual(['pragmatism', 'rationalism']);
+    expect(offenders).toEqual([]);
   });
 
   it('building-conditioned techs pay only with the building (and not without the tech)', () => {
@@ -104,12 +101,23 @@ describe('Eras 5-8 strategic-choice pass (#1304)', () => {
     expect(yieldsFor(city(), 'land-survey').food).toBe(0);
   });
 
-  it('percentage techs that stay still stack as before', () => {
-    expect(getEmpireTechPercents(['rationalism']).science).toBe(5);
+  it('no shipped tech pays an empire-wide percentage any more (#1340, #1341)', () => {
+    expect(TECH_YIELD_MODIFIERS.filter(m => m.effect.kind === 'empirePercent').map(m => m.techId)).toEqual([]);
+    expect(getEmpireTechPercents(['rationalism', 'pragmatism', 'mass-production', 'parliamentary-reform'])).toEqual({});
   });
 
-  it('the production pair no longer pays a percentage anywhere (#1340)', () => {
-    expect(getEmpireTechPercents(['mass-production', 'parliamentary-reform']).production ?? 0).toBe(0);
+  it('rationalism pays +1 science per science building and nothing for other buildings (#1341)', () => {
+    expect(yieldsFor(city({ buildings: ['library', 'university', 'observatory'] }), 'rationalism').science).toBe(3);
+    expect(yieldsFor(city({ buildings: ['library'] }), 'rationalism').science).toBe(1);
+    expect(yieldsFor(city({ buildings: ['granary', 'marketplace', 'forge'] }), 'rationalism').science).toBe(0);
+    expect(yieldsFor(city({ buildings: ['library', 'university'] })).science).toBe(0);
+  });
+
+  it('pragmatism pays only in cities with 12 or more buildings (#1341)', () => {
+    const ids = Object.keys(BUILDINGS).slice(0, 12);
+    expect(yieldsFor(city({ buildings: ids }), 'pragmatism')).toEqual({ food: 3, production: 4, gold: 3, science: 5 });
+    expect(yieldsFor(city({ buildings: ids.slice(0, 11) }), 'pragmatism')).toEqual({ food: 0, production: 0, gold: 0, science: 0 });
+    expect(yieldsFor(city({ buildings: ids }))).toEqual({ food: 0, production: 0, gold: 0, science: 0 });
   });
 
   it('mass-production pays per Factory city, not for other production buildings (#1340)', () => {

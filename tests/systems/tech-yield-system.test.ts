@@ -294,8 +294,6 @@ describe('getEmpireTechPercents / applyEmpireTechPercents', () => {
       { techId: 'mercantilism', label: 'synthetic +5% gold', effect: { kind: 'empirePercent', resource: 'gold', percent: 5 } },
     ], () => getEmpireTechPercents(['civic-humanism', 'mercantilism']));
     expect(percents.gold).toBe(10);
-    // The real percentage techs that remain stack the same way: rationalism (+5% science) with pragmatism (+5% all).
-    expect(getEmpireTechPercents(['rationalism', 'pragmatism']).science).toBe(10);
   });
 
   it('is empty without the qualifying tech', () => {
@@ -410,9 +408,13 @@ describe('MR6: requiresAllBuildings (smart-cities)', () => {
   });
 });
 
-describe('MR6: empirePercent resource "all" (pragmatism)', () => {
+describe('MR6: empirePercent resource "all" (synthetic row since #1341)', () => {
+  // #1341 replaced pragmatism, the last shipped 'all' percentage; the kind stays as vocabulary.
   it('applies the percent to every resource key', () => {
-    const percents = getEmpireTechPercents(['pragmatism']);
+    const percents = withSyntheticModifiers(
+      [{ techId: 'pragmatism', label: 'synthetic +5% all', effect: { kind: 'empirePercent', resource: 'all', percent: 5 } }],
+      () => getEmpireTechPercents(['pragmatism']),
+    );
     expect(percents).toEqual({ food: 5, production: 5, gold: 5, science: 5 });
   });
 });
