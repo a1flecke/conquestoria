@@ -900,8 +900,8 @@ per-tech inventory. Working rules that came out of converting flat yields:
   made the choice earns what the flat bonus gave it. The science and production reference economy
   (`tests/systems/pacing-reference-economy.test.ts`) feeds `RESEARCH_OUTPUT_BY_ERA`, so a change that moves
   the maximal profile outside the era 10-13 tolerance is a pacing change and needs a decision, not a snapshot edit.
-  Percentage techs in that pinned economy (`rationalism`, `parliamentary-reform`, `mass-production`, `pragmatism`)
-  are held back for #1311.
+  Percentage techs in that pinned economy (`rationalism`, `pragmatism`) are held back for #1311; the production pair
+  (`mass-production`, `parliamentary-reform`) became factory- and forum/courthouse-conditioned in #1340.
 - **The AI sees a tech's own effect rows.** `evaluateAITechCapabilities` adds `getTechEconomicEffectValue`
   (yield and cost-discount rows, capped at 3) and `getTechCombatEffectValue` (combat rows, capped at 0.5). It is
   state-independent and reads only the public catalog. A new table row is valued automatically; effects owned by

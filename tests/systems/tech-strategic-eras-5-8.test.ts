@@ -24,12 +24,11 @@ function city(overrides: Partial<City> = {}): City {
 const yieldsFor = (c: City, ...techs: string[]) => getCityTechYields(c, map, techs).total;
 
 describe('Eras 5-8 strategic-choice pass (#1304)', () => {
-  it('only the four documented percentage techs keep an unconditional yield in Eras 5-8', () => {
-    // rationalism (+5% science), parliamentary-reform (+5% production), mass-production (+10% production) and
-    // pragmatism (+5% all) feed the pinned science/production reference economy that RESEARCH_OUTPUT_BY_ERA and
-    // every persisted tech cost are derived from (tests/systems/pacing-reference-economy.test.ts). Replacing them
-    // needs an explicit pacing decision and a cost migration, so they are a tracked follow-up rather than silently
-    // rewritten here.
+  it('only the two science-pair percentage techs keep an unconditional yield in Eras 5-8', () => {
+    // rationalism (+5% science) and pragmatism (+5% all) feed the pinned science reference economy that
+    // RESEARCH_OUTPUT_BY_ERA and every persisted tech cost are derived from
+    // (tests/systems/pacing-reference-economy.test.ts); they are the remaining #1311 follow-up. The production pair
+    // (mass-production, parliamentary-reform) became building-conditioned in #1340.
     const flatKinds = new Set(['cityFlat', 'empireFlat', 'empirePercent']);
     const offenders = TECH_YIELD_MODIFIERS
       .filter(m => flatKinds.has(m.effect.kind))
@@ -39,7 +38,7 @@ describe('Eras 5-8 strategic-choice pass (#1304)', () => {
       })
       .map(m => m.techId)
       .sort();
-    expect(offenders).toEqual(['mass-production', 'parliamentary-reform', 'pragmatism', 'rationalism']);
+    expect(offenders).toEqual(['pragmatism', 'rationalism']);
   });
 
   it('building-conditioned techs pay only with the building (and not without the tech)', () => {
@@ -52,6 +51,9 @@ describe('Eras 5-8 strategic-choice pass (#1304)', () => {
       ['public-records', ['archive'], 'science', 1],
       ['grand-opera', ['opera_house'], 'gold', 3],
       ['baroque-music', ['concert_hall'], 'gold', 2],
+      ['mass-production', ['factory'], 'production', 4],
+      ['parliamentary-reform', ['courthouse'], 'production', 2],
+      ['parliamentary-reform', ['forum'], 'production', 2],
     ];
     for (const [techId, buildings, key, amount] of cases) {
       const built = city({ buildings });
@@ -104,8 +106,20 @@ describe('Eras 5-8 strategic-choice pass (#1304)', () => {
 
   it('percentage techs that stay still stack as before', () => {
     expect(getEmpireTechPercents(['rationalism']).science).toBe(5);
-    expect(getEmpireTechPercents(['mass-production']).production).toBe(10);
-    expect(getEmpireTechPercents(['parliamentary-reform']).production).toBe(5);
+  });
+
+  it('the production pair no longer pays a percentage anywhere (#1340)', () => {
+    expect(getEmpireTechPercents(['mass-production', 'parliamentary-reform']).production ?? 0).toBe(0);
+  });
+
+  it('mass-production pays per Factory city, not for other production buildings (#1340)', () => {
+    expect(yieldsFor(city({ buildings: ['factory', 'workshop'] }), 'mass-production').production).toBe(4);
+    expect(yieldsFor(city({ buildings: ['workshop', 'forge', 'steel_mill'] }), 'mass-production').production).toBe(0);
+  });
+
+  it('parliamentary-reform pays per forum and per courthouse and nothing else (#1340)', () => {
+    expect(yieldsFor(city({ buildings: ['forum', 'courthouse'] }), 'parliamentary-reform').production).toBe(4);
+    expect(yieldsFor(city({ buildings: ['library', 'marketplace', 'temple'] }), 'parliamentary-reform').production).toBe(0);
   });
 
   it('mercantilism pays per distinct peacetime partner civilization', () => {

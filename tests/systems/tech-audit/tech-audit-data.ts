@@ -61,10 +61,13 @@ export const TECH_AUDIT_ENTRIES: Record<string, TechAuditEntry> = {
   'agricultural-machinery': keep(2, 'Reviewed #1315 KEEP: the intensification rung (+2 per farm, era 7) for a player who committed to agriculture; its gap to the +1 rungs is the point.', 3),
   'pesticides': keep(2, 'Reviewed #1315 KEEP: the late maintenance rung (+1 per farm, era 10) that keeps farm-heavy empires growing as the other farm rungs convert to terrain and population effects. Three per-farm rungs across five eras is an accepted specialization ladder.', 4),
 
+  // ---- Factory-city production ladder (#1340): one industrial specialization, deepening by era ----
+  'mass-production': keep(2, 'Reviewed #1340: replaced the flat +10% with +4 production in cities with a Factory (the era-7 first rung); its 5% unit discount stays, a documented stack with general-mobilization. Titanium-processing and precision-engineering are the later +2 rungs of the same ladder.', 3),
+  'titanium-processing': keep(2, 'Reviewed #1340 KEEP: the era-10 rung of the Factory-city production ladder that begins with mass-production.', 4),
+  'precision-engineering': keep(2, 'Reviewed #1340 KEEP: the era-11 rung of the Factory-city production ladder that begins with mass-production.', 4),
+
   // ---- percentage techs held back on purpose (#1304): see the follow-up issue ----
   'rationalism': followUp(3, PINNED_PERCENT, 'Tracked in #1311.'),
-  'parliamentary-reform': followUp(3, PINNED_PERCENT, 'Tracked in #1311.'),
-  'mass-production': followUp(3, `${PINNED_PERCENT} Its 5% unit discount stays, a documented stack with general-mobilization.`, 'Tracked in #1311.'),
   'pragmatism': followUp(3, PINNED_PERCENT, 'Tracked in #1311.'),
 
   // ---- Era 9-11 outcomes that remain flagged by the generic rules (#1305) ----

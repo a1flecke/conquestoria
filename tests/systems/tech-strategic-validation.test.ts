@@ -23,6 +23,9 @@ const REVIEWED_NICHES: Record<string, string[]> = {
   // farm-era techs moved to terrain, plantation, ranch and population effects in #1315.
   'per-improvement:farm:food': ['agricultural-machinery', 'pesticides', 'plantation-farming'],
   // Partner-count gold repeated across eras 6, 11 and 12: the same diplomacy-scaled decision, hurt by war.
+  // Factory-city production ladder (+4 era 7 mass-production, +2 era 10 titanium-processing, +2 era 11 precision-engineering):
+  // one industrial specialization that deepens as a factory city matures (#1340 replaced mass-production's flat 10%).
+  'city-if[any:factory]:production': ['mass-production', 'precision-engineering', 'titanium-processing'],
   'per-route-partner': ['arms-control-negotiations', 'globalization', 'mercantilism'],
 };
 

@@ -42,6 +42,13 @@ describe('pacing reference economy (Part C exact-value pin)', () => {
   // 'bounded' profile loses 2-7 science at eras 10-13 because older buildings are not built there, and the 60%
   // representative cohort moves by -1.4% to +1.5% science and -1.0% to -1.6% production (era 12: 932 -> 941 science,
   // 607 -> 600 production). RESEARCH_OUTPUT_BY_ERA is deliberately not edited.
+  // #1340 (#420/#1311): mass-production (+10% production) and parliamentary-reform (+5% production) became
+  // +4 production in cities with a Factory and +2 production per forum or courthouse. Science and every persisted tech
+  // cost are untouched. The 'maximal' profile (every building built) loses 2-10 production (about 4%) at eras 8-13; the
+  // 'bounded' profile moves -4..+2; the 60% representative cohort builds no Factory (its efficiency-ordered
+  // infrastructure never reaches a 155-cost building) so it loses about 10.5% production at eras 10-13
+  // (496 -> 444, 582 -> 520, 600 -> 536, 678 -> 604). That is the deliberate cost of making the bonus a building
+  // decision: an empire that builds Factories earns at least what the percentage gave it, one that does not earns less.
   // #1315 (#420 follow-up): research-institute, temple/monastery science techs moved to distinct buildings
   // (rocket program, signals bureau, semiconductor fabricator, monastery, shrine) with unchanged amounts, so the
   // 'maximal' profile is exactly unchanged. 'bounded' moves -1 science at eras 10-12 and +8 at era 13 (the newest
@@ -198,10 +205,10 @@ describe('representative multi-city reference economy', () => {
       // MR3's deterministic all-era cost table changes when representative
       // infrastructure becomes available, so this timeline-derived diagnostic
       // is deliberately repinned alongside the report's scenario gates.
-      { era: 10, cityCount: 5, total: { science: 551, production: 496 }, averagePerCity: { science: 110.22, production: 99.12 } },
-      { era: 11, cityCount: 5, total: { science: 715, production: 582 }, averagePerCity: { science: 143, production: 116.4 } },
-      { era: 12, cityCount: 5, total: { science: 941, production: 600 }, averagePerCity: { science: 188.1, production: 120 } },
-      { era: 13, cityCount: 5, total: { science: 1194, production: 678 }, averagePerCity: { science: 238.7, production: 135.6 } },
+      { era: 10, cityCount: 5, total: { science: 551, production: 444 }, averagePerCity: { science: 110.22, production: 88.83 } },
+      { era: 11, cityCount: 5, total: { science: 715, production: 520 }, averagePerCity: { science: 143, production: 103.95 } },
+      { era: 12, cityCount: 5, total: { science: 941, production: 536 }, averagePerCity: { science: 188.1, production: 107.1 } },
+      { era: 13, cityCount: 5, total: { science: 1194, production: 604 }, averagePerCity: { science: 238.7, production: 120.75 } },
     ]);
     // Runs the representative multi-city simulation for four eras; ~21s locally
     // but exceeds the old 60s ceiling on a loaded CI runner (times out on main
