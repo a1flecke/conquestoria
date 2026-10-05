@@ -60,11 +60,11 @@
       "structuredCloneWholeState": 3
     },
     "saveSerialize@e1": {
-      "bytes": 5223677,
+      "bytes": 2905494,
       "entityBytes": 1213871
     },
     "saveSerialize@e2": {
-      "bytes": 7780065,
+      "bytes": 4303197,
       "entityBytes": 2183156
     },
     "turn@e1": {
@@ -127,7 +127,7 @@
       "structuredCloneWholeState": 5
     },
     "saveSerialize": {
-      "bytes": 11670098,
+      "bytes": 6454796,
       "entityBytes": 3274734
     },
     "turn": {
@@ -155,7 +155,7 @@
     "aiRoundProjectionCalls": 3.22,
     "aiRoundRoadCalls": 5.12,
     "findPathPopsPerRouteStep": 3.64,
-    "saveBytes": 1.94,
+    "saveBytes": 1.93,
     "saveEntityBytes": 2.34,
     "turnHeapPops": 0
   }
