@@ -12,6 +12,7 @@ import type {
   OpponentChallenge,
   UnitType,
 } from '@/core/types';
+import { isUnitObsolete } from '@/systems/city-availability';
 import { getTrainableUnitsForCity, TRAINABLE_UNITS } from '@/systems/city-system';
 import { foundCityInState } from '@/systems/city-founding-system';
 import { getVisibility } from '@/systems/fog-of-war';
@@ -287,6 +288,11 @@ function assertLegalChoices(
       const city = state.cities[cityId];
       if (!city) continue;
       const queuedUnit = TRAINABLE_UNITS.find(entry => entry.type === city.productionQueue[0]);
+      // A unit made obsolete by research that completed this round is dropped by `processCity` at the start of the
+      // civ's next turn (typed `obsoleted` drop, city-turn.ts), so it is legitimately still at the queue head when the
+      // round ends. Which round a tech finishes in depends on AI research order, so a scenario can land on this
+      // transient state (#1306: rocketry obsoleting a queued artillery). Every other blocker still fails here.
+      if (queuedUnit && isUnitObsolete(queuedUnit, civ.techState.completed, resources)) continue;
       if (
         queuedUnit
         && !getTrainableUnitsForCity(
