@@ -235,7 +235,7 @@ export const TECH_YIELD_MODIFIERS: TechYieldModifier[] = [
   // Re-text: trade routes have no maintenance to remove -> +1 gold per active trade route.
   { techId: 'autonomous-shipping', label: '+1 gold per active trade route', effect: { kind: 'perTradeRoute', gold: 1 } },
   // Re-text: naval blockades don't exist -> flat food bonus.
-  { techId: 'lab-grown-food', label: '+2 food on worked desert, tundra, snow and mountain tiles', effect: { kind: 'terrainYield', terrains: ['desert', 'tundra', 'snow', 'mountain'], yields: { food: 2 } } },
+  { techId: 'lab-grown-food', label: '+2 food all cities', effect: { kind: 'cityFlat', yields: { food: 2 } } },
   // green-architecture: resolved by getMaintenanceDiscountMultiplier in economy-system.ts (building-upkeep math, not a yield).
   { techId: 'green-architecture', label: '-10% building maintenance in cities with 6 or more buildings', effect: { kind: 'maintenanceDiscount', minBuildings: 6, multiplier: 0.9 } },
   { techId: 'smart-cities', label: '+2 production and +1 science with a factory and semiconductor fab', effect: { kind: 'cityFlatConditional', requiresAllBuildings: ['factory', 'semiconductor_fab'], yields: { production: 2, science: 1 } } },
