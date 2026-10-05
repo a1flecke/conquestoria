@@ -57,7 +57,7 @@ const ERA_9_TECHS: Tech[] = [
   // AGRICULTURE (2)
   { id: 'chemical-fertilizers', name: 'Chemical Fertilizers', track: 'agriculture', cost: 870,
     prerequisites: ['scientific-breeding', 'refrigeration'],
-    unlocks: ['+2 food per farm improvement; synthetic nitrogen transforms crop yields'], era: 9 },
+    unlocks: ['+1 food on worked tundra, jungle and swamp tiles; synthetic nitrogen transforms crop yields'], era: 9 },
   { id: 'large-scale-irrigation', name: 'Large-Scale Irrigation', track: 'agriculture', cost: 870,
     prerequisites: ['sanitation-networks', 'refrigeration'],
     unlocks: ['+1 food on worked desert and plains tiles; engineered irrigation networks feed growing populations'], era: 9 },
@@ -76,7 +76,7 @@ const ERA_9_TECHS: Tech[] = [
     unlocks: ['+2 science cities with a library; evidence-based thinking transforms scholarship'], era: 9 },
   { id: 'existentialism', name: 'Existentialism', track: 'philosophy', cost: 775,
     prerequisites: ['dialectical-materialism', 'grand-opera'],
-    unlocks: ['+1 gold per culture building empire-wide; modern philosophy drives creative expression'], era: 9 },
+    unlocks: ['+1 gold per philosophers circle or university; modern philosophy drives creative expression'], era: 9 },
 
   // ARTS (2)
   { id: 'cinema', name: 'Cinema', track: 'arts', cost: 870,
@@ -98,7 +98,7 @@ const ERA_9_TECHS: Tech[] = [
     unlocksUnits: ['submarine'], era: 9 },
   { id: 'convoy-system', name: 'Convoy System', track: 'maritime', cost: 1740,
     prerequisites: ['torpedo-warfare', 'transcontinental-rail'],
-    unlocks: ['+2 gold per trade route empire-wide; coordinated convoy escorts protect commerce'], unlocksUnits: ['cargo_freighter'], era: 9 },
+    unlocks: ['+2 gold per route in cities with a harbor; coordinated convoy escorts protect commerce'], unlocksUnits: ['cargo_freighter'], era: 9 },
 
   // METALLURGY (2)
   { id: 'aluminium-smelting', name: 'Aluminium Smelting', track: 'metallurgy', cost: 870,
@@ -137,13 +137,13 @@ const ERA_9_TECHS: Tech[] = [
     unlocksUnits: ['spy_station_chief'], era: 9 },
   { id: 'propaganda-campaigns', name: 'Propaganda Campaigns', track: 'espionage', cost: 870,
     prerequisites: ['disinformation-bureau', 'radio-broadcast'],
-    unlocks: ['+2 gold per city with a film studio or radio station; state media shapes public opinion'],
+    unlocks: ['+2 gold in cities with a radio station; state media shapes public opinion'],
     unlocksBuildings: ['state_broadcasting'], era: 9 },
 
   // SPIRITUALITY (2)
   { id: 'religious-modernism', name: 'Religious Modernism', track: 'spirituality', cost: 775,
     prerequisites: ['modernist-theology', 'social-justice'],
-    unlocks: ['+1 science in cities with any religion building; faith adapts to the modern world'], era: 9 },
+    unlocks: ['+1 science in cities with a monastery; faith adapts to the modern world'], era: 9 },
   { id: 'secular-humanism', name: 'Secular Humanism', track: 'spirituality', cost: 870,
     prerequisites: ['social-justice', 'pragmatism'],
     unlocks: ['+1 food in cities without a temple; humanist ethics grounds social policy in human welfare'], era: 9 },

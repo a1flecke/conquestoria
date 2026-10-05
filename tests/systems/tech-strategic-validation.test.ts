@@ -17,16 +17,12 @@ import { TECH_AUDIT_ENTRIES } from './tech-audit/tech-audit-data';
 const rows = buildTechAuditInventory();
 const techEra = (id: string): number => TECH_TREE.find(t => t.id === id)?.era ?? 99;
 
-/** Niches deliberately kept: each is conditional on something the player builds, works or trades. Adding to a niche fails here. */
+/** Niches deliberately kept after the #1315 review: each is conditional on something the player builds, works or trades. Adding to a niche fails here. */
 const REVIEWED_NICHES: Record<string, string[]> = {
-  'per-improvement:farm:food': ['agricultural-machinery', 'chemical-fertilizers', 'green-revolution-crops', 'improved-agriculture', 'pesticides', 'plantation-farming', 'scientific-breeding'],
-  'per-category:culture:gold': ['existentialism', 'postmodernism', 'renaissance-painting', 'separation-of-powers', 'video-games'],
-  'city-if[any:research_institute]:science': ['electronic-computing', 'integrated-circuits', 'nuclear-physics', 'rocketry'],
-  'per-route:any': ['autonomous-shipping', 'convoy-system', 'guilds', 'petrodollar-system'],
-  'city-if[any:film_studio|radio_station]:gold': ['propaganda-campaigns', 'satellite-television', 'television'],
-  'city-if[any:marketplace]:gold': ['consumer-boom', 'industrial-monopoly', 'social-contract'],
-  'city-if[any:monastery|temple]:science': ['interfaith-council', 'modernist-theology', 'religious-modernism'],
-  'per-building:granary:food': ['improved-agriculture', 'mechanized-farming', 'scientific-breeding'],
+  // Three per-farm rungs (+1 era 5, +2 era 7, +1 era 10): a deliberate agriculture-specialization ladder. The other
+  // farm-era techs moved to terrain, plantation, ranch and population effects in #1315.
+  'per-improvement:farm:food': ['agricultural-machinery', 'pesticides', 'plantation-farming'],
+  // Partner-count gold repeated across eras 6, 11 and 12: the same diplomacy-scaled decision, hurt by war.
   'per-route-partner': ['arms-control-negotiations', 'globalization', 'mercantilism'],
 };
 

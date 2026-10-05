@@ -78,10 +78,10 @@ export const TECH_YIELD_MODIFIERS: TechYieldModifier[] = [
   { techId: 'mercantilism', label: '+1 gold per distinct peacetime trade-route partner civilization', effect: { kind: 'perRoutePartnerCiv', gold: 1 } },
   { techId: 'natural-history', label: '+2 science per natural wonder in empire territory', effect: { kind: 'perOwnedNaturalWonder', science: 2 } },
   { techId: 'hydraulics', label: '+2 production in river cities', effect: { kind: 'cityFlatConditional', requiresRiver: true, yields: { production: 2 } } },
-  { techId: 'separation-of-powers', label: '+1 gold per culture building empire-wide', effect: { kind: 'perBuildingCategory', category: 'culture', yields: { gold: 1 } } },
+  { techId: 'separation-of-powers', label: '-10% upkeep in cities with 6 or more constructions', effect: { kind: 'maintenanceDiscount', minBuildings: 6, multiplier: 0.9 } },
   { techId: 'parliamentary-reform', label: '+5% production empire-wide', effect: { kind: 'empirePercent', resource: 'production', percent: 5 } },
   { techId: 'land-survey', label: 'New cities founded with +3 food bonus', effect: { kind: 'foundingBonus', food: 3 } },
-  { techId: 'improved-agriculture', label: 'Farms yield +1 food', effect: { kind: 'perImprovement', improvement: 'farm', yields: { food: 1 } } },
+  { techId: 'improved-agriculture', label: '+1 food on worked grassland tiles', effect: { kind: 'terrainYield', terrains: ['grassland'], yields: { food: 1 } } },
   { techId: 'improved-agriculture', label: 'Granaries add +1 food', effect: { kind: 'perBuildingId', buildingIds: ['granary'], yields: { food: 1 } } },
   { techId: 'tobacco-trade', label: '+2 gold per plantation improvement', effect: { kind: 'perImprovement', improvement: 'plantation', yields: { gold: 2 } } },
   { techId: 'enlightenment', label: '+1 science per two population in cities', effect: { kind: 'perPopulation', per: 2, yields: { science: 1 } } },
@@ -100,7 +100,7 @@ export const TECH_YIELD_MODIFIERS: TechYieldModifier[] = [
   { techId: 'social-reform', label: '+1 gold in cities with a market or guildhall', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['marketplace', 'guildhall'], yields: { gold: 1 } } },
   { techId: 'manifest-destiny', label: 'New cities founded with +5 food bonus', effect: { kind: 'foundingBonus', food: 5 } },
   { techId: 'mechanized-farming', label: 'Farms yield +1 production in addition to food', effect: { kind: 'perImprovement', improvement: 'farm', yields: { production: 1 } } },
-  { techId: 'mechanized-farming', label: 'Granaries add +1 additional food', effect: { kind: 'perBuildingId', buildingIds: ['granary'], yields: { food: 1 } } },
+  { techId: 'mechanized-farming', label: '+1 food in cities with a ranch', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['ranch'], yields: { food: 1 } } },
   { techId: 'agricultural-machinery', label: '+2 food per farm improvement', effect: { kind: 'perImprovement', improvement: 'farm', yields: { food: 2 } } },
   { techId: 'utilitarianism', label: '+1 gold per 3 population empire-wide', effect: { kind: 'perPopulation', per: 3, yields: { gold: 1 } } },
   { techId: 'positivism', label: '+2 science in cities with both an archive and a university', effect: { kind: 'cityFlatConditional', requiresAllBuildings: ['archive', 'university'], yields: { science: 2 } } },
@@ -117,7 +117,7 @@ export const TECH_YIELD_MODIFIERS: TechYieldModifier[] = [
 
   // --- Era 8 ---
   { techId: 'finance-capitalism', label: 'Trade route gold +25%', effect: { kind: 'tradeRoutePercent', percent: 25 } },
-  { techId: 'industrial-monopoly', label: '+2 gold per city with a market', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['marketplace'], yields: { gold: 2 } } },
+  { techId: 'industrial-monopoly', label: '+1 gold per owned luxury resource', effect: { kind: 'perLuxuryResource', gold: 1 } },
   // Re-text: "heal faster with medical buildings" has no healing-tech hook here — implemented as +1 food per city with a bacteriology lab.
   { techId: 'germ-biology', label: '+1 food per city with a bacteriology lab', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['bacteriology_lab'], yields: { food: 1 } } },
   { techId: 'engineering-exhibition', label: '+1 science in cities with a workshop or factory', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['workshop', 'factory'], yields: { science: 1 } } },
@@ -126,7 +126,7 @@ export const TECH_YIELD_MODIFIERS: TechYieldModifier[] = [
   { techId: 'public-records', label: '+1 science in cities with an archive', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['archive'], yields: { science: 1 } } },
   // Re-text: drop the spoilage-elimination clause — spoilage events don't exist.
   { techId: 'refrigeration', label: '+1 food per 3 population in each city', effect: { kind: 'perPopulation', per: 3, yields: { food: 1 } } },
-  { techId: 'scientific-breeding', label: '+1 food per farm improvement', effect: { kind: 'perImprovement', improvement: 'farm', yields: { food: 1 } } },
+  { techId: 'scientific-breeding', label: '+1 food per plantation improvement', effect: { kind: 'perImprovement', improvement: 'plantation', yields: { food: 1 } } },
   // Re-text: "granary bonus doubled" made explicit as a flat +1 food per granary.
   { techId: 'scientific-breeding', label: '+1 food per granary', effect: { kind: 'perBuildingId', buildingIds: ['granary'], yields: { food: 1 } } },
   { techId: 'pragmatism', label: '+5% to all city yields', effect: { kind: 'empirePercent', resource: 'all', percent: 5 } },
@@ -146,31 +146,31 @@ export const TECH_YIELD_MODIFIERS: TechYieldModifier[] = [
   // --- Era 9 ---
   { techId: 'universal-suffrage', label: '+1 food per 6 population in each city', effect: { kind: 'perPopulation', per: 6, yields: { food: 1 } } },
   { techId: 'quantum-theory', label: '+2 science in cities with a university', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['university'], yields: { science: 2 } } },
-  { techId: 'chemical-fertilizers', label: '+2 food per farm improvement', effect: { kind: 'perImprovement', improvement: 'farm', yields: { food: 2 } } },
+  { techId: 'chemical-fertilizers', label: '+1 food on worked tundra, jungle and swamp tiles', effect: { kind: 'terrainYield', terrains: ['tundra', 'jungle', 'swamp'], yields: { food: 1 } } },
   { techId: 'large-scale-irrigation', label: '+1 food on worked desert and plains tiles', effect: { kind: 'terrainYield', terrains: ['desert', 'plains'], yields: { food: 1 } } },
   { techId: 'modern-psychiatry', label: '+1 food in cities with a sanatorium', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['sanatorium'], yields: { food: 1 } } },
   { techId: 'pragmatic-empiricism', label: '+2 science in cities with a library', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['library'], yields: { science: 2 } } },
-  { techId: 'existentialism', label: '+1 gold per culture building empire-wide', effect: { kind: 'perBuildingCategory', category: 'culture', yields: { gold: 1 } } },
+  { techId: 'existentialism', label: '+1 gold per philosophers circle or university', effect: { kind: 'perBuildingId', buildingIds: ['philosophers_circle', 'university'], yields: { gold: 1 } } },
   { techId: 'jazz-age', label: '+2 gold in cities with an opera house', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['opera_house'], yields: { gold: 2 } } },
-  { techId: 'convoy-system', label: '+2 gold per trade route empire-wide', effect: { kind: 'perTradeRoute', gold: 2 } },
+  { techId: 'convoy-system', label: '+2 gold per route in cities with a harbor', effect: { kind: 'perCityRoute', requiresBuilding: 'harbor', gold: 2 } },
   { techId: 'aluminium-smelting', label: '+1 production in cities with a steel mill', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['steel_mill'], yields: { production: 1 } } },
   { techId: 'steel-skyscrapers', label: '+2 production in cities with 6 or more buildings', effect: { kind: 'cityFlatConditional', minBuildings: 6, yields: { production: 2 } } },
   { techId: 'wireless-telegraph', label: '+1 gold per route in cities with a telephone exchange', effect: { kind: 'perCityRoute', requiresBuilding: 'telephone_exchange', gold: 1 } },
-  { techId: 'propaganda-campaigns', label: '+2 gold in cities with a film studio or radio station', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['film_studio', 'radio_station'], yields: { gold: 2 } } },
-  { techId: 'religious-modernism', label: '+1 science in cities with a religion building', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['temple', 'monastery'], yields: { science: 1 } } },
+  { techId: 'propaganda-campaigns', label: '+2 gold in cities with a radio station', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['radio_station'], yields: { gold: 2 } } },
+  { techId: 'religious-modernism', label: '+1 science in cities with a monastery', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['monastery'], yields: { science: 1 } } },
   { techId: 'secular-humanism', label: '+1 food in cities without a temple', effect: { kind: 'cityFlatConditional', requiresMissingBuilding: ['temple'], yields: { food: 1 } } },
   { techId: 'hydroelectric-power', label: '+2 production in river cities', effect: { kind: 'cityFlatConditional', requiresRiver: true, yields: { production: 2 } } },
 
   // --- Era 10 ---
   { techId: 'keynesian-economics', label: '+2 gold in cities with a bank', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['bank'], yields: { gold: 2 } } },
-  { techId: 'consumer-boom', label: '+2 gold in cities with a market', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['marketplace'], yields: { gold: 2 } } },
+  { techId: 'consumer-boom', label: '+1 gold per 4 population in each city', effect: { kind: 'perPopulation', per: 4, yields: { gold: 1 } } },
   { techId: 'nuclear-physics', label: '+3 science in cities with a research institute', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['research_institute'], yields: { science: 3 } } },
   { techId: 'radar-systems', label: '+2 science in cities with a radar station', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['radar_station'], yields: { science: 2 } } },
   // "Empire-wide" texts without "per/all cities" resolve to a single flat civ-total bonus (empireFlat), not per-city.
   { techId: 'decolonization', label: '+1 gold per trade route to a foreign civilization', effect: { kind: 'perTradeRoute', gold: 1, foreignOnly: true } },
   { techId: 'cold-war-networks', label: '+2 gold in cities with a security bureau', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['security-bureau'], yields: { gold: 2 } } },
   { techId: 'international-institutions', label: '+1 gold and +1 science in cities with a UN delegation', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['un_delegation'], yields: { gold: 1, science: 1 } } },
-  { techId: 'rocketry', label: '+2 science in cities with a research institute', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['research_institute'], yields: { science: 2 } } },
+  { techId: 'rocketry', label: '+2 science in cities with a rocket program', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['rocket_program'], yields: { science: 2 } } },
   { techId: 'polar-operations', label: '+1 food and +1 production in tundra and snow tiles', effect: { kind: 'terrainYield', terrains: ['tundra', 'snow'], yields: { food: 1, production: 1 } } },
   { techId: 'pesticides', label: '+1 food per farm improvement', effect: { kind: 'perImprovement', improvement: 'farm', yields: { food: 1 } } },
   { techId: 'mechanized-agriculture', label: '+2 production in cities with a granary', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['granary'], yields: { production: 2 } } },
@@ -183,10 +183,10 @@ export const TECH_YIELD_MODIFIERS: TechYieldModifier[] = [
   { techId: 'titanium-processing', label: '+2 production in cities with a factory', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['factory'], yields: { production: 2 } } },
   { techId: 'synthetic-polymers', label: '+1 production in cities with a chemical plant', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['chemical_plant'], yields: { production: 1 } } },
   // nuclear-power: re-text drops the stale "+4" — the nuclear power plant building already yields +5. No tech-level entry.
-  { techId: 'television', label: '+2 gold in cities with a film studio or radio station', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['film_studio', 'radio_station'], yields: { gold: 2 } } },
-  { techId: 'electronic-computing', label: '+3 science in cities with a research institute', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['research_institute'], yields: { science: 3 } } },
+  { techId: 'television', label: '+2 gold in cities with a television station', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['television_station'], yields: { gold: 2 } } },
+  { techId: 'electronic-computing', label: '+3 science in cities with a signals bureau', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['signals_bureau'], yields: { science: 3 } } },
   { techId: 'liberation-theology', label: '+1 food in cities with a temple', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['temple'], yields: { food: 1 } } },
-  { techId: 'interfaith-council', label: '+1 science in cities with a religion building', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['temple', 'monastery'], yields: { science: 1 } } },
+  { techId: 'interfaith-council', label: '+1 science in cities with a shrine', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['shrine'], yields: { science: 1 } } },
   // highway-network has no road-tile dependency ("+2 gold empire-wide" as written) — grouped here with the other road-family effects.
   { techId: 'highway-network', label: '+1 gold per route in cities with a caravanserai', effect: { kind: 'perCityRoute', requiresBuilding: 'caravanserai', gold: 1 } },
   // MR10: nuclear-theory is no longer a legendary-wonder gate — give it a real effect
@@ -195,25 +195,25 @@ export const TECH_YIELD_MODIFIERS: TechYieldModifier[] = [
 
   // --- Era 11 ---
   { techId: 'stagflation-response', label: '-20% maintenance in cities with 8 or more constructions', effect: { kind: 'maintenanceDiscount', minBuildings: 8, multiplier: 0.8 } },
-  { techId: 'petrodollar-system', label: '+2 gold per trade route empire-wide', effect: { kind: 'perTradeRoute', gold: 2 } },
-  { techId: 'integrated-circuits', label: '+3 science in cities with a research institute', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['research_institute'], yields: { science: 3 } } },
+  { techId: 'petrodollar-system', label: '+2 gold per route in cities with a central bank', effect: { kind: 'perCityRoute', requiresBuilding: 'central_bank', gold: 2 } },
+  { techId: 'integrated-circuits', label: '+3 science in cities with a semiconductor fabricator', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['semiconductor_fab'], yields: { science: 3 } } },
   { techId: 'molecular-biology', label: '+2 science in cities with a genetic research lab', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['genetic_research_lab'], yields: { science: 2 } } },
   { techId: 'arms-control-negotiations', label: '+1 gold per distinct peacetime trade-route partner civilization', effect: { kind: 'perRoutePartnerCiv', gold: 1 } },
   { techId: 'civil-rights-legislation', label: '+2 food in developed cities (10 or more constructions)', effect: { kind: 'cityFlatConditional', minBuildings: 10, yields: { food: 2 } } },
   { techId: 'deep-sea-drilling', label: '+1 gold and +1 production on worked ocean tiles', effect: { kind: 'terrainYield', terrains: ['ocean'], yields: { gold: 1, production: 1 } } },
-  { techId: 'green-revolution-crops', label: '+2 food per farm improvement', effect: { kind: 'perImprovement', improvement: 'farm', yields: { food: 2 } } },
+  { techId: 'green-revolution-crops', label: '+1 food per 4 population in each city', effect: { kind: 'perPopulation', per: 4, yields: { food: 1 } } },
   { techId: 'aquaculture', label: '+1 food on worked coast and ocean tiles', effect: { kind: 'terrainYield', terrains: ['coast', 'ocean'], yields: { food: 1 } } },
   { techId: 'vaccination-campaigns', label: '+2 food in cities with a sanatorium', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['sanatorium'], yields: { food: 2 } } },
   { techId: 'structuralism', label: '+2 science in cities with a natural history museum', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['natural_history_museum'], yields: { science: 2 } } },
   // Re-text: "per arts building" -> culture-category buildings (arts is a tech track, not a building category).
-  { techId: 'postmodernism', label: '+1 gold per culture building empire-wide', effect: { kind: 'perBuildingCategory', category: 'culture', yields: { gold: 1 } } },
+  { techId: 'postmodernism', label: '+2 gold per exhibition hall', effect: { kind: 'perBuildingId', buildingIds: ['exhibition_hall'], yields: { gold: 2 } } },
   { techId: 'pop-art', label: '+2 gold in cities with an art gallery', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['art_gallery'], yields: { gold: 2 } } },
   // Re-text: "music hall" -> concert hall.
   { techId: 'counterculture', label: '+2 gold in cities with a concert hall', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['concert_hall'], yields: { gold: 2 } } },
   { techId: 'precision-engineering', label: '+2 production in cities with a factory', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['factory'], yields: { production: 2 } } },
   { techId: 'megastructures', label: '+2 production in cities with a power station', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['power_station'], yields: { production: 2 } } },
   { techId: 'offshore-platforms', label: '+2 gold and +1 production in coastal cities with a harbor', effect: { kind: 'cityFlatConditional', requiresCoastal: true, requiresAnyBuilding: ['harbor'], yields: { gold: 2, production: 1 } } },
-  { techId: 'satellite-television', label: '+2 gold in cities with a film studio or radio station', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['film_studio', 'radio_station'], yields: { gold: 2 } } },
+  { techId: 'satellite-television', label: '+2 gold in cities with a film studio', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['film_studio'], yields: { gold: 2 } } },
   { techId: 'black-ops-programs', label: '+2 gold in cities with an intelligence agency', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['intelligence-agency'], yields: { gold: 2 } } },
   { techId: 'ecumenical-movement', label: '+1 science and +1 food in cities with both a temple and a monastery', effect: { kind: 'cityFlatConditional', requiresAllBuildings: ['temple', 'monastery'], yields: { science: 1, food: 1 } } },
   // Re-text: "temple or mosque" -> temple or monastery (no mosque building exists).
