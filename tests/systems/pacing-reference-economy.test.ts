@@ -42,8 +42,13 @@ describe('pacing reference economy (Part C exact-value pin)', () => {
   // 'bounded' profile loses 2-7 science at eras 10-13 because older buildings are not built there, and the 60%
   // representative cohort moves by -1.4% to +1.5% science and -1.0% to -1.6% production (era 12: 932 -> 941 science,
   // 607 -> 600 production). RESEARCH_OUTPUT_BY_ERA is deliberately not edited.
+  // #1315 (#420 follow-up): research-institute, temple/monastery science techs moved to distinct buildings
+  // (rocket program, signals bureau, semiconductor fabricator, monastery, shrine) with unchanged amounts, so the
+  // 'maximal' profile is exactly unchanged. 'bounded' moves -1 science at eras 10-12 and +8 at era 13 (the newest
+  // buildings are inside its recency window there, the research institute is not); the 60% representative cohort
+  // moves only at era 10 (570 -> 551, -3.3%). RESEARCH_OUTPUT_BY_ERA is deliberately not edited.
   const expectedBoundedByEra: Record<number, number> = {
-    1: 2, 2: 6, 3: 8, 4: 9, 5: 9, 6: 24, 7: 35, 8: 47, 9: 63, 10: 68, 11: 96, 12: 102, 13: 103,
+    1: 2, 2: 6, 3: 8, 4: 9, 5: 9, 6: 24, 7: 35, 8: 47, 9: 63, 10: 67, 11: 95, 12: 101, 13: 111,
   };
   const expectedMaximalByEra: Record<number, number> = {
     1: 2, 2: 6, 3: 8, 4: 9, 5: 13, 6: 34, 7: 48, 8: 79, 9: 117, 10: 134, 11: 169, 12: 197, 13: 235,
@@ -193,7 +198,7 @@ describe('representative multi-city reference economy', () => {
       // MR3's deterministic all-era cost table changes when representative
       // infrastructure becomes available, so this timeline-derived diagnostic
       // is deliberately repinned alongside the report's scenario gates.
-      { era: 10, cityCount: 5, total: { science: 570, production: 496 }, averagePerCity: { science: 113.96, production: 99.12 } },
+      { era: 10, cityCount: 5, total: { science: 551, production: 496 }, averagePerCity: { science: 110.22, production: 99.12 } },
       { era: 11, cityCount: 5, total: { science: 715, production: 582 }, averagePerCity: { science: 143, production: 116.4 } },
       { era: 12, cityCount: 5, total: { science: 941, production: 600 }, averagePerCity: { science: 188.1, production: 120 } },
       { era: 13, cityCount: 5, total: { science: 1194, production: 678 }, averagePerCity: { science: 238.7, production: 135.6 } },

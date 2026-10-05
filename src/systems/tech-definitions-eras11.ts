@@ -17,12 +17,12 @@ const ERA_11_TECHS: Tech[] = [
     unlocks: ['-20% upkeep in cities with 8 or more constructions; oil shocks and stagflation force monetary discipline and structural economic reform'], era: 11 },
   { id: 'petrodollar-system', name: 'Petrodollar System', track: 'economy', cost: 1360,
     prerequisites: ['consumer-boom', 'highway-network'],
-    unlocks: ['+2 gold per trade route empire-wide; oil-denominated exchange anchors the global financial system'], era: 11 },
+    unlocks: ['+2 gold per route in cities with a central bank; oil-denominated exchange anchors the global financial system'], era: 11 },
 
   // SCIENCE (2)
   { id: 'integrated-circuits', name: 'Integrated Circuits', track: 'science', cost: 1885,
     prerequisites: ['electronic-computing', 'titanium-processing'],
-    unlocks: ['+3 science in cities with a research institute; miniaturised transistors on silicon multiply computing power a thousandfold'],
+    unlocks: ['+3 science in cities with a semiconductor fabricator; miniaturised transistors on silicon multiply computing power a thousandfold'],
     unlocksBuildings: ['semiconductor_fab'], era: 11 },
   { id: 'molecular-biology', name: 'Molecular Biology', track: 'science', cost: 1360,
     prerequisites: ['nuclear-physics', 'penicillin'],
@@ -51,7 +51,7 @@ const ERA_11_TECHS: Tech[] = [
   // AGRICULTURE (2)
   { id: 'green-revolution-crops', name: 'Green Revolution Crops', track: 'agriculture', cost: 1360,
     prerequisites: ['pesticides', 'mechanized-agriculture'],
-    unlocks: ['+2 food per farm improvement; high-yield dwarf wheat and rice strains dramatically increase caloric output per acre'],
+    unlocks: ['+1 food per 4 population in each city; high-yield dwarf wheat and rice strains dramatically increase caloric output per acre'],
     unlocksBuildings: ['agricultural_station', 'green_revolution_program'], era: 11 },
   { id: 'aquaculture', name: 'Aquaculture', track: 'agriculture', cost: 1360,
     prerequisites: ['mechanized-agriculture', 'polar-operations'],
@@ -72,7 +72,7 @@ const ERA_11_TECHS: Tech[] = [
     unlocks: ['+2 science in cities with a natural history museum; systematic analysis reveals hidden patterns in language, culture, and society'], era: 11 },
   { id: 'postmodernism', name: 'Postmodernism', track: 'philosophy', cost: 1210,
     prerequisites: ['post-colonial-theory', 'abstract-expressionism'],
-    unlocks: ['+1 gold per culture building empire-wide; suspicion of grand narratives opens space for pluralism and cultural diversity'], era: 11 },
+    unlocks: ['+2 gold per exhibition hall; suspicion of grand narratives opens space for pluralism and cultural diversity'], era: 11 },
 
   // ARTS (2)
   { id: 'pop-art', name: 'Pop Art', track: 'arts', cost: 1360,
@@ -119,7 +119,7 @@ const ERA_11_TECHS: Tech[] = [
     unlocksBuildings: ['research_network'], era: 11 },
   { id: 'satellite-television', name: 'Satellite Television', track: 'communication', cost: 1360,
     prerequisites: ['television', 'rocketry'],
-    unlocks: ['+2 gold in cities with a film studio or radio station; geosynchronous satellites deliver broadcast to remote audiences worldwide'], era: 11 },
+    unlocks: ['+2 gold in cities with a film studio; geosynchronous satellites deliver broadcast to remote audiences worldwide'], era: 11 },
 
   // ESPIONAGE (2)
   { id: 'satellite-surveillance', name: 'Satellite Surveillance', track: 'espionage', cost: 1360,

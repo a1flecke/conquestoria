@@ -18,7 +18,7 @@ const ERA_10_TECHS: Tech[] = [
     unlocksBuildings: ['central_bank', 'postwar_reconstruction'], era: 10 },
   { id: 'consumer-boom', name: 'Consumer Boom', track: 'economy', cost: 1040,
     prerequisites: ['fordist-manufacturing', 'radio-broadcast'],
-    unlocks: ['+2 gold in cities with a market; mass-produced goods drive peacetime prosperity'], era: 10 },
+    unlocks: ['+1 gold per 4 population in each city; mass-produced goods drive peacetime prosperity'], era: 10 },
 
   // SCIENCE (2)
   { id: 'nuclear-physics', name: 'Nuclear Physics', track: 'science', cost: 1040,
@@ -51,7 +51,7 @@ const ERA_10_TECHS: Tech[] = [
   // EXPLORATION (2)
   { id: 'rocketry', name: 'Rocketry', track: 'exploration', cost: 2080,
     prerequisites: ['aerial-survey', 'aluminium-smelting'],
-    unlocks: ['+2 science in cities with a research institute; Rocket Artillery saturates nearby visible enemy soldiers', 'Surface-to-air missile sites also require Radar Systems and local anti-aircraft infrastructure'],
+    unlocks: ['+2 science in cities with a rocket program; Rocket Artillery saturates nearby visible enemy soldiers', 'Surface-to-air missile sites also require Radar Systems and local anti-aircraft infrastructure'],
     unlocksUnits: ['rocket_artillery'], unlocksBuildings: ['rocket_program', 'space_program_initiative'], era: 10 },
   { id: 'polar-operations', name: 'Polar Operations', track: 'exploration', cost: 1040,
     prerequisites: ['motorized-transport', 'aerial-survey'],
@@ -121,11 +121,11 @@ const ERA_10_TECHS: Tech[] = [
   // COMMUNICATION (2)
   { id: 'television', name: 'Television', track: 'communication', cost: 1040,
     prerequisites: ['cinema', 'radio-broadcast'],
-    unlocks: ['+2 gold in cities with a film studio or radio station; moving pictures in every living room reshape mass culture'],
+    unlocks: ['+2 gold in cities with a television station; moving pictures in every living room reshape mass culture'],
     unlocksBuildings: ['television_station'], era: 10 },
   { id: 'electronic-computing', name: 'Electronic Computing', track: 'communication', cost: 1040,
     prerequisites: ['radar-systems', 'quantum-theory'],
-    unlocks: ['+3 science in cities with a research institute; stored-program computers accelerate scientific calculation and logistics'], era: 10 },
+    unlocks: ['+3 science in cities with a signals bureau; stored-program computers accelerate scientific calculation and logistics'], era: 10 },
 
   // ESPIONAGE (2)
   { id: 'signals-intelligence', name: 'Signals Intelligence', track: 'espionage', cost: 1040,
@@ -146,7 +146,7 @@ const ERA_10_TECHS: Tech[] = [
     unlocks: ['+1 food in cities with a temple; faith-driven reform movements empower the disenfranchised'], era: 10 },
   { id: 'interfaith-council', name: 'Interfaith Council', track: 'spirituality', cost: 925,
     prerequisites: ['secular-humanism', 'religious-modernism'],
-    unlocks: ['+1 science in cities with any religion building; cross-tradition dialogue enriches scholarship and civic life'], era: 10 },
+    unlocks: ['+1 science in cities with a shrine; cross-tradition dialogue enriches scholarship and civic life'], era: 10 },
 ];
 
 export const TECH_TREE_ERAS_10: Tech[] = [

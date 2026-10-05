@@ -174,7 +174,7 @@ const ERA_6_TECHS: Tech[] = [
   // CIVICS (2)
   { id: 'separation-of-powers', name: 'Separation of Powers', track: 'civics', cost: 405,
     prerequisites: ['constitutional-law'],
-    unlocks: ['+1 gold per culture building empire-wide', 'Divides administrative authority across institutions, easing unrest from governing a large empire'], era: 6 },
+    unlocks: ['-10% upkeep in cities with 6 or more constructions', 'Divides administrative authority across institutions, easing unrest from governing a large empire'], era: 6 },
   { id: 'parliamentary-reform', name: 'Parliamentary Reform', track: 'civics', cost: 370,
     prerequisites: ['civic-humanism', 'constitutional-law'],
     unlocks: ['+5% production empire-wide'], era: 6 },
@@ -190,7 +190,7 @@ const ERA_6_TECHS: Tech[] = [
   // AGRICULTURE (2)
   { id: 'improved-agriculture', name: 'Improved Agriculture', track: 'agriculture', cost: 460,
     prerequisites: ['plantation-farming'],
-    unlocks: ['Farms yield +1 food; granaries add +1 food'], era: 6 },
+    unlocks: ['Farms yield +1 food on worked grassland tiles; granaries add +1 food'], era: 6 },
   { id: 'tobacco-trade', name: 'Tobacco Trade', track: 'agriculture', cost: 370,
     prerequisites: ['distillation', 'colonial-trade'],
     unlocks: ['+2 gold per plantation improvement'], era: 6 },
@@ -316,7 +316,7 @@ const ERA_7_TECHS: Tech[] = [
   // AGRICULTURE (2)
   { id: 'mechanized-farming', name: 'Mechanized Farming', track: 'agriculture', cost: 555,
     prerequisites: ['improved-agriculture', 'hydraulics'],
-    unlocks: ['Farms yield +1 production in addition to food; granaries add +1 additional food'], era: 7 },
+    unlocks: ['Farms yield +1 production in addition to food; +1 food in cities with a ranch'], era: 7 },
   { id: 'agricultural-machinery', name: 'Agricultural Machinery', track: 'agriculture', cost: 555,
     prerequisites: ['improved-agriculture', 'tobacco-trade'],
     unlocks: ['+2 food per farm improvement'], era: 7 },

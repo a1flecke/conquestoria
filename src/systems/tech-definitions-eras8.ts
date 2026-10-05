@@ -17,7 +17,7 @@ const ERA_8_TECHS: Tech[] = [
     unlocks: ['Trade route gold +25% empire-wide'], era: 8 },
   { id: 'industrial-monopoly', name: 'Industrial Monopoly', track: 'economy', cost: 775,
     prerequisites: ['mass-production'],
-    unlocks: ['+2 gold per city with a market building'],
+    unlocks: ['+1 gold per owned luxury resource'],
     unlocksBuildings: ['stock_exchange_tower'], era: 8 },
   // MR10: re-homed from a stub — global-logistics is no longer a legendary-wonder gate.
   { id: 'global-logistics', name: 'Global Logistics', track: 'economy', cost: 1420,
@@ -58,7 +58,7 @@ const ERA_8_TECHS: Tech[] = [
     unlocks: ['+1 food per 3 population in each city; refrigerated storage keeps harvests from going to waste'], era: 8 },
   { id: 'scientific-breeding', name: 'Scientific Breeding', track: 'agriculture', cost: 710,
     prerequisites: ['agricultural-machinery', 'mechanized-farming'],
-    unlocks: ['+1 food per farm improvement; +1 additional food per granary'], era: 8 },
+    unlocks: ['+1 food per plantation improvement; +1 additional food per granary'], era: 8 },
 
   // MEDICINE (2)
   { id: 'antiseptic-surgery', name: 'Antiseptic Surgery', track: 'medicine', cost: 655,
