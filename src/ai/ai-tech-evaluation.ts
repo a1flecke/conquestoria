@@ -7,6 +7,7 @@ import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
 import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 import { TECH_COST_DISCOUNTS, TECH_YIELD_MODIFIERS, type YieldKind } from '@/systems/tech-yield-definitions';
 import { UNIT_MODIFIERS } from '@/systems/unit-modifier-definitions';
+import { getBespokeTechValue } from './ai-tech-bespoke-value';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { evaluateProductionPrerequisites } from '@/systems/production-prerequisites';
 import { getAIStrategicRoles } from './ai-unit-roles';
@@ -83,6 +84,8 @@ export interface AITechCapabilities {
   eraProgress: number;
   militaryPowerSpike: number;
   economicSupport: number;
+  /** #1316: bounded value of effects owned by bespoke system code (see ai-tech-bespoke-value.ts). */
+  bespokeEffectValue: number;
   situationality: number;
 }
 
@@ -151,6 +154,7 @@ export function evaluateAITechCapabilities(
     eraProgress: tech.era,
     militaryPowerSpike: militaryPowerSpike + (tech.pacing?.impact ?? 0) + getTechCombatEffectValue(tech.id),
     economicSupport,
+    bespokeEffectValue: getBespokeTechValue(tech.id),
     situationality: tech.pacing?.situationality ?? 0,
   };
 }
