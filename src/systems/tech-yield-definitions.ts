@@ -79,7 +79,7 @@ export const TECH_YIELD_MODIFIERS: TechYieldModifier[] = [
   { techId: 'natural-history', label: '+2 science per natural wonder in empire territory', effect: { kind: 'perOwnedNaturalWonder', science: 2 } },
   { techId: 'hydraulics', label: '+2 production in river cities', effect: { kind: 'cityFlatConditional', requiresRiver: true, yields: { production: 2 } } },
   { techId: 'separation-of-powers', label: '-10% upkeep in cities with 6 or more constructions', effect: { kind: 'maintenanceDiscount', minBuildings: 6, multiplier: 0.9 } },
-  { techId: 'parliamentary-reform', label: '+5% production empire-wide', effect: { kind: 'empirePercent', resource: 'production', percent: 5 } },
+  { techId: 'parliamentary-reform', label: '+2 production per forum or courthouse', effect: { kind: 'perBuildingId', buildingIds: ['forum', 'courthouse'], yields: { production: 2 } } },
   { techId: 'land-survey', label: 'New cities founded with +3 food bonus', effect: { kind: 'foundingBonus', food: 3 } },
   { techId: 'improved-agriculture', label: '+1 food on worked grassland tiles', effect: { kind: 'terrainYield', terrains: ['grassland'], yields: { food: 1 } } },
   { techId: 'improved-agriculture', label: 'Granaries add +1 food', effect: { kind: 'perBuildingId', buildingIds: ['granary'], yields: { food: 1 } } },
@@ -94,7 +94,7 @@ export const TECH_YIELD_MODIFIERS: TechYieldModifier[] = [
   // courier-network / colonial-railways / transcontinental-rail: resolved by getConnectedCityTechGold (needs road-BFS connectivity, not table-drivable).
 
   // --- Era 7 ---
-  { techId: 'mass-production', label: '+10% production empire-wide', effect: { kind: 'empirePercent', resource: 'production', percent: 10 } },
+  { techId: 'mass-production', label: '+4 production in cities with a Factory', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['factory'], yields: { production: 4 } } },
   { techId: 'industrialization', label: '+2 science in cities with a factory', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['factory'], yields: { science: 2 } } },
   { techId: 'applied-chemistry', label: '+1 science per production building empire-wide', effect: { kind: 'perBuildingCategory', category: 'production', yields: { science: 1 } } },
   { techId: 'social-reform', label: '+1 gold in cities with a market or guildhall', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['marketplace', 'guildhall'], yields: { gold: 1 } } },

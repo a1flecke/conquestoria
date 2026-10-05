@@ -177,7 +177,7 @@ const ERA_6_TECHS: Tech[] = [
     unlocks: ['-10% upkeep in cities with 6 or more constructions', 'Divides administrative authority across institutions, easing unrest from governing a large empire'], era: 6 },
   { id: 'parliamentary-reform', name: 'Parliamentary Reform', track: 'civics', cost: 370,
     prerequisites: ['civic-humanism', 'constitutional-law'],
-    unlocks: ['+5% production empire-wide'], era: 6 },
+    unlocks: ['+2 production per forum or courthouse'], era: 6 },
 
   // EXPLORATION (2)
   { id: 'land-survey', name: 'Land Survey', track: 'exploration', cost: 370,
@@ -287,7 +287,7 @@ const ERA_7_TECHS: Tech[] = [
     unlocks: ['Factory unlocked — steam-driven industrial production building', 'Reveal Coal resource'], unlocksBuildings: ['factory'], era: 7 },
   { id: 'mass-production', name: 'Mass Production', track: 'economy', cost: 515,
     prerequisites: ['mercantilism', 'aqueduct-expansion'],
-    unlocks: ['+10% production empire-wide; unit training costs reduced 5%'], era: 7 },
+    unlocks: ['+4 production in cities with a Factory; unit training costs reduced 5%'], era: 7 },
 
   // SCIENCE (2)
   { id: 'industrialization', name: 'Industrialization', track: 'science', cost: 555,

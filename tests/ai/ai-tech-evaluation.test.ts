@@ -82,6 +82,9 @@ describe('structured AI technology capabilities', () => {
     const noEffect = evaluateAITechCapabilities(tech('fire'));
     expect(effectOnly.economicSupport).toBeGreaterThan(noEffect.economicSupport);
     expect(getTechEconomicEffectValue('empiricism')).toBeGreaterThan(0);
+    // #1340: the production pair is valued through its generic rows, not a tech-id branch.
+    expect(getTechEconomicEffectValue('mass-production')).toBeGreaterThan(0);
+    expect(getTechEconomicEffectValue('parliamentary-reform')).toBeGreaterThan(0);
     expect(getTechEconomicEffectValue('fire')).toBe(0);
     expect(getTechCombatEffectValue('naval-gunnery')).toBeGreaterThan(0);
     for (const t of TECH_TREE) {

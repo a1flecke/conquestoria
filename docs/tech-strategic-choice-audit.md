@@ -8,11 +8,11 @@ Scope: Eras 1–11 are audited for change; Era 12 is reference (listed, left uns
 
 | Class | Count |
 |---|---:|
-| KEEP | 366 |
+| KEEP | 368 |
 | TUNE | 0 |
 | REPLACE | 0 |
 | WIRE | 0 |
-| FOLLOW-UP | 4 |
+| FOLLOW-UP | 2 |
 | OBSOLETE | 0 |
 | **Total (Eras 1–12)** | 370 |
 
@@ -25,8 +25,8 @@ Scope: Eras 1–11 are audited for change; Era 12 is reference (listed, left uns
 | 3 | 31 | 0 | 0 | 0 | 0 | 1 | 0 | 30 |
 | 4 | 30 | 0 | 0 | 0 | 0 | 1 | 2 | 27 |
 | 5 | 31 | 0 | 0 | 1 | 0 | 16 | 3 | 9 |
-| 6 | 30 | 0 | 0 | 1 | 0 | 14 | 3 | 12 |
-| 7 | 31 | 0 | 0 | 1 | 0 | 15 | 2 | 14 |
+| 6 | 30 | 0 | 0 | 0 | 0 | 15 | 3 | 12 |
+| 7 | 31 | 0 | 0 | 0 | 0 | 16 | 2 | 14 |
 | 8 | 31 | 0 | 0 | 1 | 0 | 18 | 4 | 7 |
 | 9 | 33 | 0 | 0 | 0 | 1 | 16 | 3 | 13 |
 | 10 | 32 | 0 | 0 | 0 | 0 | 24 | 2 | 6 |
@@ -37,6 +37,7 @@ Scope: Eras 1–11 are audited for change; Era 12 is reference (listed, left uns
 
 ## Repeated niches (three or more techs, same shape)
 
+- `city-if[any:factory]:production` ×3: mass-production, precision-engineering, titanium-processing
 - `per-improvement:farm:food` ×3: agricultural-machinery, pesticides, plantation-farming
 - `per-route-partner` ×3: arms-control-negotiations, globalization, mercantilism
 
@@ -64,25 +65,23 @@ Verify only: `irrigation`
 
 ## Child 3 target list — Eras 5–8
 
-4 techs to change; 21 scheduled for verification/text only.
+2 techs to change; 22 scheduled for verification/text only.
 
 | Tech | Era | Class | Today | Candidate (existing mechanics) |
 |---|---:|---|---|---|
 | `rationalism` | 5 | FOLLOW-UP | +5% science empire-wide |  |
-| `parliamentary-reform` | 6 | FOLLOW-UP | +5% production empire-wide |  |
-| `mass-production` | 7 | FOLLOW-UP | +10% production empire-wide; discount units x0.95 |  |
 | `pragmatism` | 8 | FOLLOW-UP | +5% to all city yields |  |
 
-Verify only: `professional-army`, `plantation-farming`, `vaulted-ceilings`, `postal-service`, `black-chambers`, `diplomatic-networks`, `mercantilism`, `epidemic-control`, `trade-winds`, `fortification-engineering`, `courier-network`, `counter-espionage`, `colonial-railways`, `agricultural-machinery`, `electric-telegraph`, `covert-operations`, `secret-police`, `general-mobilization`, `transcontinental-rail`, `political-intelligence`, `disinformation-bureau`
+Verify only: `professional-army`, `plantation-farming`, `vaulted-ceilings`, `postal-service`, `black-chambers`, `diplomatic-networks`, `mercantilism`, `epidemic-control`, `trade-winds`, `fortification-engineering`, `courier-network`, `counter-espionage`, `mass-production`, `colonial-railways`, `agricultural-machinery`, `electric-telegraph`, `covert-operations`, `secret-police`, `general-mobilization`, `transcontinental-rail`, `political-intelligence`, `disinformation-bureau`
 
 ## Child 4 target list — Eras 9–11
 
-0 techs to change; 6 scheduled for verification/text only.
+0 techs to change; 8 scheduled for verification/text only.
 
 | Tech | Era | Class | Today | Candidate (existing mechanics) |
 |---|---:|---|---|---|
 
-Verify only: `tungsten-alloys`, `counterintelligence`, `pesticides`, `signals-intelligence`, `arms-control-negotiations`, `carbon-fiber`
+Verify only: `tungsten-alloys`, `counterintelligence`, `pesticides`, `titanium-processing`, `signals-intelligence`, `arms-control-negotiations`, `carbon-fiber`, `precision-engineering`
 
 ## Warfare brainstorm reconciliation (#420 Part 2)
 
@@ -279,7 +278,7 @@ Class/rating: rating 0 flavor, 1 unconditional number, 2 conditional but weak or
 | `natural-history` | 6 | science | KEEP | 3 | unlock+effect-valued | +2 science per natural wonder in empire territory | - |
 | `hydraulics` | 6 | science | KEEP | 2 | effect-valued | +2 production in river cities | - |
 | `separation-of-powers` | 6 | civics | KEEP | 3 | effect-valued | -10% upkeep in cities with 6 or more constructions | systems/faction-relief, systems/governance-capacity |
-| `parliamentary-reform` | 6 | civics | FOLLOW-UP | 1 | effect-valued | +5% production empire-wide | - |
+| `parliamentary-reform` | 6 | civics | KEEP | 2 | effect-valued | +2 production per forum or courthouse | - |
 | `land-survey` | 6 | exploration | KEEP | 3 | effect-valued | New cities founded with +3 food bonus | - |
 | `colonial-administration` | 6 | exploration | KEEP | 3 | unlock-valued | - | - |
 | `improved-agriculture` | 6 | agriculture | KEEP | 3 | effect-valued | +1 food on worked grassland tiles; Granaries add +1 food | - |
@@ -306,7 +305,7 @@ Class/rating: rating 0 flavor, 1 unconditional number, 2 conditional but weak or
 | `mass-mobilization` | 7 | military | KEEP | 3 | unlock-valued | - | - |
 | `balloon-corps` | 7 | military | KEEP | 3 | unlock-valued | - | - |
 | `steam-power` | 7 | economy | KEEP | 3 | unlock-valued | - | - |
-| `mass-production` | 7 | economy | FOLLOW-UP | 1 | effect-valued | +10% production empire-wide; discount units x0.95 | - |
+| `mass-production` | 7 | economy | KEEP | 2 | effect-valued | +4 production in cities with a Factory; discount units x0.95 | - |
 | `industrialization` | 7 | science | KEEP | 2 | unlock+effect-valued | +2 science in cities with a factory | - |
 | `applied-chemistry` | 7 | science | KEEP | 2 | effect-valued | +1 science per production building empire-wide | - |
 | `nationalism` | 7 | civics | KEEP | 3 | unlock-valued | - | - |
