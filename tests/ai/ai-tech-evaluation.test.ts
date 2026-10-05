@@ -85,6 +85,9 @@ describe('structured AI technology capabilities', () => {
     // #1340: the production pair is valued through its generic rows, not a tech-id branch.
     expect(getTechEconomicEffectValue('mass-production')).toBeGreaterThan(0);
     expect(getTechEconomicEffectValue('parliamentary-reform')).toBeGreaterThan(0);
+    // #1341: the science pair too.
+    expect(getTechEconomicEffectValue('rationalism')).toBeGreaterThan(0);
+    expect(getTechEconomicEffectValue('pragmatism')).toBeGreaterThan(0);
     expect(getTechEconomicEffectValue('fire')).toBe(0);
     expect(getTechCombatEffectValue('naval-gunnery')).toBeGreaterThan(0);
     for (const t of TECH_TREE) {

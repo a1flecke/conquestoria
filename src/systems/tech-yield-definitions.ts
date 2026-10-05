@@ -63,7 +63,7 @@ export const TECH_YIELD_MODIFIERS: TechYieldModifier[] = [
   { techId: 'printing-press', label: '+1 science per library empire-wide', effect: { kind: 'perBuildingId', buildingIds: ['library'], yields: { science: 1 } } },
   { techId: 'civic-humanism', label: '+1 gold per forum or courthouse', effect: { kind: 'perBuildingId', buildingIds: ['forum', 'courthouse'], yields: { gold: 1 } } },
   { techId: 'empiricism', label: '+1 science per observatory', effect: { kind: 'perBuildingId', buildingIds: ['observatory'], yields: { science: 1 } } },
-  { techId: 'rationalism', label: '+5% science empire-wide', effect: { kind: 'empirePercent', resource: 'science', percent: 5 } },
+  { techId: 'rationalism', label: '+1 science per science building', effect: { kind: 'perBuildingCategory', category: 'science', yields: { science: 1 } } },
   { techId: 'renaissance-painting', label: '+1 gold per culture building empire-wide', effect: { kind: 'perBuildingCategory', category: 'culture', yields: { gold: 1 } } },
   { techId: 'classical-music-form', label: '+1 science per culture building empire-wide', effect: { kind: 'perBuildingCategory', category: 'culture', yields: { science: 1 } } },
   { techId: 'deep-sea-routes', label: '+1 gold per coastal city', effect: { kind: 'cityFlatConditional', requiresCoastal: true, yields: { gold: 1 } } },
@@ -129,7 +129,7 @@ export const TECH_YIELD_MODIFIERS: TechYieldModifier[] = [
   { techId: 'scientific-breeding', label: '+1 food per plantation improvement', effect: { kind: 'perImprovement', improvement: 'plantation', yields: { food: 1 } } },
   // Re-text: "granary bonus doubled" made explicit as a flat +1 food per granary.
   { techId: 'scientific-breeding', label: '+1 food per granary', effect: { kind: 'perBuildingId', buildingIds: ['granary'], yields: { food: 1 } } },
-  { techId: 'pragmatism', label: '+5% to all city yields', effect: { kind: 'empirePercent', resource: 'all', percent: 5 } },
+  { techId: 'pragmatism', label: '+5 science, +4 production, +3 gold and +3 food in cities with 12 or more buildings', effect: { kind: 'cityFlatConditional', minBuildings: 12, yields: { science: 5, production: 4, gold: 3, food: 3 } } },
   { techId: 'dialectical-materialism', label: '+2 science in cities with a library', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['library'], yields: { science: 2 } } },
   { techId: 'impressionism', label: 'Culture buildings generate +1 gold and +1 science', effect: { kind: 'perBuildingCategory', category: 'culture', yields: { gold: 1, science: 1 } } },
   { techId: 'grand-opera', label: '+3 gold per opera house', effect: { kind: 'perBuildingId', buildingIds: ['opera_house'], yields: { gold: 3 } } },

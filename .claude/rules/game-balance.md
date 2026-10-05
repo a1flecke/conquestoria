@@ -900,8 +900,11 @@ per-tech inventory. Working rules that came out of converting flat yields:
   made the choice earns what the flat bonus gave it. The science and production reference economy
   (`tests/systems/pacing-reference-economy.test.ts`) feeds `RESEARCH_OUTPUT_BY_ERA`, so a change that moves
   the maximal profile outside the era 10-13 tolerance is a pacing change and needs a decision, not a snapshot edit.
-  Percentage techs in that pinned economy (`rationalism`, `pragmatism`) are held back for #1311; the production pair
-  (`mass-production`, `parliamentary-reform`) became factory- and forum/courthouse-conditioned in #1340.
+  No shipped tech pays an unconditional percentage any more: the production pair (`mass-production`,
+  `parliamentary-reform`) became Factory- and forum/courthouse-conditioned in #1340, and the science pair (`rationalism`,
+  `pragmatism`) became per-science-building and 12-building-city rows in #1341. A flat per-building row cannot follow a
+  percentage's growth across eras 10-13, so size science replacements against the maximal profile's four-era curve,
+  not one era. The `empirePercent` kind remains as vocabulary (tests use synthetic rows).
 - **The AI sees a tech's own effect rows.** `evaluateAITechCapabilities` adds `getTechEconomicEffectValue`
   (yield and cost-discount rows, capped at 3) and `getTechCombatEffectValue` (combat rows, capped at 0.5). It is
   state-independent and reads only the public catalog. A new table row is valued automatically; effects owned by
@@ -917,7 +920,7 @@ per-tech inventory. Working rules that came out of converting flat yields:
   yield row's label quotes a number its tech text does not (the check that would have caught Arms Control's
   "+5 gold" text over a +2 row), when a condition names a building that does not exist, and when a repeated niche
   appears that is not in its reviewed list.
-- **Open follow-ups from the #420 arc:** percentage techs pinned into the reference economy (#1311), repeated
+- **Open follow-ups from the #420 arc:** percentage techs pinned into the reference economy (#1311, done), repeated
   niches (#1315), bespoke-effect AI valuation (#1316), warfare ideas that need their own subsystem (#1317),
   Era 12-13 reference flats (#1318), explicit pacing scope instead of text inference (#1319), AI-round
   economy-call attribution (#1320).

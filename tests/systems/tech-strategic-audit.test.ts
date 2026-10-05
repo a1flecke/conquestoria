@@ -53,7 +53,8 @@ describe('tech strategic-choice audit (#420 child 1)', () => {
 
   it('leaves no flat yield in Eras 1–11 without a REPLACE decision or a tracked FOLLOW-UP', () => {
     const flat = rows.filter(row => row.era <= 11 && row.yieldEffects.some(e => ['cityFlat', 'empireFlat', 'empirePercent'].includes(e.kind)));
-    expect(flat.length).toBeGreaterThan(0);
+    // #1341: the last four percentage techs (#1311) were replaced, so the audited set has no flat yield left.
+    // Any new one must arrive with a REPLACE decision or a FOLLOW-UP that names an issue.
     const undecided = flat.filter(row => {
       const entry = TECH_AUDIT_ENTRIES[row.id];
       if (entry?.cls === 'REPLACE') return false;

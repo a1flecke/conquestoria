@@ -49,16 +49,24 @@ describe('pacing reference economy (Part C exact-value pin)', () => {
   // infrastructure never reaches a 155-cost building) so it loses about 10.5% production at eras 10-13
   // (496 -> 444, 582 -> 520, 600 -> 536, 678 -> 604). That is the deliberate cost of making the bonus a building
   // decision: an empire that builds Factories earns at least what the percentage gave it, one that does not earns less.
+  // #1341 (#420/#1311): rationalism (+5% science) and pragmatism (+5% all) became +1 science per science building and
+  // +5 science/+4 production/+3 gold/+3 food in cities with 12 or more buildings. A flat per-building row cannot follow
+  // the percentage's growth, and a per-category row can: the 'maximal' profile moves +2 to +3 science at eras 8-13, which
+  // stays inside the era 10-13 tolerance below (137/171/200/238 against 135/170/198/236), so RESEARCH_OUTPUT_BY_ERA, every
+  // recommended tech cost and every persisted Tech.cost are unchanged (no migration). 'bounded' gains 1-4 science from
+  // era 6; the 60% representative cohort gains +3.8%/+3.5%/+2.0%/+1.8% science at eras 10-13 and loses at most 1.5%
+  // production (551 -> 572, 715 -> 740, 941 -> 960, 1194 -> 1215; production 444 -> 443, 520 -> 515, 536 -> 530,
+  // 604 -> 595) because few of its cities reach 12 buildings. Cities that do reach 12 gain far more than the old 5%.
   // #1315 (#420 follow-up): research-institute, temple/monastery science techs moved to distinct buildings
   // (rocket program, signals bureau, semiconductor fabricator, monastery, shrine) with unchanged amounts, so the
   // 'maximal' profile is exactly unchanged. 'bounded' moves -1 science at eras 10-12 and +8 at era 13 (the newest
   // buildings are inside its recency window there, the research institute is not); the 60% representative cohort
   // moves only at era 10 (570 -> 551, -3.3%). RESEARCH_OUTPUT_BY_ERA is deliberately not edited.
   const expectedBoundedByEra: Record<number, number> = {
-    1: 2, 2: 6, 3: 8, 4: 9, 5: 9, 6: 24, 7: 35, 8: 47, 9: 63, 10: 67, 11: 95, 12: 101, 13: 111,
+    1: 2, 2: 6, 3: 8, 4: 9, 5: 9, 6: 26, 7: 38, 8: 49, 9: 66, 10: 69, 11: 96, 12: 104, 13: 115,
   };
   const expectedMaximalByEra: Record<number, number> = {
-    1: 2, 2: 6, 3: 8, 4: 9, 5: 13, 6: 34, 7: 48, 8: 79, 9: 117, 10: 134, 11: 169, 12: 197, 13: 235,
+    1: 2, 2: 6, 3: 8, 4: 9, 5: 13, 6: 37, 7: 53, 8: 82, 9: 120, 10: 137, 11: 171, 12: 200, 13: 238,
   };
 
   it.each(Object.entries(expectedBoundedByEra))('era %s bounded-profile reference economy produces the pinned science output', (era, expected) => {
@@ -205,10 +213,10 @@ describe('representative multi-city reference economy', () => {
       // MR3's deterministic all-era cost table changes when representative
       // infrastructure becomes available, so this timeline-derived diagnostic
       // is deliberately repinned alongside the report's scenario gates.
-      { era: 10, cityCount: 5, total: { science: 551, production: 444 }, averagePerCity: { science: 110.22, production: 88.83 } },
-      { era: 11, cityCount: 5, total: { science: 715, production: 520 }, averagePerCity: { science: 143, production: 103.95 } },
-      { era: 12, cityCount: 5, total: { science: 941, production: 536 }, averagePerCity: { science: 188.1, production: 107.1 } },
-      { era: 13, cityCount: 5, total: { science: 1194, production: 604 }, averagePerCity: { science: 238.7, production: 120.75 } },
+      { era: 10, cityCount: 5, total: { science: 572, production: 443 }, averagePerCity: { science: 114.4, production: 88.6 } },
+      { era: 11, cityCount: 5, total: { science: 740, production: 515 }, averagePerCity: { science: 148, production: 103 } },
+      { era: 12, cityCount: 5, total: { science: 960, production: 530 }, averagePerCity: { science: 192, production: 106 } },
+      { era: 13, cityCount: 5, total: { science: 1215, production: 595 }, averagePerCity: { science: 243, production: 119 } },
     ]);
     // Runs the representative multi-city simulation for four eras; ~21s locally
     // but exceeds the old 60s ceiling on a loaded CI runner (times out on main

@@ -75,7 +75,7 @@ const ERA_8_TECHS: Tech[] = [
     unlocks: ['+2 science in cities with a library; empirical framework advances research'], era: 8 },
   { id: 'pragmatism', name: 'Pragmatism', track: 'philosophy', cost: 875,
     prerequisites: ['positivism'],
-    unlocks: ['+5% all city yields; practical philosophy optimizes civic and economic output'], era: 8 },
+    unlocks: ['+5 science, +4 production, +3 gold and +3 food in cities with 12 or more buildings; practical philosophy rewards fully developed cities'], era: 8 },
 
   // ARTS (2)
   { id: 'impressionism', name: 'Impressionism', track: 'arts', cost: 630,
