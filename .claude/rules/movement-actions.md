@@ -116,6 +116,11 @@ They are not folded into `resolveUnitMoveIntent` (a paradrop is not a walk), but
 the same rule: **anything a `can*` offers must be executable, anything it withholds comes back
 as a typed reason with player-facing copy, and the executor never re-derives legality.**
 
+**A based aircraft is never walked (#1331).** `validateUnitMove` refuses any unit with `airBase` (`'air-based'`),
+`getMovementRangeDetails` offers it nothing, and `getIdleExplorerUnitIds` never selects it: its position is its base's
+position (`assertAirBaseIntegrity`), and only rebase / `baseNewAirUnit` / carrier sync write both together. A new
+generic mover needs no aircraft check of its own; it inherits this one from the resolver.
+
 ## Territorial access (#871)
 
 "May this unit enter territory owned by that polity?" is a **fourth, separate** legality question,

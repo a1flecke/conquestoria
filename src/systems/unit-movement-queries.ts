@@ -41,6 +41,7 @@ export interface MovementBlockerReason {
     | 'barbarian-camp'
     | 'pirate-enclave'
     | 'closed-border'
+    | 'air-based'
     | 'unreachable'
     | 'insufficient-movement'
     | 'zone-of-control'
@@ -170,7 +171,7 @@ export function getMovementRangeDetails(
   unitId: string,
 ): MovementRangeDetails {
   const unit = state.units[unitId];
-  if (!unit) return { reachable: [], zocLimited: [] };
+  if (!unit || unit.airBase) return { reachable: [], zocLimited: [] };
   const blockingEntitiesByHex = getBlockingMapEntitiesByHex(state, unit);
   const deniedOwners = getDeniedTerritoryOwners(state, unit);
   const unitPositions: Record<string, string | string[]> = {};

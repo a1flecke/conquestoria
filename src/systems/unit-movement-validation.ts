@@ -144,6 +144,11 @@ export function validateUnitMove(
   if (unit.transportId) {
     return movementFailure(from, target, [from], 'occupied', 'Loaded units cannot move until they unload.');
   }
+  // #1330: a based aircraft's position IS its base's position (assertAirBaseIntegrity); walking it
+  // detaches the two. It moves only through rebase/missions, which write both together.
+  if (unit.airBase) {
+    return movementFailure(from, target, [from], 'air-based', 'Aircraft fly missions or rebase; they do not move like ground units.');
+  }
 
   const tile = state.map.tiles[hexKey(target)];
   if (!tile) return movementFailure(from, target, [from], 'unknown-tile', 'Too far away to spot.');
