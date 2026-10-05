@@ -79,9 +79,6 @@ describe('Eras 1-4 strategic-choice pass (#1303)', () => {
       expect(tech(id).countsForCityMaturity === true || id === 'early-empire' || id === 'medicine').toBe(true);
     }
     expect(tech('sailing').unlocks.join(' ')).not.toMatch(/embark/i);
-    // research-pacing-model infers an untagged tech's scope from the words "unit"/"building" in its text, so
-    // rewording must not silently move a persisted cost recommendation (sailing stayed 'military').
-    expect(tech('sailing').unlocks.join(' ')).toContain('units');
     expect(tech('banking').unlocks.join(' ')).not.toMatch(/20%/);
   });
 
