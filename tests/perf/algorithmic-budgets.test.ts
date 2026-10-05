@@ -371,12 +371,14 @@ describe('#1007 algorithmic budgets', () => {
 
   it('INFORMATIONAL — attributes AI-round whole-state clones to their call sites', () => {
     // #1235 output for the PR body, plus a real invariant: every counted clone is
-    // attributed to exactly one caller. Site labels are NOT a budget (they move
-    // when code moves); only the total is pinned elsewhere.
-    const sites = measureAiRoundCloneSites(fx);
+    // attributed to exactly one caller (count and #1330 bytes). Site labels are
+    // NOT a budget (they move when code moves); only the total is pinned elsewhere.
+    const { counts: sites, bytes } = measureAiRoundCloneSites(fx);
     const total = Object.values(sites).reduce((a, b) => a + b, 0);
-    console.log(`[#1235] AI-round whole-state clone sites:\n${JSON.stringify(sites, null, 2)}`);
+    console.log(`[#1235/#1330] AI-round whole-state clone sites (count):\n${JSON.stringify(sites, null, 2)}`);
+    console.log(`[#1235/#1330] AI-round whole-state clone sites (bytes):\n${JSON.stringify(bytes, null, 2)}`);
     expect(total).toBe(S('aiRound@e2').structuredCloneWholeState);
+    expect(Object.values(bytes).reduce((a, b) => a + b, 0)).toBe(S('aiRound@e2').structuredCloneWholeStateBytes);
   }, 120_000);
 
   it('INFORMATIONAL — attributes calculateCivEconomy calls to their call sites (#1320)', () => {

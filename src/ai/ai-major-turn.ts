@@ -67,7 +67,7 @@ import {
 } from './ai-tactics';
 import { canUnitFulfillAIStrategicRole, countAIStrategicRoleCapabilities, getAIStrategicRoles } from './ai-unit-roles';
 import { isAIHostileOwner } from './ai-hostility';
-import { processAIUpgrades } from './ai-upgrades';
+import { processAIUpgradesInPlace } from './ai-upgrades';
 
 export interface ProcessMajorCivStrategicTurnResult {
   state: GameState;
@@ -859,6 +859,21 @@ export function processMajorCivStrategicTurn(
   bus: EventBus,
   options: { excludedUnitIds?: ReadonlySet<string> } = {},
 ): ProcessMajorCivStrategicTurnResult {
+  return processMajorCivStrategicTurnInPlace(structuredClone(state), prepared, bus, options);
+}
+
+/**
+ * #1330 — in-place variant for `processAITurnInternal`, which already owns the
+ * per-civ deep clone (`basic-ai.ts:622`) that the public entry point used to
+ * clone a second time. Mutates and returns `working`; the public
+ * `processMajorCivStrategicTurn` keeps its non-mutating contract by cloning first.
+ */
+export function processMajorCivStrategicTurnInPlace(
+  working: GameState,
+  prepared: PreparedMajorCivPlan,
+  bus: EventBus,
+  options: { excludedUnitIds?: ReadonlySet<string> } = {},
+): ProcessMajorCivStrategicTurnResult {
   const preparedPlans = [
     ...(prepared.portfolio.primaryPlan
       ? [prepared.portfolio.primaryPlan]
@@ -867,13 +882,13 @@ export function processMajorCivStrategicTurn(
   ];
   if (
     prepared.civId === ''
-    || !state.civilizations[prepared.civId]
+    || !working.civilizations[prepared.civId]
     || preparedPlans.some(plan => plan.actorId !== prepared.civId)
   ) {
-    return { state: structuredClone(state), actions: [], traces: [] };
+    return { state: working, actions: [], traces: [] };
   }
 
-  let working = normalizeOpponentAIState(structuredClone(state));
+  working = normalizeOpponentAIState(working);
   working = {
     ...working,
     opponentAI: {
@@ -893,7 +908,7 @@ export function processMajorCivStrategicTurn(
       },
     },
   };
-  working = processAIUpgrades(
+  working = processAIUpgradesInPlace(
     working,
     prepared.civId,
     prepared,

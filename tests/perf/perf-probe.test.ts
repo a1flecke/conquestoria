@@ -44,6 +44,7 @@ describe('withPerfProbe', () => {
       structuredCloneWholeState: 0,
       structuredCloneWholeStateBytes: 0,
       structuredCloneWholeStateBySite: {},
+      structuredCloneWholeStateBytesBySite: {},
       heapPops: 0,
       heapPushes: 0,
       blockingEntityAtCalls: 0,
@@ -68,6 +69,10 @@ describe('withPerfProbe', () => {
     const bySite = counts.structuredCloneWholeStateBySite;
     expect(Object.values(bySite).reduce((a, b) => a + b, 0)).toBe(1);
     expect(Object.keys(bySite)[0]).toMatch(/perf-probe\.test\.ts/);
+    // #1330: the per-site byte attribution sums to the total.
+    const bytesBySite = counts.structuredCloneWholeStateBytesBySite;
+    expect(Object.values(bytesBySite).reduce((a, b) => a + b, 0)).toBe(counts.structuredCloneWholeStateBytes);
+    expect(Object.keys(bytesBySite)[0]).toMatch(/perf-probe\.test\.ts/);
   });
 
   it('attributes calculateCivEconomy calls to their caller (#1320)', () => {

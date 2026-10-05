@@ -56,14 +56,21 @@ export function buildPerfFixtures(): PerfFixtures {
 }
 
 /**
- * #1235 — informational whole-state-clone attribution for one full AI round on
- * the larger crowded fixture. NOT a budget and NOT recorded in the baseline; the
- * fast `perf-probe.test.ts` proves the attribution mechanism, and the
- * informational test asserts the sites sum to the measured clone total.
+ * #1235/#1330 — informational whole-state-clone attribution (counts + approximate
+ * bytes) for one full AI round on the larger crowded fixture. NOT a budget and NOT
+ * recorded in the baseline; the fast `perf-probe.test.ts` proves the attribution
+ * mechanism, and the informational test asserts the sites sum to the measured
+ * clone total (count and bytes).
  */
-export function measureAiRoundCloneSites(fx: PerfFixtures): Record<string, number> {
+export function measureAiRoundCloneSites(fx: PerfFixtures): {
+  counts: Record<string, number>;
+  bytes: Record<string, number>;
+} {
   const { counts } = withPerfProbe(() => processNonHumanMajorRound(fx.e2, new EventBus()));
-  return counts.structuredCloneWholeStateBySite;
+  return {
+    counts: counts.structuredCloneWholeStateBySite,
+    bytes: counts.structuredCloneWholeStateBytesBySite,
+  };
 }
 
 /**

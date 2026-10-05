@@ -115,7 +115,7 @@ import {
   buildDiplomaticStrengthEstimates,
   type MajorCivPerception,
 } from './ai-perception';
-import { processMajorCivStrategicTurn } from './ai-major-turn';
+import { processMajorCivStrategicTurnInPlace } from './ai-major-turn';
 import { processAIResettlement } from './ai-resettlement';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import {
@@ -982,7 +982,7 @@ function processAITurnInternal(
   }
   civ = newState.civilizations[civId];
 
-  newState = processMajorCivStrategicTurn(
+  newState = processMajorCivStrategicTurnInPlace(
     newState,
     preparedForTurn,
     bus,

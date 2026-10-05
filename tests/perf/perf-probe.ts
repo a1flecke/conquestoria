@@ -29,6 +29,8 @@ export interface PerfCounts {
   structuredCloneWholeStateBytes: number;
   /** those whole-state clones attributed to their first caller outside this probe (#1235, informational) */
   structuredCloneWholeStateBySite: Record<string, number>;
+  /** approximate serialized volume of those clones attributed to each caller (#1330, informational) */
+  structuredCloneWholeStateBytesBySite: Record<string, number>;
   /** `BinaryHeap.prototype.pop` calls — A* node examinations across every `findPath` */
   heapPops: number;
   /** `BinaryHeap.prototype.push` calls — A* node relaxations */
@@ -64,6 +66,7 @@ function emptyCounts(): PerfCounts {
     structuredCloneWholeState: 0,
     structuredCloneWholeStateBytes: 0,
     structuredCloneWholeStateBySite: {},
+    structuredCloneWholeStateBytesBySite: {},
     heapPops: 0,
     heapPushes: 0,
     blockingEntityAtCalls: 0,
@@ -158,10 +161,12 @@ export function withPerfProbe<T>(fn: () => T): { result: T; counts: PerfCounts }
   spies.push(
     vi.spyOn(globalThis, 'structuredClone').mockImplementation((value: unknown, options?: unknown) => {
       if (isWholeState(value)) {
+        const bytes = approximateStateBytes(value);
         counts.structuredCloneWholeState += 1;
-        counts.structuredCloneWholeStateBytes += approximateStateBytes(value);
+        counts.structuredCloneWholeStateBytes += bytes;
         const site = callSiteFromStack();
         counts.structuredCloneWholeStateBySite[site] = (counts.structuredCloneWholeStateBySite[site] ?? 0) + 1;
+        counts.structuredCloneWholeStateBytesBySite[site] = (counts.structuredCloneWholeStateBytesBySite[site] ?? 0) + bytes;
       }
       return (structuredCloneOrig as (v: unknown, o?: unknown) => unknown)(value, options);
     }),
