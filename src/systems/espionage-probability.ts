@@ -77,13 +77,19 @@ export interface EspionageModifierQuery {
   targetCivId: string;
   /** The target city the mission is scoped to. */
   targetCityId: string;
+  /**
+   * The mission being resolved or previewed (#1335). Required so a mission-scoped
+   * modifier row can never be silently skipped by a caller that forgot it — the same
+   * named-role discipline as #1022.
+   */
+  missionType: SpyMissionType;
 }
 
 export function getEspionageModifierBreakdown(
   state: GameState,
   query: EspionageModifierQuery,
 ): EspionageModifierBreakdown {
-  const { actingCivId, targetCivId, targetCityId } = query;
+  const { actingCivId, targetCivId, targetCityId, missionType } = query;
   const actingTechs = state.civilizations[actingCivId]?.techState.completed ?? [];
   const targetTechs = state.civilizations[targetCivId]?.techState.completed ?? [];
   const targetCity = state.cities[targetCityId];
@@ -96,6 +102,7 @@ export function getEspionageModifierBreakdown(
 
   for (const row of ESPIONAGE_MODIFIERS) {
     if (row.condition === 'targetIsCapital' && !targetIsCapital) continue;
+    if (row.missions && !row.missions.includes(missionType)) continue;
 
     let active = false;
     let scaledDelta = row.delta;

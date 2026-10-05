@@ -900,5 +900,23 @@ describe('espionage-panel', () => {
       }
       expect(foundPct).toBe(true);
     });
+
+    it('#1335: preview odds apply the scoped Cyber Defense Center defense to passive-intel missions only', () => {
+      const state = makeEspUiState();
+      state.civilizations.player.techState.completed = ['espionage-informants', 'satellite-surveillance'];
+      state.cities['city-egypt-1'].buildings = ['cyber_defense_center'];
+      const spy = makeTestSpy('spy-intel', 'player', {
+        status: 'stationed', infiltrationCityId: 'city-egypt-1', targetCivId: 'ai-egypt',
+        targetCityId: null, experience: 0,
+      });
+      state.espionage!['player'] = addSpy(state.espionage!['player'], spy);
+      const data = getEspionagePanelData(state);
+      const chances = data.missionSuccessChances!;
+      // gather_intel and satellite_surveillance share a 0.70 base. Only satellite gets the
+      // extra scoped -0.10, so the preview must show it 0.10 lower (preview == execution).
+      expect(chances.gather_intel).toBeCloseTo(0.55);
+      expect(chances.satellite_surveillance).toBeCloseTo(0.45);
+      expect(chances.gather_intel! - chances.satellite_surveillance!).toBeCloseTo(0.10);
+    });
   });
 });

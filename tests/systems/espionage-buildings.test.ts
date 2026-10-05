@@ -25,6 +25,12 @@ describe('espionage building definitions', () => {
     expect(BUILDINGS['security-bureau'].defensiveEspionageAiValue).toBe(40);
   });
 
+  it('cyber_defense_center carries a generic defensive-espionage AI value (#1335)', () => {
+    expect(BUILDINGS['cyber_defense_center']).toBeDefined();
+    expect(BUILDINGS['cyber_defense_center'].category).toBe('espionage');
+    expect(BUILDINGS['cyber_defense_center'].defensiveEspionageAiValue).toBe(40);
+  });
+
   it('keeps counter-intelligence buildings unavailable until their new era gates', () => {
     const city = { buildings: [], position: { q: 0, r: 0 } } as any;
     const map = { tiles: {}, width: 1, height: 1, wrapsHorizontally: false } as any;
