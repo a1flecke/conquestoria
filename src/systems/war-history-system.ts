@@ -38,7 +38,7 @@ function pushEvent(record: WarRecord, event: WarHistoryEvent): WarHistoryEvent[]
   const events = [...record.events, event];
   if (events.length <= MAX_WAR_HISTORY_EVENTS) return events;
   const structuralIdx = events.findIndex(e => e.type === 'declared' || e.type === 'concluded');
-  const dropIdx = events.findIndex((e, i) => i !== structuralIdx);
+  const dropIdx = events.findIndex((_, i) => i !== structuralIdx);
   if (dropIdx === -1) return events;
   return [...events.slice(0, dropIdx), ...events.slice(dropIdx + 1)];
 }

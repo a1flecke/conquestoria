@@ -1,4 +1,4 @@
-import type { Tech, TechState, TechTrack } from '@/core/types';
+import type { Tech, TechState } from '@/core/types';
 import { TECH_TREE } from './tech-definitions';
 
 export { TECH_TREE };

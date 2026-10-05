@@ -6,7 +6,7 @@ import type { RoundPhase, RoundPhaseContext } from './types';
  * Housekeeping after every civ has taken its turn: diplomatic requests and treaty proposals nobody answered expire
  * (once per round, not once per civ, #554), and the countdown on cities whose production is disabled ticks down.
  */
-function runPostCivHousekeeping(state: GameState, context: RoundPhaseContext): GameState {
+function runPostCivHousekeeping(state: GameState, _context: RoundPhaseContext): GameState {
   let newState = state;
   // #554: expire stale peace requests / treaty proposals once per turn (not
   // once per civ) -- a proposal the recipient never opens the diplomacy panel

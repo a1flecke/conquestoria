@@ -4,7 +4,6 @@ import { getAttackTargets, type AttackTarget } from '@/systems/attack-targeting'
 import { getVisibility } from '@/systems/fog-of-war';
 import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { getAvailableWorkerActions, getKnownTileResourceForWorkerAction } from '@/systems/improvement-system';
-import { buildUnitOccupancy } from '@/systems/unit-occupancy';
 import { getMovementRangeDetails } from '@/systems/unit-movement-queries';
 import {
   getLandUnitWaterRecovery,
@@ -13,7 +12,6 @@ import {
 } from '@/systems/unit-water-recovery';
 import { getEmbarkedAssaultTargets } from '@/systems/transport-system';
 import { resolveCityInteraction } from '@/systems/city-interaction';
-import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { getShoreSupplyCapability } from '@/systems/supply-participation';
 import { LAND_SUPPLY_RADII } from '@/systems/supply-sources';
 import { getFortificationPlacement, getFortificationTier } from '@/systems/fortification-system';
@@ -87,17 +85,6 @@ function buildWorkerGuidanceHighlights(
 function cityOffersAnAction(state: GameState, unit: GameState['units'][string], cityId: string): boolean {
   const city = state.cities[cityId];
   return city !== undefined && resolveCityInteraction(state, unit, city).available.length > 0;
-}
-
-function buildHostileOwners(state: GameState, civId: string): Set<string> {
-  const civ = state.civilizations[civId];
-  const hostile = new Set<string>(['barbarian', ...(civ?.diplomacy?.atWarWith ?? [])]);
-  for (const [mcId, mc] of Object.entries(state.minorCivs)) {
-    if (mc.diplomacy?.atWarWith?.includes(civId)) {
-      hostile.add(mcId);
-    }
-  }
-  return hostile;
 }
 
 function isPreviewableMoveDestination(state: GameState, from: HexCoord, to: HexCoord): boolean {

@@ -493,7 +493,7 @@ export function drawCityIdleBadgePass(ctx: CanvasRenderingContext2D, item: CityR
   const idleIcon = item.city.idleProduction === 'gold'
     ? CITY_BADGE_GLYPHS.idleGold
     : CITY_BADGE_GLYPHS.idleScience;
-  const { center, bounds } = getCityBadgeLayout(item.screen, item.size).idle;
+  const { center } = getCityBadgeLayout(item.screen, item.size).idle;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = '#fff';

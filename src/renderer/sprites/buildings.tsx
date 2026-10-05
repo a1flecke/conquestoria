@@ -577,7 +577,7 @@ export function ShrineSprite({ palette, svgOnly = false }: BuildingSpriteProps):
 }
 
 export function ForumSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
-  const flanking = [34, 158].map((x, i) => (
+  const flanking = [34, 158].map((x) => (
     <g transform={`translate(${x} 0)`}>
       <rect x="-3" y="80" width="6" height="38" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="0.6" />
       <rect x="-5" y="78" width="10" height="4" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.5" />

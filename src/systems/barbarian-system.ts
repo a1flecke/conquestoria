@@ -5,7 +5,6 @@ import type {
   GameMap,
   GameState,
   HexCoord,
-  IdCounters,
   OpponentAIState,
   ResourceType,
   Unit,
@@ -32,7 +31,6 @@ import { campSensedUnits, getActiveCampPressure, observeCampPressureFromSensedUn
 import { selectBarbarianReinforcement } from './barbarian-force-composer';
 import { lcg } from './barbarian-camp-placement';
 import { createSimulationRng } from './simulation-rng';
-import { getCivilizationLiveness } from './civilization-liveness';
 import {
   findPredatorHuntTarget,
   getBarbarianArchetypeDefinition,
@@ -255,26 +253,6 @@ function chooseStepToward(
       barbarianDistance(state, a, target) - barbarianDistance(state, b, target)
       || a.q - b.q
       || a.r - b.r)[0] ?? null;
-}
-
-function chooseBarbarianSpawnType(
-  state: GameState,
-  campId: string,
-  assignedUnits: Unit[],
-): UnitType {
-  const camp = state.barbarianCamps[campId];
-  const target = camp ? Object.values(state.cities)
-    .filter(city => getCivilizationLiveness(state, city.owner).living)
-    .sort((a, b) => barbarianDistance(state, camp.position, a.position) - barbarianDistance(state, camp.position, b.position) || a.owner.localeCompare(b.owner))[0]
-    : undefined;
-  const roster = getBarbarianRosterForEra(camp
-    ? resolveNeutralPressureEra(state, camp.position, target?.owner) ?? 1
-    : 1);
-  const rangedCount = assignedUnits.filter(unit => roster.ranged.includes(unit.type)).length;
-  const canAddRanged = (rangedCount + 1) * 3 <= assignedUnits.length + 1;
-  const pool = canAddRanged ? [...roster.melee, ...roster.ranged] : roster.melee;
-  const seed = rolling31UnsignedByCodePoint(`${state.gameId ?? 'game'}:${state.turn}:${campId}`);
-  return pool[seed % pool.length]!;
 }
 
 /**

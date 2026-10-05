@@ -6,7 +6,6 @@ import type {
   ResourceType,
   ResourceYield,
   TerrainType,
-  WorkerActionType,
 } from '@/core/types';
 import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 import { TECH_TREE } from '@/systems/tech-definitions';

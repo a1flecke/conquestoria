@@ -1,6 +1,5 @@
 import type { City, CityFocus, GameMap, GameState, HexCoord, ResourceYield } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
-import { BUILDINGS } from '@/systems/city-system';
 import { getImprovementYieldBonus } from '@/systems/improvement-system';
 import {
   assignCityFocus,
@@ -189,7 +188,7 @@ function renderWorkedLandSection(root: HTMLElement, city: City, options: CityMan
 
 export function createCityWorkSection(
   city: City,
-  map: GameMap,
+  _map: GameMap,
   managementOptions: CityManagementOptions,
 ): HTMLElement {
   const panel = document.createElement('div');

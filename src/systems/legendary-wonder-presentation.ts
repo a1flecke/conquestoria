@@ -91,10 +91,6 @@ export function titleCaseId(value: string): string {
     .join(' ');
 }
 
-function isWonderAlreadyCompleted(state: GameState, wonderId: string): boolean {
-  return Boolean(state.completedLegendaryWonders?.[wonderId]);
-}
-
 function hasSameOwnerActiveBuild(
   state: GameState,
   civId: string,

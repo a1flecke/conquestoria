@@ -25,7 +25,7 @@ import type { HudController } from '@/app/controllers/hud-controller';
 import type { SelectionController } from '@/app/controllers/selection-controller';
 import type { DiplomacyActionsController } from '@/app/controllers/diplomacy-actions-controller';
 import type { PanelRouter } from '@/app/panel-router';
-import type { City, CivDefinition, Civilization, HexCoord, UnitType } from '@/core/types';
+import type { City, CivDefinition, Civilization, UnitType } from '@/core/types';
 import type { NotificationEntry } from '@/core/notification-log';
 import type { PirateFocusTarget } from '@/systems/pirate-presentation';
 import type { PirateActionResult } from '@/systems/pirate-actions';

@@ -57,7 +57,7 @@
   },
   {
    "pair": "ai -> systems",
-   "count": 293
+   "count": 289
   },
   {
    "pair": "app -> ai",
@@ -129,7 +129,7 @@
   },
   {
    "pair": "input -> systems",
-   "count": 45
+   "count": 43
   },
   {
    "pair": "main.ts -> app",
@@ -209,7 +209,7 @@
   },
   {
    "pair": "ui -> core",
-   "count": 13
+   "count": 12
   },
   {
    "pair": "ui -> platform",
@@ -225,7 +225,7 @@
   },
   {
    "pair": "ui -> systems",
-   "count": 277
+   "count": 275
   }
  ]
 }

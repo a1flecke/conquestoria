@@ -50,7 +50,7 @@ export function canHullEnterOcean(unitType: UnitType): boolean {
 export function getMovementCostForUnitInContext(
   unit: Unit,
   terrain: string,
-  context: UnitMovementContext = {},
+  _context: UnitMovementContext = {},
 ): number {
   const definition = UNIT_DEFINITIONS[unit.type];
   const domain = definition?.domain ?? 'land';

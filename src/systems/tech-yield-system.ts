@@ -1,7 +1,7 @@
 import type { City, GameMap, HexCoord, ResourceYield, TerrainType, TradeRoute } from '@/core/types';
 import { BUILDINGS, isCityCoastal } from './city-system';
 import { hexKey, wrapHexCoord } from './hex-utils';
-import { TECH_YIELD_MODIFIERS, type TechYieldModifier, type YieldKind } from './tech-yield-definitions';
+import { TECH_YIELD_MODIFIERS, type YieldKind } from './tech-yield-definitions';
 
 function canonicalizeCoord(coord: HexCoord, map: GameMap): HexCoord {
   return map.wrapsHorizontally ? wrapHexCoord(coord, map.width) : coord;

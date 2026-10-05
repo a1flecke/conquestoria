@@ -406,15 +406,6 @@ function getCandidateNeighborhood(map: GameMap, coord: HexCoord, range: number):
     : hexesInRange(coord, range);
 }
 
-function getMinimumDistanceToExistingStarts(
-  map: GameMap,
-  coord: HexCoord,
-  positions: HexCoord[],
-): number {
-  if (positions.length === 0) return Infinity;
-  return Math.min(...positions.map(position => getStartPositionDistance(map, coord, position)));
-}
-
 const GEO_START_TABLES: Partial<Record<MapScript, Record<'small' | 'medium' | 'large', Record<string, HexCoord>>>> = {
   earth: EARTH_START_POSITIONS,
   'old-world': OLD_WORLD_START_POSITIONS,

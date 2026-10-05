@@ -11,7 +11,7 @@ import type { SelectionCommonDeps, SelectionCore, SelectedUnitCommands, Selectio
 export function createEspionageCommands(
   deps: SelectionCommonDeps,
   core: SelectionCore,
-  args: SelectionCommandArgs,
+  _args: SelectionCommandArgs,
 ): Pick<SelectedUnitCommands, 'onSetDisguise' | 'onInfiltrate' | 'onEmbed'> {
   const { session } = deps;
 

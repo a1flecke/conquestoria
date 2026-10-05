@@ -14,7 +14,7 @@ import type { SelectionCommonDeps, SelectionCore, SelectedUnitCommands, Selectio
 export function createGeneralCommands(
   deps: SelectionCommonDeps,
   core: SelectionCore,
-  args: SelectionCommandArgs,
+  _args: SelectionCommandArgs,
 ): Pick<SelectedUnitCommands, 'onClose' | 'onReopenSupplyTutorial' | 'onReopenGeneralTutorial' | 'onOpenHallOfFame' | 'onOpenRally' | 'onPrepareStrategicLaunch' | 'onOpenSeize' | 'onStartLastStandTargeting'> {
   const { session, selection } = deps;
 

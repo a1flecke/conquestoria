@@ -19,7 +19,6 @@ import { getWrappedHexNeighbors, hexDistance, hexKey, hexNeighbors, wrappedHexDi
 import {
   applyBlockadeStreaks,
   applyPlannedRelocation,
-  choosePirateIntent,
   choosePersistentPirateIntent,
   derivePirateBlockades,
   derivePirateRaids,
@@ -52,7 +51,6 @@ import {
 } from './pirate-notifications';
 import { UNIT_DEFINITIONS } from './unit-definitions';
 import { createUnit, resetUnitTurn } from './unit-lifecycle';
-import { moveUnitWithZoneOfControl } from './unit-low-level-move';
 import { getMovementStepCost } from './unit-movement-cost';
 import { findPath } from './unit-pathfinding';
 import { executeUnitMove } from './unit-movement-system';
@@ -149,46 +147,6 @@ function normalizeRoundState(
   return { state: nextState, events };
 }
 
-function targetPosition(state: GameState, faction: PirateFactionState): HexCoord | null {
-  const intent = faction.intent;
-  if (!intent) return null;
-  if (intent.targetUnitId) return state.units[intent.targetUnitId]?.position ?? null;
-  if (intent.targetCityId) return state.cities[intent.targetCityId]?.position ?? null;
-  return null;
-}
-
-function occupiedKeys(state: GameState, excludingId: string): Set<string> {
-  return new Set(Object.values(state.units)
-    .filter(unit => unit.id !== excludingId && !unit.transportId)
-    .map(unit => hexKey(unit.position)));
-}
-
-function moveOneStepToward(state: GameState, unit: Unit, target: HexCoord): { state: GameState; path: HexCoord[] } {
-  const occupied = occupiedKeys(state, unit.id);
-  const candidates = neighbors(state, unit.position)
-    .filter(coord => !occupied.has(hexKey(coord)))
-    .filter(coord => {
-      const terrain = state.map.tiles[hexKey(coord)]?.terrain;
-      return terrain === 'coast' || terrain === 'ocean';
-    })
-    .map(coord => ({ coord, cost: getMovementStepCost(unit, state.map, unit.position, coord) }))
-    .filter(candidate => Number.isFinite(candidate.cost) && candidate.cost <= unit.movementPointsLeft)
-    .sort((a, b) => distance(state, a.coord, target) - distance(state, b.coord, target)
-      || a.coord.q - b.coord.q || a.coord.r - b.coord.r);
-  const next = candidates[0];
-  if (!next || distance(state, next.coord, target) >= distance(state, unit.position, target)) return { state, path: [] };
-  // #1025: barbarian pirate raiders move one adjacent step over coast/ocean only.
-  // `getBlockingMapEntityAt`'s entities (foreign cities, camps, enclave anchors) are
-  // all land tiles, already excluded by the terrain filter above; routing through
-  // resolveUnitMoveIntent would also pull in player-only visibility/village rules
-  // that do not apply to a world actor.
-  const stepped = moveUnitWithZoneOfControl(state, unit, next.coord, next.cost).unit; // movement-contract-exempt: world-actor coast/ocean step, no land blockers reachable
-  return {
-    state: { ...state, units: { ...state.units, [unit.id]: stepped } },
-    path: [next.coord],
-  };
-}
-
 function attackTarget(
   state: GameState,
   attacker: Unit,
@@ -233,76 +191,6 @@ function attackTarget(
     transportKill,
     events: applied.pirateEvents,
   };
-}
-
-function processMovementAndCombat(state: GameState, relocated: Set<string>): {
-  state: GameState;
-  facts: PirateRoundFacts;
-  events: PirateActionEvent[];
-} {
-  let nextState = state;
-  const facts: PirateRoundFacts = {
-    movements: [],
-    attacks: [],
-    transportKills: [],
-    attackPresentations: [],
-  };
-  const events: PirateActionEvent[] = [];
-  for (const factionId of Object.keys(state.pirates?.factions ?? {}).sort()) {
-    let faction = nextState.pirates?.factions[factionId];
-    if (!faction) continue;
-    const intent = choosePirateIntent(nextState, factionId);
-    faction = { ...faction, intent };
-    nextState = {
-      ...nextState,
-      pirates: { ...nextState.pirates!, factions: { ...nextState.pirates!.factions, [factionId]: faction } },
-    };
-    const target = targetPosition(nextState, faction);
-    for (const unitId of [...faction.shipIds].sort()) {
-      let unit = nextState.units[unitId];
-      if (!unit || relocated.has(unitId)) continue;
-      unit = resetUnitTurn(unit);
-      nextState = { ...nextState, units: { ...nextState.units, [unitId]: unit } };
-      let attack = attackTarget(nextState, unit, intent?.targetUnitId);
-      if (attack.result) {
-        nextState = attack.state;
-        facts.attacks.push(attack.result);
-        facts.attackPresentations!.push(attack.presentation!);
-        if (attack.transportKill) facts.transportKills.push(attack.transportKill);
-        events.push(...attack.events);
-        continue;
-      }
-      if (target) {
-        const from = unit.position;
-        const beforeMove = nextState;
-        const moved = moveOneStepToward(nextState, unit, target);
-        nextState = moved.state;
-        if (moved.path.length > 0) {
-          facts.movements.push({
-            unitId,
-            from,
-            to: moved.path.at(-1)!,
-            path: moved.path,
-            presentationByViewer: buildMovePresentationByViewer(
-              beforeMove,
-              unit,
-              [from, ...moved.path],
-            ),
-          });
-        }
-      }
-      unit = nextState.units[unitId];
-      attack = unit ? attackTarget(nextState, unit, intent?.targetUnitId) : attack;
-      if (attack.result) {
-        nextState = attack.state;
-        facts.attacks.push(attack.result);
-        facts.attackPresentations!.push(attack.presentation!);
-        if (attack.transportKill) facts.transportKills.push(attack.transportKill);
-        events.push(...attack.events);
-      }
-    }
-  }
-  return { state: nextState, facts, events };
 }
 
 function purposefulTargetPosition(

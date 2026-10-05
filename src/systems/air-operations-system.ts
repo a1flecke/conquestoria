@@ -1,4 +1,3 @@
-import { isBasedAirUnit } from '@/systems/air-base-state';
 import { getOwnedCityCount } from '@/systems/city-ownership';
 import { fnv1a32CodePointLead } from './deterministic-hash';
 import type { EventBus } from '@/core/event-bus';

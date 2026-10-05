@@ -1,5 +1,5 @@
 import type { GameState } from '@/core/types';
-import { appendNotification, type NotificationCityAction, type NotificationEntry } from '@/core/notification-log';
+import { appendNotification, type NotificationEntry } from '@/core/notification-log';
 import { collectEvent } from '@/core/hotseat-events';
 import type { NotificationSink } from '@/ui/notification-routes/notification-sink';
 
