@@ -12,14 +12,9 @@ export type TechAuditEntry = TechJudgement & { child: 0 | 2 | 3 | 4 };
 
 const replace = (child: TechAuditEntry['child'], candidate: string, note: string): TechAuditEntry =>
   ({ cls: 'REPLACE', rating: 1, note, candidate, child });
-const tune = (child: TechAuditEntry['child'], candidate: string, note: string): TechAuditEntry =>
-  ({ cls: 'TUNE', rating: 2, note, candidate, child });
 const keep = (rating: TechAuditEntry['rating'], note: string, child: TechAuditEntry['child'] = 0): TechAuditEntry =>
   ({ cls: 'KEEP', rating, note, child });
 
-
-const REP_ROUTE = 'Per-route gold repeats on four techs; split by route type or partner count.';
-const REP_CULTURE = 'Culture-building gold repeats on six techs across five eras.';
 
 const followUp = (child: TechAuditEntry['child'], note: string, issue: string): TechAuditEntry =>
   ({ cls: 'FOLLOW-UP', rating: 1, note, followUp: issue, child });
