@@ -92,6 +92,7 @@ export function processSpyTurn(
             actingCivId: modifierContext.civId,
             targetCivId: updated.targetCivId,
             targetCityId: mission.targetCityId,
+            missionType: mission.type,
           })
           : null;
         const successChance = getSpySuccessChance(

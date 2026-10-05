@@ -895,20 +895,24 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
   if (stationedSpy) {
     const enemyCIMap = state.espionage?.[stationedSpy.targetCivId!]?.counterIntelligence ?? {};
     const ci = enemyCIMap[stationedSpy.infiltrationCityId!] ?? 0;
-    const modifiers = getEspionageModifierBreakdown(state, {
-      actingCivId: state.currentPlayer,
-      targetCivId: stationedSpy.targetCivId!,
-      targetCityId: stationedSpy.infiltrationCityId!,
-    });
-    const breakdownText = modifiers.parts.length > 0
-      ? modifiers.parts.map(part => `${part.label} ${part.delta >= 0 ? '+' : ''}${Math.round(part.delta * 100)}%`).join(', ')
-      : undefined;
     const chances: Partial<Record<SpyMissionType, number>> = {};
     const breakdowns: Partial<Record<SpyMissionType, string>> = {};
     for (const mission of availableMissions as SpyMissionType[]) {
+      // #1335: the modifier breakdown is mission-scoped, so it must be recomputed per
+      // mission — a single shared delta would show stale odds for scoped defenses
+      // (preview/execution drift).
+      const modifiers = getEspionageModifierBreakdown(state, {
+        actingCivId: state.currentPlayer,
+        targetCivId: stationedSpy.targetCivId!,
+        targetCityId: stationedSpy.infiltrationCityId!,
+        missionType: mission,
+      });
       chances[mission] = getSpySuccessChance(
         stationedSpy.experience, ci, mission, stationedSpy.promotion, modifiers.missionSuccessDelta,
       );
+      const breakdownText = modifiers.parts.length > 0
+        ? modifiers.parts.map(part => `${part.label} ${part.delta >= 0 ? '+' : ''}${Math.round(part.delta * 100)}%`).join(', ')
+        : undefined;
       if (breakdownText) breakdowns[mission] = breakdownText;
     }
     missionSuccessChances = chances;

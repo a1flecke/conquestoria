@@ -451,6 +451,27 @@ describe('AI strategic production', () => {
       .toEqual(['library']);
   });
 
+  it('#1335: the scoped counter-intelligence building is valued through the same generic defensive-espionage score', () => {
+    const state = setupState(['internet']);
+    state.cities['city-a'].buildings = Object.keys(BUILDINGS)
+      .filter(id => id !== 'cyber_defense_center');
+    state.espionage = {
+      ...state.espionage,
+      'ai-1': {
+        ...createEspionageCivState(),
+        detectedThreats: {
+          hostile: {
+            cityId: 'city-a', foreignCivId: 'player', detectedTurn: state.turn, expiresOnTurn: state.turn + 5,
+          },
+        },
+      },
+    };
+
+    const candidates = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive);
+    const cdc = candidates.find(candidate => candidate.itemId === 'cyber_defense_center')!;
+    expect(cdc.defensiveEspionageScore).toBe(40);
+  });
+
   it('selects an eligible catapult for missing siege demand', () => {
     const state = setupState(['gathering', 'siege-warfare']);
     grantResources(state, ['stone']);

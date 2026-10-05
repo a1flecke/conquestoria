@@ -30,6 +30,7 @@ import {
 import type { EspionageModifierQuery, TurnCapturedSpyCommand } from '@/systems/espionage-system';
 import { createDiplomacyState } from '@/systems/diplomacy-state';
 import { startMissionState } from '../helpers/espionage-mission';
+import { expectViewerSafety, type ViewerSurface } from '../helpers/viewer-safety';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
 import { transferCapturedCityOwnership } from '@/systems/city-capture-system';
@@ -322,7 +323,7 @@ describe('espionage-system', () => {
           },
         },
       };
-      const atCapital = getEspionageModifierBreakdown(withTech, { actingCivId: 'player', targetCivId, targetCityId });
+      const atCapital = getEspionageModifierBreakdown(withTech, { actingCivId: 'player', targetCivId, targetCityId, missionType: 'gather_intel' });
       expect(atCapital.missionSuccessDelta).toBeCloseTo(0.20);
 
       const nonCapitalCity = { ...state.cities[targetCityId], id: 'non-capital-city' };
@@ -330,7 +331,7 @@ describe('espionage-system', () => {
         ...withTech,
         cities: { ...withTech.cities, 'non-capital-city': nonCapitalCity },
       };
-      const elsewhere = getEspionageModifierBreakdown(withExtraCity, { actingCivId: 'player', targetCivId, targetCityId: 'non-capital-city' });
+      const elsewhere = getEspionageModifierBreakdown(withExtraCity, { actingCivId: 'player', targetCivId, targetCityId: 'non-capital-city', missionType: 'gather_intel' });
       expect(elsewhere.missionSuccessDelta).toBe(0);
     });
 
@@ -346,7 +347,7 @@ describe('espionage-system', () => {
           },
         },
       };
-      const breakdown = getEspionageModifierBreakdown(withDefense, { actingCivId: 'player', targetCivId, targetCityId });
+      const breakdown = getEspionageModifierBreakdown(withDefense, { actingCivId: 'player', targetCivId, targetCityId, missionType: 'gather_intel' });
       expect(breakdown.missionSuccessDelta).toBeCloseTo(-0.25);
     });
 
@@ -362,7 +363,7 @@ describe('espionage-system', () => {
           },
         },
       };
-      const breakdown = getEspionageModifierBreakdown(actingHasDefenseTech, { actingCivId: 'player', targetCivId, targetCityId });
+      const breakdown = getEspionageModifierBreakdown(actingHasDefenseTech, { actingCivId: 'player', targetCivId, targetCityId, missionType: 'gather_intel' });
       expect(breakdown.missionSuccessDelta).toBe(0);
     });
 
@@ -378,14 +379,13 @@ describe('espionage-system', () => {
           },
         },
       };
-      const breakdown = getEspionageModifierBreakdown(withSecretPolice, { actingCivId: 'player', targetCivId, targetCityId });
+      const breakdown = getEspionageModifierBreakdown(withSecretPolice, { actingCivId: 'player', targetCivId, targetCityId, missionType: 'gather_intel' });
       expect(breakdown.missionSuccessDelta).toBeCloseTo(-0.30);
       expect(breakdown.detectionDelta).toBeCloseTo(0.10);
     });
 
-    it('cyber_defense_center building on the target city applies a defense delta', () => {
-      const { state, targetCivId, targetCityId } = makeModifierFixture();
-      const withCdc = {
+    function withCdcBuilding(state: GameState, targetCityId: string): GameState {
+      return {
         ...state,
         cities: {
           ...state.cities,
@@ -395,14 +395,128 @@ describe('espionage-system', () => {
           },
         },
       };
-      const breakdown = getEspionageModifierBreakdown(withCdc, { actingCivId: 'player', targetCivId, targetCityId });
+    }
+
+    it('cyber_defense_center building on the target city applies a generic defense delta', () => {
+      const { state, targetCivId, targetCityId } = makeModifierFixture();
+      const withCdc = withCdcBuilding(state, targetCityId);
+      const breakdown = getEspionageModifierBreakdown(withCdc, { actingCivId: 'player', targetCivId, targetCityId, missionType: 'gather_intel' });
       expect(breakdown.missionSuccessDelta).toBeCloseTo(-0.15);
+    });
+
+    it('#1335: cyber_defense_center adds a scoped extra defense to satellite_surveillance and signals_intercept only', () => {
+      const { state, targetCivId, targetCityId } = makeModifierFixture();
+      const withCdc = withCdcBuilding(state, targetCityId);
+      for (const missionType of ['satellite_surveillance', 'signals_intercept'] as const) {
+        const breakdown = getEspionageModifierBreakdown(withCdc, { actingCivId: 'player', targetCivId, targetCityId, missionType });
+        expect(breakdown.missionSuccessDelta).toBeCloseTo(-0.25);
+      }
+      // Unrelated missions keep only the generic -0.15 row.
+      const unrelated = getEspionageModifierBreakdown(withCdc, { actingCivId: 'player', targetCivId, targetCityId, missionType: 'gather_intel' });
+      expect(unrelated.missionSuccessDelta).toBeCloseTo(-0.15);
+    });
+
+    it('#1335: without cyber_defense_center the passive-intel missions get no defense', () => {
+      const { state, targetCivId, targetCityId } = makeModifierFixture();
+      for (const missionType of ['satellite_surveillance', 'signals_intercept'] as const) {
+        const breakdown = getEspionageModifierBreakdown(state, { actingCivId: 'player', targetCivId, targetCityId, missionType });
+        expect(breakdown.missionSuccessDelta).toBeCloseTo(0);
+      }
+    });
+
+    it('#1335: the scoped defense lives in the shared breakdown, not a second probability path', () => {
+      const { state, targetCivId, targetCityId } = makeModifierFixture();
+      const withCdc = withCdcBuilding(state, targetCityId);
+      const breakdown = getEspionageModifierBreakdown(withCdc, { actingCivId: 'player', targetCivId, targetCityId, missionType: 'satellite_surveillance' });
+      expect(breakdown.parts.filter(part => part.label.includes('Cyber Defense Center'))).toHaveLength(2);
+    });
+
+    it('#1335: the canonical probability clamp still bounds a scoped defense roll', () => {
+      const { state, targetCivId, targetCityId } = makeModifierFixture();
+      const withCdc = withCdcBuilding(state, targetCityId);
+      const breakdown = getEspionageModifierBreakdown(withCdc, { actingCivId: 'player', targetCivId, targetCityId, missionType: 'satellite_surveillance' });
+      const floored = getSpySuccessChance(0, 100, 'satellite_surveillance', undefined, breakdown.missionSuccessDelta - 0.9);
+      expect(floored).toBe(0.05);
+    });
+
+    it('#1335: the scoped defense changes only mission success, never detection (no new defender signal)', () => {
+      const { state, targetCivId, targetCityId } = makeModifierFixture();
+      const withCdc = withCdcBuilding(state, targetCityId);
+      const without = getEspionageModifierBreakdown(state, { actingCivId: 'player', targetCivId, targetCityId, missionType: 'satellite_surveillance' });
+      const defended = getEspionageModifierBreakdown(withCdc, { actingCivId: 'player', targetCivId, targetCityId, missionType: 'satellite_surveillance' });
+      expect(defended.detectionDelta).toBe(0);
+      expect(defended.detectionDelta).toBe(without.detectionDelta);
     });
 
     it('type level: actor/target roles cannot be passed as positional strings (#1022)', () => {
       // @ts-expect-error three same-typed ids are transposable; roles must be named (#1022)
       const positional: EspionageModifierQuery = ['player', 'ai-1', 'city-1'];
       expect(positional).toBeDefined();
+    });
+  });
+});
+
+describe('satellite surveillance scoped defense — viewer safety (#1335)', () => {
+  const defenderEspionageSurface: ViewerSurface<GameState, unknown> = {
+    name: 'defender espionage state',
+    project: (world, viewerId) => world.espionage?.[viewerId] ?? null,
+  };
+
+  function makeViewerFixture(): { world: GameState; attackerId: string; defenderId: string; defenderCityId: string } {
+    let state = createNewGame(undefined, 'espionage-viewer-fixture', 'small');
+    const attackerId = 'player';
+    const defenderId = Object.keys(state.civilizations).find(id => id !== attackerId)!;
+    const targetStartPos = state.units[state.civilizations[defenderId].units[0]].position;
+    const targetCity = foundCity(defenderId, targetStartPos, state.map, state.idCounters);
+    state = {
+      ...state,
+      cities: { ...state.cities, [targetCity.id]: targetCity },
+      civilizations: {
+        ...state.civilizations,
+        [defenderId]: {
+          ...state.civilizations[defenderId],
+          cities: [...state.civilizations[defenderId].cities, targetCity.id],
+        },
+      },
+      espionage: {
+        ...state.espionage!,
+        [attackerId]: {
+          ...state.espionage![attackerId],
+          spies: {
+            ...state.espionage![attackerId].spies,
+            'spy-viewer': makeTestSpy('spy-viewer', attackerId, {
+              status: 'stationed', targetCivId: defenderId, targetCityId: targetCity.id,
+            }),
+          },
+        },
+      },
+    };
+    return { world: state, attackerId, defenderId, defenderCityId: targetCity.id };
+  }
+
+  it('the defender cannot observe attacker-only facts, but does observe its own earned detection', () => {
+    const { world, attackerId, defenderId, defenderCityId } = makeViewerFixture();
+    expectViewerSafety(defenderEspionageSurface, {
+      world,
+      viewerId: defenderId,
+      hidden: [{
+        label: 'the watcher renames its spy and raises its experience (unearned by the defender)',
+        apply: (w) => {
+          const spy = w.espionage![attackerId].spies['spy-viewer']!;
+          spy.name = 'Renamed Watcher';
+          spy.experience = 99;
+        },
+      }],
+      earned: [{
+        label: 'the defender records a detected threat in its own city',
+        apply: (w) => {
+          const esp = w.espionage![defenderId];
+          esp.detectedThreats = {
+            ...(esp.detectedThreats ?? {}),
+            'detected-1': { cityId: defenderCityId, foreignCivId: attackerId, detectedTurn: w.turn, expiresOnTurn: w.turn + 5 },
+          };
+        },
+      }],
     });
   });
 });

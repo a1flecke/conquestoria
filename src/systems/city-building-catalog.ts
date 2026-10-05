@@ -1043,6 +1043,10 @@ export const BUILDINGS: Record<string, Building> = {
     productionCost: 200,
     description: 'Blocks adjacent cyber-unit gold drains (65%, +10% with Signals Hub). Reduces enemy spy mission success in this city.',
     techRequired: 'internet',
+    // #1335: the generic AI defensive-espionage valuation (ai-production.ts) already
+    // reads this field; setting it lets the AI weigh the building's counter-intelligence
+    // value against a detected threat without any building-id branch.
+    defensiveEspionageAiValue: 40,
   },
 
   data_center: {
