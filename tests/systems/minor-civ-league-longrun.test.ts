@@ -4,6 +4,7 @@ import { setMinorCivWarState } from '@/systems/minor-civ-actions';
 import { MINOR_CIV_LEAGUE_RULES } from '@/systems/minor-civ-league-definitions';
 import { assertNoRunaway, runMinorCivLongRun } from './helpers/minor-civ-scenario-fixtures';
 import { addAuditCompact, makeMinorCivLeagueAuditFixture } from './helpers/minor-civ-league-audit-fixture';
+import { simTimeout } from '../helpers/sim-timeout';
 
 const TURNS = 120;
 
@@ -33,7 +34,7 @@ describe('#496 final arc — compact long-run envelope', () => {
       league.memberIds.length >= MINOR_CIV_LEAGUE_RULES.minMembers
       && league.memberIds.length <= MINOR_CIV_LEAGUE_RULES.maxMembers
     ))).toBe(true);
-  }, 20000);
+  }, simTimeout(6500)); // solo worst case ~6.5 s per 120-turn run (#1133 measured up to 12 s contended)
 
   it('replays the same peaceful compact trace from an identical seed', () => {
     const first = makeScenario('standard', false);
@@ -50,5 +51,5 @@ describe('#496 final arc — compact long-run envelope', () => {
     // raw 4-way-concurrent `yarn test` run consistently took 23.5-24.8s here, vs the six
     // single-run siblings averaging ~12.3s each well inside 20000ms) the doubled workload
     // needs a doubled budget, not the same one. See #1133 (verification orchestration benchmark).
-  }, 40000);
+  }, simTimeout(13000)); // two full runs
 });

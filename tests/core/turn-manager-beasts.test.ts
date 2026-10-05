@@ -6,6 +6,7 @@ import { BEAST_OWNER, getClaimedTrophyGoldPerTurn } from '@/systems/beast-system
 import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
 import { foundCity } from '@/systems/city-system';
 import { getEraAdvancementTechs } from '@/systems/tech-definitions';
+import { simTimeout } from '../helpers/sim-timeout';
 
 function completedTechsForEra(era: number): string[] {
   return Array.from({ length: Math.max(0, era - 1) }, (_, index) => index + 2)
@@ -44,7 +45,7 @@ describe('turn-manager beast wiring', () => {
     expect(beastUnits.length).toBeGreaterThan(0);
     const lair = Object.values(s.beasts!.lairs).find(l => l.status === 'awake')!;
     expect(lair.unitIds).toContain(beastUnits[0].id);
-  });
+  }, simTimeout(2500));
 
   it('does not process beasts when mode is off', () => {
     const state = createNewGame('rome', 'beast-turn-seed', 'small', 'Beast Off Test');
@@ -53,7 +54,7 @@ describe('turn-manager beast wiring', () => {
     let s = state;
     for (let i = 0; i < 30; i++) s = processTurn(s, bus);
     expect(Object.values(s.units).some(u => u.owner === BEAST_OWNER)).toBe(false);
-  });
+  }, simTimeout(600));
 });
 
 describe('turn-manager hoard handling', () => {

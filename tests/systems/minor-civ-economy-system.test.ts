@@ -23,6 +23,7 @@ import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { getEraAdvancementTechs } from '@/systems/tech-definitions';
 import { advancePlayerCivToEra as setPlayerCivEra, fixtureCoastal } from './helpers/minor-civ-scenario-fixtures';
+import { simTimeout } from '../helpers/sim-timeout';
 
 describe('minor-civ economy normalization', () => {
   it('does not change city queue, production progress, units, or regional grievance', () => {
@@ -456,7 +457,7 @@ describe('#948 — minor-civ population ceiling', () => {
     const finalCity = nextState.cities[city.id];
     expect(finalCity.population).toBe(6);
     expect(finalCity.food).toBeLessThan(finalCity.foodNeeded);
-  });
+  }, simTimeout(300));
 
   it('preserves an over-cap legacy population without shrinking it, and blocks further growth', () => {
     const state = createNewGame(undefined, 'minor-pop-over-cap-legacy', 'small');
@@ -597,7 +598,7 @@ describe('#948 — long-run city-state population bound', () => {
     const replay = processMinorCivEconomyTurn(structuredClone(nextState), minorCiv.id);
     const replayAgain = processMinorCivEconomyTurn(structuredClone(nextState), minorCiv.id);
     expect(replay.state.cities[city.id].population).toBe(replayAgain.state.cities[city.id].population);
-  });
+  }, simTimeout(300));
 });
 
 describe('#951 — emergency levy eligibility', () => {
@@ -814,7 +815,7 @@ describe('#951 — long-run emergency-levy conflict scenario', () => {
     expect(second.levyCount).toBe(first.levyCount);
     expect(second.populationHistory).toEqual(first.populationHistory);
     expect(second.unitCountHistory).toEqual(first.unitCountHistory);
-  });
+  }, simTimeout(300));
 });
 
 describe('#954 — cap-respecting unit completion when posture/cap drops mid-production', () => {
