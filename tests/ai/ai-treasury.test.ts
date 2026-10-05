@@ -219,19 +219,24 @@ describe('applyAIGoldSpending economy-projection reuse (#1125)', () => {
     // their OWN outer-check call (1 each) = 3 more. Total 6 calculateCivEconomy
     // calls.
     //
-    // Post-#1125: one batched projection covers city-a's outer check (1 call)
-    // + city-a's own rushBuyActiveProduction cost (2 calls, unchanged) = 3,
-    // THEN the purchase invalidates the batched projection so city-b's outer
-    // check recomputes it fresh ONCE (1 call) -- correctly reflecting the
-    // now-lower gold -- and city-c/d reuse THAT same still-valid projection
-    // (0 more calls, since neither purchases). Total 4 calculateCivEconomy
-    // calls (6 -> 4).
+    // #1125: one batched projection covered city-a's outer check (1 call) +
+    // city-a's own rushBuyActiveProduction cost (2 calls, unchanged) = 3, THEN
+    // the purchase invalidated the batched projection and city-b's outer check
+    // recomputed it fresh (1 call). Total 4.
+    //
+    // #1320: rushBuyActiveProduction already computes the post-purchase
+    // projection to persist economyStatusByCiv -- so applyAIGoldSpending now
+    // reuses that exact projection for city-b/c/d's outer checks instead of
+    // recomputing the identical value. city-b/c/d contribute 0 further calls.
+    // Total 3: city-a's outer check (1) + rushBuyActiveProduction's own
+    // re-validation quote projection (1) + its post-purchase persistence
+    // projection (1).
     //
     // Post-#1126: each calculateCivEconomy call now does exactly 1
     // getCitiesConnectedToCapital call instead of 2 (the unused base
-    // projection is no longer computed). 4 calculateCivEconomy calls => 4
-    // connectivity checks (was 8 before #1126).
-    expect(calls).toBe(4);
+    // projection is no longer computed). 3 calculateCivEconomy calls => 3
+    // connectivity checks (was 4 after #1125, 8 before #1126).
+    expect(calls).toBe(3);
   });
 
   it('does not recompute the projection for a city with no active production', () => {

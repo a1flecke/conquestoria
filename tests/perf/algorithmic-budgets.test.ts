@@ -9,6 +9,7 @@ import {
   buildPerfFixtures,
   CHEAP_AREAS,
   measureAiRoundCloneSites,
+  measureEconomyCallSites,
   measurePerfArea,
   PERF_AREAS,
   type AreaSample,
@@ -376,6 +377,20 @@ describe('#1007 algorithmic budgets', () => {
     const total = Object.values(sites).reduce((a, b) => a + b, 0);
     console.log(`[#1235] AI-round whole-state clone sites:\n${JSON.stringify(sites, null, 2)}`);
     expect(total).toBe(S('aiRound@e2').structuredCloneWholeState);
+  }, 120_000);
+
+  it('INFORMATIONAL — attributes calculateCivEconomy calls to their call sites (#1320)', () => {
+    // #1320 attribution: which caller drives the whole-empire projection calls
+    // on each path. Invariant: every counted call is attributed to exactly one
+    // caller, and the attribution sums to the already-pinned total.
+    const ai = measureEconomyCallSites('aiRound', fx.e2);
+    const turn = measureEconomyCallSites('turn', fx.e2);
+    console.log(`[#1320] calculateCivEconomy call sites (AI round @e1):\n${JSON.stringify(measureEconomyCallSites('aiRound', fx.e1), null, 2)}`);
+    console.log(`[#1320] calculateCivEconomy call sites (AI round @e2):\n${JSON.stringify(ai, null, 2)}`);
+    console.log(`[#1320] calculateCivEconomy call sites (turn @e1):\n${JSON.stringify(measureEconomyCallSites('turn', fx.e1), null, 2)}`);
+    console.log(`[#1320] calculateCivEconomy call sites (turn @e2):\n${JSON.stringify(turn, null, 2)}`);
+    expect(Object.values(ai).reduce((a, b) => a + b, 0)).toBe(S('aiRound@e2').civEconomyCalls);
+    expect(Object.values(turn).reduce((a, b) => a + b, 0)).toBe(S('turn@e2').civEconomyCalls);
   }, 120_000);
 
   it('GUARD 11 — a full AI round\'s whole-empire economy projections stay bounded', () => {
