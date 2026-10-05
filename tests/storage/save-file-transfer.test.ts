@@ -57,6 +57,24 @@ describe('save-file-transfer', () => {
     expect(text.endsWith('\n')).toBe(true);
   });
 
+  it('#1071: serializes compactly (no pretty-print indentation)', () => {
+    const compact = serializeSaveFile(makeState(9));
+    // Only the trailing newline; no indentation-induced newlines or runs of spaces.
+    expect(compact.slice(0, -1)).not.toContain('\n');
+    expect(compact).not.toContain('\n  ');
+    const pretty = `${JSON.stringify(makeState(9), null, 2)}\n`;
+    expect(compact.length).toBeLessThan(pretty.length);
+  });
+
+  it('#1071: still imports a legacy pretty-printed export', () => {
+    const legacy = `${JSON.stringify(makeState(31), null, 2)}\n`;
+    const parsed = parseSaveFile(legacy);
+    expect(parsed.status).toBe('success');
+    if (parsed.status === 'success') {
+      expect(parsed.state.turn).toBe(31);
+    }
+  });
+
   it('parses valid save JSON', () => {
     const parsed = parseSaveFile(serializeSaveFile(makeState(12)));
     expect(parsed.status).toBe('success');

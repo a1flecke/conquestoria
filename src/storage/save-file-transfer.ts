@@ -39,7 +39,12 @@ function isGameStateShape(value: unknown): value is GameState {
 }
 
 export function serializeSaveFile(state: GameState): string {
-  return `${JSON.stringify(state, null, 2)}\n`;
+  // #1071: compact JSON, not 2-space pretty-printed. The indentation inflated the
+  // canonical save/export payload ~1.8x (e1 5.22 MB -> 2.91 MB, e2 7.78 MB ->
+  // 4.30 MB on the crowded fixture) for no functional reason -- `parseSaveFile`
+  // uses `JSON.parse`, which accepts either form, so old pretty-printed exports
+  // still import. The trailing newline is kept.
+  return `${JSON.stringify(state)}\n`;
 }
 
 export function parseSaveFile(raw: string): SaveFileParseResult {
