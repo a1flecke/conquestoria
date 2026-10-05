@@ -12,8 +12,8 @@
       "pathQueries": 181,
       "projectedGrossGoldCalls": 0,
       "roadConnectivityCalls": 629,
-      "structuredCloneWholeState": 21,
-      "structuredCloneWholeStateBytes": 74058029
+      "structuredCloneWholeState": 9,
+      "structuredCloneWholeStateBytes": 31288855
     },
     "aiRound@e2": {
       "blockingEntityAtCalls": 499,
@@ -26,8 +26,8 @@
       "pathQueries": 310,
       "projectedGrossGoldCalls": 0,
       "roadConnectivityCalls": 2602,
-      "structuredCloneWholeState": 21,
-      "structuredCloneWholeStateBytes": 107519605
+      "structuredCloneWholeState": 9,
+      "structuredCloneWholeStateBytes": 45379691
     },
     "findPath": {
       "heapPops": 70,
@@ -111,8 +111,8 @@
       "pathQueries": 465,
       "projectedGrossGoldCalls": 0,
       "roadConnectivityCalls": 3903,
-      "structuredCloneWholeState": 32,
-      "structuredCloneWholeStateBytes": 161279408
+      "structuredCloneWholeState": 14,
+      "structuredCloneWholeStateBytes": 68069537
     },
     "findPath": {
       "heapPops": 105,

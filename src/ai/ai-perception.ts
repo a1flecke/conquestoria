@@ -137,8 +137,11 @@ function requiredEraForUnit(type: UnitType): number {
 }
 
 export function refreshMajorCivIntel(state: GameState, civId: string): GameState {
-  const nextState = structuredClone(state);
-  return refreshLastSeenPresentationsForCiv(nextState, civId);
+  // #1330: `refreshLastSeenPresentationsForCiv` is pure -- it returns a new state
+  // and never mutates its input (every other caller invokes it with no preceding
+  // clone). The whole-state defensive clone that used to wrap it was therefore
+  // discarded work: one redundant whole-GameState clone per AI civ per round.
+  return refreshLastSeenPresentationsForCiv(state, civId);
 }
 
 export function buildMajorCivPerception(

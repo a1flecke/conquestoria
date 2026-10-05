@@ -177,9 +177,25 @@ export function processAIUpgrades(
   bus: EventBus,
   options: { excludedUnitIds?: ReadonlySet<string> } = {},
 ): ProcessAIUpgradesResult {
-  const civ = state.civilizations[civId];
-  if (!civ) return { state, upgradedUnitIds: [], routedUnitIds: [] };
-  let working = structuredClone(state);
+  return processAIUpgradesInPlace(structuredClone(state), civId, prepared, bus, options);
+}
+
+/**
+ * #1330 — in-place variant for a caller that already owns an isolated working
+ * copy (`processMajorCivStrategicTurnInPlace`, whose own caller
+ * `processAITurnInternal` deep-clones the per-civ state once). Mutates and
+ * returns `working`; the public `processAIUpgrades` keeps its non-mutating
+ * contract by cloning first.
+ */
+export function processAIUpgradesInPlace(
+  working: GameState,
+  civId: string,
+  prepared: PreparedMajorCivPlan,
+  bus: EventBus,
+  options: { excludedUnitIds?: ReadonlySet<string> } = {},
+): ProcessAIUpgradesResult {
+  const civ = working.civilizations[civId];
+  if (!civ) return { state: working, upgradedUnitIds: [], routedUnitIds: [] };
   let portfolio = structuredClone(
     working.opponentAI?.majorCivs[civId] ?? prepared.portfolio,
   );
