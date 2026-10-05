@@ -1187,7 +1187,17 @@ export type DiplomaticAction =
   | 'reabsorb_breakaway'
   | 'arms_control_pact';
 
-export type TreatyType = 'non_aggression_pact' | 'trade_agreement' | 'open_borders' | 'alliance' | 'vassalage' | 'arms_control_pact';
+export type TreatyType = 'non_aggression_pact' | 'trade_agreement' | 'open_borders' | 'alliance' | 'vassalage' | 'arms_control_pact' | 'tribute';
+
+/**
+ * #1334: the directional terms of a standalone tribute contract (a strong civilization coercing a weaker, known one
+ * into a temporary gold payment without war). Fixed when the demand is made; never recomputed from a later era.
+ */
+export interface TributeTerms {
+  demanderId: string;
+  payerId: string;
+  goldPerRound: number;
+}
 
 /**
  * #1090: canonical here (not in `src/ai/ai-treaty-consent.ts`, which imports it) so this event
@@ -1205,6 +1215,8 @@ export interface Treaty {
   // #545 MR6: only set for arms_control_pact -- see computeArmsControlCap in
   // strategic-arsenal-system.ts. Absent on every other treaty type.
   arsenalCap?: number;
+  /** #1334: only set for `type === 'tribute'`; `turnsRemaining` counts the payment rounds left. Mirrored on both civs. */
+  tribute?: TributeTerms;
 }
 
 export interface DiplomaticEvent {
@@ -1375,7 +1387,7 @@ export interface DefensiveLeague {
 
 export interface PendingDiplomaticRequest {
   id: string;
-  type: 'peace' | 'treaty' | 'independence' | 'settlement';
+  type: 'peace' | 'treaty' | 'independence' | 'settlement' | 'tribute';
   treatyType?: TreatyType;        // set when type === 'treaty'
   turnsRemaining?: number;         // treaty duration to sign with (mirrors AI decision: 10 for NAP, -1 otherwise)
   /** #988: set when type === 'settlement' -- a negotiated peace offer with
@@ -1383,6 +1395,8 @@ export interface PendingDiplomaticRequest {
    * carrying no terms beyond ending the war; plain unconditional white peace
    * keeps using type 'peace' with no terms field at all. */
   terms?: SettlementTerm[];
+  /** #1334: set when type === 'tribute' -- the immutable proposed terms (`fromCivId` is the demander, `toCivId` the payer). */
+  tribute?: TributeTerms & { rounds: number };
   fromCivId: string;
   toCivId: string;
   turnIssued: number;
@@ -2893,6 +2907,10 @@ export interface GameEvents {
   // evaluation produced one (never for a human's own explicit decline of an AI's proposal --
   // there is no AI "reason" for a choice the human made).
   'diplomacy:treaty-declined': { proposerCivId: string; targetCivId: string; treaty: TreatyType; reason?: TreatyDeclineReason };
+  'diplomacy:tribute-demanded': { demanderId: string; targetId: string; goldPerRound: number; rounds: number };
+  'diplomacy:tribute-accepted': { demanderId: string; payerId: string; goldPerRound: number; rounds: number };
+  'diplomacy:tribute-refused': { demanderId: string; payerId: string };
+  'diplomacy:tribute-ended': { demanderId: string; payerId: string; reason: 'expired' | 'war' | 'vassalage' | 'eliminated' };
   'diplomacy:treaty-broken': { breakerId: string; otherCiv: string; treaty: TreatyType };
   'advisor:message': { advisor: AdvisorType; message: string; icon: string; tone?: CouncilCallbackTone; memoryKey?: string };
   'trade:route-created': { route: TradeRoute };

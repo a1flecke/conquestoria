@@ -53,7 +53,7 @@ function runPerCiv(state: GameState, context: RoundPhaseContext): GameState {
     newState = settleCyberAndNetworkPlans(newState, turn, income, context);
     addGoldBonuses(newState, turn, income);
     newState = runCivResearch(newState, turn, income, bus);
-    settleUpkeepAndRemittances(newState, turn, income, grossGoldByCiv);
+    settleUpkeepAndRemittances(newState, turn, income, grossGoldByCiv, bus);
     recordVassalagePeaks(newState, turn);
 
     const completedTechs = civ.techState.completed;

@@ -28,6 +28,7 @@ const UNCONDITIONAL_ORDER: readonly string[] = [
   'generated-generals',                     // repair
   'general-career-ledger',                  // repair
   'vassalage',                              // repair
+  'tribute-contracts',                      // repair (#1334) — self-contained, only touches tribute treaties
   'domination-intel',                       // repair
   'bilateral-war',                          // repair (#995) — self-contained, only touches diplomacy.atWarWith
   'cargo-reciprocity',                      // repair (#1000) — self-contained, only touches units + civ.units rosters

@@ -25,6 +25,7 @@ export const TREATY_LABELS: Record<TreatyType, string> = {
   alliance: 'Alliance',
   vassalage: 'Vassalage',
   arms_control_pact: 'Arms Control Pact',
+  tribute: 'Tribute',
 };
 
 export function routeTreatyProposed(

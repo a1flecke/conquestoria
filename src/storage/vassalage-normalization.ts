@@ -2,6 +2,16 @@ import type { GameState, PendingDiplomaticRequest, VassalageState } from '@/core
 import { PENDING_DIPLOMATIC_REQUEST_TTL_TURNS } from '@/systems/diplomacy-requests';
 import { VASSALAGE_PROTECTION_TURNS } from '@/systems/diplomacy-vassal-rules';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
+import { TRIBUTE_DURATION_ROUNDS, TRIBUTE_MAX_GOLD_PER_ROUND } from '@/systems/diplomacy-tribute';
+
+/** #1334: a pending tribute demand survives a reload only with its immutable, in-range terms intact. */
+function isValidTributeRequest(r: PendingDiplomaticRequest): boolean {
+  const terms = r.tribute;
+  return terms !== undefined && terms !== null && typeof terms === 'object'
+    && terms.demanderId === r.fromCivId && terms.payerId === r.toCivId
+    && Number.isInteger(terms.goldPerRound) && terms.goldPerRound >= 1 && terms.goldPerRound <= TRIBUTE_MAX_GOLD_PER_ROUND
+    && Number.isInteger(terms.rounds) && terms.rounds >= 1 && terms.rounds <= TRIBUTE_DURATION_ROUNDS;
+}
 
 function count(value: unknown, fallback = 0): number {
   return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : fallback;
@@ -64,7 +74,8 @@ export function normalizeVassalage(state: GameState): GameState {
       || !living(r.fromCivId) || !living(r.toCivId) || r.fromCivId === r.toCivId
       || !Number.isInteger(r.turnIssued) || r.turnIssued > state.turn || r.turnIssued < 0
       || state.turn - r.turnIssued >= PENDING_DIPLOMATIC_REQUEST_TTL_TURNS) continue;
-    if (r.type !== 'peace' && r.type !== 'treaty' && r.type !== 'independence') continue;
+    if (r.type !== 'peace' && r.type !== 'treaty' && r.type !== 'independence' && r.type !== 'tribute') continue;
+    if (r.type === 'tribute' && !isValidTributeRequest(r)) continue;
     if (r.type === 'treaty' && !['non_aggression_pact', 'trade_agreement', 'open_borders', 'alliance', 'arms_control_pact', 'vassalage'].includes(r.treatyType ?? '')) continue;
     if (r.type === 'independence' && pairs.get(r.fromCivId) !== r.toCivId) continue;
     if (r.treatyType === 'vassalage' && (records[r.fromCivId].overlord || records[r.toCivId].overlord || records[r.fromCivId].vassals.length)) continue;

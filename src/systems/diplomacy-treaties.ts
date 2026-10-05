@@ -4,7 +4,7 @@
  * bilateral commit path (source rule: `check-src-rule-violations.sh`).
  * Asking whether a treaty exists lives in `diplomacy-queries.ts`.
  */
-import type { GameState, DiplomacyState, Treaty, TreatyType } from '@/core/types';
+import type { GameState, DiplomacyState, Treaty, TreatyType, TributeTerms } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { hasMetCivilization } from '@/systems/discovery-system';
@@ -91,7 +91,7 @@ export function hasArmsControlTreaty(state: GameState, civId: string): boolean {
 }
 
 /** The sole bilateral treaty mutation path once both parties have consented. */
-export function commitTreatyAgreement(state: GameState, civAId: string, civBId: string, type: Exclude<TreatyType, 'vassalage'>, bus: EventBus): GameState {
+export function commitTreatyAgreement(state: GameState, civAId: string, civBId: string, type: Exclude<TreatyType, 'vassalage' | 'tribute'>, bus: EventBus): GameState {
   const civA = state.civilizations[civAId];
   const civB = state.civilizations[civBId];
   if (
@@ -120,6 +120,37 @@ export function commitTreatyAgreement(state: GameState, civAId: string, civBId: 
       ...state.civilizations,
       [civAId]: { ...civA, diplomacy: relationshipBonus ? modifyRelationship(aState, civBId, relationshipBonus) : aState },
       [civBId]: { ...civB, diplomacy: relationshipBonus ? modifyRelationship(bState, civAId, relationshipBonus) : bState },
+    },
+  };
+}
+
+/**
+ * #1334: the sole writer of a standalone tribute contract. A tribute is directional (one payer, one demander) but the
+ * record is mirrored on both civs like every other treaty, with identical terms and rounds, so reciprocity holds by
+ * construction. Acceptance carries no relationship change: the coercion is already the contract.
+ */
+export function commitTributeAgreement(state: GameState, terms: TributeTerms, rounds: number): GameState {
+  const demander = state.civilizations[terms.demanderId];
+  const payer = state.civilizations[terms.payerId];
+  if (!demander || !payer || terms.demanderId === terms.payerId || rounds < 1 || terms.goldPerRound < 1) return state;
+  const record = (selfId: string, otherId: string): Treaty => ({
+    type: 'tribute',
+    civA: selfId,
+    civB: otherId,
+    turnsRemaining: rounds,
+    tribute: { ...terms },
+  });
+  const sign = (diplomacy: DiplomacyState, selfId: string, otherId: string): DiplomacyState => ({
+    ...diplomacy,
+    treaties: [...diplomacy.treaties, record(selfId, otherId)],
+    events: [...diplomacy.events, { type: 'tribute_accepted', turn: state.turn, otherCiv: otherId, weight: 1 }],
+  });
+  return {
+    ...state,
+    civilizations: {
+      ...state.civilizations,
+      [terms.demanderId]: { ...demander, diplomacy: sign(demander.diplomacy, terms.demanderId, terms.payerId) },
+      [terms.payerId]: { ...payer, diplomacy: sign(payer.diplomacy, terms.payerId, terms.demanderId) },
     },
   };
 }
