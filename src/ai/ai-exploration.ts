@@ -42,6 +42,8 @@ export function getIdleExplorerUnitIds(
     const unit = units[unitId];
     if (!unit || unit.hasActed || unit.movementPointsLeft <= 0) return false;
     if (unit.automation?.mode === 'auto-explore') return false;
+    // #1330: aircraft act through air missions and rebasing, never by walking off their base.
+    if (unit.airBase) return false;
     if (UNIT_DEFINITIONS[unit.type].strength <= 0) return false;
     if (unavailable.has(unitId)) return false;
     if (unit.committedToRouteId) return false;

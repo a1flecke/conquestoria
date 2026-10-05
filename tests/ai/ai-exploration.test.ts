@@ -72,6 +72,14 @@ describe('getIdleExplorerUnitIds', () => {
     expect(result).toEqual(['warrior']);
   });
 
+  it('excludes a based aircraft: it flies missions, it does not walk away from its base (#1331)', () => {
+    const units = {
+      jet: unit('jet', 'jet_fighter', { airBase: { kind: 'city', cityId: 'city-1' } }),
+      warrior: unit('warrior', 'warrior'),
+    };
+    expect(getIdleExplorerUnitIds(civ(['jet', 'warrior']), units, prepared())).toEqual(['warrior']);
+  });
+
   it('excludes a unit claimed by any plan this round', () => {
     const units = { warrior: unit('warrior', 'warrior') };
     const result = getIdleExplorerUnitIds(

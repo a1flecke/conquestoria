@@ -27,6 +27,8 @@ export type UnitMovementBlockerCode =
   | 'pirate-enclave'
   // #871: a peaceful sovereign's closed border (see `territorial-access.ts`). Not a map entity.
   | 'closed-border'
+  // A based aircraft changes position only by rebasing or flying a mission (air-operations-system), never by walking.
+  | 'air-based'
   | 'unreachable'
   | 'insufficient-movement';
 
