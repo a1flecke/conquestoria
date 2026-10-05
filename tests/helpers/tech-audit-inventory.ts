@@ -51,7 +51,7 @@ const OWNER_EXCLUDED_PREFIXES = [
 const OWNER_EXCLUDED_FRAGMENTS = [
   'tech-definitions', 'tech-yield-definitions', 'tech-progression', 'city-building-catalog', 'city-unit-catalog',
   'legendary-wonder-definitions', 'resource-definitions', 'wonder-codex', 'wonder-spectacle', 'pacing-model',
-  'unit-modifier-definitions', 'src/core/types.ts', 'era-pacing-profiles',
+  'unit-modifier-definitions', 'src/core/types.ts', 'era-pacing-profiles', 'tech-pacing-scope',
 ];
 
 function walkTs(dir: string, out: string[] = []): string[] {
