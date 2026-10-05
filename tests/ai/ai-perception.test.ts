@@ -1,12 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import type { GameState, LastSeenTilePresentation, UnitType } from '@/core/types';
-import {
-  buildDiplomaticStrengthEstimates,
-  buildMajorCivPerception,
-  estimatePerceivedCivStrength,
-  refreshMajorCivIntel,
-} from '@/ai/ai-perception';
+import { buildMajorCivPerception, refreshMajorCivIntel } from '@/ai/ai-perception';
+import { buildDiplomaticStrengthEstimates, estimatePerceivedCivStrength } from '@/systems/diplomatic-strength';
 import { hexKey } from '@/systems/hex-utils';
 import { createUnit } from '@/systems/unit-lifecycle';
 import {
