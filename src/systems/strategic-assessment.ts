@@ -36,6 +36,7 @@ import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { hasMetCivilization } from '@/systems/discovery-system';
 import { projectDominationProgressForViewer } from '@/systems/domination-presentation';
 import { getEconomyStatusForCiv } from '@/systems/economy-system';
+import { getTopUnrestPressureCauses, getUnrestPressureBreakdown } from '@/systems/faction-pressure';
 import { isCityProductionLocked } from '@/systems/faction-unrest-model';
 import { needsResearchChoice } from '@/systems/planning-system';
 import { getRivalriesForViewer } from '@/systems/rivalry-system';
@@ -209,13 +210,20 @@ function buildConstraints(state: GameState, viewerCivId: string): StrategicConst
   );
   if (unrest) {
     const revolt = unrest.unrestLevel === 2;
+    // #1356: why, from the canonical pressure rows -- computed once for this one city, never re-derived here.
+    const causes = getTopUnrestPressureCauses(getUnrestPressureBreakdown(unrest.id, state));
+    const causeText = causes.length === 0
+      ? ''
+      : causes.length === 1
+        ? ` Its biggest pressure is ${causes[0].label} (+${causes[0].amount}).`
+        : ` Its biggest pressures are ${causes[0].label} (+${causes[0].amount}) and ${causes[1].label} (+${causes[1].amount}).`;
     constraints.push({
       kind: 'unrest',
       severity: clampSeverity(revolt ? 85 + Math.min(10, unrest.unrestTurns) : 55 + Math.min(15, unrest.unrestTurns * 3)),
       title: revolt ? `${unrest.name} is in revolt` : `${unrest.name} is restless`,
       why: revolt
-        ? `${unrest.name} has been in revolt for ${unrest.unrestTurns} turn${unrest.unrestTurns === 1 ? '' : 's'}, and it loses output until calm returns.`
-        : `${unrest.name} has been restless for ${unrest.unrestTurns} turn${unrest.unrestTurns === 1 ? '' : 's'}, and it loses output until calm returns.`,
+        ? `${unrest.name} has been in revolt for ${unrest.unrestTurns} turn${unrest.unrestTurns === 1 ? '' : 's'}, and it loses output until calm returns.${causeText}`
+        : `${unrest.name} has been restless for ${unrest.unrestTurns} turn${unrest.unrestTurns === 1 ? '' : 's'}, and it loses output until calm returns.${causeText}`,
       focusCityId: unrest.id,
       destination: { kind: 'open-city', cityId: unrest.id },
     });

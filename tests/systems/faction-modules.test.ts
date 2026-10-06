@@ -40,6 +40,7 @@ const SURFACE: Record<string, string[]> = {
   ],
   'faction-pressure': [
     'CONTAGION_GROUP_RANGE', 'computeUnrestPressure', 'getCityHappinessFromBuildings', 'getContagionSpread',
+    'getTopUnrestPressureCauses',
     'getUnrestPressureBreakdown',
   ],
   'faction-commands': [
@@ -66,10 +67,10 @@ describe('#1246 — the faction modules keep their audited public surface', () =
     });
   }
 
-  it('every pre-split value export is accounted for: 45 originals (49 minus 4 types) + the 2 shared pressure caps', () => {
+  it('every pre-split value export is accounted for: 45 originals (49 minus 4 types) + the 2 shared pressure caps + the #1356 cause helper', () => {
     const values = Object.values(SURFACE).flat();
     expect(new Set(values).size, 'no export is owned by two modules').toBe(values.length);
-    expect(values).toHaveLength(47);
+    expect(values).toHaveLength(48);
   });
 
   it('helpers that were private before the split stay private', () => {
