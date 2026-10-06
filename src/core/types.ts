@@ -1394,9 +1394,16 @@ export interface DefensiveLeague {
   formedTurn: number;
 }
 
+/**
+ * The one inventory of pending diplomatic request kinds (#1354 follow-up). The union is derived from it, and the
+ * load-time validator table in `src/storage/pending-request-normalization.ts` is typed over the union, so a new kind
+ * cannot be added without saying how it is validated when a save is loaded.
+ */
+export const PENDING_DIPLOMATIC_REQUEST_TYPES = ['peace', 'treaty', 'independence', 'settlement', 'tribute'] as const;
+
 export interface PendingDiplomaticRequest {
   id: string;
-  type: 'peace' | 'treaty' | 'independence' | 'settlement' | 'tribute';
+  type: typeof PENDING_DIPLOMATIC_REQUEST_TYPES[number];
   treatyType?: TreatyType;        // set when type === 'treaty'
   turnsRemaining?: number;         // treaty duration to sign with (mirrors AI decision: 10 for NAP, -1 otherwise)
   /** #988: set when type === 'settlement' -- a negotiated peace offer with
