@@ -46,6 +46,7 @@
     "verify:local:status": "sh scripts/verify-local-status.sh",
     "bench:verification-scheduler": "node scripts/benchmark-verification-scheduler.mjs",
     "docs:lifecycle": "node scripts/docs-lifecycle.mjs",
+    "playtest:report": "node scripts/playtest-report.mjs",
     "verify:impact": "node scripts/verification-impact.mjs",
     "verify:launch": "sh scripts/launch-local-verification.sh",
     "verify:stop": "sh scripts/stop-local-verification.sh",

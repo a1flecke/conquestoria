@@ -92,6 +92,12 @@ A change to this shape bumps `schemaVersion`; `tests/app/playtest-recorder.test.
   (how long a problem the Council named took to clear).
 - **Hot seat**: compare seats under `games[].seats`.
 
+## Turning a log into a report
+
+`yarn playtest:report <log.json> ...` (see [playtest-protocol.md](playtest-protocol.md)) reads one or more exports and
+prints deterministic, evidence-only observations (Markdown, or `--format json`). It supports schema v1 only and rejects any
+other `schemaVersion`; a recorder change that bumps the version needs the report updated in the same PR.
+
 ## Tests
 
 `tests/app/playtest-recorder.test.ts` (fake session, fake clock, canonical predicates, hot seat, export shape),
