@@ -17,6 +17,11 @@ import {
   planFlotillaRelocation,
 } from '@/systems/pirate-behavior';
 import { PIRATE_SIEGE_BLOCKADE_TURNS, PIRATE_SIEGE_DAMAGE, PIRATE_SIEGE_MIN_STAGE } from '@/systems/pirate-definitions';
+import {
+  deriveMajorCivBlockades,
+  getBlockadedCityIds,
+  getMajorCivBlockadeCityIds,
+} from '@/systems/blockade-system';
 
 function mapWith(entries: Array<[number, number, GameMap['tiles'][string]['terrain']]>, width = 20): GameMap {
   return {
@@ -338,6 +343,121 @@ describe('pirate raids and blockades', () => {
     }, ['adjacent', 'nearby']);
 
     expect(derivePirateBlockades(state)).toEqual([{ factionId: 'pirate-1', cityId: 'port', victimCivId: 'player' }]);
+  });
+});
+
+describe('major-civ naval blockade (#1333)', () => {
+  function coastalPort(state: GameState): void {
+    city(state, 'port', 'player', { q: 5, r: 5 });
+    state.map.tiles['5,5'] = { ...state.map.tiles['5,5'], terrain: 'plains' };
+  }
+
+  function atWar(state: GameState, a: string, b: string): void {
+    state.civilizations[a].diplomacy.atWarWith = [b];
+    state.civilizations[b].diplomacy.atWarWith = [a];
+  }
+
+  it('requires >=2 hostile warships within radius 2 and at least one adjacent', () => {
+    const state = stateWithMap(oceanGrid());
+    coastalPort(state);
+    atWar(state, 'player', 'ai-1');
+    addUnit(state, unit('s1', 'frigate', 'ai-1', { q: 4, r: 5 }));
+    expect(deriveMajorCivBlockades(state)).toEqual([]);
+
+    addUnit(state, unit('s2', 'frigate', 'ai-1', { q: 6, r: 5 }));
+    expect(deriveMajorCivBlockades(state)).toEqual([
+      { blockaderCivId: 'ai-1', cityId: 'port', victimCivId: 'player' },
+    ]);
+
+    // Two within radius but none adjacent: no blockade.
+    state.units.s1.position = { q: 4, r: 4 };
+    state.units.s2.position = { q: 6, r: 6 };
+    expect(deriveMajorCivBlockades(state)).toEqual([]);
+  });
+
+  it('never blockades without war', () => {
+    const state = stateWithMap(oceanGrid());
+    coastalPort(state);
+    addUnit(state, unit('s1', 'frigate', 'ai-1', { q: 4, r: 5 }));
+    addUnit(state, unit('s2', 'frigate', 'ai-1', { q: 6, r: 5 }));
+    expect(deriveMajorCivBlockades(state)).toEqual([]);
+  });
+
+  it('a defending combat naval unit in the ring breaks the blockade until it leaves', () => {
+    const state = stateWithMap(oceanGrid());
+    coastalPort(state);
+    atWar(state, 'player', 'ai-1');
+    addUnit(state, unit('s1', 'frigate', 'ai-1', { q: 4, r: 5 }));
+    addUnit(state, unit('s2', 'frigate', 'ai-1', { q: 6, r: 5 }));
+    addUnit(state, unit('d1', 'frigate', 'player', { q: 5, r: 4 }));
+    expect(deriveMajorCivBlockades(state)).toEqual([]);
+
+    state.units.d1.position = { q: 12, r: 12 };
+    expect(deriveMajorCivBlockades(state)).toEqual([
+      { blockaderCivId: 'ai-1', cityId: 'port', victimCivId: 'player' },
+    ]);
+  });
+
+  it('ignores transports, land units, and non-major-civ ships', () => {
+    const state = stateWithMap(oceanGrid());
+    coastalPort(state);
+    atWar(state, 'player', 'ai-1');
+    addUnit(state, unit('t1', 'transport', 'ai-1', { q: 4, r: 5 }));
+    addUnit(state, unit('t2', 'transport', 'ai-1', { q: 6, r: 5 }));
+    addUnit(state, unit('w1', 'warrior', 'ai-1', { q: 5, r: 4 }));
+    addUnit(state, unit('p1', 'pirate_corsair', 'pirate', { q: 6, r: 5 }));
+    expect(deriveMajorCivBlockades(state)).toEqual([]);
+  });
+
+  it('reports the city once when two hostile civs independently satisfy the conditions', () => {
+    const state = stateWithMap(oceanGrid());
+    coastalPort(state);
+    const second = 'ai-2';
+    state.civilizations[second] = {
+      ...state.civilizations['ai-1'],
+      id: second,
+      name: second,
+      cities: [],
+      units: [],
+      diplomacy: { ...state.civilizations['ai-1'].diplomacy, atWarWith: [] },
+    };
+    atWar(state, 'player', 'ai-1');
+    atWar(state, 'player', second);
+    addUnit(state, unit('s1', 'frigate', 'ai-1', { q: 4, r: 5 }));
+    addUnit(state, unit('s2', 'frigate', 'ai-1', { q: 6, r: 5 }));
+    addUnit(state, unit('s3', 'frigate', second, { q: 5, r: 4 }));
+    addUnit(state, unit('s4', 'frigate', second, { q: 5, r: 6 }));
+
+    expect(getMajorCivBlockadeCityIds(state)).toEqual(['port']);
+    expect(deriveMajorCivBlockades(state)).toHaveLength(1);
+  });
+
+  it('unions pirate and major-civ blockades, deduped', () => {
+    const state = stateWithMap(oceanGrid());
+    coastalPort(state);
+    atWar(state, 'player', 'ai-1');
+    addUnit(state, unit('s1', 'frigate', 'ai-1', { q: 4, r: 5 }));
+    addUnit(state, unit('s2', 'frigate', 'ai-1', { q: 6, r: 5 }));
+    addUnit(state, unit('p1', 'pirate_corsair', 'pirate-1', { q: 5, r: 4 }));
+    addUnit(state, unit('p2', 'pirate_corsair', 'pirate-1', { q: 5, r: 6 }));
+    state.pirates!.factions['pirate-1'] = faction('pirate-1', 'blockading', {
+      kind: 'coastal-enclave', position: { q: 1, r: 1 }, integrity: 100, maxIntegrity: 100,
+    }, ['p1', 'p2']);
+
+    expect(derivePirateBlockades(state)).toEqual([{ factionId: 'pirate-1', cityId: 'port', victimCivId: 'player' }]);
+    expect(getBlockadedCityIds(state)).toEqual(['port']);
+  });
+
+  it('is viewer-independent: the derived set does not depend on currentPlayer', () => {
+    const state = stateWithMap(oceanGrid());
+    coastalPort(state);
+    atWar(state, 'player', 'ai-1');
+    addUnit(state, unit('s1', 'frigate', 'ai-1', { q: 4, r: 5 }));
+    addUnit(state, unit('s2', 'frigate', 'ai-1', { q: 6, r: 5 }));
+    state.currentPlayer = 'player';
+    const asPlayer = getMajorCivBlockadeCityIds(state);
+    state.currentPlayer = 'ai-1';
+    expect(getMajorCivBlockadeCityIds(state)).toEqual(asPlayer);
   });
 });
 

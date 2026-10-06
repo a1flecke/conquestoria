@@ -19,6 +19,8 @@ import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import * as cityWorkSystem from '@/systems/city-work-system';
 import { foundCity } from '@/systems/city-system';
 import { createUnit } from '@/systems/unit-lifecycle';
+import { hexKey } from '@/systems/hex-utils';
+import { getMajorCivBlockadeCityIds } from '@/systems/blockade-system';
 
 function makeState(): GameState {
   const state = createNewGame(undefined, 'economy-test', 'small');
@@ -573,5 +575,32 @@ describe('pirate economy modifiers', () => {
     expect(status.endingGold).toBe(13);
     expect(settled.civilizations.player.gold).toBe(13);
     expect(state.civilizations.player.gold).toBe(20);
+  });
+});
+
+describe('major-civ naval blockade economy reuse (#1333)', () => {
+  it('the derived major-civ blockade feeds the same blockadedCityIds consequence', () => {
+    const state = makeState();
+    city(state).buildings = ['marketplace'];
+    for (const coord of [{ q: 3, r: 2 }, { q: 4, r: 2 }]) {
+      const key = hexKey(coord);
+      if (state.map.tiles[key]) state.map.tiles[key] = { ...state.map.tiles[key], terrain: 'ocean' };
+    }
+    state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+    state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
+    for (const [id, position] of [['e1', { q: 3, r: 2 }], ['e2', { q: 4, r: 2 }]] as const) {
+      const ship = createUnit('frigate', 'ai-1', position, state.idCounters);
+      ship.id = id;
+      state.units[id] = ship;
+      state.civilizations['ai-1'].units.push(id);
+    }
+
+    const derivedIds = getMajorCivBlockadeCityIds(state);
+    expect(derivedIds).toEqual(['capital']);
+    const unblockaded = projectCivGrossGold(state, 'player', { plunderByCiv: {}, blockadedCityIds: [] });
+    const derived = projectCivGrossGold(state, 'player', { plunderByCiv: {}, blockadedCityIds: derivedIds });
+    const canonical = projectCivGrossGold(state, 'player', { plunderByCiv: {}, blockadedCityIds: ['capital'] });
+    expect(derived).toBe(canonical);
+    expect(derived).toBeLessThan(unblockaded);
   });
 });

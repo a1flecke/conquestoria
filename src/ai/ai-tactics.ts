@@ -28,6 +28,8 @@ import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { canUnitOccupyCity, resolveMajorCityCapture } from '@/systems/city-capture-system';
 import { calculateCityAssaultStrengths } from '@/systems/city-siege-system';
 import { collectUsedCityNames } from '@/systems/city-name-system';
+import { isCityCoastal } from '@/systems/city-lifecycle';
+import { getMajorCivBlockadeCityIds, MAJOR_CIV_BLOCKADE_RADIUS } from '@/systems/blockade-system';
 import { foundCity } from '@/systems/city-system';
 import { canFoundCityAt } from '@/systems/city-territory-system';
 import { getVisibility } from '@/systems/fog-of-war';
@@ -939,6 +941,62 @@ function scorePostMovePositioning(
 
 const SUBMARINE_TACTICAL_TYPES = new Set(['submarine', 'missile_submarine']);
 
+function isBlockadeWarship(unit: Unit): boolean {
+  if (unit.transportId) return false;
+  const definition = UNIT_DEFINITIONS[unit.type];
+  return definition?.domain === 'naval' && definition.strength > 0;
+}
+
+/**
+ * #1333: a bounded bonus for a warship holding station in a hostile coastal
+ * city's blockade ring. Only cities the actor is at war with and can currently
+ * see count, so the AI never gains hidden-city information.
+ */
+const BLOCKADE_STATION_BONUS = 120;
+
+function blockadeStationBonus(context: AITacticalContext, unit: Unit, destination: HexCoord): number {
+  if (!isBlockadeWarship(unit)) return 0;
+  const state = context.state;
+  const visibility = state.civilizations[context.actorId]?.visibility;
+  for (const city of Object.values(state.cities)) {
+    if (city.owner === context.actorId) continue;
+    if (!isAIHostileOwner(state, context.actorId, city.owner)) continue;
+    if (!isCityCoastal(city, state.map)) continue;
+    if (getVisibility(visibility, city.position) !== 'visible') continue;
+    if (distance(state, destination, city.position) <= MAJOR_CIV_BLOCKADE_RADIUS) {
+      return BLOCKADE_STATION_BONUS;
+    }
+  }
+  return 0;
+}
+
+const BLOCKADE_RELIEF_SCORE = 420;
+
+/**
+ * #1333: a warship moves to contest a hostile major-civ blockade of one of its
+ * owner's cities. The owner legitimately knows its own city is blockaded; the
+ * destination only uses the city's known position, never the enemy fleet.
+ */
+function rankBlockadeReliefMoves(context: AITacticalContext, unit: Unit): RankedAITacticalAction[] {
+  if (!isBlockadeWarship(unit) || unit.hasActed || unit.movementPointsLeft <= 0) return [];
+  const state = context.state;
+  const blockaded = new Set(getMajorCivBlockadeCityIds(state));
+  if (blockaded.size === 0) return [];
+  const city = Object.values(state.cities)
+    .filter(candidate => candidate.owner === context.actorId && blockaded.has(candidate.id))
+    .sort((a, b) =>
+      distance(state, unit.position, a.position) - distance(state, unit.position, b.position)
+      || a.id.localeCompare(b.id))[0];
+  if (!city) return [];
+  const currentDistance = distance(state, unit.position, city.position);
+  return movementRange(state, context.actorId, unit)
+    .filter(destination =>
+      distance(state, destination, city.position) < currentDistance
+      && !isBlockedMoveDestination(state, unit, destination))
+    .map(destination => ranked({ kind: 'move', unitId: unit.id, destination }, BLOCKADE_RELIEF_SCORE));
+}
+
+
 /**
  * #542: AI-controlled submarines prefer a final position outside every hostile
  * civ's detection range, when reachable. Deliberately NOT applied inside
@@ -993,11 +1051,12 @@ function rankMoves(
           ))) - 1);
     const positioningBonus = scorePostMovePositioning(context, unit, destination);
     const stealthBonus = submarineStealthPositioningBonus(context, unit, destination);
+    const blockadeBonus = blockadeStationBonus(context, unit, destination);
     return ranked({
       kind: 'move',
       unitId: unit.id,
       destination,
-    }, 300 + planProgress * 30 - cohesionBreakTurns * 15 + positioningBonus + stealthBonus);
+    }, 300 + planProgress * 30 - cohesionBreakTurns * 15 + positioningBonus + stealthBonus + blockadeBonus);
   });
 }
 
@@ -1130,6 +1189,7 @@ export function rankUnitTacticalActions(
     ...rankMobileAirDefenseEscortMoves(context, unit),
     ...rankDestroyerEscortMoves(context, unit),
     ...rankReactivePursuitMoves(context, unit),
+    ...rankBlockadeReliefMoves(context, unit),
     ...rankMoves(context, unit),
   ];
   if (unit.health < 100 && !unit.hasActed) {
