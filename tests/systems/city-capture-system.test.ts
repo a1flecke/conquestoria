@@ -397,6 +397,17 @@ describe('city-capture-system', () => {
     expect(result.state.cities[cityId].occupation).toBeUndefined();
   });
 
+  it('clears an Imperial Levy on capture so a new captor never inherits it (#1338)', () => {
+    const state = makeExposedCityCaptureState({ population: 2, buildings: [] });
+    state.cities.athens = { ...state.cities.athens, levy: 'light', levyChangedTurn: 3 };
+
+    const result = resolveMajorCityCapture(state, 'athens', 'player', 'occupy', state.turn);
+
+    expect(result.state.cities.athens.owner).toBe('player');
+    expect(result.state.cities.athens.levy).toBeUndefined();
+    expect(result.state.cities.athens.levyChangedTurn).toBeUndefined();
+  });
+
   describe('Great General progress from city capture (#544 MR3)', () => {
     it('awards the capturing civ General progress when occupying an enemy city', () => {
       const state = makeExposedCityCaptureState({ population: 6, buildings: ['granary'] });

@@ -55,6 +55,14 @@ import { getBlockadedCityIds } from '@/systems/blockade-system';
 import { getOccupiedCityMood, getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { getFortificationCapacity } from '@/systems/fortification-system';
+import {
+  CITY_LEVY_GOLD_BONUS,
+  CITY_LEVY_LOCK_TURNS,
+  CITY_LEVY_UNREST,
+  getCityLevyUnrestAmount,
+  getSetCityLevyDenial,
+  isCityHeldByRecentConquest,
+} from '@/systems/city-levy-system';
 import { getCityTechYields } from '@/systems/tech-yield-system';
 import { buildProductionCostContext, getContextualProductionCost } from '@/systems/production-cost-context';
 import { TECH_TREE, resolveCivilizationEra } from '@/systems/tech-definitions';
@@ -94,6 +102,8 @@ export interface CityPanelCallbacks {
   onEstablishRoute?: (caravanId: string) => void;
   onSetIdleProduction?: (cityId: string, mode: 'gold' | 'science' | null) => GameState | void;
   onRushBuyActiveProduction?: (cityId: string) => GameState | void;
+  /** #1338: place or end the light Imperial Levy on a city held by recent conquest. */
+  onSetCityLevy?: (cityId: string, enabled: boolean) => GameState | void;
   onAppeaseFaction?: (cityId: string) => GameState | void;
   onConcedeToMovement?: (cityId: string) => GameState | void;
   onQuarantineCrisis?: (crisisId: string, cityId: string) => GameState | void;
@@ -364,6 +374,31 @@ export function createCityPanel(
         <button type="button" data-concede="${city.id}" ${concedeDisabled ? 'disabled' : ''} title="${concedeTooltip}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${concedeDisabled ? 'default' : 'pointer'};background:${concedeDisabled ? 'rgba(255,255,255,0.08)' : '#4a90d9'};color:${concedeDisabled ? 'rgba(255,255,255,0.4)' : '#fff'};border:none;">${concedeLabel}</button>
       </div>
       <div style="opacity:0.7;margin-top:6px;" data-text="concede-appease-help"></div>
+    </div>` : '';
+  // #1338: the light-only Imperial Levy. Shown only for a city that is (or was)
+  // held by recent conquest, and only to its owner's panel. Consequences are
+  // stated before the player confirms, and the button is disabled (not hidden)
+  // while the anti-thrash lock or eligibility denies a change.
+  const levyActive = city.levy === 'light';
+  const levyEligible = isCityHeldByRecentConquest(city, state);
+  const levyDenial = getSetCityLevyDenial(state, { cityId: city.id, actorId: city.owner, enabled: !levyActive });
+  const levyDisabled = !callbacks.onSetCityLevy || levyDenial !== null;
+  const levyLabel = levyActive ? 'End Imperial Levy' : 'Place light Imperial Levy';
+  const levyTooltip = levyActive
+    ? 'End the Imperial Levy: removes the extra gold and its unrest row.'
+    : 'Place the light Imperial Levy: extra gold now, extra unrest while it stands.';
+  const levyStatusText = levyActive
+    ? `Levied — +${CITY_LEVY_GOLD_BONUS} gold/turn, +${getCityLevyUnrestAmount(state, city)} unrest pressure.`
+    : `Not levied — placing it would add +${CITY_LEVY_GOLD_BONUS} gold/turn and +${CITY_LEVY_UNREST} unrest pressure.`;
+  const levyEaseText = levyActive
+    ? `Locked for ${CITY_LEVY_LOCK_TURNS} turns after each change. Local Autonomy Writ and decolonization ease the unrest; ordinary relief cannot erase it.`
+    : `Each change is locked for ${CITY_LEVY_LOCK_TURNS} turns.`;
+  const levySectionHtml = (levyEligible || levyActive) && city.owner === state.currentPlayer ? `
+    <div style="background:rgba(232,193,112,0.10);border:1px solid rgba(232,193,112,0.3);border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:12px;">
+      <div style="font-weight:bold;color:#e8c170;margin-bottom:4px;">Imperial Levy</div>
+      <div style="opacity:0.85;margin-bottom:4px;">${levyStatusText}</div>
+      <div style="opacity:0.7;margin-bottom:8px;">${levyEaseText}</div>
+      <button type="button" data-set-levy="${city.id}:${levyActive ? 'off' : 'on'}" ${levyDisabled ? 'disabled' : ''} title="${levyTooltip}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${levyDisabled ? 'default' : 'pointer'};background:${levyDisabled ? 'rgba(255,255,255,0.08)' : '#d4aa2c'};color:${levyDisabled ? 'rgba(255,255,255,0.4)' : '#1a1a1a'};border:none;">${levyLabel}</button>
     </div>` : '';
   // Post-catastrophe reward: transient, and the crisis itself may already be gone from
   // activeCrises by the time this is active — must render on its own, not piggyback on
@@ -1123,6 +1158,7 @@ export function createCityPanel(
     ${immunitySectionHtml}
     ${spreadWarningHtml}
     ${unrestSectionHtml}
+    ${levySectionHtml}
     ${crisisSectionHtml}
     ${famineSectionHtml}
     ${catastropheSectionHtml}
@@ -1742,6 +1778,15 @@ export function createCityPanel(
     btn.addEventListener('click', () => {
       if (btn.disabled) return;
       const nextState = callbacks.onAppeaseFaction?.(city.id);
+      rerenderPanel(nextState);
+    });
+  });
+
+  panel.querySelectorAll<HTMLButtonElement>('[data-set-levy]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.disabled) return;
+      const [cityId, mode] = btn.dataset.setLevy!.split(':');
+      const nextState = callbacks.onSetCityLevy?.(cityId, mode === 'on');
       rerenderPanel(nextState);
     });
   });

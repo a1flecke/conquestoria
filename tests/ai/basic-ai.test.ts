@@ -1,4 +1,5 @@
 import {
+  applyAiCityLevyPolicy,
   canDeclareWarForPreparedPlan,
   chooseAiSpyTarget,
   processAITurn,
@@ -3335,5 +3336,49 @@ describe('#1064 idle-unit auto-explore', () => {
     const visibleAfter = Object.values(civAfter.visibility.tiles).filter(v => v === 'visible').length;
     expect(visibleAfter, 'exploring should reveal at least one new tile').toBeGreaterThan(visibleBefore);
     expect(warriorAfter?.position).not.toEqual(before.position);
+  });
+});
+
+describe('AI Imperial Levy policy (#1338)', () => {
+  function setupAiConqueredCity(
+    seed: string,
+    overrides: Partial<City> = {},
+  ): { state: GameState; aiId: string; cityId: string } {
+    const state = createNewGame(undefined, seed, 'small');
+    const aiId = 'ai-1';
+    const settler = state.civilizations[aiId].units.map(id => state.units[id]).find(unit => unit?.type === 'settler');
+    if (!settler) throw new Error('missing ai settler');
+    const city = foundCity(aiId, settler.position, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    state.civilizations[aiId].cities = [city.id];
+    state.turn = 20;
+    state.cities[city.id] = { ...state.cities[city.id], conquestTurn: 19, ...overrides };
+    return { state, aiId, cityId: city.id };
+  }
+
+  it('places the light levy on a safe recently-conquered city under gold pressure', () => {
+    const { state, aiId, cityId } = setupAiConqueredCity('ai-levy-place');
+    state.economyStatusByCiv = { [aiId]: { unpaidMaintenance: 100 } } as GameState['economyStatusByCiv'];
+    expect(applyAiCityLevyPolicy(state, aiId).cities[cityId].levy).toBe('light');
+  });
+
+  it('ends a levy when the city’s unrest margin becomes unsafe', () => {
+    const { state, aiId, cityId } = setupAiConqueredCity('ai-levy-unrest', {
+      levy: 'light', levyChangedTurn: 0, spyUnrestBonus: 100,
+    });
+    state.economyStatusByCiv = { [aiId]: { strainLevel: 'high' } } as GameState['economyStatusByCiv'];
+    expect(applyAiCityLevyPolicy(state, aiId).cities[cityId].levy).toBeUndefined();
+  });
+
+  it('ends a levy when the gold need passes', () => {
+    const { state, aiId, cityId } = setupAiConqueredCity('ai-levy-end', { levy: 'light', levyChangedTurn: 0 });
+    state.economyStatusByCiv = { [aiId]: { strainLevel: 'none' } } as GameState['economyStatusByCiv'];
+    expect(applyAiCityLevyPolicy(state, aiId).cities[cityId].levy).toBeUndefined();
+  });
+
+  it('never levies a founded (non-conquered) city', () => {
+    const { state, aiId, cityId } = setupAiConqueredCity('ai-levy-founded', { conquestTurn: undefined });
+    state.economyStatusByCiv = { [aiId]: { strainLevel: 'high' } } as GameState['economyStatusByCiv'];
+    expect(applyAiCityLevyPolicy(state, aiId).cities[cityId].levy).toBeUndefined();
   });
 });

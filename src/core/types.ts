@@ -975,6 +975,14 @@ export interface City {
   unrestLevel: 0 | 1 | 2;     // 0=stable, 1=unrest, 2=revolt
   unrestTurns: number;         // turns spent at current unrest level (>= 1 when unrestLevel > 0)
   conquestTurn?: number;       // turn this city was captured; cleared after 15 turns
+  /**
+   * #1338: the light-only Imperial Levy a conqueror may place on a city held by
+   * recent conquest. Absent means no levy. Cleared when the city stops satisfying
+   * the recent-conquest state, and never inherited by a new captor.
+   */
+  levy?: 'light';
+  /** Turn this city's levy was last set or cleared; enforces the anti-thrash lock. */
+  levyChangedTurn?: number;
   occupation?: OccupiedCityState;
   spyUnrestBonus: number;      // bonus pressure injected by enemy espionage; decays 5/turn
   productionDisabledTurns?: number; // late-game sabotage/cyber effect timer

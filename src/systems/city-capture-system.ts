@@ -642,6 +642,10 @@ export function resolveMajorCityCapture(
       owner: newOwnerId,
       population: Math.max(1, Math.floor(city.population / 2)),
       conquestTurn: turn,
+      // #1338: a levy belongs to the ruler who imposed it; a new captor never
+      // inherits it.
+      levy: undefined,
+      levyChangedTurn: undefined,
       unrestLevel: 0,
       unrestTurns: 0,
       spyUnrestBonus: 0,
@@ -818,6 +822,9 @@ export function transferCapturedCityOwnership(
         ...city,
         owner: newOwnerId,
         conquestTurn: turn,
+        // #1338: no captor inherits the previous ruler's levy.
+        levy: undefined,
+        levyChangedTurn: undefined,
         unrestLevel: 0,
         unrestTurns: 0,
         spyUnrestBonus: 0,

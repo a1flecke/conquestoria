@@ -31,6 +31,7 @@ import { ENQUEUE_DENIAL_MESSAGES, enqueueCityProduction, removeQueuedId, reorder
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { chooseCircularManufacturingMaterial } from '@/systems/national-project-system';
 import { rushBuyActiveProduction } from '@/systems/rush-buy-system';
+import { setCityLevy } from '@/systems/city-levy-system';
 import { applyEmpireContainment, applyQuarantine, applyRemedy } from '@/systems/crisis-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { evaluateUnitUpgrade } from '@/systems/unit-upgrade-system';
@@ -367,6 +368,25 @@ export function createCityPanelActionsController(
       },
       onAppeaseFaction: (cityId) => deps.diplomacyActions.handleAppeaseFaction(cityId),
       onConcedeToMovement: (cityId) => deps.diplomacyActions.handleConcedeToMovement(cityId),
+      onSetCityLevy: (cityId, enabled) => {
+        const targetCity = deps.session.getState().cities[cityId];
+        if (!targetCity) return deps.session.getState();
+        const result = setCityLevy(deps.session.getState(), {
+          cityId,
+          actorId: deps.session.getState().currentPlayer,
+          enabled,
+        });
+        if (!result.ok) {
+          deps.showNotification(`${targetCity.name}: cannot change the levy (${result.reason}).`, 'warning');
+          return deps.session.getState();
+        }
+        deps.session.commit(result.state);
+        deps.showNotification(
+          enabled ? `${targetCity.name}: Imperial Levy placed.` : `${targetCity.name}: Imperial Levy ended.`,
+          'info',
+        );
+        return deps.session.getState();
+      },
       onQuarantineCrisis: (crisisId, cityId) => {
         const result = applyQuarantine(deps.session.getState(), crisisId, cityId);
         if (!result.success) {

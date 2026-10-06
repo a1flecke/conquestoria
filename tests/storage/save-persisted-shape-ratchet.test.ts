@@ -121,6 +121,17 @@ const ADDITIVE_WITHOUT_MIGRATION: Readonly<Record<string, string>> = {
   // `councilMemory`, so this entry is the written proof rather than a snapshot path.
   'assessmentDigestByCiv': '#1238 — new optional per-civ digest; absent means no history; a validating reader treats malformed values as no history; only a human ending their turn writes it.',
   'idCounters.nextWarId':'#991 — new optional IdCounters field; self-normalizing via the existing ID_COUNTER_SPECS/normalizeIdCounters mechanism, same as every other optional counter.',
+  // #1338 — the light-only Imperial Levy. Both fields are optional and absent by
+  // default; every reader goes through city-levy-system (getCityLevyGoldBonus /
+  // getCityLevyUnrestAmount / isCityHeldByRecentConquest), which treat absence as
+  // "no levy" / "never changed". The only writer is setCityLevy, and normalizeCityLevies
+  // / the capture path clear them. No fixture sets them (the matrix runs rounds, not
+  // the city-panel command), so these entries are the written proof rather than a
+  // snapshot path. tests/systems/faction-system.test.ts and economy-system.test.ts
+  // prove an absent-field city loads and processes turns unchanged, that the exact
+  // gold/unrest deltas apply, and that capture/expiry clear the state.
+  'cities.*.levy': '#1338 — new optional per-city light levy; absent means none; every reader treats absence as no levy; only setCityLevy writes it.',
+  'cities.*.levyChangedTurn': '#1338 — new optional per-city levy lock turn; absent means never changed; every reader tolerates absence.',
 };
 
 describe('#1023 persisted-save-shape ratchet', () => {

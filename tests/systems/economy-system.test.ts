@@ -21,6 +21,7 @@ import { foundCity } from '@/systems/city-system';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { hexKey } from '@/systems/hex-utils';
 import { getMajorCivBlockadeCityIds } from '@/systems/blockade-system';
+import { CITY_LEVY_GOLD_BONUS } from '@/systems/city-levy-system';
 
 function makeState(): GameState {
   const state = createNewGame(undefined, 'economy-test', 'small');
@@ -602,5 +603,15 @@ describe('major-civ naval blockade economy reuse (#1333)', () => {
     const canonical = projectCivGrossGold(state, 'player', { plunderByCiv: {}, blockadedCityIds: ['capital'] });
     expect(derived).toBe(canonical);
     expect(derived).toBeLessThan(unblockaded);
+  });
+});
+
+describe('Imperial Levy gold (#1338)', () => {
+  it('adds the flat levy bonus through the one economy seam', () => {
+    const state = makeState();
+    city(state).buildings = ['marketplace'];
+    const base = projectCivGrossGold(state, 'player');
+    state.cities.capital = { ...state.cities.capital, levy: 'light' };
+    expect(projectCivGrossGold(state, 'player') - base).toBe(CITY_LEVY_GOLD_BONUS);
   });
 });
