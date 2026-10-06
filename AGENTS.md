@@ -135,6 +135,18 @@ with `git push origin HEAD`. Never use `+HEAD:...`, `--force`,
 without explicit user authorization. If a normal push rejects because the
 remote moved, rebase or ask; do not rewrite remote history.
 
+**`git push` is slow and two-phase. Do not cut it short.** Every push runs through the
+pre-push hook (`.githooks/pre-push` → `scripts/verify-before-push.sh --regular`), which
+itself runs `yarn test:regular` then `yarn build` sequentially (and may skip both when
+a fresh `yarn verify:pr` proof exists for the same clean `HEAD`). The whole hook can
+take several minutes on a contended shared host — your tool call must allow at least
+the full 1800 s runaway ceiling before the hook itself can finish. A short tool
+timeout does NOT abort the underlying hook; it just leaves the test+build running and
+the push un-done, after which a second `git push` will queue against the same
+foreground capacity lane and re-do both phases. Allow the time, or pre-warm a
+`yarn verify:pr` proof for the exact commit you intend to push (it gates the hook to
+exit early when one is reusable).
+
 Create a GitHub pull request with
 `gh pr create --base main --head <current-branch> --fill`; inspect it with
 `gh pr view` and `gh pr checks`. A PR/MR can be created after the required
@@ -267,6 +279,31 @@ Never start a second equivalent verification command while the first process may
 running. If the process exits but its status cannot be recovered, report verification as
 inconclusive rather than retrying automatically or claiming it passed. Never start a
 second push while the first pre-push hook may still be running.
+
+**The pre-push hook runs in two sequential phases — do not stop early on the first "ok".**
+`.githooks/pre-push` calls `scripts/verify-before-push.sh --regular`, which runs
+**`yarn test:regular` then `yarn build`** in sequence (each `run_phase` blocks the next —
+see `scripts/verify-before-push.sh` and `.claude/rules/hooks-and-tooling.md`, "Pre-push
+gate: what it runs and how long it takes"). Seeing `Test Files N passed` and the final
+`ok` does NOT mean the push has completed or even started; it only means the test phase
+passed. The `yarn build` phase then runs the production bundle before the hook exits and
+`git push` actually performs the network upload. The whole pre-push hook can take 3–10
+minutes on a contended shared host. Concretely:
+
+- A 120 s tool timeout on the `git push` call will cut the bash call off while the
+  build phase is still running, the push never happens, and the next attempt will sit
+  through both phases again. Allow the full `--regular` budget (the local pre-push gate
+  is bounded at 1800 s — see the same rule file).
+- If your tool timeout fires mid-push, do NOT immediately re-issue `git push`. First
+  check whether the previous attempt is still running (`ps`, `.verification/`, or just
+  `git ls-remote origin refs/heads/<current-branch>`); if the local branch has not yet
+  appeared on the remote, the previous attempt is still in either the test or build
+  phase and a second concurrent push will race the foreground capacity lane. Either
+  wait for the in-flight call to complete or pass `--no-verify` deliberately after
+  confirming `verify:pr` already proved the same clean HEAD.
+- The "ok" line that appears at the end of `verify-before-push.sh`'s output is the
+  proof the gate passed; the very next line is `git push` itself doing the upload.
+  Until that line prints (and `git push` exits 0), the branch is not on the remote.
 
 After editing files under `src/`, run:
 
