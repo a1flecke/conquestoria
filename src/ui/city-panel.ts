@@ -51,6 +51,7 @@ import { getLoyaltyThreshold, getLoyaltyTickAmount, isLoyaltyTrackEligible } fro
 import { resolvePressureSeverityForCiv } from '@/core/opponent-challenge';
 import { getWorldPressurePresentationForViewer } from '@/systems/world-pressure-presentation';
 import { getCityIntrinsicStrength, isCityHpRegenerating } from '@/systems/city-siege-system';
+import { getBlockadedCityIds } from '@/systems/blockade-system';
 import { getOccupiedCityMood, getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { getFortificationCapacity } from '@/systems/fortification-system';
@@ -1057,6 +1058,16 @@ export function createCityPanel(
       </div>`
     : '';
 
+  // #1333: the blockaded city's OWNER is told the consequence. Derived from
+  // authoritative simulation truth (pirates + hostile major-civ warships), never
+  // from what this viewer can see -- a third party's panel must not reveal a
+  // foreign fleet, so this row only renders for the city's owner.
+  const cityIsBlockaded = city.owner === state.currentPlayer
+    && getBlockadedCityIds(state).includes(city.id);
+  const blockadeStatusHtml = cityIsBlockaded
+    ? '<div style="font-size:12px;color:#f87171;font-weight:bold;margin-top:4px;">⚓ Blockaded — −25% gold, sea trade suspended</div>'
+    : '';
+
   const ownerCivForDefense = state.civilizations[city.owner];
   const defenseRating = ownerCivForDefense
     ? Math.round(getCityIntrinsicStrength(city, ownerCivForDefense.techState.completed ?? [], 'land'))
@@ -1080,6 +1091,7 @@ export function createCityPanel(
         ${city.occupation ? '<div style="font-size:12px;color:#e8c170;" data-text="occupied-status"></div>' : ''}
         ${occupiedMoodText ? '<div style="font-size:12px;color:#d9a25c;" data-text="occupied-mood"></div>' : ''}
         ${siegeBarHtml}
+        ${blockadeStatusHtml}
         ${defenseRatingHtml}
         ${fortificationCapacityHtml}
       </div>

@@ -146,6 +146,43 @@ describe('naval city bombardment', () => {
   });
 });
 
+describe('naval blockade tactical hooks (#1333)', () => {
+  function setOcean(state: GameState, ...coords: HexCoord[]): void {
+    for (const coord of coords) {
+      const tile = state.map.tiles[hexKey(coord)];
+      if (tile) tile.terrain = 'ocean';
+    }
+  }
+
+  it('a warship scores holding station in a visible hostile coastal city’s blockade ring', () => {
+    const state = makeState();
+    const city = addCity(state, 'target-city', HUMAN, { q: 4, r: 2 });
+    setOcean(state, { q: 2, r: 2 }, { q: 3, r: 2 }, { q: 4, r: 3 });
+    const ship = addUnit(state, 'ship', 'frigate', AI, { q: 2, r: 2 }, { movementPointsLeft: 3 });
+    const plan = makePlan({ kind: 'city', id: city.id, lastKnownPosition: city.position }, [ship.id]);
+
+    const moves = rankUnitTacticalActions({ state, actorId: AI, plan, assignedUnitIds: [ship.id] }, ship.id)
+      .filter(candidate => candidate.action.kind === 'move');
+    expect(moves.some(candidate => candidate.action.kind === 'move'
+      && hexDistance(candidate.action.destination, city.position) <= 2)).toBe(true);
+  });
+
+  it('a warship moves to contest a hostile blockade of its own city even when the plan points elsewhere', () => {
+    const state = makeState();
+    const ownCity = addCity(state, 'own-port', AI, { q: 6, r: 2 });
+    setOcean(state, { q: 5, r: 2 }, { q: 6, r: 3 }, { q: 7, r: 2 }, { q: 8, r: 2 }, { q: 9, r: 2 }, { q: 10, r: 2 });
+    addUnit(state, 'enemy-1', 'frigate', HUMAN, { q: 5, r: 2 }, { movementPointsLeft: 0 });
+    addUnit(state, 'enemy-2', 'frigate', HUMAN, { q: 7, r: 2 }, { movementPointsLeft: 0 });
+    const relief = addUnit(state, 'relief', 'frigate', AI, { q: 10, r: 2 }, { movementPointsLeft: 4 });
+    const plan = makePlan({ kind: 'unit', id: 'enemy-1', lastKnownPosition: { q: 0, r: 0 } }, [relief.id]);
+
+    const moves = rankUnitTacticalActions({ state, actorId: AI, plan, assignedUnitIds: [relief.id] }, relief.id)
+      .filter(candidate => candidate.action.kind === 'move');
+    expect(moves.some(candidate => candidate.action.kind === 'move'
+      && hexDistance(candidate.action.destination, ownCity.position) <= 2)).toBe(true);
+  });
+});
+
 function context(
   state: GameState,
   plan: AIStrategicPlan,

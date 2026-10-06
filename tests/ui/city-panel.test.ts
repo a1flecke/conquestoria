@@ -3043,3 +3043,33 @@ describe('#984 city-panel production cost parity', () => {
     ).completedUnit).toBe('spearman');
   });
 });
+
+describe('city-panel naval blockade (#1333)', () => {
+  it('tells the blockaded city owner the consequence and never leaks it to another viewer', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    const owner = city.owner;
+    state.map.tiles['3,2'] = { ...state.map.tiles['2,2'], coord: { q: 3, r: 2 }, terrain: 'ocean', owner: null };
+    state.civilizations[owner].diplomacy.atWarWith = ['rival'];
+    state.civilizations.rival.diplomacy.atWarWith = [owner];
+    for (const [id, position] of [['e1', { q: 3, r: 2 }], ['e2', { q: 4, r: 2 }]] as const) {
+      const ship = createUnit('frigate', 'rival', position, state.idCounters);
+      ship.id = id;
+      state.units[id] = ship;
+      state.civilizations.rival.units.push(id);
+    }
+
+    const ownerPanel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+    expect(collectText(ownerPanel)).toContain('Blockaded');
+    expect(collectText(ownerPanel)).toContain('25% gold');
+
+    // Owner-gated: the same authoritative state viewed for a foreign city never
+    // reveals the blockade, so no hidden fleet detail can leak.
+    const rivalCity = state.cities[Object.keys(state.cities).find(id => state.cities[id].owner === 'rival')!];
+    const foreignPanel = createCityPanel(container, rivalCity, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+    expect(collectText(foreignPanel)).not.toContain('Blockaded');
+  });
+});
