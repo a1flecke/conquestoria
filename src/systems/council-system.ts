@@ -175,6 +175,7 @@ const CONSTRAINT_ADVISOR: Record<StrategicConstraintKind, AdvisorType> = {
   science: 'scholar',
   unrest: 'chancellor',
   supply: 'warchief',
+  blockade: 'warchief',
 };
 
 /** Why the player should care, per constraint kind. Each line states only what the game really does. */
@@ -185,6 +186,7 @@ const CONSTRAINT_WHY: Record<StrategicConstraintKind, string> = {
   gold: 'Unpaid upkeep keeps draining the treasury until income catches up.',
   unrest: 'Unrest cuts a city\'s output and can spread to its neighbours.',
   supply: 'Units without supply grow weaker until they return to friendly ground.',
+  blockade: 'It lasts until the hostile warships leave, a warship of yours contests the waters, or the war ends.',
 };
 
 /** Button copy states what happens. Exhaustive over the action union, so a new kind cannot ship unlabelled. */

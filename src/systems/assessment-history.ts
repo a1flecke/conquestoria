@@ -18,7 +18,7 @@ import {
   type AssessmentChange,
 } from '@/systems/strategic-assessment';
 
-const CONSTRAINT_KINDS: ReadonlySet<string> = new Set(['food', 'production', 'science', 'gold', 'unrest', 'supply']);
+const CONSTRAINT_KINDS: ReadonlySet<string> = new Set(['food', 'production', 'science', 'gold', 'unrest', 'supply', 'blockade']);
 const VICTORY_STAGES: ReadonlySet<string> = new Set(['not-started', 'building', 'competitive', 'leading', 'at-risk']);
 const SEVERITY_BUCKETS: ReadonlySet<string> = new Set(['low', 'mid', 'high']);
 

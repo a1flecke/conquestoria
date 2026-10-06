@@ -31,6 +31,7 @@ import type {
 } from '@/core/types';
 import { majorCivWarOpponentIds } from '@/core/owner-kind';
 import { resolveCivDefinition } from '@/systems/civ-registry';
+import { getBlockadedCityIds } from '@/systems/blockade-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { hasMetCivilization } from '@/systems/discovery-system';
 import { projectDominationProgressForViewer } from '@/systems/domination-presentation';
@@ -47,10 +48,13 @@ export type { StrategicConstraintKind, VictoryStage };
 
 /** Tie-break order, most pressing kind first. */
 const CONSTRAINT_KIND_ORDER: readonly StrategicConstraintKind[] = [
-  'unrest', 'gold', 'supply', 'food', 'production', 'science',
+  'unrest', 'blockade', 'gold', 'supply', 'food', 'production', 'science',
 ];
 
 export const MAX_STRATEGIC_CONSTRAINTS = 5;
+
+/** The share of a blockaded city's gold the economy removes (`economy-system.ts`: cityGold x 0.75). Used only to rank, never to charge. */
+const BLOCKADE_GOLD_LOSS_FRACTION = 0.25;
 
 export interface StrategicConstraint {
   kind: StrategicConstraintKind;
@@ -162,6 +166,28 @@ function buildConstraints(state: GameState, viewerCivId: string): StrategicConst
       title: 'Choose your research',
       why: `Your cities make ${totalScience} science a turn, and none of it counts until you pick research.`,
       destination: { kind: 'open-tech' },
+    });
+  }
+
+  // Blockade (#1333): the canonical authoritative fact, read once and filtered to the viewer's own cities. The owner
+  // knows their city is blockaded because the effect lands on them; who or what is blockading is never read here.
+  const blockadedIds = new Set(getBlockadedCityIds(state));
+  const blockaded = projected.filter(entry => blockadedIds.has(entry.city.id));
+  if (blockaded.length > 0) {
+    // Impact from facts already at hand: the city's own trade routes that the blockade suspends, and the gold it loses.
+    const tradeRoutes = state.marketplace?.tradeRoutes ?? [];
+    const routesAt = (cityId: string) => tradeRoutes.filter(route =>
+      state.cities[route.fromCityId]?.owner === viewerCivId && (route.fromCityId === cityId || route.toCityId === cityId)).length;
+    const impact = (entry: typeof blockaded[number]) => routesAt(entry.city.id) * 10 + entry.yields.gold * BLOCKADE_GOLD_LOSS_FRACTION;
+    const worst = pickWorst(blockaded, impact, entry => entry.city.id)!;
+    const routes = routesAt(worst.city.id);
+    constraints.push({
+      kind: 'blockade',
+      severity: clampSeverity(60 + Math.min(15, routes * 5) + Math.min(10, Math.round(worst.yields.gold * BLOCKADE_GOLD_LOSS_FRACTION)) + Math.min(5, (blockaded.length - 1) * 2)),
+      title: `${worst.city.name} is blockaded`,
+      why: `${worst.city.name} loses 25% of its gold and its sea trade is suspended while the blockade holds.`,
+      focusCityId: worst.city.id,
+      destination: { kind: 'open-city', cityId: worst.city.id },
     });
   }
 
@@ -362,6 +388,7 @@ const CONSTRAINT_KIND_LABEL: Record<StrategicConstraintKind, string> = {
   gold: 'The treasury',
   unrest: 'Unrest',
   supply: 'Army supply',
+  blockade: 'The blockade',
 };
 
 const STAGE_PHRASE: Record<VictoryStage, string> = {
