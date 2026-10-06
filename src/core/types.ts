@@ -2390,7 +2390,12 @@ export type CouncilMemoryState = Record<string, CouncilMemoryLedger>;
 // The unions live here (not in `strategic-assessment.ts`) so the persisted digest can name them
 // without `core` importing a system; `strategic-assessment.ts` re-exports them.
 
-export type StrategicConstraintKind = 'food' | 'production' | 'science' | 'gold' | 'unrest' | 'supply' | 'blockade';
+/**
+ * The one inventory of strategic constraint kinds (#1357). The union below, the persisted-digest validator and the
+ * presentation table all derive from it, so a kind added here cannot be missing from one of them.
+ */
+export const STRATEGIC_CONSTRAINT_KINDS = ['food', 'production', 'science', 'gold', 'unrest', 'supply', 'blockade'] as const;
+export type StrategicConstraintKind = typeof STRATEGIC_CONSTRAINT_KINDS[number];
 
 export type VictoryStage = 'not-started' | 'building' | 'competitive' | 'leading' | 'at-risk';
 
