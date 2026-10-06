@@ -144,6 +144,12 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
       } else {
         deps.showNotification(`Peace requested from ${targetName}.`, 'info');
       }
+    } else if (action === 'demand_tribute') {
+      // The acting player's own feedback: a pending demand for a human target, or the AI's same-turn answer. The other
+      // party's notice is delivered recipient-scoped from the tribute-* routing events, never from here.
+      const queued = (after.pendingDiplomacyRequests ?? []).some(r => r.type === 'tribute' && r.fromCivId === cp && r.toCivId === targetCivId);
+      if (queued) deps.showNotification(`Tribute demand sent to ${targetName}. Awaiting their answer.`, 'info');
+      else if (!resolved) deps.showNotification('That demand is no longer available.', 'warning');
     } else if (CONSENT_TREATY_ACTIONS.has(action)) {
       const label = TREATY_LABELS[action as TreatyType];
       if (resolved && targetWasHuman) {
@@ -200,6 +206,16 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
     deps.openDiplomacyPanel();
     const panel = deps.uiLayer.querySelector<HTMLElement>('#diplomacy-panel');
     if (panel) { panel.tabIndex = -1; panel.focus(); }
+    if (request?.type === 'tribute') {
+      // #1334: a tribute answer has its own truth, not the treaty check below (which would misreport it).
+      const terms = request.tribute;
+      const live = isDiplomaticRequestLive(before, request);
+      const contract = after.civilizations[request.toCivId]?.diplomacy.treaties.some(t => t.type === 'tribute' && t.civB === request.fromCivId);
+      if (!live || (accept && !contract) || (!accept && after === before)) deps.showNotification('This demand is no longer available.', 'warning');
+      else if (accept && terms) deps.showNotification(`You agreed to pay ${terms.goldPerRound} gold per round for ${terms.rounds} rounds.`, 'success');
+      else deps.showNotification('Demand refused. Relations worsened; no war was declared.', 'info');
+      return;
+    }
     const live = request && isDiplomaticRequestLive(before, request);
     const vassalage = request?.treatyType === 'vassalage';
     const petition = request?.type === 'independence';
@@ -218,7 +234,7 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
   function handleDeclineTreatyProposal(requestId: string): void { respondToProposal(requestId, false); }
 
   function handleBreakTreaty(civId: string, treatyType: TreatyType): void {
-    if (treatyType === 'vassalage') return;
+    if (treatyType === 'vassalage' || treatyType === 'tribute') return;
     const actorId = deps.session.getState().currentPlayer;
     const actor = deps.session.getState().civilizations[actorId];
     const target = deps.session.getState().civilizations[civId];

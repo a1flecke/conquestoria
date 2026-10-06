@@ -187,7 +187,7 @@ export function checkIndependenceThreshold(
 
 const VASSAL_BLOCKED_ACTIONS = [
   'declare_war', 'non_aggression_pact', 'trade_agreement', 'open_borders',
-  'alliance', 'arms_control_pact', 'request_peace', 'propose_embargo', 'join_embargo', 'leave_embargo', 'propose_league', 'invite_to_league', 'petition_league',
+  'alliance', 'arms_control_pact', 'demand_tribute', 'request_peace', 'propose_embargo', 'join_embargo', 'leave_embargo', 'propose_league', 'invite_to_league', 'petition_league',
 ];
 
 export function isVassalBlocked(action: string, isVassal: boolean): boolean {

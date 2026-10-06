@@ -241,3 +241,41 @@ export function routeVassalAutoPeace(state: GameState, event: GameEvents['diplom
   const overlord = state.civilizations[event.overlordId]?.name ?? 'your overlord';
   sink(event.vassalId, `${overlord} made peace with ${target}, so your war with them has ended too.`, 'info');
 }
+
+// #1334: standalone tribute. Recipient-scoped; the copy states the exact terms and never a strength figure, and a
+// refusal always says it does not start a war.
+const rounds = (n: number): string => `${n} round${n === 1 ? '' : 's'}`;
+
+export function routeTributeDemanded(state: GameState, event: GameEvents['diplomacy:tribute-demanded'], sink: NotificationSink): void {
+  const demander = state.civilizations[event.demanderId]?.name ?? 'A rival';
+  sink(
+    event.targetId,
+    `${demander} demands ${event.goldPerRound} gold per round for ${rounds(event.rounds)}. Refusing worsens relations but does not start a war. Answer in the Diplomacy panel.`,
+    'warning',
+  );
+}
+
+export function routeTributeAccepted(state: GameState, event: GameEvents['diplomacy:tribute-accepted'], sink: NotificationSink): void {
+  const demander = state.civilizations[event.demanderId]?.name ?? 'A rival';
+  const payer = state.civilizations[event.payerId]?.name ?? 'A rival';
+  sink(event.demanderId, `${payer} agreed to pay you ${event.goldPerRound} gold per round for ${rounds(event.rounds)}.`, 'success');
+  sink(event.payerId, `You agreed to pay ${demander} ${event.goldPerRound} gold per round for ${rounds(event.rounds)}.`, 'info');
+}
+
+export function routeTributeRefused(state: GameState, event: GameEvents['diplomacy:tribute-refused'], sink: NotificationSink): void {
+  const demander = state.civilizations[event.demanderId]?.name ?? 'A rival';
+  const payer = state.civilizations[event.payerId]?.name ?? 'A rival';
+  sink(event.demanderId, `${payer} refused your tribute demand. Relations worsened; no war was declared.`, 'warning');
+  sink(event.payerId, `You refused ${demander}'s tribute demand. Relations worsened; no war was declared.`, 'info');
+}
+
+export function routeTributeEnded(state: GameState, event: GameEvents['diplomacy:tribute-ended'], sink: NotificationSink): void {
+  const demander = state.civilizations[event.demanderId]?.name ?? 'A rival';
+  const payer = state.civilizations[event.payerId]?.name ?? 'A rival';
+  const why = event.reason === 'expired' ? 'The agreement has run its course.'
+    : event.reason === 'war' ? 'The war between you ended it.'
+    : event.reason === 'vassalage' ? 'Vassalage now governs your dealings.'
+    : 'A party no longer exists.';
+  sink(event.demanderId, `Tribute from ${payer} has ended. ${why}`, 'info');
+  sink(event.payerId, `Tribute to ${demander} has ended. ${why}`, 'info');
+}

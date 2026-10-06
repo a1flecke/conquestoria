@@ -1008,7 +1008,9 @@ describe('#1011 — diplomacy decomposition boundaries', () => {
     'diplomacy-vassal-rules': ['diplomacy-state', 'diplomacy-treachery', 'diplomacy-leagues', 'diplomacy-queries'],
     'diplomacy-war': ['diplomacy-state', 'diplomacy-treachery', 'diplomacy-queries', 'diplomacy-vassal-rules'],
     'diplomacy-treaties': ['diplomacy-state', 'diplomacy-queries'],
-    'diplomacy-actions': ['diplomacy-queries', 'diplomacy-vassal-rules'],
+    // #1334: the tribute rule sits above queries/state/requests/treaties and below the offer table, which only needs its typed denials.
+    'diplomacy-tribute': ['diplomacy-state', 'diplomacy-queries', 'diplomacy-requests', 'diplomacy-treaties'],
+    'diplomacy-actions': ['diplomacy-queries', 'diplomacy-vassal-rules', 'diplomacy-tribute'],
     'diplomacy-vassalage': [
       'diplomacy-state', 'diplomacy-queries', 'diplomacy-treachery', 'diplomacy-requests',
       'diplomacy-vassal-rules', 'diplomacy-war',

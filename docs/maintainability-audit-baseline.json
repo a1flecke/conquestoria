@@ -47,6 +47,7 @@
   ],
   [
    "src/ui/diplomacy-panel.ts",
+   "src/ui/tribute-controls.ts",
    "src/ui/vassalage-controls.ts"
   ]
  ],
@@ -57,7 +58,7 @@
   },
   {
    "pair": "ai -> systems",
-   "count": 290
+   "count": 293
   },
   {
    "pair": "app -> ai",
@@ -225,7 +226,7 @@
   },
   {
    "pair": "ui -> systems",
-   "count": 276
+   "count": 280
   }
  ]
 }

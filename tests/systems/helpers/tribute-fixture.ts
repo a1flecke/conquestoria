@@ -39,3 +39,10 @@ export function makeTributeState(): GameState {
   return state;
 }
 
+
+/** The target can see the demander's units (so its own perception of the demander is usable). */
+export function letTargetSeeDemander(state: GameState): void {
+  for (const id of state.civilizations[DEMANDER].units) {
+    state.civilizations[TARGET].visibility.tiles[hexKey(state.units[id].position)] = 'visible';
+  }
+}
