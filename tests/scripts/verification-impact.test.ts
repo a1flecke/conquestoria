@@ -26,6 +26,7 @@ function impact(...args: string[]) {
     base: string;
     changed: Array<{ path: string; status: string }>;
     evidence: Array<{ id: string; commands: string[]; why: string }>;
+    diagnostics: Array<{ id: string; commands: string[]; when: string }>;
     mirroredTests: Array<{ source: string; test: string }>;
   };
 }
@@ -81,7 +82,7 @@ describe('#1232 verification impact map', () => {
 
   it('emits a stable JSON schema', () => {
     const payload = impact('--changed', 'M:src/ai/basic-ai.ts');
-    expect(Object.keys(payload).sort()).toEqual(['base', 'changed', 'evidence', 'mirroredTests']);
+    expect(Object.keys(payload).sort()).toEqual(['base', 'changed', 'diagnostics', 'evidence', 'mirroredTests']);
     for (const entry of payload.evidence) {
       expect(Object.keys(entry).sort()).toEqual(['commands', 'id', 'why']);
       expect(entry.commands.length).toBeGreaterThan(0);
@@ -134,5 +135,103 @@ describe('#1232 verification impact map', () => {
     const badFile = run('--config', write('bad-file.json', 'scripts/does-not-exist.sh'), '--changed', 'M:src/ai/basic-ai.ts');
     expect(badFile.status).toBe(2);
     expect(badFile.stderr).toContain('missing repo script');
+  });
+
+  // --- #1362: verify:impact is the single executable verification contract -------------------------------------
+
+  it('keeps ai-long a narrow requirement: broad AI, economy and orchestration edits do not require it', () => {
+    for (const changed of ['M:src/ai/ai-diplomacy.ts', 'M:src/ai/basic-ai.ts', 'M:src/systems/economy-system.ts', 'M:src/core/turn-manager.ts', 'M:src/systems/faction-pressure.ts']) {
+      expect(ids(impact('--changed', changed)), changed).not.toContain('ai-long');
+    }
+    expect(ids(impact('--changed', 'M:tests/simulation/long-horizon/campaign-scenarios.ts'))).toContain('ai-long');
+    expect(ids(impact('--changed', 'M:scripts/run-ai-long-horizon.sh'))).toContain('ai-long');
+  });
+
+  it('lists the long-horizon suite only as an optional diagnostic, for AI source changes, never as required evidence', () => {
+    const ai = impact('--changed', 'M:src/ai/ai-diplomacy.ts');
+    expect(ai.diagnostics.map(entry => entry.id)).toEqual(['ai-long-campaign']);
+    expect(ids(ai)).not.toContain('ai-long-campaign');
+    expect(ai.diagnostics[0].when).toMatch(/NOT required/);
+    expect(impact('--changed', 'M:src/systems/economy-system.ts').diagnostics).toEqual([]);
+    const text = run('--changed', 'M:src/ai/ai-diplomacy.ts').stdout;
+    expect(text).toContain('Optional diagnostics');
+    expect(text.indexOf('Required evidence')).toBeLessThan(text.indexOf('Optional diagnostics'));
+  });
+
+  it('an unrelated file gains no unrelated evidence and no diagnostics', () => {
+    const payload = impact('--changed', 'M:docs/some-note.md');
+    expect(ids(payload)).toEqual(['build', 'durable-full']);
+    expect(payload.diagnostics).toEqual([]);
+  });
+
+  it('reuses one proof when two rules require it, and pairs every durable runner with its :status readback', () => {
+    const payload = impact('--changed', 'M:src/ai/ai-round-scheduler.ts', '--changed', 'M:src/storage/save-manager.ts');
+    expect(ids(payload).filter(id => id === 'perf-report')).toHaveLength(1);
+    expect(ids(payload).filter(id => id === 'durable-full')).toHaveLength(1);
+    const config = JSON.parse(readFileSync(CONFIG, 'utf8')) as { evidence: Array<{ id: string; commands: string[] }>; diagnostics: Array<{ id: string; commands: string[] }> };
+    for (const entry of [...config.evidence, ...config.diagnostics]) {
+      for (const runner of ['test:durable', 'test:ai-long', 'test:ai-playability']) {
+        if (entry.commands.some(command => new RegExp(`yarn\\s+${runner}(?!:)`).test(command))) {
+          expect(entry.commands.some(command => command.includes(`${runner}:status`)), `${entry.id} needs ${runner}:status`).toBe(true);
+        }
+      }
+    }
+  });
+
+  describe('a deliberately invalid contract is rejected', () => {
+    const base = () => ({
+      schema: 1,
+      baseline: ['build'],
+      evidence: [
+        { id: 'build', commands: ['./scripts/run-with-mise.sh yarn build'], why: 'CLAUDE.md → Required Verification' },
+        { id: 'extra', commands: ['./scripts/run-with-mise.sh yarn test:hooks'], why: 'AGENTS.md → hooks' },
+      ],
+      diagnostics: [] as Array<Record<string, unknown>>,
+      rules: [{ id: 'r', match: ['src/**'], require: ['extra'], why: 'AGENTS.md → src' }] as Array<Record<string, unknown>>,
+    });
+    const reject = (mutate: (config: ReturnType<typeof base>) => void) => {
+      const directory = mkdtempSync(join(tmpdir(), 'verification-contract-'));
+      temporaryDirectories.push(directory);
+      const config = base();
+      mutate(config);
+      const path = join(directory, 'map.json');
+      writeFileSync(path, JSON.stringify(config));
+      return run('--config', path, '--changed', 'M:src/ai/basic-ai.ts');
+    };
+
+    it('accepts the base fixture (so each rejection below is caused by its own mutation)', () => {
+      expect(reject(() => {}).status).toBe(0);
+    });
+
+    it('evidence that no rule requires is an obsolete machine rule', () => {
+      const result = reject(config => { config.rules = []; });
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain('obsolete machine rule');
+    });
+
+    it('a durable runner without its :status readback cannot be proven or reused', () => {
+      const result = reject(config => { config.evidence[1].commands = ['./scripts/run-with-mise.sh yarn test:ai-playability']; });
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain('test:ai-playability:status');
+    });
+
+    it('a rule suggesting an unknown diagnostic, or a diagnostic reusing an evidence id, fails', () => {
+      expect(reject(config => { config.rules[0].suggest = ['nope']; }).stderr).toContain('unknown diagnostic');
+      expect(reject(config => { config.diagnostics = [{ id: 'extra', commands: [], when: 'x', source: 'AGENTS.md' }]; }).stderr).toContain('both required evidence and a diagnostic');
+    });
+
+    it('a rule citing a deleted or renamed policy surface fails', () => {
+      const result = reject(config => { config.evidence[1].why = '.claude/rules/renamed-away.md → something'; });
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain('no longer exists');
+    });
+
+    it('a diagnostic whose cited section was removed from its prose fails', () => {
+      const result = reject(config => {
+        config.diagnostics = [{ id: 'd', commands: ['./scripts/run-with-mise.sh yarn test:hooks'], when: 'sometimes', source: 'AGENTS.md → A heading nobody wrote' }];
+      });
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain('no longer contains the cited section');
+    });
   });
 });

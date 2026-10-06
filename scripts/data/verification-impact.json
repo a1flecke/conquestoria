@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "note": "Machine-readable change-impact map for `yarn verify:impact` (#1232). Every rule is derived from a canonical policy source named in its `why`; do not add an obligation that policy does not already require. `evidence` is the ordered catalog; a rule's `require` refers to evidence ids. `baseline` always applies (pre-push obligations).",
+  "note": "THE required-evidence contract (#1232, #1362): given changed files, `yarn verify:impact` prints exactly what evidence is required before the change is complete, and this file is where that is decided. CLAUDE.md, AGENTS.md and .claude/rules explain WHY evidence exists; they must not define a second required-gate matrix (scripts/check-agent-policy-parity.mjs, rule `required-gates-defer-to-impact`, fails a prose requirement for a gated command that this file does not own). `evidence` is the ordered catalog; a rule's `require` refers to evidence ids; `baseline` always applies (pre-push obligations). `diagnostics` are optional, never required, never a merge gate: a rule may `suggest` one, and `verify:impact` lists it separately from required evidence. Every rule/evidence/diagnostic cites the policy surface that explains it in `why`/`source`, and that surface must still contain the cited heading. Durable evidence stays reusable: its commands pair a runner with its `:status` readback, so a proof for the same HEAD is read, not re-run.",
   "baseline": ["build", "durable-full"],
   "evidence": [
     {
@@ -82,6 +82,17 @@
       "why": "CLAUDE.md / AGENTS.md → before git push, PR creation, or merge, run the durable full suite and confirm its status."
     }
   ],
+  "diagnostics": [
+    {
+      "id": "ai-long-campaign",
+      "commands": [
+        "./scripts/run-with-mise.sh yarn test:ai-long",
+        "./scripts/run-with-mise.sh yarn test:ai-long:status"
+      ],
+      "when": "Optional campaign-level evidence after a substantial change to AI strategic planning, production, diplomacy, movement, combat decisions or the economy. It is NOT required for those changes (only the evidence above is) and is not a merge gate; the long-horizon runtime target is a separate, independently owned workstream (#1125).",
+      "source": ".claude/rules/ai-simulation.md → When to run it"
+    }
+  ],
   "rules": [
     {
       "id": "src-files",
@@ -93,6 +104,7 @@
       "id": "ai-behavior",
       "match": ["src/ai/**"],
       "require": ["ai-playability"],
+      "suggest": ["ai-long-campaign"],
       "why": ".claude/rules/ai-simulation.md (frontmatter paths: src/ai/**)."
     },
     {

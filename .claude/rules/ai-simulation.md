@@ -27,8 +27,15 @@ loosening it.
 
 ### When to run it
 
-**Run `yarn test:ai-long` before declaring complete** a change that materially
-affects:
+**What is required is decided by `yarn verify:impact`, not by this section.**
+`scripts/data/verification-impact.json` requires the long-horizon suite only
+when you change the suite itself or its wrapper
+(`tests/simulation/long-horizon/**`, `scripts/run-ai-long-horizon.sh`). For
+everything below it is an **optional diagnostic** (`verify:impact` lists it
+separately, as "Optional diagnostics", for `src/ai/**` changes): useful
+campaign-level evidence, never a merge gate, and independent of the separately
+owned long-horizon runtime target (#1125). Reach for it when a change
+materially affects:
 
 - AI strategic planning, production, diplomacy, or movement
 - pathfinding or the movement-cost model
@@ -37,10 +44,9 @@ affects:
 - victory pursuit / turn orchestration
 - any large simulation system whose behaviour compounds over a campaign
 
-**Do not run it** for docs-only changes, asset-only changes, isolated CSS,
-trivial copy, or test-only refactors unrelated to the simulation. It is a
-deliberate pre-merge check for substantial AI/gameplay work, not a universal
-gate.
+**Skip it** for docs-only changes, asset-only changes, isolated CSS, trivial
+copy, or test-only refactors unrelated to the simulation. It is a deliberate
+extra check for substantial AI/gameplay work, not a universal gate.
 
 **Runtime (updated by #1126, supersedes this section's old "~20 minutes"
 claim, which was stale since #1094):** the matrix's per-scenario wall-clock is
