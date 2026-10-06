@@ -1185,7 +1185,8 @@ export type DiplomaticAction =
   | 'petition_league'
   | 'leave_league'
   | 'reabsorb_breakaway'
-  | 'arms_control_pact';
+  | 'arms_control_pact'
+  | 'demand_tribute';
 
 export type TreatyType = 'non_aggression_pact' | 'trade_agreement' | 'open_borders' | 'alliance' | 'vassalage' | 'arms_control_pact' | 'tribute';
 
@@ -2294,7 +2295,9 @@ export type CouncilCardAction =
   /** #1237: no research chosen -- science is discarded until the player picks one in the tech panel. */
   | { kind: 'open-tech' }
   /** #1237: the Domination lane opens the victory-progress panel (it covers Domination only, not world races). */
-  | { kind: 'open-victory-progress' };
+  | { kind: 'open-victory-progress' }
+  /** #1334: open the Diplomacy panel (tribute demands and agreements are answered and read there). */
+  | { kind: 'open-diplomacy' };
 
 export interface CouncilCard {
   id: string;

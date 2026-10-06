@@ -2,6 +2,8 @@ import type { AdvisorType, CouncilAgenda, CouncilCard, CouncilCardAction, Counci
 import { getMinorCivQuestPresentationForPlayer } from '@/systems/quest-presentation';
 import { getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentation';
 import { hasExploredCoord } from '@/systems/discovery-system';
+import { isDiplomaticRequestLive, PENDING_DIPLOMATIC_REQUEST_TTL_TURNS } from '@/systems/diplomacy-requests';
+import { isTributeContractLive } from '@/systems/diplomacy-tribute';
 import { mapNeighbors } from '@/systems/hex-utils';
 import { findReadyScoutUnitId } from '@/systems/scout-readiness';
 import {
@@ -193,6 +195,7 @@ const ACTION_LABEL: Record<CouncilCardAction['kind'], string> = {
   'open-wonder': 'Open wonder',
   'open-tech': 'Choose research',
   'open-victory-progress': 'View progress',
+  'open-diplomacy': 'Open Diplomacy',
 };
 
 function constraintCard(
@@ -225,6 +228,52 @@ function hasUnexploredFrontier(state: GameState, civId: string): boolean {
     }
   }
   return false;
+}
+
+/**
+ * #1334: tribute facts the viewer is party to, in plain language with the exact terms. Only the viewer's own demands
+ * and contracts appear (a third party's never does), and no strength figure is ever quoted.
+ */
+function getTributeCards(state: GameState, civId: string): CouncilCard[] {
+  const viewer = state.civilizations[civId];
+  if (!viewer) return [];
+  const cards: CouncilCard[] = [];
+  const nameOf = (id: string) => state.civilizations[id]?.name ?? 'A rival';
+  const rounds = (n: number) => `${n} round${n === 1 ? '' : 's'}`;
+  for (const request of state.pendingDiplomacyRequests ?? []) {
+    if (request.type !== 'tribute' || request.toCivId !== civId || !request.tribute || !isDiplomaticRequestLive(state, request)) continue;
+    const left = PENDING_DIPLOMATIC_REQUEST_TTL_TURNS - (state.turn - request.turnIssued);
+    cards.push({
+      id: `tribute-demand-${request.id}`,
+      advisor: 'chancellor',
+      bucket: 'do-now',
+      title: `${nameOf(request.fromCivId)} demands tribute`,
+      summary: `Accepting costs ${request.tribute.goldPerRound} gold per round for ${rounds(request.tribute.rounds)}. Refusing worsens relations but does not start a war automatically. It expires in ${left} turns.`,
+      why: 'A demand is an offer to avoid a fight. The Diplomacy panel shows both answers.',
+      priority: 65,
+      actionLabel: ACTION_LABEL['open-diplomacy'],
+      action: { kind: 'open-diplomacy' },
+    });
+  }
+  for (const treaty of viewer.diplomacy.treaties) {
+    if (treaty.type !== 'tribute' || !treaty.tribute || treaty.civA !== civId || !isTributeContractLive(state, treaty.tribute)) continue;
+    const paying = treaty.tribute.payerId === civId;
+    const other = paying ? treaty.tribute.demanderId : treaty.tribute.payerId;
+    cards.push({
+      id: `tribute-active-${paying ? 'paying' : 'receiving'}-${other}`,
+      advisor: 'treasurer',
+      bucket: 'soon',
+      title: paying ? `Paying tribute to ${nameOf(other)}` : `Receiving tribute from ${nameOf(other)}`,
+      summary: `${paying ? 'You pay' : 'You receive'} ${treaty.tribute.goldPerRound} gold per round. ${rounds(treaty.turnsRemaining)} remaining.`,
+      why: paying
+        ? 'The payment comes out of your treasury each round and ends on its own, or sooner if war or vassalage begins.'
+        : 'The payment ends on its own, or sooner if war or vassalage begins.',
+      priority: paying ? 36 : 22,
+      actionLabel: ACTION_LABEL['open-diplomacy'],
+      action: { kind: 'open-diplomacy' },
+    });
+  }
+  return cards;
 }
 
 function getVictoryLaneCards(assessment: StrategicAssessment): CouncilCard[] {
@@ -289,10 +338,16 @@ export function buildCouncilAgenda(state: GameState, civId: string): CouncilAgen
     break;
   }
 
-  const soon = assessment.constraints
-    .filter(constraint => !doNowKinds.has(constraint.kind))
-    .slice(0, MAX_SOON_CONSTRAINTS)
-    .map(constraint => constraintCard(state, constraint, 'soon'));
+  const tributeCards = getTributeCards(state, civId);
+  doNow.push(...tributeCards.filter(card => card.bucket === 'do-now'));
+
+  const soon = [
+    ...assessment.constraints
+      .filter(constraint => !doNowKinds.has(constraint.kind))
+      .slice(0, MAX_SOON_CONSTRAINTS)
+      .map(constraint => constraintCard(state, constraint, 'soon')),
+    ...tributeCards.filter(card => card.bucket === 'soon'),
+  ];
 
   const drama = getEventChainDramaCards(state, civId);
   if (drama.length === 0) {

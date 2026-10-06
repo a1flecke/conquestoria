@@ -223,6 +223,11 @@ export function createKnowledgePanelActionsController(
         openTechPanel();
         return;
       }
+      case 'open-diplomacy': {
+        deps.getElementById('council-panel')?.remove();
+        cross.openDiplomacyPanel();
+        return;
+      }
       case 'open-victory-progress': {
         deps.getElementById('council-panel')?.remove();
         deps.router.open('victory-progress');

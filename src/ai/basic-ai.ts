@@ -51,7 +51,8 @@ import { inviteToLeague } from '@/systems/diplomacy-leagues';
 import { getRelationship } from '@/systems/diplomacy-queries';
 import { getPendingPeaceRequestForPair, hasPendingTreatyProposalBetween } from '@/systems/diplomacy-requests';
 import { modifyRelationship, recordSpyCaught } from '@/systems/diplomacy-state';
-import { declareMajorWar, proposeTreatyAgreement, getAvailableActions, resolveDiplomaticAction } from '@/systems/diplomacy-system';
+import { applyDiplomaticAction, declareMajorWar, proposeTreatyAgreement, getAvailableActions, resolveDiplomaticAction } from '@/systems/diplomacy-system';
+import { chooseTributeDemandTarget } from './ai-tribute';
 import { hasArmsControlTreaty } from '@/systems/diplomacy-treaties';
 import { getVassalageEligibility, getVassalageMilitaryCount } from '@/systems/diplomacy-vassal-rules';
 import { proposeVassalage } from '@/systems/diplomacy-vassalage';
@@ -1340,6 +1341,14 @@ function processAITurnInternal(
       }
     }
 
+    {
+      // #1334: one generic tribute-demand candidate per round, through the same legality a human is asked. A target the
+      // civ is about to fight, make peace with or ally is never also coerced.
+      const handledTargets = new Set(decisions.map(decision => decision.targetCiv));
+      const tributeTarget = chooseTributeDemandTarget(newState, civId, perception, handledTargets);
+      if (tributeTarget) decisions.push({ action: 'demand_tribute', targetCiv: tributeTarget });
+    }
+
     for (const decision of decisions) {
       const currentDiplomacy = newState.civilizations[civId]?.diplomacy;
       if (!currentDiplomacy) {
@@ -1407,6 +1416,9 @@ function processAITurnInternal(
           newState = proposeTreatyAgreement(newState, civId, decision.targetCiv, decision.action, bus);
           break;
         }
+        case 'demand_tribute':
+          newState = applyDiplomaticAction(newState, civId, decision.targetCiv, 'demand_tribute', bus).state;
+          break;
       }
     }
 

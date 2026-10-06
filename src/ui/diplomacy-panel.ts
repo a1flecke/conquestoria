@@ -1,4 +1,5 @@
 import { createVassalageControls } from '@/ui/vassalage-controls';
+import { createTributeControls } from '@/ui/tribute-controls';
 import type { GameState, DiplomaticAction, SettlementTerm, TreatyType, WarGoalKind } from '@/core/types';
 import { getRelationship, isAtWar } from '@/systems/diplomacy-queries';
 import { getPendingPeaceRequestForPair, getPendingTreatyProposalsFor, PENDING_DIPLOMATIC_REQUEST_TTL_TURNS } from '@/systems/diplomacy-requests';
@@ -277,7 +278,8 @@ export function createDiplomacyPanel(
     }
 
     const treaties = playerDiplomacy.treaties
-      .filter(t => t.type !== 'vassalage' && (t.civB === civId || t.civA === civId))
+      // Vassalage and tribute have their own controls; neither can be broken like an ordinary treaty (#1334).
+      .filter(t => t.type !== 'vassalage' && t.type !== 'tribute' && (t.civB === civId || t.civA === civId))
       .map(t => ({
         label: t.type === 'arms_control_pact'
           ? `Arms Control Pact (cap: ${t.arsenalCap})`
@@ -628,6 +630,7 @@ export function createDiplomacyPanel(
         ${sendAidHtml}
         ${treatiesHtml}
         <div data-role="vassalage-${row.civIdx}"></div>
+        <div data-role="tribute-${row.civIdx}"></div>
         ${settlementOfferHtml}
         ${actionsHtml}
       </div>
@@ -694,6 +697,12 @@ export function createDiplomacyPanel(
 
   for (const row of civRows) {
     panel.querySelector(`[data-role="vassalage-${row.civIdx}"]`)?.append(createVassalageControls(state, row.civId, {
+      ...callbacks,
+      onAction: (target, action) => { panel.remove(); callbacks.onAction(target, action); },
+      onAcceptTreatyProposal: id => { panel.remove(); callbacks.onAcceptTreatyProposal?.(id); },
+      onDeclineTreatyProposal: id => { panel.remove(); callbacks.onDeclineTreatyProposal?.(id); },
+    }));
+    panel.querySelector(`[data-role="tribute-${row.civIdx}"]`)?.append(createTributeControls(state, row.civId, {
       ...callbacks,
       onAction: (target, action) => { panel.remove(); callbacks.onAction(target, action); },
       onAcceptTreatyProposal: id => { panel.remove(); callbacks.onAcceptTreatyProposal?.(id); },

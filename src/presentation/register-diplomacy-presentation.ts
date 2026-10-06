@@ -26,6 +26,10 @@ import {
   routeSettlementProposed,
   routeSettlementDeclined,
   routeSettlementSigned,
+  routeTributeDemanded,
+  routeTributeAccepted,
+  routeTributeRefused,
+  routeTributeEnded,
 } from '@/ui/notification-routes/diplomacy-routes';
 
 export const registerDiplomacyPresentation: PresentationRegistrar = (bus, ctx) => {
@@ -83,6 +87,18 @@ export const registerDiplomacyPresentation: PresentationRegistrar = (bus, ctx) =
     }),
     bus.on('diplomacy:settlement-signed', event => {
       routeSettlementSigned(ctx.session.getState(), event, ctx.notifier.deliver);
+    }),
+    bus.on('diplomacy:tribute-demanded', event => {
+      routeTributeDemanded(ctx.session.getState(), event, ctx.notifier.deliver);
+    }),
+    bus.on('diplomacy:tribute-accepted', event => {
+      routeTributeAccepted(ctx.session.getState(), event, ctx.notifier.deliver);
+    }),
+    bus.on('diplomacy:tribute-refused', event => {
+      routeTributeRefused(ctx.session.getState(), event, ctx.notifier.deliver);
+    }),
+    bus.on('diplomacy:tribute-ended', event => {
+      routeTributeEnded(ctx.session.getState(), event, ctx.notifier.deliver);
     }),
     bus.on('minor-civ:league-changed', event => {
       ctx.notifier.withHappenedTurn(event.happenedTurn, () => {

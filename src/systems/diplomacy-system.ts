@@ -39,7 +39,7 @@ import {
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { hasMetCivilization } from '@/systems/discovery-system';
 import { hasKnownStrategicCapability, hasManhattanProject } from '@/systems/strategic-arsenal-system';
-import { evaluatePeaceConsent, evaluateTreatyConsent, type AgreementKind } from '@/ai/ai-treaty-consent';
+import { evaluatePeaceConsent, evaluateTreatyConsent, evaluateTributeConsent, type AgreementKind } from '@/ai/ai-treaty-consent';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { getRelationship, isAtWar, hasTreatyBetween } from '@/systems/diplomacy-queries';
 import { commitTreatyAgreement, hasArmsControlTreaty } from '@/systems/diplomacy-treaties';
@@ -65,7 +65,8 @@ import {
   isVassalBlocked,
 } from '@/systems/diplomacy-vassal-rules';
 import { declareMajorWar, makeMajorPeace, resolveOpponentKind } from '@/systems/diplomacy-war';
-import { acceptTributeDemand, refuseTributeDemand } from '@/systems/diplomacy-tribute';
+import { acceptTributeDemand, demandTribute, getTributeDemandEligibility, refuseTributeDemand } from '@/systems/diplomacy-tribute';
+import { buildViewerMilitaryIntel, estimatePerceivedCivStrength } from '@/systems/diplomatic-strength';
 import {
   commitVassalageAgreement,
   defendVassal,
@@ -83,6 +84,21 @@ export {
   type DiplomacyActionContext,
   type DiplomaticActionDenialReason,
 } from '@/systems/diplomacy-actions';
+
+/**
+ * #1334: an AI target's answer to a tribute demand, from its OWN perception of the demander (its visible and remembered
+ * units, with the same uncertainty bounds), compared with its own strength. Never reads the demander's real army.
+ */
+function decideTributeAsAI(state: GameState, targetId: string, demanderId: string): { accepted: boolean } {
+  const target = state.civilizations[targetId];
+  if (!target) return { accepted: false };
+  const intel = buildViewerMilitaryIntel(state, targetId);
+  const era = resolveCivilizationEra(target.techState.completed);
+  return evaluateTributeConsent({
+    demanderEstimate: estimatePerceivedCivStrength(intel, demanderId, era),
+    ownStrength: estimatePerceivedCivStrength(intel, targetId, era).midpoint,
+  });
+}
 
 export function proposeTreatyAgreement(state: GameState, fromCivId: string, toCivId: string, kind: AgreementKind, bus: EventBus): GameState {
   const from = state.civilizations[fromCivId];
@@ -173,7 +189,7 @@ export type DiplomaticActionEligibility =
 
 /** Actions that write a treaty or war record: never against a civ the actor has not met (#435). */
 const ACTIONS_REQUIRING_CONTACT: ReadonlySet<DiplomaticAction> = new Set<DiplomaticAction>([
-  'declare_war', 'non_aggression_pact', 'trade_agreement', 'open_borders', 'alliance', 'arms_control_pact',
+  'declare_war', 'non_aggression_pact', 'trade_agreement', 'open_borders', 'alliance', 'arms_control_pact', 'demand_tribute',
 ]);
 
 /**
@@ -224,6 +240,11 @@ export function resolveDiplomaticAction(
       return hasActiveVassalage(state, targetCivId, actorId) ? { ok: true } : deny('not-available');
     case 'reabsorb_breakaway':
       return canReabsorbBreakaway(state, actorId, targetCivId) ? { ok: true } : deny('not-available');
+    case 'demand_tribute': {
+      // #1334: the tribute rule owns its own legality (it needs the demander's viewer-safe intel, not just a diplomacy ledger).
+      const tribute = getTributeDemandEligibility(state, actorId, targetCivId);
+      return tribute.ok ? { ok: true } : deny(tribute.reason);
+    }
     default:
       // Embargo / league actions: removed from the offer surface in #998 / #1030 and never had an execution path.
       return deny('not-available');
@@ -290,6 +311,16 @@ export function applyDiplomaticAction(
     case 'alliance':
     case 'arms_control_pact':
       return done(proposeTreatyAgreement(state, actorId, targetCivId, action, bus));
+    case 'demand_tribute': {
+      const demand = demandTribute(state, actorId, targetCivId, bus);
+      if (!demand.ok) return { ok: false, state, reason: demand.reason };
+      // A human target answers later through the request flow; an AI answers now from its own perception.
+      if (target.isHuman) return done(demand.state);
+      const answered = decideTributeAsAI(demand.state, targetCivId, actorId).accepted
+        ? acceptTributeDemand(demand.state, targetCivId, demand.request.id, bus)
+        : refuseTributeDemand(demand.state, targetCivId, demand.request.id, bus);
+      return done(answered.ok ? answered.state : demand.state);
+    }
     case 'reabsorb_breakaway': {
       const cityId = target.breakaway?.originCityId;
       const nextState = tryReabsorbBreakaway(state, actorId, targetCivId, bus);

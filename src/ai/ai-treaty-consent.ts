@@ -82,11 +82,33 @@ export function evaluateTreatyConsent(input: TreatyConsentInput): TreatyConsent 
   }
 }
 
+/** A civ whose own strength is below this fraction of its counterpart's sees itself as outmatched (peace and tribute). */
+export const OUTMATCHED_STRENGTH_RATIO = 0.7;
+
+export interface TributeConsentInput {
+  /** The target's own perception of the demander's strength (never the demander's real roster). */
+  demanderEstimate: { hasUsableObservation: boolean; uncertaintyLower: number };
+  /** The target's own strength: its own units are not hidden from itself. */
+  ownStrength: number;
+}
+
+/**
+ * An AI target yields to a tribute demand only when, from what it can itself see, the demander is clearly stronger:
+ * its own strength is under 70% of the demander's conservative (lower-bound) strength. A demander it has never
+ * observed gives it no reason to yield, so the answer is no; the demand itself reveals nothing about the demander's army.
+ * Personality and difficulty do not enter.
+ */
+export function evaluateTributeConsent(input: TributeConsentInput): { accepted: boolean } {
+  const { demanderEstimate, ownStrength } = input;
+  if (!demanderEstimate.hasUsableObservation || demanderEstimate.uncertaintyLower <= 0) return { accepted: false };
+  return { accepted: ownStrength < demanderEstimate.uncertaintyLower * OUTMATCHED_STRENGTH_RATIO };
+}
+
 export function evaluatePeaceConsent(input: TreatyConsentInput): TreatyConsent {
   const outmatched =
     input.targetVisibleStrength !== undefined
     && input.proposerVisibleStrength !== undefined
-    && input.targetVisibleStrength < input.proposerVisibleStrength * 0.7;
+    && input.targetVisibleStrength < input.proposerVisibleStrength * OUTMATCHED_STRENGTH_RATIO;
   return outmatched || input.relationship > -20
     ? { accepted: true }
     : { accepted: false, reason: 'peace-not-acceptable' };
