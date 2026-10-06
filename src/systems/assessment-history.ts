@@ -11,6 +11,7 @@
 // digest can never reach another seat's section. A digest only ever holds the viewer's own
 // assessment (bucketed), so it carries no rival facts to leak.
 import type { AssessmentDigest, GameState } from '@/core/types';
+import { STRATEGIC_CONSTRAINT_KINDS } from '@/core/types';
 import {
   buildAssessmentDigest,
   buildStrategicAssessment,
@@ -18,7 +19,7 @@ import {
   type AssessmentChange,
 } from '@/systems/strategic-assessment';
 
-const CONSTRAINT_KINDS: ReadonlySet<string> = new Set(['food', 'production', 'science', 'gold', 'unrest', 'supply', 'blockade']);
+const CONSTRAINT_KINDS: ReadonlySet<string> = new Set<string>(STRATEGIC_CONSTRAINT_KINDS);
 const VICTORY_STAGES: ReadonlySet<string> = new Set(['not-started', 'building', 'competitive', 'leading', 'at-risk']);
 const SEVERITY_BUCKETS: ReadonlySet<string> = new Set(['low', 'mid', 'high']);
 

@@ -32,6 +32,7 @@ import type {
 import { majorCivWarOpponentIds } from '@/core/owner-kind';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { getBlockadedCityIds } from '@/systems/blockade-system';
+import { CONSTRAINT_KIND_ORDER, STRATEGIC_CONSTRAINT_PRESENTATION } from '@/systems/strategic-constraint-presentation';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { hasMetCivilization } from '@/systems/discovery-system';
 import { projectDominationProgressForViewer } from '@/systems/domination-presentation';
@@ -46,11 +47,6 @@ import { getWorldRacePresentationForViewer } from '@/systems/world-race-presenta
 
 // The unions live in `core/types` so the persisted digest can name them; re-exported for callers.
 export type { StrategicConstraintKind, VictoryStage };
-
-/** Tie-break order, most pressing kind first. */
-const CONSTRAINT_KIND_ORDER: readonly StrategicConstraintKind[] = [
-  'unrest', 'blockade', 'gold', 'supply', 'food', 'production', 'science',
-];
 
 export const MAX_STRATEGIC_CONSTRAINTS = 5;
 
@@ -389,16 +385,6 @@ export interface AssessmentChange {
   changedBecause: string;
 }
 
-const CONSTRAINT_KIND_LABEL: Record<StrategicConstraintKind, string> = {
-  food: 'Food',
-  production: 'Production',
-  science: 'Research',
-  gold: 'The treasury',
-  unrest: 'Unrest',
-  supply: 'Army supply',
-  blockade: 'The blockade',
-};
-
 const STAGE_PHRASE: Record<VictoryStage, string> = {
   'not-started': 'not started',
   building: 'under way',
@@ -460,7 +446,7 @@ export function diffAssessment(
       .sort((a, b) => CONSTRAINT_KIND_ORDER.indexOf(a.kind) - CONSTRAINT_KIND_ORDER.indexOf(b.kind))
       .map(constraint => ({
         kind: 'resolved' as const,
-        title: `${CONSTRAINT_KIND_LABEL[constraint.kind]} is no longer a concern`,
+        title: `${STRATEGIC_CONSTRAINT_PRESENTATION[constraint.kind].label} is no longer a concern`,
         changedBecause: 'The Council no longer sees it holding your empire back.',
       }));
 

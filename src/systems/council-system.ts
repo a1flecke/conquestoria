@@ -1,7 +1,8 @@
-import type { AdvisorType, CouncilAgenda, CouncilCard, CouncilCardAction, CouncilInterrupt, CouncilTalkLevel, GameState } from '@/core/types';
+import type { CouncilAgenda, CouncilCard, CouncilCardAction, CouncilInterrupt, CouncilTalkLevel, GameState } from '@/core/types';
 import { getMinorCivQuestPresentationForPlayer } from '@/systems/quest-presentation';
 import { getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentation';
 import { hasExploredCoord } from '@/systems/discovery-system';
+import { STRATEGIC_CONSTRAINT_PRESENTATION } from '@/systems/strategic-constraint-presentation';
 import { isDiplomaticRequestLive, PENDING_DIPLOMATIC_REQUEST_TTL_TURNS } from '@/systems/diplomacy-requests';
 import { isTributeContractLive } from '@/systems/diplomacy-tribute';
 import { mapNeighbors } from '@/systems/hex-utils';
@@ -10,7 +11,6 @@ import {
   buildStrategicAssessment,
   type StrategicAssessment,
   type StrategicConstraint,
-  type StrategicConstraintKind,
 } from '@/systems/strategic-assessment';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 import {
@@ -168,27 +168,6 @@ const MAX_DO_NOW_CONSTRAINTS = 3;
 const MAX_SOON_CONSTRAINTS = 2;
 export const SURVEY_FRONTIER_CARD_ID = 'survey-frontier';
 
-const CONSTRAINT_ADVISOR: Record<StrategicConstraintKind, AdvisorType> = {
-  food: 'treasurer',
-  gold: 'treasurer',
-  production: 'builder',
-  science: 'scholar',
-  unrest: 'chancellor',
-  supply: 'warchief',
-  blockade: 'warchief',
-};
-
-/** Why the player should care, per constraint kind. Each line states only what the game really does. */
-const CONSTRAINT_WHY: Record<StrategicConstraintKind, string> = {
-  food: 'Food keeps growth alive. A city that cannot grow stops adding output.',
-  production: 'A stalled queue wastes turns the empire could spend building.',
-  science: 'Research unlocks every new unit, building and wonder.',
-  gold: 'Unpaid upkeep keeps draining the treasury until income catches up.',
-  unrest: 'Unrest cuts a city\'s output and can spread to its neighbours.',
-  supply: 'Units without supply grow weaker until they return to friendly ground.',
-  blockade: 'It lasts until the hostile warships leave, a warship of yours contests the waters, or the war ends.',
-};
-
 /** Button copy states what happens. Exhaustive over the action union, so a new kind cannot ship unlabelled. */
 const ACTION_LABEL: Record<CouncilCardAction['kind'], string> = {
   scout: 'Scout',
@@ -209,11 +188,11 @@ function constraintCard(
   const hint = constraint.kind === 'food' && focusCity ? ` ${getFoodRecommendation(focusCity)}` : '';
   return {
     id: `constraint-${constraint.kind}`,
-    advisor: CONSTRAINT_ADVISOR[constraint.kind],
+    advisor: STRATEGIC_CONSTRAINT_PRESENTATION[constraint.kind].advisor,
     bucket,
     title: constraint.title,
     summary: `${constraint.why}${hint}`,
-    why: CONSTRAINT_WHY[constraint.kind],
+    why: STRATEGIC_CONSTRAINT_PRESENTATION[constraint.kind].why,
     priority: constraint.severity,
     ...(constraint.destination
       ? { actionLabel: ACTION_LABEL[constraint.destination.kind], action: constraint.destination }
@@ -233,8 +212,12 @@ function hasUnexploredFrontier(state: GameState, civId: string): boolean {
 }
 
 /**
- * #1334: tribute facts the viewer is party to, in plain language with the exact terms. Only the viewer's own demands
- * and contracts appear (a third party's never does), and no strength figure is ever quoted.
+ * #1334: tribute facts the viewer is party to. These are SPECIALISED cards on purpose (see
+ * `strategic-constraint-presentation.ts`): an incoming demand needs an answer and an active contract is an agreement, not an
+ * ongoing condition hurting the empire, so neither belongs among the constraints.
+ *
+ * Each card states the exact terms in plain language. Only the viewer's own demands and contracts appear (a third
+ * party's never does), and no strength figure is ever quoted.
  */
 function getTributeCards(state: GameState, civId: string): CouncilCard[] {
   const viewer = state.civilizations[civId];
