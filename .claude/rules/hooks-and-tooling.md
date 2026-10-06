@@ -51,6 +51,7 @@ Declared rules, each with a failing fixture in `tests/hooks/agent-policy-parity.
 - `scripts-exist` — referenced `scripts/<file>` paths and `yarn <script>` names exist.
 - `no-pattern-kill` — no instruction to `pkill`/`killall`/`kill $(pgrep …)` (prohibitions and OpenCode `deny` rules are allowed).
 - `canonical-list` — `AGENTS.md` names `CLAUDE.md` + `.claude/rules/` as canonical, and every `.claude/rules/*.md` file is listed in `CLAUDE.md` → `## Rules Index`.
+- `required-gates-defer-to-impact` (#1362) — prose must not itself require a command that `scripts/data/verification-impact.json` gates (non-baseline evidence or an optional diagnostic) unless the paragraph points at `yarn verify:impact`. The map decides what is required; prose explains why. `verify:impact` also validates the map as a contract: every non-baseline evidence entry is required by some rule, every durable runner carries its `:status` readback (so a same-`HEAD` proof is read, not re-run), and every policy surface or section a rule/diagnostic cites still exists.
 
 **Add a rule** by appending one entry to `RULES` in the script (`id` + `check`), adding a failing fixture to the hook test, and setting `scope: 'repo'` when the rule is repo-wide rather than per-file. Code is authoritative for the exact checks; do not duplicate the rule table in prose.
 

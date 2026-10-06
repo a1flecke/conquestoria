@@ -4,7 +4,8 @@
 // The required evidence for a change is scattered across CLAUDE.md, AGENTS.md and
 // .claude/rules/*. This tool reads scripts/data/verification-impact.json (ordered,
 // reviewable rules that each cite the canonical policy source in `why`) and prints
-// the de-duplicated union of required evidence with concrete commands.
+// the de-duplicated union of required evidence with concrete commands. It is THE required-evidence contract
+// (#1362): prose explains, this decides; optional `diagnostics` are listed separately and never required.
 //
 // It reports requirements; it never runs them, never launches heavy tests, and
 // does not bypass the host scheduler (#1166). Durable proof reuse is #1233.
@@ -67,10 +68,18 @@ function loadConfig() {
   if (!Array.isArray(config.evidence) || !Array.isArray(config.rules) || !Array.isArray(config.baseline)) {
     throw new Error(`${CONFIG_PATH}: expect evidence[], rules[] and baseline[]`);
   }
+  config.diagnostics ??= [];
+  if (!Array.isArray(config.diagnostics)) throw new Error(`${CONFIG_PATH}: diagnostics must be an array`);
   const ids = new Set(config.evidence.map(entry => entry.id));
   if (ids.size !== config.evidence.length) throw new Error(`${CONFIG_PATH}: duplicate evidence id`);
   const referenced = [...config.baseline, ...config.rules.flatMap(rule => rule.require ?? [])];
   for (const id of referenced) if (!ids.has(id)) throw new Error(`${CONFIG_PATH}: unknown evidence id "${id}"`);
+  const diagnosticIds = new Set(config.diagnostics.map(entry => entry.id));
+  if (diagnosticIds.size !== config.diagnostics.length) throw new Error(`${CONFIG_PATH}: duplicate diagnostic id`);
+  for (const id of diagnosticIds) if (ids.has(id)) throw new Error(`${CONFIG_PATH}: "${id}" is both required evidence and a diagnostic`);
+  for (const id of config.rules.flatMap(rule => rule.suggest ?? [])) {
+    if (!diagnosticIds.has(id)) throw new Error(`${CONFIG_PATH}: rule suggests unknown diagnostic "${id}"`);
+  }
   return config;
 }
 
@@ -96,6 +105,51 @@ function evidenceProblems(config) {
       for (const match of withoutPlaceholders.matchAll(/\byarn\s+([A-Za-z0-9:_-]+)/g)) {
         if (!scripts.has(match[1])) problems.push(`${entry.id}: command references missing package script "yarn ${match[1]}"`);
       }
+    }
+  }
+  return problems;
+}
+
+/**
+ * #1362: the contract must not rot. Evidence nobody requires is an obsolete machine rule; a durable runner without its
+ * `:status` readback would invite a duplicate heavyweight run; a policy surface a rule cites must still exist (and a
+ * diagnostic's cited heading must still be in it), so renaming or deleting the prose cannot leave the map lying.
+ */
+const DURABLE_RUNNERS = [/yarn\s+test:durable(?!:)/, /yarn\s+test:ai-long(?!:)/, /yarn\s+test:ai-playability(?!:)/];
+function contractProblems(config) {
+  const problems = [];
+  const required = new Set([...config.baseline, ...config.rules.flatMap(rule => rule.require ?? [])]);
+  for (const entry of config.evidence) {
+    if (!required.has(entry.id)) problems.push(`${entry.id}: evidence is not baseline and no rule requires it (obsolete machine rule)`);
+  }
+  for (const entry of [...config.evidence, ...config.diagnostics]) {
+    const commands = entry.commands ?? [];
+    for (const runner of DURABLE_RUNNERS) {
+      const runnerCommand = commands.find(command => runner.test(command));
+      if (!runnerCommand) continue;
+      const status = runnerCommand.match(runner)[0].trim() + ':status';
+      if (!commands.some(command => command.includes(status))) {
+        problems.push(`${entry.id}: durable command "${runnerCommand}" has no ${status} readback, so a proof could not be reused`);
+      }
+    }
+  }
+  const surfaces = /(?<![\w./-])(CLAUDE\.md|AGENTS\.md|\.claude\/rules\/[A-Za-z0-9._-]+\.md)/g;
+  const cited = [
+    ...config.evidence.map(entry => [entry.id, entry.why]),
+    ...config.rules.map(rule => [rule.id, rule.why]),
+    ...config.diagnostics.map(entry => [entry.id, entry.source ?? '']),
+  ];
+  for (const [id, text] of cited) {
+    for (const match of String(text ?? '').matchAll(surfaces)) {
+      if (!existsSync(join(REPO_ROOT, match[1]))) problems.push(`${id}: cites policy surface "${match[1]}" which no longer exists`);
+    }
+  }
+  for (const entry of config.diagnostics) {
+    if (!entry.when || !entry.source) problems.push(`${entry.id}: a diagnostic must say when it is useful and cite its source`);
+    const heading = String(entry.source ?? '').match(/^(\S+\.md)\s*→\s*(.+)$/);
+    if (heading && existsSync(join(REPO_ROOT, heading[1]))) {
+      const body = readFileSync(join(REPO_ROOT, heading[1]), 'utf8').toLowerCase();
+      if (!body.includes(heading[2].trim().toLowerCase())) problems.push(`${entry.id}: "${heading[1]}" no longer contains the cited section "${heading[2].trim()}"`);
     }
   }
   return problems;
@@ -237,6 +291,16 @@ function concreteCommands(entry, changed, mirrors) {
       .replace('<mirrored test files>', mirrorFiles.length ? mirrorFiles.join(' ') : '<smallest relevant test>'));
 }
 
+function suggestedDiagnostics(config, changed) {
+  const wanted = new Set();
+  for (const rule of config.rules) {
+    if (changed.some(change => ruleApplies(rule, change))) for (const id of rule.suggest ?? []) wanted.add(id);
+  }
+  return config.diagnostics
+    .filter(entry => wanted.has(entry.id))
+    .map(entry => ({ id: entry.id, commands: entry.commands ?? [], when: entry.when }));
+}
+
 function main() {
   let config;
   try {
@@ -246,9 +310,9 @@ function main() {
     process.exit(2);
   }
 
-  const validation = evidenceProblems(config);
+  const validation = [...evidenceProblems(config), ...contractProblems(config)];
   if (validation.length > 0) {
-    console.error(`verify:impact: impact map references commands that do not exist:`);
+    console.error(`verify:impact: the impact map is not a valid verification contract:`);
     for (const problem of validation) console.error(`  - ${problem}`);
     process.exit(2);
   }
@@ -260,8 +324,10 @@ function main() {
     .filter(entry => required.has(entry.id))
     .map(entry => ({ id: entry.id, commands: concreteCommands(entry, changed, mirrors), why: entry.why }));
 
+  const diagnostics = suggestedDiagnostics(config, changed);
+
   if (JSON_OUT) {
-    console.log(JSON.stringify({ base: BASE, changed, evidence, mirroredTests: mirrors }, null, 2));
+    console.log(JSON.stringify({ base: BASE, changed, evidence, diagnostics, mirroredTests: mirrors }, null, 2));
     return;
   }
 
@@ -278,6 +344,15 @@ function main() {
     console.log(`  [${entry.id}]`);
     for (const command of entry.commands) console.log(`      ${command}`);
     console.log(`      why: ${entry.why}`);
+  }
+  if (diagnostics.length > 0) {
+    console.log('');
+    console.log(`Optional diagnostics (${diagnostics.length}) — NOT required, not a merge gate:`);
+    for (const entry of diagnostics) {
+      console.log(`  [${entry.id}]`);
+      for (const command of entry.commands) console.log(`      ${command}`);
+      console.log(`      when: ${entry.when}`);
+    }
   }
 }
 

@@ -89,6 +89,45 @@ function packageScripts() {
   }
 }
 
+// #1362: the one required-evidence contract is scripts/data/verification-impact.json (`yarn verify:impact`). Prose may
+// explain why a gate exists, but it must not itself require a gated command: a sentence that does, without pointing at
+// `verify:impact`, is a second (possibly conflicting) required-gate matrix. Baseline commands (build, durable full) are
+// the map's own always-required evidence and may be stated as such.
+function impactMap() {
+  const path = abs('scripts/data/verification-impact.json');
+  if (!existsSync(path)) return null;
+  try {
+    return JSON.parse(readFileSync(path, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+/** `yarn test:ai-long`, `scripts/validate-unit-sfx.sh`, ... : the subject of a command after the mise wrapper. */
+function commandSubject(command) {
+  const stripped = command.replace(/^\.\/scripts\/run-with-mise\.sh\s+/, '').replace(/<[^>]*>/g, '').trim();
+  const match = stripped.match(/^(yarn\s+[\w:.-]+|node\s+scripts\/[\w.-]+|scripts\/[\w.-]+)/);
+  return match ? match[1].replace(/^node\s+/, '').replace(/:status$/, '') : null;
+}
+
+// A gate the map owns but that is NOT baseline: stating it as required in prose is the contradiction.
+function gatedCommands(map) {
+  const baseline = new Set(map.baseline ?? []);
+  const gated = new Map();
+  const add = (entry, kind) => {
+    for (const command of entry.commands ?? []) {
+      const subject = commandSubject(command);
+      // `yarn test` is the generic runner (every mirrored test uses it), not a gate of its own.
+      if (subject && subject !== 'yarn test') gated.set(subject, `${kind} "${entry.id}"`);
+    }
+  };
+  for (const entry of map.evidence ?? []) if (!baseline.has(entry.id)) add(entry, 'evidence');
+  for (const entry of map.diagnostics ?? []) add(entry, 'diagnostic');
+  return gated;
+}
+
+const REQUIREMENT_PHRASE = /(before declaring|before you declare|before (?:you )?(?:push|pr|merge|finish|report)|always run|must run|\bis required\b|\bare required\b|required before|run it after|\bmust be run\b|never skip)/i;
+
 function ruleFiles() {
   const dir = abs('.claude/rules');
   if (!existsSync(dir) || !statSync(dir).isDirectory()) return [];
@@ -164,6 +203,34 @@ const RULES = [
         const line = lineAt(text, match.index);
         if (prohibitedAt(lines, line)) continue;
         problems.push({ line, detail: `instructs \`${match[0].trim()}\`; stop only a recorded numeric pid (see yarn verify:stop)` });
+      }
+      return problems;
+    },
+  },
+  {
+    id: 'required-gates-defer-to-impact',
+    summary: 'prose must not require a gated command itself; `yarn verify:impact` (scripts/data/verification-impact.json) owns required evidence',
+    check(_file, text) {
+      const map = impactMap();
+      if (!map) return [];
+      const gated = gatedCommands(map);
+      const problems = [];
+      let line = 1;
+      for (const paragraph of text.split(/\n\s*\n/)) {
+        const startLine = line;
+        line += paragraph.split('\n').length + 1;
+        if (/verify[:-]impact/.test(paragraph)) continue;
+        for (const sentence of paragraph.replace(/\s+/g, ' ').split(/(?<=[.!?:])\s+/)) {
+          if (!REQUIREMENT_PHRASE.test(sentence)) continue;
+          for (const [subject, owner] of gated) {
+            if (sentence.includes(subject)) {
+              problems.push({
+                line: startLine,
+                detail: `states \`${subject}\` as required, but it is ${owner} in the impact map: point at \`yarn verify:impact\` instead of defining a second gate`,
+              });
+            }
+          }
+        }
       }
       return problems;
     },

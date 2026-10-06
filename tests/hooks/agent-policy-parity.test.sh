@@ -90,4 +90,36 @@ expect_ok "$d" canonical-list CLAUDE.md 'fully indexed rule tree'
 printf '# Two\n' > "$d/.claude/rules/two.md"
 expect_fail "$d" canonical-list CLAUDE.md 'missing from the Rules Index' 'new unindexed rule file'
 
+# required-gates-defer-to-impact (#1362): prose may not require a command the impact map owns; it must point at verify:impact
+d="$tmp/impact"; mk_repo "$d"
+mkdir -p "$d/scripts/data"
+cat > "$d/scripts/data/verification-impact.json" <<'JSON'
+{
+  "schema": 1,
+  "baseline": ["build"],
+  "evidence": [
+    { "id": "build", "commands": ["./scripts/run-with-mise.sh yarn build"], "why": "fixture" },
+    { "id": "hooks", "commands": ["./scripts/run-with-mise.sh yarn test:hooks"], "why": "fixture" }
+  ],
+  "diagnostics": [
+    { "id": "campaign", "commands": ["scripts/real.sh"], "when": "sometimes", "source": "AGENTS.md" }
+  ],
+  "rules": [{ "id": "h", "match": [".claude/hooks/**"], "require": ["hooks"], "why": "fixture" }]
+}
+JSON
+printf '#!/bin/sh\n' > "$d/scripts/real.sh"
+cat > "$d/package.json" <<'JSON'
+{ "scripts": { "build": "x", "test": "y", "test:hooks": "z" } }
+JSON
+printf 'Always run `./scripts/run-with-mise.sh yarn test:hooks` before declaring complete.\n' > "$d/fixture.md"
+expect_fail "$d" required-gates-defer-to-impact fixture.md 'second gate' 'prose requiring a gated command on its own authority'
+printf 'You must run `scripts/real.sh` before you finish.\n' > "$d/fixture.md"
+expect_fail "$d" required-gates-defer-to-impact fixture.md 'diagnostic' 'prose requiring an optional diagnostic'
+printf 'Run `yarn verify:impact`; it lists what is required. For hook edits that includes `yarn test:hooks`, which must be run before you push.\n' > "$d/fixture.md"
+expect_ok "$d" required-gates-defer-to-impact fixture.md 'prose that defers to verify:impact'
+printf 'Run `./scripts/run-with-mise.sh yarn build` before any push; it is always required.\n' > "$d/fixture.md"
+expect_ok "$d" required-gates-defer-to-impact fixture.md 'a baseline command stated as always required'
+printf 'The hooks suite (`yarn test:hooks`) exercises the hook scripts and is useful when you edit them.\n' > "$d/fixture.md"
+expect_ok "$d" required-gates-defer-to-impact fixture.md 'prose that merely describes a gated command'
+
 echo ok

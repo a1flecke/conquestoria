@@ -272,6 +272,8 @@ When writing or updating implementation plans for interactive UI, queueing, or r
 
 Run `./scripts/run-with-mise.sh yarn verify:impact` to list the evidence a given change requires before you run it (it reports requirements; it never launches them).
 
+**`verify:impact` is the single executable verification contract (#1362).** Its map, `scripts/data/verification-impact.json`, decides which evidence is *required*; this file, `CLAUDE.md` and `.claude/rules/**` explain why that evidence exists and must not define a second required-gate matrix (`scripts/check-agent-policy-parity.mjs` fails a prose requirement for a gated command the map does not own). What the map lists under "Optional diagnostics" is useful, never required, and never a merge gate. Durable evidence stays reusable: read a runner's `:status` for the same `HEAD` before launching it again.
+
 If a push or long-running verification returns incomplete output, treat it as
 **incomplete**, not successful: preserve its terminal session ID, inspect the live process,
 and poll that same session until it supplies an exit code and normal completion summary.
