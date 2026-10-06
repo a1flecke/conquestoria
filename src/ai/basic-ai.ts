@@ -80,6 +80,12 @@ import { appeaseFaction } from '@/systems/faction-commands';
 import { setFederalismStance, canToggleFederalism, FEDERALISM_TECH_ID } from '@/systems/faction-federalism';
 import { getUnrestPressureBreakdown, computeUnrestPressure } from '@/systems/faction-pressure';
 import { getEconomyStatusForCiv } from '@/systems/economy-system';
+import { UNREST_TRIGGER_PRESSURE } from '@/systems/faction-unrest-model';
+import {
+  getProjectedCityLevyUnrestAmount,
+  isCityHeldByRecentConquest,
+  setCityLevy,
+} from '@/systems/city-levy-system';
 import { GOVERNANCE_POLICY_DEFINITIONS } from '@/systems/governance-policy-definitions';
 import { setGovernancePolicy, isGovernancePolicyActive, canToggleGovernancePolicy } from '@/systems/governance-policy-system';
 import { getGovernanceCapacity, getGovernanceLoad, GOVERNOR_LOAD_COST } from '@/systems/governance-capacity';
@@ -702,6 +708,13 @@ function processAITurnInternal(
     if (city.focus === desiredFocus) continue;
     newState = assignCityFocus(newState, cityId, desiredFocus).state;
   }
+  civ = newState.civilizations[civId];
+
+  // #1338: a bounded Imperial Levy policy on cities held by recent conquest. Uses
+  // the one canonical command and only this civ's own/current information. Only
+  // recently-conquered cities are inspected, so this adds no per-round scan cost to
+  // an already-settled empire.
+  newState = applyAiCityLevyPolicy(newState, civId);
   civ = newState.civilizations[civId];
 
   // Strategic movement is plan-driven, while settlement remains a shared
@@ -2032,5 +2045,38 @@ export function chooseAiMission(
     if (available.includes(mission)) return mission;
   }
   return available[0];
+}
+
+/**
+ * #1338: the AI's Imperial Levy policy. Pure, owned/current information only,
+ * difficulty-independent, and expressed through the one canonical command.
+ *
+ * Considers the light levy on a city held by recent conquest when the civ is under
+ * real gold pressure and the city's post-levy unrest would stay safely below the
+ * trigger threshold. Ends it when that margin becomes unsafe or the gold need
+ * passes. Only recently-conquered cities are inspected.
+ */
+export function applyAiCityLevyPolicy(state: GameState, civId: string): GameState {
+  const civ = state.civilizations[civId];
+  if (!civ) return state;
+  let nextState = state;
+  const goldPressure = getEconomyStatusForCiv(nextState, civId).strainLevel !== 'none';
+  for (const cityId of civ.cities) {
+    const city = nextState.cities[cityId];
+    if (!city) continue;
+    const levied = city.levy === 'light';
+    if (!levied && !isCityHeldByRecentConquest(city, nextState)) continue;
+    const currentPressure = computeUnrestPressure(cityId, nextState);
+    const projectedPressure = levied
+      ? currentPressure
+      : currentPressure + getProjectedCityLevyUnrestAmount(nextState, city);
+    const unrestSafe = projectedPressure < UNREST_TRIGGER_PRESSURE - 4;
+    const shouldLevy = !levied && goldPressure && unrestSafe;
+    const shouldEnd = levied && (!unrestSafe || !goldPressure);
+    if (!shouldLevy && !shouldEnd) continue;
+    const result = setCityLevy(nextState, { cityId, actorId: civId, enabled: shouldLevy });
+    if (result.ok) nextState = result.state;
+  }
+  return nextState;
 }
 

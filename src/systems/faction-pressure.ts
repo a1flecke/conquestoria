@@ -14,6 +14,8 @@ import { majorCivWarOpponentIds } from '../core/owner-kind';
 import { GOVERNANCE_POLICY_DEFINITIONS } from './governance-policy-definitions';
 import { GOVERNOR_UNREST_RELIEF } from './governor-system';
 import { getUnrestReliefRows } from './faction-relief';
+import { getCityLevyUnrestAmount } from './city-levy-system';
+import { getOwnedCityCount } from './city-ownership';
 import {
   CONQUEST_UNREST_DURATION,
   MAX_PRESSURE_DISTANCE,
@@ -56,7 +58,7 @@ export function getUnrestPressureBreakdown(
   const rows: UnrestPressureRow[] = [];
 
   // Empire overextension: each city over OVEREXTENSION_FREE_CITIES adds 3 pressure
-  const cityCount = civ.cities.length;
+  const cityCount = getOwnedCityCount(state, owner);
   const overextension = Math.min(MAX_PRESSURE_EMPIRE, Math.max(0, (cityCount - OVEREXTENSION_FREE_CITIES) * 3));
   if (overextension > 0) rows.push({ label: 'Empire overextension', amount: overextension });
 
@@ -74,6 +76,13 @@ export function getUnrestPressureBreakdown(
       const hasConstitutionalLaw = civ.techState.completed.includes('constitutional-law');
       rows.push({ label: 'Recent conquest', amount: hasConstitutionalLaw ? 13 : 25 });
     }
+  }
+
+  // #1338: the Imperial Levy's own attributable row. Ordinary relief never targets
+  // it; only the Local Autonomy Writ governance policy and decolonization ease it
+  // (computed in city-levy-system), and it floors at a residual cost.
+  if (city.levy === 'light') {
+    rows.push({ label: 'Imperial Levy', amount: getCityLevyUnrestAmount(state, city) });
   }
 
   // War weariness — major-civ wars only. Minor-civ (city-state) war state also

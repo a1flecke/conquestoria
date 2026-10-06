@@ -18,6 +18,7 @@ import { getReligionTithesGold } from './religion-system';
 import { UNIT_DEFINITIONS } from './unit-definitions';
 import { resolveCivDefinition } from './civ-registry';
 import { getProductionCostForCivItem } from './production-cost-context';
+import { getCityLevyGoldBonus } from './city-levy-system';
 import { getCivHappinessFromResources } from './resource-acquisition-system';
 import {
   getEmpireTechPercents,
@@ -505,6 +506,11 @@ export function projectCivGrossGold(
     const wonderCityBonuses = getLegendaryWonderCityYieldBonus(state, civId, cityId);
     const cityGold = (projected.gold + (wonderCityBonuses.gold ?? 0)) * (1 + (empireTechPercents.gold ?? 0) / 100);
     grossGold += blockadedCityIds.has(cityId) ? cityGold * 0.75 : cityGold;
+    // #1338: the Imperial Levy is a flat, capped per-city bonus. Added outside the
+    // blockade multiplier (it is a separate extraction, not city trade income) and
+    // read from the one levy definition so UI/AI/economy cannot drift.
+    const city = state.cities[cityId];
+    if (city) grossGold += getCityLevyGoldBonus(city);
   }
 
   const wonderCivBonuses = getLegendaryWonderCivYieldBonus(state, civId);

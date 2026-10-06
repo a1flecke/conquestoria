@@ -11,6 +11,7 @@ import { buildProductionCostContext, getProductionCostForCivItem } from '@/syste
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { hexKey, hexNeighbors } from '@/systems/hex-utils';
 import { TECH_TREE } from '@/systems/tech-definitions';
+import { CITY_LEVY_GOLD_BONUS, setCityLevy } from '@/systems/city-levy-system';
 import { createMarketplaceState } from '@/systems/marketplace-system';
 import { collectText, makeWonderPanelFixture } from './helpers/wonder-panel-fixture';
 import type { City, HexCoord, ResourceType } from '@/core/types';
@@ -3071,5 +3072,40 @@ describe('city-panel naval blockade (#1333)', () => {
       onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
     });
     expect(collectText(foreignPanel)).not.toContain('Blockaded');
+  });
+});
+
+describe('city-panel Imperial Levy (#1338)', () => {
+  it('states the consequences before confirmation, applies on click, and is owner-gated', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.turn = 20;
+    city.conquestTurn = 19;
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+      onSetCityLevy: (cityId, enabled) => {
+        const result = setCityLevy(state, { cityId, actorId: state.currentPlayer, enabled });
+        if (result.ok) state.cities = result.state.cities;
+        return state;
+      },
+    });
+    const text = collectText(panel);
+    expect(text).toContain('Imperial Levy');
+    expect(text).toContain('Place light Imperial Levy');
+    expect(text).toContain(`${CITY_LEVY_GOLD_BONUS} gold/turn`);
+
+    (panel.querySelector('[data-set-levy]') as HTMLButtonElement)
+      .dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(state.cities[city.id].levy).toBe('light');
+    expect((container.querySelector('[data-set-levy]') as HTMLButtonElement).textContent)
+      .toContain('End Imperial Levy');
+
+    // Owner-gated: a foreign city never shows the levy control.
+    const rivalCity = state.cities[Object.keys(state.cities).find(id => state.cities[id].owner === 'rival')!];
+    rivalCity.conquestTurn = 19;
+    const foreignPanel = createCityPanel(container, rivalCity, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+    expect(collectText(foreignPanel)).not.toContain('Imperial Levy');
   });
 });

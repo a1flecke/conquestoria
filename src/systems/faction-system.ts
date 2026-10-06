@@ -103,7 +103,10 @@ export function processFactionTurn(state: GameState, bus: EventBus): GameState {
         ...nextState,
         cities: {
           ...nextState.cities,
-          [cityId]: { ...city, conquestTurn: undefined },
+          // #1338: a city that is no longer held by recent conquest must not retain
+          // an Imperial Levy. Clearing the marker here (the authoritative state) is
+          // what makes the levy's eligibility self-enforcing.
+          [cityId]: { ...city, conquestTurn: undefined, levy: undefined, levyChangedTurn: undefined },
         },
       };
     }

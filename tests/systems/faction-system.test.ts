@@ -32,7 +32,18 @@ import {
   getUnrestYieldMultiplier,
   isCityProductionLocked,
   OVEREXTENSION_FREE_CITIES,
+  CONQUEST_UNREST_DURATION,
 } from '@/systems/faction-unrest-model';
+import {
+  CITY_LEVY_DECOLONIZATION_RELIEF,
+  CITY_LEVY_LOCK_TURNS,
+  CITY_LEVY_LOCAL_AUTONOMY_RELIEF,
+  CITY_LEVY_RESIDUAL_FLOOR,
+  CITY_LEVY_UNREST,
+  normalizeCityLevies,
+  setCityLevy,
+} from '@/systems/city-levy-system';
+import { GOVERNANCE_POLICY_LOCK_TURNS } from '@/systems/governance-policy-system';
 import { BUILDINGS } from '@/systems/city-system';
 import { getEraAdvancementTechs } from '@/systems/tech-definitions';
 
@@ -2048,5 +2059,107 @@ describe('#919 MR2 — save compatibility and hot-seat', () => {
 
     expect(row?.amount).toBeLessThan(0);
     expect(otherViewerRow).toEqual(row);
+  });
+});
+
+describe('Imperial Levy (#1338)', () => {
+  it('is denied on a founded city and allowed on a recently conquered one', () => {
+    const founded = makeState({ conquestTurn: undefined });
+    const denied = setCityLevy(founded, { cityId: 'city-1', actorId: 'player', enabled: true });
+    expect(denied.ok).toBe(false);
+    if (!denied.ok) expect(denied.reason).toBe('not-conquered');
+
+    const conquered = makeState({ conquestTurn: 1 });
+    conquered.turn = 2;
+    const allowed = setCityLevy(conquered, { cityId: 'city-1', actorId: 'player', enabled: true });
+    expect(allowed.ok).toBe(true);
+    if (allowed.ok) expect(allowed.state.cities['city-1'].levy).toBe('light');
+  });
+
+  it('is denied for a non-owner and for a redundant set', () => {
+    const state = makeState({ conquestTurn: 1 });
+    state.turn = 2;
+    const notOwner = setCityLevy(state, { cityId: 'city-1', actorId: 'ai-1', enabled: true });
+    expect(notOwner.ok).toBe(false);
+    if (!notOwner.ok) expect(notOwner.reason).toBe('not-owner');
+
+    const first = setCityLevy(state, { cityId: 'city-1', actorId: 'player', enabled: true });
+    expect(first.ok).toBe(true);
+    const again = setCityLevy(first.state, { cityId: 'city-1', actorId: 'player', enabled: true });
+    expect(again.ok).toBe(false);
+    if (!again.ok) expect(again.reason).toBe('already-set');
+  });
+
+  it('enforces the anti-thrash lock, then allows a change after it elapses', () => {
+    const state = makeState({ conquestTurn: 1 });
+    state.turn = 2;
+    const on = setCityLevy(state, { cityId: 'city-1', actorId: 'player', enabled: true });
+    expect(on.ok).toBe(true);
+    if (!on.ok) return;
+    const offTooSoon = setCityLevy(on.state, { cityId: 'city-1', actorId: 'player', enabled: false });
+    expect(offTooSoon.ok).toBe(false);
+    if (!offTooSoon.ok) expect(offTooSoon.reason).toBe('locked');
+
+    const later = { ...on.state, turn: on.state.turn + CITY_LEVY_LOCK_TURNS };
+    const off = setCityLevy(later, { cityId: 'city-1', actorId: 'player', enabled: false });
+    expect(off.ok).toBe(true);
+    if (off.ok) expect(off.state.cities['city-1'].levy).toBeUndefined();
+  });
+
+  it('adds its own unrest row, composes with Local Autonomy and decolonization, and keeps a residual floor', () => {
+    const base = makeState({ conquestTurn: 1 });
+    base.turn = 2;
+    base.cities['city-1'] = { ...base.cities['city-1'], levy: 'light' };
+    expect(getUnrestPressureBreakdown('city-1', base).find(r => r.label === 'Imperial Levy')?.amount)
+      .toBe(CITY_LEVY_UNREST);
+
+    const local = {
+      ...base,
+      civilizations: {
+        ...base.civilizations,
+        player: { ...base.civilizations.player, governancePolicies: { 'local-autonomy-writ': true } },
+      },
+    };
+    expect(getUnrestPressureBreakdown('city-1', local).find(r => r.label === 'Imperial Levy')?.amount)
+      .toBe(CITY_LEVY_UNREST - CITY_LEVY_LOCAL_AUTONOMY_RELIEF);
+
+    const decolonized = {
+      ...base,
+      civilizations: {
+        ...base.civilizations,
+        player: {
+          ...base.civilizations.player,
+          techState: {
+            ...base.civilizations.player.techState,
+            completed: [...base.civilizations.player.techState.completed, 'decolonization'],
+          },
+        },
+      },
+    };
+    expect(getUnrestPressureBreakdown('city-1', decolonized).find(r => r.label === 'Imperial Levy')?.amount)
+      .toBe(CITY_LEVY_UNREST - CITY_LEVY_DECOLONIZATION_RELIEF);
+
+    const both = {
+      ...decolonized,
+      civilizations: {
+        ...decolonized.civilizations,
+        player: { ...decolonized.civilizations.player, governancePolicies: { 'local-autonomy-writ': true } },
+      },
+    };
+    expect(getUnrestPressureBreakdown('city-1', both).find(r => r.label === 'Imperial Levy')?.amount)
+      .toBe(CITY_LEVY_RESIDUAL_FLOOR);
+  });
+
+  it('auto-clears a levy once the city is no longer held by recent conquest', () => {
+    const state = makeState({ conquestTurn: 1 });
+    state.turn = 2;
+    state.cities['city-1'] = { ...state.cities['city-1'], levy: 'light', levyChangedTurn: 2 };
+    const expired = { ...state, turn: 1 + CONQUEST_UNREST_DURATION };
+    expect(normalizeCityLevies(expired).cities['city-1'].levy).toBeUndefined();
+    expect(normalizeCityLevies(state).cities['city-1'].levy).toBe('light');
+  });
+
+  it('pins the lock duration to the governance-policy precedent', () => {
+    expect(CITY_LEVY_LOCK_TURNS).toBe(GOVERNANCE_POLICY_LOCK_TURNS);
   });
 });
