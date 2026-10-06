@@ -40,6 +40,18 @@ const MAX_PRESSURE_CONTAGION = 16;
 
 // --- Pressure computation ---
 
+/**
+ * The strongest positive pressure rows of a breakdown, strongest first (ties by label), at most `limit`. A negative
+ * row is relief, never a cause. Callers pass a breakdown they already hold, so the pressure math runs once per city and
+ * a consumer (the Council) never has to know what any individual row means.
+ */
+export function getTopUnrestPressureCauses(rows: readonly UnrestPressureRow[], limit = 2): UnrestPressureRow[] {
+  return rows
+    .filter(row => row.amount > 0)
+    .sort((a, b) => b.amount - a.amount || (a.label < b.label ? -1 : a.label > b.label ? 1 : 0))
+    .slice(0, Math.max(0, limit));
+}
+
 // Single source of truth for unrest pressure (#552): both computeUnrestPressure
 // (consumed by AI/turn processing) and the city panel breakdown UI build from
 // this row list, so they can never drift apart.
