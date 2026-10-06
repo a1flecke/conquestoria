@@ -15,6 +15,7 @@ import { getUnmovedUnitsForEndTurn } from '@/systems/unit-lifecycle-system';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { AI_A, HUMAN_A, HUMAN_B } from '../helpers/viewer-knowledge-fixtures';
 import { twoCityWorld } from '../helpers/assessment-fixtures';
+import { blockadeByMajorCiv } from '../helpers/blockade-fixture';
 
 type TestSession = Pick<GameSession, 'getState' | 'subscribe'> & { publish(next: GameState): void };
 
@@ -237,6 +238,22 @@ describe('createPlaytestRecorder (#1244)', () => {
     expect(seat.constraintLifetimes).toEqual([
       { kind: 'food', firstSeenTurn: 3, resolvedTurn: 6, turnsToResolve: 3 },
     ]);
+  });
+
+  it('tracks a blockade through the generic constraint path, with no blockade-specific field (#1355)', () => {
+    const calm = twoCityWorld(false);
+    const blockaded = twoCityWorld(false);
+    blockadeByMajorCiv(blockaded, 'city-b-second');
+    const session = fakeSession(calm);
+    const recorder = make(session);
+
+    session.publish(at(blockaded, 3, HUMAN_A));
+    session.publish(at(calm, 5, HUMAN_A));
+
+    const seat = recorder.buildExport().games[0].seats[HUMAN_A];
+    expect(seat.turns[0].constraintsShown).toContain('blockade');
+    expect(seat.constraintLifetimes).toEqual([{ kind: 'blockade', firstSeenTurn: 3, resolvedTurn: 5, turnsToResolve: 2 }]);
+    expect(JSON.stringify(recorder.buildExport())).not.toMatch(/blockadeLifetimes|blockadeShown/);
   });
 
   it('keeps a still-present constraint open in the export (no resolution yet)', () => {

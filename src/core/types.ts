@@ -2390,7 +2390,7 @@ export type CouncilMemoryState = Record<string, CouncilMemoryLedger>;
 // The unions live here (not in `strategic-assessment.ts`) so the persisted digest can name them
 // without `core` importing a system; `strategic-assessment.ts` re-exports them.
 
-export type StrategicConstraintKind = 'food' | 'production' | 'science' | 'gold' | 'unrest' | 'supply';
+export type StrategicConstraintKind = 'food' | 'production' | 'science' | 'gold' | 'unrest' | 'supply' | 'blockade';
 
 export type VictoryStage = 'not-started' | 'building' | 'competitive' | 'leading' | 'at-risk';
 
