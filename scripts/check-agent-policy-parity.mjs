@@ -208,6 +208,39 @@ const RULES = [
     },
   },
   {
+    id: 'opencode-helper-form',
+    summary: 'PR body examples use the canonical direct helper form',
+    check(_file, text) {
+      const lines = linesOf(text);
+      return [...text.matchAll(/bash scripts\/pr-body\.sh/g)]
+        .filter(match => !prohibitedAt(lines, lineAt(text, match.index)))
+        .map(match => ({ line: lineAt(text, match.index), detail: 'use ./scripts/pr-body.sh for canonical approval routing' }));
+    },
+  },
+  {
+    id: 'opencode-plugin-loading',
+    summary: 'plugin readiness is scoped to active locations, not a server-wide load count',
+    check(_file, text) {
+      return [...text.matchAll(/exactly\s+(?:\*\*)?(?:one|1)(?:\*\*)?[^.\n]*loading plugin/gi)]
+        .map(match => ({ line: lineAt(text, match.index), detail: 'verify configured identity per active location and recent hook decisions; server runs may initialize multiple locations' }));
+    },
+  },
+  {
+    id: 'opencode-pr-approval',
+    summary: 'ordered shell permissions must gate PR approval despite broad gh pr allows',
+    check(file, text) {
+      if (file !== '.opencode/opencode.jsonc') return [];
+      const permissions = [...text.matchAll(/\{[^{}]*"action"\s*:\s*"shell"[^{}]*\}/g)]
+        .map(match => JSON.parse(match[0]));
+      const commands = ['gh pr review --approve', 'gh pr review 42 --approve', 'gh pr review -a', 'gh pr review -a 42', 'gh pr review 42 -a'];
+      const glob = pattern => new RegExp('^' + pattern.split('*').map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*') + '$');
+      return commands.filter(command => {
+        const matches = permissions.filter(rule => glob(rule.resource).test(command));
+        return matches.at(-1)?.effect === 'allow';
+      }).map(command => ({ line: 1, detail: `PR approval is statically allowed: ${command}; add a later ask/deny rule` }));
+    },
+  },
+  {
     id: 'required-gates-defer-to-impact',
     summary: 'prose must not require a gated command itself; `yarn verify:impact` (scripts/data/verification-impact.json) owns required evidence',
     check(_file, text) {

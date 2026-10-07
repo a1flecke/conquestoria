@@ -81,23 +81,19 @@
         // feature branch to origin under the same name, with a lease pinned to the remote tip this clone last
         // saw, and only once the branch contains the latest origin/main. Raw force pushes stay denied/asking.
         { "action": "shell", "resource": "./scripts/push-branch.sh", "effect": "allow" },
-        // Deliberately no static allow for the raw "git rebase origin/main" here.
-        // Root-caused after this commit: the real reason it prompted was a
-        // field-name bug in the model-approval plugin (checked "cwd"/
-        // "directory" but OpenCode's shell tool input is "workdir"), fixed
-        // upstream in that plugin. With that fixed, "ask" (the default
-        // below) already routes to the plugin's deterministic
-        // trusted-worktree preflight, which verifies this exact command
-        // per-invocation and allows it reliably. A static allow here would
-        // be worse: "git rebase" is in the plugin's sensitive-even-if-
-        // allowed list but not its allow-bypass shortlist, so an "allow"
-        // arriving from this layer gets overwritten by a full model review
-        // instead of using the reliable deterministic path.
+        // Raw rebase remains ask: trusted-worktree preflight owns the exact command on both
+        // ask and sensitive static-allow routes. It binds shell workdir to a trusted feature
+        // worktree; script commands also require the whole script directory to match HEAD.
+        // A changed or untracked sibling script intentionally requires human review.
 
         { "action": "shell", "resource": "gh issue *", "effect": "allow" },
         { "action": "shell", "resource": "gh pr *", "effect": "allow" },
         { "action": "shell", "resource": "gh repo *", "effect": "allow" },
         { "action": "shell", "resource": "gh pr merge *", "effect": "ask" },
+        // Creating an MR never authorizes approving it. Override the broad gh pr allow.
+        { "action": "shell", "resource": "gh pr review *--approve*", "effect": "ask" },
+        { "action": "shell", "resource": "gh pr review -a*", "effect": "ask" },
+        { "action": "shell", "resource": "gh pr review * -a*", "effect": "ask" },
         { "action": "shell", "resource": "gh issue delete *", "effect": "ask" },
         { "action": "shell", "resource": "gh repo edit *", "effect": "ask" },
         { "action": "shell", "resource": "gh repo delete *", "effect": "deny" },
