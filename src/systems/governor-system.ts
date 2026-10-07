@@ -1,5 +1,5 @@
 import type { GameState } from '../core/types';
-import { getGovernanceCapacity, getGovernanceLoad, GOVERNOR_LOAD_COST } from './governance-capacity';
+import { getGovernanceFreeCapacity, GOVERNOR_LOAD_COST } from './governance-capacity';
 
 /**
  * #928 — governors are an abstract, capped administrative slot, NOT a unit
@@ -45,30 +45,39 @@ export interface GovernorAssignmentResult {
   message: string;
 }
 
+export type GovernorAssignmentEligibility = { ok: true } | { ok: false; message: string };
+
+/**
+ * The one legality definition for assigning a governor (#1373): `assignGovernor` re-runs it before its first
+ * write, and the presentation and opportunity projections ask it. Pass `freeCapacity` when asking about several
+ * cities so capacity and load are computed once.
+ */
+export function getGovernorAssignmentEligibility(
+  state: GameState,
+  civId: string,
+  cityId: string,
+  freeCapacity?: number,
+): GovernorAssignmentEligibility {
+  const civ = state.civilizations[civId];
+  if (!civ) return { ok: false, message: 'Unknown civilization.' };
+  const city = state.cities[cityId];
+  if (!city || city.owner !== civId) return { ok: false, message: 'You do not own this city.' };
+  if (civ.governorAssignments?.[cityId] === true) return { ok: false, message: `${city.name} already has a governor.` };
+  if (!canToggleGovernor(state, civId, cityId)) {
+    return { ok: false, message: `${city.name} cannot receive a new governor until turn ${getGovernorLockedUntilTurn(state, civId, cityId)}.` };
+  }
+  const free = freeCapacity ?? getGovernanceFreeCapacity(state, civId);
+  if (GOVERNOR_LOAD_COST > free) {
+    return { ok: false, message: `Not enough governance capacity to assign a governor (needs ${GOVERNOR_LOAD_COST}, have ${free} free).` };
+  }
+  return { ok: true };
+}
+
 export function assignGovernor(state: GameState, civId: string, cityId: string): GovernorAssignmentResult {
   const civ = state.civilizations[civId];
-  if (!civ) return { success: false, state, message: 'Unknown civilization.' };
   const city = state.cities[cityId];
-  if (!city || city.owner !== civId) {
-    return { success: false, state, message: 'You do not own this city.' };
-  }
-  if (civ.governorAssignments?.[cityId] === true) {
-    return { success: false, state, message: `${city.name} already has a governor.` };
-  }
-  if (!canToggleGovernor(state, civId, cityId)) {
-    return {
-      success: false, state,
-      message: `${city.name} cannot receive a new governor until turn ${getGovernorLockedUntilTurn(state, civId, cityId)}.`,
-    };
-  }
-  const capacity = getGovernanceCapacity(state, civId).total;
-  const load = getGovernanceLoad(state, civId).total;
-  if (load + GOVERNOR_LOAD_COST > capacity) {
-    return {
-      success: false, state,
-      message: `Not enough governance capacity to assign a governor (needs ${GOVERNOR_LOAD_COST}, have ${Math.max(0, capacity - load)} free).`,
-    };
-  }
+  const eligibility = getGovernorAssignmentEligibility(state, civId, cityId);
+  if (!eligibility.ok || !civ || !city) return { success: false, state, message: eligibility.ok ? 'Unknown civilization.' : eligibility.message };
   return {
     success: true,
     message: `Governor assigned to ${city.name}.`,
