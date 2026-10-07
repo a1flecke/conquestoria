@@ -122,4 +122,48 @@ expect_ok "$d" required-gates-defer-to-impact fixture.md 'a baseline command sta
 printf 'The hooks suite (`yarn test:hooks`) exercises the hook scripts and is useful when you edit them.\n' > "$d/fixture.md"
 expect_ok "$d" required-gates-defer-to-impact fixture.md 'prose that merely describes a gated command'
 
+# Canonical OpenCode helper forms must not drift back to a bash prefix.
+d="$tmp/opencode-helpers"; mk_repo "$d"
+printf '#!/bin/sh\n' > "$d/scripts/pr-body.sh"
+printf 'Use `./scripts/pr-body.sh new review`.\n' > "$d/fixture.md"
+expect_ok "$d" opencode-helper-form fixture.md 'canonical PR body helper'
+printf 'Use `bash scripts/pr-body.sh new review`.\n' > "$d/fixture.md"
+expect_fail "$d" opencode-helper-form fixture.md 'canonical' 'noncanonical PR body helper'
+printf 'Never use `bash scripts/pr-body.sh`; use the direct form.\n' > "$d/fixture.md"
+expect_ok "$d" opencode-helper-form fixture.md 'noncanonical spelling as a prohibition'
+
+# Broad gh pr allowances must leave approvals explicitly gated.
+d="$tmp/opencode-approval"; mk_repo "$d"
+mkdir -p "$d/.opencode"
+cat > "$d/.opencode/opencode.jsonc" <<'JSON'
+{"agents":{"build":{"permissions":[
+  {"action":"shell","resource":"gh pr *","effect":"allow"}
+]}}}
+JSON
+expect_fail "$d" opencode-pr-approval .opencode/opencode.jsonc 'PR approval' 'approval covered only by broad allow'
+cat > "$d/.opencode/opencode.jsonc" <<'JSON'
+{"agents":{"build":{"permissions":[
+  {"action":"shell","resource":"gh pr *","effect":"allow"},
+  {"action":"shell","resource":"gh pr review *--approve*","effect":"ask"},
+  {"action":"shell","resource":"gh pr review -a*","effect":"ask"},
+  {"action":"shell","resource":"gh pr review * -a*","effect":"ask"}
+]}}}
+JSON
+expect_ok "$d" opencode-pr-approval .opencode/opencode.jsonc 'explicit approval gates'
+# A later broad allow would silently undo the specific gate.
+cat > "$d/.opencode/opencode.jsonc" <<'JSON'
+{"agents":{"build":{"permissions":[
+  {"action":"shell","resource":"gh pr review *","effect":"ask"},
+  {"action":"shell","resource":"gh pr *","effect":"allow"}
+]}}}
+JSON
+expect_fail "$d" opencode-pr-approval .opencode/opencode.jsonc 'PR approval' 'later broad allow overrides approval gate'
+
+# Location-scoped plugin loads cannot be diagnosed by a whole-run count.
+d="$tmp/opencode-loading"; mk_repo "$d"
+printf 'Verify exactly one loading plugin entry across the server run.\n' > "$d/fixture.md"
+expect_fail "$d" opencode-plugin-loading fixture.md 'location' 'whole-server plugin count'
+printf 'Verify the configured plugin identity per active location and recent hook decisions.\n' > "$d/fixture.md"
+expect_ok "$d" opencode-plugin-loading fixture.md 'location-scoped evidence'
+
 echo ok

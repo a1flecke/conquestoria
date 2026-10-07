@@ -896,11 +896,11 @@ repo, each a fresh permission prompt (or a refused write). **Every PR body lives
 (`yarn pr-body …`):
 
 ```bash
-bash scripts/pr-body.sh new issue-871 --issue 871   # seed a template, prints /tmp/pr-bodies/issue-871.md
-# ...edit that file with your editor tool, OR: bash scripts/pr-body.sh write issue-871  (body on stdin)
-bash scripts/pr-body.sh check  issue-871            # non-empty, no TODO(pr-body), has "## Summary"
-bash scripts/pr-body.sh create issue-871 --title "feat(x): y (#871)" --base main
-bash scripts/pr-body.sh update 1190 issue-871       # gh pr edit --body-file
+./scripts/pr-body.sh new issue-871 --issue 871   # seed a template, prints /tmp/pr-bodies/issue-871.md
+# ...edit that file with your editor tool, OR: ./scripts/pr-body.sh write issue-871  (body on stdin)
+./scripts/pr-body.sh check  issue-871            # non-empty, no TODO(pr-body), has "## Summary"
+./scripts/pr-body.sh create issue-871 --title "feat(x): y (#871)" --base main
+./scripts/pr-body.sh update 1190 issue-871       # gh pr edit --body-file
 ```
 
 Names are validated (no separators, `..`, leading dots), the directory must be a real directory you
@@ -1083,3 +1083,11 @@ mise trust /path/to/worktree/mise.toml
 ```
 
 Run this immediately after creating a worktree, before the first push attempt. The `EnterWorktree` tool does not do this automatically.
+
+### OpenCode permission parity
+
+The policy checker also protects the direct PR-body helper spelling, active-location plugin readiness guidance,
+and ordered permission gates for `gh pr review --approve` and `-a`. A broad `gh pr *` allow must not authorize
+approval. Script-directory changes intentionally prompt; use `dev.sh log` instead of composing shell filters.
+When diagnosing a prompt, correlate recent hook decisions with their route and reason code. Load messages alone
+cannot prove the approval hook handled that action.

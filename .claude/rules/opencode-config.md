@@ -47,8 +47,11 @@ every older version keeps running, and a broken old build fails on every start. 
 5. **Restart only when OpenCode is idle**: the `opencode-cli serve --service` process has no child processes
    (another agent may be mid-task, for example watching CI). Quit the app, stop the old server by its **exact
    pid** (never `pkill`/`killall`, which also hits other agents), relaunch the app.
-6. Verify in `~/.local/share/opencode/log/opencode.log`, for the new run: exactly **one** `loading plugin` entry for
-   the approver, no `failed to load plugin`, no new WARN/ERROR. Report the new server pid and the result.
+6. Verify the configured approver identity and options at each active location in the new server run, no
+   `failed to load plugin`, and recent permission-hook decisions. Multiple locations can initialize the plugin:
+   a server-wide count of load messages does not prove readiness. Check diagnostics for preflight and reviewer
+   routes, reason codes, malformed outputs and exceptions; aggregate allow/ask counts do not measure human clicks.
+   Report the new server pid and the result.
 
 ## 4. What may be added to `trustedScripts`
 
@@ -75,3 +78,17 @@ The plugin repo is **public**. Issues and PRs there must be generic: no private 
 usernames or machine names, no secrets; use placeholders and aggregate numbers. Plugin changes are made in that
 repo through a branch and PR, never by editing an installed copy under `plugin-releases/` (they are read-only on
 purpose).
+
+## 6. Diagnose routine prompts without widening permissions
+
+Use direct canonical commands first. When a script directory has modified or untracked siblings, a `dev.sh`,
+`sync-main.sh` or `push-branch.sh` prompt is intentional even if the invoked script itself is unchanged. Review
+those changes rather than bypassing the directory-integrity check. Unsupported flags, refs and shell composition
+also remain reviewable. Filter support in the parser alone does not prove the live adapter recognizes scanner-split
+resources: it must bind them to the original source shell call and preserve destructive-command guards.
+
+Treat project instructions as the authority for project-specific helpers. Global guidance should defer to the
+project's `sync-main.sh` and `push-branch.sh` recipes, not require a hand-written force-with-lease push. Update a
+user-owned global guardrail only under section 1; never copy the credential-bearing configuration into an MR.
+Creating an MR does not authorize `gh pr review --approve`: explicit permission for that exact remote action is
+required, and an agent must not approve its own MR.

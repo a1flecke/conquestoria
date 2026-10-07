@@ -64,7 +64,8 @@ lets the approval system recognize the narrow safe forms below.
 ### Task dispatcher: `./scripts/dev.sh` (#1256)
 
 For build, typecheck, tests and verification use `./scripts/dev.sh <task> [paths]` — it is
-the form the local approver recognizes without a prompt:
+the canonical form the local approver recognizes when the worktree is trusted and the entire
+tracked scripts directory matches `HEAD`:
 
 - `./scripts/dev.sh build`, `typecheck`, `test-all`, `test-regular`, `hooks`, `install`,
   `setup-hooks`, `verify-pr`, `verify-pr-status`, `verify-status`, `durable`, `durable-status`,
@@ -100,7 +101,8 @@ own `~/.config/opencode/opencode.jsonc`. Full rules: `.claude/rules/opencode-con
   and the config's `package` path points there. Never unpack a release, old version or dev checkout into `plugins/`.
 - Upgrade = verify the `.sha256` and `gh attestation verify`, unpack read-only, diff the config (only `package`
   changes), restart **only when OpenCode is idle** by stopping the server by its exact pid (never `pkill`), then
-  confirm the log shows exactly one `loading plugin` and no `failed to load plugin`.
+  confirm the configured plugin identity at each active location, no `failed to load plugin`, and recent hook
+  decisions. A server can initialize multiple locations, so a server-wide load count is not a readiness check.
 - `trustedScripts` may list only narrow scripts with fixed behaviour (`dev.sh` and the sync/push helpers). Never list
   `run-with-mise.sh`, `run-under-host-lease.sh`, `run-durable-test-suite.sh` or anything that runs its arguments: the
   approver judges argument shape, so it would auto-approve `gh pr merge` or `git push origin main`.
@@ -109,10 +111,11 @@ own `~/.config/opencode/opencode.jsonc`. Full rules: `.claude/rules/opencode-con
 ### Rebase, publish, and pull-request workflow
 
 Work keeps landing on `origin/main`; rebase your branch onto it routinely. The
-one-step form needs no approval from any agent: `./scripts/sync-main.sh` (no arguments; it
+one-step form is eligible for auto-approval in a trusted worktree with an unchanged tracked scripts directory:
+`./scripts/sync-main.sh` (no arguments; it
 runs `git fetch origin main` then `git rebase origin/main`, and refuses `main`, a detached HEAD,
 a dirty tracked tree and a rebase already in progress). If it reports a conflict, follow its printed
-steps. Publish the result with `./scripts/push-branch.sh` (also no approval needed): it pushes only
+steps. Publish the result with `./scripts/push-branch.sh` (under the same trust and script-integrity conditions): it pushes only
 the current branch under the same name, refuses unless the branch contains the latest `origin/main`,
 and uses a lease pinned to the remote tip your clone last saw when the branch was rebased, so it
 never overwrites a newer push. If it refuses because the remote moved, fetch and inspect that
