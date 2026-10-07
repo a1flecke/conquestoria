@@ -12,6 +12,7 @@ import {
   type StrategicAssessment,
   type StrategicConstraint,
 } from '@/systems/strategic-assessment';
+import { STRATEGIC_OPPORTUNITY_PRESENTATION, type StrategicOpportunity } from '@/systems/strategic-opportunity-presentation';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 import {
   getReachableLegendaryWonderProjects,
@@ -166,6 +167,7 @@ function getWorldRaceRecommendationCards(state: GameState, civId: string, assess
 const DO_NOW_MIN_SEVERITY = 40;
 const MAX_DO_NOW_CONSTRAINTS = 3;
 const MAX_SOON_CONSTRAINTS = 2;
+const MAX_COUNCIL_OPPORTUNITIES = 2;
 export const SURVEY_FRONTIER_CARD_ID = 'survey-frontier';
 
 /** Button copy states what happens. Exhaustive over the action union, so a new kind cannot ship unlabelled. */
@@ -177,6 +179,7 @@ const ACTION_LABEL: Record<CouncilCardAction['kind'], string> = {
   'open-tech': 'Choose research',
   'open-victory-progress': 'View progress',
   'open-diplomacy': 'Open Diplomacy',
+  'open-governance': 'Open Governance',
 };
 
 function constraintCard(
@@ -196,6 +199,27 @@ function constraintCard(
     priority: constraint.severity,
     ...(constraint.destination
       ? { actionLabel: ACTION_LABEL[constraint.destination.kind], action: constraint.destination }
+      : {}),
+  };
+}
+
+/**
+ * #1374: a positive choice the player's own strategy has created. Always "soon", never "do now": an optional choice
+ * must not interrupt, and the interrupt path reads `doNow` only. The card text comes from the projection, so the Council
+ * holds no war or governance logic of its own.
+ */
+function opportunityCard(opportunity: StrategicOpportunity): CouncilCard {
+  const presentation = STRATEGIC_OPPORTUNITY_PRESENTATION[opportunity.kind];
+  return {
+    id: opportunity.id,
+    advisor: presentation.advisor,
+    bucket: 'soon',
+    title: opportunity.title,
+    summary: opportunity.why,
+    why: presentation.whyItMatters,
+    priority: opportunity.priority,
+    ...(opportunity.destination
+      ? { actionLabel: ACTION_LABEL[opportunity.destination.kind], action: opportunity.destination }
       : {}),
   };
 }
@@ -332,6 +356,7 @@ export function buildCouncilAgenda(state: GameState, civId: string): CouncilAgen
       .slice(0, MAX_SOON_CONSTRAINTS)
       .map(constraint => constraintCard(state, constraint, 'soon')),
     ...tributeCards.filter(card => card.bucket === 'soon'),
+    ...assessment.opportunities.slice(0, MAX_COUNCIL_OPPORTUNITIES).map(opportunityCard),
   ];
 
   const drama = getEventChainDramaCards(state, civId);

@@ -44,6 +44,7 @@ import { getRivalriesForViewer } from '@/systems/rivalry-system';
 import { unitParticipatesInLandSupply } from '@/systems/supply-participation';
 import { getAllWorldRaceKinds } from '@/systems/world-race-definitions';
 import { getWorldRacePresentationForViewer } from '@/systems/world-race-presentation';
+import { buildStrategicOpportunities, type StrategicOpportunity } from '@/systems/strategic-opportunity-presentation';
 
 // The unions live in `core/types` so the persisted digest can name them; re-exported for callers.
 export type { StrategicConstraintKind, VictoryStage };
@@ -87,6 +88,8 @@ export interface StrategicAssessment {
   constraints: StrategicConstraint[];
   victory: VictoryTrajectory[];
   threats: StrategicThreat[];
+  /** #1374: choices currently available (ranked, capped). Current-state only: never persisted in the digest. */
+  opportunities: StrategicOpportunity[];
 }
 
 function clampSeverity(value: number): number {
@@ -346,6 +349,7 @@ export function buildStrategicAssessment(state: GameState, viewerCivId: string):
     constraints,
     victory: buildVictory(state, viewerCivId),
     threats: buildThreats(state, viewerCivId),
+    opportunities: buildStrategicOpportunities(state, viewerCivId),
   };
 }
 
