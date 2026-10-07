@@ -589,6 +589,11 @@ hvl_acquire() {
 
   while :; do
     if mkdir "$HVL_LEASE_DIR" 2>/dev/null; then
+      # #1377: same publication-ordering contract as hvl_acquire_budget_slot
+      # (see its win branch): withdraw the waiting record before the metadata
+      # write makes this lease observable as held, so a status reader never
+      # sees this pid as both QUEUED and ACTIVE.
+      [ -z "$hvl_waiting_file" ] || rm -f "$hvl_waiting_file"
       hvl_write_metadata
       break
     fi
@@ -609,10 +614,10 @@ hvl_acquire() {
     # actually has to wait, so `yarn verify:local:status` can show a QUEUED
     # row from durable files -- never from `ps` -- for anyone currently
     # blocked here. Written once (not every loop iteration); hvl_wait_cancel
-    # removes it on INT/TERM, and the break below removes it on acquire. A
-    # stale file from a waiter that was SIGKILLed is a read-side concern
-    # (the status view filters out any waiting record whose pid is dead),
-    # not a writer-side one.
+    # removes it on INT/TERM, and on acquire the win branch above withdraws
+    # it BEFORE publishing ownership (#1377). A stale file from a waiter that
+    # was SIGKILLed is a read-side concern (the status view filters out any
+    # waiting record whose pid is dead), not a writer-side one.
     if [ -z "$hvl_waiting_file" ]; then
       hvl_waiting_dir="$hvl_root/waiting"
       mkdir -p "$hvl_waiting_dir"
@@ -778,6 +783,17 @@ hvl_acquire_budget_slot() {
       hvl_budget_owner_file="$hvl_budget_slot_dir/owner"
 
       if mkdir "$hvl_budget_slot_dir" 2>/dev/null; then
+        # #1377: withdraw the waiting record BEFORE publishing ownership.
+        # Observers (yarn verify:local:status, the #1166 scheduler benchmark
+        # harness) treat slot-N/owner as "holds capacity" and
+        # waiting/<pid> as "queued for admission". Writing the owner file
+        # first left a real window where both records existed for this pid --
+        # the CI flake "a job waiting for admission never holds capacity".
+        # Between the mkdir and the owner write the slot is not yet
+        # observable as held (its owner file does not exist), so removing the
+        # record here makes the inconsistent state impossible; the cleanup
+        # after the loop below then has nothing left to do.
+        [ -z "$hvl_budget_waiting_file" ] || rm -f "$hvl_budget_waiting_file"
         printf 'pid=%s\nstart_marker=%s\ncommand=%s\nlane=%s\nworktree=%s\nacquired_at=%s\nacquired_at_iso=%s\n' \
           "$$" "$hvl_budget_self_marker" "$HVL_BUDGET_LABEL" "$hvl_budget_lane" "$(pwd)" "$(hvl_now)" \
           "$(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || true)" > "$hvl_budget_owner_file"

@@ -539,6 +539,7 @@ than treating the overrun as a code failure.
 | A background durable run never holds the publication lease | `run-durable-test-suite-no-lease.test.sh` scenario 2 |
 | ai-long holds no capacity during backoff or while waiting for its mutex; at most one ai-long runs | `run-ai-long-horizon-stall-retry.test.sh` scenarios 5-6 |
 | Lane requests are not inherited; invalid lanes rejected | `host-verification-lease-budget.test.sh` scenario 6 |
+| A waiting record is withdrawn before ownership is published, so a process is never visible as both QUEUED and holding | `host-verification-lease-wait-hold-race.test.sh` |
 | Stronger proof satisfies weaker; stale/dirty/failed/unknown proof never skips | `verification-proof.test.sh` |
 | Publication verifiers really run in the foreground lane | `verification-proof.test.sh` scenarios 1, 3 |
 | SLO overrun passes; runaway fails | `verify-pr.test.sh` |
@@ -630,10 +631,16 @@ trace of a process that was *waiting*, only of a process that had
 *acquired* -- there was nothing on disk for a third-party status command to
 read. Both functions now write a small file (`<scope-dir>/waiting/$$`: pid,
 command label, worktree, wait-started-at) the first time they actually have
-to wait (not on every poll iteration -- once, lazily), and remove it on
-acquire or on `hvl_wait_cancel` (the shared INT/TERM handler, which now
-cleans up whichever of the two waiting-file variables is set, each a no-op
-in the other function's context). A waiting record from a process that was
+to wait (not on every poll iteration -- once, lazily), and withdraw it in
+the win branch BEFORE publishing ownership (`slot-N/owner` /
+`active/owner`), or on `hvl_wait_cancel` (the shared INT/TERM handler,
+which cleans up whichever of the two waiting-file variables is set, each a
+no-op in the other function's context). The publication order matters
+(#1377): publishing ownership first left a real window where durable state
+showed one pid as both QUEUED and holding, which the scheduler benchmark
+harness's "a job waiting for admission never holds capacity" invariant
+caught as an intermittent CI failure; withdrawing first makes that state
+impossible rather than rarer. A waiting record from a process that was
 since `SIGKILL`ed (bypassing that cleanup) is a read-side concern: the
 status view filters out any record whose pid is not alive, the same way
 `hvl_is_stale` already treats a dead owner -- this script never writes to
