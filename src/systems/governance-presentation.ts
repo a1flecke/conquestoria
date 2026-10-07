@@ -1,9 +1,9 @@
 import type { GameState } from '../core/types';
 import type { GovernanceFaction, GovernancePolicyId, GovernancePosture } from './governance-types';
 import { GOVERNANCE_POLICY_DEFINITIONS } from './governance-policy-definitions';
-import { getGovernanceCapacity, getGovernanceLoad, getGovernancePosture, GOVERNOR_LOAD_COST } from './governance-capacity';
-import { isGovernancePolicyActive, canToggleGovernancePolicy, getGovernancePolicyLockedUntilTurn } from './governance-policy-system';
-import { isCityGoverned, canToggleGovernor, getGovernorLockedUntilTurn } from './governor-system';
+import { getGovernanceCapacity, getGovernanceLoad, getGovernancePosture } from './governance-capacity';
+import { isGovernancePolicyActive, getGovernancePolicyEligibility, getGovernancePolicyLockedUntilTurn } from './governance-policy-system';
+import { isCityGoverned, canToggleGovernor, getGovernorAssignmentEligibility, getGovernorLockedUntilTurn } from './governor-system';
 import { computeUnrestPressure } from './faction-pressure';
 
 /**
@@ -50,12 +50,13 @@ export function getGovernancePresentation(state: GameState, civId: string): Gove
   const capacity = getGovernanceCapacity(state, civId);
   const load = getGovernanceLoad(state, civId);
   const posture = getGovernancePosture(state, civId);
+  const freeCapacity = Math.max(0, capacity.total - load.total);
 
   const policies: GovernancePolicyPresentation[] = GOVERNANCE_POLICY_DEFINITIONS.map(def => {
     const active = isGovernancePolicyActive(state, civId, def.id);
     const lockedUntilTurn = getGovernancePolicyLockedUntilTurn(state, civId, def.id);
-    const lockOpen = canToggleGovernancePolicy(state, civId, def.id);
-    const wouldFitCapacity = active || load.total + def.loadCost <= capacity.total;
+    // The same legality `setGovernancePolicy` enforces: toggling the opposite of the current state.
+    const canToggle = getGovernancePolicyEligibility(state, civId, def.id, !active, freeCapacity).ok;
     return {
       id: def.id,
       name: def.name,
@@ -64,7 +65,7 @@ export function getGovernancePresentation(state: GameState, civId: string): Gove
       pleases: def.pleases,
       angers: def.angers,
       active,
-      canToggle: lockOpen && wouldFitCapacity,
+      canToggle,
       lockedUntilTurn: Number.isFinite(lockedUntilTurn) && state.turn < lockedUntilTurn ? lockedUntilTurn : null,
     };
   });
@@ -74,14 +75,16 @@ export function getGovernancePresentation(state: GameState, civId: string): Gove
     .map(city => {
       const governed = isCityGoverned(state, city.id);
       const lockedUntilTurn = getGovernorLockedUntilTurn(state, civId, city.id);
-      const lockOpen = canToggleGovernor(state, civId, city.id);
-      const wouldFitCapacity = governed || load.total + GOVERNOR_LOAD_COST <= capacity.total;
+      // Removal has no legality beyond the lock; assignment asks the one resolver `assignGovernor` uses.
+      const canToggle = governed
+        ? canToggleGovernor(state, civId, city.id)
+        : getGovernorAssignmentEligibility(state, civId, city.id, freeCapacity).ok;
       return {
         cityId: city.id,
         cityName: city.name,
         pressure: computeUnrestPressure(city.id, state),
         governed,
-        canToggle: lockOpen && wouldFitCapacity,
+        canToggle,
         lockedUntilTurn: Number.isFinite(lockedUntilTurn) && state.turn < lockedUntilTurn ? lockedUntilTurn : null,
       };
     })

@@ -136,3 +136,8 @@ export function getGovernanceLoad(state: GameState, civId: string): GovernanceLo
 
   return { total: cityTotal + policyTotal + governorTotal, byCity, byPolicy, byGovernor };
 }
+
+/** Capacity not yet committed to a policy or governor. The one definition of "free", so previews and executors cannot disagree. */
+export function getGovernanceFreeCapacity(state: GameState, civId: string): number {
+  return Math.max(0, getGovernanceCapacity(state, civId).total - getGovernanceLoad(state, civId).total);
+}
