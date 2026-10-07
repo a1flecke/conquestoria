@@ -2312,7 +2312,9 @@ export type CouncilCardAction =
   /** #1237: the Domination lane opens the victory-progress panel (it covers Domination only, not world races). */
   | { kind: 'open-victory-progress' }
   /** #1334: open the Diplomacy panel (tribute demands and agreements are answered and read there). */
-  | { kind: 'open-diplomacy' };
+  | { kind: 'open-diplomacy' }
+  /** #1374: open the Governance panel (free capacity can be spent on a policy or governor there). */
+  | { kind: 'open-governance' };
 
 export interface CouncilCard {
   id: string;

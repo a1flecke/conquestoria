@@ -707,6 +707,16 @@ describe('PanelActionsController', () => {
         expect(deps.router.open).toHaveBeenCalledWith('victory-progress');
       });
 
+      it('open-governance (#1374): closes the council panel and opens the governance panel via the router', () => {
+        const { state } = makeFixture('council-open-governance');
+        const { deps, onCardAction } = openCouncilCardActionCallback(state);
+
+        onCardAction('governance-capacity', { kind: 'open-governance' });
+
+        expect(deps.getElementById).toHaveBeenCalledWith('council-panel');
+        expect(deps.router.open).toHaveBeenCalledWith('governance');
+      });
+
       it('open-wonder: notifies instead when the city no longer exists', () => {
         const { state } = makeFixture('council-open-wonder-missing');
         const { deps, onCardAction } = openCouncilCardActionCallback(state);

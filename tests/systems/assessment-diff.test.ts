@@ -25,7 +25,7 @@ function lane(id: string, stage: VictoryStage): VictoryTrajectory {
 }
 
 function assessment(constraints: StrategicConstraint[], victory: VictoryTrajectory[] = []): StrategicAssessment {
-  return { viewerCivId: 'player-1', turn: 12, constraints, victory, threats: [] };
+  return { viewerCivId: 'player-1', turn: 12, constraints, victory, threats: [], opportunities: [] };
 }
 
 const digestOf = (a: StrategicAssessment): AssessmentDigest => buildAssessmentDigest(a);
