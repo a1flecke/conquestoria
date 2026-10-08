@@ -1,12 +1,7 @@
 import { hasActiveRecoveredHarnesses } from './world-actor-queries';
 import { fnv1a32 } from './deterministic-hash';
-import type {
-  GameState,
-  RogueElephantHostOutcome,
-  RogueElephantHostState,
-  RogueHostTarget,
-  UnitType,
-} from '@/core/types';
+import type { GameState, RogueElephantHostState, RogueHostTarget, UnitType } from '@/core/types';
+import type { RogueElephantHostOutcome } from '@/core/types/world';
 import type { OpponentChallenge } from '@/core/types/ai';
 import { CRISIS_FORCE_OWNER } from '@/core/owner-kind';
 import { registerCrisisForce } from '@/systems/crisis-force-system';

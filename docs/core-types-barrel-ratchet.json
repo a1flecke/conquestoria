@@ -1,6 +1,6 @@
 {
  "schema": 1,
  "note": "Shrink-only maxima for the src/core/types.ts compatibility barrel (#1361). Growth fails `node scripts/maintainability-audit.mjs --check`; after an extraction PR, tighten these to the new measured values. Line count is informational, not a gate.",
- "maxLocalDeclarations": 211,
- "maxProductionImporters": 577
+ "maxLocalDeclarations": 203,
+ "maxProductionImporters": 576
 }

@@ -1,7 +1,6 @@
 import type { NotificationCityAction, NotificationLog } from './notification-log';
-import type { PirateFactionId, PirateHeadquarters, PirateMaritimeStage, PirateState } from './pirate-state';
+import type { PirateState } from './pirate-state';
 import type { DominationIntelState } from '@/systems/domination-types';
-import type { CivilizationEra, WorldAge } from '@/systems/era-types';
 import type { GovernancePolicyId } from '@/systems/governance-types';
 
 // Compatibility re-exports: the definitions live in bounded-context leaves (#1361). New production code imports
@@ -10,11 +9,26 @@ import type { HexCoord } from './types/hex';
 import type { ResourceType } from './types/resources';
 import type { AIStrategicRole, OpponentAIState, OpponentChallenge } from './types/ai';
 import type {
-  DefensiveLeague, DiplomacyState, Embargo, PendingDiplomaticRequest, Treaty, TreatyDeclineReason, TreatyType, WarRecord,
+  DefensiveLeague,
+  DiplomacyState,
+  Embargo,
+  PendingDiplomaticRequest,
+  Treaty,
+  WarRecord,
 } from './types/diplomacy';
-import type { AdvisorType, AssessmentDigest, CouncilCallbackTone, CouncilMemoryState, CouncilTalkLevel } from './types/council';
+import type { AdvisorType, AssessmentDigest, CouncilMemoryState, CouncilTalkLevel } from './types/council';
 import type { CombatExchangeSummary, CombatModifierFact, CombatRewardNotification } from './types/combat';
 import type { IdCounters } from './types/ids';
+import type { DiplomacyEvents } from './types/events-diplomacy';
+export type { DiplomacyEvents } from './types/events-diplomacy';
+import type { CivilizationEvents } from './types/events-civilization';
+export type { CivilizationEvents } from './types/events-civilization';
+import type { WorldEvents } from './types/events-world';
+export type { WorldEvents } from './types/events-world';
+import type { SessionEvents } from './types/events-session';
+export type { SessionEvents } from './types/events-session';
+import type { BeastId, CrisisStage, RogueElephantHostOutcome, StampedeOutcome, WorldRaceKind } from './types/world';
+export type { BeastHoardChoice, BeastId, CrisisOutcome, CrisisStage, RogueElephantHostOutcome, StampedeOutcome, VillageOutcomeType, WorldRaceKind } from './types/world';
 export type { HexCoord } from './types/hex';
 export type { LuxuryResource, ResourceType, StrategicResource } from './types/resources';
 export type {
@@ -446,8 +460,6 @@ export type NormalizedLegendaryWonderIntelEntry =
 
 // --- Tribal Villages ---
 
-export type VillageOutcomeType = 'gold' | 'food' | 'science' | 'free_unit' | 'free_tech' | 'ambush' | 'illness';
-
 export interface TribalVillage {
   id: string;
   position: HexCoord;
@@ -868,7 +880,6 @@ export interface HerdRoute {
 }
 
 export type StampedePhase = 'warning' | 'active' | 'resolved';
-export type StampedeOutcome = 'defeated' | 'contained' | 'survived';
 
 /** Target-scoped, serializable lifecycle and recurrence facts for Beast Stampedes. */
 export interface StampedeState {
@@ -893,7 +904,6 @@ export interface StampedeState {
 }
 
 export type RogueElephantHostPhase = 'warning' | 'active' | 'dispersing' | 'resolved';
-export type RogueElephantHostOutcome = 'defeated' | 'dispersed' | 'escaped';
 export type RogueHostTarget =
   | { kind: 'valuable-improvement'; tileKey: string }
   | { kind: 'fort'; tileKey: string }
@@ -1195,7 +1205,6 @@ export interface CustomCivDefinition {
   primaryTrait: CustomCivPrimaryTraitId;
   temperamentTraits: CustomCivTemperamentTrait[];
 }
-
 
 // --- Espionage ---
 
@@ -1539,13 +1548,9 @@ export interface PirateFleet {
 
 // --- Legendary Beasts ---
 
-export type BeastId = 'giant_boar' | 'dire_wolf' | 'emerald_basilisk' | 'sea_serpent' | 'dune_wurm' | 'storm_roc' | 'swamp_hydra' | 'ancient_dragon';
-
 export type BeastsMode = 'off' | 'calm' | 'wild';
 
 export type BeastLairStatus = 'dormant' | 'awake' | 'slain' | 'claimed';
-
-export type BeastHoardChoice = 'gold' | 'lore' | 'trophy';
 
 export interface PendingHoardChoice {
   lairId: string;
@@ -1786,7 +1791,6 @@ export interface CombatSplashHit {
   damage: number;
 }
 
-
 // --- Map Scripts ---
 
 export type MapScript =
@@ -1872,7 +1876,6 @@ export interface MarketplaceState {
   purchasedResources?: PurchasedResourceEntry[];  // optional; defaults to [] for old saves
 }
 
-
 // --- Save Slots ---
 
 export interface SaveSlotMeta {
@@ -1908,7 +1911,6 @@ export interface TutorialState {
   currentStep: TutorialStep;
   completedSteps: TutorialStep[];
 }
-
 
 // --- Game State (the whole thing) ---
 
@@ -2136,9 +2138,7 @@ export interface GameSettings {
 
 // --- Events ---
 
-export interface GameEvents {
-  'turn:start': { turn: number; playerId: string };
-  'turn:end': { turn: number; playerId: string };
+export interface GameEvents extends DiplomacyEvents, CivilizationEvents, WorldEvents, SessionEvents {
   'unit:move': {
     unitId: string;
     from: HexCoord;
@@ -2151,59 +2151,6 @@ export interface GameEvents {
   };
   'unit:created': { unit: Unit };
   'unit:destroyed': { unitId: string; position: HexCoord };
-  'pirate:faction-spawned': {
-    factionId: PirateFactionId;
-    factionName: string;
-    headquartersKind: PirateHeadquarters['kind'];
-    position: HexCoord;
-    maritimeStage: PirateMaritimeStage;
-  };
-  'pirate:audio-cue': {
-    cue: 'sighting' | 'raid' | 'blockade' | 'tribute' | 'contract-accepted' | 'contract-exposed'
-      | 'siege' | 'city-razed';
-    factionId: string;
-    viewerIds: string[];
-  };
-  'pirate:headquarters-destroyed': { factionId: string; viewerIds: string[] };
-  'supply:warning': {
-    viewerId: string;
-    unitIds: string[];
-    kind: 'losing-full' | 'entering-combat-penalty' | 'entering-movement-penalty';
-    /** At most one `true` per `deriveSupplyWarningTransitions` call. */
-    playAudio: boolean;
-  };
-  'ai:strategic-warning': {
-    viewerId: string;
-    actorId: string;
-    actorName: string;
-    warningKey: string;
-    kind:
-      | 'mobilizing'
-      | 'raid'
-      | 'blockade'
-      | 'resource-denied'
-      | 'resource-restored'
-      | 'withdrawing'
-      | 'recovery'
-      | 'domination'
-      | 'domination-eased'
-      // #1090: a major civ's national intent (#1086) enters 'dominate' or 'recover' --
-      // the two "noteworthy" transitions; expand/develop are deliberately never surfaced
-      // (too frequent, low player value).
-      | 'posture-shift';
-    evidence: 'visible' | 'remembered' | 'earned-intel';
-    targetLabel?: string;
-    regionLabel?: string;
-    resource?: ResourceType;
-    target?: { kind: 'map'; coord: HexCoord; label: string };
-    /** Present only for kind: 'posture-shift'. */
-    posture?: 'dominate' | 'recover';
-    playAudio: boolean;
-  };
-  'ai:strategic-warning-audio': {
-    viewerId: string;
-    turn: number;
-  };
   'victory:resolved': {
     winnerId: string;
     reason: GameOverReason;
@@ -2211,26 +2158,6 @@ export interface GameEvents {
   };
   'city:founded': { city: City; founderId: string };
   'city:captured': { cityId: string; newOwner: string; previousOwner: string };
-  'diplomacy:vassalage-offered': { fromCivId: string; toCivId: string };
-  'diplomacy:vassalage-accepted': { vassalId: string; overlordId: string };
-  'diplomacy:vassalage-ended': { vassalId: string; overlordId: string; reason: 'independence' | 'war' | 'auto_breakaway' | 'overlord_eliminated' | 'released' };
-  'diplomacy:independence-requested': { vassalId: string; overlordId: string };
-  'diplomacy:protection-requested': { vassalId: string; overlordId: string; attackerId: string };
-  'diplomacy:independence-petition': { vassalId: string; overlordId: string; accepted: boolean };
-  'diplomacy:protection-failed': { overlordId: string; vassalId: string; attackerId: string };
-  'diplomacy:vassal-auto-war': { vassalId: string; overlordId: string; targetCivId: string };
-  'diplomacy:vassal-auto-peace': { vassalId: string; overlordId: string; targetCivId: string };
-  // #871: a diplomatic transition left `unitCount` of `civId`'s armed units standing inside a
-  // border that is now closed to them. Names no civilization -- the recipient's own units only.
-  'diplomacy:access-lost': { civId: string; unitCount: number };
-  'diplomacy:treachery': { civId: string; action: string; newScore: number };
-  'diplomacy:embargo-proposed': { proposerId: string; targetCivId: string; embargoId: string };
-  'diplomacy:embargo-joined': { civId: string; embargoId: string };
-  'diplomacy:embargo-left': { civId: string; embargoId: string };
-  'diplomacy:league-formed': { leagueId: string; members: string[] };
-  'diplomacy:league-joined': { civId: string; leagueId: string };
-  'diplomacy:league-dissolved': { leagueId: string; reason: string };
-  'diplomacy:league-triggered': { leagueId: string; attackerId: string; defenderId: string };
   'city:building-complete': { cityId: string; buildingId: string };
   'city:production-item-dropped': { cityId: string; itemId: string; itemKind: 'building' | 'unit'; reason: ProductionDropReason };
   'city:national-project-built': { civId: string; cityId: string; buildingId: string; eraBuilt: number };
@@ -2238,12 +2165,6 @@ export interface GameEvents {
   'city:national-project-dequeued': { civId: string; cityId: string; buildingId: string };
   'city:unit-trained': { cityId: string; unitType: UnitType };
   'city:cyber-drained': { cityId: string; cityName: string; drainerOwner: string; drainerUnitId: string; goldLost: number; blocked: boolean; victimCivId: string };
-  'network:exploit-warning': { planId: string; victimCivId: string; cityId: string };
-  'network:exploit-resolved': { planId: string; cityId: string; ownerCivId: string; goldTransferred: number; delayed: boolean };
-  'network:audio-cue': {
-    cue: 'constructive-resolution' | 'hostile-warning' | 'hostile-consequence' | 'surge' | 'recovery';
-    viewerIds: string[];
-  };
   'city:grew': { cityId: string; newPopulation: number };
   'city:maturity-upgraded': { cityId: string; previous: CityMaturity; current: CityMaturity };
   'economy:treasury-strain': { civId: string; level: Exclude<TreasuryStrainLevel, 'none'>; netGoldPerTurn: number; unpaidMaintenance: number };
@@ -2256,21 +2177,8 @@ export interface GameEvents {
     defenderOwnerId: string;
   };
   'combat:reward-earned': { reward: CombatRewardNotification };
-  'tech:completed': {
-    civId: string;
-    techId: string;
-    /** MR4 (#917): science that overshot `techId` and was moved into the queued
-     * successor's progress. Omitted/0 when nothing carried (no successor). */
-    carriedProgress?: number;
-    /** The queued technology that received `carriedProgress`, if any. */
-    carriedIntoTechId?: string | null;
-  };
-  'tech:started': { civId: string; techId: string };
-  'fog:revealed': { tiles: HexCoord[] };
   'improvement:started': { unitId: string; coord: HexCoord; type: ImprovementType };
   'improvement:completed': { coord: HexCoord; type: ImprovementType };
-  'road:started': { unitId: string; coord: HexCoord };
-  'road:completed': { coord: HexCoord };
   'territory:tile-flipped': {
     coord: HexCoord;
     previousOwner: string;
@@ -2278,25 +2186,6 @@ export interface GameEvents {
     improvement: ImprovementType;
     constructionCancelled: boolean;
   };
-  'civilization:first-contact': { civA: string; civB: string };
-  'barbarian:spawned': { campId: string; unitId: string };
-  'beast:awakened': { lairId: string; beastId: BeastId; position: HexCoord };
-  'beast:slain': { lairId: string; beastId: BeastId; slayerCivId: string; slayerUnitId: string; goldAwarded: number };
-  'beast:sighted': { beastId: BeastId; civId: string };
-  'submarine:sighted': { unitId: string; civId: string };
-  'beast:hoard-claimed': { lairId: string; beastId: BeastId; civId: string; choice: BeastHoardChoice };
-  'barbarian:camp-destroyed': { campId: string; reward: number };
-  'threat:barbarian-resurgence': { civId: string; landmassId: string; campId: string; position: HexCoord; isBanditLord: boolean; banditLordName?: string };
-  'threat:pirate-fleet-spawned': { fleetId: string; civId: string; landmassId: string; position: HexCoord };
-  'threat:pirate-plunder': { fleetId: string; cityId: string; goldStolen: number };
-  'threat:pirate-siege': { fleetId: string; cityId: string; hpLost: number };
-  'threat:pirate-fleet-destroyed': { fleetId: string; civId: string; landmassId: string };
-  'barbarian:city-attacked': { attackerUnitId: string; cityId: string; hpLost: number };
-  'barbarian:city-destroyed': { attackerUnitId: string; cityId: string; ownerId: string };
-  // Pirate-faction naval siege (#522) mirror of the barbarian city-siege events above,
-  // emitted from pirate-system.ts's completed-round processing (not the dead
-  // threat-pressure-system.ts fleet path 'threat:pirate-siege' above).
-  'pirate:city-destroyed': { cityId: string; ownerId: string; factionId: string };
   'city:sacked': { cityId: string; source: 'barbarian' | 'pirate'; goldLost: number };
   'city:counter-fire': { cityId: string; attackerUnitId: string; source: 'barbarian' | 'pirate'; damage: number; attackerDied: boolean };
   'city:coastal-battery-fired': {
@@ -2316,65 +2205,6 @@ export interface GameEvents {
    * above (the resolver itself is pure and emits nothing). */
   'city:strategic-strike': { cityId: string; recipientCivId: string; actorCivId: string; goldLost: number };
   'tutorial:step': { step: TutorialStep; message: string; advisor: 'builder' | 'explorer' | 'scholar' };
-  'notification:show': { message: string; type: 'info' | 'warning' | 'success' };
-  'game:saved': { turn: number };
-  'game:loaded': { turn: number };
-  'game:over': { winnerId: string };
-  'diplomacy:war-declared': { attackerId: string; defenderId: string; opponentKind: 'major' | 'minor' | 'barbarian' };
-  /** #544 MR4: fired when a Great General retires after spending all 3
-   * Command Charges (Final Command). Retirement happens silently during
-   * end-of-round processing, well after the player confirmed spending the
-   * final charge -- this is the player's only feedback that it actually
-   * happened. */
-  'general:retired': { civId: string; generalName: string; message: string };
-  // #526 MR7 Task 7.1: fired alongside diplomacy:war-declared whenever the declared-upon
-  // civ has an active crisis -- applyOpportunisticWarPenaltyIfCrisisStruck already applied
-  // the reputation deltas by the time this fires.
-  'diplomacy:opportunistic-war': { actorId: string; targetCivId: string; crisisId: string };
-  'diplomacy:peace-requested': { fromCivId: string; toCivId: string };
-  'diplomacy:peace-made': { civA: string; civB: string };
-  // #1090: fired when a peace proposal is refused by the synchronous AI-target consent path
-  // (proposeTreatyAgreement) -- peace is deliberately a sibling to diplomacy:treaty-declined
-  // rather than folded into it, since TreatyType (and diplomacy:treaty-declined's own `treaty`
-  // field) structurally excludes 'peace' (a war-state transition, not a treaty), matching the
-  // existing diplomacy:peace-made / diplomacy:treaty-accepted split. `reason` is present only
-  // when computed by an AI consent evaluation; absent for any other resolution path.
-  'diplomacy:peace-declined': { proposerCivId: string; targetCivId: string; reason?: TreatyDeclineReason };
-  // #988: fired the instant a war goal's status flips to 'exceeded' (never
-  // per-turn while it stays exceeded -- see overreachPenaltyApplied).
-  'diplomacy:war-goal-exceeded': { civId: string; opponentCivId: string; turn: number };
-  // #988: a settlement offer (typed peace terms) was proposed, accepted, or executed.
-  'diplomacy:settlement-proposed': { fromCivId: string; toCivId: string; termCount: number };
-  'diplomacy:settlement-declined': { proposerCivId: string; targetCivId: string; reason?: TreatyDeclineReason };
-  'diplomacy:settlement-signed': { civA: string; civB: string; termCount: number };
-  'era:advanced': { era: WorldAge };
-  'civilization:era-advanced': { civId: string; previousEra: CivilizationEra; era: CivilizationEra };
-  'currentPlayer:changed-after-handoff': {
-    civId: string;
-    civType: string;
-    era: WorldAge;
-    atWarCount: number;    // exact war count so AudioSystem can track remainingWars precisely
-    unrestCityCount: number;
-    nearDefeat: boolean;
-    inBeastTerritory: boolean;
-  };
-  'diplomacy:treaty-proposed': { fromCiv: string; toCiv: string; treaty: TreatyType };
-  'diplomacy:treaty-accepted': { civA: string; civB: string; treaty: TreatyType };
-  // #901: a queued treaty proposal the recipient explicitly declined -- so the
-  // original proposer (who may be an inactive hot-seat player) learns the
-  // outcome instead of the request silently vanishing from their panel.
-  // #1090: also fired (in addition to rejectDiplomaticRequest's original explicit-decline
-  // path) from proposeTreatyAgreement's synchronous AI-target consent refusal, which
-  // previously emitted nothing at all. `reason` is present only when a computed AI consent
-  // evaluation produced one (never for a human's own explicit decline of an AI's proposal --
-  // there is no AI "reason" for a choice the human made).
-  'diplomacy:treaty-declined': { proposerCivId: string; targetCivId: string; treaty: TreatyType; reason?: TreatyDeclineReason };
-  'diplomacy:tribute-demanded': { demanderId: string; targetId: string; goldPerRound: number; rounds: number };
-  'diplomacy:tribute-accepted': { demanderId: string; payerId: string; goldPerRound: number; rounds: number };
-  'diplomacy:tribute-refused': { demanderId: string; payerId: string };
-  'diplomacy:tribute-ended': { demanderId: string; payerId: string; reason: 'expired' | 'war' | 'vassalage' | 'eliminated' };
-  'diplomacy:treaty-broken': { breakerId: string; otherCiv: string; treaty: TreatyType };
-  'advisor:message': { advisor: AdvisorType; message: string; icon: string; tone?: CouncilCallbackTone; memoryKey?: string };
   'trade:route-created': { route: TradeRoute };
   'trade:route-ended': { routeId: string; fromCityId: string; toCityId: string; reason: 'unit-died' | 'unit-disbanded' | 'war-declared' | 'hostile-relations' | 'embargo' | 'trips-exhausted' | 'unit-captured' | 'espionage' };
   'trade:route-delivered': { unitId: string; routeId: string; toCityId: string };
@@ -2391,10 +2221,6 @@ export interface GameEvents {
   'wonder:legendary-completed': { civId: string; cityId: string; wonderId: string; turnCompleted: number };
   'wonder:legendary-lost': { civId: string; cityId: string; wonderId: string; goldRefund: number; transferableProduction: number };
   'wonder:legendary-race-revealed': { observerId: string; civId: string; cityId: string; wonderId: string };
-  'village:visited': { civId: string; position: HexCoord; outcome: VillageOutcomeType; message: string };
-  'ui:select-unit': { unitId: string };
-  'ui:select-city': { cityId: string };
-  'ui:deselect': {};
   'minor-civ:quest-issued': { minorCivId: string; majorCivId: string; quest: Quest; state?: GameState };
   'minor-civ:quest-progressed': { minorCivId: string; majorCivId: string; quest: Quest; state?: GameState };
   'minor-civ:quest-retargeted': { minorCivId: string; majorCivId: string; quest: Quest; state?: GameState };
@@ -2437,15 +2263,6 @@ export interface GameEvents {
   'espionage:spy-infiltrated': { civId: string; spyId: string; cityId: string };
   'espionage:spy-caught-infiltrating': { capturingCivId: string; spyOwner: string; spyId: string; cityId: string };
   'espionage:spy-auto-exfiltrated': { civId: string; spyId: string; cityId: string };
-  'faction:unrest-started': { cityId: string; owner: string };
-  'faction:revolt-started': { cityId: string; owner: string };
-  'faction:unrest-resolved': { cityId: string; owner: string };
-  'faction:breakaway-started': { cityId: string; oldOwner: string; breakawayId: string };
-  'faction:breakaway-established': { civId: string; originOwnerId: string };
-  'faction:breakaway-reabsorbed': { civId: string; ownerId: string; cityId: string };
-  'faction:critical-status': { cityId: string; owner: string; status: 'unrest' | 'revolt' | 'breakaway'; breakawayId?: string };
-  'faction:contagion-spread': { fromCityId: string; toCityId: string; owner: string };
-  'faction:concession-made': { cityId: string; owner: string; concessionType: 'charter' };
   'espionage:spy-promoted': { civId: string; spyId: string; promotion: SpyPromotion };
   'espionage:advisor-assassinated': { targetCivId: string; advisorType: AdvisorType; disabledUntilTurn: number };
   'espionage:documents-forged': { civA: string; civB: string; relationshipPenalty: number };
@@ -2455,37 +2272,6 @@ export interface GameEvents {
   'unit:obsolete': { civId: string; unitId: string; unitType: UnitType };
   'espionage:spy-expired': { civId: string; spyId: string; spyName: string; unitType: UnitType };
   'unit:journey-blocked': { unitId: string; position: HexCoord };
-  // Spec 3 — adaptive music events
-  'civ:near-defeat':                { civId: string };
-  'civ:recovered-from-near-defeat': { civId: string };
-  'civ:resettlement-needed':        { civId: string };
-  'civ:resettled':                  { civId: string };
-  'civ:eliminated':                 { civId: string; eliminatedBy: string | null };
-  // Crisis events & revolutionary movements (#381, #354)
-  'crisis:started':   { crisisId: string; flavorId: string; civId: string; cityIds: string[] };
-  'religion:founded': { religionId: string; civId: string; cityId: string; name: string };
-  'religion:city-converted': { cityId: string; toReligionId: string; fromReligionId?: string };
-  'religion:preached': { cityId: string; unitId: string; civId: string; points: number; unitConsumed: boolean };
-  'religion:loyalty-warning': { cityId: string; pressuringCivId: string; stage: 'start' | 'midpoint' | 'final'; turnsRemaining: number };
-  'religion:city-defected': { cityId: string; fromCivId: string; toCivId: string };
-  'crisis:spread':    { crisisId: string; fromCityId: string; toCityId: string };
-  // civId/foeName are populated for Hunt transitions (spawn -> menacing, menacing ->
-  // assaulting) — carried directly rather than re-read from state because both are set
-  // for the first time in the same tick this event fires, and the listener may run
-  // against a state snapshot from before this tick's processing (see
-  // .claude/rules/end-to-end-wiring.md "Transition Events must be transition-owned").
-  'crisis:escalated': { crisisId: string; stage: CrisisStage; civId?: string; foeName?: string };
-  'crisis:response':  { crisisId: string; civId: string; action: string };
-  // foeName/killerCivId populated for Hunt's 'hunted' outcome, for the same
-  // same-tick-freshness reason as crisis:escalated above.
-  'crisis:resolved':  { crisisId: string; flavorId: string; civId: string; outcome: CrisisOutcome; foeName?: string; killerCivId?: string };
-  // Fires only when a hunt's killer differs from the crisis's own target civ (#526 MR6
-  // hunt-their-foe interaction) -- a self-kill never emits this.
-  'crisis:foe-hunted-by-ally': { crisisId: string; killerCivId: string; targetCivId: string; foeName?: string };
-  // #526 MR6 send_aid interaction.
-  'crisis:aid-sent': { crisisId: string; actorCivId: string; targetCivId: string; goldCost: number };
-  // #919 MR1: fired once when a civ funds a nationwide remedy (applyEmpireContainment).
-  'crisis:contained': { crisisId: string; civId: string; cityCount: number; goldCost: number };
   // #990 event chains. Transition-owned, same discipline as the crisis:* events above.
   'eventchain:started':     { chainId: string; kind: EventChainKind; civId: string; cityIds: string[] };
   'eventchain:choice-made': { chainId: string; stageId: string; optionId: string; actorCivId: string; wasDefaulted: boolean };
@@ -2493,26 +2279,6 @@ export interface GameEvents {
   // #993 big-moment presentation) can derive from — #990 does not itself wire
   // this into any history ledger; see event-chain-lifecycle.ts's header comment.
   'eventchain:resolved':    { chainId: string; kind: EventChainKind; civId: string; outcome: 'resolved' | EventChainCancellationReason; priorChoices: EventChainChoiceRecord[] };
-  // #992 world races. All three are world-scoped, never civ-specific except
-  // 'completed' -- 'unlocked' and 'launch-begun' are the two public milestones
-  // and deliberately carry no civId (see world-race-system.ts / ActiveWorldRace
-  // doc comment). 'entry-mooted' fires for every OTHER entrant still holding
-  // the launch building queued once a winner is decided -- their own private
-  // notification, not a public milestone.
-  'worldrace:unlocked':      { kind: WorldRaceKind; turn: number };
-  'worldrace:launch-begun':  { kind: WorldRaceKind; turn: number };
-  'worldrace:completed':     { kind: WorldRaceKind; winnerCivId: string; hostCityId: string; turn: number };
-  'worldrace:entry-mooted':  { kind: WorldRaceKind; civId: string; cityId: string; goldRefund: number };
-  /** One-time, target-scoped Beast Stampede presentation transition. */
-  'stampede:lifecycle':
-    | { kind: 'warning'; targetCivId: string }
-    | { kind: 'activated'; targetCivId: string; activeTurns: number }
-    | { kind: 'resolved'; targetCivId: string; outcome: StampedeOutcome; rewardGranted: boolean };
-  /** Target-scoped Rogue Host conversion and terminal result. */
-  'rogue-elephant-host:lifecycle':
-    | { kind: 'warning'; targetCivId: string }
-    | { kind: 'command-broken'; targetCivId: string; dispersalTurnsRemaining: number }
-    | { kind: 'resolved'; targetCivId: string; outcome: RogueElephantHostOutcome; rewardGranted: boolean };
   // #526 MR7 sabotage_relief: fired only when the covert sabotage is discovered (the
   // detection roll at mission-success time) -- an undiscovered sabotage fires nothing,
   // per spec §Interactions "Undiscovered: no penalty."
@@ -2538,8 +2304,6 @@ export interface GameEvents {
 // --- Crisis Events & Revolutionary Movements ---
 
 export type CrisisArchetype = 'outbreak' | 'catastrophe' | 'hunt' | 'famine';
-export type CrisisStage = 'active' | 'contained' | 'recovery' | 'menacing' | 'assaulting';
-export type CrisisOutcome = 'contained' | 'expired' | 'hunted' | 'recovered' | 'abandoned';
 
 export interface ActiveCrisis {
   id: string;
@@ -2629,7 +2393,6 @@ export interface ActiveEventChain {
 // which public milestones have fired (so they announce exactly once) and the
 // eventual winner (a permanent chronicle, like a legendary wonder's
 // first-discoverer credit).
-export type WorldRaceKind = 'first-satellite' | 'interstellar-colony';
 
 export interface ActiveWorldRace {
   kind: WorldRaceKind;

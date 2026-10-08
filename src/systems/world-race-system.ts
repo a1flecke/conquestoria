@@ -10,7 +10,8 @@
 // Everything else is derived live from canonical state, never snapshotted
 // here — see `ActiveWorldRace`'s own doc comment in core/types.ts for why.
 import type { EventBus } from '@/core/event-bus';
-import type { City, GameState, WorldRaceKind } from '@/core/types';
+import type { City, GameState } from '@/core/types';
+import type { WorldRaceKind } from '@/core/types/world';
 import { getWorldRaceDefinition, getAllWorldRaceKinds } from '@/systems/world-race-definitions';
 import { getProductionCostForCivItem } from '@/systems/production-cost-context';
 

@@ -14,7 +14,8 @@
 // NOTHING to this projection — being met already lets a player see that civ
 // exist elsewhere in the game (diplomacy, contact), but does not by itself
 // reveal whether they are racing. Only intel earns that.
-import type { GameEvents, GameState, WorldRaceKind } from '@/core/types';
+import type { GameEvents, GameState } from '@/core/types';
+import type { WorldRaceKind } from '@/core/types/world';
 import { hasMetCivilization } from '@/systems/discovery-system';
 import { getWorldRaceDefinition } from '@/systems/world-race-definitions';
 import { hasCompletedWorldRaceComponent, getWorldRaceLaunchStatus, isWorldRaceUnlocked } from '@/systems/world-race-system';

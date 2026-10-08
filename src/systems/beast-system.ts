@@ -1,4 +1,5 @@
-import type { BeastHoardChoice, BeastId, BeastLair, BeastsMode, GameMap, GameState, HexCoord, Unit, UnitType } from '@/core/types';
+import type { BeastLair, BeastsMode, GameMap, GameState, HexCoord, Unit, UnitType } from '@/core/types';
+import type { BeastHoardChoice, BeastId } from '@/core/types/world';
 import { applyResearchBonus } from '@/systems/tech-system';
 import { BEAST_DEFINITIONS, getBeastDefinitionByUnitType, type BeastDefinition } from '@/systems/beast-definitions';
 import { hexKey, mapDistance, mapNeighbors } from '@/systems/hex-utils';

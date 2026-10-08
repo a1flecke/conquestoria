@@ -21,7 +21,8 @@
 //     concept, deliberately not retrofitted onto `ActiveCrisis` — no crisis
 //     archetype needs it, and the issue's own guardrail says not to erase type
 //     safety in the name of premature generality.
-import type { ActiveCrisis, CrisisOutcome, GameState } from '@/core/types';
+import type { ActiveCrisis, GameState } from '@/core/types';
+import type { CrisisOutcome } from '@/core/types/world';
 import type { EventBus } from '@/core/event-bus';
 import { tickCrisisByArchetype } from './crisis-progression';
 import { runStagedLifecycleTurn } from './staged-lifecycle-engine';

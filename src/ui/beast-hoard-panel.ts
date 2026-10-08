@@ -1,4 +1,4 @@
-import type { BeastHoardChoice } from '@/core/types';
+import type { BeastHoardChoice } from '@/core/types/world';
 import type { HoardChoicePreview } from '@/systems/beast-system';
 import { createGameButton } from '@/ui/ui-kit';
 

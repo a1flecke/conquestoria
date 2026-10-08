@@ -1,4 +1,5 @@
-import type { BeastId, GameState, UnitType } from '@/core/types';
+import type { GameState, UnitType } from '@/core/types';
+import type { BeastId } from '@/core/types/world';
 import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
 import { BEAST_OWNER } from '@/systems/beast-system';
 import { hexKey } from '@/systems/hex-utils';
