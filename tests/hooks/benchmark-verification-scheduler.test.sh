@@ -38,4 +38,13 @@ if run_node "$HARNESS" --mode synthetic --scenarios 10 --scale 0.6 --inject HOST
   exit 1
 fi
 grep -q 'background lane never above 2' "$tmp/bad.json" || { echo "harness did not name the capacity invariant it detected"; cat "$tmp/bad.json"; exit 1; }
+# A failing job must be diagnosable from the report alone (#1403: CI printed `ai=1` and nothing else). With stall
+# retries disabled, AI-long's deliberate stall exits 125 and the report must carry that exit code.
+if run_node "$HARNESS" --mode synthetic --scenarios 12 --scale 0.6 --inject AI_LONG_HORIZON_STALL_MAX_RETRIES=0 --json "$tmp/diag.json" >"$tmp/diag.out" 2>"$tmp/diag.err"; then
+  echo "harness passed although AI-long was forced to fail -- scenario 12 is vacuous"
+  cat "$tmp/diag.out"
+  exit 1
+fi
+grep -q 'exit=125' "$tmp/diag.json" || { echo "the report does not say which exit code AI-long failed with"; cat "$tmp/diag.json"; exit 1; }
+grep -q 'ai=125' "$tmp/diag.json" || { echo "the 'every job exited 0' detail lost the per-job exit codes"; exit 1; }
 echo "ok"

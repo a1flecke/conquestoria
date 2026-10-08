@@ -195,7 +195,11 @@ hvl_hostname() {
 # PID reuse (see hvl_is_stale). `ps -o lstart=` is supported by both GNU and
 # BSD/macOS ps, unlike /proc/<pid>/stat which does not exist on macOS.
 hvl_start_marker() {
-  ps -o lstart= -p "$1" 2>/dev/null | sed -e 's/^[ \t]*//' -e 's/[ \t]*$//'
+  # TOTAL (#1403): empty output, never a failing status, when the pid is gone. This is read in `$(...)`
+  # assignments from scripts that run under `set -euo pipefail` (run-ai-long-horizon.sh): `ps` exiting 1 for a
+  # pid that just exited would otherwise abort the whole caller with exit 1. "Unreadable" is already handled by
+  # every caller as an empty string (treated as inconclusive, never as proof of death).
+  { ps -o lstart= -p "$1" 2>/dev/null | sed -e 's/^[ \t]*//' -e 's/[ \t]*$//'; } || true
 }
 
 hvl_pid_is_live() {
@@ -236,7 +240,8 @@ hvl_pid_is_live() {
 # explicit set regardless of how the host/CI environment handles process
 # groups or sessions.
 hvl_job_tree_pids() {
-  hvl_snapshot="$(ps -eo pid=,ppid= 2>/dev/null)"
+  # TOTAL (#1403): a transient `ps` failure under load must read as "no descendants", not abort a cancel path.
+  hvl_snapshot="$(ps -eo pid=,ppid= 2>/dev/null || true)"
   hvl_tree_result="$1"
   hvl_tree_frontier="$1"
   while [ -n "$hvl_tree_frontier" ]; do
@@ -271,7 +276,9 @@ hvl_mtime_epoch() {
 }
 
 hvl_field() {
-  sed -n "s/^$2=//p" "$1" 2>/dev/null | head -n 1
+  # TOTAL (#1403): a missing/just-released metadata file reads as "no value", never a failing status (see
+  # hvl_start_marker). Callers already treat empty as "absent".
+  { sed -n "s/^$2=//p" "$1" 2>/dev/null | head -n 1; } || true
 }
 
 hvl_cpu_count() {

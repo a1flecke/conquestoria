@@ -248,6 +248,19 @@ immediate child; and a lease whose supervisor was SIGKILLed outright
 while its registered job is still alive, but becomes acquirable the moment
 that job actually ends.
 
+### The library's value helpers must be total (#1403)
+
+`host-verification-lease.sh` is sourced by `sh` scripts **and** by `run-ai-long-horizon.sh`, which runs under
+`set -euo pipefail`. A helper read in a `$(...)` assignment that can fail (a pipeline ending in a dead `ps`, `sed` on a
+file that was just released) is harmless under `sh` and fatal under pipefail+errexit: the assignment aborts the whole
+script with exit 1. That was the CI flake in scheduler benchmark scenario 12 (`ai=1`, "AI-long still completed after its
+backoff"): the slot owner AI-long was waiting for exited between the liveness check and `hvl_start_marker`. Rule: a
+value-returning helper prints nothing and returns 0 for a vanished pid/file (callers already read "empty" as inconclusive,
+never as proof of death); only predicates (`hvl_pid_is_live`, `hvl_is_stale`) return non-zero by design, and callers use
+them in conditions. `tests/hooks/host-verification-lease-pipefail.test.sh` pins totality, a real wait that survives its
+owner vanishing mid-poll, and a guard that fails when an unguarded `$(hvl_x ...)` uses a helper not on its totality list.
+The scheduler benchmark now reports each failed job's exit code, signal and log tail, so a recurrence names its cause.
+
 ### Lock order
 
 Two independent locking layers exist for local verification, and there is
