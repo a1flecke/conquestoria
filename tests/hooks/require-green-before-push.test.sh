@@ -137,3 +137,52 @@ run_hook_in "$unwired_dir" '{"tool_name":"Bash","tool_input":{"command":"git pus
   echo "Claude push gate skipped verification in an unwired worktree (unsafe: #608-style regression)"
   exit 1
 }
+
+# --- The gate verifies the session's own worktree (payload cwd), not CLAUDE_PROJECT_DIR (the main checkout) -------
+
+main_dir="$tmpdir/main-checkout"
+session_dir="$tmpdir/session-worktree"
+mkdir -p "$main_dir/scripts" "$session_dir/scripts" "$session_dir/sub"
+(cd "$main_dir" && git init --quiet)
+(cd "$session_dir" && git init --quiet)
+cat > "$main_dir/scripts/verify-before-push.sh" <<'STUB'
+#!/bin/sh
+printf 'main\n' >> "$VERIFY_WHO"
+exit 0
+STUB
+cat > "$session_dir/scripts/verify-before-push.sh" <<'STUB'
+#!/bin/sh
+printf 'session\n' >> "$VERIFY_WHO"
+exit "${VERIFY_STUB_STATUS:-0}"
+STUB
+chmod +x "$main_dir/scripts/verify-before-push.sh" "$session_dir/scripts/verify-before-push.sh"
+
+run_hook_cwd() {
+  # run_hook_cwd <cwd> <command> [verifier-status]
+  who="$tmpdir/verify-who"
+  rm -f "$who"
+  set +e
+  VERIFY_WHO="$who" VERIFY_STUB_STATUS="${3:-0}" CLAUDE_PROJECT_DIR="$main_dir" \
+    bash "$HOOK" <<<"{\"tool_name\":\"Bash\",\"cwd\":\"$1\",\"tool_input\":{\"command\":\"$2\"}}" >/dev/null 2>&1
+  hook_status=$?
+  set -e
+}
+
+run_hook_cwd "$session_dir" "gh pr create --fill"
+[ "$(cat "$who" 2>/dev/null)" = "session" ] || {
+  echo "Claude push gate verified the main checkout instead of the session worktree: $(cat "$who" 2>/dev/null)"
+  exit 1
+}
+
+run_hook_cwd "$session_dir/sub" "gh pr merge 5 --rebase" 17
+[ "$hook_status" -eq 2 ] && [ "$(cat "$who" 2>/dev/null)" = "session" ] || {
+  echo "Claude push gate did not resolve a session subdirectory to its worktree root and block its failure"
+  exit 1
+}
+
+# A cwd outside any repo (or without a verifier) falls back to CLAUDE_PROJECT_DIR.
+run_hook_cwd "$tmpdir" "gh pr create --fill"
+[ "$(cat "$who" 2>/dev/null)" = "main" ] || {
+  echo "Claude push gate did not fall back to CLAUDE_PROJECT_DIR for a cwd without a verifier"
+  exit 1
+}

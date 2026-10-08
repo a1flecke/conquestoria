@@ -14,7 +14,17 @@ if ! printf '%s' "$COMMAND" | head -1 | grep -qE '(^|[[:space:]&;|])(git[[:space
   exit 0
 fi
 
+# The harness runs this hook from CLAUDE_PROJECT_DIR, which is the main checkout even while the session works in a
+# linked worktree. Verifying that checkout instead of the session's own tree gates the wrong commit (and trips over
+# every sibling worktree nested beneath it), so prefer the worktree that contains the session's cwd from the payload.
 PROJECT_DIR="$CLAUDE_PROJECT_DIR"
+SESSION_CWD="$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)"
+if [ -n "$SESSION_CWD" ] && [ -d "$SESSION_CWD" ]; then
+  session_root="$(git -C "$SESSION_CWD" rev-parse --show-toplevel 2>/dev/null || true)"
+  if [ -n "$session_root" ] && [ -x "$session_root/scripts/verify-before-push.sh" ]; then
+    PROJECT_DIR="$session_root"
+  fi
+fi
 first_line="$(printf '%s' "$COMMAND" | head -1)"
 if printf '%s' "$first_line" | grep -qE '^[[:space:]]*cd[[:space:]]+'; then
   cd_path="$(printf '%s' "$first_line" | sed -E 's|^[[:space:]]*cd[[:space:]]+([^ ;&]+).*|\1|')"
