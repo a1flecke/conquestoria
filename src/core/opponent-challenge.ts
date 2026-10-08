@@ -1,5 +1,5 @@
 import type { GameState } from './types';
-import type { OpponentChallenge } from '@/core/types/ai';
+import type { AiGameState, OpponentChallenge } from '@/core/types/ai';
 
 export interface OpponentChallengeProfile {
   mobilizationRounds: number;
@@ -151,7 +151,7 @@ export function isOpponentChallenge(value: unknown): value is OpponentChallenge 
 }
 
 export function resolveOpponentChallenge(
-  state: Pick<GameState, 'opponentChallenge'>,
+  state: Pick<AiGameState, 'opponentChallenge'>,
 ): OpponentChallenge {
   return isOpponentChallenge(state.opponentChallenge) ? state.opponentChallenge : 'standard';
 }

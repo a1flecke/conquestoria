@@ -35,7 +35,7 @@ Ranked by fan-in-weighted API surface (export density × direct runtime fan-in).
 | `src/systems/minor-civ-coalition-system.ts` | 4.5 | 537 | 8 | 1.49 | 3 | definitions:2, queries:2, commands:1, turnProcessing:2, other:1 | core |
 | `src/systems/pirate-ecology.ts` | 4.1 | 543 | 11 | 2.03 | 2 | definitions:3, queries:4, commands:1, turnProcessing:1, other:2 | core |
 | `src/renderer/city-render-passes.ts` | 3.3 | 629 | 21 | 3.34 | 1 | definitions:5, queries:3, presentation:12, other:1 | systems |
-| `src/ai/ai-prepared-turn.ts` | 2.5 | 1027 | 13 | 1.27 | 2 | definitions:9, queries:1, other:3 | core, systems |
+| `src/ai/ai-prepared-turn.ts` | 2.5 | 1028 | 13 | 1.26 | 2 | definitions:9, queries:1, other:3 | core, systems |
 | `src/ui/advisor-system.ts` | 2.1 | 945 | 5 | 0.53 | 4 | definitions:1, queries:1, other:3 | core, systems |
 | `src/renderer/hex-renderer.ts` | 1.8 | 662 | 12 | 1.81 | 1 | definitions:1, queries:4, presentation:7 | systems |
 | `src/systems/great-general-profiles.ts` | 1.5 | 663 | 5 | 0.75 | 2 | definitions:4, queries:1 | — |
@@ -65,7 +65,7 @@ Ranked by fan-in-weighted API surface (export density × direct runtime fan-in).
 
 `src/core/types.ts` is reported separately (shared type module, excluded from the ranking by issue #1013):
 
-- `src/core/types.ts`: 2406 lines, 279 exports, density 11.6, runtime fan-in 7, type-inclusive fan-in 576.
+- `src/core/types.ts`: 2398 lines, 282 exports, density 11.76, runtime fan-in 7, type-inclusive fan-in 576.
 - Compatibility-barrel metrics (#1361): 203 locally declared definitions (re-exports excluded), 576 production importers, 0 all-edge cycle(s) and 0 runtime cycle(s) containing it. Growth past `docs/core-types-barrel-ratchet.json` fails `--check`.
 
 ## Runtime import cycles (0)

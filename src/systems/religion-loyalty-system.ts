@@ -1,4 +1,5 @@
 import type { City, GameState, Religion } from '@/core/types';
+import type { AiGameState } from '@/core/types/ai';
 import type { EventBus } from '@/core/event-bus';
 import { hexKey, hexNeighbors } from '@/systems/hex-utils';
 import { canGarrisonCity } from '@/systems/faction-unrest-model';
@@ -46,7 +47,7 @@ export function isLoyaltyTrackEligible(state: GameState, cityId: string): Foreig
   return getForeignFaithPressure(state, cityId);
 }
 
-export function getLoyaltyThreshold(state: Pick<GameState, 'opponentChallenge'>): number {
+export function getLoyaltyThreshold(state: Pick<AiGameState, 'opponentChallenge'>): number {
   return LOYALTY_THRESHOLD_BY_CHALLENGE[resolveOpponentChallenge(state)];
 }
 

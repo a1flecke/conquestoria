@@ -46,6 +46,12 @@ export interface NotificationEntry {
 export type NotificationDraft = Omit<NotificationEntry, 'id' | 'read'> & Partial<Pick<NotificationEntry, 'read'>>;
 export type NotificationLog = Record<string, NotificationEntry[]>;
 
+/** The notification-owned slice of `GameState` (#1361); `GameState` extends it unchanged. */
+export interface NotificationLogState {
+  notificationLog?: NotificationLog; // normalized on load; absent on legacy saves
+  idCounters: IdCounters;
+}
+
 const MAX_PER_PLAYER = 50;
 
 export function createNotificationLog(): NotificationLog {
@@ -53,7 +59,7 @@ export function createNotificationLog(): NotificationLog {
 }
 
 export function appendNotification(
-  state: { notificationLog?: NotificationLog; idCounters: IdCounters },
+  state: NotificationLogState,
   civId: string,
   draft: NotificationDraft,
 ): NotificationEntry {
