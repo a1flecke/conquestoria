@@ -24,7 +24,8 @@ import { buildProductionCostContext, getContextualProductionCost } from '@/syste
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { canCompleteAirUnitProduction, getAirBaseRoster } from '@/systems/air-operations-system';
-import { enqueueCityProduction } from '@/systems/planning-system';
+import { enqueueCityProduction, setIdleProduction } from '@/systems/planning-system';
+import { getAvailableTechs } from '@/systems/tech-system';
 import { getReservedNationalProjectKeys } from '@/systems/national-project-system';
 import { getArsenalStatus } from '@/systems/strategic-arsenal-system';
 import type { AIForceDemand } from './ai-unit-assignment';
@@ -769,14 +770,44 @@ export function generateAIProductionCandidates(
   );
 }
 
-export function applyAIProduction(
+export type AIIdleProductionMode = 'gold' | 'science';
+
+/**
+ * What a queue-empty city with nothing worth building should convert its output into, from this civ's own
+ * facts only: gold when the treasury is strained (`high`/`critical`) or when no further research exists
+ * (science would be wasted), otherwise science. Conversion is the existing `City.idleProduction` mechanism the
+ * player's City Panel drives; this only chooses a mode, it never computes a yield.
+ */
+export function chooseAIIdleProductionMode(state: GameState, civId: string): AIIdleProductionMode {
+  const civ = state.civilizations[civId];
+  if (!civ) return 'gold';
+  const strain = getEconomyStatusForCiv(state, civId).strainLevel;
+  if (strain === 'high' || strain === 'critical') return 'gold';
+  const hasResearchPath = civ.techState.currentResearch != null
+    || getAvailableTechs(civ.techState).length > 0;
+  return hasResearchPath ? 'science' : 'gold';
+}
+
+export interface AIProductionReport {
+  /** Cities that had no candidate at all and were put on (or kept on) idle conversion, with the mode. */
+  readonly converted: Readonly<Record<string, AIIdleProductionMode>>;
+  /** Cities whose best candidate the canonical enqueue refused: a generator/eligibility drift, never masked by conversion. */
+  readonly enqueueRefused: readonly string[];
+}
+
+/**
+ * `applyAIProduction` plus what it decided for cities it did not enqueue. A city with a candidate is queued
+ * exactly as before; a city with NO candidate converts its output via `idleProduction` instead of wasting it
+ * (an existing mode is dormant while a queue is active, since `processCity` only credits it on an empty queue).
+ */
+export function applyAIProductionWithReport(
   state: GameState,
   civId: string,
   demands: readonly AIForceDemand[],
   personality: PersonalityTraits,
-): GameState {
+): { state: GameState; report: AIProductionReport } {
   const civ = state.civilizations[civId];
-  if (!civ) return state;
+  if (!civ) return { state, report: { converted: {}, enqueueRefused: [] } };
   const residual = residualDemands(state, civId, demands);
   const idle = getOwnedCities(state, civId)
     .filter(city => city.productionQueue.length === 0);
@@ -800,6 +831,9 @@ export function applyAIProduction(
     return leftEta - rightEta || left.id.localeCompare(right.id);
   });
   let nextState = state;
+  let idleMode: AIIdleProductionMode | undefined;
+  const converted: Record<string, AIIdleProductionMode> = {};
+  const enqueueRefused: string[] = [];
 
   for (const city of idleCities) {
     const current = nextState.cities[city.id];
@@ -811,11 +845,24 @@ export function applyAIProduction(
       residual,
       personality,
     )[0];
-    if (!selected) continue;
+    if (!selected) {
+      idleMode ??= chooseAIIdleProductionMode(nextState, civId);
+      converted[city.id] = idleMode;
+      if (current.idleProduction !== idleMode) {
+        nextState = {
+          ...nextState,
+          cities: { ...nextState.cities, [city.id]: setIdleProduction(current, idleMode) },
+        };
+      }
+      continue;
+    }
     // #1220: the same validated enqueue the player's panel uses. Candidates come from the same eligibility, so a
     // refusal means the candidate generator drifted from it; skip the city rather than queue something illegal.
     const queued = enqueueCityProduction(nextState, city.id, selected.itemId);
-    if (!queued.ok) continue;
+    if (!queued.ok) {
+      enqueueRefused.push(city.id);
+      continue;
+    }
     nextState = queued.state;
     if (selected.fulfilledRole) {
       const fulfilled = residual.find(entry => entry.role === selected.fulfilledRole);
@@ -823,5 +870,14 @@ export function applyAIProduction(
     }
   }
 
-  return nextState;
+  return { state: nextState, report: { converted, enqueueRefused } };
+}
+
+export function applyAIProduction(
+  state: GameState,
+  civId: string,
+  demands: readonly AIForceDemand[],
+  personality: PersonalityTraits,
+): GameState {
+  return applyAIProductionWithReport(state, civId, demands, personality).state;
 }
