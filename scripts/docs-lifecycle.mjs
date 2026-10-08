@@ -40,6 +40,8 @@ function walk(dir, out = []) {
   for (const name of readdirSync(dir)) {
     if (['node_modules', '.git', '.verification', '.yarn', 'dist', '.vite', 'coverage', '.worktrees'].includes(name)) continue;
     const p = join(dir, name);
+    // Linked worktrees nested under the main checkout are other branches' trees, not this one's docs.
+    if (rel(p) === '.claude/worktrees') continue;
     const st = statSync(p);
     if (st.isDirectory()) walk(p, out); else out.push(p);
   }

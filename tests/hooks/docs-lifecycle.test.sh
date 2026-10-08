@@ -97,4 +97,11 @@ p=sys.argv[1]; m=json.load(open(p)); m['entries']['$SP/plans/2026-10-01-active-w
 PY
 expect_fail "$c" 'name the issue that owns' 'active plan with no issue'
 
+# 8. sibling linked worktrees nested under the main checkout (.claude/worktrees/*) are other branches' trees: their
+#    manifests/docs must not make THIS tree fail (run from the main checkout, the push gate used to trip on them).
+c="$tmp/nested-worktrees"; mk_repo "$c"
+mkdir -p "$c/.claude/worktrees/other/docs"
+printf '{"entries":{"%s/plans/2026-01-01-gone.md":{}}}\n' "$SP" > "$c/.claude/worktrees/other/docs/docs-lifecycle-manifest.json"
+run_node "$TOOL" check --root "$c" >"$tmp/out" 2>&1 || fail "guard scanned a nested linked worktree under .claude/worktrees"
+
 echo ok
