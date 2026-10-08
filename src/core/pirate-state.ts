@@ -1,4 +1,4 @@
-import type { HexCoord } from './types';
+import type { HexCoord } from './types/hex';
 
 export const PIRATE_STATE_VERSION = 1;
 

@@ -1,4 +1,5 @@
-import type { UnitType, Unit, HexCoord, CivBonusEffect, IdCounters } from '@/core/types';
+import type { UnitType, Unit, HexCoord, CivBonusEffect } from '@/core/types';
+import type { IdCounters } from '@/core/types/ids';
 import { UNIT_DEFINITIONS } from './unit-definitions';
 import { getNavalOperationsMovementPenalty } from './naval-endurance';
 

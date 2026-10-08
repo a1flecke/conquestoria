@@ -1,4 +1,5 @@
-import type { MinorCivArchetype, Quest, QuestReward, QuestTarget, QuestType, GameState, IdCounters } from '@/core/types';
+import type { MinorCivArchetype, Quest, QuestReward, QuestTarget, QuestType, GameState } from '@/core/types';
+import type { IdCounters } from '@/core/types/ids';
 import { createQuestTarget } from './quest-objective-system';
 import type { QuestObjectiveOption } from './quest-chain-definitions';
 import {

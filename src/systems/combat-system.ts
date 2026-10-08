@@ -1,15 +1,14 @@
 import { fnv1a32 } from './deterministic-hash';
 import type {
   Unit,
-  CombatExchangeKind,
   CombatResult,
-  CombatModifierFact,
   GameMap,
   CivBonusEffect,
   UnitAttackProfile,
   GameState,
   CombatSplashHit,
 } from '@/core/types';
+import type { CombatExchangeKind, CombatModifierFact } from '@/core/types/combat';
 import { getRogueElephantCommandFact } from '@/systems/world-actor-queries';
 import { hexDistance, hexKey } from './hex-utils';
 import { UNIT_DEFINITIONS } from './unit-definitions';

@@ -1,7 +1,8 @@
 // src/ui/notification-routes/combat-routes.ts
 // #1250: combat results and rewards, routed to the combatants' owners regardless of who is acting. The
 // modifier-fact projection redacts what the recipient has not earned.
-import type { CombatModifierFact, CombatResult, CombatRewardNotification, GameEvents, GameState } from '@/core/types';
+import type { CombatResult, GameEvents, GameState } from '@/core/types';
+import type { CombatModifierFact, CombatRewardNotification } from '@/core/types/combat';
 import type { CombatNotificationDetails } from '@/core/notification-log';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import type { NotificationSink } from './notification-sink';

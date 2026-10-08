@@ -1,4 +1,4 @@
-import type { HexCoord } from './types';
+import type { HexCoord } from './types/hex';
 
 export type NetworkPlanTarget =
   | { kind: 'city'; cityId: string }

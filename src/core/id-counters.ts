@@ -1,4 +1,4 @@
-import type { IdCounters } from './types';
+import type { IdCounters } from '@/core/types/ids';
 
 /**
  * Minimal shape needed for scanning — accepts full GameState or test fixtures.

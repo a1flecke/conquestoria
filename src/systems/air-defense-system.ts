@@ -1,4 +1,11 @@
-import type { AirDefenseCoverageProvider, AirDefenseCoverageResult, CombatModifierFact, GameState, HexCoord, Unit } from '@/core/types';
+import type {
+  AirDefenseCoverageProvider,
+  AirDefenseCoverageResult,
+  GameState,
+  HexCoord,
+  Unit,
+} from '@/core/types';
+import type { CombatModifierFact } from '@/core/types/combat';
 import { getVisibility } from './fog-of-war';
 import { hexDistance, wrappedHexDistance } from './hex-utils';
 import { BUILDINGS } from './city-system';

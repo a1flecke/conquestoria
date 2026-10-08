@@ -230,3 +230,28 @@ describe('#1241 — each rule kind fails when it should (fixture graphs)', () =>
     expect(matchesModule('src/ui/**', 'src/uix/y')).toBe(false);
   });
 });
+
+describe('#1361 — core type leaves sit below the compatibility barrel', () => {
+  const rule = ARCHITECTURE_RULES.filter(candidate => candidate.id === 'core-type-leaves-do-not-import-the-barrel');
+
+  it('reports a leaf (or a persisted core-state module) that imports the barrel back, type-only included', () => {
+    const graph = buildImportGraph({
+      'src/core/types.ts': "export type { HexCoord } from './types/hex';\nexport interface GameState { a: number }",
+      'src/core/types/hex.ts': 'export interface HexCoord { q: number; r: number }',
+      'src/core/types/bad.ts': "import type { GameState } from '../types';\nexport type Bad = GameState;",
+      'src/core/pirate-state.ts': "import type { HexCoord } from './types';\nexport type P = HexCoord;",
+    });
+    expect(messages(graph, rule).join('\n')).toMatch(/types\/bad[\s\S]*pirate-state|pirate-state[\s\S]*types\/bad/);
+  });
+
+  it('accepts leaves that import only other leaves', () => {
+    const graph = buildImportGraph({
+      'src/core/types.ts': "export type { HexCoord } from './types/hex';",
+      'src/core/types/hex.ts': 'export interface HexCoord { q: number; r: number }',
+      'src/core/pirate-state.ts': "import type { HexCoord } from './types/hex';\nexport type P = HexCoord;",
+      'src/core/autonomy-state.ts': 'export const a = 1;',
+      'src/core/notification-log.ts': 'export const n = 1;',
+    });
+    expect(messages(graph, rule)).toEqual([]);
+  });
+});

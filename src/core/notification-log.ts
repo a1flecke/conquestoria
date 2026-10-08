@@ -1,4 +1,6 @@
-import type { CombatModifierFact, GameState, HexCoord } from './types';
+import type { CombatModifierFact } from './types/combat';
+import type { HexCoord } from './types/hex';
+import type { IdCounters } from './types/ids';
 
 export interface NotificationMapTarget {
   kind: 'map';
@@ -51,7 +53,7 @@ export function createNotificationLog(): NotificationLog {
 }
 
 export function appendNotification(
-  state: Pick<GameState, 'notificationLog' | 'idCounters'>,
+  state: { notificationLog?: NotificationLog; idCounters: IdCounters },
   civId: string,
   draft: NotificationDraft,
 ): NotificationEntry {

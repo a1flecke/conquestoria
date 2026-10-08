@@ -1,4 +1,5 @@
-import type { City, GameMap, GameState, HexCoord, IdCounters } from '@/core/types';
+import type { City, GameMap, GameState, HexCoord } from '@/core/types';
+import type { IdCounters } from '@/core/types/ids';
 import { hexKey, hexesInRange, hexNeighbors, wrapHexCoord } from './hex-utils';
 import { drawNextCityName, DEFAULT_CITY_NAMES } from './city-name-system';
 import { INITIAL_CITY_FOCUS, INITIAL_CITY_MATURITY } from './city-maturity-system';

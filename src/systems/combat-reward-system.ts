@@ -1,6 +1,7 @@
 import { lehmerFoldByCodePoint } from './deterministic-hash';
 import type { EventBus } from '@/core/event-bus';
-import type { CombatResult, CombatRewardNotification, GameState, Unit, UnitType } from '@/core/types';
+import type { CombatResult, GameState, Unit, UnitType } from '@/core/types';
+import type { CombatRewardNotification } from '@/core/types/combat';
 import { emitEndedTradeRoutes, releaseCapturedUnitsFromRoutes, removeUnitsFromSlice, type EndedTradeRoute } from '@/systems/unit-removal-system';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { recordCombatForCiv } from '@/systems/threat-pressure-system';
