@@ -1,4 +1,5 @@
-import type { GameState, OpponentChallenge } from './types';
+import type { GameState } from './types';
+import type { OpponentChallenge } from '@/core/types/ai';
 
 export interface OpponentChallengeProfile {
   mobilizationRounds: number;

@@ -1,6 +1,7 @@
 import { hasActiveHerdingInsight } from './world-actor-queries';
 import { fnv1a32 } from './deterministic-hash';
-import type { GameState, OpponentChallenge, StampedeState, UnitType } from '@/core/types';
+import type { GameState, StampedeState, UnitType } from '@/core/types';
+import type { OpponentChallenge } from '@/core/types/ai';
 import { countActiveCrisesForCiv } from '@/systems/crisis-scheduling';
 import { CRISIS_FORCE_OWNER } from '@/core/owner-kind';
 import { normalizeCrisisForces, registerCrisisForce } from '@/systems/crisis-force-system';

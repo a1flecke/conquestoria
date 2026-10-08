@@ -1,11 +1,11 @@
 import type {
-  AIStrategicRole,
   CombatRole,
   TrainableUnitEntry,
   UnitDefinition,
   UnitRoleDefinition,
   UnitType,
 } from '@/core/types';
+import type { AIStrategicRole } from '@/core/types/ai';
 import { getRequiredTechIds } from './production-prerequisites';
 
 const role = (

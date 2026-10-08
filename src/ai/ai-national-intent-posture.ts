@@ -4,7 +4,7 @@
 // *resolves* an intent from perception and imports the expansion soft cap) so ai-strategy, ai-research,
 // ai-production and the rest can read a posture without importing the resolver, which closed an
 // ai-strategy -> ai-national-intent -> ai-expansion-sites -> ai-strategy import cycle. Values are unchanged.
-import type { NationalIntent } from '@/core/types';
+import type { NationalIntent } from '@/core/types/ai';
 
 export interface NationalIntentPosture {
   expandBias: number;

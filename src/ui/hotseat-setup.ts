@@ -1,4 +1,11 @@
-import type { CustomCivDefinition, HotSeatConfig, HotSeatPlayer, MapScript, OpponentChallenge, StartPlacementMode } from '@/core/types';
+import type {
+  CustomCivDefinition,
+  HotSeatConfig,
+  HotSeatPlayer,
+  MapScript,
+  StartPlacementMode,
+} from '@/core/types';
+import type { OpponentChallenge } from '@/core/types/ai';
 import { GameCreationError, MAP_DIMENSIONS } from '@/core/game-state';
 import { createCivSelectPanel } from './civ-select';
 import { createCustomCivPanel } from './custom-civ-panel';

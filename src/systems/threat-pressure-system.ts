@@ -1,13 +1,5 @@
-import type {
-  AIStrategicPlan,
-  BarbarianCamp,
-  City,
-  PirateFleet,
-  GameState,
-  GameMap,
-  HexCoord,
-  CivPressureLedger,
-} from '@/core/types';
+import type { BarbarianCamp, City, PirateFleet, GameState, GameMap, HexCoord } from '@/core/types';
+import type { AIStrategicPlan, CivPressureLedger } from '@/core/types/ai';
 import type { EventBus } from '@/core/event-bus';
 import { createEmptyOpponentAIState } from '@/core/opponent-ai-state';
 import { getChallengeProfileForCiv } from '@/core/opponent-challenge';

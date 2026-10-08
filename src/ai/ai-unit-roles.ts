@@ -1,4 +1,5 @@
-import type { AIStrategicRole, UnitType } from '@/core/types';
+import type { UnitType } from '@/core/types';
+import type { AIStrategicRole } from '@/core/types/ai';
 import { getUnitRoleDefinition } from '@/systems/combat-role-definitions';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 

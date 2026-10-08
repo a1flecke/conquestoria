@@ -1,6 +1,6 @@
 import { createSavePanel } from '@/ui/save-panel';
 import { createGameButton, VARIANT_STYLES } from '@/ui/ui-kit';
-import type { OpponentChallenge } from '@/core/types';
+import type { OpponentChallenge } from '@/core/types/ai';
 import {
   OPPONENT_CHALLENGE_COPY,
   createOpponentChallengeSelector,

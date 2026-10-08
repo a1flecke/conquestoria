@@ -1,4 +1,4 @@
-import type { OpponentChallenge } from '@/core/types';
+import type { OpponentChallenge } from '@/core/types/ai';
 import { createOpponentChallengeSelector } from '@/ui/opponent-challenge-selector';
 import { createGameButton, setButtonDisabled } from '@/ui/ui-kit';
 

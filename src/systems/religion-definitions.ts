@@ -1,4 +1,5 @@
-import type { OpponentChallenge, ReligionBoon } from '@/core/types';
+import type { ReligionBoon } from '@/core/types';
+import type { OpponentChallenge } from '@/core/types/ai';
 
 export const CONVERSION_THRESHOLD = 100;
 export const OWN_CITY_ACCRUAL = 15;

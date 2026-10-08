@@ -1,14 +1,14 @@
+import type { GameState } from './types';
 import type {
   AIStrategicPlan,
   AITarget,
   CivPressureLedger,
-  GameState,
   MajorCivPlanPortfolio,
   NationalIntent,
   NationalIntentReason,
   NationalIntentState,
   OpponentAIState,
-} from './types';
+} from '@/core/types/ai';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 
 const PLAN_PHASES = new Set([

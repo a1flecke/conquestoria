@@ -1,9 +1,5 @@
-import type {
-  AIStrategicPlan,
-  AIStrategicRole,
-  MajorCivPlanPortfolio,
-  UnitType,
-} from '@/core/types';
+import type { UnitType } from '@/core/types';
+import type { AIStrategicPlan, AIStrategicRole, MajorCivPlanPortfolio } from '@/core/types/ai';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { canUnitFulfillAIStrategicRole, countAIStrategicRoleCapabilities, getAIStrategicRoles } from './ai-unit-roles';
 

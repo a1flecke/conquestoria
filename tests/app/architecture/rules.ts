@@ -414,7 +414,7 @@ export const ARCHITECTURE_RULES: readonly ArchitectureRule[] = [
     id: 'ai-posture-table-is-a-types-leaf',
     kind: 'allowed-imports',
     from: 'src/ai/ai-national-intent-posture',
-    allowed: ['src/core/types'],
+    allowed: ['src/core/types/ai'],
     edges: 'all',
     why: 'The per-intent bias table is pure data read by research, production, diplomacy, war goals, expansion and the turn; it may know only the NationalIntent type, never the resolver that picks an intent.',
   },

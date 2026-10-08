@@ -1,5 +1,4 @@
 import type {
-  AIStrategicPlan,
   GameMap,
   GameState,
   MinorCivArchetype,
@@ -8,6 +7,7 @@ import type {
   City,
   Unit,
 } from '@/core/types';
+import type { AIStrategicPlan } from '@/core/types/ai';
 import type { EventBus } from '@/core/event-bus';
 import { createEmptyOpponentAIState } from '@/core/opponent-ai-state';
 import { OPPONENT_CHALLENGE_PROFILES, resolveOpponentChallenge } from '@/core/opponent-challenge';

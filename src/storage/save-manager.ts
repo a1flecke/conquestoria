@@ -1,4 +1,13 @@
-import { QUEST_TYPES, type City, type CityFocus, type CityMaturity, type GameState, type OpponentChallenge, type QuestTarget, type SaveSlotMeta } from '@/core/types';
+import {
+  QUEST_TYPES,
+  type City,
+  type CityFocus,
+  type CityMaturity,
+  type GameState,
+  type QuestTarget,
+  type SaveSlotMeta,
+} from '@/core/types';
+import type { OpponentChallenge } from '@/core/types/ai';
 import { drawNextCityName } from '@/systems/city-name-system';
 import { isCityCoastal, BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
 import { INITIAL_CITY_FOCUS, INITIAL_CITY_MATURITY } from '@/systems/city-maturity-system';

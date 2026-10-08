@@ -4,12 +4,18 @@ import type { DominationIntelState } from '@/systems/domination-types';
 import type { CivilizationEra, WorldAge } from '@/systems/era-types';
 import type { GovernancePolicyId } from '@/systems/governance-types';
 
-// --- Hex Coordinates ---
-
-export interface HexCoord {
-  q: number;
-  r: number;
-}
+// Compatibility re-exports: the definitions live in bounded-context leaves (#1361). New production code imports
+// these from the leaf; docs/core-types-barrel-ratchet.json keeps the barrel shrink-only.
+import type { HexCoord } from './types/hex';
+import type { ResourceType } from './types/resources';
+import type { AIStrategicRole, OpponentAIState, OpponentChallenge } from './types/ai';
+export type { HexCoord } from './types/hex';
+export type { LuxuryResource, ResourceType, StrategicResource } from './types/resources';
+export type {
+  AIPlanPhase, AIPlanReason, AIStrategicObjective, AIStrategicPlan, AIStrategicRole, AITarget,
+  CivPressureLedger, MajorCivPlanPortfolio, NationalIntent, NationalIntentReason, NationalIntentState,
+  OpponentAIState, OpponentChallenge,
+} from './types/ai';
 
 // --- Terrain ---
 
@@ -2099,163 +2105,7 @@ export interface GameEvent {
   target?: { kind: 'map'; coord: HexCoord; label: string };
 }
 
-export type OpponentChallenge = 'explorer' | 'standard' | 'veteran';
-
-export type AIStrategicRole =
-  | 'capture'
-  | 'frontline'
-  | 'anti-armor'
-  | 'ranged'
-  | 'siege'
-  | 'mobile'
-  | 'air-combat'
-  | 'air-defense'
-  | 'naval-combat'
-  | 'transport'
-  | 'escort'
-  | 'recon'
-  | 'detection'
-  | 'settlement'
-  | 'worker'
-  | 'resource-expedition'
-  | 'trade'
-  | 'espionage'
-  | 'missionary';
-
-export type AIStrategicObjective =
-  | 'defend'
-  | 'recover'
-  | 'expand'
-  | 'secure-resource'
-  | 'raid'
-  | 'blockade'
-  | 'repel'
-  | 'capture'
-  | 'support-ally';
-
-export type AIPlanReason =
-  | 'urgent-defense'
-  | 'nearby-opportunity'
-  | 'retaliate-recent-attack'
-  | 'continue-active-war'
-  | 'alliance-obligation'
-  | 'critical-resource'
-  | 'no-local-alternative'
-  | 'homeland-secure'
-  | 'recover-damaged-force'
-  | 'modernization-gap'
-  | 'camp-defense'
-  | 'visible-stampede'
-  | 'opportunistic-raid'
-  | 'domination-pursuit'
-  // #1089: barbarian archetype-specific target selection (predator/warlord); see
-  // src/systems/barbarian-archetype.ts.
-  | 'predator-hunt'
-  | 'warlord-mobilizing';
-
-export type AIPlanPhase =
-  | 'scouting'
-  | 'mobilizing'
-  | 'advancing'
-  | 'attacking'
-  | 'consolidating'
-  | 'withdrawing'
-  | 'complete'
-  | 'abandoned';
-
-export type AITarget =
-  | { kind: 'city'; id: string; lastKnownPosition: HexCoord }
-  | { kind: 'unit'; id: string; lastKnownPosition: HexCoord }
-  | { kind: 'resource'; resource: ResourceType; position: HexCoord }
-  | { kind: 'camp'; id: string; lastKnownPosition: HexCoord }
-  | { kind: 'region'; id: string; anchor: HexCoord };
-
-export interface AIStrategicPlan {
-  id: string;
-  actorId: string;
-  objective: AIStrategicObjective;
-  target: AITarget;
-  theaterId: string;
-  phase: AIPlanPhase;
-  reasonCodes: AIPlanReason[];
-  commitment: number;
-  createdTurn: number;
-  reconsiderAfterTurn: number;
-  expiresAfterTurn: number;
-  lastProgressTurn: number;
-  rallyPoint?: HexCoord;
-  requiredRoles: Partial<Record<AIStrategicRole, number>>;
-  supportRoles?: Partial<Record<AIStrategicRole, number>>;
-  assignedUnitIds: string[];
-}
-
-export interface MajorCivPlanPortfolio {
-  primaryPlan: AIStrategicPlan | null;
-  defensePlansByCityId: Record<string, AIStrategicPlan>;
-  upgradeRoutesByUnitId: Record<string, {
-    cityId: string;
-    createdTurn: number;
-  }>;
-  modernizationDemand: number;
-  researchTargetTechId: string | null;
-  lastPlannedTurn: number;
-  lastExecutedTurn: number;
-}
-
-export interface CivPressureLedger {
-  activeIndependentThreatIds: string[];
-  recoveryUntilTurn: number;
-  lastResolvedThreatTurn: number | null;
-  lastWarningTurnByKey: Record<string, number>;
-  lastStrategicAudioTurn: number | null;
-}
-
-// #1086: a persistent, long-horizon (dozens of turns) strategic ambition layer above
-// MajorCivPlanPortfolio. `recover` is reachable only via a shock override (never chosen
-// by ordinary ambition scoring) -- see ai-national-intent.ts.
-export type NationalIntent = 'expand' | 'develop' | 'dominate' | 'deter' | 'recover';
-
-export type NationalIntentReason =
-  | 'intent-initial-selection'
-  | 'intent-shock-recover'
-  | 'intent-shock-resolved'
-  | 'intent-sustained-evidence'
-  | 'intent-hysteresis-retained'
-  | 'intent-personality-bias'
-  | 'intent-domination-pursuit';
-
-export interface NationalIntentState {
-  current: NationalIntent;
-  previous: NationalIntent | null;
-  selectedTurn: number;
-  reconsiderAfterTurn: number;
-  shockActive: boolean;
-  /** consecutive not-shocked rounds while `current === 'recover'`; 0 otherwise. */
-  shockFreeStreak: number;
-  reasonCodes: NationalIntentReason[];
-}
-
-export interface OpponentAIState {
-  version: 1;
-  migrationGraceRoundsRemaining: number;
-  majorCivs: Record<string, MajorCivPlanPortfolio>;
-  barbarianCamps: Record<string, AIStrategicPlan>;
-  barbarianHomeCampByUnitId: Record<string, string>;
-  minorCivs: Record<string, AIStrategicPlan>;
-  pressureByCiv: Record<string, CivPressureLedger>;
-  nationalIntentByCiv: Record<string, NationalIntentState>;
-  lastPlannedRound: number | null;
-  lastProcessedRound: number | null;
-  lastFinalizedRound: number | null;
-}
-
 // --- Trade & Resources ---
-
-export type LuxuryResource = 'silk' | 'wine' | 'spices' | 'gems' | 'ivory' | 'incense'
-  | 'gold' | 'silver' | 'furs' | 'sheep';
-export type StrategicResource = 'copper' | 'iron' | 'horses' | 'stone' | 'cattle' | 'salt'
-  | 'coal' | 'oil' | 'aluminum' | 'uranium' | 'rare-earth-elements' | 'battery-minerals';
-export type ResourceType = LuxuryResource | StrategicResource;
 
 export interface TradeRoute {
   id: string;              // 'route-N' using state.idCounters.nextRouteId

@@ -1,4 +1,5 @@
-import type { City, CrisisArchetype, GameState, HexCoord, HexTile, OpponentChallenge, TerrainType } from '@/core/types';
+import type { City, CrisisArchetype, GameState, HexCoord, HexTile, TerrainType } from '@/core/types';
+import type { OpponentChallenge } from '@/core/types/ai';
 import { hexKey, hexNeighbors } from './hex-utils';
 
 export interface CrisisSeverity {

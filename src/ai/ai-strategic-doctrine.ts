@@ -1,4 +1,5 @@
-import type { City, GameState, OpponentChallenge, Unit } from '@/core/types';
+import type { City, GameState, Unit } from '@/core/types';
+import type { OpponentChallenge } from '@/core/types/ai';
 import { getCapitalCity } from '@/systems/capital-system';
 import { getLegalStrategicLaunchTargets, isStrategicStrikeRetaliation } from '@/systems/strategic-launch-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
