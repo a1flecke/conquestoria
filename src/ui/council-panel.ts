@@ -1,4 +1,5 @@
-import type { CouncilCard, CouncilCardAction, CouncilTalkLevel, GameState } from '@/core/types';
+import type { GameState } from '@/core/types';
+import type { CouncilCard, CouncilCardAction, CouncilTalkLevel } from '@/core/types/council';
 import { buildCouncilAgenda } from '@/systems/council-system';
 import { getAssessmentChangesForViewer } from '@/systems/assessment-history';
 import type { AssessmentChange } from '@/systems/strategic-assessment';

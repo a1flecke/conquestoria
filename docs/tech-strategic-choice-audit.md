@@ -187,7 +187,7 @@ Class/rating: rating 0 flavor, 1 unconditional number, 2 conditional but weak or
 | `pottery-arts` | 2 | arts | KEEP | 0 | era-only | - | - |
 | `music` | 2 | arts | KEEP | 0 | era-only | - | - |
 | `sculpture` | 3 | arts | KEEP | 0 | era-only | - | - |
-| `drama` | 3 | arts | KEEP | 3 | era-only | - | systems/council-system, systems/event-chain-presentation |
+| `drama` | 3 | arts | KEEP | 3 | era-only | - | core/types/council, systems/council-system, systems/event-chain-presentation |
 | `theater` | 4 | arts | KEEP | 0 | era-only | - | - |
 | `architecture-arts` | 4 | arts | KEEP | 0 | era-only | - | - |
 | `rafts` | 1 | maritime | KEEP | 0 | era-only | - | - |
