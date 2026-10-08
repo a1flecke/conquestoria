@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { CampaignCivSample, CampaignRoundSample } from '../campaign-sample';
 import {
   analyzeCampaign,
+  classifyProductionIdleState,
   DEFAULT_CAMPAIGN_ANALYSIS_CONFIG,
   type CampaignFindingCode,
 } from './campaign-analysis';
@@ -119,16 +120,46 @@ describe('analyzeCampaign — detectors fire on injected stalls', () => {
     expect(finding!.lastRound).toBe(40);
   });
 
-  it('detects production-idle only when every city is idle', () => {
-    const idle = series(120, round => [
-      healthyCiv('ai-1', round, round >= 30 && round <= 80 ? { cities: 2, citiesWithEmptyQueue: 2 } : { cities: 2 }),
-    ]);
-    expect(codes(idle)).toContain('production-idle');
+  describe('production-idle (#1407: empty AND unconverted)', () => {
+    const ids = (n: number) => Array.from({ length: n }, (_, i) => `c${i}`);
+    const idleRow = (cities: number, empty: string[], converting: string[]): Partial<CampaignCivSample> => ({
+      cities, citiesWithEmptyQueue: empty.length, emptyQueueCityIds: empty, convertingCityIds: converting,
+    });
+    const run = (build: (round: number) => Partial<CampaignCivSample>) =>
+      codes(series(120, round => [healthyCiv('ai-1', round, build(round))]));
+    const inWindow = (round: number) => round >= 30 && round <= 80;
 
-    const oneIdle = series(120, round => [
-      healthyCiv('ai-1', round, { cities: 3, citiesWithEmptyQueue: 1 }),
-    ]);
-    expect(codes(oneIdle)).not.toContain('production-idle');
+    it('fires when every city is empty and unconverted', () => {
+      expect(run(r => inWindow(r) ? idleRow(2, ids(2), []) : { cities: 2 })).toContain('production-idle');
+    });
+    it('does not fire for a fully converting empire', () => {
+      expect(run(r => inWindow(r) ? idleRow(2, ids(2), ids(2)) : { cities: 2 })).not.toContain('production-idle');
+    });
+    it('does not fire for a mixed 2+2 streak', () => {
+      expect(run(r => inWindow(r) ? idleRow(4, ids(4), ids(2)) : { cities: 4 })).not.toContain('production-idle');
+    });
+    it('does not fire while one city is still building', () => {
+      expect(run(() => idleRow(3, ids(2), []))).not.toContain('production-idle');
+    });
+    it('treats missing telemetry as unknown, never wasted', () => {
+      expect(run(() => ({ cities: 2, citiesWithEmptyQueue: 2 }))).not.toContain('production-idle');
+    });
+    it('ignores zero-city civs and transient single-round emptiness', () => {
+      expect(run(() => idleRow(0, [], []))).not.toContain('production-idle');
+      expect(run(r => r % 5 === 0 ? idleRow(2, ids(2), []) : { cities: 2 })).not.toContain('production-idle');
+    });
+    it('ignores human civs', () => {
+      const samples = series(120, round => [healthyCiv('h', round, { isHuman: true, ...idleRow(2, ids(2), []) })]);
+      expect(codes(samples)).not.toContain('production-idle');
+    });
+    it('classifies each state', () => {
+      const row = (o: Partial<CampaignCivSample>) => classifyProductionIdleState(healthyCiv('a', 1, o));
+      expect(row(idleRow(2, ids(2), []))).toBe('all-unconverted-empty');
+      expect(row(idleRow(2, ids(2), ids(2)))).toBe('all-converting');
+      expect(row(idleRow(2, ids(2), ['c0']))).toBe('mixed-converting-and-unconverted');
+      expect(row(idleRow(3, ids(1), []))).toBe('building');
+      expect(row({ cities: 2 })).toBe('unknown');
+    });
   });
 
   it('detects tech-frozen while research is available', () => {

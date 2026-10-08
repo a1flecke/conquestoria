@@ -207,6 +207,34 @@ function detectNoResearchChoice(
   return findings;
 }
 
+/**
+ * How a civ's cities stood at one round end, from the optional `emptyQueueCityIds` / `convertingCityIds`
+ * telemetry (#1406). `unknown` = the sample predates that telemetry (or lists are inconsistent with the city
+ * count); it is never read as wasted or as converting.
+ */
+export type ProductionIdleState =
+  | 'unknown'
+  | 'building'
+  | 'all-converting'
+  | 'mixed-converting-and-unconverted'
+  | 'all-unconverted-empty';
+
+export function classifyProductionIdleState(row: CampaignCivSample): ProductionIdleState {
+  if (row.cities <= 0 || !row.emptyQueueCityIds || !row.convertingCityIds) return 'unknown';
+  const empty = new Set(row.emptyQueueCityIds);
+  if (empty.size < row.cities) return 'building';
+  let converting = 0;
+  for (const id of row.convertingCityIds) if (empty.has(id)) converting += 1;
+  if (converting >= row.cities) return 'all-converting';
+  return converting === 0 ? 'all-unconverted-empty' : 'mixed-converting-and-unconverted';
+}
+
+/**
+ * `production-idle`: every city of a living AI civ has an empty queue AND none converts its output through
+ * `City.idleProduction` (#1406) -- i.e. output is suspected to be thrown away. A queue-empty city that converts
+ * to gold/science is the intended fallback, not waste, so all-converting and mixed streaks do not fire (#1407).
+ * This is a snapshot-based suspicion, not proof of discarded output; exact accounting is a later phase.
+ */
 function detectProductionIdle(
   series: CivSeries[],
   config: CampaignAnalysisConfig,
@@ -215,12 +243,12 @@ function detectProductionIdle(
   for (const civ of series) {
     if (civ.isHuman) continue;
     const run = longestRun(civ, config.productionIdleRounds, row =>
-      activeAiRow(row) && row.cities > 0 && row.citiesWithEmptyQueue >= row.cities);
+      activeAiRow(row) && classifyProductionIdleState(row) === 'all-unconverted-empty');
     if (run) {
       findings.push({
         code: 'production-idle',
         civId: civ.civId,
-        detail: `every city idle for ${run.length} consecutive rounds`,
+        detail: `every city idle and unconverted for ${run.length} consecutive rounds`,
         firstRound: run.firstRound,
         lastRound: run.lastRound,
       });
