@@ -1,12 +1,12 @@
+import type { HexCoord } from '@/core/types';
 import type {
   AIPlanReason,
   AIStrategicObjective,
   AIStrategicPlan,
   AIStrategicRole,
   AITarget,
-  HexCoord,
   MajorCivPlanPortfolio,
-} from '@/core/types';
+} from '@/core/types/ai';
 import { hexKey } from '@/systems/hex-utils';
 import type { CivilizationEra, WorldAge } from '@/systems/era-types';
 import { targetStableKey } from './ai-objective-scoring';

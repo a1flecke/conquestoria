@@ -1,11 +1,5 @@
-import type {
-  AIStrategicPlan,
-  GameEvents,
-  GameState,
-  HexCoord,
-  CivPressureLedger,
-  ResourceType,
-} from '@/core/types';
+import type { GameEvents, GameState, HexCoord, ResourceType } from '@/core/types';
+import type { AIStrategicPlan, CivPressureLedger } from '@/core/types/ai';
 import type { EventBus } from '@/core/event-bus';
 import { createEmptyOpponentAIState } from '@/core/opponent-ai-state';
 import { getVisibility } from '@/systems/fog-of-war';

@@ -1,10 +1,5 @@
-import type {
-  AIStrategicPlan,
-  GameState,
-  HexCoord,
-  Unit,
-  WorkerActionType,
-} from '@/core/types';
+import type { GameState, HexCoord, Unit, WorkerActionType } from '@/core/types';
+import type { AIStrategicPlan } from '@/core/types/ai';
 import {
   OPPONENT_CHALLENGE_PROFILES,
   resolveOpponentChallenge,

@@ -1,11 +1,5 @@
-import type {
-  AIPlanReason,
-  AIStrategicObjective,
-  AIStrategicRole,
-  AITarget,
-  GameMap,
-  HexCoord,
-} from '@/core/types';
+import type { GameMap, HexCoord } from '@/core/types';
+import type { AIPlanReason, AIStrategicObjective, AIStrategicRole, AITarget } from '@/core/types/ai';
 import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { findPath } from '@/systems/unit-pathfinding';
 import { createAIDecisionTrace, type AIDecisionTrace } from './ai-decision-trace';

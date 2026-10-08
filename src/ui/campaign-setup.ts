@@ -1,4 +1,11 @@
-import type { BeastsMode, CustomCivDefinition, SoloSetupConfig, MapScript, OpponentChallenge, StartPlacementMode } from '@/core/types';
+import type {
+  BeastsMode,
+  CustomCivDefinition,
+  SoloSetupConfig,
+  MapScript,
+  StartPlacementMode,
+} from '@/core/types';
+import type { OpponentChallenge } from '@/core/types/ai';
 import { GameCreationError, MAP_DIMENSIONS } from '@/core/game-state';
 import { createCivSelectPanel } from '@/ui/civ-select';
 import { createCustomCivPanel } from '@/ui/custom-civ-panel';

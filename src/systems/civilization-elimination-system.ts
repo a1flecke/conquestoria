@@ -1,8 +1,5 @@
-import type {
-  AIStrategicPlan,
-  GameState,
-  MajorCivPlanPortfolio,
-} from '@/core/types';
+import type { GameState } from '@/core/types';
+import type { AIStrategicPlan, MajorCivPlanPortfolio } from '@/core/types/ai';
 import type { EventBus } from '@/core/event-bus';
 import { cancelInvalidNetworkPlans } from '@/systems/network-plan-system';
 import { getCivilizationLiveness } from './civilization-liveness';

@@ -1,4 +1,4 @@
-import type { OpponentChallenge } from '@/core/types';
+import type { OpponentChallenge } from '@/core/types/ai';
 import { createGameButton } from '@/ui/ui-kit';
 
 export const OPPONENT_CHALLENGE_COPY = {

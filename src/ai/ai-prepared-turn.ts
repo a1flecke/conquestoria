@@ -1,14 +1,11 @@
 import type { EventBus } from '@/core/event-bus';
+import type { GameMap, GameState, PersonalityTraits, UnitType } from '@/core/types';
 import type {
   AIStrategicPlan,
   AIStrategicRole,
-  GameMap,
-  GameState,
   MajorCivPlanPortfolio,
   NationalIntentState,
-  PersonalityTraits,
-  UnitType,
-} from '@/core/types';
+} from '@/core/types/ai';
 import { hexDistance, hexKey, parseHexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { getVisibility } from '@/systems/fog-of-war';
 import {

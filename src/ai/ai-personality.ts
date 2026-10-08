@@ -1,4 +1,5 @@
-import type { AIStrategicRole, PersonalityTraits, Tech, TechTrack } from '@/core/types';
+import type { PersonalityTraits, Tech, TechTrack } from '@/core/types';
+import type { AIStrategicRole } from '@/core/types/ai';
 import type { NationalIntentPosture } from './ai-national-intent-posture';
 
 const TRACK_WEIGHTS: Record<string, Record<TechTrack, number>> = {

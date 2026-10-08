@@ -1,5 +1,17 @@
 import { rolling31Signed } from '@/systems/deterministic-hash';
-import type { GameState, Civilization, Unit, HotSeatConfig, GameSettings, SoloSetupConfig, MapScript, GameMap, HexCoord, OpponentChallenge, StartPlacementMode } from './types';
+import type {
+  GameState,
+  Civilization,
+  Unit,
+  HotSeatConfig,
+  GameSettings,
+  SoloSetupConfig,
+  MapScript,
+  GameMap,
+  HexCoord,
+  StartPlacementMode,
+} from './types';
+import type { OpponentChallenge } from '@/core/types/ai';
 import { generateMap, findStartPositions, createRng, guaranteeStartResources } from '@/systems/map-generator';
 import { loadGeoMap } from '@/systems/geo-map-loader';
 import { EARTH_TILES, EARTH_RIVERS } from '@/systems/earth-map-data';

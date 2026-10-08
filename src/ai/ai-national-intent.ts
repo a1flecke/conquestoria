@@ -1,10 +1,10 @@
+import type { PersonalityTraits } from '@/core/types';
 import type {
   NationalIntent,
   NationalIntentReason,
   NationalIntentState,
   OpponentChallenge,
-  PersonalityTraits,
-} from '@/core/types';
+} from '@/core/types/ai';
 import { majorCivWarOpponentIds } from '@/core/owner-kind';
 import type { MajorCivPerception } from './ai-perception';
 import type { AICityThreat } from './ai-plan-portfolio';

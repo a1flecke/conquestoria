@@ -3,13 +3,8 @@ import {
   OPPONENT_CHALLENGE_PROFILES,
   resolveOpponentChallenge,
 } from '@/core/opponent-challenge';
-import type {
-  City,
-  GameState,
-  MajorCivPlanPortfolio,
-  ResourceType,
-  Unit,
-} from '@/core/types';
+import type { City, GameState, ResourceType, Unit } from '@/core/types';
+import type { MajorCivPlanPortfolio } from '@/core/types/ai';
 import { getCityAppeaseCost } from '@/systems/faction-commands';
 import { calculateMaintenance } from '@/systems/economy-system';
 import {

@@ -4,13 +4,8 @@ import {
   OPPONENT_CHALLENGE_PROFILES,
   resolveOpponentChallenge,
 } from '@/core/opponent-challenge';
-import type {
-  AIStrategicRole,
-  AIStrategicPlan,
-  CombatResult,
-  GameState,
-  Unit,
-} from '@/core/types';
+import type { CombatResult, GameState, Unit } from '@/core/types';
+import type { AIStrategicRole, AIStrategicPlan } from '@/core/types/ai';
 import { resolveUnitVsUnitAttack } from '@/systems/attack-targeting';
 import { rebaseAircraft, resolveAirStrike, resolveReconMission, resolvePatrolMission, startIntercept } from '@/systems/air-operations-system';
 import { executeParadrop, executeAirAssault } from '@/systems/airborne-system';

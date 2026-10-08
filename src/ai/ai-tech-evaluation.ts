@@ -1,8 +1,5 @@
-import type {
-  AIStrategicRole,
-  ResourceType,
-  Tech,
-} from '@/core/types';
+import type { ResourceType, Tech } from '@/core/types';
+import type { AIStrategicRole } from '@/core/types/ai';
 import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
 import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 import { TECH_COST_DISCOUNTS, TECH_YIELD_MODIFIERS, type YieldKind } from '@/systems/tech-yield-definitions';

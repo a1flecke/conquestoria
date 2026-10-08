@@ -1,4 +1,5 @@
-import type { AIPlanReason, OpponentChallenge, PersonalityTraits } from '@/core/types';
+import type { PersonalityTraits } from '@/core/types';
+import type { AIPlanReason, OpponentChallenge } from '@/core/types/ai';
 import { getDominationThreats } from '@/systems/domination-presentation';
 import type { DominationKnowledge } from '@/systems/domination-types';
 

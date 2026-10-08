@@ -1,15 +1,6 @@
 import { rolling31UnsignedByCodePoint } from './deterministic-hash';
-import type {
-  AIStrategicPlan,
-  BarbarianCamp,
-  GameMap,
-  GameState,
-  HexCoord,
-  OpponentAIState,
-  ResourceType,
-  Unit,
-  UnitType,
-} from '@/core/types';
+import type { BarbarianCamp, GameMap, GameState, HexCoord, ResourceType, Unit, UnitType } from '@/core/types';
+import type { AIStrategicPlan, OpponentAIState } from '@/core/types/ai';
 import { createEmptyOpponentAIState } from '@/core/opponent-ai-state';
 import { OPPONENT_CHALLENGE_PROFILES, resolvePressureSeverityForCiv } from '@/core/opponent-challenge';
 import { canAttackByProfileOnMap } from './attack-targeting';

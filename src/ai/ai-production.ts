@@ -1,9 +1,5 @@
-import type {
-  AIStrategicRole,
-  GameState,
-  PersonalityTraits,
-  TrainableUnitEntry,
-} from '@/core/types';
+import type { GameState, PersonalityTraits, TrainableUnitEntry } from '@/core/types';
+import type { AIStrategicRole } from '@/core/types/ai';
 import {
   BUILDINGS,
   TRAINABLE_UNITS,

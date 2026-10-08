@@ -1,5 +1,6 @@
 import { CRISIS_FORCE_OWNER, isMajorCivOwner } from '@/core/owner-kind';
-import type { CrisisForce, GameState, OpponentChallenge } from '@/core/types';
+import type { CrisisForce, GameState } from '@/core/types';
+import type { OpponentChallenge } from '@/core/types/ai';
 import { resolvePressureSeverityForCiv } from '@/core/opponent-challenge';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import type { HerdRoute } from '@/core/types';

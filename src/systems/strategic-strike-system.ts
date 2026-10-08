@@ -1,4 +1,5 @@
-import type { GameState, HexCoord, OpponentChallenge } from '@/core/types';
+import type { GameState, HexCoord } from '@/core/types';
+import type { OpponentChallenge } from '@/core/types/ai';
 import {
   getStrategicLaunchLegality,
   type StrategicLaunchLegalityFailure,
