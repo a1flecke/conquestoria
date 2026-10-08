@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { EventBus } from '@/core/event-bus';
-import type { GameState } from '@/core/types';
+import type { GameState, Unit } from '@/core/types';
 import { declareWarGoal } from '@/systems/war-goal-system';
-import { getWarObjectiveOpportunities, WAR_OBJECTIVE_PRIORITY } from '@/systems/war-objective-presentation';
+import { getWarObjectiveOpportunities, WAR_OBJECTIVE_ACTIVE_LIMITED_PRIORITY, WAR_OBJECTIVE_PRIORITY } from '@/systems/war-objective-presentation';
+import { createUnit } from '@/systems/unit-lifecycle';
 import { declareMajorWar } from '@/systems/diplomacy-system';
 import { expectViewerSafety } from '../helpers/viewer-safety';
 import { makeWarGoalFixture } from './helpers/war-goal-fixture';
@@ -239,3 +240,151 @@ function state0CityName(): string {
   const state = fixture();
   return state.cities[state.civilizations['defender'].cities[0]].name;
 }
+
+// --- #1398: operational readiness enriches the war decision (own forces only, empire-wide, never a comparison) ---
+
+describe('war objective x own-force readiness (#1398)', () => {
+  function armyOf(state: GameState, owner: string, count: number, patch: Partial<Unit> = {}): GameState {
+    const next: GameState = { ...state, units: { ...state.units } };
+    const home = next.cities[next.civilizations[owner].cities[0]];
+    for (let i = 0; i < count; i += 1) {
+      const unit = { ...createUnit('warrior', owner, { q: home.position.q + 1, r: home.position.r + i }, next.idCounters), ...patch };
+      next.units[unit.id] = unit;
+    }
+    return next;
+  }
+
+  function activeWar(): GameState {
+    const state = fixture();
+    // Start from a known, healthy 6-unit force so thresholds are exact.
+    const clean: GameState = { ...state, units: Object.fromEntries(Object.entries(state.units).filter(([, u]) => u.owner !== 'attacker')) };
+    return withGoal(armyOf(clean, 'attacker', 6), 'conquer_city', defenderCity(state));
+  }
+
+  const limits = (why: string) => /Across your whole armed forces/.test(why);
+
+  it('leaves the plain reminder untouched for a healthy force', () => {
+    const [opp] = getWarObjectiveOpportunities(activeWar(), 'attacker');
+    expect(opp.why).toBe('Your declared aim against Egypt is still in progress.');
+    expect(opp.priority).toBe(WAR_OBJECTIVE_PRIORITY.active);
+  });
+
+  it('turns an unfinished aim into a real recover-or-press-on choice when a quarter of the force is limited', () => {
+    const state = activeWar();
+    const wounded = Object.values(state.units).filter(u => u.owner === 'attacker').slice(0, 2).map(u => u.id);
+    const hurt: GameState = { ...state, units: { ...state.units, ...Object.fromEntries(wounded.map(id => [id, { ...state.units[id], health: 20 }])) } };
+    const [opp] = getWarObjectiveOpportunities(hurt, 'attacker');
+    expect(opp.stage).toBe('active');
+    expect(opp.priority).toBe(WAR_OBJECTIVE_ACTIVE_LIMITED_PRIORITY);
+    expect(opp.priority).toBeGreaterThan(WAR_OBJECTIVE_PRIORITY.active);
+    expect(opp.priority).toBeLessThan(WAR_OBJECTIVE_PRIORITY['no-goal']);
+    expect(opp.why).toContain('Across your whole armed forces (not just this front), 2 of 6 units are limited: 2 badly wounded.');
+    expect(opp.why).toContain('let them recover before pressing the attack, or keep fighting');
+    expect(opp.destination).toEqual({ kind: 'open-diplomacy' });
+  });
+
+  it('stays quiet below the threshold: one limited unit, or a small share of a large force', () => {
+    const state = activeWar();
+    const ids = Object.values(state.units).filter(u => u.owner === 'attacker').map(u => u.id);
+    const one: GameState = { ...state, units: { ...state.units, [ids[0]]: { ...state.units[ids[0]], health: 10 } } };
+    expect(limits(getWarObjectiveOpportunities(one, 'attacker')[0].why)).toBe(false);
+    const big = armyOf(state, 'attacker', 14); // 20 units, 2 limited = 10%
+    const bigIds = Object.values(big.units).filter(u => u.owner === 'attacker').map(u => u.id);
+    const twoHurt: GameState = { ...big, units: { ...big.units, [bigIds[0]]: { ...big.units[bigIds[0]], health: 10 }, [bigIds[1]]: { ...big.units[bigIds[1]], health: 10 } } };
+    expect(limits(getWarObjectiveOpportunities(twoHurt, 'attacker')[0].why)).toBe(false);
+  });
+
+  it('does not restate land supply: a cut-off army is the supply constraint\'s business, not this card\'s', () => {
+    const state = activeWar();
+    const supply = { state: 'severe', hostileUnsupportedTurns: 9, suppliedTurnsSinceRecovery: 0 } as const;
+    const cutOff: GameState = { ...state, units: Object.fromEntries(Object.entries(state.units).map(([id, u]) => [id, u.owner === 'attacker' ? { ...u, landSupply: supply } : u])) };
+    const [opp] = getWarObjectiveOpportunities(cutOff, 'attacker');
+    expect(opp.why).toBe('Your declared aim against Egypt is still in progress.');
+    expect(opp.priority).toBe(WAR_OBJECTIVE_PRIORITY.active);
+  });
+
+  it('names naval and air limits in plain language, most severe first, capped', () => {
+    let state = activeWar();
+    const ships = armyOf(state, 'attacker', 0);
+    state = ships;
+    const home = state.cities[state.civilizations['attacker'].cities[0]];
+    const galley = { ...createUnit('galley', 'attacker', { q: home.position.q, r: home.position.r }, state.idCounters), navalOps: { awayTurns: 12 } };
+    const galley2 = { ...createUnit('galley', 'attacker', { q: home.position.q, r: home.position.r }, state.idCounters), navalOps: { awayTurns: 12 } };
+    state = { ...state, units: { ...state.units, [galley.id]: galley, [galley2.id]: galley2 } };
+    const [opp] = getWarObjectiveOpportunities(state, 'attacker');
+    expect(opp.why).toContain('2 of 8 units are limited: 2 depleted ships.');
+  });
+
+  it('adds the force condition to a satisfied aim as one more reason to weigh a settlement, never a promise', () => {
+    const state = activeWar();
+    const target = defenderCity(state);
+    const ids = Object.values(state.units).filter(u => u.owner === 'attacker').slice(0, 3).map(u => u.id);
+    const hurt: GameState = { ...state, units: { ...state.units, ...Object.fromEntries(ids.map(id => [id, { ...state.units[id], health: 30 }])) } };
+    const [opp] = getWarObjectiveOpportunities(transferCity(hurt, target, 'attacker'), 'attacker');
+    expect(opp.stage).toBe('satisfied');
+    expect(opp.priority).toBe(WAR_OBJECTIVE_PRIORITY.satisfied);
+    expect(opp.why).toContain('3 of 6 units are limited: 3 badly wounded.');
+    expect(opp.why).toContain('though the other side may not agree to one');
+    expect(opp.why.toLowerCase()).not.toMatch(/will accept|you are winning|stronger than|weaker than/);
+  });
+
+  it('does not touch a missing or abandoned aim: those choices do not depend on how worn the force is', () => {
+    const state = fixture();
+    const hurt: GameState = { ...state, units: Object.fromEntries(Object.entries(state.units).map(([id, u]) => [id, { ...u, health: 10 }])) };
+    const [noGoal] = getWarObjectiveOpportunities(hurt, 'attacker');
+    expect(noGoal.stage).toBe('no-goal');
+    expect(limits(noGoal.why)).toBe(false);
+
+    const target = defenderCity(state);
+    const withTarget = withGoal(hurt, 'conquer_city', target);
+    const { [target]: _gone, ...remaining } = withTarget.cities;
+    const [abandoned] = getWarObjectiveOpportunities({ ...withTarget, cities: remaining }, 'attacker');
+    expect(abandoned.stage).toBe('abandoned');
+    expect(limits(abandoned.why)).toBe(false);
+  });
+
+  it('still honours a pending peace/settlement request: no settlement advice, so no force text either', () => {
+    const state = activeWar();
+    const target = defenderCity(state);
+    const satisfied = transferCity(state, target, 'attacker');
+    const pending: GameState = { ...satisfied, pendingDiplomacyRequests: [{ id: 'r', type: 'peace', fromCivId: 'defender', toCivId: 'attacker', turnIssued: satisfied.turn }] };
+    expect(getWarObjectiveOpportunities(pending, 'attacker')).toEqual([]);
+  });
+
+  it('is deterministic, does not mutate, and ignores everything about the other side (earned vs hidden)', () => {
+    const state = activeWar();
+    const ids = Object.values(state.units).filter(u => u.owner === 'attacker').slice(0, 2).map(u => u.id);
+    const hurt: GameState = { ...state, units: { ...state.units, ...Object.fromEntries(ids.map(id => [id, { ...state.units[id], health: 20 }])) } };
+    const before = JSON.stringify(hurt);
+    const first = getWarObjectiveOpportunities(hurt, 'attacker');
+    expect(JSON.stringify(hurt)).toBe(before);
+    expect(getWarObjectiveOpportunities(hurt, 'attacker')).toEqual(first);
+
+    expectViewerSafety(
+      { name: 'war objective with force readiness', project: (world: GameState, viewer: string) => getWarObjectiveOpportunities(world, viewer) },
+      {
+        world: hurt,
+        viewerId: 'attacker',
+        hidden: [
+          { label: 'enemy army wounded', apply: w => { for (const u of Object.values(w.units)) if (u.owner === 'defender') u.health = 5; } },
+          { label: 'enemy reinforcements appear', apply: w => { const home = w.cities[w.civilizations['defender'].cities[0]]; const u = createUnit('warrior', 'defender', { q: home.position.q, r: home.position.r + 2 }, w.idCounters); w.units[u.id] = u; } },
+          { label: 'enemy AI intent changes', apply: w => { w.opponentAI = { ...(w.opponentAI ?? ({} as never)), nationalIntentByCiv: { defender: { current: 'dominate' } } } as never; } },
+        ],
+        earned: [
+          { label: 'own units recover', apply: w => { for (const id of ids) w.units[id].health = 100; } },
+          { label: 'a third own unit is badly wounded', apply: w => { const extra = Object.values(w.units).find(u => u.owner === 'attacker' && !ids.includes(u.id))!; w.units[extra.id].health = 10; } },
+        ],
+      },
+    );
+  });
+
+  it('answers independently for a second hot-seat viewer at war with the same opponent', () => {
+    const state = activeWar();
+    const ids = Object.values(state.units).filter(u => u.owner === 'attacker').slice(0, 2).map(u => u.id);
+    const hurt: GameState = { ...state, units: { ...state.units, ...Object.fromEntries(ids.map(id => [id, { ...state.units[id], health: 20 }])) } };
+    const [mine] = getWarObjectiveOpportunities(hurt, 'attacker');
+    const [theirs] = getWarObjectiveOpportunities(hurt, 'defender');
+    expect(limits(mine.why)).toBe(true);
+    expect(theirs === undefined || !limits(theirs.why)).toBe(true);
+  });
+});
