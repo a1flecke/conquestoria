@@ -20,15 +20,14 @@
 // be enabled -- nothing is penalised when load is high, so there is no constraint to report)
 // and `military` (no aggregate readiness fact exists). A healthy empire returns no
 // constraints; filler would teach the player to ignore the list.
+import type { GameState, WorldRaceKind } from '@/core/types';
 import type {
   AssessmentDigest,
   AssessmentSeverityBucket,
   CouncilCardAction,
-  GameState,
   StrategicConstraintKind,
   VictoryStage,
-  WorldRaceKind,
-} from '@/core/types';
+} from '@/core/types/council';
 import { majorCivWarOpponentIds } from '@/core/owner-kind';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { getBlockadedCityIds } from '@/systems/blockade-system';

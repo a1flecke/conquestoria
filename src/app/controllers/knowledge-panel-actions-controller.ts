@@ -9,7 +9,7 @@
  * copy. Cross-use-case openers (City, Wonder, Diplomacy) go through
  * `PanelActionsCrossCalls` so this module never imports a peer controller.
  */
-import type { CouncilCardAction } from '@/core/types';
+import type { CouncilCardAction } from '@/core/types/council';
 import { createPacingDebugPanel } from '@/ui/pacing-debug-panel';
 import { getBestiaryEntriesForPlayer } from '@/systems/beast-presentation';
 import { createBestiaryPanel } from '@/ui/bestiary-panel';

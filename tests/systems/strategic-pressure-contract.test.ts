@@ -46,7 +46,7 @@ describe('the strategic constraint kind inventory (#1357)', () => {
 
   it('only the inventory itself spells the kinds out: no other source file keeps a parallel kind list', () => {
     const offenders = sourceFiles('src').filter(file => {
-      if (file === 'src/core/types.ts') return false;
+      if (file === 'src/core/types/council.ts') return false;
       const text = read(file);
       // Food/production/science/gold are also the four yield names, so a plain yield list is not an inventory. A list
       // naming at least one kind that is NOT a yield (unrest, supply, blockade) plus two more is a hand-kept inventory.

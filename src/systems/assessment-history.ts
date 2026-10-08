@@ -10,8 +10,9 @@
 // Hot seat: a digest is keyed by civ and a read takes the viewer's own civ id, so one seat's
 // digest can never reach another seat's section. A digest only ever holds the viewer's own
 // assessment (bucketed), so it carries no rival facts to leak.
-import type { AssessmentDigest, GameState } from '@/core/types';
-import { STRATEGIC_CONSTRAINT_KINDS } from '@/core/types';
+import type { GameState } from '@/core/types';
+import type { AssessmentDigest } from '@/core/types/council';
+import { STRATEGIC_CONSTRAINT_KINDS } from '@/core/types/council';
 import {
   buildAssessmentDigest,
   buildStrategicAssessment,

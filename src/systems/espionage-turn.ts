@@ -1,5 +1,4 @@
 import type {
-  AdvisorType,
   EspionageCivState,
   GameEvents,
   GameState,
@@ -7,6 +6,7 @@ import type {
   SpyMissionType,
   SpyPromotion,
 } from '@/core/types';
+import type { AdvisorType } from '@/core/types/council';
 import type { EventBus } from '@/core/event-bus';
 import { createRng } from './map-generator';
 import { hexDistance } from './hex-utils';

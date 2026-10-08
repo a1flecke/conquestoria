@@ -1,5 +1,6 @@
 // src/ui/espionage-panel.ts
-import type { AdvisorType, GameState, Spy, SpyMissionType, SpyPromotion, InterrogationIntel } from '../core/types';
+import type { GameState, Spy, SpyMissionType, SpyPromotion, InterrogationIntel } from '../core/types';
+import type { AdvisorType } from '@/core/types/council';
 import { getAvailableMissions, getEspionageModifierBreakdown, getMissionDuration, getSpySuccessChance, missionRequiresPlacedSpy } from '../systems/espionage-presentation';
 import { getProductionLabel } from '../systems/economy-system';
 

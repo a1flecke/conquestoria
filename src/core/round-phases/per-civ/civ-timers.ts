@@ -1,4 +1,5 @@
-import type { AdvisorType, GameState } from '@/core/types';
+import type { GameState } from '@/core/types';
+import type { AdvisorType } from '@/core/types/council';
 import type { CivTurn } from './types';
 
 /**

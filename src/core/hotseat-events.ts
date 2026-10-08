@@ -1,4 +1,5 @@
-import type { CouncilInterrupt, GameState, GameEvent } from './types';
+import type { GameState, GameEvent } from './types';
+import type { CouncilInterrupt } from '@/core/types/council';
 import { getOwnedCityCount } from '@/systems/city-ownership';
 import { getOwnedUnitCount } from '@/systems/unit-ownership';
 import { majorCivWarOpponentIds } from './owner-kind';

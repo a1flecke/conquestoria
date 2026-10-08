@@ -1,4 +1,5 @@
-import type { GameState, TutorialStep, AdvisorType, Unit } from '@/core/types';
+import type { GameState, TutorialStep, Unit } from '@/core/types';
+import type { AdvisorType } from '@/core/types/council';
 import { getOwnedCities, getOwnedCityCount } from '@/systems/city-ownership';
 import { getOwnedUnitCount } from '@/systems/unit-ownership';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';

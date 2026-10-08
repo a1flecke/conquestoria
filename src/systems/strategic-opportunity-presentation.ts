@@ -10,7 +10,8 @@
  * table typed `Record<StrategicOpportunityKind, ...>`, so a new kind cannot compile without its advisor and copy.
  * Ephemeral by design: opportunities are current-state only and are not part of the persisted assessment digest.
  */
-import type { AdvisorType, CouncilCardAction, GameState } from '@/core/types';
+import type { GameState } from '@/core/types';
+import type { AdvisorType, CouncilCardAction } from '@/core/types/council';
 import { getGovernanceOpportunity } from '@/systems/governance-opportunity-presentation';
 import { getWarObjectiveOpportunities } from '@/systems/war-objective-presentation';
 

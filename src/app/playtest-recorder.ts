@@ -29,7 +29,8 @@
 //
 // Viewer privacy: each seat's rows contain only that seat's own facts (its own idle counts, gold,
 // notification log and viewer-safe assessment). Hot seat keeps seats in separate logs.
-import type { CouncilCard, GameState, StrategicConstraintKind, VictoryStage } from '@/core/types';
+import type { GameState } from '@/core/types';
+import type { CouncilCard, StrategicConstraintKind, VictoryStage } from '@/core/types/council';
 import type { NotificationEntry } from '@/core/notification-log';
 import type { GameSession } from '@/app/ports';
 import { buildCouncilAgenda } from '@/systems/council-system';

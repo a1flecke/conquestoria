@@ -9,7 +9,8 @@
 // `buildCouncilAgenda`'s existing per-viewer call convention
 // (`buildCouncilAgenda(state, civId)`, always called with `state.currentPlayer`)
 // already guarantees hot-seat isolation for.
-import type { CouncilCard, GameEvents, GameState } from '@/core/types';
+import type { GameEvents, GameState } from '@/core/types';
+import type { CouncilCard } from '@/core/types/council';
 import { getEventChainDefinition } from './event-chain-definitions';
 
 export const EVENT_CHAIN_CARD_ID_PREFIX = 'event-chain-choice:';

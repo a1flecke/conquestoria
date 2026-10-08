@@ -1,5 +1,4 @@
 import type {
-  AdvisorType,
   CivBonusEffect,
   EspionageCivState,
   GameState,
@@ -8,6 +7,7 @@ import type {
   SpyMissionType,
   UnitType,
 } from '@/core/types';
+import type { AdvisorType } from '@/core/types/council';
 import type { Treaty } from '@/core/types/diplomacy';
 import { createRng } from './map-generator';
 import { hexDistance } from './hex-utils';

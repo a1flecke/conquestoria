@@ -1,3 +1,4 @@
+import type { GameState } from '@/core/types';
 import type {
   AdvisorType,
   CouncilCallbackTone,
@@ -7,8 +8,7 @@ import type {
   CouncilMemoryOutcome,
   CouncilMemoryState,
   CouncilMemorySubjects,
-  GameState,
-} from '@/core/types';
+} from '@/core/types/council';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 import { formatCityReference } from '@/systems/player-facing-labels';
 import { getVisibility } from '@/systems/fog-of-war';

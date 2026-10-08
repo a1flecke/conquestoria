@@ -10,8 +10,8 @@
  * specialised Council card (an incoming tribute demand, an active tribute). A MECHANISM that merely contributes to a
  * condition appears through that condition's explanation (Imperial Levy is an unrest cause, not its own card).
  */
-import type { AdvisorType, StrategicConstraintKind } from '@/core/types';
-import { STRATEGIC_CONSTRAINT_KINDS } from '@/core/types';
+import type { AdvisorType, StrategicConstraintKind } from '@/core/types/council';
+import { STRATEGIC_CONSTRAINT_KINDS } from '@/core/types/council';
 
 export interface StrategicConstraintPresentation {
   /** Tie-break among equal severities: lower is more pressing. Unique per kind. */

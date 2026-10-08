@@ -7,7 +7,8 @@
 // request already sits between the pair. It never reads relative strength, `opponentAI`, the
 // opponent's own goal, or anything that would predict their consent: "worth considering" is not
 // "they will accept". Progress is qualitative on purpose -- the domain owns active/achieved, not a percentage.
-import type { CouncilCardAction, GameState } from '@/core/types';
+import type { GameState } from '@/core/types';
+import type { CouncilCardAction } from '@/core/types/council';
 import type { WarGoalKind, WarGoalStatus } from '@/core/types/diplomacy';
 import { majorCivWarOpponentIds } from '@/core/owner-kind';
 import { hasMetCivilization } from '@/systems/discovery-system';

@@ -1,4 +1,11 @@
-import type { CouncilAgenda, CouncilCard, CouncilCardAction, CouncilInterrupt, CouncilTalkLevel, GameState } from '@/core/types';
+import type { GameState } from '@/core/types';
+import type {
+  CouncilAgenda,
+  CouncilCard,
+  CouncilCardAction,
+  CouncilInterrupt,
+  CouncilTalkLevel,
+} from '@/core/types/council';
 import { getMinorCivQuestPresentationForPlayer } from '@/systems/quest-presentation';
 import { getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentation';
 import { hasExploredCoord } from '@/systems/discovery-system';
