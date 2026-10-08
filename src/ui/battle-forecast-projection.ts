@@ -1,4 +1,5 @@
-import type { CombatModifierFact, GameState, Unit } from '@/core/types';
+import type { GameState, Unit } from '@/core/types';
+import type { CombatModifierFact } from '@/core/types/combat';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { buildCombatContextForDefender, type CombatContextOptions } from '@/systems/combat-context';
 import type { CombatContext } from '@/systems/combat-system';

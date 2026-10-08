@@ -4,7 +4,8 @@
 // (combat selection, quest transitions, pressure). Moved verbatim from barbarian-system.ts, including the
 // local Lehmer `lcg` (multiplier 48271, NOT seededLcg's different recurrence — swapping them would move every
 // camp), which barbarian-system.ts still draws from for its own turn.
-import type { BarbarianCamp, GameMap, HexCoord, IdCounters } from '@/core/types';
+import type { BarbarianCamp, GameMap, HexCoord } from '@/core/types';
+import type { IdCounters } from '@/core/types/ids';
 import { hexKey, mapDistance } from './hex-utils';
 
 // Seeded LCG — avoids Math.random() per project rules

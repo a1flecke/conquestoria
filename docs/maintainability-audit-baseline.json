@@ -8,12 +8,6 @@
    "src/app/panel-router.ts"
   ],
   [
-   "src/core/autonomy-state.ts",
-   "src/core/notification-log.ts",
-   "src/core/pirate-state.ts",
-   "src/core/types.ts"
-  ],
-  [
    "src/platform/browser-save-file-adapter.ts",
    "src/platform/save-file-adapter.ts",
    "src/platform/tauri-save-file-adapter.ts"

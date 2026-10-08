@@ -12,7 +12,7 @@ import { buildImportGraph, loadRepoSources } from '../app/architecture/import-gr
  * guarded: they are primitive support leaves (HexCoord, ResourceType) with hundreds of importers that
  * migrate opportunistically; they exist so domain leaves can avoid importing the barrel (no type cycle).
  */
-const GUARDED_TYPE_LEAVES = ['ai', 'diplomacy', 'council'] as const;
+const GUARDED_TYPE_LEAVES = ['ai', 'diplomacy', 'council', 'combat', 'ids'] as const;
 
 const BARREL = 'src/core/types';
 

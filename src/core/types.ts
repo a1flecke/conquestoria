@@ -13,6 +13,8 @@ import type {
   DefensiveLeague, DiplomacyState, Embargo, PendingDiplomaticRequest, Treaty, TreatyDeclineReason, TreatyType, WarRecord,
 } from './types/diplomacy';
 import type { AdvisorType, AssessmentDigest, CouncilCallbackTone, CouncilMemoryState, CouncilTalkLevel } from './types/council';
+import type { CombatExchangeSummary, CombatModifierFact, CombatRewardNotification } from './types/combat';
+import type { IdCounters } from './types/ids';
 export type { HexCoord } from './types/hex';
 export type { LuxuryResource, ResourceType, StrategicResource } from './types/resources';
 export type {
@@ -28,6 +30,10 @@ export type {
   AdvisorType, CouncilTalkLevel, CouncilCardAction, CouncilCard, CouncilAgenda, CouncilInterrupt, CouncilState, CouncilMemoryOutcome, CouncilMemoryKind, CouncilCallbackTone, CouncilMemorySubjects, CouncilMemoryEntry, CouncilMemoryLedger, CouncilMemoryState, StrategicConstraintKind, VictoryStage, AssessmentSeverityBucket, AssessmentDigest,
 } from './types/council';
 export { STRATEGIC_CONSTRAINT_KINDS } from './types/council';
+export type {
+  CombatModifierFact, CombatExchangeKind, CombatExchangeSummary, CombatRewardNotification,
+} from './types/combat';
+export type { IdCounters } from './types/ids';
 
 // --- Terrain ---
 
@@ -1780,38 +1786,6 @@ export interface CombatSplashHit {
   damage: number;
 }
 
-export interface CombatModifierFact {
-  key: string;
-  label: string;
-  sourceVisibility: 'owner' | 'public';
-  operation: 'flat' | 'multiplier';
-  value: number;
-  outcome: 'applied' | 'ignored' | 'capped' | 'superseded';
-  ignoredReason?: 'role' | 'condition' | 'unit-class' | 'domain' | 'inactive-source';
-}
-
-export type CombatExchangeKind = 'none' | 'turret-fire' | 'evasion' | 'shock' | 'siege-anti-personnel';
-
-export interface CombatExchangeSummary {
-  kind: Exclude<CombatExchangeKind, 'none'>;
-  label: string;
-}
-
-export interface CombatRewardNotification {
-  recipientUnitId: string;
-  recipientCivId: string;
-  defeatedUnitId: string;
-  experienceAwarded: number;
-  healthRestored: number;
-  goldAwarded: number;
-  surprise: {
-    type: 'battlefield_insight' | 'salvaged_supplies';
-    label: string;
-    experienceAwarded: number;
-    goldAwarded: number;
-  } | null;
-  message: string;
-}
 
 // --- Map Scripts ---
 
@@ -1935,19 +1909,6 @@ export interface TutorialState {
   completedSteps: TutorialStep[];
 }
 
-// --- ID Counters ---
-
-export interface IdCounters {
-  nextUnitId:  number;
-  nextCityId:  number;
-  nextCampId:  number;
-  nextQuestId: number;
-  nextRouteId?: number;  // defaults to 1 on old saves (optional for back-compat)
-  nextPirateFactionId?: number;
-  nextNotificationId?: number;
-  nextNetworkPlanId?: number;
-  nextWarId?: number;
-}
 
 // --- Game State (the whole thing) ---
 

@@ -1,4 +1,5 @@
-import type { CombatModifierFact, GameState, HexCoord, TerrainType, UnitType } from '@/core/types';
+import type { GameState, HexCoord, TerrainType, UnitType } from '@/core/types';
+import type { CombatModifierFact } from '@/core/types/combat';
 import { hexDistance } from './hex-utils';
 import { UNIT_DEFINITIONS } from './unit-definitions';
 import {

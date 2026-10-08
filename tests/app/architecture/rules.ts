@@ -332,7 +332,7 @@ export const ARCHITECTURE_RULES: readonly ArchitectureRule[] = [
     id: 'camp-placement-is-a-leaf',
     kind: 'allowed-imports',
     from: `${S}/barbarian-camp-placement`,
-    allowed: ['src/core/types', `${S}/hex-utils`],
+    allowed: ['src/core/types', 'src/core/types/ids', `${S}/hex-utils`],
     edges: 'all',
     why: 'Camp placement is a pure function of the map, cities, camps and a seed; game creation and the crisis hunt both call it, so it must depend on nothing but map geometry.',
   },
@@ -417,6 +417,14 @@ export const ARCHITECTURE_RULES: readonly ArchitectureRule[] = [
     allowed: ['src/core/types/ai'],
     edges: 'all',
     why: 'The per-intent bias table is pure data read by research, production, diplomacy, war goals, expansion and the turn; it may know only the NationalIntent type, never the resolver that picks an intent.',
+  },
+  {
+    id: 'core-type-leaves-do-not-import-the-barrel',
+    kind: 'forbidden-import',
+    from: ['src/core/types/**', 'src/core/notification-log', 'src/core/autonomy-state', 'src/core/pirate-state'],
+    to: 'src/core/types',
+    edges: 'all',
+    why: 'Bounded-context type leaves and the persisted core-state modules sit below the compatibility barrel (#1361); importing it back closed the autonomy-state/notification-log/pirate-state/types type cycle. Take HexCoord from types/hex, facts from types/combat, ids from types/ids.',
   },
   {
     id: 'ai-strategy-does-not-import-the-intent-resolver',

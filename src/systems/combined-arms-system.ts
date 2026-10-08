@@ -1,4 +1,5 @@
-import type { CombatModifierFact, GameState, Unit } from '@/core/types';
+import type { GameState, Unit } from '@/core/types';
+import type { CombatModifierFact } from '@/core/types/combat';
 import { hexDistance, wrappedHexDistance } from './hex-utils';
 import { UNIT_DEFINITIONS } from './unit-definitions';
 
