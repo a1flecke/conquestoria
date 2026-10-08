@@ -32,20 +32,20 @@
 
 # --- barbarian-camp-placement.ts (the lcg() that used to sit in barbarian-system.ts; moved verbatim by #1248 — it is NOT
 #     seededLcg's recurrence (Lehmer 48271 vs 1664525/1013904223), so "unifying" them would move every camp) ---
-src/systems/barbarian-camp-placement.ts:14 # [LOW] lcg() recurrence body — hand-rolled Lehmer LCG, kept byte-identical; shared with barbarian-system's turn
+src/systems/barbarian-camp-placement.ts:15 # [LOW] lcg() recurrence body — hand-rolled Lehmer LCG, kept byte-identical; shared with barbarian-system's turn
 
 # --- beast-system.ts ---
 src/systems/beast-system.ts:74 # [LOW] lcg() recurrence body — hand-rolled duplicate of seededLcg
 # note: the seed this feeds (round-phases/beasts.ts, beast-tick) is now #982-converted and gameId-rooted.
 
 # --- combat-system.ts (resolveCombat's own seed always comes from deterministicCombatSeed, already correct) ---
-src/systems/combat-system.ts:489 # [LOW] resolveCombat's LCG recurrence body — hand-rolled duplicate of seededLcg; caller-supplied seed is already gameId-rooted
+src/systems/combat-system.ts:488 # [LOW] resolveCombat's LCG recurrence body — hand-rolled duplicate of seededLcg; caller-supplied seed is already gameId-rooted
 
 # --- city-siege-system.ts (createSeededRng is parameterized; every current caller already supplies a correct or #982-converted seed) ---
 src/systems/city-siege-system.ts:135 # [LOW] createSeededRng() recurrence body — hand-rolled duplicate of seededLcg
 
 # --- combat-reward-system.ts (seededRoll's seed always traces back to deterministicCombatSeed via applyCombatOutcomeToState) ---
-src/systems/combat-reward-system.ts:146 # [LOW] LCG recurrence body — hand-rolled duplicate of seededLcg
+src/systems/combat-reward-system.ts:147 # [LOW] LCG recurrence body — hand-rolled duplicate of seededLcg
 
 # --- round-phases/per-civ/general-candidates.ts (deriveGeneralCandidateSeed, #932 — already gameId-rooted) ---
 src/core/round-phases/per-civ/general-candidates.ts:23 # [LOW] deriveGeneralCandidateSeed (#932) — already gameId-rooted; its fold is now deterministic-hash.ts's lehmerFoldByCodePoint (#1234), this line only chooses the turn-derived start
