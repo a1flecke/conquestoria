@@ -2,7 +2,8 @@
 // ('first-satellite'); #986 adds a second row ('interstellar-colony') that also
 // terminates the game -- see that entry's own `endsGameAs` field -- rather than a
 // new engine or a parallel victory subsystem.
-import type { ResourceType, WorldRaceKind, GameOverReason } from '@/core/types';
+import type { ResourceType, GameOverReason } from '@/core/types';
+import type { WorldRaceKind } from '@/core/types/world';
 
 export interface WorldRaceDefinition {
   kind: WorldRaceKind;

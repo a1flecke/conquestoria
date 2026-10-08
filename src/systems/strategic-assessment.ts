@@ -20,7 +20,8 @@
 // be enabled -- nothing is penalised when load is high, so there is no constraint to report)
 // and `military` (no aggregate readiness fact exists). A healthy empire returns no
 // constraints; filler would teach the player to ignore the list.
-import type { GameState, WorldRaceKind } from '@/core/types';
+import type { GameState } from '@/core/types';
+import type { WorldRaceKind } from '@/core/types/world';
 import type {
   AssessmentDigest,
   AssessmentSeverityBucket,

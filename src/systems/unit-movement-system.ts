@@ -1,5 +1,6 @@
 import type { EventBus } from '@/core/event-bus';
-import type { GameState, HexCoord, VillageOutcomeType } from '@/core/types';
+import type { GameState, HexCoord } from '@/core/types';
+import type { VillageOutcomeType } from '@/core/types/world';
 import { updateVisibility } from '@/systems/fog-of-war';
 import { getActiveNationalProjectsForCiv } from '@/systems/national-project-system';
 import { getVisionBonus } from '@/systems/unit-modifier-system';

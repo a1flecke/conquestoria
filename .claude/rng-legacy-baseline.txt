@@ -35,7 +35,7 @@
 src/systems/barbarian-camp-placement.ts:15 # [LOW] lcg() recurrence body — hand-rolled Lehmer LCG, kept byte-identical; shared with barbarian-system's turn
 
 # --- beast-system.ts ---
-src/systems/beast-system.ts:74 # [LOW] lcg() recurrence body — hand-rolled duplicate of seededLcg
+src/systems/beast-system.ts:75 # [LOW] lcg() recurrence body — hand-rolled duplicate of seededLcg
 # note: the seed this feeds (round-phases/beasts.ts, beast-tick) is now #982-converted and gameId-rooted.
 
 # --- combat-system.ts (resolveCombat's own seed always comes from deterministicCombatSeed, already correct) ---

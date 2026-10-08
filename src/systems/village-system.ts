@@ -1,4 +1,5 @@
-import type { GameMap, HexCoord, GameState, TechState, Unit, TribalVillage, VillageOutcomeType } from '@/core/types';
+import type { GameMap, HexCoord, GameState, TechState, Unit, TribalVillage } from '@/core/types';
+import type { VillageOutcomeType } from '@/core/types/world';
 import { hexKey, mapDistance, mapNeighbors } from './hex-utils';
 import { createUnit } from './unit-lifecycle';
 import { TECH_TREE, applyResearchBonus, getEffectiveTechCost } from './tech-system';

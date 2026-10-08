@@ -1,4 +1,5 @@
-import type { BeastId, TerrainType, UnitType } from '@/core/types';
+import type { TerrainType, UnitType } from '@/core/types';
+import type { BeastId } from '@/core/types/world';
 
 export interface BeastDefinition {
   id: BeastId;
