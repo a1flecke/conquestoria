@@ -1,5 +1,6 @@
 import type { EventBus } from '@/core/event-bus';
 import type { GameMap, GameState, PersonalityTraits, UnitType } from '@/core/types';
+import type { AiGameState } from '@/core/types/ai';
 import type {
   AIStrategicPlan,
   AIStrategicRole,
@@ -114,7 +115,7 @@ export interface PreparedForceDemandSeed {
 }
 
 export function getPreparedAssignmentProfile(
-  state: Pick<GameState, 'opponentChallenge'>,
+  state: Pick<AiGameState, 'opponentChallenge'>,
 ) {
   return OPPONENT_CHALLENGE_PROFILES[resolveOpponentChallenge(state)];
 }

@@ -1,5 +1,6 @@
 // AI planning and national-intent contracts (#1361). Persisted via OpponentAIState; shapes are save-stable.
 // Contract/data types only: no behavior lives here.
+import type { AutonomyCivState } from '../autonomy-state';
 import type { HexCoord } from './hex';
 import type { ResourceType } from './resources';
 
@@ -151,4 +152,17 @@ export interface OpponentAIState {
   lastPlannedRound: number | null;
   lastProcessedRound: number | null;
   lastFinalizedRound: number | null;
+}
+
+/**
+ * The AI-owned slice of `GameState` (#1361). `GameState` extends this interface, so every field keeps its name,
+ * optionality and persisted representation; consumers that only read AI/opponent state can take this slice (or a
+ * `Pick` of it) instead of the whole `GameState`.
+ */
+export interface AiGameState {
+  opponentChallenge?: OpponentChallenge;
+  pendingOpponentChallenge?: OpponentChallenge;
+  opponentAI?: OpponentAIState;
+  autonomyByCiv?: Record<string, AutonomyCivState>;
+  networkCivicPressureByCity?: Record<string, number>;
 }

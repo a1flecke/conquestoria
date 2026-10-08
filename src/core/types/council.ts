@@ -142,3 +142,10 @@ export interface AssessmentDigest {
   constraints: Array<{ kind: StrategicConstraintKind; bucket: AssessmentSeverityBucket; focusCityId?: string }>;
   victory: Array<{ id: string; stage: VictoryStage }>;
 }
+
+/** The Council-owned slice of `GameState` (#1361): advisor memory and the per-civ assessment digest. `GameState` extends it unchanged. */
+export interface CouncilGameState {
+  councilMemory?: CouncilMemoryState;
+  /** #1238: per-civ digest of the last strategic assessment that civ left behind (see `assessment-history.ts`). Absent = no history yet. */
+  assessmentDigestByCiv?: Record<string, AssessmentDigest>;
+}

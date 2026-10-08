@@ -1,4 +1,4 @@
-import type { NotificationCityAction, NotificationLog } from './notification-log';
+import type { NotificationCityAction, NotificationLogState } from './notification-log';
 import type { PirateState } from './pirate-state';
 import type { DominationIntelState } from '@/systems/domination-types';
 import type { GovernancePolicyId } from '@/systems/governance-types';
@@ -7,7 +7,7 @@ import type { GovernancePolicyId } from '@/systems/governance-types';
 // these from the leaf; docs/core-types-barrel-ratchet.json keeps the barrel shrink-only.
 import type { HexCoord } from './types/hex';
 import type { ResourceType } from './types/resources';
-import type { AIStrategicRole, OpponentAIState, OpponentChallenge } from './types/ai';
+import type { AiGameState, AIStrategicRole, OpponentChallenge } from './types/ai';
 import type {
   DefensiveLeague,
   DiplomacyState,
@@ -16,9 +16,8 @@ import type {
   Treaty,
   WarRecord,
 } from './types/diplomacy';
-import type { AdvisorType, AssessmentDigest, CouncilMemoryState, CouncilTalkLevel } from './types/council';
+import type { AdvisorType, CouncilGameState, CouncilTalkLevel } from './types/council';
 import type { CombatExchangeSummary, CombatModifierFact, CombatRewardNotification } from './types/combat';
-import type { IdCounters } from './types/ids';
 import type { DiplomacyEvents } from './types/events-diplomacy';
 export type { DiplomacyEvents } from './types/events-diplomacy';
 import type { CivilizationEvents } from './types/events-civilization';
@@ -36,6 +35,9 @@ export type {
   CivPressureLedger, MajorCivPlanPortfolio, NationalIntent, NationalIntentReason, NationalIntentState,
   OpponentAIState, OpponentChallenge,
 } from './types/ai';
+export type { AiGameState } from './types/ai';
+export type { CouncilGameState } from './types/council';
+export type { NotificationLogState } from './notification-log';
 export type {
   DiplomaticAction, TreatyType, TributeTerms, TreatyDeclineReason, Treaty, DiplomaticEvent, VassalageState, DiplomacyState, WarGoalKind, WarGoal, WarGoalStatus, SettlementTermKind, SettlementTerm, WarParticipantSide, WarLeaveReason, WarOutcome, WarParticipant, WarHistoryEvent, WarRecord, Embargo, DefensiveLeague, PendingDiplomaticRequest,
 } from './types/diplomacy';
@@ -1914,7 +1916,7 @@ export interface TutorialState {
 
 // --- Game State (the whole thing) ---
 
-export interface GameState {
+export interface GameState extends AiGameState, CouncilGameState, NotificationLogState {
   turn: number;
   era: number;
   /** Incremented only by ordered, deterministic save migrations. */
@@ -1941,11 +1943,6 @@ export interface GameState {
    */
   playthroughId?: string;
   gameTitle?: string;
-  opponentChallenge?: OpponentChallenge;
-  pendingOpponentChallenge?: OpponentChallenge;
-  opponentAI?: OpponentAIState;
-  autonomyByCiv?: Record<string, import('./autonomy-state').AutonomyCivState>;
-  networkCivicPressureByCity?: Record<string, number>;
   civilizations: Record<string, Civilization>;
   map: GameMap;
   units: Record<string, Unit>;
@@ -1968,9 +1965,6 @@ export interface GameState {
   economyStatusByCiv?: Record<string, EconomyStatus>;
   hotSeat?: HotSeatConfig;
   pendingEvents?: Record<string, GameEvent[]>;
-  councilMemory?: CouncilMemoryState;
-  /** #1238: per-civ digest of the last strategic assessment that civ left behind (see `assessment-history.ts`). Absent = no history yet. */
-  assessmentDigestByCiv?: Record<string, AssessmentDigest>;
   tribalVillages: Record<string, TribalVillage>;
   beasts?: BeastsState;       // optional: legacy saves have no beasts
   pirateFleets?: Record<string, PirateFleet>;
@@ -1989,8 +1983,6 @@ export interface GameState {
   legendaryWonderIntel?: Record<string, LegendaryWonderIntelEntry[]>;
   espionage?: EspionageState;
   pirates?: PirateState;       // normalized on load; absent on legacy saves
-  notificationLog?: NotificationLog; // normalized on load; absent on legacy saves
-  idCounters: IdCounters;
   embargoes: Embargo[];
   defensiveLeagues: DefensiveLeague[];
   pendingDiplomacyRequests?: PendingDiplomaticRequest[];

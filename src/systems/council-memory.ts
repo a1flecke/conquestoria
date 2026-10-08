@@ -2,6 +2,7 @@ import type { GameState } from '@/core/types';
 import type {
   AdvisorType,
   CouncilCallbackTone,
+  CouncilGameState,
   CouncilMemoryEntry,
   CouncilMemoryKind,
   CouncilMemoryLedger,
@@ -28,7 +29,7 @@ const ADVISOR_LABELS: Record<AdvisorType, string> = {
   artisan: 'Artisan',
 };
 
-function ensureCouncilMemoryState(state: GameState): CouncilMemoryState {
+function ensureCouncilMemoryState(state: CouncilGameState): CouncilMemoryState {
   if (!state.councilMemory) {
     state.councilMemory = {};
   }
