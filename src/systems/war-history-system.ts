@@ -16,8 +16,8 @@
  * moment it happens -- never a heuristic "importance" score, never
  * reconstructed later from other state.
  */
+import type { GameState } from '@/core/types';
 import type {
-  GameState,
   WarRecord,
   WarParticipant,
   WarParticipantSide,
@@ -25,7 +25,7 @@ import type {
   WarLeaveReason,
   WarOutcome,
   WarGoalKind,
-} from '@/core/types';
+} from '@/core/types/diplomacy';
 import { createSimulationRng } from '@/systems/simulation-rng';
 import { hasMetCivilization, hasDiscoveredCity } from '@/systems/discovery-system';
 

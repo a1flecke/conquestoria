@@ -12,7 +12,8 @@
  * What an agreement *permits* (movement access, logistics) is a decision each
  * consuming domain makes; this module never encodes it.
  */
-import type { DiplomacyState, GameState, TreatyType } from '@/core/types';
+import type { GameState } from '@/core/types';
+import type { DiplomacyState, TreatyType } from '@/core/types/diplomacy';
 
 export function getRelationship(state: DiplomacyState, civId: string): number {
   return state.relationships[civId] ?? 0;

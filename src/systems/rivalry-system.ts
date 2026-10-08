@@ -23,7 +23,8 @@
  *    rivalry lives entirely in `getRivalryForViewer` below, which is the one
  *    function anything player-facing or AI-facing may call.
  */
-import type { GameState, WarRecord } from '@/core/types';
+import type { GameState } from '@/core/types';
+import type { WarRecord } from '@/core/types/diplomacy';
 import { hasAllianceTreaty } from '@/systems/diplomacy-queries';
 import { hasMetCivilization } from '@/systems/discovery-system';
 

@@ -28,7 +28,8 @@
  * domain module. This barrel deliberately does not re-export them, nor the
  * single-side `declareWar` / `makePeace` / `signTreaty` building blocks (#1011).
  */
-import type { GameState, DiplomaticAction } from '@/core/types';
+import type { GameState } from '@/core/types';
+import type { DiplomaticAction } from '@/core/types/diplomacy';
 import type { EventBus } from '@/core/event-bus';
 import { cancelInvalidNetworkPlans } from '@/systems/network-plan-system';
 import {

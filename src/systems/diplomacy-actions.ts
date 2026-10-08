@@ -4,7 +4,7 @@
  * `applyDiplomaticAction` in `diplomacy-system.ts`, which re-runs the same
  * eligibility (`checkDiplomaticActionOffer`) before it writes anything (#1221).
  */
-import type { DiplomacyState, DiplomaticAction } from '@/core/types';
+import type { DiplomacyState, DiplomaticAction } from '@/core/types/diplomacy';
 import type { CivilizationEra } from '@/systems/era-types';
 import { getRelationship, isAtWar } from '@/systems/diplomacy-queries';
 import { isVassalBlocked } from '@/systems/diplomacy-vassal-rules';

@@ -12,14 +12,14 @@ import { buildImportGraph, loadRepoSources } from '../app/architecture/import-gr
  * guarded: they are primitive support leaves (HexCoord, ResourceType) with hundreds of importers that
  * migrate opportunistically; they exist so domain leaves can avoid importing the barrel (no type cycle).
  */
-const GUARDED_TYPE_LEAVES = ['ai'] as const;
+const GUARDED_TYPE_LEAVES = ['ai', 'diplomacy'] as const;
 
 const BARREL = 'src/core/types';
 
 /** Symbols the barrel re-exports from `./types/<leaf>`. */
 function reexportedFromLeaf(barrelSource: string, leaf: string): string[] {
   const names: string[] = [];
-  const re = new RegExp(`export\\s+type\\s*\\{([^}]*)\\}\\s*from\\s*'\\./types/${leaf}'`, 'g');
+  const re = new RegExp(`export\\s+(?:type\\s*)?\\{([^}]*)\\}\\s*from\\s*'\\./types/${leaf}'`, 'g');
   let match: RegExpExecArray | null;
   while ((match = re.exec(barrelSource))) {
     for (const part of match[1].split(',')) {

@@ -6,7 +6,8 @@
  * vassalage-transition modules (war -> vassal-rules -> leagues/state).
  * GameState-level vassalage commands are in `diplomacy-vassalage.ts`.
  */
-import type { GameState, DiplomacyState, Treaty, DefensiveLeague } from '@/core/types';
+import type { GameState } from '@/core/types';
+import type { DiplomacyState, Treaty, DefensiveLeague } from '@/core/types/diplomacy';
 import type { CivilizationEra } from '@/systems/era-types';
 import { hasAICombatRole } from '@/ai/ai-unit-roles';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';

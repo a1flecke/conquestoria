@@ -6,7 +6,7 @@
  * to the recipient + already-known relative strength; no `GameState`, no RNG,
  * no difficulty input (challenge tiers share identical consent thresholds).
  */
-import type { SettlementTerm, TreatyDeclineReason } from '@/core/types';
+import type { SettlementTerm, TreatyDeclineReason } from '@/core/types/diplomacy';
 
 export interface SettlementConsent {
   accepted: boolean;

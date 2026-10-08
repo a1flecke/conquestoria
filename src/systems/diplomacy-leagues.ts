@@ -3,7 +3,7 @@
  * dependency on any other diplomacy module (leaf) -- vassalage consumes it,
  * never the reverse.
  */
-import type { DefensiveLeague } from '@/core/types';
+import type { DefensiveLeague } from '@/core/types/diplomacy';
 
 // IDs must exist in TECH_TREE — see tests/systems/diplomacy-tech-gates.test.ts
 export const WRITING_TECHS = ['writing'];

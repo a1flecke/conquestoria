@@ -27,7 +27,8 @@
 import type { EventBus } from '@/core/event-bus';
 import type { GameSession } from '@/app/ports';
 import type { SelectionController } from '@/app/controllers/selection-controller';
-import type { DiplomaticAction, GameState, SettlementTerm, TreatyType, WarGoalKind } from '@/core/types';
+import type { GameState } from '@/core/types';
+import type { DiplomaticAction, SettlementTerm, TreatyType, WarGoalKind } from '@/core/types/diplomacy';
 import { isAtWar } from '@/systems/diplomacy-queries';
 import { CONSENT_TREATY_TYPES, hasPendingTreatyProposalBetween, isDiplomaticRequestLive } from '@/systems/diplomacy-requests';
 import {

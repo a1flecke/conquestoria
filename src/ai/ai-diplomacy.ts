@@ -1,4 +1,5 @@
-import type { PersonalityTraits, DiplomacyState, DiplomaticAction, MinorCivState, WarGoalStatus } from '@/core/types';
+import type { PersonalityTraits, MinorCivState } from '@/core/types';
+import type { DiplomacyState, DiplomaticAction, WarGoalStatus } from '@/core/types/diplomacy';
 import type { CivilizationEra } from '@/systems/era-types';
 import { getRelationship, isAtWar } from '@/systems/diplomacy-queries';
 import { getAvailableActions } from '@/systems/diplomacy-system';

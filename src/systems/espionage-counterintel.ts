@@ -1,10 +1,5 @@
-import type {
-  DetectedSpyThreat,
-  DiplomacyState,
-  EspionageCivState,
-  EspionageState,
-  GameState,
-} from '@/core/types';
+import type { DetectedSpyThreat, EspionageCivState, EspionageState, GameState } from '@/core/types';
+import type { DiplomacyState } from '@/core/types/diplomacy';
 import { modifyRelationship } from './diplomacy-state';
 import { createRng } from './map-generator';
 

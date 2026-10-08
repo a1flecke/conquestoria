@@ -4,7 +4,8 @@
  * bilateral commit path (source rule: `check-src-rule-violations.sh`).
  * Asking whether a treaty exists lives in `diplomacy-queries.ts`.
  */
-import type { GameState, DiplomacyState, Treaty, TreatyType, TributeTerms } from '@/core/types';
+import type { GameState } from '@/core/types';
+import type { DiplomacyState, Treaty, TreatyType, TributeTerms } from '@/core/types/diplomacy';
 import type { EventBus } from '@/core/event-bus';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { hasMetCivilization } from '@/systems/discovery-system';

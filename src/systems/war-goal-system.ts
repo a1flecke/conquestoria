@@ -1,5 +1,6 @@
 import type { EventBus } from '@/core/event-bus';
-import type { GameState, WarGoal, WarGoalKind, WarGoalStatus } from '@/core/types';
+import type { GameState } from '@/core/types';
+import type { WarGoal, WarGoalKind, WarGoalStatus } from '@/core/types/diplomacy';
 import { isAtWar } from '@/systems/diplomacy-queries';
 import { applyTreachery, broadcastTreacheryPenalty } from '@/systems/diplomacy-treachery';
 import { recordGoalDeclared } from '@/systems/war-history-system';

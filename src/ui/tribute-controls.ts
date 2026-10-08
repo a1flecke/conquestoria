@@ -1,4 +1,5 @@
-import type { GameState, PendingDiplomaticRequest } from '@/core/types';
+import type { GameState } from '@/core/types';
+import type { PendingDiplomaticRequest } from '@/core/types/diplomacy';
 import type { DiplomacyPanelCallbacks } from '@/ui/diplomacy-panel';
 import { createGameButton } from '@/ui/ui-kit';
 import { DIPLOMATIC_ACTION_DENIAL_MESSAGES } from '@/systems/diplomacy-actions';

@@ -1,6 +1,7 @@
 import { createVassalageControls } from '@/ui/vassalage-controls';
 import { createTributeControls } from '@/ui/tribute-controls';
-import type { GameState, DiplomaticAction, SettlementTerm, TreatyType, WarGoalKind } from '@/core/types';
+import type { GameState } from '@/core/types';
+import type { DiplomaticAction, SettlementTerm, TreatyType, WarGoalKind } from '@/core/types/diplomacy';
 import { getRelationship, isAtWar } from '@/systems/diplomacy-queries';
 import { getPendingPeaceRequestForPair, getPendingTreatyProposalsFor, PENDING_DIPLOMATIC_REQUEST_TTL_TURNS } from '@/systems/diplomacy-requests';
 import { canReabsorbBreakaway, getAvailableDiplomaticActions } from '@/systems/diplomacy-system';

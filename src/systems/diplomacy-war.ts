@@ -12,7 +12,8 @@
  * lives here rather than with vassalage so that vassalage transitions depend
  * on war and never the reverse.
  */
-import type { GameState, DiplomacyState } from '@/core/types';
+import type { GameState } from '@/core/types';
+import type { DiplomacyState } from '@/core/types/diplomacy';
 import type { EventBus } from '@/core/event-bus';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';

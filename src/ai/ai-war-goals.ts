@@ -11,7 +11,7 @@
  */
 import type { HexCoord } from '@/core/types';
 import type { NationalIntentPosture } from './ai-national-intent-posture';
-import type { WarGoalKind } from '@/core/types';
+import type { WarGoalKind } from '@/core/types/diplomacy';
 import { hexDistance } from '@/systems/hex-utils';
 
 export interface WarGoalCandidateInput {

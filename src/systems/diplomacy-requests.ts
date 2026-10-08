@@ -4,7 +4,8 @@
  * accepted request *does* is the integration layer's job
  * (`diplomacy-system.ts`); this module only owns the queue. Leaf (types only).
  */
-import type { GameState, PendingDiplomaticRequest, TreatyType } from '@/core/types';
+import type { GameState } from '@/core/types';
+import type { PendingDiplomaticRequest, TreatyType } from '@/core/types/diplomacy';
 import type { EventBus } from '@/core/event-bus';
 
 function buildPendingPeaceRequestId(fromCivId: string, toCivId: string, turn: number): string {

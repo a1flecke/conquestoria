@@ -2,7 +2,8 @@
 // #1250: treaties, peace, war, settlements, first contact and the vassalage/border consequences. The
 // shared copy (describeWarReason, TREATY_LABELS, decline reasons) lives here because the diplomacy panel
 // reads the same strings.
-import type { GameEvents, GameState, TreatyDeclineReason, TreatyType } from '@/core/types';
+import type { GameEvents, GameState } from '@/core/types';
+import type { TreatyDeclineReason, TreatyType } from '@/core/types/diplomacy';
 import type { NotificationSink } from './notification-sink';
 
 // Writes to both parties' logs from their own perspective.

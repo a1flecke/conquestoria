@@ -2,7 +2,7 @@
  * Treachery (betrayal reputation): per-civ score raised by breaking
  * agreements and its broadcast/decay. Depends only on relationship writes.
  */
-import type { DiplomacyState } from '@/core/types';
+import type { DiplomacyState } from '@/core/types/diplomacy';
 import { modifyRelationship } from '@/systems/diplomacy-state';
 
 const TREACHERY_AMOUNTS: Record<string, number> = {

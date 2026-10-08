@@ -11,8 +11,13 @@
  * Loading repairs and validates records only. It never accepts, signs, pays, transfers or otherwise decides
  * anything for a player: a request that survives is exactly as pending as it was when it was saved.
  */
-import type { PendingDiplomaticRequest, SettlementTerm, SettlementTermKind, TreatyType } from '@/core/types';
-import { PENDING_DIPLOMATIC_REQUEST_TYPES } from '@/core/types';
+import type {
+  PendingDiplomaticRequest,
+  SettlementTerm,
+  SettlementTermKind,
+  TreatyType,
+} from '@/core/types/diplomacy';
+import { PENDING_DIPLOMATIC_REQUEST_TYPES } from '@/core/types/diplomacy';
 import { CONSENT_TREATY_TYPES, PENDING_DIPLOMATIC_REQUEST_TTL_TURNS } from '@/systems/diplomacy-requests';
 import { TRIBUTE_DURATION_ROUNDS, TRIBUTE_MAX_GOLD_PER_ROUND } from '@/systems/diplomacy-tribute';
 
