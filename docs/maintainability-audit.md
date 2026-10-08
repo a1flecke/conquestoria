@@ -124,3 +124,9 @@ Filed from this audit (no production refactoring here):
 - No module is split in this change.
 - Line count / export density is not a merge gate.
 - `src/core/types.ts` and generated `*-map-data.ts` are out of scope.
+
+## Core type compatibility barrel (#1361)
+
+`src/core/types.ts` is a temporary compatibility barrel. The audit reports its **type-inclusive fan-in** (`fanInAll`) next to runtime fan-in, because almost all of its coupling is type-only. `node scripts/maintainability-audit.mjs --core-types` prints `lines`, `localDeclarations` (definitions physically declared there — `export … from` re-exports do not count), `exports`, `runtimeFanIn`, `allEdgeFanIn`, `productionImporters` and the cycles containing it.
+
+`docs/core-types-barrel-ratchet.json` holds shrink-only maxima (`maxLocalDeclarations`, `maxProductionImporters`). `--check` fails on growth. After an extraction PR, tighten the maxima to the new measured values (a test fails if they are left loose). Line count is informational only.

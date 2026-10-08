@@ -126,6 +126,7 @@ function edgesOf(file) {
 const runtimeOut = new Map();
 const allOut = new Map();
 const reverseRuntime = new Map();
+const reverseAll = new Map();
 for (const file of productionFiles) {
   const edges = edgesOf(file);
   const runtimeTargets = [...new Set(edges.filter(edge => !edge.typeOnly).map(edge => edge.target))];
@@ -135,6 +136,10 @@ for (const file of productionFiles) {
   for (const target of runtimeTargets) {
     if (!reverseRuntime.has(target)) reverseRuntime.set(target, new Set());
     reverseRuntime.get(target).add(file);
+  }
+  for (const target of allTargets) {
+    if (!reverseAll.has(target)) reverseAll.set(target, new Set());
+    reverseAll.get(target).add(file);
   }
 }
 
@@ -218,6 +223,8 @@ function moduleMetrics(file) {
     exports: exportCount,
     exportDensity: lines > 0 ? Number(((exportCount / lines) * 100).toFixed(2)) : 0,
     fanInRuntime: (reverseRuntime.get(file) ?? new Set()).size,
+    // Including type-only imports: the compile-time coupling a shared type module really carries (#1361).
+    fanInAll: (reverseAll.get(file) ?? new Set()).size,
     over500: lines > OVER_500,
     responsibilitySignals: signals,
     responsibilityCount: Object.values(signals).filter(count => count > 0).length,
@@ -329,6 +336,41 @@ const crossLayerEdges = [...crossLayerEdgeCounts.entries()]
 // Baseline
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// `src/core/types.ts` compatibility-barrel metrics and shrink-only ratchet (#1361)
+// ---------------------------------------------------------------------------
+
+const CORE_TYPES_PATH = 'src/core/types.ts';
+const RATCHET_PATH = optionValue('--core-types-ratchet-path') ?? 'docs/core-types-barrel-ratchet.json';
+
+/** Definitions physically declared in the barrel. `export { X } from` / `export type { X } from` re-exports are NOT counted. */
+function localDeclarationCount(file) {
+  return exportNames(file).filter(entry => entry.kind !== 'list').length;
+}
+
+function coreTypesMetrics() {
+  const file = resolve(REPO_ROOT, CORE_TYPES_PATH);
+  if (!fileSet.has(file)) return null;
+  const metrics = modules.find(module => module.path === CORE_TYPES_PATH);
+  return {
+    lines: metrics.lines,
+    localDeclarations: localDeclarationCount(file),
+    exports: metrics.exports,
+    runtimeFanIn: metrics.fanInRuntime,
+    allEdgeFanIn: metrics.fanInAll,
+    productionImporters: (reverseAll.get(file) ?? new Set()).size,
+    allEdgeCyclesContaining: allEdgeCycles.filter(component => component.includes(CORE_TYPES_PATH)).length,
+    runtimeCyclesContaining: runtimeCycles.filter(component => component.includes(CORE_TYPES_PATH)).length,
+  };
+}
+
+const coreTypes = coreTypesMetrics();
+
+if (has('--core-types')) {
+  console.log(JSON.stringify(coreTypes, null, 1));
+  process.exit(0);
+}
+
 const baseline = {
   schema: 1,
   note: 'Runtime import cycles and cross-layer runtime edges. Regenerate with `node scripts/maintainability-audit.mjs --baseline`. The #1013 guard fails when this drifts.',
@@ -385,6 +427,20 @@ if (has('--check')) {
   compare('runtime cycle', runtimeCycles, saved.runtimeCycles ?? []);
   compare('all-edge cycle', allEdgeCycles, saved.allEdgeCycles ?? []);
   compare('cross-layer edge', crossLayerEdges, saved.crossLayerEdges ?? []);
+  // Asymmetric shrink-only contract: growth past a maximum fails, improvement passes (and the maximum is then
+  // tightened by hand). Line count is informational and deliberately not a gate.
+  const ratchetFile = resolve(REPO_ROOT, RATCHET_PATH);
+  if (coreTypes && existsSync(ratchetFile)) {
+    const ratchet = JSON.parse(readFileSync(ratchetFile, 'utf8'));
+    for (const key of ['maxLocalDeclarations', 'maxProductionImporters']) {
+      const metric = key === 'maxLocalDeclarations' ? 'localDeclarations' : 'productionImporters';
+      if (typeof ratchet[key] !== 'number') problems.push(`${RATCHET_PATH} is missing numeric ${key}`);
+      else if (coreTypes[metric] > ratchet[key]) {
+        problems.push(`${CORE_TYPES_PATH} ${metric} grew to ${coreTypes[metric]} (maximum ${ratchet[key]}); put new contracts in a bounded-context leaf, not the compatibility barrel`);
+      }
+    }
+    if (coreTypes.runtimeCyclesContaining > 0) problems.push(`${CORE_TYPES_PATH} participates in a runtime import cycle`);
+  }
   if (problems.length > 0) {
     console.error(`maintainability audit drifted from ${BASELINE_PATH}:`);
     for (const problem of problems) console.error(`  - ${problem}`);
@@ -403,6 +459,7 @@ if (has('--json')) {
       productionModules: productionFiles.length,
       excludedGeneratedData: generatedDataFiles.length,
     },
+    coreTypes,
     modules,
     runtimeCycles,
     allEdgeCycles,
@@ -425,7 +482,7 @@ if (has('--json')) {
 // ranks high. This is deterministic; the qualitative "responsibility count"
 // (criterion 1) is assessed by reading in docs/maintainability-audit.md.
 const scored = modules
-  .filter(module => module.over500 && module.path !== 'src/core/types.ts')
+  .filter(module => module.over500 && module.path !== CORE_TYPES_PATH)
   .map(module => ({
     ...module,
     surfaceRisk: Number((module.exportDensity * module.fanInRuntime).toFixed(1)),
@@ -458,7 +515,10 @@ lines.push('`src/core/types.ts` is reported separately (shared type module, excl
 lines.push('');
 const typesModule = modules.find(module => module.path === 'src/core/types.ts');
 if (typesModule) {
-  lines.push(`- \`${typesModule.path}\`: ${typesModule.lines} lines, ${typesModule.exports} exports, density ${typesModule.exportDensity}, runtime fan-in ${typesModule.fanInRuntime}.`);
+  lines.push(`- \`${typesModule.path}\`: ${typesModule.lines} lines, ${typesModule.exports} exports, density ${typesModule.exportDensity}, runtime fan-in ${typesModule.fanInRuntime}, type-inclusive fan-in ${typesModule.fanInAll}.`);
+}
+if (coreTypes) {
+  lines.push(`- Compatibility-barrel metrics (#1361): ${coreTypes.localDeclarations} locally declared definitions (re-exports excluded), ${coreTypes.productionImporters} production importers, ${coreTypes.allEdgeCyclesContaining} all-edge cycle(s) and ${coreTypes.runtimeCyclesContaining} runtime cycle(s) containing it. Growth past \`${RATCHET_PATH}\` fails \`--check\`.`);
 }
 lines.push('');
 lines.push(`## Runtime import cycles (${runtimeCycles.length})`);

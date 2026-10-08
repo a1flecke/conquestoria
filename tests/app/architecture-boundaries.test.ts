@@ -1685,6 +1685,96 @@ describe('#1013 — the import graph cannot drift silently', () => {
   });
 });
 
+describe('#1361 — the core type compatibility barrel is shrink-only', () => {
+  const root = resolve(__dirname, '../..');
+  const script = resolve(root, 'scripts/maintainability-audit.mjs');
+  const audit = (cwd: string, ...args: string[]) =>
+    spawnSync(process.execPath, [join(cwd, 'scripts/maintainability-audit.mjs'), ...args], { cwd, encoding: 'utf8' });
+
+  const inTree = <T>(files: Record<string, string>, maxima: { maxLocalDeclarations: number; maxProductionImporters: number } | null, run: (dir: string) => T): T => {
+    const dir = mkdtempSync(join(tmpdir(), 'core-types-ratchet-'));
+    try {
+      mkdirSync(join(dir, 'scripts'), { recursive: true });
+      mkdirSync(join(dir, 'docs'), { recursive: true });
+      writeFileSync(join(dir, 'scripts/maintainability-audit.mjs'), readFileSync(script, 'utf8'));
+      writeFileSync(join(dir, 'docs/maintainability-audit-baseline.json'), JSON.stringify({ schema: 1, runtimeCycles: [], allEdgeCycles: [], crossLayerEdges: [] }));
+      if (maxima) writeFileSync(join(dir, 'docs/core-types-barrel-ratchet.json'), JSON.stringify({ schema: 1, ...maxima }));
+      for (const [path, source] of Object.entries(files)) {
+        mkdirSync(join(dir, path, '..'), { recursive: true });
+        writeFileSync(join(dir, path), source);
+      }
+      return run(dir);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  };
+  const metricsIn = (files: Record<string, string>) =>
+    inTree(files, null, dir => JSON.parse(audit(dir, '--core-types').stdout) as Record<string, number>);
+
+  const barrel = 'export interface A { a: number }\nexport type B = string;\n';
+  const consumer = (name: string, form = "import type { A } from '../core/types';") => ({ [`src/systems/${name}.ts`]: `${form}\nexport const ${name}: A | null = null;` });
+
+  it('the real repository is within its checked-in maxima', () => {
+    const result = spawnSync(process.execPath, [script, '--check'], { cwd: root, encoding: 'utf8' });
+    expect(result.status, result.stderr || result.stdout).toBe(0);
+  });
+
+  it('the real maxima are exactly tight or the repo has improved past them (never a loose cushion)', () => {
+    const maxima = JSON.parse(readFileSync(resolve(root, 'docs/core-types-barrel-ratchet.json'), 'utf8')) as { maxLocalDeclarations: number; maxProductionImporters: number };
+    const measured = JSON.parse(spawnSync(process.execPath, [script, '--core-types'], { cwd: root, encoding: 'utf8' }).stdout) as { localDeclarations: number; productionImporters: number };
+    expect(measured.localDeclarations).toBeLessThanOrEqual(maxima.maxLocalDeclarations);
+    expect(measured.productionImporters).toBeLessThanOrEqual(maxima.maxProductionImporters);
+    expect(maxima.maxLocalDeclarations - measured.localDeclarations, 'tighten maxLocalDeclarations to the measured value').toBe(0);
+    expect(maxima.maxProductionImporters - measured.productionImporters, 'tighten maxProductionImporters to the measured value').toBe(0);
+  });
+
+  it('type-only importers are visible: type-inclusive fan-in counts what runtime fan-in cannot see', () => {
+    const metrics = metricsIn({ 'src/core/types.ts': barrel, ...consumer('one'), ...consumer('two', "import { type A } from '../core/types';") });
+    expect(metrics.runtimeFanIn).toBe(0);
+    expect(metrics.allEdgeFanIn).toBe(2);
+    expect(metrics.productionImporters).toBe(2);
+  });
+
+  it('a compatibility re-export is not a locally owned declaration', () => {
+    const metrics = metricsIn({
+      'src/core/types.ts': `${barrel}export type { Moved } from './types/moved';\nexport { type Moved2 } from './types/moved';\n`,
+      'src/core/types/moved.ts': 'export interface Moved { m: number }\nexport type Moved2 = string;\n',
+    });
+    expect(metrics.localDeclarations).toBe(2);
+    expect(metrics.exports).toBe(4);
+  });
+
+  it('adding a local domain type beyond the maximum fails', () => {
+    const files = { 'src/core/types.ts': `${barrel}export interface C { c: number }\n`, ...consumer('one') };
+    const result = inTree(files, { maxLocalDeclarations: 2, maxProductionImporters: 1 }, dir => audit(dir, '--check'));
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('localDeclarations grew to 3 (maximum 2)');
+  });
+
+  it('adding a production barrel importer beyond the maximum fails', () => {
+    const files = { 'src/core/types.ts': barrel, ...consumer('one'), ...consumer('two') };
+    const result = inTree(files, { maxLocalDeclarations: 2, maxProductionImporters: 1 }, dir => audit(dir, '--check'));
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('productionImporters grew to 2 (maximum 1)');
+  });
+
+  it('removing declarations and migrating importers away passes', () => {
+    const files = {
+      'src/core/types.ts': "export interface A { a: number }\nexport type { B } from './types/b';\n",
+      'src/core/types/b.ts': 'export type B = string;\n',
+      ...consumer('one'),
+      ...consumer('two', "import type { B } from '../core/types/b';"),
+    };
+    const result = inTree(files, { maxLocalDeclarations: 2, maxProductionImporters: 2 }, dir => audit(dir, '--check'));
+    expect(result.status, result.stderr).toBe(0);
+  });
+
+  it('a ratchet at exactly the measured values passes', () => {
+    const files = { 'src/core/types.ts': barrel, ...consumer('one') };
+    expect(inTree(files, { maxLocalDeclarations: 2, maxProductionImporters: 1 }, dir => audit(dir, '--check')).status).toBe(0);
+  });
+});
+
 describe('#1220 — a production queue grows through exactly one validated enqueue', () => {
   function walkTs(dir: string): string[] {
     return readdirSync(dir, { withFileTypes: true }).flatMap(e => {
