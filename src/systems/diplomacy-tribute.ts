@@ -13,7 +13,8 @@
  * contract is always read through `isTributeContractLive`, so a stale mirror can never charge.
  */
 import type { EventBus } from '@/core/event-bus';
-import type { GameState, PendingDiplomaticRequest, Treaty, TributeTerms } from '@/core/types';
+import type { GameState } from '@/core/types';
+import type { PendingDiplomaticRequest, Treaty, TributeTerms } from '@/core/types/diplomacy';
 import { getCivilizationLiveness } from './civilization-liveness';
 import { hasMetCivilization } from './discovery-system';
 import { getRelationship, hasTreatyBetween, isAtWar } from './diplomacy-queries';

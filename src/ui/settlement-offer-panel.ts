@@ -6,7 +6,8 @@
  * cities the viewer has actually discovered (`hasDiscoveredCity`) -- the set
  * of offerable terms is itself information, per #988's viewer-safety rule.
  */
-import type { GameState, SettlementTerm } from '@/core/types';
+import type { GameState } from '@/core/types';
+import type { SettlementTerm } from '@/core/types/diplomacy';
 import { hasDiscoveredCity } from '@/systems/discovery-system';
 import { createGameButton } from '@/ui/ui-kit';
 

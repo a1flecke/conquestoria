@@ -1,4 +1,5 @@
-import type { GameState, Treaty } from '@/core/types';
+import type { GameState } from '@/core/types';
+import type { Treaty } from '@/core/types/diplomacy';
 import { TRIBUTE_DURATION_ROUNDS, TRIBUTE_MAX_GOLD_PER_ROUND, isTributeTreaty } from '@/systems/diplomacy-tribute';
 
 /**

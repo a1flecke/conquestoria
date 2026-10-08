@@ -6,9 +6,9 @@ import type {
   HexCoord,
   SpyMission,
   SpyMissionType,
-  Treaty,
   UnitType,
 } from '@/core/types';
+import type { Treaty } from '@/core/types/diplomacy';
 import { createRng } from './map-generator';
 import { hexDistance } from './hex-utils';
 import { getCapitalCityId } from './capital-system';

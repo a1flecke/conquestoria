@@ -1,5 +1,6 @@
 import type { EventBus } from '@/core/event-bus';
-import type { GameState, PendingDiplomaticRequest, SettlementTerm } from '@/core/types';
+import type { GameState } from '@/core/types';
+import type { PendingDiplomaticRequest, SettlementTerm } from '@/core/types/diplomacy';
 import { isAtWar } from '@/systems/diplomacy-queries';
 import { isDiplomaticRequestLive, isWarResolutionRequestPair } from '@/systems/diplomacy-requests';
 import { makeMajorPeace, rejectDiplomaticRequest } from '@/systems/diplomacy-system';

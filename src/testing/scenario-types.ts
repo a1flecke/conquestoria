@@ -5,16 +5,8 @@
  * rules real gameplay uses. See docs/superpowers/specs/
  * 2026-08-16-issue-846-scenario-infrastructure-design.md for the full design.
  */
-import type {
-  City,
-  HexCoord,
-  HexTile,
-  HotSeatConfig,
-  SoloSetupConfig,
-  TreatyType,
-  Unit,
-  UnitType,
-} from '@/core/types';
+import type { City, HexCoord, HexTile, HotSeatConfig, SoloSetupConfig, Unit, UnitType } from '@/core/types';
+import type { TreatyType } from '@/core/types/diplomacy';
 
 export class ScenarioError extends Error {
   constructor(message: string) {

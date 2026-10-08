@@ -3,7 +3,8 @@
  * viewer has actually discovered (`hasDiscoveredCity`) -- same viewer-safety
  * rule as `settlement-offer-panel.ts`.
  */
-import type { GameState, WarGoalKind } from '@/core/types';
+import type { GameState } from '@/core/types';
+import type { WarGoalKind } from '@/core/types/diplomacy';
 import { hasDiscoveredCity } from '@/systems/discovery-system';
 import { createGameButton } from '@/ui/ui-kit';
 

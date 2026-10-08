@@ -6,7 +6,8 @@
  * Dependency-free leaf (types only). Read-only questions live in
  * `diplomacy-queries.ts`.
  */
-import type { GameState, DiplomacyState } from '@/core/types';
+import type { GameState } from '@/core/types';
+import type { DiplomacyState } from '@/core/types/diplomacy';
 
 export function createDiplomacyState(
   allCivIds: string[],

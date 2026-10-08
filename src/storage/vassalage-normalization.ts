@@ -1,4 +1,5 @@
-import type { GameState, VassalageState } from '@/core/types';
+import type { GameState } from '@/core/types';
+import type { VassalageState } from '@/core/types/diplomacy';
 import { normalizePendingDiplomaticRequests } from '@/storage/pending-request-normalization';
 import { VASSALAGE_PROTECTION_TURNS } from '@/systems/diplomacy-vassal-rules';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';

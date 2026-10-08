@@ -7,7 +7,8 @@
  * builder (#988's `openSettlementOfferPanel`) as the actual way to end it --
  * reused, never rebuilt.
  */
-import type { GameState, SettlementTerm } from '@/core/types';
+import type { GameState } from '@/core/types';
+import type { SettlementTerm } from '@/core/types/diplomacy';
 import { getWarPresentationForViewer } from '@/systems/war-history-system';
 import { describeWarGoalLabel } from '@/systems/war-goal-system';
 import { createGameButton } from '@/ui/ui-kit';

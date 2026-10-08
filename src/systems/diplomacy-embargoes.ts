@@ -2,7 +2,8 @@
  * Embargoes: pure `Embargo[]` / trade-route transitions and gating. Leaf --
  * depends on no other diplomacy module.
  */
-import type { Embargo, TradeRoute, Treaty } from '@/core/types';
+import type { TradeRoute } from '@/core/types';
+import type { Embargo, Treaty } from '@/core/types/diplomacy';
 import type { CivilizationEra } from '@/systems/era-types';
 
 // IDs must exist in TECH_TREE — see tests/systems/diplomacy-tech-gates.test.ts

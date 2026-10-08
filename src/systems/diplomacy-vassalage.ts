@@ -3,7 +3,8 @@
  * overlord defence and the per-turn vassalage tick. Depends on the war module
  * (never the reverse) and on the pure rules in `diplomacy-vassal-rules.ts`.
  */
-import type { GameState, DiplomacyState } from '@/core/types';
+import type { GameState } from '@/core/types';
+import type { DiplomacyState } from '@/core/types/diplomacy';
 import type { EventBus } from '@/core/event-bus';
 import { evaluateVassalageConsent } from '@/ai/ai-treaty-consent';
 import { majorCivWarOpponentIds } from '@/core/owner-kind';
