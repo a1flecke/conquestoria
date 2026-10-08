@@ -52,6 +52,13 @@ export interface CampaignCivSample extends CampaignCivCounters {
   availableTechCount: number;
   gold: number;
   citiesWithEmptyQueue: number;
+  /**
+   * Sorted ids of the cities counted by `citiesWithEmptyQueue`, and the subset converting their output via
+   * `idleProduction` instead of wasting it. Optional so pre-existing sample literals stay valid; the long-horizon
+   * report picks fields explicitly, so neither reaches its artifact. Consumed by `ai-production-continuity.ts`.
+   */
+  emptyQueueCityIds?: string[];
+  convertingCityIds?: string[];
   atWarWith: string[];
   activePlanCount: number;
   /** max over this civ's live plans of (state.turn - plan.lastProgressTurn) */
@@ -132,6 +139,14 @@ export function buildCampaignRoundSample(
         citiesWithEmptyQueue: ownedCityIds.filter(
           id => (state.cities[id]?.productionQueue.length ?? 0) === 0,
         ).length,
+        emptyQueueCityIds: ownedCityIds
+          .filter(id => (state.cities[id]?.productionQueue.length ?? 0) === 0)
+          .sort(),
+        convertingCityIds: ownedCityIds.filter(id => {
+          const city = state.cities[id];
+          return city !== undefined && city.productionQueue.length === 0
+            && (city.idleProduction === 'gold' || city.idleProduction === 'science');
+        }).sort(),
         atWarWith: [...(civ.diplomacy?.atWarWith ?? [])].sort(),
         activePlanCount: plans.length,
         maxPlanNoProgressRounds: plans.reduce(
