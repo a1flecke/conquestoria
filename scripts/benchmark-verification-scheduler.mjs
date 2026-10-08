@@ -292,7 +292,12 @@ async function runJobs(ctx, scenario) {
     job.child = spawn(spec.cmd[0], spec.cmd.slice(1), { cwd: spec.cwd, env: spec.env, stdio: ['ignore', log, log], detached: true });
     closeSync(log);
     job.state = 'queued';
-    job.child.on('exit', code => { job.t.end = now(); job.exit = code; job.state = 'done'; });
+    const logPath = join(ctx.logDir, `s${scenario.id}-${job.id}.log`);
+    job.child.on('exit', (code, signal) => {
+      job.t.end = now(); job.exit = code; job.signal = signal; job.state = 'done';
+      // A failed job must say WHY in the report (#1403): CI only prints the report, never the sandbox logs.
+      if (code !== 0) job.logTail = tailLog(logPath);
+    });
   };
 
   const startable = job => {
@@ -407,6 +412,11 @@ function runStatus(ctx) {
   });
 }
 
+/** Last lines of a job log, joined for a one-line report detail. Empty when unreadable. */
+function tailLog(path, lines = 12) {
+  try { return readFileSync(path, 'utf8').split('\n').filter(Boolean).slice(-lines).join(' | ').slice(-1500); } catch { return ''; }
+}
+
 // Stops ONE spawned job: SIGTERM then SIGKILL to its explicitly-walked descendants. Never by name or pgid.
 function killTree(root) {
   for (const sig of ['SIGTERM', 'SIGKILL']) {
@@ -432,7 +442,10 @@ function analyse(scenario, run) {
   const peak = k => Math.max(0, ...run.samples.map(s => s[k]));
   const checks = [];
   const check = (name, ok, detail) => checks.push({ name, ok: !!ok, detail: detail ?? '' });
-  check('every job exited 0', run.jobs.every(x => x.exit === 0), run.jobs.map(x => `${x.id}=${x.exit}`).join(' '));
+  const failedJobs = run.jobs.filter(x => x.exit !== 0);
+  check('every job exited 0', failedJobs.length === 0,
+    run.jobs.map(x => `${x.id}=${x.exit}${x.signal ? `(${x.signal})` : ''}`).join(' ')
+    + failedJobs.map(x => `\n[${x.id} log tail] ${x.logTail || '(empty)'}`).join(''));
   check('no scenario timeout', !run.timedOut, JSON.stringify({ phase: run.phaseMs, hang: run.hangDiag }));
   check('foreground lane never above 1', peak('fgHeld') <= 1, `peak ${peak('fgHeld')}`);
   check('background lane never above 2', peak('bgHeld') <= 2, `peak ${peak('bgHeld')}`);
@@ -463,7 +476,7 @@ function analyse(scenario, run) {
     // ai-long is alive but holds nothing.
     const during = run.samples.filter(s => s.alive.includes('ai') && !s.held.includes('ai') && s.held.includes('bg2'));
     check('a queued background job took the slot AI-long released for its backoff', during.length > 0, `${during.length} samples`);
-    check('AI-long still completed after its backoff', j.ai?.exit === 0);
+    check('AI-long still completed after its backoff', j.ai?.exit === 0, `exit=${j.ai?.exit ?? 'none'}${j.ai?.signal ? ` signal=${j.ai.signal}` : ''}${j.ai?.logTail ? ` log: ${j.ai.logTail}` : ''}`);
   }
   check('verify:local:status returned promptly (never hangs)', !run.statusHang, run.statusHang ? JSON.stringify(run.statusHang.tree) : '');
   if (run.statusSnapshot) {
