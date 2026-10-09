@@ -59,9 +59,8 @@ function opposingSide(side: WarParticipantSide): WarParticipantSide {
   return side === 'aggressor' ? 'defender' : 'aggressor';
 }
 
-/** The one active (unconcluded) war record `civId` is currently a live
- * combatant in, or `undefined`. A civ is never a live combatant in more than
- * one active record by construction (see `declareWarRecord`'s join branch). */
+/** The first active record containing this combatant. Intersecting conflicts
+ * can have shared participants; pair-specific facts must use the pair query. */
 export function findActiveWarForCiv(state: GameState, civId: string): WarRecord | undefined {
   return Object.values(state.wars ?? {}).find(
     record => record.endTurn === undefined && isActiveParticipant(record, civId),
@@ -70,7 +69,8 @@ export function findActiveWarForCiv(state: GameState, civId: string): WarRecord 
 
 export function findActiveWarBetween(state: GameState, civA: string, civB: string): WarRecord | undefined {
   return Object.values(state.wars ?? {}).find(
-    record => record.endTurn === undefined && isActiveParticipant(record, civA) && isActiveParticipant(record, civB),
+    record => record.endTurn === undefined && isActiveParticipant(record, civA) && isActiveParticipant(record, civB)
+      && sideOf(record, civA) !== sideOf(record, civB),
   );
 }
 
@@ -127,12 +127,12 @@ export function declareWarRecord(
   if (findActiveWarBetween(state, aggressorId, defenderId)) return state;
 
   const defenderRecord = findActiveWarForCiv(state, defenderId);
-  if (defenderRecord && !isActiveParticipant(defenderRecord, aggressorId)) {
+  const aggressorRecord = findActiveWarForCiv(state, aggressorId);
+  if (defenderRecord && !aggressorRecord && !defenderRecord.participants.some(p => p.civId === aggressorId)) {
     const side = opposingSide(sideOf(defenderRecord, defenderId)!);
     return addParticipant(state, defenderRecord.id, aggressorId, side, turn);
   }
-  const aggressorRecord = findActiveWarForCiv(state, aggressorId);
-  if (aggressorRecord && !isActiveParticipant(aggressorRecord, defenderId)) {
+  if (aggressorRecord && !defenderRecord && !aggressorRecord.participants.some(p => p.civId === defenderId)) {
     const side = opposingSide(sideOf(aggressorRecord, aggressorId)!);
     return addParticipant(state, aggressorRecord.id, defenderId, side, turn);
   }
@@ -219,14 +219,22 @@ export function recordParticipantLeft(
   opponentId: string,
   turn: number,
 ): GameState {
-  const record = findActiveWarBetween(state, civId, opponentId);
-  if (!record) return state;
-  const idx = record.participants.findIndex(p => p.civId === civId && p.leftTurn === undefined);
-  if (idx === -1) return state;
-  const participants = [...record.participants];
-  participants[idx] = { ...participants[idx]!, leftTurn: turn, leaveReason: 'peace' };
-  const withLeave: WarRecord = { ...record, participants, events: pushEvent(record, { type: 'participant-left', turn, civId, reason: 'peace' }) };
-  return concludeIfResolved(state, withLeave, turn, 'white-peace');
+  let next = state;
+  for (const record of Object.values(state.wars ?? {})) {
+    if (record.endTurn !== undefined || !isActiveParticipant(record, civId)
+      || sideOf(record, opponentId) === undefined || sideOf(record, opponentId) === sideOf(record, civId)) continue;
+    // Called before the bilateral write: exclude precisely the pair now making
+    // peace, while retaining membership for every other opposing war edge.
+    const stillFighting = record.participants.some(p => p.civId !== opponentId
+      && p.leftTurn === undefined && p.side !== sideOf(record, civId)
+      && state.civilizations[civId]?.diplomacy.atWarWith.includes(p.civId));
+    if (stillFighting) continue;
+    const participants = record.participants.map(p => p.civId === civId && p.leftTurn === undefined
+      ? { ...p, leftTurn: turn, leaveReason: 'peace' as const } : p);
+    const withLeave: WarRecord = { ...record, participants, events: pushEvent(record, { type: 'participant-left', turn, civId, reason: 'peace' }) };
+    next = concludeIfResolved(next, withLeave, turn, 'white-peace');
+  }
+  return next;
 }
 
 /** `civId` is eliminated entirely -- leaves EVERY active war it is in. */

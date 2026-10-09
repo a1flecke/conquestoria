@@ -114,7 +114,10 @@ export function resolveIndependence(state: GameState, vassalId: string, overlord
     result.overlordState = { ...result.overlordState, treaties: result.overlordState.treaties.filter(t => t.civA !== vassalId && t.civB !== vassalId) };
   }
   const ended = applyVassalageEnd(state, vassalId, overlordId, result.vassalState, result.overlordState);
-  const next = accepted ? ended : applyVassalageWarConsequences(state, ended, bus);
+  // The pure petition rule already wrote bilateral hostility. Route that pair
+  // through the canonical owner as well to earn its historical declaration.
+  const next = accepted ? ended : applyVassalageWarConsequences(state,
+    addWarPair(ended, vassalId, overlordId, false, bus), bus);
   bus.emit('diplomacy:independence-petition', { vassalId, overlordId, accepted });
   bus.emit('diplomacy:vassalage-ended', { vassalId, overlordId, reason: accepted ? 'independence' : 'war' });
   emitAccessLossNotices(state, next, bus); // #871 (a refused petition is war, which keeps passage open)
