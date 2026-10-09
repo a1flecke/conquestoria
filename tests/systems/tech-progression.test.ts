@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { Tech } from '@/core/types';
-import { createTechState, TECH_TREE } from '@/systems/tech-system';
+import { createTechState, getEffectiveTechCost, TECH_TREE } from '@/systems/tech-system';
 import {
   buildTechProgressionView,
   canMoveQueuedResearch,
   getDerivedTechTracks,
   getQueueableResearchIds,
   simulateResearchQueueTiming,
+  wouldDiscardResearchOverflow,
 } from '@/systems/tech-progression';
 
 describe('tech progression view model', () => {
@@ -260,5 +261,26 @@ describe('tech progression view model', () => {
       currentResearch: 'fire',
       researchQueue: ['writing', 'wheel'],
     }, 0, 1)).toBe(true);
+  });
+});
+
+describe('wouldDiscardResearchOverflow (#1413)', () => {
+  const fire = TECH_TREE.find(tech => tech.id === 'fire')!;
+  const base = createTechState();
+
+  it('is true only when the active tech finishes with science left and nothing is queued', () => {
+    const cost = getEffectiveTechCost(fire, base.completed);
+    const active = { ...base, currentResearch: 'fire', researchProgress: 0 };
+    expect(wouldDiscardResearchOverflow(active, cost + 1)).toBe(true);
+    expect(wouldDiscardResearchOverflow(active, cost)).toBe(false); // exact finish: nothing left over
+    expect(wouldDiscardResearchOverflow(active, cost - 1)).toBe(false);
+    expect(wouldDiscardResearchOverflow({ ...active, researchProgress: 5 }, cost - 4)).toBe(true);
+  });
+
+  it('is false with a queued next tech (overflow carries), with no active tech, or an unknown tech', () => {
+    const cost = getEffectiveTechCost(fire, base.completed);
+    expect(wouldDiscardResearchOverflow({ ...base, currentResearch: 'fire', researchQueue: ['writing'] }, cost * 10)).toBe(false);
+    expect(wouldDiscardResearchOverflow({ ...base, currentResearch: null }, 999)).toBe(false);
+    expect(wouldDiscardResearchOverflow({ ...base, currentResearch: 'nope' }, 999)).toBe(false);
   });
 });

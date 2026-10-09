@@ -122,6 +122,18 @@ function collectPrerequisitePath(techId: string, path: Set<string>, techs: reado
   path.add(tech.id);
 }
 
+/**
+ * #1413: true when finishing the active technology this round leaves science over that nothing can absorb.
+ * `processResearch` carries overflow only into a QUEUED next technology (`carriedProgress = nextQueued ? overflow : 0`),
+ * so with an empty queue the surplus is discarded. Mirrors that rule; it grants and changes nothing.
+ */
+export function wouldDiscardResearchOverflow(state: TechState, sciencePerTurn: number): boolean {
+  if (!state.currentResearch || state.researchQueue.length > 0) return false;
+  const tech = TECH_TREE.find(candidate => candidate.id === state.currentResearch);
+  if (!tech) return false;
+  return state.researchProgress + sciencePerTurn > getEffectiveTechCost(tech, state.completed);
+}
+
 export function getQueueableResearchIds(state: TechState, techs: Tech[] = TECH_TREE): Set<string> {
   const queueable = new Set<string>();
   const planned = buildPlannedCompletionSet(state);

@@ -1,4 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import * as researchOutput from '@/systems/research-output-system';
+import { getAvailableTechs, processResearch } from '@/systems/tech-system';
+import { getQueueableResearchIds } from '@/systems/tech-progression';
+import { TECH_TREE } from '@/systems/tech-definitions';
 import {
   applyAIResearch,
   planAIResearch,
@@ -17,6 +21,8 @@ import { prepareMajorCivStrategicPlan } from '@/ai/ai-prepared-turn';
 import { calculateCivResearchOutput } from '@/systems/research-output-system';
 import { simulateResearchQueueTiming } from '@/systems/tech-progression';
 import { NATIONAL_INTENT_POSTURE } from '@/ai/ai-national-intent-posture';
+
+const realCalculateCivResearchOutput = researchOutput.calculateCivResearchOutput;
 
 const neutral: PersonalityTraits = {
   traits: [],
@@ -543,6 +549,173 @@ describe('AI strategic research planning', () => {
     const result = applyAIResearch(state, civ.id, prepared, neutral);
 
     expect(result.state.civilizations[civ.id].techState).toEqual(before);
+  });
+});
+
+// #1413: with an empty queue, finishing a tech with science to spare DISCARDS the surplus (`processResearch` carries
+// overflow only into a queued next tech) and leaves `currentResearch` null at round end. A high-science AI picked one
+// cheap tech per round and lost the rest -- reported as "no research choice" for 6-7 rounds in lh-veteran-large.
+describe('AI keeps a technology queued when the active one would finish with science to spare (#1413)', () => {
+  const HIGH_SCIENCE = 300;
+
+  function withScience<T>(finalScience: number, run: () => T): T {
+    const spy = vi.spyOn(researchOutput, 'calculateCivResearchOutput').mockImplementation(
+      (state, civId, options) => ({ ...realCalculateCivResearchOutput(state, civId, options), finalScience }),
+    );
+    try {
+      return run();
+    } finally {
+      spy.mockRestore();
+    }
+  }
+
+  function setup(seed: string, opponentCount = 1): GameState {
+    return createNewGame({ civType: 'generic', mapSize: 'small', opponentCount, gameTitle: seed, seed });
+  }
+
+  function aiTech(state: GameState, civId = 'ai-1') {
+    return state.civilizations[civId].techState;
+  }
+
+  it('queues exactly one more legal technology when the active one would overflow', () => {
+    const state = setup('r1413-overflow');
+    const ts = aiTech(state);
+    ts.currentResearch = 'fire';
+    ts.researchProgress = 0;
+    ts.researchQueue = [];
+    const prepared = prepareMajorCivStrategicPlan(state, 'ai-1');
+
+    const result = withScience(HIGH_SCIENCE, () => applyAIResearch(state, 'ai-1', prepared, neutral));
+
+    const next = aiTech(result.state);
+    expect(next.currentResearch).toBe('fire');
+    expect(next.researchQueue).toHaveLength(1);
+    expect(next.researchQueue[0]).not.toBe('fire');
+    expect(next.completed).not.toContain(next.researchQueue[0]);
+    expect(getQueueableResearchIds({ ...ts, currentResearch: null }).has(next.researchQueue[0]!)).toBe(true);
+  });
+
+  it('leaves the queue empty when the active technology cannot finish this round', () => {
+    const state = setup('r1413-no-overflow');
+    const ts = aiTech(state);
+    ts.currentResearch = 'fire';
+    ts.researchProgress = 0;
+    ts.researchQueue = [];
+    const prepared = prepareMajorCivStrategicPlan(state, 'ai-1');
+
+    const result = withScience(1, () => applyAIResearch(state, 'ai-1', prepared, neutral));
+
+    expect(aiTech(result.state).researchQueue).toEqual([]);
+  });
+
+  it('does not add to a civ that already has something queued', () => {
+    const state = setup('r1413-already-queued');
+    const ts = aiTech(state);
+    ts.currentResearch = 'fire';
+    ts.researchQueue = ['writing'];
+    const prepared = prepareMajorCivStrategicPlan(state, 'ai-1');
+
+    const result = withScience(HIGH_SCIENCE, () => applyAIResearch(state, 'ai-1', prepared, neutral));
+
+    expect(aiTech(result.state).researchQueue).toEqual(['writing']);
+  });
+
+  it('earned control: the surplus is carried with a queued tech, and discarded without one', () => {
+    const state = setup('r1413-carry');
+    const ts = aiTech(state);
+    ts.currentResearch = 'fire';
+    ts.researchProgress = 0;
+    ts.researchQueue = [];
+    const prepared = prepareMajorCivStrategicPlan(state, 'ai-1');
+
+    const fixed = withScience(HIGH_SCIENCE, () => applyAIResearch(state, 'ai-1', prepared, neutral));
+    const afterFix = processResearch(aiTech(fixed.state), HIGH_SCIENCE);
+    expect(afterFix.completedTech).toBe('fire');
+    expect(afterFix.carriedProgress).toBeGreaterThan(0);
+    expect(afterFix.state.currentResearch).not.toBeNull();
+
+    // What the old behaviour left behind: the same civ with an empty queue.
+    const old = processResearch({ ...aiTech(fixed.state), researchQueue: [] }, HIGH_SCIENCE);
+    expect(old.completedTech).toBe('fire');
+    expect(old.carriedProgress).toBe(0);
+    expect(old.state.currentResearch).toBeNull();
+  });
+
+  it('bounded consecutive rounds: a high-science AI never ends a round without research while techs remain', () => {
+    let state = setup('r1413-consecutive');
+    const prepared = prepareMajorCivStrategicPlan(state, 'ai-1');
+    const roundsWithoutChoice: number[] = [];
+    let completedBefore = aiTech(state).completed.length;
+    for (let round = 0; round < 8; round++) {
+      state = withScience(HIGH_SCIENCE, () => applyAIResearch(state, 'ai-1', prepared, neutral).state);
+      const processed = processResearch(aiTech(state), HIGH_SCIENCE);
+      state = {
+        ...state,
+        civilizations: {
+          ...state.civilizations,
+          'ai-1': { ...state.civilizations['ai-1'], techState: processed.state },
+        },
+      };
+      const ts = aiTech(state);
+      if (!ts.currentResearch && getAvailableTechs(ts).length > 0) roundsWithoutChoice.push(round);
+      expect(ts.completed.length).toBe(completedBefore + 1); // still the one-completion-per-round rule
+      completedBefore = ts.completed.length;
+    }
+    expect(roundsWithoutChoice).toEqual([]);
+  });
+
+  it('recovers from a dead queue entry without keeping it', () => {
+    const state = setup('r1413-dead-queue');
+    const ts = aiTech(state);
+    ts.currentResearch = null;
+    ts.researchQueue = ['no-such-tech'];
+    const prepared = prepareMajorCivStrategicPlan(state, 'ai-1');
+
+    const result = withScience(1, () => applyAIResearch(state, 'ai-1', prepared, neutral));
+
+    const next = aiTech(result.state);
+    expect(next.researchQueue).not.toContain('no-such-tech');
+    expect(next.currentResearch).not.toBeNull();
+  });
+
+  it('does not invent research when the technology tree is exhausted, and does not throw', () => {
+    const state = setup('r1413-exhausted');
+    const ts = aiTech(state);
+    ts.completed = TECH_TREE.map(entry => entry.id);
+    ts.currentResearch = null;
+    ts.researchQueue = [];
+    const prepared = prepareMajorCivStrategicPlan(state, 'ai-1');
+
+    const result = withScience(HIGH_SCIENCE, () => applyAIResearch(state, 'ai-1', prepared, neutral));
+
+    expect(aiTech(result.state).currentResearch).toBeNull();
+    expect(aiTech(result.state).researchQueue).toEqual([]);
+    expect(result.startedTechId).toBeNull();
+  });
+
+  it('is a no-op for a civ that does not exist', () => {
+    const state = setup('r1413-missing');
+    const prepared = prepareMajorCivStrategicPlan(state, 'ai-1');
+    const result = applyAIResearch(state, 'ghost', prepared, neutral);
+    expect(result.state).toBe(state);
+  });
+
+  it('is deterministic across a save/reload, never mutates its input, and leaves other civs untouched', () => {
+    const state = setup('r1413-determinism', 2);
+    const ts = aiTech(state);
+    ts.currentResearch = 'fire';
+    ts.researchQueue = [];
+    const before = JSON.stringify(state);
+    const prepared = prepareMajorCivStrategicPlan(state, 'ai-1');
+
+    const first = withScience(HIGH_SCIENCE, () => applyAIResearch(state, 'ai-1', prepared, neutral));
+    const reloaded = JSON.parse(before) as GameState;
+    const second = withScience(HIGH_SCIENCE, () => applyAIResearch(reloaded, 'ai-1', prepared, neutral));
+
+    expect(JSON.stringify(state)).toBe(before);
+    expect(JSON.stringify(first.state)).toBe(JSON.stringify(second.state));
+    expect(aiTech(first.state, 'ai-2')).toEqual(aiTech(state, 'ai-2'));
+    expect(aiTech(first.state, 'player')).toEqual(aiTech(state, 'player'));
   });
 });
 
