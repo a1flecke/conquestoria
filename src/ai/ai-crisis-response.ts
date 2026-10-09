@@ -160,7 +160,7 @@ export function getCrisisRestoreAssignments(
   const idleWorkers = Object.values(state.units)
     .filter((unit): unit is Unit =>
       unit.owner === civId && unit.type === 'worker' && !unit.hasActed
-      && getWorkerChargesRemaining(unit) > 0 && !unit.workerTask && !unit.committedToRouteId)
+      && getWorkerChargesRemaining(unit) > 0 && !unit.transportId && !unit.workerTask && !unit.committedToRouteId)
     .sort((a, b) => a.id.localeCompare(b.id));
 
   const assignedWorkerIds = new Set<string>();

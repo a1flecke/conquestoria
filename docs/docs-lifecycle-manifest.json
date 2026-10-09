@@ -2,12 +2,6 @@
  "schema": 1,
  "policy": "Every markdown file under docs/superpowers/{plans,specs} must be classified here. entries = files that earn a place in the active tree (active: owned by an open issue; durable-reference: cited by source, tests or rules for rationale not restated there). deleted = delivered-stale | superseded | abandoned files removed from the tree; git history is the archive, and the guard fails if one reappears. Run `node scripts/docs-lifecycle.mjs refresh` to update issue-state snapshots; `check` is offline.",
  "entries": {
-  "docs/superpowers/plans/2026-10-09-worker-development.md": {
-   "category": "active",
-   "reason": "Bounded worker-development implementation owned by #1427.",
-   "issues": [1427],
-   "issueStates": { "1427": "OPEN" }
-  },
   "docs/superpowers/plans/audio-remaining-work.md": {
    "category": "active",
    "reason": "Remaining audio work, tracked by open issues #425-#428 (deferred until audio can be reviewed).",
@@ -190,6 +184,11 @@
   }
  },
  "deleted": {
+  "docs/superpowers/plans/2026-10-09-worker-development.md": {
+   "category": "delivered-stale",
+   "reason": "Worker development implementation and bounded regression evidence delivered for #1427; current behavior and measurements live in source, tests and docs/ai-worker-development.md.",
+   "issues": [1427]
+  },
   "docs/superpowers/plans/2026-10-04-issues-1301-1309-input-reliability.md": {
    "category": "delivered-stale",
    "reason": "Delivered by the #1301/#1309 input-reliability PR; source, tests and .claude/rules/input-reliability.md are the authority now. Git history is the record.",

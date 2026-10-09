@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import type { City, GameState, HexCoord, HexTile } from '@/core/types';
 import { createNewGame } from '@/core/game-state';
 import { createUnit } from '@/systems/unit-lifecycle';
@@ -8,6 +9,21 @@ import { processTurn } from '@/core/turn-manager';
 import { processNonHumanMajorRound } from '@/ai/ai-round-scheduler';
 import { runCompletedRound } from '@/core/completed-round-orchestrator';
 import { processImprovementTurns } from '@/systems/improvement-turn-system';
+import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
+import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
+import { applyWorkerAction } from '@/systems/worker-action-system';
+import { getAvailableWorkerActions } from '@/systems/improvement-system';
+import { processAITurn } from '@/ai/basic-ai';
+import { assignWorkerDevelopmentJobs, collectWorkerDevelopmentJobs, processWorkerDevelopment, WORKER_PATH_TRIALS } from '@/ai/ai-worker-development';
+import { calculateProjectedCityYields } from '@/systems/city-work-system';
+import { removeUnits } from '@/systems/unit-removal-system';
+import { normalizeLoadedState } from '@/storage/save-manager';
+import { assertSimulationEquivalent } from '../helpers/deterministic-state';
+import * as pathfinding from '@/systems/unit-pathfinding';
+import { foundCityInState } from '@/systems/city-founding-system';
+import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
+import { declareMajorWar } from '@/systems/diplomacy-war';
+import { chooseRoadBuilderUnit, getRoadBuildTarget } from '@/systems/road-network';
 
 // Regression for a pre-existing bug found while implementing world-pressure MR4 (#530):
 // no AIStrategicPlan ever declares a 'worker' required role (only
@@ -119,5 +135,508 @@ describe('AI worker road-building — end to end (dead-code fix found during #52
     const final = runRounds(state, 12);
 
     expect(final.map.tiles[targetKey]?.hasRoad).toBeFalsy();
+  });
+});
+
+// Small deterministic administrative campaign: real AI turns, canonical construction
+// ticks, and turn-start movement resets; no unrelated world growth or combat draws.
+function developmentScenario(workerPositions: number[] = [0]): GameState {
+  const base = createNewGame(undefined, 'worker-development-1427', 'small');
+  const tiles: Record<string, HexTile> = {};
+  for (let q = 0; q <= 6; q++) {
+    const coord = { q, r: 0 };
+    tiles[hexKey(coord)] = {
+      coord, terrain: 'grassland', elevation: 'lowland', resource: null,
+      improvement: q === 0 ? 'none' : 'farm', improvementTurnsLeft: 0,
+      owner: 'ai-1', hasRiver: false, wonder: null,
+    };
+  }
+  const city = makeCity('development-capital', 'ai-1', { q: 0, r: 0 });
+  city.population = 2;
+  city.focus = 'custom';
+  city.ownedTiles = Object.values(tiles).map(tile => tile.coord);
+  city.workedTiles = [{ q: 2, r: 0 }, { q: 4, r: 0 }];
+  const workers = workerPositions.map(q => createUnit('worker', 'ai-1', { q, r: 0 }, base.idCounters));
+  return {
+    ...base, turn: 20, cities: { [city.id]: city },
+    units: Object.fromEntries(workers.map(unit => [unit.id, unit])),
+    map: { ...base.map, width: 7, height: 1, wrapsHorizontally: false, tiles, rivers: [] },
+    barbarianCamps: {}, minorCivs: {}, tribalVillages: {},
+    civilizations: Object.fromEntries(Object.entries(base.civilizations).map(([id, civ]) => [id, {
+      ...civ, cities: id === 'ai-1' ? [city.id] : [],
+      units: id === 'ai-1' ? workers.map(worker => worker.id) : [],
+      visibility: { tiles: Object.fromEntries(Object.keys(tiles).map(key => [key, 'visible'])) },
+    }])),
+  };
+}
+
+function developmentRound(state: GameState, bus = new EventBus()): GameState {
+  const reset: GameState = {
+    ...state, turn: state.turn + 1,
+    units: Object.fromEntries(Object.entries(state.units).map(([id, unit]) => [id, {
+      ...unit, movementPointsLeft: 2, hasActed: false, hasMoved: false,
+    }])),
+  };
+  return processAITurn(processImprovementTurns(reset, bus), 'ai-1', bus);
+}
+
+function reportDevelopmentMeasurement(name: string, measurement: object): void {
+  if (process.env.WORKER_DEVELOPMENT_REPORT !== '1') return;
+  mkdirSync('.verification/worker-development', { recursive: true });
+  writeFileSync(`.verification/worker-development/${name}.json`, `${JSON.stringify(measurement, null, 2)}\n`);
+}
+
+describe('AI land development through actual AI turns (#1427)', () => {
+  it.each(['cattle', 'horses', 'oil', 'wine'] as const)('activates known %s with the correct completed improvement', resource => {
+    const state = developmentScenario([2]);
+    const definition = RESOURCE_DEFINITIONS.find(entry => entry.id === resource)!;
+    const tile = state.map.tiles['2,0']!;
+    tile.terrain = 'plains';
+    tile.resource = resource;
+    tile.improvement = 'none';
+    state.civilizations['ai-1']!.techState.completed = [definition.tech];
+    const actions = getAvailableWorkerActions(tile, [definition.tech], 'ai-1');
+    expect(actions).toContain('farm');
+    expect(actions).toContain(definition.requiredImprovement);
+    let current = processAITurn(state, 'ai-1', new EventBus());
+    expect(current.map.tiles['2,0']!.improvement).toBe(definition.requiredImprovement);
+    expect(getCivAvailableResources(current, 'ai-1').has(resource)).toBe(false);
+    for (let round = 0; round < 6; round++) current = developmentRound(current);
+    expect(getCivAvailableResources(current, 'ai-1').has(resource)).toBe(true);
+    reportDevelopmentMeasurement(resource, { resource, improvement: current.map.tiles['2,0']!.improvement,
+      resourceAvailable: getCivAvailableResources(current, 'ai-1').has(resource), chargesUsed: 1 });
+  });
+
+  it('leaves an unsuitable city-center start and completes useful work nearby', () => {
+    const state = developmentScenario();
+    state.map.tiles['2,0']!.improvement = 'none';
+    let current = state;
+    for (let round = 0; round < 8; round++) current = developmentRound(current);
+    expect(current.map.tiles['2,0']!.improvement).not.toBe('none');
+    expect(current.map.tiles['2,0']!.improvementTurnsLeft).toBe(0);
+  });
+
+  it('keeps a busy road worker committed until construction completes', () => {
+    const state = developmentScenario([1]);
+    const outpost = makeCity('development-outpost', 'ai-1', { q: 6, r: 0 });
+    state.cities[outpost.id] = outpost;
+    state.civilizations['ai-1']!.cities.push(outpost.id);
+    state.civilizations['ai-1']!.techState.completed = ['road-building'];
+    const workerId = state.civilizations['ai-1']!.units[0]!;
+    const started = applyWorkerAction(state, workerId, 'build_road');
+    expect(started.ok).toBe(true);
+    const current = developmentRound(started.state);
+    expect(current.units[workerId]).toBeDefined();
+    expect(current.units[workerId]!.position).toEqual({ q: 1, r: 0 });
+    expect(current.units[workerId]!.workerTask?.action).toBe('build_road');
+    expect(current.map.tiles['1,0']!.roadTurnsLeft).toBe(1);
+    const completed = developmentRound(current);
+    expect(completed.map.tiles['1,0']!.hasRoad).toBe(true);
+  });
+
+  it('does not select a road target already under construction or route a builder through foreign occupants', () => {
+    const state = developmentScenario([0]);
+    const civ = state.civilizations['ai-1']!;
+    civ.techState.completed = ['road-building'];
+    const outpost = makeCity('road-outpost', 'ai-1', { q: 6, r: 0 });
+    state.cities[outpost.id] = outpost;
+    civ.cities.push(outpost.id);
+    state.map.tiles['1,0']!.roadTurnsLeft = 1;
+    expect(getRoadBuildTarget(state, 'ai-1')).toEqual({ q: 2, r: 0 });
+    const blocker = createUnit('worker', 'player', { q: 1, r: 0 }, state.idCounters);
+    state.units[blocker.id] = blocker;
+    state.civilizations.player!.units.push(blocker.id);
+    expect(chooseRoadBuilderUnit(state, 'ai-1')).toBeNull();
+  });
+
+  it('assigns two workers to separate worthwhile sites', () => {
+    const state = developmentScenario([0, 6]);
+    state.map.tiles['2,0']!.improvement = 'none';
+    state.map.tiles['4,0']!.improvement = 'none';
+    let current = state;
+    for (let round = 0; round < 9; round++) current = developmentRound(current);
+    expect(current.map.tiles['2,0']!.improvement).not.toBe('none');
+    expect(current.map.tiles['4,0']!.improvement).not.toBe('none');
+    expect(current.map.tiles['2,0']!.improvementTurnsLeft).toBe(0);
+    expect(current.map.tiles['4,0']!.improvementTurnsLeft).toBe(0);
+  });
+
+  it('reserves a single resource for one worker and announces construction exactly once', () => {
+    const state = developmentScenario([0, 6]);
+    state.map.tiles['2,0']!.improvement = 'none';
+    state.map.tiles['2,0']!.resource = 'cattle';
+    state.civilizations['ai-1']!.techState.completed = ['domestication'];
+    const assignments = assignWorkerDevelopmentJobs(state, 'ai-1');
+    expect(assignments).toHaveLength(1);
+    const bus = new EventBus();
+    const started = vi.fn();
+    const completed = vi.fn();
+    bus.on('improvement:started', started);
+    bus.on('improvement:completed', completed);
+    let current = state;
+    for (let round = 0; round < 9; round++) current = developmentRound(current, bus);
+    expect(started).toHaveBeenCalledTimes(1);
+    expect(completed).toHaveBeenCalledTimes(1);
+    expect(getCivAvailableResources(current, 'ai-1').has('cattle')).toBe(true);
+    expect(Object.values(current.units).reduce((sum, unit) => sum + (unit.chargesRemaining ?? 2), 0)).toBe(3);
+  });
+
+  it.each([0, 2])('does not repeat acquisition-only work when a first resource source is completed or underway (%s turns left)', turnsLeft => {
+    const state = developmentScenario([0, 6]);
+    const civ = state.civilizations['ai-1']!;
+    civ.techState.completed = ['animal-husbandry'];
+    for (const key of ['2,0', '4,0']) Object.assign(state.map.tiles[key]!, {
+      terrain: 'plains', resource: 'horses', improvement: 'none',
+    });
+    state.cities['development-capital']!.workedTiles = [{ q: 1, r: 0 }, { q: 3, r: 0 }];
+    Object.assign(state.map.tiles['2,0']!, { improvement: 'pasture', improvementTurnsLeft: turnsLeft });
+    expect(collectWorkerDevelopmentJobs(state, 'ai-1')).toEqual([]);
+    expect(developmentRound(state).units[civ.units[1]!]!.chargesRemaining).toBe(2);
+  });
+
+  it('prefers nearby urgent food work over a distant first strategic resource', () => {
+    const state = developmentScenario([1]);
+    state.civilizations['ai-1']!.techState.completed = ['animal-husbandry'];
+    state.map.tiles['2,0']!.improvement = 'none';
+    Object.assign(state.map.tiles['6,0']!, { terrain: 'plains', resource: 'horses', improvement: 'none' });
+    state.cities['development-capital']!.workedTiles = [{ q: 2, r: 0 }, { q: 6, r: 0 }];
+    expect(assignWorkerDevelopmentJobs(state, 'ai-1')[0]!.job.coord).toEqual({ q: 2, r: 0 });
+    const after = developmentRound(state);
+    expect(after.units[state.civilizations['ai-1']!.units[0]!]!.position).toEqual({ q: 2, r: 0 });
+  });
+
+  it('validates real finalist travel cost so an apparent shortcut does not cause a target switch', () => {
+    const state = developmentScenario();
+    const city = state.cities['development-capital']!;
+    state.map.tiles['2,0']!.improvement = 'none';
+    state.map.tiles['1,0']!.terrain = 'ocean';
+    for (const coord of [{ q: 0, r: 1 }, { q: 0, r: 2 }, { q: 0, r: 3 }, { q: 1, r: 1 }, { q: 2, r: 1 }]) {
+      state.map.tiles[hexKey(coord)] = { ...state.map.tiles['3,0']!, coord,
+        improvement: coord.r === 3 ? 'none' : 'farm' };
+      state.civilizations['ai-1']!.visibility.tiles[hexKey(coord)] = 'visible';
+      city.ownedTiles.push(coord);
+    }
+    city.workedTiles = [{ q: 2, r: 0 }, { q: 0, r: 3 }];
+    expect(assignWorkerDevelopmentJobs(state, 'ai-1')[0]!.job.coord).toEqual({ q: 0, r: 3 });
+    let current = state;
+    const targets: string[] = [];
+    for (let round = 0; round < 3; round++) {
+      targets.push(hexKey(assignWorkerDevelopmentJobs(current, 'ai-1')[0]!.job.coord));
+      current = developmentRound(current);
+    }
+    expect(targets).toEqual(['0,3', '0,3', '0,3']);
+  });
+
+  it('does not improve an unknown resource differently from an otherwise identical tile', () => {
+    const hidden = developmentScenario();
+    hidden.map.tiles['2,0']!.improvement = 'none';
+    hidden.map.tiles['2,0']!.resource = 'oil';
+    const control = structuredClone(hidden);
+    control.map.tiles['2,0']!.resource = null;
+    expect(assignWorkerDevelopmentJobs(hidden, 'ai-1')).toEqual(assignWorkerDevelopmentJobs(control, 'ai-1'));
+    const result = developmentRound(hidden);
+    expect(result.units[hidden.civilizations['ai-1']!.units[0]!]!.position).toEqual({ q: 1, r: 0 });
+    expect(result.map.tiles['2,0']!.improvement).toBe('none');
+  });
+
+  it('does not read an unrevealed owned site even after its resource tech is researched', () => {
+    const state = developmentScenario();
+    state.map.tiles['4,0']!.improvement = 'none';
+    state.map.tiles['4,0']!.resource = 'oil';
+    state.civilizations['ai-1']!.techState.completed = ['petroleum-industry'];
+    state.civilizations['ai-1']!.visibility.tiles['4,0'] = 'unexplored';
+    expect(collectWorkerDevelopmentJobs(state, 'ai-1')).toEqual([]);
+    expect(developmentRound(state).units[state.civilizations['ai-1']!.units[0]!]!.position).toEqual({ q: 0, r: 0 });
+  });
+
+  it('replans after research reveals a resource, including repairing an old incorrect farm', () => {
+    let state = developmentScenario();
+    state.map.tiles['2,0']!.terrain = 'plains';
+    state.map.tiles['2,0']!.resource = 'horses';
+    expect(assignWorkerDevelopmentJobs(state, 'ai-1')).toEqual([]);
+    state = developmentRound(state);
+    state.civilizations['ai-1']!.techState.completed.push('animal-husbandry');
+    for (let round = 0; round < 8; round++) state = developmentRound(state);
+    expect(getCivAvailableResources(state, 'ai-1').has('horses')).toBe(true);
+  });
+
+  it('discovers new owned work after expansion and abandons it after ownership loss', () => {
+    let state = developmentScenario();
+    state.map.tiles['2,0']!.improvement = 'none';
+    state.map.tiles['2,0']!.owner = 'player';
+    expect(assignWorkerDevelopmentJobs(state, 'ai-1')).toEqual([]);
+    state = developmentRound(state);
+    state.map.tiles['2,0']!.owner = 'ai-1';
+    state = developmentRound(state);
+    const id = state.civilizations['ai-1']!.units[0]!;
+    expect(state.units[id]!.position).toEqual({ q: 1, r: 0 });
+    state.map.tiles['2,0']!.owner = 'player';
+    const afterLoss = developmentRound(state);
+    expect(afterLoss.units[id]!.position).toEqual({ q: 1, r: 0 });
+    expect(afterLoss.map.tiles['2,0']!.improvement).toBe('none');
+  });
+
+  it('has no stale reservation after the assigned worker dies', () => {
+    let state = developmentScenario([0, 6]);
+    state.map.tiles['2,0']!.improvement = 'none';
+    const chosen = assignWorkerDevelopmentJobs(state, 'ai-1')[0]!;
+    state = developmentRound(state);
+    state = removeUnits(state, [chosen.workerId], { reason: 'destroyed' }).state;
+    expect(assignWorkerDevelopmentJobs(state, 'ai-1')[0]!.workerId).not.toBe(chosen.workerId);
+    for (let round = 0; round < 10; round++) state = developmentRound(state);
+    expect(state.map.tiles['2,0']!.improvementTurnsLeft).toBe(0);
+    expect(state.map.tiles['2,0']!.improvement).toBe('farm');
+  });
+
+  it('stops traveling when another worker completes the site', () => {
+    let state = developmentScenario();
+    state.map.tiles['2,0']!.improvement = 'none';
+    state = developmentRound(state);
+    state.map.tiles['2,0']!.improvement = 'farm';
+    const id = state.civilizations['ai-1']!.units[0]!;
+    const current = developmentRound(state);
+    expect(current.units[id]!.position).toEqual(state.units[id]!.position);
+    expect(current.units[id]!.chargesRemaining).toBe(2);
+  });
+
+  it('does not plan ordinary improvements while cityless, and resumes after resettlement', () => {
+    let state = developmentScenario();
+    state.map.tiles['2,0']!.improvement = 'none';
+    const cities = structuredClone(state.cities);
+    state.cities = {};
+    state.civilizations['ai-1']!.cities = [];
+    state = developmentRound(state);
+    expect(state.units[state.civilizations['ai-1']!.units[0]!]!.position).toEqual({ q: 0, r: 0 });
+    state.cities = cities;
+    state.civilizations['ai-1']!.cities = Object.keys(cities);
+    for (let round = 0; round < 8; round++) state = developmentRound(state);
+    expect(state.map.tiles['2,0']!.improvement).toBe('farm');
+  });
+
+  it('avoids a blocked route and resumes when the blocking foreign unit leaves', () => {
+    let state = developmentScenario();
+    state.map.tiles['2,0']!.improvement = 'none';
+    const foreign = createUnit('worker', 'player', { q: 1, r: 0 }, state.idCounters);
+    state.units[foreign.id] = foreign;
+    state.civilizations.player!.units.push(foreign.id);
+    const id = state.civilizations['ai-1']!.units[0]!;
+    state = developmentRound(state);
+    expect(state.units[id]!.position).toEqual({ q: 0, r: 0 });
+    state = removeUnits(state, [foreign.id], { reason: 'destroyed' }).state;
+    for (let round = 0; round < 8; round++) state = developmentRound(state);
+    expect(state.map.tiles['2,0']!.improvement).toBe('farm');
+  });
+
+  it('does not travel through a known hostile approach to reach otherwise safe work', () => {
+    let state = developmentScenario();
+    state.map.tiles['6,0']!.improvement = 'none';
+    state.cities['development-capital']!.workedTiles = [{ q: 2, r: 0 }, { q: 6, r: 0 }];
+    const coord = { q: 3, r: 1 };
+    state.map.tiles[hexKey(coord)] = { ...state.map.tiles['3,0']!, coord, owner: 'player' };
+    state.civilizations['ai-1']!.visibility.tiles[hexKey(coord)] = 'visible';
+    const enemy = createUnit('warrior', 'player', coord, state.idCounters);
+    state.units[enemy.id] = enemy;
+    state.civilizations.player!.units.push(enemy.id);
+    const enemyCity = makeCity('enemy-seat', 'player', coord);
+    state.cities[enemyCity.id] = enemyCity;
+    state.civilizations.player!.cities.push(enemyCity.id);
+    state = declareMajorWar(state, 'ai-1', 'player');
+    expect(state.civilizations['ai-1']!.diplomacy.atWarWith).toContain('player');
+    expect(collectWorkerDevelopmentJobs(state, 'ai-1').some(job => hexKey(job.coord) === '6,0')).toBe(true);
+    expect(assignWorkerDevelopmentJobs(state, 'ai-1')).toEqual([]);
+    expect(developmentRound(state).units[state.civilizations['ai-1']!.units[0]!]!.position).toEqual({ q: 0, r: 0 });
+  });
+
+  it('honors canonical civilian border exemption without entering a foreign city', () => {
+    const state = developmentScenario();
+    state.map.tiles['1,0']!.owner = 'player';
+    state.map.tiles['2,0']!.improvement = 'none';
+    const after = developmentRound(state);
+    expect(after.units[state.civilizations['ai-1']!.units[0]!]!.position).toEqual({ q: 1, r: 0 });
+    const foreignCity = makeCity('foreign-blocker', 'player', { q: 1, r: 0 });
+    state.cities[foreignCity.id] = foreignCity;
+    state.civilizations.player!.cities.push(foreignCity.id);
+    expect(assignWorkerDevelopmentJobs(state, 'ai-1')).toEqual([]);
+    expect(developmentRound(state).units[state.civilizations['ai-1']!.units[0]!]!.position).toEqual({ q: 0, r: 0 });
+  });
+
+  it('prioritizes urgent catastrophe recovery over roads and resource development', () => {
+    let state = developmentScenario([1]);
+    state.opponentChallenge = 'veteran';
+    const tile = state.map.tiles['2,0']!;
+    tile.devastatedUntilTurn = 100;
+    tile.resource = 'cattle';
+    tile.improvement = 'none';
+    const outpost = makeCity('outpost', 'ai-1', { q: 6, r: 0 });
+    state.cities[outpost.id] = outpost;
+    state.civilizations['ai-1']!.cities.push(outpost.id);
+    state.civilizations['ai-1']!.techState.completed = ['road-building', 'domestication'];
+    state.activeCrises = { catastrophe: {
+      id: 'catastrophe', flavorId: 'earthquake', archetype: 'catastrophe', targetCivId: 'ai-1',
+      cityIds: ['development-capital'], tileKeys: ['2,0'], startedTurn: 0, stage: 'recovery', turnsInStage: 1,
+    } };
+    state = developmentRound(state);
+    const id = state.civilizations['ai-1']!.units[0]!;
+    expect(state.units[id]!.position).toEqual({ q: 2, r: 0 });
+    expect(state.units[id]!.chargesRemaining).toBe(2);
+    state = developmentRound(state);
+    expect(state.map.tiles['2,0']!.devastatedUntilTurn).toBeUndefined();
+    expect(state.units[id]!.chargesRemaining).toBe(1);
+    expect(state.map.tiles['2,0']!.improvement).toBe('none');
+  });
+
+  it('assigns restoration to a free worker rather than reserving it for loaded cargo', () => {
+    const state = developmentScenario([1, 0]);
+    state.opponentChallenge = 'veteran';
+    const civ = state.civilizations['ai-1']!;
+    state.units[civ.units[0]!]!.transportId = 'hull';
+    state.map.tiles['2,0']!.devastatedUntilTurn = 100;
+    state.activeCrises = { catastrophe: {
+      id: 'catastrophe', flavorId: 'earthquake', archetype: 'catastrophe', targetCivId: 'ai-1',
+      cityIds: ['development-capital'], tileKeys: ['2,0'], startedTurn: 0, stage: 'recovery', turnsInStage: 1,
+    } };
+    const after = developmentRound(state);
+    expect(after.units[civ.units[1]!]!.position).toEqual({ q: 1, r: 0 });
+    expect(after.units[civ.units[0]!]!.chargesRemaining).toBe(2);
+  });
+
+  it('leaves workers idle when all legal jobs have zero marginal value', () => {
+    const state = developmentScenario([5]);
+    state.map.tiles['5,0']!.improvement = 'none';
+    state.map.tiles['5,0']!.terrain = 'desert';
+    expect(collectWorkerDevelopmentJobs(state, 'ai-1')).toEqual([]);
+    const current = developmentRound(state);
+    const id = state.civilizations['ai-1']!.units[0]!;
+    expect(current.units[id]!.position).toEqual({ q: 5, r: 0 });
+    expect(current.units[id]!.chargesRemaining).toBe(2);
+  });
+
+  it('does not divert human workers or mutate input during planning and movement', () => {
+    const state = developmentScenario();
+    state.map.tiles['2,0']!.improvement = 'none';
+    const before = structuredClone(state);
+    processWorkerDevelopment(state, 'ai-1', new EventBus());
+    expect(state).toEqual(before);
+    state.civilizations['ai-1']!.isHuman = true;
+    expect(processWorkerDevelopment(state, 'ai-1', new EventBus())).toBe(state);
+    expect(assignWorkerDevelopmentJobs(state, 'ai-1')).toEqual([]);
+  });
+
+  it('excludes exhausted and loaded workers, and completes a last-charge construction once', () => {
+    const state = developmentScenario([2]);
+    state.map.tiles['2,0']!.improvement = 'none';
+    const id = state.civilizations['ai-1']!.units[0]!;
+    state.units[id]!.chargesRemaining = 0;
+    expect(assignWorkerDevelopmentJobs(state, 'ai-1')).toEqual([]);
+    state.units[id]!.chargesRemaining = 1;
+    state.units[id]!.transportId = 'hull';
+    expect(assignWorkerDevelopmentJobs(state, 'ai-1')).toEqual([]);
+    state.units[id]!.transportId = undefined;
+    let current = processAITurn(state, 'ai-1', new EventBus());
+    expect(current.units[id]).toBeUndefined();
+    for (let round = 0; round < 5; round++) current = developmentRound(current);
+    expect(current.map.tiles['2,0']!.improvementTurnsLeft).toBe(0);
+    expect(current.map.tiles['2,0']!.improvement).toBe('farm');
+  });
+
+  it('does not abandon active improvement construction for a road objective', () => {
+    const state = developmentScenario([2]);
+    state.map.tiles['2,0']!.improvement = 'none';
+    state.civilizations['ai-1']!.techState.completed = ['road-building'];
+    const outpost = makeCity('outpost', 'ai-1', { q: 6, r: 0 });
+    state.cities[outpost.id] = outpost;
+    state.civilizations['ai-1']!.cities.push(outpost.id);
+    const id = state.civilizations['ai-1']!.units[0]!;
+    const started = applyWorkerAction(state, id, 'farm');
+    let current = started.state;
+    for (let round = 0; round < 3; round++) {
+      current = developmentRound(current);
+      expect(current.units[id]!.position).toEqual({ q: 2, r: 0 });
+      expect(current.units[id]!.chargesRemaining).toBe(1);
+      expect(current.units[id]!.workerTask?.action).toBe('farm');
+    }
+    current = developmentRound(current);
+    expect(current.map.tiles['2,0']!.improvementTurnsLeft).toBe(0);
+  });
+
+  it('produces identical development after a real save/load normalization during travel and construction', () => {
+    const initial = developmentScenario();
+    initial.map.tiles['2,0']!.improvement = 'none';
+    let continuous: GameState = refreshLastSeenPresentationsForCiv(normalizeLoadedState(initial), 'ai-1');
+    continuous = developmentRound(continuous);
+    let reloaded: GameState = normalizeLoadedState(JSON.parse(JSON.stringify(continuous)) as GameState);
+    for (let round = 0; round < 8; round++) {
+      continuous = developmentRound(continuous);
+      reloaded = developmentRound(reloaded);
+      if (round === 2) reloaded = normalizeLoadedState(JSON.parse(JSON.stringify(reloaded)) as GameState);
+    }
+    assertSimulationEquivalent(continuous, reloaded);
+    expect(continuous.map.tiles['2,0']!.improvementTurnsLeft).toBe(0);
+    expect(continuous.map.tiles['2,0']!.improvement).toBe('farm');
+  });
+
+  it('measures useful economic improvement, productive travel and finite charges over eight AI turns', () => {
+    const state = developmentScenario();
+    state.map.tiles['2,0']!.improvement = 'none';
+    const cityId = 'development-capital';
+    const before = calculateProjectedCityYields(state, cityId);
+    const bus = new EventBus();
+    const moved = vi.fn();
+    const completed = vi.fn();
+    bus.on('unit:move', moved);
+    bus.on('improvement:completed', completed);
+    let current = state;
+    for (let round = 0; round < 8; round++) current = developmentRound(current, bus);
+    const after = calculateProjectedCityYields(current, cityId);
+    expect(after.food - before.food).toBe(2);
+    expect(after.production - before.production).toBe(0);
+    expect(after.gold - before.gold).toBe(0);
+    expect(after.science - before.science).toBe(0);
+    expect(moved).toHaveBeenCalledTimes(2);
+    expect(completed).toHaveBeenCalledTimes(1);
+    expect(current.units[state.civilizations['ai-1']!.units[0]!]!.chargesRemaining).toBe(1);
+    reportDevelopmentMeasurement('productivity', { before, after, travelTurns: moved.mock.calls.length,
+      completed: completed.mock.calls.length, chargesUsed: 1 });
+  });
+
+  it.each(['medium', 'large'] as const)('bounds routing work with six workers on a representative %s map', size => {
+    let state = createNewGame(undefined, `worker-perf-${size}`, size);
+    const settlerId = state.civilizations['ai-1']!.units.find(id => state.units[id]?.type === 'settler')!;
+    state = foundCityInState(state, settlerId, new EventBus()).state;
+    const city = state.cities[state.civilizations['ai-1']!.cities[0]!]!;
+    const workers = Array.from({ length: 6 }, () => createUnit('worker', 'ai-1', city.position, state.idCounters));
+    for (const worker of workers) state.units[worker.id] = worker;
+    state.civilizations['ai-1']!.units.push(...workers.map(worker => worker.id));
+    const jobs = collectWorkerDevelopmentJobs(state, 'ai-1');
+    const spy = vi.spyOn(pathfinding, 'findPath');
+    const start = performance.now();
+    const assignments = assignWorkerDevelopmentJobs(state, 'ai-1');
+    const calls = spy.mock.calls.length;
+    spy.mockRestore();
+    expect(calls).toBeLessThanOrEqual(workers.length * WORKER_PATH_TRIALS * 2);
+    expect(new Set(assignments.map(entry => hexKey(entry.job.coord))).size).toBe(assignments.length);
+    expect(assignments).toHaveLength(workers.length);
+    reportDevelopmentMeasurement(size, { size, tiles: Object.keys(state.map.tiles).length,
+      workers: workers.length, candidates: jobs.length, pathfindingCalls: calls,
+      assignments: assignments.length, elapsedMs: performance.now() - start });
+  });
+
+  it('prunes disconnected resources before bounded routing so reachable home work is not starved', () => {
+    const state = developmentScenario();
+    const city = state.cities['development-capital']!;
+    state.map.tiles['1,0']!.terrain = 'ocean';
+    state.civilizations['ai-1']!.techState.completed = ['animal-husbandry'];
+    for (const key of ['2,0', '3,0', '4,0', '5,0']) Object.assign(state.map.tiles[key]!, {
+      terrain: 'plains', resource: 'horses', improvement: 'none',
+    });
+    for (let r = 1; r <= 3; r++) {
+      const coord = { q: 0, r };
+      state.map.tiles[hexKey(coord)] = { ...state.map.tiles['6,0']!, coord, improvement: r === 3 ? 'none' : 'farm' };
+      state.civilizations['ai-1']!.visibility.tiles[hexKey(coord)] = 'visible';
+      city.ownedTiles.push(coord);
+    }
+    city.workedTiles = [{ q: 0, r: 3 }, { q: 6, r: 0 }];
+    expect(assignWorkerDevelopmentJobs(state, 'ai-1')[0]?.job.coord).toEqual({ q: 0, r: 3 });
+    expect(developmentRound(state).units[state.civilizations['ai-1']!.units[0]!]!.position).toEqual({ q: 0, r: 1 });
   });
 });
