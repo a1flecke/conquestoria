@@ -278,7 +278,7 @@ function distance(
     : hexDistance(left, right);
 }
 
-function buildKnownPathMap(
+export function buildKnownPathMap(
   state: Readonly<GameState>,
   civId: string,
 ): GameMap {

@@ -5,6 +5,9 @@ import { canBuildRoad } from './road-system';
 import { getMovementCostForUnit } from './unit-movement-cost';
 import { findPath } from './unit-pathfinding';
 import { getWorkerChargesRemaining } from './worker-action-system';
+import { isWorkerBusy } from './unit-movement-system';
+import { getDeniedTerritoryOwners } from './territorial-access';
+import { getBlockingMapEntityKeys } from './unit-movement-legality';
 
 export type CapitalRoadPolicy = 'any-road' | 'owned-road';
 
@@ -204,6 +207,7 @@ export function getRoadBuildTarget(state: GameState, civId: string): HexCoord | 
       const key = hexKey(coord);
       if (cityKeys.has(key)) continue;
       const tile = state.map.tiles[key];
+      if ((tile?.roadTurnsLeft ?? 0) > 0) continue;
       if (!canBuildRoad(tile, completedTechs, civId, false)) continue;
       return coord;
     }
@@ -223,21 +227,31 @@ export function chooseRoadBuilderUnit(
   const target = getRoadBuildTarget(state, civId);
   if (!target) return null;
 
-  const distanceToTarget = (coord: HexCoord): number => {
-    const path = findPath(coord, target, state.map, 'land');
-    return path ? path.length : Infinity;
-  };
-
   const workers = Object.values(state.units)
     .filter(unit =>
       unit.owner === civId
       && unit.type === 'worker'
       && !unit.hasActed
+      && unit.movementPointsLeft > 0
+      && !unit.transportId
+      && !isWorkerBusy(state, unit.id)
       && getWorkerChargesRemaining(unit) > 0)
+    .map(worker => {
+      const blockedHexKeys = getBlockingMapEntityKeys(state, worker);
+      for (const unit of Object.values(state.units)) {
+        if (!unit.transportId && unit.owner !== worker.owner) blockedHexKeys.add(hexKey(unit.position));
+      }
+      const path = findPath(worker.position, target, state.map, 'land', {
+        unit: worker, completedTechs: state.civilizations[civId]?.techState.completed ?? [],
+        deniedOwnerIds: getDeniedTerritoryOwners(state, worker),
+        blockedHexKeys,
+      });
+      return { worker, length: path && !blockedHexKeys.has(hexKey(target)) ? path.length : Infinity };
+    })
+    .filter(candidate => Number.isFinite(candidate.length))
     .sort((left, right) =>
-      distanceToTarget(left.position) - distanceToTarget(right.position)
-      || left.id.localeCompare(right.id));
+      left.length - right.length || left.worker.id.localeCompare(right.worker.id));
 
-  const worker = workers[0];
+  const worker = workers[0]?.worker;
   return worker ? { workerId: worker.id, targetCoord: target } : null;
 }
