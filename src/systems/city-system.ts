@@ -78,6 +78,7 @@ export {
 export { completeCityProductionItem, processCity } from './city-turn';
 export type {
   CityProcessResult,
+  ProductionDisposition,
   CityProductionCompletionResult,
   CompleteCityProductionItemOptions,
 } from './city-turn';

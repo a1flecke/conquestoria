@@ -13,6 +13,27 @@ import { isCityCoastal } from './city-lifecycle';
  * production. Orchestration may consume the domain transitions above it; no
  * domain module may import this one.
  */
+/**
+ * #1407: where one city's production went this turn, measured at the source (`processCity`), never reconstructed from
+ * end-of-round state. Ephemeral -- reported to the round bus, never persisted. Conservation:
+ * `produced = appliedToBuild + carriedOver + convertedGold + convertedScience + discarded` (all integers).
+ *  - appliedToBuild: added to the queue head's progress (incl. an item queued and completed in the same turn).
+ *  - carriedOver: overflow beyond a completed item's cost that survived into the next item (3d-printing).
+ *  - convertedGold / convertedScience: credited by `City.idleProduction` on an empty queue.
+ *  - discarded: output that reached no sink -- an empty queue with no conversion mode, a queue whose every item was
+ *    dequeued this turn, or completion overflow that was not carried.
+ * A zero-yield city reports all zeros. Output suppressed by an unrest lock is zeroed by the caller before
+ * `processCity` and is reported separately by the caller as `suppressedByLock`, not as discarded.
+ */
+export interface ProductionDisposition {
+  produced: number;
+  appliedToBuild: number;
+  carriedOver: number;
+  convertedGold: number;
+  convertedScience: number;
+  discarded: number;
+}
+
 export interface CityProcessResult {
   city: City;
   grew: boolean;
@@ -22,6 +43,7 @@ export interface CityProcessResult {
   idleScienceBonus: number;
   /** Every unit/building silently dequeued this turn, with why. Empty when nothing dropped. */
   droppedProductionItems: DroppedProductionItem[];
+  production: ProductionDisposition;
 }
 
 export interface CityProductionCompletionResult {
@@ -286,8 +308,12 @@ export function processCity(
     }
   }
 
+  let appliedToBuild = 0;
+  let carriedOver = 0;
+  let overflowDiscarded = 0;
   if (newQueue.length > 0) {
     newProgress += productionYield;
+    appliedToBuild = productionYield;
     const currentItem = newQueue[0];
 
     const unitDef = TRAINABLE_UNITS.find(u => u.type === currentItem);
@@ -298,6 +324,11 @@ export function processCity(
         currentItem,
         { cost: currentItemCost, completedTechs },
       );
+      // Only this turn's output can be "overflow": whatever sat above the cost beyond it was never ours to carry.
+      const excessThisTurn = Math.min(productionYield, Math.max(0, newProgress - currentItemCost));
+      carriedOver = Math.min(excessThisTurn, completion.city.productionProgress);
+      overflowDiscarded = excessThisTurn - carriedOver;
+      appliedToBuild = productionYield - excessThisTurn;
       newQueue.length = 0;
       newQueue.push(...completion.city.productionQueue);
       newBuildings.length = 0;
@@ -323,6 +354,17 @@ export function processCity(
     }
   }
 
+  const converted = idleGoldBonus + idleScienceBonus;
+  const unsunk = productionYield - appliedToBuild - carriedOver - overflowDiscarded - converted;
+  const production: ProductionDisposition = {
+    produced: productionYield,
+    appliedToBuild,
+    carriedOver,
+    convertedGold: idleGoldBonus,
+    convertedScience: idleScienceBonus,
+    discarded: overflowDiscarded + Math.max(0, unsunk),
+  };
+
   let nextCity: City = {
     ...city,
     food: newFood,
@@ -343,5 +385,6 @@ export function processCity(
     idleGoldBonus,
     idleScienceBonus,
     droppedProductionItems,
+    production,
   };
 }

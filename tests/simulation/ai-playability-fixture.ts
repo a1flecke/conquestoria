@@ -33,6 +33,8 @@ import { assertAirBaseIntegrity, assertBeastLairIntegrity, assertBilateralWar, a
 import {
   buildCampaignRoundSample,
   emptyCivCounters,
+  emptyProductionAccounting,
+  type CampaignProductionAccounting,
   type CampaignCivCounters,
   type CampaignRoundSample,
 } from './campaign-sample';
@@ -489,6 +491,24 @@ export function runAICampaign(options: AICampaignOptions): AICampaignResult {
     let planningErrors: string[] = [];
     const bus = new EventBus();
     const captures: GameEvents['city:captured'][] = [];
+    // #1407 -- exact production accounting for this round only, reset every round.
+    const productionByCiv = new Map<string, CampaignProductionAccounting>();
+    for (const civId of Object.keys(state.civilizations)) productionByCiv.set(civId, emptyProductionAccounting());
+    bus.on('city:production-disposition', event => {
+      const sunk = event.appliedToBuild + event.carriedOver + event.convertedGold + event.convertedScience + event.discarded;
+      if (Math.abs(event.produced - sunk) > 1e-9) {
+        throw new Error(`${options.seed}: round ${round} city ${event.cityId} production not conserved: produced ${event.produced}, accounted ${sunk}`);
+      }
+      const acc = productionByCiv.get(event.civId);
+      if (!acc) return;
+      acc.produced += event.produced;
+      acc.appliedToBuild += event.appliedToBuild;
+      acc.carriedOver += event.carriedOver;
+      acc.convertedGold += event.convertedGold;
+      acc.convertedScience += event.convertedScience;
+      acc.discarded += event.discarded;
+      acc.suppressedByLock += event.suppressedByLock;
+    });
     bus.on('city:captured', event => {
       metrics.cityCaptures += 1;
       captures.push(event);
@@ -672,6 +692,7 @@ export function runAICampaign(options: AICampaignOptions): AICampaignResult {
         beforeInput.length,
         metrics.planProgressTransitions,
         countersByCiv,
+        productionByCiv,
       ));
     }
 
