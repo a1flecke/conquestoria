@@ -307,6 +307,7 @@ export function buildKnownPathMap(
       owner: snapshot.owner,
       hasRiver: snapshot.hasRiver,
       wonder: snapshot.wonder,
+      hasRoad: snapshot.hasRoad,
     };
   }
   return knownMap;

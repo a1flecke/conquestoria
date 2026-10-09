@@ -41,8 +41,10 @@ can be replaced through the existing canonical replacement option.
 Productivity is the completed tile yield minus its current worked yield, or the
 larger of its current yield and the marginal occupied citizen slot. Ordinary
 weights are food/production 3 and gold/science 2; focus doubles the relevant weight
-to 6. Low worked food doubles food's weight; a nonpositive treasury doubles gold's
-weight. Zero marginal value creates no productivity job. A city-connection road
+to 6. Low worked food doubles food's weight. Gold's scarcity weight is
+`2 + 4 / (1 + max(0, treasury))`, bounded above by 6 and approaching the ordinary
+weight 2 as reserves grow; explicit gold focus remains 6. Zero marginal value
+creates no productivity job. A city-connection road
 has operational value 8, with its duration coming from the canonical road rules.
 Road and improvement alternatives remain separately reachable on the same site.
 
@@ -59,6 +61,54 @@ actual remaining path length plus build duration. The winner is reserved before
 the next worker shortlists; this keeps co-located workers from repeatedly selecting
 the same four jobs. Coordinate/action ties are stable. Commands still revalidate
 through `resolveUnitMoveIntent`, `executeUnitMove` and `applyWorkerAction`.
+
+## Gameplay continuity and related-path audit
+
+The development criteria include coherent project completion, recovery of damaged
+communities, useful city connections, and fair opportunities to interrupt work.
+These are observable gameplay contracts, not a claim that automated tests establish
+subjective fun or affection for a civilization. Existing improvements, construction
+events, road rendering and city yields expose completed work through the live game;
+no new UI or visual assets are necessary.
+
+The treasury competition scenario initially stalled after one move because its
+manually visible corridor lacked observed last-seen snapshots. Movement downgraded
+two corridor tiles to fog; `buildKnownPathMap` correctly omitted them as untrusted.
+Canonical snapshot initialization repaired the fixture without weakening privacy.
+The game-creation, per-round vision, movement and atomic vision-refresh paths all
+capture observations after revealing tiles; the inspected production callers did
+not share this fixture omission.
+
+With trustworthy observations, pre-hardening commit
+`7eede49253a497480b1fa994317c7782d55d752a` exposed a real deterministic failure:
+alternating treasury 0/1 changed the gold weight abruptly from 6 to 2, sending a
+worker between positions 3 and 4 for twelve turns without completing either job.
+The bounded gradual scarcity premium removes this discontinuity. Both starting
+phases now reach the mine in six travel turns, finish it within twelve AI turns,
+spend one charge, emit one completion, and raise the worked city's production by
+2 and gold by 1 per turn. No persistent intent or balance-rule changes were added.
+
+The similar-path audit found two independent problems:
+
+* The remembered path map dropped the observed `hasRoad` field. A
+  city-connection planner therefore selected an already-built fogged link, while
+  the ordinary job filter correctly refused work on that nonvisible target. The
+  new regression now completes the visible missing link. Paired controls retain
+  observed road presence/absence despite opposite unseen live changes, update on
+  visibility, and refuse missing, legacy-reconstructed or unexplored observations.
+  Rail appearance remains presentation-only snapshot data; `HexTile` has no rail
+  flag, and no new gameplay or save field was introduced.
+* Catastrophe assignment accepted a terrain-only route whose first step canonical
+  movement rejected. That reservation permanently starved reachable ordinary
+  work. Assignment now supplies worker/technology context and validates the first
+  command before reserving. The blocked worker completes a reachable farm, then
+  resumes urgent recovery when the blocker is removed, using its final charge.
+
+This audit does not claim that gradual valuation guarantees stability under every
+possible changing food pressure, city focus or emergency. Significant changes can
+legitimately alter the preferred job. The explicit regression establishes progress
+under the demonstrated minor treasury fluctuation, rather than hiding wasted
+travel behind activity counts.
 
 ## Deterministic before/after outcomes
 
@@ -106,7 +156,8 @@ executor, allowing road selection to read it without an executor dependency.
 Worker/improvement action types live in the existing resource contract leaf;
 the compatibility barrel retains its 577-importer ceiling and shrinks from 203
 to 200 local declarations. The generated import inventory records the planner's
-15 intended AI-to-system edges; no cycle or source-rule allowance was added.
+15 intended planner AI-to-system edges plus one crisis-to-canonical-validation
+edge; no runtime cycle or source-rule allowance was added.
 
 ## Planning effort
 
