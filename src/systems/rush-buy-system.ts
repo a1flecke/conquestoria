@@ -7,6 +7,10 @@
 import type { GameState } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
 import { completeCityProductionItem } from './city-system';
+import { resolveCivDefinition } from './civ-registry';
+import { calculateProjectedCityYields } from './city-work-system';
+import { isCityProductionLocked } from './faction-unrest-model';
+import { getProductionCostForCivItem } from './production-cost-context';
 import { announceUnitProduction, completeUnitProduction } from './unit-production-completion';
 import {
   calculateCivEconomy,
@@ -16,6 +20,32 @@ import {
   type EconomyProjection,
   type RushBuyDisabledReason,
 } from './economy-system';
+
+/**
+ * #1415: true when the city's own production finishes its active item this turn
+ * (`progress + projected production >= cost`). Buying such an item buys nothing: the gold is spent AND the item
+ * completes immediately, so `processCity` then finds an empty queue and the city's WHOLE turn of output is
+ * discarded instead of only the overflow (measured: 54 of 54 AI rush-buys in lh-late-era-medium ai-1, rounds
+ * 186-200). The yield is the same projection AI production scoring uses for `productionPerTurn`; it slightly
+ * under-reads the turn's real yield, so this errs toward allowing a purchase, never toward blocking a useful one.
+ * An unrest-locked city produces nothing this turn, so a purchase there still buys real progress. Wonders are
+ * never bought. A query only: the human rush-buy command above is unchanged.
+ */
+export function completesFromOwnProduction(state: GameState, civId: string, cityId: string): boolean {
+  const city = state.cities[cityId];
+  const itemId = city?.productionQueue[0];
+  if (!city || !itemId || itemId.startsWith('legendary:')) return false;
+  if (isCityProductionLocked(city)) return false;
+  const cost = getProductionCostForCivItem(state, civId, cityId, itemId);
+  if (cost <= 0) return false;
+  const civ = state.civilizations[civId];
+  const production = calculateProjectedCityYields(
+    state,
+    cityId,
+    resolveCivDefinition(state, civ?.civType ?? '')?.bonusEffect,
+  ).production;
+  return city.productionProgress + production >= cost;
+}
 
 export type RushBuyResult =
   | { success: true; state: GameState; itemId: string; label: string; cost: number; status: EconomyProjection }
