@@ -375,10 +375,10 @@ const EXPECTED_AFTER: ReadonlyArray<readonly [phase: string, calls: readonly str
 ];
 
 const EXPECTED_EVENT_TYPES_TURN_1: readonly string[] = [
-  'turn:end', 'unit:move', 'fog:revealed', 'wonder:discovered', 'unit:move', 'fog:revealed', 'wonder:discovered',
-  'unit:move', 'fog:revealed', 'wonder:discovered*', 'unit:move', 'civilization:first-contact', 'fog:revealed',
-  'wonder:discovered*', 'unit:move', 'fog:revealed', 'wonder:discovered*', 'unit:move', 'fog:revealed',
-  'wonder:discovered', 'unit:move', 'fog:revealed', 'wonder:discovered*', 'unit:move', 'fog:revealed',
+  'turn:end', 'city:production-disposition*', 'unit:move', 'fog:revealed', 'wonder:discovered', 'city:production-disposition*', 'unit:move', 'fog:revealed', 'wonder:discovered',
+  'city:production-disposition*', 'unit:move', 'fog:revealed', 'wonder:discovered*', 'city:production-disposition*', 'unit:move', 'civilization:first-contact', 'fog:revealed',
+  'wonder:discovered*', 'city:production-disposition*', 'unit:move', 'fog:revealed', 'wonder:discovered*', 'city:production-disposition*', 'unit:move', 'fog:revealed',
+  'wonder:discovered', 'city:production-disposition*', 'unit:move', 'fog:revealed', 'wonder:discovered*', 'city:production-disposition*', 'unit:move', 'fog:revealed',
   'wonder:discovered', 'territory:tile-flipped*', 'minor-civ:quest-issued*', 'minor-civ:evolved',
   'threat:barbarian-resurgence*', 'eventchain:started*', 'eventchain:choice-made', 'eventchain:started',
   'eventchain:choice-made', 'eventchain:started', 'eventchain:choice-made', 'espionage:intel-extracted',
