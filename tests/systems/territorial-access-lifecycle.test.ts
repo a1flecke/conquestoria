@@ -8,15 +8,120 @@ import type { GameEvents, GameState } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
 import { hexKey } from '@/systems/hex-utils';
 import { breakTreaty } from '@/systems/diplomacy-treaties';
-import { makeMajorPeace } from '@/systems/diplomacy-war';
+import { declareMajorWar, makeMajorPeace } from '@/systems/diplomacy-war';
+import { commitTreatyAgreement, tickTreaties } from '@/systems/diplomacy-treaties';
+import { releaseVassal, resolveIndependence } from '@/systems/diplomacy-vassalage';
+import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
+import { getMovementRangeDetails } from '@/systems/unit-movement-queries';
+import { findPath } from '@/systems/unit-pathfinding';
+import { applyStandingOrders } from '@/core/round-phases/per-civ/standing-orders';
+import { resolveCivDefinition } from '@/systems/civ-registry';
 import { resolveUnitMoveIntent, executeUnitMove } from '@/systems/unit-movement-system';
 import { emitAccessLossNotices, findUnitsStrandedByAccessLoss } from '@/systems/territorial-access';
 import { routeAccessLost } from '@/ui/notification-routes/diplomacy-routes';
 import {
-  addUnit, asPlayer, makeTerritorialWorld, setWar, signBoth, type TerritorialWorld,
+  addUnit, asPlayer, makeTerritorialWorld, setVassal, setWar, signBoth, type TerritorialWorld,
 } from './helpers/territorial-fixture';
 
 type Notice = { civId: string; message: string; kind: string };
+
+describe('dynamic diplomacy movement parity', () => {
+  function readyWorld() {
+    const world = makeTerritorialWorld();
+    world.state.idCounters = { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 };
+    // Sovereign cityless settlers make the real major-war command eligible.
+    addUnit(world, 'homeSettler', 'settler', 'player', 0, 2);
+    addUnit(world, 'rivalSettler', 'settler', 'rival', 9, 2);
+    addUnit(world, 'thirdSettler', 'settler', 'third', 9, 0);
+    addUnit(world, 'army', 'warrior', 'player', 2, 1);
+    return world;
+  }
+
+  function assertParity(world: TerritorialWorld, allowed: boolean) {
+    const state = world.state;
+    const unit = state.units['unit-army'];
+    const to = { q: 4, r: 1 };
+    const before = structuredClone(state);
+    expect(resolveUnitMoveIntent(state, unit.id, to, asPlayer).ok).toBe(allowed);
+    expect(getMovementRangeDetails(state, unit.id).reachable.map(hexKey).includes(hexKey(to))).toBe(allowed);
+    expect(findPath(unit.position, to, state.map, 'land', {
+      unit, deniedOwnerIds: getDeniedTerritoryOwners(state, unit),
+    }) !== null).toBe(allowed);
+    expect(executeUnitMove(structuredClone(state), unit.id, to, asPlayer).ok).toBe(allowed);
+    expect(state).toEqual(before);
+  }
+
+  it('canonical agreement, cancellation, war and peace agree across preview, route and execution', () => {
+    const world = readyWorld();
+    assertParity(world, false);
+    world.state = commitTreatyAgreement(world.state, 'player', 'rival', 'open_borders', new EventBus());
+    assertParity(world, true);
+    const entered = executeUnitMove(world.state, 'unit-army', { q: 4, r: 1 }, asPlayer);
+    expect(entered.ok).toBe(true);
+    if (!entered.ok) return;
+    world.state = breakBoth(entered.state, 'open_borders');
+    world.state.units['unit-army'] = { ...world.state.units['unit-army'], movementPointsLeft: 12, hasMoved: false };
+    const exited = executeUnitMove(world.state, 'unit-army', { q: 2, r: 1 }, asPlayer);
+    expect(exited.ok).toBe(true);
+    if (!exited.ok) return;
+    world.state = exited.state;
+    // Once outside, this same army can no longer borrow its previous egress.
+    assertParity(world, false);
+    world.state = declareMajorWar(world.state, 'player', 'rival');
+    assertParity(world, true);
+    world.state = makeMajorPeace(world.state, 'player', 'rival');
+    assertParity(world, false);
+  });
+
+  it.each(['release', 'independence'] as const)('%s closes entry without removing a land army\'s egress', command => {
+    const world = readyWorld();
+    setVassal(world, 'player', 'rival');
+    signBoth(world, 'player', 'rival', 'vassalage');
+    world.state.civilizations.player.diplomacy.vassalage.protectionScore = 0;
+    assertParity(world, true);
+    world.state.units['unit-army'] = { ...world.state.units['unit-army'], position: { q: 4, r: 1 } };
+    world.state = command === 'release'
+      ? releaseVassal(world.state, 'rival', 'player', new EventBus())
+      : resolveIndependence(world.state, 'player', 'rival', true, new EventBus());
+    expect(world.state.civilizations.player.diplomacy.vassalage.overlord).toBeNull();
+    expect(resolveUnitMoveIntent(world.state, 'unit-army', { q: 2, r: 1 }, asPlayer).ok).toBe(true);
+    world.state.units['unit-army'] = { ...world.state.units['unit-army'], position: { q: 2, r: 1 } };
+    assertParity(world, false);
+  });
+
+  it('a finite treaty expiry changes route legality and interrupts a standing journey', () => {
+    const world = readyWorld();
+    world.state = commitTreatyAgreement(world.state, 'player', 'rival', 'open_borders', new EventBus());
+    for (const id of ['player', 'rival']) {
+      const civ = world.state.civilizations[id];
+      civ.diplomacy = tickTreaties({ ...civ.diplomacy, treaties: civ.diplomacy.treaties.map(t => ({ ...t, turnsRemaining: 1 })) });
+    }
+    assertParity(world, false);
+    world.state.units['unit-army'].automation = { mode: 'journey', destination: { q: 7, r: 1 } };
+    const bus = new EventBus();
+    const blocked: string[] = [];
+    bus.on('unit:journey-blocked', e => blocked.push(e.unitId));
+    const civ = world.state.civilizations.player;
+    const after = applyStandingOrders(structuredClone(world.state), {
+      civId: 'player', civ, currentCivState: civ,
+      civDef: resolveCivDefinition(world.state, civ.civType), unitIdsAtTurnStart: [...civ.units],
+    }, [], bus);
+    expect(after.units['unit-army'].position).toEqual({ q: 2, r: 1 });
+    expect(after.units['unit-army'].automation).toBeUndefined();
+    expect(blocked).toEqual(['unit-army']);
+  });
+
+  it('egress through one foreign owner does not open the next foreign owner on a route', () => {
+    const world = readyWorld();
+    world.state.units['unit-army'].position = { q: 4, r: 1 };
+    for (const tile of Object.values(world.state.map.tiles)) if (tile.coord.q === 5) tile.owner = 'third';
+    const to = { q: 7, r: 1 };
+    expect(resolveUnitMoveIntent(world.state, 'unit-army', to, asPlayer).ok).toBe(false);
+    world.state = commitTreatyAgreement(world.state, 'player', 'third', 'open_borders', new EventBus());
+    expect(resolveUnitMoveIntent(world.state, 'unit-army', to, asPlayer).ok).toBe(true);
+    expect(executeUnitMove(world.state, 'unit-army', to, asPlayer).ok).toBe(true);
+  });
+});
 
 function collect(bus: EventBus): Notice[] {
   const seen: Notice[] = [];

@@ -152,7 +152,9 @@ const NOTHING_DENIED: ReadonlySet<string> = new Set<string>();
  */
 export function getDeniedTerritoryOwners(state: GameState, unit: Unit): ReadonlySet<string> {
   if (!BORDER_OBEDIENCE[classifyBorderMover(unit)]) return NOTHING_DENIED;
-  const standingOn = state.map.tiles[hexKey(unit.position)]?.owner ?? null;
+  // Cargo tracks its hull's position but does not occupy that tile. An exempt
+  // ship entering claimed coast cannot earn land egress for its carried army.
+  const standingOn = unit.transportId ? null : state.map.tiles[hexKey(unit.position)]?.owner ?? null;
   let denied: Set<string> | undefined;
   for (const civId of Object.keys(state.civilizations)) {
     if (civId === unit.owner || civId === standingOn) continue;

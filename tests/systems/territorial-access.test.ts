@@ -25,6 +25,7 @@ import { resolveUnitMoveIntent, executeUnitMove } from '@/systems/unit-movement-
 import { getMovementRangeDetails } from '@/systems/unit-movement-queries';
 import { findPath } from '@/systems/unit-pathfinding';
 import { chooseAutoExploreMove } from '@/systems/auto-explore-system';
+import { expectViewerSafety, expectHotSeatDifferential } from '../helpers/viewer-safety';
 import { explainMovementFailureForViewer, getMovementBlockerReason } from '@/systems/unit-movement-explainer';
 import {
   addUnit, asPlayer, makeTerritorialWorld, removeBoth, setVassal, setWar, signBoth,
@@ -371,6 +372,54 @@ describe('#871 information safety', () => {
 });
 
 describe('#871 viewer-safe presentation (omniscient legality, redacted explanation)', () => {
+  it('differential controls hide unseen owners and private orders while earned exploration changes the explanation', () => {
+    const world = worldWithWarrior();
+    const key = hexKey(INTO_RIVAL);
+    world.state.civilizations.player.knownCivilizations = [];
+    world.state.civilizations.rival.knownCivilizations = [];
+    world.state.civilizations.player.visibility = {
+      ...world.state.civilizations.player.visibility,
+      tiles: { ...world.state.civilizations.player.visibility.tiles, [key]: 'unexplored' },
+    };
+    const surface = {
+      name: 'closed-border movement explanation',
+      project: (s: GameState) => getMovementBlockerReason(s, 'unit-walker', INTO_RIVAL),
+    };
+    expectViewerSafety(surface, {
+      world: world.state, viewerId: 'player',
+      hidden: [
+        { label: 'unobserved ownership change', apply: s => { s.map.tiles[key].owner = 'third'; } },
+        { label: 'unmet owner identity', apply: s => { s.civilizations.rival.name = 'Secret Empire'; } },
+        { label: 'private enemy route', apply: s => {
+          s.civilizations.rival.units = ['unit-secret'];
+          s.units['unit-secret'] = { ...s.units['unit-walker'], id: 'unit-secret', owner: 'rival', position: { q: 5, r: 2 },
+            automation: { mode: 'journey', destination: { q: 7, r: 1 } } };
+        } },
+      ],
+      earned: [{ label: 'observe the blocked coast approach', apply: s => { s.civilizations.player.visibility.tiles[key] = 'visible'; } }],
+    });
+    expect(world.state.civilizations.player.visibility.tiles[key]).toBe('unexplored');
+  });
+
+  it('hot-seat differential: an observed ownership change reaches only the seat that saw it', () => {
+    const world = worldWithWarrior();
+    addUnit(world, 'rivalWalker', 'warrior', 'rival', 6, 1);
+    world.state.civilizations.rival.isHuman = true;
+    const key = hexKey(INTO_RIVAL);
+    world.state.civilizations.player.visibility = {
+      ...world.state.civilizations.player.visibility,
+      tiles: { ...world.state.civilizations.player.visibility.tiles, [key]: 'unexplored' },
+    };
+    expectHotSeatDifferential({
+      name: 'independent border knowledge',
+      project: (s: GameState, viewer: string) => getMovementBlockerReason(s,
+        viewer === 'player' ? 'unit-walker' : 'unit-rivalWalker', INTO_RIVAL),
+    }, {
+      world: world.state, viewers: ['player', 'rival'], knownOnlyTo: 'rival',
+      mutation: { label: 'rival observes land change to a third sovereign', apply: s => { s.map.tiles[key].owner = 'third'; } },
+    });
+  });
+
   function setVisibility(world: TerritorialWorld, civ: string, overrides: Record<string, 'visible' | 'fog' | 'unexplored'>) {
     const vis = world.state.civilizations[civ]!.visibility;
     world.state.civilizations[civ]!.visibility = { ...vis, tiles: { ...vis.tiles, ...overrides } };
