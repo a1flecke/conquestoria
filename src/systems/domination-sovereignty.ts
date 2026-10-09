@@ -66,20 +66,20 @@ function isValidDirectVassalage(
   }
 
   return hasSingleActiveVassalageTreaty(vassal.diplomacy.treaties, vassalId, overlordId)
-    && hasSingleActiveVassalageTreaty(overlord.diplomacy.treaties, vassalId, overlordId);
+    && hasSingleActiveVassalageTreaty(overlord.diplomacy.treaties, overlordId, vassalId);
 }
 
 function hasSingleActiveVassalageTreaty(
   treaties: readonly { type: string; civA: string; civB: string; turnsRemaining: number }[],
-  vassalId: string,
-  overlordId: string,
+  selfId: string,
+  otherId: string,
 ): boolean {
   const pairTreaties = treaties.filter(treaty => treaty.type === 'vassalage'
-    && ((treaty.civA === vassalId && treaty.civB === overlordId)
-      || (treaty.civA === overlordId && treaty.civB === vassalId)));
+    && ((treaty.civA === selfId && treaty.civB === otherId)
+      || (treaty.civA === otherId && treaty.civB === selfId)));
   return pairTreaties.length === 1
-    && pairTreaties[0]!.civA === vassalId
-    && pairTreaties[0]!.civB === overlordId
+    && pairTreaties[0]!.civA === selfId
+    && pairTreaties[0]!.civB === otherId
     && Number.isInteger(pairTreaties[0]!.turnsRemaining)
     && (pairTreaties[0]!.turnsRemaining === -1 || pairTreaties[0]!.turnsRemaining > 0);
 }

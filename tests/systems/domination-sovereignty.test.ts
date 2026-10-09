@@ -9,6 +9,7 @@ import { makeLivenessGame, withoutOwnedAssets } from './helpers/civilization-liv
 import { makeBreakawayFixture } from './helpers/breakaway-fixture';
 import { makeVassalageFixture } from './helpers/vassalage-fixture';
 import { createBreakawayFromCity } from '@/systems/breakaway-system';
+import { normalizeLoadedState } from '@/storage/save-manager';
 
 describe('Domination sovereignty facts', () => {
   it('uses canonical liveness rather than civilization rosters', () => {
@@ -35,6 +36,15 @@ describe('Domination sovereignty facts', () => {
       disposition: 'vassal',
       overlordId: 'overlord',
     });
+    expect(getDominationActorFact(normalizeLoadedState(structuredClone(accepted)), 'vassal'))
+      .toEqual(getDominationActorFact(accepted, 'vassal'));
+  });
+
+  it.each(['vassal', 'overlord'])('fails closed when the %s holds a treaty oriented toward the other endpoint', holder => {
+    const state = acceptVassalage();
+    const treaty = state.civilizations[holder].diplomacy.treaties.find(t => t.type === 'vassalage')!;
+    [treaty.civA, treaty.civB] = [treaty.civB, treaty.civA];
+    expect(getDominationActorFact(state, 'vassal')).toEqual({ civId: 'vassal', disposition: 'independent', overlordId: null });
   });
 
   it('fails closed when a vassalage treaty is missing from either endpoint', () => {

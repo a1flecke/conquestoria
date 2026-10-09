@@ -1249,8 +1249,9 @@ describe('#1006 assertSaveStateInvariants (aggregate)', () => {
     });
   });
 
-  it('SAVE_STATE_INVARIANTS lists exactly the thirteen documented checks', () => {
+  it('SAVE_STATE_INVARIANTS lists exactly the fourteen documented checks', () => {
     expect(SAVE_STATE_INVARIANTS.map(inv => inv.name).sort()).toEqual([
+      'active-war-history',
       'air-base-integrity',
       'beast-lair-integrity',
       'bilateral-war',
