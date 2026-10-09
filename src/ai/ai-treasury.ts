@@ -7,6 +7,10 @@ import {
   getRushBuyQuote,
 } from '@/systems/economy-system';
 import { rushBuyActiveProduction } from '@/systems/rush-buy-system';
+import { resolveCivDefinition } from '@/systems/civ-registry';
+import { calculateProjectedCityYields } from '@/systems/city-work-system';
+import { isCityProductionLocked } from '@/systems/faction-unrest-model';
+import { getProductionCostForCivItem } from '@/systems/production-cost-context';
 
 /**
  * #1094: the AI never called `rushBuyActiveProduction` -- the same gold-for-
@@ -36,6 +40,30 @@ import { rushBuyActiveProduction } from '@/systems/rush-buy-system';
  * `getRushBuyQuote`'s own legality (no challenge-profile input).
  */
 const RESERVE_ROUNDS = 2;
+
+/**
+ * #1415: true when the city's own production finishes its active item this turn
+ * (`progress + projected production >= cost`). Rush-buying such an item buys nothing -- the gold is spent AND the
+ * item completes immediately, so `processCity` then finds an empty queue and the city's WHOLE turn of output is
+ * discarded instead of only the overflow (measured: 54 of 54 rush-buys in lh-late-era-medium ai-1 rounds 186-200).
+ * The projection is the same one AI production scoring uses for `productionPerTurn`; an unrest-locked city
+ * produces nothing this turn, so a rush there still buys real progress. Wonders are never bought.
+ */
+export function completesFromOwnProduction(state: GameState, civId: string, cityId: string): boolean {
+  const city = state.cities[cityId];
+  const itemId = city?.productionQueue[0];
+  if (!city || !itemId || itemId.startsWith('legendary:')) return false;
+  if (isCityProductionLocked(city)) return false;
+  const cost = getProductionCostForCivItem(state, civId, cityId, itemId);
+  if (cost <= 0) return false;
+  const civ = state.civilizations[civId];
+  const production = calculateProjectedCityYields(
+    state,
+    cityId,
+    resolveCivDefinition(state, civ?.civType ?? '')?.bonusEffect,
+  ).production;
+  return city.productionProgress + production >= cost;
+}
 
 function totalMaintenanceFor(state: GameState, civId: string): number {
   const maintenance = calculateMaintenance(state, civId);
@@ -97,6 +125,9 @@ export function applyAIGoldSpending(state: GameState, civId: string, bus: EventB
     cachedMaintenance ??= totalMaintenanceFor(nextState, civId);
     const civGold = nextState.civilizations[civId]!.gold;
     if (civGold - quote.cost < cachedMaintenance * RESERVE_ROUNDS) continue;
+    // #1415: last, because it is the only check that projects city yields -- it runs only for a purchase that
+    // would otherwise happen. A purchase production makes redundant forfeits the turn's output.
+    if (completesFromOwnProduction(nextState, civId, cityId)) continue;
     const result = rushBuyActiveProduction(nextState, civId, cityId, bus);
     if (result.success) {
       nextState = result.state;

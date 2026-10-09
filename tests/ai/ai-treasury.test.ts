@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { applyAIGoldSpending } from '@/ai/ai-treasury';
+import { applyAIGoldSpending, completesFromOwnProduction } from '@/ai/ai-treasury';
+import { calculateProjectedCityYields } from '@/systems/city-work-system';
+import { processCity } from '@/systems/city-system';
+import { rushBuyActiveProduction } from '@/systems/rush-buy-system';
+import { buildProductionCostContext } from '@/systems/production-cost-context';
 import type { GameState, OpponentChallenge } from '@/core/types';
 import { createHotSeatGame, createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
@@ -344,5 +348,90 @@ describe('applyAIGoldSpending economy-projection reuse (#1125)', () => {
       expect(hotSeatResult.cities[cityId]!.productionQueue).toEqual(soloResult.cities[cityId]!.productionQueue);
     }
     expect(hotSeatResult.civilizations['ai-1']!.gold).toBe(soloResult.civilizations['ai-1']!.gold);
+  });
+});
+
+describe('applyAIGoldSpending never buys what the city completes anyway (#1415)', () => {
+  /** warrior costs 8; progress 7 means any positive production finishes it this turn. */
+  function nearlyDone(): GameState {
+    const state = setupState();
+    state.civilizations['ai-1']!.gold = 5000;
+    state.cities['city-a']!.productionQueue = ['warrior'];
+    state.cities['city-a']!.productionProgress = 7;
+    return state;
+  }
+
+  it('does not rush-buy an item the city completes from its own production this turn', () => {
+    const state = nearlyDone();
+    expect(calculateProjectedCityYields(state, 'city-a').production).toBeGreaterThan(0);
+    expect(completesFromOwnProduction(state, 'ai-1', 'city-a')).toBe(true);
+
+    const result = applyAIGoldSpending(state, 'ai-1', new EventBus());
+
+    expect(result.cities['city-a']!.productionQueue).toEqual(['warrior']);
+    expect(result.civilizations['ai-1']!.gold).toBe(5000);
+  });
+
+  it('still rush-buys when production alone would NOT finish the item', () => {
+    const state = setupState();
+    state.civilizations['ai-1']!.gold = 5000;
+    state.cities['city-a']!.productionQueue = ['warrior'];
+    state.cities['city-a']!.productionProgress = 0;
+    expect(completesFromOwnProduction(state, 'ai-1', 'city-a')).toBe(false);
+
+    const result = applyAIGoldSpending(state, 'ai-1', new EventBus());
+
+    expect(result.cities['city-a']!.productionQueue).toEqual([]);
+    expect(result.civilizations['ai-1']!.gold).toBeLessThan(5000);
+  });
+
+  it('still rushes in an unrest-locked city, whose production this turn is zero', () => {
+    const state = nearlyDone();
+    state.cities['city-a']!.unrestLevel = 2;
+    expect(completesFromOwnProduction(state, 'ai-1', 'city-a')).toBe(false);
+
+    const result = applyAIGoldSpending(state, 'ai-1', new EventBus());
+
+    expect(result.cities['city-a']!.productionQueue).toEqual([]);
+  });
+
+  it('earned control: the purchase it prevents forfeits the whole turn of production', () => {
+    const state = nearlyDone();
+    const production = Math.max(2, calculateProjectedCityYields(state, 'city-a').production);
+    const context = (s: GameState) => buildProductionCostContext(s, 'ai-1', 'city-a');
+
+    // What the old behaviour did: buy first, then let the city produce into an empty queue.
+    const bought = rushBuyActiveProduction(state, 'ai-1', 'city-a', new EventBus());
+    expect(bought.success).toBe(true);
+    const afterBuy = processCity(bought.state.cities['city-a']!, bought.state.map, 0, production, context(bought.state));
+    expect(afterBuy.production).toMatchObject({ produced: production, appliedToBuild: 0, discarded: production });
+
+    // What it does now: the city builds it from its own output, so the output is used.
+    const kept = applyAIGoldSpending(state, 'ai-1', new EventBus());
+    const afterKeep = processCity(kept.cities['city-a']!, kept.map, 0, production, context(kept));
+    expect(afterKeep.completedUnit).toBe('warrior');
+    expect(afterKeep.production.appliedToBuild).toBe(1);
+    expect(afterKeep.production.discarded).toBe(production - 1);
+    expect(kept.civilizations['ai-1']!.gold).toBe(5000);
+  });
+
+  it('is deterministic, does not mutate its input, and does not touch another civ', () => {
+    const state = nearlyDone();
+    const before = JSON.stringify(state);
+
+    const first = applyAIGoldSpending(state, 'ai-1', new EventBus());
+    const second = applyAIGoldSpending(state, 'ai-1', new EventBus());
+
+    expect(JSON.stringify(state)).toBe(before);
+    expect(JSON.stringify(first)).toBe(JSON.stringify(second));
+    expect(first.civilizations['player']?.gold).toBe(state.civilizations['player']?.gold);
+  });
+
+  it('never treats a wonder or an empty queue as completing', () => {
+    const state = nearlyDone();
+    state.cities['city-a']!.productionQueue = ['legendary:united-nations'];
+    expect(completesFromOwnProduction(state, 'ai-1', 'city-a')).toBe(false);
+    state.cities['city-a']!.productionQueue = [];
+    expect(completesFromOwnProduction(state, 'ai-1', 'city-a')).toBe(false);
   });
 });
