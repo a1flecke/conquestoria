@@ -390,6 +390,19 @@ export interface AcceptedOccurrence {
  */
 export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
   {
+    code: 'no-research-choice',
+    issue: '#1413',
+    why: 'Found by the #1407 phase 6 full-matrix run: three AI civs in lh-veteran-large go 6-7 rounds without a '
+      + 'research selection while techs are available (threshold 6). Not root-caused; see #1413 for suspects. '
+      + 'Scoped with a small budget so it cannot hide a longer or wider stall.',
+    scenarios: ['lh-veteran-large'],
+    accepted: [
+      { scenario: 'lh-veteran-large', civId: 'ai-1', maxRounds: 8 },
+      { scenario: 'lh-veteran-large', civId: 'ai-3', maxRounds: 8 },
+      { scenario: 'lh-veteran-large', civId: 'ai-5', maxRounds: 8 },
+    ],
+  },
+  {
     code: 'gold-hoard',
     issue: '#1113',
     why: '#1094 found this was NOT the same cause as production-idle: the AI had no '
@@ -425,10 +438,15 @@ export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
       + 'outcome-neutral (the committed aiRound-1069 equivalence digest and the '
       + 'determinism guards are unchanged), so not caused by that MR. Widened here '
       + 'rather than filed as a duplicate of #1113.',
-    scenarios: [
-      'lh-standard-small', 'lh-veteran-small', 'lh-standard-large',
-      'lh-veteran-medium', 'lh-hotseat-medium', 'lh-standard-medium', 'lh-veteran-large',
-      'lh-late-era-medium',
+    // #1407 phase 6: re-measured by a full exclusive matrix run (main a5a5a0d2). Only these four occurrences
+    // reproduce now; the other scenarios this entry used to list no longer do. Budgets are the observed streak
+    // (60/60/62/70 rounds) plus ~25% headroom.
+    scenarios: ['lh-veteran-large', 'lh-veteran-medium', 'lh-explorer-small'],
+    accepted: [
+      { scenario: 'lh-veteran-large', civId: 'ai-2', maxRounds: 75 },
+      { scenario: 'lh-veteran-large', civId: 'ai-3', maxRounds: 75 },
+      { scenario: 'lh-veteran-medium', civId: 'ai-1', maxRounds: 78 },
+      { scenario: 'lh-explorer-small', civId: 'ai-1', maxRounds: 88 },
     ],
   },
   {
@@ -457,12 +475,11 @@ export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
       + 'prior "mix of benign temporary plateaus" characterization, not yet root-caused. '
       + 'Re-pointed from closed #1066 to #1127 (F13) for fresh triage rather than left '
       + 'citing a closed issue or silently re-attributed without evidence.',
-    scenarios: 'any',
-    wildcardRationale: 'PROVISIONAL. Until #1407 the detector counted every empty queue, so this gap was recorded as '
-      + 'reproducing everywhere; since #1406/#1407 it fires only on cities that are empty AND unconverted (and, with '
-      + 'exact accounting, only on rounds that discarded output). Which scenarios/civs still reproduce under that '
-      + 'definition has not been measured (needs an exclusive `yarn test:ai-long` run). That measurement must replace '
-      + 'this wildcard with scoped `accepted` occurrences or delete the entry.',
+    // #1407 phase 6: under the corrected definition (empty AND unconverted, and the round discarded output per the
+    // exact accounting) the full matrix reproduces this in ONE place; every other occurrence previously recorded
+    // here was the converting fallback, not waste. 63 observed rounds + ~25% headroom.
+    scenarios: ['lh-late-era-medium'],
+    accepted: [{ scenario: 'lh-late-era-medium', civId: 'ai-1', maxRounds: 80 }],
   },
 ];
 
