@@ -102,14 +102,54 @@ export function moveQueuedId<T>(items: T[], fromIndex: number, toIndex: number):
   return next;
 }
 
+/**
+ * What a queue edit does to the production already stored on the city. The rule is single and old: stored production
+ * belongs to the ACTIVE item, so anything that changes which item is first resets it to 0. `reorderCityProduction` and
+ * `removeCityProductionItem` apply it and the player-facing preview (`getQueueMoveConsequence` /
+ * `getQueueRemoveConsequence`) reads the same function, so a warning cannot promise a different loss than the command
+ * delivers. (`startLegendaryWonderBuild` is the one head-replacing command that carries the stored production onto the
+ * wonder instead of discarding it.)
+ */
+export interface QueueChangeConsequence {
+  changesActiveItem: boolean;
+  /** Stored production that would be erased by the edit; 0 when the active item is unchanged. */
+  progressLost: number;
+}
+
+function consequenceOfNextQueue(city: City, nextQueue: readonly string[]): QueueChangeConsequence {
+  const changesActiveItem = nextQueue[0] !== city.productionQueue[0];
+  return { changesActiveItem, progressLost: changesActiveItem ? city.productionProgress : 0 };
+}
+
+export function getQueueMoveConsequence(city: City, fromIndex: number, toIndex: number): QueueChangeConsequence {
+  return consequenceOfNextQueue(city, moveQueuedId(city.productionQueue, fromIndex, toIndex));
+}
+
+export function getQueueRemoveConsequence(city: City, index: number): QueueChangeConsequence {
+  if (index < 0 || index >= city.productionQueue.length) return { changesActiveItem: false, progressLost: 0 };
+  // Removing the head always changes the active item, even when an identical id sits behind it.
+  return index === 0
+    ? { changesActiveItem: true, progressLost: city.productionProgress }
+    : { changesActiveItem: false, progressLost: 0 };
+}
+
 export function reorderCityProduction(city: City, fromIndex: number, toIndex: number): City {
   const productionQueue = moveQueuedId(city.productionQueue, fromIndex, toIndex);
-  const activeItemChanged = productionQueue[0] !== city.productionQueue[0];
+  const { changesActiveItem } = consequenceOfNextQueue(city, productionQueue);
 
   return {
     ...city,
     productionQueue,
-    productionProgress: activeItemChanged ? 0 : city.productionProgress,
+    productionProgress: changesActiveItem ? 0 : city.productionProgress,
+  };
+}
+
+export function removeCityProductionItem(city: City, index: number): City {
+  const { changesActiveItem } = getQueueRemoveConsequence(city, index);
+  return {
+    ...city,
+    productionQueue: removeQueuedId(city.productionQueue, index),
+    productionProgress: changesActiveItem ? 0 : city.productionProgress,
   };
 }
 

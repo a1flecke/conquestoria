@@ -59,6 +59,18 @@ export interface CompleteCityProductionItemOptions {
   completedTechs?: string[];
 }
 
+/**
+ * The one statement of when surplus production survives a completion: the civ has `3d-printing` AND another item is
+ * still queued behind the one that finished. Otherwise the surplus is discarded (#1426 tracks whether that should
+ * change). Exported so the player-facing production preview reads the rule instead of restating it.
+ */
+export function canCarryProductionOverflow(
+  completedTechs: readonly string[] | undefined,
+  itemsQueuedBehind: number,
+): boolean {
+  return Boolean(completedTechs?.includes('3d-printing')) && itemsQueuedBehind > 0;
+}
+
 export function completeCityProductionItem(
   city: City,
   itemId: string,
@@ -95,7 +107,7 @@ export function completeCityProductionItem(
   // 3d-printing: overflow production beyond the completed item's cost carries to the next
   // queue item instead of being discarded. Only applies when a next item is actually queued —
   // there's nothing to carry overflow into otherwise, and productionProgress must stay 0.
-  const hasOverflow = Boolean(options.completedTechs?.includes('3d-printing')) && newQueue.length > 0;
+  const hasOverflow = canCarryProductionOverflow(options.completedTechs, newQueue.length);
   const overflow = hasOverflow && options.cost !== undefined
     ? Math.max(0, city.productionProgress - options.cost)
     : 0;

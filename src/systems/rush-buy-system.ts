@@ -7,10 +7,7 @@
 import type { GameState } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
 import { completeCityProductionItem } from './city-system';
-import { resolveCivDefinition } from './civ-registry';
-import { calculateProjectedCityYields } from './city-work-system';
-import { isCityProductionLocked } from './faction-unrest-model';
-import { getProductionCostForCivItem } from './production-cost-context';
+import { projectActiveProduction } from './production-decision';
 import { announceUnitProduction, completeUnitProduction } from './unit-production-completion';
 import {
   calculateCivEconomy,
@@ -29,22 +26,12 @@ import {
  * 186-200). The yield is the same projection AI production scoring uses for `productionPerTurn`; it slightly
  * under-reads the turn's real yield, so this errs toward allowing a purchase, never toward blocking a useful one.
  * An unrest-locked city produces nothing this turn, so a purchase there still buys real progress. Wonders are
- * never bought. A query only: the human rush-buy command above is unchanged.
+ * never bought. A query only: the human rush-buy command below is unchanged.
  */
 export function completesFromOwnProduction(state: GameState, civId: string, cityId: string): boolean {
-  const city = state.cities[cityId];
-  const itemId = city?.productionQueue[0];
-  if (!city || !itemId || itemId.startsWith('legendary:')) return false;
-  if (isCityProductionLocked(city)) return false;
-  const cost = getProductionCostForCivItem(state, civId, cityId, itemId);
-  if (cost <= 0) return false;
-  const civ = state.civilizations[civId];
-  const production = calculateProjectedCityYields(
-    state,
-    cityId,
-    resolveCivDefinition(state, civ?.civType ?? '')?.bonusEffect,
-  ).production;
-  return city.productionProgress + production >= cost;
+  const projection = projectActiveProduction(state, civId, cityId);
+  if (!projection || projection.itemId.startsWith('legendary:')) return false;
+  return projection.progress + projection.productionPerTurn >= projection.cost;
 }
 
 export type RushBuyResult =

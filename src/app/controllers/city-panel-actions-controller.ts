@@ -27,7 +27,7 @@ import { renderUnitStackPanel } from '@/ui/unit-stack-panel';
 import { initializeLegendaryWonderProjectsForCity, startLegendaryWonderBuild } from '@/systems/legendary-wonder-system';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
 import { getProductionDisplayName } from '@/systems/city-production-presentation';
-import { ENQUEUE_DENIAL_MESSAGES, enqueueCityProduction, removeQueuedId, reorderCityProduction, setIdleProduction } from '@/systems/planning-system';
+import { ENQUEUE_DENIAL_MESSAGES, enqueueCityProduction, removeCityProductionItem, reorderCityProduction, setIdleProduction } from '@/systems/planning-system';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { chooseCircularManufacturingMaterial } from '@/systems/national-project-system';
 import { rushBuyActiveProduction } from '@/systems/rush-buy-system';
@@ -289,14 +289,7 @@ export function createCityPanelActionsController(
         if (!targetCity) return;
         deps.session.commit({
           ...deps.session.getState(),
-          cities: {
-            ...deps.session.getState().cities,
-            [cityId]: {
-              ...targetCity,
-              productionQueue: removeQueuedId(targetCity.productionQueue, index),
-              productionProgress: index === 0 ? 0 : targetCity.productionProgress,
-            },
-          },
+          cities: { ...deps.session.getState().cities, [cityId]: removeCityProductionItem(targetCity, index) },
         });
         return deps.session.getState();
       },
