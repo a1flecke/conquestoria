@@ -16,6 +16,7 @@ import { findPath } from '@/systems/unit-pathfinding';
 import { hexKey, mapDistance, mapNeighbors } from '@/systems/hex-utils';
 import { getMovementCostForUnitInContext } from '@/systems/unit-movement-cost';
 import { getVisibility } from '@/systems/fog-of-war';
+import { getVisibleUnitsForPlayer } from '@/systems/espionage-stealth';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { getRoadBuildTurns } from '@/systems/road-system';
 import { getActiveNationalProjectsForCiv } from '@/systems/national-project-system';
@@ -52,6 +53,24 @@ function weightedYield(yields: ResourceYield, city: City, foodStrained: boolean,
 
 /** Pure inventory: canonical workable claims and yield deltas, never catalog order. */
 export function collectWorkerDevelopmentJobs(state: GameState, civId: string, knownMap?: GameMap): WorkerDevelopmentJob[] {
+  return collectJobs(state, civId, knownMap, visibleForeignUnitsForWorker(state, civId));
+}
+
+function visibleForeignUnitsForWorker(state: GameState, civId: string): Unit[] {
+  const civ = state.civilizations[civId];
+  if (!civ) return [];
+  // Prune unseen units before concealment/detection; use the same disguise and
+  // concealment projection as the AI's canonical military perception.
+  const visible: Record<string, Unit> = {};
+  for (const unit of Object.values(state.units)) {
+    if (!unit.transportId && unit.owner !== civId && getVisibility(civ.visibility, unit.position) === 'visible') {
+      visible[unit.id] = unit;
+    }
+  }
+  return Object.values(getVisibleUnitsForPlayer(visible, state, civId));
+}
+
+function collectJobs(state: GameState, civId: string, knownMap: GameMap | undefined, visibleForeignUnits: readonly Unit[]): WorkerDevelopmentJob[] {
   const civ = state.civilizations[civId];
   if (!civ || civ.isHuman || civ.isEliminated) return [];
   const cities = civ.cities.map(id => state.cities[id]).filter((city): city is City => city?.owner === civId);
@@ -68,8 +87,6 @@ export function collectWorkerDevelopmentJobs(state: GameState, civId: string, kn
     }
   }
   const jobsByKey = new Map<string, WorkerDevelopmentJob>();
-  const visibleForeignUnits = Object.values(state.units).filter(unit => !unit.transportId && unit.owner !== civId
-    && getVisibility(civ.visibility, unit.position) === 'visible');
   const unsafe = (coord: HexCoord) => visibleForeignUnits.some(unit => hexKey(unit.position) === hexKey(coord)
     || (isAIHostileOwner(state, civId, unit.owner) && UNIT_DEFINITIONS[unit.type].strength > 0
       && mapDistance(state.map, coord, unit.position) <= 2));
@@ -148,7 +165,8 @@ export function assignWorkerDevelopmentJobs(
     && getWorkerChargesRemaining(unit) > 0 && !excludedWorkerIds.has(unit.id));
   if (workers.length === 0) return [];
   const knownMap = buildKnownPathMap(state, civId);
-  const jobs = collectWorkerDevelopmentJobs(state, civId, knownMap);
+  const visibleForeignUnits = visibleForeignUnitsForWorker(state, civId);
+  const jobs = collectJobs(state, civId, knownMap, visibleForeignUnits);
   if (jobs.length === 0) return [];
   const utility = (worker: Unit, job: WorkerDevelopmentJob) => (job.acquisitionValue + job.productivityValue)
     / (job.buildTurns + mapDistance(state.map, worker.position, job.coord));
@@ -160,15 +178,13 @@ export function assignWorkerDevelopmentJobs(
     const coord = state.map.tiles[key]?.coord;
     if (!coord || getVisibility(civ.visibility, coord) !== 'visible') blocked.delete(key);
   }
-  for (const unit of Object.values(state.units)) {
-    if (!unit.transportId && unit.owner !== civId && getVisibility(civ.visibility, unit.position) === 'visible') {
-      blocked.add(hexKey(unit.position));
-      if (isAIHostileOwner(state, civId, unit.owner) && UNIT_DEFINITIONS[unit.type].strength > 0) {
-        const adjacent = mapNeighbors(knownMap, unit.position);
-        for (const coord of adjacent) {
-          blocked.add(hexKey(coord));
-          for (const outer of mapNeighbors(knownMap, coord)) blocked.add(hexKey(outer));
-        }
+  for (const unit of visibleForeignUnits) {
+    blocked.add(hexKey(unit.position));
+    if (isAIHostileOwner(state, civId, unit.owner) && UNIT_DEFINITIONS[unit.type].strength > 0) {
+      const adjacent = mapNeighbors(knownMap, unit.position);
+      for (const coord of adjacent) {
+        blocked.add(hexKey(coord));
+        for (const outer of mapNeighbors(knownMap, coord)) blocked.add(hexKey(outer));
       }
     }
   }
