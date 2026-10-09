@@ -44,10 +44,14 @@ export interface WorkerDevelopmentAssignment {
   nextStep?: HexCoord;
 }
 
-function weightedYield(yields: ResourceYield, city: City, foodStrained: boolean, goldStrained: boolean): number {
+function weightedYield(yields: ResourceYield, city: City, foodStrained: boolean, treasury: number): number {
+  // A one-gold receipt does not resolve financial strain. Gradually reduce the
+  // scarcity premium instead of switching 6 -> 2 at zero, which can reverse
+  // traveling workers indefinitely. Explicit city focus still has full weight.
+  const goldWeight = city.focus === 'gold' ? 6 : 2 + 4 / (1 + Math.max(0, treasury));
   return yields.food * (foodStrained || city.focus === 'food' ? 6 : 3)
     + yields.production * (city.focus === 'production' ? 6 : 3)
-    + yields.gold * (goldStrained || city.focus === 'gold' ? 6 : 2)
+    + yields.gold * goldWeight
     + yields.science * (city.focus === 'science' ? 6 : 2);
 }
 
@@ -96,7 +100,7 @@ function collectJobs(state: GameState, civId: string, knownMap: GameMap | undefi
     const workedKeys = new Set(city.workedTiles.map(hexKey));
     const foodStrained = workable.filter(entry => workedKeys.has(hexKey(entry.coord)))
       .reduce((food, entry) => food + entry.yield.food, 0) < city.population * 2;
-    const score = (yields: ResourceYield) => weightedYield(yields, city, foodStrained, civ.gold <= 0);
+    const score = (yields: ResourceYield) => weightedYield(yields, city, foodStrained, civ.gold);
     const workedScores = workable.filter(entry => workedKeys.has(hexKey(entry.coord))).map(entry => score(entry.yield));
     const marginalWorkedScore = workedScores.length < city.population ? 0 : Math.min(...workedScores);
     for (const entry of workable) {

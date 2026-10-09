@@ -5,6 +5,7 @@ import {
   mergePreparedForceDemands,
   prepareMajorCivStrategicPlan,
   WORKER_SOFT_CAP,
+  buildKnownPathMap,
 } from '@/ai/ai-prepared-turn';
 import { EXPANSION_SEARCH_RADIUS } from '@/ai/ai-expansion-sites';
 import { createEmptyMajorCivPortfolio } from '@/ai/ai-plan-portfolio';
@@ -22,6 +23,39 @@ import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { findPath } from '@/systems/unit-pathfinding';
 import type { GameState, HexCoord, TerrainType } from '@/core/types';
+import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
+
+describe('remembered infrastructure in the AI path map', () => {
+  it.each(['missing', 'legacy', 'unexplored'] as const)('does not route through %s observations', kind => {
+    let state = createNewGame(undefined, 'untrusted-road-path-map', 'small');
+    const civ = state.civilizations['ai-1']!;
+    const key = hexKey(state.units[civ.units[0]!]!.position);
+    state.map.tiles[key]!.hasRoad = true;
+    state = refreshLastSeenPresentationsForCiv(state, civ.id);
+    const visibility = state.civilizations[civ.id]!.visibility;
+    visibility.tiles[key] = kind === 'unexplored' ? 'unexplored' : 'fog';
+    if (kind === 'missing') delete visibility.lastSeen![key];
+    if (kind === 'legacy') visibility.lastSeen![key] = { ...visibility.lastSeen![key]!, source: 'legacy-reconstructed' };
+    expect(buildKnownPathMap(state, civ.id).tiles[key]).toBeUndefined();
+  });
+
+  it.each([true, false])('uses observed roads, not unseen live changes (observed road: %s)', observedRoad => {
+    let state = createNewGame(undefined, 'remembered-road-path-map', 'small');
+    const civ = state.civilizations['ai-1']!;
+    const tile = state.map.tiles[hexKey(state.units[civ.units[0]!]!.position)]!;
+    tile.hasRoad = observedRoad;
+    tile.owner = civ.id;
+    civ.techState.completed = ['railway-expansion'];
+    state = refreshLastSeenPresentationsForCiv(state, civ.id);
+    state.civilizations[civ.id]!.visibility.tiles[hexKey(tile.coord)] = 'fog';
+    state.map.tiles[hexKey(tile.coord)]!.hasRoad = !observedRoad;
+    const remembered = buildKnownPathMap(state, civ.id).tiles[hexKey(tile.coord)]!;
+    expect(remembered.hasRoad).toBe(observedRoad);
+    expect(state.civilizations[civ.id]!.visibility.lastSeen![hexKey(tile.coord)]!.hasRail).toBe(observedRoad);
+    state.civilizations[civ.id]!.visibility.tiles[hexKey(tile.coord)] = 'visible';
+    expect(buildKnownPathMap(state, civ.id).tiles[hexKey(tile.coord)]!.hasRoad).toBe(!observedRoad);
+  });
+});
 
 /** Found `count` extra cities for `civId` on real, legally spaced land tiles. */
 function addSpacedCities(state: GameState, civId: string, count: number): void {

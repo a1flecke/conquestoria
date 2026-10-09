@@ -11,6 +11,7 @@ import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { findPath } from '@/systems/unit-pathfinding';
 import { hexDistance, hexKey, mapNeighbors } from '@/systems/hex-utils';
 import { getHerdRoutePresentationForViewer } from '@/systems/stampede-route-system';
+import { resolveUnitMoveIntent } from '@/systems/unit-movement-validation';
 
 export interface CrisisDispatchCandidate {
   kind: 'pirate-fleet' | 'hunt-foe' | 'stampede' | 'rogue-elephant-host';
@@ -169,9 +170,15 @@ export function getCrisisRestoreAssignments(
     let best: { worker: Unit; length: number } | null = null;
     for (const worker of idleWorkers) {
       if (assignedWorkerIds.has(worker.id)) continue;
-      const path = findPath(worker.position, candidate.coord, state.map, 'land');
+      const path = findPath(worker.position, candidate.coord, state.map, 'land', {
+        unit: worker, completedTechs: civ.techState.completed,
+      });
       const length = path ? path.length : Infinity;
       if (!Number.isFinite(length)) continue;
+      // A terrain route is not an executable command. Do not reserve a worker
+      // behind an occupied/illegal first step and starve its reachable ordinary
+      // jobs forever. Recompute next turn so cleared routes regain priority.
+      if (path?.[1] && !resolveUnitMoveIntent(state, worker.id, path[1], { actor: 'ai', civId }).ok) continue;
       if (!best || length < best.length || (length === best.length && worker.id < best.worker.id)) {
         best = { worker, length };
       }

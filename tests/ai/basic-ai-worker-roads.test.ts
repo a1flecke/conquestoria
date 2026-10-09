@@ -235,6 +235,22 @@ describe('AI land development through actual AI turns (#1427)', () => {
     expect(completed.map.tiles['1,0']!.hasRoad).toBe(true);
   });
 
+  it('finishes a city connection across remembered roads instead of targeting an already built fogged link', () => {
+    let state = developmentScenario([6]);
+    const civ = state.civilizations['ai-1']!;
+    const outpost = makeCity('road-memory-outpost', 'ai-1', { q: 6, r: 0 });
+    state.cities[outpost.id] = outpost;
+    civ.cities.push(outpost.id);
+    civ.techState.completed = ['road-building'];
+    for (let q = 1; q <= 4; q++) state.map.tiles[`${q},0`]!.hasRoad = true;
+    state = refreshLastSeenPresentationsForCiv(state, 'ai-1');
+    state.civilizations['ai-1']!.visibility.tiles['3,0'] = 'fog';
+    expect(assignWorkerDevelopmentJobs(state, 'ai-1')[0]?.job.coord).toEqual({ q: 5, r: 0 });
+    for (let round = 0; round < 5; round++) state = developmentRound(state);
+    expect(state.map.tiles['5,0']!.hasRoad).toBe(true);
+    expect(state.units[civ.units[0]!]!.chargesRemaining).toBe(1);
+  });
+
   it('does not select a road target already under construction or route a builder through foreign occupants', () => {
     const state = developmentScenario([0]);
     const civ = state.civilizations['ai-1']!;
@@ -304,6 +320,55 @@ describe('AI land development through actual AI turns (#1427)', () => {
     expect(assignWorkerDevelopmentJobs(state, 'ai-1')[0]!.job.coord).toEqual({ q: 2, r: 0 });
     const after = developmentRound(state);
     expect(after.units[state.civilizations['ai-1']!.units[0]!]!.position).toEqual({ q: 2, r: 0 });
+  });
+
+  it.each([0, 1])('finishes useful mining despite one-gold treasury fluctuations (starting gold: %s)', startingGold => {
+    let state = developmentScenario([3]);
+    const civ = state.civilizations['ai-1']!;
+    const city = state.cities['development-capital']!;
+    for (let q = -3; q <= 12; q++) {
+      const coord = { q, r: 0 };
+      state.map.tiles[hexKey(coord)] = { ...state.map.tiles['1,0']!, coord };
+      civ.visibility.tiles[hexKey(coord)] = 'visible';
+    }
+    state.map.width = 16;
+    city.position = { q: -2, r: 0 };
+    city.population = 1;
+    city.ownedTiles = [{ q: -3, r: 0 }];
+    city.workedTiles = [...city.ownedTiles];
+    Object.assign(state.map.tiles['-3,0']!, { improvement: 'none', hasRiver: true });
+    const outpost = makeCity('mining-outpost', 'ai-1', { q: 10, r: 0 });
+    outpost.population = 1;
+    outpost.focus = 'custom';
+    outpost.ownedTiles = [{ q: 9, r: 0 }];
+    outpost.workedTiles = [...outpost.ownedTiles];
+    state.cities[outpost.id] = outpost;
+    civ.cities.push(outpost.id);
+    Object.assign(state.map.tiles['9,0']!, { terrain: 'hills', improvement: 'none' });
+    // Visible fixture terrain must have canonical observations before movement
+    // turns the corridor into fog; visibility flags alone are not route memory.
+    state = refreshLastSeenPresentationsForCiv(state, 'ai-1');
+    const before = calculateProjectedCityYields(state, outpost.id);
+    const id = civ.units[0]!;
+    const positions: number[] = [];
+    const bus = new EventBus();
+    const completed = vi.fn();
+    bus.on('improvement:completed', completed);
+    for (let round = 0; round < 12; round++) {
+      state.civilizations['ai-1']!.gold = (round + startingGold) % 2;
+      state = developmentRound(state, bus);
+      positions.push(state.units[id]!.position.q);
+    }
+    expect(positions.slice(0, 6)).toEqual([4, 5, 6, 7, 8, 9]);
+    expect(state.map.tiles['9,0']!.improvement).toBe('mine');
+    expect(state.map.tiles['9,0']!.improvementTurnsLeft).toBe(0);
+    const after = calculateProjectedCityYields(state, outpost.id);
+    expect(after.production - before.production).toBe(2);
+    expect(after.gold - before.gold).toBe(1);
+    expect(completed).toHaveBeenCalledTimes(1);
+    expect(state.units[id]!.chargesRemaining).toBe(1);
+    reportDevelopmentMeasurement('treasury-fluctuation', { positions, before, after,
+      completed: completed.mock.calls.length, chargesUsed: 1 });
   });
 
   it('validates real finalist travel cost so an apparent shortcut does not cause a target switch', () => {
@@ -520,6 +585,36 @@ describe('AI land development through actual AI turns (#1427)', () => {
     const after = developmentRound(state);
     expect(after.units[civ.units[1]!]!.position).toEqual({ q: 1, r: 0 });
     expect(after.units[civ.units[0]!]!.chargesRemaining).toBe(2);
+  });
+
+  it('releases a blocked restoration reservation so the worker can develop reachable land', () => {
+    let state = developmentScenario();
+    state.opponentChallenge = 'veteran';
+    state.map.tiles['2,0']!.devastatedUntilTurn = 100;
+    const coord = { q: 0, r: 1 };
+    state.map.tiles[hexKey(coord)] = { ...state.map.tiles['1,0']!, coord, improvement: 'none' };
+    state.civilizations['ai-1']!.visibility.tiles[hexKey(coord)] = 'visible';
+    state.cities['development-capital']!.ownedTiles.push(coord);
+    state.cities['development-capital']!.workedTiles = [coord, { q: 4, r: 0 }];
+    const blocker = createUnit('worker', 'player', { q: 1, r: 0 }, state.idCounters);
+    state.units[blocker.id] = blocker;
+    state.civilizations.player!.units.push(blocker.id);
+    state.activeCrises = { catastrophe: {
+      id: 'catastrophe', flavorId: 'earthquake', archetype: 'catastrophe', targetCivId: 'ai-1',
+      cityIds: ['development-capital'], tileKeys: ['2,0'], startedTurn: 0, stage: 'recovery', turnsInStage: 1,
+    } };
+    const id = state.civilizations['ai-1']!.units[0]!;
+    state = developmentRound(state);
+    expect(state.units[id]!.position).toEqual(coord);
+    for (let round = 0; round < 5; round++) state = developmentRound(state);
+    expect(state.map.tiles[hexKey(coord)]!.improvement).toBe('farm');
+    expect(state.map.tiles[hexKey(coord)]!.improvementTurnsLeft).toBe(0);
+    expect(state.map.tiles['2,0']!.devastatedUntilTurn).toBe(100);
+    expect(state.units[id]!.chargesRemaining).toBe(1);
+    state = removeUnits(state, [blocker.id], { reason: 'destroyed' }).state;
+    for (let round = 0; round < 4; round++) state = developmentRound(state);
+    expect(state.map.tiles['2,0']!.devastatedUntilTurn).toBeUndefined();
+    expect(state.units[id]).toBeUndefined();
   });
 
   it('leaves workers idle when all legal jobs have zero marginal value', () => {
