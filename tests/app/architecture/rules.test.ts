@@ -9,6 +9,7 @@ import {
 } from './import-graph';
 import { evaluateRules, formatViolation, matchesModule, type ArchitectureRule } from './rule-engine';
 import { ARCHITECTURE_RULES } from './rules';
+import { simTimeout } from '../../helpers/sim-timeout';
 
 const messages = (graph: ReturnType<typeof buildImportGraph>, rules: readonly ArchitectureRule[]) =>
   evaluateRules(graph, rules).map(violation => violation.message);
@@ -16,7 +17,9 @@ const messages = (graph: ReturnType<typeof buildImportGraph>, rules: readonly Ar
 describe('#1241 — the repository satisfies its declarative architecture rules', () => {
   it('has no violations (each failure names the rule id, the edge and the why)', () => {
     expect(evaluateRules(loadRepoImportGraph(), ARCHITECTURE_RULES).map(formatViolation)).toEqual([]);
-  });
+    // Parses the whole of src/ into an import graph: ~2-3 s solo, 5015 ms on a loaded CI shard (main run 37995723134
+    // timed out on the 5 s default with no violation). Explicit headroom per .claude/rules/hooks-and-tooling.md (#608).
+  }, simTimeout(3_000));
 
   it('every rule id is unique and carries a real why', () => {
     const ids = ARCHITECTURE_RULES.map(rule => rule.id);
