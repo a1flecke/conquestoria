@@ -84,12 +84,20 @@ describe('getCivilizationLiveness', () => {
       .toEqual({ living: true, reason: 'settler' });
   });
 
-  it('rejects malformed cargo links without changing the supplied state', () => {
+  it.each(['missing-manifest', 'missing-host', 'wrong-owner', 'dead-host', 'nested-host', 'self-link'] as const)('rejects %s cargo survival without changing the supplied state', corruption => {
     const { state, settlerId } = aiSettlerState();
     const settler = state.units[settlerId];
     const transport = createUnit('transport', 'ai-1', settler.position, state.idCounters);
-    state.units[transport.id] = { ...transport, cargoUnitIds: [] };
+    state.units[transport.id] = { ...transport, cargoUnitIds: [settlerId] };
     state.units[settlerId] = { ...settler, transportId: transport.id };
+    switch (corruption) {
+      case 'missing-manifest': state.units[transport.id].cargoUnitIds = []; break;
+      case 'missing-host': delete state.units[transport.id]; break;
+      case 'wrong-owner': state.units[transport.id].owner = 'player'; break;
+      case 'dead-host': state.units[transport.id].health = 0; break;
+      case 'nested-host': state.units[transport.id].transportId = 'another-host'; break;
+      case 'self-link': state.units[settlerId].transportId = settlerId; break;
+    }
     const before = structuredClone(state);
 
     expect(getCivilizationLiveness(state, 'ai-1'))

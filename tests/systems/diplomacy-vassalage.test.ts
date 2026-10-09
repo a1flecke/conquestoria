@@ -46,6 +46,8 @@ describe('vassalage', () => {
       expect(overlordState.vassalage.vassals).toContain('vassal-id');
       expect(vassalState.treaties.some(t => t.type === 'vassalage')).toBe(true);
       expect(overlordState.treaties.some(t => t.type === 'vassalage')).toBe(true);
+      expect(vassalState.treaties[0]).toMatchObject({ civA: 'vassal-id', civB: 'overlord-id' });
+      expect(overlordState.treaties[0]).toMatchObject({ civA: 'overlord-id', civB: 'vassal-id' });
     });
   });
 

@@ -23,7 +23,7 @@ import { executeSettlement } from '@/systems/settlement-system';
 import { EventBus } from '@/core/event-bus';
 import { commitVassalageAgreement, releaseVassal, resolveIndependence } from '@/systems/diplomacy-vassalage';
 import { makeSovereigntyFixture } from '../helpers/sovereignty-fixture';
-import { assertSaveStateInvariants } from '../helpers/save-state-invariants';
+import { assertSaveStateInvariants, assertActiveWarHistoryIntegrity } from '../helpers/save-state-invariants';
 import { assertSimulationEquivalent } from '../helpers/deterministic-state';
 import { normalizeLoadedState } from '@/storage/save-manager';
 import { enqueueSettlementOffer, acceptSettlementOffer } from '@/systems/settlement-system';
@@ -48,6 +48,21 @@ function clearMutualContact(state: GameState, a: string, b: string): GameState {
 
 describe('war history system (#991)', () => {
   describe('sovereignty transaction sequences', () => {
+    it('the active-history invariant detects stale wars and dead combatants but preserves concluded history', () => {
+      const state = declareMajorWar(makeSovereigntyFixture(), 'player-1', 'player-2');
+      expect(() => assertActiveWarHistoryIntegrity(state)).not.toThrow();
+      const stale = structuredClone(state);
+      stale.civilizations['player-1'].diplomacy.atWarWith = [];
+      stale.civilizations['player-2'].diplomacy.atWarWith = [];
+      expect(() => assertActiveWarHistoryIntegrity(stale)).toThrow('without an opposing war');
+      const dead = structuredClone(state);
+      dead.civilizations['player-2'].isEliminated = true;
+      expect(() => assertActiveWarHistoryIntegrity(dead)).toThrow('nonliving active participant');
+      const ended = makeMajorPeace(state, 'player-1', 'player-2');
+      expect(() => assertActiveWarHistoryIntegrity(ended)).not.toThrow();
+      expect(Object.values(ended.wars!)[0].events.length).toBeGreaterThan(0);
+    });
+
     it('intersecting wars retain independent facts and each conclude exactly once', () => {
       let state = makeSovereigntyFixture();
       state = declareMajorWar(state, 'player-1', 'player-2');
