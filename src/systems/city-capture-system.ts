@@ -629,11 +629,24 @@ export function resolveMajorCityCapture(
         newOwnerId,
       ),
     }, cityId);
-    const territoryResult = recalculateTerritory(nextState, {
+    // Reconquest keeps its population/unrest rules, but losing sovereignty
+    // follows the same cityless-survival contract as any other capture.
+    const liveness = reconcileCivilizationLiveness(state, nextState, newOwnerId);
+    const elimination = liveness.transitions.find(transition =>
+      transition.kind === 'eliminated' && transition.civId === previousOwnerId);
+    const territoryResult = recalculateTerritory(liveness.state, {
       reason: 'capture',
       preserveCurrentHolderOnTie: true,
     });
-    return buildCaptureResult(nextState, territoryResult, 'occupied', 0, cityId, undefined, bus);
+    return buildCaptureResult(
+      liveness.state,
+      territoryResult,
+      'occupied',
+      0,
+      cityId,
+      elimination?.kind === 'eliminated' ? elimination : undefined,
+      bus,
+    );
   }
 
   if (forcedDisposition === 'occupy') {
@@ -805,11 +818,12 @@ export function transferCapturedCityOwnership(
   }
 
   if (previousOwner?.breakaway?.originOwnerId === newOwnerId) {
+    const nextState = removeNationalProjectsForCity(
+      reconquerBreakawayCity(state, newOwnerId, previousOwnerId, cityId),
+      cityId,
+    );
     return recalculateTerritory(
-      removeNationalProjectsForCity(
-        reconquerBreakawayCity(state, newOwnerId, previousOwnerId, cityId),
-        cityId,
-      ),
+      reconcileCivilizationLiveness(state, nextState, newOwnerId).state,
       { reason: 'capture', preserveCurrentHolderOnTie: true },
     ).state;
   }

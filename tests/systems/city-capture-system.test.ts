@@ -8,6 +8,10 @@ import { resolveCombat } from '@/systems/combat-system';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { makeBreakawayFixture } from './helpers/breakaway-fixture';
+import { getCivilizationLiveness } from '@/systems/civilization-liveness';
+import { reconcileCivilizationLiveness } from '@/systems/civilization-elimination-system';
+import { assertSaveStateInvariants } from '../helpers/save-state-invariants';
+import { assertSimulationEquivalent } from '../helpers/deterministic-state';
 import {
   beginMajorCityAssault,
   emitMajorCityCaptureEvents,
@@ -395,6 +399,58 @@ describe('city-capture-system', () => {
     expect(result.state.cities[cityId].unrestLevel).toBe(1);
     expect(result.state.cities[cityId].conquestTurn).toBeUndefined();
     expect(result.state.cities[cityId].occupation).toBeUndefined();
+  });
+
+  it.each(['capture', 'transfer'] as const)('reconciles final-city breakaway reconquest through %s', entry => {
+    const { state, cityId, breakawayId } = makeBreakawayFixture({ breakawayStartedTurn: 12 });
+    state.units['unit-player'].position = { q: 0, r: 0 };
+    const before = structuredClone(state);
+    const next = entry === 'capture'
+      ? resolveMajorCityCapture(state, cityId, 'player', 'occupy', state.turn).state
+      : transferCapturedCityOwnership(state, cityId, 'player', state.turn);
+
+    expect(next.civilizations[breakawayId].isEliminated).toBe(true);
+    expect(next.units['unit-breakaway']).toBeUndefined();
+    expect(next.civilizations.player.diplomacy.relationships[breakawayId]).toBeUndefined();
+    expect(getCivilizationLiveness(next, breakawayId)).toEqual({ living: false, reason: 'eliminated' });
+    expect(reconcileCivilizationLiveness(next, next).transitions).toEqual([]);
+    assertSaveStateInvariants(next, `breakaway ${entry}`);
+    const repeated = entry === 'capture'
+      ? resolveMajorCityCapture(before, cityId, 'player', 'occupy', before.turn).state
+      : transferCapturedCityOwnership(before, cityId, 'player', before.turn);
+    assertSimulationEquivalent(next, repeated, `deterministic breakaway ${entry}`);
+    expect(state).toEqual(before);
+  });
+
+  it.each(['capture', 'transfer'] as const)('preserves a breakaway settler survivor through %s reconquest', entry => {
+    const { state, cityId, breakawayId } = makeBreakawayFixture({ breakawayStartedTurn: 12 });
+    state.units['unit-player'].position = { q: 0, r: 0 };
+    state.units['unit-breakaway'].type = 'settler';
+    const before = structuredClone(state);
+    const next = entry === 'capture'
+      ? resolveMajorCityCapture(state, cityId, 'player', 'occupy', state.turn).state
+      : transferCapturedCityOwnership(state, cityId, 'player', state.turn);
+
+    expect(getCivilizationLiveness(next, breakawayId)).toEqual({ living: true, reason: 'settler' });
+    expect(next.civilizations[breakawayId].cities).toEqual([]);
+    expect(next.civilizations[breakawayId].units).toEqual(['unit-breakaway']);
+    expect(next.civilizations.player.diplomacy.relationships[breakawayId]).toBeDefined();
+    expect(reconcileCivilizationLiveness(next, next).transitions).toEqual([]);
+    assertSaveStateInvariants(next, `breakaway settler ${entry}`);
+    expect(state).toEqual(before);
+  });
+
+  it('emits a breakaway elimination once from the committed capture result', () => {
+    const { state, cityId, breakawayId } = makeBreakawayFixture({ breakawayStartedTurn: 12 });
+    const bus = new EventBus();
+    const eliminated = vi.fn();
+    bus.on('civ:eliminated', eliminated);
+    const first = resolveMajorCityCapture(state, cityId, 'player', 'occupy', state.turn);
+    emitMajorCityCaptureEvents(state, first, cityId, 'player', breakawayId, bus);
+    const second = resolveMajorCityCapture(first.state, cityId, 'player', 'occupy', state.turn);
+    emitMajorCityCaptureEvents(first.state, second, cityId, 'player', 'player', bus);
+
+    expect(eliminated).toHaveBeenCalledExactlyOnceWith({ civId: breakawayId, eliminatedBy: 'player' });
   });
 
   it('clears an Imperial Levy on capture so a new captor never inherits it (#1338)', () => {
