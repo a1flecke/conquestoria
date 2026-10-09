@@ -108,7 +108,7 @@ export function acceptVassalage(
   const overlordState: DiplomacyState = {
     ...overlordDip,
     vassalage: { ...overlordDip.vassalage, vassals: [...overlordDip.vassalage.vassals, vassalId] },
-    treaties: [...overlordDip.treaties, treaty],
+    treaties: [...overlordDip.treaties, { ...treaty, civA: overlordId, civB: vassalId }],
     events: [...overlordDip.events, { type: 'vassalage_accepted', turn, otherCiv: vassalId, weight: 1 }],
   };
 

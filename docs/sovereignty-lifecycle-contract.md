@@ -1,8 +1,8 @@
 # Sovereignty lifecycle contract
 
 Audited baseline: `707a3e9f809776f5c784617b9b907555421442b0`.
-This reference describes the existing canonical contract and the bounded
-breakaway-reconquest proof. It does not define new lifecycle state or victory rules.
+This reference describes the canonical contract and bounded transition proofs
+delivered by the sovereignty engineering arc. It defines no new lifecycle state or victory rules.
 
 ## Distinct questions
 
@@ -60,8 +60,42 @@ The matrix lives in `tests/systems/city-capture-system.test.ts` and
 
 ## Proof boundary
 
-This slice establishes reconquest lifecycle parity. It does not complete the
-broader multiparty-war, transport-malformation, dynamic-border, hot-seat privacy,
-or multi-round replay audits. Existing settler/cargo, founding, elimination, and
-capture suites remain useful protections, but passing them is not proof of every
-sequence in the engineering arc. Privacy was not newly proved by this matrix.
+The campaign matrix additionally enumerates the following sequences for two
+independent human actors in a seeded four-seat world:
+
+| Sequence | Checkpoint | Continuation |
+| --- | --- | --- |
+| A | Final city captured, free settler survives, war remains active | Resettle, capture a second city, recover from near defeat, continue two rounds. |
+| A transport | Final city captured, settler aboard a reciprocal transport | Reset actions, unload, reset actions, found a replacement, continue two rounds. |
+| B vassal/overlord | Vassalage during war, pending settlement, actor's final city razed | Check cleanup and surviving war, reconcile again, continue two rounds. |
+| C | Enter with Open Borders, cancel bilateral access with army inside | Reload, use egress, deny reentry, renew treaty, continue movement and rounds. |
+| D | Conquest goal fulfilled, capital captured, second city remains, settlement pending | Reject wrong recipient, accept reparations once, retain settled history, continue rounds. |
+
+Each checkpoint uses `serializeSaveFile` / `parseSaveFile` and the existing
+loader. The direct branch is not normalized to conceal writer drift. Direct,
+loaded, and repeated branches must agree in semantic state and meaningful events;
+repeated saves must be byte-identical. Only the existing deterministic-state
+helper's `playthroughId` and `saveSchemaVersion` exclusions apply. Input purity,
+current seat, recipient, canonical capital, living turn roster, and all shared
+ownership/cargo/diplomacy/elimination invariants remain checked.
+
+Active historical participants must be living and retain a reciprocal war edge
+to an active participant on the opposing side. Ended records retain their facts.
+Legacy bilateral wars need not be backfilled with unearned historical records.
+The invariant's negative controls reject stale actors and empty opposing edges.
+
+War-history tests cover partial peace, intersecting wars, redeclaration,
+independence, final capture, and sovereignty cleanup. Border tests cover direct
+legality, preview, range/path/executor parity, orders, cargo, and AI known geography.
+Viewer-safety differential controls cover hidden owner identity and hot-seat
+observations; the save-path control keeps an unobserved war private while earned
+contact changes its presentation. This is a bounded enumerated proof, not
+exhaustive verification of every legal sequence or corrupted input.
+
+Malformed settler survival links are separately enumerated (missing host or
+manifest, wrong owner, dead/nested host, self-link); the cargo invariant owns the
+larger persisted-shape contract. Pirate contract city ownership remains a
+distinct domain rule whose design intent has not been established here.
+
+See [the engineering report](sovereignty-engineering-report.md) for source
+commits, counterexamples, verification evidence, and remaining limitations.

@@ -407,6 +407,21 @@ describe('completed-round pirate coordinator', () => {
     expect(replay.state.pirates!.nextSpawnCheckTurn).toBe(16);
   });
 
+  it('does not recreate activation-warning state for an eliminated civilization', () => {
+    const state = fixture();
+    state.pirates = createEmptyPirateState();
+    state.civilizations.player.techState.completed.push('galleys');
+    state.civilizations['ai-1'].isEliminated = true;
+    const original = structuredClone(state);
+    const first = processPiratesForCompletedRound(state, new EventBus()).state;
+    const repeated = processPiratesForCompletedRound(first, new EventBus()).state;
+    expect(first.pirates!.activationWarningDeliveredByCiv).toEqual({ player: true });
+    expect(repeated.pirates!.activationWarningDeliveredByCiv).toEqual({ player: true });
+    expect(first.notificationLog?.['ai-1'] ?? []).toEqual([]);
+    expect(repeated.notificationLog?.player.filter(entry => /pirate waters/i.test(entry.message))).toHaveLength(1);
+    expect(state).toEqual(original);
+  });
+
   it('uses the approved phase order and final ship positions for same-round raids and blockades', () => {
     const state = fixture();
     addCity(state);

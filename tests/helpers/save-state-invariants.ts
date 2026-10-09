@@ -7,6 +7,7 @@ import { getTransportCapacity, getUnitCargoSize, isNavalTransportUnit } from '@/
 import { isBasedAirUnit } from '@/systems/air-base-state';
 import { getAirBaseCapacity, getAirBaseRoster } from '@/systems/air-operations-system';
 import { buildUnitOccupancy } from '@/systems/unit-occupancy';
+import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { assertEliminatedCivHasNoLiveEntities, scanOpponentAIPortfolioDanglingUnitRefs } from './eliminated-civ-areas';
 
 /**
@@ -773,8 +774,34 @@ export { assertEliminatedCivHasNoLiveEntities };
 /** Back-compat alias — same check, older name used by existing tests + `SAVE_STATE_INVARIANTS`. */
 export const assertNoEliminatedCivEntities = assertEliminatedCivHasNoLiveEntities;
 
+/** Historical facts may outlive their actors. Unconcluded records, however,
+ * must still describe living combatants with actual opposing war edges.
+ * Legacy wars without a historical record are intentionally not backfilled. */
+export function assertActiveWarHistoryIntegrity(state: GameState): void {
+  const problems: string[] = [];
+  for (const record of Object.values(state.wars ?? {})) {
+    if (record.endTurn !== undefined) continue;
+    const active = record.participants.filter(p => p.leftTurn === undefined);
+    for (const participant of active) {
+      const civ = state.civilizations[participant.civId];
+      if (!civ || !getCivilizationLiveness(state, participant.civId).living) {
+        problems.push(`${record.id} has nonliving active participant ${participant.civId}`);
+        continue;
+      }
+      if (!active.some(other => other.side !== participant.side
+        && civ.diplomacy.atWarWith.includes(other.civId)
+        && state.civilizations[other.civId]?.diplomacy.atWarWith.includes(participant.civId))) {
+        problems.push(`${record.id} has active participant ${participant.civId} without an opposing war`);
+      }
+    }
+    if (active.length === 0) problems.push(`${record.id} is active without combatants`);
+  }
+  if (problems.length) throw new InvariantError(`active-war-history invariant violated:\n  - ${problems.join('\n  - ')}`);
+}
+
 export const SAVE_STATE_INVARIANTS: ReadonlyArray<{ name: string; check: (state: GameState) => void }> = [
   { name: 'bilateral-war', check: assertBilateralWar },
+  { name: 'active-war-history', check: assertActiveWarHistoryIntegrity },
   { name: 'city-rosters', check: assertCityRosters },
   { name: 'unit-rosters', check: assertUnitRosters },
   { name: 'cargo-reciprocity', check: assertCargoReciprocity },

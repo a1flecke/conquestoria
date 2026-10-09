@@ -139,7 +139,7 @@ export function deliverPirateActivationWarnings(state: GameState): GameState {
   let nextState = cloneForNotifications(state);
   const delivered = { ...state.pirates.activationWarningDeliveredByCiv };
   for (const civId of Object.keys(state.civilizations)) {
-    if (delivered[civId]) continue;
+    if (state.civilizations[civId].isEliminated || delivered[civId]) continue;
     appendNotification(nextState, civId, {
       message: 'Rumors spread of organized pirate waters beyond the coast.',
       type: 'warning',
