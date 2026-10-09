@@ -24,6 +24,7 @@ import { foundCityInState } from '@/systems/city-founding-system';
 import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
 import { declareMajorWar } from '@/systems/diplomacy-war';
 import { chooseRoadBuilderUnit, getRoadBuildTarget } from '@/systems/road-network';
+import { isUnitConcealedFrom } from '@/systems/concealment';
 
 // Regression for a pre-existing bug found while implementing world-pressure MR4 (#530):
 // no AIStrategicPlan ever declares a 'worker' required role (only
@@ -458,6 +459,27 @@ describe('AI land development through actual AI turns (#1427)', () => {
     state.civilizations.player!.cities.push(foreignCity.id);
     expect(assignWorkerDevelopmentJobs(state, 'ai-1')).toEqual([]);
     expect(developmentRound(state).units[state.civilizations['ai-1']!.units[0]!]!.position).toEqual({ q: 0, r: 0 });
+  });
+
+  it('does not infer a threat from a concealed unit on a visible tile', () => {
+    let state = developmentScenario();
+    state.map.tiles['2,0']!.improvement = 'none';
+    const coord = { q: 3, r: 1 };
+    state.map.tiles[hexKey(coord)] = { ...state.map.tiles['3,0']!, coord, owner: 'player', terrain: 'forest' };
+    state.civilizations['ai-1']!.visibility.tiles[hexKey(coord)] = 'visible';
+    state.civilizations.player!.civType = 'lothlorien';
+    const enemyCity = makeCity('concealed-seat', 'player', coord);
+    state.cities[enemyCity.id] = enemyCity;
+    state.civilizations.player!.cities.push(enemyCity.id);
+    state = declareMajorWar(state, 'ai-1', 'player');
+    const enemy = createUnit('warrior', 'player', coord, state.idCounters);
+    state.units[enemy.id] = enemy;
+    state.civilizations.player!.units.push(enemy.id);
+    expect(isUnitConcealedFrom(state, enemy, 'ai-1')).toBe(true);
+    const control = removeUnits(state, [enemy.id], { reason: 'destroyed' }).state;
+    expect(assignWorkerDevelopmentJobs(state, 'ai-1')).toEqual(assignWorkerDevelopmentJobs(control, 'ai-1'));
+    const id = state.civilizations['ai-1']!.units[0]!;
+    expect(developmentRound(state).units[id]!.position).toEqual(developmentRound(control).units[id]!.position);
   });
 
   it('prioritizes urgent catastrophe recovery over roads and resource development', () => {
