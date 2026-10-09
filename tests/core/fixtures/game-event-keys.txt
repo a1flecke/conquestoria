@@ -21,6 +21,7 @@ city:maturity-upgraded
 city:national-project-built
 city:national-project-dequeued
 city:national-project-expired
+city:production-disposition
 city:production-item-dropped
 city:sacked
 city:strategic-strike
