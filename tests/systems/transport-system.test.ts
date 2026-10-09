@@ -14,6 +14,9 @@ import {
   unloadUnitFromTransport,
 } from '@/systems/transport-system';
 import { assertCargoReciprocity } from '../helpers/save-state-invariants';
+import { EventBus } from '@/core/event-bus';
+import { commitTreatyAgreement, breakTreaty } from '@/systems/diplomacy-treaties';
+import { canClaimTile } from '@/systems/city-territory-system';
 
 function tile(coord: HexCoord, terrain: HexTile['terrain'] = 'grassland', owner: string | null = null): HexTile {
   return {
@@ -774,6 +777,33 @@ describe('#871 cargo unload obeys closed borders', () => {
     // Nothing moved, nothing corrupted: cargo is still aboard, reciprocally.
     expect(result.state.units['warrior-1']!.transportId).toBe('transport-1');
     assertCargoReciprocity(result.state);
+  });
+
+  it.each(['never granted', 'revoked'] as const)('cargo cannot borrow ship egress when access was %s', access => {
+    let ready = loadedNextToRival(s => {
+      // Coast is claimable by city territory; a naval hull may enter it without
+      // an agreement, but its carried army has never occupied foreign land.
+      s.map.tiles['1,0'].owner = 'ai-1';
+    });
+    expect(canClaimTile(ready.map.tiles['1,0'])).toBe(true);
+    if (access === 'revoked') {
+      ready.civilizations.player.knownCivilizations = ['ai-1'];
+      ready.civilizations['ai-1'].knownCivilizations = ['player'];
+      ready = commitTreatyAgreement(ready, 'player', 'ai-1', 'open_borders', new EventBus());
+      expect(canUnloadUnitFromTransport(ready, 'transport-1', 'warrior-1', { q: 1, r: -1 }).ok).toBe(true);
+      ready = { ...ready, civilizations: Object.fromEntries(Object.entries(ready.civilizations).map(([id, civ]) => [id, {
+        ...civ, diplomacy: breakTreaty(civ.diplomacy, id === 'player' ? 'ai-1' : 'player', 'open_borders', ready.turn),
+      }])) };
+    }
+    const before = structuredClone(ready);
+    expect(getUnloadDestinations(ready, 'transport-1', 'warrior-1').map(hexKey)).not.toContain('1,-1');
+    expect(canUnloadUnitFromTransport(ready, 'transport-1', 'warrior-1', { q: 1, r: -1 }))
+      .toMatchObject({ ok: false, reason: 'closed-border' });
+    const result = unloadUnitFromTransport(ready, 'transport-1', 'warrior-1', { q: 1, r: -1 });
+    expect(result.ok).toBe(false);
+    expect(result.state).toBe(ready);
+    expect(ready).toEqual(before);
+    assertCargoReciprocity(ready);
   });
 
   it('own shore is unaffected, so the unit is never stranded aboard', () => {
