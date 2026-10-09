@@ -473,7 +473,7 @@ Class/rating: rating 0 flavor, 1 unconditional number, 2 conditional but weak or
 | `autonomous-shipping` | 12 | maritime | KEEP | 3 | unlock+effect-valued | +1 gold per active trade route | - |
 | `deep-ocean-research` | 12 | maritime | KEEP | 3 | era-only | - | systems/trade-route-economy |
 | `nanomaterials` | 12 | metallurgy | KEEP | 2 | effect-valued | combatStrength +3 (all units; always; none) | - |
-| `3d-printing` | 12 | metallurgy | KEEP | 3 | era-only | - | systems/city-turn |
+| `3d-printing` | 12 | metallurgy | KEEP | 3 | era-only | - | systems/city-turn, systems/production-decision |
 | `smart-cities` | 12 | construction | KEEP | 2 | unlock+effect-valued | +2 production and +1 science with a factory and semiconductor fab | - |
 | `green-architecture` | 12 | construction | KEEP | 3 | effect-valued | -10% building maintenance in cities with 6 or more buildings | - |
 | `internet` | 12 | communication | KEEP | 3 | unlock-valued | - | systems/approved-legendary-wonder-roster, systems/legendary-wonder-landmark-catalog |
