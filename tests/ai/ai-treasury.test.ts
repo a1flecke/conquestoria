@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { applyAIGoldSpending, completesFromOwnProduction } from '@/ai/ai-treasury';
+import { applyAIGoldSpending } from '@/ai/ai-treasury';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { processCity } from '@/systems/city-system';
-import { rushBuyActiveProduction } from '@/systems/rush-buy-system';
+import { completesFromOwnProduction, rushBuyActiveProduction } from '@/systems/rush-buy-system';
 import { buildProductionCostContext } from '@/systems/production-cost-context';
 import type { GameState, OpponentChallenge } from '@/core/types';
 import { createHotSeatGame, createNewGame } from '@/core/game-state';
