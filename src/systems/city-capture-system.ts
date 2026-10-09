@@ -709,10 +709,13 @@ export function resolveMajorCityCapture(
       { kind: 'city', cityId },
       { kind: 'captured', victorId: newOwnerId },
     ).state;
-    const liveness = reconcileCivilizationLiveness(state, afterAircraft, newOwnerId);
+    // Record earned capture facts while both combatants still participate;
+    // elimination may conclude their war and remove operational war goals.
+    const withCapture = applyCaptureBookkeeping(afterAircraft, state, newOwnerId, previousOwnerId, cityId, city.name, turn, bus);
+    const liveness = reconcileCivilizationLiveness(state, withCapture, newOwnerId);
     const elimination = liveness.transitions.find(transition =>
       transition.kind === 'eliminated' && transition.civId === previousOwnerId);
-    const stateAfterWarGoals = applyCaptureBookkeeping(liveness.state, state, newOwnerId, previousOwnerId, cityId, city.name, turn, bus);
+    const stateAfterWarGoals = liveness.state;
     const territoryResult = recalculateTerritory(stateAfterWarGoals, {
       reason: 'capture',
       preserveCurrentHolderOnTie: true,
@@ -774,10 +777,11 @@ export function resolveMajorCityCapture(
     legendaryWonderProjects: removeLegendaryWonderProjectsForCity(state.legendaryWonderProjects, cityId),
   };
   const afterProjectLoss = removeNationalProjectsForCity(nextState, cityId);
-  const liveness = reconcileCivilizationLiveness(state, afterProjectLoss, newOwnerId);
+  const withCapture = applyCaptureBookkeeping(afterProjectLoss, state, newOwnerId, previousOwnerId, cityId, city.name, turn, bus);
+  const liveness = reconcileCivilizationLiveness(state, withCapture, newOwnerId);
   const elimination = liveness.transitions.find(transition =>
     transition.kind === 'eliminated' && transition.civId === previousOwnerId);
-  const stateAfterWarGoals = applyCaptureBookkeeping(liveness.state, state, newOwnerId, previousOwnerId, cityId, city.name, turn, bus);
+  const stateAfterWarGoals = liveness.state;
   const territoryResult = recalculateTerritory(stateAfterWarGoals, {
     reason: 'raze',
     preserveCurrentHolderOnTie: true,

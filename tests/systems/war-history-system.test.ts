@@ -7,6 +7,7 @@ import {
   recordGoalDeclared,
   withSettlementSigned,
   findActiveWarForCiv,
+  findActiveWarBetween,
   getWarOrdinal,
   getWarPresentationForViewer,
   getWarsForViewer,
@@ -20,6 +21,14 @@ import { eliminateCivilization } from '@/systems/civilization-elimination-system
 import { declareWarGoal } from '@/systems/war-goal-system';
 import { executeSettlement } from '@/systems/settlement-system';
 import { EventBus } from '@/core/event-bus';
+import { commitVassalageAgreement, releaseVassal, resolveIndependence } from '@/systems/diplomacy-vassalage';
+import { makeSovereigntyFixture } from '../helpers/sovereignty-fixture';
+import { assertSaveStateInvariants } from '../helpers/save-state-invariants';
+import { assertSimulationEquivalent } from '../helpers/deterministic-state';
+import { normalizeLoadedState } from '@/storage/save-manager';
+import { enqueueSettlementOffer, acceptSettlementOffer } from '@/systems/settlement-system';
+import { enqueuePeaceRequest } from '@/systems/diplomacy-requests';
+import { TECH_TREE } from '@/systems/tech-definitions';
 import { makeWarHistoryFixture } from './helpers/war-history-fixture';
 import type { GameState } from '@/core/types';
 
@@ -38,6 +47,79 @@ function clearMutualContact(state: GameState, a: string, b: string): GameState {
 }
 
 describe('war history system (#991)', () => {
+  describe('sovereignty transaction sequences', () => {
+    it('intersecting wars retain independent facts and each conclude exactly once', () => {
+      let state = makeSovereigntyFixture();
+      state = declareMajorWar(state, 'player-1', 'player-2');
+      state = declareMajorWar(state, 'player-3', 'player-4');
+      state = declareMajorWar(state, 'player-1', 'player-3');
+      const pairs = [['player-1', 'player-2'], ['player-3', 'player-4'], ['player-1', 'player-3']];
+      const recordIds = pairs.map(([a, b]) => findActiveWarBetween(state, a, b)!.id);
+      expect(new Set(recordIds).size).toBe(3);
+      assertSaveStateInvariants(state, 'intersecting declarations');
+      for (const [a, b] of pairs) {
+        state = makeMajorPeace(state, a, b);
+        expect(state.civilizations[a].diplomacy.atWarWith).not.toContain(b);
+        assertSaveStateInvariants(state, 'intersecting peace');
+      }
+      for (const id of recordIds) {
+        expect(state.wars![id].outcome).toBe('white-peace');
+        expect(state.wars![id].events.filter(e => e.type === 'concluded')).toHaveLength(1);
+      }
+      state = declareMajorWar(state, 'player-1', 'player-2');
+      expect(getWarOrdinal(state, findActiveWarBetween(state, 'player-1', 'player-2')!.id)).toBe(2);
+    });
+
+    it.each(['player-1', 'player-2'] as const)('eliminating %s conserves surviving wars and removes live obligations', deadId => {
+      let state = makeSovereigntyFixture();
+      const bus = new EventBus();
+      // An earned past peak and era unlock the existing consent contract.
+      state.civilizations['player-2'].techState.completed = TECH_TREE.filter(t => t.era <= 2).map(t => t.id);
+      state.civilizations['player-2'].diplomacy.vassalage.peakCities = 3;
+      state.currentPlayer = 'player-3';
+      state = commitVassalageAgreement(state, 'player-2', 'player-1', bus);
+      expect(state.civilizations['player-2'].diplomacy.vassalage.overlord).toBe('player-1');
+      state = declareMajorWar(state, 'player-1', 'player-3');
+      state = declareMajorWar(state, 'player-1', 'player-4');
+      state = enqueueSettlementOffer(state, 'player-3', deadId, [], bus);
+      expect(state.pendingDiplomacyRequests).toHaveLength(1);
+      const before = structuredClone(state);
+      const cityId = state.civilizations[deadId].cities[0];
+      const after = resolveMajorCityCapture(state, cityId, 'player-3', 'raze', state.turn, bus).state;
+      expect(after.civilizations[deadId].isEliminated).toBe(true);
+      expect(after.civilizations['player-2'].diplomacy.vassalage.overlord).toBeNull();
+      expect(after.civilizations['player-1'].diplomacy.vassalage.vassals).toEqual([]);
+      expect(after.pendingDiplomacyRequests).toEqual([]);
+      const survivor = deadId === 'player-1' ? 'player-2' : 'player-1';
+      expect(after.civilizations[survivor].diplomacy.atWarWith).toEqual(expect.arrayContaining(['player-3', 'player-4']));
+      assertSaveStateInvariants(after, 'multiparty elimination');
+      assertSimulationEquivalent(normalizeLoadedState(JSON.parse(JSON.stringify(after))), after, 'elimination writer');
+      expect(state).toEqual(before);
+    });
+
+    it.each(['peace-first', 'settlement-first'] as const)('competing resolution requests: %s', order => {
+      let state = declareMajorWar(makeSovereigntyFixture(), 'player-1', 'player-2');
+      const bus = new EventBus();
+      if (order === 'peace-first') {
+        state = enqueuePeaceRequest(state, 'player-1', 'player-2', bus);
+        state = enqueueSettlementOffer(state, 'player-2', 'player-1', [], bus);
+      } else {
+        state = enqueueSettlementOffer(state, 'player-1', 'player-2', [], bus);
+        state = enqueuePeaceRequest(state, 'player-2', 'player-1', bus);
+      }
+      expect(state.pendingDiplomacyRequests).toHaveLength(1);
+      if (order === 'settlement-first') {
+        const id = state.pendingDiplomacyRequests![0].id;
+        state = acceptSettlementOffer(state, 'player-2', id, bus);
+        expect(acceptSettlementOffer(state, 'player-2', id, bus)).toBe(state);
+        const record = Object.values(state.wars!)[0];
+        expect(record.outcome).toBe('settled');
+        expect(record.events.filter(e => e.type === 'settlement-signed')).toHaveLength(1);
+        expect(state.pendingDiplomacyRequests).toEqual([]);
+      }
+      assertSaveStateInvariants(state, order);
+    });
+  });
   describe('declareWarRecord', () => {
     it('creates a new record with both original participants', () => {
       const state = makeWarHistoryFixture();
@@ -298,6 +380,76 @@ describe('war history system (#991)', () => {
   });
 
   describe('end-to-end wiring through the real diplomacy transitions', () => {
+    it('a combatant making one peace stays active against its other opponent', () => {
+      let next = declareMajorWar(makeWarHistoryFixture(), 'attacker', 'defender');
+      const warId = findActiveWarForCiv(next, 'attacker')!.id;
+      next = declareMajorWar(next, 'bystander', 'attacker');
+      next = makeMajorPeace(next, 'attacker', 'defender');
+      expect(next.civilizations.attacker.diplomacy.atWarWith).toContain('bystander');
+      expect(isActiveParticipant(next.wars![warId]!, 'attacker')).toBe(true);
+      expect(next.wars![warId]!.endTurn).toBeUndefined();
+      next = makeMajorPeace(next, 'attacker', 'bystander');
+      expect(next.wars![warId]!.endTurn).toBeDefined();
+    });
+
+    it('partial peace preserves the enemy participant while a released vassal still fights', () => {
+      let next = declareMajorWar(makeWarHistoryFixture(), 'attacker', 'defender');
+      const warId = findActiveWarForCiv(next, 'attacker')!.id;
+      next = releaseVassal(next, 'attacker', 'vassal', new EventBus());
+      next = makeMajorPeace(next, 'attacker', 'defender');
+      expect(next.civilizations.defender.diplomacy.atWarWith).toContain('vassal');
+      expect(next.wars![warId]!.endTurn).toBeUndefined();
+      expect(isActiveParticipant(next.wars![warId]!, 'defender')).toBe(true);
+      const beforeRepeat = next;
+      expect(makeMajorPeace(next, 'attacker', 'defender')).toBe(beforeRepeat);
+      next = makeMajorPeace(next, 'vassal', 'defender');
+      expect(next.wars![warId]!.outcome).toBe('white-peace');
+      expect(next.wars![warId]!.events.filter(e => e.type === 'concluded')).toHaveLength(1);
+    });
+
+    it('refused independence records a new opposing war without erasing the inherited war', () => {
+      let next = declareMajorWar(makeWarHistoryFixture(), 'attacker', 'defender');
+      next = {
+        ...next,
+        civilizations: { ...next.civilizations, vassal: {
+          ...next.civilizations.vassal,
+          diplomacy: { ...next.civilizations.vassal.diplomacy, vassalage: {
+            ...next.civilizations.vassal.diplomacy.vassalage, protectionScore: 0,
+          } },
+        } },
+      };
+      next = resolveIndependence(next, 'vassal', 'attacker', false, new EventBus());
+      expect(next.civilizations.vassal.diplomacy.vassalage.overlord).toBeNull();
+      expect(next.civilizations.vassal.diplomacy.atWarWith).toEqual(expect.arrayContaining(['attacker', 'defender']));
+      const independenceWar = findActiveWarBetween(next, 'vassal', 'attacker');
+      expect(independenceWar).toBeDefined();
+      expect(sideOf(independenceWar!, 'vassal')).not.toBe(sideOf(independenceWar!, 'attacker'));
+      expect(findActiveWarBetween(next, 'vassal', 'defender')).toBeDefined();
+      expect(resolveIndependence(next, 'vassal', 'attacker', false, new EventBus())).toBe(next);
+    });
+
+    it.each(['occupy', 'raze'] as const)('retains the final %s capture before elimination closes the war', mode => {
+      const initial = makeWarHistoryFixture();
+      const original = structuredClone(initial);
+      const run = () => {
+        let next = declareMajorWar(initial, 'attacker', 'defender');
+        const warId = findActiveWarForCiv(next, 'attacker')!.id;
+        const cityIds = [...next.civilizations.defender.cities];
+        for (const cityId of cityIds) {
+          next = resolveMajorCityCapture(next, cityId, 'attacker', mode, next.turn, new EventBus()).state;
+        }
+        const record = next.wars![warId]!;
+        expect(next.civilizations.defender.isEliminated).toBe(true);
+        expect(record.events.filter(e => e.type === 'city-captured').map(e => e.cityId)).toEqual(cityIds);
+        expect(record.events.slice(-3).map(e => e.type)).toEqual(['city-captured', 'participant-eliminated', 'concluded']);
+        expect(record.events.filter(e => e.type === 'concluded')).toHaveLength(1);
+        expect(record.outcome).toBe('defender-eliminated');
+        return next;
+      };
+      expect(run()).toEqual(run());
+      expect(initial).toEqual(original);
+    });
+
     it('declareMajorWar creates a war record via addWarPair', () => {
       const state = makeWarHistoryFixture();
       const next = declareMajorWar(state, 'attacker', 'defender');

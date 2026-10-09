@@ -189,12 +189,8 @@ function removeMajorWarPair(state: GameState, aId: string, bId: string): GameSta
   const b = state.civilizations[bId];
   if (!a || !b || aId === bId) return state;
   let next = state;
-  // #991: record BOTH directions leaving the same war record before mutating
-  // diplomacy state -- recordParticipantLeft reads isAtWar-equivalent war-record
-  // membership, not `atWarWith`, so order relative to the makePeace calls below
-  // does not matter, but doing it first keeps this function's own bilateral
-  // isAtWar checks meaningful (a war-goal/settlement hook elsewhere may already
-  // have concluded the record without touching atWarWith).
+  // History reads remaining opposing war edges before this pair is removed.
+  // Retire only combatants whose last opponent in a record is this peace pair.
   if (isAtWar(a.diplomacy, bId)) next = recordParticipantLeft(next, aId, bId, state.turn);
   if (isAtWar(b.diplomacy, aId)) next = recordParticipantLeft(next, bId, aId, state.turn);
   if (isAtWar(a.diplomacy, bId)) next = withDiplomacy(next, aId, makePeace(next.civilizations[aId].diplomacy, bId, state.turn));
