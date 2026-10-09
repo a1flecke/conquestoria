@@ -66,6 +66,10 @@ export function projectActiveProduction(
 // --- The player-facing decision view. ---
 
 
+// The queue-head rule is owned by planning-system (it is what `reorderCityProduction` applies); re-exported here so the
+// panel reads ONE production-decision module for every consequence it explains.
+export { getQueueMoveConsequence, getQueueRemoveConsequence } from './planning-system';
+
 export interface ProductionDecisionOptions {
   /** A caller's own displayed per-turn production (the city panel's figure). A production lock still zeroes it. */
   productionPerTurn?: number;

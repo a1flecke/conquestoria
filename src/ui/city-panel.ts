@@ -54,6 +54,8 @@ import { getCityIntrinsicStrength, isCityHpRegenerating } from '@/systems/city-s
 import { getBlockadedCityIds } from '@/systems/blockade-system';
 import { getOccupiedCityMood, getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
+import { getIdleProductionDecision, getProductionDecision, getQueueMoveConsequence } from '@/systems/production-decision';
+import { describeHeadChangeLoss, describeProductionDecision, headChangeConfirmLabel } from './production-decision-copy';
 import { getFortificationCapacity } from '@/systems/fortification-system';
 import {
   CITY_LEVY_GOLD_BONUS,
@@ -307,6 +309,11 @@ export function createCityPanel(
   const maintenanceTooltip = formatMaintenanceTooltip(economyStatus);
   const rushBuyQuote = getRushBuyQuote(state, city.owner, city.id);
   const rushBuyReason = getRushBuyReasonText(rushBuyQuote.reason);
+  // Production-decision arc: ONE read of the active item (cost, progress, this turn's output, overflow, what a queue
+  // change would erase). The panel's own displayed production is passed in so the numbers the player sees agree.
+  const productionDecision = getProductionDecision(state, city.owner, city.id, { productionPerTurn: yields.production });
+  const idleDecision = getIdleProductionDecision(state, city.owner, city.id);
+  const productionNotes = describeProductionDecision(productionDecision);
   const appeaseCost = getCityAppeaseCost(city);
   const civGoldForAppease = state.civilizations[city.owner]?.gold ?? 0;
   const appeasedThisTurn = city.appeasedOnTurn === state.turn;
@@ -985,6 +992,7 @@ export function createCityPanel(
         <button type="button" data-idle-mode="science" style="flex:1;padding:8px;background:rgba(100,150,255,0.15);border:1px solid rgba(100,150,255,0.4);border-radius:6px;color:white;cursor:pointer;font-size:12px;${sciActive}">🔬 Science +${yields.production}/turn</button>
         <button type="button" data-idle-mode="none" style="flex:1;padding:8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.2);border-radius:6px;color:white;cursor:pointer;font-size:12px;${noneActive}">None</button>
       </div>
+      ${idleDecision?.dormant ? '<div data-idle-dormant="true" style="font-size:11px;opacity:0.75;margin-top:6px;">Conversion is paused while something is queued. It applies on a turn that starts with an empty queue.</div>' : ''}
     </div>
   `;
 
@@ -1004,7 +1012,7 @@ export function createCityPanel(
     currentProductionHtml = `
       <div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:12px;margin-bottom:16px;">
         <div style="font-weight:bold;color:#e8c170;">Producing: ${getProductionIconForItem(currentItem)} <span data-text="prod-name"></span></div>
-        <div style="font-size:12px;opacity:0.7;"><span data-text="prod-turns"></span> turns remaining</div>
+        <div style="font-size:12px;opacity:0.7;"><span data-text="prod-turns"></span> turns remaining <span style="opacity:0.7;">(estimate from current production)</span></div>
         <div style="background:rgba(0,0,0,0.3);border-radius:4px;height:8px;margin-top:8px;">
           <div style="background:#6b9b4b;border-radius:4px;height:8px;width:${progress}%;"></div>
         </div>
@@ -1021,6 +1029,9 @@ export function createCityPanel(
           <button type="button" data-rush-buy="active" ${rushDisabledAttr} title="" style="min-height:44px;padding:7px 10px;border-radius:6px;font-size:12px;font-weight:bold;${rushButtonStyle}">${rushBuyLabel}</button>
           ${rushBuyReason ? '<span style="font-size:11px;color:#d9a25c;" data-text="rush-reason"></span>' : ''}
         </div>
+        ${productionNotes.rushNote ? '<div data-rush-note="true" style="font-size:11px;opacity:0.85;margin-top:6px;"></div>' : ''}
+        ${productionNotes.stalledNote ? '<div data-production-stalled="true" style="font-size:11px;color:#d9a25c;margin-top:6px;"></div>' : ''}
+        ${productionNotes.overflowNote ? '<div data-overflow-note="true" style="font-size:11px;opacity:0.8;margin-top:6px;"></div>' : ''}
       </div>
     `;
   }
@@ -1030,7 +1041,8 @@ export function createCityPanel(
   if (city.productionQueue.length > 1 && yields.production > 0) {
     const currentItem0 = city.productionQueue[0];
     const currentCost0 = getDisplayedCost(currentItem0);
-    let elapsed = Math.ceil(Math.max(0, currentCost0 - city.productionProgress) / yields.production);
+    // At least one turn: even an already-covered item completes during end-of-turn processing, never "in 0 turns".
+    let elapsed = Math.max(1, Math.ceil(Math.max(0, currentCost0 - city.productionProgress) / yields.production));
     for (let i = 1; i < city.productionQueue.length; i++) {
       const followId = city.productionQueue[i];
       const followCost = getDisplayedCost(followId);
@@ -1055,11 +1067,14 @@ export function createCityPanel(
       : `Queue slot ${idx}`;
     const downStyle = idx === lastQueueIdx ? queueBtnDisabledStyle : queueBtnStyle;
     const downDisabled = idx === lastQueueIdx ? 'disabled' : '';
+    // Only the slot right behind the active item can take its place; moving it up erases the stored production.
+    const headChangeWarning = idx === 1 ? describeHeadChangeLoss(getQueueMoveConsequence(city, 1, 0).progressLost) : null;
     queueRowsHtml += `
       <div data-queue-index="${idx}" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;background:rgba(255,255,255,0.06);border-radius:8px;padding:8px;">
         <div>
           <div style="font-weight:bold;">${getProductionIconForItem(city.productionQueue[idx])} <span data-text="queue-name-${idx}"></span></div>
           <div style="font-size:11px;opacity:0.7;">${slotLabel}</div>
+          ${headChangeWarning ? '<div data-head-change-warning="true" style="font-size:11px;color:#d9a25c;margin-top:2px;"></div>' : ''}
         </div>
         <div style="display:flex;gap:6px;">
           <button type="button" data-queue-action="up" data-queue-index="${idx}" style="${queueBtnStyle}">↑</button>
@@ -1338,9 +1353,16 @@ export function createCityPanel(
   if (city.productionQueue.length > 0) {
     const currentItem = city.productionQueue[0];
     const totalCost = getDisplayedCost(currentItem);
-    const turnsLeft = yields.production > 0 ? Math.ceil((totalCost - city.productionProgress) / yields.production) : '∞';
+    // The decision query owns the ETA (min 1 turn, 0 production or a lock => no ETA), so a locked city no longer
+    // shows a turn count it cannot reach.
+    const turnsLeft = productionDecision
+      ? (productionDecision.turnsToComplete ?? '∞')
+      : (yields.production > 0 ? Math.max(1, Math.ceil((totalCost - city.productionProgress) / yields.production)) : '∞');
     setText('prod-name', getProductionDisplayName(currentItem));
     setText('prod-turns', String(turnsLeft));
+    if (productionNotes.rushNote) panel.querySelector('[data-rush-note]')!.textContent = productionNotes.rushNote;
+    if (productionNotes.stalledNote) panel.querySelector('[data-production-stalled]')!.textContent = productionNotes.stalledNote;
+    if (productionNotes.overflowNote) panel.querySelector('[data-overflow-note]')!.textContent = productionNotes.overflowNote;
     if (rushBuyReason) {
       setText('rush-reason', rushBuyReason);
     }
@@ -1409,6 +1431,9 @@ export function createCityPanel(
   city.productionQueue.forEach((itemId, index) => {
     setText(`queue-name-${index}`, getProductionDisplayName(itemId));
   });
+  const headChangeLoss = city.productionQueue.length > 1 ? getQueueMoveConsequence(city, 1, 0).progressLost : 0;
+  const headWarningEl = panel.querySelector('[data-head-change-warning]');
+  if (headWarningEl) headWarningEl.textContent = describeHeadChangeLoss(headChangeLoss) ?? '';
 
   compactWonderEntries.forEach((entry, index) => {
     setText(`wonder-name-${index}`, entry.name);
@@ -1755,6 +1780,16 @@ export function createCityPanel(
       }
 
       if (action === 'up' && index > 0) {
+        // Replacing the active item erases its stored production. Say so with a second, explicit tap -- but only
+        // when something would really be lost; every other reorder stays a single tap.
+        const progressLost = getQueueMoveConsequence(city, index, index - 1).progressLost;
+        const button = el as HTMLButtonElement;
+        if (progressLost > 0 && button.dataset.armed !== 'true') {
+          button.dataset.armed = 'true';
+          button.textContent = headChangeConfirmLabel(progressLost);
+          button.setAttribute('aria-label', `Confirm: ${describeHeadChangeLoss(progressLost) ?? ''}`);
+          return;
+        }
         const nextState = callbacks.onMoveQueueItem?.(city.id, index, index - 1);
         rerenderPanel(nextState);
         return;
