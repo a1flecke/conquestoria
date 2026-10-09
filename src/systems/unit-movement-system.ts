@@ -14,6 +14,7 @@ import { getMovementStepCost } from '@/systems/unit-movement-cost';
 import { findPathToCity } from '@/systems/unit-pathfinding';
 import {
   getOwnerCompletedTechs,
+  isWorkerTaskInProgress,
   resolveUnitMoveIntent,
   type ExecuteUnitMoveOptions,
   type MovementRejection,
@@ -23,6 +24,7 @@ import {
 // #1025 MR4: validation moved to its own module so the viewer-scoped explainer can derive
 // from it without an import cycle. Re-exported so every existing importer is unchanged.
 export {
+  isWorkerBusy,
   validateUnitMove,
   resolveUnitMoveIntent,
   getImpassableReason,
@@ -66,20 +68,6 @@ export type ExecuteUnitMoveResult =
       stopReason?: 'zone-of-control';
     }
   | MovementRejection;
-
-function isWorkerTaskInProgress(tile: GameState['map']['tiles'][string] | undefined, task: NonNullable<GameState['units'][string]['workerTask']>): boolean {
-  if (!tile) return false;
-  if (task.action === 'build_road') return (tile.roadTurnsLeft ?? 0) > 0;
-  return tile.improvement === task.action && tile.improvementTurnsLeft > 0;
-}
-
-export function isWorkerBusy(state: GameState, unitId: string): boolean {
-  const unit = state.units[unitId];
-  if (!unit || unit.type !== 'worker' || !unit.workerTask) return false;
-  const taskKey = hexKey(unit.workerTask.coord);
-  const tile = state.map.tiles[taskKey];
-  return hexKey(unit.position) === taskKey && isWorkerTaskInProgress(tile, unit.workerTask);
-}
 
 export function abandonWorkerTask(state: GameState, unitId: string): void {
   const unit = state.units[unitId];

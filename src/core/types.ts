@@ -6,7 +6,7 @@ import type { GovernancePolicyId } from '@/systems/governance-types';
 // Compatibility re-exports: the definitions live in bounded-context leaves (#1361). New production code imports
 // these from the leaf; docs/core-types-barrel-ratchet.json keeps the barrel shrink-only.
 import type { HexCoord } from './types/hex';
-import type { ResourceType } from './types/resources';
+import type { ResourceType, ImprovementType, WorkerActionType } from './types/resources';
 import type { AiGameState, AIStrategicRole, OpponentChallenge } from './types/ai';
 import type {
   DefensiveLeague,
@@ -29,7 +29,7 @@ export type { SessionEvents } from './types/events-session';
 import type { BeastId, CrisisStage, RogueElephantHostOutcome, StampedeOutcome, WorldRaceKind } from './types/world';
 export type { BeastHoardChoice, BeastId, CrisisOutcome, CrisisStage, RogueElephantHostOutcome, StampedeOutcome, VillageOutcomeType, WorldRaceKind } from './types/world';
 export type { HexCoord } from './types/hex';
-export type { LuxuryResource, ResourceType, StrategicResource } from './types/resources';
+export type { LuxuryResource, ResourceType, StrategicResource, ImprovementType, BuildableImprovementType, WorkerActionType } from './types/resources';
 export type {
   AIPlanPhase, AIPlanReason, AIStrategicObjective, AIStrategicPlan, AIStrategicRole, AITarget,
   CivPressureLedger, MajorCivPlanPortfolio, NationalIntent, NationalIntentReason, NationalIntentState,
@@ -470,12 +470,6 @@ export interface TribalVillage {
 // --- Map ---
 
 export type VisibilityState = 'unexplored' | 'fog' | 'visible';
-
-export type ImprovementType = 'farm' | 'mine' | 'lumber_camp' | 'watermill'
-  | 'plantation' | 'pasture' | 'camp' | 'quarry' | 'oil_well' | 'fort' | 'resource_outpost' | 'none';
-// resource_outpost is excluded: only Expeditions can establish outposts, not Workers
-export type BuildableImprovementType = Exclude<ImprovementType, 'none' | 'resource_outpost'>;
-export type WorkerActionType = BuildableImprovementType | 'drain_swamp' | 'build_road' | 'restore_land';
 
 export interface HexTile {
   coord: HexCoord;

@@ -5,7 +5,7 @@ import { canBuildRoad } from './road-system';
 import { getMovementCostForUnit } from './unit-movement-cost';
 import { findPath } from './unit-pathfinding';
 import { getWorkerChargesRemaining } from './worker-action-system';
-import { isWorkerBusy } from './unit-movement-system';
+import { isWorkerBusy } from './unit-movement-validation';
 import { getDeniedTerritoryOwners } from './territorial-access';
 import { getBlockingMapEntityKeys } from './unit-movement-legality';
 

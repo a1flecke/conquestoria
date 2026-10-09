@@ -1,4 +1,4 @@
-import type { BuildableImprovementType, ResourceType } from '@/core/types';
+import type { BuildableImprovementType, ResourceType } from '@/core/types/resources';
 
 export interface ResourceEffect {
   type: 'happiness' | 'gold' | 'production' | 'food' | 'science';

@@ -9,6 +9,21 @@ import { getBlockingMapEntityAt, getBlockingMapEntityKeys, BLOCKING_MAP_ENTITY_M
 import { findPath } from '@/systems/unit-pathfinding';
 import { getDeniedTerritoryOwners, isTileDeniedBy, TERRITORIAL_ACCESS_MESSAGE } from '@/systems/territorial-access';
 
+export function isWorkerTaskInProgress(tile: GameState['map']['tiles'][string] | undefined, task: NonNullable<GameState['units'][string]['workerTask']>): boolean {
+  if (!tile) return false;
+  if (task.action === 'build_road') return (tile.roadTurnsLeft ?? 0) > 0;
+  return tile.improvement === task.action && tile.improvementTurnsLeft > 0;
+}
+
+/** Read-only construction commitment query, usable without the movement executor. */
+export function isWorkerBusy(state: GameState, unitId: string): boolean {
+  const unit = state.units[unitId];
+  if (!unit || unit.type !== 'worker' || !unit.workerTask) return false;
+  const taskKey = hexKey(unit.workerTask.coord);
+  const tile = state.map.tiles[taskKey];
+  return hexKey(unit.position) === taskKey && isWorkerTaskInProgress(tile, unit.workerTask);
+}
+
 /**
  * Movement validation (#1025 / #1010) — the ONE legality + cost answer for ordinary
  * unit movement. Deliberately **omniscient**: it sees the whole `GameState`, because it

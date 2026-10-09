@@ -1,4 +1,6 @@
-import type { City, GameMap, GameState, HexCoord, ResourceType, ResourceYield, Unit, WorkerActionType } from '@/core/types';
+import type { City, GameMap, GameState, ResourceYield, Unit } from '@/core/types';
+import type { HexCoord } from '@/core/types/hex';
+import type { ResourceType, WorkerActionType } from '@/core/types/resources';
 import type { EventBus } from '@/core/event-bus';
 import { getWorkableTilesForCity } from '@/systems/city-work-system';
 import { getTileYield } from '@/systems/tile-yield';
@@ -154,7 +156,10 @@ export function assignWorkerDevelopmentJobs(
   const reservedResources = new Set<ResourceType>();
   const assignments: WorkerDevelopmentAssignment[] = [];
   const blocked = getBlockingMapEntityKeys(state, workers[0]!);
-  for (const key of [...blocked]) if (civ.visibility.tiles[key] !== 'visible') blocked.delete(key);
+  for (const key of [...blocked]) {
+    const coord = state.map.tiles[key]?.coord;
+    if (!coord || getVisibility(civ.visibility, coord) !== 'visible') blocked.delete(key);
+  }
   for (const unit of Object.values(state.units)) {
     if (!unit.transportId && unit.owner !== civId && getVisibility(civ.visibility, unit.position) === 'visible') {
       blocked.add(hexKey(unit.position));
