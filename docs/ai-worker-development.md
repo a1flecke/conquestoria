@@ -154,7 +154,7 @@ Architecture verification retains zero runtime import cycles. The existing busy
 worker query now lives in movement validation and remains re-exported from the
 executor, allowing road selection to read it without an executor dependency.
 Worker/improvement action types live in the existing resource contract leaf;
-the compatibility barrel retains its 577-importer ceiling and shrinks from 203
+the compatibility barrel retains main's 578-importer ceiling and shrinks from 203
 to 200 local declarations. The generated import inventory records the planner's
 15 intended planner AI-to-system edges plus one crisis-to-canonical-validation
 edge; no runtime cycle or source-rule allowance was added.
