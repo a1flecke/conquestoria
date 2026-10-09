@@ -182,7 +182,7 @@ for the full detail on each:
   `unit-count-runaway`'s already-tracked, not-yet-triaged root cause (#1066): #1064's
   exploration loop feeds the belief layer once a plan exists, it cannot make
   `prepareMajorCivStrategicPlan` itself produce one.
-- **`production-idle`/`gold-hoard` reproduce on every medium/large-map scenario** (never
+- **(Historical; superseded by the #1407 full-matrix re-measurement, see `known-campaign-gaps.ts`: `production-idle` now reproduces only in `lh-late-era-medium` ai-1, `gold-hoard` in four scoped civ occurrences.)** `production-idle`/`gold-hoard` reproduced on every medium/large-map scenario (never
   on the three small-map scenarios) — the "residual idle" contingency #1064's own design
   doc anticipated (§2.20): a civ that expansion now genuinely works for eventually reaches
   its soft cap or exhausts buildable content on a bigger map. See #1094.
