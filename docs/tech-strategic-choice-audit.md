@@ -153,7 +153,7 @@ Class/rating: rating 0 flavor, 1 unconditional number, 2 conditional but weak or
 | `cartography` | 1 | exploration | KEEP | 0 | era-only | - | - |
 | `sailing` | 2 | exploration | KEEP | 0 | era-only | - | - |
 | `celestial-navigation` | 2 | exploration | KEEP | 0 | era-only | - | - |
-| `road-building` | 3 | exploration | KEEP | 3 | unlock-valued | - | systems/road-network, systems/road-system, systems/unrest-guidance |
+| `road-building` | 3 | exploration | KEEP | 3 | unlock-valued | - | ai/ai-worker-development, systems/road-network, systems/road-system, systems/unrest-guidance |
 | `bridge-building` | 3 | exploration | KEEP | 3 | era-only | - | systems/unit-movement-cost |
 | `harbor-tech` | 3 | exploration | KEEP | 3 | unlock-valued | - | - |
 | `exploration-tech` | 4 | exploration | KEEP | 3 | effect-valued | vision +1 (all units; always; none) | - |

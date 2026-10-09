@@ -100,6 +100,14 @@ construction events; nearby economic need beating a distant resource; determinis
 detour selection; and whole-state save/reload equivalence during travel and building.
 No save fields, migration or cross-turn cache were added.
 
+Architecture verification retains zero runtime import cycles. The existing busy
+worker query now lives in movement validation and remains re-exported from the
+executor, allowing road selection to read it without an executor dependency.
+Worker/improvement action types live in the existing resource contract leaf;
+the compatibility barrel retains its 577-importer ceiling and shrinks from 203
+to 200 local declarations. The generated import inventory records the planner's
+14 intended AI-to-system edges; no cycle or source-rule allowance was added.
+
 ## Planning effort
 
 Fixed medium and large generated maps, one founded city and six workers produced:
