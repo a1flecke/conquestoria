@@ -1018,6 +1018,23 @@ describe('city-panel navigation', () => {
     expect(onRushBuyActiveProduction).toHaveBeenCalledWith(city.id);
   });
 
+  it('production-decision arc: the active item shows an honest estimate label and a queue-head loss warning only when something is stored', () => {
+    const { container, city, state } = makeMultiCityFixture();
+    city.productionQueue = ['workshop', 'granary'];
+    city.productionProgress = 2;
+    const withProgress = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+    expect(collectText(withProgress)).toContain('(estimate from current production)');
+    expect(collectText(withProgress)).toContain('loses 2 stored production');
+
+    city.productionProgress = 0;
+    const empty = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+    expect(collectText(empty)).not.toContain('stored production');
+  });
+
   it('disables rush buy with a visible reason during critical treasury strain', () => {
     const { container, city, state } = makeMultiCityFixture();
     city.productionQueue = ['workshop'];
