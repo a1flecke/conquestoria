@@ -7,7 +7,7 @@ import {
   runScenario,
   SCENARIO_TIMEOUT_MS,
 } from './campaign-scenarios';
-import { evaluateGapRatchet } from './known-campaign-gaps';
+import { evaluateGapRatchet, findInvalidGapRegistrations } from './known-campaign-gaps';
 
 /**
  * #1005 — the long-horizon deterministic AI campaign matrix.
@@ -63,13 +63,14 @@ afterAll(() => {
   // invocation legitimately runs a subset — don't fail its `afterAll`).
   if (findingsByScenario.size !== LONG_HORIZON_SCENARIOS.length) return;
 
-  const { unknownFindings, staleGaps } = evaluateGapRatchet(findingsByScenario);
+  expect(findInvalidGapRegistrations(), 'KNOWN_CAMPAIGN_GAPS is malformed').toEqual([]);
+  const { unknownFindings, staleGaps, staleOccurrences } = evaluateGapRatchet(findingsByScenario);
 
   expect(
     unknownFindings,
     `Long-horizon campaigns produced findings with no KNOWN_CAMPAIGN_GAPS entry.\n`
       + `Either this is a NEW regression to fix, or add a register entry citing a follow-up issue:\n`
-      + unknownFindings.map(f => `  - [${f.scenario}] ${f.code}: ${f.detail}`).join('\n'),
+      + unknownFindings.map(f => `  - [${f.scenario}] ${f.code} (${f.reason}): ${f.detail}`).join('\n'),
   ).toEqual([]);
 
   expect(
@@ -77,5 +78,12 @@ afterAll(() => {
     `KNOWN_CAMPAIGN_GAPS entries no longer reproduce in any of their scenarios.\n`
       + `The underlying bug is fixed — DELETE these entries:\n`
       + staleGaps.map(g => `  - ${g.code} (${g.issue}): ${g.why}`).join('\n'),
+  ).toEqual([]);
+
+  expect(
+    staleOccurrences,
+    `Accepted KNOWN_CAMPAIGN_GAPS occurrences no longer reproduce.\n`
+      + `The specific accepted failure is gone — DELETE these occurrences:\n`
+      + staleOccurrences.map(s => `  - ${s.gap.code} (${s.gap.issue}) [${s.occurrence.scenario}${s.occurrence.civId ? `/${s.occurrence.civId}` : ''}]`).join('\n'),
   ).toEqual([]);
 });

@@ -103,6 +103,13 @@ enforced by `campaign-matrix.test.ts`:
    fails the run, telling you to delete the entry. The register can never go
    stale.
 
+Since #1407 (ratchet v2) an entry may be **scoped**: `accepted: [{ scenario, civId?, maxRounds? }]`
+covers a finding only for that scenario, that civ and a streak within `maxRounds`; a different civ is
+reported `new-civ`, a longer streak `worsened`, and each occurrence that stops reproducing is stale
+on its own (`staleOccurrences`). `scenarios: 'any'` needs a written `wildcardRationale`
+(`findInvalidGapRegistrations`, checked in `afterAll`). Prefer scoped entries; widen a budget only with
+a matrix run attached to the PR, never to make a run pass.
+
 When you fix an AI bug the suite was tracking, delete its register entry in the
 same change. When the suite finds something new, do **not** loosen a detector or
 widen a threshold to hide it — add a register entry and file the follow-up.
