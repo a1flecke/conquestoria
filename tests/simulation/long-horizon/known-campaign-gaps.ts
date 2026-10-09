@@ -17,7 +17,22 @@
  *      never go stale.
  *
  * Because the suite is explicit-run only, direction (2) costs nobody a merge.
+ *
+ * RATCHET_VERSION 2 (#1407 phase 5). Version 1 covered a finding by `code` + scenario only, so one accepted
+ * occurrence could hide a NEW civ's defect or a MUCH WORSE streak in the same scenario. Version 2 adds, per entry:
+ *
+ *   - `accepted`: scoped occurrences `{ scenario, civId?, maxRounds? }`. When present, a finding is covered only by
+ *     an occurrence that matches its scenario, its civ (when the occurrence names one) and whose `maxRounds` budget
+ *     (the finding's `lastRound - firstRound + 1`) it does not exceed. Anything else is reported with a reason:
+ *     `new-civ` (the scenario is accepted for other civs only) or `worsened` (same civ, streak over budget).
+ *   - Staleness is per occurrence: an accepted occurrence whose scenario ran and no longer reproduces the code for
+ *     that civ must be deleted, even while another occurrence of the same entry still reproduces.
+ *   - `scenarios: 'any'` is only legal with a written `wildcardRationale` (`findInvalidGapRegistrations`).
+ *
+ * Entries without `accepted` keep the version-1 scenario-level meaning, so nothing was rewritten automatically: a
+ * baseline moves only when a reviewer attaches evidence (a matrix run) and edits the entry.
  */
+export const RATCHET_VERSION = 2;
 import type { CampaignFindingCode } from './campaign-analysis';
 
 export interface KnownCampaignGap {
@@ -28,6 +43,18 @@ export interface KnownCampaignGap {
   why: string;
   /** Scenario seeds this gap is expected to reproduce in, or `'any'`. */
   scenarios: readonly string[] | 'any';
+  /** Required when `scenarios` is `'any'`: why a blanket exemption is bounded and when it must be narrowed. */
+  wildcardRationale?: string;
+  /** Scoped, budgeted acceptance (ratchet v2). When present it replaces scenario-level coverage. */
+  accepted?: readonly AcceptedOccurrence[];
+}
+
+export interface AcceptedOccurrence {
+  scenario: string;
+  /** Omitted = any civ of that scenario. Name the civ whenever it is stable. */
+  civId?: string;
+  /** Largest accepted streak (`lastRound - firstRound + 1`). Omitted = no streak budget. */
+  maxRounds?: number;
 }
 
 /**
@@ -431,38 +458,123 @@ export const KNOWN_CAMPAIGN_GAPS: readonly KnownCampaignGap[] = [
       + 'Re-pointed from closed #1066 to #1127 (F13) for fresh triage rather than left '
       + 'citing a closed issue or silently re-attributed without evidence.',
     scenarios: 'any',
+    wildcardRationale: 'PROVISIONAL. Until #1407 the detector counted every empty queue, so this gap was recorded as '
+      + 'reproducing everywhere; since #1406/#1407 it fires only on cities that are empty AND unconverted (and, with '
+      + 'exact accounting, only on rounds that discarded output). Which scenarios/civs still reproduce under that '
+      + 'definition has not been measured (needs an exclusive `yarn test:ai-long` run). That measurement must replace '
+      + 'this wildcard with scoped `accepted` occurrences or delete the entry.',
   },
 ];
 
+export type UnknownFindingReason = 'unregistered' | 'new-civ' | 'worsened';
+
+export interface RatchetFinding {
+  code: CampaignFindingCode;
+  detail: string;
+  civId?: string;
+  firstRound?: number;
+  lastRound?: number;
+}
+
 export interface GapRatchetResult {
-  unknownFindings: Array<{ scenario: string; code: CampaignFindingCode; detail: string }>;
+  unknownFindings: Array<{ scenario: string; code: CampaignFindingCode; detail: string; reason: UnknownFindingReason }>;
   staleGaps: KnownCampaignGap[];
+  staleOccurrences: Array<{ gap: KnownCampaignGap; occurrence: AcceptedOccurrence }>;
+}
+
+function streakOf(finding: RatchetFinding): number | undefined {
+  return finding.firstRound === undefined || finding.lastRound === undefined
+    ? undefined
+    : finding.lastRound - finding.firstRound + 1;
+}
+
+/** Why a finding is not covered by a scoped gap, or `null` when an occurrence covers it. */
+function scopedVerdict(
+  gap: KnownCampaignGap,
+  scenario: string,
+  finding: RatchetFinding,
+): 'covered' | 'new-civ' | 'worsened' | 'no-match' {
+  const inScenario = (gap.accepted ?? []).filter(o => o.scenario === scenario);
+  if (inScenario.length === 0) return 'no-match';
+  const forCiv = inScenario.filter(o => o.civId === undefined || o.civId === finding.civId);
+  if (forCiv.length === 0) return 'new-civ';
+  const streak = streakOf(finding);
+  const withinBudget = forCiv.some(o => o.maxRounds === undefined || streak === undefined || streak <= o.maxRounds);
+  return withinBudget ? 'covered' : 'worsened';
+}
+
+/** Registration mistakes a reviewer should never have to spot by eye. Empty when the register is well-formed. */
+export function findInvalidGapRegistrations(gaps: readonly KnownCampaignGap[] = KNOWN_CAMPAIGN_GAPS): string[] {
+  const problems: string[] = [];
+  for (const gap of gaps) {
+    const label = `${gap.code} (${gap.issue})`;
+    if (gap.scenarios === 'any' && !(gap.wildcardRationale && gap.wildcardRationale.trim().length >= 40)) {
+      problems.push(`${label}: scenarios 'any' needs a wildcardRationale (>= 40 chars) saying why it is bounded`);
+    }
+    if (gap.scenarios !== 'any' && gap.wildcardRationale) {
+      problems.push(`${label}: wildcardRationale is only meaningful with scenarios 'any'`);
+    }
+    if (gap.accepted !== undefined) {
+      if (gap.accepted.length === 0) problems.push(`${label}: accepted is empty`);
+      const accepted = new Set(gap.accepted.map(o => o.scenario));
+      if (gap.scenarios === 'any') problems.push(`${label}: scoped 'accepted' cannot be combined with scenarios 'any'`);
+      else if (gap.scenarios.some(seed => !accepted.has(seed)) || [...accepted].some(seed => !(gap.scenarios as readonly string[]).includes(seed))) {
+        problems.push(`${label}: scenarios must list exactly the scenarios named in accepted`);
+      }
+      for (const o of gap.accepted) {
+        if (o.maxRounds !== undefined && !(o.maxRounds >= 1)) problems.push(`${label}: maxRounds must be >= 1 (${o.scenario})`);
+      }
+    }
+  }
+  return problems;
 }
 
 /**
  * Run both ratchet directions over the findings collected across a set of
  * scenarios. `findingsByScenario` must contain an entry for EVERY scenario the
  * matrix ran (even those with no findings), or direction (2) cannot tell a
- * fixed gap from an un-run scenario.
+ * fixed gap from an un-run scenario. `gaps` defaults to the register; tests pass their own.
  */
 export function evaluateGapRatchet(
-  findingsByScenario: ReadonlyMap<string, ReadonlyArray<{ code: CampaignFindingCode; detail: string }>>,
+  findingsByScenario: ReadonlyMap<string, ReadonlyArray<RatchetFinding>>,
+  gaps: readonly KnownCampaignGap[] = KNOWN_CAMPAIGN_GAPS,
 ): GapRatchetResult {
   const ranScenarios = new Set(findingsByScenario.keys());
   const unknownFindings: GapRatchetResult['unknownFindings'] = [];
 
   for (const [scenario, findings] of findingsByScenario) {
     for (const finding of findings) {
-      const covered = KNOWN_CAMPAIGN_GAPS.some(gap =>
-        gap.code === finding.code
-        && (gap.scenarios === 'any' || gap.scenarios.includes(scenario)));
+      const sameCode = gaps.filter(gap => gap.code === finding.code);
+      let covered = false;
+      let reason: UnknownFindingReason = 'unregistered';
+      for (const gap of sameCode) {
+        if (gap.accepted) {
+          const verdict = scopedVerdict(gap, scenario, finding);
+          if (verdict === 'covered') { covered = true; break; }
+          if (verdict === 'worsened') reason = 'worsened';
+          else if (verdict === 'new-civ' && reason !== 'worsened') reason = 'new-civ';
+        } else if (gap.scenarios === 'any' || gap.scenarios.includes(scenario)) {
+          covered = true;
+          break;
+        }
+      }
       if (!covered) {
-        unknownFindings.push({ scenario, code: finding.code, detail: finding.detail });
+        unknownFindings.push({ scenario, code: finding.code, detail: finding.detail, reason });
       }
     }
   }
 
-  const staleGaps = KNOWN_CAMPAIGN_GAPS.filter(gap => {
+  const staleOccurrences: GapRatchetResult['staleOccurrences'] = [];
+  const staleGaps = gaps.filter(gap => {
+    if (gap.accepted) {
+      for (const occurrence of gap.accepted) {
+        if (!ranScenarios.has(occurrence.scenario)) continue;
+        const reproduces = (findingsByScenario.get(occurrence.scenario) ?? []).some(finding =>
+          finding.code === gap.code && (occurrence.civId === undefined || occurrence.civId === finding.civId));
+        if (!reproduces) staleOccurrences.push({ gap, occurrence });
+      }
+      return false;
+    }
     const expectedIn = gap.scenarios === 'any'
       ? [...ranScenarios]
       : gap.scenarios.filter(seed => ranScenarios.has(seed));
@@ -471,5 +583,5 @@ export function evaluateGapRatchet(
       (findingsByScenario.get(scenario) ?? []).some(finding => finding.code === gap.code));
   });
 
-  return { unknownFindings, staleGaps };
+  return { unknownFindings, staleGaps, staleOccurrences };
 }
