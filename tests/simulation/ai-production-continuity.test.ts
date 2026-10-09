@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { CampaignCivSample, CampaignRoundSample } from './campaign-sample';
 import {
+  classifyProductionIdleState,
   FALLBACK_ONLY_STALL_MIN_ROUNDS,
+  STREAK_MIN_ROUNDS_PER_TECH,
   formatContinuityReport,
   summarizeProductionContinuity,
 } from './ai-production-continuity';
@@ -92,4 +94,82 @@ describe('AI production continuity evidence (real bounded campaign)', () => {
       throw new Error(`\n${formatContinuityReport('with idle fallback', first)}`);
     }
   }, 60_000);
+});
+
+describe('shared continuity semantics (#1407 phase 2)', () => {
+  const both = { cities: 2, empty: ['a', 'b'], converting: ['a', 'b'], techs: 7, era: 3 };
+
+  it('fallback-only means EVERY city converts; a mixed empty/converting civ is counted separately', () => {
+    const [e] = summarizeProductionContinuity(run(30, () =>
+      ({ cities: 2, empty: ['a', 'b'], converting: ['a'], techs: 7 })));
+    expect(e.fallbackOnlyRounds).toBe(0);
+    expect(e.mixedRounds).toBe(30);
+    expect(e.allUnconvertedRounds).toBe(0);
+  });
+
+  it('counts all-unconverted rounds and treats missing telemetry as unknown', () => {
+    const [u] = summarizeProductionContinuity(run(5, () => ({ cities: 2, empty: ['a', 'b'] })));
+    expect(u.allUnconvertedRounds).toBe(5);
+    const legacy = run(5, () => ({ cities: 2 })).map(s => {
+      const civ = { ...s.civs[0]! } as Record<string, unknown>;
+      delete civ.emptyQueueCityIds; delete civ.convertingCityIds;
+      return { ...s, civs: [civ] } as unknown as CampaignRoundSample;
+    });
+    const [k] = summarizeProductionContinuity(legacy);
+    expect(k.unknownRounds).toBe(5);
+    expect(k.wastedCityRounds).toBe(0);
+    expect(k.fallbackOnlyRounds).toBe(0);
+  });
+
+  it('one tech inside a 200-round all-converting streak is a stall, not progress', () => {
+    const [e] = summarizeProductionContinuity(run(200, r => ({ ...both, techs: r >= 100 ? 8 : 7 })));
+    expect(e.streakTechsGained).toBe(1);
+    expect(e.classification).toBe('stalled-fallback-only');
+    expect(e.streakTechRatePer100).toBe(0.5);
+  });
+
+  it('progress exactly at the per-tech threshold is progress', () => {
+    const len = 40;
+    const need = Math.ceil(len / STREAK_MIN_ROUNDS_PER_TECH);
+    const at = summarizeProductionContinuity(run(len, r => ({ ...both, techs: 7 + (r >= len - 1 ? need : 0) })))[0]!;
+    expect(at.classification).toBe('prolonged-with-progress');
+    const below = summarizeProductionContinuity(run(len, r => ({ ...both, techs: 7 + (r >= len - 1 ? need - 1 : 0) })))[0]!;
+    expect(below.classification).toBe('stalled-fallback-only');
+  });
+
+  it('a gap in the round sequence resets the streak instead of bridging it', () => {
+    const samples = [...run(8, () => both), ...run(8, () => both).map(s => ({ ...s, round: s.round + 20 }))];
+    const [e] = summarizeProductionContinuity(samples);
+    expect(e.longestFallbackOnlyStreak).toBe(8);
+    expect(e.classification).toBe('healthy-temporary');
+  });
+
+  it('a duplicated sample round is ignored', () => {
+    const base = run(12, () => both);
+    const [e] = summarizeProductionContinuity([...base.slice(0, 6), base[5]!, ...base.slice(6)]);
+    expect(e.longestFallbackOnlyStreak).toBe(12);
+  });
+
+  it('a captured converting city is not counted as a resume', () => {
+    const samples = [
+      sample(0, { cities: 2, empty: ['a', 'b'], converting: ['a', 'b'] }),
+      sample(1, { cities: 1, empty: ['a'], converting: ['a'] }),
+    ];
+    expect(summarizeProductionContinuity(samples)[0]!.resumeEvents).toBe(0);
+    const resumed = [
+      sample(0, { cities: 2, empty: ['a', 'b'], converting: ['a', 'b'] }),
+      sample(1, { cities: 2, empty: ['a'], converting: ['a'] }),
+    ];
+    expect(summarizeProductionContinuity(resumed)[0]!.resumeEvents).toBe(1);
+  });
+
+  it('terminal conversion is still distinguished from a stall', () => {
+    const [e] = summarizeProductionContinuity(run(60, () => ({ ...both, research: false })));
+    expect(e.classification).toBe('terminal-conversion');
+  });
+
+  it('the long-horizon classifier is the same function', () => {
+    const row = sample(0, both).civs[0]!;
+    expect(classifyProductionIdleState(row)).toBe('all-converting');
+  });
 });

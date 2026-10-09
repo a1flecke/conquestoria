@@ -18,6 +18,9 @@
  * detector, never fork the threshold.
  */
 import type { CampaignRoundSample, CampaignCivSample } from '../campaign-sample';
+import { classifyProductionIdleState } from '../ai-production-continuity';
+
+export { classifyProductionIdleState, type ProductionIdleState } from '../ai-production-continuity';
 
 export type CampaignFindingCode =
   | 'no-research-choice'
@@ -205,28 +208,6 @@ function detectNoResearchChoice(
     }
   }
   return findings;
-}
-
-/**
- * How a civ's cities stood at one round end, from the optional `emptyQueueCityIds` / `convertingCityIds`
- * telemetry (#1406). `unknown` = the sample predates that telemetry (or lists are inconsistent with the city
- * count); it is never read as wasted or as converting.
- */
-export type ProductionIdleState =
-  | 'unknown'
-  | 'building'
-  | 'all-converting'
-  | 'mixed-converting-and-unconverted'
-  | 'all-unconverted-empty';
-
-export function classifyProductionIdleState(row: CampaignCivSample): ProductionIdleState {
-  if (row.cities <= 0 || !row.emptyQueueCityIds || !row.convertingCityIds) return 'unknown';
-  const empty = new Set(row.emptyQueueCityIds);
-  if (empty.size < row.cities) return 'building';
-  let converting = 0;
-  for (const id of row.convertingCityIds) if (empty.has(id)) converting += 1;
-  if (converting >= row.cities) return 'all-converting';
-  return converting === 0 ? 'all-unconverted-empty' : 'mixed-converting-and-unconverted';
 }
 
 /**
