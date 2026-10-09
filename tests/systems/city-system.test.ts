@@ -1218,6 +1218,71 @@ describe('processCity', () => {
     expect(result.idleScienceBonus).toBe(0);
   });
 
+  describe('production disposition (#1407): where this turn\'s output went', () => {
+    const setup = (seed: string, patch: Record<string, unknown>) => {
+      const map = generateMap(30, 30, seed);
+      const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
+      const city = foundCity('p1', landTile.coord, map, mkC());
+      return { map, city: { ...city, ...patch } };
+    };
+    const conserved = (d: { produced: number; appliedToBuild: number; carriedOver: number; convertedGold: number; convertedScience: number; discarded: number }) =>
+      d.appliedToBuild + d.carriedOver + d.convertedGold + d.convertedScience + d.discarded;
+
+    it('an ordinary multi-turn build applies everything to construction', () => {
+      const { map, city } = setup('disp-build', { productionQueue: ['workshop'], productionProgress: 0 });
+      const d = processCity(city as never, map, 0, 5, createProductionCostContext()).production;
+      expect(d).toEqual({ produced: 5, appliedToBuild: 5, carriedOver: 0, convertedGold: 0, convertedScience: 0, discarded: 0 });
+    });
+
+    it('an item completed this turn is construction, not waste, and only exact overflow is discarded', () => {
+      const { map, city } = setup('disp-complete', { productionQueue: ['workshop'], productionProgress: 7, idleProduction: 'gold' });
+      const d = processCity(city as never, map, 0, 8, createProductionCostContext()).production; // 7+8=15 vs cost 12
+      expect(d.appliedToBuild).toBe(5);
+      expect(d.discarded).toBe(3);
+      expect(d.convertedGold).toBe(0);
+      expect(conserved(d)).toBe(d.produced);
+    });
+
+    it('3d-printing carries the overflow instead of discarding it', () => {
+      const { map, city } = setup('disp-carry', { productionQueue: ['workshop', 'granary'], productionProgress: 7 });
+      const d = processCity(city as never, map, 0, 8, createProductionCostContext({ completedTechs: ['3d-printing'] })).production;
+      expect(d.carriedOver).toBe(3);
+      expect(d.discarded).toBe(0);
+      expect(conserved(d)).toBe(d.produced);
+    });
+
+    it('empty queue converts to gold or science exactly as credited', () => {
+      const gold = setup('disp-gold', { productionQueue: [], idleProduction: 'gold' });
+      const g = processCity(gold.city as never, gold.map, 0, 8, createProductionCostContext());
+      expect(g.production).toMatchObject({ produced: 8, convertedGold: g.idleGoldBonus, convertedScience: 0, discarded: 0 });
+      const sci = setup('disp-sci', { productionQueue: [], idleProduction: 'science' });
+      const sr = processCity(sci.city as never, sci.map, 0, 5, createProductionCostContext());
+      expect(sr.production).toMatchObject({ produced: 5, convertedScience: sr.idleScienceBonus, convertedGold: 0, discarded: 0 });
+    });
+
+    it('empty queue with no conversion mode discards, and a dormant idle mode with a queue does not convert', () => {
+      const none = setup('disp-none', { productionQueue: [], idleProduction: null });
+      expect(processCity(none.city as never, none.map, 0, 6, createProductionCostContext()).production)
+        .toMatchObject({ produced: 6, discarded: 6, appliedToBuild: 0 });
+      const dormant = setup('disp-dormant', { productionQueue: ['workshop'], productionProgress: 0, idleProduction: 'gold' });
+      expect(processCity(dormant.city as never, dormant.map, 0, 5, createProductionCostContext()).production)
+        .toMatchObject({ appliedToBuild: 5, convertedGold: 0, discarded: 0 });
+    });
+
+    it('a queue whose every item is dequeued this turn discards the output (no conversion for a non-empty start)', () => {
+      const { map, city } = setup('disp-dropped', { productionQueue: ['cavalry'], productionProgress: 0, idleProduction: 'gold' });
+      const r = processCity(city as never, map, 0, 4, createProductionCostContext({ completedTechs: [], availableResources: new Set() }));
+      expect(r.droppedProductionItems.length).toBeGreaterThan(0);
+      expect(r.production).toMatchObject({ produced: 4, discarded: 4, convertedGold: 0 });
+    });
+
+    it('a zero-yield city reports all zeros', () => {
+      const { map, city } = setup('disp-zero', { productionQueue: [], idleProduction: 'gold' });
+      expect(processCity(city as never, map, 0, 0, createProductionCostContext()).production)
+        .toEqual({ produced: 0, appliedToBuild: 0, carriedOver: 0, convertedGold: 0, convertedScience: 0, discarded: 0 });
+    });
+  });
+
   it('completes Herbalist at the retuned opening cost', () => {
     const map = generateMap(30, 30, 'herbalist-opening-cost');
     const city = foundCity('player', { q: 15, r: 15 }, map, mkC());

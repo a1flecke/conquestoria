@@ -152,6 +152,15 @@ describe('analyzeCampaign — detectors fire on injected stalls', () => {
       const samples = series(120, round => [healthyCiv('h', round, { isHuman: true, ...idleRow(2, ids(2), []) })]);
       expect(codes(samples)).not.toContain('production-idle');
     });
+    it('exact accounting overrides the snapshot: a queue emptied by one-turn completions discarded nothing', () => {
+      const acc = (discarded: number) => ({
+        produced: 10, appliedToBuild: 10 - discarded, carriedOver: 0, convertedGold: 0, convertedScience: 0, discarded, suppressedByLock: 0,
+      });
+      expect(run(r => inWindow(r) ? { ...idleRow(2, ids(2), []), production: acc(0) } : { cities: 2 }))
+        .not.toContain('production-idle');
+      expect(run(r => inWindow(r) ? { ...idleRow(2, ids(2), []), production: acc(4) } : { cities: 2 }))
+        .toContain('production-idle');
+    });
     it('classifies each state', () => {
       const row = (o: Partial<CampaignCivSample>) => classifyProductionIdleState(healthyCiv('a', 1, o));
       expect(row(idleRow(2, ids(2), []))).toBe('all-unconverted-empty');

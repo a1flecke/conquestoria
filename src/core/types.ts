@@ -2152,6 +2152,7 @@ export interface GameEvents extends DiplomacyEvents, CivilizationEvents, WorldEv
   'city:captured': { cityId: string; newOwner: string; previousOwner: string };
   'city:building-complete': { cityId: string; buildingId: string };
   'city:production-item-dropped': { cityId: string; itemId: string; itemKind: 'building' | 'unit'; reason: ProductionDropReason };
+  'city:production-disposition': { civId: string; cityId: string; produced: number; appliedToBuild: number; carriedOver: number; convertedGold: number; convertedScience: number; discarded: number; suppressedByLock: number };
   'city:national-project-built': { civId: string; cityId: string; buildingId: string; eraBuilt: number };
   'city:national-project-expired': { civId: string; cityId: string; buildingId: string };
   'city:national-project-dequeued': { civId: string; cityId: string; buildingId: string };

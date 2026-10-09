@@ -173,3 +173,20 @@ describe('shared continuity semantics (#1407 phase 2)', () => {
     expect(classifyProductionIdleState(row)).toBe('all-converting');
   });
 });
+
+describe('exact production accounting on the baseline campaign (#1407 phase 3)', () => {
+  it('every sampled civ carries conserved accounting and conversion is real', () => {
+    const samples = runContinuityCampaign();
+    let converted = 0;
+    for (const sample of samples) {
+      for (const civ of sample.civs) {
+        expect(civ.production).toBeDefined();
+        const p = civ.production!;
+        expect(p.appliedToBuild + p.carriedOver + p.convertedGold + p.convertedScience + p.discarded).toBeCloseTo(p.produced, 9);
+        expect(p.discarded).toBeGreaterThanOrEqual(0);
+        converted += p.convertedGold + p.convertedScience;
+      }
+    }
+    expect(converted).toBeGreaterThan(0);
+  }, 60_000);
+});

@@ -214,7 +214,8 @@ function detectNoResearchChoice(
  * `production-idle`: every city of a living AI civ has an empty queue AND none converts its output through
  * `City.idleProduction` (#1406) -- i.e. output is suspected to be thrown away. A queue-empty city that converts
  * to gold/science is the intended fallback, not waste, so all-converting and mixed streaks do not fire (#1407).
- * This is a snapshot-based suspicion, not proof of discarded output; exact accounting is a later phase.
+ * Without per-round accounting this is a snapshot-based suspicion; when a sample carries `production` the round must
+ * also have discarded output (exact, measured at the source).
  */
 function detectProductionIdle(
   series: CivSeries[],
@@ -224,7 +225,10 @@ function detectProductionIdle(
   for (const civ of series) {
     if (civ.isHuman) continue;
     const run = longestRun(civ, config.productionIdleRounds, row =>
-      activeAiRow(row) && classifyProductionIdleState(row) === 'all-unconverted-empty');
+      activeAiRow(row) && classifyProductionIdleState(row) === 'all-unconverted-empty'
+        // Exact accounting (#1407 phase 3) beats the end-of-round snapshot: a queue emptied by a one-turn completion
+        // discarded nothing. A sample without accounting stays a suspicion, as before.
+        && (row.production === undefined || row.production.discarded > 0));
     if (run) {
       findings.push({
         code: 'production-idle',

@@ -269,6 +269,12 @@ export function runCityProduction(
         return canCompleteAirUnitProduction(newState, cityId, type).ok ? null : 'air-base-unavailable';
       },
     );
+    bus.emit('city:production-disposition', {
+      civId,
+      cityId,
+      ...result.production,
+      suppressedByLock: yields.production - effectiveProduction,
+    });
     income.totalGold += result.idleGoldBonus;
     income.authoritativeCityScience[cityId] = yields.science + result.idleScienceBonus;
 

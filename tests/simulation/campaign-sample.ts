@@ -19,6 +19,26 @@ import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { getAvailableTechs } from '@/systems/tech-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 
+/**
+ * #1407: one civ's production accounting for ONE round, summed from the `city:production-disposition` events
+ * `processCity` reports (see `ProductionDisposition`). Exact, measured at the source -- not derived from the
+ * end-of-round queue snapshot. Absent on a sample built without accounting (older literals): that is unknown,
+ * never zero waste. `suppressedByLock` (unrest-locked output) is reported but is not `discarded`.
+ */
+export interface CampaignProductionAccounting {
+  produced: number;
+  appliedToBuild: number;
+  carriedOver: number;
+  convertedGold: number;
+  convertedScience: number;
+  discarded: number;
+  suppressedByLock: number;
+}
+
+export function emptyProductionAccounting(): CampaignProductionAccounting {
+  return { produced: 0, appliedToBuild: 0, carriedOver: 0, convertedGold: 0, convertedScience: 0, discarded: 0, suppressedByLock: 0 };
+}
+
 /** Cumulative, per-civ counters the fixture accrues from the round's event bus. */
 export interface CampaignCivCounters {
   capturesMade: number;
@@ -59,6 +79,8 @@ export interface CampaignCivSample extends CampaignCivCounters {
    */
   emptyQueueCityIds?: string[];
   convertingCityIds?: string[];
+  /** #1407: exact per-round production disposition for this civ; absent = no accounting available (unknown). */
+  production?: CampaignProductionAccounting;
   atWarWith: string[];
   activePlanCount: number;
   /** max over this civ's live plans of (state.turn - plan.lastProgressTurn) */
@@ -103,6 +125,7 @@ export function buildCampaignRoundSample(
   stateBytesBeforeRound: number,
   planProgressTransitions: number,
   countersByCiv: ReadonlyMap<string, CampaignCivCounters>,
+  productionByCiv?: ReadonlyMap<string, CampaignProductionAccounting>,
 ): CampaignRoundSample {
   const civs: CampaignCivSample[] = Object.values(state.civilizations)
     .map(civ => {
@@ -147,6 +170,9 @@ export function buildCampaignRoundSample(
           return city !== undefined && city.productionQueue.length === 0
             && (city.idleProduction === 'gold' || city.idleProduction === 'science');
         }).sort(),
+        ...(productionByCiv
+          ? { production: { ...(productionByCiv.get(civ.id) ?? emptyProductionAccounting()) } }
+          : {}),
         atWarWith: [...(civ.diplomacy?.atWarWith ?? [])].sort(),
         activePlanCount: plans.length,
         maxPlanNoProgressRounds: plans.reduce(
