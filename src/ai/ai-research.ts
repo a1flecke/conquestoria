@@ -26,7 +26,7 @@ import type { PreparedMajorCivPlan } from './ai-prepared-turn';
 import { evaluateAITechCapabilities, type AITechCapabilities } from './ai-tech-evaluation';
 import { weightTechChoice } from './ai-personality';
 import { NATIONAL_INTENT_POSTURE, type NationalIntentPosture } from './ai-national-intent-posture';
-import { simulateResearchQueueTiming } from '@/systems/tech-progression';
+import { simulateResearchQueueTiming, wouldDiscardResearchOverflow } from '@/systems/tech-progression';
 
 export interface AIResearchPlanningContext {
   techState: TechState;
@@ -486,7 +486,100 @@ export interface ApplyAIResearchResult {
   startedTechId: string | null;
 }
 
+/**
+ * The research planner's inputs for one civ, derived from state only (no omniscience): shared by the pick that
+ * starts research and by the queue top-up below so they cannot disagree about what the civ knows or values.
+ */
+function buildResearchPlanningContext(
+  state: GameState,
+  civId: string,
+  techState: TechState,
+  prepared: PreparedMajorCivPlan,
+  personality: PersonalityTraits,
+  sciencePerTurn: number,
+): AIResearchPlanningContext {
+  const civ = state.civilizations[civId]!;
+  const resources = getCivAvailableResources(state, civId);
+  const coastalEmpire = civHasCoastalCity(state, civId);
+  // City identities are scoped to the relief source whose rows they can cut. This
+  // prevents war-only cities from pulling Courthouse research and vice versa.
+  const reliefPressureGate = 0.6 * UNREST_TRIGGER_PRESSURE;
+  const ownerHappiness = getCivHappinessFromResources(state, civId);
+  const unrestContext = createUnrestEvaluationContext();
+  const pressuredReliefCityIdsByBuildingId = Object.fromEntries(UNREST_RELIEF_SOURCES.map(source => [source.id, civ.cities.filter(cityId => {
+    const city = state.cities[cityId];
+    if (!city || (source.isPotentiallyUseful && !source.isPotentiallyUseful(city, state, unrestContext))) return false;
+    const rows = getUnrestPressureBreakdown(cityId, state, ownerHappiness, unrestContext);
+    const pressure = Math.min(100, Math.max(0, rows.reduce((total, row) => total + row.amount, 0)));
+    return pressure >= reliefPressureGate
+      && rows.some(row => source.targetRowLabels.includes(row.label) && row.amount > 0);
+  })]));
+  // #1127: cities with zero science-yielding buildings -- drives scienceStarvationTechBonus.
+  const scienceDeficientCityCount = civ.cities.filter(cityId => {
+    const city = state.cities[cityId];
+    return !!city && !city.buildings.some(buildingId => (BUILDINGS[buildingId]?.yields.science ?? 0) > 0);
+  }).length;
+  const posture = NATIONAL_INTENT_POSTURE[state.opponentAI?.nationalIntentByCiv[civId]?.current ?? 'develop'];
+  return {
+    techState,
+    personality,
+    posture,
+    modernizationDemand: prepared.portfolio.modernizationDemand,
+    forceDemands: prepared.forceDemands,
+    coastalEmpire,
+    availableResources: resources,
+    sciencePerTurn,
+    pressuredReliefCityIdsByBuildingId,
+    scienceDeficientCityCount,
+  };
+}
+
+/**
+ * #1413: keeps ONE technology queued behind the active one exactly when the active one would finish this round with
+ * science to spare, so the overflow is carried (existing `processResearch` semantics) instead of discarded. The
+ * choice is the planner's own next-best frontier, enqueued through the canonical `enqueueResearch`; nothing is
+ * granted, no cost or overflow rule changes, and a civ whose science cannot finish its tech this round is untouched.
+ */
+function queueNextResearchIfScienceWouldBeDiscarded(
+  result: ApplyAIResearchResult,
+  civId: string,
+  prepared: PreparedMajorCivPlan,
+  personality: PersonalityTraits,
+): ApplyAIResearchResult {
+  const civ = result.state.civilizations[civId];
+  if (!civ?.techState.currentResearch || civ.techState.researchQueue.length > 0) return result;
+  const sciencePerTurn = Math.max(1, calculateCivResearchOutput(result.state, civId).finalScience);
+  if (!wouldDiscardResearchOverflow(civ.techState, sciencePerTurn)) return result;
+  const decision = planAIResearch(buildResearchPlanningContext(
+    result.state, civId, civ.techState, prepared, personality, sciencePerTurn,
+  ));
+  if (!decision) return result;
+  const techState = enqueueResearch(civ.techState, decision.frontierTechId);
+  if (techState === civ.techState) return result;
+  return {
+    state: {
+      ...result.state,
+      civilizations: { ...result.state.civilizations, [civId]: { ...civ, techState } },
+    },
+    startedTechId: result.startedTechId,
+  };
+}
+
 export function applyAIResearch(
+  state: GameState,
+  civId: string,
+  prepared: PreparedMajorCivPlan,
+  personality: PersonalityTraits,
+): ApplyAIResearchResult {
+  return queueNextResearchIfScienceWouldBeDiscarded(
+    selectAIResearch(state, civId, prepared, personality),
+    civId,
+    prepared,
+    personality,
+  );
+}
+
+function selectAIResearch(
   state: GameState,
   civId: string,
   prepared: PreparedMajorCivPlan,
@@ -511,40 +604,10 @@ export function applyAIResearch(
     };
   }
 
-  const resources = getCivAvailableResources(state, civId);
-  const coastalEmpire = civHasCoastalCity(state, civId);
   const sciencePerTurn = Math.max(1, calculateCivResearchOutput(state, civId).finalScience);
-  // City identities are scoped to the relief source whose rows they can cut. This
-  // prevents war-only cities from pulling Courthouse research and vice versa.
-  const reliefPressureGate = 0.6 * UNREST_TRIGGER_PRESSURE;
-  const ownerHappiness = getCivHappinessFromResources(state, civId);
-  const unrestContext = createUnrestEvaluationContext();
-  const pressuredReliefCityIdsByBuildingId = Object.fromEntries(UNREST_RELIEF_SOURCES.map(source => [source.id, civ.cities.filter(cityId => {
-    const city = state.cities[cityId];
-    if (!city || (source.isPotentiallyUseful && !source.isPotentiallyUseful(city, state, unrestContext))) return false;
-    const rows = getUnrestPressureBreakdown(cityId, state, ownerHappiness, unrestContext);
-    const pressure = Math.min(100, Math.max(0, rows.reduce((total, row) => total + row.amount, 0)));
-    return pressure >= reliefPressureGate
-      && rows.some(row => source.targetRowLabels.includes(row.label) && row.amount > 0);
-  })]));
-  // #1127: cities with zero science-yielding buildings -- drives scienceStarvationTechBonus.
-  const scienceDeficientCityCount = civ.cities.filter(cityId => {
-    const city = state.cities[cityId];
-    return !!city && !city.buildings.some(buildingId => (BUILDINGS[buildingId]?.yields.science ?? 0) > 0);
-  }).length;
-  const posture = NATIONAL_INTENT_POSTURE[state.opponentAI?.nationalIntentByCiv[civId]?.current ?? 'develop'];
-  const decision = planAIResearch({
-    techState: activated,
-    personality,
-    posture,
-    modernizationDemand: prepared.portfolio.modernizationDemand,
-    forceDemands: prepared.forceDemands,
-    coastalEmpire,
-    availableResources: resources,
-    sciencePerTurn,
-    pressuredReliefCityIdsByBuildingId,
-    scienceDeficientCityCount,
-  });
+  const decision = planAIResearch(buildResearchPlanningContext(
+    state, civId, activated, prepared, personality, sciencePerTurn,
+  ));
   if (!decision) {
     if (activated === civ.techState) return { state, startedTechId: null };
     return {
