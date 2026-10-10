@@ -11,6 +11,18 @@ import { bootstrap, createAppComposition, type AppComposition } from '@/app/boot
 import { RoundPresentationGate } from '@/presentation/round-presentation-gate';
 import type { GameSession } from '@/app/ports';
 import { createGameSession } from '@/app/game-session';
+// DOM sprite overlay animation stylesheets. The v2 SVG sprites are animated purely by these
+// rules, so dropping an import silently freezes every sprite (regressed once in #787 phase 10);
+// pinned by tests/app/sprite-stylesheets-loaded.test.ts.
+import '@/assets/sprite-animations-v2.css';
+import '@/assets/boar-animations.css';
+import '@/assets/wolf-animations.css';
+import '@/assets/basilisk-animations.css';
+import '@/assets/hydra-animations.css';
+import '@/assets/sea-serpent-animations.css';
+import '@/assets/wurm-animations.css';
+import '@/assets/roc-animations.css';
+import '@/assets/dragon-animations.css';
 
 // --- App State ---
 /**
