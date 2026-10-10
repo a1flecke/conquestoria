@@ -81,6 +81,7 @@ import { previewUnitCityBombardment, resolveUnitCityBombardment } from '@/system
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
 import { removeUnits } from '@/systems/unit-removal-system';
+import { createOperationalRouting, getKnownOperationalRange, getOperationalRoute, type AIOperationalRouting } from './ai-operational-routing';
 
 export type AITacticalAction =
   | { kind: 'attack'; unitId: string; targetUnitId: string }
@@ -111,6 +112,7 @@ export interface AITacticalContext {
   plan: AIStrategicPlan;
   assignedUnitIds: readonly string[];
   allowOffensiveActions?: boolean;
+  routing?: AIOperationalRouting;
 }
 
 export interface RankedAITacticalAction {
@@ -226,6 +228,7 @@ function visibleThreatCount(
     && !candidate.transportId
     && hostiles.has(candidate.owner)
     && getVisibility(visibleToActor, candidate.position) === 'visible'
+    && !isUnitConcealedFrom(context.state, candidate, context.actorId)
     && canAttackByProfileOnMap(candidate, predictedUnit, context.state.map)
   ).length;
 }
@@ -267,8 +270,57 @@ function supportRemainsCohesive(
   if (supports.length === 0) return true;
   return supports.some(support => {
     const movementPoints = Math.max(1, UNIT_DEFINITIONS[support.type].movementPoints);
-    return Math.ceil(distance(context.state, support.position, destination) / movementPoints) <= 1;
+    if (Math.ceil(distance(context.state, support.position, destination) / movementPoints) <= 1) return true;
+    // In a single-file lane the leader must vacate its tile before the slow
+    // support can follow. Permit only that coordinated step, with a legal
+    // same-turn follower move and no visible threat at the leader's destination.
+    return !support.hasActed && support.movementPointsLeft > 0
+      && distance(context.state, support.position, unit.position) <= movementPoints
+      && distance(context.state, unit.position, destination) <= movementPoints
+      && visibleThreatCount(context, unit, destination) === 0
+      && getMovementRangeDetails(context.state, support.id).reachable
+        .some(coord => hexKey(coord) === hexKey(unit.position))
+      && hexKey(getOperationalRoute(context.state, support, targetPosition(context.plan),
+        context.routing ?? createOperationalRouting())?.[1] ?? support.position) === hexKey(unit.position);
   });
+}
+
+/** A separated rear unit rejoins a forward peer; the forward unit never chases it back. */
+export function getOperationalRegroupingRoute(context: AITacticalContext, unit: Unit): HexCoord[] | null {
+  if (!hasAICombatRole(unit.type) || unit.transportId
+    || (UNIT_DEFINITIONS[unit.type].domain ?? 'land') !== 'land') return null;
+  const target = targetPosition(context.plan);
+  const ownTargetDistance = distance(context.state, unit.position, target);
+  const supports = context.assignedUnitIds.map(id => context.state.units[id])
+    .filter((support): support is Unit => Boolean(support)
+      && support.id !== unit.id && support.owner === context.actorId
+      && !support.transportId && !support.airBase && hasAICombatRole(support.type)
+      && (UNIT_DEFINITIONS[support.type].domain ?? 'land') === 'land'
+      && distance(context.state, unit.position, support.position) > Math.max(1, UNIT_DEFINITIONS[support.type].movementPoints)
+      && (distance(context.state, support.position, target) < ownTargetDistance
+        || (distance(context.state, support.position, target) === ownTargetDistance && support.id.localeCompare(unit.id) < 0)))
+    .sort((left, right) => distance(context.state, unit.position, left.position) - distance(context.state, unit.position, right.position)
+      || left.id.localeCompare(right.id));
+  for (const support of supports) {
+    const route = getOperationalRoute(context.state, unit, support.position, context.routing ?? createOperationalRouting());
+    if (route) return route;
+  }
+  return null;
+}
+
+export function isLastCitySoleDefender(
+  state: GameState,
+  plan: AIStrategicPlan,
+  assignedUnitIds: readonly string[],
+): boolean {
+  const ownCities = Object.values(state.cities).filter(city => city.owner === plan.actorId);
+  return plan.objective === 'defend'
+    && plan.target.kind === 'city'
+    && ownCities.length === 1
+    && ownCities[0]?.id === plan.target.id
+    && assignedUnitIds.map(unitId => state.units[unitId])
+      .filter(candidate => candidate && candidate.owner === plan.actorId
+        && candidate.health > 0 && hasAICombatRole(candidate.type)).length === 1;
 }
 
 function rankWithdrawals(
@@ -291,19 +343,7 @@ function rankWithdrawals(
   if ((!healthTrigger && !supplyTrigger && !navalTrigger) || unit.hasActed) return [];
   const ownCities = Object.values(context.state.cities)
     .filter(city => city.owner === context.actorId);
-  const isOnlyImmediateDefender = context.plan.objective === 'defend'
-    && context.plan.target.kind === 'city'
-    && ownCities.length === 1
-    && ownCities[0]?.id === context.plan.target.id
-    && context.assignedUnitIds
-      .map(unitId => context.state.units[unitId])
-      .filter((candidate): candidate is Unit =>
-        Boolean(candidate)
-        && candidate.owner === context.actorId
-        && candidate.health > 0
-        && hasAICombatRole(candidate.type))
-      .length === 1;
-  if (isOnlyImmediateDefender) return [];
+  if (isLastCitySoleDefender(context.state, context.plan, context.assignedUnitIds)) return [];
 
   const isNavalUnit = UNIT_DEFINITIONS[unit.type].domain === 'naval';
   // Ships recover at sea-side ports, never on land tiles they cannot reach.
@@ -1021,18 +1061,42 @@ function rankMoves(
   if (unit.hasActed || unit.movementPointsLeft <= 0 || unit.transportId) return [];
   const target = targetPosition(context.plan);
   const currentTargetDistance = distance(context.state, unit.position, target);
-  const destinations = movementRange(context.state, context.actorId, unit)
+  const route = (UNIT_DEFINITIONS[unit.type].domain ?? 'land') === 'land'
+    ? getOperationalRoute(context.state, unit, target, context.routing ?? createOperationalRouting())
+    : undefined;
+  const progressByKey = new Map(route?.slice(1).map((coord, index) => [hexKey(coord), index + 1]));
+  const progress = (destination: HexCoord) => route === undefined
+    ? currentTargetDistance - distance(context.state, destination, target)
+    : progressByKey.get(hexKey(destination)) ?? 0;
+  const range = route === undefined ? movementRange(context.state, context.actorId, unit)
+    : getKnownOperationalRange(context.state, unit, context.routing ?? createOperationalRouting());
+  const candidates = range
     .filter(destination =>
-      distance(context.state, destination, target) < currentTargetDistance
-      && supportRemainsCohesive(context, unit, destination)
-      && !isBlockedMoveDestination(context.state, unit, destination))
+      !(route !== undefined && hexKey(destination) === hexKey(target)
+        && (context.plan.target.kind === 'camp' || (context.plan.target.kind === 'city' && context.plan.objective === 'capture')))
+      && (getVisibility(context.state.civilizations[context.actorId]?.visibility, destination) !== 'visible'
+        || !isBlockedMoveDestination(context.state, unit, destination)));
+  const destinations = candidates.filter(destination => progress(destination) > 0 && supportRemainsCohesive(context, unit, destination));
+  if (route !== undefined && destinations.length === 0) {
+    // Cohesion is a destination constraint for an assembled force. A force
+    // already split beyond that envelope must be allowed to close the gap.
+    const regroupingRoute = getOperationalRegroupingRoute(context, unit);
+    const regroupingProgress = new Map(regroupingRoute?.slice(1).map((coord, index) => [hexKey(coord), index + 1]));
+    for (const destination of candidates) {
+      const gain = regroupingProgress.get(hexKey(destination)) ?? 0;
+      if (gain <= 0 || visibleThreatCount(context, unit, destination) > 0) continue;
+      progressByKey.set(hexKey(destination), gain);
+      destinations.push(destination);
+    }
+  }
+  destinations
     .sort((left, right) =>
-      distance(context.state, left, target) - distance(context.state, right, target)
+      progress(right) - progress(left)
       || distance(context.state, unit.position, right)
         - distance(context.state, unit.position, left)
       || hexKey(left).localeCompare(hexKey(right)));
   return destinations.map(destination => {
-    const planProgress = currentTargetDistance - distance(context.state, destination, target);
+    const planProgress = progress(destination);
     const support = context.assignedUnitIds
       .filter(unitId => unitId !== unit.id)
       .map(unitId => context.state.units[unitId])
@@ -1157,6 +1221,7 @@ export function rankUnitTacticalActions(
   context: AITacticalContext,
   unitId: string,
 ): RankedAITacticalAction[] {
+  context = { ...context, routing: context.routing ?? createOperationalRouting() };
   const unit = context.state.units[unitId];
   if (!unit || unit.owner !== context.actorId) {
     return [ranked({ kind: 'hold', unitId }, -1_000)];
@@ -1448,10 +1513,11 @@ export function applyPredictedAction(
 export function chooseTacticalSequence(
   context: AITacticalContext,
 ): AITacticalAction[] {
+  context = { ...context, routing: context.routing ?? createOperationalRouting() };
   let scratch = structuredClone(context.state);
   const remaining = new Set(
     context.assignedUnitIds
-      .filter(unitId => scratch.units[unitId]?.owner === context.actorId),
+      .filter(unitId => scratch.units[unitId]?.owner === context.actorId && !scratch.units[unitId]?.hasActed),
   );
   const actions: AITacticalAction[] = [];
   while (remaining.size > 0) {

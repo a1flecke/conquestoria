@@ -7,8 +7,7 @@ import type {
   MajorCivPlanPortfolio,
   NationalIntentState,
 } from '@/core/types/ai';
-import { hexDistance, hexKey, parseHexKey, wrappedHexDistance } from '@/systems/hex-utils';
-import { getVisibility } from '@/systems/fog-of-war';
+import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import {
   civHasCoastalCity,
   cityFollowsOwnFaith,
@@ -19,7 +18,8 @@ import {
 import { canFoundCityAt } from '@/systems/city-territory-system';
 import { isVisible } from '@/systems/fog-of-war';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
-import { isTrustedObservedLastSeenTile } from '@/systems/last-seen-presentation';
+import { buildKnownPathMap } from './ai-path-knowledge';
+export { buildKnownPathMap } from './ai-path-knowledge';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { worldAgeFromNumber } from '@/systems/era-types';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
@@ -276,41 +276,6 @@ function distance(
   return state.map.wrapsHorizontally
     ? wrappedHexDistance(left, right, state.map.width)
     : hexDistance(left, right);
-}
-
-export function buildKnownPathMap(
-  state: Readonly<GameState>,
-  civId: string,
-): GameMap {
-  const actor = state.civilizations[civId];
-  const knownMap = structuredClone(state.map);
-  if (!actor) {
-    knownMap.tiles = {};
-    return knownMap;
-  }
-  for (const key of Object.keys(knownMap.tiles)) {
-    const coord = knownMap.tiles[key]?.coord ?? parseHexKey(key);
-    const visibility = getVisibility(actor.visibility, coord);
-    if (visibility === 'visible') continue;
-    const snapshot = actor.visibility.lastSeen?.[key];
-    if (visibility !== 'fog' || !isTrustedObservedLastSeenTile(snapshot)) {
-      delete knownMap.tiles[key];
-      continue;
-    }
-    knownMap.tiles[key] = {
-      coord: { ...snapshot.coord },
-      terrain: snapshot.terrain,
-      elevation: snapshot.elevation,
-      resource: snapshot.resource,
-      improvement: snapshot.improvement,
-      improvementTurnsLeft: snapshot.improvementTurnsLeft,
-      owner: snapshot.owner,
-      hasRiver: snapshot.hasRiver,
-      wonder: snapshot.wonder,
-      hasRoad: snapshot.hasRoad,
-    };
-  }
-  return knownMap;
 }
 
 function objectiveCandidates(
