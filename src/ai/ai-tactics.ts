@@ -19,9 +19,10 @@ import {
   deterministicCombatSeed,
   resolveCombat,
 } from '@/systems/combat-system';
-import { buildCombatContextForDefender } from '@/systems/combat-context';
+import { buildCombatContextForDefender, getAmphibiousAssaultMultiplier } from '@/systems/combat-context';
 import { canUnitOccupyCity, resolveMajorCityCapture } from '@/systems/city-capture-system';
 import { calculateCityAssaultStrengths } from '@/systems/city-siege-system';
+import { resolveCityInteraction } from '@/systems/city-interaction';
 import { collectUsedCityNames } from '@/systems/city-name-system';
 import { isCityCoastal } from '@/systems/city-lifecycle';
 import { getMajorCivBlockadeCityIds, MAJOR_CIV_BLOCKADE_RADIUS } from '@/systems/blockade-system';
@@ -804,6 +805,72 @@ function rankCampAssault(
   return [ranked({ kind: 'assault-camp', unitId: unit.id, campId: camp.id }, 600)];
 }
 
+/**
+ * Can `unit` walk to the plan target from `from` over land it is allowed to enter? The same
+ * route question `planNeedsTransport` always asked, parameterised on the start tile so an
+ * unload destination can be judged too. A landed force with a land route no longer needs a
+ * ship, whatever the plan's `transport` requirement says (#1434).
+ */
+function hasLandRouteToTarget(
+  context: AITacticalContext,
+  unit: Unit,
+  from: HexCoord,
+): boolean {
+  const walker = { ...unit, position: { ...from }, transportId: undefined };
+  return findPath(
+    from,
+    targetPosition(context.plan),
+    context.state.map,
+    UNIT_DEFINITIONS[unit.type].domain ?? 'land',
+    {
+      unit: walker,
+      completedTechs: context.state.civilizations[context.actorId]?.techState.completed ?? [],
+      // #871: the same denied set the executor uses, so "no land route" means the same thing.
+      deniedOwnerIds: getDeniedTerritoryOwners(context.state, walker),
+    },
+  ) !== null;
+}
+
+/**
+ * Whether shipping is still what this land unit needs to reach the plan target. The plan's
+ * `transport` role says a ship was needed to form the operation; once the unit stands on
+ * land connected to the target it is no longer a passenger, and reloading it is the
+ * load/unload cycle of #1434.
+ */
+export function unitNeedsShipping(
+  state: GameState,
+  actorId: string,
+  plan: AIStrategicPlan,
+  unit: Unit,
+): boolean {
+  if ((UNIT_DEFINITIONS[unit.type].domain ?? 'land') !== 'land') return false;
+  return !hasLandRouteToTarget({ state, actorId, plan, assignedUnitIds: [] }, unit, unit.position);
+}
+
+/**
+ * A garrison-free coastal city the cargo can take straight from its ship. Legality is the
+ * human path's own (`getEmbarkedAssaultTarget`), the odds are `resolveCityInteraction`'s with
+ * the shared amphibious multiplier, and the executor re-runs both.
+ */
+function rankEmbarkedCityAssault(
+  context: AITacticalContext,
+  unit: Unit,
+): RankedAITacticalAction[] {
+  if (context.allowOffensiveActions === false || context.plan.target.kind !== 'city') return [];
+  const city = context.state.cities[context.plan.target.id];
+  const transport = unit.transportId ? context.state.units[unit.transportId] : undefined;
+  if (!city || !transport || city.owner === context.actorId || !getAIStrategicRoles(unit.type).includes('capture')) return [];
+  const legality = getEmbarkedAssaultTarget(context.state, unit.id, city.position, { viewerId: context.actorId, requireVisibility: true });
+  if (!legality.ok || legality.targetType !== 'city' || legality.cityId !== city.id) return [];
+  const attacker = { ...unit, position: { ...transport.position }, transportId: undefined };
+  const capture = resolveCityInteraction(context.state, attacker, city, {
+    attackerMultiplier: getAmphibiousAssaultMultiplier(context.state, attacker, city.position),
+  }).available.find(action => action.kind === 'capture');
+  return capture?.kind === 'capture'
+    ? [ranked({ kind: 'capture-city', unitId: unit.id, cityId: city.id }, Math.round(capture.winProbability * 600))]
+    : [];
+}
+
 function rankCivilianAndTransportActions(
   context: AITacticalContext,
   unit: Unit,
@@ -816,7 +883,10 @@ function rankCivilianAndTransportActions(
     ];
     const endangered = transport.health < profile.retreatHealthPercent
       || visibleThreatCount(context, transport, transport.position) > 0;
+    // A landing with no land route to the target only strands the unit: it would have to
+    // re-embark next turn (#1434). An endangered ship may still evacuate anywhere.
     const destinations = getUnloadDestinations(context.state, unit.transportId, unit.id)
+      .filter(destination => endangered || hasLandRouteToTarget(context, unit, destination))
       .sort((left, right) =>
         visibleThreatCount(context, unit, left)
         - visibleThreatCount(context, unit, right)
@@ -923,19 +993,7 @@ function rankCivilianAndTransportActions(
     }, 620 - index));
   }
 
-  const planNeedsTransport = (context.plan.requiredRoles.transport ?? 0) > 0
-    || findPath(
-      unit.position,
-      targetPosition(context.plan),
-      context.state.map,
-      UNIT_DEFINITIONS[unit.type].domain ?? 'land',
-      {
-        unit,
-        completedTechs: context.state.civilizations[context.actorId]?.techState.completed ?? [],
-        // #871: the same denied set the executor uses, so "no land route" means the same thing.
-        deniedOwnerIds: getDeniedTerritoryOwners(context.state, unit),
-      },
-    ) === null;
+  const planNeedsTransport = unitNeedsShipping(context.state, context.actorId, context.plan, unit);
   if (!planNeedsTransport || (UNIT_DEFINITIONS[unit.type].domain ?? 'land') !== 'land') {
     return [];
   }
@@ -1229,6 +1287,7 @@ export function rankUnitTacticalActions(
   if (unit.transportId) {
     return sortRanked([
       ...rankEmbarkedAttacks(context, unit),
+      ...rankEmbarkedCityAssault(context, unit),
       ...rankCivilianAndTransportActions(context, unit),
       ranked({ kind: 'hold', unitId }, 0),
     ]);
@@ -1417,6 +1476,11 @@ export function applyPredictedAction(
     case 'capture-city': {
       const city = next.cities[action.cityId];
       if (!city) return next;
+      if (unit.transportId) {
+        const detached = detachCargoForEmbarkedAssault(next, unit.id);
+        if (!detached.ok) return next;
+        return applyPredictedAction(detached.state, context, action);
+      }
       next.units[unit.id] = {
         ...unit,
         position: { ...city.position },
