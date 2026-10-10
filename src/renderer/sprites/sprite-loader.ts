@@ -4,6 +4,8 @@ import {
   PIRATE_HEADQUARTERS_SPRITE_CATALOG,
   UNIT_SPRITE_SIZE, BUILDING_SPRITE_SIZE, LANDMARK_SPRITE_SIZE,
 } from './sprite-catalog';
+import { getPngUnitManifest } from './png/png-sprite-catalog';
+import { bakePngUnitImage } from './png/png-sprite-canvas';
 import type { UnitType } from '@/core/types';
 import type { FactionPalette } from './sprite-system';
 import type { UnitSpriteMotion } from './units';
@@ -72,11 +74,20 @@ class SpriteCache {
 
     const unitWork = Object.entries(UNIT_SPRITE_CATALOG).filter(([type]) => !PIRATE_HULL_SET.has(type)).flatMap(([type, fn]) =>
       UNIT_MOTIONS.map(async (motion) => {
-        const svg = fn({ palette, svgOnly: true, motion });
-        if (!svg) return;
-        const img = await svgStringToImage(svg, UNIT_SPRITE_SIZE, {
-          kind: 'unit', itemId: type, civilization: civId, motion,
-        });
+        const metadata: SpriteDiagnosticMetadata = { kind: 'unit', itemId: type, civilization: civId, motion };
+        // PNG spritesheet units bake their tinted frame; any failure (no canvas, sheet missing) keeps the SVG sprite.
+        const pngManifest = getPngUnitManifest(type);
+        let img: HTMLImageElement | null = null;
+        if (pngManifest) {
+          img = await bakePngUnitImage(pngManifest, civColor, motion)
+            .then(baked => attachSpriteDiagnosticMetadata(baked, metadata))
+            .catch(() => null);
+        }
+        if (!img) {
+          const svg = fn({ palette, svgOnly: true, motion });
+          if (!svg) return;
+          img = await svgStringToImage(svg, UNIT_SPRITE_SIZE, metadata);
+        }
         this.units.set(`${type}:${civId}:${motion}`, img);
         if (motion === 'idle') {
           this.units.set(`${type}:${civId}`, img);

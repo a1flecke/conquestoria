@@ -59,6 +59,32 @@ same way:
 
 ---
 
+## PNG Spritesheet Units (run beside the SVG sprites)
+
+A unit may be drawn from a **painted PNG** instead of serialized SVG. Both renderers coexist: a unit is PNG exactly when it
+has a row in `PNG_UNIT_SPRITES` (`src/renderer/sprites/png/png-sprite-catalog.ts`); every other unit keeps its SVG sprite.
+Migrating a unit is one catalog row plus its generated manifest; migrating it back is deleting the row.
+
+- **Pipeline:** `scripts/sprite-puppet/puppet.py build <rig.json>` turns one source PNG into `public/images/units/<id>/{sheet,mask}.png`
+  plus `src/renderer/sprites/png/generated/<id>.manifest.ts`. Recipe, rig-spec reference and limits:
+  `scripts/sprite-puppet/README.md`; operating procedure (incl. SpriteCook spending rules): `.claude/skills/png-unit-sprite.md`.
+  Never hand-edit a generated manifest or sheet.
+- **Civ colour is runtime, not baked.** The sheet keeps the tinted region as a grey ramp and `mask.png` says how much of each pixel
+  takes the owner's colour. The DOM overlay tints with a CSS mask + `mix-blend-mode: multiply`
+  (`src/assets/png-sprite-animations.css`); the Canvas layer bakes the same result (`png-sprite-canvas.ts`). So a PNG unit works for
+  any civ colour; the source image's faction-coloured cloth must be saturated red and nothing else red.
+- **Same overlay contract as SVG sprites:** root `.cq-sprite-wrap.cq-png`, state via `data-state`, phase via `--phase`. The PNG player
+  is deliberately **not** `.cq-v2`, so SVG animation selectors can never touch it. `getUnitSpriteV2` is the single dispatch point.
+- **The SVG sprite stays.** A PNG unit keeps its `UNIT_SPRITE_CATALOG` entry: it is the fallback when the Canvas bake fails (no 2D
+  canvas, sheet missing) and what a rollback returns to. `tests/renderer/sprites/png/` enforces this, plus manifest/file/rig-spec/provenance.
+- **Provenance is mandatory:** every source image has `design/png-sprites/sources/<id>.provenance.json` (tool, model, prompt, asset id, date,
+  licence note). A generated source is never committed without it.
+- **Hard rules:** never put a free-form string in a PNG sprite style attribute (colours pass `resolvePngTint`'s hex check); no hardcoded
+  pixel size (the overlay's wrapper size still comes from `camera.hexSize`); `hurt`/`death`/`work` reuse the idle row (CSS filter) — do not
+  add a state without a manifest row; keep ~560 KB/unit in mind before migrating the whole roster (see the README's size note).
+
+---
+
 ## DOM-Overlay Live Fallback For Uncovered Unit Sprites
 
 `getUnitSpriteV2` (`src/renderer/sprites/v2/index.ts`) no longer returns `null` for a unit type

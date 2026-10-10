@@ -2,6 +2,7 @@ import { djb2XorUnsigned } from '@/systems/deterministic-hash';
 import { hexToPixel } from '@/systems/hex-utils';
 import { getHorizontalWrapRenderCoords } from './wrap-rendering';
 import { LOD_SPRITE_ZOOM_THRESHOLD } from './sprites/sprite-system';
+import { FACTION_SPRITE_ACCENT } from './sprites/faction-accent-colors';
 import {
   getUnitSpriteV2,
   getBuildingSpriteV2,
@@ -17,16 +18,8 @@ import {
   type PirateHeadquartersSpriteId,
 } from './sprites/sprite-catalog';
 
-// Faction accent colors baked into serialized sprite SVG fills by scripts/serialize-sprites.mjs.
-// Must match the palette.secondary value from the source sprite TSX files.
-const FACTION_SPRITE_ACCENT: Record<string, string> = {
-  imperials: '#b53026',
-  vikings:   '#1d4a8c',
-  pharaohs:  '#d4a13c',
-  hellenes:  '#2c8a5a',
-  khanate:   '#7a3a14',
-  shogunate: '#5b4a7a',
-};
+// Faction accent colors baked into serialized sprite SVG fills by scripts/serialize-sprites.mjs live in
+// ./sprites/faction-accent-colors (shared with the PNG sprite player).
 
 export function applyFactionCivColor(svgHtml: string, faction: string, civColor: string): string {
   const accent = FACTION_SPRITE_ACCENT[faction];
@@ -70,7 +63,7 @@ export interface SpriteEntity {
 
 interface PoolEntry {
   el:           HTMLDivElement; // positional wrapper (world-space left/top)
-  spriteWrapEl: HTMLElement;    // .cq-sprite-wrap.cq-v2 — animation root
+  spriteWrapEl: HTMLElement;    // .cq-sprite-wrap.cq-v2 (SVG) or .cq-sprite-wrap.cq-png (spritesheet) — animation root
   phase:        number;
   kind:         SpriteEntity['kind'];
   subtype:      string;

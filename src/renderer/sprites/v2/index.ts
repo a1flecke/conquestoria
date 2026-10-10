@@ -124,6 +124,8 @@ import { svg as stockExchangeSvg }     from './stock_exchange.svg';
 
 import { UNIT_SPRITE_CATALOG } from '@/renderer/sprites/sprite-catalog';
 import { derivePalette, NEUTRAL_FACTION_PALETTE } from '../sprite-system';
+import { getPngUnitManifest } from '../png/png-sprite-catalog';
+import { buildPngUnitSpriteHtml, resolvePngTint } from '../png/png-sprite-html';
 import type { UnitType } from '@/core/types';
 
 // ── Unit sprites ─────────────────────────────────────────────────────────────
@@ -232,6 +234,10 @@ function buildLiveFallbackUnitSprite(unitType: string, civColor: string): string
 }
 
 export function getUnitSpriteV2(unitType: string, faction: string, civColor: string = ''): string | null {
+  // PNG spritesheet units (scripts/sprite-puppet): tinted at runtime, so they serve every faction and any civ colour.
+  const png = getPngUnitManifest(unitType);
+  if (png) return buildPngUnitSpriteHtml(png, resolvePngTint(civColor, faction));
+
   // Faction-neutral sprites (e.g. beasts) are stored under 'beast' and shared across all factions
   const sprites = UNIT_SPRITES[unitType];
   if (sprites) {

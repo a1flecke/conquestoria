@@ -1,0 +1,18 @@
+{
+  "id": "horseman",
+  "source": "design/png-sprites/sources/horseman.png",
+  "profile": "mounted",
+  "facing": "right",
+  "frame": { "size": 192, "fit_width": 0.9, "baseline": 0.8, "top_margin": 0.03,
+             "shadow": { "rx": 0.3, "ry": 0.045, "opacity": 0.3 } },
+  "tint": { "hue_ranges": [[0.0, 0.045], [0.955, 1.0]], "min_sat": 0.45, "min_val": 0.18 },
+  "animations": { "idle": 4, "walk": 8, "attack": 8 },
+  "fps": { "idle": 4, "walk": 11, "attack": 8 },
+  "rig": {
+    "cut_y": 740,
+    "overlap_top": 620,
+    "tail": { "pivot": [268, 495], "line_x0": 285, "line_y0": 470, "line_slope": 0.2, "low_cut_y": 700, "x_max_low": 230, "fade": 10 },
+    "arm": { "pivot": [432, 258], "keep_x": 395, "keep_y": 215,
+             "polygon": [[80, 5], [830, 5], [830, 125], [480, 128], [472, 300], [318, 330], [300, 250], [80, 250]] }
+  }
+}

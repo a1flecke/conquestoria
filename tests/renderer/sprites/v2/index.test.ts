@@ -198,7 +198,9 @@ describe('full unit coverage — every catalog entry returns a cq-sprite-wrap fo
     const r = getUnitSpriteV2(type, 'imperials', '#4a90d9');
     expect(r).not.toBeNull();
     expect(r!).toContain('cq-sprite-wrap');
-    expect(r!).toContain('cq-v2');
+    // an SVG sprite carries the v2 marker; a PNG spritesheet unit (scripts/sprite-puppet) carries its own player marker
+    // and deliberately NOT cq-v2, so the SVG animation selectors can never touch it
+    expect(r!).toMatch(/cq-v2|cq-png/);
   });
 });
 
