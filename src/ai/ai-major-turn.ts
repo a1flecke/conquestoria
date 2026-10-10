@@ -12,7 +12,7 @@ import { executeParadrop, executeAirAssault } from '@/systems/airborne-system';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { deterministicCombatSeed, resolveCombat } from '@/systems/combat-system';
-import { buildCombatContextForDefender } from '@/systems/combat-context';
+import { buildCombatContextForDefender, getAmphibiousAssaultMultiplier } from '@/systems/combat-context';
 import { resolveCombatEra } from '@/systems/era-resolution';
 import { resolveUnitCityBombardment } from '@/systems/city-bombardment-system';
 import {
@@ -60,6 +60,7 @@ import {
   getOperationalRegroupingRoute,
   rankUnitTacticalActions,
   isLastCitySoleDefender,
+  unitNeedsShipping,
   type AITacticalAction,
   type AITacticalContext,
 } from './ai-tactics';
@@ -126,6 +127,7 @@ function occupyMajorCity(
   civId: string,
   bus: EventBus,
   precedingCombat?: CombatResult,
+  attackerMultiplier?: number,
 ): { state: GameState; captured: boolean } {
   const city = state.cities[cityId];
   if (!city || !state.civilizations[city.owner]) {
@@ -141,6 +143,7 @@ function occupyMajorCity(
       civId,
       bus,
       precedingCombat,
+      attackerMultiplier,
     },
   );
   // Return assault.state, NOT the original state, even on failure (#522 pre-merge
@@ -322,6 +325,31 @@ function executeMinorCityCapture(
   return { state: conquest.state, succeeded: true };
 }
 
+/**
+ * Direct assault on a coastal city from a ship. It is the human path's sequence verbatim
+ * (`beginPlayerCityAssault`): re-check `getEmbarkedAssaultTarget`, take the shared
+ * amphibious multiplier, detach the cargo, then run the one city-assault executor.
+ */
+function executeEmbarkedCityCapture(
+  state: GameState,
+  action: Extract<AITacticalAction, { kind: 'capture-city' }>,
+  civId: string,
+  bus: EventBus,
+): { state: GameState; succeeded: boolean; followUps: AITacticalAction[] } {
+  const unfinished = { state, succeeded: false, followUps: [] };
+  const cargo = state.units[action.unitId];
+  const city = state.cities[action.cityId];
+  if (!cargo || !city || cargo.owner !== civId || !state.civilizations[city.owner] || !canUnitOccupyCity(cargo)) return unfinished;
+  const legality = getEmbarkedAssaultTarget(state, cargo.id, city.position, { viewerId: civId, requireVisibility: true });
+  if (!legality.ok || legality.targetType !== 'city' || legality.cityId !== city.id) return unfinished;
+  const attackerMultiplier = getAmphibiousAssaultMultiplier(state, cargo, city.position);
+  const detached = detachCargoForEmbarkedAssault(state, cargo.id);
+  if (!detached.ok) return unfinished;
+  const capture = occupyMajorCity(detached.state, city.id, cargo.id, civId, bus, undefined, attackerMultiplier);
+  // As for any assault, a repelled attempt still spent the unit's turn: keep its state.
+  return { state: capture.state, succeeded: capture.state !== state, followUps: [] };
+}
+
 function executeAction(
   state: GameState,
   action: AITacticalAction,
@@ -375,6 +403,9 @@ function executeAction(
     }
     case 'capture-city': {
       const city = state.cities[action.cityId];
+      if (state.units[action.unitId]?.transportId) {
+        return executeEmbarkedCityCapture(state, action, civId, bus);
+      }
       if (city?.owner.startsWith('mc-')) {
         const capture = executeMinorCityCapture(state, action, civId, bus);
         return { ...capture, followUps: [] };
@@ -821,9 +852,13 @@ function actionAdvancesPlan(
     case 'worker-action':
       return plan.objective === 'secure-resource' && plan.target.kind === 'resource'
         && hexKey(before.units[action.unitId]!.position) === hexKey(plan.target.position);
-    case 'load':
-      return (plan.requiredRoles.transport ?? 0) > 0 && !before.units[action.unitId]?.transportId
-        && after.units[action.unitId]?.transportId === action.transportId;
+    case 'load': {
+      // Boarding is progress only for a unit that still needs a ship to reach the target (#1434).
+      const passenger = before.units[action.unitId];
+      return (plan.requiredRoles.transport ?? 0) > 0 && Boolean(passenger) && !passenger!.transportId
+        && after.units[action.unitId]?.transportId === action.transportId
+        && unitNeedsShipping(before, plan.actorId, plan, passenger!);
+    }
     case 'air-strike':
       return relevantPosition(action.target) && Object.values(before.units).some(unit =>
         unit.owner !== plan.actorId && hexKey(unit.position) === hexKey(action.target)
