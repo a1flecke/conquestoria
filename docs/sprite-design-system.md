@@ -27,6 +27,13 @@ date list (34 units as of 2026-08-01, after #759 batch 1 migrated `combat_drone`
 `autonomous_frigate`, `exosuit_infantry`, `propagandist`, and `drone_controller` — was 39 before
 that, 24 when #759 was originally filed) rather than trusting a pasted snapshot.
 
+**Third path — PNG spritesheet units.** A unit with a row in `PNG_UNIT_SPRITES`
+(`src/renderer/sprites/png/png-sprite-catalog.ts`) is drawn from a painted PNG (sheet + tint mask, built by
+`scripts/sprite-puppet/puppet.py` from one source image) and tinted with the owner's colour at runtime;
+`getUnitSpriteV2()` returns it before consulting the SVG tables, and the Canvas layer bakes the same frame. Its SVG
+sprite stays in the catalog as the fallback. `isPngUnit(unitType)` tells you which units have migrated. See
+`.claude/rules/sprites.md` "PNG Spritesheet Units" and `scripts/sprite-puppet/README.md`. First unit: `horseman` (#1040).
+
 | Unit | Status | data-kind |
 |------|--------|-----------|
 | settler | ✅ sprite | civilian |

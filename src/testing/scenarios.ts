@@ -195,6 +195,44 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
     ],
   },
 
+  'png-sprite-spike': {
+    name: 'png-sprite-spike',
+    description:
+      'Visual-review harness for PNG spritesheet units (scripts/sprite-puppet): a player Horseman '
+      + '(PNG) next to a Beast Handler, Cavalry and Knight (SVG) for side-by-side scale and style, '
+      + 'plus an AI Horseman so the civ tint can be compared. Select a unit and move it to see the '
+      + 'walk cycle; attack the AI unit to see the attack row. Includes a player city and an AI '
+      + 'city so ending the turn does not trigger an instant domination result.',
+    seed: 'scenario-png-sprite-spike',
+    base: {
+      kind: 'solo',
+      config: { civType: 'generic', mapSize: 'small', opponentCount: 1, gameTitle: 'PNG Sprite Spike' },
+    },
+    steps: [
+      { kind: 'terrain', position: { q: 0, r: 0 }, terrain: 'plains' },
+      { kind: 'terrain', position: { q: 1, r: 0 }, terrain: 'plains' },
+      { kind: 'terrain', position: { q: 2, r: 0 }, terrain: 'plains' },
+      { kind: 'terrain', position: { q: 3, r: 0 }, terrain: 'plains' },
+      { kind: 'terrain', position: { q: 4, r: 0 }, terrain: 'plains' },
+      { kind: 'terrain', position: { q: 0, r: 1 }, terrain: 'grassland' },
+      { kind: 'terrain', position: { q: 1, r: 1 }, terrain: 'grassland' },
+      { kind: 'terrain', position: { q: 2, r: 1 }, terrain: 'grassland' },
+      { kind: 'terrain', position: { q: 3, r: 1 }, terrain: 'grassland' },
+      { kind: 'terrain', position: { q: 4, r: 1 }, terrain: 'grassland' },
+      { kind: 'terrain', position: { q: 0, r: 2 }, terrain: 'plains' },
+      { kind: 'terrain', position: { q: 4, r: 2 }, terrain: 'plains' },
+      { kind: 'tech', civId: 'player', techIds: ['horseback-riding', 'tactics'] },
+      { kind: 'city', civId: 'player', position: { q: 0, r: 2 } },
+      { kind: 'city', civId: 'ai-1', position: { q: 4, r: 2 } },
+      { kind: 'unit', civId: 'player', type: 'horseman', position: { q: 1, r: 1 } },
+      { kind: 'unit', civId: 'player', type: 'beast_handler', position: { q: 2, r: 1 } },
+      { kind: 'unit', civId: 'player', type: 'cavalry', position: { q: 3, r: 1 } },
+      { kind: 'unit', civId: 'player', type: 'knight', position: { q: 1, r: 0 } },
+      { kind: 'unit', civId: 'ai-1', type: 'horseman', position: { q: 3, r: 0 } },
+      { kind: 'diplomacy', civA: 'player', civB: 'ai-1', status: 'war' },
+    ],
+  },
+
   'fort-citadel-visuals-712': {
     name: 'fort-citadel-visuals-712',
     description:

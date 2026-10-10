@@ -1,0 +1,13 @@
+{
+  "id": "horseman",
+  "file": "horseman.png",
+  "generator": "SpriteCook (spritecook.ai) via MCP generate_game_art",
+  "model": "gpt-image-2.5-flare",
+  "settings": { "pixel": false, "resolution": "1K", "quality": "medium", "bg_mode": "transparent", "variations": 1 },
+  "spritecook_asset_id": "4c7b5e87-4648-4d09-a758-d2d0f8dee172",
+  "generated_on": "2026-10-10",
+  "credits_used": 8,
+  "prompt": "Light cavalry horseman unit for a medieval-to-modern civilization strategy game. A rider on a tall light-bay horse with a white blaze and white socks, flowing dark mane and tail, arched neck and raised head, horse facing right in clean side view, all four legs clearly visible and anatomically correct. The rider wears a plain red tunic, leather cap, carries a round wooden shield with a red boss and holds a long javelin raised diagonally overhead. Lightly armoured, not plate armour. Full figure, centered, readable silhouette at small size.",
+  "style": "clean hand-painted 2D game art, bold dark outline, flat cel shading with soft highlights, earthy saturated palette",
+  "licence_note": "Project owner confirmed (2026-10-10) that SpriteCook's terms allow using generated images as they see fit. Re-check the current terms before adding more generated sources."
+}
