@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { nextPlanPhase, processMajorCivStrategicTurn } from '@/ai/ai-major-turn';
 import { buildMajorCivPerception } from '@/ai/ai-perception';
 import type { PreparedMajorCivPlan } from '@/ai/ai-prepared-turn';
@@ -18,13 +19,34 @@ import {
   isCityCenterTerrain,
   MIN_CITY_CENTER_DISTANCE,
 } from '@/systems/city-territory-system';
-import { hexKey } from '@/systems/hex-utils';
-import { createUnit } from '@/systems/unit-lifecycle';
+import { hexDistance, hexKey } from '@/systems/hex-utils';
+import { createUnit, resetUnitTurn } from '@/systems/unit-lifecycle';
+import { findPath } from '@/systems/unit-pathfinding';
+import { resolveUnitMoveIntent } from '@/systems/unit-movement-system';
+import * as movementSystem from '@/systems/unit-movement-system';
+import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
+import { assertBilateralWar, assertCargoReciprocity, assertAirBaseIntegrity } from '../helpers/save-state-invariants';
+import { resolveLandSupplyForCiv } from '@/systems/supply-system';
+import { declareMajorWar } from '@/systems/diplomacy-war';
+import { normalizeLoadedState } from '@/storage/save-manager';
+import { parseSaveFile, serializeSaveFile } from '@/storage/save-file-transfer';
+import { assertSimulationEquivalent } from '../helpers/deterministic-state';
+import { withPerfProbe } from '../perf/perf-probe';
+import { assignUnitsToPortfolio } from '@/ai/ai-unit-assignment';
+import { OPPONENT_CHALLENGE_PROFILES } from '@/core/opponent-challenge';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { deterministicCombatSeed, resolveCombat } from '@/systems/combat-system';
+import { isUnitConcealedFrom } from '@/systems/concealment';
+import { rankUnitTacticalActions } from '@/ai/ai-tactics';
+import { createOperationalRouting, getKnownOperationalRange, getOperationalRoute } from '@/ai/ai-operational-routing';
 
 const AI = 'ai-1';
 const HUMAN = 'player';
+
+function writeOperationalEvidence(name: string, trajectory: unknown): void {
+  mkdirSync('.verification/operational-warfare', { recursive: true });
+  writeFileSync(`.verification/operational-warfare/${name}.json`, `${JSON.stringify(trajectory, null, 2)}\n`);
+}
 
 function makeState(): GameState {
   const state = createNewGame({
@@ -171,7 +193,429 @@ function prepared(
   };
 }
 
+function detourFixture(): { state: GameState; plan: AIStrategicPlan; unitId: string; cityId: string } {
+  let state = makeState();
+  const corridor = [
+    { q: 1, r: 1 }, { q: 0, r: 1 }, { q: 0, r: 2 }, { q: 0, r: 3 },
+    { q: 1, r: 3 }, { q: 2, r: 3 }, { q: 3, r: 3 }, { q: 4, r: 2 }, { q: 5, r: 1 },
+  ];
+  const corridorKeys = new Set(corridor.map(hexKey));
+  for (const [key, tile] of Object.entries(state.map.tiles)) {
+    tile.terrain = corridorKeys.has(key) ? 'grassland' : 'ocean';
+  }
+  const unit = addUnit(state, 'detour-captor', 'swordsman', AI, corridor[0]!);
+  const city = addCity(state, 'detour-city', HUMAN, corridor.at(-1)!);
+  const plan = makePlan(
+    { kind: 'city', id: city.id, lastKnownPosition: city.position },
+    [unit.id],
+    { phase: 'advancing' },
+  );
+  state = refreshLastSeenPresentationsForCiv(state, AI);
+  return { state, plan, unitId: unit.id, cityId: city.id };
+}
+
+function nextOperationalTurn(state: GameState): GameState {
+  return {
+    ...state,
+    turn: state.turn + 1,
+    units: Object.fromEntries(Object.entries(state.units).map(([id, unit]) => [id, resetUnitTurn(unit)])),
+  };
+}
+
 describe('processMajorCivStrategicTurn', () => {
+  it('executes relevant bombardment before a contested city assault', () => {
+    let state = makeState();
+    const city = addCity(state, 'contested-siege-city', HUMAN, { q: 4, r: 0 });
+    city.population = 20;
+    city.buildings = ['walls'];
+    city.hp = 100;
+    addUnit(state, 'contested-siege', 'catapult', AI, { q: 2, r: 0 });
+    addUnit(state, 'contested-captor', 'swordsman', AI, { q: 3, r: 0 });
+    state = refreshLastSeenPresentationsForCiv(state, AI);
+    const plan = makePlan({ kind: 'city', id: city.id, lastKnownPosition: city.position }, ['contested-siege', 'contested-captor'], { supportRoles: { siege: 1 } });
+    const result = processMajorCivStrategicTurn(state, prepared(state, plan), new EventBus());
+    expect(result.actions[0]).toEqual({ kind: 'bombard-city', unitId: 'contested-siege', cityId: city.id });
+    expect(result.actions.some(action => action.kind === 'capture-city')).toBe(true);
+    expect(result.state.opponentAI!.majorCivs[AI]!.primaryPlan!.lastProgressTurn).toBe(state.turn);
+    expect(state.cities[city.id]!.hp).toBe(100);
+  });
+
+  it('preempts an invasion for emergency defense and returns the defender once the crisis ends', () => {
+    let state = makeState();
+    const home = addCity(state, 'emergency-home', AI, { q: 0, r: 0 });
+    const target = addCity(state, 'invasion-target', HUMAN, { q: 5, r: 3 });
+    addUnit(state, 'emergency-defender', 'swordsman', AI, home.position);
+    addUnit(state, 'invasion-captor', 'swordsman', AI, { q: 0, r: 3 });
+    addUnit(state, 'imminent-attacker', 'warrior', HUMAN, { q: 1, r: 0 }, { health: 1 });
+    state = refreshLastSeenPresentationsForCiv(state, AI);
+    const invasion = makePlan({ kind: 'city', id: target.id, lastKnownPosition: target.position }, ['emergency-defender'], { phase: 'advancing', requiredRoles: { capture: 2 } });
+    const defense = makePlan({ kind: 'city', id: home.id, lastKnownPosition: home.position }, [], { id: 'emergency', objective: 'defend', phase: 'advancing' });
+    const turn = prepared(state, invasion);
+    turn.portfolio.defensePlansByCityId = { [home.id]: defense };
+    const assign = (current: GameState, portfolio: PreparedMajorCivPlan['portfolio'], emergency: boolean) => assignUnitsToPortfolio({
+      portfolio,
+      units: ['emergency-defender', 'invasion-captor'].map(id => {
+        const unit = current.units[id]!;
+        return { id, type: unit.type, health: unit.health, experience: unit.experience, embarked: false, activeOtherDuty: false,
+          travelTurnsByPlanId: { [invasion.id]: Math.ceil(hexDistance(unit.position, target.position) / 2), [defense.id]: Math.ceil(hexDistance(unit.position, home.position) / 2) } };
+      }),
+      profile: OPPONENT_CHALLENGE_PROFILES.veteran,
+      defenseThreatScoreByPlanId: emergency ? { emergency: 100 } : {},
+      eliminationDefensePlanIds: emergency ? ['emergency'] : [],
+      onlyImmediateDefenderUnitIds: emergency ? ['emergency-defender'] : [],
+      requiresEmbarkationByPlanId: {},
+    });
+    turn.assignments = assign(state, turn.portfolio, true);
+    turn.portfolio = turn.assignments.portfolio;
+    expect(turn.assignments.assignmentsByPlanId.emergency).toContain('emergency-defender');
+    expect(turn.assignments.assignmentsByPlanId[invasion.id]).not.toContain('emergency-defender');
+    const defended = processMajorCivStrategicTurn(state, turn, new EventBus());
+    expect(defended.actions[0]).toMatchObject({ kind: 'attack', unitId: 'emergency-defender' });
+    expect(defended.state.units['imminent-attacker']).toBeUndefined();
+    expect(defended.state.cities[home.id]!.owner).toBe(AI);
+    expect(defended.state.units['invasion-captor']).toBeDefined();
+    state = nextOperationalTurn(defended.state);
+    const resumed = prepared(state, state.opponentAI!.majorCivs[AI]!.primaryPlan!);
+    resumed.assignments = assign(state, resumed.portfolio, false);
+    resumed.portfolio = resumed.assignments.portfolio;
+    expect(resumed.assignments.assignmentsByPlanId[invasion.id]).toContain('emergency-defender');
+    let resumedTurn = resumed;
+    let moved = false;
+    const trace: unknown[] = [];
+    for (let round = 0; round < 3; round += 1) {
+      const routing = createOperationalRouting();
+      trace.push({ turn: state.turn, plan: resumedTurn.portfolio.primaryPlan, units: ['emergency-defender', 'invasion-captor'].map(id => {
+        const unit = state.units[id]!;
+        const route = getOperationalRoute(state, unit, target.position, routing);
+        return { unit, route, range: getKnownOperationalRange(state, unit, routing), ranked: rankUnitTacticalActions({ state, actorId: AI, plan: resumedTurn.portfolio.primaryPlan!, assignedUnitIds: resumedTurn.assignments.assignmentsByPlanId[invasion.id]!, routing }, id) };
+      }) });
+      const advancing = processMajorCivStrategicTurn(state, resumedTurn, new EventBus());
+      trace.push({ actions: advancing.actions });
+      moved ||= advancing.actions.some(action => action.kind === 'move' && action.unitId === 'emergency-defender');
+      assertBilateralWar(advancing.state);
+      state = nextOperationalTurn(advancing.state);
+      resumedTurn = prepared(state, state.opponentAI!.majorCivs[AI]!.primaryPlan!);
+      resumedTurn.assignments = assign(state, resumedTurn.portfolio, false);
+      resumedTurn.portfolio = resumedTurn.assignments.portfolio;
+    }
+    writeOperationalEvidence('defense-return-stall', trace);
+    expect(moved).toBe(true);
+  });
+
+  it.each(['safe', 'threatened', 'hidden-threat', 'concealed-threat'] as const)('regroups a separated rear unit on a %s route instead of refreshing progress with unrelated actions', condition => {
+    let state = makeState();
+    const target = addCity(state, 'split-target', HUMAN, { q: 5, r: 0 });
+    const rear = addUnit(state, 'returning-rear', 'swordsman', AI, { q: 0, r: 0 });
+    const front = addUnit(state, 'front', 'swordsman', AI, { q: 2, r: 3 }, { hasActed: true, movementPointsLeft: 0 });
+    if (condition !== 'safe') {
+      addUnit(state, 'regroup-threat', 'archer', HUMAN, condition === 'concealed-threat' ? { q: 2, r: 1 } : { q: 1, r: 3 });
+      if (condition === 'hidden-threat') state.civilizations[AI].visibility.tiles['1,3'] = 'fog';
+      if (condition === 'concealed-threat') {
+        state.civilizations[HUMAN].civType = 'lothlorien';
+        state.map.tiles['2,1']!.terrain = 'forest';
+      }
+    }
+    state = refreshLastSeenPresentationsForCiv(state, AI);
+    if (condition === 'concealed-threat') expect(isUnitConcealedFrom(state, state.units['regroup-threat']!, AI)).toBe(true);
+    const plan = makePlan({ kind: 'city', id: target.id, lastKnownPosition: target.position }, [rear.id, front.id], { phase: 'advancing', requiredRoles: { capture: 2 }, lastProgressTurn: 19 });
+    const result = processMajorCivStrategicTurn(state, prepared(state, plan), new EventBus());
+    const action = result.actions.find(action => action.unitId === rear.id);
+    expect(action).toEqual({ kind: 'move', unitId: rear.id, destination: condition === 'threatened' ? { q: 0, r: 1 } : { q: 0, r: 2 } });
+    const moved = result.state.units[rear.id]!;
+    expect(hexDistance(moved.position, target.position)).toBeGreaterThanOrEqual(hexDistance(rear.position, target.position));
+    expect(hexDistance(moved.position, front.position)).toBeLessThan(hexDistance(rear.position, front.position));
+    expect(result.state.opponentAI!.majorCivs[AI]!.primaryPlan!.lastProgressTurn).toBe(state.turn);
+    expect(result.state.units[front.id]!.position).toEqual(front.position);
+    expect(state.units[rear.id]!.position).toEqual({ q: 0, r: 0 });
+  });
+
+  it.each(['acted-support', 'threatened-step'] as const)('does not vacate the bottleneck for %s', condition => {
+    const fixture = detourFixture();
+    const { state } = fixture;
+    state.units[fixture.unitId] = { ...createUnit('horseman', AI, { q: 0, r: 2 }, state.idCounters), id: fixture.unitId };
+    addUnit(state, 'blocked-support', 'catapult', AI, { q: 0, r: 1 }, condition === 'acted-support' ? { hasActed: true, movementPointsLeft: 0 } : {});
+    if (condition === 'threatened-step') {
+      state.map.tiles['1,4']!.terrain = 'grassland';
+      addUnit(state, 'lane-threat', 'archer', HUMAN, { q: 1, r: 4 });
+    }
+    const plan = { ...fixture.plan, assignedUnitIds: [fixture.unitId, 'blocked-support'], supportRoles: { siege: 1 } };
+    const result = processMajorCivStrategicTurn(state, prepared(state, plan), new EventBus());
+    expect(result.state.units[fixture.unitId]!.position).toEqual({ q: 0, r: 2 });
+  });
+
+  it('does not advance a healthy but visibly outmatched withdrawing force toward the enemy', () => {
+    let state = makeState();
+    addCity(state, 'fallback-home', AI, { q: 0, r: 0 });
+    addUnit(state, 'outmatched', 'swordsman', AI, { q: 2, r: 0 });
+    const city = addCity(state, 'overwhelming-city', HUMAN, { q: 6, r: 0 });
+    addUnit(state, 'overwhelming-defender', 'main_battle_tank', HUMAN, city.position);
+    addUnit(state, 'observing-scout', 'scout', AI, { q: 4, r: 1 }, { hasActed: true, movementPointsLeft: 0 });
+    state = refreshLastSeenPresentationsForCiv(state, AI);
+    const plan = makePlan({ kind: 'city', id: city.id, lastKnownPosition: city.position }, ['outmatched'], { phase: 'withdrawing' });
+    const result = processMajorCivStrategicTurn(state, prepared(state, plan), new EventBus());
+    expect(hexDistance(result.state.units.outmatched!.position, { q: 0, r: 0 })).toBeLessThan(2);
+    expect(result.state.opponentAI!.majorCivs[AI]!.primaryPlan!.phase).toBe('withdrawing');
+    expect(result.state.units.outmatched!.health).toBe(100);
+  });
+
+  it('uses a legal wrapped approach across the seam', () => {
+    let state = makeState();
+    state.map.wrapsHorizontally = true;
+    const target = addCity(state, 'seam-city', HUMAN, { q: state.map.width - 3, r: 0 });
+    addUnit(state, 'seam-captor', 'swordsman', AI, { q: 0, r: 0 });
+    state = refreshLastSeenPresentationsForCiv(state, AI);
+    const plan = makePlan({ kind: 'city', id: target.id, lastKnownPosition: target.position }, ['seam-captor'], { phase: 'advancing' });
+    const result = processMajorCivStrategicTurn(state, prepared(state, plan), new EventBus());
+    const move = result.actions.find(action => action.kind === 'move');
+    expect(move?.kind).toBe('move');
+    if (move?.kind !== 'move') throw new Error('missing wrapped approach');
+    expect(move.destination.q).toBeGreaterThan(state.map.width / 2);
+    expect(resolveUnitMoveIntent(state, 'seam-captor', move.destination, { actor: 'ai', civId: AI }).ok).toBe(true);
+    expect(result.state.opponentAI!.majorCivs[AI]!.primaryPlan!.lastProgressTurn).toBe(state.turn);
+  });
+
+  it.each(['detour', 'mixed-support'] as const)('keeps whole-state determinism across a mid-operation save for %s', kind => {
+    const fixture = detourFixture();
+    let initial = fixture.state;
+    let initialPlan = fixture.plan;
+    if (kind === 'mixed-support') {
+      addUnit(initial, 'saved-support', 'catapult', AI, { q: 0, r: 1 });
+      initialPlan = { ...initialPlan, assignedUnitIds: [...initialPlan.assignedUnitIds, 'saved-support'], supportRoles: { siege: 1 } };
+    }
+    initial = normalizeLoadedState(initial);
+    const run = (reload: boolean) => {
+      let state = structuredClone(initial);
+      let plan = initialPlan;
+      const actions = [];
+      for (let round = 0; round < 8; round += 1) {
+        const result = processMajorCivStrategicTurn(state, prepared(state, plan), new EventBus());
+        actions.push(result.actions);
+        state = nextOperationalTurn(result.state);
+        if (reload && round === 2) {
+          const parsed = parseSaveFile(serializeSaveFile(state));
+          if (parsed.status !== 'success') throw new Error(parsed.message);
+          state = normalizeLoadedState(parsed.state);
+        }
+        plan = state.opponentAI!.majorCivs[AI]!.primaryPlan!;
+        assertBilateralWar(state);
+        assertCargoReciprocity(state);
+        assertAirBaseIntegrity(state);
+      }
+      return { state, actions };
+    };
+    const uninterrupted = run(false);
+    const repeated = run(false);
+    const reloaded = run(true);
+    expect(repeated.actions).toEqual(uninterrupted.actions);
+    expect(reloaded.actions).toEqual(uninterrupted.actions);
+    assertSimulationEquivalent(uninterrupted.state, repeated.state, `${kind}: repeat`);
+    assertSimulationEquivalent(uninterrupted.state, reloaded.state, `${kind}: save/reload`);
+  });
+
+  it('preserves the sole last-city defender despite wounds and severe supply', () => {
+    const state = makeState();
+    const home = addCity(state, 'last-home', AI, { q: 0, r: 0 });
+    addUnit(state, 'sole-defender', 'swordsman', AI, home.position, {
+      health: 20, landSupply: { state: 'severe', hostileUnsupportedTurns: 7, suppliedTurnsSinceRecovery: 0 },
+    });
+    const plan = makePlan({ kind: 'city', id: home.id, lastKnownPosition: home.position }, ['sole-defender'], { objective: 'defend', phase: 'advancing' });
+    const result = processMajorCivStrategicTurn(state, prepared(state, plan), new EventBus());
+    expect(result.actions.every(action => action.kind !== 'withdraw')).toBe(true);
+    expect(result.state.units['sole-defender']!.position).toEqual(home.position);
+    expect(result.state.opponentAI!.majorCivs[AI]!.primaryPlan!.phase).not.toBe('withdrawing');
+  });
+
+  it.each([1, 8])('makes a bounded mixed-force siege against population %s through canonical history', population => {
+    let state = makeState();
+    state.civilizations[AI].diplomacy.atWarWith = [];
+    state.civilizations[HUMAN].diplomacy.atWarWith = [];
+    addCity(state, 'siege-base', AI, { q: 0, r: 4 });
+    const target = addCity(state, 'walled-target', HUMAN, { q: 5, r: 0 });
+    target.buildings = ['walls'];
+    target.population = population;
+    target.hp = 100;
+    addUnit(state, 'siege-captor', 'swordsman', AI, { q: 0, r: 0 });
+    addUnit(state, 'siege-support', 'catapult', AI, { q: 1, r: 0 });
+    addUnit(state, 'ranged-support', 'archer', AI, { q: 0, r: 1 });
+    addUnit(state, 'garrison', 'warrior', HUMAN, target.position);
+    state = declareMajorWar(state, AI, HUMAN);
+    state = refreshLastSeenPresentationsForCiv(state, AI);
+    let plan = makePlan({ kind: 'city', id: target.id, lastKnownPosition: target.position },
+      ['siege-captor', 'siege-support', 'ranged-support'],
+      { phase: 'mobilizing', supportRoles: { siege: 1, ranged: 1 } });
+    const bus = new EventBus();
+    const capture = vi.fn();
+    bus.on('city:captured', capture);
+    const trajectory = [];
+    for (let round = 0; round < 20; round += 1) {
+      const result = processMajorCivStrategicTurn(state, prepared(state, plan), bus);
+      state = result.state;
+      plan = state.opponentAI!.majorCivs[AI]!.primaryPlan!;
+      trajectory.push({ turn: state.turn, phase: plan.phase, actions: result.actions.map(action => action.kind), hp: state.cities[target.id]!.hp, owner: state.cities[target.id]!.owner });
+      assertBilateralWar(state);
+      assertCargoReciprocity(state);
+      assertAirBaseIntegrity(state);
+      if (plan.phase === 'complete' || plan.phase === 'abandoned') break;
+      state = nextOperationalTurn(state);
+    }
+    writeOperationalEvidence(`walled-siege-${population}`, trajectory);
+    expect(trajectory.flatMap(row => row.actions)).toContain('attack');
+    expect(state.units.garrison).toBeUndefined();
+    expect(state.cities[target.id]!.owner).toBe(AI);
+    expect(plan.phase).toBe('complete');
+    expect(capture).toHaveBeenCalledOnce();
+    expect(Object.values(state.wars ?? {}).flatMap(war => war.events)
+      .filter(event => event.type === 'city-captured' && event.cityId === target.id)).toHaveLength(1);
+  });
+
+  it('does not change the chosen approach when an unobserved obstacle changes', () => {
+    let state = makeState();
+    addUnit(state, 'known-captor', 'swordsman', AI, { q: 0, r: 0 });
+    const city = addCity(state, 'known-target', HUMAN, { q: 6, r: 0 });
+    const plan = makePlan({ kind: 'city', id: city.id, lastKnownPosition: city.position }, ['known-captor'], { phase: 'advancing' });
+    state = refreshLastSeenPresentationsForCiv(state, AI);
+    state.civilizations[AI].visibility.tiles['2,0'] = 'fog';
+    const hidden = structuredClone(state);
+    hidden.map.tiles['2,0']!.terrain = 'ocean';
+    addUnit(hidden, 'unobserved', 'tank', HUMAN, { q: 2, r: 0 });
+    const execute = vi.spyOn(movementSystem, 'executeUnitMove');
+    try {
+      processMajorCivStrategicTurn(state, prepared(state, plan), new EventBus());
+      const original = execute.mock.calls[0]?.[2];
+      execute.mockClear();
+      processMajorCivStrategicTurn(hidden, prepared(hidden, plan), new EventBus());
+      expect(execute.mock.calls[0]?.[2]).toEqual(original);
+      expect(original).toEqual({ q: 2, r: 0 });
+    } finally {
+      execute.mockRestore();
+    }
+  });
+
+  it('recognizes severe supply withdrawal and resumes readiness after canonical resupply', () => {
+    let state = makeState();
+    addCity(state, 'resupply-base', AI, { q: 0, r: 0 });
+    addUnit(state, 'depleted', 'swordsman', AI, { q: 2, r: 0 }, {
+      landSupply: { state: 'severe', hostileUnsupportedTurns: 7, suppliedTurnsSinceRecovery: 0 },
+    });
+    const target = addCity(state, 'supply-target', HUMAN, { q: 6, r: 0 });
+    let plan = makePlan({ kind: 'city', id: target.id, lastKnownPosition: target.position }, ['depleted'], { phase: 'advancing' });
+    state = refreshLastSeenPresentationsForCiv(state, AI);
+    const withdrawing = processMajorCivStrategicTurn(state, prepared(state, plan), new EventBus());
+    expect(withdrawing.actions[0]?.kind).toBe('withdraw');
+    expect(withdrawing.state.opponentAI!.majorCivs[AI]!.primaryPlan!.phase).toBe('withdrawing');
+    state = resolveLandSupplyForCiv(withdrawing.state, AI);
+    expect(state.units.depleted!.landSupply!.state).toBe('full');
+    state = nextOperationalTurn(state);
+    plan = state.opponentAI!.majorCivs[AI]!.primaryPlan!;
+    const recovered = processMajorCivStrategicTurn(state, prepared(state, plan), new EventBus());
+    expect(recovered.state.opponentAI!.majorCivs[AI]!.primaryPlan!.phase).toBe('mobilizing');
+    state = nextOperationalTurn(recovered.state);
+    plan = state.opponentAI!.majorCivs[AI]!.primaryPlan!;
+    const reentered = processMajorCivStrategicTurn(state, prepared(state, plan), new EventBus());
+    expect(reentered.state.opponentAI!.majorCivs[AI]!.primaryPlan!.phase).toBe('advancing');
+    expect(reentered.actions.some(action => action.kind === 'move')).toBe(true);
+  });
+
+  it('does not report unrelated worker construction as capture-plan progress', () => {
+    const state = makeState();
+    for (const tile of Object.values(state.map.tiles)) tile.terrain = 'ocean';
+    for (const key of ['1,1', '5,1', '0,4', '0,5']) state.map.tiles[key]!.terrain = 'grassland';
+    state.map.tiles['0,4']!.owner = AI;
+    state.civilizations[AI].techState.completed = ['agriculture'];
+    addCity(state, 'home', AI, { q: 0, r: 5 });
+    addUnit(state, 'stuck-captor', 'swordsman', AI, { q: 1, r: 1 });
+    addUnit(state, 'unrelated-worker', 'worker', AI, { q: 0, r: 4 });
+    const target = addCity(state, 'island-target', HUMAN, { q: 5, r: 1 });
+    const plan = makePlan(
+      { kind: 'city', id: target.id, lastKnownPosition: target.position },
+      ['stuck-captor', 'unrelated-worker'],
+      { phase: 'advancing' },
+    );
+    const result = processMajorCivStrategicTurn(state, prepared(state, plan), new EventBus());
+    expect(result.actions).toContainEqual(expect.objectContaining({ kind: 'worker-action', unitId: 'unrelated-worker' }));
+    expect(result.state.units['stuck-captor']!.position).toEqual({ q: 1, r: 1 });
+    expect(result.state.cities[target.id]!.owner).toBe(HUMAN);
+    expect(result.state.opponentAI!.majorCivs[AI]!.primaryPlan!.lastProgressTurn).toBe(plan.lastProgressTurn);
+  });
+
+  it('follows a known legal detour that initially increases objective distance over real AI turns', () => {
+    const fixture = detourFixture();
+    let { state, plan } = fixture;
+    const unit = state.units[fixture.unitId]!;
+    const city = state.cities[fixture.cityId]!;
+    const path = findPath(unit.position, city.position, state.map, 'land', { unit });
+    expect(path).not.toBeNull();
+    expect(hexDistance(path![1]!, city.position)).toBeGreaterThan(hexDistance(unit.position, city.position));
+    expect(resolveUnitMoveIntent(state, unit.id, path![1]!, { actor: 'ai', civId: AI }).ok).toBe(true);
+
+    const before = structuredClone(state);
+    const firstProbe = withPerfProbe(() => processMajorCivStrategicTurn(state, prepared(state, plan), new EventBus()));
+    const first = firstProbe.result;
+    expect(state).toEqual(before);
+    expect(first.actions).toContainEqual(expect.objectContaining({ kind: 'move', unitId: unit.id }));
+    expect(first.state.opponentAI!.majorCivs[AI]!.primaryPlan!.lastProgressTurn).toBe(state.turn);
+    expect(hexDistance(first.state.units[unit.id]!.position, city.position)).toBeGreaterThan(4);
+    state = first.state;
+    const trajectory: unknown[] = [{ turn: state.turn, actions: first.actions, work: firstProbe.counts }];
+    for (let round = 0; round < 8 && state.cities[city.id]!.owner !== AI; round += 1) {
+      state = nextOperationalTurn(state);
+      plan = state.opponentAI!.majorCivs[AI]!.primaryPlan!;
+      const probe = withPerfProbe(() => processMajorCivStrategicTurn(state, prepared(state, plan), new EventBus()));
+      const result = probe.result;
+      trajectory.push({ turn: state.turn, actions: result.actions, position: result.state.units[unit.id]?.position, work: probe.counts });
+      state = result.state;
+    }
+    expect(state.cities[city.id]!.owner, JSON.stringify(trajectory)).toBe(AI);
+    expect(state.opponentAI!.majorCivs[AI]!.primaryPlan!.phase).toBe('consolidating');
+    assertBilateralWar(state);
+    assertCargoReciprocity(state);
+    assertAirBaseIntegrity(state);
+    writeOperationalEvidence('legal-detour', trajectory);
+  });
+
+  it('holds a disconnected target over bounded turns without illegal moves or manufactured progress', () => {
+    const fixture = detourFixture();
+    let { state, plan } = fixture;
+    state.map.tiles['0,3']!.terrain = 'ocean';
+    state = refreshLastSeenPresentationsForCiv(state, AI);
+    for (let round = 0; round < 6; round += 1) {
+      const before = structuredClone(state);
+      const result = processMajorCivStrategicTurn(state, prepared(state, plan), new EventBus());
+      expect(result.actions).toEqual([{ kind: 'hold', unitId: fixture.unitId }]);
+      expect(result.state.units[fixture.unitId]!.position).toEqual(before.units[fixture.unitId]!.position);
+      expect(result.state.opponentAI!.majorCivs[AI]!.primaryPlan!.lastProgressTurn).toBe(19);
+      expect(state).toEqual(before);
+      state = nextOperationalTurn(result.state);
+      plan = state.opponentAI!.majorCivs[AI]!.primaryPlan!;
+    }
+  });
+
+  it('moves mixed-speed troops through the detour without leaving the slow support behind', () => {
+    const fixture = detourFixture();
+    let { state, plan } = fixture;
+    state.units[fixture.unitId] = { ...createUnit('horseman', AI, { q: 1, r: 1 }, state.idCounters), id: fixture.unitId };
+    addUnit(state, 'slow-support', 'catapult', AI, { q: 0, r: 1 });
+    plan = { ...plan, assignedUnitIds: [fixture.unitId, 'slow-support'], supportRoles: { siege: 1 } };
+    let moves = 0;
+    const trajectory = [];
+    for (let round = 0; round < 8 && state.cities[fixture.cityId]!.owner !== AI; round += 1) {
+      const result = processMajorCivStrategicTurn(state, prepared(state, plan), new EventBus());
+      moves += result.actions.filter(action => action.kind === 'move').length;
+      const front = result.state.units[fixture.unitId];
+      const support = result.state.units['slow-support'];
+      expect(front).toBeDefined();
+      expect(support).toBeDefined();
+      expect(hexDistance(front!.position, support!.position)).toBeLessThanOrEqual(2);
+      trajectory.push({ turn: state.turn, actions: result.actions, front: front!.position, support: support!.position,
+        separation: hexDistance(front!.position, support!.position) });
+      state = nextOperationalTurn(result.state);
+      plan = state.opponentAI!.majorCivs[AI]!.primaryPlan!;
+    }
+    expect(moves).toBeGreaterThan(2);
+    writeOperationalEvidence('mixed-support', { moves, trajectory });
+    expect(hexDistance(state.units[fixture.unitId]!.position, state.cities[fixture.cityId]!.position)).toBeLessThanOrEqual(1);
+  });
+
   it('allows an assigned Anti-Tank Gun to satisfy a frontline mobilization slot', () => {
     const state = makeState();
     addUnit(state, 'anti-tank', 'anti_tank_gun', AI, { q: 0, r: 0 });

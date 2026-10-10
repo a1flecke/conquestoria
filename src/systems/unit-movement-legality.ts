@@ -60,11 +60,11 @@ function pirateEnclaveAnchorEntries(state: GameState): Array<{ id: string; key: 
   return entries;
 }
 
-function isBlockingCityForOwner(state: GameState, ownerId: string, city: City): boolean {
+function isBlockingCityForOwner(state: GameState, ownerId: string, city: Pick<City, 'owner'>): boolean {
   return city.owner !== ownerId && !hasAllianceTreaty(state, ownerId, city.owner);
 }
 
-export function isBlockingCityFor(state: GameState, unit: Unit, city: City): boolean {
+export function isBlockingCityFor(state: GameState, unit: Unit, city: Pick<City, 'owner'>): boolean {
   return isBlockingCityForOwner(state, unit.owner, city);
 }
 

@@ -24,6 +24,7 @@ import {
 } from '@/systems/city-capture-system';
 import { foundCityInState } from '@/systems/city-founding-system';
 import { getVisibility } from '@/systems/fog-of-war';
+import { isUnitConcealedFrom } from '@/systems/concealment';
 import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { conquestMinorCiv } from '@/systems/minor-civ-system';
 import { isMinorCivAtWar } from '@/systems/minor-civ-diplomacy';
@@ -56,13 +57,16 @@ import type { MajorCivPerception } from './ai-perception';
 import type { PreparedMajorCivPlan } from './ai-prepared-turn';
 import {
   chooseTacticalSequence,
+  getOperationalRegroupingRoute,
   rankUnitTacticalActions,
+  isLastCitySoleDefender,
   type AITacticalAction,
   type AITacticalContext,
 } from './ai-tactics';
 import { canUnitFulfillAIStrategicRole, countAIStrategicRoleCapabilities, getAIStrategicRoles } from './ai-unit-roles';
 import { isAIHostileOwner } from './ai-hostility';
 import { processAIUpgradesInPlace } from './ai-upgrades';
+import { createOperationalRouting, getOperationalRoute, type AIOperationalRouting } from './ai-operational-routing';
 
 export interface ProcessMajorCivStrategicTurnResult {
   state: GameState;
@@ -654,10 +658,12 @@ function shouldWithdraw(
   plan: AIStrategicPlan,
   assignedUnitIds: readonly string[],
 ): boolean {
+  if (isLastCitySoleDefender(state, plan, assignedUnitIds)) return false;
   const units = assignedUnitIds
     .map(unitId => state.units[unitId])
     .filter((unit): unit is Unit => Boolean(unit));
   if (units.length === 0) return false;
+  if (units.some(unit => unit.landSupply?.state === 'severe')) return true;
   const profile = OPPONENT_CHALLENGE_PROFILES[
     resolveOpponentChallenge(state)
   ];
@@ -686,6 +692,7 @@ function shouldWithdraw(
         state.civilizations[plan.actorId]?.visibility,
         unit.position,
       ) === 'visible'
+      && !isUnitConcealedFrom(state, unit, plan.actorId)
       && distance(state, unit.position, target) <= 4)
     .reduce((sum, unit) =>
       sum + UNIT_DEFINITIONS[unit.type].strength * (unit.health / 100), 0);
@@ -709,6 +716,7 @@ export function nextPlanPhase(
     return 'abandoned';
   }
   if (shouldWithdraw(after, plan, assignedUnitIds)) return 'withdrawing';
+  if (plan.phase === 'withdrawing') return 'mobilizing';
   if (
     plan.phase === 'scouting'
     && hasSufficientTargetConfidence(after, perception, plan)
@@ -762,8 +770,76 @@ export function nextPlanPhase(
   return plan.phase;
 }
 
-function actionAdvancesPlan(action: AITacticalAction): boolean {
-  return action.kind !== 'hold' && action.kind !== 'rest';
+function actionAdvancesPlan(
+  before: GameState,
+  after: GameState,
+  plan: AIStrategicPlan,
+  action: AITacticalAction,
+  routing: AIOperationalRouting,
+): boolean {
+  const target = targetPosition(plan);
+  const relevantPosition = (position: { q: number; r: number }) => distance(before, position, target) <= 4;
+  switch (action.kind) {
+    case 'move':
+    case 'withdraw':
+    case 'unload':
+    case 'paradrop':
+    case 'air-assault': {
+      const unit = before.units[action.unitId];
+      const moved = after.units[action.unitId];
+      if (!unit || !moved || hexKey(unit.position) === hexKey(moved.position)) return false;
+      const roles = [...Object.keys(plan.requiredRoles), ...Object.keys(plan.supportRoles ?? {})] as AIStrategicRole[];
+      if (!roles.some(role => canUnitFulfillAIStrategicRole(unit.type, role))) return false;
+      if ((UNIT_DEFINITIONS[unit.type].domain ?? 'land') !== 'land' || unit.transportId
+        || action.kind === 'paradrop' || action.kind === 'air-assault') {
+        return distance(before, moved.position, target) < distance(before, unit.position, target);
+      }
+      const route = getOperationalRoute(before, unit, target, routing);
+      if ((route?.findIndex(position => hexKey(position) === hexKey(moved.position)) ?? -1) > 0) return true;
+      const regroupingRoute = getOperationalRegroupingRoute({ state: before, actorId: plan.actorId, plan,
+        assignedUnitIds: plan.assignedUnitIds, routing }, unit);
+      return (regroupingRoute?.findIndex(position => hexKey(position) === hexKey(moved.position)) ?? -1) > 0;
+    }
+    case 'attack':
+    case 'embarked-attack': {
+      const victim = before.units[action.targetUnitId];
+      return Boolean(victim && relevantPosition(victim.position)
+        && (after.units[victim.id]?.health ?? 0) < victim.health);
+    }
+    case 'bombard-city':
+      return plan.target.kind === 'city' && action.cityId === plan.target.id
+        && (after.cities[action.cityId]?.hp ?? 100) < (before.cities[action.cityId]?.hp ?? 100);
+    case 'capture-city':
+      return plan.target.kind === 'city' && action.cityId === plan.target.id
+        && before.cities[action.cityId]?.owner !== plan.actorId && after.cities[action.cityId]?.owner === plan.actorId;
+    case 'assault-camp':
+      return plan.target.kind === 'camp' && action.campId === plan.target.id
+        && Boolean(before.barbarianCamps[action.campId]) && !after.barbarianCamps[action.campId];
+    case 'found-city':
+      return plan.objective === 'expand' && Object.keys(after.cities).length > Object.keys(before.cities).length;
+    case 'establish-outpost':
+    case 'worker-action':
+      return plan.objective === 'secure-resource' && plan.target.kind === 'resource'
+        && hexKey(before.units[action.unitId]!.position) === hexKey(plan.target.position);
+    case 'load':
+      return (plan.requiredRoles.transport ?? 0) > 0 && !before.units[action.unitId]?.transportId
+        && after.units[action.unitId]?.transportId === action.transportId;
+    case 'air-strike':
+      return relevantPosition(action.target) && Object.values(before.units).some(unit =>
+        unit.owner !== plan.actorId && hexKey(unit.position) === hexKey(action.target)
+        && getVisibility(before.civilizations[plan.actorId]?.visibility, unit.position) === 'visible'
+        && !isUnitConcealedFrom(before, unit, plan.actorId)
+        && (after.units[unit.id]?.health ?? 0) < unit.health);
+    case 'air-recon':
+      return getVisibility(before.civilizations[plan.actorId]?.visibility, target) !== 'visible'
+        && getVisibility(after.civilizations[plan.actorId]?.visibility, target) === 'visible';
+    case 'air-rebase':
+    case 'air-intercept':
+    case 'patrol':
+    case 'rest':
+    case 'hold':
+      return false;
+  }
 }
 
 function executionPlan(
@@ -919,19 +995,20 @@ export function processMajorCivStrategicTurnInPlace(
   ];
   const appliedActions: AITacticalAction[] = [];
   const traces: AIDecisionTrace[] = [];
+  const routing = createOperationalRouting();
 
   for (const originalPlan of plans) {
     const requestedUnitIds = prepared.assignments
       .assignmentsByPlanId[originalPlan.id]
       ?? originalPlan.assignedUnitIds;
-    const assignedUnitIds = [...new Set(requestedUnitIds)].filter(unitId =>
+    const formationUnitIds = [...new Set(requestedUnitIds)].filter(unitId =>
       working.units[unitId]?.owner === prepared.civId
-      && !working.units[unitId]?.hasActed
       && !options.excludedUnitIds?.has(unitId)
       && !Boolean(
         working.opponentAI?.majorCivs[prepared.civId]
           ?.upgradeRoutesByUnitId[unitId],
       ));
+    const assignedUnitIds = formationUnitIds.filter(unitId => !working.units[unitId]?.hasActed);
     if (!targetStillValid(working, originalPlan)) {
       working = writeUpdatedPlan(working, {
         ...originalPlan,
@@ -952,10 +1029,12 @@ export function processMajorCivStrategicTurnInPlace(
       state: working,
       actorId: prepared.civId,
       plan: tacticalPlan,
-      assignedUnitIds,
+      assignedUnitIds: formationUnitIds,
       allowOffensiveActions: !preparingOffense,
+      routing,
     };
     const selectedActions = chooseTacticalSequence(tacticalContext);
+    let madeProgress = false;
     for (const action of selectedActions) {
       const latestContext = {
         ...tacticalContext,
@@ -969,6 +1048,8 @@ export function processMajorCivStrategicTurnInPlace(
         bus,
       );
       if (!executed.succeeded) continue;
+      madeProgress ||= actionAdvancesPlan(working, executed.state, tacticalPlan, action, routing)
+        || executed.followUps.some(followUp => actionAdvancesPlan(working, executed.state, tacticalPlan, followUp, routing));
       working = executed.state;
       appliedActions.push(action, ...executed.followUps);
     }
@@ -980,7 +1061,6 @@ export function processMajorCivStrategicTurnInPlace(
       planActions,
       prepared.perception,
     );
-    const madeProgress = planActions.some(actionAdvancesPlan);
     working = writeUpdatedPlan(working, {
       ...originalPlan,
       phase,

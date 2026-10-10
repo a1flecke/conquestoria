@@ -9,7 +9,7 @@
  * `canDeclareWarGoal` at the call site; this only picks *which* goal to try.
  * No RNG: ties are always broken by ascending city id.
  */
-import type { HexCoord } from '@/core/types';
+import type { HexCoord } from '@/core/types/hex';
 import type { NationalIntentPosture } from './ai-national-intent-posture';
 import type { WarGoalKind } from '@/core/types/diplomacy';
 import { hexDistance } from '@/systems/hex-utils';

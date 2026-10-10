@@ -31,9 +31,83 @@ import * as combatSystem from '@/systems/combat-system';
 import { canParadrop, getAirAssaultTargets } from '@/systems/airborne-system';
 import { getLegalAirMissionTargets } from '@/systems/air-operations-system';
 import { resolveUnitCityBombardment } from '@/systems/city-bombardment-system';
+import { createOperationalRouting, getOperationalRoute, MAX_OPERATIONAL_ROUTE_QUERIES } from '@/ai/ai-operational-routing';
+import * as pathfinding from '@/systems/unit-pathfinding';
+import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
 
 const AI = 'ai-1';
 const HUMAN = 'player';
+
+describe('known operational routes', () => {
+  it.each(['medium', 'large'] as const)('bounds operational searches on a %s map', mapSize => {
+    const state = createNewGame({ civType: 'egypt', mapSize, opponentCount: 1, gameTitle: 'Operational budget', seed: `operational-budget-${mapSize}`, opponentChallenge: 'veteran' });
+    for (const tile of Object.values(state.map.tiles)) tile.terrain = 'grassland';
+    state.map.rivers = [];
+    const tiles = Object.values(state.map.tiles);
+    const unit = addUnit(state, 'scale-router', 'warrior', AI, tiles[0]!.coord);
+    state.civilizations[AI].visibility.tiles = Object.fromEntries(tiles.map(tile => [hexKey(tile.coord), 'visible']));
+    const routing = createOperationalRouting();
+    const spy = vi.spyOn(pathfinding, 'findPath');
+    try {
+      for (const tile of tiles.slice(1, 49)) getOperationalRoute(state, unit, tile.coord, routing);
+      expect(spy).toHaveBeenCalledTimes(MAX_OPERATIONAL_ROUTE_QUERIES);
+      expect(routing.remainingQueries).toBe(0);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('caches equal known snapshots and caps added searches across targets', () => {
+    const state = makeState('veteran');
+    const unit = addUnit(state, 'router', 'warrior', AI, { q: 0, r: 0 });
+    const routing = createOperationalRouting();
+    const spy = vi.spyOn(pathfinding, 'findPath');
+    try {
+      const target = { q: 4, r: 0 };
+      const route = getOperationalRoute(state, unit, target, routing);
+      expect(route).not.toBeNull();
+      expect(getOperationalRoute(structuredClone(state), unit, target, routing)).toEqual(route);
+      expect(spy).toHaveBeenCalledTimes(1);
+      for (let q = 1; q < MAX_OPERATIONAL_ROUTE_QUERIES + 10; q += 1) {
+        getOperationalRoute(state, unit, { q, r: 1 }, routing);
+      }
+      expect(spy).toHaveBeenCalledTimes(MAX_OPERATIONAL_ROUTE_QUERIES);
+      expect(routing.remainingQueries).toBe(0);
+      expect(getOperationalRoute(state, unit, target, routing)).toEqual(route);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('ignores hidden troops and hidden changes to observed terrain, roads and ownership', () => {
+    let state = makeState('veteran');
+    const unit = addUnit(state, 'router', 'warrior', AI, { q: 0, r: 0 });
+    state = refreshLastSeenPresentationsForCiv(state, AI);
+    for (const key of Object.keys(state.map.tiles)) state.civilizations[AI].visibility.tiles[key] = 'fog';
+    state.civilizations[AI].visibility.tiles['0,0'] = 'visible';
+    const hidden = structuredClone(state);
+    addUnit(hidden, 'hidden-tank', 'tank', HUMAN, { q: 3, r: 0 });
+    hidden.map.tiles['3,0']!.terrain = 'ocean';
+    hidden.map.tiles['3,0']!.owner = HUMAN;
+    hidden.map.tiles['3,0']!.hasRoad = true;
+    const target = { q: 5, r: 0 };
+    expect(getOperationalRoute(hidden, unit, target, createOperationalRouting()))
+      .toEqual(getOperationalRoute(state, unit, target, createOperationalRouting()));
+    expect(getOperationalRoute(state, unit, target, createOperationalRouting())).not.toBeNull();
+  });
+
+  it('never searches unexplored terrain or routes through a known closed border', () => {
+    const state = makeState('veteran');
+    const unit = addUnit(state, 'router', 'warrior', AI, { q: 0, r: 0 });
+    state.civilizations[AI].visibility.tiles['4,0'] = 'unexplored';
+    expect(getOperationalRoute(state, unit, { q: 4, r: 0 }, createOperationalRouting())).toBeNull();
+    state.civilizations[AI].visibility.tiles['4,0'] = 'visible';
+    state.civilizations[AI].diplomacy.atWarWith = [];
+    state.civilizations[HUMAN].diplomacy.atWarWith = [];
+    state.map.tiles['4,0']!.owner = HUMAN;
+    expect(getOperationalRoute(state, unit, { q: 4, r: 0 }, createOperationalRouting())).toBeNull();
+  });
+});
 
 function makeState(challenge: OpponentChallenge = 'standard'): GameState {
   const state = createNewGame({
