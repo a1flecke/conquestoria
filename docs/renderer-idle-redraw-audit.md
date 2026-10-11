@@ -214,3 +214,40 @@ motion 304 -> 0 redraws and ~4390 ms -> ~70 ms TaskDuration. Motion allowed stil
 because a visible animated wonder is a genuine time-varying visual; layout/style work fell from
 ~150 ms/5 s to ~17 ms. A frame-rate cap or culling for ambient frames is a separate, measured
 follow-up (it changes how smooth the animation looks).
+
+## 10. Phase 2, PR C — enforcement and CI evidence (#1439)
+
+Enforced by the codebase, not just this document: `.claude/rules/renderer-invalidation.md` has the
+new-feature recipe and the table of mechanisms. Added in PR C: an AST guard that every `RenderLoop`
+method changing a canvas input calls `invalidate()`, single-owner checks for the camera and effect
+queue, the `effect-timeline-has-one-importer` architecture rule, and the always-on browser regression
+`tests/e2e/issue-1439-renderer-idle.spec.ts` (settled campaign repaints 0 times; zoom, drag, unit
+selection and a unit move each repaint and return to rest; motion allowed still repaints on input).
+
+### web-smoke job duration on GitHub `ubuntu-latest` (seconds)
+
+Measured with `gh api .../jobs`; the same job was re-run on each commit (re-runs of one commit share
+code, so they measure runner variance). Pre = renderer code unchanged from `main` before #1445;
+post = `5f41b501` (#1446, includes #1445).
+
+| Code | Samples (s) | n | Median | Range |
+|---|---|---:|---:|---|
+| Pre (`c809cb1e`, original + 4 re-runs) | 224, 357, 224, 280, 288 | 5 | 280 | 224–357 |
+| Pre (earlier mains, unchanged renderer: `0a756a67` 360, `61a057e6` 348, `ebc6c0c4` 371, `17b93261` 356, `b9bd3ccc` 360) | 348–371 | 5 | 360 | 348–371 |
+| Post #1445 only (`1555c324`) | 220 | 1 | 220 | — |
+| Post #1446 (`5f41b501`, original + 3 re-runs) | 230, 230, 304, 191 | 4 | 230 | 191–304 |
+
+Reading: post-change runs are lower (median 230 s vs 280 s on the same-commit controls, ~50 s or
+about 18%), but the ranges overlap (a pre-change run took 224 s; a post-change run took 304 s), n is
+small and runner speed varies by about 100 s on identical code. This is suggestive, not proof. The
+former 340–370 s band is not seen after the change, but it was not seen on every pre-change run
+either. Local, deterministic evidence is stronger: idle redraws 304 -> 0 and idle TaskDuration
+~4.4 s -> ~70 ms per 5 s under reduced motion (the e2e default), and the full 24-test web-smoke
+suite runs in about 1.1 minutes locally.
+
+### Unresolved
+
+- Mount of the crowded campaign is still ~4.2 s locally (and 14–35 s on slow CI per the issue): the
+  scheduler does not change mount cost. Any mount bottleneck is a separate follow-up.
+- Motion allowed keeps repainting ~60 fps while an animated wonder is on screen (genuine
+  time-varying content); an ambient frame-rate cap or culling would change how smooth it looks.
