@@ -35,6 +35,13 @@ export default defineConfig({
     // silently ignored there.
     contextOptions: { reducedMotion: 'reduce' },
   },
+  // #1439: the idle-campaign perf diagnostic is opt-in. It measures instead of
+  // asserting, so it must never change the default web-smoke outcome; set
+  // CONQUESTORIA_PERF_DIAGNOSTICS=1 to discover it (see package.json
+  // test:web-smoke:perf).
+  testIgnore: process.env.CONQUESTORIA_PERF_DIAGNOSTICS
+    ? []
+    : ['**/issue-1439-idle-campaign.perf-diagnostic.spec.ts'],
   projects: [
     {
       name: 'chromium',
