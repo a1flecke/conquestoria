@@ -77,6 +77,15 @@ export async function installIdleCampaignFixture(page: Page): Promise<void> {
     localStorage.setItem('conquestoria-autosave', fixtureText);
     const counter = { count: 0, ambient: 0 };
     (window as typeof window & { __issue1439RendererRedraws?: { count: number; ambient: number } }).__issue1439RendererRedraws = counter;
+    // Sprite images load through a bounded queue (#1439 phase 4), so a quiet canvas does not yet mean
+    // every asset has landed. Counting sprite blob URLs lets a settle wait require that every started
+    // load finished (a late asset legitimately repaints the whole canvas).
+    const blobs = { created: 0, revoked: 0 };
+    (window as typeof window & { __spriteBlobs?: { created: number; revoked: number } }).__spriteBlobs = blobs;
+    const createObjectURL = URL.createObjectURL.bind(URL);
+    const revokeObjectURL = URL.revokeObjectURL.bind(URL);
+    URL.createObjectURL = (obj: Blob | MediaSource) => { blobs.created += 1; return createObjectURL(obj); };
+    URL.revokeObjectURL = (url: string) => { blobs.revoked += 1; revokeObjectURL(url); };
     const originalClearRect = CanvasRenderingContext2D.prototype.clearRect;
     // An ambient-only paint (#1439 phase 3) clips the unchanged pipeline to the animated region, so
     // its clearRect directly follows the clip. A full paint's first call follows the previous
@@ -124,6 +133,15 @@ export async function continueCrowdedCampaign(page: Page): Promise<void> {
   await expect
     .poll(() => page.evaluate(() => (window as typeof window & { __issue1439RendererRedraws?: { count: number; ambient: number } }).__issue1439RendererRedraws?.count ?? 0))
     .toBeGreaterThan(0);
+}
+
+/** Sprite image loads started / still outstanding, from the counters installed by the fixture. */
+export async function readSpriteLoads(page: Page): Promise<{ created: number; outstanding: number }> {
+  return page.evaluate(() => {
+    const blobs = (window as typeof window & { __spriteBlobs?: { created: number; revoked: number } }).__spriteBlobs
+      ?? { created: 0, revoked: 0 };
+    return { created: blobs.created, outstanding: blobs.created - blobs.revoked };
+  });
 }
 
 export async function readAmbientRedrawCount(page: Page): Promise<number> {

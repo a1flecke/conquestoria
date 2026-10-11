@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { continueCrowdedCampaign, installIdleCampaignFixture } from './helpers/renderer-idle-perf';
+import { continueCrowdedCampaign, installIdleCampaignFixture, readSpriteLoads } from './helpers/renderer-idle-perf';
 
 /**
  * #1439 phase 3: with motion allowed and an animated wonder on screen, frames kept alive only by
@@ -8,7 +8,10 @@ import { continueCrowdedCampaign, installIdleCampaignFixture } from './helpers/r
  * Deterministic counts and pixels only; no CPU or timing thresholds.
  */
 interface Counter { count: number; ambient: number }
-type CounterWindow = typeof window & { __issue1439RendererRedraws?: Counter; __frozenNowMs?: number };
+type CounterWindow = typeof window & {
+  __issue1439RendererRedraws?: Counter;
+  __frozenNowMs?: number;
+};
 
 async function paints(page: Page): Promise<{ full: number; ambient: number }> {
   return page.evaluate(() => {
@@ -19,13 +22,18 @@ async function paints(page: Page): Promise<{ full: number; ambient: number }> {
 
 async function settledToAmbient(page: Page): Promise<void> {
   // Initial paints and sprite/asset loads are full; wait until frames are only ambient.
-  let last = await paints(page);
+  const signature = async () => {
+    const now = await paints(page);
+    const loads = await readSpriteLoads(page);
+    return { ...now, created: loads.created, outstanding: loads.outstanding };
+  };
+  let last = await signature();
   let quietSince = Date.now();
   await expect.poll(async () => {
-    const now = await paints(page);
-    if (now.full !== last.full) { last = now; quietSince = Date.now(); }
-    return Date.now() - quietSince > 800 && now.ambient > last.ambient;
-  }, { timeout: 20_000, intervals: [150] }).toBe(true);
+    const now = await signature();
+    if (now.full !== last.full || now.created !== last.created) { last = now; quietSince = Date.now(); }
+    return Date.now() - quietSince > 800 && now.ambient > last.ambient && now.created > 0 && now.outstanding === 0;
+  }, { timeout: 30_000, intervals: [150] }).toBe(true);
 }
 
 test('a visible animated wonder keeps animating through ambient-region paints only, and input still repaints fully', async ({ page }) => {

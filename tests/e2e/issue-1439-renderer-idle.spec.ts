@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { clickVisibleHex } from './helpers/canvas-interaction';
-import { continueCrowdedCampaign, installIdleCampaignFixture } from './helpers/renderer-idle-perf';
+import { continueCrowdedCampaign, installIdleCampaignFixture, readSpriteLoads } from './helpers/renderer-idle-perf';
 
 /**
  * #1439: an untouched campaign must stop repainting, and every real input must wake exactly the
@@ -24,14 +24,20 @@ function redraws(page: Page): Promise<number> {
     .__issue1439RendererRedraws?.count ?? 0);
 }
 
-/** Resolves once the paint count has not moved for a full quiet window. */
+/**
+ * Resolves once the paint count has not moved for a full quiet window and every sprite load that
+ * started has finished (sprites load through a bounded queue, #1439 phase 4, so a late asset can
+ * legitimately repaint after a quiet spell).
+ */
 async function waitForIdle(page: Page, quietMs = 600): Promise<number> {
   let last = await redraws(page);
+  let lastCreated = (await readSpriteLoads(page)).created;
   let stableSince = Date.now();
   await expect.poll(async () => {
     const now = await redraws(page);
-    if (now !== last) { last = now; stableSince = Date.now(); }
-    return Date.now() - stableSince >= quietMs;
+    const loads = await readSpriteLoads(page);
+    if (now !== last || loads.created !== lastCreated) { last = now; lastCreated = loads.created; stableSince = Date.now(); }
+    return Date.now() - stableSince >= quietMs && loads.outstanding === 0;
   }, { timeout: 15_000, intervals: [100] }).toBe(true);
   return last;
 }
