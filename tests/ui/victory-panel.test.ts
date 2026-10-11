@@ -73,6 +73,34 @@ describe('showVictoryPanel', () => {
     expect(container.textContent).not.toContain('Victory!');
   });
 
+  it('explains an all-humans-eliminated defeat without the Domination rule', () => {
+    const container = document.createElement('div');
+    showVictoryPanel(container, {
+      winnerName: '',
+      victoryType: 'Campaign Defeat',
+      outcome: 'defeat',
+      reason: 'all-humans-eliminated',
+      turn: 12,
+      onNewGame: () => {},
+    });
+
+    const text = container.textContent ?? '';
+    expect(text).not.toContain('Domination means');
+    expect(text).not.toContain('last independent empire');
+    expect(text).not.toContain('interstellar');
+    expect(text).toContain('The campaign ends when every human-controlled empire has been eliminated.');
+  });
+
+  it('keeps the Domination rule for a domination ending and when reason is absent', () => {
+    for (const reason of ['domination', undefined] as const) {
+      const container = document.createElement('div');
+      showVictoryPanel(container, { winnerName: 'Rome', victoryType: 'Domination', reason, turn: 5, onNewGame: () => {} });
+      expect(container.textContent).toContain(
+        'Domination means becoming the last independent empire: defeat other empires or make them your vassals.',
+      );
+    }
+  });
+
   it('renders the supplied generic rival label when another actor wins', () => {
     const container = document.createElement('div');
     showVictoryPanel(container, {
