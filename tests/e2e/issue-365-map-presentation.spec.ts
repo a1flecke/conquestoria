@@ -138,6 +138,22 @@ test('moving a member out of the crowded stack preserves its rendered size', asy
   expect(moved.box.height).toBeCloseTo(before.height, 1);
 });
 
+test('with motion allowed, DOM sprites run their idle animations', async ({ page }) => {
+  // The suite defaults to reduced motion (playwright.config.ts); this is the one spec that proves
+  // the sprite animation stylesheets are actually loaded and applied in a real browser. They were
+  // silently dropped from the app entry in #787 phase 10 (fixed by #1438), freezing every sprite.
+  test.slow();
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await installFixture(page);
+  await continueFixture(page);
+
+  await expect(page.locator('#sprite-overlay')).toHaveAttribute('data-reduced-motion', 'false');
+  const figure = page.locator('#unit-sprites .cq-sprite-figure').first();
+  await expect(figure).toHaveCSS('animation-name', /^cq2-/);
+  const duration = await figure.evaluate(element => getComputedStyle(element).animationDuration);
+  expect(Number.parseFloat(duration)).toBeGreaterThan(0);
+});
+
 test('mobile reduced motion keeps static DOM sprites and the crowded map usable', async ({ page }, testInfo) => {
   // See test.slow() rationale on the first test in this file.
   test.slow();
