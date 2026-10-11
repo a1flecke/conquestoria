@@ -15,7 +15,7 @@ free-floating "refresh" call the author has to remember. Background and measurem
 | A timed visual (flash, pulse, movement) | `RenderLoop.playEffect` / `animateUnitMove` | enrolment invalidates; the wake timer completes it on time |
 | An image the canvas draws | call `notifyCanvasAssetReady()` where the loader commits the image | coalesced `onCanvasAssetReady` |
 | Canvas size / DPR | `RenderLoop.resizeCanvas` | `invalidate` |
-| Motion driven by the wall clock (a pulse, a shimmer) | call `markTimeVaryingPaint()` where the motion is applied, only when motion is allowed | the paint keeps frames alive while it is drawn |
+| Motion driven by the wall clock (a pulse, a shimmer) | call `markTimeVaryingPaint()` where the motion is applied, only when motion is allowed, **inside `withAmbientBounds(cx, cy, radius, draw)`** at the entry point that owns the drawing | the paint keeps frames alive while it is drawn; frames kept alive *only* by bounded motion repaint just those regions (#1439 phase 3) |
 
 ## What enforces it
 
@@ -26,6 +26,7 @@ free-floating "refresh" call the author has to remember. Background and measurem
 | Only `RenderLoop` constructs the camera and the effect queue | same file, plus the `effect-timeline-has-one-importer` rule in `tests/app/architecture/rules.ts` |
 | Every canvas image cache announces readiness | `canvas-asset-ready.test.ts` fails any `src/renderer` module that creates an `Image` without importing the signal |
 | Time-varying visuals report to the scheduler | `paint-clock-boundary.test.ts` fails any `src/renderer` module that does arithmetic on `nowMs` without importing `paint-clock` |
+| An ambient-only frame equals a full paint | `tests/e2e/issue-1439-ambient-paint.spec.ts` (frozen clock, pixel-identical to a full paint; fails if a bound is too small) and `render-loop-idle.test.ts` (any real input, effect or movement forces a full paint) |
 | The loop really is idle, and wakes on input | `tests/e2e/issue-1439-renderer-idle.spec.ts` (deterministic redraw counts, no CPU thresholds) |
 
 ## Rules
@@ -39,3 +40,7 @@ free-floating "refresh" call the author has to remember. Background and measurem
   generation read before painting, never a cleared dirty flag.
 - Do not weaken animation to make idle numbers look better. Ambient motion (e.g. an animated wonder) is a
   genuine time-varying visual; a frame-rate cap is a separate, measured product decision.
+- **Ambient bounds are a correctness claim, not a hint.** The radius given to `withAmbientBounds` must
+  cover every pixel the animated drawing can touch (aura, glow, orbit, glint) with margin. An unscoped
+  mark is safe (it forces a full repaint); an undersized scope leaves stale pixels. Never mark inside a
+  scope for a drawing that depends on anything other than its own `(cx, cy)` and the clock.

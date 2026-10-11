@@ -46,6 +46,8 @@ export interface RendererIdleMeasurement {
   recalcStyleCountDelta: number;
   /** Canvas repaints on #game-canvas during the observation window. */
   redrawCountDelta: number;
+  /** Of those, paints clipped to the ambient animation region (the rest repainted the whole canvas). */
+  ambientRedrawCountDelta: number;
   /** Derived convenience figure: repaints per observation second. */
   redrawsPerSecond: number;
   jsHeapUsedMb: number;
@@ -73,11 +75,27 @@ function metricDelta(before: Record<string, number>, after: Record<string, numbe
 export async function installIdleCampaignFixture(page: Page): Promise<void> {
   await page.addInitScript((fixtureText: string) => {
     localStorage.setItem('conquestoria-autosave', fixtureText);
-    const counter = { count: 0 };
-    (window as typeof window & { __issue1439RendererRedraws?: { count: number } }).__issue1439RendererRedraws = counter;
+    const counter = { count: 0, ambient: 0 };
+    (window as typeof window & { __issue1439RendererRedraws?: { count: number; ambient: number } }).__issue1439RendererRedraws = counter;
     const originalClearRect = CanvasRenderingContext2D.prototype.clearRect;
+    // An ambient-only paint (#1439 phase 3) clips the unchanged pipeline to the animated region, so
+    // its clearRect directly follows the clip. A full paint's first call follows the previous
+    // paint's last save/restore/path call, never a clip (a clip is always followed by drawing and a
+    // restore). `lastCall` tracks exactly those structural calls.
+    let lastCall = '';
+    for (const name of ['save', 'restore', 'beginPath', 'clip'] as const) {
+      const original = CanvasRenderingContext2D.prototype[name] as (...args: unknown[]) => void;
+      (CanvasRenderingContext2D.prototype as unknown as Record<string, unknown>)[name] = function patched(this: CanvasRenderingContext2D, ...args: unknown[]) {
+        if (this.canvas?.id === 'game-canvas') lastCall = name;
+        return original.apply(this, args);
+      };
+    }
     CanvasRenderingContext2D.prototype.clearRect = function patchedClearRect(x: number, y: number, w: number, h: number) {
-      if (this.canvas?.id === 'game-canvas') counter.count += 1;
+      if (this.canvas?.id === 'game-canvas') {
+        counter.count += 1;
+        if (lastCall === 'clip') counter.ambient += 1;
+        lastCall = 'clearRect';
+      }
       return originalClearRect.call(this, x, y, w, h);
     };
   }, FIXTURE_TEXT);
@@ -104,12 +122,16 @@ export async function continueCrowdedCampaign(page: Page): Promise<void> {
   // paint so the mount span ends at "campaign is interactive", not "canvas exists".
   await expect(page.locator('#sprite-overlay')).toBeAttached();
   await expect
-    .poll(() => page.evaluate(() => (window as typeof window & { __issue1439RendererRedraws?: { count: number } }).__issue1439RendererRedraws?.count ?? 0))
+    .poll(() => page.evaluate(() => (window as typeof window & { __issue1439RendererRedraws?: { count: number; ambient: number } }).__issue1439RendererRedraws?.count ?? 0))
     .toBeGreaterThan(0);
 }
 
+export async function readAmbientRedrawCount(page: Page): Promise<number> {
+  return page.evaluate(() => (window as typeof window & { __issue1439RendererRedraws?: { count: number; ambient: number } }).__issue1439RendererRedraws?.ambient ?? 0);
+}
+
 async function readRedrawCount(page: Page): Promise<number> {
-  return page.evaluate(() => (window as typeof window & { __issue1439RendererRedraws?: { count: number } }).__issue1439RendererRedraws?.count ?? 0);
+  return page.evaluate(() => (window as typeof window & { __issue1439RendererRedraws?: { count: number; ambient: number } }).__issue1439RendererRedraws?.count ?? 0);
 }
 
 /**
@@ -141,10 +163,12 @@ export async function measureIdleCampaign(
   await cdp.send('Performance.enable');
   const metricsBefore = await readPerfMetrics(cdp);
   const redrawsBefore = await readRedrawCount(page);
+  const ambientBefore = await readAmbientRedrawCount(page);
 
   await page.waitForTimeout(OBSERVATION_MS); // pure idle: no input, no interaction
 
   const redrawsAfter = await readRedrawCount(page);
+  const ambientAfter = await readAmbientRedrawCount(page);
   const metricsAfter = await readPerfMetrics(cdp);
   await cdp.detach();
 
@@ -161,6 +185,7 @@ export async function measureIdleCampaign(
     layoutCountDelta: metricDelta(metricsBefore, metricsAfter, 'LayoutCount'),
     recalcStyleCountDelta: metricDelta(metricsBefore, metricsAfter, 'RecalcStyleCount'),
     redrawCountDelta: redrawsAfter - redrawsBefore,
+    ambientRedrawCountDelta: ambientAfter - ambientBefore,
     redrawsPerSecond: Math.round(((redrawsAfter - redrawsBefore) / (OBSERVATION_MS / 1000)) * 100) / 100,
     jsHeapUsedMb: Math.round(((metricsAfter.JSHeapUsedSize ?? 0) / (1024 * 1024)) * 100) / 100,
   };
@@ -178,6 +203,6 @@ export async function measureIdleCampaign(
 
 declare global {
   interface Window {
-    __issue1439RendererRedraws?: { count: number };
+    __issue1439RendererRedraws?: { count: number; ambient: number };
   }
 }

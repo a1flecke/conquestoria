@@ -250,4 +250,38 @@ suite runs in about 1.1 minutes locally.
 - Mount of the crowded campaign is still ~4.2 s locally (and 14–35 s on slow CI per the issue): the
   scheduler does not change mount cost. Any mount bottleneck is a separate follow-up.
 - Motion allowed keeps repainting ~60 fps while an animated wonder is on screen (genuine
-  time-varying content); an ambient frame-rate cap or culling would change how smooth it looks.
+  time-varying content); phase 3 (section 11) clips those frames to the animated region.
+
+## 11. Phase 3 — ambient-only frames repaint only the animated region (#1439)
+
+**Diagnosis** (local macOS, headless Chromium, software rendering; crowded fixture, 5 s idle window,
+motion allowed, n=2): TaskDuration 4461 / 4675 ms, but ScriptDuration only 869 / 882 ms and
+layout+style ~50 ms, so roughly 80% of the cost was canvas rasterisation of a full repaint at 60/s for
+one animated wonder, not JavaScript or the DOM overlay.
+
+**Change.** `paint-clock` gained `withAmbientBounds(cx, cy, radius, draw)`; the two wonder entry points
+(`drawNaturalWonderLandmark`, `drawLegendaryWonderLandmarkGlyph`) declare their reach. A mark made inside
+a scope is bounded; any unscoped mark is unbounded. When the previous paint's marks were all bounded and
+nothing else changed since (same generation, no fling, movement, timed effect or pirate transient),
+`RenderLoop.paintFrame` runs the unchanged full pipeline under a canvas clip of those regions
+(`renderAmbientRegion`). Every pixel outside the clip is left as is; every pixel inside is produced by the
+same z-ordered draw sequence, so the result equals a full paint. Any input still goes through
+`invalidate()`, bumps the generation and forces a full paint, so viewer handoff, fog changes, camera,
+resize and late assets all take the old path.
+
+**Alternatives.** (1) A cached static world canvas plus a separate animated layer: cheapest per frame
+but the wonders are interleaved with fog, cities and units in one z-order, so it needs a layered
+renderer, a cache keyed on viewer/fog/camera/assets, and mobile memory for a second full-size canvas.
+Rejected as too large and too risky for a hot-seat game. (2) A 15/30 FPS cap on ambient-only frames:
+trivial, halves the cost, but visibly changes every animation's smoothness. Rejected. (3) Clip the
+existing pipeline (chosen): no cache and no second canvas, correct by construction, and any forgotten
+bound can only fall back to a full paint.
+
+**Result** (same machine and fixture, n=2 per mode): see the PR for the table. Motion allowed:
+TaskDuration 4461 / 4675 ms -> 2416 / 2388 ms; redraws unchanged at ~302 per 5 s but 301 of them are
+clipped ambient paints; reduced motion unchanged (0 redraws, ~60-80 ms).
+
+**Remaining.** ~2.4 s / 5 s still goes to the same JS draw pipeline running under the clip (script
+~0.8 s) plus recording and compositing the full-size canvas each frame. Culling draw passes by the clip
+rectangle would cut the JS and recording cost but needs every pass's overdraw extent proven; it is a
+separate, measured follow-up.
