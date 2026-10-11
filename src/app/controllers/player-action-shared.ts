@@ -37,9 +37,8 @@ export interface PlayerActionController {
 
 /** The narrow slice of `RenderLoop` this controller needs. */
 export type PlayerActionRenderer =
-  & Pick<RenderLoop, 'setGameState'>
-  & { readonly camera: Pick<RenderLoop['camera'], 'centerOn'> }
-  & { readonly animations: Pick<RenderLoop['animations'], 'add'> };
+  & Pick<RenderLoop, 'setGameState' | 'playEffect'>
+  & { readonly camera: Pick<RenderLoop['camera'], 'centerOn'> };
 
 export interface PlayerActionControllerDeps {
   readonly session: GameSession;

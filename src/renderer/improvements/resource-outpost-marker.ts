@@ -3,6 +3,7 @@
 // wrapper. Replaces the '🚩' emoji placeholder in hex-renderer.ts.
 // Reads as a claimed outpost at 24-32 px; faction-neutral amber flag so
 // it is visually distinct from a unit's heraldic <Banner>.
+import { notifyCanvasAssetReady } from '@/renderer/canvas-asset-ready';
 
 const RESOURCE_OUTPOST_SVG = `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
   <ellipse cx="23" cy="43" rx="14" ry="3" fill="rgba(0,0,0,0.22)"/>
@@ -26,7 +27,7 @@ export async function preloadOutpostMarker(): Promise<void> {
   const url = URL.createObjectURL(blob);
   await new Promise<void>((resolve, reject) => {
     const img = new Image();
-    img.onload = () => { URL.revokeObjectURL(url); cachedImage = img; resolve(); };
+    img.onload = () => { URL.revokeObjectURL(url); cachedImage = img; notifyCanvasAssetReady(); resolve(); };
     img.onerror = () => { URL.revokeObjectURL(url); reject(); };
     img.src = url;
   });

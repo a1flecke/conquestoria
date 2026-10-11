@@ -5,7 +5,8 @@ import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { drawFogOfWar } from './fog-renderer';
 import { drawUnitPresentations } from './unit-renderer';
 import { drawCities } from './city-renderer';
-import { AnimationSystem } from './animation-system';
+import { AnimationSystem, type EffectAnimationData, type EffectAnimationType } from './animation-system';
+import { onCanvasAssetReady } from './canvas-asset-ready';
 import { hexToPixel, hexKey } from '@/systems/hex-utils';
 import { getHorizontalWrapRenderCoords, nearestWrappedCoord } from './wrap-rendering';
 import { getVisibility } from '@/systems/fog-of-war';
@@ -287,8 +288,11 @@ function prefersReducedMotion(): boolean {
 export class RenderLoop {
   private ctx: CanvasRenderingContext2D;
   private canvas: HTMLCanvasElement;
-  camera: Camera;
-  animations: AnimationSystem;
+  readonly camera: Camera;
+  /** Timed effects. Private: enroll through `playEffect` so enrollment always invalidates. */
+  private readonly timeline: AnimationSystem;
+  private generation = 0;
+  private readonly unsubscribers: Array<() => void> = [];
   private state: GameState | null = null;
   // Computed once per setGameState (not per animation frame) -- see
   // getWorldPressurePresentationForViewer's own doc comment for the cost this avoids.
@@ -321,6 +325,7 @@ export class RenderLoop {
     if (!viewerId) return false;
     const enabled = !this.airDefenseOverlayEnabledByViewer.get(viewerId);
     this.airDefenseOverlayEnabledByViewer.set(viewerId, enabled);
+    this.invalidate();
     return enabled;
   }
 
@@ -342,6 +347,7 @@ export class RenderLoop {
     if (enabled && this.state) {
       this.supplyOverlayPresentation = getSupplyOverlayPresentationForViewer(this.state, viewerId);
     }
+    this.invalidate();
     return enabled;
   }
 
@@ -355,6 +361,7 @@ export class RenderLoop {
    * stage-2 exit (cancel, back, or advancing to stage 3) and on flow close. */
   setStrategicLaunchPreview(presentation: StrategicLaunchPreviewPresentation | null): void {
     this.strategicLaunchPreview = presentation;
+    this.invalidate();
   }
   private pirateSpriteState = new PirateSpriteStateController();
   private pirateUnitDeathSnapshots = new Map<string, { unit: Unit; expiresAtMs: number }>();
@@ -365,14 +372,17 @@ export class RenderLoop {
 
   setTouchHandler(th: { isPinching: boolean }): void {
     this.touchHandlerRef = th;
+    this.invalidate();
   }
 
   setSelectedUnitId(unitId: string | null): void {
     this.selectedUnitId = unitId;
+    this.invalidate();
   }
 
   setSelectedPirateFactionId(factionId: string | null): void {
     this.selectedPirateFactionId = factionId;
+    this.invalidate();
   }
 
   /** Brief "work" pulse for a unit that just performed its civilian action (e.g. a
@@ -380,10 +390,12 @@ export class RenderLoop {
    * as applyCombatVisual's attack/hurt, just a different trigger. */
   applyDeliveryVisual(unitId: string, nowMs = performance.now()): void {
     this.pirateSpriteState.apply({ type: 'work', entityId: unitId }, nowMs);
+    this.invalidate();
   }
 
   applyCombatVisual(result: CombatResult, nowMs = performance.now()): void {
     this.pirateSpriteState.apply({ type: 'combat', ...result }, nowMs);
+    this.invalidate();
     if (!this.state) return;
     for (const [unitId, survived] of [
       [result.attackerId, result.attackerSurvived],
@@ -412,6 +424,7 @@ export class RenderLoop {
     } else {
       this.pirateSpriteState.apply({ type: 'hurt', entityId: unitId }, nowMs);
     }
+    this.invalidate();
     if (!options.destroyed || !this.state) return;
     const entity = buildPirateHeadquartersMapPresentation(
       this.state,
@@ -423,14 +436,17 @@ export class RenderLoop {
 
   setHighlights(highlights: HexHighlight[]): void {
     this.highlights = highlights;
+    this.invalidate();
   }
 
   clearHighlights(): void {
     this.highlights = [];
+    this.invalidate();
   }
 
   setJourneyPath(path: HexCoord[] | null): void {
     this.journeyPath = path;
+    this.invalidate();
   }
 
   requestWonderDiscoveryHighlight(
@@ -439,7 +455,7 @@ export class RenderLoop {
     options: { reducedMotion: boolean },
   ): void {
     this.camera.centerOn(coord);
-    this.animations.add(
+    this.playEffect(
       options.reducedMotion ? 'wonder-discovery-static-highlight' : 'wonder-discovery-pulse',
       900,
       {
@@ -470,6 +486,7 @@ export class RenderLoop {
       onComplete,
       detachedFromState,
     });
+    this.invalidate();
   }
 
   /**
@@ -487,7 +504,34 @@ export class RenderLoop {
    */
   animateUnitAppear(position: HexCoord): void {
     if (prefersReducedMotion()) return;
-    this.animations.add('disembark-flash', 500, { coord: position });
+    this.playEffect('disembark-flash', 500, { coord: position });
+  }
+
+  /** The only way to enroll a timed effect: enrollment wakes the renderer. */
+  playEffect(
+    type: EffectAnimationType,
+    duration: number,
+    data: EffectAnimationData,
+    onComplete?: () => void,
+  ): string {
+    const id = this.timeline.add(type, duration, data, onComplete);
+    this.invalidate();
+    return id;
+  }
+
+  /** Monotonic count of canvas-visible input changes; the scheduler repaints when it moves. */
+  get renderGeneration(): number {
+    return this.generation;
+  }
+
+  private invalidate(): void {
+    this.generation++;
+  }
+
+  /** Release camera / asset subscriptions. Safe to call more than once. */
+  dispose(): void {
+    this.stop();
+    for (const off of this.unsubscribers.splice(0)) off();
   }
 
   hasMovingUnit(unitId: string): boolean {
@@ -498,7 +542,11 @@ export class RenderLoop {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d')!;
     this.camera = new Camera();
-    this.animations = new AnimationSystem();
+    this.unsubscribers.push(
+      this.camera.onChange(() => this.invalidate()),
+      onCanvasAssetReady(() => this.invalidate()),
+    );
+    this.timeline = new AnimationSystem();
     this.resizeCanvas();
     // Mount the sprite overlay — guarded for test environments without DOM
     if (typeof document !== 'undefined') {
@@ -516,10 +564,12 @@ export class RenderLoop {
     // resizes. Reset first so repeated calls never compound the DPR scale.
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.camera.setViewport(rect.width, rect.height);
+    this.invalidate();
   }
 
   setGameState(state: GameState): void {
     this.state = state;
+    this.invalidate();
     this.worldPressurePresentation = getWorldPressurePresentationForViewer(state, state.currentPlayer);
     this.herdRoutePresentation = getHerdRoutePresentationForViewer(state, state.currentPlayer);
     this.loyaltyPressurePresentation = getLoyaltyPressurePresentationForViewer(state, state.currentPlayer);
@@ -886,7 +936,7 @@ export class RenderLoop {
     );
 
     // Draw animations (world-anchored: screen position derives from the camera each frame)
-    this.animations.update(this.ctx, this.camera, this.state.map, performance.now());
+    this.timeline.update(this.ctx, this.camera, this.state.map, performance.now());
 
   }
 

@@ -1,4 +1,5 @@
 // Pasture improvement marker — Canvas 2D drawImage, no animation.
+import { notifyCanvasAssetReady } from '@/renderer/canvas-asset-ready';
 
 const SVG = `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" stroke-linecap="round">
   <ellipse cx="24" cy="44" rx="16" ry="3" fill="rgba(0,0,0,0.18)"/>
@@ -20,7 +21,7 @@ export async function preloadPastureMarker(): Promise<void> {
   const url = URL.createObjectURL(blob);
   await new Promise<void>((resolve, reject) => {
     const img = new Image();
-    img.onload = () => { URL.revokeObjectURL(url); cached = img; resolve(); };
+    img.onload = () => { URL.revokeObjectURL(url); cached = img; notifyCanvasAssetReady(); resolve(); };
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('pasture-marker load failed')); };
     img.src = url;
   });

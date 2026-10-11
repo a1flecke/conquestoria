@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { GameState } from '@/core/types';
 import { RenderLoop } from '@/renderer/render-loop';
+import { AnimationSystem } from '@/renderer/animation-system';
 import { getWonderVisualDefinition } from '@/systems/wonder-visual-catalog';
 
 function canvas(): HTMLCanvasElement {
@@ -51,7 +52,7 @@ describe('wonder discovery highlight', () => {
   it('centers the camera and schedules an animated pulse at the event coordinate', () => {
     const loop = new RenderLoop(canvas());
     loop.setGameState(state());
-    const add = vi.spyOn(loop.animations, 'add');
+    const add = vi.spyOn(AnimationSystem.prototype, 'add');
     const center = vi.spyOn(loop.camera, 'centerOn');
 
     loop.requestWonderDiscoveryHighlight({ q: 2, r: 0 }, getWonderVisualDefinition('great_volcano'), { reducedMotion: false });
@@ -65,6 +66,7 @@ describe('wonder discovery highlight', () => {
         accent: expect.any(String),
         glow: expect.any(String),
       }),
+      undefined,
     );
   });
 
@@ -72,7 +74,7 @@ describe('wonder discovery highlight', () => {
     const loop = new RenderLoop(canvas());
     loop.setGameState(state());
     loop.setHighlights([{ coord: { q: 1, r: 0 }, type: 'move' }]);
-    const add = vi.spyOn(loop.animations, 'add');
+    const add = vi.spyOn(AnimationSystem.prototype, 'add');
 
     loop.requestWonderDiscoveryHighlight({ q: 2, r: 0 }, getWonderVisualDefinition('great_volcano'), { reducedMotion: true });
 
@@ -80,6 +82,7 @@ describe('wonder discovery highlight', () => {
       'wonder-discovery-static-highlight',
       900,
       expect.objectContaining({ coord: { q: 2, r: 0 }, accent: expect.any(String) }),
+      undefined,
     );
     expect((loop as unknown as { highlights: unknown[] }).highlights).toEqual([{ coord: { q: 1, r: 0 }, type: 'move' }]);
   });
