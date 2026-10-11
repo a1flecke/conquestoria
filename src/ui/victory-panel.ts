@@ -54,6 +54,8 @@ export function showVictoryPanel(container: HTMLElement, options: VictoryPanelOp
   rule.style.cssText = 'font-size:14px;color:#ccc;margin:0 0 12px;max-width:420px;line-height:1.5;';
   rule.textContent = options.reason === 'science'
     ? 'A Science Victory is won by completing humanity\'s first interstellar colony mission before any rival.'
+    : options.reason === 'all-humans-eliminated'
+    ? 'The campaign ends when every human-controlled empire has been eliminated.'
     : 'Domination means becoming the last independent empire: defeat other empires or make them your vassals.';
 
   const summary = document.createElement('p');
