@@ -1,4 +1,4 @@
-import { markTimeVaryingPaint } from '../paint-clock';
+import { markTimeVaryingPaint, withAmbientBounds } from '../paint-clock';
 import type { TilePresentationKind } from '@/renderer/tile-presentation';
 import { drawNaturalWonderSpectacleEffects } from '@/renderer/wonders/natural-wonder-effects-renderer';
 import { getWonderVisualDefinition, type WonderMapLandmark } from '@/systems/wonder-visual-catalog';
@@ -103,7 +103,16 @@ function drawLandmarkShape(
   ctx.fill();
 }
 
+/** Every shape here is drawn relative to (cx, cy, size) within ~1.1 sizes; 2 leaves a wide margin. */
+const NATURAL_WONDER_AMBIENT_RADIUS = 2;
+
 export function drawNaturalWonderLandmark(options: NaturalWonderRenderOptions): void {
+  withAmbientBounds(options.cx, options.cy, options.size * NATURAL_WONDER_AMBIENT_RADIUS, () => {
+    drawNaturalWonderLandmarkUnbounded(options);
+  });
+}
+
+function drawNaturalWonderLandmarkUnbounded(options: NaturalWonderRenderOptions): void {
   const { ctx, cx, cy, size, wonderId, presentationKind, nowMs, reducedMotion, lowZoom } = options;
   const visual = getWonderVisualDefinition(wonderId);
 

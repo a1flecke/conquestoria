@@ -7,7 +7,7 @@ import { drawUnitPresentations } from './unit-renderer';
 import { drawCities } from './city-renderer';
 import { AnimationSystem, type EffectAnimationData, type EffectAnimationType } from './animation-system';
 import { onCanvasAssetReady } from './canvas-asset-ready';
-import { beginPaintTracking, paintWasTimeVarying } from './paint-clock';
+import { beginPaintTracking, paintAmbientRegion, paintWasTimeVarying, type PaintBounds } from './paint-clock';
 import { hexToPixel, hexKey } from '@/systems/hex-utils';
 import { getHorizontalWrapRenderCoords, nearestWrappedCoord } from './wrap-rendering';
 import { getVisibility } from '@/systems/fog-of-war';
@@ -322,6 +322,12 @@ export class RenderLoop {
   private lastSyncedGeneration = -1;
   /** Set when time-bound work (a death snapshot) retired and the overlay must drop it. */
   private overlayStale = false;
+  /** Generation the last paint started from; -1 until the first paint. */
+  private lastPaintedGeneration = -1;
+  /** Regions the last paint's time-varying content occupies; null when it had none or any was unbounded. */
+  private lastAmbientRegion: readonly PaintBounds[] | null = null;
+  private fullPaintCount = 0;
+  private ambientPaintCount = 0;
   private selectedUnitId: string | null = null;
   private selectedPirateFactionId: string | null = null;
   private airDefenseOverlayEnabledByViewer = new Map<string, boolean>();
@@ -634,8 +640,15 @@ export class RenderLoop {
   private paintFrame(): void {
     this.camera.applyInertia();
     const paintedGeneration = this.generation;
+    const ambientRegion = this.ambientOnlyRegion(paintedGeneration);
     beginPaintTracking();
-    this.render();
+    if (ambientRegion) this.renderAmbientRegion(ambientRegion);
+    else {
+      this.fullPaintCount++;
+      this.render();
+    }
+    this.lastPaintedGeneration = paintedGeneration;
+    this.lastAmbientRegion = paintAmbientRegion();
     const needsFrames = this.generation !== paintedGeneration
       || this.camera.isMoving()
       || this.unitMovementAnimations.length > 0
@@ -643,6 +656,55 @@ export class RenderLoop {
       || paintWasTimeVarying();
     this.armWakeTimer();
     if (needsFrames) this.requestFrame();
+  }
+
+  /**
+   * The regions an ambient-only frame may repaint, or null when this frame must be a full paint.
+   * It is ambient-only exactly when the previous paint left every canvas input untouched (same
+   * generation, so no camera, state, presentation, asset or size change since) and everything
+   * time-bound is quiet, so the only thing that differs from the pixels already on screen is the
+   * bounded ambient motion the previous paint reported (#1439 phase 3).
+   */
+  private ambientOnlyRegion(generation: number): readonly PaintBounds[] | null {
+    const region = this.lastAmbientRegion;
+    if (!region || !this.state) return null;
+    if (generation !== this.lastPaintedGeneration || this.camera.isMoving()) return null;
+    if (this.unitMovementAnimations.length > 0 || this.timeline.hasActive()) return null;
+    if (this.overlayStale || this.pirateSpriteState.nextExpiryMs() !== null) return null;
+    if (this.pirateUnitDeathSnapshots.size > 0 || this.pirateLandmarkDeathSnapshots.size > 0) return null;
+    return region;
+  }
+
+  /**
+   * Runs the unchanged full paint pipeline clipped to the ambient regions. The clip makes every
+   * pixel outside them untouched (so the previous frame stays), and every pixel inside them is
+   * produced by the same z-ordered draw sequence a full paint would run, so the result is
+   * identical to a full paint at this instant.
+   */
+  private renderAmbientRegion(region: readonly PaintBounds[]): void {
+    const dpr = window.devicePixelRatio || 1;
+    this.ambientPaintCount++;
+    this.ctx.save();
+    this.ctx.beginPath();
+    for (const bounds of region) {
+      // Align outward to whole device pixels so antialiased edges are never half-clipped.
+      const x0 = Math.floor(bounds.x0 * dpr) / dpr - 1;
+      const y0 = Math.floor(bounds.y0 * dpr) / dpr - 1;
+      const x1 = Math.ceil(bounds.x1 * dpr) / dpr + 1;
+      const y1 = Math.ceil(bounds.y1 * dpr) / dpr + 1;
+      this.ctx.rect(x0, y0, x1 - x0, y1 - y0);
+    }
+    this.ctx.clip();
+    try {
+      this.render();
+    } finally {
+      this.ctx.restore();
+    }
+  }
+
+  /** Diagnostics: how many paints ran the whole canvas versus only the ambient regions. */
+  get paintCounts(): { full: number; ambient: number } {
+    return { full: this.fullPaintCount, ambient: this.ambientPaintCount };
   }
 
   /**

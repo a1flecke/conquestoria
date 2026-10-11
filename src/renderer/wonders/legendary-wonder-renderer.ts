@@ -1,4 +1,4 @@
-import { markTimeVaryingPaint } from '../paint-clock';
+import { markTimeVaryingPaint, withAmbientBounds } from '../paint-clock';
 import { getLegendaryWonderLandmarkMetadata } from '@/systems/legendary-wonder-landmark-catalog';
 import type { WonderVisualDefinition } from '@/systems/wonder-visual-catalog';
 import { resolveLegendaryWonderBespokeAsset } from '@/renderer/wonders/legendary-wonder-bespoke-assets';
@@ -121,7 +121,7 @@ function pulseAlpha(nowMs: number): number {
   return (Math.sin(nowMs / 900) + 1) / 2;
 }
 
-export function drawLegendaryWonderLandmarkGlyph(options: {
+interface LegendaryWonderGlyphOptions {
   ctx: CanvasRenderingContext2D;
   cx: number;
   cy: number;
@@ -130,7 +130,23 @@ export function drawLegendaryWonderLandmarkGlyph(options: {
   state: LegendaryWonderLandmarkState;
   reducedMotion: boolean;
   nowMs: number;
-}): void {
+}
+
+/**
+ * The aura is 1.18 radii and the silhouette/bespoke art is `0.72 * scale` radii; its glints and
+ * orbits stay inside that art's own radius. 3 radii (scaled up for a large `scale`) is a wide
+ * margin over all of it.
+ */
+const LEGENDARY_GLYPH_AMBIENT_RADII = 3;
+
+export function drawLegendaryWonderLandmarkGlyph(options: LegendaryWonderGlyphOptions): void {
+  const reach = options.radius * LEGENDARY_GLYPH_AMBIENT_RADII * Math.max(1, options.metadata.scale);
+  withAmbientBounds(options.cx, options.cy, reach, () => {
+    drawLegendaryWonderLandmarkGlyphUnbounded(options);
+  });
+}
+
+function drawLegendaryWonderLandmarkGlyphUnbounded(options: LegendaryWonderGlyphOptions): void {
   const { ctx, cx, cy, radius, metadata, state, reducedMotion, nowMs } = options;
   const motion = reducedMotion ? 'none' : metadata.motion;
   if (metadata.aura !== 'none') {

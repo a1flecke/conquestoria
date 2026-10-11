@@ -1,13 +1,18 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
-const paintProbe = vi.hoisted(() => ({ timeVarying: false }));
+const paintProbe = vi.hoisted(() => ({ timeVarying: false, bounded: null as null | { cx: number; cy: number; radius: number } }));
 
 vi.mock('@/renderer/hex-renderer', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/renderer/hex-renderer')>();
-  const { markTimeVaryingPaint } = await import('@/renderer/paint-clock');
+  const { markTimeVaryingPaint, withAmbientBounds } = await import('@/renderer/paint-clock');
   return {
     ...actual,
-    drawHexMap: vi.fn(() => { if (paintProbe.timeVarying) markTimeVaryingPaint(); }),
+    drawHexMap: vi.fn(() => {
+      if (!paintProbe.timeVarying) return;
+      const area = paintProbe.bounded;
+      if (area) withAmbientBounds(area.cx, area.cy, area.radius, () => markTimeVaryingPaint());
+      else markTimeVaryingPaint();
+    }),
   };
 });
 
@@ -68,6 +73,7 @@ function drain(max = 400): number {
 
 beforeEach(() => {
   paintProbe.timeVarying = false;
+  paintProbe.bounded = null;
   frames = [];
   nextId = 1;
   g.window = { devicePixelRatio: 1 };
@@ -290,5 +296,96 @@ describe('idle-aware render scheduling (#1439)', () => {
     vi.advanceTimersByTime(16); runFrame();
     expect(sync.mock.calls.length).toBe(before + 2);
     loop.stop();
+  });
+
+  describe('ambient-only frames repaint just the animated region (#1439 phase 3)', () => {
+    const AREA = { cx: 100, cy: 80, radius: 20 };
+
+    it('keeps animating a bounded wonder with clipped paints after one full paint', () => {
+      const { loop, calls } = makeLoop();
+      paintProbe.timeVarying = true;
+      paintProbe.bounded = AREA;
+      loop.start();
+      expect(loop.paintCounts).toEqual({ full: 1, ambient: 0 });
+      runFrame(); runFrame(); runFrame();
+      expect(loop.paintCounts).toEqual({ full: 1, ambient: 3 });
+      expect(frames).toHaveLength(1); // still animating
+      const rect = calls.get('rect')!.mock.calls[0]!;
+      // The clip covers the declared area (aligned outward) and is far smaller than the 320x240 canvas.
+      expect(rect[0]).toBeLessThanOrEqual(AREA.cx - AREA.radius);
+      expect(rect[1]).toBeLessThanOrEqual(AREA.cy - AREA.radius);
+      expect(rect[0] + rect[2]).toBeGreaterThanOrEqual(AREA.cx + AREA.radius);
+      expect(rect[1] + rect[3]).toBeGreaterThanOrEqual(AREA.cy + AREA.radius);
+      expect(rect[2] * rect[3]).toBeLessThan(320 * 240 / 10);
+      expect(calls.get('clip')!.mock.calls).toHaveLength(3);
+      expect(calls.get('save')!.mock.calls.length).toBe(calls.get('restore')!.mock.calls.length);
+      loop.stop();
+    });
+
+    it('falls back to full paints when any ambient mark is unbounded', () => {
+      const { loop } = makeLoop();
+      paintProbe.timeVarying = true;
+      paintProbe.bounded = null;
+      loop.start();
+      runFrame(); runFrame(); runFrame();
+      expect(loop.paintCounts).toEqual({ full: 4, ambient: 0 });
+      loop.stop();
+    });
+
+    it.each([
+      ['camera pan', (loop: RenderLoop) => loop.camera.pan(3, 3)],
+      ['selection', (loop: RenderLoop) => loop.setSelectedUnitId('u1')],
+      ['game state publication', (loop: RenderLoop) => loop.setGameState(state())],
+      ['canvas resize', (loop: RenderLoop) => loop.resizeCanvas()],
+    ])('runs a full paint when a real input (%s) arrives between ambient frames', (_name, input) => {
+      const { loop } = makeLoop();
+      paintProbe.timeVarying = true;
+      paintProbe.bounded = AREA;
+      loop.start();
+      runFrame(); runFrame();
+      expect(loop.paintCounts).toEqual({ full: 1, ambient: 2 });
+      input(loop);
+      runFrame();
+      expect(loop.paintCounts.full).toBe(2);
+      runFrame();
+      expect(loop.paintCounts).toEqual({ full: 2, ambient: 3 });
+      loop.stop();
+    });
+
+    it('runs full paints while a timed effect or movement is live, then returns to ambient paints', () => {
+      const { loop } = makeLoop();
+      paintProbe.timeVarying = true;
+      paintProbe.bounded = AREA;
+      loop.start();
+      runFrame();
+      expect(loop.paintCounts.ambient).toBe(1);
+      loop.playEffect('combat-flash', 400, { coord: { q: 1, r: 0 } });
+      const fullBefore = loop.paintCounts.full;
+      vi.advanceTimersByTime(16); runFrame();
+      vi.advanceTimersByTime(16); runFrame();
+      expect(loop.paintCounts.full).toBe(fullBefore + 2);
+      vi.advanceTimersByTime(1_000);
+      drain(10);
+      const ambientAfterEffect = loop.paintCounts.ambient;
+      runFrame();
+      expect(loop.paintCounts.ambient).toBe(ambientAfterEffect + 1);
+      loop.stop();
+    });
+
+    it('goes idle, with no clip, once the ambient content disappears', () => {
+      const { loop, calls } = makeLoop();
+      paintProbe.timeVarying = true;
+      paintProbe.bounded = AREA;
+      loop.start();
+      runFrame();
+      paintProbe.timeVarying = false; // e.g. the wonder scrolled away or motion was disabled
+      runFrame(); // last clipped paint reports nothing time-varying
+      expect(frames).toHaveLength(0);
+      const clips = calls.get('clip')!.mock.calls.length;
+      vi.advanceTimersByTime(10_000);
+      expect(frames).toHaveLength(0);
+      expect(calls.get('clip')!.mock.calls.length).toBe(clips);
+      loop.stop();
+    });
   });
 });
