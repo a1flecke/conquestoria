@@ -1,6 +1,7 @@
 // src/renderer/terrain/terrain-tile-loader.ts
 import type { TerrainType } from '@/core/types';
 import { TERRAIN_TILES } from './terrain-tiles';
+import { notifyCanvasAssetReady } from '@/renderer/canvas-asset-ready';
 
 function svgToImage(svg: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -21,7 +22,7 @@ export async function preloadTerrainTiles(): Promise<void> {
   await Promise.all(
     entries.flatMap(([terrain, variants]) =>
       variants.map((svg, i) =>
-        svgToImage(svg).then(img => cache.set(`${terrain}:${i}`, img))
+        svgToImage(svg).then(img => { cache.set(`${terrain}:${i}`, img); notifyCanvasAssetReady(); })
       )
     )
   );

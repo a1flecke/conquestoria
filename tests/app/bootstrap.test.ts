@@ -100,7 +100,7 @@ function makeCompositionDeps(overrides: Partial<AppCompositionDeps> = {}): AppCo
     requestWonderDiscoveryHighlight: vi.fn(),
     applyDeliveryVisual: vi.fn(),
     applyCombatVisual: vi.fn(),
-    animations: { add: vi.fn() },
+    playEffect: vi.fn(),
     isAirDefenseOverlayEnabled: vi.fn().mockReturnValue(false),
     toggleAirDefenseOverlay: vi.fn().mockReturnValue(false),
     resizeCanvas: vi.fn(),

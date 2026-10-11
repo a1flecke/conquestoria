@@ -54,6 +54,7 @@ vi.mock('@/renderer/air-defense-overlay', () => ({
 }));
 
 import { RenderLoop } from '@/renderer/render-loop';
+import { AnimationSystem } from '@/renderer/animation-system';
 import { spriteCache } from '@/renderer/sprites/sprite-loader';
 import { LOD_SPRITE_ZOOM_THRESHOLD } from '@/renderer/sprites/sprite-system';
 import type { GameState, Unit } from '@/core/types';
@@ -318,7 +319,7 @@ describe('render-loop presentation setters (#1439 characterization)', () => {
     });
     const loop = new RenderLoop(createCanvas());
     loop.setGameState(minimalState());
-    const add = vi.spyOn(loop.animations, 'add');
+    const add = vi.spyOn(AnimationSystem.prototype, 'add');
 
     loop.animateUnitAppear({ q: 1, r: 0 });
 
@@ -338,11 +339,11 @@ describe('render-loop presentation setters (#1439 characterization)', () => {
     });
     const loop = new RenderLoop(createCanvas());
     loop.setGameState(minimalState());
-    const add = vi.spyOn(loop.animations, 'add');
+    const add = vi.spyOn(AnimationSystem.prototype, 'add');
 
     loop.animateUnitAppear({ q: 1, r: 0 });
 
-    expect(add).toHaveBeenCalledWith('disembark-flash', 500, { coord: { q: 1, r: 0 } });
+    expect(add).toHaveBeenCalledWith('disembark-flash', 500, { coord: { q: 1, r: 0 } }, undefined);
   });
 });
 
@@ -354,7 +355,7 @@ describe('render-loop animation completion (#1439 characterization)', () => {
     loop.camera.isHexVisible = () => true;
     const onComplete = vi.fn();
 
-    loop.animations.add('combat-flash', 400, { coord: { q: 1, r: 0 } }, onComplete);
+    loop.playEffect('combat-flash', 400, { coord: { q: 1, r: 0 } }, onComplete);
 
     nowSpy.mockReturnValue(1_400); // exactly past the 400ms effect
     renderOnce(loop);
@@ -372,7 +373,7 @@ describe('render-loop animation completion (#1439 characterization)', () => {
     loop.camera.isHexVisible = () => true;
     const onComplete = vi.fn();
 
-    loop.animations.add('combat-flash', 400, { coord: { q: 1, r: 0 } }, onComplete);
+    loop.playEffect('combat-flash', 400, { coord: { q: 1, r: 0 } }, onComplete);
 
     nowSpy.mockReturnValue(1_300); // 300ms into a 400ms effect
     renderOnce(loop);

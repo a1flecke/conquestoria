@@ -417,7 +417,7 @@ export function createPlayerCombatActions(deps: PlayerActionControllerDeps, cros
     }
 
     // `attacker` was captured before applyCombatOutcomeToState — safe even if attacker was destroyed
-    deps.renderLoop.animations.add('combat-flash', 400, { coord: attacker.position }, () => deps.selectionController.selectNextUnit());
+    deps.renderLoop.playEffect('combat-flash', 400, { coord: attacker.position }, () => deps.selectionController.selectNextUnit());
   }
 
   return { executeMinorCivConquest, bombardCity, holdSiege, beginPlayerCityAssault, beginPlayerCampAssault, executeAttack };

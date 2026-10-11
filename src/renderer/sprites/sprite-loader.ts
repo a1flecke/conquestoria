@@ -1,3 +1,4 @@
+import { notifyCanvasAssetReady } from '../canvas-asset-ready';
 import { derivePalette } from './sprite-system';
 import {
   UNIT_SPRITE_CATALOG, BUILDING_SPRITE_CATALOG,
@@ -104,7 +105,12 @@ class SpriteCache {
       this.buildings.set(`${id}:${civId}`, img);
     });
 
-    await Promise.all([...unitWork, ...buildingWork]);
+    // Partial sets are visible to the cache even when one image rejects, so announce on failure too.
+    try {
+      await Promise.all([...unitWork, ...buildingWork]);
+    } finally {
+      notifyCanvasAssetReady();
+    }
   }
 
   async loadPirates(): Promise<void> {
@@ -122,7 +128,11 @@ class SpriteCache {
       });
       this.landmarks.set(id, img);
     });
-    await Promise.all([...unitWork, ...landmarkWork]);
+    try {
+      await Promise.all([...unitWork, ...landmarkWork]);
+    } finally {
+      notifyCanvasAssetReady();
+    }
   }
 
   ensurePirates(): void {

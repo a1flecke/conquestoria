@@ -78,7 +78,7 @@ function makeDeps(state: GameState, overrides: Partial<PlayerActionControllerDep
       executeAnimatedUnitMove: vi.fn((_unitId: string, execute: () => ExecuteUnitMoveResult) => execute()), refreshSelectedUnitAfterCombat: vi.fn(),    },
     turnFlow: { endTurn: vi.fn(() => Promise.resolve()), finalizePendingCityCaptureChoice: vi.fn() },
     hud: { update: vi.fn() },
-    renderLoop: { camera: { centerOn: vi.fn() }, setGameState: vi.fn(), animations: { add: vi.fn() } },
+    renderLoop: { camera: { centerOn: vi.fn() }, setGameState: vi.fn(), playEffect: vi.fn() },
     showNotification: vi.fn(),
     setBlockingOverlay: vi.fn(),
     currentCiv: vi.fn(() => state.civilizations[state.currentPlayer]),
@@ -486,11 +486,11 @@ describe('PlayerActionController', () => {
       const { deps } = runCombat(base, 1);
 
       expect(deps.selectionController.refreshSelectedUnitAfterCombat).toHaveBeenCalledTimes(1);
-      expect(deps.renderLoop.animations.add).toHaveBeenCalledTimes(1);
+      expect(deps.renderLoop.playEffect).toHaveBeenCalledTimes(1);
       // selectNextUnit is wired as the animation's completion callback, not
       // called synchronously -- it must not have run yet.
       expect(deps.selectionController.selectNextUnit).not.toHaveBeenCalled();
-      const onComplete = mockedCallArg<() => void>(deps.renderLoop.animations.add, 0, 3);
+      const onComplete = mockedCallArg<() => void>(deps.renderLoop.playEffect, 0, 3);
       onComplete();
       expect(deps.selectionController.selectNextUnit).toHaveBeenCalledTimes(1);
     });
@@ -530,7 +530,7 @@ describe('PlayerActionController', () => {
       expect(deps.selectionController.refreshSelectedUnitAfterCombat).toHaveBeenCalledTimes(1);
       // The city-capture branch returns early -- the bottom combat-flash
       // animation (and its own selectNextUnit wiring) must not also fire.
-      expect(deps.renderLoop.animations.add).not.toHaveBeenCalled();
+      expect(deps.renderLoop.playEffect).not.toHaveBeenCalled();
     });
   });
 

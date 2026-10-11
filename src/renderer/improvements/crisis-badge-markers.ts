@@ -17,6 +17,7 @@
 // `diplomatic-networks` (world-pressure-presentation.ts), so encoding it on an always-visible
 // map badge would leak that gated detail.
 import type { CrisisArchetype } from '@/core/types';
+import { notifyCanvasAssetReady } from '@/renderer/canvas-asset-ready';
 
 const DISC = '<circle cx="24" cy="24" r="21" fill="rgba(20,24,30,0.86)"/>';
 
@@ -62,7 +63,7 @@ async function preloadOne(archetype: CrisisArchetype): Promise<void> {
   const url = URL.createObjectURL(blob);
   await new Promise<void>((resolve, reject) => {
     const img = new Image();
-    img.onload = () => { URL.revokeObjectURL(url); cachedImages.set(archetype, img); resolve(); };
+    img.onload = () => { URL.revokeObjectURL(url); cachedImages.set(archetype, img); notifyCanvasAssetReady(); resolve(); };
     img.onerror = () => { URL.revokeObjectURL(url); reject(); };
     img.src = url;
   });

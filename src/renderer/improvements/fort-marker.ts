@@ -18,6 +18,7 @@
 // `.claude/rules/sprites.md`): forts belong to a tile, not to a civ's heraldry,
 // and the earthy palette keeps them legible on every terrain. The only accent is
 // a neutral amber pennant, matching the outpost marker's amber flag.
+import { notifyCanvasAssetReady } from '@/renderer/canvas-asset-ready';
 
 export type FortMarkerTier = 'fort' | 'citadel';
 
@@ -100,7 +101,7 @@ function loadOne(tier: FortMarkerTier): Promise<void> {
   const url = URL.createObjectURL(blob);
   return new Promise<void>((resolve, reject) => {
     const img = new Image();
-    img.onload = () => { URL.revokeObjectURL(url); cachedImages[tier] = img; resolve(); };
+    img.onload = () => { URL.revokeObjectURL(url); cachedImages[tier] = img; notifyCanvasAssetReady(); resolve(); };
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error(`fort-marker (${tier}) load failed`)); };
     img.src = url;
   });

@@ -5,6 +5,7 @@
 // crescent, Star of David, etc.) -- this game invents its own per-civ faith names/
 // identity, and an earlier draft of the loyalty-pressure badge (MR6) was caught in
 // inline review using real-world religious iconography; this stays abstract on purpose.
+import { notifyCanvasAssetReady } from '@/renderer/canvas-asset-ready';
 const RELIGION_BADGE_OWN_SVG = `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
   <circle cx="24" cy="24" r="21" fill="rgba(20,24,30,0.86)"/>
   <path d="M24,9 V39 M14,19 H34" stroke="#e0b0ff" stroke-width="4" stroke-linecap="round"/>
@@ -34,6 +35,7 @@ export async function preloadReligionBadgeMarker(): Promise<void> {
     loadSvgImage(RELIGION_BADGE_OWN_SVG),
     loadSvgImage(RELIGION_BADGE_FOREIGN_SVG),
   ]);
+  notifyCanvasAssetReady();
 }
 
 export function getReligionBadgeMarkerImage(isOwnFaith: boolean): HTMLImageElement | null {

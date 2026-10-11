@@ -1,3 +1,4 @@
+import { notifyCanvasAssetReady } from '@/renderer/canvas-asset-ready';
 // Loader for S6 natural-wonder hex tiles.
 // Same pattern as terrain-tile-loader.ts: preload SVGs to HTMLImageElement,
 // cache by wonder ID. Falls back gracefully (returns null) for any wonder
@@ -39,7 +40,7 @@ const cache = new Map<string, HTMLImageElement>();
 export async function preloadNaturalWonderTiles(): Promise<void> {
   await Promise.all(
     Object.entries(NATURAL_WONDER_TILES).map(([key, svg]) =>
-      svgToImage(svg).then(img => cache.set(key, img)).catch(() => {})
+      svgToImage(svg).then(img => { cache.set(key, img); notifyCanvasAssetReady(); }).catch(() => {})
     )
   );
 }

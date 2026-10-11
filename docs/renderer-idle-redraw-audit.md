@@ -167,3 +167,24 @@ spriteLoadsInFlight`. Clear `dirty` after the paint. This preserves every
 callback and expiry on the time-derived clock while eliminating ~60
 idle repaints per second — measurable directly with the diagnostic's
 `redrawCountDelta` and `taskDurationMsDelta`.
+
+## 8. Phase 2, PR A — observable renderer inputs (#1439)
+
+Rendering is still continuous in this change; what moved is *who knows the canvas is stale*. Every
+input below now publishes a signal from inside its owner, so no controller needs to call a refresh.
+`RenderLoop.renderGeneration` is the read-only counter the scheduler (PR B) repaints against.
+
+| Input | Owner / API | Signal | Direct writers (after this PR) | Regression guard |
+|---|---|---|---|---|
+| Camera position, zoom, bounds, viewport, fling velocity | `Camera` accessors + methods (`src/renderer/camera.ts`) | `camera.onChange` → `RenderLoop.invalidate` | `touch-handler` (`vx/vy`, via setter), `mouse-handler`/`touch-handler` (`pan`, `setZoom`, `smoothZoom`), controllers (`centerOn`), `resizeCanvas`/`setMinZoomForMap` | `camera-observable.test.ts` — every write path publishes exactly once, no-ops publish nothing |
+| Authoritative game state | `RenderLoop.setGameState` (called from the `GameSession` subscriber in `bootstrap.ts`) | `invalidate` | `bootstrap.ts` only | `render-loop-invalidation.test.ts` |
+| Selection, highlights, journey path, launch preview, overlay toggles, touch handler ref | private fields on `RenderLoop`, mutated only through its setters | `invalidate` in each setter | the setters themselves (fields are private) | `render-loop-invalidation.test.ts` (table-driven) |
+| Timed effects | `RenderLoop.playEffect` (the `AnimationSystem` is private) | `invalidate` on enrolment | `animateUnitAppear`, `requestWonderDiscoveryHighlight`, `player-combat-actions` | no `animations` property exists (`render-loop-invalidation.test.ts`) |
+| Unit movement, combat/delivery/HQ transients | `animateUnitMove/Slide`, `applyCombatVisual`, `applyDeliveryVisual`, `applyPirateHeadquartersAssaultVisual` | `invalidate` on enrolment | those methods | `render-loop-invalidation.test.ts` |
+| Canvas-backed images (sprites, terrain, wonders, rails, improvement markers, badges) | `src/renderer/canvas-asset-ready.ts` | coalesced `onCanvasAssetReady` → `invalidate` | each loader calls `notifyCanvasAssetReady()` where it commits to its cache | `canvas-asset-ready.test.ts` — source scan fails any `src/renderer` module that creates an `Image` without importing the signal |
+| Canvas size / DPR | `RenderLoop.resizeCanvas` | `invalidate` | window resize listener, hud-controller | `render-loop-invalidation.test.ts` |
+
+Not yet observable (PR B): `TouchHandler.isPinching` (read in `SpriteOverlay.sync`) and the wall-clock
+expiry of pirate transients/death snapshots; both need the scheduler's deadline wake.
+
+New canvas-visible input? Pick one of the owners above. Do not add a free-floating `markDirty()`.
