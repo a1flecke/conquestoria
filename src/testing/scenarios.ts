@@ -198,8 +198,8 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
   'png-sprite-spike': {
     name: 'png-sprite-spike',
     description:
-      'Visual-review harness for PNG spritesheet units (scripts/sprite-puppet): a player Horseman '
-      + '(PNG) next to a Beast Handler, Cavalry and Knight (SVG) for side-by-side scale and style, '
+      'Visual-review harness for PNG spritesheet units (scripts/sprite-puppet): a player Horseman and Cavalry '
+      + '(PNG) next to a Beast Handler and Knight (SVG) for side-by-side scale and style, '
       + 'plus an AI Horseman so the civ tint can be compared. Select a unit and move it to see the '
       + 'walk cycle; attack the AI unit to see the attack row. Includes a player city and an AI '
       + 'city so ending the turn does not trigger an instant domination result.',

@@ -1,0 +1,112 @@
+{
+  "id": "cavalry",
+  "source": "design/png-sprites/sources/cavalry.png",
+  "profile": "mounted",
+  "facing": "right",
+  "frame": {
+    "size": 192,
+    "fit_width": 0.9,
+    "baseline": 0.8,
+    "top_margin": 0.03,
+    "shadow": {
+      "rx": 0.3,
+      "ry": 0.045,
+      "opacity": 0.3
+    }
+  },
+  "tint": {
+    "hue_ranges": [
+      [
+        0.0,
+        0.045
+      ],
+      [
+        0.955,
+        1.0
+      ]
+    ],
+    "min_sat": 0.7,
+    "min_val": 0.18
+  },
+  "animations": {
+    "idle": 4,
+    "walk": 8,
+    "attack": 8
+  },
+  "fps": {
+    "idle": 4,
+    "walk": 11,
+    "attack": 8
+  },
+  "rig": {
+    "cut_y": 800,
+    "overlap_top": 680,
+    "tail": {
+      "pivot": [
+        285,
+        500
+      ],
+      "line_x0": 290,
+      "line_y0": 470,
+      "line_slope": 0.2,
+      "low_cut_y": 700,
+      "x_max_low": 230,
+      "fade": 10
+    },
+    "arm": {
+      "pivot": [
+        450,
+        270
+      ],
+      "keep_x": 440,
+      "keep_y": 250,
+      "polygon": [
+        [
+          290,
+          5
+        ],
+        [
+          700,
+          5
+        ],
+        [
+          700,
+          100
+        ],
+        [
+          490,
+          112
+        ],
+        [
+          462,
+          140
+        ],
+        [
+          462,
+          255
+        ],
+        [
+          455,
+          300
+        ],
+        [
+          420,
+          305
+        ],
+        [
+          400,
+          290
+        ],
+        [
+          330,
+          260
+        ],
+        [
+          290,
+          230
+        ]
+      ]
+    },
+    "tail_x_max": 60
+  }
+}
