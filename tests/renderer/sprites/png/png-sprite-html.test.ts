@@ -126,7 +126,7 @@ describe('getUnitSpriteV2 dispatch (both renderers coexist)', () => {
   });
 
   it('leaves every other unit on its SVG sprite', () => {
-    for (const type of ['beast_handler', 'cavalry', 'knight', 'warrior', 'archer']) {
+    for (const type of ['beast_handler', 'cuirassier', 'knight', 'warrior', 'archer']) {
       const out = getUnitSpriteV2(type, 'imperials')!;
       expect(out, type).toContain('<svg');
       expect(out, type).not.toContain('cq-png');

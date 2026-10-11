@@ -1,4 +1,5 @@
 import type { PngSpriteManifest } from './png-sprite-types';
+import { manifest as cavalry } from './generated/cavalry.manifest';
 import { manifest as horseman } from './generated/horseman.manifest';
 
 /**
@@ -9,6 +10,7 @@ import { manifest as horseman } from './generated/horseman.manifest';
  * Recipe: scripts/sprite-puppet/README.md.
  */
 const PNG_UNIT_SPRITES: Readonly<Record<string, PngSpriteManifest>> = {
+  cavalry,
   horseman,
 };
 

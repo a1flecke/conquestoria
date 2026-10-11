@@ -1,0 +1,13 @@
+{
+  "id": "cavalry",
+  "file": "cavalry.png",
+  "generator": "SpriteCook (spritecook.ai) via MCP generate_game_art",
+  "model": "gpt-image-2.5-flare",
+  "settings": { "pixel": false, "resolution": "1K", "quality": "medium", "bg_mode": "transparent", "variations": 1, "style_asset_ids": ["4c7b5e87-4648-4d09-a758-d2d0f8dee172"] },
+  "spritecook_asset_id": "9feee806-9019-473d-8792-b130e0fbc56d",
+  "generated_on": "2026-10-11",
+  "credits_used": 16,
+  "prompt": "Cavalry unit for a historical civilization strategy game. A 19th-century light cavalry trooper on a dark brown bay horse with a black mane and tail, horse facing right in clean side view at a canter, all four legs clearly separated and anatomically correct. The rider wears a saturated pure red tunic jacket, a black shako hat, white crossbelts, black boots, and holds a curved steel sabre raised diagonally overhead, clear of his head. Brown leather saddle with a dark saddle blanket, brass fittings. Full figure, centered, readable silhouette at small size. The red tunic is the ONLY red in the image: horse, hat, tack, boots, and sabre are not red.",
+  "style": "clean hand-painted 2D game art, bold dark outline, flat cel shading with soft highlights, earthy saturated palette",
+  "licence_note": "Project owner confirmed (2026-10-10) that SpriteCook's terms allow using generated images as they see fit. Re-check the current terms before adding more generated sources. Art approved by the project owner 2026-10-11. Credits: 8 for the image plus 8 for the style reference."
+}
