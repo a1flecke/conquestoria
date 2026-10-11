@@ -135,6 +135,7 @@ ships without matching hand-authored v2 art — which is exactly what happened b
 - **`SpriteFrame svgOnly={true}` omits the CSS `<style>` tag.** Browsers block CSS animations in SVG loaded as `<img>`.
 - **Barbarians and minor civs are not preloaded.** `getUnit('warrior', 'barbarian')` returns `null` by design.
 - **Never call `initSprites` per-turn or per-frame.** It is called once in `startGame()`.
+- **Sprite images load through `spriteLoadQueue`, never as a burst (#1439 phase 4).** A civilization is ~500 SVG images and creating them at once kept the main thread busy for seconds after the first paint (first input ~3.2 s later on a 2-civ save; scales with civ count). A new sprite loader schedules each image via `spriteLoadQueue.schedule(priority, work)`: `SPRITE_LOAD_CONCURRENCY` bounds how many are in flight, the SVG string is generated inside `work` (lazily, when its turn comes), and `SPRITE_PRIORITY` orders what is drawn at rest (`visible`: idle frames, buildings) before pirates and walk frames (`motion`). The queue starts work on a microtask so a synchronous burst is sorted first. `initSprites`/`loadCiv` still resolve only when everything is cached, and the canvas is notified once the at-rest set is ready and again at the end. Pinned by `tests/renderer/sprites/sprite-load-queue.test.ts`; measured by `yarn test:web-smoke:campaign-start` (see `docs/renderer-idle-redraw-audit.md` section 12).
 
 **Terrain tiles:**
 - **Never embed palette or faction color** in terrain tiles — they are faction-neutral.

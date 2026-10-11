@@ -285,3 +285,59 @@ clipped ambient paints; reduced motion unchanged (0 redraws, ~60-80 ms).
 ~0.8 s) plus recording and compositing the full-size canvas each frame. Culling draw passes by the clip
 rectangle would cut the JS and recording cost but needs every pass's overdraw extent proven; it is a
 separate, measured follow-up.
+
+## 12. Phase 4 — campaign-start latency (#1439)
+
+**Question.** Where does time go between clicking *Continue Campaign* and a genuinely playable game?
+The Phase 2/3 "mount ~4.2 s" figure was a Playwright-driven number on the Vite dev server (unbundled
+modules, polling-based waits), so it could not say. `yarn test:web-smoke:campaign-start` (opt-in,
+non-gating) timestamps each stage on the **page's own clock** (init-script recorder: click events,
+10 ms DOM-state poll, IndexedDB transactions, blob-URL create/revoke, first `clearRect`, long tasks) and
+excludes human decision time (prompt visible -> Continue Campaign click). `CONQUESTORIA_PERF_BASE_URL`
+points it at a production build; `CONQUESTORIA_CS_PROFILE=1` adds a sampling CPU profile of one
+reduced-motion cold sample (it perturbs that sample and hung the renderer in the motion scenario, so it
+is off by default and not used for the numbers below).
+
+**Critical path (baseline, 2-civ crowded fixture, production build).**
+
+| Stage | Result |
+|---|---|
+| Continue click -> legacy prompt visible (read, clone, normalize, render) | ~25 ms |
+| Confirm click -> durable persistence + `enterCampaign` | required work done by ~180 ms (first paint) |
+| Confirm click -> first canvas paint | ~155-175 ms |
+| Confirm click -> **playable** (first input processed) | **~3.2-3.3 s** |
+| Confirm click -> last sprite image loaded | ~1.8 s; main-thread TaskDuration ~2.5-2.7 s |
+
+JavaScript is not the cost (CPU profile: ~190 ms inclusive for `startGame`, of which ~130 ms is SVG
+string generation; `(program)` native time ~3.0 s). `startGame()` creates every unit x 3 motions and every
+building SVG for every civilization (~493 images per civ, ~1043 on the 2-civ fixture, ~3000 for six civs)
+plus the pirate set, as one burst of `Image` loads. SVG parse/decode is native main-thread work, so the
+page paints at ~0.17 s and then cannot process input for seconds.
+
+**Change.** `sprite-loader.ts` schedules those loads through `spriteLoadQueue`: at most
+`SPRITE_LOAD_CONCURRENCY` (8) in flight, each SVG generated lazily when its turn comes, ordered
+`visible` (idle unit frames, buildings) -> `pirate` -> `motion` (walk frames), started on a microtask so a
+synchronous burst is sorted first. The same set of images is cached; `initSprites` still resolves only
+when all are loaded; the canvas is notified when the at-rest set is ready and again at the end. No durable
+write, migration, hot-seat handoff, GameSession publication or gameplay path changed.
+
+**Result** (production build, baseline vs candidate interleaved A-B-A-B-A-B, 3 rounds x 5 samples = n 15
+per cell, local macOS headless Chromium, software rendering; median [min-max] ms):
+
+| Scenario | Playable before | Playable after | First paint before -> after | Main-thread task to playable |
+|---|---|---|---|---|
+| Reduced motion, cold | 3169 [3119-3551] | **372 [331-409]** | 153 -> 49 | 2539 -> 379 |
+| Motion allowed, cold | 3323 [3275-3710] | **465 [439-494]** | 172 -> 49 | 2720 -> 558 |
+| Reduced motion, warm HTTP cache | 3150 [3084-3201] | **368 [268-387]** | 172 -> 49 | 2513 -> 364 |
+
+At-rest sprites (55% of images) ready: 1522 -> 790 ms reduced motion, 1568 -> 1231 ms motion. **Known
+trade-off:** with motion allowed the *last* walk-frame image now lands later (1827 -> 2477 ms) because the
+main thread is shared with the animation instead of being monopolised by decoding; the game is playable
+~2.9 s sooner.
+
+**Not changed / follow-ups.** Ambient draw-pass culling (Phase 3's remaining ~2.4 s/5 s), runtime
+`prefers-reduced-motion` listener, canvas resize/DPR observation. Sprite creation is still per civilization
+(a six-civ game queues ~3000 images; the queue keeps input responsive but total time grows), so loading only
+the (type, civ) pairs a game can show is a possible next step. The dev-server module-loading cost is
+unmeasured here (production build is what players run).
+

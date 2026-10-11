@@ -39,6 +39,7 @@
     "perf:report:durable:status": "sh scripts/read-durable-test-result.sh perf",
     "test:hooks": "bash tests/hooks/run.sh",
     "test:web-smoke": "playwright test",
+    "test:web-smoke:campaign-start": "CONQUESTORIA_PERF_DIAGNOSTICS=1 playwright test tests/e2e/issue-1439-campaign-start.perf-diagnostic.spec.ts --reporter=list",
     "test:web-smoke:perf": "CONQUESTORIA_PERF_DIAGNOSTICS=1 playwright test tests/e2e/issue-1439-idle-campaign.perf-diagnostic.spec.ts",
     "test:watch": "vitest",
     "verify:pr": "sh scripts/verify-pr.sh",

@@ -41,7 +41,10 @@ export default defineConfig({
   // test:web-smoke:perf).
   testIgnore: process.env.CONQUESTORIA_PERF_DIAGNOSTICS
     ? []
-    : ['**/issue-1439-idle-campaign.perf-diagnostic.spec.ts'],
+    : [
+        '**/issue-1439-idle-campaign.perf-diagnostic.spec.ts',
+        '**/issue-1439-campaign-start.perf-diagnostic.spec.ts',
+      ],
   projects: [
     {
       name: 'chromium',
