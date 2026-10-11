@@ -122,6 +122,16 @@ export class PirateSpriteStateController {
     }
   }
 
+  /** Earliest time any timed transient expires, or null. Lets the scheduler wake a repaint at expiry. */
+  nextExpiryMs(): number | null {
+    let earliest: number | null = null;
+    for (const transient of this.transients.values()) {
+      if (transient.expiresAtMs === undefined) continue;
+      if (earliest === null || transient.expiresAtMs < earliest) earliest = transient.expiresAtMs;
+    }
+    return earliest;
+  }
+
   resolve(entityId: string, persistent: PersistentVisualState, nowMs: number): PirateSpriteVisualState {
     const transient = this.transients.get(entityId);
     if (transient?.expiresAtMs !== undefined && transient.expiresAtMs <= nowMs) {

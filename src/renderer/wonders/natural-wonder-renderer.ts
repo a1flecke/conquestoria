@@ -1,3 +1,4 @@
+import { markTimeVaryingPaint } from '../paint-clock';
 import type { TilePresentationKind } from '@/renderer/tile-presentation';
 import { drawNaturalWonderSpectacleEffects } from '@/renderer/wonders/natural-wonder-effects-renderer';
 import { getWonderVisualDefinition, type WonderMapLandmark } from '@/systems/wonder-visual-catalog';
@@ -17,7 +18,9 @@ export interface NaturalWonderRenderOptions {
 }
 
 function pulse(nowMs: number, reducedMotion: boolean): number {
-  return reducedMotion ? 0 : Math.sin(nowMs / 700) * 0.08;
+  if (reducedMotion) return 0;
+  markTimeVaryingPaint();
+  return Math.sin(nowMs / 700) * 0.08;
 }
 
 function drawPeak(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number, accent: string): void {

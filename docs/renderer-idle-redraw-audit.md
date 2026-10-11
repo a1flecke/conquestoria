@@ -184,7 +184,33 @@ input below now publishes a signal from inside its owner, so no controller needs
 | Canvas-backed images (sprites, terrain, wonders, rails, improvement markers, badges) | `src/renderer/canvas-asset-ready.ts` | coalesced `onCanvasAssetReady` → `invalidate` | each loader calls `notifyCanvasAssetReady()` where it commits to its cache | `canvas-asset-ready.test.ts` — source scan fails any `src/renderer` module that creates an `Image` without importing the signal |
 | Canvas size / DPR | `RenderLoop.resizeCanvas` | `invalidate` | window resize listener, hud-controller | `render-loop-invalidation.test.ts` |
 
-Not yet observable (PR B): `TouchHandler.isPinching` (read in `SpriteOverlay.sync`) and the wall-clock
-expiry of pirate transients/death snapshots; both need the scheduler's deadline wake.
+`TouchHandler.isPinching` is observable through `onPinchChange` (PR B); the wall-clock expiry of
+pirate transients and death snapshots is handled by the scheduler's deadline wake (section 9).
 
 New canvas-visible input? Pick one of the owners above. Do not add a free-floating `markDirty()`.
+
+## 9. Phase 2, PR B — idle-aware scheduler (#1439)
+
+`RenderLoop` now owns one scheduler. `start()` paints once; after every paint it queues another
+frame only if (a) the generation moved during the paint (reentrant invalidation is never lost),
+(b) the camera still has fling velocity, (c) a movement tween or timed effect is live, or (d) the
+paint reported `markTimeVaryingPaint()`. Otherwise the RAF chain ends and the loop is dormant until
+the next `invalidate()` (camera, state, presentation setter, asset-ready, resize, pinch change,
+effect/movement enrolment, deadline wake).
+
+| Concern | Owner | Notes |
+|---|---|---|
+| Time-driven lifecycle, separate from drawing | `RenderLoop.advance(nowMs)` | Completes movement tweens (exactly once, also for orphaned/unexplored ones, #1039), timed effects (`AnimationSystem.advance`), retires death snapshots. Runs at the top of every `render()` and from the wake timer. |
+| Completion without a frame | wake timer (`armWakeTimer`) | One `setTimeout` to the earliest of movement end, effect end, death-snapshot expiry, `PirateSpriteStateController.nextExpiryMs()`. Fires `advance` then `invalidate`. Armed from `invalidate` and after every paint; cleared by `stop()`. |
+| Ambient canvas animation (wonder pulse, shimmer) | `paint-clock.ts` | A renderer that applies motion from `nowMs` calls `markTimeVaryingPaint()`; reduced motion marks nothing. `paint-clock-boundary.test.ts` fails any `src/renderer` module that does arithmetic on `nowMs` without importing it. |
+| DOM sprite overlay | `render()` `syncOverlay` | Re-synced when the generation moved, a movement is live, or time-bound sprite state is pending; frames kept alive only by an ambient animation reuse the last sync (cuts layout/style work ~10x in the motion-allowed fixture). |
+| Pinch | `TouchHandler.onPinchChange` | Pinch start/end invalidates; `SpriteOverlay.sync` reads it. |
+
+New canvas-visible input: pick an owner from section 8. New animation driven by the clock: import
+`markTimeVaryingPaint` and call it where the motion is applied, or the boundary test fails.
+
+Local result (macOS, headless Chromium, software rendering; crowded fixture, 5s idle window): reduced
+motion 304 -> 0 redraws and ~4390 ms -> ~70 ms TaskDuration. Motion allowed still repaints ~60/s
+because a visible animated wonder is a genuine time-varying visual; layout/style work fell from
+~150 ms/5 s to ~17 ms. A frame-rate cap or culling for ambient frames is a separate, measured
+follow-up (it changes how smooth the animation looks).
