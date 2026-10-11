@@ -47,7 +47,7 @@ import { MouseHandler } from '@/input/mouse-handler';
 import { installKeyboardShortcuts } from '@/input/keyboard-shortcuts';
 import { hexToPixel } from '@/systems/hex-utils';
 import { fortifyUnitInState, unfortifyUnitInState } from '@/systems/unit-lifecycle-system';
-import { initSprites } from '@/renderer/sprites/sprite-loader';
+import { collectSpriteDemand, initSprites } from '@/renderer/sprites/sprite-loader';
 import { preloadOutpostMarker } from '@/renderer/improvements/resource-outpost-marker';
 import { preloadFortMarker } from '@/renderer/improvements/fort-marker';
 import { preloadCrisisBadgeMarkers } from '@/renderer/improvements/crisis-badge-markers';
@@ -254,7 +254,7 @@ export function createGameSessionController(deps: GameSessionControllerDeps): Ga
     for (const [civId, civ] of Object.entries(deps.session.getState().civilizations)) {
       civColors[civId] = civ.color;
     }
-    const spritesReady = initSprites(civColors);
+    const spritesReady = initSprites(civColors, collectSpriteDemand(deps.session.getState()));
     void spritesReady.catch(() => {});
     preloadOutpostMarker().catch(() => {});
     preloadFortMarker().catch(() => {});

@@ -441,7 +441,7 @@ export function drawCityProductionBadgePass(ctx: CanvasRenderingContext2D, item:
   if (!item.projection.isLive || !item.city || item.city.owner !== item.playerCivId) return;
   if (item.city.productionQueue.length === 0) return;
 
-  // #658: prefer the queued item's catalog sprite (loaded per-civ by initSprites),
+  // #658: prefer the queued item's catalog sprite (created on demand by the sprite cache),
   // keyed by the city owner so hot-seat players each get their own palette. Buildings
   // and units are separate cache namespaces, so at most one lookup hits. Unit sprites
   // matter beyond looks: an old training emoji shared a glyph with the

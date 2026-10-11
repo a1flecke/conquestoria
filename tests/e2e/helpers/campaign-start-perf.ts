@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Browser, CDPSession, Page } from '@playwright/test';
@@ -14,8 +15,10 @@ import type { Browser, CDPSession, Page } from '@playwright/test';
  * measurement was well formed.
  */
 
+/** `CONQUESTORIA_CS_FIXTURE` points the diagnostic at another legacy-style save (e.g. a many-civ game). */
 const FIXTURE_TEXT = readFileSync(
-  join(__dirname, '..', '..', 'fixtures', 'issue-365-crowded-map-save.json'),
+  process.env.CONQUESTORIA_CS_FIXTURE
+    ?? join(__dirname, '..', '..', 'fixtures', 'issue-365-crowded-map-save.json'),
   'utf8',
 );
 
@@ -209,6 +212,9 @@ export interface CampaignStartSample {
   scriptDurationMs: number;
   blobImages: number;
   paintsToPlayable: number;
+  /** Renderer resident memory before the confirm click and after sprites settled (MB; null if unknown). */
+  rendererRssMbBefore: number | null;
+  rendererRssMbAfter: number | null;
 }
 
 const round = (value: number) => Math.round(value * 100) / 100;
@@ -216,6 +222,36 @@ const round = (value: number) => Math.round(value * 100) / 100;
 async function metrics(cdp: CDPSession): Promise<Record<string, number>> {
   const sample = await cdp.send('Performance.getMetrics') as { metrics: Array<{ name: string; value: number }> };
   return Object.fromEntries(sample.metrics.map(metric => [metric.name, metric.value]));
+}
+
+/**
+ * Resident memory (MB) of the renderer processes below `browserPid` (the test worker, whose only child
+ * browser is the one under test), from `ps`.
+ * Null when the browser pid is unknown or `ps` is unavailable. Images decode in the renderer, so this
+ * is where sprite volume shows up (the JS heap barely moves).
+ */
+export function rendererRssMb(browserPid: number | undefined): number | null {
+  if (!browserPid) return null;
+  try {
+    const rows = execFileSync('ps', ['-axo', 'pid=,ppid=,rss=,command='], { encoding: 'utf8' })
+      .split('\n')
+      .map(line => line.trim().match(/^(\d+)\s+(\d+)\s+(\d+)\s+(.*)$/))
+      .filter((match): match is RegExpMatchArray => match !== null)
+      .map(match => ({ pid: Number(match[1]), ppid: Number(match[2]), rssKb: Number(match[3]), command: match[4]! }));
+    const descendants = new Set<number>([browserPid]);
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (const row of rows) {
+        if (!descendants.has(row.pid) && descendants.has(row.ppid)) { descendants.add(row.pid); grew = true; }
+      }
+    }
+    const kb = rows.filter(row => descendants.has(row.pid) && row.command.includes('--type=renderer'))
+      .reduce((sum, row) => sum + row.rssKb, 0);
+    return Math.round(kb / 1024);
+  } catch {
+    return null;
+  }
 }
 
 export interface RunOptions {
@@ -272,6 +308,7 @@ export async function runCampaignStartSample(options: RunOptions): Promise<{
       await cdp.send('Profiler.start');
     }
     step('profiler-start');
+    const rssBefore = rendererRssMb(process.pid);
     const before = await metrics(cdp);
     step('click-confirm');
     await page.getByRole('button', { name: 'Continue Campaign', exact: true }).click();
@@ -292,7 +329,7 @@ export async function runCampaignStartSample(options: RunOptions): Promise<{
 
     // Let background asset work finish and measure how long it keeps competing after playable.
     step('tail');
-    await page.waitForTimeout(3_500);
+    await page.waitForTimeout(Number(process.env.CONQUESTORIA_CS_SETTLE_MS ?? 3_500));
     const recorder = await page.evaluate(() => (window as RecorderWindow).__cs!);
     const navigation = await page.evaluate(() => {
       const entry = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
@@ -334,6 +371,8 @@ export async function runCampaignStartSample(options: RunOptions): Promise<{
       scriptDurationMs: round(((after.ScriptDuration ?? 0) - (before.ScriptDuration ?? 0)) * 1000),
       blobImages: recorder.blob.created,
       paintsToPlayable: recorder.paint.count,
+      rendererRssMbBefore: rssBefore,
+      rendererRssMbAfter: rendererRssMb(process.pid),
     };
     await cdp.detach();
     return { sample, profile: profileSummary };
@@ -367,6 +406,8 @@ export function summarize(samples: CampaignStartSample[]): Record<string, { medi
   add('longTaskMsToPlayable', samples.map(sample => sample.longTaskMsToPlayable));
   add('longTaskMsAfterPlayable3s', samples.map(sample => sample.longTaskMsAfterPlayable3s));
   add('idbWriteMs', samples.map(sample => sample.idbWriteMs));
+  add('rendererRssMbAfter', samples.map(sample => sample.rendererRssMbAfter));
+  add('rendererRssMbBefore', samples.map(sample => sample.rendererRssMbBefore));
   add('domContentLoadedMs', samples.map(sample => sample.navigation.domContentLoadedMs));
   add('loadMs', samples.map(sample => sample.navigation.loadMs));
   return out;

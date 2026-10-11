@@ -229,7 +229,7 @@ describe('unit role markers', () => {
 
   it('requests an uncached neutral unit sprite palette when sprites are enabled', () => {
     const ctx = createContext();
-    const ensureSpy = vi.spyOn(spriteCache, 'ensureCiv').mockImplementation(() => undefined);
+    const ensureSpy = vi.spyOn(spriteCache, 'ensureUnit').mockImplementation(() => undefined);
     const unit: Unit = {
       id: 'minor', owner: 'mc-renderer-cache-test', type: 'warrior',
       position: { q: 0, r: 0 }, movementPointsLeft: 2, health: 100,
@@ -242,13 +242,13 @@ describe('unit role markers', () => {
       useSprites: true,
     });
 
-    expect(ensureSpy).toHaveBeenCalledWith('mc-renderer-cache-test', '#8a6f2a');
+    expect(ensureSpy).toHaveBeenCalledWith('warrior', 'mc-renderer-cache-test', '#8a6f2a');
     ensureSpy.mockRestore();
   });
 
   it('keeps low zoom on fallback glyphs even when a sprite override is available', () => {
     const ctx = createContext();
-    const ensureSpy = vi.spyOn(spriteCache, 'ensureCiv').mockImplementation(() => undefined);
+    const ensureSpy = vi.spyOn(spriteCache, 'ensureUnit').mockImplementation(() => undefined);
     const unit: Unit = {
       id: 'warrior', owner: 'player', type: 'warrior',
       position: { q: 0, r: 0 }, movementPointsLeft: 2, health: 100,
