@@ -451,6 +451,14 @@ export const ARCHITECTURE_RULES: readonly ArchitectureRule[] = [
     why: 'The export button is the recorder\'s only visible trace and must exist only when the composition root builds the recorder; any other importer could show it with the flag off.',
   },
   {
+    id: 'effect-timeline-has-one-importer',
+    kind: 'only-imported-by',
+    target: 'src/renderer/animation-system',
+    importers: ['src/renderer/render-loop', 'tests/**'],
+    edges: 'all',
+    why: 'The timed-effect queue is private to RenderLoop (#1439): enrolment goes through RenderLoop.playEffect, which wakes the scheduler. A second owner of an AnimationSystem would draw or complete effects the scheduler cannot see, so a frame could go idle with an effect still pending.',
+  },
+  {
     id: 'src-has-no-runtime-import-cycles',
     kind: 'acyclic-group',
     members: 'src/**',
