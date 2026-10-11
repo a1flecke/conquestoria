@@ -25,6 +25,9 @@ vi.mock('@/renderer/pirate-headquarters-presentation', async (importOriginal) =>
 });
 
 import { RenderLoop } from '@/renderer/render-loop';
+import { DEATH_STATE_MS } from '@/renderer/pirate-sprite-state';
+import { createEmptyPirateState } from '@/core/pirate-state';
+import { createNewGame } from '@/core/game-state';
 import type { CombatResult, GameState, Unit } from '@/core/types';
 
 function createMountedCanvas(): { canvas: HTMLCanvasElement; mount: HTMLDivElement } {
@@ -278,5 +281,131 @@ describe('render-loop — sustained work state for an active workerTask', () => 
 
     const workerWrap = mount.querySelector(`[data-entity-id="${worker.id}"]`)?.firstElementChild;
     expect(workerWrap?.getAttribute('data-state')).toBe('hurt');
+  });
+});
+
+describe('render-loop — pirate death snapshots (#1439 characterization)', () => {
+  /** The overlay is only mounted under jsdom; spy on its sync to observe the
+   * entity stream render() produces without depending on sprite lookup. */
+  function spyOverlaySync(loop: RenderLoop) {
+    const overlay = (loop as unknown as { spriteOverlay: { sync: (...args: unknown[]) => void } }).spriteOverlay;
+    return vi.spyOn(overlay, 'sync');
+  }
+
+  function pirateDeathState(pirate: Unit): GameState {
+    return {
+      turn: 5,
+      currentPlayer: 'player',
+      map: { width: 5, height: 5, wrapsHorizontally: false, tiles: {}, rivers: [] },
+      tribalVillages: {},
+      minorCivs: {},
+      cities: {},
+      units: { [pirate.id]: pirate },
+      pirates: { version: 1, factions: { 'pirate-1': { behavior: 'raiding', maritimeStage: 2 } }, history: [], pressure: { value: 0, suppression: [] }, intelByCiv: {}, nextSpawnCheckTurn: 1 },
+      civilizations: {
+        player: {
+          color: '#4a90d9',
+          visibility: { tiles: { '0,0': 'visible' } },
+        },
+      },
+    } as unknown as GameState;
+  }
+
+  function renderAt(loop: RenderLoop, nowMs: number): void {
+    vi.spyOn(performance, 'now').mockReturnValue(nowMs);
+    (loop as unknown as { render: () => void }).render();
+  }
+
+  it('renders a dead pirate unit from its snapshot and drops it once DEATH_STATE_MS elapses', () => {
+    const { canvas } = createMountedCanvas();
+    const loop = new RenderLoop(canvas);
+    const pirate = {
+      id: 'pirate-ship-1', owner: 'pirate-1', type: 'pirate_galley', position: { q: 0, r: 0 },
+      movementPointsLeft: 1, health: 0, experience: 0, hasMoved: false,
+      hasActed: false, isResting: false,
+    } as unknown as Unit;
+    loop.setGameState(pirateDeathState(pirate));
+    loop.camera.isHexVisible = () => true;
+    const syncSpy = spyOverlaySync(loop);
+    const nowMs = 10_000;
+
+    loop.applyCombatVisual({
+      attackerId: 'player-unit-1',
+      defenderId: pirate.id,
+      attackerDamage: 0,
+      defenderDamage: 100,
+      attackerSurvived: true,
+      defenderSurvived: false,
+      attackerStrength: 10,
+      defenderStrength: 4,
+      attackerPosition: { q: 1, r: 0 },
+      defenderPosition: pirate.position,
+    } as CombatResult, nowMs);
+
+    // The dead unit has already left authoritative state -- the snapshot is the
+    // only remaining source that can still draw the collapse animation.
+    delete (loop as unknown as { state: { units: Record<string, unknown> } }).state.units[pirate.id];
+
+    renderAt(loop, nowMs + 100);
+    const liveEntities = syncSpy.mock.calls.at(-1)?.[1] as Array<{ id: string; state: string }>;
+    expect(liveEntities.some(entity => entity.id === pirate.id && entity.state === 'death')).toBe(true);
+
+    // Snapshot cleanup happens *during* render: past the shared death clock the
+    // snapshot is gone, so a frame-skipping scheduler must not strand it.
+    renderAt(loop, nowMs + DEATH_STATE_MS + 50);
+    const expiredEntities = syncSpy.mock.calls.at(-1)?.[1] as Array<{ id: string; state: string }>;
+    expect(expiredEntities.some(entity => entity.id === pirate.id)).toBe(false);
+    expect((loop as unknown as { pirateUnitDeathSnapshots: Map<string, unknown> }).pirateUnitDeathSnapshots.size).toBe(0);
+    vi.restoreAllMocks();
+  });
+
+  it('keeps a pirate headquarters landmark death snapshot after the live faction leaves state', () => {
+    const { canvas } = createMountedCanvas();
+    const loop = new RenderLoop(canvas);
+    const state = createNewGame(undefined, 'pirate-landmark-death', 'small') as GameState;
+    state.currentPlayer = 'player';
+    state.turn = 20;
+    state.pirates = createEmptyPirateState();
+    state.pirates.factions['pirate-1'] = {
+      id: 'pirate-1', name: 'The Red Wake', spawnedRound: 2, behavior: 'raiding', maritimeStage: 3,
+      notoriety: 3, shipIds: [],
+      headquarters: { kind: 'coastal-enclave', position: { q: 5, r: 5 }, integrity: 40, maxIntegrity: 100 },
+      tributeByCiv: {}, demandByCiv: {}, contract: null, intent: null,
+      transitionGuards: { emittedEventKeys: [] },
+    } as unknown as (typeof state.pirates)['factions'][string];
+    state.pirates.intelByCiv.player = {
+      'pirate-1': {
+        factionId: 'pirate-1', level: 'sighted', discoveredRound: 10, lastUpdatedRound: 20,
+        lastKnownHeadquarters: {
+          kind: 'coastal-enclave', position: { q: 5, r: 5 }, observedRound: 20, integrityBand: 'damaged',
+        },
+        knownBehavior: 'raiding', knownMaritimeStage: 3, observedUnitIds: [],
+      },
+    } as unknown as (typeof state.pirates)['intelByCiv'][string];
+    for (const civ of Object.values(state.civilizations)) civ.visibility = { tiles: { '5,5': 'visible' }, lastSeen: {} };
+
+    loop.setGameState(state);
+    loop.camera.isHexVisible = () => true;
+    const syncSpy = spyOverlaySync(loop);
+    const nowMs = 30_000;
+
+    loop.applyPirateHeadquartersAssaultVisual('pirate-1', 'player-unit-1', {
+      destroyed: true,
+      attackerSurvived: true,
+    }, nowMs);
+
+    // The viewer's intel on the faction is gone (e.g. the faction's defeat was
+    // processed): only the render-loop snapshot can still show the collapse.
+    state.pirates.intelByCiv.player = {};
+
+    renderAt(loop, nowMs + 100);
+    const liveEntities = syncSpy.mock.calls.at(-1)?.[1] as Array<{ id: string; state: string }>;
+    expect(liveEntities.some(entity => entity.id === 'pirate-headquarters-pirate-1' && entity.state === 'death')).toBe(true);
+
+    renderAt(loop, nowMs + DEATH_STATE_MS + 50);
+    const expiredEntities = syncSpy.mock.calls.at(-1)?.[1] as Array<{ id: string; state: string }>;
+    expect(expiredEntities.some(entity => entity.id === 'pirate-headquarters-pirate-1')).toBe(false);
+    expect((loop as unknown as { pirateLandmarkDeathSnapshots: Map<string, unknown> }).pirateLandmarkDeathSnapshots.size).toBe(0);
+    vi.restoreAllMocks();
   });
 });
