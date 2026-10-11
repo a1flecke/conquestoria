@@ -63,6 +63,7 @@ Detailed rules live in `.claude/rules/` and auto-apply based on the files you ed
 - `.claude/rules/opencode-config.md` — the OpenCode approver plugin and `~/.config/opencode`: who may edit it, releases live in `plugin-releases/` (never `plugins/`, which is auto-loaded), the verified upgrade + idle-restart procedure, and what may be added to `trustedScripts` (never `run-with-mise.sh`)
 - `.claude/rules/caller-discipline.md` — how "caller must remember" contracts are turned into structure; the inventory, the mechanisms, and the decision procedure for a new contract
 - `.claude/rules/session-publication.md` — `GameSession` publication: `commit`/`update`/`batch`, the closed set of silent-write reasons, no hand-written renderer/HUD refresh
+- `.claude/rules/renderer-invalidation.md` — idle-aware canvas: the observable owners for a new canvas-visible input, time-bound work completes in `advance()`, time-varying visuals report to the paint clock (#1439)
 - `.claude/rules/sprites.md` — unit/building/terrain/improvement extension recipes, FactionPalette contract, catalog coverage, animation class reference, terrain tile contracts
 - `.claude/rules/game-balance.md` — wonder/national-project yield ceilings, movement stacking policy, national-project production-discount table pattern, **canonical production-cost context (Civilization Era vs World Age)**
 - `.claude/rules/wonder-content.md` — legendary/natural wonder gating, name collisions, quest-step baselines, codex ledger sync
