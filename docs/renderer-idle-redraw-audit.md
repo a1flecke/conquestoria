@@ -341,3 +341,46 @@ main thread is shared with the animation instead of being monopolised by decodin
 the (type, civ) pairs a game can show is a possible next step. The dev-server module-loading cost is
 unmeasured here (production build is what players run).
 
+## 13. Phase 5 — sprites are created on demand (#1439)
+
+**Why.** After Phase 4 the first input was fast (~0.4 s), but a many-civ game still created every unit x 3
+motions and every building SVG per civilization: 2,393 images on a 5-civ save, all done only after ~6.6 s,
+and the renderer's resident memory (`ps` on the renderer process; `rendererRssMb` in the diagnostic) grew from
+~260 MB to ~1.05 GB (2 civs) / ~1.49 GB (5 civs). A game only ever draws the unit types that exist in it, and
+building sprites are drawn in exactly one place, a city's production badge (the queue head). On a touch-first game
+that memory matters more than a few hundred milliseconds. `CONQUESTORIA_CS_FIXTURE` points the diagnostic at a
+many-civ save (a 5-civ `createNewGame` with `opponentChallenge`/`saveSchemaVersion` removed, so the legacy-prompt
+flow runs).
+
+**Change.** `SpriteCache.request(id, civ)` creates an (id, civ) pair when it is first asked for; `getUnit`,
+`getUnitMotion` and `getBuilding` request on a miss (the caller keeps its glyph until the canvas is notified, as
+for any late image) and remember every request, including ones with no art or a failed load, so a per-frame miss
+costs one `Set` lookup. `initSprites(civColors, demand)` registers every civ's palette, loads the pirate set, and
+creates `collectSpriteDemand(state)`: the distinct (unit type, owner) pairs of major civs plus each city's
+production-queue head. The unit renderer's miss path is `ensureUnit(type, owner, color)` (neutral owners get their
+palette there). The Phase 4 queue is unchanged. Nothing about saves, hot seat, publication order or gameplay moved.
+
+**Result** (production build, baseline `7f57d036` vs candidate interleaved A-B-A-B, 2 rounds x 5 samples = n 10
+per cell, local macOS headless Chromium, software rendering; median [min-max]):
+
+| Save | Mode | Sprite images created | All sprites ready (ms) | Renderer RSS after (MB) | Playable (ms) |
+|---|---|---|---|---|---|
+| 2 civs | reduced motion | 1043 -> 103 | 1624 -> 245 | 1054 -> 766 | 353 -> 317 |
+| 2 civs | motion allowed | 1043 -> 103 | 2568 -> 286 | 1200 -> 875 | 490 -> 372 |
+| 5 civs | reduced motion | 2359 -> 123 | 6639 -> 289 | 1490 -> 770 | 449 -> 368 |
+| 5 civs | motion allowed | 2393 -> 123 | 6718 -> 278 | 1497 -> 777 | 454 -> 366 |
+
+Renderer RSS before the campaign is ~256-269 MB on every row. Sprite memory scaled with civ count (~290 MB saved
+on 2 civs, ~720 MB on 5), and a 5-civ game now costs the same as a 2-civ one. The canvas draws the same sprites: the
+set of distinct sprite images drawn (kind:id:civ) is identical on both builds for the crowded fixture, and
+`issue-1439-sprite-demand.spec.ts` pins that the production-badge sprite is a real image and that the campaign
+creates a small multiple of its needs, not a catalog.
+
+**Finding for the next phase.** ~510 MB of the renderer's growth (256 -> ~770 MB) remains with only ~100 sprite
+images created, so most of the remaining campaign memory is not sprites. Terrain/wonder tiles, audio buffers, canvas
+surfaces and game state are the candidates; a heap/process breakdown is the next experiment, not a guess.
+
+**Trade-off.** A unit trained or a building queued after the start is requested the first time something draws
+it, so it can show its fallback glyph for a frame or two (tens of ms) where the eager loader had it ready. The
+diagnostic's after-playable long-task time is unchanged at 0.
+

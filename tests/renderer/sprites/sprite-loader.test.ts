@@ -18,6 +18,7 @@ import {
   spriteCache,
   initSprites,
 } from '@/renderer/sprites/sprite-loader';
+import { allSpriteDemand } from '../../helpers/sprite-demand';
 
 describe('SpriteCache before initSprites', () => {
   it('getUnit returns null before any load', () => {
@@ -35,7 +36,7 @@ describe('SpriteCache before initSprites', () => {
 
 describe('SpriteCache after initSprites', () => {
   beforeAll(async () => {
-    await initSprites({ player: '#4a90d9' });
+    await initSprites({ player: '#4a90d9' }, allSpriteDemand(['player']));
   });
 
   it('getUnit returns an HTMLImageElement', () => {
@@ -59,8 +60,8 @@ describe('SpriteCache after initSprites', () => {
     expect(spriteCache.getUnitMotion('warrior', 'uncached-civ', 'move-a')).toBeNull();
   });
 
-  it('can load a neutral civ palette on demand', async () => {
-    spriteCache.ensureCiv('mc-on-demand-test', '#8a6f2a');
+  it('can load a neutral owner unit sprites on demand', async () => {
+    spriteCache.ensureUnit('warrior', 'mc-on-demand-test', '#8a6f2a');
 
     await new Promise(resolve => setTimeout(resolve, 0));
 

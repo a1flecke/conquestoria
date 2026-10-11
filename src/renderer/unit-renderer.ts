@@ -67,7 +67,7 @@ export function drawUnitGlyph(
     : null;
 
   if (useSprites && !sprite) {
-    spriteCache.ensureCiv(visual.spriteOwnerId, visual.color);
+    spriteCache.ensureUnit(unit.type, visual.spriteOwnerId, visual.color);
   }
 
   if (sprite) {

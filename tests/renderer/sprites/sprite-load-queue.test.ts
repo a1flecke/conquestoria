@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getPngUnitManifest } from '@/renderer/sprites/png/png-sprite-catalog';
+import { allSpriteDemand } from '../../helpers/sprite-demand';
 
 /**
  * #1439 phase 4: sprite loads are scheduled, not fired as one burst. A civilization is ~500 SVG
@@ -91,7 +92,7 @@ describe('sprite load scheduling (#1439 phase 4)', () => {
   it('never has more than SPRITE_LOAD_CONCURRENCY images in flight, and still caches everything', async () => {
     const { initSprites, spriteCache, SPRITE_LOAD_CONCURRENCY } = await loadModules();
     let resolved = false;
-    void initSprites({ a: '#4a90d9' }).then(() => { resolved = true; });
+    void initSprites({ a: '#4a90d9' }, allSpriteDemand(['a'])).then(() => { resolved = true; });
     await flush();
     expect(pending.length).toBeGreaterThan(0);
     expect(pending.length).toBeLessThanOrEqual(SPRITE_LOAD_CONCURRENCY);
@@ -111,7 +112,7 @@ describe('sprite load scheduling (#1439 phase 4)', () => {
 
   it('does not generate every SVG up front: blob URLs stay bounded while loads are outstanding', async () => {
     const { initSprites, SPRITE_LOAD_CONCURRENCY } = await loadModules();
-    void initSprites({ a: '#4a90d9' });
+    void initSprites({ a: '#4a90d9' }, allSpriteDemand(['a']));
     await flush();
     expect(createdUrls).toBeLessThanOrEqual(SPRITE_LOAD_CONCURRENCY * 2);
     await settle(5);
@@ -122,7 +123,7 @@ describe('sprite load scheduling (#1439 phase 4)', () => {
   it('loads what is drawn at rest before walk frames, and pirates before walk frames', async () => {
     const { initSprites, getSpriteDiagnosticMetadata } = await loadModules();
     recordStarts(image => getSpriteDiagnosticMetadata(image) as Meta | undefined);
-    void initSprites({ a: '#4a90d9' });
+    void initSprites({ a: '#4a90d9' }, allSpriteDemand(['a']));
     await flush();
     await settleAll();
 
@@ -144,7 +145,7 @@ describe('sprite load scheduling (#1439 phase 4)', () => {
     const announcements = vi.fn();
     onCanvasAssetReady(announcements);
     let resolved = false;
-    void initSprites({ a: '#4a90d9' }).then(() => { resolved = true; });
+    void initSprites({ a: '#4a90d9' }, allSpriteDemand(['a'])).then(() => { resolved = true; });
     await flush();
 
     // Settle until the first walk frame is the next image in flight: all at-rest images are loaded.
@@ -169,7 +170,7 @@ describe('sprite load scheduling (#1439 phase 4)', () => {
 
   it('keeps per-civilization palettes separate (cache keyed by civ, not shared across colours)', async () => {
     const { initSprites, spriteCache, getSpriteDiagnosticMetadata } = await loadModules();
-    void initSprites({ a: '#4a90d9', b: '#d94a4a' });
+    void initSprites({ a: '#4a90d9', b: '#d94a4a' }, allSpriteDemand(['a', 'b']));
     await flush();
     await settleAll();
     const a = spriteCache.getUnit('warrior', 'a')!;
@@ -182,14 +183,16 @@ describe('sprite load scheduling (#1439 phase 4)', () => {
 
   it('a failing image rejects the load but never wedges the queue: later work still completes', async () => {
     const { initSprites, spriteCache } = await loadModules();
-    const failing = initSprites({ a: '#4a90d9' });
+    const failing = initSprites({ a: '#4a90d9' }, allSpriteDemand(['a']));
     const outcome = failing.then(() => 'resolved', () => 'rejected');
     await flush();
     await settle(1, 'error');
     expect(await outcome).toBe('rejected');
     await settleAll();
 
-    spriteCache.ensureCiv('later', '#8a6f2a');
+    spriteCache.registerCiv('later', '#8a6f2a');
+    void spriteCache.request('warrior', 'later');
+    void spriteCache.request('granary', 'later');
     await flush();
     await settleAll();
     expect(spriteCache.getUnit('warrior', 'later')).toBeInstanceOf(HTMLImageElement);
@@ -198,14 +201,139 @@ describe('sprite load scheduling (#1439 phase 4)', () => {
 
   it('coalesces on-demand loads for the same civilization', async () => {
     const { spriteCache } = await loadModules();
-    spriteCache.ensureCiv('minor', '#8a6f2a');
-    spriteCache.ensureCiv('minor', '#8a6f2a');
+    spriteCache.ensureUnit('warrior', 'minor', '#8a6f2a');
+    spriteCache.ensureUnit('warrior', 'minor', '#8a6f2a');
     await flush();
     const firstBurst = createdUrls;
-    spriteCache.ensureCiv('minor', '#8a6f2a');
+    spriteCache.ensureUnit('warrior', 'minor', '#8a6f2a');
     await flush();
     expect(createdUrls).toBe(firstBurst);
     await settleAll();
     expect(spriteCache.getUnit('warrior', 'minor')).toBeInstanceOf(HTMLImageElement);
+  });
+});
+
+describe('demand-driven sprite creation (#1439 phase 5)', () => {
+  /** Images created by pirates alone: the fixed cost every game pays regardless of demand. */
+  async function pirateBaseline(): Promise<number> {
+    const { initSprites } = await loadModules();
+    void initSprites({ a: '#4a90d9' }, []);
+    await flush();
+    await settleAll();
+    return createdUrls;
+  }
+
+  it('creates only the demanded sprites, not the whole catalog', async () => {
+    const base = await pirateBaseline();
+    createdUrls = 0;
+    const { initSprites, spriteCache } = await loadModules();
+    void initSprites({ a: '#4a90d9' }, [{ id: 'warrior', civId: 'a' }]);
+    await flush();
+    await settleAll();
+    // Pirates + one unit type x 3 motions; the ~500-image civilization catalog is not created.
+    expect(createdUrls).toBe(base + 3);
+    expect(spriteCache.getUnit('warrior', 'a')).toBeInstanceOf(HTMLImageElement);
+    expect(spriteCache.getUnitMotion('warrior', 'a', 'move-a')).toBeInstanceOf(HTMLImageElement);
+    expect(spriteCache.getUnitMotion('warrior', 'a', 'move-b')).toBeInstanceOf(HTMLImageElement);
+  });
+
+  it('a cache miss requests the missing sprite exactly once, then it is cached and announced', async () => {
+    const { initSprites, spriteCache, onCanvasAssetReady } = await loadModules();
+    void initSprites({ a: '#4a90d9' }, []);
+    await flush();
+    await settleAll();
+    const before = createdUrls;
+    const announcements = vi.fn();
+    onCanvasAssetReady(announcements);
+
+    for (let frame = 0; frame < 50; frame += 1) {
+      expect(spriteCache.getUnit('archer', 'a')).toBeNull(); // every frame until it lands: the caller falls back
+    }
+    await flush();
+    await settleAll();
+
+    expect(createdUrls - before).toBe(3); // 50 misses -> one request (3 motions)
+    expect(spriteCache.getUnit('archer', 'a')).toBeInstanceOf(HTMLImageElement);
+    expect(announcements).toHaveBeenCalled();
+  });
+
+  it('does not request anything for a civilization whose palette is unknown, until the renderer supplies it', async () => {
+    const { initSprites, spriteCache } = await loadModules();
+    void initSprites({ a: '#4a90d9' }, []);
+    await flush();
+    await settleAll();
+    const before = createdUrls;
+
+    expect(spriteCache.getUnit('warrior', 'barbarian')).toBeNull();
+    await flush();
+    expect(createdUrls).toBe(before); // no colour, nothing to draw with
+
+    spriteCache.ensureUnit('warrior', 'barbarian', '#8b4513');
+    await flush();
+    await settleAll();
+    expect(spriteCache.getUnit('warrior', 'barbarian')).toBeInstanceOf(HTMLImageElement);
+  });
+
+  it('resolves a production-queue head to the right catalog: a building id and a unit id both work', async () => {
+    const { initSprites, spriteCache } = await loadModules();
+    void initSprites({ a: '#4a90d9' }, []);
+    await flush();
+    await settleAll();
+
+    // The city badge asks getBuilding(head) ?? getUnit(head) with a head that may be either kind.
+    expect(spriteCache.getBuilding('granary', 'a')).toBeNull();
+    expect(spriteCache.getBuilding('warrior', 'a')).toBeNull(); // a unit id queued in a city
+    await flush();
+    await settleAll();
+
+    expect(spriteCache.getBuilding('granary', 'a')).toBeInstanceOf(HTMLImageElement);
+    expect(spriteCache.getUnit('warrior', 'a')).toBeInstanceOf(HTMLImageElement);
+  });
+
+  it('an id with no sprite art (a wonder in the queue) is remembered, never re-requested per frame', async () => {
+    const { initSprites, spriteCache } = await loadModules();
+    void initSprites({ a: '#4a90d9' }, []);
+    await flush();
+    await settleAll();
+    const before = createdUrls;
+
+    for (let frame = 0; frame < 100; frame += 1) {
+      expect(spriteCache.getBuilding('some_legendary_wonder', 'a')).toBeNull();
+    }
+    await flush();
+    expect(createdUrls).toBe(before);
+    expect(pending).toHaveLength(0);
+  });
+
+  it('a failed image is not retried every frame', async () => {
+    const { initSprites, spriteCache } = await loadModules();
+    void initSprites({ a: '#4a90d9' }, []);
+    await flush();
+    await settleAll();
+
+    expect(spriteCache.getUnit('archer', 'a')).toBeNull();
+    await flush();
+    await settle(3, 'error');
+    await settleAll('error');
+    const afterFailure = createdUrls;
+
+    for (let frame = 0; frame < 50; frame += 1) spriteCache.getUnit('archer', 'a');
+    await flush();
+    expect(createdUrls).toBe(afterFailure);
+  });
+
+  it('the same unit type for two civilizations keeps separate palettes', async () => {
+    const { initSprites, spriteCache, getSpriteDiagnosticMetadata } = await loadModules();
+    void initSprites({ a: '#4a90d9', b: '#d94a4a' }, [
+      { id: 'warrior', civId: 'a' },
+      { id: 'warrior', civId: 'b' },
+    ]);
+    await flush();
+    await settleAll();
+    const a = spriteCache.getUnit('warrior', 'a')!;
+    const b = spriteCache.getUnit('warrior', 'b')!;
+    expect(a).not.toBe(b);
+    expect(getSpriteDiagnosticMetadata(a)?.civilization).toBe('a');
+    expect(getSpriteDiagnosticMetadata(b)?.civilization).toBe('b');
   });
 });
