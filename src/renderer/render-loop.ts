@@ -7,6 +7,7 @@ import { drawUnitPresentations } from './unit-renderer';
 import { drawCities } from './city-renderer';
 import { AnimationSystem, type EffectAnimationData, type EffectAnimationType } from './animation-system';
 import { onCanvasAssetReady } from './canvas-asset-ready';
+import { beginPaintTracking, paintWasTimeVarying } from './paint-clock';
 import { hexToPixel, hexKey } from '@/systems/hex-utils';
 import { getHorizontalWrapRenderCoords, nearestWrappedCoord } from './wrap-rendering';
 import { getVisibility } from '@/systems/fog-of-war';
@@ -303,7 +304,10 @@ export class RenderLoop {
   // #594 MR7: same per-setGameState caching convention as worldPressurePresentation above.
   private religionBadgePresentation: ReligionBadgePresentation = { cityBadges: [] };
   private running = false;
+  /** Pending requestAnimationFrame handle; 0 when no frame is queued. */
   private animFrameId = 0;
+  /** Deadline wake: completes timed work and repaints even if no animation frame is delivered. */
+  private wakeTimer: ReturnType<typeof setTimeout> | null = null;
   private highlights: HexHighlight[] = [];
   private journeyPath: HexCoord[] | null = null;
   private unitMovementAnimations: Array<UnitMovementAnimation & {
@@ -313,6 +317,11 @@ export class RenderLoop {
   }> = [];
   private spriteOverlay: SpriteOverlay | null = null;
   private touchHandlerRef: { isPinching: boolean } | null = null;
+  private pinchUnsubscribe: (() => void) | null = null;
+  /** Generation at the last DOM-overlay sync; -1 until the first sync. */
+  private lastSyncedGeneration = -1;
+  /** Set when time-bound work (a death snapshot) retired and the overlay must drop it. */
+  private overlayStale = false;
   private selectedUnitId: string | null = null;
   private selectedPirateFactionId: string | null = null;
   private airDefenseOverlayEnabledByViewer = new Map<string, boolean>();
@@ -370,8 +379,10 @@ export class RenderLoop {
     expiresAtMs: number;
   }>();
 
-  setTouchHandler(th: { isPinching: boolean }): void {
+  setTouchHandler(th: { isPinching: boolean; onPinchChange?(listener: () => void): () => void }): void {
+    this.pinchUnsubscribe?.();
     this.touchHandlerRef = th;
+    this.pinchUnsubscribe = th.onPinchChange?.(() => this.invalidate()) ?? null;
     this.invalidate();
   }
 
@@ -524,13 +535,23 @@ export class RenderLoop {
     return this.generation;
   }
 
+  /** Every canvas-visible input change lands here: bump the generation and make sure a frame is coming. */
   private invalidate(): void {
     this.generation++;
+    this.requestFrame();
+    this.armWakeTimer();
+  }
+
+  private requestFrame(): void {
+    if (!this.running || this.animFrameId) return;
+    this.animFrameId = requestAnimationFrame(this.tick);
   }
 
   /** Release camera / asset subscriptions. Safe to call more than once. */
   dispose(): void {
     this.stop();
+    this.pinchUnsubscribe?.();
+    this.pinchUnsubscribe = null;
     for (const off of this.unsubscribers.splice(0)) off();
   }
 
@@ -586,27 +607,112 @@ export class RenderLoop {
   start(): void {
     if (this.running) return;
     this.running = true;
-    this.tick();
+    this.paintFrame();
   }
 
   stop(): void {
     this.running = false;
     if (this.animFrameId) {
       cancelAnimationFrame(this.animFrameId);
+      this.animFrameId = 0;
     }
+    this.clearWakeTimer();
   }
 
   private tick = (): void => {
+    this.animFrameId = 0;
     if (!this.running) return;
-
-    this.camera.applyInertia();
-    this.render();
-
-    this.animFrameId = requestAnimationFrame(this.tick);
+    this.paintFrame();
   };
+
+  /**
+   * One scheduled frame: settle camera inertia, advance time-dependent work, paint, then decide
+   * whether anything still needs frames. The generation is read before painting, so an
+   * invalidation raised during the paint (or by a completion callback) is never erased: it keeps
+   * the generation ahead of the snapshot and queues another frame.
+   */
+  private paintFrame(): void {
+    this.camera.applyInertia();
+    const paintedGeneration = this.generation;
+    beginPaintTracking();
+    this.render();
+    const needsFrames = this.generation !== paintedGeneration
+      || this.camera.isMoving()
+      || this.unitMovementAnimations.length > 0
+      || this.timeline.hasActive()
+      || paintWasTimeVarying();
+    this.armWakeTimer();
+    if (needsFrames) this.requestFrame();
+  }
+
+  /**
+   * Earliest moment any timed work expires: a movement tween, a timed effect, a pirate death
+   * snapshot or a sprite-state transient. Null when nothing is time-bound.
+   */
+  private nextDeadlineMs(): number | null {
+    const candidates: number[] = [];
+    for (const animation of this.unitMovementAnimations) {
+      candidates.push(animation.startTime + animation.duration);
+    }
+    const effect = this.timeline.nextDeadline();
+    if (effect !== null) candidates.push(effect);
+    for (const snapshot of this.pirateUnitDeathSnapshots.values()) candidates.push(snapshot.expiresAtMs);
+    for (const snapshot of this.pirateLandmarkDeathSnapshots.values()) candidates.push(snapshot.expiresAtMs);
+    const transient = this.pirateSpriteState.nextExpiryMs();
+    if (transient !== null) candidates.push(transient);
+    return candidates.length === 0 ? null : Math.min(...candidates);
+  }
+
+  private clearWakeTimer(): void {
+    if (this.wakeTimer !== null) {
+      clearTimeout(this.wakeTimer);
+      this.wakeTimer = null;
+    }
+  }
+
+  /** Schedule the wake for the next deadline. Completion must not depend on a frame being delivered. */
+  private armWakeTimer(): void {
+    this.clearWakeTimer();
+    if (!this.running) return;
+    const deadline = this.nextDeadlineMs();
+    if (deadline === null) return;
+    const delay = Math.max(0, deadline - performance.now()) + 1;
+    this.wakeTimer = setTimeout(() => {
+      this.wakeTimer = null;
+      if (!this.running) return;
+      this.advance(performance.now());
+      this.invalidate();
+      if (!this.animFrameId) this.armWakeTimer();
+    }, delay);
+  }
+
+  /**
+   * Time-driven lifecycle, separate from drawing: completes movement tweens and timed effects
+   * (firing their callbacks exactly once) and retires expired pirate death snapshots. Runs at the
+   * top of every paint and from the deadline wake, so skipping a paint can never strand it.
+   */
+  private advance(nowMs: number): void {
+    this.timeline.advance(nowMs);
+    for (const [unitId, snapshot] of this.pirateUnitDeathSnapshots) {
+      if (snapshot.expiresAtMs <= nowMs) {
+        this.pirateUnitDeathSnapshots.delete(unitId);
+        this.overlayStale = true;
+      }
+    }
+    for (const [entityId, snapshot] of this.pirateLandmarkDeathSnapshots) {
+      if (snapshot.expiresAtMs <= nowMs) {
+        this.pirateLandmarkDeathSnapshots.delete(entityId);
+        this.overlayStale = true;
+      }
+    }
+    this.advanceUnitMovements(nowMs);
+  }
 
   private render(): void {
     if (!this.state) return;
+    // Read before advancing: a completion callback that invalidates must force the next sync.
+    const generationAtPaint = this.generation;
+    this.advance(performance.now());
     const viewerId = this.state.currentPlayer;
     const viewerVisibility = this.state.civilizations[viewerId]?.visibility;
     const viewerTechs = new Set<string>(
@@ -786,6 +892,17 @@ export class RenderLoop {
         if (def) colorLookup[mc.id] = def.color;
       }
       const nowMs = performance.now();
+      // The DOM overlay's entity set only changes with an input (generation) or while a movement
+      // tween is live. A frame kept alive purely by an ambient canvas animation reuses the last
+      // sync (its active ids still gate the canvas draws) instead of rewriting the DOM.
+      const syncOverlay = this.generation !== this.lastSyncedGeneration
+        || this.unitMovementAnimations.length > 0
+        || this.overlayStale
+        || this.pirateSpriteState.nextExpiryMs() !== null
+        || this.pirateUnitDeathSnapshots.size > 0
+        || this.pirateLandmarkDeathSnapshots.size > 0
+        || this.spriteOverlay === null;
+      if (syncOverlay) {
       const unitEntities = buildUnitEntities(
         this.state,
         viewerId,
@@ -796,10 +913,7 @@ export class RenderLoop {
         nowMs,
       );
       for (const [unitId, snapshot] of this.pirateUnitDeathSnapshots) {
-        if (snapshot.expiresAtMs <= nowMs) {
-          this.pirateUnitDeathSnapshots.delete(unitId);
-          continue;
-        }
+        if (snapshot.expiresAtMs <= nowMs) continue;
         if (getVisibility(viewerVisibility, snapshot.unit.position) !== 'visible') continue;
         unitEntities.push({
           id: unitId,
@@ -833,10 +947,7 @@ export class RenderLoop {
         nowMs,
       );
       for (const [entityId, snapshot] of this.pirateLandmarkDeathSnapshots) {
-        if (snapshot.expiresAtMs <= nowMs) {
-          this.pirateLandmarkDeathSnapshots.delete(entityId);
-          continue;
-        }
+        if (snapshot.expiresAtMs <= nowMs) continue;
         if (!landmarkPresentationEntities.some(entity => entity.id === entityId)) {
           landmarkPresentationEntities.push(snapshot.entity);
         }
@@ -860,6 +971,9 @@ export class RenderLoop {
         },
         colorLookup,
       );
+      this.lastSyncedGeneration = generationAtPaint;
+      this.overlayStale = false;
+      }
       drawPirateHeadquartersMapPresentation(
         this.ctx,
         { entities: pirateHeadquartersPresentation.entities, regions: [] },
@@ -936,8 +1050,29 @@ export class RenderLoop {
     );
 
     // Draw animations (world-anchored: screen position derives from the camera each frame)
-    this.timeline.update(this.ctx, this.camera, this.state.map, performance.now());
+    this.timeline.draw(this.ctx, this.camera, this.state.map, performance.now());
 
+  }
+
+  /** Retire finished or orphaned movement tweens and fire their callbacks exactly once (#1039). */
+  private advanceUnitMovements(nowMs: number): void {
+    if (this.unitMovementAnimations.length === 0) return;
+    const remaining: typeof this.unitMovementAnimations = [];
+    const completedCallbacks: Array<() => void> = [];
+    for (const animation of this.unitMovementAnimations) {
+      const authoritativeUnit = this.state?.units[animation.unit.id];
+      const orphaned = !animation.detachedFromState
+        && (!authoritativeUnit || authoritativeUnit.owner !== animation.unit.owner);
+      // A finished animation must still fire its completion callback even when it was never
+      // drawn (unexplored destination) -- several callers `await` it or advance focus from it.
+      if (orphaned || nowMs - animation.startTime >= animation.duration) {
+        if (animation.onComplete) completedCallbacks.push(animation.onComplete);
+      } else {
+        remaining.push(animation);
+      }
+    }
+    this.unitMovementAnimations = remaining;
+    for (const callback of completedCallbacks) callback();
   }
 
   private drawUnitMovementAnimations(
@@ -947,28 +1082,11 @@ export class RenderLoop {
     overlayActiveIds: ReadonlySet<string>,
   ): void {
     if (!this.state) return;
-    const remaining: typeof this.unitMovementAnimations = [];
-    const completedCallbacks: Array<() => void> = [];
     for (const animation of this.unitMovementAnimations) {
-      const authoritativeUnit = this.state.units[animation.unit.id];
-      if (
-        !animation.detachedFromState
-        && (!authoritativeUnit || authoritativeUnit.owner !== animation.unit.owner)
-      ) {
-        if (animation.onComplete) completedCallbacks.push(animation.onComplete);
-        continue;
-      }
       const elapsed = now - animation.startTime;
       const progress = Math.min(1, elapsed / animation.duration);
       const frame = getMovementAnimationPosition(animation, progress);
-      if (getVisibility(viewerVisibility, animation.to) === 'unexplored') {
-        // Don't draw a slide into a tile the viewer has never seen, but a
-        // finished animation must still fire its completion callback — several
-        // callers `await` it or advance unit focus from it (#1039).
-        if (progress < 1) remaining.push(animation);
-        else if (animation.onComplete) completedCallbacks.push(animation.onComplete);
-        continue;
-      }
+      if (getVisibility(viewerVisibility, animation.to) === 'unexplored') continue;
       const renderCoords = this.state.map.wrapsHorizontally
         ? getHorizontalWrapRenderCoords(frame.coord, this.state.map.width, this.camera)
         : [frame.coord];
@@ -989,15 +1107,6 @@ export class RenderLoop {
           spriteOverride: sprite,
         });
       }
-      if (progress < 1) {
-        remaining.push(animation);
-      } else {
-        if (animation.onComplete) completedCallbacks.push(animation.onComplete);
-      }
-    }
-    this.unitMovementAnimations = remaining;
-    for (const callback of completedCallbacks) {
-      callback();
     }
   }
 

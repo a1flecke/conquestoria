@@ -151,20 +151,22 @@ function runNextFrame(): void {
 }
 
 describe('render-loop lifecycle (#1439 characterization)', () => {
-  it('start() runs the first frame immediately and keeps scheduling while running', () => {
+  it('start() paints the first frame immediately, goes idle, and repaints on the next invalidation', () => {
     const loop = new RenderLoop(createCanvas());
     loop.setGameState(minimalState());
 
     loop.start();
 
     expect(rendererMocks.drawHexMap).toHaveBeenCalledTimes(1);
-    expect(rafSpy).toHaveBeenCalledTimes(1);
-    expect(scheduledFrames).toHaveLength(1);
+    expect(rafSpy).not.toHaveBeenCalled(); // nothing is changing: no perpetual frame chain
+    expect(scheduledFrames).toHaveLength(0);
 
+    loop.setSelectedUnitId('u1');
+    expect(scheduledFrames).toHaveLength(1);
     runNextFrame();
 
     expect(rendererMocks.drawHexMap).toHaveBeenCalledTimes(2);
-    expect(scheduledFrames).toHaveLength(1); // the next frame is already queued
+    expect(scheduledFrames).toHaveLength(0);
 
     loop.stop();
   });
@@ -177,7 +179,7 @@ describe('render-loop lifecycle (#1439 characterization)', () => {
     loop.start();
 
     expect(rendererMocks.drawHexMap).toHaveBeenCalledTimes(1);
-    expect(scheduledFrames).toHaveLength(1);
+    expect(scheduledFrames).toHaveLength(0);
 
     loop.stop();
   });
@@ -187,6 +189,7 @@ describe('render-loop lifecycle (#1439 characterization)', () => {
     loop.setGameState(minimalState());
 
     loop.start();
+    loop.setSelectedUnitId('u1');
     expect(scheduledFrames).toHaveLength(1);
     loop.stop();
 
@@ -227,8 +230,9 @@ describe('render-loop lifecycle (#1439 characterization)', () => {
     loop.stop();
     loop.start();
 
+    expect(rendererMocks.drawHexMap).toHaveBeenCalledTimes(2); // resume paints immediately
+    loop.setSelectedUnitId('u1');
     expect(scheduledFrames).toHaveLength(1);
-    expect(rendererMocks.drawHexMap).toHaveBeenCalledTimes(2);
 
     loop.stop();
   });

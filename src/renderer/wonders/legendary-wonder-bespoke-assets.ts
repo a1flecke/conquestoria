@@ -1,3 +1,4 @@
+import { markTimeVaryingPaint } from '../paint-clock';
 import type { LegendaryWonderLandmarkMetadata } from '@/systems/legendary-wonder-landmark-types';
 
 export const SUPPORTED_BESPOKE_LEGENDARY_LANDMARK_ASSET_KEYS = [
@@ -1705,6 +1706,7 @@ function drawTerracottaArmy(options: LegendaryWonderBespokeDrawOptions): void {
     }
   }
 
+  if (!reducedMotion) markTimeVaryingPaint();
   const glintX = cx + (reducedMotion ? r * 0.46 : Math.sin(nowMs / 700) * r * 0.46);
   ctx.beginPath();
   ctx.arc(glintX, cy - r * 0.44, r * 0.045, 0, Math.PI * 2);
@@ -1733,6 +1735,7 @@ function drawCracDesChevaliers(options: LegendaryWonderBespokeDrawOptions): void
   }
 
   const flagY = cy - r * 0.57;
+  if (!reducedMotion) markTimeVaryingPaint();
   const flutter = reducedMotion ? r * 0.1 : r * (0.1 + Math.sin(nowMs / 600) * 0.04);
   ctx.beginPath();
   ctx.moveTo(cx, cy - r * 0.08);
@@ -1773,6 +1776,7 @@ function drawNorad(options: LegendaryWonderBespokeDrawOptions): void {
     ctx.stroke();
   }
 
+  if (!reducedMotion) markTimeVaryingPaint();
   const sweepAngle = reducedMotion ? Math.PI * 1.73 : Math.PI * (1.55 + ((nowMs / 1800) % 0.36));
   ctx.beginPath();
   ctx.moveTo(dishX + r * 0.12, dishY - r * 0.1);

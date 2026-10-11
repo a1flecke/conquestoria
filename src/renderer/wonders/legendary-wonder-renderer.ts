@@ -1,3 +1,4 @@
+import { markTimeVaryingPaint } from '../paint-clock';
 import { getLegendaryWonderLandmarkMetadata } from '@/systems/legendary-wonder-landmark-catalog';
 import type { WonderVisualDefinition } from '@/systems/wonder-visual-catalog';
 import { resolveLegendaryWonderBespokeAsset } from '@/renderer/wonders/legendary-wonder-bespoke-assets';
@@ -116,6 +117,7 @@ function drawSpireSilhouette(ctx: CanvasRenderingContext2D, cx: number, cy: numb
 }
 
 function pulseAlpha(nowMs: number): number {
+  markTimeVaryingPaint();
   return (Math.sin(nowMs / 900) + 1) / 2;
 }
 

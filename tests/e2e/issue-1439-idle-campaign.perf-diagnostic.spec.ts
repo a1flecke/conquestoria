@@ -26,7 +26,7 @@ test('#1439 idle campaign cost under the default reduced-motion configuration', 
   const measurement = await measureIdleCampaign(page, { reducedMotion: 'reduce', testInfo });
 
   expect(measurement.mountDurationMs).toBeGreaterThan(0);
-  expect(measurement.redrawCountDelta).toBeGreaterThan(0);
+  expect(measurement.redrawCountDelta).toBeGreaterThanOrEqual(0); // idle is now allowed to be 0 (#1439 phase 2)
   expect(measurement.taskDurationMsDelta).toBeGreaterThanOrEqual(0);
   expect(Number.isFinite(measurement.redrawsPerSecond)).toBe(true);
   await testInfo.attach('measurement-summary', {
@@ -41,7 +41,7 @@ test('#1439 idle campaign cost with motion allowed', async ({ page }, testInfo) 
   const measurement = await measureIdleCampaign(page, { reducedMotion: 'no-preference', testInfo });
 
   expect(measurement.mountDurationMs).toBeGreaterThan(0);
-  expect(measurement.redrawCountDelta).toBeGreaterThan(0);
+  expect(measurement.redrawCountDelta).toBeGreaterThanOrEqual(0); // idle is now allowed to be 0 (#1439 phase 2)
   expect(measurement.taskDurationMsDelta).toBeGreaterThanOrEqual(0);
   await testInfo.attach('measurement-summary', {
     body: `${measurement.scenario}: mount=${measurement.mountDurationMs}ms redraws=${measurement.redrawCountDelta}/${measurement.observationMs}ms taskDuration=${measurement.taskDurationMsDelta}ms`,

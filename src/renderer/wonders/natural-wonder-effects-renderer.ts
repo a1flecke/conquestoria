@@ -1,3 +1,4 @@
+import { markTimeVaryingPaint } from '../paint-clock';
 import { getWonderSpectacleRecipe } from '@/systems/wonder-spectacle/presentation';
 import type { WonderSpectaclePrimitive, WonderSpectacleRenderMode } from '@/systems/wonder-spectacle/types';
 
@@ -31,6 +32,7 @@ export interface NaturalWonderSpectacleDrawOptions {
 }
 
 function phase(nowMs: number, speed = 900): number {
+  markTimeVaryingPaint();
   return (Math.sin(nowMs / speed) + 1) / 2;
 }
 

@@ -18,7 +18,20 @@ export class TouchHandler {
   private isPanning = false;
   private tapCandidate = false;
   private _isPinching = false;
+  private pinchListeners = new Set<() => void>();
   get isPinching(): boolean { return this._isPinching; }
+
+  /** Subscribe to pinch start/end; the sprite overlay's LOD/pool behaviour depends on it. */
+  onPinchChange(listener: () => void): () => void {
+    this.pinchListeners.add(listener);
+    return () => { this.pinchListeners.delete(listener); };
+  }
+
+  private setPinching(value: boolean): void {
+    if (this._isPinching === value) return;
+    this._isPinching = value;
+    for (const listener of [...this.pinchListeners]) listener();
+  }
 
   constructor(canvas: HTMLCanvasElement, camera: Camera, callbacks: InputCallbacks) {
     this.canvas = canvas;
@@ -60,7 +73,7 @@ export class TouchHandler {
     }
 
     if (e.touches.length === 2) {
-      this._isPinching = true;
+      this.setPinching(true);
       this.tapCandidate = false;
       this.clearLongPress();
       const dx = e.touches[0].clientX - e.touches[1].clientX;
@@ -121,7 +134,7 @@ export class TouchHandler {
   private onTouchEnd = (e: TouchEvent): void => {
     e.preventDefault();
     this.clearLongPress();
-    this._isPinching = e.touches.length >= 2;
+    this.setPinching(e.touches.length >= 2);
 
     if (this.tapCandidate && e.changedTouches.length === 1 && !this.isPanning) {
       const elapsed = e.timeStamp - this.touchStartTime;
@@ -142,7 +155,7 @@ export class TouchHandler {
     this.clearLongPress();
     this.tapCandidate = false;
     this.isPanning = false;
-    this._isPinching = e.touches.length >= 2;
+    this.setPinching(e.touches.length >= 2);
     this.lastTouchDistance = 0;
   };
 

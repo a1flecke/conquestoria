@@ -52,13 +52,10 @@ export class AnimationSystem {
     return id;
   }
 
-  update(ctx: CanvasRenderingContext2D, camera: Camera, map: AnimationMapContext, now: number): void {
-    const completed: Animation[] = [];
-
+  /** Draw every live effect at its current progress. Pure with respect to the queue. */
+  draw(ctx: CanvasRenderingContext2D, camera: Camera, map: AnimationMapContext, now: number): void {
     for (const anim of this.animations) {
-      const elapsed = now - anim.startTime;
-      const progress = Math.min(1, elapsed / anim.duration);
-
+      const progress = Math.min(1, (now - anim.startTime) / anim.duration);
       const renderCoords = map.wrapsHorizontally
         ? getHorizontalWrapRenderCoords(anim.data.coord, map.width, camera)
         : [anim.data.coord];
@@ -69,17 +66,34 @@ export class AnimationSystem {
         const size = camera.hexSize * camera.zoom;
         this.renderAnimation(ctx, anim, progress, screen.x, screen.y, size);
       }
-
-      if (progress >= 1) {
-        completed.push(anim);
-      }
     }
+  }
 
-    // Remove completed animations
-    for (const anim of completed) {
-      this.animations = this.animations.filter(a => a.id !== anim.id);
-      anim.onComplete?.();
+  /** Retire finished effects and fire their completion callbacks exactly once, independent of painting. */
+  advance(now: number): void {
+    const completed = this.animations.filter(anim => now - anim.startTime >= anim.duration);
+    if (completed.length === 0) return;
+    this.animations = this.animations.filter(anim => !completed.includes(anim));
+    for (const anim of completed) anim.onComplete?.();
+  }
+
+  hasActive(): boolean {
+    return this.animations.length > 0;
+  }
+
+  /** Earliest completion time among live effects, or null when none are live. */
+  nextDeadline(): number | null {
+    let earliest: number | null = null;
+    for (const anim of this.animations) {
+      const end = anim.startTime + anim.duration;
+      if (earliest === null || end < earliest) earliest = end;
     }
+    return earliest;
+  }
+
+  update(ctx: CanvasRenderingContext2D, camera: Camera, map: AnimationMapContext, now: number): void {
+    this.draw(ctx, camera, map, now);
+    this.advance(now);
   }
 
   private renderAnimation(
