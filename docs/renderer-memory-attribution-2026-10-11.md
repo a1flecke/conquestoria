@@ -12,7 +12,8 @@ Production Vite build, macOS arm64, Chromium 149.0.7827.55, 1280 × 720 CSS pixe
 Two-civilization fixture: crowded 30 × 30 map. Generated five-civilization fixture: 50 × 50 map,
 seed `renderer-memory-1439-five`. Sizes are **MiB**. These are desktop Chromium measurements,
 not iPad/PWA results. #1462 and #1463 are merged. The concurrent sprite-lifecycle repair is absent
-from the baseline; its protected loader/controller/tests have not been edited.
+from the baseline; its protected loader/controller/tests have not been edited. The delivered
+branch is rebased onto its merged commit `415e0836`, with final probes on the combined source.
 
 Each sample launches a fresh browser. The recorder saves process PIDs/roles/RSS, CDP process
 information, JS heap, DOM counts, weak image/canvas/AudioBuffer references, PCM bytes, and host
@@ -168,14 +169,15 @@ code paths, loop boundaries, offline/distribution constraints, and acceptance cr
 Exact failing regressions were added to existing audio/renderer files before the corresponding
 repairs. Targeted audio/renderer verification passed 698 tests (one skipped); a later added
 integration regression covers a late era preload attempting to overwrite the director's crisis
-layer. Both synchronous image failure regressions failed before cleanup hardening and passed
+layer. The combined audio/renderer run after rebase passed 699 tests (one skipped).
+Both synchronous image failure regressions failed before cleanup hardening and passed
 afterwards. Removing the SFX generation check reproduced both dispose/rebind failures, then
 restoring it passed. No new default test files or CI-shard allocation changes were needed.
 
-The first full durable run passed 778 files / 14,069 tests, plus hooks. Later cleanup/test changes
-require fresh final-tree verification; the earlier proof is not reused as final completion evidence.
-Source-rule checks and typecheck pass. Production comparison and final lifecycle/offline probes
-are recorded below when complete. Rebase/remeasure after the protected sprite repair lands.
+The first full durable run passed 778 files / 14,069 tests, plus hooks. The final publication uses
+a separate HEAD-bound `verify-pr` / `verify-pr-status` proof; the earlier result is not reused as
+final completion evidence. Source-rule checks, typecheck, the rebased production build and all
+492 wonder regressions pass. Production comparison and final lifecycle/offline probes follow.
 
 ## Production repair comparison
 
@@ -209,18 +211,46 @@ audible long music tracks remain decoded; #1466 addresses that remaining archite
 CONQUESTORIA_MEMORY_DIAGNOSTICS=1 CONQUESTORIA_MEMORY_LABEL=fix-comparison CONQUESTORIA_MEMORY_SAMPLES=5 CONQUESTORIA_MEMORY_COMPARE_URL=http://127.0.0.1:4190/conquestoria/ CONQUESTORIA_PERF_BASE_URL=http://127.0.0.1:4189/conquestoria/ ./scripts/run-with-mise.sh yarn test:web-smoke:campaign-start --workers=1
 ```
 
+## Final combined-source lifecycle and offline probes
+
+Production bundle `index-DCZNfj_s.js`, after rebase onto `415e0836`: cold and warm actual in-page
+campaign sequences both pass, without page errors. Each starts the crowded fixture and then
+Rome → Rome → Japan → Japan → China. Post-GC PCM is 90.14 MiB for the initial/Rome campaigns,
+then 104.51 for every Japan/China campaign. The obsolete 29.58 MiB Mediterranean buffer is
+collected after switching families; this is active-track replacement, not continued accumulation.
+
+All six starts retain **52 created terrain images and four wonder images**. The original baseline
+created 312 / 24. No instrumented Blob URLs remain outstanding after successful loading.
+Both contexts remove every renderer on close.
+
+Both first-campaign cold and warm probes disable networking after startup, fetch all **193**
+deduplicated SFX assets (2,024,976 encoded bytes), and decode/start/stop a real 34,202-frame SFX.
+They do not pre-warm additional online files to make the test pass. The service worker controls
+the page, preserving offline encoded availability without full-catalog decoded residency.
+
+Six-second active renderer RSS is 675.3 MiB cold / 646.0 warm (n=1 each, diagnostic follow-up).
+The cold renderer's native physical footprint is 330.7 MiB, peak 511.6 MiB; baseline audio
+attribution sample 0 was 409.6 / 619.7. These n=1 native observations are directional and were
+not interleaved; PartitionAlloc inspection remains unavailable. Do not treat the entire native
+remainder as resolved or generalize these desktop results to iPad.
+
+```sh
+CONQUESTORIA_MEMORY_DIAGNOSTICS=1 CONQUESTORIA_MEMORY_LABEL=merged-lifecycle-offline CONQUESTORIA_MEMORY_SAMPLES=1 CONQUESTORIA_MEMORY_CIVS=2 CONQUESTORIA_MEMORY_MOTIONS=reduce CONQUESTORIA_MEMORY_CACHES=cold,warm CONQUESTORIA_MEMORY_LIFECYCLE=1 CONQUESTORIA_MEMORY_OFFLINE=1 CONQUESTORIA_MEMORY_NATIVE=1 CONQUESTORIA_PERF_BASE_URL=http://127.0.0.1:4189/conquestoria/ ./scripts/run-with-mise.sh yarn test:web-smoke:campaign-start --workers=1
+```
+
 ## Evidence status
 
 Passed: 25 audio-attribution samples, same-family and cross-family baseline replays, no-playback
 startup control, diagnostic typecheck. The 40-sample independent baseline matrix passed.
 Still missing: formal instrumentation-overhead control, DPR comparison, heap-retainer snapshots,
-and device testing. Candidate comparison passed; final-build probes and publication verification
-are in progress.
+and device testing. Candidate comparison and final combined-source probes passed. Publication
+verification is recorded separately by the worktree-local HEAD-bound runner status and the PR.
 No merge or issue closure has been performed.
 
 Raw JSON/partials, PID-attributed vmmap summaries, native profiles and traces are preserved in the
 isolated worktree's ignored `.verification/renderer-memory/{audio-attribution,lifecycle-trace,
-lifecycle-families,baseline-matrix}/`. Original diagnostic attachments are under
+lifecycle-families,baseline-matrix,fix-comparison,final-lifecycle-offline,merged-lifecycle-offline}/`.
+Original diagnostic attachments are under
 `.verification/campaign-start-original-results/`. Recorder source:
 `tests/e2e/helpers/renderer-memory-perf.ts`, reached only through the existing opt-in diagnostic.
 
