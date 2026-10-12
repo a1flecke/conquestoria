@@ -51,7 +51,7 @@ export interface CivNearDefeatPayload {
 const CROSSFADE_MS = 2000;
 const STINGER_DUCK_FADE_MS = 100;
 const STINGER_RESTORE_MS = 1000;
-const GAME_END_FADE_MS = 1500;
+export const GAME_END_FADE_MS = 1500;
 const ADAPTIVE_CROSSFADE_MS = 2000;
 
 export class MusicDirector {
@@ -64,6 +64,10 @@ export class MusicDirector {
   private unrestCityCount = 0;
   private currentCivId = '';
   private currentEra = 1;
+  private generation = 0;
+  private adaptiveRequestId = 0;
+  private adaptiveFile: string | null = null;
+  private installedAdaptiveFile: string | null = null;
 
   /**
    * Resolves when the current stinger (if any) completes.
@@ -104,6 +108,10 @@ export class MusicDirector {
     else if (snapshot === 'brink-of-defeat') entry = DEFEAT_LAYER[era];
     else if (snapshot === 'beast-territory') entry = BEAST_TERRITORY_LAYER;
 
+    const file = entry?.file ?? null;
+    if (file === this.adaptiveFile) return;
+    this.adaptiveFile = file;
+    const requestId = ++this.adaptiveRequestId;
     if (entry) {
       const captured = entry;
       const snapshotAtDispatch = snapshot;
@@ -112,15 +120,18 @@ export class MusicDirector {
         // Stale-check: if the snapshot changed while the load was in flight, skip the source swap.
         // This prevents the wrong adaptive layer from being set after a rapid state transition.
         if (
-          this.resolveSnapshot() !== snapshotAtDispatch
+          requestId !== this.adaptiveRequestId
+          || this.resolveSnapshot() !== snapshotAtDispatch
           || resolveEra(this.currentEra) !== eraAtDispatch
         ) return;
         this.mixer.setBusSource('adaptive', buf, true, captured.loop, ADAPTIVE_CROSSFADE_MS);
+        this.installedAdaptiveFile = captured.file;
       });
     } else {
       // peace/silent — silence adaptive bus (snapshot gain is 0 anyway, but
       // clearing the source prevents an inaudible buffer playing in the background)
       this.mixer.setBusSource('adaptive', null, false, null, ADAPTIVE_CROSSFADE_MS);
+      this.installedAdaptiveFile = null;
     }
   }
 
@@ -132,8 +143,11 @@ export class MusicDirector {
     this.currentEra = p.era;
     this.applySnapshot(CROSSFADE_MS);
     // Chain transition-cue → era-advance stingers sequentially
+    const generation = this.generation;
     this.currentStingerPromise = this.playStingerWithDuck(STINGER.eraTransitionCue[resolveEra(p.era)].file)
-      .then(() => this.playStingerWithDuck(STINGER.eraAdvance[resolveEra(p.era)].file));
+      .then(() => {
+        if (generation === this.generation) return this.playStingerWithDuck(STINGER.eraAdvance[resolveEra(p.era)].file);
+      });
   }
 
   handleStrategicWarning(
@@ -200,9 +214,9 @@ export class MusicDirector {
   }
 
   /** Keyed to the current player only — never reveals another player's hidden crisis. */
-  setCrisisActiveForCurrentPlayer(active: boolean): void {
+  setCrisisActiveForCurrentPlayer(active: boolean, fadeMs = CROSSFADE_MS): void {
     this.crisisActiveForCurrentPlayer = active;
-    this.applySnapshot(CROSSFADE_MS);
+    this.applySnapshot(fadeMs);
   }
 
   // Placeholder stingers (war-declared / peace-signed) until bespoke crisis-onset
@@ -239,7 +253,10 @@ export class MusicDirector {
     this.applySnapshot(CROSSFADE_MS);
   }
 
-  handlePlayerChanged(p: PlayerChangedPayload): void {
+  handlePlayerChanged(p: PlayerChangedPayload, fadeMs = CROSSFADE_MS): void {
+    this.generation += 1;
+    this.adaptiveRequestId += 1;
+    this.adaptiveFile = this.installedAdaptiveFile;
     this.currentCivId = p.civId;
     this.currentEra = p.era;
     // Reset all flags from the authoritative payload — prevents hot-seat drift
@@ -249,7 +266,7 @@ export class MusicDirector {
     this.nearDefeat = p.nearDefeat;
     this.beastTerritory = p.inBeastTerritory;
     this.crisisActiveForCurrentPlayer = false; // main.ts recomputes and re-sets per the new currentPlayer
-    this.applySnapshot(CROSSFADE_MS);
+    this.applySnapshot(fadeMs);
   }
 
   /**
@@ -258,11 +275,21 @@ export class MusicDirector {
    * — the game is over; the music loop must not resume.
    */
   handleGameEnded(p: GameEndedPayload): Promise<void> {
+    const generation = ++this.generation;
+    this.adaptiveRequestId += 1;
     const stingerFile = p.outcome === 'victory' ? STINGER.victory.file : STINGER.defeat.file;
     this.mixer.setSnapshot('stinger-duck', STINGER_DUCK_FADE_MS);
     this.currentStingerPromise = this.loader.get(stingerFile)
-      .then(buffer => this.mixer.playOneShot('stinger', buffer))
-      .then(() => { this.mixer.setSnapshot('silent', GAME_END_FADE_MS); });
+      .then(buffer => {
+        if (generation === this.generation) return this.mixer.playOneShot('stinger', buffer);
+      })
+      .then(() => {
+        if (generation !== this.generation) return;
+        this.mixer.setSnapshot('silent', GAME_END_FADE_MS);
+        this.mixer.setBusSource('adaptive', null, false, null, GAME_END_FADE_MS);
+        this.adaptiveFile = null;
+        this.installedAdaptiveFile = null;
+      });
     return this.currentStingerPromise;
   }
 
@@ -271,13 +298,23 @@ export class MusicDirector {
     canPlay: () => boolean = () => true,
   ): Promise<void> {
     if (!canPlay()) return;
+    const generation = this.generation;
     this.mixer.setSnapshot('stinger-duck', STINGER_DUCK_FADE_MS);
     const buffer = await this.loader.get(path);
+    if (generation !== this.generation) return;
     if (!canPlay()) {
-      this.mixer.setSnapshot(this.resolveSnapshot(), STINGER_RESTORE_MS);
+      this.applySnapshot(STINGER_RESTORE_MS);
       return;
     }
     await this.mixer.playOneShot('stinger', buffer);
-    this.mixer.setSnapshot(this.resolveSnapshot(), STINGER_RESTORE_MS);
+    if (generation !== this.generation) return;
+    this.applySnapshot(STINGER_RESTORE_MS);
+  }
+
+  dispose(): void {
+    this.generation += 1;
+    this.adaptiveRequestId += 1;
+    this.adaptiveFile = null;
+    this.installedAdaptiveFile = null;
   }
 }

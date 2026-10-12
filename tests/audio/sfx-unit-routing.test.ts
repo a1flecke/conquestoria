@@ -184,8 +184,8 @@ describe('#612 offline behaviour of the new cues', () => {
   const sw = fs.readFileSync(path.join(PROJECT_ROOT, 'public/sw.js'), 'utf8');
   const audioSystem = fs.readFileSync(path.join(PROJECT_ROOT, 'src/audio/audio-system.ts'), 'utf8');
 
-  it('every unit cue is preloaded at game start from allSfxEntries()', () => {
-    expect(audioSystem).toMatch(/preloadSfx\(\)[\s\S]*loader\.preload\(allSfxEntries\(\)\.map\(e => e\.file\)\)/);
+  it('every unit cue is prefetched without decoding at game start from allSfxEntries()', () => {
+    expect(audioSystem).toMatch(/preloadSfx\(\)[\s\S]*loader\.prefetch\(allSfxEntries\(\)\.map\(e => e\.file\)\)/);
     const files = new Set(allSfxEntries().map(e => e.file));
     for (const type of ALL_TYPES) {
       for (const entry of Object.values(UNIT_SFX[type] ?? {})) expect(files.has(entry.file), `${type}: ${entry.file}`).toBe(true);

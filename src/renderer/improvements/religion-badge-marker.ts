@@ -1,3 +1,4 @@
+import { loadStaticSvgImage } from '@/renderer/static-svg-image';
 // Small map badge marking a city that follows a religion. Two variants (own faith vs
 // foreign faith) so a viewer can tell at a glance which cities are theirs devotionally.
 // No faction palette (religion identity is separate from civ color). Deliberately an
@@ -19,21 +20,11 @@ const RELIGION_BADGE_FOREIGN_SVG = `<svg viewBox="0 0 48 48" xmlns="http://www.w
 let cachedOwn: HTMLImageElement | null = null;
 let cachedForeign: HTMLImageElement | null = null;
 
-async function loadSvgImage(svg: string): Promise<HTMLImageElement> {
-  const blob = new Blob([svg], { type: 'image/svg+xml' });
-  const url = URL.createObjectURL(blob);
-  return new Promise<HTMLImageElement>((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(); };
-    img.src = url;
-  });
-}
 
 export async function preloadReligionBadgeMarker(): Promise<void> {
   [cachedOwn, cachedForeign] = await Promise.all([
-    loadSvgImage(RELIGION_BADGE_OWN_SVG),
-    loadSvgImage(RELIGION_BADGE_FOREIGN_SVG),
+    loadStaticSvgImage(RELIGION_BADGE_OWN_SVG),
+    loadStaticSvgImage(RELIGION_BADGE_FOREIGN_SVG),
   ]);
   notifyCanvasAssetReady();
 }

@@ -3,7 +3,7 @@ import { MockAudioContext } from '../helpers/mock-audio-context';
 import { AudioSystem } from '../../src/audio/audio-system';
 import type { EventBus } from '../../src/core/event-bus';
 import type { GameState } from '../../src/core/types';
-import { ACCENT, ERA_BASE, WAR_LAYER, resolveEra } from '../../src/audio/audio-catalog';
+import { ACCENT, ERA_BASE, WAR_LAYER, UNREST_LAYER, resolveEra } from '../../src/audio/audio-catalog';
 import { getFamilyForCiv } from '../../src/audio/civ-audio-family';
 
 // Flush microtask queue so async loader/stinger chains complete
@@ -361,34 +361,77 @@ describe('AudioSystem integration', () => {
   });
 
   // Loop bus wiring — setBusSource regression
-  it('start() wires era, adaptive, and accent bus sources after preload resolves', async () => {
+  it('releases silent base and accent loops after the game-over stinger', async () => {
+    system.start(makeState(), busHelper.bus);
+    await flushPromises();
+    const internals = system as unknown as {
+      director: { handleGameEnded: () => Promise<void> };
+      mixer: { setBusSource: (...args: unknown[]) => void };
+    };
+    vi.spyOn(internals.director, 'handleGameEnded').mockResolvedValue(undefined);
+    const setBusSource = vi.spyOn(internals.mixer, 'setBusSource');
+    busHelper.emit('game:over', { winnerId: 'rome' });
+    await flushPromises();
+    expect(setBusSource).toHaveBeenCalledWith('era', null, false, null, 1500);
+    expect(setBusSource).toHaveBeenCalledWith('accent', null, false, null, 1500);
+  });
+
+  it('an old game-over completion cannot clear a new campaign\'s loops', async () => {
+    system.start(makeState(), busHelper.bus);
+    await flushPromises();
+    const internals = system as unknown as {
+      director: { handleGameEnded: () => Promise<void> };
+      mixer: { setBusSource: (...args: unknown[]) => void };
+    };
+    let finish!: () => void;
+    vi.spyOn(internals.director, 'handleGameEnded').mockReturnValue(new Promise(resolve => { finish = resolve; }));
+    busHelper.emit('game:over', { winnerId: 'rome' });
+    system.start(makeState({ era: 4 }), busHelper.bus);
+    await flushPromises();
+    const setBusSource = vi.spyOn(internals.mixer, 'setBusSource');
+    finish();
+    await flushPromises();
+    expect(setBusSource).not.toHaveBeenCalled();
+  });
+  it('initializes saved war state before loading loops', async () => {
+    const state = makeState();
+    state.civilizations.rome!.diplomacy = { atWarWith: ['egypt'] } as typeof state.civilizations.rome.diplomacy;
+    system.start(state, busHelper.bus);
+    await flushPromises();
+    const internals = system as unknown as { director: { resolveSnapshot(): string } };
+    expect(internals.director.resolveSnapshot()).toBe('at-war');
+    expect(fetch).toHaveBeenCalledWith(expect.stringContaining(WAR_LAYER[resolveEra(1)].file));
+  });
+  it('start() decodes only audible era and accent loops in peace', async () => {
+    const internals = system as unknown as { loader: { get: (path: string) => Promise<AudioBuffer> } };
+    const get = vi.spyOn(internals.loader, 'get');
     system.start(makeState({ era: 1 }), busHelper.bus);
     await flushPromises();
     // setBusSource calls start() on each AudioBufferSourceNode — one per bus
     const starts = ctx.transcript.filter(e => e.op === 'start');
-    expect(starts.length).toBe(3); // era + adaptive (war) + accent
+    expect(starts.length).toBe(2);
+    expect(get).not.toHaveBeenCalledWith(WAR_LAYER[resolveEra(1)].file);
+    expect(fetch).toHaveBeenCalledWith(expect.stringContaining(WAR_LAYER[resolveEra(1)].file));
   });
 
-  it('era:advanced rewires all three loop buses for the new era', async () => {
+  it('era:advanced changes the era loop and plays the transition cue', async () => {
     system.start(makeState({ era: 1 }), busHelper.bus);
     await flushPromises();
     const startsBefore = ctx.transcript.filter(e => e.op === 'start').length;
     busHelper.emit('era:advanced', { era: 2 });
     await flushPromises();
     const startsAfter = ctx.transcript.filter(e => e.op === 'start').length;
-    // 3 new bus sources + 1 era-advance stinger = at least 4 new starts
-    expect(startsAfter - startsBefore).toBeGreaterThanOrEqual(4);
+    expect(startsAfter - startsBefore).toBeGreaterThanOrEqual(2);
   });
 
-  it('currentPlayer:changed-after-handoff rewires accent bus for new civ', async () => {
+  it('same-family handoff reuses active loops without restarting or decoding them', async () => {
     system.start(makeState({ currentPlayer: 'rome' }), busHelper.bus);
     await flushPromises();
     const startsBefore = ctx.transcript.filter(e => e.op === 'start').length;
     busHelper.emit('currentPlayer:changed-after-handoff', { civId: 'egypt' });
     await flushPromises();
     const startsAfter = ctx.transcript.filter(e => e.op === 'start').length;
-    // The authoritative handoff snapshot rewires era, adaptive, and accent buses.
-    expect(startsAfter - startsBefore).toBe(3);
+    expect(startsAfter - startsBefore).toBe(0);
   });
 
   it('synchronizes the incoming viewer to an era reached during hidden processing', async () => {
@@ -453,6 +496,28 @@ describe('AudioSystem integration', () => {
     await flushPromises();
 
     expect(setBusSource).not.toHaveBeenCalled();
+  });
+
+  it('late base/accent loading cannot overwrite the director\'s crisis layer', async () => {
+    const internals = system as unknown as {
+      loader: { get: (path: string) => Promise<AudioBuffer> };
+      mixer: { setBusSource: (...args: unknown[]) => void };
+    };
+    const pending: Array<(buffer: AudioBuffer) => void> = [];
+    const buffer = ctx.createBuffer(1, 10, 44100);
+    internals.loader.get = vi.fn((path: string): Promise<AudioBuffer> => path === UNREST_LAYER[1].file
+      ? Promise.resolve(buffer)
+      : new Promise<AudioBuffer>(resolve => pending.push(resolve)));
+    const setBusSource = vi.spyOn(internals.mixer, 'setBusSource');
+    system.start(makeState(), busHelper.bus);
+    busHelper.emit('crisis:started', { civId: 'rome' });
+    await flushPromises();
+    expect(setBusSource).toHaveBeenCalledWith('adaptive', buffer, true, UNREST_LAYER[1].loop, 2000);
+    setBusSource.mockClear();
+    for (const resolve of pending) resolve(buffer);
+    await flushPromises();
+    expect(setBusSource.mock.calls.some(call => call[0] === 'adaptive')).toBe(false);
+    expect(setBusSource).toHaveBeenCalledWith('era', buffer, true, ERA_BASE[1].loop, 500);
   });
 
   // warCount clamping

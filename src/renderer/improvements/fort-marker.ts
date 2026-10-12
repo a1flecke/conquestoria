@@ -1,3 +1,4 @@
+import { loadStaticSvgImage } from '@/renderer/static-svg-image';
 // Fort / Citadel tile-improvement markers.
 //
 // Drawn on the hex map via Canvas 2D. Follows the resource-outpost-marker.ts
@@ -97,13 +98,9 @@ const cachedImages: Record<FortMarkerTier, HTMLImageElement | null> = {
 };
 
 function loadOne(tier: FortMarkerTier): Promise<void> {
-  const blob = new Blob([FORT_MARKER_SVG_BY_TIER[tier]], { type: 'image/svg+xml' });
-  const url = URL.createObjectURL(blob);
-  return new Promise<void>((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => { URL.revokeObjectURL(url); cachedImages[tier] = img; notifyCanvasAssetReady(); resolve(); };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error(`fort-marker (${tier}) load failed`)); };
-    img.src = url;
+  return loadStaticSvgImage(FORT_MARKER_SVG_BY_TIER[tier]).then(img => {
+    cachedImages[tier] = img;
+    notifyCanvasAssetReady();
   });
 }
 

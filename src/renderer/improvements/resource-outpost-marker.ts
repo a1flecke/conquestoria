@@ -1,3 +1,4 @@
+import { loadStaticSvgImage } from '@/renderer/static-svg-image';
 // Standalone SVG marker for a claimed resource outpost.
 // Rendered directly on the hex map canvas — no faction palette, no JSX
 // wrapper. Replaces the '🚩' emoji placeholder in hex-renderer.ts.
@@ -23,14 +24,9 @@ const RESOURCE_OUTPOST_SVG = `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/
 let cachedImage: HTMLImageElement | null = null;
 
 export async function preloadOutpostMarker(): Promise<void> {
-  const blob = new Blob([RESOURCE_OUTPOST_SVG], { type: 'image/svg+xml' });
-  const url = URL.createObjectURL(blob);
-  await new Promise<void>((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => { URL.revokeObjectURL(url); cachedImage = img; notifyCanvasAssetReady(); resolve(); };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(); };
-    img.src = url;
-  });
+  const img = await loadStaticSvgImage(RESOURCE_OUTPOST_SVG);
+  cachedImage = img;
+  notifyCanvasAssetReady();
 }
 
 export function getOutpostMarkerImage(): HTMLImageElement | null {

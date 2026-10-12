@@ -1,17 +1,13 @@
+import { loadStaticSvgImage } from '@/renderer/static-svg-image';
 import { notifyCanvasAssetReady } from '@/renderer/canvas-asset-ready';
 import { getRailSegmentSvg } from './rail-segment-marker';
 
 let cachedImage: HTMLImageElement | null = null;
 
 export async function preloadRailSegment(): Promise<void> {
-  const blob = new Blob([getRailSegmentSvg()], { type: 'image/svg+xml' });
-  const url = URL.createObjectURL(blob);
-  await new Promise<void>((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => { URL.revokeObjectURL(url); cachedImage = img; notifyCanvasAssetReady(); resolve(); };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(); };
-    img.src = url;
-  });
+  const img = await loadStaticSvgImage(getRailSegmentSvg());
+  cachedImage = img;
+  notifyCanvasAssetReady();
 }
 
 export function getRailSegmentImage(): HTMLImageElement | null {

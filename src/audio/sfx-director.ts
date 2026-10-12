@@ -12,6 +12,7 @@ export class SfxDirector {
   private pendingTimeouts: ReturnType<typeof setTimeout>[] = [];
   private unsubscribers: Array<() => void> = [];
   private started = false;
+  private generation = 0;
   private getState: (() => GameState) | null = null;
   private isPresentationSuppressed: () => boolean = () => false;
 
@@ -49,6 +50,7 @@ export class SfxDirector {
   }
 
   dispose(): void {
+    this.generation += 1;
     for (const unsub of this.unsubscribers) unsub();
     this.unsubscribers = [];
     for (const id of this.pendingTimeouts) clearTimeout(id);
@@ -65,6 +67,7 @@ export class SfxDirector {
     getState?: () => GameState,
     isPresentationSuppressed?: () => boolean,
   ): void {
+    this.generation += 1;
     for (const id of this.pendingTimeouts) clearTimeout(id);
     this.pendingTimeouts = [];
     this.unitTypeCache.clear();
@@ -89,8 +92,9 @@ export class SfxDirector {
 
   private playFile(path: string, viewerIds?: string[]): void {
     if (!this.canPresentTo(viewerIds)) return;
+    const generation = this.generation;
     void this.loader.get(path).then(buf => {
-      if (this.canPresentTo(viewerIds)) void this.mixer.playOneShot('sfx', buf);
+      if (generation === this.generation && this.canPresentTo(viewerIds)) void this.mixer.playOneShot('sfx', buf);
     });
   }
 

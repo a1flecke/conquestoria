@@ -84,6 +84,19 @@ describe('SfxDirector', () => {
 
   // === Combat ===
 
+  it.each(['dispose', 'replaceUnits'] as const)('drops a pending death decode after %s', async action => {
+    let finish!: (buffer: AudioBuffer) => void;
+    loader.get.mockImplementation(() => new Promise<AudioBuffer>(resolve => { finish = resolve; }));
+    const units = { u1: makeUnit('u1', 'warrior') };
+    director.start(units, busHelper.bus, stateProvider(units));
+    busHelper.emit('unit:destroyed', { unitId: 'u1', position: { q: 0, r: 0 } });
+    if (action === 'dispose') director.dispose();
+    else director.replaceUnits(units, stateProvider(units));
+    finish({} as AudioBuffer);
+    await tick();
+    expect(mixer.playOneShot).not.toHaveBeenCalled();
+  });
+
   it('suppresses immediate and delayed SFX while presentation is gated', async () => {
     vi.useFakeTimers();
     try {
