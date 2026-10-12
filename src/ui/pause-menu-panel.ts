@@ -1,4 +1,5 @@
 import { createSavePanel } from '@/ui/save-panel';
+import { createGuardedAsyncAction } from '@/ui/guarded-async-action';
 import { createGameButton, VARIANT_STYLES } from '@/ui/ui-kit';
 import type { OpponentChallenge } from '@/core/types/ai';
 import {
@@ -447,10 +448,9 @@ function buildMainView(
       onNewGame: () => {},
       onContinue: () => {},
       onLoadEntry: () => {},
-      onSaveToSlot: async (slotId, name) => {
-        await callbacks.onSave(slotId, name);
-        document.getElementById('save-panel')?.remove();
-      },
+      // The save panel owns its own dismissal: it closes only after this
+      // resolves and surfaces a retryable error if it rejects (#1451).
+      onSaveToSlot: (slotId, name) => callbacks.onSave(slotId, name),
     }, 'save');
   });
   body.appendChild(saveBtn);
@@ -511,12 +511,6 @@ function buildConfirmView(
   const saveAndStart = createGameButton('Save & Start New Game', 'primary');
   saveAndStart.style.width = '100%';
   saveAndStart.style.marginBottom = '8px';
-  saveAndStart.addEventListener('click', async () => {
-    saveAndStart.disabled = true;
-    await callbacks.autoSave();
-    panel.remove();
-    callbacks.onNewGame();
-  });
   body.appendChild(saveAndStart);
 
   const discardAndStart = createGameButton('Discard & Start New Game', 'danger');
@@ -532,6 +526,38 @@ function buildConfirmView(
   cancelBtn.style.width = '100%';
   cancelBtn.addEventListener('click', () => buildMainView(panel, body, container, callbacks, options));
   body.appendChild(cancelBtn);
+
+  const saveStatus = document.createElement('div');
+  saveStatus.dataset.role = 'autosave-status';
+  saveStatus.setAttribute('role', 'status');
+  saveStatus.setAttribute('aria-live', 'polite');
+  Object.assign(saveStatus.style, { marginTop: '8px', fontSize: '12px', color: '#e8c170' });
+  const saveError = document.createElement('div');
+  saveError.dataset.role = 'autosave-error';
+  saveError.setAttribute('role', 'alert');
+  saveError.hidden = true;
+  Object.assign(saveError.style, { marginTop: '8px', fontSize: '12px', color: '#f0a060' });
+  body.appendChild(saveStatus);
+  body.appendChild(saveError);
+
+  // #1451: the new campaign starts only after the autosave fulfils. A rejection
+  // keeps this view (and the current campaign), explains itself and allows retry.
+  const autosaveAction = createGuardedAsyncAction({
+    controls: () => [saveAndStart, discardAndStart, cancelBtn],
+    busyTarget: body,
+    status: saveStatus,
+    error: saveError,
+    pendingMessage: 'Saving your game…',
+    failureMessage: 'Could not save your game, so your current campaign was kept. Try again, or choose Discard or Cancel.',
+    focusOnError: () => saveAndStart,
+  });
+  saveAndStart.addEventListener('click', () => {
+    void autosaveAction.run(() => callbacks.autoSave()).then(saved => {
+      if (!saved) return;
+      panel.remove();
+      callbacks.onNewGame();
+    });
+  });
 }
 
 function renderPauseMenu(

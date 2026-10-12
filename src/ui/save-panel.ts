@@ -10,11 +10,17 @@ import {
 import { getSaveFileAdapter } from '@/platform/save-file-adapter';
 import { exportMostRecentAutoSave, importSaveFromFile } from '@/storage/save-file-transfer';
 import { createGameButton } from '@/ui/ui-kit';
+import { createGuardedAsyncAction } from '@/ui/guarded-async-action';
 
 export interface SavePanelCallbacks {
   onNewGame: () => void;
   onContinue: (invoker: HTMLButtonElement) => Promise<void> | void;
   onLoadEntry: (source: SaveEntrySource, invoker: HTMLButtonElement) => Promise<void> | void;
+  /**
+   * Persists the save. The panel stays open while this is pending, shows a
+   * retryable error if it rejects, and is closed by the panel itself (the one
+   * owner) when it fulfils. Callers must NOT dismiss the panel.
+   */
   onSaveToSlot?: (slotId: string, name: string) => Promise<void> | void;
   onImportSave?: (state: GameState, invoker: HTMLButtonElement) => Promise<void> | void;
 }
@@ -46,11 +52,19 @@ export async function createSavePanel(
       <div style="margin-top:16px;">
         <div id="save-panel-heading" style="font-size:14px;color:#e8c170;margin-bottom:8px;">${mode === 'save' ? 'Save Game' : 'Saved Games'}</div>
         ${mode === 'save' ? renderNewSlotInput() : ''}
+        ${mode === 'save' ? renderSaveStatusRegions() : ''}
         <div id="save-slots" style="display:flex;flex-direction:column;gap:8px;"></div>
       </div>
       ${mode === 'start' ? renderBackupButtons() : ''}
     </div>
   `;
+  if (mode === 'save') {
+    const cancel = createGameButton('Cancel', 'ghost');
+    cancel.dataset.role = 'cancel-save';
+    cancel.style.width = '100%';
+    cancel.style.marginTop = '16px';
+    panel.querySelector('div')?.appendChild(cancel);
+  }
 
   const saveSlots = panel.querySelector('#save-slots');
   const heading = panel.querySelector('#save-panel-heading');
@@ -149,13 +163,47 @@ export async function createSavePanel(
     void runStartAction(invoker, () => callbacks.onContinue(invoker));
   });
 
-  // Save to new slot
-  panel.querySelector('#btn-save-new')?.addEventListener('click', () => {
-    const input = panel.querySelector('#new-slot-name') as HTMLInputElement | null;
-    const name = input?.value.trim() || `Save ${Date.now()}`;
-    const slotId = `slot-${Date.now()}`;
+  let deletePending = false;
+
+  // Guarded save (#1451): the panel stays up until the write fulfils, a
+  // rejection keeps it (with the name, target and an alert) for retry/cancel,
+  // and a second click while pending is ignored.
+  let lastSaveInvoker: HTMLElement | null = null;
+  const saveStatus = panel.querySelector<HTMLElement>('[data-role="save-status"]');
+  const saveError = panel.querySelector<HTMLElement>('[data-role="save-error"]');
+  const saveAction = mode === 'save' && saveStatus && saveError
+    ? createGuardedAsyncAction({
+        controls: () => Array.from(panel.querySelectorAll<HTMLButtonElement>('button')),
+        busyTarget: panel,
+        status: saveStatus,
+        error: saveError,
+        pendingMessage: 'Saving…',
+        failureMessage: 'Could not save your game. Your campaign is unchanged. Please try again or cancel.',
+        focusOnError: () => lastSaveInvoker,
+      })
+    : null;
+  // The new-save target is fixed on the first attempt so a retry rewrites the
+  // same slot instead of minting a second one.
+  let newSlotTarget: { id: string; fallbackName: string } | null = null;
+
+  const runSave = async (invoker: HTMLButtonElement, slotId: string, name: string): Promise<void> => {
+    if (!saveAction || saveAction.isPending() || deletePending) return;
+    lastSaveInvoker = invoker;
+    const saved = await saveAction.run(() => callbacks.onSaveToSlot?.(slotId, name));
+    if (saved && panel.isConnected) panel.remove();
+  };
+
+  panel.querySelector<HTMLButtonElement>('#btn-save-new')?.addEventListener('click', event => {
+    const invoker = event.currentTarget as HTMLButtonElement;
+    const input = panel.querySelector<HTMLInputElement>('#new-slot-name');
+    newSlotTarget ??= { id: `slot-${Date.now()}`, fallbackName: `Save ${Date.now()}` };
+    const name = input?.value.trim() || newSlotTarget.fallbackName;
+    void runSave(invoker, newSlotTarget.id, name);
+  });
+
+  panel.querySelector<HTMLButtonElement>('[data-role="cancel-save"]')?.addEventListener('click', () => {
+    if (saveAction?.isPending()) return;
     panel.remove();
-    callbacks.onSaveToSlot?.(slotId, name);
   });
 
   // Export save
@@ -187,8 +235,6 @@ export async function createSavePanel(
 
   // Destructive confirmation (#1458): a save is only removed after a second,
   // deliberate confirmation tied to the exact selected row.
-  let deletePending = false;
-
   const cancelDeleteConfirmation = (region: HTMLElement): void => {
     const card = region.closest<HTMLElement>('[data-save-slot-card="true"]');
     region.remove();
@@ -206,7 +252,7 @@ export async function createSavePanel(
     confirmButton: HTMLButtonElement,
     deletion: { id: string; kind: 'manual' | 'autosave' },
   ): Promise<void> => {
-    if (deletePending) return;
+    if (deletePending || saveAction?.isPending()) return;
     const region = confirmButton.closest<HTMLElement>('[data-role="delete-confirm"]');
     if (!region) return;
 
@@ -294,8 +340,7 @@ export async function createSavePanel(
     }
 
     if (role === 'overwrite-slot' && slotId) {
-      panel.remove();
-      callbacks.onSaveToSlot?.(slotId, target.dataset.slotName ?? '');
+      await runSave(target, slotId, target.dataset.slotName ?? '');
       return;
     }
 
@@ -343,6 +388,13 @@ function renderBackupButtons(): string {
       </div>
       <div id="save-panel-status" style="min-height:16px;margin-top:8px;text-align:center;font-size:11px;color:#f0a060;"></div>
     </div>
+  `;
+}
+
+function renderSaveStatusRegions(): string {
+  return `
+    <div id="save-panel-status" data-role="save-status" role="status" aria-live="polite" style="min-height:16px;margin-bottom:8px;font-size:12px;color:#e8c170;"></div>
+    <div data-role="save-error" role="alert" hidden style="margin-bottom:8px;font-size:12px;color:#f0a060;"></div>
   `;
 }
 
