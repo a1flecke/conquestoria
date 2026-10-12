@@ -170,6 +170,34 @@ export function collectSpriteDemand(state: {
 }
 
 /**
+ * Everything the cache holds for one civilization id in one palette. The bucket *is* the generation
+ * token: a colour change replaces it, so an image whose load finishes after that sees that the bucket it
+ * was built for is no longer the current one and is dropped instead of committed. Its keys therefore need
+ * no colour or campaign component, and releasing a civilization is deleting one map entry.
+ */
+interface CivSprites {
+  readonly color: string;
+  /** `${id}:${motion}` per motion, plus `${id}` for the idle frame. */
+  readonly units: Map<string, HTMLImageElement>;
+  readonly buildings: Map<string, HTMLImageElement>;
+  /** Every id requested in this palette, including ones with no art or a failed load: never retried per frame. */
+  readonly requested: Set<string>;
+  /** Requested ids whose load rejected; the next campaign start (an explicit boundary) lets them retry once. */
+  readonly failed: Set<string>;
+}
+
+function createCivSprites(color: string): CivSprites {
+  return { color, units: new Map(), buildings: new Map(), requested: new Set(), failed: new Set() };
+}
+
+export interface SpriteCacheStats {
+  readonly civilizations: number;
+  readonly unitImages: number;
+  readonly buildingImages: number;
+  readonly landmarkImages: number;
+}
+
+/**
  * Sprites are created on demand (#1439 phase 5). The cache used to build every unit x 3 motions and
  * every building SVG for every civilization up front (~500 images per civ: ~0.8 GB of renderer memory
  * for two civs, ~1.2 GB for five), although a game only draws the unit types that exist in it and the
@@ -177,18 +205,56 @@ export function collectSpriteDemand(state: {
  * `initSprites` seeds what the starting state needs, and a cache miss in `getUnit`/`getUnitMotion`/
  * `getBuilding` requests the missing pair (the caller falls back to its glyph until the canvas is told
  * the image is ready, exactly as for any late load).
+ *
+ * The cache outlives a campaign (new game, loaded save and hot-seat re-entry all run `startGame`, and a
+ * new game reuses `player` as a civ id with a new colour), so its lifecycle is explicit:
+ *  - an image belongs to the palette it was built for (`CivSprites`); a different colour for the same id
+ *    starts a fresh bucket and never serves the old art;
+ *  - a load that completes for a replaced or released bucket is discarded, never committed or announced;
+ *  - unchanged demand (same id, same colour) is idempotent, including the pirate set;
+ *  - a different campaign releases the civilizations it no longer has;
+ *  - a failed load is retried only at the next `initSprites`, never by a frame.
  */
 class SpriteCache {
-  private units = new Map<string, HTMLImageElement>();
-  private buildings = new Map<string, HTMLImageElement>();
+  private civs = new Map<string, CivSprites>();
+  private pirateUnits = new Map<string, HTMLImageElement>();
   private landmarks = new Map<string, HTMLImageElement>();
-  private civColors = new Map<string, string>();
-  /** Every (id, civ) pair ever requested, including ones with no art or a failed load: never retried per frame. */
-  private requested = new Set<string>();
+  private campaignSignature: string | null = null;
   private pirateLoad: Promise<void> | null = null;
+  private piratesLoaded = false;
+  private pirateFailed = false;
 
+  /** Records the palette for `civId`. A different colour replaces everything built for the old one. */
   registerCiv(civId: string, civColor: string): void {
-    this.civColors.set(civId, civColor);
+    if (this.civs.get(civId)?.color === civColor) return;
+    this.civs.set(civId, createCivSprites(civColor));
+  }
+
+  /**
+   * A campaign starts presenting (`startGame`): registers its palettes, releases civilizations a
+   * different campaign had, and re-opens failed loads for one retry. Re-entering the same campaign
+   * (same civilizations and colours: a loaded save, a hot-seat turn) releases nothing.
+   */
+  beginCampaign(civColors: Readonly<Record<string, string>>): void {
+    const signature = Object.entries(civColors)
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([civId, color]) => `${civId}:${color}`)
+      .join('|');
+    const sameCampaign = signature === this.campaignSignature;
+    this.campaignSignature = signature;
+
+    for (const [civId, color] of Object.entries(civColors)) this.registerCiv(civId, color);
+    if (!sameCampaign) {
+      // Neutral owners (barbarians, minor civs) are dropped too; they come back through their first miss.
+      for (const civId of [...this.civs.keys()]) {
+        if (!Object.hasOwn(civColors, civId)) this.civs.delete(civId);
+      }
+    }
+    for (const bucket of this.civs.values()) {
+      for (const id of bucket.failed) bucket.requested.delete(id);
+      bucket.failed.clear();
+    }
+    this.pirateFailed = false;
   }
 
   /**
@@ -197,11 +263,12 @@ class SpriteCache {
    * again returns immediately, so repeated per-frame misses cost one Set lookup.
    */
   request(id: string, civId: string): Promise<void> {
-    const key = `${id}:${civId}`;
-    const civColor = this.civColors.get(civId);
-    if (civColor === undefined || this.requested.has(key)) return Promise.resolve();
-    this.requested.add(key);
+    const bucket = this.civs.get(civId);
+    if (bucket === undefined || bucket.requested.has(id)) return Promise.resolve();
+    bucket.requested.add(id);
 
+    const civColor = bucket.color;
+    const isCurrent = (): boolean => this.civs.get(civId) === bucket;
     const palette: FactionPalette = derivePalette(civColor);
     const visibleWork: Array<Promise<void>> = [];
     const motionWork: Array<Promise<void>> = [];
@@ -209,9 +276,11 @@ class SpriteCache {
     const unitSprite = UNIT_SPRITE_CATALOG[id as UnitType];
     if (unitSprite && !PIRATE_HULL_SET.has(id)) {
       for (const motion of UNIT_MOTIONS) {
+        if (bucket.units.has(`${id}:${motion}`)) continue; // kept from an earlier, partly failed attempt
         const metadata: SpriteDiagnosticMetadata = { kind: 'unit', itemId: id, civilization: civId, motion };
         const priority = motion === 'idle' ? SPRITE_PRIORITY.visible : SPRITE_PRIORITY.motion;
         const load = spriteLoadQueue.schedule(priority, async () => {
+          if (!isCurrent()) return; // the campaign moved on while this was queued: do not even decode
           // PNG spritesheet units bake their tinted frame; any failure (no canvas, sheet missing) keeps the SVG sprite.
           const pngManifest = getPngUnitManifest(id);
           let img: HTMLImageElement | null = null;
@@ -221,37 +290,47 @@ class SpriteCache {
               .catch(() => null);
           }
           if (!img) {
+            if (!isCurrent()) return;
             const svg = unitSprite({ palette, svgOnly: true, motion });
             if (!svg) return;
             img = await svgStringToImage(svg, UNIT_SPRITE_SIZE, metadata);
           }
-          this.units.set(`${id}:${civId}:${motion}`, img);
-          if (motion === 'idle') this.units.set(`${id}:${civId}`, img);
+          if (!isCurrent()) return; // built for a palette that is no longer the cache's: drop it
+          bucket.units.set(`${id}:${motion}`, img);
+          if (motion === 'idle') bucket.units.set(id, img);
         });
         (motion === 'idle' ? visibleWork : motionWork).push(load);
       }
     }
 
     const buildingSprite = BUILDING_SPRITE_CATALOG[id];
-    if (buildingSprite) {
+    if (buildingSprite && !bucket.buildings.has(id)) {
       visibleWork.push(spriteLoadQueue.schedule(SPRITE_PRIORITY.visible, async () => {
+        if (!isCurrent()) return;
         const svg = buildingSprite({ palette, svgOnly: true });
         if (!svg) return;
         const img = await svgStringToImage(svg, BUILDING_SPRITE_SIZE, {
           kind: 'building', itemId: id, civilization: civId,
         });
-        this.buildings.set(`${id}:${civId}`, img);
+        if (!isCurrent()) return;
+        bucket.buildings.set(id, img);
       }));
     }
 
     if (visibleWork.length === 0 && motionWork.length === 0) return Promise.resolve();
 
     // What is drawn at rest is announced as soon as it is ready, without waiting for walk frames.
-    Promise.all(visibleWork).then(() => notifyCanvasAssetReady(), () => undefined);
-    return Promise.all([...visibleWork, ...motionWork]).then(() => undefined).finally(() => {
-      // Partial sets are visible to the cache even when one image rejects, so announce on failure too.
-      notifyCanvasAssetReady();
-    });
+    // A superseded request announces nothing: the canvas has nothing new to pick up from it.
+    Promise.all(visibleWork).then(() => { if (isCurrent()) notifyCanvasAssetReady(); }, () => undefined);
+    return Promise.all([...visibleWork, ...motionWork])
+      .then(() => undefined, (error: unknown) => {
+        bucket.failed.add(id);
+        throw error;
+      })
+      .finally(() => {
+        // Partial sets are visible to the cache even when one image rejects, so announce on failure too.
+        if (isCurrent()) notifyCanvasAssetReady();
+      });
   }
 
   /** Fire-and-forget request from a cache miss: the renderer falls back until the canvas is notified. */
@@ -269,20 +348,41 @@ class SpriteCache {
     this.requestInBackground(type, civId);
   }
 
-  async loadPirates(): Promise<void> {
+  /**
+   * Loads the pirate set once. Idempotent: complete, it resolves immediately; in flight, callers join
+   * the same load; after a failure the next explicit call (a campaign start) retries only what is missing.
+   */
+  loadPirates(): Promise<void> {
+    if (this.piratesLoaded) return Promise.resolve();
+    if (this.pirateLoad) return this.pirateLoad;
+    const load: Promise<void> = this.runPirateLoad()
+      .then(() => { this.piratesLoaded = true; }, (error: unknown) => {
+        this.pirateFailed = true;
+        throw error;
+      })
+      .finally(() => {
+        if (this.pirateLoad === load) this.pirateLoad = null;
+      });
+    this.pirateLoad = load;
+    return load;
+  }
+
+  private async runPirateLoad(): Promise<void> {
     const unitWork = PIRATE_HULL_TYPES.flatMap(type => UNIT_MOTIONS.map(motion => spriteLoadQueue.schedule(
       motion === 'idle' ? SPRITE_PRIORITY.pirate : SPRITE_PRIORITY.motion,
       async () => {
+        if (this.pirateUnits.has(`${type}:${motion}`)) return;
         const svg = UNIT_SPRITE_CATALOG[type]({ palette: PIRATE_PALETTE, svgOnly: true, motion });
         const img = await svgStringToImage(svg, UNIT_SPRITE_SIZE, {
           kind: 'unit', itemId: type, civilization: PIRATE_OWNER_FAMILY, motion,
         });
-        this.units.set(`${type}:${PIRATE_OWNER_FAMILY}:${motion}`, img);
-        if (motion === 'idle') this.units.set(`${type}:${PIRATE_OWNER_FAMILY}`, img);
+        this.pirateUnits.set(`${type}:${motion}`, img);
+        if (motion === 'idle') this.pirateUnits.set(type, img);
       },
     )));
     const landmarkWork = Object.entries(PIRATE_HEADQUARTERS_SPRITE_CATALOG).map(([id, render]) =>
       spriteLoadQueue.schedule(SPRITE_PRIORITY.pirate, async () => {
+        if (this.landmarks.has(id)) return;
         const img = await svgStringToImage(render({ svgOnly: true }), LANDMARK_SPRITE_SIZE, {
           kind: 'landmark', itemId: id, civilization: PIRATE_OWNER_FAMILY,
         });
@@ -295,27 +395,32 @@ class SpriteCache {
     }
   }
 
+  /** The unit renderer's miss path for pirates: one attempt per start, never one per frame. */
   ensurePirates(): void {
-    if (this.units.has(`pirate_galley:${PIRATE_OWNER_FAMILY}`) || this.pirateLoad) return;
-    this.pirateLoad = this.loadPirates().catch(() => undefined).finally(() => { this.pirateLoad = null; });
+    if (this.piratesLoaded || this.pirateLoad || this.pirateFailed) return;
+    void this.loadPirates().catch(() => undefined);
+  }
+
+  private unitsFor(civId: string): ReadonlyMap<string, HTMLImageElement> | undefined {
+    return civId === PIRATE_OWNER_FAMILY ? this.pirateUnits : this.civs.get(civId)?.units;
   }
 
   getUnit(type: UnitType, civId: string): HTMLImageElement | null {
-    const image = this.units.get(`${type}:${civId}`);
+    const image = this.unitsFor(civId)?.get(type);
     if (image) return image;
     this.requestInBackground(type, civId);
     return null;
   }
 
   getUnitMotion(type: UnitType, civId: string, motion: UnitSpriteMotion): HTMLImageElement | null {
-    const image = this.units.get(`${type}:${civId}:${motion}`);
+    const image = this.unitsFor(civId)?.get(`${type}:${motion}`);
     if (image) return image;
     this.requestInBackground(type, civId);
     return null;
   }
 
   getBuilding(buildingId: string, civId: string): HTMLImageElement | null {
-    const image = this.buildings.get(`${buildingId}:${civId}`);
+    const image = this.civs.get(civId)?.buildings.get(buildingId);
     if (image) return image;
     this.requestInBackground(buildingId, civId);
     return null;
@@ -324,20 +429,36 @@ class SpriteCache {
   getLandmark(landmarkId: string): HTMLImageElement | null {
     return this.landmarks.get(landmarkId) ?? null;
   }
+
+  /** Entry counts, for diagnostics and the lifecycle tests: a stable campaign must not grow these. */
+  stats(): SpriteCacheStats {
+    let unitImages = this.pirateUnits.size;
+    let buildingImages = 0;
+    for (const bucket of this.civs.values()) {
+      unitImages += bucket.units.size;
+      buildingImages += bucket.buildings.size;
+    }
+    return { civilizations: this.civs.size, unitImages, buildingImages, landmarkImages: this.landmarks.size };
+  }
 }
 
 export const spriteCache = new SpriteCache();
 
+export function getSpriteCacheStats(): SpriteCacheStats {
+  return spriteCache.stats();
+}
+
 /**
- * Registers every civilization's palette, loads the pirate set, and creates the sprites in `demand`
- * (what the starting state needs). Resolves when those are cached. Anything else the game later draws
- * is created on its first cache miss.
+ * Starts a campaign's sprites (`startGame`, once per new game, loaded save or hot-seat entry): registers
+ * every civilization's palette, loads the pirate set, and creates the sprites in `demand` (what the
+ * starting state needs). Resolves when those are cached. Anything else the game later draws is created
+ * on its first cache miss. Unchanged demand does no work; see `SpriteCache` for the lifecycle.
  */
 export async function initSprites(
   civColors: Record<string, string>,
   demand: ReadonlyArray<SpriteDemandItem>,
 ): Promise<void> {
-  for (const [civId, color] of Object.entries(civColors)) spriteCache.registerCiv(civId, color);
+  spriteCache.beginCampaign(civColors);
   await Promise.all([
     spriteCache.loadPirates(),
     ...demand.map(item => spriteCache.request(item.id, item.civId)),
