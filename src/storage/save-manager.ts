@@ -37,7 +37,7 @@ import {
   type PirateState,
 } from '@/core/pirate-state';
 import type { CombatNotificationFact, NotificationEntry, NotificationLog } from '@/core/notification-log';
-import { dbGet, dbPut, dbDelete, dbGetAllKeys } from './db';
+import { dbGet, dbPut, dbDelete, dbGetAllKeys, dbBatch, type DbWriteOp } from './db';
 import { tagLandmassRegions } from '@/systems/landmass-tagger';
 import { getPirateStageDefinition, PIRATE_NOTORIETY, PIRATE_PRESSURE } from '@/systems/pirate-definitions';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
@@ -1112,15 +1112,41 @@ async function syncLocalStorageBackup(state: GameState | undefined): Promise<voi
   }
 }
 
+// Mutating save operations run one at a time. Each is a read-then-write over
+// the payload/meta key space (prune lists metas, rename reads a meta), so
+// interleaving two of them could prune a pair another is still writing.
+// IndexedDB serializes transactions, not these multi-step sequences.
+let saveWriteChain: Promise<unknown> = Promise.resolve();
+function serializeSaveWrite<T>(task: () => Promise<T>): Promise<T> {
+  const run = saveWriteChain.then(task, task);
+  saveWriteChain = run.catch(() => undefined);
+  return run;
+}
+
+/** Payload + meta of one save entry, always written/removed in one transaction. */
+function savePairPutOps(storageKey: string, entryId: string, payload: GameState, meta: SaveSlotMeta): DbWriteOp[] {
+  return [
+    { type: 'put', key: storageKey, value: payload },
+    { type: 'put', key: getMetaStorageKey(entryId), value: meta },
+  ];
+}
+
+function savePairDeleteOps(entryId: string, kind: 'manual' | 'autosave'): DbWriteOp[] {
+  return [
+    { type: 'delete', key: getSaveStorageKey(entryId, kind) },
+    { type: 'delete', key: getMetaStorageKey(entryId) },
+  ];
+}
+
 async function pruneAutosavesForGame(gameId: string): Promise<void> {
   const metas = (await listPersistedMetas())
     .filter(meta => meta.kind === 'autosave' && meta.gameId === gameId)
     .sort((a, b) => b.turn - a.turn || compareSaveMeta(a, b));
 
-  for (const stale of metas.slice(5)) {
-    await dbDelete(getSaveStorageKey(stale.id, 'autosave'));
-    await dbDelete(getMetaStorageKey(stale.id));
-  }
+  // One transaction for every stale pair: a failure leaves all of them (never
+  // a payload without its meta, or the reverse).
+  const ops = metas.slice(5).flatMap(stale => savePairDeleteOps(stale.id, 'autosave'));
+  await dbBatch(ops);
 }
 
 async function listLoadableAutosaveMetas(pruneInvalid: boolean = true): Promise<SaveSlotMeta[]> {
@@ -1169,7 +1195,11 @@ async function retireLegacyAutosaveIfRealAutosavesExist(): Promise<boolean> {
 
 // --- Auto-save ---
 
-export async function autoSave(state: GameState): Promise<void> {
+export function autoSave(state: GameState): Promise<void> {
+  return serializeSaveWrite(() => autoSaveNow(state));
+}
+
+async function autoSaveNow(state: GameState): Promise<void> {
   const resolved = normalizeLoadedState(state);
   // playthroughId (not gameId) disambiguates separate playthroughs sharing
   // the same seed -- gameId alone would collide two same-seeded games'
@@ -1178,10 +1208,20 @@ export async function autoSave(state: GameState): Promise<void> {
   const entryId = `${AUTO_SAVE_PREFIX}${playthroughId}:${resolved.turn}`;
   const meta = buildSaveMeta(entryId, `Autosave Turn ${resolved.turn}`, resolved, 'autosave');
 
-  await dbPut(getSaveStorageKey(entryId, 'autosave'), resolved);
-  await dbPut(getMetaStorageKey(entryId), meta);
-  await pruneAutosavesForGame(playthroughId);
-  await retireLegacyAutosaveIfRealAutosavesExist();
+  // Commit point: the pair is durable (or the write rejects) before anything
+  // older is touched, so a failed autosave never costs the previous ones or the
+  // legacy fallback.
+  await dbBatch(savePairPutOps(getSaveStorageKey(entryId, 'autosave'), entryId, resolved, meta));
+
+  // Housekeeping after the commit. The new save is already durable, so a prune
+  // or legacy-retirement failure must not report the save itself as failed.
+  try {
+    await pruneAutosavesForGame(playthroughId);
+    await retireLegacyAutosaveIfRealAutosavesExist();
+  } catch (error) {
+    console.warn(`[save] autosave ${entryId} committed but cleanup failed:`, error instanceof Error ? error.message : error);
+  }
+  // Best-effort localStorage mirror, written only after the IndexedDB commit.
   await syncLocalStorageBackup(resolved);
 }
 
@@ -1217,7 +1257,16 @@ export async function loadMostRecentAutoSaveEntry(): Promise<LoadedSaveEntry | u
     : undefined;
 }
 
-export async function rewriteLoadedSaveEntry(
+export function rewriteLoadedSaveEntry(
+  source: SaveEntrySource,
+  state: GameState,
+): Promise<void> {
+  return serializeSaveWrite(() => rewriteLoadedSaveEntryNow(source, state));
+}
+
+// Single-key by design: only the payload changes, the meta describes the same
+// entry, so there is no pair to keep consistent.
+async function rewriteLoadedSaveEntryNow(
   source: SaveEntrySource,
   state: GameState,
 ): Promise<void> {
@@ -1277,11 +1326,13 @@ export async function loadSettings(): Promise<GameState['settings'] | undefined>
 
 // --- Multi-slot saves ---
 
-export async function saveGame(slotId: string, name: string, state: GameState): Promise<void> {
-  const resolved = normalizeLoadedState(state);
-  const meta = buildSaveMeta(slotId, name, resolved, 'manual');
-  await dbPut(getSaveStorageKey(slotId, 'manual'), resolved);
-  await dbPut(getMetaStorageKey(slotId), meta);
+export function saveGame(slotId: string, name: string, state: GameState): Promise<void> {
+  return serializeSaveWrite(async () => {
+    const resolved = normalizeLoadedState(state);
+    const meta = buildSaveMeta(slotId, name, resolved, 'manual');
+    // Overwriting a slot replaces payload and meta together or not at all.
+    await dbBatch(savePairPutOps(getSaveStorageKey(slotId, 'manual'), slotId, resolved, meta));
+  });
 }
 
 export async function loadGame(slotId: string): Promise<GameState | undefined> {
@@ -1311,15 +1362,18 @@ export function initializeLegacyOpponentChallenge(
   return migrated;
 }
 
-export async function deleteSaveEntry(entryId: string, kind: 'manual' | 'autosave'): Promise<void> {
+export function deleteSaveEntry(entryId: string, kind: 'manual' | 'autosave'): Promise<void> {
+  return serializeSaveWrite(() => deleteSaveEntryNow(entryId, kind));
+}
+
+async function deleteSaveEntryNow(entryId: string, kind: 'manual' | 'autosave'): Promise<void> {
   if (kind === 'autosave' && entryId === LEGACY_AUTO_SAVE_KEY) {
     await dbDelete(LEGACY_AUTO_SAVE_KEY);
     await syncLocalStorageBackup(undefined);
     return;
   }
 
-  await dbDelete(getSaveStorageKey(entryId, kind));
-  await dbDelete(getMetaStorageKey(entryId));
+  await dbBatch(savePairDeleteOps(entryId, kind));
 
   if (kind === 'autosave') {
     await syncLocalStorageBackup(await loadMostRecentPersistedAutosave());
@@ -1362,10 +1416,11 @@ export async function listSaveEpics(): Promise<SaveEpic[]> {
   return groupSaveEpics(await listSaves({ includeAutoSave: true }));
 }
 
-export async function renameSave(slotId: string, newName: string): Promise<void> {
-  const meta = await dbGet<SaveSlotMeta>(getMetaStorageKey(slotId));
-  if (meta) {
-    meta.name = newName;
-    await dbPut(getMetaStorageKey(slotId), meta);
-  }
+export function renameSave(slotId: string, newName: string): Promise<void> {
+  return serializeSaveWrite(async () => {
+    const meta = await dbGet<SaveSlotMeta>(getMetaStorageKey(slotId));
+    if (meta) {
+      await dbPut(getMetaStorageKey(slotId), { ...meta, name: newName });
+    }
+  });
 }
