@@ -9,6 +9,7 @@ import {
 } from '@/storage/save-manager';
 import { getSaveFileAdapter } from '@/platform/save-file-adapter';
 import { exportMostRecentAutoSave, importSaveFromFile } from '@/storage/save-file-transfer';
+import { createGameButton } from '@/ui/ui-kit';
 
 export interface SavePanelCallbacks {
   onNewGame: () => void;
@@ -184,6 +185,86 @@ export async function createSavePanel(
     });
   });
 
+  // Destructive confirmation (#1458): a save is only removed after a second,
+  // deliberate confirmation tied to the exact selected row.
+  let deletePending = false;
+
+  const cancelDeleteConfirmation = (region: HTMLElement): void => {
+    const card = region.closest<HTMLElement>('[data-save-slot-card="true"]');
+    region.remove();
+    card?.querySelector<HTMLButtonElement>('[data-role="delete-slot"]')?.focus();
+  };
+
+  const openDeleteConfirmation = (card: HTMLElement, deletion: PendingDeletion): void => {
+    panel.querySelectorAll<HTMLElement>('[data-role="delete-confirm"]').forEach(node => node.remove());
+    const region = createDeleteConfirmation(deletion);
+    card.appendChild(region);
+    region.querySelector<HTMLButtonElement>('[data-role="cancel-delete-slot"]')?.focus();
+  };
+
+  const performDelete = async (
+    confirmButton: HTMLButtonElement,
+    deletion: { id: string; kind: 'manual' | 'autosave' },
+  ): Promise<void> => {
+    if (deletePending) return;
+    const region = confirmButton.closest<HTMLElement>('[data-role="delete-confirm"]');
+    if (!region) return;
+
+    deletePending = true;
+    const cancelButton = region.querySelector<HTMLButtonElement>('[data-role="cancel-delete-slot"]');
+    const progress = region.querySelector<HTMLElement>('[data-role="delete-progress"]');
+    const error = region.querySelector<HTMLElement>('[data-role="delete-error"]');
+    confirmButton.disabled = true;
+    confirmButton.setAttribute('aria-busy', 'true');
+    if (cancelButton) cancelButton.disabled = true;
+    if (progress) progress.hidden = false;
+    if (error) {
+      error.hidden = true;
+      error.textContent = '';
+    }
+    region.setAttribute('aria-busy', 'true');
+
+    try {
+      await deleteSaveEntry(deletion.id, deletion.kind);
+    } catch {
+      // Keep the row, surface a retryable error, and never imply success.
+      if (panel.isConnected) {
+        if (error) {
+          error.textContent = 'Could not delete this save. Please try again.';
+          error.hidden = false;
+        }
+        confirmButton.disabled = false;
+        confirmButton.removeAttribute('aria-busy');
+        if (cancelButton) cancelButton.disabled = false;
+        if (progress) progress.hidden = true;
+        region.setAttribute('aria-busy', 'false');
+      }
+      deletePending = false;
+      return;
+    }
+
+    deletePending = false;
+
+    if (mode === 'start') {
+      const refreshedEpics = await listSaveEpics();
+      epics.splice(0, epics.length, ...refreshedEpics);
+      const refreshedActive = activeGameId ? epics.find(epic => epic.gameId === activeGameId) : null;
+      if (refreshedActive) renderEpicDetail(refreshedActive);
+      else renderEpicList(epics);
+      return;
+    }
+    panel.remove();
+    await createSavePanel(container, callbacks, mode);
+  };
+
+  panel.addEventListener('keydown', event => {
+    if (event.key !== 'Escape') return;
+    const region = panel.querySelector<HTMLElement>('[data-role="delete-confirm"]');
+    if (!region) return;
+    event.preventDefault();
+    cancelDeleteConfirmation(region);
+  });
+
   panel.addEventListener('click', async event => {
     const target = (event.target as HTMLElement | null)?.closest<HTMLButtonElement>('button[data-role]');
     if (!target) return;
@@ -219,17 +300,26 @@ export async function createSavePanel(
     }
 
     if (role === 'delete-slot' && slotId && slotKind) {
-      await deleteSaveEntry(slotId, slotKind);
-      if (mode === 'start') {
-        const refreshedEpics = await listSaveEpics();
-        epics.splice(0, epics.length, ...refreshedEpics);
-        const refreshedActive = activeGameId ? epics.find(epic => epic.gameId === activeGameId) : null;
-        if (refreshedActive) renderEpicDetail(refreshedActive);
-        else renderEpicList(epics);
-        return;
-      }
-      panel.remove();
-      await createSavePanel(container, callbacks, mode);
+      const card = target.closest<HTMLElement>('[data-save-slot-card="true"]');
+      if (!card) return;
+      openDeleteConfirmation(card, {
+        id: slotId,
+        kind: slotKind,
+        name: target.dataset.slotName ?? '',
+        turn: target.dataset.slotTurn ?? '',
+        gameTitle: target.dataset.slotGameTitle,
+      });
+      return;
+    }
+
+    if (role === 'cancel-delete-slot') {
+      const region = target.closest<HTMLElement>('[data-role="delete-confirm"]');
+      if (region) cancelDeleteConfirmation(region);
+      return;
+    }
+
+    if (role === 'confirm-delete-slot' && slotId && slotKind) {
+      await performDelete(target, { id: slotId, kind: slotKind });
     }
   });
 }
@@ -301,7 +391,10 @@ function createEpicCard(epic: SaveEpic): HTMLElement {
 function createSlotCard(save: SaveSlotMeta, mode: 'start' | 'save'): HTMLElement {
   const card = document.createElement('div');
   card.dataset.saveSlotCard = 'true';
-  card.style.cssText = 'background:rgba(255,255,255,0.06);border-radius:10px;padding:12px;display:flex;align-items:center;gap:10px;';
+  card.style.cssText = 'background:rgba(255,255,255,0.06);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px;';
+
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;align-items:center;gap:10px;';
 
   const content = document.createElement('div');
   content.style.cssText = 'flex:1;';
@@ -324,7 +417,7 @@ function createSlotCard(save: SaveSlotMeta, mode: 'start' | 'save'): HTMLElement
   meta.style.cssText = 'font-size:11px;opacity:0.5;';
   meta.textContent = `Turn ${save.turn} · ${save.gameMode === 'hotseat' ? `Hot Seat (${save.playerNames?.join(', ') ?? ''})` : save.civType} · ${dateStr}`;
   content.appendChild(meta);
-  card.appendChild(content);
+  row.appendChild(content);
 
   const buttons = document.createElement('div');
   buttons.style.cssText = 'display:flex;gap:6px;';
@@ -344,10 +437,85 @@ function createSlotCard(save: SaveSlotMeta, mode: 'start' | 'save'): HTMLElement
   deleteButton.dataset.role = 'delete-slot';
   deleteButton.dataset.slotId = save.id;
   deleteButton.dataset.slotKind = save.kind === 'autosave' ? 'autosave' : 'manual';
+  deleteButton.dataset.slotName = save.name;
+  deleteButton.dataset.slotTurn = String(save.turn);
+  if (save.gameTitle) deleteButton.dataset.slotGameTitle = save.gameTitle;
   deleteButton.style.cssText = 'padding:6px 12px;border-radius:6px;background:#d94a4a;border:none;color:white;font-size:11px;cursor:pointer;';
   deleteButton.textContent = '✕';
   buttons.appendChild(deleteButton);
 
-  card.appendChild(buttons);
+  row.appendChild(buttons);
+  card.appendChild(row);
   return card;
+}
+
+interface PendingDeletion {
+  id: string;
+  kind: 'manual' | 'autosave';
+  name: string;
+  turn: string;
+  gameTitle?: string;
+}
+
+/**
+ * Inline, per-row destructive confirmation (#1458). The player must make a
+ * second, deliberate choice before a save is removed; the copy names the exact
+ * campaign, save, kind and turn so a same-named sibling can never be hit by
+ * accident. Focus, aria labels, an alert region and a retry path keep the flow
+ * usable with keyboard, screen reader and touch.
+ */
+function createDeleteConfirmation(deletion: PendingDeletion): HTMLElement {
+  const region = document.createElement('div');
+  region.dataset.role = 'delete-confirm';
+  region.setAttribute('role', 'group');
+  region.setAttribute('tabindex', '-1');
+  region.setAttribute(
+    'aria-label',
+    `Confirm deletion of ${deletion.name}, turn ${deletion.turn}`,
+  );
+  region.style.cssText = 'display:flex;flex-direction:column;gap:8px;border:1px solid rgba(217,74,74,0.6);border-radius:8px;padding:8px;background:rgba(217,74,74,0.12);';
+
+  const kindLabel = deletion.kind === 'autosave' ? 'autosave' : 'manual save';
+  const message = document.createElement('div');
+  message.dataset.role = 'delete-confirm-message';
+  message.style.cssText = 'font-size:12px;line-height:1.4;';
+  const fromTitle = deletion.gameTitle ? ` from "${deletion.gameTitle}"` : '';
+  message.textContent = `Delete "${deletion.name}"${fromTitle} (${kindLabel}, turn ${deletion.turn})? This cannot be undone.`;
+  region.appendChild(message);
+
+  const actions = document.createElement('div');
+  actions.style.cssText = 'display:flex;gap:6px;';
+
+  const cancelButton = createGameButton('Cancel', 'ghost');
+  cancelButton.dataset.role = 'cancel-delete-slot';
+
+  const confirmButton = createGameButton('Delete this save', 'danger');
+  confirmButton.dataset.role = 'confirm-delete-slot';
+  confirmButton.dataset.slotId = deletion.id;
+  confirmButton.dataset.slotKind = deletion.kind;
+  confirmButton.setAttribute(
+    'aria-label',
+    `Delete this save: ${deletion.name}, turn ${deletion.turn}`,
+  );
+
+  actions.appendChild(cancelButton);
+  actions.appendChild(confirmButton);
+  region.appendChild(actions);
+
+  const progress = document.createElement('div');
+  progress.dataset.role = 'delete-progress';
+  progress.setAttribute('role', 'status');
+  progress.style.cssText = 'font-size:12px;color:#e8c170;';
+  progress.hidden = true;
+  progress.textContent = 'Deleting…';
+  region.appendChild(progress);
+
+  const error = document.createElement('div');
+  error.dataset.role = 'delete-error';
+  error.setAttribute('role', 'alert');
+  error.style.cssText = 'font-size:12px;color:#f0a060;';
+  error.hidden = true;
+  region.appendChild(error);
+
+  return region;
 }

@@ -132,7 +132,7 @@ describe('save-panel', () => {
     expect(document.body.textContent).not.toContain('Autosave Turn 9');
   });
 
-  it('routes autosave row deletion through the autosave delete path', async () => {
+  it('requires confirmation before routing autosave row deletion through the autosave delete path', async () => {
     const container = mountContainer();
     mocks.hasAutoSave.mockResolvedValue(true);
     mocks.listSaveEpics.mockResolvedValue([
@@ -166,7 +166,329 @@ describe('save-panel', () => {
     (document.querySelector('[data-role="open-epic"]') as HTMLButtonElement).click();
     (document.querySelector('[data-role="delete-slot"]') as HTMLButtonElement).click();
 
+    // A single click on the destructive control must not delete anything yet.
+    expect(mocks.deleteSaveEntry).not.toHaveBeenCalled();
+    expect(document.querySelector('[data-role="delete-confirm"]')).not.toBeNull();
+    expect(document.body.textContent).toContain('Autosave Turn 9');
+    expect(document.body.textContent).toContain('turn 9');
+
+    (document.querySelector('[data-role="confirm-delete-slot"]') as HTMLButtonElement).click();
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(mocks.deleteSaveEntry).toHaveBeenCalledTimes(1);
     expect(mocks.deleteSaveEntry).toHaveBeenCalledWith('autosave:game-1:9', 'autosave');
+  });
+
+  it('requires confirmation before deleting a manual save and routes the exact id and kind', async () => {
+    const container = mountContainer();
+    mocks.hasAutoSave.mockResolvedValue(false);
+    mocks.listSaveEpics.mockResolvedValue([
+      {
+        gameId: 'game-1',
+        title: 'Desert Run',
+        latestTurn: 9,
+        latestPlayed: '2026-04-08T12:00:00.000Z',
+        gameMode: 'solo',
+        saves: [
+          {
+            id: 'slot-1',
+            name: 'Manual Save',
+            civType: 'egypt',
+            turn: 9,
+            lastPlayed: '2026-04-08T12:00:00.000Z',
+            kind: 'manual',
+            gameMode: 'solo',
+            gameTitle: 'Desert Run',
+          },
+        ],
+      },
+    ]);
+
+    await createSavePanel(container, {
+      onNewGame: () => {},
+      onContinue: () => {},
+      onLoadEntry: () => {},
+    });
+
+    (document.querySelector('[data-role="open-epic"]') as HTMLButtonElement).click();
+    (document.querySelector('[data-role="delete-slot"][data-slot-id="slot-1"]') as HTMLButtonElement).click();
+
+    expect(mocks.deleteSaveEntry).not.toHaveBeenCalled();
+    expect(document.querySelector('[data-role="delete-confirm"]')).not.toBeNull();
+    expect(document.body.textContent).toContain('Manual Save');
+    expect(document.body.textContent).toContain('turn 9');
+
+    (document.querySelector('[data-role="confirm-delete-slot"]') as HTMLButtonElement).click();
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(mocks.deleteSaveEntry).toHaveBeenCalledTimes(1);
+    expect(mocks.deleteSaveEntry).toHaveBeenCalledWith('slot-1', 'manual');
+  });
+
+  it('cancels the pending deletion and leaves the selected slot intact', async () => {
+    const container = mountContainer();
+    mocks.hasAutoSave.mockResolvedValue(false);
+    mocks.listSaveEpics.mockResolvedValue([
+      {
+        gameId: 'game-1',
+        title: 'Desert Run',
+        latestTurn: 9,
+        latestPlayed: '2026-04-08T12:00:00.000Z',
+        gameMode: 'solo',
+        saves: [
+          {
+            id: 'slot-1',
+            name: 'Manual Save A',
+            civType: 'egypt',
+            turn: 9,
+            lastPlayed: '2026-04-08T12:00:00.000Z',
+            kind: 'manual',
+            gameMode: 'solo',
+            gameTitle: 'Desert Run',
+          },
+          {
+            id: 'slot-2',
+            name: 'Manual Save B',
+            civType: 'egypt',
+            turn: 10,
+            lastPlayed: '2026-04-08T12:05:00.000Z',
+            kind: 'manual',
+            gameMode: 'solo',
+            gameTitle: 'Desert Run',
+          },
+        ],
+      },
+    ]);
+
+    await createSavePanel(container, {
+      onNewGame: () => {},
+      onContinue: () => {},
+      onLoadEntry: () => {},
+    });
+    (document.querySelector('[data-role="open-epic"]') as HTMLButtonElement).click();
+    (document.querySelector('[data-role="delete-slot"][data-slot-id="slot-1"]') as HTMLButtonElement).click();
+
+    expect(document.querySelector('[data-role="delete-confirm"]')).not.toBeNull();
+    (document.querySelector('[data-role="cancel-delete-slot"]') as HTMLButtonElement).click();
+
+    expect(mocks.deleteSaveEntry).not.toHaveBeenCalled();
+    expect(document.querySelector('[data-role="delete-confirm"]')).toBeNull();
+    expect(document.querySelectorAll('#save-panel [data-save-slot-card="true"]')).toHaveLength(2);
+    expect(document.querySelector('[data-role="delete-slot"][data-slot-id="slot-1"]')).not.toBeNull();
+    expect(document.querySelector('[data-role="delete-slot"][data-slot-id="slot-2"]')).not.toBeNull();
+  });
+
+  it('targets the selected slot id, not a same-named sibling, when confirming deletion', async () => {
+    const container = mountContainer();
+    mocks.hasAutoSave.mockResolvedValue(false);
+    mocks.listSaveEpics.mockResolvedValue([
+      {
+        gameId: 'game-1',
+        title: 'Desert Run',
+        latestTurn: 10,
+        latestPlayed: '2026-04-08T12:05:00.000Z',
+        gameMode: 'solo',
+        saves: [
+          {
+            id: 'slot-old',
+            name: 'Campaign',
+            civType: 'egypt',
+            turn: 3,
+            lastPlayed: '2026-04-08T12:00:00.000Z',
+            kind: 'manual',
+            gameMode: 'solo',
+            gameTitle: 'Desert Run',
+          },
+          {
+            id: 'slot-new',
+            name: 'Campaign',
+            civType: 'egypt',
+            turn: 7,
+            lastPlayed: '2026-04-08T12:05:00.000Z',
+            kind: 'manual',
+            gameMode: 'solo',
+            gameTitle: 'Desert Run',
+          },
+        ],
+      },
+    ]);
+
+    await createSavePanel(container, {
+      onNewGame: () => {},
+      onContinue: () => {},
+      onLoadEntry: () => {},
+    });
+    (document.querySelector('[data-role="open-epic"]') as HTMLButtonElement).click();
+    (document.querySelector('[data-role="delete-slot"][data-slot-id="slot-new"]') as HTMLButtonElement).click();
+
+    // The prompt must name the actual selected save (turn 7), never rely on the shared display name.
+    const confirmRegion = document.querySelector('[data-role="delete-confirm"]')!;
+    expect(confirmRegion.textContent).toContain('turn 7');
+    const confirmButton = document.querySelector<HTMLButtonElement>(
+      '[data-role="confirm-delete-slot"]',
+    )!;
+    expect(confirmButton.dataset.slotId).toBe('slot-new');
+    expect(confirmButton.dataset.slotKind).toBe('manual');
+
+    confirmButton.click();
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(mocks.deleteSaveEntry).toHaveBeenCalledTimes(1);
+    expect(mocks.deleteSaveEntry).toHaveBeenCalledWith('slot-new', 'manual');
+  });
+
+  it('moves focus into the confirmation and restores it to the delete control on cancel', async () => {
+    const container = mountContainer();
+    mocks.hasAutoSave.mockResolvedValue(false);
+    mocks.listSaveEpics.mockResolvedValue([
+      {
+        gameId: 'game-1',
+        title: 'Desert Run',
+        latestTurn: 9,
+        latestPlayed: '2026-04-08T12:00:00.000Z',
+        gameMode: 'solo',
+        saves: [
+          {
+            id: 'slot-1',
+            name: 'Manual Save',
+            civType: 'egypt',
+            turn: 9,
+            lastPlayed: '2026-04-08T12:00:00.000Z',
+            kind: 'manual',
+            gameMode: 'solo',
+            gameTitle: 'Desert Run',
+          },
+        ],
+      },
+    ]);
+
+    await createSavePanel(container, {
+      onNewGame: () => {},
+      onContinue: () => {},
+      onLoadEntry: () => {},
+    });
+    (document.querySelector('[data-role="open-epic"]') as HTMLButtonElement).click();
+    const deleteButton = document.querySelector<HTMLButtonElement>(
+      '[data-role="delete-slot"][data-slot-id="slot-1"]',
+    )!;
+    deleteButton.click();
+
+    const confirmation = document.querySelector('[data-role="delete-confirm"]')!;
+    expect(confirmation.contains(document.activeElement)).toBe(true);
+
+    (document.querySelector('[data-role="cancel-delete-slot"]') as HTMLButtonElement).click();
+    expect(document.activeElement).toBe(deleteButton);
+  });
+
+  it('prevents duplicate submissions while a deletion is pending and keeps the row until it resolves', async () => {
+    const container = mountContainer();
+    let resolveDelete!: () => void;
+    mocks.hasAutoSave.mockResolvedValue(false);
+    mocks.deleteSaveEntry.mockReturnValueOnce(new Promise<void>(resolve => {
+      resolveDelete = resolve;
+    }));
+    mocks.listSaveEpics.mockResolvedValue([
+      {
+        gameId: 'game-1',
+        title: 'Desert Run',
+        latestTurn: 9,
+        latestPlayed: '2026-04-08T12:00:00.000Z',
+        gameMode: 'solo',
+        saves: [
+          {
+            id: 'slot-1',
+            name: 'Manual Save',
+            civType: 'egypt',
+            turn: 9,
+            lastPlayed: '2026-04-08T12:00:00.000Z',
+            kind: 'manual',
+            gameMode: 'solo',
+            gameTitle: 'Desert Run',
+          },
+        ],
+      },
+    ]);
+
+    await createSavePanel(container, {
+      onNewGame: () => {},
+      onContinue: () => {},
+      onLoadEntry: () => {},
+    });
+    (document.querySelector('[data-role="open-epic"]') as HTMLButtonElement).click();
+    (document.querySelector('[data-role="delete-slot"][data-slot-id="slot-1"]') as HTMLButtonElement).click();
+
+    const confirmButton = document.querySelector<HTMLButtonElement>(
+      '[data-role="confirm-delete-slot"]',
+    )!;
+    confirmButton.click();
+    confirmButton.click();
+
+    expect(mocks.deleteSaveEntry).toHaveBeenCalledTimes(1);
+    // Until the promise settles, the row must stay visible and the confirmation must not claim success.
+    expect(document.querySelectorAll('#save-panel [data-save-slot-card="true"]')).toHaveLength(1);
+    expect(document.querySelector('[data-save-slot-card="true"]')?.textContent).toContain('Manual Save');
+
+    resolveDelete();
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(mocks.deleteSaveEntry).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the row and shows a retryable error when deletion is rejected', async () => {
+    const container = mountContainer();
+    mocks.hasAutoSave.mockResolvedValue(false);
+    mocks.deleteSaveEntry.mockRejectedValueOnce(new Error('IndexedDB unavailable'));
+    mocks.listSaveEpics.mockResolvedValue([
+      {
+        gameId: 'game-1',
+        title: 'Desert Run',
+        latestTurn: 9,
+        latestPlayed: '2026-04-08T12:00:00.000Z',
+        gameMode: 'solo',
+        saves: [
+          {
+            id: 'slot-1',
+            name: 'Manual Save',
+            civType: 'egypt',
+            turn: 9,
+            lastPlayed: '2026-04-08T12:00:00.000Z',
+            kind: 'manual',
+            gameMode: 'solo',
+            gameTitle: 'Desert Run',
+          },
+        ],
+      },
+    ]);
+
+    await createSavePanel(container, {
+      onNewGame: () => {},
+      onContinue: () => {},
+      onLoadEntry: () => {},
+    });
+    (document.querySelector('[data-role="open-epic"]') as HTMLButtonElement).click();
+    (document.querySelector('[data-role="delete-slot"][data-slot-id="slot-1"]') as HTMLButtonElement).click();
+
+    const confirmButton = document.querySelector<HTMLButtonElement>(
+      '[data-role="confirm-delete-slot"]',
+    )!;
+    confirmButton.click();
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(mocks.deleteSaveEntry).toHaveBeenCalledTimes(1);
+    // The card stays mounted, an accessible error is shown, and a retry is still possible.
+    const error = document.querySelector<HTMLElement>('[data-role="delete-error"]')!;
+    expect(error.hidden).toBe(false);
+    expect(error.getAttribute('role')).toBe('alert');
+    expect(error.textContent).not.toBe('');
+    expect(document.querySelectorAll('#save-panel [data-save-slot-card="true"]')).toHaveLength(1);
+    expect(confirmButton.disabled).toBe(false);
+
+    mocks.deleteSaveEntry.mockResolvedValueOnce(undefined);
+    confirmButton.click();
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(mocks.deleteSaveEntry).toHaveBeenCalledTimes(2);
+    expect(mocks.deleteSaveEntry).toHaveBeenLastCalledWith('slot-1', 'manual');
   });
 
   it('loads the clicked autosave row instead of routing through continue', async () => {
@@ -351,6 +673,7 @@ describe('save-panel', () => {
 
     (document.querySelector('[data-role="open-epic"]') as HTMLButtonElement).click();
     (document.querySelector('[data-role="delete-slot"][data-slot-id="slot-1"]') as HTMLButtonElement).click();
+    (document.querySelector('[data-role="confirm-delete-slot"][data-slot-id="slot-1"]') as HTMLButtonElement).click();
     await new Promise(resolve => setTimeout(resolve, 0));
 
     expect(mocks.deleteSaveEntry).toHaveBeenCalledWith('slot-1', 'manual');
@@ -636,6 +959,7 @@ describe('save-panel', () => {
     await createSavePanel(container, { onNewGame: vi.fn(), onContinue: vi.fn(), onLoadEntry: vi.fn() });
     (document.querySelector('[data-role="open-epic"][data-game-id="game-a"]') as HTMLButtonElement).click();
     (document.querySelector('[data-role="delete-slot"][data-slot-id="autosave:game-a:9"]') as HTMLButtonElement).click();
+    (document.querySelector('[data-role="confirm-delete-slot"][data-slot-id="autosave:game-a:9"]') as HTMLButtonElement).click();
     await new Promise(resolve => setTimeout(resolve, 0));
 
     expect(mocks.deleteSaveEntry).toHaveBeenCalledWith('autosave:game-a:9', 'autosave');
