@@ -83,13 +83,14 @@ describe('civilization start placement', () => {
   });
 
   it('returns an explicit failure rather than weakening spacing', () => {
-    const tiles = Object.fromEntries([
-      tile(0, 0),
-      tile(1, 0),
-      tile(2, 0),
-    ].map(value => [`${value.coord.q},${value.coord.r}`, value]));
+    // Eight tiles in a row: every tile is a viable start (a second city fits at
+    // distance >= 4, #1453) but no two are the required 9 apart, so the failure
+    // under test is spacing, not viability.
+    const tiles = Object.fromEntries(
+      [0, 1, 2, 3, 4, 5, 6, 7].map(q => tile(q, 0)).map(value => [`${value.coord.q},${value.coord.r}`, value]),
+    );
     const map: GameMap = {
-      width: 3,
+      width: 8,
       height: 1,
       wrapsHorizontally: false,
       tiles,
