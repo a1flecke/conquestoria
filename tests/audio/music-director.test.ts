@@ -46,6 +46,20 @@ describe('MusicDirector', () => {
 
   // --- handleEraAdvanced ---
 
+  it('drops a pending older-era transition instead of playing its advance stinger after a newer era', async () => {
+    let finish!: (buffer: AudioBuffer) => void;
+    vi.mocked(loader.get).mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
+    director.handleEraAdvanced({ era: worldAgeFromNumber(2), civType: 'rome' });
+    const oldTransition = director.currentStingerPromise;
+    director.handleEraAdvanced({ era: worldAgeFromNumber(3), civType: 'rome' });
+    await director.currentStingerPromise;
+    vi.mocked(mixer.playOneShot).mockClear();
+    finish(fakeBuffer);
+    await oldTransition;
+    expect(mixer.playOneShot).not.toHaveBeenCalled();
+    expect(loader.get).not.toHaveBeenCalledWith(STINGER.eraAdvance[2].file);
+  });
+
   it('does not resurrect a stinger after the player changes during loading', async () => {
     let finish!: (buffer: AudioBuffer) => void;
     vi.mocked(loader.get).mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));

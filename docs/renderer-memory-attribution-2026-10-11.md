@@ -173,6 +173,9 @@ layer. The combined audio/renderer run after rebase passed 699 tests (one skippe
 Both synchronous image failure regressions failed before cleanup hardening and passed
 afterwards. Removing the SFX generation check reproduced both dispose/rebind failures, then
 restoring it passed. No new default test files or CI-shard allocation changes were needed.
+The final audit also reproduced an older-era transition decoding late and playing two obsolete
+stingers after a newer era. Era advancement now invalidates that pending chain, using the same
+generation guard as player changes and disposal.
 
 The first full durable run passed 778 files / 14,069 tests, plus hooks. The final publication uses
 a separate HEAD-bound `verify-pr` / `verify-pr-status` proof; the earlier result is not reused as

@@ -140,6 +140,7 @@ export class MusicDirector {
   }
 
   handleEraAdvanced(p: EraAdvancedPayload): void {
+    this.generation += 1;
     this.currentEra = p.era;
     this.applySnapshot(CROSSFADE_MS);
     // Chain transition-cue → era-advance stingers sequentially
