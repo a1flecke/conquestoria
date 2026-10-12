@@ -12,6 +12,9 @@ vi.mock('@/storage/db', () => ({
   dbPut: vi.fn(async (key: string, value: unknown) => { dbState.set(key, value); }),
   dbDelete: vi.fn(async (key: string) => { dbState.delete(key); }),
   dbGetAllKeys: vi.fn(async () => Array.from(dbState.keys())),
+  dbBatch: vi.fn(async (ops: Array<{ type: string; key: string; value?: unknown }>) => {
+    for (const op of ops) { if (op.type === 'put') dbState.set(op.key, op.value); else dbState.delete(op.key); }
+  }),
 }));
 
 import { createDefaultSettings, createNewGame } from '@/core/game-state';

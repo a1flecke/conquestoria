@@ -6,6 +6,7 @@ vi.mock('@/storage/db', () => ({
   dbPut: vi.fn(),
   dbDelete: vi.fn(),
   dbGetAllKeys: vi.fn(async () => []),
+  dbBatch: vi.fn(),
 }));
 
 import { vi } from 'vitest';
