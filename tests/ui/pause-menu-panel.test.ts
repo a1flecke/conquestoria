@@ -1,6 +1,18 @@
 // @vitest-environment jsdom
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+const saveMocks = vi.hoisted(() => ({
+  listSaves: vi.fn(async () => []),
+  hasAutoSave: vi.fn(async () => false),
+}));
+
+vi.mock('@/storage/save-manager', () => ({
+  listSaves: saveMocks.listSaves,
+  listSaveEpics: vi.fn(async () => []),
+  hasAutoSave: saveMocks.hasAutoSave,
+  deleteSaveEntry: vi.fn(),
+}));
+
 import { showPauseMenu, type AudioSettingsSnapshot } from '@/ui/pause-menu-panel';
 
 const DEFAULT_TEST_AUDIO: AudioSettingsSnapshot = {
@@ -143,8 +155,8 @@ describe('pause-menu-panel', () => {
     showPauseMenu(document.body, callbacks);
     clickButton('New Game…');
     clickButton('Save & Start New Game');
-    await vi.waitFor(() => expect(callbacks.autoSave).toHaveBeenCalledTimes(1));
-    expect(callbacks.onNewGame).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(callbacks.onNewGame).toHaveBeenCalledTimes(1));
+    expect(callbacks.autoSave).toHaveBeenCalledTimes(1);
     expect(document.getElementById('pause-menu')).toBeNull();
   });
 
@@ -310,5 +322,156 @@ describe('pause-menu-panel', () => {
       offOption?.click();
       expect(document.body.textContent).toContain('No nuclear weapons this game');
     });
+  });
+});
+
+
+// --- #1451: guarded async saving -------------------------------------------
+
+function deferred<T = void>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => { resolve = res; reject = rej; });
+  return { promise, resolve, reject };
+}
+
+const flush = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0));
+
+function buttonByLabel(label: string): HTMLButtonElement {
+  const btn = Array.from(document.querySelectorAll('button')).find(b => b.textContent === label);
+  if (!btn) throw new Error(`No button found with text "${label}"`);
+  return btn as HTMLButtonElement;
+}
+
+describe('pause-menu-panel Save & Start New Game (#1451)', () => {
+  it('keeps the confirmation open and locked while the autosave is pending, then starts once', async () => {
+    const write = deferred();
+    const callbacks = makeCallbacks({ autoSave: vi.fn(() => write.promise) });
+    showPauseMenu(document.body, callbacks);
+    clickButton('New Game…');
+
+    const save = buttonByLabel('Save & Start New Game');
+    save.click();
+    save.click(); // rapid duplicate
+    await flush();
+
+    expect(callbacks.autoSave).toHaveBeenCalledTimes(1);
+    expect(callbacks.onNewGame).not.toHaveBeenCalled();
+    expect(document.getElementById('pause-menu')).not.toBeNull();
+    expect(document.querySelector('[data-role="autosave-status"]')?.textContent).toContain('Saving');
+    expect(buttonByLabel('Save & Start New Game').disabled).toBe(true);
+    expect(buttonByLabel('Discard & Start New Game').disabled).toBe(true);
+    expect(buttonByLabel('Cancel').disabled).toBe(true);
+
+    write.resolve();
+    await vi.waitFor(() => expect(callbacks.onNewGame).toHaveBeenCalledTimes(1));
+    expect(document.getElementById('pause-menu')).toBeNull();
+    expect(callbacks.autoSave).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the campaign and offers retry when the autosave rejects, with no unhandled rejection', async () => {
+    const first = deferred();
+    const callbacks = makeCallbacks({
+      autoSave: vi.fn()
+        .mockImplementationOnce(() => first.promise)
+        .mockImplementationOnce(async () => {}),
+    });
+    showPauseMenu(document.body, callbacks);
+    clickButton('New Game…');
+    clickButton('Save & Start New Game');
+    first.reject(new Error('QuotaExceededError: secret internals'));
+    await flush();
+
+    expect(callbacks.onNewGame).not.toHaveBeenCalled();
+    expect(document.getElementById('pause-menu')).not.toBeNull();
+    const alert = document.querySelector<HTMLElement>('[data-role="autosave-error"]')!;
+    expect(alert.getAttribute('role')).toBe('alert');
+    expect(alert.hidden).toBe(false);
+    expect(alert.textContent).toContain('Could not save');
+    expect(alert.textContent).not.toContain('QuotaExceededError');
+    expect(document.querySelector('[data-role="autosave-status"]')?.textContent).toBe('');
+    // Controls are usable again and focus returned to the retry.
+    expect(buttonByLabel('Save & Start New Game').disabled).toBe(false);
+    expect(buttonByLabel('Discard & Start New Game').disabled).toBe(false);
+    expect(buttonByLabel('Cancel').disabled).toBe(false);
+    expect(document.activeElement).toBe(buttonByLabel('Save & Start New Game'));
+
+    clickButton('Save & Start New Game');
+    await vi.waitFor(() => expect(callbacks.onNewGame).toHaveBeenCalledTimes(1));
+    expect(callbacks.autoSave).toHaveBeenCalledTimes(2);
+    expect(document.getElementById('pause-menu')).toBeNull();
+  });
+
+  it('treats a synchronously throwing autosave as a failure, not an escaped error', async () => {
+    const callbacks = makeCallbacks({ autoSave: vi.fn(() => { throw new Error('boom'); }) });
+    showPauseMenu(document.body, callbacks);
+    clickButton('New Game…');
+    clickButton('Save & Start New Game');
+    await flush();
+    expect(callbacks.onNewGame).not.toHaveBeenCalled();
+    expect(document.querySelector<HTMLElement>('[data-role="autosave-error"]')?.hidden).toBe(false);
+  });
+
+  it('still lets the player Discard or Cancel after a failed save', async () => {
+    const callbacks = makeCallbacks({ autoSave: vi.fn(async () => { throw new Error('x'); }) });
+    showPauseMenu(document.body, callbacks);
+    clickButton('New Game…');
+    clickButton('Save & Start New Game');
+    await flush();
+    clickButton('Cancel');
+    expect(document.body.textContent).toContain('Save Game');
+    clickButton('New Game…');
+    clickButton('Discard & Start New Game');
+    expect(callbacks.onNewGame).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('pause menu -> save panel callback boundary (#1451)', () => {
+  async function openSavePanel(callbacks: ReturnType<typeof makeCallbacks>): Promise<void> {
+    showPauseMenu(document.body, callbacks);
+    clickButton('Save Game');
+    await vi.waitFor(() => expect(document.getElementById('save-panel')).not.toBeNull());
+  }
+  const saveButton = (): HTMLButtonElement => document.querySelector<HTMLButtonElement>('#btn-save-new')!;
+
+  it('keeps the save panel open until onSave resolves, then closes it exactly once and leaves the pause menu', async () => {
+    const write = deferred();
+    const callbacks = makeCallbacks({ onSave: vi.fn(() => write.promise) });
+    await openSavePanel(callbacks);
+    (document.getElementById('new-slot-name') as HTMLInputElement).value = 'Before the siege';
+
+    saveButton().click();
+    saveButton().click();
+    await flush();
+    expect(callbacks.onSave).toHaveBeenCalledTimes(1);
+    expect(callbacks.onSave).toHaveBeenCalledWith(expect.stringMatching(/^slot-/), 'Before the siege');
+    expect(document.getElementById('save-panel')).not.toBeNull();
+    expect(document.getElementById('pause-menu')).not.toBeNull();
+
+    write.resolve();
+    await vi.waitFor(() => expect(document.getElementById('save-panel')).toBeNull());
+    expect(document.getElementById('pause-menu')).not.toBeNull();
+    expect(callbacks.onSave).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the save panel with its name and slot when onSave rejects, and retries the same slot', async () => {
+    const callbacks = makeCallbacks({
+      onSave: vi.fn()
+        .mockRejectedValueOnce(new Error('QuotaExceededError'))
+        .mockResolvedValueOnce(undefined),
+    });
+    await openSavePanel(callbacks);
+    (document.getElementById('new-slot-name') as HTMLInputElement).value = 'Keep me';
+
+    saveButton().click();
+    await flush();
+    expect(document.getElementById('save-panel')).not.toBeNull();
+    expect((document.getElementById('new-slot-name') as HTMLInputElement).value).toBe('Keep me');
+    expect(document.querySelector('#save-panel [role="alert"]')?.textContent).toContain('Could not save');
+
+    saveButton().click();
+    await vi.waitFor(() => expect(document.getElementById('save-panel')).toBeNull());
+    const [first, second] = vi.mocked(callbacks.onSave).mock.calls;
+    expect(second).toEqual(first);
   });
 });

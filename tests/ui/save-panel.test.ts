@@ -967,4 +967,188 @@ describe('save-panel', () => {
     expect(document.body.textContent).not.toContain('Autosave Turn 9');
     expect(document.body.textContent).toContain('Back to campaigns');
   });
+
+  // --- #1451: guarded async saving ---------------------------------------
+
+  function deferred<T = void>() {
+    let resolve!: (value: T) => void;
+    let reject!: (reason?: unknown) => void;
+    const promise = new Promise<T>((res, rej) => { resolve = res; reject = rej; });
+    return { promise, resolve, reject };
+  }
+  const flush = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0));
+  const manualSave = {
+    id: 'slot-1', name: 'Manual Save', civType: 'egypt', turn: 9,
+    lastPlayed: '2026-04-08T12:00:00.000Z', kind: 'manual', gameMode: 'solo', gameTitle: 'Desert Run',
+  };
+
+  async function mountSaveMode(onSaveToSlot: (slotId: string, name: string) => Promise<void> | void) {
+    const container = mountContainer();
+    mocks.hasAutoSave.mockResolvedValue(false);
+    mocks.listSaves.mockResolvedValue([manualSave]);
+    await createSavePanel(container, {
+      onNewGame: () => {}, onContinue: () => {}, onLoadEntry: () => {}, onSaveToSlot,
+    }, 'save');
+    return {
+      panel: () => document.getElementById('save-panel'),
+      saveButton: () => document.querySelector<HTMLButtonElement>('#btn-save-new')!,
+      overwriteButton: () => document.querySelector<HTMLButtonElement>('[data-role="overwrite-slot"]')!,
+      nameInput: () => document.getElementById('new-slot-name') as HTMLInputElement,
+      cancelButton: () => document.querySelector<HTMLButtonElement>('[data-role="cancel-save"]')!,
+      status: () => document.querySelector<HTMLElement>('[data-role="save-status"]')!,
+      error: () => document.querySelector<HTMLElement>('[data-role="save-error"]')!,
+    };
+  }
+
+  it('renders an accessible status and alert region in save mode', async () => {
+    const ui = await mountSaveMode(() => {});
+    expect(ui.status().getAttribute('role')).toBe('status');
+    expect(ui.error().getAttribute('role')).toBe('alert');
+    expect(ui.error().hidden).toBe(true);
+    expect(ui.cancelButton()).not.toBeNull();
+  });
+
+  it('keeps the dialog open and locked while a new save is pending, and closes once on success', async () => {
+    const write = deferred();
+    const onSaveToSlot = vi.fn(() => write.promise);
+    const ui = await mountSaveMode(onSaveToSlot);
+    ui.nameInput().value = 'Pre-war';
+
+    ui.saveButton().click();
+    ui.saveButton().click(); // rapid duplicate
+    await flush();
+
+    expect(onSaveToSlot).toHaveBeenCalledTimes(1);
+    expect(onSaveToSlot).toHaveBeenCalledWith(expect.stringMatching(/^slot-/), 'Pre-war');
+    expect(ui.panel()).not.toBeNull(); // old main removed it here
+    expect(ui.panel()?.getAttribute('aria-busy')).toBe('true');
+    expect(ui.status().textContent).toContain('Saving');
+    expect(ui.saveButton().disabled).toBe(true);
+    expect(ui.overwriteButton().disabled).toBe(true);
+    expect(ui.cancelButton().disabled).toBe(true);
+    ui.cancelButton().click(); // ignored while pending
+    expect(ui.panel()).not.toBeNull();
+
+    write.resolve();
+    await vi.waitFor(() => expect(ui.panel()).toBeNull());
+    expect(onSaveToSlot).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes after an immediately-resolving save', async () => {
+    const onSaveToSlot = vi.fn(async () => {});
+    const ui = await mountSaveMode(onSaveToSlot);
+    ui.saveButton().click();
+    await vi.waitFor(() => expect(ui.panel()).toBeNull());
+    expect(onSaveToSlot).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps name and target on rejection, shows an alert, and retries the same slot', async () => {
+    const first = deferred();
+    const onSaveToSlot = vi.fn()
+      .mockImplementationOnce(() => first.promise)
+      .mockImplementationOnce(async () => {});
+    const ui = await mountSaveMode(onSaveToSlot);
+    ui.nameInput().value = 'Keep this name';
+
+    ui.saveButton().click();
+    first.reject(new Error('QuotaExceededError: internal detail'));
+    await flush();
+
+    expect(ui.panel()).not.toBeNull();
+    expect(ui.nameInput().value).toBe('Keep this name');
+    expect(ui.error().hidden).toBe(false);
+    expect(ui.error().textContent).toContain('Could not save');
+    expect(ui.error().textContent).not.toContain('QuotaExceededError');
+    expect(ui.status().textContent).toBe('');
+    expect(ui.panel()?.getAttribute('aria-busy')).toBe('false');
+    expect(ui.saveButton().disabled).toBe(false);
+    expect(ui.overwriteButton().disabled).toBe(false);
+    expect(ui.cancelButton().disabled).toBe(false);
+    expect(document.activeElement).toBe(ui.saveButton());
+
+    ui.saveButton().click();
+    await vi.waitFor(() => expect(ui.panel()).toBeNull());
+    expect(onSaveToSlot).toHaveBeenCalledTimes(2);
+    expect(onSaveToSlot.mock.calls[1][0]).toBe(onSaveToSlot.mock.calls[0][0]); // same slot, no second save
+    expect(onSaveToSlot.mock.calls[1][1]).toBe('Keep this name');
+  });
+
+  it('lets the player edit the name before a retry but not change the target slot', async () => {
+    const onSaveToSlot = vi.fn()
+      .mockRejectedValueOnce(new Error('x'))
+      .mockResolvedValueOnce(undefined);
+    const ui = await mountSaveMode(onSaveToSlot);
+    ui.nameInput().value = 'First';
+    ui.saveButton().click();
+    await flush();
+    ui.nameInput().value = 'Second';
+    ui.saveButton().click();
+    await vi.waitFor(() => expect(ui.panel()).toBeNull());
+    expect(onSaveToSlot.mock.calls[1][0]).toBe(onSaveToSlot.mock.calls[0][0]);
+    expect(onSaveToSlot.mock.calls[1][1]).toBe('Second');
+  });
+
+  it('allows cancelling after a failure', async () => {
+    const ui = await mountSaveMode(vi.fn(async () => { throw new Error('x'); }));
+    ui.saveButton().click();
+    await flush();
+    ui.cancelButton().click();
+    expect(ui.panel()).toBeNull();
+  });
+
+  it('treats a synchronously throwing callback as a recoverable failure', async () => {
+    const ui = await mountSaveMode(() => { throw new Error('sync'); });
+    ui.saveButton().click();
+    await flush();
+    expect(ui.panel()).not.toBeNull();
+    expect(ui.error().hidden).toBe(false);
+  });
+
+  it('overwrite: waits for the write, targets the exact slot and name, and closes once', async () => {
+    const write = deferred();
+    const onSaveToSlot = vi.fn(() => write.promise);
+    const ui = await mountSaveMode(onSaveToSlot);
+
+    ui.overwriteButton().click();
+    ui.overwriteButton().click();
+    await flush();
+    expect(onSaveToSlot).toHaveBeenCalledTimes(1);
+    expect(onSaveToSlot).toHaveBeenCalledWith('slot-1', 'Manual Save');
+    expect(ui.panel()).not.toBeNull();
+    expect(ui.overwriteButton().disabled).toBe(true);
+
+    write.resolve();
+    await vi.waitFor(() => expect(ui.panel()).toBeNull());
+  });
+
+  it('overwrite: a rejection keeps the original slot and retries the same one without deleting anything', async () => {
+    const onSaveToSlot = vi.fn()
+      .mockRejectedValueOnce(new Error('QuotaExceededError'))
+      .mockResolvedValueOnce(undefined);
+    const ui = await mountSaveMode(onSaveToSlot);
+
+    ui.overwriteButton().click();
+    await flush();
+    expect(ui.panel()).not.toBeNull();
+    expect(ui.error().hidden).toBe(false);
+    expect(document.activeElement).toBe(ui.overwriteButton());
+    expect(mocks.deleteSaveEntry).not.toHaveBeenCalled();
+
+    ui.overwriteButton().click();
+    await vi.waitFor(() => expect(ui.panel()).toBeNull());
+    expect(onSaveToSlot.mock.calls).toEqual([['slot-1', 'Manual Save'], ['slot-1', 'Manual Save']]);
+    expect(mocks.deleteSaveEntry).not.toHaveBeenCalled();
+  });
+
+  it('cannot start a deletion while a save is pending', async () => {
+    const write = deferred();
+    const ui = await mountSaveMode(() => write.promise);
+    ui.saveButton().click();
+    await flush();
+    document.querySelector<HTMLButtonElement>('[data-role="delete-slot"]')!.click();
+    expect(document.querySelector('[data-role="delete-confirm"]')).toBeNull();
+    expect(mocks.deleteSaveEntry).not.toHaveBeenCalled();
+    write.resolve();
+    await vi.waitFor(() => expect(ui.panel()).toBeNull());
+  });
 });
