@@ -148,6 +148,7 @@ export class TouchHandler {
 
     this.tapCandidate = false;
     this.lastTouchDistance = 0;
+    this.rebaseAfterMultiTouch(e.touches);
   };
 
   private onTouchCancel = (e: TouchEvent): void => {
@@ -157,7 +158,23 @@ export class TouchHandler {
     this.isPanning = false;
     this.setPinching(e.touches.length >= 2);
     this.lastTouchDistance = 0;
+    this.rebaseAfterMultiTouch(e.touches);
   };
+
+  /**
+   * When a multi-touch gesture drops to one surviving finger (2->1), the stored `lastTouchCenter`
+   * is still the two-finger midpoint. Measuring the next single-finger move against it would jump
+   * the camera by half the pinch span and seed that jump into fling velocity. Re-anchor the pan
+   * origin to the finger the user still has down, and drop stale fling so the pinch cannot launch
+   * the camera. Single-finger gestures end with zero touches, so their momentum fling is preserved.
+   */
+  private rebaseAfterMultiTouch(touches: TouchList): void {
+    if (touches.length !== 1) return;
+    const remaining = touches[0];
+    this.lastTouchCenter = { x: remaining.clientX, y: remaining.clientY };
+    this.camera.vx = 0;
+    this.camera.vy = 0;
+  }
 
   private clearLongPress(): void {
     if (this.longPressTimer !== null) {
