@@ -954,7 +954,7 @@ permissions; `.opencode/opencode.jsonc` already allows `./scripts/pr-body.sh *` 
 `./scripts/dev.sh <task> [test paths]` is a **narrow** dispatcher: a closed task table (`build`,
 `typecheck`, `test <paths>`, `test-all`, `test-regular`, `hooks`, `install`, `setup-hooks`, `verify-pr`,
 `verify-pr-status`, `verify-status`, `durable`, `durable-status`, `ai-playability`, `ai-long`, `web-smoke`,
-`docs-lifecycle`, `verify-impact`, `maintainability-check|report|baseline`, plus the read-only `log <task> [N]`), each a hard-coded argv through
+`docs-lifecycle`, `verify-impact`, `yarn-parity`, `maintainability-check|report|baseline`, plus the read-only `log <task> [N]`), each a hard-coded argv through
 `scripts/run-with-mise.sh`. It exists so an approval layer can trust *one* script by name.
 
 **Why `run-with-mise.sh` is intentionally not the trusted script.** It ends in `mise exec -- "$@"`, so
@@ -1016,6 +1016,23 @@ package behavior in one active project script instead. `yarn install` also runs
 from the active worktree so it produces that worktree's PnP map. Keep focused
 test filters root-relative (`tests/foo.test.ts`) and cover this contract in
 `tests/hooks/run-with-mise-worktree.test.sh` whenever the adapter changes.
+
+## Yarn version parity (#1460)
+
+`package.json` (`packageManager`), `mise.toml` (`[tools] yarn`) and `.yarnrc.yml` (`yarnPath` →
+the checked-in `.yarn/releases/yarn-<version>.cjs`) are three independent statements of the Yarn
+version the project runs. When they disagreed (`packageManager`/mise at 4.17.0 while `yarnPath`
+executed the checked-in 4.13.0), local runs, Corepack and CI could diverge silently. The canonical
+version is the one all three name — currently 4.17.0 — and the checked-in artifact is the official
+Yarn release for that version, so an offline checkout still runs the pinned CLI.
+
+`scripts/check-yarn-version-parity.mjs` reads those files only (no network, no lockfile writes) and
+fails when they disagree, when a configured `yarnPath` release is missing on disk, or when a version
+cannot be parsed. `tests/hooks/yarn-version-parity.test.sh` proves the real tree passes and that each
+mismatch fails; the hooks CI job runs the script directly before installing dependencies, and
+`./scripts/dev.sh yarn-parity` runs it locally. Bump all three together, refresh the checked-in
+artifact, and reinstall once so the lockfile's `__metadata.version` matches the CLI that wrote it
+(4.17.0 writes format 10).
 
 ## Local selections and CI shards (#608, #1075)
 

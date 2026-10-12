@@ -201,6 +201,10 @@ printf '%s' "$hooks_job" | grep -Fq "github.event_name == 'workflow_dispatch'" |
   echo "GitHub hooks job cannot run during manual validation"
   exit 1
 }
+printf '%s' "$hooks_job" | grep -Fq 'node scripts/check-yarn-version-parity.mjs' || {
+  echo "GitHub hooks job does not enforce Yarn version parity"
+  exit 1
+}
 
 web_build_job="$(
   sed -n '/^  web-build:/,/^  test-suite-shard-a:/p' "$ROOT/.github/workflows/deploy.yml"

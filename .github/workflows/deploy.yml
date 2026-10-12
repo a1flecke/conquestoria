@@ -293,6 +293,9 @@ jobs:
           cache: yarn
           cache-dependency-path: yarn.lock
 
+      - name: Enforce Yarn version parity
+        run: node scripts/check-yarn-version-parity.mjs
+
       - name: Install dependencies
         run: yarn install --immutable
 

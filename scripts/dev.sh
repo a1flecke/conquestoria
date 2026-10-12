@@ -47,6 +47,7 @@ tasks (output is saved to .verification/logs/<task>.log; the last 60 lines are p
   web-smoke         yarn test:web-smoke
   docs-lifecycle    node scripts/docs-lifecycle.mjs check
   verify-impact     yarn verify:impact (read-only: lists the evidence the current change requires)
+  yarn-parity       node scripts/check-yarn-version-parity.mjs (read-only Yarn version guard)
   maintainability-check     node scripts/maintainability-audit.mjs --check (read-only drift check)
   maintainability-report    node scripts/maintainability-audit.mjs --report (rewrites docs/maintainability-audit-report.md)
   maintainability-baseline  node scripts/maintainability-audit.mjs --baseline (rewrites docs/maintainability-audit-baseline.json)
@@ -61,7 +62,7 @@ deny() {
 
 is_task() {
   case "$1" in
-    build|typecheck|test|test-all|test-regular|hooks|install|setup-hooks|verify-pr|verify-pr-status|verify-status|durable|durable-status|ai-playability|ai-playability-status|ai-long|ai-long-status|web-smoke|docs-lifecycle|verify-impact|maintainability-check|maintainability-report|maintainability-baseline) return 0 ;;
+    build|typecheck|test|test-all|test-regular|hooks|install|setup-hooks|verify-pr|verify-pr-status|verify-status|durable|durable-status|ai-playability|ai-playability-status|ai-long|ai-long-status|web-smoke|docs-lifecycle|verify-impact|yarn-parity|maintainability-check|maintainability-report|maintainability-baseline) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -128,6 +129,7 @@ execute() {
     web-smoke) bash "$MISE" yarn test:web-smoke ;;
     docs-lifecycle) bash "$MISE" node scripts/docs-lifecycle.mjs check ;;
     verify-impact) bash "$MISE" yarn verify:impact ;;
+    yarn-parity) bash "$MISE" node scripts/check-yarn-version-parity.mjs ;;
     maintainability-check) bash "$MISE" node scripts/maintainability-audit.mjs --check ;;
     maintainability-report) bash "$MISE" node scripts/maintainability-audit.mjs --report ;;
     maintainability-baseline) bash "$MISE" node scripts/maintainability-audit.mjs --baseline ;;
