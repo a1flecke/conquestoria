@@ -1,3 +1,4 @@
+import { loadStaticSvgImage } from '@/renderer/static-svg-image';
 // Camp improvement marker — Canvas 2D drawImage, no animation.
 import { notifyCanvasAssetReady } from '@/renderer/canvas-asset-ready';
 
@@ -15,14 +16,9 @@ const SVG = `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" stroke-
 let cached: HTMLImageElement | null = null;
 
 export async function preloadCampMarker(): Promise<void> {
-  const blob = new Blob([SVG], { type: 'image/svg+xml' });
-  const url = URL.createObjectURL(blob);
-  await new Promise<void>((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => { URL.revokeObjectURL(url); cached = img; notifyCanvasAssetReady(); resolve(); };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('camp-marker load failed')); };
-    img.src = url;
-  });
+  const img = await loadStaticSvgImage(SVG);
+  cached = img;
+  notifyCanvasAssetReady();
 }
 
 export function getCampMarkerImage(): HTMLImageElement | null { return cached; }

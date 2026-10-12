@@ -1,3 +1,4 @@
+import { loadStaticSvgImage } from '@/renderer/static-svg-image';
 import { notifyCanvasAssetReady } from '@/renderer/canvas-asset-ready';
 // Loader for S6 natural-wonder hex tiles.
 // Same pattern as terrain-tile-loader.ts: preload SVGs to HTMLImageElement,
@@ -23,16 +24,6 @@ const WONDER_TILE_ALIAS: Record<string, string> = {
   krakatoa:          'krakatoa',
 };
 
-function svgToImage(svg: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const blob = new Blob([svg], { type: 'image/svg+xml' });
-    const url = URL.createObjectURL(blob);
-    const img = new Image();
-    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(); };
-    img.src = url;
-  });
-}
 
 // Cache: tile key → HTMLImageElement
 const cache = new Map<string, HTMLImageElement>();
@@ -40,7 +31,7 @@ const cache = new Map<string, HTMLImageElement>();
 export async function preloadNaturalWonderTiles(): Promise<void> {
   await Promise.all(
     Object.entries(NATURAL_WONDER_TILES).map(([key, svg]) =>
-      svgToImage(svg).then(img => { cache.set(key, img); notifyCanvasAssetReady(); }).catch(() => {})
+      loadStaticSvgImage(svg).then(img => { cache.set(key, img); notifyCanvasAssetReady(); }).catch(() => {})
     )
   );
 }

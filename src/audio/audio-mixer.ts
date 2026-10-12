@@ -37,6 +37,7 @@ interface BusState {
 export class AudioMixer {
   private musicBuses: Record<MusicBusId, BusState>;
   private sfxBus: BusState;
+  private sources = new Map<AudioBufferSourceNode, () => void>();
 
   // Ambience uses sfxBus routing (unchanged from Spec 1)
   private ambienceGain: GainNode;
@@ -102,6 +103,19 @@ export class AudioMixer {
     return id === 'sfx' ? this.sfxBus : this.musicBuses[id as MusicBusId];
   }
 
+  private trackSource(source: AudioBufferSourceNode, gain: GainNode | null, ended: () => void): void {
+    const release = (): void => {
+      if (!this.sources.delete(source)) return;
+      source.onended = null;
+      source.disconnect();
+      source.buffer = null;
+      gain?.disconnect();
+      ended();
+    };
+    this.sources.set(source, release);
+    source.onended = release;
+  }
+
   setBusSource(
     bus: BusId,
     buffer: AudioBuffer | null,
@@ -139,10 +153,12 @@ export class AudioMixer {
       src.loopEnd = loopPoints.loopEnd;
     }
     src.connect(srcGain);
-    src.start();
-
     b.sourceGain = srcGain;
     b.source = src;
+    this.trackSource(src, srcGain, () => {
+      if (b.source === src) { b.source = null; b.sourceGain = null; }
+    });
+    src.start();
   }
 
   playOneShot(bus: BusId, buffer: AudioBuffer): Promise<void> {
@@ -160,12 +176,12 @@ export class AudioMixer {
       src.buffer = buffer;
       src.loop = false;
       src.connect(b.snapshotGain);
-      src.onended = () => {
+      b.source = src;
+      this.trackSource(src, null, () => {
         if (b.source === src) b.source = null;
         resolve();
-      };
+      });
       src.start();
-      b.source = src;
     });
   }
 
@@ -204,10 +220,15 @@ export class AudioMixer {
       source.loopEnd = loopPoints.loopEnd;
     }
     source.connect(sourceGain);
-    source.start();
-
     this.ambienceSourceGain = sourceGain;
     this.ambienceSource = source;
+    this.trackSource(source, sourceGain, () => {
+      if (this.ambienceSource === source) {
+        this.ambienceSource = null;
+        this.ambienceSourceGain = null;
+      }
+    });
+    source.start();
   }
 
   stopAmbience(fadeMs = 500): void {
@@ -316,14 +337,9 @@ export class AudioMixer {
   }
 
   dispose(): void {
-    try {
-      for (const bus of Object.values(this.musicBuses)) {
-        bus.source?.stop();
-      }
-      this.sfxBus.source?.stop();
-      this.ambienceSource?.stop();
-    } catch {
-      // Sources may already be stopped
+    for (const [source, release] of this.sources) {
+      try { source.stop(); } catch { /* Already ended; still release its graph. */ }
+      finally { release(); }
     }
   }
 }

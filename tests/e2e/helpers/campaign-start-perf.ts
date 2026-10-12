@@ -215,6 +215,7 @@ export interface CampaignStartSample {
   /** Renderer resident memory before the confirm click and after sprites settled (MB; null if unknown). */
   rendererRssMbBefore: number | null;
   rendererRssMbAfter: number | null;
+  rendererPid: number | null;
 }
 
 const round = (value: number) => Math.round(value * 100) / 100;
@@ -230,7 +231,7 @@ async function metrics(cdp: CDPSession): Promise<Record<string, number>> {
  * Null when the browser pid is unknown or `ps` is unavailable. Images decode in the renderer, so this
  * is where sprite volume shows up (the JS heap barely moves).
  */
-export function rendererRssMb(browserPid: number | undefined): number | null {
+export function rendererProcesses(browserPid: number | undefined): Array<{ pid: number; rssKb: number }> | null {
   if (!browserPid) return null;
   try {
     const rows = execFileSync('ps', ['-axo', 'pid=,ppid=,rss=,command='], { encoding: 'utf8' })
@@ -246,12 +247,23 @@ export function rendererRssMb(browserPid: number | undefined): number | null {
         if (!descendants.has(row.pid) && descendants.has(row.ppid)) { descendants.add(row.pid); grew = true; }
       }
     }
-    const kb = rows.filter(row => descendants.has(row.pid) && row.command.includes('--type=renderer'))
-      .reduce((sum, row) => sum + row.rssKb, 0);
-    return Math.round(kb / 1024);
+    return rows.filter(row => descendants.has(row.pid) && row.command.includes('--type=renderer'));
   } catch {
     return null;
   }
+}
+
+/** MiB for one identified renderer, or the explicit aggregate when no PID argument is supplied. */
+export function rendererRssFromProcesses(rows: Array<{ pid: number; rssKb: number }>, rendererPid?: number | null): number | null {
+  if (rendererPid === null) return null;
+  const selected = rendererPid === undefined ? rows : rows.filter(row => row.pid === rendererPid);
+  if (selected.length === 0) return null;
+  return Math.round(selected.reduce((sum, row) => sum + row.rssKb, 0) / 1024);
+}
+
+export function rendererRssMb(browserPid: number | undefined, rendererPid?: number | null): number | null {
+  const rows = rendererProcesses(browserPid);
+  return rows ? rendererRssFromProcesses(rows, rendererPid) : null;
 }
 
 export interface RunOptions {
@@ -277,6 +289,7 @@ export async function runCampaignStartSample(options: RunOptions): Promise<{
 }> {
   const { browser, baseUrl, reducedMotion, cache } = options;
   const context = options.warmContext ?? await browser.newContext({ reducedMotion, baseURL: baseUrl });
+  const previousRenderers = new Set(rendererProcesses(process.pid)?.map(row => row.pid));
   const page = await context.newPage();
   let watchdog: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -308,7 +321,10 @@ export async function runCampaignStartSample(options: RunOptions): Promise<{
       await cdp.send('Profiler.start');
     }
     step('profiler-start');
-    const rssBefore = rendererRssMb(process.pid);
+    const rows = rendererProcesses(process.pid) ?? [];
+    const candidates = rows.filter(row => !previousRenderers.has(row.pid));
+    const rendererPid = candidates.length === 1 ? candidates[0]!.pid : rows.length === 1 ? rows[0]!.pid : null;
+    const rssBefore = rendererRssMb(process.pid, rendererPid);
     const before = await metrics(cdp);
     step('click-confirm');
     await page.getByRole('button', { name: 'Continue Campaign', exact: true }).click();
@@ -372,7 +388,8 @@ export async function runCampaignStartSample(options: RunOptions): Promise<{
       blobImages: recorder.blob.created,
       paintsToPlayable: recorder.paint.count,
       rendererRssMbBefore: rssBefore,
-      rendererRssMbAfter: rendererRssMb(process.pid),
+      rendererRssMbAfter: rendererRssMb(process.pid, rendererPid),
+      rendererPid,
     };
     await cdp.detach();
     return { sample, profile: profileSummary };

@@ -115,3 +115,58 @@ describe('AudioLoader.preload()', () => {
     expect(loader.isCached('audio/era/era2-base.ogg')).toBe(true);
   });
 });
+
+describe('#1439 decoded residency', () => {
+  it('evicts by bytes and refreshes least-recently-used order on a hit', async () => {
+    mockFetchOk();
+    const ctx = new MockAudioContext();
+    vi.spyOn(ctx, 'decodeAudioData').mockImplementation(async () => ctx.createBuffer(1, 2, 44100));
+    const loader = new AudioLoader(ctx as unknown as AudioContext, 16);
+    await loader.get('a');
+    await loader.get('b');
+    await loader.get('a');
+    await loader.get('c');
+    expect(loader.isCached('a')).toBe(true);
+    expect(loader.isCached('b')).toBe(false);
+    expect(loader.isCached('c')).toBe(true);
+  });
+
+  it('does not permanently cache a track larger than the byte budget', async () => {
+    mockFetchOk();
+    const ctx = new MockAudioContext();
+    const loader = new AudioLoader(ctx as unknown as AudioContext, 8);
+    expect(await loader.get('large')).toBeTruthy();
+    expect(loader.isCached('large')).toBe(false);
+  });
+
+  it('clear prevents an old decode from repopulating or removing a newer inflight request', async () => {
+    mockFetchOk();
+    const { loader, ctx } = makeLoader();
+    const resolvers: Array<(buffer: AudioBuffer) => void> = [];
+    vi.spyOn(ctx, 'decodeAudioData').mockImplementation(() => new Promise(resolve => resolvers.push(resolve)));
+    const first = loader.get('a');
+    await vi.waitFor(() => expect(resolvers).toHaveLength(1));
+    loader.clear();
+    const second = loader.get('a');
+    await vi.waitFor(() => expect(resolvers).toHaveLength(2));
+    resolvers[0]!(ctx.createBuffer(1, 2, 44100));
+    await first;
+    expect(loader.isCached('a')).toBe(false);
+    expect(loader.get('a')).toBe(second);
+    resolvers[1]!(ctx.createBuffer(1, 3, 44100));
+    await second;
+    expect(loader.isCached('a')).toBe(true);
+  });
+
+  it('fetches the offline catalog without decoding or retaining PCM', async () => {
+    mockFetchOk();
+    const { loader, ctx } = makeLoader();
+    const decode = vi.spyOn(ctx, 'decodeAudioData');
+    await loader.prefetch(['a', 'b', 'a']);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(decode).not.toHaveBeenCalled();
+    expect(loader.isCached('a')).toBe(false);
+    await loader.get('a');
+    expect(decode).toHaveBeenCalledTimes(1);
+  });
+});

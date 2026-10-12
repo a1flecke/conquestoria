@@ -2,7 +2,7 @@ import type { EventBus } from '../core/event-bus';
 import type { GameState } from '../core/types';
 import { AudioLoader } from './audio-loader';
 import { AudioMixer } from './audio-mixer';
-import { MusicDirector } from './music-director';
+import { MusicDirector, GAME_END_FADE_MS } from './music-director';
 import { worldAgeFromNumber } from '@/systems/era-types';
 import { NaturalWonderAudioDirector, type NaturalWonderAmbientStopReason } from './natural-wonder-audio-director';
 import { getFamilyForCiv } from './civ-audio-family';
@@ -35,7 +35,10 @@ export class AudioSystem {
   private gestureResumeHandler: (() => void) | null = null;
   private isPresentationSuppressed: () => boolean = () => false;
   private loopLoadRequestId = 0;
+  private baseTrack: { file: string; buffer: AudioBuffer } | null = null;
+  private accentTrack: { file: string; buffer: AudioBuffer } | null = null;
   private strategicWarningAudioKeys = new Set<string>();
+  private unrouteSfx: (() => void) | null = null;
 
   constructor(private readonly ctx: AudioContext) {
     this.loader = new AudioLoader(ctx);
@@ -90,21 +93,18 @@ export class AudioSystem {
     this.pirateAudioDirector.start(bus);
     this.religionAudioDirector.start(bus);
     this.networkAudioDirector.start(bus);
-    routeSfxComponents(this.mixer, this.loader, () => this.isPresentationSuppressed());
+    this.unrouteSfx = routeSfxComponents(this.mixer, this.loader, () => this.isPresentationSuppressed());
     this.armIosResume();
     this.resumeAndDisarmGestureOnSuccess();
 
     void this.preloadForEra(state.era, this.currentCivType);
     void this.preloadSfx();
+    this.initializeDirector(state, 0);
 
     // Restore correct snapshot state machine when resuming a saved game mid-era.
     // Guard on era only, not musicEnabled — director state must be correct even when muted.
     if (state.era > 1) {
       this.director.handleEraAdvanced({ era: worldAgeFromNumber(state.era), civType: this.currentCivType });
-    } else {
-      // Era-1 new game: delegate to director so intendedSnapshot stays in sync.
-      // initPeaceSnapshot is synchronous and idempotent — safe before preloadForEra resolves.
-      this.director.initPeaceSnapshot();
     }
   }
 
@@ -184,8 +184,15 @@ export class AudioSystem {
     this.naturalWonderDirector.stopAmbient('system-disposed');
     this.sfxDirector.dispose();
     this.pirateAudioDirector.dispose();
+    this.religionAudioDirector.dispose();
     this.networkAudioDirector.dispose();
+    this.director.dispose();
+    this.unrouteSfx?.();
+    this.unrouteSfx = null;
     this.mixer.dispose();
+    this.loader.clear();
+    this.baseTrack = null;
+    this.accentTrack = null;
     this.warCount = 0;
     this.currentPlayerId = '';
     this.currentCivType = '';
@@ -241,7 +248,12 @@ export class AudioSystem {
     );
     this.naturalWonderDirector.stopAmbient('player-changed');
     this.pirateAudioDirector.stopAmbience('player-changed');
+    this.unrouteSfx = routeSfxComponents(this.mixer, this.loader, () => this.isPresentationSuppressed());
+    this.initializeDirector(state);
+    void this.preloadForEra(state.era, this.currentCivType);
+  }
 
+  private initializeDirector(state: GameState, fadeMs = 2000): void {
     const civ = state.civilizations[this.currentPlayerId];
     this.warCount = civ?.diplomacy?.atWarWith?.length ?? 0;
     const unrestCityCount = Object.values(state.cities ?? {})
@@ -255,9 +267,8 @@ export class AudioSystem {
       unrestCityCount,
       nearDefeat: civ?.nearDefeat ?? false,
       inBeastTerritory: false,
-    });
-    this.director.setCrisisActiveForCurrentPlayer(this.hasActiveCrisisFor(this.currentPlayerId, state));
-    void this.preloadForEra(state.era, this.currentCivType);
+    }, fadeMs);
+    this.director.setCrisisActiveForCurrentPlayer(this.hasActiveCrisisFor(this.currentPlayerId, state), fadeMs);
   }
 
   private wireEvents(sourceBus: EventBus): void {
@@ -376,7 +387,14 @@ export class AudioSystem {
       bus.on('game:over', p => {
         const outcome = p.winnerId === this.currentPlayerId ? 'victory' : 'defeat';
         this.naturalWonderDirector.stopAmbient('game-ended');
-        void this.director.handleGameEnded({ outcome });
+        const requestId = ++this.loopLoadRequestId;
+        void this.director.handleGameEnded({ outcome }).then(() => {
+          if (requestId !== this.loopLoadRequestId) return;
+          this.baseTrack = null;
+          this.accentTrack = null;
+          this.mixer.setBusSource('era', null, false, null, GAME_END_FADE_MS);
+          this.mixer.setBusSource('accent', null, false, null, GAME_END_FADE_MS);
+        });
       }),
 
       bus.on('tech:completed', p => {
@@ -515,7 +533,7 @@ export class AudioSystem {
   }
 
   private preloadSfx(): Promise<void> {
-    return this.loader.preload(allSfxEntries().map(e => e.file));
+    return this.loader.prefetch(allSfxEntries().map(e => e.file));
   }
 
   private async preloadForEra(era: number, civType: string): Promise<void> {
@@ -524,20 +542,24 @@ export class AudioSystem {
     const family = getFamilyForCiv(civType);
 
     const baseEntry   = ERA_BASE[eraId];
-    const warEntry    = WAR_LAYER[eraId];
     const accentEntry = ACCENT[family];
+    // Preserve offline availability of war music without decoding an inaudible loop.
+    void this.loader.prefetch([WAR_LAYER[eraId].file]);
 
-    const [baseBuffer, warBuffer, accentBuffer] = await Promise.all([
-      this.loader.get(baseEntry.file),
-      this.loader.get(warEntry.file),
-      this.loader.get(accentEntry.file),
+    const [baseBuffer, accentBuffer] = await Promise.all([
+      this.baseTrack?.file === baseEntry.file ? this.baseTrack.buffer : this.loader.get(baseEntry.file),
+      this.accentTrack?.file === accentEntry.file ? this.accentTrack.buffer : this.loader.get(accentEntry.file),
     ]);
     if (requestId !== this.loopLoadRequestId) return;
 
-    // Wire all three loop buses — the snapshot (peace/at-war/silent) controls which
-    // are audible; the adaptive (war) bus runs silently in peace and fades up on war.
-    this.mixer.setBusSource('era',      baseBuffer,   true, baseEntry.loop,   500);
-    this.mixer.setBusSource('adaptive', warBuffer,    true, warEntry.loop,     500);
-    this.mixer.setBusSource('accent',   accentBuffer, true, accentEntry.loop,  500);
+    // Own only the active long tracks. The director alone owns adaptive layers.
+    if (this.baseTrack?.file !== baseEntry.file) {
+      this.baseTrack = { file: baseEntry.file, buffer: baseBuffer };
+      this.mixer.setBusSource('era', baseBuffer, true, baseEntry.loop, 500);
+    }
+    if (this.accentTrack?.file !== accentEntry.file) {
+      this.accentTrack = { file: accentEntry.file, buffer: accentBuffer };
+      this.mixer.setBusSource('accent', accentBuffer, true, accentEntry.loop, 500);
+    }
   }
 }

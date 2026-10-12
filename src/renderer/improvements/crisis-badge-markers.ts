@@ -1,3 +1,4 @@
+import { loadStaticSvgImage } from '@/renderer/static-svg-image';
 // Map badges marking a city under an active world-pressure crisis (#618, builds on #594 MR7's
 // famine badge). Rendered directly on the hex map canvas by drawCityWorldPressureBadgePass —
 // no faction palette, no animation, viewBox 0 0 48 48, same dark disc as every city badge.
@@ -59,14 +60,9 @@ export const CRISIS_BADGE_SVG: Record<CrisisArchetype, string> = {
 const cachedImages = new Map<CrisisArchetype, HTMLImageElement>();
 
 async function preloadOne(archetype: CrisisArchetype): Promise<void> {
-  const blob = new Blob([CRISIS_BADGE_SVG[archetype]], { type: 'image/svg+xml' });
-  const url = URL.createObjectURL(blob);
-  await new Promise<void>((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => { URL.revokeObjectURL(url); cachedImages.set(archetype, img); notifyCanvasAssetReady(); resolve(); };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(); };
-    img.src = url;
-  });
+  const img = await loadStaticSvgImage(CRISIS_BADGE_SVG[archetype]);
+  cachedImages.set(archetype, img);
+  notifyCanvasAssetReady();
 }
 
 /** Rasterise every archetype's badge once, up front (never per frame). One failure does not block the rest. */

@@ -88,6 +88,10 @@ export class MockBufferSourceNode {
     this.transcript.push({ time: this.context.currentTime, op: 'start', nodeId: this.id, args: [when ?? this.context.currentTime] });
   }
 
+  disconnect(): void {
+    this.transcript.push({ time: this.context.currentTime, op: 'disconnect', nodeId: this.id, args: [] });
+  }
+
   stop(when?: number): void {
     this.transcript.push({ time: this.context.currentTime, op: 'stop', nodeId: this.id, args: [when ?? this.context.currentTime] });
     // Trigger onended synchronously so playOneShot Promise resolves in tests

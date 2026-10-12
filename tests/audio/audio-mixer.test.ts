@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { MockAudioContext } from '../helpers/mock-audio-context';
 import { AudioMixer, type SnapshotId } from '../../src/audio/audio-mixer';
 
@@ -15,6 +15,27 @@ function makeBuf(ctx: MockAudioContext) {
 }
 
 describe('AudioMixer construction', () => {
+  it('dispose releases every source even when one stop throws, including a fading source', () => {
+    const ctx = makeCtx();
+    const mixer = makeMixer(ctx);
+    const sources: ReturnType<MockAudioContext['createBufferSource']>[] = [];
+    const create = ctx.createBufferSource.bind(ctx);
+    vi.spyOn(ctx, 'createBufferSource').mockImplementation(() => {
+      const source = create();
+      sources.push(source);
+      return source;
+    });
+    mixer.setBusSource('era', makeBuf(ctx), true, null, 1000);
+    vi.spyOn(sources[0]!, 'stop').mockImplementation(() => {});
+    mixer.setBusSource('era', makeBuf(ctx), true, null, 1000);
+    mixer.setBusSource('accent', makeBuf(ctx), true, null, 0);
+    vi.spyOn(sources[1]!, 'stop').mockImplementation(() => { throw new Error('Already ended'); });
+    mixer.dispose();
+    expect(sources.every(source => source.buffer === null)).toBe(true);
+    for (const source of sources) {
+      expect(ctx.opsOf('disconnect').some(e => e.nodeId === source.id)).toBe(true);
+    }
+  });
   it('creates at least 9 GainNodes (4 bus snapshot gains + sfx + ambience + masterGain + musicLayerGain + stingerMasterGain)', () => {
     const ctx = makeCtx();
     makeMixer(ctx);

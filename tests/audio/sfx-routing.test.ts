@@ -4,6 +4,19 @@ import type { AudioMixer } from '@/audio/audio-mixer';
 import { routeSfxComponents, SFX } from '@/audio/sfx';
 
 describe('legacy SFX presentation routing', () => {
+  it('does not play an old transport decode through a newly routed mixer', async () => {
+    let finish!: (buffer: AudioBuffer) => void;
+    const loader = { get: vi.fn(() => new Promise<AudioBuffer>(resolve => { finish = resolve; })) } as unknown as AudioLoader;
+    const oldMixer = { playOneShot: vi.fn() } as unknown as AudioMixer;
+    const newMixer = { playOneShot: vi.fn() } as unknown as AudioMixer;
+    routeSfxComponents(oldMixer, loader);
+    SFX.transportLoad();
+    routeSfxComponents(newMixer, loader);
+    finish({} as AudioBuffer);
+    await Promise.resolve();
+    expect(oldMixer.playOneShot).not.toHaveBeenCalled();
+    expect(newMixer.playOneShot).not.toHaveBeenCalled();
+  });
   it('exposes dedicated cues for air operations', () => {
     expect(SFX.airRebase).toBeTypeOf('function');
     expect(SFX.airScramble).toBeTypeOf('function');

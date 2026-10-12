@@ -46,6 +46,46 @@ describe('MusicDirector', () => {
 
   // --- handleEraAdvanced ---
 
+  it('does not resurrect a stinger after the player changes during loading', async () => {
+    let finish!: (buffer: AudioBuffer) => void;
+    vi.mocked(loader.get).mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
+    const pending = director.playStingerWithDuck('old-campaign.ogg');
+    director.handlePlayerChanged({ civId: 'egypt', civType: 'egypt', era: worldAgeFromNumber(1), atWar: false, unrestCityCount: 0, nearDefeat: false, inBeastTerritory: false });
+    vi.mocked(mixer.setSnapshot).mockClear();
+    finish(fakeBuffer);
+    await pending;
+    expect(mixer.playOneShot).not.toHaveBeenCalled();
+    expect(mixer.setSnapshot).not.toHaveBeenCalled();
+  });
+
+  it('does not reload an unchanged adaptive layer for repeated crisis state updates', async () => {
+    director.setCrisisActiveForCurrentPlayer(true);
+    await flushPromises();
+    vi.mocked(loader.get).mockClear();
+    vi.mocked(mixer.setBusSource).mockClear();
+    director.setCrisisActiveForCurrentPlayer(true);
+    await flushPromises();
+    expect(loader.get).not.toHaveBeenCalled();
+    expect(mixer.setBusSource).not.toHaveBeenCalled();
+  });
+
+  it('releases the war layer after the peace stinger completes', async () => {
+    director.handleWarDeclared({ aggressor: 'rome', defender: 'egypt', opponentKind: 'major' });
+    await flushPromises();
+    vi.mocked(mixer.setBusSource).mockClear();
+    director.handlePeaceSigned({ remainingWars: 0 });
+    await director.currentStingerPromise;
+    expect(mixer.setBusSource).toHaveBeenCalledWith('adaptive', null, false, null, expect.any(Number));
+  });
+
+  it('releases an installed war layer when handing off to a player at peace', async () => {
+    director.handleWarDeclared({ aggressor: 'rome', defender: 'egypt', opponentKind: 'major' });
+    await flushPromises();
+    vi.mocked(mixer.setBusSource).mockClear();
+    director.handlePlayerChanged({ civId: 'gaul', civType: 'gaul', era: worldAgeFromNumber(1), atWar: false, unrestCityCount: 0, nearDefeat: false, inBeastTerritory: false });
+    expect(mixer.setBusSource).toHaveBeenCalledWith('adaptive', null, false, null, expect.any(Number));
+  });
+
   it('transitions to peace snapshot when era advances from silent', () => {
     director.handleEraAdvanced({ era: worldAgeFromNumber(1), civType: 'rome' });
     expect(mixer.setSnapshot).toHaveBeenCalledWith('peace', expect.any(Number));
@@ -222,6 +262,13 @@ describe('MusicDirector', () => {
   });
 
   // --- handleGameEnded ---
+  it('releases the adaptive layer after the game-over stinger', async () => {
+    director.handleWarDeclared({ aggressor: 'rome', defender: 'egypt', opponentKind: 'major' });
+    await flushPromises();
+    vi.mocked(mixer.setBusSource).mockClear();
+    await director.handleGameEnded({ outcome: 'victory' });
+    expect(mixer.setBusSource).toHaveBeenCalledWith('adaptive', null, false, null, 1500);
+  });
 
   it('transitions to silent on game end after stinger', async () => {
     director.handleEraAdvanced({ era: worldAgeFromNumber(1), civType: 'rome' });

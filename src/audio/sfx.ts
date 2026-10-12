@@ -7,6 +7,7 @@ let sfxDestination: AudioNode | null = null;
 let _mixer: AudioMixer | null = null;
 let _loader: AudioLoader | null = null;
 let _isPresentationSuppressed: () => boolean = () => false;
+let routingGeneration = 0;
 
 export function routeSfxThrough(node: AudioNode): void {
   sfxDestination = node;
@@ -21,10 +22,34 @@ export function routeSfxComponents(
   mixer: AudioMixer,
   loader: AudioLoader,
   isPresentationSuppressed: () => boolean = () => false,
-): void {
+): () => void {
+  const generation = ++routingGeneration;
   _mixer = mixer;
   _loader = loader;
   _isPresentationSuppressed = isPresentationSuppressed;
+  return () => {
+    if (generation !== routingGeneration) return;
+    routingGeneration += 1;
+    _mixer = null;
+    _loader = null;
+    _isPresentationSuppressed = () => false;
+    if (sfxDestination === mixer.getSfxRoutingNode()) {
+      sfxDestination = null;
+      audioContext = null;
+    }
+  };
+}
+
+function playTransportFile(path: string): void {
+  const mixer = _mixer;
+  const loader = _loader;
+  const generation = routingGeneration;
+  if (!mixer || !loader) return;
+  void loader.get(path).then(buffer => {
+    if (generation === routingGeneration && !_isPresentationSuppressed()) {
+      return mixer.playOneShot('sfx', buffer);
+    }
+  });
 }
 
 function getContext(): AudioContext {
@@ -129,10 +154,7 @@ export const SFX = {
   transportLoad: () => {
     if (_isPresentationSuppressed()) return;
     if (_loader && _mixer) {
-      void _loader.get(TRANSPORT_SFX.load.file)
-        .then(buf => {
-          if (!_isPresentationSuppressed()) return _mixer!.playOneShot('sfx', buf);
-        });
+      playTransportFile(TRANSPORT_SFX.load.file);
     } else {
       playTone(330, 0.08, 0.12, 'triangle');
       setTimeout(() => playTone(440, 0.1, 0.12, 'triangle'), 80);
@@ -141,10 +163,7 @@ export const SFX = {
   transportUnload: () => {
     if (_isPresentationSuppressed()) return;
     if (_loader && _mixer) {
-      void _loader.get(TRANSPORT_SFX.unload.file)
-        .then(buf => {
-          if (!_isPresentationSuppressed()) return _mixer!.playOneShot('sfx', buf);
-        });
+      playTransportFile(TRANSPORT_SFX.unload.file);
     } else {
       playTone(440, 0.08, 0.12, 'triangle');
       setTimeout(() => playTone(330, 0.1, 0.12, 'triangle'), 80);
