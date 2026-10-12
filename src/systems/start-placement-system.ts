@@ -13,6 +13,7 @@ import {
   type GeographicMapScript,
 } from '@/systems/map-generator';
 import { isValidStartTile } from '@/systems/map-validation';
+import { createStartViabilityIndex } from '@/systems/start-viability';
 
 export interface StartAssignment {
   civilizationTypeId: string;
@@ -81,8 +82,12 @@ function candidateQuality(map: GameMap, coord: HexCoord): number {
 }
 
 function collectCandidates(input: StartPlacementInput): Candidate[] {
+  // Same minimum viable-start contract as `findStartPositions` (#1453). Exact
+  // historical anchors are not candidates and are deliberately left alone.
+  const viability = createStartViabilityIndex(input.map);
   const valid = Object.values(input.map.tiles)
     .filter(tile => isValidStartTile(tile))
+    .filter(tile => viability.isViable(tile.coord))
     .filter(tile => !input.candidateHexes || input.candidateHexes.has(hexKey(tile.coord)))
     .map(tile => ({
       coord: tile.coord,

@@ -142,6 +142,25 @@ lastKnownHeadquarters` is optional for exactly this reason.
   to `normalizePirateIntel` must accept every shape `refreshPirateIntel` can actually
   produce, not just the shape that happens to appear in whatever fixture wrote the check.
 
+## Minimum viable start (#1453)
+
+Every major civilization's start must have a credible, legal path toward a second city. The one definition is
+`src/systems/start-viability.ts` (`createStartViabilityIndex(map).isViable(coord)`): a start is viable when its
+connected landmass (any non-water tile, wrapping across the seam) holds a legal city-centre site
+(`isCityCenterTerrain`) at `>= MIN_CITY_CENTER_DISTANCE` from it, **or** a city there is coastal and a *different*
+landmass with such a site borders the same body of water. Landmass tile count is deliberately not the test, and the
+contract promises nothing about equal terrain, resources, ship tech or travel time.
+
+- **Both placers consume it:** `findStartPositions` (procedural, balanced, single-continent) filters its candidate
+  pool, and `placeCivilizationStarts` (geographic balanced/historical fallbacks) filters `collectCandidates`. A new
+  placement path must call the same index; do not re-derive "is this island big enough" anywhere.
+- **No silent fallback:** if too few viable, separated starts exist, the existing explicit failure fires
+  (`Could not place ...` / `insufficient-separated-sites`). Exact historical anchors are never filtered.
+- Built once per map from flat typed arrays; the rule imports the canonical founding terrain rule and separation
+  constant, so it cannot drift from `canFoundCityAt`. Pinned by `tests/systems/start-viability.test.ts`, including the
+  original unrecoverable `lh-late-era-medium` start. The `lh-1107-search-0` long-horizon fixture is a separate,
+  intentionally kept #1107 scenario.
+
 ## State Mutations Must Match Events
 - If you emit an event (e.g., `city:unit-trained`), the state mutation (creating the unit, adding to arrays) MUST happen in the same block
 - Events are notifications for UI/logging — they do NOT trigger state changes

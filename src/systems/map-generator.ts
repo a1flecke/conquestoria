@@ -13,6 +13,7 @@ import { LEGENDARY_WONDER_DEFINITIONS } from './legendary-wonder-definitions';
 // Geo data imports — populated by `yarn generate-maps`. Placeholder empty exports are safe.
 import { EARTH_START_POSITIONS } from './earth-map-data';
 import { isValidStartTile } from './map-validation';
+import { createStartViabilityIndex } from './start-viability';
 import { OLD_WORLD_START_POSITIONS } from './old-world-map-data';
 import { NEW_WORLD_START_POSITIONS } from './new-world-map-data';
 
@@ -467,12 +468,18 @@ export function findStartPositions(
     }
   }
 
-  // Collect candidates for greedy fallback.
+  // Collect candidates for greedy fallback. Every candidate must also satisfy
+  // the minimum viable-start contract (#1453, `start-viability.ts`): a start
+  // with no legal second-city site and no sea route is never offered, in the
+  // strict pass or the relaxed one. If that leaves too few separated starts the
+  // existing explicit placement failure below fires -- never an invalid start.
+  const viability = createStartViabilityIndex(map);
   const allCandidates: HexCoord[] = [];
   for (const tile of Object.values(map.tiles)) {
     if (!isLandTerrain(tile.terrain)) continue;
     if (tile.coord.r <= 3 || tile.coord.r >= map.height - 4) continue;
     if (candidateHexes && !candidateHexes.has(hexKey(tile.coord))) continue;
+    if (!viability.isViable(tile.coord)) continue;
     const nearby = getCandidateNeighborhood(map, tile.coord, 2);
     const landCount = nearby.filter(n => {
       const t = map.tiles[hexKey(n)];
@@ -486,6 +493,7 @@ export function findStartPositions(
     for (const tile of Object.values(map.tiles)) {
       if (!isLandTerrain(tile.terrain)) continue;
       if (candidateHexes && !candidateHexes.has(hexKey(tile.coord))) continue;
+      if (!viability.isViable(tile.coord)) continue;
       allCandidates.push(tile.coord);
     }
   }
