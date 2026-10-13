@@ -1,4 +1,5 @@
 import { createGameButton } from '@/ui/ui-kit';
+import { markModal } from '@/ui/modal-contract';
 
 export interface RequiredChoiceConfig {
   researchChoices: Array<{ techId: string; label: string; turns: number }>;
@@ -96,6 +97,8 @@ export function createRequiredChoicePanel(
   }
 
   panel.appendChild(citySection);
+  // A decision the player must make: focus enters, Tab stays inside, Escape does not dismiss it.
+  markModal(panel);
   container.appendChild(panel);
   return panel;
 }

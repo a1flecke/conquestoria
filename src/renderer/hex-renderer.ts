@@ -611,6 +611,32 @@ export function drawHexHighlight(
   }
 }
 
+/** Keyboard map cursor (#1459): high-contrast double outline, no fill so the tile stays readable. */
+export function drawKeyboardCursor(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number): void {
+  const trace = (): void => {
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const corner = HEX_CORNERS_POINTY[i];
+      const x = cx + corner.dx * size * 0.94;
+      const y = cy + corner.dy * size * 0.94;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+  };
+  ctx.save();
+  ctx.lineJoin = 'round';
+  trace();
+  ctx.strokeStyle = '#101018';
+  ctx.lineWidth = 7;
+  ctx.stroke();
+  trace();
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 3.5;
+  ctx.stroke();
+  ctx.restore();
+}
+
 export function drawMinorCivTerritory(
   ctx: CanvasRenderingContext2D,
   center: HexCoord,

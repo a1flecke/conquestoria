@@ -1,3 +1,5 @@
+import { markModal } from '@/ui/modal-contract';
+
 export interface UnitDeleteConfirmationConfig {
   unitName: string;
   /** Overrides the default `Delete ${unitName}?` title — use for non-destructive but
@@ -58,21 +60,26 @@ export function createUnitDeleteConfirmationPanel(
 
   const buttons = document.createElement('div');
   buttons.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;';
+  let cancelButton: HTMLButtonElement | undefined;
   if (!config.hideCancel) {
-    buttons.appendChild(createButton(
+    cancelButton = createButton(
       'Cancel',
       'padding:9px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:white;cursor:pointer;',
       config.onCancel,
-    ));
+    );
+    buttons.appendChild(cancelButton);
   }
-  buttons.appendChild(createButton(
+  const confirmButton = createButton(
     config.confirmLabel ?? 'Delete Unit',
     `padding:9px 14px;border-radius:8px;border:0;background:${isNeutral ? '#7c5cbf' : '#b91c1c'};color:white;cursor:pointer;font-weight:bold;`,
     config.onConfirm,
-  ));
+  );
+  buttons.appendChild(confirmButton);
   dialog.appendChild(buttons);
 
   panel.appendChild(dialog);
+  // The safe choice takes focus, so a stray Enter cancels instead of deleting.
+  markModal(panel, { cancel: cancelButton, initialFocus: cancelButton ?? confirmButton });
   container.appendChild(panel);
   return panel;
 }

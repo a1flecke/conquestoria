@@ -51,3 +51,18 @@ paths:
   recalculate the coordinate, and try again. Unknown interceptors fail with a diagnostic.
 - Do not add unconditional retries that can repeat a completed mutation. Check the postcondition
   before every retry.
+
+## Keyboard and focus: declare, don't re-implement (#1459)
+
+- A registry panel or blocking decision dialog does not write its own focus entry, Tab trap, focus
+  restore or Escape handling. `installPanelFocusManager` (`src/app/panel-focus-manager.ts`) applies one
+  contract to every `PANEL_REGISTRY` panel; a new panel is covered by adding its registry entry.
+- A new blocking decision dialog opts in with `markModal(root, { cancel, initialFocus })`
+  (`src/ui/modal-contract.ts`): `initialFocus` is the **safe** choice (never the destructive
+  confirm), `cancel` is what Escape activates, and a decision that must be made (required choice)
+  declares no `cancel`. `tests/ui/modal-contract.test.ts` lists the current dialogs.
+- Keyboard shortcuts must stay inert inside `[role="dialog"]`/`[aria-modal]` and text fields.
+- Map keyboard access goes through `installKeyboardMapCursor` and ends in the same tap handler a
+  pointer uses, so legality is shared. It describes only what the viewer's own visibility allows
+  (`resolveTilePresentationForViewer`, `visibleUnitEntriesAtKey`) and is cleared on a viewer change.
+- Supported keys and honest limits: `docs/keyboard-and-focus-acceptance.md`.

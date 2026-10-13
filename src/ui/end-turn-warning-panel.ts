@@ -1,3 +1,5 @@
+import { markModal } from '@/ui/modal-contract';
+
 export interface EndTurnWarningUnit {
   unitId: string;
   label: string;
@@ -60,16 +62,18 @@ export function createEndTurnWarningPanel(
 
   const buttons = document.createElement('div');
   buttons.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;';
-  buttons.appendChild(createButton(
+  const cancelButton = createButton(
     'Cancel',
     'padding:9px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:white;cursor:pointer;',
     config.onCancel,
-  ));
-  buttons.appendChild(createButton(
+  );
+  buttons.appendChild(cancelButton);
+  const goToUnitButton = createButton(
     'Go to Unit',
     'padding:9px 14px;border-radius:8px;border:1px solid rgba(232,193,112,0.6);background:rgba(232,193,112,0.12);color:#f8e5b8;cursor:pointer;font-weight:bold;',
     () => config.onGoToUnit(config.unmovedUnits[0].unitId),
-  ));
+  );
+  buttons.appendChild(goToUnitButton);
   buttons.appendChild(createButton(
     'End Turn Anyway',
     'padding:9px 14px;border-radius:8px;border:0;background:#b45309;color:white;cursor:pointer;font-weight:bold;',
@@ -78,6 +82,7 @@ export function createEndTurnWarningPanel(
   dialog.appendChild(buttons);
 
   panel.appendChild(dialog);
+  markModal(panel, { cancel: cancelButton, initialFocus: goToUnitButton });
   container.appendChild(panel);
   return panel;
 }

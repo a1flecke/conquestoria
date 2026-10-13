@@ -49,6 +49,7 @@ import { registerAllPresentation, type PresentationContext } from '@/presentatio
 import { registerMinorCivNotificationListeners } from '@/ui/minor-civ-notification-listeners';
 import { createPanelHost, type PanelHost } from '@/app/panel-host';
 import { createPanelRouter, type PanelRouter } from '@/app/panel-router';
+import { installPanelFocusManager } from '@/app/panel-focus-manager';
 import type { PanelContext, PanelRegistry } from '@/app/panel-registry';
 import {
   getCurrentCiv,
@@ -659,6 +660,8 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
   } satisfies PanelRegistry;
 
   router = createPanelRouter({ host, registry: panelRegistry, context: panelContext });
+  // #1459: one focus-entry / focus-restore / Escape contract for every registry panel.
+  installPanelFocusManager({ layer: uiLayer, registry: panelRegistry, isInteractionBlocked: () => host.isInteractionBlocked() });
 
   if (playtestRecorder) {
     // The only visible trace of the recorder; the file goes through the platform's local save path.
