@@ -110,6 +110,9 @@ test('hot-seat handoff removes the first player inbox and lets the recipient acc
   await openPrimaryPanel(page, 'Diplo', '#diplomacy-panel');
   await page.getByRole('button', {name: 'Offer Vassalage: Rome', exact: true}).click();
   await expect(page.locator('#diplomacy-panel')).toContainText('Awaiting');
+  // The open dialog owns the keyboard (#1459), so E is inert while focus is inside it. Hand focus back
+  // to the map; the panel stays open, which is what this test needs to see removed at handoff.
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await page.keyboard.press('e');
   await expect(page.locator('#turn-handoff')).toBeVisible();
   await expect(page.locator('#diplomacy-panel')).toHaveCount(0);
