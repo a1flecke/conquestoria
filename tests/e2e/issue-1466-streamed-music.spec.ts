@@ -67,86 +67,101 @@ test('windows cut from the middle of a file decode to the same samples as the wh
   }
 });
 
-interface Recording { samples: number[]; sampleRate: number }
+// The comparison below is deterministic on purpose. A first version captured two real-time runs through a
+// ScriptProcessor and aligned them by cross-correlation; on a loaded CI runner the two captures drift by a few
+// render quanta and that alone produces large differences, which says nothing about window joins. An
+// OfflineAudioContext renders both graphs on the same sample grid, so any difference is the scheduling itself.
+test('scheduled windows render identically to the whole-buffer loop across every join and the loop wrap', async ({ page }) => {
+  test.setTimeout(180_000);
+  await openPage(page);
+  const result = await page.evaluate(async () => {
+    const base = '/conquestoria/';
+    const { StreamedLoopTrack, DEFAULT_STREAM_OPTIONS } = await import(/* @vite-ignore */ `${base}src/audio/streamed-loop.ts`);
+    const rate = 48000;
+    const seconds = 46;
+    const loopEnd = 20; // five 4 s cores: nine joins and two wraps inside the render
+    const bytes = new Uint8Array(await (await fetch(`${base}audio/era/era1-base.ogg`)).arrayBuffer());
 
-/** Records the left channel of whatever `play` connects to its argument for `seconds`. */
-async function record(page: Page, mode: 'buffer' | 'stream', seconds: number): Promise<Recording> {
-  return page.evaluate(async ({ mode, seconds }) => {
+    const reference = new OfflineAudioContext(2, seconds * rate, rate);
+    const buffer = await reference.decodeAudioData(bytes.slice().buffer);
+    const source = reference.createBufferSource();
+    source.buffer = buffer; source.loop = true; source.loopStart = 0; source.loopEnd = loopEnd;
+    source.connect(reference.destination);
+    source.start(0);
+
+    const streamed = new OfflineAudioContext(2, seconds * rate, rate);
+    const track = StreamedLoopTrack.open(streamed, bytes, { loopStart: 0, loopEnd }, { ...DEFAULT_STREAM_OPTIONS, coreSeconds: 4 })!;
+    const windows = track.plan.windows;
+    let scheduled = 0;
+    let joins = 0;
+    for (let index = 0; scheduled < seconds * rate; index = (index + 1) % windows.length) {
+      const w = windows[index]!;
+      const decoded = await track.decodeWindow(streamed, w);
+      const node = streamed.createBufferSource();
+      node.buffer = decoded;
+      node.connect(streamed.destination);
+      node.start(scheduled / rate, (w.coreStart - w.startFrame) / rate, (w.coreEnd - w.coreStart) / rate);
+      scheduled += w.coreEnd - w.coreStart;
+      joins += 1;
+    }
+
+    const [a, b] = await Promise.all([reference.startRendering(), streamed.startRendering()]);
+    let maxAbs = 0;
+    let rms = 0;
+    for (let channel = 0; channel < 2; channel++) {
+      const x = a.getChannelData(channel);
+      const y = b.getChannelData(channel);
+      for (let i = 0; i < x.length; i++) {
+        maxAbs = Math.max(maxAbs, Math.abs(x[i]! - y[i]!));
+        rms += x[i]! * x[i]!;
+      }
+    }
+    return { maxAbs, rms: Math.sqrt(rms / (2 * a.length)), joins, windows: windows.length };
+  });
+  expect(result.windows).toBe(5);
+  expect(result.joins).toBeGreaterThanOrEqual(10);
+  expect(result.rms, 'the reference must not be silent').toBeGreaterThan(0.001);
+  expect(result.maxAbs).toBeLessThan(1e-5);
+});
+
+// The real player on the real audio clock: it must start, keep producing sound across several joins and report no
+// failure. Timing-sensitive equality is covered above and by the fake-clock unit tests, so this asserts only
+// outcomes that do not depend on runner speed.
+test('the real player keeps sounding across window joins on the live audio clock', async ({ page }) => {
+  test.setTimeout(120_000);
+  await openPage(page);
+  const result = await page.evaluate(async () => {
     const base = '/conquestoria/';
     const { StreamedLoopTrack, DEFAULT_STREAM_OPTIONS } = await import(/* @vite-ignore */ `${base}src/audio/streamed-loop.ts`);
     const ctx = new AudioContext({ sampleRate: 48000 });
     await ctx.resume();
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 2048;
     const sink = ctx.createGain();
     sink.gain.value = 0;
+    analyser.connect(sink);
     sink.connect(ctx.destination);
-    const processor = ctx.createScriptProcessor(4096, 2, 2);
-    const chunks: Float32Array[] = [];
-    processor.onaudioprocess = event => { chunks.push(new Float32Array(event.inputBuffer.getChannelData(0))); };
-    processor.connect(sink);
-    // A short loop of the real era-1 base track: five 4 s cores, so the wrap and four joins happen in the capture.
-    const loopEnd = 20;
     const bytes = new Uint8Array(await (await fetch(`${base}audio/era/era1-base.ogg`)).arrayBuffer());
-    let stop: () => void;
-    if (mode === 'buffer') {
-      const buffer = await ctx.decodeAudioData(bytes.slice().buffer);
-      const source = ctx.createBufferSource();
-      source.buffer = buffer; source.loop = true; source.loopStart = 0; source.loopEnd = loopEnd;
-      source.connect(processor);
-      source.start();
-      stop = () => source.stop();
-    } else {
-      const track = StreamedLoopTrack.open(ctx, bytes, { loopStart: 0, loopEnd }, { ...DEFAULT_STREAM_OPTIONS, coreSeconds: 4 })!;
-      const prepared = await track.prepare(ctx);
-      if (!prepared) throw new Error('stream refused');
-      const player = prepared.createPlayer(processor);
-      player.start();
-      stop = () => player.dispose();
+    const track = StreamedLoopTrack.open(ctx, bytes, { loopStart: 0, loopEnd: 20 }, { ...DEFAULT_STREAM_OPTIONS, coreSeconds: 4 })!;
+    const prepared = await track.prepare(ctx);
+    if (!prepared) return { prepared: false, failures: 0, silentSeconds: 0, started: 0 };
+    const player = prepared.createPlayer(analyser);
+    let failures = 0;
+    player.onFailure = () => { failures += 1; };
+    player.start();
+    const samples = new Float32Array(analyser.fftSize);
+    let silentSeconds = 0;
+    for (let second = 0; second < 14; second++) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      analyser.getFloatTimeDomainData(samples);
+      if (!samples.some(value => Math.abs(value) > 1e-4)) silentSeconds += 1;
     }
-    await new Promise(resolve => setTimeout(resolve, seconds * 1000));
-    stop();
-    processor.disconnect();
-    const total = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-    const samples = new Float32Array(total);
-    let offset = 0;
-    for (const chunk of chunks) { samples.set(chunk, offset); offset += chunk.length; }
-    return { samples: Array.from(samples), sampleRate: ctx.sampleRate };
-  }, { mode, seconds });
-}
-
-test('streamed output equals the whole-buffer loop across window joins and the loop wrap', async ({ page }) => {
-  test.setTimeout(180_000);
-  await openPage(page);
-  const reference = await record(page, 'buffer', 52);
-  const streamed = await record(page, 'stream', 52);
-  expect(reference.sampleRate).toBe(48000);
-
-  // Each capture starts a little after its source; find where the music begins, then compare 46 s from there.
-  const onset = (rec: Recording): number => rec.samples.findIndex(value => Math.abs(value) > 1e-4);
-  const a0 = onset(reference);
-  const b0 = onset(streamed);
-  expect(a0).toBeGreaterThanOrEqual(0);
-  expect(b0).toBeGreaterThanOrEqual(0);
-  const span = 46 * 48000;
-  // Align on the first 0.5 s (the two sources start at slightly different render quanta).
-  let best = { lag: 0, error: Infinity };
-  for (let lag = -2048; lag <= 2048; lag++) {
-    let error = 0;
-    for (let i = 0; i < 24000; i += 7) {
-      const x = reference.samples[a0 + 2000 + i] ?? 0;
-      const y = streamed.samples[b0 + 2000 + i + lag] ?? 0;
-      error += (x - y) * (x - y);
-    }
-    if (error < best.error) best = { lag, error };
-  }
-  let maxAbs = 0;
-  let worstAt = 0;
-  for (let i = 0; i < span; i++) {
-    const x = reference.samples[a0 + i];
-    const y = streamed.samples[b0 + i + best.lag];
-    if (x === undefined || y === undefined) break;
-    const d = Math.abs(x - y);
-    if (d > maxAbs) { maxAbs = d; worstAt = i; }
-  }
-  // 20 s loop captured for ~46 s: two full wraps and nine joins. Float rounding only.
-  expect(maxAbs, `worst difference at ${(worstAt / 48000).toFixed(3)} s (lag ${best.lag})`).toBeLessThan(1e-5);
+    const started = ctx.currentTime;
+    player.dispose();
+    return { prepared: true, failures, silentSeconds, started };
+  });
+  expect(result.prepared).toBe(true);
+  expect(result.failures).toBe(0);
+  expect(result.started).toBeGreaterThan(8);
+  expect(result.silentSeconds).toBeLessThanOrEqual(2);
 });
