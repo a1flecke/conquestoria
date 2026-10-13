@@ -3,15 +3,20 @@ import type { Camera } from '@/renderer/camera';
 import {
   drawHexHighlight,
   drawHexMap,
+  drawRoads,
   getFortMarkerTierForPresentation,
   drawMinorCivTerritory,
   IMPROVEMENT_ICONS,
+  roadAmbientHalfWidth,
+  segmentIntersectsAmbientRegions,
+  tileMayTouchAmbientRegions,
 } from '@/renderer/hex-renderer';
+import { getRailSegmentImage } from '@/renderer/improvements/rail-segment-loader';
 import { beginPaintTracking, paintAmbientRegion, paintWasTimeVarying, type PaintBounds } from '@/renderer/paint-clock';
 import type { GameMap, HexTile, TerrainType, VisibilityMap } from '@/core/types';
 
 vi.mock('@/renderer/improvements/rail-segment-loader', () => ({
-  getRailSegmentImage: () => ({} as HTMLImageElement),
+  getRailSegmentImage: vi.fn(() => ({} as HTMLImageElement)),
 }));
 
 class MockCanvasContext {
@@ -955,6 +960,277 @@ describe('ambient-region terrain culling (#1439 phase 6)', () => {
     const region: PaintBounds[] = [{ x0: 45, y0: -6, x1: 60, y1: 6 }];
     const snapshot = region.map(bounds => ({ ...bounds }));
     drawHexMap(ctx, makeTiledMap([{ q: 0 }, { q: 2 }]), makeSizedCamera(), undefined, undefined, 'player', visibleMap('0,0', '2,0'), new Set(), new Set(), undefined, {}, region);
+    expect(region).toEqual(snapshot);
+  });
+});
+
+/**
+ * #1439 phase 7 clip-aware road/rail culling. An ambient-only paint clips the canvas to the animated
+ * region(s); a road/rail segment whose drawn footprint cannot touch any region can be skipped with no
+ * pixel difference. Unlike a terrain tile (a point footprint), a segment can cross a region with
+ * *both* endpoints outside it, so the cull is a conservative segment-vs-rect test, and the road
+ * enumeration skips a tile only when none of its (possibly wrapped) copies could reach a region.
+ * These tests pin the geometry contract, wrapping, fog, zoom, rail width/fallback and the full-paint
+ * path that must stay unchanged. (Rivers are measured negligible in the ambient fixture -- ~0.2 ms
+ * per idle second -- so this phase leaves their draw path untouched.)
+ */
+describe('ambient-region road culling (#1439 phase 7)', () => {
+  const HEX_SIZE = 10;
+  const ROAD_COLOR = '#8a6a3a';
+  // Centre of tile q on r=0 sits at q·√3·size (pointy-top hexes).
+  const centreX = (q: number, zoom = 1): number => q * Math.sqrt(3) * HEX_SIZE * zoom;
+
+  /** Records each stroked line segment and each drawImage, so a test can count what actually drew. */
+  class LineworkContext {
+    strokeCalls: string[] = [];
+    drawImageCalls = 0;
+    segments: Array<{ from: { x: number; y: number }; to: { x: number; y: number } }> = [];
+    strokeStyle = '';
+    lineWidth = 0;
+    lineCap: CanvasLineCap = 'butt';
+    private cursor: { x: number; y: number } | null = null;
+
+    save(): void {}
+    restore(): void {}
+    translate(): void {}
+    rotate(): void {}
+    beginPath(): void { this.cursor = null; }
+    moveTo(x: number, y: number): void { this.cursor = { x, y }; }
+    lineTo(x: number, y: number): void {
+      if (this.cursor) this.segments.push({ from: this.cursor, to: { x, y } });
+    }
+    stroke(): void { this.strokeCalls.push(this.strokeStyle); }
+    drawImage(): void { this.drawImageCalls += 1; }
+
+    roadStrokes(): number { return this.strokeCalls.filter(colour => colour === ROAD_COLOR).length; }
+  }
+
+  function asCtx(context: LineworkContext): CanvasRenderingContext2D {
+    return context as unknown as CanvasRenderingContext2D;
+  }
+
+  function makeCamera(zoom = 1): Camera {
+    return {
+      hexSize: HEX_SIZE,
+      zoom,
+      width: 0, // forces getHorizontalWrapRenderCoords to return the ±width copies deterministically
+      isHexVisible: () => true,
+      worldToScreen: (x: number, y: number) => ({ x, y }),
+    } as unknown as Camera;
+  }
+
+  interface TileSpec {
+    q: number;
+    r?: number;
+    hasRoad?: boolean;
+    owner?: string | null;
+    terrain?: TerrainType;
+  }
+
+  function makeLineworkMap(options: {
+    tiles: TileSpec[];
+    width?: number;
+    wrapsHorizontally?: boolean;
+  }): GameMap {
+    const tiles: Record<string, HexTile> = {};
+    for (const spec of options.tiles) {
+      const r = spec.r ?? 0;
+      tiles[`${spec.q},${r}`] = {
+        coord: { q: spec.q, r },
+        terrain: spec.terrain ?? 'grassland',
+        elevation: 'lowland',
+        movementCost: 1,
+        owner: spec.owner === undefined ? null : spec.owner,
+        improvement: 'none',
+        improvementTurnsLeft: 0,
+        resource: null,
+        hasRiver: false,
+        hasRoad: spec.hasRoad ?? false,
+        wonder: null,
+      } as unknown as HexTile;
+    }
+    return {
+      width: options.width ?? options.tiles.length,
+      height: 1,
+      wrapsHorizontally: options.wrapsHorizontally ?? false,
+      rivers: [],
+      tiles,
+    } as unknown as GameMap;
+  }
+
+  const roadTiles = (...qs: number[]): TileSpec[] => qs.map(q => ({ q, hasRoad: true }));
+
+  it('reports the conservative half-width from the widest stroke (the rail sprite)', () => {
+    // Rail images draw 8·zoom wide, wider than the 3·zoom road stroke; the margin covers caps,
+    // antialiasing and the clip's outward expansion.
+    expect(roadAmbientHalfWidth(1)).toBeGreaterThanOrEqual(4);
+    expect(roadAmbientHalfWidth(2)).toBe(roadAmbientHalfWidth(1) + 4);
+  });
+
+  it('intersects a region a segment crosses even when both endpoints are outside it', () => {
+    const region: PaintBounds[] = [{ x0: 6, y0: -6, x1: 12, y1: 6 }];
+    // Horizontal segment 0→20 passes through the region; neither endpoint is inside it.
+    expect(segmentIntersectsAmbientRegions({ x: 0, y: 0 }, { x: 20, y: 0 }, 0, region)).toBe(true);
+  });
+
+  it('rejects a segment entirely outside every region', () => {
+    const region: PaintBounds[] = [{ x0: 100, y0: -6, x1: 112, y1: 6 }];
+    expect(segmentIntersectsAmbientRegions({ x: 0, y: 0 }, { x: 20, y: 0 }, 0, region)).toBe(false);
+    // Separated on the y axis as well.
+    expect(segmentIntersectsAmbientRegions({ x: 6, y: 0 }, { x: 12, y: 0 }, 0, [{ x0: 6, y0: 100, x1: 12, y1: 112 }])).toBe(false);
+  });
+
+  it('keeps a segment whose stroke or rail width overlaps the region boundary', () => {
+    const region: PaintBounds[] = [{ x0: 11, y0: -1, x1: 13, y1: 1 }];
+    expect(segmentIntersectsAmbientRegions({ x: 0, y: 0 }, { x: 10, y: 0 }, 0, region)).toBe(false);
+    expect(segmentIntersectsAmbientRegions({ x: 0, y: 0 }, { x: 10, y: 0 }, 3, region)).toBe(true);
+  });
+
+  it('keeps a segment in any one of several disjoint regions', () => {
+    const regions: PaintBounds[] = [
+      { x0: 100, y0: -6, x1: 112, y1: 6 },
+      { x0: 6, y0: -6, x1: 12, y1: 6 },
+    ];
+    expect(segmentIntersectsAmbientRegions({ x: 0, y: 0 }, { x: 20, y: 0 }, 0, regions)).toBe(true);
+  });
+
+  it('reaches a region through a wrapped copy of a seam tile', () => {
+    const map = makeLineworkMap({ tiles: roadTiles(0, 3), width: 4, wrapsHorizontally: true });
+    // Tile q=3 renders at q=-1 (x=-17.32), 3 and 7; only the seam ghost is in the region.
+    const region: PaintBounds[] = [{ x0: -20, y0: -6, x1: -14, y1: 6 }];
+    expect(tileMayTouchAmbientRegions(map, makeCamera(), { q: 3, r: 0 }, region)).toBe(true);
+    expect(tileMayTouchAmbientRegions(map, makeCamera(), { q: 0, r: 0 }, region)).toBe(true);
+    // Far from the seam, no copy reaches.
+    expect(tileMayTouchAmbientRegions(map, makeCamera(), { q: 3, r: 0 }, [{ x0: 200, y0: -6, x1: 212, y1: 6 }])).toBe(false);
+  });
+
+  it('scales the road tile reach with zoom', () => {
+    const map = makeLineworkMap({ tiles: roadTiles(0, 1, 2) });
+    const region: PaintBounds[] = [{ x0: 48, y0: -6, x1: 55, y1: 6 }];
+    // At zoom 2 an incident segment is twice as long, so q=1 comes into range.
+    expect(tileMayTouchAmbientRegions(map, makeCamera(1), { q: 1, r: 0 }, region)).toBe(false);
+    expect(tileMayTouchAmbientRegions(map, makeCamera(2), { q: 1, r: 0 }, region)).toBe(true);
+  });
+
+  it('draws every road segment when no ambient region is supplied (full paint path)', () => {
+    const ctx = new LineworkContext();
+    drawRoads(asCtx(ctx), makeLineworkMap({ tiles: roadTiles(0, 1, 2) }), makeCamera(), new Set());
+    expect(ctx.roadStrokes()).toBe(2);
+  });
+
+  it('draws a road segment that crosses the region with both endpoints outside it', () => {
+    const ctx = new LineworkContext();
+    // q=0 centre 0, q=1 centre 17.32; region [6,12] sits between them.
+    drawRoads(
+      asCtx(ctx), makeLineworkMap({ tiles: roadTiles(0, 1) }), makeCamera(), new Set(), undefined, {},
+      [{ x0: 6, y0: -6, x1: 12, y1: 6 }],
+    );
+    expect(ctx.roadStrokes()).toBe(1);
+    expect(ctx.segments).toHaveLength(1);
+    expect(ctx.segments[0]!.from.x).toBeCloseTo(0);
+    expect(ctx.segments[0]!.to.x).toBeCloseTo(centreX(1));
+  });
+
+  it('culls road segments entirely outside the region', () => {
+    const ctx = new LineworkContext();
+    drawRoads(
+      asCtx(ctx), makeLineworkMap({ tiles: roadTiles(0, 1) }), makeCamera(), new Set(), undefined, {},
+      [{ x0: 100, y0: -6, x1: 112, y1: 6 }],
+    );
+    expect(ctx.roadStrokes()).toBe(0);
+  });
+
+  it('keeps only the segments that reach one of several disjoint regions', () => {
+    const map = makeLineworkMap({ tiles: roadTiles(0, 1, 10, 11) });
+    const both = new LineworkContext();
+    drawRoads(asCtx(both), map, makeCamera(), new Set(), undefined, {}, [
+      { x0: -6, y0: -6, x1: 6, y1: 6 },
+      { x0: 167, y0: -6, x1: 179, y1: 6 },
+    ]);
+    expect(both.roadStrokes()).toBe(2);
+
+    const onlyFar = new LineworkContext();
+    drawRoads(asCtx(onlyFar), map, makeCamera(), new Set(), undefined, {}, [{ x0: 167, y0: -6, x1: 179, y1: 6 }]);
+    expect(onlyFar.roadStrokes()).toBe(1);
+  });
+
+  it('draws a seam-crossing road through the wrapped copy inside the region', () => {
+    const map = makeLineworkMap({ tiles: roadTiles(0, 3), width: 4, wrapsHorizontally: true });
+    const inRegion = new LineworkContext();
+    drawRoads(asCtx(inRegion), map, makeCamera(), new Set(), undefined, {}, [{ x0: -20, y0: -6, x1: -14, y1: 6 }]);
+    expect(inRegion.roadStrokes()).toBe(1);
+    expect(inRegion.segments.some(segment => Math.min(segment.from.x, segment.to.x) < -14 && Math.max(segment.from.x, segment.to.x) > -20)).toBe(true);
+
+    const offRegion = new LineworkContext();
+    drawRoads(asCtx(offRegion), map, makeCamera(), new Set(), undefined, {}, [{ x0: 200, y0: -6, x1: 212, y1: 6 }]);
+    expect(offRegion.roadStrokes()).toBe(0);
+  });
+
+  it('keeps a city-connected road segment inside the region and culls it outside', () => {
+    // q=0 has no road tile but is a city; q=1 has a road. The pair still connects.
+    const map = makeLineworkMap({ tiles: [{ q: 0 }, { q: 1, hasRoad: true }] });
+    const cityKeys = new Set(['0,0']);
+    const inRegion = new LineworkContext();
+    drawRoads(asCtx(inRegion), map, makeCamera(), cityKeys, undefined, {}, [{ x0: 6, y0: -6, x1: 12, y1: 6 }]);
+    expect(inRegion.roadStrokes()).toBe(1);
+
+    const offRegion = new LineworkContext();
+    drawRoads(asCtx(offRegion), map, makeCamera(), cityKeys, undefined, {}, [{ x0: 100, y0: -6, x1: 112, y1: 6 }]);
+    expect(offRegion.roadStrokes()).toBe(0);
+  });
+
+  it('culls by geometry alone, independent of fog, last-seen and unexplored visibility', () => {
+    const map = makeLineworkMap({ tiles: roadTiles(0, 1) });
+    const visibility: VisibilityMap = {
+      tiles: { '0,0': 'visible', '1,0': 'fog' },
+      lastSeen: {
+        '1,0': {
+          coord: { q: 1, r: 0 }, terrain: 'grassland', elevation: 'lowland', resource: null,
+          improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, hasRoad: true, wonder: null,
+        } as any,
+      },
+    };
+    const inRegion = new LineworkContext();
+    drawRoads(asCtx(inRegion), map, makeCamera(), new Set(), visibility, {}, [{ x0: 6, y0: -6, x1: 12, y1: 6 }]);
+    expect(inRegion.roadStrokes()).toBe(1);
+
+    const offRegion = new LineworkContext();
+    drawRoads(asCtx(offRegion), map, makeCamera(), new Set(), visibility, {}, [{ x0: 100, y0: -6, x1: 112, y1: 6 }]);
+    expect(offRegion.roadStrokes()).toBe(0);
+  });
+
+  it('draws rail inside the region once both endpoints have rail tech', () => {
+    const map = makeLineworkMap({ tiles: [{ q: 0, hasRoad: true, owner: 'player' }, { q: 1, hasRoad: true, owner: 'player' }] });
+    const techs = { player: ['railway-expansion'] };
+    const inRegion = new LineworkContext();
+    drawRoads(asCtx(inRegion), map, makeCamera(), new Set(), undefined, techs, [{ x0: 6, y0: -6, x1: 12, y1: 6 }]);
+    expect(inRegion.drawImageCalls).toBe(1);
+    expect(inRegion.roadStrokes()).toBe(0);
+
+    const offRegion = new LineworkContext();
+    drawRoads(asCtx(offRegion), map, makeCamera(), new Set(), undefined, techs, [{ x0: 100, y0: -6, x1: 112, y1: 6 }]);
+    expect(offRegion.drawImageCalls).toBe(0);
+  });
+
+  it('falls back to a road stroke (still culled by geometry) when the rail image is missing', () => {
+    const map = makeLineworkMap({ tiles: [{ q: 0, hasRoad: true, owner: 'player' }, { q: 1, hasRoad: true, owner: 'player' }] });
+    const techs = { player: ['railway-expansion'] };
+    vi.mocked(getRailSegmentImage).mockReturnValueOnce(null as unknown as HTMLImageElement);
+    const inRegion = new LineworkContext();
+    drawRoads(asCtx(inRegion), map, makeCamera(), new Set(), undefined, techs, [{ x0: 6, y0: -6, x1: 12, y1: 6 }]);
+    expect(inRegion.roadStrokes()).toBe(1);
+
+    vi.mocked(getRailSegmentImage).mockReturnValueOnce(null as unknown as HTMLImageElement);
+    const offRegion = new LineworkContext();
+    drawRoads(asCtx(offRegion), map, makeCamera(), new Set(), undefined, techs, [{ x0: 100, y0: -6, x1: 112, y1: 6 }]);
+    expect(offRegion.roadStrokes()).toBe(0);
+  });
+
+  it('does not mutate the ambient region descriptor', () => {
+    const region: PaintBounds[] = [{ x0: 6, y0: -6, x1: 12, y1: 6 }];
+    const snapshot = region.map(bounds => ({ ...bounds }));
+    const ctx = new LineworkContext();
+    drawRoads(asCtx(ctx), makeLineworkMap({ tiles: roadTiles(0, 1) }), makeCamera(), new Set(), undefined, {}, region);
     expect(region).toEqual(snapshot);
   });
 });

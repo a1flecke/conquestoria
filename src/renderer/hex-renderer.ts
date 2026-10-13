@@ -150,6 +150,104 @@ export function tileIntersectsAmbientRegions(
   return false;
 }
 
+// #1439 phase 7: the conservative screen-space reach of a drawn road/rail segment beyond its
+// centre-line. A road stroke is 3·zoom wide and a rail sprite 8·zoom, both with round caps; the
+// constant margin covers antialiasing and the ambient clip's 1px outward expansion (see
+// RenderLoop.renderAmbientRegion), so a segment this test rejects can never leave a pixel inside the
+// clip. Using the wider rail width for both keeps the cull independent of rail tech and of whether
+// the rail image has loaded.
+const ROAD_AMBIENT_HALF_WIDTH_FACTOR = 4;
+const LINE_AMBIENT_MARGIN = 2;
+
+/** Half the widest stroke a road/rail segment can draw, plus the antialias/clip margin (CSS px). */
+export function roadAmbientHalfWidth(zoom: number): number {
+  return ROAD_AMBIENT_HALF_WIDTH_FACTOR * zoom + LINE_AMBIENT_MARGIN;
+}
+
+/**
+ * True when the conservative screen-space footprint of a drawn segment can intersect any ambient
+ * repaint region. The footprint is the segment's axis-aligned box widened by `halfWidth`, which
+ * contains the stroke (or the rotated rail sprite) and its caps; a segment that crosses a region
+ * with both endpoints outside it still qualifies, because the box spans the whole segment. The test
+ * is deliberately endpoint-independent -- filtering by endpoints alone would drop a crossing segment
+ * and leave stale pixels. Coordinates are CSS pixels, matching `PaintBounds` and
+ * `Camera.worldToScreen`, so DPR never enters the test.
+ */
+export function segmentIntersectsAmbientRegions(
+  fromScreen: { x: number; y: number },
+  toScreen: { x: number; y: number },
+  halfWidth: number,
+  regions: readonly PaintBounds[],
+): boolean {
+  const x0 = Math.min(fromScreen.x, toScreen.x) - halfWidth;
+  const x1 = Math.max(fromScreen.x, toScreen.x) + halfWidth;
+  const y0 = Math.min(fromScreen.y, toScreen.y) - halfWidth;
+  const y1 = Math.max(fromScreen.y, toScreen.y) + halfWidth;
+  for (const region of regions) {
+    if (x0 <= region.x1 && x1 >= region.x0 && y0 <= region.y1 && y1 >= region.y0) return true;
+  }
+  return false;
+}
+
+/**
+ * True when a road/rail segment incident to this tile could reach an ambient region. Used to skip
+ * the comparatively expensive presentation resolve for tiles whose whole neighbourhood is far from
+ * every region, before `forEachRoadSegment` walks their neighbours. Conservative: it tests every
+ * wrapped copy of the tile (a seam-crossing segment can be drawn near a region even though the
+ * canonical tile is a map width away) and allows for a full adjacent-hex segment plus the stroke, so
+ * a kept tile's segments are never wrongly dropped. A segment is drawn from whichever endpoint tile
+ * is visited first, so skipping a far tile only defers the draw to a near neighbour; a seam pair's
+ * two wrapped copies qualify together, so the drawn copy matches the full paint's.
+ */
+export function tileMayTouchAmbientRegions(
+  map: GameMap,
+  camera: Camera,
+  coord: HexCoord,
+  regions: readonly PaintBounds[],
+): boolean {
+  const halfWidth = roadAmbientHalfWidth(camera.zoom);
+  // An adjacent hex centre is √3·size away; add the stroke reach so an endpoint just outside the
+  // region still keeps the tile.
+  const reach = Math.sqrt(3) * camera.hexSize * camera.zoom + halfWidth;
+  const pixel = hexToPixel(coord, camera.hexSize);
+  const screen = camera.worldToScreen(pixel.x, pixel.y);
+  // Cheap row prefilter: a repaint region is a small box, so most tiles share no row with one. Every
+  // wrapped copy keeps the same y, so a tile that fails here cannot reach a region through any copy.
+  if (!regions.some(region => screen.y + reach >= region.y0 && screen.y - reach <= region.y1)) {
+    return false;
+  }
+  const renderCoords = map.wrapsHorizontally
+    ? getHorizontalWrapRenderCoords(coord, map.width, camera)
+    : [coord];
+  for (const renderCoord of renderCoords) {
+    const copyPixel = hexToPixel(renderCoord, camera.hexSize);
+    const copyScreen = camera.worldToScreen(copyPixel.x, copyPixel.y);
+    for (const region of regions) {
+      if (
+        copyScreen.x + reach >= region.x0 && copyScreen.x - reach <= region.x1
+        && copyScreen.y + reach >= region.y0 && copyScreen.y - reach <= region.y1
+      ) return true;
+    }
+  }
+  return false;
+}
+
+function roadSegmentMayTouchAmbientRegions(
+  camera: Camera,
+  from: HexCoord,
+  to: HexCoord,
+  regions: readonly PaintBounds[],
+): boolean {
+  const fromPixel = hexToPixel(from, camera.hexSize);
+  const toPixel = hexToPixel(to, camera.hexSize);
+  return segmentIntersectsAmbientRegions(
+    camera.worldToScreen(fromPixel.x, fromPixel.y),
+    camera.worldToScreen(toPixel.x, toPixel.y),
+    roadAmbientHalfWidth(camera.zoom),
+    regions,
+  );
+}
+
 export function drawHexMap(
   ctx: CanvasRenderingContext2D,
   map: GameMap,
@@ -357,9 +455,16 @@ function forEachRoadSegment(
   visibility: VisibilityMap | undefined,
   cityTileKeys: ReadonlySet<string>,
   onSegment: (from: HexCoord, to: HexCoord) => void,
+  tileMayTouchRegion?: (coord: HexCoord) => boolean,
 ): void {
   const seenPairs = new Set<string>();
   for (const tile of Object.values(map.tiles)) {
+    // Cheap geometry prefilter: skip a tile whose whole neighbourhood cannot reach the ambient
+    // region, before the presentation resolve `roadConnects` performs for it. A segment is drawn
+    // from whichever endpoint tile is visited first, so skipping a far tile only defers the draw to
+    // a near neighbour; a seam pair's wrapped copies qualify together, so the drawn copy is the same
+    // one a full paint would draw.
+    if (tileMayTouchRegion && !tileMayTouchRegion(tile.coord)) continue;
     if (!roadConnects(map, visibility, cityTileKeys, tile.coord)) continue;
     const neighbors = map.wrapsHorizontally
       ? getWrappedHexNeighbors(tile.coord, map.width)
@@ -372,6 +477,16 @@ function forEachRoadSegment(
       onSegment(tile.coord, neighbor);
     }
   }
+}
+
+/** The per-tile ambient prefilter for a road pass, or undefined for a full paint. */
+function roadTileAmbientCull(
+  map: GameMap,
+  camera: Camera,
+  ambientRegions: readonly PaintBounds[] | undefined,
+): ((coord: HexCoord) => boolean) | undefined {
+  if (ambientRegions === undefined || ambientRegions.length === 0) return undefined;
+  return (coord) => tileMayTouchAmbientRegions(map, camera, coord, ambientRegions);
 }
 
 function drawRoadOrRailSegment(
@@ -401,19 +516,21 @@ export function drawRoads(
   cityTileKeys: ReadonlySet<string>,
   viewerVisibility?: VisibilityMap,
   completedTechsByCiv: Record<string, string[]> = {},
+  ambientRegions?: readonly PaintBounds[],
 ): void {
   ctx.strokeStyle = '#8a6a3a';
   ctx.lineWidth = 3 * camera.zoom;
   ctx.lineCap = 'round';
 
+  const tileMayTouchRegion = roadTileAmbientCull(map, camera, ambientRegions);
   forEachRoadSegment(map, viewerVisibility, cityTileKeys, (from, to) => {
     if (camera.isHexVisible(from) || camera.isHexVisible(to)) {
       drawRoadOrRailSegment(ctx, map, camera, viewerVisibility, completedTechsByCiv, from, to);
     }
-  });
+  }, tileMayTouchRegion);
 
   if (map.wrapsHorizontally) {
-    drawWrapGhostRoads(ctx, map, camera, cityTileKeys, viewerVisibility, completedTechsByCiv);
+    drawWrapGhostRoads(ctx, map, camera, cityTileKeys, viewerVisibility, completedTechsByCiv, ambientRegions);
   }
 }
 
@@ -424,15 +541,24 @@ export function drawWrapGhostRoads(
   cityTileKeys: ReadonlySet<string>,
   viewerVisibility?: VisibilityMap,
   completedTechsByCiv: Record<string, string[]> = {},
+  ambientRegions?: readonly PaintBounds[],
 ): void {
+  const tileMayTouchRegion = roadTileAmbientCull(map, camera, ambientRegions);
   forEachRoadSegment(map, viewerVisibility, cityTileKeys, (from, to) => {
     for (const offset of getHorizontalWrapOffsetsForRiver(from, to, map.width)) {
       const ghostFrom: HexCoord = { q: from.q + offset, r: from.r };
       const ghostTo: HexCoord = { q: to.q + offset, r: to.r };
       if (!camera.isHexVisible(ghostFrom) && !camera.isHexVisible(ghostTo)) continue;
+      // Each ghost copy is drawn independently (no shared pair), so a per-segment region test is
+      // exact: a ghost whose drawn step cannot touch a region is skipped rather than drawn and
+      // clipped.
+      if (tileMayTouchRegion) {
+        const renderTo = map.wrapsHorizontally ? nearestWrappedCoord(ghostFrom, ghostTo, map.width) : ghostTo;
+        if (!roadSegmentMayTouchAmbientRegions(camera, ghostFrom, renderTo, ambientRegions!)) continue;
+      }
       drawRoadOrRailSegment(ctx, map, camera, viewerVisibility, completedTechsByCiv, ghostFrom, ghostTo);
     }
-  });
+  }, tileMayTouchRegion);
 }
 
 function drawRiverSegment(

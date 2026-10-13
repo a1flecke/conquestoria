@@ -71,10 +71,28 @@ function metricDelta(before: Record<string, number>, after: Record<string, numbe
  * application code runs. The counter only counts `clearRect` calls on
  * #game-canvas: RenderLoop.render() issues exactly one clearRect per frame
  * (the only clearRect call site in src/), so the delta is the frame count.
+ *
+ * `injectRoads` marks every land tile as carrying a road before the save is written, so the
+ * linework (#1439 phase 7) tests run against a fixture with meaningful roads and rivers inside and
+ * across the animated region. The crowded fixture already has rivers; this adds the roads it lacks
+ * without duplicating the 340 KB archive.
  */
-export async function installIdleCampaignFixture(page: Page): Promise<void> {
-  await page.addInitScript((fixtureText: string) => {
-    localStorage.setItem('conquestoria-autosave', fixtureText);
+export async function installIdleCampaignFixture(
+  page: Page,
+  options: { injectRoads?: boolean } = {},
+): Promise<void> {
+  await page.addInitScript((args: { fixtureText: string; injectRoads: boolean }) => {
+    const withInjectedRoads = (text: string): string => {
+      const save = JSON.parse(text) as { map?: { tiles?: Record<string, { terrain?: string; hasRoad?: boolean }> } };
+      for (const tile of Object.values(save.map?.tiles ?? {})) {
+        if (tile.terrain && tile.terrain !== 'ocean' && tile.terrain !== 'coast') tile.hasRoad = true;
+      }
+      return JSON.stringify(save);
+    };
+    localStorage.setItem(
+      'conquestoria-autosave',
+      args.injectRoads ? withInjectedRoads(args.fixtureText) : args.fixtureText,
+    );
     const counter = { count: 0, ambient: 0 };
     (window as typeof window & { __issue1439RendererRedraws?: { count: number; ambient: number } }).__issue1439RendererRedraws = counter;
     // Sprite images load through a bounded queue (#1439 phase 4), so a quiet canvas does not yet mean
@@ -107,7 +125,7 @@ export async function installIdleCampaignFixture(page: Page): Promise<void> {
       }
       return originalClearRect.call(this, x, y, w, h);
     };
-  }, FIXTURE_TEXT);
+  }, { fixtureText: FIXTURE_TEXT, injectRoads: options.injectRoads ?? false });
 }
 
 /** The existing Continue Campaign workflow from the start surface into a live

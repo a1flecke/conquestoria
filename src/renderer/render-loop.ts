@@ -978,7 +978,7 @@ export class RenderLoop {
 
     // Draw roads (overlay, drawn under units — see drawUnits below)
     const cityTileKeys = new Set(Object.values(this.state.cities).map(city => hexKey(city.position)));
-    drawRoads(this.ctx, this.state.map, this.camera, cityTileKeys, viewerVisibility, completedTechsByCiv);
+    drawRoads(this.ctx, this.state.map, this.camera, cityTileKeys, viewerVisibility, completedTechsByCiv, ambientRepaintRegion);
     if (this.isAirDefenseOverlayEnabled(viewerId)) {
       drawAirDefenseOverlay(this.ctx, this.camera, this.state.map, this.airDefenseOverlayProviders);
     }
