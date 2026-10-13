@@ -38,4 +38,36 @@ describe('keyboard shortcuts', () => {
     expect(callbacks.onOpenCouncil).not.toHaveBeenCalled();
     expect(callbacks.onOpenTech).not.toHaveBeenCalled();
   });
+  it('does not fire shortcuts from inside an open dialog (#1459)', () => {
+    const callbacks = { onOpenCouncil: vi.fn(), onOpenTech: vi.fn(), onEndTurn: vi.fn() };
+    installKeyboardShortcuts(document, callbacks);
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    const button = document.createElement('button');
+    dialog.appendChild(button);
+    document.body.appendChild(dialog);
+
+    const end = new KeyboardEvent('keydown', { key: 'e', bubbles: true, cancelable: true });
+    button.dispatchEvent(end);
+    button.dispatchEvent(new KeyboardEvent('keydown', { key: 'c', bubbles: true }));
+    button.dispatchEvent(new KeyboardEvent('keydown', { key: 't', bubbles: true }));
+
+    expect(callbacks.onEndTurn).not.toHaveBeenCalled();
+    expect(callbacks.onOpenCouncil).not.toHaveBeenCalled();
+    expect(callbacks.onOpenTech).not.toHaveBeenCalled();
+    expect(end.defaultPrevented).toBe(false);
+  });
+
+  it('still fires shortcuts when focus is on the map or a toolbar button (#1459)', () => {
+    const callbacks = { onOpenCouncil: vi.fn(), onOpenTech: vi.fn(), onEndTurn: vi.fn() };
+    installKeyboardShortcuts(document, callbacks);
+    const toolbarButton = document.createElement('button');
+    document.body.appendChild(toolbarButton);
+
+    toolbarButton.dispatchEvent(new KeyboardEvent('keydown', { key: 'e', bubbles: true }));
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 't' }));
+
+    expect(callbacks.onEndTurn).toHaveBeenCalledTimes(1);
+    expect(callbacks.onOpenTech).toHaveBeenCalledTimes(1);
+  });
 });

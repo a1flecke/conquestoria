@@ -1,6 +1,6 @@
 import type { GameState, HexCoord, Unit, VisibilityMap } from '@/core/types';
 import { Camera } from './camera';
-import { drawHexMap, drawRivers, drawRoads, drawMinorCivTerritory, drawHexHighlight } from './hex-renderer';
+import { drawHexMap, drawRivers, drawRoads, drawMinorCivTerritory, drawHexHighlight, drawKeyboardCursor } from './hex-renderer';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { drawFogOfWar } from './fog-renderer';
 import { drawUnitPresentations } from './unit-renderer';
@@ -310,6 +310,8 @@ export class RenderLoop {
   private wakeTimer: ReturnType<typeof setTimeout> | null = null;
   private highlights: HexHighlight[] = [];
   private journeyPath: HexCoord[] | null = null;
+  /** #1459: the keyboard map cursor; null when the player is not using the keyboard on the map. */
+  private keyboardCursor: HexCoord | null = null;
   private unitMovementAnimations: Array<UnitMovementAnimation & {
     startTime: number;
     onComplete?: () => void;
@@ -458,6 +460,11 @@ export class RenderLoop {
 
   clearHighlights(): void {
     this.highlights = [];
+    this.invalidate();
+  }
+
+  setKeyboardCursor(coord: HexCoord | null): void {
+    this.keyboardCursor = coord ? { ...coord } : null;
     this.invalidate();
   }
 
@@ -928,6 +935,19 @@ export class RenderLoop {
         this.ctx.stroke();
       }
       this.ctx.restore();
+    }
+
+    // #1459: keyboard cursor ring -- a dark under-stroke plus a bright stroke so it reads on any terrain.
+    if (this.keyboardCursor) {
+      const cursorCoords = this.state.map.wrapsHorizontally
+        ? getHorizontalWrapRenderCoords(this.keyboardCursor, this.state.map.width, this.camera)
+        : [this.keyboardCursor];
+      for (const renderCoord of cursorCoords) {
+        if (!this.camera.isHexVisible(renderCoord)) continue;
+        const pixel = hexToPixel(renderCoord, this.camera.hexSize);
+        const screen = this.camera.worldToScreen(pixel.x, pixel.y);
+        drawKeyboardCursor(this.ctx, screen.x, screen.y, this.camera.hexSize * this.camera.zoom);
+      }
     }
 
     // Draw cities

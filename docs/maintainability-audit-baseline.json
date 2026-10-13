@@ -68,7 +68,7 @@
   },
   {
    "pair": "app -> input",
-   "count": 16
+   "count": 17
   },
   {
    "pair": "app -> platform",
@@ -96,7 +96,7 @@
   },
   {
    "pair": "app -> ui",
-   "count": 76
+   "count": 78
   },
   {
    "pair": "audio -> renderer",
@@ -120,11 +120,11 @@
   },
   {
    "pair": "input -> renderer",
-   "count": 4
+   "count": 5
   },
   {
    "pair": "input -> systems",
-   "count": 43
+   "count": 45
   },
   {
    "pair": "main.ts -> app",

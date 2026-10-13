@@ -6,6 +6,7 @@ export interface WorkerTaskWarningPanelConfig {
 }
 
 import { createGameButton } from '@/ui/ui-kit';
+import { markModal } from '@/ui/modal-contract';
 
 export interface WorkerReplacementConfirmPanelConfig {
   existingName: string;
@@ -54,6 +55,8 @@ export function createWorkerReplacementConfirmPanel(
 
   buttonRow.append(cancel, confirm);
   panel.append(title, body, buttonRow);
+  // Keep/Keep working is the safe choice: it takes focus and answers Escape.
+  markModal(panel, { cancel, initialFocus: cancel });
   container.appendChild(panel);
   return panel;
 }
@@ -95,6 +98,8 @@ export function createWorkerTaskWarningPanel(
 
   buttonRow.append(cancel, confirm);
   panel.append(title, body, buttonRow);
+  // Keep/Keep working is the safe choice: it takes focus and answers Escape.
+  markModal(panel, { cancel, initialFocus: cancel });
   container.appendChild(panel);
   return panel;
 }

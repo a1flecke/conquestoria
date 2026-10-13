@@ -1,6 +1,7 @@
 import type { ReligionBoon } from '@/core/types';
 import { BOON_DESCRIPTIONS } from '@/systems/religion-definitions';
 import { createGameButton } from '@/ui/ui-kit';
+import { markModal } from '@/ui/modal-contract';
 
 export interface ReligionBoonModalConfig {
   religionName: string;
@@ -61,6 +62,8 @@ export function createReligionBoonModal(
     modal.appendChild(card);
   }
 
+  // A decision the player must make: focus enters, Tab stays inside, Escape does not dismiss it.
+  markModal(modal);
   container.appendChild(modal);
   return modal;
 }

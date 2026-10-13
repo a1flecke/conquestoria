@@ -35,8 +35,9 @@ function fakeRenderer(overrides: Partial<GameSessionRenderer> = {}): GameSession
     resizeCanvas: vi.fn(),
     toggleSupplyOverlay: vi.fn(() => false),
     isSupplyOverlayEnabled: vi.fn(() => false),
+    setKeyboardCursor: vi.fn(),
     camera: {
-      centerOn: vi.fn(), setMinZoomForMap: vi.fn(), hexSize: 32,
+      centerOn: vi.fn(), setMinZoomForMap: vi.fn(), hexSize: 32, width: 800, height: 600, isHexVisible: vi.fn(() => true),
       screenToHex: vi.fn(() => ({ q: 0, r: 0 })),
     } as unknown as GameSessionRenderer['camera'],
     ...overrides,

@@ -45,6 +45,8 @@ import { showPauseMenu } from '@/ui/pause-menu-panel';
 import { TouchHandler, type InputCallbacks } from '@/input/touch-handler';
 import { MouseHandler } from '@/input/mouse-handler';
 import { installKeyboardShortcuts } from '@/input/keyboard-shortcuts';
+import { installKeyboardMapCursor } from '@/input/keyboard-map-cursor';
+import { createKeyboardCursorStatus } from '@/ui/keyboard-cursor-status';
 import { hexToPixel } from '@/systems/hex-utils';
 import { fortifyUnitInState, unfortifyUnitInState } from '@/systems/unit-lifecycle-system';
 import { collectSpriteDemand, initSprites } from '@/renderer/sprites/sprite-loader';
@@ -65,7 +67,7 @@ import { resolveOpponentChallenge, setPendingOpponentChallenge, resolveChallenge
 import { resolveSuperweaponsFlag } from '@/systems/superweapons-flag';
 
 /** The narrow slice of `RenderLoop` this controller needs. */
-export type GameSessionRenderer = Pick<RenderLoop, 'setGameState' | 'setTouchHandler' | 'start' | 'resizeCanvas' | 'toggleSupplyOverlay' | 'isSupplyOverlayEnabled'> & {
+export type GameSessionRenderer = Pick<RenderLoop, 'setGameState' | 'setTouchHandler' | 'start' | 'resizeCanvas' | 'toggleSupplyOverlay' | 'isSupplyOverlayEnabled' | 'setKeyboardCursor'> & {
   readonly camera: RenderLoop['camera'];
 };
 
@@ -332,6 +334,32 @@ export function createGameSessionController(deps: GameSessionControllerDeps): Ga
         },
       }, {
         canHandle: () => !deps.host.isInteractionBlocked(),
+      });
+      // #1459: keyboard access to the map. Enter reuses the pointer's tap path.
+      const cursorStatus = createKeyboardCursorStatus(deps.uiLayer);
+      const mapCursor = installKeyboardMapCursor({
+        target: deps.documentRef,
+        getState: () => deps.session.getState(),
+        getSelectedUnitId: () => deps.selection.getSelectedUnitId(),
+        getViewCenter: () => deps.renderLoop.camera.screenToHex(deps.renderLoop.camera.width / 2, deps.renderLoop.camera.height / 2),
+        isInteractionBlocked: () => deps.host.isInteractionBlocked(),
+        onTap: coord => deps.mapInteraction.handleHexTap(coord),
+        onCursorChange: coord => {
+          deps.renderLoop.setKeyboardCursor(coord);
+          if (coord === null) {
+            cursorStatus.hide();
+          } else if (!deps.renderLoop.camera.isHexVisible(coord)) {
+            deps.renderLoop.camera.centerOn(coord);
+          }
+        },
+        announce: text => cursorStatus.announce(text),
+      });
+      // Hot seat: the next player must not inherit the previous player's cursor position or caption.
+      let cursorViewer = deps.session.getState().currentPlayer;
+      deps.session.subscribe(next => {
+        if (next.currentPlayer === cursorViewer) return;
+        cursorViewer = next.currentPlayer;
+        mapCursor.hide();
       });
       inputInitialized = true;
     }

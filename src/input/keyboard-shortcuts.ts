@@ -21,13 +21,18 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
 }
 
+/** A control inside an open dialog owns the keyboard: a letter must not end the turn behind it (#1459). */
+function isInsideDialog(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && target.closest('[role="dialog"], [aria-modal="true"]') !== null;
+}
+
 export function installKeyboardShortcuts(
   target: Document,
   callbacks: KeyboardShortcutCallbacks,
   options: KeyboardShortcutOptions = {},
 ): void {
   target.addEventListener('keydown', event => {
-    if (isTypingTarget(event.target)) {
+    if (isTypingTarget(event.target) || isInsideDialog(event.target)) {
       return;
     }
     if (options.canHandle && !options.canHandle()) {
