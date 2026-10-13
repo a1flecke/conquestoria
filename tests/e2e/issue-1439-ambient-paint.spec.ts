@@ -57,10 +57,12 @@ test('a visible animated wonder keeps animating through ambient-region paints on
   await settledToAmbient(page);
 });
 
-test('an ambient-region paint is pixel-identical to a full paint at the same instant', async ({ page }) => {
+test('an ambient-region paint with roads and rivers is pixel-identical to a full paint at the same instant', async ({ page }) => {
   test.slow();
   await page.emulateMedia({ reducedMotion: 'no-preference' });
-  await installIdleCampaignFixture(page);
+  // The linework fixture carries roads on every land tile (plus the map's rivers), so the ambient
+  // region contains road segments that must be culled by geometry, not by endpoint visibility.
+  await installIdleCampaignFixture(page, { injectRoads: true });
   await page.addInitScript(() => {
     const real = performance.now.bind(performance);
     performance.now = () => (window as CounterWindow).__frozenNowMs ?? real();
