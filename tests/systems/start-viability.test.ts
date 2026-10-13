@@ -6,6 +6,7 @@ import { findStartPositions, MIN_MAJOR_CIV_START_DISTANCE, getStartPositionDista
 import { placeCivilizationStarts } from '@/systems/start-placement-system';
 import { createStartViabilityIndex } from '@/systems/start-viability';
 import { normalizeLoadedStateForTest } from '@/storage/save-manager';
+import { simTimeout } from '../helpers/sim-timeout';
 import { initializeScenario } from '../simulation/ai-playability-fixture';
 import { hexKey, getWrappedHexNeighbors } from '@/systems/hex-utils';
 
@@ -372,7 +373,8 @@ describe('every generator path honours the contract (#1453)', () => {
             }
           }
         }
-      });
+        // 10 seeds of createNewGame at the supported maximum: ~5 s on a CI shard against the 5 s default (#608).
+      }, simTimeout(5_000));
     }
   }
 
