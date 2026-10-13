@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { preloadGeoMapData } from '../helpers/geo-map-data';
 import type { GameMap, HexTile, MapScript } from '@/core/types';
 import { createHotSeatGame, createNewGame, MAP_DIMENSIONS } from '@/core/game-state';
 import { cityDistance, isCityCenterTerrain, MIN_CITY_CENTER_DISTANCE } from '@/systems/city-territory-system';
@@ -345,6 +346,8 @@ describe('determinism, save/reload and variety (#1453)', () => {
 });
 
 describe('every generator path honours the contract (#1453)', () => {
+  beforeAll(() => preloadGeoMapData()); // #1456: geographic data is loaded on demand
+
   const SCRIPTS: MapScript[] = ['procedural', 'balanced', 'single-continent'];
   const SEEDS = Array.from({ length: 10 }, (_, i) => `contract-${i}`);
 

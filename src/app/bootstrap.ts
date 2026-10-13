@@ -50,6 +50,7 @@ import { registerMinorCivNotificationListeners } from '@/ui/minor-civ-notificati
 import { createPanelHost, type PanelHost } from '@/app/panel-host';
 import { createPanelRouter, type PanelRouter } from '@/app/panel-router';
 import { installPanelFocusManager } from '@/app/panel-focus-manager';
+import { installBundledGeoMapDataFetcher } from '@/systems/geo-map-asset-fetcher';
 import type { PanelContext, PanelRegistry } from '@/app/panel-registry';
 import {
   getCurrentCiv,
@@ -88,6 +89,8 @@ export interface AppServices {
 type NotificationSink = (...args: Parameters<Notifier['deliver']>) => void;
 
 export async function bootstrap(services: AppServices): Promise<void> {
+  // #1456: how a geographic map's bulk data is fetched (a browser-side asset URL; the core loader has none).
+  installBundledGeoMapDataFetcher();
   registerAllPresentation(services.bus, services.presentationContext);
   registerMinorCivNotificationListeners(services.bus, services.getState, {
     appendToCivLog: services.appendToCivLog,

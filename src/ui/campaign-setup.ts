@@ -7,6 +7,7 @@ import type {
 } from '@/core/types';
 import type { OpponentChallenge } from '@/core/types/ai';
 import { GameCreationError, MAP_DIMENSIONS } from '@/core/game-state';
+import { createSetupStartFlight } from '@/ui/setup-start-flight';
 import { createCivSelectPanel } from '@/ui/civ-select';
 import { createCustomCivPanel } from '@/ui/custom-civ-panel';
 import { getPlayableCivDefinitions } from '@/systems/civ-registry';
@@ -19,7 +20,13 @@ import { createOpponentChallengeSelector } from '@/ui/opponent-challenge-selecto
 import { selectAIRoster } from '@/systems/ai-roster-selection';
 
 export interface CampaignSetupCallbacks {
-  onStartSolo: (config: SoloSetupConfig) => void;
+  /** May return a promise while geographic map data loads (#1456); the screen shows the busy/error state. */
+  onStartSolo: (config: SoloSetupConfig) => void | Promise<void>;
+  /**
+   * The map the player currently has selected (called once for the default and on every change). A hint so the
+   * owner can prepare in the background, e.g. prefetch a geographic map's data (#1456); it never blocks or fails.
+   */
+  onMapScriptChosen?: (mapScript: MapScript) => void;
   onCancel: () => void;
   onCustomCivilizationsChanged?: (customCivilizations: CustomCivDefinition[]) => void;
   initialTitle?: string;
@@ -255,12 +262,15 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
     btn.addEventListener('click', () => {
       mapScriptSelect.value = script;
       syncMapScriptCards();
+      callbacks.onMapScriptChosen?.(script);
     });
     mapScriptCards.set(script, btn);
     mapTypeRow.appendChild(btn);
   }
 
   syncMapScriptCards();
+  // The default map is already a choice: let the owner start any background preparation now.
+  callbacks.onMapScriptChosen?.(mapScriptSelect.value as MapScript);
 
   const mapSizeCardRow = document.createElement('div');
   Object.assign(mapSizeCardRow.style, {
@@ -558,7 +568,7 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
       return;
     }
     try {
-      callbacks.onStartSolo({
+      startFlight.settle(callbacks.onStartSolo({
         civType: selectedCivId,
         mapSize,
         opponentCount: Number(opponentsField.select.value),
@@ -569,8 +579,7 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
         startPlacementMode: selectedPlacementMode,
         opponentChallenge: selectedOpponentChallenge,
         settingsOverrides: { beastsMode: beastsModeSelected },
-      });
-      panel.remove();
+      }), () => panel.remove());
     } catch (error) {
       if (!(error instanceof GameCreationError)) throw error;
       historicalWarning.hidden = false;
@@ -584,6 +593,12 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
   historicalWarning.hidden = true;
   historicalWarning.style.cssText = 'color:#ffb870;font-size:12px;font-weight:bold;margin:0 0 8px;';
   shell.actions.appendChild(historicalWarning);
+  const startFlight = createSetupStartFlight({
+    startButton,
+    controls: () => [startButton, cancelButton],
+    busyTarget: panel,
+    mount: (status, error) => shell.actions.append(status, error),
+  });
   shell.actions.appendChild(buttonRow);
 
   titleInput.addEventListener('input', syncCampaignReadiness);

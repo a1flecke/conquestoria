@@ -46,6 +46,7 @@ import { TouchHandler, type InputCallbacks } from '@/input/touch-handler';
 import { MouseHandler } from '@/input/mouse-handler';
 import { installKeyboardShortcuts } from '@/input/keyboard-shortcuts';
 import { installKeyboardMapCursor } from '@/input/keyboard-map-cursor';
+import { isGeographicMapScript, loadGeoMapData } from '@/systems/geo-map-data';
 import { createKeyboardCursorStatus } from '@/ui/keyboard-cursor-status';
 import { hexToPixel } from '@/systems/hex-utils';
 import { fortifyUnitInState, unfortifyUnitInState } from '@/systems/unit-lifecycle-system';
@@ -436,6 +437,9 @@ export function createGameSessionController(deps: GameSessionControllerDeps): Ga
           throw new Error(`Unknown scenario "${scenarioName}". Known scenarios: ${Object.keys(SCENARIOS).join(', ')}`);
         }
         const { buildScenario } = await import('@/testing/scenario-builder');
+        // #1456: a scenario on a geographic map needs that map's data loaded before the sync builder runs.
+        const scenarioScript = definition.base.config.mapScript;
+        if (isGeographicMapScript(scenarioScript)) await loadGeoMapData(scenarioScript);
         await deps.campaignEntry.enterCampaign(buildScenario(definition), `Scenario: ${definition.name}`);
         return;
       }

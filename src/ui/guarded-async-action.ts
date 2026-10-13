@@ -8,8 +8,11 @@ export interface GuardedAsyncActionOptions {
   /** Alert region (role="alert") for the failure message. */
   error: HTMLElement;
   pendingMessage: string;
-  /** Player-facing failure copy. Never the raw error: it can carry storage internals. */
-  failureMessage: string;
+  /**
+   * Player-facing failure copy. Never the raw error: it can carry storage internals. A function receives
+   * the rejection so a caller can show its own typed, player-safe message (e.g. a `GameCreationError`).
+   */
+  failureMessage: string | ((error: unknown) => string);
   /** Receives focus after a failure so keyboard users land on the retry. */
   focusOnError: () => HTMLElement | null;
 }
@@ -44,11 +47,13 @@ export function createGuardedAsyncAction(options: GuardedAsyncActionOptions): Gu
         options.status.textContent = '';
         options.busyTarget.setAttribute('aria-busy', 'false');
         return true;
-      } catch {
+      } catch (error) {
         controls.forEach((control, index) => { control.disabled = priorDisabled[index]; });
         options.status.textContent = '';
         options.busyTarget.setAttribute('aria-busy', 'false');
-        options.error.textContent = options.failureMessage;
+        options.error.textContent = typeof options.failureMessage === 'function'
+          ? options.failureMessage(error)
+          : options.failureMessage;
         options.error.hidden = false;
         options.focusOnError()?.focus();
         return false;

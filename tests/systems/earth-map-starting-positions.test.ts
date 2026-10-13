@@ -1,10 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { loadGeoMap } from '@/systems/geo-map-loader';
-import {
-  EARTH_TILES,
-  EARTH_START_POSITIONS,
-  EARTH_RIVERS,
-} from '@/systems/earth-map-data';
+import { readGeoMapDataFromDisk } from '../helpers/geo-map-data';
+import { EARTH_START_POSITIONS } from '@/systems/earth-start-positions';
 import { isValidStartTile, hasWorkableSurroundings } from '@/systems/map-validation';
 import { hexKey } from '@/systems/hex-utils';
 
@@ -15,6 +12,8 @@ const MAP_DIMS = {
 } as const;
 
 type MapSize = keyof typeof MAP_DIMS;
+
+const { tiles: EARTH_TILES, rivers: EARTH_RIVERS } = readGeoMapDataFromDisk('earth');
 
 describe('Earth map starting positions', () => {
   const sizes: MapSize[] = ['small', 'medium', 'large'];

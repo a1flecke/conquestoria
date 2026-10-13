@@ -2,6 +2,7 @@ import { createNewGame, createHotSeatGame, createDefaultSettings } from '@/core/
 import type { CustomCivDefinition, GameState, HexCoord, HotSeatConfig, MapScript, ResourceType } from '@/core/types';
 import { getMinimumStartDistance, getStartPositionDistance } from '@/systems/map-generator';
 import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
+import { preloadGeoMapData } from '../helpers/geo-map-data';
 import { getWrappedHexesInRange, hexKey } from '@/systems/hex-utils';
 
 const customCiv: CustomCivDefinition = {
@@ -513,6 +514,8 @@ describe('createHotSeatGame', () => {
 });
 
 describe('createHotSeatGame — mapScript', () => {
+  beforeAll(() => preloadGeoMapData()); // #1456: geographic data is loaded on demand
+
   const baseConfig: HotSeatConfig = {
     playerCount: 2,
     mapSize: 'small',

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeAll, beforeEach } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import type { GameState, HotSeatPlayer, SoloSetupConfig, HotSeatConfig } from '@/core/types';
@@ -12,6 +12,8 @@ import * as legacyPrompt from '@/ui/legacy-opponent-challenge-prompt';
 import * as gameModeSelectModule from '@/ui/game-mode-select';
 import * as campaignSetupModule from '@/ui/campaign-setup';
 import * as hotseatSetupModule from '@/ui/hotseat-setup';
+import * as geoMapData from '@/systems/geo-map-data';
+import { readGeoMapDataFromDisk, useDiskGeoMapDataFetcher } from '../../helpers/geo-map-data';
 import {
   createCampaignEntryController,
   type CampaignEntryControllerDeps,
@@ -46,6 +48,16 @@ vi.mock('@/ui/campaign-setup', async () => {
 vi.mock('@/ui/hotseat-setup', async () => {
   const actual = await vi.importActual<typeof hotseatSetupModule>('@/ui/hotseat-setup');
   return { ...actual, showHotSeatSetup: vi.fn() };
+});
+
+// #1456: wrap the loader in spies that default to the real behaviour, so a test can hold a load open or fail it.
+vi.mock('@/systems/geo-map-data', async () => {
+  const actual = await vi.importActual<typeof geoMapData>('@/systems/geo-map-data');
+  return {
+    ...actual,
+    loadGeoMapData: vi.fn(actual.loadGeoMapData),
+    isGeoMapDataLoaded: vi.fn(actual.isGeoMapDataLoaded),
+  };
 });
 
 vi.mock('@/ui/legacy-opponent-challenge-prompt', async () => {
@@ -403,6 +415,167 @@ describe('CampaignEntryController', () => {
       capturedHotSeatCallbacks!.onComplete(hotSeatConfig, 'standard');
 
       expect(deps.session.getState().settings.councilTalkLevel).toBe('chatty');
+    });
+  });
+
+  // #1456: a geographic map's tile/river data loads on demand; the synchronous constructors run only after it.
+  describe('starting on a geographic map', () => {
+    // The module is mocked above: grab the genuine loader, not the spy that wraps it.
+    let realLoad: typeof geoMapData.loadGeoMapData;
+    let realIsLoaded: typeof geoMapData.isGeoMapDataLoaded;
+    beforeAll(async () => {
+      useDiskGeoMapDataFetcher();
+      const actualGeo = await vi.importActual<typeof geoMapData>('@/systems/geo-map-data');
+      realLoad = actualGeo.loadGeoMapData;
+      realIsLoaded = actualGeo.isGeoMapDataLoaded;
+    });
+
+    function openSolo(deps: CampaignEntryControllerDeps) {
+      const campaignEntry = createCampaignEntryController(deps);
+      let modeCallbacks!: gameModeSelectModule.GameModeSelectCallbacks;
+      vi.mocked(gameModeSelectModule.showGameModeSelect).mockImplementation((_layer, callbacks) => {
+        modeCallbacks = callbacks;
+        return document.createElement('div');
+      });
+      let solo!: campaignSetupModule.CampaignSetupCallbacks;
+      vi.mocked(campaignSetupModule.showCampaignSetup).mockImplementation((_layer, cb) => {
+        solo = cb;
+        return document.createElement('div');
+      });
+      campaignEntry.showGameModeSelection();
+      return { choose: async () => { await modeCallbacks.onChooseSolo('Geo'); return solo; } };
+    }
+
+    const openSoloWithHint = (deps: CampaignEntryControllerDeps) => openSolo(deps).choose();
+
+    const soloConfig = (mapScript: SoloSetupConfig['mapScript']): SoloSetupConfig => ({
+      civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 'Geo', mapScript, seed: 'geo-entry-1456',
+    });
+
+    beforeEach(() => {
+      vi.mocked(geoMapData.loadGeoMapData).mockImplementation(realLoad);
+      vi.mocked(geoMapData.isGeoMapDataLoaded).mockReturnValue(false);
+    });
+
+    it('waits for the data, then creates exactly one game on that map', async () => {
+      let release!: () => void;
+      const gate = new Promise<void>(resolve => { release = resolve; });
+      vi.mocked(geoMapData.loadGeoMapData).mockImplementation(async script => { await gate; return realLoad(script); });
+      const deps = baseDeps(makeFixture());
+      const solo = await openSolo(deps).choose();
+      const before = deps.session.getState();
+
+      const pending = solo.onStartSolo(soloConfig('earth'));
+      expect(pending).toBeInstanceOf(Promise);
+      await flushMicrotasks();
+      expect(deps.session.getState()).toBe(before);
+      expect(deps.startGame).not.toHaveBeenCalled();
+
+      release();
+      await pending;
+      expect(deps.session.getState().mapScript).toBe('earth');
+      expect(deps.startGame).toHaveBeenCalledTimes(1);
+    });
+
+    it('shares one in-flight load between overlapping starts and never creates two games', async () => {
+      const deps = baseDeps(makeFixture());
+      const solo = await openSolo(deps).choose();
+
+      const first = solo.onStartSolo(soloConfig('earth'));
+      const second = solo.onStartSolo(soloConfig('earth'));
+      expect(second).toBe(first);
+      await first;
+      expect(geoMapData.loadGeoMapData).toHaveBeenCalledTimes(1);
+      expect(deps.startGame).toHaveBeenCalledTimes(1);
+    });
+
+    it('a failed load starts nothing, surfaces the failure, and a later start retries', async () => {
+      vi.mocked(geoMapData.loadGeoMapData).mockRejectedValueOnce(new Error('offline'));
+      const deps = baseDeps(makeFixture());
+      const solo = await openSolo(deps).choose();
+      const before = deps.session.getState();
+
+      await expect(solo.onStartSolo(soloConfig('old-world'))).rejects.toThrow('offline');
+      expect(deps.session.getState()).toBe(before);
+      expect(deps.startGame).not.toHaveBeenCalled();
+
+      await solo.onStartSolo(soloConfig('old-world'));
+      expect(deps.session.getState().mapScript).toBe('old-world');
+      expect(deps.startGame).toHaveBeenCalledTimes(1);
+    });
+
+    it('prefetches the selected geographic map while the player is still choosing, and Start reuses that load', async () => {
+      // Count real fetches on a script nothing earlier in this file has loaded, and let the genuine registry decide.
+      const fetcher = vi.fn(async () => readGeoMapDataFromDisk('new-world'));
+      geoMapData.setGeoMapDataFetcher(fetcher);
+      vi.mocked(geoMapData.isGeoMapDataLoaded).mockImplementation(realIsLoaded);
+      try {
+        const deps = baseDeps(makeFixture());
+        const solo = await openSoloWithHint(deps);
+
+        solo.onMapScriptChosen?.('new-world');
+        expect(fetcher).toHaveBeenCalledTimes(1);
+        expect(deps.startGame).not.toHaveBeenCalled();
+
+        await solo.onStartSolo(soloConfig('new-world'));
+        expect(fetcher).toHaveBeenCalledTimes(1);
+        expect(deps.session.getState().mapScript).toBe('new-world');
+        expect(deps.startGame).toHaveBeenCalledTimes(1);
+      } finally {
+        useDiskGeoMapDataFetcher();
+      }
+    });
+
+    it('a map that needs no geographic data is never prefetched', async () => {
+      const deps = baseDeps(makeFixture());
+      const solo = await openSoloWithHint(deps);
+      solo.onMapScriptChosen?.('balanced');
+      solo.onMapScriptChosen?.('single-continent');
+      expect(geoMapData.loadGeoMapData).not.toHaveBeenCalled();
+    });
+
+    it('a failed prefetch is silent, and pressing Start asks again and can succeed', async () => {
+      vi.mocked(geoMapData.loadGeoMapData).mockRejectedValueOnce(new Error('offline'));
+      const deps = baseDeps(makeFixture());
+      const solo = await openSoloWithHint(deps);
+
+      solo.onMapScriptChosen?.('new-world');
+      await flushMicrotasks();
+      expect(deps.showNotification).not.toHaveBeenCalled();
+      expect(deps.startGame).not.toHaveBeenCalled();
+
+      await solo.onStartSolo(soloConfig('new-world'));
+      expect(deps.session.getState().mapScript).toBe('new-world');
+      expect(geoMapData.loadGeoMapData).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not prefetch data that is already loaded', async () => {
+      vi.mocked(geoMapData.isGeoMapDataLoaded).mockReturnValue(true);
+      const deps = baseDeps(makeFixture());
+      const solo = await openSoloWithHint(deps);
+      solo.onMapScriptChosen?.('earth');
+      expect(geoMapData.loadGeoMapData).not.toHaveBeenCalled();
+    });
+
+    it('a map that needs no geographic data never touches the loader and stays synchronous', async () => {
+      const deps = baseDeps(makeFixture());
+      const solo = await openSolo(deps).choose();
+
+      const result = solo.onStartSolo(soloConfig('procedural'));
+      expect(result).toBeUndefined();
+      expect(geoMapData.loadGeoMapData).not.toHaveBeenCalled();
+      expect(deps.startGame).toHaveBeenCalledTimes(1);
+    });
+
+    it('data that is already loaded starts at once without another load', async () => {
+      await realLoad('earth');
+      vi.mocked(geoMapData.isGeoMapDataLoaded).mockReturnValue(true);
+      const deps = baseDeps(makeFixture());
+      const solo = await openSolo(deps).choose();
+
+      expect(solo.onStartSolo(soloConfig('earth'))).toBeUndefined();
+      expect(geoMapData.loadGeoMapData).not.toHaveBeenCalled();
+      expect(deps.startGame).toHaveBeenCalledTimes(1);
     });
   });
 });

@@ -161,6 +161,30 @@ contract promises nothing about equal terrain, resources, ship tech or travel ti
   original unrecoverable `lh-late-era-medium` start. The `lh-1107-search-0` long-horizon fixture is a separate,
   intentionally kept #1107 scenario.
 
+## Geographic map data is loaded on demand (#1456)
+
+The Earth / Old World / New World tile and river tables are `src/systems/geo-data/{earth,old-world,new-world}-map.json`
+(~490 KB each), not TypeScript. They were three static imports that put 1.24 MB of the 6.1 MB raw entry chunk on every
+player's start screen. The measurement behind the change: `docs/geo-data-startup-1456.md`.
+
+- **One owner: `src/systems/geo-map-data.ts`.** `loadGeoMapData(script)` is single-flight per script and clears a failed
+  flight; `getLoadedGeoMapData(script)` is what the synchronous constructors (`createNewGame`, `createHotSeatGame`) read and
+  it throws a typed `GeoMapDataNotLoadedError` rather than substituting another map. Nothing else names the JSON files
+  (`tests/systems/geo-map-data-boundary.test.ts`).
+- **Why `fetch` of a JSON asset and not `import()`:** a failed dynamic import is remembered for the life of the page
+  (Chromium 149: the retry fails while `fetch` of the same URL returns 200), so "press Start again" could never work.
+  Do not turn the loader back into an `import()`.
+- **A caller that can create a geographic campaign awaits the load first** — `campaign-entry-controller.ts`
+  (`startAfterGeoMapData`, single-flight at the owner) and the dev scenario loader. A map that needs no load starts
+  synchronously, exactly as before. The setup screens show the busy/error state (`setup-start-flight.ts`) and report the
+  selected map (`onMapScriptChosen`) so the controller can prefetch it while the player is still choosing.
+- **Start anchors stay eager**: `*-start-positions.ts` are small and read synchronously by placement and the advisor.
+- **Offline:** the build (`scripts/version-sw-cache.mjs`) adds the three hashed JSON files to the service worker's precache
+  and fails the build if one is missing; a negative control confirmed an offline geographic start fails without it.
+- **Tests** that create a geographic game call `preloadGeoMapData()` (`tests/helpers/geo-map-data.ts`, reads from disk);
+  `readGeoMapDataFromDisk` serves tests that build maps at collection time.
+- **Regenerating** (`yarn generate-maps`) writes the JSON plus the start-positions modules.
+
 ## State Mutations Must Match Events
 - If you emit an event (e.g., `city:unit-trained`), the state mutation (creating the unit, adding to arrays) MUST happen in the same block
 - Events are notifications for UI/logging — they do NOT trigger state changes

@@ -18,7 +18,8 @@
  */
 import type { EventBus } from '@/core/event-bus';
 import type { AudioSystem } from '@/audio/audio-system';
-import type { GameState } from '@/core/types';
+import type { GameState, MapScript } from '@/core/types';
+import { isGeographicMapScript, isGeoMapDataLoaded, loadGeoMapData } from '@/systems/geo-map-data';
 import type { GameSession, UnpublishedStateWriter } from '@/app/ports';
 import type { PanelHost } from '@/app/panel-host';
 import type { UserSettingsStore } from '@/app/user-settings-store';
@@ -206,6 +207,36 @@ export function createCampaignEntryController(deps: CampaignEntryControllerDeps)
     });
   }
 
+  /**
+   * Geographic maps need their tile/river data loaded before the synchronous game constructors run (#1456).
+   * A map that needs no load starts immediately and synchronously, exactly as before; otherwise the load is
+   * returned so the setup screen can show its busy state, and the game is created only once it has resolved.
+   * `loadGeoMapData` is single-flight per script and clears a failed flight, so pressing Start again retries.
+   */
+  /**
+   * While the player is still choosing, start fetching the selected geographic map in the background so pressing
+   * Start finds it ready. Best effort: a failure here is silent, and Start asks again (a failed fetch leaves no
+   * memory, see geo-map-data.ts), so the player only ever sees an error from a Start they actually pressed.
+   */
+  function prefetchGeoMapData(mapScript: MapScript): void {
+    if (isGeographicMapScript(mapScript) && !isGeoMapDataLoaded(mapScript)) {
+      loadGeoMapData(mapScript).catch(() => {});
+    }
+  }
+
+  let pendingGeoStart: Promise<void> | null = null;
+  function startAfterGeoMapData(mapScript: MapScript | undefined, start: () => void): void | Promise<void> {
+    if (!isGeographicMapScript(mapScript) || isGeoMapDataLoaded(mapScript)) {
+      start();
+      return;
+    }
+    // Single flight at the owner: a second request while one is loading shares it and cannot create a second game.
+    if (pendingGeoStart) return pendingGeoStart;
+    const flight = loadGeoMapData(mapScript).then(start).finally(() => { pendingGeoStart = null; });
+    pendingGeoStart = flight;
+    return flight;
+  }
+
   function showGameModeSelection(): void {
     let modePanel: HTMLElement;
 
@@ -222,22 +253,26 @@ export function createCampaignEntryController(deps: CampaignEntryControllerDeps)
         showCampaignSetup(deps.uiLayer, {
           initialTitle: title,
           onStartSolo: (config) => {
-            const newGame = createNewGame({
-              civType: config.civType,
-              mapSize: config.mapSize,
-              opponentCount: config.opponentCount,
-              gameTitle: config.gameTitle,
-              // Merge: persisted A/V settings first, then per-game setup choices (e.g. beastsMode) win
-              settingsOverrides: { ...deps.userSettingsStore.getOverrides(), ...config.settingsOverrides },
-              customCivilizations: config.customCivilizations,
-              seed: config.seed,
-              mapScript: config.mapScript,
-              startPlacementMode: config.startPlacementMode,
-              opponentChallenge: config.opponentChallenge,
-            });
-            deps.unpublished.adopt(applyCouncilTalkLevelOverride(newGame, currentSettings.councilTalkLevel), 'pre-world-entry');
-            deps.startGame();
+            const start = (): void => {
+              const newGame = createNewGame({
+                civType: config.civType,
+                mapSize: config.mapSize,
+                opponentCount: config.opponentCount,
+                gameTitle: config.gameTitle,
+                // Merge: persisted A/V settings first, then per-game setup choices (e.g. beastsMode) win
+                settingsOverrides: { ...deps.userSettingsStore.getOverrides(), ...config.settingsOverrides },
+                customCivilizations: config.customCivilizations,
+                seed: config.seed,
+                mapScript: config.mapScript,
+                startPlacementMode: config.startPlacementMode,
+                opponentChallenge: config.opponentChallenge,
+              });
+              deps.unpublished.adopt(applyCouncilTalkLevelOverride(newGame, currentSettings.councilTalkLevel), 'pre-world-entry');
+              deps.startGame();
+            };
+            return startAfterGeoMapData(config.mapScript, start);
           },
+          onMapScriptChosen: prefetchGeoMapData,
           onCustomCivilizationsChanged: (customCivilizations) => {
             deps.userSettingsStore.setCustomCivilizations(customCivilizations);
           },
@@ -252,14 +287,18 @@ export function createCampaignEntryController(deps: CampaignEntryControllerDeps)
         modePanel.remove();
         showHotSeatSetup(deps.uiLayer, {
           onComplete: (config, opponentChallenge) => {
-            const newGame = createHotSeatGame(config, undefined, title, opponentChallenge ?? 'standard');
-            deps.unpublished.adopt(applyCouncilTalkLevelOverride(newGame, currentSettings.councilTalkLevel), 'pre-world-entry');
-            enterCampaign(
-              deps.session.getState(),
-              `Hot seat game started! ${config.players.filter(p => p.isHuman).length} players`,
-              true,
-            );
+            const start = (): void => {
+              const newGame = createHotSeatGame(config, undefined, title, opponentChallenge ?? 'standard');
+              deps.unpublished.adopt(applyCouncilTalkLevelOverride(newGame, currentSettings.councilTalkLevel), 'pre-world-entry');
+              enterCampaign(
+                deps.session.getState(),
+                `Hot seat game started! ${config.players.filter(p => p.isHuman).length} players`,
+                true,
+              );
+            };
+            return startAfterGeoMapData(config.mapScript, start);
           },
+          onMapScriptChosen: prefetchGeoMapData,
           onCustomCivilizationsChanged: (customCivilizations) => {
             deps.userSettingsStore.setCustomCivilizations(customCivilizations);
           },

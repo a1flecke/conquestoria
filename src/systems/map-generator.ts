@@ -10,12 +10,12 @@ import {
 import { generateRivers, applyRiversToMap } from './river-system';
 import { RESOURCE_DEFINITIONS } from './resource-definitions';
 import { LEGENDARY_WONDER_DEFINITIONS } from './legendary-wonder-definitions';
-// Geo data imports — populated by `yarn generate-maps`. Placeholder empty exports are safe.
-import { EARTH_START_POSITIONS } from './earth-map-data';
+// Start anchors only: the bulk tile/river data is loaded on demand (geo-map-data.ts, #1456).
+import { EARTH_START_POSITIONS } from './earth-start-positions';
 import { isValidStartTile } from './map-validation';
 import { createStartViabilityIndex } from './start-viability';
-import { OLD_WORLD_START_POSITIONS } from './old-world-map-data';
-import { NEW_WORLD_START_POSITIONS } from './new-world-map-data';
+import { OLD_WORLD_START_POSITIONS } from './old-world-start-positions';
+import { NEW_WORLD_START_POSITIONS } from './new-world-start-positions';
 
 // Simple seeded PRNG (mulberry32)
 export function createRng(seed: string): () => number {
@@ -413,7 +413,8 @@ const GEO_START_TABLES: Partial<Record<MapScript, Record<'small' | 'medium' | 'l
   'new-world': NEW_WORLD_START_POSITIONS,
 };
 
-export type GeographicMapScript = 'earth' | 'old-world' | 'new-world';
+export type { GeographicMapScript } from './geo-map-data';
+import type { GeographicMapScript } from './geo-map-data';
 
 export function getGeographicStartAnchor(
   mapScript: GeographicMapScript,
