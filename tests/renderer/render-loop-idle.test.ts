@@ -1,18 +1,20 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 const paintProbe = vi.hoisted(() => ({ timeVarying: false, bounded: null as null | { cx: number; cy: number; radius: number } }));
+const drawHexMapMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/renderer/hex-renderer', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/renderer/hex-renderer')>();
   const { markTimeVaryingPaint, withAmbientBounds } = await import('@/renderer/paint-clock');
+  drawHexMapMock.mockImplementation(() => {
+    if (!paintProbe.timeVarying) return;
+    const area = paintProbe.bounded;
+    if (area) withAmbientBounds(area.cx, area.cy, area.radius, () => markTimeVaryingPaint());
+    else markTimeVaryingPaint();
+  });
   return {
     ...actual,
-    drawHexMap: vi.fn(() => {
-      if (!paintProbe.timeVarying) return;
-      const area = paintProbe.bounded;
-      if (area) withAmbientBounds(area.cx, area.cy, area.radius, () => markTimeVaryingPaint());
-      else markTimeVaryingPaint();
-    }),
+    drawHexMap: drawHexMapMock,
   };
 });
 
@@ -74,6 +76,7 @@ function drain(max = 400): number {
 beforeEach(() => {
   paintProbe.timeVarying = false;
   paintProbe.bounded = null;
+  drawHexMapMock.mockClear();
   frames = [];
   nextId = 1;
   g.window = { devicePixelRatio: 1 };
@@ -319,6 +322,27 @@ describe('idle-aware render scheduling (#1439)', () => {
       expect(rect[2] * rect[3]).toBeLessThan(320 * 240 / 10);
       expect(calls.get('clip')!.mock.calls).toHaveLength(3);
       expect(calls.get('save')!.mock.calls.length).toBe(calls.get('restore')!.mock.calls.length);
+      loop.stop();
+    });
+
+    it('passes the clipped ambient region to the terrain renderer only on ambient paints', () => {
+      const { loop } = makeLoop();
+      paintProbe.timeVarying = true;
+      paintProbe.bounded = AREA;
+      loop.start();
+      // Full paint: no ambient cull region is offered to the terrain renderer.
+      expect(drawHexMapMock).toHaveBeenCalledTimes(1);
+      expect(drawHexMapMock.mock.calls[0]![11]).toBeUndefined();
+      // Ambient paints: exactly the region that was clipped.
+      const expected = [{
+        x0: AREA.cx - AREA.radius, y0: AREA.cy - AREA.radius,
+        x1: AREA.cx + AREA.radius, y1: AREA.cy + AREA.radius,
+      }];
+      runFrame();
+      expect(drawHexMapMock.mock.calls[1]![11]).toEqual(expected);
+      runFrame();
+      expect(drawHexMapMock.mock.calls[2]![11]).toEqual(expected);
+      expect(loop.paintCounts).toEqual({ full: 1, ambient: 2 });
       loop.stop();
     });
 
