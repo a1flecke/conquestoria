@@ -27,6 +27,7 @@ function makeMixer(): AudioMixer {
 function makeLoader(): AudioLoader {
   return {
     get: vi.fn().mockResolvedValue(fakeBuffer),
+    getLoop: vi.fn().mockResolvedValue(fakeBuffer),
     preload: vi.fn().mockResolvedValue(undefined),
     isCached: vi.fn().mockReturnValue(false),
   } as unknown as AudioLoader;

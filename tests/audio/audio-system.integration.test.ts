@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MockAudioContext } from '../helpers/mock-audio-context';
 import { AudioSystem } from '../../src/audio/audio-system';
+import { AudioLoader } from '../../src/audio/audio-loader';
+import { PreparedStreamedLoop } from '../../src/audio/streamed-loop';
 import type { EventBus } from '../../src/core/event-bus';
 import type { GameState } from '../../src/core/types';
 import { ACCENT, ERA_BASE, WAR_LAYER, UNREST_LAYER, resolveEra } from '../../src/audio/audio-catalog';
@@ -688,5 +690,36 @@ describe('AudioSystem integration', () => {
     busHelper.emit('civ:near-defeat', { civId: 'egypt' });
 
     expect(handleLossEvent).not.toHaveBeenCalled();
+  });
+
+  // #1466: prepared streams hold a decoded window and encoded bytes; a superseded request must not leak one.
+  it('discards streams prepared for a superseded era preload and installs only the latest', async () => {
+    const made: Array<{ discard: ReturnType<typeof vi.fn>; createPlayer: ReturnType<typeof vi.fn> }> = [];
+    const resolvers: Array<() => void> = [];
+    vi.spyOn(AudioLoader.prototype, 'getLoop').mockImplementation(() => new Promise(resolve => {
+      const prepared = Object.create(PreparedStreamedLoop.prototype) as PreparedStreamedLoop;
+      const entry = {
+        discard: vi.fn(),
+        createPlayer: vi.fn(() => ({ onended: null, start: vi.fn(), stop: vi.fn(), dispose: vi.fn() })),
+      };
+      Object.assign(prepared, entry);
+      made.push(entry);
+      resolvers.push(() => resolve(prepared));
+    }));
+    const state = makeState();
+    system.start(state, busHelper.bus, () => state);
+    expect(made).toHaveLength(2); // era base and civ accent for request 1
+    system.start(state, makeEventBus().bus, () => state);
+    expect(made).toHaveLength(4); // request 2
+    resolvers.splice(0, 2).forEach(resolve => resolve()); // request 1 finishes late
+    await flushPromises();
+    expect(made[0]!.discard).toHaveBeenCalledTimes(1);
+    expect(made[1]!.discard).toHaveBeenCalledTimes(1);
+    expect(made[0]!.createPlayer).not.toHaveBeenCalled();
+    resolvers.splice(0, 2).forEach(resolve => resolve());
+    await flushPromises();
+    expect(made[2]!.createPlayer).toHaveBeenCalledTimes(1);
+    expect(made[3]!.createPlayer).toHaveBeenCalledTimes(1);
+    expect(made[2]!.discard).not.toHaveBeenCalled();
   });
 });

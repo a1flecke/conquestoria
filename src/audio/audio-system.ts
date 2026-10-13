@@ -1,6 +1,6 @@
 import type { EventBus } from '../core/event-bus';
 import type { GameState } from '../core/types';
-import { AudioLoader } from './audio-loader';
+import { AudioLoader, discardLoopSource } from './audio-loader';
 import { AudioMixer } from './audio-mixer';
 import { MusicDirector, GAME_END_FADE_MS } from './music-director';
 import { worldAgeFromNumber } from '@/systems/era-types';
@@ -35,8 +35,9 @@ export class AudioSystem {
   private gestureResumeHandler: (() => void) | null = null;
   private isPresentationSuppressed: () => boolean = () => false;
   private loopLoadRequestId = 0;
-  private baseTrack: { file: string; buffer: AudioBuffer } | null = null;
-  private accentTrack: { file: string; buffer: AudioBuffer } | null = null;
+  // Only the identity of what the bus is playing: the mixer owns the audio (a buffer, or a streamed loop).
+  private baseTrack: { file: string } | null = null;
+  private accentTrack: { file: string } | null = null;
   private strategicWarningAudioKeys = new Set<string>();
   private unrouteSfx: (() => void) | null = null;
 
@@ -546,20 +547,25 @@ export class AudioSystem {
     // Preserve offline availability of war music without decoding an inaudible loop.
     void this.loader.prefetch([WAR_LAYER[eraId].file]);
 
-    const [baseBuffer, accentBuffer] = await Promise.all([
-      this.baseTrack?.file === baseEntry.file ? this.baseTrack.buffer : this.loader.get(baseEntry.file),
-      this.accentTrack?.file === accentEntry.file ? this.accentTrack.buffer : this.loader.get(accentEntry.file),
+    const [base, accent] = await Promise.all([
+      this.baseTrack?.file === baseEntry.file ? null : this.loader.getLoop(baseEntry),
+      this.accentTrack?.file === accentEntry.file ? null : this.loader.getLoop(accentEntry),
     ]);
-    if (requestId !== this.loopLoadRequestId) return;
+    if (requestId !== this.loopLoadRequestId) {
+      // Superseded while loading: nothing was installed, so release what was prepared.
+      if (base) discardLoopSource(base);
+      if (accent) discardLoopSource(accent);
+      return;
+    }
 
     // Own only the active long tracks. The director alone owns adaptive layers.
-    if (this.baseTrack?.file !== baseEntry.file) {
-      this.baseTrack = { file: baseEntry.file, buffer: baseBuffer };
-      this.mixer.setBusSource('era', baseBuffer, true, baseEntry.loop, 500);
+    if (base) {
+      this.baseTrack = { file: baseEntry.file };
+      this.mixer.setBusSource('era', base, true, baseEntry.loop, 500);
     }
-    if (this.accentTrack?.file !== accentEntry.file) {
-      this.accentTrack = { file: accentEntry.file, buffer: accentBuffer };
-      this.mixer.setBusSource('accent', accentBuffer, true, accentEntry.loop, 500);
+    if (accent) {
+      this.accentTrack = { file: accentEntry.file };
+      this.mixer.setBusSource('accent', accent, true, accentEntry.loop, 500);
     }
   }
 }

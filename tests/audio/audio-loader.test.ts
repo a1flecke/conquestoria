@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MockAudioContext } from '../helpers/mock-audio-context';
-import { AudioLoader } from '../../src/audio/audio-loader';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { AudioLoader, discardLoopSource } from '../../src/audio/audio-loader';
+import { PreparedStreamedLoop } from '../../src/audio/streamed-loop';
+import { FakeStreamContext } from './helpers/fake-stream-context';
 
 function makeLoader() {
   const ctx = new MockAudioContext();
@@ -168,5 +172,96 @@ describe('#1439 decoded residency', () => {
     expect(loader.isCached('a')).toBe(false);
     await loader.get('a');
     expect(decode).toHaveBeenCalledTimes(1);
+  });
+});
+
+// #1466: long looping music is streamed when the file can be played that way exactly, and is the whole buffer otherwise.
+describe('AudioLoader.getLoop()', () => {
+  const WAR = { file: 'audio/war/era1-war.ogg', loop: { loopStart: 0, loopEnd: 72.426 } };
+
+  function realBytes(): ArrayBuffer {
+    const raw = readFileSync(resolve(process.cwd(), 'public', WAR.file));
+    return raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength) as ArrayBuffer;
+  }
+
+  function streamingLoader(options: { streaming?: boolean; budget?: number } = {}) {
+    const ctx = Object.assign(new FakeStreamContext(), {
+      createBuffer: (channels: number, length: number, sampleRate: number) => ({ length, numberOfChannels: channels, sampleRate }),
+    });
+    const loader = new AudioLoader(ctx as unknown as AudioContext, options.budget, options.streaming);
+    return { ctx, loader };
+  }
+
+  function serve(body: () => ArrayBuffer) {
+    vi.mocked(globalThis.fetch).mockImplementation(async () => ({ ok: true, arrayBuffer: async () => body() }) as unknown as Response);
+  }
+
+  it('returns a prepared stream for a streamable track and keeps no decoded whole-file buffer', async () => {
+    serve(realBytes);
+    const { loader } = streamingLoader();
+    const source = await loader.getLoop(WAR);
+    expect(source).toBeInstanceOf(PreparedStreamedLoop);
+    expect(loader.isCached(WAR.file)).toBe(false);
+    discardLoopSource(source);
+  });
+
+  it('reuses the parsed track: the second request does not fetch the file again', async () => {
+    serve(realBytes);
+    const { loader } = streamingLoader();
+    discardLoopSource(await loader.getLoop(WAR));
+    discardLoopSource(await loader.getLoop(WAR));
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to the whole buffer for a file that is not Ogg Vorbis, and remembers that verdict', async () => {
+    serve(() => new ArrayBuffer(64));
+    const { loader } = streamingLoader();
+    expect(await loader.getLoop(WAR)).not.toBeInstanceOf(PreparedStreamedLoop);
+    const afterFirst = vi.mocked(globalThis.fetch).mock.calls.length;
+    expect(await loader.getLoop(WAR)).not.toBeInstanceOf(PreparedStreamedLoop);
+    // Only the whole-buffer path fetches the second time: the file is not parsed for streaming again.
+    expect(vi.mocked(globalThis.fetch).mock.calls.length - afterFirst).toBe(1);
+  });
+
+  it('falls back to the whole buffer when streaming is disabled', async () => {
+    serve(realBytes);
+    const { loader } = streamingLoader({ streaming: false });
+    expect(await loader.getLoop(WAR)).not.toBeInstanceOf(PreparedStreamedLoop);
+  });
+
+  it('falls back when the request fails, without remembering a verdict about the file', async () => {
+    mockFetchFail();
+    const { loader } = streamingLoader();
+    expect(await loader.getLoop(WAR)).not.toBeInstanceOf(PreparedStreamedLoop);
+    serve(realBytes);
+    const source = await loader.getLoop(WAR);
+    expect(source).toBeInstanceOf(PreparedStreamedLoop);
+    discardLoopSource(source);
+  });
+
+  it('treats an HTTP error status as a failed request, not as a file that cannot stream', async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValue({ ok: false, arrayBuffer: async () => new ArrayBuffer(0) } as unknown as Response);
+    const { loader } = streamingLoader();
+    await loader.getLoop(WAR);
+    serve(realBytes);
+    const source = await loader.getLoop(WAR);
+    expect(source).toBeInstanceOf(PreparedStreamedLoop);
+    discardLoopSource(source);
+  });
+
+  it('does not hand out a stream for a request that was superseded by clear()', async () => {
+    serve(realBytes);
+    const { loader } = streamingLoader();
+    const pending = loader.getLoop(WAR);
+    loader.clear();
+    expect(await pending).not.toBeInstanceOf(PreparedStreamedLoop);
+  });
+
+  it('never retains a parsed track larger than the byte budget', async () => {
+    serve(realBytes);
+    const { loader } = streamingLoader({ budget: 1024 });
+    discardLoopSource(await loader.getLoop(WAR));
+    discardLoopSource(await loader.getLoop(WAR));
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
   });
 });
