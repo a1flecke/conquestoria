@@ -1,5 +1,5 @@
 import type { AudioMixer, SnapshotId } from './audio-mixer';
-import type { AudioLoader } from './audio-loader';
+import { discardLoopSource, type AudioLoader } from './audio-loader';
 import type { WorldAge } from '@/systems/era-types';
 import { STINGER, UNREST_LAYER, DEFEAT_LAYER, WAR_LAYER, BEAST_TERRITORY_LAYER, resolveEra, type TrackEntry } from './audio-catalog';
 
@@ -116,15 +116,18 @@ export class MusicDirector {
       const captured = entry;
       const snapshotAtDispatch = snapshot;
       const eraAtDispatch = era;
-      void this.loader.get(captured.file).then(buf => {
+      void this.loader.getLoop(captured).then(source => {
         // Stale-check: if the snapshot changed while the load was in flight, skip the source swap.
         // This prevents the wrong adaptive layer from being set after a rapid state transition.
         if (
           requestId !== this.adaptiveRequestId
           || this.resolveSnapshot() !== snapshotAtDispatch
           || resolveEra(this.currentEra) !== eraAtDispatch
-        ) return;
-        this.mixer.setBusSource('adaptive', buf, true, captured.loop, ADAPTIVE_CROSSFADE_MS);
+        ) {
+          discardLoopSource(source);
+          return;
+        }
+        this.mixer.setBusSource('adaptive', source, true, captured.loop, ADAPTIVE_CROSSFADE_MS);
         this.installedAdaptiveFile = captured.file;
       });
     } else {

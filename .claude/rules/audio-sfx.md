@@ -14,3 +14,12 @@ A new or changed `UnitType` is checked against its own capabilities, not a roste
 Playback always goes through `SfxDirector` → `AudioMixer` (viewer-gated, mute/volume, one-shot cross-cut ≈200 ms — put a cue's identifying transient in its first ~150 ms). Audio never touches gameplay, saves, RNG or AI. The service worker runtime-caches every fetched response and `preloadSfx` fetches `allSfxEntries()`, so a catalog entry is offline-ready without a precache edit.
 
 Recorded material beats synthesis for guns and explosions (a pure-synthesis first pass was rejected by ear). Further external sources: Kenney CC0 first, then individually verified Freesound CC0/CC-BY; never CC-BY-NC, mirrors or free-tier generators. Record URL, creator, license, retrieval date, original and final SHA-256 in `AUDIO-CREDITS.md`.
+
+## Streamed long music (#1466)
+
+Long looping tracks (era base, accent, adaptive layers) are played from small decoded windows, not one whole `AudioBuffer`. Design, numbers and limits: [`docs/streaming-music-1466.md`](../../docs/streaming-music-1466.md).
+
+- Ask the loader for a loop with `AudioLoader.getLoop(entry)`; it returns a `PreparedStreamedLoop` or the whole buffer. Hand the result to `AudioMixer.setBusSource` or, if the request went stale, to `discardLoopSource`. Never keep a long loop's decoded PCM in a cache.
+- The buffer path is the safety net: any parse, plan, self-check or decode failure falls back to it. Do not add a code path that streams a file the planner refused.
+- Windows are exact because they start at a resampler-aligned packet with a pre-roll packet. Changing `coreSeconds`/`marginSeconds` is safe; changing how a window is cut is not without re-running `tests/e2e/issue-1466-streamed-music.spec.ts`.
+- A new music bus consumer uses `getLoop` + `setBusSource`; it must not call `loader.get` for a track longer than a few seconds.

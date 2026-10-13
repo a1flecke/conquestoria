@@ -4,6 +4,7 @@ import { worldAgeFromNumber } from '@/systems/era-types';
 import { STINGER, resolveEra } from '../../src/audio/audio-catalog';
 import type { AudioMixer } from '../../src/audio/audio-mixer';
 import type { AudioLoader } from '../../src/audio/audio-loader';
+import { PreparedStreamedLoop } from '../../src/audio/streamed-loop';
 
 const fakeBuffer = {} as AudioBuffer;
 
@@ -25,6 +26,7 @@ function makeMixer(): AudioMixer {
 function makeLoader(): AudioLoader {
   return {
     get: vi.fn().mockResolvedValue(fakeBuffer),
+    getLoop: vi.fn().mockResolvedValue(fakeBuffer),
     preload: vi.fn().mockResolvedValue(undefined),
     isCached: vi.fn().mockReturnValue(false),
   } as unknown as AudioLoader;
@@ -236,7 +238,7 @@ describe('MusicDirector', () => {
 
   it('does not let an old-era adaptive load overwrite the incoming handoff era', async () => {
     const requests: Array<{ resolve: (buffer: AudioBuffer) => void }> = [];
-    vi.mocked(loader.get).mockImplementation(() => new Promise<AudioBuffer>(resolve => {
+    vi.mocked(loader.getLoop).mockImplementation(() => new Promise<AudioBuffer>(resolve => {
       requests.push({ resolve });
     }));
     director.handlePlayerChanged({
@@ -273,6 +275,29 @@ describe('MusicDirector', () => {
       expect.anything(),
       expect.any(Number),
     );
+  });
+
+  // #1466: adaptive layers are long loops, so they arrive as a stream whenever the platform can stream them.
+  it('installs a streamed adaptive layer exactly like a buffer', async () => {
+    const stream = new PreparedStreamedLoop({} as never, {} as never, null);
+    vi.mocked(loader.getLoop).mockResolvedValue(stream);
+    director.handleWarDeclared({ aggressor: 'rome', defender: 'egypt', opponentKind: 'major' });
+    await flushPromises();
+    expect(mixer.setBusSource).toHaveBeenCalledWith('adaptive', stream, true, expect.anything(), expect.any(Number));
+  });
+
+  it('releases a streamed adaptive layer that went stale while it loaded', async () => {
+    const stream = new PreparedStreamedLoop({} as never, {} as never, null);
+    const discard = vi.spyOn(stream, 'discard');
+    let finish!: (value: PreparedStreamedLoop) => void;
+    vi.mocked(loader.getLoop).mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
+    director.handleWarDeclared({ aggressor: 'rome', defender: 'egypt', opponentKind: 'major' });
+    director.handlePeaceSigned({ remainingWars: 0 }); // the snapshot changes while the load is in flight
+    vi.mocked(mixer.setBusSource).mockClear();
+    finish(stream);
+    await flushPromises();
+    expect(discard).toHaveBeenCalledTimes(1);
+    expect(mixer.setBusSource).not.toHaveBeenCalledWith('adaptive', stream, expect.anything(), expect.anything(), expect.anything());
   });
 
   // --- handleGameEnded ---

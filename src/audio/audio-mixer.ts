@@ -1,4 +1,5 @@
 import type { LoopPoints } from './audio-catalog';
+import { PreparedStreamedLoop, StreamedLoopPlayer } from './streamed-loop';
 
 export type BusId = 'era' | 'accent' | 'adaptive' | 'stinger' | 'sfx';
 export type SnapshotId =
@@ -28,16 +29,21 @@ const SNAPSHOTS: Record<SnapshotId, Record<MusicBusId, number>> = {
   'stinger-duck':     { era: 0.5, accent: 0.35, adaptive: 0.4, stinger: 1.0 },
 };
 
+/** Whatever is playing on a bus: a buffer source node, or a streamed loop (both stop at a context time). */
+type BusSource = AudioBufferSourceNode | StreamedLoopPlayer;
+
 interface BusState {
   snapshotGain: GainNode;
   sourceGain: GainNode | null;
-  source: AudioBufferSourceNode | null;
+  source: BusSource | null;
 }
 
 export class AudioMixer {
   private musicBuses: Record<MusicBusId, BusState>;
   private sfxBus: BusState;
   private sources = new Map<AudioBufferSourceNode, () => void>();
+  // Streamed loops (#1466) are released by their own `onended`; the mixer only has to be able to stop them all.
+  private streams = new Set<StreamedLoopPlayer>();
 
   // Ambience uses sfxBus routing (unchanged from Spec 1)
   private ambienceGain: GainNode;
@@ -116,9 +122,14 @@ export class AudioMixer {
     source.onended = release;
   }
 
+  /**
+   * Starts a looping source on a bus, crossfading from whatever it replaces; `null` fades the bus out.
+   * A `PreparedStreamedLoop` (#1466) plays through small decoded windows and loops at its own `loopEnd`; a buffer
+   * loops with `loopPoints`. Both go through the same gain ramps, so crossfades are identical.
+   */
   setBusSource(
     bus: BusId,
-    buffer: AudioBuffer | null,
+    source: AudioBuffer | PreparedStreamedLoop | null,
     loop: boolean,
     loopPoints: LoopPoints | null,
     fadeMs: number,
@@ -138,15 +149,29 @@ export class AudioMixer {
       oldSrc.stop(now + Math.max(fadeS, 0.001));
     }
 
-    if (!buffer) return;
+    if (!source) return;
 
     const srcGain = this.ctx.createGain();
     srcGain.gain.setValueAtTime(0, now);
     srcGain.gain.linearRampToValueAtTime(1, now + Math.max(fadeS, 0.001));
     srcGain.connect(b.snapshotGain);
 
+    if (source instanceof PreparedStreamedLoop) {
+      const player = source.createPlayer(srcGain);
+      b.sourceGain = srcGain;
+      b.source = player;
+      this.streams.add(player);
+      player.onended = () => {
+        this.streams.delete(player);
+        srcGain.disconnect();
+        if (b.source === player) { b.source = null; b.sourceGain = null; }
+      };
+      player.start();
+      return;
+    }
+
     const src = this.ctx.createBufferSource();
-    src.buffer = buffer;
+    src.buffer = source;
     src.loop = loop;
     if (loop && loopPoints) {
       src.loopStart = loopPoints.loopStart;
@@ -337,6 +362,8 @@ export class AudioMixer {
   }
 
   dispose(): void {
+    for (const player of [...this.streams]) player.dispose();
+    this.streams.clear();
     for (const [source, release] of this.sources) {
       try { source.stop(); } catch { /* Already ended; still release its graph. */ }
       finally { release(); }

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { MockAudioContext } from '../helpers/mock-audio-context';
 import { AudioMixer, type SnapshotId } from '../../src/audio/audio-mixer';
+import { PreparedStreamedLoop, type StreamedLoopPlayer } from '../../src/audio/streamed-loop';
 
 function makeCtx() {
   return new MockAudioContext();
@@ -374,4 +375,88 @@ describe('AudioMixer Spec 3 — topology isolation', () => {
     expect(values).toContain(0.25);
   });
 
+});
+
+// #1466: a streamed loop is a bus source like any other: same gains, same crossfade, same teardown.
+describe('AudioMixer streamed sources', () => {
+  function fakeStream() {
+    const player = {
+      onended: null as (() => void) | null,
+      start: vi.fn(),
+      stop: vi.fn(),
+      dispose: vi.fn(() => { player.onended?.(); }),
+    };
+    const prepared = Object.create(PreparedStreamedLoop.prototype) as PreparedStreamedLoop;
+    const createPlayer = vi.fn(() => player as unknown as StreamedLoopPlayer);
+    Object.assign(prepared, { createPlayer });
+    return { prepared, player, createPlayer };
+  }
+
+  it('starts the player behind a gain that fades in over the requested time', () => {
+    const ctx = makeCtx();
+    const mixer = makeMixer(ctx);
+    const { prepared, player, createPlayer } = fakeStream();
+    ctx.clearTranscript();
+    mixer.setBusSource('era', prepared, true, { loopStart: 0, loopEnd: 10 }, 500);
+    expect(createPlayer).toHaveBeenCalledTimes(1);
+    expect(player.start).toHaveBeenCalledTimes(1);
+    const ramps = ctx.opsOf('linearRampToValueAtTime').map(e => e.args as number[]);
+    expect(ramps).toContainEqual([1, 0.5]);
+  });
+
+  it('crossfades: the replaced player is stopped after the fade and the new one fades in', () => {
+    const ctx = makeCtx();
+    const mixer = makeMixer(ctx);
+    const first = fakeStream();
+    const second = fakeStream();
+    mixer.setBusSource('era', first.prepared, true, null, 500);
+    mixer.setBusSource('era', second.prepared, true, null, 500);
+    expect(first.player.stop).toHaveBeenCalledWith(0.5);
+    expect(second.player.start).toHaveBeenCalledTimes(1);
+  });
+
+  it('a buffer can replace a stream and a stream a buffer', () => {
+    const ctx = makeCtx();
+    const mixer = makeMixer(ctx);
+    const stream = fakeStream();
+    mixer.setBusSource('era', stream.prepared, true, null, 100);
+    mixer.setBusSource('era', makeBuf(ctx), true, null, 100);
+    expect(stream.player.stop).toHaveBeenCalledTimes(1);
+    const next = fakeStream();
+    mixer.setBusSource('era', next.prepared, true, null, 100);
+    expect(next.player.start).toHaveBeenCalledTimes(1);
+  });
+
+  it('null fades a stream out and stops it', () => {
+    const ctx = makeCtx();
+    const mixer = makeMixer(ctx);
+    const { prepared, player } = fakeStream();
+    mixer.setBusSource('adaptive', prepared, true, null, 100);
+    mixer.setBusSource('adaptive', null, true, null, 250);
+    expect(player.stop).toHaveBeenCalledWith(0.25);
+  });
+
+  it('dispose releases every live stream', () => {
+    const ctx = makeCtx();
+    const mixer = makeMixer(ctx);
+    const a = fakeStream();
+    const b = fakeStream();
+    mixer.setBusSource('era', a.prepared, true, null, 100);
+    mixer.setBusSource('accent', b.prepared, true, null, 100);
+    mixer.dispose();
+    expect(a.player.dispose).toHaveBeenCalled();
+    expect(b.player.dispose).toHaveBeenCalled();
+  });
+
+  it('a stream that ends on its own frees the bus slot, and a later source still starts', () => {
+    const ctx = makeCtx();
+    const mixer = makeMixer(ctx);
+    const a = fakeStream();
+    mixer.setBusSource('era', a.prepared, true, null, 100);
+    a.player.onended?.();
+    const b = fakeStream();
+    mixer.setBusSource('era', b.prepared, true, null, 100);
+    expect(a.player.stop).not.toHaveBeenCalled(); // already ended: nothing left to fade
+    expect(b.player.start).toHaveBeenCalledTimes(1);
+  });
 });
