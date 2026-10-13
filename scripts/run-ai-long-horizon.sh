@@ -111,6 +111,18 @@ install_cancel_traps
 AI_LONG_HORIZON_STALL_MAX_RETRIES="${AI_LONG_HORIZON_STALL_MAX_RETRIES:-2}"
 AI_LONG_HORIZON_STALL_RETRY_BACKOFF_SECONDS="${AI_LONG_HORIZON_STALL_RETRY_BACKOFF_SECONDS:-20}"
 
+# #1454: fail in seconds, not after a 1-3 hour run, if a known-gap owner issue has been closed. Exit 3 means GitHub
+# could not be reached; the offline registry test still enforces the committed snapshot, so continue with a warning.
+if [ -f scripts/known-gap-owners.mjs ]; then
+  owner_status=0
+  ./scripts/run-with-mise.sh node ./scripts/known-gap-owners.mjs verify || owner_status=$?
+  if [ "$owner_status" -eq 3 ]; then
+    echo "run-ai-long-horizon: known-gap owners could not be verified against GitHub; continuing on the committed snapshot." >&2
+  elif [ "$owner_status" -ne 0 ]; then
+    exit "$owner_status"
+  fi
+fi
+
 attempt=0
 while :; do
   attempt=$((attempt + 1))

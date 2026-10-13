@@ -69,7 +69,7 @@ tracked scripts directory matches `HEAD`:
 
 - `./scripts/dev.sh build`, `typecheck`, `test-all`, `test-regular`, `hooks`, `install`,
   `setup-hooks`, `verify-pr`, `verify-pr-status`, `verify-status`, `durable`, `durable-status`,
-  `ai-playability`, `ai-long`, `web-smoke`, `docs-lifecycle`, `verify-impact`, `maintainability-check`, `maintainability-report`,
+  `ai-playability`, `ai-long`, `web-smoke`, `docs-lifecycle`, `verify-impact`, `known-gap-owners` (read-only GitHub check), `known-gap-owners-refresh` (rewrites the owner snapshot), `maintainability-check`, `maintainability-report`,
   `maintainability-baseline` (the last two rewrite a checked-in docs file; see `docs/maintainability-audit.md`) (run it with no arguments for the list).
 - Focused tests: `./scripts/dev.sh test tests/systems/city-system.test.ts` (one or more `*.test.ts(x)`
   files or directories under `tests/`; anything else is rejected with the rule it broke).

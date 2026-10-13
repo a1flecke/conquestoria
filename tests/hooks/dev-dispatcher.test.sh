@@ -81,6 +81,8 @@ web-smoke|yarn test:web-smoke
 docs-lifecycle|node scripts/docs-lifecycle.mjs check
 verify-impact|yarn verify:impact
 yarn-parity|node scripts/check-yarn-version-parity.mjs
+known-gap-owners|node scripts/known-gap-owners.mjs verify
+known-gap-owners-refresh|node scripts/known-gap-owners.mjs refresh
 maintainability-check|node scripts/maintainability-audit.mjs --check
 maintainability-report|node scripts/maintainability-audit.mjs --report
 maintainability-baseline|node scripts/maintainability-audit.mjs --baseline'

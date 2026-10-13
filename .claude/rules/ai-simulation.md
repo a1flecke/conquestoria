@@ -70,6 +70,14 @@ documented condition on this project's usual dev host — see
 `.claude/rules/hooks-and-tooling.md`'s "#608" section).
 `scripts/run-ai-long-horizon.sh`'s outer wrapper is sized accordingly.
 
+**Measured 2026-10-13 (#1454, main a990bc08, 10-core Apple Silicon host with otherwise light load): that
+expectation no longer holds.** Seven scenarios took 66 minutes (veteran-medium alone 30), and `lh-veteran-large`
+took **108 minutes** — over `SCENARIO_TIMEOUT_MS` (80 minutes), so Vitest reported the test as timed out after the
+campaign had finished and written its artifact — while the single full invocation hit the wrapper's 8400 s cap
+(exit 124) with two scenarios unstarted. Running the pieces separately (`yarn test:ai-long -t lh-veteran-large`, then
+`-t "lh-hotseat-medium|lh-late-era-medium"`) completes everything; the other two took 2.5 and 11.7 minutes. Resizing
+`SCENARIO_TIMEOUT_MS` / the wrapper cap belongs to the long-horizon runtime work (#1125), not to the register.
+
 ### Reading the output
 
 Each scenario writes two files under the gitignored `.verification/` tree:
@@ -113,6 +121,31 @@ a matrix run attached to the PR, never to make a run pass.
 When you fix an AI bug the suite was tracking, delete its register entry in the
 same change. When the suite finds something new, do **not** loosen a detector or
 widen a threshold to hide it — add a register entry and file the follow-up.
+
+**Registry integrity is checked cheaply and offline (#1454).** The ratchet above needs a multi-hour run, so
+on its own it cannot notice an entry whose owner issue was closed (the register once accepted three findings
+against #1413/#1113/#1127 long after they closed, none of which still reproduced). `findRegistryIntegrityProblems`
+(`known-campaign-gaps.ts`), run in the ordinary suite by `tests/scripts/known-campaign-gap-registry.test.ts`
+(about a second, no GitHub access), rejects:
+
+- an owner that is **closed** in `tests/simulation/long-horizon/known-gap-owners.json` (a committed snapshot of
+  each owner's GitHub state) unless the entry carries a written `ownerClosedRationale`; an owner missing from the
+  snapshot; a snapshot row nothing uses;
+- over-broad or malformed registrations: an entry without `accepted`, an occurrence with no `civId` or no
+  `maxRounds`, a `maxRounds` larger than the scenario's rounds (it can never bind), a scenario not in the matrix, a
+  malformed `#N`, an unexplained `why`, a duplicate.
+
+The snapshot is refreshed with `./scripts/dev.sh known-gap-owners-refresh` after any `issue:` change and verified
+live with `./scripts/dev.sh known-gap-owners`; `run-ai-long-horizon.sh` runs that live check first so a closed owner
+fails in seconds instead of after the run (exit 3, GitHub unreachable, only warns).
+
+When the whole matrix cannot finish inside one invocation (see Runtime), the in-test ratchet never fires because it
+requires every scenario in one vitest run. Run the scenarios in pieces (`yarn test:ai-long -t <seed>`), then evaluate
+the ratchet from the saved deterministic artifacts:
+
+```sh
+CAMPAIGN_RATCHET_FROM_ARTIFACTS=1 ./scripts/run-with-mise.sh yarn vitest run --config vitest.long-horizon.config.ts tests/simulation/long-horizon/campaign-artifact-ratchet.test.ts
+```
 
 ## AI expansion (#1064)
 

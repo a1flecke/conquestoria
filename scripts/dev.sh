@@ -48,6 +48,8 @@ tasks (output is saved to .verification/logs/<task>.log; the last 60 lines are p
   docs-lifecycle    node scripts/docs-lifecycle.mjs check
   verify-impact     yarn verify:impact (read-only: lists the evidence the current change requires)
   yarn-parity       node scripts/check-yarn-version-parity.mjs (read-only Yarn version guard)
+  known-gap-owners          node scripts/known-gap-owners.mjs verify (read-only: owners of the long-horizon known gaps are OPEN on GitHub)
+  known-gap-owners-refresh  node scripts/known-gap-owners.mjs refresh (rewrites tests/simulation/long-horizon/known-gap-owners.json)
   maintainability-check     node scripts/maintainability-audit.mjs --check (read-only drift check)
   maintainability-report    node scripts/maintainability-audit.mjs --report (rewrites docs/maintainability-audit-report.md)
   maintainability-baseline  node scripts/maintainability-audit.mjs --baseline (rewrites docs/maintainability-audit-baseline.json)
@@ -62,7 +64,7 @@ deny() {
 
 is_task() {
   case "$1" in
-    build|typecheck|test|test-all|test-regular|hooks|install|setup-hooks|verify-pr|verify-pr-status|verify-status|durable|durable-status|ai-playability|ai-playability-status|ai-long|ai-long-status|web-smoke|docs-lifecycle|verify-impact|yarn-parity|maintainability-check|maintainability-report|maintainability-baseline) return 0 ;;
+    build|typecheck|test|test-all|test-regular|hooks|install|setup-hooks|verify-pr|verify-pr-status|verify-status|durable|durable-status|ai-playability|ai-playability-status|ai-long|ai-long-status|web-smoke|docs-lifecycle|verify-impact|yarn-parity|known-gap-owners|known-gap-owners-refresh|maintainability-check|maintainability-report|maintainability-baseline) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -130,6 +132,8 @@ execute() {
     docs-lifecycle) bash "$MISE" node scripts/docs-lifecycle.mjs check ;;
     verify-impact) bash "$MISE" yarn verify:impact ;;
     yarn-parity) bash "$MISE" node scripts/check-yarn-version-parity.mjs ;;
+    known-gap-owners) bash "$MISE" node scripts/known-gap-owners.mjs verify ;;
+    known-gap-owners-refresh) bash "$MISE" node scripts/known-gap-owners.mjs refresh ;;
     maintainability-check) bash "$MISE" node scripts/maintainability-audit.mjs --check ;;
     maintainability-report) bash "$MISE" node scripts/maintainability-audit.mjs --report ;;
     maintainability-baseline) bash "$MISE" node scripts/maintainability-audit.mjs --baseline ;;
