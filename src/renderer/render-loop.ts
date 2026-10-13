@@ -820,7 +820,7 @@ export class RenderLoop {
     }
     this.ctx.clip();
     try {
-      this.render();
+      this.render(region);
     } finally {
       this.ctx.restore();
     }
@@ -894,7 +894,7 @@ export class RenderLoop {
     this.advanceUnitMovements(nowMs);
   }
 
-  private render(): void {
+  private render(ambientRepaintRegion?: readonly PaintBounds[]): void {
     if (!this.state) return;
     // Read before advancing: a completion callback that invalidates must force the next sync.
     const generationAtPaint = this.generation;
@@ -970,6 +970,7 @@ export class RenderLoop {
       terrainLabelSuppressedCoords,
       this.state.turn,
       completedTechsByCiv,
+      ambientRepaintRegion,
     );
 
     // Draw rivers

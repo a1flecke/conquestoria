@@ -247,7 +247,7 @@ describe('render-loop state publication (#1439 characterization)', () => {
     renderOnce(loop);
 
     // drawHexMap(ctx, map, camera, villagePositions, beastLairGlyphs, viewerId,
-    // viewerVisibility, viewerTechs, suppressedCoords, turn, completedTechsByCiv)
+    // viewerVisibility, viewerTechs, suppressedCoords, turn, completedTechsByCiv, ambientRegion)
     expect(rendererMocks.drawHexMap).toHaveBeenLastCalledWith(
       expect.anything(),
       first.map,
@@ -260,6 +260,7 @@ describe('render-loop state publication (#1439 characterization)', () => {
       expect.anything(),
       first.turn,
       expect.anything(),
+      undefined, // a full paint offers no ambient cull region (#1439 phase 6)
     );
 
     const second = minimalState({ turn: 42 });
@@ -278,6 +279,7 @@ describe('render-loop state publication (#1439 characterization)', () => {
       expect.anything(),
       42,
       expect.anything(),
+      undefined, // a full paint offers no ambient cull region (#1439 phase 6)
     );
   });
 

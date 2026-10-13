@@ -7,7 +7,8 @@ import {
   drawMinorCivTerritory,
   IMPROVEMENT_ICONS,
 } from '@/renderer/hex-renderer';
-import type { GameMap, HexTile, VisibilityMap } from '@/core/types';
+import { beginPaintTracking, paintAmbientRegion, paintWasTimeVarying, type PaintBounds } from '@/renderer/paint-clock';
+import type { GameMap, HexTile, TerrainType, VisibilityMap } from '@/core/types';
 
 vi.mock('@/renderer/improvements/rail-segment-loader', () => ({
   getRailSegmentImage: () => ({} as HTMLImageElement),
@@ -690,5 +691,270 @@ describe('devastated tile tint (MR2 catastrophe crises)', () => {
     drawHexMap(ctx, makeDevastationMap(50), makeCamera(), undefined, undefined, 'player', visibility, new Set(), new Set(), 40);
     const mockCtx = ctx as unknown as MockCanvasContext;
     expect(mockCtx.fillCalls).not.toContain('rgba(40,30,20,0.45)');
+  });
+});
+
+/**
+ * #1439 phase 6 clip-aware terrain culling. During an ambient-only paint the canvas is clipped to
+ * the animated region(s), so a terrain tile whose whole drawing footprint lies outside every
+ * region cannot put a pixel on screen and can be skipped. These tests pin the geometry contract:
+ * conservative overdraw margins (a culled tile is a no-op, a wrongly-kept one costs a little work,
+ * but a wrongly-skipped one leaves stale pixels), wrapping, fog, zoom and the time-varying wonder
+ * mark that must survive culling.
+ */
+describe('ambient-region terrain culling (#1439 phase 6)', () => {
+  // A small hex so tile centres are easy to reason about: on r=0 centres sit at q·√3·size and the
+  // conservative cull half-extent is (√3/2 + margin)·size wide.
+  const HEX_SIZE = 10;
+
+  function makeSizedCamera(zoom = 1): Camera {
+    return {
+      hexSize: HEX_SIZE,
+      zoom,
+      isHexVisible: () => true,
+      worldToScreen: (x: number, y: number) => ({ x, y }),
+    } as unknown as Camera;
+  }
+
+  interface TileSpec {
+    q: number;
+    terrain?: TerrainType;
+    improvement?: string;
+    wonder?: string | null;
+  }
+
+  function makeTiledMap(specs: TileSpec[], options: { width?: number; wrapsHorizontally?: boolean } = {}): GameMap {
+    const tiles: Record<string, HexTile> = {};
+    for (const spec of specs) {
+      tiles[`${spec.q},0`] = {
+        coord: { q: spec.q, r: 0 },
+        terrain: spec.terrain ?? 'grassland',
+        elevation: 'lowland',
+        movementCost: 1,
+        owner: null,
+        improvement: spec.improvement ?? 'none',
+        improvementTurnsLeft: 0,
+        resource: null,
+        hasRiver: false,
+        wonder: spec.wonder ?? null,
+      } as unknown as HexTile;
+    }
+    return {
+      width: options.width ?? specs.length,
+      height: 1,
+      wrapsHorizontally: options.wrapsHorizontally ?? false,
+      rivers: [],
+      tiles,
+    } as unknown as GameMap;
+  }
+
+  function visibleMap(...keys: string[]): VisibilityMap {
+    return { tiles: Object.fromEntries(keys.map(key => [key, 'visible'])) };
+  }
+
+  function renderedLabels(ctx: CanvasRenderingContext2D): string[] {
+    return (ctx as unknown as MockCanvasContext).textCalls;
+  }
+
+  it('draws every tile when no ambient region is supplied (full paint path)', () => {
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    drawHexMap(
+      ctx, makeTiledMap([{ q: 0 }, { q: 1 }, { q: 2 }]), makeSizedCamera(),
+      undefined, undefined, 'player', visibleMap('0,0', '1,0', '2,0'),
+    );
+    expect((ctx as unknown as MockCanvasContext).fillCalls).toHaveLength(3);
+  });
+
+  it('skips terrain entirely outside the region and keeps intersecting terrain', () => {
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    // Centres at 0 / 17.32 / 34.64 / 51.96 px; region [45, 60] excludes q=0, q=1.
+    const region: PaintBounds[] = [{ x0: 45, y0: -6, x1: 60, y1: 6 }];
+    drawHexMap(
+      ctx,
+      makeTiledMap([{ q: 0, terrain: 'mountain' }, { q: 1, terrain: 'desert' }, { q: 2, terrain: 'tundra' }, { q: 3, terrain: 'snow' }]),
+      makeSizedCamera(),
+      undefined, undefined, 'player', visibleMap('0,0', '1,0', '2,0', '3,0'),
+      new Set(), new Set(), undefined, {}, region,
+    );
+    const labels = renderedLabels(ctx);
+    expect(labels).toContain('Tundra');
+    expect(labels).toContain('Snow');
+    expect(labels).not.toContain('Mtn');
+    expect(labels).not.toContain('Desert');
+  });
+
+  it('keeps a tile whose centre is outside the region but whose artwork overlaps it', () => {
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    // q=1 centre (17.32) is left of region [25, 30], but its half-width reaches 33.5.
+    const region: PaintBounds[] = [{ x0: 25, y0: -6, x1: 30, y1: 6 }];
+    drawHexMap(
+      ctx,
+      makeTiledMap([{ q: 0, terrain: 'grassland' }, { q: 1, terrain: 'mountain' }]),
+      makeSizedCamera(),
+      undefined, undefined, 'player', visibleMap('0,0', '1,0'),
+      new Set(), new Set(), undefined, {}, region,
+    );
+    const labels = renderedLabels(ctx);
+    expect(labels).toContain('Mtn');
+    expect(labels).not.toContain('Grass');
+  });
+
+  it('keeps a tile in each of several disjoint regions and culls the gap between them', () => {
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    const region: PaintBounds[] = [
+      { x0: -6, y0: -6, x1: 6, y1: 6 },
+      { x0: 167, y0: -6, x1: 179, y1: 6 },
+    ];
+    drawHexMap(
+      ctx,
+      makeTiledMap([{ q: 0, terrain: 'grassland' }, { q: 10, terrain: 'desert' }]),
+      makeSizedCamera(),
+      undefined, undefined, 'player', visibleMap('0,0', '10,0'),
+      new Set(), new Set(), undefined, {}, region,
+    );
+    const labels = renderedLabels(ctx);
+    expect(labels).toContain('Grass');
+    expect(labels).toContain('Desert');
+    expect((ctx as unknown as MockCanvasContext).fillCalls).toHaveLength(2);
+  });
+
+  it('culls a wrapped copy outside the region while drawing the copy inside it', () => {
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    const region: PaintBounds[] = [{ x0: -6, y0: -6, x1: 6, y1: 6 }];
+    // Wrapping map width 4: tile q=0 renders at q=-4, 0 and 4 (centres -69.28, 0, 69.28).
+    drawHexMap(
+      ctx,
+      makeTiledMap([{ q: 0 }], { width: 4, wrapsHorizontally: true }),
+      makeSizedCamera(),
+      undefined, undefined, 'player', visibleMap('0,0'),
+      new Set(), new Set(), undefined, {}, region,
+    );
+    expect((ctx as unknown as MockCanvasContext).fillCalls).toHaveLength(1);
+  });
+
+  it('draws a seam-adjacent tile through the wrapped copy that lands in the region', () => {
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    const region: PaintBounds[] = [{ x0: -20, y0: -6, x1: -14, y1: 6 }];
+    // Tile q=3 on a width-4 map renders at q=-1, 3, 7; only the seam ghost (-17.32) is in region.
+    drawHexMap(
+      ctx,
+      makeTiledMap([{ q: 3, terrain: 'snow' }], { width: 4, wrapsHorizontally: true }),
+      makeSizedCamera(),
+      undefined, undefined, 'player', visibleMap('3,0'),
+      new Set(), new Set(), undefined, {}, region,
+    );
+    const mockCtx = ctx as unknown as MockCanvasContext;
+    expect(renderedLabels(ctx)).toContain('Snow');
+    expect(mockCtx.fillCalls).toHaveLength(1);
+  });
+
+  it('culls by geometry alone, independent of fog, last-seen or unexplored visibility', () => {
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    const region: PaintBounds[] = [{ x0: 18, y0: -6, x1: 18.3, y1: 6 }];
+    const visibility: VisibilityMap = {
+      tiles: { '0,0': 'visible', '1,0': 'fog', '2,0': 'unexplored' },
+      lastSeen: {
+        '1,0': {
+          coord: { q: 1, r: 0 }, terrain: 'desert', elevation: 'lowland',
+          resource: null, improvement: 'none', owner: null, improvementTurnsLeft: 0,
+          hasRiver: false, wonder: null,
+        } as any,
+      },
+    };
+    drawHexMap(
+      ctx,
+      makeTiledMap([{ q: 0, terrain: 'mountain' }, { q: 1 }, { q: 2 }]),
+      makeSizedCamera(),
+      undefined, undefined, 'player', visibility,
+      new Set(), new Set(), undefined, {}, region,
+    );
+    const labels = renderedLabels(ctx);
+    // The fogged tile inside the region is processed (its last-seen look is drawn) ...
+    expect(labels).toContain('Desert');
+    // ... while its visible and unexplored neighbours, outside the region, are not.
+    expect(labels).not.toContain('Mtn');
+    expect(labels).not.toContain('Grass');
+    expect((ctx as unknown as MockCanvasContext).fillCalls).toHaveLength(1);
+  });
+
+  it('scales the cull footprint with zoom', () => {
+    const region: PaintBounds[] = [{ x0: 40, y0: -6, x1: 45, y1: 6 }];
+    const specs: TileSpec[] = [{ q: 0 }, { q: 1 }, { q: 2 }];
+
+    const zoomedOut = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    drawHexMap(zoomedOut, makeTiledMap(specs), makeSizedCamera(1), undefined, undefined, 'player', visibleMap('0,0', '1,0', '2,0'), new Set(), new Set(), undefined, {}, region);
+    const closer = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    drawHexMap(closer, makeTiledMap(specs), makeSizedCamera(2), undefined, undefined, 'player', visibleMap('0,0', '1,0', '2,0'), new Set(), new Set(), undefined, {}, region);
+
+    // At zoom 2 the same tile footprint is twice as large, so q=1 comes into range.
+    expect((zoomedOut as unknown as MockCanvasContext).fillCalls).toHaveLength(1);
+    expect((closer as unknown as MockCanvasContext).fillCalls).toHaveLength(2);
+  });
+
+  it('interprets the region in CSS pixels, independent of devicePixelRatio', () => {
+    const region: PaintBounds[] = [{ x0: 45, y0: -6, x1: 60, y1: 6 }];
+    const run = (): number => {
+      const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+      drawHexMap(ctx, makeTiledMap([{ q: 0 }, { q: 1 }, { q: 2 }, { q: 3 }]), makeSizedCamera(), undefined, undefined, 'player', visibleMap('0,0', '1,0', '2,0', '3,0'), new Set(), new Set(), undefined, {}, region);
+      return (ctx as unknown as MockCanvasContext).fillCalls.length;
+    };
+
+    const dpr1 = run();
+    const globals = globalThis as unknown as { window?: unknown };
+    const previous = globals.window;
+    globals.window = { devicePixelRatio: 3 };
+    try {
+      expect(run()).toBe(dpr1);
+    } finally {
+      globals.window = previous;
+    }
+  });
+
+  it('skips an off-region improvement overlay and keeps an in-region one', () => {
+    const specs: TileSpec[] = [{ q: 0, improvement: 'mine' }, { q: 1, terrain: 'desert' }];
+    // Region over q=1 only: q=0's mine rocks must not be drawn.
+    const offRegion = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    drawHexMap(offRegion, makeTiledMap(specs), makeSizedCamera(), undefined, undefined, 'player', visibleMap('0,0', '1,0'), new Set(), new Set(), undefined, {}, [{ x0: 20, y0: -6, x1: 40, y1: 6 }]);
+    expect((offRegion as unknown as MockCanvasContext).strokeCalls).not.toContain('rgba(45,40,34,0.65)');
+    expect(renderedLabels(offRegion)).toContain('Desert');
+
+    // Region over q=0 only: the mine rocks are drawn.
+    const inRegion = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    drawHexMap(inRegion, makeTiledMap(specs), makeSizedCamera(), undefined, undefined, 'player', visibleMap('0,0', '1,0'), new Set(), new Set(), undefined, {}, [{ x0: -25, y0: -6, x1: 0, y1: 6 }]);
+    expect((inRegion as unknown as MockCanvasContext).strokeCalls).toContain('rgba(45,40,34,0.65)');
+    expect(renderedLabels(inRegion)).not.toContain('Desert');
+  });
+
+  it('does not lose a bounded time-varying wonder mark when off-region terrain is culled', () => {
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    const centerX = 2 * HEX_SIZE * Math.sqrt(3); // q=2 centre
+    const region: PaintBounds[] = [{ x0: 35, y0: -6, x1: 45, y1: 6 }];
+    beginPaintTracking();
+    drawHexMap(
+      ctx,
+      makeTiledMap([{ q: 0, terrain: 'mountain' }, { q: 1, terrain: 'desert' }, { q: 2, wonder: 'great_volcano' }]),
+      makeSizedCamera(),
+      undefined, undefined, 'player', visibleMap('0,0', '1,0', '2,0'),
+      new Set(), new Set(), undefined, {}, region,
+    );
+
+    // Only the wonder tile is drawn, but its animation still reports to the paint clock, with a
+    // bounded region that keeps the next ambient frame alive.
+    expect(renderedLabels(ctx)).not.toContain('Mtn');
+    expect(paintWasTimeVarying()).toBe(true);
+    const bounds = paintAmbientRegion();
+    expect(bounds).not.toBeNull();
+    expect(bounds![0]!.x0).toBeCloseTo(centerX - 2 * HEX_SIZE);
+    expect(bounds![0]!.y0).toBeCloseTo(-2 * HEX_SIZE);
+    expect(bounds![0]!.x1).toBeCloseTo(centerX + 2 * HEX_SIZE);
+    expect(bounds![0]!.y1).toBeCloseTo(2 * HEX_SIZE);
+  });
+
+  it('treats the ambient region as an immutable descriptor', () => {
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    const region: PaintBounds[] = [{ x0: 45, y0: -6, x1: 60, y1: 6 }];
+    const snapshot = region.map(bounds => ({ ...bounds }));
+    drawHexMap(ctx, makeTiledMap([{ q: 0 }, { q: 2 }]), makeSizedCamera(), undefined, undefined, 'player', visibleMap('0,0', '2,0'), new Set(), new Set(), undefined, {}, region);
+    expect(region).toEqual(snapshot);
   });
 });

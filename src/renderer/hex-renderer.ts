@@ -1,6 +1,7 @@
 import type { GameMap, HexCoord, HexTile, TerrainType, VisibilityMap } from '@/core/types';
 import { hexToPixel, hexesInRange, HEX_CORNERS_POINTY, hexNeighbors, getWrappedHexNeighbors, hexKey } from '@/systems/hex-utils';
 import { Camera } from './camera';
+import type { PaintBounds } from './paint-clock';
 import { getHorizontalWrapRenderCoords, nearestWrappedCoord } from './wrap-rendering';
 import { shouldRenderOwnedTileBorder, shouldRenderOwnedTileBorderForPresentation } from './render-visibility';
 import { resolveTilePresentationForViewer, type TilePresentationKind } from './tile-presentation';
@@ -113,6 +114,42 @@ function drawTileAtScreen(
   }
 }
 
+// #1439 phase 6: the conservative screen-space box a terrain tile's drawing can occupy.
+// A pointy-top hex is ±√3/2·size wide and ±1·size tall, but a tile also draws a border stroke,
+// improvement treatments, a resource marker, a fort/outpost marker and a terrain label that reach
+// past the hexagon, so the box adds a margin. Overdrawing a kept tile is free (the ambient clip
+// discards it); underdrawing a skipped one would leave stale pixels, so the margin is generous --
+// it exceeds any tile's real overdraw by ~0.9·size, far more than the 1px the clip expands a
+// region by (see RenderLoop.renderAmbientRegion), so a culled tile's pixels are always outside
+// the clip.
+const AMBIENT_CULL_MARGIN = 0.75;
+const AMBIENT_CULL_HALF_WIDTH = Math.sqrt(3) / 2 + AMBIENT_CULL_MARGIN;
+const AMBIENT_CULL_HALF_HEIGHT = 1 + AMBIENT_CULL_MARGIN;
+
+/**
+ * True when a tile's conservative screen-space footprint can intersect any ambient repaint region.
+ * Coordinates are CSS pixels, matching `PaintBounds` and `Camera.worldToScreen`, so DPR never
+ * enters the test. A tile whose centre sits inside a region always qualifies -- the region is
+ * centred on the tile that produced it -- which is what keeps an animated wonder's own tile drawn
+ * (and its paint-clock mark alive) while the rest of the map is culled.
+ */
+export function tileIntersectsAmbientRegions(
+  screen: { x: number; y: number },
+  scaledSize: number,
+  regions: readonly PaintBounds[],
+): boolean {
+  const halfWidth = scaledSize * AMBIENT_CULL_HALF_WIDTH;
+  const halfHeight = scaledSize * AMBIENT_CULL_HALF_HEIGHT;
+  const x0 = screen.x - halfWidth;
+  const x1 = screen.x + halfWidth;
+  const y0 = screen.y - halfHeight;
+  const y1 = screen.y + halfHeight;
+  for (const region of regions) {
+    if (x0 <= region.x1 && x1 >= region.x0 && y0 <= region.y1 && y1 >= region.y0) return true;
+  }
+  return false;
+}
+
 export function drawHexMap(
   ctx: CanvasRenderingContext2D,
   map: GameMap,
@@ -125,12 +162,15 @@ export function drawHexMap(
   terrainLabelSuppressedCoords: ReadonlySet<string> = new Set(),
   currentTurn?: number,
   completedTechsByCiv: Readonly<Record<string, readonly string[]>> = {},
+  ambientRegions?: readonly PaintBounds[],
 ): void {
   const size = camera.hexSize;
   const nowMs = typeof performance !== 'undefined' ? performance.now() : 0;
   const reducedMotion = typeof window !== 'undefined'
     && typeof window.matchMedia === 'function'
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Ambient-only paints pass the regions the canvas was clipped to; a full paint passes none.
+  const cullToAmbientRegions = ambientRegions !== undefined && ambientRegions.length > 0;
 
   for (const tile of Object.values(map.tiles)) {
     const renderCoords = map.wrapsHorizontally
@@ -146,6 +186,9 @@ export function drawHexMap(
       const pixel = hexToPixel(renderCoord, size);
       const screen = camera.worldToScreen(pixel.x, pixel.y);
       const scaledSize = size * camera.zoom;
+      // Skip tiles that cannot touch any ambient region before the (comparatively expensive)
+      // presentation resolve, wrap/presentation lookups and drawing each one would otherwise cost.
+      if (cullToAmbientRegions && !tileIntersectsAmbientRegions(screen, scaledSize, ambientRegions)) continue;
       const presentation = resolveTilePresentationForViewer(map, viewerVisibility, renderCoord);
       drawTileAtScreen(
         ctx,
