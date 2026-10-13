@@ -25,8 +25,11 @@ Not Safari, not WKWebView, not iPad.
 
 **Exactness (real Chromium, real assets).** Windowed decode equals the whole-file decode to float rounding
 (`maxAbs` 6e-8, 0, 4e-9 for a 44.1 kHz file, a 48 kHz file and an accent whose loop ends before the file).
-Streamed output captured over nine window joins and two loop wraps equals the whole-buffer loop to < 1e-5.
-(`tests/e2e/issue-1466-streamed-music.spec.ts`.)
+The same windows, scheduled back to back and rendered in an `OfflineAudioContext` over ten-plus joins and two loop
+wraps, equal the whole-buffer loop to < 1e-5 (a 3-frame scheduling error fails it at ~1.0). A live-clock smoke test
+checks the real player keeps sounding without failure; it deliberately does not compare against a second real-time
+capture, which was flaky on a loaded CI runner. (`tests/e2e/issue-1466-streamed-music.spec.ts`.) The player's own
+clock/lookahead behaviour is covered by fake-clock unit tests, not by that render.
 
 **Memory (interleaved, n = 5, production builds of `origin/main` d8a3d531 vs this branch, crowded 30×30 fixture, 2
 civs, reduced motion, cold cache, active-page PID):**
