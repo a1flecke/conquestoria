@@ -57,6 +57,7 @@ import { RenderLoop } from '@/renderer/render-loop';
 import { AnimationSystem } from '@/renderer/animation-system';
 import { spriteCache } from '@/renderer/sprites/sprite-loader';
 import { LOD_SPRITE_ZOOM_THRESHOLD } from '@/renderer/sprites/sprite-system';
+import { drawCities } from '@/renderer/city-renderer';
 import type { GameState, Unit } from '@/core/types';
 
 function createCanvas(rect = { width: 320, height: 240 }): HTMLCanvasElement {
@@ -474,5 +475,270 @@ describe('render-loop animation completion (#1439 characterization)', () => {
     );
     missingSprite.mockRestore();
     nowSpy.mockRestore();
+  });
+});
+
+type ChangeListener = () => void;
+
+interface MediaQueryEntry {
+  query: string;
+  listeners: Set<ChangeListener>;
+}
+
+/**
+ * A minimal window.matchMedia double. `matches` is remembered per query string, so a fresh
+ * `matchMedia(query)` call (how the renderer reads the live preference) sees the value a test set.
+ */
+function createMediaQueryController(api: 'modern' | 'legacy' = 'modern') {
+  const matchesByQuery = new Map<string, boolean>();
+  const entries: MediaQueryEntry[] = [];
+  const matchMedia = vi.fn((query: string) => {
+    if (!matchesByQuery.has(query)) matchesByQuery.set(query, false);
+    const entry: MediaQueryEntry = { query, listeners: new Set<ChangeListener>() };
+    entries.push(entry);
+    const mql: Record<string, unknown> = {
+      media: query,
+      get matches() { return matchesByQuery.get(query) ?? false; },
+      dispatchEvent: () => false,
+      onchange: null,
+    };
+    if (api === 'modern') {
+      mql.addEventListener = (type: string, listener: ChangeListener) => {
+        if (type === 'change') entry.listeners.add(listener);
+      };
+      mql.removeEventListener = (type: string, listener: ChangeListener) => {
+        if (type === 'change') entry.listeners.delete(listener);
+      };
+    } else {
+      mql.addListener = (listener: ChangeListener) => entry.listeners.add(listener);
+      mql.removeListener = (listener: ChangeListener) => entry.listeners.delete(listener);
+    }
+    return mql;
+  });
+  const matching = (text: string) => entries.filter(entry => entry.query.includes(text));
+  return {
+    matchMedia,
+    setMatches(text: string, value: boolean) {
+      for (const query of matchesByQuery.keys()) if (query.includes(text)) matchesByQuery.set(query, value);
+    },
+    listenerCount(text: string): number {
+      return matching(text).reduce((count, entry) => count + entry.listeners.size, 0);
+    },
+    emit(text: string): void {
+      for (const entry of matching(text)) for (const listener of [...entry.listeners]) listener();
+    },
+  };
+}
+
+/** A synchronous ResizeObserver double; `disconnect()` makes later `emit()` a no-op like the real one. */
+class FakeResizeObserver {
+  static instances: FakeResizeObserver[] = [];
+  readonly targets: unknown[] = [];
+  disconnected = false;
+  constructor(private readonly callback: ResizeObserverCallback) {
+    FakeResizeObserver.instances.push(this);
+  }
+  observe(target: unknown): void { this.targets.push(target); }
+  unobserve(): void {}
+  disconnect(): void { this.disconnected = true; }
+  emit(): void { if (!this.disconnected) this.callback([], this as unknown as ResizeObserver); }
+}
+
+describe('render-loop runtime observers (#1439)', () => {
+  afterEach(() => {
+    delete (globalThis as Record<string, unknown>).ResizeObserver;
+    FakeResizeObserver.instances = [];
+  });
+
+  it('wakes an idle renderer for one bounded repaint when reduced motion flips', () => {
+    const media = createMediaQueryController();
+    (globals.window as { matchMedia?: unknown }).matchMedia = media.matchMedia;
+    const loop = new RenderLoop(createCanvas());
+    loop.setGameState(minimalState());
+    loop.start();
+    expect(scheduledFrames).toHaveLength(0); // idle: nothing is changing
+
+    media.setMatches('prefers-reduced-motion', true);
+    media.emit('prefers-reduced-motion');
+
+    expect(scheduledFrames).toHaveLength(1); // exactly one wake, not a loop
+    runNextFrame();
+    expect(scheduledFrames).toHaveLength(0); // and it goes idle again
+    expect(vi.mocked(drawCities)).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      'player',
+      expect.objectContaining({ reducedMotion: true }),
+    );
+    loop.stop();
+  });
+
+  it('subscribes to reduced motion with exactly one callback on the modern API', () => {
+    const media = createMediaQueryController('modern');
+    (globals.window as { matchMedia?: unknown }).matchMedia = media.matchMedia;
+    const loop = new RenderLoop(createCanvas());
+
+    expect(media.matchMedia).toHaveBeenCalledWith('(prefers-reduced-motion: reduce)');
+    expect(media.listenerCount('prefers-reduced-motion')).toBe(1);
+
+    loop.start();
+    loop.start(); // restarting must not add a second subscription
+    expect(media.listenerCount('prefers-reduced-motion')).toBe(1);
+    loop.stop();
+  });
+
+  it('falls back to the legacy addListener API when addEventListener is absent', () => {
+    const media = createMediaQueryController('legacy');
+    (globals.window as { matchMedia?: unknown }).matchMedia = media.matchMedia;
+    const loop = new RenderLoop(createCanvas());
+
+    expect(media.listenerCount('prefers-reduced-motion')).toBe(1);
+    loop.dispose();
+    expect(media.listenerCount('prefers-reduced-motion')).toBe(0);
+  });
+
+  it('observes canvas size changes that never fire a window resize event', () => {
+    (globalThis as Record<string, unknown>).ResizeObserver = FakeResizeObserver;
+    const rect = { width: 320, height: 240 };
+    const canvas = createCanvas(rect);
+    const loop = new RenderLoop(canvas);
+    loop.setGameState(minimalState());
+    loop.start();
+    expect(FakeResizeObserver.instances).toHaveLength(1);
+    expect(FakeResizeObserver.instances[0]!.targets).toContain(canvas);
+
+    rect.height = 400;
+    FakeResizeObserver.instances[0]!.emit();
+
+    expect(scheduledFrames).toHaveLength(1);
+    expect(canvas.width).toBe(320);
+    expect(canvas.height).toBe(400);
+    runNextFrame();
+    expect(scheduledFrames).toHaveLength(0);
+    loop.stop();
+  });
+
+  it('falls back to a window resize listener when ResizeObserver is unavailable', () => {
+    delete (globalThis as Record<string, unknown>).ResizeObserver;
+    const rect = { width: 320, height: 240 };
+    const resizeListeners: ChangeListener[] = [];
+    (globals.window as { addEventListener?: unknown }).addEventListener = (_type: string, listener: ChangeListener) => {
+      resizeListeners.push(listener);
+    };
+    (globals.window as { removeEventListener?: unknown }).removeEventListener = vi.fn();
+    const canvas = createCanvas(rect);
+    const loop = new RenderLoop(canvas);
+    loop.setGameState(minimalState());
+    loop.start();
+    expect(resizeListeners).toHaveLength(1);
+
+    rect.width = 500;
+    resizeListeners[0]!();
+    expect(scheduledFrames).toHaveLength(1);
+    expect(canvas.width).toBe(500);
+    loop.stop();
+  });
+
+  it('does not repaint for repeated canvas-size notifications with unchanged dimensions', () => {
+    (globalThis as Record<string, unknown>).ResizeObserver = FakeResizeObserver;
+    const loop = new RenderLoop(createCanvas({ width: 320, height: 240 }));
+    loop.setGameState(minimalState());
+    loop.start();
+    const before = loop.renderGeneration;
+
+    FakeResizeObserver.instances[0]!.emit();
+    FakeResizeObserver.instances[0]!.emit();
+
+    expect(loop.renderGeneration).toBe(before);
+    expect(scheduledFrames).toHaveLength(0);
+    loop.stop();
+  });
+
+  it('keeps the backing store and transform aligned across a 1 -> 2 -> 1 DPR change', () => {
+    const canvas = createCanvas({ width: 320, height: 240 });
+    const loop = new RenderLoop(canvas);
+    const ctx = canvas.getContext('2d') as unknown as {
+      setTransform: ReturnType<typeof vi.fn>;
+      scale: ReturnType<typeof vi.fn>;
+    };
+
+    expect(canvas.width).toBe(320);
+    expect(canvas.height).toBe(240);
+    expect(ctx.setTransform).toHaveBeenLastCalledWith(1, 0, 0, 1, 0, 0);
+
+    (globals.window as { devicePixelRatio: number }).devicePixelRatio = 2;
+    loop.resizeCanvas();
+    expect(canvas.width).toBe(640);
+    expect(canvas.height).toBe(480);
+    expect(ctx.setTransform).toHaveBeenLastCalledWith(2, 0, 0, 2, 0, 0);
+
+    (globals.window as { devicePixelRatio: number }).devicePixelRatio = 1;
+    loop.resizeCanvas();
+    expect(canvas.width).toBe(320);
+    expect(canvas.height).toBe(240);
+    expect(ctx.setTransform).toHaveBeenLastCalledWith(1, 0, 0, 1, 0, 0);
+    expect(ctx.scale).not.toHaveBeenCalled(); // never compounds the scale
+    loop.stop();
+  });
+
+  it('re-arms the DPR media query so a density change repaints with the new backing store', () => {
+    const media = createMediaQueryController();
+    (globals.window as { matchMedia?: unknown }).matchMedia = media.matchMedia;
+    const canvas = createCanvas({ width: 320, height: 240 });
+    const loop = new RenderLoop(canvas);
+    expect(media.matchMedia).toHaveBeenCalledWith('(resolution: 1dppx)');
+    loop.setGameState(minimalState());
+    loop.start();
+    expect(scheduledFrames).toHaveLength(0);
+
+    (globals.window as { devicePixelRatio: number }).devicePixelRatio = 2;
+    media.emit('resolution: 1dppx');
+
+    expect(canvas.width).toBe(640);
+    expect(canvas.height).toBe(480);
+    expect(media.matchMedia).toHaveBeenCalledWith('(resolution: 2dppx)');
+    expect(media.listenerCount('resolution: 1dppx')).toBe(0); // the stale query is released
+    expect(media.listenerCount('resolution: 2dppx')).toBe(1);
+    expect(scheduledFrames).toHaveLength(1);
+    loop.stop();
+  });
+
+  it('disposes every runtime observer so leftovers cannot redraw a disposed renderer', () => {
+    const media = createMediaQueryController();
+    (globals.window as { matchMedia?: unknown }).matchMedia = media.matchMedia;
+    (globalThis as Record<string, unknown>).ResizeObserver = FakeResizeObserver;
+    const rect = { width: 320, height: 240 };
+    const loop = new RenderLoop(createCanvas(rect));
+    loop.setGameState(minimalState());
+    loop.start();
+    const before = loop.renderGeneration;
+
+    loop.dispose();
+
+    expect(FakeResizeObserver.instances[0]!.disconnected).toBe(true);
+    expect(media.listenerCount('prefers-reduced-motion')).toBe(0);
+
+    media.emit('prefers-reduced-motion');
+    rect.width = 640;
+    FakeResizeObserver.instances[0]!.emit();
+
+    expect(loop.renderGeneration).toBe(before);
+    expect(scheduledFrames).toHaveLength(0);
+  });
+
+  it('does not attach a second set of observers when the loop restarts', () => {
+    const media = createMediaQueryController();
+    (globals.window as { matchMedia?: unknown }).matchMedia = media.matchMedia;
+    (globalThis as Record<string, unknown>).ResizeObserver = FakeResizeObserver;
+    const loop = new RenderLoop(createCanvas());
+    loop.setGameState(minimalState());
+    loop.start();
+    loop.stop();
+    loop.start();
+
+    expect(FakeResizeObserver.instances).toHaveLength(1);
+    expect(media.listenerCount('prefers-reduced-motion')).toBe(1);
+    loop.stop();
   });
 });

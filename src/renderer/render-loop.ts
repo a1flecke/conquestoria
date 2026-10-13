@@ -280,15 +280,65 @@ const HEX_HIGHLIGHT_OUTLINES: Partial<Record<HexHighlight['type'], string>> = {
   'supply-projected': '#8fe8b0',
 };
 
+const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
+
 function prefersReducedMotion(): boolean {
   return typeof window !== 'undefined'
     && typeof window.matchMedia === 'function'
-    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    && window.matchMedia(REDUCED_MOTION_QUERY).matches;
+}
+
+/**
+ * Subscribe to a media query, preferring the modern `addEventListener` pair and falling back to the
+ * legacy `addListener` pair. Exactly one of them is registered, so a change never fires the listener
+ * twice. Returns an unsubscribe function; a no-op when there is no `matchMedia` (unit tests, SSR).
+ */
+function observeMediaQuery(query: string, listener: () => void): () => void {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => {};
+  const mediaQuery = window.matchMedia(query);
+  if (typeof mediaQuery.addEventListener === 'function') {
+    const handler = (): void => listener();
+    mediaQuery.addEventListener('change', handler);
+    return () => mediaQuery.removeEventListener('change', handler);
+  }
+  if (typeof mediaQuery.addListener === 'function') {
+    const handler = (): void => listener();
+    mediaQuery.addListener(handler);
+    return () => mediaQuery.removeListener(handler);
+  }
+  return () => {};
+}
+
+/**
+ * Watch an element's rendered size. `ResizeObserver` owns it when it is available; a `window` resize
+ * listener is the fallback for engines that lack it. Returns a release function for whichever was used.
+ */
+function observeElementSize(target: Element, onResize: () => void): () => void {
+  if (typeof ResizeObserver !== 'undefined') {
+    const observer = new ResizeObserver(() => onResize());
+    observer.observe(target);
+    return () => observer.disconnect();
+  }
+  if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+    const handler = (): void => onResize();
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }
+  return () => {};
 }
 
 export class RenderLoop {
   private ctx: CanvasRenderingContext2D;
   private canvas: HTMLCanvasElement;
+  /** DPR currently baked into the context transform; 0 until the first resize so it is always applied once. */
+  private appliedDpr = 0;
+  /** Canvas CSS size the current backing store and camera viewport were built from; -1 until the first resize. */
+  private appliedCssWidth = -1;
+  private appliedCssHeight = -1;
+  /** Releases the canvas-size observer (ResizeObserver, or the window-resize fallback). */
+  private resizeObserverDisconnect: (() => void) | null = null;
+  /** Releases the current device-pixel-ratio media query; re-armed whenever the ratio changes. */
+  private dprQueryUnsubscribe: (() => void) | null = null;
   readonly camera: Camera;
   /** Timed effects. Private: enroll through `playEffect` so enrollment always invalidates. */
   private readonly timeline: AnimationSystem;
@@ -560,11 +610,15 @@ export class RenderLoop {
     this.animFrameId = requestAnimationFrame(this.tick);
   }
 
-  /** Release camera / asset subscriptions. Safe to call more than once. */
+  /** Release camera / asset / runtime-environment subscriptions. Safe to call more than once. */
   dispose(): void {
     this.stop();
     this.pinchUnsubscribe?.();
     this.pinchUnsubscribe = null;
+    this.resizeObserverDisconnect?.();
+    this.resizeObserverDisconnect = null;
+    this.dprQueryUnsubscribe?.();
+    this.dprQueryUnsubscribe = null;
     for (const off of this.unsubscribers.splice(0)) off();
   }
 
@@ -579,9 +633,14 @@ export class RenderLoop {
     this.unsubscribers.push(
       this.camera.onChange(() => this.invalidate()),
       onCanvasAssetReady(() => this.invalidate()),
+      // #1439: a runtime reduced-motion change alters canvas and DOM-sprite presentation, so it must
+      // wake an idle loop. The paint reads the live preference, so one bounded repaint is enough.
+      observeMediaQuery(REDUCED_MOTION_QUERY, () => this.invalidate()),
     );
     this.timeline = new AnimationSystem();
     this.resizeCanvas();
+    this.resizeObserverDisconnect = observeElementSize(canvas, () => this.onCanvasMetricsChanged());
+    this.observeDevicePixelRatio();
     // Mount the sprite overlay — guarded for test environments without DOM
     if (typeof document !== 'undefined') {
       const mountPoint = canvas.parentElement ?? document.body;
@@ -589,16 +648,74 @@ export class RenderLoop {
     }
   }
 
+  /**
+   * Bring the backing store, the context transform and the camera viewport in line with the canvas's
+   * current CSS size and the current device pixel ratio, then repaint. `resizeCanvas` is a real canvas
+   * input (a window resize, the HUD, the tests' forced repaint) and keeps the historical contract that
+   * it always invalidates. The backing store itself is only re-sized when its effective device-pixel
+   * size actually moved, so repeated calls never reallocate or compound the DPR scale. The observer
+   * path additionally dedupes no-op notifications through `onCanvasMetricsChanged`.
+   */
   resizeCanvas(): void {
     const dpr = window.devicePixelRatio || 1;
     const rect = this.canvas.getBoundingClientRect();
-    this.canvas.width = rect.width * dpr;
-    this.canvas.height = rect.height * dpr;
-    // resizeCanvas can run after responsive UI changes as well as window
-    // resizes. Reset first so repeated calls never compound the DPR scale.
-    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    this.camera.setViewport(rect.width, rect.height);
+    const backingWidth = Math.round(rect.width * dpr);
+    const backingHeight = Math.round(rect.height * dpr);
+    let backingChanged = false;
+    if (this.canvas.width !== backingWidth) {
+      this.canvas.width = backingWidth;
+      backingChanged = true;
+    }
+    if (this.canvas.height !== backingHeight) {
+      this.canvas.height = backingHeight;
+      backingChanged = true;
+    }
+    // Assigning width/height clears the context transform, so re-apply the DPR scale whenever the
+    // backing store was resized or the ratio itself moved. `setTransform` replaces rather than
+    // compounds, so the canvas never ends up double-scaled.
+    if (backingChanged || this.appliedDpr !== dpr) {
+      this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    // The camera works in CSS pixels, not device pixels.
+    if (this.camera.width !== rect.width || this.camera.height !== rect.height) {
+      this.camera.setViewport(rect.width, rect.height);
+    }
+    this.appliedDpr = dpr;
+    this.appliedCssWidth = rect.width;
+    this.appliedCssHeight = rect.height;
     this.invalidate();
+  }
+
+  /**
+   * The canvas-size observer's dedupe. A ResizeObserver can fire with an unchanged content box (and
+   * some engines fire once as soon as `observe` is called), so only a genuine CSS-size or DPR change is
+   * forwarded to `resizeCanvas`. This is what keeps an untouched, idle campaign from repainting on a
+   * no-op notification (#1439).
+   */
+  private onCanvasMetricsChanged(): void {
+    if (typeof window === 'undefined') return;
+    const dpr = window.devicePixelRatio || 1;
+    const rect = this.canvas.getBoundingClientRect();
+    if (rect.width === this.appliedCssWidth && rect.height === this.appliedCssHeight && dpr === this.appliedDpr) {
+      return;
+    }
+    this.resizeCanvas();
+  }
+
+  /**
+   * Watch for a device-pixel-ratio change (a monitor move, browser zoom). The resolution media query is
+   * pinned to the current ratio, so it is re-armed after every change; the change itself only resizes
+   * the backing store. Nothing is scheduled while the ratio is unchanged.
+   */
+  private observeDevicePixelRatio(): void {
+    this.dprQueryUnsubscribe?.();
+    this.dprQueryUnsubscribe = null;
+    if (typeof window === 'undefined') return;
+    const dpr = window.devicePixelRatio || 1;
+    this.dprQueryUnsubscribe = observeMediaQuery(`(resolution: ${dpr}dppx)`, () => {
+      this.resizeCanvas();
+      this.observeDevicePixelRatio();
+    });
   }
 
   setGameState(state: GameState): void {
