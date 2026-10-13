@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { preloadGeoMapData } from '../helpers/geo-map-data';
 import { createNewGame } from '@/core/game-state';
 import type { CustomCivDefinition, GameState } from '@/core/types';
 import { migrateLegacyNamingState } from '@/storage/save-manager';
@@ -10,6 +11,9 @@ import { showCampaignSetup } from '@/ui/campaign-setup';
 import { getPlayableCivDefinitions, resolveCivDefinition } from '@/systems/civ-registry';
 import { collectUsedCityNames } from '@/systems/city-name-system';
 import { foundCity } from '@/systems/city-system';
+
+// The setup screen's default map is Earth, whose data loads on demand (#1456).
+beforeAll(() => preloadGeoMapData('earth'));
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 

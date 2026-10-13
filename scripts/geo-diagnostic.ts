@@ -6,11 +6,8 @@
  * highlighting historical accuracy issues and clumping.
  */
 
-import {
-  EARTH_TILES,
-  EARTH_START_POSITIONS,
-  EARTH_RIVERS,
-} from '../src/systems/earth-map-data.js';
+import { EARTH_TILES, EARTH_RIVERS } from './geo-data-reader.js';
+import { EARTH_START_POSITIONS } from '../src/systems/earth-start-positions.js';
 import { loadGeoMap } from '../src/systems/geo-map-loader.js';
 import { hexKey } from '../src/systems/hex-utils.js';
 

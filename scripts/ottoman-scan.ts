@@ -2,7 +2,7 @@
  * Scan medium map Levant/Anatolia area for valid ottoman start tiles.
  * bash scripts/run-with-mise.sh yarn tsx scripts/ottoman-scan.ts
  */
-import { EARTH_TILES, EARTH_RIVERS } from '../src/systems/earth-map-data.js';
+import { EARTH_TILES, EARTH_RIVERS } from './geo-data-reader.js';
 import { loadGeoMap } from '../src/systems/geo-map-loader.js';
 
 const map = loadGeoMap(EARTH_TILES.medium, EARTH_RIVERS.medium, { width: 50, height: 50 }, true);

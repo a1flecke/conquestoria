@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { GameMap, HexTile } from '@/core/types';
 import { MAP_DIMENSIONS } from '@/core/game-state';
-import { EARTH_RIVERS, EARTH_TILES } from '@/systems/earth-map-data';
-import { OLD_WORLD_RIVERS, OLD_WORLD_TILES } from '@/systems/old-world-map-data';
-import { NEW_WORLD_RIVERS, NEW_WORLD_TILES } from '@/systems/new-world-map-data';
+import { readGeoMapDataFromDisk } from '../helpers/geo-map-data';
 import { loadGeoMap } from '@/systems/geo-map-loader';
 import {
   getGeographicStartAnchor,
@@ -12,6 +10,10 @@ import {
   MIN_MAJOR_CIV_START_DISTANCE,
 } from '@/systems/map-generator';
 import { placeCivilizationStarts } from '@/systems/start-placement-system';
+
+const { tiles: EARTH_TILES, rivers: EARTH_RIVERS } = readGeoMapDataFromDisk('earth');
+const { tiles: OLD_WORLD_TILES, rivers: OLD_WORLD_RIVERS } = readGeoMapDataFromDisk('old-world');
+const { tiles: NEW_WORLD_TILES, rivers: NEW_WORLD_RIVERS } = readGeoMapDataFromDisk('new-world');
 
 function largeEarth(): GameMap {
   return loadGeoMap(

@@ -7,6 +7,7 @@ import type {
 } from '@/core/types';
 import type { OpponentChallenge } from '@/core/types/ai';
 import { GameCreationError, MAP_DIMENSIONS } from '@/core/game-state';
+import { createSetupStartFlight } from '@/ui/setup-start-flight';
 import { createCivSelectPanel } from './civ-select';
 import { createCustomCivPanel } from './custom-civ-panel';
 import { createDefaultSettings } from '@/core/game-state';
@@ -18,7 +19,10 @@ import { createGameButton, VARIANT_STYLES } from '@/ui/ui-kit';
 import { selectAIRoster } from '@/systems/ai-roster-selection';
 
 export interface HotSeatSetupCallbacks {
-  onComplete: (config: HotSeatConfig, opponentChallenge?: OpponentChallenge) => void;
+  /** May return a promise while geographic map data loads (#1456); the review screen shows the busy/error state. */
+  onComplete: (config: HotSeatConfig, opponentChallenge?: OpponentChallenge) => void | Promise<void>;
+  /** The map currently selected (the default on open, then each change): a background-prepare hint, see campaign-setup (#1456). */
+  onMapScriptChosen?: (mapScript: MapScript) => void;
   onCancel: () => void;
   onCustomCivilizationsChanged?: (customCivilizations: CustomCivDefinition[]) => void;
 }
@@ -41,6 +45,8 @@ export function showHotSeatSetup(
 
   let selectedMapSize: 'small' | 'medium' | 'large' | null = null;
   let selectedMapScript: MapScript = 'earth';
+  // The default map is already a choice: let the owner start any background preparation now (#1456).
+  callbacks.onMapScriptChosen?.(selectedMapScript);
   let selectedPlacementMode: StartPlacementMode = 'balanced';
   let selectedOpponentChallenge: OpponentChallenge = 'standard';
   let superweaponsSelected: 'off' | 'on' = 'on';
@@ -242,6 +248,7 @@ export function showHotSeatSetup(
       btn.addEventListener('click', () => {
         selectedMapScript = script;
         syncCards(script);
+        callbacks.onMapScriptChosen?.(script);
       });
 
       buttons.set(script, btn);
@@ -696,8 +703,7 @@ export function showHotSeatSetup(
         return;
       }
       try {
-        callbacks.onComplete(review.config, selectedOpponentChallenge);
-        panel.remove();
+        startFlight.settle(callbacks.onComplete(review.config, selectedOpponentChallenge), () => panel.remove());
       } catch (error) {
         if (!(error instanceof GameCreationError)) throw error;
         const message = document.createElement('p');
@@ -706,6 +712,12 @@ export function showHotSeatSetup(
         message.style.cssText = 'color:#ffb4ab;font-size:12px;font-weight:bold;margin:10px 0 0;';
         summary.appendChild(message);
       }
+    });
+    const startFlight = createSetupStartFlight({
+      startButton: start,
+      controls: () => [start],
+      busyTarget: panel,
+      mount: (status, error) => panel.append(status, error),
     });
     panel.appendChild(start);
   }

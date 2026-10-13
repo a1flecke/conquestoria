@@ -10,7 +10,7 @@ import { EventBus } from '@/core/event-bus';
 import { isAtWar } from '@/systems/diplomacy-queries';
 import { isDiplomaticRequestLive } from '@/systems/diplomacy-requests';
 import { getVassalageEligibility } from '@/systems/diplomacy-vassal-rules';
-import { NEW_WORLD_START_POSITIONS } from '@/systems/new-world-map-data';
+import { NEW_WORLD_START_POSITIONS } from '@/systems/new-world-start-positions';
 import { hasDiscoveredMinorCiv } from '@/systems/discovery-system';
 import { isMinorCivAllianceActive } from '@/systems/quest-chain-system';
 import { isMinorCivAtWar } from '@/systems/minor-civ-diplomacy';

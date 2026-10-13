@@ -4,9 +4,7 @@
  *
  * Output: paste-ready JSON for EARTH_START_POSITIONS.
  */
-import {
-  EARTH_TILES, EARTH_RIVERS,
-} from '../src/systems/earth-map-data.js';
+import { EARTH_TILES, EARTH_RIVERS } from './geo-data-reader.js';
 import { loadGeoMap } from '../src/systems/geo-map-loader.js';
 
 const MAP_DIMS = {

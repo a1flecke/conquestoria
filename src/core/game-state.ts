@@ -14,9 +14,7 @@ import type {
 import type { OpponentChallenge } from '@/core/types/ai';
 import { generateMap, findStartPositions, createRng, guaranteeStartResources } from '@/systems/map-generator';
 import { loadGeoMap } from '@/systems/geo-map-loader';
-import { EARTH_TILES, EARTH_RIVERS } from '@/systems/earth-map-data';
-import { OLD_WORLD_TILES, OLD_WORLD_RIVERS } from '@/systems/old-world-map-data';
-import { NEW_WORLD_TILES, NEW_WORLD_RIVERS } from '@/systems/new-world-map-data';
+import { getLoadedGeoMapData, type GeographicMapScript } from '@/systems/geo-map-data';
 import { generateBalancedMap } from '@/systems/balanced-map-generator';
 import { generateContinentMap } from '@/systems/continent-map-generator';
 import { createUnit } from '@/systems/unit-lifecycle';
@@ -94,6 +92,20 @@ function resolveStartPlacementMode(
 ): StartPlacementMode {
   const geographic = mapScript === 'earth' || mapScript === 'old-world' || mapScript === 'new-world';
   return geographic ? (requested ?? 'balanced') : 'balanced';
+}
+
+/**
+ * Builds a geographic map from the data the caller has already loaded (#1456). Throws
+ * `GeoMapDataNotLoadedError` rather than substituting a different map when it has not been.
+ */
+function loadLoadedGeoMap(
+  script: GeographicMapScript,
+  size: 'small' | 'medium' | 'large',
+  dims: { width: number; height: number },
+  wrapsHorizontally: boolean,
+): GameMap {
+  const data = getLoadedGeoMapData(script);
+  return loadGeoMap(data.tiles[size], data.rivers[size], dims, wrapsHorizontally);
 }
 
 function placeStartsOrThrow(
@@ -268,15 +280,15 @@ export function createNewGame(
 
   switch (mapScript) {
     case 'earth':
-      map = loadGeoMap(EARTH_TILES[actualSize], EARTH_RIVERS[actualSize], dims, true);
+      map = loadLoadedGeoMap('earth', actualSize, dims, true);
       startPositions = placeStartsOrThrow(map, civTypeIds, 'earth', actualSize, startPlacementMode, gameSeed);
       break;
     case 'old-world':
-      map = loadGeoMap(OLD_WORLD_TILES[actualSize], OLD_WORLD_RIVERS[actualSize], dims, false);
+      map = loadLoadedGeoMap('old-world', actualSize, dims, false);
       startPositions = placeStartsOrThrow(map, civTypeIds, 'old-world', actualSize, startPlacementMode, gameSeed);
       break;
     case 'new-world':
-      map = loadGeoMap(NEW_WORLD_TILES[actualSize], NEW_WORLD_RIVERS[actualSize], dims, false);
+      map = loadLoadedGeoMap('new-world', actualSize, dims, false);
       startPositions = placeStartsOrThrow(map, civTypeIds, 'new-world', actualSize, startPlacementMode, gameSeed);
       break;
     case 'balanced': {
@@ -499,15 +511,15 @@ export function createHotSeatGame(
 
   switch (mapScript) {
     case 'earth':
-      map = loadGeoMap(EARTH_TILES[config.mapSize], EARTH_RIVERS[config.mapSize], dims, true);
+      map = loadLoadedGeoMap('earth', config.mapSize, dims, true);
       startPositions = placeStartsOrThrow(map, civTypeIds, 'earth', config.mapSize, startPlacementMode, gameSeed);
       break;
     case 'old-world':
-      map = loadGeoMap(OLD_WORLD_TILES[config.mapSize], OLD_WORLD_RIVERS[config.mapSize], dims, false);
+      map = loadLoadedGeoMap('old-world', config.mapSize, dims, false);
       startPositions = placeStartsOrThrow(map, civTypeIds, 'old-world', config.mapSize, startPlacementMode, gameSeed);
       break;
     case 'new-world':
-      map = loadGeoMap(NEW_WORLD_TILES[config.mapSize], NEW_WORLD_RIVERS[config.mapSize], dims, false);
+      map = loadLoadedGeoMap('new-world', config.mapSize, dims, false);
       startPositions = placeStartsOrThrow(map, civTypeIds, 'new-world', config.mapSize, startPlacementMode, gameSeed);
       break;
     case 'balanced': {
