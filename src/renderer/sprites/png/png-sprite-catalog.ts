@@ -1,6 +1,7 @@
 import type { PngSpriteManifest } from './png-sprite-types';
 import { manifest as cavalry } from './generated/cavalry.manifest';
 import { manifest as horseman } from './generated/horseman.manifest';
+import { manifest as rifleman } from './generated/rifleman.manifest';
 
 /**
  * Units drawn from PNG spritesheets instead of serialized SVG. This is the migration seam: a unit listed here is
@@ -12,6 +13,7 @@ import { manifest as horseman } from './generated/horseman.manifest';
 const PNG_UNIT_SPRITES: Readonly<Record<string, PngSpriteManifest>> = {
   cavalry,
   horseman,
+  rifleman,
 };
 
 export function getPngUnitManifest(unitType: string): PngSpriteManifest | null {

@@ -1,0 +1,19 @@
+{
+  "id": "rifleman",
+  "source": "design/png-sprites/sources/rifleman.png",
+  "profile": "firearm",
+  "facing": "right",
+  "frame": { "size": 192, "fit_width": 0.9, "baseline": 0.8, "top_margin": 0.03,
+             "shadow": { "rx": 0.22, "ry": 0.04, "opacity": 0.3 } },
+  "tint": { "hue_ranges": [[0.0, 0.045], [0.955, 1.0]], "min_sat": 0.45, "min_val": 0.18 },
+  "animations": { "idle": 4, "walk": 8, "attack": 8 },
+  "fps": { "idle": 4, "walk": 10, "attack": 8 },
+  "rig": {
+    "cut_y": 190,
+    "overlap_top": 172,
+    "hip_y": 178,
+    "muzzle": [227, 61],
+    "stride_deg": 15,
+    "recoil_px": 7
+  }
+}
