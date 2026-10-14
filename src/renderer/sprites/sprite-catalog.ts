@@ -71,7 +71,7 @@ import {
   CircularManufacturingNetworkSprite, MarsRoboticsInitiativeSprite, InterstellarLaunchProgramSprite,
 } from './buildings';
 import {
-  PyramidsSprite, ColosseumSprite, GreatLibrarySprite, LighthouseSprite, WrightFlyerSprite,
+  PyramidsSprite, ColosseumSprite, GreatLibrarySprite, LighthouseSprite,
 } from './wonders';
 import { GiantBoarSprite, DireWolfSprite, EmeraldBasiliskSprite, SeaSerpentSprite, DuneWurmSprite, StormRocSprite, SwampHydraSprite, AncientDragonSprite } from './beasts';
 import {
@@ -443,7 +443,6 @@ export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = 
   colosseum:              ColosseumSprite,
   great_library:          GreatLibrarySprite,
   lighthouse:             LighthouseSprite,
-  'wright-flyer':         WrightFlyerSprite,
   // National Project placeholders (era 1–5) — replace with unique SVGs in a future design pass
   sacred_grove:           ShrineSprite,
   tribal_muster_ground:   BarracksSprite,

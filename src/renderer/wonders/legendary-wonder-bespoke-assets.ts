@@ -1030,7 +1030,7 @@ function drawContinentalCongress(options: LegendaryWonderBespokeDrawOptions): vo
   ctx.fill();
 }
 
-// TODO(art): Replace with Eiffel Tower: tall iron-lattice pyramid tapering to needle spire, four arched base legs, observation platform visible, Parisian skyline hint. Use generate-sprite-prompt skill.
+// Fallback only: production art is public/images/wonders/art/ (legendary-wonder-art-catalog.ts, #619); this canvas drawing runs offline or if that image fails to load.
 function drawEiffelTower(options: LegendaryWonderBespokeDrawOptions): void {
   const { ctx, cx, cy, radius, metadata } = options;
   const r = radius;
@@ -1076,7 +1076,7 @@ function drawEiffelTower(options: LegendaryWonderBespokeDrawOptions): void {
   ctx.fill();
 }
 
-// TODO(art): Replace with Brooklyn Bridge: twin Gothic stone towers with pointed arches, suspension cables curving down to roadway, East River below, ferry boats and tugboats in the water. Use generate-sprite-prompt skill.
+// Fallback only: production art is public/images/wonders/art/ (legendary-wonder-art-catalog.ts, #619); this canvas drawing runs offline or if that image fails to load.
 function drawBrooklynBridge(options: LegendaryWonderBespokeDrawOptions): void {
   const { ctx, cx, cy, radius, metadata } = options;
   const r = radius;
@@ -1124,7 +1124,7 @@ function drawBrooklynBridge(options: LegendaryWonderBespokeDrawOptions): void {
   ctx.fill();
 }
 
-// TODO(art): Replace with Trans-Siberian Railway: long perspective of iron rail lines vanishing into steppe horizon, steam locomotive, birch trees flanking the track, distant snow-capped peaks. Use generate-sprite-prompt skill.
+// Fallback only: production art is public/images/wonders/art/ (legendary-wonder-art-catalog.ts, #619); this canvas drawing runs offline or if that image fails to load.
 function drawTransSiberianRailway(options: LegendaryWonderBespokeDrawOptions): void {
   const { ctx, cx, cy, radius, metadata } = options;
   const r = radius;
@@ -1185,7 +1185,7 @@ function drawTransSiberianRailway(options: LegendaryWonderBespokeDrawOptions): v
 }
 
 
-// TODO(art): Replace panama-canal draw: aerial view of the canal locks, ships queuing, jungle banks, Pacific/Atlantic horizon at each end.
+// Fallback only: production art is public/images/wonders/art/ (legendary-wonder-art-catalog.ts, #619); this canvas drawing runs offline or if that image fails to load.
 function drawPanamaCanal(options: LegendaryWonderBespokeDrawOptions): void {
   const { ctx, cx, cy, radius: r, metadata } = options;
   markBespoke(ctx, 'panama-canal-bespoke');
@@ -1222,7 +1222,7 @@ function drawPanamaCanal(options: LegendaryWonderBespokeDrawOptions): void {
   ctx.fillRect(cx - r * 0.18, cy - r * 0.1, r * 0.36, r * 0.25);
 }
 
-// TODO(art): Replace empire-state-building draw: art-deco skyscraper with mooring mast, stepped setbacks, city grid below, dawn light.
+// Fallback only: production art is public/images/wonders/art/ (legendary-wonder-art-catalog.ts, #619); this canvas drawing runs offline or if that image fails to load.
 function drawEmpireStateBuilding(options: LegendaryWonderBespokeDrawOptions): void {
   const { ctx, cx, cy, radius: r, metadata } = options;
   markBespoke(ctx, 'empire-state-building-bespoke');
@@ -1261,7 +1261,7 @@ function drawEmpireStateBuilding(options: LegendaryWonderBespokeDrawOptions): vo
   ctx.fill();
 }
 
-// TODO(art): Replace hoover-dam draw: massive concrete arch dam at dusk, canyon walls, reservoir behind, white water below.
+// Fallback only: production art is public/images/wonders/art/ (legendary-wonder-art-catalog.ts, #619); this canvas drawing runs offline or if that image fails to load.
 function drawHooverDam(options: LegendaryWonderBespokeDrawOptions): void {
   const { ctx, cx, cy, radius: r, metadata } = options;
   markBespoke(ctx, 'hoover-dam-bespoke');
@@ -1314,7 +1314,7 @@ function drawHooverDam(options: LegendaryWonderBespokeDrawOptions): void {
   ctx.globalAlpha = 1;
 }
 
-// TODO(art): Replace wright-flyer draw: open dunes at Kitty Hawk, canvas-and-wood biplane on rail, two figures watching, pale blue sky with wind-streaks.
+// Fallback only: production art is public/images/wonders/art/ (legendary-wonder-art-catalog.ts, #619); this canvas drawing runs offline or if that image fails to load.
 function drawWrightFlyer(options: LegendaryWonderBespokeDrawOptions): void {
   const { ctx, cx, cy, radius: r, metadata } = options;
   markBespoke(ctx, 'wright-flyer-bespoke');
