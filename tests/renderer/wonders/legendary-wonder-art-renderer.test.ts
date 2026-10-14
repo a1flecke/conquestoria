@@ -14,7 +14,7 @@ function createMockCanvasContext(): MockCanvasContext {
   const operations: string[] = [];
   const state: Record<string, unknown> = { fillStyle: '', strokeStyle: '', lineWidth: 0, globalAlpha: 1 };
   return new Proxy({ operations } as unknown as MockCanvasContext, {
-    get(target, prop: string) {
+    get(_target, prop: string) {
       if (prop === 'operations') return operations;
       if (prop in state) return state[prop];
       if (prop === 'drawImage') {
