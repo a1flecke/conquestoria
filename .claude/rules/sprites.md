@@ -85,6 +85,28 @@ Migrating a unit is one catalog row plus its generated manifest; migrating it ba
 
 ---
 
+## Legendary Wonder Production Art (#613)
+
+A legendary wonder can have a painted PNG that replaces its canvas drawing everywhere it is shown, with the canvas drawing kept as the
+fallback. The wonder's id in `LEGENDARY_WONDER_ART_IDS` (`src/renderer/wonders/legendary-wonder-art-catalog.ts`) is the single switch;
+the map badge, the city production badge, the city-panel chooser/queue, the wonder panel and the Codex hero all read it, so nothing
+else is edited per wonder.
+
+**Adding art for another wonder:**
+1. Generate a 128×128 transparent isometric PNG (square landmark, restrained period palette, no text/logos, readable at ~30 px) and save
+   it as `public/images/wonders/art/<wonder-id>.png` (≤ 24 KB, RGBA, transparent corners).
+2. Write `design/wonder-art/<wonder-id>.provenance.json` (tool, prompt, generation id, date, a licence note the owner has confirmed).
+3. Add the id to `LEGENDARY_WONDER_ART_IDS`. `tests/renderer/wonders/legendary-wonder-art.test.ts` then checks the file, size,
+   dimensions, transparency and provenance; add the id to the in-scope list in `tests/e2e/issue-613-wonder-art.spec.ts`.
+4. Delete that wonder's `TODO(art)` line in `legendary-wonder-bespoke-assets.ts` and leave the draw function as the fallback.
+
+**Hard rules:** never hard-code `/images/…` — build the URL with `resolveAppAssetUrl` (`src/renderer/asset-url.ts`); panels get the art
+through `src/ui/legendary-wonder-icon.ts` (the one UI-layer entry; do not import `src/renderer/wonders/*` from another panel);
+`under-construction` never draws finished art; art appears only where the wonder's name is already shown to the viewer; a failed load
+must leave the canvas fallback in effect and be retried by the next `preloadLegendaryWonderArt()`.
+
+---
+
 ## DOM-Overlay Live Fallback For Uncovered Unit Sprites
 
 `getUnitSpriteV2` (`src/renderer/sprites/v2/index.ts`) no longer returns `null` for a unit type

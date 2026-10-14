@@ -100,7 +100,8 @@ Live render surfaces:
 - **City production badge (#658)** — the hex map's `drawCityProductionBadgePass` in
   `src/renderer/city-render-passes.ts` draws the queued building's sprite via
   `spriteCache.getBuilding()` — or the queued unit's sprite via `spriteCache.getUnit()` — falling
-  back to the `PRODUCTION_ICONS` emoji while sprites load and for legendary-wonder queue items.
+  back to the `PRODUCTION_ICONS` emoji while sprites load; a queued legendary wonder with production art (#613) draws that art,
+  and any other legendary wonder keeps the construction emoji.
   Canvas-rasterized, always static (see sprite-loader.ts's two-pipeline note below).
 - **City panel Buildings list** — `src/ui/city-panel-building-icon.ts`'s
   `getAnimatedBuildingIconHtml()` renders every *built* building as a small (36px) animated
@@ -261,7 +262,34 @@ Improvement Marker asset contract (`viewBox 0 0 48 48`, no palette, no animation
 | religion badge | ✅ SVG marker (`src/renderer/improvements/religion-badge-marker.ts`, #594 MR7), two variants (own-faith / foreign-faith) | city has a resolved `cityFaith` entry (`religionBadge`) |
 
 ### Legendary Wonders — `src/systems/legendary-wonder-definitions.ts`
-No map sprites yet. Production queue falls back to `'🏗️'`. Codex images exist in `public/images/wonders/codex/*.jpg` (lore art only, not map sprites).
+**Production art (#613)** — six Era 5–7 wonders have a painted 128×128 transparent isometric PNG each, generated with Sprite-AI
+(sprite-ai.art, `sprite_generate`, `asset_type: prop`, `camera_perspective: isometric`, 1 token each, owner-approved
+2026-10-13). The files are `public/images/wonders/art/<wonder-id>.png`, the ids and their path are in
+`src/renderer/wonders/legendary-wonder-art-catalog.ts`, and every file has a provenance record in
+`design/wonder-art/<id>.provenance.json` (tool, prompt, generation id, date, licence note). The set:
+`palace-of-the-sun`, `iron-arsenal`, `merchant-admiralty`, `crystal-palace`, `suez-canal`, `continental-congress`.
+
+| Surface | What it shows | Owner |
+|---|---|---|
+| Map wonder badge | the PNG, drawn inside the aura; **the canvas drawing is the fallback** (offline, 404, still loading) | `drawLegendaryWonderLandmarkGlyph` + `legendary-wonder-art-loader.ts` |
+| Map city production badge | the PNG for a queued `legendary:<id>`; other wonders keep the construction emoji | `drawCityProductionBadgePass` |
+| City panel chooser / "Producing" / queue rows | a 28 px `<img>` in place of the shared wonder emoji | `src/ui/legendary-wonder-icon.ts` (`productionIconHtml` + `hydrateLegendaryWonderIcons`) |
+| Wonder panel project cards, Codex page hero | the same art beside the title / hero; the Codex keeps its credited source photo | `createLegendaryWonderThumbnail` via `legendary-wonder-icon.ts` |
+
+Behaviour worth knowing: the art is static, so these six wonders no longer play their canvas glints (`metadata.motion`) while the
+PNG shows; `under-construction` still draws the ghost arc, never the finished art; a wonder with no art is byte-for-byte what it was.
+`preloadLegendaryWonderArt()` runs at campaign start, never rejects, shares in-flight loads and retries failed images on the next
+call. The service worker runtime-caches the PNGs after the first fetch. URLs are built with `resolveAppAssetUrl` (the build base is
+`/conquestoria/` on the web, `./` on Tauri) — never hard-code `/images/…`.
+
+**Known gaps against the original briefs (owner accepted the art as is):** `iron-arsenal` has no galleys in slips;
+`crystal-palace` shows no transept or visible machinery; `suez-canal` has one small boat, no steamship queue, and reads a little like a
+river; `merchant-admiralty` and `crystal-palace` are near-monochrome blue (contrast is carried by the aura on ocean tiles). A
+regeneration is one token each; replace the PNG and update its provenance record.
+
+The other seven `TODO(art)` wonders in `legendary-wonder-bespoke-assets.ts` (Eiffel Tower, Brooklyn Bridge, Trans-Siberian Railway,
+Panama Canal, Empire State Building, Hoover Dam, Wright Flyer) still use canvas drawings only. Codex photos live in
+`public/images/wonders/codex/*.jpg` (lore art with attribution in `docs/wonder-codex-source-ledger.md`, a separate layer).
 
 Building-sprite placeholders exist for these wonders (registered in `BUILDING_SPRITE_CATALOG`):
 
