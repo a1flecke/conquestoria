@@ -4,6 +4,7 @@ import { getTradeUnitTripBonus, calculateTradeRouteGold } from '@/systems/trade-
 import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import { createGameButton } from '@/ui/ui-kit';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { markModal } from '@/ui/modal-contract';
 
 export function openEstablishRoutePanel(
   container: HTMLElement,
@@ -139,5 +140,7 @@ export function openEstablishRoutePanel(
   btnRow.appendChild(cancelBtn);
   panel.appendChild(btnRow);
 
+  // Escape answers Cancel (#1459). Focus starts on the first destination, not on a Confirm that is still disabled.
+  markModal(panel, { cancel: cancelBtn, initialFocus: closeBtn });
   container.appendChild(panel);
 }

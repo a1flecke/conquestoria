@@ -10,6 +10,12 @@ class MockElement {
   type = '';
   private listeners = new Map<string, Array<() => void>>();
 
+  attributes: Record<string, string> = {};
+
+  setAttribute(name: string, value: string): void {
+    this.attributes[name] = value;
+  }
+
   appendChild(child: MockElement): MockElement {
     this.children.push(child);
     return child;

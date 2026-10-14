@@ -22,6 +22,7 @@ export function createNotificationLogPanel(
 ): HTMLElement {
   const panel = document.createElement('div');
   panel.id = 'notification-log';
+  panel.setAttribute('aria-label', 'Message log');
   panel.style.cssText = 'position:absolute;top:70px;right:12px;width:280px;max-height:300px;overflow-y:auto;background:rgba(10,10,30,0.95);border:1px solid rgba(255,255,255,0.15);border-radius:10px;z-index:25;padding:12px;';
 
   const header = document.createElement('div');
@@ -78,8 +79,28 @@ function createNotificationRow(
   const turnSpan = document.createElement('span');
   turnSpan.style.cssText = `color:${colors[entry.type]};opacity:0.7;margin-right:4px;`;
   turnSpan.textContent = `T${entry.turn}`;
-  row.appendChild(turnSpan);
-  row.appendChild(document.createTextNode(entry.message));
+  const jumpTarget = entry.target?.kind === 'map' ? entry.target : null;
+  const jumpCityId = entry.linkedCityId ?? null;
+  if (jumpTarget || jumpCityId) {
+    // #1459: a pointer shortcut needs a keyboard equivalent. The row (which also holds other buttons) stays
+    // clickable; the message itself is the control that does the same thing.
+    row.dataset.pointerShortcut = 'true';
+    const message = document.createElement('button');
+    message.type = 'button';
+    message.style.cssText = 'display:block;width:100%;min-height:44px;background:none;border:none;color:inherit;font:inherit;text-align:left;padding:0;cursor:pointer;';
+    message.setAttribute('aria-label', `${jumpCityId ? 'Open city' : `Focus ${jumpTarget!.label}`}: turn ${entry.turn}, ${entry.message}`);
+    message.appendChild(turnSpan);
+    message.appendChild(document.createTextNode(entry.message));
+    message.addEventListener('click', event => {
+      event.stopPropagation();
+      if (jumpCityId) options.onOpenCity?.(jumpCityId);
+      else options.onFocusTarget(jumpTarget!);
+    });
+    row.appendChild(message);
+  } else {
+    row.appendChild(turnSpan);
+    row.appendChild(document.createTextNode(entry.message));
+  }
   for (const action of entry.cityActions ?? []) {
     const actionButton = createGameButton(action.label, 'secondary');
     actionButton.dataset.wonderCityAction = action.cityId;

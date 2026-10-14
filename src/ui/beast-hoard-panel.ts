@@ -1,6 +1,7 @@
 import type { BeastHoardChoice } from '@/core/types/world';
 import type { HoardChoicePreview } from '@/systems/beast-system';
 import { createGameButton } from '@/ui/ui-kit';
+import { markModal } from '@/ui/modal-contract';
 
 export function createBeastHoardPanel(
   container: HTMLElement,
@@ -54,6 +55,8 @@ export function createBeastHoardPanel(
     panel.appendChild(card);
   }
 
+  // A required choice: no Escape; focus starts on the first prize (#1459).
+  markModal(panel, { initialFocus: panel.querySelector<HTMLElement>('button[data-choice]') });
   container.appendChild(panel);
   return panel;
 }

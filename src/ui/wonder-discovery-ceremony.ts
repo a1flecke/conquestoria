@@ -3,6 +3,7 @@ import { getWonderSpectacleRenderMode } from '@/systems/wonder-spectacle/present
 import { createGameButton } from '@/ui/ui-kit';
 import { createWonderVideoView } from '@/ui/wonder-video-view';
 import { createWonderSpectacleVignette } from '@/ui/wonder-spectacle-vignette';
+import { markModal } from '@/ui/modal-contract';
 
 export type WonderDiscoveryCeremonyAction = 'continue' | 'skip' | 'open-atlas';
 
@@ -121,6 +122,8 @@ export function createWonderDiscoveryCeremony(
   appendText(panel, 'p', item.revealLine, 'margin:0;font-size:15px;line-height:1.45;max-width:46ch;');
   panel.append(facts, actions);
   overlay.appendChild(panel);
+  // This ceremony owns Escape (Skip); the shared contract adds the dialog role, name and Tab trap (#1459).
+  markModal(overlay, { initialFocus: continueButton });
   container.appendChild(overlay);
   overlay.focus();
 

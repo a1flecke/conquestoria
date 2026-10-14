@@ -94,3 +94,54 @@ describe('blocking decision dialogs declare their modal contract (#1459)', () =>
     expect(cancelOf(modal)).toBeNull();
   });
 });
+
+describe('older decisions and ceremonies declare the same contract (#1459)', () => {
+  beforeEach(() => {
+    document.body.textContent = '';
+  });
+
+  it('city capture is a required choice that starts on Occupy, never on the destructive Raze', async () => {
+    const { createCityCapturePanel } = await import('@/ui/city-capture-panel');
+    const panel = createCityCapturePanel(document.body, {
+      cityName: 'Carthage', occupiedPopulation: 4, razeGold: 30, onOccupy: vi.fn(), onRaze: vi.fn(),
+    });
+    expect(panel.hasAttribute(MODAL_ATTR)).toBe(true);
+    expect(cancelOf(panel)).toBeNull();
+    expect(initialFocusOf(panel)?.textContent).toBe('Occupy');
+  });
+
+  it('entering a neutral city (which declares war) starts on, and answers Escape with, Cancel', async () => {
+    const { createForeignCityEntryPanel } = await import('@/ui/foreign-city-entry-panel');
+    const onCancel = vi.fn();
+    const panel = createForeignCityEntryPanel(document.body, {
+      cityName: 'Tyre', defenderName: 'Phoenicia', onConfirm: vi.fn(), onCancel,
+    } as never);
+    expect(cancelOf(panel)?.textContent).toBe('Cancel');
+    expect(initialFocusOf(panel)).toBe(cancelOf(panel));
+    cancelOf(panel)!.click();
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('a Great General choice and a beast hoard choice are required decisions starting on their first option', async () => {
+    const { createBeastHoardPanel } = await import('@/ui/beast-hoard-panel');
+    const hoard = createBeastHoardPanel(document.body, {
+      beastName: 'Dragon', gold: 50, lore: 40, trophyGoldPerTurn: 2,
+    } as never, vi.fn());
+    expect(hoard.hasAttribute(MODAL_ATTR)).toBe(true);
+    expect(cancelOf(hoard)).toBeNull();
+    expect(initialFocusOf(hoard)).toBe(hoard.querySelector('button[data-choice]'));
+  });
+
+  it('Great General command previews start on Cancel (Confirm spends a charge) and Cancel answers Escape', async () => {
+    const { createRallyPanel } = await import('@/ui/general-command-panel');
+    const onCancel = vi.fn();
+    const panel = createRallyPanel(document.body, {
+      targets: [], healAmount: 30, eligibility: { isFinalCharge: false },
+    } as never, vi.fn(), onCancel);
+    expect(panel.hasAttribute(MODAL_ATTR)).toBe(true);
+    expect(cancelOf(panel)?.textContent).toBe('Cancel');
+    expect(initialFocusOf(panel)).toBe(cancelOf(panel));
+    cancelOf(panel)!.click();
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+});

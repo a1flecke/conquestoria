@@ -271,7 +271,7 @@ export function createCityPanel(
       const saved = Math.round((1 - multiplier) * 100);
       parts.push(`Faster with: ${fasterNames.join(', ')}${saved > 0 ? ` (${saved}% discount)` : ''}`);
     }
-    return parts.length ? `<div style="font-size:10px;opacity:0.72;">${parts.join(' · ')}</div>` : '';
+    return parts.length ? `<span style="display:block;font-size:10px;opacity:0.72;">${parts.join(' · ')}</span>` : '';
   };
   // #545: always-visible arsenal count on the available warhead item -- the
   // locked-item reason (below) only shows once at capacity; while under capacity,
@@ -291,9 +291,9 @@ export function createCityPanel(
     const treatyCap = getActiveArmsControlCap(state, city.owner);
     const effectiveCapacity = treatyCap !== null ? Math.min(physicalCapacity, treatyCap) : physicalCapacity;
     const treatyNote = treatyCap !== null && treatyCap < physicalCapacity
-      ? '<div style="font-size:10px;opacity:0.72;color:#e8c170;">Limited by an active arms control pact.</div>'
+      ? '<span style="display:block;font-size:10px;opacity:0.72;color:#e8c170;">Limited by an active arms control pact.</span>'
       : '';
-    return `<div style="font-size:10px;opacity:0.72;">Arsenal: ${current}/${effectiveCapacity}</div>${treatyNote}`;
+    return `<span style="display:block;font-size:10px;opacity:0.72;">Arsenal: ${current}/${effectiveCapacity}</span>${treatyNote}`;
   };
   // #1220: the Build tab lists exactly what `enqueueCityProduction` will accept (one shared derivation).
   const queueableProduction = getQueueableProductionForCity(state, city.id) ?? { buildings: [], units: [] };
@@ -697,13 +697,15 @@ export function createCityPanel(
     if (idx === nationalProjectBuildings.length && nationalProjectBuildings.length > 0) {
       buildItemPlaceholders += `<div style="font-size:11px;font-weight:bold;color:#aaa;text-transform:uppercase;letter-spacing:0.05em;padding:6px 0 2px;">Buildings</div>`;
     }
-    buildItemPlaceholders += `<div class="build-item" data-item-id="${b.id}" style="background:rgba(255,255,255,0.1);${npBorder}border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;">
-      <div style="font-weight:bold;font-size:13px;">${getProductionIconForItem(b.id)} <span data-text="build-name-${idx}"></span></div>
-      <div style="font-size:11px;opacity:0.7;">${yieldStr}${turns} turns${upkeepStr}${deadline}</div>
+    // A real button: a clickable div cannot be focused or activated from the keyboard, and this is how a city
+    // queues production (#1459).
+    buildItemPlaceholders += `<button type="button" class="build-item" data-item-id="${b.id}" style="display:block;width:100%;color:inherit;font:inherit;text-align:left;background:rgba(255,255,255,0.1);${npBorder}border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;">
+      <span style="display:block;font-weight:bold;font-size:13px;">${getProductionIconForItem(b.id)} <span data-text="build-name-${idx}"></span></span>
+      <span style="display:block;font-size:11px;opacity:0.7;">${yieldStr}${turns} turns${upkeepStr}${deadline}</span>
       ${resourceRequirementLine(b.id, b.resourceRequired)}
       ${arsenalStatusLine(b.id)}
-      <div style="font-size:10px;opacity:0.5;" data-text="build-desc-${idx}"></div>
-    </div>`;
+      <span style="display:block;font-size:10px;opacity:0.5;" data-text="build-desc-${idx}"></span>
+    </button>`;
   }
 
   const completedTechs = currentCiv.techState.completed;
@@ -936,13 +938,13 @@ export function createCityPanel(
     const u = availableUnits[idx];
     const cost = getDisplayedCost(u.type);
     const turns = yields.production > 0 ? Math.ceil(cost / yields.production) : '∞';
-    unitPlaceholders += `<div class="build-item" data-item-id="${u.type}" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;">
-      <div style="font-weight:bold;font-size:13px;">${getProductionIconForItem(u.type)} <span data-text="unit-name-${idx}"></span></div>
-      <div style="font-size:11px;opacity:0.7;">Cost: ${cost} · ${turns} turns</div>
-      <div style="font-size:11px;opacity:0.82;margin-top:3px;" data-unit-role-summary="${u.type}"></div>
-      <div style="font-size:10px;opacity:0.72;margin-top:2px;line-height:1.35;" data-unit-role-facts="${u.type}"></div>
+    unitPlaceholders += `<button type="button" class="build-item" data-item-id="${u.type}" style="display:block;width:100%;color:inherit;font:inherit;text-align:left;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;">
+      <span style="display:block;font-weight:bold;font-size:13px;">${getProductionIconForItem(u.type)} <span data-text="unit-name-${idx}"></span></span>
+      <span style="display:block;font-size:11px;opacity:0.7;">Cost: ${cost} · ${turns} turns</span>
+      <span style="display:block;font-size:11px;opacity:0.82;margin-top:3px;" data-unit-role-summary="${u.type}"></span>
+      <span style="display:block;font-size:10px;opacity:0.72;margin-top:2px;line-height:1.35;" data-unit-role-facts="${u.type}"></span>
       ${resourceRequirementLine(u.type, u.resourceRequired)}
-    </div>`;
+    </button>`;
   }
 
   let compactWonderHtml = '';
@@ -950,13 +952,13 @@ export function createCityPanel(
     const entry = compactWonderEntries[idx];
     const turns = yields.production > 0 ? Math.ceil(entry.productionCost / yields.production) : '∞';
     compactWonderHtml += `
-      <div data-wonder-card="${entry.wonderId}" style="background:rgba(232,193,112,0.12);border:1px solid rgba(232,193,112,0.34);border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;">
-        <div style="font-weight:bold;font-size:13px;">${productionIconHtml(entry.queueItemId)} <span data-text="wonder-name-${idx}"></span></div>
-        <div style="font-size:11px;color:#e8c170;"><span data-text="wonder-state-${idx}"></span> · ${entry.productionCost} production · ${turns} turns</div>
-        <div style="font-size:10px;opacity:0.65;" data-text="wonder-summary-${idx}"></div>
-        <div style="font-size:10px;opacity:0.72;" data-text="wonder-recovery-${idx}"></div>
-        <div style="font-size:10px;opacity:0.72;" data-text="wonder-resumed-${idx}"></div>
-      </div>
+      <button type="button" data-wonder-card="${entry.wonderId}" style="display:block;width:100%;color:inherit;font:inherit;text-align:left;background:rgba(232,193,112,0.12);border:1px solid rgba(232,193,112,0.34);border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;">
+        <span style="display:block;font-weight:bold;font-size:13px;">${productionIconHtml(entry.queueItemId)} <span data-text="wonder-name-${idx}"></span></span>
+        <span style="display:block;font-size:11px;color:#e8c170;"><span data-text="wonder-state-${idx}"></span> · ${entry.productionCost} production · ${turns} turns</span>
+        <span style="display:block;font-size:10px;opacity:0.65;" data-text="wonder-summary-${idx}"></span>
+        <span style="display:block;font-size:10px;opacity:0.72;" data-text="wonder-recovery-${idx}"></span>
+        <span style="display:block;font-size:10px;opacity:0.72;" data-text="wonder-resumed-${idx}"></span>
+      </button>
     `;
   }
   const compactWonderSectionHtml = `
@@ -1088,8 +1090,8 @@ export function createCityPanel(
 
   const navHtml = (callbacks.onPrevCity || callbacks.onNextCity)
     ? `<div style="display:flex;align-items:center;gap:8px;">
-        <span id="city-prev" style="cursor:pointer;font-size:20px;opacity:0.7;padding:4px 8px;background:rgba(255,255,255,0.1);border-radius:6px;">&#8249;</span>
-        <span id="city-next" style="cursor:pointer;font-size:20px;opacity:0.7;padding:4px 8px;background:rgba(255,255,255,0.1);border-radius:6px;">&#8250;</span>
+        <button type="button" id="city-prev" aria-label="Previous city" style="min-width:44px;min-height:44px;color:inherit;font:inherit;border:none;cursor:pointer;font-size:20px;padding:4px 8px;background:rgba(255,255,255,0.1);border-radius:6px;">&#8249;</button>
+        <button type="button" id="city-next" aria-label="Next city" style="min-width:44px;min-height:44px;color:inherit;font:inherit;border:none;cursor:pointer;font-size:20px;padding:4px 8px;background:rgba(255,255,255,0.1);border-radius:6px;">&#8250;</button>
       </div>`
     : '';
 
@@ -1148,7 +1150,7 @@ export function createCityPanel(
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
         ${navHtml}
-        <span id="city-close" style="cursor:pointer;font-size:24px;opacity:0.6;">&#x2715;</span>
+        <button type="button" id="city-close" aria-label="Close city panel" style="min-width:44px;min-height:44px;color:inherit;font:inherit;border:none;cursor:pointer;font-size:24px;background:none;">&#x2715;</button>
       </div>
     </div>
 
@@ -1182,11 +1184,11 @@ export function createCityPanel(
     ${resilienceSectionHtml}
     ${stampedeSectionHtml}
 
-    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
-      <div id="tab-list" style="padding:6px 16px;background:rgba(255,255,255,0.15);border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">Queue</div>
-      <div id="tab-districts" style="padding:6px 16px;background:rgba(255,255,255,0.05);border-radius:6px;cursor:pointer;font-size:12px;font-weight:normal;">Districts</div>
-      <div id="tab-citizens" style="padding:6px 16px;background:rgba(255,255,255,0.05);border-radius:6px;cursor:pointer;font-size:12px;font-weight:normal;">Citizens</div>
-      <div id="tab-wonders" style="padding:6px 16px;background:rgba(255,255,255,0.05);border-radius:6px;cursor:pointer;font-size:12px;">Legendary Wonders</div>
+    <div role="group" aria-label="City sections" style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+      <button type="button" id="tab-list" aria-pressed="true" style="min-height:44px;color:inherit;font:inherit;border:none;padding:6px 16px;border-radius:6px;cursor:pointer;font-size:12px;background:rgba(255,255,255,0.15);font-weight:bold;">Queue</button>
+      <button type="button" id="tab-districts" aria-pressed="false" style="min-height:44px;color:inherit;font:inherit;border:none;padding:6px 16px;border-radius:6px;cursor:pointer;font-size:12px;background:rgba(255,255,255,0.05);font-weight:normal;">Districts</button>
+      <button type="button" id="tab-citizens" aria-pressed="false" style="min-height:44px;color:inherit;font:inherit;border:none;padding:6px 16px;border-radius:6px;cursor:pointer;font-size:12px;background:rgba(255,255,255,0.05);font-weight:normal;">Citizens</button>
+      <button type="button" id="tab-wonders" style="min-height:44px;color:inherit;font:inherit;border:none;padding:6px 16px;border-radius:6px;cursor:pointer;font-size:12px;background:rgba(255,255,255,0.05);">Legendary Wonders</button>
     </div>
     <div id="city-list-view">
       ${landmarkPreviewHtml}${idleSelectorHtml}${currentProductionHtml}
@@ -1888,7 +1890,12 @@ export function createCityPanel(
 
   const deactivateAll = () => {
     for (const v of ALL_VIEWS) v.style.display = 'none';
-    for (const t of ALL_TABS) { t.style.background = INACTIVE_BG; t.style.fontWeight = 'normal'; }
+    for (const t of ALL_TABS) {
+      t.style.background = INACTIVE_BG;
+      t.style.fontWeight = 'normal';
+      // The three view switchers are toggle buttons; "Legendary Wonders" opens another panel and has no state.
+      if (t.hasAttribute('aria-pressed')) t.setAttribute('aria-pressed', 'false');
+    }
   };
 
   const activateListTab = () => {
@@ -1896,6 +1903,7 @@ export function createCityPanel(
     listView.style.display = 'block';
     listTab.style.background = ACTIVE_BG;
     listTab.style.fontWeight = 'bold';
+    listTab.setAttribute('aria-pressed', 'true');
   };
 
   const activateDistrictsTab = () => {
@@ -1905,6 +1913,7 @@ export function createCityPanel(
     districtsView.style.display = 'block';
     districtsTab.style.background = ACTIVE_BG;
     districtsTab.style.fontWeight = 'bold';
+    districtsTab.setAttribute('aria-pressed', 'true');
   };
 
   const activateCitizensTab = () => {
@@ -1918,6 +1927,7 @@ export function createCityPanel(
     citizensView.style.display = 'block';
     citizensTab.style.background = ACTIVE_BG;
     citizensTab.style.fontWeight = 'bold';
+    citizensTab.setAttribute('aria-pressed', 'true');
   };
 
   listTab?.addEventListener('click', activateListTab);

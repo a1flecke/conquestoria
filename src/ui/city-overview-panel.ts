@@ -105,9 +105,19 @@ export function createCityOverviewPanel(
 
     const top = document.createElement('div');
     top.style.cssText = 'display:flex;justify-content:space-between;align-items:center;';
-    const nameLine = document.createElement('div');
-    nameLine.style.cssText = 'font-weight:bold;';
+    // The row stays clickable for pointer users, but a row that holds other buttons (Appease/Concede) cannot itself be
+    // a button, so opening the city is also a real control the keyboard can reach (#1459).
+    row.dataset.pointerShortcut = 'true';
+    const nameLine = document.createElement('button');
+    nameLine.type = 'button';
+    nameLine.dataset.openCity = city.id;
+    nameLine.setAttribute('aria-label', `Open ${city.name}, population ${city.population}`);
+    nameLine.style.cssText = 'font-weight:bold;min-height:44px;background:none;border:none;color:inherit;font-family:inherit;font-size:inherit;text-align:left;padding:0;cursor:pointer;';
     nameLine.textContent = `${city.name} (pop ${city.population})`;
+    nameLine.addEventListener('click', (event) => {
+      event.stopPropagation();
+      callbacks.onOpenCity(city.id);
+    });
     top.appendChild(nameLine);
     if (statusLabel) {
       const status = document.createElement('div');

@@ -94,7 +94,7 @@ export function createMarketplacePanel(
     <div style="max-width:500px;margin:0 auto;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
         <h2 style="margin:0;font-size:18px;color:#e8c170;">Marketplace</h2>
-        <span id="mp-close" style="cursor:pointer;font-size:22px;opacity:0.6;">✕</span>
+        <button type="button" id="mp-close" aria-label="Close marketplace" style="min-width:44px;min-height:44px;color:inherit;font:inherit;border:none;background:none;cursor:pointer;font-size:22px;">✕</button>
       </div>
       ${fashionBannerHtml}
       ${yourResourcesHtml}

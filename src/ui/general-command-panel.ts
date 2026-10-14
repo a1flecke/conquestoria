@@ -1,5 +1,6 @@
 import type { LastStandPreview, RallyPreview, SeizeEligibleUnit } from '@/systems/great-general-abilities';
 import { createGameButton, setButtonDisabled } from '@/ui/ui-kit';
+import { markModal } from '@/ui/modal-contract';
 
 function panelShell(container: HTMLElement, id: string): HTMLElement {
   container.querySelector(`#${id}`)?.remove();
@@ -47,6 +48,8 @@ function confirmCancelRow(panel: HTMLElement, onConfirm: () => void, onCancel: (
   row.appendChild(cancelButton);
 
   panel.appendChild(row);
+  // Confirm spends a Command Charge: Cancel is the safe default and answers Escape (#1459).
+  markModal(panel, { cancel: cancelButton, initialFocus: cancelButton });
 }
 
 export function createRallyPanel(
@@ -147,6 +150,7 @@ export function createSeizeThePanelMoment(
   row.appendChild(cancelButton);
 
   panel.appendChild(row);
+  markModal(panel, { cancel: cancelButton, initialFocus: cancelButton });
   return panel;
 }
 

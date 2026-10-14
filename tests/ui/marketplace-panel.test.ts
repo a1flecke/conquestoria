@@ -668,10 +668,21 @@ describe('createMarketplacePanel', () => {
       const onSelectUnit = vi.fn();
       createMarketplacePanel(container, state, { onClose: vi.fn(), onSelectUnit });
       const panel = document.getElementById('marketplace-panel')!;
-      const label = Array.from(panel.querySelectorAll('span')).find(el => el.textContent === 'Rome → Ostia');
+      const label = Array.from(panel.querySelectorAll('span, button')).find(el => el.textContent === 'Rome → Ostia');
       expect(label).toBeTruthy();
       const row = label!.parentElement!;
       row.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      expect(onSelectUnit).toHaveBeenCalledWith('caravan1');
+    });
+
+    it('the route row also has a keyboard-reachable button that selects the unit exactly once (#1459)', () => {
+      const state = buildStateWithRoute();
+      const onSelectUnit = vi.fn();
+      createMarketplacePanel(container, state, { onClose: vi.fn(), onSelectUnit });
+      const button = document.querySelector<HTMLButtonElement>('#marketplace-panel button[aria-label="Select the trade unit on Rome → Ostia"]');
+      expect(button).toBeTruthy();
+      button!.click();
+      expect(onSelectUnit).toHaveBeenCalledTimes(1);
       expect(onSelectUnit).toHaveBeenCalledWith('caravan1');
     });
   });

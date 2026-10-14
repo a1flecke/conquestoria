@@ -1,5 +1,6 @@
 import type { EventChainConclusionMomentItem } from '@/systems/event-chain-presentation';
 import { createGameButton } from '@/ui/ui-kit';
+import { markModal } from '@/ui/modal-contract';
 
 export interface EventChainConclusionCeremonyCallbacks {
   onResolve: () => void;
@@ -74,6 +75,8 @@ export function createEventChainConclusionCeremony(
   appendText(panel, 'p', item.optionDescription, 'margin:0;font-size:15px;line-height:1.45;max-width:46ch;');
   panel.appendChild(continueButton);
   overlay.appendChild(panel);
+  // This ceremony owns Escape; the shared contract adds the dialog role, name and Tab trap (#1459).
+  markModal(overlay, { initialFocus: continueButton });
   container.appendChild(overlay);
   overlay.focus();
 

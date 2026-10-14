@@ -761,6 +761,8 @@ export function createEspionagePanel(
   panel.id = 'espionage-panel';
   panel.style.cssText = 'display:flex;flex-direction:column;gap:14px;padding:14px;border-radius:14px;background:rgba(12,16,28,0.96);color:#f5f7fb;';
   panel.dataset.panel = 'espionage';
+  // The shared focus manager names a dialog from its first h1-h3; this panel's header is not a heading element.
+  panel.setAttribute('aria-label', 'Espionage');
 
   const headerRow = createEl('div');
   headerRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:10px;';

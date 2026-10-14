@@ -257,3 +257,33 @@ describe('game-shell', () => {
     expect(button.getAttribute('aria-pressed')).toBe('true');
   });
 });
+
+describe('game-shell icon buttons and toggles (#1459)', () => {
+  function shell(iconLegendOverlay?: HTMLElement): HTMLElement {
+    document.body.innerHTML = '';
+    return createGameShell(document.body, {
+      onOpenCouncil: () => {}, onOpenTech: () => {}, onOpenCity: () => {}, onOpenEspionage: () => {},
+      onOpenDiplomacy: () => {}, onOpenMarketplace: () => {}, onEndTurn: () => {}, onNextUnit: () => {},
+      onOpenNotificationLog: () => {}, onToggleIconLegend: () => {}, onOpenWonderAtlas: () => {},
+      onOpenVictoryProgress: () => {}, onOpenMenu: () => {}, supplyOverlayEnabled: false,
+      onToggleSupplyOverlay: () => false, iconLegendOverlay,
+    });
+  }
+
+  it('gives every emoji-only button its title as its name, and leaves word buttons as the word', () => {
+    const root = shell();
+    expect(root.querySelector('#btn-notif-log')!.getAttribute('aria-label')).toBe('View message log');
+    expect(root.querySelector('#btn-icon-legend')!.getAttribute('aria-label')).toBe('Toggle icon legend');
+    expect(root.querySelector('#btn-wonder-atlas')!.getAttribute('aria-label')).toBe('Open Wonder Atlas');
+    expect(root.querySelector('#btn-supply-overlay')!.getAttribute('aria-label')).toBe('Toggle supply overlay');
+    expect(root.querySelector('#btn-pause-menu')!.getAttribute('aria-label')).toBe('Pause menu');
+    // "Victory" is already a word: its accessible name stays the visible text (label in name).
+    expect(root.querySelector('#btn-victory-progress')!.hasAttribute('aria-label')).toBe(false);
+  });
+
+  it('the legend toggle starts collapsed unless the legend is already showing', () => {
+    expect(shell().querySelector('#btn-icon-legend')!.getAttribute('aria-expanded')).toBe('false');
+    const legend = document.createElement('div');
+    expect(shell(legend).querySelector('#btn-icon-legend')!.getAttribute('aria-expanded')).toBe('true');
+  });
+});

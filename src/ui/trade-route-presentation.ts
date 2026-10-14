@@ -23,9 +23,25 @@ function renderRouteRow(
     row.addEventListener('click', () => onSelectUnit(committedUnit.id));
   }
 
-  const routeLabel = document.createElement('span');
-  routeLabel.appendChild(document.createTextNode(`${fromCity.name} → ${toCity?.name ?? route.toCityId}`));
-  row.appendChild(routeLabel);
+  const routeText = `${fromCity.name} → ${toCity?.name ?? route.toCityId}`;
+  if (committedUnit && onSelectUnit) {
+    // #1459: the row stays clickable for pointer users; selecting the route's trade unit is also a real button.
+    row.dataset.pointerShortcut = 'true';
+    const select = document.createElement('button');
+    select.type = 'button';
+    select.setAttribute('aria-label', `Select the trade unit on ${routeText}`);
+    select.style.cssText = 'min-height:44px;background:none;border:none;color:inherit;font:inherit;text-align:left;padding:0;cursor:pointer;';
+    select.appendChild(document.createTextNode(routeText));
+    select.addEventListener('click', event => {
+      event.stopPropagation();
+      onSelectUnit(committedUnit.id);
+    });
+    row.appendChild(select);
+  } else {
+    const routeLabel = document.createElement('span');
+    routeLabel.appendChild(document.createTextNode(routeText));
+    row.appendChild(routeLabel);
+  }
 
   const routeDetail = document.createElement('span');
   routeDetail.style.cssText = 'font-size:11px;color:#6b9b4b;';

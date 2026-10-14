@@ -120,9 +120,33 @@ describe('city-panel Trade Routes section', () => {
 
     const panel = createCityPanel(container, city, state, { ...baseCallbacks(), onSelectUnit });
 
-    const label = Array.from(panel.querySelectorAll('span')).find(el => el.textContent === 'Rome → Ostia');
+    const label = Array.from(panel.querySelectorAll('span, button')).find(el => el.textContent === 'Rome → Ostia');
     expect(label).toBeTruthy();
     label!.parentElement!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(onSelectUnit).toHaveBeenCalledWith('caravan1');
+  });
+
+  it('the route row also has a keyboard-reachable button that selects the unit exactly once (#1459)', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.civilizations.player.techState.completed.push('trade-routes');
+    state.cities['city-rival'] = { ...state.cities['city-rival'], owner: 'player', name: 'Ostia' } as never;
+    (state.cities[city.id] as { name: string }).name = 'Rome';
+    state.marketplace = {
+      prices: {}, priceHistory: {}, fashionable: null, fashionTurnsLeft: 0,
+      tradeRoutes: [{ id: 'route-1', fromCityId: city.id, toCityId: 'city-rival', goldPerTrip: 10, turnsPerTrip: 1 }],
+    };
+    state.units['caravan1'] = {
+      id: 'caravan1', type: 'caravan', owner: 'player', position: { ...city.position },
+      health: 100, movementPointsLeft: 3, committedToRouteId: 'route-1', tripsRemaining: 5,
+    } as never;
+    const onSelectUnit = vi.fn();
+    const panel = createCityPanel(container, city, state, { ...baseCallbacks(), onSelectUnit });
+
+    const button = panel.querySelector<HTMLButtonElement>('button[aria-label="Select the trade unit on Rome → Ostia"]');
+    expect(button).toBeTruthy();
+    button!.click();
+    // The button's click must not bubble to the row's pointer shortcut and select twice.
+    expect(onSelectUnit).toHaveBeenCalledTimes(1);
     expect(onSelectUnit).toHaveBeenCalledWith('caravan1');
   });
 

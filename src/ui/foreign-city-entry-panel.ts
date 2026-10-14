@@ -6,6 +6,7 @@ export interface ForeignCityEntryPanelConfig {
 }
 
 import { createGameButton } from '@/ui/ui-kit';
+import { markModal } from '@/ui/modal-contract';
 
 export function createForeignCityEntryPanel(
   container: HTMLElement,
@@ -43,6 +44,8 @@ export function createForeignCityEntryPanel(
 
   buttonRow.append(cancel, confirm);
   panel.append(title, body, buttonRow);
+  // Entering declares war, so the safe Cancel is where focus starts and what Escape answers (#1459).
+  markModal(panel, { cancel, initialFocus: cancel });
   container.appendChild(panel);
   return panel;
 }
