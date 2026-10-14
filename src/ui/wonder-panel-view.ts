@@ -5,6 +5,7 @@ import type {
   LegendaryWonderVisibleState,
 } from '@/systems/legendary-wonder-presentation';
 import { createGameButton } from '@/ui/ui-kit';
+import { LEGENDARY_WONDER_ICON_SIZE_PX, createLegendaryWonderThumbnail } from '@/ui/legendary-wonder-icon';
 
 export type WonderCardMode = 'recommended' | 'compact';
 export type StartWonderAction = (wonderId: string) => void;
@@ -294,7 +295,12 @@ export function appendProjectCard(
   article.style.cssText = mode === 'recommended' ? RECOMMENDED_CARD_STYLE : COMPACT_CARD_STYLE;
   if (mode === 'recommended') article.dataset.recommendedProject = 'true';
 
-  appendText(article, 'h4', `${mode === 'recommended' ? '🏛️ ' : ''}${entry.name}`, 'margin:0 0 8px;');
+  const title = appendText(article, 'h4', `${mode === 'recommended' ? '🏛️ ' : ''}${entry.name}`, 'margin:0 0 8px;');
+  const art = createLegendaryWonderThumbnail(entry.wonderId, LEGENDARY_WONDER_ICON_SIZE_PX);
+  if (art) {
+    art.style.marginRight = '8px';
+    title.prepend(art);
+  }
   const chips = document.createElement('div');
   chips.style.cssText = 'display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:6px;';
   appendStatusChip(chips, entry);

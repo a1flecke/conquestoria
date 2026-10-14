@@ -75,6 +75,7 @@ import { isSuperweaponsEnabled } from '@/systems/superweapons-flag';
 import { resolveSuperweaponContentDescription } from '@/systems/superweapon-content-honesty';
 import { createCityWorkSection } from './city-grid';
 import { createCityDistrictsTab } from './city-districts';
+import { hydrateLegendaryWonderIcons, productionIconHtml } from './legendary-wonder-icon';
 import {
   calculateCityBuildingMaintenance,
   calculateCivEconomy,
@@ -950,7 +951,7 @@ export function createCityPanel(
     const turns = yields.production > 0 ? Math.ceil(entry.productionCost / yields.production) : '∞';
     compactWonderHtml += `
       <div data-wonder-card="${entry.wonderId}" style="background:rgba(232,193,112,0.12);border:1px solid rgba(232,193,112,0.34);border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;">
-        <div style="font-weight:bold;font-size:13px;">${getProductionIconForItem(entry.queueItemId)} <span data-text="wonder-name-${idx}"></span></div>
+        <div style="font-weight:bold;font-size:13px;">${productionIconHtml(entry.queueItemId)} <span data-text="wonder-name-${idx}"></span></div>
         <div style="font-size:11px;color:#e8c170;"><span data-text="wonder-state-${idx}"></span> · ${entry.productionCost} production · ${turns} turns</div>
         <div style="font-size:10px;opacity:0.65;" data-text="wonder-summary-${idx}"></div>
         <div style="font-size:10px;opacity:0.72;" data-text="wonder-recovery-${idx}"></div>
@@ -1011,7 +1012,7 @@ export function createCityPanel(
 
     currentProductionHtml = `
       <div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:12px;margin-bottom:16px;">
-        <div style="font-weight:bold;color:#e8c170;">Producing: ${getProductionIconForItem(currentItem)} <span data-text="prod-name"></span></div>
+        <div style="font-weight:bold;color:#e8c170;">Producing: ${productionIconHtml(currentItem)} <span data-text="prod-name"></span></div>
         <div style="font-size:12px;opacity:0.7;"><span data-text="prod-turns"></span> turns remaining <span style="opacity:0.7;">(estimate from current production)</span></div>
         <div style="background:rgba(0,0,0,0.3);border-radius:4px;height:8px;margin-top:8px;">
           <div style="background:#6b9b4b;border-radius:4px;height:8px;width:${progress}%;"></div>
@@ -1072,7 +1073,7 @@ export function createCityPanel(
     queueRowsHtml += `
       <div data-queue-index="${idx}" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;background:rgba(255,255,255,0.06);border-radius:8px;padding:8px;">
         <div>
-          <div style="font-weight:bold;">${getProductionIconForItem(city.productionQueue[idx])} <span data-text="queue-name-${idx}"></span></div>
+          <div style="font-weight:bold;">${productionIconHtml(city.productionQueue[idx])} <span data-text="queue-name-${idx}"></span></div>
           <div style="font-size:11px;opacity:0.7;">${slotLabel}</div>
           ${headChangeWarning ? '<div data-head-change-warning="true" style="font-size:11px;color:#d9a25c;margin-top:2px;"></div>' : ''}
         </div>
@@ -1454,6 +1455,7 @@ export function createCityPanel(
       : `${item.label} — Completed`);
   });
 
+  hydrateLegendaryWonderIcons(panel);
   container.appendChild(panel);
 
   // This choice belongs to the owning empire, not the host city. Keep it scoped to
