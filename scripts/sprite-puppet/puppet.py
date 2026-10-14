@@ -260,25 +260,26 @@ class FirearmRig:
         H, W = rgba.shape[:2]
         self.cv = Canvas((W, H), int(max(W, H) * 0.14))
         alpha = rgba[..., 3] > 40
-        cut_y = rig['cut_y']
-        overlap_top = rig['overlap_top']
-        self.hip_y = rig['hip_y']
+        cut_y = rig.get('cut_y')  # absent: a crew-served or seated unit with no legs to stride (whole figure is the body)
+        overlap_top = rig.get('overlap_top', 0)
+        self.hip_y = rig.get('hip_y', 0)
         self.muzzle = tuple(rig['muzzle'])
         self.stride = rig.get('stride_deg', 15.0)
         self.recoil = rig.get('recoil_px', 7.0)
         self.amp = rig.get('bob', 0.012) * H
-        low = alpha.copy()
-        low[:cut_y, :] = False
-        lab, n = ndi.label(low)
         comps = []
-        for i in range(1, n + 1):
-            m = lab == i
-            if m.sum() >= rig.get('min_leg_pixels', 150):
-                xs = np.where(m.any(0))[0]
-                comps.append(dict(mask=m, x0=int(xs.min()), x1=int(xs.max())))
-        comps.sort(key=lambda d: d['x0'])
-        if len(comps) != 2:
-            raise SystemExit(f'expected 2 legs below cut_y={cut_y}, found {[(d["x0"], d["x1"]) for d in comps]}: adjust cut_y')
+        if cut_y is not None:
+            low = alpha.copy()
+            low[:cut_y, :] = False
+            lab, n = ndi.label(low)
+            for i in range(1, n + 1):
+                m = lab == i
+                if m.sum() >= rig.get('min_leg_pixels', 150):
+                    xs = np.where(m.any(0))[0]
+                    comps.append(dict(mask=m, x0=int(xs.min()), x1=int(xs.max())))
+            comps.sort(key=lambda d: d['x0'])
+            if len(comps) != 2:
+                raise SystemExit(f'expected 2 legs below cut_y={cut_y}, found {[(d["x0"], d["x1"]) for d in comps]}: adjust cut_y')
         self.legs = []
         for k, d in enumerate(comps):  # k == 0: far/back leg (left), k == 1: near/front leg (right)
             band = np.zeros((H, W), bool)
@@ -287,7 +288,8 @@ class FirearmRig:
             cx = (d['x0'] + d['x1']) / 2
             self.legs.append(Layer(layer_from(rgba, keep), pivot=(cx, rig['hip_y'])))
         body = alpha.copy()
-        body[cut_y:, :] = False
+        if cut_y is not None:
+            body[cut_y:, :] = False
         self.body = Layer(layer_from(rgba, body), pivot=(W * 0.5, H * 0.97))
 
     def _flash(self, strength: float, smoke: float, dx: float, dy: float) -> Image.Image:
@@ -328,8 +330,8 @@ class FirearmRig:
             flash = max(0.0, 1 - abs(t - 0.3) / 0.14) if 0.16 <= t <= 0.45 else 0.0
             smoke = max(0.0, min(1.0, (t - 0.28) / 0.1)) * (1 - max(0.0, (t - 0.65) / 0.35)) if t >= 0.28 else 0.0
             near = -0.8 * kick * 2
-        parts = [self.cv.place(self.legs[0], dx * 0.5, dy, far), self.cv.place(self.legs[1], dx * 0.5, dy, near),
-                 self.cv.place(self.body, dx, dy, rot)]
+        parts = [self.cv.place(leg, dx * 0.5, dy, ang) for leg, ang in zip(self.legs, (far, near))]
+        parts.append(self.cv.place(self.body, dx, dy, rot))
         if flash > 0 or smoke > 0:
             parts.append(self._flash(flash, smoke, dx, dy))
         return self.cv.compose(parts)
