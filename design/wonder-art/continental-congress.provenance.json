@@ -1,0 +1,16 @@
+{
+  "id": "continental-congress",
+  "file": "public/images/wonders/art/continental-congress.png",
+  "generator": "Sprite-AI (sprite-ai.art) via MCP sprite_generate",
+  "settings": {
+    "asset_type": "prop",
+    "camera_perspective": "isometric",
+    "width": 128,
+    "height": 128
+  },
+  "sprite_ai_generation_id": "5bdc7a75-0899-4a64-a8a8-72472d3a08c8",
+  "generated_on": "2026-10-13",
+  "tokens_used": 1,
+  "prompt": "Domed neoclassical congress hall landmark for a strategy game: Ionic column portico, central dome above a circular chamber, plain striped flags flanking the entrance, cobblestone plaza. Warm brown stone and gold palette, strong readable silhouette, no text, transparent background.",
+  "licence_note": "Project owner confirmed on 2026-10-13 that they are fine using these Sprite-AI generated images in the game. Art approved by the project owner 2026-10-13. The owner's confirmation was given in chat; the Sprite-AI terms text itself was not reviewed or recorded here. Re-check the current terms before generating more sources."
+}

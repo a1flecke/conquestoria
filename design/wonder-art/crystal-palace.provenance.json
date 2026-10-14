@@ -1,0 +1,16 @@
+{
+  "id": "crystal-palace",
+  "file": "public/images/wonders/art/crystal-palace.png",
+  "generator": "Sprite-AI (sprite-ai.art) via MCP sprite_generate",
+  "settings": {
+    "asset_type": "prop",
+    "camera_perspective": "isometric",
+    "width": 128,
+    "height": 128
+  },
+  "sprite_ai_generation_id": "42637971-939c-47bd-9b38-ffd216cde952",
+  "generated_on": "2026-10-13",
+  "tokens_used": 1,
+  "prompt": "Victorian glass-and-iron exhibition hall landmark for a strategy game: long barrel-vaulted nave and arched transept of wrought-iron ribs filled with glass panes, machinery visible inside. Steel blue and pale glass palette, strong readable silhouette, no text, transparent background.",
+  "licence_note": "Project owner confirmed on 2026-10-13 that they are fine using these Sprite-AI generated images in the game. Art approved by the project owner 2026-10-13. The owner's confirmation was given in chat; the Sprite-AI terms text itself was not reviewed or recorded here. Re-check the current terms before generating more sources."
+}
