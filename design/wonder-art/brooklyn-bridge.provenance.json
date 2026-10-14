@@ -1,0 +1,16 @@
+{
+  "id": "brooklyn-bridge",
+  "file": "public/images/wonders/art/brooklyn-bridge.png",
+  "generator": "Sprite-AI (sprite-ai.art) via MCP sprite_generate",
+  "settings": {
+    "asset_type": "prop",
+    "camera_perspective": "isometric",
+    "width": 128,
+    "height": 128
+  },
+  "sprite_ai_generation_id": "0cf23564-a441-4082-b876-01b52d144c31",
+  "generated_on": "2026-10-14",
+  "tokens_used": 1,
+  "prompt": "Brooklyn Bridge landmark for a strategy game: two granite towers with pointed Gothic arches joined by a roadway, fan and diagonal suspension cables, river below with one small steam ferry, stone-tan and steel-grey. Strong readable silhouette, no text, transparent background.",
+  "licence_note": "Project owner confirmed in chat on 2026-10-14 that their Sprite-AI plan allows them to use these generated images in the game. Art approved by the project owner 2026-10-14. The Sprite-AI terms text itself was not reviewed or recorded here. Re-check the current terms before generating more sources."
+}

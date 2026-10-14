@@ -1,0 +1,16 @@
+{
+  "id": "wright-flyer",
+  "file": "public/images/wonders/art/wright-flyer.png",
+  "generator": "Sprite-AI (sprite-ai.art) via MCP sprite_generate",
+  "settings": {
+    "asset_type": "prop",
+    "camera_perspective": "isometric",
+    "width": 128,
+    "height": 128
+  },
+  "sprite_ai_generation_id": "d3c1cb30-555a-46a8-8dc5-b07dcf037d46",
+  "generated_on": "2026-10-14",
+  "tokens_used": 2,
+  "prompt": "Wright Flyer 1903 for a strategy game: a large canvas-and-spruce biplane with two stacked wings, struts and wires, small elevator wings in front and twin propellers behind, resting on a short wooden rail on a small round patch of sand, tiny pilot lying on the lower wing. Biplane fills most of the image, bold pale cream wings against sand and sky blue. Strong readable silhouette, no text, transparent background.",
+  "licence_note": "Project owner confirmed in chat on 2026-10-14 that their Sprite-AI plan allows them to use these generated images in the game. Art approved by the project owner 2026-10-14. The Sprite-AI terms text itself was not reviewed or recorded here. Re-check the current terms before generating more sources."
+}

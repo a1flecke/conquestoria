@@ -1,0 +1,16 @@
+{
+  "id": "eiffel-tower",
+  "file": "public/images/wonders/art/eiffel-tower.png",
+  "generator": "Sprite-AI (sprite-ai.art) via MCP sprite_generate",
+  "settings": {
+    "asset_type": "prop",
+    "camera_perspective": "isometric",
+    "width": 128,
+    "height": 128
+  },
+  "sprite_ai_generation_id": "4a98d614-70f3-4ec5-b808-e0316bf3c5d4",
+  "generated_on": "2026-10-14",
+  "tokens_used": 1,
+  "prompt": "Wrought-iron Eiffel Tower landmark for a strategy game: tapering lattice tower on four arched legs with a first-level platform and a needle spire, warm iron-brown against soft Paris-grey, small low rooftops at the base. Strong readable silhouette, no text, transparent background.",
+  "licence_note": "Project owner confirmed in chat on 2026-10-14 that their Sprite-AI plan allows them to use these generated images in the game. Art approved by the project owner 2026-10-14. The Sprite-AI terms text itself was not reviewed or recorded here. Re-check the current terms before generating more sources."
+}
