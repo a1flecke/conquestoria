@@ -63,9 +63,10 @@ helpers do so deliberately and include offline/PWA measurements.
 [Playwright #43009](https://github.com/microsoft/playwright/issues/43009) documents
 a separate service-worker session leak during context close, fixed in #43017.
 It is related lifecycle evidence, **not** a report of this native null
-dereference, and is not claimed as the cause. An exact upstream crash report
-still needs to be filed; changing canvas options, retries or browser lifetime
-would not address the native failure identified here.
+dereference, and is not claimed as the cause. The exact native crash is reported
+in [Playwright #43374](https://github.com/microsoft/playwright/issues/43374).
+Changing canvas options, retries or browser lifetime would not address the
+native failure identified here.
 
 ## Validation boundary
 
