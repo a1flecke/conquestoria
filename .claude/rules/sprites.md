@@ -85,7 +85,7 @@ Migrating a unit is one catalog row plus its generated manifest; migrating it ba
 
 ---
 
-## Legendary Wonder Production Art (#613)
+## Legendary Wonder Production Art (#613, #619)
 
 A legendary wonder can have a painted PNG that replaces its canvas drawing everywhere it is shown, with the canvas drawing kept as the
 fallback. The wonder's id in `LEGENDARY_WONDER_ART_IDS` (`src/renderer/wonders/legendary-wonder-art-catalog.ts`) is the single switch;
@@ -97,8 +97,15 @@ else is edited per wonder.
    it as `public/images/wonders/art/<wonder-id>.png` (≤ 24 KB, RGBA, transparent corners).
 2. Write `design/wonder-art/<wonder-id>.provenance.json` (tool, prompt, generation id, date, a licence note the owner has confirmed).
 3. Add the id to `LEGENDARY_WONDER_ART_IDS`. `tests/renderer/wonders/legendary-wonder-art.test.ts` then checks the file, size,
-   dimensions, transparency and provenance; add the id to the in-scope list in `tests/e2e/issue-613-wonder-art.spec.ts`.
+   dimensions, transparency and provenance and pins the exact id list (update that list); add the id to `IDS` in
+   `tests/e2e/issue-613-wonder-art.spec.ts`. Tests that need a wonder *without* art use `manhattan-project`.
 4. Delete that wonder's `TODO(art)` line in `legendary-wonder-bespoke-assets.ts` and leave the draw function as the fallback.
+5. If the wonder also has a legacy `BUILDING_SPRITE_CATALOG` placeholder, delete it (#619 did this for `wright-flyer`); the
+   `sprite-catalog.test.ts` guard fails if one comes back.
+
+**Prompting lessons (#619):** put the identifying silhouette first and cap secondary details at two; a prompt that lists canyon,
+river, ships or a skyline gets the setting instead of the landmark (Hoover Dam and Wright Flyer each needed a second take). Name
+the shape you want ("bowed in a curved arch", "biplane fills most of the image") and keep the base small.
 
 **Hard rules:** never hard-code `/images/…` — build the URL with `resolveAppAssetUrl` (`src/renderer/asset-url.ts`); panels get the art
 through `src/ui/legendary-wonder-icon.ts` (the one UI-layer entry; do not import `src/renderer/wonders/*` from another panel);

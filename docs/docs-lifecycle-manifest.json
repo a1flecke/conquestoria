@@ -181,16 +181,6 @@
    "liveReferences": [
     ".claude/rules/hooks-and-tooling.md"
    ]
-  },
-  "docs/superpowers/plans/2026-10-13-legendary-wonder-era8-9-art.md": {
-   "category": "active",
-   "reason": "Era 8-9 legendary-wonder production art plan, owned by open issue #619.",
-   "issues": [
-    619
-   ],
-   "issueStates": {
-    "619": "OPEN"
-   }
   }
  },
  "deleted": {
@@ -3669,6 +3659,13 @@
    "reason": "Delivered by the #613 PR; source, tests, docs/sprite-design-system.md and .claude/rules/sprites.md are the authority now. Git history is the record.",
    "issues": [
     613
+   ]
+  },
+  "docs/superpowers/plans/2026-10-13-legendary-wonder-era8-9-art.md": {
+   "category": "delivered-stale",
+   "reason": "Era 8-9 legendary-wonder production art delivered for #619; current behavior lives in source, tests, docs/sprite-design-system.md and .claude/rules/sprites.md.",
+   "issues": [
+    619
    ]
   }
  },

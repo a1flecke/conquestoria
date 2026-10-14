@@ -106,9 +106,9 @@ Live render surfaces:
 - **City panel Buildings list** — `src/ui/city-panel-building-icon.ts`'s
   `getAnimatedBuildingIconHtml()` renders every *built* building as a small (36px) animated
   `.cq-v2` DOM sprite next to its row, picking up `sprite-animations-v2.css` idle animation for
-  free. Falls back to `PRODUCTION_ICON_FALLBACK` (🏗️) for the ~69 of 74 legendary-wonder ids with
-  no `BUILDING_SPRITE_CATALOG` entry (only `pyramids`, `colosseum`, `great_library`, `lighthouse`,
-  and `wright-flyer` have one).
+  free. Falls back to `PRODUCTION_ICON_FALLBACK` (🏗️) for the ~70 of 74 legendary-wonder ids with
+  no `BUILDING_SPRITE_CATALOG` entry (only `pyramids`, `colosseum`, `great_library` and `lighthouse`
+  have one).
 
 Both consumers read the same `BUILDING_SPRITE_CATALOG`; nothing else (map diorama tiles, a
 build-chooser preview, damage-tier states) is wired to it yet — do not claim those in art prompts.
@@ -262,12 +262,15 @@ Improvement Marker asset contract (`viewBox 0 0 48 48`, no palette, no animation
 | religion badge | ✅ SVG marker (`src/renderer/improvements/religion-badge-marker.ts`, #594 MR7), two variants (own-faith / foreign-faith) | city has a resolved `cityFaith` entry (`religionBadge`) |
 
 ### Legendary Wonders — `src/systems/legendary-wonder-definitions.ts`
-**Production art (#613)** — six Era 5–7 wonders have a painted 128×128 transparent isometric PNG each, generated with Sprite-AI
-(sprite-ai.art, `sprite_generate`, `asset_type: prop`, `camera_perspective: isometric`, 1 token each, owner-approved
-2026-10-13). The files are `public/images/wonders/art/<wonder-id>.png`, the ids and their path are in
+**Production art (#613, #619)** — thirteen Era 5–9 wonders have a painted 128×128 transparent isometric PNG each, generated with Sprite-AI
+(sprite-ai.art, `sprite_generate`, `asset_type: prop`, `camera_perspective: isometric`, 1 token per generation, owner-approved
+2026-10-13 for the Era 5–7 six and 2026-10-14 for the Era 8–9 seven; #619 spent 10 tokens, 3 on Hoover Dam and 2 on Wright Flyer
+because the first takes buried the dam in canyon walls and drew a small, low biplane). The files are `public/images/wonders/art/<wonder-id>.png`, the ids and their path are in
 `src/renderer/wonders/legendary-wonder-art-catalog.ts`, and every file has a provenance record in
 `design/wonder-art/<id>.provenance.json` (tool, prompt, generation id, date, licence note). The set:
-`palace-of-the-sun`, `iron-arsenal`, `merchant-admiralty`, `crystal-palace`, `suez-canal`, `continental-congress`.
+Era 5–7: `palace-of-the-sun`, `iron-arsenal`, `merchant-admiralty`, `crystal-palace`, `suez-canal`, `continental-congress`.
+Era 8–9: `eiffel-tower`, `brooklyn-bridge`, `trans-siberian-railway`, `panama-canal`, `empire-state-building`, `hoover-dam`,
+`wright-flyer`.
 
 | Surface | What it shows | Owner |
 |---|---|---|
@@ -287,11 +290,19 @@ call. The service worker runtime-caches the PNGs after the first fetch. URLs are
 river; `merchant-admiralty` and `crystal-palace` are near-monochrome blue (contrast is carried by the aura on ocean tiles). A
 regeneration is one token each; replace the PNG and update its provenance record.
 
-The other seven `TODO(art)` wonders in `legendary-wonder-bespoke-assets.ts` (Eiffel Tower, Brooklyn Bridge, Trans-Siberian Railway,
-Panama Canal, Empire State Building, Hoover Dam, Wright Flyer) still use canvas drawings only. Codex photos live in
+**Known gaps against the Era 8–9 briefs (owner accepted the art as is):** `trans-siberian-railway` and `panama-canal` read as
+island vignettes rather than a long line of track or an aerial lock sequence, and the canal shows two ships, not one;
+`hoover-dam` is canyon-heavy, with the arch and its two intake towers small against the rock; `wright-flyer` shows the pilot and
+front elevator but not the two observers, and its wings read more symmetrical than the real canard layout;
+`brooklyn-bridge` shows one small ferry and no river traffic. None needed regeneration after the contrast check on grass, desert,
+ocean and dark terrain.
+
+No wonder has a `TODO(art)` left in `legendary-wonder-bespoke-assets.ts`; every canvas drawing there is the offline / load-failure
+fallback. Codex photos live in
 `public/images/wonders/codex/*.jpg` (lore art with attribution in `docs/wonder-codex-source-ledger.md`, a separate layer).
 
-Building-sprite placeholders exist for these wonders (registered in `BUILDING_SPRITE_CATALOG`):
+Building-sprite placeholders exist for these four wonders (registered in `BUILDING_SPRITE_CATALOG`; `wright-flyer`'s was deleted
+in #619 when it got production art, and `tests/renderer/sprites/sprite-catalog.test.ts` pins that it stays gone):
 
 | Wonder | Sprite status | Era | Bespoke canvas draw |
 |--------|---------------|-----|---------------------|
@@ -299,7 +310,6 @@ Building-sprite placeholders exist for these wonders (registered in `BUILDING_SP
 | colosseum | ✅ SVG sprite | 3 | — |
 | great_library | ✅ SVG sprite | 2 | — |
 | lighthouse | ✅ SVG sprite | 4 | — |
-| wright-flyer | ⚠️ placeholder SVG + bespoke canvas (tracked: #619) | 9 | `drawWrightFlyer` in `legendary-wonder-bespoke-assets.ts` |
 
 ---
 
@@ -459,7 +469,7 @@ Assets added in PR6 that need bespoke replacements (invoke `generate-sprite-prom
 | `biplane` (unit) | `units.tsx` | WWI biplane — double canvas wings, radial engine cowling, open cockpit with goggled pilot, faction roundel on upper wing, propeller blur. |
 | `anti_air_battery` (building) | `buildings.tsx` | Ring-mounted Krupp flak cannon, sandbag emplacement, four crew members, brass shell casings, searchlight beam sweeping above. |
 | `air_force_command` (building) | `buildings.tsx` | Neoclassical military HQ, stone eagle over portico, aviation wing crest, biplanes in formation silhouetted through arched window, parade ground. |
-| `wright-flyer` (wonder, SVG + canvas) | `wonders.tsx` + `legendary-wonder-bespoke-assets.ts` | Open dunes at Kitty Hawk, canvas-and-wood biplane on launch rail, two period-dressed figures watching, pale blue sky, wind streaks. |
+| `wright-flyer` (wonder, PNG art + canvas fallback) | `public/images/wonders/art/wright-flyer.png` (#619) + `legendary-wonder-bespoke-assets.ts` fallback | Canvas-and-wood biplane with a pilot on the lower wing, on a launch rail over sand. The canvas drawing keeps the Kitty Hawk dunes, two watching figures and wind streaks. |
 | `air-move-step.ogg` (SFX) | `public/audio/sfx/` | Wind-whoosh / propeller sound. Currently uses `humanoid-move-step.ogg` as placeholder. |
 
 ## Replacement Plan — Era 10 Placeholder Assets
