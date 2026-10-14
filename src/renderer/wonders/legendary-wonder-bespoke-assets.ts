@@ -795,7 +795,7 @@ function drawNavigatorsCompass(options: LegendaryWonderBespokeDrawOptions): void
   ctx.fill();
 }
 
-// TODO(art): Replace with a grand baroque palace: symmetrical wings, golden dome, formal gardens in foreground, sun-ray spires on rooftop. Use generate-sprite-prompt skill.
+// Fallback only: production art is public/images/wonders/art/ (legendary-wonder-art-catalog.ts, #613); this canvas drawing runs offline or if that image fails to load.
 function drawPalaceOfTheSun(options: LegendaryWonderBespokeDrawOptions): void {
   const { ctx, cx, cy, radius, metadata } = options;
   markBespoke(ctx, 'palace-of-the-sun-bespoke');
@@ -829,7 +829,7 @@ function drawPalaceOfTheSun(options: LegendaryWonderBespokeDrawOptions): void {
   ctx.fill();
 }
 
-// TODO(art): Replace with a sprawling state arsenal: long brick warehouse sheds, cannon rows on foreground docks, belching foundry chimneys, military galleys being fitted in slips. Use generate-sprite-prompt skill.
+// Fallback only: production art is public/images/wonders/art/ (legendary-wonder-art-catalog.ts, #613); this canvas drawing runs offline or if that image fails to load.
 function drawIronArsenal(options: LegendaryWonderBespokeDrawOptions): void {
   const { ctx, cx, cy, metadata } = options;
   const r = options.radius;
@@ -869,7 +869,7 @@ function drawIronArsenal(options: LegendaryWonderBespokeDrawOptions): void {
   ctx.fill();
 }
 
-// TODO(art): Replace with a harbor admiralty office: columned waterfront building, tall-masted ships at quay, heraldic anchor above arched entrance, signal lanterns on roof masts. Use generate-sprite-prompt skill.
+// Fallback only: production art is public/images/wonders/art/ (legendary-wonder-art-catalog.ts, #613); this canvas drawing runs offline or if that image fails to load.
 function drawMerchantAdmiralty(options: LegendaryWonderBespokeDrawOptions): void {
   const { ctx, cx, cy, metadata } = options;
   const r = options.radius;
@@ -910,7 +910,7 @@ function drawMerchantAdmiralty(options: LegendaryWonderBespokeDrawOptions): void
   ctx.fill();
 }
 
-// TODO(art): Replace with Victorian glass-and-iron exhibition hall: long barrel-vaulted nave of wrought-iron ribs filled with plate glass, arched transept, factory machinery and crystal exhibits visible inside. Use generate-sprite-prompt skill.
+// Fallback only: production art is public/images/wonders/art/ (legendary-wonder-art-catalog.ts, #613); this canvas drawing runs offline or if that image fails to load.
 function drawCrystalPalace(options: LegendaryWonderBespokeDrawOptions): void {
   const { ctx, cx, cy, radius, metadata } = options;
   const r = radius;
@@ -954,7 +954,7 @@ function drawCrystalPalace(options: LegendaryWonderBespokeDrawOptions): void {
   ctx.fill();
 }
 
-// TODO(art): Replace with aerial view of desert canal: massive stone lock gates, steamships queuing, Mediterranean-blue sea in distance, Egyptian palms lining banks. Use generate-sprite-prompt skill.
+// Fallback only: production art is public/images/wonders/art/ (legendary-wonder-art-catalog.ts, #613); this canvas drawing runs offline or if that image fails to load.
 function drawSuezCanal(options: LegendaryWonderBespokeDrawOptions): void {
   const { ctx, cx, cy, radius, metadata } = options;
   const r = radius;
@@ -987,7 +987,7 @@ function drawSuezCanal(options: LegendaryWonderBespokeDrawOptions): void {
   ctx.fill();
 }
 
-// TODO(art): Replace with grand domed congress hall: neoclassical facade with ionic columns, central dome above circular debating chamber, national flags flanking entrance, cobblestone plaza. Use generate-sprite-prompt skill.
+// Fallback only: production art is public/images/wonders/art/ (legendary-wonder-art-catalog.ts, #613); this canvas drawing runs offline or if that image fails to load.
 function drawContinentalCongress(options: LegendaryWonderBespokeDrawOptions): void {
   const { ctx, cx, cy, radius, metadata } = options;
   const r = radius;
