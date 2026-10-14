@@ -246,7 +246,96 @@ class MountedRig:
         return cv.compose(parts)
 
 
-PROFILES = {'static': StaticRig, 'mounted': MountedRig}
+class FirearmRig:
+    """A standing shooter (#621 rifleman): two legs that stride, a body that bobs, and a firing recoil with muzzle flash.
+
+    Legs are the two connected components below `cut_y`; each carries a copy of the body pixels it overlaps (the band
+    `overlap_top`..`cut_y`) and is drawn BEHIND the body so the hip joint stays closed through a small swing. The muzzle
+    flash and smoke are drawn procedurally at `muzzle` (source pixels) in yellow/white/grey, never red, so the tint key
+    cannot pick them up. Rig keys (all source pixels): cut_y, overlap_top, hip_y, muzzle [x, y], stride_deg, recoil_px.
+    """
+
+    def __init__(self, rgba: np.ndarray, rig: dict):
+        self.rgba = rgba
+        H, W = rgba.shape[:2]
+        self.cv = Canvas((W, H), int(max(W, H) * 0.14))
+        alpha = rgba[..., 3] > 40
+        cut_y = rig['cut_y']
+        overlap_top = rig['overlap_top']
+        self.hip_y = rig['hip_y']
+        self.muzzle = tuple(rig['muzzle'])
+        self.stride = rig.get('stride_deg', 15.0)
+        self.recoil = rig.get('recoil_px', 7.0)
+        self.amp = rig.get('bob', 0.012) * H
+        low = alpha.copy()
+        low[:cut_y, :] = False
+        lab, n = ndi.label(low)
+        comps = []
+        for i in range(1, n + 1):
+            m = lab == i
+            if m.sum() >= rig.get('min_leg_pixels', 150):
+                xs = np.where(m.any(0))[0]
+                comps.append(dict(mask=m, x0=int(xs.min()), x1=int(xs.max())))
+        comps.sort(key=lambda d: d['x0'])
+        if len(comps) != 2:
+            raise SystemExit(f'expected 2 legs below cut_y={cut_y}, found {[(d["x0"], d["x1"]) for d in comps]}: adjust cut_y')
+        self.legs = []
+        for k, d in enumerate(comps):  # k == 0: far/back leg (left), k == 1: near/front leg (right)
+            band = np.zeros((H, W), bool)
+            band[overlap_top:cut_y, max(0, d['x0'] - 6):d['x1'] + 7] = True
+            keep = d['mask'] | (band & alpha)
+            cx = (d['x0'] + d['x1']) / 2
+            self.legs.append(Layer(layer_from(rgba, keep), pivot=(cx, rig['hip_y'])))
+        body = alpha.copy()
+        body[cut_y:, :] = False
+        self.body = Layer(layer_from(rgba, body), pivot=(W * 0.5, H * 0.97))
+
+    def _flash(self, strength: float, smoke: float, dx: float, dy: float) -> Image.Image:
+        out = Image.new('RGBA', self.cv.can, (0, 0, 0, 0))
+        d = ImageDraw.Draw(out)
+        mx, my = self.muzzle[0] + self.cv.pad + dx, self.muzzle[1] + self.cv.pad + dy
+        if strength > 0:
+            r = 26 * strength
+            star = []
+            for j in range(16):  # 8-point starburst
+                rr = r if j % 2 == 0 else r * 0.38
+                ang = j * math.pi / 8
+                star.append((mx + 6 + math.cos(ang) * rr * (1.35 if j % 4 == 0 else 1.0), my + math.sin(ang) * rr))
+            d.polygon(star, fill=(255, 214, 92, 235))
+            d.ellipse([mx + 6 - r * 0.45, my - r * 0.45, mx + 6 + r * 0.45, my + r * 0.45], fill=(255, 250, 220, 255))
+        if smoke > 0:
+            for j, (ox, oy, rad) in enumerate([(10, -2, 9), (24, -8, 12), (40, -13, 14)]):
+                a = round(150 * smoke * (1 - j * 0.22))
+                d.ellipse([mx + ox - rad, my + oy - rad, mx + ox + rad, my + oy + rad], fill=(205, 205, 205, a))
+        return out.filter(ImageFilter.GaussianBlur(0.8))
+
+    def frame(self, state: str, i: int, n: int) -> Image.Image:
+        t = i / n
+        dx = dy = 0.0
+        rot = 0.0
+        far = near = 0.0
+        flash = smoke = 0.0
+        if state == 'idle':
+            dy = -0.5 * self.amp * (1 - math.cos(2 * math.pi * t))
+        elif state == 'walk':
+            far = self.stride * math.sin(2 * math.pi * t)
+            near = -far
+            dy = -self.amp * 1.4 * abs(math.sin(2 * math.pi * t))
+            rot = 0.8 * math.sin(2 * math.pi * t)
+        else:  # attack = fire: settle aim, flash + kick back, recover; smoke drifts off
+            kick, rot = keyframes(t, [(0, 0, 0), (0.2, 0, 0.3), (0.3, -1, -2.2), (0.55, -0.35, -0.8), (1, 0, 0)])
+            dx = kick * self.recoil
+            flash = max(0.0, 1 - abs(t - 0.3) / 0.14) if 0.16 <= t <= 0.45 else 0.0
+            smoke = max(0.0, min(1.0, (t - 0.28) / 0.1)) * (1 - max(0.0, (t - 0.65) / 0.35)) if t >= 0.28 else 0.0
+            near = -0.8 * kick * 2
+        parts = [self.cv.place(self.legs[0], dx * 0.5, dy, far), self.cv.place(self.legs[1], dx * 0.5, dy, near),
+                 self.cv.place(self.body, dx, dy, rot)]
+        if flash > 0 or smoke > 0:
+            parts.append(self._flash(flash, smoke, dx, dy))
+        return self.cv.compose(parts)
+
+
+PROFILES = {'static': StaticRig, 'mounted': MountedRig, 'firearm': FirearmRig}
 
 
 # ----------------------------------------------------------------------------------------------------------------------
