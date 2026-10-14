@@ -61,6 +61,23 @@ paths:
   (`src/ui/modal-contract.ts`): `initialFocus` is the **safe** choice (never the destructive
   confirm), `cancel` is what Escape activates, and a decision that must be made (required choice)
   declares no `cancel`. `tests/ui/modal-contract.test.ts` lists the current dialogs.
+- Anything a pointer can click is a real control. A `div`/`span` with a click handler cannot be focused or
+  activated from the keyboard (it shipped in the civilization cards, the whole city panel and several close marks);
+  build a `<button type="button">` (inner blocks as `<span style="display:block">`), give a toggle `aria-pressed`,
+  and give an icon-only button an `aria-label`. A container that keeps a pointer click as a *shortcut* must hold a
+  real button doing the same job and say so with `data-pointer-shortcut`.
+  `tests/ui/pointer-only-controls.test.ts` fails on the source shapes; `findPointerOnlyControls`
+  (`tests/e2e/helpers/a11y-audit.ts`) checks the rendered screen.
+- A pre-game screen, setup wizard stage, pause/menu overlay or one-shot decision is a modal screen: `markModal` it
+  before it is appended (a wizard that re-renders one panel re-declares title, Back control and focus target per
+  stage). A screen opened from another screen mounts in the **same layer**, not inside it, or the focus manager
+  cannot see it. Never leave the stack with focus on the page body: the next Tab would land in the in-game toolbar
+  behind the screen.
+- Name every dialog (a heading or `aria-label`), label every field, and expose a selected choice with
+  `aria-pressed`: colour or a border alone is not state.
+- A new screen or panel is checked the way the existing ones are: add it to the keyboard specs (`issue-1459-*`) so
+  focus entry, the Tab loop, axe-core (`auditWithAxe`) and the pointer-only detector run on it. A dialog without an
+  accessible name or a button below 4.5:1 contrast fails there.
 - Keyboard shortcuts must stay inert inside `[role="dialog"]`/`[aria-modal]` and text fields.
 - Map keyboard access goes through `installKeyboardMapCursor` and ends in the same tap handler a
   pointer uses, so legality is shared. It describes only what the viewer's own visibility allows
