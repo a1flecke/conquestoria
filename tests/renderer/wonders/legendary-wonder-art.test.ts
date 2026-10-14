@@ -36,11 +36,12 @@ function readPng(path: string): PngInfo {
   };
 }
 
-describe('Era 5-7 legendary wonder art (#613)', () => {
-  it('names exactly the six in-scope wonders, all of which exist in the landmark catalog', () => {
+describe('Era 5-9 legendary wonder art (#613, #619)', () => {
+  it('names exactly the thirteen Era 5-9 wonders, all of which exist in the landmark catalog', () => {
     expect([...LEGENDARY_WONDER_ART_IDS].sort()).toEqual([
-      'continental-congress', 'crystal-palace', 'iron-arsenal',
-      'merchant-admiralty', 'palace-of-the-sun', 'suez-canal',
+      'brooklyn-bridge', 'continental-congress', 'crystal-palace', 'eiffel-tower', 'empire-state-building',
+      'hoover-dam', 'iron-arsenal', 'merchant-admiralty', 'palace-of-the-sun', 'panama-canal',
+      'suez-canal', 'trans-siberian-railway', 'wright-flyer',
     ]);
     const known = new Set(getLegendaryWonderLandmarkMetadataCatalog().map(entry => entry.wonderId));
     for (const id of LEGENDARY_WONDER_ART_IDS) expect(known.has(id), id).toBe(true);
@@ -48,7 +49,9 @@ describe('Era 5-7 legendary wonder art (#613)', () => {
 
   it('returns a path only for catalogued ids', () => {
     expect(getLegendaryWonderArtPath('crystal-palace')).toBe('images/wonders/art/crystal-palace.png');
-    for (const id of ['eiffel-tower', '', '__proto__', 'constructor', 'toString', 'legendary:crystal-palace']) {
+    expect(getLegendaryWonderArtPath('hoover-dam')).toBe('images/wonders/art/hoover-dam.png');
+    expect(getLegendaryWonderArtPath('wright-flyer')).toBe('images/wonders/art/wright-flyer.png');
+    for (const id of ['manhattan-project', '', '__proto__', 'constructor', 'toString', 'legendary:crystal-palace']) {
       expect(getLegendaryWonderArtPath(id), id).toBeNull();
     }
   });

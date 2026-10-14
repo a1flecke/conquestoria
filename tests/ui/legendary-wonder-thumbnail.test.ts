@@ -30,7 +30,7 @@ describe('createLegendaryWonderThumbnail (#613)', () => {
     expect(img.getAttributeNames().filter(name => name.startsWith('on'))).toEqual([]);
   });
 
-  it.each(['eiffel-tower', '', '__proto__', 'legendary:crystal-palace'])('returns null for %j', id => {
+  it.each(['manhattan-project', '', '__proto__', 'legendary:crystal-palace'])('returns null for %j', id => {
     expect(createLegendaryWonderThumbnail(id, 28)).toBeNull();
   });
 
@@ -44,7 +44,7 @@ describe('createLegendaryWonderThumbnail (#613)', () => {
       return id ? createLegendaryWonderThumbnail(id, 20) : null;
     };
     expect(forQueueItem('legendary:suez-canal')).not.toBeNull();
-    expect(forQueueItem('legendary:eiffel-tower')).toBeNull();
+    expect(forQueueItem('legendary:manhattan-project')).toBeNull();
     expect(forQueueItem('legendary:nope')).toBeNull();
     expect(forQueueItem('warrior')).toBeNull();
   });
