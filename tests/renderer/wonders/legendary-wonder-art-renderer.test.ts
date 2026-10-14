@@ -20,6 +20,9 @@ function createMockCanvasContext(): MockCanvasContext {
       if (prop === 'drawImage') {
         return (_image: unknown, x: number, y: number, w: number, h: number) => { operations.push(`image:${x}:${y}:${w}:${h}`); };
       }
+      if (prop === 'createLinearGradient' || prop === 'createRadialGradient') {
+        return (..._args: unknown[]) => { operations.push(prop); return { addColorStop: () => undefined }; };
+      }
       return (..._args: unknown[]) => { operations.push(prop); };
     },
     set(_target, prop: string, value) { state[prop] = value; return true; },
@@ -83,9 +86,9 @@ describe('legendary wonder production art on the map (#613)', () => {
 
   it('keeps the canvas drawing for a wonder that has no art, even when art is cached for others', () => {
     lookup.mockImplementation(wonderId => (wonderId === 'crystal-palace' ? STUB_IMAGE : null));
-    const ctx = draw('eiffel-tower');
+    const ctx = draw('manhattan-project');
     expect(images(ctx)).toEqual([]);
-    expect(bespoke(ctx)).toEqual(['bespoke:eiffel-tower-bespoke']);
+    expect(bespoke(ctx)).toEqual(['bespoke:manhattan-project-bespoke']);
   });
 
   it('asks the loader by wonder id', () => {

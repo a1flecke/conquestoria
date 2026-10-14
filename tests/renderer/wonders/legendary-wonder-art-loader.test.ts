@@ -26,7 +26,7 @@ describe('legendary wonder art loader (#613)', () => {
   it('returns null before anything is preloaded and for unknown ids', async () => {
     const { getLegendaryWonderArtImage } = await load();
     expect(getLegendaryWonderArtImage('crystal-palace')).toBeNull();
-    expect(getLegendaryWonderArtImage('eiffel-tower')).toBeNull();
+    expect(getLegendaryWonderArtImage('manhattan-project')).toBeNull();
     expect(getLegendaryWonderArtImage('')).toBeNull();
   });
 
