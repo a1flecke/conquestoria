@@ -1,0 +1,16 @@
+{
+  "id": "palace-of-the-sun",
+  "file": "public/images/wonders/art/palace-of-the-sun.png",
+  "generator": "Sprite-AI (sprite-ai.art) via MCP sprite_generate",
+  "settings": {
+    "asset_type": "prop",
+    "camera_perspective": "isometric",
+    "width": 128,
+    "height": 128
+  },
+  "sprite_ai_generation_id": "2d202e44-e1f1-40d1-9d0a-2ebec041f1dd",
+  "generated_on": "2026-10-13",
+  "tokens_used": 1,
+  "prompt": "Grand baroque palace landmark for a strategy game: symmetrical wings, central golden dome, formal gardens in the foreground, sun-ray spires on the roof. Warm brown and gold palette, strong readable silhouette, no text, transparent background.",
+  "licence_note": "Project owner confirmed on 2026-10-13 that they are fine using these Sprite-AI generated images in the game. Art approved by the project owner 2026-10-13. The owner's confirmation was given in chat; the Sprite-AI terms text itself was not reviewed or recorded here. Re-check the current terms before generating more sources."
+}
