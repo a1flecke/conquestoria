@@ -1,5 +1,6 @@
 import '@/assets/png-sprite-animations.css';
 import { FACTION_SPRITE_ACCENT, NEUTRAL_PNG_TINT } from '../faction-accent-colors';
+import { resolveAppAssetUrl } from '../../asset-url';
 import type { PngSpriteManifest, PngSpriteState } from './png-sprite-types';
 
 const STATES: readonly PngSpriteState[] = ['idle', 'walk', 'attack'];
@@ -33,12 +34,8 @@ export function getPngSpriteCssVars(manifest: PngSpriteManifest): Record<string,
   return vars;
 }
 
-function appBase(): string {
-  return import.meta.env?.BASE_URL ?? '/';
-}
-
 export function pngSpriteUrl(manifest: PngSpriteManifest, which: 'sheet' | 'mask'): string {
-  return `${appBase()}${manifest[which]}`;
+  return resolveAppAssetUrl(manifest[which]);
 }
 
 /**
