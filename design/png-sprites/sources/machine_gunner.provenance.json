@@ -1,0 +1,11 @@
+{
+  "id": "machine_gunner",
+  "file": "machine_gunner.png",
+  "generator": "Sprite-AI (sprite-ai.art) via MCP sprite_generate",
+  "settings": { "asset_type": "character", "camera_perspective": "side", "direction": "east", "width": 256, "height": 256 },
+  "sprite_ai_generation_id": "028e0bb9-ec3c-40fc-bf66-a63bb33321a2",
+  "generated_on": "2026-10-14",
+  "tokens_used": 1,
+  "prompt": "Early 20th century machine gunner in strict side profile facing right, kneeling behind a water-cooled Maxim machine gun on a tripod pointed forward to the right, belt-fed ammunition box beside it, small sandbag emplacement in front, soldier in a saturated pure red tunic with khaki trousers, brown leather gear and a peaked cap. Only the tunic is red, nothing else is red.",
+  "licence_note": "Project owner directed the use of Sprite-AI for the #621 unit art (2026-10-14) and approved this image in chat. The Sprite-AI terms text itself was not reviewed or recorded here. Re-check the current terms before generating more sources. The generator drew a light machine gun on a tripod rather than a water-cooled Maxim jacket, and a small crate and sand patch are part of the image."
+}
