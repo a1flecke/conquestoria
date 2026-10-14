@@ -2,6 +2,7 @@ import { markTimeVaryingPaint, withAmbientBounds } from '../paint-clock';
 import { getLegendaryWonderLandmarkMetadata } from '@/systems/legendary-wonder-landmark-catalog';
 import type { WonderVisualDefinition } from '@/systems/wonder-visual-catalog';
 import { resolveLegendaryWonderBespokeAsset } from '@/renderer/wonders/legendary-wonder-bespoke-assets';
+import { getLegendaryWonderArtImage } from '@/renderer/wonders/legendary-wonder-art-loader';
 import { assignLegendaryWonderSlots } from '@/renderer/wonders/legendary-wonder-slots';
 import {
   LEGENDARY_LANDMARK_AURAS,
@@ -164,6 +165,15 @@ function drawLegendaryWonderLandmarkGlyphUnbounded(options: LegendaryWonderGlyph
     ctx.strokeStyle = metadata.palette.accent;
     ctx.lineWidth = Math.max(1, radius * 0.13);
     ctx.stroke();
+    return;
+  }
+
+  // Production art when it has loaded; the canvas drawing below is the offline / load-failure fallback (#613).
+  const art = getLegendaryWonderArtImage(metadata.wonderId);
+  if (art) {
+    // The sprites keep ~15% transparent padding, so the box is wider than the old glyph's radius.
+    const half = radius * 0.72 * metadata.scale * 1.25;
+    ctx.drawImage(art, cx - half, cy - half, half * 2, half * 2);
     return;
   }
 
