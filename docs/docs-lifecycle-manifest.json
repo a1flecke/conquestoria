@@ -181,6 +181,16 @@
    "liveReferences": [
     ".claude/rules/hooks-and-tooling.md"
    ]
+  },
+  "docs/superpowers/plans/2026-10-13-legendary-wonder-era8-9-art.md": {
+   "category": "active",
+   "reason": "Era 8-9 legendary-wonder production art plan, owned by open issue #619.",
+   "issues": [
+    619
+   ],
+   "issueStates": {
+    "619": "OPEN"
+   }
   }
  },
  "deleted": {
