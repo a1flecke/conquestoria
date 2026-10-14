@@ -96,6 +96,11 @@ describe('sprite-catalog coverage', () => {
     }
   });
 
+  it('has no building-style placeholder for Wright Flyer: it is a legendary wonder with production art (#619)', () => {
+    expect(Object.keys(BUILDINGS)).not.toContain('wright-flyer');
+    expect(Object.keys(BUILDING_SPRITE_CATALOG)).not.toContain('wright-flyer');
+  });
+
   it('covers every era-specific pirate headquarters with neutral production art', () => {
     const expected = [
       'pirate_enclave_stage_1', 'pirate_enclave_stage_2', 'pirate_enclave_stage_3',

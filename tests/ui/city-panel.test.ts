@@ -2811,7 +2811,7 @@ describe('city-panel building icons — #665', () => {
 
   it('does not throw and still renders the rest of the row for a completed legendary wonder with no catalog sprite', () => {
     const { container, city, state } = makeWonderPanelFixture();
-    // 'grand-canal' has no BUILDING_SPRITE_CATALOG entry (only 5 of 74 wonder ids do).
+    // 'grand-canal' has no BUILDING_SPRITE_CATALOG entry (only 4 of 74 wonder ids do).
     // BUILDINGS has no entry for it either, so it's added directly to exercise the
     // fallback path in isolation from the wonder-completion system.
     city.buildings = ['granary', 'grand-canal'];
