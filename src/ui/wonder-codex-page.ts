@@ -5,6 +5,10 @@ import { createGameButton } from '@/ui/ui-kit';
 import { createWonderVideoView } from '@/ui/wonder-video-view';
 import { createWonderSpectacleVignette } from '@/ui/wonder-spectacle-vignette';
 import { createWonderVisualVignette } from '@/ui/wonder-vignette';
+import { createLegendaryWonderThumbnail } from '@/ui/legendary-wonder-icon';
+
+/** Game art beside the Codex hero; the sourced photo and its credit below stay as they are. */
+const CODEX_ART_SIZE_PX = 96;
 
 export interface WonderCodexPageOptions {
   mode?: WonderCodexResponsiveMode;
@@ -119,6 +123,8 @@ export function createWonderCodexPage(
   vignetteHost.dataset.codexSpectacleHost = 'true';
   vignetteHost.appendChild(renderVignette());
   hero.appendChild(vignetteHost);
+  const gameArt = page.kind === 'legendary' ? createLegendaryWonderThumbnail(page.id, CODEX_ART_SIZE_PX) : null;
+  if (gameArt) hero.appendChild(gameArt);
   const copy = document.createElement('div');
   copy.style.cssText = 'min-width:0;flex:1;';
   if (page.kind === 'legendary') {
