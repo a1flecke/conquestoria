@@ -1,5 +1,6 @@
 import type { WorldRaceConclusionMomentItem } from '@/systems/world-race-presentation';
 import { createGameButton } from '@/ui/ui-kit';
+import { markModal } from '@/ui/modal-contract';
 
 export interface WorldRaceConclusionCeremonyCallbacks {
   onResolve: () => void;
@@ -81,6 +82,8 @@ export function createWorldRaceConclusionCeremony(
   }
   panel.appendChild(continueButton);
   overlay.appendChild(panel);
+  // This ceremony owns Escape; the shared contract adds the dialog role, name and Tab trap (#1459).
+  markModal(overlay, { initialFocus: continueButton });
   container.appendChild(overlay);
   overlay.focus();
 

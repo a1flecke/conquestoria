@@ -1,3 +1,5 @@
+import { markModal } from '@/ui/modal-contract';
+
 export interface CityCapturePanelOptions {
   cityName: string;
   occupiedPopulation: number;
@@ -60,6 +62,8 @@ export function createCityCapturePanel(
   buttonRow.appendChild(razeButton);
   card.appendChild(buttonRow);
   panel.appendChild(card);
+  // A required choice: no Escape, and focus starts on Occupy, never on the destructive Raze (#1459).
+  markModal(panel, { initialFocus: occupyButton });
   container.appendChild(panel);
 
   return panel;

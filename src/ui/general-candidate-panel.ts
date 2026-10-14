@@ -1,6 +1,7 @@
 import type { GeneralDefinition } from '@/systems/great-general-definitions';
 import { getGeneralSpecialtyPresentation } from '@/systems/great-general-specialties';
 import { createGameButton } from '@/ui/ui-kit';
+import { markModal } from '@/ui/modal-contract';
 
 export function createGeneralCandidatePanel(
   container: HTMLElement,
@@ -58,6 +59,8 @@ export function createGeneralCandidatePanel(
     panel.appendChild(card);
   }
 
+  // A required choice: no Escape; focus starts on the first candidate (#1459).
+  markModal(panel, { initialFocus: panel.querySelector<HTMLElement>('button[data-choice]') });
   container.appendChild(panel);
   return panel;
 }

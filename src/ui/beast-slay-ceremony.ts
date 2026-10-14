@@ -1,6 +1,7 @@
 import { createGameButton } from '@/ui/ui-kit';
 import type { UnitType } from '@/core/types';
 import { UNIT_SPRITE_CATALOG } from '@/renderer/sprites/sprite-catalog';
+import { markModal } from '@/ui/modal-contract';
 
 export interface BeastSlayCeremonyOptions {
   beastName: string;
@@ -63,6 +64,8 @@ export function showBeastSlayCeremony(container: HTMLElement, options: BeastSlay
   document.addEventListener('keydown', onKey);
 
   overlay.appendChild(card);
+  // Escape and Enter are handled by this ceremony; the shared contract adds the dialog role, name and Tab trap (#1459).
+  markModal(overlay, { initialFocus: continueButton });
   container.appendChild(overlay);
   return overlay;
 }

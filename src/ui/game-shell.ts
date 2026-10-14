@@ -69,6 +69,9 @@ function createFloatingButton(id: string, text: string, title: string, onClick: 
   button.type = 'button';
   button.textContent = text;
   button.title = title;
+  // An icon-only button is announced by its glyph's emoji name ("scroll") unless it is given a name. A button whose
+  // visible text is a word keeps that word as its name (label in name), with the title as its description.
+  if (!/\p{L}/u.test(text)) button.setAttribute('aria-label', title);
   button.style.cssText = 'min-height:44px;min-width:40px;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;font-size:14px;padding:4px 8px;cursor:pointer;';
   button.addEventListener('click', () => onClick());
   return button;
@@ -100,7 +103,9 @@ export function createGameShell(container: HTMLElement, callbacks: GameShellCall
   utilityToolbar.appendChild(nextUnitButton);
 
   utilityToolbar.appendChild(createFloatingButton('btn-notif-log', '📜', 'View message log', callbacks.onOpenNotificationLog));
-  utilityToolbar.appendChild(createFloatingButton('btn-icon-legend', '🗺️', 'Toggle icon legend', callbacks.onToggleIconLegend));
+  const iconLegendButton = createFloatingButton('btn-icon-legend', '🗺️', 'Toggle icon legend', callbacks.onToggleIconLegend);
+  iconLegendButton.setAttribute('aria-expanded', String(Boolean(callbacks.iconLegendOverlay)));
+  utilityToolbar.appendChild(iconLegendButton);
   utilityToolbar.appendChild(createFloatingButton('btn-wonder-atlas', '✦', 'Open Wonder Atlas', callbacks.onOpenWonderAtlas));
   utilityToolbar.appendChild(createFloatingButton('btn-victory-progress', 'Victory', 'Open Victory progress', callbacks.onOpenVictoryProgress));
   const supplyOverlayButton = createFloatingButton('btn-supply-overlay', '🚚', 'Toggle supply overlay', () => {

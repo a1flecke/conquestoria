@@ -14,6 +14,7 @@ vi.mock('@/storage/save-manager', () => ({
 }));
 
 import { showPauseMenu, type AudioSettingsSnapshot } from '@/ui/pause-menu-panel';
+import { MODAL_ATTR, MODAL_CANCEL_ATTR, MODAL_INITIAL_FOCUS_ATTR } from '@/ui/modal-contract';
 
 const DEFAULT_TEST_AUDIO: AudioSettingsSnapshot = {
   masterVolume: 1.0, musicVolume: 0.5, sfxVolume: 0.7, stingerVolume: 1.0,
@@ -473,5 +474,39 @@ describe('pause menu -> save panel callback boundary (#1451)', () => {
     await vi.waitFor(() => expect(document.getElementById('save-panel')).toBeNull());
     const [first, second] = vi.mocked(callbacks.onSave).mock.calls;
     expect(second).toEqual(first);
+  });
+});
+
+describe('pause menu keyboard and focus contract (#1459)', () => {
+  it('is a modal: Return to Game is the safe place for focus to start and answers Escape', () => {
+    const overlay = showPauseMenu(document.body, makeCallbacks());
+    const resume = Array.from(overlay.querySelectorAll('button')).find(b => b.textContent === 'Return to Game')!;
+    expect(overlay.hasAttribute(MODAL_ATTR)).toBe(true);
+    expect(resume.hasAttribute(MODAL_CANCEL_ATTR)).toBe(true);
+    expect(resume.hasAttribute(MODAL_INITIAL_FOCUS_ATTR)).toBe(true);
+    expect(document.activeElement).toBe(resume);
+  });
+
+  it('the new-game confirmation starts on Cancel (never a destructive choice) and Cancel answers Escape', () => {
+    const overlay = showPauseMenu(document.body, makeCallbacks());
+    clickButton('New Game…');
+    const cancel = Array.from(overlay.querySelectorAll('button')).find(b => b.textContent === 'Cancel')!;
+    expect(cancel.hasAttribute(MODAL_CANCEL_ATTR)).toBe(true);
+    expect(cancel.hasAttribute(MODAL_INITIAL_FOCUS_ATTR)).toBe(true);
+    expect(document.activeElement).toBe(cancel);
+    // Backing out lands focus on a control again, not on the page body.
+    cancel.click();
+    expect(document.activeElement).toBe(Array.from(overlay.querySelectorAll('button')).find(b => b.textContent === 'Return to Game'));
+  });
+
+  it('names every settings block so the On/Off and All/Critical buttons are not anonymous', () => {
+    const overlay = showPauseMenu(document.body, makeCallbacks());
+    const groups = Array.from(overlay.querySelectorAll('[role="group"]')).map(group => {
+      const labelledBy = group.getAttribute('aria-labelledby');
+      return labelledBy ? document.getElementById(labelledBy)?.textContent : group.getAttribute('aria-label');
+    });
+    expect(groups).toEqual(expect.arrayContaining([
+      'Audio', 'Supply Warnings', 'Superweapons', 'Opponent challenge', 'Your personal difficulty',
+    ]));
   });
 });

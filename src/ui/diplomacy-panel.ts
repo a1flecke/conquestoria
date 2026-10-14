@@ -676,7 +676,7 @@ export function createDiplomacyPanel(
   const html = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
       <h2 style="font-size:18px;color:#e8c170;margin:0;">Diplomacy</h2>
-      <span id="diplo-close" style="cursor:pointer;font-size:24px;opacity:0.6;">✕</span>
+      <button type="button" id="diplo-close" aria-label="Close diplomacy" style="min-width:44px;min-height:44px;color:inherit;font:inherit;border:none;background:none;cursor:pointer;font-size:24px;">✕</button>
     </div>
     ${religionSummaryHtml}
     ${civRowsHtml}

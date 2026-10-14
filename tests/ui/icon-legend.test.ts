@@ -15,6 +15,12 @@ class MockElement {
     this.ownText = value;
   }
 
+  attributes: Record<string, string> = {};
+
+  setAttribute(name: string, value: string): void {
+    this.attributes[name] = value;
+  }
+
   appendChild(child: MockElement): MockElement {
     this.children.push(child);
     return child;
@@ -76,5 +82,21 @@ describe('createIconLegendOverlay', () => {
     const viewerTechs = new Set(['irrigation']); // silk only, not the aluminium-smelting chain
     const overlay = createIconLegendOverlay(viewerTechs);
     expect((overlay as unknown as MockElement).textContent).not.toContain('Aluminum');
+  });
+});
+
+describe('icon legend landmark (#1459)', () => {
+  const originalDocument = globalThis.document;
+  beforeEach(() => {
+    Object.defineProperty(globalThis, 'document', { value: new MockDocument() as unknown as Document, configurable: true });
+  });
+  afterEach(() => {
+    Object.defineProperty(globalThis, 'document', { value: originalDocument, configurable: true });
+  });
+
+  it('is a named region so it is announced when the toggle shows it', () => {
+    const overlay = createIconLegendOverlay() as unknown as { attributes: Record<string, string> };
+    expect(overlay.attributes['role']).toBe('region');
+    expect(overlay.attributes['aria-label']).toBe('Map legend');
   });
 });

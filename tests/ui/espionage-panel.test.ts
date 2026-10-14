@@ -43,6 +43,12 @@ class MockElement {
     return child;
   }
 
+  attributes: Record<string, string> = {};
+
+  setAttribute(name: string, value: string): void {
+    this.attributes[name] = value;
+  }
+
   addEventListener(event: string, listener: () => void): void {
     this.listeners[event] ??= [];
     this.listeners[event].push(listener);
@@ -918,5 +924,15 @@ describe('espionage-panel', () => {
       expect(chances.satellite_surveillance).toBeCloseTo(0.45);
       expect(chances.gather_intel! - chances.satellite_surveillance!).toBeCloseTo(0.10);
     });
+  });
+});
+
+describe('espionage panel accessible name (#1459)', () => {
+  beforeEach(installMockDocument);
+  afterEach(restoreMockDocument);
+
+  it('names its dialog explicitly: its header is not a heading element', () => {
+    const panel = createEspionagePanel(makeEspUiState()) as unknown as { attributes: Record<string, string> };
+    expect(panel.attributes['aria-label']).toBe('Espionage');
   });
 });

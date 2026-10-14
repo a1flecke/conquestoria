@@ -2,6 +2,7 @@ import type { LegendaryWonderCompletionCeremonyItem } from '@/systems/legendary-
 import { createGameButton } from '@/ui/ui-kit';
 import { createWonderVideoView } from '@/ui/wonder-video-view';
 import { createWonderVisualVignette } from '@/ui/wonder-vignette';
+import { markModal } from '@/ui/modal-contract';
 
 export type LegendaryWonderCompletionCeremonyAction = 'continue' | 'skip' | 'open-city' | 'open-journal';
 
@@ -112,6 +113,8 @@ export function createLegendaryWonderCompletionCeremony(
   appendText(panel, 'p', item.achievementLine, 'margin:0;font-size:15px;line-height:1.45;max-width:46ch;');
   panel.append(facts, actions);
   overlay.appendChild(panel);
+  // This ceremony owns Escape (Skip); the shared contract adds the dialog role, name and Tab trap (#1459).
+  markModal(overlay, { initialFocus: continueButton });
   container.appendChild(overlay);
   overlay.focus();
 

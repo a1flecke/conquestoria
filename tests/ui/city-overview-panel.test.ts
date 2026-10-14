@@ -317,3 +317,21 @@ describe('city overview panel — #919 MR3 top-lever line', () => {
     expect(lever.children).toHaveLength(0);
   });
 });
+
+describe('city overview panel keyboard access (#1459)', () => {
+  it('each city has a real button that opens it once, and the row stays a pointer shortcut for it', () => {
+    const state = makeFixtureState({ cities: [{ id: 'city-1', owner: 'player', name: 'Alpha', population: 6 }] });
+    const container = document.createElement('div');
+    const onOpenCity = vi.fn();
+    createCityOverviewPanel(container, state, { onOpenCity, onAppeaseFaction: vi.fn(), onConcedeToMovement: vi.fn(), onClose: vi.fn() });
+    const row = container.querySelector<HTMLElement>('[data-city-row="city-1"]')!;
+    const open = row.querySelector<HTMLButtonElement>('button[data-open-city="city-1"]')!;
+    expect(open.tagName).toBe('BUTTON');
+    expect(open.getAttribute('aria-label')).toBe('Open Alpha, population 6');
+    expect(row.dataset.pointerShortcut).toBe('true');
+    open.click();
+    // The button's click must not also reach the row's pointer handler.
+    expect(onOpenCity).toHaveBeenCalledTimes(1);
+    expect(onOpenCity).toHaveBeenCalledWith('city-1');
+  });
+});

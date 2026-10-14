@@ -1,5 +1,6 @@
 import { createSavePanel } from '@/ui/save-panel';
 import { createGuardedAsyncAction } from '@/ui/guarded-async-action';
+import { markModal } from '@/ui/modal-contract';
 import { createGameButton, VARIANT_STYLES } from '@/ui/ui-kit';
 import type { OpponentChallenge } from '@/core/types/ai';
 import {
@@ -92,6 +93,7 @@ function buildSupplyWarningSettings(callbacks: PauseMenuCallbacks): HTMLElement 
     opacity: '0.5',
     color: '#fff',
   });
+  nameGroup(section, heading);
   section.appendChild(heading);
 
   const row = document.createElement('div');
@@ -156,6 +158,7 @@ function buildSuperweaponsSettings(callbacks: PauseMenuCallbacks): HTMLElement {
     opacity: '0.5',
     color: '#fff',
   });
+  nameGroup(section, heading);
   section.appendChild(heading);
 
   const row = document.createElement('div');
@@ -228,6 +231,7 @@ function buildAudioSettings(callbacks: PauseMenuCallbacks): HTMLElement {
     opacity: '0.5',
     color: '#fff',
   });
+  nameGroup(section, heading);
   section.appendChild(heading);
 
   type AudioRow = {
@@ -403,6 +407,7 @@ function buildPersonalChallengeSettings(
   section.appendChild(createOpponentChallengeSelector({
     selected: callbacks.pendingPersonalChallenge ?? callbacks.personalChallenge,
     mode: 'settings',
+    label: 'Your personal difficulty',
     onSelect,
   }));
 
@@ -422,6 +427,15 @@ interface PauseMenuMainViewOptions {
   onPersonalChallengeSelect: (challenge: OpponentChallenge) => void;
 }
 
+let sectionSequence = 0;
+
+/** Expose a settings block as a named group: its visible heading is the name of the controls under it. */
+function nameGroup(section: HTMLElement, heading: HTMLElement): void {
+  heading.id = `pause-section-${++sectionSequence}`;
+  section.setAttribute('role', 'group');
+  section.setAttribute('aria-labelledby', heading.id);
+}
+
 function buildMainView(
   panel: HTMLElement,
   body: HTMLElement,
@@ -439,6 +453,8 @@ function buildMainView(
     callbacks.onResume();
   });
   body.appendChild(resumeBtn);
+  // #1459: the shared focus contract. Focus starts on Return to Game, Tab stays in the menu, Escape returns to the game.
+  markModal(panel, { cancel: resumeBtn, initialFocus: resumeBtn });
 
   const saveBtn = createGameButton('Save Game', 'secondary');
   saveBtn.style.width = '100%';
@@ -487,6 +503,9 @@ function buildMainView(
   // #544 MR2: supply warning delivery preference, below audio settings
   body.appendChild(buildSupplyWarningSettings(callbacks));
   body.appendChild(buildSuperweaponsSettings(callbacks));
+
+  // Returning from the new-game confirmation replaces the body, so the focused control is gone.
+  if (panel.isConnected && !panel.contains(panel.ownerDocument.activeElement)) resumeBtn.focus();
 }
 
 function buildConfirmView(
@@ -526,6 +545,9 @@ function buildConfirmView(
   cancelBtn.style.width = '100%';
   cancelBtn.addEventListener('click', () => buildMainView(panel, body, container, callbacks, options));
   body.appendChild(cancelBtn);
+  // Escape answers "Cancel" and focus starts on it, never on a destructive choice.
+  markModal(panel, { cancel: cancelBtn, initialFocus: cancelBtn });
+  if (panel.isConnected) cancelBtn.focus();
 
   const saveStatus = document.createElement('div');
   saveStatus.dataset.role = 'autosave-status';

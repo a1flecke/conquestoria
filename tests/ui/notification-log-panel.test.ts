@@ -88,3 +88,32 @@ describe('notification log panel', () => {
     expect(toggle.textContent).toBe('Hide calculation');
   });
 });
+
+describe('notification log keyboard access (#1459)', () => {
+  it('names itself, and a map or city jump is a real button as well as a clickable row', () => {
+    const target = { kind: 'map' as const, coord: { q: 5, r: 4 }, label: 'Barbarian raiders' };
+    const onFocusTarget = vi.fn();
+    const onOpenCity = vi.fn();
+    const panel = createNotificationLogPanel([
+      { id: 'n1', message: 'Raiders spotted!', type: 'warning', turn: 7, read: false, target },
+      { id: 'n2', message: 'Carthage can start the Oracle.', type: 'info', turn: 5, read: false, linkedCityId: 'city-1' },
+      { id: 'n3', message: 'Nothing to jump to.', type: 'info', turn: 4, read: false },
+    ], { onClose: vi.fn(), onFocusTarget, onOpenCity });
+
+    expect(panel.getAttribute('aria-label')).toBe('Message log');
+    const mapButton = panel.querySelector<HTMLButtonElement>('[data-notification-target="map"] > button')!;
+    expect(mapButton.getAttribute('aria-label')).toContain('Focus Barbarian raiders');
+    mapButton.click();
+    expect(onFocusTarget).toHaveBeenCalledTimes(1);
+    expect(onFocusTarget).toHaveBeenCalledWith(target);
+
+    const cityButton = panel.querySelector<HTMLButtonElement>('[data-notification-city] > button')!;
+    expect(cityButton.getAttribute('aria-label')).toContain('Open city');
+    cityButton.click();
+    expect(onOpenCity).toHaveBeenCalledTimes(1);
+
+    // An entry with nowhere to go is plain text, not a dead control.
+    const plain = Array.from(panel.querySelectorAll('div')).find(el => el.textContent?.includes('Nothing to jump to.'))!;
+    expect(plain.querySelector('button')).toBeNull();
+  });
+});

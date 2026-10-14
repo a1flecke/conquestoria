@@ -142,9 +142,11 @@ export function createGameSessionController(deps: GameSessionControllerDeps): Ga
       onOpenPirateWaters: () => deps.router.open('pirate-waters'),
       onToggleIconLegend: () => {
         const existing = deps.getElementById('icon-legend');
+        const legendButton = deps.getElementById('btn-icon-legend');
         if (existing && existing.style.display !== 'none') {
           // Already visible — hide it
           existing.style.display = 'none';
+          legendButton?.setAttribute('aria-expanded', 'false');
           return;
         }
         // Stale or absent — remove old, rebuild fresh with current techs
@@ -154,6 +156,7 @@ export function createGameSessionController(deps: GameSessionControllerDeps): Ga
         );
         const overlay = createIconLegendOverlay(viewerTechs);
         deps.uiLayer.appendChild(overlay);
+        legendButton?.setAttribute('aria-expanded', 'true');
       },
       onOpenWonderAtlas: () => deps.router.open('wonder-atlas'),
       onOpenVictoryProgress: () => deps.router.open('victory-progress'),
