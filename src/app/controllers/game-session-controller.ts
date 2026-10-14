@@ -58,6 +58,7 @@ import { preloadReligionBadgeMarker } from '@/renderer/improvements/religion-bad
 import { preloadRailSegment } from '@/renderer/improvements/rail-segment-loader';
 import { preloadTerrainTiles } from '@/renderer/terrain/terrain-tile-loader';
 import { preloadNaturalWonderTiles } from '@/renderer/terrain/wonder-tile-loader';
+import { preloadLegendaryWonderArt } from '@/renderer/wonders/legendary-wonder-art-loader';
 import { getVisibleCityBadgeSlots, getVisibleHexViewportCopies } from '@/renderer/city-renderer';
 import { autoSave, loadMostRecentAutoSaveEntry, saveGame } from '@/storage/save-manager';
 import { SFX, routeSfxThrough } from '@/audio/sfx';
@@ -266,6 +267,7 @@ export function createGameSessionController(deps: GameSessionControllerDeps): Ga
     preloadRailSegment().catch(() => {});
     preloadTerrainTiles().catch(() => {});
     preloadNaturalWonderTiles().catch(() => {});
+    preloadLegendaryWonderArt().catch(() => {});
 
     // Center camera on current player's starting position
     deps.turnFlow.centerOnCurrentPlayer();
