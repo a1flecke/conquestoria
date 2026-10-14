@@ -29,6 +29,18 @@ async function startFixture(page: Page): Promise<void> {
   await page.keyboard.press('Enter');
   await page.getByRole('button', { name: 'Continue Campaign', exact: true }).focus();
   await page.keyboard.press('Enter');
+  await expectCampaignReady(page);
+}
+
+/**
+ * The toolbar is in the DOM behind the menu from the first paint, so "End Turn is visible" proves nothing about the
+ * campaign having loaded; a key pressed too early lands before the toolbar is wired. Wait for the menu and the
+ * opponent-challenge prompt to be gone and for the HUD to be showing a turn.
+ */
+async function expectCampaignReady(page: Page): Promise<void> {
+  await expect(page.locator('#save-panel')).toHaveCount(0, { timeout: 45_000 });
+  await expect(page.locator('#legacy-opponent-challenge-prompt')).toHaveCount(0);
+  await expect(page.locator('#hud')).toContainText(/Turn \d+/);
   await expect(page.getByRole('button', { name: 'End Turn', exact: true })).toBeVisible();
 }
 
@@ -151,8 +163,7 @@ test.describe('in-game surfaces are keyboard-complete', () => {
   test('the pause menu groups its settings, labels both difficulty selectors, and is a safe modal', async ({ page }) => {
     test.setTimeout(90_000);
     await startFixture(page);
-    await page.getByRole('button', { name: 'Pause menu', exact: true }).focus();
-    await page.keyboard.press('Enter');
+    await openWithKeyboard(page, page.getByRole('button', { name: 'Pause menu', exact: true }), '#pause-menu');
     await expect(page.getByRole('button', { name: 'Return to Game' })).toBeFocused();
 
     for (const group of ['Audio', 'Supply Warnings', 'Superweapons', 'Opponent challenge', 'Your personal difficulty']) {
@@ -174,8 +185,7 @@ test.describe('in-game surfaces are keyboard-complete', () => {
   test('save from the pause menu with the keyboard, reload, and continue the same campaign', async ({ page }) => {
     test.setTimeout(120_000);
     await startFixture(page);
-    await page.getByRole('button', { name: 'Pause menu', exact: true }).focus();
-    await page.keyboard.press('Enter');
+    await openWithKeyboard(page, page.getByRole('button', { name: 'Pause menu', exact: true }), '#pause-menu');
     await page.getByRole('button', { name: 'Save Game' }).focus();
     await page.keyboard.press('Enter');
 
@@ -211,6 +221,6 @@ test.describe('in-game surfaces are keyboard-complete', () => {
       await page.getByRole('button', { name: 'Continue Campaign', exact: true }).focus();
       await page.keyboard.press('Enter');
     }
-    await expect(endTurn).toBeVisible();
+    await expectCampaignReady(page);
   });
 });
