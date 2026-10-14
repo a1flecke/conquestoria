@@ -9,6 +9,8 @@ import {
 import { getCrisisBadgeMarkerImage } from '@/renderer/improvements/crisis-badge-markers';
 import { getReligionBadgeMarkerImage } from '@/renderer/improvements/religion-badge-marker';
 import { spriteCache } from '@/renderer/sprites/sprite-loader';
+import { getLegendaryWonderArtImage } from '@/renderer/wonders/legendary-wonder-art-loader';
+import { legendaryWonderIdFromQueueItem } from '@/renderer/wonders/legendary-wonder-art-thumbnail';
 import {
   CITY_BADGE_GLYPHS,
   getCityBadgeLayout,
@@ -445,8 +447,8 @@ export function drawCityProductionBadgePass(ctx: CanvasRenderingContext2D, item:
   // keyed by the city owner so hot-seat players each get their own palette. Buildings
   // and units are separate cache namespaces, so at most one lookup hits. Unit sprites
   // matter beyond looks: an old training emoji shared a glyph with the
-  // under-siege status badge on the opposite corner of the city. Wonders and
-  // not-yet-loaded sprites fall through to the neutral construction marker.
+  // under-siege status badge on the opposite corner of the city. Wonders without
+  // production art and not-yet-loaded sprites fall through to the neutral construction marker.
   const queueHead = item.city.productionQueue[0];
   const { center, bounds } = getCityBadgeLayout(item.screen, item.size).production;
   const spriteImage = spriteCache.getBuilding(queueHead, item.city.owner)
@@ -459,6 +461,13 @@ export function drawCityProductionBadgePass(ctx: CanvasRenderingContext2D, item:
       bounds.width,
       bounds.height,
     );
+    return;
+  }
+
+  // #613: a queued legendary wonder with production art shows that art; every other wonder keeps the marker below.
+  const wonderArt = getLegendaryWonderArtImage(legendaryWonderIdFromQueueItem(queueHead) ?? '');
+  if (wonderArt) {
+    ctx.drawImage(wonderArt, bounds.x, bounds.y, bounds.width, bounds.height);
     return;
   }
 
