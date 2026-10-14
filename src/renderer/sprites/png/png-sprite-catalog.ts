@@ -3,6 +3,7 @@ import { manifest as cavalry } from './generated/cavalry.manifest';
 import { manifest as horseman } from './generated/horseman.manifest';
 import { manifest as machine_gunner } from './generated/machine_gunner.manifest';
 import { manifest as rifleman } from './generated/rifleman.manifest';
+import { manifest as tank } from './generated/tank.manifest';
 
 /**
  * Units drawn from PNG spritesheets instead of serialized SVG. This is the migration seam: a unit listed here is
@@ -16,6 +17,7 @@ const PNG_UNIT_SPRITES: Readonly<Record<string, PngSpriteManifest>> = {
   horseman,
   machine_gunner,
   rifleman,
+  tank,
 };
 
 export function getPngUnitManifest(unitType: string): PngSpriteManifest | null {
