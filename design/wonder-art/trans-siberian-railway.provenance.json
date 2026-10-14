@@ -1,0 +1,16 @@
+{
+  "id": "trans-siberian-railway",
+  "file": "public/images/wonders/art/trans-siberian-railway.png",
+  "generator": "Sprite-AI (sprite-ai.art) via MCP sprite_generate",
+  "settings": {
+    "asset_type": "prop",
+    "camera_perspective": "isometric",
+    "width": 128,
+    "height": 128
+  },
+  "sprite_ai_generation_id": "7223a561-2b32-4192-b7ec-271adde86f1f",
+  "generated_on": "2026-10-14",
+  "tokens_used": 1,
+  "prompt": "Trans-Siberian Railway landmark for a strategy game: black steam locomotive with white smoke on a curving rail line running into a steppe horizon, a few birch trees, steppe gold and green with a hint of snowy peaks. Strong readable silhouette, no text, transparent background.",
+  "licence_note": "Project owner confirmed in chat on 2026-10-14 that their Sprite-AI plan allows them to use these generated images in the game. Art approved by the project owner 2026-10-14. The Sprite-AI terms text itself was not reviewed or recorded here. Re-check the current terms before generating more sources."
+}
