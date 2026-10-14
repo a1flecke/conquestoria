@@ -89,7 +89,11 @@ test.describe('pre-game screens are keyboard-complete', () => {
     await page.keyboard.press('Enter');
     await activate(page, 'Confirm Civilization');
     await activate(page, 'Start Campaign');
-    await expect(page.getByRole('button', { name: 'End Turn', exact: true })).toBeVisible({ timeout: 60_000 });
+    // The in-game toolbar sits behind the menu from the first paint, so "End Turn is visible" proves nothing: the
+    // setup screen must be gone and the HUD must be showing the new campaign's first turn.
+    await expect(page.locator('#campaign-setup')).toHaveCount(0, { timeout: 60_000 });
+    await expect(page.locator('#hud')).toContainText(/Turn \d+/, { timeout: 60_000 });
+    await expect(page.getByRole('button', { name: 'End Turn', exact: true })).toBeVisible();
   });
 
   test('custom civilization editor: labelled fields, pressed traits, Escape goes back', async ({ page }) => {
