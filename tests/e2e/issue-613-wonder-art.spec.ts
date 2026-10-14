@@ -15,7 +15,7 @@ async function drawAll(page: Page, background: string, state: 'completed' | 'und
   return page.evaluate(async ({ ids, src, background, state }) => {
     const loader = await import(/* @vite-ignore */ `${src}/legendary-wonder-art-loader.ts`);
     const renderer = await import(/* @vite-ignore */ `${src}/legendary-wonder-renderer.ts`);
-    const catalog = await import(/* @vite-ignore */ '/conquestoria/src/systems/legendary-wonder-landmark-catalog.ts');
+    const catalog = await import(/* @vite-ignore */ `${src.replace('/renderer/wonders', '/systems')}/legendary-wonder-landmark-catalog.ts`);
     await loader.preloadLegendaryWonderArt();
     const size = 96;
     const glyphs: GlyphReport[] = [];
