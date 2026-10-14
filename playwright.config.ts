@@ -25,6 +25,11 @@ export default defineConfig({
   use: {
     baseURL: 'http://127.0.0.1:5173/conquestoria/',
     trace: 'retain-on-failure',
+    // #1486: these smoke tests assert live network/renderer behavior, not PWA caching.
+    // Trace response-body collection can race worker destruction in Chromium 149's
+    // ServiceWorkerDevToolsAgentHost::CreateNetworkFactoryParamsForDevTools.
+    // PWA/offline tests must opt in explicitly with serviceWorkers: 'allow'.
+    serviceWorkers: 'block',
     // Run the app in its reduced-motion mode by default: the DOM sprites' infinite CSS idle
     // animations and the canvas unit-movement tweens are decorative, add per-frame style/paint
     // work, and on GitHub's GPU-less shared runners every extra frame competes with the
