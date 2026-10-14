@@ -92,6 +92,34 @@ describe('panel focus manager (#1459)', () => {
     expect(document.activeElement).toBe(opener);
   });
 
+  it('a screen opened from a control INSIDE another managed screen returns focus to that control (#1459)', async () => {
+    // Campaign setup -> "Choose civilization": the picker is a second screen stacked on the first. The control that
+    // opened it lives inside a managed panel, which `lastOutsideFocus` never records.
+    const setup = document.createElement('div');
+    setup.id = 'campaign-setup';
+    const chooser = document.createElement('button');
+    chooser.textContent = 'Choose civilization';
+    setup.appendChild(chooser);
+    markModal(setup, { initialFocus: chooser });
+    layer.appendChild(setup);
+    await flushObserver();
+    expect(document.activeElement).toBe(chooser);
+
+    const picker = document.createElement('div');
+    picker.id = 'civ-select';
+    const card = document.createElement('button');
+    card.textContent = 'Rome';
+    picker.appendChild(card);
+    markModal(picker, { initialFocus: card });
+    layer.appendChild(picker);
+    await flushObserver();
+    expect(document.activeElement).toBe(card);
+
+    picker.remove();
+    await flushObserver();
+    expect(document.activeElement).toBe(chooser);
+  });
+
   it('does not steal focus the user has since moved elsewhere', async () => {
     const panel = addPanel(layer, 'council-panel');
     await flushObserver();

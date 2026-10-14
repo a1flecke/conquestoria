@@ -290,6 +290,19 @@ describe('CampaignEntryController', () => {
       });
     }
 
+    it('Back from the new-game screen returns to the main menu instead of leaving a blank screen (#1459)', async () => {
+      const deps = baseDeps(makeFixture());
+      const campaignEntry = createCampaignEntryController(deps);
+      const callbacks = captureModeSelectCallbacks();
+      vi.mocked(savePanelModule.createSavePanel).mockClear();
+
+      campaignEntry.showGameModeSelection();
+      callbacks.onCancel?.();
+
+      expect(savePanelModule.createSavePanel).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(savePanelModule.createSavePanel).mock.calls[0]![0]).toBe(deps.uiLayer);
+    });
+
     it('the solo path constructs a new game via createNewGame and starts it', async () => {
       const state = makeFixture();
       const deps = baseDeps(state);

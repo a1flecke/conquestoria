@@ -72,7 +72,15 @@ export function installPanelFocusManager(deps: PanelFocusManagerDeps): () => voi
   };
 
   const enter = (panel: HTMLElement): void => {
-    openers.set(panel.id, lastOutsideFocus);
+    // The opener is whatever held focus when this panel appeared. Usually that is also `lastOutsideFocus`, but a
+    // setup screen opened from another managed screen (Choose civilization inside campaign setup) is opened by a
+    // control that lives INSIDE a managed panel, which `lastOutsideFocus` deliberately never records.
+    const active = doc.activeElement;
+    const opener = active instanceof HTMLElement && active !== doc.body && active !== doc.documentElement
+      && !panel.contains(active)
+      ? active
+      : lastOutsideFocus;
+    openers.set(panel.id, opener);
     if (!panel.hasAttribute('role')) panel.setAttribute('role', 'dialog');
     if (isModal(panel)) panel.setAttribute('aria-modal', 'true');
     if (!panel.hasAttribute('aria-label') && !panel.hasAttribute('aria-labelledby')) {

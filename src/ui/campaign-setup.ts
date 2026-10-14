@@ -15,6 +15,7 @@ import { buildCustomCivId, customCivDefinitionsEqual, mergeCustomCivDefinitions 
 import { createDefaultSettings } from '@/core/game-state';
 import { loadSettings, saveSettings } from '@/storage/save-manager';
 import { createSetupSection, createSetupShell } from '@/ui/setup-shell';
+import { markModal } from '@/ui/modal-contract';
 import { createGameButton, setButtonDisabled } from '@/ui/ui-kit';
 import { createOpponentChallengeSelector } from '@/ui/opponent-challenge-selector';
 import { selectAIRoster } from '@/systems/ai-roster-selection';
@@ -72,6 +73,8 @@ function createChoiceButton(label: string): HTMLButtonElement {
 
 function syncChoiceButtonState(button: HTMLButtonElement, selected: boolean): void {
   button.dataset.selected = selected ? 'true' : 'false';
+  // The gold border/fill is the only visual cue; expose the same state to assistive technology.
+  button.setAttribute('aria-pressed', selected ? 'true' : 'false');
   button.style.borderColor = selected ? '#e8c170' : 'rgba(255,255,255,0.18)';
   button.style.background = selected ? 'rgba(232,193,112,0.16)' : 'rgba(255,255,255,0.08)';
   button.style.color = selected ? '#f7f1d7' : '#f4f1e8';
@@ -130,6 +133,8 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
   hero.appendChild(civSection.section);
 
   const civSummary = document.createElement('div');
+  // Announce the choice made in the picker once it closes and this screen is current again.
+  civSummary.setAttribute('aria-live', 'polite');
   civSummary.textContent = 'No civilization selected yet';
   civSection.content.appendChild(civSummary);
 
@@ -468,9 +473,12 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
     startButton.textContent = 'Start Campaign';
   };
 
+  // The picker and the custom-civilization editor are separate screens stacked on this one. They are mounted in the
+  // same layer as this screen (not inside it) so the shared focus contract (src/app/panel-focus-manager.ts) manages
+  // them: focus enters the top screen, Tab cannot reach the screens beneath, Escape goes back one step.
   const replaceSetupOverlay = (render: () => void): void => {
-    panel.querySelector('#custom-civ-panel')?.remove();
-    panel.querySelector('#civ-select')?.remove();
+    container.querySelector('#custom-civ-panel')?.remove();
+    container.querySelector('#civ-select')?.remove();
     render();
   };
 
@@ -481,7 +489,7 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
 
   const openCivPicker = (): void => {
     replaceSetupOverlay(() => {
-      createCivSelectPanel(panel, {
+      createCivSelectPanel(container, {
         onSelect: selectCivilization,
         onCancel: () => {},
         onCreateCustomCiv: () => {
@@ -496,7 +504,7 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
 
   const openCustomCivEditor = (): void => {
     replaceSetupOverlay(() => {
-      createCustomCivPanel(panel, {
+      createCustomCivPanel(container, {
         onSave: async (definition) => {
           const loaded = (await loadSettings()) ?? createDefaultSettings('small');
           const authoritativeCustomCivilizations = mergeCustomCivDefinitions(
@@ -603,6 +611,7 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
 
   titleInput.addEventListener('input', syncCampaignReadiness);
   syncCampaignReadiness();
+  markModal(panel, { cancel: cancelButton, initialFocus: titleInput });
   container.appendChild(panel);
   return panel;
 }

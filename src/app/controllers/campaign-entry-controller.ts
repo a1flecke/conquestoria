@@ -242,7 +242,8 @@ export function createCampaignEntryController(deps: CampaignEntryControllerDeps)
 
     modePanel = showGameModeSelect(deps.uiLayer, {
       initialTitle: 'New Campaign',
-      onCancel: () => {},
+      // Back returns to the main menu. It used to do nothing, leaving a blank map with no way forward but a reload.
+      onCancel: () => { void showStartSavePanel(); },
       onTitleRequired: () => {
         deps.showNotification('Campaign title is required', 'warning');
       },

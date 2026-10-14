@@ -9,6 +9,7 @@ import {
 } from '@/storage/save-manager';
 import { getSaveFileAdapter } from '@/platform/save-file-adapter';
 import { exportMostRecentAutoSave, importSaveFromFile } from '@/storage/save-file-transfer';
+import { markModal } from '@/ui/modal-contract';
 import { createGameButton } from '@/ui/ui-kit';
 import { createGuardedAsyncAction } from '@/ui/guarded-async-action';
 
@@ -123,6 +124,12 @@ export async function createSavePanel(
   if (mode === 'save') renderSaveMode();
   else renderEpicList(epics);
 
+  // #1459: the main menu and the save dialog use the shared focus contract. The menu has no dismissal (it is the
+  // bottom screen); the save dialog answers Escape with its Cancel button.
+  markModal(panel, {
+    cancel: panel.querySelector<HTMLElement>('[data-role="cancel-save"]') ?? undefined,
+    initialFocus: panel.querySelector<HTMLElement>(mode === 'save' ? '#new-slot-name' : '#btn-new-game') ?? undefined,
+  });
   container.appendChild(panel);
   const status = panel.querySelector('#save-panel-status');
   const setStatus = (message: string): void => {
@@ -373,7 +380,7 @@ function renderStartButtons(hasAuto: boolean): string {
   return `
     <div style="display:flex;gap:8px;justify-content:center;margin-bottom:12px;">
       <button id="btn-new-game" style="padding:12px 24px;border-radius:10px;background:#e8c170;border:none;color:#1a1a2e;font-weight:bold;font-size:14px;cursor:pointer;">New Game</button>
-      ${hasAuto ? '<button id="btn-continue" style="padding:12px 24px;border-radius:10px;background:#4a90d9;border:none;color:white;font-weight:bold;font-size:14px;cursor:pointer;">Continue</button>' : ''}
+      ${hasAuto ? '<button id="btn-continue" style="padding:12px 24px;border-radius:10px;background:#2f6fb0;border:none;color:white;font-weight:bold;font-size:14px;cursor:pointer;">Continue</button>' : ''}
     </div>
   `;
 }
@@ -386,7 +393,7 @@ function renderBackupButtons(): string {
         <button id="btn-export-save" style="padding:8px 16px;border-radius:8px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:white;font-size:12px;cursor:pointer;">Export Save</button>
         <button id="btn-import-save" style="padding:8px 16px;border-radius:8px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:white;font-size:12px;cursor:pointer;">Import Save</button>
       </div>
-      <div id="save-panel-status" style="min-height:16px;margin-top:8px;text-align:center;font-size:11px;color:#f0a060;"></div>
+      <div id="save-panel-status" role="status" aria-live="polite" style="min-height:16px;margin-top:8px;text-align:center;font-size:11px;color:#f0a060;"></div>
     </div>
   `;
 }
@@ -401,8 +408,8 @@ function renderSaveStatusRegions(): string {
 function renderNewSlotInput(): string {
   return `
     <div style="display:flex;gap:8px;margin-bottom:12px;">
-      <input id="new-slot-name" type="text" placeholder="Save name..." style="flex:1;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:white;font-size:13px;" />
-      <button id="btn-save-new" style="padding:8px 16px;border-radius:8px;background:#6b9b4b;border:none;color:white;font-weight:bold;cursor:pointer;">Save</button>
+      <input id="new-slot-name" type="text" aria-label="Save name" placeholder="Save name..." style="flex:1;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:white;font-size:13px;" />
+      <button id="btn-save-new" style="padding:8px 16px;border-radius:8px;background:#3f7a2a;border:none;color:white;font-weight:bold;cursor:pointer;">Save</button>
     </div>
   `;
 }
@@ -433,7 +440,7 @@ function createEpicCard(epic: SaveEpic): HTMLElement {
   open.type = 'button';
   open.dataset.role = 'open-epic';
   open.dataset.gameId = epic.gameId;
-  open.style.cssText = 'padding:6px 12px;border-radius:6px;background:#4a90d9;border:none;color:white;font-size:11px;cursor:pointer;';
+  open.style.cssText = 'padding:6px 12px;border-radius:6px;background:#2f6fb0;border:none;color:white;font-size:11px;cursor:pointer;';
   open.textContent = 'Open';
   card.appendChild(open);
 
@@ -480,8 +487,8 @@ function createSlotCard(save: SaveSlotMeta, mode: 'start' | 'save'): HTMLElement
   primaryButton.dataset.slotKind = save.kind === 'autosave' ? 'autosave' : 'manual';
   primaryButton.dataset.slotName = save.name;
   primaryButton.style.cssText = mode === 'start'
-    ? 'padding:6px 12px;border-radius:6px;background:#4a90d9;border:none;color:white;font-size:11px;cursor:pointer;'
-    : 'padding:6px 12px;border-radius:6px;background:#6b9b4b;border:none;color:white;font-size:11px;cursor:pointer;';
+    ? 'padding:6px 12px;border-radius:6px;background:#2f6fb0;border:none;color:white;font-size:11px;cursor:pointer;'
+    : 'padding:6px 12px;border-radius:6px;background:#3f7a2a;border:none;color:white;font-size:11px;cursor:pointer;';
   primaryButton.textContent = mode === 'start' ? 'Load' : 'Overwrite';
   buttons.appendChild(primaryButton);
 
@@ -492,7 +499,7 @@ function createSlotCard(save: SaveSlotMeta, mode: 'start' | 'save'): HTMLElement
   deleteButton.dataset.slotName = save.name;
   deleteButton.dataset.slotTurn = String(save.turn);
   if (save.gameTitle) deleteButton.dataset.slotGameTitle = save.gameTitle;
-  deleteButton.style.cssText = 'padding:6px 12px;border-radius:6px;background:#d94a4a;border:none;color:white;font-size:11px;cursor:pointer;';
+  deleteButton.style.cssText = 'padding:6px 12px;border-radius:6px;background:#b73636;border:none;color:white;font-size:11px;cursor:pointer;';
   deleteButton.textContent = '✕';
   buttons.appendChild(deleteButton);
 

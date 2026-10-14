@@ -58,6 +58,7 @@
     "architecture:scc": "tsx scripts/report-runtime-scc.ts"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@babel/core": "^7.29.0",
     "@babel/preset-react": "^7.28.5",
     "@playwright/test": "^1.59.1",
