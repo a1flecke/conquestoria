@@ -1,14 +1,17 @@
 import { expect, test, type Page } from '@playwright/test';
 
 /**
- * #613: the six Era 5-7 legendary wonders draw production PNG art on the map canvas, and fall back to their canvas
+ * #613, #619: the thirteen Era 5-9 legendary wonders draw production PNG art on the map canvas, and fall back to their canvas
  * drawings when the image cannot load. This runs the real renderer modules in a real browser (real PNG decoding, real
  * drawImage, the real base URL) without booting a campaign; pixel assertions only, no platform-specific snapshots.
  * #1486: inherit the smoke config's serviceWorkers: 'block', including the second page below. The CI crash was
  * Chromium's service-worker DevTools resource loader during trace teardown, not a failed PNG/pixel assertion.
  * Native crash analysis and upstream references: docs/web-smoke-service-worker-crash.md.
  */
-const IDS = ['palace-of-the-sun', 'iron-arsenal', 'merchant-admiralty', 'crystal-palace', 'suez-canal', 'continental-congress'];
+const IDS = [
+  'palace-of-the-sun', 'iron-arsenal', 'merchant-admiralty', 'crystal-palace', 'suez-canal', 'continental-congress',
+  'eiffel-tower', 'brooklyn-bridge', 'trans-siberian-railway', 'panama-canal', 'empire-state-building', 'hoover-dam', 'wright-flyer',
+];
 const SRC = '/conquestoria/src/renderer/wonders';
 
 interface GlyphReport { id: string; naturalWidth: number | null; changedPixels: number; cornersUntouched: boolean; hash: string }
@@ -61,7 +64,7 @@ async function drawAll(page: Page, background: string, state: 'completed' | 'und
 }
 
 for (const [label, background] of [['grass', '#2d5a27'], ['desert', '#e8d9a8'], ['dark ocean', '#1b2c4a']] as const) {
-  test(`production art loads and is drawn for all six wonders on ${label}`, async ({ page }) => {
+  test(`production art loads and is drawn for all ${IDS.length} wonders on ${label}`, async ({ page }) => {
     await page.goto('./');
     const result = await drawAll(page, background);
     for (const glyph of result.glyphs) {
