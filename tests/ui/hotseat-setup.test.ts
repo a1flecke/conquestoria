@@ -737,3 +737,57 @@ describe('hotseat-setup', () => {
     });
   });
 });
+
+describe('hot-seat setup keyboard and focus contract (#1459)', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('is a modal from the first stage, with real-button choices and Cancel on Escape', () => {
+    const onCancel = vi.fn();
+    showHotSeatSetup(document.body, { onComplete: vi.fn(), onCancel });
+    const panel = document.getElementById('hotseat-setup')!;
+    expect(panel.hasAttribute('data-modal')).toBe(true);
+    expect(panel.getAttribute('role')).toBe('dialog');
+    expect(panel.getAttribute('aria-label')).toBe('Hot Seat Setup');
+    const cards = Array.from(panel.querySelectorAll('.map-size-card'));
+    expect(cards.length).toBe(3);
+    expect(cards.every(card => card.tagName === 'BUTTON')).toBe(true);
+    expect(document.activeElement).toBe(cards[0]);
+    panel.querySelector<HTMLElement>('[data-modal-cancel]')!.click();
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('every later stage renames the dialog, takes focus and makes its Back control the Escape target', () => {
+    showHotSeatSetup(document.body, { onComplete: vi.fn(), onCancel: vi.fn() });
+    const panel = document.getElementById('hotseat-setup')!;
+    click('.map-size-card[data-size="small"]');
+    expect(panel.getAttribute('aria-label')).toBe('Choose Map Type');
+    expect(panel.contains(document.activeElement)).toBe(true);
+    expect(panel.querySelector('[data-modal-cancel]')!.id).toBe('hs-back-map-size');
+    advanceThroughMapType();
+    expect(panel.getAttribute('aria-label')).toBe('How Many Players?');
+    const count = panel.querySelector('.count-card')!;
+    expect(count.tagName).toBe('BUTTON');
+    click('.count-card[data-count="2"]');
+    expect(panel.getAttribute('aria-label')).toBe('Player Names');
+    expect(document.activeElement).toBe(panel.querySelector('.player-name-input'));
+    for (const input of Array.from(panel.querySelectorAll('.player-name-input'))) {
+      expect(input.getAttribute('aria-label')).toMatch(/^Player \d+ name$/);
+    }
+    for (const button of Array.from(panel.querySelectorAll<HTMLButtonElement>('[data-ai-count]'))) {
+      expect(button.getAttribute('aria-pressed')).toBe(button.dataset.selected);
+    }
+  });
+
+  it('opens the civilization picker beside the wizard so it is managed as the top screen', () => {
+    showHotSeatSetup(document.body, { onComplete: vi.fn(), onCancel: vi.fn() });
+    click('.map-size-card[data-size="small"]');
+    advanceThroughMapType();
+    click('.count-card[data-count="2"]');
+    click('#hs-names-next');
+    const picker = document.getElementById('civ-select')!;
+    expect(picker.parentElement).toBe(document.body);
+    expect(picker.hasAttribute('data-modal')).toBe(true);
+  });
+});

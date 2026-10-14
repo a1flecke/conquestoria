@@ -23,6 +23,8 @@ export interface OpponentChallengeSelectorOptions {
   selected: OpponentChallenge | null;
   onSelect: (challenge: OpponentChallenge) => void;
   mode: 'new-game' | 'migration' | 'settings';
+  /** The group's accessible name. Two selectors can be on one screen (opponent and personal difficulty). */
+  label?: string;
 }
 
 function appendText(
@@ -43,7 +45,7 @@ export function createOpponentChallengeSelector(
   selector.className = 'opponent-challenge-grid';
   selector.dataset.opponentChallengeSelector = options.mode;
   selector.setAttribute('role', 'group');
-  selector.setAttribute('aria-label', 'Opponent challenge');
+  selector.setAttribute('aria-label', options.label ?? 'Opponent challenge');
   selector.style.cssText = [
     'display:grid',
     'grid-template-columns:minmax(0, 1fr)',

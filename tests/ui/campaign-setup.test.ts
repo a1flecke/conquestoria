@@ -647,3 +647,52 @@ describe('colonizer start notification', () => {
     expect(messages.some(m => m.includes('colonial'))).toBe(false);
   });
 });
+
+describe('campaign-setup keyboard and focus contract (#1459)', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('declares the modal contract: focus starts on the title, Escape is Cancel', () => {
+    const onCancel = vi.fn();
+    const panel = showCampaignSetup(document.body, { onStartSolo: vi.fn(), onCancel });
+    expect(panel.hasAttribute('data-modal')).toBe(true);
+    expect(panel.querySelector('#campaign-title')!.hasAttribute('data-modal-initial-focus')).toBe(true);
+    const cancel = panel.querySelector<HTMLElement>('[data-modal-cancel]')!;
+    expect(cancel.textContent).toBe('Cancel');
+    cancel.click();
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('exposes which map, size, rival count and difficulty are chosen, not only a gold border', () => {
+    const panel = showCampaignSetup(document.body, { onStartSolo: vi.fn(), onCancel: vi.fn() });
+    const choices = Array.from(panel.querySelectorAll<HTMLButtonElement>('button[data-selected]'));
+    expect(choices.length).toBeGreaterThan(5);
+    for (const button of choices) {
+      expect(button.getAttribute('aria-pressed'), button.textContent ?? '').toBe(button.dataset.selected);
+    }
+    // Choosing another size moves the pressed state with the selection.
+    const large = panel.querySelector<HTMLButtonElement>('button[data-size="large"]')!;
+    large.click();
+    expect(large.getAttribute('aria-pressed')).toBe('true');
+    expect(panel.querySelector('button[data-size="medium"]')!.getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('mounts the civilization picker beside the setup screen, so the focus contract manages it as the top screen', () => {
+    const panel = showCampaignSetup(document.body, { onStartSolo: vi.fn(), onCancel: vi.fn() });
+    clickButtonWithText('Choose civilization');
+    const picker = document.getElementById('civ-select')!;
+    expect(picker.parentElement).toBe(document.body);
+    expect(panel.contains(picker)).toBe(false);
+    expect(picker.hasAttribute('data-modal')).toBe(true);
+  });
+
+  it('announces the chosen civilization through a polite live region', () => {
+    const panel = showCampaignSetup(document.body, { onStartSolo: vi.fn(), onCancel: vi.fn() });
+    clickButtonWithText('Choose civilization');
+    (document.querySelector('.civ-card') as HTMLElement).click();
+    (document.querySelector('#civ-start') as HTMLButtonElement).click();
+    const live = panel.querySelector('[aria-live="polite"]')!;
+    expect(live.textContent).toContain('Leading civilization');
+  });
+});

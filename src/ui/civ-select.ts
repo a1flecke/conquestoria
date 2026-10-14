@@ -1,6 +1,7 @@
 import type { CivDefinition } from '@/core/types';
 import { CIV_DEFINITIONS } from '@/systems/civ-definitions';
 import { createRng } from '@/systems/map-generator';
+import { markModal } from '@/ui/modal-contract';
 import { createSetupShell } from '@/ui/setup-shell';
 import { createGameButton, setButtonDisabled } from '@/ui/ui-kit';
 
@@ -47,7 +48,10 @@ export function createCivSelectPanel(
 
   const cards: HTMLElement[] = [];
   for (const civ of civDefinitions) {
-    const card = document.createElement('div');
+    // A real button, not a clickable div: a div with only a click handler cannot be focused or activated from the
+    // keyboard, which left "Surprise Me" as the only way to pick a civilization without a pointer (#1459).
+    const card = document.createElement('button');
+    card.type = 'button';
     card.className = 'civ-card';
     card.dataset.civId = civ.id;
     card.dataset.selected = 'false';
@@ -59,14 +63,20 @@ export function createCivSelectPanel(
     card.style.transition = 'border-color 0.2s';
     card.style.minHeight = '44px';
     card.style.minWidth = '44px';
+    card.style.color = '#f4f1e8';
+    card.style.font = 'inherit';
+    card.style.textAlign = 'left';
+    card.setAttribute('aria-pressed', 'false');
 
     const isDisabled = disabledCivs.includes(civ.id);
     if (isDisabled) {
       card.style.opacity = '0.3';
       card.style.pointerEvents = 'none';
+      card.disabled = true;
     }
 
-    const accent = document.createElement('div');
+    const accent = document.createElement('span');
+    accent.style.display = 'block';
     accent.style.width = '100%';
     accent.style.height = '4px';
     accent.style.background = civ.color;
@@ -74,28 +84,32 @@ export function createCivSelectPanel(
     accent.style.marginBottom = '10px';
     card.appendChild(accent);
 
-    const name = document.createElement('div');
+    const name = document.createElement('span');
+    name.style.display = 'block';
     name.textContent = civ.name;
     name.style.fontWeight = 'bold';
     name.style.fontSize = '15px';
     name.style.color = civ.color;
     card.appendChild(name);
 
-    const bonusName = document.createElement('div');
+    const bonusName = document.createElement('span');
+    bonusName.style.display = 'block';
     bonusName.textContent = civ.bonusName;
     bonusName.style.fontSize = '12px';
     bonusName.style.color = '#e8c170';
     bonusName.style.marginTop = '4px';
     card.appendChild(bonusName);
 
-    const bonusDescription = document.createElement('div');
+    const bonusDescription = document.createElement('span');
+    bonusDescription.style.display = 'block';
     bonusDescription.textContent = civ.bonusDescription;
     bonusDescription.style.fontSize = '11px';
     bonusDescription.style.opacity = '0.7';
     bonusDescription.style.marginTop = '4px';
     card.appendChild(bonusDescription);
 
-    const traits = document.createElement('div');
+    const traits = document.createElement('span');
+    traits.style.display = 'block';
     traits.textContent = civ.personality.traits.join(', ');
     traits.style.fontSize = '10px';
     traits.style.opacity = '0.4';
@@ -128,8 +142,9 @@ export function createCivSelectPanel(
   });
   shell.actions.appendChild(actionBar);
 
+  let cancelButton: HTMLButtonElement | null = null;
   if (callbacks.onCancel) {
-    const cancelButton = createGameButton('Back', 'ghost');
+    cancelButton = createGameButton('Back', 'ghost');
     cancelButton.dataset.action = 'cancel-civ-select';
     cancelButton.addEventListener('click', () => {
       panel.remove();
@@ -174,6 +189,10 @@ export function createCivSelectPanel(
     callbacks.onSelect(selectedCiv);
   });
 
+  markModal(panel, {
+    cancel: cancelButton ?? undefined,
+    initialFocus: cards.find(card => !(card as HTMLButtonElement).disabled) ?? randomButton,
+  });
   container.appendChild(panel);
   return panel;
 }

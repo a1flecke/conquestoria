@@ -145,3 +145,31 @@ function fillRequiredFields(panel: HTMLElement): void {
     cityInput.dispatchEvent(new Event('input', { bubbles: true }));
   }
 }
+
+describe('custom-civ-panel labels and keyboard contract (#1459)', () => {
+  it('every field is named by its visible label, trait groups are named groups, selection is announced', async () => {
+    const { createCustomCivPanel } = await import('@/ui/custom-civ-panel');
+    document.body.innerHTML = '';
+    const panel = createCustomCivPanel(document.body, { onSave: vi.fn(), onCancel: vi.fn() });
+    for (const field of ['civ-name', 'leader-name', 'civ-color', 'city-names']) {
+      const control = panel.querySelector<HTMLElement>(`[data-field="${field}"]`)!;
+      expect(control.id, field).toBeTruthy();
+      const label = panel.querySelector<HTMLLabelElement>(`label[for="${control.id}"]`);
+      expect(label?.textContent, field).toBeTruthy();
+    }
+    for (const section of ['primary-trait', 'temperament-traits']) {
+      const group = panel.querySelector(`[data-section="${section}"]`)!;
+      expect(group.getAttribute('role')).toBe('group');
+      expect(document.getElementById(group.getAttribute('aria-labelledby')!)?.textContent).toBeTruthy();
+    }
+    const trait = panel.querySelector<HTMLButtonElement>('[data-section="primary-trait"] button')!;
+    expect(trait.getAttribute('aria-pressed')).toBe('false');
+    trait.click();
+    expect(trait.getAttribute('aria-pressed')).toBe('true');
+    expect(panel.querySelector('[data-role="custom-civ-validation"]')!.getAttribute('role')).toBe('status');
+
+    expect(panel.hasAttribute('data-modal')).toBe(true);
+    expect(panel.querySelector('[data-field="civ-name"]')!.hasAttribute('data-modal-initial-focus')).toBe(true);
+    expect(panel.querySelector('[data-modal-cancel]')!.textContent).toBe('Cancel');
+  });
+});

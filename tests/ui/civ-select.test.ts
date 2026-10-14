@@ -97,3 +97,55 @@ describe('civ-select', () => {
     expect(panel.textContent).toContain('Confirm Civilization');
   });
 });
+
+describe('civ-select keyboard contract (#1459)', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('civilization cards are real buttons, so they can be focused and chosen with Enter or Space', () => {
+    const panel = createCivSelectPanel(document.body, { onSelect: () => {}, onCancel: () => {} }, {
+      civDefinitions: getPlayableCivDefinitions({ customCivilizations: [] }),
+    });
+    const cards = Array.from(panel.querySelectorAll('.civ-card'));
+    expect(cards.length).toBeGreaterThan(3);
+    for (const card of cards) {
+      expect(card.tagName).toBe('BUTTON');
+      expect(card.getAttribute('aria-pressed')).toBe('false');
+    }
+    // No clickable-but-unfocusable element is left in the picker.
+    expect(panel.querySelectorAll('div[style*="cursor: pointer"], div[style*="cursor:pointer"]').length).toBe(0);
+  });
+
+  it('exposes the chosen card as pressed and moves the state with the choice', () => {
+    const panel = createCivSelectPanel(document.body, { onSelect: () => {} }, {
+      civDefinitions: getPlayableCivDefinitions({ customCivilizations: [] }),
+    });
+    const [first, second] = Array.from(panel.querySelectorAll<HTMLButtonElement>('.civ-card'));
+    first!.click();
+    expect(first!.getAttribute('aria-pressed')).toBe('true');
+    second!.click();
+    expect(first!.getAttribute('aria-pressed')).toBe('false');
+    expect(second!.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('disabled civilizations leave the tab order', () => {
+    const defs = getPlayableCivDefinitions({ customCivilizations: [] });
+    const taken = defs[0]!.id;
+    const panel = createCivSelectPanel(document.body, { onSelect: () => {} }, { civDefinitions: defs, disabledCivs: [taken] });
+    expect(panel.querySelector<HTMLButtonElement>(`.civ-card[data-civ-id="${taken}"]`)!.disabled).toBe(true);
+    // Focus starts on the first card that can actually be chosen.
+    const initial = panel.querySelector<HTMLButtonElement>('[data-modal-initial-focus]')!;
+    expect(initial.classList.contains('civ-card')).toBe(true);
+    expect(initial.dataset.civId).not.toBe(taken);
+  });
+
+  it('Escape is Back only when there is somewhere to go back to', () => {
+    const withBack = createCivSelectPanel(document.body, { onSelect: () => {}, onCancel: () => {} });
+    expect(withBack.querySelector('[data-modal-cancel]')?.textContent).toBe('Back');
+    document.body.innerHTML = '';
+    const required = createCivSelectPanel(document.body, { onSelect: () => {} });
+    expect(required.querySelector('[data-modal-cancel]')).toBeNull();
+    expect(required.hasAttribute('data-modal')).toBe(true);
+  });
+});

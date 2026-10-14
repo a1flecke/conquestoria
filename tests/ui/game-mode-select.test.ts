@@ -2,6 +2,7 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { showGameModeSelect } from '@/ui/game-mode-select';
+import { MODAL_ATTR, MODAL_CANCEL_ATTR, MODAL_INITIAL_FOCUS_ATTR } from '@/ui/modal-contract';
 
 describe('game-mode-select', () => {
   beforeEach(() => {
@@ -72,5 +73,23 @@ describe('game-mode-select', () => {
 
     expect(onCancel).toHaveBeenCalledTimes(1);
     expect(document.getElementById('mode-select')).toBeNull();
+  });
+});
+
+describe('game-mode-select keyboard contract (#1459)', () => {
+  it('declares the modal contract: focus starts on the title field, Escape is Back, and the field has a name', () => {
+    document.body.innerHTML = '';
+    const onCancel = vi.fn();
+    const panel = showGameModeSelect(document.body, {
+      initialTitle: 'New Campaign', onChooseSolo: () => {}, onChooseHotSeat: () => {}, onTitleRequired: () => {}, onCancel,
+    });
+    const title = panel.querySelector<HTMLInputElement>('#new-game-title')!;
+    expect(panel.hasAttribute(MODAL_ATTR)).toBe(true);
+    expect(title.hasAttribute(MODAL_INITIAL_FOCUS_ATTR)).toBe(true);
+    expect(title.getAttribute('aria-label')).toBe('Campaign title');
+    const cancel = panel.querySelector<HTMLElement>(`[${MODAL_CANCEL_ATTR}]`)!;
+    expect(cancel.textContent).toBe('Back');
+    cancel.click();
+    expect(onCancel).toHaveBeenCalledTimes(1);
   });
 });

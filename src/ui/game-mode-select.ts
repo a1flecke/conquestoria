@@ -1,3 +1,4 @@
+import { markModal } from '@/ui/modal-contract';
 import { createSetupSection, createSetupShell } from '@/ui/setup-shell';
 import { createGameButton } from '@/ui/ui-kit';
 
@@ -73,6 +74,7 @@ export function showGameModeSelect(container: HTMLElement, callbacks: GameModeSe
   const titleInput = document.createElement('input');
   titleInput.id = 'new-game-title';
   titleInput.type = 'text';
+  titleInput.setAttribute('aria-label', 'Campaign title');
   titleInput.value = callbacks.initialTitle ?? 'New Campaign';
   Object.assign(titleInput.style, {
     width: '100%',
@@ -143,6 +145,9 @@ export function showGameModeSelect(container: HTMLElement, callbacks: GameModeSe
   actionBar.appendChild(backButton);
   shell.actions.appendChild(actionBar);
 
+  // #1459: one focus contract. Focus enters at the first field, Tab stays on this screen (the in-game toolbar
+  // underneath is not reachable), Escape is Back.
+  markModal(shell.surface, { cancel: backButton, initialFocus: titleInput });
   container.appendChild(shell.surface);
   return shell.surface;
 }

@@ -4,6 +4,7 @@ import {
   CUSTOM_CIV_PRIMARY_TRAITS,
   validateCustomCivDefinition,
 } from '@/systems/custom-civ-system';
+import { markModal } from '@/ui/modal-contract';
 import { createSetupSection } from '@/ui/setup-shell';
 
 export interface CustomCivPanelCallbacks {
@@ -22,7 +23,14 @@ const TEMPERAMENT_TRAITS = [
   { id: 'trader', label: 'Trader' },
 ] as const;
 
-function createLabeledSection(title: string, sectionId?: string): HTMLDivElement {
+let labelSequence = 0;
+
+/**
+ * A titled block. `kind: 'field'` (the default) is a label for the one control placed in it: pass the control to
+ * `bindLabel` so assistive technology announces the title as its name. `kind: 'group'` is a set of buttons: it is
+ * exposed as a named group instead of an orphan label.
+ */
+function createLabeledSection(title: string, sectionId?: string, kind: 'field' | 'group' = 'field'): HTMLDivElement {
   const section = document.createElement('div');
   if (sectionId) {
     section.dataset.section = sectionId;
@@ -31,13 +39,26 @@ function createLabeledSection(title: string, sectionId?: string): HTMLDivElement
   section.style.flexDirection = 'column';
   section.style.gap = '8px';
 
-  const heading = document.createElement('label');
+  const heading = document.createElement(kind === 'group' ? 'span' : 'label');
+  heading.id = `custom-civ-label-${++labelSequence}`;
   heading.textContent = title;
   heading.style.fontSize = '0.95em';
   heading.style.fontWeight = '700';
   section.appendChild(heading);
+  if (kind === 'group') {
+    section.setAttribute('role', 'group');
+    section.setAttribute('aria-labelledby', heading.id);
+  }
 
   return section;
+}
+
+/** Name a control by the label its section was created with. */
+function bindLabel(section: HTMLElement, control: HTMLElement): void {
+  const label = section.querySelector('label');
+  if (!label) return;
+  if (!control.id) control.id = `custom-civ-field-${++labelSequence}`;
+  label.htmlFor = control.id;
 }
 
 function createTextInput(field: string, type: string = 'text'): HTMLInputElement {
@@ -112,6 +133,7 @@ export function createCustomCivPanel(
 
   const validationMessage = document.createElement('p');
   validationMessage.dataset.role = 'custom-civ-validation';
+  validationMessage.setAttribute('role', 'status');
   validationMessage.style.margin = '0';
   validationMessage.style.fontSize = '0.85em';
   validationMessage.style.color = '#f2c572';
@@ -127,17 +149,20 @@ export function createCustomCivPanel(
   const civNameSection = createLabeledSection('Civilization Name');
   const civNameInput = createTextInput('civ-name');
   civNameSection.appendChild(civNameInput);
+  bindLabel(civNameSection, civNameInput);
   basicsSection.content.appendChild(civNameSection);
 
   const leaderNameSection = createLabeledSection('Leader Name');
   const leaderNameInput = createTextInput('leader-name');
   leaderNameSection.appendChild(leaderNameInput);
+  bindLabel(leaderNameSection, leaderNameInput);
   basicsSection.content.appendChild(leaderNameSection);
 
   const colorSection = createLabeledSection('Civilization Color');
   const colorInput = createTextInput('civ-color', 'color');
   colorInput.value = state.color;
   colorSection.appendChild(colorInput);
+  bindLabel(colorSection, colorInput);
   basicsSection.content.appendChild(colorSection);
 
   const traitsSection = createSetupSection({
@@ -147,7 +172,7 @@ export function createCustomCivPanel(
   });
   panel.appendChild(traitsSection.section);
 
-  const primaryTraitSection = createLabeledSection('Primary Trait', 'primary-trait');
+  const primaryTraitSection = createLabeledSection('Primary Trait', 'primary-trait', 'group');
   primaryTraitSection.style.display = 'flex';
   primaryTraitSection.style.flexWrap = 'wrap';
   primaryTraitSection.style.gap = '8px';
@@ -172,7 +197,7 @@ export function createCustomCivPanel(
   }
   traitsSection.content.appendChild(primaryTraitSection);
 
-  const temperamentSection = createLabeledSection('Temperament Traits', 'temperament-traits');
+  const temperamentSection = createLabeledSection('Temperament Traits', 'temperament-traits', 'group');
   temperamentSection.style.display = 'flex';
   temperamentSection.style.flexWrap = 'wrap';
   temperamentSection.style.gap = '8px';
@@ -221,6 +246,7 @@ export function createCustomCivPanel(
   cityNamesInput.style.padding = '10px 12px';
   cityNamesInput.style.fontFamily = 'inherit';
   cityNamesSection.appendChild(cityNamesInput);
+  bindLabel(cityNamesSection, cityNamesInput);
   cityNamesShell.content.appendChild(cityNamesSection);
 
   const actionBar = document.createElement('div');
@@ -277,6 +303,7 @@ export function createCustomCivPanel(
     for (const [traitId, button] of primaryButtons.entries()) {
       const selected = state.primaryTrait === traitId;
       button.dataset.selected = selected ? 'true' : 'false';
+      button.setAttribute('aria-pressed', selected ? 'true' : 'false');
       button.style.background = selected ? 'rgba(217,164,65,0.28)' : 'rgba(255,255,255,0.08)';
       button.style.borderColor = selected ? '#d9a441' : 'rgba(255,255,255,0.25)';
     }
@@ -284,6 +311,7 @@ export function createCustomCivPanel(
     for (const [traitId, button] of temperamentButtons.entries()) {
       const selected = state.temperamentTraits.includes(traitId as CustomCivDefinition['temperamentTraits'][number]);
       button.dataset.selected = selected ? 'true' : 'false';
+      button.setAttribute('aria-pressed', selected ? 'true' : 'false');
       button.style.background = selected ? 'rgba(96,165,250,0.28)' : 'rgba(255,255,255,0.08)';
       button.style.borderColor = selected ? '#60a5fa' : 'rgba(255,255,255,0.25)';
     }
@@ -336,6 +364,7 @@ export function createCustomCivPanel(
   });
 
   syncUi();
+  markModal(panel, { cancel: cancelButton, initialFocus: civNameInput });
   container.appendChild(panel);
   return panel;
 }

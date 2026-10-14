@@ -16,8 +16,8 @@ export const MODAL_CANCEL_ATTR = 'data-modal-cancel';
 export const MODAL_INITIAL_FOCUS_ATTR = 'data-modal-initial-focus';
 
 export interface ModalMarking {
-  readonly cancel?: HTMLElement;
-  readonly initialFocus?: HTMLElement;
+  readonly cancel?: HTMLElement | null;
+  readonly initialFocus?: HTMLElement | null;
 }
 
 export function markModal(root: HTMLElement, marking: ModalMarking = {}): void {

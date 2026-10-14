@@ -14,6 +14,7 @@ import { createDefaultSettings } from '@/core/game-state';
 import { getPlayableCivDefinitions } from '@/systems/civ-registry';
 import { buildCustomCivId, customCivDefinitionsEqual, mergeCustomCivDefinitions } from '@/systems/custom-civ-system';
 import { loadSettings, saveSettings } from '@/storage/save-manager';
+import { markModal } from '@/ui/modal-contract';
 import { createOpponentChallengeSelector } from '@/ui/opponent-challenge-selector';
 import { createGameButton, VARIANT_STYLES } from '@/ui/ui-kit';
 import { selectAIRoster } from '@/systems/ai-roster-selection';
@@ -57,10 +58,24 @@ export function showHotSeatSetup(
   let customCivilizations: CustomCivDefinition[] = [...(options?.initialCustomCivilizations ?? [])];
   let civDefinitions = getPlayableCivDefinitions({ customCivilizations });
 
+  // The civilization picker and the custom-civilization editor are mounted in the same layer as this wizard (not
+  // inside it) so the shared focus contract manages them as the top screen (see campaign-setup.ts).
   const replaceSetupOverlay = (render: () => void): void => {
-    panel.querySelector('#custom-civ-panel')?.remove();
-    panel.querySelector('#civ-select')?.remove();
+    container.querySelector('#custom-civ-panel')?.remove();
+    container.querySelector('#civ-select')?.remove();
     render();
+  };
+
+  // Every stage re-renders this one panel, so the node that held focus is destroyed each time. A stage declares what
+  // is true of it (its title, the control that goes back, where focus should start) and the shared contract does the
+  // rest: Escape activates `cancel`, Tab stays inside, and focus lands on a real control instead of the page body.
+  const stageReady = (stage: { title: string; cancel?: HTMLElement | null; initialFocus?: HTMLElement | null }): void => {
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-modal', 'true');
+    panel.setAttribute('aria-label', stage.title);
+    markModal(panel, { cancel: stage.cancel ?? undefined });
+    panel.setAttribute('tabindex', '-1');
+    (stage.initialFocus ?? panel).focus({ preventScroll: true });
   };
 
   showMapSizeStage();
@@ -77,11 +92,11 @@ export function showHotSeatSetup(
       <p style="font-size:13px;opacity:0.6;margin-bottom:24px;text-align:center;">Choose your map size</p>
       <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;">
         ${sizes.map(s => `
-          <div class="map-size-card" data-size="${s.key}" style="background:rgba(255,255,255,0.08);border:2px solid transparent;border-radius:12px;padding:20px;cursor:pointer;text-align:center;min-width:100px;transition:border-color 0.2s;">
-            <div style="font-weight:bold;font-size:16px;color:#e8c170;" data-label="${s.key}"></div>
-            <div style="font-size:12px;opacity:0.6;margin-top:4px;" data-desc="${s.key}"></div>
-            <div style="font-size:11px;opacity:0.5;margin-top:4px;" data-max="${s.key}"></div>
-          </div>
+          <button type="button" class="map-size-card" data-size="${s.key}" style="background:rgba(255,255,255,0.08);border:2px solid transparent;border-radius:12px;padding:20px;cursor:pointer;text-align:center;min-width:100px;transition:border-color 0.2s;color:#f4f1e8;font:inherit;">
+            <span style="display:block;font-weight:bold;font-size:16px;color:#e8c170;" data-label="${s.key}"></span>
+            <span style="display:block;font-size:12px;opacity:0.6;margin-top:4px;" data-desc="${s.key}"></span>
+            <span style="display:block;font-size:11px;opacity:0.5;margin-top:4px;" data-max="${s.key}"></span>
+          </button>
         `).join('')}
       </div>
       <div style="margin-top:20px;">
@@ -105,6 +120,8 @@ export function showHotSeatSetup(
     spacingNote.style.cssText = 'font-size:12px;opacity:0.65;margin:16px 0 0;text-align:center;max-width:420px;line-height:1.45;';
     panel.querySelector('.map-size-card')?.parentElement?.insertAdjacentElement('afterend', spacingNote);
 
+    // The root must be marked before the panel first reaches the layer so the focus manager sees it as modal.
+    markModal(panel);
     container.appendChild(panel);
 
     panel.querySelectorAll('.map-size-card').forEach(card => {
@@ -117,6 +134,11 @@ export function showHotSeatSetup(
     panel.querySelector('#hs-cancel')?.addEventListener('click', () => {
       panel.remove();
       callbacks.onCancel();
+    });
+    stageReady({
+      title: 'Hot Seat Setup',
+      cancel: panel.querySelector<HTMLElement>('#hs-cancel'),
+      initialFocus: panel.querySelector<HTMLElement>('.map-size-card'),
     });
   }
 
@@ -283,6 +305,7 @@ export function showHotSeatSetup(
     nav.appendChild(backBtn);
     nav.appendChild(nextBtn);
     panel.appendChild(nav);
+    stageReady({ title: 'Choose Map Type', cancel: backBtn, initialFocus: buttons.get(preselect) });
   }
 
   function showOpponentChallengeStage() {
@@ -323,6 +346,11 @@ export function showHotSeatSetup(
     nextButton.addEventListener('click', () => showPlayerCountStage());
     nav.append(backButton, nextButton);
     panel.appendChild(nav);
+    stageReady({
+      title: 'Choose Opponent Challenge',
+      cancel: backButton,
+      initialFocus: selector.querySelector<HTMLElement>('[aria-pressed="true"], button'),
+    });
   }
 
   function showPlayerCountStage() {
@@ -335,10 +363,10 @@ export function showHotSeatSetup(
       <p style="font-size:13px;opacity:0.6;margin-bottom:16px;text-align:center;">Human players (choose AI opponents separately on the next screen)</p>
       <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;">
         ${counts.map(n => `
-          <div class="count-card" data-count="${n}" style="background:rgba(255,255,255,0.08);border:2px solid transparent;border-radius:12px;padding:16px 24px;cursor:pointer;text-align:center;transition:border-color 0.2s;">
-            <div style="font-weight:bold;font-size:20px;color:#e8c170;" data-count-num="${n}"></div>
-            <div style="font-size:11px;opacity:0.5;margin-top:4px;">players</div>
-          </div>
+          <button type="button" class="count-card" data-count="${n}" style="background:rgba(255,255,255,0.08);border:2px solid transparent;border-radius:12px;padding:16px 24px;cursor:pointer;text-align:center;transition:border-color 0.2s;color:#f4f1e8;font:inherit;">
+            <span style="display:block;font-weight:bold;font-size:20px;color:#e8c170;" data-count-num="${n}"></span>
+            <span style="display:block;font-size:11px;opacity:0.5;margin-top:4px;">players</span>
+          </button>
         `).join('')}
       </div>
       <div style="margin-top:20px;">
@@ -362,6 +390,11 @@ export function showHotSeatSetup(
     panel.querySelector('#hs-back-size')?.addEventListener('click', () => {
       showMapTypeStage();
     });
+    stageReady({
+      title: 'How Many Players?',
+      cancel: panel.querySelector<HTMLElement>('#hs-back-size'),
+      initialFocus: panel.querySelector<HTMLElement>('.count-card'),
+    });
   }
 
   function showPlayerNamesStage() {
@@ -371,8 +404,8 @@ export function showHotSeatSetup(
       <h1 style="font-size:22px;color:#e8c170;margin:24px 0 8px;text-align:center;">Player Names</h1>
       <p style="font-size:13px;opacity:0.6;margin-bottom:16px;text-align:center;">Enter names for each player</p>
       <div data-role="ai-count-options" style="margin-bottom:16px;text-align:center;">
-        <div style="font-size:13px;color:#e8c170;margin-bottom:8px;">AI opponents</div>
-        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+        <div id="hs-ai-count-label" style="font-size:13px;color:#e8c170;margin-bottom:8px;">AI opponents</div>
+        <div role="group" aria-labelledby="hs-ai-count-label" style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
           ${Array.from(
             { length: MAP_DIMENSIONS[selectedMapSize!].maxPlayers - playerCount },
             (_, index) => index + 1,
@@ -402,6 +435,7 @@ export function showHotSeatSetup(
       panel.querySelectorAll<HTMLButtonElement>('[data-ai-count]').forEach(button => {
         const selected = Number(button.dataset.aiCount) === aiCount;
         button.dataset.selected = selected ? 'true' : 'false';
+        button.setAttribute('aria-pressed', selected ? 'true' : 'false');
         button.style.borderColor = selected ? '#e8c170' : 'rgba(255,255,255,0.2)';
       });
     };
@@ -418,6 +452,7 @@ export function showHotSeatSetup(
     inputs.forEach((input, i) => {
       input.placeholder = defaultNames[i];
       input.value = defaultNames[i];
+      input.setAttribute('aria-label', `Player ${i + 1} name`);
     });
 
     panel.querySelector('#hs-names-next')?.addEventListener('click', () => {
@@ -437,6 +472,11 @@ export function showHotSeatSetup(
 
     panel.querySelector('#hs-back-count')?.addEventListener('click', () => {
       showPlayerCountStage();
+    });
+    stageReady({
+      title: 'Player Names',
+      cancel: panel.querySelector<HTMLElement>('#hs-back-count'),
+      initialFocus: panel.querySelector<HTMLElement>('.player-name-input'),
     });
   }
 
@@ -461,6 +501,10 @@ export function showHotSeatSetup(
       panel.querySelector('#hs-civ-ready')?.addEventListener('click', () => {
         showCivSelector(playerIdx);
       });
+      stageReady({
+        title: `Pass the device to ${players[playerIdx].name}`,
+        initialFocus: panel.querySelector<HTMLElement>('#hs-civ-ready'),
+      });
     } else {
       showCivSelector(playerIdx);
     }
@@ -471,7 +515,7 @@ export function showHotSeatSetup(
 
     const openCustomCivEditor = (): void => {
       replaceSetupOverlay(() => {
-        createCustomCivPanel(panel, {
+        createCustomCivPanel(container, {
           onSave: async (definition) => {
             const loaded = (await loadSettings()) ?? createDefaultSettings(selectedMapSize ?? 'small');
             const authoritativeCustomCivilizations = mergeCustomCivDefinitions(
@@ -498,7 +542,7 @@ export function showHotSeatSetup(
     };
 
     replaceSetupOverlay(() => {
-      createCivSelectPanel(panel, {
+      createCivSelectPanel(container, {
         onSelect: (civId: string) => {
           players[playerIdx].civType = civId;
           chosenCivs.push(civId);
@@ -535,6 +579,7 @@ export function showHotSeatSetup(
     const selector = createOpponentChallengeSelector({
       selected: players[playerIdx].challenge ?? 'standard',
       mode: 'new-game',
+      label: 'Your personal difficulty',
       onSelect: challenge => {
         players[playerIdx].challenge = challenge;
       },
@@ -556,6 +601,10 @@ export function showHotSeatSetup(
     });
     nav.appendChild(nextButton);
     panel.appendChild(nav);
+    stageReady({
+      title: 'Your Personal Difficulty',
+      initialFocus: selector.querySelector<HTMLElement>('[aria-pressed="true"], button'),
+    });
   }
 
   function buildFinalConfig(): {
@@ -720,5 +769,8 @@ export function showHotSeatSetup(
       mount: (status, error) => panel.append(status, error),
     });
     panel.appendChild(start);
+    // No control is focused: the heading is announced first and Tab reaches the choices in reading order, so a stray
+    // Enter cannot start the game before the roster has been read.
+    stageReady({ title: 'Review Campaign' });
   }
 }
