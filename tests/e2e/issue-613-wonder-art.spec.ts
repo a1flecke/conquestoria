@@ -4,6 +4,9 @@ import { expect, test, type Page } from '@playwright/test';
  * #613: the six Era 5-7 legendary wonders draw production PNG art on the map canvas, and fall back to their canvas
  * drawings when the image cannot load. This runs the real renderer modules in a real browser (real PNG decoding, real
  * drawImage, the real base URL) without booting a campaign; pixel assertions only, no platform-specific snapshots.
+ * #1486: inherit the smoke config's serviceWorkers: 'block', including the second page below. The CI crash was
+ * Chromium's service-worker DevTools resource loader during trace teardown, not a failed PNG/pixel assertion.
+ * Native crash analysis and upstream references: docs/web-smoke-service-worker-crash.md.
  */
 const IDS = ['palace-of-the-sun', 'iron-arsenal', 'merchant-admiralty', 'crystal-palace', 'suez-canal', 'continental-congress'];
 const SRC = '/conquestoria/src/renderer/wonders';
@@ -70,16 +73,23 @@ for (const [label, background] of [['grass', '#2d5a27'], ['desert', '#e8d9a8'], 
   });
 }
 
-test('while under construction the art is never drawn: pixels are identical with and without the art loaded', async ({ page, browser }) => {
+test('while under construction the art is never drawn: pixels are identical with and without the art loaded', async ({ page, context }) => {
   await page.goto('./');
   const withArt = await drawAll(page, '#2d5a27', 'under-construction');
   expect(Object.values(withArt.loaded).every(Boolean), 'art was loaded for this run').toBe(true);
 
-  const blocked = await browser.newPage();
-  await blocked.route('**/images/wonders/art/*.png', route => route.abort());
-  await blocked.goto('./');
-  const withoutArt = await drawAll(blocked, '#2d5a27', 'under-construction');
-  await blocked.close();
+  // A new page has its own module cache while retaining the fixture's base URL,
+  // reduced motion and service-worker policy. browser.newPage() bypasses those options.
+  const blocked = await context.newPage();
+  let withoutArt: DrawResult;
+  try {
+    await blocked.route('**/images/wonders/art/*.png', route => route.abort());
+    await blocked.goto('./');
+    withoutArt = await drawAll(blocked, '#2d5a27', 'under-construction');
+    expect(Object.values(withoutArt.loaded).every(loaded => !loaded), 'art was blocked for this run').toBe(true);
+  } finally {
+    await blocked.close();
+  }
 
   expect(withoutArt.glyphs.map(g => g.hash)).toEqual(withArt.glyphs.map(g => g.hash));
   for (const glyph of withArt.glyphs) expect(glyph.changedPixels, `${glyph.id} ghost`).toBeGreaterThan(0);

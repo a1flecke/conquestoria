@@ -402,6 +402,10 @@ jobs:
       - name: Run web smoke test
         run: yarn test:web-smoke
 
+      - name: Repeat wonder art on Linux (#1486)
+        if: github.event_name == 'workflow_dispatch'
+        run: yarn playwright test tests/e2e/issue-613-wonder-art.spec.ts --repeat-each=30 --workers=1 --retries=0
+
       - name: Upload Playwright failure evidence
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
