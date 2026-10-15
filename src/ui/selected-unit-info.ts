@@ -6,11 +6,13 @@ import { resolveSuperweaponContentDescription } from '@/systems/superweapon-cont
 import { isSuperweaponsEnabled } from '@/systems/superweapons-flag';
 import { resolveGeneralDefinition } from '@/systems/great-general-definitions';
 import { getGeneralProfile } from '@/systems/great-general-profiles';
+import { getGeneralPresentation } from '@/systems/great-general-presentation';
 import { getGeneralSpecialtyPresentation, resolveGeneralMechanics } from '@/systems/great-general-specialties';
 import { getGeneralCareerForViewer, describeGeneralCareerHighlights } from '@/systems/great-general-career';
 import { getHeroicCommandEligibility } from '@/systems/great-general-abilities';
 import { getEffectiveCommandStats } from '@/systems/great-general-system';
 import { createGameButton } from '@/ui/ui-kit';
+import { createGeneralPortrait } from '@/ui/general-portrait';
 import { unitParticipatesInLandSupply } from '@/systems/supply-participation';
 import { getPrimarySupplySource } from '@/systems/supply-sources';
 import { getTurnsUntilNextSupplyStage } from '@/systems/supply-progression';
@@ -378,8 +380,10 @@ export function renderSelectedUnitInfo(
     const generalDef = resolveGeneralDefinition(state, unit.generalDefinitionId);
     if (generalDef) {
       const generalLine = document.createElement('div');
-      generalLine.style.cssText = 'font-size:12px;margin-top:4px;color:#e8c170;font-weight:600;';
-      generalLine.textContent = `${generalDef.portraitIcon} ${generalDef.name} — Era ${generalDef.era}`;
+      generalLine.style.cssText = 'font-size:12px;margin-top:4px;color:#e8c170;font-weight:600;display:flex;align-items:center;gap:8px;';
+      // #889: the one presentation resolver, rendered as a crest; the legacy emoji only if the crest cannot draw.
+      generalLine.appendChild(createGeneralPortrait(getGeneralPresentation(generalDef), { size: 30, name: generalDef.name }));
+      generalLine.appendChild(document.createTextNode(`${generalDef.name} — Era ${generalDef.era}`));
       wrapper.appendChild(generalLine);
       const descriptorLine = document.createElement('div');
       descriptorLine.style.cssText = 'font-size:11px;opacity:0.8;margin-top:2px;';

@@ -446,7 +446,7 @@ export function retireGeneralsAtTurnEnd(state: GameState, civId: string, bus?: E
     // next turn and find a General simply gone with no explanation. Mirrors
     // the optional-bus, emit-if-present convention already used by
     // beginConfirmedForeignCityEntry's diplomacy:war-declared emit.
-    bus?.emit('general:retired', { civId, generalName: definition.name, message: endOfCareerLine });
+    bus?.emit('general:retired', { civId, generalName: definition.name, message: endOfCareerLine, generalDefinitionId: definition.id });
   }
 
   // The career ledger (`generalHistory`) intentionally outlives the unit; only the live unit leaves.

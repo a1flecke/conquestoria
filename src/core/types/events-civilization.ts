@@ -33,7 +33,7 @@ export interface CivilizationEvents {
    * end-of-round processing, well after the player confirmed spending the
    * final charge -- this is the player's only feedback that it actually
    * happened. */
-  'general:retired': { civId: string; generalName: string; message: string };
+  'general:retired': { civId: string; generalName: string; message: string; generalDefinitionId?: string };
   'era:advanced': { era: WorldAge };
   'civilization:era-advanced': { civId: string; previousEra: CivilizationEra; era: CivilizationEra };
   'currentPlayer:changed-after-handoff': {

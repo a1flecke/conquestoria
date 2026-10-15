@@ -100,4 +100,25 @@ describe('general candidate panel', () => {
     const panel = container.querySelector('#general-candidate-panel')!;
     expect(panel.textContent).not.toContain('Field Commander');
   });
+
+  it("#889: each candidate button carries its own crest, hidden from assistive tech so the button name stays the General's name", () => {
+    createGeneralCandidatePanel(container, candidates, () => {});
+    const a = container.querySelector('button[data-choice="gen_a"]')!;
+    const b = container.querySelector('button[data-choice="gen_b"]')!;
+    const crestA = a.querySelector('[data-general-portrait]')!;
+    const crestB = b.querySelector('[data-general-portrait]')!;
+    expect(crestA.getAttribute('data-general-portrait')).toBe('gen_a');
+    expect(crestB.getAttribute('data-general-portrait')).toBe('gen_b');
+    expect(crestA.getAttribute('aria-hidden')).toBe('true');
+    expect(crestA.hasAttribute('aria-label')).toBe(false);
+    expect(a.textContent).toBe('General A — Era 3');
+  });
+
+  it('#889: Generals that used to share an emoji now show different crests in one chooser', () => {
+    const shared = GENERAL_DEFINITIONS.filter(g => g.portraitIcon === '🦅').slice(0, 3);
+    expect(shared.length).toBe(3);
+    createGeneralCandidatePanel(container, shared, () => {});
+    const crests = [...container.querySelectorAll('[data-general-portrait]')].map(c => c.innerHTML);
+    expect(new Set(crests).size).toBe(3);
+  });
 });

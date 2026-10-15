@@ -168,6 +168,7 @@ describe('getHallOfFameForViewer', () => {
     } as unknown as GameState;
     const [e] = getHallOfFameForViewer(state, 'player');
     expect(e.name).toBe('Servius Longinus');
+    expect(e.presentation?.source).toBe('generated');
     expect(e.profile).toBeUndefined();
     expect(e.specialtyLine).toBeUndefined();
   });
@@ -178,6 +179,7 @@ describe('getHallOfFameForViewer', () => {
         careerEvents: [{ type: 'spawned', turn: 4 }, { type: 'city-captured', turn: 6, cityId: 'c', cityName: 'Ur' }, { type: 'killed', turn: 9 }] },
     ]), 'player');
     expect(e.name).toBe('A forgotten commander');
+    expect(e.presentation).toBeUndefined();
     expect(e.portraitIcon).toBe('');
     expect(e.era).toBeNull();
     expect(e.descriptor).toBe('');
@@ -190,6 +192,8 @@ describe('getHallOfFameForViewer', () => {
     const [e] = getHallOfFameForViewer(civState([
       { unitId: 'u1', generalDefinitionId: 'gen_caesar', spawnedTurn: 4, careerEvents: [{ type: 'spawned', turn: 4 }] },
     ]), 'player');
+    expect(e.presentation?.source).toBe('authored');
+    expect(e.presentation?.generalId).toBe('gen_caesar');
     expect(e.profile?.kind).toBe('historical');
     expect(typeof e.profile?.summary).toBe('string');
     expect(e.specialtyLine && e.specialtyLine.includes(' — ')).toBe(true);

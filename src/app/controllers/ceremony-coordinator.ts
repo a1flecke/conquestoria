@@ -55,6 +55,8 @@ import type { LegendaryWonderCompletionCeremonyItem } from '@/systems/legendary-
 import type { EventChainConclusionMomentItem } from '@/systems/event-chain-presentation';
 import type { WorldRaceConclusionMomentItem } from '@/systems/world-race-presentation';
 import type { VictoryPanelOptions } from '@/ui/victory-panel';
+import type { GeneralRetirementMomentItem } from '@/systems/great-general-presentation';
+import { showGeneralRetirementCeremony } from '@/ui/general-retirement-ceremony';
 import { createWonderDiscoveryRevealQueue, type WonderDiscoveryRevealQueueOptions } from '@/ui/wonder-discovery-queue';
 import {
   createLegendaryWonderCompletionQueue,
@@ -74,6 +76,8 @@ export interface CeremonyCoordinator {
   enqueueEventChainConclusion(item: EventChainConclusionMomentItem | null): void;
   /** Queue a world race's conclusion moment (#992). Never deferred by an animated move. */
   enqueueWorldRaceConclusion(item: WorldRaceConclusionMomentItem): void;
+  /** Queue a Great General's retirement moment (#889). Owner-scoped, never deferred by an animated move, dropped on a hot-seat handoff. */
+  enqueueGeneralRetirement(item: GeneralRetirementMomentItem): void;
   /**
    * Queue the game's terminal victory/defeat moment. Clears every other
    * queue's backlog immediately and blocks every further `enqueue*` call
@@ -118,6 +122,9 @@ export interface CeremonyCoordinatorDeps {
   readonly presentLegendaryCompletion?: LegendaryWonderCompletionQueueOptions['present'];
   readonly presentEventChainConclusion?: (item: EventChainConclusionMomentItem) => Promise<void>;
   readonly presentWorldRaceConclusion?: (item: WorldRaceConclusionMomentItem) => Promise<void>;
+  /** Opens the Hall of Fame from the retirement card (#889). Omitted => the card offers only Continue. */
+  readonly openHallOfFame?: () => void;
+  readonly presentGeneralRetirement?: (item: GeneralRetirementMomentItem) => Promise<void>;
   readonly presentVictory?: (options: VictoryPanelOptions) => Promise<void>;
 }
 
@@ -183,6 +190,27 @@ export function createCeremonyCoordinator(deps: CeremonyCoordinatorDeps): Ceremo
     present: presentWorldRaceConclusion,
   });
 
+  const presentGeneralRetirement = deps.presentGeneralRetirement
+    ?? ((item: GeneralRetirementMomentItem) => new Promise<void>(resolve => {
+      deps.host.setBlockingOverlay('general-retirement-ceremony');
+      showGeneralRetirementCeremony(deps.host.layer, {
+        name: item.name,
+        presentation: item.presentation,
+        careerLine: item.careerLine,
+        onOpenHallOfFame: deps.openHallOfFame,
+        onResolve: () => {
+          deps.host.setBlockingOverlay(null);
+          resolve();
+        },
+      });
+    }));
+
+  const generalRetirementQueue = createBigMomentQueue<GeneralRetirementMomentItem>({
+    isInteractionBlocked: () => deps.host.isInteractionBlocked(),
+    keyFor: item => `${item.civId}:${item.generalDefinitionId ?? item.name}`,
+    present: presentGeneralRetirement,
+  });
+
   const presentVictory = deps.presentVictory
     ?? ((options: VictoryPanelOptions) => new Promise<void>(resolve => {
       deps.host.setBlockingOverlay('victory-panel');
@@ -211,6 +239,7 @@ export function createCeremonyCoordinator(deps: CeremonyCoordinatorDeps): Ceremo
     legendaryCompletionQueue.pump();
     eventChainQueue.pump();
     worldRaceConclusionQueue.pump();
+    generalRetirementQueue.pump();
     victoryQueue.pump();
   });
 
@@ -237,12 +266,18 @@ export function createCeremonyCoordinator(deps: CeremonyCoordinatorDeps): Ceremo
       worldRaceConclusionQueue.enqueue(item);
       worldRaceConclusionQueue.notifyActionSettled();
     },
+    enqueueGeneralRetirement(item) {
+      if (terminal) return;
+      generalRetirementQueue.enqueue(item);
+      generalRetirementQueue.notifyActionSettled();
+    },
     enqueueVictory(options) {
       terminal = true;
       wonderDiscoveryQueue.clear();
       legendaryCompletionQueue.clear();
       eventChainQueue.clear();
       worldRaceConclusionQueue.clear();
+      generalRetirementQueue.clear();
       victoryQueue.enqueue(options);
       victoryQueue.notifyActionSettled();
     },
@@ -259,6 +294,7 @@ export function createCeremonyCoordinator(deps: CeremonyCoordinatorDeps): Ceremo
       legendaryCompletionQueue.clear();
       eventChainQueue.clear();
       worldRaceConclusionQueue.clear();
+      generalRetirementQueue.clear();
     },
     clearForNewGame() {
       deferUntilMoveSettles = false;
@@ -273,6 +309,7 @@ export function createCeremonyCoordinator(deps: CeremonyCoordinatorDeps): Ceremo
       legendaryCompletionQueue.reset();
       eventChainQueue.reset();
       worldRaceConclusionQueue.reset();
+      generalRetirementQueue.reset();
       victoryQueue.reset();
     },
   };

@@ -1,6 +1,8 @@
 import type { LastStandPreview, RallyPreview, SeizeEligibleUnit } from '@/systems/great-general-abilities';
 import { createGameButton, setButtonDisabled } from '@/ui/ui-kit';
 import { markModal } from '@/ui/modal-contract';
+import type { GeneralIdentity } from '@/systems/great-general-presentation';
+import { createGeneralPortrait } from '@/ui/general-portrait';
 
 function panelShell(container: HTMLElement, id: string): HTMLElement {
   container.querySelector(`#${id}`)?.remove();
@@ -11,10 +13,22 @@ function panelShell(container: HTMLElement, id: string): HTMLElement {
   return panel;
 }
 
-function finalCommandNotice(panel: HTMLElement): void {
+/** #889: which General is acting, drawn as the same crest every other surface uses (optional so a caller with no identity still works). */
+function identityHeader(panel: HTMLElement, title: string, identity: GeneralIdentity | undefined): void {
+  const heading = document.createElement('h2');
+  heading.style.cssText = 'font-size:20px;color:#e8c170;margin:0 0 8px;display:flex;align-items:center;gap:10px;';
+  if (identity) heading.appendChild(createGeneralPortrait(identity.presentation, { size: 34, name: identity.name }));
+  heading.appendChild(document.createTextNode(identity ? `${title} — ${identity.name}` : title));
+  panel.appendChild(heading);
+}
+
+/** Final Command is the weightiest decision a General offers: say so plainly, name who retires, and say where their story is kept. */
+function finalCommandNotice(panel: HTMLElement, identity?: GeneralIdentity): void {
   const notice = document.createElement('p');
-  notice.textContent = 'Final Command: this is this General\'s last Command Charge. They will retire at the end of this turn.';
-  notice.style.cssText = 'font-size:12px;color:#e8c170;font-weight:bold;margin:8px 0;';
+  notice.dataset.finalCommand = 'true';
+  const who = identity ? `${identity.name}'s` : 'this General\'s';
+  notice.textContent = `Final Command: this is ${who} last Command Charge. They will retire at the end of this turn and take their place in your Hall of Fame.`;
+  notice.style.cssText = 'font-size:12px;color:#e8c170;font-weight:bold;margin:8px 0;padding:8px 10px;border-left:3px solid #e8c170;background:rgba(232,193,112,0.1);border-radius:0 8px 8px 0;';
   panel.appendChild(notice);
 }
 
@@ -57,15 +71,13 @@ export function createRallyPanel(
   preview: RallyPreview,
   onConfirm: () => void,
   onCancel: () => void,
+  identity?: GeneralIdentity,
 ): HTMLElement {
   const panel = panelShell(container, 'rally-panel');
 
-  const title = document.createElement('h2');
-  title.textContent = 'Rally';
-  title.style.cssText = 'font-size:20px;color:#e8c170;margin:0 0 8px;';
-  panel.appendChild(title);
+  identityHeader(panel, 'Rally', identity);
 
-  if (preview.eligibility.isFinalCharge) finalCommandNotice(panel);
+  if (preview.eligibility.isFinalCharge) finalCommandNotice(panel, identity);
 
   if (preview.targets.length === 0) {
     const empty = document.createElement('p');
@@ -91,13 +103,11 @@ export function createSeizeThePanelMoment(
   eligible: SeizeEligibleUnit[],
   onConfirm: (selectedUnitIds: string[]) => void,
   onCancel: () => void,
+  identity?: GeneralIdentity,
 ): HTMLElement {
   const panel = panelShell(container, 'seize-the-moment-panel');
 
-  const title = document.createElement('h2');
-  title.textContent = 'Seize the Moment';
-  title.style.cssText = 'font-size:20px;color:#e8c170;margin:0 0 8px;';
-  panel.appendChild(title);
+  identityHeader(panel, 'Seize the Moment', identity);
 
   const intro = document.createElement('p');
   intro.textContent = 'Choose which units get one more action:';
@@ -159,15 +169,13 @@ export function createLastStandPanel(
   preview: LastStandPreview,
   onConfirm: () => void,
   onCancel: () => void,
+  identity?: GeneralIdentity,
 ): HTMLElement {
   const panel = panelShell(container, 'last-stand-panel');
 
-  const title = document.createElement('h2');
-  title.textContent = 'Last Stand';
-  title.style.cssText = 'font-size:20px;color:#e8c170;margin:0 0 8px;';
-  panel.appendChild(title);
+  identityHeader(panel, 'Last Stand', identity);
 
-  if (preview.eligibility.isFinalCharge) finalCommandNotice(panel);
+  if (preview.eligibility.isFinalCharge) finalCommandNotice(panel, identity);
 
   const summary = document.createElement('p');
   summary.textContent = `Defense +${preview.defenseBonusPercent}% for ${preview.durationTurns} turn(s), with one shared Hold! save for the formation.`;

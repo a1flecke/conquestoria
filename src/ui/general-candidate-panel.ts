@@ -1,7 +1,9 @@
 import type { GeneralDefinition } from '@/systems/great-general-definitions';
+import { getGeneralPresentation } from '@/systems/great-general-presentation';
 import { getGeneralSpecialtyPresentation } from '@/systems/great-general-specialties';
 import { createGameButton } from '@/ui/ui-kit';
 import { markModal } from '@/ui/modal-contract';
+import { createGeneralPortrait } from '@/ui/general-portrait';
 
 export function createGeneralCandidatePanel(
   container: HTMLElement,
@@ -30,9 +32,19 @@ export function createGeneralCandidatePanel(
     const card = document.createElement('section');
     card.style.cssText = 'margin-bottom:12px;background:rgba(255,255,255,0.06);border-radius:10px;padding:12px;';
 
-    const button = createGameButton(`${candidate.portraitIcon} ${candidate.name} — Era ${candidate.era}`, 'primary');
+    // #889: the crest sits inside the choice button so the whole card is one control; its aria-label already
+    // names the General, so the button's visible text stays the single accessible name source.
+    const button = createGameButton(`${candidate.name} — Era ${candidate.era}`, 'primary');
     button.dataset.choice = candidate.id;
     button.style.width = '100%';
+    button.style.display = 'flex';
+    button.style.alignItems = 'center';
+    button.style.gap = '10px';
+    const crest = createGeneralPortrait(getGeneralPresentation(candidate), { size: 40, name: candidate.name });
+    crest.setAttribute('aria-hidden', 'true');
+    crest.removeAttribute('role');
+    crest.removeAttribute('aria-label');
+    button.prepend(crest);
     button.addEventListener('click', () => {
       if (fired) return;
       fired = true;

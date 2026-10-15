@@ -3,6 +3,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createRallyPanel, createSeizeThePanelMoment, createLastStandPanel } from '@/ui/general-command-panel';
 import type { LastStandPreview, RallyPreview } from '@/systems/great-general-abilities';
+import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
+import { getGeneralPresentation } from '@/systems/great-general-presentation';
 
 describe('createRallyPanel', () => {
   function makePreview(): RallyPreview {
@@ -147,5 +149,63 @@ describe('createLastStandPanel', () => {
     expect(confirmButton.disabled).toBe(true);
     confirmButton.click();
     expect(onConfirm).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('#889 General identity in command previews', () => {
+  const identity = { name: 'Julius Caesar', presentation: getGeneralPresentation(GENERAL_DEFINITIONS.find(g => g.id === 'gen_caesar')!) };
+  const finalCharge = (): RallyPreview => ({
+    eligibility: { eligible: true, chargesRemaining: 1, isFinalCharge: true, cooldownTurnsRemaining: 0 },
+    targets: [{ unitId: 'unit-1', healthBefore: 40, healthAfter: 70, stageBefore: 'severe', stageAfter: 'degraded' }],
+  });
+
+  it('names the acting General with their crest in every command panel', () => {
+    const container = document.createElement('div');
+    createRallyPanel(container, finalCharge(), () => {}, () => {}, identity);
+    expect(container.querySelector('#rally-panel h2')!.textContent).toBe('Rally — Julius Caesar');
+    expect(container.querySelector('#rally-panel [data-general-portrait="gen_caesar"]')).not.toBeNull();
+
+    const seize = document.createElement('div');
+    createSeizeThePanelMoment(seize, 'g1', [], () => {}, () => {}, identity);
+    expect(seize.querySelector('#seize-the-moment-panel h2')!.textContent).toBe('Seize the Moment — Julius Caesar');
+
+    const stand = document.createElement('div');
+    createLastStandPanel(stand, {
+      eligibility: { eligible: true, chargesRemaining: 2, isFinalCharge: false, cooldownTurnsRemaining: 0 },
+      targetHex: { q: 0, r: 0 }, area: [], targets: [], defenseBonusPercent: 15, durationTurns: 2,
+    }, () => {}, () => {}, identity);
+    expect(stand.querySelector('#last-stand-panel h2')!.textContent).toBe('Last Stand — Julius Caesar');
+  });
+
+  it('Final Command says who retires and where their story is kept; a normal charge shows no such notice', () => {
+    const container = document.createElement('div');
+    createRallyPanel(container, finalCharge(), () => {}, () => {}, identity);
+    const notice = container.querySelector('[data-final-command]')!;
+    expect(notice.textContent).toContain("Julius Caesar's last Command Charge");
+    expect(notice.textContent).toContain('Hall of Fame');
+
+    const normal = document.createElement('div');
+    createRallyPanel(normal, { ...finalCharge(), eligibility: { ...finalCharge().eligibility, isFinalCharge: false } }, () => {}, () => {}, identity);
+    expect(normal.querySelector('[data-final-command]')).toBeNull();
+  });
+
+  it('still works, with the generic wording, when no identity is supplied', () => {
+    const container = document.createElement('div');
+    createRallyPanel(container, finalCharge(), () => {}, () => {});
+    expect(container.querySelector('#rally-panel h2')!.textContent).toBe('Rally');
+    expect(container.querySelector('[data-general-portrait]')).toBeNull();
+    expect(container.querySelector('[data-final-command]')!.textContent).toContain("this General's last Command Charge");
+  });
+
+  it('keeps Cancel as the safe default and Confirm single-fire with identity present', () => {
+    const container = document.createElement('div');
+    const onConfirm = vi.fn();
+    createRallyPanel(container, finalCharge(), onConfirm, () => {}, identity);
+    expect(container.querySelector('[data-modal-initial-focus]')!.textContent).toBe('Cancel');
+    const confirm = [...container.querySelectorAll('button')].find(b => /confirm/i.test(b.textContent ?? ''))!;
+    confirm.click();
+    confirm.click();
+    expect(onConfirm).toHaveBeenCalledTimes(1);
   });
 });

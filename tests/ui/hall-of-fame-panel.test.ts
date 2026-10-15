@@ -4,6 +4,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { createHallOfFamePanel } from '@/ui/hall-of-fame-panel';
 import type { HallOfFameEntry } from '@/systems/great-general-hall-of-fame';
+import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
+import { getGeneralPresentation } from '@/systems/great-general-presentation';
 
 function makeEntry(over: Partial<HallOfFameEntry> = {}): HallOfFameEntry {
   return {
@@ -125,5 +127,19 @@ describe('hall of fame panel', () => {
   it('the panel module imports no GameState', () => {
     const src = readFileSync('src/ui/hall-of-fame-panel.ts', 'utf8');
     expect(src).not.toMatch(/\bGameState\b/);
+  });
+
+  it('#889: draws the crest from the view-model, and keeps the plain-text row for a record with no presentation', () => {
+    const caesar = GENERAL_DEFINITIONS.find(g => g.id === 'gen_caesar')!;
+    createHallOfFamePanel(container, [makeEntry({ presentation: getGeneralPresentation(caesar) })], { onClose: () => {} });
+    const summary = container.querySelector('[data-hall-of-fame-entry] summary')!;
+    expect(summary.querySelector('[data-general-portrait="gen_caesar"]')).not.toBeNull();
+    expect(summary.textContent).toBe('Julius Caesar · Era 2 · Fallen');
+
+    container.innerHTML = '';
+    createHallOfFamePanel(container, [makeEntry({ presentation: undefined })], { onClose: () => {} });
+    const plain = container.querySelector('[data-hall-of-fame-entry] summary')!;
+    expect(plain.querySelector('[data-general-portrait]')).toBeNull();
+    expect(plain.textContent).toBe('🦅 Julius Caesar · Era 2 · Fallen');
   });
 });
