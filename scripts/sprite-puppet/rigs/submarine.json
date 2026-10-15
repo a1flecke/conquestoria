@@ -1,0 +1,18 @@
+{
+  "id": "submarine",
+  "source": "design/png-sprites/sources/submarine.png",
+  "profile": "firearm",
+  "facing": "right",
+  "frame": { "size": 192, "fit_width": 0.94, "baseline": 0.72, "top_margin": 0.03,
+             "shadow": { "rx": 0.4, "ry": 0.03, "opacity": 0.22 } },
+  "tint": { "hue_ranges": [[0.0, 0.045], [0.955, 1.0]], "min_sat": 0.45, "min_val": 0.18 },
+  "animations": { "idle": 4, "walk": 8, "attack": 8 },
+  "fps": { "idle": 3, "walk": 8, "attack": 8 },
+  "rig": {
+    "muzzle": [236, 133],
+    "attack_fx": "torpedo",
+    "recoil_px": 3,
+    "bob": 0.014,
+    "sway_deg": 1.0
+  }
+}
