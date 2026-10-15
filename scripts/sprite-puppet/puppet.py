@@ -267,6 +267,7 @@ class FirearmRig:
         self.stride = rig.get('stride_deg', 15.0)
         self.recoil = rig.get('recoil_px', 7.0)
         self.amp = rig.get('bob', 0.012) * H
+        self.fx = rig.get('attack_fx', 'muzzle')  # 'muzzle' (flash + smoke) or 'torpedo' (launch bubbles + a torpedo running out)
         self.sway = rig.get('sway_deg', 0.8)  # walk-cycle roll about the feet pivot; ships rock more than people
         comps = []
         if cut_y is not None:
@@ -312,6 +313,22 @@ class FirearmRig:
                 d.ellipse([mx + ox - rad, my + oy - rad, mx + ox + rad, my + oy + rad], fill=(205, 205, 205, a))
         return out.filter(ImageFilter.GaussianBlur(0.8))
 
+    def _torpedo(self, t: float, dx: float, dy: float) -> Image.Image:
+        out = Image.new('RGBA', self.cv.can, (0, 0, 0, 0))
+        d = ImageDraw.Draw(out)
+        mx, my = self.muzzle[0] + self.cv.pad + dx, self.muzzle[1] + self.cv.pad + dy
+        if 0.2 <= t <= 1.0:
+            u = (t - 0.2) / 0.8
+            run = 34 * u  # the torpedo leaves the bow and runs out to the right, trailing bubbles
+            for k in range(6):
+                bx = mx + run - 6 - k * 6
+                if bx > mx - 2:
+                    a = round(200 * (1 - k / 7) * (1 - 0.5 * u))
+                    d.ellipse([bx - 2.5, my - 2.5 + (k % 2), bx + 2.5, my + 2.5 + (k % 2)], fill=(235, 245, 250, a))
+            d.rounded_rectangle([mx + run, my - 2.5, mx + run + 13, my + 2.5], radius=2.5, fill=(168, 174, 180, 255), outline=(40, 44, 50, 255))
+            d.polygon([(mx + run, my), (mx + run - 4, my - 4), (mx + run - 4, my + 4)], fill=(90, 96, 104, 255))
+        return out.filter(ImageFilter.GaussianBlur(0.5))
+
     def frame(self, state: str, i: int, n: int) -> Image.Image:
         t = i / n
         dx = dy = 0.0
@@ -333,7 +350,9 @@ class FirearmRig:
             near = -0.8 * kick * 2
         parts = [self.cv.place(leg, dx * 0.5, dy, ang) for leg, ang in zip(self.legs, (far, near))]
         parts.append(self.cv.place(self.body, dx, dy, rot))
-        if flash > 0 or smoke > 0:
+        if state == 'attack' and self.fx == 'torpedo':
+            parts.append(self._torpedo(t, dx, dy))
+        elif flash > 0 or smoke > 0:
             parts.append(self._flash(flash, smoke, dx, dy))
         return self.cv.compose(parts)
 
