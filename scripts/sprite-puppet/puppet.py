@@ -268,7 +268,7 @@ class FirearmRig:
         self.recoil = rig.get('recoil_px', 7.0)
         self.amp = rig.get('bob', 0.012) * H
         self.prop = rig.get('prop')  # [x, y, half_height] of a propeller to blur while moving/firing (source px)
-        self.fx = rig.get('attack_fx', 'muzzle')  # 'muzzle' (flash + smoke) or 'torpedo' (launch bubbles + a torpedo running out)
+        self.fx = rig.get('attack_fx', 'muzzle')  # 'muzzle' (flash + smoke), 'torpedo' (launch bubbles + a torpedo running out) or 'none' (a non-offensive unit)
         self.sway = rig.get('sway_deg', 0.8)  # walk-cycle roll about the feet pivot; ships rock more than people
         comps = []
         if cut_y is not None:
@@ -364,7 +364,7 @@ class FirearmRig:
             parts.append(self._prop_blur(i))
         if state == 'attack' and self.fx == 'torpedo':
             parts.append(self._torpedo(t, dx, dy))
-        elif flash > 0 or smoke > 0:
+        elif self.fx != 'none' and (flash > 0 or smoke > 0):
             parts.append(self._flash(flash, smoke, dx, dy))
         return self.cv.compose(parts)
 

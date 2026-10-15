@@ -1,0 +1,18 @@
+{
+  "id": "observation_balloon",
+  "source": "design/png-sprites/sources/observation_balloon.png",
+  "profile": "firearm",
+  "facing": "right",
+  "frame": { "size": 192, "fit_width": 0.8, "baseline": 0.94, "top_margin": 0.03,
+             "shadow": { "rx": 0.12, "ry": 0.025, "opacity": 0.2 } },
+  "tint": { "hue_ranges": [[0.0, 0.045], [0.955, 1.0]], "min_sat": 0.45, "min_val": 0.18 },
+  "animations": { "idle": 4, "walk": 8, "attack": 8 },
+  "fps": { "idle": 3, "walk": 8, "attack": 6 },
+  "rig": {
+    "muzzle": [0, 0],
+    "attack_fx": "none",
+    "recoil_px": 0,
+    "bob": 0.012,
+    "sway_deg": 2.4
+  }
+}
