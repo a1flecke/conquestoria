@@ -1,4 +1,5 @@
 import type { GameState, HexTile, ImprovementType } from '@/core/types';
+import type { EventBus } from '@/core/event-bus';
 import { IMPROVEMENT_BUILD_TURNS } from '@/systems/improvement-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { hexKey } from '@/systems/hex-utils';
@@ -54,8 +55,13 @@ export interface PillageResult {
  * and/or road) in one action: gold reward, +25 heal (capped at 100), and the
  * unit's action is fully consumed. War declaration (an act-of-war
  * consequence) is the caller's responsibility — this is a pure state
- * transition, reused identically by the player UI, AI civs, and barbarians. */
-export function applyPillageToState(state: GameState, unitId: string): PillageResult {
+ * transition, reused identically by the player UI, AI civs, and barbarians.
+ *
+ * When a `bus` is supplied the confirmed outcome is announced as
+ * `pillage:resolved` right here, so the player, AI and barbarian paths all
+ * present the same event and a canceled/rejected pillage never emits one
+ * (#657). The state transition itself stays independent of presentation. */
+export function applyPillageToState(state: GameState, unitId: string, bus?: EventBus): PillageResult {
   const unit = state.units[unitId];
   if (!unit) return { ok: false, state, reason: 'missing-unit' };
   if (UNIT_DEFINITIONS[unit.type].strength <= 0) return { ok: false, state, reason: 'no-strength' };
@@ -101,6 +107,13 @@ export function applyPillageToState(state: GameState, unitId: string): PillageRe
     civilizations,
     units,
   };
+
+  bus?.emit('pillage:resolved', {
+    coord: { ...unit.position },
+    improvement: improvementPillaged,
+    roadPillaged: hasRoad,
+    pillagerOwnerId: unit.owner,
+  });
 
   return { ok: true, state: nextState, goldAwarded, improvementPillaged, roadPillaged: hasRoad };
 }

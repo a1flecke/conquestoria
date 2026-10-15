@@ -452,7 +452,12 @@ export function applyPirateAiResponse(state: GameState, civId: string, bus: Even
       const applied = applyCombatOutcomeToState(nextState, combat, seed, bus);
       nextState = applied.state;
       emitMinorCivQuestTransitions(bus, applied.questTransitions, nextState);
-      bus.emit('combat:resolved', { result: combat, ...combatPresentation });
+      bus.emit('combat:resolved', {
+        result: combat,
+        ...combatPresentation,
+        attackerCaptureKind: applied.attackerCaptureKind,
+        defenderCaptureKind: applied.defenderCaptureKind,
+      });
       for (const reward of applied.rewards) bus.emit('combat:reward-earned', { reward });
       continue;
     }
@@ -794,7 +799,7 @@ function processAITurnInternal(
     if (!tile) continue;
     if (tile.owner && !isAtWar(civ.diplomacy, tile.owner)) continue;
     if (!canPillageTile(tile, civId)) continue;
-    const result = applyPillageToState(newState, current.id);
+    const result = applyPillageToState(newState, current.id, bus);
     if (result.ok) newState = result.state;
   }
   civ = newState.civilizations[civId];

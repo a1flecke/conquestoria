@@ -12,6 +12,7 @@ import {
   RELIGION_SFX,
   FAMINE_SFX,
   NETWORK_STRATEGIC_SFX,
+  COMBAT_OUTCOME_SFX,
   type LocomotionClass,
   type PirateUnitType,
 } from '../../src/audio/sfx-catalog';
@@ -138,6 +139,19 @@ describe('sfx-catalog completeness', () => {
     expect(Object.keys(NETWORK_STRATEGIC_SFX).sort()).toEqual([
       'constructive-resolution', 'hostile-consequence', 'hostile-warning', 'recovery', 'surge',
     ]);
+  });
+
+  it('has all five distinct pillage/capture combat-outcome cues (#657)', () => {
+    // pillage provides the improvement and road-only treatments; capture provides
+    // one cue per capture kind. Every cue has its own file so no outcome can be
+    // mistaken for another (and none aliases a unit death cue).
+    expect(Object.keys(COMBAT_OUTCOME_SFX).sort()).toEqual([
+      'capture-civilian', 'capture-naval-boarding', 'capture-naval-modern',
+      'pillage-improvement', 'pillage-road',
+    ]);
+    const files = Object.values(COMBAT_OUTCOME_SFX).map(entry => entry.file);
+    expect(new Set(files).size).toBe(files.length);
+    for (const entry of Object.values(COMBAT_OUTCOME_SFX)) expect(entry.file).toMatch(/^audio\/stinger\/combat\//);
   });
 
   // #612: the old `allSfxEntries().toHaveLength(164)` pin is gone on purpose. A fixed total passes

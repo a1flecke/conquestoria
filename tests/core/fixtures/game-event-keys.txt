@@ -149,6 +149,7 @@ network:audio-cue
 network:exploit-resolved
 network:exploit-warning
 notification:show
+pillage:resolved
 pirate:audio-cue
 pirate:city-destroyed
 pirate:faction-spawned

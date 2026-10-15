@@ -491,7 +491,12 @@ function executePurposefulMinorCivOrders(
     const applied = applyCombatOutcomeToState(nextState, result, seed, bus);
     nextState = applied.state;
     emitMinorCivQuestTransitions(bus, applied.questTransitions, nextState);
-    bus.emit('combat:resolved', { result, ...presentation });
+    bus.emit('combat:resolved', {
+      result,
+      ...presentation,
+      attackerCaptureKind: applied.attackerCaptureKind,
+      defenderCaptureKind: applied.defenderCaptureKind,
+    });
     for (const reward of applied.rewards) bus.emit('combat:reward-earned', { reward });
   }
   for (const order of planned.moveOrders) {

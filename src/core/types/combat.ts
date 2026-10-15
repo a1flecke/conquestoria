@@ -32,3 +32,9 @@ export interface CombatRewardNotification {
   } | null;
   message: string;
 }
+
+/** How a defeated unit changed hands instead of dying (#657). `civilian` is any
+ * captive non-combat unit; the two naval kinds reuse the exact classification
+ * behind `getCaptureNotificationLabel` so audio and notification text can never
+ * disagree about which era's prize-crew flavour applies. */
+export type CaptureKind = 'civilian' | 'naval-boarding' | 'naval-modern';

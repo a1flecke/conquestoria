@@ -75,7 +75,7 @@ export function createUnitActionCommands(
         deps.ensurePlayerWarState(tile.owner);
       }
 
-      const result = applyPillageToState(session.getState(), uid);
+      const result = applyPillageToState(session.getState(), uid, deps.bus);
       if (!result.ok) return;
       session.commit(result.state);
       deps.showNotification(

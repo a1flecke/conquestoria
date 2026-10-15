@@ -1,7 +1,7 @@
 import { lehmerFoldByCodePoint } from './deterministic-hash';
 import type { EventBus } from '@/core/event-bus';
 import type { CombatResult, GameState, Unit, UnitType } from '@/core/types';
-import type { CombatRewardNotification } from '@/core/types/combat';
+import type { CaptureKind, CombatRewardNotification } from '@/core/types/combat';
 import { emitEndedTradeRoutes, releaseCapturedUnitsFromRoutes, removeUnitsFromSlice, type EndedTradeRoute } from '@/systems/unit-removal-system';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { recordCombatForCiv } from '@/systems/threat-pressure-system';
@@ -80,14 +80,20 @@ function isPirateFlagship(state: GameState, unit: Unit): boolean {
   return faction?.headquarters.kind === 'deep-sea-flotilla' && faction.headquarters.flagshipUnitId === unit.id;
 }
 
+/** The one classification of a captured unit's flavour: a captive civilian, an
+ * Age-of-Sail prize crew, or a modern disable-and-capture. Both the notification
+ * label and the outcome audio read this, so they can never drift apart (#657). */
+export function getCaptureKind(type: UnitType): CaptureKind {
+  if (!isCapturableNavalMilitary(type)) return 'civilian';
+  return PRE_INDUSTRIAL_NAVAL_TYPES.includes(type) ? 'naval-boarding' : 'naval-modern';
+}
+
 export function getCaptureNotificationLabel(type: UnitType): string {
   const name = UNIT_DEFINITIONS[type].name;
   if (type === 'settler') return 'Settler captured — converted to Worker';
-  if (isCapturableNavalMilitary(type)) {
-    return PRE_INDUSTRIAL_NAVAL_TYPES.includes(type)
-      ? `${name} boarded — prize crew aboard!`
-      : `${name} disabled and captured!`;
-  }
+  const kind = getCaptureKind(type);
+  if (kind === 'naval-boarding') return `${name} boarded — prize crew aboard!`;
+  if (kind === 'naval-modern') return `${name} disabled and captured!`;
   return `${name} captured!`;
 }
 
@@ -126,6 +132,12 @@ export interface CombatOutcomeApplication {
   defenderDefeated: boolean;
   attackerCaptured: boolean;
   defenderCaptured: boolean;
+  /** Flavour of each capture, for notification text and outcome audio (#657).
+   * Undefined unless the matching `*Captured` flag is true. Derived from the
+   * pre-capture unit type, so a counter-captured attacker is classified by what
+   * it was, not by the worker it may have become. */
+  attackerCaptureKind?: CaptureKind;
+  defenderCaptureKind?: CaptureKind;
   questTransitions: ChainTransition[];
   pirateEvents: PirateActionEvent[];
   /**
@@ -924,6 +936,8 @@ export function applyCombatOutcomeToState(
     defenderDefeated: defenderActuallyDefeated,
     attackerCaptured,
     defenderCaptured,
+    attackerCaptureKind: attackerCaptured ? getCaptureKind(attackerBefore.type) : undefined,
+    defenderCaptureKind: defenderCaptured ? getCaptureKind(defenderBefore.type) : undefined,
     questTransitions,
     pirateEvents,
     beastsSlain,

@@ -155,7 +155,12 @@ function runBeasts(state: GameState, context: RoundPhaseContext): GameState {
       emitMinorCivQuestTransitions(bus, applied.questTransitions, newState);
       // A beast that died on its own counterattack is slain inside applyCombatOutcomeToState (#1014).
       // If the intruder died, no hoard — the beast attacked, not the player
-      bus.emit('combat:resolved', { result, ...combatPresentation });
+      bus.emit('combat:resolved', {
+        result,
+        ...combatPresentation,
+        attackerCaptureKind: applied.attackerCaptureKind,
+        defenderCaptureKind: applied.defenderCaptureKind,
+      });
       for (const reward of applied.rewards) {
         bus.emit('combat:reward-earned', { reward });
       }

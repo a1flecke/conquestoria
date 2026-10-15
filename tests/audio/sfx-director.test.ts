@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SfxDirector } from '../../src/audio/sfx-director';
-import { UNIT_SFX, MOVEMENT_SFX, PIRATE_MOVEMENT_SFX } from '../../src/audio/sfx-catalog';
+import { UNIT_SFX, MOVEMENT_SFX, PIRATE_MOVEMENT_SFX, COMBAT_OUTCOME_SFX } from '../../src/audio/sfx-catalog';
 import type { AudioMixer } from '../../src/audio/audio-mixer';
 import type { AudioLoader } from '../../src/audio/audio-loader';
 import type { EventBus } from '../../src/core/event-bus';
@@ -520,6 +520,174 @@ describe('SfxDirector', () => {
     const deathPath = UNIT_SFX.spy_scout!.death!.file;
     expect(loader.get).toHaveBeenCalledWith(deathPath);
     expect(mixer.playOneShot).toHaveBeenCalledWith('sfx', loader.bufferFor(deathPath));
+  });
+
+  // === capture outcomes (#657) ===
+
+  it('a captured civilian defender plays the capture cue, never its death cue', async () => {
+    const units = { a1: makeUnit('a1', 'warrior'), d1: makeUnit('d1', 'worker', 'ai-1', 1) };
+    director.start(units, busHelper.bus, stateProvider(units));
+    busHelper.emit('combat:resolved', {
+      result: makeCombatResult({ defenderSurvived: false }),
+      defenderCaptureKind: 'civilian',
+    });
+    await tick();
+
+    const capturePath = COMBAT_OUTCOME_SFX['capture-civilian'].file;
+    expect(loader.get).toHaveBeenCalledWith(capturePath);
+    expect(mixer.playOneShot).toHaveBeenCalledWith('sfx', loader.bufferFor(capturePath));
+    expect(loader.get).not.toHaveBeenCalledWith(UNIT_SFX.worker!.death!.file);
+  });
+
+  it('a captured attacker plays the capture cue, never its death cue', async () => {
+    const units = { a1: makeUnit('a1', 'settler', 'rome', 0), d1: makeUnit('d1', 'warrior', 'ai-1', 1) };
+    director.start(units, busHelper.bus, stateProvider(units));
+    busHelper.emit('combat:resolved', {
+      result: makeCombatResult({ attackerSurvived: false }),
+      attackerCaptureKind: 'civilian',
+    });
+    await tick();
+
+    const capturePath = COMBAT_OUTCOME_SFX['capture-civilian'].file;
+    expect(mixer.playOneShot).toHaveBeenCalledWith('sfx', loader.bufferFor(capturePath));
+    expect(loader.get).not.toHaveBeenCalledWith(UNIT_SFX.settler!.death!.file);
+  });
+
+  it('a decisively captured Age-of-Sail hull plays the boarding prize cue, not the hull death cue', async () => {
+    const units = { a1: makeUnit('a1', 'frigate'), d1: makeUnit('d1', 'galley', 'ai-1', 1) };
+    director.start(units, busHelper.bus, stateProvider(units));
+    busHelper.emit('combat:resolved', {
+      result: makeCombatResult({ defenderSurvived: false }),
+      defenderCaptureKind: 'naval-boarding',
+    });
+    await tick();
+
+    const boardingPath = COMBAT_OUTCOME_SFX['capture-naval-boarding'].file;
+    expect(mixer.playOneShot).toHaveBeenCalledWith('sfx', loader.bufferFor(boardingPath));
+    expect(loader.get).not.toHaveBeenCalledWith(UNIT_SFX.galley!.death!.file);
+  });
+
+  it('a decisively captured modern warship plays the disable-and-capture cue, not a wreck cue', async () => {
+    const units = { a1: makeUnit('a1', 'destroyer'), d1: makeUnit('d1', 'submarine', 'ai-1', 1) };
+    director.start(units, busHelper.bus, stateProvider(units));
+    busHelper.emit('combat:resolved', {
+      result: makeCombatResult({ defenderSurvived: false }),
+      defenderCaptureKind: 'naval-modern',
+    });
+    await tick();
+
+    const modernPath = COMBAT_OUTCOME_SFX['capture-naval-modern'].file;
+    expect(mixer.playOneShot).toHaveBeenCalledWith('sfx', loader.bufferFor(modernPath));
+    expect(loader.get).not.toHaveBeenCalledWith(UNIT_SFX.submarine!.death!.file);
+    expect(loader.get).not.toHaveBeenCalledWith(COMBAT_OUTCOME_SFX['capture-naval-boarding'].file);
+  });
+
+  it('a capture plays exactly one capture cue and no death cue for that participant', async () => {
+    const units = { a1: makeUnit('a1', 'warrior'), d1: makeUnit('d1', 'worker', 'ai-1', 1) };
+    director.start(units, busHelper.bus, stateProvider(units));
+    busHelper.emit('combat:resolved', {
+      result: makeCombatResult({ defenderSurvived: false }),
+      defenderCaptureKind: 'civilian',
+    });
+    await tick();
+
+    const capturePath = COMBAT_OUTCOME_SFX['capture-civilian'].file;
+    expect(loader.get.mock.calls.filter(([path]) => path === capturePath)).toHaveLength(1);
+  });
+
+  it('keeps a capture the current viewer cannot see silent', async () => {
+    const units = { a1: makeUnit('a1', 'warrior'), d1: makeUnit('d1', 'worker', 'ai-1', 1) };
+    director.start(units, busHelper.bus, stateProvider(units));
+    busHelper.emit('combat:resolved', {
+      result: makeCombatResult({ defenderSurvived: false }),
+      visibleToViewerIds: ['someone-else'],
+      defenderCaptureKind: 'civilian',
+    });
+    await tick();
+    expect(mixer.playOneShot).not.toHaveBeenCalled();
+  });
+
+  it('drops a queued capture cue when the seat changes before it loads', async () => {
+    let finish!: (buffer: AudioBuffer) => void;
+    loader.get.mockImplementation(() => new Promise<AudioBuffer>(resolve => { finish = resolve; }));
+    const units = { a1: makeUnit('a1', 'warrior'), d1: makeUnit('d1', 'worker', 'ai-1', 1) };
+    const state = stateProvider(units)();
+    director.start(units, busHelper.bus, () => state);
+    busHelper.emit('combat:resolved', {
+      result: makeCombatResult({ defenderSurvived: false }),
+      visibleToViewerIds: ['player'],
+      defenderCaptureKind: 'civilian',
+    });
+    state.currentPlayer = 'next-seat';
+    finish({} as AudioBuffer);
+    await tick();
+    expect(mixer.playOneShot).not.toHaveBeenCalled();
+  });
+
+  // === pillage outcomes (#657) ===
+
+  it('pillage:resolved with an improvement plays the pillage cue', async () => {
+    const units = { u1: makeUnit('u1', 'warrior') };
+    director.start(units, busHelper.bus, stateProvider(units));
+    busHelper.emit('pillage:resolved', { coord: { q: 1, r: 0 }, improvement: 'farm', roadPillaged: false });
+    await tick();
+
+    const path = COMBAT_OUTCOME_SFX['pillage-improvement'].file;
+    expect(loader.get).toHaveBeenCalledWith(path);
+    expect(mixer.playOneShot).toHaveBeenCalledWith('sfx', loader.bufferFor(path));
+  });
+
+  it('pillage:resolved for a road-only tile plays the lighter road cue', async () => {
+    const units = { u1: makeUnit('u1', 'warrior') };
+    director.start(units, busHelper.bus, stateProvider(units));
+    busHelper.emit('pillage:resolved', { coord: { q: 1, r: 0 }, improvement: null, roadPillaged: true });
+    await tick();
+
+    const roadPath = COMBAT_OUTCOME_SFX['pillage-road'].file;
+    expect(mixer.playOneShot).toHaveBeenCalledWith('sfx', loader.bufferFor(roadPath));
+    expect(loader.get).not.toHaveBeenCalledWith(COMBAT_OUTCOME_SFX['pillage-improvement'].file);
+  });
+
+  it('drops a queued pillage cue when the seat changes before it loads', async () => {
+    let finish!: (buffer: AudioBuffer) => void;
+    loader.get.mockImplementation(() => new Promise<AudioBuffer>(resolve => { finish = resolve; }));
+    const units = { u1: makeUnit('u1', 'warrior') };
+    const state = stateProvider(units)();
+    director.start(units, busHelper.bus, () => state);
+    busHelper.emit('pillage:resolved', { coord: { q: 1, r: 0 }, improvement: 'farm', roadPillaged: false });
+    state.currentPlayer = 'next-seat';
+    finish({} as AudioBuffer);
+    await tick();
+    expect(mixer.playOneShot).not.toHaveBeenCalled();
+  });
+
+  it('pillage:resolved is silent on a fogged tile', async () => {
+    const units = { u1: makeUnit('u1', 'warrior') };
+    director.start(units, busHelper.bus, stateProvider(units, 'fog'));
+    busHelper.emit('pillage:resolved', { coord: { q: 1, r: 0 }, improvement: 'farm', roadPillaged: false });
+    await tick();
+    expect(mixer.playOneShot).not.toHaveBeenCalled();
+  });
+
+  it('pillage:resolved is silent while presentation is suppressed', async () => {
+    const units = { u1: makeUnit('u1', 'warrior') };
+    director.start(units, busHelper.bus, stateProvider(units), () => true);
+    busHelper.emit('pillage:resolved', { coord: { q: 1, r: 0 }, improvement: 'farm', roadPillaged: false });
+    await tick();
+    expect(mixer.playOneShot).not.toHaveBeenCalled();
+  });
+
+  it('pillage:resolved stays silent for a seat that never saw the tile', async () => {
+    const units = { u1: makeUnit('u1', 'warrior') };
+    const state = {
+      currentPlayer: 'other-player',
+      units,
+      civilizations: { 'other-player': { visibility: { tiles: {}, lastSeen: {} } } },
+    } as unknown as GameState;
+    director.start(units, busHelper.bus, () => state);
+    busHelper.emit('pillage:resolved', { coord: { q: 1, r: 0 }, improvement: 'farm', roadPillaged: false });
+    await tick();
+    expect(mixer.playOneShot).not.toHaveBeenCalled();
   });
 
   // === dispose ===
