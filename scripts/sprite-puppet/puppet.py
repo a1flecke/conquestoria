@@ -267,6 +267,7 @@ class FirearmRig:
         self.stride = rig.get('stride_deg', 15.0)
         self.recoil = rig.get('recoil_px', 7.0)
         self.amp = rig.get('bob', 0.012) * H
+        self.sway = rig.get('sway_deg', 0.8)  # walk-cycle roll about the feet pivot; ships rock more than people
         comps = []
         if cut_y is not None:
             low = alpha.copy()
@@ -323,7 +324,7 @@ class FirearmRig:
             far = self.stride * math.sin(2 * math.pi * t)
             near = -far
             dy = -self.amp * 1.4 * abs(math.sin(2 * math.pi * t))
-            rot = 0.8 * math.sin(2 * math.pi * t)
+            rot = self.sway * math.sin(2 * math.pi * t)
         else:  # attack = fire: settle aim, flash + kick back, recover; smoke drifts off
             kick, rot = keyframes(t, [(0, 0, 0), (0.2, 0, 0.3), (0.3, -1, -2.2), (0.55, -0.35, -0.8), (1, 0, 0)])
             dx = kick * self.recoil
