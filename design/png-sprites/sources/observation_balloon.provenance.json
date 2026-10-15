@@ -1,0 +1,13 @@
+{
+  "id": "observation_balloon",
+  "file": "observation_balloon.png",
+  "generator": "SpriteCook (spritecook.ai) via MCP generate_game_art",
+  "model": "gpt-image-2.5-flare",
+  "settings": { "pixel": false, "resolution": "1K", "quality": "medium", "bg_mode": "transparent", "variations": 1, "style_asset_ids": ["4c7b5e87-4648-4d09-a758-d2d0f8dee172"] },
+  "spritecook_asset_id": "56f93618-8220-4650-aa8b-fe5ef095713b",
+  "generated_on": "2026-10-14",
+  "credits_used": 16,
+  "prompt": "Tethered observation balloon unit for a historical civilization strategy game. A large oval hydrogen gas envelope in saturated pure red with a few tan seams, a rope net holding a wicker gondola basket below it, an observer leaning out of the basket holding binoculars, a short tether rope hanging down. Clean side view facing right, full object centered, readable silhouette at small size. The envelope is saturated pure red and NOTHING else in the image is red.",
+  "style": "clean hand-painted 2D game art, bold dark outline, flat cel shading with soft highlights, earthy saturated palette",
+  "licence_note": "Project owner directed the use of SpriteCook for this unit and approved the spend and the image in chat (2026-10-14). The 16 credits were 8 for the image plus 8 for the Horseman style reference. SpriteCook's terms were not re-read here; re-check before adding more generated sources. Known gaps against the brief (owner accepted the art as is): a three-quarter view, a spyglass instead of binoculars, a more detailed and realistic finish than the Sprite-AI ships. Non-offensive unit: its attack row is a sway, with no weapon effect."
+}
