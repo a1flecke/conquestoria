@@ -267,6 +267,7 @@ class FirearmRig:
         self.stride = rig.get('stride_deg', 15.0)
         self.recoil = rig.get('recoil_px', 7.0)
         self.amp = rig.get('bob', 0.012) * H
+        self.prop = rig.get('prop')  # [x, y, half_height] of a propeller to blur while moving/firing (source px)
         self.fx = rig.get('attack_fx', 'muzzle')  # 'muzzle' (flash + smoke) or 'torpedo' (launch bubbles + a torpedo running out)
         self.sway = rig.get('sway_deg', 0.8)  # walk-cycle roll about the feet pivot; ships rock more than people
         comps = []
@@ -313,6 +314,15 @@ class FirearmRig:
                 d.ellipse([mx + ox - rad, my + oy - rad, mx + ox + rad, my + oy + rad], fill=(205, 205, 205, a))
         return out.filter(ImageFilter.GaussianBlur(0.8))
 
+    def _prop_blur(self, i: int) -> Image.Image:
+        out = Image.new('RGBA', self.cv.can, (0, 0, 0, 0))
+        px, py, hh = self.prop
+        cx, cy = px + self.cv.pad, py + self.cv.pad
+        d = ImageDraw.Draw(out)
+        a = 120 + 30 * (i % 2)  # alternate frames so the disc shimmers
+        d.ellipse([cx - 4, cy - hh, cx + 4, cy + hh], fill=(205, 205, 200, a))
+        return out.filter(ImageFilter.GaussianBlur(1.2))
+
     def _torpedo(self, t: float, dx: float, dy: float) -> Image.Image:
         out = Image.new('RGBA', self.cv.can, (0, 0, 0, 0))
         d = ImageDraw.Draw(out)
@@ -350,6 +360,8 @@ class FirearmRig:
             near = -0.8 * kick * 2
         parts = [self.cv.place(leg, dx * 0.5, dy, ang) for leg, ang in zip(self.legs, (far, near))]
         parts.append(self.cv.place(self.body, dx, dy, rot))
+        if self.prop and state != 'idle':
+            parts.append(self._prop_blur(i))
         if state == 'attack' and self.fx == 'torpedo':
             parts.append(self._torpedo(t, dx, dy))
         elif flash > 0 or smoke > 0:
