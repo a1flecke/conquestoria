@@ -79,6 +79,8 @@ Migrating a unit is one catalog row plus its generated manifest; migrating it ba
   canvas, sheet missing) and what a rollback returns to. `tests/renderer/sprites/png/` enforces this, plus manifest/file/rig-spec/provenance.
 - **Provenance is mandatory:** every source image has `design/png-sprites/sources/<id>.provenance.json` (tool, model, prompt, asset id, date,
   licence note). A generated source is never committed without it.
+- **Profiles:** `static`, `mounted` (horse + rider) and `firearm` (#621: shooters, vehicles, ships, aircraft, a balloon). A unit that attacks gets a visible attack
+  cue (`attack_fx` muzzle / torpedo); a non-offensive unit (observation balloon) sets `attack_fx: none`. Never fabricate a weapon effect for it.
 - **Hard rules:** never put a free-form string in a PNG sprite style attribute (colours pass `resolvePngTint`'s hex check); no hardcoded
   pixel size (the overlay's wrapper size still comes from `camera.hexSize`); `hurt`/`death`/`work` reuse the idle row (CSS filter) — do not
   add a state without a manifest row; keep ~560 KB/unit in mind before migrating the whole roster (see the README's size note).

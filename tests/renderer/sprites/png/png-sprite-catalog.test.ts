@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { createHash } from 'node:crypto';
 import { listPngUnitManifests, getPngUnitManifest, isPngUnit } from '@/renderer/sprites/png/png-sprite-catalog';
 import { UNIT_SPRITE_CATALOG } from '@/renderer/sprites/sprite-catalog';
 import type { PngSpriteState } from '@/renderer/sprites/png/png-sprite-types';
@@ -58,5 +59,51 @@ describe('PNG unit sprite catalog (#1040 spike)', () => {
     expect(existsSync(resolve(ROOT, spec.source.replace(/\.png$/, '.provenance.json'))), 'provenance').toBe(true);
     // migration safety: the SVG sprite stays in the catalog so removing a PNG row (or a failed canvas bake) falls back cleanly
     expect(m.id in UNIT_SPRITE_CATALOG, `${m.id} must keep its SVG sprite while the PNG is migrating in`).toBe(true);
+  });
+});
+
+/** The eight units that were `TODO(art)` placeholders before #621. */
+const MILITARY_IDENTITY_UNITS = [
+  'rifleman', 'ironclad', 'machine_gunner', 'pre_dreadnought', 'tank', 'submarine', 'observation_balloon', 'biplane',
+] as const;
+
+const sha = (path: string): string => createHash('sha256').update(readFileSync(path)).digest('hex');
+
+describe('military visual identity (#621)', () => {
+  it.each(MILITARY_IDENTITY_UNITS.map(id => [id] as const))('%s ships as a painted PNG unit with its SVG fallback', id => {
+    expect(isPngUnit(id)).toBe(true);
+    expect(id in UNIT_SPRITE_CATALOG).toBe(true);
+  });
+
+  it('no two PNG units share a source image, sheet or tint mask (no duplicate art)', () => {
+    const seen = new Map<string, string>();
+    for (const m of listPngUnitManifests()) {
+      const spec = JSON.parse(readFileSync(resolve(ROOT, 'scripts/sprite-puppet/rigs', `${m.id}.json`), 'utf8')) as { source: string };
+      for (const [kind, file] of [
+        ['source', resolve(ROOT, spec.source)],
+        ['sheet', resolve(ROOT, 'public', m.sheet)],
+        ['mask', resolve(ROOT, 'public', m.mask)],
+      ] as const) {
+        const key = `${kind}:${sha(file)}`;
+        expect(seen.get(key), `${m.id} ${kind} is byte-identical to ${seen.get(key)}`).toBeUndefined();
+        seen.set(key, m.id);
+      }
+    }
+  });
+
+  it.each(MILITARY_IDENTITY_UNITS.map(id => [id] as const))('%s: provenance names a generator, an asset id and what it cost', id => {
+    const prov = JSON.parse(readFileSync(resolve(ROOT, 'design/png-sprites/sources', `${id}.provenance.json`), 'utf8')) as Record<string, unknown>;
+    expect(typeof prov.generator).toBe('string');
+    expect(prov.sprite_ai_generation_id ?? prov.spritecook_asset_id, 'generator asset id').toBeTruthy();
+    expect(prov.tokens_used ?? prov.credits_used, 'cost').toBeGreaterThan(0);
+    expect(String(prov.licence_note).length).toBeGreaterThan(40);
+    expect(String(prov.prompt)).toMatch(/red/i); // the tint contract: faction cloth is saturated red
+  });
+
+  it.each(MILITARY_IDENTITY_UNITS.map(id => [id] as const))('%s: has a walk row and an attack row that differ from idle', id => {
+    const m = getPngUnitManifest(id)!;
+    expect(m.states.walk.frames).toBeGreaterThanOrEqual(4);
+    expect(m.states.attack.frames).toBeGreaterThanOrEqual(4);
+    expect(m.states.idle.row).not.toBe(m.states.attack.row);
   });
 });

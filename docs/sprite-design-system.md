@@ -71,14 +71,24 @@ sprite stays in the catalog as the fallback. `isPngUnit(unitType)` tells you whi
 | expedition | ✅ sprite | civilian |
 | cannon | ✅ sprite | siege |
 | grenadier | ✅ sprite | melee |
-| rifleman | ✅ sprite | ranged |
-| ironclad | ✅ sprite | naval |
-| machine_gunner | ✅ sprite | ranged |
-| pre_dreadnought | ✅ sprite | naval |
-| tank | ✅ sprite | melee |
-| submarine | ✅ sprite | naval |
-| observation_balloon | ⚠️ placeholder (tracked: #621) | air |
-| biplane | ⚠️ placeholder (tracked: #621) | air |
+| rifleman | ✅ painted PNG (#621) | ranged |
+| ironclad | ✅ painted PNG (#621) | naval |
+| machine_gunner | ✅ painted PNG (#621) | ranged |
+| pre_dreadnought | ✅ painted PNG (#621) | naval |
+| tank | ✅ painted PNG (#621) | melee |
+| submarine | ✅ painted PNG (#621) | naval |
+| observation_balloon | ✅ painted PNG (#621) | air |
+| biplane | ✅ painted PNG (#621) | air |
+
+**#621 military visual identity.** These eight units (the last `TODO(art)` placeholders) ship as painted PNG spritesheets through the
+PNG pipeline above; their SVG functions in `units.tsx` stay as the fallback and say so in a comment. Sources: Sprite-AI
+(rifleman, machine gunner, tank, ironclad, pre-dreadnought, submarine, biplane) and SpriteCook (observation balloon); each has a
+`design/png-sprites/sources/<id>.provenance.json`. They use the `firearm` puppet profile (stride, recoil, muzzle flash; submarine
+torpedo; balloon sway; biplane propeller blur). Known gaps against the original briefs, all accepted by the owner when approving each
+image: the tank is a mid-century turreted tank, not a WWI rhomboid; the machine gun is a tripod light gun, not a water-cooled Maxim; the
+ironclad shows no gun ports and tints its lower hull; the pre-dreadnought's turrets are not clearly legible and its funnel bands tint with
+the hull; the biplane has no wing roundel; the balloon is a three-quarter view with a spyglass, not binoculars. A regeneration is one
+Sprite-AI token (or ~16 SpriteCook credits with a style reference). Review them with `?scenario=png-sprite-spike`.
 
 ### Legendary Beasts — `src/renderer/sprites/beasts.tsx`
 Registered in `UNIT_SPRITE_CATALOG` in `src/renderer/sprites/sprite-catalog.ts`.
