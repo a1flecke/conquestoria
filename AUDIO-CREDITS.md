@@ -192,6 +192,16 @@ Source (RPG Audio):     https://kenney.nl/assets/rpg-audio
 License: CC0 1.0 Universal — https://creativecommons.org/publicdomain/zero/1.0/
 Author: Kenney (kenney.nl)
 
+## Combat Outcome Audio (#657)
+
+The 5 pillage and unit-capture cue files in `public/audio/stinger/combat/` are deterministic derivatives of existing Kenney CC0 source SFX already carried in `public/audio/sfx/`.
+`scripts/generate-combat-outcome-sfx.sh` layers those source recordings with in-project ffmpeg `lavfi` tone and seeded noise, then filters and re-encodes the results to OGG Vorbis. Exact output coverage, source file paths, license, and derivative notes are recorded in `src/audio/combat-outcome-audio-sources.ts`.
+
+Source (Impact Sounds): https://kenney.nl/assets/impact-sounds
+Source (RPG Audio):     https://kenney.nl/assets/rpg-audio
+License: CC0 1.0 Universal — https://creativecommons.org/publicdomain/zero/1.0/
+Author: Kenney (kenney.nl)
+
 - `audio/wonders/great-volcano-stinger.ogg` — "Underwater Rumble" by Eric Matyas, Soundimage.org.
   Source: https://soundimage.org/wp-content/uploads/2019/11/Underwater-Rumble.mp3
   Used as: Great Volcano discovery and replay stinger

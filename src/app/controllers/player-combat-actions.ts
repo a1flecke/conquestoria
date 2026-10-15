@@ -325,10 +325,8 @@ export function createPlayerCombatActions(deps: PlayerActionControllerDeps, cros
       resolveCombatEra(deps.session.getState(), attacker, defender),
       deps.session.getState(),
     );
-    deps.bus.emit('combat:resolved', {
-      result,
-      ...buildCombatPresentation(deps.session.getState(), result, attacker, defender),
-    });
+    // Built from the pre-outcome state so visibility matches what each viewer can see.
+    const combatPresentation = buildCombatPresentation(deps.session.getState(), result, attacker, defender);
 
     // Every state write of the fight, its consequences and any city assault it triggers is one
     // publication (#1015): renderLoop.setGameState recomputes several presentations, and the
@@ -336,6 +334,14 @@ export function createPlayerCombatActions(deps: PlayerActionControllerDeps, cros
     const assault = deps.session.batch((): { assaultStatus: 'pending' | 'resolved' } | null => {
       const applied = applyCombatOutcomeToState(deps.session.getState(), result, seed, deps.bus);
       deps.session.commit(applied.state);
+      // Emitted AFTER the ownership change is applied, carrying the confirmed capture
+      // kind, so presentation never mistakes a captured unit for one that died (#657).
+      deps.bus.emit('combat:resolved', {
+        result,
+        ...combatPresentation,
+        attackerCaptureKind: applied.attackerCaptureKind,
+        defenderCaptureKind: applied.defenderCaptureKind,
+      });
       emitMinorCivQuestTransitions(deps.bus, applied.questTransitions, deps.session.getState());
 
       if (applied.attackerDefeated) {

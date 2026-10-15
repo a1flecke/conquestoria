@@ -17,7 +17,7 @@ import type {
   WarRecord,
 } from './types/diplomacy';
 import type { AdvisorType, CouncilGameState, CouncilTalkLevel } from './types/council';
-import type { CombatExchangeSummary, CombatModifierFact, CombatRewardNotification } from './types/combat';
+import type { CombatExchangeSummary, CombatModifierFact, CombatRewardNotification, CaptureKind } from './types/combat';
 import type { DiplomacyEvents } from './types/events-diplomacy';
 export type { DiplomacyEvents } from './types/events-diplomacy';
 import type { CivilizationEvents } from './types/events-civilization';
@@ -47,7 +47,7 @@ export type {
 } from './types/council';
 export { STRATEGIC_CONSTRAINT_KINDS } from './types/council';
 export type {
-  CombatModifierFact, CombatExchangeKind, CombatExchangeSummary, CombatRewardNotification,
+  CombatModifierFact, CombatExchangeKind, CombatExchangeSummary, CombatRewardNotification, CaptureKind,
 } from './types/combat';
 export type { IdCounters } from './types/ids';
 
@@ -2162,6 +2162,20 @@ export interface GameEvents extends DiplomacyEvents, CivilizationEvents, WorldEv
     defenderType: UnitType;
     attackerOwnerId: string;
     defenderOwnerId: string;
+    /** Confirmed by `applyCombatOutcomeToState`: this participant was captured,
+     * not destroyed. Present only when a capture actually happened, so a
+     * presentation layer can never mistake a capture for a death (#657). */
+    attackerCaptureKind?: CaptureKind;
+    defenderCaptureKind?: CaptureKind;
+  };
+  /** A pillage that actually burned a finished improvement and/or a road, emitted
+   * by `applyPillageToState` for the player, AI civs and barbarians alike (#657).
+   * Canceled or rejected pillages never reach it. */
+  'pillage:resolved': {
+    coord: HexCoord;
+    improvement: ImprovementType | null;
+    roadPillaged: boolean;
+    pillagerOwnerId: string;
   };
   'combat:reward-earned': { reward: CombatRewardNotification };
   'improvement:started': { unitId: string; coord: HexCoord; type: ImprovementType };

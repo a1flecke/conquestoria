@@ -70,7 +70,7 @@ function runBarbarians(state: GameState, context: RoundPhaseContext): GameState 
   // withdrawal move correctly fails validation and simply doesn't fire this turn —
   // the raider retreats next turn instead.
   for (const order of barbResult.pillageOrders) {
-    const result = applyPillageToState(newState, order.unitId);
+    const result = applyPillageToState(newState, order.unitId, bus);
     if (result.ok) newState = result.state;
   }
 
@@ -102,7 +102,12 @@ function runBarbarians(state: GameState, context: RoundPhaseContext): GameState 
     const applied = applyCombatOutcomeToState(newState, result, combatSeed, bus);
     newState = applied.state;
     emitMinorCivQuestTransitions(bus, applied.questTransitions, newState);
-    bus.emit('combat:resolved', { result, ...combatPresentation });
+    bus.emit('combat:resolved', {
+      result,
+      ...combatPresentation,
+      attackerCaptureKind: applied.attackerCaptureKind,
+      defenderCaptureKind: applied.defenderCaptureKind,
+    });
     for (const reward of applied.rewards) {
       bus.emit('combat:reward-earned', { reward });
     }

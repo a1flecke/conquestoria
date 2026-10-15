@@ -5,13 +5,14 @@ import {
   applyCombatOutcomeToState,
   calculateDefeatReward,
   collectCombatRewards,
+  getCaptureKind,
   getCaptureNotificationLabel,
   isCapturableNavalMilitary,
   meetsCaptureMargin,
 } from '@/systems/combat-reward-system';
 import { getExperienceToNextTier, getVeterancyCombatModifier, getVeterancyTier } from '@/systems/veterancy-tiers';
 import { createEmptyPirateState, type PirateFactionState } from '@/core/pirate-state';
-import type { BeastLair, City, CombatResult, GameState, GeneralCareerEvent } from '@/core/types';
+import type { BeastLair, City, CombatResult, GameState, GeneralCareerEvent, UnitType } from '@/core/types';
 import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import { BEAST_OWNER } from '@/systems/beast-system';
@@ -1677,6 +1678,79 @@ describe('prize-crew helpers', () => {
     expect(getCaptureNotificationLabel('galley')).toMatch(/prize crew|boarded/i);
     expect(getCaptureNotificationLabel('submarine')).toMatch(/disabled|captured/i);
     expect(getCaptureNotificationLabel('worker')).toMatch(/captured/i);
+  });
+});
+
+describe('capture kind classification (#657)', () => {
+  const capturedDefeat = (): CombatResult => ({
+    attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+    attackerSurvived: true, defenderSurvived: false,
+    attackerStrength: 20, defenderStrength: 8,
+    attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+  });
+
+  function makeCapturedState(defenderType: UnitType, attackerType: UnitType = 'warrior'): GameState {
+    const state = makeRewardState();
+    state.units.attacker = { ...state.units.attacker, type: attackerType, owner: 'player', health: 100 };
+    state.units.defender = { ...state.units.defender, type: defenderType, owner: 'ai-1' };
+    state.civilizations['ai-1'].units = ['defender'];
+    return state;
+  }
+
+  it('classifies captive civilians and both naval eras from one table', () => {
+    for (const type of ['settler', 'worker', 'caravan', 'transport', 'scout'] as UnitType[]) {
+      expect(getCaptureKind(type), type).toBe('civilian');
+    }
+    for (const type of ['galley', 'trireme', 'frigate', 'ironclad'] as UnitType[]) {
+      expect(getCaptureKind(type), type).toBe('naval-boarding');
+    }
+    for (const type of ['destroyer', 'submarine', 'battleship', 'carrier'] as UnitType[]) {
+      expect(getCaptureKind(type), type).toBe('naval-modern');
+    }
+  });
+
+  it('is the single source shared by the audio cue and the notification label', () => {
+    expect(getCaptureKind('galley')).toBe('naval-boarding');
+    expect(getCaptureNotificationLabel('galley')).toMatch(/prize crew|boarded/i);
+    expect(getCaptureKind('destroyer')).toBe('naval-modern');
+    expect(getCaptureNotificationLabel('destroyer')).toMatch(/disabled|captured/i);
+    expect(getCaptureKind('worker')).toBe('civilian');
+    expect(getCaptureNotificationLabel('worker')).toMatch(/captured/i);
+  });
+
+  it('reports the confirmed civilian capture kind, and none on the other side', () => {
+    const applied = applyCombatOutcomeToState(makeCapturedState('worker'), capturedDefeat(), 64);
+    expect(applied.defenderCaptured).toBe(true);
+    expect(applied.defenderCaptureKind).toBe('civilian');
+    expect(applied.attackerCaptureKind).toBeUndefined();
+  });
+
+  it('reports the boarding kind for a captured Age-of-Sail hull', () => {
+    const applied = applyCombatOutcomeToState(makeCapturedState('galley', 'frigate'), capturedDefeat(), 64);
+    expect(applied.defenderCaptured).toBe(true);
+    expect(applied.defenderCaptureKind).toBe('naval-boarding');
+  });
+
+  it('reports the modern kind for a captured modern warship', () => {
+    const applied = applyCombatOutcomeToState(makeCapturedState('submarine', 'destroyer'), capturedDefeat(), 64);
+    expect(applied.defenderCaptured).toBe(true);
+    expect(applied.defenderCaptureKind).toBe('naval-modern');
+  });
+
+  it('reports no capture kind when a unit was destroyed, not captured', () => {
+    const state = makeRewardState();
+    const applied = applyCombatOutcomeToState(state, capturedDefeat(), 64);
+    expect(applied.defenderCaptured).toBe(false);
+    expect(applied.defenderCaptureKind).toBeUndefined();
+    expect(applied.attackerCaptureKind).toBeUndefined();
+  });
+
+  it('applies the same classification for a non-human actor: a barbarian destroys a civilian, so no kind', () => {
+    const state = makeCapturedState('worker');
+    state.units.attacker = { ...state.units.attacker, owner: 'barbarian' };
+    const applied = applyCombatOutcomeToState(state, capturedDefeat(), 64);
+    expect(applied.defenderCaptured).toBe(false);
+    expect(applied.defenderCaptureKind).toBeUndefined();
   });
 });
 

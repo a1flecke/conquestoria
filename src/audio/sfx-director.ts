@@ -1,8 +1,9 @@
 import type { AudioMixer } from './audio-mixer';
 import type { AudioLoader } from './audio-loader';
 import type { EventBus } from '../core/event-bus';
-import type { Unit, UnitType, CombatResult, HexCoord, GameState } from '../core/types';
-import { UNIT_SFX, PIRATE_MOVEMENT_SFX, getLocomotionClass, getMovementSfx, type PirateUnitType } from './sfx-catalog';
+import type { Unit, UnitType, CombatResult, HexCoord, GameState, ImprovementType } from '../core/types';
+import type { CaptureKind } from '../core/types/combat';
+import { UNIT_SFX, PIRATE_MOVEMENT_SFX, COMBAT_OUTCOME_SFX, getLocomotionClass, getMovementSfx, type PirateUnitType } from './sfx-catalog';
 import { getMovementDurationMs } from '../renderer/unit-movement-animation';
 import { getVisibility } from '@/systems/fog-of-war';
 
@@ -43,9 +44,12 @@ export class SfxDirector {
         p.visibleToViewerIds,
         p.attackerType,
         p.defenderType,
+        p.attackerCaptureKind,
+        p.defenderCaptureKind,
       )),
       bus.on('unit:move', p => this.handleUnitMove(p.unitId, p.path, p.presentationByViewer)),
       bus.on('unit:destroyed', p => this.handleUnitDestroyed(p.unitId, p.position)),
+      bus.on('pillage:resolved', p => this.handlePillageResolved(p.coord, p.improvement, p.roadPillaged)),
     );
   }
 
@@ -120,6 +124,8 @@ export class SfxDirector {
     visibleToViewerIds?: string[],
     eventAttackerType?: UnitType,
     eventDefenderType?: UnitType,
+    attackerCaptureKind?: CaptureKind,
+    defenderCaptureKind?: CaptureKind,
   ): void {
     const currentViewer = this.getState?.().currentPlayer;
     const viewerIds = visibleToViewerIds ?? (
@@ -149,17 +155,54 @@ export class SfxDirector {
       }
     }
 
-    if (!result.attackerSurvived && attackerType) {
-      const death = UNIT_SFX[attackerType]?.death;
-      if (death) this.playFile(death.file, viewerIds);
-      this.deathPlayed.add(result.attackerId);
-    }
+    // A unit that was CAPTURED changed hands; it must never sound like it died.
+    // The confirmed capture kind comes from applyCombatOutcomeToState, so this
+    // never guesses from the raw combat result (#657).
+    this.playDefeatOutcome(result.attackerId, attackerType, !result.attackerSurvived, attackerCaptureKind, viewerIds);
+    this.playDefeatOutcome(result.defenderId, defenderType, !result.defenderSurvived, defenderCaptureKind, viewerIds);
+  }
 
-    if (!result.defenderSurvived && defenderType) {
-      const death = UNIT_SFX[defenderType]?.death;
-      if (death) this.playFile(death.file, viewerIds);
-      this.deathPlayed.add(result.defenderId);
+  /** The cue for one participant's non-survival: a capture cue when it was taken
+   * (never a death cue), otherwise the ordinary defeat cue for a destroyed unit. */
+  private playDefeatOutcome(
+    unitId: string,
+    unitType: UnitType | undefined,
+    defeated: boolean,
+    captureKind: CaptureKind | undefined,
+    viewerIds: string[] | undefined,
+  ): void {
+    if (captureKind) {
+      this.playFile(this.captureCue(captureKind).file, viewerIds);
+      return;
     }
+    if (!defeated || !unitType) return;
+    const death = UNIT_SFX[unitType]?.death;
+    if (death) this.playFile(death.file, viewerIds);
+    this.deathPlayed.add(unitId);
+  }
+
+  private captureCue(kind: CaptureKind): { file: string } {
+    if (kind === 'naval-boarding') return COMBAT_OUTCOME_SFX['capture-naval-boarding'];
+    if (kind === 'naval-modern') return COMBAT_OUTCOME_SFX['capture-naval-modern'];
+    return COMBAT_OUTCOME_SFX['capture-civilian'];
+  }
+
+  private handlePillageResolved(
+    coord: HexCoord,
+    improvement: ImprovementType | null,
+    roadPillaged: boolean,
+  ): void {
+    if (!this.isVisible(coord)) return;
+    // Capture the seat that owns this moment so a hot-seat handoff between the
+    // event and the async decode cancels the cue (same rule as combat/movement).
+    const viewerId = this.getState?.().currentPlayer;
+    const viewerIds = viewerId ? [viewerId] : undefined;
+    const cue = improvement
+      ? COMBAT_OUTCOME_SFX['pillage-improvement']
+      : roadPillaged
+        ? COMBAT_OUTCOME_SFX['pillage-road']
+        : null;
+    if (cue) this.playFile(cue.file, viewerIds);
   }
 
   private handleUnitMove(

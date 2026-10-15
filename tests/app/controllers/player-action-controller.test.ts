@@ -9,7 +9,7 @@ import { foundReligion } from '@/systems/religion-system';
 import { hexKey } from '@/systems/hex-utils';
 import { foundCity } from '@/systems/city-system';
 import { makeReligionFixture } from '../../systems/helpers/religion-fixture';
-import type { GameState, HexCoord, Spy } from '@/core/types';
+import type { GameEvents, GameState, HexCoord, Spy } from '@/core/types';
 import type { ExecuteUnitMoveResult } from '@/systems/unit-movement-system';
 import {
   createPlayerActionController,
@@ -517,6 +517,25 @@ describe('PlayerActionController', () => {
       expect(published).toHaveLength(1);
       expect(published[0]).toBe(deps.session.getState());
       expect(sawPublicationBeforeRefresh).toBe(true);
+    });
+
+    it('announces a confirmed capture kind on combat:resolved, after the unit actually changed hands (#657)', () => {
+      const base = buildCombatBaseState('capture-outcome-kind');
+      base.units['defender-1'] = { ...base.units['defender-1']!, type: 'worker', health: 1 };
+      base.cities = {};
+      const state = structuredClone(base);
+      state.turn = 1;
+      const { deps, controller } = build(state);
+      const events: GameEvents['combat:resolved'][] = [];
+      deps.bus.on('combat:resolved', payload => events.push(payload));
+
+      controller.executeAttack('attacker-1', hexKey(state.units['defender-1']!.position));
+
+      expect(events).toHaveLength(1);
+      expect(events[0]!.defenderCaptureKind).toBe('civilian');
+      // Emitted only after the outcome was applied: the worker now belongs to the player.
+      expect(deps.session.getState().units['defender-1']!.owner).toBe('player');
+      expect(deps.showNotification).toHaveBeenCalledWith(expect.stringContaining('captured'), 'success');
     });
 
     it('refreshes the open selected-unit panel before returning through the city-capture branch', () => {

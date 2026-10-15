@@ -218,7 +218,12 @@ function executeAttack(
   const applied = applyCombatOutcomeToState(next, combat, seed, bus);
   let working = applied.state;
   emitMinorCivQuestTransitions(bus, applied.questTransitions, working);
-  bus.emit('combat:resolved', { result: combat, ...presentation });
+  bus.emit('combat:resolved', {
+    result: combat,
+    ...presentation,
+    attackerCaptureKind: applied.attackerCaptureKind,
+    defenderCaptureKind: applied.defenderCaptureKind,
+  });
   for (const reward of applied.rewards) {
     bus.emit('combat:reward-earned', { reward });
   }

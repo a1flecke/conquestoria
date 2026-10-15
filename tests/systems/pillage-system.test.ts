@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { createUnit } from '@/systems/unit-lifecycle';
+import { EventBus } from '@/core/event-bus';
 import {
   applyPillageToState,
   canPillageTile,
   getPillageGoldReward,
   GOLD_PER_PILLAGE_BUILD_TURN,
 } from '@/systems/pillage-system';
-import type { GameState, HexTile } from '@/core/types';
+import type { GameEvents, GameState, HexTile } from '@/core/types';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -182,6 +183,72 @@ describe('pillage-system', () => {
       expect(result.goldAwarded).toBe(0);
       expect(result.improvementPillaged).toBeNull();
       expect(result.state.map.tiles['1,0'].hasRoad).toBe(false);
+    });
+  });
+
+  // #657: the shared mutation is the one place that knows a pillage actually
+  // happened, so the confirmed outcome is announced from here for player, AI
+  // and barbarians alike. A canceled or rejected pillage never announces one.
+  describe('pillage:resolved (#657)', () => {
+    function collect(): { bus: EventBus; events: GameEvents['pillage:resolved'][] } {
+      const bus = new EventBus();
+      const events: GameEvents['pillage:resolved'][] = [];
+      bus.on('pillage:resolved', payload => events.push(payload));
+      return { bus, events };
+    }
+
+    it('emits exactly one confirmed event for an improvement pillage', () => {
+      const state = makePillageState({ improvement: 'farm', owner: 'ai-1' });
+      const { bus, events } = collect();
+
+      applyPillageToState(state, 'raider', bus);
+
+      expect(events).toEqual([{
+        coord: { q: 1, r: 0 },
+        improvement: 'farm',
+        roadPillaged: false,
+        pillagerOwnerId: 'player',
+      }]);
+    });
+
+    it('reports a road-only pillage with a null improvement', () => {
+      const state = makePillageState({ improvement: 'none', owner: 'ai-1', hasRoad: true });
+      const { bus, events } = collect();
+
+      applyPillageToState(state, 'raider', bus);
+
+      expect(events).toEqual([{
+        coord: { q: 1, r: 0 },
+        improvement: null,
+        roadPillaged: true,
+        pillagerOwnerId: 'player',
+      }]);
+    });
+
+    it('emits nothing when the pillage is rejected', () => {
+      const state = makePillageState({ improvement: 'farm', owner: 'player' });
+      const { bus, events } = collect();
+
+      const result = applyPillageToState(state, 'raider', bus);
+
+      expect(result.ok).toBe(false);
+      expect(events).toEqual([]);
+    });
+
+    it('emits nothing when a unit has already acted', () => {
+      const state = makePillageState({ improvement: 'farm', owner: 'ai-1' });
+      state.units.raider = { ...state.units.raider, hasActed: true };
+      const { bus, events } = collect();
+
+      applyPillageToState(state, 'raider', bus);
+
+      expect(events).toEqual([]);
+    });
+
+    it('stays silent when no bus is supplied', () => {
+      const state = makePillageState({ improvement: 'farm', owner: 'ai-1' });
+      const result = applyPillageToState(state, 'raider');
+      expect(result.ok).toBe(true);
     });
   });
 });
