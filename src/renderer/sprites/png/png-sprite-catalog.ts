@@ -3,6 +3,7 @@ import { manifest as cavalry } from './generated/cavalry.manifest';
 import { manifest as horseman } from './generated/horseman.manifest';
 import { manifest as ironclad } from './generated/ironclad.manifest';
 import { manifest as machine_gunner } from './generated/machine_gunner.manifest';
+import { manifest as pre_dreadnought } from './generated/pre_dreadnought.manifest';
 import { manifest as rifleman } from './generated/rifleman.manifest';
 import { manifest as tank } from './generated/tank.manifest';
 
@@ -18,6 +19,7 @@ const PNG_UNIT_SPRITES: Readonly<Record<string, PngSpriteManifest>> = {
   horseman,
   ironclad,
   machine_gunner,
+  pre_dreadnought,
   rifleman,
   tank,
 };
