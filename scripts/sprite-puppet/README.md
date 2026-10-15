@@ -50,6 +50,7 @@ To **migrate a unit back**, delete its row from `PNG_UNIT_SPRITES`. Nothing else
 |---|---|---|
 | `static` | nothing — works on any image | whole-sprite breathe (idle), bob + sway (walk), lunge (attack) |
 | `mounted` | cut coordinates for 4 legs / tail / weapon arm | legs on a lateral-sequence gait, tail sway, weapon wind-up and thrust |
+| `firearm` | `muzzle` point; optional `cut_y`/`overlap_top`/`hip_y` for two separable legs, `prop` for a propeller | body bob + sway, two-leg stride (when cut), recoil + muzzle flash and smoke on attack; `attack_fx`: `muzzle` (default), `torpedo` (bubbles + torpedo) or `none` (non-offensive unit); `sway_deg` for ships/balloons (#621) |
 
 Start every new unit on `static` (no coordinates, ships in minutes); upgrade to a rigged profile only when it is worth it.
 A new profile is a class in `puppet.py` with `frame(state, i, n)` returning an RGBA image, plus an entry in `PROFILES`.

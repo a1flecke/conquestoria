@@ -1826,7 +1826,7 @@ export function GrenadierSprite({ palette, svgOnly = false }: UnitSpriteProps): 
 }
 
 /* === RIFLEMAN === */
-// TODO(art): Replace with industrial-era rifleman: peaked shako hat, dark uniform coat, rifled musket held at carry, cartridge box on belt, unit stands at attention.
+// #621: the shipped art for this unit is a painted PNG (src/renderer/sprites/png, scripts/sprite-puppet); this SVG is the fallback if the PNG cannot be baked.
 export function RiflemanSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
   return (
     <SpriteFrame svgOnly={svgOnly}>
@@ -1903,7 +1903,7 @@ export function MarineSprite({ palette, svgOnly = false }: UnitSpriteProps): str
 }
 
 /* === IRONCLAD === */
-// TODO(art): Replace with industrial ironclad warship: riveted iron hull with steam smokestack, gun ports along sides, paddle wheels or screw propeller visible at stern, low profile silhouette.
+// #621: the shipped art for this unit is a painted PNG (src/renderer/sprites/png, scripts/sprite-puppet); this SVG is the fallback if the PNG cannot be baked.
 export function IroncladSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
   return (
     <SpriteFrame svgOnly={svgOnly}>
@@ -2263,7 +2263,7 @@ export function ExpeditionSprite({ palette, svgOnly = false }: UnitSpriteProps):
 }
 
 /* === MACHINE GUNNER === */
-// TODO(art): Replace with era-8 machine gunner: prone crew pair + tripod-mounted Maxim gun, sandbag emplacement, industrial-era uniforms, belt-feed ammo box beside tripod.
+// #621: the shipped art for this unit is a painted PNG (src/renderer/sprites/png, scripts/sprite-puppet); this SVG is the fallback if the PNG cannot be baked.
 export function MachineGunnerSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
   return (
     <SpriteFrame svgOnly={svgOnly}>
@@ -2339,7 +2339,7 @@ export function InfantrySprite({ palette, svgOnly = false }: UnitSpriteProps): s
 }
 
 /* === PRE-DREADNOUGHT === */
-// TODO(art): Replace with era-8 pre-dreadnought: wide steel battleship profile, two revolving turrets fore and aft, tall tripod mast, painted waterline hull, coal smoke from stacks.
+// #621: the shipped art for this unit is a painted PNG (src/renderer/sprites/png, scripts/sprite-puppet); this SVG is the fallback if the PNG cannot be baked.
 export function PreDreadnoughtSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
   return (
     <SpriteFrame svgOnly={svgOnly}>
@@ -2454,7 +2454,7 @@ export function MissileCruiserSprite({ palette, svgOnly = false }: UnitSpritePro
   );
 }
 
-// TODO(art): Replace tank: low-profile WWI-era rhomboid hull with tracks wrapping sides, riveted armor plates, forward cannon sponson, commander hatch open.
+// #621: the shipped art for this unit is a painted PNG (src/renderer/sprites/png, scripts/sprite-puppet); this SVG is the fallback if the PNG cannot be baked.
 export function TankSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
   return (
     <SpriteFrame svgOnly={svgOnly}>
@@ -2669,7 +2669,7 @@ export function MobileAaSprite({ palette, svgOnly = false }: UnitSpriteProps): s
   );
 }
 
-// TODO(art): Replace submarine: cigar-shaped pressure hull, conning tower with periscope, hydroplane fins, foamy wake at bow.
+// #621: the shipped art for this unit is a painted PNG (src/renderer/sprites/png, scripts/sprite-puppet); this SVG is the fallback if the PNG cannot be baked.
 export function SubmarineSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
   return (
     <SpriteFrame svgOnly={svgOnly}>
@@ -2691,7 +2691,7 @@ export function SubmarineSprite({ palette, svgOnly = false }: UnitSpriteProps): 
   );
 }
 
-// TODO(art): Replace with: Tethered hydrogen envelope — oval gas bag with faction-colored panels, rope net holding wicker gondola basket, observer with binoculars leaning out, tether line descending off-canvas.
+// #621: the shipped art for this unit is a painted PNG (src/renderer/sprites/png, scripts/sprite-puppet); this SVG is the fallback if the PNG cannot be baked.
 export function ObservationBalloonSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
   return (
     <SpriteFrame svgOnly={svgOnly}>
@@ -2713,7 +2713,7 @@ export function ObservationBalloonSprite({ palette, svgOnly = false }: UnitSprit
   );
 }
 
-// TODO(art): Replace with: WWI biplane — double canvas wings with wooden strut bracing and taut wire, round radial engine cowling, open cockpit with goggled pilot, roundel in faction color on upper wing, propeller motion blur.
+// #621: the shipped art for this unit is a painted PNG (src/renderer/sprites/png, scripts/sprite-puppet); this SVG is the fallback if the PNG cannot be baked.
 export function BiplaneSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
   return (
     <SpriteFrame svgOnly={svgOnly}>

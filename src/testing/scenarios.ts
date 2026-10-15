@@ -200,7 +200,8 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
     description:
       'Visual-review harness for PNG spritesheet units (scripts/sprite-puppet): a player Horseman and Cavalry '
       + '(PNG) next to a Beast Handler and Knight (SVG) for side-by-side scale and style, '
-      + 'plus an AI Horseman so the civ tint can be compared. Select a unit and move it to see the '
+      + 'plus an AI Horseman so the civ tint can be compared, and (#621) the eight painted military units (rifleman, '
+      + 'machine gunner, tank, biplane, observation balloon, ironclad, pre-dreadnought, submarine). Select a unit and move it to see the '
       + 'walk cycle; attack the AI unit to see the attack row. Includes a player city and an AI '
       + 'city so ending the turn does not trigger an instant domination result.',
     seed: 'scenario-png-sprite-spike',
@@ -229,6 +230,22 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
       { kind: 'unit', civId: 'player', type: 'cavalry', position: { q: 3, r: 1 } },
       { kind: 'unit', civId: 'player', type: 'knight', position: { q: 1, r: 0 } },
       { kind: 'unit', civId: 'ai-1', type: 'horseman', position: { q: 3, r: 0 } },
+      // #621 military visual identity: the eight painted PNG units, land/air on plains, ships on a water row
+      { kind: 'terrain', position: { q: 0, r: 3 }, terrain: 'ocean' },
+      { kind: 'terrain', position: { q: 1, r: 3 }, terrain: 'ocean' },
+      { kind: 'terrain', position: { q: 2, r: 3 }, terrain: 'ocean' },
+      { kind: 'terrain', position: { q: 3, r: 3 }, terrain: 'ocean' },
+      { kind: 'terrain', position: { q: 1, r: 2 }, terrain: 'plains' },
+      { kind: 'terrain', position: { q: 2, r: 2 }, terrain: 'plains' },
+      { kind: 'terrain', position: { q: 3, r: 2 }, terrain: 'plains' },
+      { kind: 'unit', civId: 'player', type: 'rifleman', position: { q: 0, r: 0 } },
+      { kind: 'unit', civId: 'player', type: 'machine_gunner', position: { q: 2, r: 0 } },
+      { kind: 'unit', civId: 'player', type: 'tank', position: { q: 1, r: 2 } },
+      { kind: 'unit', civId: 'player', type: 'biplane', position: { q: 2, r: 2 } },
+      { kind: 'unit', civId: 'player', type: 'observation_balloon', position: { q: 3, r: 2 } },
+      { kind: 'unit', civId: 'player', type: 'ironclad', position: { q: 0, r: 3 } },
+      { kind: 'unit', civId: 'player', type: 'pre_dreadnought', position: { q: 1, r: 3 } },
+      { kind: 'unit', civId: 'player', type: 'submarine', position: { q: 2, r: 3 } },
       { kind: 'diplomacy', civA: 'player', civB: 'ai-1', status: 'war' },
     ],
   },
