@@ -467,7 +467,8 @@ describe('getUnitSpriteV2 — live fallback for uncovered unit types', () => {
   // for the "never null" guarantee. combat_drone was migrated to v2-native in #759 batch 1
   // (2026-07-31) and moved out of this sample accordingly — see the new describe block below
   // for its dedicated native-path coverage.
-  const FALLBACK_TIER_SAMPLE = ['tank', 'rifleman', 'submarine', 'cannon', 'grenadier'];
+  // #621: tank, rifleman and submarine moved to painted PNG units (isPngUnit), which getUnitSpriteV2 resolves before this path.
+  const FALLBACK_TIER_SAMPLE = ['cannon', 'grenadier'];
 
   it.each(FALLBACK_TIER_SAMPLE)('%s renders via the live fallback, not v2-native', (type) => {
     expect(isV2NativeUnit(type)).toBe(false);
@@ -500,15 +501,15 @@ describe('getUnitSpriteV2 — live fallback for uncovered unit types', () => {
   });
 
   it('does not throw and returns non-null for a missing civColor (falls back to NEUTRAL_FACTION_PALETTE)', () => {
-    expect(() => getUnitSpriteV2('tank', 'imperials', '')).not.toThrow();
-    const result = getUnitSpriteV2('tank', 'imperials', '');
+    expect(() => getUnitSpriteV2('cannon', 'imperials', '')).not.toThrow();
+    const result = getUnitSpriteV2('cannon', 'imperials', '');
     expect(result).not.toBeNull();
     expect(result).not.toMatch(/NaN/);
   });
 
   it('does not throw and returns non-null when civColor is omitted entirely', () => {
-    expect(() => getUnitSpriteV2('tank', 'imperials')).not.toThrow();
-    expect(getUnitSpriteV2('tank', 'imperials')).not.toBeNull();
+    expect(() => getUnitSpriteV2('cannon', 'imperials')).not.toThrow();
+    expect(getUnitSpriteV2('cannon', 'imperials')).not.toBeNull();
   });
 });
 
