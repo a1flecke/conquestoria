@@ -209,6 +209,9 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     if (candidates.length === 0) return;
     createGeneralCandidatePanel(uiLayer, candidates, generalDefinitionId => {
       session.commit(spawnGeneralForCiv(session.getState(), pending.civId, generalDefinitionId));
+      // #889: the choice had no acknowledgement; one concise line, owner-addressed like every other consequence.
+      const chosen = candidates.find(candidate => candidate.id === generalDefinitionId);
+      if (chosen) getNotifier().deliver(pending.civId, `${chosen.name} answers the call and takes command.`, 'success');
       maybeShowPendingGeneralChoice();
     });
   }
@@ -262,6 +265,7 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     openJournal: cityId => {
       if (session.getState().cities[cityId]) panelActions.openWonderPanelForCityId(cityId);
     },
+    openHallOfFame: () => panelActions.openHallOfFame(),
   });
 
   /**

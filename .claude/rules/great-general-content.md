@@ -95,3 +95,26 @@ Profile text is plain data. Any future surface that displays it must use
 `textContent` / `createTextNode()` (never `innerHTML`), must not introduce a
 markdown parser for General facts, and must not surface raw `sourceUrl`s as
 player-facing copy — source notes are provenance for audit.
+
+## Presentation identity: one resolver, original crest art (#889)
+
+A General's *look* is a third layer, separate from `descriptor` and `GeneralProfile`:
+
+| Layer | File | Purpose |
+|---|---|---|
+| presentation identity | `src/systems/great-general-presentation.ts` (`getGeneralPresentation`, `getGeneralIdentityForUnit`) | Which crest (emblem, field shape, two colours, era pips) a General is drawn with. Pure data derived from the definition, never persisted. |
+| crest art | `src/ui/general-portrait-glyphs.ts` + `src/ui/general-portrait.ts` (`createGeneralPortrait`) | Original geometric vector emblems drawn for this game, rendered with `createElementNS` (never `innerHTML`). |
+
+- **Every surface asks the one resolver.** The candidate chooser, the selected-unit panel, the command previews (Rally / Seize / Last
+  Stand, incl. the Final Command notice) and the Hall of Fame (view-model `presentation`, then the card) all render
+  `getGeneralPresentation(definition)`. Do not read `portraitIcon` for display any more; it survives only as `fallbackIcon`, shown if a
+  crest cannot be drawn, and in saves.
+- **A new authored General needs one `AUTHORED_CRESTS` row.** `great-general-presentation.test.ts` fails when a roster id has no row, when a
+  row is stale, and when two Generals share `(motif, shape, primary colour)`. A new motif is one entry in `GENERAL_GLYPHS`.
+- **Generated officers (#888)** take their emblem and colours from their culture family and their era tier from `era`; they never carry an
+  authored crest (`source: 'generated'`).
+- **Honesty.** These are heraldic crests, not portraits or likenesses, and nothing player-facing or in the docs may call them historical
+  imagery or hand-painted art. A real painted portrait set replaces the resolver's output, not the four surfaces.
+- **Retirement moment.** `general:retired` carries `generalDefinitionId`; the registrar queues one `GeneralRetirementMomentItem` for the
+  *viewing* owner through `CeremonyCoordinator.enqueueGeneralRetirement` (queued behind other ceremonies, deduped, dropped on a hot-seat
+  handoff, no-op after victory). The ceremony has no animation and no audio of its own, so reduced motion and mute need no special case.

@@ -77,6 +77,7 @@ export function makePresentationContext(overrides: {
       enqueueLegendaryCompletion: vi.fn(),
       enqueueEventChainConclusion: vi.fn(),
       enqueueWorldRaceConclusion: vi.fn(),
+      enqueueGeneralRetirement: vi.fn(),
       enqueueVictory: vi.fn(),
       beginDeferredAction: vi.fn(),
       endAction: vi.fn(),

@@ -5,6 +5,7 @@
 import { mapHexesInRange } from '@/systems/hex-utils';
 import { getRallyPreview, issueRally, getSeizeTheMomentEligibleUnits, issueSeizeTheMoment } from '@/systems/great-general-abilities';
 import { createRallyPanel, createSeizeThePanelMoment } from '@/ui/general-command-panel';
+import { getGeneralIdentityForUnit } from '@/systems/great-general-presentation';
 import { createStrategicLaunchFlow } from '@/ui/strategic-launch-flow';
 import { executeStrategicLaunch } from '@/systems/strategic-launch-execution-system';
 import { resolveGeneralDefinition } from '@/systems/great-general-definitions';
@@ -39,6 +40,7 @@ export function createGeneralCommands(
           core.selectUnit(generalUnitId); // refresh the panel so charges/cooldown reflect immediately
         },
         () => {},
+        getGeneralIdentityForUnit(session.getState(), generalUnitId),
       );
     },
     onPrepareStrategicLaunch: (subUnitId: string) => {
@@ -69,6 +71,7 @@ export function createGeneralCommands(
           core.selectUnit(generalUnitId);
         },
         () => {},
+        getGeneralIdentityForUnit(session.getState(), generalUnitId),
       );
     },
     onStartLastStandTargeting: (generalUnitId: string) => {

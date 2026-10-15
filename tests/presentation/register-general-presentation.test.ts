@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { EventBus } from '@/core/event-bus';
 import { registerGeneralPresentation } from '@/presentation/register-general-presentation';
 import { makePresentationContext } from '../helpers/presentation-context';
+import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
+import { getGeneralPresentation } from '@/systems/great-general-presentation';
 
 describe('general presentation', () => {
   it('resets the treasurer advisor message and re-checks advisors on a gold village outcome', () => {
@@ -59,6 +61,43 @@ describe('general presentation', () => {
     expect(ctx.deliver).toHaveBeenCalledWith('p1', expect.stringContaining('Julius Caesar'), 'info');
   });
 
+  describe('#889 retirement moment', () => {
+    const caesar = GENERAL_DEFINITIONS.find(g => g.id === 'gen_caesar')!;
+
+    it("queues the retirement moment for the viewing owner, with their General's crest and career line", () => {
+      const bus = new EventBus();
+      const ctx = makePresentationContext({ state: { currentPlayer: 'p1' } });
+      registerGeneralPresentation(bus, ctx);
+      bus.emit('general:retired', { civId: 'p1', generalName: 'Julius Caesar', message: 'Retired after 3 commands.', generalDefinitionId: 'gen_caesar' });
+      expect(ctx.ceremonies.enqueueGeneralRetirement).toHaveBeenCalledTimes(1);
+      expect(ctx.ceremonies.enqueueGeneralRetirement).toHaveBeenCalledWith({
+        civId: 'p1', generalDefinitionId: 'gen_caesar', name: 'Julius Caesar',
+        presentation: getGeneralPresentation(caesar), careerLine: 'Retired after 3 commands.',
+      });
+      expect(ctx.deliver).toHaveBeenCalledTimes(1); // the existing toast is unchanged, not duplicated
+    });
+
+    it("does not show another civ's retirement to the viewing player (hot-seat privacy), but still delivers their toast", () => {
+      const bus = new EventBus();
+      const ctx = makePresentationContext({ state: { currentPlayer: 'p2' } });
+      registerGeneralPresentation(bus, ctx);
+      bus.emit('general:retired', { civId: 'p1', generalName: 'Julius Caesar', message: 'Retired.', generalDefinitionId: 'gen_caesar' });
+      expect(ctx.ceremonies.enqueueGeneralRetirement).not.toHaveBeenCalled();
+      expect(ctx.deliver).toHaveBeenCalledWith('p1', expect.stringContaining('Julius Caesar'), 'info');
+    });
+
+    it('an event with no resolvable definition still gets a crest-less moment instead of failing', () => {
+      const bus = new EventBus();
+      const ctx = makePresentationContext({ state: { currentPlayer: 'p1' } });
+      registerGeneralPresentation(bus, ctx);
+      bus.emit('general:retired', { civId: 'p1', generalName: 'A forgotten commander', message: 'Retired.' });
+      bus.emit('general:retired', { civId: 'p1', generalName: 'Gone', message: 'Retired.', generalDefinitionId: 'gen_deleted_later' });
+      const calls = (ctx.ceremonies.enqueueGeneralRetirement as unknown as { mock: { calls: Array<[{ presentation?: unknown }]> } }).mock.calls;
+      expect(calls).toHaveLength(2);
+      expect(calls.every(([item]) => item.presentation === undefined)).toBe(true);
+    });
+  });
+
   it('disposing removes every subscription this registrar added', () => {
     const bus = new EventBus();
     const ctx = makePresentationContext();
@@ -76,5 +115,6 @@ describe('general presentation', () => {
     expect(ctx.deliver).not.toHaveBeenCalled();
     expect(ctx.showNotification).not.toHaveBeenCalled();
     expect(ctx.checkAdvisors).not.toHaveBeenCalled();
+    expect(ctx.ceremonies.enqueueGeneralRetirement).not.toHaveBeenCalled();
   });
 });

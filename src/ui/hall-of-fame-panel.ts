@@ -1,5 +1,6 @@
 import type { HallOfFameEntry } from '@/systems/great-general-hall-of-fame';
 import { createGameButton } from '@/ui/ui-kit';
+import { createGeneralPortrait } from '@/ui/general-portrait';
 
 export interface HallOfFamePanelCallbacks {
   onClose: () => void;
@@ -30,7 +31,16 @@ function renderCard(entry: HallOfFameEntry): HTMLDetailsElement {
   // and stats are in the expanded body so a 20-General roster stays scannable.
   summary.style.cssText = 'cursor:pointer;font-size:14px;color:#e8c170;';
   const eraText = entry.era === null ? '' : ` · Era ${entry.era}`;
-  summary.textContent = `${entry.portraitIcon ? entry.portraitIcon + ' ' : ''}${entry.name}${eraText} · ${STATUS_WORD[entry.status]}`;
+  // #889: the crest comes from the view-model's presentation (the one resolver), never re-derived here. A record
+  // with no resolvable definition keeps the plain-text row.
+  if (entry.presentation) {
+    const crest = createGeneralPortrait(entry.presentation, { size: 28, name: entry.name });
+    crest.style.marginRight = '8px';
+    summary.appendChild(crest);
+    summary.appendChild(document.createTextNode(`${entry.name}${eraText} · ${STATUS_WORD[entry.status]}`));
+  } else {
+    summary.textContent = `${entry.portraitIcon ? entry.portraitIcon + ' ' : ''}${entry.name}${eraText} · ${STATUS_WORD[entry.status]}`;
+  }
   card.appendChild(summary);
 
   if (entry.statLine) card.appendChild(line(entry.statLine, 'font-size:12px;color:#e8c170;margin-top:6px;'));

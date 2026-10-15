@@ -4,6 +4,8 @@
  * toasts, and AI strategic warnings. Moved verbatim from `main.ts`.
  */
 import { routeStrategicWarning } from '@/ui/notification-routes/world-routes';
+import { resolveGeneralDefinition } from '@/systems/great-general-definitions';
+import { getGeneralPresentation } from '@/systems/great-general-presentation';
 import type { PresentationRegistrar } from '@/presentation/register-all';
 
 export const registerGeneralPresentation: PresentationRegistrar = (bus, ctx) => {
@@ -30,8 +32,21 @@ export const registerGeneralPresentation: PresentationRegistrar = (bus, ctx) => 
     // Great General game feature, not a dedicated home for it; this event
     // just happens to fit "doesn't cleanly belong to any other domain
     // registrar" as well as everything else already here.
-    bus.on('general:retired', ({ civId, generalName, message }) => {
+    bus.on('general:retired', ({ civId, generalName, message, generalDefinitionId }) => {
       ctx.notifier.deliver(civId, `${generalName} has retired. ${message}`, 'info');
+      // #889: the owner also gets the retirement moment (crest + their own career line + a way into the Hall of Fame),
+      // queued behind any other ceremony. Owner-scoped: only the viewing player's own General is ever shown, and the
+      // coordinator drops a queued moment on a hot-seat handoff (the toast above is what a non-viewing owner receives).
+      const state = ctx.session.getState();
+      if (civId !== state.currentPlayer) return;
+      const definition = resolveGeneralDefinition(state, generalDefinitionId);
+      ctx.ceremonies.enqueueGeneralRetirement({
+        civId,
+        generalDefinitionId,
+        name: generalName,
+        presentation: definition ? getGeneralPresentation(definition) : undefined,
+        careerLine: message,
+      });
     }),
   ];
 

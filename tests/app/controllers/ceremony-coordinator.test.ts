@@ -10,6 +10,7 @@ import type { WorldRaceConclusionMomentItem } from '@/systems/world-race-present
 import { getWonderVisualDefinition } from '@/systems/wonder-visual-catalog';
 import { createPanelHost } from '@/app/panel-host';
 import { createCeremonyCoordinator, type CeremonyCoordinatorDeps } from '@/app/controllers/ceremony-coordinator';
+import type { GeneralRetirementMomentItem } from '@/systems/great-general-presentation';
 
 function wonderItem(overrides: Partial<WonderDiscoveryRevealItem> = {}): WonderDiscoveryRevealItem {
   return {
@@ -94,6 +95,7 @@ function baseDeps(overrides: Partial<CeremonyCoordinatorDeps> = {}): CeremonyCoo
     presentLegendaryCompletion: () => new Promise(() => {}),
     presentEventChainConclusion: () => new Promise(() => {}),
     presentVictory: () => new Promise(() => {}),
+    presentGeneralRetirement: () => new Promise(() => {}),
     ...overrides,
   };
 }
@@ -446,6 +448,82 @@ describe('ceremony coordinator', () => {
 
       expect(presentVictory).toHaveBeenCalledTimes(2);
       expect(presentVictory).toHaveBeenLastCalledWith(expect.objectContaining({ winnerName: 'Carthage' }));
+    });
+  });
+
+  describe('General retirement moment (#889)', () => {
+    const retirement = (over: Partial<GeneralRetirementMomentItem> = {}): GeneralRetirementMomentItem => ({
+      civId: 'player', generalDefinitionId: 'gen_caesar', name: 'Julius Caesar', careerLine: 'Retired.', ...over,
+    });
+
+    it('presents an enqueued retirement once the UI is free', () => {
+      const presentGeneralRetirement = vi.fn((): Promise<void> => new Promise(() => {}));
+      const coordinator = createCeremonyCoordinator(baseDeps({ presentGeneralRetirement }));
+      coordinator.enqueueGeneralRetirement(retirement());
+      expect(presentGeneralRetirement).toHaveBeenCalledTimes(1);
+    });
+
+    it('waits behind a blocking overlay, then plays', () => {
+      const host = createPanelHost(document.createElement('div'));
+      const presentGeneralRetirement = vi.fn((): Promise<void> => new Promise(() => {}));
+      const coordinator = createCeremonyCoordinator(baseDeps({ host, presentGeneralRetirement }));
+      host.setBlockingOverlay('city-panel');
+      coordinator.enqueueGeneralRetirement(retirement());
+      expect(presentGeneralRetirement).not.toHaveBeenCalled();
+      host.setBlockingOverlay(null);
+      expect(presentGeneralRetirement).toHaveBeenCalledTimes(1);
+    });
+
+    it('never plays the same retirement twice (duplicate enqueue is deduped) but plays two different Generals one after another', async () => {
+      const shown: string[] = [];
+      const coordinator = createCeremonyCoordinator(baseDeps({
+        presentGeneralRetirement: item => { shown.push(item.name); return Promise.resolve(); },
+      }));
+      coordinator.enqueueGeneralRetirement(retirement());
+      coordinator.enqueueGeneralRetirement(retirement());
+      coordinator.enqueueGeneralRetirement(retirement({ generalDefinitionId: 'gen_alexander', name: 'Alexander the Great' }));
+      for (let i = 0; i < 6; i++) await Promise.resolve();
+      expect(shown).toEqual(['Julius Caesar', 'Alexander the Great']);
+    });
+
+    it("clearForHandoff drops a queued retirement so it never plays on the next player's screen", () => {
+      const host = createPanelHost(document.createElement('div'));
+      const presentGeneralRetirement = vi.fn((): Promise<void> => new Promise(() => {}));
+      const coordinator = createCeremonyCoordinator(baseDeps({ host, presentGeneralRetirement }));
+      host.setBlockingOverlay('city-panel');
+      coordinator.enqueueGeneralRetirement(retirement());
+      coordinator.clearForHandoff();
+      host.setBlockingOverlay(null);
+      expect(presentGeneralRetirement).not.toHaveBeenCalled();
+    });
+
+    it('is a no-op after victory, and a new game starts with a clean slate', () => {
+      const presentGeneralRetirement = vi.fn((): Promise<void> => new Promise(() => {}));
+      const coordinator = createCeremonyCoordinator(baseDeps({ presentGeneralRetirement }));
+      coordinator.enqueueVictory({} as VictoryPanelOptions);
+      coordinator.enqueueGeneralRetirement(retirement());
+      expect(presentGeneralRetirement).not.toHaveBeenCalled();
+      coordinator.clearForNewGame();
+      coordinator.enqueueGeneralRetirement(retirement());
+      expect(presentGeneralRetirement).toHaveBeenCalledTimes(1);
+    });
+
+    it('the real presentation blocks the UI while open, wires Hall of Fame, and frees the UI when dismissed', () => {
+      const layer = document.createElement('div');
+      document.body.appendChild(layer);
+      const host = createPanelHost(layer);
+      const openHallOfFame = vi.fn();
+      const coordinator = createCeremonyCoordinator({
+        host, reducedMotion: () => false, requestMapHighlight: vi.fn(), playDiscoveryAudio: vi.fn(),
+        openAtlas: vi.fn(), openCity: vi.fn(), openJournal: vi.fn(), openHallOfFame,
+      });
+      coordinator.enqueueGeneralRetirement(retirement());
+      expect(host.isInteractionBlocked()).toBe(true);
+      const hall = [...layer.querySelectorAll('button')].find(b => /hall of fame/i.test(b.textContent ?? ''))!;
+      hall.click();
+      expect(host.isInteractionBlocked()).toBe(false);
+      expect(openHallOfFame).toHaveBeenCalledTimes(1);
+      expect(layer.querySelector('#general-retirement-ceremony')).toBeNull();
     });
   });
 });

@@ -658,6 +658,20 @@ describe('#544 MR4 — retireGeneralsAtTurnEnd', () => {
     }));
   });
 
+  it('#889: general:retired carries the definition id so presentation resolves the same identity, and fires exactly once per retirement', () => {
+    const state = { ...setup(3), turn: 7 };
+    const emit = vi.fn();
+    const after = retireGeneralsAtTurnEnd(state, 'player', { emit } as unknown as EventBus);
+    const retired = emit.mock.calls.filter(([name]) => name === 'general:retired');
+    expect(retired).toHaveLength(1);
+    const payload = retired[0]![1] as { generalDefinitionId?: string; generalName: string };
+    const history = after.civilizations.player.generalHistory!.find(entry => entry.outcome === 'retired')!;
+    expect(payload.generalDefinitionId).toBe(history.generalDefinitionId);
+    // Nothing left to retire: a second end-of-turn pass must not announce it again.
+    retireGeneralsAtTurnEnd(after, 'player', { emit } as unknown as EventBus);
+    expect(emit.mock.calls.filter(([name]) => name === 'general:retired')).toHaveLength(1);
+  });
+
   it('#544 MR4 review fix: is safe to call with no bus at all (bus is optional)', () => {
     const state = { ...setup(3), turn: 7 };
     expect(() => retireGeneralsAtTurnEnd(state, 'player')).not.toThrow();

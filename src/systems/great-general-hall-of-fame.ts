@@ -13,6 +13,7 @@ import {
   type GeneralCareerSummary,
 } from '@/systems/great-general-career';
 import { resolveGeneralDefinition } from '@/systems/great-general-definitions';
+import { getGeneralPresentation, type GeneralPresentation } from '@/systems/great-general-presentation';
 import { getGeneralProfile } from '@/systems/great-general-profiles';
 import { getGeneralSpecialtyPresentation } from '@/systems/great-general-specialties';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
@@ -101,6 +102,8 @@ export interface HallOfFameEntry {
   generalDefinitionId: string;
   name: string;
   portraitIcon: string;
+  /** #889: the canonical crest identity (same resolver every surface uses). Absent only for an unresolvable record. */
+  presentation?: GeneralPresentation;
   era: number | null;
   descriptor: string;
   status: 'active' | 'retired' | 'fallen';
@@ -135,6 +138,7 @@ function buildHallOfFameEntry(state: GameState, entry: GeneralHistoryEntry): Hal
     generalDefinitionId: entry.generalDefinitionId,
     name: definition?.name ?? 'A forgotten commander',
     portraitIcon: definition?.portraitIcon ?? '',
+    presentation: definition ? getGeneralPresentation(definition) : undefined,
     era: definition?.era ?? null,
     descriptor: definition?.descriptor ?? '',
     status: stats.status,

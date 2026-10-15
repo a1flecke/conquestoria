@@ -17,6 +17,7 @@ import { renderBattleForecastCard } from '@/ui/battle-forecast-card';
 import { airForecastSignature, buildAirStrikeForecastView } from '@/ui/air-strike-forecast-projection';
 import { getLastStandPreview, issueLastStand } from '@/systems/great-general-abilities';
 import { createLastStandPanel } from '@/ui/general-command-panel';
+import { getGeneralIdentityForUnit } from '@/systems/great-general-presentation';
 import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
 import type { MapInteractionControllerDeps } from './map-interaction-shared';
 import { describeForeignOwner } from './map-interaction-shared';
@@ -241,6 +242,7 @@ export function resolvePendingIntent(deps: MapInteractionControllerDeps, pending
             selectionController.selectUnit(generalUnitId);
           },
           () => {},
+          getGeneralIdentityForUnit(session.getState(), generalUnitId),
         );
         return;
       }
