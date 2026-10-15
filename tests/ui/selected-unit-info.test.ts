@@ -69,6 +69,9 @@ class MockDocument {
   createElement(tag: string): MockElement {
     return new MockElement(tag);
   }
+  createElementNS(_ns: string, tag: string): MockElement {
+    return new MockElement(tag);
+  }
   createTextNode(text: string): MockElement {
     const node = new MockElement('#text');
     node.textContent = text;
@@ -290,9 +293,52 @@ describe('land-supply status line (#544)', () => {
   });
 });
 
+function findPortrait(node: unknown): MockElement | undefined {
+  const el = node as MockElement;
+  if (el.dataset?.generalPortrait) return el;
+  for (const child of el.children ?? []) {
+    const found = findPortrait(child);
+    if (found) return found;
+  }
+  return undefined;
+}
+
 describe('Great General identity display (#544 MR3)', () => {
   beforeEach(installMockDocument);
   afterEach(restoreMockDocument);
+
+  it('#889 — draws the General\'s crest beside the name (authored and generated), not a bare shared emoji', () => {
+    const state = createNewGame(undefined, 'general-identity-crest', 'small');
+    const authored = GENERAL_DEFINITIONS.find(g => g.id === 'gen_caesar')!;
+    const generatedId = 'generated:rome:3:cafe1234';
+    (state as any).generatedGenerals = {
+      [generatedId]: {
+        id: generatedId, name: 'Marcus Valerius', civTypeEligibility: ['rome'], era: 3,
+        descriptor: 'Legatus. A Roman field commander.', portraitIcon: '🦅', origin: 'generated',
+        commandRange: 2, commandCapacity: 3, abilityIds: ['rally', 'seize_the_moment', 'last_stand'], maxCommandCharges: 3, cooldownTurns: 10,
+      },
+    };
+    for (const [definitionId, name, source] of [[authored.id, authored.name, 'authored'], [generatedId, 'Marcus Valerius', 'generated']] as const) {
+      const unit = {
+        ...createUnit('great_general', 'player', { q: 15, r: 15 }, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 }),
+        id: 'u1', generalDefinitionId: definitionId,
+      };
+      state.currentPlayer = 'player';
+      state.units = { u1: unit };
+      state.civilizations.player.units = ['u1'];
+      const container = new MockElement('div');
+      renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+      const crest = findPortrait(container);
+      expect(crest, `${definitionId} crest`).toBeDefined();
+      expect(crest!.dataset.generalPortrait).toBe(definitionId);
+      expect(crest!.dataset.portraitSource).toBe(source);
+      expect(crest!.dataset.portraitState).toBe('crest');
+      expect(crest!.getAttribute('aria-label')).toBe(`${name}, crest`);
+      const text = collectAllText(container).join(' ');
+      expect(text).toContain(`${name} — Era`);
+      expect(text).not.toContain('🦅'); // the shared emoji is no longer the display
+    }
+  });
 
   it('shows the specific commander\'s name, era, and descriptor when a great_general with a resolvable generalDefinitionId is selected', () => {
     const state = createNewGame(undefined, 'general-identity-1', 'small');
