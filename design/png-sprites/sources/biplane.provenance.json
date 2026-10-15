@@ -1,0 +1,11 @@
+{
+  "id": "biplane",
+  "file": "biplane.png",
+  "generator": "Sprite-AI (sprite-ai.art) via MCP sprite_generate",
+  "settings": { "asset_type": "vehicle", "camera_perspective": "side", "direction": "east", "width": 256, "height": 256 },
+  "sprite_ai_generation_id": "4e2b1e07-5951-4ca1-b021-bca614d7503e",
+  "generated_on": "2026-10-14",
+  "tokens_used": 1,
+  "prompt": "World War One biplane in strict side profile facing right, double canvas wings stacked one above the other with wooden strut bracing and taut wires, round radial engine cowling with a spinning propeller at the nose on the right, open cockpit with a goggled pilot in a leather helmet, tail fin and rudder on the left, fabric fuselage painted saturated pure red, wings cream canvas, struts and engine dark brown and grey. Only the fuselage and tail are red.",
+  "licence_note": "Project owner directed the use of Sprite-AI for the #621 unit art (2026-10-14) and approved this image in chat. The Sprite-AI terms text itself was not reviewed or recorded here. Re-check the current terms before generating more sources. Known gaps against the brief (owner accepted the art as is): a slight three-quarter angle; no roundel on the upper wing; only the fuselage and tail take the faction colour. The propeller blur and the nose-gun flash are drawn procedurally by scripts/sprite-puppet/puppet.py."
+}
