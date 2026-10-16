@@ -192,6 +192,16 @@ Source (RPG Audio):     https://kenney.nl/assets/rpg-audio
 License: CC0 1.0 Universal — https://creativecommons.org/publicdomain/zero/1.0/
 Author: Kenney (kenney.nl)
 
+## Great General Command Audio (#889)
+
+The 4 command cues in `public/audio/stinger/general/` (Rally, Seize the Moment, Last Stand, and one shared by Final Command and a General's retirement) are deterministic derivatives of existing Kenney CC0 source SFX already carried in `public/audio/sfx/` (`transport-unload`, `swordsman-attack-swing`, `hull-iron`, `catapult-siege-impact`).
+`scripts/generate-general-command-sfx.sh` layers those source recordings with in-project ffmpeg `lavfi` sine tones, then filters, limits and re-encodes the results to OGG Vorbis. Exact output coverage, source file paths, license, and derivative notes are recorded in `src/audio/general-command-audio-sources.ts`. No downloads and no third-party audio were added.
+
+Source (Impact Sounds): https://kenney.nl/assets/impact-sounds
+Source (RPG Audio):     https://kenney.nl/assets/rpg-audio
+License: CC0 1.0 Universal — https://creativecommons.org/publicdomain/zero/1.0/
+Author: Kenney (kenney.nl)
+
 ## Combat Outcome Audio (#657)
 
 The 5 pillage and unit-capture cue files in `public/audio/stinger/combat/` are deterministic derivatives of existing Kenney CC0 source SFX already carried in `public/audio/sfx/`.
