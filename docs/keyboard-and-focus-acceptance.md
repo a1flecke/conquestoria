@@ -11,6 +11,8 @@ How it is verified (Chromium, no pointer after the page loads, except where note
 | `tests/e2e/issue-1459-keyboard-only.spec.ts` | Select, move, open a panel, leave it, end the turn (map cursor + shared panel contract) |
 | `tests/e2e/issue-1459-pregame-keyboard.spec.ts` | Main menu -> new game -> solo setup -> civilization picker -> start, backing out one screen at a time, the custom-civilization editor, and every hot-seat setup stage |
 | `tests/e2e/issue-1459-ingame-a11y.spec.ts` | Council, Tech, Cities, Espionage, Diplomacy, Marketplace, message log, Victory, pause menu and a city panel; save with the keyboard, reload, continue |
+| `tests/e2e/issue-1459-hotseat-later-stages.spec.ts` | Hot seat after the names: civilization pick, pass-the-device, personal difficulty, review, handoff, start |
+| `tests/e2e/issue-1459-ceremonies-and-failures.spec.ts` | Wonder discovery and completion, beast slay, event-chain and world-race ceremonies mounted in a running campaign; a failing save and a failing map load, each retried by keyboard |
 | `tests/e2e/issue-1459-hotseat-handoff.spec.ts` | The hot-seat handoff is a keyboard-complete dialog that hides the game from assistive technology |
 | `tests/ui/pointer-only-controls.test.ts` | Source guard: no clickable `div`/`span` |
 | `tests/ui/modal-contract.test.ts`, `tests/app/panel-focus-manager.test.ts` | What each dialog declares; focus restore across stacked screens |
@@ -48,7 +50,7 @@ view is off it). It scrolls the camera when it leaves the screen. A caption (`ro
 | Action | Keyboard path | Tested by |
 |---|---|---|
 | Start a campaign (solo) | menu `New Game` -> `Solo` -> `Choose civilization` -> pick a card -> `Confirm` -> `Start Campaign` | pregame spec |
-| Start a campaign (hot seat) | `Hot Seat` -> map size -> map type -> challenge -> player count -> names -> per-player civilization and difficulty -> review | pregame spec through "Player Names"; the civilization picker's mounting by `tests/ui/hotseat-setup.test.ts`; the personal-difficulty and review stages declare the same contract but are **not** driven |
+| Start a campaign (hot seat) | `Hot Seat` -> map size -> map type -> challenge -> player count -> names -> per-player civilization and difficulty -> review | pregame spec through "Player Names"; later-stages spec from the civilization pick through review, handoff and start |
 | Back out of setup | `Escape` on each screen goes back one step, ending on the menu with `New Game` focused | pregame spec |
 | Continue / load | menu `Continue`, opponent-challenge prompt, then the game | ingame spec |
 | Select a unit / inspect a tile / move / attack | `N`, map cursor + `Enter` (shared tap path, so shared legality) | keyboard-only spec (move) |
@@ -56,7 +58,7 @@ view is off it). It scrolls the camera when it leaves the screen. A caption (`ro
 | Open / close a panel | toolbar button, `Escape`; focus enters, returns to the opener | ingame spec for 9 panels |
 | City: queue production, switch section, cycle city, close | build items, section buttons (`aria-pressed`), `Previous`/`Next city`, `Close city panel`; also `Cities` overview -> `Open <city>` | ingame spec, `tests/ui/city-panel-keyboard.test.ts` |
 | Decision dialogs (end-turn warning, delete, worker warnings, required choices, boon, city capture, Great General and beast-hoard choices, foreign-city entry, Great General commands) | focus on the safe control, Tab trapped, `Escape` = Cancel where one exists | `modal-contract.test.ts`; end-turn warning also by the keyboard-only spec |
-| Ceremonies (wonder discovery/completion, beast slay, event-chain and world-race conclusions) | already focus themselves and answer `Escape`; now also named dialogs with a Tab trap | `modal-contract.test.ts` declares the contract; **not** driven in a browser (see "Not tested") |
+| Ceremonies (wonder discovery/completion, beast slay, event-chain and world-race conclusions) | already focus themselves and answer `Escape`; now also named dialogs with a Tab trap | `modal-contract.test.ts` declares the contract; ceremonies spec drives it in a browser |
 | Pause menu: resume, settings, new game | `Return to Game` first, `Escape` returns, the new-game confirmation starts on `Cancel`; every settings block is a named group | ingame spec |
 | Manual save, failed-save recovery, reload | pause menu -> `Save Game` -> name -> `Save`; reload; `Continue` | ingame spec (success path); failure path by `tests/ui/save-panel.test.ts` |
 | Hot-seat handoff | focus starts inside; the whole UI layer is `inert` + `aria-hidden`; `I'm <player>` then `Start Turn` by keyboard; focus is not stranded after | handoff spec |
@@ -125,11 +127,8 @@ start on `Cancel`.
   regions are asserted from the DOM and axe, which is necessary but not sufficient.
 - **No human tested this**, keyboard-only or otherwise.
 - Chromium only. Safari/iPad acceptance is out of scope (#1455 is closed not planned).
-- The ceremonies (wonder discovery/completion, beast slay, event-chain and world-race
-  conclusions) and the later hot-seat stages (civilization pick, personal difficulty, review,
-  start) are covered by unit tests of what they declare, not by a browser run.
-- Failure and retry paths (a save that fails, a map that fails to load) were not driven by keyboard
-  in a browser.
+- The ceremonies are driven in a browser by mounting the real factory in a running campaign, not by the game event that normally raises them; the event-to-ceremony wiring is covered by unit tests only.
+- A failing save is simulated by making IndexedDB writes throw, and a failing map load by aborting the map-data request; other failure causes (a corrupt save file, a network drop mid-write) were not driven.
 - Contrast was checked only where axe reached it: text on the screens listed above, in their default
   state. Hover/focus/disabled states, the HUD, canvas overlays and every panel not in the table were
   not audited, and a visible focus indicator was not independently measured.
