@@ -9,7 +9,8 @@
       "side": 0.34
     },
     "size": 96,
-    "colors": 64
+    "colors": 64,
+    "tone": "parchment"
   },
   "original": {
     "sha256": "d3bb3ebc5ee121337e89d16ba71b53bd7b6aa6e1a60302b7f9935e9e7aae6702",
@@ -27,8 +28,8 @@
     "notRedistributed": true
   },
   "output": {
-    "sha256": "5accf97855c15e2c36e23c9b28c741824028685342c0eaf14a304c280b9895b0",
-    "bytes": 10604
+    "sha256": "e7fc36ac8426ece290609dbf59e22f2c00708780352310fc3b3eb02408189a8a",
+    "bytes": 14061
   },
   "sourceUrl": "https://commons.wikimedia.org/wiki/File:KingShaka.jpg",
   "title": "King Shaka (engraving after James King)",

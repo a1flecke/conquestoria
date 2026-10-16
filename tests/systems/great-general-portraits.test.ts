@@ -89,7 +89,7 @@ describe('General portrait images (#889)', () => {
       expect(prov.origin).toBe('generated-image');
       expect(String(prov.prompt).length).toBeGreaterThan(20);
       for (const word of names) expect(String(prov.prompt), `${id} prompt names "${word}"`).not.toContain(word);
-      expect(prov.notes).toContain('imaginary person');
+      expect(prov.notes).toMatch(/no (real )?likeness|authentic portrait was used/);
     }
   });
 
