@@ -1,0 +1,20 @@
+{
+  "id": "gen_napoleon",
+  "sourceFile": "napoleon.jpg",
+  "crop": {
+    "x": 0.33,
+    "y": 0.12,
+    "side": 0.45
+  },
+  "size": 96,
+  "colors": 64,
+  "provenance": {
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Jacques-Louis_David_-_The_Emperor_Napoleon_in_His_Study_at_the_Tuileries_-_Google_Art_Project.jpg",
+    "title": "The Emperor Napoleon in His Study at the Tuileries",
+    "author": "Jacques-Louis David (1812)",
+    "licence": "Public domain",
+    "licenceUrl": "https://commons.wikimedia.org/wiki/Commons:Licensing",
+    "retrievedOn": "2026-10-15",
+    "notes": ""
+  }
+}

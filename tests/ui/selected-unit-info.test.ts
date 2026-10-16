@@ -332,8 +332,9 @@ describe('Great General identity display (#544 MR3)', () => {
       expect(crest, `${definitionId} crest`).toBeDefined();
       expect(crest!.dataset.generalPortrait).toBe(definitionId);
       expect(crest!.dataset.portraitSource).toBe(source);
-      expect(crest!.dataset.portraitState).toBe('crest');
-      expect(crest!.getAttribute('aria-label')).toBe(`${name}, crest`);
+      // Caesar has a portrait image; the generated officer has only the crest.
+      expect(crest!.dataset.portraitState).toBe(source === 'authored' ? 'portrait' : 'crest');
+      expect(crest!.getAttribute('aria-label')).toBe(`${name}, ${source === 'authored' ? 'portrait' : 'crest'}`);
       const text = collectAllText(container).join(' ');
       expect(text).toContain(`${name} — Era`);
       expect(text).not.toContain('🦅'); // the shared emoji is no longer the display

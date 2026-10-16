@@ -1,4 +1,5 @@
 import { resolveGeneralDefinition, type GeneralDefinition, type GeneratedGeneralIdentity } from '@/systems/great-general-definitions';
+import { getGeneralPortraitArt, type GeneralPortraitArt } from '@/systems/great-general-portraits';
 import { resolveCultureFamily, type GeneralCultureFamily } from '@/systems/great-general-fallback-content';
 
 /**
@@ -10,11 +11,10 @@ import { resolveCultureFamily, type GeneralCultureFamily } from '@/systems/great
  * each). A surface that needs a General's look now asks `getGeneralPresentation(definition)`
  * and renders the result with `createGeneralPortrait` (`src/ui/general-portrait.ts`).
  *
- * What this is, honestly: an original, locally drawn heraldic CREST (a shield/round/diamond/banner
- * field in two colours with one geometric emblem). It is not a portrait, not a likeness and not
- * historical imagery, and nothing here claims otherwise. A real painted portrait set is a separate,
- * paid art task; when it lands it replaces the crest by changing what this resolver returns, not by
- * touching the four surfaces again.
+ * What this is, honestly: an original, locally drawn heraldic CREST (a shield/round/diamond/banner field in two colours
+ * with one geometric emblem). Where a vetted portrait image exists (`great-general-portraits.ts`) it is drawn inside that
+ * field and the emblem is the fallback; those images are illustrations after public-domain artworks (or generated images of
+ * imaginary people), never verified likenesses, and nothing here claims otherwise.
  *
  * Pure data: no DOM, no `GameState`, no randomness, nothing persisted (a save carries no
  * presentation; it is derived from the definition every time, so a repeated load always agrees).
@@ -41,6 +41,8 @@ export interface GeneralPresentation {
   readonly eraTier: GeneralEraTier;
   /** The legacy emoji. Kept as the accessible/graceful fallback when the crest cannot be drawn. */
   readonly fallbackIcon: string;
+  /** A portrait image drawn inside the crest field, when this authored General has one; the emblem is the fallback if it cannot load. */
+  readonly portrait?: GeneralPortraitArt;
 }
 
 interface CrestSpec {
@@ -148,6 +150,7 @@ export function getGeneralPresentation(definition: GeneralDefinition): GeneralPr
   if (authored) {
     return {
       generalId: definition.id, source: 'authored', eraTier, fallbackIcon: definition.portraitIcon,
+      portrait: getGeneralPortraitArt(definition.id),
       motif: authored.motif, shape: authored.shape, primary: authored.primary, secondary: authored.secondary,
     };
   }

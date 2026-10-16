@@ -1,0 +1,41 @@
+{
+  "id": "gen_suvorov",
+  "file": "public/images/generals/gen_suvorov.png",
+  "tool": "scripts/portrait-pixelate/portrait_pixelate.py",
+  "processing": {
+    "crop": {
+      "x": 0.34,
+      "y": 0.26,
+      "side": 0.4
+    },
+    "size": 96,
+    "colors": 64
+  },
+  "original": {
+    "sha256": "70639b8e9af47d7cc4717ec6d2e9beb00461e8299d13768f06ec927bd300b0f7",
+    "bytes": 174696,
+    "pixels": [
+      960,
+      1252
+    ],
+    "scan": [
+      "magic bytes: JPEG",
+      "no data after the image stream",
+      "decodes cleanly, one frame, within pixel limit",
+      "ClamAV: not installed (structural checks only)"
+    ],
+    "notRedistributed": true
+  },
+  "output": {
+    "sha256": "0783a1bc04dee803d117ae3abd4c38b473be92d688a50408af01d56631db002c",
+    "bytes": 14264
+  },
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Joseph_Kreutzinger_-_Portrait_of_Count_Alexander_Suvorov_-_WGA12281.jpg",
+  "title": "Portrait of Count Alexander Suvorov",
+  "author": "Joseph Kreutzinger",
+  "licence": "Public domain",
+  "licenceUrl": "https://commons.wikimedia.org/wiki/Commons:Licensing",
+  "retrievedOn": "2026-10-15",
+  "notes": "",
+  "likenessNote": "An illustration after a historical artwork, not a verified likeness. Many portraits of historical figures were made long after their lifetimes."
+}

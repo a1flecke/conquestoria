@@ -1,0 +1,20 @@
+{
+  "id": "gen_yuefei",
+  "sourceFile": "yuefei.jpg",
+  "crop": {
+    "x": 0.3,
+    "y": 0.05,
+    "side": 0.55
+  },
+  "size": 96,
+  "colors": 64,
+  "provenance": {
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:明人《岳飞像》轴.jpg",
+    "title": "Portrait of Yue Fei (Ming dynasty hanging scroll)",
+    "author": "Unknown (Ming dynasty artist)",
+    "licence": "Public domain",
+    "licenceUrl": "https://commons.wikimedia.org/wiki/Commons:Licensing",
+    "retrievedOn": "2026-10-15",
+    "notes": "Made centuries after his lifetime."
+  }
+}

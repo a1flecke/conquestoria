@@ -1,0 +1,20 @@
+{
+  "id": "gen_tokugawa",
+  "sourceFile": "tokugawa.jpg",
+  "crop": {
+    "x": 0.33,
+    "y": 0.37,
+    "side": 0.3
+  },
+  "size": 96,
+  "colors": 64,
+  "provenance": {
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Tokugawa_Ieyasu2.JPG",
+    "title": "Tokugawa Ieyasu portrait",
+    "author": "Kanō Tan'yū",
+    "licence": "Public domain",
+    "licenceUrl": "https://commons.wikimedia.org/wiki/Commons:Licensing",
+    "retrievedOn": "2026-10-15",
+    "notes": ""
+  }
+}

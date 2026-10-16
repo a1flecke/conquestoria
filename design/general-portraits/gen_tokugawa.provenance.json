@@ -1,0 +1,41 @@
+{
+  "id": "gen_tokugawa",
+  "file": "public/images/generals/gen_tokugawa.png",
+  "tool": "scripts/portrait-pixelate/portrait_pixelate.py",
+  "processing": {
+    "crop": {
+      "x": 0.33,
+      "y": 0.37,
+      "side": 0.3
+    },
+    "size": 96,
+    "colors": 64
+  },
+  "original": {
+    "sha256": "c40ead2a2d95b0f89861194d4fe4de9a4a9e489bce9699566289d6a769a20e84",
+    "bytes": 418258,
+    "pixels": [
+      960,
+      1095
+    ],
+    "scan": [
+      "magic bytes: JPEG",
+      "no data after the image stream",
+      "decodes cleanly, one frame, within pixel limit",
+      "ClamAV: not installed (structural checks only)"
+    ],
+    "notRedistributed": true
+  },
+  "output": {
+    "sha256": "aac42393f300a5404dfb868b5fef3750e49eb64369ca54c947223773340912f9",
+    "bytes": 18416
+  },
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Tokugawa_Ieyasu2.JPG",
+  "title": "Tokugawa Ieyasu portrait",
+  "author": "Kanō Tan'yū",
+  "licence": "Public domain",
+  "licenceUrl": "https://commons.wikimedia.org/wiki/Commons:Licensing",
+  "retrievedOn": "2026-10-15",
+  "notes": "",
+  "likenessNote": "An illustration after a historical artwork, not a verified likeness. Many portraits of historical figures were made long after their lifetimes."
+}

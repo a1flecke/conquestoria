@@ -42,3 +42,6 @@ Thumbs.db
 
 # Brainstorming visual-companion scratch files
 .superpowers/
+
+# Python bytecode from the dev-time sprite/portrait tools
+__pycache__/

@@ -1,0 +1,41 @@
+{
+  "id": "gen_yuefei",
+  "file": "public/images/generals/gen_yuefei.png",
+  "tool": "scripts/portrait-pixelate/portrait_pixelate.py",
+  "processing": {
+    "crop": {
+      "x": 0.3,
+      "y": 0.05,
+      "side": 0.55
+    },
+    "size": 96,
+    "colors": 64
+  },
+  "original": {
+    "sha256": "508f9c34dac1b4adfc73a1230485c7671126e14860f5cfb8a085f086b94c149d",
+    "bytes": 271034,
+    "pixels": [
+      960,
+      1682
+    ],
+    "scan": [
+      "magic bytes: JPEG",
+      "no data after the image stream",
+      "decodes cleanly, one frame, within pixel limit",
+      "ClamAV: not installed (structural checks only)"
+    ],
+    "notRedistributed": true
+  },
+  "output": {
+    "sha256": "9fa9da5e07d6e3a0701b4c1c660f7a676cde8faa0f573994b9f5de12eb8227d4",
+    "bytes": 14419
+  },
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:明人《岳飞像》轴.jpg",
+  "title": "Portrait of Yue Fei (Ming dynasty hanging scroll)",
+  "author": "Unknown (Ming dynasty artist)",
+  "licence": "Public domain",
+  "licenceUrl": "https://commons.wikimedia.org/wiki/Commons:Licensing",
+  "retrievedOn": "2026-10-15",
+  "notes": "Made centuries after his lifetime.",
+  "likenessNote": "An illustration after a historical artwork, not a verified likeness. Many portraits of historical figures were made long after their lifetimes."
+}

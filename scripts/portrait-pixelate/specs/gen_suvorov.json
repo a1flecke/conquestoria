@@ -1,0 +1,20 @@
+{
+  "id": "gen_suvorov",
+  "sourceFile": "suvorov.jpg",
+  "crop": {
+    "x": 0.34,
+    "y": 0.26,
+    "side": 0.4
+  },
+  "size": 96,
+  "colors": 64,
+  "provenance": {
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Joseph_Kreutzinger_-_Portrait_of_Count_Alexander_Suvorov_-_WGA12281.jpg",
+    "title": "Portrait of Count Alexander Suvorov",
+    "author": "Joseph Kreutzinger",
+    "licence": "Public domain",
+    "licenceUrl": "https://commons.wikimedia.org/wiki/Commons:Licensing",
+    "retrievedOn": "2026-10-15",
+    "notes": ""
+  }
+}

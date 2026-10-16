@@ -1,0 +1,41 @@
+{
+  "id": "gen_alexander",
+  "file": "public/images/generals/gen_alexander.png",
+  "tool": "scripts/portrait-pixelate/portrait_pixelate.py",
+  "processing": {
+    "crop": {
+      "x": 0.1,
+      "y": 0.0,
+      "side": 0.78
+    },
+    "size": 96,
+    "colors": 64
+  },
+  "original": {
+    "sha256": "cc2958040dca5457e81b263a8a209bf7a858d20f7c4777cef9a2f81d25c86c50",
+    "bytes": 709756,
+    "pixels": [
+      960,
+      1280
+    ],
+    "scan": [
+      "magic bytes: JPEG",
+      "no data after the image stream",
+      "decodes cleanly, one frame, within pixel limit",
+      "ClamAV: not installed (structural checks only)"
+    ],
+    "notRedistributed": true
+  },
+  "output": {
+    "sha256": "34ecf316226725a61845edf246f2601098c4d0efbadddb7ab69c4735a28634a2",
+    "bytes": 23983
+  },
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Alexander_Mosaic_detail_of_Alexander_the_Great_(3x4_cropped).jpg",
+  "title": "Alexander Mosaic, detail (cropped)",
+  "author": "Unknown (ancient Roman mosaic)",
+  "licence": "Public domain",
+  "licenceUrl": "https://commons.wikimedia.org/wiki/Commons:Licensing",
+  "retrievedOn": "2026-10-15",
+  "notes": "",
+  "likenessNote": "An illustration after a historical artwork, not a verified likeness. Many portraits of historical figures were made long after their lifetimes."
+}

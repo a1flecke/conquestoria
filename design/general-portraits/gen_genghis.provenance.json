@@ -1,0 +1,41 @@
+{
+  "id": "gen_genghis",
+  "file": "public/images/generals/gen_genghis.png",
+  "tool": "scripts/portrait-pixelate/portrait_pixelate.py",
+  "processing": {
+    "crop": {
+      "x": 0.15,
+      "y": 0.22,
+      "side": 0.7
+    },
+    "size": 96,
+    "colors": 64
+  },
+  "original": {
+    "sha256": "8e1d6a82a3bf931673b52a35ae27abe0f45c701e0db02535b2d477f25480ffab",
+    "bytes": 331709,
+    "pixels": [
+      960,
+      1220
+    ],
+    "scan": [
+      "magic bytes: JPEG",
+      "no data after the image stream",
+      "decodes cleanly, one frame, within pixel limit",
+      "ClamAV: not installed (structural checks only)"
+    ],
+    "notRedistributed": true
+  },
+  "output": {
+    "sha256": "3b6f79f6809d6beb654203fe22b25de968a4d1fe80d16b4beae4c7665d4510fa",
+    "bytes": 15073
+  },
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:YuanEmperorAlbumGenghisPortrait.jpg",
+  "title": "Yuan imperial portrait album: Genghis Khan",
+  "author": "Unknown (Yuan court artist)",
+  "licence": "Public domain",
+  "licenceUrl": "https://commons.wikimedia.org/wiki/Commons:Licensing",
+  "retrievedOn": "2026-10-15",
+  "notes": "Court portrait made after his lifetime.",
+  "likenessNote": "An illustration after a historical artwork, not a verified likeness. Many portraits of historical figures were made long after their lifetimes."
+}
