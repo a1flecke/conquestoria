@@ -3,7 +3,8 @@
  *
  * A portrait is a small (96 px) softly stylised PNG made by `scripts/portrait-pixelate/portrait_pixelate.py` from a
  * vetted source image: a public-domain artwork (where a good one exists), or an image generated from an original
- * description with DeepAI's text-to-image tool (imaginary commanders, and historical figures whose surviving images are
+ * description with an AI image generator (DeepAI's text-to-image tool, and ChatGPT image generation for the centaur
+ * Oreius, whose shape the free tool could not produce) (imaginary commanders, and historical figures whose surviving images are
  * busts, mosaics or stylised reliefs that do not read well as small portraits). Every entry has a provenance record in
  * `design/general-portraits/<id>.provenance.json` (source URL, author, licence, scan results, SHA-256 of the original,
  * which is never redistributed). `tests/systems/great-general-portraits.test.ts` pins that, the file's validity and its
@@ -59,6 +60,7 @@ export const GENERAL_PORTRAIT_ART: Readonly<Record<string, GeneralPortraitArt>> 
   gen_ragnar: art('gen_ragnar', 'generated-image'),
   gen_cuauhtemoc: art('gen_cuauhtemoc', 'generated-image'),
   gen_chandragupta: art('gen_chandragupta', 'generated-image'),
+  gen_oreius: art('gen_oreius', 'generated-image'),
 };
 
 export function getGeneralPortraitArt(generalId: string): GeneralPortraitArt | undefined {
