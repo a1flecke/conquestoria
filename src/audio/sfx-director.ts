@@ -3,7 +3,7 @@ import type { AudioLoader } from './audio-loader';
 import type { EventBus } from '../core/event-bus';
 import type { Unit, UnitType, CombatResult, HexCoord, GameState, ImprovementType } from '../core/types';
 import type { CaptureKind } from '../core/types/combat';
-import { UNIT_SFX, PIRATE_MOVEMENT_SFX, COMBAT_OUTCOME_SFX, getLocomotionClass, getMovementSfx, type PirateUnitType } from './sfx-catalog';
+import { UNIT_SFX, PIRATE_MOVEMENT_SFX, COMBAT_OUTCOME_SFX, GENERAL_COMMAND_SFX, getLocomotionClass, getMovementSfx, type PirateUnitType } from './sfx-catalog';
 import { getMovementDurationMs } from '../renderer/unit-movement-animation';
 import { getVisibility } from '@/systems/fog-of-war';
 
@@ -50,6 +50,16 @@ export class SfxDirector {
       bus.on('unit:move', p => this.handleUnitMove(p.unitId, p.path, p.presentationByViewer)),
       bus.on('unit:destroyed', p => this.handleUnitDestroyed(p.unitId, p.position)),
       bus.on('pillage:resolved', p => this.handlePillageResolved(p.coord, p.improvement, p.roadPillaged)),
+      // #889: Great General moments. Command and retirement cues are the owner's own and heard only while that owner
+      // is the viewing seat; the Last Stand save is heard wherever the viewer can currently see the hex.
+      bus.on('general:command-used', ({ moment }) => this.playFile(
+        (moment.isFinalCommand ? GENERAL_COMMAND_SFX['final-command'] : GENERAL_COMMAND_SFX[moment.kind]).file,
+        [moment.civId],
+      )),
+      bus.on('general:last-stand-held', p => {
+        if (this.isVisible(p.coord)) this.playFile(GENERAL_COMMAND_SFX['last-stand'].file, this.viewerOnly());
+      }),
+      bus.on('general:retired', p => this.playFile(GENERAL_COMMAND_SFX['final-command'].file, [p.civId])),
     );
   }
 
@@ -92,6 +102,12 @@ export class SfxDirector {
     if (!state) return true;
     const viewerId = state.currentPlayer;
     return Boolean(viewerId && viewerIds.includes(viewerId));
+  }
+
+  /** The seat looking at the screen right now, captured at the event so a hot-seat handoff before the decode cancels the cue. */
+  private viewerOnly(): string[] | undefined {
+    const viewerId = this.getState?.().currentPlayer;
+    return viewerId ? [viewerId] : undefined;
   }
 
   private playFile(path: string, viewerIds?: string[]): void {

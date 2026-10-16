@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SfxDirector } from '../../src/audio/sfx-director';
-import { UNIT_SFX, MOVEMENT_SFX, PIRATE_MOVEMENT_SFX, COMBAT_OUTCOME_SFX } from '../../src/audio/sfx-catalog';
+import { UNIT_SFX, MOVEMENT_SFX, PIRATE_MOVEMENT_SFX, COMBAT_OUTCOME_SFX, GENERAL_COMMAND_SFX } from '../../src/audio/sfx-catalog';
 import type { AudioMixer } from '../../src/audio/audio-mixer';
 import type { AudioLoader } from '../../src/audio/audio-loader';
 import type { EventBus } from '../../src/core/event-bus';
@@ -688,6 +688,85 @@ describe('SfxDirector', () => {
     busHelper.emit('pillage:resolved', { coord: { q: 1, r: 0 }, improvement: 'farm', roadPillaged: false });
     await tick();
     expect(mixer.playOneShot).not.toHaveBeenCalled();
+  });
+
+  // === Great General moments (#889) ===
+
+  describe('Great General moments (#889)', () => {
+    const moment = (kind: 'rally' | 'seize' | 'last-stand', over: Record<string, unknown> = {}) => ({
+      moment: { kind, civId: 'player', isFinalCommand: false, ...over },
+    });
+    const played = (key: keyof typeof GENERAL_COMMAND_SFX) => loader.bufferFor(GENERAL_COMMAND_SFX[key].file);
+
+    it.each(['rally', 'seize', 'last-stand'] as const)('%s plays its own cue, and no other', async kind => {
+      director.start({}, busHelper.bus, stateProvider({}));
+      busHelper.emit('general:command-used', moment(kind));
+      await tick();
+      expect(mixer.playOneShot).toHaveBeenCalledTimes(1);
+      expect(mixer.playOneShot).toHaveBeenCalledWith('sfx', played(kind));
+    });
+
+    it('a Final Command plays the final cue instead of the ability cue', async () => {
+      director.start({}, busHelper.bus, stateProvider({}));
+      busHelper.emit('general:command-used', moment('rally', { isFinalCommand: true }));
+      await tick();
+      expect(mixer.playOneShot).toHaveBeenCalledTimes(1);
+      expect(mixer.playOneShot).toHaveBeenCalledWith('sfx', played('final-command'));
+      expect(loader.get).not.toHaveBeenCalledWith(GENERAL_COMMAND_SFX.rally.file);
+    });
+
+    it("is heard only by the commanding seat: another seat's command makes no sound", async () => {
+      director.start({}, busHelper.bus, stateProvider({}));
+      busHelper.emit('general:command-used', moment('rally', { civId: 'someone-else' }));
+      await tick();
+      expect(mixer.playOneShot).not.toHaveBeenCalled();
+    });
+
+    it('is silent while presentation is suppressed (hot-seat handoff replay)', async () => {
+      director.start({}, busHelper.bus, stateProvider({}), () => true);
+      busHelper.emit('general:command-used', moment('seize'));
+      await tick();
+      expect(mixer.playOneShot).not.toHaveBeenCalled();
+    });
+
+    it('drops a command cue when the seat changes before it loads', async () => {
+      let finish!: (buffer: AudioBuffer) => void;
+      loader.get.mockImplementation(() => new Promise<AudioBuffer>(resolve => { finish = resolve; }));
+      const state = stateProvider({})();
+      director.start({}, busHelper.bus, () => state);
+      busHelper.emit('general:command-used', moment('last-stand'));
+      state.currentPlayer = 'next-seat';
+      finish({} as AudioBuffer);
+      await tick();
+      expect(mixer.playOneShot).not.toHaveBeenCalled();
+    });
+
+    it('the Last Stand survival save is heard where the viewer can see the hex, and silent in fog', async () => {
+      director.start({}, busHelper.bus, stateProvider({}));
+      busHelper.emit('general:last-stand-held', { civId: 'rival', generalDefinitionId: 'gen_hannibal', unitId: 'u9', coord: { q: 1, r: 0 } });
+      await tick();
+      expect(mixer.playOneShot).toHaveBeenCalledWith('sfx', played('last-stand'));
+
+      const fogMixer = makeMixer();
+      const fog = new SfxDirector(fogMixer, makeLoader());
+      const fogBus = makeEventBus();
+      fog.start({}, fogBus.bus, stateProvider({}, 'fog'));
+      fogBus.emit('general:last-stand-held', { civId: 'rival', generalDefinitionId: 'gen_hannibal', unitId: 'u9', coord: { q: 1, r: 0 } });
+      await tick();
+      expect(fogMixer.playOneShot).not.toHaveBeenCalled();
+    });
+
+    it('retirement plays the final cue for the owner and is silent for another seat', async () => {
+      director.start({}, busHelper.bus, stateProvider({}));
+      busHelper.emit('general:retired', { civId: 'player', generalName: 'Hannibal', message: 'x' });
+      await tick();
+      expect(mixer.playOneShot).toHaveBeenCalledWith('sfx', played('final-command'));
+
+      mixer.playOneShot.mockClear();
+      busHelper.emit('general:retired', { civId: 'ai-1', generalName: 'Ramesses', message: 'x' });
+      await tick();
+      expect(mixer.playOneShot).not.toHaveBeenCalled();
+    });
   });
 
   // === dispose ===
