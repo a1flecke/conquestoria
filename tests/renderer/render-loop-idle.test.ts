@@ -412,4 +412,86 @@ describe('idle-aware render scheduling (#1439)', () => {
       loop.stop();
     });
   });
+
+  describe('Great General command effects (#889)', () => {
+    const moment = {
+      kind: 'rally', civId: 'player', generalUnitId: 'gen-1', generalName: 'Hannibal Barca', isFinalCommand: false,
+      generalCoord: { q: 0, r: 0 }, affectedCoords: [{ q: 1, r: 0 }, { q: 2, r: 0 }], affectedCount: 2,
+      accent: '#ff0000', glow: '#00ff00', summary: 'Rally: 2 units steadied, 60 HP restored.',
+    } as const;
+
+    // Arcs one repaint draws that the effects did not (the unit glyphs): measured on a control repaint of the same world.
+    function effectOps(loop: RenderLoop, calls: Map<string, ReturnType<typeof vi.fn>>, play: () => void): { arc: number; lineTo: number } {
+      const count = (op: string) => calls.get(op)?.mock.calls.length ?? 0;
+      const controlStart = { arc: count('arc'), lineTo: count('lineTo') };
+      loop.setHighlights([]);
+      runFrame();
+      const control = { arc: count('arc') - controlStart.arc, lineTo: count('lineTo') - controlStart.lineTo };
+      const start = { arc: count('arc'), lineTo: count('lineTo') };
+      play();
+      runFrame();
+      return { arc: count('arc') - start.arc - control.arc, lineTo: count('lineTo') - start.lineTo - control.lineTo };
+    }
+    const effectArcs = (loop: RenderLoop, calls: Map<string, ReturnType<typeof vi.fn>>, play: () => void): number =>
+      effectOps(loop, calls, play).arc;
+
+    it('wakes an idle loop, draws on the next frame, retires on time, then idles again', () => {
+      const { loop, paints } = makeLoop();
+      loop.start();
+      drain();
+      expect(frames).toHaveLength(0);
+      const before = paints();
+
+      loop.playGeneralAbility(moment);
+      expect(frames).toHaveLength(1);
+      runFrame();
+      expect(paints()).toBe(before + 1);
+
+      vi.advanceTimersByTime(3_000); // past every effect
+      drain();
+      expect(frames).toHaveLength(0);
+      const settled = paints();
+      vi.advanceTimersByTime(10_000);
+      expect(frames).toHaveLength(0);
+      expect(paints()).toBe(settled);
+      loop.stop();
+    });
+
+    it('draws one effect per touched hex plus a larger one on the General', () => {
+      const { loop, calls } = makeLoop();
+      loop.start();
+      drain();
+      // A rally draws two rings per effect: (2 hexes + the General) x 2 rings.
+      expect(effectArcs(loop, calls, () => loop.playGeneralAbility(moment))).toBe(6);
+      loop.stop();
+    });
+
+    it('a Final Command gives the General its own, larger effect instead of the ordinary one', () => {
+      const arcsFor = (isFinalCommand: boolean) => {
+        const { loop, calls } = makeLoop();
+        loop.start();
+        drain();
+        const drawn = effectArcs(loop, calls, () => loop.playGeneralAbility({ ...moment, isFinalCommand }));
+        loop.stop();
+        return drawn;
+      };
+      // Ordinary: (2 hexes + the General) x 2 rally rings = 6. Final: 2 hexes x 2 rings + the General's 3-arc gold effect = 7.
+      expect(arcsFor(false)).toBe(6);
+      expect(arcsFor(true)).toBe(7);
+    });
+
+    it('under reduced motion every effect is one steady ring, with no moving rays or rising marks', () => {
+      g.window = {
+        devicePixelRatio: 1,
+        matchMedia: () => ({ matches: true, addEventListener: () => {}, removeEventListener: () => {} }),
+      };
+      const { loop, calls } = makeLoop();
+      loop.start();
+      drain();
+      const drawn = effectOps(loop, calls, () => loop.playGeneralAbility({ ...moment, kind: 'seize' }));
+      expect(drawn.arc).toBe(3); // 2 hexes + the General, one ring each
+      expect(drawn.lineTo).toBe(0); // no rays
+      loop.stop();
+    });
+  });
 });

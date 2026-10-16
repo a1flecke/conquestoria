@@ -87,6 +87,7 @@ export function makePresentationContext(overrides: {
     selection: makeSelectionStoreDouble(),
     requestDeliveryVisual: vi.fn(),
     applyCombatVisual: vi.fn(),
+    playGeneralAbility: vi.fn(),
     showEspionageCaptureChoice: vi.fn(),
     // Not `document.createElement` -- most test files that use this helper
     // don't declare `@vitest-environment jsdom`, and this must stay safe to

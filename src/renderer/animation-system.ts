@@ -2,18 +2,22 @@ import type { HexCoord } from '@/core/types';
 import { hexToPixel } from '@/systems/hex-utils';
 import type { Camera } from './camera';
 import { getHorizontalWrapRenderCoords } from './wrap-rendering';
+import { drawGeneralAbilityEffect, isGeneralAbilityEffect, type GeneralAbilityEffectType } from './general-ability-effects';
 
 export type EffectAnimationType =
   | 'combat-flash'
   | 'wonder-discovery-pulse'
   | 'wonder-discovery-static-highlight'
-  | 'disembark-flash';
+  | 'disembark-flash'
+  | GeneralAbilityEffectType;
 
 export interface EffectAnimationData {
   /** Hex the effect marks. Screen position is derived from the camera every frame. */
   coord: HexCoord;
   accent?: string;
   glow?: string;
+  /** Reach in hexes for the Great General effects (#889). */
+  radiusHexes?: number;
 }
 
 export interface Animation {
@@ -104,6 +108,10 @@ export class AnimationSystem {
     y: number,
     size: number,
   ): void {
+    if (isGeneralAbilityEffect(anim.type)) {
+      drawGeneralAbilityEffect(ctx, anim.type, progress, x, y, size, anim.data);
+      return;
+    }
     switch (anim.type) {
       case 'combat-flash': {
         const alpha = 1 - progress;

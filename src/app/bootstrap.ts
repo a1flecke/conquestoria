@@ -603,6 +603,7 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     selection,
     requestDeliveryVisual: unitId => renderLoop.applyDeliveryVisual(unitId),
     applyCombatVisual: result => renderLoop.applyCombatVisual(result),
+    playGeneralAbility: moment => renderLoop.playGeneralAbility(moment),
     showEspionageCaptureChoice: (spyId, spyOwner) => playerActions.showEspionageCaptureChoice(spyId, spyOwner),
     uiLayer,
     maybeShowPendingHoardChoice: () => maybeShowPendingHoardChoice(),

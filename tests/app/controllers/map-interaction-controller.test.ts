@@ -604,4 +604,46 @@ describe('MapInteractionController', () => {
       expect(uiLayer.querySelector('#territory-inspection-panel')).toBeNull();
     });
   });
+
+  describe('Last Stand targeting announces the command (#889)', () => {
+    function lastStandFixture(withNeighbour: boolean) {
+      const state = makeFixture();
+      document.body.innerHTML = '<div id="info-panel"></div>';
+      state.units['gen-1'] = {
+        ...createUnit('great_general', 'player', { q: 0, r: 0 }, idCounters),
+        id: 'gen-1', owner: 'player', position: { q: 0, r: 0 }, generalDefinitionId: 'gen_hannibal',
+      };
+      state.civilizations.player.units.push('gen-1');
+      if (withNeighbour) placePlayerUnit(state, 'u1', { position: { q: 1, r: 0 } });
+      makeVisible(state, { q: 0, r: 0 });
+      makeVisible(state, { q: 1, r: 0 });
+      const harness = baseDeps(state);
+      const moments: unknown[] = [];
+      harness.deps.bus.on('general:command-used', ({ moment }) => { moments.push(moment); });
+      const controller = createMapInteractionController(harness.deps);
+      harness.selection.setPendingIntent({ kind: 'last-stand-target', unitId: 'gen-1', range: [{ q: 0, r: 0 }, { q: 1, r: 0 }] });
+      return { ...harness, controller, moments };
+    }
+    const confirmButton = (layer: HTMLElement) =>
+      Array.from(layer.querySelectorAll<HTMLButtonElement>('button')).find(b => b.textContent === 'Confirm');
+
+    it('confirming commits the hold and announces one Last Stand moment after the state is published', () => {
+      const { controller, deps, session, moments } = lastStandFixture(true);
+      controller.handleHexTap({ q: 1, r: 0 });
+      expect(moments).toHaveLength(0); // targeting a hex only previews
+
+      confirmButton(deps.uiLayer)!.click();
+      expect(session.getState().units.u1!.lastStandHold).toBeDefined();
+      expect(moments).toHaveLength(1);
+      expect(moments[0]).toMatchObject({ kind: 'last-stand', civId: 'player', generalUnitId: 'gen-1', affectedCount: 1 });
+    });
+
+    it('a target with no units to hold announces nothing and spends nothing', () => {
+      const { controller, deps, session, moments } = lastStandFixture(false);
+      controller.handleHexTap({ q: 1, r: 0 });
+      confirmButton(deps.uiLayer)?.click();
+      expect(moments).toHaveLength(0);
+      expect(session.getState().units['gen-1']!.generalCommandChargesUsed).toBeUndefined();
+    });
+  });
 });

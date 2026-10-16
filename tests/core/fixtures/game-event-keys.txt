@@ -123,6 +123,8 @@ fog:revealed
 game:loaded
 game:over
 game:saved
+general:command-used
+general:last-stand-held
 general:retired
 improvement:completed
 improvement:started

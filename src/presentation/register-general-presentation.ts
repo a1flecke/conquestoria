@@ -6,6 +6,7 @@
 import { routeStrategicWarning } from '@/ui/notification-routes/world-routes';
 import { resolveGeneralDefinition } from '@/systems/great-general-definitions';
 import { getGeneralPresentation } from '@/systems/great-general-presentation';
+import { getVisibility } from '@/systems/fog-of-war';
 import type { PresentationRegistrar } from '@/presentation/register-all';
 
 export const registerGeneralPresentation: PresentationRegistrar = (bus, ctx) => {
@@ -32,6 +33,43 @@ export const registerGeneralPresentation: PresentationRegistrar = (bus, ctx) => 
     // Great General game feature, not a dedicated home for it; this event
     // just happens to fit "doesn't cleanly belong to any other domain
     // registrar" as well as everything else already here.
+    // #889: the player's own command gets a result toast and a map effect. Own-input feedback, so it is the acting
+    // viewer's `showNotification`, and only for the viewing owner: another seat's command is never shown here.
+    bus.on('general:command-used', ({ moment }) => {
+      const state = ctx.session.getState();
+      if (moment.civId !== state.currentPlayer) return;
+      ctx.showNotification(moment.summary, moment.isFinalCommand ? 'warning' : 'success');
+      if (!ctx.isPresentationSuppressed()) ctx.playGeneralAbility(moment);
+    }),
+    // #889: a Last Stand hold absorbed a lethal blow -- human or AI executor alike. The owner is told in words; a
+    // rival's save is a map effect only, and only where the viewer can currently see the hex (no name, no text).
+    bus.on('general:last-stand-held', ({ civId, generalDefinitionId, unitId, coord }) => {
+      const state = ctx.session.getState();
+      const definition = resolveGeneralDefinition(state, generalDefinitionId);
+      if (!definition) return;
+      // `deliver` queues the sentence for a human seat that is not the one looking (hot seat); an AI owner gets none.
+      if (state.civilizations[civId]?.isHuman) {
+        ctx.notifier.deliver(civId, `${definition.name}'s line held: a unit survived a blow that should have destroyed it.`, 'success');
+      }
+      const visibility = state.civilizations[state.currentPlayer]?.visibility;
+      const viewerSeesIt = civId === state.currentPlayer
+        || (visibility !== undefined && getVisibility(visibility, coord) === 'visible');
+      if (!viewerSeesIt || ctx.isPresentationSuppressed()) return;
+      const presentation = getGeneralPresentation(definition);
+      ctx.playGeneralAbility({
+        kind: 'last-stand',
+        civId,
+        generalUnitId: unitId,
+        generalName: definition.name,
+        isFinalCommand: false,
+        generalCoord: coord,
+        affectedCoords: [coord],
+        affectedCount: 1,
+        accent: presentation.primary,
+        glow: presentation.secondary,
+        summary: '',
+      });
+    }),
     bus.on('general:retired', ({ civId, generalName, message, generalDefinitionId }) => {
       ctx.notifier.deliver(civId, `${generalName} has retired. ${message}`, 'info');
       // #889: the owner also gets the retirement moment (crest + their own career line + a way into the Hall of Fame),

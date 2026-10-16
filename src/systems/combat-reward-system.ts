@@ -928,6 +928,19 @@ export function applyCombatOutcomeToState(
   // transition is announced here, once, for every executor (#1014). A hypothetical fight
   // (AI lookahead) passes no bus and stays silent.
   if (bus) for (const slain of beastsSlain) bus.emit('beast:slain', slain);
+  // #889: the Last Stand formation's one-time survival save is a visible moment. Announced here, with the other
+  // consequences of the fight, so a human and an AI executor show it identically (no bus: stays silent).
+  if (bus) {
+    for (const { unit, hold } of lastStandSaves) {
+      if (!hold.generalDefinitionId) continue;
+      bus.emit('general:last-stand-held', {
+        civId: unit.owner,
+        generalDefinitionId: hold.generalDefinitionId,
+        unitId: unit.id,
+        coord: { q: unit.position.q, r: unit.position.r },
+      });
+    }
+  }
 
   return {
     state: liveness.state,
