@@ -1,0 +1,20 @@
+{
+  "id": "gen_caesar",
+  "sourceFile": "caesar.jpg",
+  "crop": {
+    "x": 0.0,
+    "y": 0.03,
+    "side": 1.0
+  },
+  "size": 96,
+  "colors": 64,
+  "provenance": {
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Retrato_de_Julio_César_(26724093101)_(cropped).jpg",
+    "title": "Marble bust of Julius Caesar (photo, cropped)",
+    "author": "Ángel M. Felicísimo (photo of an ancient bust)",
+    "licence": "Public domain",
+    "licenceUrl": "https://commons.wikimedia.org/wiki/Commons:Licensing",
+    "retrievedOn": "2026-10-15",
+    "notes": "Photograph of a 2000-year-old sculpture; Commons tags the photo public domain."
+  }
+}

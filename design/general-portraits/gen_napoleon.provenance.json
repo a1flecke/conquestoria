@@ -1,0 +1,41 @@
+{
+  "id": "gen_napoleon",
+  "file": "public/images/generals/gen_napoleon.png",
+  "tool": "scripts/portrait-pixelate/portrait_pixelate.py",
+  "processing": {
+    "crop": {
+      "x": 0.33,
+      "y": 0.12,
+      "side": 0.45
+    },
+    "size": 96,
+    "colors": 64
+  },
+  "original": {
+    "sha256": "07fa9a8dcc7f84841cd3bea9a1d71e7fe0ec03158549ae0b5aaa33b3229a120f",
+    "bytes": 310200,
+    "pixels": [
+      960,
+      1601
+    ],
+    "scan": [
+      "magic bytes: JPEG",
+      "no data after the image stream",
+      "decodes cleanly, one frame, within pixel limit",
+      "ClamAV: not installed (structural checks only)"
+    ],
+    "notRedistributed": true
+  },
+  "output": {
+    "sha256": "cb357ba3750033ebfe60f358413098db0fd1da63c38566755329402e1b9d2d35",
+    "bytes": 13652
+  },
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Jacques-Louis_David_-_The_Emperor_Napoleon_in_His_Study_at_the_Tuileries_-_Google_Art_Project.jpg",
+  "title": "The Emperor Napoleon in His Study at the Tuileries",
+  "author": "Jacques-Louis David (1812)",
+  "licence": "Public domain",
+  "licenceUrl": "https://commons.wikimedia.org/wiki/Commons:Licensing",
+  "retrievedOn": "2026-10-15",
+  "notes": "",
+  "likenessNote": "An illustration after a historical artwork, not a verified likeness. Many portraits of historical figures were made long after their lifetimes."
+}

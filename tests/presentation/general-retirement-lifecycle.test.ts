@@ -47,8 +47,9 @@ describe('#889 General retirement lifecycle', () => {
 
     const [entry] = getHallOfFameForViewer(after, after.currentPlayer);
     expect(entry!.status).toBe('retired');
-    const ceremonyCrest = overlays[0]!.querySelector('[data-general-portrait]')!.innerHTML;
-    expect(createGeneralPortrait(entry!.presentation!, { size: 88, name: entry!.name }).innerHTML).toBe(ceremonyCrest);
+    const normalise = (html: string) => html.replace(/general-portrait-clip-\d+/g, 'clip');
+    const ceremonyCrest = normalise(overlays[0]!.querySelector('[data-general-portrait]')!.innerHTML);
+    expect(normalise(createGeneralPortrait(entry!.presentation!, { size: 88, name: entry!.name }).innerHTML)).toBe(ceremonyCrest);
     expect(ctx.deliver).toHaveBeenCalledTimes(1); // the existing toast, once
   });
 

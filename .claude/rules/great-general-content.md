@@ -118,3 +118,27 @@ A General's *look* is a third layer, separate from `descriptor` and `GeneralProf
 - **Retirement moment.** `general:retired` carries `generalDefinitionId`; the registrar queues one `GeneralRetirementMomentItem` for the
   *viewing* owner through `CeremonyCoordinator.enqueueGeneralRetirement` (queued behind other ceremonies, deduped, dropped on a hot-seat
   handoff, no-op after victory). The ceremony has no animation and no audio of its own, so reduced motion and mute need no special case.
+
+### Portrait images (#889)
+
+Some Generals also have a small portrait drawn inside their crest (`src/systems/great-general-portraits.ts`, one catalog row per General,
+files in `public/images/generals/`). A General with no row keeps the emblem; generated officers never get a portrait.
+
+- **Sources, and only these.** (a) A **public-domain** artwork on Wikimedia Commons for a historical figure. (b) For an imaginary or
+  placeholder character, an image **generated from an original description** (no character names in the prompt) with DeepAI's
+  text-to-image tool. Never CC BY-SA / NC / unknown-licence files (photos of statues and reliefs included), never fan art or film stills.
+- **Every downloaded image is security-scanned before use**, and only the tool's own re-encode ships. `python3 -I
+  scripts/portrait-pixelate/portrait_pixelate.py scan <file>` rejects anything over 8 MB, anything that is not a plain PNG/JPEG by magic
+  bytes, decode errors, decompression bombs, animated files and **data appended after the image** (and runs ClamAV when installed);
+  `build <spec>` runs that scan first, then crops, softens and palette-limits to 96 px / 64 colours and writes a fresh PNG from decoded
+  pixels, which drops EXIF/XMP/ICC and anything hidden. The original is **never committed**; its SHA-256, URL, author, licence, scan
+  result and (for generated images) the prompt go in `design/general-portraits/<id>.provenance.json`. Specs live in
+  `scripts/portrait-pixelate/specs/`; run with `PORTRAIT_SOURCES_DIR` pointing at the folder of originals.
+- **Pinned by `tests/systems/great-general-portraits.test.ts`:** every catalog row has a plain 96x96 PNG under 40 KB with no extra chunks
+  and no trailing bytes, a provenance record whose output hash matches the shipped file, public-domain rows cite a Commons file and say
+  "Public domain" (never share-alike), generated rows record a prompt that names no existing character, and no file or record exists
+  without a catalog row.
+- **Honesty.** These are illustrations after historical artworks (many were made long after the person lived) or generated images of
+  imaginary people; the provenance says "not a verified likeness" and nothing player-facing may claim a likeness.
+- **DeepAI terms were not fully reviewed:** its FAQ says commercial use is permitted and outputs are public domain / user-owned, but its
+  terms page could not be retrieved on 2026-10-15. Confirm with DeepAI before release; to replace an image, regenerate and re-run the tool.

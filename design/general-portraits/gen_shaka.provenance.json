@@ -1,0 +1,41 @@
+{
+  "id": "gen_shaka",
+  "file": "public/images/generals/gen_shaka.png",
+  "tool": "scripts/portrait-pixelate/portrait_pixelate.py",
+  "processing": {
+    "crop": {
+      "x": 0.25,
+      "y": 0.23,
+      "side": 0.34
+    },
+    "size": 96,
+    "colors": 64
+  },
+  "original": {
+    "sha256": "d3bb3ebc5ee121337e89d16ba71b53bd7b6aa6e1a60302b7f9935e9e7aae6702",
+    "bytes": 140077,
+    "pixels": [
+      740,
+      1000
+    ],
+    "scan": [
+      "magic bytes: JPEG",
+      "no data after the image stream",
+      "decodes cleanly, one frame, within pixel limit",
+      "ClamAV: not installed (structural checks only)"
+    ],
+    "notRedistributed": true
+  },
+  "output": {
+    "sha256": "5accf97855c15e2c36e23c9b28c741824028685342c0eaf14a304c280b9895b0",
+    "bytes": 10604
+  },
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:KingShaka.jpg",
+  "title": "King Shaka (engraving after James King)",
+  "author": "James King (1820s)",
+  "licence": "Public domain",
+  "licenceUrl": "https://commons.wikimedia.org/wiki/Commons:Licensing",
+  "retrievedOn": "2026-10-15",
+  "notes": "An engraving by a European visitor, with the limits that implies.",
+  "likenessNote": "An illustration after a historical artwork, not a verified likeness. Many portraits of historical figures were made long after their lifetimes."
+}

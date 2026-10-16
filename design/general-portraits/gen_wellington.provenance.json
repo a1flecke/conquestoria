@@ -1,0 +1,41 @@
+{
+  "id": "gen_wellington",
+  "file": "public/images/generals/gen_wellington.png",
+  "tool": "scripts/portrait-pixelate/portrait_pixelate.py",
+  "processing": {
+    "crop": {
+      "x": 0.17,
+      "y": 0.07,
+      "side": 0.66
+    },
+    "size": 96,
+    "colors": 64
+  },
+  "original": {
+    "sha256": "d24ef8dc18e658d6cfe3f220058bfb10c5e740ccbda19fa0d4b61267a4966ccd",
+    "bytes": 325126,
+    "pixels": [
+      960,
+      1312
+    ],
+    "scan": [
+      "magic bytes: JPEG",
+      "no data after the image stream",
+      "decodes cleanly, one frame, within pixel limit",
+      "ClamAV: not installed (structural checks only)"
+    ],
+    "notRedistributed": true
+  },
+  "output": {
+    "sha256": "8d74b742e6acc541d540ac8adbdeeee221506b6cb0023cdcb9096ba8435f6902",
+    "bytes": 14731
+  },
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sir_Arthur_Wellesley,_1st_Duke_of_Wellington.jpg",
+  "title": "Sir Arthur Wellesley, 1st Duke of Wellington",
+  "author": "Thomas Lawrence",
+  "licence": "Public domain",
+  "licenceUrl": "https://commons.wikimedia.org/wiki/Commons:Licensing",
+  "retrievedOn": "2026-10-15",
+  "notes": "",
+  "likenessNote": "An illustration after a historical artwork, not a verified likeness. Many portraits of historical figures were made long after their lifetimes."
+}

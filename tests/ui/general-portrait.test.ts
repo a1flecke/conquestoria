@@ -10,18 +10,20 @@ import { createRallyPanel } from '@/ui/general-command-panel';
 import { getHallOfFameForViewer } from '@/systems/great-general-hall-of-fame';
 import type { GameState } from '@/core/types';
 
-const caesar = GENERAL_DEFINITIONS.find(g => g.id === 'gen_caesar')!;
+const caesar = GENERAL_DEFINITIONS.find(g => g.id === 'gen_caesar')!; // has a portrait image
+const ramesses = GENERAL_DEFINITIONS.find(g => g.id === 'gen_ramesses')!; // crest only
 const alexander = GENERAL_DEFINITIONS.find(g => g.id === 'gen_alexander')!;
 
 function crestSignature(root: Element): string {
-  return [...root.querySelectorAll('svg path')].map(p => `${p.getAttribute('d')}|${p.getAttribute('fill')}`).join(';');
+  // Clip ids are unique per drawn portrait by design, so they are normalised out of the comparison.
+  return root.querySelector('svg')!.outerHTML.replace(/general-portrait-clip-\d+/g, 'clip');
 }
 
 describe('General crest portrait (#889)', () => {
   it('draws an inline SVG crest named for the General, never via innerHTML', () => {
-    const crest = createGeneralPortrait(getGeneralPresentation(caesar), { size: 40, name: caesar.name });
+    const crest = createGeneralPortrait(getGeneralPresentation(ramesses), { size: 40, name: ramesses.name });
     expect(crest.getAttribute('role')).toBe('img');
-    expect(crest.getAttribute('aria-label')).toBe('Julius Caesar, crest');
+    expect(crest.getAttribute('aria-label')).toBe('Ramesses II, crest');
     expect(crest.dataset.portraitState).toBe('crest');
     expect(crest.querySelector('svg')).not.toBeNull();
     expect(crest.querySelector('img, script, foreignObject')).toBeNull();
@@ -37,13 +39,13 @@ describe('General crest portrait (#889)', () => {
 
   it('keeps hostile text out of markup: a name with HTML lives only in the label attribute', () => {
     const name = '<img src=x onerror=alert(1)>';
-    const crest = createGeneralPortrait(getGeneralPresentation(caesar), { size: 40, name });
+    const crest = createGeneralPortrait(getGeneralPresentation(ramesses), { size: 40, name });
     expect(crest.querySelector('img')).toBeNull();
     expect(crest.getAttribute('aria-label')).toBe(`${name}, crest`);
   });
 
   it('a malformed colour degrades to a neutral grey instead of reaching an attribute', () => {
-    const bad: GeneralPresentation = { ...getGeneralPresentation(caesar), primary: 'red;stroke:url(javascript:1)', secondary: '#12345' };
+    const bad: GeneralPresentation = { ...getGeneralPresentation(ramesses), primary: 'red;stroke:url(javascript:1)', secondary: '#12345' };
     const crest = createGeneralPortrait(bad, { size: 40, name: 'x' });
     const fills = [...crest.querySelectorAll('path')].map(p => p.getAttribute('fill'));
     expect(fills.every(f => f === 'none' || /^#[0-9a-f]{6}$/i.test(f ?? ''))).toBe(true);
@@ -51,17 +53,17 @@ describe('General crest portrait (#889)', () => {
   });
 
   it('falls back to the legacy emoji, still named, when the crest cannot be drawn', () => {
-    const broken = { ...getGeneralPresentation(caesar), motif: 'no-such-motif' } as unknown as GeneralPresentation;
-    const crest = createGeneralPortrait(broken, { size: 40, name: caesar.name });
+    const broken = { ...getGeneralPresentation(ramesses), motif: 'no-such-motif' } as unknown as GeneralPresentation;
+    const crest = createGeneralPortrait(broken, { size: 40, name: ramesses.name });
     expect(crest.dataset.portraitState).toBe('fallback');
-    expect(crest.textContent).toBe(caesar.portraitIcon);
+    expect(crest.textContent).toBe(ramesses.portraitIcon);
     expect(crest.querySelector('svg')).toBeNull();
-    expect(crest.getAttribute('aria-label')).toBe('Julius Caesar, crest');
+    expect(crest.getAttribute('aria-label')).toBe('Ramesses II, crest');
   });
 
   it('shows one pip per era tier so a later officer is visibly later', () => {
-    const early = createGeneralPortrait({ ...getGeneralPresentation(caesar), eraTier: 1 }, { size: 40, name: 'x' });
-    const late = createGeneralPortrait({ ...getGeneralPresentation(caesar), eraTier: 4 }, { size: 40, name: 'x' });
+    const early = createGeneralPortrait({ ...getGeneralPresentation(ramesses), eraTier: 1 }, { size: 40, name: 'x' });
+    const late = createGeneralPortrait({ ...getGeneralPresentation(ramesses), eraTier: 4 }, { size: 40, name: 'x' });
     expect(early.querySelectorAll('circle')).toHaveLength(1);
     expect(late.querySelectorAll('circle')).toHaveLength(4);
   });
@@ -70,6 +72,42 @@ describe('General crest portrait (#889)', () => {
     const crest = createGeneralPortrait(getGeneralPresentation(caesar), { size: 40, name: 'x' });
     expect(crest.querySelector('animate, animateTransform, set')).toBeNull();
     expect(crest.outerHTML).not.toMatch(/animation|@keyframes/i);
+  });
+});
+
+describe('General portrait image inside the crest (#889)', () => {
+  it('draws the portrait clipped to the crest field and names it a portrait', () => {
+    const p = createGeneralPortrait(getGeneralPresentation(caesar), { size: 40, name: caesar.name });
+    expect(p.dataset.portraitState).toBe('portrait');
+    expect(p.getAttribute('aria-label')).toBe('Julius Caesar, portrait');
+    const image = p.querySelector('image[data-portrait-image]')!;
+    expect(image.getAttribute('href')).toMatch(/images\/generals\/gen_caesar\.png$/);
+    expect(image.getAttribute('clip-path')).toMatch(/^url\(#general-portrait-clip-\d+\)$/);
+    const clipId = /url\(#(.+)\)/.exec(image.getAttribute('clip-path')!)![1]!;
+    expect(p.querySelector(`clipPath#${clipId}`)).not.toBeNull();
+    expect(p.querySelector('[data-crest-emblem]')).toBeNull(); // the emblem is only the fallback
+  });
+
+  it('every portrait gets its own clip id, so two on one screen never share one', () => {
+    const a = createGeneralPortrait(getGeneralPresentation(caesar), { size: 40, name: 'a' });
+    const b = createGeneralPortrait(getGeneralPresentation(caesar), { size: 40, name: 'b' });
+    expect(a.querySelector('clipPath')!.id).not.toBe(b.querySelector('clipPath')!.id);
+  });
+
+  it('a missing or undecodable image falls back to the emblem instead of an empty frame, once', () => {
+    const p = createGeneralPortrait(getGeneralPresentation(caesar), { size: 40, name: caesar.name });
+    const image = p.querySelector('image')!;
+    image.dispatchEvent(new Event('error'));
+    image.dispatchEvent(new Event('error'));
+    expect(p.querySelector('image')).toBeNull();
+    expect(p.querySelectorAll('[data-crest-emblem]')).toHaveLength(1);
+    expect(p.dataset.portraitState).toBe('crest');
+  });
+
+  it('a General with no portrait art draws only the emblem and never requests an image', () => {
+    const p = createGeneralPortrait(getGeneralPresentation(ramesses), { size: 40, name: ramesses.name });
+    expect(p.querySelector('image')).toBeNull();
+    expect(p.querySelector('[data-crest-emblem]')).not.toBeNull();
   });
 });
 

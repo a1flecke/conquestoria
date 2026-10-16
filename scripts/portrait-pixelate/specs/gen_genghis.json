@@ -1,0 +1,20 @@
+{
+  "id": "gen_genghis",
+  "sourceFile": "genghis.jpg",
+  "crop": {
+    "x": 0.15,
+    "y": 0.22,
+    "side": 0.7
+  },
+  "size": 96,
+  "colors": 64,
+  "provenance": {
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:YuanEmperorAlbumGenghisPortrait.jpg",
+    "title": "Yuan imperial portrait album: Genghis Khan",
+    "author": "Unknown (Yuan court artist)",
+    "licence": "Public domain",
+    "licenceUrl": "https://commons.wikimedia.org/wiki/Commons:Licensing",
+    "retrievedOn": "2026-10-15",
+    "notes": "Court portrait made after his lifetime."
+  }
+}

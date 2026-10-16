@@ -1,0 +1,41 @@
+{
+  "id": "gen_hannibal",
+  "file": "public/images/generals/gen_hannibal.png",
+  "tool": "scripts/portrait-pixelate/portrait_pixelate.py",
+  "processing": {
+    "crop": {
+      "x": 0.18,
+      "y": 0.03,
+      "side": 0.62
+    },
+    "size": 96,
+    "colors": 64
+  },
+  "original": {
+    "sha256": "d21f54859a1cba490504a48b05ed19f64938b911247eed4eb2df75d01a0e30b8",
+    "bytes": 206492,
+    "pixels": [
+      960,
+      1162
+    ],
+    "scan": [
+      "magic bytes: JPEG",
+      "no data after the image stream",
+      "decodes cleanly, one frame, within pixel limit",
+      "ClamAV: not installed (structural checks only)"
+    ],
+    "notRedistributed": true
+  },
+  "output": {
+    "sha256": "d140e0166f12e55125459f75ecf3fd284fcdd5f53f90a9a8ed48b28b13abe860",
+    "bytes": 14500
+  },
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Hannibal_Barca_bust_from_Capua_photo.jpg",
+  "title": "Bust from Capua traditionally identified as Hannibal",
+  "author": "Fratelli Alinari (photo)",
+  "licence": "Public domain",
+  "licenceUrl": "https://commons.wikimedia.org/wiki/Commons:Licensing",
+  "retrievedOn": "2026-10-15",
+  "notes": "The identification of the bust is traditional, not certain.",
+  "likenessNote": "An illustration after a historical artwork, not a verified likeness. Many portraits of historical figures were made long after their lifetimes."
+}
