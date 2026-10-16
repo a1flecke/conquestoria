@@ -7,6 +7,7 @@
  */
 import type { EventBus } from '@/core/event-bus';
 import type { CombatResult } from '@/core/types';
+import type { GeneralAbilityMoment } from '@/systems/great-general-ability-presentation';
 import type { NotificationEntry } from '@/core/notification-log';
 import type { GameSession, Notifier, SelectionStore } from '@/app/ports';
 import type { PanelRouter } from '@/app/panel-router';
@@ -46,6 +47,8 @@ export interface PresentationContext {
    */
   readonly requestDeliveryVisual: (unitId: string) => void;
   readonly applyCombatVisual: (result: CombatResult) => void;
+  /** Plays a Great General command's map effect (#889). Narrow callback, not a `RenderLoop` import. */
+  readonly playGeneralAbility: (moment: GeneralAbilityMoment) => void;
   /**
    * Opens the (multi-step, stateful) espionage capture verdict dialog. Kept
    * as a callback into `main.ts` rather than moved here -- it mutates state

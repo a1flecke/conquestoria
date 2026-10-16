@@ -1754,6 +1754,60 @@ describe('capture kind classification (#657)', () => {
   });
 });
 
+describe('#889 — the Last Stand survival save is announced by the shared outcome', () => {
+  function lethalHit(): CombatResult {
+    return {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false, attackerStrength: 30, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+  }
+  function heldDefender() {
+    const state = makeRewardState();
+    state.units.defender = {
+      ...state.units.defender,
+      lastStandHold: { formationId: 'formation-1', defenseBonusMultiplier: 1.15, expiresTurn: state.turn, generalDefinitionId: 'gen_hannibal' },
+    };
+    return state;
+  }
+
+  it('emits general:last-stand-held once, naming the owner, the General and the unit\'s hex', () => {
+    const bus = new EventBus();
+    const seen: Array<{ civId: string; generalDefinitionId: string; unitId: string; coord: { q: number; r: number } }> = [];
+    bus.on('general:last-stand-held', event => { seen.push(event); });
+    const state = heldDefender();
+    applyCombatOutcomeToState(state, lethalHit(), 64, bus);
+    expect(seen).toEqual([{ civId: state.units.defender.owner, generalDefinitionId: 'gen_hannibal', unitId: 'defender', coord: { q: 1, r: 0 } }]);
+  });
+
+  it('is silent when no bus is given (an AI lookahead is a hypothetical fight)', () => {
+    const bus = new EventBus();
+    const seen: unknown[] = [];
+    bus.on('general:last-stand-held', event => { seen.push(event); });
+    applyCombatOutcomeToState(heldDefender(), lethalHit(), 64);
+    expect(seen).toEqual([]);
+  });
+
+  it('is silent when no hold saved anything: an ordinary kill, and a hold on a unit that took no lethal blow', () => {
+    const bus = new EventBus();
+    const seen: unknown[] = [];
+    bus.on('general:last-stand-held', event => { seen.push(event); });
+    applyCombatOutcomeToState(makeRewardState(), lethalHit(), 64, bus);
+    const nonLethal: CombatResult = { ...lethalHit(), defenderDamage: 10, defenderSurvived: true };
+    applyCombatOutcomeToState(heldDefender(), nonLethal, 64, bus);
+    expect(seen).toEqual([]);
+  });
+
+  it('the one-time save is announced once: a second lethal blow on the consumed formation is a real death', () => {
+    const bus = new EventBus();
+    const seen: unknown[] = [];
+    bus.on('general:last-stand-held', event => { seen.push(event); });
+    const first = applyCombatOutcomeToState(heldDefender(), lethalHit(), 64, bus);
+    applyCombatOutcomeToState(first.state, lethalHit(), 65, bus);
+    expect(seen).toHaveLength(1);
+  });
+});
+
 describe('#544 MR7 — Last Stand lethal-save (contract §20, items 74-76)', () => {
   it('item 74: an unexpired lastStandHold saves the defender from an otherwise-lethal hit, leaving it at 1 HP', () => {
     const state = makeRewardState();

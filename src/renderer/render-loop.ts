@@ -6,6 +6,8 @@ import { drawFogOfWar } from './fog-renderer';
 import { drawUnitPresentations } from './unit-renderer';
 import { drawCities } from './city-renderer';
 import { AnimationSystem, type EffectAnimationData, type EffectAnimationType } from './animation-system';
+import { drawLastStandHoldMarkers, FINAL_COMMAND_GOLD, type GeneralAbilityEffectType } from './general-ability-effects';
+import type { GeneralAbilityMoment } from '@/systems/great-general-ability-presentation';
 import { onCanvasAssetReady } from './canvas-asset-ready';
 import { beginPaintTracking, paintAmbientRegion, paintWasTimeVarying, type PaintBounds } from './paint-clock';
 import { hexToPixel, hexKey } from '@/systems/hex-utils';
@@ -579,6 +581,31 @@ export class RenderLoop {
   animateUnitAppear(position: HexCoord): void {
     if (prefersReducedMotion()) return;
     this.playEffect('disembark-flash', 500, { coord: position });
+  }
+
+  /**
+   * A Great General command's map effect (#889): one effect on each unit it touched and a larger one on the General,
+   * in the General's crest colours. Reduced motion draws one steady ring per hex instead of any motion. Enrolled
+   * through `playEffect`, so it wakes the renderer and completes on the wake timer like every other timed visual.
+   */
+  playGeneralAbility(moment: GeneralAbilityMoment): void {
+    const reduced = prefersReducedMotion();
+    const type: GeneralAbilityEffectType = reduced ? 'general-ability-static'
+      : moment.kind === 'rally' ? 'general-rally'
+      : moment.kind === 'seize' ? 'general-seize'
+      : 'general-last-stand';
+    const duration = reduced ? 1400 : moment.kind === 'seize' ? 650 : moment.kind === 'rally' ? 950 : 1150;
+    const style = { accent: moment.accent, glow: moment.glow };
+    for (const coord of moment.affectedCoords) this.playEffect(type, duration, { coord, ...style });
+    if (moment.isFinalCommand) {
+      this.playEffect(
+        reduced ? 'general-ability-static' : 'general-final-command',
+        reduced ? 1800 : 1500,
+        { coord: moment.generalCoord, ...style, accent: reduced ? FINAL_COMMAND_GOLD : moment.accent, radiusHexes: 1.4 },
+      );
+    } else {
+      this.playEffect(type, duration, { coord: moment.generalCoord, ...style, radiusHexes: 1.4 });
+    }
   }
 
   /** The only way to enroll a timed effect: enrollment wakes the renderer. */
@@ -1181,6 +1208,7 @@ export class RenderLoop {
         this.state.map,
         this.spriteOverlay?.getActiveIds() ?? new Set(),
       );
+      drawLastStandHoldMarkers(this.ctx, unitPresentations, this.camera, this.state);
       drawUnitPresentations(
         this.ctx,
         unitPresentations,

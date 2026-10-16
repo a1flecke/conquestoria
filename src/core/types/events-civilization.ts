@@ -2,6 +2,8 @@
 // emit/listen behavior are unchanged. Leaf: type-only imports of other leaves, never the barrel.
 import type { AdvisorType, CouncilCallbackTone } from './council';
 import type { CivilizationEra, WorldAge } from '@/systems/era-types';
+import type { GeneralAbilityMoment } from './general-presentation';
+import type { HexCoord } from './hex';
 
 export interface CivilizationEvents {
   'supply:warning': {
@@ -33,6 +35,12 @@ export interface CivilizationEvents {
    * end-of-round processing, well after the player confirmed spending the
    * final charge -- this is the player's only feedback that it actually
    * happened. */
+  /** #889: a player-issued Great General command (Rally / Seize the Moment / Last Stand) changed the state. Presentation-only:
+   * the moment is derived from the before/after difference, so it carries exactly what happened. */
+  'general:command-used': { moment: GeneralAbilityMoment };
+  /** #889: a Last Stand hold absorbed an otherwise-lethal blow (the formation's one-time survival save). Emitted by the
+   * combat outcome for every executor, human or AI, when a bus is supplied. */
+  'general:last-stand-held': { civId: string; generalDefinitionId: string; unitId: string; coord: HexCoord };
   'general:retired': { civId: string; generalName: string; message: string; generalDefinitionId?: string };
   'era:advanced': { era: WorldAge };
   'civilization:era-advanced': { civId: string; previousEra: CivilizationEra; era: CivilizationEra };

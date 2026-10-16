@@ -119,6 +119,27 @@ A General's *look* is a third layer, separate from `descriptor` and `GeneralProf
   *viewing* owner through `CeremonyCoordinator.enqueueGeneralRetirement` (queued behind other ceremonies, deduped, dropped on a hot-seat
   handoff, no-op after victory). The ceremony has no animation and no audio of its own, so reduced motion and mute need no special case.
 
+### Ability moments (#889)
+
+Rally, Seize the Moment and Last Stand are visible moments, not silent state changes. The whole thing is presentation: nothing
+here changes a mechanic, a charge, a cooldown or a save.
+
+| Piece | Where | Rule |
+|---|---|---|
+| What happened | `describeGeneralAbilityMoment(kind, before, after, generalUnitId)` (`src/systems/great-general-ability-presentation.ts`, contract in `src/core/types/general-presentation.ts`) | Derived from the markers the command itself wrote on units (`rallyProtectedThisRound`, `seizeGrantedBy`, `lastStandHold`), so a command that changed nothing is `null` and is never celebrated. Colours come from the one presentation resolver. |
+| Announced | `general:command-used` on the bus, emitted by the controller **after** `session.commit` (`selection-commands-general.ts`, `map-pending-intent.ts`) | Only the viewing owner's moment is shown (`register-general-presentation.ts`); a hot-seat handoff drops the map effect (`isPresentationSuppressed`); the toast is own-input feedback. |
+| Drawn | `RenderLoop.playGeneralAbility` -> `playEffect` -> `src/renderer/general-ability-effects.ts` | Each ability has its own shape (rally rings and a plus mark, seize rays, last-stand closing ring and hex shield, final command gold double ring). Reduced motion draws one steady ring. The timeline owns time; the drawing reads only `progress`. |
+| Held | `drawLastStandHoldMarkers` | A steady outline under every **visible** stack holding a live `lastStandHold`. State-derived (no new data), so it vanishes on expiry or the one survival save. A rival's hold appears only where its units are already visible. |
+| Survival save | `general:last-stand-held`, emitted by `applyCombatOutcomeToState` when a bus is given | Every executor, human or AI. The owner is told in words; a rival's save is an effect only where the viewer can see the hex, with no name or text. |
+
+Known gap, deliberate: an AI General's Rally / Seize / Last Stand *activation* has no transient effect, because the AI issues
+commands as pure state transitions with no bus. Its Last Stand hold is still drawn (state-derived) and its survival save is
+announced. Giving the AI activation a moment means emitting from the AI round with viewer gating; do not copy the human
+controller's emit into AI code.
+
+A new ability adds a `GeneralAbilityKind`, its effect in `general-ability-effects.ts` (a distinct shape, plus the static
+variant), and a `touchedUnits` row; never a General-ID branch.
+
 ### Portrait images (#889)
 
 Some Generals also have a small portrait drawn inside their crest (`src/systems/great-general-portraits.ts`, one catalog row per General,

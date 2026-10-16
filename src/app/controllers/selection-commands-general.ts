@@ -6,6 +6,7 @@ import { mapHexesInRange } from '@/systems/hex-utils';
 import { getRallyPreview, issueRally, getSeizeTheMomentEligibleUnits, issueSeizeTheMoment } from '@/systems/great-general-abilities';
 import { createRallyPanel, createSeizeThePanelMoment } from '@/ui/general-command-panel';
 import { getGeneralIdentityForUnit } from '@/systems/great-general-presentation';
+import { describeGeneralAbilityMoment } from '@/systems/great-general-ability-presentation';
 import { createStrategicLaunchFlow } from '@/ui/strategic-launch-flow';
 import { executeStrategicLaunch } from '@/systems/strategic-launch-execution-system';
 import { resolveGeneralDefinition } from '@/systems/great-general-definitions';
@@ -36,7 +37,11 @@ export function createGeneralCommands(
         deps.uiLayer,
         preview,
         () => {
-          session.commit(issueRally(session.getState(), generalUnitId));
+          const before = session.getState();
+          const after = issueRally(before, generalUnitId);
+          session.commit(after);
+          const moment = describeGeneralAbilityMoment('rally', before, after, generalUnitId);
+          if (moment) deps.bus.emit('general:command-used', { moment });
           core.selectUnit(generalUnitId); // refresh the panel so charges/cooldown reflect immediately
         },
         () => {},
@@ -67,7 +72,11 @@ export function createGeneralCommands(
         generalUnitId,
         eligible,
         (selectedUnitIds) => {
-          session.commit(issueSeizeTheMoment(session.getState(), generalUnitId, selectedUnitIds));
+          const before = session.getState();
+          const after = issueSeizeTheMoment(before, generalUnitId, selectedUnitIds);
+          session.commit(after);
+          const moment = describeGeneralAbilityMoment('seize', before, after, generalUnitId);
+          if (moment) deps.bus.emit('general:command-used', { moment });
           core.selectUnit(generalUnitId);
         },
         () => {},

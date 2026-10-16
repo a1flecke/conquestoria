@@ -4,6 +4,7 @@ import { registerGeneralPresentation } from '@/presentation/register-general-pre
 import { makePresentationContext } from '../helpers/presentation-context';
 import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
 import { getGeneralPresentation } from '@/systems/great-general-presentation';
+import type { GeneralAbilityMoment } from '@/systems/great-general-ability-presentation';
 
 describe('general presentation', () => {
   it('resets the treasurer advisor message and re-checks advisors on a gold village outcome', () => {
@@ -95,6 +96,106 @@ describe('general presentation', () => {
       const calls = (ctx.ceremonies.enqueueGeneralRetirement as unknown as { mock: { calls: Array<[{ presentation?: unknown }]> } }).mock.calls;
       expect(calls).toHaveLength(2);
       expect(calls.every(([item]) => item.presentation === undefined)).toBe(true);
+    });
+  });
+
+  describe('#889 ability moments', () => {
+    const moment: GeneralAbilityMoment = {
+      kind: 'rally', civId: 'p1', generalUnitId: 'gen-1', generalName: 'Hannibal Barca', isFinalCommand: false,
+      generalCoord: { q: 0, r: 0 }, affectedCoords: [{ q: 1, r: 0 }], affectedCount: 1,
+      accent: '#112233', glow: '#445566', summary: 'Rally: 1 unit steadied, 30 HP restored.',
+    };
+
+    it("shows the acting player's own command as a result toast and a map effect", () => {
+      const bus = new EventBus();
+      const ctx = makePresentationContext({ state: { currentPlayer: 'p1' } });
+      registerGeneralPresentation(bus, ctx);
+      bus.emit('general:command-used', { moment });
+      expect(ctx.showNotification).toHaveBeenCalledWith('Rally: 1 unit steadied, 30 HP restored.', 'success');
+      expect(ctx.playGeneralAbility).toHaveBeenCalledWith(moment);
+    });
+
+    it('a Final Command is announced as a warning, not a success', () => {
+      const bus = new EventBus();
+      const ctx = makePresentationContext({ state: { currentPlayer: 'p1' } });
+      registerGeneralPresentation(bus, ctx);
+      bus.emit('general:command-used', { moment: { ...moment, isFinalCommand: true } });
+      expect(ctx.showNotification).toHaveBeenCalledWith(moment.summary, 'warning');
+    });
+
+    it("never shows another seat's command to the viewing player (hot seat)", () => {
+      const bus = new EventBus();
+      const ctx = makePresentationContext({ state: { currentPlayer: 'p2' } });
+      registerGeneralPresentation(bus, ctx);
+      bus.emit('general:command-used', { moment });
+      expect(ctx.showNotification).not.toHaveBeenCalled();
+      expect(ctx.playGeneralAbility).not.toHaveBeenCalled();
+    });
+
+    it('keeps the toast but plays no effect while presentation is suppressed (handoff replay)', () => {
+      const bus = new EventBus();
+      const ctx = { ...makePresentationContext({ state: { currentPlayer: 'p1' } }), isPresentationSuppressed: () => true };
+      registerGeneralPresentation(bus, ctx);
+      bus.emit('general:command-used', { moment });
+      expect(ctx.showNotification).toHaveBeenCalledTimes(1);
+      expect(ctx.playGeneralAbility).not.toHaveBeenCalled();
+    });
+
+    describe('the Last Stand survival save', () => {
+      const held = { civId: 'p1', generalDefinitionId: 'gen_hannibal', unitId: 'u1', coord: { q: 3, r: 3 } };
+      const visibleTo = (civId: string, visible: boolean) => ({
+        currentPlayer: civId,
+        civilizations: {
+          p1: { isHuman: true, visibility: { tiles: visible ? { '3,3': 'visible' } : {} } },
+          p2: { isHuman: false, visibility: { tiles: visible ? { '3,3': 'visible' } : {} } },
+        },
+      }) as never;
+
+      it("tells the owner in words and shows the effect on the owner's own unit", () => {
+        const bus = new EventBus();
+        const ctx = makePresentationContext({ state: visibleTo('p1', false) });
+        registerGeneralPresentation(bus, ctx);
+        bus.emit('general:last-stand-held', held);
+        expect(ctx.deliver).toHaveBeenCalledWith('p1', expect.stringContaining('line held'), 'success');
+        expect(ctx.playGeneralAbility).toHaveBeenCalledTimes(1);
+        expect(ctx.playGeneralAbility).toHaveBeenCalledWith(expect.objectContaining({ kind: 'last-stand', affectedCoords: [{ q: 3, r: 3 }] }));
+      });
+
+      it('a rival\'s save is a map effect only where the viewer can see the hex, and carries no words or name', () => {
+        const bus = new EventBus();
+        const ctx = makePresentationContext({ state: visibleTo('p2', true) });
+        registerGeneralPresentation(bus, ctx);
+        bus.emit('general:last-stand-held', held); // p1 owns the unit, p2 is looking and sees the hex
+        expect(ctx.playGeneralAbility).toHaveBeenCalledTimes(1);
+        expect(ctx.playGeneralAbility).toHaveBeenCalledWith(expect.objectContaining({ summary: '' }));
+        // The owner (a human seat) is still told, through the delivery contract that queues for the right seat.
+        expect(ctx.deliver).toHaveBeenCalledWith('p1', expect.any(String), 'success');
+      });
+
+      it('a rival\'s save on a hex the viewer cannot see plays nothing at all', () => {
+        const bus = new EventBus();
+        const ctx = makePresentationContext({ state: visibleTo('p2', false) });
+        registerGeneralPresentation(bus, ctx);
+        bus.emit('general:last-stand-held', held);
+        expect(ctx.playGeneralAbility).not.toHaveBeenCalled();
+      });
+
+      it('an AI owner is delivered no text', () => {
+        const bus = new EventBus();
+        const ctx = makePresentationContext({ state: visibleTo('p1', true) });
+        registerGeneralPresentation(bus, ctx);
+        bus.emit('general:last-stand-held', { ...held, civId: 'p2' });
+        expect(ctx.deliver).not.toHaveBeenCalled();
+        expect(ctx.playGeneralAbility).toHaveBeenCalledTimes(1); // visible to the viewer, so the effect still shows
+      });
+
+      it('an unknown General definition is ignored instead of throwing', () => {
+        const bus = new EventBus();
+        const ctx = makePresentationContext({ state: visibleTo('p1', true) });
+        registerGeneralPresentation(bus, ctx);
+        expect(() => bus.emit('general:last-stand-held', { ...held, generalDefinitionId: 'gen_nobody' })).not.toThrow();
+        expect(ctx.playGeneralAbility).not.toHaveBeenCalled();
+      });
     });
   });
 

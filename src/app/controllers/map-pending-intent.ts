@@ -17,6 +17,7 @@ import { renderBattleForecastCard } from '@/ui/battle-forecast-card';
 import { airForecastSignature, buildAirStrikeForecastView } from '@/ui/air-strike-forecast-projection';
 import { getLastStandPreview, issueLastStand } from '@/systems/great-general-abilities';
 import { createLastStandPanel } from '@/ui/general-command-panel';
+import { describeGeneralAbilityMoment } from '@/systems/great-general-ability-presentation';
 import { getGeneralIdentityForUnit } from '@/systems/great-general-presentation';
 import { getDeniedTerritoryOwners } from '@/systems/territorial-access';
 import type { MapInteractionControllerDeps } from './map-interaction-shared';
@@ -238,7 +239,11 @@ export function resolvePendingIntent(deps: MapInteractionControllerDeps, pending
           uiLayer,
           preview,
           () => {
-            session.commit(issueLastStand(session.getState(), generalUnitId, coord));
+            const before = session.getState();
+            const after = issueLastStand(before, generalUnitId, coord);
+            session.commit(after);
+            const moment = describeGeneralAbilityMoment('last-stand', before, after, generalUnitId);
+            if (moment) bus.emit('general:command-used', { moment });
             selectionController.selectUnit(generalUnitId);
           },
           () => {},
