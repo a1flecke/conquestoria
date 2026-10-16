@@ -101,8 +101,12 @@ describe('General portrait images (#889)', () => {
   });
 
   it('a General without portrait art resolves with no portrait (the emblem is their identity)', () => {
-    const without = GENERAL_DEFINITIONS.filter(g => !(g.id in GENERAL_PORTRAIT_ART));
-    expect(without.length).toBeGreaterThan(0);
-    for (const def of without) expect(getGeneralPresentation(def).portrait, def.id).toBeUndefined();
+    // Every authored General has portrait art now, so the crest-only rule is proved on a definition no catalog row names.
+    const unlisted = { ...GENERAL_DEFINITIONS.find(g => g.id === 'gen_caesar')!, id: 'gen_not_in_the_portrait_catalog' };
+    expect(unlisted.id in GENERAL_PORTRAIT_ART).toBe(false);
+    expect(getGeneralPresentation(unlisted).portrait).toBeUndefined();
+    // And no authored General is silently left without one unless that is a decision someone made here.
+    const authoredWithout = GENERAL_DEFINITIONS.filter(g => !(g.id in GENERAL_PORTRAIT_ART)).map(g => g.id);
+    expect(authoredWithout).toEqual([]);
   });
 });
