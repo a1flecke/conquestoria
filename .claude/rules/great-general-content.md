@@ -124,9 +124,14 @@ A General's *look* is a third layer, separate from `descriptor` and `GeneralProf
 Some Generals also have a small portrait drawn inside their crest (`src/systems/great-general-portraits.ts`, one catalog row per General,
 files in `public/images/generals/`). A General with no row keeps the emblem; generated officers never get a portrait.
 
-- **Sources, and only these.** (a) A **public-domain** artwork on Wikimedia Commons for a historical figure. (b) For an imaginary or
-  placeholder character, an image **generated from an original description** (no character names in the prompt) with DeepAI's
-  text-to-image tool. Never CC BY-SA / NC / unknown-licence files (photos of statues and reliefs included), never fan art or film stills.
+- **Sources, and only these.** (a) A **public-domain** artwork on Wikimedia Commons where a good small-size portrait exists (a painting or
+  engraving, not a photo of a bust, mosaic or relief). (b) Otherwise an image **generated from an original description** with DeepAI's
+  text-to-image tool: imaginary or placeholder commanders, and historical figures whose surviving images are busts, mosaics or stylised
+  reliefs that do not read as people at 40 px (Caesar, Alexander, Hannibal, Ramesses, Nebuchadnezzar and others). Never CC BY-SA / NC /
+  unknown-licence files (photos of statues and reliefs included), never fan art or film stills. A prompt names no existing character or
+  person; for a figure with no authentic portrait it describes a type ("Roman general with a laurel wreath"), and the provenance says no
+  likeness is intended. Prompts that fail repeatedly are dropped rather than shipped wrong (a centaur could not be generated, so Oreius keeps
+  his crest).
 - **Every downloaded image is security-scanned before use**, and only the tool's own re-encode ships. `python3 -I
   scripts/portrait-pixelate/portrait_pixelate.py scan <file>` rejects anything over 8 MB, anything that is not a plain PNG/JPEG by magic
   bytes, decode errors, decompression bombs, animated files and **data appended after the image** (and runs ClamAV when installed);

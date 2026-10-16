@@ -33,7 +33,7 @@ import sys
 import warnings
 from pathlib import Path
 
-from PIL import Image, ImageEnhance, ImageFilter
+from PIL import Image, ImageChops, ImageEnhance, ImageFilter
 
 REPO = Path(__file__).resolve().parents[2]
 MAX_BYTES = 8 * 1024 * 1024
@@ -104,7 +104,7 @@ def scan(path: Path) -> dict:
     return report
 
 
-def stylise(src: Path, crop: dict, size: int, colors: int) -> Image.Image:
+def stylise(src: Path, crop: dict, size: int, colors: int, tone: str | None = None) -> Image.Image:
     """Crop to a square, downscale with Lanczos, lift contrast a touch and limit the palette (with dithering).
 
     Deliberately soft: at the default 96 px / 64 colours the result reads as a painted miniature, not as blocky pixel art.
@@ -116,6 +116,9 @@ def stylise(src: Path, crop: dict, size: int, colors: int) -> Image.Image:
     x0 = max(0, min(w - side, round(crop['x'] * w)))
     y0 = max(0, min(h - side, round(crop['y'] * w)))
     sq = img.crop((x0, y0, x0 + side, y0 + side)).resize((size, size), Image.LANCZOS)
+    if tone == 'parchment':  # warm a white-background engraving so it sits with the painted portraits
+        paper = Image.new('RGB', sq.size, (232, 214, 176))
+        sq = ImageChops.multiply(sq, paper)
     sq = ImageEnhance.Contrast(sq).enhance(1.12)
     sq = ImageEnhance.Color(sq).enhance(1.1)
     sq = sq.filter(ImageFilter.UnsharpMask(radius=1.2, percent=70, threshold=2))
@@ -133,7 +136,7 @@ def build(spec_path: Path) -> None:
     print(json.dumps(report, indent=2, ensure_ascii=False))
     if not report['ok']:
         raise SystemExit(f'refusing {gid}: image failed the security scan')
-    out = stylise(src, spec['crop'], spec.get('size', 96), spec.get('colors', 64))
+    out = stylise(src, spec['crop'], spec.get('size', 96), spec.get('colors', 64), spec.get('tone'))
     out_dir = REPO / 'public' / 'images' / 'generals'
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f'{gid}.png'
@@ -147,7 +150,7 @@ def build(spec_path: Path) -> None:
         'id': gid,
         'file': f'public/images/generals/{gid}.png',
         'tool': 'scripts/portrait-pixelate/portrait_pixelate.py',
-        'processing': {'crop': spec['crop'], 'size': spec.get('size', 96), 'colors': spec.get('colors', 64)},
+        'processing': {'crop': spec['crop'], 'size': spec.get('size', 96), 'colors': spec.get('colors', 64), **({'tone': spec['tone']} if spec.get('tone') else {})},
         'original': {'sha256': report['sha256'], 'bytes': report['bytes'], 'pixels': report['size'], 'scan': report['checks'], 'notRedistributed': True},
         'output': {'sha256': check['sha256'], 'bytes': check['bytes']},
         **spec['provenance'],
