@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import type { Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 /**
  * Shared checks for the keyboard / accessibility acceptance specs (#1459).
@@ -83,4 +83,27 @@ export async function focusIsWithin(page: Page, selector: string): Promise<boole
     (sel) => document.querySelector(sel)?.contains(document.activeElement) ?? false,
     selector,
   );
+}
+
+/**
+ * The one screen that should own the keyboard right now, by DOM id: focus inside, a named modal dialog, Tab and
+ * Shift+Tab never leave it, axe finds nothing and no pointer-only control is on it.
+ */
+export async function assertScreen(page: Page, id: string, options: { tabs?: number; initial?: Locator } = {}): Promise<void> {
+  const screen = page.locator(`#${id}`);
+  await expect(screen).toBeVisible();
+  await expect.poll(() => focusIsWithin(page, `#${id}`), { message: `focus should be inside #${id}` }).toBe(true);
+  // Checked before the Tab loop below moves focus on.
+  if (options.initial) await expect(options.initial).toBeFocused();
+  await expect(screen).toHaveAttribute('role', 'dialog');
+  await expect(screen).toHaveAttribute('aria-modal', 'true');
+  expect(await screen.getAttribute('aria-label'), `#${id} needs an accessible name`).toBeTruthy();
+
+  const stops = await tabStops(page, options.tabs ?? 12);
+  for (const stop of stops) expect(await focusIsWithin(page, `#${id}`), `Tab left #${id}: ${stop}`).toBe(true);
+  await page.keyboard.press('Shift+Tab');
+  expect(await focusIsWithin(page, `#${id}`), `Shift+Tab left #${id}`).toBe(true);
+
+  expect(await auditWithAxe(page, `#${id}`), `axe findings on #${id}`).toEqual([]);
+  expect(await findPointerOnlyControls(page, `#${id}`), `pointer-only controls on #${id}`).toEqual([]);
 }

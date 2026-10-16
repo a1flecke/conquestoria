@@ -1,5 +1,5 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
-import { auditWithAxe, findPointerOnlyControls, focusIsWithin, tabStops } from './helpers/a11y-audit';
+import { expect, test, type Page } from '@playwright/test';
+import { assertScreen } from './helpers/a11y-audit';
 
 // #1459: starting a campaign with no pointer at all, on every pre-game screen. Each step asserts the same four
 // things, because each was a real failure before this spec existed:
@@ -13,27 +13,6 @@ async function activate(page: Page, name: RegExp | string): Promise<void> {
   const button = page.getByRole('button', { name }).first();
   await button.focus();
   await page.keyboard.press('Enter');
-}
-
-/** The one screen that should own the keyboard right now, by DOM id. */
-async function assertScreen(page: Page, id: string, options: { tabs?: number; initial?: Locator } = {}): Promise<void> {
-  const screen = page.locator(`#${id}`);
-  await expect(screen).toBeVisible();
-  await expect.poll(() => focusIsWithin(page, `#${id}`), { message: `focus should be inside #${id}` }).toBe(true);
-  // Checked before the Tab loop below moves focus on.
-  if (options.initial) await expect(options.initial).toBeFocused();
-  await expect(screen).toHaveAttribute('role', 'dialog');
-  await expect(screen).toHaveAttribute('aria-modal', 'true');
-  expect(await screen.getAttribute('aria-label'), `#${id} needs an accessible name`).toBeTruthy();
-
-  // Tab (and Shift+Tab) wrap inside the screen: never to the in-game toolbar underneath.
-  const stops = await tabStops(page, options.tabs ?? 12);
-  for (const stop of stops) expect(await focusIsWithin(page, `#${id}`), `Tab left #${id}: ${stop}`).toBe(true);
-  await page.keyboard.press('Shift+Tab');
-  expect(await focusIsWithin(page, `#${id}`), `Shift+Tab left #${id}`).toBe(true);
-
-  expect(await auditWithAxe(page, `#${id}`), `axe findings on #${id}`).toEqual([]);
-  expect(await findPointerOnlyControls(page, `#${id}`), `pointer-only controls on #${id}`).toEqual([]);
 }
 
 test.describe('pre-game screens are keyboard-complete', () => {
