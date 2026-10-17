@@ -90,7 +90,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'ingenuity',
     ['military', 'stone', 'ancient', 'defense', 'production'],
     ['unesco-crac-des-chevaliers'],
-    'image-ruins',
+    'image-crac-des-chevaliers',
     ['military', 'stone', 'defense'],
     'Hold the Line',
     'The quest counts Forts in different city territories and attacks repelled by an occupied Fort or Citadel. Empty or unfinished improvements do not count.',
