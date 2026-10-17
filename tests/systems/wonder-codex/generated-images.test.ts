@@ -94,6 +94,11 @@ describe('generated Legendary Codex illustrations (#609)', () => {
     expect(showing).toEqual([]);
   });
 
+  it('the Olympia stadium photograph is shown only by the wonder it actually depicts (#609 group 4: olympia-stadium)', () => {
+    const showing = getAllWonderCodexContent().filter(entry => entry.imageSourceId === 'image-olympia-stadium').map(entry => entry.id);
+    expect(showing).toEqual(['hall-of-champions']);
+  });
+
   it('never shows the same generated illustration for two different wonders', () => {
     const seen = new Map<string, string>();
     for (const record of records) {
