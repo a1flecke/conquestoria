@@ -603,7 +603,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'discovery',
     ['space', 'science', 'knowledge', 'modern', 'engineering'],
     ['nasa-observatories'],
-    'image-archive',
+    'image-lunar-gateway',
     ['space', 'science', 'modern'],
     'A Doorway in Orbit',
     'The host city must sustain both a Space Center and a Network Operations Center, then prove a stable exploration plan over time.',
