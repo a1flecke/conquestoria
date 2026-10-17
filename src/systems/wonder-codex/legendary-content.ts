@@ -122,7 +122,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'awe',
     ['light', 'faith', 'production', 'gold', 'engineering'],
     ['energy-solar'],
-    'image-sun-tower',
+    'image-sun-spire',
     ['light', 'faith', 'engineering'],
     'Measured Day',
     'The tower makes the passage of light feel like civic knowledge.',
