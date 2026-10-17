@@ -10,7 +10,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'reverence',
     ['stone', 'faith', 'science', 'ancient', 'culture'],
     ['unesco-stonehenge'],
-    'image-olympia-stadium',
+    'image-standing-stones',
     ['stone', 'faith', 'ancient'],
     'Raised by Hand',
     'No writing, no wheel yet — just enough people willing to move stone together.',
