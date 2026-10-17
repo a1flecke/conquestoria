@@ -427,7 +427,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'ingenuity',
     ['production', 'science', 'industry', 'light', 'knowledge'],
     ['loc-about'],
-    'image-foundry',
+    'image-crystal-palace',
     ['production', 'science', 'industry'],
     'Prefabrication at Scale',
     'The secret of the Crystal Palace was not the materials but the method: standardized components assembled by the thousands.',
