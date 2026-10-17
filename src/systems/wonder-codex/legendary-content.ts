@@ -74,7 +74,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'awe',
     ['military', 'stone', 'ancient', 'culture', 'production'],
     ['unesco-first-qin-emperor'],
-    'image-olympia-stadium',
+    'image-terracotta-army',
     ['military', 'stone', 'ancient'],
     'Many Roles, One Formation',
     'The quest counts combat roles and surviving victories in plain numbers. Different units matter because an army works better when its pieces work together.',
