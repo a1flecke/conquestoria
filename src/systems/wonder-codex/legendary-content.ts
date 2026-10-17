@@ -491,7 +491,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'ingenuity',
     ['production', 'food', 'trade', 'stone', 'water'],
     ['loc-about'],
-    'image-foundry',
+    'image-brooklyn-bridge',
     ['production', 'food', 'trade'],
     'Infrastructure as Unification',
     'The bridge\'s genius was that it made distance irrelevant for a city that had been limited by its own geography.',

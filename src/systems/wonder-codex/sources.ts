@@ -248,6 +248,7 @@ export const WONDER_CODEX_IMAGE_SOURCES = [
   image('image-internet', 'Internet map', 'The Opte Project / CC BY 2.5', 'https://commons.wikimedia.org/wiki/File:Internet_map_1024.jpg', '/images/wonders/codex/internet.jpg'),
   // #609: generated illustrations replace shared stand-in photographs, one per wonder. Made with scripts/codex-image/codex_image.py;
   // the originals are never committed and each has a provenance record in design/wonder-codex-images/.
+  generatedImage('image-brooklyn-bridge', 'The Brooklyn Bridge spanning the East River at sunset, with sailing ships, a steam ferry and the low skyline of lower Manhattan', 'ChatGPT image generation (OpenAI)', 'https://chatgpt.com/', '/images/wonders/codex/brooklyn-bridge.jpg'),
   generatedImage('image-eiffel-tower', 'The Eiffel Tower rising above the lawns of the Champ de Mars at golden hour', 'ChatGPT image generation (OpenAI)', 'https://chatgpt.com/', '/images/wonders/codex/eiffel-tower.jpg'),
   generatedImage('image-crystal-palace', 'The Crystal Palace, a vast Victorian iron-and-glass exhibition hall glowing at sunset behind formal gardens and a fountain pool', 'ChatGPT image generation (OpenAI)', 'https://chatgpt.com/', '/images/wonders/codex/crystal-palace.jpg'),
   generatedImage('image-iron-arsenal', 'A walled early-modern arsenal beside a harbour canal at sunset, with glowing furnace halls, tall chimneys, a half-built warship and moored galleys', 'ChatGPT image generation (OpenAI)', 'https://chatgpt.com/', '/images/wonders/codex/iron-arsenal.jpg'),
