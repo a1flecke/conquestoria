@@ -234,7 +234,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'memory',
     ['military', 'culture', 'ancient', 'production', 'gold'],
     ['olympics-ancient'],
-    'image-olympia-stadium',
+    'image-hall-of-champions',
     ['military', 'culture', 'ancient'],
     'Names in Stone',
     'The hall turns individual action into civic story.',
