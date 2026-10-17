@@ -17,6 +17,7 @@ function records(dir: string): Array<Record<string, unknown>> {
 const units = records('design/png-sprites/sources');
 const wonders = records('design/wonder-art');
 const portraits = records('design/general-portraits');
+const codexImages = records('design/wonder-codex-images');
 
 const generator = (r: Record<string, unknown>) => String(r.generator ?? '');
 const portraitTitle = (r: Record<string, unknown>) => String(r.title ?? '');
@@ -26,6 +27,7 @@ const counts = {
   'SpriteCook (units)': units.filter(r => generator(r).startsWith('SpriteCook')).length,
   'DeepAI (General portraits)': portraits.filter(r => portraitTitle(r).startsWith('DeepAI')).length,
   'ChatGPT image generation (General portrait)': portraits.filter(r => portraitTitle(r).startsWith('ChatGPT')).length,
+  'ChatGPT image generation (codex illustrations)': codexImages.filter(r => String(r.generator ?? '').startsWith('ChatGPT')).length,
   'Public-domain artwork (General portraits)': portraits.filter(r => r.licence === 'Public domain').length,
 };
 
@@ -38,7 +40,7 @@ describe('asset rights ledger', () => {
 
   it('every provenance record belongs to a ledger family (nothing generated is unaccounted for)', () => {
     const accounted = Object.values(counts).reduce((a, b) => a + b, 0);
-    expect(accounted).toBe(units.length + wonders.length + portraits.length);
+    expect(accounted).toBe(units.length + wonders.length + portraits.length + codexImages.length);
   });
 
   it('states the release posture and the commercial-release gate, and makes no clearance claim', () => {
