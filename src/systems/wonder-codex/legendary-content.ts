@@ -347,7 +347,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'ingenuity',
     ['science', 'knowledge', 'archive', 'production', 'trade'],
     ['loc-about'],
-    'image-archive',
+    'image-codex-eternal',
     ['science', 'knowledge', 'archive'],
     'The Method Preserved',
     'A codex that outlasts its authors is a gift to every civilization that comes after.',
