@@ -331,7 +331,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'reverence',
     ['culture', 'knowledge', 'faith', 'gold', 'stone'],
     ['loc-about'],
-    'image-archive',
+    'image-sistine-vault',
     ['culture', 'knowledge', 'faith'],
     'Patronage and Vision',
     'The Vault shows how organized belief can produce lasting art.',
