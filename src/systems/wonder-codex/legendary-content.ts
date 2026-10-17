@@ -507,7 +507,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'discovery',
     ['production', 'trade', 'military', 'engineering', 'industry'],
     ['loc-about'],
-    'image-foundry',
+    'image-trans-siberian-railway',
     ['production', 'trade', 'military'],
     'Empire at Scale',
     'The railway proved that the limit of empire is not the distance you can hold, but the speed at which you can respond to its edges.',
