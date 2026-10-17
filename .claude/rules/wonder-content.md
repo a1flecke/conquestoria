@@ -41,6 +41,26 @@ These came out of MR10 (#469), where four legendary wonders had `requiredTechs` 
   - Concretely: adding new low-era wonders can legitimately bump a higher-era wonder that was previously in the top-3 out of "recommended," if both land in the same `visibleState` tier. This happened in MR11 — a pre-existing `wonder-panel.test.ts` test hardcoded "Grand Canal (era 4) appears in the recommended section," and 3 new era-1/2 wonders (also `near`, missing 2 requirements each) legitimately outranked it. This is the sort working as designed, not a bug — do not "fix" it by changing the sort.
   - When adding a wonder: search `tests/ui/wonder-panel.test.ts` (and any other test asserting a specific wonder shows up in a bounded "top N" / "recommended" list) for hardcoded assumptions your new lower-era wonder(s) might now outrank. Neutralize your new wonder(s) in that test's fixture (mark completed-elsewhere so they don't compete) rather than changing the ranking logic to preserve an old assertion.
 
+## Codex Images: one pipeline, generated art, no shared stand-ins (#609)
+
+Legendary wonders used to share 15 images across 41 entries (ten shared a foundry photograph), several of them plainly wrong. New
+or replaced codex art goes through `scripts/codex-image/codex_image.py`, never by hand:
+
+- **Intake.** The owner generates the image (ChatGPT image generation, from a prompt that names no logo or brand, with no text),
+  and gives it to the agent. `scan` runs the same security checks as the General portrait tool (plain PNG/JPEG by magic bytes, clean
+  decode, pixel limit, one frame, nothing appended, ClamAV if installed). `preview` shows the desktop and phone crops the codex
+  really displays (`object-fit: cover`, 280 px tall, so keep the subject out of the top and bottom ~15%). `build` re-encodes a fresh
+  960x540 JPEG from decoded pixels (dropping EXIF, XMP, ICC and C2PA manifests), refuses an output over 220 KB, writes
+  `design/wonder-codex-images/<id>.provenance.json` (original and output SHA-256, prompt, generator, plan, date) and prints the
+  registry line and ledger rows to paste. The downloaded original is never committed.
+- **Registration is not optional.** A new image needs its `WONDER_CODEX_IMAGE_SOURCES` entry (`generatedImage(...)`), the entry's
+  `imageSourceId` switched to it, and the matching rows in `docs/wonder-codex-source-ledger.md` (the sources test fails otherwise).
+  A video's `fallbackImageSourceId` must still resolve.
+- **Rights.** Generated art is recorded in `docs/asset-rights-ledger.md`; it is covered by the project's non-commercial posture and
+  by the re-check gate before any commercial release.
+- **Sharing is allowed only deliberately.** Two wonders may share one image only when they truly share a visual identity, and the
+  decision is written down; the five groups listed in #609 (foundry, archive, drydock, sun-tower, olympia-stadium) must not.
+
 ## Adding a New Wonder — Checklist
 
 - [ ] `requiredTechs`: confirm every tech's era ≤ the wonder's own `era`.
