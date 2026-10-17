@@ -379,7 +379,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'reverence',
     ['gold', 'culture', 'production', 'stone', 'knowledge'],
     ['loc-about'],
-    'image-sun-tower',
+    'image-palace-of-the-sun',
     ['gold', 'culture', 'production'],
     'Patronage at Scale',
     'A palace vast enough to employ a city makes art a public project.',
