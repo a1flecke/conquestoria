@@ -138,7 +138,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'memory',
     ['archive', 'knowledge', 'science', 'culture', 'ancient'],
     ['loc-about'],
-    'image-archive',
+    'image-world-archive',
     ['archive', 'knowledge', 'science'],
     'Stored Voices',
     'The archive makes old decisions available to future citizens.',
