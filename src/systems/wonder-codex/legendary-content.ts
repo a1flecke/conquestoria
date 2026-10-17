@@ -571,7 +571,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'ingenuity',
     ['science', 'production', 'military', 'engineering', 'modern'],
     ['loc-about'],
-    'image-foundry',
+    'image-wright-flyer',
     ['science', 'production', 'engineering'],
     'The Gravity of It',
     'A civilization that mastered flight did not merely move faster — it changed what was possible.',
