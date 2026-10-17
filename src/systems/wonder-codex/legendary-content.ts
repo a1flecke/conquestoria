@@ -395,7 +395,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'awe',
     ['production', 'military', 'stone', 'industry', 'knowledge'],
     ['loc-about'],
-    'image-foundry',
+    'image-iron-arsenal',
     ['production', 'military', 'industry'],
     'Standardized Strength',
     'Interchangeable parts and trained smiths made armies predictable in a way individual craftsmanship could not match.',
