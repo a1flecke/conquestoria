@@ -475,7 +475,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'ingenuity',
     ['production', 'gold', 'trade', 'industry', 'engineering'],
     ['loc-about'],
-    'image-foundry',
+    'image-eiffel-tower',
     ['production', 'gold', 'trade'],
     'Monument as Statement',
     'A tower that serves no military purpose has a different kind of power: it asserts that beauty itself is a strategic resource.',
