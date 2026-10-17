@@ -18,6 +18,16 @@
     "428": "OPEN"
    }
   },
+  "docs/superpowers/plans/2026-10-17-trading-marketplace.md": {
+   "category": "active",
+   "reason": "Approved trade-and-supply overhaul plan; its 19 ordered slices (MR01-MR19) are open child issues under parent #1497, and implementation has not started.",
+   "issues": [
+    1497
+   ],
+   "issueStates": {
+    "1497": "OPEN"
+   }
+  },
   "docs/superpowers/specs/2026-07-07-hidden-city-state-economy-design.md": {
    "category": "active",
    "reason": "Foundation design cited by the open minor-civ graduation issue #497.",
