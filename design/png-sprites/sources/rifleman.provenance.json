@@ -2,10 +2,16 @@
   "id": "rifleman",
   "file": "rifleman.png",
   "generator": "Sprite-AI (sprite-ai.art) via MCP sprite_generate",
-  "settings": { "asset_type": "character", "camera_perspective": "side", "direction": "east", "width": 256, "height": 256 },
+  "settings": {
+    "asset_type": "character",
+    "camera_perspective": "side",
+    "direction": "east",
+    "width": 256,
+    "height": 256
+  },
   "sprite_ai_generation_id": "85738e75-056e-4535-b39e-97ada2a6d7ac",
   "generated_on": "2026-10-14",
   "tokens_used": 1,
   "prompt": "Industrial-era 19th century rifleman in strict side profile facing right, tall peaked shako hat, long coat in saturated pure red, dark navy trousers, white crossbelts, cartridge box on belt, both hands holding a long rifled musket raised and aimed forward at shoulder level in firing stance, one foot forward. Only the coat is red, nothing else is red.",
-  "licence_note": "Project owner directed the use of Sprite-AI for the #621 unit art (2026-10-14) and approved this image in chat. The Sprite-AI terms text itself was not reviewed or recorded here. Re-check the current terms before generating more sources. A first attempt (generation 8e1ff721-62d9-4c18-8fbe-cb962586d579, rear view, not used) also cost 1 token."
+  "licence_note": "Project owner directed the use of Sprite-AI for the #621 unit art (2026-10-14) and approved this image in chat. The Sprite-AI terms text itself was not reviewed or recorded here. Re-check the current terms before generating more sources. A first attempt (generation 8e1ff721-62d9-4c18-8fbe-cb962586d579, rear view, not used) also cost 1 token. Owner statement 2026-10-16: the Sprite-AI account was on the FREE plan when this was generated. Used only in this non-commercial game; Sprite-AI's terms say the owner retains ownership of generated sprites but do not state what free-tier output may be used for commercially, so a commercial release needs this re-checked (see docs/asset-rights-ledger.md)."
 }

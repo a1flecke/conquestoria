@@ -2,10 +2,16 @@
   "id": "tank",
   "file": "tank.png",
   "generator": "Sprite-AI (sprite-ai.art) via MCP sprite_generate",
-  "settings": { "asset_type": "vehicle", "camera_perspective": "side", "direction": "east", "width": 256, "height": 256 },
+  "settings": {
+    "asset_type": "vehicle",
+    "camera_perspective": "side",
+    "direction": "east",
+    "width": 256,
+    "height": 256
+  },
   "sprite_ai_generation_id": "bff28a1a-254c-4296-b6e0-7233eb83d758",
   "generated_on": "2026-10-14",
   "tokens_used": 1,
   "prompt": "First World War British rhomboid tank in strict side profile facing right, long low rhomboid hull with caterpillar tracks wrapping around the whole side, riveted armor plates, a cannon sponson gun projecting on the side toward the right, open commander hatch on top, hull painted saturated pure red with dark grey tracks and gun. Only the hull plates are red, nothing else is red.",
-  "licence_note": "Project owner directed the use of Sprite-AI for the #621 unit art (2026-10-14) and approved this image in chat. The Sprite-AI terms text itself was not reviewed or recorded here. Re-check the current terms before generating more sources. Known gap against the brief (owner accepted the art as is): the generator drew a mid-century turreted tank, not a WWI rhomboid hull with a sponson gun. A regeneration is one token."
+  "licence_note": "Project owner directed the use of Sprite-AI for the #621 unit art (2026-10-14) and approved this image in chat. The Sprite-AI terms text itself was not reviewed or recorded here. Re-check the current terms before generating more sources. Known gap against the brief (owner accepted the art as is): the generator drew a mid-century turreted tank, not a WWI rhomboid hull with a sponson gun. A regeneration is one token. Owner statement 2026-10-16: the Sprite-AI account was on the FREE plan when this was generated. Used only in this non-commercial game; Sprite-AI's terms say the owner retains ownership of generated sprites but do not state what free-tier output may be used for commercially, so a commercial release needs this re-checked (see docs/asset-rights-ledger.md)."
 }
