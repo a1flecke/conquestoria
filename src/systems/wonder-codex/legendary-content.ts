@@ -619,7 +619,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'discovery',
     ['science', 'knowledge', 'modern', 'space'],
     ['loc-about'],
-    'image-archive',
+    'image-apollo-program',
     ['modern', 'science', 'knowledge'],
     'Beyond Earth',
     'A civilization that reached the moon did not merely travel far — it demonstrated that no frontier is permanently closed.',
