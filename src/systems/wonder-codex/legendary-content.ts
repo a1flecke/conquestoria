@@ -651,7 +651,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'prosperity',
     ['gold', 'knowledge', 'modern', 'science', 'trade'],
     ['loc-about'],
-    'image-archive',
+    'image-united-nations',
     ['gold', 'modern', 'trade'],
     'The Room That Stays Open',
     'A civilization that built the United Nations chose process over power — and kept the door open even when it was inconvenient.',
