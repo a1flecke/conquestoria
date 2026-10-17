@@ -587,7 +587,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'ingenuity',
     ['knowledge', 'science', 'culture', 'modern', 'engineering'],
     ['internet-society-history'],
-    'image-archive',
+    'image-open-intelligence-commons',
     ['knowledge', 'science', 'modern'],
     'Knowledge With Neighbors',
     'The quests ask for safety institutes and stable specialist work: the wonder is earned by keeping powerful systems useful and legible.',
