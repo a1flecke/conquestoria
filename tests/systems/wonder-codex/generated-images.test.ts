@@ -84,6 +84,11 @@ describe('generated Legendary Codex illustrations (#609)', () => {
     expect(showing).toEqual(['ironroot-foundry']);
   });
 
+  it('the archive reading-room photograph is no longer a stand-in for any wonder card (#609 group 2: archive)', () => {
+    const showing = getAllWonderCodexContent().filter(entry => entry.imageSourceId === 'image-archive').map(entry => entry.id);
+    expect(showing).toEqual([]);
+  });
+
   it('never shows the same generated illustration for two different wonders', () => {
     const seen = new Map<string, string>();
     for (const record of records) {
