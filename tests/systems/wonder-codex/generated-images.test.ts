@@ -89,6 +89,11 @@ describe('generated Legendary Codex illustrations (#609)', () => {
     expect(showing).toEqual([]);
   });
 
+  it('the solar-power-plant photograph is no longer a stand-in for any wonder card (#609 group 3: sun-tower)', () => {
+    const showing = getAllWonderCodexContent().filter(entry => entry.imageSourceId === 'image-sun-tower').map(entry => entry.id);
+    expect(showing).toEqual([]);
+  });
+
   it('never shows the same generated illustration for two different wonders', () => {
     const seen = new Map<string, string>();
     for (const record of records) {
