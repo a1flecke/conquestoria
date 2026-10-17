@@ -523,7 +523,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'ingenuity',
     ['gold', 'trade', 'engineering', 'water', 'modern'],
     ['loc-about'],
-    'image-foundry',
+    'image-panama-canal',
     ['gold', 'trade', 'engineering'],
     'Two Oceans as One',
     'A civilization that commands the bottleneck between hemispheres does not just trade — it taxes the world\'s ambition.',

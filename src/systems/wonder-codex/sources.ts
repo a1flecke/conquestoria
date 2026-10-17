@@ -248,6 +248,7 @@ export const WONDER_CODEX_IMAGE_SOURCES = [
   image('image-internet', 'Internet map', 'The Opte Project / CC BY 2.5', 'https://commons.wikimedia.org/wiki/File:Internet_map_1024.jpg', '/images/wonders/codex/internet.jpg'),
   // #609: generated illustrations replace shared stand-in photographs, one per wonder. Made with scripts/codex-image/codex_image.py;
   // the originals are never committed and each has a provenance record in design/wonder-codex-images/.
+  generatedImage('image-panama-canal', 'A steamship waiting in a stone-walled Panama Canal lock between steel gates, in a jungle-covered cut at sunset', 'ChatGPT image generation (OpenAI)', 'https://chatgpt.com/', '/images/wonders/codex/panama-canal.jpg'),
   generatedImage('image-trans-siberian-railway', 'A steam train crossing a high stone-pier iron bridge over a river in the autumn Siberian forest at sunset', 'ChatGPT image generation (OpenAI)', 'https://chatgpt.com/', '/images/wonders/codex/trans-siberian-railway.jpg'),
   generatedImage('image-brooklyn-bridge', 'The Brooklyn Bridge spanning the East River at sunset, with sailing ships, a steam ferry and the low skyline of lower Manhattan', 'ChatGPT image generation (OpenAI)', 'https://chatgpt.com/', '/images/wonders/codex/brooklyn-bridge.jpg'),
   generatedImage('image-eiffel-tower', 'The Eiffel Tower rising above the lawns of the Champ de Mars at golden hour', 'ChatGPT image generation (OpenAI)', 'https://chatgpt.com/', '/images/wonders/codex/eiffel-tower.jpg'),

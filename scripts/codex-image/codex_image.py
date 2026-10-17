@@ -23,6 +23,7 @@ Spec (JSON):
     "crop": {"x": 0.0, "y": 0.05, "w": 1.0},   // fractions of the image WIDTH; the window is 16:9
     "size": [960, 540], "quality": 82,
     "grade": {"brightness": 1.0, "contrast": 1.04, "saturation": 1.0, "warmth": 0.0, "vignette": 0.0},
+    "retouch": [{"x": 0.57, "y": 0.61, "w": 0.035, "h": 0.022, "blur": 6}],   // optional: blur invented lettering (source fractions)
     "provenance": {"generator": "ChatGPT image generation (OpenAI)", "generatorUrl": "https://chatgpt.com/",
                    "plan": "paid ChatGPT plan (owner statement)", "generatedOn": "2026-10-17", "prompt": "...", "notes": "..."} }
 """
@@ -35,7 +36,7 @@ import os
 import sys
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageEnhance
+from PIL import Image, ImageDraw, ImageEnhance, ImageFilter
 
 REPO = Path(__file__).resolve().parents[2]
 OUT_DIR = REPO / 'public' / 'images' / 'wonders' / 'codex'
@@ -72,6 +73,15 @@ def process(src: Path, spec: dict) -> Image.Image:
     with Image.open(src) as opened:
         img = opened.convert('RGB')
     w, h = img.size
+    # Local retouch on the full-resolution source, before cropping: blur away small pseudo-lettering the generator invented
+    # (a ship's name, a plate). Rectangles are fractions of the source width/height; "blur" is the Gaussian radius in source px.
+    for patch in spec.get('retouch', []):
+        left, top = round(patch['x'] * w), round(patch['y'] * h)
+        right, bottom = min(w, left + round(patch['w'] * w)), min(h, top + round(patch['h'] * h))
+        if right <= left or bottom <= top:
+            raise SystemExit(f'retouch rectangle {patch} is empty or outside the image')
+        region = img.crop((left, top, right, bottom)).filter(ImageFilter.GaussianBlur(patch.get('blur', 6)))
+        img.paste(region, (left, top))
     crop = spec.get('crop', {'x': 0.0, 'y': 0.0, 'w': 1.0})
     cw = max(1, min(w, round(crop['w'] * w)))
     ch = max(1, round(cw / ASPECT))
@@ -159,7 +169,7 @@ def build(spec_path: Path) -> None:
         'tool': 'scripts/codex-image/codex_image.py',
         'wonderIds': spec['wonderIds'],
         'alt': spec['alt'],
-        'processing': {'crop': spec.get('crop'), 'size': spec.get('size', [960, 540]), 'quality': quality, 'grade': spec.get('grade', {})},
+        'processing': {'crop': spec.get('crop'), 'size': spec.get('size', [960, 540]), 'quality': quality, 'grade': spec.get('grade', {}), 'retouch': spec.get('retouch', [])},
         'original': {'sha256': report['sha256'], 'bytes': report['bytes'], 'pixels': report['size'], 'scan': report['checks'], 'notRedistributed': True},
         'output': {'sha256': check['sha256'], 'bytes': check['bytes']},
         'origin': spec.get('origin', 'generated-image'),

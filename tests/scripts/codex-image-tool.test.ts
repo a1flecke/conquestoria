@@ -119,6 +119,43 @@ describe.skipIf(!havePillow)('codex-image pipeline (#609)', () => {
     expect(tall.status).toBe(0); // a portrait source can still give a 16:9 window; the window stays inside the image
   });
 
+  it('retouch blurs only the named rectangle (invented lettering) and rejects an empty one', () => {
+    const { root, sources, tool } = sandbox();
+    // A sharp black-and-white stripe pattern: blurring it must change the patch and leave everything else alone.
+    execFileSync('python3', ['-I', '-c', `
+from PIL import Image
+im = Image.new('RGB', (1280, 720), (255, 255, 255))
+px = im.load()
+for x in range(1280):
+    for y in range(720):
+        if (x // 4) % 2 == 0: px[x, y] = (0, 0, 0)
+im.save(${JSON.stringify(join(sources, 'stripes.png'))})
+`]);
+    const base = spec({ sourceFile: 'stripes.png', grade: {}, size: [1280, 720], quality: 95, id: 'plain' });
+    const retouched = spec({ sourceFile: 'stripes.png', grade: {}, size: [1280, 720], quality: 95, id: 'patched', retouch: [{ x: 0.4, y: 0.4, w: 0.2, h: 0.2, blur: 6 }] });
+    writeFileSync(join(root, 'plain.json'), JSON.stringify(base));
+    writeFileSync(join(root, 'patched.json'), JSON.stringify(retouched));
+    expect(run(tool, ['build', join(root, 'plain.json')], { CODEX_SOURCES_DIR: sources }).status).toBe(0);
+    expect(run(tool, ['build', join(root, 'patched.json')], { CODEX_SOURCES_DIR: sources }).status).toBe(0);
+    const read = (id: string) => execFileSync('python3', ['-I', '-c', `
+from PIL import Image
+im = Image.open(${JSON.stringify(join(root, `public/images/wonders/codex/${id}.jpg`))}).convert('L')
+w, h = im.size
+inside = im.crop((int(w*0.45), int(h*0.45), int(w*0.55), int(h*0.55)))
+outside = im.crop((0, 0, int(w*0.2), int(h*0.2)))
+span = lambda i: max(i.tobytes()) - min(i.tobytes())
+print(span(inside), span(outside))
+`], { encoding: 'utf8' }).trim().split(' ').map(Number);
+    const [plainInside, plainOutside] = read('plain');
+    const [patchedInside, patchedOutside] = read('patched');
+    expect(plainInside).toBeGreaterThan(150);
+    expect(patchedInside, 'the patch is blurred flat').toBeLessThan(plainInside / 2);
+    expect(patchedOutside, 'outside the patch is untouched').toBeGreaterThan(plainOutside - 25);
+
+    writeFileSync(join(root, 'empty.json'), JSON.stringify(spec({ sourceFile: 'stripes.png', id: 'empty', retouch: [{ x: 0.5, y: 0.5, w: 0, h: 0.1 }] })));
+    expect(run(tool, ['build', join(root, 'empty.json')], { CODEX_SOURCES_DIR: sources }).status).not.toBe(0);
+  });
+
   it('preview writes a contact sheet showing the desktop and phone crops, and needs the sources directory', () => {
     const { root, sources, tool } = sandbox();
     makeImage(join(sources, 'demo.png'), 'png');
