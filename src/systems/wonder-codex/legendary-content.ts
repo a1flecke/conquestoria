@@ -459,7 +459,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'memory',
     ['science', 'gold', 'culture', 'knowledge', 'ancient'],
     ['loc-about'],
-    'image-archive',
+    'image-continental-congress',
     ['science', 'gold', 'culture'],
     'Institutional Design',
     'A congress works because it gives every faction a reason to stay in the room.',
