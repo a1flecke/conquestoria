@@ -248,6 +248,7 @@ export const WONDER_CODEX_IMAGE_SOURCES = [
   image('image-internet', 'Internet map', 'The Opte Project / CC BY 2.5', 'https://commons.wikimedia.org/wiki/File:Internet_map_1024.jpg', '/images/wonders/codex/internet.jpg'),
   // #609: generated illustrations replace shared stand-in photographs, one per wonder. Made with scripts/codex-image/codex_image.py;
   // the originals are never committed and each has a provenance record in design/wonder-codex-images/.
+  generatedImage('image-iron-arsenal', 'A walled early-modern arsenal beside a harbour canal at sunset, with glowing furnace halls, tall chimneys, a half-built warship and moored galleys', 'ChatGPT image generation (OpenAI)', 'https://chatgpt.com/', '/images/wonders/codex/iron-arsenal.jpg'),
   generatedImage('image-wright-flyer', 'The 1903 Wright Flyer biplane on a windswept sand dune at Kitty Hawk at sunrise', 'ChatGPT image generation (OpenAI)', 'https://chatgpt.com/', '/images/wonders/codex/wright-flyer.jpg'),
 ] satisfies WonderCodexImageSource[];
 
