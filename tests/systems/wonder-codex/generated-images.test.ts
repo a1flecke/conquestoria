@@ -79,6 +79,11 @@ describe('generated Legendary Codex illustrations (#609)', () => {
     expect(showing).toEqual([...record.wonderIds].sort());
   });
 
+  it('the foundry photograph is shown only by the wonder it actually depicts (#609 group 1: foundry)', () => {
+    const showing = getAllWonderCodexContent().filter(entry => entry.imageSourceId === 'image-foundry').map(entry => entry.id);
+    expect(showing).toEqual(['ironroot-foundry']);
+  });
+
   it('never shows the same generated illustration for two different wonders', () => {
     const seen = new Map<string, string>();
     for (const record of records) {

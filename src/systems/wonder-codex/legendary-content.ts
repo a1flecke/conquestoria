@@ -555,7 +555,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'awe',
     ['food', 'production', 'engineering', 'water', 'modern'],
     ['loc-about'],
-    'image-foundry',
+    'image-hoover-dam',
     ['food', 'production', 'engineering'],
     'The River Answers',
     'A civilization that can redirect a river does not ask nature for permission.',
