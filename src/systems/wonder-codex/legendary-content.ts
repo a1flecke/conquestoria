@@ -635,7 +635,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'ingenuity',
     ['military', 'science', 'modern', 'defense', 'engineering'],
     ['norad-agreement'],
-    'image-archive',
+    'image-norad',
     ['military', 'science', 'defense'],
     'Prepared Coverage',
     'The quest counts operational Radar Stations in three different cities and three successful interceptions. A queued, missing, or rival Radar Station does not count.',
