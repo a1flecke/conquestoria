@@ -539,7 +539,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'prosperity',
     ['production', 'gold', 'trade', 'industry', 'modern'],
     ['loc-about'],
-    'image-foundry',
+    'image-empire-state-building',
     ['production', 'gold', 'industry'],
     'Height as Policy',
     'Civilizations that build the tallest things are rarely the ones that have given up.',
