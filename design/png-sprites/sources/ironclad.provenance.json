@@ -2,10 +2,16 @@
   "id": "ironclad",
   "file": "ironclad.png",
   "generator": "Sprite-AI (sprite-ai.art) via MCP sprite_generate",
-  "settings": { "asset_type": "vehicle", "camera_perspective": "side", "direction": "east", "width": 256, "height": 256 },
+  "settings": {
+    "asset_type": "vehicle",
+    "camera_perspective": "side",
+    "direction": "east",
+    "width": 256,
+    "height": 256
+  },
   "sprite_ai_generation_id": "5e6e7a30-2210-42fa-8800-f4b816d41bcc",
   "generated_on": "2026-10-14",
   "tokens_used": 2,
   "prompt": "19th century steam ironclad warship, perfectly flat side view from the port side, bow pointing right, long low iron hull with a row of square gun ports along the whole side, one tall funnel with a little smoke, two short masts, ram bow, the entire upper hull side and casemate painted flat saturated pure red, deck, funnel, masts and waterline base dark grey. Only the hull side is red.",
-  "licence_note": "Project owner directed the use of Sprite-AI for the #621 unit art (2026-10-14) and approved this image in chat. The Sprite-AI terms text itself was not reviewed or recorded here. Re-check the current terms before generating more sources. Tokens used counts a rejected first attempt (generation 0f6a75e6-4e54-48f3-8a96-ddd7c8215905, three-quarter bow view, not used). Known gap against the brief (owner accepted the art as is): the red is the lower-hull band, not the upper side; the gun ports are faint; no paddle wheel or propeller is shown."
+  "licence_note": "Project owner directed the use of Sprite-AI for the #621 unit art (2026-10-14) and approved this image in chat. The Sprite-AI terms text itself was not reviewed or recorded here. Re-check the current terms before generating more sources. Tokens used counts a rejected first attempt (generation 0f6a75e6-4e54-48f3-8a96-ddd7c8215905, three-quarter bow view, not used). Known gap against the brief (owner accepted the art as is): the red is the lower-hull band, not the upper side; the gun ports are faint; no paddle wheel or propeller is shown. Owner statement 2026-10-16: the Sprite-AI account was on the FREE plan when this was generated. Used only in this non-commercial game; Sprite-AI's terms say the owner retains ownership of generated sprites but do not state what free-tier output may be used for commercially, so a commercial release needs this re-checked (see docs/asset-rights-ledger.md)."
 }

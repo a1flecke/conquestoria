@@ -2,10 +2,16 @@
   "id": "submarine",
   "file": "submarine.png",
   "generator": "Sprite-AI (sprite-ai.art) via MCP sprite_generate",
-  "settings": { "asset_type": "vehicle", "camera_perspective": "side", "direction": "east", "width": 256, "height": 256 },
+  "settings": {
+    "asset_type": "vehicle",
+    "camera_perspective": "side",
+    "direction": "east",
+    "width": 256,
+    "height": 256
+  },
   "sprite_ai_generation_id": "b7f4cb29-5333-4302-a105-3b9aa92fd488",
   "generated_on": "2026-10-14",
   "tokens_used": 1,
   "prompt": "Early 20th century submarine, perfectly flat side view from the port side, bow pointing right, cigar-shaped pressure hull riding low in the water, small conning tower with a raised periscope, small hydroplane fins, a small deck gun, the hull painted flat saturated pure red above the waterline with dark grey conning tower, periscope and fins. Only the hull is red.",
-  "licence_note": "Project owner directed the use of Sprite-AI for the #621 unit art (2026-10-14) and approved this image in chat. The Sprite-AI terms text itself was not reviewed or recorded here. Re-check the current terms before generating more sources. Known gaps against the brief: the hull is drawn high rather than low in the water; no hydroplane fins or deck gun are clearly drawn; the attack animation (a torpedo and bubble trail) is drawn procedurally by scripts/sprite-puppet/puppet.py, not by the generator."
+  "licence_note": "Project owner directed the use of Sprite-AI for the #621 unit art (2026-10-14) and approved this image in chat. The Sprite-AI terms text itself was not reviewed or recorded here. Re-check the current terms before generating more sources. Known gaps against the brief: the hull is drawn high rather than low in the water; no hydroplane fins or deck gun are clearly drawn; the attack animation (a torpedo and bubble trail) is drawn procedurally by scripts/sprite-puppet/puppet.py, not by the generator. Owner statement 2026-10-16: the Sprite-AI account was on the FREE plan when this was generated. Used only in this non-commercial game; Sprite-AI's terms say the owner retains ownership of generated sprites but do not state what free-tier output may be used for commercially, so a commercial release needs this re-checked (see docs/asset-rights-ledger.md)."
 }

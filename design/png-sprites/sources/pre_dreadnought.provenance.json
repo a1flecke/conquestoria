@@ -2,10 +2,16 @@
   "id": "pre_dreadnought",
   "file": "pre_dreadnought.png",
   "generator": "Sprite-AI (sprite-ai.art) via MCP sprite_generate",
-  "settings": { "asset_type": "vehicle", "camera_perspective": "side", "direction": "east", "width": 256, "height": 256 },
+  "settings": {
+    "asset_type": "vehicle",
+    "camera_perspective": "side",
+    "direction": "east",
+    "width": 256,
+    "height": 256
+  },
   "sprite_ai_generation_id": "8c4b7868-7eca-41c1-be14-8019bf4ed4b0",
   "generated_on": "2026-10-14",
   "tokens_used": 1,
   "prompt": "Early 20th century pre-dreadnought battleship, perfectly flat side view from the port side, bow pointing right, long steel hull, two large revolving gun turrets one forward and one aft with long barrels pointing right, tall tripod mast, two funnels with coal smoke, a row of secondary guns along the side, the entire hull side above the waterline painted flat saturated pure red, superstructure, funnels, turrets and masts dark grey. Only the hull side is red.",
-  "licence_note": "Project owner directed the use of Sprite-AI for the #621 unit art (2026-10-14) and approved this image in chat. The Sprite-AI terms text itself was not reviewed or recorded here. Re-check the current terms before generating more sources. Known gaps against the brief (owner accepted the art as is): a slight bow three-quarter view rather than a flat profile; the revolving turrets are not clearly legible; two red funnel bands tint with the hull; no coal smoke is drawn."
+  "licence_note": "Project owner directed the use of Sprite-AI for the #621 unit art (2026-10-14) and approved this image in chat. The Sprite-AI terms text itself was not reviewed or recorded here. Re-check the current terms before generating more sources. Known gaps against the brief (owner accepted the art as is): a slight bow three-quarter view rather than a flat profile; the revolving turrets are not clearly legible; two red funnel bands tint with the hull; no coal smoke is drawn. Owner statement 2026-10-16: the Sprite-AI account was on the FREE plan when this was generated. Used only in this non-commercial game; Sprite-AI's terms say the owner retains ownership of generated sprites but do not state what free-tier output may be used for commercially, so a commercial release needs this re-checked (see docs/asset-rights-ledger.md)."
 }
