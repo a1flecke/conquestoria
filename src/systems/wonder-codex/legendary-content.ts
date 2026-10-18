@@ -106,7 +106,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'ingenuity',
     ['water', 'engineering', 'trade', 'food', 'gold'],
     ['unesco-grand-canal'],
-    'image-canal',
+    'image-grand-canal',
     ['water', 'engineering', 'trade'],
     'Engineered Water',
     'A canal is not only dug earth; it is a city system stretched across the map.',
