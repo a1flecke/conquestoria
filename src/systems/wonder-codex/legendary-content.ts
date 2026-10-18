@@ -363,7 +363,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'discovery',
     ['coast', 'discovery', 'trade', 'sea', 'gold'],
     ['noaa-maritime-heritage'],
-    'image-drydock',
+    'image-navigators-compass',
     ['coast', 'discovery', 'trade'],
     'Direction Without Landmarks',
     'The compass removed the fear of open water and made long routes repeatable.',
