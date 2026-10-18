@@ -2289,7 +2289,8 @@ describe('#553 MR1-3/4 — idle trade-unit AI parity (caravan, Naval Trader, lan
           units: [tradeUnitId],
           techState: { completed: ['trade-routes', 'colonial-trade'], current: null, progress: 0 },
           gold: 50,
-          visibility: { tiles: {} },
+          // #1500 MR03: assignments need discovered destinations and explored corridors.
+          visibility: { tiles: Object.fromEntries(Object.keys(map.tiles).map(key => [key, 'fog'])) },
           score: 0,
           diplomacy: { relationships: {}, atWarWith: [], treaties: [], treatyRequestsSent: [], treatyRequestsReceived: [], vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 1, peakMilitary: 0 } },
         },

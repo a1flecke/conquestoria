@@ -63,6 +63,12 @@ function makeMinimalState(overrides: Partial<{
   if (overrides.tradeRoutes) {
     marketplace.tradeRoutes = overrides.tradeRoutes;
   }
+  // #1500 MR03: every destination now needs an explored corridor, so these fixtures give both civs
+  // ordinary explored knowledge of the whole test map.
+  const exploredTiles: Record<string, string> = {};
+  for (let q = 0; q < 5; q++) {
+    for (let r = 0; r < 5; r++) exploredTiles[`${q},${r}`] = 'fog';
+  }
   // Foreign commerce needs commercial permission (#1499 MR02). These fixtures default to a signed
   // trade agreement, so the route-lifecycle tests below exercise a *permitted* foreign route;
   // permission-specific tests pass `tradeAgreement: false`.
@@ -84,7 +90,7 @@ function makeMinimalState(overrides: Partial<{
         techState: { completed: ['trade-routes', 'wheel'], currentResearch: null, progress: {}, trackPriorities: {} as any },
         diplomacy: { relationships: { enemy: overrides.relationship ?? 0 }, treaties, events: [], atWarWith: overrides.atWarWith ?? [] },
         knownCivilizations: ['enemy'],
-        visibility: { tiles: {}, fogMap: {} },
+        visibility: { tiles: { ...exploredTiles }, fogMap: {} },
       },
       enemy: {
         id: 'enemy', name: 'Enemy', color: '#f00', civType: 'generic',
@@ -92,7 +98,7 @@ function makeMinimalState(overrides: Partial<{
         techState: { completed: [], currentResearch: null, progress: {}, trackPriorities: {} as any },
         diplomacy: { relationships: { player: overrides.relationship ?? 0 }, treaties, events: [], atWarWith: overrides.atWarWith?.includes('player') ? ['player'] : [] },
         knownCivilizations: [],
-        visibility: { tiles: {}, fogMap: {} },
+        visibility: { tiles: { ...exploredTiles }, fogMap: {} },
       },
     },
     cities: {

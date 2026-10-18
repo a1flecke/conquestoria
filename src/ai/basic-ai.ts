@@ -103,7 +103,6 @@ import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definit
 import { getLegendaryWonderTacticalEffectAiValue } from '@/systems/legendary-wonder-tactical-effects';
 import { BEAST_OWNER } from '@/systems/beast-system';
 import { getCivAvailableResources, canEstablishOutpost, performEstablishOutpost } from '@/systems/resource-acquisition-system';
-import { canEstablishRoute } from '@/systems/trade-caravan-system';
 import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 import { performMinorCivFestival, performMinorCivGift } from '@/systems/minor-civ-actions';
@@ -1001,17 +1000,16 @@ function processAITurnInternal(
       .filter((cityId): cityId is string => Boolean(cityId)));
     const candidates = [...ownCities, ...foreignCities].sort((left, right) =>
       Number(assignedDestinationIds.has(right.id)) - Number(assignedDestinationIds.has(left.id)));
+    const resourceDiversity = getCivAvailableResources(newState, civId).size;
     for (const candidate of candidates) {
-      const check = canEstablishRoute(newState, caravan, candidate.id);
-      if (check.ok) {
-        const resourceDiversity = getCivAvailableResources(newState, civId).size;
-        const routeResult = establishQuestAwareRoute(newState, caravan.id, candidate.id, resourceDiversity);
-        newState = routeResult.state;
-        emitMinorCivQuestTransitions(bus, routeResult.questTransitions, newState);
-        bus.emit('trade:route-created', { route: routeResult.route });
-        civ = newState.civilizations[civId];
-        break;
-      }
+      const routeResult = establishQuestAwareRoute(newState, caravan.id, candidate.id, resourceDiversity, { automated: true });
+      // #1500: the executor returns a typed refusal; the AI simply tries the next candidate.
+      if (!routeResult.ok) continue;
+      newState = routeResult.state;
+      emitMinorCivQuestTransitions(bus, routeResult.questTransitions, newState);
+      bus.emit('trade:route-created', { route: routeResult.route });
+      civ = newState.civilizations[civId];
+      break;
     }
   }
 

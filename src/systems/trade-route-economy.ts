@@ -33,8 +33,17 @@ export function getRouteTechGoldBonus(state: GameState, route: TradeRoute): numb
 }
 
 export function processTradeRouteIncome(routes: TradeRoute[], state?: GameState): number {
-  return routes.reduce((total, r) => total + getEffectiveGoldPerTurn(r, state ? getRouteTechGoldBonus(state, r) : 0)
-    + (state ? getNetworkRouteGoldBonus(state, r) : 0), 0);
+  return routes
+    // #1500: a trader still walking to its origin earns nothing — positioning is not commerce.
+    .filter(route => !state || !isRoutePositioning(state, route))
+    .reduce((total, r) => total + getEffectiveGoldPerTurn(r, state ? getRouteTechGoldBonus(state, r) : 0)
+      + (state ? getNetworkRouteGoldBonus(state, r) : 0), 0);
+}
+
+/** True while the route's trader is still travelling to the route's origin (#1500). */
+export function isRoutePositioning(state: GameState, route: TradeRoute): boolean {
+  const runner = Object.values(state.units).find(unit => unit.committedToRouteId === route.id);
+  return runner?.routeDirection === 'positioning';
 }
 
 // --- S5: route capacity ---

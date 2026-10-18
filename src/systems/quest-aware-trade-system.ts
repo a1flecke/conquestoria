@@ -1,26 +1,48 @@
 import type { GameState, TradeRoute } from '@/core/types';
 import { applyQuestGameplayAction, type ChainTransition } from './quest-chain-system';
-import { establishRoute } from './trade-caravan-system';
+import {
+  establishTradeRoute,
+  type TradeRouteDenialReason,
+} from './trade-route-contract';
 
+export type QuestAwareRouteResult =
+  | { ok: true; state: GameState; route: TradeRoute; questTransitions: ChainTransition[] }
+  | { ok: false; state: GameState; reason: TradeRouteDenialReason };
+
+/**
+ * Creates a trade route through the family's canonical executor and then advances any quest that the
+ * creation fulfils (#1500 item 6).
+ *
+ * A refusal is a typed `ok:false` carrying the contract's reason and the untouched state: no route is
+ * created and no quest progresses, so a stale or repeated Confirm cannot double-advance a quest.
+ */
 export function establishQuestAwareRoute(
   state: GameState,
   caravanUnitId: string,
   toCityId: string,
   resourceDiversity: number = 0,
-): { state: GameState; route: TradeRoute; questTransitions: ChainTransition[] } {
+  options: { automated?: boolean; originCityId?: string } = {},
+): QuestAwareRouteResult {
   const caravan = state.units[caravanUnitId];
-  if (!caravan) throw new Error(`Unit ${caravanUnitId} not found`);
-  const previousRouteIds = new Set((state.marketplace?.tradeRoutes ?? []).map(route => route.id));
-  const routedState = establishRoute(state, caravanUnitId, toCityId, undefined, resourceDiversity);
-  const route = routedState.marketplace?.tradeRoutes.find(candidate => !previousRouteIds.has(candidate.id));
-  if (!route) throw new Error('Route establishment did not create a route');
-  const progress = applyQuestGameplayAction(routedState, {
+  if (!caravan) return { ok: false, state, reason: 'unit-missing' };
+
+  const result = establishTradeRoute(state, {
+    caravanUnitId,
+    toCityId,
+    actingCivId: caravan.owner,
+    automated: options.automated ?? true,
+    originCityId: options.originCityId,
+  }, undefined, resourceDiversity);
+  if (!result.ok) return { ok: false, state, reason: result.reason };
+
+  // Quest progress only after the canonical creation succeeded.
+  const progress = applyQuestGameplayAction(result.state, {
     type: 'trade_route_created',
     actorCivId: caravan.owner,
-    fromCityId: route.fromCityId,
-    toCityId: route.toCityId,
-    routeId: route.id,
+    fromCityId: result.route.fromCityId,
+    toCityId: result.route.toCityId,
+    routeId: result.route.id,
     turn: state.turn,
   });
-  return { state: progress.state, route, questTransitions: progress.transitions };
+  return { ok: true, state: progress.state, route: result.route, questTransitions: progress.transitions };
 }
