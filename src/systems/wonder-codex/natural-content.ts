@@ -122,7 +122,7 @@ export const NATURAL_WONDER_CODEX_CONTENT = [
     'awe',
     ['ice', 'water', 'stone', 'production', 'science'],
     ['nps-waterfalls'],
-    'image-waterfall',
+    'image-frozen-falls',
     ['ice', 'water', 'stone'],
     'Stopped Motion',
     'The falls look still, but they are made by movement and cold working together.',
