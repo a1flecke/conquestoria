@@ -2,7 +2,6 @@ import type {
   GameState,
   HexCoord,
   LegendaryWonderResourceScope,
-  PurchasedResourceEntry,
   ResourceType,
   ResourceYield,
 } from '@/core/types';
@@ -307,47 +306,63 @@ export function performEstablishOutpost(state: GameState, unitId: string): GameS
 }
 
 /**
- * Returns true when a buyer civ can purchase 10-turn resource access from a seller civ.
+ * Typed reason for a refused instant resource purchase (#1498 MR01).
  *
- * All conditions must hold:
- *   1. Seller is in buyer's diplomacy.relationships (civs have met).
- *   2. Not at war.
- *   3. Relationship score >= 0.
- *   4. Seller has the resource (via getCivAvailableResources).
- *   5. Buyer does NOT already own the resource.
+ * While the import market is rebuilt, `resource-market-rebuilding` is the single canonical denial
+ * reason. The marketplace panel, a direct or stale callback, and the AI all receive it, so no caller
+ * can buy instant access through a path the others do not check.
  */
-export function canBuyResourceAccess(
-  state: GameState,
-  buyerCivId: string,
-  sellerCivId: string,
-  resource: ResourceType,
-): boolean {
-  const buyer = state.civilizations[buyerCivId];
-  if (!buyer) return false;
-  const definition = RESOURCE_DEFINITIONS.find(def => def.id === resource);
-  if (!definition || !buyer.techState.completed.includes(definition.tech)) return false;
+export const RESOURCE_MARKET_REBUILDING_REASON = 'resource-market-rebuilding' as const;
+export type ResourcePurchaseDenialReason = typeof RESOURCE_MARKET_REBUILDING_REASON;
 
-  // Must have met the seller (key present in relationships map)
-  if (!(sellerCivId in buyer.diplomacy.relationships)) return false;
+/** Player-facing copy for every purchase denial, in one place (`.claude/rules/action-contracts.md`). */
+export const RESOURCE_PURCHASE_DENIAL_MESSAGES: Record<ResourcePurchaseDenialReason, string> = {
+  [RESOURCE_MARKET_REBUILDING_REASON]: 'Resource imports are being rebuilt. Trade routes remain available.',
+};
 
-  // Not at war
-  if (isAtWar(buyer.diplomacy, sellerCivId)) return false;
+export type ResourcePurchaseDecision =
+  | { allowed: true; reason: null }
+  | { allowed: false; reason: ResourcePurchaseDenialReason };
 
-  // Relationship score must be >= 0
-  const score = buyer.diplomacy.relationships[sellerCivId] ?? -100;
-  if (score < 0) return false;
+export type ResourcePurchaseResult =
+  | { ok: true; state: GameState }
+  | { ok: false; state: GameState; reason: ResourcePurchaseDenialReason };
 
-  // Seller must have the resource
-  const sellerResources = getCivAvailableResources(state, sellerCivId);
-  if (!sellerResources.has(resource)) return false;
+/**
+ * True while instant resource imports may be purchased.
+ *
+ * MR01 (#1498) withholds them: the old instant market granted ten turns of access to an unnamed
+ * seller with no shipment or provenance, so it is contained rather than repaired in place. The
+ * physical-shipment replacement (#1509/#1510) is what re-opens purchases.
+ */
+function isInstantResourcePurchaseOpen(): boolean {
+  return false;
+}
 
-  // Buyer must not already own it
-  const buyerResources = getCivAvailableResources(state, buyerCivId);
-  if (buyerResources.has(resource)) return false;
+/**
+ * Canonical instant-purchase decision. Every caller shares this one rule — the marketplace panel, any
+ * direct or stale callback, and the AI — instead of re-implementing eligibility locally.
+ *
+ * `sellerCivId`/`resource` are reserved for the MR12 eligibility evaluation against posted offers and
+ * commercial permissions; while the market is being rebuilt, the denial supersedes every condition.
+ */
+export function getResourcePurchaseDecision(
+  _state: GameState,
+  _buyerCivId: string,
+  _sellerCivId: string,
+  _resource: ResourceType,
+): ResourcePurchaseDecision {
+  if (isInstantResourcePurchaseOpen()) return { allowed: true, reason: null };
+  return { allowed: false, reason: RESOURCE_MARKET_REBUILDING_REASON };
+}
 
-  if (buyer.gold < getResourceAccessCost(state, resource)) return false;
-
-  return true;
+/**
+ * The rebuilding notice the Marketplace panel shows, or null once instant purchases are open again.
+ * Panel copy comes from here so the approved explanation has one source.
+ */
+export function getInstantResourcePurchaseNotice(): string | null {
+  if (isInstantResourcePurchaseOpen()) return null;
+  return RESOURCE_PURCHASE_DENIAL_MESSAGES[RESOURCE_MARKET_REBUILDING_REASON];
 }
 
 export function getResourceAccessCost(state: GameState, resource: ResourceType): number {
@@ -356,37 +371,26 @@ export function getResourceAccessCost(state: GameState, resource: ResourceType):
 }
 
 /**
- * Deducts 3× the current marketplace price from the buyer and adds a 10-turn purchasedResources entry.
- * Precondition: canBuyResourceAccess(state, buyerCivId, sellerCivId, resource) === true.
- * Returns a new GameState (immutable spread-copy). Returns state unchanged if marketplace absent.
+ * Executor for an instant resource purchase. Re-runs the canonical decision before its first write
+ * and returns the input state untouched with a typed reason when refused, so a direct call, a stale
+ * callback, and the AI are all blocked by the same rule.
+ *
+ * MR01 (#1498): the market denial is the only outcome here, so no gold is spent and no
+ * `purchasedResources` entry is created — no seller, quantity, duration, payment, or refund is
+ * fabricated. Access already recorded by an older save keeps working until its recorded expiry,
+ * which the round phase drops and `getCivAvailableResources` still enforces. The ten-turn access
+ * write is retired with the instant market and replaced by physical shipments (MR12/#1509).
  */
 export function performBuyResourceAccess(
   state: GameState,
   buyerCivId: string,
   sellerCivId: string,
   resource: ResourceType,
-): GameState {
-  if (!state.marketplace || !canBuyResourceAccess(state, buyerCivId, sellerCivId, resource)) return state;
-  const cost = getResourceAccessCost(state, resource);
+): ResourcePurchaseResult {
+  const decision = getResourcePurchaseDecision(state, buyerCivId, sellerCivId, resource);
+  if (!decision.allowed) return { ok: false, state, reason: decision.reason };
 
-  const buyer = state.civilizations[buyerCivId];
-  if (!buyer) return state;
-
-  const newEntry: PurchasedResourceEntry = {
-    civId: buyerCivId,
-    resource,
-    expiresOnTurn: state.turn + 10,
-  };
-
-  return {
-    ...state,
-    civilizations: {
-      ...state.civilizations,
-      [buyerCivId]: { ...buyer, gold: buyer.gold - cost },
-    },
-    marketplace: {
-      ...state.marketplace,
-      purchasedResources: [...(state.marketplace.purchasedResources ?? []), newEntry],
-    },
-  };
+  // Unreachable while the market is withheld; MR12 replaces this branch with the shipment load, so
+  // there is deliberately no legacy write to restore here.
+  return { ok: true, state };
 }

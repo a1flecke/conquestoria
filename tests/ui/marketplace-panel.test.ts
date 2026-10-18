@@ -364,36 +364,28 @@ describe('createMarketplacePanel', () => {
     expect(panel?.textContent).toContain('None');
   });
 
-  // ── S3: Fashion banner ────────────────────────────────────────────────────
+  // ── No global price/fashion advertising (#1498) ───────────────────────────
 
-  it('suppresses fashion banner when fashionable resource tech is unknown to viewer', () => {
-    const state = buildState({ currentPlayer: 'p1', civTechs: [] }); // no irrigation → silk unknown
-    (state.marketplace as NonNullable<typeof state.marketplace>).fashionable = 'silk';
-    (state.marketplace as NonNullable<typeof state.marketplace>).fashionTurnsLeft = 5;
-
-    createMarketplacePanel(container, state, { onClose: vi.fn() });
-    const text = document.getElementById('marketplace-panel')?.textContent ?? '';
-    // "fashionable" only appears in the banner
-    expect(text).not.toContain('fashionable');
-  });
-
-  it('shows fashion banner with display name (not raw id) when tech is known', () => {
+  it('never advertises a global fashion cycle, even when the viewer knows the fashionable resource', () => {
     const state = buildState({ currentPlayer: 'p1', civTechs: ['irrigation'] }); // irrigation → silk known
     (state.marketplace as NonNullable<typeof state.marketplace>).fashionable = 'silk';
     (state.marketplace as NonNullable<typeof state.marketplace>).fashionTurnsLeft = 5;
 
     createMarketplacePanel(container, state, { onClose: vi.fn() });
     const text = document.getElementById('marketplace-panel')?.textContent ?? '';
-    // "Silk is fashionable" proves both the banner appeared AND the display name (not raw id) was used
-    expect(text).toContain('Silk is fashionable');
+    expect(text).not.toContain('fashionable');
+    expect(text).not.toContain('prices doubled');
   });
 
-  it('fashion banner absent when marketplace.fashionable is null', () => {
+  it('never advertises global market prices, trends, or sparklines', () => {
     const state = buildState({ currentPlayer: 'p1', civTechs: ALL_RESOURCE_TECHS });
-    // fashionable defaults to null in buildMarketState
+
     createMarketplacePanel(container, state, { onClose: vi.fn() });
-    const text = document.getElementById('marketplace-panel')?.textContent ?? '';
-    expect(text).not.toContain('fashionable');
+    const panel = document.getElementById('marketplace-panel');
+
+    expect(panel?.querySelector('[data-text^="res-price-"]')).toBeNull();
+    expect(panel?.textContent).not.toContain('💰');
+    expect(panel?.textContent).not.toContain('▁'); // sparkline glyph
   });
 
   // ── S3: Discoverable footer ───────────────────────────────────────────────
@@ -573,60 +565,38 @@ describe('createMarketplacePanel', () => {
     } as unknown as GameState;
   }
 
-  describe('Available from Known Civs section', () => {
-    it('section is absent when player has not researched trade-routes', () => {
-      const state = buildStateWithKnownCiv({ playerTechs: ['bronze-working'] });
+  describe('instant imports are withheld (#1498)', () => {
+    const REBUILDING_COPY = 'Resource imports are being rebuilt. Trade routes remain available.';
+
+    it('shows the approved rebuilding explanation', () => {
+      const state = buildStateWithKnownCiv();
       createMarketplacePanel(container, state, { onClose: vi.fn() });
+
+      const notice = container.querySelector('[data-section="resource-imports-rebuilding"]');
+      expect(notice?.textContent).toBe(REBUILDING_COPY);
+    });
+
+    it('shows the explanation even for a viewer with no known civilizations', () => {
+      const state = buildState({ currentPlayer: 'p1', civTechs: [] });
+      createMarketplacePanel(container, state, { onClose: vi.fn() });
+
+      expect(container.querySelector('[data-section="resource-imports-rebuilding"]')?.textContent)
+        .toBe(REBUILDING_COPY);
+    });
+
+    it('renders no purchase control and no seller rows even when every old buy condition holds', () => {
+      // Widest-open fixture: gold 100, trade-routes researched, a peaceful known seller with iron.
+      const state = buildStateWithKnownCiv();
+      createMarketplacePanel(container, state, { onClose: vi.fn() });
+
+      const panel = document.getElementById('marketplace-panel')!;
+      // The close control is the panel's only button, so no purchase affordance survives anywhere.
+      expect(Array.from(panel.querySelectorAll('button')).map(button => button.id)).toEqual(['mp-close']);
+      expect(panel.querySelector('[data-buy-resource-btn]')).toBeNull();
       expect(container.querySelector('[data-section="known-civs"]')).toBeNull();
-    });
-
-    it('section is present when player has trade-routes and a known civ has a resource the player lacks', () => {
-      const state = buildStateWithKnownCiv();
-      createMarketplacePanel(container, state, { onClose: vi.fn() });
-      expect(container.querySelector('[data-section="known-civs"]')).not.toBeNull();
-    });
-
-    it('buy button shows correct price (3× basePrice) and duration when conditions are met', () => {
-      const state = buildStateWithKnownCiv();
-      createMarketplacePanel(container, state, { onClose: vi.fn() });
-      const section = container.querySelector('[data-section="known-civs"]') as HTMLElement;
-      // Current marketplace price is 5, so temporary access costs 15.
-      expect(section.textContent).toContain('15');
-      expect(section.textContent).toContain('10 turns');
-    });
-
-    it('shows at-war text (no buy button) when at war', () => {
-      const state = buildStateWithKnownCiv({ atWar: true });
-      createMarketplacePanel(container, state, { onClose: vi.fn() });
-      const section = container.querySelector('[data-section="known-civs"]') as HTMLElement;
-      expect(section.textContent).toContain('at war');
-      expect(section.querySelector('[data-buy-resource-btn]')).toBeNull();
-    });
-
-    it('shows "Already have" text (no buy button) when player already owns the resource', () => {
-      const state = buildStateWithKnownCiv({ playerAlreadyOwns: true });
-      createMarketplacePanel(container, state, { onClose: vi.fn() });
-      const section = container.querySelector('[data-section="known-civs"]') as HTMLElement;
-      expect(section.textContent).toContain('Already have');
-      expect(section.querySelector('[data-buy-resource-btn]')).toBeNull();
-    });
-
-    it('calls onBuyResourceAccess with seller civ id and resource when Buy Access is clicked', () => {
-      const state = buildStateWithKnownCiv();
-      const onBuy = vi.fn();
-      createMarketplacePanel(container, state, { onClose: vi.fn(), onBuyResourceAccess: onBuy });
-      const buyBtn = container.querySelector('[data-buy-resource-btn]') as HTMLButtonElement;
-      expect(buyBtn).not.toBeNull();
-      buyBtn.click();
-      expect(onBuy).toHaveBeenCalledWith('enemy', 'iron');
-    });
-
-    it('buy button is disabled when relationship score is negative', () => {
-      const state = buildStateWithKnownCiv({ relationshipScore: -10 });
-      createMarketplacePanel(container, state, { onClose: vi.fn() });
-      const buyBtn = container.querySelector('[data-buy-resource-btn]') as HTMLButtonElement;
-      expect(buyBtn).not.toBeNull();
-      expect(buyBtn.disabled).toBe(true);
+      expect(panel.textContent).not.toContain('Available from Known Civilizations');
+      expect(panel.textContent).not.toContain('Buy');
+      expect(panel.textContent).not.toContain('10 turns');
     });
   });
 

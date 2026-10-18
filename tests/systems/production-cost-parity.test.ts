@@ -135,29 +135,27 @@ describe('#984 — national-project discounts reach every production consumer', 
     return seller.id;
   }
 
-  it('buys access when the discounted cost finishes inside the access window', () => {
+  it('withholds the purchase even when the discounted cost fits the withdrawn 10-turn window (#1498)', () => {
     const { state, city } = musterGroundState('np-marketplace', false);
     withCopperSeller(state, city);
-    // 1 production/turn. Undiscounted 22 leaves 11 turns of work and is refused;
-    // the real discounted 20 leaves 9 and fits the 10-turn access window.
+    // 1 production/turn. Undiscounted 22 leaves 11 turns of work; the real discounted 20 leaves 9
+    // and used to fit the 10-turn access window. MR01 withholds instant access regardless.
     city.productionProgress = 11;
 
     const result = processAIResourceMarketplace(state, LAGGARD);
-    expect(result.marketplace?.purchasedResources ?? []).toContainEqual({
-      civId: LAGGARD,
-      resource: 'copper',
-      expiresOnTurn: state.turn + 10,
-    });
+    expect(result.marketplace?.purchasedResources ?? []).toEqual([]);
+    expect(result.civilizations[LAGGARD].gold).toBe(state.civilizations[LAGGARD].gold);
   });
 
-  it('still declines when even the correct cost cannot finish inside the window', () => {
+  it('withholds the purchase when the cost cannot fit the window either', () => {
     const { state, city } = musterGroundState('np-marketplace-negative', false);
     withCopperSeller(state, city);
-    // No banked progress: 20 turns of work at 1 production/turn, well past the window.
+    // No banked progress: 20 turns of work at 1 production/turn, well past the withdrawn window.
     city.productionProgress = 0;
 
     const result = processAIResourceMarketplace(state, LAGGARD);
     expect(result.marketplace?.purchasedResources ?? []).toEqual([]);
+    expect(result.civilizations[LAGGARD].gold).toBe(state.civilizations[LAGGARD].gold);
   });
 });
 

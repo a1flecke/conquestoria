@@ -7,7 +7,6 @@
  */
 import { createDiplomacyPanel } from '@/ui/diplomacy-panel';
 import { createMarketplacePanel } from '@/ui/marketplace-panel';
-import { canBuyResourceAccess, performBuyResourceAccess } from '@/systems/resource-acquisition-system';
 import type { PanelActionsCommonDeps } from './panel-actions-shared';
 
 export interface DiplomacyTradePanelActionsController {
@@ -45,6 +44,9 @@ export function createDiplomacyTradePanelActionsController(
   function openMarketplacePanel(): void {
     deps.hud.closeDrawer();
     deps.getElementById('marketplace-panel')?.remove();
+    // No purchase action is wired (#1498): instant resource imports are contained, so the panel
+    // exposes no callback that could commit a purchase or show a success toast. The canonical
+    // denial lives in `resource-acquisition-system` and refuses even a direct or stale call.
     createMarketplacePanel(deps.uiLayer, deps.session.getState(), {
       onClose: () => {},
       onSelectUnit: (unitId) => {
@@ -52,12 +54,6 @@ export function createDiplomacyTradePanelActionsController(
         deps.selectionController.selectUnit(unitId);
         const unit = deps.session.getState().units[unitId];
         if (unit) deps.renderLoop.camera.centerOn(unit.position);
-      },
-      onBuyResourceAccess: (sellerCivId, resource) => {
-        if (!canBuyResourceAccess(deps.session.getState(), deps.session.getState().currentPlayer, sellerCivId, resource)) return;
-        deps.session.commit(performBuyResourceAccess(deps.session.getState(), deps.session.getState().currentPlayer, sellerCivId, resource));
-        deps.showNotification(`Purchased ${resource} access for 10 turns.`, 'success');
-        openMarketplacePanel(); // re-render panel with updated state
       },
     });
   }
