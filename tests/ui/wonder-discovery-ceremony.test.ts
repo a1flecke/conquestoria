@@ -35,7 +35,7 @@ function videoPreview(surface: WonderVideoPreviewView['surface'] = 'natural-reve
     license: 'CC BY 4.0 compatible public data terms',
     audio: 'silent',
     fallbackImage: {
-      src: '/images/wonders/codex/volcano.jpg',
+      src: '/images/wonders/codex/great-volcano.jpg',
       alt: 'Great Volcano source image',
       attribution: 'USGS / public domain',
       sourceUrl: 'https://commons.wikimedia.org/wiki/File:Kilauea_Volcano,_Hawaii_(ASTER).jpg',

@@ -10,7 +10,7 @@ export const NATURAL_WONDER_CODEX_CONTENT = [
     'danger',
     ['fire', 'stone', 'production', 'science', 'nature'],
     ['usgs-volcanoes'],
-    'image-volcano',
+    'image-great-volcano',
     ['fire', 'stone', 'nature'],
     'Living Stone',
     'Smoke, mineral color, and exposed rock make the tile feel powerful even before its yields matter.',
