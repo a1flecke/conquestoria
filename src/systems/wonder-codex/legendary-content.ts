@@ -282,7 +282,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'danger',
     ['storm', 'sky', 'science', 'gold', 'modern'],
     ['noaa-weather-radio'],
-    'image-storm',
+    'image-storm-signal-spire',
     ['storm', 'sky', 'science'],
     'Warning as Infrastructure',
     'The spire makes safety feel built, not accidental.',
