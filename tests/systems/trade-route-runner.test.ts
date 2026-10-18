@@ -31,10 +31,13 @@ function makeState(overrides: {
 
   const tiles: Record<string, unknown> = {};
   for (let q = 0; q < 5; q++) {
-    tiles[`${q},0`] = {
-      coord: { q, r: 0 }, terrain: 'grassland', elevation: 'lowland', resource: null,
-      improvement: 'none', improvementTurnsLeft: 0, hasRiver: false, wonder: null, owner: 'alpha',
-    };
+    // Two rows, so a detour around a blocked tile exists (MR05b).
+    for (let r = 0; r < 2; r++) {
+      tiles[`${q},${r}`] = {
+        coord: { q, r }, terrain: 'grassland', elevation: 'lowland', resource: null,
+        improvement: 'none', improvementTurnsLeft: 0, hasRiver: false, wonder: null, owner: 'alpha',
+      };
+    }
   }
   const visibility = { tiles: Object.fromEntries(Object.keys(tiles).map(key => [key, 'fog'])), fogMap: {} };
 
@@ -137,8 +140,19 @@ describe('#1502 MR05 — travel matches the quote, and the trader repeats', () =
 
   it('takes more rounds over rough ground, exactly as the quote prices it', () => {
     const rough = makeState();
-    rough.map.tiles['1,0'] = { ...rough.map.tiles['1,0'], terrain: 'hills' } as never;
-    rough.map.tiles['2,0'] = { ...rough.map.tiles['2,0'], terrain: 'hills' } as never;
+    // Rough ground the detour cannot beat: mountains on the direct row, and no cheaper way round.
+    rough.map.tiles['1,0'] = { ...rough.map.tiles['1,0'], terrain: 'mountain' } as never;
+    rough.map.tiles['2,0'] = { ...rough.map.tiles['2,0'], terrain: 'mountain' } as never;
+    rough.map.tiles['3,0'] = { ...rough.map.tiles['3,0'], terrain: 'mountain' } as never;
+    rough.map.tiles['0,1'] = { ...rough.map.tiles['0,1'], terrain: 'mountain' } as never;
+    rough.map.tiles['1,1'] = { ...rough.map.tiles['1,1'], terrain: 'mountain' } as never;
+    rough.map.tiles['2,1'] = { ...rough.map.tiles['2,1'], terrain: 'mountain' } as never;
+    rough.map.tiles['3,1'] = { ...rough.map.tiles['3,1'], terrain: 'mountain' } as never;
+    const flatQuote = getTradeRouteQuote(makeState(), {
+      caravanUnitId: 'trader-1',
+      originCityId: 'alpha-city',
+      toCityId: 'alpha-port',
+    })!;
     const quote = getTradeRouteQuote(rough, {
       caravanUnitId: 'trader-1',
       originCityId: 'alpha-city',
@@ -147,7 +161,7 @@ describe('#1502 MR05 — travel matches the quote, and the trader repeats', () =
 
     const { rounds } = walkUntilArrival(rough, 'alpha-port');
 
-    expect(quote.legRounds).toBe(3);
+    expect(quote.legRounds).toBeGreaterThan(flatQuote.legRounds);
     expect(rounds).toBe(quote.legRounds);
   });
 
@@ -254,5 +268,179 @@ describe('#1502 MR05 — pause, resume and cancel-and-return', () => {
     expect(missing.ok).toBe(false);
     if (missing.ok) return;
     expect(missing.reason).toBe('route-missing');
+  });
+});
+
+/** A foreign unit parked on a tile — the obstruction a detour has to work around. */
+function parkForeignUnit(state: GameState, id: string, at: { q: number; r: number }): GameState {
+  return {
+    ...state,
+    units: {
+      ...state.units,
+      [id]: {
+        id, type: 'warrior', owner: 'beta', position: { ...at },
+        health: 100, movementPointsLeft: 0, hasActed: true, hasMoved: false, skippedTurn: false, isResting: false,
+      } as never,
+    },
+  };
+}
+
+function caravanPosition(state: GameState): { q: number; r: number } {
+  return { ...state.units['trader-1']!.position };
+}
+
+describe('#1502 MR05b — a lost endpoint ends the route honestly', () => {
+  it('returns home and ends the route when the destination is razed', () => {
+    const base = makeState({ caravanPosition: { q: 1, r: 0 }, movement: 1 });
+    // The destination city is gone before the trader gets there.
+    const state = { ...base, cities: { ...base.cities } };
+    delete (state.cities as Record<string, unknown>)['alpha-port'];
+
+    const planned = advanceRouteRunners(withResetAllowance(state, 1), new EventBus());
+    expect(planned.marketplace!.tradeRoutes[0]!.endpointLost).toBe(true);
+    expect(getRouteOperatingStatus(planned, 'route-1').reason).toBe('endpoint-lost');
+
+    const home = walkUntilArrival(planned, 'alpha-city').state;
+
+    expect(home.marketplace!.tradeRoutes).toHaveLength(0);
+    expect(home.units['trader-1']!.committedToRouteId).toBeUndefined();
+    expect(home.units['trader-1']!.position).toEqual(home.cities['alpha-city']!.position);
+  });
+
+  it('ends the route when the destination changes hands, even though the city still stands', () => {
+    const base = makeState({ caravanPosition: { q: 1, r: 0 }, movement: 1 });
+    // A domestic route's destination captured by somebody else is no longer this route's endpoint.
+    const state = {
+      ...base,
+      cities: { ...base.cities, 'alpha-port': { ...base.cities['alpha-port']!, owner: 'beta' } },
+    } as GameState;
+
+    const planned = advanceRouteRunners(withResetAllowance(state, 1), new EventBus());
+
+    expect(planned.marketplace!.tradeRoutes[0]!.endpointLost).toBe(true);
+    expect(getRouteOperatingStatus(planned, 'route-1').paying).toBe(false);
+  });
+
+  it('recovers a stranded trader to its nearest known home, physically, when the origin is lost', () => {
+    const base = makeState({ caravanPosition: { q: 2, r: 0 }, direction: 'inbound', movement: 1 });
+    // The origin is razed; the civilization's other city is two steps away over land.
+    const state = {
+      ...base,
+      cities: {
+        ...base.cities,
+        'alpha-fort': {
+          id: 'alpha-fort', name: 'Fort', owner: 'alpha', position: { q: 0, r: 1 },
+          ownedTiles: [], workedTiles: [], buildings: [], productionQueue: [],
+        } as never,
+      },
+      civilizations: {
+        ...base.civilizations,
+        alpha: { ...base.civilizations['alpha']!, cities: ['alpha-port', 'alpha-fort'] },
+      },
+    } as GameState;
+    delete (state.cities as Record<string, unknown>)['alpha-city'];
+
+    const walking = advanceRouteRunners(withResetAllowance(state, 1), new EventBus());
+    const route = walking.marketplace!.tradeRoutes[0]!;
+    expect(route.returnHomeCityId).toBe('alpha-fort');
+    expect(caravanPosition(walking)).toEqual({ q: 1, r: 0 });
+
+    const arrived = advanceRouteRunners(withResetAllowance({ ...walking, turn: walking.turn + 1 }, 1), new EventBus());
+
+    // Recovered: the trader walked to the alternative home and the route ended there — no teleport.
+    expect(caravanPosition(arrived)).toEqual({ q: 0, r: 1 });
+    expect(arrived.marketplace!.tradeRoutes).toHaveLength(0);
+    expect(arrived.units['trader-1']!.committedToRouteId).toBeUndefined();
+  });
+
+  it('holds a trader whose origin is lost and has no reachable alternative home', () => {
+    const base = makeState({ caravanPosition: { q: 1, r: 0 }, direction: 'inbound' });
+    // A foreign route whose partner city is its only destination: with the origin razed there is no
+    // home of the trader's own civilization left to return to.
+    const state = {
+      ...base,
+      marketplace: {
+        ...base.marketplace!,
+        tradeRoutes: [{ ...base.marketplace!.tradeRoutes[0]!, foreignCivId: 'beta' }],
+      },
+      cities: {
+        ...base.cities,
+        'alpha-port': { ...base.cities['alpha-port']!, owner: 'beta' },
+      },
+      civilizations: { ...base.civilizations, alpha: { ...base.civilizations['alpha']!, cities: [] } },
+    } as GameState;
+    delete (state.cities as Record<string, unknown>)['alpha-city'];
+
+    const held = advanceRouteRunners(withResetAllowance(state), new EventBus());
+
+    expect(caravanPosition(held)).toEqual({ q: 1, r: 0 });
+    expect(held.marketplace!.tradeRoutes).toHaveLength(1);
+    expect(settleTradeRouteForCiv(held, 'alpha').paid).toBe(0);
+  });
+});
+
+describe('#1502 MR05b — a bounded detour allowance', () => {
+  it('routes around a foreign unit on the committed path and charges a detour round', () => {
+    const state = parkForeignUnit(makeState({ movement: 3 }), 'beta-guard', { q: 1, r: 0 });
+
+    const moved = advanceRouteRunners(withResetAllowance(state), new EventBus());
+
+    expect(caravanPosition(moved)).not.toEqual({ q: 0, r: 0 });
+    expect(caravanPosition(moved)).not.toEqual({ q: 1, r: 0 });
+    expect(moved.marketplace!.tradeRoutes[0]!.detourRoundsUsed).toBe(1);
+  });
+
+  it('waits once the leg has spent its whole detour allowance, and pays nothing', () => {
+    const base = parkForeignUnit(makeState({ movement: 3 }), 'beta-guard', { q: 1, r: 0 });
+    // The leg has already spent the whole allowance: the obstruction may no longer be routed around.
+    // The route's last progress was a previous round, so this round earns nothing either.
+    const state = {
+      ...base,
+      marketplace: {
+        ...base.marketplace!,
+        tradeRoutes: [{ ...base.marketplace!.tradeRoutes[0]!, detourRoundsUsed: 3, lastProgressTurn: base.turn - 1 }],
+      },
+    } as GameState;
+
+    const held = advanceRouteRunners(withResetAllowance(state), new EventBus());
+
+    expect(caravanPosition(held)).toEqual({ q: 0, r: 0 });
+    expect(held.marketplace!.tradeRoutes[0]!.detourRoundsUsed).toBe(3);
+    expect(settleTradeRouteForCiv(held, 'alpha').paid).toBe(0);
+  });
+
+  it('keeps the spent detour allowance across a save/reload instead of refreshing it', () => {
+    const base = parkForeignUnit(makeState({ movement: 3 }), 'beta-guard', { q: 1, r: 0 });
+    const state = {
+      ...base,
+      marketplace: {
+        ...base.marketplace!,
+        tradeRoutes: [{ ...base.marketplace!.tradeRoutes[0]!, detourRoundsUsed: 3 }],
+      },
+    } as GameState;
+    const reloaded = JSON.parse(JSON.stringify(state)) as GameState;
+    expect(reloaded.marketplace!.tradeRoutes[0]!.detourRoundsUsed).toBe(3);
+
+    const fromLive = advanceRouteRunners(withResetAllowance(state), new EventBus());
+    const fromSave = advanceRouteRunners(withResetAllowance(reloaded), new EventBus());
+
+    expect(caravanPosition(fromSave)).toEqual(caravanPosition(fromLive));
+    expect(caravanPosition(fromSave)).toEqual({ q: 0, r: 0 });
+  });
+
+  it('holds, with the blocked reason, when there is no way around at all', () => {
+    // A wall across the corridor: the next step and every detour tile are held by foreign units.
+    let state = parkForeignUnit(makeState({ movement: 3 }), 'beta-guard', { q: 1, r: 0 });
+    state = parkForeignUnit(state, 'beta-guard-2', { q: 0, r: 1 });
+    state = parkForeignUnit(state, 'beta-guard-3', { q: 1, r: 1 });
+
+    const bus = new EventBus();
+    const warnings: string[] = [];
+    bus.on('notification:show', payload => warnings.push((payload as { message: string }).message));
+    const held = advanceRouteRunners(withResetAllowance(state), bus);
+
+    expect(caravanPosition(held)).toEqual({ q: 0, r: 0 });
+    expect(held.marketplace!.tradeRoutes[0]!.detourRoundsUsed).toBeUndefined();
+    expect(warnings.some(message => message.includes('blocked'))).toBe(true);
   });
 });

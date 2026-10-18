@@ -15,6 +15,7 @@ const NOT_OPERATING_LABEL: Record<TradeRouteNonOperatingReason, string> = {
   'service-complete': 'service complete',
   paused: 'paused',
   cancelled: 'cancelled',
+  'endpoint-lost': 'endpoint lost',
 };
 
 export { NOT_OPERATING_LABEL };

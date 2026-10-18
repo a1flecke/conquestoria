@@ -1865,6 +1865,14 @@ export interface TradeRoute {
   paused?: boolean;
   /** #1502 MR05: the owner cancelled it — the trader returns home and the slot frees on arrival. */
   cancelPending?: boolean;
+  /** #1502 MR05b: the destination is gone or no longer a legitimate endpoint; the trader is returning. */
+  endpointLost?: boolean;
+  /** #1502 MR05b: the home a stranded trader returns to when its origin city is lost (chosen once). */
+  returnHomeCityId?: string;
+  /** #1502 MR05b: the round the current leg began — bounds the leg's detour allowance. */
+  legStartedTurn?: number;
+  /** #1502 MR05b: extra rounds this leg has spent re-routing around an obstruction. */
+  detourRoundsUsed?: number;
 }
 
 export interface PurchasedResourceEntry {
@@ -2219,7 +2227,7 @@ export interface GameEvents extends DiplomacyEvents, CivilizationEvents, WorldEv
   'city:strategic-strike': { cityId: string; recipientCivId: string; actorCivId: string; goldLost: number };
   'tutorial:step': { step: TutorialStep; message: string; advisor: 'builder' | 'explorer' | 'scholar' };
   'trade:route-created': { route: TradeRoute };
-  'trade:route-ended': { routeId: string; fromCityId: string; toCityId: string; reason: 'unit-died' | 'unit-disbanded' | 'war-declared' | 'hostile-relations' | 'embargo' | 'trips-exhausted' | 'unit-captured' | 'espionage' | 'permission-expired' | 'cancelled' };
+  'trade:route-ended': { routeId: string; fromCityId: string; toCityId: string; reason: 'unit-died' | 'unit-disbanded' | 'war-declared' | 'hostile-relations' | 'embargo' | 'trips-exhausted' | 'unit-captured' | 'espionage' | 'permission-expired' | 'cancelled' | 'endpoint-lost' };
   /** #1502 MR05: the owner cancelled the route; the trader is returning home before it ends. */
   'trade:route-cancelled': { routeId: string; fromCityId: string; toCityId: string };
   'trade:route-delivered': { unitId: string; routeId: string; toCityId: string };

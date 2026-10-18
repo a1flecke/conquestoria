@@ -35,6 +35,8 @@ export const registerTradePresentation: PresentationRegistrar = (bus, ctx) => {
         embargo: 'embargo enforced — caravan is free to redeploy',
         'trips-exhausted': 'caravan retired after completing its service',
         'unit-captured': 'caravan captured',
+        cancelled: 'cancelled by the owner — the trader returned home',
+        'endpoint-lost': 'destination lost — the trader returned home',
       };
       ctx.notifier.deliver(
         ownerCity.owner,

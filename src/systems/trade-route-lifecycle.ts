@@ -31,7 +31,7 @@ export function removeRouteById(
   state: GameState,
   routeId: string,
   bus: EventBus | undefined,
-  reason: 'war-declared' | 'hostile-relations' | 'embargo' | 'espionage' | 'permission-expired' | 'cancelled',
+  reason: 'war-declared' | 'hostile-relations' | 'embargo' | 'espionage' | 'permission-expired' | 'cancelled' | 'endpoint-lost',
 ): GameState {
   const route = state.marketplace?.tradeRoutes.find(r => r.id === routeId);
   if (!route) return state;
