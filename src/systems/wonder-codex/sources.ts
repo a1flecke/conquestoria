@@ -221,7 +221,6 @@ export const WONDER_CODEX_FACT_SOURCES = [
 ] satisfies WonderCodexFactSource[];
 
 export const WONDER_CODEX_IMAGE_SOURCES = [
-  image('image-volcano', 'Kilauea Volcano', 'USGS / public domain', 'https://commons.wikimedia.org/wiki/File:Kilauea_Volcano,_Hawaii_(ASTER).jpg', '/images/wonders/codex/volcano.jpg'),
   image('image-mountain', 'Mount Everest', 'Wikimedia Commons / CC BY-SA 2.0', 'https://commons.wikimedia.org/wiki/File:Mount_Everest_as_seen_from_Drukair2_PLW_edit.jpg', '/images/wonders/codex/mountain.jpg'),
   image('image-cave', 'Luray Caverns', 'Jan Kronsell / public domain', 'https://commons.wikimedia.org/wiki/File:LurayCaverns.jpg', '/images/wonders/codex/cave.jpg'),
   image('image-forest', 'Hoh Rainforest', 'Wikimedia Commons / CC BY-SA 4.0', 'https://commons.wikimedia.org/wiki/File:Hoh_Rainforest.jpg', '/images/wonders/codex/forest.jpg'),
@@ -242,6 +241,7 @@ export const WONDER_CODEX_IMAGE_SOURCES = [
   image('image-internet', 'Internet map', 'The Opte Project / CC BY 2.5', 'https://commons.wikimedia.org/wiki/File:Internet_map_1024.jpg', '/images/wonders/codex/internet.jpg'),
   // #609: generated illustrations replace shared stand-in photographs, one per wonder. Made with scripts/codex-image/codex_image.py;
   // the originals are never committed and each has a provenance record in design/wonder-codex-images/.
+  generatedImage('image-great-volcano', 'A great volcano with a glowing crater, a column of ash and smoke spreading into a gold-lit cloud, and a branching lava stream down its flank, above a green plain of vineyards, olive groves and a farming village at golden sunset', 'ChatGPT image generation (OpenAI)', 'https://chatgpt.com/', '/images/wonders/codex/great-volcano.jpg'),
   generatedImage('image-whispering-exchange', 'The interior of a grand domed merchant exchange hall at golden sunset, with merchants gathered in whispering clusters on a marble floor around a central dais with a blank slate board, hanging brass instruments and lanterns', 'ChatGPT image generation (OpenAI)', 'https://chatgpt.com/', '/images/wonders/codex/whispering-exchange.jpg'),
   generatedImage('image-grand-canal', 'A broad stone-faced imperial canal at golden sunset with a timber-gated lock raising loaded wooden barges, an arched stone bridge, willow trees, tiled-roof towns and rice paddies along the banks', 'ChatGPT image generation (OpenAI)', 'https://chatgpt.com/', '/images/wonders/codex/grand-canal.jpg'),
   generatedImage('image-singing-sands', 'A sea of tall golden rippled sand dunes at sunset with a great curved dune ridge, a thin sand slide and a veil of blown sand, and a tiny line of camels crossing a lower dune', 'ChatGPT image generation (OpenAI)', 'https://chatgpt.com/', '/images/wonders/codex/singing-sands.jpg'),

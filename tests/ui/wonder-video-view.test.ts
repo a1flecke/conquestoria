@@ -17,7 +17,7 @@ function preview(surface: WonderVideoPreviewView['surface'] = 'codex'): WonderVi
     license: 'CC BY 4.0 compatible public data terms',
     audio: 'silent',
     fallbackImage: {
-      src: '/conquestoria/images/wonders/codex/volcano.jpg',
+      src: '/conquestoria/images/wonders/codex/great-volcano.jpg',
       alt: 'Great Volcano source image',
       attribution: 'USGS / public domain',
       sourceUrl: 'https://commons.wikimedia.org/wiki/File:Kilauea_Volcano,_Hawaii_(ASTER).jpg',
@@ -84,7 +84,7 @@ describe('createWonderVideoView', () => {
 
     expect(element.dataset.wonderVideoState).toBe('fallback');
     expect(element.querySelector('video')).toBeNull();
-    expect(element.querySelector('img')?.getAttribute('src')).toBe('/conquestoria/images/wonders/codex/volcano.jpg');
+    expect(element.querySelector('img')?.getAttribute('src')).toBe('/conquestoria/images/wonders/codex/great-volcano.jpg');
     expect(element.querySelector('a')?.getAttribute('href')).toBe(preview().fallbackImage.sourceUrl);
   });
 
@@ -106,7 +106,7 @@ describe('createWonderVideoView', () => {
 
     expect(element.dataset.wonderVideoState).toBe('fallback');
     expect(element.querySelector('video')).toBeNull();
-    expect(element.querySelector('img')?.getAttribute('src')).toBe('/conquestoria/images/wonders/codex/volcano.jpg');
+    expect(element.querySelector('img')?.getAttribute('src')).toBe('/conquestoria/images/wonders/codex/great-volcano.jpg');
 
     play.mockRestore();
   });

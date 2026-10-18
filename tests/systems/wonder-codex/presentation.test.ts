@@ -31,7 +31,7 @@ describe('wonder-codex presentation', () => {
     const model = getWonderCodexViewModel(state, 'player', { initialWonderId: 'great_volcano' });
 
     expect(model.selectedPage?.title).toBe('Great Volcano');
-    expect(model.selectedPage?.image.src).toBe('/images/wonders/codex/volcano.jpg');
+    expect(model.selectedPage?.image.src).toBe('/images/wonders/codex/great-volcano.jpg');
     expect(model.selectedPage?.image.sourceUrl).toMatch(/^https:\/\//);
     expect(model.selectedPage?.videoPreview).toMatchObject({
       id: 'video-great-volcano-tonga-eruption',
@@ -41,7 +41,7 @@ describe('wonder-codex presentation', () => {
       audio: 'silent',
     });
     expect(model.selectedPage?.videoPreview?.src).toBe('/videos/wonders/great-volcano-tonga-eruption.mp4');
-    expect(model.selectedPage?.videoPreview?.fallbackImage.src).toBe('/images/wonders/codex/volcano.jpg');
+    expect(model.selectedPage?.videoPreview?.fallbackImage.src).toBe('/images/wonders/codex/great-volcano.jpg');
     expect(model.selectedPage?.statusLines.join(' ')).toContain('Q0, R0');
     expect(model.selectedPage?.actions).toContainEqual({
       type: 'view-map',

@@ -17,7 +17,7 @@ function page(overrides: Partial<WonderCodexPageViewModel> = {}): WonderCodexPag
     authoredLead: 'The Great Volcano dominates its horizon.',
     learningText: 'Volcanic landscapes can be fertile and dangerous.',
     image: {
-      src: '/images/wonders/codex/volcano.jpg',
+      src: '/images/wonders/codex/great-volcano.jpg',
       alt: 'Great Volcano source image',
       attribution: 'USGS / public domain',
       sourceUrl: 'https://commons.wikimedia.org/wiki/File:Kilauea_Volcano,_Hawaii_(ASTER).jpg',
@@ -47,7 +47,7 @@ function videoPreview(surface: WonderVideoPreviewView['surface'] = 'codex'): Won
     license: 'CC BY 4.0 compatible public data terms',
     audio: 'silent',
     fallbackImage: {
-      src: '/images/wonders/codex/volcano.jpg',
+      src: '/images/wonders/codex/great-volcano.jpg',
       alt: 'Great Volcano source image',
       attribution: 'USGS / public domain',
       sourceUrl: 'https://commons.wikimedia.org/wiki/File:Kilauea_Volcano,_Hawaii_(ASTER).jpg',
@@ -72,7 +72,7 @@ describe('wonder-codex-page', () => {
       onSelectRelated: vi.fn(),
     });
 
-    expect(root.querySelector('img')?.getAttribute('src')).toBe('/images/wonders/codex/volcano.jpg');
+    expect(root.querySelector('img')?.getAttribute('src')).toBe('/images/wonders/codex/great-volcano.jpg');
     expect(root.querySelector('figcaption a')?.getAttribute('target')).toBe('_blank');
     expect(root.querySelector('figcaption a')?.getAttribute('rel')).toBe('noopener noreferrer');
     expect(root.textContent).toContain('USGS / public domain');
@@ -145,7 +145,7 @@ describe('wonder-codex-page', () => {
 
     expect(root.querySelector('[data-wonder-video-view]')).toBeTruthy();
     expect(root.querySelector('video')).toBeNull();
-    expect(root.querySelector('[data-wonder-video-view] img')?.getAttribute('src')).toBe('/images/wonders/codex/volcano.jpg');
+    expect(root.querySelector('[data-wonder-video-view] img')?.getAttribute('src')).toBe('/images/wonders/codex/great-volcano.jpg');
   });
 
   it('keeps Codex actions reachable after video fallback', () => {

@@ -14,7 +14,7 @@ export const WONDER_CODEX_VIDEO_SOURCES = [
     license: 'CC BY 4.0 compatible public data terms',
     attribution: 'Japan Meteorological Agency / Digital Typhoon - CC BY 4.0 compatible public data terms',
     localPath: '/videos/wonders/great-volcano-tonga-eruption.mp4',
-    fallbackImageSourceId: 'image-volcano',
+    fallbackImageSourceId: 'image-great-volcano',
     durationSeconds: 4,
     sizeBytes: 837274,
     format: 'MP4/H.264 derivative from WebM source using OpenH264',
