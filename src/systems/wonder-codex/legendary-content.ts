@@ -26,7 +26,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'awe',
     ['stone', 'production', 'ancient', 'desert', 'culture'],
     ['unesco-giza'],
-    'image-desert',
+    'image-great-pyramid',
     ['stone', 'production', 'ancient'],
     'Stone Upon Stone',
     'Every block is proof a city can commit years of labor to one unmoving idea.',
