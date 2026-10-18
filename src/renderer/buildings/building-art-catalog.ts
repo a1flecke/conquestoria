@@ -12,6 +12,7 @@ export interface BuildingArtEntry {
 export const BUILDING_ART: Readonly<Record<string, BuildingArtEntry>> = {
   royal_mint: { bannerX: 16, bannerY: 146 },
   blast_furnace: { bannerX: 16, bannerY: 138 },
+  sacred_grove: { bannerX: 16, bannerY: 128 },
 };
 
 export const BUILDING_ART_IDS: readonly string[] = Object.keys(BUILDING_ART);
