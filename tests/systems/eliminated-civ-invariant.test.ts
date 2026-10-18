@@ -134,6 +134,12 @@ describe('#1001 every teardown area is actually asserted', () => {
         tradeRoutes: [{ id: 'r1', foreignCivId: 'ai-1' } as never], purchasedResources: [] };
     },
     autonomyByCiv: s => { s.autonomyByCiv = { 'ai-1': { plans: { p1: {} } } as never }; },
+    commercePermissions: s => {
+      s.commercePermissions = {
+        resourceExportGrants: [{ grantorCivId: 'ai-1', granteeCivId: 'player', resource: 'iron' } as never],
+        routeAllowances: [{ routeId: 'r1', civId: 'ai-1', grantedOnTurn: 1, expiresOnTurn: 5 }],
+      };
+    },
     economyStatusByCiv: s => { s.economyStatusByCiv = { 'ai-1': {} as never }; },
     councilMemory: s => { s.councilMemory = { 'ai-1': {} as never }; },
     assessmentDigestByCiv: s => { s.assessmentDigestByCiv = { 'ai-1': { turn: 1, constraints: [], victory: [] } }; },

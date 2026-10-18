@@ -20,8 +20,10 @@ const SURFACE: Array<[name: string, module: object, exports: string[]]> = [
     ['calculateTradeRouteGold', 'getEffectiveGoldPerTurn', 'getRouteCapacity', 'getRouteTechGoldBonus',
       'getTradeUnitTripBonus', 'processTradeRouteIncome']],
   // getRouteDiplomacy is the one new export: establishment and the stale-route scrub now share it.
+  // #1499 MR02 adds scrubUnpermittedRoutes: a foreign route with no commercial permission ends once
+  // any legacy route-only allowance has expired.
   ['trade-route-lifecycle', lifecycle,
-    ['getRouteDiplomacy', 'removeRouteById', 'removeRouteForUnit', 'scrubEmbargoedRoutes', 'scrubStaleForeignRoutes']],
+    ['getRouteDiplomacy', 'removeRouteById', 'removeRouteForUnit', 'scrubEmbargoedRoutes', 'scrubStaleForeignRoutes', 'scrubUnpermittedRoutes']],
   ['trade-caravan-system', caravan, ['canEstablishRoute', 'establishRoute', 'resolveFromCity']],
   ['resource-definitions', resources,
     ['BASE_PRICES', 'RESOURCE_DEFINITIONS', 'RESOURCE_ICONS', 'RESOURCE_TECH', 'getResourceEffectLabel']],
@@ -34,10 +36,10 @@ describe('#1249 — the trade modules keep their audited public surface', () => 
     });
   }
 
-  it('every pre-split value export is accounted for: 22 originals (24 minus the 2 re-exported types) + getResourceEffectLabel + getRouteDiplomacy', () => {
+  it('every pre-split value export is accounted for: 22 originals (24 minus the 2 re-exported types) + getResourceEffectLabel + getRouteDiplomacy + scrubUnpermittedRoutes (#1499)', () => {
     const values = SURFACE.flatMap(([, , exports]) => exports);
     expect(new Set(values).size, 'no export is owned by two modules').toBe(values.length);
-    expect(values).toHaveLength(24);
+    expect(values).toHaveLength(25);
   });
 
   it('helpers that were private before the split stay private', () => {

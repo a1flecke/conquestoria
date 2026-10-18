@@ -70,6 +70,7 @@ import * as territory from '@/systems/city-territory-system';
 import * as marketplace from '@/systems/marketplace-system';
 import * as tradeEconomy from '@/systems/trade-route-economy';
 import * as tradeLifecycle from '@/systems/trade-route-lifecycle';
+import * as commercePermissions from '@/systems/commerce-permissions';
 import * as wonder from '@/systems/wonder-system';
 import * as barbarians from '@/systems/barbarian-system';
 import * as citySiege from '@/systems/city-siege-system';
@@ -116,7 +117,8 @@ const SEAMS: readonly Seam[] = [
   [economy, 'applyEconomyTurn'], [diplomacyRequests, 'pruneExpiredDiplomaticRequests'],
   [territory, 'recalculateTerritory'], [territory, 'applyTerritoryFrontierProgressWithEvents'],
   [marketplace, 'processFashionCycle'], [marketplace, 'updatePrices'], [tradeLifecycle, 'scrubStaleForeignRoutes'],
-  [tradeLifecycle, 'scrubEmbargoedRoutes'], [tradeEconomy, 'processTradeRouteIncome'], [wonder, 'processWonderEffects'],
+  [tradeLifecycle, 'scrubEmbargoedRoutes'], [tradeLifecycle, 'scrubUnpermittedRoutes'],
+  [commercePermissions, 'pruneExpiredRouteAllowances'], [tradeEconomy, 'processTradeRouteIncome'], [wonder, 'processWonderEffects'],
   [barbarians, 'processPurposefulBarbarians'], [citySiege, 'applyCityHpRegeneration'],
   [minorCiv, 'processMinorCivTurn'], [minorCiv, 'checkCampEvolution'], [minorCiv, 'checkEraAdvancement'],
   [minorCiv, 'processMinorCivEraUpgrade'], [beasts, 'processBeasts'], [beasts, 'applyHoardChoice'],
@@ -361,7 +363,7 @@ const EXPECTED_AFTER: ReadonlyArray<readonly [phase: string, calls: readonly str
     'processEspionageTurn', 'processDetection', 'processInterrogation', 'applyBuildingCI*',
     'refreshLastSeenPresentationsForCiv*',
   ]],
-  ['diplomacy-trade', ['processVassalageTurn', 'scrubStaleForeignRoutes', 'scrubEmbargoedRoutes', 'advanceRouteRunners']],
+  ['diplomacy-trade', ['processVassalageTurn', 'scrubStaleForeignRoutes', 'scrubEmbargoedRoutes', 'scrubUnpermittedRoutes', 'pruneExpiredRouteAllowances', 'advanceRouteRunners']],
   ['pirates', ['processPiratesForCompletedRound']],
   ['trade-income', ['processTradeRouteIncome*']],
   ['leagues', ['checkLeagueDissolution']],
