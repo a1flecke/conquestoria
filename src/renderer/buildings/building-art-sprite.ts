@@ -1,5 +1,6 @@
 import { Banner, type FactionPalette } from '@/renderer/sprites/sprite-system';
-import { BUILDING_ART } from './building-art-catalog';
+import { resolveAppAssetUrl } from '@/renderer/asset-url';
+import { BUILDING_ART, getBuildingArtPath } from './building-art-catalog';
 
 // The sprite frame every building uses (see BUILDING_SPRITE_SIZE): the art fills it, the owner's banner stands on top.
 const FRAME = 192;
@@ -7,6 +8,12 @@ const ART_INSET_X = 8;
 const ART_INSET_TOP = 12;
 const ART_SIZE = FRAME - 2 * ART_INSET_X;
 const BANNER_SCALE = 2.2; // large enough to read as a flag in the 36 px panel icon
+
+/** The city-panel icon's SVG: the same art referenced by file URL (an inline SVG may fetch it), or null for a building without art. */
+export function buildBuildingArtPanelSvg(buildingId: string, palette: FactionPalette, sizePx: number): string | null {
+  const path = getBuildingArtPath(buildingId);
+  return path ? buildBuildingArtSvg(buildingId, palette, resolveAppAssetUrl(path), sizePx) : null;
+}
 
 /**
  * The SVG for a building that has production art: the art as an `<image>` (`href` is a data URI for the canvas bake, where an
