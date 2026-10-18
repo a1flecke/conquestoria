@@ -186,7 +186,7 @@ export const NATURAL_WONDER_CODEX_CONTENT = [
     'mystery',
     ['sky', 'stone', 'nature', 'discovery', 'science'],
     ['nps-geology-mountains'],
-    'image-mountain',
+    'image-floating-islands',
     ['sky', 'stone', 'discovery'],
     'Impossible Ground',
     'The wonder makes the player feel that the world still has rules they do not fully know.',
