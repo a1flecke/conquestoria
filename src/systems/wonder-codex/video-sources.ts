@@ -204,7 +204,7 @@ export const WONDER_CODEX_VIDEO_SOURCES = [
     license: 'public domain U.S. Bureau of Land Management material',
     attribution: 'Kyle Sullivan / BLM California - public domain U.S. Bureau of Land Management material',
     localPath: '/videos/wonders/singing-sands-mojave-sunset.mp4',
-    fallbackImageSourceId: 'image-desert',
+    fallbackImageSourceId: 'image-singing-sands',
     durationSeconds: 4,
     sizeBytes: 919499,
     format: 'MP4/H.264 derivative from WebM source using OpenH264',
