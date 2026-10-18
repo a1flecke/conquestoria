@@ -150,7 +150,7 @@ describe('getEntitledTradeDestinations — knowledge safety', () => {
     // Assign that exact destination and compare the created route's income with the preview.
     const created = establishTradeRoute(state, {
       caravanUnitId: 'trader-1', toCityId: 'beta-city', actingCivId: 'alpha',
-    }, undefined, 0);
+    });
     expect(created.ok).toBe(true);
     if (!created.ok) return;
 

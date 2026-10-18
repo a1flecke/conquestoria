@@ -22,7 +22,10 @@ import { findPathToCity } from '@/systems/unit-pathfinding';
 import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import { hasDiscoveredCity, hasExploredCoord } from '@/systems/discovery-system';
 import { getCommercialPassagePermission, type CommercePassageDenialReason } from '@/systems/commerce-permissions';
-import { calculateTradeRouteGold, getRouteCapacity, getTradeUnitTripBonus } from '@/systems/trade-route-economy';
+import {
+  getRouteCapacity,
+  getTradeRouteQuote,
+} from '@/systems/trade-route-economy';
 
 /** Why a trade assignment was refused. Copy names no civilization. */
 export type TradeRouteDenialReason =
@@ -207,12 +210,15 @@ export function getPositioningTurnsToOrigin(state: GameState, caravanUnitId: str
  * Executor for a trade assignment. Re-runs `getTradeRouteEligibility` before its first write, so a
  * stale chooser callback, a direct call or the AI all face the same answer. Refusals return the
  * input state untouched with a typed reason.
+ *
+ * #1501 MR04: the created route is built from `getTradeRouteQuote`, so the terms the chooser showed
+ * are exactly the terms the route carries — including the round-trip service budget. There is no
+ * caller-supplied resource-diversity input any more.
  */
 export function establishTradeRoute(
   state: GameState,
   request: TradeRouteRequest,
   bus?: EventBus,
-  resourceDiversity: number = 0,
 ): TradeRouteResult {
   const decision = getTradeRouteEligibility(state, request);
   if (!decision.ok) return { ok: false, state, reason: decision.reason };
@@ -220,6 +226,11 @@ export function establishTradeRoute(
   const unit = state.units[request.caravanUnitId]!;
   const origin = state.cities[decision.originCityId]!;
   const destination = state.cities[decision.destinationCityId]!;
+  const quote = getTradeRouteQuote(state, {
+    caravanUnitId: request.caravanUnitId,
+    originCityId: decision.originCityId,
+    toCityId: decision.destinationCityId,
+  })!;
 
   const marketState = state.marketplace
     ? { ...state.marketplace, tradeRoutes: [...state.marketplace.tradeRoutes] }
@@ -228,19 +239,14 @@ export function establishTradeRoute(
   const idCounters = { ...state.idCounters };
   if (!idCounters.nextRouteId) idCounters.nextRouteId = 1;
 
-  const distance = state.map.wrapsHorizontally
-    ? wrappedHexDistance(origin.position, destination.position, state.map.width)
-    : hexDistance(origin.position, destination.position);
-  const turnsPerTrip = Math.max(1, Math.ceil(distance / 3));
-  const goldPerTrip = calculateTradeRouteGold(distance, resourceDiversity) * turnsPerTrip;
-  const tripsRemaining = 8 + getTradeUnitTripBonus(state, origin.id, destination.id, unit.owner, unit.type);
-
   const route: TradeRoute = {
     id: `route-${idCounters.nextRouteId}`,
     fromCityId: origin.id,
     toCityId: destination.id,
-    goldPerTrip,
-    turnsPerTrip,
+    goldPerTrip: quote.goldPerTrip,
+    turnsPerTrip: quote.turnsPerTrip,
+    // The leg's bounded payable service rounds: a detour cannot mint extra rewards.
+    serviceRoundsRemaining: quote.roundTripRounds,
     ...(destination.owner !== unit.owner ? { foreignCivId: destination.owner } : {}),
   };
   idCounters.nextRouteId++;
@@ -257,7 +263,7 @@ export function establishTradeRoute(
       [request.caravanUnitId]: {
         ...unit,
         committedToRouteId: route.id,
-        tripsRemaining,
+        tripsRemaining: quote.trips,
         routeDirection: atOrigin ? 'outbound' : 'positioning',
         movementPointsLeft: 0,
         hasActed: true,

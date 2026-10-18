@@ -302,6 +302,23 @@ export function advanceRouteRunners(state: GameState, bus?: EventBus): GameState
   if (!state.marketplace?.tradeRoutes?.length) return state;
   let newState = state;
 
+  /**
+   * #1501 MR04: record that this route's trader made validated progress (or completed endpoint
+   * service) in the current round. Settlement pays only for rounds with a progress record, so a
+   * blocked or waiting trader is never paid for standing still.
+   */
+  const markProgress = (s: GameState, routeId: string): GameState => {
+    if (!s.marketplace) return s;
+    return {
+      ...s,
+      marketplace: {
+        ...s.marketplace,
+        tradeRoutes: s.marketplace.tradeRoutes.map(route =>
+          route.id === routeId ? { ...route, lastProgressTurn: s.turn } : route),
+      },
+    };
+  };
+
   for (const route of state.marketplace.tradeRoutes) {
     const caravan = Object.values(newState.units).find(u => u.committedToRouteId === route.id);
     if (!caravan) continue;
@@ -326,13 +343,13 @@ export function advanceRouteRunners(state: GameState, bus?: EventBus): GameState
     if (path.length === 1) {
       if (isPositioning) {
         // Reached the origin: the trader is positioned and commerce begins next round.
-        newState = {
+        newState = markProgress({
           ...newState,
           units: { ...newState.units, [caravan.id]: { ...newState.units[caravan.id]!, routeDirection: 'outbound' } },
-        };
+        }, route.id);
         continue;
       }
-      newState = processCaravanArrival(newState, caravan.id, route, isOutbound, bus);
+      newState = markProgress(processCaravanArrival(newState, caravan.id, route, isOutbound, bus), route.id);
       continue;
     }
 
@@ -355,13 +372,13 @@ export function advanceRouteRunners(state: GameState, bus?: EventBus): GameState
 
     // Move caravan via spread-copy — NOT moveUnit() (movementPointsLeft is already 0)
     const from = { ...caravan.position };
-    newState = {
+    newState = markProgress({
       ...newState,
       units: {
         ...newState.units,
         [caravan.id]: { ...newState.units[caravan.id]!, position: nextStep },
       },
-    };
+    }, route.id);
     bus?.emit('unit:move', {
       unitId: caravan.id,
       from,

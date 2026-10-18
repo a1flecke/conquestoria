@@ -213,7 +213,7 @@ describe('trade-route contract — the executor re-runs the query before its fir
     const created: string[] = [];
     bus.on('trade:route-created', e => created.push(e.route.id));
 
-    const result = establishTradeRoute(state, request(), bus, 3);
+    const result = establishTradeRoute(state, request(), bus);
 
     expect(result.ok).toBe(true);
     expect(result.state.marketplace!.tradeRoutes).toHaveLength(1);
@@ -224,11 +224,11 @@ describe('trade-route contract — the executor re-runs the query before its fir
   });
 
   it('a repeated Confirm after the first assignment is refused without mutation', () => {
-    const first = establishTradeRoute(makeState(), request(), new EventBus(), 3);
+    const first = establishTradeRoute(makeState(), request(), new EventBus());
     expect(first.ok).toBe(true);
     if (!first.ok) return;
 
-    const second = establishTradeRoute(first.state, request(), new EventBus(), 3);
+    const second = establishTradeRoute(first.state, request(), new EventBus());
 
     expect(second.ok).toBe(false);
     expect(second.ok === false && second.reason).toBe('already-committed');
@@ -250,7 +250,7 @@ describe('trade-route contract — the executor re-runs the query before its fir
       },
     };
 
-    const result = establishTradeRoute(afterWar, request({ toCityId: 'beta-city' }), new EventBus(), 0);
+    const result = establishTradeRoute(afterWar, request({ toCityId: 'beta-city' }), new EventBus());
 
     expect(result.ok).toBe(false);
     expect(result.ok === false && result.reason).toBe('at-war');
@@ -264,7 +264,7 @@ describe('trade-route contract — the executor re-runs the query before its fir
       { id: 'r1', fromCityId: 'alpha-city', toCityId: 'alpha-port', goldPerTrip: 5, turnsPerTrip: 1 },
     ];
 
-    const result = establishTradeRoute(state, request({ originCityId: 'alpha-city' }), new EventBus(), 0);
+    const result = establishTradeRoute(state, request({ originCityId: 'alpha-city' }), new EventBus());
 
     expect(result.ok).toBe(false);
     expect(result.ok === false && result.reason).toBe('origin-unusable');

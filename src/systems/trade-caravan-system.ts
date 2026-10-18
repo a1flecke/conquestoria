@@ -52,7 +52,9 @@ export function establishRoute(
   caravanUnitId: string,
   toCityId: string,
   bus?: EventBus,
-  resourceDiversity: number = 0,
+  /** Accepted for historical call sites (#1501): route terms, including resource diversity, are
+   *  computed by `getTradeRouteQuote` now, so this value is ignored. */
+  _resourceDiversity: number = 0,
   options: { automated?: boolean; originCityId?: string } = {},
 ): GameState {
   const caravanUnit = state.units[caravanUnitId];
@@ -64,7 +66,7 @@ export function establishRoute(
     actingCivId: caravanUnit.owner,
     automated: options.automated ?? true,
     originCityId: options.originCityId,
-  }, bus, resourceDiversity);
+  }, bus);
 
   if (!result.ok) {
     throw new Error(`Cannot establish route: ${TRADE_ROUTE_DENIAL_MESSAGES[result.reason]}`);

@@ -118,7 +118,7 @@ const SEAMS: readonly Seam[] = [
   [territory, 'recalculateTerritory'], [territory, 'applyTerritoryFrontierProgressWithEvents'],
   [marketplace, 'processFashionCycle'], [marketplace, 'updatePrices'], [tradeLifecycle, 'scrubStaleForeignRoutes'],
   [tradeLifecycle, 'scrubEmbargoedRoutes'], [tradeLifecycle, 'scrubUnpermittedRoutes'],
-  [commercePermissions, 'pruneExpiredRouteAllowances'], [tradeEconomy, 'processTradeRouteIncome'], [wonder, 'processWonderEffects'],
+  [commercePermissions, 'pruneExpiredRouteAllowances'], [tradeEconomy, 'settleTradeRouteForCiv'], [wonder, 'processWonderEffects'],
   [barbarians, 'processPurposefulBarbarians'], [citySiege, 'applyCityHpRegeneration'],
   [minorCiv, 'processMinorCivTurn'], [minorCiv, 'checkCampEvolution'], [minorCiv, 'checkEraAdvancement'],
   [minorCiv, 'processMinorCivEraUpgrade'], [beasts, 'processBeasts'], [beasts, 'applyHoardChoice'],
@@ -365,7 +365,9 @@ const EXPECTED_AFTER: ReadonlyArray<readonly [phase: string, calls: readonly str
   ]],
   ['diplomacy-trade', ['processVassalageTurn', 'scrubStaleForeignRoutes', 'scrubEmbargoedRoutes', 'scrubUnpermittedRoutes', 'pruneExpiredRouteAllowances', 'advanceRouteRunners']],
   ['pirates', ['processPiratesForCompletedRound']],
-  ['trade-income', ['processTradeRouteIncome*']],
+  // #1501 MR04: the income phase settles each route once for the completed round, so the seam it
+  // enters is the settlement function, not the display-rate query.
+  ['trade-income', ['settleTradeRouteForCiv*']],
   ['leagues', ['checkLeagueDissolution']],
   ['era-progression', ['checkEraAdvancement', 'expireNationalProjects', 'processMinorCivEraUpgrade*']],
   ['beast-rewards', ['applyHoardChoice']],

@@ -6,9 +6,8 @@
  * and the reason it is denied — never an undiscovered city, by id, name, count or order. A near-miss
  * (known city, unexplored corridor) stays visible with its public denial rather than vanishing.
  */
-import type { GameState, TradeRoute, Unit } from '@/core/types';
+import type { GameState } from '@/core/types';
 import { hasDiscoveredCity } from '@/systems/discovery-system';
-import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import {
   getEligibleTradeOrigins,
@@ -17,12 +16,7 @@ import {
   resolveTradeOrigin,
   type TradeRouteDenialReason,
 } from '@/systems/trade-route-contract';
-import {
-  calculateTradeRouteGold,
-  getEffectiveGoldPerTurn,
-  getRouteTechGoldBonus,
-  getTradeUnitTripBonus,
-} from '@/systems/trade-route-economy';
+import { getTradeRouteQuote } from '@/systems/trade-route-economy';
 
 export interface EntitledTradeDestination {
   cityId: string;
@@ -53,22 +47,6 @@ function ownerDisplayName(state: GameState, civId: string): string {
 }
 
 /** The route the executor would create for this pair, priced by the canonical economy functions. */
-function previewRoute(state: GameState, unit: Unit, originCityId: string, toCityId: string, resourceDiversity: number): TradeRoute | null {
-  const origin = state.cities[originCityId];
-  const destination = state.cities[toCityId];
-  if (!origin || !destination) return null;
-  const distance = hexDistanceFor(state, origin.position, destination.position);
-  const turnsPerTrip = Math.max(1, Math.ceil(distance / 3));
-  return {
-    id: 'preview',
-    fromCityId: originCityId,
-    toCityId,
-    goldPerTrip: calculateTradeRouteGold(distance, resourceDiversity) * turnsPerTrip,
-    turnsPerTrip,
-    ...(destination.owner !== unit.owner ? { foreignCivId: destination.owner } : {}),
-  };
-}
-
 export interface EntitledTradeOrigin {
   cityId: string;
   cityName: string;
@@ -105,9 +83,6 @@ export function getEntitledTradeDestinations(
   const unit = state.units[caravanUnitId];
   if (!unit || !isTradeTraderType(unit.type)) return [];
 
-  // The income preview uses the same diversity input the executor's callers pass.
-  const resourceDiversity = getCivAvailableResources(state, unit.owner).size;
-
   const rows: EntitledTradeDestination[] = [];
   // The trader's current origin is context, not a destination: a route needs two different cities.
   const originCityId = resolveTradeOrigin(state, unit)?.id;
@@ -124,7 +99,11 @@ export function getEntitledTradeDestinations(
       originCityId: options.originCityId,
     });
     const resolvedOriginId = decision.ok ? decision.originCityId : options.originCityId ?? originCityId;
-    const route = resolvedOriginId ? previewRoute(state, unit, resolvedOriginId, city.id, resourceDiversity) : null;
+    // #1501 MR04: the preview *is* the quote the executor builds the route from — same timing, same
+    // modifiers, same service budget — so a promised rate can never differ from the realized one.
+    const quote = resolvedOriginId
+      ? getTradeRouteQuote(state, { caravanUnitId, originCityId: resolvedOriginId, toCityId: city.id })
+      : null;
     const positioningTurns = resolvedOriginId
       ? hexDistanceFor(state, unit.position, state.cities[resolvedOriginId]!.position)
       : 0;
@@ -137,8 +116,8 @@ export function getEntitledTradeDestinations(
       domestic: city.owner === unit.owner,
       eligible: decision.ok,
       denialReason: decision.ok ? null : decision.reason,
-      goldPerTurn: route ? getEffectiveGoldPerTurn(route, getRouteTechGoldBonus(state, route)) : 0,
-      trips: route ? 8 + getTradeUnitTripBonus(state, route.fromCityId, city.id, unit.owner, unit.type) : 0,
+      goldPerTurn: quote?.goldPerTurn ?? 0,
+      trips: quote?.trips ?? 0,
       positioningTurns,
     });
   }

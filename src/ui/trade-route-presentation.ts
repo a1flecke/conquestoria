@@ -1,9 +1,19 @@
 import type { GameState, TradeRoute, City } from '@/core/types';
-import { getEffectiveGoldPerTurn, getRouteCapacity, getRouteTechGoldBonus } from '@/systems/trade-route-economy';
+import { getRouteCapacity, getRouteOperatingStatus, type TradeRouteNonOperatingReason } from '@/systems/trade-route-economy';
 
 // Trade Routes Overhaul (#553 MR4/4) — shared route-list rendering, extracted from
 // marketplace-panel.ts's original inline buildRouteListSection so the Marketplace panel
 // and the City panel's new Trade Routes section render identically instead of drifting.
+
+/** Player-facing explanation for a route that is not currently earning (#1501 MR04). */
+const NOT_OPERATING_LABEL: Record<TradeRouteNonOperatingReason, string> = {
+  positioning: 'positioning',
+  'no-trader': 'no trader',
+  blocked: 'blocked',
+  'service-complete': 'service complete',
+};
+
+export { NOT_OPERATING_LABEL };
 
 function renderRouteRow(
   state: GameState,
@@ -14,7 +24,9 @@ function renderRouteRow(
   const toCity = state.cities[route.toCityId];
   const committedUnit = Object.values(state.units).find(u => u.committedToRouteId === route.id);
   const tripsLeft = committedUnit?.tripsRemaining ?? '?';
-  const gold = getEffectiveGoldPerTurn(route, getRouteTechGoldBonus(state, route));
+  // #1501 MR04: show the promised operating rate and what the route is *actually* earning now.
+  const status = getRouteOperatingStatus(state, route.id);
+  const gold = status.promisedGoldPerTurn;
 
   const row = document.createElement('div');
   row.style.cssText = 'font-size:12px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.08);display:flex;justify-content:space-between;min-height:44px;align-items:center;';
@@ -45,7 +57,11 @@ function renderRouteRow(
 
   const routeDetail = document.createElement('span');
   routeDetail.style.cssText = 'font-size:11px;color:#6b9b4b;';
-  routeDetail.appendChild(document.createTextNode(`+${gold.toFixed(1)} gold/turn · ${tripsLeft} trips`));
+  const promised = `+${gold.toFixed(1)} gold/turn`;
+  const actual = status.paying
+    ? 'earning now'
+    : `earning 0 · ${NOT_OPERATING_LABEL[status.reason ?? 'blocked']}`;
+  routeDetail.appendChild(document.createTextNode(`${promised} · ${actual} · ${tripsLeft} trips`));
   row.appendChild(routeDetail);
 
   return row;
