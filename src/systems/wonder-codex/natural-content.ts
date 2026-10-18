@@ -234,7 +234,7 @@ export const NATURAL_WONDER_CODEX_CONTENT = [
     'danger',
     ['storm', 'ocean', 'sky', 'science', 'discovery'],
     ['noaa-severe-weather'],
-    'image-storm',
+    'image-eternal-storm',
     ['storm', 'sky', 'science'],
     'Weather Wall',
     'The storm makes open water feel alive and tactical.',
