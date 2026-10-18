@@ -266,7 +266,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'ingenuity',
     ['coast', 'engineering', 'production', 'trade', 'sea'],
     ['noaa-maritime-heritage'],
-    'image-drydock',
+    'image-leviathan-drydock',
     ['coast', 'engineering', 'production'],
     'Work Below the Waterline',
     'The drydock reveals the hidden labor that makes seafaring possible.',
