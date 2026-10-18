@@ -170,6 +170,50 @@ describe('city-panel Trade Routes section', () => {
     expect(onEstablishRoute).toHaveBeenCalledWith('caravan1');
   });
 
+  it('renders the owner controls on a route row and reports the chosen action', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.civilizations.player.techState.completed.push('trade-routes');
+    state.cities['city-rival'] = { ...state.cities['city-rival'], owner: 'player', name: 'Ostia' } as never;
+    state.marketplace = {
+      prices: {}, priceHistory: {}, fashionable: null, fashionTurnsLeft: 0,
+      tradeRoutes: [{ id: 'route-1', fromCityId: city.id, toCityId: 'city-rival', goldPerTrip: 10, turnsPerTrip: 1 }],
+    };
+    state.units['caravan1'] = {
+      id: 'caravan1', type: 'caravan', owner: 'player', position: { ...city.position },
+      health: 100, movementPointsLeft: 3, committedToRouteId: 'route-1', routeDirection: 'outbound',
+    } as never;
+    const onRouteControl = vi.fn();
+
+    const panel = createCityPanel(container, city, state, { ...baseCallbacks(), onRouteControl });
+
+    const pause = panel.querySelector<HTMLButtonElement>('[data-action="route-pause"]');
+    expect(pause).toBeTruthy();
+    expect(panel.querySelector('[data-action="route-cancel-and-return"]')).toBeTruthy();
+    pause!.click();
+    expect(onRouteControl).toHaveBeenCalledWith('route-1', 'pause');
+  });
+
+  it('shows a paused route as earning nothing and offers Resume instead of Pause (#1502)', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.civilizations.player.techState.completed.push('trade-routes');
+    state.cities['city-rival'] = { ...state.cities['city-rival'], owner: 'player', name: 'Ostia' } as never;
+    state.marketplace = {
+      prices: {}, priceHistory: {}, fashionable: null, fashionTurnsLeft: 0,
+      tradeRoutes: [{ id: 'route-1', fromCityId: city.id, toCityId: 'city-rival', goldPerTrip: 10, turnsPerTrip: 1, paused: true }],
+    };
+    state.units['caravan1'] = {
+      id: 'caravan1', type: 'caravan', owner: 'player', position: { ...city.position },
+      health: 100, movementPointsLeft: 3, committedToRouteId: 'route-1', routeDirection: 'outbound',
+    } as never;
+
+    const panel = createCityPanel(container, city, state, { ...baseCallbacks(), onRouteControl: vi.fn() });
+
+    const section = panel.querySelector('[data-section="trade-routes"]')!;
+    expect(section.textContent).toContain('earning 0 · paused');
+    expect(section.querySelector('[data-action="route-resume"]')).toBeTruthy();
+    expect(section.querySelector('[data-action="route-pause"]')).toBeNull();
+  });
+
   it('does not offer an "Establish Route" button for an idle trade unit that resolves to a different (nearer) city — the panel must stay locally coherent, not empire-wide', () => {
     const { container, city, state } = makeWonderPanelFixture();
     state.civilizations.player.techState.completed.push('trade-routes');

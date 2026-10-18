@@ -181,7 +181,7 @@ export const BUILDINGS: Record<string, Building> = {
     id: 'caravanserai', name: 'Caravanserai', category: 'economy',
     yields: { food: 1, production: 0, gold: 1, science: 0 },
     productionCost: 40,
-    description: 'A roadside inn for merchants — adds a trade route slot and resupplies traveling caravans (+2 bonus trips).',
+    description: 'A roadside inn for merchants — adds a trade route slot and resupplies traveling caravans (+2 gold per trip on routes that touch this city).',
     techRequired: 'wheel',
    
     routeCapacity: 1,

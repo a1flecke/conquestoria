@@ -18,13 +18,15 @@ const SURFACE: Array<[name: string, module: object, exports: string[]]> = [
     ['calculatePrice', 'createMarketplaceState', 'detectMonopoly', 'processFashionCycle', 'updatePrices']],
   ['trade-route-economy', economy,
     ['calculateTradeRouteGold', 'getEffectiveGoldPerTurn', 'getRouteCapacity', 'getRouteOperatingStatus',
-      'getRouteTechGoldBonus', 'getTradeRouteQuote', 'getTradeUnitTripBonus', 'isRoutePositioning',
+      'getRouteTechGoldBonus', 'getRouteThroughputBonus', 'getTradeRouteQuote', 'isRoutePositioning',
       'processTradeRouteIncome', 'settleTradeRouteForCiv']],
   // getRouteDiplomacy is the one new export: establishment and the stale-route scrub now share it.
   // #1499 MR02 adds scrubUnpermittedRoutes: a foreign route with no commercial permission ends once
   // any legacy route-only allowance has expired.
+  // #1502 MR05 adds the owner-control query/executor pair and its copy.
   ['trade-route-lifecycle', lifecycle,
-    ['getRouteDiplomacy', 'removeRouteById', 'removeRouteForUnit', 'scrubEmbargoedRoutes', 'scrubStaleForeignRoutes', 'scrubUnpermittedRoutes']],
+    ['ROUTE_CONTROL_DENIAL_MESSAGES', 'ROUTE_CONTROL_NOTIFICATIONS', 'applyRouteControl', 'getRouteControlOptions',
+      'getRouteDiplomacy', 'removeRouteById', 'removeRouteForUnit', 'scrubEmbargoedRoutes', 'scrubStaleForeignRoutes', 'scrubUnpermittedRoutes']],
   ['trade-caravan-system', caravan, ['canEstablishRoute', 'establishRoute', 'resolveFromCity']],
   ['resource-definitions', resources,
     ['BASE_PRICES', 'RESOURCE_DEFINITIONS', 'RESOURCE_ICONS', 'RESOURCE_TECH', 'getResourceEffectLabel']],
@@ -37,15 +39,15 @@ describe('#1249 — the trade modules keep their audited public surface', () => 
     });
   }
 
-  it('every pre-split value export is accounted for: 22 originals (24 minus the 2 re-exported types) + getResourceEffectLabel + getRouteDiplomacy + scrubUnpermittedRoutes (#1499) + isRoutePositioning (#1500) + getTradeRouteQuote/getRouteOperatingStatus/settleTradeRouteForCiv (#1501)', () => {
+  it('every pre-split value export is accounted for: 22 originals (24 minus the 2 re-exported types) + getResourceEffectLabel + getRouteDiplomacy + scrubUnpermittedRoutes (#1499) + isRoutePositioning (#1500) + getTradeRouteQuote/getRouteOperatingStatus/settleTradeRouteForCiv (#1501) + the four route-control exports (#1502)', () => {
     const values = SURFACE.flatMap(([, , exports]) => exports);
     expect(new Set(values).size, 'no export is owned by two modules').toBe(values.length);
-    expect(values).toHaveLength(29);
+    expect(values).toHaveLength(33);
   });
 
   it('helpers that were private before the split stay private', () => {
     expect(caravan).not.toHaveProperty('routesFromCity');
-    expect(economy).not.toHaveProperty('TRADE_UNIT_TIER_BONUS');
+    expect(economy).not.toHaveProperty('TRADE_UNIT_THROUGHPUT_BONUS');
   });
 
   it('the compatibility barrel is gone and must not come back', () => {
