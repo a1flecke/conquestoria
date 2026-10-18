@@ -91,14 +91,14 @@ describe('city-panel Trade Routes section', () => {
     };
     state.units['caravan1'] = {
       id: 'caravan1', type: 'caravan', owner: 'player', position: { ...city.position },
-      health: 100, movementPointsLeft: 3, committedToRouteId: 'route-1', tripsRemaining: 5,
+      health: 100, movementPointsLeft: 3, committedToRouteId: 'route-1', routeDirection: 'outbound',
     } as never;
 
     const panel = createCityPanel(container, city, state, baseCallbacks());
 
     const section = panel.querySelector('[data-section="trade-routes"]')!;
     expect(section.textContent).toContain('Rome → Ostia');
-    expect(section.textContent).toContain('5 trips');
+    expect(section.textContent).toContain('round trip 2 rounds');
     expect(section.textContent).toContain('Route capacity: 1/1');
     expect(section.textContent).not.toContain('No active routes');
   });
@@ -114,7 +114,7 @@ describe('city-panel Trade Routes section', () => {
     };
     state.units['caravan1'] = {
       id: 'caravan1', type: 'caravan', owner: 'player', position: { ...city.position },
-      health: 100, movementPointsLeft: 3, committedToRouteId: 'route-1', tripsRemaining: 5,
+      health: 100, movementPointsLeft: 3, committedToRouteId: 'route-1', routeDirection: 'outbound',
     } as never;
     const onSelectUnit = vi.fn();
 
@@ -137,7 +137,7 @@ describe('city-panel Trade Routes section', () => {
     };
     state.units['caravan1'] = {
       id: 'caravan1', type: 'caravan', owner: 'player', position: { ...city.position },
-      health: 100, movementPointsLeft: 3, committedToRouteId: 'route-1', tripsRemaining: 5,
+      health: 100, movementPointsLeft: 3, committedToRouteId: 'route-1', routeDirection: 'outbound',
     } as never;
     const onSelectUnit = vi.fn();
     const panel = createCityPanel(container, city, state, { ...baseCallbacks(), onSelectUnit });

@@ -24,7 +24,7 @@ import { createGameButton } from './ui-kit';
 import { getAnimatedBuildingIconHtml } from './city-panel-building-icon';
 import { derivePalette, NEUTRAL_FACTION_PALETTE } from '@/renderer/sprites/sprite-system';
 import { hasAITradeRole } from '@/ai/ai-unit-roles';
-import { buildCityRouteRows, getOutgoingRoutesForCity } from './trade-route-presentation';
+import { buildCityRouteRows, getOutgoingRoutesForCity, type RouteControlHandler } from './trade-route-presentation';
 import {
   getCircularManufacturingMaterial,
   CIRCULAR_MANUFACTURING_MATERIALS,
@@ -100,6 +100,8 @@ export interface CityPanelCallbacks {
   onUpgradeUnit?: (unitId: string) => void;
   /** Selects a unit (e.g. clicking a committed trade route row). */
   onSelectUnit?: (unitId: string) => void;
+  /** #1502 MR05: the owner's pause / resume / cancel-and-return controls on a route row. */
+  onRouteControl?: RouteControlHandler;
   /** Opens the destination-city picker for an idle trade unit — same path as
    *  selected-unit-info.ts's Establish Route button. */
   onEstablishRoute?: (caravanId: string) => void;
@@ -1530,7 +1532,7 @@ export function createCityPanel(
       helpText.style.cssText = 'font-size:11px;opacity:0.7;margin-bottom:8px;';
       tradeSection.appendChild(helpText);
 
-      const routeRows = buildCityRouteRows(state, city.id, callbacks.onSelectUnit);
+      const routeRows = buildCityRouteRows(state, city.id, callbacks.onSelectUnit, callbacks.onRouteControl);
       if (routeRows) {
         tradeSection.appendChild(routeRows);
       } else {

@@ -263,7 +263,6 @@ export function establishTradeRoute(
       [request.caravanUnitId]: {
         ...unit,
         committedToRouteId: route.id,
-        tripsRemaining: quote.trips,
         routeDirection: atOrigin ? 'outbound' : 'positioning',
         movementPointsLeft: 0,
         hasActed: true,

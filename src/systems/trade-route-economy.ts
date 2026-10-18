@@ -6,8 +6,7 @@ import { isCityCoastal } from './city-system';
 import { getTradeRouteTechGold } from './tech-yield-system';
 import { getNetworkRouteGoldBonus } from './network-infrastructure-plans';
 import { getCivAvailableResources } from './resource-acquisition-system';
-import { UNIT_DEFINITIONS } from './unit-definitions';
-import { findPathToCity } from './unit-pathfinding';
+import { getRouteRoundsBetween } from './trade-route-travel';
 import { hexDistance, wrappedHexDistance } from './hex-utils';
 
 export function calculateTradeRouteGold(
@@ -55,7 +54,7 @@ export function isRoutePositioning(state: GameState, route: TradeRoute): boolean
 // --- #1501 MR04: one quote, and settlement that stops with service ---
 
 export interface TradeRouteQuoteModifier {
-  id: 'base' | 'route-tech' | 'network';
+  id: 'base' | 'throughput' | 'route-tech' | 'network';
   label: string;
   goldPerTurn: number;
 }
@@ -75,11 +74,10 @@ export interface TradeRouteQuote {
   goldPerTrip: number;
   /** The normal operating reward per completed round of service. */
   goldPerTurn: number;
-  trips: number;
   modifiers: TradeRouteQuoteModifier[];
 }
 
-export type TradeRouteNonOperatingReason = 'positioning' | 'no-trader' | 'blocked' | 'service-complete';
+export type TradeRouteNonOperatingReason = 'positioning' | 'no-trader' | 'blocked' | 'service-complete' | 'paused' | 'cancelled';
 
 export interface TradeRouteOperatingStatus {
   routeId: string;
@@ -91,17 +89,24 @@ export interface TradeRouteOperatingStatus {
   reason: TradeRouteNonOperatingReason | null;
 }
 
-/** Steps the runner needs from `originCityId` to `toCityId` in the given domain. */
+/**
+ * Rounds the trader needs for one leg, from the shared travel model (#1502 MR05): the same
+ * allowance and terrain/road costs the executor spends, measured origin → destination. Without a
+ * live trader there is no allowance to walk with, so the geometric estimate is the fallback.
+ */
 function pathLegRounds(state: GameState, originCityId: string, toCityId: string, caravanUnitId: string): number | null {
   const origin = state.cities[originCityId];
   const destination = state.cities[toCityId];
   if (!origin || !destination) return null;
   const unit = state.units[caravanUnitId];
-  const domain = unit ? (UNIT_DEFINITIONS[unit.type]?.domain ?? 'land') : 'land';
-  const completedTechs = unit ? (state.civilizations[unit.owner]?.techState.completed ?? []) : [];
-  const path = findPathToCity(origin.position, destination.position, state.map, domain, { unit, completedTechs });
-  if (!path) return null;
-  return Math.max(1, path.length - 1);
+  if (unit) {
+    const rounds = getRouteRoundsBetween(state, unit, origin.position, toCityId);
+    if (rounds !== null) return rounds;
+  }
+  const distance = state.map.wrapsHorizontally
+    ? wrappedHexDistance(origin.position, destination.position, state.map.width)
+    : hexDistance(origin.position, destination.position);
+  return Math.max(1, Math.ceil(distance / 3));
 }
 
 /**
@@ -129,11 +134,14 @@ export function getTradeRouteQuote(
     ?? Math.max(1, Math.ceil(distance / 3));
 
   const base = calculateTradeRouteGold(distance, resourceDiversity);
+  // #1502 MR05: infrastructure and hull quality are a *persistent* throughput bonus (gold per
+  // trip) rather than a finite number of extra trips, so a route's reward no longer expires.
+  const throughput = getRouteThroughputBonus(state, request.originCityId, request.toCityId, ownerCivId, unit?.type);
   const route: TradeRoute = {
     id: 'quote',
     fromCityId: request.originCityId,
     toCityId: request.toCityId,
-    goldPerTrip: base * legRounds,
+    goldPerTrip: (base + throughput) * legRounds,
     turnsPerTrip: legRounds,
     ...(destination.owner !== ownerCivId ? { foreignCivId: destination.owner } : {}),
   };
@@ -148,11 +156,11 @@ export function getTradeRouteQuote(
     legRounds,
     roundTripRounds: legRounds * 2,
     turnsPerTrip: legRounds,
-    goldPerTrip: base * legRounds,
-    goldPerTurn: base + routeTech + network,
-    trips: 8 + getTradeUnitTripBonus(state, request.originCityId, request.toCityId, ownerCivId, unit?.type),
+    goldPerTrip: (base + throughput) * legRounds,
+    goldPerTurn: base + throughput + routeTech + network,
     modifiers: [
       { id: 'base', label: 'Base route value', goldPerTurn: base },
+      ...(throughput !== 0 ? [{ id: 'throughput' as const, label: 'Trade infrastructure and hulls', goldPerTurn: throughput }] : []),
       ...(routeTech !== 0 ? [{ id: 'route-tech' as const, label: 'Route technology', goldPerTurn: routeTech }] : []),
       ...(network !== 0 ? [{ id: 'network' as const, label: 'Network infrastructure', goldPerTurn: network }] : []),
     ],
@@ -177,6 +185,10 @@ export function getRouteOperatingStatus(state: GameState, routeId: string): Trad
     ({ routeId, promisedGoldPerTurn: promised, goldPerTurn: 0, paying: false, reason });
 
   if (!route) return notOperating('no-trader');
+  // #1502 MR05: a paused route holds its trader and slot, and earns nothing until it resumes; a
+  // cancelled route is returning home and has stopped serving, so it earns nothing either.
+  if (route.paused) return notOperating('paused');
+  if (route.cancelPending) return notOperating('cancelled');
   // A route that has never been settled (#1501-aware) behaves as it always did: the display path
   // keeps counting it, and only a route MR04 has actually settled must have a live trader.
   const settlementAware = route.lastSettledTurn !== undefined
@@ -271,18 +283,21 @@ export function getRouteCapacity(state: GameState, cityId: string): number {
   return Math.min(total, 6);
 }
 
-// --- S5: trip bonus ---
+// --- S5: persistent route throughput ---
 
-// Trade Routes Overhaul (#553 MR1/4): per-unit-tier trip bonus, shared by all trade
-// lines (land/naval/air). Capped at +3 total regardless of line length — see
-// game-balance.md's "Trip bonus source inventory" table for the full stacking analysis.
-const TRADE_UNIT_TIER_BONUS: Partial<Record<UnitType, number>> = {
+// Trade Routes Overhaul (#553 MR1/4, translated in #1502 MR05): what trade infrastructure and a
+// better hull are worth, as a *persistent* gold-per-trip bonus. These used to be finite extra trips
+// ("+2 trips"), which meant a route's reward expired and the trader had to be replaced; MR05 made
+// ordinary routes run indefinitely, so the same sources now pay throughput for as long as the route
+// operates. Magnitudes are deliberately unchanged per source (see game-balance.md).
+const TRADE_UNIT_THROUGHPUT_BONUS: Partial<Record<UnitType, number>> = {
   naval_trader: 0, steamship_trader: 1, cargo_freighter: 2, container_ship: 3,
   merchant_wagon: 1, freight_convoy: 2,
   jet_freighter: 1, global_air_cargo: 2,
 };
 
-export function getTradeUnitTripBonus(
+/** Gold per trip added by the endpoints' trade infrastructure and the trader's own hull. */
+export function getRouteThroughputBonus(
   state: GameState,
   fromCityId: string,
   toCityId: string,
@@ -294,7 +309,7 @@ export function getTradeUnitTripBonus(
   // Silk Road wonder doesn't exist yet — always 0 until added
   const hasSilkRoad =
     state.completedLegendaryWonders?.['silk-road']?.ownerId === caravanOwner;
-  const tierBonus = caravanType ? (TRADE_UNIT_TIER_BONUS[caravanType] ?? 0) : 0;
+  const tierBonus = caravanType ? (TRADE_UNIT_THROUGHPUT_BONUS[caravanType] ?? 0) : 0;
   return (
     (fromCity?.buildings.includes('caravanserai') ? 2 : 0) +
     (toCity?.buildings.includes('caravanserai')   ? 2 : 0) +

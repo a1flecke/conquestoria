@@ -1,11 +1,13 @@
 import type { GameState, ResourceType } from '@/core/types';
 import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 import { getCivAvailableResources, getInstantResourcePurchaseNotice } from '@/systems/resource-acquisition-system';
-import { buildPlayerRouteListSection } from './trade-route-presentation';
+import { buildPlayerRouteListSection, type RouteControlHandler } from './trade-route-presentation';
 
 interface MarketplaceCallbacks {
   onClose: () => void;
   onSelectUnit?: (unitId: string) => void;
+  /** #1502 MR05: the owner's pause / resume / cancel-and-return controls on a route row. */
+  onRouteControl?: RouteControlHandler;
 }
 
 export function createMarketplacePanel(
@@ -159,7 +161,7 @@ export function createMarketplacePanel(
   // Build route list via DOM (XSS-safe, uses new TradeRoute shape)
   const routesSection = panel.querySelector('#mp-routes-section');
   if (routesSection) {
-    routesSection.appendChild(buildPlayerRouteListSection(state, state.currentPlayer, callbacks.onSelectUnit));
+    routesSection.appendChild(buildPlayerRouteListSection(state, state.currentPlayer, callbacks.onSelectUnit, callbacks.onRouteControl));
   }
 
   container.appendChild(panel);

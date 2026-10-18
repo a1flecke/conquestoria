@@ -21,6 +21,7 @@ import { assignGovernor, removeGovernor, moveGovernor } from '@/systems/governor
 import { createVictoryProgressPanel } from '@/ui/victory-progress-panel';
 import { projectDominationProgressForViewer } from '@/systems/domination-presentation';
 import { createCityPanel } from '@/ui/city-panel';
+import { applyRouteControl, ROUTE_CONTROL_DENIAL_MESSAGES, ROUTE_CONTROL_NOTIFICATIONS } from '@/systems/trade-route-lifecycle';
 import { createStrategicLaunchFlow } from '@/ui/strategic-launch-flow';
 import { executeStrategicLaunch } from '@/systems/strategic-launch-execution-system';
 import { renderUnitStackPanel } from '@/ui/unit-stack-panel';
@@ -313,6 +314,17 @@ export function createCityPanelActionsController(
       onClose: () => {},
       onTip: (message) => { deps.showNotification(message, 'info'); },
       onSelectUnit: (unitId) => deps.selectionController.selectUnit(unitId),
+      onRouteControl: (routeId, action) => {
+        const state = deps.session.getState();
+        const result = applyRouteControl(state, routeId, action, state.currentPlayer, deps.bus);
+        if (!result.ok) {
+          deps.showNotification(ROUTE_CONTROL_DENIAL_MESSAGES[result.reason], 'warning');
+          return state;
+        }
+        deps.session.commit(result.state);
+        deps.showNotification(ROUTE_CONTROL_NOTIFICATIONS[action], 'info');
+        return result.state;
+      },
       onEstablishRoute: deps.diplomacyActions.handleEstablishRoute,
       onPrevCity: () => {
         const cities = deps.currentCiv().cities;

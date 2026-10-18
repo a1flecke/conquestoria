@@ -7,6 +7,7 @@
  */
 import { createDiplomacyPanel } from '@/ui/diplomacy-panel';
 import { createMarketplacePanel } from '@/ui/marketplace-panel';
+import { applyRouteControl, ROUTE_CONTROL_DENIAL_MESSAGES, ROUTE_CONTROL_NOTIFICATIONS, type RouteControlAction } from '@/systems/trade-route-lifecycle';
 import type { PanelActionsCommonDeps } from './panel-actions-shared';
 
 export interface DiplomacyTradePanelActionsController {
@@ -41,6 +42,20 @@ export function createDiplomacyTradePanelActionsController(
     });
   }
 
+  function handleRouteControl(routeId: string, action: RouteControlAction): void {
+    const state = deps.session.getState();
+    const result = applyRouteControl(state, routeId, action, state.currentPlayer, deps.bus);
+    if (!result.ok) {
+      deps.showNotification(ROUTE_CONTROL_DENIAL_MESSAGES[result.reason], 'warning');
+    } else {
+      deps.session.commit(result.state);
+      deps.showNotification(ROUTE_CONTROL_NOTIFICATIONS[action], 'info');
+    }
+    // Re-render from the committed state so the row shows the new status immediately.
+    deps.getElementById('marketplace-panel')?.remove();
+    openMarketplacePanel();
+  }
+
   function openMarketplacePanel(): void {
     deps.hud.closeDrawer();
     deps.getElementById('marketplace-panel')?.remove();
@@ -55,6 +70,7 @@ export function createDiplomacyTradePanelActionsController(
         const unit = deps.session.getState().units[unitId];
         if (unit) deps.renderLoop.camera.centerOn(unit.position);
       },
+      onRouteControl: handleRouteControl,
     });
   }
 

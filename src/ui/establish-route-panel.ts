@@ -92,7 +92,7 @@ export function openEstablishRoutePanel(
         const positioning = destination.positioningTurns > 0
           ? ` · ${destination.positioningTurns} turns to origin`
           : '';
-        right.textContent = `+${destination.goldPerTurn} gold/turn · ${destination.trips} trips${positioning}`;
+        right.textContent = `+${destination.goldPerTurn} gold/turn · ${destination.roundTripRounds}-round round trip${positioning}`;
         row.addEventListener('click', () => {
           panel.querySelectorAll('.route-row-selected').forEach(el => {
             (el as HTMLElement).style.background = '';

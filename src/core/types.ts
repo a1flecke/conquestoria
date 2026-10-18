@@ -814,7 +814,6 @@ export interface Unit {
      */
     | { mode: 'hold-siege'; cityId: string; startedTurn: number };
   committedToRouteId?: string;   // set on establish; blocks movement while set
-  tripsRemaining?: number;       // S5 sets it; S6b decrements on each completed round trip
   routeDirection?: 'positioning' | 'outbound' | 'inbound';  // S6b uses; 'positioning' = travelling to the route origin (#1500)
   cargoUnitIds?: string[];      // unit ids loaded into this carrier
   transportId?: string;         // set when this unit is loaded as cargo
@@ -1862,6 +1861,10 @@ export interface TradeRoute {
   lastProgressTurn?: number;
   /** #1501 MR04: the turn this route was last settled in — the stable settlement identity. */
   lastSettledTurn?: number;
+  /** #1502 MR05: the owner paused this route — the trader holds and earns nothing until resumed. */
+  paused?: boolean;
+  /** #1502 MR05: the owner cancelled it — the trader returns home and the slot frees on arrival. */
+  cancelPending?: boolean;
 }
 
 export interface PurchasedResourceEntry {
@@ -2216,7 +2219,9 @@ export interface GameEvents extends DiplomacyEvents, CivilizationEvents, WorldEv
   'city:strategic-strike': { cityId: string; recipientCivId: string; actorCivId: string; goldLost: number };
   'tutorial:step': { step: TutorialStep; message: string; advisor: 'builder' | 'explorer' | 'scholar' };
   'trade:route-created': { route: TradeRoute };
-  'trade:route-ended': { routeId: string; fromCityId: string; toCityId: string; reason: 'unit-died' | 'unit-disbanded' | 'war-declared' | 'hostile-relations' | 'embargo' | 'trips-exhausted' | 'unit-captured' | 'espionage' | 'permission-expired' };
+  'trade:route-ended': { routeId: string; fromCityId: string; toCityId: string; reason: 'unit-died' | 'unit-disbanded' | 'war-declared' | 'hostile-relations' | 'embargo' | 'trips-exhausted' | 'unit-captured' | 'espionage' | 'permission-expired' | 'cancelled' };
+  /** #1502 MR05: the owner cancelled the route; the trader is returning home before it ends. */
+  'trade:route-cancelled': { routeId: string; fromCityId: string; toCityId: string };
   'trade:route-delivered': { unitId: string; routeId: string; toCityId: string };
   'trade:price-changed': { resource: ResourceType; oldPrice: number; newPrice: number };
   'wonder:discovered': { civId: string; wonderId: string; position: HexCoord; isFirstDiscoverer: boolean };

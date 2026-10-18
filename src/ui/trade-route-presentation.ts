@@ -1,41 +1,50 @@
 import type { GameState, TradeRoute, City } from '@/core/types';
 import { getRouteCapacity, getRouteOperatingStatus, type TradeRouteNonOperatingReason } from '@/systems/trade-route-economy';
+import { getRouteControlOptions, type RouteControlAction } from '@/systems/trade-route-lifecycle';
+import { createGameButton } from '@/ui/ui-kit';
 
 // Trade Routes Overhaul (#553 MR4/4) — shared route-list rendering, extracted from
 // marketplace-panel.ts's original inline buildRouteListSection so the Marketplace panel
 // and the City panel's new Trade Routes section render identically instead of drifting.
 
-/** Player-facing explanation for a route that is not currently earning (#1501 MR04). */
+/** Player-facing explanation for a route that is not currently earning (#1501 MR04, #1502 MR05). */
 const NOT_OPERATING_LABEL: Record<TradeRouteNonOperatingReason, string> = {
   positioning: 'positioning',
   'no-trader': 'no trader',
   blocked: 'blocked',
   'service-complete': 'service complete',
+  paused: 'paused',
+  cancelled: 'cancelled',
 };
 
 export { NOT_OPERATING_LABEL };
+
+/** The owner controls a route row exposes (#1502 MR05). */
+export type RouteControlHandler = (routeId: string, action: RouteControlAction) => void;
 
 function renderRouteRow(
   state: GameState,
   fromCity: City,
   route: TradeRoute,
   onSelectUnit?: (unitId: string) => void,
+  onRouteControl?: RouteControlHandler,
 ): HTMLElement {
   const toCity = state.cities[route.toCityId];
   const committedUnit = Object.values(state.units).find(u => u.committedToRouteId === route.id);
-  const tripsLeft = committedUnit?.tripsRemaining ?? '?';
   // #1501 MR04: show the promised operating rate and what the route is *actually* earning now.
   const status = getRouteOperatingStatus(state, route.id);
   const gold = status.promisedGoldPerTurn;
 
   const row = document.createElement('div');
-  row.style.cssText = 'font-size:12px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.08);display:flex;justify-content:space-between;min-height:44px;align-items:center;';
+  row.style.cssText = 'font-size:12px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.08);display:flex;justify-content:space-between;gap:8px;min-height:44px;align-items:center;';
   if (committedUnit && onSelectUnit) {
     row.style.cursor = 'pointer';
     row.addEventListener('click', () => onSelectUnit(committedUnit.id));
   }
 
   const routeText = `${fromCity.name} → ${toCity?.name ?? route.toCityId}`;
+  const summary = document.createElement('div');
+  summary.style.cssText = 'display:flex;flex-direction:column;gap:2px;';
   if (committedUnit && onSelectUnit) {
     // #1459: the row stays clickable for pointer users; selecting the route's trade unit is also a real button.
     row.dataset.pointerShortcut = 'true';
@@ -48,11 +57,11 @@ function renderRouteRow(
       event.stopPropagation();
       onSelectUnit(committedUnit.id);
     });
-    row.appendChild(select);
+    summary.appendChild(select);
   } else {
     const routeLabel = document.createElement('span');
     routeLabel.appendChild(document.createTextNode(routeText));
-    row.appendChild(routeLabel);
+    summary.appendChild(routeLabel);
   }
 
   const routeDetail = document.createElement('span');
@@ -61,8 +70,29 @@ function renderRouteRow(
   const actual = status.paying
     ? 'earning now'
     : `earning 0 · ${NOT_OPERATING_LABEL[status.reason ?? 'blocked']}`;
-  routeDetail.appendChild(document.createTextNode(`${promised} · ${actual} · ${tripsLeft} trips`));
-  row.appendChild(routeDetail);
+  routeDetail.appendChild(document.createTextNode(`${promised} · ${actual} · round trip ${route.turnsPerTrip * 2} rounds`));
+  summary.appendChild(routeDetail);
+  row.appendChild(summary);
+
+  // #1502 MR05: the owner's controls, rendered from the same query the executor re-checks, so a
+  // stale row can never offer an action the executor would refuse.
+  if (onRouteControl) {
+    const controls = document.createElement('div');
+    controls.style.cssText = 'display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;';
+    for (const option of getRouteControlOptions(state, route.id, state.currentPlayer)) {
+      if (!option.enabled) continue;
+      const button = createGameButton(option.label, option.action === 'cancel-and-return' ? 'ghost' : 'secondary');
+      button.dataset.action = `route-${option.action}`;
+      button.dataset.routeId = route.id;
+      button.setAttribute('aria-label', `${option.label} the trade route ${routeText}`);
+      button.addEventListener('click', event => {
+        event.stopPropagation();
+        onRouteControl(route.id, option.action);
+      });
+      controls.appendChild(button);
+    }
+    if (controls.childElementCount > 0) row.appendChild(controls);
+  }
 
   return row;
 }
@@ -75,6 +105,7 @@ export function buildPlayerRouteListSection(
   state: GameState,
   currentPlayer: string,
   onSelectUnit?: (unitId: string) => void,
+  onRouteControl?: RouteControlHandler,
 ): HTMLElement {
   const wrapper = document.createElement('div');
 
@@ -116,7 +147,7 @@ export function buildPlayerRouteListSection(
     wrapper.appendChild(cityHeader);
 
     for (const route of routes) {
-      wrapper.appendChild(renderRouteRow(state, city, route, onSelectUnit));
+      wrapper.appendChild(renderRouteRow(state, city, route, onSelectUnit, onRouteControl));
     }
   }
 
@@ -141,6 +172,7 @@ export function buildCityRouteRows(
   state: GameState,
   cityId: string,
   onSelectUnit?: (unitId: string) => void,
+  onRouteControl?: RouteControlHandler,
 ): HTMLElement | null {
   const city = state.cities[cityId];
   if (!city) return null;
@@ -150,7 +182,7 @@ export function buildCityRouteRows(
 
   const wrapper = document.createElement('div');
   for (const route of routes) {
-    wrapper.appendChild(renderRouteRow(state, city, route, onSelectUnit));
+    wrapper.appendChild(renderRouteRow(state, city, route, onSelectUnit, onRouteControl));
   }
   return wrapper;
 }

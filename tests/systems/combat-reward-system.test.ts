@@ -450,7 +450,7 @@ describe('applyCombatOutcomeToState', () => {
         prices: {}, priceHistory: {}, fashionable: null, fashionTurnsLeft: 0,
         tradeRoutes: [{ id: 'route-1', fromCityId: 'a', toCityId: 'b', goldPerTrip: 5, turnsPerTrip: 3 }],
       } as unknown as GameState['marketplace'];
-      state.units.defender = { ...state.units.defender, type: 'caravan', committedToRouteId: 'route-1', tripsRemaining: 2 };
+      state.units.defender = { ...state.units.defender, type: 'caravan', committedToRouteId: 'route-1', routeDirection: 'outbound' };
       const bus = new EventBus();
       const ended: unknown[] = [];
       bus.on('trade:route-ended', payload => ended.push(payload));
@@ -460,7 +460,7 @@ describe('applyCombatOutcomeToState', () => {
       expect(applied.defenderCaptured).toBe(true);
       expect(applied.state.units.defender.owner).toBe('player');
       expect(applied.state.units.defender.committedToRouteId).toBeUndefined();
-      expect(applied.state.units.defender.tripsRemaining).toBeUndefined();
+      expect(applied.state.units.defender.routeDirection).toBeUndefined();
       expect(applied.state.marketplace!.tradeRoutes).toEqual([]);
       expect(ended).toEqual([{ routeId: 'route-1', fromCityId: 'a', toCityId: 'b', reason: 'unit-captured' }]);
     });
