@@ -186,7 +186,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'danger',
     ['coast', 'defense', 'trade', 'sea', 'production'],
     ['noaa-maritime-heritage'],
-    'image-ruins',
+    'image-tidecaller-bastion',
     ['coast', 'defense', 'trade'],
     'Harbor Shield',
     'The bastion turns the edge of the map into a guarded doorway.',
