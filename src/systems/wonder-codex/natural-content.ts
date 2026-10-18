@@ -154,7 +154,7 @@ export const NATURAL_WONDER_CODEX_CONTENT = [
     'mystery',
     ['desert', 'gold', 'earth', 'travel', 'culture'],
     ['nps-singing-sands'],
-    'image-desert',
+    'image-singing-sands',
     ['desert', 'travel', 'culture'],
     'Sounding Dunes',
     'The desert becomes a landmark for the ear, not only the eye.',
