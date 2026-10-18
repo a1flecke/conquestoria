@@ -116,6 +116,27 @@ must leave the canvas fallback in effect and be retried by the next `preloadLege
 
 ---
 
+## Building Production Art (#620)
+
+A building can be drawn from a generated painted-isometric PNG instead of its SVG component. The switch is one row in `BUILDING_ART`
+(`src/renderer/buildings/building-art-catalog.ts`); the SVG component **stays** in `BUILDING_SPRITE_CATALOG` as the fallback when the
+file is missing or fails to load (a catalog test fails if it goes).
+
+- **Civ-neutral art, runtime banner.** The PNG has no flag. `buildBuildingArtSvg` (`building-art-sprite.ts`) puts the art in a 192x192
+  SVG frame with the owner's `Banner` over it, so civ colour still flows only from `palette`. A row's `bannerX`/`bannerY` places the pole
+  (on the base plate's left corner for the Royal Mint); check it at 36 px in the city panel.
+- **Two surfaces, one SVG.** The canvas bake (`sprite-loader.ts`) embeds the file as a data URI (`building-art-data-uri.ts`; an SVG loaded
+  as an `<img>` cannot fetch), once per building and shared by every civilization, queued through `spriteLoadQueue` like any sprite. The
+  city-panel icon (`city-panel-building-icon.ts`) references the file URL inside its inline SVG. Files load on demand: never preload the set.
+- **Pipeline:** `python3 -I scripts/building-sprite/building_sprite.py scan|preview|build <spec>` (specs in `scripts/building-sprite/specs/`,
+  originals in `$BUILDING_SOURCES_DIR`, never committed). The image is generated on flat magenta; the tool keys it, trims, pads to a square, shrinks to
+  256 px, quantises to a palette PNG (<= 70 KB) and writes `design/building-art/<id>.provenance.json`. Update the `ChatGPT image generation
+  (building sprites)` count in `docs/asset-rights-ledger.md` (`asset-rights-ledger.test.ts` fails otherwise).
+- **Not yet covered:** the production chooser and queue icons for every building still use the `PRODUCTION_ICONS` emoji; only the
+  map production badge and the built-buildings list in the city panel show building sprites.
+
+---
+
 ## DOM-Overlay Live Fallback For Uncovered Unit Sprites
 
 `getUnitSpriteV2` (`src/renderer/sprites/v2/index.ts`) no longer returns `null` for a unit type

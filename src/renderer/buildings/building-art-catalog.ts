@@ -1,0 +1,21 @@
+// Production art for buildings (#620): one transparent, civ-neutral PNG per building under public/images/buildings/art/, each
+// with a provenance record in design/building-art/. The SVG component in BUILDING_SPRITE_CATALOG stays as the offline /
+// load-failure fallback, exactly as the canvas drawing does for legendary wonder art. The art has no flag: every surface adds
+// the owner's banner over it (building-art-sprite.ts), so civ colour still flows only from the palette.
+
+/** Where the owner's banner pole stands on the art, in the 192x192 sprite frame. */
+export interface BuildingArtEntry {
+  readonly bannerX: number;
+  readonly bannerY: number;
+}
+
+export const BUILDING_ART: Readonly<Record<string, BuildingArtEntry>> = {
+  royal_mint: { bannerX: 16, bannerY: 146 },
+};
+
+export const BUILDING_ART_IDS: readonly string[] = Object.keys(BUILDING_ART);
+
+/** App-relative path (no leading slash; resolve it with `resolveAppAssetUrl`), or null for a building without art. */
+export function getBuildingArtPath(buildingId: string): string | null {
+  return Object.prototype.hasOwnProperty.call(BUILDING_ART, buildingId) ? `images/buildings/art/${buildingId}.png` : null;
+}

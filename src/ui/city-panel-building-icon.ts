@@ -1,5 +1,8 @@
 import { BUILDING_SPRITE_CATALOG } from '@/renderer/sprites/sprite-catalog';
 import { PRODUCTION_ICON_FALLBACK } from '@/systems/city-production-presentation';
+import { getBuildingArtPath } from '@/renderer/buildings/building-art-catalog';
+import { buildBuildingArtSvg } from '@/renderer/buildings/building-art-sprite';
+import { resolveAppAssetUrl } from '@/renderer/asset-url';
 import { hashCode } from '@/renderer/sprite-overlay';
 import type { FactionPalette } from '@/renderer/sprites/sprite-system';
 
@@ -30,6 +33,14 @@ export function getAnimatedBuildingIconHtml(
   palette: FactionPalette,
   phaseKey: string,
 ): string {
+  // #620: production art (a plain file URL inside the panel's own inline SVG) with the owner's banner over it.
+  const artPath = getBuildingArtPath(buildingId);
+  const artSvg = artPath ? buildBuildingArtSvg(buildingId, palette, resolveAppAssetUrl(artPath), ICON_SIZE_PX) : null;
+  if (artSvg) {
+    return `<div class="cq-sprite-wrap cq-v2" data-state="idle" data-kind="building" ` +
+      `style="width:${ICON_SIZE_PX}px;height:${ICON_SIZE_PX}px;flex:none;overflow:hidden;border-radius:6px;">${artSvg}</div>`;
+  }
+
   const spriteFn = BUILDING_SPRITE_CATALOG[buildingId];
   if (!spriteFn) {
     return `<div style="width:${ICON_SIZE_PX}px;height:${ICON_SIZE_PX}px;flex:none;` +
