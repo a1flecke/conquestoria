@@ -47,6 +47,7 @@ import { TREATY_LABELS } from '@/ui/notification-routes/diplomacy-routes';
 import { appeaseFaction, concedeToMovement } from '@/systems/faction-commands';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
+import { TRADE_ROUTE_DENIAL_MESSAGES } from '@/systems/trade-route-contract';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 import {
   performMinorCivFestival,
@@ -346,9 +347,21 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
   // section and selected-unit-info's Establish Route button trigger the exact same code
   // path (per ui-panels.md's Extracted UI Flows rule), not two copies that could drift.
   function handleEstablishRoute(caravanId: string): void {
-    openEstablishRoutePanel(deps.uiLayer, deps.session.getState(), caravanId, (toCityId) => {
+    openEstablishRoutePanel(deps.uiLayer, deps.session.getState(), caravanId, (toCityId, originCityId) => {
       const resourceDiversity = getCivAvailableResources(deps.session.getState(), deps.session.getState().currentPlayer).size;
-      const routeResult = establishQuestAwareRoute(deps.session.getState(), caravanId, toCityId, resourceDiversity);
+      // #1500 MR03: the executor returns a typed refusal instead of throwing, so a stale chooser
+      // callback (war declared, slot taken, off-turn) shows the entitled reason and mutates nothing.
+      const routeResult = establishQuestAwareRoute(
+        deps.session.getState(),
+        caravanId,
+        toCityId,
+        resourceDiversity,
+        { automated: false, originCityId },
+      );
+      if (!routeResult.ok) {
+        deps.showNotification(TRADE_ROUTE_DENIAL_MESSAGES[routeResult.reason], 'warning');
+        return;
+      }
       deps.session.commit(routeResult.state);
       emitMinorCivQuestTransitions(deps.bus, routeResult.questTransitions, deps.session.getState());
       deps.bus.emit('trade:route-created', { route: routeResult.route });

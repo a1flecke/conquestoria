@@ -579,6 +579,11 @@ describe('DiplomacyActionsController', () => {
 
       const { deps, controller } = build(state);
 
+      // #1500 MR03: an assignment now needs a discovered destination and an explored corridor.
+      for (const key of Object.keys(state.map.tiles)) {
+        state.civilizations.player.visibility.tiles[key] = 'visible';
+      }
+
       controller.handleEstablishRoute(caravanId);
 
       expect(openEstablishRoutePanel).toHaveBeenCalledTimes(1);

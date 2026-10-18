@@ -815,7 +815,7 @@ export interface Unit {
     | { mode: 'hold-siege'; cityId: string; startedTurn: number };
   committedToRouteId?: string;   // set on establish; blocks movement while set
   tripsRemaining?: number;       // S5 sets it; S6b decrements on each completed round trip
-  routeDirection?: 'outbound' | 'inbound';  // S6b uses; S5 leaves undefined
+  routeDirection?: 'positioning' | 'outbound' | 'inbound';  // S6b uses; 'positioning' = travelling to the route origin (#1500)
   cargoUnitIds?: string[];      // unit ids loaded into this carrier
   transportId?: string;         // set when this unit is loaded as cargo
   airBase?: AirBaseRef;

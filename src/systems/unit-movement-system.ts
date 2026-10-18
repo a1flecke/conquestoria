@@ -306,8 +306,10 @@ export function advanceRouteRunners(state: GameState, bus?: EventBus): GameState
     const caravan = Object.values(newState.units).find(u => u.committedToRouteId === route.id);
     if (!caravan) continue;
 
+    const isPositioning = caravan.routeDirection === 'positioning';
     const isOutbound = (caravan.routeDirection ?? 'outbound') === 'outbound';
-    const targetCity = newState.cities[isOutbound ? route.toCityId : route.fromCityId];
+    // #1500 MR03: a trader first walks to the route's origin; only then does commerce begin.
+    const targetCity = newState.cities[isPositioning ? route.fromCityId : isOutbound ? route.toCityId : route.fromCityId];
     if (!targetCity) continue;
 
     // Trade Routes Overhaul (#553 MR1/4): route runners must move in the unit's own
@@ -322,6 +324,14 @@ export function advanceRouteRunners(state: GameState, bus?: EventBus): GameState
     if (!path || path.length === 0) continue;
 
     if (path.length === 1) {
+      if (isPositioning) {
+        // Reached the origin: the trader is positioned and commerce begins next round.
+        newState = {
+          ...newState,
+          units: { ...newState.units, [caravan.id]: { ...newState.units[caravan.id]!, routeDirection: 'outbound' } },
+        };
+        continue;
+      }
       newState = processCaravanArrival(newState, caravan.id, route, isOutbound, bus);
       continue;
     }
