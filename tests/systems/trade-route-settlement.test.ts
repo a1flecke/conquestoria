@@ -102,8 +102,8 @@ describe('#1501 golden fixture — the route advances and is paid once', () => {
   it('pays nothing for a trader destroyed before settlement, and closes its route', () => {
     const advanced = advanceRouteRunners(makeRouteState(), new EventBus());
 
-    // Pirates kill the trader before the income phase settles.
-    const afterKill = removeUnits(advanced, ['trader-1'], { reason: 'killed' }).state;
+    // Pirates destroy the trader before the income phase settles.
+    const afterKill = removeUnits(advanced, ['trader-1'], { reason: 'destroyed' }).state;
 
     expect(afterKill.marketplace!.tradeRoutes).toHaveLength(0);
     expect(settleTradeRouteForCiv(afterKill, 'alpha').paid).toBe(0);
