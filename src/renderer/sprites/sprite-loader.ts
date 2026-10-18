@@ -5,6 +5,9 @@ import {
   PIRATE_HEADQUARTERS_SPRITE_CATALOG,
   UNIT_SPRITE_SIZE, BUILDING_SPRITE_SIZE, LANDMARK_SPRITE_SIZE,
 } from './sprite-catalog';
+import { BUILDING_ART } from '../buildings/building-art-catalog';
+import { buildBuildingArtSvg } from '../buildings/building-art-sprite';
+import { loadBuildingArtDataUri } from '../buildings/building-art-data-uri';
 import { getPngUnitManifest } from './png/png-sprite-catalog';
 import { bakePngUnitImage } from './png/png-sprite-canvas';
 import type { UnitType } from '@/core/types';
@@ -307,11 +310,22 @@ class SpriteCache {
     if (buildingSprite && !bucket.buildings.has(id)) {
       visibleWork.push(spriteLoadQueue.schedule(SPRITE_PRIORITY.visible, async () => {
         if (!isCurrent()) return;
-        const svg = buildingSprite({ palette, svgOnly: true });
-        if (!svg) return;
-        const img = await svgStringToImage(svg, BUILDING_SPRITE_SIZE, {
-          kind: 'building', itemId: id, civilization: civId,
-        });
+        const metadata: SpriteDiagnosticMetadata = { kind: 'building', itemId: id, civilization: civId };
+        // #620: a building with production art is the art plus this owner's banner; a missing or failed file falls back to
+        // the SVG component below, which every such building keeps.
+        let img: HTMLImageElement | null = null;
+        if (BUILDING_ART[id]) {
+          img = await loadBuildingArtDataUri(id)
+            .then(href => buildBuildingArtSvg(id, palette, href))
+            .then(artSvg => (artSvg ? svgStringToImage(artSvg, BUILDING_SPRITE_SIZE, metadata) : null))
+            .catch(() => null);
+        }
+        if (!img) {
+          if (!isCurrent()) return;
+          const svg = buildingSprite({ palette, svgOnly: true });
+          if (!svg) return;
+          img = await svgStringToImage(svg, BUILDING_SPRITE_SIZE, metadata);
+        }
         if (!isCurrent()) return;
         bucket.buildings.set(id, img);
       }));
