@@ -14,6 +14,8 @@ function makeState(overrides: {
   explored?: string[];
   techs?: string[];
   noRunner?: boolean;
+  /** #1502 MR05: per-tile terrain overrides, to price a rough leg against a flat one. */
+  terrain?: Record<string, string>;
 } = {}): GameState {
   const {
     caravanPosition = { q: 0, r: 0 },
@@ -22,6 +24,7 @@ function makeState(overrides: {
     explored = ['0,0', '1,0', '2,0', '3,0'],
     techs = ['trade-routes'],
     noRunner = false,
+    terrain = {},
   } = overrides;
 
   const tiles: Record<string, unknown> = {};
@@ -30,6 +33,9 @@ function makeState(overrides: {
       coord: { q, r: 0 }, terrain: 'grassland', elevation: 'lowland', resource: null,
       improvement: 'none', improvementTurnsLeft: 0, hasRiver: false, wonder: null, owner: null,
     };
+  }
+  for (const [key, value] of Object.entries(terrain)) {
+    if (tiles[key]) tiles[key] = { ...(tiles[key] as Record<string, unknown>), terrain: value };
   }
   const alphaTiles: Record<string, string> = { '0,0': 'visible' };
   for (const key of explored) alphaTiles[key] = 'fog';
@@ -61,8 +67,8 @@ function makeState(overrides: {
     units: noRunner ? {} : {
       'trader-1': {
         id: 'trader-1', type: 'caravan', owner: 'alpha', position: caravanPosition,
-        health: 100, movementPointsLeft: 0, hasActed: true, hasMoved: false, skippedTurn: false, isResting: false,
-        committedToRouteId: 'route-1', tripsRemaining: 8, routeDirection: direction,
+        health: 100, movementPointsLeft: 3, hasActed: true, hasMoved: false, skippedTurn: false, isResting: false,
+        committedToRouteId: 'route-1', routeDirection: direction,
       },
     },
     barbarianCamps: {}, minorCivs: {}, espionage: {}, pendingEvents: {}, tribalVillages: {},
@@ -74,14 +80,23 @@ function makeState(overrides: {
 }
 
 describe('getTradeRouteQuote — one quote for preview and execution', () => {
-  it('derives timing from the trader’s own path, not geometric distance', () => {
+  it('derives timing from the trader’s own path and its real movement allowance', () => {
     const quote = getTradeRouteQuote(makeState(), { caravanUnitId: 'trader-1', originCityId: 'alpha-city', toCityId: 'alpha-port' })!;
 
     expect(quote).not.toBeNull();
-    // Three hexes of flat grassland = three one-hex steps for the runner.
-    expect(quote.legRounds).toBe(3);
-    expect(quote.roundTripRounds).toBe(6);
-    expect(quote.turnsPerTrip).toBe(3);
+    // Three flat hexes and a 3-movement caravan (#1502 MR05): the whole leg is walked in one round.
+    expect(quote.legRounds).toBe(1);
+    expect(quote.roundTripRounds).toBe(2);
+    expect(quote.turnsPerTrip).toBe(1);
+  });
+
+  it('prices a rough leg in more rounds than the same leg over flat ground', () => {
+    const request = { caravanUnitId: 'trader-1', originCityId: 'alpha-city', toCityId: 'alpha-port' };
+    const flat = getTradeRouteQuote(makeState(), request)!;
+    const rough = getTradeRouteQuote(makeState({ terrain: { '1,0': 'hills' } }), request)!;
+
+    expect(flat.legRounds).toBe(1);
+    expect(rough.legRounds).toBeGreaterThan(flat.legRounds);
   });
 
   it('names the recipient and the modifiers that produced the reward', () => {

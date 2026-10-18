@@ -11,7 +11,7 @@ import { getFreeStandingOwnedUnits } from '@/systems/unit-ownership';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { moveUnitWithZoneOfControl } from '@/systems/unit-low-level-move';
 import { getMovementStepCost } from '@/systems/unit-movement-cost';
-import { findPathToCity } from '@/systems/unit-pathfinding';
+import { completeRouteLeg, getRouteRunner, planRouteRunnerRound } from '@/systems/trade-route-runner';
 import {
   getOwnerCompletedTechs,
   isWorkerTaskInProgress,
@@ -37,11 +37,9 @@ import { visitVillage } from '@/systems/village-system';
 import { createSimulationRng } from '@/systems/simulation-rng';
 import { processWonderDiscovery } from '@/systems/wonder-system';
 import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
-import { isAtWar } from '@/systems/diplomacy-queries';
+import { buildMovePresentationByViewer } from '@/systems/viewer-event-presentation';
 import { syncTransportCargoPositions } from '@/systems/transport-system';
 import { syncCarrierBasedAircraft } from '@/systems/air-base-state';
-import { buildMovePresentationByViewer } from '@/systems/viewer-event-presentation';
-import { removeUnits } from '@/systems/unit-removal-system';
 
 export interface WonderDiscoveryResult {
   wonderId: string;
@@ -262,42 +260,13 @@ export function executeValidatedUnitMove(
   };
 }
 
-function processCaravanArrival(
-  state: GameState,
-  caravanId: string,
-  route: { id: string; fromCityId: string; toCityId: string },
-  arrivedAtToCity: boolean,
-  bus?: EventBus,
-): GameState {
-  if (arrivedAtToCity) {
-    bus?.emit('trade:route-delivered', { unitId: caravanId, routeId: route.id, toCityId: route.toCityId });
-    return {
-      ...state,
-      units: {
-        ...state.units,
-        [caravanId]: { ...state.units[caravanId]!, routeDirection: 'inbound' },
-      },
-    };
-  }
-
-  // Arrived at fromCity (inbound leg complete) — decrement trips
-  const caravan = state.units[caravanId]!;
-  const tripsRemaining = (caravan.tripsRemaining ?? 1) - 1;
-
-  if (tripsRemaining <= 0) {
-    // The caravan's last trip is done: the canonical removal also closes its route (and announces it).
-    return removeUnits(state, [caravanId], { reason: 'trips-exhausted', bus }).state;
-  }
-
-  return {
-    ...state,
-    units: {
-      ...state.units,
-      [caravanId]: { ...state.units[caravanId]!, routeDirection: 'outbound', tripsRemaining },
-    },
-  };
-}
-
+/**
+ * #1502 MR05: one round of automated trade travel. The decision (walk, hold, or complete the leg)
+ * lives in `trade-route-runner.ts`; this public entry executes the chosen step through the
+ * canonical movement executor, so a route step obeys the same occupancy, hostility,
+ * territorial-access and zone-of-control rules — and spends the same real movement allowance — as
+ * any other move. A trader that reaches home simply departs again: ordinary routes run indefinitely.
+ */
 export function advanceRouteRunners(state: GameState, bus?: EventBus): GameState {
   if (!state.marketplace?.tradeRoutes?.length) return state;
   let newState = state;
@@ -320,82 +289,52 @@ export function advanceRouteRunners(state: GameState, bus?: EventBus): GameState
   };
 
   for (const route of state.marketplace.tradeRoutes) {
-    const caravan = Object.values(newState.units).find(u => u.committedToRouteId === route.id);
+    const caravan = getRouteRunner(newState, route.id);
     if (!caravan) continue;
 
-    const isPositioning = caravan.routeDirection === 'positioning';
-    const isOutbound = (caravan.routeDirection ?? 'outbound') === 'outbound';
-    // #1500 MR03: a trader first walks to the route's origin; only then does commerce begin.
-    const targetCity = newState.cities[isPositioning ? route.fromCityId : isOutbound ? route.toCityId : route.fromCityId];
-    if (!targetCity) continue;
-
-    // Trade Routes Overhaul (#553 MR1/4): route runners must move in the unit's own
-    // domain, same root-cause fix as canEstablishRoute/resolveFromCity in trade-system.ts.
-    const runnerDomain = UNIT_DEFINITIONS[caravan.type]?.domain ?? 'land';
-    // #1042: thread the caravan + owner techs so the drawn route follows roads,
-    // matching the canonical cost model the executor uses.
-    const path = findPathToCity(caravan.position, targetCity.position, newState.map, runnerDomain, {
-      unit: caravan,
-      completedTechs: newState.civilizations[caravan.owner]?.techState.completed ?? [],
-    });
-    if (!path || path.length === 0) continue;
-
-    if (path.length === 1) {
-      if (isPositioning) {
-        // Reached the origin: the trader is positioned and commerce begins next round.
-        newState = markProgress({
-          ...newState,
-          units: { ...newState.units, [caravan.id]: { ...newState.units[caravan.id]!, routeDirection: 'outbound' } },
-        }, route.id);
-        continue;
+    const plan = planRouteRunnerRound(newState, route);
+    if (plan.kind === 'hold') {
+      if (plan.reason === 'blocked' && plan.legTargetCityId) {
+        const target = newState.cities[plan.legTargetCityId];
+        bus?.emit('notification:show', {
+          message: `Trade route to ${target?.name ?? plan.legTargetCityId} is blocked.`,
+          type: 'warning',
+        });
       }
-      newState = markProgress(processCaravanArrival(newState, caravan.id, route, isOutbound, bus), route.id);
       continue;
     }
 
-    const nextStep = path[1]!;
-    const ownerCiv = newState.civilizations[caravan.owner];
-    const blocked = ownerCiv != null && Object.values(newState.units).some(u =>
-      u.id !== caravan.id &&
-      u.position.q === nextStep.q && u.position.r === nextStep.r &&
-      isAtWar(ownerCiv.diplomacy, u.owner),
-    );
+    const legTarget = newState.cities[plan.legTargetCityId];
+    if (!legTarget) continue;
+    const atLegTarget = caravan.position.q === legTarget.position.q && caravan.position.r === legTarget.position.r;
 
-    if (blocked) {
-      const toCity = newState.cities[route.toCityId];
-      bus?.emit('notification:show', {
-        message: `Trade route to ${toCity?.name ?? route.toCityId} is blocked by enemy forces.`,
-        type: 'warning',
-      });
+    // Already standing on the leg target: endpoint service with no walk needed.
+    if (atLegTarget) {
+      newState = markProgress(completeRouteLeg(newState, route.id, caravan.id, bus), route.id);
       continue;
     }
 
-    // Move caravan via spread-copy — NOT moveUnit() (movementPointsLeft is already 0)
-    const from = { ...caravan.position };
-    newState = markProgress({
-      ...newState,
-      units: {
-        ...newState.units,
-        [caravan.id]: { ...newState.units[caravan.id]!, position: nextStep },
-      },
-    }, route.id);
-    bus?.emit('unit:move', {
-      unitId: caravan.id,
-      from,
-      to: nextStep,
-      path: [from, nextStep],
-      presentationByViewer: buildMovePresentationByViewer(
-        newState,
-        { ...caravan, position: from },
-        [from, nextStep],
-      ),
+    const move = executeUnitMove(newState, caravan.id, plan.target, {
+      actor: 'automation',
+      civId: caravan.owner,
+      bus,
     });
-
-    if (nextStep.q === targetCity.position.q && nextStep.r === targetCity.position.r) {
-      const movedCaravan = newState.units[caravan.id];
-      if (movedCaravan) {
-        newState = processCaravanArrival(newState, caravan.id, route, isOutbound, bus);
+    if (!move.ok) {
+      // #1502 MR05: the canonical executor is the authority on whether a step is legal. A foreign
+      // unit in the way is reported as blocked, exactly as the previous trader-specific check did.
+      if (move.reason === 'occupied') {
+        const toCity = newState.cities[route.toCityId];
+        bus?.emit('notification:show', {
+          message: `Trade route to ${toCity?.name ?? route.toCityId} is blocked by enemy forces.`,
+          type: 'warning',
+        });
       }
+      continue;
+    }
+    newState = markProgress(move.state, route.id);
+
+    if (move.to.q === legTarget.position.q && move.to.r === legTarget.position.r) {
+      newState = completeRouteLeg(newState, route.id, caravan.id, bus);
     }
   }
 

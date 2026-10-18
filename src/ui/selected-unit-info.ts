@@ -947,9 +947,17 @@ export function renderSelectedUnitInfo(
   // Trade-unit actions (caravan + Trade Routes Overhaul (#553 MR1/4) Naval Trader line)
   if (hasAITradeRole(unit.type) && unit.owner === state.currentPlayer) {
     if (unit.committedToRouteId) {
+      const route = state.marketplace?.tradeRoutes.find(candidate => candidate.id === unit.committedToRouteId);
+      const leg = unit.routeDirection === 'positioning'
+        ? 'travelling to its origin'
+        : (route?.cancelPending || unit.routeDirection === 'inbound')
+          ? 'returning home'
+          : 'delivering';
       const statusEl = document.createElement('div');
       statusEl.style.cssText = 'font-size:12px;opacity:0.7;padding:8px 0;';
-      statusEl.textContent = `Committed to route (${unit.tripsRemaining ?? '?'} trips remaining)`;
+      statusEl.textContent = route
+        ? `Committed to route (${leg} · ${route.turnsPerTrip * 2}-round round trip)`
+        : `Committed to route (${leg})`;
       actionsDiv.appendChild(statusEl);
     } else if (callbacks.onEstablishRoute) {
       const fromCity = resolveFromCity(state, unit);

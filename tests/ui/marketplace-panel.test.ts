@@ -618,7 +618,7 @@ describe('createMarketplacePanel', () => {
         { id: 'route-1', fromCityId: 'city1', toCityId: 'city2', goldPerTrip: 10, turnsPerTrip: 1 },
       ];
       (state as unknown as { units: Record<string, unknown> }).units = {
-        caravan1: { id: 'caravan1', type: 'caravan', owner: 'p1', committedToRouteId: 'route-1', tripsRemaining: 5 },
+        caravan1: { id: 'caravan1', type: 'caravan', owner: 'p1', committedToRouteId: 'route-1', routeDirection: 'outbound' },
       };
       (state.civilizations.p1 as unknown as { diplomacy: { relationships: Record<string, unknown> } }).diplomacy = { relationships: {} };
       return state;
@@ -630,7 +630,7 @@ describe('createMarketplacePanel', () => {
       const panel = document.getElementById('marketplace-panel');
       expect(panel?.textContent).toContain('Active Trade Routes');
       expect(panel?.textContent).toContain('Rome → Ostia');
-      expect(panel?.textContent).toContain('5 trips');
+      expect(panel?.textContent).toContain('round trip 2 rounds');
     });
 
     it('clicking a route row with a committed unit calls onSelectUnit with the unit id', () => {

@@ -29,7 +29,8 @@ export interface EntitledTradeDestination {
   denialReason: TradeRouteDenialReason | null;
   /** Preview of the route the executor would create, computed with the canonical economy functions. */
   goldPerTurn: number;
-  trips: number;
+  /** #1502 MR05: rounds one committed round trip takes, from the same travel model the runner walks. */
+  roundTripRounds: number;
   /** Rounds the trader must still travel to reach its origin; 0 when it is already there. */
   positioningTurns: number;
 }
@@ -117,7 +118,7 @@ export function getEntitledTradeDestinations(
       eligible: decision.ok,
       denialReason: decision.ok ? null : decision.reason,
       goldPerTurn: quote?.goldPerTurn ?? 0,
-      trips: quote?.trips ?? 0,
+      roundTripRounds: quote?.roundTripRounds ?? 0,
       positioningTurns,
     });
   }

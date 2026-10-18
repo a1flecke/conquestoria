@@ -11,7 +11,7 @@ import {
 import { CURRENT_SAVE_SCHEMA_VERSION as LEAF_SCHEMA_VERSION } from '@/storage/save-schema-version';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { canEstablishRoute } from '@/systems/trade-caravan-system';
-import { getTradeUnitTripBonus } from '@/systems/trade-route-economy';
+import { getRouteThroughputBonus } from '@/systems/trade-route-economy';
 import { applyUnitUpgradeToState } from '@/systems/unit-upgrade-system';
 import { foundCity } from '@/systems/city-system';
 import { processPurposefulBarbarians } from '@/systems/barbarian-system';
@@ -441,7 +441,7 @@ describe('save migrations', () => {
     // Old caravans keep working unchanged — UNIT_DEFINITIONS still resolves them and
     // trade-system functions accept them without needing a unit-type migration.
     expect(UNIT_DEFINITIONS['caravan']).toBeDefined();
-    expect(() => getTradeUnitTripBonus(migrated, cityId, cityId, 'player', migratedCaravan!.type)).not.toThrow();
+    expect(() => getRouteThroughputBonus(migrated, cityId, cityId, 'player', migratedCaravan!.type)).not.toThrow();
     expect(() => canEstablishRoute(migrated, migratedCaravan!, cityId)).not.toThrow();
   });
 
@@ -463,7 +463,7 @@ describe('save migrations', () => {
     expect(migratedWagon).toBeDefined();
     expect(migratedWagon!.type).toBe('merchant_wagon');
     expect(UNIT_DEFINITIONS['merchant_wagon']).toBeDefined();
-    expect(() => getTradeUnitTripBonus(migrated, cityId, cityId, 'player', migratedWagon!.type)).not.toThrow();
+    expect(() => getRouteThroughputBonus(migrated, cityId, cityId, 'player', migratedWagon!.type)).not.toThrow();
     expect(() => canEstablishRoute(migrated, migratedWagon!, cityId)).not.toThrow();
   });
 
@@ -485,7 +485,7 @@ describe('save migrations', () => {
     expect(migratedFreighter).toBeDefined();
     expect(migratedFreighter!.type).toBe('air_freighter');
     expect(UNIT_DEFINITIONS['air_freighter']).toBeDefined();
-    expect(() => getTradeUnitTripBonus(migrated, cityId, cityId, 'player', migratedFreighter!.type)).not.toThrow();
+    expect(() => getRouteThroughputBonus(migrated, cityId, cityId, 'player', migratedFreighter!.type)).not.toThrow();
     expect(() => canEstablishRoute(migrated, migratedFreighter!, cityId)).not.toThrow();
   });
 

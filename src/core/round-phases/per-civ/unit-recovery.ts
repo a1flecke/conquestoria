@@ -87,9 +87,11 @@ export function resetCivUnitMovement(newState: GameState, turn: CivTurn): void {
     const unit = newState.units[unitId];
     if (unit) {
       let reset = resetUnitTurn(unit);
-      // Committed caravans cannot move — zero restored movement so they don't appear in unmoved cycling
+      // #1502 MR05: a committed trader keeps its one real per-round allowance — the automated
+      // runner spends it walking the route — but stays flagged as acted so it never appears in
+      // unmoved-unit cycling and cannot also be moved by hand in the same round.
       if (reset.committedToRouteId) {
-        reset = { ...reset, movementPointsLeft: 0, hasActed: true };
+        reset = { ...reset, hasActed: true };
       }
       newState.units[unitId] = reset;
     }

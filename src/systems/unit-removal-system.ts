@@ -141,7 +141,7 @@ export function releaseCapturedUnitsFromRoutes<S extends UnitRemovalSlice>(
   if (captured.length === 0) return { slice, removed: [], endedRoutes: [] };
   const released = dropTradeRoutes(slice.marketplace, captured.map(unit => unit.committedToRouteId!), 'unit-captured');
   const units = { ...slice.units };
-  for (const unit of captured) units[unit.id] = { ...unit, committedToRouteId: undefined, tripsRemaining: undefined };
+  for (const unit of captured) units[unit.id] = { ...unit, committedToRouteId: undefined, routeDirection: undefined };
   const next: S = { ...slice, units };
   if (released.marketplace !== slice.marketplace) next.marketplace = released.marketplace;
   return { slice: next, removed: [], endedRoutes: released.endedRoutes };

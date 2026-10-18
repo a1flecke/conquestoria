@@ -13,7 +13,7 @@ import {
   processTradeRouteIncome,
   getEffectiveGoldPerTurn,
   getRouteCapacity,
-  getTradeUnitTripBonus,
+  getRouteThroughputBonus,
 } from '@/systems/trade-route-economy';
 import {
   removeRouteForUnit,
@@ -452,13 +452,13 @@ describe('trade-system', () => {
       expect(getRouteCapacity(state, 'city1')).toBe(2);
     });
 
-    it("getTradeUnitTripBonus: +2 from caravanserai at FROM; +2 from caravanserai at TO; Silk Road always 0", () => {
+    it("getRouteThroughputBonus: +2 from caravanserai at FROM; +2 from caravanserai at TO; Silk Road always 0", () => {
       const state = makeMinimalState();
-      expect(getTradeUnitTripBonus(state, 'city1', 'city2', 'player')).toBe(0); // no buildings
+      expect(getRouteThroughputBonus(state, 'city1', 'city2', 'player')).toBe(0); // no buildings
       state.cities['city1'].buildings = ['caravanserai'];
-      expect(getTradeUnitTripBonus(state, 'city1', 'city2', 'player')).toBe(2);
+      expect(getRouteThroughputBonus(state, 'city1', 'city2', 'player')).toBe(2);
       state.cities['city2'].buildings = ['caravanserai'];
-      expect(getTradeUnitTripBonus(state, 'city1', 'city2', 'player')).toBe(4);
+      expect(getRouteThroughputBonus(state, 'city1', 'city2', 'player')).toBe(4);
     });
 
     it("canEstablishRoute domestic: ok when capacity available", () => {
@@ -525,13 +525,15 @@ describe('trade-system', () => {
       expect(result.ok).toBe(false);
     });
 
-    it("establishRoute: sets committedToRouteId + tripsRemaining on unit", () => {
+    it("establishRoute: commits the unit to the route and starts its first leg", () => {
       const state = makeMinimalState();
       const bus = new EventBus();
       const newState = establishRoute(state, 'caravan1', 'city2', bus, 0);
       const unit = newState.units['caravan1'];
       expect(unit.committedToRouteId).toBeTruthy();
-      expect(unit.tripsRemaining).toBeGreaterThan(0);
+      // #1502 MR05: a route no longer carries a finite trip count — the trader repeats until the
+      // owner cancels it or it is destroyed — so the committed leg direction is what is asserted.
+      expect(['positioning', 'outbound']).toContain(unit.routeDirection);
     });
 
     it("establishRoute: pushes route to marketplace.tradeRoutes", () => {
@@ -704,27 +706,27 @@ describe('trade-system', () => {
       expect(newState.marketplace!.tradeRoutes).toHaveLength(1);
     });
 
-    it('getTradeUnitTripBonus: naval tier bonuses match TRADE_UNIT_TIER_BONUS and cap at +3', () => {
+    it('getRouteThroughputBonus: naval tier bonuses match TRADE_UNIT_TIER_BONUS and cap at +3', () => {
       const state = makeMinimalState();
-      expect(getTradeUnitTripBonus(state, 'city1', 'city2', 'player', 'naval_trader')).toBe(0);
-      expect(getTradeUnitTripBonus(state, 'city1', 'city2', 'player', 'steamship_trader')).toBe(1);
-      expect(getTradeUnitTripBonus(state, 'city1', 'city2', 'player', 'cargo_freighter')).toBe(2);
-      expect(getTradeUnitTripBonus(state, 'city1', 'city2', 'player', 'container_ship')).toBe(3);
+      expect(getRouteThroughputBonus(state, 'city1', 'city2', 'player', 'naval_trader')).toBe(0);
+      expect(getRouteThroughputBonus(state, 'city1', 'city2', 'player', 'steamship_trader')).toBe(1);
+      expect(getRouteThroughputBonus(state, 'city1', 'city2', 'player', 'cargo_freighter')).toBe(2);
+      expect(getRouteThroughputBonus(state, 'city1', 'city2', 'player', 'container_ship')).toBe(3);
     });
 
-    it('getTradeUnitTripBonus: caravan (no tier bonus) matches pre-rename getCaravanTripBonus values', () => {
+    it('getRouteThroughputBonus: caravan (no tier bonus) matches pre-rename getCaravanTripBonus values', () => {
       const state = makeMinimalState();
-      expect(getTradeUnitTripBonus(state, 'city1', 'city2', 'player', 'caravan')).toBe(0);
+      expect(getRouteThroughputBonus(state, 'city1', 'city2', 'player', 'caravan')).toBe(0);
       state.cities['city1'].buildings = ['caravanserai'];
-      expect(getTradeUnitTripBonus(state, 'city1', 'city2', 'player', 'caravan')).toBe(2);
+      expect(getRouteThroughputBonus(state, 'city1', 'city2', 'player', 'caravan')).toBe(2);
     });
 
-    it('getTradeUnitTripBonus: tier bonus stacks with caravanserai/Silk Road but total still respects the +3 tier cap', () => {
+    it('getRouteThroughputBonus: tier bonus stacks with caravanserai/Silk Road but total still respects the +3 tier cap', () => {
       const state = makeMinimalState();
       state.cities['city1'].buildings = ['caravanserai'];
       state.cities['city2'].buildings = ['caravanserai'];
       // +2 (from) + +2 (to) + +3 (container_ship tier, already capped at 3) = 7
-      expect(getTradeUnitTripBonus(state, 'city1', 'city2', 'player', 'container_ship')).toBe(7);
+      expect(getRouteThroughputBonus(state, 'city1', 'city2', 'player', 'container_ship')).toBe(7);
     });
 
     it.each([
@@ -773,19 +775,19 @@ describe('trade-system', () => {
   });
 
   describe('Trade Routes Overhaul (#553 MR2/4) — land trade line extension', () => {
-    it('getTradeUnitTripBonus: land tier bonuses match TRADE_UNIT_TIER_BONUS and cap at +3', () => {
+    it('getRouteThroughputBonus: land tier bonuses match TRADE_UNIT_TIER_BONUS and cap at +3', () => {
       const state = makeMinimalState();
-      expect(getTradeUnitTripBonus(state, 'city1', 'city2', 'player', 'caravan')).toBe(0);
-      expect(getTradeUnitTripBonus(state, 'city1', 'city2', 'player', 'merchant_wagon')).toBe(1);
-      expect(getTradeUnitTripBonus(state, 'city1', 'city2', 'player', 'freight_convoy')).toBe(2);
+      expect(getRouteThroughputBonus(state, 'city1', 'city2', 'player', 'caravan')).toBe(0);
+      expect(getRouteThroughputBonus(state, 'city1', 'city2', 'player', 'merchant_wagon')).toBe(1);
+      expect(getRouteThroughputBonus(state, 'city1', 'city2', 'player', 'freight_convoy')).toBe(2);
     });
 
-    it('getTradeUnitTripBonus: land tier bonus stacks with caravanserai but total still respects the +3 tier cap', () => {
+    it('getRouteThroughputBonus: land tier bonus stacks with caravanserai but total still respects the +3 tier cap', () => {
       const state = makeMinimalState();
       state.cities['city1'].buildings = ['caravanserai'];
       state.cities['city2'].buildings = ['caravanserai'];
       // +2 (from) + +2 (to) + +2 (freight_convoy tier) = 6
-      expect(getTradeUnitTripBonus(state, 'city1', 'city2', 'player', 'freight_convoy')).toBe(6);
+      expect(getRouteThroughputBonus(state, 'city1', 'city2', 'player', 'freight_convoy')).toBe(6);
     });
 
     it.each([
@@ -875,11 +877,11 @@ describe('trade-system', () => {
       expect(newState.marketplace!.tradeRoutes).toHaveLength(1);
     });
 
-    it('getTradeUnitTripBonus: air tier bonuses match TRADE_UNIT_TIER_BONUS and cap at +3', () => {
+    it('getRouteThroughputBonus: air tier bonuses match TRADE_UNIT_TIER_BONUS and cap at +3', () => {
       const state = makeMinimalState();
-      expect(getTradeUnitTripBonus(state, 'city1', 'city2', 'player', 'air_freighter')).toBe(0);
-      expect(getTradeUnitTripBonus(state, 'city1', 'city2', 'player', 'jet_freighter')).toBe(1);
-      expect(getTradeUnitTripBonus(state, 'city1', 'city2', 'player', 'global_air_cargo')).toBe(2);
+      expect(getRouteThroughputBonus(state, 'city1', 'city2', 'player', 'air_freighter')).toBe(0);
+      expect(getRouteThroughputBonus(state, 'city1', 'city2', 'player', 'jet_freighter')).toBe(1);
+      expect(getRouteThroughputBonus(state, 'city1', 'city2', 'player', 'global_air_cargo')).toBe(2);
     });
 
     it.each([
@@ -1238,13 +1240,11 @@ describe('trade-system', () => {
     function makeS6bState(overrides: {
       caravanPos?: { q: number; r: number };
       routeDirection?: 'outbound' | 'inbound';
-      tripsRemaining?: number;
       atWarWith?: string[];
       extraUnits?: Record<string, any>;
       mountainAt?: { q: number; r: number };
       extraRoutes?: any[];
       extraCaravans?: Record<string, any>;
-      caravanOwner?: string;
     } = {}): GameState {
       const base = makeMinimalState({
         caravanPos: overrides.caravanPos ?? { q: 0, r: 0 },
@@ -1262,11 +1262,12 @@ describe('trade-system', () => {
       const caravan: any = {
         ...base.units['caravan1'],
         id: 'caravan1',
-        owner: overrides.caravanOwner ?? 'player',
+        owner: 'player',
         committedToRouteId: 'route1',
         routeDirection: overrides.routeDirection,
-        tripsRemaining: overrides.tripsRemaining ?? 3,
-        movementPointsLeft: 0,
+        // #1502 MR05: automated travel spends the trader's real per-round allowance, which the
+        // per-owner-turn reset restores; a fixture must grant it exactly as the reset would.
+        movementPointsLeft: 3,
         hasActed: true,
       };
 
@@ -1276,15 +1277,6 @@ describe('trade-system', () => {
       }
 
       const tradeRoutes = [route, ...(overrides.extraRoutes ?? [])];
-
-      let civilizations = base.civilizations;
-      if (overrides.caravanOwner === 'enemy') {
-        civilizations = {
-          ...base.civilizations,
-          enemy: { ...base.civilizations['enemy'], units: ['caravan1'] },
-          player: { ...base.civilizations['player'], units: [] },
-        };
-      }
 
       let tiles = base.map.tiles;
       if (overrides.mountainAt) {
@@ -1297,14 +1289,13 @@ describe('trade-system', () => {
 
       return {
         ...base,
-        civilizations,
         units,
         map: { ...base.map, tiles },
         marketplace: { ...base.marketplace, tradeRoutes },
       } as any;
     }
 
-    it('advances caravan one step per turn toward toCityId', () => {
+    it('advances the caravan along its route each turn, spending its real movement allowance', () => {
       const state = makeS6bState({ caravanPos: { q: 0, r: 0 } });
       const result = advanceRouteRunners(state);
       const caravan = result.units['caravan1']!;
@@ -1315,19 +1306,16 @@ describe('trade-system', () => {
       const state = makeS6bState({
         caravanPos: { q: 2, r: 0 },
         routeDirection: 'outbound',
-        tripsRemaining: 3,
       });
       const result = advanceRouteRunners(state);
       const caravan = result.units['caravan1']!;
       expect(caravan.routeDirection).toBe('inbound');
-      expect(caravan.tripsRemaining).toBe(3);
     });
 
     it('emits trade:route-delivered when a route runner arrives at toCityId', () => {
       const state = makeS6bState({
         caravanPos: { q: 2, r: 0 },
         routeDirection: 'outbound',
-        tripsRemaining: 3,
       });
       const bus = { emit: vi.fn(), on: vi.fn(), off: vi.fn() } as any;
       advanceRouteRunners(state, bus);
@@ -1343,7 +1331,6 @@ describe('trade-system', () => {
       const state = makeS6bState({
         caravanPos: { q: 0, r: 0 },
         routeDirection: 'inbound',
-        tripsRemaining: 3,
       });
       const bus = { emit: vi.fn(), on: vi.fn(), off: vi.fn() } as any;
       advanceRouteRunners(state, bus);
@@ -1351,36 +1338,22 @@ describe('trade-system', () => {
       expect(bus.emit).not.toHaveBeenCalledWith('trade:route-delivered', expect.anything());
     });
 
-    it('flips routeDirection to outbound and decrements tripsRemaining on arrival at fromCityId', () => {
+    it('keeps the trader and the route when a round trip completes, and sends it out again', () => {
       const state = makeS6bState({
         caravanPos: { q: 0, r: 0 },
         routeDirection: 'inbound',
-        tripsRemaining: 3,
-      });
-      const result = advanceRouteRunners(state);
-      const caravan = result.units['caravan1']!;
-      expect(caravan.routeDirection).toBe('outbound');
-      expect(caravan.tripsRemaining).toBe(2);
-    });
-
-    it('removes caravan and route with trips-exhausted when tripsRemaining reaches 0', () => {
-      const state = makeS6bState({
-        caravanPos: { q: 0, r: 0 },
-        routeDirection: 'inbound',
-        tripsRemaining: 1,
       });
       const bus = { emit: vi.fn(), on: vi.fn(), off: vi.fn() } as any;
       const result = advanceRouteRunners(state, bus);
 
-      expect(result.units['caravan1']).toBeUndefined();
-      expect(result.marketplace!.tradeRoutes).toHaveLength(0);
-      expect(bus.emit).toHaveBeenCalledWith('trade:route-ended', expect.objectContaining({
-        routeId: 'route1',
-        reason: 'trips-exhausted',
-      }));
+      // #1502 MR05: ordinary routes run indefinitely — the trader repeats instead of retiring.
+      expect(result.units['caravan1']).toBeDefined();
+      expect(result.marketplace!.tradeRoutes).toHaveLength(1);
+      expect(result.units['caravan1']!.routeDirection).toBe('outbound');
+      expect(bus.emit).not.toHaveBeenCalledWith('trade:route-ended', expect.anything());
     });
 
-    it('blocks caravan movement and emits warning when at-war unit occupies path[1]', () => {
+    it('blocks caravan movement and emits warning when a foreign unit occupies path[1]', () => {
       const enemyUnit = {
         id: 'enemy-warrior',
         type: 'warrior',
@@ -1401,7 +1374,10 @@ describe('trade-system', () => {
       expect(bus.emit).toHaveBeenCalledWith('notification:show', expect.objectContaining({ type: 'warning' }));
     });
 
-    it('does NOT block caravan when non-war unit occupies path[1]', () => {
+    it('also holds at a non-war foreign unit: automated travel obeys the canonical occupancy rule', () => {
+      // #1502 MR05: the runner executes through the canonical movement executor, so a trader may no
+      // more enter a tile held by a foreign unit than any other unit may (previously the trader had
+      // its own, weaker at-war-only check). Routing around it is the bounded-detour work of MR05b.
       const neutralUnit = {
         id: 'neutral-warrior',
         type: 'warrior',
@@ -1418,8 +1394,8 @@ describe('trade-system', () => {
       const bus = { emit: vi.fn(), on: vi.fn(), off: vi.fn() } as any;
       const result = advanceRouteRunners(state, bus);
 
-      expect(result.units['caravan1']!.position.q).toBeGreaterThan(0);
-      expect(bus.emit).not.toHaveBeenCalledWith('notification:show', expect.anything());
+      expect(result.units['caravan1']!.position).toEqual({ q: 0, r: 0 });
+      expect(result.marketplace!.tradeRoutes).toHaveLength(1);
     });
 
     it('navigates around an impassable mountain tile', () => {
@@ -1440,8 +1416,7 @@ describe('trade-system', () => {
         position: { q: 0, r: 0 },
         committedToRouteId: 'route2',
         routeDirection: undefined,
-        tripsRemaining: 3,
-        health: 100, movementPointsLeft: 0, hasActed: true, hasMoved: false, skippedTurn: false, isResting: false,
+        health: 100, movementPointsLeft: 3, hasActed: true, hasMoved: false, skippedTurn: false, isResting: false,
       };
       const state = makeS6bState({
         caravanPos: { q: 0, r: 0 },
@@ -1454,11 +1429,26 @@ describe('trade-system', () => {
       expect(result.units['caravan2']!.position.q).toBeGreaterThan(0);
     });
 
-    it('advances AI-owned caravan identically to player-owned caravan (actor-complete)', () => {
-      const state = makeS6bState({
-        caravanPos: { q: 0, r: 0 },
-        caravanOwner: 'enemy',
-      });
+    it('advances an AI-owned caravan on its own route identically to a player-owned one (actor-complete)', () => {
+      const base = makeS6bState({ caravanPos: { q: 0, r: 0 } });
+      // The trader's owner must hold both endpoints: a foreign corridor needs commercial passage,
+      // which the later permission slice owns — the movement executor enforces territorial access
+      // exactly as it does for every other unit (#1502).
+      const state = {
+        ...base,
+        cities: {
+          ...base.cities,
+          city1: { ...base.cities['city1'], owner: 'enemy' },
+          city2: { ...base.cities['city2'], owner: 'enemy' },
+        },
+        civilizations: {
+          ...base.civilizations,
+          player: { ...base.civilizations['player'], cities: [], units: [] },
+          enemy: { ...base.civilizations['enemy'], cities: ['city1', 'city2'], units: ['caravan1'] },
+        },
+        units: { ...base.units, caravan1: { ...base.units['caravan1'], owner: 'enemy' } },
+      } as GameState;
+
       const result = advanceRouteRunners(state);
       expect(result.units['caravan1']!.position.q).toBeGreaterThan(0);
     });
