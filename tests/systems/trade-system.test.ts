@@ -1353,7 +1353,7 @@ describe('trade-system', () => {
       expect(bus.emit).not.toHaveBeenCalledWith('trade:route-ended', expect.anything());
     });
 
-    it('blocks caravan movement and emits warning when a foreign unit occupies path[1]', () => {
+    it('routes around a foreign unit rather than entering its tile', () => {
       const enemyUnit = {
         id: 'enemy-warrior',
         type: 'warrior',
@@ -1370,14 +1370,16 @@ describe('trade-system', () => {
       const bus = { emit: vi.fn(), on: vi.fn(), off: vi.fn() } as any;
       const result = advanceRouteRunners(state, bus);
 
-      expect(result.units['caravan1']!.position).toEqual({ q: 0, r: 0 });
-      expect(bus.emit).toHaveBeenCalledWith('notification:show', expect.objectContaining({ type: 'warning' }));
+      // #1502 MR05b: the obstruction may be routed around (within the leg's allowance), but the
+      // occupied tile itself is never entered — that is the canonical occupancy rule.
+      expect(result.units['caravan1']!.position).not.toEqual({ q: 1, r: 0 });
+      expect(result.marketplace!.tradeRoutes[0]!.detourRoundsUsed).toBe(1);
     });
 
-    it('also holds at a non-war foreign unit: automated travel obeys the canonical occupancy rule', () => {
+    it('also routes around a non-war foreign unit: automated travel obeys the canonical occupancy rule', () => {
       // #1502 MR05: the runner executes through the canonical movement executor, so a trader may no
       // more enter a tile held by a foreign unit than any other unit may (previously the trader had
-      // its own, weaker at-war-only check). Routing around it is the bounded-detour work of MR05b.
+      // its own, weaker at-war-only check).
       const neutralUnit = {
         id: 'neutral-warrior',
         type: 'warrior',
@@ -1394,7 +1396,7 @@ describe('trade-system', () => {
       const bus = { emit: vi.fn(), on: vi.fn(), off: vi.fn() } as any;
       const result = advanceRouteRunners(state, bus);
 
-      expect(result.units['caravan1']!.position).toEqual({ q: 0, r: 0 });
+      expect(result.units['caravan1']!.position).not.toEqual({ q: 1, r: 0 });
       expect(result.marketplace!.tradeRoutes).toHaveLength(1);
     });
 

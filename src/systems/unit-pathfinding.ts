@@ -185,7 +185,7 @@ export function findPathToCity(
   cityPosition: HexCoord,
   map: GameMap,
   domain: 'land' | 'naval' | 'air' = 'land',
-  options: UnitMovementContext & { unit?: Unit; unitType?: UnitType; deniedOwnerIds?: ReadonlySet<string> } = {},
+  options: UnitMovementContext & { unit?: Unit; unitType?: UnitType; deniedOwnerIds?: ReadonlySet<string>; blockedHexKeys?: ReadonlySet<string> } = {},
 ): HexCoord[] | null {
   const direct = findPath(from, cityPosition, map, domain, options);
   if (direct) return direct;

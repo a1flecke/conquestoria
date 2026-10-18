@@ -77,7 +77,7 @@ export interface TradeRouteQuote {
   modifiers: TradeRouteQuoteModifier[];
 }
 
-export type TradeRouteNonOperatingReason = 'positioning' | 'no-trader' | 'blocked' | 'service-complete' | 'paused' | 'cancelled';
+export type TradeRouteNonOperatingReason = 'positioning' | 'no-trader' | 'blocked' | 'service-complete' | 'paused' | 'cancelled' | 'endpoint-lost';
 
 export interface TradeRouteOperatingStatus {
   routeId: string;
@@ -189,6 +189,9 @@ export function getRouteOperatingStatus(state: GameState, routeId: string): Trad
   // cancelled route is returning home and has stopped serving, so it earns nothing either.
   if (route.paused) return notOperating('paused');
   if (route.cancelPending) return notOperating('cancelled');
+  // #1502 MR05b: the destination is gone or is no longer the agreed partner; the trader is
+  // returning home to end the route, and the return earns nothing.
+  if (route.endpointLost) return notOperating('endpoint-lost');
   // A route that has never been settled (#1501-aware) behaves as it always did: the display path
   // keeps counting it, and only a route MR04 has actually settled must have a live trader.
   const settlementAware = route.lastSettledTurn !== undefined

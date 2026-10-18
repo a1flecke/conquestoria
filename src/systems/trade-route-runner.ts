@@ -2,9 +2,16 @@
 // #1502 MR05: what a committed trader does in one round, and what happens when it finishes a leg.
 //
 // Travel *timing* lives in `trade-route-travel.ts` (shared with the quote, so ETA and execution
-// cannot drift). This module owns the round decision (walk, hold, or complete the leg) and the leg
-// transitions: arrival at the destination turns the trader around, and arrival home either ends a
-// cancelled route — releasing its slot — or refreshes the terms for the next departure.
+// cannot drift). This module owns the round decision (walk, detour, hold, or complete the leg) and
+// the leg transitions: arrival at the destination turns the trader around, and arrival home either
+// ends a route that is returning — releasing its slot — or refreshes the terms for the next
+// departure.
+//
+// MR05b adds the two recovery paths: a lost endpoint (the destination is razed, or captured by
+// somebody other than the agreed partner) sends the trader home to end its route, and a lost origin
+// sends it to the nearest *known* home city of its own civilization — physically, never teleported.
+// An obstruction on the committed path may be routed around, but only within a bounded extra-delay
+// allowance; otherwise the trader waits with a visible reason.
 //
 // It deliberately does not execute movement: the public entry (`advanceRouteRunners` in
 // `unit-movement-system.ts`) runs the canonical `executeUnitMove`, so a route step obeys the same
@@ -14,66 +21,140 @@ import type { EventBus } from '@/core/event-bus';
 import type { TradeRouteNonOperatingReason } from './trade-route-economy';
 import { getTradeRouteQuote } from './trade-route-economy';
 import { removeRouteById } from './trade-route-lifecycle';
-import { getRouteLegPath, getRouteStepCosts } from './trade-route-travel';
-
-/** The city the trader's current leg walks to. */
-export function getRouteLegTargetCityId(route: TradeRoute, caravan: Unit): string {
-  // Positioning and the inbound (or cancelled) return both head for home; only outbound commerce
-  // heads for the destination.
-  return (caravan.routeDirection ?? 'outbound') === 'outbound' ? route.toCityId : route.fromCityId;
-}
-
-export type RouteRunnerRound =
-  | { kind: 'hold'; reason: TradeRouteNonOperatingReason; legTargetCityId: string | null }
-  | { kind: 'advance'; target: HexCoord; legTargetCityId: string; completesLeg: boolean };
+import {
+  MAX_ROUTE_DETOUR_ROUNDS,
+  getForeignOccupiedHexKeys,
+  getRouteLegPath,
+  getRouteLegRounds,
+} from './trade-route-travel';
+import { hexKey } from './hex-utils';
 
 /** The trader committed to this route, if it still exists. */
 export function getRouteRunner(state: GameState, routeId: string): Unit | null {
   return Object.values(state.units).find(unit => unit.committedToRouteId === routeId) ?? null;
 }
 
+/** A city of the trader's own civilization that may serve as its home. */
+function isOwnHome(state: GameState, caravan: Unit, cityId: string): boolean {
+  const city = state.cities[cityId];
+  return Boolean(city) && city.owner === caravan.owner;
+}
+
+/** The destination is still the city this route agreed to serve, under the agreed owner. */
+function isLegitimateDestination(state: GameState, route: TradeRoute, caravan: Unit): boolean {
+  const city = state.cities[route.toCityId];
+  if (!city) return false;
+  return route.foreignCivId ? city.owner === route.foreignCivId : city.owner === caravan.owner;
+}
+
+/**
+ * The nearest *reachable* home city of the trader's own civilization other than its lost origin —
+ * the alternative a stranded trader may recover to. Deterministic: fewest rounds, then city id.
+ */
+export function chooseAlternativeHome(state: GameState, route: TradeRoute, caravan: Unit): string | null {
+  const owned = state.civilizations[caravan.owner]?.cities ?? [];
+  let best: { cityId: string; rounds: number } | null = null;
+  for (const cityId of owned) {
+    if (cityId === route.fromCityId) continue;
+    if (!isOwnHome(state, caravan, cityId)) continue;
+    const rounds = getRouteLegRounds(state, caravan, cityId);
+    if (rounds === null) continue;
+    if (!best || rounds < best.rounds || (rounds === best.rounds && cityId < best.cityId)) {
+      best = { cityId, rounds };
+    }
+  }
+  return best?.cityId ?? null;
+}
+
+export interface RouteRunnerPlan {
+  /** The route with every fact this round discovered applied (endpoint loss, detour accounting). */
+  route: TradeRoute;
+  action: 'hold' | 'advance';
+  reason?: TradeRouteNonOperatingReason;
+  /** The city this leg walks to; null when no legitimate target remains. */
+  legTargetCityId: string | null;
+  /** Where the trader can get to this round. */
+  target?: HexCoord;
+  /** True when that step completes the leg. */
+  completesLeg?: boolean;
+  /** True when this step had to route around an obstruction (charged once per round by the entry). */
+  detoured?: boolean;
+}
+
+function plan(
+  route: TradeRoute,
+  action: 'hold' | 'advance',
+  legTargetCityId: string | null,
+  extra: Partial<RouteRunnerPlan> = {},
+): RouteRunnerPlan {
+  return { route, action, legTargetCityId, ...extra };
+}
+
 /**
  * What this route's trader can do this round: walk to `target` (spending its real allowance along
- * the canonical path), or hold — because the route is paused, the trader is gone, or no legal path
- * remains. Holding is never "income with no movement": the settlement reads the same hold reasons.
+ * the canonical path, detouring around an obstruction within the leg's allowance), or hold —
+ * because the route is paused, the trader is gone, or no permitted path remains.
  */
-export function planRouteRunnerRound(state: GameState, route: TradeRoute): RouteRunnerRound {
+export function planRouteRunnerRound(state: GameState, route: TradeRoute): RouteRunnerPlan {
   const caravan = getRouteRunner(state, route.id);
-  if (!caravan) return { kind: 'hold', reason: 'no-trader', legTargetCityId: null };
-  if (route.paused) return { kind: 'hold', reason: 'paused', legTargetCityId: null };
+  if (!caravan) return plan(route, 'hold', null, { reason: 'no-trader' });
+  if (route.paused) return plan(route, 'hold', null, { reason: 'paused' });
 
-  const legTargetCityId = getRouteLegTargetCityId(route, caravan);
-  const targetCity = state.cities[legTargetCityId];
-  if (!targetCity) return { kind: 'hold', reason: 'blocked', legTargetCityId };
+  const direction = caravan.routeDirection ?? 'outbound';
+  const endpointLost = Boolean(route.endpointLost)
+    || (direction === 'outbound' && !route.cancelPending && !isLegitimateDestination(state, route, caravan));
+
+  // Resolve the leg's target: commerce heads for the destination, every return heads home.
+  const originIsHome = isOwnHome(state, caravan, route.fromCityId);
+  const homeCityId = route.returnHomeCityId ?? (originIsHome ? route.fromCityId : chooseAlternativeHome(state, route, caravan));
+  const returning = Boolean(route.cancelPending || endpointLost) && direction !== 'positioning';
+  const legTargetCityId = returning || direction !== 'outbound' ? homeCityId : route.toCityId;
+
+  const discovered: TradeRoute = {
+    ...route,
+    ...(endpointLost && !route.endpointLost ? { endpointLost: true } : {}),
+    ...(homeCityId && homeCityId !== route.fromCityId && homeCityId !== route.returnHomeCityId
+      ? { returnHomeCityId: homeCityId }
+      : {}),
+    legStartedTurn: route.legStartedTurn ?? state.turn,
+  };
+
+  if (!legTargetCityId) return plan(discovered, 'hold', null, { reason: 'blocked' });
+  const target = state.cities[legTargetCityId];
+  if (!target) return plan(discovered, 'hold', legTargetCityId, { reason: 'blocked' });
 
   const path = getRouteLegPath(state, caravan, legTargetCityId);
-  if (!path || path.length === 0) return { kind: 'hold', reason: 'blocked', legTargetCityId };
+  if (!path || path.length === 0) return plan(discovered, 'hold', legTargetCityId, { reason: 'blocked' });
   // Already standing on the leg target: endpoint service, no walk needed.
   if (path.length === 1) {
-    return { kind: 'advance', target: { ...caravan.position }, legTargetCityId, completesLeg: true };
+    return plan(discovered, 'advance', legTargetCityId, { target: { ...caravan.position }, completesLeg: true });
+  }
+
+  // A foreign unit on the committed next step may be routed around — within the leg's allowance.
+  const foreign = getForeignOccupiedHexKeys(state, caravan);
+  let walkPath = path;
+  let detoured = false;
+  if (foreign.has(hexKey(path[1]!))) {
+    const detourRoundsUsed = route.detourRoundsUsed ?? 0;
+    const avoided = detourRoundsUsed < MAX_ROUTE_DETOUR_ROUNDS
+      ? getRouteLegPath(state, caravan, legTargetCityId, { blockedHexKeys: foreign })
+      : null;
+    if (!avoided || avoided.length === 0) return plan(discovered, 'hold', legTargetCityId, { reason: 'blocked' });
+    walkPath = avoided;
+    detoured = true;
   }
 
   const allowance = caravan.movementPointsLeft;
-  if (allowance < 1) return { kind: 'hold', reason: 'blocked', legTargetCityId };
+  if (allowance < 1) return plan(discovered, 'hold', legTargetCityId, { reason: 'blocked' });
 
-  const costs = getRouteStepCosts(state, caravan, path);
-  let spent = 0;
-  let lastReachable = 0;
-  for (let i = 0; i < costs.length; i++) {
-    if (spent + costs[i]! > allowance) break;
-    spent += costs[i]!;
-    lastReachable = i + 1;
-  }
-  // The canonical forced march: one adjacent step may be completed with any movement left.
-  if (lastReachable === 0 && costs.length === 1) lastReachable = 1;
-  if (lastReachable === 0) return { kind: 'hold', reason: 'blocked', legTargetCityId };
-
-  return {
-    kind: 'advance',
-    target: { ...path[lastReachable]! },
-    legTargetCityId,
-    completesLeg: lastReachable === path.length - 1,
-  };
+  // One validated step at a time: the entry hands the executor exactly the tile this runner chose,
+  // so the executor's own (unit-blind) pathfinding cannot pick a cheaper route straight through
+  // the obstruction the detour exists to avoid.
+  return plan(discovered, 'advance', legTargetCityId, {
+    target: { ...walkPath[1]! },
+    completesLeg: walkPath.length === 2,
+    detoured,
+  });
 }
 
 function withUnit(state: GameState, unitId: string, patch: Partial<Unit>): GameState {
@@ -85,9 +166,10 @@ function withUnit(state: GameState, unitId: string, patch: Partial<Unit>): GameS
 /**
  * The trader has reached the end of its current leg.
  *
- * Outbound arrival turns it around. Arrival home either ends a cancelled route — which is where a
- * cancellation's slot is finally released, never before — or refreshes the route's terms for the
- * next departure so a returning trader departs on today's prices, path and modifiers.
+ * Outbound arrival turns it around. Arrival home either ends a returning route — a cancellation, a
+ * lost endpoint, or a stranded trader that recovered to an alternative home, which is where the
+ * slot is finally released — or refreshes the route's terms for the next departure, resetting the
+ * leg's detour accounting.
  */
 export function completeRouteLeg(state: GameState, routeId: string, caravanId: string, bus?: EventBus): GameState {
   const route = state.marketplace?.tradeRoutes.find(candidate => candidate.id === routeId);
@@ -99,9 +181,9 @@ export function completeRouteLeg(state: GameState, routeId: string, caravanId: s
     return withUnit(state, caravanId, { routeDirection: 'inbound' });
   }
 
-  if (route.cancelPending) {
+  if (route.cancelPending || route.endpointLost || route.returnHomeCityId) {
     // The return is complete: the route ends and its slot is released by the canonical removal.
-    return removeRouteById(state, routeId, bus, 'cancelled');
+    return removeRouteById(state, routeId, bus, route.endpointLost ? 'endpoint-lost' : 'cancelled');
   }
 
   if (caravan.routeDirection === 'positioning') {
@@ -115,8 +197,21 @@ export function completeRouteLeg(state: GameState, routeId: string, caravanId: s
     toCityId: route.toCityId,
   });
   const refreshed: TradeRoute = quote
-    ? { ...route, goldPerTrip: quote.goldPerTrip, turnsPerTrip: quote.turnsPerTrip, serviceRoundsRemaining: quote.roundTripRounds }
-    : route;
-  const nextState = { ...state, marketplace: { ...state.marketplace!, tradeRoutes: state.marketplace!.tradeRoutes.map(candidate => candidate.id === routeId ? refreshed : candidate) } };
+    ? {
+        ...route,
+        goldPerTrip: quote.goldPerTrip,
+        turnsPerTrip: quote.turnsPerTrip,
+        serviceRoundsRemaining: quote.roundTripRounds,
+        legStartedTurn: state.turn,
+        detourRoundsUsed: 0,
+      }
+    : { ...route, legStartedTurn: state.turn, detourRoundsUsed: 0 };
+  const nextState = {
+    ...state,
+    marketplace: {
+      ...state.marketplace!,
+      tradeRoutes: state.marketplace!.tradeRoutes.map(candidate => candidate.id === routeId ? refreshed : candidate),
+    },
+  };
   return withUnit(nextState, caravanId, { routeDirection: 'outbound' });
 }

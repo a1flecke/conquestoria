@@ -288,53 +288,81 @@ export function advanceRouteRunners(state: GameState, bus?: EventBus): GameState
     };
   };
 
-  for (const route of state.marketplace.tradeRoutes) {
-    const caravan = getRouteRunner(newState, route.id);
-    if (!caravan) continue;
+  /** Write back the facts this round discovered (endpoint loss, detour accounting, leg start). */
+  const setRoute = (s: GameState, updated: typeof state.marketplace.tradeRoutes[number]): GameState => {
+    if (!s.marketplace) return s;
+    return {
+      ...s,
+      marketplace: {
+        ...s.marketplace,
+        tradeRoutes: s.marketplace.tradeRoutes.map(route => route.id === updated.id ? updated : route),
+      },
+    };
+  };
 
-    const plan = planRouteRunnerRound(newState, route);
-    if (plan.kind === 'hold') {
-      if (plan.reason === 'blocked' && plan.legTargetCityId) {
-        const target = newState.cities[plan.legTargetCityId];
-        bus?.emit('notification:show', {
-          message: `Trade route to ${target?.name ?? plan.legTargetCityId} is blocked.`,
-          type: 'warning',
-        });
+  for (const routeId of state.marketplace.tradeRoutes.map(candidate => candidate.id)) {
+    // Walk as far as this round's allowance allows, one validated step at a time. Re-planning per
+    // step is what lets the runner hand the executor the exact tile it chose to walk to.
+    let detourChargedThisRound = false;
+    for (let step = 0; step < 8; step++) {
+      const route = newState.marketplace?.tradeRoutes.find(candidate => candidate.id === routeId);
+      if (!route) break;
+      const caravan = getRouteRunner(newState, route.id);
+      if (!caravan) break;
+
+      const plan = planRouteRunnerRound(newState, route);
+      // A detour is charged once per round, however many steps of it the trader walks.
+      const plannedRoute = plan.detoured && !detourChargedThisRound
+        ? { ...plan.route, detourRoundsUsed: (route.detourRoundsUsed ?? 0) + 1 }
+        : plan.route;
+      if (plan.detoured) detourChargedThisRound = true;
+      newState = setRoute(newState, plannedRoute);
+
+      if (plan.action === 'hold') {
+        if (plan.reason === 'blocked' && plan.legTargetCityId) {
+          const target = newState.cities[plan.legTargetCityId];
+          bus?.emit('notification:show', {
+            message: `Trade route to ${target?.name ?? plan.legTargetCityId} is blocked.`,
+            type: 'warning',
+          });
+        }
+        break;
       }
-      continue;
-    }
 
-    const legTarget = newState.cities[plan.legTargetCityId];
-    if (!legTarget) continue;
-    const atLegTarget = caravan.position.q === legTarget.position.q && caravan.position.r === legTarget.position.r;
+      const legTarget = plan.legTargetCityId ? newState.cities[plan.legTargetCityId] : undefined;
+      if (!legTarget || !plan.target) break;
+      const atLegTarget = caravan.position.q === legTarget.position.q && caravan.position.r === legTarget.position.r;
 
-    // Already standing on the leg target: endpoint service with no walk needed.
-    if (atLegTarget) {
-      newState = markProgress(completeRouteLeg(newState, route.id, caravan.id, bus), route.id);
-      continue;
-    }
-
-    const move = executeUnitMove(newState, caravan.id, plan.target, {
-      actor: 'automation',
-      civId: caravan.owner,
-      bus,
-    });
-    if (!move.ok) {
-      // #1502 MR05: the canonical executor is the authority on whether a step is legal. A foreign
-      // unit in the way is reported as blocked, exactly as the previous trader-specific check did.
-      if (move.reason === 'occupied') {
-        const toCity = newState.cities[route.toCityId];
-        bus?.emit('notification:show', {
-          message: `Trade route to ${toCity?.name ?? route.toCityId} is blocked by enemy forces.`,
-          type: 'warning',
-        });
+      // Already standing on the leg target: endpoint service with no walk needed.
+      if (atLegTarget) {
+        newState = markProgress(completeRouteLeg(newState, route.id, caravan.id, bus), route.id);
+        break;
       }
-      continue;
-    }
-    newState = markProgress(move.state, route.id);
 
-    if (move.to.q === legTarget.position.q && move.to.r === legTarget.position.r) {
-      newState = completeRouteLeg(newState, route.id, caravan.id, bus);
+      const move = executeUnitMove(newState, caravan.id, plan.target, {
+        actor: 'automation',
+        civId: caravan.owner,
+        bus,
+      });
+      if (!move.ok) {
+        // #1502 MR05: the canonical executor is the authority on whether a step is legal. A foreign
+        // unit in the way is reported as blocked, exactly as the previous trader-specific check did.
+        if (move.reason === 'occupied') {
+          const toCity = newState.cities[route.toCityId];
+          bus?.emit('notification:show', {
+            message: `Trade route to ${toCity?.name ?? route.toCityId} is blocked by enemy forces.`,
+            type: 'warning',
+          });
+        }
+        break;
+      }
+      newState = markProgress(move.state, route.id);
+
+      if (move.to.q === legTarget.position.q && move.to.r === legTarget.position.r) {
+        newState = completeRouteLeg(newState, route.id, caravan.id, bus);
+        break;
+      }
+      if ((newState.units[caravan.id]?.movementPointsLeft ?? 0) < 1) break;
     }
   }
 
