@@ -185,7 +185,7 @@ export const WONDER_CODEX_VIDEO_SOURCES = [
     license: 'CC BY-SA 3.0',
     attribution: 'Z22 - CC BY-SA 3.0',
     localPath: '/videos/wonders/bioluminescent-bay-vieques-kayak.mp4',
-    fallbackImageSourceId: 'image-coral',
+    fallbackImageSourceId: 'image-bioluminescent-bay',
     durationSeconds: 4,
     sizeBytes: 405580,
     format: 'MP4/H.264 derivative from WebM source using OpenH264',

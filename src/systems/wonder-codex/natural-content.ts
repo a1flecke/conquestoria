@@ -202,7 +202,7 @@ export const NATURAL_WONDER_CODEX_CONTENT = [
     'awe',
     ['coast', 'sea', 'light', 'gold', 'science'],
     ['noaa-bioluminescence'],
-    'image-coral',
+    'image-bioluminescent-bay',
     ['sea', 'light', 'science'],
     'Living Light',
     'The bay shows that tiny organisms can transform a whole night landscape.',
