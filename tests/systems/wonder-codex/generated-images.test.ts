@@ -111,6 +111,17 @@ describe('generated Legendary Codex illustrations (#609)', () => {
     expect(getImageSource('image-drydock')).toBeUndefined();
   });
 
+  it('no two wonder cards share one image, generated or not (#609 final sweep)', () => {
+    const owners = new Map<string, string[]>();
+    for (const entry of getAllWonderCodexContent()) {
+      const list = owners.get(entry.imageSourceId) ?? [];
+      list.push(entry.id);
+      owners.set(entry.imageSourceId, list);
+    }
+    const shared = [...owners.entries()].filter(([, wonders]) => wonders.length > 1);
+    expect(shared, 'an image shown by more than one wonder card').toEqual([]);
+  });
+
   it('never shows the same generated illustration for two different wonders', () => {
     const seen = new Map<string, string>();
     for (const record of records) {
