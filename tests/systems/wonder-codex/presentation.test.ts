@@ -105,7 +105,7 @@ describe('wonder-codex presentation', () => {
       audio: 'silent',
     });
     expect(model.selectedPage?.videoPreview?.src).toBe('/videos/wonders/bioluminescent-bay-vieques-kayak.mp4');
-    expect(model.selectedPage?.videoPreview?.fallbackImage.src).toBe('/images/wonders/codex/coral.jpg');
+    expect(model.selectedPage?.videoPreview?.fallbackImage.src).toBe('/images/wonders/codex/bioluminescent-bay.jpg');
   });
 
   it('shows Stage 3B legendary videos on safe owned completed Codex pages', () => {
