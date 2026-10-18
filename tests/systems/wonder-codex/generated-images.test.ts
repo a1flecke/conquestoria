@@ -105,6 +105,12 @@ describe('generated Legendary Codex illustrations (#609)', () => {
     expect(showing).toEqual(['sunken_ruins']);
   });
 
+  it('the drydock photograph is gone: no wonder card shows it and it is no longer a registered source (#609 group 6: drydock)', () => {
+    const showing = getAllWonderCodexContent().filter(entry => entry.imageSourceId === 'image-drydock').map(entry => entry.id);
+    expect(showing).toEqual([]);
+    expect(getImageSource('image-drydock')).toBeUndefined();
+  });
+
   it('never shows the same generated illustration for two different wonders', () => {
     const seen = new Map<string, string>();
     for (const record of records) {
