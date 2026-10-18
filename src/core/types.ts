@@ -1856,6 +1856,12 @@ export interface TradeRoute {
   goldPerTrip: number;     // replaces goldPerTurn; S5 amortises to effective per-turn
   turnsPerTrip: number;    // ceil(hexDistance(from, to) / 3); stored for display + income math
   foreignCivId?: string;
+  /** #1501 MR04: payable service rounds left in the current round trip. Absent on older saves. */
+  serviceRoundsRemaining?: number;
+  /** #1501 MR04: the turn this route's trader last made validated progress or completed endpoint service. */
+  lastProgressTurn?: number;
+  /** #1501 MR04: the turn this route was last settled in — the stable settlement identity. */
+  lastSettledTurn?: number;
 }
 
 export interface PurchasedResourceEntry {
