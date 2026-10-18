@@ -1,15 +1,11 @@
 import type { GameState, ResourceType } from '@/core/types';
 import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
-import { getCivAvailableResources, canBuyResourceAccess, getResourceAccessCost } from '@/systems/resource-acquisition-system';
-import { isAtWar } from '@/systems/diplomacy-queries';
-import { resolveCivDefinition } from '@/systems/civ-registry';
-import { createGameButton } from './ui-kit';
+import { getCivAvailableResources, getInstantResourcePurchaseNotice } from '@/systems/resource-acquisition-system';
 import { buildPlayerRouteListSection } from './trade-route-presentation';
 
 interface MarketplaceCallbacks {
   onClose: () => void;
   onSelectUnit?: (unitId: string) => void;
-  onBuyResourceAccess?: (sellerCivId: string, resource: ResourceType) => void;
 }
 
 export function createMarketplacePanel(
@@ -57,34 +53,26 @@ export function createMarketplacePanel(
     </div>
   `;
 
-  // Fashion banner — only show if the fashionable resource's tech is known to the viewer
-  const fashionableDef = RESOURCE_DEFINITIONS.find(d => d.id === marketplace.fashionable);
-  const fashionVisible = !!fashionableDef && viewerTechs.has(fashionableDef.tech);
-  const fashionBannerHtml = fashionVisible
-    ? `<div style="background:#4a3520;border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:12px;color:#e8c170;">✨ <span data-text="fashion-resource"></span> is fashionable! (<span data-text="fashion-turns"></span> turns left) — prices doubled</div>`
+  // Instant imports are withheld while the market is rebuilt (#1498): the notice is the panel's
+  // headline and is shown to every viewer regardless of sellers, tech, or trade routes. No global
+  // price or fashion advertising is rendered any more.
+  const importsNotice = getInstantResourcePurchaseNotice();
+  const noticeBoxHtml = importsNotice
+    ? `<div data-section="resource-imports-rebuilding" style="background:#4a3520;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:13px;color:#e8c170;"><span data-text="imports-rebuilding"></span></div>`
     : '';
 
   // Build resource row placeholders — knownDefs only (tech-gated).
   // NOTE: Both this builder and the setText loop below are index-coupled on knownDefs;
   // they must iterate the same array in the same order. Tests catch any desync.
   const resourceRowsHtml = knownDefs.map((def, idx) => {
-    const history = marketplace.priceHistory[def.id] ?? [def.basePrice];
-    const trend = history.length >= 2 ? history[history.length - 1] - history[history.length - 2] : 0;
-    const trendIcon = trend > 0 ? '📈' : trend < 0 ? '📉' : '➡️';
-    const isFashionable = marketplace.fashionable === def.id;
     const typeColor = def.type === 'luxury' ? '#d4a' : '#8af';
-    const sparkline = renderSparkline(history);
 
     return `
-      <div style="background:rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:10px;${isFashionable ? 'border:1px solid #e8c170;' : ''}">
+      <div style="background:rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:10px;">
         <div style="flex:1;">
           <div style="font-size:13px;font-weight:bold;"><span data-text="res-name-${idx}"></span> <span style="font-size:10px;color:${typeColor};" data-text="res-type-${idx}"></span></div>
           <div style="font-size:11px;opacity:0.6;" data-text="res-owned-${idx}"></div>
           <div style="font-size:10px;opacity:0.65;" data-text="res-effect-${idx}"></div>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-size:14px;color:#e8c170;">💰 <span data-text="res-price-${idx}"></span> ${trendIcon}</div>
-          <div style="font-size:10px;opacity:0.5;">${sparkline}</div>
         </div>
       </div>
     `;
@@ -96,14 +84,13 @@ export function createMarketplacePanel(
         <h2 style="margin:0;font-size:18px;color:#e8c170;">Marketplace</h2>
         <button type="button" id="mp-close" aria-label="Close marketplace" style="min-width:44px;min-height:44px;color:inherit;font:inherit;border:none;background:none;cursor:pointer;font-size:22px;">✕</button>
       </div>
-      ${fashionBannerHtml}
+      ${noticeBoxHtml}
       ${yourResourcesHtml}
       <div style="display:flex;flex-direction:column;gap:8px;">
         ${resourceRowsHtml}
       </div>
       ${unknownCount > 0 ? '<div style="font-size:12px;opacity:0.5;text-align:center;margin-top:8px;" data-text="discoverable-footer"></div>' : ''}
       <div id="mp-routes-section" style="margin-top:16px;"></div>
-      <div id="mp-known-civs-anchor"></div>
     </div>
   `;
 
@@ -113,19 +100,14 @@ export function createMarketplacePanel(
     if (el) el.textContent = text;
   };
 
-  if (fashionVisible && fashionableDef) {
-    setText('fashion-resource', fashionableDef.name);  // display name, not raw id
-    setText('fashion-turns', String(marketplace.fashionTurnsLeft));
-  }
+  if (importsNotice) setText('imports-rebuilding', importsNotice);
 
   // Both this loop and the row builder above iterate knownDefs — must stay in sync
   knownDefs.forEach((def, idx) => {
-    const price = marketplace.prices[def.id] ?? def.basePrice;
     const isOwned = ownedResources.has(def.id as ResourceType);
     setText(`res-name-${idx}`, def.name);
     setText(`res-type-${idx}`, def.type.charAt(0).toUpperCase() + def.type.slice(1));
     setText(`res-owned-${idx}`, isOwned ? '✓ Owned' : '✗ Not in inventory');
-    setText(`res-price-${idx}`, String(price));
 
     // Effect badge — set via textContent, never innerHTML
     let effectText: string;
@@ -180,131 +162,9 @@ export function createMarketplacePanel(
     routesSection.appendChild(buildPlayerRouteListSection(state, state.currentPlayer, callbacks.onSelectUnit));
   }
 
-  // Known Civs section (Diplomatic Marketplace — S9, trade-routes tech gated)
-  const knownCivsAnchor = panel.querySelector('#mp-known-civs-anchor');
-  if (knownCivsAnchor) {
-    const knownCivsSection = buildKnownCivResourceSection(state, state.currentPlayer, callbacks.onBuyResourceAccess);
-    if (knownCivsSection) knownCivsAnchor.appendChild(knownCivsSection);
-  }
-
   container.appendChild(panel);
   document.getElementById('mp-close')?.addEventListener('click', () => {
     panel.remove();
     callbacks.onClose();
   });
-}
-
-function renderSparkline(history: number[]): string {
-  if (history.length < 2) return '';
-  const min = Math.min(...history);
-  const max = Math.max(...history);
-  const range = max - min || 1;
-  const bars = '▁▂▃▄▅▆▇█';
-  return history.slice(-8).map(v => {
-    const idx = Math.floor(((v - min) / range) * (bars.length - 1));
-    return bars[idx];
-  }).join('');
-}
-
-/**
- * Builds the "Available from Known Civs" section (Diplomatic Marketplace / Pillar 3 / S9).
- * Returns null when trade-routes is not researched, or when no rows to show.
- * All text via textContent; all buttons via createGameButton().
- */
-function buildKnownCivResourceSection(
-  state: GameState,
-  currentPlayer: string,
-  onBuyResourceAccess?: (sellerCivId: string, resource: ResourceType) => void,
-): HTMLElement | null {
-  const civ = state.civilizations[currentPlayer];
-  if (!civ) return null;
-
-  // Gate: only show after Trade Routes tech
-  if (!civ.techState.completed.includes('trade-routes')) return null;
-
-  const playerOwned = getCivAvailableResources(state, currentPlayer);
-  const playerDip = civ.diplomacy;
-  const knownCivIds = Object.keys(playerDip.relationships);
-  if (knownCivIds.length === 0) return null;
-
-  // Collect rows: all resources known civs have (player may or may not already own them)
-  // Rows where player already owns the resource show "Already have this" instead of buy button.
-  type Row = { sellerCivId: string; resource: ResourceType };
-  const rows: Row[] = [];
-  const viewerTechs = new Set(civ.techState.completed);
-  for (const sellerCivId of knownCivIds) {
-    const sellerResources = getCivAvailableResources(state, sellerCivId);
-    for (const def of RESOURCE_DEFINITIONS) {
-      if (!viewerTechs.has(def.tech)) continue;
-      const resource = def.id as ResourceType;
-      if (!sellerResources.has(resource)) continue;
-      rows.push({ sellerCivId, resource });
-    }
-  }
-  if (rows.length === 0) return null;
-
-  const section = document.createElement('div');
-  section.dataset.section = 'known-civs';
-  section.style.cssText = 'margin-top:16px;';
-
-  const heading = document.createElement('div');
-  heading.style.cssText = 'font-size:14px;color:#e8c170;margin-bottom:8px;';
-  heading.textContent = 'Available from Known Civilizations';
-  section.appendChild(heading);
-
-  for (const { sellerCivId, resource } of rows) {
-    const def = RESOURCE_DEFINITIONS.find(d => d.id === resource)!;
-    const sellerCivDef = resolveCivDefinition(state, state.civilizations[sellerCivId]?.civType ?? '');
-    const sellerName = sellerCivDef?.name ?? sellerCivId;
-    const sellerColor = sellerCivDef?.color ?? '#888888';
-    const score = playerDip.relationships[sellerCivId] ?? -100;
-    const atWar = isAtWar(playerDip, sellerCivId);
-    const cost = getResourceAccessCost(state, resource);
-
-    const row = document.createElement('div');
-    row.style.cssText =
-      'background:rgba(255,255,255,0.05);border-radius:6px;padding:8px 10px;' +
-      'display:flex;align-items:center;gap:8px;margin-bottom:6px;min-height:44px;';
-
-    const resLabel = document.createElement('span');
-    resLabel.style.cssText = 'flex:1;font-size:13px;';
-    resLabel.textContent = `${def.icon} ${def.name}`;
-    row.appendChild(resLabel);
-
-    const civChip = document.createElement('span');
-    civChip.style.cssText =
-      `background:${sellerColor};color:#000;border-radius:4px;` +
-      'font-size:11px;padding:2px 6px;font-weight:bold;';
-    civChip.textContent = sellerName;
-    row.appendChild(civChip);
-
-    const relBand = document.createElement('span');
-    relBand.style.cssText = 'font-size:11px;opacity:0.7;min-width:52px;text-align:center;';
-    relBand.textContent = atWar ? 'War' : score >= 30 ? 'Friendly' : score >= 0 ? 'Neutral' : 'Hostile';
-    row.appendChild(relBand);
-
-    if (atWar) {
-      const warLabel = document.createElement('span');
-      warLabel.style.cssText = 'font-size:11px;color:#f87171;';
-      warLabel.textContent = `⚔️ at war with ${sellerName}`;
-      row.appendChild(warLabel);
-    } else if (playerOwned.has(resource)) {
-      const ownedLabel = document.createElement('span');
-      ownedLabel.style.cssText = 'font-size:11px;color:#6b9b4b;';
-      ownedLabel.textContent = '✓ Already have this';
-      row.appendChild(ownedLabel);
-    } else {
-      const canBuy = canBuyResourceAccess(state, currentPlayer, sellerCivId, resource);
-      const buyBtn = createGameButton(`Buy (${cost}g / 10 turns)`, 'primary', { disabled: !canBuy });
-      buyBtn.dataset.buyResourceBtn = 'true';
-      buyBtn.addEventListener('click', () => {
-        if (canBuy && onBuyResourceAccess) onBuyResourceAccess(sellerCivId, resource);
-      });
-      row.appendChild(buyBtn);
-    }
-
-    section.appendChild(row);
-  }
-
-  return section;
 }

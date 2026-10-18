@@ -7,6 +7,7 @@ import { createEmptyPirateState, type PirateFactionState } from '@/core/pirate-s
 import { createEmptyAutonomyCivState } from '@/core/autonomy-state';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { ENQUEUE_DENIAL_MESSAGES } from '@/systems/planning-system';
+import { performBuyResourceAccess } from '@/systems/resource-acquisition-system';
 import { createEspionageCivState, START_MISSION_FAILURE_MESSAGES } from '@/systems/espionage-system';
 import type { PirateFocusTarget } from '@/systems/pirate-presentation';
 import type { NotificationMapTarget } from '@/core/notification-log';
@@ -497,18 +498,25 @@ describe('PanelActionsController', () => {
       expect(deps.renderLoop.camera.centerOn).toHaveBeenCalledWith(state.units.attacker.position);
     });
 
-    it('does not re-render (real canBuyResourceAccess guard blocks it) for an uncontacted civ', () => {
-      // Real system call, not mocked: `canBuyResourceAccess` returns false for a civ the
-      // player hasn't met (no entry in `diplomacy.relationships`), so the early return
-      // must prevent both the purchase and the panel re-render.
+    it('wires no purchase action, commits nothing, and shows no purchase feedback (#1498)', () => {
+      // The retired `onBuyResourceAccess` shape is gone from the panel options, so the live
+      // controller has no callback that could commit a purchase or display a success toast. Even a
+      // hand-built/stale callback cannot bypass the rule: the canonical executor refuses the call
+      // and hands back the untouched state.
       const { state, aiCivId } = makeFixture('marketplace-buy-blocked');
-      const { controller } = build(state);
+      const { deps, controller } = build(state);
 
       controller.openMarketplacePanel();
-      const options = mockedCallArg<{ onBuyResourceAccess: (sellerCivId: string, resource: string) => void }>(createMarketplacePanel, 0, 2);
-      options.onBuyResourceAccess(aiCivId, 'iron');
+      const options = mockedCallArg<{ onBuyResourceAccess?: (sellerCivId: string, resource: string) => void }>(createMarketplacePanel, 0, 2);
 
-      expect(createMarketplacePanel).toHaveBeenCalledTimes(1);
+      expect(options.onBuyResourceAccess).toBeUndefined();
+      expect(deps.showNotification).not.toHaveBeenCalled();
+
+      const result = performBuyResourceAccess(state, state.currentPlayer, aiCivId, 'iron');
+
+      expect(result.ok).toBe(false);
+      expect(result.state).toBe(state);
+      expect(deps.showNotification).not.toHaveBeenCalledWith(expect.stringContaining('Purchased'), 'success');
     });
   });
 

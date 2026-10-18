@@ -130,7 +130,7 @@ Class/rating: rating 0 flavor, 1 unconditional number, 2 conditional but weak or
 | `irrigation` | 2 | economy | KEEP | 3 | era-only | - | systems/tile-yield |
 | `currency` | 3 | economy | KEEP | 3 | unlock-valued | - | systems/city-maturity-system, systems/diplomacy-actions, systems/diplomacy-embargoes |
 | `mining-tech` | 3 | economy | KEEP | 2 | effect-valued | Mines yield +1 production | - |
-| `trade-routes` | 4 | economy | KEEP | 3 | unlock-valued | - | systems/crisis-interaction-definitions, systems/diplomacy-actions, systems/quest-objective-system, ui/city-panel, ui/marketplace-panel |
+| `trade-routes` | 4 | economy | KEEP | 3 | unlock-valued | - | systems/crisis-interaction-definitions, systems/diplomacy-actions, systems/quest-objective-system, ui/city-panel |
 | `banking` | 4 | economy | KEEP | 3 | unlock+effect-valued | +1 gold per trade route between coastal cities | systems/diplomacy-actions, systems/diplomacy-embargoes |
 | `fire` | 1 | science | KEEP | 0 | era-only | - | - |
 | `writing` | 1 | science | KEEP | 3 | unlock-valued | - | systems/diplomacy-leagues |

@@ -13,9 +13,9 @@ import { buildProductionCostContext, getContextualProductionCost } from '@/syste
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { getCapitalCityId } from '@/systems/capital-system';
 import {
-  canBuyResourceAccess,
   getCivAvailableResources,
   getResourceAccessCost,
+  getResourcePurchaseDecision,
   performBuyResourceAccess,
 } from '@/systems/resource-acquisition-system';
 
@@ -58,10 +58,13 @@ function getResourcePurchaseCandidates(state: GameState, civId: string, cityId: 
 }
 
 /**
- * Gives a major AI one deterministic, player-rule-equivalent resource purchase
- * for a queued item or an idle-city hard-gated candidate that can finish before
- * temporary access expires. The latter runs before normal AI production chooses
- * a candidate, so hard requirements are reachable instead of filtered forever.
+ * Gives a major AI one deterministic, player-rule-equivalent resource purchase for a queued item or
+ * an idle-city hard-gated candidate that can finish before temporary access expires.
+ *
+ * MR01 containment (#1498): eligibility comes from the same canonical
+ * `getResourcePurchaseDecision` the human paths use, which currently refuses every instant purchase
+ * while the import market is rebuilt. The AI therefore buys nothing and receives no compensating
+ * free resources; its production and trade planning are untouched.
  */
 export function processAIResourceMarketplace(state: GameState, civId: string): GameState {
   const civ = state.civilizations[civId];
@@ -91,9 +94,10 @@ export function processAIResourceMarketplace(state: GameState, civId: string): G
       if (currentCiv.gold < price) continue;
       const seller = Object.keys(currentCiv.diplomacy.relationships)
         .sort()
-        .find(sellerId => canBuyResourceAccess(working, civId, sellerId, resource));
+        .find(sellerId => getResourcePurchaseDecision(working, civId, sellerId, resource).allowed);
       if (!seller) continue;
-      return performBuyResourceAccess(working, civId, seller, resource);
+      const purchase = performBuyResourceAccess(working, civId, seller, resource);
+      return purchase.ok ? purchase.state : working;
     }
   }
   return working;

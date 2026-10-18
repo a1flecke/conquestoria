@@ -4,8 +4,11 @@ import { foundCity } from '@/systems/city-system';
 import { hexKey } from '@/systems/hex-utils';
 import { processAIResourceMarketplace } from '@/ai/ai-resource-marketplace';
 
-describe('processAIResourceMarketplace', () => {
-  it('buys a missing hard input for an otherwise eligible idle-city candidate', () => {
+describe('processAIResourceMarketplace — MR01 containment (#1498)', () => {
+  it('does not buy instant resource access even when every legacy purchase condition holds', () => {
+    // Widest-open fixture, kept from the pre-containment regression: the AI has gold, the required
+    // technology, a missing hard input on an otherwise eligible candidate, a peaceful known seller
+    // with the resource, and a cost that fits the old 10-turn window. Before MR01 this bought.
     const state = createNewGame(undefined, 'ai-resource-candidate', 'small');
     const ai = state.civilizations['ai-1'];
     const player = state.civilizations.player;
@@ -34,11 +37,10 @@ describe('processAIResourceMarketplace', () => {
 
     const result = processAIResourceMarketplace(state, ai.id);
 
-    expect(result.marketplace?.purchasedResources).toContainEqual({
-      civId: ai.id,
-      resource: 'oil',
-      expiresOnTurn: state.turn + 10,
-    });
-    expect(result.civilizations[ai.id].gold).toBe(64);
+    // The AI consults the same canonical denial the human paths use, so it buys nothing: no
+    // purchased access is recorded and the treasury is untouched (no compensating free resources).
+    expect(result).toBe(state);
+    expect(result.marketplace?.purchasedResources ?? []).toEqual([]);
+    expect(result.civilizations[ai.id].gold).toBe(100);
   });
 });
