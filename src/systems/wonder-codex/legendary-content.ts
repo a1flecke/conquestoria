@@ -411,7 +411,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'prosperity',
     ['gold', 'coast', 'trade', 'sea', 'discovery'],
     ['noaa-maritime-heritage'],
-    'image-drydock',
+    'image-merchant-admiralty',
     ['gold', 'coast', 'trade'],
     'Law of the Sea',
     'An admiralty court gave merchants something no fleet alone could provide: a predictable outcome.',
