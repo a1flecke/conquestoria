@@ -125,7 +125,7 @@ describe('wonder-codex presentation', () => {
       audio: 'silent',
     });
     expect(model.selectedPage?.videoPreview?.src).toBe('/videos/wonders/grand-canal-gongchen-hangzhou.mp4');
-    expect(model.selectedPage?.videoPreview?.fallbackImage.src).toBe('/images/wonders/codex/canal.jpg');
+    expect(model.selectedPage?.videoPreview?.fallbackImage.src).toBe('/images/wonders/codex/grand-canal.jpg');
   });
 
   it('shows Stage 3C legendary videos on safe owned completed Codex pages', () => {

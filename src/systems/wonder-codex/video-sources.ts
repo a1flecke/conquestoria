@@ -128,7 +128,7 @@ export const WONDER_CODEX_VIDEO_SOURCES = [
     license: 'CC BY-SA 4.0',
     attribution: 'Charlie fong - CC BY-SA 4.0',
     localPath: '/videos/wonders/grand-canal-gongchen-hangzhou.mp4',
-    fallbackImageSourceId: 'image-canal',
+    fallbackImageSourceId: 'image-grand-canal',
     durationSeconds: 4,
     sizeBytes: 968180,
     format: 'MP4/H.264 derivative from WebM source using OpenH264',
