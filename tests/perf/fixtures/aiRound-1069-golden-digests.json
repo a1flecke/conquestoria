@@ -1,7 +1,7 @@
 {
   "e1": {
     "state": {
-      "__whole": "86380c3dfe05",
+      "__whole": "dd7a22a7d123",
       "autonomyByCiv": "95313c912b48",
       "barbarianCampPressure": "44136fa355b3",
       "barbarianCamps": "c9c75b490ac4",
@@ -9,6 +9,7 @@
       "cities": "63422c8ab817",
       "cityFaith": "44136fa355b3",
       "civilizations": "ad72f4a5292e",
+      "commercePermissions": "b053f8ba4051",
       "crisisForces": "44136fa355b3",
       "currentPlayer": "f4fd498bf9ac",
       "defensiveLeagues": "4f53cda18c2b",
@@ -48,7 +49,7 @@
       "religions": "44136fa355b3",
       "resurgentCampCooldownByCivLandmass": "44136fa355b3",
       "rogueElephantHosts": "44136fa355b3",
-      "saveSchemaVersion": "e29c9c180c62",
+      "saveSchemaVersion": "c6f3ac57944a",
       "settings": "666ce98eb188",
       "stampedes": "44136fa355b3",
       "startPlacementMode": "61eb5aa337d3",
@@ -64,7 +65,7 @@
   },
   "e2": {
     "state": {
-      "__whole": "014c5a7c7907",
+      "__whole": "f1b62a4fef02",
       "autonomyByCiv": "95313c912b48",
       "barbarianCampPressure": "44136fa355b3",
       "barbarianCamps": "5148e5b9b58d",
@@ -72,6 +73,7 @@
       "cities": "ca35b896276b",
       "cityFaith": "44136fa355b3",
       "civilizations": "0cc6986a66ba",
+      "commercePermissions": "b053f8ba4051",
       "crisisForces": "44136fa355b3",
       "currentPlayer": "f4fd498bf9ac",
       "defensiveLeagues": "4f53cda18c2b",
@@ -111,7 +113,7 @@
       "religions": "44136fa355b3",
       "resurgentCampCooldownByCivLandmass": "44136fa355b3",
       "rogueElephantHosts": "44136fa355b3",
-      "saveSchemaVersion": "e29c9c180c62",
+      "saveSchemaVersion": "c6f3ac57944a",
       "settings": "666ce98eb188",
       "stampedes": "44136fa355b3",
       "startPlacementMode": "61eb5aa337d3",

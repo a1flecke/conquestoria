@@ -235,6 +235,15 @@ export function eliminateCivilization(
       .filter(entry => entry.civId !== civId);
   }
 
+  // #1499 MR02: a dead civ holds no commercial permission — drop its route allowances and both
+  // directions of its resource-export grants, keeping the container itself.
+  if (next.commercePermissions) {
+    next.commercePermissions.routeAllowances = next.commercePermissions.routeAllowances
+      .filter(allowance => allowance.civId !== civId);
+    next.commercePermissions.resourceExportGrants = next.commercePermissions.resourceExportGrants
+      .filter(grant => grant.grantorCivId !== civId && grant.granteeCivId !== civId);
+  }
+
   // #1001 — every remaining per-civ subsystem record. A dead civ runs no
   // economy, autonomy network, advisory council or intel; makes no
   // national-project choice; and holds no in-flight legendary-wonder project or

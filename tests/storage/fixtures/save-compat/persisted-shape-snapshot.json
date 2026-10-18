@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 32,
+  "schemaVersion": 33,
   "paths": [
     "autonomyByCiv",
     "autonomyByCiv.*.detections",
@@ -1031,6 +1031,13 @@
     "civilizations.*.visibility.*.9,7",
     "civilizations.*.visibility.*.9,8",
     "civilizations.*.visibility.*.9,9",
+    "commercePermissions",
+    "commercePermissions.resourceExportGrants",
+    "commercePermissions.routeAllowances",
+    "commercePermissions.routeAllowances[].civId",
+    "commercePermissions.routeAllowances[].expiresOnTurn",
+    "commercePermissions.routeAllowances[].grantedOnTurn",
+    "commercePermissions.routeAllowances[].routeId",
     "completedLegendaryWonders",
     "completedLegendaryWonders.*.cityId",
     "completedLegendaryWonders.*.ownerId",

@@ -1,4 +1,5 @@
 import type { NotificationCityAction, NotificationLogState } from './notification-log';
+import type { CommercePermissionsState } from './types/commerce';
 import type { PirateState } from './pirate-state';
 import type { DominationIntelState } from '@/systems/domination-types';
 import type { GovernancePolicyId } from '@/systems/governance-types';
@@ -1956,6 +1957,8 @@ export interface GameState extends AiGameState, CouncilGameState, NotificationLo
   gameOverReason?: GameOverReason;
   settings: GameSettings;
   marketplace?: MarketplaceState;
+  /** #1499 MR02: directional resource-export grants and legacy route allowances. Absent on old saves. */
+  commercePermissions?: CommercePermissionsState;
   economyStatusByCiv?: Record<string, EconomyStatus>;
   hotSeat?: HotSeatConfig;
   pendingEvents?: Record<string, GameEvent[]>;
@@ -2207,7 +2210,7 @@ export interface GameEvents extends DiplomacyEvents, CivilizationEvents, WorldEv
   'city:strategic-strike': { cityId: string; recipientCivId: string; actorCivId: string; goldLost: number };
   'tutorial:step': { step: TutorialStep; message: string; advisor: 'builder' | 'explorer' | 'scholar' };
   'trade:route-created': { route: TradeRoute };
-  'trade:route-ended': { routeId: string; fromCityId: string; toCityId: string; reason: 'unit-died' | 'unit-disbanded' | 'war-declared' | 'hostile-relations' | 'embargo' | 'trips-exhausted' | 'unit-captured' | 'espionage' };
+  'trade:route-ended': { routeId: string; fromCityId: string; toCityId: string; reason: 'unit-died' | 'unit-disbanded' | 'war-declared' | 'hostile-relations' | 'embargo' | 'trips-exhausted' | 'unit-captured' | 'espionage' | 'permission-expired' };
   'trade:route-delivered': { unitId: string; routeId: string; toCityId: string };
   'trade:price-changed': { resource: ResourceType; oldPrice: number; newPrice: number };
   'wonder:discovered': { civId: string; wonderId: string; position: HexCoord; isFirstDiscoverer: boolean };

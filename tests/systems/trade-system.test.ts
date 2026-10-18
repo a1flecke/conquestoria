@@ -20,7 +20,9 @@ import {
   removeRouteById,
   scrubStaleForeignRoutes,
   scrubEmbargoedRoutes,
+  scrubUnpermittedRoutes,
 } from '@/systems/trade-route-lifecycle';
+import { recordRouteOnlyAllowance } from '@/systems/commerce-permissions';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { UNIT_DESCRIPTIONS } from '@/systems/unit-descriptions';
 import { TRAINABLE_UNITS, PRODUCTION_ICONS } from '@/systems/city-system';
@@ -45,6 +47,10 @@ function makeMinimalState(overrides: Partial<{
   atWarWith: string[];
   relationship: number;
   tradeRoutes: any[];
+  /** A signed trade agreement (commercial permission) between player and enemy. */
+  tradeAgreement?: boolean;
+  /** A signed military open-borders treaty, which confers no commercial permission. */
+  openBorders?: boolean;
 }> = {}): GameState {
   const tiles: Record<string, any> = {};
   for (let q = 0; q < 5; q++) {
@@ -57,6 +63,13 @@ function makeMinimalState(overrides: Partial<{
   if (overrides.tradeRoutes) {
     marketplace.tradeRoutes = overrides.tradeRoutes;
   }
+  // Foreign commerce needs commercial permission (#1499 MR02). These fixtures default to a signed
+  // trade agreement, so the route-lifecycle tests below exercise a *permitted* foreign route;
+  // permission-specific tests pass `tradeAgreement: false`.
+  const hasAgreement = overrides.tradeAgreement ?? true;
+  const treaties: any[] = [];
+  if (hasAgreement) treaties.push({ type: 'trade_agreement', civA: 'player', civB: 'enemy', turnsRemaining: -1, goldPerTurn: 2 });
+  if (overrides.openBorders) treaties.push({ type: 'open_borders', civA: 'player', civB: 'enemy', turnsRemaining: -1 });
   return {
     turn: 1,
     era: 1,
@@ -69,7 +82,7 @@ function makeMinimalState(overrides: Partial<{
         id: 'player', name: 'Player', color: '#00f', civType: 'generic',
         gold: 100, cities: ['city1', 'city2'], units: ['caravan1'],
         techState: { completed: ['trade-routes', 'wheel'], currentResearch: null, progress: {}, trackPriorities: {} as any },
-        diplomacy: { relationships: { enemy: overrides.relationship ?? 0 }, treaties: [], events: [], atWarWith: overrides.atWarWith ?? [] },
+        diplomacy: { relationships: { enemy: overrides.relationship ?? 0 }, treaties, events: [], atWarWith: overrides.atWarWith ?? [] },
         knownCivilizations: ['enemy'],
         visibility: { tiles: {}, fogMap: {} },
       },
@@ -77,7 +90,7 @@ function makeMinimalState(overrides: Partial<{
         id: 'enemy', name: 'Enemy', color: '#f00', civType: 'generic',
         gold: 100, cities: ['city3'], units: [],
         techState: { completed: [], currentResearch: null, progress: {}, trackPriorities: {} as any },
-        diplomacy: { relationships: { player: overrides.relationship ?? 0 }, treaties: [], events: [], atWarWith: overrides.atWarWith?.includes('player') ? ['player'] : [] },
+        diplomacy: { relationships: { player: overrides.relationship ?? 0 }, treaties, events: [], atWarWith: overrides.atWarWith?.includes('player') ? ['player'] : [] },
         knownCivilizations: [],
         visibility: { tiles: {}, fogMap: {} },
       },
@@ -456,22 +469,38 @@ describe('trade-system', () => {
       expect(result.ok).toBe(false);
     });
 
-    it("canEstablishRoute foreign: ok at relationship >= 0, not at war", () => {
-      const state = makeMinimalState({ relationship: 0, atWarWith: [] });
+    it("canEstablishRoute foreign: ok with a commercial agreement and non-hostile relations (#1499)", () => {
+      const state = makeMinimalState({ relationship: 0, atWarWith: [], tradeAgreement: true });
       const caravan = state.units['caravan1'];
       const result = canEstablishRoute(state, caravan, 'city3');
       expect(result.ok).toBe(true);
     });
 
+    it("canEstablishRoute foreign: blocked without any commercial agreement (#1499)", () => {
+      const state = makeMinimalState({ relationship: 0, atWarWith: [], tradeAgreement: false });
+      const caravan = state.units['caravan1'];
+      const result = canEstablishRoute(state, caravan, 'city3');
+      expect(result.ok).toBe(false);
+      expect(result.reason).toBe('Requires a trade agreement with that civilization.');
+    });
+
+    it("canEstablishRoute foreign: military open borders alone is not commercial permission (#1499)", () => {
+      const state = makeMinimalState({ relationship: 0, atWarWith: [], tradeAgreement: false, openBorders: true });
+      const caravan = state.units['caravan1'];
+      const result = canEstablishRoute(state, caravan, 'city3');
+      expect(result.ok).toBe(false);
+      expect(result.reason).toBe('Requires a trade agreement with that civilization.');
+    });
+
     it("canEstablishRoute foreign: blocked at war", () => {
-      const state = makeMinimalState({ atWarWith: ['enemy'] });
+      const state = makeMinimalState({ atWarWith: ['enemy'], tradeAgreement: true });
       const caravan = state.units['caravan1'];
       const result = canEstablishRoute(state, caravan, 'city3');
       expect(result.ok).toBe(false);
     });
 
-    it("canEstablishRoute foreign: blocked at relationship < 0", () => {
-      const state = makeMinimalState({ relationship: -20 });
+    it("canEstablishRoute foreign: blocked at relationship < 0 even with an agreement", () => {
+      const state = makeMinimalState({ relationship: -20, tradeAgreement: true });
       const caravan = state.units['caravan1'];
       const result = canEstablishRoute(state, caravan, 'city3');
       expect(result.ok).toBe(false);
@@ -1002,9 +1031,12 @@ describe('trade-system', () => {
 
     it('scrubStaleForeignRoutes: missing fromCity (razed) → route left untouched', () => {
       // Guard: if fromCity no longer exists, skip rather than crash or falsely terminate
-      const state = makeMinimalState({ atWarWith: ['enemy'] });
+      const state = makeMinimalState({
+        atWarWith: ['enemy'],
+        tradeRoutes: [{ id: 'r1', fromCityId: 'city1', toCityId: 'city3', goldPerTrip: 10, turnsPerTrip: 3, foreignCivId: 'enemy' }],
+      });
       const bus = new EventBus();
-      let s = establishRoute(state, 'caravan1', 'city3', bus, 0);
+      let s = state;
       // Raze the from-city so it disappears from state.cities
       const { city1: _removed, ...remainingCities } = s.cities;
       s = { ...s, cities: remainingCities as typeof s.cities };
@@ -1034,14 +1066,70 @@ describe('trade-system', () => {
     });
 
     it('scrubStaleForeignRoutes: termination event fires exactly once (idempotent)', () => {
-      const state = makeMinimalState({ atWarWith: ['enemy'] });
+      // A foreign route that had permission, plus a war that removes it.
+      const state = makeMinimalState({
+        atWarWith: ['enemy'],
+        tradeRoutes: [{ id: 'r1', fromCityId: 'city1', toCityId: 'city3', goldPerTrip: 10, turnsPerTrip: 3, foreignCivId: 'enemy' }],
+      });
       const bus = new EventBus();
-      let s = establishRoute(state, 'caravan1', 'city3', bus, 0);
+      let s = state;
       const events: string[] = [];
       bus.on('trade:route-ended', () => events.push('fired'));
       s = scrubStaleForeignRoutes(s, bus);  // removes route, fires event
       s = scrubStaleForeignRoutes(s, bus);  // route already gone — no second event
       expect(events).toHaveLength(1);
+    });
+
+    it('scrubUnpermittedRoutes: a foreign route with no permission is terminated (#1499)', () => {
+      const state = makeMinimalState({
+        tradeAgreement: false,
+        tradeRoutes: [{ id: 'r1', fromCityId: 'city1', toCityId: 'city3', goldPerTrip: 10, turnsPerTrip: 3, foreignCivId: 'enemy' }],
+      });
+      const bus = new EventBus();
+      const events: Array<{ reason: string }> = [];
+      bus.on('trade:route-ended', e => events.push({ reason: e.reason }));
+
+      const s = scrubUnpermittedRoutes(state, bus);
+
+      expect(s.marketplace!.tradeRoutes).toHaveLength(0);
+      expect(events).toHaveLength(1);
+      expect(events[0].reason).toBe('permission-expired');
+    });
+
+    it('scrubUnpermittedRoutes: a legacy route runs under its own allowance, then ends at the boundary (#1499)', () => {
+      const base = makeMinimalState({
+        tradeAgreement: false,
+        tradeRoutes: [{ id: 'r1', fromCityId: 'city1', toCityId: 'city3', goldPerTrip: 10, turnsPerTrip: 3, foreignCivId: 'enemy' }],
+      });
+      // turn 1 + 3 turns of committed journey → the allowance covers turns 1..3.
+      const withAllowance = recordRouteOnlyAllowance(base, 'r1', 'player', 3);
+      const bus = new EventBus();
+      const events: string[] = [];
+      bus.on('trade:route-ended', () => events.push('fired'));
+
+      // Inside the allowance the route survives even though it holds no permission of its own.
+      expect(scrubUnpermittedRoutes(withAllowance, bus).marketplace!.tradeRoutes).toHaveLength(1);
+      expect(events).toHaveLength(0);
+
+      // At the recorded boundary it ends like any other unpermitted route.
+      const boundary = withAllowance.commercePermissions!.routeAllowances[0]!.expiresOnTurn;
+      const expired = { ...withAllowance, turn: boundary };
+      expect(scrubUnpermittedRoutes(expired, bus).marketplace!.tradeRoutes).toHaveLength(0);
+      expect(events).toHaveLength(1);
+    });
+
+    it('scrubUnpermittedRoutes: a permitted foreign route and a domestic route both survive (#1499)', () => {
+      const state = makeMinimalState({
+        tradeAgreement: true,
+        tradeRoutes: [
+          { id: 'r1', fromCityId: 'city1', toCityId: 'city3', goldPerTrip: 10, turnsPerTrip: 3, foreignCivId: 'enemy' },
+          { id: 'r2', fromCityId: 'city1', toCityId: 'city2', goldPerTrip: 4, turnsPerTrip: 1 },
+        ],
+      });
+
+      const s = scrubUnpermittedRoutes(state, new EventBus());
+
+      expect(s.marketplace!.tradeRoutes.map(route => route.id)).toEqual(['r1', 'r2']);
     });
 
     it('scrubEmbargoedRoutes: participant route to embargoed civ → terminated', () => {

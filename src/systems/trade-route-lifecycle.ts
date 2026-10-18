@@ -6,6 +6,7 @@ import type { GameState } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
 import { isAtWar, getRelationship } from '@/systems/diplomacy-queries';
 import { isMinorCivAtWar } from './minor-civ-diplomacy';
+import { getCommercialPassagePermission, hasRouteOnlyAllowance } from './commerce-permissions';
 
 export function getRouteDiplomacy(state: GameState, ownerCivId: string, foreignCivId: string) {
   const minorCiv = state.minorCivs[foreignCivId];
@@ -30,7 +31,7 @@ export function removeRouteById(
   state: GameState,
   routeId: string,
   bus: EventBus | undefined,
-  reason: 'war-declared' | 'hostile-relations' | 'embargo' | 'espionage',
+  reason: 'war-declared' | 'hostile-relations' | 'embargo' | 'espionage' | 'permission-expired',
 ): GameState {
   const route = state.marketplace?.tradeRoutes.find(r => r.id === routeId);
   if (!route) return state;
@@ -108,6 +109,39 @@ export function scrubEmbargoedRoutes(state: GameState, bus: EventBus | undefined
     if (embargoed) {
       newState = removeRouteById(newState, route.id, bus, 'embargo');
     }
+  }
+
+  return newState;
+}
+
+/**
+ * #1499 MR02: a foreign route needs commercial permission — a signed trade agreement with a major
+ * partner, or a city-state's own contact/relationship model. Permission is derived (see
+ * `commerce-permissions.ts`), so war, embargo, elimination and an explicit revocation of the
+ * agreement all deny here without any mirrored record to keep in sync.
+ *
+ * A route that predates the permission model is covered by its recorded route-only transition
+ * allowance until that allowance's boundary; after it, the route is terminated like any other route
+ * whose permission is gone. Physical return/pause for a stranded trader is MR05's slice.
+ */
+export function scrubUnpermittedRoutes(state: GameState, bus: EventBus | undefined): GameState {
+  if (!state.marketplace) return state;
+
+  let newState = state;
+  const routes = state.marketplace.tradeRoutes;
+
+  for (const route of routes) {
+    if (!route.foreignCivId) continue;
+
+    const fromCity = newState.cities[route.fromCityId];
+    if (!fromCity) continue;
+    const ownerCivId = fromCity.owner;
+    if (!newState.civilizations[ownerCivId]) continue;
+
+    if (getCommercialPassagePermission(newState, ownerCivId, route.foreignCivId).allowed) continue;
+    if (hasRouteOnlyAllowance(newState, route.id, ownerCivId)) continue;
+
+    newState = removeRouteById(newState, route.id, bus, 'permission-expired');
   }
 
   return newState;

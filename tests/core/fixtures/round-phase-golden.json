@@ -2,7 +2,7 @@
   "turns": [
     {
       "state": {
-        "__whole": "1a8efbf53e74",
+        "__whole": "963fea1a58e8",
         "activeEventChains": "e5c153358a49",
         "autonomyByCiv": "95313c912b48",
         "barbarianCampPressure": "44136fa355b3",
@@ -11,6 +11,7 @@
         "cities": "95ed4c32964c",
         "cityFaith": "44136fa355b3",
         "civilizations": "4cd732f9c255",
+        "commercePermissions": "b053f8ba4051",
         "completedLegendaryWonders": "44136fa355b3",
         "crisisForces": "44136fa355b3",
         "currentPlayer": "f4fd498bf9ac",
@@ -52,7 +53,7 @@
         "religions": "44136fa355b3",
         "resurgentCampCooldownByCivLandmass": "e491b9ee988d",
         "rogueElephantHosts": "44136fa355b3",
-        "saveSchemaVersion": "e29c9c180c62",
+        "saveSchemaVersion": "c6f3ac57944a",
         "settings": "666ce98eb188",
         "stampedes": "33c0cc6ad765",
         "startPlacementMode": "61eb5aa337d3",
@@ -66,12 +67,12 @@
         "wonderDiscoverers": "1679e898f916",
         "worldRaces": "9c3d03a50f52"
       },
-      "events": "d1da629ecfeb",
-      "trace": "cda164346a35"
+      "events": "f52019425554",
+      "trace": "f069f279a56c"
     },
     {
       "state": {
-        "__whole": "d926d008ea24",
+        "__whole": "3d55508c9ea6",
         "activeEventChains": "4ce55a23983b",
         "autonomyByCiv": "95313c912b48",
         "barbarianCampPressure": "44136fa355b3",
@@ -80,6 +81,7 @@
         "cities": "eaf25ce64c4b",
         "cityFaith": "44136fa355b3",
         "civilizations": "4a408eac45c8",
+        "commercePermissions": "b053f8ba4051",
         "completedLegendaryWonders": "44136fa355b3",
         "crisisForces": "033248019318",
         "currentPlayer": "f4fd498bf9ac",
@@ -121,7 +123,7 @@
         "religions": "44136fa355b3",
         "resurgentCampCooldownByCivLandmass": "484c481134a1",
         "rogueElephantHosts": "44136fa355b3",
-        "saveSchemaVersion": "e29c9c180c62",
+        "saveSchemaVersion": "c6f3ac57944a",
         "settings": "666ce98eb188",
         "stampedes": "2c87d14f7b1e",
         "startPlacementMode": "61eb5aa337d3",
@@ -135,12 +137,12 @@
         "wonderDiscoverers": "1679e898f916",
         "worldRaces": "9c3d03a50f52"
       },
-      "events": "a30a06633d47",
-      "trace": "e34cf6d78806"
+      "events": "6da99966f8ba",
+      "trace": "0a96d5b3c993"
     },
     {
       "state": {
-        "__whole": "e0a4e4c3438f",
+        "__whole": "17fd91afabf2",
         "activeEventChains": "6e262c6d14d8",
         "autonomyByCiv": "95313c912b48",
         "barbarianCampPressure": "44136fa355b3",
@@ -149,6 +151,7 @@
         "cities": "1de15dcedaf8",
         "cityFaith": "44136fa355b3",
         "civilizations": "f72268c5ea07",
+        "commercePermissions": "b053f8ba4051",
         "completedLegendaryWonders": "44136fa355b3",
         "crisisForces": "6b8851af20c5",
         "currentPlayer": "f4fd498bf9ac",
@@ -190,7 +193,7 @@
         "religions": "44136fa355b3",
         "resurgentCampCooldownByCivLandmass": "484c481134a1",
         "rogueElephantHosts": "44136fa355b3",
-        "saveSchemaVersion": "e29c9c180c62",
+        "saveSchemaVersion": "c6f3ac57944a",
         "settings": "666ce98eb188",
         "stampedes": "90db5bca5180",
         "startPlacementMode": "61eb5aa337d3",
@@ -204,8 +207,8 @@
         "wonderDiscoverers": "655edbf58914",
         "worldRaces": "9c3d03a50f52"
       },
-      "events": "c6be2dcf279d",
-      "trace": "e34cf6d78806"
+      "events": "84e4c3de6f2e",
+      "trace": "0a96d5b3c993"
     }
   ]
 }

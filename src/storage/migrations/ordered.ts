@@ -33,6 +33,7 @@ import { repairFederalismFields } from './steps/federalism';
 import { repairGovernancePolicyFields } from './steps/governance-policies';
 import { repairGovernorAssignmentFields } from './steps/governor-assignments';
 import { repairCityBombardmentTallies } from './steps/bombardment';
+import { migrateCommercePermissions } from './steps/commerce-permissions';
 
 /**
  * #1023 — the ordered versioned migrations, one per schema step.
@@ -241,6 +242,12 @@ export const ORDERED_MIGRATIONS: readonly OrderedMigration[] = [
     id: 'governor-assignment-fields',
     reason: '#928 added two optional Civilization fields for governor assignments. Like 25/31, scrub-only — the number exists to give the repair a version boundary.',
     apply: repairGovernorAssignmentFields,
+  },
+  {
+    version: 33,
+    id: 'commerce-permissions',
+    reason: '#1499 MR02 made foreign commerce require commercial permission; a save written before it holds foreign routes nobody granted, so each gets the one-time route-only transition allowance sized to its own committed journey. Recorded here so a reload never refreshes it.',
+    apply: migrateCommercePermissions,
   },
 ];
 

@@ -1,7 +1,8 @@
 import type { GameState } from '@/core/types';
 import { joinEmbargo, cleanupEmbargoes } from '@/systems/diplomacy-embargoes';
 import { processVassalageTurn } from '@/systems/diplomacy-vassalage';
-import { scrubStaleForeignRoutes, scrubEmbargoedRoutes } from '@/systems/trade-route-lifecycle';
+import { scrubStaleForeignRoutes, scrubEmbargoedRoutes, scrubUnpermittedRoutes } from '@/systems/trade-route-lifecycle';
+import { pruneExpiredRouteAllowances } from '@/systems/commerce-permissions';
 import { advanceRouteRunners } from '@/systems/unit-movement-system';
 import type { RoundPhase, RoundPhaseContext } from './types';
 
@@ -38,6 +39,13 @@ function runDiplomacyTrade(state: GameState, context: RoundPhaseContext): GameSt
   if (newState.embargoes && newState.marketplace) {
     newState = scrubEmbargoedRoutes(newState, bus);
     newState = { ...newState, embargoes: cleanupEmbargoes(newState.embargoes) };
+  }
+
+  // --- #1499 MR02: terminate foreign routes with no commercial permission once any legacy
+  // route-only allowance has expired; spent allowances are pruned in the same pass ---
+  if (newState.marketplace) {
+    newState = scrubUnpermittedRoutes(newState, bus);
+    newState = pruneExpiredRouteAllowances(newState);
   }
 
   // --- S6b: advance caravan route-runners ---

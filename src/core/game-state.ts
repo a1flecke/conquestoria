@@ -29,6 +29,7 @@ import { createNotificationLog } from '@/core/notification-log';
 import { getPlayableCivDefinitions, resolveCivDefinition } from '@/systems/civ-registry';
 import { createDiplomacyState } from '@/systems/diplomacy-state';
 import { createMarketplaceState } from '@/systems/marketplace-system';
+import { createCommercePermissionsState } from '@/systems/commerce-permissions';
 import { placeWonders } from '@/systems/wonder-system';
 import { placeVillages } from '@/systems/village-system';
 import { placeBeastLairs } from '@/systems/beast-system';
@@ -430,6 +431,7 @@ export function createNewGame(
     minorCivRegionalCooldowns: {},
     idCounters,
     marketplace: createMarketplaceState(),
+    commercePermissions: createCommercePermissionsState(),
     tutorial: { active: true, currentStep: 'welcome', completedSteps: [] },
     currentPlayer: 'player',
     gameOver: false,
@@ -631,6 +633,7 @@ export function createHotSeatGame(
     minorCivRegionalCooldowns: {},
     idCounters,
     marketplace: createMarketplaceState(),
+    commercePermissions: createCommercePermissionsState(),
     tutorial: { active: false, currentStep: 'welcome', completedSteps: [] },
     currentPlayer: config.players[0].slotId,
     gameOver: false,

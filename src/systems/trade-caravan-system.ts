@@ -10,6 +10,7 @@ import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import { createMarketplaceState } from './marketplace-system';
 import { calculateTradeRouteGold, getRouteCapacity, getTradeUnitTripBonus } from './trade-route-economy';
 import { getRouteDiplomacy } from './trade-route-lifecycle';
+import { COMMERCE_PASSAGE_DENIAL_MESSAGES, getCommercialPassagePermission } from './commerce-permissions';
 
 function routesFromCity(state: GameState, cityId: string): number {
   return (state.marketplace?.tradeRoutes ?? []).filter(r => r.fromCityId === cityId).length;
@@ -84,6 +85,13 @@ export function canEstablishRoute(
     if (routeDiplomacy.relationship < 0) {
       return { ok: false, reason: `Relations too hostile (score: ${routeDiplomacy.relationship})` };
     }
+    // #1499 MR02: foreign commerce needs commercial permission — a signed trade agreement with a
+    // major partner, or a city-state's own contact/relationship model. Military open borders grant
+    // nothing here.
+    const passage = getCommercialPassagePermission(state, caravanUnit.owner, toCity.owner);
+    if (!passage.allowed) {
+      return { ok: false, reason: COMMERCE_PASSAGE_DENIAL_MESSAGES[passage.reason] };
+    }
   }
   return { ok: true };
 }
@@ -105,6 +113,16 @@ export function establishRoute(
 
   const toCity = state.cities[toCityId];
   if (!toCity) throw new Error(`TO city ${toCityId} not found`);
+
+  // #1499 MR02: the executor re-runs the permission before its first write, so a stale panel
+  // callback or a direct call cannot create an unpermitted foreign assignment. MR03 (#1500)
+  // replaces this with the family's single typed route-legality contract.
+  if (toCity.owner !== caravanUnit.owner) {
+    const passage = getCommercialPassagePermission(state, caravanUnit.owner, toCity.owner);
+    if (!passage.allowed) {
+      throw new Error(`Cannot establish a foreign route: ${COMMERCE_PASSAGE_DENIAL_MESSAGES[passage.reason]}`);
+    }
+  }
 
   // Deep-copy state (spread-copy pattern consistent with codebase)
   let newState: GameState = {

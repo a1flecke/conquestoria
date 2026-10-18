@@ -295,6 +295,23 @@ export const ELIMINATED_CIV_AREAS: Record<keyof GameState, EliminatedCivArea> = 
       return problems;
     },
   },
+  commercePermissions: {
+    kind: 'teardown',
+    why: 'commerce permissions (#1499 MR02) belong to a living civ: route allowances and resource-export grants naming a dead civ are dropped by elimination',
+    scan: (state, ctx) => {
+      const problems: string[] = [];
+      const permissions = state.commercePermissions;
+      if (!permissions) return problems;
+      for (const allowance of permissions.routeAllowances ?? []) {
+        if (isEliminatedId(allowance.civId, ctx)) problems.push(`route allowance "${allowance.routeId}" still names eliminated civ "${allowance.civId}"`);
+      }
+      for (const grant of permissions.resourceExportGrants ?? []) {
+        if (isEliminatedId(grant.grantorCivId, ctx)) problems.push(`resource export grant from eliminated civ "${grant.grantorCivId}"`);
+        if (isEliminatedId(grant.granteeCivId, ctx)) problems.push(`resource export grant to eliminated civ "${grant.granteeCivId}"`);
+      }
+      return problems;
+    },
+  },
   autonomyByCiv: {
     kind: 'teardown',
     why: 'a dead civ runs no autonomy network — no active plans (the empty `createEmptyAutonomyCivState()` shell the load-time normalizer gives every civ is inert and expected)',
