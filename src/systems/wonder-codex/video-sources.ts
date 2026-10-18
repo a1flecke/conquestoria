@@ -147,7 +147,7 @@ export const WONDER_CODEX_VIDEO_SOURCES = [
     license: 'CC BY 3.0',
     attribution: 'Ajith Samuel - CC BY 3.0',
     localPath: '/videos/wonders/moonwell-gardens-flower-bloom.mp4',
-    fallbackImageSourceId: 'image-garden',
+    fallbackImageSourceId: 'image-moonwell-gardens',
     durationSeconds: 4,
     sizeBytes: 539730,
     format: 'MP4/H.264 derivative from WebM source using OpenH264',

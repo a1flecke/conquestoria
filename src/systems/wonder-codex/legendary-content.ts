@@ -154,7 +154,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'reverence',
     ['forest', 'food', 'science', 'healing', 'culture'],
     ['bgci-gardens'],
-    'image-garden',
+    'image-moonwell-gardens',
     ['forest', 'food', 'science'],
     'Designed Growth',
     'The garden feels natural, but its wonder comes from patient planning.',
