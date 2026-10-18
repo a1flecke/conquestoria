@@ -250,7 +250,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'discovery',
     ['coast', 'travel', 'trade', 'science', 'discovery'],
     ['noaa-maritime-heritage'],
-    'image-ruins',
+    'image-gate-of-the-world',
     ['coast', 'travel', 'discovery'],
     'Beyond the Breakwater',
     'The gate makes long-range travel feel like a civic project.',

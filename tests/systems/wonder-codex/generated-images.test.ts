@@ -100,6 +100,11 @@ describe('generated Legendary Codex illustrations (#609)', () => {
     expect(getImageSource('image-olympia-stadium')).toBeUndefined();
   });
 
+  it('the shipwreck photograph is shown only by the wonder it actually depicts (#609 group 5: ruins)', () => {
+    const showing = getAllWonderCodexContent().filter(entry => entry.imageSourceId === 'image-ruins').map(entry => entry.id);
+    expect(showing).toEqual(['sunken_ruins']);
+  });
+
   it('never shows the same generated illustration for two different wonders', () => {
     const seen = new Map<string, string>();
     for (const record of records) {
