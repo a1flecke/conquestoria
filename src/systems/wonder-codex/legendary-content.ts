@@ -42,7 +42,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'mystery',
     ['coast', 'sea', 'gold', 'water'],
     ['noaa-maritime-heritage'],
-    'image-drydock',
+    'image-tidemother-colossus',
     ['coast', 'sea', 'gold'],
     'Watching the Horizon',
     'Sailors leave gifts at her feet before setting out — a colossus is a promise as much as a monument.',
