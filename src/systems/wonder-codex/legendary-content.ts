@@ -443,7 +443,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'discovery',
     ['gold', 'coast', 'trade', 'engineering', 'military'],
     ['noaa-maritime-heritage'],
-    'image-drydock',
+    'image-suez-canal',
     ['gold', 'coast', 'trade'],
     'Shortcut as Empire',
     'A canal is not just geography — it is a claim on the economic value of time.',
