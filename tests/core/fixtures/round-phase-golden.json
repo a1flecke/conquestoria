@@ -2,7 +2,7 @@
   "turns": [
     {
       "state": {
-        "__whole": "963fea1a58e8",
+        "__whole": "3f2fc2542680",
         "activeEventChains": "e5c153358a49",
         "autonomyByCiv": "95313c912b48",
         "barbarianCampPressure": "44136fa355b3",
@@ -53,7 +53,7 @@
         "religions": "44136fa355b3",
         "resurgentCampCooldownByCivLandmass": "e491b9ee988d",
         "rogueElephantHosts": "44136fa355b3",
-        "saveSchemaVersion": "c6f3ac57944a",
+        "saveSchemaVersion": "86e501496586",
         "settings": "666ce98eb188",
         "stampedes": "33c0cc6ad765",
         "startPlacementMode": "61eb5aa337d3",
@@ -68,11 +68,11 @@
         "worldRaces": "9c3d03a50f52"
       },
       "events": "f52019425554",
-      "trace": "f069f279a56c"
+      "trace": "7b7a3e573abd"
     },
     {
       "state": {
-        "__whole": "3d55508c9ea6",
+        "__whole": "6b8a00ef3fd2",
         "activeEventChains": "4ce55a23983b",
         "autonomyByCiv": "95313c912b48",
         "barbarianCampPressure": "44136fa355b3",
@@ -123,7 +123,7 @@
         "religions": "44136fa355b3",
         "resurgentCampCooldownByCivLandmass": "484c481134a1",
         "rogueElephantHosts": "44136fa355b3",
-        "saveSchemaVersion": "c6f3ac57944a",
+        "saveSchemaVersion": "86e501496586",
         "settings": "666ce98eb188",
         "stampedes": "2c87d14f7b1e",
         "startPlacementMode": "61eb5aa337d3",
@@ -138,11 +138,11 @@
         "worldRaces": "9c3d03a50f52"
       },
       "events": "6da99966f8ba",
-      "trace": "0a96d5b3c993"
+      "trace": "e6962a7df8f5"
     },
     {
       "state": {
-        "__whole": "17fd91afabf2",
+        "__whole": "66d9e51a95b3",
         "activeEventChains": "6e262c6d14d8",
         "autonomyByCiv": "95313c912b48",
         "barbarianCampPressure": "44136fa355b3",
@@ -193,7 +193,7 @@
         "religions": "44136fa355b3",
         "resurgentCampCooldownByCivLandmass": "484c481134a1",
         "rogueElephantHosts": "44136fa355b3",
-        "saveSchemaVersion": "c6f3ac57944a",
+        "saveSchemaVersion": "86e501496586",
         "settings": "666ce98eb188",
         "stampedes": "90db5bca5180",
         "startPlacementMode": "61eb5aa337d3",
@@ -208,7 +208,7 @@
         "worldRaces": "9c3d03a50f52"
       },
       "events": "84e4c3de6f2e",
-      "trace": "0a96d5b3c993"
+      "trace": "e6962a7df8f5"
     }
   ]
 }

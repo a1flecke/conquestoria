@@ -577,7 +577,9 @@ describe('trade-system', () => {
         isDestroyed: false, garrisonCooldown: 0, lastEraUpgrade: 1,
       };
 
-      const nextState = establishQuestAwareRoute(state, 'caravan1', 'city3', 0).state;
+      const routeResult = establishQuestAwareRoute(state, 'caravan1', 'city3');
+      expect(routeResult.ok).toBe(true);
+      const nextState = routeResult.state;
 
       expect(nextState.minorCivs['mc-carthage'].activeQuests.player).toBeUndefined();
     });

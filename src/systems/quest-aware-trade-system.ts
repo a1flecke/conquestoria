@@ -20,7 +20,6 @@ export function establishQuestAwareRoute(
   state: GameState,
   caravanUnitId: string,
   toCityId: string,
-  resourceDiversity: number = 0,
   options: { automated?: boolean; originCityId?: string } = {},
 ): QuestAwareRouteResult {
   const caravan = state.units[caravanUnitId];
@@ -32,7 +31,7 @@ export function establishQuestAwareRoute(
     actingCivId: caravan.owner,
     automated: options.automated ?? true,
     originCityId: options.originCityId,
-  }, undefined, resourceDiversity);
+  });
   if (!result.ok) return { ok: false, state, reason: result.reason };
 
   // Quest progress only after the canonical creation succeeded.

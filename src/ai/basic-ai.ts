@@ -1000,9 +1000,8 @@ function processAITurnInternal(
       .filter((cityId): cityId is string => Boolean(cityId)));
     const candidates = [...ownCities, ...foreignCities].sort((left, right) =>
       Number(assignedDestinationIds.has(right.id)) - Number(assignedDestinationIds.has(left.id)));
-    const resourceDiversity = getCivAvailableResources(newState, civId).size;
     for (const candidate of candidates) {
-      const routeResult = establishQuestAwareRoute(newState, caravan.id, candidate.id, resourceDiversity, { automated: true });
+      const routeResult = establishQuestAwareRoute(newState, caravan.id, candidate.id, { automated: true });
       // #1500: the executor returns a typed refusal; the AI simply tries the next candidate.
       if (!routeResult.ok) continue;
       newState = routeResult.state;

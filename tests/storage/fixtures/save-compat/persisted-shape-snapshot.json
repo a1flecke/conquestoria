@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 33,
+  "schemaVersion": 34,
   "paths": [
     "autonomyByCiv",
     "autonomyByCiv.*.detections",
@@ -1168,6 +1168,8 @@
     "marketplace.tradeRoutes[].fromCityId",
     "marketplace.tradeRoutes[].goldPerTrip",
     "marketplace.tradeRoutes[].id",
+    "marketplace.tradeRoutes[].lastProgressTurn",
+    "marketplace.tradeRoutes[].serviceRoundsRemaining",
     "marketplace.tradeRoutes[].toCityId",
     "marketplace.tradeRoutes[].turnsPerTrip",
     "minorCivCoalitions",

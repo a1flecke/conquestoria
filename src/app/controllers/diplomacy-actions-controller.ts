@@ -45,7 +45,6 @@ import { declareWarGoal, canDeclareWarGoal } from '@/systems/war-goal-system';
 import { proposeSettlement, acceptSettlementOffer } from '@/systems/settlement-system';
 import { TREATY_LABELS } from '@/ui/notification-routes/diplomacy-routes';
 import { appeaseFaction, concedeToMovement } from '@/systems/faction-commands';
-import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
 import { TRADE_ROUTE_DENIAL_MESSAGES } from '@/systems/trade-route-contract';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
@@ -348,14 +347,12 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
   // path (per ui-panels.md's Extracted UI Flows rule), not two copies that could drift.
   function handleEstablishRoute(caravanId: string): void {
     openEstablishRoutePanel(deps.uiLayer, deps.session.getState(), caravanId, (toCityId, originCityId) => {
-      const resourceDiversity = getCivAvailableResources(deps.session.getState(), deps.session.getState().currentPlayer).size;
       // #1500 MR03: the executor returns a typed refusal instead of throwing, so a stale chooser
       // callback (war declared, slot taken, off-turn) shows the entitled reason and mutates nothing.
       const routeResult = establishQuestAwareRoute(
         deps.session.getState(),
         caravanId,
         toCityId,
-        resourceDiversity,
         { automated: false, originCityId },
       );
       if (!routeResult.ok) {

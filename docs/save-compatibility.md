@@ -5,7 +5,7 @@
      Regenerate: UPDATE_SAVE_COMPAT_DOC=1 yarn vitest run tests/storage/save-migration-registries.test.ts
      Enforced by: tests/storage/save-migration-registries.test.ts -->
 
-Current schema version: **33**
+Current schema version: **34**
 
 Save compatibility is three separate mechanisms (#1023). They are deliberately
 not interchangeable: a normalizer silently standing in for a migration that was
@@ -54,6 +54,7 @@ Never on an already-current save.
 | 31 | `governance-policy-fields` | #987 added two optional Civilization fields for governance policies. Like 25, scrub-only — the number exists to give the repair a version boundary. |
 | 32 | `governor-assignment-fields` | #928 added two optional Civilization fields for governor assignments. Like 25/31, scrub-only — the number exists to give the repair a version boundary. |
 | 33 | `commerce-permissions` | #1499 MR02 made foreign commerce require commercial permission; a save written before it holds foreign routes nobody granted, so each gets the one-time route-only transition allowance sized to its own committed journey. Recorded here so a reload never refreshes it. |
+| 34 | `trade-route-settlement` | #1501 MR04 made route income a settlement paid only for a completed round of validated service; an existing route therefore needs a payable-round budget derived from its own committed journey and a starting progress round, after which the normal per-round rules apply. |
 
 ## 2. Compatibility normalization
 

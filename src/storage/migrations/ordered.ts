@@ -34,6 +34,7 @@ import { repairGovernancePolicyFields } from './steps/governance-policies';
 import { repairGovernorAssignmentFields } from './steps/governor-assignments';
 import { repairCityBombardmentTallies } from './steps/bombardment';
 import { migrateCommercePermissions } from './steps/commerce-permissions';
+import { migrateTradeRouteSettlement } from './steps/trade-route-settlement';
 
 /**
  * #1023 — the ordered versioned migrations, one per schema step.
@@ -248,6 +249,12 @@ export const ORDERED_MIGRATIONS: readonly OrderedMigration[] = [
     id: 'commerce-permissions',
     reason: '#1499 MR02 made foreign commerce require commercial permission; a save written before it holds foreign routes nobody granted, so each gets the one-time route-only transition allowance sized to its own committed journey. Recorded here so a reload never refreshes it.',
     apply: migrateCommercePermissions,
+  },
+  {
+    version: 34,
+    id: 'trade-route-settlement',
+    reason: '#1501 MR04 made route income a settlement paid only for a completed round of validated service; an existing route therefore needs a payable-round budget derived from its own committed journey and a starting progress round, after which the normal per-round rules apply.',
+    apply: migrateTradeRouteSettlement,
   },
 ];
 

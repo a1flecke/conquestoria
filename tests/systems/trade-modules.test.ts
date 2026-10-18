@@ -17,8 +17,9 @@ const SURFACE: Array<[name: string, module: object, exports: string[]]> = [
   ['marketplace-system', marketplace,
     ['calculatePrice', 'createMarketplaceState', 'detectMonopoly', 'processFashionCycle', 'updatePrices']],
   ['trade-route-economy', economy,
-    ['calculateTradeRouteGold', 'getEffectiveGoldPerTurn', 'getRouteCapacity', 'getRouteTechGoldBonus',
-      'getTradeUnitTripBonus', 'isRoutePositioning', 'processTradeRouteIncome']],
+    ['calculateTradeRouteGold', 'getEffectiveGoldPerTurn', 'getRouteCapacity', 'getRouteOperatingStatus',
+      'getRouteTechGoldBonus', 'getTradeRouteQuote', 'getTradeUnitTripBonus', 'isRoutePositioning',
+      'processTradeRouteIncome', 'settleTradeRouteForCiv']],
   // getRouteDiplomacy is the one new export: establishment and the stale-route scrub now share it.
   // #1499 MR02 adds scrubUnpermittedRoutes: a foreign route with no commercial permission ends once
   // any legacy route-only allowance has expired.
@@ -36,10 +37,10 @@ describe('#1249 — the trade modules keep their audited public surface', () => 
     });
   }
 
-  it('every pre-split value export is accounted for: 22 originals (24 minus the 2 re-exported types) + getResourceEffectLabel + getRouteDiplomacy + scrubUnpermittedRoutes (#1499) + isRoutePositioning (#1500)', () => {
+  it('every pre-split value export is accounted for: 22 originals (24 minus the 2 re-exported types) + getResourceEffectLabel + getRouteDiplomacy + scrubUnpermittedRoutes (#1499) + isRoutePositioning (#1500) + getTradeRouteQuote/getRouteOperatingStatus/settleTradeRouteForCiv (#1501)', () => {
     const values = SURFACE.flatMap(([, , exports]) => exports);
     expect(new Set(values).size, 'no export is owned by two modules').toBe(values.length);
-    expect(values).toHaveLength(26);
+    expect(values).toHaveLength(29);
   });
 
   it('helpers that were private before the split stay private', () => {
