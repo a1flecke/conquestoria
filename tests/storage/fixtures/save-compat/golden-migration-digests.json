@@ -1,6 +1,6 @@
 {
   "unversioned legacy save (schema 0)": {
-    "__whole": "1b14002b12d7",
+    "__whole": "0c0ff2a88c23",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "23b9aef5bdce",
@@ -45,7 +45,7 @@
     "religions": "44136fa355b3",
     "resurgentCampCooldownByCivLandmass": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -57,7 +57,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 1": {
-    "__whole": "eca62773b634",
+    "__whole": "37ad61f4b84b",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "08ddf6086d5c",
@@ -102,7 +102,7 @@
     "religions": "44136fa355b3",
     "resurgentCampCooldownByCivLandmass": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -114,7 +114,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 2": {
-    "__whole": "24adfc90ba6b",
+    "__whole": "866968b1fb76",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "7dafa0f49e30",
@@ -159,7 +159,7 @@
     "religions": "44136fa355b3",
     "resurgentCampCooldownByCivLandmass": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -171,7 +171,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 3": {
-    "__whole": "e65833e16df2",
+    "__whole": "38b33dfffac9",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "83e5370cf4f9",
@@ -216,7 +216,7 @@
     "religions": "44136fa355b3",
     "resurgentCampCooldownByCivLandmass": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -228,7 +228,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 4": {
-    "__whole": "7a9ee570483c",
+    "__whole": "7eb20767bfe7",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "10060fdec9c1",
@@ -273,7 +273,7 @@
     "religions": "44136fa355b3",
     "resurgentCampCooldownByCivLandmass": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -285,7 +285,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 5": {
-    "__whole": "be27c71970c1",
+    "__whole": "6a56ef4b2677",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "e1f643ffdb8a",
@@ -329,7 +329,7 @@
     "religions": "44136fa355b3",
     "resurgentCampCooldownByCivLandmass": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -341,7 +341,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 6": {
-    "__whole": "50a75eb9020e",
+    "__whole": "504b61dab419",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "c4848bd00379",
@@ -385,7 +385,7 @@
     "religions": "44136fa355b3",
     "resurgentCampCooldownByCivLandmass": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -397,7 +397,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 7": {
-    "__whole": "bdfc72d92272",
+    "__whole": "709678ce136b",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "6c4eda1b870c",
@@ -441,7 +441,7 @@
     "religions": "44136fa355b3",
     "resurgentCampCooldownByCivLandmass": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -453,7 +453,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 8": {
-    "__whole": "e170a64cce11",
+    "__whole": "3fa92be4fb3f",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "380ea0b40583",
@@ -497,7 +497,7 @@
     "religions": "44136fa355b3",
     "resurgentCampCooldownByCivLandmass": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -509,7 +509,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 9": {
-    "__whole": "7d43306387ab",
+    "__whole": "f1a288279a47",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "50506a05a0f2",
@@ -553,7 +553,7 @@
     "religions": "44136fa355b3",
     "resurgentCampCooldownByCivLandmass": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -565,7 +565,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 10": {
-    "__whole": "d926f99674b9",
+    "__whole": "3233522fa87d",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "54b8a4b3b732",
@@ -609,7 +609,7 @@
     "religions": "44136fa355b3",
     "resurgentCampCooldownByCivLandmass": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -621,7 +621,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 11": {
-    "__whole": "b254538e4ba7",
+    "__whole": "b8734fea1fd7",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "7609208a0228",
@@ -665,7 +665,7 @@
     "religions": "44136fa355b3",
     "resurgentCampCooldownByCivLandmass": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -677,7 +677,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 12": {
-    "__whole": "3eb4ef56cf1f",
+    "__whole": "5f1d5f29322f",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "573bc2cb20ca",
@@ -719,7 +719,7 @@
     "pirates": "e2fc13f92201",
     "religions": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -731,7 +731,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 13": {
-    "__whole": "4ce87deab995",
+    "__whole": "b541f57d41d9",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "b200ad8aacf6",
@@ -773,7 +773,7 @@
     "pirates": "e2fc13f92201",
     "religions": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -785,7 +785,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 14": {
-    "__whole": "57d1fcc576b9",
+    "__whole": "a592843c7d6c",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "cfbf51dc67d1",
@@ -827,7 +827,7 @@
     "pirates": "e2fc13f92201",
     "religions": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -839,7 +839,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 15": {
-    "__whole": "6ed640643559",
+    "__whole": "8c5f1e097c93",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "a3aeeb865bd1",
@@ -881,7 +881,7 @@
     "pirates": "e2fc13f92201",
     "religions": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -893,7 +893,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 16": {
-    "__whole": "456b08e62d86",
+    "__whole": "061b597cb49c",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "ed4659296c23",
@@ -935,7 +935,7 @@
     "pirates": "e2fc13f92201",
     "religions": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -947,7 +947,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 17": {
-    "__whole": "4835d57dfca1",
+    "__whole": "f37c8a09dab8",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "629f32b333d8",
@@ -989,7 +989,7 @@
     "pirates": "e2fc13f92201",
     "religions": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -1001,7 +1001,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 18": {
-    "__whole": "5d1e584c5ef7",
+    "__whole": "6ec66f6c97df",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "1c60424ab246",
@@ -1043,7 +1043,7 @@
     "pirates": "e2fc13f92201",
     "religions": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -1055,7 +1055,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 19": {
-    "__whole": "1a6a772b39a7",
+    "__whole": "b8512a9328f3",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "38238f764750",
@@ -1097,7 +1097,7 @@
     "pirates": "e2fc13f92201",
     "religions": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -1109,7 +1109,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 20": {
-    "__whole": "4a6ac19f5922",
+    "__whole": "fe8ad8814e69",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "9c9e202a81a8",
@@ -1151,7 +1151,7 @@
     "pirates": "e2fc13f92201",
     "religions": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -1163,7 +1163,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 21": {
-    "__whole": "31a76e40f392",
+    "__whole": "154741242bd0",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "bfe8b05c6951",
@@ -1205,7 +1205,7 @@
     "pirates": "e2fc13f92201",
     "religions": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -1217,7 +1217,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 22": {
-    "__whole": "4eef289476df",
+    "__whole": "e155649af291",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "6ea2797353df",
@@ -1259,7 +1259,7 @@
     "pirates": "e2fc13f92201",
     "religions": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -1271,7 +1271,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 23": {
-    "__whole": "ecd41b2bd702",
+    "__whole": "36bc7fb2ead5",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "3afb5e8ee0b7",
@@ -1313,7 +1313,7 @@
     "pirates": "e2fc13f92201",
     "religions": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -1325,7 +1325,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 24": {
-    "__whole": "992bc9b85f7e",
+    "__whole": "b80476c65efd",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "a6d09771bb87",
@@ -1367,7 +1367,7 @@
     "pirates": "e2fc13f92201",
     "religions": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -1379,7 +1379,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 25": {
-    "__whole": "046c15456679",
+    "__whole": "e00a543d0c95",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "802b3f6c21fe",
@@ -1421,7 +1421,7 @@
     "pirates": "e2fc13f92201",
     "religions": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -1433,7 +1433,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 26": {
-    "__whole": "285a3c77ab86",
+    "__whole": "f234c5eb3fa7",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "baac7d2eb1e0",
@@ -1475,7 +1475,7 @@
     "pirates": "e2fc13f92201",
     "religions": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -1487,7 +1487,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 27": {
-    "__whole": "b2bb28a145c4",
+    "__whole": "9ee8df875e86",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "53a6812e52d3",
@@ -1529,7 +1529,7 @@
     "pirates": "e2fc13f92201",
     "religions": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -1541,7 +1541,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 28": {
-    "__whole": "d4718e11130f",
+    "__whole": "f219e42a9145",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "d873417c227c",
@@ -1583,7 +1583,7 @@
     "pirates": "e2fc13f92201",
     "religions": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -1595,7 +1595,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 29": {
-    "__whole": "bdedfec906b3",
+    "__whole": "947e51a98b20",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "0c70420e5ddf",
@@ -1637,7 +1637,7 @@
     "pirates": "e2fc13f92201",
     "religions": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -1649,7 +1649,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 30": {
-    "__whole": "50b50e72281c",
+    "__whole": "e5a68cb88930",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "67e6063ee492",
@@ -1691,7 +1691,7 @@
     "pirates": "e2fc13f92201",
     "religions": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -1703,7 +1703,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 31": {
-    "__whole": "73722f9e5f26",
+    "__whole": "43be873cfd20",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "00e28abc28c9",
@@ -1745,7 +1745,7 @@
     "pirates": "e2fc13f92201",
     "religions": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -1757,7 +1757,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 32": {
-    "__whole": "c3a6669348e0",
+    "__whole": "f0ca632dd075",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "23a5fa3badb7",
@@ -1799,7 +1799,7 @@
     "pirates": "e2fc13f92201",
     "religions": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -1811,7 +1811,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 33": {
-    "__whole": "476e15d4afd6",
+    "__whole": "8f97ca14e825",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "72ee0124d559",
@@ -1853,7 +1853,7 @@
     "pirates": "e2fc13f92201",
     "religions": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -1865,7 +1865,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "save written at schema 34": {
-    "__whole": "fb495f61cb19",
+    "__whole": "cb3085850031",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "8b65afa2eb02",
@@ -1904,13 +1904,10 @@
     "opponentChallenge": "cb2842d6687d",
     "pendingDiplomacyRequests": "4f53cda18c2b",
     "pendingGeneralCandidateChoices": "4f53cda18c2b",
-    "pirateFleetCooldownByCivLandmass": "44136fa355b3",
-    "pirateFleets": "44136fa355b3",
     "pirates": "e2fc13f92201",
     "religions": "44136fa355b3",
-    "resurgentCampCooldownByCivLandmass": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -1921,8 +1918,65 @@
     "winner": "74234e98afe7",
     "wonderDiscoverers": "44136fa355b3"
   },
+  "save written at schema 35": {
+    "__whole": "f16faa7b19be",
+    "autonomyByCiv": "3ed4a1d0a4ee",
+    "barbarianCampPressure": "44136fa355b3",
+    "barbarianCamps": "94801769649e",
+    "beasts": "d1e978db2894",
+    "cities": "180654c66f75",
+    "cityFaith": "44136fa355b3",
+    "civilizations": "897960f26886",
+    "commercePermissions": "b053f8ba4051",
+    "crisisForces": "44136fa355b3",
+    "currentPlayer": "97f5db6e7163",
+    "defensiveLeagues": "4f53cda18c2b",
+    "discoveredWonders": "44136fa355b3",
+    "dominationIntel": "44136fa355b3",
+    "embargoes": "4f53cda18c2b",
+    "era": "6b86b273ff34",
+    "espionage": "75b31a07c2e9",
+    "gameId": "f6d5936117b1",
+    "gameOver": "fcbcf165908d",
+    "gameTitle": "3a052c05490a",
+    "generatedGenerals": "44136fa355b3",
+    "idCounters": "26a63a1ec023",
+    "legendaryWonderHistory": "bf2ca6d58735",
+    "legendaryWonderIntel": "44136fa355b3",
+    "legendaryWonderTacticalEffects": "47b45e76467c",
+    "map": "9f560b9c63cb",
+    "mapScript": "da8d666f962e",
+    "marketplace": "ca1ca317fd2a",
+    "minorCivCoalitions": "44136fa355b3",
+    "minorCivLeagues": "c202dbe4d6ea",
+    "minorCivRegionalCooldowns": "44136fa355b3",
+    "minorCivs": "e33326312c22",
+    "nationalProjectChoices": "44136fa355b3",
+    "networkCivicPressureByCity": "44136fa355b3",
+    "notificationLog": "44136fa355b3",
+    "opponentAI": "6ec9db8cfff9",
+    "opponentChallenge": "cb2842d6687d",
+    "pendingDiplomacyRequests": "4f53cda18c2b",
+    "pendingGeneralCandidateChoices": "4f53cda18c2b",
+    "pirateFleetCooldownByCivLandmass": "44136fa355b3",
+    "pirateFleets": "44136fa355b3",
+    "pirates": "e2fc13f92201",
+    "religions": "44136fa355b3",
+    "resurgentCampCooldownByCivLandmass": "44136fa355b3",
+    "rogueElephantHosts": "44136fa355b3",
+    "saveSchemaVersion": "9f14025af006",
+    "settings": "19ce8f05dccb",
+    "stampedes": "44136fa355b3",
+    "startPlacementMode": "61eb5aa337d3",
+    "tribalVillages": "8b6d5b2105e8",
+    "turn": "6b86b273ff34",
+    "tutorial": "af2243419f53",
+    "units": "d6a35143a7ae",
+    "winner": "74234e98afe7",
+    "wonderDiscoverers": "44136fa355b3"
+  },
   "real archived save — issue #365 crowded map, turn 42, unversioned": {
-    "__whole": "f610a79cb9a0",
+    "__whole": "77d2097047b1",
     "autonomyByCiv": "d1687a2059af",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "951e103a4b9b",
@@ -1961,7 +2015,7 @@
     "religions": "44136fa355b3",
     "resurgentCampCooldownByCivLandmass": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "ee01e0af5372",
     "stampedes": "44136fa355b3",
     "tribalVillages": "cde301326d80",
@@ -1972,7 +2026,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "hot-seat save (2 human viewers, queued pendingEvents), unversioned": {
-    "__whole": "9e46c2a38ad9",
+    "__whole": "41e79e1a14fa",
     "autonomyByCiv": "c93a1bc559b4",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "38551d23b483",
@@ -2017,7 +2071,7 @@
     "religions": "44136fa355b3",
     "resurgentCampCooldownByCivLandmass": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "59d88371764a",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -2029,7 +2083,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "migration 23 — scrubs a malformed generated-officer registry entry": {
-    "__whole": "afbe1032cf40",
+    "__whole": "18efc10da6cf",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "8d8058a3a255",
@@ -2071,7 +2125,7 @@
     "pirates": "e2fc13f92201",
     "religions": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -2083,7 +2137,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "migration 25 — scrubs a malformed federalismChangedTurn": {
-    "__whole": "762f0a2805a0",
+    "__whole": "c313ff1b2c29",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "4868add23a53",
@@ -2125,7 +2179,7 @@
     "pirates": "e2fc13f92201",
     "religions": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -2137,7 +2191,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "migration 26 — scrubs a malformed city.bombardment tally": {
-    "__whole": "f1c46423861d",
+    "__whole": "555d39f3e05f",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "1ac6c8762d39",
@@ -2179,7 +2233,7 @@
     "pirates": "e2fc13f92201",
     "religions": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -2191,7 +2245,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "migration 27 — normalizes malformed vassalage state": {
-    "__whole": "8d16e01a87c1",
+    "__whole": "036a7896ed06",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "a0b4892cc6d6",
@@ -2233,7 +2287,7 @@
     "pirates": "e2fc13f92201",
     "religions": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -2245,7 +2299,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "repair — drops malformed earned-Domination observations without backfilling history": {
-    "__whole": "3c3eb267ab69",
+    "__whole": "0ab80f754fb9",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "38a5eba6baa1",
@@ -2290,7 +2344,7 @@
     "religions": "44136fa355b3",
     "resurgentCampCooldownByCivLandmass": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -2302,7 +2356,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "repair — normalizes one-sided / duplicated / self major-civ war state (#995)": {
-    "__whole": "2f30f0db373e",
+    "__whole": "216b56ee63b9",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "7feef51932cf",
@@ -2347,7 +2401,7 @@
     "religions": "44136fa355b3",
     "resurgentCampCooldownByCivLandmass": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",
@@ -2359,7 +2413,7 @@
     "wonderDiscoverers": "44136fa355b3"
   },
   "repair — normalizes transport/cargo and carrier-aircraft links (#1000)": {
-    "__whole": "016c572bfe1c",
+    "__whole": "90836d6a712d",
     "autonomyByCiv": "3ed4a1d0a4ee",
     "barbarianCampPressure": "44136fa355b3",
     "barbarianCamps": "792f327ad249",
@@ -2404,7 +2458,7 @@
     "religions": "44136fa355b3",
     "resurgentCampCooldownByCivLandmass": "44136fa355b3",
     "rogueElephantHosts": "44136fa355b3",
-    "saveSchemaVersion": "86e501496586",
+    "saveSchemaVersion": "9f14025af006",
     "settings": "19ce8f05dccb",
     "stampedes": "44136fa355b3",
     "startPlacementMode": "61eb5aa337d3",

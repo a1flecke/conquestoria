@@ -176,6 +176,7 @@ threat:pirate-fleet-spawned
 threat:pirate-plunder
 threat:pirate-siege
 trade:price-changed
+trade:route-cancelled
 trade:route-created
 trade:route-delivered
 trade:route-ended

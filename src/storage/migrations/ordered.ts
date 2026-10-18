@@ -35,6 +35,7 @@ import { repairGovernorAssignmentFields } from './steps/governor-assignments';
 import { repairCityBombardmentTallies } from './steps/bombardment';
 import { migrateCommercePermissions } from './steps/commerce-permissions';
 import { migrateTradeRouteSettlement } from './steps/trade-route-settlement';
+import { migrateTradeRoutePersistence } from './steps/trade-route-persistence';
 
 /**
  * #1023 — the ordered versioned migrations, one per schema step.
@@ -255,6 +256,12 @@ export const ORDERED_MIGRATIONS: readonly OrderedMigration[] = [
     id: 'trade-route-settlement',
     reason: '#1501 MR04 made route income a settlement paid only for a completed round of validated service; an existing route therefore needs a payable-round budget derived from its own committed journey and a starting progress round, after which the normal per-round rules apply.',
     apply: migrateTradeRouteSettlement,
+  },
+  {
+    version: 35,
+    id: 'trade-route-persistence',
+    reason: '#1502 MR05 retired the finite trip counter: a route no longer expires, so a save written before it must not keep a dead tripsRemaining value on its units.',
+    apply: migrateTradeRoutePersistence,
   },
 ];
 
