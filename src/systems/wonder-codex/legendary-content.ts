@@ -218,7 +218,7 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'prosperity',
     ['trade', 'gold', 'knowledge', 'culture', 'travel'],
     ['khan-trade-networks'],
-    'image-exchange',
+    'image-whispering-exchange',
     ['trade', 'gold', 'knowledge'],
     'Quiet Deals',
     'The exchange rewards attention to small signals before they become public news.',
