@@ -386,6 +386,16 @@ export function FooSprite({ palette, svgOnly = false }: BuildingSpriteProps): st
 - **Effect classes**: `.cq-fire`, `.cq-smoke[--b][--c]`, `.cq-spark[--b][--c]`, `.cq-glow`, `.cq-peek`, `.cq-dust`
 - Wave/rocking: inline `<animate>` elements (see `DockSprite`)
 
+### Building Production Art (#620)
+
+A building listed in `BUILDING_ART` (`src/renderer/buildings/building-art-catalog.ts`) is drawn from a generated **painted isometric PNG**
+(256 px, transparent, no flag, `public/images/buildings/art/<id>.png`) with the owner's `Banner` over it, instead of its SVG component;
+the SVG stays as the fallback. Built through `scripts/building-sprite/building_sprite.py` from an image generated on flat magenta.
+Style (locked paragraph reused in every prompt): isometric three-quarter view from above and slightly right, one building on a small
+square stone base plate, hand-painted 2D game art, bold dark ink outline, flat cel shading with soft highlights, earthy saturated palette,
+readable at 40 px, no ground scenery, no text. This is a different look from the flat SVG buildings; they are being replaced
+set by set. Art so far: Royal Mint. Details and rules: `.claude/rules/sprites.md` "Building Production Art (#620)".
+
 ### Terrain Tile
 ```typescript
 // Plain SVG string — no JSX, no palette, no imports
