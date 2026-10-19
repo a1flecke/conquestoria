@@ -1873,7 +1873,20 @@ export interface TradeRoute {
   legStartedTurn?: number;
   /** #1502 MR05b: extra rounds this leg has spent re-routing around an obstruction. */
   detourRoundsUsed?: number;
+  /**
+   * #1503 MR06: the interruption the owner has already been told about, so a stationary obstruction
+   * or blockade emits exactly one notice per uninterrupted stretch. Cleared as soon as service is
+   * no longer interrupted, so the next interruption announces again.
+   */
+  notifiedInterruption?: TradeRouteInterruptionReason;
 }
+
+/**
+ * #1503 MR06: why a route's service is interrupted. `blocked` is a physical obstruction on the
+ * committed path; `blockaded` is a canonical blockade of an endpoint city. Both are derived from
+ * authoritative world facts — neither is a random loss.
+ */
+export type TradeRouteInterruptionReason = 'blocked' | 'blockaded';
 
 export interface PurchasedResourceEntry {
   civId: string;          // hot-seat: which civ made the purchase
@@ -2230,6 +2243,8 @@ export interface GameEvents extends DiplomacyEvents, CivilizationEvents, WorldEv
   'trade:route-ended': { routeId: string; fromCityId: string; toCityId: string; reason: 'unit-died' | 'unit-disbanded' | 'war-declared' | 'hostile-relations' | 'embargo' | 'trips-exhausted' | 'unit-captured' | 'espionage' | 'permission-expired' | 'cancelled' | 'endpoint-lost' };
   /** #1502 MR05: the owner cancelled the route; the trader is returning home before it ends. */
   'trade:route-cancelled': { routeId: string; fromCityId: string; toCityId: string };
+  /** #1503 MR06: one notice per route per uninterrupted stretch (dedup lives on the route). */
+  'trade:route-interrupted': { routeId: string; fromCityId: string; toCityId: string; reason: TradeRouteInterruptionReason };
   'trade:route-delivered': { unitId: string; routeId: string; toCityId: string };
   'trade:price-changed': { resource: ResourceType; oldPrice: number; newPrice: number };
   'wonder:discovered': { civId: string; wonderId: string; position: HexCoord; isFirstDiscoverer: boolean };

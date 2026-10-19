@@ -180,6 +180,7 @@ trade:route-cancelled
 trade:route-created
 trade:route-delivered
 trade:route-ended
+trade:route-interrupted
 turn:end
 turn:start
 tutorial:step
