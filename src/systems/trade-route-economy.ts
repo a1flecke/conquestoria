@@ -1,7 +1,7 @@
 // src/systems/trade-route-economy.ts
 // #1249: what a trade route is worth and how many a city may hold — per-trip gold, tech/network
 // bonuses, capacity and the trip bonus. Pure queries over state; no route is created or removed here.
-import type { TradeRoute, GameState, UnitType, TradeRouteInterruptionReason } from '@/core/types';
+import type { TradeRoute, GameState, UnitType, TradeRouteInterruptionReason, TradeRouteModeId } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
 import { isCityCoastal } from './city-system';
 import { getTradeRouteTechGold } from './tech-yield-system';
@@ -9,6 +9,8 @@ import { getNetworkRouteGoldBonus } from './network-infrastructure-plans';
 import { getCivAvailableResources } from './resource-acquisition-system';
 import { getRouteRoundsBetween } from './trade-route-travel';
 import { getTradeDangerFacts, getRouteDangerConsequences, isRouteServiceSuspended, type TradeDangerFacts } from './trade-danger-adapters';
+import { getRouteModeId, getTradeRouteMode } from './trade-route-modes';
+import type { TradeRouteDelivery } from './trade-route-delivery';
 import { hexDistance, wrappedHexDistance } from './hex-utils';
 
 export function calculateTradeRouteGold(
@@ -91,6 +93,12 @@ export interface TradeRouteOperatingStatus {
   goldPerTurn: number;
   paying: boolean;
   reason: TradeRouteNonOperatingReason | null;
+  /**
+   * #1504 MR07: what this route is for, and — for a non-commerce mode — what the named recipient
+   * receives per served round. `null` means the route's reward is gold, priced by its own quote.
+   */
+  mode: TradeRouteModeId;
+  modeYieldPerRound: number | null;
 }
 
 /**
@@ -190,8 +198,10 @@ export function getRouteOperatingStatus(
 ): TradeRouteOperatingStatus {
   const route = state.marketplace?.tradeRoutes.find(candidate => candidate.id === routeId);
   const promised = route ? promisedGoldPerTurn(state, route) : 0;
+  const mode: TradeRouteModeId = route ? getRouteModeId(route) : 'commerce';
+  const modeYieldPerRound = getTradeRouteMode(mode)?.amountPerRound ?? null;
   const notOperating = (reason: TradeRouteNonOperatingReason): TradeRouteOperatingStatus =>
-    ({ routeId, promisedGoldPerTurn: promised, goldPerTurn: 0, paying: false, reason });
+    ({ routeId, promisedGoldPerTurn: promised, goldPerTurn: 0, paying: false, reason, mode, modeYieldPerRound });
 
   if (!route) return notOperating('no-trader');
   // #1502 MR05: a paused route holds its trader and slot, and earns nothing until it resumes; a
@@ -218,7 +228,17 @@ export function getRouteOperatingStatus(
   // as operating until its first settlement round decides.
   if (route.lastProgressTurn !== undefined && route.lastProgressTurn !== state.turn) return notOperating('blocked');
 
-  return { routeId, promisedGoldPerTurn: promised, goldPerTurn: promised, paying: true, reason: null };
+  return {
+    routeId,
+    promisedGoldPerTurn: promised,
+    // #1504 MR07: a non-commerce route delivers its mode's yield instead of gold, so its gold is 0
+    // even while it is operating. `paying` means "being served this round", not "paying gold".
+    goldPerTurn: mode === 'commerce' ? promised : 0,
+    paying: true,
+    reason: null,
+    mode,
+    modeYieldPerRound,
+  };
 }
 
 /**
@@ -237,12 +257,19 @@ export function settleTradeRouteForCiv(
   state: GameState,
   civId: string,
   bus?: EventBus,
-): { state: GameState; paid: number; reasons: TradeRouteNonOperatingReason[] } {
+): {
+  state: GameState;
+  paid: number;
+  reasons: TradeRouteNonOperatingReason[];
+  /** #1504 MR07: recipient-specific deliveries for non-commerce modes, for the caller to apply. */
+  deliveries: TradeRouteDelivery[];
+} {
   const routes = state.marketplace?.tradeRoutes;
-  if (!routes || routes.length === 0) return { state, paid: 0, reasons: [] };
+  if (!routes || routes.length === 0) return { state, paid: 0, reasons: [], deliveries: [] };
 
   let paid = 0;
   const reasons: TradeRouteNonOperatingReason[] = [];
+  const deliveries: TradeRouteDelivery[] = [];
   let changed = false;
   // One authoritative danger read for the whole pass, so a blockade is not re-derived per route.
   const danger = getTradeDangerFacts(state);
@@ -295,7 +322,20 @@ export function settleTradeRouteForCiv(
       return { ...withNotice, serviceRoundsRemaining: budget, lastSettledTurn: state.turn };
     }
 
-    paid += status.goldPerTurn;
+    // #1504 MR07: a commerce route pays gold into the round's gross total; any other mode owes a
+    // recipient-specific delivery the caller applies. One route never produces both, so a domestic
+    // provisioning route can never also collect foreign-commerce gold.
+    const modeDefinition = getTradeRouteMode(getRouteModeId(route));
+    if (modeDefinition && modeDefinition.recipient !== 'owner-treasury') {
+      const amount = modeDefinition.amountPerRound ?? 0;
+      if (amount > 0) {
+        deliveries.push(modeDefinition.recipient === 'owner-research'
+          ? { routeId: route.id, recipient: modeDefinition.recipient, civId: origin.owner, amount }
+          : { routeId: route.id, recipient: modeDefinition.recipient, cityId: route.toCityId, amount });
+      }
+    } else {
+      paid += status.goldPerTurn;
+    }
     changed = true;
     return {
       ...withNotice,
@@ -305,11 +345,12 @@ export function settleTradeRouteForCiv(
     };
   });
 
-  if (!changed) return { state, paid: 0, reasons };
+  if (!changed) return { state, paid: 0, reasons, deliveries };
   return {
     state: { ...state, marketplace: { ...state.marketplace!, tradeRoutes: nextRoutes } },
     paid,
     reasons,
+    deliveries,
   };
 }
 

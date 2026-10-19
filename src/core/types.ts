@@ -1,5 +1,5 @@
 import type { NotificationCityAction, NotificationLogState } from './notification-log';
-import type { CommercePermissionsState, TradeRouteInterruptionReason } from './types/commerce';
+import type { CommercePermissionsState, TradeRouteInterruptionReason, TradeRouteModeId } from './types/commerce';
 import type { PirateState } from './pirate-state';
 import type { DominationIntelState } from '@/systems/domination-types';
 import type { GovernancePolicyId } from '@/systems/governance-types';
@@ -53,6 +53,8 @@ export type {
 export type { IdCounters } from './types/ids';
 /** #1503 MR06: the leaf-owned reason a trade route's service is interrupted. */
 export type { TradeRouteInterruptionReason } from './types/commerce';
+/** #1504 MR07: the leaf-owned identifier of what a trade route is for. */
+export type { TradeRouteModeId } from './types/commerce';
 
 // --- Terrain ---
 
@@ -1881,6 +1883,12 @@ export interface TradeRoute {
    * no longer interrupted, so the next interruption announces again.
    */
   notifiedInterruption?: TradeRouteInterruptionReason;
+  /**
+   * #1504 MR07: what this route is for. Absent means `commerce` — exactly the pre-MR07 behavior — so an
+   * old save needs no migration and every mode reader tolerates absence. The mode is chosen at
+   * assignment and frozen for the round trip, like the rest of the route's terms.
+   */
+  mode?: TradeRouteModeId;
 }
 
 export interface PurchasedResourceEntry {
