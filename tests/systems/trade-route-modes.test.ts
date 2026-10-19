@@ -18,7 +18,7 @@ import {
 function makeState(overrides: { treaty?: boolean; tech?: string[] } = {}): GameState {
   const { treaty = true, tech = [] } = overrides;
   const treaties = treaty ? [{ type: 'trade_agreement', civA: 'alpha', civB: 'beta', turnsRemaining: -1 }] : [];
-  const diplomacy = (self: string, other: string) => ({
+  const diplomacy = (_self: string, other: string) => ({
     relationships: { [other]: 10 }, treaties, events: [], atWarWith: [], treacheryScore: 0,
     vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 0, peakMilitary: 0 },
   });
