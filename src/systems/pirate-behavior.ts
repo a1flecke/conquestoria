@@ -27,6 +27,7 @@ import {
   PIRATE_SIEGE_MIN_STAGE,
 } from './pirate-definitions';
 import { UNIT_DEFINITIONS } from './unit-definitions';
+import { isTradeUnitTypeInDomain } from './trade-role-targeting';
 import { moveUnitWithZoneOfControl } from './unit-low-level-move';
 import { getMovementStepCost } from './unit-movement-cost';
 import { findPath } from './unit-pathfinding';
@@ -207,20 +208,31 @@ export function choosePirateIntent(state: GameState, factionId: string): PirateI
 
   const allUnits = Object.values(state.units);
   const transports: Unit[] = [];
+  const merchantHulls: Unit[] = [];
   const combatNaval: Unit[] = [];
   for (const unit of allUnits) {
-    const definition = UNIT_DEFINITIONS[unit.type];
+    // Read the candidate's type once: a suspiciously cheap getter (or an expensively resolved unit)
+    // must not be read twice per faction, and the end-to-end budget test pins that.
+    const type = unit.type;
+    const definition = UNIT_DEFINITIONS[type];
     if (definition?.domain !== 'naval') continue;
+    // #1503 MR06: prizes are troop transports (cargo capacity) *and* merchant trade hulls. The
+    // old set was derived from `cargoCapacity` alone, so the whole naval trader line was invisible
+    // to pirates. The hull roster now comes from the shared trade-role query, so a new tier is
+    // raided without editing this system.
     if (definition.cargoCapacity !== undefined) transports.push(unit);
+    else if (isTradeUnitTypeInDomain(type, 'naval')) merchantHulls.push(unit);
     if (definition.strength > 0) combatNaval.push(unit);
   }
-  const escortedTransportIds = new Set(transports.filter(transport => combatNaval.some(escort =>
-    escort.owner === transport.owner
-    && distance(state, escort.position, transport.position) <= 1,
-  )).map(transport => transport.id));
-  const activeEscortIds = new Set(combatNaval.filter(escort => transports.some(transport =>
-    transport.owner === escort.owner
-    && distance(state, transport.position, escort.position) <= 1,
+  /** Everything a pirate may take as a prize: an unescorted transport or merchant hull. */
+  const prizes = [...transports, ...merchantHulls];
+  const escortedPrizeIds = new Set(prizes.filter(prize => combatNaval.some(escort =>
+    escort.owner === prize.owner
+    && distance(state, escort.position, prize.position) <= 1,
+  )).map(prize => prize.id));
+  const activeEscortIds = new Set(combatNaval.filter(escort => prizes.some(prize =>
+    prize.owner === escort.owner
+    && distance(state, prize.position, escort.position) <= 1,
   )).map(escort => escort.id));
   const victimUnits = allUnits.filter(unit =>
     !unit.transportId
@@ -230,10 +242,10 @@ export function choosePirateIntent(state: GameState, factionId: string): PirateI
   ).sort((a, b) => distance(state, from, a.position) - distance(state, from, b.position)
     || a.id.localeCompare(b.id))
     .slice(0, PIRATE_BEHAVIOR_SEARCH_LIMITS.units);
-  const unescortedTransport = nearestByPosition(state, from,
-    victimUnits.filter(unit => transports.includes(unit) && !escortedTransportIds.has(unit.id)));
-  if (unescortedTransport) {
-    return { kind: 'raid', targetCivId: unescortedTransport.owner, targetUnitId: unescortedTransport.id, plannedRound: state.turn };
+  const unescortedPrize = nearestByPosition(state, from,
+    victimUnits.filter(unit => prizes.includes(unit) && !escortedPrizeIds.has(unit.id)));
+  if (unescortedPrize) {
+    return { kind: 'raid', targetCivId: unescortedPrize.owner, targetUnitId: unescortedPrize.id, plannedRound: state.turn };
   }
 
   const eligibleCities = Object.values(state.cities).filter(city =>
@@ -256,16 +268,16 @@ export function choosePirateIntent(state: GameState, factionId: string): PirateI
   }
 
   const hostileNaval = nearestByPosition(state, from,
-    victimUnits.filter(unit => combatNaval.includes(unit) && !transports.includes(unit) && !activeEscortIds.has(unit.id)));
+    victimUnits.filter(unit => combatNaval.includes(unit) && !prizes.includes(unit) && !activeEscortIds.has(unit.id)));
   if (hostileNaval) {
     return { kind: 'raid', targetCivId: hostileNaval.owner, targetUnitId: hostileNaval.id, plannedRound: state.turn };
   }
 
   if (faction.behavior === 'blockading' || faction.behavior === 'besieging') {
-    const escortedTransport = nearestByPosition(state, from,
-      victimUnits.filter(unit => transports.includes(unit) && escortedTransportIds.has(unit.id)));
-    if (escortedTransport) {
-      return { kind: 'raid', targetCivId: escortedTransport.owner, targetUnitId: escortedTransport.id, plannedRound: state.turn };
+    const escortedPrize = nearestByPosition(state, from,
+      victimUnits.filter(unit => prizes.includes(unit) && escortedPrizeIds.has(unit.id)));
+    if (escortedPrize) {
+      return { kind: 'raid', targetCivId: escortedPrize.owner, targetUnitId: escortedPrize.id, plannedRound: state.turn };
     }
   }
   return null;
