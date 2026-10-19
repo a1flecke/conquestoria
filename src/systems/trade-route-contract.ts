@@ -17,10 +17,10 @@
 import type { City, GameState, TradeRoute, UnitType } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
-import { getUnitRoleDefinition } from '@/systems/combat-role-definitions';
 import { findPathToCity } from '@/systems/unit-pathfinding';
 import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import { hasDiscoveredCity, hasExploredCoord } from '@/systems/discovery-system';
+import { isTradeUnitType } from '@/systems/trade-role-targeting';
 import { getCommercialPassagePermission, type CommercePassageDenialReason } from '@/systems/commerce-permissions';
 import {
   getRouteCapacity,
@@ -68,12 +68,12 @@ export const TRADE_ROUTE_DENIAL_MESSAGES: Record<TradeRouteDenialReason, string>
 };
 
 /**
- * Does this unit type have the canonical trade role? Derived from the same role metadata the AI
- * consumes (`combat-role-definitions`), so the chooser, the AI and this contract share one rule and
- * no hand-maintained trader roster exists anywhere.
+ * Does this unit type have the canonical trade role? #1503 MR06 moved the derivation into the shared
+ * `trade-role-targeting` query, so the chooser, the AI, this contract and the hostile systems all
+ * read one predicate — this name is kept as the contract's own alias for its existing callers.
  */
 export function isTradeTraderType(type: UnitType): boolean {
-  return (getUnitRoleDefinition(type)?.aiRoles ?? []).includes('trade');
+  return isTradeUnitType(type);
 }
 
 export interface TradeRouteRequest {
