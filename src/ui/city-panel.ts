@@ -21,7 +21,7 @@ import { SESSION_SHOWN_TIPS } from '@/ui/advisor-system';
 import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import { getVisibility } from '@/systems/fog-of-war';
 import { createGameButton } from './ui-kit';
-import { getAnimatedBuildingIconHtml } from './city-panel-building-icon';
+import { getAnimatedBuildingIconHtml, getProductionItemIconHtml } from './city-panel-building-icon';
 import { derivePalette, NEUTRAL_FACTION_PALETTE } from '@/renderer/sprites/sprite-system';
 import { hasAITradeRole } from '@/ai/ai-unit-roles';
 import { buildCityRouteRows, getOutgoingRoutesForCity, type RouteControlHandler } from './trade-route-presentation';
@@ -702,7 +702,7 @@ export function createCityPanel(
     // A real button: a clickable div cannot be focused or activated from the keyboard, and this is how a city
     // queues production (#1459).
     buildItemPlaceholders += `<button type="button" class="build-item" data-item-id="${b.id}" style="display:block;width:100%;color:inherit;font:inherit;text-align:left;background:rgba(255,255,255,0.1);${npBorder}border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;">
-      <span style="display:block;font-weight:bold;font-size:13px;">${getProductionIconForItem(b.id)} <span data-text="build-name-${idx}"></span></span>
+      <span style="display:block;font-weight:bold;font-size:13px;">${getProductionItemIconHtml(b.id, buildingIconPalette)} <span data-text="build-name-${idx}"></span></span>
       <span style="display:block;font-size:11px;opacity:0.7;">${yieldStr}${turns} turns${upkeepStr}${deadline}</span>
       ${resourceRequirementLine(b.id, b.resourceRequired)}
       ${arsenalStatusLine(b.id)}
@@ -1016,7 +1016,7 @@ export function createCityPanel(
 
     currentProductionHtml = `
       <div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:12px;margin-bottom:16px;">
-        <div style="font-weight:bold;color:#e8c170;">Producing: ${productionIconHtml(currentItem)} <span data-text="prod-name"></span></div>
+        <div style="font-weight:bold;color:#e8c170;">Producing: ${getProductionItemIconHtml(currentItem, buildingIconPalette)} <span data-text="prod-name"></span></div>
         <div style="font-size:12px;opacity:0.7;"><span data-text="prod-turns"></span> turns remaining <span style="opacity:0.7;">(estimate from current production)</span></div>
         <div style="background:rgba(0,0,0,0.3);border-radius:4px;height:8px;margin-top:8px;">
           <div style="background:#6b9b4b;border-radius:4px;height:8px;width:${progress}%;"></div>
@@ -1077,7 +1077,7 @@ export function createCityPanel(
     queueRowsHtml += `
       <div data-queue-index="${idx}" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;background:rgba(255,255,255,0.06);border-radius:8px;padding:8px;">
         <div>
-          <div style="font-weight:bold;">${productionIconHtml(city.productionQueue[idx])} <span data-text="queue-name-${idx}"></span></div>
+          <div style="font-weight:bold;">${getProductionItemIconHtml(city.productionQueue[idx], buildingIconPalette)} <span data-text="queue-name-${idx}"></span></div>
           <div style="font-size:11px;opacity:0.7;">${slotLabel}</div>
           ${headChangeWarning ? '<div data-head-change-warning="true" style="font-size:11px;color:#d9a25c;margin-top:2px;"></div>' : ''}
         </div>
