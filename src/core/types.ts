@@ -51,6 +51,8 @@ export type {
   CombatModifierFact, CombatExchangeKind, CombatExchangeSummary, CombatRewardNotification, CaptureKind,
 } from './types/combat';
 export type { IdCounters } from './types/ids';
+/** #1503 MR06: the leaf-owned reason a trade route's service is interrupted. */
+export type { TradeRouteInterruptionReason } from './types/commerce';
 
 // --- Terrain ---
 
@@ -1880,13 +1882,6 @@ export interface TradeRoute {
    */
   notifiedInterruption?: TradeRouteInterruptionReason;
 }
-
-/**
- * #1503 MR06: why a route's service is interrupted. `blocked` is a physical obstruction on the
- * committed path; `blockaded` is a canonical blockade of an endpoint city. Both are derived from
- * authoritative world facts — neither is a random loss. Declared in the `commerce` type leaf.
- */
-export type { TradeRouteInterruptionReason } from './types/commerce';
 
 export interface PurchasedResourceEntry {
   civId: string;          // hot-seat: which civ made the purchase
