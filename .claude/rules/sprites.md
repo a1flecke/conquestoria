@@ -132,11 +132,15 @@ file is missing or fails to load (a catalog test fails if it goes).
   originals in `$BUILDING_SOURCES_DIR`, never committed). The image is generated on flat magenta; the tool keys it, trims, pads to a square, shrinks to
   256 px, quantises to a palette PNG (<= 70 KB) and writes `design/building-art/<id>.provenance.json`. Update the `ChatGPT image generation
   (building sprites)` count in `docs/asset-rights-ledger.md` (`asset-rights-ledger.test.ts` fails otherwise).
-- **Production chooser, "Producing" line and queue:** `getProductionItemIconHtml(itemId, palette)` (`city-panel-building-icon.ts`) is the one
-  entry: a building with art gets the 28 px art with the owner's banner (`data-building-art`, `aria-hidden`; the name is always beside it),
-  everything else keeps `productionIconHtml` (a legendary wonder's art, or the `PRODUCTION_ICONS` emoji). A new production list in the city
-  panel uses it rather than `getProductionIconForItem`. Pinned by `tests/ui/city-panel-production-art.test.ts`.
-- **Not covered:** the "locked items" lists in the city panel (`🔒 …`) and the unit rows keep their emoji.
+- **Every production list in the city panel** (build chooser, unit rows, locked-items list and its "show more" expansion, the "Producing" line
+  and the queue) draws its icon through `getProductionItemIconHtml(itemId, owner)` (`city-panel-building-icon.ts`), where `owner` is the required
+  `{ palette, color }` of the *city's* owner (hot seat: never the viewer's seat). It returns, in order: a building with art as the 28 px art with
+  the owner's banner (`data-building-art`); a unit as its real sprite (`data-unit-art`, from `getUnitIconSource`, `src/renderer/sprites/unit-icon-source.ts`:
+  the SVG catalog, or the first frame of the PNG sheet for a unit with a manifest, held still by `.cq-png-static`; SVG ids are numbered per icon);
+  anything else through `productionIconHtml` (a legendary wonder's art, or the `PRODUCTION_ICONS` emoji). Icons are decorative (`aria-hidden`, the
+  name is always beside them). A new production list in the city panel uses this helper, never `getProductionIconForItem`. Pinned by
+  `tests/ui/city-panel-production-art.test.ts` and `tests/renderer/sprites/unit-icon-source.test.ts` (catalog-driven: every trainable unit must
+  resolve to a source).
 
 ---
 

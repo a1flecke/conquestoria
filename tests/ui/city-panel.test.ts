@@ -1809,7 +1809,7 @@ describe('city-panel build list icons', () => {
     expect(html).toContain('🌾');
   });
 
-  it('renders the warrior icon prefix in the available units list', () => {
+  it('renders the warrior icon prefix in the available units list (its sprite, #1535; the emoji is only the fallback)', () => {
     const { container, city, state } = makeWonderPanelFixture();
     city.productionQueue = [];
     state.cities[city.id] = city;
@@ -1819,7 +1819,7 @@ describe('city-panel build list icons', () => {
       onClose: () => {},
     });
     const html = (panel as unknown as { innerHTML?: string }).innerHTML ?? '';
-    expect(html).toContain('⚔️');
+    expect(html).toContain('data-unit-art="warrior"');
   });
 
   it('renders the icon for the currently building item', () => {

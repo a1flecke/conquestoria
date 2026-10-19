@@ -59,3 +59,8 @@
 #sprite-overlay[data-reduced-motion="true"] .cq-png-layer {
   animation: none !important;
 }
+
+/* A PNG unit shown as a list icon (the city panel's production lists, #1535) holds its first frame instead of looping. */
+.cq-png-static .cq-png-layer {
+  animation: none;
+}
