@@ -38,6 +38,32 @@ describe('building production art (#620)', () => {
     }
   });
 
+  // The inventory #620 was opened for: 16 national projects and 8 Era 1-5 buildings that were each drawn with another building's
+  // sprite. Every one now has art of its own. A guard against the alias coming back, not a roster of art buildings.
+  const ISSUE_620_BUILDINGS = [
+    'sacred_grove', 'tribal_muster_ground', 'communal_stores', 'grand_bazaar', 'foundry_guild', 'scribes_hall',
+    'philosophers_circle', 'road_corps', 'iron_legion', 'sacred_council', 'imperial_archive', 'praetorian_legion',
+    'royal_mint', 'royal_academy', 'artillery_corps_hq', 'explorers_guild', 'guildhall', 'university', 'art_gallery',
+    'blast_furnace', 'distillery', 'monastery', 'harbour_exchange', 'apothecary_house',
+  ];
+
+  it('gives every building of the #620 inventory art of its own', () => {
+    expect(ISSUE_620_BUILDINGS).toHaveLength(24);
+    for (const id of ISSUE_620_BUILDINGS) {
+      expect(BUILDINGS[id], `${id} is not a building`).toBeDefined();
+      expect(getBuildingArtPath(id), `${id} has no art`).not.toBeNull();
+    }
+  });
+
+  it('never lets two buildings share an image (no stand-in art)', () => {
+    const seen = new Map<string, string>();
+    for (const id of BUILDING_ART_IDS) {
+      const hash = createHash('sha256').update(readFileSync(resolve(ROOT, `public/images/buildings/art/${id}.png`))).digest('hex');
+      expect(seen.get(hash), `${id} is byte-identical to ${seen.get(hash)}`).toBeUndefined();
+      seen.set(hash, id);
+    }
+  });
+
   for (const id of BUILDING_ART_IDS) {
     describe(id, () => {
       const file = resolve(ROOT, `public/images/buildings/art/${id}.png`);

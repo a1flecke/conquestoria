@@ -394,7 +394,8 @@ the SVG stays as the fallback. Built through `scripts/building-sprite/building_s
 Style (locked paragraph reused in every prompt): isometric three-quarter view from above and slightly right, one building on a small
 square stone base plate, hand-painted 2D game art, bold dark ink outline, flat cel shading with soft highlights, earthy saturated palette,
 readable at 40 px, no ground scenery, no text. This is a different look from the flat SVG buildings; they are being replaced
-set by set. Art so far: Royal Mint. Details and rules: `.claude/rules/sprites.md` "Building Production Art (#620)".
+set by set. Art so far: all 24 buildings of #620's inventory (16 national projects and 8 Era 1–5 buildings that used to borrow another
+building's sprite). The remaining buildings, including the roughly 135 later-era ones, still use their SVG components. Details and rules: `.claude/rules/sprites.md` "Building Production Art (#620)".
 
 ### Terrain Tile
 ```typescript
