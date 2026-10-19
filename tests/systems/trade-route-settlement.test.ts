@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { GameState } from '@/core/types';
+import type { CombatResult, GameState } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
 import { advanceRouteRunners } from '@/systems/unit-movement-system';
 import { removeUnits } from '@/systems/unit-removal-system';
-import { settleTradeRouteForCiv } from '@/systems/trade-route-economy';
+import { settleTradeRouteForCiv, getRouteOperatingStatus } from '@/systems/trade-route-economy';
 import { getEntitledTradeDestinations } from '@/systems/commerce-projection';
+import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 
 /**
  * The #1501 golden fixture, driven through the real round functions: a route is created, the runner
@@ -177,5 +178,62 @@ describe('#1501 — preview and realized payment use identical modifiers', () =>
     const settled = settleTradeRouteForCiv(advanceRouteRunners(committed, new EventBus()), 'alpha');
 
     expect(settled.paid).toBe(preview.goldPerTurn);
+  });
+});
+
+describe('#1503 MR06 — a trader lost in combat stops payment exactly once, whoever wins', () => {
+  const killerResult = (): CombatResult => ({
+    attackerId: 'attacker', defenderId: 'trader-1', attackerDamage: 0, defenderDamage: 100,
+    attackerSurvived: true, defenderSurvived: false, attackerStrength: 30, defenderStrength: 0,
+    attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+  });
+
+  /** The same fixture with a hostile warrior adjacent to the caravan, owned by a human or AI civ. */
+  function withKiller(state: GameState, killerIsHuman: boolean): GameState {
+    const template = state.civilizations.alpha;
+    const attacker = {
+      ...state.units['trader-1']!,
+      id: 'attacker', type: 'warrior' as const, owner: 'killer', position: { q: 0, r: 0 },
+      health: 100, committedToRouteId: undefined, routeDirection: undefined,
+    };
+    return {
+      ...state,
+      units: { ...state.units, attacker },
+      civilizations: {
+        ...state.civilizations,
+        killer: { ...template, id: 'killer', name: 'Killer', isHuman: killerIsHuman, cities: [], units: ['attacker'] },
+      },
+    } as GameState;
+  }
+
+  // The one combat-outcome function every executor funnels through (the player controller, the AI turn
+  // and the barbarian/pirate loops). Parity here means the trade consequence is a property of the
+  // fight, never of who ran it.
+  it.each([
+    { killerIsHuman: true, label: 'a human attacker' },
+    { killerIsHuman: false, label: 'a non-human attacker' },
+  ])('stops payment once and releases the route when $label wins', ({ killerIsHuman }) => {
+    // lastProgressTurn this round makes the route genuinely payable before the fight.
+    const before = withKiller(makeRouteState({ route: { lastProgressTurn: 7 } }), killerIsHuman);
+    expect(getRouteOperatingStatus(before, 'route-1').paying).toBe(true);
+
+    const bus = new EventBus();
+    const ended: string[] = [];
+    bus.on('trade:route-ended', payload => ended.push((payload as { reason: string }).reason));
+
+    const applied = applyCombatOutcomeToState(before, killerResult(), 64, bus);
+
+    // One release, and the trader carries no commitment any more (destroyed or captured alike).
+    expect(applied.state.marketplace!.tradeRoutes).toHaveLength(0);
+    expect(applied.state.units['trader-1']?.committedToRouteId).toBeUndefined();
+    expect(ended).toHaveLength(1);
+
+    // Payment stops: a settlement for the owning civ pays nothing, and repeats do not resurrect it.
+    const settled = settleTradeRouteForCiv(applied.state, 'alpha');
+    expect(settled.paid).toBe(0);
+    expect(settleTradeRouteForCiv(settled.state, 'alpha').paid).toBe(0);
+
+    // The slot is released exactly once: a second removal closes no further route.
+    expect(removeUnits(applied.state, ['trader-1'], { reason: 'destroyed' }).endedRoutes).toEqual([]);
   });
 });
