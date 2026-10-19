@@ -443,7 +443,8 @@ export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = 
   colosseum:              ColosseumSprite,
   great_library:          GreatLibrarySprite,
   lighthouse:             LighthouseSprite,
-  // National Project placeholders (era 1–5) — replace with unique SVGs in a future design pass
+  // The 24 era 1–5 buildings and national projects below (to `apothecary_house`) each have painted production art of their own
+  // (BUILDING_ART, #620); these donor sprites are only the fallback when that file is missing or fails to load.
   sacred_grove:           ShrineSprite,
   tribal_muster_ground:   BarracksSprite,
   communal_stores:        GranarySprite,
@@ -460,14 +461,14 @@ export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = 
   royal_academy:          ObservatorySprite,
   artillery_corps_hq:     ArmorySprite,
   explorers_guild:        CaravanseraiSprite,
-  // Era 5 regular buildings — placeholder sprites (unique assets in a future design pass)
+  // Era 5 regular buildings
   guildhall:              MarketplaceSprite,
   university:             ObservatorySprite,
   art_gallery:            AmphitheaterSprite,
   blast_furnace:          ForgeSprite,
   distillery:             GranarySprite,
   monastery:              TempleSprite,
-  // Era 5 special buildings — placeholder sprites
+  // Era 5 special buildings
   harbour_exchange:       HarborSprite,
   apothecary_house:       HerbalistSprite,
   // Era 6 national projects
