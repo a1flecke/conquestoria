@@ -1,5 +1,5 @@
 import type { EventBus } from '@/core/event-bus';
-import type { GameState, HexCoord } from '@/core/types';
+import type { GameState, HexCoord, TradeRouteInterruptionReason } from '@/core/types';
 import type { VillageOutcomeType } from '@/core/types/world';
 import { updateVisibility } from '@/systems/fog-of-war';
 import { getActiveNationalProjectsForCiv } from '@/systems/national-project-system';
@@ -300,6 +300,52 @@ export function advanceRouteRunners(state: GameState, bus?: EventBus): GameState
     };
   };
 
+  /**
+   * #1503 MR06: announce at most one interruption per route per uninterrupted stretch. The reason is
+   * recorded on the route, so a stationary obstruction (or a blockade of an endpoint) tells the owner
+   * once and then stays silent — the persistent route row carries the ongoing truth.
+   */
+  const markInterrupted = (
+    s: GameState,
+    route: typeof state.marketplace.tradeRoutes[number],
+    reason: TradeRouteInterruptionReason,
+  ): GameState => {
+    const alreadyNotified = route.notifiedInterruption === reason;
+    const next = s.marketplace
+      ? {
+          ...s,
+          marketplace: {
+            ...s.marketplace,
+            tradeRoutes: s.marketplace.tradeRoutes.map(candidate =>
+              candidate.id === route.id ? { ...candidate, notifiedInterruption: reason } : candidate),
+          },
+        }
+      : s;
+    if (!alreadyNotified) {
+      bus?.emit('trade:route-interrupted', {
+        routeId: route.id,
+        fromCityId: route.fromCityId,
+        toCityId: route.toCityId,
+        reason,
+      });
+    }
+    return next;
+  };
+
+  /** Service is no longer interrupted: forget the notice so the next interruption announces again. */
+  const clearInterrupted = (s: GameState, routeId: string): GameState => {
+    const route = s.marketplace?.tradeRoutes.find(candidate => candidate.id === routeId);
+    if (!route?.notifiedInterruption || !s.marketplace) return s;
+    return {
+      ...s,
+      marketplace: {
+        ...s.marketplace,
+        tradeRoutes: s.marketplace.tradeRoutes.map(candidate =>
+          candidate.id === routeId ? { ...candidate, notifiedInterruption: undefined } : candidate),
+      },
+    };
+  };
+
   for (const routeId of state.marketplace.tradeRoutes.map(candidate => candidate.id)) {
     // Walk as far as this round's allowance allows, one validated step at a time. Re-planning per
     // step is what lets the runner hand the executor the exact tile it chose to walk to.
@@ -320,11 +366,9 @@ export function advanceRouteRunners(state: GameState, bus?: EventBus): GameState
 
       if (plan.action === 'hold') {
         if (plan.reason === 'blocked' && plan.legTargetCityId) {
-          const target = newState.cities[plan.legTargetCityId];
-          bus?.emit('notification:show', {
-            message: `Trade route to ${target?.name ?? plan.legTargetCityId} is blocked.`,
-            type: 'warning',
-          });
+          newState = markInterrupted(newState, route, 'blocked');
+        } else {
+          newState = clearInterrupted(newState, route.id);
         }
         break;
       }
@@ -346,17 +390,13 @@ export function advanceRouteRunners(state: GameState, bus?: EventBus): GameState
       });
       if (!move.ok) {
         // #1502 MR05: the canonical executor is the authority on whether a step is legal. A foreign
-        // unit in the way is reported as blocked, exactly as the previous trader-specific check did.
+        // unit in the way is an interruption, deduplicated exactly like a planned blockage (#1503).
         if (move.reason === 'occupied') {
-          const toCity = newState.cities[route.toCityId];
-          bus?.emit('notification:show', {
-            message: `Trade route to ${toCity?.name ?? route.toCityId} is blocked by enemy forces.`,
-            type: 'warning',
-          });
+          newState = markInterrupted(newState, route, 'blocked');
         }
         break;
       }
-      newState = markProgress(move.state, route.id);
+      newState = clearInterrupted(markProgress(move.state, route.id), route.id);
 
       if (move.to.q === legTarget.position.q && move.to.r === legTarget.position.r) {
         newState = completeRouteLeg(newState, route.id, caravan.id, bus);

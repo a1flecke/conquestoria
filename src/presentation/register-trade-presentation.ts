@@ -22,6 +22,21 @@ export const registerTradePresentation: PresentationRegistrar = (bus, ctx) => {
         'success',
       );
     }),
+    // #1503 MR06: the one interruption notice per route per uninterrupted stretch. The system
+    // deduplicates the transition; this router turns it into recipient-scoped copy (the persistent
+    // route row already shows the ongoing `blocked`/`blockaded` status).
+    bus.on('trade:route-interrupted', ({ fromCityId, toCityId, reason }) => {
+      const state = ctx.session.getState();
+      const ownerCity = state.cities[fromCityId];
+      const toCity = state.cities[toCityId];
+      if (!ownerCity) return;
+      const service = reason === 'blockaded' ? 'is blockaded' : 'is blocked';
+      ctx.notifier.deliver(
+        ownerCity.owner,
+        `Trade route to ${toCity?.name ?? toCityId} ${service} — the trader is waiting. Service and income stop until the way is clear.`,
+        'warning',
+      );
+    }),
     bus.on('trade:route-ended', ({ fromCityId, toCityId, reason }) => {
       const state = ctx.session.getState();
       const ownerCity = state.cities[fromCityId];
