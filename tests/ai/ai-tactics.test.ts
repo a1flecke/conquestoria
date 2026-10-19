@@ -364,6 +364,42 @@ describe('AI tactical action ranking', () => {
       .toMatchObject({ kind: 'attack', unitId: attacker.id, targetUnitId: defender.id });
   });
 
+  // #1503 MR06: major-civ AI targeting must not need a trade-unit whitelist either — the generic
+  // "hostile unit" target list has to cover every trade tier, exactly like the barbarian and pirate
+  // systems now derive their rosters from the shared trade-role query.
+  it.each(['caravan', 'merchant_wagon', 'freight_convoy'] satisfies UnitType[])(
+    'treats a hostile %s as a legal attack target (#1503)',
+    type => {
+      const state = makeState('standard');
+      const attacker = addUnit(state, 'attacker', 'warrior', AI, { q: 0, r: 0 });
+      const trader = addUnit(state, 'trader', type, HUMAN, { q: 1, r: 0 });
+      const plan = makePlan(
+        { kind: 'unit', id: trader.id, lastKnownPosition: trader.position },
+        [attacker.id],
+        { objective: 'repel' },
+      );
+
+      expect(chooseUnitTacticalAction(context(state, plan), attacker.id))
+        .toMatchObject({ kind: 'attack', unitId: 'attacker', targetUnitId: 'trader' });
+    },
+  );
+
+  it('treats a hostile merchant hull as a legal attack target for a warship (#1503)', () => {
+    const state = makeState('standard');
+    state.map.tiles['0,0'] = { ...state.map.tiles['0,0'], terrain: 'ocean' } as never;
+    state.map.tiles['1,0'] = { ...state.map.tiles['1,0'], terrain: 'ocean' } as never;
+    const attacker = addUnit(state, 'attacker', 'galley', AI, { q: 0, r: 0 });
+    const trader = addUnit(state, 'trader', 'naval_trader', HUMAN, { q: 1, r: 0 });
+    const plan = makePlan(
+      { kind: 'unit', id: trader.id, lastKnownPosition: trader.position },
+      [attacker.id],
+      { objective: 'repel' },
+    );
+
+    expect(chooseUnitTacticalAction(context(state, plan), attacker.id))
+      .toMatchObject({ kind: 'attack', unitId: 'attacker', targetUnitId: 'trader' });
+  });
+
   it('selects Combat Drone for a legal air strike from its air base', () => {
     const state = makeState('standard');
     const base = addCity(state, 'drone-base', AI, { q: 0, r: 0 });
