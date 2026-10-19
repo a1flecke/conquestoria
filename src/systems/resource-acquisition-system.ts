@@ -1,15 +1,23 @@
 import type {
   GameState,
-  HexCoord,
   LegendaryWonderResourceScope,
   ResourceType,
   ResourceYield,
 } from '@/core/types';
-import { isAlwaysHostilePair } from '@/core/owner-kind';
 import { hexKey } from './hex-utils';
 import { RESOURCE_DEFINITIONS } from './resource-definitions';
-import { isAtWar } from './diplomacy-queries';
+import {
+  getResourceSourceKindAt,
+  isResourceOutpostSource,
+} from './resource-source-eligibility';
 import { removeUnits } from '@/systems/unit-removal-system';
+
+/**
+ * #1505 MR08: the hostile-occupation predicate moved into the shared source-eligibility leaf so access,
+ * quest source counts and the reserve kernel read one rule. It is re-exported here unchanged for its
+ * existing callers (`strategic-warning-system` and the acquisition tests).
+ */
+export { isResourceTileDeniedByHostileOccupation } from './resource-source-eligibility';
 
 /**
  * Returns the set of resource IDs that a civ currently has access to.
@@ -24,33 +32,12 @@ import { removeUnits } from '@/systems/unit-removal-system';
  *      b. A completed improvement of the required type exists on the tile
  *         (improvementTurnsLeft === 0).
  *
+ * #1505 MR08: the per-tile rule now lives in `resource-source-eligibility`; this function keeps its
+ * own *scope* — access also counts the city center and outposts — so a caller that needs physically
+ * worked sources still asks `getActiveResourceSourceCount`.
+ *
  * Pure function — reads state only, never mutates.
  */
-export function isResourceTileDeniedByHostileOccupation(
-  state: GameState,
-  civId: string,
-  coord: HexCoord,
-): boolean {
-  const civ = state.civilizations[civId];
-  const tile = state.map.tiles[hexKey(coord)];
-  if (
-    !tile?.resource
-    || tile.improvement === 'none'
-    || tile.improvementTurnsLeft !== 0
-  ) return false;
-  return Object.values(state.units ?? {}).some(unit => {
-    if (unit.transportId || unit.owner === civId || hexKey(unit.position) !== hexKey(coord)) {
-      return false;
-    }
-    if (isAlwaysHostilePair(civId, unit.owner)) return true;
-    return Boolean(
-      civ?.diplomacy && isAtWar(civ.diplomacy, unit.owner)
-      || state.civilizations[unit.owner]?.diplomacy
-        && isAtWar(state.civilizations[unit.owner].diplomacy, civId),
-    );
-  });
-}
-
 export function getCivAvailableResources(
   state: GameState,
   civId: string,
@@ -79,20 +66,12 @@ export function getCivAvailableResources(
 
       // Tech gate — must have researched the revealing tech.
       if (!completedTechs.has(def.tech)) continue;
-      if (isResourceTileDeniedByHostileOccupation(state, civId, coord)) continue;
 
-      if (key === cityKey) {
-        // City-center exception: tech alone grants the resource.
-        result.add(tile.resource as ResourceType);
-      } else {
-        // Off-center tile: requires a completed improvement of the right type.
-        if (
-          tile.improvement === def.requiredImprovement &&
-          tile.improvementTurnsLeft === 0
-        ) {
-          result.add(tile.resource as ResourceType);
-        }
-      }
+      const kind = getResourceSourceKindAt(state, civId, coord, def, {
+        cityCenter: key === cityKey,
+        allowCityCenter: true,
+      });
+      if (kind) result.add(tile.resource as ResourceType);
     }
   }
 
@@ -108,10 +87,7 @@ export function getCivAvailableResources(
 
     const def = resourceDefMap.get(tile.resource as ResourceType);
     if (!def) continue;
-    if (!completedTechs.has(def.tech)) continue;
-    if (isResourceTileDeniedByHostileOccupation(state, civId, tile.coord)) continue;
-
-    result.add(tile.resource as ResourceType);
+    if (isResourceOutpostSource(state, civId, tile, def)) result.add(tile.resource as ResourceType);
   }
 
   // Pass 3 — purchased resource access (Diplomatic Marketplace / S9)
@@ -150,6 +126,9 @@ export function getActiveResourceSourceCount(
     ? scope.cityId ? [scope.cityId] : []
     : civ.cities;
   let count = 0;
+  // #1505 MR08: a tile contributes once, even when several cities list it in `ownedTiles` (parent
+  // §3.3). Before this, a shared tile was counted once per city, inflating quest source counts.
+  const countedCoords = new Set<string>();
 
   for (const cityId of cityIds) {
     const city = state.cities[cityId];
@@ -158,28 +137,27 @@ export function getActiveResourceSourceCount(
 
     for (const coord of city.ownedTiles) {
       const key = hexKey(coord);
-      const tile = state.map.tiles[key];
-      if (
-        key === cityKey
-        || tile?.resource !== resource
-        || tile.improvement !== definition.requiredImprovement
-        || tile.improvementTurnsLeft !== 0
-        || isResourceTileDeniedByHostileOccupation(state, civId, coord)
-      ) continue;
-      count++;
+      if (countedCoords.has(key)) continue;
+      const kind = getResourceSourceKindAt(state, civId, coord, definition, {
+        cityCenter: key === cityKey,
+        // A physically owned source is a worked improvement — never the city center.
+        allowCityCenter: false,
+      });
+      if (kind === 'city-improvement') {
+        countedCoords.add(key);
+        count++;
+      }
     }
   }
 
   if (scope.scope === 'host-city') return count;
 
   for (const tile of Object.values(state.map.tiles)) {
-    if (
-      tile.resource !== resource
-      || tile.owner !== civId
-      || tile.improvement !== 'resource_outpost'
-      || tile.improvementTurnsLeft !== 0
-      || isResourceTileDeniedByHostileOccupation(state, civId, tile.coord)
-    ) continue;
+    if (!isResourceOutpostSource(state, civId, tile, definition)) continue;
+    if (tile.resource !== resource) continue;
+    const key = hexKey(tile.coord);
+    if (countedCoords.has(key)) continue;
+    countedCoords.add(key);
     count++;
   }
 

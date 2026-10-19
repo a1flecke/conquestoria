@@ -31,6 +31,20 @@ export type ResourceMaterialFamily =
   | 'rare-earth'
   | 'battery';
 
+/**
+ * #1505 MR08: the resource's *economic role*, deliberately separate from the broad
+ * `strategic`/`luxury` tag the type union carries. A resource is quantitative only when it lists a
+ * role here; a resource with no roles keeps access/worked-tile semantics and never becomes a counted
+ * stock.
+ *
+ * - `material` — equipment/construction input (MR09 recipes).
+ * - `fuel` — recurring industrial demand (MR15).
+ *
+ * The plan is explicit that the tag alone must not confer a stockpile: cattle and salt stay
+ * commodities until a genuine quantitative use is defined.
+ */
+export type ResourceEconomicRole = 'material' | 'fuel';
+
 export interface ResourceCodexMetadata {
   summary: string;
 }
@@ -46,6 +60,8 @@ export interface ResourceDefinition {
   requiredImprovement: BuildableImprovementType;
   effect: ResourceEffect | null;
   materialFamily?: ResourceMaterialFamily;
+  /** #1505 MR08: empty/absent means the resource is not a counted stock. */
+  economicRoles?: readonly ResourceEconomicRole[];
   codex?: ResourceCodexMetadata;
 }
 
@@ -62,16 +78,16 @@ export const RESOURCE_DEFINITIONS: ResourceDefinition[] = [
   { id: 'sheep', name: 'Sheep', type: 'luxury', terrain: ['hills', 'plains'], basePrice: 7, tech: 'animal-husbandry', icon: '🐑', requiredImprovement: 'pasture', effect: { type: 'production', amount: 1 } },
   { id: 'cattle', name: 'Cattle', type: 'strategic', terrain: ['grassland', 'plains'], basePrice: 5, tech: 'domestication', icon: '🐄', requiredImprovement: 'pasture', effect: { type: 'food', amount: 1 } },
   { id: 'salt', name: 'Salt', type: 'strategic', terrain: 'hills', basePrice: 5, tech: 'pottery', icon: '🧂', requiredImprovement: 'mine', effect: { type: 'gold', amount: 1 } },
-  { id: 'copper', name: 'Copper', type: 'strategic', terrain: 'hills', basePrice: 5, tech: 'stone-weapons', icon: '🪙', requiredImprovement: 'mine', effect: null },
-  { id: 'iron', name: 'Iron', type: 'strategic', terrain: 'hills', basePrice: 8, tech: 'bronze-working', icon: '⚙️', requiredImprovement: 'mine', effect: null },
-  { id: 'horses', name: 'Horses', type: 'strategic', terrain: 'plains', basePrice: 7, tech: 'animal-husbandry', icon: '🐎', requiredImprovement: 'pasture', effect: null },
-  { id: 'stone', name: 'Stone', type: 'strategic', terrain: 'mountain', basePrice: 4, tech: 'gathering', icon: '🪨', requiredImprovement: 'quarry', effect: null },
-  { id: 'coal', name: 'Coal', type: 'strategic', terrain: 'hills', basePrice: 7, tech: 'steam-power', icon: '◼️', requiredImprovement: 'mine', effect: { type: 'production', amount: 1 }, materialFamily: 'industrial', codex: { summary: 'A dense industrial fuel used to power factories, railways, and steamships.' } },
-  { id: 'oil', name: 'Oil', type: 'strategic', terrain: ['plains', 'desert'], basePrice: 12, tech: 'petroleum-industry', icon: '🛢️', requiredImprovement: 'oil_well', effect: { type: 'production', amount: 1 }, materialFamily: 'petroleum', codex: { summary: 'Crude petroleum powers modern industry, armored forces, and aircraft.' } },
-  { id: 'aluminum', name: 'Aluminum', type: 'strategic', terrain: ['hills', 'desert'], basePrice: 10, tech: 'aluminium-smelting', icon: '🔩', requiredImprovement: 'mine', effect: null, materialFamily: 'aluminum', codex: { summary: 'A lightweight metal used for aircraft, aerospace, and advanced fabrication.' } },
-  { id: 'uranium', name: 'Uranium', type: 'strategic', terrain: ['hills', 'tundra', 'desert'], basePrice: 16, tech: 'nuclear-physics', icon: '☢️', requiredImprovement: 'mine', effect: { type: 'science', amount: 1 }, materialFamily: 'nuclear', codex: { summary: 'A radioactive fuel that supports nuclear research, power, and strategic arsenals.' } },
-  { id: 'rare-earth-elements', name: 'Rare Earth Elements', type: 'strategic', terrain: ['hills', 'desert'], basePrice: 14, tech: 'nanomaterials', icon: '🧲', requiredImprovement: 'mine', effect: { type: 'science', amount: 1 }, materialFamily: 'rare-earth', codex: { summary: 'A family of seventeen elements used in magnets, sensors, and advanced electronics.' } },
-  { id: 'battery-minerals', name: 'Battery Minerals', type: 'strategic', terrain: ['hills', 'desert', 'plains'], basePrice: 13, tech: 'smart-cities', icon: '🔋', requiredImprovement: 'mine', effect: { type: 'production', amount: 1 }, materialFamily: 'battery', codex: { summary: 'Lithium, nickel, cobalt, graphite, and related materials abstracted for energy storage.' } },
+  { id: 'copper', name: 'Copper', type: 'strategic', terrain: 'hills', basePrice: 5, tech: 'stone-weapons', icon: '🪙', requiredImprovement: 'mine', effect: null, economicRoles: ['material'] },
+  { id: 'iron', name: 'Iron', type: 'strategic', terrain: 'hills', basePrice: 8, tech: 'bronze-working', icon: '⚙️', requiredImprovement: 'mine', effect: null, economicRoles: ['material'] },
+  { id: 'horses', name: 'Horses', type: 'strategic', terrain: 'plains', basePrice: 7, tech: 'animal-husbandry', icon: '🐎', requiredImprovement: 'pasture', effect: null, economicRoles: ['material'] },
+  { id: 'stone', name: 'Stone', type: 'strategic', terrain: 'mountain', basePrice: 4, tech: 'gathering', icon: '🪨', requiredImprovement: 'quarry', effect: null, economicRoles: ['material'] },
+  { id: 'coal', name: 'Coal', type: 'strategic', terrain: 'hills', basePrice: 7, tech: 'steam-power', icon: '◼️', requiredImprovement: 'mine', effect: { type: 'production', amount: 1 }, materialFamily: 'industrial', economicRoles: ['material', 'fuel'], codex: { summary: 'A dense industrial fuel used to power factories, railways, and steamships.' } },
+  { id: 'oil', name: 'Oil', type: 'strategic', terrain: ['plains', 'desert'], basePrice: 12, tech: 'petroleum-industry', icon: '🛢️', requiredImprovement: 'oil_well', effect: { type: 'production', amount: 1 }, materialFamily: 'petroleum', economicRoles: ['material', 'fuel'], codex: { summary: 'Crude petroleum powers modern industry, armored forces, and aircraft.' } },
+  { id: 'aluminum', name: 'Aluminum', type: 'strategic', terrain: ['hills', 'desert'], basePrice: 10, tech: 'aluminium-smelting', icon: '🔩', requiredImprovement: 'mine', effect: null, materialFamily: 'aluminum', economicRoles: ['material'], codex: { summary: 'A lightweight metal used for aircraft, aerospace, and advanced fabrication.' } },
+  { id: 'uranium', name: 'Uranium', type: 'strategic', terrain: ['hills', 'tundra', 'desert'], basePrice: 16, tech: 'nuclear-physics', icon: '☢️', requiredImprovement: 'mine', effect: { type: 'science', amount: 1 }, materialFamily: 'nuclear', economicRoles: ['material', 'fuel'], codex: { summary: 'A radioactive fuel that supports nuclear research, power, and strategic arsenals.' } },
+  { id: 'rare-earth-elements', name: 'Rare Earth Elements', type: 'strategic', terrain: ['hills', 'desert'], basePrice: 14, tech: 'nanomaterials', icon: '🧲', requiredImprovement: 'mine', effect: { type: 'science', amount: 1 }, materialFamily: 'rare-earth', economicRoles: ['material'], codex: { summary: 'A family of seventeen elements used in magnets, sensors, and advanced electronics.' } },
+  { id: 'battery-minerals', name: 'Battery Minerals', type: 'strategic', terrain: ['hills', 'desert', 'plains'], basePrice: 13, tech: 'smart-cities', icon: '🔋', requiredImprovement: 'mine', effect: { type: 'production', amount: 1 }, materialFamily: 'battery', economicRoles: ['material'], codex: { summary: 'Lithium, nickel, cobalt, graphite, and related materials abstracted for energy storage.' } },
 ];
 
 // Lookup tables derived from the catalog above. They lived in trade-system.ts (#1249 moved them to
