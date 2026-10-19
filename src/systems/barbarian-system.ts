@@ -13,6 +13,7 @@ import { selectDefenderForAttack } from './combat-defense-strength';
 import { getCityGarrisonUnit } from './city-siege-system';
 import { applyQuestGameplayAction, type ChainTransition } from './quest-chain-system';
 import { UNIT_DEFINITIONS } from './unit-definitions';
+import { isTradeUnitTypeInDomain } from './trade-role-targeting';
 import { getBlockingMapEntityKeysForOwner } from './unit-movement-legality';
 import { recordHuntCampKillerIfApplicable } from './hunt-crisis-linkage';
 import { resolveCivilizationEra } from './tech-definitions';
@@ -394,10 +395,13 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
     }
 
     const tryRaidUnitPlan = (): typeof plan => {
+      // #1503 MR06: any *land* trade tier counts, not just the first caravan — the roster comes from
+      // the shared trade-role query, so a new wagon is raid-able without editing this system. Traders
+      // outrank workers, exactly as the old `caravan`-first priority did.
       const raidUnit = sensedUnits
-        .filter(unit => unit.type === 'worker' || unit.type === 'caravan')
+        .filter(unit => unit.type === 'worker' || isTradeUnitTypeInDomain(unit.type, 'land'))
         .sort((a, b) => {
-          const priority = (unit: Unit) => unit.type === 'caravan' ? 0 : 1;
+          const priority = (unit: Unit) => isTradeUnitTypeInDomain(unit.type, 'land') ? 0 : 1;
           return priority(a) - priority(b)
             || barbarianDistance(state, camp.position, a.position) - barbarianDistance(state, camp.position, b.position)
             || a.id.localeCompare(b.id);
