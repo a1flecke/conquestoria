@@ -12,7 +12,7 @@ const PANELS: ReadonlyArray<{ opener: string | RegExp; panel: string; name: stri
   { opener: 'City', panel: '#city-overview-panel', name: 'Cities' },
   { opener: 'Intel', panel: '#espionage-panel', name: 'Espionage' },
   { opener: 'Diplo', panel: '#diplomacy-panel', name: 'Diplomacy' },
-  { opener: 'Trade', panel: '#marketplace-panel', name: 'Marketplace' },
+  { opener: 'Trade', panel: '#marketplace-panel', name: 'Trade & Supply' },
   { opener: 'View message log', panel: '#notification-log', name: 'Message log' },
   { opener: 'Victory', panel: '#victory-progress-panel', name: 'Victory progress' },
   { opener: 'Pause menu', panel: '#pause-menu', name: '' },
