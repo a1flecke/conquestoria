@@ -430,7 +430,9 @@ describe('#1502 MR05b — a bounded detour allowance', () => {
 
   it('holds, with the blocked reason, when there is no way around at all', () => {
     // A wall across the corridor: the next step and every detour tile are held by foreign units.
-    let state = parkForeignUnit(makeState({ movement: 3 }), 'beta-guard', { q: 1, r: 0 });
+    // `lastProgressTurn` from the previous round is what lets the settlement recognise the missed
+    // service as `blocked` (a route with no progress record yet is treated as operating).
+    let state = parkForeignUnit(makeState({ movement: 3, route: { lastProgressTurn: 6 } }), 'beta-guard', { q: 1, r: 0 });
     state = parkForeignUnit(state, 'beta-guard-2', { q: 0, r: 1 });
     state = parkForeignUnit(state, 'beta-guard-3', { q: 1, r: 1 });
 
@@ -441,13 +443,17 @@ describe('#1502 MR05b — a bounded detour allowance', () => {
 
     expect(caravanPosition(held)).toEqual({ q: 0, r: 0 });
     expect(held.marketplace!.tradeRoutes[0]!.detourRoundsUsed).toBeUndefined();
+
+    // The settlement phase (after the pirate phase) is where the interruption is judged and announced.
+    const settled = settleTradeRouteForCiv(held, 'alpha', bus);
+    expect(settled.paid).toBe(0);
     expect(interruptions).toEqual(['blocked']);
-    expect(held.marketplace!.tradeRoutes[0]!.notifiedInterruption).toBe('blocked');
+    expect(settled.state.marketplace!.tradeRoutes[0]!.notifiedInterruption).toBe('blocked');
   });
 
   it('announces a stationary obstruction once, then again only after it clears (#1503)', () => {
     // A wall the trader cannot get around: the same blocked state now persists across rounds.
-    let state = parkForeignUnit(makeState({ movement: 3 }), 'beta-guard', { q: 1, r: 0 });
+    let state = parkForeignUnit(makeState({ movement: 3, route: { lastProgressTurn: 6 } }), 'beta-guard', { q: 1, r: 0 });
     state = parkForeignUnit(state, 'beta-guard-2', { q: 0, r: 1 });
     state = parkForeignUnit(state, 'beta-guard-3', { q: 1, r: 1 });
 
@@ -455,29 +461,40 @@ describe('#1502 MR05b — a bounded detour allowance', () => {
     const interruptions: string[] = [];
     bus.on('trade:route-interrupted', payload => interruptions.push((payload as { reason: string }).reason));
 
+    // One real world round: the runner walks (or holds), then the settlement judges and announces.
+    const round = (s: GameState): GameState => settleTradeRouteForCiv(
+      advanceRouteRunners(withResetAllowance({ ...s, turn: s.turn + 1 }), bus),
+      'alpha',
+      bus,
+    ).state;
+
     // Round after round with the wall still there: exactly one notice for the whole stretch, and the
     // route still carries the interrupted flag (so the persistent status row keeps showing it).
-    for (let round = 0; round < 4; round++) {
-      state = advanceRouteRunners(withResetAllowance({ ...state, turn: state.turn + 1 }), bus);
+    for (let step = 0; step < 4; step++) {
+      state = round(state);
       expect(state.marketplace!.tradeRoutes[0]!.notifiedInterruption).toBe('blocked');
     }
     expect(interruptions).toEqual(['blocked']);
 
     // Clear the actual threat: the trader moves again and the notice is forgotten.
     for (const guard of ['beta-guard', 'beta-guard-2', 'beta-guard-3']) delete state.units[guard];
-    state = advanceRouteRunners(withResetAllowance(state), bus);
+    state = round(state);
     expect(caravanPosition(state)).not.toEqual({ q: 0, r: 0 });
     expect(state.marketplace!.tradeRoutes[0]!.notifiedInterruption).toBeUndefined();
 
-    // Blocked again later (same trader back at its origin): a fresh interruption announces once more.
+    // Blocked again later (the trader back at its origin, outward bound): a fresh interruption
+    // announces once more.
     state = {
       ...state,
-      units: { ...state.units, 'trader-1': { ...state.units['trader-1']!, position: { q: 0, r: 0 } } },
+      units: {
+        ...state.units,
+        'trader-1': { ...state.units['trader-1']!, position: { q: 0, r: 0 }, routeDirection: 'outbound' },
+      },
     };
     state = parkForeignUnit(state, 'beta-guard-4', { q: 1, r: 0 });
     state = parkForeignUnit(state, 'beta-guard-5', { q: 0, r: 1 });
     state = parkForeignUnit(state, 'beta-guard-6', { q: 1, r: 1 });
-    state = advanceRouteRunners(withResetAllowance(state), bus);
+    state = round(state);
     expect(interruptions).toEqual(['blocked', 'blocked']);
   });
 });

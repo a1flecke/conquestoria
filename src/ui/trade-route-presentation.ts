@@ -1,17 +1,19 @@
 import type { GameState, TradeRoute, City } from '@/core/types';
 import { getRouteCapacity, getRouteOperatingStatus, type TradeRouteNonOperatingReason } from '@/systems/trade-route-economy';
 import { getRouteControlOptions, type RouteControlAction } from '@/systems/trade-route-lifecycle';
+import { getEntitledRouteDanger, getTradeDangerFacts, type TradeDangerFacts } from '@/systems/trade-danger-adapters';
 import { createGameButton } from '@/ui/ui-kit';
 
 // Trade Routes Overhaul (#553 MR4/4) — shared route-list rendering, extracted from
 // marketplace-panel.ts's original inline buildRouteListSection so the Marketplace panel
 // and the City panel's new Trade Routes section render identically instead of drifting.
 
-/** Player-facing explanation for a route that is not currently earning (#1501 MR04, #1502 MR05). */
+/** Player-facing explanation for a route that is not currently earning (#1501 MR04, #1502 MR05, #1503). */
 const NOT_OPERATING_LABEL: Record<TradeRouteNonOperatingReason, string> = {
   positioning: 'positioning',
   'no-trader': 'no trader',
   blocked: 'blocked',
+  blockaded: 'blockaded',
   'service-complete': 'service complete',
   paused: 'paused',
   cancelled: 'cancelled',
@@ -27,14 +29,18 @@ function renderRouteRow(
   state: GameState,
   fromCity: City,
   route: TradeRoute,
+  danger: TradeDangerFacts,
   onSelectUnit?: (unitId: string) => void,
   onRouteControl?: RouteControlHandler,
 ): HTMLElement {
   const toCity = state.cities[route.toCityId];
   const committedUnit = Object.values(state.units).find(u => u.committedToRouteId === route.id);
   // #1501 MR04: show the promised operating rate and what the route is *actually* earning now.
-  const status = getRouteOperatingStatus(state, route.id);
+  const status = getRouteOperatingStatus(state, route.id, danger);
   const gold = status.promisedGoldPerTurn;
+  // #1503 MR06: the cause of a blockade is only named when the viewer is entitled to know it (its own
+  // city is blockaded); otherwise the row reports the interruption without leaking a hidden fleet.
+  const entitledDanger = getEntitledRouteDanger(state, state.currentPlayer, route, danger);
 
   const row = document.createElement('div');
   row.style.cssText = 'font-size:12px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.08);display:flex;justify-content:space-between;gap:8px;min-height:44px;align-items:center;';
@@ -68,11 +74,21 @@ function renderRouteRow(
   const routeDetail = document.createElement('span');
   routeDetail.style.cssText = 'font-size:11px;color:#6b9b4b;';
   const promised = `+${gold.toFixed(1)} gold/turn`;
+  const reasonLabel = status.reason === 'blockaded' && !entitledDanger
+    ? 'service interrupted'
+    : NOT_OPERATING_LABEL[status.reason ?? 'blocked'];
   const actual = status.paying
     ? 'earning now'
-    : `earning 0 · ${NOT_OPERATING_LABEL[status.reason ?? 'blocked']}`;
+    : `earning 0 · ${reasonLabel}`;
   routeDetail.appendChild(document.createTextNode(`${promised} · ${actual} · round trip ${route.turnsPerTrip * 2} rounds`));
   summary.appendChild(routeDetail);
+  if (!status.paying && entitledDanger) {
+    const dangerLine = document.createElement('span');
+    dangerLine.dataset.entitledDanger = entitledDanger.source;
+    dangerLine.style.cssText = 'font-size:11px;color:#d98d4a;';
+    dangerLine.appendChild(document.createTextNode(entitledDanger.label));
+    summary.appendChild(dangerLine);
+  }
   row.appendChild(summary);
 
   // #1502 MR05: the owner's controls, rendered from the same query the executor re-checks, so a
@@ -136,6 +152,9 @@ export function buildPlayerRouteListSection(
     groups.set(route.fromCityId, arr);
   }
 
+  // #1503 MR06: one danger read for the whole section, not one map scan per row.
+  const danger = getTradeDangerFacts(state);
+
   for (const [cityId, routes] of groups) {
     const city = state.cities[cityId];
     if (!city) continue;
@@ -148,7 +167,7 @@ export function buildPlayerRouteListSection(
     wrapper.appendChild(cityHeader);
 
     for (const route of routes) {
-      wrapper.appendChild(renderRouteRow(state, city, route, onSelectUnit, onRouteControl));
+      wrapper.appendChild(renderRouteRow(state, city, route, danger, onSelectUnit, onRouteControl));
     }
   }
 
@@ -181,9 +200,10 @@ export function buildCityRouteRows(
   const routes = getOutgoingRoutesForCity(state, cityId);
   if (routes.length === 0) return null;
 
+  const danger = getTradeDangerFacts(state);
   const wrapper = document.createElement('div');
   for (const route of routes) {
-    wrapper.appendChild(renderRouteRow(state, city, route, onSelectUnit, onRouteControl));
+    wrapper.appendChild(renderRouteRow(state, city, route, danger, onSelectUnit, onRouteControl));
   }
   return wrapper;
 }

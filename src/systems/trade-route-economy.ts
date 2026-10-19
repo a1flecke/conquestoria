@@ -1,12 +1,14 @@
 // src/systems/trade-route-economy.ts
 // #1249: what a trade route is worth and how many a city may hold — per-trip gold, tech/network
 // bonuses, capacity and the trip bonus. Pure queries over state; no route is created or removed here.
-import type { TradeRoute, GameState, UnitType } from '@/core/types';
+import type { TradeRoute, GameState, UnitType, TradeRouteInterruptionReason } from '@/core/types';
+import type { EventBus } from '@/core/event-bus';
 import { isCityCoastal } from './city-system';
 import { getTradeRouteTechGold } from './tech-yield-system';
 import { getNetworkRouteGoldBonus } from './network-infrastructure-plans';
 import { getCivAvailableResources } from './resource-acquisition-system';
 import { getRouteRoundsBetween } from './trade-route-travel';
+import { getTradeDangerFacts, isRouteServiceSuspended, type TradeDangerFacts } from './trade-danger-adapters';
 import { hexDistance, wrappedHexDistance } from './hex-utils';
 
 export function calculateTradeRouteGold(
@@ -41,8 +43,10 @@ export function processTradeRouteIncome(routes: TradeRoute[], state?: GameState)
     return routes.reduce((total, route) => total + getEffectiveGoldPerTurn(route), 0);
   }
   // #1501 MR04: income is the *current actual* operating result, so a blocked, positioning or
-  // exhausted route contributes zero here exactly as it does at settlement.
-  return routes.reduce((total, route) => total + getRouteOperatingStatus(state, route.id).goldPerTurn, 0);
+  // exhausted route contributes zero here exactly as it does at settlement. #1503 MR06: the danger
+  // facts are read once for the whole pass, so adapting a blockade is not a map scan per route.
+  const danger = getTradeDangerFacts(state);
+  return routes.reduce((total, route) => total + getRouteOperatingStatus(state, route.id, danger).goldPerTurn, 0);
 }
 
 /** True while the route's trader is still travelling to the route's origin (#1500). */
@@ -77,7 +81,7 @@ export interface TradeRouteQuote {
   modifiers: TradeRouteQuoteModifier[];
 }
 
-export type TradeRouteNonOperatingReason = 'positioning' | 'no-trader' | 'blocked' | 'service-complete' | 'paused' | 'cancelled' | 'endpoint-lost';
+export type TradeRouteNonOperatingReason = 'positioning' | 'no-trader' | 'blocked' | 'blockaded' | 'service-complete' | 'paused' | 'cancelled' | 'endpoint-lost';
 
 export interface TradeRouteOperatingStatus {
   routeId: string;
@@ -176,9 +180,14 @@ function promisedGoldPerTurn(state: GameState, route: TradeRoute): number {
  * What this route is actually earning right now, and why not when it is zero.
  *
  * Settlement and every player-facing surface call this, so a promised rate and a current actual
- * rate can never disagree.
+ * rate can never disagree. `danger` carries the once-per-pass blockade facts; when omitted they are
+ * read from `state` for this single call.
  */
-export function getRouteOperatingStatus(state: GameState, routeId: string): TradeRouteOperatingStatus {
+export function getRouteOperatingStatus(
+  state: GameState,
+  routeId: string,
+  danger: TradeDangerFacts = getTradeDangerFacts(state),
+): TradeRouteOperatingStatus {
   const route = state.marketplace?.tradeRoutes.find(candidate => candidate.id === routeId);
   const promised = route ? promisedGoldPerTurn(state, route) : 0;
   const notOperating = (reason: TradeRouteNonOperatingReason): TradeRouteOperatingStatus =>
@@ -192,6 +201,9 @@ export function getRouteOperatingStatus(state: GameState, routeId: string): Trad
   // #1502 MR05b: the destination is gone or is no longer the agreed partner; the trader is
   // returning home to end the route, and the return earns nothing.
   if (route.endpointLost) return notOperating('endpoint-lost');
+  // #1503 MR06: a blockaded endpoint cannot be served, so the route earns nothing — the same fact the
+  // economy's blockade projection already uses. Service resumes when the blockade lifts.
+  if (isRouteServiceSuspended(state, route, danger)) return notOperating('blockaded');
   // A route that has never been settled (#1501-aware) behaves as it always did: the display path
   // keeps counting it, and only a route MR04 has actually settled must have a live trader.
   const settlementAware = route.lastSettledTurn !== undefined
@@ -213,13 +225,18 @@ export function getRouteOperatingStatus(state: GameState, routeId: string): Trad
  * Settle every route this civilization owns, once, for the round that just completed.
  *
  * A route pays only when its trader made validated progress or completed endpoint service this
- * round; paused, blocked, positioning, exhausted and destroyed routes pay nothing. The payment is
+ * round; paused, blocked, blockaded, positioning, exhausted and destroyed routes pay nothing. The payment is
  * recorded on the route (`lastSettledTurn`), so a reload or a repeated settlement in the same round
  * cannot pay twice. Reaching home refreshes the leg's payable-round budget for the next departure.
+ *
+ * #1503 MR06: settlement is also where an interruption is announced — this phase runs after the
+ * pirate phase, so the blockade facts are current — and it is announced at most once per route per
+ * uninterrupted stretch, recorded on the route.
  */
 export function settleTradeRouteForCiv(
   state: GameState,
   civId: string,
+  bus?: EventBus,
 ): { state: GameState; paid: number; reasons: TradeRouteNonOperatingReason[] } {
   const routes = state.marketplace?.tradeRoutes;
   if (!routes || routes.length === 0) return { state, paid: 0, reasons: [] };
@@ -227,10 +244,31 @@ export function settleTradeRouteForCiv(
   let paid = 0;
   const reasons: TradeRouteNonOperatingReason[] = [];
   let changed = false;
+  // One authoritative danger read for the whole pass, so a blockade is not re-derived per route.
+  const danger = getTradeDangerFacts(state);
 
   const nextRoutes = routes.map(route => {
     const origin = state.cities[route.fromCityId];
     if (origin?.owner !== civId) return route;
+
+    // --- #1503 MR06: interruption bookkeeping (once per route per uninterrupted stretch) ---
+    const status = getRouteOperatingStatus(state, route.id, danger);
+    const interruptionReason: TradeRouteInterruptionReason | null =
+      status.reason === 'blocked' || status.reason === 'blockaded' ? status.reason : null;
+    const nextNotified = interruptionReason ?? undefined;
+    const noticeChanged = route.notifiedInterruption !== nextNotified;
+    if (noticeChanged) {
+      changed = true;
+      if (interruptionReason) {
+        bus?.emit('trade:route-interrupted', {
+          routeId: route.id,
+          fromCityId: route.fromCityId,
+          toCityId: route.toCityId,
+          reason: interruptionReason,
+        });
+      }
+    }
+    const withNotice: TradeRoute = noticeChanged ? { ...route, notifiedInterruption: nextNotified } : route;
 
     const runner = Object.values(state.units).find(unit => unit.committedToRouteId === route.id);
     const atHome = Boolean(runner && runner.position.q === origin.position.q && runner.position.r === origin.position.r);
@@ -240,20 +278,19 @@ export function settleTradeRouteForCiv(
       ? (route.turnsPerTrip * 2)
       : route.serviceRoundsRemaining;
 
-    if (route.lastSettledTurn === state.turn) return route;
+    if (route.lastSettledTurn === state.turn) return withNotice;
 
-    const status = getRouteOperatingStatus(state, route.id);
     if (!status.paying) {
       if (reasons.length < 8) reasons.push(status.reason ?? 'blocked');
-      if (!atHome) return route;
+      if (!atHome) return withNotice;
       changed = true;
-      return { ...route, serviceRoundsRemaining: budget, lastSettledTurn: state.turn };
+      return { ...withNotice, serviceRoundsRemaining: budget, lastSettledTurn: state.turn };
     }
 
     paid += status.goldPerTurn;
     changed = true;
     return {
-      ...route,
+      ...withNotice,
       // Reaching home refreshes the budget for the next departure rather than consuming it.
       serviceRoundsRemaining: atHome ? budget : Math.max(0, (budget ?? (route.turnsPerTrip * 2)) - 1),
       lastSettledTurn: state.turn,
