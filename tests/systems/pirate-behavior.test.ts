@@ -248,6 +248,43 @@ describe('pirate escort and targeting', () => {
     state.pirates!.factions['pirate-1'].behavior = 'blockading';
     expect(choosePirateIntent(state, 'pirate-1')).toMatchObject({ kind: 'raid', targetUnitId: 'transport' });
   });
+
+  it('raids every naval trade hull, not just cargo-capacity transports (#1503)', () => {
+    // Victims used to be derived from `cargoCapacity !== undefined`, which is troop transports, so
+    // the entire naval trader line was invisible. The hull roster is now the shared trade-role query.
+    for (const type of ['naval_trader', 'steamship_trader', 'cargo_freighter', 'container_ship'] as UnitType[]) {
+      const state = stateWithMap(oceanGrid());
+      addUnit(state, unit('pirate', 'pirate_frigate', 'pirate-1', { q: 1, r: 1 }));
+      addUnit(state, unit('hull', type, 'player', { q: 4, r: 1 }));
+      state.pirates!.factions['pirate-1'] = faction('pirate-1', 'raiding', {
+        kind: 'coastal-enclave', position: { q: 0, r: 0 }, integrity: 100, maxIntegrity: 100,
+      }, ['pirate']);
+
+      expect(choosePirateIntent(state, 'pirate-1'), `${type} is a prize`).toMatchObject({
+        kind: 'raid', targetUnitId: 'hull',
+      });
+    }
+  });
+
+  it('leaves an escorted merchant hull alone, then presses it when blockading (#1503)', () => {
+    const state = stateWithMap(oceanGrid());
+    addUnit(state, unit('pirate', 'pirate_frigate', 'pirate-1', { q: 1, r: 1 }));
+    addUnit(state, unit('hull', 'steamship_trader', 'player', { q: 10, r: 10 }));
+    state.pirates!.factions['pirate-1'] = faction('pirate-1', 'raiding', {
+      kind: 'coastal-enclave', position: { q: 0, r: 0 }, integrity: 100, maxIntegrity: 100,
+    }, ['pirate']);
+
+    expect(choosePirateIntent(state, 'pirate-1')).toMatchObject({ kind: 'raid', targetUnitId: 'hull' });
+    // An escort makes the hull a defended prize: a raiding fleet has nothing else and disengages.
+    addUnit(state, unit('escort', 'galley', 'player', { q: 10, r: 9 }));
+    expect(choosePirateIntent(state, 'pirate-1')).toBeNull();
+    // A blockading fleet presses through the escort to reach the prize.
+    state.pirates!.factions['pirate-1'].behavior = 'blockading';
+    expect(choosePirateIntent(state, 'pirate-1')).toMatchObject({ kind: 'raid', targetUnitId: 'hull' });
+    // Tribute protection still outweighs a blockading fleet.
+    state.pirates!.factions['pirate-1'].tributeByCiv['player'] = { paidRound: 1, protectedUntilRound: 20 };
+    expect(choosePirateIntent(state, 'pirate-1')).toBeNull();
+  });
 });
 
 describe('pirate raids and blockades', () => {
