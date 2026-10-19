@@ -8,7 +8,7 @@ import { getTradeRouteTechGold } from './tech-yield-system';
 import { getNetworkRouteGoldBonus } from './network-infrastructure-plans';
 import { getCivAvailableResources } from './resource-acquisition-system';
 import { getRouteRoundsBetween } from './trade-route-travel';
-import { getTradeDangerFacts, isRouteServiceSuspended, type TradeDangerFacts } from './trade-danger-adapters';
+import { getTradeDangerFacts, getRouteDangerConsequences, isRouteServiceSuspended, type TradeDangerFacts } from './trade-danger-adapters';
 import { hexDistance, wrappedHexDistance } from './hex-utils';
 
 export function calculateTradeRouteGold(
@@ -251,10 +251,18 @@ export function settleTradeRouteForCiv(
     const origin = state.cities[route.fromCityId];
     if (origin?.owner !== civId) return route;
 
-    // --- #1503 MR06: interruption bookkeeping (once per route per uninterrupted stretch) ---
+    // --- #1503 MR06: interruption bookkeeping (once per route per uninterrupted stretch). The
+    // consequence comes from the danger adapter's documented composition order, so the reason the
+    // owner is told is exactly the one the adapter ranked highest.
     const status = getRouteOperatingStatus(state, route.id, danger);
+    const [consequence] = getRouteDangerConsequences(state, route, {
+      movementBlocked: status.reason === 'blocked',
+      facts: danger,
+    });
     const interruptionReason: TradeRouteInterruptionReason | null =
-      status.reason === 'blocked' || status.reason === 'blockaded' ? status.reason : null;
+      consequence?.kind === 'service-suspended' ? 'blockaded'
+        : consequence?.kind === 'movement-blocked' ? 'blocked'
+          : null;
     const nextNotified = interruptionReason ?? undefined;
     const noticeChanged = route.notifiedInterruption !== nextNotified;
     if (noticeChanged) {

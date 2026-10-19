@@ -6,7 +6,6 @@ import { getUnitRoleDefinition } from '@/systems/combat-role-definitions';
 import { hasAITradeRole } from '@/ai/ai-unit-roles';
 import {
   getTradeUnitDomain,
-  getTradeUnitTypes,
   isTradeUnitType,
   isTradeUnitTypeInDomain,
   type TradeUnitDomain,
@@ -33,7 +32,7 @@ describe('#1503 MR06 — the shared trade-role targeting query', () => {
   it('derives every trade tier from the catalogs — no trader name is listed here', () => {
     const fromCatalog = allTypes.filter(type => hasAITradeRole(type));
     expect(fromCatalog.length).toBeGreaterThan(0);
-    expect(getTradeUnitTypes()).toEqual([...fromCatalog].sort());
+    expect(allTypes.filter(isTradeUnitType).sort()).toEqual([...fromCatalog].sort());
   });
 
   it('covers every land, naval and air trade tier the catalog defines', () => {
@@ -45,7 +44,7 @@ describe('#1503 MR06 — the shared trade-role targeting query', () => {
 
     for (const domain of ['land', 'naval', 'air'] as const) {
       const expected = byDomain(domain);
-      expect(getTradeUnitTypes().filter(type => getTradeUnitDomain(type) === domain)).toEqual(expected);
+      expect(allTypes.filter(type => getTradeUnitDomain(type) === domain).sort()).toEqual(expected);
       for (const type of allTypes) {
         expect(isTradeUnitTypeInDomain(type, domain), `${type} in ${domain}`).toBe(expected.includes(type));
       }
@@ -79,7 +78,7 @@ describe('#1503 MR06 — the shared trade-role targeting query', () => {
     const trainableTradeTypes = TRAINABLE_UNITS
       .map(entry => entry.type)
       .filter(type => isTradeUnitType(type));
-    expect(trainableTradeTypes.length).toBe(getTradeUnitTypes().length);
+    expect(trainableTradeTypes.length).toBe(allTypes.filter(isTradeUnitType).length);
     for (const type of trainableTradeTypes) {
       const domain = getTradeUnitDomain(type);
       expect(domain, `${type} domain`).not.toBeNull();

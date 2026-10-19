@@ -42,12 +42,3 @@ export function getTradeUnitDomain(type: UnitType): TradeUnitDomain | null {
 export function isTradeUnitTypeInDomain(type: UnitType, domain: TradeUnitDomain): boolean {
   return getTradeUnitDomain(type) === domain;
 }
-
-/**
- * Every unit type in the canonical catalog that carries the trade role, sorted by type id for a
- * stable iteration order. Derived from the catalog rather than listed, so a new tier appears here
- * automatically.
- */
-export function getTradeUnitTypes(): UnitType[] {
-  return (Object.keys(UNIT_DEFINITIONS) as UnitType[]).filter(isTradeUnitType).sort();
-}
