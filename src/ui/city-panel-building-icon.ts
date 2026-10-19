@@ -1,6 +1,7 @@
 import { BUILDING_SPRITE_CATALOG } from '@/renderer/sprites/sprite-catalog';
 import { PRODUCTION_ICON_FALLBACK } from '@/systems/city-production-presentation';
 import { buildBuildingArtPanelSvg } from '@/renderer/buildings/building-art-sprite';
+import { productionIconHtml } from './legendary-wonder-icon';
 import { hashCode } from '@/renderer/sprite-overlay';
 import type { FactionPalette } from '@/renderer/sprites/sprite-system';
 
@@ -25,6 +26,20 @@ export function namespaceSvgIds(svg: string, suffix: string): string {
 }
 
 const ICON_SIZE_PX = 36;
+
+const PRODUCTION_ICON_SIZE_PX = 28;
+
+/**
+ * The icon for a production item in the build chooser, the "Producing" line and the queue (#620): a building with production art
+ * shows that art with the owner's banner over it; every other item keeps what it always showed (a legendary wonder's art, or the
+ * shared emoji). The name is always rendered next to it, so the art is decorative and hidden from assistive technology.
+ */
+export function getProductionItemIconHtml(itemId: string, palette: FactionPalette): string {
+  const artSvg = buildBuildingArtPanelSvg(itemId, palette, PRODUCTION_ICON_SIZE_PX);
+  if (!artSvg) return productionIconHtml(itemId);
+  return `<span data-building-art="${itemId}" aria-hidden="true" ` +
+    `style="display:inline-block;width:${PRODUCTION_ICON_SIZE_PX}px;height:${PRODUCTION_ICON_SIZE_PX}px;vertical-align:middle;">${artSvg}</span>`;
+}
 
 export function getAnimatedBuildingIconHtml(
   buildingId: string,

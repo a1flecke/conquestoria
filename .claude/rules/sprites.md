@@ -132,8 +132,11 @@ file is missing or fails to load (a catalog test fails if it goes).
   originals in `$BUILDING_SOURCES_DIR`, never committed). The image is generated on flat magenta; the tool keys it, trims, pads to a square, shrinks to
   256 px, quantises to a palette PNG (<= 70 KB) and writes `design/building-art/<id>.provenance.json`. Update the `ChatGPT image generation
   (building sprites)` count in `docs/asset-rights-ledger.md` (`asset-rights-ledger.test.ts` fails otherwise).
-- **Not yet covered:** the production chooser and queue icons for every building still use the `PRODUCTION_ICONS` emoji; only the
-  map production badge and the built-buildings list in the city panel show building sprites.
+- **Production chooser, "Producing" line and queue:** `getProductionItemIconHtml(itemId, palette)` (`city-panel-building-icon.ts`) is the one
+  entry: a building with art gets the 28 px art with the owner's banner (`data-building-art`, `aria-hidden`; the name is always beside it),
+  everything else keeps `productionIconHtml` (a legendary wonder's art, or the `PRODUCTION_ICONS` emoji). A new production list in the city
+  panel uses it rather than `getProductionIconForItem`. Pinned by `tests/ui/city-panel-production-art.test.ts`.
+- **Not covered:** the "locked items" lists in the city panel (`🔒 …`) and the unit rows keep their emoji.
 
 ---
 
