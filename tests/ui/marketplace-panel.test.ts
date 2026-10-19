@@ -656,4 +656,26 @@ describe('createMarketplacePanel', () => {
       expect(onSelectUnit).toHaveBeenCalledWith('caravan1');
     });
   });
+
+  it('presents the finished overview as Trade & Supply with Routes, Supplies and Policies (#1504)', () => {
+    createMarketplacePanel(container, buildState({ currentPlayer: 'p1' }), { onClose: vi.fn() });
+
+    const panel = document.getElementById('marketplace-panel')!;
+    expect(panel.querySelector('h2')?.textContent).toBe('Trade & Supply');
+
+    const routes = panel.querySelector('[data-section="trade-supply-routes"]');
+    const supplies = panel.querySelector('[data-section="trade-supply-supplies"]');
+    const policies = panel.querySelector('[data-section="trade-supply-policies"]');
+    expect(routes?.textContent).toContain('Routes');
+    expect(routes?.textContent).toContain('Active Trade Routes');
+    expect(supplies?.textContent).toContain('Supplies');
+    expect(policies?.textContent).toContain('Policies');
+
+    // Policies explains what is coming without offering an unfinished control.
+    expect(policies?.querySelectorAll('button').length).toBe(0);
+    expect(policies?.textContent).toContain('arrive with supply routes');
+
+    // Supplies exposes no purchase control at this stage (the chooser and route controls live in Routes).
+    expect(supplies?.querySelectorAll('button').length).toBe(0);
+  });
 });

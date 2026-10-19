@@ -151,4 +151,68 @@ describe('openEstablishRoutePanel (#1500 MR03)', () => {
       .toEqual(['alpha-city', 'alpha-port']);
     expect(panel.textContent).not.toContain('Betatown (Origin)');
   });
+
+  it('renders the definition-driven purpose selector and the complete known-destination catalog (#1504)', () => {
+    openEstablishRoutePanel(container, makeState(), 'trader-1', vi.fn());
+
+    const panel = document.getElementById('establish-route-panel')!;
+    const purposes = Array.from(panel.querySelectorAll<HTMLElement>('button[data-route-mode]'));
+    expect(purposes.map(button => button.dataset.routeMode))
+      .toEqual(['commerce', 'domestic-food', 'domestic-production', 'research-exchange']);
+
+    // The full catalog is still present under its own heading, so recommendations never replace it.
+    expect(panel.querySelector('[data-all-destinations]')?.textContent).toContain('All known destinations');
+    const catalogRows = panel.querySelectorAll('[data-section-catalog] [data-destination-city], [data-all-destinations] ~ [data-destination-city]');
+    const allCities = new Set(Array.from(panel.querySelectorAll<HTMLElement>('[data-destination-city]'))
+      .map(row => row.dataset.destinationCity));
+    expect(allCities.has('alpha-port')).toBe(true);
+    expect(allCities.has('beta-city')).toBe(true);
+    expect(catalogRows.length + allCities.size).toBeGreaterThanOrEqual(2);
+  });
+
+  it('shows yield, ETA, known danger and the cancel/return consequence before confirming (#1504)', () => {
+    openEstablishRoutePanel(container, makeState(), 'trader-1', vi.fn());
+
+    const panel = document.getElementById('establish-route-panel')!;
+    const target = Array.from(panel.querySelectorAll<HTMLElement>('[data-destination-city="beta-city"]'))[0]!;
+    target.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    const summary = panel.querySelector<HTMLElement>('[data-route-summary="selected"]')!;
+    expect(summary.textContent).toContain('Purpose:');
+    expect(summary.textContent).toContain('Round trip:');
+    expect(summary.querySelector('[data-known-danger]')?.textContent).toContain('Known danger');
+    expect(summary.textContent).toContain('returning home before the route ends');
+  });
+
+  it('passes the chosen purpose to the executor (#1504)', () => {
+    const onEstablish = vi.fn();
+    openEstablishRoutePanel(container, makeState(), 'trader-1', onEstablish);
+
+    const panel = document.getElementById('establish-route-panel')!;
+    const provisioning = panel.querySelector<HTMLButtonElement>('button[data-route-mode="domestic-food"]')!;
+    expect(provisioning.disabled).toBe(false);
+    provisioning.click();
+
+    const confirm = Array.from(panel.querySelectorAll('button')).find(button => button.textContent === 'Confirm')!;
+    const domestic = Array.from(panel.querySelectorAll<HTMLElement>('[data-destination-city="alpha-port"]'))[0]!;
+    domestic.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    confirm.click();
+
+    expect(onEstablish).toHaveBeenCalledTimes(1);
+    expect(onEstablish.mock.calls[0][2]).toBe('domestic-food');
+  });
+
+  it('refuses a foreign destination for a provisioning purpose with the catalog’s reason (#1504)', () => {
+    openEstablishRoutePanel(container, makeState(), 'trader-1', vi.fn());
+
+    const panel = document.getElementById('establish-route-panel')!;
+    panel.querySelector<HTMLButtonElement>('button[data-route-mode="domestic-food"]')!.click();
+
+    const foreignRow = Array.from(panel.querySelectorAll<HTMLElement>('[data-destination-city="beta-city"]'))[0]!;
+    expect(foreignRow.textContent).toContain('Requires one of your own cities as the destination.');
+    // A foreign row is not selectable for provisioning: Confirm stays disabled after a tap.
+    foreignRow.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const confirm = Array.from(panel.querySelectorAll('button')).find(button => button.textContent === 'Confirm')!;
+    expect(confirm.disabled).toBe(true);
+  });
 });

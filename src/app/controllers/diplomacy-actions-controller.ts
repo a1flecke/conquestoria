@@ -346,14 +346,14 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
   // section and selected-unit-info's Establish Route button trigger the exact same code
   // path (per ui-panels.md's Extracted UI Flows rule), not two copies that could drift.
   function handleEstablishRoute(caravanId: string): void {
-    openEstablishRoutePanel(deps.uiLayer, deps.session.getState(), caravanId, (toCityId, originCityId) => {
+    openEstablishRoutePanel(deps.uiLayer, deps.session.getState(), caravanId, (toCityId, originCityId, mode) => {
       // #1500 MR03: the executor returns a typed refusal instead of throwing, so a stale chooser
       // callback (war declared, slot taken, off-turn) shows the entitled reason and mutates nothing.
       const routeResult = establishQuestAwareRoute(
         deps.session.getState(),
         caravanId,
         toCityId,
-        { automated: false, originCityId },
+        { automated: false, originCityId, mode },
       );
       if (!routeResult.ok) {
         deps.showNotification(TRADE_ROUTE_DENIAL_MESSAGES[routeResult.reason], 'warning');

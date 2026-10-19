@@ -1,4 +1,4 @@
-import type { GameState, TradeRoute } from '@/core/types';
+import type { GameState, TradeRoute, TradeRouteModeId } from '@/core/types';
 import { applyQuestGameplayAction, type ChainTransition } from './quest-chain-system';
 import {
   establishTradeRoute,
@@ -20,7 +20,7 @@ export function establishQuestAwareRoute(
   state: GameState,
   caravanUnitId: string,
   toCityId: string,
-  options: { automated?: boolean; originCityId?: string } = {},
+  options: { automated?: boolean; originCityId?: string; mode?: TradeRouteModeId } = {},
 ): QuestAwareRouteResult {
   const caravan = state.units[caravanUnitId];
   if (!caravan) return { ok: false, state, reason: 'unit-missing' };
@@ -31,6 +31,7 @@ export function establishQuestAwareRoute(
     actingCivId: caravan.owner,
     automated: options.automated ?? true,
     originCityId: options.originCityId,
+    mode: options.mode,
   });
   if (!result.ok) return { ok: false, state, reason: result.reason };
 
