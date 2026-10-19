@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createCityPanel } from '@/ui/city-panel';
 import { makeWonderPanelFixture } from './helpers/wonder-panel-fixture';
-import type { HexCoord } from '@/core/types';
+import type { GameState, HexCoord } from '@/core/types';
 
 // Trade Routes Overhaul (#553 MR4/4) — City panel Trade Routes section.
 
@@ -242,6 +242,80 @@ describe('city-panel Trade Routes section', () => {
     expect(Array.from(section.querySelectorAll('button')).find(b => b.textContent === 'Establish Route')).toBeUndefined();
     // Falls back to the "train a new unit" prompt since no idle unit resolves here.
     expect(section.textContent).toContain('Train Caravan to start a new route.');
+  });
+
+  /**
+   * #1503 MR06: a real major-civ blockade ring around `cityId` (two combat warships within radius 2,
+   * one adjacent, no defender contesting). The city's tile must be coastal for the blockade to form.
+   */
+  function blockadeCity(state: GameState, blockaderId: string, cityId: string): void {
+    const target = state.cities[cityId]!;
+    // Make the city coastal: one neighbour becomes ocean.
+    const coastal: HexCoord = { q: target.position.q + 1, r: target.position.r };
+    state.map.tiles[`${coastal.q},${coastal.r}`] = {
+      coord: coastal, terrain: 'ocean', elevation: 'lowland', resource: null,
+      improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+    } as never;
+    state.civilizations[blockaderId].diplomacy.atWarWith = [
+      ...new Set([...state.civilizations[blockaderId].diplomacy.atWarWith, target.owner]),
+    ];
+    state.civilizations[target.owner].diplomacy.atWarWith = [
+      ...new Set([...state.civilizations[target.owner].diplomacy.atWarWith, blockaderId]),
+    ];
+    const ring: HexCoord[] = [{ ...target.position }, coastal];
+    ring.forEach((position, index) => {
+      const id = `${blockaderId}-warship-${index}`;
+      state.units[id] = {
+        id, type: 'galley', owner: blockaderId, position, health: 100,
+        movementPointsLeft: 3, hasActed: false, hasMoved: false, isResting: false,
+      } as never;
+      state.civilizations[blockaderId].units.push(id);
+    });
+  }
+
+  function playerRoute(state: GameState, cityId: string, toCityId: string): void {
+    state.civilizations.player.techState.completed.push('trade-routes');
+    state.marketplace = {
+      prices: {}, priceHistory: {}, fashionable: null, fashionTurnsLeft: 0,
+      tradeRoutes: [{ id: 'route-1', fromCityId: cityId, toCityId, goldPerTrip: 10, turnsPerTrip: 1 }],
+    };
+    state.units['caravan1'] = {
+      id: 'caravan1', type: 'caravan', owner: 'player', position: { ...state.cities[cityId]!.position },
+      health: 100, movementPointsLeft: 3, committedToRouteId: 'route-1', routeDirection: 'outbound',
+    } as never;
+  }
+
+  it('shows the entitled blockade reason on a route whose own endpoint is blockaded (#1503)', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    const cityRival = city;
+    state.cities['city-rival'] = { ...state.cities['city-rival'], owner: 'player', name: 'Ostia' } as never;
+    playerRoute(state, cityRival.id, 'city-rival');
+    // The player's own origin city is blockaded by a rival fleet: the owner is entitled to know.
+    blockadeCity(state, 'rival', cityRival.id);
+
+    const panel = createCityPanel(container, cityRival, state, baseCallbacks());
+
+    const section = panel.querySelector('[data-section="trade-routes"]')!;
+    expect(section.textContent).toContain('earning 0 · blockaded');
+    const notice = section.querySelector('[data-entitled-danger="blockade"]');
+    expect(notice).toBeTruthy();
+    expect(notice!.textContent).toContain('Blockaded');
+  });
+
+  it('never names a blockade of a foreign endpoint to the viewer (#1503)', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.cities['city-rival'] = { ...state.cities['city-rival'], owner: 'rival', name: 'Ostia' } as never;
+    playerRoute(state, city.id, 'city-rival');
+    // The destination (rival's city) is blockaded — a fact the player cannot see. The row must report
+    // the interruption without naming the cause, and render no entitled danger notice.
+    blockadeCity(state, 'player', 'city-rival');
+
+    const panel = createCityPanel(container, city, state, baseCallbacks());
+
+    const section = panel.querySelector('[data-section="trade-routes"]')!;
+    expect(section.textContent).toContain('earning 0 · service interrupted');
+    expect(section.textContent).not.toContain('blockaded');
+    expect(section.querySelector('[data-entitled-danger]')).toBeNull();
   });
 
   it('#553 MR4/4 hot-seat regression — a route another civ receives (toCityId) does not show as that civ\'s own outgoing route', () => {

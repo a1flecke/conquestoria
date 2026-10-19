@@ -14,10 +14,10 @@ import type { RoundPhase, RoundPhaseContext } from './types';
  */
 function runTradeIncome(state: GameState, context: RoundPhaseContext): GameState {
   let newState = state;
-  const { grossGoldByCiv } = context;
+  const { grossGoldByCiv, bus } = context;
   for (const civId of Object.keys(newState.civilizations)) {
     if (!getCivilizationLiveness(newState, civId).living) continue;
-    const settlement = settleTradeRouteForCiv(newState, civId);
+    const settlement = settleTradeRouteForCiv(newState, civId, bus);
     newState = settlement.state;
     if (settlement.paid > 0) {
       grossGoldByCiv[civId] = (grossGoldByCiv[civId] ?? 0) + settlement.paid;

@@ -36,3 +36,15 @@ export interface CommercePermissionsState {
   resourceExportGrants: CommerceResourceExportGrant[];
   routeAllowances: CommerceRouteAllowance[];
 }
+
+/**
+ * Why a trade route's service is interrupted (#1503 MR06). Declared in this leaf rather than the
+ * shrink-only barrel (#1361):
+ *
+ * - `blocked` is a physical obstruction on the committed path;
+ * - `blockaded` is a canonical blockade of an endpoint city.
+ *
+ * Both are derived from authoritative world facts — neither is a random loss. The value is recorded
+ * on the route (`TradeRoute.notifiedInterruption`) so a stationary obstruction is announced once.
+ */
+export type TradeRouteInterruptionReason = 'blocked' | 'blockaded';

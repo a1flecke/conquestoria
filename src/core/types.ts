@@ -1,5 +1,5 @@
 import type { NotificationCityAction, NotificationLogState } from './notification-log';
-import type { CommercePermissionsState } from './types/commerce';
+import type { CommercePermissionsState, TradeRouteInterruptionReason } from './types/commerce';
 import type { PirateState } from './pirate-state';
 import type { DominationIntelState } from '@/systems/domination-types';
 import type { GovernancePolicyId } from '@/systems/governance-types';
@@ -1884,9 +1884,9 @@ export interface TradeRoute {
 /**
  * #1503 MR06: why a route's service is interrupted. `blocked` is a physical obstruction on the
  * committed path; `blockaded` is a canonical blockade of an endpoint city. Both are derived from
- * authoritative world facts — neither is a random loss.
+ * authoritative world facts — neither is a random loss. Declared in the `commerce` type leaf.
  */
-export type TradeRouteInterruptionReason = 'blocked' | 'blockaded';
+export type { TradeRouteInterruptionReason } from './types/commerce';
 
 export interface PurchasedResourceEntry {
   civId: string;          // hot-seat: which civ made the purchase
