@@ -6,7 +6,7 @@ import {
   destroyCamp,
   applyCampDestruction,
 } from '@/systems/barbarian-system';
-import type { GameMap, BarbarianCamp } from '@/core/types';
+import type { GameMap, BarbarianCamp, UnitType } from '@/core/types';
 import { generateMap } from '@/systems/map-generator';
 import { hexKey, hexDistance } from '@/systems/hex-utils';
 import { checkCampEvolution } from '@/systems/minor-civ-system';
@@ -294,6 +294,60 @@ describe('processPurposefulBarbarians', () => {
       kind: 'unit',
       id: 'worker',
     });
+  });
+
+  it('raids every land trade tier, not just the first caravan (#1503)', () => {
+    // The old filter was `unit.type === 'worker' || unit.type === 'caravan'`, so the upgraded land
+    // wagons were invisible. The shared trade-role query derives the roster from the catalog.
+    for (const type of ['caravan', 'merchant_wagon', 'freight_convoy'] as UnitType[]) {
+      const state = purposefulState();
+      const raider = createUnit('warrior', 'barbarian', { q: 5, r: 5 }, state.idCounters);
+      raider.id = 'raider';
+      const trader = createUnit(type, 'player', { q: 7, r: 5 }, state.idCounters);
+      trader.id = `trader-${type}`;
+      state.units = { raider, [trader.id]: trader };
+      state.civilizations.player.units = [trader.id];
+
+      const result = processPurposefulBarbarians(state);
+      expect(result.opponentAI.barbarianCamps['camp-a-alt-4'], `${type} generates a raid plan`)
+        .toMatchObject({ objective: 'raid', target: { kind: 'unit', id: trader.id } });
+    }
+  });
+
+  it('prefers any trader over a nearer worker, then the nearest trader (#1503)', () => {
+    const state = purposefulState();
+    const raider = createUnit('warrior', 'barbarian', { q: 5, r: 5 }, state.idCounters);
+    raider.id = 'raider';
+    const worker = createUnit('worker', 'player', { q: 6, r: 5 }, state.idCounters);
+    worker.id = 'near-worker';
+    const farWagon = createUnit('merchant_wagon', 'player', { q: 9, r: 5 }, state.idCounters);
+    farWagon.id = 'far-wagon';
+    const nearWagon = createUnit('freight_convoy', 'player', { q: 7, r: 5 }, state.idCounters);
+    nearWagon.id = 'near-wagon';
+    state.units = { raider, 'near-worker': worker, 'far-wagon': farWagon, 'near-wagon': nearWagon };
+    state.civilizations.player.units = [worker.id, farWagon.id, nearWagon.id];
+
+    const result = processPurposefulBarbarians(state);
+    // Traders outrank the adjacent worker; of the two traders, the nearer one is chosen.
+    expect(result.opponentAI.barbarianCamps['camp-a-alt-4'].target)
+      .toMatchObject({ kind: 'unit', id: 'near-wagon' });
+  });
+
+  it('does not let a land camp raid an air trade tier (#1503)', () => {
+    const state = purposefulState();
+    const raider = createUnit('warrior', 'barbarian', { q: 5, r: 5 }, state.idCounters);
+    raider.id = 'raider';
+    const freighter = createUnit('air_freighter', 'player', { q: 7, r: 5 }, state.idCounters);
+    freighter.id = 'air-freighter';
+    state.units = { raider, 'air-freighter': freighter };
+    state.civilizations.player.units = [freighter.id];
+
+    const result = processPurposefulBarbarians(state);
+    const plan = result.opponentAI.barbarianCamps['camp-a-alt-4'] as
+      | { target?: { kind?: string; id?: string } }
+      | undefined;
+    const targetId = plan?.target?.kind === 'unit' ? plan.target.id : undefined;
+    expect(targetId).not.toBe('air-freighter');
   });
 
   it('uses the visible target owner challenge instead of the game-wide setting for raid priority', () => {
