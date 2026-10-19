@@ -10,7 +10,7 @@
 // in the same round the route was settled, after blockades and suspended service have already been
 // decided by the operating-status authority.
 import type { GameState } from '@/core/types';
-import type { EventBus } from '@/core/event-bus';
+import { EventBus } from '@/core/event-bus';
 import { applyResearchBonus } from '@/systems/tech-system';
 import { applyResearchCompletionConsequences } from '@/systems/tech-completion-system';
 
@@ -69,13 +69,16 @@ export function applyTradeRouteDeliveries(
         civilizations: { ...nextState.civilizations, [civ.id]: { ...civ, techState: result.state } },
       };
       if (result.completedTech) {
-        bus?.emit('tech:completed', {
+        // A delivery can finish a technology; run the real completion path rather than leaving the
+        // project at 100% silently. With no bus, the state consequences still apply.
+        const eventBus = bus ?? new EventBus();
+        eventBus.emit('tech:completed', {
           civId: civ.id,
           techId: result.completedTech,
           carriedProgress: result.carriedProgress,
           carriedIntoTechId: result.carriedProgress > 0 ? result.state.currentResearch : null,
         });
-        nextState = applyResearchCompletionConsequences(nextState, civ.id, result.completedTech, bus);
+        nextState = applyResearchCompletionConsequences(nextState, civ.id, result.completedTech, eventBus);
       }
       continue;
     }
