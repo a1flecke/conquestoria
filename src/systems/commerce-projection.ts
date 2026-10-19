@@ -6,7 +6,7 @@
  * and the reason it is denied — never an undiscovered city, by id, name, count or order. A near-miss
  * (known city, unexplored corridor) stays visible with its public denial rather than vanishing.
  */
-import type { GameState } from '@/core/types';
+import type { GameState, TradeRouteModeId } from '@/core/types';
 import { hasDiscoveredCity } from '@/systems/discovery-system';
 import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import {
@@ -79,7 +79,7 @@ export function getEntitledTradeDestinations(
   state: GameState,
   viewerCivId: string,
   caravanUnitId: string,
-  options: { automated?: boolean; originCityId?: string } = {},
+  options: { automated?: boolean; originCityId?: string; mode?: TradeRouteModeId } = {},
 ): EntitledTradeDestination[] {
   const unit = state.units[caravanUnitId];
   if (!unit || !isTradeTraderType(unit.type)) return [];
@@ -98,6 +98,8 @@ export function getEntitledTradeDestinations(
       actingCivId: unit.owner,
       automated: options.automated ?? false,
       originCityId: options.originCityId,
+      // #1504 MR07: the chosen purpose is part of legality, so a row is eligible only for a mode it can run.
+      ...(options.mode ? { mode: options.mode } : {}),
     });
     const resolvedOriginId = decision.ok ? decision.originCityId : options.originCityId ?? originCityId;
     // #1501 MR04: the preview *is* the quote the executor builds the route from — same timing, same

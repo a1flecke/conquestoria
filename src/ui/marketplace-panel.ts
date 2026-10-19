@@ -83,16 +83,26 @@ export function createMarketplacePanel(
   panel.innerHTML = `
     <div style="max-width:500px;margin:0 auto;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-        <h2 style="margin:0;font-size:18px;color:#e8c170;">Marketplace</h2>
-        <button type="button" id="mp-close" aria-label="Close marketplace" style="min-width:44px;min-height:44px;color:inherit;font:inherit;border:none;background:none;cursor:pointer;font-size:22px;">✕</button>
+        <h2 style="margin:0;font-size:18px;color:#e8c170;">Trade &amp; Supply</h2>
+        <button type="button" id="mp-close" aria-label="Close Trade &amp; Supply" style="min-width:44px;min-height:44px;color:inherit;font:inherit;border:none;background:none;cursor:pointer;font-size:22px;">✕</button>
       </div>
-      ${noticeBoxHtml}
-      ${yourResourcesHtml}
-      <div style="display:flex;flex-direction:column;gap:8px;">
-        ${resourceRowsHtml}
-      </div>
-      ${unknownCount > 0 ? '<div style="font-size:12px;opacity:0.5;text-align:center;margin-top:8px;" data-text="discoverable-footer"></div>' : ''}
-      <div id="mp-routes-section" style="margin-top:16px;"></div>
+      <section data-section="trade-supply-routes" style="margin-bottom:18px;">
+        <div data-text="routes-heading" style="font-size:13px;font-weight:bold;color:#e8c170;margin-bottom:6px;"></div>
+        <div id="mp-routes-section"></div>
+      </section>
+      <section data-section="trade-supply-supplies" style="margin-bottom:18px;">
+        <div data-text="supplies-heading" style="font-size:13px;font-weight:bold;color:#e8c170;margin-bottom:6px;"></div>
+        ${noticeBoxHtml}
+        ${yourResourcesHtml}
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          ${resourceRowsHtml}
+        </div>
+        ${unknownCount > 0 ? '<div style="font-size:12px;opacity:0.5;text-align:center;margin-top:8px;" data-text="discoverable-footer"></div>' : ''}
+      </section>
+      <section data-section="trade-supply-policies">
+        <div data-text="policies-heading" style="font-size:13px;font-weight:bold;color:#e8c170;margin-bottom:6px;"></div>
+        <div data-text="policies-body" style="font-size:12px;opacity:0.7;"></div>
+      </section>
     </div>
   `;
 
@@ -101,6 +111,17 @@ export function createMarketplacePanel(
     const el = panel.querySelector(`[data-text="${sel}"]`);
     if (el) el.textContent = text;
   };
+
+  // #1504 MR07: the three named sections. Routes is the live route roster; Supplies explains what
+  // cannot be bought yet rather than offering unfinished controls; Policies names the controls that
+  // arrive with supply (MR12/MR16) without advertising an action that does not exist.
+  setText('routes-heading', 'Routes');
+  setText('supplies-heading', 'Supplies');
+  setText('policies-heading', 'Policies');
+  setText(
+    'policies-body',
+    'Reserve targets, spending limits and partner export permissions arrive with supply routes. Nothing here changes your empire yet.',
+  );
 
   if (importsNotice) setText('imports-rebuilding', importsNotice);
 
