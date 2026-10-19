@@ -6,6 +6,7 @@ import { removeUnits } from '@/systems/unit-removal-system';
 import { settleTradeRouteForCiv, getRouteOperatingStatus } from '@/systems/trade-route-economy';
 import { getEntitledTradeDestinations } from '@/systems/commerce-projection';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
+import { applyTradeRouteDeliveries } from '@/systems/trade-route-delivery';
 
 /**
  * The #1501 golden fixture, driven through the real round functions: a route is created, the runner
@@ -52,8 +53,8 @@ function makeRouteState(overrides: {
       },
     },
     cities: {
-      'alpha-city': { id: 'alpha-city', name: 'Alphaville', owner: 'alpha', position: { q: 0, r: 0 }, ownedTiles: [], workedTiles: [], buildings: [], productionQueue: [] },
-      'alpha-port': { id: 'alpha-port', name: 'Alphaport', owner: 'alpha', position: { q: 4, r: 0 }, ownedTiles: [], workedTiles: [], buildings: [], productionQueue: [] },
+      'alpha-city': { id: 'alpha-city', name: 'Alphaville', owner: 'alpha', position: { q: 0, r: 0 }, ownedTiles: [], workedTiles: [], buildings: [], productionQueue: [], productionProgress: 0, food: 0 },
+      'alpha-port': { id: 'alpha-port', name: 'Alphaport', owner: 'alpha', position: { q: 4, r: 0 }, ownedTiles: [], workedTiles: [], buildings: [], productionQueue: [], productionProgress: 0, food: 0 },
     },
     units: {
       'trader-1': {
@@ -178,6 +179,99 @@ describe('#1501 — preview and realized payment use identical modifiers', () =>
     const settled = settleTradeRouteForCiv(advanceRouteRunners(committed, new EventBus()), 'alpha');
 
     expect(settled.paid).toBe(preview.goldPerTurn);
+  });
+});
+
+describe('#1504 MR07 — a route delivers its mode’s yield to the one named recipient', () => {
+  /** One settled round of a route in `mode`, then the deliveries applied as the phase does. */
+  const settleAndApply = (state: GameState, civId = 'alpha') => {
+    const settlement = settleTradeRouteForCiv(state, civId);
+    return {
+      settlement,
+      state: applyTradeRouteDeliveries(settlement.state, settlement.deliveries),
+    };
+  };
+
+  it('delivers food to the destination city and pays no gold (a provisioned city cannot also collect commerce gold)', () => {
+    const state = makeRouteState({ route: { mode: 'domestic-food', lastProgressTurn: 7 } });
+
+    const { settlement, state: applied } = settleAndApply(state);
+
+    expect(settlement.paid).toBe(0);
+    expect(settlement.deliveries).toEqual([
+      { routeId: 'route-1', recipient: 'destination-city-food', cityId: 'alpha-port', amount: 2 },
+    ]);
+    expect(applied.cities['alpha-port'].food).toBe(2);
+    expect(applied.cities['alpha-city'].food).toBe(0);   // only the destination benefits
+  });
+
+  it('delivers production into the destination city’s current build', () => {
+    const base = makeRouteState({ route: { mode: 'domestic-production', lastProgressTurn: 7 } });
+    const state: GameState = {
+      ...base,
+      cities: { ...base.cities, 'alpha-port': { ...base.cities['alpha-port']!, productionQueue: ['granary'] } },
+    };
+
+    const { settlement, state: applied } = settleAndApply(state);
+
+    expect(settlement.paid).toBe(0);
+    expect(applied.cities['alpha-port'].productionProgress).toBe(2);
+    expect(applied.cities['alpha-city'].productionProgress).toBe(0);
+  });
+
+  it('delivers research to the owner, not to the destination', () => {
+    const base = makeRouteState({ route: { mode: 'research-exchange', lastProgressTurn: 7 } });
+    const state: GameState = {
+      ...base,
+      civilizations: {
+        ...base.civilizations,
+        alpha: {
+          ...base.civilizations.alpha,
+          techState: { ...base.civilizations.alpha.techState, currentResearch: 'trade-routes' },
+        },
+      },
+    };
+
+    const { settlement, state: applied } = settleAndApply(state);
+
+    expect(settlement.paid).toBe(0);
+    expect(settlement.deliveries).toEqual([
+      { routeId: 'route-1', recipient: 'owner-research', civId: 'alpha', amount: 2 },
+    ]);
+    expect(applied.civilizations.alpha.techState.researchProgress).toBe(2);
+  });
+
+  it('delivers exactly once per completed round', () => {
+    const state = makeRouteState({ route: { mode: 'domestic-food', lastProgressTurn: 7 } });
+
+    const first = settleAndApply(state);
+    expect(first.state.cities['alpha-port'].food).toBe(2);
+
+    // Replaying the same round (a reload, or a second settlement pass) must not deliver again.
+    const replay = settleAndApply(first.state);
+    expect(replay.settlement.deliveries).toEqual([]);
+    expect(replay.state.cities['alpha-port'].food).toBe(2);
+  });
+
+  it('delivers nothing for a round the trader did not serve', () => {
+    // lastProgressTurn from an earlier round: the trader was blocked or waiting, so no service.
+    const state = makeRouteState({ route: { mode: 'domestic-food', lastProgressTurn: 6 } });
+
+    const { settlement, state: applied } = settleAndApply(state);
+
+    expect(settlement.paid).toBe(0);
+    expect(settlement.deliveries).toEqual([]);
+    expect(settlement.reasons).toContain('blocked');
+    expect(applied.cities['alpha-port'].food).toBe(0);
+  });
+
+  it('still pays gold for a commerce route (the default mode)', () => {
+    const state = makeRouteState({ route: { lastProgressTurn: 7 } });
+
+    const { settlement } = settleAndApply(state);
+
+    expect(settlement.paid).toBeGreaterThan(0);
+    expect(settlement.deliveries).toEqual([]);
   });
 });
 

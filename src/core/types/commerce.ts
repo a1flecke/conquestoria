@@ -48,3 +48,13 @@ export interface CommercePermissionsState {
  * on the route (`TradeRoute.notifiedInterruption`) so a stationary obstruction is announced once.
  */
 export type TradeRouteInterruptionReason = 'blocked' | 'blockaded';
+
+/**
+ * What a trade route is *for* (#1504 MR07). Declared in this leaf rather than the shrink-only barrel
+ * (#1361). The definition-driven catalog that names each mode's recipient and requirement lives in
+ * `src/systems/trade-route-modes.ts`; this is only the stable identifier persisted on the route.
+ *
+ * A route from before modes shipped has no `mode` and runs `commerce` (the pre-MR07 behavior), so an
+ * old save needs no migration.
+ */
+export type TradeRouteModeId = 'commerce' | 'domestic-food' | 'domestic-production' | 'research-exchange';

@@ -7,6 +7,7 @@ import {
   getTradeRouteEligibility,
   establishTradeRoute,
 } from '@/systems/trade-route-contract';
+import { getRouteModeId } from '@/systems/trade-route-modes';
 
 /**
  * A flat corridor map: origin `alpha-city` at (0,0), domestic `alpha-port` at (2,0), a known
@@ -270,6 +271,68 @@ describe('trade-route contract — the executor re-runs the query before its fir
     expect(result.ok === false && result.reason).toBe('origin-unusable');
     expect(result.state).toBe(state);
     expect(result.state.marketplace!.tradeRoutes).toHaveLength(1);
+  });
+});
+
+describe('#1504 MR07 — route purpose (mode) selection', () => {
+  it('records a domestic provisioning purpose on the created route', () => {
+    const state = makeState();
+
+    const result = establishTradeRoute(state, {
+      caravanUnitId: 'trader-1', toCityId: 'alpha-port', actingCivId: 'alpha', originCityId: 'alpha-city',
+      mode: 'domestic-food',
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.ok === true && result.route.mode).toBe('domestic-food');
+  });
+
+  it('leaves an ordinary commerce route in its pre-mode shape', () => {
+    const state = makeState();
+
+    const result = establishTradeRoute(state, {
+      caravanUnitId: 'trader-1', toCityId: 'beta-city', actingCivId: 'alpha', originCityId: 'alpha-city',
+    });
+
+    expect(result.ok).toBe(true);
+    // No `mode` key at all, so a commerce route's persisted shape is unchanged from before MR07.
+    expect(result.ok === true && 'mode' in result.route).toBe(false);
+    expect(result.ok === true && getRouteModeId(result.route)).toBe('commerce');
+  });
+
+  it('refuses provisioning to a foreign destination with the typed reason', () => {
+    const state = makeState();
+
+    const result = establishTradeRoute(state, {
+      caravanUnitId: 'trader-1', toCityId: 'beta-city', actingCivId: 'alpha', originCityId: 'alpha-city',
+      mode: 'domestic-food',
+    });
+
+    expect(result).toMatchObject({ ok: false, reason: 'domestic-destination-required' });
+  });
+
+  it('allows research exchange only with both the agreement and the technology', () => {
+    const withoutTech = makeState();
+    expect(establishTradeRoute(withoutTech, {
+      caravanUnitId: 'trader-1', toCityId: 'beta-city', actingCivId: 'alpha', originCityId: 'alpha-city',
+      mode: 'research-exchange',
+    })).toMatchObject({ ok: false, reason: 'requires-technology' });
+
+    const withTech = makeState();
+    withTech.civilizations.alpha.techState.completed.push('scientific-method');
+    const result = establishTradeRoute(withTech, {
+      caravanUnitId: 'trader-1', toCityId: 'beta-city', actingCivId: 'alpha', originCityId: 'alpha-city',
+      mode: 'research-exchange',
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.ok === true && result.route.mode).toBe('research-exchange');
+  });
+
+  it('has player-facing copy for every mode denial reason', () => {
+    for (const reason of ['domestic-destination-required', 'foreign-destination-required', 'requires-technology'] as const) {
+      expect(TRADE_ROUTE_DENIAL_MESSAGES[reason].length).toBeGreaterThan(0);
+    }
   });
 });
 

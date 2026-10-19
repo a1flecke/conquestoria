@@ -14,7 +14,7 @@
  * in `routeDirection: 'positioning'`, earns no commerce income until it reaches that origin, and
  * `advanceRouteRunners` walks it there.
  */
-import type { City, GameState, TradeRoute, UnitType } from '@/core/types';
+import type { City, GameState, TradeRoute, TradeRouteModeId, UnitType } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { findPathToCity } from '@/systems/unit-pathfinding';
@@ -22,6 +22,7 @@ import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import { hasDiscoveredCity, hasExploredCoord } from '@/systems/discovery-system';
 import { isTradeUnitType } from '@/systems/trade-role-targeting';
 import { getCommercialPassagePermission, type CommercePassageDenialReason } from '@/systems/commerce-permissions';
+import { getTradeRouteModeEligibility } from '@/systems/trade-route-modes';
 import {
   getRouteCapacity,
   getTradeRouteQuote,
@@ -43,6 +44,9 @@ export type TradeRouteDenialReason =
   | 'unsupported-domain'
   | 'naval-trader-required'
   | 'relations-too-hostile'
+  | 'domestic-destination-required'
+  | 'foreign-destination-required'
+  | 'requires-technology'
   | CommercePassageDenialReason;
 
 export const TRADE_ROUTE_DENIAL_MESSAGES: Record<TradeRouteDenialReason, string> = {
@@ -60,6 +64,9 @@ export const TRADE_ROUTE_DENIAL_MESSAGES: Record<TradeRouteDenialReason, string>
   'unsupported-domain': 'That destination cannot be reached by this trade unit.',
   'naval-trader-required': 'Requires a Naval Trader to cross water',
   'relations-too-hostile': 'Relations with that civilization are too hostile.',
+  'domestic-destination-required': 'Requires one of your own cities as the destination.',
+  'foreign-destination-required': 'Requires a foreign destination.',
+  'requires-technology': 'Requires a technology you have not researched.',
   'no-commercial-agreement': 'Requires a trade agreement with that civilization.',
   'at-war': 'Cannot trade with a civilization you are at war with.',
   'embargoed': 'An embargo blocks trade with that civilization.',
@@ -85,6 +92,8 @@ export interface TradeRouteRequest {
   automated?: boolean;
   /** The origin the player picked; omitted means "any owned city with a free slot". */
   originCityId?: string;
+  /** #1504 MR07: what the route is for. Omitted means ordinary commerce. */
+  mode?: TradeRouteModeId;
 }
 
 export type TradeRouteEligibility =
@@ -188,6 +197,15 @@ export function getTradeRouteEligibility(state: GameState, request: TradeRouteRe
     if (!isMinor && relationship < 0) return refuse('relations-too-hostile');
   }
 
+  // --- #1504 MR07: the requested purpose must be allowed for this (owner, destination) pair. The
+  // catalog is the one authority; the chooser and the executor both read it.
+  const mode = request.mode ?? 'commerce';
+  const modeDecision = getTradeRouteModeEligibility(
+    { state, ownerCivId: unit.owner, destinationCityId: destination.id },
+    mode,
+  );
+  if (!modeDecision.ok) return refuse(modeDecision.reason);
+
   return { ok: true, originCityId: origin.id, destinationCityId: destination.id, domestic: destination.owner === unit.owner };
 }
 
@@ -248,6 +266,9 @@ export function establishTradeRoute(
     // The leg's bounded payable service rounds: a detour cannot mint extra rewards.
     serviceRoundsRemaining: quote.roundTripRounds,
     ...(destination.owner !== unit.owner ? { foreignCivId: destination.owner } : {}),
+    // #1504 MR07: commerce is the default and stays implicit, so a new commerce route has exactly the
+    // shape it had before modes existed; any other purpose is recorded explicitly.
+    ...(request.mode && request.mode !== 'commerce' ? { mode: request.mode } : {}),
   };
   idCounters.nextRouteId++;
 

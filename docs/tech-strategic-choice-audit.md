@@ -243,7 +243,7 @@ Class/rating: rating 0 flavor, 1 unconditional number, 2 conditional but weak or
 | `professional-army` | 5 | military | KEEP | 3 | era-only | - | systems/combat-system |
 | `guilds` | 5 | economy | KEEP | 3 | unlock+effect-valued | +1 gold per active trade route | - |
 | `colonial-trade` | 5 | economy | KEEP | 3 | unlock+effect-valued | Trade routes to foreign civs yield +2 gold | - |
-| `scientific-method` | 5 | science | KEEP | 2 | unlock+effect-valued | +1 science per library empire-wide | - |
+| `scientific-method` | 5 | science | KEEP | 2 | unlock+effect-valued | +1 science per library empire-wide | systems/trade-route-modes |
 | `optics` | 5 | science | KEEP | 3 | effect-valued | vision +1 (all units; always; none) | - |
 | `civic-humanism` | 5 | civics | KEEP | 2 | effect-valued | +1 gold per forum or courthouse | - |
 | `constitutional-law` | 5 | civics | KEEP | 3 | era-only | - | systems/faction-pressure, systems/unrest-guidance |
