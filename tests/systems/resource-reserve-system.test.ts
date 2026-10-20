@@ -10,8 +10,12 @@ import {
   createStartingReserveLedger,
   deliverIncomingStock,
   destroyIncomingStock,
+  getCommittedImportedQuantity,
+  getCommittedNativeQuantity,
   getCommittedQuantity,
   getExportableQuantity,
+  getFreeImportedQuantity,
+  getFreeNativeQuantity,
   getFreeQuantity,
   getIncomingQuantity,
   getReserveBalance,
@@ -85,10 +89,11 @@ describe('#1505 MR08 — reserve balances and provenance', () => {
 
   it('refuses a commitment larger than free stock, and release is not repeatable', () => {
     const ledger = seeded(5);
-    const tooMuch = reserveStock(ledger, { id: 'r1', goodId: iron, ownerCivId: 'alpha', amount: 6, reason: 'active-production' });
+    const consumer = { ownerCivId: 'alpha', cityId: 'city-a', occurrence: 1, itemId: 'swordsman' };
+    const tooMuch = reserveStock(ledger, { id: 'r1', goodId: iron, ownerCivId: 'alpha', amount: 6, reason: 'active-production', consumer });
     expect(tooMuch).toMatchObject({ ok: false, reason: 'insufficient-free-stock' });
 
-    const reserved = reserveStock(ledger, { id: 'r1', goodId: iron, ownerCivId: 'alpha', amount: 5, reason: 'active-production' });
+    const reserved = reserveStock(ledger, { id: 'r1', goodId: iron, ownerCivId: 'alpha', amount: 5, reason: 'active-production', consumer });
     expect(reserved.ok).toBe(true);
     if (!reserved.ok) return;
     expect(getFreeQuantity(reserved.ledger, iron)).toBe(0);
@@ -185,13 +190,185 @@ describe('#1505 MR08 — reserve balances and provenance', () => {
   it('validates a corrupt ledger rather than trusting it', () => {
     const corrupt: ReserveLedger = {
       balances: { [iron]: { native: -1, imported: 1.5 } },
-      reservations: [{ id: 'r', goodId: iron, ownerCivId: 'alpha', amount: 5, reason: 'active-production' }],
+      reservations: [{
+        id: 'r', goodId: iron, ownerCivId: 'alpha', amount: 5, reason: 'active-production',
+        allocation: { native: 2, imported: 3 },
+        consumer: { ownerCivId: 'alpha', cityId: 'city-a', occurrence: 1, itemId: 'swordsman' },
+      }],
       incoming: [],
     };
     const errors = validateReserveLedger(corrupt);
     expect(errors.some(error => error.includes('native stock'))).toBe(true);
     expect(errors.some(error => error.includes('imported stock'))).toBe(true);
     expect(errors.some(error => error.includes('reserved more'))).toBe(true);
+  });
+});
+
+describe('#1509 MR09 — locked reservation provenance (live commitments)', () => {
+  const request = {
+    id: 'city-a:1:iron', goodId: iron, ownerCivId: 'alpha', amount: 10,
+    reason: 'active-production' as const,
+    consumer: { ownerCivId: 'alpha', cityId: 'city-a', occurrence: 1, itemId: 'swordsman' },
+  };
+
+  it('reserves imported first, keeps free native spendable, and spends a held recipe exactly once', () => {
+    const seed: ReserveLedger = {
+      balances: { [iron]: { native: 6, imported: 8 } },
+      reservations: [],
+      incoming: [],
+    };
+    const first = reserveStock(seed, request);
+    expect(first.ok).toBe(true);
+    if (!first.ok) throw new Error('first reservation must succeed');
+
+    // The allocation is locked at reservation time: imported 8 first, then native 2.
+    expect(first.ledger.reservations[0]).toMatchObject({ allocation: { imported: 8, native: 2 } });
+    expect(getCommittedImportedQuantity(first.ledger, iron)).toBe(8);
+    expect(getCommittedNativeQuantity(first.ledger, iron)).toBe(2);
+    expect(getFreeNativeQuantity(first.ledger, iron)).toBe(4);
+    expect(getFreeImportedQuantity(first.ledger, iron)).toBe(0);
+    expect(getExportableQuantity(first.ledger, iron)).toBe(4);
+
+    // An unreserved consumer may spend the free native stock, and only that.
+    const freeSpend = consumeStock(first.ledger, iron, 4);
+    expect(freeSpend.ok).toBe(true);
+    if (!freeSpend.ok) throw new Error('free native stock must be spendable');
+    expect(freeSpend.consumed).toEqual({ imported: 0, native: 4 });
+    expect(getReserveBalance(freeSpend.ledger, iron)).toEqual({ native: 2, imported: 8 });
+    expect(getCommittedQuantity(freeSpend.ledger, iron)).toBe(10);
+
+    // The held recipe is still payable from its own locked allocation.
+    const completion = consumeStock(freeSpend.ledger, iron, 10, { reservationId: request.id });
+    expect(completion.ok).toBe(true);
+    if (!completion.ok) throw new Error('held recipe must remain payable');
+    expect(completion.consumed).toEqual({ imported: 8, native: 2 });
+    expect(getStoredQuantity(completion.ledger, iron)).toBe(0);
+    expect(getCommittedQuantity(completion.ledger, iron)).toBe(0);
+
+    // The input ledger is never mutated.
+    expect(seed.balances[iron]).toEqual({ native: 6, imported: 8 });
+    expect(seed.reservations).toEqual([]);
+  });
+
+  it('refuses a second commitment that the remaining stock cannot cover, leaving the first intact', () => {
+    const seed: ReserveLedger = {
+      balances: { [iron]: { native: 6, imported: 8 } },
+      reservations: [],
+      incoming: [],
+    };
+    const first = reserveStock(seed, request);
+    if (!first.ok) throw new Error('first reservation must succeed');
+
+    const second = reserveStock(first.ledger, { ...request, id: 'city-b:1:iron', consumer: { ...request.consumer, cityId: 'city-b' } });
+    expect(second).toMatchObject({ ok: false, reason: 'insufficient-free-stock' });
+    expect(second.ledger).toBe(first.ledger);
+    expect(getCommittedQuantity(second.ledger, iron)).toBe(10);
+  });
+
+  it('validates committed provenance against the matching balance', () => {
+    const corrupt: ReserveLedger = {
+      balances: { [iron]: { native: 1, imported: 1 } },
+      reservations: [{
+        id: 'r1', goodId: iron, ownerCivId: 'alpha', amount: 10, reason: 'active-production',
+        allocation: { native: 5, imported: 5 },
+        consumer: { ownerCivId: 'alpha', cityId: 'city-a', occurrence: 1, itemId: 'swordsman' },
+      }],
+      incoming: [],
+    };
+    const errors = validateReserveLedger(corrupt);
+    expect(errors.some(error => error.includes('native'))).toBe(true);
+    expect(errors.some(error => error.includes('imported'))).toBe(true);
+  });
+
+  it('requires the allocation to sum to the committed amount', () => {
+    const corrupt: ReserveLedger = {
+      balances: { [iron]: { native: 10, imported: 0 } },
+      reservations: [{
+        id: 'r1', goodId: iron, ownerCivId: 'alpha', amount: 10, reason: 'active-production',
+        allocation: { native: 4, imported: 0 },
+        consumer: { ownerCivId: 'alpha', cityId: 'city-a', occurrence: 1, itemId: 'swordsman' },
+      }],
+      incoming: [],
+    };
+    expect(validateReserveLedger(corrupt).some(error => error.includes('allocation'))).toBe(true);
+  });
+
+  it('rejects duplicate incoming claim IDs, fractional and non-finite amounts', () => {
+    const base = createEmptyReserveLedger();
+    const claimed = claimIncomingStock(base, { id: 'm1', goodId: iron, ownerCivId: 'alpha', amount: 2 });
+    if (!claimed.ok) throw new Error('claim must succeed');
+
+    expect(claimIncomingStock(claimed.ledger, { id: 'm1', goodId: iron, ownerCivId: 'alpha', amount: 1 }))
+      .toMatchObject({ ok: false, reason: 'duplicate-claim' });
+    expect(accrueNativeStock(base, iron, 1.5)).toMatchObject({ ok: false, reason: 'not-an-integer' });
+    expect(accrueNativeStock(base, iron, Number.POSITIVE_INFINITY)).toMatchObject({ ok: false, reason: 'not-an-integer' });
+    expect(accrueNativeStock(base, iron, Number.MAX_SAFE_INTEGER + 2)).toMatchObject({ ok: false, reason: 'not-an-integer' });
+  });
+
+  it('requires a production consumer for active-production reservations', () => {
+    const base = createEmptyReserveLedger();
+    const accrued = accrueNativeStock(base, iron, 10);
+    if (!accrued.ok) throw new Error('accrue');
+    const withoutConsumer = reserveStock(accrued.ledger, {
+      id: 'r', goodId: iron, ownerCivId: 'alpha', amount: 10, reason: 'active-production',
+    });
+    expect(withoutConsumer).toMatchObject({ ok: false, reason: 'missing-consumer' });
+  });
+
+  it('accepts a restricted migration grant only on a tagged reservation, bounded by its imported allocation', () => {
+    const base: ReserveLedger = {
+      balances: { [iron]: { native: 0, imported: 8 } },
+      reservations: [],
+      incoming: [],
+    };
+    // Ordinary active-production cannot invent a grant.
+    expect(reserveStock(base, { ...request, amount: 8, migrationGrantImported: 8 }))
+      .toMatchObject({ ok: false, reason: 'invalid-grant' });
+
+    const granted = reserveStock(base, {
+      id: 'migration:city-a:iron', goodId: iron, ownerCivId: 'alpha', amount: 8,
+      reason: 'migration-grant', migrationGrantImported: 8,
+      consumer: { ownerCivId: 'alpha', cityId: 'city-a', occurrence: 1, itemId: 'swordsman' },
+    });
+    expect(granted.ok).toBe(true);
+    if (!granted.ok) return;
+    expect(granted.ledger.reservations[0]).toMatchObject({ allocation: { imported: 8, native: 0 }, migrationGrantImported: 8 });
+    expect(validateReserveLedger(granted.ledger)).toEqual([]);
+
+    // Release extinguishes the tag, never credits stock.
+    const released = releaseStock(granted.ledger, 'migration:city-a:iron');
+    expect(released.ok).toBe(true);
+    if (!released.ok) return;
+    expect(getReserveBalance(released.ledger, iron)).toEqual({ native: 0, imported: 8 });
+    expect(getCommittedQuantity(released.ledger, iron)).toBe(0);
+  });
+
+  it('spends the restricted grant portion of a reservation before its ordinary allocation', () => {
+    const base: ReserveLedger = {
+      balances: { [iron]: { native: 2, imported: 8 } },
+      reservations: [],
+      incoming: [],
+    };
+    const granted = reserveStock(base, {
+      id: 'migration:city-a:iron', goodId: iron, ownerCivId: 'alpha', amount: 10,
+      reason: 'migration-grant', migrationGrantImported: 6,
+      consumer: { ownerCivId: 'alpha', cityId: 'city-a', occurrence: 1, itemId: 'swordsman' },
+    });
+    if (!granted.ok) throw new Error('grant reservation must succeed');
+
+    // Partial completion: 6 tagged imported first, leaving the ordinary split.
+    const partial = consumeStock(granted.ledger, iron, 6, { reservationId: 'migration:city-a:iron' });
+    expect(partial.ok).toBe(true);
+    if (!partial.ok) return;
+    expect(partial.consumed).toEqual({ imported: 6, native: 0 });
+    expect(partial.ledger.reservations[0]).toMatchObject({ amount: 4, allocation: { imported: 2, native: 2 } });
+    expect(partial.ledger.reservations[0]?.migrationGrantImported).toBeUndefined();
+
+    const rest = consumeStock(partial.ledger, iron, 4, { reservationId: 'migration:city-a:iron' });
+    expect(rest.ok).toBe(true);
+    if (!rest.ok) return;
+    expect(rest.consumed).toEqual({ imported: 2, native: 2 });
+    expect(getStoredQuantity(rest.ledger, iron)).toBe(0);
   });
 });
 
