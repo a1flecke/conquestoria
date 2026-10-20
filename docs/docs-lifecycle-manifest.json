@@ -28,6 +28,16 @@
     "1497": "OPEN"
    }
   },
+  "docs/superpowers/plans/2026-10-19-issue-1506-hard-material-reserves.md": {
+   "category": "active",
+   "reason": "Approved MR09 implementation plan (hard material reserves end to end), owned by open child issue #1506 under parent #1497. Delete this file and move its entry to delivered history in the PR that completes MR09.",
+   "issues": [
+    1506
+   ],
+   "issueStates": {
+    "1506": "OPEN"
+   }
+  },
   "docs/superpowers/specs/2026-07-07-hidden-city-state-economy-design.md": {
    "category": "active",
    "reason": "Foundation design cited by the open minor-civ graduation issue #497.",
