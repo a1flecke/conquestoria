@@ -910,6 +910,42 @@ Agents whose tool runner has a background mode (Claude's `run_in_background`) ma
 durable commands directly; `verify:launch` exists for agents that do not, and for the guard
 rails above.
 
+## Dev servers (#1564)
+
+Two problems, one owner. The browser-pane preview (`preview_start {name}`) runs `yarn dev` in the folder the session was
+**launched** in, so an agent that then entered a worktree previewed the wrong code ("Unknown scenario", stale art). And a
+hand-started background `yarn dev` records nothing, so it was stopped only by whoever remembered its pid, which agents
+routinely did not (a forgotten server also keeps game audio playing on a shared host).
+
+`scripts/dev-server.sh start|stop|status|reap` is the single owner:
+
+| Command | What it does |
+|---|---|
+| `start` | Serves **this** worktree (the repository top level of the current directory) with `yarn dev --strictPort` on a deterministic per-worktree port (5200 + path hash, skipping a port something else or another record holds). Prints the URL, worktree and branch, and the `preview_start {url}` to use. A second `start` reuses the live server. |
+| `stop` | Stops this worktree's server by its recorded pid, then its job tree (`hvl_job_tree_pids`); refuses a record that names another worktree. Safe to repeat. |
+| `status` | Every dev server on the host: `LIVE` / `EXPIRED` / `ORPHAN` (worktree gone) / `DEAD`, port, age, time left, branch, worktree. |
+| `reap` | Stops servers whose worktree is gone or whose lifetime elapsed, and drops dead records (stopping their orphaned server). Never touches a live in-date server. |
+
+**A forgotten server stops itself.** Each server runs under a detached supervisor that records itself in the host registry
+(`<host scope dir>/dev-servers/<worktree hash>/record`) and ends the server when any of these happens: `stop`; the lifetime
+(`DEV_SERVER_TTL_SECONDS`, default 7200) elapses; the worktree directory disappears; the server process exits. Two hooks add
+to that, neither of which can block a session: `dev-server-lifecycle.sh end` (`SessionEnd`) stops the session worktree's
+server, and `dev-server-lifecycle.sh start` (`SessionStart`) reaps servers left by earlier or crashed sessions.
+`block-raw-dev-server.sh` (`PreToolUse`, `Bash`) refuses `yarn dev` / `yarn vite` / `npx vite` / `vite` and points at the
+script. Open the page with the preview's **`url`** form: `preview_start {url: http://localhost:<port>/conquestoria/}`; stop it
+with `stop` as soon as you are done (audio keeps playing otherwise).
+
+Rules that keep it safe on a shared host: the script never selects a process by name or process group, only recorded
+pids walked by parent/child descent (the same primitive as `stop-local-verification.sh`); `status` shows other agents'
+servers but `reap` removes them only when their worktree is gone or the lifetime elapsed. `tests/hooks/dev-server.test.sh`
+(start/reuse/stop, lifetime, exit, worktree removal, ports, reap, foreign record, structural guard),
+`dev-server-lifecycle.test.sh` and `block-raw-dev-server.test.sh` are the contract. Vite's browser module cache can serve
+a stale module after you edit a scenario or catalog: reload the page with a new `?v=N`.
+
+**Every registered hook script must be executable** (`tests/hooks/hook-scripts-executable.test.sh`): a hook whose
+script lost its executable bit fails with "permission denied", which Claude Code treats as a non-blocking error, so its
+guard silently stops working. `block-pattern-kill.sh` was committed `100644` and did exactly that until #1564.
+
 ## PR bodies
 
 `gh pr create` needs a body file; agents used to improvise one in random locations outside the
