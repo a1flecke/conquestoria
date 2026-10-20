@@ -1824,7 +1824,7 @@ describe('city-panel build list icons', () => {
 
   it('renders the icon for the currently building item', () => {
     const { container, city, state } = makeWonderPanelFixture();
-    city.productionQueue = ['workshop'];
+    city.productionQueue = ['modular_arcology'];
     city.productionProgress = 5;
     state.cities[city.id] = city;
     const panel = createCityPanel(container, city, state, {
@@ -1833,8 +1833,8 @@ describe('city-panel build list icons', () => {
       onClose: () => {},
     });
     const html = (panel as unknown as { innerHTML?: string }).innerHTML ?? '';
-    // 🔨 = workshop icon
-    expect(html).toContain('🔨');
+    // 🏬 = modular arcology icon (a late building with no production art yet; art buildings show their PNG instead)
+    expect(html).toContain('🏬');
   });
 });
 
