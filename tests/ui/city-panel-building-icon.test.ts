@@ -49,7 +49,7 @@ describe('namespaceSvgIds', () => {
 
 describe('getAnimatedBuildingIconHtml', () => {
   it('renders the animated wrapper for a building present in BUILDING_SPRITE_CATALOG', () => {
-    const html = getAnimatedBuildingIconHtml('granary', NEUTRAL_FACTION_PALETTE, 'city-a:granary');
+    const html = getAnimatedBuildingIconHtml('modular_arcology', NEUTRAL_FACTION_PALETTE, 'city-a:modular_arcology');
     expect(html).toContain('cq-sprite-wrap');
     expect(html).toContain('cq-v2');
     expect(html).toContain('data-state="idle"');
@@ -70,8 +70,8 @@ describe('getAnimatedBuildingIconHtml', () => {
   });
 
   it('gives two different phaseKeys two different --phase values, so identical building types desync', () => {
-    const a = getAnimatedBuildingIconHtml('granary', NEUTRAL_FACTION_PALETTE, 'city-a:granary');
-    const b = getAnimatedBuildingIconHtml('granary', NEUTRAL_FACTION_PALETTE, 'city-b:granary');
+    const a = getAnimatedBuildingIconHtml('modular_arcology', NEUTRAL_FACTION_PALETTE, 'city-a:modular_arcology');
+    const b = getAnimatedBuildingIconHtml('modular_arcology', NEUTRAL_FACTION_PALETTE, 'city-b:modular_arcology');
     const phaseOf = (html: string) => /--phase:([\d.]+)/.exec(html)?.[1];
     expect(phaseOf(a)).not.toBe(phaseOf(b));
   });
@@ -85,7 +85,7 @@ describe('getAnimatedBuildingIconHtml', () => {
   });
 
   it('scales the icon to 36px without leaving the sprite\'s native 192px width/height as a duplicate attribute', () => {
-    const html = getAnimatedBuildingIconHtml('granary', NEUTRAL_FACTION_PALETTE, 'city-a:granary');
+    const html = getAnimatedBuildingIconHtml('modular_arcology', NEUTRAL_FACTION_PALETTE, 'city-a:modular_arcology');
     const svgTagMatch = /<svg\b[^>]*>/.exec(html);
     expect(svgTagMatch).toBeTruthy();
     const svgTag = svgTagMatch![0];
