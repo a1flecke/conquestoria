@@ -23,7 +23,9 @@
       "Bash(git fetch origin main)",
       "Bash(git ls-remote origin main)",
       "Bash(git ls-remote origin refs/heads/main)",
-      "Bash(git rebase origin/main)"
+      "Bash(git rebase origin/main)",
+      "Bash(sh scripts/dev-server.sh:*)",
+      "Bash(./scripts/dev-server.sh:*)"
     ],
     "ask": [
       "Edit(~/.config/opencode/**)",
@@ -67,6 +69,11 @@
           },
           {
             "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/block-raw-dev-server.sh",
+            "timeout": 5
+          },
+          {
+            "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/require-green-before-push.sh",
             "timeout": 1800
           }
@@ -79,6 +86,28 @@
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/block-claire-paths.sh",
             "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/dev-server-lifecycle.sh start",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/dev-server-lifecycle.sh end",
+            "timeout": 30
           }
         ]
       }

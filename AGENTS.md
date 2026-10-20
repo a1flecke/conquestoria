@@ -221,7 +221,7 @@ Prefer the repo wrapper `./scripts/run-with-mise.sh` for project commands. Do no
 
 The wrapper always executes `package.json`, project scripts, configuration, sources, hooks, and outputs from the **active worktree**. Each worktree owns its generated Yarn PnP map because it represents that worktree's lockfile; Yarn may share its download cache, but never borrow another checkout's `.pnp.cjs`. Standard focused-test paths remain root-relative, for example `tests/systems/city-system.test.ts`.
 
-- `./scripts/run-with-mise.sh yarn dev` starts the Vite dev server.
+- `./scripts/dev-server.sh start` starts the Vite dev server for this worktree (recorded, per-worktree port, self-expiring); `./scripts/dev-server.sh stop` ends it and `status` lists every dev server on the host. Do not start `yarn dev` by hand (#1564).
 - `./scripts/run-with-mise.sh yarn build` runs `tsc` and then produces a production bundle with Vite.
 - `./scripts/run-with-mise.sh yarn test` runs the full Vitest suite and hook smoke tests once. It does not type-check; use `yarn build` for TypeScript validation.
 - `./scripts/run-with-mise.sh yarn test:watch` runs Vitest in watch mode during feature work.
