@@ -18,11 +18,20 @@
 // native, and records that provenance; export may debit only native stock. Corrupt ledgers are
 // rejected by `validateReserveLedger`, never silently clamped by `Math.max`.
 import type { TradeGoodId } from './trade-good-definitions';
+import {
+  DEFAULT_NATIVE_PER_SOURCE_PER_ROUND as STARTING_NATIVE_STOCK_PER_SOURCE,
+  DEFAULT_STORAGE_PER_GOOD as BASE_STORAGE_PER_GOOD,
+} from './trade-good-definitions';
 
-/** Base storage per quantitative good (parent §3.3 calibration candidate, one place to tune). */
-export const BASE_STORAGE_PER_GOOD = 40;
-/** Native stock a fresh reserve starts with per eligible source (MR09 seed profile). */
-export const STARTING_NATIVE_STOCK_PER_SOURCE = 2;
+/**
+ * The quantity calibration lives in the trade-good catalog (#1506 MR09) so UI, AI, migration and the
+ * kernel share one number. These names are the kernel's historical spellings, re-exported — never a
+ * second copy.
+ */
+export {
+  DEFAULT_NATIVE_PER_SOURCE_PER_ROUND as STARTING_NATIVE_STOCK_PER_SOURCE,
+  DEFAULT_STORAGE_PER_GOOD as BASE_STORAGE_PER_GOOD,
+} from './trade-good-definitions';
 
 export interface ReserveBalance {
   native: number;

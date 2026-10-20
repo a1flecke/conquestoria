@@ -1,4 +1,9 @@
-import type { Building } from '@/core/types';
+import type { Building, ResourceType } from '@/core/types';
+import {
+  STANDARD_HARD_RECIPE_QUANTITY,
+  resourceGoodId,
+  withDerivedResourceRequired,
+} from './trade-good-definitions';
 
 /**
  * The static building / national-project catalog (#1008).
@@ -7,7 +12,13 @@ import type { Building } from '@/core/types';
  * out of `city-system.ts` so catalog consumers stop depending on the cost,
  * availability, turn and presentation code that used to share its module.
  */
-export const BUILDINGS: Record<string, Building> = {
+
+/** #1506 MR09: see the identical helper in `city-unit-catalog.ts`. */
+function hard(...resources: ResourceType[]) {
+  return resources.map(resource => ({ goodId: resourceGoodId(resource), quantity: STANDARD_HARD_RECIPE_QUANTITY }));
+}
+
+const BUILDING_DEFINITIONS: Record<string, Building> = {
   // Food
   granary: { id: 'granary', name: 'Granary', category: 'food', yields: { food: 3, production: 0, gold: 0, science: 0 }, productionCost: 40, description: 'Stores food for growth', techRequired: 'granary-design' },
   herbalist: {
@@ -99,7 +110,7 @@ export const BUILDINGS: Record<string, Building> = {
     productionCost: 30,
     description: 'Copper-tool crafting. +1 production, +1 science per turn.',
     techRequired: 'stone-weapons',
-    resourceRequired: ['copper'],
+    materialCosts: hard('copper'),
    
     pacing: { band: 'power-spike', role: 'copper-production', impact: 1.1, scope: 'city', snowball: 1.1, urgency: 1, situationality: 1.1, unlockBreadth: 1 },
   },
@@ -109,7 +120,7 @@ export const BUILDINGS: Record<string, Building> = {
     productionCost: 35,
     description: 'Weapons depot. Reduces melee and ranged unit training cost by 15% in this city.',
     techRequired: 'stone-weapons',
-    resourceRequired: ['copper'],
+    materialCosts: hard('copper'),
    
     pacing: { band: 'power-spike', role: 'melee-cost-reduction', impact: 1.15, scope: 'city', snowball: 1, urgency: 1.05, situationality: 1.1, unlockBreadth: 1 },
   },
@@ -120,7 +131,7 @@ export const BUILDINGS: Record<string, Building> = {
     productionCost: 54,
     description: 'Pasture and breeding grounds. +2 food per turn.',
     techRequired: 'animal-husbandry',
-    resourceRequired: ['horses'],
+    materialCosts: hard('horses'),
    
     pacing: { band: 'power-spike', role: 'horse-food', impact: 1.1, scope: 'city', snowball: 1.1, urgency: 1, situationality: 1.15, unlockBreadth: 1 },
   },
@@ -130,7 +141,7 @@ export const BUILDINGS: Record<string, Building> = {
     productionCost: 55,
     description: 'Trains heavy mounted and elephant units. Chariots, Knights, Cuirassiers, and War Elephants cost 15% less here.',
     techRequired: 'horseback-riding',
-    resourceRequired: ['horses'],
+    materialCosts: hard('horses'),
     obsoletedByTech: 'tank-warfare',
     pacing: { band: 'power-spike', role: 'cavalry-cost-reduction', impact: 1.15, scope: 'city', snowball: 1, urgency: 1, situationality: 1.15, unlockBreadth: 1 },
   },
@@ -141,7 +152,7 @@ export const BUILDINGS: Record<string, Building> = {
     productionCost: 80,
     description: 'Advanced smelting facility. +3 production per turn. Pairs with Forge for +6 total.',
     techRequired: 'iron-forging',
-    resourceRequired: ['iron'],
+    materialCosts: hard('iron'),
    
     pacing: { band: 'infrastructure', role: 'iron-production', impact: 1.25, scope: 'city', snowball: 1.3, urgency: 1, situationality: 1.2, unlockBreadth: 1 },
   },
@@ -151,7 +162,7 @@ export const BUILDINGS: Record<string, Building> = {
     productionCost: 70,
     description: 'Military institution. Reduces melee and ranged unit training cost by 15% in this city.',
     techRequired: 'iron-forging',
-    resourceRequired: ['iron'],
+    materialCosts: hard('iron'),
    
     pacing: { band: 'infrastructure', role: 'military-cost-reduction', impact: 1.2, scope: 'city', snowball: 1, urgency: 1, situationality: 1.1, unlockBreadth: 1 },
   },
@@ -162,7 +173,7 @@ export const BUILDINGS: Record<string, Building> = {
     productionCost: 50,
     description: 'Quarried stone speeds construction. +2 production per turn. Walls cost 20% less.',
     techRequired: 'state-workforce',
-    resourceRequired: ['stone'],
+    materialCosts: hard('stone'),
    
     pacing: { band: 'infrastructure', role: 'stone-production', impact: 1.15, scope: 'city', snowball: 1.15, urgency: 1, situationality: 1.15, unlockBreadth: 1 },
   },
@@ -172,7 +183,7 @@ export const BUILDINGS: Record<string, Building> = {
     productionCost: 90,
     description: 'Siege engine fabrication. Reduces Catapult, Ballista, and Trebuchet training cost by 20% in this city.',
     techRequired: 'siege-warfare',
-    resourceRequired: ['stone'],
+    materialCosts: hard('stone'),
     obsoletedByTech: 'black-powder',
     pacing: { band: 'infrastructure', role: 'siege-cost-reduction', impact: 1.2, scope: 'city', snowball: 1, urgency: 1, situationality: 1.2, unlockBreadth: 1 },
   },
@@ -488,7 +499,7 @@ export const BUILDINGS: Record<string, Building> = {
     id: 'steel_mill', name: 'Steel Mill', category: 'production',
     yields: { food: 0, production: 4, gold: 0, science: 0 }, productionCost: 160,
     description: 'High-output steel smelting plant. +4 production. Requires iron.',
-    techRequired: 'steel-production', resourceRequired: ['iron'],
+    techRequired: 'steel-production', materialCosts: hard('iron'),
   },
   field_hospital: {
     id: 'field_hospital', name: 'Field Hospital', category: 'food',
@@ -634,7 +645,7 @@ export const BUILDINGS: Record<string, Building> = {
     id: 'oil_refinery', name: 'Oil Refinery', category: 'production',
     yields: { food: 0, production: 3, gold: 0, science: 0 }, productionCost: 185,
     description: 'Petroleum extraction and refining. +3 production per turn.',
-    techRequired: 'petroleum-industry', resourceRequired: ['oil'],
+    techRequired: 'petroleum-industry', materialCosts: hard('oil'),
   },
   assembly_line: {
     id: 'assembly_line', name: 'Assembly Line', category: 'production',
@@ -740,7 +751,7 @@ export const BUILDINGS: Record<string, Building> = {
     // unchanged, just sourced from this one building instead of two.
     yields: { food: 0, production: 9, gold: 0, science: 0 }, productionCost: 195,
     description: 'Atomic weapon stockpile. +9 production per turn.',
-    techRequired: 'nuclear-weapons', resourceRequired: ['uranium'],
+    techRequired: 'nuclear-weapons', materialCosts: hard('uranium'),
     pacing: { band: 'power-spike', role: 'late-military-production', impact: 1.4, scope: 'city', snowball: 1.3, urgency: 1.1, situationality: 1.1, unlockBreadth: 1 },
   },
   central_bank: {
@@ -804,7 +815,7 @@ export const BUILDINGS: Record<string, Building> = {
     id: 'nuclear_power_plant', name: 'Nuclear Power Plant', category: 'production',
     yields: { food: 0, production: 5, gold: 0, science: 0 }, productionCost: 200,
     description: 'Atomic reactor generating electricity without fuel costs. +5 production per turn.',
-    techRequired: 'nuclear-power', resourceRequired: ['uranium'],
+    techRequired: 'nuclear-power', materialCosts: hard('uranium'),
     pacing: { band: 'marquee', role: 'late-power-production', impact: 1.6, scope: 'city', snowball: 1.5, urgency: 1.2, situationality: 1.0, unlockBreadth: 1 },
   },
   television_station: {
@@ -832,7 +843,7 @@ export const BUILDINGS: Record<string, Building> = {
     // combined production total across the two buildings is unchanged.
     yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 310,
     description: 'One-time atomic weapons program. Permanent effect, never fades — establishes your empire\'s capacity to develop a strategic arsenal.',
-    techRequired: 'nuclear-weapons', resourceRequired: ['uranium'],
+    techRequired: 'nuclear-weapons', materialCosts: hard('uranium'),
     pacing: { band: 'marquee', role: 'national-project', impact: 1.6, scope: 'empire', snowball: 1.5, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 },
     uniquePerEmpire: true, nationalProject: { homeEra: 10, milestone: true },
   },
@@ -845,7 +856,7 @@ export const BUILDINGS: Record<string, Building> = {
     // getStrategicArsenalCapacity (arsenalCapacityGated). No launch capability is
     // implied by this description yet -- that's MR3 (strike) + MR4 (launch UX).
     description: 'A live nuclear warhead added to your empire\'s strategic arsenal. Requires Manhattan Project and available capacity (Nuclear Arsenal, Missile Silo). Not a per-city stockpile -- any eligible platform can draw from your empire\'s shared pool.',
-    techRequired: 'nuclear-weapons', resourceRequired: ['uranium'],
+    techRequired: 'nuclear-weapons', materialCosts: hard('uranium'),
     // marquee (not power-spike): a rare, momentous production choice per spec Goal 1
     // ("never tactical spam"), matching manhattan_project's own band -- power-spike's
     // narrower turn window doesn't fit this item's 260 cost at era 10 (pacing-audit.test.ts
@@ -995,7 +1006,7 @@ export const BUILDINGS: Record<string, Building> = {
     description: 'A committed attempt to place the world\'s first satellite into orbit. Whichever civilization completes this first wins the race; every other in-progress attempt is stood down with a partial refund.',
     techRequired: 'space-exploration',
     requiresBuildings: ['space_program_initiative'],
-    resourceRequired: ['aluminum'],
+    materialCosts: hard('aluminum'),
     pacing: { band: 'marquee', role: 'world-race', impact: 1.6, scope: 'empire', snowball: 1.3, urgency: 1.4, situationality: 1.4, unlockBreadth: 1 },
     uniquePerEmpire: true, nationalProject: { homeEra: 11, milestone: true },
   },
@@ -1174,8 +1185,17 @@ export const BUILDINGS: Record<string, Building> = {
     description: 'A committed attempt to establish humanity\'s first permanent extraterrestrial colony. Whichever civilization completes this first wins a Science Victory; every other in-progress attempt is stood down with a partial refund.',
     techRequired: 'mars-mission-architecture',
     requiresBuildings: ['mars_robotics_initiative'],
-    resourceRequired: ['uranium'],
+    materialCosts: hard('uranium'),
     pacing: { band: 'marquee', role: 'world-race', impact: 1.7, scope: 'empire', snowball: 1.3, urgency: 1.5, situationality: 1.4, unlockBreadth: 1 },
     uniquePerEmpire: true, nationalProject: { homeEra: 13, milestone: true },
   },
 };
+
+/**
+ * #1506 MR09: `materialCosts` is the editable hard-material authority; `resourceRequired` is derived
+ * here so legacy consumers cannot drift from it. Delete the projection once those consumers read
+ * recipes directly.
+ */
+export const BUILDINGS: Record<string, Building> = Object.fromEntries(
+  Object.entries(BUILDING_DEFINITIONS).map(([id, building]) => [id, withDerivedResourceRequired(building)]),
+);
