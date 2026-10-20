@@ -317,11 +317,11 @@ Run: `./scripts/dev.sh test tests/systems/resource-reserve-system.test.ts tests/
 
 **Modify:** resource/goods catalogs, existing Building/TrainableUnitEntry fields, unit/building catalogs, pure production-cost classification. **Create:** `resource-material-costs.ts` with its mirrored test.
 
-- [ ] Add pure typed quantity profile and `materialCosts` metadata, using the inventory in §3.1. Keep cattle/salt/luxuries nonquantitative.
-- [ ] Implement `getMaterialRecipe(itemId)` as the one validated catalog lookup; return a discriminated known/unknown result. Provide a pure `evaluateMaterialFunding(ledger, recipe, ownCommitment?)` with exact required/committed/available/missing rows and no mutation.
-- [ ] Use atomic recipe operations from Task 1 for reserve and spend. Validate recipes generically: known good, stored settlement, material use, positive safe integer, correct sum for duplicated rows.
-- [ ] Preserve all nonmaterial catalog gates, production discounts and explicit upgrade chains. No numeric material-price UI yet until persistence is authoritative.
-- [ ] Add completeness coverage for every old hard requirement and a non-deposit fixture; negative tests prove a continuing-access good/unknown good cannot be a hard recipe. Assert the knight needs both full rows (only horses fails, only iron fails, both succeed).
+- [x] Add pure typed quantity profile and `materialCosts` metadata, using the inventory in §3.1. Keep cattle/salt/luxuries nonquantitative.
+- [x] Implement `getMaterialRecipe(itemId)` as the one validated catalog lookup; return a discriminated known/unknown result. Provide a pure `evaluateMaterialFunding(ledger, recipe, ownCommitment?)` with exact required/committed/available/missing rows and no mutation.
+- [x] Use atomic recipe operations from Task 1 for reserve and spend. Validate recipes generically: known good, stored settlement, material use, positive safe integer, correct sum for duplicated rows.
+- [x] Preserve all nonmaterial catalog gates, production discounts and explicit upgrade chains. No numeric material-price UI yet until persistence is authoritative.
+- [x] Add completeness coverage for every old hard requirement and a non-deposit fixture; negative tests prove a continuing-access good/unknown good cannot be a hard recipe. Assert the knight needs both full rows (only horses fails, only iron fails, both succeed).
 
 Run the new mirrored material tests plus existing `tests/systems/resource-definitions.test.ts`, `production-costs.test.ts`, `production-cost-context.test.ts`, `production-cost-parity.test.ts`, and `city-system.test.ts` for modified catalog coverage. Expected: hard catalog parity preserved, iron-based infrastructure discount still applies, soft-only entries remain optional.
 
