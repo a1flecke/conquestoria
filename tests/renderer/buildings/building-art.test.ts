@@ -28,7 +28,7 @@ function readChunks(path: string): { width: number; height: number; colourType: 
 describe('building production art (#620)', () => {
   it('returns a path only for catalogued ids', () => {
     expect(getBuildingArtPath('royal_mint')).toBe('images/buildings/art/royal_mint.png');
-    for (const id of ['granary', '', '__proto__', 'constructor', 'toString']) expect(getBuildingArtPath(id), id).toBeNull();
+    for (const id of ['not_a_building', '', '__proto__', 'constructor', 'toString']) expect(getBuildingArtPath(id), id).toBeNull();
   });
 
   it('only names real buildings, each of which keeps its SVG component as the load-failure fallback', () => {
@@ -118,12 +118,12 @@ describe('building production art (#620)', () => {
   }
 
   it('a building without art still gets its SVG sprite in the panel icon', () => {
-    const html = getAnimatedBuildingIconHtml('granary', derivePalette('#c0392b'), 'city:granary');
+    const html = getAnimatedBuildingIconHtml('modular_arcology', derivePalette('#c0392b'), 'city:modular_arcology');
     expect(html).not.toContain('images/buildings/art/');
     expect(html).toContain('<svg');
   });
 
   it('buildBuildingArtSvg is null for a building with no art', () => {
-    expect(buildBuildingArtSvg('granary', derivePalette('#c0392b'), 'x')).toBeNull();
+    expect(buildBuildingArtSvg('modular_arcology', derivePalette('#c0392b'), 'x')).toBeNull();
   });
 });
