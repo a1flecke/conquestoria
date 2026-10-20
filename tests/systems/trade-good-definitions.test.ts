@@ -31,6 +31,7 @@ describe('#1505 MR08 — the trade-good catalog', () => {
       const good = findTradeGood(resourceGoodId(resource.id))!;
       expect(good.settlement, `${resource.id}`).toBe('stored-quantity');
       expect(isStoredQuantityGood(good)).toBe(true);
+      expect(good.quantity).toEqual({ standardRecipeQuantity: 10, storageCapacity: 40, nativePerSourcePerRound: 2 });
       expect(good.uses.some(use => use === 'material' || use === 'fuel')).toBe(true);
     }
     for (const resource of RESOURCE_DEFINITIONS.filter(candidate => candidate.type === 'luxury')) {
@@ -57,6 +58,7 @@ describe('#1505 MR08 — the trade-good catalog', () => {
     const valid: TradeGoodDefinition = {
       id: 'resource:iron', name: 'Iron', nativeSource: { kind: 'resource', resource: 'iron' },
       settlement: 'stored-quantity', uses: ['material'], cargoSpacePerUnit: 1,
+      quantity: { standardRecipeQuantity: 10, storageCapacity: 40, nativePerSourcePerRound: 2 },
     };
     expect(validateTradeGoodDefinitions([valid])).toEqual([]);
 
@@ -81,6 +83,7 @@ describe('#1505 MR08 — the trade-good catalog', () => {
     const fixture: TradeGoodDefinition = {
       id: 'fixture:toolworks', name: 'Tools', nativeSource: { kind: 'producer', producerId: 'test:toolworks' },
       settlement: 'stored-quantity', uses: ['material'], cargoSpacePerUnit: 2,
+      quantity: { standardRecipeQuantity: 4, storageCapacity: 12, nativePerSourcePerRound: 1 },
     };
     const context = {
       knownResources: new Set(RESOURCE_DEFINITIONS.map(definition => definition.id)),
@@ -91,6 +94,26 @@ describe('#1505 MR08 — the trade-good catalog', () => {
     expect(findTradeGood('fixture:toolworks', [fixture])?.cargoSpacePerUnit).toBe(2);
     // Nothing in the shipped pipeline knows this id, and it still works: no prefix parsing anywhere.
     expect(findTradeGood('fixture:toolworks')).toBeNull();
+  });
+
+  it('requires a positive quantity profile for stored goods and forbids one for access goods', () => {
+    const base: Omit<TradeGoodDefinition, 'settlement'> = {
+      id: 'fixture:profile', name: 'Profile', nativeSource: { kind: 'resource', resource: 'iron' },
+      uses: ['material'], cargoSpacePerUnit: 1,
+    };
+    expect(validateTradeGoodDefinitions([{ ...base, settlement: 'stored-quantity' }])
+      .some(error => error.includes('quantity profile'))).toBe(true);
+    expect(validateTradeGoodDefinitions([{
+      ...base,
+      settlement: 'stored-quantity',
+      quantity: { standardRecipeQuantity: 0, storageCapacity: 40, nativePerSourcePerRound: 2 },
+    }]).some(error => error.includes('standardRecipeQuantity'))).toBe(true);
+    expect(validateTradeGoodDefinitions([{
+      ...base,
+      settlement: 'continuing-access',
+      uses: ['access'],
+      quantity: { standardRecipeQuantity: 10, storageCapacity: 40, nativePerSourcePerRound: 2 },
+    }]).some(error => error.includes('must not carry'))).toBe(true);
   });
 
   it('builds the same goods from an explicit catalog (composition is data, not a module side effect)', () => {

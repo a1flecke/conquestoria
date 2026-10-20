@@ -1,12 +1,26 @@
-import type { Building, TrainableUnitEntry, UnitType } from '@/core/types';
+import type { Building, ResourceType, TrainableUnitEntry, UnitType } from '@/core/types';
 import { getTerminalCombatUnitReasons } from './combat-role-definitions';
+import {
+  STANDARD_HARD_RECIPE_QUANTITY,
+  resourceGoodId,
+  withDerivedResourceRequired,
+} from './trade-good-definitions';
 
 /**
  * The static trainable-unit catalog plus the unit-type meta-lists that classify
  * it (#1008). Definitions only -- availability rules live in
  * `city-availability.ts` and pricing in `city-production-cost.ts`.
  */
-export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pacing'] }> = [
+
+/**
+ * #1506 MR09: one editable hard-material authority per entry. `materialCosts` names the goods and
+ * quantities; `resourceRequired` is derived below so the two can never drift apart.
+ */
+function hard(...resources: ResourceType[]) {
+  return resources.map(resource => ({ goodId: resourceGoodId(resource), quantity: STANDARD_HARD_RECIPE_QUANTITY }));
+}
+
+const TRAINABLE_UNIT_DEFINITIONS: Array<TrainableUnitEntry & { pacing?: Building['pacing'] }> = [
   // warrior's role as cheap fallback ends once real militaries exist (era 2, Bronze Working).
   { type: 'warrior', name: 'Warrior', cost: 8, obsoletedByTech: 'bronze-working', upgradesTo: 'spearman', pacing: { band: 'starter', role: 'early-military', impact: 1, scope: 'military', snowball: 1, urgency: 1.2, situationality: 1, unlockBreadth: 1 } },
   { type: 'archer', name: 'Archer', cost: 35, techRequired: 'archery', obsoletedByTech: 'tactics', upgradesTo: 'crossbowman', pacing: { band: 'power-spike', role: 'ranged-breakpoint', impact: 1.15, scope: 'military', snowball: 1, urgency: 1.05, situationality: 1, unlockBreadth: 1 } },
@@ -14,7 +28,7 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'worker', name: 'Worker', cost: 12 },
   { type: 'missionary', name: 'Missionary', cost: 16, trainedFromBuilding: 'temple' },
   { type: 'settler', name: 'Settler', cost: 24, pacing: { band: 'power-spike', role: 'expansion', impact: 1.25, scope: 'empire', snowball: 1.3, urgency: 1.05, situationality: 1, unlockBreadth: 1.2 } },
-  { type: 'swordsman',    name: 'Swordsman',    cost: 50,  techRequired: 'bronze-working',   resourceRequired: ['iron'],   obsoletedByTech: 'rifled-infantry', upgradesTo: 'rifleman',        pacing: { band: 'power-spike', role: 'melee-breakpoint',       impact: 1.2,  scope: 'military', snowball: 1,   urgency: 1,    situationality: 1,    unlockBreadth: 1 } },
+  { type: 'swordsman',    name: 'Swordsman',    cost: 50,  techRequired: 'bronze-working',   materialCosts: hard('iron'),   obsoletedByTech: 'rifled-infantry', upgradesTo: 'rifleman',        pacing: { band: 'power-spike', role: 'melee-breakpoint',       impact: 1.2,  scope: 'military', snowball: 1,   urgency: 1,    situationality: 1,    unlockBreadth: 1 } },
   { type: 'pikeman',      name: 'Pikeman',      cost: 70,  techRequired: 'fortification',    obsoletedByTech: 'rifled-infantry', upgradesTo: 'rifleman',                                        pacing: { band: 'power-spike', role: 'anti-cavalry-breakpoint', impact: 1.15, scope: 'military', snowball: 1,   urgency: 1,    situationality: 1.05, unlockBreadth: 1 } },
   { type: 'musketeer',    name: 'Musketeer',    cost: 90,  techRequired: 'black-powder',   obsoletedByTech: 'rifled-infantry', upgradesTo: 'rifleman' },
   // galley's fighting line now upgrades into trireme (not the civilian carrack line).
@@ -28,24 +42,24 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'trireme',         name: 'Trireme',         cost: 70,  techRequired: 'triremes',           coastalRequired: true, obsoletedByTech: 'frigate-construction', upgradesTo: 'frigate', pacing: { band: 'power-spike', role: 'naval-breakpoint', impact: 1.15, scope: 'military', snowball: 1, urgency: 1, situationality: 1.1, unlockBreadth: 1 } },
   { type: 'frigate',         name: 'Frigate',         cost: 140, techRequired: 'frigate-construction', coastalRequired: true, obsoletedByTech: 'ironclad-warships', upgradesTo: 'ironclad', pacing: { band: 'power-spike', role: 'naval-escort-breakpoint', impact: 1.3, scope: 'military', snowball: 1.2, urgency: 1.1, situationality: 1.3, unlockBreadth: 1 } },
   // S4b — melee
-  { type: 'axeman',       name: 'Axeman',       cost: 22,  techRequired: 'stone-weapons',    resourceRequired: ['copper'],         obsoletedByTech: 'fortification', upgradesTo: 'pikeman', pacing: { band: 'power-spike', role: 'early-copper-melee',    impact: 1.1,  scope: 'military', snowball: 1,   urgency: 1.05, situationality: 1.1,  unlockBreadth: 1 } },
+  { type: 'axeman',       name: 'Axeman',       cost: 22,  techRequired: 'stone-weapons',    materialCosts: hard('copper'),         obsoletedByTech: 'fortification', upgradesTo: 'pikeman', pacing: { band: 'power-spike', role: 'early-copper-melee',    impact: 1.1,  scope: 'military', snowball: 1,   urgency: 1.05, situationality: 1.1,  unlockBreadth: 1 } },
   { type: 'spearman',     name: 'Spearman',     cost: 54,  techRequired: 'bronze-working',                                        obsoletedByTech: 'fortification', upgradesTo: 'pikeman', pacing: { band: 'power-spike', role: 'ungated-era2-melee',    impact: 1.05, scope: 'military', snowball: 1,   urgency: 1,    situationality: 1,    unlockBreadth: 1 } },
-  { type: 'horseman',     name: 'Horseman',     cost: 55,  techRequired: 'horseback-riding', resourceRequired: ['horses'],           obsoletedByTech: 'tank-warfare', upgradesTo: 'tank',                       pacing: { band: 'power-spike', role: 'basic-cavalry',         impact: 1.15, scope: 'military', snowball: 1,   urgency: 1.05, situationality: 1.1,  unlockBreadth: 1 } },
-  { type: 'chariot',      name: 'Chariot',      cost: 65,  techRequired: 'wheel', requiredTechs: ['horseback-riding'], resourceRequired: ['horses'], obsoletedByTech: 'iron-forging', upgradesTo: 'knight', pacing: { band: 'power-spike', role: 'ancient-heavy-mobile', impact: 1.2, scope: 'military', snowball: 1, urgency: 1.05, situationality: 1.2, unlockBreadth: 1 } },
-  { type: 'cavalry',      name: 'Cavalry',      cost: 140, techRequired: 'rifle-tactics', requiredTechs: ['professional-army'], resourceRequired: ['horses'], obsoletedByTech: 'motorized-transport', upgradesTo: 'armored_car', pacing: { band: 'power-spike', role: 'heavy-cavalry', impact: 1.2, scope: 'military', snowball: 1.1, urgency: 1, situationality: 1.1, unlockBreadth: 1 } },
+  { type: 'horseman',     name: 'Horseman',     cost: 55,  techRequired: 'horseback-riding', materialCosts: hard('horses'),           obsoletedByTech: 'tank-warfare', upgradesTo: 'tank',                       pacing: { band: 'power-spike', role: 'basic-cavalry',         impact: 1.15, scope: 'military', snowball: 1,   urgency: 1.05, situationality: 1.1,  unlockBreadth: 1 } },
+  { type: 'chariot',      name: 'Chariot',      cost: 65,  techRequired: 'wheel', requiredTechs: ['horseback-riding'], materialCosts: hard('horses'), obsoletedByTech: 'iron-forging', upgradesTo: 'knight', pacing: { band: 'power-spike', role: 'ancient-heavy-mobile', impact: 1.2, scope: 'military', snowball: 1, urgency: 1.05, situationality: 1.2, unlockBreadth: 1 } },
+  { type: 'cavalry',      name: 'Cavalry',      cost: 140, techRequired: 'rifle-tactics', requiredTechs: ['professional-army'], materialCosts: hard('horses'), obsoletedByTech: 'motorized-transport', upgradesTo: 'armored_car', pacing: { band: 'power-spike', role: 'heavy-cavalry', impact: 1.2, scope: 'military', snowball: 1.1, urgency: 1, situationality: 1.1, unlockBreadth: 1 } },
   { type: 'armored_car',  name: 'Armored Car',  cost: 168, techRequired: 'motorized-transport', obsoletedByTech: 'helicopter-warfare', upgradesTo: 'attack_helicopter', pacing: { band: 'power-spike', role: 'light-mobile-recon', impact: 1.2, scope: 'military', snowball: 1.05, urgency: 1, situationality: 1.25, unlockBreadth: 1 } },
-  { type: 'knight',       name: 'Knight',       cost: 80,  techRequired: 'iron-forging',     resourceRequired: ['horses', 'iron'],   obsoletedByTech: 'rifle-tactics', upgradesTo: 'cuirassier',                  pacing: { band: 'power-spike', role: 'heavy-cavalry-apex',    impact: 1.25, scope: 'military', snowball: 1.1, urgency: 1,    situationality: 1.1,  unlockBreadth: 1 } },
-  { type: 'cuirassier',   name: 'Cuirassier',   cost: 150, techRequired: 'rifle-tactics', requiredTechs: ['professional-army'], resourceRequired: ['horses', 'iron'], obsoletedByTech: 'tank-warfare', upgradesTo: 'tank', pacing: { band: 'power-spike', role: 'heavy-cavalry', impact: 1.2, scope: 'military', snowball: 1.1, urgency: 1, situationality: 1.1, unlockBreadth: 1 } },
+  { type: 'knight',       name: 'Knight',       cost: 80,  techRequired: 'iron-forging',     materialCosts: hard('horses', 'iron'),   obsoletedByTech: 'rifle-tactics', upgradesTo: 'cuirassier',                  pacing: { band: 'power-spike', role: 'heavy-cavalry-apex',    impact: 1.25, scope: 'military', snowball: 1.1, urgency: 1,    situationality: 1.1,  unlockBreadth: 1 } },
+  { type: 'cuirassier',   name: 'Cuirassier',   cost: 150, techRequired: 'rifle-tactics', requiredTechs: ['professional-army'], materialCosts: hard('horses', 'iron'), obsoletedByTech: 'tank-warfare', upgradesTo: 'tank', pacing: { band: 'power-spike', role: 'heavy-cavalry', impact: 1.2, scope: 'military', snowball: 1.1, urgency: 1, situationality: 1.1, unlockBreadth: 1 } },
   // S4b — ranged + siege
   { type: 'marine',       name: 'Marine',       cost: 125, techRequired: 'amphibious-warfare', coastalRequired: true, obsoletedByTech: 'mass-firepower', upgradesTo: 'machine_gunner' },
-  { type: 'crossbowman',  name: 'Crossbowman',  cost: 75,  techRequired: 'tactics',          resourceRequired: ['copper'],  obsoletedByTech: 'rifled-infantry', upgradesTo: 'rifleman',        pacing: { band: 'power-spike', role: 'precision-ranged',      impact: 1.15, scope: 'military', snowball: 1,   urgency: 1,    situationality: 1.05, unlockBreadth: 1 } },
-  { type: 'catapult',     name: 'Catapult',     cost: 110, techRequired: 'siege-warfare',    resourceRequired: ['stone'],   obsoletedByTech: 'black-powder', upgradesTo: 'trebuchet',                   pacing: { band: 'power-spike', role: 'siege-bombardment',    impact: 1.2,  scope: 'military', snowball: 1.1, urgency: 1,    situationality: 1.2,  unlockBreadth: 1 } },
+  { type: 'crossbowman',  name: 'Crossbowman',  cost: 75,  techRequired: 'tactics',          materialCosts: hard('copper'),  obsoletedByTech: 'rifled-infantry', upgradesTo: 'rifleman',        pacing: { band: 'power-spike', role: 'precision-ranged',      impact: 1.15, scope: 'military', snowball: 1,   urgency: 1,    situationality: 1.05, unlockBreadth: 1 } },
+  { type: 'catapult',     name: 'Catapult',     cost: 110, techRequired: 'siege-warfare',    materialCosts: hard('stone'),   obsoletedByTech: 'black-powder', upgradesTo: 'trebuchet',                   pacing: { band: 'power-spike', role: 'siege-bombardment',    impact: 1.2,  scope: 'military', snowball: 1.1, urgency: 1,    situationality: 1.2,  unlockBreadth: 1 } },
   // band: 'marquee' (not 'power-spike' like Catapult/Ballista) — the dual Siege Warfare +
   // Fortresses gate and 125 cost push its estimated build time past the power-spike window's
   // era-4 ceiling (11 turns at 10 production/turn); marquee's wider [10,16] window fits the
   // 13-turn estimate. See tests/systems/pacing-audit.test.ts.
   { type: 'trebuchet',    name: 'Trebuchet',    cost: 125, techRequired: 'siege-warfare', requiredTechs: ['fortresses'], obsoletedByTech: 'black-powder', upgradesTo: 'cannon',                   pacing: { band: 'marquee', role: 'city-siege-specialist', impact: 1.2, scope: 'military', snowball: 1.05, urgency: 1, situationality: 1.3, unlockBreadth: 1 } },
-  { type: 'ballista',     name: 'Ballista',     cost: 100, techRequired: 'siege-warfare',    resourceRequired: ['iron'],    obsoletedByTech: 'black-powder', upgradesTo: 'cannon',                      pacing: { band: 'power-spike', role: 'anti-unit-siege',      impact: 1.15, scope: 'military', snowball: 1,   urgency: 1,    situationality: 1.15, unlockBreadth: 1 } },
+  { type: 'ballista',     name: 'Ballista',     cost: 100, techRequired: 'siege-warfare',    materialCosts: hard('iron'),    obsoletedByTech: 'black-powder', upgradesTo: 'cannon',                      pacing: { band: 'power-spike', role: 'anti-unit-siege',      impact: 1.15, scope: 'military', snowball: 1,   urgency: 1,    situationality: 1.15, unlockBreadth: 1 } },
   { type: 'cannon',       name: 'Cannon',       cost: 120, techRequired: 'black-powder',                                      obsoletedByTech: 'mass-firepower', upgradesTo: 'artillery',    pacing: { band: 'power-spike', role: 'gunpowder-siege',      impact: 1.3,  scope: 'military', snowball: 1.2, urgency: 1.1,  situationality: 1.2,  unlockBreadth: 1 } },
   { type: 'grenadier',    name: 'Grenadier',    cost: 130, techRequired: 'grenade-warfare',  obsoletedByTech: 'mass-firepower', upgradesTo: 'machine_gunner',                                                    pacing: { band: 'power-spike', role: 'anti-fortification',   impact: 1.2,  scope: 'military', snowball: 1.1, urgency: 1,    situationality: 1.3,  unlockBreadth: 1 } },
   { type: 'rifleman',     name: 'Rifleman',     cost: 145, techRequired: 'rifled-infantry',  obsoletedByTech: 'mass-firepower', upgradesTo: 'machine_gunner',                                                     pacing: { band: 'power-spike', role: 'ranged-infantry',      impact: 1.3,  scope: 'military', snowball: 1.2, urgency: 1.1,  situationality: 1.2,  unlockBreadth: 1 } },
@@ -79,7 +93,7 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'maritime_patrol_aircraft', name: 'Maritime Patrol Aircraft', cost: 210, techRequired: 'radar-systems', requiredTechs: ['carrier-warfare'], trainedFromBuilding: 'airfield', pacing: { band: 'power-spike', role: 'maritime-patrol', impact: 1.3, scope: 'military', snowball: 1.05, urgency: 1.05, situationality: 1.45, unlockBreadth: 1 } },
   // Era 11 units
   { type: 'attack_helicopter', name: 'Attack Helicopter', cost: 230, techRequired: 'helicopter-warfare', trainedFromBuilding: 'helicopter_base', obsoletedByTech: 'autonomous-weapons-systems', upgradesTo: 'combat_drone', pacing: { band: 'marquee', role: 'air-assault', impact: 1.55, scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
-  { type: 'missile_submarine', name: 'Missile Submarine', cost: 250, techRequired: 'nuclear-submarines', coastalRequired: true, resourceRequired: ['uranium'], pacing: { band: 'marquee', role: 'naval-deterrent', impact: 1.6, scope: 'military', snowball: 1.5, urgency: 1.2, situationality: 1.5, unlockBreadth: 1 } },
+  { type: 'missile_submarine', name: 'Missile Submarine', cost: 250, techRequired: 'nuclear-submarines', coastalRequired: true, materialCosts: hard('uranium'), pacing: { band: 'marquee', role: 'naval-deterrent', impact: 1.6, scope: 'military', snowball: 1.5, urgency: 1.2, situationality: 1.5, unlockBreadth: 1 } },
   // Era 12 units
   { type: 'cyber_unit', name: 'Cyber Unit', cost: 338, techRequired: 'cyber-warfare', pacing: { band: 'marquee', role: 'cyber-saboteur', impact: 1.4, scope: 'military', snowball: 1.2, urgency: 1.1, situationality: 1.4, unlockBreadth: 1 } },
   { type: 'stealth_bomber', name: 'Stealth Bomber', cost: 360, techRequired: 'stealth-technology', trainedFromBuilding: 'stealth_airbase', pacing: { band: 'marquee', role: 'stealth-strike', impact: 1.7, scope: 'military', snowball: 1.5, urgency: 1.3, situationality: 1.5, unlockBreadth: 1 } },
@@ -127,6 +141,14 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   // Resource Accessibility MR 2b — exploration unit
   { type: 'expedition', name: 'Expedition', cost: 18, techRequired: 'foraging' },
 ];
+
+/**
+ * #1506 MR09: the export keeps every existing consumer working while `materialCosts` is the only
+ * editable hard-material list. Delete this projection once the remaining `resourceRequired`
+ * consumers (availability, AI research penalty, migration) read recipes directly.
+ */
+export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pacing'] }> =
+  TRAINABLE_UNIT_DEFINITIONS.map(withDerivedResourceRequired);
 
 /**
  * Combat-capable units (UNIT_DEFINITIONS[type].strength > 0) intentionally left without

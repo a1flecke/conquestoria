@@ -13,6 +13,7 @@
 //  - Good IDs are stable and opaque. Nothing may parse an ID to learn semantics; the definition is the
 //    only authority, resolved through `findTradeGood`.
 import type { ResourceType } from '@/core/types';
+import type { MaterialCostRow, TradeGoodId } from '@/core/types/commerce';
 import {
   RESOURCE_DEFINITIONS,
   type ResourceDefinition,
@@ -20,7 +21,7 @@ import {
 } from './resource-definitions';
 
 /** Stable, opaque commerce identifier. Never parse it — look the definition up. */
-export type TradeGoodId = string;
+export type { TradeGoodId } from '@/core/types/commerce';
 
 /** How a good's delivered quantity settles. An unknown kind must never fall through as stock. */
 export type GoodSettlementKind = 'stored-quantity' | 'continuing-access';
@@ -32,6 +33,32 @@ export type TradeGoodNativeSource =
 
 export type GoodUse = ResourceEconomicRole | 'access';
 
+/**
+ * #1506 MR09: the pure quantity calibration for a counted good. One shared default set; a genuine
+ * non-deposit fixture may provide its own profile instead of inheriting the resource calibration.
+ */
+export interface GoodQuantityProfile {
+  /** Units a standard hard recipe row requires for this good. */
+  standardRecipeQuantity: number;
+  /** Maximum storable units of this good. */
+  storageCapacity: number;
+  /** Native units a civilization gains per owned source per completed round. */
+  nativePerSourcePerRound: number;
+}
+
+/** Shared calibration defaults (parent §3.1). UI/AI/migration read these, never a local copy. */
+export const STANDARD_HARD_RECIPE_QUANTITY = 10;
+export const DEFAULT_STORAGE_PER_GOOD = 40;
+export const DEFAULT_NATIVE_PER_SOURCE_PER_ROUND = 2;
+
+export function standardQuantityProfile(): GoodQuantityProfile {
+  return {
+    standardRecipeQuantity: STANDARD_HARD_RECIPE_QUANTITY,
+    storageCapacity: DEFAULT_STORAGE_PER_GOOD,
+    nativePerSourcePerRound: DEFAULT_NATIVE_PER_SOURCE_PER_ROUND,
+  };
+}
+
 export interface TradeGoodDefinition {
   id: TradeGoodId;
   name: string;
@@ -42,6 +69,8 @@ export interface TradeGoodDefinition {
   uses: readonly GoodUse[];
   /** Integer cargo space per unit (or per service bundle). */
   cargoSpacePerUnit: number;
+  /** Present exactly for a `stored-quantity` good: the quantity calibration it settles against. */
+  quantity?: GoodQuantityProfile;
 }
 
 /** The stable ID for a resource-backed good. Built here and nowhere else. */
@@ -67,14 +96,18 @@ function settlementForResource(definition: ResourceDefinition): GoodSettlementKi
 export function buildResourceBackedGoods(
   definitions: readonly ResourceDefinition[] = RESOURCE_DEFINITIONS,
 ): TradeGoodDefinition[] {
-  return definitions.map(definition => ({
-    id: resourceGoodId(definition.id),
-    name: definition.name,
-    nativeSource: { kind: 'resource', resource: definition.id },
-    settlement: settlementForResource(definition),
-    uses: usesForResource(definition),
-    cargoSpacePerUnit: 1,
-  }));
+  return definitions.map(definition => {
+    const settlement = settlementForResource(definition);
+    return {
+      id: resourceGoodId(definition.id),
+      name: definition.name,
+      nativeSource: { kind: 'resource', resource: definition.id },
+      settlement,
+      uses: usesForResource(definition),
+      cargoSpacePerUnit: 1,
+      ...(settlement === 'stored-quantity' ? { quantity: standardQuantityProfile() } : {}),
+    };
+  });
 }
 
 export const RESOURCE_BACKED_GOODS: readonly TradeGoodDefinition[] = buildResourceBackedGoods();
@@ -91,6 +124,33 @@ export function isStoredQuantityGood(
   definition: TradeGoodDefinition,
 ): definition is TradeGoodDefinition & { settlement: 'stored-quantity' } {
   return definition.settlement === 'stored-quantity';
+}
+
+/**
+ * #1506 MR09: project a material recipe's goods back to the map resources it names. This is the one
+ * bridge between the editable `materialCosts` authority and the legacy `resourceRequired` list, so
+ * the two can never drift. A non-deposit good contributes no entry.
+ */
+export function resourcesForMaterialCosts(
+  rows: readonly MaterialCostRow[],
+  definitions: readonly TradeGoodDefinition[] = RESOURCE_BACKED_GOODS,
+): ResourceType[] {
+  const resources: ResourceType[] = [];
+  for (const row of rows) {
+    const nativeSource = findTradeGood(row.goodId, definitions)?.nativeSource;
+    if (nativeSource?.kind === 'resource' && !resources.includes(nativeSource.resource)) {
+      resources.push(nativeSource.resource);
+    }
+  }
+  return resources;
+}
+
+/** Derive the transitional `resourceRequired` projection for a catalog entry. */
+export function withDerivedResourceRequired<
+  T extends { materialCosts?: readonly MaterialCostRow[]; resourceRequired?: ResourceType[] },
+>(entry: T): T {
+  if (!entry.materialCosts) return entry;
+  return { ...entry, resourceRequired: resourcesForMaterialCosts(entry.materialCosts) };
 }
 
 export interface TradeGoodCatalogContext {
@@ -142,6 +202,21 @@ export function validateTradeGoodDefinitions(
     }
     if (definition.uses.length === 0) {
       errors.push(`${label}: no implemented use`);
+    }
+
+    if (definition.settlement === 'stored-quantity') {
+      if (!definition.quantity) {
+        errors.push(`${label}: a stored-quantity good needs a quantity profile`);
+      } else {
+        for (const field of ['standardRecipeQuantity', 'storageCapacity', 'nativePerSourcePerRound'] as const) {
+          const value = definition.quantity[field];
+          if (!Number.isSafeInteger(value) || value <= 0) {
+            errors.push(`${label}: quantity.${field} must be a positive safe integer`);
+          }
+        }
+      }
+    } else if (definition.quantity) {
+      errors.push(`${label}: a continuing-access good must not carry a quantity profile`);
     }
 
     // A counted stock with no quantitative use would be a stockpile nothing can spend.

@@ -1,6 +1,8 @@
 import type { City, CivBonusEffect, ResourceType, UnitType } from '@/core/types';
 import { BUILDINGS } from './city-building-catalog';
 import { ERA_1_2_MELEE_UNIT_TYPES, MELEE_RANGED_UNIT_TYPES, TRAINABLE_UNITS } from './city-unit-catalog';
+import { getMaterialRecipe } from './resource-material-costs';
+import { findTradeGood } from './trade-good-definitions';
 import { LOCAL_INFRASTRUCTURE_BUILDINGS } from './city-local-infrastructure';
 import { getUnitRoleDefinition } from './combat-role-definitions';
 import { getLegendaryWonderProductionCost } from './legendary-wonder-production';
@@ -60,8 +62,14 @@ export function getCatalogProductionCost(itemId: string, era: number = 1): numbe
 }
 
 function requiresResource(itemId: string, resource: ResourceType): boolean {
-  const unit = TRAINABLE_UNITS.find(candidate => candidate.type === itemId);
-  return unit?.resourceRequired?.includes(resource) ?? false;
+  // #1506 MR09: consult the hard recipe through the good definition, not the transitional
+  // `resourceRequired` projection, so removing that projection cannot silently drop the discount.
+  const lookup = getMaterialRecipe(itemId);
+  if (!lookup.known) return false;
+  return lookup.recipe.rows.some(row => {
+    const nativeSource = findTradeGood(row.goodId)?.nativeSource;
+    return nativeSource?.kind === 'resource' && nativeSource.resource === resource;
+  });
 }
 
 function getBuildingDiscountMultiplier(itemId: string, cityBuildings: string[]): number {

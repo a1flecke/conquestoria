@@ -1,6 +1,25 @@
 import type { ResourceType } from './resources';
 
 /**
+ * Stable, opaque commerce identifier (#1505 MR08). Never parse it — resolve the definition through
+ * the trade-good catalog. Declared here so a persisted/leaf shape can name a good without importing
+ * the runtime catalog; `src/systems/trade-good-definitions.ts` re-exports it type-only.
+ */
+export type TradeGoodId = string;
+
+/**
+ * One hard-material requirement row (#1506 MR09).
+ *
+ * The editable authority is each `Building`/`TrainableUnitEntry`'s `materialCosts`; the legacy
+ * `resourceRequired` list is a derived projection while the remaining consumers migrate. A row must
+ * name a known stored-quantity good with a `material` use and a positive safe-integer quantity.
+ */
+export interface MaterialCostRow {
+  goodId: TradeGoodId;
+  quantity: number;
+}
+
+/**
  * Persisted commerce state (#1499 MR02, `src/core/types/commerce.ts`).
  *
  * Declared in this leaf rather than the `src/core/types.ts` compatibility barrel, which is

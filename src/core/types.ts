@@ -1,5 +1,5 @@
 import type { NotificationCityAction, NotificationLogState } from './notification-log';
-import type { CommercePermissionsState, TradeRouteInterruptionReason, TradeRouteModeId } from './types/commerce';
+import type { CommercePermissionsState, MaterialCostRow, TradeRouteInterruptionReason, TradeRouteModeId } from './types/commerce';
 import type { PirateState } from './pirate-state';
 import type { DominationIntelState } from '@/systems/domination-types';
 import type { GovernancePolicyId } from '@/systems/governance-types';
@@ -954,6 +954,11 @@ export interface Building {
   requiredTechs?: string[];
   coastalRequired?: boolean;
   pacing?: PacingMetadata;
+  /**
+   * #1506 MR09: the item's explicit hard-material recipe — the editable authority. `resourceRequired`
+   * is derived from it at catalog build time while the remaining legacy consumers migrate.
+   */
+  materialCosts?: MaterialCostRow[];
   resourceRequired?: ResourceType[];
   routeCapacity?: number;   // trade route slots added to the FROM city; 0 or absent = none
   requiresBuildings?: string[];   // chain of building IDs that must be built first
@@ -1372,6 +1377,8 @@ export interface TrainableUnitEntry {
   upgradesTo?: UnitType;
   civTypeRequired?: string;  // only available/shown for this civ
   replacesUnit?: UnitType;   // hides this standard unit for the civ above
+  /** #1506 MR09: explicit hard-material recipe — see `Building.materialCosts`. */
+  materialCosts?: MaterialCostRow[];
   resourceRequired?: ResourceType[];
   coastalRequired?: boolean;
   trainedFromBuilding?: string;  // city must contain this building to train the unit
