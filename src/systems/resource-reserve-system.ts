@@ -2,21 +2,21 @@
 // #1505 MR08: the reserve kernel — integer native/imported stock, commitments, incoming claims and
 // the arithmetic every later consumer must share.
 //
-// Deliberately *not* wired to `GameState` yet. The quantitative economy stays inactive until MR09
-// ships its ordered migration, and the parent forbids seeding live persisted fields ahead of that
-// migration. Everything here is a pure function over an explicit ledger, so MR09 can persist one
-// ledger per civilization without re-deriving the rules.
+// #1506 MR09: reservations now lock their provenance. Before this, a reservation recorded only an
+// amount and consumption chose provenance at spend time, so a different consumer could take the
+// imported portion another item had already claimed. Each reservation therefore records the exact
+// native/imported split it holds, and free/exportable quantities subtract commitments *by provenance*.
 //
 // Definitions the whole project reads from here:
-//   stored     = nativeStored + importedStored
-//   committed  = materials reserved for active domestic production
-//   free       = stored - committed
-//   incoming   = owned manifests with a live path/home assignment
-//   exportable = min(nativeFree, max(0, free - protectedReserve))
+//   stored     = native + imported
+//   committedNative/Imported = sum of each reservation's locked split
+//   free       = (native - committedNative) + (imported - committedImported)
+//   exportable = min(freeNative, max(0, free - protectedReserve))
 //
-// Invariants: every quantity is a nonnegative integer, a reservation can never exceed free stock, and
-// a release never happens twice. Domestic consumption debits imported stock first, then native stock,
-// and records that provenance; export may debit only native stock.
+// Invariants: every quantity is a nonnegative safe integer; a reservation can never exceed free
+// stock; a release never happens twice; domestic consumption debits imported stock first, then
+// native, and records that provenance; export may debit only native stock. Corrupt ledgers are
+// rejected by `validateReserveLedger`, never silently clamped by `Math.max`.
 import type { TradeGoodId } from './trade-good-definitions';
 
 /** Base storage per quantitative good (parent §3.3 calibration candidate, one place to tune). */
@@ -29,6 +29,20 @@ export interface ReserveBalance {
   imported: number;
 }
 
+/** The provenance split a reservation has locked. */
+export interface ReserveAllocation {
+  native: number;
+  imported: number;
+}
+
+/** The production consumer a commitment belongs to (#1506 MR09). */
+export interface ProductionMaterialRef {
+  ownerCivId: string;
+  cityId: string;
+  occurrence: number;
+  itemId: string;
+}
+
 export type ReservationReason = 'active-production' | 'migration-grant' | 'protected-reserve';
 
 export interface ReserveReservation {
@@ -37,7 +51,19 @@ export interface ReserveReservation {
   ownerCivId: string;
   amount: number;
   reason: ReservationReason;
+  /** Locked at reservation time: free imported first, then free native. */
+  allocation: ReserveAllocation;
+  /** Required for `active-production` and `migration-grant`. */
+  consumer?: ProductionMaterialRef;
+  /**
+   * The restricted transition-assistance portion of `allocation.imported` (#1506 MR09). Only the
+   * historical migration may create it; it is consumed first and expires on release.
+   */
+  migrationGrantImported?: number;
 }
+
+/** What a caller asks for; the kernel computes `allocation` itself. */
+export type ReserveReservationRequest = Omit<ReserveReservation, 'allocation'>;
 
 /** A purchased manifest that will occupy storage on arrival. It is not usable stock yet. */
 export interface IncomingClaim {
@@ -52,6 +78,8 @@ export interface ReserveLedger {
   balances: Readonly<Record<TradeGoodId, ReserveBalance>>;
   reservations: readonly ReserveReservation[];
   incoming: readonly IncomingClaim[];
+  /** #1506 MR09: the turn this civ last accrued native stock; prevents replaying the phase. */
+  lastAccruedTurn?: number;
 }
 
 export type ReserveRefusalReason =
@@ -60,7 +88,11 @@ export type ReserveRefusalReason =
   | 'insufficient-free-stock'
   | 'insufficient-native-stock'
   | 'duplicate-reservation'
-  | 'unknown-reservation';
+  | 'unknown-reservation'
+  | 'missing-consumer'
+  | 'invalid-grant'
+  | 'invalid-allocation'
+  | 'duplicate-claim';
 
 export type ReserveResult =
   | { ok: true; ledger: ReserveLedger; consumed?: { imported: number; native: number } }
@@ -79,10 +111,20 @@ export function getStoredQuantity(ledger: ReserveLedger, goodId: TradeGoodId): n
   return balance.native + balance.imported;
 }
 
-export function getCommittedQuantity(ledger: ReserveLedger, goodId: TradeGoodId): number {
+export function getCommittedNativeQuantity(ledger: ReserveLedger, goodId: TradeGoodId): number {
   return ledger.reservations
     .filter(reservation => reservation.goodId === goodId)
-    .reduce((total, reservation) => total + reservation.amount, 0);
+    .reduce((total, reservation) => total + reservation.allocation.native, 0);
+}
+
+export function getCommittedImportedQuantity(ledger: ReserveLedger, goodId: TradeGoodId): number {
+  return ledger.reservations
+    .filter(reservation => reservation.goodId === goodId)
+    .reduce((total, reservation) => total + reservation.allocation.imported, 0);
+}
+
+export function getCommittedQuantity(ledger: ReserveLedger, goodId: TradeGoodId): number {
+  return getCommittedNativeQuantity(ledger, goodId) + getCommittedImportedQuantity(ledger, goodId);
 }
 
 export function getIncomingQuantity(ledger: ReserveLedger, goodId: TradeGoodId): number {
@@ -91,9 +133,19 @@ export function getIncomingQuantity(ledger: ReserveLedger, goodId: TradeGoodId):
     .reduce((total, claim) => total + claim.amount, 0);
 }
 
-/** Stored minus active commitments: what is actually available to spend. */
+/** Native stock not held by a commitment. Corrupt ledgers may read negative; validation rejects them. */
+export function getFreeNativeQuantity(ledger: ReserveLedger, goodId: TradeGoodId): number {
+  return getReserveBalance(ledger, goodId).native - getCommittedNativeQuantity(ledger, goodId);
+}
+
+/** Imported stock not held by a commitment. */
+export function getFreeImportedQuantity(ledger: ReserveLedger, goodId: TradeGoodId): number {
+  return getReserveBalance(ledger, goodId).imported - getCommittedImportedQuantity(ledger, goodId);
+}
+
+/** Stored minus active commitments: what any consumer may actually spend. */
 export function getFreeQuantity(ledger: ReserveLedger, goodId: TradeGoodId): number {
-  return Math.max(0, getStoredQuantity(ledger, goodId) - getCommittedQuantity(ledger, goodId));
+  return getFreeNativeQuantity(ledger, goodId) + getFreeImportedQuantity(ledger, goodId);
 }
 
 /** Free *native* stock after the protected reserve — the only quantity that may be exported. */
@@ -102,11 +154,9 @@ export function getExportableQuantity(
   goodId: TradeGoodId,
   protectedReserve = 0,
 ): number {
-  const balance = getReserveBalance(ledger, goodId);
-  const committed = getCommittedQuantity(ledger, goodId);
-  const nativeFree = Math.max(0, balance.native - committed);
-  const free = Math.max(0, balance.native + balance.imported - committed);
-  return Math.min(nativeFree, Math.max(0, free - Math.max(0, protectedReserve)));
+  const freeNative = getFreeNativeQuantity(ledger, goodId);
+  const free = getFreeQuantity(ledger, goodId);
+  return Math.min(freeNative, Math.max(0, free - Math.max(0, protectedReserve)));
 }
 
 /** Room for new stock, counting incoming claims that will need the same space on arrival. */
@@ -127,13 +177,19 @@ function refuse(ledger: ReserveLedger, reason: ReserveRefusalReason): ReserveRes
 }
 
 function isCount(value: number): boolean {
-  return Number.isInteger(value) && value >= 0;
+  return Number.isSafeInteger(value) && value >= 0;
 }
 
-/** Native accrual from a civ's own sources. */
-export function accrueNativeStock(ledger: ReserveLedger, goodId: TradeGoodId, amount: number): ReserveResult {
-  if (!Number.isInteger(amount)) return refuse(ledger, 'not-an-integer');
+function validAmount(ledger: ReserveLedger, amount: number): ReserveResult | null {
+  if (!Number.isSafeInteger(amount)) return refuse(ledger, 'not-an-integer');
   if (amount < 0) return refuse(ledger, 'negative-amount');
+  return null;
+}
+
+/** Native accrual from a civ's own sources. Raw arithmetic: the live accrual owner applies the cap. */
+export function accrueNativeStock(ledger: ReserveLedger, goodId: TradeGoodId, amount: number): ReserveResult {
+  const invalid = validAmount(ledger, amount);
+  if (invalid) return invalid;
   if (amount === 0) return { ok: true, ledger };
   const balance = getReserveBalance(ledger, goodId);
   return { ok: true, ledger: withBalance(ledger, goodId, { ...balance, native: balance.native + amount }) };
@@ -148,9 +204,12 @@ export function claimIncomingStock(
   claim: Omit<IncomingClaim, 'amount'> & { amount: number },
   capacity = BASE_STORAGE_PER_GOOD,
 ): ReserveResult {
-  if (!Number.isInteger(claim.amount)) return refuse(ledger, 'not-an-integer');
-  if (claim.amount < 0) return refuse(ledger, 'negative-amount');
+  const invalid = validAmount(ledger, claim.amount);
+  if (invalid) return invalid;
   if (claim.amount === 0) return { ok: true, ledger };
+  if (ledger.incoming.some(candidate => candidate.id === claim.id)) {
+    return refuse(ledger, 'duplicate-claim');
+  }
   if (getStorageHeadroom(ledger, claim.goodId, capacity) < claim.amount) {
     return refuse(ledger, 'insufficient-free-stock');
   }
@@ -178,24 +237,54 @@ export function destroyIncomingStock(ledger: ReserveLedger, claimId: string): Re
   return { ok: true, ledger: { ...ledger, incoming: ledger.incoming.filter(candidate => candidate.id !== claimId) } };
 }
 
-/** Reserve stock for a consumer. Fails rather than over-committing. */
-export function reserveStock(
-  ledger: ReserveLedger,
-  reservation: ReserveReservation,
-): ReserveResult {
-  if (!Number.isInteger(reservation.amount)) return refuse(ledger, 'not-an-integer');
-  if (reservation.amount < 0) return refuse(ledger, 'negative-amount');
-  if (reservation.amount === 0) return { ok: true, ledger };
-  if (ledger.reservations.some(candidate => candidate.id === reservation.id)) {
+/**
+ * Reserve stock for a consumer. The kernel computes and locks the provenance split — free imported
+ * first, then free native — so a later consumer cannot take the imported portion this item holds.
+ */
+export function reserveStock(ledger: ReserveLedger, request: ReserveReservationRequest): ReserveResult {
+  const invalid = validAmount(ledger, request.amount);
+  if (invalid) return invalid;
+  if (request.amount === 0) {
+    return { ok: true, ledger };
+  }
+  if (ledger.reservations.some(candidate => candidate.id === request.id)) {
     return refuse(ledger, 'duplicate-reservation');
   }
-  if (getFreeQuantity(ledger, reservation.goodId) < reservation.amount) {
+  // A production commitment names its consumer; only the generic protected-reserve use may omit one.
+  if (request.reason !== 'protected-reserve' && !request.consumer) {
+    return refuse(ledger, 'missing-consumer');
+  }
+  // Restricted transition assistance is imported-only and can only tag a migration grant.
+  if (request.migrationGrantImported !== undefined) {
+    if (
+      request.reason !== 'migration-grant'
+      || !isCount(request.migrationGrantImported)
+      || request.migrationGrantImported <= 0
+    ) {
+      return refuse(ledger, 'invalid-grant');
+    }
+  }
+
+  const freeImported = getFreeImportedQuantity(ledger, request.goodId);
+  const freeNative = getFreeNativeQuantity(ledger, request.goodId);
+  if (freeImported + freeNative < request.amount) {
     return refuse(ledger, 'insufficient-free-stock');
   }
-  return { ok: true, ledger: { ...ledger, reservations: [...ledger.reservations, { ...reservation }] } };
+  const imported = Math.min(freeImported, request.amount);
+  const allocation: ReserveAllocation = { imported, native: request.amount - imported };
+
+  if (request.migrationGrantImported !== undefined && request.migrationGrantImported > allocation.imported) {
+    return refuse(ledger, 'invalid-grant');
+  }
+
+  const reservation: ReserveReservation = { ...request, allocation };
+  return { ok: true, ledger: { ...ledger, reservations: [...ledger.reservations, reservation] } };
 }
 
-/** Release a commitment. Releasing the same reservation twice is an explicit no-op, not a refund. */
+/**
+ * Release a commitment. Releasing the same reservation twice is an explicit no-op, not a refund.
+ * A migration grant's tag is extinguished with the reservation; stock balances never change.
+ */
 export function releaseStock(ledger: ReserveLedger, reservationId: string): ReserveResult {
   if (!ledger.reservations.some(candidate => candidate.id === reservationId)) {
     return refuse(ledger, 'unknown-reservation');
@@ -204,13 +293,15 @@ export function releaseStock(ledger: ReserveLedger, reservationId: string): Rese
 }
 
 export interface ConsumeOptions {
-  /** Also release this commitment once the quantity is spent. */
+  /** Spend against this commitment's locked split instead of free stock. */
   reservationId?: string;
 }
 
 /**
- * Spend stored stock deterministically: imported first, then native. Records the provenance so a
- * caller can report it. Refuses rather than producing a negative balance.
+ * Spend stock deterministically. An unreserved spend takes free imported first, then free native —
+ * it can never touch another commitment. A reserved spend uses the reservation's locked split, with
+ * its restricted grant portion consumed first. Records provenance and never produces a negative
+ * balance.
  */
 export function consumeStock(
   ledger: ReserveLedger,
@@ -218,43 +309,65 @@ export function consumeStock(
   amount: number,
   options: ConsumeOptions = {},
 ): ReserveResult {
-  if (!Number.isInteger(amount)) return refuse(ledger, 'not-an-integer');
-  if (amount < 0) return refuse(ledger, 'negative-amount');
+  const invalid = validAmount(ledger, amount);
+  if (invalid) return invalid;
+  if (amount === 0) return { ok: true, ledger, consumed: { imported: 0, native: 0 } };
 
   if (options.reservationId) {
     const reservation = ledger.reservations.find(candidate => candidate.id === options.reservationId);
-    if (!reservation) return refuse(ledger, 'unknown-reservation');
-    if (reservation.goodId !== goodId) return refuse(ledger, 'unknown-reservation');
-    if (reservation.amount < amount) return refuse(ledger, 'insufficient-free-stock');
-  }
+    if (!reservation || reservation.goodId !== goodId) return refuse(ledger, 'unknown-reservation');
+    if (amount > reservation.amount) return refuse(ledger, 'insufficient-free-stock');
 
-  const balance = getReserveBalance(ledger, goodId);
-  const committed = getCommittedQuantity(ledger, goodId);
-  // Spending against a reservation is allowed to use its committed quantity.
-  const spendableFromStock = options.reservationId ? balance.native + balance.imported : getFreeQuantity(ledger, goodId);
-  if (spendableFromStock < amount) return refuse(ledger, 'insufficient-free-stock');
+    const balance = getReserveBalance(ledger, goodId);
+    const grant = reservation.migrationGrantImported ?? 0;
+    // Restricted assistance first, then the reservation's ordinary imported split, then native.
+    const grantSpend = Math.min(grant, amount);
+    const importedSpend = Math.min(reservation.allocation.imported, amount - grantSpend);
+    const nativeSpend = amount - grantSpend - importedSpend;
+    if (nativeSpend > reservation.allocation.native) return refuse(ledger, 'insufficient-free-stock');
 
-  const fromImported = Math.min(balance.imported, amount);
-  const fromNative = amount - fromImported;
-  if (fromNative > balance.native || (options.reservationId ? 0 : committed + amount > balance.native + balance.imported)) {
-    return refuse(ledger, 'insufficient-free-stock');
-  }
-
-  let next = withBalance(ledger, goodId, {
-    native: balance.native - fromNative,
-    imported: balance.imported - fromImported,
-  });
-  if (options.reservationId) {
-    const reservation = next.reservations.find(candidate => candidate.id === options.reservationId)!;
     const remaining = reservation.amount - amount;
-    next = {
-      ...next,
-      reservations: remaining > 0
-        ? next.reservations.map(candidate => candidate.id === reservation.id ? { ...candidate, amount: remaining } : candidate)
-        : next.reservations.filter(candidate => candidate.id !== reservation.id),
+    const nextReservation: ReserveReservation = {
+      ...reservation,
+      amount: remaining,
+      allocation: {
+        imported: reservation.allocation.imported - grantSpend - importedSpend,
+        native: reservation.allocation.native - nativeSpend,
+      },
+      ...(grant - grantSpend > 0 ? { migrationGrantImported: grant - grantSpend } : { migrationGrantImported: undefined }),
+    };
+    const next = withBalance(ledger, goodId, {
+      native: balance.native - nativeSpend,
+      imported: balance.imported - grantSpend - importedSpend,
+    });
+    return {
+      ok: true,
+      ledger: {
+        ...next,
+        reservations: remaining > 0
+          ? next.reservations.map(candidate => candidate.id === reservation.id ? nextReservation : candidate)
+          : next.reservations.filter(candidate => candidate.id !== reservation.id),
+      },
+      consumed: { imported: grantSpend + importedSpend, native: nativeSpend },
     };
   }
-  return { ok: true, ledger: next, consumed: { imported: fromImported, native: fromNative } };
+
+  const freeImported = getFreeImportedQuantity(ledger, goodId);
+  const freeNative = getFreeNativeQuantity(ledger, goodId);
+  if (freeImported + freeNative < amount) return refuse(ledger, 'insufficient-free-stock');
+  const fromImported = Math.min(freeImported, amount);
+  const fromNative = amount - fromImported;
+  if (fromNative > freeNative) return refuse(ledger, 'insufficient-free-stock');
+
+  const balance = getReserveBalance(ledger, goodId);
+  return {
+    ok: true,
+    ledger: withBalance(ledger, goodId, {
+      native: balance.native - fromNative,
+      imported: balance.imported - fromImported,
+    }),
+    consumed: { imported: fromImported, native: fromNative },
+  };
 }
 
 /** Export may debit native stock only — imported stock is never re-exportable. */
@@ -264,8 +377,8 @@ export function spendNativeForExport(
   amount: number,
   protectedReserve = 0,
 ): ReserveResult {
-  if (!Number.isInteger(amount)) return refuse(ledger, 'not-an-integer');
-  if (amount < 0) return refuse(ledger, 'negative-amount');
+  const invalid = validAmount(ledger, amount);
+  if (invalid) return invalid;
   if (amount === 0) return { ok: true, ledger };
   if (getExportableQuantity(ledger, goodId, protectedReserve) < amount) {
     return refuse(ledger, 'insufficient-native-stock');
@@ -274,9 +387,7 @@ export function spendNativeForExport(
   return { ok: true, ledger: withBalance(ledger, goodId, { ...balance, native: balance.native - amount }) };
 }
 
-/**
- * Structural validation for a persisted ledger (MR09 will call this on load). Empty means valid.
- */
+/** Structural validation for a persisted ledger. Empty means valid. */
 export function validateReserveLedger(ledger: ReserveLedger): string[] {
   const errors: string[] = [];
   const reservationIds = new Set<string>();
@@ -286,12 +397,30 @@ export function validateReserveLedger(ledger: ReserveLedger): string[] {
     if (!isCount(balance.native)) errors.push(`${goodId}: native stock must be a nonnegative integer`);
     if (!isCount(balance.imported)) errors.push(`${goodId}: imported stock must be a nonnegative integer`);
   }
+  if (ledger.lastAccruedTurn !== undefined && !Number.isSafeInteger(ledger.lastAccruedTurn)) {
+    errors.push('lastAccruedTurn must be a safe integer when present');
+  }
   for (const reservation of ledger.reservations) {
     if (reservationIds.has(reservation.id)) errors.push(`duplicate reservation id ${reservation.id}`);
     reservationIds.add(reservation.id);
     if (!isCount(reservation.amount)) errors.push(`${reservation.id}: amount must be a nonnegative integer`);
-    if (reservation.amount > getStoredQuantity(ledger, reservation.goodId)) {
-      errors.push(`${reservation.id}: reserved more ${reservation.goodId} than is stored`);
+    const allocation = reservation.allocation;
+    if (!isCount(allocation.native) || !isCount(allocation.imported)) {
+      errors.push(`${reservation.id}: allocation must be nonnegative integers`);
+    } else if (allocation.native + allocation.imported !== reservation.amount) {
+      errors.push(`${reservation.id}: allocation must sum to the committed amount`);
+    }
+    if (reservation.reason !== 'protected-reserve' && !reservation.consumer) {
+      errors.push(`${reservation.id}: ${reservation.reason} requires a production consumer`);
+    }
+    if (reservation.migrationGrantImported !== undefined) {
+      if (
+        reservation.reason !== 'migration-grant'
+        || !isCount(reservation.migrationGrantImported)
+        || reservation.migrationGrantImported > allocation.imported
+      ) {
+        errors.push(`${reservation.id}: invalid restricted migration grant`);
+      }
     }
   }
   for (const claim of ledger.incoming) {
@@ -300,8 +429,12 @@ export function validateReserveLedger(ledger: ReserveLedger): string[] {
     if (!isCount(claim.amount)) errors.push(`${claim.id}: amount must be a nonnegative integer`);
   }
   for (const goodId of new Set(ledger.reservations.map(reservation => reservation.goodId))) {
-    if (getCommittedQuantity(ledger, goodId) > getStoredQuantity(ledger, goodId)) {
-      errors.push(`${goodId}: commitments exceed stored stock`);
+    const balance = getReserveBalance(ledger, goodId);
+    if (getCommittedNativeQuantity(ledger, goodId) > balance.native) {
+      errors.push(`${goodId}: reserved more native stock than is stored`);
+    }
+    if (getCommittedImportedQuantity(ledger, goodId) > balance.imported) {
+      errors.push(`${goodId}: reserved more imported stock than is stored`);
     }
   }
   return errors;
@@ -312,7 +445,8 @@ export type StartingNativeStock = Record<TradeGoodId, number>;
 /**
  * The MR09 starter reserve: a bounded native seed for every good whose sources the civ actually owns.
  * A reserve never starts with imported stock, and the seed is a function of *source count*, not of a
- * stored number, so it can be computed once at migration and never re-granted on reload.
+ * stored number, so it can be computed once at migration and never re-granted on reload. The live
+ * caller applies the storage cap; this pure helper does not clamp.
  */
 export function computeStartingNativeStock(
   sourceCounts: Readonly<Record<TradeGoodId, number>>,
