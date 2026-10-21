@@ -2,13 +2,13 @@
   "turns": [
     {
       "state": {
-        "__whole": "7a3c3c4b287b",
+        "__whole": "9ba7e44e4c75",
         "activeEventChains": "e5c153358a49",
         "autonomyByCiv": "95313c912b48",
         "barbarianCampPressure": "44136fa355b3",
         "barbarianCamps": "6cb29d8bbba5",
         "beasts": "02b7d3487cce",
-        "cities": "95ed4c32964c",
+        "cities": "97750cb51c66",
         "cityFaith": "44136fa355b3",
         "civilizations": "4cd732f9c255",
         "commercePermissions": "b053f8ba4051",
@@ -36,6 +36,7 @@
         "map": "498a87a02796",
         "mapScript": "da8d666f962e",
         "marketplace": "045db51638e1",
+        "materialReservesByCiv": "ddb44260c5e9",
         "minorCivCoalitions": "44136fa355b3",
         "minorCivLeagues": "7b10dbc42e48",
         "minorCivRegionalCooldowns": "44136fa355b3",
@@ -53,7 +54,7 @@
         "religions": "44136fa355b3",
         "resurgentCampCooldownByCivLandmass": "e491b9ee988d",
         "rogueElephantHosts": "44136fa355b3",
-        "saveSchemaVersion": "9f14025af006",
+        "saveSchemaVersion": "76a50887d8f1",
         "settings": "666ce98eb188",
         "stampedes": "33c0cc6ad765",
         "startPlacementMode": "61eb5aa337d3",
@@ -67,18 +68,18 @@
         "wonderDiscoverers": "1679e898f916",
         "worldRaces": "9c3d03a50f52"
       },
-      "events": "f52019425554",
+      "events": "9371dc03cdd2",
       "trace": "7b7a3e573abd"
     },
     {
       "state": {
-        "__whole": "b8512718f60d",
+        "__whole": "b4852539cb7b",
         "activeEventChains": "4ce55a23983b",
         "autonomyByCiv": "95313c912b48",
         "barbarianCampPressure": "44136fa355b3",
         "barbarianCamps": "b2a0738166e3",
         "beasts": "02b7d3487cce",
-        "cities": "eaf25ce64c4b",
+        "cities": "7653cdbcac5c",
         "cityFaith": "44136fa355b3",
         "civilizations": "4a408eac45c8",
         "commercePermissions": "b053f8ba4051",
@@ -106,6 +107,7 @@
         "map": "d292b8b13b8b",
         "mapScript": "da8d666f962e",
         "marketplace": "b675f3a3c551",
+        "materialReservesByCiv": "ddb44260c5e9",
         "minorCivCoalitions": "44136fa355b3",
         "minorCivLeagues": "3753ee75ca95",
         "minorCivRegionalCooldowns": "44136fa355b3",
@@ -123,7 +125,7 @@
         "religions": "44136fa355b3",
         "resurgentCampCooldownByCivLandmass": "484c481134a1",
         "rogueElephantHosts": "44136fa355b3",
-        "saveSchemaVersion": "9f14025af006",
+        "saveSchemaVersion": "76a50887d8f1",
         "settings": "666ce98eb188",
         "stampedes": "2c87d14f7b1e",
         "startPlacementMode": "61eb5aa337d3",
@@ -137,18 +139,18 @@
         "wonderDiscoverers": "1679e898f916",
         "worldRaces": "9c3d03a50f52"
       },
-      "events": "6da99966f8ba",
+      "events": "3bd14052090c",
       "trace": "e6962a7df8f5"
     },
     {
       "state": {
-        "__whole": "364045ed70a2",
+        "__whole": "b7de648211f1",
         "activeEventChains": "6e262c6d14d8",
         "autonomyByCiv": "95313c912b48",
         "barbarianCampPressure": "44136fa355b3",
         "barbarianCamps": "e73853834888",
         "beasts": "8a920f36b7c3",
-        "cities": "1de15dcedaf8",
+        "cities": "2e384e6f74b9",
         "cityFaith": "44136fa355b3",
         "civilizations": "f72268c5ea07",
         "commercePermissions": "b053f8ba4051",
@@ -176,6 +178,7 @@
         "map": "2eaf25835e9e",
         "mapScript": "da8d666f962e",
         "marketplace": "e12460df0c3d",
+        "materialReservesByCiv": "ddb44260c5e9",
         "minorCivCoalitions": "44136fa355b3",
         "minorCivLeagues": "b1a7573c9241",
         "minorCivRegionalCooldowns": "44136fa355b3",
@@ -193,7 +196,7 @@
         "religions": "44136fa355b3",
         "resurgentCampCooldownByCivLandmass": "484c481134a1",
         "rogueElephantHosts": "44136fa355b3",
-        "saveSchemaVersion": "9f14025af006",
+        "saveSchemaVersion": "76a50887d8f1",
         "settings": "666ce98eb188",
         "stampedes": "90db5bca5180",
         "startPlacementMode": "61eb5aa337d3",
@@ -207,7 +210,7 @@
         "wonderDiscoverers": "655edbf58914",
         "worldRaces": "9c3d03a50f52"
       },
-      "events": "84e4c3de6f2e",
+      "events": "e038ad1a4bf5",
       "trace": "e6962a7df8f5"
     }
   ]
