@@ -201,6 +201,26 @@
    "liveReferences": [
     ".claude/rules/hooks-and-tooling.md"
    ]
+  },
+  "docs/superpowers/specs/2026-10-21-issue-1125-applied-scientific-legacy.md": {
+   "category": "active",
+   "reason": "Current advisory applied-science Legacy direction for open issue #1125; product definitions remain unfinished and no implementation is authorized by this snapshot.",
+   "issues": [
+    1125
+   ],
+   "issueStates": {
+    "1125": "OPEN"
+   }
+  },
+  "docs/superpowers/specs/2026-10-21-issue-1125-ocean-research-trial.md": {
+   "category": "active",
+   "reason": "Supporting ocean-research candidate and unapproved numerical calibration for open issue #1125; read with the consolidated applied-science direction.",
+   "issues": [
+    1125
+   ],
+   "issueStates": {
+    "1125": "OPEN"
+   }
   }
  },
  "deleted": {
