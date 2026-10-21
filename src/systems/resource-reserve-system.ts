@@ -17,6 +17,13 @@
 // stock; a release never happens twice; domestic consumption debits imported stock first, then
 // native, and records that provenance; export may debit only native stock. Corrupt ledgers are
 // rejected by `validateReserveLedger`, never silently clamped by `Math.max`.
+import type {
+  IncomingClaim,
+  ReserveAllocation,
+  ReserveBalance,
+  ReserveLedger,
+  ReserveReservation,
+} from '@/core/types/commerce';
 import type { TradeGoodId } from './trade-good-definitions';
 import {
   DEFAULT_NATIVE_PER_SOURCE_PER_ROUND as STARTING_NATIVE_STOCK_PER_SOURCE,
@@ -33,63 +40,23 @@ export {
   DEFAULT_STORAGE_PER_GOOD as BASE_STORAGE_PER_GOOD,
 } from './trade-good-definitions';
 
-export interface ReserveBalance {
-  native: number;
-  imported: number;
-}
-
-/** The provenance split a reservation has locked. */
-export interface ReserveAllocation {
-  native: number;
-  imported: number;
-}
-
-/** The production consumer a commitment belongs to (#1506 MR09). */
-export interface ProductionMaterialRef {
-  ownerCivId: string;
-  cityId: string;
-  occurrence: number;
-  itemId: string;
-}
-
-export type ReservationReason = 'active-production' | 'migration-grant' | 'protected-reserve';
-
-export interface ReserveReservation {
-  id: string;
-  goodId: TradeGoodId;
-  ownerCivId: string;
-  amount: number;
-  reason: ReservationReason;
-  /** Locked at reservation time: free imported first, then free native. */
-  allocation: ReserveAllocation;
-  /** Required for `active-production` and `migration-grant`. */
-  consumer?: ProductionMaterialRef;
-  /**
-   * The restricted transition-assistance portion of `allocation.imported` (#1506 MR09). Only the
-   * historical migration may create it; it is consumed first and expires on release.
-   */
-  migrationGrantImported?: number;
-}
+/**
+ * #1506 MR09: the persisted reserve contracts now live in the `core/types/commerce` leaf so a save
+ * shape can name them without importing this runtime module. Re-exported type-only for compatibility
+ * with every existing kernel consumer.
+ */
+export type {
+  IncomingClaim,
+  ProductionMaterialRef,
+  ReservationReason,
+  ReserveAllocation,
+  ReserveBalance,
+  ReserveLedger,
+  ReserveReservation,
+} from '@/core/types/commerce';
 
 /** What a caller asks for; the kernel computes `allocation` itself. */
 export type ReserveReservationRequest = Omit<ReserveReservation, 'allocation'>;
-
-/** A purchased manifest that will occupy storage on arrival. It is not usable stock yet. */
-export interface IncomingClaim {
-  id: string;
-  goodId: TradeGoodId;
-  ownerCivId: string;
-  amount: number;
-  routeId?: string;
-}
-
-export interface ReserveLedger {
-  balances: Readonly<Record<TradeGoodId, ReserveBalance>>;
-  reservations: readonly ReserveReservation[];
-  incoming: readonly IncomingClaim[];
-  /** #1506 MR09: the turn this civ last accrued native stock; prevents replaying the phase. */
-  lastAccruedTurn?: number;
-}
 
 export type ReserveRefusalReason =
   | 'not-an-integer'
@@ -444,6 +411,12 @@ export function validateReserveLedger(ledger: ReserveLedger): string[] {
     }
     if (getCommittedImportedQuantity(ledger, goodId) > balance.imported) {
       errors.push(`${goodId}: reserved more imported stock than is stored`);
+    }
+    const granted = ledger.reservations
+      .filter(reservation => reservation.goodId === goodId)
+      .reduce((total, reservation) => total + (reservation.migrationGrantImported ?? 0), 0);
+    if (granted > balance.imported) {
+      errors.push(`${goodId}: migration grant exceeds imported stock`);
     }
   }
   return errors;

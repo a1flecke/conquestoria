@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { GameState } from '@/core/types';
 import { CURRENT_SAVE_SCHEMA_VERSION } from '@/storage/save-schema-version';
+import { foundCity } from '@/systems/city-system';
+import { hexKey } from '@/systems/hex-utils';
 import { buildBaselineSave, buildHotSeatBaselineSave } from './baseline';
 
 /**
@@ -94,15 +96,24 @@ const HISTORICAL_FIELDS: ReadonlyArray<{ introducedAt: number; strip: (raw: RawS
   { introducedAt: 28, strip: raw => { delete raw.minorCivLeagues; } },
   { introducedAt: 29, strip: raw => { delete raw.dominationIntel; } },
   // Rehydrated by the unconditional normalizer tail on every load regardless of
-  // version — strip for any pre-CURRENT source so the "old save had none" path runs.
+  // version — strip for any pre-35 source so the "old save had none" path runs.
   {
-    introducedAt: CURRENT_SAVE_SCHEMA_VERSION,
+    introducedAt: 35,
     strip: raw => {
       delete raw.religions;
       delete raw.cityFaith;
       delete raw.pirateFleets;
       delete raw.pirateFleetCooldownByCivLandmass;
       delete raw.resurgentCampCooldownByCivLandmass;
+    },
+  },
+  // #1506 MR09 (schema 36) — the reserve ledger and per-city occurrence bookkeeping. The ordered
+  // migration is the only seed/grant writer, so a pre-36 fixture must genuinely lack both fields.
+  {
+    introducedAt: 36,
+    strip: raw => {
+      delete raw.materialReservesByCiv;
+      for (const city of Object.values(raw.cities ?? {}) as RawState[]) delete city.productionMaterials;
     },
   },
 ];
@@ -307,6 +318,131 @@ const MALFORMED_CASES: SaveCompatCase[] = [
 ];
 
 /**
+ * #1506 MR09 — a schema-35 save captured just before reserves existed. It carries the three legacy
+ * entitlements the migration must distinguish, plus the cases it must NOT fund:
+ *
+ *  - player: one revealed iron city-center source (native seed 2) with an active swordsman (grant 8),
+ *    a duplicate swordsman in the tail (never reserved) and a completed iron-foundry (no retroactive bill);
+ *  - ai-1: no iron source, but an unexpired purchased iron access entry (old rule) with an active
+ *    swordsman → exactly 10 imported grant units;
+ *  - a second ai-1 city: invested horseman work after its horse access was lost (progress > 0 is the
+ *    only remaining entitlement) with a free warrior behind it.
+ */
+const MATERIAL_RESERVES_V35_CASE: SaveCompatCase = {
+  sourceVersion: 35,
+  label: 'schema 35 — active hard work before reserves existed (native, purchased access, invested after loss)',
+  kind: 'well-formed',
+  focus: ['material reserves', 'one-time migration grant', 'queue head only', 'no retroactive bill'],
+  runRounds: 1,
+  build: () => {
+    const baseline = buildBaselineSave('save-compat-v35');
+    const state = baseline.state;
+    const playerCity = state.cities[baseline.playerCityId];
+    const aiCity = state.cities[baseline.aiCityId];
+    const ironTech = 'bronze-working';
+
+    const reveal = (civId: string): void => {
+      state.civilizations[civId].techState.completed = [
+        ...new Set([...state.civilizations[civId].techState.completed, ironTech]),
+      ];
+    };
+    const stripResource = (civId: string, resource: string): void => {
+      for (const cityId of state.civilizations[civId].cities) {
+        const city = state.cities[cityId];
+        for (const coord of city.ownedTiles) {
+          const tile = state.map.tiles[hexKey(coord)];
+          if (tile?.resource === resource) delete (tile as { resource?: string }).resource;
+        }
+      }
+    };
+
+    // Player: exactly one revealed iron source — the city center.
+    reveal('player');
+    stripResource('player', 'iron');
+    state.map.tiles[hexKey(playerCity.position)].resource = 'iron';
+    playerCity.productionQueue = ['swordsman', 'swordsman'];
+    playerCity.productionProgress = 3;
+    playerCity.buildings = [...playerCity.buildings, 'iron-foundry'];
+
+    // ai-1: old-style purchased access only, no native iron anywhere it owns.
+    reveal('ai-1');
+    state.civilizations['ai-1'].techState.completed = [
+      ...new Set([...state.civilizations['ai-1'].techState.completed, 'animal-husbandry', 'horseback-riding']),
+    ];
+    stripResource('ai-1', 'iron');
+    aiCity.productionQueue = ['swordsman'];
+    aiCity.productionProgress = 0;
+    state.marketplace!.purchasedResources = [
+      { civId: 'ai-1', resource: 'iron', expiresOnTurn: state.turn + 5 },
+    ];
+
+    // A second ai-1 city whose horse source is gone but whose horseman was already under way.
+    const freeTile = Object.values(state.map.tiles).find(tile =>
+      tile.terrain !== 'ocean'
+      && tile.terrain !== 'mountain'
+      && !tile.owner);
+    if (!freeTile) throw new Error('material-reserves fixture: no free land tile for the third city');
+    const thirdCity = foundCity('ai-1', freeTile.coord, state.map, {
+      nextUnitId: 9000, nextCityId: 9000, nextCampId: 9000, nextQuestId: 9000,
+    }, { civType: state.civilizations['ai-1'].civType });
+    state.cities[thirdCity.id] = thirdCity;
+    state.civilizations['ai-1'].cities.push(thirdCity.id);
+    for (const coord of thirdCity.ownedTiles) {
+      const tile = state.map.tiles[hexKey(coord)];
+      if (tile?.resource === 'horses') delete (tile as { resource?: string }).resource;
+    }
+    thirdCity.productionQueue = ['horseman', 'warrior'];
+    thirdCity.productionProgress = 2;
+
+    return downgradeToVersion(state, 35);
+  },
+  afterMigrate: migrated => {
+    const iron = 'resource:iron';
+    const horses = 'resource:horses';
+    const playerLedger = migrated.materialReservesByCiv?.player;
+    if (!playerLedger) throw new Error('migration 36 should have seeded a player reserve ledger');
+    if (playerLedger.balances[iron]?.native !== 2) {
+      throw new Error(`player native iron should be 2 (one source × 2), got ${JSON.stringify(playerLedger.balances[iron])}`);
+    }
+    if (playerLedger.balances[iron]?.imported !== 8) {
+      throw new Error(`player imported grant should be 8 (10 − 2), got ${JSON.stringify(playerLedger.balances[iron])}`);
+    }
+    const playerMaterials = migrated.cities[baselineCityId(migrated, 'player')].productionMaterials;
+    if (playerMaterials?.commitment?.reservationIds.length !== 2) {
+      throw new Error(`player active swordsman should hold exactly its seed + grant reservations, got ${JSON.stringify(playerMaterials?.commitment)}`);
+    }
+
+    const aiCityId = baselineCityId(migrated, 'ai-1');
+    const aiLedger = migrated.materialReservesByCiv?.['ai-1'];
+    if (aiLedger?.balances[iron]?.native !== 0 || aiLedger.balances[iron]?.imported !== 10) {
+      throw new Error(`purchased-access swordsman should be exactly 10 imported iron, got ${JSON.stringify(aiLedger?.balances[iron])}`);
+    }
+    if (migrated.cities[aiCityId].productionMaterials?.commitment?.reservationIds.length !== 1) {
+      throw new Error('purchased-access swordsman should hold exactly one grant reservation');
+    }
+
+    const investedCity = Object.values(migrated.cities).find(city =>
+      city.owner === 'ai-1' && city.productionQueue[0] === 'horseman');
+    if (!investedCity) throw new Error('material-reserves fixture lost the invested horseman city');
+    if (aiLedger?.balances[horses]?.imported !== 10) {
+      throw new Error(`invested horseman after source loss should hold 10 imported horses, got ${JSON.stringify(aiLedger?.balances[horses])}`);
+    }
+    if (investedCity.productionMaterials?.commitment?.reservationIds.length !== 1) {
+      throw new Error('invested horseman should hold exactly one grant reservation (its free warrior tail is not funded)');
+    }
+    if (Object.values(migrated.materialReservesByCiv ?? {}).some(ledger => ledger.incoming.length > 0)) {
+      throw new Error('migration assistance must never create incoming stock');
+    }
+  },
+};
+
+function baselineCityId(state: GameState, owner: string): string {
+  const city = Object.values(state.cities).find(candidate => candidate.owner === owner);
+  if (!city) throw new Error(`no city owned by ${owner}`);
+  return city.id;
+}
+
+/**
  * A genuine archived save — `tests/fixtures/issue-365-crowded-map-save.json`,
  * turn 42, unversioned (schema 0), captured from a real playthrough, not
  * `createNewGame` output. The one case in the matrix whose shape the synthetic
@@ -346,6 +482,7 @@ const HOT_SEAT_CASE: SaveCompatCase = {
 
 export const SAVE_COMPAT_MATRIX: readonly SaveCompatCase[] = [
   ...Array.from({ length: CURRENT_SAVE_SCHEMA_VERSION + 1 }, (_, version) => wellFormedCase(version)),
+  MATERIAL_RESERVES_V35_CASE,
   REAL_ARCHIVED_SAVE_CASE,
   HOT_SEAT_CASE,
   ...MALFORMED_CASES,

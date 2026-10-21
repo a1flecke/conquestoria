@@ -1,5 +1,5 @@
 import type { NotificationCityAction, NotificationLogState } from './notification-log';
-import type { CommercePermissionsState, MaterialCostRow, TradeRouteInterruptionReason, TradeRouteModeId } from './types/commerce';
+import type { CommercePermissionsState, CityProductionMaterials, MaterialCostRow, ReserveLedger, TradeRouteInterruptionReason, TradeRouteModeId } from './types/commerce';
 import type { PirateState } from './pirate-state';
 import type { DominationIntelState } from '@/systems/domination-types';
 import type { GovernancePolicyId } from '@/systems/governance-types';
@@ -1005,6 +1005,8 @@ export interface City {
   legacyResourceGrace?: string[];
   /** One-time save-migration exemption for queued items retimed behind new technologies. */
   legacyTechGrace?: string[];
+  /** #1506 MR09: occurrence identity and the active item's held material commitment. Absent = neutral. */
+  productionMaterials?: CityProductionMaterials;
   ownedTiles: HexCoord[];    // city territory/control, not active citizen assignment
   workedTiles: HexCoord[];
   focus: CityFocus;
@@ -1999,6 +2001,8 @@ export interface GameState extends AiGameState, CouncilGameState, NotificationLo
   marketplace?: MarketplaceState;
   /** #1499 MR02: directional resource-export grants and legacy route allowances. Absent on old saves. */
   commercePermissions?: CommercePermissionsState;
+  /** #1506 MR09: per-civ native/imported reserve ledgers. Absent before the migration; readers treat it as empty. */
+  materialReservesByCiv?: Record<string, ReserveLedger>;
   economyStatusByCiv?: Record<string, EconomyStatus>;
   hotSeat?: HotSeatConfig;
   pendingEvents?: Record<string, GameEvent[]>;

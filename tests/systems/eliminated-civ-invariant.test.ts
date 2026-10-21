@@ -141,6 +141,11 @@ describe('#1001 every teardown area is actually asserted', () => {
       };
     },
     economyStatusByCiv: s => { s.economyStatusByCiv = { 'ai-1': {} as never }; },
+    materialReservesByCiv: s => {
+      s.materialReservesByCiv = {
+        'ai-1': { balances: {}, reservations: [], incoming: [] },
+      };
+    },
     councilMemory: s => { s.councilMemory = { 'ai-1': {} as never }; },
     assessmentDigestByCiv: s => { s.assessmentDigestByCiv = { 'ai-1': { turn: 1, constraints: [], victory: [] } }; },
     activeCrises: s => { s.activeCrises = { c1: { id: 'c1', targetCivId: 'ai-1' } as never }; },

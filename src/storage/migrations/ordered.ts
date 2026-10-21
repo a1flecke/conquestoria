@@ -36,6 +36,7 @@ import { repairCityBombardmentTallies } from './steps/bombardment';
 import { migrateCommercePermissions } from './steps/commerce-permissions';
 import { migrateTradeRouteSettlement } from './steps/trade-route-settlement';
 import { migrateTradeRoutePersistence } from './steps/trade-route-persistence';
+import { migrateMaterialReserves } from './steps/material-reserves';
 
 /**
  * #1023 — the ordered versioned migrations, one per schema step.
@@ -262,6 +263,12 @@ export const ORDERED_MIGRATIONS: readonly OrderedMigration[] = [
     id: 'trade-route-persistence',
     reason: '#1502 MR05 retired the finite trip counter: a route no longer expires, so a save written before it must not keep a dead tripsRemaining value on its units.',
     apply: migrateTradeRoutePersistence,
+  },
+  {
+    version: 36,
+    id: 'material-reserves',
+    reason: '#1506 MR09 activated hard-material production: a save written before it has no reserve ledger, and its legacy-entitled active work must receive one bounded native seed plus finite imported assistance exactly once. The schema guard is what prevents a reload from granting again.',
+    apply: migrateMaterialReserves,
   },
 ];
 
