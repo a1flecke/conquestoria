@@ -19,6 +19,87 @@ export interface MaterialCostRow {
   quantity: number;
 }
 
+/** Native/imported provenance split of stored stock or of a reservation. */
+export interface ReserveBalance {
+  native: number;
+  imported: number;
+}
+
+/** The provenance split a reservation has locked. */
+export interface ReserveAllocation {
+  native: number;
+  imported: number;
+}
+
+/** The production consumer a commitment belongs to (#1506 MR09). */
+export interface ProductionMaterialRef {
+  ownerCivId: string;
+  cityId: string;
+  /** Advances whenever the city's active occurrence changes, including identical adjacent units. */
+  occurrence: number;
+  itemId: string;
+}
+
+export type ReservationReason = 'active-production' | 'migration-grant' | 'protected-reserve';
+
+export interface ReserveReservation {
+  id: string;
+  goodId: TradeGoodId;
+  ownerCivId: string;
+  amount: number;
+  reason: ReservationReason;
+  /** Locked at reservation time: free imported first, then free native. */
+  allocation: ReserveAllocation;
+  /** Required for `active-production` and `migration-grant`. */
+  consumer?: ProductionMaterialRef;
+  /**
+   * The restricted transition-assistance portion of `allocation.imported` (#1506 MR09). Only the
+   * historical migration may create it; it is consumed first and expires on release.
+   */
+  migrationGrantImported?: number;
+}
+
+/** A purchased manifest that will occupy storage on arrival. It is not usable stock yet. */
+export interface IncomingClaim {
+  id: string;
+  goodId: TradeGoodId;
+  ownerCivId: string;
+  amount: number;
+  routeId?: string;
+}
+
+export interface ReserveLedger {
+  balances: Readonly<Record<TradeGoodId, ReserveBalance>>;
+  reservations: readonly ReserveReservation[];
+  incoming: readonly IncomingClaim[];
+  /** #1506 MR09: the turn this civ last accrued native stock; prevents replaying the phase. */
+  lastAccruedTurn?: number;
+}
+
+/** One active production item's snapshot of hard terms and the reservations that hold them. */
+export interface ActiveMaterialCommitment {
+  ref: ProductionMaterialRef;
+  recipe: readonly MaterialCostRow[];
+  reservationIds: readonly string[];
+}
+
+/** Per-city occurrence identity for material commitments (#1506 MR09). */
+export interface CityProductionMaterials {
+  /** Advances for every successful queue edit. */
+  queueRevision: number;
+  /** Advances when the active occurrence changes — not on tail edits. */
+  activeOccurrence: number;
+  commitment: ActiveMaterialCommitment | null;
+}
+
+/**
+ * Neutral bookkeeping for a city that has never held a material commitment. A pure literal with no
+ * imports, so city creation and save migration share one starting state without a core → system edge.
+ */
+export function createNeutralCityProductionMaterials(): CityProductionMaterials {
+  return { queueRevision: 0, activeOccurrence: 0, commitment: null };
+}
+
 /**
  * Persisted commerce state (#1499 MR02, `src/core/types/commerce.ts`).
  *

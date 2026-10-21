@@ -37,6 +37,7 @@ import { placeMinorCivs } from '@/systems/minor-civ-system';
 import { createMinorCivLeagueState } from '@/systems/minor-civ-league-system';
 import { initializeEspionage } from '@/systems/espionage-system';
 import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
+import { initializeMaterialState } from '@/systems/resource-material-state';
 import { createEmptyOpponentAIState, normalizeOpponentAIState } from './opponent-ai-state';
 import { placeCivilizationStarts } from '@/systems/start-placement-system';
 import { selectAIRoster } from '@/systems/ai-roster-selection';
@@ -70,6 +71,9 @@ export const MAP_DIMENSIONS = {
  */
 function canonicalizeCreatedGameState(state: GameState): void {
   state.opponentAI = normalizeOpponentAIState(state).opponentAI;
+  // #1506 MR09: current-schema reserve initialization (bounded native seed, no grants) and neutral
+  // per-city occurrence bookkeeping. Both creation paths call this exactly once.
+  initializeMaterialState(state);
 }
 
 export class GameCreationError extends Error {

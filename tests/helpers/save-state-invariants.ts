@@ -7,6 +7,7 @@ import { getTransportCapacity, getUnitCargoSize, isNavalTransportUnit } from '@/
 import { isBasedAirUnit } from '@/systems/air-base-state';
 import { getAirBaseCapacity, getAirBaseRoster } from '@/systems/air-operations-system';
 import { buildUnitOccupancy } from '@/systems/unit-occupancy';
+import { validateReserveLedger } from '@/systems/resource-reserve-system';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { assertEliminatedCivHasNoLiveEntities, scanOpponentAIPortfolioDanglingUnitRefs } from './eliminated-civ-areas';
 
@@ -799,6 +800,44 @@ export function assertActiveWarHistoryIntegrity(state: GameState): void {
   if (problems.length) throw new InvariantError(`active-war-history invariant violated:\n  - ${problems.join('\n  - ')}`);
 }
 
+/**
+ * #1506 MR09 — a reserve ledger must stay structurally valid, and every city's active commitment must
+ * point at reservations its own owner actually holds. This is what catches a migration that grants to
+ * the wrong occurrence, leaves a dangling reservation id, or lets committed provenance exceed stock.
+ */
+function assertMaterialReserveIntegrity(state: GameState): void {
+  const problems: string[] = [];
+  for (const [civId, ledger] of Object.entries(state.materialReservesByCiv ?? {})) {
+    for (const error of validateReserveLedger(ledger)) problems.push(`civ "${civId}" ledger: ${error}`);
+  }
+  for (const city of Object.values(state.cities)) {
+    const commitment = city.productionMaterials?.commitment;
+    if (!commitment) continue;
+    const ledger = state.materialReservesByCiv?.[city.owner];
+    if (!ledger) {
+      problems.push(`city "${city.id}" holds a material commitment but "${city.owner}" has no ledger`);
+      continue;
+    }
+    if (commitment.ref.cityId !== city.id || commitment.ref.ownerCivId !== city.owner) {
+      problems.push(`city "${city.id}" commitment names ${commitment.ref.cityId}/${commitment.ref.ownerCivId}`);
+    }
+    if (commitment.ref.occurrence !== city.productionMaterials?.activeOccurrence) {
+      problems.push(`city "${city.id}" commitment occurrence ${commitment.ref.occurrence} != active ${city.productionMaterials?.activeOccurrence}`);
+    }
+    for (const reservationId of commitment.reservationIds) {
+      const reservation = ledger.reservations.find(candidate => candidate.id === reservationId);
+      if (!reservation) {
+        problems.push(`city "${city.id}" commitment references missing reservation "${reservationId}"`);
+        continue;
+      }
+      if (reservation.consumer?.cityId !== city.id || reservation.consumer?.occurrence !== commitment.ref.occurrence) {
+        problems.push(`reservation "${reservationId}" does not belong to city "${city.id}" occurrence ${commitment.ref.occurrence}`);
+      }
+    }
+  }
+  if (problems.length > 0) throw new InvariantError(`material-reserves invariant violated:\n  - ${problems.join('\n  - ')}`);
+}
+
 export const SAVE_STATE_INVARIANTS: ReadonlyArray<{ name: string; check: (state: GameState) => void }> = [
   { name: 'bilateral-war', check: assertBilateralWar },
   { name: 'active-war-history', check: assertActiveWarHistoryIntegrity },
@@ -811,6 +850,7 @@ export const SAVE_STATE_INVARIANTS: ReadonlyArray<{ name: string; check: (state:
   { name: 'treaty-reciprocity', check: assertTreatyReciprocity },
   { name: 'national-project-uniqueness', check: assertNationalProjectUniqueness },
   { name: 'marketplace-references', check: assertMarketplaceReferences },
+  { name: 'material-reserves', check: assertMaterialReserveIntegrity },
   { name: 'opponent-ai-portfolio-integrity', check: assertOpponentAIPortfolioIntegrity },
   { name: 'no-eliminated-civ-entities', check: assertNoEliminatedCivEntities },
   { name: 'no-illegal-blocking-occupancy', check: assertNoIllegalBlockingOccupancy },

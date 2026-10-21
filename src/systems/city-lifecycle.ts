@@ -1,4 +1,5 @@
 import type { City, GameMap, GameState, HexCoord } from '@/core/types';
+import { createNeutralCityProductionMaterials } from '@/core/types/commerce';
 import type { IdCounters } from '@/core/types/ids';
 import { hexKey, hexesInRange, hexNeighbors, wrapHexCoord } from './hex-utils';
 import { drawNextCityName, DEFAULT_CITY_NAMES } from './city-name-system';
@@ -52,6 +53,7 @@ export function foundCity(owner: string, position: HexCoord, map: GameMap, count
     buildings: [],
     productionQueue: [],
     productionProgress: options.foundingProductionBonus ?? 0,
+    productionMaterials: createNeutralCityProductionMaterials(),
     ownedTiles,
     workedTiles: [],
     focus: INITIAL_CITY_FOCUS,

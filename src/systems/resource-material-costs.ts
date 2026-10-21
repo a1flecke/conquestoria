@@ -18,6 +18,7 @@ import { TRAINABLE_UNITS } from './city-unit-catalog';
 import {
   consumeStock,
   getFreeQuantity,
+  getReserveBalance,
   releaseStock,
   reserveStock,
   type ProductionMaterialRef,
@@ -259,4 +260,29 @@ export function releaseMaterialRecipeReservations(
     next = result.ledger;
   }
   return { ok: true, ledger: next };
+}
+
+/**
+ * Release one reservation **and extinguish its still-tagged migration grant**.
+ *
+ * `releaseStock` deliberately never changes balances, which is right for ordinary commitments. A
+ * migration grant is different: it is stock that exists only for the occurrence it assisted, so
+ * releasing it must remove the remaining tagged imported units instead of turning them into general
+ * free stock. The ordinary portion of the reservation is only un-reserved, never destroyed.
+ */
+export function releaseMaterialReservation(ledger: ReserveLedger, reservationId: string): ReserveResult {
+  const reservation = ledger.reservations.find(candidate => candidate.id === reservationId);
+  if (!reservation) return { ok: false, ledger, reason: 'unknown-reservation' };
+  const granted = reservation.migrationGrantImported ?? 0;
+  const balance = getReserveBalance(ledger, reservation.goodId);
+  return {
+    ok: true,
+    ledger: {
+      ...ledger,
+      balances: granted > 0
+        ? { ...ledger.balances, [reservation.goodId]: { ...balance, imported: balance.imported - granted } }
+        : ledger.balances,
+      reservations: ledger.reservations.filter(candidate => candidate.id !== reservationId),
+    },
+  };
 }

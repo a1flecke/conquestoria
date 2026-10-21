@@ -244,6 +244,10 @@ export function eliminateCivilization(
       .filter(grant => grant.grantorCivId !== civId && grant.granteeCivId !== civId);
   }
 
+  // #1506 MR09: a dead civ holds no reserve ledger. Deleting it keeps elimination teardown complete
+  // and stops stale stock or migration assistance from ever being inherited by a later owner.
+  delete next.materialReservesByCiv?.[civId];
+
   // #1001 — every remaining per-civ subsystem record. A dead civ runs no
   // economy, autonomy network, advisory council or intel; makes no
   // national-project choice; and holds no in-flight legendary-wonder project or

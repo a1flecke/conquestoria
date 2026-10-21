@@ -319,6 +319,13 @@ export const ELIMINATED_CIV_AREAS: Record<keyof GameState, EliminatedCivArea> = 
       .filter(([id, autonomy]) => isEliminatedId(id, ctx) && Object.keys((autonomy as { plans?: object }).plans ?? {}).length > 0)
       .map(([id]) => `autonomyByCiv still has an active network plan for eliminated civ "${id}"`),
   },
+  materialReservesByCiv: {
+    kind: 'teardown',
+    why: 'a dead civ holds no reserve ledger (#1506 MR09); elimination deletes it so stale stock or migration assistance cannot be inherited',
+    scan: (state, ctx) => Object.keys(state.materialReservesByCiv ?? {})
+      .filter(id => isEliminatedId(id, ctx))
+      .map(id => `materialReservesByCiv still has an entry for eliminated civ "${id}"`),
+  },
   economyStatusByCiv: {
     kind: 'teardown',
     why: 'a dead civ has no economy',
