@@ -1249,7 +1249,7 @@ describe('#1006 assertSaveStateInvariants (aggregate)', () => {
     });
   });
 
-  it('SAVE_STATE_INVARIANTS lists exactly the fourteen documented checks', () => {
+  it('SAVE_STATE_INVARIANTS lists exactly the fifteen documented checks', () => {
     expect(SAVE_STATE_INVARIANTS.map(inv => inv.name).sort()).toEqual([
       'active-war-history',
       'air-base-integrity',
@@ -1258,6 +1258,7 @@ describe('#1006 assertSaveStateInvariants (aggregate)', () => {
       'cargo-reciprocity',
       'city-rosters',
       'marketplace-references',
+      'material-reserves',
       'national-project-uniqueness',
       'no-eliminated-civ-entities',
       'no-illegal-blocking-occupancy',
