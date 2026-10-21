@@ -26,6 +26,7 @@ import { foundReligion } from '@/systems/religion-system';
 import { addWarheadToArsenal } from '@/systems/strategic-arsenal-system';
 import { getLegendaryWonderCityYieldBonus } from '@/systems/legendary-wonder-system';
 import { announceUnitProduction, completeUnitProduction } from '@/systems/unit-production-completion';
+import { beginCityMaterialOccurrence, syncCityMaterialCommitment } from '@/systems/city-production-materials';
 import type { CivTurn, CivIncome } from './types';
 
 interface CityYieldContext {
@@ -279,6 +280,13 @@ export function runCityProduction(
     income.authoritativeCityScience[cityId] = yields.science + result.idleScienceBonus;
 
     newState = applyCityTurnResult(newState, turn, cityId, civEra, result, income, bus);
+
+    // #1506 MR09: a completed head is a real occurrence transition — release its commitment and
+    // fund the promoted head. Any other head change (round normalization) is repaired idempotently.
+    // Material *consumption* on completion arrives with the round-phase activation (task 5).
+    newState = result.completedBuilding || result.completedUnit
+      ? beginCityMaterialOccurrence(newState, cityId)
+      : syncCityMaterialCommitment(newState, cityId);
   }
   return { state: newState, income };
 }

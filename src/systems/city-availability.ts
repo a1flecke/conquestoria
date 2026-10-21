@@ -15,6 +15,8 @@ export function getTrainableUnitsForCiv(
   completedTechs: readonly string[],
   civType?: string,
   availableResources?: ReadonlySet<ResourceType>,
+  /** #1506 MR09: a successor retires an available predecessor only when it can actually be funded. */
+  canFundSuccessor?: (type: UnitType) => boolean,
 ): TrainableUnitEntry[] {
   const replacedForCiv = new Set(
     TRAINABLE_UNITS
@@ -23,7 +25,7 @@ export function getTrainableUnitsForCiv(
   );
   return TRAINABLE_UNITS.filter(u => {
     if (evaluateProductionPrerequisites(u, completedTechs).missing.length > 0) return false;
-    if (isUnitObsolete(u, completedTechs, availableResources)) return false;
+    if (isUnitObsolete(u, completedTechs, availableResources, canFundSuccessor)) return false;
     if (u.civTypeRequired && u.civTypeRequired !== civType) return false;
     if (replacedForCiv.has(u.type)) return false;
     if (availableResources !== undefined && u.resourceRequired?.length) {
@@ -69,6 +71,7 @@ export function isUnitObsolete(
   unit: TrainableUnitEntry,
   completedTechs: readonly string[],
   availableResources?: ReadonlySet<ResourceType>,
+  canFundSuccessor?: (type: UnitType) => boolean,
 ): boolean {
   const techObsolete = (unit.obsoletedByTech !== undefined && completedTechs.includes(unit.obsoletedByTech))
     || (unit.obsoletedWhenAllTechs !== undefined
@@ -85,7 +88,8 @@ export function isUnitObsolete(
       const techOk = evaluateProductionPrerequisites(successor, completedTechs).missing.length === 0;
       const resourceOk = !successor.resourceRequired?.length
         || successor.resourceRequired.every(r => availableResources.has(r));
-      if (techOk && resourceOk) {
+      const fundable = !canFundSuccessor || canFundSuccessor(successor.type);
+      if (techOk && resourceOk && fundable) {
         chainHasBuildableUnit = true;
         break;
       }
@@ -112,9 +116,10 @@ export function getTrainableUnitsForCity(
   civType?: string,
   availableResources?: Set<ResourceType>,
   followsOwnFaith: boolean = false,
+  canFundSuccessor?: (type: UnitType) => boolean,
 ): TrainableUnitEntry[] {
   const coastal = isCityCoastal(city, map);
-  return getTrainableUnitsForCiv(completedTechs, civType, availableResources)
+  return getTrainableUnitsForCiv(completedTechs, civType, availableResources, canFundSuccessor)
     .filter(unit => !unit.coastalRequired || coastal)
     .filter(unit => !unit.trainedFromBuilding || (city.buildings ?? []).includes(unit.trainedFromBuilding))
     .filter(unit => unit.type !== 'missionary' || followsOwnFaith);

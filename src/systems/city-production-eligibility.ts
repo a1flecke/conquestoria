@@ -5,6 +5,8 @@ import { getCivAvailableResources } from '@/systems/resource-acquisition-system'
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { getArsenalStatus } from '@/systems/strategic-arsenal-system';
 import { getCapitalCityId } from '@/systems/capital-system';
+import { evaluateMaterialFunding, getMaterialRecipe } from '@/systems/resource-material-costs';
+import { getCivMaterialLedger } from '@/systems/resource-material-state';
 
 /**
  * What a city may put in its production queue right now (#1220), derived from state in one place.
@@ -31,6 +33,15 @@ export function getQueueableProductionForCity(state: GameState, cityId: string):
 
   const completedTechs = civ.techState.completed ?? [];
   const resources = getCivAvailableResources(state, city.owner);
+  // #1506 MR09: quantity-aware retirement. An available successor only retires its predecessor when
+  // its full hard recipe is actually fundable from *free* stock; one leftover iron cannot hide a
+  // usable predecessor that costs ten.
+  const ledger = getCivMaterialLedger(state, city.owner);
+  const canFundSuccessor = (unitType: string): boolean => {
+    const lookup = getMaterialRecipe(unitType);
+    if (!lookup.known || lookup.recipe.rows.length === 0) return true;
+    return evaluateMaterialFunding(ledger, lookup.recipe).funded;
+  };
   return {
     buildings: getAvailableBuildings(
       city,
@@ -50,6 +61,7 @@ export function getQueueableProductionForCity(state: GameState, cityId: string):
       civ.civType,
       resources,
       cityFollowsOwnFaith(state, city),
+      canFundSuccessor,
     ),
   };
 }
