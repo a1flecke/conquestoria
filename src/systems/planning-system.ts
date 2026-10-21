@@ -12,6 +12,7 @@ import { getCivAvailableResources } from '@/systems/resource-acquisition-system'
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { getArsenalStatus } from '@/systems/strategic-arsenal-system';
 import { getCapitalCityId } from '@/systems/capital-system';
+import { advanceCityMaterialRevision, beginCityMaterialOccurrence } from './city-production-materials';
 
 const MAX_CITY_QUEUE_ITEMS = 4;
 const MAX_RESEARCH_QUEUE_ITEMS = 3;
@@ -70,16 +71,20 @@ export function enqueueCityProduction(state: GameState, cityId: string, itemId: 
 
   if (city.productionQueue.length >= MAX_CITY_QUEUE_ITEMS) return refuse('queue-full');
 
-  return {
-    ok: true,
-    state: {
-      ...state,
-      cities: {
-        ...state.cities,
-        [cityId]: { ...city, productionQueue: [...city.productionQueue, itemId] },
-      },
+  // #1506 MR09: a legally plannable item always enqueues. Funding is attempted only when this item
+  // becomes the active occurrence; a refusal is the `Waiting for materials` projection, never an
+  // enqueue denial. A successful edit advances the revision even when it only appends to the tail.
+  const becomesActive = city.productionQueue.length === 0;
+  let next: GameState = {
+    ...state,
+    cities: {
+      ...state.cities,
+      [cityId]: { ...city, productionQueue: [...city.productionQueue, itemId] },
     },
   };
+  next = advanceCityMaterialRevision(next, cityId);
+  if (becomesActive) next = beginCityMaterialOccurrence(next, cityId);
+  return { ok: true, state: next };
 }
 
 export function moveQueuedId<T>(items: T[], fromIndex: number, toIndex: number): T[] {
@@ -155,6 +160,87 @@ export function removeCityProductionItem(city: City, index: number): City {
 
 export function removeQueuedId<T>(items: T[], index: number): T[] {
   return items.filter((_, currentIndex) => currentIndex !== index);
+}
+
+/** Why a state-aware queue edit did nothing. A denial never mutates state. */
+export type QueueCommandDenialReason = 'city-not-found' | 'invalid-index' | 'stale-revision';
+
+export const QUEUE_COMMAND_DENIAL_MESSAGES: Record<QueueCommandDenialReason, string> = {
+  'city-not-found': 'That city is no longer available.',
+  'invalid-index': 'That queue item is no longer there.',
+  'stale-revision': 'The build queue changed. Try again.',
+};
+
+export type QueueCommandResult =
+  | { ok: true; state: GameState }
+  | { ok: false; state: GameState; reason: QueueCommandDenialReason };
+
+function queueCommandContext(
+  state: GameState,
+  cityId: string,
+  expectedRevision: number,
+): { city: City; materialsRevision: number } | QueueCommandDenialReason {
+  const city = state.cities[cityId];
+  if (!city || !state.civilizations[city.owner]) return 'city-not-found';
+  const materialsRevision = city.productionMaterials?.queueRevision ?? 0;
+  if (expectedRevision !== materialsRevision) return 'stale-revision';
+  return { city, materialsRevision };
+}
+
+/**
+ * #1506 MR09 — state-aware reorder. A stale revision or an out-of-range index is a typed no-op (it
+ * never advances the revision or clears progress). A move that changes the head releases the old
+ * occurrence, advances the occurrence token and funds the new head; a tail-only move keeps the
+ * existing commitment and reservation ids.
+ */
+export function reorderCityProductionCommand(
+  state: GameState,
+  cityId: string,
+  fromIndex: number,
+  toIndex: number,
+  expectedRevision: number,
+): QueueCommandResult {
+  const context = queueCommandContext(state, cityId, expectedRevision);
+  if (typeof context === 'string') return { ok: false, state, reason: context };
+  const { city } = context;
+  const length = city.productionQueue.length;
+  if (fromIndex < 0 || toIndex < 0 || fromIndex >= length || toIndex >= length) {
+    return { ok: false, state, reason: 'invalid-index' };
+  }
+  if (fromIndex === toIndex) return { ok: true, state };
+
+  const headTransition = fromIndex === 0 || toIndex === 0;
+  let next: GameState = {
+    ...state,
+    cities: { ...state.cities, [cityId]: reorderCityProduction(city, fromIndex, toIndex) },
+  };
+  next = advanceCityMaterialRevision(next, cityId);
+  if (headTransition) next = beginCityMaterialOccurrence(next, cityId);
+  return { ok: true, state: next };
+}
+
+/** #1506 MR09 — state-aware remove, with the same revision and head-transition rules as reorder. */
+export function removeCityProductionCommand(
+  state: GameState,
+  cityId: string,
+  index: number,
+  expectedRevision: number,
+): QueueCommandResult {
+  const context = queueCommandContext(state, cityId, expectedRevision);
+  if (typeof context === 'string') return { ok: false, state, reason: context };
+  const { city } = context;
+  if (index < 0 || index >= city.productionQueue.length) {
+    return { ok: false, state, reason: 'invalid-index' };
+  }
+
+  const headTransition = index === 0;
+  let next: GameState = {
+    ...state,
+    cities: { ...state.cities, [cityId]: removeCityProductionItem(city, index) },
+  };
+  next = advanceCityMaterialRevision(next, cityId);
+  if (headTransition) next = beginCityMaterialOccurrence(next, cityId);
+  return { ok: true, state: next };
 }
 
 export function enqueueResearch(state: TechState, techId: string): TechState {

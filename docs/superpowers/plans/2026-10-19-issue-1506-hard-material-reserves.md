@@ -350,11 +350,11 @@ Expected: schema and registry agree; every new persisted path is represented by 
 
 **Create:** `city-production-materials.ts`. **Modify:** planning-system, production eligibility/availability, controller calls and any existing tests using changed queue signatures.
 
-- [ ] Implement a state adapter that resolves city.owner, ensures a valid active reference, preserves an unchanged commitment, releases an old occurrence, and atomically reserves the new active recipe or returns waiting. Never partially reserve.
-- [ ] Add state-aware reorder/remove commands and typed invalid-index/stale-revision denials; route real controller callers through them. Keep pure array/consequence helpers for previews if useful, but do not expose an unpaid state-changing route to UI.
-- [ ] Bind occurrence changes to actual head-occurrence transitions, including identical adjacent units. A tail move must not release/refund/re-reserve the head. Invalid indices are true no-ops, not a way to advance revisions or clear progress.
-- [ ] Change enqueue and browse eligibility to permit material planning, retaining every existing nonmaterial gate. Funding denial is not an `enqueueRefused` drift if the item is legally plannable; it is successful enqueue with an explicit waiting projection.
-- [ ] Implement quantity-aware obsolescence; preserve already valid active work, and keep no-stock predecessors/fallbacks usable.
+- [x] Implement a state adapter that resolves city.owner, ensures a valid active reference, preserves an unchanged commitment, releases an old occurrence, and atomically reserves the new active recipe or returns waiting. Never partially reserve.
+- [x] Add state-aware reorder/remove commands and typed invalid-index/stale-revision denials; route real controller callers through them. Keep pure array/consequence helpers for previews if useful, but do not expose an unpaid state-changing route to UI.
+- [x] Bind occurrence changes to actual head-occurrence transitions, including identical adjacent units. A tail move must not release/refund/re-reserve the head. Invalid indices are true no-ops, not a way to advance revisions or clear progress.
+- [x] Change enqueue and browse eligibility to permit material planning, retaining every existing nonmaterial gate. Funding denial is not an `enqueueRefused` drift if the item is legally plannable; it is successful enqueue with an explicit waiting projection.
+- [x] Implement quantity-aware obsolescence; preserve already valid active work, and keep no-stock predecessors/fallbacks usable.
 
 Public-path regression: alpha owns cities A and B, free iron 10, techs make `swordsman` legal. Enqueue swordsman in A → stored 10/committed 10/free 0; enqueue it in B → B waits, total committed stays 10. Add an A follow-up → no new commitment. Remove A head → released stock is immediately available and the edited/new active row is recomputed; retry B through the shared owner → one funded head, never two. Assert input state immutable.
 

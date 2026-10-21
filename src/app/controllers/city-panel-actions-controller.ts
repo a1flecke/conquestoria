@@ -28,7 +28,7 @@ import { renderUnitStackPanel } from '@/ui/unit-stack-panel';
 import { initializeLegendaryWonderProjectsForCity, startLegendaryWonderBuild } from '@/systems/legendary-wonder-system';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
 import { getProductionDisplayName } from '@/systems/city-production-presentation';
-import { ENQUEUE_DENIAL_MESSAGES, enqueueCityProduction, removeCityProductionItem, reorderCityProduction, setIdleProduction } from '@/systems/planning-system';
+import { ENQUEUE_DENIAL_MESSAGES, enqueueCityProduction, removeCityProductionCommand, reorderCityProductionCommand, QUEUE_COMMAND_DENIAL_MESSAGES, setIdleProduction } from '@/systems/planning-system';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { chooseCircularManufacturingMaterial } from '@/systems/national-project-system';
 import { rushBuyActiveProduction } from '@/systems/rush-buy-system';
@@ -282,16 +282,38 @@ export function createCityPanelActionsController(
       onMoveQueueItem: (cityId, fromIndex, toIndex) => {
         const targetCity = deps.session.getState().cities[cityId];
         if (!targetCity) return;
-        deps.session.commit({ ...deps.session.getState(), cities: { ...deps.session.getState().cities, [cityId]: reorderCityProduction(targetCity, fromIndex, toIndex) } });
+        const result = reorderCityProductionCommand(
+          deps.session.getState(),
+          cityId,
+          fromIndex,
+          toIndex,
+          targetCity.productionMaterials?.queueRevision ?? 0,
+        );
+        if (!result.ok) {
+          if (result.reason !== 'city-not-found') {
+            deps.showNotification(QUEUE_COMMAND_DENIAL_MESSAGES[result.reason], 'warning');
+          }
+          return deps.session.getState();
+        }
+        deps.session.commit(result.state);
         return deps.session.getState();
       },
       onRemoveQueueItem: (cityId, index) => {
         const targetCity = deps.session.getState().cities[cityId];
         if (!targetCity) return;
-        deps.session.commit({
-          ...deps.session.getState(),
-          cities: { ...deps.session.getState().cities, [cityId]: removeCityProductionItem(targetCity, index) },
-        });
+        const result = removeCityProductionCommand(
+          deps.session.getState(),
+          cityId,
+          index,
+          targetCity.productionMaterials?.queueRevision ?? 0,
+        );
+        if (!result.ok) {
+          if (result.reason !== 'city-not-found') {
+            deps.showNotification(QUEUE_COMMAND_DENIAL_MESSAGES[result.reason], 'warning');
+          }
+          return deps.session.getState();
+        }
+        deps.session.commit(result.state);
         return deps.session.getState();
       },
       onOpenWonderPanel: (selectedCityId) => {
