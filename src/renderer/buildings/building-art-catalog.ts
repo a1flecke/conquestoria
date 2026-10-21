@@ -46,6 +46,7 @@ export const BUILDING_ART: Readonly<Record<string, BuildingArtEntry>> = {
   forge: { bannerX: 14, bannerY: 127 },
   'iron-foundry': { bannerX: 14, bannerY: 112 },
   barracks: { bannerX: 14, bannerY: 100 },
+  stable: { bannerX: 14, bannerY: 101 },
 };
 
 export const BUILDING_ART_IDS: readonly string[] = Object.keys(BUILDING_ART);
