@@ -154,6 +154,7 @@ function fundOccurrence(
 
     const deficit = row.quantity - ordinary;
     if (deficit > 0) {
+      const beforeGrant = next;
       const balance = getReserveBalance(next, row.goodId);
       next = {
         ...next,
@@ -172,6 +173,9 @@ function fundOccurrence(
       if (reserved.ok) {
         next = reserved.ledger;
         reservationIds.push(reservationId);
+      } else {
+        // Never leave untagged imported stock behind: assistance exists only while reserved.
+        next = beforeGrant;
       }
     }
   }
