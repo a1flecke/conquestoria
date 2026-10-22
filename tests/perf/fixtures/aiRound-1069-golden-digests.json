@@ -1,7 +1,7 @@
 {
   "e1": {
     "state": {
-      "__whole": "2d1ce4b50241",
+      "__whole": "9daebe6c699a",
       "autonomyByCiv": "95313c912b48",
       "barbarianCampPressure": "44136fa355b3",
       "barbarianCamps": "c9c75b490ac4",
@@ -40,7 +40,7 @@
       "nationalProjectChoices": "44136fa355b3",
       "networkCivicPressureByCity": "44136fa355b3",
       "notificationLog": "44136fa355b3",
-      "opponentAI": "50c24931ac4c",
+      "opponentAI": "e9d569e2e82b",
       "opponentChallenge": "cb2842d6687d",
       "pendingDiplomacyRequests": "2d1a2d254e44",
       "pendingEvents": "44136fa355b3",
@@ -66,12 +66,12 @@
   },
   "e2": {
     "state": {
-      "__whole": "02bc76feb5e6",
+      "__whole": "9c430f0b0ce4",
       "autonomyByCiv": "95313c912b48",
       "barbarianCampPressure": "44136fa355b3",
       "barbarianCamps": "5148e5b9b58d",
       "beasts": "59b9eb6fa030",
-      "cities": "8d86b2a95dca",
+      "cities": "a47e4316f772",
       "cityFaith": "44136fa355b3",
       "civilizations": "0cc6986a66ba",
       "commercePermissions": "b053f8ba4051",
@@ -105,7 +105,7 @@
       "nationalProjectChoices": "44136fa355b3",
       "networkCivicPressureByCity": "44136fa355b3",
       "notificationLog": "44136fa355b3",
-      "opponentAI": "1e0da9541043",
+      "opponentAI": "a314db548591",
       "opponentChallenge": "cb2842d6687d",
       "pendingDiplomacyRequests": "568127f85a18",
       "pendingEvents": "44136fa355b3",
