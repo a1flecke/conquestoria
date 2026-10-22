@@ -83,15 +83,17 @@ describe('AI production continuity evidence (synthetic controls)', () => {
 });
 
 describe('AI production continuity evidence (real bounded campaign)', () => {
-  it('measures the fixed-seed campaign, and the fallback actually engages', () => {
+  it('measures the fixed-seed campaign without a fallback-only stall', () => {
     const first = summarizeProductionContinuity(runContinuityCampaign());
     expect(first.length).toBeGreaterThan(0);
-    expect(first.reduce((sum, e) => sum + e.convertingCityRounds, 0)).toBeGreaterThan(0);
+    // #1506 MR09: hard-material gating changes which fallback a city reaches (waiting vs idle
+    // conversion); this bounded campaign now keeps a buildable queue throughout, so neither fallback
+    // is guaranteed to appear here. Their semantics stay covered by the focused fixtures above.
     // A 60-round small-map campaign is far too short to prove anything about a 200-500 round game, but it must at
     // least not contain a stall.
     expect(first.filter(e => e.classification === 'stalled-fallback-only')).toEqual([]);
     if (process.env.CONTINUITY_REPORT === '1') {
-      throw new Error(`\n${formatContinuityReport('with idle fallback', first)}`);
+      throw new Error(`\n${formatContinuityReport('with material waiting', first)}`);
     }
   }, 60_000);
 });
@@ -175,18 +177,15 @@ describe('shared continuity semantics (#1407 phase 2)', () => {
 });
 
 describe('exact production accounting on the baseline campaign (#1407 phase 3)', () => {
-  it('every sampled civ carries conserved accounting and conversion is real', () => {
+  it('every sampled civ carries conserved accounting', () => {
     const samples = runContinuityCampaign();
-    let converted = 0;
     for (const sample of samples) {
       for (const civ of sample.civs) {
         expect(civ.production).toBeDefined();
         const p = civ.production!;
         expect(p.appliedToBuild + p.carriedOver + p.convertedGold + p.convertedScience + p.discarded).toBeCloseTo(p.produced, 9);
         expect(p.discarded).toBeGreaterThanOrEqual(0);
-        converted += p.convertedGold + p.convertedScience;
       }
     }
-    expect(converted).toBeGreaterThan(0);
   }, 60_000);
 });

@@ -33,10 +33,12 @@ export interface CampaignProductionAccounting {
   convertedScience: number;
   discarded: number;
   suppressedByLock: number;
+  /** #1506 MR09: active production was waiting for its hard recipe this round. */
+  withheldByMaterials: boolean;
 }
 
 export function emptyProductionAccounting(): CampaignProductionAccounting {
-  return { produced: 0, appliedToBuild: 0, carriedOver: 0, convertedGold: 0, convertedScience: 0, discarded: 0, suppressedByLock: 0 };
+  return { produced: 0, appliedToBuild: 0, carriedOver: 0, convertedGold: 0, convertedScience: 0, discarded: 0, suppressedByLock: 0, withheldByMaterials: false };
 }
 
 /** Cumulative, per-civ counters the fixture accrues from the round's event bus. */
