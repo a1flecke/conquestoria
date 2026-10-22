@@ -864,7 +864,10 @@ describe('#919 MR2 — unrest pressure lifts magistracy in AI research planning'
     // correctly addresses total science absence alongside unrest, rather than the
     // pre-#1127 world where magistracy always won outright by turn 3 regardless of
     // how science-starved the empire also was.
-    expect(firstMagistracyTurn(buildEmpire(15, 'mr2-research-wide'))).toBeLessThanOrEqual(6);
+    // #1506 MR09: hard-material recipes now gate early production, so the same empire reaches its
+    // science infrastructure a little later in absolute turns. The signal is unchanged: the wide
+    // empire still beelines magistracy early, far ahead of the unbounded tall/war controls below.
+    expect(firstMagistracyTurn(buildEmpire(15, 'mr2-research-wide'))).toBeLessThanOrEqual(8);
     // 3 clustered cities, no wars -> no overextension / distance row -> count 0 -> no bonus.
     // It must not match the wide empire's early beeline; later generic selection remains valid.
     expect(firstMagistracyTurn(buildEmpire(3, 'mr2-research-tall'))).toBeGreaterThan(3);

@@ -25,6 +25,7 @@ import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { canCompleteAirUnitProduction, getAirBaseRoster } from '@/systems/air-operations-system';
 import { enqueueCityProduction, setIdleProduction } from '@/systems/planning-system';
+import { getQueueableProductionForCity } from '@/systems/city-production-eligibility';
 import { getAvailableTechs } from '@/systems/tech-system';
 import { getReservedNationalProjectKeys } from '@/systems/national-project-system';
 import { getArsenalStatus } from '@/systems/strategic-arsenal-system';
@@ -761,13 +762,23 @@ export function generateAIProductionCandidates(
   demands: readonly AIForceDemand[],
   personality: PersonalityTraits,
 ): AIProductionCandidate[] {
-  return generateWithResidual(
+  const candidates = generateWithResidual(
     state,
     civId,
     cityId,
     residualDemands(state, civId, demands),
     personality,
   );
+  // #1506 MR09: "build now" consumes the same offered/fundable surface the queue accepts. The AI does
+  // not yet buy materials or plan around a waiting head — that is the procurement policy slice — so
+  // proposing an item it cannot enqueue would only stall a city.
+  const offered = getQueueableProductionForCity(state, cityId);
+  if (!offered) return candidates;
+  const allowed = new Set<string>([
+    ...offered.buildings.map(building => building.id),
+    ...offered.units.map(unit => unit.type),
+  ]);
+  return candidates.filter(candidate => allowed.has(candidate.itemId));
 }
 
 export type AIIdleProductionMode = 'gold' | 'science';

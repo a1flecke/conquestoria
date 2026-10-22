@@ -64,6 +64,8 @@ export interface CivContinuityEvidence {
   rounds: number;
   wastedCityRounds: number;
   convertingCityRounds: number;
+  /** Round ends where this civ's active production was waiting for materials (#1506 MR09). */
+  waitedOnMaterials: number;
   resumeEvents: number;
   fallbackOnlyRounds: number;
   /** Round ends where some empty cities convert and others do not (not fallback-only). */
@@ -107,6 +109,7 @@ export function summarizeProductionContinuity(
   return ids.map(civId => {
     let wasted = 0;
     let converting = 0;
+    let waited = 0;
     let resumes = 0;
     let fallbackOnly = 0;
     let mixed = 0;
@@ -147,6 +150,7 @@ export function summarizeProductionContinuity(
       }
       const empty = new Set(row.emptyQueueCityIds);
       const conv = new Set(row.convertingCityIds);
+      if (row.production?.withheldByMaterials) waited += 1;
       for (const id of empty) {
         if (conv.has(id)) converting += 1;
         else if (previousEmpty.has(id) && !previousConverting.has(id)) wasted += 1;
@@ -179,6 +183,7 @@ export function summarizeProductionContinuity(
       rounds: samples.length,
       wastedCityRounds: wasted,
       convertingCityRounds: converting,
+      waitedOnMaterials: waited,
       resumeEvents: resumes,
       fallbackOnlyRounds: fallbackOnly,
       mixedRounds: mixed,

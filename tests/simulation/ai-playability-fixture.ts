@@ -508,6 +508,7 @@ export function runAICampaign(options: AICampaignOptions): AICampaignResult {
       acc.convertedScience += event.convertedScience;
       acc.discarded += event.discarded;
       acc.suppressedByLock += event.suppressedByLock;
+      if (event.withheldByMaterials) acc.withheldByMaterials = true;
     });
     bus.on('city:captured', event => {
       metrics.cityCaptures += 1;

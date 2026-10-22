@@ -1,4 +1,4 @@
-import type { Building, GameState, TrainableUnitEntry } from '@/core/types';
+import type { Building, GameState, TrainableUnitEntry, ResourceType } from '@/core/types';
 import { getAvailableBuildings, getTrainableUnitsForCity, cityFollowsOwnFaith } from '@/systems/city-availability';
 import { getReservedNationalProjectKeys } from '@/systems/national-project-system';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
@@ -42,6 +42,12 @@ export function getQueueableProductionForCity(state: GameState, cityId: string):
     if (!lookup.known || lookup.recipe.rows.length === 0) return true;
     return evaluateMaterialFunding(ledger, lookup.recipe).funded;
   };
+  // #1506 MR09: the definition-level availability above is material-aware (a hard requirement is
+  // no longer an access gate). This *browse/AI* surface still lists only items whose requirements
+  // are currently accessible; the explicit "waiting for materials" row arrives with the supplies UI
+  // (task 8). A queue that already holds a material-short item keeps waiting instead of dropping it.
+  const accessible = (resourceRequired?: readonly ResourceType[]): boolean =>
+    !resourceRequired?.length || resourceRequired.every(resource => resources.has(resource));
   return {
     buildings: getAvailableBuildings(
       city,
@@ -53,7 +59,7 @@ export function getQueueableProductionForCity(state: GameState, cityId: string):
       city.owner,
       getArsenalStatus(state, city.owner),
       getCapitalCityId(state, city.owner),
-    ),
+    ).filter(building => accessible(building.resourceRequired)),
     units: getTrainableUnitsForCity(
       city,
       completedTechs,
@@ -62,6 +68,6 @@ export function getQueueableProductionForCity(state: GameState, cityId: string):
       resources,
       cityFollowsOwnFaith(state, city),
       canFundSuccessor,
-    ),
+    ).filter(unit => accessible(unit.resourceRequired)),
   };
 }
