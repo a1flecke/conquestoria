@@ -2228,6 +2228,17 @@ describe('journey automation', () => {
       ...(state.marketplace ?? { prices: {}, priceHistory: {}, fashionable: null, fashionTurnsLeft: 0, tradeRoutes: [] }),
       purchasedResources: [{ civId, resource: 'uranium', expiresOnTurn: state.turn + 10 }],
     };
+    // #1506 MR09: a warhead now carries a hard uranium recipe. Give the civ the stock so the
+    // commerce-resources phase can fund the active occurrence and completion can spend it.
+    state.materialReservesByCiv = {
+      ...(state.materialReservesByCiv ?? {}),
+      [civId]: {
+        balances: { 'resource:uranium': { native: 10, imported: 0 } },
+        reservations: [],
+        incoming: [],
+        lastAccruedTurn: -1,
+      },
+    };
     state.units = {};
     state.barbarianCamps = {};
 

@@ -32,6 +32,12 @@ export interface ProductionDisposition {
   convertedGold: number;
   convertedScience: number;
   discarded: number;
+  /**
+   * #1506 MR09: the active hard recipe was not fully held, so this round's output was withheld —
+   * it is counted in `discarded` and never applied, carried or converted. A separate reason flag so
+   * the projection can say *why* without changing the conservation equation.
+   */
+  withheldByMaterials: boolean;
 }
 
 export interface CityProcessResult {
@@ -145,6 +151,8 @@ export function processCity(
   civType?: string,
   builtNationalProjectKeys?: Set<string>,
   unitCompletionBlocker?: (type: UnitType) => ProductionDropReason | null,
+  /** #1506 MR09: whether the active item's full hard recipe is held. `true` preserves the old behavior. */
+  materialReady = true,
 ): CityProcessResult {
   const { era, completedTechs, availableResources } = productionCost;
   let grew = false;
@@ -200,12 +208,6 @@ export function processCity(
           droppedProductionItems.push({ itemId: item, itemKind: 'building', reason: 'no-longer-available' });
           return false;
         }
-        if (building?.resourceRequired?.length && availableResources !== undefined && !legacyResourceGrace.has(item)) {
-          if (!building.resourceRequired.every(r => availableResources!.has(r))) {
-            droppedProductionItems.push({ itemId: item, itemKind: 'building', reason: 'resource-lost' });
-            return false;
-          }
-        }
         return true;
       }
       const unit = TRAINABLE_UNITS.find(candidate => candidate.type === item);
@@ -217,24 +219,13 @@ export function processCity(
         }
         // Within one continuous session, a validly-queued unit's techRequired/civTypeRequired
         // can never later become false (completedTechs never shrinks; civType never changes) —
-        // the only two dynamic reasons it can stop being trainable are obsoletedByTech firing or
-        // a resource becoming unavailable. Check obsoleted first to match the building branch's
-        // precedence above; both conditions can be true in the same turn (e.g. a tech completes
-        // the same turn a resource is lost), so this order is the deterministic tie-breaker, not
-        // a guess. A loaded save, however, can already hold a queue item that predates a
-        // tech-tree rebalance — its techRequired can be unmet with neither of the two dynamic
-        // reasons applying (see the musketeer save-compat test above) — so a third, honest
-        // fallback reason covers that residual case instead of misreporting it as resource-lost.
+        // the only remaining dynamic reason it can stop being trainable is obsoletedByTech firing.
+        // A loaded save, however, can already hold a queue item that predates a tech-tree rebalance —
+        // its techRequired can be unmet with no dynamic reason applying (see the musketeer save-compat
+        // test above) — so the honest fallback covers that residual case. Hard material access is no
+        // longer a dequeue reason (#1506 MR09): unfunded work waits with its progress intact.
         const obsoleted = isUnitObsolete(unit, completedTechs, availableResources);
-        const resourceLost = !legacyResourceGrace.has(unit.type)
-          && (unit.resourceRequired?.length ?? 0) > 0
-          && availableResources !== undefined
-          && !unit.resourceRequired!.every(r => availableResources.has(r));
-        const reason: ProductionDropReason = obsoleted
-          ? 'obsoleted'
-          : resourceLost
-            ? 'resource-lost'
-            : 'no-longer-available';
+        const reason: ProductionDropReason = obsoleted ? 'obsoleted' : 'no-longer-available';
         droppedProductionItems.push({ itemId: unit.type, itemKind: 'unit', reason });
         return false;
       }
@@ -323,7 +314,13 @@ export function processCity(
   let appliedToBuild = 0;
   let carriedOver = 0;
   let overflowDiscarded = 0;
-  if (newQueue.length > 0) {
+  let withheldByMaterials = false;
+  if (newQueue.length > 0 && !materialReady) {
+    // Waiting for materials keeps the item, its queue position and its stored progress. This round's
+    // output reaches no sink: it is withheld (the conservation equation's `discarded`), never applied,
+    // carried over or converted. Growth and every non-production yield already ran above.
+    withheldByMaterials = true;
+  } else if (newQueue.length > 0) {
     newProgress += productionYield;
     appliedToBuild = productionYield;
     const currentItem = newQueue[0];
@@ -375,6 +372,7 @@ export function processCity(
     convertedGold: idleGoldBonus,
     convertedScience: idleScienceBonus,
     discarded: overflowDiscarded + Math.max(0, unsunk),
+    withheldByMaterials,
   };
 
   let nextCity: City = {

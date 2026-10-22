@@ -25,7 +25,7 @@ import {
   resourceGoodId,
 } from './trade-good-definitions';
 import { listResourceSources } from './resource-source-eligibility';
-import { accrueNativeStock, createEmptyReserveLedger } from './resource-reserve-system';
+import { accrueNativeStock, createEmptyReserveLedger, getStorageHeadroom } from './resource-reserve-system';
 
 /** A ledger that has never accrued. The new phase advances this exactly once per completed round. */
 export const NO_MATERIAL_ACCRUAL_TURN = -1;
@@ -98,4 +98,43 @@ export function initializeMaterialState(state: GameState): void {
  */
 export function getCivMaterialLedger(state: GameState, civId: string): ReserveLedger {
   return state.materialReservesByCiv?.[civId] ?? createEmptyReserveLedger();
+}
+
+/**
+ * #1506 MR09 task 5 — one completed round of native extraction for one living civ.
+ *
+ * Revealed, usable, deduplicated sources only (the shared predicate), `min(headroom, sources × rate)` per
+ * quantitative good. Headroom subtracts stored **and incoming claims**, so a bought manifest's reserved
+ * space cannot be filled by domestic extraction. Already-owned overflow is retained and accrues nothing
+ * until there is room. `lastAccruedTurn` is written in the same transition, making a repeat entry in the
+ * same round a no-op; a later completed round accrues exactly once.
+ */
+export function accrueNativeStockForCompletedRound(
+  state: GameState,
+  civId: string,
+  turn: number,
+): GameState {
+  const civ = state.civilizations[civId];
+  if (!civ || civ.isEliminated) return state;
+  const ledger = getCivMaterialLedger(state, civId);
+  if (ledger.lastAccruedTurn === turn) return state;
+
+  let next = ledger;
+  for (const [goodId, sources] of Object.entries(countNativeSourcesByGood(state, civId))) {
+    const profile = findTradeGood(goodId)?.quantity;
+    const capacity = profile?.storageCapacity ?? DEFAULT_STORAGE_PER_GOOD;
+    const perSource = profile?.nativePerSourcePerRound ?? DEFAULT_NATIVE_PER_SOURCE_PER_ROUND;
+    const amount = Math.min(getStorageHeadroom(next, goodId, capacity), sources * perSource);
+    if (amount <= 0) continue;
+    const accrued = accrueNativeStock(next, goodId, amount);
+    if (accrued.ok) next = accrued.ledger;
+  }
+
+  return {
+    ...state,
+    materialReservesByCiv: {
+      ...(state.materialReservesByCiv ?? {}),
+      [civId]: { ...next, lastAccruedTurn: turn },
+    },
+  };
 }
