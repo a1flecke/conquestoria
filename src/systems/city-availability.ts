@@ -28,9 +28,8 @@ export function getTrainableUnitsForCiv(
     if (isUnitObsolete(u, completedTechs, availableResources, canFundSuccessor)) return false;
     if (u.civTypeRequired && u.civTypeRequired !== civType) return false;
     if (replacedForCiv.has(u.type)) return false;
-    if (availableResources !== undefined && u.resourceRequired?.length) {
-      if (!u.resourceRequired.every(r => availableResources.has(r))) return false;
-    }
+    // #1506 MR09: a hard requirement is funded from stock, not gated by resource *access*. The
+    // availability query keeps nonmaterial gates only; material planning is legal while it waits.
     return true;
   });
 }
@@ -137,7 +136,7 @@ export function getAvailableBuildings(
   city: City,
   completedTechs: string[],
   map: GameMap,
-  availableResources?: Set<ResourceType>,
+  _availableResources?: Set<ResourceType>,
   /** The acting civilization's own era. Never World Age (`state.era`). */
   era?: CivilizationEra,
   builtNationalProjectKeys?: Set<string>,
@@ -156,9 +155,7 @@ export function getAvailableBuildings(
     if (evaluateProductionPrerequisites(b, completedTechs).missing.length > 0) return false;
     if (isBuildingObsolete(b, completedTechs)) return false;
     if (b.coastalRequired && !coastal) return false;
-    if (availableResources !== undefined && b.resourceRequired?.length) {
-      if (!b.resourceRequired.every(r => availableResources.has(r))) return false;
-    }
+    // #1506 MR09: hard material requirements are funded from stock, not gated by access.
     if (b.requiresBuildings?.length) {
       if (!b.requiresBuildings.every((req: string) => city.buildings.includes(req))) return false;
     }

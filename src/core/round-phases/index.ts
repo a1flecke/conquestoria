@@ -2,6 +2,7 @@ import type { RoundPhase } from './types';
 import { preludePhase } from './prelude';
 import { instabilityPhase } from './instability';
 import { preCivReconciliationPhase } from './pre-civ-reconciliation';
+import { commerceResourcesPhase } from './commerce-resources';
 import { perCivPhase } from './per-civ';
 import { postCivHousekeepingPhase } from './post-civ-housekeeping';
 import { territoryFrontierPhase } from './territory-frontier';
@@ -43,6 +44,7 @@ export const ROUND_PHASES: readonly RoundPhase[] = [
   preludePhase,
   instabilityPhase,
   preCivReconciliationPhase,
+  commerceResourcesPhase,
   perCivPhase,
   postCivHousekeepingPhase,
   territoryFrontierPhase,

@@ -1059,7 +1059,7 @@ describe('processCity', () => {
     expect(result.city.productionQueue).toContain('stealth_bomber');
   });
 
-  it('processCity records unavailable resource-gated units without reporting them as coastal drops', () => {
+  it('keeps a resource-gated unit waiting instead of dequeuing it (#1506 MR09)', () => {
     const map = generateMap(30, 30, 'resource-unit-drop-test');
     const city = { ...foundCity('p1', { q: 2, r: 2 }, map, mkC()), productionQueue: ['swordsman'], productionProgress: 40 };
 
@@ -1069,10 +1069,16 @@ describe('processCity', () => {
       2,
       100,
       createProductionCostContext({ era: civilizationEraFromNumber(1), completedTechs: ['bronze-working'], availableResources: new Set() }),
+      undefined,
+      undefined,
+      undefined,
+      false,
     );
 
-    expect(result.droppedProductionItems).toEqual([{ itemId: 'swordsman', itemKind: 'unit', reason: 'resource-lost' }]);
-    expect(result.city.productionQueue).not.toContain('swordsman');
+    expect(result.droppedProductionItems).toEqual([]);
+    expect(result.city.productionQueue).toContain('swordsman');
+    expect(result.city.productionProgress).toBe(40);
+    expect(result.production.withheldByMaterials).toBe(true);
     expect(result.completedUnit).toBeNull();
   });
 
@@ -1231,7 +1237,7 @@ describe('processCity', () => {
     it('an ordinary multi-turn build applies everything to construction', () => {
       const { map, city } = setup('disp-build', { productionQueue: ['workshop'], productionProgress: 0 });
       const d = processCity(city as never, map, 0, 5, createProductionCostContext()).production;
-      expect(d).toEqual({ produced: 5, appliedToBuild: 5, carriedOver: 0, convertedGold: 0, convertedScience: 0, discarded: 0 });
+      expect(d).toEqual({ produced: 5, appliedToBuild: 5, carriedOver: 0, convertedGold: 0, convertedScience: 0, discarded: 0, withheldByMaterials: false });
     });
 
     it('an item completed this turn is construction, not waste, and only exact overflow is discarded', () => {
@@ -1279,7 +1285,7 @@ describe('processCity', () => {
     it('a zero-yield city reports all zeros', () => {
       const { map, city } = setup('disp-zero', { productionQueue: [], idleProduction: 'gold' });
       expect(processCity(city as never, map, 0, 0, createProductionCostContext()).production)
-        .toEqual({ produced: 0, appliedToBuild: 0, carriedOver: 0, convertedGold: 0, convertedScience: 0, discarded: 0 });
+        .toEqual({ produced: 0, appliedToBuild: 0, carriedOver: 0, convertedGold: 0, convertedScience: 0, discarded: 0, withheldByMaterials: false });
     });
   });
 
@@ -1312,7 +1318,7 @@ describe('processCity', () => {
 });
 
 describe('processCity — droppedProductionItems (issue #457)', () => {
-  it('drops a building whose required resource is no longer available (previously untracked)', () => {
+  it('keeps a building whose material access was lost waiting instead of dropping it (#1506 MR09)', () => {
     const map = generateMap(30, 30, 'building-resource-drop-test');
     const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland' || t.terrain === 'plains')!;
     const city = {
@@ -1327,10 +1333,16 @@ describe('processCity — droppedProductionItems (issue #457)', () => {
       2,
       100,
       createProductionCostContext({ era: civilizationEraFromNumber(1), completedTechs: ['stone-weapons'], availableResources: new Set() }),
+      undefined,
+      undefined,
+      undefined,
+      false,
     );
 
-    expect(result.droppedProductionItems).toEqual([{ itemId: 'bronze-workshop', itemKind: 'building', reason: 'resource-lost' }]);
-    expect(result.city.productionQueue).not.toContain('bronze-workshop');
+    expect(result.droppedProductionItems).toEqual([]);
+    expect(result.city.productionQueue).toContain('bronze-workshop');
+    expect(result.city.productionProgress).toBe(10);
+    expect(result.production.withheldByMaterials).toBe(true);
   });
 
   it('does NOT drop a building whose required resource is still available (negative)', () => {
@@ -1465,11 +1477,11 @@ describe('processCity — droppedProductionItems (issue #457)', () => {
     expect(result.city.productionQueue).toContain('sacred_council');
   });
 
-  it('disambiguates unit obsoleted vs resource-lost, and prefers obsoleted on a tie', () => {
+  it('reports obsolescence but no longer reports resource-lost (#1506 MR09)', () => {
     const map = generateMap(30, 30, 'unit-reason-disambiguation-test');
     const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland' || t.terrain === 'plains')!;
 
-    // resource-lost only: bronze-working completed (queueable), rifled-infantry NOT completed, no iron.
+    // resource missing only: the unit waits; it is not dequeued as resource-lost.
     const resourceLostCity = { ...foundCity('p1', landTile.coord, map, mkC()), productionQueue: ['swordsman'], productionProgress: 10 };
     const resourceLostResult = processCity(
       resourceLostCity,
@@ -1477,10 +1489,15 @@ describe('processCity — droppedProductionItems (issue #457)', () => {
       2,
       100,
       createProductionCostContext({ era: civilizationEraFromNumber(1), completedTechs: ['bronze-working'], availableResources: new Set() }),
+      undefined,
+      undefined,
+      undefined,
+      false,
     );
-    expect(resourceLostResult.droppedProductionItems).toEqual([{ itemId: 'swordsman', itemKind: 'unit', reason: 'resource-lost' }]);
+    expect(resourceLostResult.droppedProductionItems).toEqual([]);
+    expect(resourceLostResult.city.productionQueue).toContain('swordsman');
 
-    // obsoleted only: iron available, but rifled-infantry completed.
+    // obsoleted: rifled-infantry completed.
     const obsoletedCity = { ...foundCity('p1', landTile.coord, map, mkC()), productionQueue: ['swordsman'], productionProgress: 10 };
     const obsoletedResult = processCity(
       obsoletedCity,
@@ -1491,7 +1508,7 @@ describe('processCity — droppedProductionItems (issue #457)', () => {
     );
     expect(obsoletedResult.droppedProductionItems).toEqual([{ itemId: 'swordsman', itemKind: 'unit', reason: 'obsoleted' }]);
 
-    // tie: both rifled-infantry completed AND iron unavailable — 'obsoleted' must win.
+    // obsoleted wins over a simultaneous material shortage.
     const tieCity = { ...foundCity('p1', landTile.coord, map, mkC()), productionQueue: ['swordsman'], productionProgress: 10 };
     const tieResult = processCity(
       tieCity,
@@ -1814,16 +1831,18 @@ describe('legendary wonder production metadata', () => {
   });
 });
 
-describe('getTrainableUnitsForCiv — resource gate', () => {
+// #1506 MR09: a hard requirement is a material commitment, not an access gate. These queries keep
+// every nonmaterial gate (tech, civ, coastal, obsolescence); funding is answered separately by the
+// city's material projection, and an unfunded item is a legal waiting plan.
+describe('getTrainableUnitsForCiv — material planning is not access gating (#1506)', () => {
   it('returns all tech-met units when availableResources is undefined (backward-compat)', () => {
     const units = getTrainableUnitsForCiv(['stone-weapons'], undefined, undefined);
-    // axeman requires stone-weapons + copper; with no resource filter it should appear
     expect(units.some(u => u.type === 'axeman')).toBe(true);
   });
 
-  it('excludes resource-gated unit when resource is missing', () => {
+  it('keeps a resource-gated unit plannable when access is missing', () => {
     const units = getTrainableUnitsForCiv(['stone-weapons'], undefined, new Set<ResourceType>());
-    expect(units.some(u => u.type === 'axeman')).toBe(false);
+    expect(units.some(u => u.type === 'axeman')).toBe(true);
   });
 
   it('includes resource-gated unit when resource is present', () => {
@@ -1840,16 +1859,16 @@ describe('getTrainableUnitsForCiv — resource gate', () => {
     expect(units.some(u => u.type === 'cavalry')).toBe(false);
   });
 
-  it('excludes cavalry when Horses are missing', () => {
+  it('keeps cavalry plannable when Horses access is missing', () => {
     const units = getTrainableUnitsForCiv(
       ['rifle-tactics', 'professional-army'],
       undefined,
       new Set<ResourceType>(['iron']),
     );
-    expect(units.some(u => u.type === 'cavalry')).toBe(false);
+    expect(units.some(u => u.type === 'cavalry')).toBe(true);
   });
 
-  it('includes cavalry when both technologies and Horses are present without Iron', () => {
+  it('includes cavalry when both technologies are complete', () => {
     const units = getTrainableUnitsForCiv(
       ['rifle-tactics', 'professional-army'],
       undefined,
@@ -1880,7 +1899,9 @@ describe('getTrainableUnitsForCiv — obsolescence waits for an actually-trainab
   it('keeps archer trainable when tactics is researched but copper is unavailable', () => {
     const units = getTrainableUnitsForCiv(['archery', 'tactics'], undefined, new Set<ResourceType>());
     expect(units.some(u => u.type === 'archer')).toBe(true);
-    expect(units.some(u => u.type === 'crossbowman')).toBe(false);
+    // The successor is tech-met and therefore plannable (its recipe waits), but it is not yet
+    // accessible; the current-city funding predicate retires archer only when it is fundable.
+    expect(units.some(u => u.type === 'crossbowman')).toBe(true);
   });
 
   it('retires archer once copper is available and crossbowman is genuinely buildable', () => {
@@ -1906,7 +1927,7 @@ describe('getTrainableUnitsForCiv — obsolescence waits for an actually-trainab
       new Set<ResourceType>(['horses']),
     );
     expect(units.some(u => u.type === 'chariot')).toBe(true);
-    expect(units.some(u => u.type === 'knight')).toBe(false);
+    expect(units.some(u => u.type === 'knight')).toBe(true);
   });
 
   it('retires chariot once iron is available and knight is genuinely buildable', () => {
@@ -1950,22 +1971,21 @@ describe('getTrainableUnitsForCiv — obsolescence waits for an actually-trainab
   });
 });
 
-describe('getAvailableBuildings — resource gate', () => {
+describe('getAvailableBuildings — material planning is not access gating (#1506)', () => {
   it('returns all tech-met buildings when availableResources is undefined (backward-compat)', () => {
     const map = generateMap(30, 30, 'res-test');
     const tile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
     const city = foundCity('p1', tile.coord, map, mkC());
     const available = getAvailableBuildings(city, ['stone-weapons'], map, undefined);
-    // bronze-workshop requires stone-weapons + copper; no filter → should appear
     expect(available.some(b => b.id === 'bronze-workshop')).toBe(true);
   });
 
-  it('excludes resource-gated building when resource is missing', () => {
+  it('keeps a resource-gated building plannable when access is missing', () => {
     const map = generateMap(30, 30, 'res-test');
     const tile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
     const city = foundCity('p1', tile.coord, map, mkC());
     const available = getAvailableBuildings(city, ['stone-weapons'], map, new Set<ResourceType>());
-    expect(available.some(b => b.id === 'bronze-workshop')).toBe(false);
+    expect(available.some(b => b.id === 'bronze-workshop')).toBe(true);
   });
 
   it('includes resource-gated building when tech and resource are both present', () => {
@@ -2001,9 +2021,9 @@ describe('S4b — new unit entries', () => {
     expect(units.some(u => u.type === 'axeman')).toBe(true);
   });
 
-  it('axeman: blocked without copper', () => {
+  it('axeman: plannable with stone-weapons even when copper access is missing (#1506)', () => {
     const units = getTrainableUnitsForCiv(['stone-weapons'], undefined, new Set<ResourceType>());
-    expect(units.some(u => u.type === 'axeman')).toBe(false);
+    expect(units.some(u => u.type === 'axeman')).toBe(true);
   });
 
   it('horseman: trainable with horseback-riding + horses', () => {
@@ -2021,7 +2041,7 @@ describe('S4b — new unit entries', () => {
     expect(completeGate.find(unit => unit.type === 'cavalry')).toMatchObject({ cost: 140, techRequired: 'rifle-tactics', requiredTechs: ['professional-army'] });
   });
 
-  it('Cuirassier needs both Rifle Tactics and Professional Army plus Horses and Iron', () => {
+  it('Cuirassier needs both Rifle Tactics and Professional Army; its Horses/Iron rows are material planning (#1506)', () => {
     const cuirassier = 'cuirassier' as UnitType;
     const completeGate = getTrainableUnitsForCiv(
       ['rifle-tactics', 'professional-army'], undefined, new Set<ResourceType>(['horses', 'iron']),
@@ -2035,8 +2055,12 @@ describe('S4b — new unit entries', () => {
       cost: 150, techRequired: 'rifle-tactics', requiredTechs: ['professional-army'],
       resourceRequired: ['horses', 'iron'], obsoletedByTech: 'tank-warfare', upgradesTo: 'tank',
     });
-    for (const units of [missingRifle, missingProfessionalArmy, missingHorses, missingIron]) {
+    for (const units of [missingRifle, missingProfessionalArmy]) {
       expect(units.some(unit => unit.type === cuirassier)).toBe(false);
+    }
+    // Access to the materials is not an eligibility gate; the recipe is a waiting commitment.
+    for (const units of [missingHorses, missingIron]) {
+      expect(units.some(unit => unit.type === cuirassier)).toBe(true);
     }
   });
 
@@ -2067,9 +2091,9 @@ describe('S4b — new unit entries', () => {
     expect(units.some(u => u.type === 'knight')).toBe(true);
   });
 
-  it('knight: blocked when iron is missing', () => {
+  it('knight: plannable with iron-forging even when iron access is missing (#1506)', () => {
     const units = getTrainableUnitsForCiv(['iron-forging'], undefined, new Set<ResourceType>(['horses']));
-    expect(units.some(u => u.type === 'knight')).toBe(false);
+    expect(units.some(u => u.type === 'knight')).toBe(true);
   });
 
   it('crossbowman: trainable with tactics + copper', () => {
@@ -2087,11 +2111,12 @@ describe('S4b — new unit entries', () => {
     expect(units.some(u => u.type === 'ballista')).toBe(true);
   });
 
-  it('swordsman: requires iron in addition to bronze-working', () => {
+  it('swordsman: bronze-working makes it plannable; its Iron row is a material commitment (#1506)', () => {
     const withIron = getTrainableUnitsForCiv(['bronze-working'], undefined, new Set<ResourceType>(['iron']));
     const withoutIron = getTrainableUnitsForCiv(['bronze-working'], undefined, new Set<ResourceType>());
     expect(withIron.some(u => u.type === 'swordsman')).toBe(true);
-    expect(withoutIron.some(u => u.type === 'swordsman')).toBe(false);
+    expect(withoutIron.some(u => u.type === 'swordsman')).toBe(true);
+    expect(getTrainableUnitsForCiv([], undefined, new Set<ResourceType>()).some(u => u.type === 'swordsman')).toBe(false);
   });
 
   it('horseman obsoletes at tank-warfare, not iron-forging (avoids the resource dead-end)', () => {
@@ -2248,12 +2273,14 @@ describe('S4b — new buildings', () => {
     });
   }
 
-  it('bronze-workshop: blocked without copper even with stone-weapons tech', () => {
+  it('bronze-workshop: plannable with stone-weapons when copper access is missing (#1506)', () => {
     const map = generateMap(30, 30, 'bldg-test');
     const tile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
     const city = foundCity('p1', tile.coord, map, mkC());
     const available = getAvailableBuildings(city, ['stone-weapons'], map, new Set<ResourceType>());
-    expect(available.some(b => b.id === 'bronze-workshop')).toBe(false);
+    expect(available.some(b => b.id === 'bronze-workshop')).toBe(true);
+    // Tech remains a real gate.
+    expect(getAvailableBuildings(city, [], map, new Set<ResourceType>()).some(b => b.id === 'bronze-workshop')).toBe(false);
   });
 
   it('iron-foundry: available with iron-forging tech + iron resource', () => {
@@ -2514,7 +2541,7 @@ describe('processCity — resource dequeue', () => {
     return foundCity('p1', tile.coord, map, mkC());
   };
 
-  it('dequeues resource-blocked unit when resource is removed', () => {
+  it('keeps a resource-blocked unit waiting when its material access is removed (#1506)', () => {
     const map = mkMap2();
     const city: City = { ...mkBaseCity2(map), productionQueue: ['axeman'], productionProgress: 5 };
     const result = processCity(
@@ -2523,9 +2550,14 @@ describe('processCity — resource dequeue', () => {
       2,
       3,
       createProductionCostContext({ era: civilizationEraFromNumber(1), completedTechs: ['stone-weapons'], availableResources: new Set<ResourceType>() }),
+      undefined,
+      undefined,
+      undefined,
+      false,
     );
-    expect(result.city.productionQueue).not.toContain('axeman');
-    expect(result.city.productionProgress).toBe(0);
+    expect(result.city.productionQueue).toContain('axeman');
+    expect(result.city.productionProgress).toBe(5);
+    expect(result.production.withheldByMaterials).toBe(true);
   });
 
   it('keeps unit in queue when resource is present', () => {
@@ -2541,7 +2573,7 @@ describe('processCity — resource dequeue', () => {
     expect(result.city.productionQueue).toContain('axeman');
   });
 
-  it('dequeues resource-blocked building when resource is removed', () => {
+  it('keeps a resource-blocked building waiting when its material access is removed (#1506)', () => {
     const map = mkMap2();
     const city: City = { ...mkBaseCity2(map), productionQueue: ['bronze-workshop'], productionProgress: 5 };
     const result = processCity(
@@ -2550,9 +2582,14 @@ describe('processCity — resource dequeue', () => {
       2,
       3,
       createProductionCostContext({ era: civilizationEraFromNumber(1), completedTechs: ['stone-weapons'], availableResources: new Set<ResourceType>() }),
+      undefined,
+      undefined,
+      undefined,
+      false,
     );
-    expect(result.city.productionQueue).not.toContain('bronze-workshop');
-    expect(result.city.productionProgress).toBe(0);
+    expect(result.city.productionQueue).toContain('bronze-workshop');
+    expect(result.city.productionProgress).toBe(5);
+    expect(result.production.withheldByMaterials).toBe(true);
   });
 
   it('keeps ungated building (granary) in queue even with empty resources', () => {
@@ -2813,7 +2850,7 @@ describe('Chariot production contract', () => {
     });
   });
 
-  it('rejects either partial technology gate and missing Horses', () => {
+  it('rejects either partial technology gate; missing Horses remains a legal waiting plan (#1506)', () => {
     const onlyWheel = getTrainableUnitsForCiv(['wheel'], undefined, new Set<ResourceType>(['horses']));
     const onlyHorsebackRiding = getTrainableUnitsForCiv(['horseback-riding'], undefined, new Set<ResourceType>(['horses']));
     const missingHorses = getTrainableUnitsForCiv(['wheel', 'horseback-riding'], undefined, new Set<ResourceType>());
@@ -2821,7 +2858,7 @@ describe('Chariot production contract', () => {
 
     expect(onlyWheel.some(unit => unit.type === 'chariot')).toBe(false);
     expect(onlyHorsebackRiding.some(unit => unit.type === 'chariot')).toBe(false);
-    expect(missingHorses.some(unit => unit.type === 'chariot')).toBe(false);
+    expect(missingHorses.some(unit => unit.type === 'chariot')).toBe(true);
     expect(legal.some(unit => unit.type === 'chariot')).toBe(true);
   });
 });

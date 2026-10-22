@@ -26,7 +26,7 @@ import { foundReligion } from '@/systems/religion-system';
 import { addWarheadToArsenal } from '@/systems/strategic-arsenal-system';
 import { getLegendaryWonderCityYieldBonus } from '@/systems/legendary-wonder-system';
 import { announceUnitProduction, completeUnitProduction } from '@/systems/unit-production-completion';
-import { beginCityMaterialOccurrence, syncCityMaterialCommitment } from '@/systems/city-production-materials';
+import { beginCityMaterialOccurrence, consumeCityMaterialCommitment, getCityMaterialProjection, syncCityMaterialCommitment } from '@/systems/city-production-materials';
 import type { CivTurn, CivIncome } from './types';
 
 interface CityYieldContext {
@@ -257,6 +257,7 @@ export function runCityProduction(
     const npKeysForCiv = new Set(
       Object.keys(newState.builtNationalProjects ?? {}).filter(k => k.startsWith(`${civId}:`))
     );
+    const materialReadiness = getCityMaterialProjection(newState, cityId);
     const result = processCity(
       city,
       newState.map,
@@ -269,6 +270,7 @@ export function runCityProduction(
         if (!UNIT_DEFINITIONS[type].airOperation) return null;
         return canCompleteAirUnitProduction(newState, cityId, type).ok ? null : 'air-base-unavailable';
       },
+      materialReadiness.funded,
     );
     bus.emit('city:production-disposition', {
       civId,
@@ -279,12 +281,17 @@ export function runCityProduction(
     income.totalGold += result.idleGoldBonus;
     income.authoritativeCityScience[cityId] = yields.science + result.idleScienceBonus;
 
+    const completed = Boolean(result.completedBuilding || result.completedUnit);
+    // #1506 MR09 task 5: spend the held recipe on the candidate state BEFORE the completed item and
+    // its events are finalized. A waiting item never completes, so this debit only runs for funded work.
+    if (completed) {
+      newState = consumeCityMaterialCommitment(newState, cityId);
+    }
     newState = applyCityTurnResult(newState, turn, cityId, civEra, result, income, bus);
 
-    // #1506 MR09: a completed head is a real occurrence transition — release its commitment and
-    // fund the promoted head. Any other head change (round normalization) is repaired idempotently.
-    // Material *consumption* on completion arrives with the round-phase activation (task 5).
-    newState = result.completedBuilding || result.completedUnit
+    // A completed head is a real occurrence transition — fund the promoted head. Any other head change
+    // (round normalization) is repaired idempotently without churning the occurrence.
+    newState = completed
       ? beginCityMaterialOccurrence(newState, cityId)
       : syncCityMaterialCommitment(newState, cityId);
   }

@@ -18,6 +18,7 @@ import {
   type ReserveLedger,
 } from '@/core/types/commerce';
 import {
+  consumeMaterialRecipe,
   evaluateMaterialFunding,
   getMaterialRecipe,
   releaseMaterialReservation,
@@ -110,6 +111,32 @@ function withLedger(state: GameState, ownerCivId: string, ledger: ReserveLedger)
 
 function withCity(state: GameState, city: City): GameState {
   return { ...state, cities: { ...state.cities, [city.id]: city } };
+}
+
+/**
+ * Spend the active occurrence's held recipe exactly once. This is the natural-completion transition:
+ * the caller runs it on the candidate state **before** the completed unit/building and its events are
+ * finalized. A missing or already-spent commitment is a no-op, never a second debit.
+ */
+export function consumeCityMaterialCommitment(state: GameState, cityId: string): GameState {
+  const city = state.cities[cityId];
+  if (!city) return state;
+  const commitment = commitmentOf(city);
+  if (!commitment) return state;
+
+  const ledger = getCivMaterialLedger(state, city.owner);
+  const reservationIds: Record<string, string> = {};
+  for (const reservationId of commitment.reservationIds) {
+    const reservation = ledger.reservations.find(candidate => candidate.id === reservationId);
+    if (reservation) reservationIds[reservation.goodId] = reservationId;
+  }
+  const spent = consumeMaterialRecipe(
+    ledger,
+    { itemId: commitment.ref.itemId, kind: 'unit', rows: commitment.recipe },
+    { reservationIds },
+  );
+  if (!spent.ok) return state;
+  return withLedger(state, city.owner, spent.ledger);
 }
 
 /** A successful queue edit advances the revision, even when it only moves a tail item. */

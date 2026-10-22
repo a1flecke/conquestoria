@@ -12,6 +12,7 @@ export type RoundPhaseId =
   | 'prelude'
   | 'instability'
   | 'pre-civ-reconciliation'
+  | 'commerce-resources'
   | 'per-civ'
   | 'post-civ-housekeeping'
   | 'territory-frontier'

@@ -17,6 +17,7 @@ const EXPECTED_IDS: Record<RoundPhaseId, true> = {
   prelude: true,
   instability: true,
   'pre-civ-reconciliation': true,
+  'commerce-resources': true,
   'per-civ': true,
   'post-civ-housekeeping': true,
   'territory-frontier': true,
