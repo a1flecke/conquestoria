@@ -14,7 +14,7 @@ import { TECH_TREE } from '@/systems/tech-definitions';
 import { CITY_LEVY_GOLD_BONUS, setCityLevy } from '@/systems/city-levy-system';
 import { createMarketplaceState } from '@/systems/marketplace-system';
 import { collectText, makeWonderPanelFixture } from './helpers/wonder-panel-fixture';
-import type { City, HexCoord, ResourceType } from '@/core/types';
+import type { City, HexCoord, ResourceType, Unit } from '@/core/types';
 
 function activeCityGrid(container: HTMLElement): HTMLElement {
   const panel = container.querySelector<HTMLElement>('[id="city-panel"]');
@@ -3124,5 +3124,92 @@ describe('city-panel Imperial Levy (#1338)', () => {
       onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
     });
     expect(collectText(foreignPanel)).not.toContain('Imperial Levy');
+  });
+});
+
+describe('#1506 MR09 — upgrade rows carry material shortages', () => {
+  function upgradePanelFixture() {
+    const fixture = makeWonderPanelFixture();
+    const { city, state } = fixture;
+    state.civilizations.player.techState.completed = [
+      ...new Set([
+        ...state.civilizations.player.techState.completed,
+        'animal-husbandry', 'bronze-working', 'iron-forging', 'rifle-tactics', 'professional-army',
+      ]),
+    ];
+    state.civilizations.player.gold = 1000;
+    state.marketplace = {
+      ...(state.marketplace ?? createMarketplaceState()),
+      purchasedResources: [
+        { civId: 'player', resource: 'horses', expiresOnTurn: state.turn + 5 },
+        { civId: 'player', resource: 'iron', expiresOnTurn: state.turn + 5 },
+      ],
+    };
+    const knight: Unit = createUnit('knight', 'player', { ...city.position }, state.idCounters, undefined);
+    knight.id = 'unit-knight-upgrade';
+    state.units[knight.id] = knight;
+    state.civilizations.player.units.push(knight.id);
+    return { ...fixture, knight };
+  }
+
+  it('shows the exact shortage and disables the button when the recipe is not held', () => {
+    const { container, city, state } = upgradePanelFixture();
+    state.materialReservesByCiv = {
+      ...(state.materialReservesByCiv ?? {}),
+      player: {
+        balances: {
+          'resource:horses': { native: 4, imported: 0 },
+          'resource:iron': { native: 2, imported: 0 },
+        },
+        reservations: [],
+        incoming: [],
+      },
+    };
+    const upgrades: string[] = [];
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onUpgradeUnit: unitId => { upgrades.push(unitId); },
+    });
+
+    const text = collectText(panel);
+    expect(text).toContain('Upgradeable Units');
+    expect(text).toContain('Knight → Cuirassier');
+    expect(text).toContain('needs 6 × horses, 8 × iron');
+    const button = [...panel.querySelectorAll('button')].find(candidate => candidate.textContent === 'Upgrade');
+    expect(button).toBeTruthy();
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+    clickElement(button);
+    expect(upgrades).toEqual([]);
+  });
+
+  it('enables the row when the full recipe and gold are present', () => {
+    const { container, city, state, knight } = upgradePanelFixture();
+    state.materialReservesByCiv = {
+      ...(state.materialReservesByCiv ?? {}),
+      player: {
+        balances: {
+          'resource:horses': { native: 10, imported: 0 },
+          'resource:iron': { native: 10, imported: 0 },
+        },
+        reservations: [],
+        incoming: [],
+      },
+    };
+    const upgrades: string[] = [];
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onUpgradeUnit: unitId => { upgrades.push(unitId); },
+    });
+
+    expect(collectText(panel)).not.toContain('needs ');
+    const button = [...panel.querySelectorAll('button')].find(candidate => candidate.textContent === 'Upgrade');
+    expect(button).toBeTruthy();
+    expect((button as HTMLButtonElement).disabled).toBe(false);
+    clickElement(button);
+    expect(upgrades).toEqual([knight.id]);
   });
 });
