@@ -33,6 +33,7 @@ import {
 } from '@/systems/legendary-wonder-presentation';
 import { getLegendaryLandmarkPreviewViewForCity } from '@/systems/legendary-wonder-landmark-presentation';
 import { canUpgradeUnit } from '@/systems/unit-upgrade-system';
+import { getCivMaterialLedger } from '@/systems/resource-material-state';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { getUnitRolePresentation } from '@/ui/unit-role-presentation';
 import { getCityAppeaseCost, getConcessionCost, CONCESSION_IMMUNITY_TURNS } from '@/systems/faction-commands';
@@ -1955,13 +1956,20 @@ export function createCityPanel(
     const upgradeEntries = Object.values(state.units)
       .map(u => ({
         u,
-        upgrade: canUpgradeUnit(u, city.id, state.cities, productionCostContext, civGold),
+        upgrade: canUpgradeUnit(
+          u,
+          city.id,
+          state.cities,
+          productionCostContext,
+          civGold,
+          getCivMaterialLedger(state, city.owner),
+        ),
       }))
       .filter(({ u, upgrade }) =>
         u.owner === city.owner &&
         u.position.q === city.position.q &&
         u.position.r === city.position.r &&
-        upgrade.canUpgrade,
+        (upgrade.canUpgrade || upgrade.reason === 'missing-materials'),
       );
 
     if (upgradeEntries.length > 0) {
@@ -1983,13 +1991,20 @@ export function createCityPanel(
         info.style.cssText = 'font-size:12px;';
         const currentName = UNIT_DEFINITIONS[u.type]?.name ?? u.type;
         const targetName = UNIT_DEFINITIONS[upgrade.targetType].name;
-        info.textContent = `${currentName} → ${targetName} (${upgrade.cost} gold)`;
+        const shortage = upgrade.missingMaterials
+          .map(row => `${row.missing} × ${row.goodId.replace('resource:', '')}`)
+          .join(', ');
+        info.textContent = shortage
+          ? `${currentName} → ${targetName} (${upgrade.cost} gold · needs ${shortage})`
+          : `${currentName} → ${targetName} (${upgrade.cost} gold)`;
 
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.textContent = 'Upgrade';
-        btn.style.cssText = 'padding:4px 10px;border-radius:6px;background:#7c3aed;border:none;color:white;cursor:pointer;font-size:11px;';
+        btn.style.cssText = `padding:4px 10px;border-radius:6px;border:none;color:white;font-size:11px;${upgrade.canUpgrade ? 'background:#7c3aed;cursor:pointer;' : 'background:#4b5563;cursor:not-allowed;opacity:0.7;'}`;
+        btn.disabled = !upgrade.canUpgrade;
         btn.addEventListener('click', () => {
+          if (!upgrade.canUpgrade) return;
           callbacks.onUpgradeUnit!(u.id);
           rerenderPanel();
         });

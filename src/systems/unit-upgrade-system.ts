@@ -1,4 +1,7 @@
 import type { Unit, UnitType, City, GameState, ResourceType, TrainableUnitEntry } from '@/core/types';
+import type { TradeGoodId } from '@/core/types/commerce';
+import type { ReserveLedger } from '@/core/types/commerce';
+import { createEmptyReserveLedger } from './resource-reserve-system';
 import { TRAINABLE_UNITS } from './city-system';
 import {
   buildProductionCostContext,
@@ -9,12 +12,20 @@ import { getCivAvailableResources } from './resource-acquisition-system';
 import { baseNewAirUnit, canCompleteAirUnitProduction } from './air-operations-system';
 import { UNIT_DEFINITIONS } from './unit-definitions';
 import { evaluateProductionPrerequisites } from './production-prerequisites';
+import {
+  consumeMaterialRecipe,
+  evaluateMaterialFunding,
+  getMaterialRecipe,
+  type MaterialFundingRow,
+} from './resource-material-costs';
+import { getCivMaterialLedger } from './resource-material-state';
 
 export type UpgradeMissingRequirement =
   | { kind: 'friendly-city' }
   | { kind: 'technology'; techId: string }
   | { kind: 'building'; buildingId: string }
   | { kind: 'resource'; resource: ResourceType }
+  | { kind: 'material'; goodId: TradeGoodId; required: number; available: number; missing: number }
   | { kind: 'gold'; required: number; available: number }
   | { kind: 'action-already-spent' }
   | { kind: 'air-base'; reason: 'base-missing' | 'incompatible-base' | 'base-full' }
@@ -93,6 +104,24 @@ export function evaluateUnitUpgrade(
   for (const resource of target.resourceRequired ?? []) {
     if (!resources.has(resource)) missing.push({ kind: 'resource', resource });
   }
+  // #1506 MR09: the upgrade pays the target's full recipe. Report exact missing rows rather than
+  // collapsing a material shortage into a generic tech failure.
+  const ledger = getCivMaterialLedger(state, unit.owner);
+  const recipe = getMaterialRecipe(target.type);
+  if (recipe.known && recipe.recipe.rows.length > 0) {
+    const funding = evaluateMaterialFunding(ledger, recipe.recipe);
+    for (const row of funding.rows) {
+      if (row.missing > 0) {
+        missing.push({
+          kind: 'material',
+          goodId: row.goodId,
+          required: row.required,
+          available: row.available,
+          missing: row.missing,
+        });
+      }
+    }
+  }
   if (!civ || civ.gold < cost) {
     missing.push({ kind: 'gold', required: cost, available: civ?.gold ?? 0 });
   }
@@ -150,11 +179,18 @@ export function canUpgradeUnit(
   cities: Record<string, City>,
   productionCost: ProductionCostContext,
   civGold?: number,
-): { canUpgrade: boolean; targetType: UnitType | null; cost: number; reason?: 'missing-building' } {
+  materialLedger?: ReserveLedger,
+): {
+  canUpgrade: boolean;
+  targetType: UnitType | null;
+  cost: number;
+  reason?: 'missing-building' | 'missing-materials';
+  missingMaterials: readonly MaterialFundingRow[];
+} {
   const city = cities[cityId];
-  if (!city || city.owner !== unit.owner) return { canUpgrade: false, targetType: null, cost: 0 };
+  if (!city || city.owner !== unit.owner) return { canUpgrade: false, targetType: null, cost: 0, missingMaterials: [] };
   if (unit.position.q !== city.position.q || unit.position.r !== city.position.r) {
-    return { canUpgrade: false, targetType: null, cost: 0 };
+    return { canUpgrade: false, targetType: null, cost: 0, missingMaterials: [] };
   }
   // #984: eligibility and price read the same context, so the techs that decide
   // *whether* a unit upgrades can never disagree with the techs that decide what
@@ -165,13 +201,22 @@ export function canUpgradeUnit(
   if (!targetType) {
     const targetInPrinciple = getCanonicalUpgradeTarget(unit, completedTechs, undefined, availableResources);
     if (targetInPrinciple) {
-      return { canUpgrade: false, targetType: null, cost: getUpgradeCost(targetInPrinciple, hostContext), reason: 'missing-building' };
+      return { canUpgrade: false, targetType: null, cost: getUpgradeCost(targetInPrinciple, hostContext), reason: 'missing-building', missingMaterials: [] };
     }
-    return { canUpgrade: false, targetType: null, cost: 0 };
+    return { canUpgrade: false, targetType: null, cost: 0, missingMaterials: [] };
   }
   const cost = getUpgradeCost(targetType, hostContext);
-  if (civGold !== undefined && civGold < cost) return { canUpgrade: false, targetType: null, cost };
-  return { canUpgrade: true, targetType, cost };
+  // #1506 MR09: an upgrade pays the target's full recipe; carry the exact shortage so the panel
+  // can explain it instead of hiding the row or calling it a tech problem.
+  const recipe = getMaterialRecipe(targetType);
+  const missingMaterials = recipe.known && recipe.recipe.rows.length > 0
+    ? evaluateMaterialFunding(materialLedger ?? createEmptyReserveLedger(), recipe.recipe).rows.filter(row => row.missing > 0)
+    : [];
+  if (missingMaterials.length > 0) {
+    return { canUpgrade: false, targetType, cost, reason: 'missing-materials', missingMaterials };
+  }
+  if (civGold !== undefined && civGold < cost) return { canUpgrade: false, targetType: null, cost, missingMaterials: [] };
+  return { canUpgrade: true, targetType, cost, missingMaterials: [] };
 }
 
 export function getCanonicalUpgradeTarget(
@@ -234,6 +279,7 @@ export interface ApplyUnitUpgradeToStateResult {
 
 function upgradeFailureReason(evaluation: UpgradeEvaluation): string {
   const first = evaluation.missing[0]?.kind;
+  if (first === 'material') return 'missing-materials';
   if (first === 'building' || first === 'technology' || first === 'resource') return 'tech-unavailable';
   if (first === 'gold') return 'insufficient-gold';
   if (first === 'friendly-city') return 'not-in-friendly-city';
@@ -257,6 +303,15 @@ export function applyUnitUpgradeToState(
   if (evaluation.targetType !== targetType) return { state, upgraded: false, reason: 'invalid-target' };
   if (!evaluation.canUpgrade) return { state, upgraded: false, reason: upgradeFailureReason(evaluation) };
   const next = structuredClone(state);
+  // #1506 MR09: spend the target's full recipe on the candidate before gold and placement. A
+  // refusal returns the original state, so a failed upgrade consumes neither gold nor materials.
+  const recipe = getMaterialRecipe(targetType);
+  if (recipe.known && recipe.recipe.rows.length > 0) {
+    const ledger = getCivMaterialLedger(next, unit.owner);
+    const spent = consumeMaterialRecipe(ledger, recipe.recipe);
+    if (!spent.ok) return { state, upgraded: false, reason: 'missing-materials' };
+    next.materialReservesByCiv = { ...(next.materialReservesByCiv ?? {}), [unit.owner]: spent.ledger };
+  }
   next.civilizations[unit.owner] = {
     ...next.civilizations[unit.owner],
     gold: next.civilizations[unit.owner].gold - evaluation.cost,

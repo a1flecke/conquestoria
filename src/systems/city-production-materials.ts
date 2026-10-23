@@ -119,24 +119,38 @@ function withCity(state: GameState, city: City): GameState {
  * finalized. A missing or already-spent commitment is a no-op, never a second debit.
  */
 export function consumeCityMaterialCommitment(state: GameState, cityId: string): GameState {
-  const city = state.cities[cityId];
-  if (!city) return state;
-  const commitment = commitmentOf(city);
-  if (!commitment) return state;
+  return spendActiveMaterialRecipe(state, cityId).state;
+}
 
+/**
+ * #1506 MR09 task 6: the explicit, all-or-nothing spend used by natural completion, rush-buy and
+ * upgrades. It prefers the occurrence's locked reservation; a funded head without one (a free
+ * recipe, or a migrated/queued item with free stock) spends free provenance. `ok` is false only
+ * when a required spend failed, so a caller can abort the whole transaction instead of completing
+ * an unpaid item.
+ */
+export function spendActiveMaterialRecipe(state: GameState, cityId: string): { ok: boolean; state: GameState } {
+  const city = state.cities[cityId];
+  if (!city) return { ok: true, state };
+  const itemId = city.productionQueue[0];
+  if (!itemId) return { ok: true, state };
+
+  const commitment = commitmentOf(city);
   const ledger = getCivMaterialLedger(state, city.owner);
-  const reservationIds: Record<string, string> = {};
-  for (const reservationId of commitment.reservationIds) {
-    const reservation = ledger.reservations.find(candidate => candidate.id === reservationId);
-    if (reservation) reservationIds[reservation.goodId] = reservationId;
+  if (commitment) {
+    const reservationIds: Record<string, string> = {};
+    for (const reservationId of commitment.reservationIds) {
+      const reservation = ledger.reservations.find(candidate => candidate.id === reservationId);
+      if (reservation) reservationIds[reservation.goodId] = reservationId;
+    }
+    const spent = consumeMaterialRecipe(ledger, { itemId, kind: 'unit', rows: commitment.recipe }, { reservationIds });
+    return spent.ok ? { ok: true, state: withLedger(state, city.owner, spent.ledger) } : { ok: false, state };
   }
-  const spent = consumeMaterialRecipe(
-    ledger,
-    { itemId: commitment.ref.itemId, kind: 'unit', rows: commitment.recipe },
-    { reservationIds },
-  );
-  if (!spent.ok) return state;
-  return withLedger(state, city.owner, spent.ledger);
+
+  const lookup = getMaterialRecipe(itemId);
+  if (!lookup.known || lookup.recipe.rows.length === 0) return { ok: true, state };
+  const spent = consumeMaterialRecipe(ledger, lookup.recipe);
+  return spent.ok ? { ok: true, state: withLedger(state, city.owner, spent.ledger) } : { ok: false, state };
 }
 
 /** A successful queue edit advances the revision, even when it only moves a tail item. */
