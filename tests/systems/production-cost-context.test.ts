@@ -132,6 +132,15 @@ describe('#984 B — every consumer agrees on the cost of the same item', () => 
 
     // Rush buy: quoted gold is the multiplier applied to the same base cost.
     state.cities[city.id] = { ...city, productionQueue: ['axeman'], productionProgress: 0 };
+    // #1506 MR09: buying production also requires the hard recipe.
+    state.materialReservesByCiv = {
+      ...(state.materialReservesByCiv ?? {}),
+      [LAGGARD]: {
+        balances: { 'resource:copper': { native: 10, imported: 0 } },
+        reservations: [],
+        incoming: [],
+      },
+    };
     const quote = getRushBuyQuote(state, LAGGARD, city.id);
     expect(quote.available).toBe(true);
     expect(quote.cost).toBe(Math.ceil(canonical * ECONOMY_RULES.rushBuyMultiplier));
