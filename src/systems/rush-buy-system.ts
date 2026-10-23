@@ -9,6 +9,7 @@ import type { EventBus } from '@/core/event-bus';
 import { completeCityProductionItem } from './city-system';
 import { projectActiveProduction } from './production-decision';
 import { announceUnitProduction, completeUnitProduction } from './unit-production-completion';
+import { beginCityMaterialOccurrence, getCityMaterialProjection, spendActiveMaterialRecipe } from './city-production-materials';
 import {
   calculateCivEconomy,
   getProductionLabel,
@@ -31,6 +32,9 @@ import {
 export function completesFromOwnProduction(state: GameState, civId: string, cityId: string): boolean {
   const projection = projectActiveProduction(state, civId, cityId);
   if (!projection || projection.itemId.startsWith('legendary:')) return false;
+  // #1506 MR09: a materially waiting head cannot finish this turn no matter how much progress it
+  // has; buying it would spend gold on an item the city still cannot complete.
+  if (!getCityMaterialProjection(state, cityId).funded) return false;
   return projection.progress + projection.productionPerTurn >= projection.cost;
 }
 
@@ -38,11 +42,21 @@ export type RushBuyResult =
   | { success: true; state: GameState; itemId: string; label: string; cost: number; status: EconomyProjection }
   | { success: false; state: GameState; reason: RushBuyDisabledReason; message: string };
 
+export interface RushBuyOptions {
+  /**
+   * #1506 MR09: the active occurrence the caller believes it is buying. A stale callback that no
+   * longer matches must not purchase the next identical queued item. Omit only for a caller that
+   * has just read the city in the same synchronous step.
+   */
+  expectedOccurrence?: number;
+}
+
 export function rushBuyActiveProduction(
   state: GameState,
   civId: string,
   cityId: string,
   bus: EventBus,
+  options: RushBuyOptions = {},
 ): RushBuyResult {
   const quote = getRushBuyQuote(state, civId, cityId);
   if (!quote.available || !quote.itemId) {
@@ -60,42 +74,75 @@ export function rushBuyActiveProduction(
     return { success: false, state, reason: 'not-owner', message: 'Only the owner can buy production.' };
   }
 
-  const completion = completeCityProductionItem(city, quote.itemId);
-  const nextCiv = { ...civ, gold: civ.gold - quote.cost, units: [...civ.units] };
-  if (nextCiv.gold < 0) {
-    return { success: false, state, reason: 'not-enough-gold', message: `Not enough gold: need ${quote.cost}.` };
+  const occurrence = city.productionMaterials?.activeOccurrence ?? 0;
+  if (options.expectedOccurrence !== undefined && options.expectedOccurrence !== occurrence) {
+    return {
+      success: false,
+      state,
+      reason: 'stale-occurrence',
+      message: 'The city’s active production changed. Try again.',
+    };
   }
+
+  // #1506 MR09 task 6: the hard recipe is spent on the candidate state before gold, completion or
+  // placement. Any later refusal returns the untouched input state, so a failed buy consumes nothing.
+  const materialSpend = spendActiveMaterialRecipe(state, cityId);
+  if (!materialSpend.ok) {
+    return {
+      success: false,
+      state,
+      reason: 'not-enough-materials',
+      message: 'Not enough materials to buy this item.',
+    };
+  }
+  const candidate = materialSpend.state;
+  const candidateCity = candidate.cities[cityId]!;
+
+  const completion = completeCityProductionItem(candidateCity, quote.itemId);
   if (!completion.completedBuilding && !completion.completedUnit) {
     return { success: false, state, reason: 'invalid-active-item', message: 'This production item cannot be bought.' };
   }
 
+  const nextCiv = { ...candidate.civilizations[civId]!, gold: candidate.civilizations[civId]!.gold - quote.cost, units: [...candidate.civilizations[civId]!.units] };
+  if (nextCiv.gold < 0) {
+    return { success: false, state, reason: 'not-enough-gold', message: `Not enough gold: need ${quote.cost}.` };
+  }
+
   let nextState: GameState = {
-    ...state,
-    idCounters: { ...state.idCounters },
+    ...candidate,
+    idCounters: { ...candidate.idCounters },
     cities: {
-      ...state.cities,
+      ...candidate.cities,
       [cityId]: completion.city,
     },
     civilizations: {
-      ...state.civilizations,
+      ...candidate.civilizations,
       [civId]: nextCiv,
     },
-    units: { ...state.units },
-    espionage: state.espionage ? { ...state.espionage } : state.espionage,
+    units: { ...candidate.units },
+    espionage: candidate.espionage ? { ...candidate.espionage } : candidate.espionage,
   };
-
-  if (completion.completedBuilding) {
-    bus.emit('city:building-complete', { cityId, buildingId: completion.completedBuilding });
-  }
 
   if (completion.completedUnit) {
     // #1202: the same completion the turn path runs, so a bought unit is not a second-class unit.
+    // Placement/basing is part of the same transaction: a refusal returns the original state.
     const made = completeUnitProduction(nextState, { civId, cityId, unitType: completion.completedUnit });
     if (!made.ok) {
       return { success: false, state, reason: 'invalid-active-item', message: 'This unit cannot be completed here right now.' };
     }
     nextState = made.state;
+    // The purchased head is a real occurrence transition: fund the promoted head.
+    nextState = beginCityMaterialOccurrence(nextState, cityId);
+    if (completion.completedBuilding) {
+      bus.emit('city:building-complete', { cityId, buildingId: completion.completedBuilding });
+    }
+    // Announce only the accepted transaction.
     announceUnitProduction(bus, cityId, civId, made);
+  } else {
+    nextState = beginCityMaterialOccurrence(nextState, cityId);
+    if (completion.completedBuilding) {
+      bus.emit('city:building-complete', { cityId, buildingId: completion.completedBuilding });
+    }
   }
 
   const status = calculateCivEconomy(nextState, civId);
@@ -113,12 +160,6 @@ export function rushBuyActiveProduction(
     itemId: quote.itemId,
     label: getProductionLabel(quote.itemId),
     cost: quote.cost,
-    // #1320: hand back the projection computed for the post-purchase state so a
-    // caller that needs the civ's economy again for this exact state (the AI
-    // treasury batch loop) can reuse it instead of recomputing the identical
-    // value. The projection depends only on state fields that this function
-    // does not touch after computing it (`economyStatusByCiv` is not an input to
-    // `calculateCivEconomy`), so it describes `state` exactly.
     status,
   };
 }

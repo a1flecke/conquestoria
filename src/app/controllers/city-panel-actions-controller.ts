@@ -384,7 +384,13 @@ export function createCityPanelActionsController(
       onRushBuyActiveProduction: (cityId) => {
         const targetCity = deps.session.getState().cities[cityId];
         if (!targetCity) return deps.session.getState();
-        const result = rushBuyActiveProduction(deps.session.getState(), deps.session.getState().currentPlayer, cityId, deps.bus);
+        const result = rushBuyActiveProduction(
+          deps.session.getState(),
+          deps.session.getState().currentPlayer,
+          cityId,
+          deps.bus,
+          { expectedOccurrence: targetCity.productionMaterials?.activeOccurrence ?? 0 },
+        );
         if (!result.success) {
           deps.showNotification(result.message, 'warning');
           return deps.session.getState();

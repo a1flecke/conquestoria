@@ -406,9 +406,93 @@ describe('applyUnitUpgradeToState', () => {
       { civId: 'player', resource: 'horses', expiresOnTurn: state.turn + 1 },
       { civId: 'player', resource: 'iron', expiresOnTurn: state.turn + 1 },
     ] };
+    // #1506 MR09: the upgrade now pays the target's full hard recipe, so the fixture carries stock.
+    state.materialReservesByCiv = {
+      ...(state.materialReservesByCiv ?? {}),
+      player: {
+        balances: {
+          'resource:horses': { native: 10, imported: 0 },
+          'resource:iron': { native: 10, imported: 0 },
+        },
+        reservations: [],
+        incoming: [],
+      },
+    };
 
     expect(evaluateUnitUpgrade(state, 'upgrade-unit', 'cuirassier'))
       .toMatchObject({ canUpgrade: true, targetType: 'cuirassier', missing: [] });
+  });
+
+  it('reports exact missing materials instead of a generic tech failure', () => {
+    const { state } = setup();
+    state.units['upgrade-unit'].type = 'knight';
+    state.civilizations.player.gold = 1000;
+    state.civilizations.player.techState.completed = [
+      'animal-husbandry', 'bronze-working', 'iron-forging', 'rifle-tactics', 'professional-army',
+    ];
+    state.marketplace = { ...createMarketplaceState(), purchasedResources: [
+      { civId: 'player', resource: 'horses', expiresOnTurn: state.turn + 1 },
+      { civId: 'player', resource: 'iron', expiresOnTurn: state.turn + 1 },
+    ] };
+    state.materialReservesByCiv = {
+      ...(state.materialReservesByCiv ?? {}),
+      player: {
+        balances: {
+          'resource:horses': { native: 4, imported: 0 },
+          'resource:iron': { native: 2, imported: 0 },
+        },
+        reservations: [],
+        incoming: [],
+      },
+    };
+
+    const evaluation = evaluateUnitUpgrade(state, 'upgrade-unit', 'cuirassier');
+    expect(evaluation.canUpgrade).toBe(false);
+    expect(evaluation.missing).toContainEqual({
+      kind: 'material', goodId: 'resource:horses', required: 10, available: 4, missing: 6,
+    });
+    expect(evaluation.missing).toContainEqual({
+      kind: 'material', goodId: 'resource:iron', required: 10, available: 2, missing: 8,
+    });
+    expect(applyUnitUpgradeToState(state, 'upgrade-unit', 'cuirassier')).toEqual({
+      state, upgraded: false, reason: 'missing-materials',
+    });
+  });
+
+  it('spends the full target recipe and half-cost gold exactly once', () => {
+    const { state } = setup();
+    state.units['upgrade-unit'].type = 'knight';
+    state.civilizations.player.gold = 1000;
+    state.civilizations.player.techState.completed = [
+      'animal-husbandry', 'bronze-working', 'iron-forging', 'rifle-tactics', 'professional-army',
+    ];
+    state.marketplace = { ...createMarketplaceState(), purchasedResources: [
+      { civId: 'player', resource: 'horses', expiresOnTurn: state.turn + 1 },
+      { civId: 'player', resource: 'iron', expiresOnTurn: state.turn + 1 },
+    ] };
+    state.materialReservesByCiv = {
+      ...(state.materialReservesByCiv ?? {}),
+      player: {
+        balances: {
+          'resource:horses': { native: 10, imported: 0 },
+          'resource:iron': { native: 10, imported: 0 },
+        },
+        reservations: [],
+        incoming: [],
+      },
+    };
+
+    const result = applyUnitUpgradeToState(state, 'upgrade-unit', 'cuirassier');
+    expect(result.upgraded).toBe(true);
+    expect(result.state.units['upgrade-unit'].type).toBe('cuirassier');
+    expect(result.state.civilizations.player.gold).toBe(925);
+    expect(result.state.materialReservesByCiv!.player.balances).toEqual({
+      'resource:horses': { native: 0, imported: 0 },
+      'resource:iron': { native: 0, imported: 0 },
+    });
+    // The source state is untouched.
+    expect(state.units['upgrade-unit'].type).toBe('knight');
+    expect(state.civilizations.player.gold).toBe(1000);
   });
 
   it('reports every missing conjunctive target technology', () => {

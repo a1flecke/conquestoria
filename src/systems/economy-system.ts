@@ -18,6 +18,8 @@ import { getReligionTithesGold } from './religion-system';
 import { UNIT_DEFINITIONS } from './unit-definitions';
 import { resolveCivDefinition } from './civ-registry';
 import { getProductionCostForCivItem } from './production-cost-context';
+import { getCityMaterialProjection } from './city-production-materials';
+import type { MaterialFundingRow } from './resource-material-costs';
 import { getCityLevyGoldBonus } from './city-levy-system';
 import { getCivHappinessFromResources } from './resource-acquisition-system';
 import {
@@ -184,6 +186,8 @@ export type RushBuyDisabledReason =
   | 'invalid-active-item'
   | 'not-owner'
   | 'not-enough-gold'
+  | 'not-enough-materials'
+  | 'stale-occurrence'
   | 'treasury-strain-too-high'
   | 'wonders-cannot-be-bought';
 
@@ -194,6 +198,8 @@ export interface RushBuyQuote {
   reason: RushBuyDisabledReason | null;
   message: string | null;
   status: EconomyProjection;
+  /** #1506 MR09: exact rows this active item still lacks; empty when the recipe is fully held. */
+  missingMaterials: readonly MaterialFundingRow[];
 }
 
 function getBuildingUpkeep(buildingId: string): number {
@@ -711,20 +717,20 @@ export function getRushBuyQuote(
   const ownerStatus = precomputedOwnerStatus ?? calculateCivEconomy(state, civId);
 
   if (!city || !civ) {
-    return { available: false, itemId: null, cost: 0, reason: 'invalid-active-item', message: 'This production item cannot be bought.', status: ownerStatus };
+    return { available: false, itemId: null, cost: 0, reason: 'invalid-active-item', message: 'This production item cannot be bought.', status: ownerStatus, missingMaterials: [] };
   }
 
   if (city.owner !== civId) {
-    return { available: false, itemId: null, cost: 0, reason: 'not-owner', message: 'Only the owner can buy production.', status: ownerStatus };
+    return { available: false, itemId: null, cost: 0, reason: 'not-owner', message: 'Only the owner can buy production.', status: ownerStatus, missingMaterials: [] };
   }
 
   const itemId = city.productionQueue[0] ?? null;
   if (!itemId) {
-    return { available: false, itemId: null, cost: 0, reason: 'no-active-production', message: 'No active production to buy.', status: ownerStatus };
+    return { available: false, itemId: null, cost: 0, reason: 'no-active-production', message: 'No active production to buy.', status: ownerStatus, missingMaterials: [] };
   }
 
   if (itemId.startsWith('legendary:')) {
-    return { available: false, itemId, cost: 0, reason: 'wonders-cannot-be-bought', message: 'Wonders cannot be bought.', status: ownerStatus };
+    return { available: false, itemId, cost: 0, reason: 'wonders-cannot-be-bought', message: 'Wonders cannot be bought.', status: ownerStatus, missingMaterials: [] };
   }
 
   if (ownerStatus.strainLevel === 'high' || ownerStatus.strainLevel === 'critical') {
@@ -735,12 +741,32 @@ export function getRushBuyQuote(
       reason: 'treasury-strain-too-high',
       message: 'Treasury strain is too high.',
       status: ownerStatus,
+      missingMaterials: [],
+    };
+  }
+
+  // #1506 MR09: buying production pays the same hard recipe as natural completion. The quote
+  // reports the exact missing rows, and an unfunded item is a typed refusal — never a free buy.
+  const projection = getCityMaterialProjection(state, cityId);
+  const missingMaterials = projection.missing;
+  if (!projection.funded) {
+    const summary = missingMaterials
+      .map(row => `${row.missing} × ${row.goodId.replace('resource:', '')}`)
+      .join(', ');
+    return {
+      available: false,
+      itemId,
+      cost: 0,
+      reason: 'not-enough-materials',
+      message: `Not enough materials: need ${summary}.`,
+      status: ownerStatus,
+      missingMaterials,
     };
   }
 
   const cost = getProductionCostForCivItem(state, civId, cityId, itemId);
   if (cost <= 0) {
-    return { available: false, itemId, cost: 0, reason: 'invalid-active-item', message: 'This production item cannot be bought.', status: ownerStatus };
+    return { available: false, itemId, cost: 0, reason: 'invalid-active-item', message: 'This production item cannot be bought.', status: ownerStatus, missingMaterials: [] };
   }
 
   const remainingProduction = Math.max(1, cost - city.productionProgress);
@@ -753,10 +779,11 @@ export function getRushBuyQuote(
       reason: 'not-enough-gold',
       message: `Not enough gold: need ${rushCost}.`,
       status: ownerStatus,
+      missingMaterials: [],
     };
   }
 
-  return { available: true, itemId, cost: rushCost, reason: null, message: null, status: ownerStatus };
+  return { available: true, itemId, cost: rushCost, reason: null, message: null, status: ownerStatus, missingMaterials: [] };
 }
 
 export function formatGoldHudText(status: EconomyStatus | EconomyProjection, currentGold: number): string {

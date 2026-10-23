@@ -382,11 +382,11 @@ Run focused new phase/accrual tests, `tests/core/round-phases-structure.test.ts`
 
 **Modify:** economy quote, rush-buy executor, upgrade evaluator/executor, AI treasury/upgrade and UI query callers as required by signatures. **Tests:** economy, unit-upgrade, completion, cost parity, AI treasury/upgrades and controller tests.
 
-- [ ] Add full recipe/quantity/missing-material output and typed denials to the canonical quotes. Have executors re-run those queries against live state before committing.
-- [ ] Require a fresh expected active occurrence for buy; do not let one stale callback purchase two identical queued items. Carry missing counts through selected-unit/city upgrade presentation instead of translating every material failure into generic tech-unavailable text.
-- [ ] Spend reservation or free recipe exactly once on a candidate state with gold and actual unit placement/basing. Announce only the accepted transaction. Upgrade uses full target recipe and existing gold fraction.
-- [ ] Update `completesFromOwnProduction`: a materially waiting head cannot “finish naturally this turn” merely because its stored progress + projected raw output exceeds cost.
-- [ ] Verify explicit free/scripted rewards still use their free owners and the low-level trainable-unit completion stays material-neutral. Do not charge quest rewards by putting payment in `createUnit`/`completeUnitProduction`.
+- [x] Add full recipe/quantity/missing-material output and typed denials to the canonical quotes. Have executors re-run those queries against live state before committing.
+- [x] Require a fresh expected active occurrence for buy; do not let one stale callback purchase two identical queued items. Carry missing counts through selected-unit/city upgrade presentation instead of translating every material failure into generic tech-unavailable text.
+- [x] Spend reservation or free recipe exactly once on a candidate state with gold and actual unit placement/basing. Announce only the accepted transaction. Upgrade uses full target recipe and existing gold fraction.
+- [x] Update `completesFromOwnProduction`: a materially waiting head cannot “finish naturally this turn” merely because its stored progress + projected raw output exceeds cost.
+- [x] Verify explicit free/scripted rewards still use their free owners and the low-level trainable-unit completion stays material-neutral. Do not charge quest rewards by putting payment in `createUnit`/`completeUnitProduction`.
 
 Matrix: (a) gold enough/materials enough succeeds; (b) gold only fails; (c) materials only fails; (d) placement/basing fails after a valid material quote and consumes nothing; (e) stale target/head/action fails with no writes/events; (f) an already reserved item spends once, not twice; (g) imported-first locked provenance matches the kernel; (h) repeated callback after first success cannot act on the new occurrence. Assert gold delta, both provenance balances, queue/progress, ID counters, roster, air base/spy/reward state, and event counts, not only `success`.
 
