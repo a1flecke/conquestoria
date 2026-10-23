@@ -3,31 +3,31 @@
   "areas": {
     "aiRound@e1": {
       "blockingEntityAtCalls": 264,
-      "cityYieldCalls": 2252,
-      "civEconomyCalls": 10,
-      "economyStatusCalls": 1917,
+      "cityYieldCalls": 2491,
+      "civEconomyCalls": 9,
+      "economyStatusCalls": 2146,
       "heapPops": 2464,
       "ownedRoadConnectivityCalls": 32,
-      "ownedRoadTileScans": 17,
+      "ownedRoadTileScans": 15,
       "pathQueries": 181,
       "projectedGrossGoldCalls": 0,
-      "roadConnectivityCalls": 629,
+      "roadConnectivityCalls": 627,
       "structuredCloneWholeState": 9,
-      "structuredCloneWholeStateBytes": 31288855
+      "structuredCloneWholeStateBytes": 31321202
     },
     "aiRound@e2": {
       "blockingEntityAtCalls": 499,
-      "cityYieldCalls": 5321,
-      "civEconomyCalls": 9,
-      "economyStatusCalls": 4764,
+      "cityYieldCalls": 5638,
+      "civEconomyCalls": 7,
+      "economyStatusCalls": 5123,
       "heapPops": 8072,
       "ownedRoadConnectivityCalls": 56,
-      "ownedRoadTileScans": 14,
+      "ownedRoadTileScans": 10,
       "pathQueries": 310,
       "projectedGrossGoldCalls": 0,
-      "roadConnectivityCalls": 2602,
+      "roadConnectivityCalls": 2598,
       "structuredCloneWholeState": 9,
-      "structuredCloneWholeStateBytes": 45379691
+      "structuredCloneWholeStateBytes": 45435284
     },
     "findPath": {
       "heapPops": 70,
@@ -60,12 +60,12 @@
       "structuredCloneWholeState": 3
     },
     "saveSerialize@e1": {
-      "bytes": 2905494,
-      "entityBytes": 1213871
+      "bytes": 2908661,
+      "entityBytes": 1216301
     },
     "saveSerialize@e2": {
-      "bytes": 4303197,
-      "entityBytes": 2183156
+      "bytes": 4308308,
+      "entityBytes": 2187530
     },
     "turn@e1": {
       "blockingEntityAtCalls": 0,
@@ -79,7 +79,7 @@
       "projectedGrossGoldCalls": 0,
       "roadConnectivityCalls": 28,
       "structuredCloneWholeState": 2,
-      "structuredCloneWholeStateBytes": 7853617,
+      "structuredCloneWholeStateBytes": 7859943,
       "visibilityPasses": 8
     },
     "turn@e2": {
@@ -94,7 +94,7 @@
       "projectedGrossGoldCalls": 0,
       "roadConnectivityCalls": 33,
       "structuredCloneWholeState": 2,
-      "structuredCloneWholeStateBytes": 11566316,
+      "structuredCloneWholeStateBytes": 11576614,
       "visibilityPasses": 8
     }
   },
@@ -102,17 +102,17 @@
   "budgets": {
     "aiRound": {
       "blockingEntityAtCalls": 749,
-      "cityYieldCalls": 7982,
-      "civEconomyCalls": 14,
-      "economyStatusCalls": 7146,
+      "cityYieldCalls": 8457,
+      "civEconomyCalls": 11,
+      "economyStatusCalls": 7685,
       "heapPops": 12108,
       "ownedRoadConnectivityCalls": 84,
-      "ownedRoadTileScans": 21,
+      "ownedRoadTileScans": 15,
       "pathQueries": 465,
       "projectedGrossGoldCalls": 0,
-      "roadConnectivityCalls": 3903,
+      "roadConnectivityCalls": 3897,
       "structuredCloneWholeState": 14,
-      "structuredCloneWholeStateBytes": 68069537
+      "structuredCloneWholeStateBytes": 68152926
     },
     "findPath": {
       "heapPops": 105,
@@ -127,8 +127,8 @@
       "structuredCloneWholeState": 5
     },
     "saveSerialize": {
-      "bytes": 6454796,
-      "entityBytes": 3274734
+      "bytes": 6462462,
+      "entityBytes": 3281295
     },
     "turn": {
       "blockingEntityAtCalls": 0,
@@ -140,20 +140,20 @@
       "projectedGrossGoldCalls": 0,
       "roadConnectivityCalls": 50,
       "structuredCloneWholeState": 3,
-      "structuredCloneWholeStateBytes": 17349474,
+      "structuredCloneWholeStateBytes": 17364921,
       "visibilityPasses": 12
     },
     "unconditionalPasses": {
-      "count": 22
+      "count": 23
     }
   },
   "ratios": {
-    "aiRoundCityYieldCalls": 3.07,
+    "aiRoundCityYieldCalls": 2.94,
     "aiRoundCloneBytes": 1.89,
     "aiRoundHeapPops": 4.26,
     "aiRoundPathQueries": 2.23,
-    "aiRoundProjectionCalls": 3.22,
-    "aiRoundRoadCalls": 5.12,
+    "aiRoundProjectionCalls": 3.09,
+    "aiRoundRoadCalls": 5.14,
     "findPathPopsPerRouteStep": 3.64,
     "saveBytes": 1.93,
     "saveEntityBytes": 2.34,
