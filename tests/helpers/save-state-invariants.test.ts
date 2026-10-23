@@ -1249,6 +1249,54 @@ describe('#1006 assertSaveStateInvariants (aggregate)', () => {
     });
   });
 
+  it('material-reserves: a valid commitment passes and each corrupt shape fails', () => {
+    const check = SAVE_STATE_INVARIANTS.find(inv => inv.name === 'material-reserves')!.check;
+    const build = () => {
+      const { state, cityId } = stateWithPlayerCity('inv-material');
+      const ref = { ownerCivId: 'player', cityId, occurrence: 0, itemId: 'swordsman' };
+      state.materialReservesByCiv = {
+        player: {
+          balances: { 'resource:iron': { native: 10, imported: 0 } },
+          reservations: [{
+            id: 'r', goodId: 'resource:iron', ownerCivId: 'player', amount: 10,
+            reason: 'active-production', allocation: { native: 10, imported: 0 }, consumer: ref,
+          }],
+          incoming: [],
+        },
+      };
+      state.cities[cityId].productionMaterials = {
+        queueRevision: 0,
+        activeOccurrence: 0,
+        commitment: { ref, recipe: [{ goodId: 'resource:iron', quantity: 10 }], reservationIds: ['r'] },
+      };
+      return { state, cityId };
+    };
+
+    expect(() => check(build().state)).not.toThrow();
+
+    const wrongOwner = build();
+    wrongOwner.state.cities[wrongOwner.cityId].productionMaterials!.commitment!.ref.ownerCivId = 'ai-1';
+    expect(() => check(wrongOwner.state)).toThrow(/commitment names/);
+
+    const wrongHead = build();
+    wrongHead.state.cities[wrongHead.cityId].productionMaterials!.activeOccurrence = 1;
+    expect(() => check(wrongHead.state)).toThrow(/occurrence/);
+
+    const dangling = build();
+    dangling.state.cities[dangling.cityId].productionMaterials!.commitment!.reservationIds = ['ghost'];
+    expect(() => check(dangling.state)).toThrow(/missing reservation/);
+
+    const overCommitted = build();
+    overCommitted.state.materialReservesByCiv!.player = {
+      ...overCommitted.state.materialReservesByCiv!.player,
+      balances: {
+        ...overCommitted.state.materialReservesByCiv!.player.balances,
+        'resource:iron': { native: 5, imported: 0 },
+      },
+    };
+    expect(() => check(overCommitted.state)).toThrow(/reserved more native/);
+  });
+
   it('SAVE_STATE_INVARIANTS lists exactly the fifteen documented checks', () => {
     expect(SAVE_STATE_INVARIANTS.map(inv => inv.name).sort()).toEqual([
       'active-war-history',

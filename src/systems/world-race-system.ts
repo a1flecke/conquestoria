@@ -12,6 +12,7 @@
 import type { EventBus } from '@/core/event-bus';
 import type { City, GameState } from '@/core/types';
 import type { WorldRaceKind } from '@/core/types/world';
+import { beginCityMaterialOccurrence } from '@/systems/city-production-materials';
 import { getWorldRaceDefinition, getAllWorldRaceKinds } from '@/systems/world-race-definitions';
 import { getProductionCostForCivItem } from '@/systems/production-cost-context';
 
@@ -95,7 +96,7 @@ function anyLivingCivHasLaunchQueued(state: GameState, kind: WorldRaceKind): boo
   return livingCivIdsSorted(state).some(civId => getWorldRaceLaunchStatus(state, civId, kind).queued);
 }
 
-function refundAndDequeue(city: City, buildingId: string): { city: City; goldRefund: number } {
+function refundAndDequeue(city: City, buildingId: string): { city: City; goldRefund: number; wasHead: boolean } {
   const wasHead = city.productionQueue[0] === buildingId;
   const invested = wasHead ? city.productionProgress : 0;
   const goldRefund = Math.floor(invested / 2);
@@ -106,6 +107,7 @@ function refundAndDequeue(city: City, buildingId: string): { city: City; goldRef
       productionProgress: wasHead ? 0 : city.productionProgress,
     },
     goldRefund,
+    wasHead,
   };
 }
 
@@ -115,6 +117,7 @@ function processRace(state: GameState, bus: EventBus, kind: WorldRaceKind): Game
   let race = existing ?? { kind };
   let changed = existing === undefined;
   let nextState = state;
+  const materialTransitionCityIds = new Set<string>();
 
   if (!race.announcedUnlocked && isWorldRaceUnlocked(state, kind)) {
     race = { ...race, announcedUnlocked: true };
@@ -193,8 +196,11 @@ function processRace(state: GameState, bus: EventBus, kind: WorldRaceKind): Game
       for (const cityId of civ?.cities ?? []) {
         const city = cities[cityId];
         if (!city || !city.productionQueue.includes(definition.launchBuildingId)) continue;
-        const { city: refundedCity, goldRefund } = refundAndDequeue(city, definition.launchBuildingId);
+        const { city: refundedCity, goldRefund, wasHead } = refundAndDequeue(city, definition.launchBuildingId);
         cities = { ...cities, [cityId]: refundedCity };
+        // #1506 MR09: every affected rival city releases its occurrence when the race item was
+        // its head — not only the first city found.
+        if (wasHead) materialTransitionCityIds.add(cityId);
         refundGold(civId, goldRefund);
         bus.emit('worldrace:entry-mooted', { kind, civId, cityId, goldRefund });
       }
@@ -203,10 +209,14 @@ function processRace(state: GameState, bus: EventBus, kind: WorldRaceKind): Game
   }
 
   if (!changed) return nextState;
-  return {
+  let result: GameState = {
     ...nextState,
     worldRaces: { ...nextState.worldRaces, [kind]: race },
   };
+  for (const cityId of materialTransitionCityIds) {
+    result = beginCityMaterialOccurrence(result, cityId);
+  }
+  return result;
 }
 
 export function processWorldRacesTurn(state: GameState, bus: EventBus): GameState {

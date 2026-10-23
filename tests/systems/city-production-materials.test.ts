@@ -7,8 +7,10 @@ import { getQueueableProductionForCity } from '@/systems/city-production-eligibi
 import {
   beginCityMaterialOccurrence,
   getCityMaterialProjection,
+  releaseCityMaterialCommitment,
   syncCityMaterialCommitment,
 } from '@/systems/city-production-materials';
+import { transferCapturedCityOwnership } from '@/systems/city-capture-system';
 import {
   enqueueCityProduction,
   removeCityProductionCommand,
@@ -288,5 +290,92 @@ describe('#1506 MR09 — active material commitments', () => {
     offered = getQueueableProductionForCity(state, base.a)!.units.map(unit => unit.type);
     expect(offered).not.toContain('archer');
     expect(offered).toContain('crossbowman');
+  });
+});
+
+describe('#1506 MR09 — release on capture and removal', () => {
+  it('releases the old owner commitment on capture and funds from the conqueror ledger', () => {
+    const base = gameWithTwoCities('material-capture');
+    let state = prepare(base.state, { iron: 10 });
+    state = enqueueCityProduction(state, base.a, 'swordsman').state;
+    expect(committed(state)).toBe(10);
+
+    // The conqueror has its own stock; the old owner's committed iron returns to free.
+    state = {
+      ...state,
+      materialReservesByCiv: {
+        ...(state.materialReservesByCiv ?? {}),
+        'ai-1': {
+          balances: { [iron]: { native: 10, imported: 0 } },
+          reservations: [],
+          incoming: [],
+        },
+      },
+    };
+
+    const captured = transferCapturedCityOwnership(state, base.a, 'ai-1', state.turn);
+    expect(captured.cities[base.a].owner).toBe('ai-1');
+    expect(captured.materialReservesByCiv!.player.reservations).toEqual([]);
+    expect(getReserveBalance(captured.materialReservesByCiv!.player, iron)).toEqual({ native: 10, imported: 0 });
+    expect(getCommittedQuantity(captured.materialReservesByCiv!['ai-1'], iron)).toBe(10);
+    expect(captured.cities[base.a].productionMaterials!.commitment?.ref.ownerCivId).toBe('ai-1');
+  });
+
+  it('never gives the conqueror the old stock: no stock means waiting', () => {
+    const base = gameWithTwoCities('material-capture-poor');
+    let state = prepare(base.state, { iron: 10 });
+    state = enqueueCityProduction(state, base.a, 'swordsman').state;
+    state = {
+      ...state,
+      materialReservesByCiv: {
+        ...(state.materialReservesByCiv ?? {}),
+        'ai-1': { balances: {}, reservations: [], incoming: [] },
+      },
+    };
+
+    const captured = transferCapturedCityOwnership(state, base.a, 'ai-1', state.turn);
+    expect(captured.materialReservesByCiv!.player.reservations).toEqual([]);
+    expect(getReserveBalance(captured.materialReservesByCiv!.player, iron)).toEqual({ native: 10, imported: 0 });
+    expect(captured.cities[base.a].productionMaterials!.commitment).toBeNull();
+    expect(getCommittedQuantity(captured.materialReservesByCiv!['ai-1'], iron)).toBe(0);
+    expect(getCityMaterialProjection(captured, base.a).funded).toBe(false);
+  });
+
+  it('expires a tagged migration grant on release and is idempotent', () => {
+    const base = gameWithTwoCities('material-release-grant');
+    const state = prepare(base.state, { iron: 0 });
+    const cityId = base.a;
+    const ref = { ownerCivId: 'player', cityId, occurrence: 0, itemId: 'swordsman' };
+    const ledger = {
+      balances: { [iron]: { native: 0, imported: 8 } },
+      reservations: [{
+        id: 'migration:grant', goodId: iron, ownerCivId: 'player', amount: 8, reason: 'migration-grant' as const,
+        allocation: { native: 0, imported: 8 }, consumer: ref, migrationGrantImported: 8,
+      }],
+      incoming: [],
+    };
+    const withCommitment: GameState = {
+      ...state,
+      materialReservesByCiv: { ...(state.materialReservesByCiv ?? {}), player: ledger },
+      cities: {
+        ...state.cities,
+        [cityId]: {
+          ...state.cities[cityId],
+          productionQueue: ['swordsman'],
+          productionMaterials: {
+            queueRevision: 0,
+            activeOccurrence: 0,
+            commitment: { ref, recipe: [{ goodId: iron, quantity: 8 }], reservationIds: ['migration:grant'] },
+          },
+        },
+      },
+    };
+
+    const released = releaseCityMaterialCommitment(withCommitment, cityId);
+    expect(released.materialReservesByCiv!.player.reservations).toEqual([]);
+    expect(getReserveBalance(released.materialReservesByCiv!.player, iron)).toEqual({ native: 0, imported: 0 });
+    expect(released.cities[cityId].productionMaterials!.commitment).toBeNull();
+    // Repeating the release changes nothing (no negative stock, no second expiry).
+    expect(releaseCityMaterialCommitment(released, cityId)).toBe(released);
   });
 });
