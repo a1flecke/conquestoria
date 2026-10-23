@@ -396,10 +396,10 @@ Use `tests/systems/economy-system.test.ts`, `unit-upgrade.test.ts`, `unit-produc
 
 **Modify only the verified owners:** capture/raze/transfer, breakaway/reconquest, world-race loser cleanup, wonder head changes, elimination. **Tests:** their existing relevant domain suites and shared save invariants.
 
-- [ ] Use the shared head-transition/release owner in every actual path listed in §3.8; recheck current callers with scoped search. Preserve existing progress, world-race gold-refund and wonder carry semantics. Material cancellation releases unconsumed ordinary stock; it does not invent a second gold refund.
-- [ ] Captured city loses the old owner's commitment, new owner gets none for free, and released migration credit expires rather than becoming loot. Raze and elimination remove orphan claims immediately. Same-owner transfer and repeated cleanup do nothing.
-- [ ] A race loss must release every affected rival-city active commitment, not only the first. A wonder prepended over a material item releases the previous active claim immediately; restoring/promoting a hard item attempts a new claim.
-- [ ] Add earned-control invariant tests: corrupt owner/ref/head/provenance fails, the valid version passes. Classify the new GameState field as operational teardown for elimination. Conservation assertions count grant expiry and eliminated inventory explicitly rather than treating disappearing stock as ordinary spending.
+- [x] Use the shared head-transition/release owner in every actual path listed in §3.8; recheck current callers with scoped search. Preserve existing progress, world-race gold-refund and wonder carry semantics. Material cancellation releases unconsumed ordinary stock; it does not invent a second gold refund.
+- [x] Captured city loses the old owner's commitment, new owner gets none for free, and released migration credit expires rather than becoming loot. Raze and elimination remove orphan claims immediately. Same-owner transfer and repeated cleanup do nothing.
+- [x] A race loss must release every affected rival-city active commitment, not only the first. A wonder prepended over a material item releases the previous active claim immediately; restoring/promoting a hard item attempts a new claim.
+- [x] Add earned-control invariant tests: corrupt owner/ref/head/provenance fails, the valid version passes. Classify the new GameState field as operational teardown for elimination. Conservation assertions count grant expiry and eliminated inventory explicitly rather than treating disappearing stock as ordinary spending.
 
 Run relevant existing capture/breakaway/world-race/wonder/eliminated-civ tests; run the smallest files that cover the actual edits first. If wonder owners changed, satisfy the current impact contract's wonder checks. Do not claim queue integration complete from button-only tests.
 

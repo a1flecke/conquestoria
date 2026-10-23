@@ -114,6 +114,24 @@ function withCity(state: GameState, city: City): GameState {
 }
 
 /**
+ * Release a city's active commitment without completing anything. Used when the city leaves the
+ * current owner's control (capture/raze/transfer) or its head is replaced by a non-material item:
+ * the old owner's stock returns to free, and any still-tagged migration grant expires rather than
+ * becoming loot. Idempotent: a city with no commitment is unchanged.
+ */
+export function releaseCityMaterialCommitment(state: GameState, cityId: string): GameState {
+  const city = state.cities[cityId];
+  if (!city) return state;
+  const materials = materialsOf(city);
+  if (!materials.commitment) return state;
+  const ledger = getCivMaterialLedger(state, city.owner);
+  return withCity(withLedger(state, city.owner, releaseCommitment(ledger, materials.commitment)), {
+    ...city,
+    productionMaterials: { ...materials, commitment: null },
+  });
+}
+
+/**
  * Spend the active occurrence's held recipe exactly once. This is the natural-completion transition:
  * the caller runs it on the candidate state **before** the completed unit/building and its events are
  * finalized. A missing or already-spent commitment is a no-op, never a second debit.

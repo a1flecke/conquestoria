@@ -12,6 +12,7 @@ import { getUnitAttackProfile } from '@/systems/attack-targeting';
 import { awardGeneralProgress, GENERAL_PROGRESS_AWARDS } from '@/systems/great-general-system';
 import { appendGeneralCareerEvent } from '@/systems/great-general-career';
 import { BUILDINGS } from '@/systems/city-system';
+import { beginCityMaterialOccurrence, releaseCityMaterialCommitment } from '@/systems/city-production-materials';
 import {
   buildTerritoryTileFlippedEvents,
   recalculateTerritory,
@@ -738,6 +739,9 @@ export function resolveMajorCityCapture(
   }
 
   const goldAwarded = computeRazeGold(city);
+  // #1506 MR09: a razed city releases its active commitment immediately; the old owner keeps only
+  // free stock, and any migration assistance on it expires.
+  const releasedState = releaseCityMaterialCommitment(state, cityId);
   const nextCivilizations = {
     ...state.civilizations,
     ...(previousOwner ? {
@@ -759,7 +763,7 @@ export function resolveMajorCityCapture(
     },
   };
 
-  const nextCities = { ...state.cities };
+  const nextCities = { ...releasedState.cities };
   delete nextCities[cityId];
 
   // #591 MR4: cityFaith is keyed by cityId -- razing a city must clean it up here, the
@@ -770,7 +774,7 @@ export function resolveMajorCityCapture(
   delete nextCityFaith[cityId];
 
   const nextState: GameState = {
-    ...state,
+    ...releasedState,
     cities: nextCities,
     civilizations: nextCivilizations,
     cityFaith: nextCityFaith,
@@ -821,23 +825,29 @@ export function transferCapturedCityOwnership(
     return state;
   }
 
+  // #1506 MR09: the city leaves the old owner's control. Release its commitment against the OLD
+  // owner's ledger first, so the conqueror never inherits stock or migration assistance; the new
+  // owner then funds inherited work from its own ledger below.
+  const releasedState = releaseCityMaterialCommitment(state, cityId);
+  const releasedCity = releasedState.cities[cityId]!;
+
   if (previousOwner?.breakaway?.originOwnerId === newOwnerId) {
     const nextState = removeNationalProjectsForCity(
-      reconquerBreakawayCity(state, newOwnerId, previousOwnerId, cityId),
+      reconquerBreakawayCity(releasedState, newOwnerId, previousOwnerId, cityId),
       cityId,
     );
     return recalculateTerritory(
-      reconcileCivilizationLiveness(state, nextState, newOwnerId).state,
+      reconcileCivilizationLiveness(releasedState, beginCityMaterialOccurrence(nextState, cityId), newOwnerId).state,
       { reason: 'capture', preserveCurrentHolderOnTie: true },
     ).state;
   }
 
   const nextState: GameState = {
-    ...state,
+    ...releasedState,
     cities: {
-      ...state.cities,
+      ...releasedState.cities,
       [cityId]: {
-        ...city,
+        ...releasedCity,
         owner: newOwnerId,
         conquestTurn: turn,
         // #1338: no captor inherits the previous ruler's levy.
@@ -849,7 +859,7 @@ export function transferCapturedCityOwnership(
       },
     },
     civilizations: {
-      ...state.civilizations,
+      ...releasedState.civilizations,
       ...(previousOwner ? {
         [previousOwnerId]: {
           ...previousOwner,
@@ -863,8 +873,8 @@ export function transferCapturedCityOwnership(
     },
   };
   const eliminatedState = reconcileCivilizationLiveness(
-    state,
-    removeNationalProjectsForCity(nextState, cityId),
+    releasedState,
+    beginCityMaterialOccurrence(removeNationalProjectsForCity(nextState, cityId), cityId),
     newOwnerId,
   ).state;
   return cancelInvalidNetworkPlans(recalculateTerritory(eliminatedState, {

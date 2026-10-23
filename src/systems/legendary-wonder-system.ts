@@ -24,6 +24,7 @@ import { countLegendaryWonderDiscoverySites, getLegendaryWonderMilitaryQuestProg
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { getActiveResourceSourceCount } from '@/systems/resource-acquisition-system';
+import { beginCityMaterialOccurrence, syncCityMaterialCommitment } from '@/systems/city-production-materials';
 
 export type LegendaryWonderBlocker =
   | { kind: 'quest-incomplete'; incompleteStepIds: string[] }
@@ -566,7 +567,7 @@ export function scrapLegendaryWonderConstruction(
   const phase = reason === 'rival-completed'
     ? 'lost_race'
     : reason === 'resource-count-quest-lost' ? 'questing' : 'ready_to_build';
-  return {
+  const result: GameState = {
     ...state,
     cities: {
       ...state.cities,
@@ -588,6 +589,10 @@ export function scrapLegendaryWonderConstruction(
       [projectId]: { ...project, phase, investedProduction: 0, transferableProduction: 0 },
     },
   };
+  // #1506 MR09: only an active wonder head changes the occurrence; a tail removal keeps it.
+  return active
+    ? beginCityMaterialOccurrence(result, city.id)
+    : syncCityMaterialCommitment(result, city.id);
 }
 
 export function reconcileLegendaryWonderAvailability(state: GameState, bus: EventBus): GameState {
@@ -692,6 +697,7 @@ export function tickLegendaryWonderProjects(state: GameState, _bus: EventBus): G
 
   const updatedProjects: Record<string, LegendaryWonderProject> = {};
   const updatedCities = { ...seededState.cities };
+  const materialTransitionCityIds = new Set<string>();
   const updatedCivilizations = structuredClone(seededState.civilizations);
   const completedLegendaryWonders = { ...(seededState.completedLegendaryWonders ?? {}) };
   let legendaryWonderIntel = sanitizeLegendaryWonderIntel(seededState);
@@ -772,6 +778,7 @@ export function tickLegendaryWonderProjects(state: GameState, _bus: EventBus): G
           productionQueue: city.productionQueue.slice(1),
           productionProgress: 0,
         };
+        materialTransitionCityIds.add(city.id);
 
         for (const [rivalProjectId, rivalRawProject] of Object.entries(seededState.legendaryWonderProjects)) {
           const rivalProject = syncLegendaryWonderQuestSteps(seededState, rivalRawProject);
@@ -802,6 +809,9 @@ export function tickLegendaryWonderProjects(state: GameState, _bus: EventBus): G
               productionQueue: rivalCity.productionQueue.filter(item => item !== `legendary:${rivalProject.wonderId}`),
               productionProgress: wasActivelyBuilding ? 0 : rivalCity.productionProgress,
             };
+            // #1506 MR09: every stood-down rival city (not only the first) releases its active
+            // occurrence and attempts the restored head.
+            if (wasActivelyBuilding) materialTransitionCityIds.add(rivalCity.id);
           }
 
           if (rivalInvestment > 0) {
@@ -850,6 +860,9 @@ export function tickLegendaryWonderProjects(state: GameState, _bus: EventBus): G
   };
   for (const completion of completedResearches) {
     nextState = applyResearchCompletionConsequences(nextState, completion.civId, completion.techId, _bus);
+  }
+  for (const cityId of materialTransitionCityIds) {
+    nextState = beginCityMaterialOccurrence(nextState, cityId);
   }
   return nextState;
 }
@@ -989,7 +1002,10 @@ export function startLegendaryWonderBuild(
       cityActions: [],
     });
   }
-  return nextState;
+  // #1506 MR09: the wonder is prepended over the previous head. Release that occurrence's claim
+  // immediately (the wonder itself is material-free); the wonder's completion/cancellation restores
+  // and funds the next head.
+  return beginCityMaterialOccurrence(nextState, cityId);
 }
 
 export function getLegendaryWonderProjectDefinition(state: GameState, wonderId: string) {
