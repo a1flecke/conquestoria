@@ -9,12 +9,15 @@
 // `projectActiveProduction`), so every forecast here is an estimate. `isEstimate` is always true; a caller must not
 // word it as a guarantee. The query reads only the deciding civ's own city, never another civ's state.
 import type { GameState } from '@/core/types';
+import type { MaterialCostRow } from '@/core/types/commerce';
 import { resolveCivDefinition } from './civ-registry';
 import { calculateProjectedCityYields } from './city-work-system';
 import { canCarryProductionOverflow } from './city-turn';
+import { getCityMaterialProjection } from './city-production-materials';
 import { getRushBuyQuote, type RushBuyDisabledReason } from './economy-system';
 import { isCityProductionLocked } from './faction-unrest-model';
 import { getProductionCostForCivItem } from './production-cost-context';
+import type { MaterialFundingRow } from './resource-material-costs';
 
 // --- The one read of the active item: cost, stored progress, this turn's output. ---
 // The AI treasury (`completesFromOwnProduction`, rush-buy-system.ts) and the decision view below both read it, so a
@@ -77,6 +80,23 @@ export interface ProductionDecisionOptions {
 
 export type ProductionOverflowOutcome = 'none' | 'discarded' | 'carried';
 
+export interface ProductionMaterialSummary {
+  /** False for an item id with no recipe and no recognized material-free special (see projection). */
+  known: boolean;
+  /** The whole hard recipe is available (own reservation counts as available). */
+  funded: boolean;
+  /** The active head is materially short; its round output is withheld and completion is unbounded. */
+  waiting: boolean;
+  recipe: readonly MaterialCostRow[];
+  rows: readonly MaterialFundingRow[];
+  missingQuantity: number;
+  /**
+   * Whole turns of ordinary production **after** materials are funded. This is separate from the
+   * completion estimate and must never be presented as a delivery promise while waiting.
+   */
+  productionOnlyTurns: number | null;
+}
+
 export interface ProductionDecision {
   cityId: string;
   itemId: string;
@@ -88,10 +108,14 @@ export interface ProductionDecision {
   /** Projected production this turn; 0 while locked. An estimate. */
   productionPerTurn: number;
   locked: boolean;
-  /** Turns of ordinary production still needed (>= 1); null when the city is not producing anything. */
+  /**
+   * Turns of ordinary production still needed (>= 1); null when the city is not producing anything,
+   * or when the active item is waiting for materials (materials make completion unbounded).
+   */
   turnsToComplete: number | null;
   /** Ordinary production is projected to complete the item during this turn's end-of-turn processing. */
   finishesThisTurn: boolean;
+  materials: ProductionMaterialSummary;
   rush: {
     available: boolean;
     /** Gold price from `getRushBuyQuote`; 0 when the quote has no price (wonder, no item). */
@@ -130,11 +154,18 @@ export function getProductionDecision(
   const city = state.cities[cityId]!;
   const { cost, progress, productionPerTurn, locked, itemId } = projection;
   const remaining = Math.max(0, cost - progress);
-  const turnsToComplete = productionPerTurn > 0 ? Math.max(1, Math.ceil(remaining / productionPerTurn)) : null;
+  const materialsProjection = getCityMaterialProjection(state, cityId);
+  const waiting = !materialsProjection.funded;
+  const productionOnlyTurns = productionPerTurn > 0
+    ? Math.max(1, Math.ceil(remaining / productionPerTurn))
+    : null;
+  const turnsToComplete = waiting ? null : productionOnlyTurns;
   const finishesThisTurn = turnsToComplete === 1;
   const quote = getRushBuyQuote(state, civId, cityId);
 
-  const excess = Math.min(productionPerTurn, Math.max(0, progress + productionPerTurn - cost));
+  const excess = waiting
+    ? 0
+    : Math.min(productionPerTurn, Math.max(0, progress + productionPerTurn - cost));
   const completedTechs = state.civilizations[civId]?.techState.completed;
   const queuedBehind = city.productionQueue.length - 1;
   const outcome: ProductionOverflowOutcome = excess === 0
@@ -151,6 +182,15 @@ export function getProductionDecision(
     locked,
     turnsToComplete,
     finishesThisTurn,
+    materials: {
+      known: materialsProjection.known,
+      funded: materialsProjection.funded,
+      waiting,
+      recipe: materialsProjection.recipe,
+      rows: materialsProjection.rows,
+      missingQuantity: materialsProjection.missing.reduce((total, row) => total + row.missing, 0),
+      productionOnlyTurns,
+    },
     rush: {
       available: quote.available,
       goldCost: quote.cost,
