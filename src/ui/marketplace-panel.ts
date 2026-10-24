@@ -1,6 +1,8 @@
 import type { GameState, ResourceType } from '@/core/types';
 import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 import { getCivAvailableResources, getInstantResourcePurchaseNotice } from '@/systems/resource-acquisition-system';
+import { getReserveSuppliesRows } from '@/systems/resource-reserve-presentation';
+import { resourceGoodId } from '@/systems/trade-good-definitions';
 import { buildPlayerRouteListSection, type RouteControlHandler } from './trade-route-presentation';
 
 interface MarketplaceCallbacks {
@@ -14,18 +16,20 @@ export function createMarketplacePanel(
   container: HTMLElement,
   state: GameState,
   callbacks: MarketplaceCallbacks,
-): void {
-  const existing = document.getElementById('marketplace-panel');
-  if (existing) { existing.remove(); return; }
+): HTMLElement | null {
+  document.getElementById('marketplace-panel')?.remove();
 
   const marketplace = state.marketplace;
-  if (!marketplace) return;
+  if (!marketplace) return null;
 
   const panel = document.createElement('div');
   panel.id = 'marketplace-panel';
   panel.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(10,10,30,0.95);z-index:50;overflow-y:auto;padding:16px;';
 
   const ownedResources = getCivAvailableResources(state, state.currentPlayer);
+  const reserveRows = new Map(
+    getReserveSuppliesRows(state, state.currentPlayer).map(row => [row.goodId, row]),
+  );
 
   const civ = state.civilizations[state.currentPlayer];
   const viewerTechs  = new Set(civ?.techState.completed ?? []);
@@ -66,14 +70,28 @@ export function createMarketplacePanel(
   // Build resource row placeholders — knownDefs only (tech-gated).
   // NOTE: Both this builder and the setText loop below are index-coupled on knownDefs;
   // they must iterate the same array in the same order. Tests catch any desync.
+  // A counted material row renders the live reserve model instead of an inventory boolean (#1506 MR09).
   const resourceRowsHtml = knownDefs.map((def, idx) => {
     const typeColor = def.type === 'luxury' ? '#d4a' : '#8af';
+    const reserve = reserveRows.get(resourceGoodId(def.id));
+
+    const statusHtml = reserve
+      ? `
+          <div data-reserve-good="${reserve.goodId}" style="font-size:11px;display:flex;flex-direction:column;gap:2px;margin-top:2px;">
+            <div style="opacity:0.8;" data-text="res-stored-${idx}"></div>
+            <div style="opacity:0.7;" data-text="res-committed-${idx}"></div>
+            <div style="opacity:0.7;" data-text="res-rate-${idx}"></div>
+            <div style="color:#d9a25c;" data-text="res-cap-${idx}"></div>
+            <div style="color:#e8c170;" data-text="res-assistance-${idx}"></div>
+          </div>
+        `
+      : `<div style="font-size:11px;opacity:0.6;" data-text="res-owned-${idx}"></div>`;
 
     return `
       <div style="background:rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:10px;">
         <div style="flex:1;">
           <div style="font-size:13px;font-weight:bold;"><span data-text="res-name-${idx}"></span> <span style="font-size:10px;color:${typeColor};" data-text="res-type-${idx}"></span></div>
-          <div style="font-size:11px;opacity:0.6;" data-text="res-owned-${idx}"></div>
+          ${statusHtml}
           <div style="font-size:10px;opacity:0.65;" data-text="res-effect-${idx}"></div>
         </div>
       </div>
@@ -127,10 +145,36 @@ export function createMarketplacePanel(
 
   // Both this loop and the row builder above iterate knownDefs — must stay in sync
   knownDefs.forEach((def, idx) => {
-    const isOwned = ownedResources.has(def.id as ResourceType);
-    setText(`res-name-${idx}`, def.name);
+    const reserve = reserveRows.get(resourceGoodId(def.id));
+    setText(`res-name-${idx}`, `${def.icon} ${def.name}`);
     setText(`res-type-${idx}`, def.type.charAt(0).toUpperCase() + def.type.slice(1));
-    setText(`res-owned-${idx}`, isOwned ? '✓ Owned' : '✗ Not in inventory');
+    if (reserve) {
+      const units = (count: number) => `${count} unit${count === 1 ? '' : 's'}`;
+      setText(`res-stored-${idx}`, `${reserve.stored}/${reserve.capacity} ${reserve.unitLabel} stored`);
+      setText(
+        `res-committed-${idx}`,
+        `${reserve.committed} committed · ${reserve.free} free · ${reserve.incoming} incoming`,
+      );
+      setText(
+        `res-rate-${idx}`,
+        reserve.sources > 0
+          ? `+${reserve.extractionPerRound} ${reserve.unitLabel}/round from ${reserve.sources} source${reserve.sources === 1 ? '' : 's'}`
+          : `No eligible source — 0/${reserve.unitLabel} per round`,
+      );
+      const capParts: string[] = [];
+      if (reserve.capped) capParts.push(`Storage capped — ${units(reserve.cappedQuantity)} cannot fit this round`);
+      if (reserve.overflow > 0) capParts.push(`${units(reserve.overflow)} above capacity`);
+      setText(`res-cap-${idx}`, capParts.join(' · '));
+      setText(
+        `res-assistance-${idx}`,
+        reserve.migrationAssistance > 0
+          ? `${reserve.migrationAssistance} migration assistance (restricted)`
+          : '',
+      );
+    } else {
+      const isOwned = ownedResources.has(def.id as ResourceType);
+      setText(`res-owned-${idx}`, isOwned ? '✓ Owned' : '✗ Not in inventory');
+    }
 
     // Effect badge — set via textContent, never innerHTML
     let effectText: string;
@@ -190,4 +234,5 @@ export function createMarketplacePanel(
     panel.remove();
     callbacks.onClose();
   });
+  return panel;
 }

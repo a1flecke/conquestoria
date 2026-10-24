@@ -20,7 +20,7 @@ import { setGovernancePolicy } from '@/systems/governance-policy-system';
 import { assignGovernor, removeGovernor, moveGovernor } from '@/systems/governor-system';
 import { createVictoryProgressPanel } from '@/ui/victory-progress-panel';
 import { projectDominationProgressForViewer } from '@/systems/domination-presentation';
-import { createCityPanel } from '@/ui/city-panel';
+import { createCityPanelView, type CityPanelView } from '@/ui/city-panel';
 import { applyRouteControl, ROUTE_CONTROL_DENIAL_MESSAGES, ROUTE_CONTROL_NOTIFICATIONS } from '@/systems/trade-route-lifecycle';
 import { createStrategicLaunchFlow } from '@/ui/strategic-launch-flow';
 import { executeStrategicLaunch } from '@/systems/strategic-launch-execution-system';
@@ -57,6 +57,15 @@ export function createCityPanelActionsController(
   let stopVictoryProgressUpdates: (() => void) | null = null;
   let renderVictoryProgressPanel: (() => void) | null = null;
   let removeVictoryProgressPanel: (() => void) | null = null;
+  let stopCityPanelUpdates: (() => void) | null = null;
+  let cityPanelView: CityPanelView | null = null;
+
+  function closeCityPanel(): void {
+    stopCityPanelUpdates?.();
+    stopCityPanelUpdates = null;
+    cityPanelView?.close();
+    cityPanelView = null;
+  }
 
   function openStrategicArsenalPanel(): void {
     const presentation = getStrategicArsenalSummaryPresentation(deps.session.getState(), deps.session.getState().currentPlayer);
@@ -249,7 +258,9 @@ export function createCityPanelActionsController(
     deps.hud.closeDrawer();
     if (city.owner !== deps.session.getState().currentPlayer) return;
 
-    createCityPanel(deps.uiLayer, city, deps.session.getState(), {
+    closeCityPanel();
+    const viewerId = deps.session.getState().currentPlayer;
+    cityPanelView = createCityPanelView(deps.uiLayer, city, deps.session.getState(), {
       onBuild: (cityId, itemId) => {
         const targetCity = deps.session.getState().cities[cityId];
         if (!targetCity) return;
@@ -333,7 +344,7 @@ export function createCityPanelActionsController(
         }
         return deps.session.getState();
       },
-      onClose: () => {},
+      onClose: () => closeCityPanel(),
       onTip: (message) => { deps.showNotification(message, 'info'); },
       onSelectUnit: (unitId) => deps.selectionController.selectUnit(unitId),
       onRouteControl: (routeId, action) => {
@@ -467,6 +478,14 @@ export function createCityPanelActionsController(
         const refreshedCity = deps.session.getState().cities[city.id];
         if (refreshedCity) openCityPanelForCity(refreshedCity);
       },
+    });
+    stopCityPanelUpdates = deps.session.subscribe(next => {
+      const current = next.cities[city.id];
+      if (next.currentPlayer !== viewerId || !current || current.owner !== viewerId) {
+        closeCityPanel();
+        return;
+      }
+      cityPanelView?.update(next);
     });
   }
 
