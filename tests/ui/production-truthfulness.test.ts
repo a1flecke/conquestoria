@@ -58,7 +58,8 @@ function render(state: GameState): HTMLElement {
 const text = (panel: HTMLElement): string => panel.textContent ?? '';
 
 function turnsShown(panel: HTMLElement): string {
-  return panel.querySelector('[data-text="prod-turns"]')?.textContent ?? '';
+  const eta = panel.querySelector('[data-text="prod-eta"]')?.textContent ?? '';
+  return /^(\d+) turns remaining/.exec(eta)?.[1] ?? '';
 }
 
 function slowItem(state: GameState): string {

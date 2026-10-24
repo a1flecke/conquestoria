@@ -37,7 +37,7 @@ vi.mock('@/ui/network-panel', async () => {
   return { createNetworkPanel: vi.fn(() => document.createElement('div')), getNetworkPanelModel: actual.getNetworkPanelModel };
 });
 vi.mock('@/storage/save-manager', () => ({ saveSettings: vi.fn(() => Promise.resolve()) }));
-vi.mock('@/ui/city-panel', () => ({ createCityPanel: vi.fn() }));
+vi.mock('@/ui/city-panel', () => ({ createCityPanel: vi.fn(), createCityPanelView: vi.fn() }));
 vi.mock('@/ui/strategic-launch-flow', () => ({ createStrategicLaunchFlow: vi.fn() }));
 vi.mock('@/ui/espionage-panel', () => ({ createEspionagePanel: vi.fn(() => document.createElement('div')) }));
 
@@ -58,7 +58,7 @@ import { renderUnitStackPanel } from '@/ui/unit-stack-panel';
 import { createNetworkIntentPanel } from '@/ui/network-intent-panel';
 import { createNetworkPanel } from '@/ui/network-panel';
 import { saveSettings } from '@/storage/save-manager';
-import { createCityPanel } from '@/ui/city-panel';
+import { createCityPanelView } from '@/ui/city-panel';
 import { createStrategicLaunchFlow } from '@/ui/strategic-launch-flow';
 import { SFX } from '@/audio/sfx';
 import { hexKey } from '@/systems/hex-utils';
@@ -311,7 +311,7 @@ describe('PanelActionsController', () => {
       expect(deps.renderLoop.camera.centerOn).toHaveBeenCalledWith({ q: 3, r: 3 });
 
       options.onOpenCity('nonexistent-city');
-      expect(createCityPanel).not.toHaveBeenCalled();
+      expect(createCityPanelView).not.toHaveBeenCalled();
 
       options.onNaturalWonderPageShown('great-lighthouse');
       expect(deps.audio.startNaturalWonderCodexAmbient).toHaveBeenCalledWith('great-lighthouse');
@@ -337,7 +337,7 @@ describe('PanelActionsController', () => {
       const options = mockedCallArg<{ onOpenCity: (cityId: string) => void }>(createWonderAtlasPanel, 0, 2);
       options.onOpenCity('test-city');
 
-      expect(createCityPanel).toHaveBeenCalledWith(deps.uiLayer, state.cities['test-city'], deps.session.getState(), expect.anything());
+      expect(createCityPanelView).toHaveBeenCalledWith(deps.uiLayer, state.cities['test-city'], deps.session.getState(), expect.anything());
     });
   });
 
@@ -438,7 +438,7 @@ describe('PanelActionsController', () => {
       }>(createNotificationLogPanel, 0, 1);
 
       options.onOpenCity('test-city');
-      expect(createCityPanel).toHaveBeenCalledWith(deps.uiLayer, state.cities['test-city'], deps.session.getState(), expect.anything());
+      expect(createCityPanelView).toHaveBeenCalledWith(deps.uiLayer, state.cities['test-city'], deps.session.getState(), expect.anything());
       expect(removeSpy).toHaveBeenCalledTimes(1);
 
       options.onClose();
@@ -518,6 +518,21 @@ describe('PanelActionsController', () => {
       expect(result.state).toBe(state);
       expect(deps.showNotification).not.toHaveBeenCalledWith(expect.stringContaining('Purchased'), 'success');
     });
+
+    it('rerenders the open panel from the committed state and stops after close', () => {
+      const { state } = makeFixture('marketplace-refresh');
+      const { deps, controller } = build(state);
+      controller.openMarketplacePanel();
+      expect(createMarketplacePanel).toHaveBeenCalledTimes(1);
+
+      deps.session.commit({ ...deps.session.getState(), turn: deps.session.getState().turn + 1 });
+      expect(createMarketplacePanel).toHaveBeenCalledTimes(2);
+      expect(createMarketplacePanel).toHaveBeenLastCalledWith(deps.uiLayer, deps.session.getState(), expect.anything());
+
+      mockedCallArg<{ onClose: () => void }>(createMarketplacePanel, 1, 2).onClose();
+      deps.session.commit({ ...deps.session.getState(), turn: deps.session.getState().turn + 1 });
+      expect(createMarketplacePanel).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe('openWonderPanelForCityId', () => {
@@ -571,7 +586,7 @@ describe('PanelActionsController', () => {
       expect(deps.hud.closeDrawer).toHaveBeenCalledTimes(1);
       const options = mockedCallArg<{ onOpenCity: (cityId: string) => void }>(createCityOverviewPanel, 0, 2);
       options.onOpenCity('test-city');
-      expect(createCityPanel).toHaveBeenCalledWith(deps.uiLayer, state.cities['test-city'], deps.session.getState(), expect.anything());
+      expect(createCityPanelView).toHaveBeenCalledWith(deps.uiLayer, state.cities['test-city'], deps.session.getState(), expect.anything());
     });
 
     it('appeases a faction via diplomacyActions and re-renders the panel', () => {
@@ -660,7 +675,7 @@ describe('PanelActionsController', () => {
 
         onCardAction('food-warning', { kind: 'open-city', cityId: 'test-city' });
 
-        expect(createCityPanel).toHaveBeenCalledWith(expect.anything(), state.cities['test-city'], expect.anything(), expect.anything());
+        expect(createCityPanelView).toHaveBeenCalledWith(expect.anything(), state.cities['test-city'], expect.anything(), expect.anything());
       });
 
       it('open-city: notifies instead when the city is no longer owned by the player', () => {
@@ -670,7 +685,7 @@ describe('PanelActionsController', () => {
 
         onCardAction('food-warning', { kind: 'open-city', cityId: 'test-city' });
 
-        expect(createCityPanel).not.toHaveBeenCalled();
+        expect(createCityPanelView).not.toHaveBeenCalled();
         expect(deps.showNotification).toHaveBeenCalledWith('That city is no longer available.', 'warning');
       });
 
@@ -837,7 +852,7 @@ describe('PanelActionsController', () => {
       options.onOpenCity('test-city');
 
       expect(deps.selectionController.deselectUnit).toHaveBeenCalledTimes(1);
-      expect(createCityPanel).toHaveBeenCalledWith(deps.uiLayer, state.cities['test-city'], deps.session.getState(), expect.anything());
+      expect(createCityPanelView).toHaveBeenCalledWith(deps.uiLayer, state.cities['test-city'], deps.session.getState(), expect.anything());
     });
   });
 
@@ -916,7 +931,7 @@ describe('PanelActionsController', () => {
       controller.openCityPanelForCity(state.cities['foreign-city']);
 
       expect(deps.hud.closeDrawer).toHaveBeenCalledTimes(1);
-      expect(createCityPanel).not.toHaveBeenCalled();
+      expect(createCityPanelView).not.toHaveBeenCalled();
     });
 
     it('builds the panel for an owned city with the live session state', () => {
@@ -926,7 +941,29 @@ describe('PanelActionsController', () => {
 
       controller.openCityPanelForCity(state.cities['test-city']);
 
-      expect(createCityPanel).toHaveBeenCalledWith(deps.uiLayer, state.cities['test-city'], deps.session.getState(), expect.anything());
+      expect(createCityPanelView).toHaveBeenCalledWith(deps.uiLayer, state.cities['test-city'], deps.session.getState(), expect.anything());
+    });
+
+    it('rerenders the open panel after a committed round and stops after close', () => {
+      const { state } = makeFixture('city-panel-refresh');
+      state.cities['test-city'] = makeCity('test-city');
+      const view = {
+        element: document.createElement('div'),
+        update: vi.fn(),
+        close: vi.fn(),
+      };
+      vi.mocked(createCityPanelView).mockReturnValue(view);
+      const { deps, controller } = build(state);
+
+      controller.openCityPanelForCity(state.cities['test-city']);
+      deps.session.commit({ ...deps.session.getState(), turn: deps.session.getState().turn + 1 });
+      expect(view.update).toHaveBeenCalledWith(deps.session.getState());
+
+      mockedCallArg<{ onClose: () => void }>(createCityPanelView, 0, 3).onClose();
+      const callsBeforeClose = view.update.mock.calls.length;
+      deps.session.commit({ ...deps.session.getState(), turn: deps.session.getState().turn + 1 });
+      expect(view.update).toHaveBeenCalledTimes(callsBeforeClose);
+      expect(view.close).toHaveBeenCalledTimes(1);
     });
 
     it('Prepare Strategic Launch (#545 MR4/MR5): opens the flow, and a confirmed launch commits a real strike without calling SFX directly', () => {
@@ -944,7 +981,7 @@ describe('PanelActionsController', () => {
       deps.bus.on('city:strategic-strike', payload => emitted.push(payload));
 
       controller.openCityPanelForCity(state.cities['silo']);
-      const cityPanelOptions = mockedCallArg<{ onPrepareStrategicLaunch: (cityId: string) => void }>(createCityPanel, 0, 3);
+      const cityPanelOptions = mockedCallArg<{ onPrepareStrategicLaunch: (cityId: string) => void }>(createCityPanelView, 0, 3);
       cityPanelOptions.onPrepareStrategicLaunch('silo');
 
       expect(createStrategicLaunchFlow).toHaveBeenCalledWith(deps.uiLayer, deps.session.getState(), 'player', expect.anything());
@@ -970,7 +1007,7 @@ describe('PanelActionsController', () => {
       deps.session.subscribe(listener);
 
       controller.openCityPanelForCity(state.cities['test-city']);
-      const options = mockedCallArg<{ onBuild: (cityId: string, itemId: string) => GameState | void }>(createCityPanel, 0, 3);
+      const options = mockedCallArg<{ onBuild: (cityId: string, itemId: string) => GameState | void }>(createCityPanelView, 0, 3);
       const returned = options.onBuild('test-city', 'warrior');
 
       expect(deps.session.getState().cities['test-city'].productionQueue).toContain('warrior');
@@ -986,7 +1023,7 @@ describe('PanelActionsController', () => {
       const { deps, controller } = build(state);
 
       controller.openCityPanelForCity(state.cities['test-city']);
-      const options = mockedCallArg<{ onBuild: (cityId: string, itemId: string) => GameState | void }>(createCityPanel, 0, 3);
+      const options = mockedCallArg<{ onBuild: (cityId: string, itemId: string) => GameState | void }>(createCityPanelView, 0, 3);
       const returned = options.onBuild('test-city', 'definitely-not-a-thing');
 
       expect(returned).toBeUndefined();
@@ -1002,18 +1039,18 @@ describe('PanelActionsController', () => {
       const { controller } = build(state);
 
       controller.openCityPanelForCity(state.cities['city-a']);
-      const firstOptions = mockedCallArg<{ onNextCity: () => void }>(createCityPanel, 0, 3);
+      const firstOptions = mockedCallArg<{ onNextCity: () => void }>(createCityPanelView, 0, 3);
       firstOptions.onNextCity();
 
-      // The recursive self-call re-invokes createCityPanel for city-b.
-      expect(createCityPanel).toHaveBeenCalledTimes(2);
-      expect(mockedCallArg<{ id: string }>(createCityPanel, 1, 1).id).toBe('city-b');
+      // The recursive self-call re-invokes createCityPanelView for city-b.
+      expect(createCityPanelView).toHaveBeenCalledTimes(2);
+      expect(mockedCallArg<{ id: string }>(createCityPanelView, 1, 1).id).toBe('city-b');
 
-      const secondOptions = mockedCallArg<{ onPrevCity: () => void }>(createCityPanel, 1, 3);
+      const secondOptions = mockedCallArg<{ onPrevCity: () => void }>(createCityPanelView, 1, 3);
       secondOptions.onPrevCity();
 
-      expect(createCityPanel).toHaveBeenCalledTimes(3);
-      expect(mockedCallArg<{ id: string }>(createCityPanel, 2, 1).id).toBe('city-a');
+      expect(createCityPanelView).toHaveBeenCalledTimes(3);
+      expect(mockedCallArg<{ id: string }>(createCityPanelView, 2, 1).id).toBe('city-a');
     });
 
     it('wires onEstablishRoute, onAppeaseFaction, and onConcedeToMovement to diplomacyActions', () => {
@@ -1026,7 +1063,7 @@ describe('PanelActionsController', () => {
         onEstablishRoute: (caravanId: string) => void;
         onAppeaseFaction: (cityId: string) => void;
         onConcedeToMovement: (cityId: string) => void;
-      }>(createCityPanel, 0, 3);
+      }>(createCityPanelView, 0, 3);
 
       options.onEstablishRoute('caravan-1');
       expect(deps.diplomacyActions.handleEstablishRoute).toHaveBeenCalledWith('caravan-1');
@@ -1045,7 +1082,7 @@ describe('PanelActionsController', () => {
       const { deps, controller } = build(state);
 
       controller.openCityPanelForCity(state.cities['test-city']);
-      const options = mockedCallArg<{ onUpgradeUnit: (unitId: string) => void }>(createCityPanel, 0, 3);
+      const options = mockedCallArg<{ onUpgradeUnit: (unitId: string) => void }>(createCityPanelView, 0, 3);
       options.onUpgradeUnit('settler-1');
 
       // `settler` has no `upgradesTo` in TRAINABLE_UNITS, so the real guard returns
@@ -1059,7 +1096,7 @@ describe('PanelActionsController', () => {
       const { deps, controller } = build(state);
 
       controller.openCityPanelForCity(state.cities['test-city']);
-      const options = mockedCallArg<{ onSetCityFocus: (cityId: string, focus: string) => unknown }>(createCityPanel, 0, 3);
+      const options = mockedCallArg<{ onSetCityFocus: (cityId: string, focus: string) => unknown }>(createCityPanelView, 0, 3);
       options.onSetCityFocus('test-city', 'production');
 
       expect(deps.session.getState().cities['test-city'].focus).toBe('production');
@@ -1072,7 +1109,7 @@ describe('PanelActionsController', () => {
       const { deps, controller } = build(state);
 
       controller.openCityPanelForCity(state.cities['test-city']);
-      const options = mockedCallArg<{ onRushBuyActiveProduction: (cityId: string) => unknown }>(createCityPanel, 0, 3);
+      const options = mockedCallArg<{ onRushBuyActiveProduction: (cityId: string) => unknown }>(createCityPanelView, 0, 3);
       options.onRushBuyActiveProduction('test-city');
 
       // Empty production queue -> real getRushBuyQuote reports unavailable.
@@ -1087,7 +1124,7 @@ describe('PanelActionsController', () => {
       controller.openCityPanelForCity(state.cities['test-city']);
       const options = mockedCallArg<{
         onFindResources: (highlights: HexCoord[], toasts: Array<{ message: string; type: 'info' | 'warning' | 'success' }>) => void;
-      }>(createCityPanel, 0, 3);
+      }>(createCityPanelView, 0, 3);
       options.onFindResources([{ q: 1, r: 1 }, { q: 2, r: 2 }], [{ message: 'Found 2 resources', type: 'info' }]);
 
       expect(deps.renderLoop.setHighlights).toHaveBeenCalledWith([

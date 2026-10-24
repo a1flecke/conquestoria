@@ -18,6 +18,31 @@ export interface DiplomacyTradePanelActionsController {
 export function createDiplomacyTradePanelActionsController(
   deps: PanelActionsCommonDeps,
 ): DiplomacyTradePanelActionsController {
+  let stopMarketplaceUpdates: (() => void) | null = null;
+
+  function closeMarketplacePanel(): void {
+    stopMarketplaceUpdates?.();
+    stopMarketplaceUpdates = null;
+    deps.getElementById('marketplace-panel')?.remove();
+  }
+
+  function renderMarketplacePanel(): void {
+    const previous = deps.getElementById('marketplace-panel');
+    const scrollTop = previous?.scrollTop ?? 0;
+    previous?.remove();
+    const panel = createMarketplacePanel(deps.uiLayer, deps.session.getState(), {
+      onClose: () => closeMarketplacePanel(),
+      onSelectUnit: (unitId) => {
+        closeMarketplacePanel();
+        deps.selectionController.selectUnit(unitId);
+        const unit = deps.session.getState().units[unitId];
+        if (unit) deps.renderLoop.camera.centerOn(unit.position);
+      },
+      onRouteControl: handleRouteControl,
+    });
+    if (panel) panel.scrollTop = scrollTop;
+  }
+
   function openDiplomacyPanel(focusMinorCivId?: string): void {
     deps.hud.closeDrawer();
     deps.getElementById('diplomacy-panel')?.remove();
@@ -47,30 +72,24 @@ export function createDiplomacyTradePanelActionsController(
     const result = applyRouteControl(state, routeId, action, state.currentPlayer, deps.bus);
     if (!result.ok) {
       deps.showNotification(ROUTE_CONTROL_DENIAL_MESSAGES[result.reason], 'warning');
-    } else {
-      deps.session.commit(result.state);
-      deps.showNotification(ROUTE_CONTROL_NOTIFICATIONS[action], 'info');
+      return;
     }
-    // Re-render from the committed state so the row shows the new status immediately.
-    deps.getElementById('marketplace-panel')?.remove();
-    openMarketplacePanel();
+    deps.session.commit(result.state);
+    deps.showNotification(ROUTE_CONTROL_NOTIFICATIONS[action], 'info');
+    // The open panel refreshes from the committed state through its session subscription.
   }
 
   function openMarketplacePanel(): void {
     deps.hud.closeDrawer();
-    deps.getElementById('marketplace-panel')?.remove();
-    // No purchase action is wired (#1498): instant resource imports are contained, so the panel
-    // exposes no callback that could commit a purchase or show a success toast. The canonical
-    // denial lives in `resource-acquisition-system` and refuses even a direct or stale call.
-    createMarketplacePanel(deps.uiLayer, deps.session.getState(), {
-      onClose: () => {},
-      onSelectUnit: (unitId) => {
-        deps.getElementById('marketplace-panel')?.remove();
-        deps.selectionController.selectUnit(unitId);
-        const unit = deps.session.getState().units[unitId];
-        if (unit) deps.renderLoop.camera.centerOn(unit.position);
-      },
-      onRouteControl: handleRouteControl,
+    closeMarketplacePanel();
+    const viewerId = deps.session.getState().currentPlayer;
+    renderMarketplacePanel();
+    stopMarketplaceUpdates = deps.session.subscribe(next => {
+      if (next.currentPlayer !== viewerId) {
+        closeMarketplacePanel();
+        return;
+      }
+      renderMarketplacePanel();
     });
   }
 

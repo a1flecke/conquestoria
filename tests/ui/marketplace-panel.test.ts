@@ -2,6 +2,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createMarketplacePanel } from '@/ui/marketplace-panel';
 import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
+import { resourceGoodId } from '@/systems/trade-good-definitions';
+import type { ReserveLedger } from '@/core/types/commerce';
 import type { GameState } from '@/core/types';
 
 function buildMarketState(overrides: Partial<NonNullable<GameState['marketplace']>> = {}): NonNullable<GameState['marketplace']> {
@@ -679,3 +681,100 @@ describe('createMarketplacePanel', () => {
     expect(supplies?.querySelectorAll('button').length).toBe(0);
   });
 });
+
+describe('createMarketplacePanel material reserves (#1506 MR09)', () => {
+  const iron = resourceGoodId('iron');
+  const copper = resourceGoodId('copper');
+
+  let container: HTMLElement;
+
+  beforeEach(() => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+  });
+
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  function ironState(balances: ReserveLedger['balances'], extra: Partial<ReserveLedger> = {}): GameState {
+    const state = buildState({
+      currentPlayer: 'p1',
+      civTechs: ['bronze-working', 'stone-weapons'],
+      cities: {
+        city1: {
+          id: 'city1', owner: 'p1', position: { q: 0, r: 0 },
+          ownedTiles: [{ q: 0, r: 0 }], workedTiles: [],
+        },
+      },
+      tiles: {
+        '0,0': {
+          coord: { q: 0, r: 0 }, terrain: 'hills', elevation: 'highland',
+          resource: 'iron', improvement: 'none', improvementTurnsLeft: 0,
+          owner: 'p1', hasRiver: false, wonder: null,
+        },
+      },
+    });
+    state.materialReservesByCiv = {
+      p1: { balances, reservations: [], incoming: [], lastAccruedTurn: -1, ...extra },
+    };
+    return state;
+  }
+
+  it('replaces the inventory boolean with exact stored/committed/free/incoming counts', () => {
+    const state = ironState(
+      { [iron]: { native: 14, imported: 0 } },
+      {
+        reservations: [{
+          id: 'city1:1:swordsman:resource:iron',
+          goodId: iron,
+          ownerCivId: 'p1',
+          amount: 10,
+          reason: 'active-production',
+          allocation: { native: 10, imported: 0 },
+          consumer: { ownerCivId: 'p1', cityId: 'city1', occurrence: 1, itemId: 'swordsman' },
+        }],
+      },
+    );
+    createMarketplacePanel(container, state, { onClose: vi.fn() });
+
+    const row = document.querySelector<HTMLElement>('[data-reserve-good="resource:iron"]');
+    expect(row).not.toBeNull();
+    const text = row!.textContent ?? '';
+    expect(text).toContain('14/40 units stored');
+    expect(text).toContain('10 committed');
+    expect(text).toContain('4 free');
+    expect(text).toContain('0 incoming');
+    expect(text).toContain('+2 units/round');
+    expect(text).toContain('1 source');
+    expect(text).not.toContain('Not in inventory');
+  });
+
+  it('labels migration assistance and storage capping separately from free stock', () => {
+    const state = ironState(
+      { [iron]: { native: 39, imported: 0 }, [copper]: { native: 0, imported: 8 } },
+      {
+        reservations: [{
+          id: 'migration:grant',
+          goodId: copper,
+          ownerCivId: 'p1',
+          amount: 8,
+          reason: 'migration-grant',
+          allocation: { native: 0, imported: 8 },
+          consumer: { ownerCivId: 'p1', cityId: 'city1', occurrence: 1, itemId: 'swordsman' },
+          migrationGrantImported: 8,
+        }],
+      },
+    );
+    createMarketplacePanel(container, state, { onClose: vi.fn() });
+
+    const ironText = document.querySelector<HTMLElement>('[data-reserve-good="resource:iron"]')!.textContent ?? '';
+    expect(ironText).toContain('Storage capped');
+    expect(ironText).toContain('1 unit');
+
+    const copperText = document.querySelector<HTMLElement>('[data-reserve-good="resource:copper"]')!.textContent ?? '';
+    expect(copperText).toContain('8 migration assistance');
+    expect(copperText).toContain('restricted');
+  });
+});
+
