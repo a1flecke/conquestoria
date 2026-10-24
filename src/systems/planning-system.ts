@@ -13,6 +13,8 @@ import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { getArsenalStatus } from '@/systems/strategic-arsenal-system';
 import { getCapitalCityId } from '@/systems/capital-system';
 import { advanceCityMaterialRevision, beginCityMaterialOccurrence } from './city-production-materials';
+import { evaluateMaterialFunding, getMaterialRecipe } from './resource-material-costs';
+import { getCivMaterialLedger } from './resource-material-state';
 
 const MAX_CITY_QUEUE_ITEMS = 4;
 const MAX_RESEARCH_QUEUE_ITEMS = 3;
@@ -343,12 +345,20 @@ export function getRecommendedIdleCityChoice(
   state: GameState,
   civId: string,
   cityId: string,
-): { itemId: string; label: string; cost: number; turns: number } | null {
+): { itemId: string; label: string; cost: number; turns: number; fundableNow: boolean } | null {
   const civ = state.civilizations[civId];
   const city = state.cities[cityId];
   if (!civ || !city) {
     return null;
   }
+
+  const ledger = getCivMaterialLedger(state, civId);
+  const fundableNow = (itemId: string): boolean => {
+    const lookup = getMaterialRecipe(itemId);
+    if (!lookup.known) return false;
+    if (lookup.recipe.rows.length === 0) return true;
+    return evaluateMaterialFunding(ledger, lookup.recipe).funded;
+  };
 
   // #1220: the recommendation draws from the very list `enqueueCityProduction` validates against, so it can
   // never recommend something (a coastal unit for an inland city, an unreachable missionary) the queue refuses.
@@ -365,6 +375,7 @@ export function getRecommendedIdleCityChoice(
         cost,
         turns: Math.ceil(cost / productionPerTurn),
         priority: resolveBuildingPacingBand(building) === 'starter' ? 0 : 1,
+        fundableNow: fundableNow(building.id),
       };
     }),
     ...queueable.units
@@ -376,12 +387,20 @@ export function getRecommendedIdleCityChoice(
           cost,
           turns: Math.ceil(cost / productionPerTurn),
           priority: resolveUnitPacingBand(unit) === 'starter' ? 0 : 1,
+          fundableNow: fundableNow(unit.type),
         };
       }),
   ];
 
+  // #1506 MR09 task 10: a fundable item is an immediate solution; an unfundable one is only ever
+  // offered as an explicit "plan and wait" so an idle-production warning never promises a build the
+  // city cannot pay for.
   const best = candidates
-    .sort((left, right) => left.turns - right.turns || left.cost - right.cost || left.priority - right.priority)[0];
+    .sort((left, right) =>
+      Number(right.fundableNow) - Number(left.fundableNow)
+      || left.turns - right.turns
+      || left.cost - right.cost
+      || left.priority - right.priority)[0];
 
   if (!best) {
     return null;
@@ -389,9 +408,10 @@ export function getRecommendedIdleCityChoice(
 
   return {
     itemId: best.itemId,
-    label: best.label,
+    label: best.fundableNow ? best.label : `${best.label} (plan and wait)`,
     cost: best.cost,
     turns: best.turns,
+    fundableNow: best.fundableNow,
   };
 }
 

@@ -19,6 +19,7 @@ import { appeaseFaction, getCityAppeaseCost } from '@/systems/faction-commands';
 import { setFederalismStance, FEDERALISM_LOCK_TURNS } from '@/systems/faction-federalism';
 import { createEspionageCivState, createSpyFromUnit } from '@/systems/espionage-system';
 import { hexKey, hexDistance } from '@/systems/hex-utils';
+import { resourceGoodId } from '@/systems/trade-good-definitions';
 import { tickLegendaryWonderProjects } from '@/systems/legendary-wonder-system';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
@@ -143,6 +144,16 @@ describe('purposeful AI administrative intel', () => {
     const tile = state.map.tiles[hexKey(city.position)];
     tile.resource = 'stone';
     tile.owner = civ.id;
+    // #1506 task 10: selection funds the whole recipe, so give the AI real stone, not just access.
+    state.materialReservesByCiv = {
+      ...(state.materialReservesByCiv ?? {}),
+      'ai-1': {
+        balances: { [resourceGoodId('stone')]: { native: 10, imported: 0 } },
+        reservations: [],
+        incoming: [],
+        lastAccruedTurn: -1,
+      },
+    };
     const prepared = prepareMajorCivStrategicPlan(state, civ.id);
     prepared.forceDemands = [{
       role: 'siege',

@@ -31,6 +31,7 @@ import { createUnit } from '@/systems/unit-lifecycle';
 import { getReservedNationalProjectKeys } from '@/systems/national-project-system';
 import { getStrategicArsenal, getStrategicArsenalCapacity, hasManhattanProject } from '@/systems/strategic-arsenal-system';
 import { getCapitalCityId } from '@/systems/capital-system';
+import { resourceGoodId } from '@/systems/trade-good-definitions';
 import {
   cityDistance,
   isCityCenterTerrain,
@@ -107,6 +108,18 @@ function grantResources(state: GameState, resources: ResourceType[]): void {
     resource,
     expiresOnTurn: state.turn + 10,
   }));
+}
+
+/** Real native stock for a material good; #1506 selection needs the recipe funded, not just access. */
+function grantStock(state: GameState, resource: ResourceType, amount = 10): void {
+  const goodId = resourceGoodId(resource);
+  const ledger = state.materialReservesByCiv?.['ai-1'] ?? {
+    balances: {}, reservations: [], incoming: [], lastAccruedTurn: -1,
+  };
+  state.materialReservesByCiv = {
+    ...(state.materialReservesByCiv ?? {}),
+    'ai-1': { ...ledger, balances: { ...ledger.balances, [goodId]: { native: amount, imported: 0 } } },
+  };
 }
 
 function makeCoastal(state: GameState, cityId = 'city-a'): void {
@@ -475,6 +488,7 @@ describe('AI strategic production', () => {
   it('selects an eligible catapult for missing siege demand', () => {
     const state = setupState(['gathering', 'siege-warfare']);
     grantResources(state, ['stone']);
+    grantStock(state, 'stone');
 
     const result = applyAIProduction(state, 'ai-1', [demand('siege')], aggressive);
 
@@ -495,6 +509,7 @@ describe('AI strategic production', () => {
   it('fills one missing siege slot only once across two idle cities', () => {
     const state = setupState(['gathering', 'siege-warfare'], ['city-a', 'city-b']);
     grantResources(state, ['stone']);
+    grantStock(state, 'stone');
 
     const result = applyAIProduction(state, 'ai-1', [demand('siege')], aggressive);
 
@@ -644,6 +659,7 @@ describe('AI strategic production', () => {
   it('counts valid queued units as forecast role supply', () => {
     const state = setupState(['gathering', 'siege-warfare'], ['city-a', 'city-b']);
     grantResources(state, ['stone']);
+    grantStock(state, 'stone');
     state.cities['city-a'].productionQueue = ['catapult'];
 
     const result = applyAIProduction(state, 'ai-1', [demand('siege')], aggressive);
@@ -1377,6 +1393,7 @@ describe('#1113 — production-idle: resource-locked successor no longer starves
   it('proposes crossbowman instead once copper is available, not archer', () => {
     const state = setupState(['archery', 'tactics', 'stone-weapons']);
     grantResources(state, ['copper']);
+    grantStock(state, 'copper');
     const candidates = generateAIProductionCandidates(
       state, 'ai-1', 'city-a', [demand('ranged', 3, 580)], aggressive,
     );

@@ -3,7 +3,6 @@ import type { AIStrategicRole } from '@/core/types/ai';
 import {
   BUILDINGS,
   TRAINABLE_UNITS,
-  getAvailableBuildings,
   getTrainableUnitsForCity,
   cityFollowsOwnFaith,
 } from '@/systems/city-system';
@@ -24,11 +23,12 @@ import { buildProductionCostContext, getContextualProductionCost } from '@/syste
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { canCompleteAirUnitProduction, getAirBaseRoster } from '@/systems/air-operations-system';
-import { enqueueCityProduction, setIdleProduction } from '@/systems/planning-system';
+import { enqueueCityProduction, removeCityProductionCommand, reorderCityProductionCommand, setIdleProduction } from '@/systems/planning-system';
 import { getQueueableProductionForCity } from '@/systems/city-production-eligibility';
+import { evaluateMaterialFunding, getMaterialRecipe } from '@/systems/resource-material-costs';
+import { accrueNativeStockForCompletedRound, getCivMaterialLedger } from '@/systems/resource-material-state';
+import { getCityMaterialProjection, syncCityMaterialCommitment } from '@/systems/city-production-materials';
 import { getAvailableTechs } from '@/systems/tech-system';
-import { getReservedNationalProjectKeys } from '@/systems/national-project-system';
-import { getArsenalStatus } from '@/systems/strategic-arsenal-system';
 import type { AIForceDemand } from './ai-unit-assignment';
 import { getAIStrategicRoles } from './ai-unit-roles';
 import { weightProductionRoles } from './ai-personality';
@@ -40,7 +40,6 @@ import { isAIHostileOwner } from './ai-hostility';
 import { buildMajorCivPerception } from './ai-perception';
 import { getChallengeProfileForCiv } from '@/core/opponent-challenge';
 import { computeResearchScoringBaseline, getMarginalCivResearchGain } from '@/systems/research-output-system';
-import { getCapitalCityId } from '@/systems/capital-system';
 import { getOwnedCities } from '@/systems/city-ownership';
 import { majorCivWarOpponentIds } from '@/core/owner-kind';
 
@@ -48,6 +47,10 @@ export interface AIProductionCandidate {
   itemId: string;
   kind: 'unit' | 'building';
   roles: readonly AIStrategicRole[];
+  /** Every candidate is legally plannable; fundability is a separate, per-round fact. */
+  plannable: true;
+  /** The whole hard recipe is available from this civ's free stock right now. */
+  fundableNow: boolean;
   productionTurns: number;
   maintenanceImpact: number;
   roleDemandScore: number;
@@ -94,6 +97,12 @@ function validQueuedUnitRoles(
   if (!civ) return [];
   const resources = getCivAvailableResources(state, civId);
   return getOwnedCities(state, civId).flatMap(city => {
+    // #1506 MR09 task 10: only a materially funded active head is real force supply. A waiting head
+    // and every unreserved tail are plans, not completed military demand — otherwise the AI would
+    // stop producing a role it has not actually funded yet.
+    if (!getCityMaterialProjection(state, city.id).funded) return [];
+    const itemId = city.productionQueue[0];
+    if (!itemId) return [];
     const validTypes = new Set(
       getTrainableUnitsForCity(
         city,
@@ -104,10 +113,9 @@ function validQueuedUnitRoles(
         cityFollowsOwnFaith(state, city),
       ).map(unit => unit.type),
     );
-    return city.productionQueue.flatMap(itemId =>
-      validTypes.has(itemId as never)
-        ? [[...getAIStrategicRoles(itemId as never)]]
-        : []);
+    return validTypes.has(itemId as never)
+      ? [[...getAIStrategicRoles(itemId as never)]]
+      : [];
   });
 }
 
@@ -495,6 +503,57 @@ function carrierCompositionScore(
   return score;
 }
 
+/** Is this item's whole hard recipe covered by the civ's free stock right now? */
+function recipeFundableNow(state: GameState, civId: string, itemId: string): boolean {
+  const lookup = getMaterialRecipe(itemId);
+  if (!lookup.known) return false;
+  if (lookup.recipe.rows.length === 0) return true;
+  return evaluateMaterialFunding(getCivMaterialLedger(state, civId), lookup.recipe).funded;
+}
+
+/**
+ * A pure one-resource-phase projection: capped native accrual for the next completed round, then
+ * the real stable-order active claims. It never reads incoming shipments, future sources, future
+ * queue tails or hypothetical imports, and never mutates the real state or its accrual marker.
+ */
+function projectOneResourcePhase(state: GameState, civId: string): GameState {
+  let projected = accrueNativeStockForCompletedRound(state, civId, state.turn + 1);
+  for (const cityId of [...(state.civilizations[civId]?.cities ?? [])].sort()) {
+    projected = syncCityMaterialCommitment(projected, cityId);
+  }
+  return projected;
+}
+
+function projectedRecipeFundable(state: GameState, civId: string, itemId: string): boolean {
+  const lookup = getMaterialRecipe(itemId);
+  if (!lookup.known) return false;
+  if (lookup.recipe.rows.length === 0) return true;
+  const projected = projectOneResourcePhase(state, civId);
+  return evaluateMaterialFunding(getCivMaterialLedger(projected, civId), lookup.recipe).funded;
+}
+
+function projectedWaitingHeadFundable(state: GameState, civId: string, cityId: string): boolean {
+  return getCityMaterialProjection(projectOneResourcePhase(state, civId), cityId).funded;
+}
+
+/**
+ * Selection for useful work: prefer a candidate whose full recipe is fundable now; otherwise keep a
+ * legal plan only when the next resource phase can fund the whole recipe. A source-less item is
+ * never queued to wait for a shipment that MR09 cannot send.
+ */
+function pickCandidate(
+  state: GameState,
+  civId: string,
+  cityId: string,
+  demands: readonly AIForceDemand[],
+  personality: PersonalityTraits,
+): AIProductionCandidate | undefined {
+  const candidates = generateWithResidual(state, civId, cityId, demands, personality);
+  const fundable = candidates.find(candidate => candidate.fundableNow);
+  if (fundable) return fundable;
+  return candidates.find(candidate => projectedRecipeFundable(state, civId, candidate.itemId));
+}
+
 function generateWithResidual(
   state: GameState,
   civId: string,
@@ -505,8 +564,11 @@ function generateWithResidual(
   const civ = state.civilizations[civId];
   const city = state.cities[cityId];
   if (!civ || !city || city.owner !== civId) return [];
-  const resources = getCivAvailableResources(state, civId);
-  const civEra = resolveCivilizationEra(civ.techState.completed);
+  // One plannable surface, exactly what `enqueueCityProduction` accepts. This keeps the
+  // quantity-aware predecessor retirement (a successor only retires its predecessor when the
+  // successor's whole recipe is fundable), so a material-short AI still sees the free alternative.
+  const offered = getQueueableProductionForCity(state, cityId);
+  if (!offered) return [];
   const civDefinition = resolveCivDefinition(state, civ.civType ?? '');
   // #1086: read-only lookup of this civ's already-persisted intent (written back by
   // ai-round-scheduler.ts's writePreparedPortfolios in the same round intent was
@@ -522,7 +584,6 @@ function generateWithResidual(
   // instead of each candidate independently re-deriving the whole civ's projected research
   // output from scratch. See docs/superpowers/specs/2026-09-15-issue-1069-ai-round-perf-design.md §5.
   const researchBaseline = computeResearchScoringBaseline(state, civId);
-  const builtNationalProjectKeys = getReservedNationalProjectKeys(state, civId);
   const productionCostContext = buildProductionCostContext(state, civId, cityId);
   // #1066: a transport can be justified two ways -- an existing combat-cargo
   // demand (the original "ferry my army overseas" case), or an explicit
@@ -544,14 +605,7 @@ function generateWithResidual(
   const hasSubmarineThreat = hasRememberedHostileSubmarineSighting(state, civId);
   const candidates: AIProductionCandidate[] = [];
 
-  for (const unit of getTrainableUnitsForCity(
-    city,
-    civ.techState.completed,
-    state.map,
-    civ.civType,
-    resources,
-    cityFollowsOwnFaith(state, city),
-  )) {
+  for (const unit of offered.units) {
     if (UNIT_DEFINITIONS[unit.type].airOperation
       && !canCompleteAirUnitProduction(state, cityId, unit.type).ok) continue;
     const roles = getAIStrategicRoles(unit.type);
@@ -607,6 +661,8 @@ function generateWithResidual(
       itemId: unit.type,
       kind: 'unit',
       roles,
+      plannable: true,
+      fundableNow: recipeFundableNow(state, civId, unit.type),
       productionTurns,
       maintenanceImpact,
       roleDemandScore,
@@ -635,14 +691,7 @@ function generateWithResidual(
   // trainability gate rather than a duplicated check.
   const civReligion = Object.values(state.religions ?? {}).find(r => r.ownerCivId === civId);
   if (civReligion) {
-    const missionaryTrainable = getTrainableUnitsForCity(
-      city,
-      civ.techState.completed,
-      state.map,
-      civ.civType,
-      resources,
-      cityFollowsOwnFaith(state, city),
-    ).some(candidate => candidate.type === 'missionary');
+    const missionaryTrainable = offered.units.some(candidate => candidate.type === 'missionary');
     if (missionaryTrainable) {
       const maintenanceImpact = projectedUnitMaintenanceImpact(state, civId, cityId, 'missionary');
       if (reserveAllows(state, civId, maintenanceImpact, false, 1)) {
@@ -660,6 +709,8 @@ function generateWithResidual(
           itemId: 'missionary',
           kind: 'unit',
           roles: ['missionary'],
+          plannable: true,
+          fundableNow: recipeFundableNow(state, civId, 'missionary'),
           productionTurns,
           maintenanceImpact,
           roleDemandScore: 0,
@@ -682,18 +733,7 @@ function generateWithResidual(
     }
   }
 
-  const arsenalStatus = getArsenalStatus(state, civId);
-  for (const building of getAvailableBuildings(
-    city,
-    civ.techState.completed,
-    state.map,
-    resources,
-    civEra,
-    builtNationalProjectKeys,
-    civId,
-    arsenalStatus,
-    getCapitalCityId(state, civId),
-  )) {
+  for (const building of offered.buildings) {
     const researchValueScore = getMarginalCivResearchGain(state, civId, cityId, building.id, researchBaseline) * 1.25;
     const economyScore = economyValue(building.id, researchValueScore);
     const maintenanceImpact = projectedBuildingMaintenanceImpact(
@@ -731,6 +771,8 @@ function generateWithResidual(
       itemId: building.id,
       kind: 'building',
       roles: [],
+      plannable: true,
+      fundableNow: recipeFundableNow(state, civId, building.id),
       productionTurns,
       maintenanceImpact,
       roleDemandScore: 0,
@@ -799,11 +841,23 @@ export function chooseAIIdleProductionMode(state: GameState, civId: string): AII
   return hasResearchPath ? 'science' : 'gold';
 }
 
+export interface AIReplacedWaiting {
+  cityId: string;
+  /** The waiting head that was removed. */
+  itemId: string;
+  /** Stored production deliberately lost with that head. */
+  progressLost: number;
+  /** The fundable replacement queued in its place, or null when the city was left on idle conversion. */
+  replacement: string | null;
+}
+
 export interface AIProductionReport {
   /** Cities that had no candidate at all and were put on (or kept on) idle conversion, with the mode. */
   readonly converted: Readonly<Record<string, AIIdleProductionMode>>;
   /** Cities whose best candidate the canonical enqueue refused: a generator/eligibility drift, never masked by conversion. */
   readonly enqueueRefused: readonly string[];
+  /** AI waiting heads replaced because the next resource phase cannot fund their whole recipe. */
+  readonly replacedWaiting: readonly AIReplacedWaiting[];
 }
 
 /**
@@ -818,7 +872,7 @@ export function applyAIProductionWithReport(
   personality: PersonalityTraits,
 ): { state: GameState; report: AIProductionReport } {
   const civ = state.civilizations[civId];
-  if (!civ) return { state, report: { converted: {}, enqueueRefused: [] } };
+  if (!civ) return { state, report: { converted: {}, enqueueRefused: [], replacedWaiting: [] } };
   const residual = residualDemands(state, civId, demands);
   const idle = getOwnedCities(state, civId)
     .filter(city => city.productionQueue.length === 0);
@@ -829,7 +883,7 @@ export function applyAIProductionWithReport(
   // mutated inside the enqueue loop below.
   const bestByCityId = new Map(idle.map(city => [
     city.id,
-    generateWithResidual(state, civId, city.id, residual, personality)[0],
+    pickCandidate(state, civId, city.id, residual, personality),
   ]));
   const idleCities = [...idle].sort((left, right) => {
     const leftEmergency = residual.some(entry =>
@@ -845,17 +899,18 @@ export function applyAIProductionWithReport(
   let idleMode: AIIdleProductionMode | undefined;
   const converted: Record<string, AIIdleProductionMode> = {};
   const enqueueRefused: string[] = [];
+  const replacedWaiting: AIReplacedWaiting[] = [];
 
   for (const city of idleCities) {
     const current = nextState.cities[city.id];
     if (!current || current.productionQueue.length > 0) continue;
-    const selected = generateWithResidual(
+    const selected = pickCandidate(
       nextState,
       civId,
       city.id,
       residual,
       personality,
-    )[0];
+    );
     if (!selected) {
       idleMode ??= chooseAIIdleProductionMode(nextState, civId);
       converted[city.id] = idleMode;
@@ -881,7 +936,70 @@ export function applyAIProductionWithReport(
     }
   }
 
-  return { state: nextState, report: { converted, enqueueRefused } };
+  // #1506 MR09 task 10: an AI city already waiting on materials is reconsidered every round. Keep
+  // invested work only when a pure next-resource-phase projection funds the whole recipe; otherwise
+  // replace it through the canonical queue commands (preserving the tail) or convert to idle. Human
+  // queues are never touched, and no timer or extra persisted AI state is added.
+  if (!civ.isHuman) {
+    const waitingCityIds = getOwnedCities(nextState, civId)
+      .filter(city => city.productionQueue.length > 0 && !getCityMaterialProjection(nextState, city.id).funded)
+      .map(city => city.id)
+      .sort();
+    for (const cityId of waitingCityIds) {
+      const current = nextState.cities[cityId];
+      if (!current || current.productionQueue.length === 0) continue;
+      if (getCityMaterialProjection(nextState, cityId).funded) continue;
+      if (projectedWaitingHeadFundable(nextState, civId, cityId)) continue;
+
+      const candidates = generateWithResidual(nextState, civId, cityId, residual, personality);
+      const replacement = candidates.find(candidate => candidate.fundableNow);
+      const waitingItem = current.productionQueue[0];
+      const progressLost = current.productionProgress;
+      const removed = removeCityProductionCommand(
+        nextState,
+        cityId,
+        0,
+        current.productionMaterials?.queueRevision ?? 0,
+      );
+      if (!removed.ok) continue;
+      nextState = removed.state;
+
+      let replacementId: string | null = null;
+      if (replacement) {
+        const appended = enqueueCityProduction(nextState, cityId, replacement.itemId);
+        if (appended.ok) {
+          nextState = appended.state;
+          const refreshed = nextState.cities[cityId];
+          if (refreshed.productionQueue[0] !== replacement.itemId && refreshed.productionQueue.length > 1) {
+            const moved = reorderCityProductionCommand(
+              nextState,
+              cityId,
+              refreshed.productionQueue.length - 1,
+              0,
+              refreshed.productionMaterials?.queueRevision ?? 0,
+            );
+            if (moved.ok) nextState = moved.state;
+          }
+          replacementId = replacement.itemId;
+        }
+      }
+
+      if (!replacementId && nextState.cities[cityId].productionQueue.length === 0) {
+        const mode = chooseAIIdleProductionMode(nextState, civId);
+        converted[cityId] = mode;
+        if (nextState.cities[cityId].idleProduction !== mode) {
+          nextState = {
+            ...nextState,
+            cities: { ...nextState.cities, [cityId]: setIdleProduction(nextState.cities[cityId], mode) },
+          };
+        }
+      }
+
+      replacedWaiting.push({ cityId, itemId: waitingItem, progressLost, replacement: replacementId });
+    }
+  }
+
+  return { state: nextState, report: { converted, enqueueRefused, replacedWaiting } };
 }
 
 export function applyAIProduction(

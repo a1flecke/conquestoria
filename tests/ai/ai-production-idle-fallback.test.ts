@@ -16,8 +16,23 @@ import type { GameState, PersonalityTraits } from '@/core/types';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
 import { hexKey, hexNeighbors } from '@/systems/hex-utils';
+import { resourceGoodId } from '@/systems/trade-good-definitions';
 
 const calm: PersonalityTraits = { traits: [], warLikelihood: 0, diplomacyFocus: 0, expansionDrive: 0 };
+
+/** Real stone stock; #1506 selection needs the whole recipe funded, not just purchased access. */
+function grantStoneStock(state: GameState): void {
+  const ledger = state.materialReservesByCiv?.['ai-1'] ?? {
+    balances: {}, reservations: [], incoming: [], lastAccruedTurn: -1,
+  };
+  state.materialReservesByCiv = {
+    ...(state.materialReservesByCiv ?? {}),
+    'ai-1': {
+      ...ledger,
+      balances: { ...ledger.balances, [resourceGoodId('stone')]: { native: 10, imported: 0 } },
+    },
+  };
+}
 
 function setupState(completed: string[] = []): GameState {
   const state = createNewGame(undefined, 'ai-idle-fallback', 'small');
@@ -129,6 +144,7 @@ describe('AI idle-production fallback', () => {
   it('an emergency force demand still beats conversion', () => {
     const state = setupMatureState(['gathering', 'siege-warfare']);
     state.marketplace!.purchasedResources = [{ civId: 'ai-1', resource: 'stone', expiresOnTurn: state.turn + 10 }];
+    grantStoneStock(state);
     withResearch(state);
     const after = applyAIProduction(state, 'ai-1', [demand('siege', 900, ['defend:city-a'])], calm);
     expect(after.cities['city-a'].productionQueue).toEqual(['catapult']);
@@ -138,6 +154,7 @@ describe('AI idle-production fallback', () => {
   it('with two idle cities and one demand, the loser converts instead of wasting output', () => {
     const state = setupMatureState(['gathering', 'siege-warfare']);
     state.marketplace!.purchasedResources = [{ civId: 'ai-1', resource: 'stone', expiresOnTurn: state.turn + 10 }];
+    grantStoneStock(state);
     withResearch(state);
     const civ = state.civilizations['ai-1'];
     const second = { ...state.cities['city-a'], id: 'city-b', productionQueue: [] as string[] };
