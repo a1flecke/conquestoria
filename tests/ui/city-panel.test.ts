@@ -79,7 +79,8 @@ describe('city-panel national projects', () => {
     expect(collectText(unlockedPanel)).toContain('Reinforced shelter. +8 city defense; naval and air bombardment deal 15% less damage. Supersedes Star Fort.');
 
     clickElement(unlockedPanel.querySelector('[data-item-id="bunker"]'));
-    expect(collectText(container)).toContain('Producing: 🛡️ Bunker');
+    // Bunker has painted art (#1544), so its production line carries a sprite image, not the 🛡️ fallback emoji.
+    expect(collectText(container)).toContain('Producing: Bunker');
 
     city.buildings = [];
     const gatedPanel = createCityPanel(container, city, state, {
