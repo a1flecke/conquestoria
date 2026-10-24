@@ -29,10 +29,18 @@ import { getCivMaterialLedger } from './resource-material-state';
 
 export interface CityMaterialProjection {
   itemId: string | null;
+  /**
+   * False only for an item id with no valid material recipe and no recognized material-free
+   * special (a legendary wonder). An unknown id is an honest denial, never a free recipe.
+   */
+  known: boolean;
   recipe: readonly MaterialCostRow[];
   commitment: ActiveMaterialCommitment | null;
-  /** True when the active item's full recipe is held (a resource-free item is trivially funded). */
+  /** True when the active item's full recipe is available (own reservation counts as available). */
   funded: boolean;
+  /** Every aggregated recipe row with required/committed/free/available/missing, including satisfied rows. */
+  rows: readonly MaterialFundingRow[];
+  /** Only rows with a positive deficit, convenient for waiting copy. */
   missing: readonly MaterialFundingRow[];
 }
 
@@ -66,27 +74,39 @@ function ownCommitmentByGood(
 
 /**
  * The player/AI-facing projection for this city's active item. No mutation, no rendering.
- * `missing` is empty for a legally plannable resource-free item.
+ * `missing` is empty for a legally plannable resource-free item. An item id that is neither a
+ * catalog item nor the recognized legendary-wonder queue form is `known: false, funded: false`.
  */
 export function getCityMaterialProjection(state: GameState, cityId: string): CityMaterialProjection {
   const city = state.cities[cityId];
-  if (!city) return { itemId: null, recipe: [], commitment: null, funded: false, missing: [] };
+  if (!city) {
+    return { itemId: null, known: true, recipe: [], commitment: null, funded: false, rows: [], missing: [] };
+  }
   const itemId = city.productionQueue[0] ?? null;
-  if (!itemId) return { itemId: null, recipe: [], commitment: null, funded: true, missing: [] };
+  if (!itemId) {
+    return { itemId: null, known: true, recipe: [], commitment: null, funded: true, rows: [], missing: [] };
+  }
 
   const lookup = getMaterialRecipe(itemId);
-  const recipe = lookup.known ? lookup.recipe.rows : [];
   const commitment = commitmentOf(city);
+  // Legendary wonders are deliberately outside the unit/building catalogs; the queue's
+  // `legendary:<wonderId>` form is the one recognized material-free special.
+  if (!lookup.known && !itemId.startsWith('legendary:')) {
+    return { itemId, known: false, recipe: [], commitment, funded: false, rows: [], missing: [] };
+  }
+  const recipe = lookup.known ? lookup.recipe.rows : [];
   if (recipe.length === 0) {
-    return { itemId, recipe, commitment, funded: true, missing: [] };
+    return { itemId, known: true, recipe, commitment, funded: true, rows: [], missing: [] };
   }
   const ledger = getCivMaterialLedger(state, city.owner);
   const funding = evaluateMaterialFunding(ledger, lookup.known ? lookup.recipe : { itemId, kind: 'unit', rows: [] }, ownCommitmentByGood(ledger, commitment));
   return {
     itemId,
+    known: true,
     recipe,
     commitment,
     funded: funding.funded,
+    rows: funding.rows,
     missing: funding.rows.filter(row => row.missing > 0),
   };
 }
