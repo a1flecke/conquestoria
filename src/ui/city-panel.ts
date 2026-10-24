@@ -53,6 +53,7 @@ import { getBlockadedCityIds } from '@/systems/blockade-system';
 import { getOccupiedCityMood, getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { getIdleProductionDecision, getProductionDecision, getQueueMoveConsequence } from '@/systems/production-decision';
+import { getCityMaterialQueueRows } from '@/systems/resource-reserve-presentation';
 import { describeHeadChangeLoss, describeProductionDecision, headChangeConfirmLabel } from './production-decision-copy';
 import { getFortificationCapacity } from '@/systems/fortification-system';
 import {
@@ -168,6 +169,15 @@ function civHappinessForBreakdown(state: GameState, civId: string): number {
   return getCivHappinessFromResources(state, civId) + (feasting ? 2 : 0);
 }
 
+export interface CityPanelView {
+  /** The currently mounted city-panel element (replaced on each internal rerender). */
+  element: HTMLElement;
+  /** Re-render from a committed state, preserving the open tab. No-op once the panel is closed. */
+  update(state: GameState): void;
+  /** Remove the panel. The caller owns any subscription lifecycle. */
+  close(): void;
+}
+
 export function createCityPanel(
   container: HTMLElement,
   city: City,
@@ -175,9 +185,28 @@ export function createCityPanel(
   callbacks: CityPanelCallbacks,
   initialTab: CityPanelTab = 'list',
 ): HTMLElement {
+  return createCityPanelView(container, city, state, callbacks, initialTab).element;
+}
+
+export function createCityPanelView(
+  container: HTMLElement,
+  city: City,
+  state: GameState,
+  callbacks: CityPanelCallbacks,
+  initialTab: CityPanelTab = 'list',
+  sharedView?: CityPanelView,
+): CityPanelView {
   const panel = document.createElement('div');
   panel.id = 'city-panel';
   panel.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(15,15,25,0.95);z-index:30;overflow-y:auto;padding:16px;padding-bottom:80px;';
+
+  let currentTab: CityPanelTab = initialTab;
+  const view: CityPanelView = sharedView ?? {
+    element: panel,
+    update: () => {},
+    close: () => {},
+  };
+  view.element = panel;
 
   const baseYields = calculateProjectedCityYields(state, city.id);
   const baseYieldMultiplier = Math.min(getUnrestYieldMultiplier(city), getOccupiedCityYieldMultiplier(city));
@@ -313,6 +342,12 @@ export function createCityPanel(
   // Production-decision arc: ONE read of the active item (cost, progress, this turn's output, overflow, what a queue
   // change would erase). The panel's own displayed production is passed in so the numbers the player sees agree.
   const productionDecision = getProductionDecision(state, city.owner, city.id, { productionPerTurn: yields.production });
+  // The reserve model is owner-only: an inspected foreign city never exposes another civ's stock.
+  const materialQueueRows = city.owner === state.currentPlayer
+    ? getCityMaterialQueueRows(state, city.owner, city.id) ?? []
+    : [];
+  const activeMaterial = materialQueueRows[0] ?? null;
+  const headMaterialsFunded = activeMaterial?.funded ?? true;
   const idleDecision = getIdleProductionDecision(state, city.owner, city.id);
   const productionNotes = describeProductionDecision(productionDecision);
   const appeaseCost = getCityAppeaseCost(city);
@@ -1001,6 +1036,23 @@ export function createCityPanel(
     </div>
   `;
 
+  // #1506 MR09 task 9: the active occurrence's hard recipe, shown without hover. Only a funded head
+  // gets a completion estimate; a waiting head keeps the exact deficit and a clearly separate
+  // production-only effort figure.
+  const activeMaterialHtml = activeMaterial && activeMaterial.rows.length > 0
+    ? `
+        <div data-active-materials="true" style="margin-top:10px;border-top:1px solid rgba(232,193,112,0.22);padding-top:10px;">
+          <div style="font-size:12px;font-weight:bold;" data-text="prod-material-status"></div>
+          ${activeMaterial.rows.map(row => `
+            <div style="font-size:11px;opacity:0.85;margin-top:2px;" data-material-good="${row.goodId}">
+              <span data-text="prod-material-${row.goodId}"></span>
+            </div>
+          `).join('')}
+          <div style="font-size:11px;opacity:0.8;margin-top:4px;color:#d9a25c;" data-text="prod-material-effort"></div>
+        </div>
+      `
+    : '';
+
   // Current production placeholders
   let currentProductionHtml = '';
   if (city.productionQueue.length > 0) {
@@ -1017,10 +1069,11 @@ export function createCityPanel(
     currentProductionHtml = `
       <div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:12px;margin-bottom:16px;">
         <div style="font-weight:bold;color:#e8c170;">Producing: ${getProductionItemIconHtml(currentItem, productionIconOwner)} <span data-text="prod-name"></span></div>
-        <div style="font-size:12px;opacity:0.7;"><span data-text="prod-turns"></span> turns remaining <span style="opacity:0.7;">(estimate from current production)</span></div>
+        <div style="font-size:12px;opacity:0.7;" data-text="prod-eta"></div>
         <div style="background:rgba(0,0,0,0.3);border-radius:4px;height:8px;margin-top:8px;">
           <div style="background:#6b9b4b;border-radius:4px;height:8px;width:${progress}%;"></div>
         </div>
+        ${activeMaterialHtml}
         ${activeLegendaryEntry ? `
           <div data-active-legendary="true" style="margin-top:10px;border-top:1px solid rgba(232,193,112,0.22);padding-top:10px;">
             <div style="font-size:12px;color:#e8c170;" data-text="legendary-milestone"></div>
@@ -1067,9 +1120,15 @@ export function createCityPanel(
   let queueRowsHtml = '';
   for (let idx = 1; idx < city.productionQueue.length; idx++) {
     const timing = followUpTimings[idx - 1];
-    const slotLabel = timing
-      ? `Queue slot ${idx} · Starts in ${timing.startTurns} turns · Done in ${timing.finishTurns} turns`
-      : `Queue slot ${idx}`;
+    const material = materialQueueRows[idx];
+    // A tail never holds a claim, so it always says so. Its timed suffix is only shown when the
+    // active head is funded and this tail's own recipe could be funded now; otherwise materials
+    // make the start unbounded.
+    const canEstimateTiming = headMaterialsFunded && (material ? material.funded : true);
+    const slotLabel = `Queue slot ${idx} · Planned, not reserved`;
+    const timingLabel = timing && canEstimateTiming
+      ? `Starts in ${timing.startTurns} turns · Done in ${timing.finishTurns} turns`
+      : '';
     const downStyle = idx === lastQueueIdx ? queueBtnDisabledStyle : queueBtnStyle;
     const downDisabled = idx === lastQueueIdx ? 'disabled' : '';
     // Only the slot right behind the active item can take its place; moving it up erases the stored production.
@@ -1079,6 +1138,8 @@ export function createCityPanel(
         <div>
           <div style="font-weight:bold;">${getProductionItemIconHtml(city.productionQueue[idx], productionIconOwner)} <span data-text="queue-name-${idx}"></span></div>
           <div style="font-size:11px;opacity:0.7;">${slotLabel}</div>
+          ${timingLabel ? `<div style="font-size:11px;opacity:0.7;">${timingLabel}</div>` : ''}
+          ${material && material.rows.length > 0 ? `<div style="font-size:11px;opacity:0.8;margin-top:2px;" data-text="queue-material-${idx}"></div>` : ''}
           ${headChangeWarning ? '<div data-head-change-warning="true" style="font-size:11px;color:#d9a25c;margin-top:2px;"></div>' : ''}
         </div>
         <div style="display:flex;gap:6px;">
@@ -1359,12 +1420,37 @@ export function createCityPanel(
     const currentItem = city.productionQueue[0];
     const totalCost = getDisplayedCost(currentItem);
     // The decision query owns the ETA (min 1 turn, 0 production or a lock => no ETA), so a locked city no longer
-    // shows a turn count it cannot reach.
+    // shows a turn count it cannot reach. #1506 MR09: a materially waiting head has no completion estimate.
     const turnsLeft = productionDecision
       ? (productionDecision.turnsToComplete ?? '∞')
       : (yields.production > 0 ? Math.max(1, Math.ceil((totalCost - city.productionProgress) / yields.production)) : '∞');
     setText('prod-name', getProductionDisplayName(currentItem));
-    setText('prod-turns', String(turnsLeft));
+    const waitingForMaterials = activeMaterial !== null && !activeMaterial.funded;
+    const unknownHead = activeMaterial !== null && !activeMaterial.known;
+    setText(
+      'prod-eta',
+      unknownHead
+        ? 'Unknown production item — completion cannot be estimated'
+        : waitingForMaterials
+          ? 'Waiting for materials — completion estimate unknown until the recipe is funded'
+          : `${turnsLeft} turns remaining (estimate from current production)`,
+    );
+    if (activeMaterial && activeMaterial.rows.length > 0) {
+      setText('prod-material-status', waitingForMaterials ? 'Waiting for materials' : 'Funded — materials are available');
+      for (const row of activeMaterial.rows) {
+        const parts = [`${row.icon} ${row.name}: ${row.available}/${row.required} available`];
+        parts.push(`${row.free} free`);
+        if (row.committed > 0) parts.push(`${row.committed} reserved`);
+        if (row.missing > 0) parts.push(`missing ${row.missing}`);
+        setText(`prod-material-${row.goodId}`, parts.join(' · '));
+      }
+      setText(
+        'prod-material-effort',
+        waitingForMaterials && activeMaterial.productionOnlyTurns !== null
+          ? `Production-only effort: ${activeMaterial.productionOnlyTurns} turn${activeMaterial.productionOnlyTurns === 1 ? '' : 's'} after materials are funded (not a completion estimate)`
+          : '',
+      );
+    }
     if (productionNotes.rushNote) panel.querySelector('[data-rush-note]')!.textContent = productionNotes.rushNote;
     if (productionNotes.stalledNote) panel.querySelector('[data-production-stalled]')!.textContent = productionNotes.stalledNote;
     if (productionNotes.overflowNote) panel.querySelector('[data-overflow-note]')!.textContent = productionNotes.overflowNote;
@@ -1435,6 +1521,14 @@ export function createCityPanel(
 
   city.productionQueue.forEach((itemId, index) => {
     setText(`queue-name-${index}`, getProductionDisplayName(itemId));
+    const material = materialQueueRows[index];
+    if (material && material.rows.length > 0) {
+      const parts = material.rows.map(row => `${row.icon} ${row.name}: ${row.available}/${row.required} (${row.free} free)${row.missing > 0 ? ` · missing ${row.missing}` : ' available'}`);
+      setText(
+        `queue-material-${index}`,
+        material.funded ? `Materials available — ${parts.join(' · ')}` : `Planned, not reserved — ${parts.join(' · ')}`,
+      );
+    }
   });
   const headChangeLoss = city.productionQueue.length > 1 ? getQueueMoveConsequence(city, 1, 0).progressLost : 0;
   const headWarningEl = panel.querySelector('[data-head-change-warning]');
@@ -1657,7 +1751,10 @@ export function createCityPanel(
     }
   }
 
-  const rerenderPanel = (nextState: GameState | void = state, nextTab: CityPanelTab = 'list') => {
+  const rerenderPanel = (nextState: GameState | void = state, nextTab: CityPanelTab = currentTab) => {
+    // A committed-state subscriber may already have replaced this element; its own instance owns rendering.
+    if (!panel.isConnected) return;
+    currentTab = nextTab;
     // Cancel the frustration timer before destroying this panel instance.
     if (frustrationRef.timer !== null) {
       clearTimeout(frustrationRef.timer);
@@ -1672,7 +1769,15 @@ export function createCityPanel(
     }
 
     panel.remove();
-    createCityPanel(container, refreshedCity, renderState, callbacks, nextTab);
+    createCityPanelView(container, refreshedCity, renderState, callbacks, nextTab, view);
+  };
+
+  view.update = (nextState: GameState) => {
+    if (!panel.isConnected) return;
+    rerenderPanel(nextState, currentTab);
+  };
+  view.close = () => {
+    panel.remove();
   };
 
   // Locked-item frustration tip: if the player stares at a locked section for
@@ -1901,6 +2006,7 @@ export function createCityPanel(
   };
 
   const activateListTab = () => {
+    currentTab = 'list';
     deactivateAll();
     listView.style.display = 'block';
     listTab.style.background = ACTIVE_BG;
@@ -1909,6 +2015,7 @@ export function createCityPanel(
   };
 
   const activateDistrictsTab = () => {
+    currentTab = 'districts';
     deactivateAll();
     districtsView.textContent = '';
     districtsView.appendChild(createCityDistrictsTab(city));
@@ -1919,6 +2026,7 @@ export function createCityPanel(
   };
 
   const activateCitizensTab = () => {
+    currentTab = 'citizens';
     deactivateAll();
     citizensView.textContent = '';
     citizensView.appendChild(createCityWorkSection(city, state.map, {
@@ -2023,5 +2131,5 @@ export function createCityPanel(
     }
   }
 
-  return panel;
+  return view;
 }
