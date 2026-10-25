@@ -13,12 +13,14 @@ import { baseNewAirUnit, canCompleteAirUnitProduction } from './air-operations-s
 import { UNIT_DEFINITIONS } from './unit-definitions';
 import { evaluateProductionPrerequisites } from './production-prerequisites';
 import {
+  aggregateMaterialRows,
   consumeMaterialRecipe,
   evaluateMaterialFunding,
   getMaterialRecipe,
   type MaterialFundingRow,
 } from './resource-material-costs';
 import { getCivMaterialLedger } from './resource-material-state';
+import { selectSoftMaterialTerms } from './soft-material-terms';
 
 export type UpgradeMissingRequirement =
   | { kind: 'friendly-city' }
@@ -84,10 +86,15 @@ export function evaluateUnitUpgrade(
   const civ = state.civilizations[unit.owner];
   const city = findFriendlyHostCity(state, unit);
   const resources = getCivAvailableResources(state, unit.owner);
-  const cost = getUpgradeCost(
-    target.type,
-    buildProductionCostContext(state, unit.owner, city?.id ?? null),
-  );
+  // #1507 MR10: the upgrade is an immediate purchase, so it selects its finite soft term now and
+  // prices with that exact snapshot; without enough stock the normal cost applies.
+  const softTerms = selectSoftMaterialTerms(state, unit.owner, target.type);
+  const baseContext = buildProductionCostContext(state, unit.owner, city?.id ?? null);
+  const cost = getUpgradeCost(target.type, {
+    ...baseContext,
+    activeItemId: target.type,
+    activeSoftDiscount: softTerms.multiplier,
+  });
   const missing: UpgradeMissingRequirement[] = [];
   if (!city) missing.push({ kind: 'friendly-city' });
   if (source.obsoletedByTech && !civ?.techState.completed.includes(source.obsoletedByTech)) {
@@ -105,11 +112,20 @@ export function evaluateUnitUpgrade(
     if (!resources.has(resource)) missing.push({ kind: 'resource', resource });
   }
   // #1506 MR09: the upgrade pays the target's full recipe. Report exact missing rows rather than
-  // collapsing a material shortage into a generic tech failure.
+  // collapsing a material shortage into a generic tech failure. Soft rows join the hard recipe
+  // only when their finite allotment could be selected.
   const ledger = getCivMaterialLedger(state, unit.owner);
   const recipe = getMaterialRecipe(target.type);
-  if (recipe.known && recipe.recipe.rows.length > 0) {
-    const funding = evaluateMaterialFunding(ledger, recipe.recipe);
+  const requiredRows = aggregateMaterialRows([
+    ...(recipe.known ? recipe.recipe.rows : []),
+    ...softTerms.rows,
+  ]);
+  if (requiredRows.length > 0) {
+    const funding = evaluateMaterialFunding(ledger, {
+      itemId: target.type,
+      kind: recipe.known ? recipe.recipe.kind : 'unit',
+      rows: requiredRows,
+    });
     for (const row of funding.rows) {
       if (row.missing > 0) {
         missing.push({
@@ -305,10 +321,20 @@ export function applyUnitUpgradeToState(
   const next = structuredClone(state);
   // #1506 MR09: spend the target's full recipe on the candidate before gold and placement. A
   // refusal returns the original state, so a failed upgrade consumes neither gold nor materials.
+  // #1507 MR10: a selected soft term is part of that same atomic spend.
   const recipe = getMaterialRecipe(targetType);
-  if (recipe.known && recipe.recipe.rows.length > 0) {
+  const softTerms = selectSoftMaterialTerms(state, unit.owner, targetType);
+  const rows = aggregateMaterialRows([
+    ...(recipe.known ? recipe.recipe.rows : []),
+    ...softTerms.rows,
+  ]);
+  if (rows.length > 0) {
     const ledger = getCivMaterialLedger(next, unit.owner);
-    const spent = consumeMaterialRecipe(ledger, recipe.recipe);
+    const spent = consumeMaterialRecipe(ledger, {
+      itemId: targetType,
+      kind: recipe.known ? recipe.recipe.kind : 'unit',
+      rows,
+    });
     if (!spent.ok) return { state, upgraded: false, reason: 'missing-materials' };
     next.materialReservesByCiv = { ...(next.materialReservesByCiv ?? {}), [unit.owner]: spent.ledger };
   }

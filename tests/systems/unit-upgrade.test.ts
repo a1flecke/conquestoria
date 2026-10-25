@@ -459,6 +459,41 @@ describe('applyUnitUpgradeToState', () => {
     });
   });
 
+  it('pays a finite coal soft term on upgrade and leaves normal cost without coal', () => {
+    const { state } = setup();
+    state.units['upgrade-unit'].type = 'frigate';
+    state.civilizations.player.gold = 1000;
+    state.civilizations.player.techState.completed = [
+      'steam-power', 'ironclad-warships',
+    ];
+    state.marketplace = {
+      ...createMarketplaceState(),
+      purchasedResources: [{ civId: 'player', resource: 'coal', expiresOnTurn: state.turn + 1 }],
+    };
+    state.materialReservesByCiv = {
+      ...(state.materialReservesByCiv ?? {}),
+      player: {
+        balances: { 'resource:coal': { native: 5, imported: 0 } },
+        reservations: [],
+        incoming: [],
+      },
+    };
+
+    const withCoal = evaluateUnitUpgrade(state, 'upgrade-unit', 'ironclad');
+    expect(withCoal.canUpgrade).toBe(true);
+    const upgraded = applyUnitUpgradeToState(state, 'upgrade-unit', 'ironclad');
+    expect(upgraded.upgraded).toBe(true);
+    expect(upgraded.state.materialReservesByCiv!.player.balances['resource:coal'])
+      .toEqual({ native: 0, imported: 0 });
+
+    const noCoal = setup();
+    noCoal.state.units['upgrade-unit'].type = 'frigate';
+    noCoal.state.civilizations.player.gold = 1000;
+    noCoal.state.civilizations.player.techState.completed = ['steam-power', 'ironclad-warships'];
+    const withoutCoal = evaluateUnitUpgrade(noCoal.state, 'upgrade-unit', 'ironclad');
+    expect(withoutCoal.cost).toBeGreaterThan(withCoal.cost);
+  });
+
   it('spends the full target recipe and half-cost gold exactly once', () => {
     const { state } = setup();
     state.units['upgrade-unit'].type = 'knight';

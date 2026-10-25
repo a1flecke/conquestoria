@@ -2,7 +2,6 @@ import type { CityFocus, CivBonusEffect, GameState, HexCoord, ResourceYield } fr
 import { hexKey } from './hex-utils';
 import { calculateCityYields } from './resource-system';
 import { getTileYield } from './tile-yield';
-import { getCivResourceYieldBonus } from './resource-acquisition-system';
 import { getNetworkCityYieldBonus } from './network-infrastructure-plans';
 import {
   buildCityWorkClaimIndex,
@@ -213,21 +212,16 @@ export function calculateProjectedCityYields(
   const hostsCompletedLegendaryWonder = Object.values(workResult.state.completedLegendaryWonders ?? {})
     .some(w => w.cityId === cityId);
   const baseYields = calculateCityYields(projectedCity, workResult.state.map, bonusEffect, completedTechs, { hostsCompletedLegendaryWonder }, state.turn);
-  // City-work helpers also support lightweight presentation fixtures that omit
-  // civilization records; those have no resource access to aggregate.
-  const resourceBonus = workResult.state.civilizations
-    ? getCivResourceYieldBonus(workResult.state, projectedCity.owner)
-    : { food: 0, production: 0, gold: 0, science: 0 };
   const networkBonus = getNetworkCityYieldBonus(workResult.state, cityId, baseYields);
   // Catastrophe-crisis recovery reward — must match turn-manager.ts's own +1/+1 so the
   // displayed projection never diverges from what processTurn actually applies.
   const resilienceBonus = (city.resilienceBonusUntilTurn ?? 0) > state.turn ? 1 : 0;
   const yields = {
     ...baseYields,
-    food: baseYields.food + resourceBonus.food + resilienceBonus,
-    production: baseYields.production + resourceBonus.production + resilienceBonus + networkBonus.production,
-    gold: baseYields.gold + resourceBonus.gold,
-    science: baseYields.science + resourceBonus.science + networkBonus.science,
+    food: baseYields.food + resilienceBonus,
+    production: baseYields.production + resilienceBonus + networkBonus.production,
+    gold: baseYields.gold,
+    science: baseYields.science + networkBonus.science,
   };
 
   if (city.productionQueue.length === 0 && city.idleProduction) {

@@ -1,4 +1,5 @@
 import type { City, CivBonusEffect, ResourceType, UnitType } from '@/core/types';
+import type { ReserveLedger } from '@/core/types/commerce';
 import { BUILDINGS } from './city-building-catalog';
 import { ERA_1_2_MELEE_UNIT_TYPES, MELEE_RANGED_UNIT_TYPES, TRAINABLE_UNITS } from './city-unit-catalog';
 import { getMaterialRecipe } from './resource-material-costs';
@@ -7,6 +8,7 @@ import { LOCAL_INFRASTRUCTURE_BUILDINGS } from './city-local-infrastructure';
 import { getUnitRoleDefinition } from './combat-role-definitions';
 import { getLegendaryWonderProductionCost } from './legendary-wonder-production';
 import { getResourceAdvantageMultiplier } from './resource-advantages';
+import { selectSoftMaterialTermsFromInputs } from './soft-material-terms';
 import { isSpyUnitType } from './spy-unit-types';
 import { TECH_COST_DISCOUNTS } from './tech-yield-definitions';
 import { UNIT_CLASS_BY_TYPE, isMilitaryUnitType, type UnitClass } from './unit-modifier-definitions';
@@ -191,6 +193,12 @@ export interface ProductionCostContext {
   availableResources: ReadonlySet<ResourceType> | undefined;
   /** One empire-selected soft material supplied by Circular Manufacturing Network. */
   materialSubstitution: ResourceType | undefined;
+  /** The active queue item whose optional soft terms are frozen, or null. */
+  activeItemId: string | null;
+  /** Frozen soft multiplier for `activeItemId`; null when no item is active. */
+  activeSoftDiscount: number | null;
+  /** Owning civ's reserve ledger for finite live soft estimates; null uses access-only estimates. */
+  softMaterialLedger: ReserveLedger | null;
   /** One pending Stampede reward discounts the next Beast Handler or War Elephant. */
   herdingInsight: boolean;
   /** One Host reward discounts only the next War Elephant. */
@@ -215,6 +223,9 @@ export function createProductionCostContext(
     activeNationalProjects: [],
     availableResources: undefined,
     materialSubstitution: undefined,
+    activeItemId: null,
+    activeSoftDiscount: null,
+    softMaterialLedger: null,
     herdingInsight: false,
     recoveredHarnesses: false,
     ...overrides,
@@ -246,13 +257,24 @@ export function getProductionCostForItem(
     unit != null,
     options.activeNationalProjects ?? [],
   );
-  // Circular Manufacturing Network is a soft substitution only. The selected material
-  // remains distinct from live resources so catalog rows can opt out (for example Ivory).
-  const resourceAdvantageMultiplier = getResourceAdvantageMultiplier(
-    itemId,
-    options.availableResources ?? new Set<ResourceType>(),
-    options.materialSubstitution,
-  );
+  // #1507 MR10: the active occurrence prices from its frozen soft snapshot; every other item is a
+  // live finite estimate from the owning civ's free stock. Contexts without a ledger keep the
+  // legacy access-only estimate for tests and non-gameplay callers.
+  const activeSoft = options.activeItemId === itemId && options.activeSoftDiscount !== null && options.activeSoftDiscount !== undefined
+    ? Math.max(0.75, options.activeSoftDiscount)
+    : null;
+  const resourceAdvantageMultiplier = activeSoft
+    ?? (options.softMaterialLedger
+      ? selectSoftMaterialTermsFromInputs(itemId, {
+        availableResources: options.availableResources ?? new Set<ResourceType>(),
+        substitution: options.materialSubstitution,
+        ledger: options.softMaterialLedger,
+      }).multiplier
+      : getResourceAdvantageMultiplier(
+        itemId,
+        options.availableResources ?? new Set<ResourceType>(),
+        options.materialSubstitution,
+      ));
   const herdingInsightMultiplier = options.herdingInsight && (itemId === 'beast_handler' || itemId === 'war_elephant') ? 0.8 : 1;
   const recoveredHarnessesMultiplier = options.recoveredHarnesses && itemId === 'war_elephant' ? 0.75 : 1;
   const discountMultiplier = buildingDiscountMultiplier * techDiscountMultiplier * npDiscountMultiplier * resourceAdvantageMultiplier * herdingInsightMultiplier * recoveredHarnessesMultiplier;

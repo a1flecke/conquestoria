@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { GameState } from '@/core/types';
 import { createCityPanel, createCityPanelView } from '@/ui/city-panel';
+import { beginCityMaterialOccurrence } from '@/systems/city-production-materials';
 import { hexKey } from '@/systems/hex-utils';
 import { resourceGoodId } from '@/systems/trade-good-definitions';
 import { makeLegendaryWonderFixture } from '../systems/helpers/legendary-wonder-fixture';
@@ -104,6 +105,26 @@ describe('#1506 MR09 task 9 — city material truth', () => {
     expect(onRemoveQueueItem).toHaveBeenCalledWith('city-river', 1);
     expect(document.querySelector('[data-queue-index="1"]')).toBeNull();
     expect(document.getElementById('city-panel')?.textContent).not.toContain('Granary');
+  });
+
+  it('shows the frozen soft-material term and its reserved allotment', () => {
+    const state = makeLegendaryWonderFixture({ completedTechs: ['steam-power', 'steel-production', 'philosophy', 'sacred-sites'] });
+    const city = state.cities['city-river'];
+    city.productionQueue = ['factory'];
+    city.productionMaterials = { queueRevision: 0, activeOccurrence: 0, commitment: null, softTerms: null };
+    state.marketplace = {
+      ...(state.marketplace ?? { prices: {}, priceHistory: {}, tradeRoutes: [] }),
+      purchasedResources: [{ civId: 'player', resource: 'coal', expiresOnTurn: state.turn + 5 }],
+    } as NonNullable<GameState['marketplace']>;
+    state.materialReservesByCiv = {
+      player: { balances: { [resourceGoodId('coal')]: { native: 5, imported: 0 } }, reservations: [], incoming: [] },
+    };
+    const activated = beginCityMaterialOccurrence(state, city.id);
+    const panel = render(activated);
+
+    const soft = panel.querySelector('[data-active-soft-terms]');
+    expect(soft?.textContent).toContain('20% cheaper');
+    expect(soft?.textContent).toContain('5 Coal reserved');
   });
 
   it('does not expose a foreign city’s reserve model to the viewer', () => {

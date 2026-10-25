@@ -2,7 +2,6 @@ import type {
   GameState,
   LegendaryWonderResourceScope,
   ResourceType,
-  ResourceYield,
 } from '@/core/types';
 import { hexKey } from './hex-utils';
 import { RESOURCE_DEFINITIONS } from './resource-definitions';
@@ -162,35 +161,6 @@ export function getActiveResourceSourceCount(
   }
 
   return count;
-}
-
-/**
- * Returns the aggregate per-city yield bonus from all owned resources whose
- * effect type is NOT 'happiness' (i.e. gold, production, food effects only).
- * Non-stacking per resource: owning any number of the same resource counts once.
- * Different resources with the same effect type DO accumulate
- * (gems + silver → +2 gold/turn).
- */
-export function getCivResourceYieldBonus(
-  state: GameState,
-  civId: string,
-): ResourceYield {
-  const bonus: ResourceYield = { food: 0, production: 0, gold: 0, science: 0 };
-  const owned = getCivAvailableResources(state, civId);
-
-  for (const def of RESOURCE_DEFINITIONS) {
-    if (!def.effect || def.effect.type === 'happiness') continue;
-    if (!owned.has(def.id as ResourceType)) continue;
-
-    switch (def.effect.type) {
-      case 'gold':       bonus.gold       += def.effect.amount; break;
-      case 'production': bonus.production += def.effect.amount; break;
-      case 'food':       bonus.food       += def.effect.amount; break;
-      case 'science':    bonus.science    += def.effect.amount; break;
-    }
-  }
-
-  return bonus;
 }
 
 /**

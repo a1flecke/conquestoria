@@ -45,6 +45,10 @@ const UPDATING = process.env.UPDATE_PERSISTED_SHAPE === '1';
  * GameState shape change needs a migration or a proof it does not (#1006)".
  */
 const ADDITIVE_WITHOUT_MIGRATION: Readonly<Record<string, string>> = {
+  // #1507 MR10 — the frozen soft-material snapshot is optional. An old save has no soft term;
+  // every reader (production-cost context, projection, release/spend) treats absence as "normal
+  // cost", and the next head activation writes the field. No old data needs reinterpretation.
+  'cities.*.productionMaterials.softTerms': '#1507 MR10 — additive optional frozen soft term; absent means normal cost, every reader tolerates absence.',
   // Long-pre-existing optional `Unit` fields (the naval transport ⇔ land cargo
   // dual reference). They predate this ratchet; no matrix fixture had a loaded
   // transport until #1000's `cargo-reciprocity` malformed-repair case, which is

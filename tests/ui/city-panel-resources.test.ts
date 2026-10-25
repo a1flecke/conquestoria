@@ -35,6 +35,7 @@ function makeStateWithSilk(): GameState {
     wonder: null,
     owner: 'player',
   };
+  state.cities['city-river'].workedTiles = [{ q: 2, r: 2 }, { q: 2, r: 3 }];
   return state;
 }
 
@@ -55,6 +56,7 @@ function makeStateWithGems(): GameState {
     wonder: null,
     owner: 'player',
   };
+  state.cities['city-river'].workedTiles = [{ q: 2, r: 2 }, { q: 2, r: 3 }];
   return state;
 }
 
@@ -75,6 +77,7 @@ function makeStateWithGoldResource(): GameState {
     wonder: null,
     owner: 'player',
   };
+  state.cities['city-river'].workedTiles = [{ q: 2, r: 2 }, { q: 2, r: 3 }];
   return state;
 }
 
@@ -92,7 +95,7 @@ describe('city panel resource bonus section', () => {
     const container = document.getElementById('panel-root')!;
     createCityPanel(container, city, state, noopCallbacks);
 
-    expect(container.textContent).toContain('Faster with: Coal');
+    expect(container.textContent).toContain('Optional soft material: Coal');
     expect(container.textContent).not.toContain('Required: Coal');
   });
 
@@ -107,13 +110,13 @@ describe('city panel resource bonus section', () => {
     expect(text).toContain('+1 happiness');
   });
 
-  it('test 22: gems owned → "City bonuses" header and "Gems" with "+1 gold/turn"', () => {
+  it('test 22: gems owned → "Worked-tile bonuses" header and "Gems" with "+1 gold/turn"', () => {
     const state = makeStateWithGems();
     const city = state.cities['city-river'];
     const container = document.getElementById('panel-root')!;
     createCityPanel(container, city, state, noopCallbacks);
     const text = container.textContent ?? '';
-    expect(text).toContain('City bonuses');
+    expect(text).toContain('Worked-tile bonuses');
     expect(text).toContain('Gems');
     expect(text).toContain('+1 gold/turn');
   });
@@ -135,7 +138,17 @@ describe('city panel resource bonus section', () => {
     createCityPanel(container, city, state, noopCallbacks);
     const text = container.textContent ?? '';
     expect(text).not.toContain('Empire bonuses');
-    expect(text).toContain('City bonuses');
+    expect(text).toContain('Worked-tile bonuses');
+  });
+
+  it('does not show an owned but unworked resource as a city bonus', () => {
+    const state = makeStateWithGems();
+    state.cities['city-river'].workedTiles = [{ q: 2, r: 2 }];
+    const container = document.getElementById('panel-root')!;
+    createCityPanel(container, state.cities['city-river'], state, noopCallbacks);
+    const text = container.textContent ?? '';
+    expect(text).not.toContain('Worked-tile bonuses');
+    expect(text).not.toContain('+1 gold/turn on the worked tile');
   });
 
   it('test 25: no resources → entire "Resources" section absent', () => {
@@ -145,7 +158,7 @@ describe('city panel resource bonus section', () => {
     createCityPanel(container, city, state, noopCallbacks);
     const text = container.textContent ?? '';
     expect(text).not.toContain('Empire bonuses');
-    expect(text).not.toContain('City bonuses');
+    expect(text).not.toContain('Worked-tile bonuses');
     // Not asserting the absence of '+1 happiness' globally: since #552, culture
     // buildings like Temple (buildable here — 'philosophy' is completed) show
     // "+1 happiness" in their own build-queue description, which is unrelated

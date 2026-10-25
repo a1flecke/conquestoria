@@ -183,10 +183,10 @@ export function createMarketplacePanel(
     } else {
       switch (def.effect.type) {
         case 'happiness':   effectText = '★ +1 happiness'; break;
-        case 'gold':        effectText = '$ +1 gold/turn'; break;
-        case 'production':  effectText = '⚙ +1 production/turn'; break;
-        case 'food':        effectText = '🌾 +1 food/turn'; break;
-        case 'science':     effectText = '🔬 +1 science/turn'; break;
+        case 'gold':        effectText = '$ +1 gold/turn on the worked tile'; break;
+        case 'production':  effectText = '⚙ +1 production/turn on the worked tile'; break;
+        case 'food':        effectText = '🌾 +1 food/turn on the worked tile'; break;
+        case 'science':     effectText = '🔬 +1 science/turn on the worked tile'; break;
         default:            effectText = '';
       }
     }
