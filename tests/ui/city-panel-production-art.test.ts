@@ -15,8 +15,10 @@ const noopCallbacks = { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose:
 
 function panelFixture() {
   const fixture = makeWonderPanelFixture();
+  // Every era, not just the early ones: each art group repaints the early buildings, and the test below needs a building
+  // that still has no art to prove the emoji fallback. Limiting this to era <= 4 went stale when #1547 finished them.
   fixture.state.civilizations.player.techState.completed = TECH_TREE
-    .filter(tech => tech.era <= 4 && tech.countsForEraAdvancement !== false)
+    .filter(tech => tech.countsForEraAdvancement !== false)
     .map(tech => tech.id);
   fixture.city.buildings = [];
   fixture.city.productionQueue = [];
