@@ -30,7 +30,7 @@ changes.
 | DeepAI (General portraits) | 25 | `design/general-portraits/*.provenance.json` | Permission unresolved |
 | ChatGPT image generation (General portrait) | 1 | `design/general-portraits/gen_oreius.provenance.json` | Sufficient evidence recorded (owner's statement of a paid plan) |
 | ChatGPT image generation (codex illustrations) | 42 | `design/wonder-codex-images/*.provenance.json` | Sufficient evidence recorded (owner's statement of a paid plan) |
-| ChatGPT image generation (building sprites) | 78 | `design/building-art/*.provenance.json` | Sufficient evidence recorded (owner's statement of a paid plan) |
+| ChatGPT image generation (building sprites) | 79 | `design/building-art/*.provenance.json` | Sufficient evidence recorded (owner's statement of a paid plan) |
 | Public-domain artwork (General portraits) | 8 | `design/general-portraits/*.provenance.json` | Sufficient evidence recorded |
 | Kenney CC0 and credited audio | not counted here | `AUDIO-CREDITS.md`, `src/audio/*-audio-sources.ts` | Sufficient where reviewed; not re-audited here |
 | Wonder codex photographs and video | not counted here | `docs/wonder-codex-source-ledger.md` (test-enforced) | Sufficient where reviewed; not re-audited here |
