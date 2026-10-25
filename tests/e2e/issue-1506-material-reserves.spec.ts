@@ -59,7 +59,16 @@ async function continueCampaign(page: Page): Promise<void> {
   await expect(page.locator('#hud')).toContainText(/Turn \d+/);
 }
 
+async function dismissEndTurnWarning(page: Page): Promise<void> {
+  const warning = page.locator('#end-turn-warning-panel');
+  if (await warning.count() > 0) {
+    await warning.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(warning).toHaveCount(0);
+  }
+}
+
 async function openCityPanel(page: Page): Promise<void> {
+  await dismissEndTurnWarning(page);
   await openPrimaryPanel(page, 'City', '#city-overview-panel');
   await page.locator('#city-overview-panel [data-open-city]').first().click();
   await expect(page.locator('#city-panel')).toBeVisible();
@@ -90,7 +99,12 @@ async function endTurn(page: Page, nextTurn: number): Promise<void> {
   await press();
   for (let prompt = 0; prompt < 5; prompt++) {
     await warning.or(requiredChoice).or(newTurn).first().waitFor({ timeout: 30_000 });
-    if (await newTurn.count() > 0) return;
+    if (await newTurn.count() > 0) {
+      // On a contended runner the unmoved-unit warning can mount just after the new-turn HUD.
+      await page.waitForTimeout(300);
+      await dismissEndTurnWarning(page);
+      return;
+    }
     if (await requiredChoice.count() > 0) {
       await press();
       continue;
@@ -108,6 +122,7 @@ test('reserves and city material rows survive reorder, removal, a round and a re
   await continueCampaign(page);
 
   // Supplies: the material row is a reserve model, not an Owned/Not-in-inventory boolean.
+  await dismissEndTurnWarning(page);
   await openPrimaryPanel(page, 'Trade', '#marketplace-panel');
   const ironRow = page.locator(`#marketplace-panel [data-reserve-good="${iron}"]`);
   await expect(ironRow).toContainText('0/40 units stored');
@@ -133,6 +148,7 @@ test('reserves and city material rows survive reorder, removal, a round and a re
   // One completed round accrues 2 iron and both open panels must refresh from the committed state.
   const firstTurn = await currentTurn(page);
   await endTurn(page, firstTurn + 1);
+  await dismissEndTurnWarning(page);
   await openPrimaryPanel(page, 'Trade', '#marketplace-panel');
   await expect(page.locator(`#marketplace-panel [data-reserve-good="${iron}"]`)).toContainText('2/40 units stored');
   await page.locator('#mp-close').click();
