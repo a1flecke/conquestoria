@@ -616,20 +616,20 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     type: 'caravan', name: 'Caravan', movementPoints: 3,
     visionRange: 2, strength: 0, canFoundCity: false,
     canBuildImprovements: false, productionCost: 60,
-    domain: 'land',
+    domain: 'land', tradeCapacity: 4,
   },
   // Trade Routes Overhaul (#553 MR2/4) — Land trade line successors to Caravan.
   merchant_wagon: {
     type: 'merchant_wagon', name: 'Merchant Wagon', movementPoints: 3,
     visionRange: 2, strength: 0, canFoundCity: false,
     canBuildImprovements: false, productionCost: 90,
-    domain: 'land',
+    domain: 'land', tradeCapacity: 6,
   },
   freight_convoy: {
     type: 'freight_convoy', name: 'Freight Convoy', movementPoints: 3,
     visionRange: 2, strength: 0, canFoundCity: false,
     canBuildImprovements: false, productionCost: 220,
-    domain: 'land',
+    domain: 'land', tradeCapacity: 10,
   },
   // Trade Routes Overhaul (#553 MR1/4) — Naval Trader line. movementPoints 3 matches
   // the existing civilian-ship convention (transport/carrack/galleon/steamship/
@@ -638,25 +638,25 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     type: 'naval_trader', name: 'Naval Trader', movementPoints: 3,
     visionRange: 2, strength: 0, canFoundCity: false,
     canBuildImprovements: false, productionCost: 75,
-    domain: 'naval', waterAccess: 'ocean',
+    domain: 'naval', waterAccess: 'ocean', tradeCapacity: 5,
   },
   steamship_trader: {
     type: 'steamship_trader', name: 'Steamship Trader', movementPoints: 3,
     visionRange: 2, strength: 0, canFoundCity: false,
     canBuildImprovements: false, productionCost: 120,
-    domain: 'naval', waterAccess: 'ocean',
+    domain: 'naval', waterAccess: 'ocean', tradeCapacity: 8,
   },
   cargo_freighter: {
     type: 'cargo_freighter', name: 'Cargo Freighter', movementPoints: 3,
     visionRange: 2, strength: 0, canFoundCity: false,
     canBuildImprovements: false, productionCost: 170,
-    domain: 'naval', waterAccess: 'ocean',
+    domain: 'naval', waterAccess: 'ocean', tradeCapacity: 12,
   },
   container_ship: {
     type: 'container_ship', name: 'Container Ship', movementPoints: 3,
     visionRange: 2, strength: 0, canFoundCity: false,
     canBuildImprovements: false, productionCost: 260,
-    domain: 'naval', waterAccess: 'ocean',
+    domain: 'naval', waterAccess: 'ocean', tradeCapacity: 16,
   },
   // Trade Routes Overhaul (#553 MR3/4) — Air trade line. Air units in this codebase
   // ignore terrain cost (getMovementCostForUnit's domain === 'air' branch always

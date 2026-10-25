@@ -192,6 +192,43 @@ export interface MarketProcurementPolicy {
   maxUnitPrice: number;
   /** Gold that must remain after the purchase. */
   treasuryFloor: number;
+  /** Shared per-round purchase allowance for every route of this civilization. */
+  roundBudget?: number;
+  /** Amount already spent this round; reset by the once-per-round offer snapshot. */
+  spentThisTurn?: number;
+}
+
+/** One standing buyer target on a route. Several orders share the route's cargo capacity. */
+export interface ResourceProcurementOrder {
+  goodId: TradeGoodId;
+  /** Desired stored + incoming quantity; cargo already bought counts toward it. */
+  targetQuantity: number;
+  /** Inclusive maximum total unit cost for this good (seller price + tariff). */
+  maxUnitPrice: number;
+}
+
+export interface ResourceProcurementTerms {
+  orders: readonly ResourceProcurementOrder[];
+}
+
+/** One paid claim in a route's manifest. The claim is incoming stock, never usable yet. */
+export interface ResourceManifestItem {
+  claimId: string;
+  goodId: TradeGoodId;
+  quantity: number;
+  unitPrice: number;
+  paid: number;
+  sellerCivId: string;
+}
+
+/** A route's persisted, owned cargo. It is created at supplier loading and cleared at home delivery. */
+export interface ResourceManifest {
+  ownerCivId: string;
+  routeId: string;
+  carrierUnitId: string;
+  destinationCityId: string;
+  purchaseTurn: number;
+  items: readonly ResourceManifestItem[];
 }
 
 /**

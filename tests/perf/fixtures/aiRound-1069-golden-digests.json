@@ -1,7 +1,7 @@
 {
   "e1": {
     "state": {
-      "__whole": "2fc33a2d331c",
+      "__whole": "eaeb648be835",
       "autonomyByCiv": "95313c912b48",
       "barbarianCampPressure": "44136fa355b3",
       "barbarianCamps": "c9c75b490ac4",
@@ -9,6 +9,7 @@
       "cities": "4ab2f58d90d9",
       "cityFaith": "44136fa355b3",
       "civilizations": "a346d3aea429",
+      "commerceMarket": "9aca44acc61f",
       "commercePermissions": "b053f8ba4051",
       "crisisForces": "44136fa355b3",
       "currentPlayer": "f4fd498bf9ac",
@@ -66,7 +67,7 @@
   },
   "e2": {
     "state": {
-      "__whole": "991edff864a8",
+      "__whole": "09eb9d945350",
       "autonomyByCiv": "95313c912b48",
       "barbarianCampPressure": "44136fa355b3",
       "barbarianCamps": "5148e5b9b58d",
@@ -74,6 +75,7 @@
       "cities": "bcbc3be9bdaa",
       "cityFaith": "44136fa355b3",
       "civilizations": "0cc6986a66ba",
+      "commerceMarket": "36db1eec32ea",
       "commercePermissions": "b053f8ba4051",
       "crisisForces": "44136fa355b3",
       "currentPlayer": "f4fd498bf9ac",

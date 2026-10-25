@@ -55,7 +55,8 @@ import {
   setMinorCivWarState,
 } from '@/systems/minor-civ-actions';
 import { applyOpportunisticWarPenaltyIfCrisisStruck, applySendAid, canSendAid } from '@/systems/crisis-interaction-system';
-import { openEstablishRoutePanel } from '@/ui/establish-route-panel';
+import { openEstablishRoutePanel, type RouteProcurementDraft } from '@/ui/establish-route-panel';
+import { setMarketProcurementPolicy } from '@/systems/resource-market-offers';
 import { emitMinorCivLeagueNotices } from '@/systems/minor-civ-league-presentation';
 
 export interface DiplomacyActionsController {
@@ -346,14 +347,23 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
   // section and selected-unit-info's Establish Route button trigger the exact same code
   // path (per ui-panels.md's Extracted UI Flows rule), not two copies that could drift.
   function handleEstablishRoute(caravanId: string): void {
-    openEstablishRoutePanel(deps.uiLayer, deps.session.getState(), caravanId, (toCityId, originCityId, mode) => {
+    openEstablishRoutePanel(deps.uiLayer, deps.session.getState(), caravanId, (toCityId, originCityId, mode, draft: RouteProcurementDraft | undefined) => {
       // #1500 MR03: the executor returns a typed refusal instead of throwing, so a stale chooser
       // callback (war declared, slot taken, off-turn) shows the entitled reason and mutates nothing.
+      const before = deps.session.getState();
+      const withPolicy = draft
+        ? setMarketProcurementPolicy(before, before.currentPlayer, {
+          maxUnitPrice: draft.procurement.orders[0]?.maxUnitPrice ?? 0,
+          treasuryFloor: draft.treasuryFloor,
+          roundBudget: draft.roundBudget,
+          spentThisTurn: 0,
+        })
+        : before;
       const routeResult = establishQuestAwareRoute(
-        deps.session.getState(),
+        withPolicy,
         caravanId,
         toCityId,
-        { automated: false, originCityId, mode },
+        { automated: false, originCityId, mode, procurement: draft?.procurement },
       );
       if (!routeResult.ok) {
         deps.showNotification(TRADE_ROUTE_DENIAL_MESSAGES[routeResult.reason], 'warning');

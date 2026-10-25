@@ -286,12 +286,41 @@ describe('save persistence (#38)', () => {
       procurementByCiv: { [buyer]: { maxUnitPrice: 11, treasuryFloor: 5 } },
     };
     state.commerceMarket = market;
+    const fromCityId = state.civilizations[state.currentPlayer]!.cities[0]!;
+    const toCityId = state.civilizations[buyer]!.cities[0]!;
+    state.marketplace = {
+      ...state.marketplace!,
+      tradeRoutes: [{
+        id: 'route-round-trip',
+        fromCityId,
+        toCityId,
+        goldPerTrip: 10,
+        turnsPerTrip: 1,
+        procurement: { orders: [{ goodId: 'resource:iron', targetQuantity: 6, maxUnitPrice: 9 }] },
+        manifest: {
+          ownerCivId: state.currentPlayer,
+          routeId: 'route-round-trip',
+          carrierUnitId: 'carrier-round-trip',
+          destinationCityId: fromCityId,
+          purchaseTurn: state.turn,
+          items: [{
+            claimId: 'claim-round-trip',
+            goodId: 'resource:iron',
+            quantity: 6,
+            unitPrice: 9,
+            paid: 54,
+            sellerCivId: buyer,
+          }],
+        },
+      }],
+    };
 
     const saveFile = serializeSaveFile(state);
     const parsed = parseSaveFile(saveFile);
     if (parsed.status !== 'success') throw new Error(parsed.message);
     expect(parsed.state.commercePermissions?.resourcePolicies).toEqual(state.commercePermissions.resourcePolicies);
     expect(parsed.state.commerceMarket).toEqual(market);
+    expect(parsed.state.marketplace?.tradeRoutes[0]).toEqual(state.marketplace.tradeRoutes[0]);
   });
 
   const minorCivNotificationHistories: Array<[string, Record<string, MinorCivRelationshipStatus>]> = [

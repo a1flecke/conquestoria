@@ -1,5 +1,5 @@
 import type { NotificationCityAction, NotificationLogState } from './notification-log';
-import type { CommerceMarketState, CommercePermissionsState, CityProductionMaterials, MaterialCostRow, ReserveLedger, TradeRouteInterruptionReason, TradeRouteModeId } from './types/commerce';
+import type { CommerceMarketState, CommercePermissionsState, CityProductionMaterials, MaterialCostRow, ReserveLedger, ResourceManifest, ResourceProcurementTerms, TradeRouteInterruptionReason, TradeRouteModeId } from './types/commerce';
 import type { PirateState } from './pirate-state';
 import type { DominationIntelState } from '@/systems/domination-types';
 import type { GovernancePolicyId } from '@/systems/governance-types';
@@ -707,6 +707,8 @@ export interface UnitDefinition {
   strategicLaunchPlatform?: StrategicLaunchCapability;
   terrainCostOverrides?: Partial<Record<string, number>>;
   cargoCapacity?: number;
+  /** Dedicated trade-cargo space; never the troop-transport `cargoCapacity`. */
+  tradeCapacity?: number;
   cargoSize?: number;
   cityAssaultMultiplier?: number;
   combinedArms?: UnitCombinedArmsCapability;
@@ -1898,6 +1900,10 @@ export interface TradeRoute {
    * assignment and frozen for the round trip, like the rest of the route's terms.
    */
   mode?: TradeRouteModeId;
+  /** #1509 MR12: standing buyer targets loaded at the supplier and delivered at home. */
+  procurement?: ResourceProcurementTerms;
+  /** #1509 MR12: paid cargo currently owned by the route owner and still in transit. */
+  manifest?: ResourceManifest;
 }
 
 export interface PurchasedResourceEntry {

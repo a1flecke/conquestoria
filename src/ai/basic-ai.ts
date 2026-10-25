@@ -131,7 +131,9 @@ import { hasAITradeRole } from './ai-unit-roles';
 import { applyAIProduction } from './ai-production';
 import { applyAIGoldSpending } from './ai-treasury';
 import { applyAIResearch } from './ai-research';
-import { processAIResourceMarketplace } from './ai-resource-marketplace';
+import { getAIProcurementTerms, processAIResourceMarketplace } from './ai-resource-marketplace';
+import { refreshMarketOffers } from '@/systems/resource-market-offers';
+import { setRouteProcurement } from '@/systems/resource-procurement';
 import { getCrisisRestoreAssignments } from './ai-crisis-response';
 import { applyWorkerAction } from '@/systems/worker-action-system';
 import { applyPillageToState, canPillageTile } from '@/systems/pillage-system';
@@ -1005,8 +1007,17 @@ function processAITurnInternal(
       // #1500: the executor returns a typed refusal; the AI simply tries the next candidate.
       if (!routeResult.ok) continue;
       newState = routeResult.state;
+      // #1509 MR12: a foreign AI route may carry the same conservative procurement terms a human
+      // chooses. The shared loader buys only at the supplier, within the visible offer and budget.
+      if (candidate.owner !== civId) {
+        newState = refreshMarketOffers(newState);
+        const terms = getAIProcurementTerms(newState, civId, candidate.id);
+        if (terms) newState = setRouteProcurement(newState, routeResult.route.id, terms);
+      }
       emitMinorCivQuestTransitions(bus, routeResult.questTransitions, newState);
-      bus.emit('trade:route-created', { route: routeResult.route });
+      const currentRoute = newState.marketplace?.tradeRoutes.find(route => route.id === routeResult.route.id)
+        ?? routeResult.route;
+      bus.emit('trade:route-created', { route: currentRoute });
       civ = newState.civilizations[civId];
       break;
     }

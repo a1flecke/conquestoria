@@ -311,9 +311,9 @@ function sourceFiles(directory: string): string[] {
 
 describe('#1508 MR11 — atomic loading', () => {
   it('has no UI/AI caller and leaves instant resource purchases closed', () => {
-    const engine = join('src', 'systems', 'resource-market-offers.ts');
-    const callers = sourceFiles(join('src'))
-      .filter(file => file !== engine)
+    // The shipment engine is the one permitted system caller; no UI or AI module may debit stock or
+    // transfer payment directly.
+    const callers = [...sourceFiles(join('src', 'ui')), ...sourceFiles(join('src', 'ai'))]
       .filter(file => readFileSync(file, 'utf8').includes('commitMarketLoad'));
     expect(callers).toEqual([]);
     expect(getInstantResourcePurchaseNotice()).not.toBeNull();

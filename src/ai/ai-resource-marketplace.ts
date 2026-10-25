@@ -6,18 +6,13 @@ import {
   cityFollowsOwnFaith,
   TRAINABLE_UNITS,
 } from '@/systems/city-system';
-import { calculateProjectedCityYields } from '@/systems/city-work-system';
-import { resolveCivDefinition } from '@/systems/civ-registry';
-import { getReservedNationalProjectKeys } from '@/systems/national-project-system';
-import { buildProductionCostContext, getContextualProductionCost } from '@/systems/production-cost-context';
-import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { getCapitalCityId } from '@/systems/capital-system';
-import {
-  getCivAvailableResources,
-  getResourceAccessCost,
-  getResourcePurchaseDecision,
-  performBuyResourceAccess,
-} from '@/systems/resource-acquisition-system';
+import { resolveCivilizationEra } from '@/systems/tech-definitions';
+import { getReservedNationalProjectKeys } from '@/systems/national-project-system';
+import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
+import { getMarketOfferForBuyer, getMarketProcurementPolicy, setMarketProcurementPolicy } from '@/systems/resource-market-offers';
+import type { ResourceProcurementTerms } from '@/core/types/commerce';
+import { findTradeGood, resourceGoodId } from '@/systems/trade-good-definitions';
 
 const ACCESS_DURATION_TURNS = 10;
 
@@ -57,48 +52,64 @@ function getResourcePurchaseCandidates(state: GameState, civId: string, cityId: 
   ].sort();
 }
 
+/** The first hard resource the AI is short of in its current production plans. */
+function missingResource(state: GameState, civId: string): ResourceType | null {
+  const civ = state.civilizations[civId];
+  if (!civ) return null;
+  const available = getCivAvailableResources(state, civId);
+  for (const cityId of [...civ.cities].sort()) {
+    for (const itemId of getResourcePurchaseCandidates(state, civId, cityId)) {
+      const missing = getRequiredResources(itemId).filter(resource => !available.has(resource));
+      if (missing.length === 1) return missing[0]!;
+    }
+  }
+  return null;
+}
+
 /**
- * Gives a major AI one deterministic, player-rule-equivalent resource purchase for a queued item or
- * an idle-city hard-gated candidate that can finish before temporary access expires.
- *
- * MR01 containment (#1498): eligibility comes from the same canonical
- * `getResourcePurchaseDecision` the human paths use, which currently refuses every instant purchase
- * while the import market is rebuilt. The AI therefore buys nothing and receives no compensating
- * free resources; its production and trade planning are untouched.
+ * #1509 MR12: the old AI ten-turn access purchase is retired. The AI only writes a conservative
+ * standing policy; the route loader performs the actual posted-price purchase when a real trader
+ * reaches a permitted supplier. No free stock and no instant buy.
  */
 export function processAIResourceMarketplace(state: GameState, civId: string): GameState {
   const civ = state.civilizations[civId];
   if (!civ || !state.marketplace) return state;
-  let working = state;
-
-  for (const cityId of [...civ.cities].sort()) {
-    const city = working.cities[cityId];
-    const currentCiv = working.civilizations[civId];
-    if (!city || !currentCiv) continue;
-    const available = getCivAvailableResources(working, civId);
-    const productionCostContext = buildProductionCostContext(working, civId, cityId);
-    for (const itemId of getResourcePurchaseCandidates(working, civId, cityId)) {
-      const missing = getRequiredResources(itemId).filter(resource => !available.has(resource));
-      if (missing.length !== 1) continue;
-
-      const cost = getContextualProductionCost(itemId, productionCostContext);
-      const output = Math.max(1, calculateProjectedCityYields(
-        working,
-        cityId,
-        resolveCivDefinition(working, currentCiv.civType)?.bonusEffect,
-      ).production);
-      if (Math.ceil(Math.max(0, cost - city.productionProgress) / output) > ACCESS_DURATION_TURNS) continue;
-
-      const resource = missing[0];
-      const price = getResourceAccessCost(working, resource);
-      if (currentCiv.gold < price) continue;
-      const seller = Object.keys(currentCiv.diplomacy.relationships)
-        .sort()
-        .find(sellerId => getResourcePurchaseDecision(working, civId, sellerId, resource).allowed);
-      if (!seller) continue;
-      const purchase = performBuyResourceAccess(working, civId, seller, resource);
-      return purchase.ok ? purchase.state : working;
-    }
-  }
-  return working;
+  const existing = getMarketProcurementPolicy(state, civId);
+  if (existing.maxUnitPrice !== Number.MAX_SAFE_INTEGER) return state;
+  const budget = Math.max(0, Math.min(100, Math.floor(civ.gold / 3)));
+  return setMarketProcurementPolicy(state, civId, {
+    maxUnitPrice: 50,
+    treasuryFloor: Math.max(0, Math.floor(civ.gold / 2)),
+    roundBudget: budget,
+    spentThisTurn: 0,
+  });
 }
+
+/**
+ * Conservative terms for a foreign route the AI is about to establish. The target is one standard
+ * recipe, the max price is the currently visible offer, and the shared policy supplies budget/floor.
+ */
+export function getAIProcurementTerms(
+  state: GameState,
+  civId: string,
+  destinationCityId: string,
+): ResourceProcurementTerms | null {
+  const destination = state.cities[destinationCityId];
+  if (!destination || destination.owner === civId) return null;
+  const resource = missingResource(state, civId);
+  if (!resource) return null;
+  const goodId = resourceGoodId(resource);
+  const offer = getMarketOfferForBuyer(state, civId, destination.owner, goodId);
+  if (!offer || offer.available <= 0) return null;
+  const targetQuantity = findTradeGood(goodId)?.quantity?.standardRecipeQuantity ?? 10;
+  return {
+    orders: [{
+      goodId,
+      targetQuantity,
+      maxUnitPrice: offer.unitPrice + offer.tariffPerUnit,
+    }],
+  };
+}
+
+// Kept for the existing AI test seam: no instant access is purchased.
+export const AI_ACCESS_DURATION_TURNS = ACCESS_DURATION_TURNS;
