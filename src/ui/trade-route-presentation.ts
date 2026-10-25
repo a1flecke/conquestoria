@@ -2,6 +2,10 @@ import type { GameState, TradeRoute, City } from '@/core/types';
 import { getRouteCapacity, getRouteOperatingStatus, type TradeRouteNonOperatingReason } from '@/systems/trade-route-economy';
 import { getRouteControlOptions, type RouteControlAction } from '@/systems/trade-route-lifecycle';
 import { getEntitledRouteDanger, getTradeDangerFacts, type TradeDangerFacts } from '@/systems/trade-danger-adapters';
+import { getRouteManifestQuantity } from '@/systems/resource-shipment-system';
+import { getProcurementRemaining, getRouteManifestPaid } from '@/systems/resource-procurement';
+import { getRouteLegRounds } from '@/systems/trade-route-travel';
+import { findTradeGood } from '@/systems/trade-good-definitions';
 import { createGameButton } from '@/ui/ui-kit';
 
 // Trade Routes Overhaul (#553 MR4/4) — shared route-list rendering, extracted from
@@ -82,6 +86,33 @@ function renderRouteRow(
     : `earning 0 · ${reasonLabel}`;
   routeDetail.appendChild(document.createTextNode(`${promised} · ${actual} · round trip ${route.turnsPerTrip * 2} rounds`));
   summary.appendChild(routeDetail);
+
+  // #1509 MR12: the manifest is owned cargo, not route income. Show what is aboard, what it cost,
+  // and the target still short; a destroyed trader loses it (the row says so before departure).
+  const manifestQuantity = getRouteManifestQuantity(route);
+  if (manifestQuantity > 0) {
+    const cargo = document.createElement('span');
+    cargo.dataset.routeManifest = 'true';
+    cargo.style.cssText = 'font-size:11px;color:#e8c170;';
+    const goods = (route.manifest?.items ?? [])
+      .map(item => `${item.quantity} ${findTradeGood(item.goodId)?.name ?? item.goodId}`)
+      .join(', ');
+    const direction = committedUnit?.routeDirection === 'inbound'
+      ? `returning home in ${getRouteLegRounds(state, committedUnit, route.fromCityId) ?? '?'} round(s)`
+      : 'awaiting return';
+    cargo.textContent = `Cargo: ${goods} · paid ${getRouteManifestPaid(route)} · ${direction} · lost if the trader is destroyed`;
+    summary.appendChild(cargo);
+  }
+  const order = route.procurement?.orders?.[0];
+  if (order) {
+    const remaining = getProcurementRemaining(state, fromCity.owner, order);
+    const target = document.createElement('span');
+    target.dataset.routeProcurement = 'true';
+    target.style.cssText = 'font-size:11px;opacity:0.7;';
+    target.textContent = `${findTradeGood(order.goodId)?.name ?? order.goodId} target ${order.targetQuantity} · ${remaining} still to buy · max ${order.maxUnitPrice}/unit`;
+    summary.appendChild(target);
+  }
+
   if (!status.paying && entitledDanger) {
     const dangerLine = document.createElement('span');
     dangerLine.dataset.entitledDanger = entitledDanger.source;

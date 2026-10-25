@@ -94,6 +94,8 @@ export interface TradeRouteRequest {
   originCityId?: string;
   /** #1504 MR07: what the route is for. Omitted means ordinary commerce. */
   mode?: TradeRouteModeId;
+  /** #1509 MR12: standing import targets loaded at the supplier. */
+  procurement?: TradeRoute['procurement'];
 }
 
 export type TradeRouteEligibility =
@@ -269,6 +271,7 @@ export function establishTradeRoute(
     // #1504 MR07: commerce is the default and stays implicit, so a new commerce route has exactly the
     // shape it had before modes existed; any other purpose is recorded explicitly.
     ...(request.mode && request.mode !== 'commerce' ? { mode: request.mode } : {}),
+    ...(request.procurement ? { procurement: request.procurement } : {}),
   };
   idCounters.nextRouteId++;
 

@@ -671,11 +671,12 @@ describe('createMarketplacePanel', () => {
     expect(routes?.textContent).toContain('Routes');
     expect(routes?.textContent).toContain('Active Trade Routes');
     expect(supplies?.textContent).toContain('Supplies');
-    expect(policies?.textContent).toContain('Policies');
+    expect(policies?.textContent).toContain('Seller policies');
 
-    // Policies explains what is coming without offering an unfinished control.
+    // With no stored goods revealed, the policy section explains the empty state and offers no
+    // unfinished control.
     expect(policies?.querySelectorAll('button').length).toBe(0);
-    expect(policies?.textContent).toContain('arrive with supply routes');
+    expect(policies?.textContent).toContain('No stored goods');
 
     // Supplies exposes no purchase control at this stage (the chooser and route controls live in Routes).
     expect(supplies?.querySelectorAll('button').length).toBe(0);
@@ -720,6 +721,52 @@ describe('createMarketplacePanel material reserves (#1506 MR09)', () => {
     };
     return state;
   }
+
+  it('edits the good-keyed protected reserve and partner grant through the live policy section', () => {
+    const state = ironState({ [iron]: { native: 14, imported: 0 } });
+    state.civilizations.p2 = {
+      ...state.civilizations.p1!,
+      id: 'p2',
+      cities: ['p2city'],
+      diplomacy: {
+        relationships: { p1: 10 },
+        treaties: [{ type: 'trade_agreement', civA: 'p2', civB: 'p1', turnsRemaining: -1 }],
+        events: [],
+        atWarWith: [],
+        treacheryScore: 0,
+        vassalage: { overlord: null, vassals: [], protectionScore: 0, protectionTimers: [] },
+      },
+    } as never;
+    state.cities.p2city = {
+      ...state.cities.city1!,
+      id: 'p2city',
+      owner: 'p2',
+    };
+    state.commercePermissions = {
+      resourceExportGrants: [],
+      routeAllowances: [],
+      resourcePolicies: [{ civId: 'p1', goodId: iron, protectedReserve: 2, partnerCivIds: ['p2'] }],
+    };
+    const onSetResourcePolicy = vi.fn();
+    createMarketplacePanel(container, state, { onClose: vi.fn(), onSetResourcePolicy });
+
+    const row = document.querySelector<HTMLElement>('[data-policy-good="resource:iron"]');
+    expect(row).not.toBeNull();
+    const reserve = row!.querySelector<HTMLInputElement>('input[data-policy-reserve]')!;
+    expect(reserve.value).toBe('2');
+    const partner = row!.querySelector<HTMLInputElement>('input[data-policy-partner="p2"]')!;
+    expect(partner.checked).toBe(true);
+
+    reserve.value = '5';
+    partner.checked = false;
+    row!.querySelector<HTMLButtonElement>('button[data-policy-save]')!.click();
+    expect(onSetResourcePolicy).toHaveBeenCalledWith({
+      civId: 'p1',
+      goodId: iron,
+      protectedReserve: 5,
+      partnerCivIds: [],
+    });
+  });
 
   it('replaces the inventory boolean with exact stored/committed/free/incoming counts', () => {
     const state = ironState(

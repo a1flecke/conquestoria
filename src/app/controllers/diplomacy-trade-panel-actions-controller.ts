@@ -8,6 +8,7 @@
 import { createDiplomacyPanel } from '@/ui/diplomacy-panel';
 import { createMarketplacePanel } from '@/ui/marketplace-panel';
 import { applyRouteControl, ROUTE_CONTROL_DENIAL_MESSAGES, ROUTE_CONTROL_NOTIFICATIONS, type RouteControlAction } from '@/systems/trade-route-lifecycle';
+import { setCommerceResourcePolicy } from '@/systems/resource-market-offers';
 import type { PanelActionsCommonDeps } from './panel-actions-shared';
 
 export interface DiplomacyTradePanelActionsController {
@@ -39,6 +40,10 @@ export function createDiplomacyTradePanelActionsController(
         if (unit) deps.renderLoop.camera.centerOn(unit.position);
       },
       onRouteControl: handleRouteControl,
+      onSetResourcePolicy: policy => {
+        deps.session.commit(setCommerceResourcePolicy(deps.session.getState(), policy));
+        renderMarketplacePanel();
+      },
     });
     if (panel) panel.scrollTop = scrollTop;
   }

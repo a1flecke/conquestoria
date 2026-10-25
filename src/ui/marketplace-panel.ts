@@ -1,8 +1,11 @@
 import type { GameState, ResourceType } from '@/core/types';
+import type { CommerceResourcePolicy } from '@/core/types/commerce';
 import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 import { getCivAvailableResources, getInstantResourcePurchaseNotice } from '@/systems/resource-acquisition-system';
+import { getCommercialPassagePermission, getCommerceResourcePolicy } from '@/systems/commerce-permissions';
 import { getReserveSuppliesRows } from '@/systems/resource-reserve-presentation';
 import { resourceGoodId } from '@/systems/trade-good-definitions';
+import { createGameButton } from './ui-kit';
 import { buildPlayerRouteListSection, type RouteControlHandler } from './trade-route-presentation';
 
 interface MarketplaceCallbacks {
@@ -10,6 +13,8 @@ interface MarketplaceCallbacks {
   onSelectUnit?: (unitId: string) => void;
   /** #1502 MR05: the owner's pause / resume / cancel-and-return controls on a route row. */
   onRouteControl?: RouteControlHandler;
+  /** #1509 MR12: the seller's protected reserve and partner grants. */
+  onSetResourcePolicy?: (policy: CommerceResourcePolicy) => void;
 }
 
 export function createMarketplacePanel(
@@ -119,7 +124,7 @@ export function createMarketplacePanel(
       </section>
       <section data-section="trade-supply-policies">
         <div data-text="policies-heading" style="font-size:13px;font-weight:bold;color:#e8c170;margin-bottom:6px;"></div>
-        <div data-text="policies-body" style="font-size:12px;opacity:0.7;"></div>
+        <div id="mp-policies-body" style="font-size:12px;opacity:0.85;"></div>
       </section>
     </div>
   `;
@@ -135,11 +140,7 @@ export function createMarketplacePanel(
   // arrive with supply (MR12/MR16) without advertising an action that does not exist.
   setText('routes-heading', 'Routes');
   setText('supplies-heading', 'Supplies');
-  setText('policies-heading', 'Policies');
-  setText(
-    'policies-body',
-    'Reserve targets, spending limits and partner export permissions arrive with supply routes. Nothing here changes your empire yet.',
-  );
+  setText('policies-heading', 'Seller policies');
 
   if (importsNotice) setText('imports-rebuilding', importsNotice);
 
@@ -227,6 +228,98 @@ export function createMarketplacePanel(
   const routesSection = panel.querySelector('#mp-routes-section');
   if (routesSection) {
     routesSection.appendChild(buildPlayerRouteListSection(state, state.currentPlayer, callbacks.onSelectUnit, callbacks.onRouteControl));
+  }
+
+  // #1509 MR12: seller controls. A policy exists per stored good; partners default closed, and the
+  // protected reserve is subtracted from native free stock before any offer is derived.
+  const policiesBody = panel.querySelector('#mp-policies-body');
+  if (policiesBody) {
+    const partnerCivIds = [
+      ...Object.keys(state.civilizations),
+      ...Object.keys(state.minorCivs ?? {}),
+    ].filter(id => id !== state.currentPlayer
+      && getCommercialPassagePermission(state, state.currentPlayer, id).allowed)
+      .sort();
+    const partnerName = (id: string) => state.civilizations[id]?.name
+      ?? (state.minorCivs?.[id] as { name?: string } | undefined)?.name
+      ?? id;
+    const storedDefs = RESOURCE_DEFINITIONS.filter(def => reserveRows.has(resourceGoodId(def.id)));
+    if (storedDefs.length === 0) {
+      const empty = document.createElement('div');
+      empty.textContent = 'No stored goods are revealed yet.';
+      empty.style.cssText = 'opacity:0.6;padding:6px 0;';
+      policiesBody.appendChild(empty);
+    }
+    for (const def of storedDefs) {
+      const goodId = resourceGoodId(def.id);
+      const policy = getCommerceResourcePolicy(state, state.currentPlayer, goodId);
+      const row = document.createElement('div');
+      row.dataset.policyGood = goodId;
+      row.style.cssText = 'background:rgba(255,255,255,0.04);border-radius:8px;padding:8px 10px;margin-bottom:8px;display:flex;flex-direction:column;gap:6px;';
+
+      const title = document.createElement('div');
+      title.style.cssText = 'font-weight:bold;color:#e8c170;';
+      title.textContent = `${def.icon} ${def.name}`;
+      row.appendChild(title);
+
+      const reserveLabel = document.createElement('label');
+      reserveLabel.style.cssText = 'display:flex;align-items:center;gap:8px;';
+      reserveLabel.appendChild(document.createTextNode('Protected reserve'));
+      const reserveInput = document.createElement('input');
+      reserveInput.type = 'number';
+      reserveInput.min = '0';
+      reserveInput.step = '1';
+      reserveInput.value = String(policy?.protectedReserve ?? 0);
+      reserveInput.dataset.policyReserve = goodId;
+      reserveInput.style.cssText = 'width:72px;min-height:44px;background:#222;color:inherit;border:1px solid #555;border-radius:4px;padding:4px;';
+      reserveLabel.appendChild(reserveInput);
+      row.appendChild(reserveLabel);
+
+      if (partnerCivIds.length > 0) {
+        const partners = document.createElement('div');
+        partners.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;';
+        for (const partnerId of partnerCivIds) {
+          const label = document.createElement('label');
+          label.style.cssText = 'display:flex;align-items:center;gap:4px;min-height:44px;';
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.checked = policy?.partnerCivIds.includes(partnerId) ?? false;
+          checkbox.dataset.policyPartner = partnerId;
+          label.appendChild(checkbox);
+          label.appendChild(document.createTextNode(partnerName(partnerId)));
+          partners.appendChild(label);
+        }
+        row.appendChild(partners);
+      }
+
+      const summary = document.createElement('div');
+      summary.dataset.policySummary = goodId;
+      summary.style.cssText = 'font-size:11px;opacity:0.7;';
+      summary.textContent = policy
+        ? `${policy.partnerCivIds.length} partner${policy.partnerCivIds.length === 1 ? '' : 's'} · reserve ${policy.protectedReserve}`
+        : 'Exports closed';
+      row.appendChild(summary);
+
+      if (callbacks.onSetResourcePolicy) {
+        const save = createGameButton('Save policy', 'secondary');
+        save.dataset.policySave = goodId;
+        save.addEventListener('click', () => {
+          const checked = [...row.querySelectorAll<HTMLInputElement>('input[data-policy-partner]')]
+            .filter(input => input.checked)
+            .map(input => input.dataset.policyPartner!)
+            .filter(Boolean);
+          const reserve = Number.parseInt(reserveInput.value, 10);
+          callbacks.onSetResourcePolicy!({
+            civId: state.currentPlayer,
+            goodId,
+            protectedReserve: Number.isSafeInteger(reserve) && reserve >= 0 ? reserve : 0,
+            partnerCivIds: checked,
+          });
+        });
+        row.appendChild(save);
+      }
+      policiesBody.appendChild(row);
+    }
   }
 
   container.appendChild(panel);

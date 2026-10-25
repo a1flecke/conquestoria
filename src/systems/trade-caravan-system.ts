@@ -2,7 +2,7 @@
 // #1249: turning a caravan into a route — which city it leaves from, whether the route is legal, and the
 // establishment itself. Reads route value from trade-route-economy and route validity from the lifecycle
 // module; creates the marketplace state an old save lacks.
-import type { GameState, Unit, City } from '@/core/types';
+import type { GameState, Unit, City, TradeRoute } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
 import {
   TRADE_ROUTE_DENIAL_MESSAGES,
@@ -55,7 +55,7 @@ export function establishRoute(
   /** Accepted for historical call sites (#1501): route terms, including resource diversity, are
    *  computed by `getTradeRouteQuote` now, so this value is ignored. */
   _resourceDiversity: number = 0,
-  options: { automated?: boolean; originCityId?: string } = {},
+  options: { automated?: boolean; originCityId?: string; procurement?: TradeRoute['procurement'] } = {},
 ): GameState {
   const caravanUnit = state.units[caravanUnitId];
   if (!caravanUnit) throw new Error(`Unit ${caravanUnitId} not found`);
@@ -66,6 +66,7 @@ export function establishRoute(
     actingCivId: caravanUnit.owner,
     automated: options.automated ?? true,
     originCityId: options.originCityId,
+    procurement: options.procurement,
   }, bus);
 
   if (!result.ok) {

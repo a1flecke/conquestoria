@@ -292,6 +292,11 @@ export const ELIMINATED_CIV_AREAS: Record<keyof GameState, EliminatedCivArea> = 
       for (const entry of m.purchasedResources ?? []) {
         if (isEliminatedId(entry.civId, ctx)) problems.push(`purchasedResources still has an entry for eliminated civ "${entry.civId}"`);
       }
+      for (const route of m.tradeRoutes ?? []) {
+        if (route.manifest && isEliminatedId(route.manifest.ownerCivId, ctx)) {
+          problems.push(`trade route "${route.id}" still owns a manifest for eliminated civ "${route.manifest.ownerCivId}"`);
+        }
+      }
       return problems;
     },
   },

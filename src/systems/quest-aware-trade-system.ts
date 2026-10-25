@@ -20,7 +20,12 @@ export function establishQuestAwareRoute(
   state: GameState,
   caravanUnitId: string,
   toCityId: string,
-  options: { automated?: boolean; originCityId?: string; mode?: TradeRouteModeId } = {},
+  options: {
+    automated?: boolean;
+    originCityId?: string;
+    mode?: TradeRouteModeId;
+    procurement?: TradeRoute['procurement'];
+  } = {},
 ): QuestAwareRouteResult {
   const caravan = state.units[caravanUnitId];
   if (!caravan) return { ok: false, state, reason: 'unit-missing' };
@@ -32,6 +37,7 @@ export function establishQuestAwareRoute(
     automated: options.automated ?? true,
     originCityId: options.originCityId,
     mode: options.mode,
+    procurement: options.procurement,
   });
   if (!result.ok) return { ok: false, state, reason: result.reason };
 

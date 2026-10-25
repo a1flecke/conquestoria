@@ -42,3 +42,12 @@ export function getTradeUnitDomain(type: UnitType): TradeUnitDomain | null {
 export function isTradeUnitTypeInDomain(type: UnitType, domain: TradeUnitDomain): boolean {
   return getTradeUnitDomain(type) === domain;
 }
+
+/**
+ * Dedicated goods capacity for a trader. This is deliberately separate from the troop-transport
+ * `cargoCapacity`: a merchant hull is not a passenger transport, and an air freighter has no
+ * implemented goods path yet (0).
+ */
+export function getTradeCargoCapacity(type: UnitType): number {
+  return Math.max(0, UNIT_DEFINITIONS[type]?.tradeCapacity ?? 0);
+}

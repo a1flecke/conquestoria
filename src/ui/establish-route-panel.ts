@@ -1,4 +1,7 @@
 import type { GameState, TradeRouteModeId } from '@/core/types';
+import type { ResourceProcurementTerms, TradeGoodId } from '@/core/types/commerce';
+import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
+import { resourceGoodId } from '@/systems/trade-good-definitions';
 import {
   getEntitledTradeDestinations,
   getEntitledTradeOrigins,
@@ -35,10 +38,17 @@ import { markModal } from '@/ui/modal-contract';
  * selected destination always shows its operating yield, positioning/travel ETA, known danger and the
  * cancel/return consequence before Confirm.
  */
+export interface RouteProcurementDraft {
+  procurement: ResourceProcurementTerms;
+  roundBudget: number;
+  treasuryFloor: number;
+}
+
 export type EstablishRouteHandler = (
   toCityId: string,
   originCityId: string,
   mode: TradeRouteModeId,
+  procurement?: RouteProcurementDraft,
 ) => void;
 
 const SECTION_LABEL = 'font-size:11px;text-transform:uppercase;opacity:0.5;padding:8px 0 4px;letter-spacing:0.05em;';
@@ -82,6 +92,15 @@ export function openEstablishRoutePanel(
   let selectedOriginCityId: string | null = origins[0]?.cityId ?? null;
   let selectedCityId: string | null = null;
   let selectedMode: TradeRouteModeId = 'commerce';
+  const viewerTechs = new Set(state.civilizations[viewerCivId]?.techState.completed ?? []);
+  const storedGoods = RESOURCE_DEFINITIONS
+    .filter(def => (def.economicRoles?.length ?? 0) > 0 && viewerTechs.has(def.tech))
+    .map(def => ({ id: resourceGoodId(def.id) as TradeGoodId, name: def.name, icon: def.icon }));
+  let procurementGoodId: TradeGoodId | null = storedGoods[0]?.id ?? null;
+  let procurementTarget = 10;
+  let procurementMaxPrice = 20;
+  let procurementBudget = 100;
+  let procurementFloor = 50;
 
   const modeSection = document.createElement('div');
   const recommendationSection = document.createElement('div');
@@ -157,6 +176,67 @@ export function openEstablishRoutePanel(
     dangerLine.style.cssText = 'padding:1px 0;color:#d98d4a;';
     dangerLine.textContent = knownDangerLabel(destination);
     detailSection.appendChild(dangerLine);
+
+    // #1509 MR12: a foreign route can carry a standing import order. The price is locked only at
+    // loading, within this maximum; the budget/floor are shared across every route.
+    const destinationCity = state.cities[destination.cityId];
+    if (destinationCity && destinationCity.owner !== viewerCivId && storedGoods.length > 0) {
+      const box = document.createElement('div');
+      box.dataset.procurementSection = 'true';
+      box.style.cssText = 'margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.1);display:flex;flex-direction:column;gap:6px;';
+      const heading = document.createElement('div');
+      heading.style.cssText = 'font-size:11px;text-transform:uppercase;opacity:0.6;';
+      heading.textContent = 'Import order (optional)';
+      box.appendChild(heading);
+
+      const goodLabel = document.createElement('label');
+      goodLabel.style.cssText = 'display:flex;align-items:center;gap:8px;';
+      goodLabel.appendChild(document.createTextNode('Good'));
+      const goodSelect = document.createElement('select');
+      goodSelect.dataset.procurementGood = 'true';
+      goodSelect.style.cssText = 'min-height:44px;background:#222;color:inherit;border:1px solid #555;border-radius:4px;padding:4px;';
+      for (const good of storedGoods) {
+        const option = document.createElement('option');
+        option.value = good.id;
+        option.textContent = `${good.icon} ${good.name}`;
+        option.selected = good.id === procurementGoodId;
+        goodSelect.appendChild(option);
+      }
+      goodSelect.addEventListener('change', () => { procurementGoodId = goodSelect.value; });
+      goodLabel.appendChild(goodSelect);
+      box.appendChild(goodLabel);
+
+      const numberRow = (
+        labelText: string,
+        value: number,
+        dataAttr: string,
+        min: number,
+        onChange: (value: number) => void,
+      ): HTMLLabelElement => {
+        const label = document.createElement('label');
+        label.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;';
+        label.appendChild(document.createTextNode(labelText));
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.min = String(min);
+        input.step = '1';
+        input.value = String(value);
+        input.setAttribute(`data-${dataAttr}`, 'true');
+        input.style.cssText = 'width:84px;min-height:44px;background:#222;color:inherit;border:1px solid #555;border-radius:4px;padding:4px;';
+        input.addEventListener('input', () => onChange(Math.max(min, Number.parseInt(input.value, 10) || min)));
+        label.appendChild(input);
+        return label;
+      };
+      box.appendChild(numberRow('Target quantity', procurementTarget, 'procurement-target', 1, value => { procurementTarget = value; }));
+      box.appendChild(numberRow('Max unit price', procurementMaxPrice, 'procurement-max-price', 1, value => { procurementMaxPrice = value; }));
+      box.appendChild(numberRow('Round budget', procurementBudget, 'procurement-budget', 0, value => { procurementBudget = value; }));
+      box.appendChild(numberRow('Treasury floor', procurementFloor, 'procurement-floor', 0, value => { procurementFloor = value; }));
+      const note = document.createElement('div');
+      note.style.cssText = 'font-size:11px;opacity:0.6;';
+      note.textContent = 'Loaded at the supplier; usable only after the return home. The price is locked at loading within this maximum.';
+      box.appendChild(note);
+      detailSection.appendChild(box);
+    }
   }
 
   /** Entitled danger only: a blockade of a city the viewer does not own is never named here. */
@@ -342,7 +422,24 @@ export function openEstablishRoutePanel(
 
   confirmBtn.addEventListener('click', () => {
     if (!selectedCityId || !selectedOriginCityId) return;
-    onEstablish(selectedCityId, selectedOriginCityId, selectedMode);
+    const destination = state.cities[selectedCityId];
+    const draft: RouteProcurementDraft | undefined = destination
+      && destination.owner !== viewerCivId
+      && procurementGoodId
+      && procurementTarget > 0
+      ? {
+        procurement: {
+          orders: [{
+            goodId: procurementGoodId,
+            targetQuantity: procurementTarget,
+            maxUnitPrice: procurementMaxPrice,
+          }],
+        },
+        roundBudget: procurementBudget,
+        treasuryFloor: procurementFloor,
+      }
+      : undefined;
+    onEstablish(selectedCityId, selectedOriginCityId, selectedMode, draft);
     panel.remove();
   });
   cancelBtn.addEventListener('click', () => panel.remove());

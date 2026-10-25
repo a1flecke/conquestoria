@@ -142,6 +142,44 @@ describe('openEstablishRoutePanel (#1500 MR03)', () => {
     expect(originCityId).toBeTruthy();
   });
 
+  it('collects a standing import order for a foreign destination', () => {
+    const state = makeState();
+    state.civilizations.alpha!.techState.completed.push('bronze-working');
+    const onEstablish = vi.fn();
+    openEstablishRoutePanel(container, state, 'trader-1', onEstablish);
+
+    const panel = document.getElementById('establish-route-panel')!;
+    const destinationLabel = Array.from(panel.querySelectorAll('span'))
+      .find(el => (el.textContent ?? '').startsWith('Betatown'))!;
+    destinationLabel.parentElement!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    expect(panel.querySelector('[data-procurement-section]')).not.toBeNull();
+    const target = panel.querySelector<HTMLInputElement>('input[data-procurement-target]')!;
+    const maxPrice = panel.querySelector<HTMLInputElement>('input[data-procurement-max-price]')!;
+    const budget = panel.querySelector<HTMLInputElement>('input[data-procurement-budget]')!;
+    const floor = panel.querySelector<HTMLInputElement>('input[data-procurement-floor]')!;
+    target.value = '6';
+    target.dispatchEvent(new Event('input'));
+    maxPrice.value = '9';
+    maxPrice.dispatchEvent(new Event('input'));
+    budget.value = '120';
+    budget.dispatchEvent(new Event('input'));
+    floor.value = '30';
+    floor.dispatchEvent(new Event('input'));
+
+    const confirm = Array.from(panel.querySelectorAll('button')).find(button => button.textContent === 'Confirm')!;
+    confirm.click();
+    expect(onEstablish).toHaveBeenCalledTimes(1);
+    const draft = onEstablish.mock.calls[0][3];
+    expect(draft).toMatchObject({
+      procurement: {
+        orders: [{ goodId: 'resource:iron', targetQuantity: 6, maxUnitPrice: 9 }],
+      },
+      roundBudget: 120,
+      treasuryFloor: 30,
+    });
+  });
+
   it('offers only the viewer’s own origin cities, with a positioning estimate', () => {
     openEstablishRoutePanel(container, makeState(), 'trader-1', vi.fn());
 

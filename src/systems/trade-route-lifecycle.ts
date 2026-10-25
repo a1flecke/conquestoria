@@ -36,6 +36,31 @@ export function removeRouteById(
   const route = state.marketplace?.tradeRoutes.find(r => r.id === routeId);
   if (!route) return state;
 
+  // #1509 MR12: paid cargo is the buyer's property. A route that loses permission or an endpoint
+  // after loading must return home to deliver it; it is not deleted with the route. Carrier death is
+  // handled by unit removal, which destroys the manifest instead.
+  if (route.manifest) {
+    const updatedUnits = { ...state.units };
+    for (const [unitId, unit] of Object.entries(state.units)) {
+      if (unit.committedToRouteId !== routeId) continue;
+      updatedUnits[unitId] = { ...unit, routeDirection: 'inbound' };
+    }
+    return {
+      ...state,
+      marketplace: {
+        ...state.marketplace!,
+        tradeRoutes: state.marketplace!.tradeRoutes.map(candidate => candidate.id === routeId
+          ? {
+            ...candidate,
+            cancelPending: reason === 'endpoint-lost' ? candidate.cancelPending : true,
+            ...(reason === 'endpoint-lost' ? { endpointLost: true } : {}),
+          }
+          : candidate),
+      },
+      units: updatedUnits,
+    };
+  }
+
   const newRoutes = state.marketplace!.tradeRoutes.filter(r => r.id !== routeId);
   const newMarketplace = { ...state.marketplace!, tradeRoutes: newRoutes };
 

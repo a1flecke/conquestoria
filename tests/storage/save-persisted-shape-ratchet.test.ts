@@ -55,6 +55,15 @@ const ADDITIVE_WITHOUT_MIGRATION: Readonly<Record<string, string>> = {
   // populated policy/snapshot/cursor/procurement state through the real save-file path.
   'commercePermissions.resourcePolicies': '#1508 MR11 — additive optional good-keyed seller policies; absent means no seller policy, every reader tolerates absence.',
   'commerceMarket': '#1508 MR11 — additive optional once-per-round offer snapshot; absent means no snapshot, the engine refreshes on the next round.',
+  // #1509 MR12 — route terms and the paid in-transit manifest are optional. A pre-MR12 route has
+  // neither, so it simply buys nothing; every reader uses optional chaining. The manifest items are
+  // persisted claims, and `save-persistence.test.ts` round-trips a populated route through the real
+  // save-file path.
+  'marketplace.tradeRoutes[].procurement': '#1509 MR12 — optional standing import orders; absent means no imports.',
+  'marketplace.tradeRoutes[].manifest': '#1509 MR12 — optional owned in-transit cargo; absent means no manifest.',
+  'marketplace.tradeRoutes[].manifest.items': '#1509 MR12 — optional manifest item list; absent with no manifest.',
+  'commerceMarket.procurementByCiv.*.roundBudget': '#1509 MR12 — optional shared budget; absent means no route budget cap.',
+  'commerceMarket.procurementByCiv.*.spentThisTurn': '#1509 MR12 — optional spend counter; absent means zero spent.',
   // Long-pre-existing optional `Unit` fields (the naval transport ⇔ land cargo
   // dual reference). They predate this ratchet; no matrix fixture had a loaded
   // transport until #1000's `cargo-reciprocity` malformed-repair case, which is

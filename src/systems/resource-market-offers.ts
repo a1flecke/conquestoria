@@ -19,6 +19,7 @@ import {
 } from './commerce-permissions';
 import { settleGoldTransfers } from './economy-system';
 import {
+  claimIncomingStock,
   creditImportedStock,
   getExportableQuantity,
   getStorageHeadroom,
@@ -60,7 +61,8 @@ export type MarketLoadRefusalReason =
   | 'insufficient-gold'
   | 'treasury-floor'
   | 'insufficient-capacity'
-  | 'no-tariff-recipient';
+  | 'no-tariff-recipient'
+  | 'round-budget';
 
 export interface MarketLoadQuote {
   turn: number;
@@ -86,8 +88,17 @@ export type MarketLoadQuoteResult =
   | { ok: false; reason: MarketLoadRefusalReason };
 
 export type MarketLoadCommitResult =
-  | { ok: true; state: GameState; result: MarketLoadQuote }
+  | { ok: true; state: GameState; result: MarketLoadQuote; claimId?: string }
   | { ok: false; reason: MarketLoadRefusalReason; state: GameState };
+
+export interface MarketLoadCommitOptions {
+  /**
+   * `stock` (default) credits imported stock immediately. `incoming` creates a reserved claim instead,
+   * so a shipment is owned but unusable until its route delivers it home.
+   */
+  settlement?: 'stock' | 'incoming';
+  claimId?: string;
+}
 
 function marketOf(state: GameState): CommerceMarketState | undefined {
   return state.commerceMarket;
@@ -266,7 +277,14 @@ export function refreshMarketOffers(
       offers,
       serviceCursorByOffer: cursorByOffer,
       servedByOffer: {},
-      ...(previous?.procurementByCiv ? { procurementByCiv: previous.procurementByCiv } : {}),
+      ...(previous?.procurementByCiv
+        ? {
+          procurementByCiv: Object.fromEntries(
+            Object.entries(previous.procurementByCiv)
+              .map(([civId, policy]) => [civId, { ...policy, spentThisTurn: 0 }]),
+          ),
+        }
+        : {}),
     },
   };
 }
@@ -342,7 +360,8 @@ export function setMarketProcurementPolicy(
     throw new Error('A treasury floor must be a nonnegative safe integer.');
   }
   const market = marketOf(state) ?? {
-    turn: state.turn,
+    // Force the next refresh to build offers for the newly configured policy.
+    turn: state.turn - 1,
     offers: [],
     serviceCursorByOffer: {},
   };
@@ -409,6 +428,10 @@ export function quoteMarketLoad(
   if (buyerGold - totalPrice < procurement.treasuryFloor) {
     return { ok: false, reason: 'treasury-floor' };
   }
+  if (procurement.roundBudget !== undefined
+    && (procurement.spentThisTurn ?? 0) + totalPrice > procurement.roundBudget) {
+    return { ok: false, reason: 'round-budget' };
+  }
 
   return {
     ok: true,
@@ -437,6 +460,7 @@ export function quoteMarketLoad(
 export function commitMarketLoad(
   state: GameState,
   quote: MarketLoadQuote,
+  options: MarketLoadCommitOptions = {},
   definitions: readonly TradeGoodDefinition[] = RESOURCE_BACKED_GOODS,
 ): MarketLoadCommitResult {
   const current = quoteMarketLoad(
@@ -463,9 +487,24 @@ export function commitMarketLoad(
   );
   if (!debited.ok) return { ok: false, reason: 'stale-offer', state };
 
+  if (options.settlement === 'incoming' && !options.claimId) {
+    return { ok: false, reason: 'stale-offer', state };
+  }
   const buyerLedger = getCivMaterialLedger(state, quote.buyerCivId);
-  const credited = creditImportedStock(buyerLedger, quote.goodId, quote.quantity);
-  if (!credited.ok) return { ok: false, reason: 'stale-offer', state };
+  const definition = goodDefinition(quote.goodId, definitions);
+  const credited = options.settlement === 'incoming'
+    ? claimIncomingStock(
+      buyerLedger,
+      {
+        id: options.claimId!,
+        goodId: quote.goodId,
+        ownerCivId: quote.buyerCivId,
+        amount: quote.quantity,
+      },
+      definition?.quantity?.storageCapacity ?? DEFAULT_STORAGE_PER_GOOD,
+    )
+    : creditImportedStock(buyerLedger, quote.goodId, quote.quantity);
+  if (!credited.ok) return { ok: false, reason: 'insufficient-capacity', state };
 
   const paid = settleGoldTransfers(
     state,
@@ -486,6 +525,7 @@ export function commitMarketLoad(
     ? (servedIndex + 1) % eligible.length
     : (market.serviceCursorByOffer[offer.offerId] ?? 0);
   const served = [...(market.servedByOffer?.[offer.offerId] ?? []), quote.buyerCivId];
+  const procurement = market.procurementByCiv?.[quote.buyerCivId];
   const nextState: GameState = {
     ...paid,
     materialReservesByCiv: {
@@ -506,7 +546,23 @@ export function commitMarketLoad(
         ...(market.servedByOffer ?? {}),
         [offer.offerId]: served,
       },
+      ...(procurement
+        ? {
+          procurementByCiv: {
+            ...(market.procurementByCiv ?? {}),
+            [quote.buyerCivId]: {
+              ...procurement,
+              spentThisTurn: (procurement.spentThisTurn ?? 0) + current.quote.totalPrice,
+            },
+          },
+        }
+        : {}),
     },
   };
-  return { ok: true, state: nextState, result: current.quote };
+  return {
+    ok: true,
+    state: nextState,
+    result: current.quote,
+    ...(options.settlement === 'incoming' && options.claimId ? { claimId: options.claimId } : {}),
+  };
 }

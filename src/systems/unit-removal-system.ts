@@ -1,6 +1,8 @@
 import type { EventBus } from '@/core/event-bus';
 import type { GameState, TradeRoute, Unit } from '@/core/types';
 import { cleanupDeadSpyUnit } from '@/systems/espionage-spy-lifecycle';
+import { destroyIncomingStock } from '@/systems/resource-reserve-system';
+import { getCivMaterialLedger } from '@/systems/resource-material-state';
 
 /**
  * #1198 — the one transition that takes a unit out of `GameState`.
@@ -49,6 +51,7 @@ export interface UnitRemovalSlice {
   minorCivs: GameState['minorCivs'];
   espionage?: GameState['espionage'];
   marketplace?: GameState['marketplace'];
+  materialReservesByCiv?: GameState['materialReservesByCiv'];
 }
 
 export interface EndedTradeRoute {
@@ -178,6 +181,28 @@ export function removeUnitsFromSlice<S extends UnitRemovalSlice>(
   }
 
   const routeIds = removed.flatMap(unit => (unit.committedToRouteId ? [unit.committedToRouteId] : []));
+  // #1509 MR12: cargo on a destroyed/captured carrier is destroyed with it. The seller keeps the
+  // payment; the buyer's reserved receiving claim must not survive as free stock.
+  const lostManifests = (slice.marketplace?.tradeRoutes ?? [])
+    .filter(route => routeIds.includes(route.id) && route.manifest)
+    .map(route => route.manifest!);
+  let materialReservesByCiv = slice.materialReservesByCiv;
+  for (const manifest of lostManifests) {
+    const ledger = getCivMaterialLedger(
+      { materialReservesByCiv } as GameState,
+      manifest.ownerCivId,
+    );
+    let nextLedger = ledger;
+    for (const item of manifest.items) {
+      const destroyed = destroyIncomingStock(nextLedger, item.claimId);
+      if (destroyed.ok) nextLedger = destroyed.ledger;
+    }
+    materialReservesByCiv = {
+      ...(materialReservesByCiv ?? {}),
+      [manifest.ownerCivId]: nextLedger,
+    };
+  }
+
   const released = dropTradeRoutes(slice.marketplace, routeIds, routeEndReason(reason));
   const marketplace = released.marketplace;
   const endedRoutes = released.endedRoutes;
@@ -185,6 +210,7 @@ export function removeUnitsFromSlice<S extends UnitRemovalSlice>(
   const next: S = { ...slice, units, civilizations, minorCivs };
   if (espionage !== slice.espionage) next.espionage = espionage;
   if (marketplace !== slice.marketplace) next.marketplace = marketplace;
+  if (materialReservesByCiv !== slice.materialReservesByCiv) next.materialReservesByCiv = materialReservesByCiv;
   return { slice: next, removed, endedRoutes };
 }
 

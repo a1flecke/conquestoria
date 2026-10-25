@@ -21,6 +21,7 @@ import type { EventBus } from '@/core/event-bus';
 import type { TradeRouteNonOperatingReason } from './trade-route-economy';
 import { getTradeRouteQuote } from './trade-route-economy';
 import { removeRouteById } from './trade-route-lifecycle';
+import { deliverRouteManifest, loadRouteManifest } from './resource-shipment-system';
 import {
   MAX_ROUTE_DETOUR_ROUNDS,
   getForeignOccupiedHexKeys,
@@ -177,40 +178,49 @@ export function completeRouteLeg(state: GameState, routeId: string, caravanId: s
   if (!route || !caravan) return state;
 
   if ((caravan.routeDirection ?? 'outbound') === 'outbound') {
+    // One atomic load at the supplier. Goods become owned incoming claims, never usable stock yet.
+    const loaded = loadRouteManifest(state, routeId);
     bus?.emit('trade:route-delivered', { unitId: caravanId, routeId, toCityId: route.toCityId });
-    return withUnit(state, caravanId, { routeDirection: 'inbound' });
+    return withUnit(loaded, caravanId, { routeDirection: 'inbound' });
   }
+
+  // The only place a manifest becomes usable stock: arrival at the home endpoint. Cancellation and
+  // endpoint loss still deliver owned cargo before the route ends.
+  const delivered = deliverRouteManifest(state, routeId);
+  const stateAfterDelivery = delivered.state;
 
   if (route.cancelPending || route.endpointLost || route.returnHomeCityId) {
     // The return is complete: the route ends and its slot is released by the canonical removal.
-    return removeRouteById(state, routeId, bus, route.endpointLost ? 'endpoint-lost' : 'cancelled');
+    return removeRouteById(stateAfterDelivery, routeId, bus, route.endpointLost ? 'endpoint-lost' : 'cancelled');
   }
 
   if (caravan.routeDirection === 'positioning') {
     // Reached its origin without having served yet: commerce starts on the next leg.
-    return withUnit(state, caravanId, { routeDirection: 'outbound' });
+    return withUnit(stateAfterDelivery, caravanId, { routeDirection: 'outbound' });
   }
 
-  const quote = getTradeRouteQuote(state, {
+  const currentRoute = stateAfterDelivery.marketplace?.tradeRoutes.find(candidate => candidate.id === routeId)
+    ?? route;
+  const quote = getTradeRouteQuote(stateAfterDelivery, {
     caravanUnitId: caravanId,
-    originCityId: route.fromCityId,
-    toCityId: route.toCityId,
+    originCityId: currentRoute.fromCityId,
+    toCityId: currentRoute.toCityId,
   });
   const refreshed: TradeRoute = quote
     ? {
-        ...route,
+        ...currentRoute,
         goldPerTrip: quote.goldPerTrip,
         turnsPerTrip: quote.turnsPerTrip,
         serviceRoundsRemaining: quote.roundTripRounds,
-        legStartedTurn: state.turn,
+        legStartedTurn: stateAfterDelivery.turn,
         detourRoundsUsed: 0,
       }
-    : { ...route, legStartedTurn: state.turn, detourRoundsUsed: 0 };
+    : { ...currentRoute, legStartedTurn: stateAfterDelivery.turn, detourRoundsUsed: 0 };
   const nextState = {
-    ...state,
+    ...stateAfterDelivery,
     marketplace: {
-      ...state.marketplace!,
-      tradeRoutes: state.marketplace!.tradeRoutes.map(candidate => candidate.id === routeId ? refreshed : candidate),
+      ...stateAfterDelivery.marketplace!,
+      tradeRoutes: stateAfterDelivery.marketplace!.tradeRoutes.map(candidate => candidate.id === routeId ? refreshed : candidate),
     },
   };
   return withUnit(nextState, caravanId, { routeDirection: 'outbound' });
