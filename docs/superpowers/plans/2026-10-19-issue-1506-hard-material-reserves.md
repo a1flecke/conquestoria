@@ -447,12 +447,12 @@ Run `tests/ai/ai-production.test.ts`, `ai-production-idle-fallback.test.ts`, `ai
 
 ### Task 11 — Acceptance, calibration, verification and review
 
-- [ ] Execute the truth table/replay and regression matrix below. Measure 2/source versus 10/recipe pacing for early copper/iron, the two-material knight, a late uranium item and a source-poor fallback. Record source output, wait rounds, completed useful items and progress retained; keep any measured tuning together in catalog data.
-- [ ] Run every mirrored test for every changed source path (fallback to the smallest relevant domain suite where no mirror exists), source checks, and the current `verify:impact` requirements. Do not present this plan's example file list as an exhaustive substitute for the actual diff.
-- [ ] Allocate every newly discovered Vitest test through the measured four-shard procedure. Classify costly multi-city/multi-era simulation tests under local intensive-simulations as well. Browser specs stay out of Vitest shards.
-- [ ] Complete web and Tauri frontend builds for storage changes as selected by impact; inspect web `/conquestoria/` and Tauri relative assets. Native packaging is conditional on actual package inputs, not ordinary gameplay changes.
-- [ ] Review both branch and uncommitted **full** diffs, including generated records. Re-fetch/rebase before publication using canonical helpers; resolve only necessary conflicts. Rerun invalidated proof for the final exact tree/HEAD.
-- [ ] Update issue #1506, parent checklist and registered active plan with actual implementation MR/evidence. Keep later slices unchecked; do not close issues, approve or merge remotely without the user's exact authorization.
+- [x] Execute the truth table/replay and regression matrix below. Measure 2/source versus 10/recipe pacing for early copper/iron, the two-material knight, a late uranium item and a source-poor fallback. Record source output, wait rounds, completed useful items and progress retained; keep any measured tuning together in catalog data.
+- [x] Run every mirrored test for every changed source path (fallback to the smallest relevant domain suite where no mirror exists), source checks, and the current `verify:impact` requirements. Do not present this plan's example file list as an exhaustive substitute for the actual diff.
+- [x] Allocate every newly discovered Vitest test through the measured four-shard procedure. Classify costly multi-city/multi-era simulation tests under local intensive-simulations as well. Browser specs stay out of Vitest shards.
+- [x] Complete web and Tauri frontend builds for storage changes as selected by impact; inspect web `/conquestoria/` and Tauri relative assets. Native packaging is conditional on actual package inputs, not ordinary gameplay changes.
+- [x] Review both branch and uncommitted **full** diffs, including generated records. Re-fetch/rebase before publication using canonical helpers; resolve only necessary conflicts. Rerun invalidated proof for the final exact tree/HEAD.
+- [x] Update issue #1506, parent checklist and registered active plan with actual implementation MR/evidence. Keep later slices unchecked; do not close issues, approve or merge remotely without the user's exact authorization.
 ---
 
 > **Part 3 — player truth table, interaction replay, test-writing, build/verification and self-review.**
