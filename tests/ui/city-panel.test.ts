@@ -263,7 +263,8 @@ describe('city-panel national projects', () => {
 
     clickElement(panel.querySelector('[data-item-id="sam_site"]'));
 
-    expect(collectText(container)).toContain('Producing: 🛡️ SAM Site');
+    // SAM Site has painted art (#1549), so its production line carries a sprite image, not the 🛡️ fallback emoji.
+    expect(collectText(container)).toContain('Producing: SAM Site');
   });
 
   it('uses the active hot-seat owner\'s SAM research without leaking another human\'s Rocketry', () => {
