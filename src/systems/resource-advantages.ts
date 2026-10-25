@@ -1,4 +1,8 @@
 import type { ResourceType } from '@/core/types';
+import type { MaterialCostRow, ReserveLedger } from '@/core/types/commerce';
+import { getFreeQuantity } from './resource-reserve-system';
+import { aggregateMaterialRows } from './resource-material-costs';
+import { findTradeGood, isStoredQuantityGood, resourceGoodId, type TradeGoodId } from './trade-good-definitions';
 
 export interface ResourceAdvantageDefinition {
   resource: ResourceType;
@@ -42,4 +46,83 @@ export function getResourceAdvantageMultiplier(
     }
   }
   return Math.max(0.75, multiplier);
+}
+
+export interface SelectedSoftMaterialTerm {
+  resource: ResourceType;
+  goodId: TradeGoodId;
+  discount: number;
+  /** Stock units this term consumes; 0 for an access or substitution term. */
+  quantity: number;
+  via: 'stock' | 'substitution' | 'access';
+}
+
+export interface SelectedSoftMaterialTerms {
+  /** Combined multiplier for every selected term, floored at the shared 0.75 cap. */
+  multiplier: number;
+  /** Stock rows to reserve/consume; empty for substitution/access terms. */
+  rows: readonly MaterialCostRow[];
+  /** Circular Manufacturing advantages used without stock. */
+  substitutions: readonly ResourceType[];
+  terms: readonly SelectedSoftMaterialTerm[];
+}
+
+export interface SoftMaterialSelectionInputs {
+  availableResources: ReadonlySet<ResourceType>;
+  substitution?: ResourceType;
+  ledger: ReserveLedger;
+}
+
+/**
+ * Pure finite selector. It lives in this leaf (rather than the state wrapper) so the canonical
+ * pricing core can use it without importing the national-project/city graph and creating a cycle.
+ */
+export function selectSoftMaterialTermsFromInputs(
+  itemId: string,
+  inputs: SoftMaterialSelectionInputs,
+): SelectedSoftMaterialTerms {
+  const terms: SelectedSoftMaterialTerm[] = [];
+  const rows: MaterialCostRow[] = [];
+
+  for (const advantage of getResourceAdvantagesForItem(itemId)) {
+    const goodId = resourceGoodId(advantage.resource);
+    const good = findTradeGood(goodId);
+    const hasLiveAccess = inputs.availableResources.has(advantage.resource);
+    const allowsSubstitution = advantage.allowMaterialSubstitution !== false
+      && inputs.substitution === advantage.resource;
+
+    if (hasLiveAccess && (!good || !isStoredQuantityGood(good))) {
+      // Continuing-access goods cannot be stockpiled and keep their explicit access term.
+      terms.push({ resource: advantage.resource, goodId, discount: advantage.discount, quantity: 0, via: 'access' });
+      continue;
+    }
+
+    if (hasLiveAccess && good && isStoredQuantityGood(good)) {
+      const quantity = advantage.softCost ?? DEFAULT_SOFT_MATERIAL_COST;
+      if (getFreeQuantity(inputs.ledger, goodId) >= quantity) {
+        terms.push({ resource: advantage.resource, goodId, discount: advantage.discount, quantity, via: 'stock' });
+        rows.push({ goodId, quantity });
+        continue;
+      }
+    }
+
+    if (allowsSubstitution) {
+      terms.push({ resource: advantage.resource, goodId, discount: advantage.discount, quantity: 0, via: 'substitution' });
+    }
+  }
+
+  if (terms.length === 0) {
+    return { multiplier: 1, rows: [], substitutions: [], terms: [] };
+  }
+
+  const multiplier = Math.max(
+    0.75,
+    terms.reduce((product, term) => product * (1 - term.discount), 1),
+  );
+  return {
+    multiplier,
+    rows: aggregateMaterialRows(rows),
+    substitutions: terms.filter(term => term.via === 'substitution').map(term => term.resource),
+    terms,
+  };
 }
