@@ -28,6 +28,16 @@
     "1497": "OPEN"
    }
   },
+  "docs/superpowers/plans/2026-10-25-issue-1507-soft-material-spending.md": {
+   "category": "active",
+   "reason": "MR10 implementation plan for finite soft-material terms, frozen active discounts, substitution boundaries and worked-tile yield scope; owned by open child issue #1507 under parent #1497. Delete this file and move its entry to delivered history in the PR that completes MR10.",
+   "issues": [
+    1507
+   ],
+   "issueStates": {
+    "1507": "OPEN"
+   }
+  },
   "docs/superpowers/specs/2026-07-07-hidden-city-state-economy-design.md": {
    "category": "active",
    "reason": "Foundation design cited by the open minor-civ graduation issue #497.",

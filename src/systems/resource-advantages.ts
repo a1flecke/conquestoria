@@ -4,9 +4,14 @@ export interface ResourceAdvantageDefinition {
   resource: ResourceType;
   discount: number;
   itemIds: readonly string[];
+  /** Optional finite units of this counted good consumed for the discount. */
+  softCost?: number;
   /** Defaults to true for Circular Manufacturing's strategic material substitution. */
   allowMaterialSubstitution?: boolean;
 }
+
+/** Shared finite soft-material allotment (half the standard hard recipe). */
+export const DEFAULT_SOFT_MATERIAL_COST = 5;
 
 export const RESOURCE_ADVANTAGES: readonly ResourceAdvantageDefinition[] = [
   { resource: 'coal', discount: 0.20, itemIds: ['factory', 'steamship', 'ironclad'] },
