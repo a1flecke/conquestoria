@@ -13,12 +13,12 @@ import { makeWonderPanelFixture } from './helpers/wonder-panel-fixture';
 
 const noopCallbacks = { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} };
 
-function panelFixture() {
+// `maxEra` limits which techs the fixture unlocks, and so how many rows the chooser renders. The default keeps the panel small
+// enough for the unit-row test to stay well inside the 5 s test timeout on a slow runner; only the building chooser test widens it.
+function panelFixture(maxEra = 4) {
   const fixture = makeWonderPanelFixture();
-  // Every era, not just the early ones: each art group repaints the early buildings, and the test below needs a building
-  // that still has no art to prove the emoji fallback. Limiting this to era <= 4 went stale when #1547 finished them.
   fixture.state.civilizations.player.techState.completed = TECH_TREE
-    .filter(tech => tech.countsForEraAdvancement !== false)
+    .filter(tech => tech.era <= maxEra && tech.countsForEraAdvancement !== false)
     .map(tech => tech.id);
   fixture.city.buildings = [];
   fixture.city.productionQueue = [];
@@ -33,7 +33,9 @@ const unitIconKind = (type: string) => (getPngUnitManifest(type) ? 'png' : 'svg'
 
 describe('production item icons for buildings with art (#620)', () => {
   it('shows the art with the owner banner in the build chooser, and the emoji for a building without art', () => {
-    const { container, city, state } = panelFixture();
+    // Every era: each art group repaints the early buildings, and this test needs a building that still has no art to prove the
+    // emoji fallback. An era <= 4 fixture went stale when #1547 painted the last of them.
+    const { container, city, state } = panelFixture(Number.POSITIVE_INFINITY);
     const panel = createCityPanel(container, city, state, noopCallbacks);
 
     const buildingRows = Array.from(panel.querySelectorAll<HTMLElement>('.build-item'))
