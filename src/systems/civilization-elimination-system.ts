@@ -242,6 +242,59 @@ export function eliminateCivilization(
       .filter(allowance => allowance.civId !== civId);
     next.commercePermissions.resourceExportGrants = next.commercePermissions.resourceExportGrants
       .filter(grant => grant.grantorCivId !== civId && grant.granteeCivId !== civId);
+    if (next.commercePermissions.resourcePolicies) {
+      next.commercePermissions.resourcePolicies = next.commercePermissions.resourcePolicies
+        .filter(policy => policy.civId !== civId)
+        .map(policy => {
+          const { tariffPerUnit: _tariff, tariffRecipientCivId: _recipient, ...rest } = policy;
+          return {
+            ...rest,
+            partnerCivIds: policy.partnerCivIds.filter(partner => partner !== civId),
+            ...(policy.tariffRecipientCivId && policy.tariffRecipientCivId !== civId
+              ? { tariffPerUnit: policy.tariffPerUnit, tariffRecipientCivId: policy.tariffRecipientCivId }
+              : {}),
+          };
+        })
+        .filter(policy => policy.partnerCivIds.length > 0);
+    }
+  }
+
+  // #1508 MR11: a dead civ has no market identity. Drop its offers, procurement policy and retained
+  // cursor/served records, and remove it from every surviving offer's eligible-buyer list.
+  if (next.commerceMarket) {
+    const removedOfferIds = new Set(
+      next.commerceMarket.offers
+        .filter(offer => offer.supplierCivId === civId || offer.tariffRecipientCivId === civId)
+        .map(offer => offer.offerId),
+    );
+    const offers = next.commerceMarket.offers
+      .filter(offer => offer.supplierCivId !== civId && offer.tariffRecipientCivId !== civId)
+      .map(offer => ({
+        ...offer,
+        eligibleBuyerCivIds: offer.eligibleBuyerCivIds.filter(buyer => buyer !== civId),
+      }))
+      .filter(offer => {
+        if (offer.eligibleBuyerCivIds.length === 0) removedOfferIds.add(offer.offerId);
+        return offer.eligibleBuyerCivIds.length > 0;
+      });
+    const serviceCursorByOffer = Object.fromEntries(
+      Object.entries(next.commerceMarket.serviceCursorByOffer)
+        .filter(([offerId]) => !removedOfferIds.has(offerId)),
+    );
+    const servedByOffer = Object.fromEntries(
+      Object.entries(next.commerceMarket.servedByOffer ?? {})
+        .filter(([offerId]) => !removedOfferIds.has(offerId))
+        .map(([offerId, served]) => [offerId, served.filter(buyer => buyer !== civId)]),
+    );
+    const procurementByCiv = { ...(next.commerceMarket.procurementByCiv ?? {}) };
+    delete procurementByCiv[civId];
+    next.commerceMarket = {
+      ...next.commerceMarket,
+      offers,
+      serviceCursorByOffer,
+      ...(Object.keys(servedByOffer).length > 0 ? { servedByOffer } : { servedByOffer: {} }),
+      ...(Object.keys(procurementByCiv).length > 0 ? { procurementByCiv } : {}),
+    };
   }
 
   // #1506 MR09: a dead civ holds no reserve ledger. Deleting it keeps elimination teardown complete

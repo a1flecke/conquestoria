@@ -49,6 +49,12 @@ const ADDITIVE_WITHOUT_MIGRATION: Readonly<Record<string, string>> = {
   // every reader (production-cost context, projection, release/spend) treats absence as "normal
   // cost", and the next head activation writes the field. No old data needs reinterpretation.
   'cities.*.productionMaterials.softTerms': '#1507 MR10 — additive optional frozen soft term; absent means normal cost, every reader tolerates absence.',
+  // #1508 MR11 — both are optional. A save with no seller policy has no offer source, and a save
+  // with no market snapshot simply refreshes on the next round; every reader uses `?? []`/optional
+  // chaining and the engine treats absence as "no offers". `save-persistence.test.ts` round-trips a
+  // populated policy/snapshot/cursor/procurement state through the real save-file path.
+  'commercePermissions.resourcePolicies': '#1508 MR11 — additive optional good-keyed seller policies; absent means no seller policy, every reader tolerates absence.',
+  'commerceMarket': '#1508 MR11 — additive optional once-per-round offer snapshot; absent means no snapshot, the engine refreshes on the next round.',
   // Long-pre-existing optional `Unit` fields (the naval transport ⇔ land cargo
   // dual reference). They predate this ratchet; no matrix fixture had a loaded
   // transport until #1000's `cargo-reciprocity` malformed-repair case, which is

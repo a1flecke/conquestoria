@@ -312,6 +312,27 @@ export const ELIMINATED_CIV_AREAS: Record<keyof GameState, EliminatedCivArea> = 
       return problems;
     },
   },
+  commerceMarket: {
+    kind: 'teardown',
+    why: 'a dead civ has no posted-price market identity: its offers, procurement policy, cursor and served records are dropped, and offers naming it as a buyer disappear',
+    scan: (state, ctx) => {
+      const problems: string[] = [];
+      const market = state.commerceMarket;
+      if (!market) return problems;
+      for (const offer of market.offers ?? []) {
+        if (isEliminatedId(offer.supplierCivId, ctx)) problems.push(`market offer "${offer.offerId}" still names eliminated supplier "${offer.supplierCivId}"`);
+        if (offer.eligibleBuyerCivIds.some(id => isEliminatedId(id, ctx))) problems.push(`market offer "${offer.offerId}" still names an eliminated buyer`);
+        if (offer.tariffRecipientCivId && isEliminatedId(offer.tariffRecipientCivId, ctx)) problems.push(`market offer "${offer.offerId}" still names an eliminated tariff recipient`);
+      }
+      for (const civId of Object.keys(market.procurementByCiv ?? {})) {
+        if (isEliminatedId(civId, ctx)) problems.push(`market procurement policy still names eliminated civ "${civId}"`);
+      }
+      for (const [offerId, served] of Object.entries(market.servedByOffer ?? {})) {
+        if (served.some(id => isEliminatedId(id, ctx))) problems.push(`market served record "${offerId}" still names an eliminated civ`);
+      }
+      return problems;
+    },
+  },
   autonomyByCiv: {
     kind: 'teardown',
     why: 'a dead civ runs no autonomy network — no active plans (the empty `createEmptyAutonomyCivState()` shell the load-time normalizer gives every civ is inert and expected)',

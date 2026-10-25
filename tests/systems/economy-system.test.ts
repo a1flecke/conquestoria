@@ -13,6 +13,7 @@ import {
   getRushBuyQuote,
   normalizeEconomyStatus,
   projectCivGrossGold,
+  settleGoldTransfers,
 } from '@/systems/economy-system';
 import { rushBuyActiveProduction } from '@/systems/rush-buy-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
@@ -59,6 +60,26 @@ function addUnits(state: GameState, count: number, type: UnitType = 'warrior'): 
     addUnitOfType(state, type, `${type}-${index}`);
   }
 }
+
+describe('#1508 MR11 — atomic gold settlement', () => {
+  it('applies every debit and credit only when all balances can cover them', () => {
+    const state = createNewGame(undefined, 'market-settlement', 'small');
+    const civs = Object.keys(state.civilizations);
+    const buyer = civs[0]!;
+    const seller = civs[1]!;
+    state.civilizations[buyer]!.gold = 50;
+    state.civilizations[seller]!.gold = 10;
+
+    const settled = settleGoldTransfers(state, { [buyer]: 20 }, { [seller]: 15, [buyer]: 2 });
+    expect(settled).not.toBeNull();
+    expect(settled!.civilizations[buyer]!.gold).toBe(32);
+    expect(settled!.civilizations[seller]!.gold).toBe(25);
+    expect(state.civilizations[buyer]!.gold).toBe(50);
+
+    expect(settleGoldTransfers(state, { [buyer]: 51 }, { [seller]: 51 })).toBeNull();
+    expect(state.civilizations[buyer]!.gold).toBe(50);
+  });
+});
 
 describe('economy maintenance', () => {
   it('keeps core buildings exempt; gives one free slot to first non-exempt building', () => {

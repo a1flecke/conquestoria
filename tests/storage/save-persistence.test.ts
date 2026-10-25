@@ -16,6 +16,7 @@ vi.mock('@/storage/db', () => ({
 import { loadGame, migrateLegacyNamingState, normalizeLoadedStateForTest, saveGame } from '@/storage/save-manager';
 import { parseSaveFile, serializeSaveFile } from '@/storage/save-file-transfer';
 import type { CustomCivDefinition, GameState, MinorCivRelationshipStatus } from '@/core/types';
+import type { CommerceMarketState } from '@/core/types/commerce';
 import { foundCity } from '@/systems/city-system';
 import { hexKey } from '@/systems/hex-utils';
 import { createUnit } from '@/systems/unit-lifecycle';
@@ -249,6 +250,48 @@ describe('save persistence (#38)', () => {
     expect(normalized.chainStatusByCiv).toEqual({});
     expect(normalized.questCooldownUntilByCiv).toEqual({});
     expect(normalized.lastNotifiedStatusByCiv).toEqual({});
+  });
+
+  it('round-trips good-keyed policies, the offer snapshot, cursor and procurement policy', () => {
+    const state = createNewGame(undefined, 'market-round-trip', 'small');
+    const buyer = Object.keys(state.civilizations).find(id => id !== state.currentPlayer)!;
+    state.commercePermissions = {
+      resourceExportGrants: [],
+      routeAllowances: [],
+      resourcePolicies: [{
+        civId: state.currentPlayer,
+        goodId: 'resource:coal',
+        protectedReserve: 12,
+        partnerCivIds: [buyer],
+        tariffPerUnit: 2,
+        tariffRecipientCivId: state.currentPlayer,
+      }],
+    };
+    const market: CommerceMarketState = {
+      turn: state.turn,
+      offers: [{
+        offerId: `${state.currentPlayer}:resource:coal`,
+        supplierCivId: state.currentPlayer,
+        goodId: 'resource:coal',
+        turn: state.turn,
+        band: 'tight',
+        unitPrice: 9,
+        available: 8,
+        tariffPerUnit: 2,
+        tariffRecipientCivId: state.currentPlayer,
+        eligibleBuyerCivIds: [buyer],
+      }],
+      serviceCursorByOffer: { [`${state.currentPlayer}:resource:coal`]: 0 },
+      servedByOffer: {},
+      procurementByCiv: { [buyer]: { maxUnitPrice: 11, treasuryFloor: 5 } },
+    };
+    state.commerceMarket = market;
+
+    const saveFile = serializeSaveFile(state);
+    const parsed = parseSaveFile(saveFile);
+    if (parsed.status !== 'success') throw new Error(parsed.message);
+    expect(parsed.state.commercePermissions?.resourcePolicies).toEqual(state.commercePermissions.resourcePolicies);
+    expect(parsed.state.commerceMarket).toEqual(market);
   });
 
   const minorCivNotificationHistories: Array<[string, Record<string, MinorCivRelationshipStatus>]> = [

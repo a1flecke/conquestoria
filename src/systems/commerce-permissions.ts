@@ -17,7 +17,17 @@
  * a treaty action minors cannot sign.
  */
 import type { GameState } from '@/core/types';
-import type { CommercePermissionsState, CommerceResourceExportGrant, CommerceRouteAllowance } from '@/core/types/commerce';
+import type {
+  CommercePermissionsState,
+  CommerceResourceExportGrant,
+  CommerceResourcePolicy,
+  CommerceRouteAllowance,
+} from '@/core/types/commerce';
+import {
+  RESOURCE_BACKED_GOODS,
+  findTradeGood,
+  type TradeGoodDefinition,
+} from './trade-good-definitions';
 import type { ResourceType } from '@/core/types/resources';
 import { hasTreatyBetween, isAtWar } from '@/systems/diplomacy-queries';
 import { isMinorCivAtWar } from '@/systems/minor-civ-diplomacy';
@@ -48,6 +58,70 @@ export function createCommercePermissionsState(): CommercePermissionsState {
 
 function permissionsOf(state: GameState): CommercePermissionsState {
   return state.commercePermissions ?? createCommercePermissionsState();
+}
+
+// --- Good-keyed seller policies (#1508 MR11) ---
+
+export function getCommerceResourcePolicies(state: GameState, civId: string): CommerceResourcePolicy[] {
+  return (permissionsOf(state).resourcePolicies ?? []).filter(policy => policy.civId === civId);
+}
+
+export function getCommerceResourcePolicy(
+  state: GameState,
+  civId: string,
+  goodId: string,
+): CommerceResourcePolicy | undefined {
+  return (permissionsOf(state).resourcePolicies ?? [])
+    .find(policy => policy.civId === civId && policy.goodId === goodId);
+}
+
+/**
+ * Replaces one seller's good-keyed policy. The protected reserve and tariff are validated here so
+ * every later quote can trust the persisted numbers; an unknown good is a programming error, not a
+ * silently ignored offer.
+ */
+export function setCommerceResourcePolicy(
+  state: GameState,
+  policy: CommerceResourcePolicy,
+  definitions: readonly TradeGoodDefinition[] = RESOURCE_BACKED_GOODS,
+): GameState {
+  if (!findTradeGood(policy.goodId, definitions)) {
+    throw new Error(`Unknown trade good "${policy.goodId}" for a market policy.`);
+  }
+  if (!Number.isSafeInteger(policy.protectedReserve) || policy.protectedReserve < 0) {
+    throw new Error('A protected reserve must be a nonnegative safe integer.');
+  }
+  const tariff = policy.tariffPerUnit ?? 0;
+  if (!Number.isSafeInteger(tariff) || tariff < 0) {
+    throw new Error('A tariff must be a nonnegative safe integer.');
+  }
+  if (tariff > 0 && !policy.tariffRecipientCivId) {
+    throw new Error('A positive tariff needs a named recipient.');
+  }
+  if (policy.tariffRecipientCivId && !state.civilizations[policy.tariffRecipientCivId]) {
+    throw new Error(`Unknown tariff recipient "${policy.tariffRecipientCivId}".`);
+  }
+  const partners = [...new Set(policy.partnerCivIds)]
+    .filter(partner => partner !== policy.civId)
+    .sort();
+  const normalized: CommerceResourcePolicy = {
+    civId: policy.civId,
+    goodId: policy.goodId,
+    protectedReserve: policy.protectedReserve,
+    partnerCivIds: partners,
+    ...(tariff > 0 ? { tariffPerUnit: tariff } : {}),
+    ...(policy.tariffRecipientCivId ? { tariffRecipientCivId: policy.tariffRecipientCivId } : {}),
+  };
+  const permissions = permissionsOf(state);
+  const remaining = (permissions.resourcePolicies ?? [])
+    .filter(candidate => !(candidate.civId === policy.civId && candidate.goodId === policy.goodId));
+  return {
+    ...state,
+    commercePermissions: {
+      ...permissions,
+      resourcePolicies: [...remaining, normalized],
+    },
+  };
 }
 
 /** True while `civId` still holds at least one city; a civ with none has been eliminated. */

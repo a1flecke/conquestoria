@@ -11,7 +11,7 @@
 //   stored     = native + imported
 //   committedNative/Imported = sum of each reservation's locked split
 //   free       = (native - committedNative) + (imported - committedImported)
-//   exportable = min(freeNative, max(0, free - protectedReserve))
+//   exportable = max(0, freeNative - protectedReserve)   (imported stock never raises it)
 //
 // Invariants: every quantity is a nonnegative safe integer; a reservation can never exceed free
 // stock; a release never happens twice; domestic consumption debits imported stock first, then
@@ -124,15 +124,20 @@ export function getFreeQuantity(ledger: ReserveLedger, goodId: TradeGoodId): num
   return getFreeNativeQuantity(ledger, goodId) + getFreeImportedQuantity(ledger, goodId);
 }
 
-/** Free *native* stock after the protected reserve — the only quantity that may be exported. */
+/**
+ * Free *native* stock after the protected reserve — the only quantity that may be exported.
+ *
+ * The reserve is subtracted from native free stock, never from the combined free stock: otherwise
+ * imported units would silently satisfy part of the seller's protected reserve and increase exports
+ * (#1508 golden fixture: native 30, committed 10, reserve 12 => 8 even with imported stock).
+ */
 export function getExportableQuantity(
   ledger: ReserveLedger,
   goodId: TradeGoodId,
   protectedReserve = 0,
 ): number {
   const freeNative = getFreeNativeQuantity(ledger, goodId);
-  const free = getFreeQuantity(ledger, goodId);
-  return Math.min(freeNative, Math.max(0, free - Math.max(0, protectedReserve)));
+  return Math.max(0, freeNative - Math.max(0, protectedReserve));
 }
 
 /** Room for new stock, counting incoming claims that will need the same space on arrival. */
@@ -203,6 +208,22 @@ export function deliverIncomingStock(ledger: ReserveLedger, claimId: string): Re
     imported: balance.imported + claim.amount,
   });
   return { ok: true, ledger: next };
+}
+
+/**
+ * Credit delivered imported stock exactly once. Capacity is the caller's rule because the caller
+ * owns the good's capacity profile and the receiving manifest; the kernel only keeps provenance.
+ */
+export function creditImportedStock(
+  ledger: ReserveLedger,
+  goodId: TradeGoodId,
+  amount: number,
+): ReserveResult {
+  const invalid = validAmount(ledger, amount);
+  if (invalid) return invalid;
+  if (amount === 0) return { ok: true, ledger };
+  const balance = getReserveBalance(ledger, goodId);
+  return { ok: true, ledger: withBalance(ledger, goodId, { ...balance, imported: balance.imported + amount }) };
 }
 
 /** Destruction in transit: the claim disappears and no stock is credited. */

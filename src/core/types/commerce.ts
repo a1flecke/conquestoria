@@ -148,9 +148,69 @@ export interface CommerceRouteAllowance {
   expiresOnTurn: number;
 }
 
+/**
+ * #1508 MR11: a good-keyed seller policy. It is deliberately not a `ResourceType` grant: offers and
+ * policies must work for a producer-backed good that never came from a map deposit. A policy with no
+ * partners offers nothing; the protected reserve is counted before exportable surplus is derived.
+ */
+export interface CommerceResourcePolicy {
+  civId: string;
+  goodId: TradeGoodId;
+  /** Native units withheld from export after active domestic commitments. */
+  protectedReserve: number;
+  /** Civilizations explicitly allowed to receive this good from `civId`. */
+  partnerCivIds: readonly string[];
+  /** Optional per-unit tariff, itemized separately from the seller's unit price. */
+  tariffPerUnit?: number;
+  /** Required when `tariffPerUnit` is positive. */
+  tariffRecipientCivId?: string;
+}
+
+export type MarketPriceBand = 'abundant' | 'normal' | 'tight' | 'capped';
+
+/**
+ * One public posted-price offer in a round snapshot. It contains only what an eligible buyer may
+ * see: the supplier, good, band, price, itemized tariff and available units. It never carries hidden
+ * supply or a private buyer term.
+ */
+export interface CommerceMarketOffer {
+  offerId: string;
+  supplierCivId: string;
+  goodId: TradeGoodId;
+  turn: number;
+  band: MarketPriceBand;
+  /** Seller's unit price before the itemized tariff. */
+  unitPrice: number;
+  available: number;
+  tariffPerUnit: number;
+  tariffRecipientCivId?: string;
+  eligibleBuyerCivIds: readonly string[];
+}
+
+export interface MarketProcurementPolicy {
+  /** Inclusive maximum total unit cost (seller price + tariff). */
+  maxUnitPrice: number;
+  /** Gold that must remain after the purchase. */
+  treasuryFloor: number;
+}
+
+/**
+ * Persisted once-per-round market snapshot (#1508 MR11). `serviceCursorByOffer` is retained across
+ * rounds so a scarce unit rotates between eligible buyers instead of starving the higher id.
+ */
+export interface CommerceMarketState {
+  turn: number;
+  offers: readonly CommerceMarketOffer[];
+  serviceCursorByOffer: Readonly<Record<string, number>>;
+  servedByOffer?: Readonly<Record<string, readonly string[]>>;
+  procurementByCiv?: Readonly<Record<string, MarketProcurementPolicy>>;
+}
+
 export interface CommercePermissionsState {
   resourceExportGrants: CommerceResourceExportGrant[];
   routeAllowances: CommerceRouteAllowance[];
+  /** #1508 MR11: good-keyed seller policies. Absent on older saves. */
+  resourcePolicies?: CommerceResourcePolicy[];
 }
 
 /**
