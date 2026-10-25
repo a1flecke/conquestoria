@@ -9,6 +9,7 @@ import {
   spendActiveMaterialRecipe,
 } from '@/systems/city-production-materials';
 import { getProductionCostForCivItem } from '@/systems/production-cost-context';
+import { generateAIProductionCandidates } from '@/ai/ai-production';
 import { rushBuyActiveProduction } from '@/systems/rush-buy-system';
 import { EventBus } from '@/core/event-bus';
 import { getFreeQuantity } from '@/systems/resource-reserve-system';
@@ -49,6 +50,39 @@ function cityWorld(options: { coalStock?: number; queue: string[] }): { state: G
     ...(state.materialReservesByCiv ?? {}),
     [civ.id]: {
       balances: options.coalStock ? { [coal]: { native: options.coalStock, imported: 0 } } : {},
+      reservations: [],
+      incoming: [],
+      lastAccruedTurn: -1,
+    },
+  };
+  return { state, cityId: city.id };
+}
+
+function aiFactoryWorld(coalStock: number): { state: GameState; cityId: string } {
+  const state = createNewGame({ civType: 'generic', mapSize: 'small', opponentCount: 1, seed: `soft-ai-${coalStock}`, gameTitle: 'soft-ai' });
+  const civ = state.civilizations['ai-1'];
+  const settler = civ.units.map(id => state.units[id]).find(unit => unit?.type === 'settler');
+  if (!settler) throw new Error('no settler');
+  const city = foundCity(civ.id, settler.position, state.map, state.idCounters);
+  city.id = 'ai-soft-city';
+  city.productionQueue = [];
+  city.productionProgress = 0;
+  city.productionMaterials = { queueRevision: 0, activeOccurrence: 0, commitment: null, softTerms: null };
+  state.cities[city.id] = city;
+  civ.cities = [city.id];
+  civ.units = civ.units.filter(id => id !== settler.id);
+  delete state.units[settler.id];
+  civ.techState.completed = ['steam-power', 'steel-production'];
+  civ.isHuman = false;
+  civ.gold = 1000;
+  state.marketplace = {
+    ...(state.marketplace ?? { prices: {}, priceHistory: {}, tradeRoutes: [] }),
+    purchasedResources: [{ civId: civ.id, resource: 'coal', expiresOnTurn: state.turn + 10 }],
+  } as NonNullable<GameState['marketplace']>;
+  state.materialReservesByCiv = {
+    ...(state.materialReservesByCiv ?? {}),
+    [civ.id]: {
+      balances: coalStock ? { [coal]: { native: coalStock, imported: 0 } } : {},
       reservations: [],
       incoming: [],
       lastAccruedTurn: -1,
@@ -255,6 +289,21 @@ describe('#1507 MR10 — frozen active soft terms', () => {
     expect(result.success).toBe(true);
     expect(result.state.cities[cityId].buildings).toContain('factory');
     expect(result.state.materialReservesByCiv!.player.balances[coal]).toEqual({ native: 0, imported: 0 });
+  });
+
+  it('AI candidate costing sees the finite soft discount', () => {
+    const withCoal = aiFactoryWorld(5);
+    const withoutCoal = aiFactoryWorld(0);
+    const personality = { traits: [], warLikelihood: 0.2, diplomacyFocus: 0.4, expansionDrive: 0.2 };
+    const discounted = generateAIProductionCandidates(
+      withCoal.state, 'ai-1', withCoal.cityId, [], personality,
+    ).find(candidate => candidate.itemId === 'factory');
+    const normal = generateAIProductionCandidates(
+      withoutCoal.state, 'ai-1', withoutCoal.cityId, [], personality,
+    ).find(candidate => candidate.itemId === 'factory');
+    expect(discounted).toBeDefined();
+    expect(normal).toBeDefined();
+    expect(discounted!.productionTurns).toBeLessThan(normal!.productionTurns);
   });
 
   it('prices the active snapshot in the canonical context and leaves other work at normal cost', () => {
