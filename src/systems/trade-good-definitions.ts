@@ -67,6 +67,8 @@ export interface TradeGoodDefinition {
   settlement: GoodSettlementKind;
   /** Every use this good has. A stored good with no use must not be offered. */
   uses: readonly GoodUse[];
+  /** Posted-price base before a market band; always the definition's value, never a world-price mirror. */
+  basePrice: number;
   /** Integer cargo space per unit (or per service bundle). */
   cargoSpacePerUnit: number;
   /** Present exactly for a `stored-quantity` good: the quantity calibration it settles against. */
@@ -104,6 +106,7 @@ export function buildResourceBackedGoods(
       nativeSource: { kind: 'resource', resource: definition.id },
       settlement,
       uses: usesForResource(definition),
+      basePrice: definition.basePrice,
       cargoSpacePerUnit: 1,
       ...(settlement === 'stored-quantity' ? { quantity: standardQuantityProfile() } : {}),
     };
@@ -199,6 +202,9 @@ export function validateTradeGoodDefinitions(
     }
     if (!Number.isInteger(definition.cargoSpacePerUnit) || definition.cargoSpacePerUnit <= 0) {
       errors.push(`${label}: cargoSpacePerUnit must be a positive integer`);
+    }
+    if (!Number.isSafeInteger(definition.basePrice) || definition.basePrice <= 0) {
+      errors.push(`${label}: basePrice must be a positive safe integer`);
     }
     if (definition.uses.length === 0) {
       errors.push(`${label}: no implemented use`);

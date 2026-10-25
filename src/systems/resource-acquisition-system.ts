@@ -313,9 +313,11 @@ export function getInstantResourcePurchaseNotice(): string | null {
   return RESOURCE_PURCHASE_DENIAL_MESSAGES[RESOURCE_MARKET_REBUILDING_REASON];
 }
 
-export function getResourceAccessCost(state: GameState, resource: ResourceType): number {
+export function getResourceAccessCost(_state: GameState, resource: ResourceType): number {
+  // #1508 MR11: the disabled legacy access estimate no longer reads the world-price mirror. The
+  // posted-price market owns trade prices; this caller remains only until MR12 replaces it.
   const definition = RESOURCE_DEFINITIONS.find(def => def.id === resource);
-  return (state.marketplace?.prices[resource] ?? definition?.basePrice ?? 5) * 3;
+  return (definition?.basePrice ?? 5) * 3;
 }
 
 /**

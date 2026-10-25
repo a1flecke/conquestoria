@@ -7,6 +7,7 @@ import {
   computeStartingNativeStock,
   consumeStock,
   createEmptyReserveLedger,
+  creditImportedStock,
   createStartingReserveLedger,
   deliverIncomingStock,
   destroyIncomingStock,
@@ -115,6 +116,14 @@ describe('#1505 MR08 — reserve balances and provenance', () => {
     expect(getExportableQuantity(mixed, iron)).toBe(3);
     expect(spendNativeForExport(mixed, iron, 3).ok).toBe(true);
     expect(spendNativeForExport(mixed, iron, 4)).toMatchObject({ ok: false });
+  });
+
+  it('credits delivered imported stock without creating native provenance', () => {
+    const credited = creditImportedStock(seeded(0), iron, 4);
+    expect(credited.ok).toBe(true);
+    if (!credited.ok) return;
+    expect(getReserveBalance(credited.ledger, iron)).toEqual({ native: 0, imported: 4 });
+    expect(creditImportedStock(credited.ledger, iron, -1)).toMatchObject({ ok: false, reason: 'negative-amount' });
   });
 
   it('respects a protected reserve when exporting', () => {

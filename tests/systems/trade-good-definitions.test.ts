@@ -57,7 +57,7 @@ describe('#1505 MR08 — the trade-good catalog', () => {
   it('rejects dangling sources, duplicate ids, unusable settlement and missing uses', () => {
     const valid: TradeGoodDefinition = {
       id: 'resource:iron', name: 'Iron', nativeSource: { kind: 'resource', resource: 'iron' },
-      settlement: 'stored-quantity', uses: ['material'], cargoSpacePerUnit: 1,
+      settlement: 'stored-quantity', uses: ['material'], basePrice: 8, cargoSpacePerUnit: 1,
       quantity: { standardRecipeQuantity: 10, storageCapacity: 40, nativePerSourcePerRound: 2 },
     };
     expect(validateTradeGoodDefinitions([valid])).toEqual([]);
@@ -82,7 +82,7 @@ describe('#1505 MR08 — the trade-good catalog', () => {
   it('supports a test-defined non-deposit good through a registered producer', () => {
     const fixture: TradeGoodDefinition = {
       id: 'fixture:toolworks', name: 'Tools', nativeSource: { kind: 'producer', producerId: 'test:toolworks' },
-      settlement: 'stored-quantity', uses: ['material'], cargoSpacePerUnit: 2,
+      settlement: 'stored-quantity', uses: ['material'], basePrice: 11, cargoSpacePerUnit: 2,
       quantity: { standardRecipeQuantity: 4, storageCapacity: 12, nativePerSourcePerRound: 1 },
     };
     const context = {
@@ -99,7 +99,7 @@ describe('#1505 MR08 — the trade-good catalog', () => {
   it('requires a positive quantity profile for stored goods and forbids one for access goods', () => {
     const base: Omit<TradeGoodDefinition, 'settlement'> = {
       id: 'fixture:profile', name: 'Profile', nativeSource: { kind: 'resource', resource: 'iron' },
-      uses: ['material'], cargoSpacePerUnit: 1,
+      uses: ['material'], basePrice: 8, cargoSpacePerUnit: 1,
     };
     expect(validateTradeGoodDefinitions([{ ...base, settlement: 'stored-quantity' }])
       .some(error => error.includes('quantity profile'))).toBe(true);

@@ -140,6 +140,25 @@ describe('#1001 every teardown area is actually asserted', () => {
         routeAllowances: [{ routeId: 'r1', civId: 'ai-1', grantedOnTurn: 1, expiresOnTurn: 5 }],
       };
     },
+    commerceMarket: s => {
+      s.commerceMarket = {
+        turn: s.turn,
+        offers: [{
+          offerId: 'ai-1:resource:coal',
+          supplierCivId: 'ai-1',
+          goodId: 'resource:coal',
+          turn: s.turn,
+          band: 'tight',
+          unitPrice: 9,
+          available: 1,
+          tariffPerUnit: 0,
+          eligibleBuyerCivIds: ['player'],
+        }],
+        serviceCursorByOffer: { 'ai-1:resource:coal': 0 },
+        servedByOffer: { 'ai-1:resource:coal': ['ai-1'] },
+        procurementByCiv: { 'ai-1': { maxUnitPrice: 10, treasuryFloor: 0 } },
+      };
+    },
     economyStatusByCiv: s => { s.economyStatusByCiv = { 'ai-1': {} as never }; },
     materialReservesByCiv: s => {
       s.materialReservesByCiv = {

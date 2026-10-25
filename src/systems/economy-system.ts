@@ -18,6 +18,7 @@ import { getReligionTithesGold } from './religion-system';
 import { UNIT_DEFINITIONS } from './unit-definitions';
 import { resolveCivDefinition } from './civ-registry';
 import { getProductionCostForCivItem } from './production-cost-context';
+
 import { getCityMaterialProjection } from './city-production-materials';
 import type { MaterialFundingRow } from './resource-material-costs';
 import { getCityLevyGoldBonus } from './city-levy-system';
@@ -34,6 +35,40 @@ import {
 } from './tech-yield-system';
 import { getOwnedRoadTileCount, getCitiesConnectedToCapital } from './road-network';
 import { isAtWar } from './diplomacy-queries';
+
+/**
+ * #1508 MR11: settle one market payment atomically. Every debit is checked against the current
+ * balance before any civilization is changed, so a shortfall returns `null` and the caller keeps the
+ * input state untouched. Credits and debits for the same civilization net in one pass.
+ */
+export function settleGoldTransfers(
+  state: GameState,
+  debits: Readonly<Record<string, number>>,
+  credits: Readonly<Record<string, number>>,
+): GameState | null {
+  const deltas = new Map<string, number>();
+  for (const [civId, amount] of Object.entries(debits)) {
+    if (!Number.isSafeInteger(amount) || amount < 0) return null;
+    deltas.set(civId, (deltas.get(civId) ?? 0) - amount);
+  }
+  for (const [civId, amount] of Object.entries(credits)) {
+    if (!Number.isSafeInteger(amount) || amount < 0) return null;
+    deltas.set(civId, (deltas.get(civId) ?? 0) + amount);
+  }
+
+  const nextCivilizations = { ...state.civilizations };
+  let changed = false;
+  for (const [civId, delta] of deltas) {
+    if (delta === 0) continue;
+    const civ = state.civilizations[civId];
+    if (!civ) return null;
+    const gold = civ.gold + delta;
+    if (gold < 0) return null;
+    nextCivilizations[civId] = { ...civ, gold };
+    changed = true;
+  }
+  return changed ? { ...state, civilizations: nextCivilizations } : state;
+}
 
 export const ECONOMY_RULES = {
   rushBuyMultiplier: 2.5,
