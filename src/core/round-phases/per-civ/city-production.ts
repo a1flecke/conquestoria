@@ -7,7 +7,6 @@ import { applyCityMaturity } from '@/systems/city-maturity-system';
 import { assignCityFocus, normalizeWorkedTilesForCity } from '@/systems/city-work-system';
 import { calculateCityYields } from '@/systems/resource-system';
 import { getNetworkCityYieldBonus } from '@/systems/network-infrastructure-plans';
-import { getCivResourceYieldBonus } from '@/systems/resource-acquisition-system';
 import {
   getEmpireTechPercents,
   getEmpireFlatTechYields,
@@ -30,7 +29,6 @@ import { beginCityMaterialOccurrence, consumeCityMaterialCommitment, getCityMate
 import type { CivTurn, CivIncome } from './types';
 
 interface CityYieldContext {
-  readonly resourceYieldBonus: ReturnType<typeof getCivResourceYieldBonus>;
   readonly npCivBonuses: ReturnType<typeof getNationalProjectCivYieldBonus>;
   readonly empireTechPercents: ReturnType<typeof getEmpireTechPercents>;
   readonly empireFlatTechYields: ReturnType<typeof getEmpireFlatTechYields>;
@@ -45,7 +43,6 @@ interface CityYieldContext {
 function createCityYieldContext(state: GameState, turn: CivTurn): CityYieldContext {
   const { civId, civ, civDef } = turn;
 
-  const resourceYieldBonus = getCivResourceYieldBonus(state, civId);
   const npCivBonuses = getNationalProjectCivYieldBonus(state, civId);
   const empireTechPercents = getEmpireTechPercents(civ.techState.completed);
 
@@ -73,7 +70,6 @@ function createCityYieldContext(state: GameState, turn: CivTurn): CityYieldConte
     }
   }
   return {
-    resourceYieldBonus,
     npCivBonuses,
     empireTechPercents,
     empireFlatTechYields,
@@ -90,7 +86,6 @@ function createCityYieldContext(state: GameState, turn: CivTurn): CityYieldConte
 function calculateCityTurnYields(state: GameState, turn: CivTurn, cityId: string, city: City, ctx: CityYieldContext): { food: number; production: number; gold: number; science: number } {
   const { civId, civ, civDef } = turn;
   const {
-    resourceYieldBonus,
     npCivBonuses,
     empireTechPercents,
     empireFlatTechYields,
@@ -120,10 +115,10 @@ function calculateCityTurnYields(state: GameState, turn: CivTurn, cityId: string
     // Catastrophe-crisis recovery reward: +1 food +1 production while active, transient by design.
     const resilienceBonus = (city.resilienceBonusUntilTurn ?? 0) > state.turn ? 1 : 0;
     const yields = {
-      food:       Math.floor((baseYields.food       + (wonderCityBonuses.food       ?? 0) + resourceYieldBonus.food       + (npCivBonuses.food       ?? 0) + empireFlatFoodForCity + resilienceBonus) * unrestMultiplier.food),
-      production: Math.floor((baseYields.production + networkCityBonus.production + (wonderCityBonuses.production ?? 0) + resourceYieldBonus.production + (npCivBonuses.production ?? 0) + empireFlatProductionForCity + resilienceBonus) * unrestMultiplier.production * (1 + (empireTechPercents.production ?? 0) / 100)),
-      gold:       Math.floor((baseYields.gold       + (wonderCityBonuses.gold       ?? 0) + resourceYieldBonus.gold)       * unrestMultiplier.gold * (1 + (empireTechPercents.gold ?? 0) / 100)),
-      science:    Math.floor((baseYields.science    + networkCityBonus.science + (wonderCityBonuses.science    ?? 0) + resourceYieldBonus.science + networkGovernanceScienceForCity) * unrestMultiplier.science * (1 + (empireTechPercents.science ?? 0) / 100)),
+      food:       Math.floor((baseYields.food       + (wonderCityBonuses.food       ?? 0) + (npCivBonuses.food       ?? 0) + empireFlatFoodForCity + resilienceBonus) * unrestMultiplier.food),
+      production: Math.floor((baseYields.production + networkCityBonus.production + (wonderCityBonuses.production ?? 0) + (npCivBonuses.production ?? 0) + empireFlatProductionForCity + resilienceBonus) * unrestMultiplier.production * (1 + (empireTechPercents.production ?? 0) / 100)),
+      gold:       Math.floor((baseYields.gold       + (wonderCityBonuses.gold       ?? 0))       * unrestMultiplier.gold * (1 + (empireTechPercents.gold ?? 0) / 100)),
+      science:    Math.floor((baseYields.science    + networkCityBonus.science + (wonderCityBonuses.science    ?? 0) + networkGovernanceScienceForCity) * unrestMultiplier.science * (1 + (empireTechPercents.science ?? 0) / 100)),
     };
   return yields;
 }

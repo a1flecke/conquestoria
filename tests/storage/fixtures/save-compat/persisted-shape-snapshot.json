@@ -62,6 +62,7 @@
     "cities.*.productionMaterials.commitment.ref.ownerCivId",
     "cities.*.productionMaterials.commitment.reservationIds",
     "cities.*.productionMaterials.queueRevision",
+    "cities.*.productionMaterials.softTerms",
     "cities.*.productionProgress",
     "cities.*.productionQueue",
     "cities.*.spyUnrestBonus",

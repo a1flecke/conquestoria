@@ -80,7 +80,21 @@ export interface ReserveLedger {
 export interface ActiveMaterialCommitment {
   ref: ProductionMaterialRef;
   recipe: readonly MaterialCostRow[];
+  /** Optional finite soft-material rows reserved alongside the hard recipe (#1507 MR10). */
+  softRows?: readonly MaterialCostRow[];
   reservationIds: readonly string[];
+}
+
+/** Frozen optional soft-discount terms for the active occurrence (#1507 MR10). */
+export interface ActiveSoftMaterialTerms {
+  itemId: string;
+  occurrence: number;
+  /** Combined multiplier after the shared floor; 1 means no soft term. */
+  multiplier: number;
+  /** Stock rows actually reserved for this occurrence. */
+  rows: readonly MaterialCostRow[];
+  /** Circular Manufacturing advantages used without stock. */
+  substitutions: readonly ResourceType[];
 }
 
 /** Per-city occurrence identity for material commitments (#1506 MR09). */
@@ -90,6 +104,8 @@ export interface CityProductionMaterials {
   /** Advances when the active occurrence changes — not on tail edits. */
   activeOccurrence: number;
   commitment: ActiveMaterialCommitment | null;
+  /** Frozen soft terms for the active item; absent means no frozen term (old saves included). */
+  softTerms?: ActiveSoftMaterialTerms | null;
 }
 
 /**
@@ -97,7 +113,7 @@ export interface CityProductionMaterials {
  * imports, so city creation and save migration share one starting state without a core → system edge.
  */
 export function createNeutralCityProductionMaterials(): CityProductionMaterials {
-  return { queueRevision: 0, activeOccurrence: 0, commitment: null };
+  return { queueRevision: 0, activeOccurrence: 0, commitment: null, softTerms: null };
 }
 
 /**

@@ -1,11 +1,54 @@
 import type { City, GameMap, ResourceYield, CivBonusEffect } from '@/core/types';
+import type { ResourceType } from '@/core/types/resources';
 import { hexKey } from './hex-utils';
 import { BUILDINGS } from './city-system';
 import { canonicalizeCityCoord } from './city-territory-system';
+import { RESOURCE_DEFINITIONS, type ResourceEffect } from './resource-definitions';
 import { getTileYield, TERRAIN_YIELDS } from './tile-yield';
 import { getCityTechYields, type CityTechYieldContext } from './tech-yield-system';
 
 export { TERRAIN_YIELDS };
+
+export interface WorkedResourceEffect {
+  resource: ResourceType;
+  effect: ResourceEffect;
+  coord: { q: number; r: number };
+}
+
+/**
+ * #1507 MR10: non-happiness resource effects belong to the city that actually works the tile.
+ * The city center is always worked; every other tile needs its completed required improvement.
+ * Happiness remains a separate, explicitly empire-wide access effect.
+ */
+export function getCityWorkedResourceEffects(
+  city: City,
+  map: GameMap,
+  completedTechs: readonly string[] = [],
+): WorkedResourceEffect[] {
+  const center = canonicalizeCityCoord(city.position, map);
+  const centerKey = hexKey(center);
+  const coords = new Map<string, { q: number; r: number }>();
+  coords.set(centerKey, center);
+  for (const coord of city.workedTiles ?? []) {
+    const canonical = canonicalizeCityCoord(coord, map);
+    coords.set(hexKey(canonical), canonical);
+  }
+
+  const effects: WorkedResourceEffect[] = [];
+  for (const [key, coord] of coords) {
+    const tile = map.tiles[key];
+    if (!tile?.resource) continue;
+    const definition = RESOURCE_DEFINITIONS.find(candidate => candidate.id === tile.resource);
+    if (!definition?.effect || definition.effect.type === 'happiness') continue;
+    if (!completedTechs.includes(definition.tech)) continue;
+    const isCenter = key === centerKey;
+    if (!isCenter && (tile.improvement !== definition.requiredImprovement || tile.improvementTurnsLeft !== 0)) {
+      continue;
+    }
+    effects.push({ resource: definition.id, effect: definition.effect, coord });
+  }
+  return effects;
+}
 
 export function calculateCityYields(
   city: City,
@@ -38,6 +81,17 @@ export function calculateCityYields(
     yields.production += tileYield.production;
     yields.gold += tileYield.gold;
     yields.science += tileYield.science;
+  }
+
+  // Native worked-tile resource effects. Access alone never grants these to another city.
+  for (const worked of getCityWorkedResourceEffects(city, map, completedTechs)) {
+    switch (worked.effect.type) {
+      case 'gold': yields.gold += worked.effect.amount; break;
+      case 'production': yields.production += worked.effect.amount; break;
+      case 'food': yields.food += worked.effect.amount; break;
+      case 'science': yields.science += worked.effect.amount; break;
+      case 'happiness': break;
+    }
   }
 
   // Russia tundra bonus

@@ -6,9 +6,9 @@ import { getLegendaryWonderCivYieldBonus } from './legendary-wonder-system';
 import { getLegendaryWonderCityYieldBonus } from './legendary-wonder-system';
 import { getNetworkCityYieldBonus } from './network-infrastructure-plans';
 import { getNationalProjectCivYieldBonus } from './national-project-system';
+import { getOwnedCities } from './city-ownership';
 import { getOccupiedCityYieldMultiplier } from './city-occupation-system';
 import { getCrisisYieldMultiplier } from './crisis-system';
-import { getCivResourceYieldBonus } from './resource-acquisition-system';
 import { calculateCityYields } from './resource-system';
 import { BUILDINGS } from './city-system';
 import { resolveCivilizationEra } from './tech-definitions';
@@ -51,7 +51,6 @@ export interface CalculateCivResearchOutputOptions {
  */
 interface CivResearchProjectionInputs {
   readonly civDefinitionBonusEffect: CivBonusEffect | undefined;
-  readonly resourceYieldBonus: ReturnType<typeof getCivResourceYieldBonus>;
   readonly nationalProjectBonus: ReturnType<typeof getNationalProjectCivYieldBonus>;
   readonly empireTechPercents: ReturnType<typeof getEmpireTechPercents>;
   readonly empireFlatTechYields: ReturnType<typeof getEmpireFlatTechYields>;
@@ -63,11 +62,10 @@ function civResearchProjectionInputs(state: GameState, civId: string): CivResear
   const completedTechs = civ?.techState.completed ?? [];
   return {
     civDefinitionBonusEffect: resolveCivDefinition(state, civ?.civType ?? '')?.bonusEffect,
-    resourceYieldBonus: getCivResourceYieldBonus(state, civId),
     nationalProjectBonus: getNationalProjectCivYieldBonus(state, civId),
     empireTechPercents: getEmpireTechPercents(completedTechs),
     empireFlatTechYields: getEmpireFlatTechYields(completedTechs),
-    empireFlatTargetCityId: civ && civ.cities.length > 0 ? [...civ.cities].sort()[0] : undefined,
+    empireFlatTargetCityId: getOwnedCities(state, civId).map(city => city.id).sort()[0],
   };
 }
 
@@ -124,7 +122,6 @@ function projectOneCityScience(
     (baseYields.production
       + networkCityBonus.production
       + (wonderCityBonuses.production ?? 0)
-      + inputs.resourceYieldBonus.production
       + (inputs.nationalProjectBonus.production ?? 0)
       + (cityId === inputs.empireFlatTargetCityId ? inputs.empireFlatTechYields.production : 0)
       + ((city.resilienceBonusUntilTurn ?? 0) > projectedState.turn ? 1 : 0))
@@ -135,7 +132,6 @@ function projectOneCityScience(
     (baseYields.science
       + networkCityBonus.science
       + (wonderCityBonuses.science ?? 0)
-      + inputs.resourceYieldBonus.science
       + (cityId === lowestScienceCityId ? networkGovernanceBonus : 0))
     * scienceMultiplier
     * (1 + (inputs.empireTechPercents.science ?? 0) / 100),

@@ -46,33 +46,26 @@ export interface SoftMaterialSelectionOptions {
   ledger?: ReserveLedger;
 }
 
-/**
- * Select every eligible soft advantage for one item.
- *
- * - stock is preferred when the full soft allotment is free;
- * - a permitted Circular Manufacturing substitution supplies the term without
- *   creating stock, a hard-material row, or fuel;
- * - an insufficient allotment yields no term (normal-cost production remains);
- * - non-stock access goods (Ivory) keep their explicitly scoped access term.
- */
-export function selectSoftMaterialTerms(
-  state: GameState,
-  civId: string,
+export interface SoftMaterialSelectionInputs {
+  availableResources: ReadonlySet<ResourceType>;
+  substitution?: ResourceType;
+  ledger: ReserveLedger;
+}
+
+/** Pure selector for callers that already hold the owning civ's inputs (pricing contexts). */
+export function selectSoftMaterialTermsFromInputs(
   itemId: string,
-  options: SoftMaterialSelectionOptions = {},
+  inputs: SoftMaterialSelectionInputs,
 ): SelectedSoftMaterialTerms {
-  const availableResources = options.availableResources ?? getCivAvailableResources(state, civId);
-  const substitution = options.substitution ?? getCircularManufacturingMaterial(state, civId);
-  const ledger = options.ledger ?? getCivMaterialLedger(state, civId);
   const terms: SelectedSoftMaterialTerm[] = [];
   const rows: MaterialCostRow[] = [];
 
   for (const advantage of getResourceAdvantagesForItem(itemId)) {
     const goodId = resourceGoodId(advantage.resource);
     const good = findTradeGood(goodId);
-    const hasLiveAccess = availableResources.has(advantage.resource);
+    const hasLiveAccess = inputs.availableResources.has(advantage.resource);
     const allowsSubstitution = advantage.allowMaterialSubstitution !== false
-      && substitution === advantage.resource;
+      && inputs.substitution === advantage.resource;
 
     if (hasLiveAccess && (!good || !isStoredQuantityGood(good))) {
       // Continuing-access goods cannot be stockpiled and keep their explicit access term.
@@ -82,7 +75,7 @@ export function selectSoftMaterialTerms(
 
     if (hasLiveAccess && good && isStoredQuantityGood(good)) {
       const quantity = advantage.softCost ?? DEFAULT_SOFT_MATERIAL_COST;
-      if (getFreeQuantity(ledger, goodId) >= quantity) {
+      if (getFreeQuantity(inputs.ledger, goodId) >= quantity) {
         terms.push({ resource: advantage.resource, goodId, discount: advantage.discount, quantity, via: 'stock' });
         rows.push({ goodId, quantity });
         continue;
@@ -108,4 +101,26 @@ export function selectSoftMaterialTerms(
     substitutions: terms.filter(term => term.via === 'substitution').map(term => term.resource),
     terms,
   };
+}
+
+/**
+ * Select every eligible soft advantage for one item.
+ *
+ * - stock is preferred when the full soft allotment is free;
+ * - a permitted Circular Manufacturing substitution supplies the term without
+ *   creating stock, a hard-material row, or fuel;
+ * - an insufficient allotment yields no term (normal-cost production remains);
+ * - non-stock access goods (Ivory) keep their explicitly scoped access term.
+ */
+export function selectSoftMaterialTerms(
+  state: GameState,
+  civId: string,
+  itemId: string,
+  options: SoftMaterialSelectionOptions = {},
+): SelectedSoftMaterialTerms {
+  return selectSoftMaterialTermsFromInputs(itemId, {
+    availableResources: options.availableResources ?? getCivAvailableResources(state, civId),
+    substitution: options.substitution ?? getCircularManufacturingMaterial(state, civId),
+    ledger: options.ledger ?? getCivMaterialLedger(state, civId),
+  });
 }

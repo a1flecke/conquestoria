@@ -13,11 +13,13 @@ import type { City, GameState } from '@/core/types';
 import {
   createNeutralCityProductionMaterials,
   type ActiveMaterialCommitment,
+  type ActiveSoftMaterialTerms,
   type MaterialCostRow,
   type ProductionMaterialRef,
   type ReserveLedger,
 } from '@/core/types/commerce';
 import {
+  aggregateMaterialRows,
   consumeMaterialRecipe,
   evaluateMaterialFunding,
   getMaterialRecipe,
@@ -26,6 +28,7 @@ import {
   type MaterialFundingRow,
 } from './resource-material-costs';
 import { getCivMaterialLedger } from './resource-material-state';
+import { selectSoftMaterialTerms } from './soft-material-terms';
 
 export interface CityMaterialProjection {
   itemId: string | null;
@@ -36,12 +39,23 @@ export interface CityMaterialProjection {
   known: boolean;
   recipe: readonly MaterialCostRow[];
   commitment: ActiveMaterialCommitment | null;
+  /** Frozen optional soft terms for the active item, if any (#1507 MR10). */
+  softTerms: ActiveSoftMaterialTerms | null;
   /** True when the active item's full recipe is available (own reservation counts as available). */
   funded: boolean;
   /** Every aggregated recipe row with required/committed/free/available/missing, including satisfied rows. */
   rows: readonly MaterialFundingRow[];
   /** Only rows with a positive deficit, convenient for waiting copy. */
   missing: readonly MaterialFundingRow[];
+}
+
+function softTermsOf(city: City): ActiveSoftMaterialTerms | null {
+  const materials = materialsOf(city);
+  const terms = materials.softTerms;
+  if (!terms) return null;
+  if (terms.itemId !== city.productionQueue[0]) return null;
+  if (terms.occurrence !== materials.activeOccurrence) return null;
+  return terms;
 }
 
 function materialsOf(city: City) {
@@ -80,23 +94,24 @@ function ownCommitmentByGood(
 export function getCityMaterialProjection(state: GameState, cityId: string): CityMaterialProjection {
   const city = state.cities[cityId];
   if (!city) {
-    return { itemId: null, known: true, recipe: [], commitment: null, funded: false, rows: [], missing: [] };
+    return { itemId: null, known: true, recipe: [], commitment: null, softTerms: null, funded: false, rows: [], missing: [] };
   }
   const itemId = city.productionQueue[0] ?? null;
   if (!itemId) {
-    return { itemId: null, known: true, recipe: [], commitment: null, funded: true, rows: [], missing: [] };
+    return { itemId: null, known: true, recipe: [], commitment: null, softTerms: null, funded: true, rows: [], missing: [] };
   }
 
   const lookup = getMaterialRecipe(itemId);
   const commitment = commitmentOf(city);
+  const softTerms = softTermsOf(city);
   // Legendary wonders are deliberately outside the unit/building catalogs; the queue's
   // `legendary:<wonderId>` form is the one recognized material-free special.
   if (!lookup.known && !itemId.startsWith('legendary:')) {
-    return { itemId, known: false, recipe: [], commitment, funded: false, rows: [], missing: [] };
+    return { itemId, known: false, recipe: [], commitment, softTerms, funded: false, rows: [], missing: [] };
   }
   const recipe = lookup.known ? lookup.recipe.rows : [];
   if (recipe.length === 0) {
-    return { itemId, known: true, recipe, commitment, funded: true, rows: [], missing: [] };
+    return { itemId, known: true, recipe, commitment, softTerms, funded: true, rows: [], missing: [] };
   }
   const ledger = getCivMaterialLedger(state, city.owner);
   const funding = evaluateMaterialFunding(ledger, lookup.known ? lookup.recipe : { itemId, kind: 'unit', rows: [] }, ownCommitmentByGood(ledger, commitment));
@@ -105,6 +120,7 @@ export function getCityMaterialProjection(state: GameState, cityId: string): Cit
     known: true,
     recipe,
     commitment,
+    softTerms,
     funded: funding.funded,
     rows: funding.rows,
     missing: funding.rows.filter(row => row.missing > 0),
@@ -143,11 +159,11 @@ export function releaseCityMaterialCommitment(state: GameState, cityId: string):
   const city = state.cities[cityId];
   if (!city) return state;
   const materials = materialsOf(city);
-  if (!materials.commitment) return state;
+  if (!materials.commitment && !materials.softTerms) return state;
   const ledger = getCivMaterialLedger(state, city.owner);
   return withCity(withLedger(state, city.owner, releaseCommitment(ledger, materials.commitment)), {
     ...city,
-    productionMaterials: { ...materials, commitment: null },
+    productionMaterials: { ...materials, commitment: null, softTerms: null },
   });
 }
 
@@ -181,7 +197,18 @@ export function spendActiveMaterialRecipe(state: GameState, cityId: string): { o
       const reservation = ledger.reservations.find(candidate => candidate.id === reservationId);
       if (reservation) reservationIds[reservation.goodId] = reservationId;
     }
-    const spent = consumeMaterialRecipe(ledger, { itemId, kind: 'unit', rows: commitment.recipe }, { reservationIds });
+    // A replay after completion finds no live reservations: nothing to debit, never a second spend.
+    if (commitment.reservationIds.length > 0 && Object.keys(reservationIds).length === 0) {
+      return { ok: true, state };
+    }
+    const lookup = getMaterialRecipe(itemId);
+    const rows = aggregateMaterialRows([...commitment.recipe, ...(commitment.softRows ?? [])]);
+    if (rows.length === 0) return { ok: true, state };
+    const spent = consumeMaterialRecipe(
+      ledger,
+      { itemId, kind: lookup.known ? lookup.recipe.kind : 'unit', rows },
+      { reservationIds },
+    );
     return spent.ok ? { ok: true, state: withLedger(state, city.owner, spent.ledger) } : { ok: false, state };
   }
 
@@ -199,6 +226,75 @@ export function advanceCityMaterialRevision(state: GameState, cityId: string): G
   return withCity(state, { ...city, productionMaterials: { ...materials, queueRevision: materials.queueRevision + 1 } });
 }
 
+interface ReservedActiveTerms {
+  ledger: ReserveLedger;
+  commitment: ActiveMaterialCommitment | null;
+  softTerms: ActiveSoftMaterialTerms | null;
+}
+
+/**
+ * Reserve the hard recipe first, then any finite soft term the remaining free stock can cover.
+ * A soft term is optional: if its stock cannot be reserved, the item keeps normal cost and only the
+ * hard commitment survives. Soft-only items (a factory with no hard recipe) still get a commitment
+ * so the finite stock is held for this occurrence.
+ */
+function reserveActiveTerms(
+  state: GameState,
+  city: City,
+  releasedLedger: ReserveLedger,
+  occurrence: number,
+  itemId: string,
+): ReservedActiveTerms {
+  let ledger = releasedLedger;
+  const ref: ProductionMaterialRef = { ownerCivId: city.owner, cityId: city.id, occurrence, itemId };
+  const lookup = getMaterialRecipe(itemId);
+  const hardRows = lookup.known ? lookup.recipe.rows : [];
+  const reservationIds: string[] = [];
+
+  if (lookup.known && hardRows.length > 0) {
+    const reserved = reserveMaterialRecipe(ledger, lookup.recipe, ref);
+    if (!reserved.ok) {
+      // A refusal leaves the item waiting, never half-funded.
+      return { ledger, commitment: null, softTerms: null };
+    }
+    ledger = reserved.ledger;
+    reservationIds.push(...reserved.reservations.map(reservation => reservation.reservationId));
+  }
+
+  const selected = selectSoftMaterialTerms(state, city.owner, itemId, { ledger });
+  let softRows: MaterialCostRow[] = [];
+  let softTerms: ActiveSoftMaterialTerms | null = null;
+  if (selected.multiplier < 1) {
+    if (selected.rows.length > 0) {
+      const softReserved = reserveMaterialRecipe(
+        ledger,
+        { itemId, kind: lookup.known ? lookup.recipe.kind : 'unit', rows: [...selected.rows] },
+        ref,
+      );
+      if (softReserved.ok) {
+        ledger = softReserved.ledger;
+        softRows = [...selected.rows];
+        reservationIds.push(...softReserved.reservations.map(reservation => reservation.reservationId));
+      }
+    }
+    // Stock terms only count once their rows are reserved; substitution/access terms need no rows.
+    if (softRows.length > 0 || selected.rows.length === 0) {
+      softTerms = {
+        itemId,
+        occurrence,
+        multiplier: selected.multiplier,
+        rows: softRows,
+        substitutions: [...selected.substitutions],
+      };
+    }
+  }
+
+  const commitment = hardRows.length > 0 || softRows.length > 0
+    ? { ref, recipe: hardRows, softRows, reservationIds }
+    : null;
+  return { ledger, commitment, softTerms };
+}
+
 /**
  * A real head transition: release the old occurrence (expiring any migration assistance), advance the
  * occurrence token and atomically reserve the new head. An unfunded head is a legal waiting state,
@@ -208,33 +304,22 @@ export function beginCityMaterialOccurrence(state: GameState, cityId: string): G
   const city = state.cities[cityId];
   if (!city) return state;
   const materials = materialsOf(city);
-  const ownerLedger = getCivMaterialLedger(state, city.owner);
-  let ledger = releaseCommitment(ownerLedger, materials.commitment);
+  const released = releaseCommitment(getCivMaterialLedger(state, city.owner), materials.commitment);
 
   const occurrence = materials.activeOccurrence + 1;
   const itemId = city.productionQueue[0] ?? null;
-  let commitment: ActiveMaterialCommitment | null = null;
+  const terms = itemId
+    ? reserveActiveTerms(state, city, released, occurrence, itemId)
+    : { ledger: released, commitment: null, softTerms: null };
 
-  if (itemId) {
-    const lookup = getMaterialRecipe(itemId);
-    if (lookup.known && lookup.recipe.rows.length > 0) {
-      const ref: ProductionMaterialRef = { ownerCivId: city.owner, cityId, occurrence, itemId };
-      const reserved = reserveMaterialRecipe(ledger, lookup.recipe, ref);
-      if (reserved.ok) {
-        ledger = reserved.ledger;
-        commitment = {
-          ref,
-          recipe: lookup.recipe.rows,
-          reservationIds: reserved.reservations.map(reservation => reservation.reservationId),
-        };
-      }
-      // A refusal leaves `ledger` as it was after the release: the item is waiting, not half-funded.
-    }
-  }
-
-  return withCity(withLedger(state, city.owner, ledger), {
+  return withCity(withLedger(state, city.owner, terms.ledger), {
     ...city,
-    productionMaterials: { ...materials, activeOccurrence: occurrence, commitment },
+    productionMaterials: {
+      ...materials,
+      activeOccurrence: occurrence,
+      commitment: terms.commitment,
+      softTerms: terms.softTerms,
+    },
   });
 }
 
@@ -251,10 +336,10 @@ export function syncCityMaterialCommitment(state: GameState, cityId: string): Ga
   const itemId = city.productionQueue[0] ?? null;
 
   if (!itemId) {
-    if (!materials.commitment) return state;
+    if (!materials.commitment && !materials.softTerms) return state;
     return withCity(withLedger(state, city.owner, releaseCommitment(ledger, materials.commitment)), {
       ...city,
-      productionMaterials: { ...materials, commitment: null },
+      productionMaterials: { ...materials, commitment: null, softTerms: null },
     });
   }
 
@@ -263,27 +348,20 @@ export function syncCityMaterialCommitment(state: GameState, cityId: string): Ga
       .every(reservationId => ledger.reservations.some(reservation => reservation.id === reservationId));
     if (allPresent) return state;
   }
+  if (!materials.commitment
+    && materials.softTerms?.itemId === itemId
+    && materials.softTerms.occurrence === materials.activeOccurrence) {
+    return state;
+  }
 
   const released = releaseCommitment(ledger, materials.commitment);
-  const lookup = getMaterialRecipe(itemId);
-  if (!lookup.known || lookup.recipe.rows.length === 0) {
-    return withCity(withLedger(state, city.owner, released), {
-      ...city,
-      productionMaterials: { ...materials, commitment: null },
-    });
-  }
-  const ref: ProductionMaterialRef = {
-    ownerCivId: city.owner,
-    cityId,
-    occurrence: materials.activeOccurrence,
-    itemId,
-  };
-  const reserved = reserveMaterialRecipe(released, lookup.recipe, ref);
-  const commitment = reserved.ok
-    ? { ref, recipe: lookup.recipe.rows, reservationIds: reserved.reservations.map(reservation => reservation.reservationId) }
-    : null;
-  return withCity(withLedger(state, city.owner, reserved.ledger), {
+  const terms = reserveActiveTerms(state, city, released, materials.activeOccurrence, itemId);
+  return withCity(withLedger(state, city.owner, terms.ledger), {
     ...city,
-    productionMaterials: { ...materials, commitment },
+    productionMaterials: {
+      ...materials,
+      commitment: terms.commitment,
+      softTerms: terms.softTerms,
+    },
   });
 }

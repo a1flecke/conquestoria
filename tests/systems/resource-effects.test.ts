@@ -1,12 +1,22 @@
 import { describe, it, expect } from 'vitest';
 import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 import {
-  getCivResourceYieldBonus,
   getCivHappinessFromResources,
 } from '@/systems/resource-acquisition-system';
-import type { GameState } from '@/core/types';
+import { calculateCityYields, getCityWorkedResourceEffects } from '@/systems/resource-system';
+import type { GameState, ResourceYield } from '@/core/types';
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
+
+function sumWorkedEffects(state: GameState, completed: string[] = []): ResourceYield {
+  const city = state.cities['city-1'];
+  const bonus: ResourceYield = { food: 0, production: 0, gold: 0, science: 0 };
+  if (!city) return bonus;
+  for (const worked of getCityWorkedResourceEffects(city, state.map, completed)) {
+    bonus[worked.effect.type as 'food' | 'production' | 'gold' | 'science'] += worked.effect.amount;
+  }
+  return bonus;
+}
 
 function makeTechState(completed: string[] = []) {
   return {
@@ -70,7 +80,7 @@ function makeState(overrides: {
         id: 'city-1', name: 'TestCity', owner: 'player',
         position: cityPos, ownedTiles,
         population: 1, food: 0, production: 0, gold: 0,
-        buildings: [], productionQueue: [], workedTiles: [],
+        buildings: [], productionQueue: [], workedTiles: ownedTiles,
         specialistSlots: [], garrisonUnitId: null, hp: 100, maxHp: 100,
       } as unknown as never,
     },
@@ -120,7 +130,7 @@ function makeMultiResourceState(resources: Array<{
         id: 'city-1', name: 'TestCity', owner: 'player',
         position: cityPos, ownedTiles,
         population: 1, food: 0, production: 0, gold: 0,
-        buildings: [], productionQueue: [], workedTiles: [],
+        buildings: [], productionQueue: [], workedTiles: ownedTiles,
         specialistSlots: [], garrisonUnitId: null, hp: 100, maxHp: 100,
       } as unknown as never,
     },
@@ -149,7 +159,7 @@ describe('RESOURCE_DEFINITIONS catalog', () => {
       { resource: 'rare-earth-elements', improvement: 'mine', tech: 'nanomaterials', terrain: 'desert' },
     ]);
 
-    expect(getCivResourceYieldBonus(state, 'player').science).toBe(2);
+    expect(sumWorkedEffects(state, state.civilizations.player.techState.completed).science).toBe(2);
   });
 });
 
@@ -248,7 +258,7 @@ describe('getCivResourceYieldBonus', () => {
       tileImprovementTurnsLeft: 0, tileTerrain: 'hills',
       completed: ['mining-tech'],
     });
-    const bonus = getCivResourceYieldBonus(state, 'player');
+    const bonus = sumWorkedEffects(state, state.civilizations.player.techState.completed);
     expect(bonus.gold).toBe(1);
     expect(bonus.food).toBe(0);
     expect(bonus.production).toBe(0);
@@ -261,7 +271,7 @@ describe('getCivResourceYieldBonus', () => {
       tileImprovementTurnsLeft: 0, tileTerrain: 'plains',
       completed: ['animal-husbandry'],
     });
-    const bonus = getCivResourceYieldBonus(state, 'player');
+    const bonus = sumWorkedEffects(state, state.civilizations.player.techState.completed);
     expect(bonus.production).toBe(1);
     expect(bonus.food).toBe(0);
     expect(bonus.gold).toBe(0);
@@ -273,7 +283,7 @@ describe('getCivResourceYieldBonus', () => {
       tileImprovementTurnsLeft: 0, tileTerrain: 'plains',
       completed: ['domestication'],
     });
-    const bonus = getCivResourceYieldBonus(state, 'player');
+    const bonus = sumWorkedEffects(state, state.civilizations.player.techState.completed);
     expect(bonus.food).toBe(1);
     expect(bonus.gold).toBe(0);
   });
@@ -284,7 +294,7 @@ describe('getCivResourceYieldBonus', () => {
       tileImprovementTurnsLeft: 0, tileTerrain: 'hills',
       completed: ['pottery'],
     });
-    const bonus = getCivResourceYieldBonus(state, 'player');
+    const bonus = sumWorkedEffects(state, state.civilizations.player.techState.completed);
     expect(bonus.gold).toBe(1);
   });
 
@@ -293,13 +303,13 @@ describe('getCivResourceYieldBonus', () => {
       { resource: 'gems',   improvement: 'mine', tech: 'mining-tech', terrain: 'hills' },
       { resource: 'silver', improvement: 'mine', tech: 'mining-tech', terrain: 'hills' },
     ]);
-    const bonus = getCivResourceYieldBonus(state, 'player');
+    const bonus = sumWorkedEffects(state, state.civilizations.player.techState.completed);
     expect(bonus.gold).toBe(2);
   });
 
   it('test 10b: civ with no resources → all zeros', () => {
     const state = makeState({ tileResource: null });
-    const bonus = getCivResourceYieldBonus(state, 'player');
+    const bonus = sumWorkedEffects(state, state.civilizations.player.techState.completed);
     expect(bonus.food).toBe(0);
     expect(bonus.production).toBe(0);
     expect(bonus.gold).toBe(0);
@@ -317,7 +327,7 @@ describe('getCivResourceYieldBonus', () => {
         tileTerrain: terrain,
         completed: [def.tech],
       });
-      const bonus = getCivResourceYieldBonus(state, 'player');
+      const bonus = sumWorkedEffects(state, state.civilizations.player.techState.completed);
       expect(bonus.gold, `${resourceId} should give 0 gold`).toBe(0);
       expect(bonus.production, `${resourceId} should give 0 production`).toBe(0);
       expect(bonus.food, `${resourceId} should give 0 food`).toBe(0);
@@ -329,11 +339,50 @@ describe('getCivResourceYieldBonus', () => {
       tileResource: 'silk', tileImprovement: 'plantation',
       tileImprovementTurnsLeft: 0, completed: ['irrigation'],
     });
-    const bonus = getCivResourceYieldBonus(state, 'player');
+    const bonus = sumWorkedEffects(state, state.civilizations.player.techState.completed);
     expect(bonus.gold).toBe(0);
     expect(bonus.production).toBe(0);
     expect(bonus.food).toBe(0);
     expect(bonus.science).toBe(0);
+  });
+
+  it('a native tile benefits only the city that works it', () => {
+    const state = makeState({
+      tileResource: 'coal', tileImprovement: 'mine',
+      tileImprovementTurnsLeft: 0, tileTerrain: 'hills',
+      completed: ['steam-power'],
+    });
+    const working = state.cities['city-1'];
+    const other = {
+      ...working,
+      id: 'city-2',
+      position: { q: 7, r: 3 },
+      ownedTiles: [{ q: 7, r: 3 }],
+      workedTiles: [{ q: 7, r: 3 }],
+    };
+    state.cities['city-2'] = other;
+
+    expect(sumWorkedEffects(state, ['steam-power']).production).toBe(1);
+    expect(getCityWorkedResourceEffects(other, state.map, ['steam-power'])).toEqual([]);
+    expect(calculateCityYields(other, state.map, undefined, ['steam-power']).production)
+      .toBeLessThan(calculateCityYields(working, state.map, undefined, ['steam-power']).production);
+  });
+
+  it('an unworked resource or imported stock grants no native tile output', () => {
+    const state = makeState({
+      tileResource: 'iron', tileImprovement: 'mine',
+      tileImprovementTurnsLeft: 0, tileTerrain: 'hills',
+      completed: ['bronze-working'],
+    });
+    state.cities['city-1'].workedTiles = [state.cities['city-1'].position];
+    state.materialReservesByCiv = {
+      player: {
+        balances: { 'resource:iron': { native: 0, imported: 10 } },
+        reservations: [],
+        incoming: [],
+      },
+    };
+    expect(getCityWorkedResourceEffects(state.cities['city-1'], state.map, ['bronze-working'])).toEqual([]);
   });
 });
 
@@ -343,6 +392,6 @@ describe('save compatibility', () => {
   it('test 30: effect is static data on RESOURCE_DEFINITIONS, not stored in GameState', () => {
     const state = makeState({ tileResource: null });
     expect(() => getCivHappinessFromResources(state, 'player')).not.toThrow();
-    expect(() => getCivResourceYieldBonus(state, 'player')).not.toThrow();
+    expect(() => sumWorkedEffects(state, state.civilizations.player.techState.completed)).not.toThrow();
   });
 });

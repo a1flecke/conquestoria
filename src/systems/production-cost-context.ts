@@ -10,6 +10,7 @@ import {
   getCircularManufacturingMaterial,
 } from '@/systems/national-project-system';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
+import { getCivMaterialLedger } from '@/systems/resource-material-state';
 import { hasActiveRecoveredHarnesses } from '@/systems/world-actor-queries';
 import { hasActiveHerdingInsight } from '@/systems/world-actor-queries';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
@@ -53,6 +54,17 @@ export function buildProductionCostContext(
     });
   }
   const completedTechs = civ.techState?.completed ?? [];
+  // #1507 MR10: an active occurrence prices from its frozen soft term. A missing snapshot on an
+  // older save freezes normal cost rather than letting a later offer discount retroactively.
+  const activeItemId = hostCity?.productionQueue?.[0] ?? null;
+  const softTerms = hostCity?.productionMaterials?.softTerms;
+  const activeSoftDiscount = activeItemId
+    ? softTerms
+      && softTerms.itemId === activeItemId
+      && softTerms.occurrence === (hostCity?.productionMaterials?.activeOccurrence ?? 0)
+      ? softTerms.multiplier
+      : 1
+    : null;
   return {
     city: hostCity ? { buildings: hostCity.buildings ?? [] } : null,
     bonusEffect: resolveCivDefinition(state, civ.civType ?? '')?.bonusEffect,
@@ -64,6 +76,9 @@ export function buildProductionCostContext(
     activeNationalProjects: getActiveNationalProjectsForCiv(state, civId),
     availableResources: getCivAvailableResources(state, civId),
     materialSubstitution: getCircularManufacturingMaterial(state, civId),
+    activeItemId,
+    activeSoftDiscount,
+    softMaterialLedger: getCivMaterialLedger(state, civId),
     herdingInsight: hasActiveHerdingInsight(state, civId),
     recoveredHarnesses: hasActiveRecoveredHarnesses(state, civId),
   };

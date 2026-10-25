@@ -13,7 +13,8 @@ import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 import { resolveFromCity } from '@/systems/trade-caravan-system';
 import { getRouteCapacity } from '@/systems/trade-route-economy';
 import { getResourceEffectLabel } from '@/systems/resource-definitions';
-import { getResourceAdvantagesForItem, getResourceAdvantageMultiplier } from '@/systems/resource-advantages';
+import { getCityWorkedResourceEffects } from '@/systems/resource-system';
+import { getResourceAdvantagesForItem } from '@/systems/resource-advantages';
 import { SESSION_SHOWN_TIPS } from '@/ui/advisor-system';
 import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import { getVisibility } from '@/systems/fog-of-war';
@@ -53,7 +54,10 @@ import { getBlockadedCityIds } from '@/systems/blockade-system';
 import { getOccupiedCityMood, getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { getIdleProductionDecision, getProductionDecision, getQueueMoveConsequence } from '@/systems/production-decision';
+import { getCityMaterialProjection } from '@/systems/city-production-materials';
 import { getCityMaterialQueueRows } from '@/systems/resource-reserve-presentation';
+import { getMaterialGoodPresentation } from '@/systems/resource-reserve-presentation';
+import { selectSoftMaterialTerms } from '@/systems/soft-material-terms';
 import { describeHeadChangeLoss, describeProductionDecision, headChangeConfirmLabel } from './production-decision-copy';
 import { getFortificationCapacity } from '@/systems/fortification-system';
 import {
@@ -242,8 +246,10 @@ export function createCityPanelView(
   const happinessResources = RESOURCE_DEFINITIONS.filter(
     d => d.effect?.type === 'happiness' && playerResources.has(d.id as never),
   );
-  const yieldResources = RESOURCE_DEFINITIONS.filter(
-    d => d.effect && d.effect.type !== 'happiness' && playerResources.has(d.id as never),
+  const workedResourceEffects = getCityWorkedResourceEffects(
+    city,
+    state.map,
+    currentCiv?.techState.completed ?? [],
   );
 
   function resourceDisplayName(defId: string, defName: string): string {
@@ -252,7 +258,7 @@ export function createCityPanelView(
   }
 
   let resourceBonusSectionHtml = '';
-  if (happinessResources.length > 0 || yieldResources.length > 0) {
+  if (happinessResources.length > 0 || workedResourceEffects.length > 0) {
     let empireBonusHtml = '';
     if (happinessResources.length > 0) {
       let rows = '';
@@ -263,13 +269,13 @@ export function createCityPanelView(
     }
 
     let cityBonusHtml = '';
-    if (yieldResources.length > 0) {
+    if (workedResourceEffects.length > 0) {
       let rows = '';
-      for (const def of yieldResources) {
-        rows += `<div style="font-size:12px;opacity:0.85;" data-res-yield="${def.id}"></div>`;
+      for (const [idx] of workedResourceEffects.entries()) {
+        rows += `<div style="font-size:12px;opacity:0.85;" data-res-yield="${idx}"></div>`;
       }
       const topMargin = happinessResources.length > 0 ? 'margin-top:8px;' : '';
-      cityBonusHtml = `<div style="font-weight:bold;font-size:12px;color:#d4af70;margin-bottom:4px;${topMargin}">City bonuses</div>${rows}`;
+      cityBonusHtml = `<div style="font-weight:bold;font-size:12px;color:#d4af70;margin-bottom:4px;${topMargin}">Worked-tile bonuses</div>${rows}`;
     }
 
     resourceBonusSectionHtml = `
@@ -293,12 +299,26 @@ export function createCityPanelView(
     const requiredNames = required.map(id => RESOURCE_DEFINITIONS.find(def => def.id === id)?.name ?? id);
     const advantages = getResourceAdvantagesForItem(itemId);
     const fasterNames = advantages.map(advantage => RESOURCE_DEFINITIONS.find(def => def.id === advantage.resource)?.name ?? advantage.resource);
-    const multiplier = getResourceAdvantageMultiplier(itemId, playerResources);
+    const selected = selectSoftMaterialTerms(state, city.owner, itemId);
     const parts: string[] = [];
     if (requiredNames.length) parts.push(`Required: ${requiredNames.join(', ')}`);
     if (fasterNames.length) {
-      const saved = Math.round((1 - multiplier) * 100);
-      parts.push(`Faster with: ${fasterNames.join(', ')}${saved > 0 ? ` (${saved}% discount)` : ''}`);
+      if (selected.multiplier < 1) {
+        const saved = Math.round((1 - selected.multiplier) * 100);
+        const reserved = selected.rows
+          .map(row => `${row.quantity} ${getMaterialGoodPresentation(row.goodId)?.name ?? row.goodId}`)
+          .join(', ');
+        const substituted = selected.substitutions
+          .map(resource => RESOURCE_DEFINITIONS.find(def => def.id === resource)?.name ?? resource)
+          .join(', ');
+        const via = [
+          reserved ? `${reserved} reserved` : '',
+          substituted ? `${substituted} via Circular Manufacturing` : '',
+        ].filter(Boolean).join(' · ');
+        parts.push(`Faster with: ${fasterNames.join(', ')} (${saved}% discount${via ? ` · ${via}` : ''})`);
+      } else {
+        parts.push(`Optional soft material: ${fasterNames.join(', ')} (needs a free allotment for the discount; normal cost otherwise)`);
+      }
     }
     return parts.length ? `<span style="display:block;font-size:10px;opacity:0.72;">${parts.join(' · ')}</span>` : '';
   };
@@ -1053,6 +1073,17 @@ export function createCityPanelView(
       `
     : '';
 
+  const activeSoftTerms = city.owner === state.currentPlayer
+    ? getCityMaterialProjection(state, city.id).softTerms
+    : null;
+  const activeSoftHtml = activeSoftTerms
+    ? `
+        <div data-active-soft-terms="true" style="font-size:11px;opacity:0.85;margin-top:6px;color:#d9a25c;">
+          <span data-text="prod-soft-term"></span>
+        </div>
+      `
+    : '';
+
   // Current production placeholders
   let currentProductionHtml = '';
   if (city.productionQueue.length > 0) {
@@ -1074,6 +1105,7 @@ export function createCityPanelView(
           <div style="background:#6b9b4b;border-radius:4px;height:8px;width:${progress}%;"></div>
         </div>
         ${activeMaterialHtml}
+        ${activeSoftHtml}
         ${activeLegendaryEntry ? `
           <div data-active-legendary="true" style="margin-top:10px;border-top:1px solid rgba(232,193,112,0.22);padding-top:10px;">
             <div style="font-size:12px;color:#e8c170;" data-text="legendary-milestone"></div>
@@ -1411,9 +1443,11 @@ export function createCityPanelView(
     const el = panel.querySelector(`[data-res-happiness="${def.id}"]`);
     if (el) el.textContent = `${def.icon} ${resourceDisplayName(def.id, def.name)} → ${getResourceEffectLabel(def.effect)}`;
   }
-  for (const def of yieldResources) {
-    const el = panel.querySelector(`[data-res-yield="${def.id}"]`);
-    if (el) el.textContent = `${def.icon} ${resourceDisplayName(def.id, def.name)} → ${getResourceEffectLabel(def.effect)}`;
+  for (const [idx, worked] of workedResourceEffects.entries()) {
+    const def = RESOURCE_DEFINITIONS.find(candidate => candidate.id === worked.resource);
+    if (!def) continue;
+    const el = panel.querySelector(`[data-res-yield="${idx}"]`);
+    if (el) el.textContent = `${def.icon} ${resourceDisplayName(def.id, def.name)} → ${getResourceEffectLabel(worked.effect)}`;
   }
 
   if (city.productionQueue.length > 0) {
@@ -1450,6 +1484,20 @@ export function createCityPanelView(
           ? `Production-only effort: ${activeMaterial.productionOnlyTurns} turn${activeMaterial.productionOnlyTurns === 1 ? '' : 's'} after materials are funded (not a completion estimate)`
           : '',
       );
+    }
+    if (activeSoftTerms) {
+      const saved = Math.round((1 - activeSoftTerms.multiplier) * 100);
+      const reserved = activeSoftTerms.rows
+        .map(row => `${row.quantity} ${getMaterialGoodPresentation(row.goodId)?.name ?? row.goodId}`)
+        .join(', ');
+      const substituted = activeSoftTerms.substitutions
+        .map(resource => RESOURCE_DEFINITIONS.find(def => def.id === resource)?.name ?? resource)
+        .join(', ');
+      const via = [
+        reserved ? `${reserved} reserved` : '',
+        substituted ? `${substituted} via Circular Manufacturing` : '',
+      ].filter(Boolean).join(' · ');
+      setText('prod-soft-term', `Soft term: ${saved}% cheaper${via ? ` · ${via}` : ''}`);
     }
     if (productionNotes.rushNote) panel.querySelector('[data-rush-note]')!.textContent = productionNotes.rushNote;
     if (productionNotes.stalledNote) panel.querySelector('[data-production-stalled]')!.textContent = productionNotes.stalledNote;
