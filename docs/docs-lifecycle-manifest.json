@@ -28,16 +28,6 @@
     "1497": "OPEN"
    }
   },
-  "docs/superpowers/plans/2026-10-25-issue-1507-soft-material-spending.md": {
-   "category": "active",
-   "reason": "MR10 implementation plan for finite soft-material terms, frozen active discounts, substitution boundaries and worked-tile yield scope; owned by open child issue #1507 under parent #1497. Delete this file and move its entry to delivered history in the PR that completes MR10.",
-   "issues": [
-    1507
-   ],
-   "issueStates": {
-    "1507": "OPEN"
-   }
-  },
   "docs/superpowers/specs/2026-07-07-hidden-city-state-economy-design.md": {
    "category": "active",
    "reason": "Foundation design cited by the open minor-civ graduation issue #497.",
@@ -204,6 +194,13 @@
   }
  },
  "deleted": {
+  "docs/superpowers/plans/2026-10-25-issue-1507-soft-material-spending.md": {
+   "category": "delivered-stale",
+   "reason": "MR10 delivered: finite soft-material terms, frozen active snapshots, substitution boundaries, worked-tile yield scope and live presentation. Current behavior and evidence live in source, tests and the MR10 issue history; git history is the archive.",
+   "issues": [
+    1507
+   ]
+  },
   "docs/superpowers/plans/2026-10-19-issue-1506-hard-material-reserves.md": {
    "category": "delivered-stale",
    "reason": "MR09 delivered end to end (tasks 0–11; final tip 294ebed8, #1586). Current behavior, evidence and tuning live in source, tests (including the pacing calibration) and the MR09 issue history; git history is the archive.",
