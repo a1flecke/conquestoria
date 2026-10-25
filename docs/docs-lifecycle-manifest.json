@@ -28,16 +28,6 @@
     "1497": "OPEN"
    }
   },
-  "docs/superpowers/plans/2026-10-25-issue-1508-seller-offers.md": {
-   "category": "active",
-   "reason": "MR11 implementation plan for good-keyed seller policies, native-only surplus, once-per-round public offers and atomic posted-price loading; owned by open child issue #1508 under parent #1497. Delete this file and move its entry to delivered history in the PR that completes MR11.",
-   "issues": [
-    1508
-   ],
-   "issueStates": {
-    "1508": "OPEN"
-   }
-  },
   "docs/superpowers/specs/2026-07-07-hidden-city-state-economy-design.md": {
    "category": "active",
    "reason": "Foundation design cited by the open minor-civ graduation issue #497.",
@@ -204,6 +194,13 @@
   }
  },
  "deleted": {
+  "docs/superpowers/plans/2026-10-25-issue-1508-seller-offers.md": {
+   "category": "delivered-stale",
+   "reason": "MR11 delivered: good-keyed seller policies, native-only surplus, once-per-round public offers with bands/hysteresis/tariffs/rotation, and atomic posted-price loading with procurement and treasury guards. Current behavior and evidence live in source, tests and the MR11 issue history; git history is the archive.",
+   "issues": [
+    1508
+   ]
+  },
   "docs/superpowers/plans/2026-10-25-issue-1507-soft-material-spending.md": {
    "category": "delivered-stale",
    "reason": "MR10 delivered: finite soft-material terms, frozen active snapshots, substitution boundaries, worked-tile yield scope and live presentation. Current behavior and evidence live in source, tests and the MR10 issue history; git history is the archive.",
