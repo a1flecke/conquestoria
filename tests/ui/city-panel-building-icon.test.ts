@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { namespaceSvgIds, getAnimatedBuildingIconHtml } from '@/ui/city-panel-building-icon';
 import { NEUTRAL_FACTION_PALETTE } from '@/renderer/sprites/sprite-system';
+import { getUnpaintedBuildingId, getUnpaintedBuildingIds } from '../helpers/unpainted-buildings';
 
 describe('namespaceSvgIds', () => {
   it('suffixes a plain id attribute', () => {
@@ -48,8 +49,11 @@ describe('namespaceSvgIds', () => {
 });
 
 describe('getAnimatedBuildingIconHtml', () => {
+  // Buildings without production art keep the animated SVG sprite these tests describe; a painted one shows its art instead.
+  const unpainted = getUnpaintedBuildingId();
+
   it('renders the animated wrapper for a building present in BUILDING_SPRITE_CATALOG', () => {
-    const html = getAnimatedBuildingIconHtml('modular_arcology', NEUTRAL_FACTION_PALETTE, 'city-a:modular_arcology');
+    const html = getAnimatedBuildingIconHtml(unpainted, NEUTRAL_FACTION_PALETTE, `city-a:${unpainted}`);
     expect(html).toContain('cq-sprite-wrap');
     expect(html).toContain('cq-v2');
     expect(html).toContain('data-state="idle"');
@@ -70,22 +74,28 @@ describe('getAnimatedBuildingIconHtml', () => {
   });
 
   it('gives two different phaseKeys two different --phase values, so identical building types desync', () => {
-    const a = getAnimatedBuildingIconHtml('modular_arcology', NEUTRAL_FACTION_PALETTE, 'city-a:modular_arcology');
-    const b = getAnimatedBuildingIconHtml('modular_arcology', NEUTRAL_FACTION_PALETTE, 'city-b:modular_arcology');
+    const a = getAnimatedBuildingIconHtml(unpainted, NEUTRAL_FACTION_PALETTE, `city-a:${unpainted}`);
+    const b = getAnimatedBuildingIconHtml(unpainted, NEUTRAL_FACTION_PALETTE, `city-b:${unpainted}`);
     const phaseOf = (html: string) => /--phase:([\d.]+)/.exec(html)?.[1];
     expect(phaseOf(a)).not.toBe(phaseOf(b));
   });
 
   it('namespaces ids so two different buildings rendered together never collide', () => {
-    const a = getAnimatedBuildingIconHtml('stock_exchange', NEUTRAL_FACTION_PALETTE, 'city-a:stock_exchange');
-    const b = getAnimatedBuildingIconHtml('bank', NEUTRAL_FACTION_PALETTE, 'city-a:bank');
+    // Two SVG-sprite buildings that really declare ids. (stock_exchange and bank used to be the pair; both are painted now, their
+    // icons are art with no ids, and the assertion below passed without comparing anything.)
     const idsOf = (html: string) => [...html.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]);
-    const combined = [...idsOf(a), ...idsOf(b)];
+    const withIds = getUnpaintedBuildingIds()
+      .map(id => getAnimatedBuildingIconHtml(id, NEUTRAL_FACTION_PALETTE, `city-a:${id}`))
+      .filter(html => idsOf(html).length > 0)
+      .slice(0, 2);
+    expect(withIds, 'need two unpainted buildings whose SVG declares ids').toHaveLength(2);
+    const combined = withIds.flatMap(idsOf);
+    expect(combined.length).toBeGreaterThan(1);
     expect(new Set(combined).size).toBe(combined.length);
   });
 
   it('scales the icon to 36px without leaving the sprite\'s native 192px width/height as a duplicate attribute', () => {
-    const html = getAnimatedBuildingIconHtml('modular_arcology', NEUTRAL_FACTION_PALETTE, 'city-a:modular_arcology');
+    const html = getAnimatedBuildingIconHtml(unpainted, NEUTRAL_FACTION_PALETTE, `city-a:${unpainted}`);
     const svgTagMatch = /<svg\b[^>]*>/.exec(html);
     expect(svgTagMatch).toBeTruthy();
     const svgTag = svgTagMatch![0];
