@@ -321,3 +321,23 @@ describe('isTechCompleted', () => {
     expect(isTechCompleted(state, 'stone-weapons')).toBe(true);
   });
 });
+
+// getTechById is read inside loops over a civ's completed techs, so it answers from an index, not a scan of the whole tree.
+describe('getTechById', () => {
+  it('returns the catalogue entry itself for every tech, and undefined for an unknown id', () => {
+    for (const tech of TECH_TREE) expect(getTechById(tech.id)).toBe(tech);
+    expect(getTechById('not-a-real-tech')).toBeUndefined();
+  });
+
+  it('sees a tech added to the tree in place, rather than answering from a stale index', () => {
+    expect(getTechById('synthetic-late-tech')).toBeUndefined(); // builds the index first
+    const synthetic = { ...TECH_TREE[0], id: 'synthetic-late-tech' };
+    TECH_TREE.push(synthetic);
+    try {
+      expect(getTechById('synthetic-late-tech')).toBe(synthetic);
+    } finally {
+      TECH_TREE.pop();
+    }
+    expect(getTechById('synthetic-late-tech')).toBeUndefined();
+  });
+});
