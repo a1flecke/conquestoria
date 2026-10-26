@@ -191,6 +191,9 @@ describe('locked-items list (#1535)', () => {
       expect(row.textContent).toContain('🔒');
       expect(row.style.opacity).toBe('0.5');
       expect(row.querySelector(`[data-locked-reason-extra="${id}"]`), `${id} lost its reason`).toBeTruthy();
+      // The row's own name and reason are filled in after the click (textContent), not left as empty placeholders.
+      expect(name.textContent, `${id} expanded row has no name`).not.toBe('');
+      expect(row.querySelector(`[data-locked-reason-extra="${id}"]`)!.textContent, `${id} expanded row has no reason`).not.toBe('');
       const isUnit = TRAINABLE_UNITS.some(unit => unit.type === id);
       if (isUnit) expect(row.querySelector(`[data-unit-art="${id}"]`), `${id} expanded unit row`).toBeTruthy();
       else if (BUILDING_ART_IDS.includes(id)) expect(row.querySelector(`[data-building-art="${id}"]`), `${id} expanded building row`).toBeTruthy();
