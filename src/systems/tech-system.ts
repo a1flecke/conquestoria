@@ -112,8 +112,21 @@ export function applyResearchBonus(state: TechState, scienceBonus: number): Rese
   return processResearch(state, scienceBonus);
 }
 
+// A Map, not `TECH_TREE.find`: callers look techs up inside loops over a civ's completed techs (a research-count quest step, the
+// city panel's wonder presentation), which made one call (completed x catalogue) comparisons. The tree is static; the length
+// check rebuilds the index if a caller ever extends the array in place.
+let techIndex: ReadonlyMap<string, Tech> | null = null;
+let techIndexSize = -1;
+
 export function getTechById(id: string): Tech | undefined {
-  return TECH_TREE.find(t => t.id === id);
+  if (techIndex === null || techIndexSize !== TECH_TREE.length) {
+    const index = new Map<string, Tech>();
+    // First match wins, exactly as `find` did if an id were ever duplicated.
+    for (const tech of TECH_TREE) if (!index.has(tech.id)) index.set(tech.id, tech);
+    techIndex = index;
+    techIndexSize = TECH_TREE.length;
+  }
+  return techIndex.get(id);
 }
 
 /**
