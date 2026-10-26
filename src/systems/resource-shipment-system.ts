@@ -25,6 +25,7 @@ import {
   getStoredQuantity,
 } from './resource-reserve-system';
 import { getProcurementRemaining, getRouteCargoCapacity } from './resource-procurement';
+import { isRouteServiceSuspended } from './trade-danger-adapters';
 import {
   RESOURCE_BACKED_GOODS,
   findTradeGood,
@@ -65,6 +66,8 @@ export function loadRouteManifest(
 ): GameState {
   const route = routeById(state, routeId);
   if (!route || route.manifest || !route.procurement) return state;
+  // A blockaded endpoint cannot load or serve; ordinary route income is suspended by the same fact.
+  if (isRouteServiceSuspended(state, route)) return state;
   const destination = state.cities[route.toCityId];
   const origin = state.cities[route.fromCityId];
   if (!destination || !origin || destination.owner === origin.owner) return state;

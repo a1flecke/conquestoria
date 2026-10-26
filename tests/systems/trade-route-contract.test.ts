@@ -337,6 +337,24 @@ describe('#1504 MR07 — route purpose (mode) selection', () => {
 });
 
 describe('trade-route contract — domains and wrapping', () => {
+  it('requires a real naval port at both endpoints and keeps air commerce available', () => {
+    const noPort = makeState({ waterColumn: 2, unitType: 'naval_trader', unitPosition: { q: 2, r: 1 } });
+    // Move the foreign destination inland so no water tile is adjacent to it.
+    noPort.cities['beta-city']!.position = { q: 4, r: 2 };
+    noPort.map.tiles['4,2'] = {
+      ...noPort.map.tiles['4,0']!,
+      coord: { q: 4, r: 2 },
+      terrain: 'grassland',
+    };
+    noPort.civilizations.alpha!.visibility.tiles['4,2'] = 'fog';
+    expect(getTradeRouteEligibility(noPort, request({ toCityId: 'beta-city' })))
+      .toMatchObject({ ok: false });
+
+    const air = makeState({ unitType: 'air_freighter' });
+    expect(getTradeRouteEligibility(air, request({ toCityId: 'beta-city' })))
+      .toMatchObject({ ok: true, destinationCityId: 'beta-city' });
+  });
+
   it('a land trader cannot cross water but a naval trader can', () => {
     const island = { explored: ['0,0', '1,0', '2,0', '3,0', '4,0', '5,0', '3,1', '4,1', '5,1'], waterColumn: 3 };
 

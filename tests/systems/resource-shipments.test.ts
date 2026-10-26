@@ -89,6 +89,8 @@ function world(options: {
   maxUnitPrice?: number;
   orders?: TradeRoute['procurement'];
   secondRoute?: boolean;
+  unitType?: 'merchant_wagon' | 'naval_trader';
+  blockade?: boolean;
 } = {}): GameState {
   const native = options.native ?? 30;
   const buyerGold = options.buyerGold ?? 1000;
@@ -106,24 +108,66 @@ function world(options: {
     civilizations: {
       [SELLER]: civ(SELLER, 100, ['bronze-working', 'steam-power'], BUYER),
       [BUYER]: civ(BUYER, buyerGold, ['bronze-working', 'steam-power'], SELLER),
+      ...(options.blockade
+        ? {
+          raider: {
+            ...civ('raider', 100, [], SELLER),
+            diplomacy: {
+              ...civ('raider', 100, [], SELLER).diplomacy,
+              atWarWith: [SELLER],
+            },
+          },
+        }
+        : {}),
     },
     units: {
       'caravan-1': {
-        id: 'caravan-1', type: 'merchant_wagon', owner: BUYER, position: { q: 4, r: 0 },
+        id: 'caravan-1', type: options.unitType ?? 'merchant_wagon', owner: BUYER, position: { q: 4, r: 0 },
         health: 100, movementPointsLeft: 0, hasActed: true, hasMoved: true,
         experience: 0, isResting: false, committedToRouteId: 'route-1', routeDirection: 'outbound',
       },
+      ...(options.blockade
+        ? {
+          'raider-1': {
+            id: 'raider-1', type: 'destroyer', owner: 'raider', position: { q: 3, r: 0 },
+            health: 100, movementPointsLeft: 3, hasActed: false, hasMoved: false,
+            experience: 0, isResting: false,
+          },
+          'raider-2': {
+            id: 'raider-2', type: 'destroyer', owner: 'raider', position: { q: 3, r: 1 },
+            health: 100, movementPointsLeft: 3, hasActed: false, hasMoved: false,
+            experience: 0, isResting: false,
+          },
+        }
+        : {}),
       ...(options.secondRoute
         ? {
           'caravan-2': {
-            id: 'caravan-2', type: 'merchant_wagon', owner: BUYER, position: { q: 4, r: 0 },
+            id: 'caravan-2', type: options.unitType ?? 'merchant_wagon', owner: BUYER, position: { q: 4, r: 0 },
             health: 100, movementPointsLeft: 0, hasActed: true, hasMoved: true,
             experience: 0, isResting: false, committedToRouteId: 'route-2', routeDirection: 'outbound',
           },
         }
         : {}),
     },
-    map: { width: 8, height: 4, tiles: {}, wrapsHorizontally: false, rivers: [] },
+    map: {
+      width: 8,
+      height: 4,
+      tiles: options.blockade
+        ? {
+          '3,0': {
+            coord: { q: 3, r: 0 }, terrain: 'ocean', elevation: 'lowland', resource: null,
+            improvement: 'none', improvementTurnsLeft: 0, hasRiver: false, wonder: null, owner: null,
+          },
+          '3,1': {
+            coord: { q: 3, r: 1 }, terrain: 'ocean', elevation: 'lowland', resource: null,
+            improvement: 'none', improvementTurnsLeft: 0, hasRiver: false, wonder: null, owner: null,
+          },
+        }
+        : {},
+      wrapsHorizontally: false,
+      rivers: [],
+    },
     marketplace: {
       prices: {},
       priceHistory: {},
@@ -225,6 +269,21 @@ describe('#1509 MR12 — route manifests', () => {
     expect(getReserveBalance(result.state.materialReservesByCiv![BUYER]!, IRON).imported).toBe(0);
     expect(getIncomingQuantity(result.state.materialReservesByCiv![BUYER]!, IRON)).toBe(0);
     expect(result.state.civilizations[SELLER]!.gold).toBe(sellerGold);
+  });
+
+  it('applies the same manifest and loss rules to a naval trader', () => {
+    const loaded = completeRouteLeg(world({ unitType: 'naval_trader' }), 'route-1', 'caravan-1');
+    expect(routeOf(loaded).manifest?.items[0]?.quantity).toBe(5);
+    const destroyed = removeUnits(loaded, ['caravan-1'], { reason: 'destroyed' });
+    expect(getIncomingQuantity(destroyed.state.materialReservesByCiv![BUYER]!, IRON)).toBe(0);
+    expect(destroyed.state.civilizations[SELLER]!.gold).toBeGreaterThan(100);
+  });
+
+  it('does not load at a blockaded supplier', () => {
+    const loaded = completeRouteLeg(world({ blockade: true }), 'route-1', 'caravan-1');
+    expect(routeOf(loaded).manifest).toBeUndefined();
+    expect(getIncomingQuantity(loaded.materialReservesByCiv![BUYER]!, IRON)).toBe(0);
+    expect(getReserveBalance(loaded.materialReservesByCiv![SELLER]!, IRON).native).toBe(30);
   });
 
   it('shares cargo capacity across mixed goods', () => {
