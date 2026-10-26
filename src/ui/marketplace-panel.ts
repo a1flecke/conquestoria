@@ -6,6 +6,7 @@ import { getCommercialPassagePermission, getCommerceResourcePolicy } from '@/sys
 import { getReserveSuppliesRows } from '@/systems/resource-reserve-presentation';
 import { resourceGoodId } from '@/systems/trade-good-definitions';
 import { createGameButton } from './ui-kit';
+import { createSlotIndex } from './dom-slot-index';
 import { buildPlayerRouteListSection, type RouteControlHandler } from './trade-route-presentation';
 
 interface MarketplaceCallbacks {
@@ -129,9 +130,10 @@ export function createMarketplacePanel(
     </div>
   `;
 
-  // Inject all dynamic text via textContent (XSS-safe)
+  // Inject all dynamic text via textContent (XSS-safe), found through one index rather than a DOM walk per row
+  const slot = createSlotIndex(panel);
   const setText = (sel: string, text: string) => {
-    const el = panel.querySelector(`[data-text="${sel}"]`);
+    const el = slot('data-text', sel);
     if (el) el.textContent = text;
   };
 

@@ -39,6 +39,7 @@ import { getWorldPressurePresentationForViewer } from '@/systems/world-pressure-
 import { canSendAid, type SendAidFailureReason } from '@/systems/crisis-interaction-system';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { hasKnownStrategicCapability } from '@/systems/strategic-arsenal-system';
+import { createSlotIndex } from './dom-slot-index';
 
 export interface DiplomacyPanelCallbacks {
   onAction: (targetCivId: string, action: DiplomaticAction) => void;
@@ -685,9 +686,10 @@ export function createDiplomacyPanel(
 
   panel.innerHTML = html;
 
-  // Inject all dynamic text via textContent (XSS-safe)
+  // Inject all dynamic text via textContent (XSS-safe), found through one index rather than a DOM walk per row
+  const slot = createSlotIndex(panel);
   const setText = (sel: string, text: string) => {
-    const el = panel.querySelector(`[data-text="${sel}"]`);
+    const el = slot('data-text', sel);
     if (el) el.textContent = text;
   };
 

@@ -78,6 +78,7 @@ import { isSuperweaponsEnabled } from '@/systems/superweapons-flag';
 import { resolveSuperweaponContentDescription } from '@/systems/superweapon-content-honesty';
 import { createCityWorkSection } from './city-grid';
 import { createCityDistrictsTab } from './city-districts';
+import { createSlotIndex } from './dom-slot-index';
 import { hydrateLegendaryWonderIcons, productionIconHtml } from './legendary-wonder-icon';
 import {
   calculateCityBuildingMaintenance,
@@ -1304,12 +1305,13 @@ export function createCityPanelView(
 
   panel.innerHTML = html;
 
-  // Inject dynamic text via textContent (safe)
+  // Inject dynamic text via textContent (safe). Placeholders are found through one index, not a DOM walk per row.
+  const slot = createSlotIndex(panel);
   const setText = (sel: string, text: string) => {
-    const el = panel.querySelector(`[data-text="${sel}"]`);
+    const el = slot('data-text', sel);
     if (el) el.textContent = text;
   };
-  const byId = <T extends HTMLElement>(id: string): T | null => panel.querySelector<T>(`[id="${id}"]`);
+  const byId = <T extends HTMLElement>(id: string): T | null => slot('id', id) as T | null;
 
   setText('city-name', city.name);
   setText('city-pop', String(city.population));
@@ -1388,7 +1390,7 @@ export function createCityPanelView(
     if (faithData.loyalty) {
       const { pressuringCivName, points, threshold, tick, counterplaySuffix } = faithData.loyalty;
       setText('faith-loyalty', `Loyalty to ${pressuringCivName}: ${points} / ${threshold}${counterplaySuffix}`);
-      const loyaltyRowEl = panel.querySelector('[data-text="faith-loyalty"]') as HTMLElement | null;
+      const loyaltyRowEl = slot('data-text', 'faith-loyalty') as HTMLElement | null;
       if (loyaltyRowEl) {
         loyaltyRowEl.title = `Rises by ${tick}/turn toward ${pressuringCivName}. Garrisoning a unit in this city pauses the tick entirely. A Temple halves the tick. At ${threshold} points the city defects.`;
       }
@@ -1411,7 +1413,7 @@ export function createCityPanelView(
 
   // Tech-yield breakdown rows via textContent (XSS-safe)
   techYieldParts.forEach((part, idx) => {
-    const el = panel.querySelector(`[data-tech-yield="${idx}"]`);
+    const el = slot('data-tech-yield', String(idx));
     if (!el) return;
     const pieces: string[] = [];
     if (part.yields.food) pieces.push(`+${part.yields.food} 🌾`);
@@ -1423,14 +1425,14 @@ export function createCityPanelView(
 
   // Populate unrest pressure breakdown rows via textContent (XSS-safe) (#552)
   pressureBreakdownRows.forEach((row, idx) => {
-    const el = panel.querySelector(`[data-pressure-row="${idx}"]`);
+    const el = slot('data-pressure-row', String(idx));
     if (el) el.textContent = `${row.label}: ${row.amount > 0 ? '+' : ''}${Math.round(row.amount)}`;
   });
 
   // #919 MR3: populate the recommendation sub-lines via textContent (XSS-safe),
   // greyed when the lever is not actionable right now.
   unrestRecommendations.forEach((rec, ri) => {
-    const el = panel.querySelector<HTMLElement>(`[data-recommendation-row="${ri}"]`);
+    const el = slot('data-recommendation-row', String(ri)) as HTMLElement | null;
     if (!el) return;
     const { icon, text } = unrestRecommendationCopy(rec);
     el.dataset.availability = rec.availability;
@@ -1440,13 +1442,13 @@ export function createCityPanelView(
 
   // Populate resource bonus rows via textContent (XSS-safe)
   for (const def of happinessResources) {
-    const el = panel.querySelector(`[data-res-happiness="${def.id}"]`);
+    const el = slot('data-res-happiness', def.id);
     if (el) el.textContent = `${def.icon} ${resourceDisplayName(def.id, def.name)} → ${getResourceEffectLabel(def.effect)}`;
   }
   for (const [idx, worked] of workedResourceEffects.entries()) {
     const def = RESOURCE_DEFINITIONS.find(candidate => candidate.id === worked.resource);
     if (!def) continue;
-    const el = panel.querySelector(`[data-res-yield="${idx}"]`);
+    const el = slot('data-res-yield', String(idx));
     if (el) el.textContent = `${def.icon} ${resourceDisplayName(def.id, def.name)} → ${getResourceEffectLabel(worked.effect)}`;
   }
 
@@ -1543,11 +1545,11 @@ export function createCityPanelView(
 
   availableUnits.forEach((u, i) => {
     setText(`unit-name-${i}`, u.name);
-    const roleSummary = panel.querySelector(`[data-unit-role-summary="${u.type}"]`);
+    const roleSummary = slot('data-unit-role-summary', u.type);
     if (roleSummary) {
       roleSummary.textContent = getUnitRolePresentation(u.type, completedTechs)?.summary ?? '';
     }
-    const roleFacts = panel.querySelector(`[data-unit-role-facts="${u.type}"]`);
+    const roleFacts = slot('data-unit-role-facts', u.type);
     const presentation = getUnitRolePresentation(u.type, completedTechs);
     if (roleFacts && presentation) {
       roleFacts.textContent = [
@@ -1561,9 +1563,9 @@ export function createCityPanelView(
 
   // Fill locked item names and reasons via textContent (XSS-safe)
   for (const item of visibleLockedItems) {
-    const nameEl = panel.querySelector(`[data-locked-name="${item.id}"]`);
+    const nameEl = slot('data-locked-name', item.id);
     if (nameEl) nameEl.textContent = item.name;
-    const reasonEl = panel.querySelector(`[data-locked-reason="${item.id}"]`);
+    const reasonEl = slot('data-locked-reason', item.id);
     if (reasonEl) reasonEl.textContent = getLockedItemReason(item);
   }
 
@@ -1903,10 +1905,12 @@ export function createCityPanelView(
       html += `<div style="font-size:11px;" data-locked-reason-extra="${item.id}"></div>`;
       html += `</div>`;
       btn.insertAdjacentHTML('beforebegin', html);
-      // Fill dynamic text via textContent (XSS-safe)
-      const nameEl = panel.querySelector(`[data-locked-name-extra="${item.id}"]`);
+      // Fill dynamic text via textContent (XSS-safe). Look inside the row just inserted (the slot index is a snapshot of the
+      // initial build), which is also a walk of one small row instead of the whole panel.
+      const insertedRow = btn.previousElementSibling;
+      const nameEl = insertedRow?.querySelector('[data-locked-name-extra]');
       if (nameEl) nameEl.textContent = item.name;
-      const reasonEl = panel.querySelector(`[data-locked-reason-extra="${item.id}"]`);
+      const reasonEl = insertedRow?.querySelector('[data-locked-reason-extra]');
       if (reasonEl) reasonEl.textContent = getLockedItemReason(item);
     }
     btn.remove();

@@ -15,6 +15,7 @@ import { getEraAdvancementFraction, getEraAdvancementTechs, resolveCivilizationE
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { evaluateProductionPrerequisites } from '@/systems/production-prerequisites';
 import { getUnitRolePresentation } from '@/ui/unit-role-presentation';
+import { createSlotIndex } from './dom-slot-index';
 
 function getUnlockLines(tech: Tech, completedTechs?: readonly string[]): string[] {
   const lines = [...tech.unlocks];
@@ -804,6 +805,8 @@ export function createTechPanel(
       edgeLayer.style.width = `${width}px`;
       edgeLayer.style.height = `${height}px`;
 
+      // One index of the tech cards per layout pass: two whole-map queries per connector made this (edges x map size).
+      const techCard = createSlotIndex(mapWrap);
       edgeLayer.querySelectorAll<SVGPathElement>('path').forEach(path => {
         const fromId = path.dataset.edgeFrom;
         const toId = path.dataset.edgeTo;
@@ -811,8 +814,8 @@ export function createTechPanel(
           return;
         }
 
-        const fromEl = mapWrap.querySelector<HTMLElement>(`[data-tech-id="${fromId}"]`);
-        const toEl = mapWrap.querySelector<HTMLElement>(`[data-tech-id="${toId}"]`);
+        const fromEl = techCard('data-tech-id', fromId) as HTMLElement | null;
+        const toEl = techCard('data-tech-id', toId) as HTMLElement | null;
         if (!fromEl || !toEl) {
           return;
         }
