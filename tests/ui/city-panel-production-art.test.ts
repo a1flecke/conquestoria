@@ -8,6 +8,7 @@ import { getPngUnitManifest } from '@/renderer/sprites/png/png-sprite-catalog';
 import { getProductionItemIconHtml } from '@/ui/city-panel-building-icon';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
 import { makeWonderPanelFixture } from './helpers/wonder-panel-fixture';
+import { getUnpaintedBuildingId } from '../helpers/unpainted-buildings';
 
 // #620 / #1535: every production list in the city panel shows a building's art or a unit's real sprite, not its emoji.
 
@@ -57,7 +58,8 @@ describe('production item icons for buildings with art (#620)', () => {
   it('shows the art on the Producing line and in every queue row, keeping the name next to it', () => {
     const { container, city, state } = panelFixture();
     const artId = 'royal_mint';
-    city.productionQueue = [artId, 'modular_arcology', artId];
+    const unpainted = getUnpaintedBuildingId();
+    city.productionQueue = [artId, unpainted, artId];
     const panel = createCityPanel(container, city, state, noopCallbacks);
 
     const producing = Array.from(panel.querySelectorAll<HTMLElement>('div')).find(div => div.textContent?.startsWith('Producing:'));
@@ -67,7 +69,7 @@ describe('production item icons for buildings with art (#620)', () => {
     const rows = Array.from(panel.querySelectorAll<HTMLElement>('div[data-queue-index]')); // the row, not its remove/move buttons
     expect(rows.length).toBeGreaterThan(0);
     const byIndex = new Map(rows.map(row => [row.dataset.queueIndex, row]));
-    expect(byIndex.get('1')?.querySelector('[data-building-art]')).toBeNull(); // modular_arcology has no art
+    expect(byIndex.get('1')?.querySelector('[data-building-art]'), `${unpainted} has no art`).toBeNull();
     expect(byIndex.get('2')?.querySelector(`[data-building-art="${artId}"]`)).toBeTruthy();
   });
 });
@@ -210,7 +212,7 @@ describe('getProductionItemIconHtml', () => {
   it('is the art for a building with art, the sprite for a unit, and the unchanged production icon for everything else', () => {
     expect(getProductionItemIconHtml('royal_mint', red)).toContain('data-building-art="royal_mint"');
     expect(getProductionItemIconHtml('warrior', red)).toContain('data-unit-art="warrior"');
-    expect(getProductionItemIconHtml('modular_arcology', red)).not.toMatch(/data-(building|unit)-art/);
+    expect(getProductionItemIconHtml(getUnpaintedBuildingId(), red)).not.toMatch(/data-(building|unit)-art/);
     const fallback = getProductionItemIconHtml('legendary:not-a-wonder', red);
     expect(fallback).not.toContain('<svg');
     expect(fallback).not.toMatch(/data-(building|unit)-art/);

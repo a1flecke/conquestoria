@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createCityPanel } from '@/ui/city-panel';
+import { getProductionIconForItem, PRODUCTION_ICON_FALLBACK } from '@/systems/city-production-presentation';
+import { getUnpaintedBuildingId } from '../helpers/unpainted-buildings';
 import { SESSION_SHOWN_TIPS } from '@/ui/advisor-system';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { EventBus } from '@/core/event-bus';
@@ -1826,7 +1828,11 @@ describe('city-panel build list icons', () => {
 
   it('renders the icon for the currently building item', () => {
     const { container, city, state } = makeWonderPanelFixture();
-    city.productionQueue = ['modular_arcology'];
+    // A building with no production art yet (art buildings show their PNG instead, so they cannot prove the emoji path).
+    const unpainted = getUnpaintedBuildingId();
+    const expectedIcon = getProductionIconForItem(unpainted);
+    expect(expectedIcon, `${unpainted} needs its own production icon for this test to mean anything`).not.toBe(PRODUCTION_ICON_FALLBACK);
+    city.productionQueue = [unpainted];
     city.productionProgress = 5;
     state.cities[city.id] = city;
     const panel = createCityPanel(container, city, state, {
@@ -1835,8 +1841,7 @@ describe('city-panel build list icons', () => {
       onClose: () => {},
     });
     const html = (panel as unknown as { innerHTML?: string }).innerHTML ?? '';
-    // 🏬 = modular arcology icon (a late building with no production art yet; art buildings show their PNG instead)
-    expect(html).toContain('🏬');
+    expect(html).toContain(expectedIcon);
   });
 });
 

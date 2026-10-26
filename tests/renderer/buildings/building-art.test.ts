@@ -8,6 +8,7 @@ import { BUILDING_SPRITE_CATALOG } from '@/renderer/sprites/sprite-catalog';
 import { derivePalette } from '@/renderer/sprites/sprite-system';
 import { BUILDINGS } from '@/systems/city-system';
 import { getAnimatedBuildingIconHtml } from '@/ui/city-panel-building-icon';
+import { getUnpaintedBuildingId } from '../../helpers/unpainted-buildings';
 
 const ROOT = resolve(__dirname, '../../..');
 const MAX_BYTES = 70 * 1024;
@@ -118,12 +119,13 @@ describe('building production art (#620)', () => {
   }
 
   it('a building without art still gets its SVG sprite in the panel icon', () => {
-    const html = getAnimatedBuildingIconHtml('modular_arcology', derivePalette('#c0392b'), 'city:modular_arcology');
+    const unpainted = getUnpaintedBuildingId();
+    const html = getAnimatedBuildingIconHtml(unpainted, derivePalette('#c0392b'), `city:${unpainted}`);
     expect(html).not.toContain('images/buildings/art/');
     expect(html).toContain('<svg');
   });
 
   it('buildBuildingArtSvg is null for a building with no art', () => {
-    expect(buildBuildingArtSvg('modular_arcology', derivePalette('#c0392b'), 'x')).toBeNull();
+    expect(buildBuildingArtSvg(getUnpaintedBuildingId(), derivePalette('#c0392b'), 'x')).toBeNull();
   });
 });
