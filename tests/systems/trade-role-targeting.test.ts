@@ -5,6 +5,7 @@ import { TRAINABLE_UNITS } from '@/systems/city-unit-catalog';
 import { getUnitRoleDefinition } from '@/systems/combat-role-definitions';
 import { hasAITradeRole } from '@/ai/ai-unit-roles';
 import {
+  getTradeCargoCapacity,
   getTradeUnitDomain,
   isTradeUnitType,
   isTradeUnitTypeInDomain,
@@ -72,6 +73,34 @@ describe('#1503 MR06 — the shared trade-role targeting query', () => {
       expect(isTradeUnitType(type), `${type} is not a trader`).toBe(false);
       expect(getTradeUnitDomain(type)).toBeNull();
     }
+  });
+
+  it('gives every supported trade tier dedicated goods capacity, while air imports stay unavailable', () => {
+    for (const type of allTypes.filter(isTradeUnitType)) {
+      const capacity = getTradeCargoCapacity(type);
+      const domain = getTradeUnitDomain(type);
+      if (domain === 'air') {
+        expect(capacity, `${type} has no implemented air goods path`).toBe(0);
+      } else {
+        expect(capacity, `${type} carries goods`).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('improves capacity with the land and naval tiers without using troop cargo', () => {
+    const land = ['caravan', 'merchant_wagon', 'freight_convoy'] as UnitType[];
+    const naval = ['naval_trader', 'steamship_trader', 'cargo_freighter', 'container_ship'] as UnitType[];
+    for (const tiers of [land, naval]) {
+      const capacities = tiers.map(getTradeCargoCapacity);
+      for (let index = 1; index < capacities.length; index++) {
+        expect(capacities[index], `${tiers[index]} carries more than ${tiers[index - 1]}`)
+          .toBeGreaterThan(capacities[index - 1]!);
+      }
+    }
+    // Passenger transport remains a different capability and is not repurposed for goods.
+    expect(UNIT_DEFINITIONS.transport.cargoCapacity).toBeGreaterThan(0);
+    expect(getTradeCargoCapacity('transport')).toBe(0);
+    expect(UNIT_DEFINITIONS.merchant_wagon.cargoCapacity).toBeUndefined();
   });
 
   it('every trainable trade tier has a real, in-domain catalog definition', () => {

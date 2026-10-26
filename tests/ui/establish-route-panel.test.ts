@@ -180,6 +180,25 @@ describe('openEstablishRoutePanel (#1500 MR03)', () => {
     });
   });
 
+  it('keeps air commerce available but explains that air imports are unavailable', () => {
+    const state = makeState();
+    state.units['trader-1']!.type = 'air_freighter';
+    state.civilizations.alpha!.techState.completed.push('bronze-working');
+    const onEstablish = vi.fn();
+    openEstablishRoutePanel(container, state, 'trader-1', onEstablish);
+
+    const panel = document.getElementById('establish-route-panel')!;
+    const destinationLabel = Array.from(panel.querySelectorAll('span'))
+      .find(el => (el.textContent ?? '').startsWith('Betatown'))!;
+    destinationLabel.parentElement!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    expect(panel.querySelector('[data-procurement-section]')).toBeNull();
+    expect(panel.querySelector('[data-procurement-unavailable]')?.textContent)
+      .toContain('Imports unavailable for this trader');
+    const confirm = Array.from(panel.querySelectorAll('button')).find(button => button.textContent === 'Confirm')!;
+    expect(confirm.disabled).toBe(false);
+  });
+
   it('offers only the viewer’s own origin cities, with a positioning estimate', () => {
     openEstablishRoutePanel(container, makeState(), 'trader-1', vi.fn());
 

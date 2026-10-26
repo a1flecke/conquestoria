@@ -1,6 +1,7 @@
 import type { GameState, TradeRouteModeId } from '@/core/types';
 import type { ResourceProcurementTerms, TradeGoodId } from '@/core/types/commerce';
 import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
+import { getTradeCargoCapacity } from '@/systems/trade-role-targeting';
 import { resourceGoodId } from '@/systems/trade-good-definitions';
 import {
   getEntitledTradeDestinations,
@@ -96,6 +97,7 @@ export function openEstablishRoutePanel(
   const storedGoods = RESOURCE_DEFINITIONS
     .filter(def => (def.economicRoles?.length ?? 0) > 0 && viewerTechs.has(def.tech))
     .map(def => ({ id: resourceGoodId(def.id) as TradeGoodId, name: def.name, icon: def.icon }));
+  const canCarryImports = getTradeCargoCapacity(unit.type) > 0;
   let procurementGoodId: TradeGoodId | null = storedGoods[0]?.id ?? null;
   let procurementTarget = 10;
   let procurementMaxPrice = 20;
@@ -180,7 +182,14 @@ export function openEstablishRoutePanel(
     // #1509 MR12: a foreign route can carry a standing import order. The price is locked only at
     // loading, within this maximum; the budget/floor are shared across every route.
     const destinationCity = state.cities[destination.cityId];
-    if (destinationCity && destinationCity.owner !== viewerCivId && storedGoods.length > 0) {
+    if (destinationCity && destinationCity.owner !== viewerCivId && storedGoods.length > 0 && !canCarryImports) {
+      const note = document.createElement('div');
+      note.dataset.procurementUnavailable = 'true';
+      note.style.cssText = 'margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.1);font-size:11px;opacity:0.7;';
+      note.textContent = 'Imports unavailable for this trader: it has no dedicated goods capacity. Ordinary commerce remains available.';
+      detailSection.appendChild(note);
+    }
+    if (destinationCity && destinationCity.owner !== viewerCivId && storedGoods.length > 0 && canCarryImports) {
       const box = document.createElement('div');
       box.dataset.procurementSection = 'true';
       box.style.cssText = 'margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.1);display:flex;flex-direction:column;gap:6px;';
