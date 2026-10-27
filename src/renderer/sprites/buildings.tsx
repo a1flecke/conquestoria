@@ -1312,7 +1312,6 @@ export function StockExchangeSprite({ palette, svgOnly = false }: BuildingSprite
 
 /* === ERA 6 BUILDINGS (placeholder art — replace with generate-sprite-prompt output) === */
 
-// TODO(art): Replace with a full facade: arched entrance, display cases visible through windows, stone frieze, taxidermy skeleton silhouette on roof.
 export function NaturalHistoryMuseumSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   const columns = [40, 64, 88, 112, 136].map(x =>
     <rect x={x} y={72} width="10" height="60" rx="3" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.8" />
