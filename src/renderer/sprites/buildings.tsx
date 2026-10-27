@@ -1533,7 +1533,6 @@ export function GrandCipherBureauSprite({ palette, svgOnly = false }: BuildingSp
 
 // ERA 7 BUILDINGS
 
-// TODO(art): Replace with a factory: brick industrial building, tall chimney stack with smoke, large gear or flywheel visible, iron-framed windows, steam exhaust pipes along roof.
 export function FactorySprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Factory" category="production" svgOnly={svgOnly}>
@@ -1559,7 +1558,6 @@ export function FactorySprite({ palette, svgOnly = false }: BuildingSpriteProps)
   );
 }
 
-// TODO(art): Replace with a steel mill: sprawling iron-clad building, blast furnace glowing orange, molten steel ladle crane visible above, heavy industrial smoke rising.
 export function SteelMillSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Steel Mill" category="production" svgOnly={svgOnly}>
@@ -1585,7 +1583,6 @@ export function SteelMillSprite({ palette, svgOnly = false }: BuildingSpriteProp
   );
 }
 
-// TODO(art): Replace with a field hospital: white canvas tent or timber building with red cross banner, stretchers visible, medical lanterns hanging outside.
 export function FieldHospitalSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Field Hospital" category="science" svgOnly={svgOnly}>
@@ -1609,7 +1606,6 @@ export function FieldHospitalSprite({ palette, svgOnly = false }: BuildingSprite
   );
 }
 
-// TODO(art): Replace with a print shop: large letter-press machine visible through window, stacked papers and pamphlets, ink-stained aprons hanging, newspaper headlines posted.
 export function PrintShopSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Print Shop" category="culture" svgOnly={svgOnly}>
@@ -1633,7 +1629,6 @@ export function PrintShopSprite({ palette, svgOnly = false }: BuildingSpriteProp
   );
 }
 
-// TODO(art): Replace with a census office: formal government building with grand entrance stairs, official seals on pillars, clerks visible through arched windows, pigeonhole document shelves inside.
 export function CensusOfficeSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Census Office" category="economy" svgOnly={svgOnly}>
@@ -1657,7 +1652,6 @@ export function CensusOfficeSprite({ palette, svgOnly = false }: BuildingSpriteP
   );
 }
 
-// TODO(art): Replace with a national railway hall: grand Victorian station building, iron-arched glass roof over train shed, locomotive smoke visible, passengers on platform.
 export function NationalRailwaySprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="National Railway" category="economy" svgOnly={svgOnly}>
@@ -1682,7 +1676,6 @@ export function NationalRailwaySprite({ palette, svgOnly = false }: BuildingSpri
   );
 }
 
-// TODO(art): Replace with a grand arsenal: fortified warehouse complex, stacked cannon barrels and crates visible, military flag above gate, thick stone walls with arched munitions bays.
 export function GrandArsenalSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Grand Arsenal" category="military" svgOnly={svgOnly}>
@@ -1709,7 +1702,6 @@ export function GrandArsenalSprite({ palette, svgOnly = false }: BuildingSpriteP
   );
 }
 
-// TODO(art): Replace with a people's university: grand gothic or neoclassical campus building, lecture hall with illuminated windows, academic tower with observatory dome, students in courtyard.
 export function PeoplesUniversitySprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Peoples University" category="science" svgOnly={svgOnly}>
