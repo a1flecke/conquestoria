@@ -2,6 +2,48 @@
  "schema": 1,
  "policy": "Every markdown file under docs/superpowers/{plans,specs} must be classified here. entries = files that earn a place in the active tree (active: owned by an open issue; durable-reference: cited by source, tests or rules for rationale not restated there). deleted = delivered-stale | superseded | abandoned files removed from the tree; git history is the archive, and the guard fails if one reappears. Run `node scripts/docs-lifecycle.mjs refresh` to update issue-state snapshots; `check` is offline.",
  "entries": {
+  "docs/superpowers/specs/2026-10-26-issue-1125-legacy-portfolio.md": {
+   "category": "active",
+   "reason": "Current advisory Legacy portfolio, accepted experience directions and remaining candidate gaps for open issue #1125; not an implementation plan.",
+   "issues": [1125],
+   "issueStates": {"1125": "OPEN"}
+  },
+  "docs/superpowers/specs/2026-10-26-issue-1125-commercial-legacy.md": {
+   "category": "active",
+   "reason": "Commercial Legacy product decision index for open issue #1125, separating accepted rules, trial values and proposed campaign findings.",
+   "issues": [1125],
+   "issueStates": {"1125": "OPEN"}
+  },
+  "docs/superpowers/specs/2026-10-26-issue-1125-commercial-measures.md": {
+   "category": "active",
+   "reason": "Accepted opportunity/power measurement architecture with uncalibrated numerical trials for open issue #1125.",
+   "issues": [1125],
+   "issueStates": {"1125": "OPEN"}
+  },
+  "docs/superpowers/specs/2026-10-26-issue-1125-commercial-cost-risk.md": {
+   "category": "active",
+   "reason": "Accepted cost, vulnerability and gameplay boundaries for commercial Legacy under open issue #1125.",
+   "issues": [1125],
+   "issueStates": {"1125": "OPEN"}
+  },
+  "docs/superpowers/specs/2026-10-26-issue-1125-commercial-attribution.md": {
+   "category": "active",
+   "reason": "Accepted complementary attribution and same-work subdivision rules for commercial Legacy under open issue #1125.",
+   "issues": [1125],
+   "issueStates": {"1125": "OPEN"}
+  },
+  "docs/superpowers/specs/2026-10-26-issue-1125-commercial-financing.md": {
+   "category": "active",
+   "reason": "Approved delivered-provision financing refinement and illustrative stress cases for open issue #1125.",
+   "issues": [1125],
+   "issueStates": {"1125": "OPEN"}
+  },
+  "docs/superpowers/specs/2026-10-26-issue-1125-commercial-campaign-trial.md": {
+   "category": "active",
+   "reason": "Proposed commercial campaign budget comparison and setback analysis for open issue #1125; constructed schedules are not calibrated gameplay evidence.",
+   "issues": [1125],
+   "issueStates": {"1125": "OPEN"}
+  },
   "docs/superpowers/plans/audio-remaining-work.md": {
    "category": "active",
    "reason": "Remaining audio work, tracked by open issues #425-#428 (deferred until audio can be reviewed).",
