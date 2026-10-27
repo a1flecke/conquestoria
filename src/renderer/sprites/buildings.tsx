@@ -1332,7 +1332,6 @@ export function NaturalHistoryMuseumSprite({ palette, svgOnly = false }: Buildin
   );
 }
 
-// TODO(art): Replace with a medical hall: red cross emblem over entrance, herb garden boxes at base, apothecary jars in ground-floor windows.
 export function SurgeryGuildSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Surgery Guild" category="science" svgOnly={svgOnly}>
@@ -1350,7 +1349,6 @@ export function SurgeryGuildSprite({ palette, svgOnly = false }: BuildingSpriteP
   );
 }
 
-// TODO(art): Replace with a domed concert hall: grand portico columns, arched windows, golden chandeliers visible inside, ornate frieze.
 export function ConcertHallSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   const windows = [52, 88, 124].map(x =>
     <path d={`M${x},120 L${x},96 Q${x + 12},80 ${x + 24},96 L${x + 24},120 Z`}
@@ -1371,7 +1369,6 @@ export function ConcertHallSprite({ palette, svgOnly = false }: BuildingSpritePr
   );
 }
 
-// TODO(art): Replace with a star-fort aerial view: angled bastions at cardinal points, central keep, moat ring, artillery emplacements on ramparts.
 export function StarFortSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Star Fort" category="military" svgOnly={svgOnly}>
@@ -1486,7 +1483,6 @@ export function CoastalBatterySprite({ palette, svgOnly = false }: BuildingSprit
   );
 }
 
-// TODO(art): Replace with a military academy: parade ground archway, colonnaded hall, officers' crest above entrance, stacked muskets flanking doors.
 export function MilitaryAcademySprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   const merlonsLeft = [28, 36, 44].map(x => <rect x={x} y={52} width="6" height="10" rx="1" fill={P.stone.mid} />).join('');
   const merlonsRight = [134, 142, 150].map(x => <rect x={x} y={52} width="6" height="10" rx="1" fill={P.stone.mid} />).join('');
@@ -1511,7 +1507,6 @@ export function MilitaryAcademySprite({ palette, svgOnly = false }: BuildingSpri
   );
 }
 
-// TODO(art): Replace with a cipher bureau: narrow tall building, candlelit barred windows, wax-seal emblem above door, coded scroll pinned to wall visible inside.
 export function GrandCipherBureauSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   const bars = [58, 84, 110].map(x =>
     <g>
@@ -1739,7 +1734,6 @@ export function PeoplesUniversitySprite({ palette, svgOnly = false }: BuildingSp
   );
 }
 
-// TODO(art): Replace with a colonial admin hall: neoclassical facade, empire flag above entrance, courier board with pinned maps, columned courtyard visible through archway.
 export function ColonialAdministrationSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   const cols = [50, 76, 102, 128].map(x =>
     <rect x={x} y={76} width="8" height="52" rx="2" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.6" />
