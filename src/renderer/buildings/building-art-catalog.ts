@@ -136,6 +136,18 @@ export const BUILDING_ART: Readonly<Record<string, BuildingArtEntry>> = {
   national_railway: { bannerX: 7, bannerY: 97 },
   grand_arsenal: { bannerX: 7, bannerY: 106 },
   peoples_university: { bannerX: 7, bannerY: 124 },
+  bacteriology_lab: { bannerX: 9, bannerY: 136 },
+  stock_exchange_tower: { bannerX: 43, bannerY: 151 },
+  sanatorium: { bannerX: 11, bannerY: 102 },
+  power_station: { bannerX: 7, bannerY: 125 },
+  exhibition_hall: { bannerX: 7, bannerY: 110 },
+  national_archives_building: { bannerX: 7, bannerY: 113 },
+  imperial_general_staff: { bannerX: 7, bannerY: 126 },
+  world_fair: { bannerX: 7, bannerY: 117 },
+  steel_foundry: { bannerX: 7, bannerY: 115 },
+  telephone_exchange: { bannerX: 27, bannerY: 143 },
+  labor_hall: { bannerX: 7, bannerY: 137 },
+  opera_house: { bannerX: 7, bannerY: 112 },
 };
 
 export const BUILDING_ART_IDS: readonly string[] = Object.keys(BUILDING_ART);

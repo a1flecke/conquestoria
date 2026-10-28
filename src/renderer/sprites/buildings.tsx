@@ -1751,7 +1751,6 @@ export function ColonialAdministrationSprite({ palette, svgOnly = false }: Build
 
 /* === ERA 8 REGULAR BUILDINGS === */
 
-// TODO(art): Replace with steel foundry: Bessemer converter vessel angled to pour, molten-steel splash, industrial brick walls, smokestacks, rail line entering loading bay.
 export function SteelFoundrySprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Steel Foundry" category="production" svgOnly={svgOnly}>
@@ -1770,7 +1769,6 @@ export function SteelFoundrySprite({ palette, svgOnly = false }: BuildingSpriteP
   );
 }
 
-// TODO(art): Replace with telephone exchange: Victorian exchange hall, rows of switchboard operators at brass panels, overhead wiring, clock on the wall.
 export function TelephoneExchangeSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Telephone Exchange" category="economy" svgOnly={svgOnly}>
@@ -1792,7 +1790,6 @@ export function TelephoneExchangeSprite({ palette, svgOnly = false }: BuildingSp
   );
 }
 
-// TODO(art): Replace with labor hall: brick assembly hall, large arched windows, trade-union banner over entrance, speaker's podium visible inside, workers gathering outside.
 export function LaborHallSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Labor Hall" category="production" svgOnly={svgOnly}>
@@ -1812,7 +1809,6 @@ export function LaborHallSprite({ palette, svgOnly = false }: BuildingSpriteProp
   );
 }
 
-// TODO(art): Replace with opera house: grand neoclassical facade, wide pediment, triple arched entrance, masks-of-comedy-tragedy relief, gaslamp sconces.
 export function OperaHouseSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   const cols = [44, 68, 92, 116, 140].map(x =>
     <rect x={x} y={78} width="8" height="54" rx="2" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.6" />
@@ -1834,7 +1830,6 @@ export function OperaHouseSprite({ palette, svgOnly = false }: BuildingSpritePro
   );
 }
 
-// TODO(art): Replace with bacteriology lab: Victorian laboratory interior, microscopes on benches, petri dishes, gas burners, high-arched skylight windows.
 export function BacteriologyLabSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Bacteriology Lab" category="science" svgOnly={svgOnly}>
@@ -1858,7 +1853,6 @@ export function BacteriologyLabSprite({ palette, svgOnly = false }: BuildingSpri
   );
 }
 
-// TODO(art): Replace with stock exchange tower: steel-frame skyscraper base, ticker-tape board, trading floor arched window, financiers in top hats at street level.
 export function StockExchangeTowerSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Stock Exchange Tower" category="economy" svgOnly={svgOnly}>
@@ -1882,7 +1876,6 @@ export function StockExchangeTowerSprite({ palette, svgOnly = false }: BuildingS
   );
 }
 
-// TODO(art): Replace with sanatorium: Victorian public health building, wide verandahs for fresh-air patients, ornate ironwork railings, nurses in uniform, well-tended gardens.
 export function SanatoriumSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Sanatorium" category="science" svgOnly={svgOnly}>
@@ -1904,7 +1897,6 @@ export function SanatoriumSprite({ palette, svgOnly = false }: BuildingSpritePro
   );
 }
 
-// TODO(art): Replace with power station: brick turbine hall, generator drums, overhead crane, insulators on exterior, coal-hopper conveyor, chimney with red warning band.
 export function PowerStationSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Power Station" category="production" svgOnly={svgOnly}>
@@ -1926,7 +1918,6 @@ export function PowerStationSprite({ palette, svgOnly = false }: BuildingSpriteP
   );
 }
 
-// TODO(art): Replace with exhibition hall: Crystal-Palace-style iron-and-glass pavilion, pennant banners, crowds of visitors, industrial machinery on display inside.
 export function ExhibitionHallSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Exhibition Hall" category="culture" svgOnly={svgOnly}>
@@ -1950,7 +1941,6 @@ export function ExhibitionHallSprite({ palette, svgOnly = false }: BuildingSprit
 
 /* === ERA 8 NATIONAL PROJECT SPRITES === */
 
-// TODO(art): Replace with world fair pavilion: ornate iron-lattice grand hall, international flags, fountain plaza, exhibition towers, fireworks burst above.
 export function WorldFairSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="World Fair" category="economy" svgOnly={svgOnly}>
@@ -1971,7 +1961,6 @@ export function WorldFairSprite({ palette, svgOnly = false }: BuildingSpriteProp
   );
 }
 
-// TODO(art): Replace with national archives building: imposing neoclassical stone hall, Doric columns, carved frieze, archive shelves visible through tall windows, stone eagle above portico.
 export function NationalArchivesBuildingSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   const cols = [40, 64, 88, 112, 136].map(x =>
     <rect x={x} y={72} width="10" height="60" rx="3" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.7" />
@@ -1991,7 +1980,6 @@ export function NationalArchivesBuildingSprite({ palette, svgOnly = false }: Bui
   );
 }
 
-// TODO(art): Replace with imperial general staff: severe military headquarters, iron gate, color-of-regiment flags, war-room windows with light, parade ground in foreground.
 export function ImperialGeneralStaffSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Imperial General Staff" category="military" svgOnly={svgOnly}>
