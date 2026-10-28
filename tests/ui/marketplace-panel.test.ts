@@ -768,6 +768,62 @@ describe('createMarketplacePanel material reserves (#1506 MR09)', () => {
     });
   });
 
+  it('shows delivered luxury coverage and edits bounded service allotments', () => {
+    const state = buildState({ currentPlayer: 'p1', civTechs: ['cartography'] });
+    state.turn = 10;
+    state.civilizations.p2 = {
+      ...state.civilizations.p1!,
+      id: 'p2',
+      cities: ['p2city'],
+      diplomacy: {
+        relationships: { p1: 10 },
+        treaties: [{ type: 'trade_agreement', civA: 'p2', civB: 'p1', turnsRemaining: -1 }],
+        events: [],
+        atWarWith: [],
+        treacheryScore: 0,
+        vassalage: { overlord: null, vassals: [], protectionScore: 0, protectionTimers: [] },
+      },
+    } as never;
+    state.cities.p2city = { ...state.cities.city1!, id: 'p2city', owner: 'p2' };
+    state.commercePermissions = {
+      resourceExportGrants: [],
+      routeAllowances: [],
+      resourcePolicies: [{
+        civId: 'p1',
+        goodId: resourceGoodId('spices'),
+        protectedReserve: 0,
+        partnerCivIds: ['p2'],
+        serviceAllotments: 2,
+      }],
+    };
+    state.luxuryServiceByCiv = {
+      p1: {
+        coverageByGood: {
+          [resourceGoodId('spices')]: {
+            goodId: resourceGoodId('spices'),
+            expiresOnTurn: state.turn + 3,
+            supplierCivIds: ['p2'],
+          },
+        },
+      },
+    };
+    const onSetResourcePolicy = vi.fn();
+    createMarketplacePanel(container, state, { onClose: vi.fn(), onSetResourcePolicy });
+
+    const panel = document.getElementById('marketplace-panel')!;
+    expect(panel.textContent).toContain(`Delivered coverage until turn ${state.turn + 3}`);
+    const row = panel.querySelector<HTMLElement>('[data-policy-good="resource:spices"]')!;
+    const service = row.querySelector<HTMLInputElement>('input[data-policy-service]')!;
+    expect(service.value).toBe('2');
+    service.value = '3';
+    row.querySelector<HTMLButtonElement>('button[data-policy-save]')!.click();
+    expect(onSetResourcePolicy).toHaveBeenCalledWith(expect.objectContaining({
+      civId: 'p1',
+      goodId: resourceGoodId('spices'),
+      serviceAllotments: 3,
+    }));
+  });
+
   it('replaces the inventory boolean with exact stored/committed/free/incoming counts', () => {
     const state = ironState(
       { [iron]: { native: 14, imported: 0 } },

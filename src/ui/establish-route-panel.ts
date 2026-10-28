@@ -1,6 +1,6 @@
 import type { GameState, TradeRouteModeId } from '@/core/types';
 import type { ResourceProcurementTerms, TradeGoodId } from '@/core/types/commerce';
-import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
+import { RESOURCE_DEFINITIONS, getResourceAccessBenefit } from '@/systems/resource-definitions';
 import { getTradeCargoCapacity } from '@/systems/trade-role-targeting';
 import { resourceGoodId } from '@/systems/trade-good-definitions';
 import {
@@ -95,8 +95,16 @@ export function openEstablishRoutePanel(
   let selectedMode: TradeRouteModeId = 'commerce';
   const viewerTechs = new Set(state.civilizations[viewerCivId]?.techState.completed ?? []);
   const storedGoods = RESOURCE_DEFINITIONS
-    .filter(def => (def.economicRoles?.length ?? 0) > 0 && viewerTechs.has(def.tech))
-    .map(def => ({ id: resourceGoodId(def.id) as TradeGoodId, name: def.name, icon: def.icon }));
+    .filter(def => viewerTechs.has(def.tech) && (
+      (def.economicRoles?.length ?? 0) > 0
+      || (def.type === 'luxury' && getResourceAccessBenefit(def).kind === 'happiness')
+    ))
+    .map(def => ({
+      id: resourceGoodId(def.id) as TradeGoodId,
+      name: def.name,
+      icon: def.icon,
+      isLuxury: def.type === 'luxury',
+    }));
   const canCarryImports = getTradeCargoCapacity(unit.type) > 0;
   let procurementGoodId: TradeGoodId | null = storedGoods[0]?.id ?? null;
   let procurementTarget = 10;
@@ -211,7 +219,15 @@ export function openEstablishRoutePanel(
         option.selected = good.id === procurementGoodId;
         goodSelect.appendChild(option);
       }
-      goodSelect.addEventListener('change', () => { procurementGoodId = goodSelect.value; });
+      goodSelect.addEventListener('change', () => {
+        procurementGoodId = goodSelect.value;
+        const selected = storedGoods.find(good => good.id === procurementGoodId);
+        if (selected?.isLuxury) {
+          procurementTarget = 1;
+          const targetInput = box.querySelector<HTMLInputElement>('input[data-procurement-target]');
+          if (targetInput) targetInput.value = '1';
+        }
+      });
       goodLabel.appendChild(goodSelect);
       box.appendChild(goodLabel);
 

@@ -4,7 +4,8 @@ import type {
   ResourceType,
 } from '@/core/types';
 import { hexKey } from './hex-utils';
-import { RESOURCE_DEFINITIONS } from './resource-definitions';
+import { RESOURCE_DEFINITIONS, getResourceAccessBenefit } from './resource-definitions';
+import { findTradeGood } from './trade-good-definitions';
 import {
   getResourceSourceKindAt,
   isResourceOutpostSource,
@@ -102,6 +103,17 @@ export function getCivAvailableResources(
     result.add(entry.resource);
   }
 
+  // Pass 4 — delivered luxury-service coverage (#1511 MR14). This is access, not stock: it grants
+  // the resource's access benefit until expiry and never a worked-tile yield.
+  for (const [goodId, coverage] of Object.entries(state.luxuryServiceByCiv?.[civId]?.coverageByGood ?? {})) {
+    if (coverage.expiresOnTurn <= state.turn) continue;
+    const good = findTradeGood(goodId);
+    if (good?.nativeSource?.kind !== 'resource') continue;
+    const def = resourceDefMap.get(good.nativeSource.resource);
+    if (!def || !completedTechs.has(def.tech)) continue;
+    result.add(def.id);
+  }
+
   return result;
 }
 
@@ -176,8 +188,9 @@ export function getCivHappinessFromResources(
   let count = 0;
 
   for (const def of RESOURCE_DEFINITIONS) {
-    if (!def.effect || def.effect.type !== 'happiness') continue;
-    if (owned.has(def.id as ResourceType)) count++;
+    const benefit = getResourceAccessBenefit(def);
+    if (benefit.kind !== 'happiness') continue;
+    if (owned.has(def.id as ResourceType)) count += benefit.amount;
   }
 
   return count;

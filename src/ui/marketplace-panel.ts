@@ -1,9 +1,10 @@
 import type { GameState, ResourceType } from '@/core/types';
 import type { CommerceResourcePolicy } from '@/core/types/commerce';
-import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
+import { RESOURCE_DEFINITIONS, getResourceAccessBenefit, getResourceAccessLabel } from '@/systems/resource-definitions';
 import { getCivAvailableResources, getInstantResourcePurchaseNotice } from '@/systems/resource-acquisition-system';
 import { getCommercialPassagePermission, getCommerceResourcePolicy } from '@/systems/commerce-permissions';
 import { getReserveSuppliesRows } from '@/systems/resource-reserve-presentation';
+import { getLuxuryCoverage, getNextLuxuryShipment } from '@/systems/luxury-service-system';
 import { resourceGoodId } from '@/systems/trade-good-definitions';
 import { createGameButton } from './ui-kit';
 import { createSlotIndex } from './dom-slot-index';
@@ -99,6 +100,7 @@ export function createMarketplacePanel(
           <div style="font-size:13px;font-weight:bold;"><span data-text="res-name-${idx}"></span> <span style="font-size:10px;color:${typeColor};" data-text="res-type-${idx}"></span></div>
           ${statusHtml}
           <div style="font-size:10px;opacity:0.65;" data-text="res-effect-${idx}"></div>
+          ${def.type === 'luxury' ? `<div style="font-size:10px;color:#d4a;" data-text="lux-coverage-${idx}"></div>` : ''}
         </div>
       </div>
     `;
@@ -193,7 +195,22 @@ export function createMarketplacePanel(
         default:            effectText = '';
       }
     }
+    if (def.type === 'luxury') {
+      effectText = `★ ${getResourceAccessLabel(def)} (access)${effectText ? ` · ${effectText}` : ''}`;
+    }
     setText(`res-effect-${idx}`, effectText);
+    if (def.type === 'luxury') {
+      const goodId = resourceGoodId(def.id);
+      const coverage = getLuxuryCoverage(state, state.currentPlayer, goodId);
+      const nextShipment = getNextLuxuryShipment(state, state.currentPlayer, goodId);
+      const covered = coverage && coverage.expiresOnTurn > state.turn
+        ? `Delivered coverage until turn ${coverage.expiresOnTurn}`
+        : 'No delivered coverage';
+      const shipment = nextShipment
+        ? `next shipment via route ${nextShipment.id} (${nextShipment.turnsPerTrip * 2}-round round trip)`
+        : 'no active import route';
+      setText(`lux-coverage-${idx}`, `${covered} · ${shipment}`);
+    }
   });
 
   // Populate Your Resources section
@@ -245,16 +262,20 @@ export function createMarketplacePanel(
     const partnerName = (id: string) => state.civilizations[id]?.name
       ?? (state.minorCivs?.[id] as { name?: string } | undefined)?.name
       ?? id;
-    const storedDefs = RESOURCE_DEFINITIONS.filter(def => reserveRows.has(resourceGoodId(def.id)));
-    if (storedDefs.length === 0) {
+    const policyDefs = RESOURCE_DEFINITIONS.filter(def =>
+      viewerTechs.has(def.tech)
+      && (reserveRows.has(resourceGoodId(def.id))
+        || (def.type === 'luxury' && getResourceAccessBenefit(def).kind === 'happiness')));
+    if (policyDefs.length === 0) {
       const empty = document.createElement('div');
       empty.textContent = 'No stored goods are revealed yet.';
       empty.style.cssText = 'opacity:0.6;padding:6px 0;';
       policiesBody.appendChild(empty);
     }
-    for (const def of storedDefs) {
+    for (const def of policyDefs) {
       const goodId = resourceGoodId(def.id);
       const policy = getCommerceResourcePolicy(state, state.currentPlayer, goodId);
+      const isLuxury = def.type === 'luxury' && getResourceAccessBenefit(def).kind === 'happiness';
       const row = document.createElement('div');
       row.dataset.policyGood = goodId;
       row.style.cssText = 'background:rgba(255,255,255,0.04);border-radius:8px;padding:8px 10px;margin-bottom:8px;display:flex;flex-direction:column;gap:6px;';
@@ -266,13 +287,14 @@ export function createMarketplacePanel(
 
       const reserveLabel = document.createElement('label');
       reserveLabel.style.cssText = 'display:flex;align-items:center;gap:8px;';
-      reserveLabel.appendChild(document.createTextNode('Protected reserve'));
+      reserveLabel.appendChild(document.createTextNode(isLuxury ? 'Foreign service slots' : 'Protected reserve'));
       const reserveInput = document.createElement('input');
       reserveInput.type = 'number';
       reserveInput.min = '0';
       reserveInput.step = '1';
-      reserveInput.value = String(policy?.protectedReserve ?? 0);
-      reserveInput.dataset.policyReserve = goodId;
+      reserveInput.value = String(isLuxury ? (policy?.serviceAllotments ?? 0) : (policy?.protectedReserve ?? 0));
+      if (isLuxury) reserveInput.dataset.policyService = goodId;
+      else reserveInput.dataset.policyReserve = goodId;
       reserveInput.style.cssText = 'width:72px;min-height:44px;background:#222;color:inherit;border:1px solid #555;border-radius:4px;padding:4px;';
       reserveLabel.appendChild(reserveInput);
       row.appendChild(reserveLabel);
@@ -298,7 +320,9 @@ export function createMarketplacePanel(
       summary.dataset.policySummary = goodId;
       summary.style.cssText = 'font-size:11px;opacity:0.7;';
       summary.textContent = policy
-        ? `${policy.partnerCivIds.length} partner${policy.partnerCivIds.length === 1 ? '' : 's'} · reserve ${policy.protectedReserve}`
+        ? isLuxury
+          ? `${policy.partnerCivIds.length} partner${policy.partnerCivIds.length === 1 ? '' : 's'} · service ${policy.serviceAllotments ?? 0}`
+          : `${policy.partnerCivIds.length} partner${policy.partnerCivIds.length === 1 ? '' : 's'} · reserve ${policy.protectedReserve}`
         : 'Exports closed';
       row.appendChild(summary);
 
@@ -314,8 +338,9 @@ export function createMarketplacePanel(
           callbacks.onSetResourcePolicy!({
             civId: state.currentPlayer,
             goodId,
-            protectedReserve: Number.isSafeInteger(reserve) && reserve >= 0 ? reserve : 0,
+            protectedReserve: isLuxury ? 0 : (Number.isSafeInteger(reserve) && reserve >= 0 ? reserve : 0),
             partnerCivIds: checked,
+            ...(isLuxury ? { serviceAllotments: Number.isSafeInteger(reserve) && reserve >= 0 ? reserve : 0 } : {}),
           });
         });
         row.appendChild(save);

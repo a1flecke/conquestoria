@@ -27,6 +27,12 @@ import {
 import { getProcurementRemaining, getRouteCargoCapacity } from './resource-procurement';
 import { isRouteServiceSuspended } from './trade-danger-adapters';
 import {
+  LUXURY_SERVICE_CAP_MULTIPLIER,
+  getLuxuryServiceCoverageTurns,
+  grantLuxuryCoverage,
+  isLuxuryServiceGood,
+} from './luxury-service-system';
+import {
   RESOURCE_BACKED_GOODS,
   findTradeGood,
   type TradeGoodDefinition,
@@ -85,7 +91,9 @@ export function loadRouteManifest(
 
   for (const [index, order] of route.procurement.orders.entries()) {
     const definition = findTradeGood(order.goodId, definitions);
-    if (!definition || definition.settlement !== 'stored-quantity') continue;
+    if (!definition) continue;
+    const service = isLuxuryServiceGood(order.goodId);
+    if (definition.settlement !== 'stored-quantity' && !service) continue;
     const remainingTarget = getProcurementRemaining(next, buyerCivId, order);
     if (remainingTarget <= 0) continue;
     const offer = getMarketOfferForBuyer(next, buyerCivId, sellerCivId, order.goodId, definitions);
@@ -102,16 +110,22 @@ export function loadRouteManifest(
     const byBudget = Math.floor(budgetLeft / unitCost);
     const buyerGold = next.civilizations[buyerCivId]?.gold ?? 0;
     const byGold = Math.floor(Math.max(0, buyerGold - policy.treasuryFloor) / unitCost);
-    const quantity = Math.min(remainingTarget, offer.available, byCargo, byBudget, byGold);
+    const quantity = service
+      ? 1
+      : Math.min(remainingTarget, offer.available, byCargo, byBudget, byGold);
     if (quantity <= 0) continue;
 
     const quote = quoteMarketLoad(next, buyerCivId, sellerCivId, order.goodId, quantity, definitions);
     if (!quote.ok) continue;
-    const claimId = `manifest:${route.id}:${next.turn}:${index}:${order.goodId}`;
+    const claimId = service
+      ? `manifest:${route.id}:${next.turn}:${index}:${order.goodId}`
+      : `manifest:${route.id}:${next.turn}:${index}:${order.goodId}`;
     const committed = commitMarketLoad(
       next,
       quote.quote,
-      { settlement: 'incoming', claimId },
+      service
+        ? { settlement: 'service' }
+        : { settlement: 'incoming', claimId },
       definitions,
     );
     if (!committed.ok) continue;
@@ -124,6 +138,7 @@ export function loadRouteManifest(
       unitPrice: quote.quote.unitPrice,
       paid: quote.quote.totalPrice,
       sellerCivId,
+      ...(service ? { serviceTurns: getLuxuryServiceCoverageTurns(route) } : {}),
     });
   }
 
@@ -149,18 +164,31 @@ export function deliverRouteManifest(
   const route = routeById(state, routeId);
   if (!route?.manifest) return { state, delivered: [] };
   let ledger = getCivMaterialLedger(state, route.manifest.ownerCivId);
+  let nextState = state;
   const delivered: ResourceManifestItem[] = [];
   for (const item of route.manifest.items) {
+    if (item.serviceTurns) {
+      nextState = grantLuxuryCoverage(
+        nextState,
+        route.manifest.ownerCivId,
+        item.sellerCivId,
+        item.goodId,
+        item.serviceTurns,
+        item.serviceTurns * LUXURY_SERVICE_CAP_MULTIPLIER,
+      );
+      delivered.push(item);
+      continue;
+    }
     if (!ledger.incoming.some(claim => claim.id === item.claimId)) continue;
     const result = deliverIncomingStock(ledger, item.claimId);
     if (!result.ok) continue;
     ledger = result.ledger;
     delivered.push(item);
   }
-  const current = routeById(state, routeId);
+  const current = routeById(nextState, routeId);
   if (!current) return { state, delivered: [] };
   return {
-    state: withRoute(withLedger(state, route.manifest.ownerCivId, ledger), { ...current, manifest: undefined }),
+    state: withRoute(withLedger(nextState, route.manifest.ownerCivId, ledger), { ...current, manifest: undefined }),
     delivered,
   };
 }

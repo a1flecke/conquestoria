@@ -27,6 +27,11 @@ import {
 } from './resource-reserve-system';
 import { getCivMaterialLedger } from './resource-material-state';
 import { getCommercialPassagePermission } from './commerce-permissions';
+import {
+  getLuxuryServiceCapacity,
+  getSupplierServiceContracts,
+  isLuxuryServiceGood,
+} from './luxury-service-system';
 import { isResourceRevealed } from './resource-source-eligibility';
 import { RESOURCE_DEFINITIONS } from './resource-definitions';
 import {
@@ -62,7 +67,8 @@ export type MarketLoadRefusalReason =
   | 'treasury-floor'
   | 'insufficient-capacity'
   | 'no-tariff-recipient'
-  | 'round-budget';
+  | 'round-budget'
+  | 'service-capacity';
 
 export interface MarketLoadQuote {
   turn: number;
@@ -96,7 +102,7 @@ export interface MarketLoadCommitOptions {
    * `stock` (default) credits imported stock immediately. `incoming` creates a reserved claim instead,
    * so a shipment is owned but unusable until its route delivers it home.
    */
-  settlement?: 'stock' | 'incoming';
+  settlement?: 'stock' | 'incoming' | 'service';
   claimId?: string;
 }
 
@@ -238,15 +244,20 @@ export function refreshMarketOffers(
   for (const policy of policiesForOffers(state)) {
     if (!holdsTerritory(state, policy.civId)) continue;
     const definition = goodDefinition(policy.goodId, definitions);
-    if (!definition || !isStoredQuantityGood(definition)) continue;
+    const service = isLuxuryServiceGood(policy.goodId);
+    if (!definition || (!isStoredQuantityGood(definition) && !service)) continue;
     const id = offerId(policy.civId, policy.goodId);
     if (seen.has(id)) continue;
     seen.add(id);
     const eligibleBuyerCivIds = getEligibleMarketBuyers(state, policy.civId, policy.goodId, definitions);
     if (eligibleBuyerCivIds.length === 0) continue;
-    const available = getExportableSurplus(state, policy.civId, policy.goodId);
+    const available = service
+      ? getLuxuryServiceCapacity(state, policy.civId, policy.goodId, policy)
+      : getExportableSurplus(state, policy.civId, policy.goodId);
     if (available <= 0) continue;
-    const band = nextBand(previousOffers.get(id)?.band, targetBand(available, definition));
+    const band = service
+      ? 'normal' as const
+      : nextBand(previousOffers.get(id)?.band, targetBand(available, definition));
     const tariffPerUnit = policy.tariffPerUnit ?? 0;
     const previousCursor = previous?.serviceCursorByOffer[id] ?? 0;
     cursorByOffer[id] = eligibleBuyerCivIds.length > 0
@@ -390,7 +401,9 @@ export function quoteMarketLoad(
     return { ok: false, reason: 'invalid-quantity' };
   }
   const definition = goodDefinition(goodId, definitions);
-  if (!definition || !isStoredQuantityGood(definition)) return { ok: false, reason: 'no-offer' };
+  const service = isLuxuryServiceGood(goodId);
+  if (!definition || (!isStoredQuantityGood(definition) && !service)) return { ok: false, reason: 'no-offer' };
+  if (service && quantity !== 1) return { ok: false, reason: 'invalid-quantity' };
   const offer = findOffer(state, buyerCivId, supplierCivId, goodId, definitions);
   if (!offer) return { ok: false, reason: 'not-eligible' };
   if (offer.available < quantity) return { ok: false, reason: 'insufficient-quantity' };
@@ -402,12 +415,22 @@ export function quoteMarketLoad(
     return { ok: false, reason: 'awaiting-turn' };
   }
 
-  if (getExportableSurplus(state, supplierCivId, goodId) < quantity) {
-    return { ok: false, reason: 'stale-offer' };
-  }
-  const capacity = definition.quantity?.storageCapacity ?? DEFAULT_STORAGE_PER_GOOD;
-  if (getStorageHeadroom(getCivMaterialLedger(state, buyerCivId), goodId, capacity) < quantity) {
-    return { ok: false, reason: 'insufficient-capacity' };
+  if (service) {
+    const policy = policyFor(state, supplierCivId, goodId);
+    const serviceCapacity = getLuxuryServiceCapacity(state, supplierCivId, goodId, policy);
+    const activeContracts = getSupplierServiceContracts(state, supplierCivId, goodId);
+    const alreadyServed = activeContracts.includes(buyerCivId);
+    if (!alreadyServed && activeContracts.length >= serviceCapacity) {
+      return { ok: false, reason: 'service-capacity' };
+    }
+  } else {
+    if (getExportableSurplus(state, supplierCivId, goodId) < quantity) {
+      return { ok: false, reason: 'stale-offer' };
+    }
+    const capacity = definition.quantity?.storageCapacity ?? DEFAULT_STORAGE_PER_GOOD;
+    if (getStorageHeadroom(getCivMaterialLedger(state, buyerCivId), goodId, capacity) < quantity) {
+      return { ok: false, reason: 'insufficient-capacity' };
+    }
   }
   if (offer.tariffPerUnit > 0 && (!offer.tariffRecipientCivId
     || !state.civilizations[offer.tariffRecipientCivId])) {
@@ -479,32 +502,40 @@ export function commitMarketLoad(
   }
   const policy = policyFor(state, quote.supplierCivId, quote.goodId);
   const sellerLedger = getCivMaterialLedger(state, quote.supplierCivId);
-  const debited = spendNativeForExport(
-    sellerLedger,
-    quote.goodId,
-    quote.quantity,
-    policy?.protectedReserve ?? 0,
-  );
-  if (!debited.ok) return { ok: false, reason: 'stale-offer', state };
+  let sellerLedgerAfter = sellerLedger;
+  if (options.settlement !== 'service') {
+    const debited = spendNativeForExport(
+      sellerLedger,
+      quote.goodId,
+      quote.quantity,
+      policy?.protectedReserve ?? 0,
+    );
+    if (!debited.ok) return { ok: false, reason: 'stale-offer', state };
+    sellerLedgerAfter = debited.ledger;
+  }
 
   if (options.settlement === 'incoming' && !options.claimId) {
     return { ok: false, reason: 'stale-offer', state };
   }
   const buyerLedger = getCivMaterialLedger(state, quote.buyerCivId);
   const definition = goodDefinition(quote.goodId, definitions);
-  const credited = options.settlement === 'incoming'
-    ? claimIncomingStock(
-      buyerLedger,
-      {
-        id: options.claimId!,
-        goodId: quote.goodId,
-        ownerCivId: quote.buyerCivId,
-        amount: quote.quantity,
-      },
-      definition?.quantity?.storageCapacity ?? DEFAULT_STORAGE_PER_GOOD,
-    )
-    : creditImportedStock(buyerLedger, quote.goodId, quote.quantity);
-  if (!credited.ok) return { ok: false, reason: 'insufficient-capacity', state };
+  let buyerLedgerAfter = buyerLedger;
+  if (options.settlement !== 'service') {
+    const credited = options.settlement === 'incoming'
+      ? claimIncomingStock(
+        buyerLedger,
+        {
+          id: options.claimId!,
+          goodId: quote.goodId,
+          ownerCivId: quote.buyerCivId,
+          amount: quote.quantity,
+        },
+        definition?.quantity?.storageCapacity ?? DEFAULT_STORAGE_PER_GOOD,
+      )
+      : creditImportedStock(buyerLedger, quote.goodId, quote.quantity);
+    if (!credited.ok) return { ok: false, reason: 'insufficient-capacity', state };
+    buyerLedgerAfter = credited.ledger;
+  }
 
   const paid = settleGoldTransfers(
     state,
@@ -528,11 +559,15 @@ export function commitMarketLoad(
   const procurement = market.procurementByCiv?.[quote.buyerCivId];
   const nextState: GameState = {
     ...paid,
-    materialReservesByCiv: {
-      ...(paid.materialReservesByCiv ?? {}),
-      [quote.supplierCivId]: debited.ledger,
-      [quote.buyerCivId]: credited.ledger,
-    },
+    ...(options.settlement === 'service'
+      ? {}
+      : {
+        materialReservesByCiv: {
+          ...(paid.materialReservesByCiv ?? {}),
+          [quote.supplierCivId]: sellerLedgerAfter,
+          [quote.buyerCivId]: buyerLedgerAfter,
+        },
+      }),
     commerceMarket: {
       ...market,
       offers: market.offers.map(candidate => candidate.offerId === offer.offerId

@@ -12,6 +12,7 @@ import type {
 import { getIncomingQuantity, getStoredQuantity } from './resource-reserve-system';
 import { getCivMaterialLedger } from './resource-material-state';
 import { getTradeCargoCapacity } from './trade-role-targeting';
+import { LUXURY_SERVICE_GRACE_TURNS, isLuxuryCovered, isLuxuryServiceGood } from './luxury-service-system';
 import {
   RESOURCE_BACKED_GOODS,
   findTradeGood,
@@ -38,6 +39,13 @@ export function getProcurementRemaining(
   civId: string,
   order: Pick<ResourceProcurementOrder, 'goodId' | 'targetQuantity'>,
 ): number {
+  // Luxury service is coverage, not stock: buy one renewal only when the delivered window is close
+  // enough to expire that a normal route round trip plus grace can still arrive in time.
+  if (isLuxuryServiceGood(order.goodId)) {
+    return isLuxuryCovered(state, civId, order.goodId, LUXURY_SERVICE_GRACE_TURNS)
+      ? 0
+      : Math.max(1, order.targetQuantity);
+  }
   const ledger = getCivMaterialLedger(state, civId);
   return Math.max(0, order.targetQuantity - getStoredQuantity(ledger, order.goodId) - getIncomingQuantity(ledger, order.goodId));
 }

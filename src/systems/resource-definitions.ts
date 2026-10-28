@@ -49,6 +49,27 @@ export interface ResourceCodexMetadata {
   summary: string;
 }
 
+/**
+ * #1511 MR14: what *access* to this resource grants, separate from its worked-tile effect.
+ * Luxuries deliberately grant one happiness per distinct access; a tile's gold/production effect is
+ * a separate native yield and must never be multiplied by imported access.
+ */
+export type ResourceAccessBenefit =
+  | { kind: 'happiness'; amount: number }
+  | { kind: 'none' };
+
+export function getResourceAccessBenefit(definition: ResourceDefinition): ResourceAccessBenefit {
+  return definition.accessBenefit
+    ?? (definition.type === 'luxury'
+      ? { kind: 'happiness', amount: 1 }
+      : { kind: 'none' });
+}
+
+export function getResourceAccessLabel(definition: ResourceDefinition): string {
+  const benefit = getResourceAccessBenefit(definition);
+  return benefit.kind === 'happiness' ? `+${benefit.amount} happiness` : 'No trade-access benefit';
+}
+
 export interface ResourceDefinition {
   id: ResourceType;
   name: string;
@@ -59,6 +80,8 @@ export interface ResourceDefinition {
   icon: string;
   requiredImprovement: BuildableImprovementType;
   effect: ResourceEffect | null;
+  /** Access benefit; absent means the type default (luxury happiness, otherwise none). */
+  accessBenefit?: ResourceAccessBenefit;
   materialFamily?: ResourceMaterialFamily;
   /** #1505 MR08: empty/absent means the resource is not a counted stock. */
   economicRoles?: readonly ResourceEconomicRole[];
@@ -66,18 +89,18 @@ export interface ResourceDefinition {
 }
 
 export const RESOURCE_DEFINITIONS: ResourceDefinition[] = [
-  { id: 'silk', name: 'Silk', type: 'luxury', terrain: 'grassland', basePrice: 8, tech: 'irrigation', icon: '🧵', requiredImprovement: 'plantation', effect: { type: 'happiness', amount: 1 } },
-  { id: 'wine', name: 'Wine', type: 'luxury', terrain: 'plains', basePrice: 7, tech: 'pottery', icon: '🍇', requiredImprovement: 'plantation', effect: { type: 'happiness', amount: 1 } },
-  { id: 'ivory', name: 'Ivory', type: 'luxury', terrain: 'forest', basePrice: 9, tech: 'foraging', icon: '🐘', requiredImprovement: 'camp', effect: { type: 'happiness', amount: 1 } },
-  { id: 'furs', name: 'Furs', type: 'luxury', terrain: ['forest', 'tundra'], basePrice: 9, tech: 'foraging', icon: '🦊', requiredImprovement: 'camp', effect: { type: 'happiness', amount: 1 } },
-  { id: 'incense', name: 'Incense', type: 'luxury', terrain: 'desert', basePrice: 6, tech: 'currency', icon: '🕯️', requiredImprovement: 'plantation', effect: { type: 'happiness', amount: 1 } },
-  { id: 'gems', name: 'Gems', type: 'luxury', terrain: 'hills', basePrice: 12, tech: 'mining-tech', icon: '💎', requiredImprovement: 'mine', effect: { type: 'gold', amount: 1 } },
-  { id: 'gold', name: 'Gold', type: 'luxury', terrain: 'hills', basePrice: 15, tech: 'currency', icon: '⭐', requiredImprovement: 'mine', effect: { type: 'gold', amount: 1 } },
-  { id: 'silver', name: 'Silver', type: 'luxury', terrain: 'hills', basePrice: 11, tech: 'mining-tech', icon: '🥈', requiredImprovement: 'mine', effect: { type: 'gold', amount: 1 } },
-  { id: 'spices', name: 'Spices', type: 'luxury', terrain: 'jungle', basePrice: 10, tech: 'cartography', icon: '🌶️', requiredImprovement: 'plantation', effect: { type: 'gold', amount: 1 } },
-  { id: 'sheep', name: 'Sheep', type: 'luxury', terrain: ['hills', 'plains'], basePrice: 7, tech: 'animal-husbandry', icon: '🐑', requiredImprovement: 'pasture', effect: { type: 'production', amount: 1 } },
-  { id: 'cattle', name: 'Cattle', type: 'strategic', terrain: ['grassland', 'plains'], basePrice: 5, tech: 'domestication', icon: '🐄', requiredImprovement: 'pasture', effect: { type: 'food', amount: 1 } },
-  { id: 'salt', name: 'Salt', type: 'strategic', terrain: 'hills', basePrice: 5, tech: 'pottery', icon: '🧂', requiredImprovement: 'mine', effect: { type: 'gold', amount: 1 } },
+  { id: 'silk', name: 'Silk', type: 'luxury', accessBenefit: { kind: 'happiness', amount: 1 }, terrain: 'grassland', basePrice: 8, tech: 'irrigation', icon: '🧵', requiredImprovement: 'plantation', effect: { type: 'happiness', amount: 1 } },
+  { id: 'wine', name: 'Wine', type: 'luxury', accessBenefit: { kind: 'happiness', amount: 1 }, terrain: 'plains', basePrice: 7, tech: 'pottery', icon: '🍇', requiredImprovement: 'plantation', effect: { type: 'happiness', amount: 1 } },
+  { id: 'ivory', name: 'Ivory', type: 'luxury', accessBenefit: { kind: 'happiness', amount: 1 }, terrain: 'forest', basePrice: 9, tech: 'foraging', icon: '🐘', requiredImprovement: 'camp', effect: { type: 'happiness', amount: 1 } },
+  { id: 'furs', name: 'Furs', type: 'luxury', accessBenefit: { kind: 'happiness', amount: 1 }, terrain: ['forest', 'tundra'], basePrice: 9, tech: 'foraging', icon: '🦊', requiredImprovement: 'camp', effect: { type: 'happiness', amount: 1 } },
+  { id: 'incense', name: 'Incense', type: 'luxury', accessBenefit: { kind: 'happiness', amount: 1 }, terrain: 'desert', basePrice: 6, tech: 'currency', icon: '🕯️', requiredImprovement: 'plantation', effect: { type: 'happiness', amount: 1 } },
+  { id: 'gems', name: 'Gems', type: 'luxury', accessBenefit: { kind: 'happiness', amount: 1 }, terrain: 'hills', basePrice: 12, tech: 'mining-tech', icon: '💎', requiredImprovement: 'mine', effect: { type: 'gold', amount: 1 } },
+  { id: 'gold', name: 'Gold', type: 'luxury', accessBenefit: { kind: 'happiness', amount: 1 }, terrain: 'hills', basePrice: 15, tech: 'currency', icon: '⭐', requiredImprovement: 'mine', effect: { type: 'gold', amount: 1 } },
+  { id: 'silver', name: 'Silver', type: 'luxury', accessBenefit: { kind: 'happiness', amount: 1 }, terrain: 'hills', basePrice: 11, tech: 'mining-tech', icon: '🥈', requiredImprovement: 'mine', effect: { type: 'gold', amount: 1 } },
+  { id: 'spices', name: 'Spices', type: 'luxury', accessBenefit: { kind: 'happiness', amount: 1 }, terrain: 'jungle', basePrice: 10, tech: 'cartography', icon: '🌶️', requiredImprovement: 'plantation', effect: { type: 'gold', amount: 1 } },
+  { id: 'sheep', name: 'Sheep', type: 'luxury', accessBenefit: { kind: 'happiness', amount: 1 }, terrain: ['hills', 'plains'], basePrice: 7, tech: 'animal-husbandry', icon: '🐑', requiredImprovement: 'pasture', effect: { type: 'production', amount: 1 } },
+  { id: 'cattle', name: 'Cattle', type: 'strategic', accessBenefit: { kind: 'none' }, terrain: ['grassland', 'plains'], basePrice: 5, tech: 'domestication', icon: '🐄', requiredImprovement: 'pasture', effect: { type: 'food', amount: 1 } },
+  { id: 'salt', name: 'Salt', type: 'strategic', accessBenefit: { kind: 'none' }, terrain: 'hills', basePrice: 5, tech: 'pottery', icon: '🧂', requiredImprovement: 'mine', effect: { type: 'gold', amount: 1 } },
   { id: 'copper', name: 'Copper', type: 'strategic', terrain: 'hills', basePrice: 5, tech: 'stone-weapons', icon: '🪙', requiredImprovement: 'mine', effect: null, economicRoles: ['material'] },
   { id: 'iron', name: 'Iron', type: 'strategic', terrain: 'hills', basePrice: 8, tech: 'bronze-working', icon: '⚙️', requiredImprovement: 'mine', effect: null, economicRoles: ['material'] },
   { id: 'horses', name: 'Horses', type: 'strategic', terrain: 'plains', basePrice: 7, tech: 'animal-husbandry', icon: '🐎', requiredImprovement: 'pasture', effect: null, economicRoles: ['material'] },

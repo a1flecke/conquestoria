@@ -286,6 +286,17 @@ describe('save persistence (#38)', () => {
       procurementByCiv: { [buyer]: { maxUnitPrice: 11, treasuryFloor: 5 } },
     };
     state.commerceMarket = market;
+    state.luxuryServiceByCiv = {
+      [state.currentPlayer]: {
+        coverageByGood: {
+          'resource:spices': {
+            goodId: 'resource:spices',
+            expiresOnTurn: state.turn + 4,
+            supplierCivIds: [buyer],
+          },
+        },
+      },
+    };
     const fromCityId = state.civilizations[state.currentPlayer]!.cities[0]!;
     const toCityId = state.civilizations[buyer]!.cities[0]!;
     state.marketplace = {
@@ -310,6 +321,7 @@ describe('save persistence (#38)', () => {
             unitPrice: 9,
             paid: 54,
             sellerCivId: buyer,
+            serviceTurns: 4,
           }],
         },
       }],
@@ -320,6 +332,7 @@ describe('save persistence (#38)', () => {
     if (parsed.status !== 'success') throw new Error(parsed.message);
     expect(parsed.state.commercePermissions?.resourcePolicies).toEqual(state.commercePermissions.resourcePolicies);
     expect(parsed.state.commerceMarket).toEqual(market);
+    expect(parsed.state.luxuryServiceByCiv).toEqual(state.luxuryServiceByCiv);
     expect(parsed.state.marketplace?.tradeRoutes[0]).toEqual(state.marketplace.tradeRoutes[0]);
   });
 

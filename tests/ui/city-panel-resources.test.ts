@@ -131,14 +131,16 @@ describe('city panel resource bonus section', () => {
     expect(text).toContain('+1 gold/turn');
   });
 
-  it('test 24: only yield resources (gems, no silk) → "Empire bonuses" header absent', () => {
+  it('test 24: a distinct luxury grants happiness access while its tile effect stays local', () => {
     const state = makeStateWithGems();
     const city = state.cities['city-river'];
     const container = document.getElementById('panel-root')!;
     createCityPanel(container, city, state, noopCallbacks);
     const text = container.textContent ?? '';
-    expect(text).not.toContain('Empire bonuses');
+    expect(text).toContain('Empire bonuses');
+    expect(text).toContain('+1 happiness');
     expect(text).toContain('Worked-tile bonuses');
+    expect(text).toContain('+1 gold/turn');
   });
 
   it('does not show an owned but unworked resource as a city bonus', () => {
