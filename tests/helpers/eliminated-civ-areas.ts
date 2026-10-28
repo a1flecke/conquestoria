@@ -345,6 +345,22 @@ export const ELIMINATED_CIV_AREAS: Record<keyof GameState, EliminatedCivArea> = 
       .filter(([id, autonomy]) => isEliminatedId(id, ctx) && Object.keys((autonomy as { plans?: object }).plans ?? {}).length > 0)
       .map(([id]) => `autonomyByCiv still has an active network plan for eliminated civ "${id}"`),
   },
+  luxuryServiceByCiv: {
+    kind: 'teardown',
+    why: 'a dead civ has no delivered luxury service, and surviving coverage no longer names it as a supplier',
+    scan: (state, ctx) => {
+      const problems: string[] = [];
+      for (const [civId, service] of Object.entries(state.luxuryServiceByCiv ?? {})) {
+        if (isEliminatedId(civId, ctx)) problems.push(`luxury service still has an entry for eliminated civ "${civId}"`);
+        for (const coverage of Object.values(service.coverageByGood)) {
+          if (coverage.supplierCivIds.some(id => isEliminatedId(id, ctx))) {
+            problems.push(`luxury coverage "${coverage.goodId}" still names an eliminated supplier`);
+          }
+        }
+      }
+      return problems;
+    },
+  },
   materialReservesByCiv: {
     kind: 'teardown',
     why: 'a dead civ holds no reserve ledger (#1506 MR09); elimination deletes it so stale stock or migration assistance cannot be inherited',

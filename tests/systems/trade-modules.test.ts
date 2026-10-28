@@ -29,7 +29,8 @@ const SURFACE: Array<[name: string, module: object, exports: string[]]> = [
       'getRouteDiplomacy', 'removeRouteById', 'removeRouteForUnit', 'scrubEmbargoedRoutes', 'scrubStaleForeignRoutes', 'scrubUnpermittedRoutes']],
   ['trade-caravan-system', caravan, ['canEstablishRoute', 'establishRoute', 'resolveFromCity']],
   ['resource-definitions', resources,
-    ['BASE_PRICES', 'RESOURCE_DEFINITIONS', 'RESOURCE_ICONS', 'RESOURCE_TECH', 'getResourceEffectLabel']],
+    ['BASE_PRICES', 'RESOURCE_DEFINITIONS', 'RESOURCE_ICONS', 'RESOURCE_TECH',
+      'getResourceAccessBenefit', 'getResourceAccessLabel', 'getResourceEffectLabel']],
 ];
 
 describe('#1249 — the trade modules keep their audited public surface', () => {
@@ -42,7 +43,7 @@ describe('#1249 — the trade modules keep their audited public surface', () => 
   it('every pre-split value export is accounted for: 22 originals (24 minus the 2 re-exported types) + getResourceEffectLabel + getRouteDiplomacy + scrubUnpermittedRoutes (#1499) + isRoutePositioning (#1500) + getTradeRouteQuote/getRouteOperatingStatus/settleTradeRouteForCiv (#1501) + the four route-control exports (#1502)', () => {
     const values = SURFACE.flatMap(([, , exports]) => exports);
     expect(new Set(values).size, 'no export is owned by two modules').toBe(values.length);
-    expect(values).toHaveLength(33);
+    expect(values).toHaveLength(35);
   });
 
   it('helpers that were private before the split stay private', () => {

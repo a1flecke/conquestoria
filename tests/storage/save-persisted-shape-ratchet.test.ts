@@ -64,6 +64,12 @@ const ADDITIVE_WITHOUT_MIGRATION: Readonly<Record<string, string>> = {
   'marketplace.tradeRoutes[].manifest.items': '#1509 MR12 — optional manifest item list; absent with no manifest.',
   'commerceMarket.procurementByCiv.*.roundBudget': '#1509 MR12 — optional shared budget; absent means no route budget cap.',
   'commerceMarket.procurementByCiv.*.spentThisTurn': '#1509 MR12 — optional spend counter; absent means zero spent.',
+  // #1511 MR14 — delivered luxury coverage and its optional service metadata. A pre-MR14 save has
+  // none; every reader treats absence as no delivered coverage. `save-persistence.test.ts`
+  // round-trips a populated coverage record and a service manifest item.
+  'luxuryServiceByCiv': '#1511 MR14 — optional delivered luxury coverage; absent means no coverage.',
+  'marketplace.tradeRoutes[].manifest.items[].serviceTurns': '#1511 MR14 — optional service-bundle duration; absent means a stored-goods manifest item.',
+  'commercePermissions.resourcePolicies[].serviceAllotments': '#1511 MR14 — optional luxury export service allotment; absent means no foreign service.',
   // Long-pre-existing optional `Unit` fields (the naval transport ⇔ land cargo
   // dual reference). They predate this ratchet; no matrix fixture had a loaded
   // transport until #1000's `cargo-reciprocity` malformed-repair case, which is

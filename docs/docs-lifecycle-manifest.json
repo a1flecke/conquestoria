@@ -28,6 +28,16 @@
     "1497": "OPEN"
    }
   },
+  "docs/superpowers/plans/2026-10-25-issue-1511-luxury-delivery.md": {
+   "category": "active",
+   "reason": "MR14 implementation plan for delivery-backed luxury coverage, bounded supplier service, distinct-luxury happiness and explicit access benefits; owned by open child issue #1511 under parent #1497. Delete this file and move its entry to delivered history in the PR that completes MR14.",
+   "issues": [
+    1511
+   ],
+   "issueStates": {
+    "1511": "OPEN"
+   }
+  },
   "docs/superpowers/specs/2026-07-07-hidden-city-state-economy-design.md": {
    "category": "active",
    "reason": "Foundation design cited by the open minor-civ graduation issue #497.",

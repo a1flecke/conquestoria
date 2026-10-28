@@ -9,10 +9,10 @@ import {
 import { getProductionDisplayName } from '@/systems/city-production-presentation';
 import { getQueueableProductionForCity } from '@/systems/city-production-eligibility';
 import { getCivAvailableResources, getCivHappinessFromResources } from '@/systems/resource-acquisition-system';
-import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
+import { RESOURCE_DEFINITIONS, getResourceAccessBenefit } from '@/systems/resource-definitions';
 import { resolveFromCity } from '@/systems/trade-caravan-system';
 import { getRouteCapacity } from '@/systems/trade-route-economy';
-import { getResourceEffectLabel } from '@/systems/resource-definitions';
+import { getResourceAccessLabel, getResourceEffectLabel } from '@/systems/resource-definitions';
 import { getCityWorkedResourceEffects } from '@/systems/resource-system';
 import { getResourceAdvantagesForItem } from '@/systems/resource-advantages';
 import { SESSION_SHOWN_TIPS } from '@/ui/advisor-system';
@@ -245,7 +245,7 @@ export function createCityPanelView(
   const currentCiv = state.civilizations[city.owner];
   const playerResources = getCivAvailableResources(state, city.owner);
   const happinessResources = RESOURCE_DEFINITIONS.filter(
-    d => d.effect?.type === 'happiness' && playerResources.has(d.id as never),
+    d => getResourceAccessBenefit(d).kind === 'happiness' && playerResources.has(d.id as never),
   );
   const workedResourceEffects = getCityWorkedResourceEffects(
     city,
@@ -1443,7 +1443,7 @@ export function createCityPanelView(
   // Populate resource bonus rows via textContent (XSS-safe)
   for (const def of happinessResources) {
     const el = slot('data-res-happiness', def.id);
-    if (el) el.textContent = `${def.icon} ${resourceDisplayName(def.id, def.name)} → ${getResourceEffectLabel(def.effect)}`;
+    if (el) el.textContent = `${def.icon} ${resourceDisplayName(def.id, def.name)} → ${getResourceAccessLabel(def)}`;
   }
   for (const [idx, worked] of workedResourceEffects.entries()) {
     const def = RESOURCE_DEFINITIONS.find(candidate => candidate.id === worked.resource);

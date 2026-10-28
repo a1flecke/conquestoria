@@ -1,5 +1,5 @@
 import type { NotificationCityAction, NotificationLogState } from './notification-log';
-import type { CommerceMarketState, CommercePermissionsState, CityProductionMaterials, MaterialCostRow, ReserveLedger, ResourceManifest, ResourceProcurementTerms, TradeRouteInterruptionReason, TradeRouteModeId } from './types/commerce';
+import type { CommerceMarketState, CommercePermissionsState, CityProductionMaterials, LuxuryServiceState, MaterialCostRow, ReserveLedger, ResourceManifest, ResourceProcurementTerms, TradeRouteInterruptionReason, TradeRouteModeId } from './types/commerce';
 import type { PirateState } from './pirate-state';
 import type { DominationIntelState } from '@/systems/domination-types';
 import type { GovernancePolicyId } from '@/systems/governance-types';
@@ -2009,6 +2009,8 @@ export interface GameState extends AiGameState, CouncilGameState, NotificationLo
   commercePermissions?: CommercePermissionsState;
   /** #1508 MR11: once-per-round posted-price offers, retained cursor and procurement policy. */
   commerceMarket?: CommerceMarketState;
+  /** #1511 MR14: delivered luxury-service coverage, separate from native resource access. */
+  luxuryServiceByCiv?: Record<string, LuxuryServiceState>;
   /** #1506 MR09: per-civ native/imported reserve ledgers. Absent before the migration; readers treat it as empty. */
   materialReservesByCiv?: Record<string, ReserveLedger>;
   economyStatusByCiv?: Record<string, EconomyStatus>;

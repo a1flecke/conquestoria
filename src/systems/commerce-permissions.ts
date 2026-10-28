@@ -101,6 +101,10 @@ export function setCommerceResourcePolicy(
   if (policy.tariffRecipientCivId && !state.civilizations[policy.tariffRecipientCivId]) {
     throw new Error(`Unknown tariff recipient "${policy.tariffRecipientCivId}".`);
   }
+  const serviceAllotments = policy.serviceAllotments ?? 0;
+  if (!Number.isSafeInteger(serviceAllotments) || serviceAllotments < 0) {
+    throw new Error('A service allotment must be a nonnegative safe integer.');
+  }
   const partners = [...new Set(policy.partnerCivIds)]
     .filter(partner => partner !== policy.civId)
     .sort();
@@ -111,6 +115,7 @@ export function setCommerceResourcePolicy(
     partnerCivIds: partners,
     ...(tariff > 0 ? { tariffPerUnit: tariff } : {}),
     ...(policy.tariffRecipientCivId ? { tariffRecipientCivId: policy.tariffRecipientCivId } : {}),
+    ...(serviceAllotments > 0 ? { serviceAllotments } : {}),
   };
   const permissions = permissionsOf(state);
   const remaining = (permissions.resourcePolicies ?? [])

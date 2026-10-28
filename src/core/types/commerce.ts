@@ -164,6 +164,22 @@ export interface CommerceResourcePolicy {
   tariffPerUnit?: number;
   /** Required when `tariffPerUnit` is positive. */
   tariffRecipientCivId?: string;
+  /** Continuing-access luxury service slots the seller will promise this round. */
+  serviceAllotments?: number;
+}
+
+/** One delivered luxury-service coverage window. */
+export interface LuxuryCoverage {
+  goodId: TradeGoodId;
+  /** The last turn this coverage is active (inclusive). */
+  expiresOnTurn: number;
+  /** Suppliers whose deliveries currently extend this good's coverage. */
+  supplierCivIds: readonly string[];
+}
+
+/** Per-civ delivered luxury coverage. Native access is not stored here. */
+export interface LuxuryServiceState {
+  coverageByGood: Readonly<Record<TradeGoodId, LuxuryCoverage>>;
 }
 
 export type MarketPriceBand = 'abundant' | 'normal' | 'tight' | 'capped';
@@ -219,6 +235,8 @@ export interface ResourceManifestItem {
   unitPrice: number;
   paid: number;
   sellerCivId: string;
+  /** Present for a luxury service bundle; activates coverage on home delivery. */
+  serviceTurns?: number;
 }
 
 /** A route's persisted, owned cargo. It is created at supplier loading and cleared at home delivery. */

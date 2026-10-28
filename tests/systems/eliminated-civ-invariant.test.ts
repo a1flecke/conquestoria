@@ -159,6 +159,19 @@ describe('#1001 every teardown area is actually asserted', () => {
         procurementByCiv: { 'ai-1': { maxUnitPrice: 10, treasuryFloor: 0 } },
       };
     },
+    luxuryServiceByCiv: s => {
+      s.luxuryServiceByCiv = {
+        'ai-1': {
+          coverageByGood: {
+            'resource:spices': {
+              goodId: 'resource:spices',
+              expiresOnTurn: s.turn + 2,
+              supplierCivIds: ['ai-1'],
+            },
+          },
+        },
+      };
+    },
     economyStatusByCiv: s => { s.economyStatusByCiv = { 'ai-1': {} as never }; },
     materialReservesByCiv: s => {
       s.materialReservesByCiv = {
