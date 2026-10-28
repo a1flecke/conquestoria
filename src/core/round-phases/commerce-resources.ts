@@ -14,6 +14,7 @@ import type { GameState } from '@/core/types';
 import { getCivilizationLiveness } from '@/systems/civilization-liveness';
 import { accrueNativeStockForCompletedRound } from '@/systems/resource-material-state';
 import { syncCityMaterialCommitment } from '@/systems/city-production-materials';
+import { allocateFuelForRound } from '@/systems/resource-fuel-system';
 import type { RoundPhase, RoundPhaseContext } from './types';
 
 function runCommerceResources(state: GameState, _context: RoundPhaseContext): GameState {
@@ -30,7 +31,9 @@ function runCommerceResources(state: GameState, _context: RoundPhaseContext): Ga
     }
   }
 
-  return next;
+  // Allocate industrial fuel once, before any city calculates yields. Later deliveries fund the
+  // next round, never a city that has already produced this one.
+  return allocateFuelForRound(next);
 }
 
 export const commerceResourcesPhase: RoundPhase = { id: 'commerce-resources', run: runCommerceResources };

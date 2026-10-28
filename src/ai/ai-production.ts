@@ -28,6 +28,7 @@ import { getQueueableProductionForCity } from '@/systems/city-production-eligibi
 import { evaluateMaterialFunding, getMaterialRecipe } from '@/systems/resource-material-costs';
 import { accrueNativeStockForCompletedRound, getCivMaterialLedger } from '@/systems/resource-material-state';
 import { getCityMaterialProjection, syncCityMaterialCommitment } from '@/systems/city-production-materials';
+import { getFuelRunway } from '@/systems/resource-fuel-system';
 import { getAvailableTechs } from '@/systems/tech-system';
 import type { AIForceDemand } from './ai-unit-assignment';
 import { getAIStrategicRoles } from './ai-unit-roles';
@@ -757,6 +758,15 @@ function generateWithResidual(
     const buildingStrategicArsenalScore = strategicArsenalValueScore(state, civId, building.id);
     const buildingUnrestReliefScore = unrestReliefScore(state, civId, cityId, building.id);
     const buildingWorldRaceScore = worldRaceScore(state, civId, building.id);
+    // #1512 MR15: do not endlessly expand fuel-dependent industry into a known shortage. A funded
+    // runway keeps the normal score; a shortage applies a bounded penalty so unfueled alternatives
+    // remain competitive.
+    const fuelPenalty = building.fuelDemand
+      ? (() => {
+        const runway = getFuelRunway(state, civId, building.fuelDemand.goodId);
+        return runway.status === 'shortage' ? 12 : runway.status === 'delivery-uncertain' ? 5 : 0;
+      })()
+      : 0;
     const score = economyScore * 2
       + personalityScore
       + citySpecializationScore
@@ -766,7 +776,8 @@ function generateWithResidual(
       + buildingUnrestReliefScore
       + buildingWorldRaceScore
       - productionTurns * 1.5
-      - maintenanceRisk * 3;
+      - maintenanceRisk * 3
+      - fuelPenalty;
     candidates.push({
       itemId: building.id,
       kind: 'building',

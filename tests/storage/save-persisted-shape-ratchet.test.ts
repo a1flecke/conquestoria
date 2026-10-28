@@ -70,6 +70,12 @@ const ADDITIVE_WITHOUT_MIGRATION: Readonly<Record<string, string>> = {
   'luxuryServiceByCiv': '#1511 MR14 — optional delivered luxury coverage; absent means no coverage.',
   'marketplace.tradeRoutes[].manifest.items[].serviceTurns': '#1511 MR14 — optional service-bundle duration; absent means a stored-goods manifest item.',
   'commercePermissions.resourcePolicies[].serviceAllotments': '#1511 MR14 — optional luxury export service allotment; absent means no foreign service.',
+  // #1512 MR15 — fuel posture, one-time startup marker and per-round fallback list are optional.
+  // Absence means balanced posture, no startup grant yet, and no fallback (the normal allocation path
+  // writes all three). `save-persistence.test.ts` proves the startup allowance is granted once only.
+  'fuelConservationByCiv': '#1512 MR15 — optional national fuel posture; absent means balanced.',
+  'fuelStartupGrantedByCiv': '#1512 MR15 — optional one-time startup marker; absent means the load grants once, then marks it.',
+  'cities.*.fuelFallbackBuildingIds': '#1512 MR15 — optional per-round fallback list; absent means no fallback recorded.',
   // Long-pre-existing optional `Unit` fields (the naval transport ⇔ land cargo
   // dual reference). They predate this ratchet; no matrix fixture had a loaded
   // transport until #1000's `cargo-reciprocity` malformed-repair case, which is

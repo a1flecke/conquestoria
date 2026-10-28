@@ -182,6 +182,16 @@ export interface LuxuryServiceState {
   coverageByGood: Readonly<Record<TradeGoodId, LuxuryCoverage>>;
 }
 
+export type FuelYieldDelta = Partial<Record<'food' | 'production' | 'gold' | 'science', number>>;
+
+/** #1512 MR15: optional industrial fuel demand and graceful fallback output. */
+export interface FuelDemand {
+  goodId: TradeGoodId;
+  unitsPerRound: number;
+  poweredYields?: FuelYieldDelta;
+  fallbackYields: FuelYieldDelta;
+}
+
 export type MarketPriceBand = 'abundant' | 'normal' | 'tight' | 'capped';
 
 /**

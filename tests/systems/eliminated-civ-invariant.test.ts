@@ -159,6 +159,8 @@ describe('#1001 every teardown area is actually asserted', () => {
         procurementByCiv: { 'ai-1': { maxUnitPrice: 10, treasuryFloor: 0 } },
       };
     },
+    fuelConservationByCiv: s => { s.fuelConservationByCiv = { 'ai-1': 'conserve' }; },
+    fuelStartupGrantedByCiv: s => { s.fuelStartupGrantedByCiv = { 'ai-1': true }; },
     luxuryServiceByCiv: s => {
       s.luxuryServiceByCiv = {
         'ai-1': {

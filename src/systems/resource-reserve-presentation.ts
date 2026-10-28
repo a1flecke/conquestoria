@@ -22,6 +22,7 @@ import {
   type MaterialFundingRow,
 } from './resource-material-costs';
 import { countNativeSourcesByGood, getCivMaterialLedger } from './resource-material-state';
+import { getFuelRunway } from './resource-fuel-system';
 import {
   getCommittedQuantity,
   getFreeQuantity,
@@ -95,6 +96,10 @@ export interface ReserveSuppliesRow {
   overflow: number;
   /** Still-restricted migration assistance reservation amount; not ordinary spendable stock. */
   migrationAssistance: number;
+  /** #1512 MR15: real scheduled fuel demand and its runway, when this good is used as fuel. */
+  fuelDemandPerRound?: number;
+  fuelRunwayRounds?: number | null;
+  fuelStatus?: 'no-demand' | 'funded' | 'shortage' | 'delivery-uncertain';
 }
 
 function migrationAssistance(ledger: ReturnType<typeof getCivMaterialLedger>, goodId: TradeGoodId): number {
@@ -131,6 +136,7 @@ export function getReserveSuppliesRows(state: GameState, civId: string): Reserve
     const headroom = getStorageHeadroom(ledger, goodId, capacity);
     const cappedQuantity = Math.max(0, extractionPerRound - headroom);
 
+    const fuel = getFuelRunway(state, civId, goodId);
     rows.push({
       goodId,
       resource: definition.id,
@@ -151,6 +157,13 @@ export function getReserveSuppliesRows(state: GameState, civId: string): Reserve
       cappedQuantity,
       overflow: Math.max(0, stored - capacity),
       migrationAssistance: migrationAssistance(ledger, goodId),
+      ...(fuel.status !== 'no-demand'
+        ? {
+          fuelDemandPerRound: fuel.demandPerRound,
+          fuelRunwayRounds: fuel.runwayRounds,
+          fuelStatus: fuel.status,
+        }
+        : {}),
     });
   }
 

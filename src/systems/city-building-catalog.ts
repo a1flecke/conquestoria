@@ -492,8 +492,14 @@ const BUILDING_DEFINITIONS: Record<string, Building> = {
   factory: {
     id: 'factory', name: 'Factory', category: 'production',
     yields: { food: 0, production: 3, gold: 0, science: 1 }, productionCost: 155,
-    description: 'Steam-powered industrial works. +3 production, +1 science.',
+    description: 'Steam-powered industrial works. +3 production, +1 science while fueled by coal.',
     techRequired: 'steam-power',
+    fuelDemand: {
+      goodId: resourceGoodId('coal'),
+      unitsPerRound: 1,
+      poweredYields: { production: 3, science: 1 },
+      fallbackYields: { production: 1, science: 0 },
+    },
   },
   steel_mill: {
     id: 'steel_mill', name: 'Steel Mill', category: 'production',
@@ -644,8 +650,14 @@ const BUILDING_DEFINITIONS: Record<string, Building> = {
   oil_refinery: {
     id: 'oil_refinery', name: 'Oil Refinery', category: 'production',
     yields: { food: 0, production: 3, gold: 0, science: 0 }, productionCost: 185,
-    description: 'Petroleum extraction and refining. +3 production per turn.',
+    description: 'Petroleum extraction and refining. +3 production per turn while fueled by oil.',
     techRequired: 'petroleum-industry', materialCosts: hard('oil'),
+    fuelDemand: {
+      goodId: resourceGoodId('oil'),
+      unitsPerRound: 1,
+      poweredYields: { production: 3 },
+      fallbackYields: { production: 1 },
+    },
   },
   assembly_line: {
     id: 'assembly_line', name: 'Assembly Line', category: 'production',
@@ -814,9 +826,15 @@ const BUILDING_DEFINITIONS: Record<string, Building> = {
   nuclear_power_plant: {
     id: 'nuclear_power_plant', name: 'Nuclear Power Plant', category: 'production',
     yields: { food: 0, production: 5, gold: 0, science: 0 }, productionCost: 200,
-    description: 'Atomic reactor generating electricity without fuel costs. +5 production per turn.',
+    description: 'Atomic reactor generating electricity. +5 production while fueled by uranium; a plant without fuel falls back but is never destroyed.',
     techRequired: 'nuclear-power', materialCosts: hard('uranium'),
     pacing: { band: 'marquee', role: 'late-power-production', impact: 1.6, scope: 'city', snowball: 1.5, urgency: 1.2, situationality: 1.0, unlockBreadth: 1 },
+    fuelDemand: {
+      goodId: resourceGoodId('uranium'),
+      unitsPerRound: 1,
+      poweredYields: { production: 5 },
+      fallbackYields: { production: 1 },
+    },
   },
   television_station: {
     id: 'television_station', name: 'Television Station', category: 'culture',
