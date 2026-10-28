@@ -20,7 +20,7 @@ import { normalizeMinorCivCoalitionState } from '@/systems/minor-civ-coalition-s
 import { normalizeMinorCivEconomyState } from '@/systems/minor-civ-economy-system';
 import { normalizeMinorCivLeagueState } from '@/storage/minor-civ-league-normalization';
 import { ID_COUNTER_SPECS, scanIdCounters } from '@/core/id-counters';
-import { migrateSaveToCurrent } from '@/storage/save-migrations';
+import { CURRENT_SAVE_SCHEMA_VERSION, migrateSaveToCurrent } from '@/storage/save-migrations';
 import { refreshKnownCivilizations } from '@/systems/discovery-system';
 import { reconstructLastSeenFromMap } from '@/systems/last-seen-presentation';
 import { clearStaleSoloPendingEvents } from '@/core/hotseat-events';
@@ -46,6 +46,7 @@ import { createEmptyOpponentAIState, normalizeOpponentAIState } from '@/core/opp
 import { getCrisisFlavor } from '@/systems/crisis-flavor-definitions';
 import { createTechState } from '@/systems/tech-system';
 import { normalizeNationalProjects } from '@/systems/national-project-system';
+import { ensureFuelStartupAllowance } from '@/systems/resource-fuel-system';
 
 const SAVE_PREFIX = 'save:';
 const META_PREFIX = 'meta:';
@@ -827,6 +828,9 @@ export function migrateLegacyCoastalData(state: GameState): GameState {
 }
 
 export function normalizeLoadedState(state: GameState): NormalizedGameState {
+  // The startup allowance is a migration for saves written before MR15. A current-schema save or a
+  // fresh game must not gain a marker/ledger merely by being loaded.
+  const sourceSchemaVersion = state.saveSchemaVersion ?? 0;
   const migrated = migrateSaveToCurrent(state);
   const normalizedCityState = normalizeNationalProjects(migrateLegacyPirateFleets(normalizeMinorCivLeagueState(normalizeMinorCivEconomyState(normalizeMinorCivCoalitionState(normalizeMinorCivQuestState(
     migrateLegacyCoastalData(normalizeThreatPressureDefaults(normalizeLandmassKeys(normalizeLegacyCitySimState(migrateStripCityGrid(migrateLegacyPlanningState(migrateLegacyNamingState(ensureGameIdentity(migrated)))))))),
@@ -900,7 +904,11 @@ export function normalizeLoadedState(state: GameState): NormalizedGameState {
   }
   clearStaleSoloPendingEvents(normalized);
 
-  return normalizeOpponentAIState(normalized) as NormalizedGameState;
+  return normalizeOpponentAIState(
+    sourceSchemaVersion < CURRENT_SAVE_SCHEMA_VERSION
+      ? ensureFuelStartupAllowance(normalized)
+      : normalized,
+  ) as NormalizedGameState;
 }
 
 export const normalizeLoadedStateForTest = normalizeLoadedState;

@@ -1,5 +1,5 @@
 import type { NotificationCityAction, NotificationLogState } from './notification-log';
-import type { CommerceMarketState, CommercePermissionsState, CityProductionMaterials, LuxuryServiceState, MaterialCostRow, ReserveLedger, ResourceManifest, ResourceProcurementTerms, TradeRouteInterruptionReason, TradeRouteModeId } from './types/commerce';
+import type { CommerceMarketState, CommercePermissionsState, CityProductionMaterials, FuelDemand, LuxuryServiceState, MaterialCostRow, ReserveLedger, ResourceManifest, ResourceProcurementTerms, TradeRouteInterruptionReason, TradeRouteModeId } from './types/commerce';
 import type { PirateState } from './pirate-state';
 import type { DominationIntelState } from '@/systems/domination-types';
 import type { GovernancePolicyId } from '@/systems/governance-types';
@@ -952,6 +952,8 @@ export interface Building {
   productionCost: number;
   description: string;
   techRequired?: string | null;
+  /** #1512 MR15: optional industrial fuel demand and its graceful fallback output. */
+  fuelDemand?: FuelDemand;
   /** Additional technologies required alongside the legacy single-tech gate. */
   requiredTechs?: string[];
   coastalRequired?: boolean;
@@ -1044,6 +1046,8 @@ export interface City {
   resilienceBonusUntilTurn?: number;    // catastrophe recovery: +1 food +1 production until this turn
   /** Global turn when this city's Coastal Battery last returned naval siege damage. */
   coastalBatteryCounterfireTurn?: number;
+  /** #1512 MR15: buildings that fell back this round because fuel was unavailable. */
+  fuelFallbackBuildingIds?: readonly string[];
 }
 
 // --- Economy ---
@@ -2011,6 +2015,10 @@ export interface GameState extends AiGameState, CouncilGameState, NotificationLo
   commerceMarket?: CommerceMarketState;
   /** #1511 MR14: delivered luxury-service coverage, separate from native resource access. */
   luxuryServiceByCiv?: Record<string, LuxuryServiceState>;
+  /** #1512 MR15: national fuel-conservation posture; absent means balanced. */
+  fuelConservationByCiv?: Record<string, 'balanced' | 'conserve'>;
+  /** #1512 MR15: one-time startup allowance marker; loading never grants twice. */
+  fuelStartupGrantedByCiv?: Record<string, boolean>;
   /** #1506 MR09: per-civ native/imported reserve ledgers. Absent before the migration; readers treat it as empty. */
   materialReservesByCiv?: Record<string, ReserveLedger>;
   economyStatusByCiv?: Record<string, EconomyStatus>;

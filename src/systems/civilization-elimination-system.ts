@@ -303,6 +303,8 @@ export function eliminateCivilization(
   // #1511 MR14: a dead civ has no delivered luxury service. Surviving coverage drops the dead
   // supplier from its records but keeps the buyer's remaining delivered window.
   delete next.luxuryServiceByCiv?.[civId];
+  delete next.fuelConservationByCiv?.[civId];
+  delete next.fuelStartupGrantedByCiv?.[civId];
   if (next.luxuryServiceByCiv) {
     for (const [buyerCivId, service] of Object.entries(next.luxuryServiceByCiv)) {
       next.luxuryServiceByCiv[buyerCivId] = {

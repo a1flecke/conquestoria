@@ -252,6 +252,23 @@ describe('save persistence (#38)', () => {
     expect(normalized.lastNotifiedStatusByCiv).toEqual({});
   });
 
+  it('grants the fuel startup allowance once on load and never refreshes it', () => {
+    const state = createNewGame(undefined, 'fuel-startup', 'small');
+    const civ = state.civilizations[state.currentPlayer]!;
+    const settler = civ.units.map(id => state.units[id]).find(unit => unit?.type === 'settler')!;
+    const city = foundCity(civ.id, settler.position, state.map, state.idCounters);
+    city.buildings = [...city.buildings, 'factory'];
+    state.cities[city.id] = city;
+    civ.cities = [city.id];
+    state.saveSchemaVersion = CURRENT_SAVE_SCHEMA_VERSION - 1;
+    const first = normalizeLoadedStateForTest(state);
+    const coal = 'resource:coal';
+    expect(first.materialReservesByCiv?.[state.currentPlayer]?.balances[coal]?.imported).toBe(10);
+    expect(first.fuelStartupGrantedByCiv?.[state.currentPlayer]).toBe(true);
+    const second = normalizeLoadedStateForTest(first);
+    expect(second.materialReservesByCiv?.[state.currentPlayer]?.balances[coal]?.imported).toBe(10);
+  });
+
   it('round-trips good-keyed policies, the offer snapshot, cursor and procurement policy', () => {
     const state = createNewGame(undefined, 'market-round-trip', 'small');
     const buyer = Object.keys(state.civilizations).find(id => id !== state.currentPlayer)!;

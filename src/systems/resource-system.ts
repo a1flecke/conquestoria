@@ -128,15 +128,19 @@ export function calculateCityYields(
     yields.food += bonusEffect.foodBonus;
   }
 
-  // Building yields
+  // Building yields. A fuel-backed building uses its declared fallback when this round's allocation
+  // could not fund it; the building itself remains intact.
+  const fuelFallback = new Set(city.fuelFallbackBuildingIds ?? []);
   for (const buildingId of city.buildings) {
     const building = BUILDINGS[buildingId];
-    if (building && !building.nationalProject) {
-      yields.food += building.yields.food;
-      yields.production += building.yields.production;
-      yields.gold += building.yields.gold;
-      yields.science += building.yields.science;
-    }
+    if (!building || building.nationalProject) continue;
+    const yieldsForBuilding = fuelFallback.has(buildingId) && building.fuelDemand
+      ? { ...building.yields, ...building.fuelDemand.fallbackYields }
+      : building.yields;
+    yields.food += yieldsForBuilding.food;
+    yields.production += yieldsForBuilding.production;
+    yields.gold += yieldsForBuilding.gold;
+    yields.science += yieldsForBuilding.science;
   }
 
   // Tech-driven economy modifiers (cityFlat/conditional/perBuilding/perPopulation/perImprovement)

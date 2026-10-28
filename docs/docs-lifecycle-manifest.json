@@ -194,6 +194,13 @@
   }
  },
  "deleted": {
+  "docs/superpowers/plans/2026-10-25-issue-1512-industrial-fuel.md": {
+   "category": "delivered-stale",
+   "reason": "MR15 delivered: selected factory/refinery/nuclear fuel demand, once-per-round allocation, graceful fallback, runway/conservation UI, one-time migration allowance and AI shortage penalty. Current behavior and evidence live in source, tests and the MR15 issue history; git history is the archive.",
+   "issues": [
+    1512
+   ]
+  },
   "docs/superpowers/plans/2026-10-25-issue-1511-luxury-delivery.md": {
    "category": "delivered-stale",
    "reason": "MR14 delivered: delivery-backed luxury coverage, bounded supplier service, distinct-luxury happiness separate from tile effects, explicit cattle/salt access benefits, persistence and live presentation. Current behavior and evidence live in source, tests and the MR14 issue history; git history is the archive.",

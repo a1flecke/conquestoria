@@ -345,6 +345,20 @@ export const ELIMINATED_CIV_AREAS: Record<keyof GameState, EliminatedCivArea> = 
       .filter(([id, autonomy]) => isEliminatedId(id, ctx) && Object.keys((autonomy as { plans?: object }).plans ?? {}).length > 0)
       .map(([id]) => `autonomyByCiv still has an active network plan for eliminated civ "${id}"`),
   },
+  fuelConservationByCiv: {
+    kind: 'teardown',
+    why: 'a dead civ has no national fuel-conservation posture',
+    scan: (state, ctx) => Object.keys(state.fuelConservationByCiv ?? {})
+      .filter(id => isEliminatedId(id, ctx))
+      .map(id => `fuelConservationByCiv still has an entry for eliminated civ "${id}"`),
+  },
+  fuelStartupGrantedByCiv: {
+    kind: 'teardown',
+    why: 'a dead civ has no fuel startup-allowance marker',
+    scan: (state, ctx) => Object.keys(state.fuelStartupGrantedByCiv ?? {})
+      .filter(id => isEliminatedId(id, ctx))
+      .map(id => `fuelStartupGrantedByCiv still has an entry for eliminated civ "${id}"`),
+  },
   luxuryServiceByCiv: {
     kind: 'teardown',
     why: 'a dead civ has no delivered luxury service, and surviving coverage no longer names it as a supplier',

@@ -5,6 +5,7 @@ import { getCivAvailableResources, getInstantResourcePurchaseNotice } from '@/sy
 import { getCommercialPassagePermission, getCommerceResourcePolicy } from '@/systems/commerce-permissions';
 import { getReserveSuppliesRows } from '@/systems/resource-reserve-presentation';
 import { getLuxuryCoverage, getNextLuxuryShipment } from '@/systems/luxury-service-system';
+import { getFuelConservationPolicy } from '@/systems/resource-fuel-system';
 import { resourceGoodId } from '@/systems/trade-good-definitions';
 import { createGameButton } from './ui-kit';
 import { createSlotIndex } from './dom-slot-index';
@@ -17,6 +18,8 @@ interface MarketplaceCallbacks {
   onRouteControl?: RouteControlHandler;
   /** #1509 MR12: the seller's protected reserve and partner grants. */
   onSetResourcePolicy?: (policy: CommerceResourcePolicy) => void;
+  /** #1512 MR15: national fuel-conservation posture. */
+  onSetFuelConservation?: (policy: 'balanced' | 'conserve') => void;
 }
 
 export function createMarketplacePanel(
@@ -89,6 +92,7 @@ export function createMarketplacePanel(
             <div style="opacity:0.7;" data-text="res-committed-${idx}"></div>
             <div style="opacity:0.7;" data-text="res-rate-${idx}"></div>
             <div style="color:#d9a25c;" data-text="res-cap-${idx}"></div>
+            <div style="color:#e8c170;" data-text="res-fuel-${idx}"></div>
             <div style="color:#e8c170;" data-text="res-assistance-${idx}"></div>
           </div>
         `
@@ -170,6 +174,16 @@ export function createMarketplacePanel(
       if (reserve.capped) capParts.push(`Storage capped — ${units(reserve.cappedQuantity)} cannot fit this round`);
       if (reserve.overflow > 0) capParts.push(`${units(reserve.overflow)} above capacity`);
       setText(`res-cap-${idx}`, capParts.join(' · '));
+      setText(
+        `res-fuel-${idx}`,
+        reserve.fuelStatus === 'no-demand'
+          ? ''
+          : reserve.fuelStatus === 'funded'
+            ? `Fuel demand ${reserve.fuelDemandPerRound}/round · runway ${reserve.fuelRunwayRounds ?? '∞'} round(s)`
+            : reserve.fuelStatus === 'delivery-uncertain'
+              ? `Fuel demand ${reserve.fuelDemandPerRound}/round · delivery uncertain`
+              : `Fuel demand ${reserve.fuelDemandPerRound}/round · projected shortage`,
+      );
       setText(
         `res-assistance-${idx}`,
         reserve.migrationAssistance > 0
@@ -346,6 +360,23 @@ export function createMarketplacePanel(
         row.appendChild(save);
       }
       policiesBody.appendChild(row);
+    }
+    if (callbacks.onSetFuelConservation) {
+      const conservation = document.createElement('div');
+      conservation.dataset.fuelConservation = 'true';
+      conservation.style.cssText = 'margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.1);display:flex;gap:8px;align-items:center;flex-wrap:wrap;';
+      const label = document.createElement('span');
+      label.textContent = 'Fuel conservation:';
+      conservation.appendChild(label);
+      const current = getFuelConservationPolicy(state, state.currentPlayer);
+      for (const policy of ['balanced', 'conserve'] as const) {
+        const button = createGameButton(policy === 'balanced' ? 'Balanced' : 'Conserve', policy === current ? 'primary' : 'secondary');
+        button.dataset.fuelPolicy = policy;
+        button.setAttribute('aria-pressed', String(policy === current));
+        button.addEventListener('click', () => callbacks.onSetFuelConservation!(policy));
+        conservation.appendChild(button);
+      }
+      policiesBody.appendChild(conservation);
     }
   }
 

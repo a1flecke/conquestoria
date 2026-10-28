@@ -14,6 +14,7 @@ import { resolveFromCity } from '@/systems/trade-caravan-system';
 import { getRouteCapacity } from '@/systems/trade-route-economy';
 import { getResourceAccessLabel, getResourceEffectLabel } from '@/systems/resource-definitions';
 import { getCityWorkedResourceEffects } from '@/systems/resource-system';
+import { getCityFuelStatus } from '@/systems/resource-fuel-system';
 import { getResourceAdvantagesForItem } from '@/systems/resource-advantages';
 import { SESSION_SHOWN_TIPS } from '@/ui/advisor-system';
 import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
@@ -1086,6 +1087,11 @@ export function createCityPanelView(
     : '';
 
   // Current production placeholders
+  const fuelStatus = getCityFuelStatus(state, city);
+  const fuelStatusHtml = fuelStatus.length > 0
+    ? `<div data-city-fuel="true" style="background:rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;margin-bottom:12px;font-size:12px;color:#e8c170;"><span data-text="city-fuel-status"></span></div>`
+    : '';
+
   let currentProductionHtml = '';
   if (city.productionQueue.length > 0) {
     const currentItem = city.productionQueue[0];
@@ -1287,7 +1293,7 @@ export function createCityPanelView(
       <button type="button" id="tab-wonders" style="min-height:44px;color:inherit;font:inherit;border:none;padding:6px 16px;border-radius:6px;cursor:pointer;font-size:12px;background:rgba(255,255,255,0.05);">Legendary Wonders</button>
     </div>
     <div id="city-list-view">
-      ${landmarkPreviewHtml}${idleSelectorHtml}${currentProductionHtml}
+      ${fuelStatusHtml}${landmarkPreviewHtml}${idleSelectorHtml}${currentProductionHtml}
       ${city.productionQueue.length > 1 ? `<div style="background:rgba(255,255,255,0.08);border-radius:10px;padding:12px;margin-bottom:16px;"><div style="font-weight:bold;color:#e8c170;margin-bottom:8px;">Production Queue</div>${queueRowsHtml}</div>` : ''}
       ${cityWonderProject ? `<div style="margin-bottom:12px;font-size:12px;opacity:0.75;">Wonder carryover: ${cityWonderProject.transferableProduction}</div>` : ''}
       ${city.buildings.length > 0 ? `<div style="margin-bottom:16px;"><h3 style="font-size:14px;margin:0 0 8px;">Buildings</h3>${buildingPlaceholders}</div>` : ''}
@@ -1460,6 +1466,12 @@ export function createCityPanelView(
     const turnsLeft = productionDecision
       ? (productionDecision.turnsToComplete ?? '∞')
       : (yields.production > 0 ? Math.max(1, Math.ceil((totalCost - city.productionProgress) / yields.production)) : '∞');
+    setText(
+      'city-fuel-status',
+      fuelStatus
+        .map(entry => `${entry.buildingId}: ${entry.powered ? 'fueled' : 'fallback (no fuel)'} · ${entry.goodId.replace('resource:', '')}`)
+        .join(' · '),
+    );
     setText('prod-name', getProductionDisplayName(currentItem));
     const waitingForMaterials = activeMaterial !== null && !activeMaterial.funded;
     const unknownHead = activeMaterial !== null && !activeMaterial.known;

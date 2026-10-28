@@ -824,6 +824,37 @@ describe('createMarketplacePanel material reserves (#1506 MR09)', () => {
     }));
   });
 
+  it('shows fuel runway and exposes the national conservation posture', () => {
+    const state = buildState({
+      currentPlayer: 'p1',
+      civTechs: ['steam-power'],
+      cities: {
+        city1: {
+          id: 'city1', owner: 'p1', position: { q: 0, r: 0 },
+          ownedTiles: [{ q: 0, r: 0 }], workedTiles: [], buildings: ['factory'],
+          productionQueue: [], productionProgress: 0,
+        },
+      },
+    });
+    state.materialReservesByCiv = {
+      p1: {
+        balances: { [resourceGoodId('coal')]: { native: 3, imported: 0 } },
+        reservations: [],
+        incoming: [],
+        lastAccruedTurn: -1,
+      },
+    };
+    const onSetFuelConservation = vi.fn();
+    createMarketplacePanel(container, state, { onClose: vi.fn(), onSetFuelConservation });
+
+    const panel = document.getElementById('marketplace-panel')!;
+    expect(panel.textContent).toContain('Fuel demand 1/round');
+    expect(panel.textContent).toContain('runway 3');
+    const conserve = panel.querySelector<HTMLButtonElement>('[data-fuel-policy="conserve"]')!;
+    conserve.click();
+    expect(onSetFuelConservation).toHaveBeenCalledWith('conserve');
+  });
+
   it('replaces the inventory boolean with exact stored/committed/free/incoming counts', () => {
     const state = ironState(
       { [iron]: { native: 14, imported: 0 } },
