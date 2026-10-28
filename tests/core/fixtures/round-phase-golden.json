@@ -2,7 +2,7 @@
   "turns": [
     {
       "state": {
-        "__whole": "f95530a3dd47",
+        "__whole": "0fe3091eac5e",
         "activeEventChains": "e5c153358a49",
         "autonomyByCiv": "95313c912b48",
         "barbarianCampPressure": "44136fa355b3",
@@ -10,7 +10,7 @@
         "beasts": "02b7d3487cce",
         "cities": "ff1fa35f7194",
         "cityFaith": "44136fa355b3",
-        "civilizations": "4cd732f9c255",
+        "civilizations": "4f50dc35fa91",
         "commercePermissions": "b053f8ba4051",
         "completedLegendaryWonders": "44136fa355b3",
         "crisisForces": "44136fa355b3",
@@ -18,7 +18,7 @@
         "defensiveLeagues": "4f53cda18c2b",
         "discoveredWonders": "f7498f6d795e",
         "dominationIntel": "44136fa355b3",
-        "economyStatusByCiv": "146ff78925f6",
+        "economyStatusByCiv": "5fe7e5038ea6",
         "embargoes": "4f53cda18c2b",
         "era": "ef2d127de37b",
         "espionage": "6e75ba83b336",
@@ -73,7 +73,7 @@
     },
     {
       "state": {
-        "__whole": "04f5e2c73b27",
+        "__whole": "c540748a5d56",
         "activeEventChains": "4ce55a23983b",
         "autonomyByCiv": "95313c912b48",
         "barbarianCampPressure": "44136fa355b3",
@@ -81,7 +81,7 @@
         "beasts": "02b7d3487cce",
         "cities": "e13f7d38d939",
         "cityFaith": "44136fa355b3",
-        "civilizations": "4a408eac45c8",
+        "civilizations": "8e165eadb661",
         "commercePermissions": "b053f8ba4051",
         "completedLegendaryWonders": "44136fa355b3",
         "crisisForces": "033248019318",
@@ -89,7 +89,7 @@
         "defensiveLeagues": "4f53cda18c2b",
         "discoveredWonders": "f7498f6d795e",
         "dominationIntel": "44136fa355b3",
-        "economyStatusByCiv": "1abae4530e5b",
+        "economyStatusByCiv": "a55a749867cd",
         "embargoes": "4f53cda18c2b",
         "era": "ef2d127de37b",
         "espionage": "d2fd9ea35ce6",
@@ -139,12 +139,12 @@
         "wonderDiscoverers": "1679e898f916",
         "worldRaces": "9c3d03a50f52"
       },
-      "events": "dab4081c65f7",
+      "events": "5133ce654569",
       "trace": "e6962a7df8f5"
     },
     {
       "state": {
-        "__whole": "ede489bf8194",
+        "__whole": "c31b0ec3d716",
         "activeEventChains": "6e262c6d14d8",
         "autonomyByCiv": "95313c912b48",
         "barbarianCampPressure": "44136fa355b3",
@@ -152,7 +152,7 @@
         "beasts": "8a920f36b7c3",
         "cities": "6ea8e711aee9",
         "cityFaith": "44136fa355b3",
-        "civilizations": "f72268c5ea07",
+        "civilizations": "7bcdd3d8b139",
         "commercePermissions": "b053f8ba4051",
         "completedLegendaryWonders": "44136fa355b3",
         "crisisForces": "6b8851af20c5",
@@ -160,7 +160,7 @@
         "defensiveLeagues": "4f53cda18c2b",
         "discoveredWonders": "f7498f6d795e",
         "dominationIntel": "44136fa355b3",
-        "economyStatusByCiv": "f8c057044473",
+        "economyStatusByCiv": "da4ff2280f96",
         "embargoes": "4f53cda18c2b",
         "era": "ef2d127de37b",
         "espionage": "6cd1f0e4fa5c",
@@ -210,7 +210,7 @@
         "wonderDiscoverers": "655edbf58914",
         "worldRaces": "9c3d03a50f52"
       },
-      "events": "b556b7f9617d",
+      "events": "249be892ee0c",
       "trace": "e6962a7df8f5"
     }
   ]
