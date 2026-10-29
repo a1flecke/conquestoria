@@ -5,7 +5,7 @@
      Regenerate: UPDATE_SAVE_COMPAT_DOC=1 yarn vitest run tests/storage/save-migration-registries.test.ts
      Enforced by: tests/storage/save-migration-registries.test.ts -->
 
-Current schema version: **36**
+Current schema version: **37**
 
 Save compatibility is three separate mechanisms (#1023). They are deliberately
 not interchangeable: a normalizer silently standing in for a migration that was
@@ -57,6 +57,7 @@ Never on an already-current save.
 | 34 | `trade-route-settlement` | #1501 MR04 made route income a settlement paid only for a completed round of validated service; an existing route therefore needs a payable-round budget derived from its own committed journey and a starting progress round, after which the normal per-round rules apply. |
 | 35 | `trade-route-persistence` | #1502 MR05 retired the finite trip counter: a route no longer expires, so a save written before it must not keep a dead tripsRemaining value on its units. |
 | 36 | `material-reserves` | #1506 MR09 activated hard-material production: a save written before it has no reserve ledger, and its legacy-entitled active work must receive one bounded native seed plus finite imported assistance exactly once. The schema guard is what prevents a reload from granting again. |
+| 37 | `retired-market-access` | #1516 MR19 retired the instant access market. A pre-containment save may still carry purchased access entries; schema 36 already funded any active work they entitled, so this step converts a live luxury entry into delivered service coverage at its recorded expiry, drops a strategic entry without fabricating stock, and clears the list so no runtime branch reads it again. |
 
 ## 2. Compatibility normalization
 

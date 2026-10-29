@@ -29,15 +29,8 @@ function runPreCivReconciliation(state: GameState, context: RoundPhaseContext): 
   newState = tickOccupiedCities(newState);
   context.previousEconomyStatusByCiv = newState.economyStatusByCiv ?? {};
 
-  // Clean up expired purchased-resource entries (Diplomatic Marketplace / S9)
-  if (newState.marketplace?.purchasedResources?.length) {
-    newState.marketplace = {
-      ...newState.marketplace,
-      purchasedResources: newState.marketplace.purchasedResources.filter(
-        e => e.expiresOnTurn > newState.turn,
-      ),
-    };
-  }
+  // #1516 MR19: legacy purchased-resource entries are consumed once by the ordered
+  // `retired-market-access` migration, so no per-turn cleanup branch remains here.
 
   newState = reconcileLegendaryWonderAvailability(newState, bus);
   return newState;

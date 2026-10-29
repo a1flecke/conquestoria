@@ -1619,24 +1619,22 @@ describe('processTurn', () => {
     expect(withFederalism.civilizations.player.gold).toBe(baseline.civilizations.player.gold);
   });
 
-  it('cleans up expired purchasedResources entries at the start of each turn (expiresOnTurn <= state.turn)', () => {
+  it('no longer rewrites legacy purchasedResources during a turn; the load migration owns them (#1516)', () => {
     const state = createNewGame(undefined, 'purchased-expiry-test', 'small');
     const bus = new EventBus();
+    const legacy = [
+      { civId: 'player', resource: 'silk' as never, expiresOnTurn: state.turn },
+      { civId: 'player', resource: 'wine' as never, expiresOnTurn: state.turn + 5 },
+    ];
 
     // state.turn starts at 1 for a new game
-    state.marketplace = {
-      ...(state.marketplace ?? { prices: {}, priceHistory: {}, fashionable: null, fashionTurnsLeft: 0, tradeRoutes: [] }),
-      purchasedResources: [
-        { civId: 'player', resource: 'silk' as never, expiresOnTurn: state.turn },      // = 1 → expires this turn
-        { civId: 'player', resource: 'wine' as never, expiresOnTurn: state.turn + 5 },  // = 6 → still active
-      ],
-    };
+    state.marketplace = { ...(state.marketplace ?? { tradeRoutes: [] }), purchasedResources: legacy };
 
     const result = processTurn(state, bus);
 
-    const remaining = result.marketplace?.purchasedResources ?? [];
-    expect(remaining.some(e => e.resource === 'silk')).toBe(false); // expired → removed
-    expect(remaining.some(e => e.resource === 'wine')).toBe(true);  // active → kept
+    // The retired per-turn cleanup branch is gone: `retired-market-access` consumes the list once on
+    // load, so a turn phase must not reinterpret or drop entries behind the player's back.
+    expect(result.marketplace?.purchasedResources).toEqual(legacy);
   });
 
   // Adapted from the working `processPurposefulBarbarians` fixture in

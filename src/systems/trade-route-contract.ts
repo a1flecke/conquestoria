@@ -254,7 +254,7 @@ export function establishTradeRoute(
 
   const marketState = state.marketplace
     ? { ...state.marketplace, tradeRoutes: [...state.marketplace.tradeRoutes] }
-    : { prices: {}, priceHistory: {}, fashionable: null, fashionTurnsLeft: 0, tradeRoutes: [], purchasedResources: [] };
+    : { tradeRoutes: [] };
 
   const idCounters = { ...state.idCounters };
   if (!idCounters.nextRouteId) idCounters.nextRouteId = 1;

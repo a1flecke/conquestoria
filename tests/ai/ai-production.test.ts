@@ -12,6 +12,7 @@ import type {
   ResourceType,
 } from '@/core/types';
 import { createNewGame } from '@/core/game-state';
+import { grantTestResourceAccess, revokeTestResourceAccess } from '../helpers/resource-access-fixtures';
 import { TECH_TREE, resolveCivilizationEra } from '@/systems/tech-definitions';
 import {
   BUILDINGS,
@@ -103,11 +104,7 @@ function setupState(
 }
 
 function grantResources(state: GameState, resources: ResourceType[]): void {
-  state.marketplace!.purchasedResources = resources.map(resource => ({
-    civId: 'ai-1',
-    resource,
-    expiresOnTurn: state.turn + 10,
-  }));
+  grantTestResourceAccess(state, 'ai-1', resources);
 }
 
 /** Real native stock for a material good; #1506 selection needs the recipe funded, not just access. */
@@ -390,7 +387,7 @@ describe('AI strategic production', () => {
     expect(available.find(candidate => candidate.itemId === 'cuirassier')?.roles)
       .toEqual(expect.arrayContaining(['mobile', 'capture']));
 
-    grantResources(state, ['horses']);
+    revokeTestResourceAccess(state, 'ai-1', ['iron']);
     const ironBlocked = generateAIProductionCandidates(
       state, 'ai-1', 'city-a', [demand('mobile')], aggressive,
     );

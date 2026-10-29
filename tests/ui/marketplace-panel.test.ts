@@ -567,23 +567,19 @@ describe('createMarketplacePanel', () => {
     } as unknown as GameState;
   }
 
-  describe('instant imports are withheld (#1498)', () => {
-    const REBUILDING_COPY = 'Resource imports are being rebuilt. Trade routes remain available.';
-
-    it('shows the approved rebuilding explanation', () => {
+  describe('the retired instant market leaves no panel affordance (#1516)', () => {
+    it('shows no containment notice for a viewer with known civilizations', () => {
       const state = buildStateWithKnownCiv();
       createMarketplacePanel(container, state, { onClose: vi.fn() });
 
-      const notice = container.querySelector('[data-section="resource-imports-rebuilding"]');
-      expect(notice?.textContent).toBe(REBUILDING_COPY);
+      expect(container.querySelector('[data-section="resource-imports-rebuilding"]')).toBeNull();
     });
 
-    it('shows the explanation even for a viewer with no known civilizations', () => {
+    it('shows no containment notice even for a viewer with no known civilizations', () => {
       const state = buildState({ currentPlayer: 'p1', civTechs: [] });
       createMarketplacePanel(container, state, { onClose: vi.fn() });
 
-      expect(container.querySelector('[data-section="resource-imports-rebuilding"]')?.textContent)
-        .toBe(REBUILDING_COPY);
+      expect(container.querySelector('[data-section="resource-imports-rebuilding"]')).toBeNull();
     });
 
     it('renders no purchase control and no seller rows even when every old buy condition holds', () => {

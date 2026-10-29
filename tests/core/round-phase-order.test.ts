@@ -67,7 +67,6 @@ import * as lastSeen from '@/systems/last-seen-presentation';
 import * as economy from '@/systems/economy-system';
 import * as diplomacyRequests from '@/systems/diplomacy-requests';
 import * as territory from '@/systems/city-territory-system';
-import * as marketplace from '@/systems/marketplace-system';
 import * as tradeEconomy from '@/systems/trade-route-economy';
 import * as tradeLifecycle from '@/systems/trade-route-lifecycle';
 import * as commercePermissions from '@/systems/commerce-permissions';
@@ -116,7 +115,7 @@ const SEAMS: readonly Seam[] = [
   [discovery, 'syncCivilizationContactsFromVisibility'], [lastSeen, 'refreshLastSeenPresentationsForCiv'],
   [economy, 'applyEconomyTurn'], [diplomacyRequests, 'pruneExpiredDiplomaticRequests'],
   [territory, 'recalculateTerritory'], [territory, 'applyTerritoryFrontierProgressWithEvents'],
-  [marketplace, 'processFashionCycle'], [marketplace, 'updatePrices'], [tradeLifecycle, 'scrubStaleForeignRoutes'],
+  [tradeLifecycle, 'scrubStaleForeignRoutes'],
   [tradeLifecycle, 'scrubEmbargoedRoutes'], [tradeLifecycle, 'scrubUnpermittedRoutes'],
   [commercePermissions, 'pruneExpiredRouteAllowances'], [tradeEconomy, 'settleTradeRouteForCiv'], [wonder, 'processWonderEffects'],
   [barbarians, 'processPurposefulBarbarians'], [citySiege, 'applyCityHpRegeneration'],
@@ -347,8 +346,7 @@ const EXPECTED_AFTER: ReadonlyArray<readonly [phase: string, calls: readonly str
   ['post-civ-housekeeping', ['pruneExpiredDiplomaticRequests']],
   ['territory-frontier', ['recalculateTerritory', 'applyTerritoryFrontierProgressWithEvents']],
   ['wonders-market', [
-    'tickLegendaryWonderProjects', 'reconcileLegendaryWonderAvailability', 'processFashionCycle', 'updatePrices',
-    'processWonderEffects',
+    'tickLegendaryWonderProjects', 'reconcileLegendaryWonderAvailability', 'processWonderEffects',
   ]],
   ['barbarians', ['processPurposefulBarbarians', 'applyCityHpRegeneration']],
   ['minor-civs', ['processMinorCivTurn', 'checkCampEvolution']],

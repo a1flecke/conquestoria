@@ -5,15 +5,9 @@ import {
   isResourceTileDeniedByHostileOccupation,
   canEstablishOutpost,
   performEstablishOutpost,
-  getResourcePurchaseDecision,
-  performBuyResourceAccess,
-  getInstantResourcePurchaseNotice,
-  RESOURCE_MARKET_REBUILDING_REASON,
-  RESOURCE_PURCHASE_DENIAL_MESSAGES,
 } from '@/systems/resource-acquisition-system';
 import type { GameState } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
-import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 
 // Minimal GameState builder — only the fields getCivAvailableResources reads.
 function makeTechState(completed: string[] = []) {
@@ -772,289 +766,26 @@ describe('performEstablishOutpost', () => {
   });
 });
 
-describe('getCivAvailableResources — pass 3: purchased resources', () => {
-  function makeStateWithPurchase(overrides: {
-    civId?: string;
-    resource?: string;
-    expiresOnTurn?: number;
-    currentTurn?: number;
-    completed?: string[];
-    noMarketplace?: boolean;
-  }): GameState {
-    const {
-      civId = 'player',
-      resource = 'silk',
-      expiresOnTurn = 15,
-      currentTurn = 10,
-      completed = ['irrigation'],  // silk requires 'irrigation'
-      noMarketplace = false,
-    } = overrides;
-
-    return {
-      turn: currentTurn,
+describe('#1516 MR19 — the instant access market is retired', () => {
+  it('a legacy purchased entry no longer grants availability; the ordered migration owns it', () => {
+    const state = {
+      turn: 10,
       map: { width: 10, height: 10, tiles: {}, wrapsHorizontally: false, rivers: [] },
       cities: {},
       civilizations: {
-        'player': {
+        player: {
           id: 'player',
           cities: [],
-          techState: { completed, currentResearch: null, researchQueue: [], researchProgress: 0, trackPriorities: {} },
-        } as unknown as never,
-      },
-      marketplace: noMarketplace ? undefined : {
-        prices: {},
-        priceHistory: {},
-        fashionable: null,
-        fashionTurnsLeft: 0,
-        tradeRoutes: [],
-        purchasedResources: [{ civId, resource: resource as never, expiresOnTurn }],
-      },
-    } as unknown as GameState;
-  }
-
-  it('grants resource when purchasedResources entry matches civId and has not expired', () => {
-    const state = makeStateWithPurchase({ civId: 'player', expiresOnTurn: 15, currentTurn: 10 });
-    const result = getCivAvailableResources(state, 'player');
-    expect(result.has('silk')).toBe(true);
-  });
-
-  it('does NOT grant resource when purchasedResources entry belongs to a different civ (hot-seat isolation)', () => {
-    const state = makeStateWithPurchase({ civId: 'enemy', expiresOnTurn: 15, currentTurn: 10 });
-    const result = getCivAvailableResources(state, 'player');
-    expect(result.has('silk')).toBe(false);
-  });
-
-  it('does NOT grant resource when purchasedResources entry has expired (expiresOnTurn <= state.turn)', () => {
-    const state = makeStateWithPurchase({ civId: 'player', expiresOnTurn: 10, currentTurn: 10 });
-    const result = getCivAvailableResources(state, 'player');
-    expect(result.has('silk')).toBe(false);
-  });
-
-  it('does NOT crash and returns empty set when marketplace is absent (old save without purchasedResources)', () => {
-    const state = makeStateWithPurchase({ civId: 'player', expiresOnTurn: 15, currentTurn: 10, noMarketplace: true });
-    const result = getCivAvailableResources(state, 'player');
-    expect(result.has('silk')).toBe(false);
-  });
-
-  it('a reloaded save keeps the recorded expiry, so reloading never extends purchased access', () => {
-    // Persistence round-trip: the entry is plain data and no migration rewrites its expiry, so the
-    // ceiling recorded at purchase time survives a reload unchanged (#1498 MR01 case 12).
-    const purchased = makeStateWithPurchase({ civId: 'player', expiresOnTurn: 15, currentTurn: 10 });
-    const reloaded = JSON.parse(JSON.stringify(purchased)) as GameState;
-
-    expect(reloaded.marketplace!.purchasedResources).toEqual([
-      { civId: 'player', resource: 'silk', expiresOnTurn: 15 },
-    ]);
-    expect(getCivAvailableResources({ ...reloaded, turn: 14 }, 'player').has('silk')).toBe(true);
-    // At (and after) the recorded expiry the entry grants nothing — the same boundary as live play.
-    expect(getCivAvailableResources({ ...reloaded, turn: 15 }, 'player').has('silk')).toBe(false);
-    expect(getCivAvailableResources({ ...reloaded, turn: 99 }, 'player').has('silk')).toBe(false);
-  });
-});
-
-describe('instant resource purchases — MR01 containment (#1498)', () => {
-  // iron: tech='bronze-working', basePrice=8, requiredImprovement='mine'
-  function makeBuyState(overrides: {
-    buyerGold?: number;
-    sellerHasResource?: boolean;
-    buyerAlreadyOwns?: boolean;
-    atWar?: boolean;
-    relationshipScore?: number;
-    metSeller?: boolean;
-  }): GameState {
-    const {
-      buyerGold = 100,
-      sellerHasResource = true,
-      buyerAlreadyOwns = false,
-      atWar = false,
-      relationshipScore = 10,
-      metSeller = true,
-    } = overrides;
-
-    const tiles: Record<string, unknown> = {
-      '0,0': {
-        coord: { q: 0, r: 0 }, terrain: 'grassland', elevation: 'lowland',
-        resource: null, improvement: 'none', improvementTurnsLeft: 0,
-        hasRiver: false, wonder: null, owner: 'buyer',
-      },
-    };
-    if (sellerHasResource) {
-      tiles['5,5'] = {
-        coord: { q: 5, r: 5 }, terrain: 'hills', elevation: 'lowland',
-        resource: 'iron', improvement: 'mine', improvementTurnsLeft: 0,
-        hasRiver: false, wonder: null, owner: 'seller',
-      };
-    }
-
-    const buyerDiplomacy = {
-      relationships: metSeller ? { seller: relationshipScore } : {} as Record<string, number>,
-      treaties: [],
-      events: [],
-      atWarWith: atWar ? ['seller'] : [] as string[],
-      treacheryScore: 0,
-      vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 0, peakMilitary: 0 },
-    };
-
-    const prices: Record<string, number> = {};
-    const priceHistory: Record<string, number[]> = {};
-    for (const r of RESOURCE_DEFINITIONS) { prices[r.id] = r.basePrice; priceHistory[r.id] = [r.basePrice]; }
-
-    return {
-      turn: 5,
-      map: { width: 20, height: 20, tiles, wrapsHorizontally: false, rivers: [] },
-      cities: {
-        'buyer-city': {
-          id: 'buyer-city', owner: 'buyer', position: { q: 0, r: 0 },
-          ownedTiles: buyerAlreadyOwns ? [{ q: 5, r: 5 }] : [{ q: 0, r: 0 }],
-          workedTiles: [], population: 1, food: 0, production: 0, gold: 0,
-          buildings: [], productionQueue: [], specialistSlots: [],
-          garrisonUnitId: null, hp: 100, maxHp: 100,
+          techState: { completed: ['irrigation'], currentResearch: null, researchQueue: [], researchProgress: 0, trackPriorities: {} },
         },
-        'seller-city': {
-          id: 'seller-city', owner: 'seller', position: { q: 5, r: 5 },
-          ownedTiles: sellerHasResource ? [{ q: 5, r: 5 }] : [],
-          workedTiles: [], population: 1, food: 0, production: 0, gold: 0,
-          buildings: [], productionQueue: [], specialistSlots: [],
-          garrisonUnitId: null, hp: 100, maxHp: 100,
-        },
-      },
-      civilizations: {
-        buyer: {
-          id: 'buyer', cities: ['buyer-city'], units: [], gold: buyerGold,
-          techState: { completed: ['bronze-working', 'trade-routes'], currentResearch: null, researchQueue: [], researchProgress: 0, trackPriorities: {} },
-          diplomacy: buyerDiplomacy,
-        } as unknown as never,
-        seller: {
-          id: 'seller', cities: ['seller-city'], units: [], gold: 0,
-          techState: { completed: ['bronze-working'], currentResearch: null, researchQueue: [], researchProgress: 0, trackPriorities: {} },
-          diplomacy: { relationships: {}, treaties: [], events: [], atWarWith: atWar ? ['buyer'] : [], treacheryScore: 0, vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 0, peakMilitary: 0 } },
-        } as unknown as never,
       },
       marketplace: {
-        prices, priceHistory, fashionable: null, fashionTurnsLeft: 0, tradeRoutes: [], purchasedResources: [],
+        tradeRoutes: [],
+        purchasedResources: [{ civId: 'player', resource: 'silk', expiresOnTurn: 15 }],
       },
     } as unknown as GameState;
-  }
 
-  const REBUILDING = { allowed: false, reason: RESOURCE_MARKET_REBUILDING_REASON } as const;
-
-  it('refuses a fully eligible buyer with the canonical typed reason', () => {
-    // Widest-open fixture: gold, technology, a known peaceful seller, and a purchasable resource.
-    expect(getResourcePurchaseDecision(makeBuyState({}), 'buyer', 'seller', 'iron')).toEqual(REBUILDING);
-  });
-
-  // Every legacy condition is satisfied *except* one, and each variant is still refused with the
-  // same canonical reason: the rebuilding denial outranks the withdrawn legacy conditions rather
-  // than the market being closed by accident of one of them.
-  const legacyVariants: Array<[string, Parameters<typeof makeBuyState>[0]]> = [
-    ['at war', { atWar: true }],
-    ['a negative relationship', { relationshipScore: -5 }],
-    ['never having met the seller', { metSeller: false }],
-    ['the seller lacking the resource', { sellerHasResource: false }],
-    ['the buyer already owning it', { buyerAlreadyOwns: true }],
-    ['an unaffordable price', { buyerGold: 23 }],
-  ];
-  for (const [label, overrides] of legacyVariants) {
-    it(`refuses (${label}) with the same canonical reason`, () => {
-      expect(getResourcePurchaseDecision(makeBuyState(overrides), 'buyer', 'seller', 'iron')).toEqual(REBUILDING);
-    });
-  }
-
-  it('publishes the approved rebuilding explanation as the denial copy', () => {
-    expect(RESOURCE_PURCHASE_DENIAL_MESSAGES[RESOURCE_MARKET_REBUILDING_REASON])
-      .toBe('Resource imports are being rebuilt. Trade routes remain available.');
-    expect(getInstantResourcePurchaseNotice())
-      .toBe('Resource imports are being rebuilt. Trade routes remain available.');
+    expect(getCivAvailableResources(state, 'player').has('silk')).toBe(false);
   });
 });
 
-describe('performBuyResourceAccess — direct invocation is blocked (#1498)', () => {
-  function makeBuyStateForPerform(): GameState {
-    const prices: Record<string, number> = {};
-    const priceHistory: Record<string, number[]> = {};
-    for (const r of RESOURCE_DEFINITIONS) { prices[r.id] = r.basePrice; priceHistory[r.id] = [r.basePrice]; }
-
-    return {
-      turn: 5,
-      civilizations: {
-        buyer: {
-          id: 'buyer', cities: [], units: [], gold: 100,
-          techState: { completed: ['bronze-working'], currentResearch: null, researchQueue: [], researchProgress: 0, trackPriorities: {} },
-          diplomacy: { relationships: { seller: 10 }, treaties: [], events: [], atWarWith: [], treacheryScore: 0, vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 0, peakMilitary: 0 } },
-        } as unknown as never,
-        seller: {
-          id: 'seller', cities: ['seller-city'], units: [], gold: 0,
-          techState: { completed: ['bronze-working'], currentResearch: null, researchQueue: [], researchProgress: 0, trackPriorities: {} },
-          diplomacy: { relationships: { buyer: 10 }, treaties: [], events: [], atWarWith: [], treacheryScore: 0, vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 0, peakMilitary: 0 } },
-        } as unknown as never,
-      },
-      cities: {
-        'seller-city': {
-          id: 'seller-city', owner: 'seller', position: { q: 5, r: 5 }, ownedTiles: [{ q: 5, r: 5 }],
-          population: 1, food: 0, production: 0, gold: 0, buildings: [], productionQueue: [], workedTiles: [], specialistSlots: [], garrisonUnitId: null, hp: 100, maxHp: 100,
-        } as unknown as never,
-      },
-      map: {
-        width: 10, height: 10, wrapsHorizontally: false, rivers: [],
-        tiles: {
-          '5,5': { coord: { q: 5, r: 5 }, terrain: 'hills', elevation: 'lowland', resource: 'iron', improvement: 'none', improvementTurnsLeft: 0, hasRiver: false, wonder: null, owner: 'seller' },
-        },
-      },
-      marketplace: { prices, priceHistory, fashionable: null, fashionTurnsLeft: 0, tradeRoutes: [], purchasedResources: [] },
-    } as unknown as GameState;
-  }
-
-  it('refuses the direct purchase call: no gold spent and no purchased access added', () => {
-    const state = makeBuyStateForPerform();
-
-    const result = performBuyResourceAccess(state, 'buyer', 'seller', 'iron');
-
-    expect(result.ok).toBe(false);
-    expect(result.ok === false && result.reason).toBe(RESOURCE_MARKET_REBUILDING_REASON);
-    expect(result.state.civilizations['buyer'].gold).toBe(100);            // treasury unchanged
-    expect(result.state.marketplace!.purchasedResources).toHaveLength(0);  // access unchanged
-  });
-
-  it('the retired UI callback shape cannot buy: a fully eligible replay mutates nothing', () => {
-    // Before MR01 the marketplace panel exposed `onBuyResourceAccess(sellerCivId, resource)`, which
-    // called this executor directly. Replaying that exact shape against the widest-open fixture must
-    // be refused — a stale or hand-built callback is not a bypass.
-    const state = makeBuyStateForPerform();
-    const retiredCallback = (sellerCivId: string, resource: string) =>
-      performBuyResourceAccess(state, 'buyer', sellerCivId, resource as never);
-
-    const result = retiredCallback('seller', 'iron');
-
-    expect(result.ok).toBe(false);
-    expect(result.ok === false && result.reason).toBe(RESOURCE_MARKET_REBUILDING_REASON);
-    expect(state.civilizations['buyer'].gold).toBe(100);
-    expect(state.marketplace!.purchasedResources).toEqual([]);
-  });
-
-  it('fabricates no seller, quantity, duration, payment, or refund on an existing entry', () => {
-    const state = makeBuyStateForPerform();
-    state.marketplace!.purchasedResources = [{ civId: 'buyer', resource: 'silk', expiresOnTurn: 15 }];
-    const before = JSON.parse(JSON.stringify(state.marketplace!.purchasedResources));
-
-    const result = performBuyResourceAccess(state, 'buyer', 'seller', 'iron');
-
-    expect(result.ok).toBe(false);
-    expect(result.state.marketplace!.purchasedResources).toEqual(before);
-    expect(result.state.civilizations['buyer'].gold).toBe(100);
-  });
-
-  it('does not mutate the original state', () => {
-    const state = makeBuyStateForPerform();
-    performBuyResourceAccess(state, 'buyer', 'seller', 'iron');
-    expect(state.civilizations['buyer'].gold).toBe(100);
-    expect(state.marketplace!.purchasedResources).toHaveLength(0);
-  });
-
-  it('returns state unchanged when marketplace is absent', () => {
-    const state = makeBuyStateForPerform();
-    (state as unknown as Record<string, unknown>).marketplace = undefined;
-    const result = performBuyResourceAccess(state, 'buyer', 'seller', 'iron');
-    expect(result.ok).toBe(false);
-    expect(result.state.civilizations['buyer'].gold).toBe(100); // gold unchanged
-  });
-});

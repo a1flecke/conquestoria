@@ -9,6 +9,7 @@ import { EventBus } from '@/core/event-bus';
 import { processTurn } from '@/core/turn-manager';
 import { BUILDINGS } from '@/systems/city-system';
 import { TECH_TREE } from '@/systems/tech-definitions';
+import { grantTestResourceAccess } from '../helpers/resource-access-fixtures';
 import { getAvailableTechs } from '@/systems/tech-system';
 import { setIdleProduction } from '@/systems/planning-system';
 import type { AIForceDemand } from '@/ai/ai-unit-assignment';
@@ -143,7 +144,7 @@ describe('AI idle-production fallback', () => {
 
   it('an emergency force demand still beats conversion', () => {
     const state = setupMatureState(['gathering', 'siege-warfare']);
-    state.marketplace!.purchasedResources = [{ civId: 'ai-1', resource: 'stone', expiresOnTurn: state.turn + 10 }];
+    grantTestResourceAccess(state, 'ai-1', ['stone']);
     grantStoneStock(state);
     withResearch(state);
     const after = applyAIProduction(state, 'ai-1', [demand('siege', 900, ['defend:city-a'])], calm);
@@ -153,7 +154,7 @@ describe('AI idle-production fallback', () => {
 
   it('with two idle cities and one demand, the loser converts instead of wasting output', () => {
     const state = setupMatureState(['gathering', 'siege-warfare']);
-    state.marketplace!.purchasedResources = [{ civId: 'ai-1', resource: 'stone', expiresOnTurn: state.turn + 10 }];
+    grantTestResourceAccess(state, 'ai-1', ['stone']);
     grantStoneStock(state);
     withResearch(state);
     const civ = state.civilizations['ai-1'];

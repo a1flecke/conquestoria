@@ -1,48 +1,19 @@
 import type { GameState } from '@/core/types';
-import { processFashionCycle, updatePrices } from '@/systems/marketplace-system';
 import { processWonderEffects } from '@/systems/wonder-system';
 import { createRng } from '@/systems/map-generator';
-import { createSimulationRng } from '@/systems/simulation-rng';
 import { reconcileLegendaryWonderAvailability, tickLegendaryWonderProjects } from '@/systems/legendary-wonder-system';
 import type { RoundPhase, RoundPhaseContext } from './types';
 
 /**
- * Legendary-wonder projects tick and their availability is reconciled; the marketplace rolls one global fashion
- * cycle for the round and reprices from this round's supply (resource tiles in city territory) and demand
- * (population); natural wonders apply their effects (`wonder:eruption`).
+ * Legendary-wonder projects tick and their availability is reconciled; natural wonders apply their
+ * effects (`wonder:eruption`). #1516 MR19 removed the global world-price/fashion roll: seller
+ * offers are the only price source, so this phase no longer reprices a world market.
  */
 function runWondersMarket(state: GameState, context: RoundPhaseContext): GameState {
   let newState = state;
   const { bus } = context;
   newState = tickLegendaryWonderProjects(newState, bus);
   newState = reconcileLegendaryWonderAvailability(newState, bus);
-
-  // --- Process marketplace ---
-  if (newState.marketplace) {
-    // #982: one global fashion-cycle roll per turn. Was `turn*16807` alone --
-    // no gameId, so two campaigns at the same turn shared one fashion cycle.
-    const simpleRng = createSimulationRng(newState, { domain: 'marketplace-fashion-cycle', eventId: 'fashion-cycle' });
-    newState.marketplace = processFashionCycle(newState.marketplace, simpleRng);
-
-    // Compute supply (resource tiles in city territory) and demand (population)
-    const supply: Record<string, number> = {};
-    const demand: Record<string, number> = {};
-    for (const city of Object.values(newState.cities)) {
-      // Count resource-bearing tiles in the city's territory for supply
-      for (const coord of city.ownedTiles) {
-        const tile = newState.map.tiles[`${coord.q},${coord.r}`];
-        if (tile?.resource) {
-          supply[tile.resource] = (supply[tile.resource] ?? 0) + 1;
-        }
-      }
-      // Population drives demand for all resources
-      const pop = city.population;
-      for (const r of Object.keys(newState.marketplace.prices)) {
-        demand[r] = (demand[r] ?? 0) + pop;
-      }
-    }
-    newState.marketplace = updatePrices(newState.marketplace, supply, demand);
-  }
 
   // --- Process wonder effects (after city processing) ---
   const wonderRng = createRng(`wonder-${newState.turn}`);

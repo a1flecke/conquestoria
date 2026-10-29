@@ -1910,6 +1910,10 @@ export interface TradeRoute {
   manifest?: ResourceManifest;
 }
 
+/**
+ * @deprecated #1516 MR19 — legacy save shape only. The instant access market is retired; the ordered
+ * `retired-market-access` migration consumes these entries once, then the field is never written.
+ */
 export interface PurchasedResourceEntry {
   civId: string;          // hot-seat: which civ made the purchase
   resource: ResourceType;
@@ -1917,12 +1921,20 @@ export interface PurchasedResourceEntry {
 }
 
 export interface MarketplaceState {
-  prices: Record<string, number>;
-  priceHistory: Record<string, number[]>;
-  fashionable: ResourceType | null;
-  fashionTurnsLeft: number;
+  /**
+   * @deprecated #1516 MR19 — legacy save shape only. Global world prices are retired; posted seller
+   * offers are the only price source and nothing in the current runtime reads this field.
+   */
+  prices?: Record<string, number>;
+  /** @deprecated #1516 MR19 — legacy save shape only; see {@link prices}. */
+  priceHistory?: Record<string, number[]>;
+  /** @deprecated #1516 MR19 — legacy save shape only; the fashion cycle is retired. */
+  fashionable?: ResourceType | null;
+  /** @deprecated #1516 MR19 — legacy save shape only; the fashion cycle is retired. */
+  fashionTurnsLeft?: number;
   tradeRoutes: TradeRoute[];
-  purchasedResources?: PurchasedResourceEntry[];  // optional; defaults to [] for old saves
+  /** @deprecated #1516 MR19 — legacy save shape only; consumed by `retired-market-access`. */
+  purchasedResources?: PurchasedResourceEntry[];
 }
 
 // --- Save Slots ---

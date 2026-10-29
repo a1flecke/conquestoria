@@ -1,7 +1,7 @@
 import type { GameState, ResourceType } from '@/core/types';
 import type { CommerceResourcePolicy } from '@/core/types/commerce';
 import { RESOURCE_DEFINITIONS, getResourceAccessBenefit, getResourceAccessLabel } from '@/systems/resource-definitions';
-import { getCivAvailableResources, getInstantResourcePurchaseNotice } from '@/systems/resource-acquisition-system';
+import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { getCommercialPassagePermission, getCommerceResourcePolicy } from '@/systems/commerce-permissions';
 import { getReserveSuppliesRows } from '@/systems/resource-reserve-presentation';
 import { getLuxuryCoverage, getNextLuxuryShipment } from '@/systems/luxury-service-system';
@@ -54,28 +54,12 @@ export function createMarketplacePanel(
   const strategicOwned = knownDefs
     .filter(d => d.type === 'strategic' && ownedResources.has(d.id as ResourceType))
     .map(d => d.name);
-  const temporaryAccess = (marketplace.purchasedResources ?? [])
-    .filter(entry => entry.civId === state.currentPlayer && entry.expiresOnTurn > state.turn)
-    .map(entry => ({
-      name: knownDefs.find(def => def.id === entry.resource)?.name,
-      turns: entry.expiresOnTurn - state.turn,
-    }))
-    .filter((entry): entry is { name: string; turns: number } => entry.name !== undefined);
-
   const yourResourcesHtml = `
     <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:10px 12px;margin-bottom:12px;">
       <div style="font-size:13px;font-weight:bold;color:#e8c170;margin-bottom:6px;" data-text="your-resources-heading"></div>
       <div data-text="your-resources-body"></div>
     </div>
   `;
-
-  // Instant imports are withheld while the market is rebuilt (#1498): the notice is the panel's
-  // headline and is shown to every viewer regardless of sellers, tech, or trade routes. No global
-  // price or fashion advertising is rendered any more.
-  const importsNotice = getInstantResourcePurchaseNotice();
-  const noticeBoxHtml = importsNotice
-    ? `<div data-section="resource-imports-rebuilding" style="background:#4a3520;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:13px;color:#e8c170;"><span data-text="imports-rebuilding"></span></div>`
-    : '';
 
   // Build resource row placeholders — knownDefs only (tech-gated).
   // NOTE: Both this builder and the setText loop below are index-coupled on knownDefs;
@@ -122,7 +106,6 @@ export function createMarketplacePanel(
       </section>
       <section data-section="trade-supply-supplies" style="margin-bottom:18px;">
         <div data-text="supplies-heading" style="font-size:13px;font-weight:bold;color:#e8c170;margin-bottom:6px;"></div>
-        ${noticeBoxHtml}
         ${yourResourcesHtml}
         <div style="display:flex;flex-direction:column;gap:8px;">
           ${resourceRowsHtml}
@@ -149,8 +132,6 @@ export function createMarketplacePanel(
   setText('routes-heading', 'Routes');
   setText('supplies-heading', 'Supplies');
   setText('policies-heading', 'Seller policies');
-
-  if (importsNotice) setText('imports-rebuilding', importsNotice);
 
   // Both this loop and the row builder above iterate knownDefs — must stay in sync
   knownDefs.forEach((def, idx) => {
@@ -243,12 +224,6 @@ export function createMarketplacePanel(
       strLine.textContent = `Strategic (${strategicOwned.length}): ${strategicOwned.length > 0 ? strategicOwned.join(', ') : '—'}`;
       bodyEl.appendChild(luxLine);
       bodyEl.appendChild(strLine);
-      if (temporaryAccess.length > 0) {
-        const temporaryLine = document.createElement('div');
-        temporaryLine.style.cssText = 'font-size:12px;color:#e8c170;margin-top:4px;';
-        temporaryLine.textContent = `Temporary access: ${temporaryAccess.map(entry => `${entry.name} (${entry.turns} turns left)`).join(', ')}`;
-        bodyEl.appendChild(temporaryLine);
-      }
     }
   }
 

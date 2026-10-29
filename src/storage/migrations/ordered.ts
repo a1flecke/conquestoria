@@ -37,6 +37,7 @@ import { migrateCommercePermissions } from './steps/commerce-permissions';
 import { migrateTradeRouteSettlement } from './steps/trade-route-settlement';
 import { migrateTradeRoutePersistence } from './steps/trade-route-persistence';
 import { migrateMaterialReserves } from './steps/material-reserves';
+import { migrateRetiredMarketAccess } from './steps/retired-market-access';
 
 /**
  * #1023 — the ordered versioned migrations, one per schema step.
@@ -269,6 +270,12 @@ export const ORDERED_MIGRATIONS: readonly OrderedMigration[] = [
     id: 'material-reserves',
     reason: '#1506 MR09 activated hard-material production: a save written before it has no reserve ledger, and its legacy-entitled active work must receive one bounded native seed plus finite imported assistance exactly once. The schema guard is what prevents a reload from granting again.',
     apply: migrateMaterialReserves,
+  },
+  {
+    version: 37,
+    id: 'retired-market-access',
+    reason: '#1516 MR19 retired the instant access market. A pre-containment save may still carry purchased access entries; schema 36 already funded any active work they entitled, so this step converts a live luxury entry into delivered service coverage at its recorded expiry, drops a strategic entry without fabricating stock, and clears the list so no runtime branch reads it again.',
+    apply: migrateRetiredMarketAccess,
   },
 ];
 

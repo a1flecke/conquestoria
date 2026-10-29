@@ -120,9 +120,12 @@ describe('legendary-wonder-system', () => {
       requiredResources: ['iron'],
       questSteps: [],
     };
-    state.marketplace = {
-      purchasedResources: [{ civId: 'player', resource: 'iron', expiresOnTurn: state.turn + 1 }],
-    } as never;
+    // A real city-center source, not the retired purchased-access list (#1516 MR19).
+    const center = state.cities['city-river'].position;
+    state.map.tiles[`${center.q},${center.r}`] = {
+      ...state.map.tiles[`${center.q},${center.r}`],
+      resource: 'iron',
+    };
 
     const inland = getLegendaryWonderEligibility(state, 'player', 'city-river', definition);
     expect(inland.buildable).toBe(false);

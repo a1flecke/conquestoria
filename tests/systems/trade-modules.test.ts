@@ -14,8 +14,8 @@ import * as lifecycle from '@/systems/trade-route-lifecycle';
  * `trade-*` / `resource-catalog` rules in tests/app/architecture/rules.ts.
  */
 const SURFACE: Array<[name: string, module: object, exports: string[]]> = [
-  ['marketplace-system', marketplace,
-    ['calculatePrice', 'createMarketplaceState', 'detectMonopoly', 'processFashionCycle', 'updatePrices']],
+  // #1516 MR19 retires the world-price/fashion cycle: the module now only creates the route roster.
+  ['marketplace-system', marketplace, ['createMarketplaceState']],
   ['trade-route-economy', economy,
     ['calculateTradeRouteGold', 'getEffectiveGoldPerTurn', 'getRouteCapacity', 'getRouteOperatingStatus',
       'getRouteTechGoldBonus', 'getRouteThroughputBonus', 'getTradeRouteQuote', 'isRoutePositioning',
@@ -40,10 +40,10 @@ describe('#1249 — the trade modules keep their audited public surface', () => 
     });
   }
 
-  it('every pre-split value export is accounted for: 22 originals (24 minus the 2 re-exported types) + getResourceEffectLabel + getRouteDiplomacy + scrubUnpermittedRoutes (#1499) + isRoutePositioning (#1500) + getTradeRouteQuote/getRouteOperatingStatus/settleTradeRouteForCiv (#1501) + the four route-control exports (#1502)', () => {
+  it('every pre-split value export is accounted for, minus the four retired world-price/fashion helpers (#1516)', () => {
     const values = SURFACE.flatMap(([, , exports]) => exports);
     expect(new Set(values).size, 'no export is owned by two modules').toBe(values.length);
-    expect(values).toHaveLength(35);
+    expect(values).toHaveLength(31);
   });
 
   it('helpers that were private before the split stay private', () => {

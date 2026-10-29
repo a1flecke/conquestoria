@@ -14,7 +14,7 @@ import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { hexKey, hexNeighbors } from '@/systems/hex-utils';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { CITY_LEVY_GOLD_BONUS, setCityLevy } from '@/systems/city-levy-system';
-import { createMarketplaceState } from '@/systems/marketplace-system';
+import { grantTestResourceAccess } from '../helpers/resource-access-fixtures';
 import { collectText, makeWonderPanelFixture } from './helpers/wonder-panel-fixture';
 import type { City, HexCoord, ResourceType, Unit } from '@/core/types';
 
@@ -322,10 +322,7 @@ describe('city-panel national projects', () => {
     state.civilizations.player.techState.completed = [
       'animal-husbandry', 'bronze-working', 'rifle-tactics', 'professional-army',
     ];
-    state.marketplace = { ...createMarketplaceState(), purchasedResources: [
-      { civId: 'player', resource: 'horses', expiresOnTurn: state.turn + 1 },
-      { civId: 'player', resource: 'iron', expiresOnTurn: state.turn + 1 },
-    ] };
+    grantTestResourceAccess(state, 'player', ['horses', 'iron']);
     const firstPanel = createCityPanel(container, city, state, {
       onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
     });
@@ -358,10 +355,7 @@ describe('city-panel national projects', () => {
     state.civilizations.player.techState.completed = [
       'animal-husbandry', 'bronze-working', 'rifle-tactics', 'professional-army',
     ];
-    state.marketplace = { ...createMarketplaceState(), purchasedResources: [
-      { civId: 'player', resource: 'horses', expiresOnTurn: state.turn + 1 },
-      { civId: 'player', resource: 'iron', expiresOnTurn: state.turn + 1 },
-    ] };
+    grantTestResourceAccess(state, 'player', ['horses', 'iron']);
 
     const panel = createCityPanel(container, city, state, {
       onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
@@ -386,10 +380,7 @@ describe('city-panel national projects', () => {
     city.buildings = ['cavalry-academy'];
     state.cities[city.id] = city;
     state.currentPlayer = 'player-2';
-    state.marketplace = { ...createMarketplaceState(), purchasedResources: [
-      { civId: 'player-2', resource: 'horses', expiresOnTurn: state.turn + 1 },
-      { civId: 'player-2', resource: 'iron', expiresOnTurn: state.turn + 1 },
-    ] };
+    grantTestResourceAccess(state, 'player-2', ['horses', 'iron']);
 
     const panel = createCityPanel(container, city, state, {
       onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
@@ -2863,9 +2854,7 @@ describe('city-panel warhead arsenal visibility (#545)', () => {
     // nuclear-weapons gates warhead's own techRequired; nuclear-physics gates the
     // uranium resource definition itself (RESOURCE_DEFINITIONS).
     state.civilizations[civId].techState.completed.push('nuclear-weapons', 'nuclear-physics');
-    state.marketplace = { ...createMarketplaceState(), purchasedResources: [
-      { civId, resource: 'uranium', expiresOnTurn: state.turn + 1 },
-    ] };
+    grantTestResourceAccess(state, civId, ['uranium']);
     // Base capacity (1, from Manhattan Project) + nuclear_arsenal (+2) + missile_silo
     // (+1) = 4; arsenal at 2 -- comfortably under capacity, so warhead is available
     // (not locked), and the count must still be visible per this review's Goal 7 fix.
@@ -2886,9 +2875,7 @@ describe('city-panel warhead arsenal visibility (#545)', () => {
     const { container, city, state } = makeWonderPanelFixture();
     const civId = state.currentPlayer;
     state.civilizations[civId].techState.completed.push('nuclear-weapons', 'nuclear-physics');
-    state.marketplace = { ...createMarketplaceState(), purchasedResources: [
-      { civId, resource: 'uranium', expiresOnTurn: state.turn + 1 },
-    ] };
+    grantTestResourceAccess(state, civId, ['uranium']);
     // Physical capacity: base 1 + nuclear_arsenal (+2) + missile_silo (+1) = 4.
     // An active arms-control pact caps at 3 -- stricter than physical capacity
     // but still above the current count (2), so the item stays in the
@@ -2916,9 +2903,7 @@ describe('city-panel warhead arsenal visibility (#545)', () => {
     const { container, city, state } = makeWonderPanelFixture();
     const civId = state.currentPlayer;
     state.civilizations[civId].techState.completed.push('nuclear-weapons', 'nuclear-physics');
-    state.marketplace = { ...createMarketplaceState(), purchasedResources: [
-      { civId, resource: 'uranium', expiresOnTurn: state.turn + 1 },
-    ] };
+    grantTestResourceAccess(state, civId, ['uranium']);
     // Physical capacity 4 (base 1 + nuclear_arsenal 2 + missile_silo 1), but a
     // treaty cap of 2 is stricter and already reached -- the item must appear
     // in the LOCKED list (not available) with a treaty-specific reason, not
@@ -2944,9 +2929,7 @@ describe('city-panel warhead arsenal visibility (#545)', () => {
     const { container, city, state } = makeWonderPanelFixture();
     const civId = state.currentPlayer;
     state.civilizations[civId].techState.completed.push('nuclear-weapons', 'nuclear-physics');
-    state.marketplace = { ...createMarketplaceState(), purchasedResources: [
-      { civId, resource: 'uranium', expiresOnTurn: state.turn + 1 },
-    ] };
+    grantTestResourceAccess(state, civId, ['uranium']);
     city.buildings.push('nuclear_arsenal', 'missile_silo');
     state.builtNationalProjects = {
       [`${civId}:manhattan_project`]: { civId, cityId: city.id, eraBuilt: 10 },
@@ -3145,13 +3128,7 @@ describe('#1506 MR09 — upgrade rows carry material shortages', () => {
       ]),
     ];
     state.civilizations.player.gold = 1000;
-    state.marketplace = {
-      ...(state.marketplace ?? createMarketplaceState()),
-      purchasedResources: [
-        { civId: 'player', resource: 'horses', expiresOnTurn: state.turn + 5 },
-        { civId: 'player', resource: 'iron', expiresOnTurn: state.turn + 5 },
-      ],
-    };
+    grantTestResourceAccess(state, 'player', ['horses', 'iron']);
     const knight: Unit = createUnit('knight', 'player', { ...city.position }, state.idCounters, undefined);
     knight.id = 'unit-knight-upgrade';
     state.units[knight.id] = knight;

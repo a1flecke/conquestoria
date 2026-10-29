@@ -17,7 +17,6 @@ import {
 } from '@/systems/resource-market-offers';
 import { resourceGoodId, type TradeGoodDefinition } from '@/systems/trade-good-definitions';
 import { getReserveBalance, getStoredQuantity } from '@/systems/resource-reserve-system';
-import { getInstantResourcePurchaseNotice, getResourceAccessCost } from '@/systems/resource-acquisition-system';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -226,10 +225,6 @@ describe('#1508 MR11 — policies and native surplus', () => {
     })).toThrow(/protected reserve/i);
   });
 
-  it('removes the legacy world-price mirror from the remaining access-cost caller', () => {
-    expect(getResourceAccessCost(world({ worldPrice: 999 }), 'coal')).toBe(21);
-  });
-
   it('only exposes buyers with commercial passage, a partner policy and knowledge', () => {
     expect(getEligibleMarketBuyers(world(), SELLER, COAL)).toEqual([ALPHA]);
     expect(getEligibleMarketBuyers(world({ buyerTech: false }), SELLER, COAL)).toEqual([]);
@@ -310,13 +305,11 @@ function sourceFiles(directory: string): string[] {
 }
 
 describe('#1508 MR11 — atomic loading', () => {
-  it('has no UI/AI caller and leaves instant resource purchases closed', () => {
-    // The shipment engine is the one permitted system caller; no UI or AI module may debit stock or
-    // transfer payment directly.
+  it('has no UI/AI caller: the shipment engine is the one permitted system caller', () => {
+    // No UI or AI module may debit stock or transfer payment directly.
     const callers = [...sourceFiles(join('src', 'ui')), ...sourceFiles(join('src', 'ai'))]
       .filter(file => readFileSync(file, 'utf8').includes('commitMarketLoad'));
     expect(callers).toEqual([]);
-    expect(getInstantResourcePurchaseNotice()).not.toBeNull();
   });
 
   it('settles one 6-unit load and refuses the second 6-unit load', () => {

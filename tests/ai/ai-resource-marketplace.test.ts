@@ -36,7 +36,6 @@ describe('processAIResourceMarketplace — MR01 containment (#1498)', () => {
     sellerTile.improvement = 'none';
     sellerTile.improvementTurnsLeft = 0;
     ai.diplomacy.relationships[player.id] = 10;
-    state.marketplace.prices.iron = 8;
 
     const result = processAIResourceMarketplace(state, ai.id);
 
