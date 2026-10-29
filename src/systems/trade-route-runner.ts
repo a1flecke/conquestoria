@@ -17,6 +17,7 @@
 // `unit-movement-system.ts`) runs the canonical `executeUnitMove`, so a route step obeys the same
 // occupancy, hostility, territorial and zone-of-control rules as any other move.
 import type { GameState, HexCoord, TradeRoute, Unit } from '@/core/types';
+import type { TradeGoodDefinition } from '@/systems/trade-good-definitions';
 import type { EventBus } from '@/core/event-bus';
 import type { TradeRouteNonOperatingReason } from './trade-route-economy';
 import { getTradeRouteQuote } from './trade-route-economy';
@@ -176,14 +177,20 @@ function withUnit(state: GameState, unitId: string, patch: Partial<Unit>): GameS
  * slot is finally released — or refreshes the route's terms for the next departure, resetting the
  * leg's detour accounting.
  */
-export function completeRouteLeg(state: GameState, routeId: string, caravanId: string, bus?: EventBus): GameState {
+export function completeRouteLeg(
+  state: GameState,
+  routeId: string,
+  caravanId: string,
+  bus?: EventBus,
+  definitions?: readonly TradeGoodDefinition[],
+): GameState {
   const route = state.marketplace?.tradeRoutes.find(candidate => candidate.id === routeId);
   const caravan = state.units[caravanId];
   if (!route || !caravan) return state;
 
   if ((caravan.routeDirection ?? 'outbound') === 'outbound') {
     // One atomic load at the supplier. Goods become owned incoming claims, never usable stock yet.
-    const loaded = loadRouteManifest(state, routeId);
+    const loaded = loadRouteManifest(state, routeId, definitions);
     bus?.emit('trade:route-delivered', { unitId: caravanId, routeId, toCityId: route.toCityId });
     return withUnit(loaded, caravanId, { routeDirection: 'inbound' });
   }

@@ -164,6 +164,37 @@ async function endTurn(page: Page): Promise<void> {
   await expect(newTurn).toBeVisible({ timeout: 30_000 });
 }
 
+test('the commerce panel is keyboard-complete and fits a narrow screen (#1515)', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installAutosave(page, buildFixture());
+  await continueCampaign(page);
+
+  const trade = page.getByRole('button', { name: 'Trade', exact: true });
+  await trade.focus();
+  await page.keyboard.press('Enter');
+  const panel = page.locator('#marketplace-panel');
+  await expect(panel).toBeVisible({ timeout: 15_000 });
+
+  // Narrow screen: the panel scrolls internally instead of pushing the page sideways.
+  const overflow = await panel.evaluate(element => element.scrollWidth - element.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+
+  // Every visible button keeps the 44px touch target.
+  const heights = await panel.locator('button:visible').evaluateAll(buttons =>
+    buttons.map(button => button.getBoundingClientRect().height));
+  expect(heights.length).toBeGreaterThan(0);
+  expect(heights.every(height => height >= 44)).toBe(true);
+
+  // The route's unit-selection control is a real keyboard button with a semantic outcome.
+  const select = page.getByRole('button', { name: /Select the trade unit on/ });
+  await expect(select).toBeVisible();
+  await select.focus();
+  await expect(select).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(panel).toHaveCount(0);
+});
+
 test('a land route loads cargo, shows it in transit, and delivers it only at home', async ({ page }) => {
   test.setTimeout(180_000);
   await page.setViewportSize({ width: 1280, height: 900 });
