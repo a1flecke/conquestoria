@@ -231,8 +231,8 @@ export function eliminateCivilization(
   if (next.marketplace) {
     next.marketplace.tradeRoutes = next.marketplace.tradeRoutes
       .filter(route => route.foreignCivId !== civId);
-    next.marketplace.purchasedResources = (next.marketplace.purchasedResources ?? [])
-      .filter(entry => entry.civId !== civId);
+    // #1516 MR19: legacy purchased-access entries are consumed by the ordered migration, so there is
+    // no live per-civ list to scrub here.
   }
 
   // #1499 MR02: a dead civ holds no commercial permission — drop its route allowances and both

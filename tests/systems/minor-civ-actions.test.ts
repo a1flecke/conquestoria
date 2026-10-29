@@ -3,6 +3,7 @@ import { EventBus } from '@/core/event-bus';
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
+import { grantTestResourceAccess } from '../helpers/resource-access-fixtures';
 import {
   performMinorCivFestival,
   performMinorCivGift,
@@ -59,7 +60,7 @@ describe('minor-civ actions', () => {
   it('does not consume luxury access on festival completion', () => {
     const { state, minorCivId, minorCiv } = actionState('minor-action-festival-luxury');
     state.civilizations.player.techState.completed.push('pottery');
-    state.marketplace!.purchasedResources = [{ civId: 'player', resource: 'wine', expiresOnTurn: state.turn + 5 }];
+    grantTestResourceAccess(state, 'player', ['wine']);
     minorCiv.activeQuests.player = {
       id: 'quest-festival', type: 'sponsor_festival', description: 'Sponsor a festival',
       target: { type: 'sponsor_festival', amount: 50, requiresLuxury: true }, reward: { relationshipBonus: 20 },
@@ -78,7 +79,7 @@ describe('minor-civ actions', () => {
     const { state, minorCivId, minorCiv } = actionState('minor-action-festival-no-gold');
     state.civilizations.player.gold = 25;
     state.civilizations.player.techState.completed.push('pottery');
-    state.marketplace!.purchasedResources = [{ civId: 'player', resource: 'wine', expiresOnTurn: state.turn + 5 }];
+    grantTestResourceAccess(state, 'player', ['wine']);
     minorCiv.activeQuests.player = {
       id: 'quest-festival', type: 'sponsor_festival', description: 'Sponsor a festival',
       target: { type: 'sponsor_festival', amount: 50, requiresLuxury: true }, reward: { relationshipBonus: 20 },

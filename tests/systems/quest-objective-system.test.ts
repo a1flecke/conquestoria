@@ -4,6 +4,8 @@ import { QUEST_TYPES } from '@/core/types';
 import { emptyIdCounters } from '@/core/id-counters';
 import { createUnit } from '@/systems/unit-lifecycle';
 import { hexKey } from '@/systems/hex-utils';
+import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
+import { grantTestResourceAccess } from '../helpers/resource-access-fixtures';
 import {
   canReachGoldRequirement,
   createQuestTarget,
@@ -66,9 +68,10 @@ describe('quest objective feasibility', () => {
     expect(hasAccessibleLuxury(state, 'player')).toBe(false);
 
     state.civilizations.player.techState.completed.push('pottery');
-    state.marketplace!.purchasedResources = [{ civId: 'player', resource: 'wine', expiresOnTurn: state.turn + 5 }];
+    grantTestResourceAccess(state, 'player', ['wine']);
     expect(hasAccessibleLuxury(state, 'player')).toBe(true);
-    expect(state.marketplace!.purchasedResources).toHaveLength(1);
+    // Feasibility reads the real source and never consumes it.
+    expect(getCivAvailableResources(state, 'player').has('wine')).toBe(true);
   });
 
   it('includes queued work when estimating whether a caravan can meet the deadline', () => {

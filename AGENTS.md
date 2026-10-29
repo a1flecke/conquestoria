@@ -251,6 +251,8 @@ Keep gameplay state serializable plain objects, not class instances. Use axial h
 
 Dual-release rule: GitHub Pages/PWA and macOS/Tauri are distribution layers around one shared game. Do not fork gameplay, UI rules, renderer behavior, or save format for macOS. Release-specific behavior must enter shared code through a small capability interface in `src/platform/`; shared modules must not directly import Tauri APIs or branch on Tauri/macOS globals. If a native-only feature is requested, first decide whether it belongs in the platform layer, a shared capability interface, or a deferred desktop-specific feature.
 
+Commerce rules and extension recipes live in `docs/commerce.md`. The instant marketplace, global world price, and fashion cycle are retired; the seller offer → quote → load → manifest → home-delivery pipeline is the only purchase path.
+
 ## Rule Files
 If you touch files in these areas, read the matching rule file before editing:
 

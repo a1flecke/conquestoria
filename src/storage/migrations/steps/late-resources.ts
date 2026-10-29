@@ -20,15 +20,11 @@ export function migrateLateResources(state: GameState): GameState {
     Object.values(state.cities ?? {}).map(city => city.position),
   );
 
-  const defaults = createMarketplaceState();
+  // #1516 MR19: the world-price mirror is retired, so this frozen migration no longer seeds price
+  // history. It still guarantees the legacy access list exists for the later ordered migration.
   const marketplace = state.marketplace
-    ? {
-      ...state.marketplace,
-      prices: { ...defaults.prices, ...state.marketplace.prices },
-      priceHistory: { ...defaults.priceHistory, ...state.marketplace.priceHistory },
-      purchasedResources: state.marketplace.purchasedResources ?? [],
-    }
-    : defaults;
+    ? { ...state.marketplace, purchasedResources: state.marketplace.purchasedResources ?? [] }
+    : createMarketplaceState();
 
   const cities = Object.fromEntries(Object.entries(state.cities ?? {}).map(([cityId, city]) => {
     const grandfathered = city.productionQueue.filter(item => {

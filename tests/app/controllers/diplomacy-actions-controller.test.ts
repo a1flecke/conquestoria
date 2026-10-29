@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import { createGameSession } from '@/app/game-session';
+import { grantTestResourceAccess } from '../../helpers/resource-access-fixtures';
 import { enqueuePeaceRequest, enqueueTreatyProposal } from '@/systems/diplomacy-requests';
 import { signTreaty } from '@/systems/diplomacy-treaties';
 import { ALLIANCE_TECHS } from '@/systems/diplomacy-actions';
@@ -359,7 +360,7 @@ describe('DiplomacyActionsController', () => {
     it('deducts gold, completes the quest transition, refreshes, and confirms', () => {
       const { state, mcId } = makeFixture('sponsor-festival-ok');
       state.civilizations.player.techState.completed.push('pottery');
-      state.marketplace!.purchasedResources = [{ civId: 'player', resource: 'wine', expiresOnTurn: state.turn + 5 }];
+      grantTestResourceAccess(state, 'player', ['wine']);
       state.civilizations.player.gold = 99999;
       state.minorCivs[mcId].activeQuests.player = {
         id: 'quest-festival', type: 'sponsor_festival', description: 'Sponsor a festival',

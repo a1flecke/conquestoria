@@ -6,6 +6,7 @@ import { beginCityMaterialOccurrence } from '@/systems/city-production-materials
 import { hexKey } from '@/systems/hex-utils';
 import { resourceGoodId } from '@/systems/trade-good-definitions';
 import { makeLegendaryWonderFixture } from '../systems/helpers/legendary-wonder-fixture';
+import { grantTestResourceAccess } from '../helpers/resource-access-fixtures';
 
 /**
  * #1506 MR09 task 9 — material truth in the city panel.
@@ -112,10 +113,7 @@ describe('#1506 MR09 task 9 — city material truth', () => {
     const city = state.cities['city-river'];
     city.productionQueue = ['factory'];
     city.productionMaterials = { queueRevision: 0, activeOccurrence: 0, commitment: null, softTerms: null };
-    state.marketplace = {
-      ...(state.marketplace ?? { prices: {}, priceHistory: {}, tradeRoutes: [] }),
-      purchasedResources: [{ civId: 'player', resource: 'coal', expiresOnTurn: state.turn + 5 }],
-    } as NonNullable<GameState['marketplace']>;
+    grantTestResourceAccess(state, 'player', ['coal']);
     state.materialReservesByCiv = {
       player: { balances: { [resourceGoodId('coal')]: { native: 5, imported: 0 } }, reservations: [], incoming: [] },
     };

@@ -131,7 +131,6 @@ describe('#984 — national-project discounts reach every production consumer', 
     const laggard = state.civilizations[LAGGARD];
     laggard.gold = 500;
     laggard.diplomacy.relationships[seller.id] = 10;
-    state.marketplace!.prices.copper = 10;
     return seller.id;
   }
 

@@ -101,9 +101,17 @@ function isStillLegal(state: GameState, city: City, itemId: string): boolean {
 function legacyEntitlement(state: GameState, city: City, itemId: string, recipe: MaterialRecipe): boolean {
   if ((city.legacyResourceGrace ?? []).includes(itemId)) return true;
   const access = getCivAvailableResources(state, city.owner);
+  // Frozen migration-local read (#1516 MR19): schema 36 must still honor the pre-containment
+  // purchased access that the retired runtime no longer exposes. This is the only place the field is
+  // consulted, and the later schema-37 step clears it once this entitlement has been funded.
+  const purchased = new Set(
+    (state.marketplace?.purchasedResources ?? [])
+      .filter(entry => entry.civId === city.owner && entry.expiresOnTurn > state.turn)
+      .map(entry => entry.resource),
+  );
   return recipe.rows.every(row => {
     const resource = resourceOfGood(row.goodId);
-    return resource !== null && access.has(resource);
+    return resource !== null && (access.has(resource) || purchased.has(resource));
   });
 }
 

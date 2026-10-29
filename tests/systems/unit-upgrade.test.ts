@@ -16,7 +16,7 @@ import {
   type ProductionCostContext,
 } from '@/systems/city-system';
 import { TECH_TREE, resolveCivilizationEra } from '@/systems/tech-definitions';
-import { createMarketplaceState } from '@/systems/marketplace-system';
+import { grantTestResourceAccess } from '../helpers/resource-access-fixtures';
 
 const TECH_ERA_BY_ID = new Map(TECH_TREE.map(tech => [tech.id, tech.era]));
 
@@ -402,10 +402,7 @@ describe('applyUnitUpgradeToState', () => {
     state.civilizations.player.techState.completed = [
       'animal-husbandry', 'bronze-working', 'iron-forging', 'rifle-tactics', 'professional-army',
     ];
-    state.marketplace = { ...createMarketplaceState(), purchasedResources: [
-      { civId: 'player', resource: 'horses', expiresOnTurn: state.turn + 1 },
-      { civId: 'player', resource: 'iron', expiresOnTurn: state.turn + 1 },
-    ] };
+    grantTestResourceAccess(state, 'player', ['horses', 'iron']);
     // #1506 MR09: the upgrade now pays the target's full hard recipe, so the fixture carries stock.
     state.materialReservesByCiv = {
       ...(state.materialReservesByCiv ?? {}),
@@ -430,10 +427,7 @@ describe('applyUnitUpgradeToState', () => {
     state.civilizations.player.techState.completed = [
       'animal-husbandry', 'bronze-working', 'iron-forging', 'rifle-tactics', 'professional-army',
     ];
-    state.marketplace = { ...createMarketplaceState(), purchasedResources: [
-      { civId: 'player', resource: 'horses', expiresOnTurn: state.turn + 1 },
-      { civId: 'player', resource: 'iron', expiresOnTurn: state.turn + 1 },
-    ] };
+    grantTestResourceAccess(state, 'player', ['horses', 'iron']);
     state.materialReservesByCiv = {
       ...(state.materialReservesByCiv ?? {}),
       player: {
@@ -466,10 +460,7 @@ describe('applyUnitUpgradeToState', () => {
     state.civilizations.player.techState.completed = [
       'steam-power', 'ironclad-warships',
     ];
-    state.marketplace = {
-      ...createMarketplaceState(),
-      purchasedResources: [{ civId: 'player', resource: 'coal', expiresOnTurn: state.turn + 1 }],
-    };
+    grantTestResourceAccess(state, 'player', ['coal']);
     state.materialReservesByCiv = {
       ...(state.materialReservesByCiv ?? {}),
       player: {
@@ -501,10 +492,7 @@ describe('applyUnitUpgradeToState', () => {
     state.civilizations.player.techState.completed = [
       'animal-husbandry', 'bronze-working', 'iron-forging', 'rifle-tactics', 'professional-army',
     ];
-    state.marketplace = { ...createMarketplaceState(), purchasedResources: [
-      { civId: 'player', resource: 'horses', expiresOnTurn: state.turn + 1 },
-      { civId: 'player', resource: 'iron', expiresOnTurn: state.turn + 1 },
-    ] };
+    grantTestResourceAccess(state, 'player', ['horses', 'iron']);
     state.materialReservesByCiv = {
       ...(state.materialReservesByCiv ?? {}),
       player: {

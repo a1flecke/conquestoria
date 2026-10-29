@@ -573,8 +573,8 @@ describe('save migrations', () => {
       }
     }
     for (const resource of ['coal', 'oil', 'aluminum', 'uranium', 'rare-earth-elements', 'battery-minerals']) {
-      delete legacySave.marketplace!.prices[resource];
-      delete legacySave.marketplace!.priceHistory[resource];
+      delete legacySave.marketplace!.prices?.[resource];
+      delete legacySave.marketplace!.priceHistory?.[resource];
     }
 
     const migrated = migrateSaveToCurrent(legacySave);
@@ -584,8 +584,10 @@ describe('save migrations', () => {
     expect(migrated.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
     for (const resource of ['coal', 'oil', 'aluminum', 'uranium', 'rare-earth-elements', 'battery-minerals']) {
       expect(resources).toContain(resource);
-      expect(migrated.marketplace!.prices[resource]).toBeGreaterThan(0);
-      expect(migrated.marketplace!.priceHistory[resource]).toEqual([migrated.marketplace!.prices[resource]]);
+      // #1516 MR19: the world-price mirror is retired, so the migration places deposits without
+      // seeding a price/history entry for them.
+      expect(migrated.marketplace!.prices?.[resource]).toBeUndefined();
+      expect(migrated.marketplace!.priceHistory?.[resource]).toBeUndefined();
     }
     expect(loadedAgain).toEqual(migrated);
   });

@@ -49,14 +49,11 @@ function configureStandingStones(initial: GameState, cityId: string): GameState 
     'mud-brick',
     'gathering',
   ])];
-  if (!state.marketplace) throw new Error('Standing Stones fixture requires marketplace state.');
-  state.marketplace = {
-    ...state.marketplace,
-    purchasedResources: [
-      ...(state.marketplace.purchasedResources ?? []),
-      { civId: state.currentPlayer, resource: 'stone', expiresOnTurn: state.turn + 10 },
-    ],
-  };
+  // #1516 MR19: grant real stone access at the city center instead of the retired purchased list.
+  const city = state.cities[cityId];
+  if (!city) throw new Error('Standing Stones fixture requires its host city.');
+  const key = `${city.position.q},${city.position.r}`;
+  state.map.tiles[key] = { ...state.map.tiles[key], resource: 'stone' };
   const village = Object.values(state.tribalVillages ?? {})[0];
   if (!village) throw new Error('Standing Stones fixture requires an existing village.');
   state.legendaryWonderHistory ??= { destroyedStrongholds: [], discoveredSites: [] };

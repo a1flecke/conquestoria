@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { migrateRetiredMarketAccess } from '@/storage/migrations/steps/retired-market-access';
 import type { City, Civilization, GameState, TradeRoute } from '@/core/types';
 import { completeRouteLeg } from '@/systems/trade-route-runner';
 import {
@@ -320,17 +321,23 @@ describe('#1511 MR14 — luxury service delivery', () => {
     expect(quoteMarketLoad(renewal, BUYER, SELLER, SPICES, 1)).toMatchObject({ ok: true });
   });
 
-  it('expires legacy purchased access without turning it into permanent service', () => {
+  it('consumes legacy purchased access once into coverage that still expires', () => {
     const state = world();
     state.marketplace!.purchasedResources = [{
       civId: BUYER,
       resource: 'spices',
       expiresOnTurn: 11,
     }];
-    expect(getCivHappinessFromResources(state, BUYER)).toBe(1);
-    const after = { ...state, turn: 12 } as GameState;
+    const migrated = migrateRetiredMarketAccess(state);
+    expect(getLuxuryCoverage(migrated, BUYER, SPICES)).toEqual({
+      goodId: SPICES,
+      expiresOnTurn: 11,
+      supplierCivIds: [],
+    });
+    expect(getCivHappinessFromResources(migrated, BUYER)).toBe(1);
+    const after = { ...migrated, turn: 12 } as GameState;
     expect(getCivHappinessFromResources(after, BUYER)).toBe(0);
-    expect(getLuxuryCoverage(after, BUYER, SPICES)).toBeUndefined();
+    expect(getLuxuryCoverage(after, BUYER, SPICES)?.expiresOnTurn).toBe(11);
   });
 
   it('keeps cattle and salt as commodity access with no happiness benefit', () => {

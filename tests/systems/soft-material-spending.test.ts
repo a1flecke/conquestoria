@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { GameState } from '@/core/types';
 import { createNewGame } from '@/core/game-state';
+import { grantTestResourceAccess } from '../helpers/resource-access-fixtures';
 import { foundCity } from '@/systems/city-system';
 import { selectSoftMaterialTerms } from '@/systems/soft-material-terms';
 import {
@@ -42,10 +43,7 @@ function cityWorld(options: { coalStock?: number; queue: string[] }): { state: G
   civ.techState.completed = ['steam-power', 'steel-production'];
   civ.techState.currentResearch = 'natural-philosophy';
   state.currentPlayer = civ.id;
-  state.marketplace = {
-    ...(state.marketplace ?? { prices: {}, priceHistory: {}, tradeRoutes: [] }),
-    purchasedResources: [{ civId: civ.id, resource: 'coal', expiresOnTurn: state.turn + 10 }],
-  } as NonNullable<GameState['marketplace']>;
+  grantTestResourceAccess(state, civ.id, ['coal']);
   state.materialReservesByCiv = {
     ...(state.materialReservesByCiv ?? {}),
     [civ.id]: {
@@ -75,10 +73,7 @@ function aiFactoryWorld(coalStock: number): { state: GameState; cityId: string }
   civ.techState.completed = ['steam-power', 'steel-production'];
   civ.isHuman = false;
   civ.gold = 1000;
-  state.marketplace = {
-    ...(state.marketplace ?? { prices: {}, priceHistory: {}, tradeRoutes: [] }),
-    purchasedResources: [{ civId: civ.id, resource: 'coal', expiresOnTurn: state.turn + 10 }],
-  } as NonNullable<GameState['marketplace']>;
+  grantTestResourceAccess(state, civ.id, ['coal']);
   state.materialReservesByCiv = {
     ...(state.materialReservesByCiv ?? {}),
     [civ.id]: {
@@ -99,22 +94,13 @@ function state(options: {
   circularChoice?: string;
 } = {}): GameState {
   const techs = options.techs ?? ['steam-power'];
-  return {
+  const world = {
     currentPlayer: 'player',
     turn: 10,
     map: { width: 10, height: 10, tiles: {}, wrapsHorizontally: false, rivers: [] },
     cities: {},
     units: {},
-    marketplace: {
-      prices: {},
-      priceHistory: {},
-      fashionable: null,
-      fashionTurnsLeft: 0,
-      tradeRoutes: [],
-      purchasedResources: options.coalAccess
-        ? [{ civId: 'player', resource: 'coal', expiresOnTurn: 30 }]
-        : [],
-    },
+    marketplace: { tradeRoutes: [] },
     civilizations: {
       player: {
         id: 'player',
@@ -142,6 +128,23 @@ function state(options: {
       }
       : {}),
   } as unknown as GameState;
+
+  if (options.coalAccess) {
+    world.cities = {
+      'soft-access-city': {
+        id: 'soft-access-city',
+        name: 'Soft Access',
+        owner: 'player',
+        position: { q: 0, r: 0 },
+        ownedTiles: [],
+        buildings: [],
+        productionQueue: [],
+      } as never,
+    };
+    (world.civilizations.player as { cities: string[] }).cities = ['soft-access-city'];
+    grantTestResourceAccess(world, 'player', ['coal']);
+  }
+  return world;
 }
 
 describe('#1507 MR10 — finite soft-material selection', () => {

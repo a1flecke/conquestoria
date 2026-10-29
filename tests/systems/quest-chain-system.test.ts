@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Quest } from '@/core/types';
 import { createNewGame } from '@/core/game-state';
 import { hexKey } from '@/systems/hex-utils';
+import { grantTestResourceAccess } from '../helpers/resource-access-fixtures';
 import {
   applyQuestGameplayAction,
   getMinorCivRelationshipStatus,
@@ -116,7 +117,7 @@ describe('minor-civ quest-chain state machine', () => {
   it('floors final relationship, stores alliance, and never rewards twice', () => {
     const { state, minorCivId, minorCiv } = chainState('quest-chain-final-alliance');
     state.civilizations.player.techState.completed.push('pottery');
-    state.marketplace!.purchasedResources = [{ civId: 'player', resource: 'wine', expiresOnTurn: state.turn + 5 }];
+    grantTestResourceAccess(state, 'player', ['wine']);
     minorCiv.diplomacy.relationships.player = 40;
     minorCiv.activeQuests.player = {
       id: 'quest-final',
