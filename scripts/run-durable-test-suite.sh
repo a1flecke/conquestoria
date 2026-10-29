@@ -78,29 +78,35 @@ release_lock() {
 }
 
 acquire_lock() {
-  if mkdir "$lock_dir" 2>/dev/null; then
-    printf 'pid=%s\n' "$$" > "$lock_dir/pid"
-    return
-  fi
+  # #1612: the same claim/reclaim primitives as the host lease. The old
+  # "read pid, it is dead, rm; rmdir; mkdir" let two runs that both found the
+  # same stale lock each delete whatever was there and both "win".
+  lock_record="$(printf 'pid=%s\nstart_marker=%s\nclaim_id=%s' "$$" "$(hvl_start_marker "$$")" "$(hvl_nonce)")"
+  while :; do
+    lock_claim_status=0
+    hvl_owner_claim "$lock_dir/pid" "$lock_record" || lock_claim_status=$?
+    [ "$lock_claim_status" -ne 0 ] || return 0
+    [ "$lock_claim_status" -ne 2 ] || exit 1
 
-  lock_pid="$(sed -n 's/^pid=//p' "$lock_dir/pid" 2>/dev/null | head -n 1)"
-  # #1133 cross-context status-visibility: use the shared, sandbox-aware
-  # liveness check (hvl_pid_is_live, already sourced above) rather than a
-  # raw `kill -0` -- a bare `kill -0` conflates "genuinely dead" with
-  # "signal denied by a privilege boundary", which would let a restricted
-  # execution context wrongly steal a lock still held by a genuinely
-  # active run in a privileged context.
-  if [ -z "$lock_pid" ] || hvl_pid_is_live "$lock_pid"; then
-    echo "A durable $scope test run is already active or establishing its lock in this worktree; inspect $lock_dir." >&2
-    exit 1
-  fi
+    lock_snapshot="$(hvl_owner_read "$lock_dir/pid")"
+    [ -n "$lock_snapshot" ] || continue
+    lock_pid="$(hvl_record_field "$lock_snapshot" pid)"
+    # #1133 cross-context status-visibility: hvl_record_is_live uses the
+    # shared, sandbox-aware liveness check (hvl_pid_is_live) rather than a
+    # raw `kill -0` -- a bare `kill -0` conflates "genuinely dead" with
+    # "signal denied by a privilege boundary", which would let a restricted
+    # execution context wrongly steal a lock still held by a genuinely
+    # active run in a privileged context.
+    if [ -z "$lock_pid" ] || hvl_record_is_live "$lock_snapshot"; then
+      echo "A durable $scope test run is already active or establishing its lock in this worktree; inspect $lock_dir." >&2
+      exit 1
+    fi
 
-  rm -f "$lock_dir/pid"
-  if ! rmdir "$lock_dir" 2>/dev/null || ! mkdir "$lock_dir" 2>/dev/null; then
-    echo "Unable to replace stale durable $scope lock at $lock_dir." >&2
-    exit 1
-  fi
-  printf 'pid=%s\n' "$$" > "$lock_dir/pid"
+    if ! hvl_owner_reclaim "$lock_dir/pid" "$lock_snapshot"; then
+      echo "Unable to replace stale durable $scope lock at $lock_dir." >&2
+      exit 1
+    fi
+  done
 }
 
 worktree_state() {

@@ -202,6 +202,8 @@ rm -rf "$lease_root" "$budget_dir"; mkdir -p "$lease_root"
 export HOST_VERIFICATION_LEASE_BUDGET=3
 race_log="$tmpdir/race.log"
 : > "$race_log"
+race_trace="$tmpdir/race-trace.log"
+: > "$race_trace"
 race_script="$tmpdir/race.sh"
 cat > "$race_script" <<EOF
 #!/bin/sh
@@ -219,7 +221,10 @@ race_pids=""
 race_n=10
 race_i=0
 while [ "$race_i" -lt "$race_n" ]; do
-  sh "$race_script" >/dev/null 2>&1 &
+  # Keep each racer's HVL_DEBUG_TRACE (ENTER/WON/RECLAIM-*) instead of
+  # discarding it: #1612's CI failure could not name the reclaim that let a
+  # 4th holder in because this went to /dev/null.
+  sh "$race_script" >/dev/null 2>>"$race_trace" &
   race_pids="$race_pids $!"
   race_i=$((race_i + 1))
 done
@@ -247,6 +252,8 @@ race_event_count="$(wc -l < "$race_log" | tr -d ' ')"
 [ "$race_max_live" -le "$HOST_VERIFICATION_LEASE_BUDGET" ] || {
   echo "budget oversubscribed: $race_max_live holders live at once against a budget of $HOST_VERIFICATION_LEASE_BUDGET" >&2
   cat "$race_log" >&2
+  echo "--- racer trace ---" >&2
+  cat "$race_trace" >&2
   exit 1
 }
 

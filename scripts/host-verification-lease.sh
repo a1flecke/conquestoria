@@ -9,8 +9,9 @@
 # pool-startup failures (see the incident this issue fixes: "Timeout
 # waiting for worker to respond" before any test file had even started).
 # This library's `hvl_acquire`/`hvl_release` provide ONE host-wide mutual-
-# exclusion slot for that class of command, implemented as an atomic
-# `mkdir` lease so no daemon or network service is required.
+# exclusion slot for that class of command, implemented as an atomically
+# created owner file (see "Owner records" below) so no daemon or network
+# service is required.
 #
 # #1133 items H/J found that two independent single-slot mutexes (this one,
 # and run-ai-long-horizon.sh's own separate one) are not, on their own, a
@@ -116,10 +117,11 @@
 #   HOST_VERIFICATION_LEASE_REPORT_SECONDS How often (seconds) to print a
 #                                           waiting-status line. Default 15.
 #   HOST_VERIFICATION_LEASE_SHORT_GRACE    Seconds to wait before reclaiming
-#                                           a lease with missing/corrupt
-#                                           metadata (a creator that crashed
-#                                           between `mkdir` and writing its
-#                                           metadata file). Default 10.
+#                                           a lease or slot whose owner record
+#                                           has no parseable pid/hostname
+#                                           (hvl_owner_claim never writes one;
+#                                           an older checkout or a hand edit
+#                                           could). Default 10.
 #   HOST_VERIFICATION_LEASE_LONG_GRACE     Seconds to wait before reclaiming
 #                                           a lease whose liveness cannot be
 #                                           verified locally (hostname
@@ -166,7 +168,7 @@
 #   HVL_DEBUG_TRACE                        Any non-empty value makes
 #                                           hvl_acquire_budget_slot print one
 #                                           stderr line per ENTER/WON/
-#                                           RECLAIM-EMPTY/RECLAIM-DEAD
+#                                           RECLAIM-CORRUPT/RECLAIM-DEAD
 #                                           decision (pid, resolved budget
 #                                           dir, slot index). Off by default,
 #                                           zero cost when unset. This is
@@ -279,6 +281,116 @@ hvl_field() {
   # TOTAL (#1403): a missing/just-released metadata file reads as "no value", never a failing status (see
   # hvl_start_marker). Callers already treat empty as "absent".
   { sed -n "s/^$2=//p" "$1" 2>/dev/null | head -n 1; } || true
+}
+
+# --- Owner records: claim and reclaim without ABA (#1612) --------------------
+#
+# Every lock in this family -- the push-verification mutex (`active/owner`), each capacity slot (`slot-N/owner`) and
+# the worktree durable lock (run-durable-test-suite.sh, `<scope>-suite.lock/pid`) -- is a directory whose owner file
+# names the holder. Two rules keep "at most one holder" true under every interleaving, not just the likely ones:
+#
+# 1. The owner file IS the ownership, and it appears complete and exclusively (hvl_owner_claim): the record is
+#    written to a private staging file in the same directory and then hard-linked to the owner name. link(2) fails
+#    when the name exists, so one claimer wins, and no reader can see a half-written record. The old claim was a
+#    `mkdir` followed by a separate write, which left an owner-less window that waiters had to guess about.
+# 2. A record judged abandoned is removed only by hvl_owner_reclaim, never by name. The old code read the record,
+#    judged its owner dead, and then ran `rm owner; rmdir dir` -- deleting whatever was there by then. When the
+#    judged owner released and a new holder claimed the same name in between, the waiter deleted the live holder's
+#    record and won the slot itself: two holders of one slot, the 4-for-3 hooks failure in #1612. hvl_owner_reclaim
+#    deletes only the exact record it was given. The right to delete a record is a token whose NAME is derived from
+#    that record (created with link(2), so exactly one waiter gets it per record), and the record is re-read after
+#    the token is held. While the token is held the record cannot change: its owner is dead (no release), claimers
+#    fail while it exists, and any other waiter is still judging some other record. A waiter whose judgement is
+#    out of date re-reads a different record and backs off.
+#
+# Liveness itself (hvl_record_is_live) is unchanged: a record is abandoned only on positive evidence that its pid is
+# gone or now belongs to a different process.
+
+# A value unique to this claim, so two records never compare equal even for the same pid in the same second.
+hvl_nonce() {
+  hvl_nonce_rand="$({ od -An -N4 -tu4 /dev/urandom 2>/dev/null | tr -d ' \n'; } || true)"
+  printf '%s-%s-%s\n' "$$" "$(hvl_now)" "${hvl_nonce_rand:-0}"
+}
+
+# The whole owner record, read once. Empty when it does not exist (TOTAL, see hvl_start_marker).
+hvl_owner_read() {
+  cat "$1" 2>/dev/null || true
+}
+
+# hvl_record_field <record> <key> -- like hvl_field, but over a record already read (one consistent snapshot).
+hvl_record_field() {
+  { printf '%s\n' "$1" | sed -n "s/^$2=//p" | head -n 1; } || true
+}
+
+# hvl_record_is_live <record>: 0 when the recorded process is still the one that wrote the record, or when that
+# cannot be disproved. A missing or unreadable start marker is not proof of PID reuse (ps can fail under load or be
+# denied by a sandbox; see hvl_is_stale), so only a live pid with a DIFFERENT readable marker counts as reused.
+hvl_record_is_live() {
+  hvl_rl_pid="$(hvl_record_field "$1" pid)"
+  case "$hvl_rl_pid" in ''|*[!0-9]*) return 1 ;; esac
+  hvl_pid_is_live "$hvl_rl_pid" || return 1
+  hvl_rl_marker="$(hvl_record_field "$1" start_marker)"
+  [ -n "$hvl_rl_marker" ] || return 0
+  hvl_rl_current="$(hvl_start_marker "$hvl_rl_pid")"
+  [ -z "$hvl_rl_current" ] || [ "$hvl_rl_current" = "$hvl_rl_marker" ]
+}
+
+# hvl_owner_claim <owner-file> <record>
+#
+# Creates <owner-file> holding <record> iff no owner file exists. Returns 0 when this call created it, 1 when an
+# owner already exists, 2 when the directory cannot be created or hard links do not work there.
+hvl_owner_claim() {
+  hvl_oc_dir="$(dirname "$1")"
+  hvl_oc_stage="$hvl_oc_dir/.claim.$(hvl_nonce)"
+  hvl_oc_attempt=0
+  while [ "$hvl_oc_attempt" -lt 50 ]; do
+    hvl_oc_attempt=$((hvl_oc_attempt + 1))
+    [ ! -e "$1" ] || return 1
+    mkdir -p "$hvl_oc_dir" 2>/dev/null || [ -d "$hvl_oc_dir" ] || break
+    if printf '%s\n' "$2" > "$hvl_oc_stage" 2>/dev/null; then
+      if ln "$hvl_oc_stage" "$1" 2>/dev/null; then
+        rm -f "$hvl_oc_stage"
+        return 0
+      fi
+      rm -f "$hvl_oc_stage"
+    fi
+    # Either the owner file now exists (checked at the top), or a releaser removed the directory between our mkdir
+    # and our link; both are ordinary races, so look again.
+  done
+  echo "ERROR: cannot create a lock record at $1 (is the directory writable, and does it support hard links?)" >&2
+  return 2
+}
+
+# hvl_owner_reclaim <owner-file> <record>
+#
+# Removes <owner-file> iff it still holds exactly <record>, which the caller has already judged abandoned. Returns 0
+# when it removed that record, 1 otherwise (the record changed, or another waiter is already reclaiming it).
+hvl_owner_reclaim() {
+  [ -n "$2" ] || return 1
+  hvl_or_dir="$(dirname "$1")"
+  hvl_or_base="$hvl_or_dir/.reclaim.$(hvl_path_hash "$2")"
+  hvl_or_token="$hvl_or_base"
+  hvl_or_stage="$hvl_or_dir/.reclaimer.$(hvl_nonce)"
+  printf 'pid=%s\nstart_marker=%s\n' "$$" "$(hvl_start_marker "$$")" > "$hvl_or_stage" 2>/dev/null || return 1
+  while ! ln "$hvl_or_stage" "$hvl_or_token" 2>/dev/null; do
+    # Another waiter holds the right to reclaim this record. Wait for it unless it died holding the token; then take
+    # over through a token named after THAT holder, which is again exclusive.
+    hvl_or_holder="$(hvl_owner_read "$hvl_or_token")"
+    if [ -z "$hvl_or_holder" ] || hvl_record_is_live "$hvl_or_holder"; then
+      rm -f "$hvl_or_stage"
+      return 1
+    fi
+    hvl_or_token="$hvl_or_token.$(hvl_path_hash "$hvl_or_holder")"
+  done
+  rm -f "$hvl_or_stage"
+  hvl_or_status=1
+  if [ "$(hvl_owner_read "$1")" = "$2" ]; then
+    rm -f "$1"
+    hvl_or_status=0
+  fi
+  rm -f "$hvl_or_base" "$hvl_or_base".*
+  rmdir "$hvl_or_dir" 2>/dev/null || true
+  return "$hvl_or_status"
 }
 
 hvl_cpu_count() {
@@ -429,8 +541,7 @@ hvl_lane_capacity() {
   esac
 }
 
-hvl_write_metadata() {
-  hvl_meta_tmp="$HVL_LEASE_DIR/owner.tmp.$$"
+hvl_metadata_record() {
   {
     printf 'pid=%s\n' "$$"
     printf 'hostname=%s\n' "$HVL_SELF_HOST"
@@ -441,40 +552,31 @@ hvl_write_metadata() {
     printf 'acquired_at_iso=%s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || true)"
     printf 'cpu_count=%s\n' "$(hvl_cpu_count)"
     printf 'vitest_max_workers=%s\n' "${VITEST_MAX_WORKERS:-}"
-  } > "$hvl_meta_tmp"
-  mv "$hvl_meta_tmp" "$HVL_META_FILE"
+    printf 'claim_id=%s\n' "$(hvl_nonce)"
+  } || true
 }
 
-# Decide whether the lease currently sitting at $HVL_LEASE_DIR is stale and
+# hvl_is_stale <record>
+#
+# Decide whether the lease record <record> (the owner file read once by the
+# caller, so every field comes from the same writer -- #1612) is stale and
 # safe to reclaim. Returns 0 (true) if stale, 1 (false) if it must be
 # respected (either genuinely live, or too young to judge yet).
 hvl_is_stale() {
-  hvl_meta="$HVL_META_FILE"
-  if [ -f "$hvl_meta" ]; then
-    hvl_ref_path="$hvl_meta"
-  else
-    hvl_ref_path="$HVL_LEASE_DIR"
-  fi
-  hvl_age=$(( $(hvl_now) - $(hvl_mtime_epoch "$hvl_ref_path") ))
+  hvl_meta="$1"
+  hvl_age=$(( $(hvl_now) - $(hvl_mtime_epoch "$HVL_META_FILE") ))
   [ "$hvl_age" -ge 0 ] || hvl_age=0
 
-  if [ ! -f "$hvl_meta" ]; then
-    # Creator crashed between `mkdir` and writing metadata (or metadata was
-    # already reclaimed out from under a concurrent reader). Give it a
-    # short grace period in case the write is simply still in flight.
-    [ "$hvl_age" -ge "${HOST_VERIFICATION_LEASE_SHORT_GRACE:-10}" ]
-    return
-  fi
-
-  hvl_owner_pid="$(hvl_field "$hvl_meta" pid)"
-  hvl_owner_host="$(hvl_field "$hvl_meta" hostname)"
-  hvl_owner_marker="$(hvl_field "$hvl_meta" start_marker)"
-  hvl_owner_job_pid="$(hvl_field "$hvl_meta" job_pid)"
+  hvl_owner_pid="$(hvl_record_field "$hvl_meta" pid)"
+  hvl_owner_host="$(hvl_record_field "$hvl_meta" hostname)"
+  hvl_owner_marker="$(hvl_record_field "$hvl_meta" start_marker)"
+  hvl_owner_job_pid="$(hvl_record_field "$hvl_meta" job_pid)"
 
   case "$hvl_owner_pid" in
     ''|*[!0-9]*)
-      # Corrupt metadata: no parseable pid. Same short grace as missing
-      # metadata -- there is no live process to check.
+      # Corrupt metadata (hvl_owner_claim never writes one; an older
+      # checkout or a hand edit could): no parseable pid, so there is no
+      # live process to check. Short grace, keyed off the file's mtime.
       [ "$hvl_age" -ge "${HOST_VERIFICATION_LEASE_SHORT_GRACE:-10}" ]
       return
       ;;
@@ -513,6 +615,14 @@ hvl_is_stale() {
     # Access to process metadata can be denied by a sandbox, so stealing the
     # lease here would permit two suite-scale verifications to overlap. Wait
     # for the live PID to exit rather than trading safety for faster recovery.
+    return 1
+  fi
+
+  if [ -z "$hvl_owner_marker" ]; then
+    # #1612: the same rule from the other side. An owner whose own `ps` failed
+    # when it acquired recorded an empty marker; comparing that against a
+    # readable current marker used to read as "PID reuse" and stole a live
+    # lease. An empty recorded marker proves nothing.
     return 1
   fi
 
@@ -595,25 +705,28 @@ hvl_acquire() {
   hvl_waiting_file=""
 
   while :; do
-    if mkdir "$HVL_LEASE_DIR" 2>/dev/null; then
-      # #1377: same publication-ordering contract as hvl_acquire_budget_slot
-      # (see its win branch): withdraw the waiting record before the metadata
-      # write makes this lease observable as held, so a status reader never
-      # sees this pid as both QUEUED and ACTIVE.
-      [ -z "$hvl_waiting_file" ] || rm -f "$hvl_waiting_file"
-      hvl_write_metadata
-      break
+    # #1377: same publication-ordering contract as hvl_acquire_budget_slot
+    # (see its claim): withdraw the waiting record before the claim can make
+    # this lease observable as held, so a status reader never sees this pid
+    # as both QUEUED and ACTIVE. If the claim then loses, the record is
+    # written again below.
+    if [ -n "$hvl_waiting_file" ] && [ ! -e "$HVL_META_FILE" ]; then
+      rm -f "$hvl_waiting_file"
+      hvl_waiting_file=""
     fi
-
-    if [ ! -d "$HVL_LEASE_DIR" ]; then
+    hvl_claim_status=0
+    hvl_owner_claim "$HVL_META_FILE" "$(hvl_metadata_record)" || hvl_claim_status=$?
+    [ "$hvl_claim_status" -ne 0 ] || break
+    if [ "$hvl_claim_status" -eq 2 ]; then
       echo "ERROR: cannot create host verification lease at $HVL_LEASE_DIR" >&2
       trap - INT TERM
       exit 2
     fi
 
-    if hvl_is_stale; then
-      rm -f "$HVL_META_FILE"
-      rmdir "$HVL_LEASE_DIR" 2>/dev/null || true
+    # Judge and reclaim one snapshot of the record, never the name (#1612).
+    hvl_lease_record="$(hvl_owner_read "$HVL_META_FILE")"
+    [ -n "$hvl_lease_record" ] || continue
+    if hvl_is_stale "$hvl_lease_record" && hvl_owner_reclaim "$HVL_META_FILE" "$hvl_lease_record"; then
       continue
     fi
 
@@ -661,8 +774,9 @@ hvl_release() {
   [ -d "$HVL_LEASE_DIR" ] || return 0
   [ -f "$HVL_META_FILE" ] || return 0
 
-  hvl_owner_pid="$(hvl_field "$HVL_META_FILE" pid)"
-  hvl_owner_marker="$(hvl_field "$HVL_META_FILE" start_marker)"
+  hvl_release_record="$(hvl_owner_read "$HVL_META_FILE")"
+  hvl_owner_pid="$(hvl_record_field "$hvl_release_record" pid)"
+  hvl_owner_marker="$(hvl_record_field "$hvl_release_record" start_marker)"
   if [ "$hvl_owner_pid" = "$HVL_SELF_PID" ] && [ "$hvl_owner_marker" = "$HVL_SELF_MARKER" ]; then
     rm -f "$HVL_META_FILE"
     rmdir "$HVL_LEASE_DIR" 2>/dev/null || true
@@ -707,17 +821,20 @@ hvl_release() {
 #
 # Implemented as HOST_VERIFICATION_LEASE_BUDGET pre-named, NUMBERED slot
 # directories (slot-0, slot-1, ...), each claimed with the exact same atomic
-# `mkdir` primitive the single-slot mutex above already relies on. An
+# owner-file primitive the single-slot mutex above relies on (hvl_owner_claim;
+# before #1612 both used `mkdir` and deleted stale slots by name). An
 # earlier version of this function instead counted live marker files and
 # compared the count to the budget before writing its own marker -- a
 # classic time-of-check-to-time-of-use race (count, then write, as two
 # separate steps) that a single isolated test run never hit, but that
 # reliably let a 3rd/4th holder in once real host contention (several
 # concurrent `yarn test` processes, exactly the scenario this exists to
-# guard) widened the gap between those two steps. `mkdir` on a specific
-# slot NAME is atomic: at most one process can ever win a given slot, so
+# guard) widened the gap between those two steps. Creating a specific slot's
+# owner file is atomic: at most one process can ever win a given slot, so
 # there is no window for two processes to both believe the same slot is
-# free. Do not reintroduce a count-then-write scheme here.
+# free. Do not reintroduce a count-then-write scheme here, and do not delete
+# a slot by name: an atomic claim is worthless if a waiter can delete the
+# winner's record (#1612, see hvl_owner_reclaim).
 hvl_acquire_budget_slot() {
   # #1133 MR6: optional label (e.g. "full", "regular"), recorded into the
   # won slot's owner file and any waiting record so `yarn verify:local:status`
@@ -789,85 +906,63 @@ hvl_acquire_budget_slot() {
       hvl_budget_slot_dir="$hvl_budget_dir/slot-$hvl_budget_slot_index"
       hvl_budget_owner_file="$hvl_budget_slot_dir/owner"
 
-      if mkdir "$hvl_budget_slot_dir" 2>/dev/null; then
-        # #1377: withdraw the waiting record BEFORE publishing ownership.
-        # Observers (yarn verify:local:status, the #1166 scheduler benchmark
-        # harness) treat slot-N/owner as "holds capacity" and
-        # waiting/<pid> as "queued for admission". Writing the owner file
-        # first left a real window where both records existed for this pid --
-        # the CI flake "a job waiting for admission never holds capacity".
-        # Between the mkdir and the owner write the slot is not yet
-        # observable as held (its owner file does not exist), so removing the
-        # record here makes the inconsistent state impossible; the cleanup
-        # after the loop below then has nothing left to do.
-        [ -z "$hvl_budget_waiting_file" ] || rm -f "$hvl_budget_waiting_file"
-        printf 'pid=%s\nstart_marker=%s\ncommand=%s\nlane=%s\nworktree=%s\nacquired_at=%s\nacquired_at_iso=%s\n' \
+      # #1377: withdraw the waiting record BEFORE the claim can publish
+      # ownership. Observers (yarn verify:local:status, the #1166 scheduler
+      # benchmark harness) treat slot-N/owner as "holds capacity" and
+      # waiting/<pid> as "queued for admission"; publishing first left a real
+      # window where both records existed for this pid -- the CI flake "a job
+      # waiting for admission never holds capacity". Withdrawn only when the
+      # slot looks free; if the claim then loses, the record is written again
+      # after this scan.
+      if [ -n "$hvl_budget_waiting_file" ] && [ ! -e "$hvl_budget_owner_file" ]; then
+        rm -f "$hvl_budget_waiting_file"
+        hvl_budget_waiting_file=""
+      fi
+      hvl_budget_claim_status=0
+      hvl_owner_claim "$hvl_budget_owner_file" "$(printf 'pid=%s\nstart_marker=%s\ncommand=%s\nlane=%s\nworktree=%s\nacquired_at=%s\nacquired_at_iso=%s\nclaim_id=%s' \
           "$$" "$hvl_budget_self_marker" "$HVL_BUDGET_LABEL" "$hvl_budget_lane" "$(pwd)" "$(hvl_now)" \
-          "$(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || true)" > "$hvl_budget_owner_file"
+          "$(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || true)" "$(hvl_nonce)")" || hvl_budget_claim_status=$?
+      if [ "$hvl_budget_claim_status" -eq 0 ]; then
         hvl_budget_marker="$hvl_budget_slot_dir"
         [ -z "${HVL_DEBUG_TRACE:-}" ] || echo "$(hvl_now) pid=$$ dir=$hvl_budget_dir WON slot=$hvl_budget_slot_index marker=[$hvl_budget_self_marker]"  >&2
         break
       fi
+      [ "$hvl_budget_claim_status" -ne 2 ] || exit 2
 
-      # This slot name is already taken. Reclaim it only if its recorded
-      # owner is genuinely gone (dead pid, or the pid was reused since),
-      # the same staleness test hvl_is_stale already applies to the mutex --
-      # EXCEPT when the owner file is missing/unreadable, which is not
-      # itself proof of abandonment: the process that just won this slot's
-      # `mkdir` may simply not have finished writing its owner file yet.
-      # Under real contention this window is real (an earlier version of
-      # this function had no grace period here at all, and a stress test
-      # racing 10 holders for 3 slots reliably let a 4th in through exactly
-      # this gap: another racer read the not-yet-written owner file as
-      # empty, concluded the slot was abandoned, deleted it, and re-won it
-      # for itself while the true owner was still mid-write). Give a missing
-      # owner file the SAME short grace period (keyed off the slot
-      # directory's own mtime) hvl_is_stale already gives the mutex's
-      # metadata file for the identical reason -- move on to the next slot
-      # index instead of reclaiming immediately.
-      hvl_budget_owner_pid="$(hvl_field "$hvl_budget_owner_file" pid 2>/dev/null || true)"
-      if [ -z "$hvl_budget_owner_pid" ]; then
-        hvl_budget_slot_age=$(( $(hvl_now) - $(hvl_mtime_epoch "$hvl_budget_slot_dir") ))
-        [ "$hvl_budget_slot_age" -ge 0 ] || hvl_budget_slot_age=0
-        if [ "$hvl_budget_slot_age" -ge "${HOST_VERIFICATION_LEASE_SHORT_GRACE:-10}" ]; then
-          [ -z "${HVL_DEBUG_TRACE:-}" ] || echo "$(hvl_now) pid=$$ dir=$hvl_budget_dir RECLAIM-EMPTY slot=$hvl_budget_slot_index age=$hvl_budget_slot_age raw_owner_file=[$(cat "$hvl_budget_owner_file" 2>/dev/null)]"  >&2
-          rm -f "$hvl_budget_owner_file"
-          rmdir "$hvl_budget_slot_dir" 2>/dev/null || true
+      # This slot is held. Judge ONE snapshot of its record and, if its owner
+      # is genuinely gone (dead pid, or the pid was reused since -- the same
+      # evidence hvl_is_stale requires for the mutex), reclaim exactly that
+      # record (#1612; see hvl_owner_reclaim for why never by name). An
+      # owner-less slot cannot be mistaken for an abandoned one any more:
+      # hvl_owner_claim publishes the record complete, so a slot directory
+      # without an owner file is simply free, and the grace period an earlier
+      # version needed for a half-written record applies only to a record
+      # with no parseable pid (an older checkout or a hand edit).
+      hvl_budget_record="$(hvl_owner_read "$hvl_budget_owner_file")"
+      [ -n "$hvl_budget_record" ] || continue
+      hvl_budget_owner_pid="$(hvl_record_field "$hvl_budget_record" pid)"
+      hvl_budget_reclaim=""
+      case "$hvl_budget_owner_pid" in
+        ''|*[!0-9]*)
+          hvl_budget_slot_age=$(( $(hvl_now) - $(hvl_mtime_epoch "$hvl_budget_owner_file") ))
+          [ "$hvl_budget_slot_age" -lt "${HOST_VERIFICATION_LEASE_SHORT_GRACE:-10}" ] || hvl_budget_reclaim=RECLAIM-CORRUPT
+          ;;
+        *)
+          # Inconclusive evidence (an unreadable marker, now or when the
+          # owner recorded it) counts as alive: ps can transiently fail to
+          # fork under exactly the load this budget exists for, and an earlier
+          # version reclaimed a live slot that way during a real `yarn test`.
+          hvl_record_is_live "$hvl_budget_record" || hvl_budget_reclaim=RECLAIM-DEAD
+          ;;
+      esac
+      if [ -n "$hvl_budget_reclaim" ]; then
+        [ -z "${HVL_DEBUG_TRACE:-}" ] || echo "$(hvl_now) pid=$$ dir=$hvl_budget_dir $hvl_budget_reclaim slot=$hvl_budget_slot_index owner_pid=$hvl_budget_owner_pid owner_marker=[$(hvl_record_field "$hvl_budget_record" start_marker)] fresh_marker=[$(hvl_start_marker "${hvl_budget_owner_pid:-0}")]"  >&2
+        # Retry this index only when this call removed the record; otherwise
+        # another waiter is handling it (or it changed), so move on rather
+        # than spin.
+        if hvl_owner_reclaim "$hvl_budget_owner_file" "$hvl_budget_record"; then
           continue
         fi
-        hvl_budget_slot_index=$((hvl_budget_slot_index + 1))
-        continue
-      fi
-
-      hvl_budget_owner_marker="$(hvl_field "$hvl_budget_owner_file" start_marker 2>/dev/null || true)"
-      hvl_budget_owner_alive=0
-      if hvl_pid_is_live "$hvl_budget_owner_pid" && [ -n "$hvl_budget_owner_marker" ]; then
-        hvl_budget_owner_fresh_marker="$(hvl_start_marker "$hvl_budget_owner_pid")"
-        if [ -z "$hvl_budget_owner_fresh_marker" ]; then
-          # A live pid with an unreadable start marker is not proof of PID
-          # reuse -- ps can transiently fail to fork under real heavy host
-          # load (exactly the condition this budget exists to coordinate
-          # around), and access to process metadata can also be denied by a
-          # sandbox. hvl_is_stale already treats this identically for the
-          # mutex (see its own "not proof of PID reuse" comment); this
-          # function originally did not, and reliably reclaimed a genuinely
-          # live, correctly-owned slot the one time this ran as part of a
-          # real, loaded `yarn test` invocation right after that same
-          # invocation's own 650+-file Vitest run -- exactly the busy-host
-          # condition where a `ps` fork is most likely to transiently fail.
-          # Treat an inconclusive read as "still alive" rather than trade
-          # safety for faster reclaim.
-          hvl_budget_owner_alive=1
-        elif [ "$hvl_budget_owner_fresh_marker" = "$hvl_budget_owner_marker" ]; then
-          hvl_budget_owner_alive=1
-        fi
-      fi
-
-      if [ "$hvl_budget_owner_alive" -eq 0 ]; then
-        [ -z "${HVL_DEBUG_TRACE:-}" ] || echo "$(hvl_now) pid=$$ dir=$hvl_budget_dir RECLAIM-DEAD slot=$hvl_budget_slot_index owner_pid=$hvl_budget_owner_pid owner_marker=[$hvl_budget_owner_marker] live=$(hvl_pid_is_live "$hvl_budget_owner_pid" && echo yes || echo no) fresh_marker=[$(hvl_start_marker "$hvl_budget_owner_pid")]"  >&2
-        rm -f "$hvl_budget_owner_file"
-        rmdir "$hvl_budget_slot_dir" 2>/dev/null || true
-        continue
       fi
 
       hvl_budget_slot_index=$((hvl_budget_slot_index + 1))
@@ -934,8 +1029,9 @@ hvl_release_budget_slot() {
   eval "unset HVL_BUDGET_DEPTH_$hvl_budget_domain_key"
 
   [ -n "${hvl_budget_marker:-}" ] || return 0
-  hvl_budget_release_owner_pid="$(hvl_field "$hvl_budget_marker/owner" pid 2>/dev/null || true)"
-  hvl_budget_release_owner_marker="$(hvl_field "$hvl_budget_marker/owner" start_marker 2>/dev/null || true)"
+  hvl_budget_release_record="$(hvl_owner_read "$hvl_budget_marker/owner")"
+  hvl_budget_release_owner_pid="$(hvl_record_field "$hvl_budget_release_record" pid)"
+  hvl_budget_release_owner_marker="$(hvl_record_field "$hvl_budget_release_record" start_marker)"
   if [ "$hvl_budget_release_owner_pid" = "$$" ] && [ "$hvl_budget_release_owner_marker" = "$hvl_budget_self_marker" ]; then
     rm -f "$hvl_budget_marker/owner"
     rmdir "$hvl_budget_marker" 2>/dev/null || true

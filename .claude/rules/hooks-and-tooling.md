@@ -349,7 +349,38 @@ to a freshly-created-but-not-yet-populated slot:**
   grace period (`HOST_VERIFICATION_LEASE_SHORT_GRACE`, default 10s, keyed
   off the slot directory's own mtime) the mutex already gives its metadata
   file for the identical reason, and moves on to the next slot index instead
-  of reclaiming immediately while still within that window.
+  of reclaiming immediately while still within that window. **Superseded by
+  #1612** (next section): the owner file is now created complete, so a
+  missing one simply means "free".
+
+### Claim and reclaim owner records, never names (#1612)
+
+The grace period above narrowed the race but did not remove it, and the
+10-holders-for-3-slots test failed again in CI (4 live holders). Root cause,
+reproduced deterministically: an **ABA race in reclaim**. A waiter read
+`slot-N/owner` (owner D), D released and exited, a new holder W won
+`slot-N`, and the waiter, now finding D dead, ran `rm owner; rmdir slot-N`.
+That deleted *W's* live record, and the waiter took the slot too. The
+mutex (`active/owner`) and `run-durable-test-suite.sh`'s worktree lock had the
+same read, judge, delete-by-name shape, and the budget and mutex also read
+`pid` and `start_marker` with two separate reads that could come from two
+different owners. Two primitives in `host-verification-lease.sh` now own every
+lock in this family:
+
+| Primitive | Rule |
+|---|---|
+| `hvl_owner_claim <owner-file> <record>` | Writes the record to a private staging file, then hard-links it to the owner name. `link(2)` fails if the name exists, so there is one winner and no half-written record is ever visible. |
+| `hvl_owner_reclaim <owner-file> <record>` | Deletes the owner file only if it still holds exactly `<record>`, a snapshot the caller judged abandoned. The right to delete is a token *named after that record* (created with `link(2)`, so it is exclusive per record), and the record is re-read once the token is held. While the token is held the record cannot change: its owner is dead, claims fail, and other waiters are judging other records. A waiter that died holding a token is taken over through a token named after it. |
+
+Judge one snapshot (`hvl_owner_read` + `hvl_record_field`), never fields read
+one by one from the file. A live pid with an empty *recorded* start marker
+(its owner's own `ps` failed) is inconclusive, never PID reuse; both locks used
+to steal a live holder in that case. The on-disk layout (`slot-N/owner`,
+`active/owner`, `<scope>-suite.lock/pid`) is unchanged, so readers did not
+change. A checkout that predates this still uses `mkdir` claims in the same
+directories until it is rebased. `tests/hooks/host-verification-lease-reclaim-aba.test.sh`
+forces each interleaving by shadowing `hvl_pid_is_live`, so it fails on the
+old code every time, whatever the load.
 
 **Reentrancy is tracked with a depth counter (`HVL_BUDGET_DEPTH`), not a
 plain "already held" flag.** A flag records only the most recent acquire
@@ -555,6 +586,7 @@ than treating the overrun as a code failure.
 | ai-long holds no capacity during backoff or while waiting for its mutex; at most one ai-long runs | `run-ai-long-horizon-stall-retry.test.sh` scenarios 5-6 |
 | Lane requests are not inherited; invalid lanes rejected | `host-verification-lease-budget.test.sh` scenario 6 |
 | A waiting record is withdrawn before ownership is published, so a process is never visible as both QUEUED and holding | `host-verification-lease-wait-hold-race.test.sh` |
+| A waiter never deletes a lock record other than the one it judged abandoned, so a slot never has two holders (#1612) | `host-verification-lease-reclaim-aba.test.sh` |
 | Stronger proof satisfies weaker; stale/dirty/failed/unknown proof never skips | `verification-proof.test.sh` |
 | Publication verifiers really run in the foreground lane | `verification-proof.test.sh` scenarios 1, 3 |
 | SLO overrun passes; runaway fails | `verify-pr.test.sh` |

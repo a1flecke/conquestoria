@@ -39,6 +39,10 @@ out="$(hvl_job_tree_pids "$dead")";           [ "$out" = "$dead" ]
 out="$(hvl_hostname)";                        [ -n "$out" ]
 out="$(hvl_cpu_count)";                       [ -n "$out" ]
 out="$(hvl_path_hash "x")";                   [ -n "$out" ]
+out="$(hvl_nonce)";                           [ -n "$out" ]
+out="$(hvl_owner_read "/nonexistent/owner")"; [ -z "$out" ]
+out="$(hvl_record_field "" pid)";             [ -z "$out" ]
+out="$(hvl_record_field "$(printf "pid=7\nlane=x")" lane)"; [ "$out" = x ]
 echo reached-end
 ' _ "$LIB" | grep -q '^reached-end$' || fail "a value helper is not total under set -euo pipefail"
 
@@ -92,7 +96,7 @@ wait "$waiter" || status=$?
 [ -f "$tmp/acquired" ] || fail "the waiter never acquired the slot after the owner finished"
 
 # --- 3. structural guard: only known-total helpers may feed an unguarded `$(...)` assignment ---------------------
-TOTAL="hvl_start_marker hvl_field hvl_mtime_epoch hvl_job_tree_pids hvl_hostname hvl_cpu_count hvl_path_hash hvl_now hvl_resolve_host_scope_dir hvl_resolve_root hvl_capacity_lane hvl_lane_budget_dir hvl_lane_capacity"
+TOTAL="hvl_start_marker hvl_field hvl_nonce hvl_owner_read hvl_record_field hvl_mtime_epoch hvl_job_tree_pids hvl_hostname hvl_cpu_count hvl_path_hash hvl_now hvl_resolve_host_scope_dir hvl_resolve_root hvl_capacity_lane hvl_lane_budget_dir hvl_lane_capacity"
 # Lines that already guard the substitution with `||` are safe whatever the helper does.
 unguarded_helpers() {
   grep -h '\$(hvl_' "$@" | grep -v '||' | grep -ohE '\$\((hvl_[a-z_]+)' | sed 's/^\$(//' | sort -u
