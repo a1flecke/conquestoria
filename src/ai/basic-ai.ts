@@ -132,6 +132,7 @@ import { applyAIProduction } from './ai-production';
 import { applyAIGoldSpending } from './ai-treasury';
 import { applyAIResearch } from './ai-research';
 import { getAIProcurementTerms, processAIResourceMarketplace } from './ai-resource-marketplace';
+import { applyAIExportPolicies, getAITradeDestination, getAITradeRouteDemand } from './ai-trade-strategy';
 import { refreshMarketOffers } from '@/systems/resource-market-offers';
 import { setRouteProcurement } from '@/systems/resource-procurement';
 import { getCrisisRestoreAssignments } from './ai-crisis-response';
@@ -952,6 +953,7 @@ function processAITurnInternal(
     { excludedUnitIds: recoveryUnitIds },
   ).state;
   newState = processAIResourceMarketplace(newState, civId);
+  newState = applyAIExportPolicies(newState, civId);
   civ = newState.civilizations[civId];
   const administrativePerception = preparedForTurn.perception;
 
@@ -983,7 +985,12 @@ function processAITurnInternal(
     .map(id => newState.units[id])
     .filter((u): u is Unit => !!u && hasAITradeRole(u.type) && !u.committedToRouteId);
 
+  const routeDemand = getAITradeRouteDemand(newState, civId);
+  let establishedThisTurn = 0;
   for (const caravan of idleCaravans) {
+    if (establishedThisTurn >= routeDemand) break;
+    // Prefer a known, permitted supplier that actually has the missing resource offer.
+    const preferredDestinationId = getAITradeDestination(newState, civId, caravan.id);
     // Try domestic cities first (own city), then foreign
     const ownCities = civ.cities.map(id => newState.cities[id]).filter((c): c is City => !!c);
     const knownForeignCityIds = new Set(
@@ -1000,8 +1007,12 @@ function processAITurnInternal(
         ? [newState.minorCivs[quest.target.minorCivId]?.cityId]
         : [])
       .filter((cityId): cityId is string => Boolean(cityId)));
-    const candidates = [...ownCities, ...foreignCities].sort((left, right) =>
-      Number(assignedDestinationIds.has(right.id)) - Number(assignedDestinationIds.has(left.id)));
+    const candidates = [...ownCities, ...foreignCities].sort((left, right) => {
+      const leftPreferred = left.id === preferredDestinationId ? 1 : 0;
+      const rightPreferred = right.id === preferredDestinationId ? 1 : 0;
+      if (leftPreferred !== rightPreferred) return rightPreferred - leftPreferred;
+      return Number(assignedDestinationIds.has(right.id)) - Number(assignedDestinationIds.has(left.id));
+    });
     for (const candidate of candidates) {
       const routeResult = establishQuestAwareRoute(newState, caravan.id, candidate.id, { automated: true });
       // #1500: the executor returns a typed refusal; the AI simply tries the next candidate.
@@ -1018,6 +1029,7 @@ function processAITurnInternal(
       const currentRoute = newState.marketplace?.tradeRoutes.find(route => route.id === routeResult.route.id)
         ?? routeResult.route;
       bus.emit('trade:route-created', { route: currentRoute });
+      establishedThisTurn++;
       civ = newState.civilizations[civId];
       break;
     }

@@ -53,7 +53,7 @@ function getResourcePurchaseCandidates(state: GameState, civId: string, cityId: 
 }
 
 /** The first hard resource the AI is short of in its current production plans. */
-function missingResource(state: GameState, civId: string): ResourceType | null {
+export function getAIMissingResource(state: GameState, civId: string): ResourceType | null {
   const civ = state.civilizations[civId];
   if (!civ) return null;
   const available = getCivAvailableResources(state, civId);
@@ -96,7 +96,7 @@ export function getAIProcurementTerms(
 ): ResourceProcurementTerms | null {
   const destination = state.cities[destinationCityId];
   if (!destination || destination.owner === civId) return null;
-  const resource = missingResource(state, civId);
+  const resource = getAIMissingResource(state, civId);
   if (!resource) return null;
   const goodId = resourceGoodId(resource);
   const offer = getMarketOfferForBuyer(state, civId, destination.owner, goodId);
