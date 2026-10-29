@@ -90,6 +90,7 @@ function renderRouteRow(
   // #1509 MR12: the manifest is owned cargo, not route income. Show what is aboard, what it cost,
   // and the target still short; a destroyed trader loses it (the row says so before departure).
   const manifestQuantity = getRouteManifestQuantity(route);
+  const delayed = !status.paying && ['blocked', 'blockaded', 'endpoint-lost', 'cancelled'].includes(status.reason ?? '');
   if (manifestQuantity > 0) {
     const cargo = document.createElement('span');
     cargo.dataset.routeManifest = 'true';
@@ -97,10 +98,12 @@ function renderRouteRow(
     const goods = (route.manifest?.items ?? [])
       .map(item => `${item.quantity} ${findTradeGood(item.goodId)?.name ?? item.goodId}`)
       .join(', ');
-    const direction = committedUnit?.routeDirection === 'inbound'
-      ? `returning home in ${getRouteLegRounds(state, committedUnit, route.fromCityId) ?? '?'} round(s)`
-      : 'awaiting return';
-    cargo.textContent = `Cargo: ${goods} · paid ${getRouteManifestPaid(route)} · ${direction} · lost if the trader is destroyed`;
+    const direction = delayed
+      ? 'Delayed — no promised arrival'
+      : committedUnit?.routeDirection === 'inbound'
+        ? `returning home in ${getRouteLegRounds(state, committedUnit, route.fromCityId) ?? '?'} round(s)`
+        : 'awaiting return';
+    cargo.textContent = `Confirmed cargo: ${goods} · paid ${getRouteManifestPaid(route)} · ${direction} · lost if the trader is destroyed`;
     summary.appendChild(cargo);
   }
   const order = route.procurement?.orders?.[0];
@@ -109,8 +112,15 @@ function renderRouteRow(
     const target = document.createElement('span');
     target.dataset.routeProcurement = 'true';
     target.style.cssText = 'font-size:11px;opacity:0.7;';
-    target.textContent = `${findTradeGood(order.goodId)?.name ?? order.goodId} target ${order.targetQuantity} · ${remaining} still to buy · max ${order.maxUnitPrice}/unit`;
+    target.textContent = `${findTradeGood(order.goodId)?.name ?? order.goodId} target ${order.targetQuantity} · ${remaining} potential purchase${remaining === 1 ? '' : 's'} (not owned) · max ${order.maxUnitPrice}/unit`;
     summary.appendChild(target);
+    const forecast = document.createElement('span');
+    forecast.dataset.routeForecast = 'true';
+    forecast.style.cssText = 'font-size:10px;opacity:0.6;';
+    forecast.textContent = delayed
+      ? 'Forecast: Delayed — no promised arrival while the route is interrupted.'
+      : 'Forecast: assumes the route operates each round; confirmed cargo is separate from potential purchases.';
+    summary.appendChild(forecast);
   }
 
   if (!status.paying && entitledDanger) {

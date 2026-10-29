@@ -363,7 +363,14 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
         withPolicy,
         caravanId,
         toCityId,
-        { automated: false, originCityId, mode, procurement: draft?.procurement },
+        {
+          automated: false,
+          originCityId,
+          mode,
+          procurement: draft
+            ? { ...draft.procurement, detourRounds: draft.detourRounds }
+            : undefined,
+        },
       );
       if (!routeResult.ok) {
         deps.showNotification(TRADE_ROUTE_DENIAL_MESSAGES[routeResult.reason], 'warning');

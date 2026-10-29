@@ -235,6 +235,8 @@ export interface ResourceProcurementOrder {
 
 export interface ResourceProcurementTerms {
   orders: readonly ResourceProcurementOrder[];
+  /** Optional conservative detour allowance for this route's legs. */
+  detourRounds?: number;
 }
 
 /** One paid claim in a route's manifest. The claim is incoming stock, never usable yet. */
