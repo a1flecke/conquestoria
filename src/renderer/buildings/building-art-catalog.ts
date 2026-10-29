@@ -170,6 +170,7 @@ export const BUILDING_ART: Readonly<Record<string, BuildingArtEntry>> = {
   fintech_hub: { bannerX: 7, bannerY: 114 },
   gene_therapy_clinic: { bannerX: 7, bannerY: 95 },
   precision_farm: { bannerX: 8, bannerY: 117 },
+  signals_hub: { bannerX: 7, bannerY: 107 },
   smart_grid: { bannerX: 7, bannerY: 91 },
 };
 
