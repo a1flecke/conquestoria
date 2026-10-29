@@ -194,28 +194,28 @@ line_of() { # line_of <pattern> -- first matching line number on stdin
 }
 
 budget_fn="$(awk '/^hvl_acquire_budget_slot\(\) \{/,/^\}/' "$LIB")"
-b_mkdir="$(printf '%s\n' "$budget_fn" | line_of 'if mkdir "\$hvl_budget_slot_dir"')"
 b_withdraw="$(printf '%s\n' "$budget_fn" | line_of 'rm -f "\$hvl_budget_waiting_file"')"
-b_publish="$(printf '%s\n' "$budget_fn" | line_of '> "\$hvl_budget_owner_file"')"
-[ -n "$b_mkdir" ] && [ -n "$b_withdraw" ] && [ -n "$b_publish" ] || {
-  echo "structural pin: could not locate mkdir/withdraw/publish in hvl_acquire_budget_slot" >&2
+b_publish="$(printf '%s\n' "$budget_fn" | line_of 'hvl_owner_claim "\$hvl_budget_owner_file"')"
+[ -n "$b_withdraw" ] && [ -n "$b_publish" ] || {
+  echo "structural pin: could not locate withdraw/claim in hvl_acquire_budget_slot" >&2
   exit 1
 }
-[ "$b_mkdir" -lt "$b_withdraw" ] && [ "$b_withdraw" -lt "$b_publish" ] || {
-  echo "structural pin: hvl_acquire_budget_slot must withdraw the waiting record (line $b_withdraw) after winning the mkdir ($b_mkdir) but before publishing the owner file ($b_publish)" >&2
+# #1612: the claim (hvl_owner_claim) is the publication -- it creates the
+# owner file complete, in one link(2) -- so the withdrawal must come first.
+[ "$b_withdraw" -lt "$b_publish" ] || {
+  echo "structural pin: hvl_acquire_budget_slot must withdraw the waiting record (line $b_withdraw) before claiming the slot ($b_publish)" >&2
   exit 1
 }
 
 mutex_fn="$(awk '/^hvl_acquire\(\) \{/,/^\}/' "$LIB")"
-m_mkdir="$(printf '%s\n' "$mutex_fn" | line_of 'if mkdir "\$HVL_LEASE_DIR"')"
 m_withdraw="$(printf '%s\n' "$mutex_fn" | line_of 'rm -f "\$hvl_waiting_file"')"
-m_publish="$(printf '%s\n' "$mutex_fn" | line_of 'hvl_write_metadata')"
-[ -n "$m_mkdir" ] && [ -n "$m_withdraw" ] && [ -n "$m_publish" ] || {
-  echo "structural pin: could not locate mkdir/withdraw/publish in hvl_acquire" >&2
+m_publish="$(printf '%s\n' "$mutex_fn" | line_of 'hvl_owner_claim "\$HVL_META_FILE"')"
+[ -n "$m_withdraw" ] && [ -n "$m_publish" ] || {
+  echo "structural pin: could not locate withdraw/claim in hvl_acquire" >&2
   exit 1
 }
-[ "$m_mkdir" -lt "$m_withdraw" ] && [ "$m_withdraw" -lt "$m_publish" ] || {
-  echo "structural pin: hvl_acquire must withdraw the waiting record (line $m_withdraw) after winning the mkdir ($m_mkdir) but before writing metadata ($m_publish)" >&2
+[ "$m_withdraw" -lt "$m_publish" ] || {
+  echo "structural pin: hvl_acquire must withdraw the waiting record (line $m_withdraw) before claiming the lease ($m_publish)" >&2
   exit 1
 }
 
