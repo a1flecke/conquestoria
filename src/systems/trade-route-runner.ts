@@ -137,7 +137,11 @@ export function planRouteRunnerRound(state: GameState, route: TradeRoute): Route
   let detoured = false;
   if (foreign.has(hexKey(path[1]!))) {
     const detourRoundsUsed = route.detourRoundsUsed ?? 0;
-    const avoided = detourRoundsUsed < MAX_ROUTE_DETOUR_ROUNDS
+    const detourAllowance = Math.min(
+      MAX_ROUTE_DETOUR_ROUNDS,
+      Math.max(0, Math.floor(route.procurement?.detourRounds ?? MAX_ROUTE_DETOUR_ROUNDS)),
+    );
+    const avoided = detourRoundsUsed < detourAllowance
       ? getRouteLegPath(state, caravan, legTargetCityId, { blockedHexKeys: foreign })
       : null;
     if (!avoided || avoided.length === 0) return plan(discovered, 'hold', legTargetCityId, { reason: 'blocked' });

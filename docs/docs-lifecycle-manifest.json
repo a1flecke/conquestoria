@@ -28,6 +28,16 @@
     "1497": "OPEN"
    }
   },
+  "docs/superpowers/plans/2026-10-25-issue-1513-standing-orders.md": {
+   "category": "active",
+   "reason": "MR16 implementation plan for multi-resource standing orders, presets, forecast assumptions, delayed-arrival copy and detour limits; owned by open child issue #1513 under parent #1497. Delete this file and move its entry to delivered history in the PR that completes MR16.",
+   "issues": [
+    1513
+   ],
+   "issueStates": {
+    "1513": "OPEN"
+   }
+  },
   "docs/superpowers/specs/2026-07-07-hidden-city-state-economy-design.md": {
    "category": "active",
    "reason": "Foundation design cited by the open minor-civ graduation issue #497.",

@@ -69,6 +69,7 @@ const ADDITIVE_WITHOUT_MIGRATION: Readonly<Record<string, string>> = {
   // round-trips a populated coverage record and a service manifest item.
   'luxuryServiceByCiv': '#1511 MR14 — optional delivered luxury coverage; absent means no coverage.',
   'marketplace.tradeRoutes[].manifest.items[].serviceTurns': '#1511 MR14 — optional service-bundle duration; absent means a stored-goods manifest item.',
+  'marketplace.tradeRoutes[].procurement.detourRounds': '#1513 MR16 — optional per-route detour allowance; absent means the existing maximum.',
   'commercePermissions.resourcePolicies[].serviceAllotments': '#1511 MR14 — optional luxury export service allotment; absent means no foreign service.',
   // #1512 MR15 — fuel posture, one-time startup marker and per-round fallback list are optional.
   // Absence means balanced posture, no startup grant yet, and no fallback (the normal allocation path

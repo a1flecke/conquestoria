@@ -2,7 +2,7 @@ import type { GameState, TradeRouteModeId } from '@/core/types';
 import type { ResourceProcurementTerms, TradeGoodId } from '@/core/types/commerce';
 import { RESOURCE_DEFINITIONS, getResourceAccessBenefit } from '@/systems/resource-definitions';
 import { getTradeCargoCapacity } from '@/systems/trade-role-targeting';
-import { resourceGoodId } from '@/systems/trade-good-definitions';
+import { findTradeGood, resourceGoodId } from '@/systems/trade-good-definitions';
 import {
   getEntitledTradeDestinations,
   getEntitledTradeOrigins,
@@ -43,6 +43,7 @@ export interface RouteProcurementDraft {
   procurement: ResourceProcurementTerms;
   roundBudget: number;
   treasuryFloor: number;
+  detourRounds: number;
 }
 
 export type EstablishRouteHandler = (
@@ -106,11 +107,13 @@ export function openEstablishRoutePanel(
       isLuxury: def.type === 'luxury',
     }));
   const canCarryImports = getTradeCargoCapacity(unit.type) > 0;
-  let procurementGoodId: TradeGoodId | null = storedGoods[0]?.id ?? null;
-  let procurementTarget = 10;
-  let procurementMaxPrice = 20;
+  interface DraftOrder { goodId: TradeGoodId; targetQuantity: number; maxUnitPrice: number }
+  const procurementOrders: DraftOrder[] = storedGoods[0]
+    ? [{ goodId: storedGoods[0].id, targetQuantity: 10, maxUnitPrice: 20 }]
+    : [];
   let procurementBudget = 100;
   let procurementFloor = 50;
+  let procurementDetour = 2;
 
   const modeSection = document.createElement('div');
   const recommendationSection = document.createElement('div');
@@ -203,33 +206,8 @@ export function openEstablishRoutePanel(
       box.style.cssText = 'margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.1);display:flex;flex-direction:column;gap:6px;';
       const heading = document.createElement('div');
       heading.style.cssText = 'font-size:11px;text-transform:uppercase;opacity:0.6;';
-      heading.textContent = 'Import order (optional)';
+      heading.textContent = 'Import orders (optional, in priority order)';
       box.appendChild(heading);
-
-      const goodLabel = document.createElement('label');
-      goodLabel.style.cssText = 'display:flex;align-items:center;gap:8px;';
-      goodLabel.appendChild(document.createTextNode('Good'));
-      const goodSelect = document.createElement('select');
-      goodSelect.dataset.procurementGood = 'true';
-      goodSelect.style.cssText = 'min-height:44px;background:#222;color:inherit;border:1px solid #555;border-radius:4px;padding:4px;';
-      for (const good of storedGoods) {
-        const option = document.createElement('option');
-        option.value = good.id;
-        option.textContent = `${good.icon} ${good.name}`;
-        option.selected = good.id === procurementGoodId;
-        goodSelect.appendChild(option);
-      }
-      goodSelect.addEventListener('change', () => {
-        procurementGoodId = goodSelect.value;
-        const selected = storedGoods.find(good => good.id === procurementGoodId);
-        if (selected?.isLuxury) {
-          procurementTarget = 1;
-          const targetInput = box.querySelector<HTMLInputElement>('input[data-procurement-target]');
-          if (targetInput) targetInput.value = '1';
-        }
-      });
-      goodLabel.appendChild(goodSelect);
-      box.appendChild(goodLabel);
 
       const numberRow = (
         labelText: string,
@@ -252,13 +230,116 @@ export function openEstablishRoutePanel(
         label.appendChild(input);
         return label;
       };
-      box.appendChild(numberRow('Target quantity', procurementTarget, 'procurement-target', 1, value => { procurementTarget = value; }));
-      box.appendChild(numberRow('Max unit price', procurementMaxPrice, 'procurement-max-price', 1, value => { procurementMaxPrice = value; }));
-      box.appendChild(numberRow('Round budget', procurementBudget, 'procurement-budget', 0, value => { procurementBudget = value; }));
+
+      const ordersContainer = document.createElement('div');
+      ordersContainer.style.cssText = 'display:flex;flex-direction:column;gap:6px;';
+      const renderOrders = () => {
+        ordersContainer.textContent = '';
+        procurementOrders.forEach((order, index) => {
+          const row = document.createElement('div');
+          row.dataset.procurementOrder = String(index);
+          row.style.cssText = 'display:flex;align-items:center;gap:6px;flex-wrap:wrap;';
+          const select = document.createElement('select');
+          select.dataset.procurementGood = 'true';
+          select.style.cssText = 'min-height:44px;background:#222;color:inherit;border:1px solid #555;border-radius:4px;padding:4px;flex:1;min-width:120px;';
+          for (const good of storedGoods) {
+            const option = document.createElement('option');
+            option.value = good.id;
+            option.textContent = `${good.icon} ${good.name}`;
+            option.selected = good.id === order.goodId;
+            select.appendChild(option);
+          }
+          select.addEventListener('change', () => {
+            order.goodId = select.value;
+            if (storedGoods.find(good => good.id === order.goodId)?.isLuxury) order.targetQuantity = 1;
+            renderOrders();
+          });
+          row.appendChild(select);
+          const target = document.createElement('input');
+          target.type = 'number';
+          target.min = '1';
+          target.step = '1';
+          target.value = String(order.targetQuantity);
+          target.dataset.procurementTarget = 'true';
+          target.setAttribute('aria-label', 'Target quantity');
+          target.style.cssText = 'width:72px;min-height:44px;background:#222;color:inherit;border:1px solid #555;border-radius:4px;padding:4px;';
+          target.addEventListener('input', () => { order.targetQuantity = Math.max(1, Number.parseInt(target.value, 10) || 1); });
+          row.appendChild(target);
+          const max = document.createElement('input');
+          max.type = 'number';
+          max.min = '1';
+          max.step = '1';
+          max.value = String(order.maxUnitPrice);
+          max.dataset.procurementMaxPrice = 'true';
+          max.setAttribute('aria-label', 'Maximum unit price');
+          max.style.cssText = 'width:72px;min-height:44px;background:#222;color:inherit;border:1px solid #555;border-radius:4px;padding:4px;';
+          max.addEventListener('input', () => { order.maxUnitPrice = Math.max(1, Number.parseInt(max.value, 10) || 1); });
+          row.appendChild(max);
+          for (const [label, action] of [
+            ['↑', () => {
+              if (index === 0) return;
+              [procurementOrders[index - 1], procurementOrders[index]] = [procurementOrders[index]!, procurementOrders[index - 1]!];
+              renderOrders();
+            }],
+            ['↓', () => {
+              if (index >= procurementOrders.length - 1) return;
+              [procurementOrders[index + 1], procurementOrders[index]] = [procurementOrders[index]!, procurementOrders[index + 1]!];
+              renderOrders();
+            }],
+            ['✕', () => { procurementOrders.splice(index, 1); renderOrders(); }],
+          ] as const) {
+            const button = createGameButton(label, 'ghost');
+            button.dataset.procurementOrderAction = label;
+            button.setAttribute('aria-label', `${label} import order ${index + 1}`);
+            button.addEventListener('click', action);
+            row.appendChild(button);
+          }
+          ordersContainer.appendChild(row);
+        });
+        if (procurementOrders.length === 0) {
+          const empty = document.createElement('div');
+          empty.style.cssText = 'font-size:11px;opacity:0.6;';
+          empty.textContent = 'No import orders — ordinary commerce only.';
+          ordersContainer.appendChild(empty);
+        }
+      };
+
+      const presetRow = document.createElement('div');
+      presetRow.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;';
+      for (const multiplier of [1, 2, 3]) {
+        const preset = createGameButton(`${multiplier} recipe${multiplier === 1 ? '' : 's'}`, 'secondary');
+        preset.dataset.procurementPreset = String(multiplier);
+        preset.addEventListener('click', () => {
+          const first = procurementOrders[0];
+          if (!first) return;
+          const standard = findTradeGood(first.goodId)?.quantity?.standardRecipeQuantity ?? 10;
+          first.targetQuantity = storedGoods.find(good => good.id === first.goodId)?.isLuxury
+            ? 1
+            : standard * multiplier;
+          renderOrders();
+        });
+        presetRow.appendChild(preset);
+      }
+      const add = createGameButton('Add order', 'secondary');
+      add.dataset.procurementAdd = 'true';
+      add.addEventListener('click', () => {
+        const used = new Set(procurementOrders.map(order => order.goodId));
+        const next = storedGoods.find(good => !used.has(good.id));
+        if (!next) return;
+        procurementOrders.push({ goodId: next.id, targetQuantity: next.isLuxury ? 1 : 10, maxUnitPrice: 20 });
+        renderOrders();
+      });
+      presetRow.appendChild(add);
+      box.appendChild(presetRow);
+      box.appendChild(ordersContainer);
+      renderOrders();
+
+      box.appendChild(numberRow('Shared round budget', procurementBudget, 'procurement-budget', 0, value => { procurementBudget = value; }));
       box.appendChild(numberRow('Treasury floor', procurementFloor, 'procurement-floor', 0, value => { procurementFloor = value; }));
+      box.appendChild(numberRow('Conservative detour limit', procurementDetour, 'procurement-detour', 0, value => { procurementDetour = value; }));
       const note = document.createElement('div');
       note.style.cssText = 'font-size:11px;opacity:0.6;';
-      note.textContent = 'Loaded at the supplier; usable only after the return home. The price is locked at loading within this maximum.';
+      note.textContent = 'Priority order controls the next manifest. Confirmed cargo is owned; the remaining target is only a potential purchase. Prices lock at loading within each maximum.';
       box.appendChild(note);
       detailSection.appendChild(box);
     }
@@ -448,20 +529,15 @@ export function openEstablishRoutePanel(
   confirmBtn.addEventListener('click', () => {
     if (!selectedCityId || !selectedOriginCityId) return;
     const destination = state.cities[selectedCityId];
+    const orders = procurementOrders.filter(order => order.targetQuantity > 0);
     const draft: RouteProcurementDraft | undefined = destination
       && destination.owner !== viewerCivId
-      && procurementGoodId
-      && procurementTarget > 0
+      && orders.length > 0
       ? {
-        procurement: {
-          orders: [{
-            goodId: procurementGoodId,
-            targetQuantity: procurementTarget,
-            maxUnitPrice: procurementMaxPrice,
-          }],
-        },
+        procurement: { orders },
         roundBudget: procurementBudget,
         treasuryFloor: procurementFloor,
+        detourRounds: procurementDetour,
       }
       : undefined;
     onEstablish(selectedCityId, selectedOriginCityId, selectedMode, draft);

@@ -180,6 +180,38 @@ describe('openEstablishRoutePanel (#1500 MR03)', () => {
     });
   });
 
+  it('supports multiple prioritized import orders, presets, removal and a detour limit', () => {
+    const state = makeState();
+    state.civilizations.alpha!.techState.completed.push('bronze-working', 'steam-power');
+    const onEstablish = vi.fn();
+    openEstablishRoutePanel(container, state, 'trader-1', onEstablish);
+
+    const panel = document.getElementById('establish-route-panel')!;
+    const destinationLabel = Array.from(panel.querySelectorAll('span'))
+      .find(el => (el.textContent ?? '').startsWith('Betatown'))!;
+    destinationLabel.parentElement!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    const add = panel.querySelector<HTMLButtonElement>('[data-procurement-add]')!;
+    add.click();
+    expect(panel.querySelectorAll('[data-procurement-order]')).toHaveLength(2);
+    const second = panel.querySelector<HTMLElement>('[data-procurement-order="1"]')!;
+    second.querySelector<HTMLButtonElement>('[data-procurement-order-action="↑"]')!.click();
+    const firstSelect = panel.querySelector<HTMLSelectElement>('[data-procurement-order="0"] select[data-procurement-good]')!;
+    const firstGood = firstSelect.value;
+    const detour = panel.querySelector<HTMLInputElement>('input[data-procurement-detour]')!;
+    detour.value = '1';
+    detour.dispatchEvent(new Event('input'));
+    panel.querySelector<HTMLButtonElement>('[data-procurement-preset="2"]')!.click();
+
+    const confirm = Array.from(panel.querySelectorAll('button')).find(button => button.textContent === 'Confirm')!;
+    confirm.click();
+    const draft = onEstablish.mock.calls[0][3];
+    expect(draft.procurement.orders).toHaveLength(2);
+    expect(draft.procurement.orders[0].goodId).toBe(firstGood);
+    expect(draft.procurement.orders[0].targetQuantity).toBe(20);
+    expect(draft.detourRounds).toBe(1);
+  });
+
   it('keeps air commerce available but explains that air imports are unavailable', () => {
     const state = makeState();
     state.units['trader-1']!.type = 'air_freighter';
