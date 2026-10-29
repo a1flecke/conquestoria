@@ -2009,7 +2009,6 @@ export function ImperialGeneralStaffSprite({ palette, svgOnly = false }: Buildin
 
 /* === ERA 9 REGULAR BUILDING SPRITES === */
 
-// TODO(art): Replace oil refinery: brick tower with pipe network, storage tanks, flare stack burning orange at top, steel catwalk.
 export function OilRefinerySprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Oil Refinery" category="production" svgOnly={svgOnly}>
@@ -2032,7 +2031,6 @@ export function OilRefinerySprite({ palette, svgOnly = false }: BuildingSpritePr
   );
 }
 
-// TODO(art): Replace assembly line: vast factory floor with conveyor belts, robotic arms overhead, workers in uniform, rows of identical products at end.
 export function AssemblyLineSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Assembly Line" category="production" svgOnly={svgOnly}>
@@ -2052,7 +2050,6 @@ export function AssemblyLineSprite({ palette, svgOnly = false }: BuildingSpriteP
   );
 }
 
-// TODO(art): Replace radio station: tall lattice transmission tower, guy wires, brick transmitter building at base, glowing aerial array.
 export function RadioStationSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Radio Station" category="economy" svgOnly={svgOnly}>
@@ -2074,7 +2071,6 @@ export function RadioStationSprite({ palette, svgOnly = false }: BuildingSpriteP
   );
 }
 
-// TODO(art): Replace airfield: flat concrete runway, biplane in hangar, windsock pole, control tower with observation deck.
 export function AirfieldSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Airfield" category="military" svgOnly={svgOnly}>
@@ -2099,7 +2095,6 @@ export function AirfieldSprite({ palette, svgOnly = false }: BuildingSpriteProps
   );
 }
 
-// TODO(art): Replace film studio: large sound stage building, film reel marquee sign above entrance, klieg lights flanking doors, director's chair silhouette.
 export function FilmStudioSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Film Studio" category="culture" svgOnly={svgOnly}>
@@ -2120,7 +2115,6 @@ export function FilmStudioSprite({ palette, svgOnly = false }: BuildingSpritePro
   );
 }
 
-// TODO(art): Replace national insurance: modern civic office, queuing citizens outside, frosted glass windows, official seal above door.
 export function NationalInsuranceSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="National Insurance" category="economy" svgOnly={svgOnly}>
@@ -2141,7 +2135,6 @@ export function NationalInsuranceSprite({ palette, svgOnly = false }: BuildingSp
   );
 }
 
-// TODO(art): Replace hydroelectric dam: massive concrete arch spanning a river gorge, water sluice gates at base, power lines leaving the top.
 export function HydroelectricDamSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Hydroelectric Dam" category="production" svgOnly={svgOnly}>
@@ -2168,7 +2161,6 @@ export function HydroelectricDamSprite({ palette, svgOnly = false }: BuildingSpr
   );
 }
 
-// TODO(art): Replace research institute: modernist campus building, large arched windows, chalkboard visible inside, telescope dome on roof.
 export function ResearchInstituteSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Research Institute" category="science" svgOnly={svgOnly}>
@@ -2187,7 +2179,6 @@ export function ResearchInstituteSprite({ palette, svgOnly = false }: BuildingSp
   );
 }
 
-// TODO(art): Replace tank depot: corrugated metal repair barn, ramp for tank access, spare tracks hanging on wall, guard post at entrance.
 export function TankDepotSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Tank Depot" category="military" svgOnly={svgOnly}>
@@ -2210,7 +2201,6 @@ export function TankDepotSprite({ palette, svgOnly = false }: BuildingSpriteProp
 
 /* === ERA 9 NATIONAL PROJECT SPRITES === */
 
-// TODO(art): Replace mobilization act: wartime poster wall, soldiers marching in formation, factory smokestacks behind, dramatic red and black color scheme.
 export function MobilizationActSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Mobilization Act" category="military" svgOnly={svgOnly}>
@@ -2233,7 +2223,6 @@ export function MobilizationActSprite({ palette, svgOnly = false }: BuildingSpri
   );
 }
 
-// TODO(art): Replace state broadcasting: modern broadcasting palace with tall antenna mast, lit transmission window, art-deco facade, state seal over entry arch.
 export function StateBroadcastingSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="State Broadcasting" category="economy" svgOnly={svgOnly}>
@@ -2258,7 +2247,6 @@ export function StateBroadcastingSprite({ palette, svgOnly = false }: BuildingSp
   );
 }
 
-// TODO(art): Replace with: Ring-mounted Krupp flak cannon on sandbag emplacement, four crew members at elevation and traverse wheels, brass shell casings at base, searchlight beam sweeping above.
 export function AntiAirBatterySprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Anti-Air Battery" category="military" svgOnly={svgOnly}>
@@ -2282,7 +2270,6 @@ export function AntiAirBatterySprite({ palette, svgOnly = false }: BuildingSprit
   );
 }
 
-// TODO(art): Replace air force command: neoclassical military HQ, stone eagle with spread wings over portico, aviation wing crest carved above entrance, biplanes in formation silhouetted through tall arched window, parade ground in foreground.
 export function AirForceCommandSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Air Force Command" category="military" svgOnly={svgOnly}>
@@ -2310,7 +2297,6 @@ export function AirForceCommandSprite({ palette, svgOnly = false }: BuildingSpri
   );
 }
 
-// TODO(art): Replace national census: bureaucratic civic hall, filing cabinet stacks visible through windows, long queuing desk inside, official census poster outside.
 export function NationalCensusSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   const cols = [40, 66, 92, 118, 144].map(x =>
     <rect x={x} y={74} width="10" height="62" rx="3" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.7" />
