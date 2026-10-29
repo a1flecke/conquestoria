@@ -575,9 +575,8 @@ export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = 
   smart_grid:                     SmartGridSprite,
   stealth_airbase:                StealthAirbaseSprite,
   telemedicine_hub:               TelemedicineHubSprite,
-  // era 12 national projects — reuse thematically-close existing sprites as
-  // placeholders (same pattern as unit reuse elsewhere); bespoke art is a
-  // generate-sprite-prompt follow-up.
+  // era 12 national projects — these three still reuse a neighbouring SVG sprite, but only as the load-failure fallback: each has
+  // its own painted art in BUILDING_ART (#615), which is what every panel and the map draw. Bespoke SVGs are optional follow-up.
   planetary_data_grid:            DataCenterSprite,
   global_logistics_network:       FintechHubSprite,
   orbital_fabrication_program:    SmartGridSprite,
