@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { namespaceSvgIds, getAnimatedBuildingIconHtml } from '@/ui/city-panel-building-icon';
 import { NEUTRAL_FACTION_PALETTE } from '@/renderer/sprites/sprite-system';
 import { getUnpaintedBuildingId, getUnpaintedBuildingIds } from '../helpers/unpainted-buildings';
@@ -50,7 +50,10 @@ describe('namespaceSvgIds', () => {
 
 describe('getAnimatedBuildingIconHtml', () => {
   // Buildings without production art keep the animated SVG sprite these tests describe; a painted one shows its art instead.
-  const unpainted = getUnpaintedBuildingId();
+  let unpainted = '';
+  beforeEach(() => {
+    unpainted = getUnpaintedBuildingId();
+  });
 
   it('renders the animated wrapper for a building present in BUILDING_SPRITE_CATALOG', () => {
     const html = getAnimatedBuildingIconHtml(unpainted, NEUTRAL_FACTION_PALETTE, `city-a:${unpainted}`);

@@ -37,6 +37,7 @@ describe('production item icons for buildings with art (#620)', () => {
     // Every era: each art group repaints the early buildings, and this test needs a building that still has no art to prove the
     // emoji fallback. An era <= 4 fixture went stale when #1547 painted the last of them.
     const { container, city, state } = panelFixture(Number.POSITIVE_INFINITY);
+    getUnpaintedBuildingId(); // every building is painted now (#615), so this hides a stand-in's art for the rest of the test
     const panel = createCityPanel(container, city, state, noopCallbacks);
 
     const buildingRows = Array.from(panel.querySelectorAll<HTMLElement>('.build-item'))

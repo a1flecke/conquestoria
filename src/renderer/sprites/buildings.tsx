@@ -2648,7 +2648,8 @@ export function SignalsBureauSprite({ palette, svgOnly = false }: BuildingSprite
   );
 }
 
-// National project placeholders
+// Era 10 national projects: each has its own drawing (not a reused sprite). They are the load-failure fallback behind the painted
+// art in BUILDING_ART (#615), which is what every panel and the map show.
 export function ManhattanProjectSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Manhattan Project" category="military" svgOnly={svgOnly}>

@@ -172,6 +172,11 @@ export const BUILDING_ART: Readonly<Record<string, BuildingArtEntry>> = {
   precision_farm: { bannerX: 8, bannerY: 117 },
   signals_hub: { bannerX: 7, bannerY: 107 },
   smart_grid: { bannerX: 7, bannerY: 91 },
+  stealth_airbase: { bannerX: 7, bannerY: 106 },
+  telemedicine_hub: { bannerX: 7, bannerY: 124 },
+  planetary_data_grid: { bannerX: 8, bannerY: 116 },
+  global_logistics_network: { bannerX: 7, bannerY: 96 },
+  orbital_fabrication_program: { bannerX: 7, bannerY: 103 },
 };
 
 export const BUILDING_ART_IDS: readonly string[] = Object.keys(BUILDING_ART);
