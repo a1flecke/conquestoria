@@ -23,6 +23,10 @@ What it shows: the soldier on a hex map with buttons for each state the game sen
 `death`, `work`), a health slider driving the four damage tiers, the six faction colours plus a free colour picker, four unit
 sizes, every animation looping, the damage tiers side by side, and a size check at 36 to 150 px.
 
+Walking is shown at the game's real pace: one hex in 220 ms, and a whole move capped at 800 ms (`MOVEMENT_MS_PER_HEX` and
+`MOVEMENT_MAX_MS` in `src/renderer/unit-movement-animation.ts`), plus a walk-in-place loop. A speed control (game, half, quarter)
+slows everything down so the cycle can be studied, and a "Walk cycle" switch plays all eight frames or one step repeated.
+
 ## What is in this folder
 
 | File | What |
@@ -31,6 +35,7 @@ sizes, every animation looping, the damage tiers side by side, and a size check 
 | `sheet.png`, `mask.png` | 8 x 7 cells of 368 x 192 px, 33 drawn frames in 56 slots, 1.1 MB together. The cloth is a grey ramp in the sheet; the mask says how much of each pixel takes the civ colour (same scheme as the game's PNG units) |
 | `manifest.json` | the same layout as JSON |
 | `prompt.txt` | the prompt written for this run (ChatGPT altered it before it would run; see `provenance.json`) |
+| `prompt-walk.txt` | the prompt for the final walk image (the walk was redrawn three times) |
 | `provenance.json` | generator, date, scan result, SHA-256 of the seven originals (the originals are not committed, about 11 MB) |
 
 Rebuild with the originals in a folder (named `a` to `g`, `.png` or `.bin`, as the spec lists them):
@@ -90,8 +95,12 @@ The game's PNG player was built for one still rigged into three rows. These are 
 ### What the experiment says about quality
 
 - **The character stayed the same across all seven images again** (two samples now, still not proof it always will).
-- **The walk is now a real walk.** Eight frames with the feet far apart at contact, a lifted boot at the passing pose and a visible
-  rise and fall. This was the main weakness of run 1.
+- **The walk took four attempts** (`prompt-walk.txt` is the last prompt). The first (6 frames) was stiff. The second (8 frames)
+  repeated one step, so the same leg led every time and it read as a skip. The third swapped one frame but had high knees (the prompt
+  asked for "knee raised and forward") and uneven pacing. The fourth, a relaxed walk with low feet, has no high knees and almost
+  no vertical bounce (1 px of head movement on a 150 px figure). The second step still is not an exact mirror of the first
+  (frame 3 has the trailing foot lifted behind, frame 7 has the legs together), so it was left to the page's walk-cycle switch to
+  compare playing both steps, or one step repeated. Judge it in motion, not from stills.
 - **Damage tiers are clearly different at a glance**: dirt and a slash, then torn cloth and a cracked shield, then bandages, a broken
   shield and a bent spear. Tier 1 was the weak one before.
 - The thrust, hit reaction, defeat and work strips all read well. The attack opens with an extra anticipation and an overhead wind-up.

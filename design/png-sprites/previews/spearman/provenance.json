@@ -12,13 +12,21 @@
   "layout_note": "This set came back as RGBA with a real transparent background (no magenta), with the frames of each animation laid out in a grid rather than one row. The hit and defeat images carry a faint glow at alpha 20 or below, which the tool discards.",
   "originals": [
     { "role": "idle (master)", "file": "a", "size": [1254, 1254], "sha256": "0757820c82a7b3d2c213069e048f4a4fb140db4be4f67fd71ecc18769e9d3220" },
-    { "role": "walk, 8 frames (4 x 2 grid)", "file": "b", "size": [1774, 887], "sha256": "6a99f9a311d689bda5aca15ae38533e8663f767c3b1b510ff55689ffcf17e3dc" },
+    { "role": "walk, 8 frames (4 x 2 grid), the fourth walk attempt", "file": "b", "size": [1774, 887], "sha256": "a48a058020003a5765fcb5d53566e3544408c49cfa7dac92f1cf2b549b4291d3" },
     { "role": "attack, 6 frames (3 x 2 grid)", "file": "c", "size": [1881, 836], "sha256": "5ab5df5b83237607a0cf89f1885ed233c8f69fabfd6da16e513b80120b00e34b" },
     { "role": "damage tiers 0-3 (2 x 2 grid)", "file": "d", "size": [1254, 1254], "sha256": "85c010b36c31f8e512d93e7479669789377296ccc5ef42ca0c9f770696b4ccf1" },
     { "role": "hit reaction, 5 frames (3 + 2)", "file": "e", "size": [1536, 1024], "sha256": "6a403a77adc41695df09d06099b08f016ad277013bb3e0f778051f1feae9c1d5" },
     { "role": "defeat, 5 frames (3 + 2)", "file": "f", "size": [1536, 1024], "sha256": "388daa266d991cdef58720c5d3b7d26da98b87a6fd6da19cc407f0f4e834244e" },
     { "role": "work, 4 frames (2 x 2 grid)", "file": "g", "size": [1254, 1254], "sha256": "d228b6b83051b81d229165b306824d28e467f60a37991b03fae74adef47466ae" }
   ],
+  "walk_attempts": {
+    "note": "The walk was redrawn three times. prompt-walk.txt is the prompt for the last one (a relaxed, low-foot walk); the earlier ones were rejected: the second set's walk repeated one step so one leg always led, and the third had high knees and uneven pacing.",
+    "prompt_file": "prompt-walk.txt",
+    "superseded_sha256": [
+      "6a99f9a311d689bda5aca15ae38533e8663f767c3b1b510ff55689ffcf17e3dc",
+      "9ed20beea84bf7c76accdac00bed05ce0473a29007f4d70f1d5a5446bd411b03"
+    ]
+  },
   "superseded_first_set": {
     "note": "The first run (single-row strips on a magenta field) was replaced by the set above. Its sheet is in the git history of this branch.",
     "sha256": [
