@@ -247,6 +247,29 @@ print(json.dumps(out))
     expect(new Set(lead)).toEqual(new Set(['blue', 'green']));
   });
 
+  it('a prop beside the foot does not ride along with the swinging leg (unless band_full asks for the old span)', () => {
+    const { root } = sandbox();
+    // a yellow bow tip hangs beside the front leg down to row 540; the front foot has a toe reaching out under it
+    const counts = py(root, `
+img = Image.new('RGBA', (500, 760), (0, 0, 0, 0)); biped(img, shaft=False)
+d = ImageDraw.Draw(img)
+d.rectangle((335, 440, 350, 540), fill=(250, 250, 0, 255))
+d.rectangle((320, 660, 380, 689), fill=(0, 200, 0, 255))
+def yellow(flag):
+    out = []
+    for rgba, mask in m.walk_frames(np.array(img), {'shafts': 0, 'band_full': flag}, 8):
+        out.append(int(((rgba[..., 0] > 0.9) & (rgba[..., 1] > 0.9) & (rgba[..., 2] < 0.2) & (rgba[..., 3] > 0.5)).sum()))
+    return out
+print(json.dumps({'thigh': yellow(False), 'whole': yellow(True)}))
+`);
+    const note = JSON.stringify(counts);
+    const spread = Math.max(...counts.thigh) - Math.min(...counts.thigh);
+    // the tip is drawn once, by the body, in every frame (a few edge pixels change as the bobbing body is resampled)
+    expect(spread, note).toBeLessThan(0.03 * counts.thigh[0]);
+    // the older whole-leg span copies the rows beside the hem onto the leg, so more yellow shows
+    expect(Math.max(...counts.whole), note).toBeGreaterThan(1.05 * Math.max(...counts.thigh));
+  });
+
   it('a tier that will not calibrate walks like the master, with a warning, and the tiers are listed', () => {
     const { root, sources, tool } = sandbox();
     draw(`${BIPED}

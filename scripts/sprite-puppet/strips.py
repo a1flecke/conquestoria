@@ -320,10 +320,14 @@ class LegRig:
         self.knee_bend = rig.get('knee_bend', 0.0)
         rows = np.arange(H)[:, None]
         for d in (back, front):
-            band = np.zeros((H, W), bool)
-            band[rig['overlap_top']:self.cut_y, max(0, d['x0'] - m6):d['x1'] + m6 + 1] = True
             top = d['mask'].copy()
             top[self.cut_y + f60:, :] = False
+            tx = np.where(top.any(0))[0]
+            # the band of body pixels a leg carries spans the leg's thigh, not its toe: a bow tip or a shield edge beside
+            # the foot would otherwise ride along with the leg (`band_full` keeps the older whole-leg span)
+            bx0, bx1 = (d['x0'], d['x1']) if rig.get('band_full') else (int(tx.min()), int(tx.max()))
+            band = np.zeros((H, W), bool)
+            band[rig['overlap_top']:self.cut_y, max(0, bx0 - m6):bx1 + m6 + 1] = True
             px = float(np.where(top)[1].mean())
             ys, xs = np.where(d['mask'])
             foot = ys > ys.max() - f60
