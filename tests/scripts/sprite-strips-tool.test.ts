@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -303,6 +303,23 @@ describe.skipIf(!haveDeps)('strips.py prompt (#364 prototype)', () => {
     expect(b).toContain('DAMAGE (4 frames');
     expect(b).toContain('a split bow limb');
     expect(b).toContain('ATTACK (6 frames');
+  });
+
+  it('every committed unit spec produces both prompts with nothing left unfilled', () => {
+    const { root, tool } = sandbox();
+    const rigs = join(root, 'scripts/sprite-puppet/strip-rigs');
+    cpSync(join(REPO, 'scripts/sprite-puppet/strip-rigs'), rigs, { recursive: true });
+    const specs = readdirSync(rigs).filter((f) => f.endsWith('.json'));
+    expect(specs).toContain('spearman.json');
+    expect(specs).toContain('archer.json');
+    for (const file of specs) {
+      const id = file.replace(/\.json$/, '');
+      const r = run(tool, ['prompt', join(rigs, file)]);
+      expect(r.status, `${file}: ${r.stdout}${r.stderr}`).toBe(0);
+      for (const which of ['a', 'b']) {
+        expect(readFileSync(join(root, `.verification/strips/${id}/prompt-${which}.txt`), 'utf8'), `${file} prompt ${which}`).not.toMatch(/\{\{|\}\}/);
+      }
+    }
   });
 
   it('names a missing spec key', () => {

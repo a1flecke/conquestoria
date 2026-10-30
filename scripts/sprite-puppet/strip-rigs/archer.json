@@ -1,0 +1,28 @@
+{
+  "id": "archer",
+  "family": "biped",
+  "prompt": {
+    "name": "Archer",
+    "look": "An ancient-to-medieval archer: a lean young man with a short dark beard, a brown leather hood, a knee-length tunic with a brown leather belt, bare forearms with a leather bracer on the left forearm, brown leather boots to mid-calf, a quiver of arrows on his back and a plain wooden longbow.",
+    "team_area": "his tunic",
+    "identity": "the same face and beard, hood, red tunic, belt, bracer, boots, quiver and bow",
+    "weapon_pose": "He holds the bow upright in his left hand in front of his body, its lower tip ending above his knees; his right hand hangs at his side. No arrow is nocked.",
+    "attack_frames": 6,
+    "attack": "(1) ready, bow held low; (2) he draws an arrow from the quiver; (3) he nocks it and raises the bow, aiming right; (4) full draw, the string pulled back to his cheek, the arrow pointing right; (5) release: the string has snapped forward and the arrow is gone (do not draw it in flight), his drawing hand flies back; (6) recover, lowering the bow.",
+    "damage_gear": "a cracked bow and a few broken arrows in the quiver",
+    "damage_gear_critical": "a split bow limb bound with cord and an almost empty quiver",
+    "defeat_prop": "leaning on the bow planted on the ground"
+  },
+  "frame": { "height": 192, "baseline": 176, "restHeight": 150 },
+  "tint": { "hue_ranges": [[0, 0.045], [0.955, 1]], "min_sat": 0.45, "min_val": 0.18 },
+  "states": [
+    { "state": "idle",    "file": "a", "cells": 1, "fps": 4 },
+    { "state": "damage",  "file": "b", "cells": 4, "grid": [2, 2], "fps": 1, "loop": false, "note": "idle pose at damage tiers 0-3" },
+    { "state": "walkrig", "cells": 8, "fps": 10, "anchor": "torso",
+      "note": "walk built in code from the master and from each damage drawing; the legs alternate by construction",
+      "rig": { "sources": ["a", "b#0", "b#1", "b#2", "b#3"], "shafts": 0, "stride_deg": 28, "knee_bend": 30 } },
+    { "state": "attack",  "file": "c", "cells": 6, "grid": [3, 3], "fps": 9, "loop": false, "restFrames": [0, 5] },
+    { "state": "hit",     "file": "d", "cells": 5, "grid": [3, 2], "fps": 8, "restFrames": [0, 4], "loop": false },
+    { "state": "defeat",  "file": "e", "cells": 5, "grid": [3, 2], "fps": 5, "restFrames": [0], "loop": false }
+  ]
+}
