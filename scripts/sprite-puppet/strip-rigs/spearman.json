@@ -7,7 +7,7 @@
     { "state": "walk",   "file": "b", "cells": 8, "grid": [4, 4], "fps": 10, "anchor": "torso" },
     { "state": "walkrig", "cells": 8, "fps": 10, "anchor": "torso", "scaleFrom": "idle",
       "note": "walk built in code from the idle drawing; the legs alternate by construction",
-      "rig": { "source": "a", "cut_y": 880, "overlap_top": 856, "hip_y": 890, "stride_deg": 20, "lift": 36, "bob": 14 } },
+      "rig": { "source": "a", "cut_y": 880, "overlap_top": 856, "hip_y": 890, "stride_deg": 28, "lift": 14, "bob": 14, "knee_y": 968, "knee_bend": 30, "knee_overlap": 30 } },
     { "state": "attack", "file": "c", "cells": 6, "grid": [3, 3], "fps": 9, "loop": false, "matchSteelTo": "walk" },
     { "state": "damage", "file": "d", "cells": 4, "grid": [2, 2], "fps": 1, "loop": false, "note": "idle pose at damage tiers 0-3" },
     { "state": "hit",    "file": "e", "cells": 5, "grid": [3, 2], "fps": 8, "restFrames": [0, 4], "loop": false },

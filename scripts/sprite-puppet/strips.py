@@ -173,10 +173,12 @@ class LegRig:
     A generated walk cycle often draws the second step as a copy of the first, so the same leg leads every time (a "gallop
     shuffle"). This rig cannot: it cuts the idle figure into body and two legs below `cut_y` (plus the spear shaft, which
     stays with the body) and swings the two legs in opposite directions about one shared hip line, lifting each foot as it
-    swings forward. Rigid legs, no knee bend, so it is plainer than a drawn walk. Keys (source pixels): cut_y (just below
+    swings forward. Each leg is two bones (thigh, and shin with boot) joined at the knee, so it is still plainer than a
+    drawn walk but not stiff. Keys (source pixels): cut_y (just below
     the hem, where there are exactly three pieces: shaft, back leg, front leg), overlap_top (top of the band of body pixels
     each leg carries so the join stays closed), hip_y, stride_deg, lift (px a swinging foot rises), bob (px the body drops
-    at each contact).
+    at each contact). Optional knee: knee_y (the boot top, where the shin starts), knee_bend (degrees the shin swings back at
+    the passing pose) and knee_overlap (px of leg the shin keeps above the knee); without knee_y the legs are rigid.
     """
 
     def __init__(self, rgba: np.ndarray, rig: dict):
@@ -199,17 +201,30 @@ class LegRig:
             raise SystemExit(f'LegRig: expected 3 pieces below cut_y={self.cut_y} (spear shaft, back leg, front leg), '
                              f'found {[(d["x0"], d["x1"]) for d in comps]}')
         shaft, back, front = comps
-        self.legs, self.rest = [], []
+        self.legs, self.shins, self.rest = [], [], []
+        self.knee_y = rig.get('knee_y')  # absent: rigid legs
+        self.knee_bend = rig.get('knee_bend', 0.0)
+        rows = np.arange(H)[:, None]
         for d in (back, front):
             band = np.zeros((H, W), bool)
             band[rig['overlap_top']:self.cut_y, max(0, d['x0'] - 6):d['x1'] + 7] = True
             top = d['mask'].copy()
             top[self.cut_y + 60:, :] = False
             px = float(np.where(top)[1].mean())
-            self.legs.append(puppet.Layer(puppet.layer_from(rgba, d['mask'] | (band & alpha)), pivot=(px, self.hip_y)))
             ys, xs = np.where(d['mask'])
             foot = ys > ys.max() - 60
             self.rest.append(float(np.degrees(np.arctan2(xs[foot].mean() - px, ys[foot].mean() - self.hip_y))))
+            if self.knee_y is None:
+                self.legs.append(puppet.Layer(puppet.layer_from(rgba, d['mask'] | (band & alpha)), pivot=(px, self.hip_y)))
+                continue
+            # two bones: the thigh (hip to knee) and the shin and boot (below knee_y), the shin keeping a short band of
+            # leg above the knee so the joint stays closed while it bends
+            overlap = rig.get('knee_overlap', 30)
+            thigh = (d['mask'] & (rows < self.knee_y)) | (band & alpha)
+            shin = d['mask'] & (rows >= self.knee_y - overlap)
+            kx = float(np.where(d['mask'] & (np.abs(rows - self.knee_y) < 20))[1].mean())
+            self.legs.append(puppet.Layer(puppet.layer_from(rgba, thigh), pivot=(px, self.hip_y)))
+            self.shins.append(puppet.Layer(puppet.layer_from(rgba, shin), pivot=(kx, self.knee_y)))
         mid = sum(leg.pivot[0] for leg in self.legs) / 2
         self.shift = [mid - leg.pivot[0] for leg in self.legs]  # one hip line, as in a side view
         body = alpha.copy()
@@ -221,9 +236,20 @@ class LegRig:
         t = i / n
         s, c = np.sin(2 * np.pi * t), np.cos(2 * np.pi * t)
         lean = (-self.stride * s, self.stride * s)  # the legs always swing in opposite directions
-        lift = (self.lift * max(0.0, -c), self.lift * max(0.0, c))
+        swing = (max(0.0, -c), max(0.0, c))  # how far through its forward swing each leg is (peaks at the passing pose)
         dy = -self.bob * (1 - np.cos(4 * np.pi * t)) / 2
-        parts = [self.cv.place(self.legs[k], self.shift[k], dy - lift[k], self.rest[k] - lean[k]) for k in (0, 1)]
+        parts = []
+        for k in (0, 1):
+            hip_angle = self.rest[k] - lean[k]
+            thigh = self.cv.place(self.legs[k], self.shift[k], dy - self.lift * swing[k], hip_angle)
+            if self.knee_y is None:
+                parts.append(thigh)
+                continue
+            # bend the knee (the shin swings back about the knee), then carry the shin with the thigh about the hip
+            bent = self.cv.place(self.shins[k], 0, 0, self.knee_bend * swing[k])
+            hip = (self.legs[k].pivot[0] + self.cv.pad, self.hip_y + self.cv.pad)
+            shin = bent.rotate(-hip_angle, resample=Image.BICUBIC, center=hip, translate=(self.shift[k], dy - self.lift * swing[k]))
+            parts.extend([shin, thigh])  # shin behind the thigh so the knee stays closed
         parts.append(self.cv.place(self.body, 0, dy, 0))
         return self.cv.compose(parts)
 
