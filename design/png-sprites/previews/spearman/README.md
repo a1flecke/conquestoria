@@ -106,8 +106,11 @@ The game's PNG player was built for one still rigged into three rows. These are 
 - **The rigged walk (`walkrig`) is the fix for that.** `strips.py` can build a walk in code from the idle drawing (`LegRig`): it cuts
   the figure below the hem into the body, the spear shaft and two legs, brings both hips onto one line (the master's stance is wide, so
   swinging the legs about their own hips made the strides lopsided: wide one way and crossed the other), and swings the two legs in
-  opposite directions, lifting each foot as it moves forward. The legs alternate by construction. It has rigid legs and no knee
-  bend, so it is plainer than a drawn walk. The page defaults to it and lets you switch to the drawn frames.
+  opposite directions, lifting each foot as it moves forward. The legs alternate by construction. The first version had rigid legs
+  and short steps; each leg is now two bones joined at the knee (the boot top), so the shin folds back and then reaches forward in
+  every step, which allowed a wider stride (28 degrees) with a smaller foot lift. The steps are still short because the figure is
+  stylised with short legs (about 27% of his height): a step of about a quarter of his height is what 28 degrees gives. It is a
+  two-bone rig, so it is plainer than a drawn walk. The page defaults to it and lets you switch to the drawn frames.
 - **Damage tiers are clearly different at a glance**: dirt and a slash, then torn cloth and a cracked shield, then bandages, a broken
   shield and a bent spear. Tier 1 was the weak one before.
 - The thrust, hit reaction, defeat and work strips all read well. The attack opens with an extra anticipation and an overhead wind-up.
