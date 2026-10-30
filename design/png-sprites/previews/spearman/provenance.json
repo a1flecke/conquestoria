@@ -1,0 +1,21 @@
+{
+  "id": "spearman",
+  "status": "prototype preview, not shipped and not registered in PNG_UNIT_SPRITES",
+  "generator": "ChatGPT image generation (project owner, paid plan)",
+  "generated_on": "2026-10-30",
+  "prompt_file": "prompt.txt",
+  "prompt_note": "The prompt the assistant wrote for the owner to paste into one ChatGPT conversation. The owner may have edited it; the chat title ChatGPT chose was 'Roman Spearman on Magenta'.",
+  "licence_note": "Covered by the project's non-commercial posture (docs/asset-rights-ledger.md). If this art is adopted for the game it needs a ledger family row and a provenance record under design/png-sprites/sources/ like the other generated units.",
+  "originals_committed": false,
+  "originals_note": "The seven downloaded originals (about 11 MB) are not committed. Only the re-encoded sheet.png and mask.png are, built by scripts/sprite-puppet/strips.py from decoded pixels (no EXIF/XMP/ICC or C2PA survives).",
+  "scan": "python3 -I scripts/portrait-pixelate/portrait_pixelate.py scan: all seven passed (PNG magic bytes, nothing after the image stream, one frame, within the pixel limit). ClamAV was not installed, so only the structural checks ran.",
+  "originals": [
+    { "role": "idle (master)", "file": "1-idle", "size": [1254, 1254], "sha256": "14c35e32f04524111c50fbd02cef237f8e42f0457fbbdd7a3bc8d8fefb7cf7c6" },
+    { "role": "walk, 6 frames", "file": "2-walk", "size": [2172, 724], "sha256": "ecdf944a69c183b340bd8be63bd7a0c548443d7b511683895a539cfaf93004ee" },
+    { "role": "attack, 5 frames", "file": "3-attack", "size": [2172, 724], "sha256": "1acec6c3f1c8c3c5058bab3520b1027186b45299907a4b083e8891b0e231469f" },
+    { "role": "damage tiers 0-3", "file": "4-damage", "size": [2172, 724], "sha256": "dc323bfd9a9a1616ccea6f0efeaa30038ffc33bb3659cb6abfa2ab75d9f96f32" },
+    { "role": "hit reaction, 4 frames", "file": "5-hit", "size": [2172, 724], "sha256": "8a9fb3e00f2010fa25df0e69aafd4127bbdbbcdae16ba85e49be13fe76d4be4e" },
+    { "role": "defeat, 4 frames", "file": "6-defeat", "size": [2172, 724], "sha256": "90e2e302fc1d65601cd5e82acc36046fd658570222f420a59905c83dcab42753" },
+    { "role": "work, 4 frames", "file": "7-work", "size": [2172, 724], "sha256": "8350fbc79b98778ba257a97dd966d0cb24a087535abd316b9dc43ab6afa0fcd2" }
+  ]
+}
