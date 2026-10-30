@@ -302,8 +302,6 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   trebuchet:      withMotion('trebuchet', TrebuchetSprite),
   ballista:       withMotion('ballista', BallistaSprite),
   cannon:         withMotion('cannon', CannonSprite),
-  // stealth_bomber further down still reuses an existing sprite as a placeholder;
-  // bespoke art is a generate-sprite-prompt follow-up.
   // artillery/infantry/marine de-aliased in #769 batch 1.
   artillery:      withMotion('artillery', ArtillerySprite),
   rocket_artillery: withMotion('rocket_artillery', RocketArtillerySprite),
@@ -356,7 +354,7 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   exosuit_infantry: withMotion('exosuit_infantry', ExosuitInfantrySprite),
   propagandist: withMotion('propagandist', PropagandistSprite),
   drone_controller: withMotion('drone_controller', DroneControllerSprite),
-  // #544 MR3: placeholder silhouette pending bespoke art (generate-sprite-prompt follow-up).
+  // #544 MR3: Great General (own drawing: commander with a standard).
   great_general: withMotion('great_general', GreatGeneralSprite),
   caravan:           withMotion('caravan', CaravanSprite),
   // Trade Routes Overhaul (#553 MR2/4) — Land trade line successors to Caravan.

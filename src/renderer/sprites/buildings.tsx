@@ -1310,7 +1310,7 @@ export function StockExchangeSprite({ palette, svgOnly = false }: BuildingSprite
   );
 }
 
-/* === ERA 6 BUILDINGS (placeholder art — replace with generate-sprite-prompt output) === */
+/* === ERA 6 BUILDINGS (SVG fallbacks; painted art is in BUILDING_ART, #610) === */
 
 export function NaturalHistoryMuseumSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   const columns = [40, 64, 88, 112, 136].map(x =>
@@ -3179,7 +3179,7 @@ export function StrategicAirCommandSprite({ palette, svgOnly = false }: Building
   );
 }
 
-/* === ERA 12 BUILDINGS (placeholder art) === */
+/* === ERA 12 BUILDINGS (SVG fallbacks; painted art is in BUILDING_ART, #615) === */
 
 export function AutomatedPortSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
