@@ -14,7 +14,7 @@
 // derived compatibility projection of the same data, never a second editable list.
 import type { MaterialCostRow, TradeGoodId } from '@/core/types/commerce';
 import { BUILDINGS } from './city-building-catalog';
-import { TRAINABLE_UNITS } from './city-unit-catalog';
+import { TRAINABLE_UNITS, getTrainableUnit } from './city-unit-catalog';
 import {
   consumeStock,
   getFreeQuantity,
@@ -60,7 +60,7 @@ function lookup(itemId: string): MaterialRecipe | null {
   if (building) {
     return { itemId, kind: 'building', rows: aggregateMaterialRows(building.materialCosts ?? []) };
   }
-  const unit = TRAINABLE_UNITS.find(candidate => candidate.type === itemId);
+  const unit = getTrainableUnit(itemId);
   if (unit) {
     return { itemId, kind: 'unit', rows: aggregateMaterialRows(unit.materialCosts ?? []) };
   }

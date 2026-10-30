@@ -150,6 +150,24 @@ const TRAINABLE_UNIT_DEFINITIONS: Array<TrainableUnitEntry & { pacing?: Building
 export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pacing'] }> =
   TRAINABLE_UNIT_DEFINITIONS.map(withDerivedResourceRequired);
 
+// #1604: a Map, not `TRAINABLE_UNITS.find`. Pricing one item scanned the whole catalogue three or four
+// times (`getCatalogProductionCost`, `getBuildingDiscountMultiplier`, the price formula itself, and the
+// material recipe), so pricing a city's build list was (items x catalogue). Callers that price inside a
+// loop should use this accessor. First match wins, exactly as `find` did, and the length check rebuilds
+// the index when a caller extends the catalogue in place.
+let trainableUnitIndex: ReadonlyMap<string, TrainableUnitEntry & { pacing?: Building['pacing'] }> | null = null;
+let trainableUnitIndexSize = -1;
+
+export function getTrainableUnit(type: string): (TrainableUnitEntry & { pacing?: Building['pacing'] }) | undefined {
+  if (trainableUnitIndex === null || trainableUnitIndexSize !== TRAINABLE_UNITS.length) {
+    const index = new Map<string, TrainableUnitEntry & { pacing?: Building['pacing'] }>();
+    for (const unit of TRAINABLE_UNITS) if (!index.has(unit.type)) index.set(unit.type, unit);
+    trainableUnitIndex = index;
+    trainableUnitIndexSize = TRAINABLE_UNITS.length;
+  }
+  return trainableUnitIndex.get(type);
+}
+
 /**
  * Combat-capable units (UNIT_DEFINITIONS[type].strength > 0) intentionally left without
  * obsoletedByTech, with a reason each. Enforced by the completeness test in

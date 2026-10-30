@@ -15,6 +15,7 @@ import {
   PRODUCTION_ICONS,
   TERMINAL_COMBAT_UNITS,
   getCatalogProductionCost,
+  getTrainableUnit,
   getProductionDisplayName,
   getProductionIconForItem,
   getSettlerProductionCost,
@@ -2904,5 +2905,46 @@ describe('#927 Regional Capital production contract', () => {
     const capital: City = { ...foundCity('player', { q: 0, r: 0 }, map, mkC()), id: 'capital' };
     expect(getAvailableBuildings(capital, ['political-philosophy'], map, undefined, civilizationEraFromNumber(4), new Set(), 'player', undefined, 'capital')
       .some(building => building.id === 'regional_capital')).toBe(false);
+  });
+});
+
+// #1604: the pricing path used to re-scan TRAINABLE_UNITS for every item it priced. `getTrainableUnit`
+// is the same first-match lookup as `TRAINABLE_UNITS.find`, built once per catalogue shape.
+describe('getTrainableUnit indexed catalogue lookup (#1604)', () => {
+  it('returns the same entry as TRAINABLE_UNITS.find for every catalogued type', () => {
+    for (const unit of TRAINABLE_UNITS) {
+      expect(getTrainableUnit(unit.type)).toBe(TRAINABLE_UNITS.find(candidate => candidate.type === unit.type));
+    }
+  });
+
+  it('answers undefined for an unknown type', () => {
+    const unknownType = 'not-a-unit';
+    expect(getTrainableUnit(unknownType)).toBeUndefined();
+    expect(TRAINABLE_UNITS.find(candidate => String(candidate.type) === unknownType)).toBeUndefined();
+  });
+
+  it('keeps first-match semantics when a type repeats', () => {
+    const first = TRAINABLE_UNITS[0];
+    const duplicate = { ...first, name: `${first.name} (duplicate)` };
+    TRAINABLE_UNITS.push(duplicate);
+    try {
+      expect(getTrainableUnit(first.type)).toBe(first);
+    } finally {
+      TRAINABLE_UNITS.pop();
+    }
+  });
+
+  it('sees an entry appended to the catalogue after the index was built, and forgets it when removed', () => {
+    expect(getTrainableUnit('warrior')).toBeDefined();
+    // `beast_dragon` is a real UnitType that is deliberately not in TRAINABLE_UNITS.
+    const synthetic: (typeof TRAINABLE_UNITS)[number] = { type: 'beast_dragon', name: 'Test Only Unit', cost: 1 };
+    const appended = TRAINABLE_UNITS.length;
+    TRAINABLE_UNITS.push(synthetic);
+    try {
+      expect(getTrainableUnit('beast_dragon')).toBe(synthetic);
+    } finally {
+      TRAINABLE_UNITS.length = appended;
+    }
+    expect(getTrainableUnit('beast_dragon')).toBeUndefined();
   });
 });

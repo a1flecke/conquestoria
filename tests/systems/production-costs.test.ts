@@ -138,3 +138,22 @@ describe('production cost catalog', () => {
     expect(stacked).toBe(Math.ceil(baseline * 0.85 * 0.95));
   });
 });
+
+// #1604: pricing one item used to scan the whole trainable-unit catalogue up to four times. This pins the
+// shape, not a time: the number of catalogue scans for a full sweep must not grow with the catalogue.
+describe('production pricing does not scan the unit catalogue per item (#1604)', () => {
+  it('prices every catalogued unit without a single TRAINABLE_UNITS.find', () => {
+    const original = TRAINABLE_UNITS.find;
+    let catalogueScans = 0;
+    TRAINABLE_UNITS.find = function patched(this: typeof TRAINABLE_UNITS, ...args: Parameters<typeof original>) {
+      catalogueScans++;
+      return original.apply(this, args);
+    } as typeof original;
+    try {
+      for (const unit of TRAINABLE_UNITS) getProductionCostForItem(unit.type);
+    } finally {
+      TRAINABLE_UNITS.find = original;
+    }
+    expect(catalogueScans).toBe(0);
+  });
+});

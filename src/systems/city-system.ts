@@ -33,6 +33,7 @@ export {
   MELEE_RANGED_UNIT_TYPES,
   TERMINAL_COMBAT_UNITS,
   TRAINABLE_UNITS,
+  getTrainableUnit,
 } from './city-unit-catalog';
 
 export { LOCAL_INFRASTRUCTURE_BUILDINGS, getLocalCityHealingBonus } from './city-local-infrastructure';

@@ -188,7 +188,7 @@ describe('tech-panel', () => {
       onClose: () => {},
     });
     expect(lockedPanel.textContent).not.toContain('Research frontier reached');
-  }, 15000);
+  }, 10000);
 
   it('does not show ETA unknown for the current research node when pacing is known', () => {
     const state = createNewGame(undefined, 'tech-current-node-eta-test');
@@ -262,7 +262,7 @@ describe('tech-panel', () => {
     expect(document.body.querySelectorAll('#tech-panel [data-tech-id]').length).toBe(TECH_TREE.length);
     expect(knownCount).toBeGreaterThanOrEqual(focusedCount);
     expect(focusedCount).toBeLessThan(TECH_TREE.length);
-  }, 30000);
+  }, 10000);
 
   it('focuses current research in the rendered tree', () => {
     const state = createNewGame(undefined, 'tech-render-focus-test');
@@ -900,5 +900,31 @@ describe('tech-panel', () => {
       const detailDiv = currentItem!.querySelectorAll('div')[2] as HTMLElement | undefined;
       expect(detailDiv?.textContent).toMatch(/· \d+ turns ·/);
     });
+  });
+});
+
+// #1604: the dependency layout looked a tech up with TECH_TREE.find once per technology (twice: the
+// topological walk and the depth pass), and the era scan did it once per completed technology, so a render
+// was catalogue x catalogue. This pins the shape, not a time: a full render may not scan the catalogue.
+describe('tech panel catalogue lookups (#1604)', () => {
+  it('does not run a full-catalogue scan per rendered technology', () => {
+    const state = createNewGame(undefined, 'tech-panel-lookup-shape');
+    state.civilizations.player.techState.completed = TECH_TREE.map(tech => tech.id);
+    const callbacks = {
+      onQueueResearch: () => {}, onMoveQueuedResearch: () => {}, onRemoveQueuedResearch: () => {}, onClose: () => {},
+    };
+    const original = TECH_TREE.find;
+    let scans = 0;
+    TECH_TREE.find = function patched(this: typeof TECH_TREE, ...args: Parameters<typeof original>) {
+      scans++;
+      return original.apply(this, args);
+    } as typeof original;
+    try {
+      createTechPanel(document.body, state, callbacks).remove();
+    } finally {
+      TECH_TREE.find = original;
+    }
+    // A genuine single lookup or two is fine; a per-tech scan would be at least TECH_TREE.length.
+    expect(scans).toBeLessThan(TECH_TREE.length / 4);
   });
 });
