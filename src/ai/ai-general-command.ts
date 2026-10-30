@@ -1,5 +1,8 @@
 import type { GameState, HeroicAbilityId, Unit } from '@/core/types';
+import type { EventBus } from '@/core/event-bus';
+import type { GeneralAbilityKind } from '@/core/types/general-presentation';
 import { resolveGeneralDefinition, type GeneralDefinition } from '@/systems/great-general-definitions';
+import { describeGeneralAbilityMoment } from '@/systems/great-general-ability-presentation';
 import { GENERAL_SPECIALTY_ASSIGNMENTS, resolveGeneralMechanics } from '@/systems/great-general-specialties';
 import { mapDistance } from '@/systems/hex-utils';
 import { getVisibility } from '@/systems/fog-of-war';
@@ -250,6 +253,13 @@ export function chooseGeneralCommandAction(state: GameState, generalUnitId: stri
   return winner.opportunity.score >= requiredScore ? winner.opportunity : null;
 }
 
+/** The canonical moment kind for each command id (the command ids are the AI's own vocabulary). */
+const ABILITY_MOMENT_KIND: Readonly<Record<HeroicAbilityId, GeneralAbilityKind>> = {
+  rally: 'rally',
+  seize_the_moment: 'seize',
+  last_stand: 'last-stand',
+};
+
 /**
  * Per-civ dispatch entry (called twice per round by the AI round
  * scheduler). 'pre-tactical' runs Rally and Last Stand (both should be
@@ -260,11 +270,18 @@ export function chooseGeneralCommandAction(state: GameState, generalUnitId: stri
  * place -- Generals are civilian-classed and are never assigned into the
  * plan/role tactical system, so a General with nothing useful to do simply
  * holds rather than being repositioned.
+ *
+ * #1522: when a command actually changed the state, the same canonical
+ * before/after descriptor the human controller uses is published on the round
+ * bus. It carries no extra state and cannot affect the command itself; an
+ * ineffective or refused command yields `null` and emits nothing. Listeners
+ * gate what a viewer may see or hear.
  */
 export function processAIGeneralCommand(
   state: GameState,
   civId: string,
   phase: 'pre-tactical' | 'post-tactical',
+  bus?: EventBus,
 ): GameState {
   let working = state;
   for (const general of getEraGenerals(working, civId)) {
@@ -272,7 +289,15 @@ export function processAIGeneralCommand(
     if (!chosen) continue;
     if (phase === 'pre-tactical' && chosen.ability === 'seize_the_moment') continue;
     if (phase === 'post-tactical' && chosen.ability !== 'seize_the_moment') continue;
-    working = chosen.execute(working);
+    const before = working;
+    const after = chosen.execute(before);
+    if (after !== before) {
+      const moment = describeGeneralAbilityMoment(ABILITY_MOMENT_KIND[chosen.ability], before, after, general.id);
+      // The observed event is feedback only: keep the map/audio fields, but never put the owner-only name or result
+      // sentence on the AI round bus. A viewer who cannot see the General must not learn who acted or what it did.
+      if (moment) bus?.emit('general:ai-command-used', { moment: { ...moment, generalName: '', summary: '' } });
+    }
+    working = after;
   }
   return working;
 }

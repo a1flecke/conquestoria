@@ -466,6 +466,16 @@ describe('idle-aware render scheduling (#1439)', () => {
       loop.stop();
     });
 
+    it('draws only the affected hexes it is given, so a viewer-filtered AI moment cannot reveal hidden targets', () => {
+      const { loop, calls } = makeLoop();
+      loop.start();
+      drain();
+      // One visible affected hex + the General, two rally rings each.
+      const filtered = { ...moment, affectedCoords: [{ q: 0, r: 0 }] };
+      expect(effectArcs(loop, calls, () => loop.playGeneralAbility(filtered))).toBe(4);
+      loop.stop();
+    });
+
     it('a Final Command gives the General its own, larger effect instead of the ordinary one', () => {
       const arcsFor = (isFinalCommand: boolean) => {
         const { loop, calls } = makeLoop();

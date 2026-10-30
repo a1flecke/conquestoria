@@ -199,6 +199,87 @@ describe('general presentation', () => {
     });
   });
 
+  describe('#1522 observed AI ability moments', () => {
+    const aiMoment: GeneralAbilityMoment = {
+      kind: 'rally', civId: 'ai-1', generalUnitId: 'ai-gen-1', generalName: 'Hannibal Barca',
+      isFinalCommand: false,
+      generalCoord: { q: 0, r: 0 },
+      affectedCoords: [{ q: 0, r: 0 }, { q: 5, r: 5 }],
+      affectedCount: 2,
+      accent: '#112233', glow: '#445566', summary: 'Rally: 2 units steadied, 30 HP restored.',
+    };
+
+    const viewerState = (tiles: Record<string, 'visible' | 'fog' | 'unexplored'>) => ({
+      currentPlayer: 'player',
+      civilizations: {
+        player: { isHuman: true, visibility: { tiles, lastSeen: {} } },
+        'ai-1': { isHuman: false, visibility: { tiles: {}, lastSeen: {} } },
+      },
+    }) as never;
+
+    it("shows a rival activation as a map effect only, filtered to the affected hexes the viewer can see", () => {
+      const bus = new EventBus();
+      const ctx = makePresentationContext({ state: viewerState({ '0,0': 'visible', '5,5': 'fog' }) });
+      registerGeneralPresentation(bus, ctx);
+
+      bus.emit('general:ai-command-used', { moment: aiMoment });
+
+      expect(ctx.playGeneralAbility).toHaveBeenCalledTimes(1);
+      expect(ctx.playGeneralAbility).toHaveBeenCalledWith(expect.objectContaining({
+        kind: 'rally',
+        generalCoord: { q: 0, r: 0 },
+        affectedCoords: [{ q: 0, r: 0 }],
+        affectedCount: 1,
+        summary: '',
+      }));
+      expect(ctx.showNotification).not.toHaveBeenCalled();
+      expect(ctx.deliver).not.toHaveBeenCalled();
+    });
+
+    it("plays nothing when the General's activation hex is not visible", () => {
+      const bus = new EventBus();
+      const ctx = makePresentationContext({ state: viewerState({ '0,0': 'fog', '5,5': 'visible' }) });
+      registerGeneralPresentation(bus, ctx);
+
+      bus.emit('general:ai-command-used', { moment: aiMoment });
+
+      expect(ctx.playGeneralAbility).not.toHaveBeenCalled();
+      expect(ctx.showNotification).not.toHaveBeenCalled();
+      expect(ctx.deliver).not.toHaveBeenCalled();
+    });
+
+    it('keeps the visible General effect but draws no hidden affected hexes when every target is out of sight', () => {
+      const bus = new EventBus();
+      const ctx = makePresentationContext({ state: viewerState({ '0,0': 'visible' }) });
+      registerGeneralPresentation(bus, ctx);
+
+      bus.emit('general:ai-command-used', {
+        moment: { ...aiMoment, affectedCoords: [{ q: 5, r: 5 }] },
+      });
+
+      expect(ctx.playGeneralAbility).toHaveBeenCalledWith(expect.objectContaining({
+        generalCoord: { q: 0, r: 0 },
+        affectedCoords: [],
+        affectedCount: 0,
+      }));
+    });
+
+    it('drops a visible rival activation while presentation is suppressed (hot-seat handoff)', () => {
+      const bus = new EventBus();
+      const ctx = {
+        ...makePresentationContext({ state: viewerState({ '0,0': 'visible', '5,5': 'visible' }) }),
+        isPresentationSuppressed: () => true,
+      };
+      registerGeneralPresentation(bus, ctx);
+
+      bus.emit('general:ai-command-used', { moment: aiMoment });
+
+      expect(ctx.playGeneralAbility).not.toHaveBeenCalled();
+      expect(ctx.showNotification).not.toHaveBeenCalled();
+      expect(ctx.deliver).not.toHaveBeenCalled();
+    });
+  });
+
   it('disposing removes every subscription this registrar added', () => {
     const bus = new EventBus();
     const ctx = makePresentationContext();

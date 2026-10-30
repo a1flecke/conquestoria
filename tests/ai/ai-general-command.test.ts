@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
+import { EventBus } from '@/core/event-bus';
 import {
   chooseGeneralCommandAction,
   evaluateLastStandOpportunity,
@@ -13,6 +14,7 @@ import { chooseBestGeneralCandidate } from '@/ai/ai-general-command';
 import { issueRally } from '@/systems/great-general-abilities';
 import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
 import type { Unit } from '@/core/types';
+import type { GeneralAbilityMoment } from '@/core/types/general-presentation';
 
 function makeGeneral(overrides: Partial<Unit> = {}): Unit {
   return {
@@ -344,6 +346,158 @@ describe('#544 MR5 — shared spend layer', () => {
 
     const result = processAIGeneralCommand(state, aiId, 'post-tactical');
     expect(result.units['unit-1']!.hasActed).toBe(false);
+  });
+});
+
+// ===========================================================================
+// #1522 — observed AI General activations
+// ===========================================================================
+
+function collectObservedActivations(bus: EventBus): GeneralAbilityMoment[] {
+  const moments: GeneralAbilityMoment[] = [];
+  bus.on('general:ai-command-used', ({ moment }) => moments.push(moment));
+  return moments;
+}
+
+function generalPresentationState(seed: string) {
+  const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed });
+  const aiId = Object.keys(state.civilizations).find(id => id !== 'player')!;
+  state.units['gen-1'] = makeGeneral({ owner: aiId, position: { q: 0, r: 0 } });
+  return { state, aiId };
+}
+
+describe('#1522 — observed AI General activations', () => {
+  it('emits one Rally activation derived from the before/after state difference', () => {
+    const { state, aiId } = generalPresentationState('ai-present-rally');
+    state.units['unit-1'] = {
+      id: 'unit-1', type: 'warrior', owner: aiId, position: { q: 1, r: 0 },
+      movementPointsLeft: 1, health: 40, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      landSupply: { state: 'severe', hostileUnsupportedTurns: 5, suppliedTurnsSinceRecovery: 0 },
+    } as Unit;
+    state.civilizations[aiId]!.units = ['gen-1', 'unit-1'];
+    const bus = new EventBus();
+    const moments = collectObservedActivations(bus);
+
+    const result = processAIGeneralCommand(state, aiId, 'pre-tactical', bus);
+
+    expect(result.units['unit-1']!.health).toBeGreaterThan(40);
+    expect(moments).toHaveLength(1);
+    expect(moments[0]).toMatchObject({
+      kind: 'rally',
+      civId: aiId,
+      generalUnitId: 'gen-1',
+      generalCoord: { q: 0, r: 0 },
+      isFinalCommand: false,
+    });
+    expect(moments[0]!.affectedCoords).toContainEqual({ q: 1, r: 0 });
+    // Observed activations are feedback only: no owner-only result text or General name on the AI round bus.
+    expect(moments[0]!.summary).toBe('');
+    expect(moments[0]!.generalName).toBe('');
+  });
+
+  it('emits one Seize the Moment activation for the units it actually granted another action', () => {
+    const { state, aiId } = generalPresentationState('ai-present-seize');
+    state.units['unit-1'] = {
+      id: 'unit-1', type: 'warrior', owner: aiId, position: { q: 1, r: 0 },
+      movementPointsLeft: 0, health: 100, experience: 0, hasMoved: true, hasActed: true, isResting: false,
+    } as Unit;
+    state.civilizations[aiId]!.units = ['gen-1', 'unit-1'];
+    const bus = new EventBus();
+    const moments = collectObservedActivations(bus);
+
+    const result = processAIGeneralCommand(state, aiId, 'post-tactical', bus);
+
+    expect(result.units['unit-1']!.hasActed).toBe(false);
+    expect(moments).toHaveLength(1);
+    expect(moments[0]).toMatchObject({
+      kind: 'seize',
+      civId: aiId,
+      generalUnitId: 'gen-1',
+      generalCoord: { q: 0, r: 0 },
+    });
+    expect(moments[0]!.affectedCoords).toContainEqual({ q: 1, r: 0 });
+  });
+
+  it('emits one Last Stand activation for the formation it braced', () => {
+    const { state, aiId } = generalPresentationState('ai-present-last-stand');
+    state.opponentChallenge = 'veteran';
+    for (const id of ['defender-1', 'defender-2']) {
+      state.units[id] = {
+        id, type: id === 'defender-1' ? 'warrior' : 'archer', owner: aiId, position: { q: 1, r: 0 },
+        movementPointsLeft: 1, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      } as Unit;
+    }
+    state.units['attacker-1'] = {
+      id: 'attacker-1', type: 'warrior', owner: 'player', position: { q: 3, r: 0 },
+      movementPointsLeft: 1, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    } as Unit;
+    state.civilizations[aiId]!.units = ['gen-1', 'defender-1', 'defender-2'];
+    state.civilizations.player!.units = [...state.civilizations.player!.units, 'attacker-1'];
+    state.civilizations[aiId]!.diplomacy.atWarWith = ['player'];
+    state.civilizations.player!.diplomacy.atWarWith = [aiId];
+    state.civilizations[aiId]!.visibility.tiles = Object.fromEntries(
+      Object.keys(state.map.tiles).map(key => [key, 'visible' as const]),
+    );
+    const bus = new EventBus();
+    const moments = collectObservedActivations(bus);
+
+    const result = processAIGeneralCommand(state, aiId, 'pre-tactical', bus);
+
+    expect(result.units['defender-1']!.lastStandHold).toBeDefined();
+    expect(moments).toHaveLength(1);
+    expect(moments[0]).toMatchObject({
+      kind: 'last-stand',
+      civId: aiId,
+      generalUnitId: 'gen-1',
+      generalCoord: { q: 0, r: 0 },
+    });
+    expect(moments[0]!.affectedCoords).toContainEqual({ q: 1, r: 0 });
+  });
+
+  it('emits nothing when the AI issues no command', () => {
+    const { state, aiId } = generalPresentationState('ai-present-none');
+    state.civilizations[aiId]!.units = ['gen-1'];
+    const bus = new EventBus();
+    const moments = collectObservedActivations(bus);
+
+    processAIGeneralCommand(state, aiId, 'pre-tactical', bus);
+
+    expect(moments).toEqual([]);
+  });
+
+  it('emits nothing for an ineffective command (a General with no charges left)', () => {
+    const { state, aiId } = generalPresentationState('ai-present-no-charges');
+    state.units['gen-1'] = makeGeneral({ owner: aiId, position: { q: 0, r: 0 }, generalCommandChargesUsed: 3 });
+    state.units['unit-1'] = {
+      id: 'unit-1', type: 'warrior', owner: aiId, position: { q: 1, r: 0 },
+      movementPointsLeft: 1, health: 40, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      landSupply: { state: 'severe', hostileUnsupportedTurns: 5, suppliedTurnsSinceRecovery: 0 },
+    } as Unit;
+    state.civilizations[aiId]!.units = ['gen-1', 'unit-1'];
+    const bus = new EventBus();
+    const moments = collectObservedActivations(bus);
+
+    processAIGeneralCommand(state, aiId, 'pre-tactical', bus);
+
+    expect(moments).toEqual([]);
+  });
+
+  it('leaves the AI mechanical outcome identical with and without a presentation bus', () => {
+    const { state, aiId } = generalPresentationState('ai-present-parity');
+    state.units['unit-1'] = {
+      id: 'unit-1', type: 'warrior', owner: aiId, position: { q: 1, r: 0 },
+      movementPointsLeft: 1, health: 40, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      landSupply: { state: 'severe', hostileUnsupportedTurns: 5, suppliedTurnsSinceRecovery: 0 },
+    } as Unit;
+    state.civilizations[aiId]!.units = ['gen-1', 'unit-1'];
+    const bus = new EventBus();
+    const moments = collectObservedActivations(bus);
+
+    const withoutBus = processAIGeneralCommand(structuredClone(state), aiId, 'pre-tactical');
+    const withBus = processAIGeneralCommand(structuredClone(state), aiId, 'pre-tactical', bus);
+
+    expect(withBus).toEqual(withoutBus);
+    expect(moments).toHaveLength(1);
   });
 });
 
