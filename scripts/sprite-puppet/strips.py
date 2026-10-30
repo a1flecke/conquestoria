@@ -580,7 +580,8 @@ def build(spec_path: Path, sources: Path, out_dir: Path) -> None:
     to_img(sheet).save(out_dir / 'sheet.png', optimize=True)
     to_img(msheet).save(out_dir / 'mask.png', optimize=True)
     manifest = {
-        'id': uid, 'cellWidth': W, 'cellHeight': H, 'cols': cols, 'rows': len(rows), 'baseline': base_y,
+        'id': uid, 'family': spec.get('family'), 'cellWidth': W, 'cellHeight': H, 'cols': cols, 'rows': len(rows),
+        'baseline': base_y, 'restHeight': rest_h,
         'states': {r['state']: {'row': i, 'frames': len(r['frames']), 'fps': r['fps'], 'loop': r['loop'], 'note': r['note']}
                    for i, r in enumerate(rows)},
         'sheet': 'sheet.png', 'mask': 'mask.png', 'facing': 'right',

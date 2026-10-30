@@ -1,10 +1,12 @@
 window.STRIP_MANIFEST = {
   "id": "spearman",
+  "family": "biped",
   "cellWidth": 368,
   "cellHeight": 192,
   "cols": 8,
   "rows": 8,
   "baseline": 176,
+  "restHeight": 150.0,
   "states": {
     "idle": {
       "row": 0,
