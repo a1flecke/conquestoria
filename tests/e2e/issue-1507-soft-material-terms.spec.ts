@@ -25,10 +25,9 @@ function buildFixture() {
   city.productionProgress = 0;
   city.productionMaterials = createNeutralCityProductionMaterials();
 
-  state.marketplace = {
-    ...(state.marketplace ?? { prices: {}, priceHistory: {}, tradeRoutes: [] }),
-    purchasedResources: [{ civId: state.currentPlayer, resource: 'coal', expiresOnTurn: state.turn + 10 }],
-  } as NonNullable<typeof state.marketplace>;
+  // #1516 MR19: a real coal outpost replaces the retired purchased-access shortcut.
+  const coalKey = `${city.position.q},${city.position.r}`;
+  state.map.tiles[coalKey] = { ...state.map.tiles[coalKey], resource: 'coal' } as never;
   state.materialReservesByCiv = {
     [state.currentPlayer]: {
       balances: { 'resource:coal': { native: 5, imported: 0 } },
@@ -125,6 +124,8 @@ test('a finite soft term is reserved and explained in the live panels', async ({
   await dismissWarning(page);
   await openPrimaryPanel(page, 'Trade', '#marketplace-panel');
   await expect(page.locator('#marketplace-panel [data-reserve-good="resource:coal"]')).toContainText('5 committed');
-  await expect(page.locator('#marketplace-panel [data-reserve-good="resource:coal"]')).toContainText('0 free');
+  // The real source also extracts 2 this round, so the visible free stock is 2 rather than 0.
+  await expect(page.locator('#marketplace-panel [data-reserve-good="resource:coal"]')).toContainText('2 free');
+  await expect(page.locator('#marketplace-panel [data-reserve-good="resource:coal"]')).toContainText('1 source');
   await page.locator('#mp-close').click();
 });
