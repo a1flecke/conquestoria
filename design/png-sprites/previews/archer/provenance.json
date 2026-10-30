@@ -1,0 +1,19 @@
+{
+  "id": "archer",
+  "status": "prototype preview, not shipped and not registered in PNG_UNIT_SPRITES",
+  "generator": "ChatGPT image generation (project owner, paid plan)",
+  "generated_on": "2026-10-30",
+  "prompts": "Generated from scripts/sprite-puppet/strip-rigs/archer.json by `strips.py prompt` (templates in scripts/sprite-puppet/strip-prompts/). Conversation A drew the master; conversation B, with the master attached, drew the damage, attack, hit and defeat sheets. The prompts ChatGPT actually ran were not captured.",
+  "licence_note": "Covered by the project's non-commercial posture (docs/asset-rights-ledger.md). If this art is adopted for the game it needs a ledger family row and a provenance record under design/png-sprites/sources/ like the other generated units.",
+  "originals_committed": false,
+  "originals_note": "The five downloaded originals are not committed. Only the re-encoded sheet.png and mask.png are, built by scripts/sprite-puppet/strips.py from decoded pixels (no EXIF/XMP/ICC or C2PA survives).",
+  "scan": "python3 -I scripts/portrait-pixelate/portrait_pixelate.py scan: all five passed (PNG magic bytes, nothing after the image stream, one frame, within the pixel limit). ClamAV was not installed, so only the structural checks ran.",
+  "regenerations": "None: every image was accepted on its first generation. `strips.py probe` reported 0 errors and, for the defeat sheet, one warning (the lying figure is 174 px tall).",
+  "originals": [
+    { "role": "idle (master)", "file": "a", "size": [1086, 1448], "sha256": "eb874a468c0c1361e6f6b4279f6ca04c0da4dd7ab9f8fe2a003bc9c65c72626e" },
+    { "role": "damage tiers 0-3 (2 x 2 grid)", "file": "b", "size": [1254, 1254], "sha256": "67216a2e61d27f8c85129fcf8cc38df4f23209d2800c48040eb46ddb54067172" },
+    { "role": "attack, 6 frames (3 x 2 grid)", "file": "c", "size": [1536, 1024], "sha256": "7f331955947a1217ef7a37b37b6a17392c2c9c78a22da001d1554409f90c3f3a" },
+    { "role": "hit reaction, 5 frames (3 + 2)", "file": "d", "size": [1536, 1024], "sha256": "46dc5742ef3cdeb72b74aaa2d2d99f2396d6890bb8bc2827ad862b98fa3a90d5" },
+    { "role": "defeat, 5 frames (3 + 2)", "file": "e", "size": [1536, 1024], "sha256": "d830fe57832e985f585f2c24a669b45bff685b00d5426462af1d96693c67283a" }
+  ]
+}
