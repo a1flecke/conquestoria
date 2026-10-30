@@ -1,5 +1,18 @@
 {
   "id": "spearman",
+  "family": "biped",
+  "prompt": {
+    "name": "Spearman",
+    "look": "An ancient-to-medieval foot soldier: a friendly adult man with a prominent nose, brown eyes, strong eyebrows and a full dark-brown beard, medium-length brown hair under a rounded stitched brown leather cap, a muscular, slightly stylised build with a large head and hands, a short tunic to mid-thigh and a short cloak fastened with a round bronze clasp, a brown leather belt with a brass buckle and a hanging leather tab, bare forearms and lower legs, calf-high brown leather boots with wraps, a long straight wooden spear with a silver-grey head, and a round wooden shield with vertical grain, a dark metal rim, rivets and a raised silver-grey boss.",
+    "team_area": "his tunic and cloak",
+    "identity": "the same face and beard, cap, red tunic and cloak, belt, boots, spear and shield",
+    "weapon_pose": "He holds the spear upright in his right hand (on the left of the image), its butt end on the ground a hand's width clear of his boots. The round shield is on his left arm and its lower edge ends above the hem of his tunic.",
+    "attack_frames": 6,
+    "attack": "(1) ready stance; (2) anticipation: knees bent, weight shifting back; (3) wind-up: spear drawn far back and up; (4) fast forward lunge, spear half-extended; (5) full extension: spear fully extended to the right, front knee deeply bent, cloak streaming back; (6) recover to the ready stance.",
+    "damage_gear": "a cracked, dented shield",
+    "damage_gear_critical": "a chipped shield and a bent spear",
+    "defeat_prop": "the spear planted upright beside him"
+  },
   "frame": { "height": 192, "baseline": 176, "restHeight": 150 },
   "tint": { "hue_ranges": [[0, 0.045], [0.955, 1]], "min_sat": 0.45, "min_val": 0.18 },
   "states": [

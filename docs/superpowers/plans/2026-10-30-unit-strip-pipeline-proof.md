@@ -133,7 +133,7 @@ a boot, so those tiers walk like the master until the prompt change in `set.md` 
   record in the Spearman README how far the found values are from the hand-tuned ones (880 / 968 / 890 / 856).
 - [ ] **Step 5: Commit** `art: calibrated biped rig and a walk per damage tier (#364)`.
 
-### Task 3: `prompt` command
+### Task 3: `prompt` command ✅ done
 
 **Files:**
 - Modify: `scripts/sprite-puppet/strips.py`; `scripts/sprite-puppet/strip-rigs/spearman.json` (add its `prompt` block, the

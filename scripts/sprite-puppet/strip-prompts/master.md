@@ -24,7 +24,7 @@ every side. No ground, floor, shadow, scenery, text, labels, border or effects.
 BACKGROUND: transparent. If you cannot make it transparent, use one flat solid magenta (#FF00FF) with no gradient, glow or
 noise, and put nothing magenta or pink on the unit.
 
-TEAM COLOUR: {{team_area}} is saturated pure red (#E01010). That is the ONLY red or red-orange anywhere in the image.
+TEAM COLOUR: paint {{team_area}} saturated pure red (#E01010). That is the ONLY red or red-orange anywhere in the image.
 Everything else ({{not_red}}) is brown, tan, grey, black, white, bronze or dull dark maroon. The game recolours that red to
 each player's colour, so any other red would change colour too.
 

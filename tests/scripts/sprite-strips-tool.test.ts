@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { cpSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -17,6 +17,7 @@ function sandbox(): { root: string; sources: string; tool: string } {
     mkdirSync(join(root, rel, '..'), { recursive: true });
     cpSync(join(REPO, rel), join(root, rel));
   }
+  cpSync(join(REPO, 'scripts/sprite-puppet/strip-prompts'), join(root, 'scripts/sprite-puppet/strip-prompts'), { recursive: true });
   const sources = join(root, 'originals');
   mkdirSync(sources);
   return { root, sources, tool: join(root, 'scripts/sprite-puppet/strips.py') };
@@ -272,5 +273,60 @@ print(json.dumps({'tiers': man['tiers'], 'same': bool(np.array_equal(sheet[a * H
 `);
     expect(same.tiers).toEqual({ walkrig: ['walkrig', 'walkrig@1'] });
     expect(same.same).toBe(true);
+  });
+});
+
+const BIPED_PROMPT = {
+  name: 'Archer', look: 'A lean young archer with a leather hood.', team_area: 'his tunic', identity: 'the same hood, tunic and bow',
+  weapon_pose: 'He holds the bow upright in his left hand.', attack_frames: 6, attack: '(1) ready; (2) draw; (3) release.',
+  damage_gear: 'a cracked bow', damage_gear_critical: 'a split bow limb', defeat_prop: 'leaning on the bow',
+};
+
+function writePromptSpec(root: string, over: Record<string, unknown>, prompt: Record<string, unknown> = BIPED_PROMPT): string {
+  const path = join(root, 'demo.json');
+  writeFileSync(path, JSON.stringify({ id: 'demo', family: 'biped', frame: {}, tint: TINT, states: [], prompt, ...over }));
+  return path;
+}
+
+describe.skipIf(!haveDeps)('strips.py prompt (#364 prototype)', () => {
+  it('fills every placeholder of both prompts from the family and the spec', () => {
+    const { root, tool } = sandbox();
+    const r = run(tool, ['prompt', writePromptSpec(root, {})]);
+    expect(r.status, r.stdout + r.stderr).toBe(0);
+    const a = readFileSync(join(root, '.verification/strips/demo/prompt-a.txt'), 'utf8');
+    const b = readFileSync(join(root, '.verification/strips/demo/prompt-b.txt'), 'utf8');
+    for (const text of [a, b]) expect(text).not.toMatch(/\{\{|\}\}/);
+    expect(a).toContain('two separate shapes');
+    expect(a).toContain('A lean young archer with a leather hood.');
+    expect(a).toContain('paint his tunic saturated pure red');
+    expect(b).toContain('Paint his tunic saturated pure red');
+    expect(b).toContain('DAMAGE (4 frames');
+    expect(b).toContain('a split bow limb');
+    expect(b).toContain('ATTACK (6 frames');
+  });
+
+  it('names a missing spec key', () => {
+    const { root, tool } = sandbox();
+    const { team_area: _omit, ...rest } = BIPED_PROMPT;
+    const r = run(tool, ['prompt', writePromptSpec(root, {}, rest)]);
+    expect(r.status).toBe(1);
+    expect(r.stdout + r.stderr).toContain('prompt.team_area');
+  });
+
+  it('rejects an unknown family and lists the real ones', () => {
+    const { root, tool } = sandbox();
+    const r = run(tool, ['prompt', writePromptSpec(root, { family: 'boat' })]);
+    expect(r.status).toBe(1);
+    expect(r.stdout + r.stderr).toMatch(/unknown family "boat".*biped.*mounted/);
+  });
+
+  it('uses the family pose: a mounted spec asks for four separate legs, not two', () => {
+    const { root, tool } = sandbox();
+    const mounted = { ...BIPED_PROMPT, coat: 'The horse is dapple-grey.' };
+    const r = run(tool, ['prompt', writePromptSpec(root, { family: 'mounted' }, mounted)]);
+    expect(r.status, r.stdout + r.stderr).toBe(0);
+    const a = readFileSync(join(root, '.verification/strips/demo/prompt-a.txt'), 'utf8');
+    expect(a).toContain('four legs read as four separate posts');
+    expect(a).not.toContain('two separate shapes');
   });
 });
