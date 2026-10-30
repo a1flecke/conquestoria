@@ -1,5 +1,5 @@
 import type { GameState, Tech, TechTrack } from '@/core/types';
-import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
+import { BUILDINGS, getTrainableUnit } from '@/systems/city-system';
 import { calculateCivResearchOutput } from '@/systems/research-output-system';
 import { estimateTurnsToComplete } from '@/systems/pacing-model';
 import {
@@ -24,7 +24,7 @@ function getUnlockLines(tech: Tech, completedTechs?: readonly string[]): string[
     : undefined;
   for (const unitType of tech.unlocksUnits ?? []) {
     const def = UNIT_DEFINITIONS[unitType];
-    const entry = TRAINABLE_UNITS.find(unit => unit.type === unitType);
+    const entry = getTrainableUnit(unitType);
     const prerequisites = completedAfterResearch && entry
       ? evaluateProductionPrerequisites(entry, completedAfterResearch)
       : undefined;
