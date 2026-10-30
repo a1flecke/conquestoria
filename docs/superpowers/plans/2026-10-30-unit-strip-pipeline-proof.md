@@ -49,7 +49,7 @@ viewer, ChatGPT image generation (run by the owner).
 
 ---
 
-### Task 1: Tool tests, `probe`, source references
+### Task 1: Tool tests, `probe`, source references ✅ done (cbec8792)
 
 **Files:**
 - Modify: `scripts/sprite-puppet/strips.py`
@@ -86,7 +86,15 @@ viewer, ChatGPT image generation (run by the owner).
   confirm `sheet.png` hash is unchanged.
 - [ ] **Step 5: Commit** `art: strips.py probe and source references, with tool tests (#364)`.
 
-### Task 2: Calibrated biped rig, per-tier walks
+### Task 2: Calibrated biped rig, per-tier walks ✅ done
+
+Deviations found by running it on the real Spearman drawings (recorded in `STRIPS.md`): the cut is the highest row from
+which the piece count stays right **all the way down** to the last 5% of the figure (a hem that briefly splits into the
+right number of pieces would otherwise win); `knee` defaults to a quarter of the way from cut to feet (the hand-tuned
+Spearman value is 0.255, not 0.45); `LegRig`'s pixel constants scale with figure height (tuned on 1216 px) so the Spearman
+build stays byte-identical; a `hem` key narrows the search when a shield or cloak hangs below the hem (the Spearman needs
+`[0.22, 0.30]`; unaided, calibrate cuts 93 px too high); all four Spearman damage tiers fail to cut because the spear touches
+a boot, so those tiers walk like the master until the prompt change in `set.md` is tried.
 
 **Files:**
 - Modify: `scripts/sprite-puppet/strips.py` (`LegRig`, `rig_frames`, `build`, new `calibrate`)

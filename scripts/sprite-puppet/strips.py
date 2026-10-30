@@ -30,7 +30,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw
 from scipy import ndimage as ndi
 
 REPO = Path(__file__).resolve().parents[2]
@@ -208,6 +208,73 @@ def paste(cell: np.ndarray, small: np.ndarray, ox: int, oy: int) -> None:
         cell[y0:y1, x0:x1] = small[y0 - oy:y1 - oy, x0 - ox:x1 - ox]
 
 
+class RigCutError(Exception):
+    """The drawing cannot be cut into body and legs where the rig needs it (legs touching, a limb over a leg ...)."""
+
+
+REF_FIGURE_PX = 1216  # the Spearman master's height; LegRig's pixel constants were tuned on it
+
+
+def figure_scale(alpha: np.ndarray) -> float:
+    """How big this drawing is against the figure the rig constants were tuned on (1.0 = the Spearman master)."""
+    rows = np.where(alpha.any(1))[0]
+    return float(rows.max() - rows.min() + 1) / REF_FIGURE_PX
+
+
+def min_piece(u: float) -> int:
+    """Smallest area (px) that counts as a piece of the figure rather than a speck."""
+    return max(30, round(300 * u * u))
+
+
+def calibrate(rgba: np.ndarray, rig: dict) -> dict:
+    """Find where to cut a drawing into body and legs: absolute `cut_y`, `overlap_top`, `hip_y` and `knee_y` (source px).
+
+    Keys already in `rig` win unchanged. Otherwise the cut is the highest row, inside the band `rig['hem']` (fractions of the
+    figure's height up from its lowest opaque row; default [0.22, 0.40]), from which the number of pieces below stays exactly
+    `legs + shafts` (defaults 2 and 1) all the way down to the feet. Requiring it all the way down is what rejects a cloak or
+    a hem that briefly splits into the right number of pieces, and what lets the cut sit below a bow tip. The others follow
+    from it: `overlap_top` 2% of the height above the cut, `hip_y` 1% below it, `knee_y` a quarter (`rig['knee']`) of the way
+    from the cut to the feet. Raises RigCutError when no row qualifies.
+    """
+    alpha = rgba[..., 3] > 40
+    rows = np.where(alpha.any(1))[0]
+    top, bottom = int(rows.min()), int(rows.max())
+    h = bottom - top + 1
+    u = h / REF_FIGURE_PX
+    legs, shafts = rig.get('legs', 2), rig.get('shafts', 1)
+    want = legs + shafts
+    if 'cut_y' in rig:
+        cut = int(rig['cut_y'])
+    else:
+        lo, hi = rig.get('hem', [0.22, 0.40])
+        step = max(1, h // 200)
+        seen: dict[int, int] = {}
+
+        def count(y: int) -> int:
+            if y not in seen:
+                lab, n = ndi.label(alpha[y:])
+                seen[y] = int((ndi.sum(alpha[y:], lab, range(1, n + 1)) > min_piece(u)).sum()) if n else 0
+            return seen[y]
+
+        floor = bottom - max(1, round(0.05 * h))  # the soles themselves can merge; the last 5% is not judged
+        cut = None
+        for y in range(bottom - int(hi * h), bottom - int(lo * h) + 1, step):
+            if all(count(yy) == want for yy in range(y, floor + 1, step)):
+                cut = y
+                break
+        if cut is None:
+            raise RigCutError(f'expected {legs} legs below the hem (plus {shafts} shaft) at some row between '
+                              f'{bottom - int(hi * h)} and {bottom - int(lo * h)}, found '
+                              f'{sorted(set(seen.values()))} pieces there: the legs touch, merge with a cloak, shield or '
+                              'weapon, or the hem is outside the search band; redraw the master with the legs apart '
+                              'and nothing hanging in front of them')
+    out = {'cut_y': cut}
+    out['overlap_top'] = int(rig['overlap_top']) if 'overlap_top' in rig else cut - round(0.02 * h)
+    out['hip_y'] = int(rig['hip_y']) if 'hip_y' in rig else cut + round(0.01 * h)
+    out['knee_y'] = int(rig['knee_y']) if 'knee_y' in rig else cut + round(rig.get('knee', 0.25) * (bottom - cut))
+    return out
+
+
 class LegRig:
     """A walk built in code from the idle drawing, for when drawn frames do not alternate their legs.
 
@@ -225,52 +292,58 @@ class LegRig:
     def __init__(self, rgba: np.ndarray, rig: dict):
         H, W = rgba.shape[:2]
         alpha = rgba[..., 3] > 40
+        u = figure_scale(alpha)  # the pixel constants below were tuned on a 1216 px tall figure
         self.cut_y, self.hip_y = rig['cut_y'], rig['hip_y']
-        self.stride, self.lift, self.bob = rig.get('stride_deg', 20.0), rig.get('lift', 36.0), rig.get('bob', 14.0)
+        self.stride, self.lift, self.bob = rig.get('stride_deg', 20.0), rig.get('lift', 36.0) * u, rig.get('bob', 14.0) * u
         self.cv = puppet.Canvas((W, H), int(max(W, H) * 0.14))
+        shafts = rig.get('shafts', 1)  # straight pieces that stay with the body (a spear shaft); the leftmost piece
         low = alpha.copy()
         low[:self.cut_y, :] = False
         lab, n = ndi.label(low)
         comps = []
         for i in range(1, n + 1):
             m = lab == i
-            if m.sum() > 300:
+            if m.sum() > min_piece(u):
                 xs = np.where(m.any(0))[0]
                 comps.append({'mask': m, 'x0': int(xs.min()), 'x1': int(xs.max())})
         comps.sort(key=lambda d: d['x0'])
-        if len(comps) != 3:
-            raise SystemExit(f'LegRig: expected 3 pieces below cut_y={self.cut_y} (spear shaft, back leg, front leg), '
-                             f'found {[(d["x0"], d["x1"]) for d in comps]}')
-        shaft, back, front = comps
+        if len(comps) != 2 + shafts:
+            raise RigCutError(f'expected 2 legs below the hem (plus {shafts} shaft) at cut_y={self.cut_y}, found '
+                              f'{len(comps)} pieces {[(d["x0"], d["x1"]) for d in comps]}: the legs touch or merge; '
+                              'redraw the master with the legs apart')
+        shaft = comps[0] if shafts else None
+        back, front = comps[-2:]
         self.legs, self.shins, self.rest = [], [], []
+        m6, f60 = max(1, round(6 * u)), round(60 * u)
         self.knee_y = rig.get('knee_y')  # absent: rigid legs
         self.knee_bend = rig.get('knee_bend', 0.0)
         rows = np.arange(H)[:, None]
         for d in (back, front):
             band = np.zeros((H, W), bool)
-            band[rig['overlap_top']:self.cut_y, max(0, d['x0'] - 6):d['x1'] + 7] = True
+            band[rig['overlap_top']:self.cut_y, max(0, d['x0'] - m6):d['x1'] + m6 + 1] = True
             top = d['mask'].copy()
-            top[self.cut_y + 60:, :] = False
+            top[self.cut_y + f60:, :] = False
             px = float(np.where(top)[1].mean())
             ys, xs = np.where(d['mask'])
-            foot = ys > ys.max() - 60
+            foot = ys > ys.max() - f60
             self.rest.append(float(np.degrees(np.arctan2(xs[foot].mean() - px, ys[foot].mean() - self.hip_y))))
             if self.knee_y is None:
                 self.legs.append(puppet.Layer(puppet.layer_from(rgba, d['mask'] | (band & alpha)), pivot=(px, self.hip_y)))
                 continue
             # two bones: the thigh (hip to knee) and the shin and boot (below knee_y), the shin keeping a short band of
             # leg above the knee so the joint stays closed while it bends
-            overlap = rig.get('knee_overlap', 30)
+            overlap = rig.get('knee_overlap', round(30 * u))
             thigh = (d['mask'] & (rows < self.knee_y)) | (band & alpha)
             shin = d['mask'] & (rows >= self.knee_y - overlap)
-            kx = float(np.where(d['mask'] & (np.abs(rows - self.knee_y) < 20))[1].mean())
+            kx = float(np.where(d['mask'] & (np.abs(rows - self.knee_y) < round(20 * u)))[1].mean())
             self.legs.append(puppet.Layer(puppet.layer_from(rgba, thigh), pivot=(px, self.hip_y)))
             self.shins.append(puppet.Layer(puppet.layer_from(rgba, shin), pivot=(kx, self.knee_y)))
         mid = sum(leg.pivot[0] for leg in self.legs) / 2
         self.shift = [mid - leg.pivot[0] for leg in self.legs]  # one hip line, as in a side view
         body = alpha.copy()
         body[self.cut_y:, :] = False
-        body |= shaft['mask']
+        if shaft is not None:
+            body |= shaft['mask']
         self.body = puppet.Layer(puppet.layer_from(rgba, body), pivot=(W * 0.5, H * 0.97))
 
     def frame(self, i: int, n: int) -> Image.Image:
@@ -295,9 +368,20 @@ class LegRig:
         return self.cv.compose(parts)
 
 
-def rig_frames(sources: Path, rig: dict, n: int):
-    """Frames of a LegRig walk as (rgba float crop, mask crop), cut from the idle source named in `rig['source']`."""
-    r = LegRig(np.array(Image.open(find_source(sources, rig['source'])).convert('RGBA')), rig)
+def rig_source_image(spec: dict, sources: Path, ref: str) -> np.ndarray:
+    """uint8 RGBA drawing a rig is cut from. A plain name is the whole image when it has real transparency (the rig's
+    coordinates then refer to that image); a '<image>#<index>' reference, or an image on a magenta field, is one keyed figure."""
+    if '#' not in ref:
+        whole = np.array(Image.open(find_source(sources, ref)).convert('RGBA'))
+        if background_kind(whole) == 'transparent':
+            return whole
+    return load_source_figure(spec, sources, ref)
+
+
+def walk_frames(rgba: np.ndarray, rig: dict, n: int):
+    """`n` frames of a LegRig walk as (rgba float crop, mask crop), cut from one drawing (uint8 RGBA). Cut positions not
+    given in `rig` are calibrated from the drawing."""
+    r = LegRig(rgba, {**rig, **calibrate(rgba, rig)})
     out = []
     for i in range(n):
         im = np.array(r.frame(i, n)).astype(np.float32) / 255.0
@@ -329,6 +413,25 @@ def tint_fraction(path: Path, figures, key: dict) -> float:
     return float((mem & inside).sum()) / max(1, int(inside.sum()))
 
 
+def check_rigs(spec: dict, sources: Path, cuts: dict | None = None) -> list[Finding]:
+    """Can every drawing a rig is cut from be cut? The master must (error); a damage tier that cannot is only a warning,
+    because that tier then walks like its neighbour. The cut positions found are stored in `cuts[ref]` when given."""
+    findings: list[Finding] = []
+    for st in spec['states']:
+        rig = st.get('rig')
+        if not rig:
+            continue
+        for k, ref in enumerate(rig.get('sources') or [rig['source']]):
+            try:
+                cut = calibrate(rig_source_image(spec, sources, ref), rig)
+            except (RigCutError, FigureError) as e:
+                findings.append(Finding('error' if k == 0 else 'warn', ref, 'rig_cut', str(e)))
+                continue
+            if cuts is not None:
+                cuts[ref] = cut
+    return findings
+
+
 def probe(spec: dict, sources: Path) -> list[Finding]:
     """Everything worth knowing about the source images before a build: can each be cut into the expected figures, are they
     big enough, do any run off the edge, and does any carry more team colour than the master (a leak)."""
@@ -350,6 +453,7 @@ def probe(spec: dict, sources: Path) -> list[Finding]:
                                         f'{SMALL_FIGURE_PX}): ask for fewer figures per row or a bigger image'))
                 break
         fractions[st['file']] = tint_fraction(path, figs, key)
+    findings.extend(check_rigs(spec, sources))
     master = next((st['file'] for st in spec['states'] if st.get('file') in fractions), None)
     if master is not None:
         base = fractions[master]
@@ -370,37 +474,64 @@ def build(spec_path: Path, sources: Path, out_dir: Path) -> None:
     H = int(fr['height'])
     key = spec['tint']
 
-    # pass 1: cut every strip and, where it has rest frames, give it a scale from their height
-    rows: list[dict] = []
+    # pass 1: cut every drawn strip and, where it has rest frames, give it a scale from their height. A rig state is built
+    # afterwards (it needs the scale of the drawing it is cut from) and fills the slot it holds here, so rows keep spec order
+    slots: list[list[dict]] = []
     by_state: dict[str, dict] = {}
+    rig_states: list[tuple[dict, list[dict]]] = []
     for st in spec['states']:
-        if st.get('rig'):  # built in code from the idle drawing; drawn at the idle's scale
-            prepared = rig_frames(sources, st['rig'], st['cells'])
-            steel, scale = [1], by_state[st['scaleFrom']]['scale']
-        else:
-            try:
-                figs = load_figures(find_source(sources, st['file']), st['cells'], st.get('grid'))
-            except FigureError as e:
-                raise SystemExit(str(e))
-            prepared = [clean_rgba(*f) for f in figs]
-            heights = [m.shape[0] for _, m in prepared]
-            steel = [steel_area(rgba, m) for rgba, m in prepared]
-            scale = None
-            if not st.get('matchSteelTo'):
-                ref = st.get('restFrames') or list(range(len(prepared)))
-                scale = rest_h / float(np.median([heights[i] for i in ref]))
+        if st.get('rig'):
+            group: list[dict] = []
+            slots.append(group)
+            rig_states.append((st, group))
+            continue
+        try:
+            figs = load_figures(find_source(sources, st['file']), st['cells'], st.get('grid'))
+        except FigureError as e:
+            raise SystemExit(str(e))
+        prepared = [clean_rgba(*f) for f in figs]
+        heights = [m.shape[0] for _, m in prepared]
+        steel = [steel_area(rgba, m) for rgba, m in prepared]
+        scale = None
+        if not st.get('matchSteelTo'):
+            ref = st.get('restFrames') or list(range(len(prepared)))
+            scale = rest_h / float(np.median([heights[i] for i in ref]))
         row = {'state': st['state'], 'fps': st['fps'], 'loop': st.get('loop', True), 'prepared': prepared,
                'steel': float(np.median(steel)), 'scale': scale, 'note': st.get('note', ''),
-               'anchor': st.get('anchor', 'feet'), 'match': st.get('matchSteelTo')}
-        rows.append(row)
+               'anchor': st.get('anchor', 'feet'), 'match': st.get('matchSteelTo'), 'tier_group': None}
+        slots.append([row])
         by_state[st['state']] = row
 
     # pass 2: a strip with no upright frame takes its scale from the steel area of another strip
-    for r in rows:
-        if r['match']:
-            ref = by_state[r['match']]
-            r['scale'] = ref['scale'] * float(np.sqrt(ref['steel'] / r['steel']))
-            print(f'  {r["state"]}: scale from the steel area of "{r["match"]}" ({r["scale"]:.4f})')
+    for group in slots:
+        for r in group:
+            if r['match']:
+                ref = by_state[r['match']]
+                r['scale'] = ref['scale'] * float(np.sqrt(ref['steel'] / r['steel']))
+                print(f'  {r["state"]}: scale from the steel area of "{r["match"]}" ({r["scale"]:.4f})')
+
+    # pass 3: rig states. One row per drawing in rig['sources'] (the master, then e.g. each damage tier), each at the scale
+    # of the strip it was cut from, so a wounded unit moves wounded. A drawing the rig cannot cut walks as its neighbour does
+    for st, group in rig_states:
+        rig = st['rig']
+        refs = rig.get('sources') or [rig['source']]
+        for k, ref in enumerate(refs):
+            name = st['state'] if k == 0 else f'{st["state"]}@{k}'
+            origin = st.get('scaleFrom') if k == 0 and st.get('scaleFrom') else next(
+                (s['state'] for s in spec['states'] if s.get('file') == ref.partition('#')[0]), None)
+            if origin is None:
+                raise SystemExit(f'rig source "{ref}" of {st["state"]}: no drawn state uses that image')
+            try:
+                prepared = walk_frames(rig_source_image(spec, sources, ref), rig, st['cells'])
+            except RigCutError as e:
+                if k == 0:
+                    raise SystemExit(f'{ref}: {e}')
+                print(Finding('warn', ref, 'rig_cut', f'{e}; {name} walks like {group[-1]["state"]}').line())
+                prepared = group[-1]['prepared']
+            group.append({'state': name, 'fps': st['fps'], 'loop': st.get('loop', True), 'prepared': prepared,
+                          'steel': 1.0, 'scale': by_state[origin]['scale'], 'note': st.get('note', ''),
+                          'anchor': st.get('anchor', 'feet'), 'match': None, 'tier_group': st['state']})
+    rows = [r for group in slots for r in group]
 
     for r in rows:
         r['frames'] = [(rgba, m, r['scale'], anchor_x(m, r['anchor'])) for rgba, m in r['prepared']]
@@ -453,6 +584,13 @@ def build(spec_path: Path, sources: Path, out_dir: Path) -> None:
                    for i, r in enumerate(rows)},
         'sheet': 'sheet.png', 'mask': 'mask.png', 'facing': 'right',
     }
+    tiers: dict[str, list[str]] = {}
+    for r in rows:
+        if r['tier_group']:
+            tiers.setdefault(r['tier_group'], []).append(r['state'])
+    tiers = {k: v for k, v in tiers.items() if len(v) > 1}
+    if tiers:  # a rigged loop built from several drawings (the master, then each damage tier): the rows to choose between
+        manifest['tiers'] = tiers
     (out_dir / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
     (out_dir / 'manifest.js').write_text('window.STRIP_MANIFEST = ' + json.dumps(manifest, indent=2) + ';\n')
 
@@ -474,9 +612,46 @@ def build(spec_path: Path, sources: Path, out_dir: Path) -> None:
     bg.convert('RGB').save(prev / 'preview.png')
 
 
+def calibrate_command(spec: dict, sources: Path) -> int:
+    """Print the cut found for every drawing a rig uses, save it as .verification/strips/<id>/rig.json and draw the cut (red),
+    hip (green) and knee (blue) lines on each source in rig-review.png so a wrong cut is visible at a glance."""
+    cuts: dict[str, dict] = {}
+    findings = check_rigs(spec, sources, cuts)
+    for f in findings:
+        print(f.line())
+    out = REPO / '.verification' / 'strips' / spec['id']
+    out.mkdir(parents=True, exist_ok=True)
+    (out / 'rig.json').write_text(json.dumps(cuts, indent=2) + '\n')
+    tiles = []
+    for st in spec['states']:
+        rig = st.get('rig')
+        for ref in (rig.get('sources') or [rig['source']]) if rig else []:
+            if ref not in cuts:
+                continue
+            print(f'{ref}: ' + ', '.join(f'{k} {v}' for k, v in cuts[ref].items()))
+            img = Image.fromarray(rig_source_image(spec, sources, ref))
+            bg = Image.new('RGBA', img.size, (200, 200, 200, 255))
+            bg.alpha_composite(img)
+            d = ImageDraw.Draw(bg)
+            for key, colour in (('cut_y', (220, 30, 30)), ('hip_y', (30, 160, 30)), ('knee_y', (30, 60, 220))):
+                d.line([(0, cuts[ref][key]), (img.size[0], cuts[ref][key])], fill=colour, width=max(2, img.size[1] // 300))
+            tiles.append(bg.convert('RGB'))
+    if tiles:
+        height = 700
+        tiles = [t.resize((max(1, round(t.size[0] * height / t.size[1])), height)) for t in tiles]
+        sheet = Image.new('RGB', (sum(t.size[0] for t in tiles), height), (255, 255, 255))
+        x = 0
+        for t in tiles:
+            sheet.paste(t, (x, 0))
+            x += t.size[0]
+        sheet.save(out / 'rig-review.png')
+        print(f'review image: {out / "rig-review.png"}')
+    return 1 if any(f.level == 'error' for f in findings) else 0
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('cmd', choices=['build', 'probe'])
+    ap.add_argument('cmd', choices=['build', 'probe', 'calibrate'])
     ap.add_argument('spec')
     ap.add_argument('--sources', required=True, help='directory with the generated images named in the spec')
     ap.add_argument('--out', help='output directory (default design/png-sprites/previews/<id>)')
@@ -491,6 +666,8 @@ def main() -> None:
         errors = sum(f.level == 'error' for f in findings)
         print(f'{spec["id"]}: {errors} errors, {sum(f.level == "warn" for f in findings)} warnings')
         return 1 if errors else 0
+    if args.cmd == 'calibrate':
+        return calibrate_command(spec, Path(args.sources))
     out = Path(args.out) if args.out else REPO / 'design' / 'png-sprites' / 'previews' / spec['id']
     build(spec_path, Path(args.sources), out)
 
