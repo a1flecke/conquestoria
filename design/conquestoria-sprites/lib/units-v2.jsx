@@ -90,6 +90,67 @@ function SpriteFrameV2({
  * skin/hair/hat surface so porting v1 sprites is a 1-line swap (Humanoid →
  * HumanoidV2) plus optional `arms` + hand-content props.
  */
+/* HumanoidWounds — the 4-tier damage look for a foot soldier (#364).
+ *
+ * Three hidden groups, revealed by `data-damage` on the wrapper (the shared
+ * `.cq-wound-N` rules in boar-animations.css; tier 0 shows none). Marks are
+ * deliberately mild: scuffs, a torn tunic, a bandage and grime. Local frame is
+ * HumanoidV2's (torso spans y -22..8, x +-12; head centre (0,-30), r 9).
+ *   tier 1  a slash and a scuff on the tunic, a graze on the sword arm, dirt
+ *   tier 2  a torn patch of tunic showing skin, a torn sleeve, red stains
+ *   tier 3  a bandage across the chest and on the forearm, a scratch and bruise
+ *           on the face
+ * `armor` swaps the cloth marks for dents and scored metal on a mailed torso.
+ */
+const _WOUND_RED = '#6b1a12';
+const _WOUND_LINEN = '#e8dfc8';
+function HumanoidWounds({ skin, armor = false }) {
+  const ink = _P2.ink.line;
+  return (
+    <>
+      <g className="cq-wound cq-wound-1">
+        {armor ? (
+          <>
+            <path d="M-9,-15 L-3,-8" stroke={ink} strokeWidth="1.1" strokeLinecap="round" opacity="0.7" />
+            <path d="M-7,-17 L-1,-10" stroke={_P2.metal.shine} strokeWidth="0.7" strokeLinecap="round" opacity="0.8" />
+          </>
+        ) : (
+          <>
+            <path d="M-9,-15 L-2,-7" stroke={_WOUND_RED} strokeWidth="1.6" strokeLinecap="round" />
+            <path d="M-6,-17 L1,-9" stroke={_WOUND_RED} strokeWidth="1.2" strokeLinecap="round" opacity="0.8" />
+            <path d="M-8,-17 L-1,-9" stroke="#f0d8c0" strokeWidth="0.6" strokeLinecap="round" opacity="0.75" />
+          </>
+        )}
+        <path d="M11,-6 L15,1" stroke={_WOUND_RED} strokeWidth="1.2" strokeLinecap="round" />
+        <ellipse cx="6" cy="3" rx="4.5" ry="2.2" fill="#3a2a1a" opacity="0.3" />
+      </g>
+      <g className="cq-wound cq-wound-2">
+        {armor ? (
+          <>
+            <path d="M3,-8 L10,-12 L9,-5 L13,-2 L6,0 Z" fill={ink} opacity="0.55" stroke={ink} strokeWidth="0.5" />
+            <path d="M-12,-14 L-7,-9" stroke={ink} strokeWidth="1.6" strokeLinecap="round" />
+          </>
+        ) : (
+          <>
+            <path d="M3,-8 L10,-12 L9,-5 L13,-2 L6,0 Z" fill={skin} stroke={ink} strokeWidth="0.5" />
+            <path d="M-17,-8 L-12,-5 L-17,-1 Z" fill={skin} stroke={ink} strokeWidth="0.5" />
+          </>
+        )}
+        <circle cx="8" cy="4" r="1.2" fill={_WOUND_RED} />
+        <circle cx="5" cy="6" r="0.9" fill={_WOUND_RED} />
+        <circle cx="-14" cy="1" r="0.9" fill={_WOUND_RED} />
+      </g>
+      <g className="cq-wound cq-wound-3">
+        <path d="M-12,-6 L12,2 L12,6 L-12,-2 Z" fill={_WOUND_LINEN} stroke={ink} strokeWidth="0.6" />
+        <circle cx="4" cy="1" r="1.8" fill={_WOUND_RED} opacity="0.85" />
+        <rect x="9" y="2" width="8" height="3.6" fill={_WOUND_LINEN} stroke={ink} strokeWidth="0.5" />
+        <path d="M3,-34 L6,-28" stroke={_WOUND_RED} strokeWidth="1" strokeLinecap="round" />
+        <ellipse cx="-4.5" cy="-27" rx="2.2" ry="1.4" fill="#6a3f5a" opacity="0.55" />
+      </g>
+    </>
+  );
+}
+
 function HumanoidV2({
   cx = 64, cy = 64, scale = 1,
   cloth = _P2.cloth.tunic,
@@ -102,6 +163,7 @@ function HumanoidV2({
   armLContent = null,
   armRContent = null,
   facing = 0,
+  wounds = false,
 }) {
   const t = `translate(${cx} ${cy}) scale(${scale}) rotate(${facing * 4})`;
   // arms='locked' → no class hook, no shoulder articulation. The arm still
@@ -152,6 +214,7 @@ function HumanoidV2({
       <path d="M-9,-32 Q-7,-40 0,-40 Q7,-40 9,-32 Q9,-30 7,-29 L-7,-29 Q-9,-30 -9,-32 Z" fill={hair} />
       <circle cx="-2.6" cy="-30" r="0.9" fill={_P2.ink.line} />
       <circle cx="2.6" cy="-30" r="0.9" fill={_P2.ink.line} />
+      {wounds && <HumanoidWounds skin={skin} armor={wounds === 'armor'} />}
       {hat}
     </g>
   );
@@ -327,7 +390,7 @@ function ArcherV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
       </g>
       <ellipse className="cq-shadow" cx="64" cy="92" rx="18" ry="5" fill="#000" opacity="0.35" />
 
-      <HumanoidV2
+      <HumanoidV2 wounds
         cx={64} cy={70}
         cloth={f.mid} pants={_P2.cloth.wool}
         accent={f.bright} hair="#3a2a1a"
@@ -469,7 +532,7 @@ function ScoutV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
       </g>
       <ellipse className="cq-shadow" cx="64" cy="92" rx="18" ry="5" fill="#000" opacity="0.35" />
 
-      <HumanoidV2
+      <HumanoidV2 wounds
         cx={64} cy={70}
         cloth="#6b7a4a" pants={_P2.cloth.wool}
         accent={f.mid} hair="#3a2a1a"
@@ -499,7 +562,7 @@ function MusketeerV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
       </g>
       <ellipse className="cq-shadow" cx="64" cy="92" rx="18" ry="5" fill="#000" opacity="0.35" />
 
-      <HumanoidV2
+      <HumanoidV2 wounds
         cx={64} cy={70}
         cloth={f.dark} pants="#3a3022"
         accent={f.bright} hair="#2a1a10"
@@ -551,7 +614,7 @@ function WarriorV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
       </g>
       <ellipse className="cq-shadow" cx="64" cy="92" rx="18" ry="5" fill="#000" opacity="0.35" />
 
-      <HumanoidV2
+      <HumanoidV2 wounds
         cx={64} cy={70}
         cloth={f.mid} pants={_P2.cloth.wool}
         accent={f.dark} hair="#3a2a1a"
@@ -598,7 +661,7 @@ function PikemanV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
       </g>
       <ellipse className="cq-shadow" cx="64" cy="92" rx="18" ry="5" fill="#000" opacity="0.35" />
 
-      <HumanoidV2
+      <HumanoidV2 wounds
         cx={64} cy={70}
         cloth={f.mid} pants={_P2.cloth.wool}
         accent={f.dark} hair="#3a2a1a"
@@ -1037,7 +1100,7 @@ function AxemanV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
       <g transform="translate(58 91)"><ellipse className="cq-step-dust" rx="3" ry="1.3" fill={_P2.stone.light} /></g>
       <g transform="translate(70 91)"><ellipse className="cq-step-dust cq-step-dust--b" rx="3" ry="1.3" fill={_P2.stone.light} /></g>
       <ellipse className="cq-shadow" cx="64" cy="92" rx="18" ry="5" fill="#000" opacity="0.35" />
-      <HumanoidV2
+      <HumanoidV2 wounds
         cx={64} cy={70}
         cloth={f.mid} pants={_P2.cloth.wool}
         accent={f.dark} hair="#3a2a1a"
@@ -1072,7 +1135,7 @@ function SpearmanV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
       <g transform="translate(58 91)"><ellipse className="cq-step-dust" rx="3" ry="1.3" fill={_P2.stone.light} /></g>
       <g transform="translate(70 91)"><ellipse className="cq-step-dust cq-step-dust--b" rx="3" ry="1.3" fill={_P2.stone.light} /></g>
       <ellipse className="cq-shadow" cx="64" cy="92" rx="18" ry="5" fill="#000" opacity="0.35" />
-      <HumanoidV2
+      <HumanoidV2 wounds
         cx={64} cy={70}
         cloth={f.mid} pants={_P2.cloth.wool}
         accent={f.dark} hair="#5a4a2a"
@@ -1258,7 +1321,7 @@ function CrossbowmanV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
       <g transform="translate(58 91)"><ellipse className="cq-step-dust" rx="3" ry="1.3" fill={_P2.stone.light} /></g>
       <g transform="translate(70 91)"><ellipse className="cq-step-dust cq-step-dust--b" rx="3" ry="1.3" fill={_P2.stone.light} /></g>
       <ellipse className="cq-shadow" cx="64" cy="92" rx="18" ry="5" fill="#000" opacity="0.35" />
-      <HumanoidV2
+      <HumanoidV2 wounds
         cx={64} cy={70}
         cloth={f.dark} pants={_P2.cloth.wool}
         accent={f.mid} hair="#3a2a1a"
@@ -1714,7 +1777,7 @@ function PropagandistV2Sprite({ faction = 'imperials', state = 'idle', phase }) 
       <g transform="translate(58 91)"><ellipse className="cq-step-dust" rx="3" ry="1.3" fill={_P2.stone.light} /></g>
       <g transform="translate(70 91)"><ellipse className="cq-step-dust cq-step-dust--b" rx="3" ry="1.3" fill={_P2.stone.light} /></g>
       <ellipse className="cq-shadow" cx="64" cy="92" rx="18" ry="5" fill="#000" opacity="0.35" />
-      <HumanoidV2
+      <HumanoidV2 wounds
         cx={64} cy={70} cloth={_P2.cloth.wool} pants="#3a3628" accent={f.mid}
         skin={_P2.skin.warm} hair="#2a1a10" arms="free"
         armRContent={(
@@ -1748,7 +1811,7 @@ function DroneControllerV2Sprite({ faction = 'imperials', state = 'idle', phase 
       <g transform="translate(58 91)"><ellipse className="cq-step-dust" rx="3" ry="1.3" fill={_P2.stone.light} /></g>
       <g transform="translate(70 91)"><ellipse className="cq-step-dust cq-step-dust--b" rx="3" ry="1.3" fill={_P2.stone.light} /></g>
       <ellipse className="cq-shadow" cx="64" cy="92" rx="18" ry="5" fill="#000" opacity="0.35" />
-      <HumanoidV2
+      <HumanoidV2 wounds
         cx={64} cy={70} scale={0.95} cloth={_P2.cloth.wool} pants="#3a3628" accent={f.mid}
         skin={_P2.skin.warm} hair="#2a1a10" arms="locked"
         hat={<path d="M-9,-37 Q0,-42 9,-37 L10,-34 L-10,-34 Z" fill={f.dark} stroke={_P2.ink.line} strokeWidth="0.7" />}
