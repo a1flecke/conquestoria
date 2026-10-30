@@ -41,7 +41,8 @@ touching; nothing detached; red only on {{team_area}}. If any is false, redraw t
 ### images
 1. DAMAGE (4 frames, a grid of 2 by 2): the master's standing pose four times, the unit progressively hurt. Keep the legs and
    feet EXACTLY where they are in the master in all four frames (the game builds the walk from each of these drawings); any
-   slump shows only in the head, shoulders and arms. (1) healthy, identical to the master; (2) light: dirt on clothes and legs,
+   slump shows only in the head, shoulders and arms. Keep any planted spear or other prop a hand's width clear of the
+   boots. (1) healthy, identical to the master; (2) light: dirt on clothes and legs,
    one clear slash across the garment, a scuffed hem; (3) serious: torn garment and sleeve, {{damage_gear}}, a few dark-maroon
    stains, messy hair; (4) critical: bandages on chest and forearm, a bruised face, {{damage_gear_critical}}, a tired slumped
    head and shoulders. Each frame must look clearly worse than the one before at a glance.
