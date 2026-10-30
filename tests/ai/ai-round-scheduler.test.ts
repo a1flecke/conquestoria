@@ -11,6 +11,7 @@ import { buildMajorCivPerception } from '@/ai/ai-perception';
 import { createEmptyMajorCivPortfolio } from '@/ai/ai-plan-portfolio';
 import { foundCity } from '@/systems/city-system';
 import type { AIStrategicPlan, Unit } from '@/core/types';
+import type { GeneralAbilityMoment } from '@/core/types/general-presentation';
 import { makeLivenessGame } from '../systems/helpers/civilization-liveness-fixture';
 
 function prepared(state: ReturnType<typeof createNewGame>, civId: string): PreparedMajorCivPlan {
@@ -47,6 +48,40 @@ describe('AI round scheduler', () => {
     state.civilizations['ai-1'].units = [];
 
     expect(getLivingNonHumanMajorIds(state)).toContain('ai-1');
+  });
+
+  it('#1522 emits an observed AI General activation through the round bus', () => {
+    const state = createNewGame({
+      civType: 'egypt',
+      mapSize: 'small',
+      opponentCount: 1,
+      gameTitle: 'Scheduler general presentation',
+      seed: 'scheduler-general-presentation',
+    });
+    const aiId = 'ai-1';
+    state.units['gen-1'] = {
+      id: 'gen-1', type: 'great_general', owner: aiId, position: { q: 2, r: 2 },
+      movementPointsLeft: 3, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      generalDefinitionId: 'gen_hannibal',
+    } as Unit;
+    state.units['hurt-1'] = {
+      id: 'hurt-1', type: 'warrior', owner: aiId, position: { q: 3, r: 2 },
+      movementPointsLeft: 1, health: 40, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      landSupply: { state: 'severe', hostileUnsupportedTurns: 5, suppliedTurnsSinceRecovery: 0 },
+    } as Unit;
+    state.civilizations[aiId]!.units = ['gen-1', 'hurt-1'];
+    const bus = new EventBus();
+    const moments: GeneralAbilityMoment[] = [];
+    bus.on('general:ai-command-used', ({ moment }) => moments.push(moment));
+
+    const result = processNonHumanMajorRound(state, bus, {
+      prepare: (snapshot, civId) => prepared(snapshot as typeof state, civId),
+      executePrepared: current => ({ state: current }),
+    });
+
+    expect(moments).toHaveLength(1);
+    expect(moments[0]).toMatchObject({ kind: 'rally', civId: aiId, generalUnitId: 'gen-1' });
+    expect(result.state.units['hurt-1']!.health).toBeGreaterThan(40);
   });
 
   it('processes every living non-human civilization once in rotating order', () => {

@@ -123,6 +123,7 @@ fog:revealed
 game:loaded
 game:over
 game:saved
+general:ai-command-used
 general:command-used
 general:last-stand-held
 general:retired

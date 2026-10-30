@@ -767,6 +767,58 @@ describe('SfxDirector', () => {
       await tick();
       expect(mixer.playOneShot).not.toHaveBeenCalled();
     });
+
+    describe('#1522 observed AI activations', () => {
+      const observed = (kind: 'rally' | 'seize' | 'last-stand', over: Record<string, unknown> = {}) => ({
+        moment: { kind, civId: 'ai-1', isFinalCommand: false, generalCoord: { q: 0, r: 0 }, ...over },
+      });
+
+      it.each(['rally', 'seize', 'last-stand'] as const)(
+        'a visible AI %s plays its ability cue, and no other',
+        async kind => {
+          director.start({}, busHelper.bus, stateProvider({}));
+          busHelper.emit('general:ai-command-used', observed(kind));
+          await tick();
+          expect(mixer.playOneShot).toHaveBeenCalledTimes(1);
+          expect(mixer.playOneShot).toHaveBeenCalledWith('sfx', played(kind));
+        },
+      );
+
+      it('a visible AI Final Command plays the final cue instead of the ability cue', async () => {
+        director.start({}, busHelper.bus, stateProvider({}));
+        busHelper.emit('general:ai-command-used', observed('rally', { isFinalCommand: true }));
+        await tick();
+        expect(mixer.playOneShot).toHaveBeenCalledTimes(1);
+        expect(mixer.playOneShot).toHaveBeenCalledWith('sfx', played('final-command'));
+        expect(loader.get).not.toHaveBeenCalledWith(GENERAL_COMMAND_SFX.rally.file);
+      });
+
+      it("is silent when the viewer cannot see the General's hex", async () => {
+        director.start({}, busHelper.bus, stateProvider({}, 'fog'));
+        busHelper.emit('general:ai-command-used', observed('seize'));
+        await tick();
+        expect(mixer.playOneShot).not.toHaveBeenCalled();
+      });
+
+      it('is silent while presentation is suppressed (hot-seat handoff replay)', async () => {
+        director.start({}, busHelper.bus, stateProvider({}), () => true);
+        busHelper.emit('general:ai-command-used', observed('last-stand'));
+        await tick();
+        expect(mixer.playOneShot).not.toHaveBeenCalled();
+      });
+
+      it('drops a visible AI cue when the seat changes before it loads', async () => {
+        let finish!: (buffer: AudioBuffer) => void;
+        loader.get.mockImplementation(() => new Promise<AudioBuffer>(resolve => { finish = resolve; }));
+        const state = stateProvider({})();
+        director.start({}, busHelper.bus, () => state);
+        busHelper.emit('general:ai-command-used', observed('rally'));
+        state.currentPlayer = 'next-seat';
+        finish({} as AudioBuffer);
+        await tick();
+        expect(mixer.playOneShot).not.toHaveBeenCalled();
+      });
+    });
   });
 
   // === dispose ===

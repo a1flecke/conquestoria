@@ -38,6 +38,10 @@ export interface CivilizationEvents {
   /** #889: a player-issued Great General command (Rally / Seize the Moment / Last Stand) changed the state. Presentation-only:
    * the moment is derived from the before/after difference, so it carries exactly what happened. */
   'general:command-used': { moment: GeneralAbilityMoment };
+  /** #1522: an AI-issued General command that changed the state, emitted on the AI round bus. Presentation-only and
+   * viewer-gated at the listener: nothing is shown or heard unless the viewing seat can see the General's hex, and the
+   * affected hexes are filtered to what it can see. */
+  'general:ai-command-used': { moment: GeneralAbilityMoment };
   /** #889: a Last Stand hold absorbed an otherwise-lethal blow (the formation's one-time survival save). Emitted by the
    * combat outcome for every executor, human or AI, when a bus is supplied. */
   'general:last-stand-held': { civId: string; generalDefinitionId: string; unitId: string; coord: HexCoord };

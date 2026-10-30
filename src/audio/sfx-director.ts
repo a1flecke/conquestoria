@@ -3,6 +3,7 @@ import type { AudioLoader } from './audio-loader';
 import type { EventBus } from '../core/event-bus';
 import type { Unit, UnitType, CombatResult, HexCoord, GameState, ImprovementType } from '../core/types';
 import type { CaptureKind } from '../core/types/combat';
+import type { GeneralAbilityMoment } from '../core/types/general-presentation';
 import { UNIT_SFX, PIRATE_MOVEMENT_SFX, COMBAT_OUTCOME_SFX, GENERAL_COMMAND_SFX, getLocomotionClass, getMovementSfx, type PirateUnitType } from './sfx-catalog';
 import { getMovementDurationMs } from '../renderer/unit-movement-animation';
 import { getVisibility } from '@/systems/fog-of-war';
@@ -53,9 +54,15 @@ export class SfxDirector {
       // #889: Great General moments. Command and retirement cues are the owner's own and heard only while that owner
       // is the viewing seat; the Last Stand save is heard wherever the viewer can currently see the hex.
       bus.on('general:command-used', ({ moment }) => this.playFile(
-        (moment.isFinalCommand ? GENERAL_COMMAND_SFX['final-command'] : GENERAL_COMMAND_SFX[moment.kind]).file,
+        this.generalCommandCue(moment),
         [moment.civId],
       )),
+      // #1522: an AI activation is heard only where the viewer can already see the General's hex, under the same
+      // suppression/mute/volume path as every other cue. No cue at all for an unseen General.
+      bus.on('general:ai-command-used', ({ moment }) => {
+        if (!this.isVisible(moment.generalCoord)) return;
+        this.playFile(this.generalCommandCue(moment), this.viewerOnly());
+      }),
       bus.on('general:last-stand-held', p => {
         if (this.isVisible(p.coord)) this.playFile(GENERAL_COMMAND_SFX['last-stand'].file, this.viewerOnly());
       }),
@@ -108,6 +115,11 @@ export class SfxDirector {
   private viewerOnly(): string[] | undefined {
     const viewerId = this.getState?.().currentPlayer;
     return viewerId ? [viewerId] : undefined;
+  }
+
+  /** A Final Command plays the final cue instead of its ability's cue. */
+  private generalCommandCue(moment: Pick<GeneralAbilityMoment, 'kind' | 'isFinalCommand'>): string {
+    return (moment.isFinalCommand ? GENERAL_COMMAND_SFX['final-command'] : GENERAL_COMMAND_SFX[moment.kind]).file;
   }
 
   private playFile(path: string, viewerIds?: string[]): void {

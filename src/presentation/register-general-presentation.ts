@@ -41,6 +41,17 @@ export const registerGeneralPresentation: PresentationRegistrar = (bus, ctx) => 
       ctx.showNotification(moment.summary, moment.isFinalCommand ? 'warning' : 'success');
       if (!ctx.isPresentationSuppressed()) ctx.playGeneralAbility(moment);
     }),
+    // #1522: an AI General's command is observed, not announced. It is shown only where the viewing seat can already see
+    // the General's hex, and only on the affected hexes it can see too; no toast, name or summary ever reaches the
+    // viewer. The moment is the same canonical before/after descriptor the human path uses.
+    bus.on('general:ai-command-used', ({ moment }) => {
+      const state = ctx.session.getState();
+      const visibility = state.civilizations[state.currentPlayer]?.visibility;
+      if (!visibility || getVisibility(visibility, moment.generalCoord) !== 'visible') return;
+      if (ctx.isPresentationSuppressed()) return;
+      const affectedCoords = moment.affectedCoords.filter(coord => getVisibility(visibility, coord) === 'visible');
+      ctx.playGeneralAbility({ ...moment, affectedCoords, affectedCount: affectedCoords.length, summary: '' });
+    }),
     // #889: a Last Stand hold absorbed a lethal blow -- human or AI executor alike. The owner is told in words; a
     // rival's save is a map effect only, and only where the viewer can currently see the hex (no name, no text).
     bus.on('general:last-stand-held', ({ civId, generalDefinitionId, unitId, coord }) => {

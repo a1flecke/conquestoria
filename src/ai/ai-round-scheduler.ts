@@ -296,9 +296,9 @@ export function processNonHumanMajorRound(
     // tactical actions resolve (healing before combat, bracing before
     // incoming attacks); Seize the Moment needs hasActed units, which only
     // exist after the tactical plan below has actually moved/attacked.
-    working = processAIGeneralCommand(working, civId, 'pre-tactical');
+    working = processAIGeneralCommand(working, civId, 'pre-tactical', bus);
     working = executePrepared(working, revalidated, bus).state;
-    working = processAIGeneralCommand(working, civId, 'post-tactical');
+    working = processAIGeneralCommand(working, civId, 'post-tactical', bus);
     liveness = reconcileCivilizationLiveness(working, working);
     emitCivilizationLivenessTransitions(liveness, bus);
     working = normalizeOpponentAIState(liveness.state);
