@@ -8,6 +8,8 @@ import {
 } from '@/renderer/sprites/v2/index';
 import { UNIT_SPRITE_CATALOG } from '@/renderer/sprites/sprite-catalog';
 import { PIRATE_HULL_TYPES } from '@/systems/pirate-definitions';
+import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
+import { isPngUnit } from '@/renderer/sprites/png/png-sprite-catalog';
 
 // All building types that must have a v2 serialization (MR 1 + MR 3).
 const ALL_SPRITE_BUILDING_TYPES = [
@@ -534,5 +536,44 @@ describe('full building coverage — every type returns a cq-sprite-wrap for imp
     expect(r).not.toBeNull();
     expect(r!).toContain('cq-sprite-wrap');
     expect(r!).toContain('cq-v2');
+  });
+});
+
+// #364: every combat unit drawn from SVG shows the four damage tiers. A unit
+// leaves this list in the PR that gives it .cq-wound-1/2/3 groups; the second
+// test fails when an entry is stale, so the list can only shrink. PNG units
+// (tinted spritesheets) and live-fallback units are separate follow-ups.
+const COMBAT_UNITS_AWAITING_WOUND_ART: readonly string[] = [
+  'swordsman', 'galley', 'trireme', 'spy_scout', 'spy_informant', 'spy_agent', 'spy_operative',
+  'spy_hacker', 'scout_hound', 'shadow_warden', 'war_hound', 'beast_handler', 'war_elephant',
+  'armored_car', 'knight', 'cuirassier', 'catapult', 'trebuchet', 'ballista', 'rocket_artillery',
+  'mechanized_infantry', 'paratrooper', 'battleship', 'missile_cruiser', 'main_battle_tank',
+  'supercarrier', 'naval_strike_aircraft', 'combat_drone', 'autonomous_frigate', 'exosuit_infantry',
+];
+
+function svgCombatUnitTypes(): string[] {
+  return Object.entries(UNIT_DEFINITIONS)
+    .filter(([type, def]) => def.strength > 0 && isV2NativeUnit(type) && !isPngUnit(type))
+    .map(([type]) => type);
+}
+
+function hasAllWoundTiers(type: string): boolean {
+  const faction = type.startsWith('pirate_') ? 'pirates' : 'imperials';
+  const markup = getUnitSpriteV2(type, faction) ?? '';
+  return ['cq-wound-1', 'cq-wound-2', 'cq-wound-3'].every((cls) => markup.includes(cls));
+}
+
+describe('combat unit damage tiers (#364)', () => {
+  it('every SVG combat unit has wound groups unless it is still awaiting art', () => {
+    const missing = svgCombatUnitTypes().filter(
+      (type) => !hasAllWoundTiers(type) && !COMBAT_UNITS_AWAITING_WOUND_ART.includes(type),
+    );
+    expect(missing).toEqual([]);
+  });
+
+  it('the awaiting list only names SVG combat units that still lack wound groups', () => {
+    const combat = new Set(svgCombatUnitTypes());
+    const stale = COMBAT_UNITS_AWAITING_WOUND_ART.filter((type) => !combat.has(type) || hasAllWoundTiers(type));
+    expect(stale).toEqual([]);
   });
 });
