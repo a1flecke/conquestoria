@@ -25,6 +25,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -612,6 +613,57 @@ def build(spec_path: Path, sources: Path, out_dir: Path) -> None:
     bg.convert('RGB').save(prev / 'preview.png')
 
 
+PROMPT_DIR = REPO / 'scripts' / 'sprite-puppet' / 'strip-prompts'
+OPTIONAL_PROMPT_KEYS = {'extra_images': ''}  # spec `prompt` keys a family may use but a unit need not give
+
+
+def template_parts(path: Path) -> tuple[str, dict[str, dict[str, str]]]:
+    """Split a prompt template into its '## Prompt' body and, per '## Family: <name>', its '### <key>' sections."""
+    _, _, rest = path.read_text().partition('\n## Prompt\n')
+    body, *families = re.split(r'\n## Family: ', rest)
+    parsed: dict[str, dict[str, str]] = {}
+    for chunk in families:
+        name, _, section = chunk.partition('\n')
+        parsed[name.strip()] = {m.group(1): m.group(2).strip()
+                                for m in re.finditer(r'^### (\w+)\n(.*?)(?=^### |\Z)', section, re.S | re.M)}
+    return body.strip(), parsed
+
+
+def build_prompts(spec: dict, template_dir: Path = PROMPT_DIR) -> tuple[str, str]:
+    """The two ChatGPT prompts for a unit: conversation A (the master) and conversation B (damage tiers and one-shot
+    actions). The family's sections supply the pose rules and image list; the spec's `prompt` block fills the rest."""
+    templates = {kind: template_parts(template_dir / f'{kind}.md') for kind in ('master', 'set')}
+    families = sorted(set(templates['master'][1]) & set(templates['set'][1]))
+    family = spec.get('family')
+    if family not in families:
+        raise SystemExit(f'unknown family "{family}": choose one of {", ".join(families)}')
+    values = {**OPTIONAL_PROMPT_KEYS, **spec.get('prompt', {})}
+    texts, missing = [], []
+    for kind in ('master', 'set'):
+        body, by_family = templates[kind]
+        fields = {**by_family[family], **{k: str(v) for k, v in values.items()}}
+        text = body
+        for _ in range(4):  # a family section can itself hold placeholders
+            text = re.sub(r'\{\{(\w+)\}\}', lambda m: fields.get(m.group(1), m.group(0)), text)
+        missing += [k for k in re.findall(r'\{\{(\w+)\}\}', text) if k not in missing]
+        texts.append(text)
+    if missing:
+        raise SystemExit('the spec is missing ' + ', '.join(f'prompt.{k}' for k in missing))
+    return texts[0], texts[1]
+
+
+def prompt_command(spec: dict) -> int:
+    a, b = build_prompts(spec)
+    out = REPO / '.verification' / 'strips' / spec['id']
+    out.mkdir(parents=True, exist_ok=True)
+    (out / 'prompt-a.txt').write_text(a + '\n')
+    (out / 'prompt-b.txt').write_text(b + '\n')
+    print(f'=== CONVERSATION A: the master (a fresh ChatGPT conversation, no attachment) ===\n\n{a}\n')
+    print(f'=== CONVERSATION B: the set (a fresh conversation with the approved master attached) ===\n\n{b}\n')
+    print(f'saved to {out / "prompt-a.txt"} and {out / "prompt-b.txt"}')
+    return 0
+
+
 def calibrate_command(spec: dict, sources: Path) -> int:
     """Print the cut found for every drawing a rig uses, save it as .verification/strips/<id>/rig.json and draw the cut (red),
     hip (green) and knee (blue) lines on each source in rig-review.png so a wrong cut is visible at a glance."""
@@ -651,14 +703,18 @@ def calibrate_command(spec: dict, sources: Path) -> int:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('cmd', choices=['build', 'probe', 'calibrate'])
+    ap.add_argument('cmd', choices=['build', 'probe', 'calibrate', 'prompt'])
     ap.add_argument('spec')
-    ap.add_argument('--sources', required=True, help='directory with the generated images named in the spec')
+    ap.add_argument('--sources', help='directory with the generated images named in the spec (not needed for prompt)')
     ap.add_argument('--out', help='output directory (default design/png-sprites/previews/<id>)')
     args = ap.parse_args()
     spec_path = Path(args.spec)
     spec_path = spec_path if spec_path.is_absolute() else REPO / spec_path
     spec = json.loads(spec_path.read_text())
+    if args.cmd == 'prompt':
+        return prompt_command(spec)
+    if not args.sources:
+        ap.error(f'{args.cmd} needs --sources')
     if args.cmd == 'probe':
         findings = probe(spec, Path(args.sources))
         for f in findings:

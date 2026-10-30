@@ -25,8 +25,8 @@ RULES FOR EVERY IMAGE:
 - Nothing is detached from the figure: no flying arrows or projectiles, sparks, dust, debris, smoke puffs or motion lines
   floating in the air. Anything the unit holds stays in contact with it.
 - Transparent background (or, if impossible, one flat solid magenta #FF00FF with nothing magenta on the unit).
-- {{team_area}} stays saturated pure red (#E01010) and is the only red anywhere. Wounds, stains, rust and fire are dark
-  maroon, brown, grey, orange-yellow or black, never bright red. No blood and no gore.
+- Paint {{team_area}} saturated pure red (#E01010), exactly as in the master; it is the only red anywhere. Wounds, stains,
+  rust and fire are dark maroon, brown, grey, orange-yellow or black, never bright red. No blood and no gore.
 - No text, labels, numbers, borders, grid lines, ground or shadows.
 - Do not draw a walk, run, gallop, rolling or flying cycle. The game animates movement itself.
 
