@@ -26,6 +26,7 @@ import argparse
 import importlib.util
 import json
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -60,29 +61,65 @@ def find_source(sources: Path, name: str) -> Path:
     raise SystemExit(f'source image "{name}" not found in {sources} (tried {name}, {name}.png, {name}.bin)')
 
 
-def load_figures(path: Path, expected: int, grid: list[int] | None = None):
+@dataclass
+class Finding:
+    """One thing `probe` noticed about an image or a rig. `level` is 'error' (the build cannot proceed), 'warn' or 'info'."""
+    level: str
+    image: str
+    code: str
+    message: str
+
+    def line(self) -> str:
+        return f'{self.level:5s} {self.code:10s} {self.image}: {self.message}'
+
+
+class FigureError(Exception):
+    """An image that cannot be cut into the expected figures; `code` is the Finding code `probe` reports it under."""
+
+    def __init__(self, code: str, image: str, message: str):
+        super().__init__(f'{image}: {message}')
+        self.code, self.image, self.message = code, image, message
+
+
+SMALL_FIGURE_PX = 300  # a figure shorter than this has too little detail to rig or to scale down cleanly
+
+
+def background_kind(rgba: np.ndarray) -> str:
+    """'transparent' (a real cut-out), 'magenta' (a flat #FF00FF-ish field) or 'unknown' (white, grey, a scene ...)."""
+    if (rgba[..., 3] < 250).mean() > 0.2:
+        return 'transparent'
+    border = np.concatenate([rgba[0], rgba[-1], rgba[:, 0], rgba[:, -1]])[:, :3]
+    return 'magenta' if field_mask(border).mean() > 0.9 else 'unknown'
+
+
+def load_figures(path: Path, expected: int, grid: list[int] | None = None, findings: list[Finding] | None = None):
     """Return [(rgb, mask, (x0, y0, x1, y1))] for the `expected` figures in the image, in reading order.
 
     `grid` lists how many figures sit in each row, top to bottom (e.g. [4, 4]); without it the figures are ordered left to
     right. Real transparency is used when the image has it (the generator's own cut-out, where a faint glow can sit at
-    alpha <= 20, so only strongly opaque pixels count); a flat magenta field is keyed out otherwise.
+    alpha <= 20, so only strongly opaque pixels count); a flat magenta field is keyed out otherwise. Raises FigureError when
+    the image cannot be cut; a figure touching the image edge is appended to `findings` (or printed when none is given).
     """
     rgba = np.array(Image.open(path).convert('RGBA'))
     rgb, alpha = rgba[..., :3], rgba[..., 3]
-    if (alpha < 250).mean() > 0.2:
+    kind = background_kind(rgba)
+    if kind == 'unknown':
+        raise FigureError('background', path.name, 'background is neither transparent nor flat magenta (a white, grey or '
+                          'scenic background cannot be keyed out): ask for a transparent background')
+    if kind == 'transparent':
         fig = ndi.binary_opening(alpha >= 200, iterations=1)
     else:
         fig = ndi.binary_opening(~field_mask(rgb), iterations=2)
     labels, n = ndi.label(fig)
     if n == 0:
-        raise SystemExit(f'{path.name}: no figure found')
+        raise FigureError('count', path.name, f'expected {expected} figures, found 0')
     areas = ndi.sum(fig, labels, range(1, n + 1))
     order = np.argsort(areas)[::-1]
     if len(order) < expected:
-        raise SystemExit(f'{path.name}: expected {expected} figures, found {len(order)}')
+        raise FigureError('count', path.name, f'expected {expected}, found {len(order)}')
     if len(order) > expected and areas[order[expected]] > 0.02 * areas[order[expected - 1]]:
-        raise SystemExit(f'{path.name}: expected {expected} figures but a {areas[order[expected]]:.0f}px piece is left over '
-                         '(figures touching, or a detached part)')
+        raise FigureError('leftover', path.name, f'expected {expected} figures but a {areas[order[expected]]:.0f}px piece is '
+                          'left over (figures touching, or a detached part)')
     figures = []
     for i in order[:expected]:
         m = labels == int(i) + 1
@@ -90,7 +127,7 @@ def load_figures(path: Path, expected: int, grid: list[int] | None = None):
         figures.append((xs.min(), ys.min(), xs.max() + 1, ys.max() + 1, m))
     if grid:
         if sum(grid) != expected:
-            raise SystemExit(f'{path.name}: grid {grid} does not add up to {expected} figures')
+            raise FigureError('count', path.name, f'grid {grid} does not add up to {expected} figures')
         figures.sort(key=lambda f: (f[1] + f[3]) / 2)
         ordered, at = [], 0
         for count in grid:
@@ -103,7 +140,11 @@ def load_figures(path: Path, expected: int, grid: list[int] | None = None):
     h, w = alpha.shape
     for x0, y0, x1, y1, _ in figures:
         if x0 <= 0 or y0 <= 0 or x1 >= w or y1 >= h:
-            print(f'  note: {path.name} has a figure touching the image edge (it may be cut off): box {x0},{y0},{x1},{y1}')
+            msg = f'a figure touches the image edge (it may be cut off): box {x0},{y0},{x1},{y1}'
+            if findings is None:
+                print(f'  note: {path.name} {msg}')
+            else:
+                findings.append(Finding('warn', path.name, 'edge', msg))
     return [(rgb, m, (x0, y0, x1, y1)) for x0, y0, x1, y1, m in figures]
 
 
@@ -266,6 +307,60 @@ def rig_frames(sources: Path, rig: dict, n: int):
     return out
 
 
+def load_source_figure(spec: dict, sources: Path, ref: str) -> np.ndarray:
+    """uint8 RGBA crop of one drawn figure. `ref` is an image name ('a', a one-figure image) or '<image>#<index>' (figure
+    `index`, in reading order, of the strip that uses that image: 'd#2' is the third damage tier)."""
+    name, _, idx = ref.partition('#')
+    for st in spec['states']:
+        if st.get('file') == name:
+            figs = load_figures(find_source(sources, name), st['cells'], st.get('grid'))
+            rgba, _ = clean_rgba(*figs[int(idx or 0)])
+            return (rgba * 255 + 0.5).astype(np.uint8)
+    raise SystemExit(f'source reference "{ref}": no state in the spec uses image "{name}"')
+
+
+def tint_fraction(path: Path, figures, key: dict) -> float:
+    """Share of the figures' pixels that the civ-tint key picks up (about a tenth of a healthy tunic-and-cloak figure)."""
+    img = np.array(Image.open(path).convert('RGBA'))
+    inside = np.zeros(img.shape[:2], bool)
+    for _, m, _ in figures:
+        inside |= m
+    mem = puppet.tint_membership(img, key) > 0.5
+    return float((mem & inside).sum()) / max(1, int(inside.sum()))
+
+
+def probe(spec: dict, sources: Path) -> list[Finding]:
+    """Everything worth knowing about the source images before a build: can each be cut into the expected figures, are they
+    big enough, do any run off the edge, and does any carry more team colour than the master (a leak)."""
+    findings: list[Finding] = []
+    key = spec['tint']
+    fractions: dict[str, float] = {}
+    for st in spec['states']:
+        if not st.get('file'):
+            continue  # a state built in code from another image
+        path = find_source(sources, st['file'])
+        try:
+            figs = load_figures(path, st['cells'], st.get('grid'), findings)
+        except FigureError as e:
+            findings.append(Finding('error', e.image, e.code, e.message))
+            continue
+        for _, m, (x0, y0, x1, y1) in figs:
+            if y1 - y0 < SMALL_FIGURE_PX:
+                findings.append(Finding('warn', path.name, 'small', f'a figure is only {y1 - y0}px tall (under '
+                                        f'{SMALL_FIGURE_PX}): ask for fewer figures per row or a bigger image'))
+                break
+        fractions[st['file']] = tint_fraction(path, figs, key)
+    master = next((st['file'] for st in spec['states'] if st.get('file') in fractions), None)
+    if master is not None:
+        base = fractions[master]
+        for name, frac in fractions.items():
+            if name != master and frac > 1.5 * base and frac - base > 0.02:
+                findings.append(Finding('warn', name, 'tint_leak', f'{frac:.0%} of the figure takes the team colour against '
+                                        f'{base:.0%} in the master "{master}": a colour other than the tunic or cloak is '
+                                        'close to red'))
+    return findings
+
+
 def build(spec_path: Path, sources: Path, out_dir: Path) -> None:
     spec = json.loads(spec_path.read_text())
     uid = spec['id']
@@ -283,7 +378,10 @@ def build(spec_path: Path, sources: Path, out_dir: Path) -> None:
             prepared = rig_frames(sources, st['rig'], st['cells'])
             steel, scale = [1], by_state[st['scaleFrom']]['scale']
         else:
-            figs = load_figures(find_source(sources, st['file']), st['cells'], st.get('grid'))
+            try:
+                figs = load_figures(find_source(sources, st['file']), st['cells'], st.get('grid'))
+            except FigureError as e:
+                raise SystemExit(str(e))
             prepared = [clean_rgba(*f) for f in figs]
             heights = [m.shape[0] for _, m in prepared]
             steel = [steel_area(rgba, m) for rgba, m in prepared]
@@ -378,15 +476,22 @@ def build(spec_path: Path, sources: Path, out_dir: Path) -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('cmd', choices=['build'])
+    ap.add_argument('cmd', choices=['build', 'probe'])
     ap.add_argument('spec')
     ap.add_argument('--sources', required=True, help='directory with the generated images named in the spec')
     ap.add_argument('--out', help='output directory (default design/png-sprites/previews/<id>)')
     args = ap.parse_args()
     spec_path = Path(args.spec)
     spec_path = spec_path if spec_path.is_absolute() else REPO / spec_path
-    uid = json.loads(spec_path.read_text())['id']
-    out = Path(args.out) if args.out else REPO / 'design' / 'png-sprites' / 'previews' / uid
+    spec = json.loads(spec_path.read_text())
+    if args.cmd == 'probe':
+        findings = probe(spec, Path(args.sources))
+        for f in findings:
+            print(f.line())
+        errors = sum(f.level == 'error' for f in findings)
+        print(f'{spec["id"]}: {errors} errors, {sum(f.level == "warn" for f in findings)} warnings')
+        return 1 if errors else 0
+    out = Path(args.out) if args.out else REPO / 'design' / 'png-sprites' / 'previews' / spec['id']
     build(spec_path, Path(args.sources), out)
 
 
