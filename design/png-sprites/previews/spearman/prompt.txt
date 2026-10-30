@@ -1,0 +1,36 @@
+You are making a complete set of game art for ONE unit in a historical civilization strategy game. Create SEVEN separate images, one after another, in this single conversation. Image 1 is the master design. Every later image must show the EXACT same soldier as Image 1 (same face, build, proportions, outfit, colours, spear and shield). Do not redesign him between images. If you cannot keep him identical, say so instead of changing him.
+
+THE UNIT: a Spearman. An ancient-to-medieval foot soldier holding a long spear upright in his right hand, a small round wooden shield on his left arm, a plain leather cap, bare forearms, simple leather boots. Friendly, readable, slightly stylised proportions (large head and hands, so it reads at a small size).
+
+STYLE (all images): clean hand-painted 2D game art, bold dark outline, flat cel shading with soft highlights, earthy saturated palette. Same look as painted isometric strategy-game building art.
+
+COLOUR RULES (all images):
+- His tunic and short cloak are saturated pure red (#E01010). This is the only red in the whole image. Skin, leather, wood, metal and any stains are browns, tans, greys and dark maroon, never bright red. (Pure red is a team-colour area that the game recolours.)
+- The background is ONE flat solid magenta (#FF00FF), with no gradient, texture, noise, glow, shadow or floor. Nothing on the soldier may be magenta or pink.
+
+CAMERA RULES (all images):
+- Strict side view, facing RIGHT. Full figure, head to feet, spear tip included, fully inside the frame with a small margin.
+- Same scale in every image and every cell. Feet on the same horizontal baseline in every cell. Body centered in each cell.
+- No text, labels, borders, grid lines, logos, scenery or motion-blur streaks.
+- Family-friendly: no blood, gore or wounds beyond the mild marks described below.
+
+IMAGE 1, MASTER IDLE (square, 1024x1024): the soldier standing at rest, spear upright, shield on his left arm. This is the reference design.
+
+IMAGE 2, WALK CYCLE (wide strip, 1536x256): 6 equal cells in one row. Frames in order: contact, down, passing, contact (opposite leg), down, passing. Spear carried upright, small natural arm swing, slight cloak sway, head bobbing only a few pixels. It must loop smoothly from frame 6 back to frame 1.
+
+IMAGE 3, ATTACK (wide strip, 1280x256): 5 equal cells in one row. A spear thrust: (1) ready, (2) wind-up with the spear drawn back and weight on the back foot, (3) fast forward lunge with the spear fully extended to the right, (4) full extension with the cloak streaming back, (5) recover to ready. Keep the body and spear clearly separated in every frame.
+
+IMAGE 4, DAMAGE STATES (wide strip, 1024x256): 4 equal cells, the same idle pose as Image 1 in each, showing the same soldier progressively hurt:
+ (1) Healthy: identical to Image 1.
+ (2) Light damage, about 75% health: scuffs of dirt, a small slash in the tunic, a graze on the sword arm.
+ (3) Serious damage, about 50%: torn tunic and sleeve, a cracked and dented shield, a few small dark-maroon stains, messy hair.
+ (4) Critical, about 25%: bandages on chest and forearm, a scratched and bruised face, a chipped shield, a bent spear, a slightly slumped posture.
+Damage is shown only through mild clothing, equipment and bandage changes. No blood pools, no gore.
+
+IMAGE 5, HIT REACTION (wide strip, 1024x256): 4 equal cells: (1) idle, (2) flinch with the head snapped back and shield raised, (3) staggered back one step, (4) recovered to idle.
+
+IMAGE 6, DEFEAT (wide strip, 1024x256): 4 equal cells, non-graphic: (1) idle, (2) knees buckling, (3) kneeling with the spear planted and the head bowed, (4) lying down at rest with the spear beside him. No blood.
+
+IMAGE 7, WORK / BUILD (wide strip, 1024x256): 4 equal cells: the soldier lowers the spear and uses it to dig at the ground with a small downward strike, then raises it back up to idle.
+
+After each image, give me one short line confirming: same soldier as Image 1, all cells share the same baseline and scale, red appears only on the tunic and cloak, and no magenta on the figure. If any of those fail, regenerate that image before moving on. Generate the images now, starting with Image 1.
