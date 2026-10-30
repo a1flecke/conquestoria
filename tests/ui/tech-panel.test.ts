@@ -914,17 +914,26 @@ describe('tech panel catalogue lookups (#1604)', () => {
       onQueueResearch: () => {}, onMoveQueuedResearch: () => {}, onRemoveQueuedResearch: () => {}, onClose: () => {},
     };
     const original = TECH_TREE.find;
+    const originalUnitFind = TRAINABLE_UNITS.find;
     let scans = 0;
+    let unitScans = 0;
     TECH_TREE.find = function patched(this: typeof TECH_TREE, ...args: Parameters<typeof original>) {
       scans++;
       return original.apply(this, args);
     } as typeof original;
+    TRAINABLE_UNITS.find = function patchedUnits(this: typeof TRAINABLE_UNITS, ...args: Parameters<typeof originalUnitFind>) {
+      unitScans++;
+      return originalUnitFind.apply(this, args);
+    } as typeof originalUnitFind;
     try {
       createTechPanel(document.body, state, callbacks).remove();
     } finally {
       TECH_TREE.find = original;
+      TRAINABLE_UNITS.find = originalUnitFind;
     }
     // A genuine single lookup or two is fine; a per-tech scan would be at least TECH_TREE.length.
     expect(scans).toBeLessThan(TECH_TREE.length / 4);
+    // The unlock hint is rendered per node, so a catalogue scan there would grow with node x catalogue.
+    expect(unitScans).toBeLessThan(TRAINABLE_UNITS.length / 4);
   });
 });
