@@ -25,14 +25,15 @@ sizes, every animation looping, the damage tiers side by side, and a size check 
 
 Walking is shown at the game's real pace: one hex in 220 ms, and a whole move capped at 800 ms (`MOVEMENT_MS_PER_HEX` and
 `MOVEMENT_MAX_MS` in `src/renderer/unit-movement-animation.ts`), plus a walk-in-place loop. A speed control (game, half, quarter)
-slows everything down so the cycle can be studied, and a "Walk cycle" switch plays all eight frames or one step repeated.
+slows everything down so the cycle can be studied, and a "Walk" switch chooses the rigged legs (the default), the drawn frames, or
+one drawn step repeated.
 
 ## What is in this folder
 
 | File | What |
 |---|---|
 | `index.html`, `manifest.js` | the preview page and the sheet layout it reads |
-| `sheet.png`, `mask.png` | 8 x 7 cells of 368 x 192 px, 33 drawn frames in 56 slots, 1.1 MB together. The cloth is a grey ramp in the sheet; the mask says how much of each pixel takes the civ colour (same scheme as the game's PNG units) |
+| `sheet.png`, `mask.png` | 8 x 8 cells of 368 x 192 px, 41 frames (33 drawn, 8 rigged) in 64 slots, 1.2 MB together. The cloth is a grey ramp in the sheet; the mask says how much of each pixel takes the civ colour (same scheme as the game's PNG units) |
 | `manifest.json` | the same layout as JSON |
 | `prompt.txt` | the prompt written for this run (ChatGPT altered it before it would run; see `provenance.json`) |
 | `prompt-walk.txt` | the prompt for the final walk image (the walk was redrawn three times) |
@@ -99,8 +100,14 @@ The game's PNG player was built for one still rigged into three rows. These are 
   repeated one step, so the same leg led every time and it read as a skip. The third swapped one frame but had high knees (the prompt
   asked for "knee raised and forward") and uneven pacing. The fourth, a relaxed walk with low feet, has no high knees and almost
   no vertical bounce (1 px of head movement on a 150 px figure). The second step still is not an exact mirror of the first
-  (frame 3 has the trailing foot lifted behind, frame 7 has the legs together), so it was left to the page's walk-cycle switch to
-  compare playing both steps, or one step repeated. Judge it in motion, not from stills.
+  (frame 3 has the trailing foot lifted behind, frame 7 has the legs together). Played in the preview it still read as a
+  **gallop shuffle**: the same leg goes forward and the same leg goes back, because the drawn contact frames of the two steps are
+  copies. Four generations never produced a true leg swap, even with the near and far legs named in the prompt.
+- **The rigged walk (`walkrig`) is the fix for that.** `strips.py` can build a walk in code from the idle drawing (`LegRig`): it cuts
+  the figure below the hem into the body, the spear shaft and two legs, brings both hips onto one line (the master's stance is wide, so
+  swinging the legs about their own hips made the strides lopsided: wide one way and crossed the other), and swings the two legs in
+  opposite directions, lifting each foot as it moves forward. The legs alternate by construction. It has rigid legs and no knee
+  bend, so it is plainer than a drawn walk. The page defaults to it and lets you switch to the drawn frames.
 - **Damage tiers are clearly different at a glance**: dirt and a slash, then torn cloth and a cracked shield, then bandages, a broken
   shield and a bent spear. Tier 1 was the weak one before.
 - The thrust, hit reaction, defeat and work strips all read well. The attack opens with an extra anticipation and an overhead wind-up.
@@ -113,7 +120,8 @@ The game's PNG player was built for one still rigged into three rows. These are 
 1. **Keep the rig pipeline, use ChatGPT only for the master image and the four damage poses.** Fits today's player unchanged
    (idle/walk/attack synthesized by `puppet.py`, damage poses would need only the small tier-row change). Cheapest, but the walk is
    still a bobbing still.
-2. **Hybrid.** Real strips only where a rig cannot fake it: the thrust and the death. Walk and idle stay rigged.
+2. **Hybrid.** Real strips only where a rig cannot fake it: the thrust and the death. Walk and idle stay rigged. The experiment
+   points here: it is also what practitioners report (see the search notes in the PR): AI for the poses, code or a skeleton for the walk.
 3. **Full strips (this prototype).** Needs the non-square cell, extra states, play-once and tier rows, plus a size budget decision.
    Best motion, largest cost.
 

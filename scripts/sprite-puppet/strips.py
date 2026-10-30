@@ -167,6 +167,79 @@ def paste(cell: np.ndarray, small: np.ndarray, ox: int, oy: int) -> None:
         cell[y0:y1, x0:x1] = small[y0 - oy:y1 - oy, x0 - ox:x1 - ox]
 
 
+class LegRig:
+    """A walk built in code from the idle drawing, for when drawn frames do not alternate their legs.
+
+    A generated walk cycle often draws the second step as a copy of the first, so the same leg leads every time (a "gallop
+    shuffle"). This rig cannot: it cuts the idle figure into body and two legs below `cut_y` (plus the spear shaft, which
+    stays with the body) and swings the two legs in opposite directions about one shared hip line, lifting each foot as it
+    swings forward. Rigid legs, no knee bend, so it is plainer than a drawn walk. Keys (source pixels): cut_y (just below
+    the hem, where there are exactly three pieces: shaft, back leg, front leg), overlap_top (top of the band of body pixels
+    each leg carries so the join stays closed), hip_y, stride_deg, lift (px a swinging foot rises), bob (px the body drops
+    at each contact).
+    """
+
+    def __init__(self, rgba: np.ndarray, rig: dict):
+        H, W = rgba.shape[:2]
+        alpha = rgba[..., 3] > 40
+        self.cut_y, self.hip_y = rig['cut_y'], rig['hip_y']
+        self.stride, self.lift, self.bob = rig.get('stride_deg', 20.0), rig.get('lift', 36.0), rig.get('bob', 14.0)
+        self.cv = puppet.Canvas((W, H), int(max(W, H) * 0.14))
+        low = alpha.copy()
+        low[:self.cut_y, :] = False
+        lab, n = ndi.label(low)
+        comps = []
+        for i in range(1, n + 1):
+            m = lab == i
+            if m.sum() > 300:
+                xs = np.where(m.any(0))[0]
+                comps.append({'mask': m, 'x0': int(xs.min()), 'x1': int(xs.max())})
+        comps.sort(key=lambda d: d['x0'])
+        if len(comps) != 3:
+            raise SystemExit(f'LegRig: expected 3 pieces below cut_y={self.cut_y} (spear shaft, back leg, front leg), '
+                             f'found {[(d["x0"], d["x1"]) for d in comps]}')
+        shaft, back, front = comps
+        self.legs, self.rest = [], []
+        for d in (back, front):
+            band = np.zeros((H, W), bool)
+            band[rig['overlap_top']:self.cut_y, max(0, d['x0'] - 6):d['x1'] + 7] = True
+            top = d['mask'].copy()
+            top[self.cut_y + 60:, :] = False
+            px = float(np.where(top)[1].mean())
+            self.legs.append(puppet.Layer(puppet.layer_from(rgba, d['mask'] | (band & alpha)), pivot=(px, self.hip_y)))
+            ys, xs = np.where(d['mask'])
+            foot = ys > ys.max() - 60
+            self.rest.append(float(np.degrees(np.arctan2(xs[foot].mean() - px, ys[foot].mean() - self.hip_y))))
+        mid = sum(leg.pivot[0] for leg in self.legs) / 2
+        self.shift = [mid - leg.pivot[0] for leg in self.legs]  # one hip line, as in a side view
+        body = alpha.copy()
+        body[self.cut_y:, :] = False
+        body |= shaft['mask']
+        self.body = puppet.Layer(puppet.layer_from(rgba, body), pivot=(W * 0.5, H * 0.97))
+
+    def frame(self, i: int, n: int) -> Image.Image:
+        t = i / n
+        s, c = np.sin(2 * np.pi * t), np.cos(2 * np.pi * t)
+        lean = (-self.stride * s, self.stride * s)  # the legs always swing in opposite directions
+        lift = (self.lift * max(0.0, -c), self.lift * max(0.0, c))
+        dy = -self.bob * (1 - np.cos(4 * np.pi * t)) / 2
+        parts = [self.cv.place(self.legs[k], self.shift[k], dy - lift[k], self.rest[k] - lean[k]) for k in (0, 1)]
+        parts.append(self.cv.place(self.body, 0, dy, 0))
+        return self.cv.compose(parts)
+
+
+def rig_frames(sources: Path, rig: dict, n: int):
+    """Frames of a LegRig walk as (rgba float crop, mask crop), cut from the idle source named in `rig['source']`."""
+    r = LegRig(np.array(Image.open(find_source(sources, rig['source'])).convert('RGBA')), rig)
+    out = []
+    for i in range(n):
+        im = np.array(r.frame(i, n)).astype(np.float32) / 255.0
+        ys, xs = np.where(im[..., 3] > 0.02)
+        y0, y1, x0, x1 = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
+        out.append((im[y0:y1, x0:x1], im[y0:y1, x0:x1, 3] > 0.5))
+    return out
+
+
 def build(spec_path: Path, sources: Path, out_dir: Path) -> None:
     spec = json.loads(spec_path.read_text())
     uid = spec['id']
@@ -180,14 +253,18 @@ def build(spec_path: Path, sources: Path, out_dir: Path) -> None:
     rows: list[dict] = []
     by_state: dict[str, dict] = {}
     for st in spec['states']:
-        figs = load_figures(find_source(sources, st['file']), st['cells'], st.get('grid'))
-        prepared = [clean_rgba(*f) for f in figs]
-        heights = [m.shape[0] for _, m in prepared]
-        steel = [steel_area(rgba, m) for rgba, m in prepared]
-        scale = None
-        if not st.get('matchSteelTo'):
-            ref = st.get('restFrames') or list(range(len(prepared)))
-            scale = rest_h / float(np.median([heights[i] for i in ref]))
+        if st.get('rig'):  # built in code from the idle drawing; drawn at the idle's scale
+            prepared = rig_frames(sources, st['rig'], st['cells'])
+            steel, scale = [1], by_state[st['scaleFrom']]['scale']
+        else:
+            figs = load_figures(find_source(sources, st['file']), st['cells'], st.get('grid'))
+            prepared = [clean_rgba(*f) for f in figs]
+            heights = [m.shape[0] for _, m in prepared]
+            steel = [steel_area(rgba, m) for rgba, m in prepared]
+            scale = None
+            if not st.get('matchSteelTo'):
+                ref = st.get('restFrames') or list(range(len(prepared)))
+                scale = rest_h / float(np.median([heights[i] for i in ref]))
         row = {'state': st['state'], 'fps': st['fps'], 'loop': st.get('loop', True), 'prepared': prepared,
                'steel': float(np.median(steel)), 'scale': scale, 'note': st.get('note', ''),
                'anchor': st.get('anchor', 'feet'), 'match': st.get('matchSteelTo')}

@@ -91,11 +91,12 @@
           <option value="0.25">Quarter speed</option>
         </select>
       </label>
-      <label>Walk cycle
-        <select id="variant" aria-label="Which walk frames to play">
-          <option value="all" selected>All 8 frames</option>
-          <option value="first">Frames 1 to 4, repeated</option>
-          <option value="second">Frames 5 to 8, repeated</option>
+      <label>Walk
+        <select id="variant" aria-label="Which walk to play">
+          <option value="rig" selected>Rigged legs (alternate by construction)</option>
+          <option value="all">Drawn frames, all 8</option>
+          <option value="first">Drawn frames 1 to 4, repeated</option>
+          <option value="second">Drawn frames 5 to 8, repeated</option>
         </select>
       </label>
       <span class="muted">In the game a unit crosses one hex in 220 ms and a whole move is capped at 800 ms.</span>
@@ -166,18 +167,22 @@
     const s = M.states[state];
     ctx.drawImage(bake(color || tint), i * CW, s.row * CH, CW, CH, fx - (CW / 2) * k, fy - BASE * k, CW * k, CH * k);
   }
-  let speed = 1, variant = 'all';
-  // which sheet frames the walk plays: both steps as drawn, or one step repeated
+  let speed = 1, variant = 'rig';
+  // the walk is either the rigged row, or the drawn row played as drawn or as one step repeated
   const WALK_SEQ = { all: [0, 1, 2, 3, 4, 5, 6, 7], first: [0, 1, 2, 3], second: [4, 5, 6, 7] };
-  const sequenceOf = (state) => (state === 'walk' ? WALK_SEQ[variant] : null);
-  /** The sheet frame to draw `elapsed` ms into `state` (playback speed applied). */
+  /** Which sheet row (and which of its frames) a state plays right now. */
+  function resolve(state) {
+    if (state !== 'walk') return { state, seq: null };
+    return variant === 'rig' ? { state: 'walkrig', seq: null } : { state: 'walk', seq: WALK_SEQ[variant] };
+  }
+  /** The row and frame to draw `elapsed` ms into `state` (playback speed applied). */
   function frameAt(state, elapsed, forceLoop) {
-    const s = M.states[state];
-    const seq = sequenceOf(state);
-    const n = seq ? seq.length : s.frames;
+    const r = resolve(state);
+    const s = M.states[r.state];
+    const n = r.seq ? r.seq.length : s.frames;
     const f = Math.floor(elapsed * speed / 1000 * s.fps);
     const i = (s.loop || forceLoop) ? f % n : Math.min(f, n - 1);
-    return seq ? seq[i] : i;
+    return { state: r.state, frame: r.seq ? r.seq[i] : i };
   }
   const durationOf = (state) => M.states[state].frames / M.states[state].fps * 1000 / speed;
   const tierOf = (h) => h > 75 ? 0 : h > 50 ? 1 : h > 25 ? 2 : 3;
@@ -287,10 +292,10 @@
       setStatus(damaged ? `idle (damage tier ${tier})` : 'idle');
       return;
     }
-    i = frameAt(name, reduceMotion ? 0 : e, name === 'work' && actor.loop);
+    const pick = frameAt(name, reduceMotion ? 0 : e, name === 'work' && actor.loop);
     ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(x, feet.y, R * 0.38, R * 0.09, 0, 0, 7); ctx.fill();
-    drawFrame(ctx, name, i, x, feet.y, figureH / REST_H);
-    setStatus(`${name}: frame ${i + 1} of ${M.states[name].frames}`);
+    drawFrame(ctx, pick.state, pick.frame, x, feet.y, figureH / REST_H);
+    setStatus(`${pick.state === 'walkrig' ? 'walk (rigged legs)' : name}: frame ${pick.frame + 1} of ${M.states[pick.state].frames}`);
   }
   let lastStatus = '';
   function setStatus(t) {
@@ -323,13 +328,14 @@
       ctx.clearRect(0, 0, CW, CH);
       const s = M.states[state];
       // a looping preview of a one-shot state pauses 400 ms on its last frame
-      const seq = sequenceOf(state);
-      const n = seq ? seq.length : s.frames;
-      const cycle = n / s.fps * 1000 + (s.loop ? 0 : 400);
+      const r = resolve(state);
+      const rs = M.states[r.state];
+      const n = r.seq ? r.seq.length : rs.frames;
+      const cycle = n / rs.fps * 1000 + (rs.loop ? 0 : 400);
       const e = reduceMotion ? 0 : (now * speed) % cycle;
-      const k = n === 1 ? 0 : Math.min(n - 1, Math.floor(e / 1000 * s.fps));
+      const k = n === 1 ? 0 : Math.min(n - 1, Math.floor(e / 1000 * rs.fps));
       ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(CW / 2, BASE + 1, 34, 6, 0, 0, 7); ctx.fill();
-      drawFrame(ctx, state, seq ? seq[k] : k, CW / 2, BASE, 1);
+      drawFrame(ctx, r.state, r.seq ? r.seq[k] : k, CW / 2, BASE, 1);
     }
   }
 
