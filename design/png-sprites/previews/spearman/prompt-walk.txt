@@ -1,0 +1,23 @@
+Redraw ONLY the walk-cycle image once more. Same soldier, same style, same scale, same transparent background and same layout as before: eight frames in two rows of four (reading order, top row then bottom row), at least 40 pixels of empty space between figures.
+
+WHAT WENT WRONG LAST TIME: it looked like a high-knee march or a skip. I want a relaxed, natural walk, like someone walking at an easy pace.
+- The swinging foot only just clears the ground, about the height of his boot. It never rises above the planted leg's knee.
+- At the passing pose the swinging knee is only slightly bent and only slightly in front of the planted leg; the shin hangs down and swings forward just above the ground.
+- The body bobs very little, about 2% of his height. No bouncing, no hopping.
+- Evenly spaced in time: each frame is exactly 1/8 of the cycle, so the legs move about the same amount between every neighbouring pair of frames, including frame 4 to 5 and frame 8 to 1. No two frames may look nearly identical.
+
+He faces right and his shield arm is nearest the viewer, so his LEFT leg is the NEAR leg (in front, on the shield side) and his RIGHT leg is the FAR leg (behind the near leg, partly hidden by it).
+
+TOP ROW, the near leg takes the step:
+ 1. CONTACT: near leg forward, heel down, toes up; far leg behind, toes touching, pushing off. Feet about 40% of his height apart.
+ 2. DOWN: weight moves onto the near foot, which comes flat; the far heel lifts, toes still on the ground.
+ 3. PASSING: the near leg is straight and takes all the weight; the far foot has left the ground and swings forward just above it, level with the near shin.
+ 4. REACH: the near leg is on its toes; the far leg has swung forward with the shin nearly vertical and the foot a hand's width above the ground, ready to land.
+BOTTOM ROW, the far leg takes the step (the same four poses with the legs' roles swapped):
+ 5. CONTACT: far leg forward, heel down, toes up; near leg behind, toes touching, pushing off.
+ 6. DOWN: weight moves onto the far foot, which comes flat; the near heel lifts, toes still on the ground.
+ 7. PASSING: the far leg is straight and takes all the weight; the near foot has left the ground and swings forward just above it, level with the far shin.
+ 8. REACH: the far leg is on its toes; the near leg has swung forward with the shin nearly vertical and the foot a hand's width above the ground, ready to land.
+Frame 8 flows into frame 1 as a seamless loop. Frames 1 and 5 must differ in which leg is forward, and frames 3 and 7 must differ in which foot is lifted. Check that before answering and redo it if not.
+
+Upper body: the shield arm swings gently opposite to the legs, the spear hand stays steady with a small rock, the spear stays near-vertical, the cloak sways, and the figure height is the same as the master in every frame.

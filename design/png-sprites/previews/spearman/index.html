@@ -56,7 +56,9 @@
   <section class="card" aria-labelledby="map-h">
     <h2 id="map-h">On the map</h2>
     <div class="controls" role="group" aria-label="Unit actions">
-      <button data-act="walk">Walk</button>
+      <button data-act="walk1" title="One hex in 220 ms, the game's real pace">Walk 1 hex</button>
+      <button data-act="walk4" title="Four hexes in 800 ms, the longest move animation the game plays">Walk 4 hexes</button>
+      <button data-act="walkloop" title="Walk on the spot until another button is pressed">Walk in place</button>
       <button data-act="attack">Attack</button>
       <button data-act="hit">Hurt</button>
       <button data-act="work">Work</button>
@@ -80,6 +82,23 @@
           <option value="150">Native (150 px)</option>
         </select>
       </label>
+    </div>
+    <div class="row">
+      <label>Speed
+        <select id="speed" aria-label="Playback speed">
+          <option value="1" selected>Game speed</option>
+          <option value="0.5">Half speed</option>
+          <option value="0.25">Quarter speed</option>
+        </select>
+      </label>
+      <label>Walk cycle
+        <select id="variant" aria-label="Which walk frames to play">
+          <option value="all" selected>All 8 frames</option>
+          <option value="first">Frames 1 to 4, repeated</option>
+          <option value="second">Frames 5 to 8, repeated</option>
+        </select>
+      </label>
+      <span class="muted">In the game a unit crosses one hex in 220 ms and a whole move is capped at 800 ms.</span>
     </div>
     <div class="mapwrap"><canvas id="map" aria-label="Hex map with the spearman"></canvas></div>
     <div class="status" id="status" aria-live="polite"></div>
@@ -147,12 +166,20 @@
     const s = M.states[state];
     ctx.drawImage(bake(color || tint), i * CW, s.row * CH, CW, CH, fx - (CW / 2) * k, fy - BASE * k, CW * k, CH * k);
   }
+  let speed = 1, variant = 'all';
+  // which sheet frames the walk plays: both steps as drawn, or one step repeated
+  const WALK_SEQ = { all: [0, 1, 2, 3, 4, 5, 6, 7], first: [0, 1, 2, 3], second: [4, 5, 6, 7] };
+  const sequenceOf = (state) => (state === 'walk' ? WALK_SEQ[variant] : null);
+  /** The sheet frame to draw `elapsed` ms into `state` (playback speed applied). */
   function frameAt(state, elapsed, forceLoop) {
     const s = M.states[state];
-    const f = Math.floor(elapsed / 1000 * s.fps);
-    return (s.loop || forceLoop) ? f % s.frames : Math.min(f, s.frames - 1);
+    const seq = sequenceOf(state);
+    const n = seq ? seq.length : s.frames;
+    const f = Math.floor(elapsed * speed / 1000 * s.fps);
+    const i = (s.loop || forceLoop) ? f % n : Math.min(f, n - 1);
+    return seq ? seq[i] : i;
   }
-  const durationOf = (state) => M.states[state].frames / M.states[state].fps * 1000;
+  const durationOf = (state) => M.states[state].frames / M.states[state].fps * 1000 / speed;
   const tierOf = (h) => h > 75 ? 0 : h > 50 ? 1 : h > 25 ? 2 : 3;
 
   function setupCanvas(cv, w, h) {
@@ -185,12 +212,12 @@
   const feetOf = (col) => { const c = hexCentre(col, UNIT_ROW); return { x: c.x, y: c.y + R * 0.38 }; };
   function placeActor(col) { actor.col = col; actor.x = feetOf(col).x; }
 
-  function play(state, { loop, moveTo } = {}) {
+  function play(state, { loop, moveTo, dur: moveMs } = {}) {
     const my = ++token;
     actor.state = state; actor.t0 = performance.now(); actor.loop = !!loop;
     const from = actor.x;
     const to = moveTo == null ? from : feetOf(moveTo).x;
-    const dur = moveTo == null ? durationOf(state) : 1200;
+    const dur = moveTo == null ? durationOf(state) : (moveMs ?? 1200);
     actor.move = { from, to, dur, t0: actor.t0 };
     return new Promise((res) => {
       if (loop) { res(); return; }
@@ -205,9 +232,17 @@
   function revive() { actor.dead = false; }
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+  /** Move `n` hexes at the game's pace: 220 ms per hex, one move capped at 800 ms (`getMovementDurationMs`). */
+  function walkHexes(n) {
+    revive();
+    if (actor.col + n > COLS - 3) placeActor(1);
+    return play('walk', { moveTo: actor.col + n, dur: Math.min(800, n * 220) / speed });
+  }
   const ACTIONS = {
     idle: () => { revive(); return play('idle', { loop: true }); },
-    walk: () => { revive(); const next = actor.col >= COLS - 3 ? 1 : actor.col + 1; if (next === 1) placeActor(1); return play('walk', { moveTo: next }); },
+    walk1: () => walkHexes(1),
+    walk4: () => walkHexes(4),
+    walkloop: () => { revive(); return play('walk', { loop: true }); },
     attack: () => { revive(); return play('attack'); },
     hit: () => { revive(); return play('hit'); },
     work: () => { revive(); return play('work', { loop: true }); },
@@ -217,7 +252,7 @@
   async function sequence() {
     const mine = ++seqId;
     revive(); placeActor(1);
-    const steps = [['walk', 150], ['walk', 150], ['attack', 350], ['hit', 350], ['work', 1800], ['defeat', 1600]];
+    const steps = [['walk4', 250], ['attack', 350], ['hit', 350], ['work', 1800], ['defeat', 1600]];
     for (const [name, pause] of steps) {
       if (seqId !== mine) return;
       await ACTIONS[name]();
@@ -288,11 +323,13 @@
       ctx.clearRect(0, 0, CW, CH);
       const s = M.states[state];
       // a looping preview of a one-shot state pauses 400 ms on its last frame
-      const cycle = s.frames / s.fps * 1000 + (s.loop ? 0 : 400);
-      const e = reduceMotion ? 0 : now % cycle;
-      const i = s.frames === 1 ? 0 : Math.min(s.frames - 1, Math.floor(e / 1000 * s.fps));
+      const seq = sequenceOf(state);
+      const n = seq ? seq.length : s.frames;
+      const cycle = n / s.fps * 1000 + (s.loop ? 0 : 400);
+      const e = reduceMotion ? 0 : (now * speed) % cycle;
+      const k = n === 1 ? 0 : Math.min(n - 1, Math.floor(e / 1000 * s.fps));
       ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(CW / 2, BASE + 1, 34, 6, 0, 0, 7); ctx.fill();
-      drawFrame(ctx, state, i, CW / 2, BASE, 1);
+      drawFrame(ctx, state, seq ? seq[k] : k, CW / 2, BASE, 1);
     }
   }
 
@@ -351,6 +388,8 @@
     }
     $('custom').addEventListener('input', (e) => setTint(e.target.value));
     $('size').addEventListener('change', (e) => { figureH = Number(e.target.value); layoutMap(); placeActor(actor.col); });
+    $('speed').addEventListener('change', (e) => { speed = Number(e.target.value); });
+    $('variant').addEventListener('change', (e) => { variant = e.target.value; });
     $('health').addEventListener('input', updateHealth);
     for (const b of document.querySelectorAll('[data-act]')) b.addEventListener('click', () => { seqId++; ACTIONS[b.dataset.act](); });
     $('seq').addEventListener('click', sequence);
