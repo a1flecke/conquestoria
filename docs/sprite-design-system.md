@@ -169,8 +169,6 @@ sheet: `docs/reviews/assets/issue-712/sprite-preview.html` (regenerate with
 | caravanserai | ✅ sprite | gold |
 | bank | ✅ sprite | gold |
 | stock_exchange | ✅ sprite | gold |
-| anti_air_battery | ⚠️ placeholder (tracked: #615) | military |
-| air_force_command | ⚠️ placeholder (tracked: #615) | military |
 
 **Note:** this table predates Eras 5–13 and was never kept current for them — treat any
 building/unit not listed above as unverified by this table rather than assuming placeholder
@@ -477,45 +475,6 @@ Terrain tiles use inline SVG `<animate>` / `<animateTransform>` — **not** CSS 
 
 ### Phase desync
 Every sprite instance should set `style="--phase: X"` where X ∈ [0, 1) — a value derived from the unit's ID hash. This prevents all units of the same type from breathing/walking in lockstep. The renderer handles this automatically.
-
----
-
-## Replacement Plan — PR6 Placeholder Assets
-
-Assets added in PR6 that need bespoke replacements (invoke `generate-sprite-prompt` skill before commissioning):
-
-| Asset | File | Replacement brief |
-|-------|------|-------------------|
-| `observation_balloon` (unit) | `units.tsx` | Tethered hydrogen envelope — oval gas bag, faction-colored panels, rope net, wicker gondola, observer with binoculars. |
-| `biplane` (unit) | `units.tsx` | WWI biplane — double canvas wings, radial engine cowling, open cockpit with goggled pilot, faction roundel on upper wing, propeller blur. |
-| `anti_air_battery` (building) | `buildings.tsx` | Ring-mounted Krupp flak cannon, sandbag emplacement, four crew members, brass shell casings, searchlight beam sweeping above. |
-| `air_force_command` (building) | `buildings.tsx` | Neoclassical military HQ, stone eagle over portico, aviation wing crest, biplanes in formation silhouetted through arched window, parade ground. |
-| `wright-flyer` (wonder, PNG art + canvas fallback) | `public/images/wonders/art/wright-flyer.png` (#619) + `legendary-wonder-bespoke-assets.ts` fallback | Canvas-and-wood biplane with a pilot on the lower wing, on a launch rail over sand. The canvas drawing keeps the Kitty Hawk dunes, two watching figures and wind streaks. |
-| `air-move-step.ogg` (SFX) | `public/audio/sfx/` | Wind-whoosh / propeller sound. Currently uses `humanoid-move-step.ogg` as placeholder. |
-
-## Replacement Plan — Era 10 Placeholder Assets
-
-Assets added for era 10 (World War & Cold War) that need bespoke replacements (invoke `generate-sprite-prompt` skill before commissioning):
-
-| Asset | File | Replacement brief |
-|-------|------|-------------------|
-| `jet_fighter` (unit, `data-kind: 'air'`) | `units.tsx` | Swept-wing WWII jet fighter — thin delta silhouette, faction roundel on fuselage, pressurised pilot in cockpit, orange afterburner glow at tail exhaust. |
-| `carrier` (unit, `data-kind: 'naval'`) | `units.tsx` | Fleet carrier — long angled flight deck with spotted aircraft, island superstructure with radar mast, faction ensign on stern, wake foam below hull. |
-| `nuclear_arsenal` (building) | `buildings.tsx` | Hardened silo complex — concrete blast doors ajar, missile nose visible, armed sentries, perimeter fence with warning signs. |
-| `central_bank` (building) | `buildings.tsx` | Neoclassical bank facade — marble columns, vault door in entrance hall, queues of suited officials, gold reserves implied by scale. |
-| `atomic_laboratory` (building) | `buildings.tsx` | Mid-century research lab — cyclotron ring in central hall, white-coated scientists, chalkboard equations, lead shielding panels. |
-| `radar_station` (building) | `buildings.tsx` | Rotating parabolic dish on steel lattice tower, operator hut below, green oscilloscope glow through window, searchlight sweep. |
-| `un_delegation` (building) | `buildings.tsx` | Modernist glass-and-concrete mission building, national flag on pole, diplomats in suits, globe motif above entrance. |
-| `rocket_program` (building) | `buildings.tsx` | Early test rocket on gantry, flame trench below, engineers with slide rules, blueprint table in foreground. |
-| `public_hospital` (building) | `buildings.tsx` | Postwar hospital block — red-cross flag, ambulance at entrance, nurses in uniform, clean ward visible through windows. |
-| `chemical_plant` (building) | `buildings.tsx` | Industrial polymer plant — distillation columns, coloured pipes, hard-hat workers, plastic pellet hoppers in foreground. |
-| `nuclear_power_plant` (building) | `buildings.tsx` | Concrete cooling tower pair emitting steam, reactor dome behind, power-line pylons radiating outward, warning signs at fence. |
-| `television_station` (building) | `buildings.tsx` | Broadcast tower on rooftop studio, cameras in glass-fronted studio, test-card pattern on monitor, newsreader at desk. |
-| `signals_bureau` (building) | `buildings.tsx` | Listening post — banks of radio receivers, headphone-wearing operators, paper tape rolls, Morse code printout. |
-| `manhattan_project` (national project) | `buildings.tsx` | Secure desert facility — guard towers, corrugated lab buildings, scientists in fedoras, mushroom-cloud diagram on chalkboard. |
-| `postwar_reconstruction` (national project) | `buildings.tsx` | Reconstruction scene — cranes rebuilding a bombed city block, scaffolded buildings, workers mixing concrete, hopeful skyline emerging. |
-| `space_program_initiative` (national project) | `buildings.tsx` | Mission control room — rows of consoles, large world map with trajectory arcs, controllers in shirtsleeves, launch countdown clock. |
-| `united-nations` (wonder, SVG) | `wonders.tsx` | Iconic glass Secretariat tower beside the East River, flags of nations on poles below, dove silhouette against a clear blue sky. |
 
 ---
 
