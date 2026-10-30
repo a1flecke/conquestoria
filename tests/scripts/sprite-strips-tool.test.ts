@@ -92,7 +92,7 @@ im.save(${JSON.stringify(join(sources, 'a.png'))})
   });
 
   it('reads an uneven 2x2 grid in reading order', () => {
-    const { root, sources, tool } = sandbox();
+    const { root, sources } = sandbox();
     // greys 50, 100, 150, 200 are tiers 1..4; the bottom-left one sits 40 px lower than the bottom-right one
     draw(`
 im = Image.new('RGB', (900, 700), (255, 0, 255))
@@ -118,7 +118,7 @@ for i in range(4):
 Path(${JSON.stringify(out)}).write_text(json.dumps(vals))
 `;
     execFileSync('python3', ['-I', '-c', code]);
-    expect(JSON.parse(require('node:fs').readFileSync(out, 'utf8'))).toEqual([50, 100, 150, 200]);
+    expect(JSON.parse(readFileSync(out, 'utf8'))).toEqual([50, 100, 150, 200]);
   });
 
   it('flags a red leak in one image only', () => {
@@ -324,7 +324,8 @@ describe.skipIf(!haveDeps)('strips.py prompt (#364 prototype)', () => {
 
   it('names a missing spec key', () => {
     const { root, tool } = sandbox();
-    const { team_area: _omit, ...rest } = BIPED_PROMPT;
+    const rest: Record<string, unknown> = { ...BIPED_PROMPT };
+    delete rest.team_area;
     const r = run(tool, ['prompt', writePromptSpec(root, {}, rest)]);
     expect(r.status).toBe(1);
     expect(r.stdout + r.stderr).toContain('prompt.team_area');
