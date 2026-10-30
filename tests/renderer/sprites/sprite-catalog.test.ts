@@ -15,7 +15,7 @@ import {
   TankSprite, ArtillerySprite, InfantrySprite,
 } from '@/renderer/sprites/units';
 import {
-  DataCenterSprite, CyberDefenseCenterSprite, AutomatedPortSprite, SignalsHubSprite,
+  DataCenterSprite, FintechHubSprite, CyberDefenseCenterSprite, AutomatedPortSprite, SignalsHubSprite,
   BroadcastTowerSprite, PrecisionFarmSprite, TelemedicineHubSprite, SmartGridSprite,
   RocketProgramSprite,
   RadarStationSprite,
@@ -160,6 +160,52 @@ describe('Era 13 sprites are not aliases of their placeholders (#652)', () => {
     ];
     for (const [id, placeholderFn] of replacements) {
       expect(BUILDING_SPRITE_CATALOG[id], `${id} still aliases its old placeholder component`).not.toBe(placeholderFn);
+    }
+  });
+});
+
+// #615: the three Era 12 national projects were aliases of Data Center, Fintech Hub and Smart Grid, and the three Era 10 projects
+// were reviewed and redrawn. The painted art is what the game shows; these SVGs are the load-failure fallback, and must still be
+// the project's own drawing rather than another building's.
+describe('Era 10 and Era 12 national-project sprites are their own drawings (#615)', () => {
+  const palette = derivePalette('#4a90d9');
+  const OWN_DRAWING_IDS = [
+    'manhattan_project', 'postwar_reconstruction', 'space_program_initiative',
+    'planetary_data_grid', 'global_logistics_network', 'orbital_fabrication_program',
+  ];
+
+  it('rejects the three Era 12 aliases', () => {
+    expect(BUILDING_SPRITE_CATALOG.planetary_data_grid).not.toBe(DataCenterSprite);
+    expect(BUILDING_SPRITE_CATALOG.global_logistics_network).not.toBe(FintechHubSprite);
+    expect(BUILDING_SPRITE_CATALOG.orbital_fabrication_program).not.toBe(SmartGridSprite);
+  });
+
+  it('gives each one a component no other catalog entry uses (warhead deliberately shares the Manhattan Project drawing)', () => {
+    for (const id of OWN_DRAWING_IDS) {
+      const sharers = Object.keys(BUILDING_SPRITE_CATALOG)
+        .filter(other => other !== id && BUILDING_SPRITE_CATALOG[other] === BUILDING_SPRITE_CATALOG[id]);
+      expect(sharers, `${id} shares its sprite component`).toEqual(id === 'manhattan_project' ? ['warhead'] : []);
+    }
+  });
+
+  it('renders markup that differs from every other building, with no raster, text or external reference', () => {
+    const own = new Map(OWN_DRAWING_IDS.map(id => [id, BUILDING_SPRITE_CATALOG[id]({ palette, svgOnly: true })]));
+    const others = new Set(Object.entries(BUILDING_SPRITE_CATALOG)
+      .filter(([id]) => !OWN_DRAWING_IDS.includes(id) && id !== 'warhead')
+      .map(([, fn]) => fn({ palette, svgOnly: true })));
+    for (const [id, svg] of own) {
+      expect(others.has(svg), `${id} renders the same markup as another building`).toBe(false);
+      expect(svg, `${id} embeds a raster`).not.toMatch(/<image\b/);
+      expect(svg, `${id} contains text`).not.toMatch(/<text\b/);
+      expect(svg, `${id} references an external resource`).not.toMatch(/https?:\/\/(?!www\.w3\.org)/);
+    }
+    expect(new Set(own.values()).size, 'two of the six drew identical markup').toBe(OWN_DRAWING_IDS.length);
+  });
+
+  it('puts the owner colour on each drawing through the palette', () => {
+    const blue = derivePalette('#2980b9');
+    for (const id of OWN_DRAWING_IDS) {
+      expect(BUILDING_SPRITE_CATALOG[id]({ palette, svgOnly: true }), id).not.toBe(BUILDING_SPRITE_CATALOG[id]({ palette: blue, svgOnly: true }));
     }
   });
 });

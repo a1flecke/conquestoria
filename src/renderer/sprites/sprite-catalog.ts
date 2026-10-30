@@ -61,6 +61,7 @@ import {
   AutomatedPortSprite, BiotechLabSprite, BroadcastTowerSprite, CyberDefenseCenterSprite,
   DataCenterSprite, FintechHubSprite, GeneTherapyClinicSprite, PrecisionFarmSprite,
   SignalsHubSprite, SmartGridSprite, StealthAirbaseSprite, TelemedicineHubSprite,
+  PlanetaryDataGridSprite, GlobalLogisticsNetworkSprite, OrbitalFabricationProgramSprite,
   // era 13 batch A
   NetworkOperationsCenterSprite, AiSafetyInstituteSprite, DroneFabricatorSprite,
   ElectronicWarfareArraySprite, CivicMediaForumSprite, VerticalFarmSprite,
@@ -575,11 +576,10 @@ export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = 
   smart_grid:                     SmartGridSprite,
   stealth_airbase:                StealthAirbaseSprite,
   telemedicine_hub:               TelemedicineHubSprite,
-  // era 12 national projects — these three still reuse a neighbouring SVG sprite, but only as the load-failure fallback: each has
-  // its own painted art in BUILDING_ART (#615), which is what every panel and the map draw. Bespoke SVGs are optional follow-up.
-  planetary_data_grid:            DataCenterSprite,
-  global_logistics_network:       FintechHubSprite,
-  orbital_fabrication_program:    SmartGridSprite,
+  // era 12 national projects (#615): each has its own drawing, the load-failure fallback behind its painted art in BUILDING_ART.
+  planetary_data_grid:            PlanetaryDataGridSprite,
+  global_logistics_network:       GlobalLogisticsNetworkSprite,
+  orbital_fabrication_program:    OrbitalFabricationProgramSprite,
   // Era 13 (#652), batch A — bespoke sprites landed 2026-07-26.
   network_operations_center:      NetworkOperationsCenterSprite,
   ai_safety_institute:            AiSafetyInstituteSprite,

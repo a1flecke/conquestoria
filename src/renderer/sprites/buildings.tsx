@@ -2648,66 +2648,106 @@ export function SignalsBureauSprite({ palette, svgOnly = false }: BuildingSprite
   );
 }
 
-// Era 10 national projects: each has its own drawing (not a reused sprite). They are the load-failure fallback behind the painted
-// art in BUILDING_ART (#615), which is what every panel and the map show.
+// Era 10 national projects (#615). Each is its own drawing, reviewed at 192 px and 36 px, and is the load-failure fallback behind the
+// painted art in BUILDING_ART, which is what every panel and the map show. `warhead` also draws ManhattanProjectSprite.
+/* Dominant: a concrete containment dome with a tall banded stack, inside a desert compound with a guard post. */
 export function ManhattanProjectSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  const posts = [24, 44, 64, 84, 104, 124, 144, 164].map(x => (
+    <rect x={x} y="126" width="3" height="12" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.5" />
+  )).join('');
   return (
     <BuildingFrame label="Manhattan Project" category="military" svgOnly={svgOnly}>
-      <BuildingPlinth w={148} />
-      {/* desert facility buildings */}
-      <rect x="22" y="96" width="148" height="40" rx="2" fill="#b8a080" stroke={P.ink.line} strokeWidth="1.2" />
-      {/* guard tower */}
-      <rect x="28" y="66" width="18" height="30" rx="2" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
-      <rect x="24" y="60" width="26" height="8" rx="1" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.8" />
-      {/* chalkboard diagram */}
-      <rect x="70" y="80" width="60" height="40" rx="2" fill="#1a4a1a" stroke={P.ink.line} strokeWidth="1" />
-      <circle cx="100" cy="100" r="14" fill="none" stroke="white" strokeWidth="1.5" />
-      {/* mushroom cloud hint */}
-      <ellipse cx="150" cy="56" rx="16" ry="22" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.8" opacity="0.7" />
-      <rect x="144" y="66" width="12" height="16" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.7" opacity="0.6" />
-      <Banner x={160} y={18} palette={palette} scale={0.78} />
+      <BuildingPlinth w={150} />
+      {/* long low laboratory hall */}
+      <rect x="18" y="110" width="156" height="28" rx="2" fill="#b8a080" stroke={P.ink.line} strokeWidth="1.2" />
+      <rect x="18" y="110" width="156" height="5" fill="#d2bd98" stroke={P.ink.line} strokeWidth="0.6" />
+      {[30, 52, 74, 118, 140, 156].map(x => <rect x={x} y="120" width="9" height="10" fill="#3a2f22" stroke={P.ink.line} strokeWidth="0.5" />).join('')}
+      {/* ventilation stack with a faction-coloured band */}
+      <rect x="30" y="50" width="14" height="60" fill={P.stone.light} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="30" y="50" width="14" height="10" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      <rect x="30" y="68" width="14" height="5" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.6" />
+      <rect x="28" y="46" width="18" height="6" rx="1" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
+      {/* containment dome */}
+      <path d="M58,110 A38,38 0 0 1 134,110 Z" fill="#cfcabd" stroke={P.ink.line} strokeWidth="1.3" />
+      <path d="M58,110 A38,38 0 0 1 134,110 Z" fill="url(#stoneTexture)" opacity="0.5" />
+      <path d="M96,72 L96,110 M78,78 Q80,96 80,110 M114,78 Q112,96 112,110" fill="none" stroke={P.stone.dark} strokeWidth="0.8" opacity="0.7" />
+      <rect x="88" y="94" width="16" height="16" rx="8" fill="#2a2620" stroke={P.ink.line} strokeWidth="0.8" />
+      <circle cx="96" cy="68" r="4" fill={palette.bright} stroke={P.ink.line} strokeWidth="0.8" />
+      {/* guard post */}
+      <rect x="148" y="82" width="14" height="28" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="144" y="74" width="22" height="10" rx="1" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      <rect x="148" y="76" width="14" height="5" fill="#f2c040" opacity="0.85" />
+      {/* perimeter fence */}
+      {posts}
+      <line x1="22" y1="130" x2="170" y2="130" stroke={P.metal.steel} strokeWidth="1" />
+      <line x1="22" y1="135" x2="170" y2="135" stroke={P.metal.steel} strokeWidth="1" />
+      <Banner x={166} y={62} palette={palette} scale={0.7} />
     </BuildingFrame>
   );
 }
 
+/* Dominant: a tower crane lifting a beam over a half-rebuilt block; a broken ruin stands beside it. */
 export function PostwarReconstructionSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Postwar Reconstruction" category="economy" svgOnly={svgOnly}>
-      <BuildingPlinth w={148} />
-      {/* partially rebuilt building */}
-      <rect x="24" y="100" width="80" height="36" rx="2" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1.2" />
-      {/* scaffolding */}
-      <rect x="100" y="56" width="60" height="80" rx="1" fill="none" stroke={P.wood.mid} strokeWidth="2" strokeDasharray="4 3" />
-      <line x1="100" y1="72" x2="160" y2="72" stroke={P.wood.mid} strokeWidth="1.5" />
-      <line x1="100" y1="92" x2="160" y2="92" stroke={P.wood.mid} strokeWidth="1.5" />
-      <line x1="100" y1="112" x2="160" y2="112" stroke={P.wood.mid} strokeWidth="1.5" />
-      {/* crane */}
-      <line x1="148" y1="24" x2="148" y2="80" stroke={P.metal.iron} strokeWidth="3" />
-      <line x1="112" y1="24" x2="148" y2="24" stroke={P.metal.iron} strokeWidth="3" />
-      <line x1="124" y1="24" x2="128" y2="50" stroke={P.metal.iron} strokeWidth="1.5" />
-      {/* workers */}
-      <circle cx="50" cy="104" r="6" fill={P.cloth.tunic} stroke={P.ink.line} strokeWidth="0.8" />
-      <circle cx="70" cy="104" r="6" fill={P.cloth.wool} stroke={P.ink.line} strokeWidth="0.8" />
-      <Banner x={28} y={18} palette={palette} scale={0.78} />
+      <BuildingPlinth w={150} />
+      {/* war-damaged ruin with a jagged top and empty window holes */}
+      <path d="M20,138 L20,104 L30,98 L38,106 L48,94 L56,102 L64,100 L64,138 Z" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="1.2" />
+      <rect x="26" y="112" width="9" height="12" fill="#2a2620" stroke={P.ink.line} strokeWidth="0.6" />
+      <rect x="46" y="112" width="9" height="12" fill="#2a2620" stroke={P.ink.line} strokeWidth="0.6" />
+      <path d="M20,138 L24,132 L34,136 L44,131 L56,136 L64,132 L64,138 Z" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.6" />
+      {/* the new block: finished lower floors, open frame above */}
+      <rect x="72" y="92" width="64" height="46" fill={P.stone.light} stroke={P.ink.line} strokeWidth="1.2" />
+      <rect x="72" y="92" width="64" height="46" fill="url(#stoneTexture)" opacity="0.4" />
+      {[80, 98, 116].map(x => <rect x={x} y="102" width="10" height="12" fill="#f2c868" stroke={P.ink.line} strokeWidth="0.6" />).join('')}
+      {[80, 98, 116].map(x => <rect x={x} y="120" width="10" height="12" fill="#f2c868" stroke={P.ink.line} strokeWidth="0.6" />).join('')}
+      <rect x="72" y="62" width="64" height="30" fill="none" stroke={P.wood.mid} strokeWidth="2" strokeDasharray="5 3" />
+      <line x1="72" y1="77" x2="136" y2="77" stroke={P.wood.mid} strokeWidth="1.5" />
+      <line x1="72" y1="62" x2="72" y2="92" stroke={P.wood.dark} strokeWidth="2" />
+      <line x1="136" y1="62" x2="136" y2="92" stroke={P.wood.dark} strokeWidth="2" />
+      {/* tower crane */}
+      <rect x="146" y="34" width="8" height="104" fill="#d9a024" stroke={P.ink.line} strokeWidth="1" />
+      <path d="M146,46 L154,58 M154,46 L146,58 M146,62 L154,74 M154,62 L146,74 M146,78 L154,90 M154,78 L146,90 M146,94 L154,106 M154,94 L146,106" stroke={P.ink.line} strokeWidth="0.7" fill="none" />
+      <rect x="82" y="28" width="92" height="7" fill="#d9a024" stroke={P.ink.line} strokeWidth="1" />
+      <rect x="160" y="22" width="14" height="14" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
+      <rect x="142" y="26" width="16" height="12" rx="2" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.8" />
+      <line x1="102" y1="35" x2="102" y2="64" stroke={P.metal.steel} strokeWidth="1.2" />
+      <rect x="90" y="64" width="26" height="5" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
+      {/* brick pile */}
+      <rect x="22" y="136" width="14" height="6" fill="#a8553a" stroke={P.ink.line} strokeWidth="0.5" />
+      <rect x="26" y="130" width="12" height="6" fill="#b8603f" stroke={P.ink.line} strokeWidth="0.5" />
+      <Banner x={170} y={20} palette={palette} scale={0.7} />
     </BuildingFrame>
   );
 }
 
+/* Dominant: an upright rocket on a launch plinth beside a mission-control hall with an observation dome and a tracking dish. */
 export function SpaceProgramInitiativeSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Space Program Initiative" category="science" svgOnly={svgOnly}>
-      <BuildingPlinth w={148} />
-      <rect x="22" y="90" width="148" height="46" rx="2" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="1.2" />
-      {/* mission-control consoles */}
-      {[30, 60, 90, 120, 150].map(x =>
-        <rect key={x} x={x} y={102} width="22" height="28" rx="2" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
-      ).join('')}
-      {/* world map with trajectory arc */}
-      <ellipse cx="96" cy="60" rx="56" ry="28" fill={palette.bright} stroke={P.ink.line} strokeWidth="1" />
-      <path d="M40,50 Q96,28 152,60" stroke={palette.dark} strokeWidth="1.5" fill="none" strokeDasharray="4 3" />
-      {/* countdown clock */}
-      <rect x="152" y="82" width="20" height="14" rx="2" fill="#cc0000" stroke={P.ink.line} strokeWidth="0.8" />
-      <Banner x={28} y={18} palette={palette} scale={0.78} />
+      <BuildingPlinth w={150} />
+      {/* mission-control hall */}
+      <rect x="20" y="96" width="112" height="42" rx="2" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="1.2" />
+      <rect x="20" y="96" width="112" height="6" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.6" />
+      {[30, 52, 74, 96].map(x => <path d={`M${x},134 L${x},114 Q${x + 8},104 ${x + 16},114 L${x + 16},134 Z`} fill="#f2c868" stroke={P.ink.line} strokeWidth="0.7" />).join('')}
+      {/* observation dome */}
+      <path d="M48,96 A26,26 0 0 1 100,96 Z" fill={P.metal.shine} stroke={P.ink.line} strokeWidth="1.1" />
+      <path d="M74,72 L74,96" stroke={P.metal.steel} strokeWidth="1" />
+      <rect x="70" y="76" width="8" height="18" fill="#1f2a44" stroke={P.ink.line} strokeWidth="0.6" />
+      {/* tracking dish on a pole */}
+      <line x1="30" y1="96" x2="30" y2="70" stroke={P.metal.iron} strokeWidth="3" />
+      <path d="M14,62 Q30,84 46,62 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1" />
+      <line x1="30" y1="62" x2="30" y2="50" stroke={P.metal.iron} strokeWidth="1.5" />
+      <circle cx="30" cy="48" r="3" fill={palette.bright} stroke={P.ink.line} strokeWidth="0.7" />
+      {/* launch plinth and rocket */}
+      <rect x="138" y="124" width="36" height="14" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="134" y="132" width="44" height="6" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.8" />
+      <path d="M150,124 L150,50 Q156,28 162,50 L162,124 Z" fill={P.metal.shine} stroke={P.ink.line} strokeWidth="1.1" />
+      <path d="M150,58 Q156,34 162,58 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.8" />
+      <rect x="150" y="78" width="12" height="5" fill={palette.dark} />
+      <circle cx="156" cy="96" r="3" fill="#1f2a44" stroke={P.ink.line} strokeWidth="0.6" />
+      <path d="M150,112 L140,128 L150,124 Z M162,112 L172,128 L162,124 Z" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      <Banner x={112} y={74} palette={palette} scale={0.7} />
     </BuildingFrame>
   );
 }
@@ -3377,6 +3417,115 @@ export function TelemedicineHubSprite({ palette, svgOnly = false }: BuildingSpri
       <path d="M36,88 Q42,80 48,88" fill="none" stroke={palette.bright} strokeWidth="1.5" opacity="0.8" />
       <path d="M28,92 Q42,76 56,92" fill="none" stroke={palette.bright} strokeWidth="1.2" opacity="0.5" />
       <Banner x={150} y={30} palette={palette} scale={0.6} />
+    </BuildingFrame>
+  );
+}
+
+/* Era 12 national projects (#615): each has its own drawing; the painted art in BUILDING_ART is what the game shows, and these are
+   the load-failure fallback. A test pins that none of them is another building's sprite. */
+
+/* Planetary Data Grid — dominant: a plain silver globe on a plinth with a tilted orbit ring, ringed by indigo data domes. */
+export function PlanetaryDataGridSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  const dome = (cx: number) => (
+    <g>
+      <path d={`M${cx - 15},126 A15,15 0 0 1 ${cx + 15},126 Z`} fill="#3e4f8c" stroke={P.ink.line} strokeWidth="1" />
+      <path d={`M${cx - 9},116 Q${cx},108 ${cx + 9},116`} fill="none" stroke="#7d8fd0" strokeWidth="1.2" />
+      <rect x={cx - 15} y="126" width="30" height="8" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.8" />
+      {[-9, -3, 3, 9].map(dx => <rect x={cx + dx - 1.5} y="128" width="3" height="4" fill="#f2c868" />).join('')}
+    </g>
+  );
+  return (
+    <BuildingFrame label="Planetary Data Grid" category="science" svgOnly={svgOnly}>
+      <BuildingPlinth w={152} />
+      {/* low ring wall and paving */}
+      <rect x="16" y="134" width="160" height="10" rx="2" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.9" />
+      {[16, 74, 96, 118, 164].map(x => <rect x={x} y="128" width="12" height="16" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.7" />).join('')}
+      {/* data domes */}
+      {dome(36)}{dome(66)}{dome(126)}{dome(156)}
+      {/* pedestal */}
+      <rect x="80" y="104" width="32" height="30" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="76" y="100" width="40" height="8" rx="2" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.9" />
+      {/* globe: plain bands only, no continents */}
+      <circle cx="96" cy="64" r="36" fill="#c9ced6" stroke={P.ink.line} strokeWidth="1.4" />
+      <path d="M96,28 A14,36 0 0 0 96,100 M96,28 A14,36 0 0 1 96,100" fill="none" stroke={P.metal.steel} strokeWidth="1" />
+      <ellipse cx="96" cy="64" rx="36" ry="9" fill="none" stroke={P.metal.iron} strokeWidth="2" />
+      <path d="M72,42 A30,30 0 0 1 100,32" fill="none" stroke={P.metal.shine} strokeWidth="3" strokeLinecap="round" opacity="0.8" />
+      {/* tilted orbit ring and a satellite dot */}
+      <ellipse cx="96" cy="64" rx="56" ry="13" transform="rotate(-18 96 64)" fill="none" stroke={palette.bright} strokeWidth="1.6" strokeDasharray="5 4" />
+      <circle cx="146" cy="46" r="4" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.9" />
+      <Banner x={20} y={104} palette={palette} scale={0.7} />
+    </BuildingFrame>
+  );
+}
+
+/* Global Logistics Network — dominant: a round sorting platform with four conveyor spokes before a mustard freight terminal. */
+export function GlobalLogisticsNetworkSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  const doors = [[30, '#a34a3a'], [66, '#3a5f8a'], [102, '#4a6e4a']].map(d => (
+    <g>
+      <rect x={d[0] as number} y="100" width="28" height="30" fill={d[1] as string} stroke={P.ink.line} strokeWidth="0.9" />
+      <path d={`M${d[0]},108 L${(d[0] as number) + 28},108 M${d[0]},116 L${(d[0] as number) + 28},116 M${d[0]},124 L${(d[0] as number) + 28},124`} stroke={P.ink.line} strokeWidth="0.5" opacity="0.6" />
+    </g>
+  )).join('');
+  return (
+    <BuildingFrame label="Global Logistics Network" category="economy" svgOnly={svgOnly}>
+      <BuildingPlinth w={152} />
+      {/* freight terminal with a curved roof */}
+      <rect x="22" y="88" width="126" height="42" fill="#d9a62e" stroke={P.ink.line} strokeWidth="1.2" />
+      <path d="M20,88 Q85,58 150,88 Z" fill="#4a5560" stroke={P.ink.line} strokeWidth="1.2" />
+      <path d="M44,80 Q85,64 126,80 M62,74 L62,88 M108,74 L108,88" fill="none" stroke={P.ink.line} strokeWidth="0.6" opacity="0.7" />
+      {doors}
+      {/* control tower block */}
+      <rect x="150" y="74" width="26" height="56" fill="#4a5560" stroke={P.ink.line} strokeWidth="1.1" />
+      <rect x="146" y="68" width="34" height="8" rx="1" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      <rect x="154" y="82" width="18" height="7" fill="#f2c868" stroke={P.ink.line} strokeWidth="0.6" />
+      {/* sorting platform with four conveyor spokes */}
+      <g stroke={P.ink.line} strokeWidth="0.8">
+        <line x1="78" y1="138" x2="32" y2="132" strokeWidth="6" stroke="#2f3f66" />
+        <line x1="78" y1="138" x2="40" y2="146" strokeWidth="6" stroke="#2f3f66" />
+        <line x1="78" y1="138" x2="124" y2="132" strokeWidth="6" stroke="#2f3f66" />
+        <line x1="78" y1="138" x2="116" y2="146" strokeWidth="6" stroke="#2f3f66" />
+      </g>
+      <ellipse cx="78" cy="143" rx="24" ry="7" fill="#6e6656" stroke={P.ink.line} strokeWidth="1" />
+      <ellipse cx="78" cy="139" rx="24" ry="7" fill="#9a9078" stroke={P.ink.line} strokeWidth="1" />
+      <ellipse cx="78" cy="139" rx="13" ry="3.6" fill="#3a3f48" stroke={P.ink.line} strokeWidth="0.7" />
+      {/* crates and barrels */}
+      <rect x="150" y="122" width="14" height="14" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.8" />
+      <line x1="150" y1="129" x2="164" y2="129" stroke={P.wood.dark} strokeWidth="0.8" />
+      <rect x="164" y="126" width="12" height="10" fill={P.wood.light} stroke={P.ink.line} strokeWidth="0.8" />
+      <ellipse cx="140" cy="132" rx="5" ry="2.4" fill="#6b7a4e" stroke={P.ink.line} strokeWidth="0.7" />
+      <rect x="135" y="132" width="10" height="8" fill="#556340" stroke={P.ink.line} strokeWidth="0.7" />
+      <Banner x={24} y={78} palette={palette} scale={0.7} />
+    </BuildingFrame>
+  );
+}
+
+/* Orbital Fabrication Program — dominant: a huge copper ring standing on two pylons beside a copper-roofed hall and a module on a cradle. */
+export function OrbitalFabricationProgramSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  return (
+    <BuildingFrame label="Orbital Fabrication Program" category="production" svgOnly={svgOnly}>
+      <BuildingPlinth w={152} />
+      {/* fabrication hall with a ribbed copper barrel roof */}
+      <rect x="16" y="100" width="100" height="38" fill="#d8cdb4" stroke={P.ink.line} strokeWidth="1.2" />
+      <path d="M14,100 Q66,70 118,100 Z" fill="#c4743a" stroke={P.ink.line} strokeWidth="1.2" />
+      <path d="M32,92 Q66,76 100,92 M50,86 L50,100 M66,80 L66,100 M82,86 L82,100" fill="none" stroke="#8a4a22" strokeWidth="0.8" />
+      <rect x="22" y="110" width="26" height="28" fill="#3a3f48" stroke={P.ink.line} strokeWidth="0.9" />
+      <path d="M22,118 L48,118 M22,126 L48,126" stroke={P.ink.line} strokeWidth="0.5" opacity="0.6" />
+      <rect x="54" y="106" width="58" height="5" fill="#f2c868" stroke={P.ink.line} strokeWidth="0.5" />
+      {/* pylons */}
+      <rect x="112" y="108" width="16" height="30" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="158" y="108" width="16" height="30" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1" />
+      {/* the ring: open in the middle */}
+      <ellipse cx="143" cy="80" rx="27" ry="36" fill="none" stroke="#a65a28" strokeWidth="10" />
+      <ellipse cx="143" cy="80" rx="27" ry="36" fill="none" stroke="#dca066" strokeWidth="3" />
+      <path d="M143,44 L143,40 M143,116 L143,120" stroke={P.ink.line} strokeWidth="1" />
+      <circle cx="143" cy="40" r="3" fill={palette.bright} stroke={P.ink.line} strokeWidth="0.8" />
+      {/* module on a cradle */}
+      <rect x="64" y="128" width="8" height="10" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
+      <rect x="104" y="128" width="8" height="10" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
+      <rect x="58" y="116" width="60" height="18" rx="9" fill="#ece6d6" stroke={P.ink.line} strokeWidth="1.1" />
+      <rect x="58" y="116" width="60" height="18" rx="9" fill="none" stroke={palette.mid} strokeWidth="1" opacity="0.5" />
+      {[72, 88, 104].map(x => <circle cx={x} cy="125" r="3" fill="#1f2a44" stroke={P.ink.line} strokeWidth="0.6" />).join('')}
+      <Banner x={22} y={72} palette={palette} scale={0.7} />
     </BuildingFrame>
   );
 }
