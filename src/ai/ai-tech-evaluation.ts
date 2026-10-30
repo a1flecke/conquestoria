@@ -1,6 +1,6 @@
 import type { ResourceType, Tech } from '@/core/types';
 import type { AIStrategicRole } from '@/core/types/ai';
-import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
+import { BUILDINGS, TRAINABLE_UNITS, getTrainableUnit } from '@/systems/city-system';
 import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 import { TECH_COST_DISCOUNTS, TECH_YIELD_MODIFIERS, type YieldKind } from '@/systems/tech-yield-definitions';
 import { UNIT_MODIFIERS } from '@/systems/unit-modifier-definitions';
@@ -106,7 +106,7 @@ export function evaluateAITechCapabilities(
     }
   }
   for (const type of unitTypes) {
-    const catalogEntry = TRAINABLE_UNITS.find(unit => unit.type === type);
+    const catalogEntry = getTrainableUnit(type);
     const definition = UNIT_DEFINITIONS[type];
     if (!catalogEntry || !definition) continue;
     if (!isAvailableAfterResearch(catalogEntry)) continue;

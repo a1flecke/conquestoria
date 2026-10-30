@@ -1,7 +1,7 @@
 import type { City, CivBonusEffect, ResourceType, UnitType } from '@/core/types';
 import type { ReserveLedger } from '@/core/types/commerce';
 import { BUILDINGS } from './city-building-catalog';
-import { ERA_1_2_MELEE_UNIT_TYPES, MELEE_RANGED_UNIT_TYPES, TRAINABLE_UNITS } from './city-unit-catalog';
+import { ERA_1_2_MELEE_UNIT_TYPES, MELEE_RANGED_UNIT_TYPES, getTrainableUnit } from './city-unit-catalog';
 import { getMaterialRecipe } from './resource-material-costs';
 import { findTradeGood } from './trade-good-definitions';
 import { LOCAL_INFRASTRUCTURE_BUILDINGS } from './city-local-infrastructure';
@@ -56,7 +56,7 @@ export function getCatalogProductionCost(itemId: string, era: number = 1): numbe
   const building = BUILDINGS[itemId];
   if (building) return building.productionCost;
 
-  const unit = TRAINABLE_UNITS.find(candidate => candidate.type === itemId);
+  const unit = getTrainableUnit(itemId);
   if (!unit) return 0;
   if (unit.type === 'settler') return getSettlerProductionCost(era);
   return unit.cost;
@@ -79,7 +79,7 @@ function getBuildingDiscountMultiplier(itemId: string, cityBuildings: string[]):
     if (cityBuildings.includes('armory'))      best = Math.min(best, 0.85);
     if (cityBuildings.includes('war-academy')) best = Math.min(best, 0.85);
   }
-  const unit = TRAINABLE_UNITS.find(candidate => candidate.type === itemId);
+  const unit = getTrainableUnit(itemId);
   const localInfrastructureFamilies = unit
     ? getUnitRoleDefinition(unit.type)?.localInfrastructureFamilies ?? []
     : [];
@@ -238,7 +238,7 @@ export function getProductionCostForItem(
   const baseCost = getCatalogProductionCost(itemId, options.era);
   if (baseCost <= 0) return 0;
 
-  const unit = TRAINABLE_UNITS.find(candidate => candidate.type === itemId);
+  const unit = getTrainableUnit(itemId);
   const civMultiplier = applyProductionBonus(itemId, options.bonusEffect);
 
   const discounts: number[] = [];

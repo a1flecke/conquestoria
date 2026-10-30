@@ -8,8 +8,8 @@ import type {
 import { TECH_TREE } from '@/systems/tech-definitions';
 import {
   BUILDINGS,
-  TRAINABLE_UNITS,
   civHasCoastalCity,
+  getTrainableUnit,
 } from '@/systems/city-system';
 import { calculateCivResearchOutput } from '@/systems/research-output-system';
 import { getCivAvailableResources, getCivHappinessFromResources } from '@/systems/resource-acquisition-system';
@@ -340,7 +340,7 @@ function resourceMismatch(
 ): number {
   let penalty = 0;
   for (const type of tech.unlocksUnits ?? []) {
-    const unit = TRAINABLE_UNITS.find(candidate => candidate.type === type);
+    const unit = getTrainableUnit(type);
     if (!unit?.resourceRequired?.length) continue;
     penalty += unit.resourceRequired
       .filter(resource => !availableResources.has(resource))

@@ -112,12 +112,12 @@ function getLastCompletedTechId(state: TechState): string | null {
   return state.completed.length > 0 ? state.completed[state.completed.length - 1] : null;
 }
 
-function collectPrerequisitePath(techId: string, path: Set<string>, techs: readonly Tech[]): void {
-  const tech = techs.find(candidate => candidate.id === techId);
+function collectPrerequisitePath(techId: string, path: Set<string>, techsById: ReadonlyMap<string, Tech>): void {
+  const tech = techsById.get(techId);
   if (!tech || path.has(tech.id)) return;
 
   for (const prereq of tech.prerequisites) {
-    collectPrerequisitePath(prereq, path, techs);
+    collectPrerequisitePath(prereq, path, techsById);
   }
   path.add(tech.id);
 }
@@ -216,6 +216,11 @@ export function buildTechProgressionView(
   options: { sciencePerTurn?: number; zoom?: TechTreeZoom; initialFocusTechId?: string; selectedTechId?: string | null; techs?: readonly Tech[] } = {},
 ): TechProgressionView {
   const techs = options.techs ?? TECH_TREE;
+  // #1604: one index per view build. The era scan below used to run `techs.find` once per completed
+  // technology, so a late-era civ paid (completed x catalogue) on every render and every selection change.
+  // A caller-supplied `techs` subset is honoured, and first-match wins exactly as `find` did.
+  const techsById = new Map<string, Tech>();
+  for (const tech of techs) if (!techsById.has(tech.id)) techsById.set(tech.id, tech);
   const completed = new Set(state.completed);
   const planned = buildPlannedCompletionSet(state);
   const queueableIds = getQueueableResearchIds(state, [...techs]);
@@ -235,17 +240,17 @@ export function buildTechProgressionView(
     ...planned,
     ...queueableIds,
   ]);
-  const focusTech = focusTechId ? techs.find(tech => tech.id === focusTechId) : undefined;
+  const focusTech = focusTechId ? techsById.get(focusTechId) : undefined;
   const selectedTechId = options.selectedTechId ?? focusTechId;
   const selectedPathIds = new Set<string>();
   if (selectedTechId) {
-    collectPrerequisitePath(selectedTechId, selectedPathIds, techs);
+    collectPrerequisitePath(selectedTechId, selectedPathIds, techsById);
   }
 
   const currentPlayerEra = Math.max(
     1,
-    ...state.completed.map(id => techs.find(t => t.id === id)?.era ?? 1),
-    state.currentResearch ? (techs.find(t => t.id === state.currentResearch)?.era ?? 1) : 1,
+    ...state.completed.map(id => techsById.get(id)?.era ?? 1),
+    state.currentResearch ? (techsById.get(state.currentResearch)?.era ?? 1) : 1,
   );
 
   for (const tech of techs) {

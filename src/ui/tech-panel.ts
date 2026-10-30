@@ -10,7 +10,7 @@ import {
   type TechProgressionNode,
   type TechTreeZoom,
 } from '@/systems/tech-progression';
-import { TECH_TREE, getEffectiveTechCost } from '@/systems/tech-system';
+import { TECH_TREE, getTechById, getEffectiveTechCost } from '@/systems/tech-system';
 import { getEraAdvancementFraction, getEraAdvancementTechs, resolveCivilizationEra } from '@/systems/tech-definitions';
 import { UNIT_DEFINITIONS } from '@/systems/unit-definitions';
 import { evaluateProductionPrerequisites } from '@/systems/production-prerequisites';
@@ -102,7 +102,7 @@ function getEraLabel(era: number): string {
 }
 
 function getTechName(techId: string): string {
-  return TECH_TREE.find(tech => tech.id === techId)?.name ?? techId;
+  return getTechById(techId)?.name ?? techId;
 }
 
 function getNodeStatusLabel(node: TechProgressionNode): string {
@@ -442,7 +442,7 @@ export function createTechPanel(
   }
 
   const currentTech = civ.techState.currentResearch
-    ? TECH_TREE.find(tech => tech.id === civ.techState.currentResearch)
+    ? getTechById(civ.techState.currentResearch)
     : undefined;
   const currentProgress = currentTech
     // MR4 (#917): carried queue overflow can transiently push researchProgress
@@ -485,7 +485,7 @@ export function createTechPanel(
     queueSection.appendChild(empty);
   } else {
     civ.techState.researchQueue.forEach((techId, index) => {
-      const tech = TECH_TREE.find(candidate => candidate.id === techId);
+      const tech = getTechById(techId);
       const timing = queueTiming.get(techId);
       const row = document.createElement('div');
       row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;background:rgba(255,255,255,0.06);border-radius:8px;padding:8px;gap:10px;';
@@ -641,13 +641,13 @@ export function createTechPanel(
     function topoVisit(techId: string): void {
       if (visited.has(techId) || inProg.has(techId)) return;
       inProg.add(techId);
-      const t = TECH_TREE.find(x => x.id === techId);
+      const t = getTechById(techId);
       if (t) { for (const p of t.prerequisites) topoVisit(p); topoOrder.push(techId); }
       inProg.delete(techId); visited.add(techId);
     }
     for (const t of TECH_TREE) topoVisit(t.id);
     for (const techId of topoOrder) {
-      const t = TECH_TREE.find(x => x.id === techId)!;
+      const t = getTechById(techId)!;
       const maxPrereq = t.prerequisites.length > 0 ? Math.max(...t.prerequisites.map(p => depthMap.get(p) ?? 0)) : -1;
       depthMap.set(techId, maxPrereq + 1);
     }
