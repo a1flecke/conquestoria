@@ -302,8 +302,8 @@
     const host = $('tiers'); host.textContent = '';
     for (let t = 0; t < 4; t++) {
       const tile = document.createElement('div'); tile.className = 'tile';
-      const cv = document.createElement('canvas'); const ctx = setupCanvas(cv, CW, CH); cv.style.width = '100%'; cv.style.height = 'auto';
-      drawFrame(ctx, 'damage', t, CW / 2, BASE, 1);
+      const cv = document.createElement('canvas'); const ctx = setupCanvas(cv, 230, CH); cv.style.width = '100%'; cv.style.height = 'auto';
+      drawFrame(ctx, 'damage', t, 115, BASE, 1);
       const cap = document.createElement('div'); cap.className = 'cap'; cap.textContent = `Tier ${t}: ${BANDS[t]}`;
       tile.append(cv, cap); host.append(tile);
     }

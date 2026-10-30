@@ -1,8 +1,8 @@
 window.STRIP_MANIFEST = {
   "id": "spearman",
-  "cellWidth": 304,
+  "cellWidth": 368,
   "cellHeight": 192,
-  "cols": 6,
+  "cols": 8,
   "rows": 7,
   "baseline": 176,
   "states": {
@@ -15,14 +15,14 @@ window.STRIP_MANIFEST = {
     },
     "walk": {
       "row": 1,
-      "frames": 6,
+      "frames": 8,
       "fps": 10,
       "loop": true,
       "note": ""
     },
     "attack": {
       "row": 2,
-      "frames": 5,
+      "frames": 6,
       "fps": 9,
       "loop": false,
       "note": ""
@@ -36,14 +36,14 @@ window.STRIP_MANIFEST = {
     },
     "hit": {
       "row": 4,
-      "frames": 4,
+      "frames": 5,
       "fps": 8,
       "loop": false,
       "note": ""
     },
     "defeat": {
       "row": 5,
-      "frames": 4,
+      "frames": 5,
       "fps": 5,
       "loop": false,
       "note": ""

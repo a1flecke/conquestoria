@@ -6,9 +6,12 @@
 puppet.py animates ONE painted still with a rig. This is the other way round: the art already contains the frames (an
 image generator drew a walk cycle, an attack, damage tiers ...), so the tool only has to *cut, normalise and pack* them:
 
-  1. key the flat magenta field out and cut each strip into its figures (one connected component per frame),
-  2. give every frame of a strip the same scale (taken from the strip's rest-pose frames, matched to the master idle),
-  3. put every frame's boots on one baseline and its feet centre on one vertical line,
+  1. find the figures: from the alpha channel when the image has real transparency, otherwise by keying out a flat magenta
+     field. One connected component is one frame, so strips and grids (rows of frames) both work and cell borders are
+     never trusted,
+  2. give every frame of a strip one scale (from its upright rest frames, or, for a strip with none, from the area of the
+     steel shield and spear head matched to another strip), anchored to the master idle,
+  3. put every frame's boots on one baseline and its anchor on one vertical line,
   4. split the red cloth into a civ-tint mask with the same keying puppet.py uses,
   5. pack frames into a sheet + mask sheet and write a manifest the preview page (or a future player) reads.
 
@@ -49,13 +52,30 @@ def field_mask(rgb: np.ndarray) -> np.ndarray:
     return (r > 150) & (b > 150) & (g < 130) & (np.abs(r - b) < 70)
 
 
-def load_figures(path: Path, expected: int):
-    """Return [(rgba float32 crop, mask bool crop)] for the `expected` figures in the image, left to right."""
-    rgb = np.array(Image.open(path).convert('RGB'))
-    fig = ndi.binary_opening(~field_mask(rgb), iterations=2)
+def find_source(sources: Path, name: str) -> Path:
+    for suffix in ('', '.png', '.bin'):
+        p = sources / (name + suffix)
+        if p.is_file():
+            return p
+    raise SystemExit(f'source image "{name}" not found in {sources} (tried {name}, {name}.png, {name}.bin)')
+
+
+def load_figures(path: Path, expected: int, grid: list[int] | None = None):
+    """Return [(rgb, mask, (x0, y0, x1, y1))] for the `expected` figures in the image, in reading order.
+
+    `grid` lists how many figures sit in each row, top to bottom (e.g. [4, 4]); without it the figures are ordered left to
+    right. Real transparency is used when the image has it (the generator's own cut-out, where a faint glow can sit at
+    alpha <= 20, so only strongly opaque pixels count); a flat magenta field is keyed out otherwise.
+    """
+    rgba = np.array(Image.open(path).convert('RGBA'))
+    rgb, alpha = rgba[..., :3], rgba[..., 3]
+    if (alpha < 250).mean() > 0.2:
+        fig = ndi.binary_opening(alpha >= 200, iterations=1)
+    else:
+        fig = ndi.binary_opening(~field_mask(rgb), iterations=2)
     labels, n = ndi.label(fig)
     if n == 0:
-        raise SystemExit(f'{path.name}: no figure found (is the background magenta?)')
+        raise SystemExit(f'{path.name}: no figure found')
     areas = ndi.sum(fig, labels, range(1, n + 1))
     order = np.argsort(areas)[::-1]
     if len(order) < expected:
@@ -63,21 +83,32 @@ def load_figures(path: Path, expected: int):
     if len(order) > expected and areas[order[expected]] > 0.02 * areas[order[expected - 1]]:
         raise SystemExit(f'{path.name}: expected {expected} figures but a {areas[order[expected]]:.0f}px piece is left over '
                          '(figures touching, or a detached part)')
-    chosen = [int(i) + 1 for i in order[:expected]]
     figures = []
-    for lab in chosen:
-        m = labels == lab
+    for i in order[:expected]:
+        m = labels == int(i) + 1
         ys, xs = np.where(m)
         figures.append((xs.min(), ys.min(), xs.max() + 1, ys.max() + 1, m))
-    figures.sort(key=lambda f: (f[0] + f[2]) / 2)
-    out = []
-    for x0, y0, x1, y1, m in figures:
-        out.append((rgb, m, (x0, y0, x1, y1)))
-    return out
+    if grid:
+        if sum(grid) != expected:
+            raise SystemExit(f'{path.name}: grid {grid} does not add up to {expected} figures')
+        figures.sort(key=lambda f: (f[1] + f[3]) / 2)
+        ordered, at = [], 0
+        for count in grid:
+            row = sorted(figures[at:at + count], key=lambda f: (f[0] + f[2]) / 2)
+            ordered.extend(row)
+            at += count
+        figures = ordered
+    else:
+        figures.sort(key=lambda f: (f[0] + f[2]) / 2)
+    h, w = alpha.shape
+    for x0, y0, x1, y1, _ in figures:
+        if x0 <= 0 or y0 <= 0 or x1 >= w or y1 >= h:
+            print(f'  note: {path.name} has a figure touching the image edge (it may be cut off): box {x0},{y0},{x1},{y1}')
+    return [(rgb, m, (x0, y0, x1, y1)) for x0, y0, x1, y1, m in figures]
 
 
 def clean_rgba(rgb: np.ndarray, m: np.ndarray, box) -> tuple[np.ndarray, np.ndarray]:
-    """RGBA float crop with the magenta spill removed: edge colours are replaced by the nearest interior colour."""
+    """RGBA float crop with the background spill removed: edge colours are replaced by the nearest interior colour."""
     x0, y0, x1, y1 = box
     inner = ndi.binary_erosion(m, iterations=2)
     idx = ndi.distance_transform_edt(~inner, return_indices=True)[1]
@@ -88,8 +119,27 @@ def clean_rgba(rgb: np.ndarray, m: np.ndarray, box) -> tuple[np.ndarray, np.ndar
     return rgba, m[y0:y1, x0:x1]
 
 
-def feet_x(mask: np.ndarray) -> float:
-    """Horizontal centre of the boots: centroid of the lowest 10% of the figure."""
+def steel_area(rgba: np.ndarray, m: np.ndarray) -> int:
+    """Pixels of grey metal (shield rim and boss, spear head): a size reference that is the same in every pose."""
+    rgb = rgba[..., :3]
+    mx, mn = rgb.max(-1), rgb.min(-1)
+    sat = (mx - mn) / (mx + 1e-6)
+    return int((m & (sat < 0.22) & (mx > 0.22) & (mx < 0.9)).sum())
+
+
+def anchor_x(mask: np.ndarray, how: str) -> float:
+    """Horizontal anchor of a frame: the boots ('feet'), the whole body ('mass') or the torso ('torso').
+
+    'torso' (the band between 30% and 60% of the figure's height) keeps the body still while the legs swing, which is what a
+    walk in place needs; 'feet' lets the body lunge or stagger while the boots stay planted, which suits an attack."""
+    if how == 'mass':
+        xs = np.where(mask)[1]
+        return float(xs.mean())
+    if how == 'torso':
+        h = mask.shape[0]
+        band = mask[int(h * 0.30):int(h * 0.60)]
+        xs = np.where(band)[1]
+        return float(xs.mean()) if xs.size else mask.shape[1] / 2
     h = mask.shape[0]
     band = mask[int(h * 0.90):]
     xs = np.where(band)[1]
@@ -126,19 +176,35 @@ def build(spec_path: Path, sources: Path, out_dir: Path) -> None:
     H = int(fr['height'])
     key = spec['tint']
 
-    # frames[row] = list of (rgba, mask, scale, feet_x)
+    # pass 1: cut every strip and, where it has rest frames, give it a scale from their height
     rows: list[dict] = []
+    by_state: dict[str, dict] = {}
     for st in spec['states']:
-        figs = load_figures(sources / (st['file'] + '.bin'), st['cells'])
+        figs = load_figures(find_source(sources, st['file']), st['cells'], st.get('grid'))
         prepared = [clean_rgba(*f) for f in figs]
         heights = [m.shape[0] for _, m in prepared]
-        ref = st.get('restFrames') or list(range(len(prepared)))
-        scale = rest_h / float(np.mean([heights[i] for i in ref]))
-        frames = [(rgba, m, scale, feet_x(m)) for rgba, m in prepared]
-        rows.append({'state': st['state'], 'fps': st['fps'], 'loop': st.get('loop', True), 'frames': frames,
-                     'scale': scale, 'note': st.get('note', '')})
+        steel = [steel_area(rgba, m) for rgba, m in prepared]
+        scale = None
+        if not st.get('matchSteelTo'):
+            ref = st.get('restFrames') or list(range(len(prepared)))
+            scale = rest_h / float(np.median([heights[i] for i in ref]))
+        row = {'state': st['state'], 'fps': st['fps'], 'loop': st.get('loop', True), 'prepared': prepared,
+               'steel': float(np.median(steel)), 'scale': scale, 'note': st.get('note', ''),
+               'anchor': st.get('anchor', 'feet'), 'match': st.get('matchSteelTo')}
+        rows.append(row)
+        by_state[st['state']] = row
 
-    # one cell width for the whole sheet: the widest reach of any frame from its feet centre
+    # pass 2: a strip with no upright frame takes its scale from the steel area of another strip
+    for r in rows:
+        if r['match']:
+            ref = by_state[r['match']]
+            r['scale'] = ref['scale'] * float(np.sqrt(ref['steel'] / r['steel']))
+            print(f'  {r["state"]}: scale from the steel area of "{r["match"]}" ({r["scale"]:.4f})')
+
+    for r in rows:
+        r['frames'] = [(rgba, m, r['scale'], anchor_x(m, r['anchor'])) for rgba, m in r['prepared']]
+
+    # one cell width for the whole sheet: the widest reach of any frame from its anchor
     reach = 0.0
     for r in rows:
         for rgba, m, s, fx in r['frames']:
@@ -174,7 +240,7 @@ def build(spec_path: Path, sources: Path, out_dir: Path) -> None:
             msheet[ri * H:(ri + 1) * H, ci * W:(ci + 1) * W] = mcell
             if oy < 0 or ox < 0 or ox + sb.shape[1] > W:
                 report.append(f'  CLIPPED {r["state"]} frame {ci}: ox={ox} oy={oy} size={sb.shape[1]}x{sb.shape[0]} cell={W}x{H}')
-        print(f'  {r["state"]:7s} {len(r["frames"])} frames  scale {r["scale"]:.4f}')
+        print(f'  {r["state"]:7s} {len(r["frames"])} frames  scale {r["scale"]:.4f}  anchor {r["anchor"]}')
 
     out_dir.mkdir(parents=True, exist_ok=True)
     to_img = lambda a: Image.fromarray((np.clip(a, 0, 1) * 255 + 0.5).astype(np.uint8))
@@ -189,8 +255,10 @@ def build(spec_path: Path, sources: Path, out_dir: Path) -> None:
     (out_dir / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
     (out_dir / 'manifest.js').write_text('window.STRIP_MANIFEST = ' + json.dumps(manifest, indent=2) + ';\n')
 
+    used = sum(len(r['frames']) for r in rows)
     kb = (out_dir / 'sheet.png').stat().st_size / 1024 + (out_dir / 'mask.png').stat().st_size / 1024
-    print(f'{uid}: {cols}x{len(rows)} cells of {W}x{H}px ({len(rows) * cols} slots), vref {vref:.3f}, {kb:.0f} KB (sheet+mask)')
+    print(f'{uid}: {cols}x{len(rows)} cells of {W}x{H}px ({used} drawn frames in {len(rows) * cols} slots), vref {vref:.3f}, '
+          f'{kb:.0f} KB (sheet+mask)')
     for line in report:
         print(line)
 
@@ -209,7 +277,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('cmd', choices=['build'])
     ap.add_argument('spec')
-    ap.add_argument('--sources', required=True, help='directory with the generated strips named in the spec (<file>.bin)')
+    ap.add_argument('--sources', required=True, help='directory with the generated images named in the spec')
     ap.add_argument('--out', help='output directory (default design/png-sprites/previews/<id>)')
     args = ap.parse_args()
     spec_path = Path(args.spec)

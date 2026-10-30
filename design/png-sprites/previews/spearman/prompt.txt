@@ -1,4 +1,6 @@
-You are making a complete set of game art for ONE unit in a historical civilization strategy game. Create SEVEN separate images, one after another, in this single conversation. Image 1 is the master design. Every later image must show the EXACT same soldier as Image 1 (same face, build, proportions, outfit, colours, spear and shield). Do not redesign him between images. If you cannot keep him identical, say so instead of changing him.
+Use the attached image as the master design of this soldier. [Delete this line if there is no attachment, and draw the master image first.]
+
+You are making a complete set of game art for ONE unit in a historical civilization strategy game. Create SEVEN separate images, one after another, in this single conversation. Image 1 is the master design. Every later image must show the EXACT same soldier as Image 1 (same face, beard, build, proportions, cap, outfit, colours, spear and shield). Do not redesign him between images. If you cannot keep him identical, say so instead of changing him.
 
 THE UNIT: a Spearman. An ancient-to-medieval foot soldier holding a long spear upright in his right hand, a small round wooden shield on his left arm, a plain leather cap, bare forearms, simple leather boots. Friendly, readable, slightly stylised proportions (large head and hands, so it reads at a small size).
 
@@ -8,29 +10,40 @@ COLOUR RULES (all images):
 - His tunic and short cloak are saturated pure red (#E01010). This is the only red in the whole image. Skin, leather, wood, metal and any stains are browns, tans, greys and dark maroon, never bright red. (Pure red is a team-colour area that the game recolours.)
 - The background is ONE flat solid magenta (#FF00FF), with no gradient, texture, noise, glow, shadow or floor. Nothing on the soldier may be magenta or pink.
 
-CAMERA RULES (all images):
-- Strict side view, facing RIGHT. Full figure, head to feet, spear tip included, fully inside the frame with a small margin.
-- Same scale in every image and every cell. Feet on the same horizontal baseline in every cell. Body centered in each cell.
-- No text, labels, borders, grid lines, logos, scenery or motion-blur streaks.
-- Family-friendly: no blood, gore or wounds beyond the mild marks described below.
+CAMERA AND LAYOUT RULES (all images):
+- Strict side view, facing RIGHT. "Forward" always means toward the right edge. Full figure, head to feet, spear tip included, fully inside the frame with a small margin.
+- In every upright frame the figure, from spear tip to boot soles, must be exactly the same height in pixels as in Image 1. Same scale in every image and every frame.
+- In a strip, every frame has its own equal-width cell. The boots rest on the same horizontal ground line in every frame, except while a foot is lifted. Leave at least 40 pixels of empty magenta between neighbouring figures; no part of one figure may touch or overlap another.
+- No text, labels, borders, grid lines, logos, scenery, ground shadow or motion-blur streaks.
+- Family-friendly: no blood and no gore.
 
 IMAGE 1, MASTER IDLE (square, 1024x1024): the soldier standing at rest, spear upright, shield on his left arm. This is the reference design.
 
-IMAGE 2, WALK CYCLE (wide strip, 1536x256): 6 equal cells in one row. Frames in order: contact, down, passing, contact (opposite leg), down, passing. Spear carried upright, small natural arm swing, slight cloak sway, head bobbing only a few pixels. It must loop smoothly from frame 6 back to frame 1.
+IMAGE 2, WALK CYCLE (wide strip, 2048x256): EIGHT equal cells in one row, a steady marching walk. The legs must change clearly from one frame to the next. If two neighbouring frames look alike, redraw them. Exaggerate the stride slightly so it reads at a small size. Frames in order:
+ 1. CONTACT: his right leg is far forward with the heel on the ground and the toes up; his left leg is far behind with only the toes touching, pushing off. The feet are about half a body-height apart. Torso upright.
+ 2. DOWN: body at its lowest. Weight drops onto the front (right) foot, which is now flat; the knee bends a little. The left foot peels off the ground behind him.
+ 3. PASSING: the right leg is straight and carries all his weight. The left leg is lifted with the knee bent, swinging forward under the body. The left boot is clearly OFF the ground with a visible gap under it.
+ 4. HIGH: body at its highest. He is up on the toes of the right foot. The left knee is raised and forward, and the left foot reaches ahead.
+ 5. CONTACT, opposite leg: his left leg is far forward with the heel on the ground and the toes up; his right leg is far behind, pushing off with the toes.
+ 6. DOWN, opposite leg: weight drops onto the left foot, knee bent, right foot peeling off the ground.
+ 7. PASSING, opposite leg: the left leg is straight and carries his weight; the right leg is lifted with a bent knee swinging forward, boot clearly off the ground.
+ 8. HIGH, opposite leg: up on the toes of the left foot, right knee raised and forward.
+ Frame 8 must flow smoothly into frame 1 as a seamless loop.
+ Upper body: the shield arm swings opposite to the legs; the hand holding the spear stays steady with a small rock; the spear stays near-vertical and tilts only slightly; the cloak trails behind and sways; the head rises and falls by about 3% of his height.
 
-IMAGE 3, ATTACK (wide strip, 1280x256): 5 equal cells in one row. A spear thrust: (1) ready, (2) wind-up with the spear drawn back and weight on the back foot, (3) fast forward lunge with the spear fully extended to the right, (4) full extension with the cloak streaming back, (5) recover to ready. Keep the body and spear clearly separated in every frame.
+IMAGE 3, ATTACK (wide strip, 1792x256): SIX equal cells: (1) ready stance, (2) anticipation: knees bent, weight shifting back, (3) wind-up: spear drawn far back and up, (4) fast forward lunge, spear half-extended, (5) full extension: spear fully extended to the right, front knee deeply bent, cloak streaming back, (6) recover to ready. The body and spear are clearly separated in every frame.
 
-IMAGE 4, DAMAGE STATES (wide strip, 1024x256): 4 equal cells, the same idle pose as Image 1 in each, showing the same soldier progressively hurt:
+IMAGE 4, DAMAGE STATES (wide strip, 1024x256): FOUR equal cells, the same standing pose as Image 1 in each, the same soldier progressively hurt. Each step must be clearly different from the one before it at a glance:
  (1) Healthy: identical to Image 1.
- (2) Light damage, about 75% health: scuffs of dirt, a small slash in the tunic, a graze on the sword arm.
- (3) Serious damage, about 50%: torn tunic and sleeve, a cracked and dented shield, a few small dark-maroon stains, messy hair.
+ (2) Light damage, about 75% health: visible dirt smudges on tunic and legs, one clear slash across the tunic, a mud-stained cloak hem, a scrape on the sword arm.
+ (3) Serious damage, about 50%: torn tunic and sleeve, a cracked and dented shield, a few small dark-maroon stains, messy hair, a ragged cloak.
  (4) Critical, about 25%: bandages on chest and forearm, a scratched and bruised face, a chipped shield, a bent spear, a slightly slumped posture.
-Damage is shown only through mild clothing, equipment and bandage changes. No blood pools, no gore.
+Damage shows only through clothing, equipment, bandages and posture. No blood pools.
 
-IMAGE 5, HIT REACTION (wide strip, 1024x256): 4 equal cells: (1) idle, (2) flinch with the head snapped back and shield raised, (3) staggered back one step, (4) recovered to idle.
+IMAGE 5, HIT REACTION (wide strip, 1280x256): FIVE equal cells: (1) standing ready, (2) impact: the head snaps back and the torso leans back about 15 degrees, the shield thrown up, (3) the stagger: one foot slides back, the knees flex, (4) catching his balance, (5) recovered to standing.
 
-IMAGE 6, DEFEAT (wide strip, 1024x256): 4 equal cells, non-graphic: (1) idle, (2) knees buckling, (3) kneeling with the spear planted and the head bowed, (4) lying down at rest with the spear beside him. No blood.
+IMAGE 6, DEFEAT (wide strip, 1280x256): FIVE equal cells, non-graphic: (1) standing, (2) struck: leaning back, (3) knees buckling, (4) kneeling with the spear planted and the head bowed, (5) lying down at rest with the spear beside him. No blood.
 
-IMAGE 7, WORK / BUILD (wide strip, 1024x256): 4 equal cells: the soldier lowers the spear and uses it to dig at the ground with a small downward strike, then raises it back up to idle.
+IMAGE 7, WORK / BUILD (wide strip, 1024x256): FOUR equal cells: the soldier lowers the spear and uses it to dig at the ground with a small downward strike, then raises it back up to standing. It must loop back to frame 1.
 
-After each image, give me one short line confirming: same soldier as Image 1, all cells share the same baseline and scale, red appears only on the tunic and cloak, and no magenta on the figure. If any of those fail, regenerate that image before moving on. Generate the images now, starting with Image 1.
+After each image, give me one short line confirming: same soldier as Image 1, same figure height in every frame, no figures touching, red appears only on the tunic and cloak, no magenta on the figure. If any of those fail, regenerate that image before moving on. Generate the images now, starting with Image 1 (or with Image 2 if Image 1 is attached).
