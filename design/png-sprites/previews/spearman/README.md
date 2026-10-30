@@ -4,6 +4,9 @@ A one-unit experiment: can an image generator draw **every frame** of a unit (wa
 tiers), instead of the game animating one still with a rig (`scripts/sprite-puppet/puppet.py`)? Nothing here is wired into the
 game. It is a preview page plus the prototype tool that built its sheet.
 
+This is the second run. The first (single-row strips on a magenta field, 6-frame walk) had a stiff walk and a barely visible
+first damage tier; it was replaced by the set described here and is in this branch's git history.
+
 ## Look at it
 
 The page tints on `<canvas>` rather than with CSS masks (which browsers block on `file://`), so it should open from disk too, but only
@@ -25,12 +28,12 @@ sizes, every animation looping, the damage tiers side by side, and a size check 
 | File | What |
 |---|---|
 | `index.html`, `manifest.js` | the preview page and the sheet layout it reads |
-| `sheet.png`, `mask.png` | 6 x 7 cells of 304 x 192 px. The cloth is a grey ramp in the sheet; the mask says how much of each pixel takes the civ colour (same scheme as the game's PNG units) |
+| `sheet.png`, `mask.png` | 8 x 7 cells of 368 x 192 px, 33 drawn frames in 56 slots, 1.1 MB together. The cloth is a grey ramp in the sheet; the mask says how much of each pixel takes the civ colour (same scheme as the game's PNG units) |
 | `manifest.json` | the same layout as JSON |
-| `prompt.txt` | the single ChatGPT prompt that produced all seven images |
+| `prompt.txt` | the prompt written for this run (ChatGPT altered it before it would run; see `provenance.json`) |
 | `provenance.json` | generator, date, scan result, SHA-256 of the seven originals (the originals are not committed, about 11 MB) |
 
-Rebuild with the originals in a folder (named `1-idle.bin` ... `7-work.bin`):
+Rebuild with the originals in a folder (named `a` to `g`, `.png` or `.bin`, as the spec lists them):
 
 ```bash
 python3 -I scripts/sprite-puppet/strips.py build scripts/sprite-puppet/strip-rigs/spearman.json --sources <folder>
@@ -40,16 +43,24 @@ python3 -I scripts/sprite-puppet/strips.py build scripts/sprite-puppet/strip-rig
 
 ### Intake: easy, and mostly done
 
-`scripts/sprite-puppet/strips.py` cuts, normalises and packs the strips. It worked on the first run with no hand tuning:
+`scripts/sprite-puppet/strips.py` cuts, normalises and packs the strips. Both runs worked with no hand tuning of the cut:
 
-- **Keying.** The generated "magenta" was about `#F807F9` with a spread of a few levels, so a simple colour test separates it. Every
-  figure comes out as its own connected component (6 walk, 5 attack, 4 per other strip), so no cell grid has to be trusted.
-  ChatGPT's cells were *not* equal width (the lunge spears cross cell borders), which is why cutting by component matters.
-- **Scale.** ChatGPT drew each strip at its own scale (idle figure 541 to 690 px tall depending on the strip). The tool scales each
-  strip from its rest-pose frames to one common height. After that the rows match.
-- **Position.** Boots on one baseline, boot centre on one vertical line. No jitter visible between frames.
+- **Finding the figures.** Run 1 came back on a flat magenta field; run 2 came back with real transparency (RGBA). The tool handles
+  both. Each figure is one connected component, so single rows and grids (the second run laid its walk out as 4 x 2, the attack
+  as 3 x 2, and so on) both cut cleanly, and ChatGPT's cell borders are never trusted (the lunge spears cross them).
+- **Transparency has a catch.** The hit and defeat images carry a faint glow baked into their transparent background. It sits at
+  alpha 20 or below while the figures are at 231 or above, so a threshold at 200 removes it and gives exactly the expected frame
+  count in every image.
+- **Scale is the weak point.** ChatGPT draws each image at its own zoom (the same soldier is 415 px tall in the walk image and 607 px in
+  the damage image), even when told to keep one size. The tool scales each strip from its upright rest frames. The attack strip has no
+  upright frame, so its scale comes from the area of the steel shield and spear head matched against the walk. The shield method and
+  the height method agree to within about 7% where both can be used, so expect that much error on the attack. This is the one
+  place a person should eyeball the result.
+- **Anchoring.** Boots go on one baseline. Horizontally, the walk is anchored on the torso (the body stays still while the legs swing:
+  torso drift fell from 28 px to 1 px of a 150 px figure) and everything else on the boots (so a lunge or a stagger moves the body
+  while the feet stay planted).
 - **Tint.** The existing red-hue key picked up only the tunic and cloak. Skin, leather, shield and spear were untouched.
-- **Edges.** Magenta spill is removed by replacing edge colours with the nearest interior colour; no magenta fringe at 192 px.
+- **Edges.** Background spill is removed by replacing edge colours with the nearest interior colour; no fringe at 192 px.
 
 What the tool does not do yet: tests, a rig-spec validator, palette quantisation, and a provenance writer. All small.
 
@@ -59,28 +70,34 @@ The game's PNG player was built for one still rigged into three rows. These are 
 
 | Gap | Where | Size |
 |---|---|---|
-| **Cells are square.** `PngSpriteManifest.frameSize` is one number, the CSS sizes the sheet as `cols * 100%` by `rows * 100%` of a square element, and the canvas bake copies `S x S`. A spear thrust is wider than the soldier is tall (this sheet needs 304 x 192). Fitting the thrust into a square cell would shrink the figure to about 63% of its height; the alternative is a `cellWidth`/`cellHeight` pair, which touches the manifest type, the generated-manifest writer, the CSS variables, the canvas bake and the overlay wrapper. | `png-sprite-types.ts`, `png-sprite-html.ts`, `png-sprite-canvas.ts`, `png-sprite-animations.css` | medium |
+| **Cells are square.** `PngSpriteManifest.frameSize` is one number, the CSS sizes the sheet as `cols * 100%` by `rows * 100%` of a square element, and the canvas bake copies `S x S`. A spear thrust is wider than the soldier is tall (this sheet needs 368 x 192). Fitting the thrust into a square cell would shrink the figure to about half its height; the alternative is a `cellWidth`/`cellHeight` pair, which touches the manifest type, the generated-manifest writer, the CSS variables, the canvas bake and the overlay wrapper. | `png-sprite-types.ts`, `png-sprite-html.ts`, `png-sprite-canvas.ts`, `png-sprite-animations.css` | medium |
 | **Only three states have rows.** `hurt`, `death` and `work` reuse the idle row with a colour filter. Real rows mean adding them to `PngSpriteState`, the CSS selectors and the per-state variables. | same files | small |
-| **Everything loops.** The player runs `infinite`. Attack, hurt and death should play once. The game holds `attack` for 1.5 s, `hurt` for 0.7 s and `death` for 1.2 s (`pirate-sprite-state.ts`), so a 0.55 s thrust would loop about three times per attack today. | CSS | small |
+| **Everything loops.** The player runs `infinite`. Attack, hurt and death should play once. The game holds `attack` for 1.5 s, `hurt` for 0.7 s and `death` for 1.2 s (`pirate-sprite-state.ts`), so a 0.67 s thrust would loop about twice per attack today. | CSS | small |
 | **Damage tiers are not drawn.** `data-damage` exists on the wrapper (`render-loop.ts` computes it for every combat unit) and the SVG sprites use it, but the PNG player ignores it. One more row offset per tier would do it, if the rows exist. | CSS + manifest | small, but see size below |
 | **A death pose is only kept for pirates.** When a regular unit dies it is removed from state, so no `death` frame would ever show. Only pirate units get a death snapshot (`pirateUnitDeathSnapshots` in `render-loop.ts`). Showing a death animation for everyone is a presentation change beyond the sprite. | `render-loop.ts` | medium, separate from art |
 
 ### Size and art workload
 
-- Today's PNG units are 212 to 628 KB each on disk (sheet plus mask). This prototype is 719 KB for **28** drawn frames in a 42-slot
-  sheet (14 slots are empty), so roughly 26 KB per drawn frame.
-- Drawing every movement at every damage tier is 24 frames x 4 tiers = 96 frames, about 2.5 MB per unit before any compression.
-  Across the ~100 units in the game that is on the order of 250 MB of runtime-cached images. WebP or a reduced palette would cut
-  that a lot, but it needs measuring. The README for the existing rig already flags ~55 MB for the whole roster as a budget risk.
-- Art: one ChatGPT conversation produced all seven images here. Full per-tier coverage would be roughly four times the strips.
-  Damage on the standing pose only (what is in this prototype) is one extra strip.
+- Today's PNG units are 212 to 628 KB each on disk (sheet plus mask). This prototype is 1.1 MB for **33** drawn frames in a 56-slot
+  sheet, so roughly 33 KB per drawn frame. The art is more detailed than run 1 (which was 26 KB per frame).
+- Drawing every movement at every damage tier is 29 frames x 4 tiers = 116 frames, about 3.9 MB per unit before any compression.
+  Across the ~100 units in the game that is on the order of 390 MB of runtime-cached images (estimates, not measurements). WebP or a
+  reduced palette would cut that a lot, but it needs measuring. The README for the existing rig already flags ~55 MB for the whole
+  roster as a budget risk.
+- Art: one ChatGPT conversation produced all seven images. Full per-tier coverage would be roughly four times the strips.
+  Damage on the standing pose only (what is in this prototype) is one extra image.
 
 ### What the experiment says about quality
 
-- The character stayed the same across all seven images (one sample, so not proof it always will).
-- The walk cycle is stiff: little leg change between frames, frames 2 and 5 nearly alike.
-- The thrust, defeat and work strips read well. Damage tier 1 is barely different from healthy and would need a re-prompt.
-- Everything faces right only, as with every unit today.
+- **The character stayed the same across all seven images again** (two samples now, still not proof it always will).
+- **The walk is now a real walk.** Eight frames with the feet far apart at contact, a lifted boot at the passing pose and a visible
+  rise and fall. This was the main weakness of run 1.
+- **Damage tiers are clearly different at a glance**: dirt and a slash, then torn cloth and a cracked shield, then bandages, a broken
+  shield and a bent spear. Tier 1 was the weak one before.
+- The thrust, hit reaction, defeat and work strips all read well. The attack opens with an extra anticipation and an overhead wind-up.
+- **Not yet judged:** how the motion feels at 60 fps in a real browser (the review browser here throttles animation), and the
+  ~7% scale uncertainty on the attack strip.
+- Everything faces right only, as with every unit today. Damage tiers exist for the standing pose only.
 
 ### Options
 

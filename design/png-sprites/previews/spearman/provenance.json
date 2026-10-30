@@ -4,18 +4,31 @@
   "generator": "ChatGPT image generation (project owner, paid plan)",
   "generated_on": "2026-10-30",
   "prompt_file": "prompt.txt",
-  "prompt_note": "The prompt the assistant wrote for the owner to paste into one ChatGPT conversation. The owner may have edited it; the chat title ChatGPT chose was 'Roman Spearman on Magenta'.",
+  "prompt_note": "prompt.txt is the second prompt the assistant wrote (a rewrite of the first that asks for an 8-frame walk and clearer damage tiers). ChatGPT would not run it as written and altered it; the prompt it actually used was not available when this record was written, and the owner has said they will supply it as a template.",
   "licence_note": "Covered by the project's non-commercial posture (docs/asset-rights-ledger.md). If this art is adopted for the game it needs a ledger family row and a provenance record under design/png-sprites/sources/ like the other generated units.",
   "originals_committed": false,
   "originals_note": "The seven downloaded originals (about 11 MB) are not committed. Only the re-encoded sheet.png and mask.png are, built by scripts/sprite-puppet/strips.py from decoded pixels (no EXIF/XMP/ICC or C2PA survives).",
   "scan": "python3 -I scripts/portrait-pixelate/portrait_pixelate.py scan: all seven passed (PNG magic bytes, nothing after the image stream, one frame, within the pixel limit). ClamAV was not installed, so only the structural checks ran.",
+  "layout_note": "This set came back as RGBA with a real transparent background (no magenta), with the frames of each animation laid out in a grid rather than one row. The hit and defeat images carry a faint glow at alpha 20 or below, which the tool discards.",
   "originals": [
-    { "role": "idle (master)", "file": "1-idle", "size": [1254, 1254], "sha256": "14c35e32f04524111c50fbd02cef237f8e42f0457fbbdd7a3bc8d8fefb7cf7c6" },
-    { "role": "walk, 6 frames", "file": "2-walk", "size": [2172, 724], "sha256": "ecdf944a69c183b340bd8be63bd7a0c548443d7b511683895a539cfaf93004ee" },
-    { "role": "attack, 5 frames", "file": "3-attack", "size": [2172, 724], "sha256": "1acec6c3f1c8c3c5058bab3520b1027186b45299907a4b083e8891b0e231469f" },
-    { "role": "damage tiers 0-3", "file": "4-damage", "size": [2172, 724], "sha256": "dc323bfd9a9a1616ccea6f0efeaa30038ffc33bb3659cb6abfa2ab75d9f96f32" },
-    { "role": "hit reaction, 4 frames", "file": "5-hit", "size": [2172, 724], "sha256": "8a9fb3e00f2010fa25df0e69aafd4127bbdbbcdae16ba85e49be13fe76d4be4e" },
-    { "role": "defeat, 4 frames", "file": "6-defeat", "size": [2172, 724], "sha256": "90e2e302fc1d65601cd5e82acc36046fd658570222f420a59905c83dcab42753" },
-    { "role": "work, 4 frames", "file": "7-work", "size": [2172, 724], "sha256": "8350fbc79b98778ba257a97dd966d0cb24a087535abd316b9dc43ab6afa0fcd2" }
-  ]
+    { "role": "idle (master)", "file": "a", "size": [1254, 1254], "sha256": "0757820c82a7b3d2c213069e048f4a4fb140db4be4f67fd71ecc18769e9d3220" },
+    { "role": "walk, 8 frames (4 x 2 grid)", "file": "b", "size": [1774, 887], "sha256": "6a99f9a311d689bda5aca15ae38533e8663f767c3b1b510ff55689ffcf17e3dc" },
+    { "role": "attack, 6 frames (3 x 2 grid)", "file": "c", "size": [1881, 836], "sha256": "5ab5df5b83237607a0cf89f1885ed233c8f69fabfd6da16e513b80120b00e34b" },
+    { "role": "damage tiers 0-3 (2 x 2 grid)", "file": "d", "size": [1254, 1254], "sha256": "85c010b36c31f8e512d93e7479669789377296ccc5ef42ca0c9f770696b4ccf1" },
+    { "role": "hit reaction, 5 frames (3 + 2)", "file": "e", "size": [1536, 1024], "sha256": "6a403a77adc41695df09d06099b08f016ad277013bb3e0f778051f1feae9c1d5" },
+    { "role": "defeat, 5 frames (3 + 2)", "file": "f", "size": [1536, 1024], "sha256": "388daa266d991cdef58720c5d3b7d26da98b87a6fd6da19cc407f0f4e834244e" },
+    { "role": "work, 4 frames (2 x 2 grid)", "file": "g", "size": [1254, 1254], "sha256": "d228b6b83051b81d229165b306824d28e467f60a37991b03fae74adef47466ae" }
+  ],
+  "superseded_first_set": {
+    "note": "The first run (single-row strips on a magenta field) was replaced by the set above. Its sheet is in the git history of this branch.",
+    "sha256": [
+      "14c35e32f04524111c50fbd02cef237f8e42f0457fbbdd7a3bc8d8fefb7cf7c6",
+      "ecdf944a69c183b340bd8be63bd7a0c548443d7b511683895a539cfaf93004ee",
+      "1acec6c3f1c8c3c5058bab3520b1027186b45299907a4b083e8891b0e231469f",
+      "dc323bfd9a9a1616ccea6f0efeaa30038ffc33bb3659cb6abfa2ab75d9f96f32",
+      "8a9fb3e00f2010fa25df0e69aafd4127bbdbbcdae16ba85e49be13fe76d4be4e",
+      "90e2e302fc1d65601cd5e82acc36046fd658570222f420a59905c83dcab42753",
+      "8350fbc79b98778ba257a97dd966d0cb24a087535abd316b9dc43ab6afa0fcd2"
+    ]
+  }
 }

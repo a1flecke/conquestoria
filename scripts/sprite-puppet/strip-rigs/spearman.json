@@ -3,12 +3,12 @@
   "frame": { "height": 192, "baseline": 176, "restHeight": 150 },
   "tint": { "hue_ranges": [[0, 0.045], [0.955, 1]], "min_sat": 0.45, "min_val": 0.18 },
   "states": [
-    { "state": "idle",   "file": "1-idle",   "cells": 1, "fps": 4 },
-    { "state": "walk",   "file": "2-walk",   "cells": 6, "fps": 10 },
-    { "state": "attack", "file": "3-attack", "cells": 5, "fps": 9, "restFrames": [0, 4], "loop": false },
-    { "state": "damage", "file": "4-damage", "cells": 4, "fps": 1, "loop": false, "note": "idle pose at damage tiers 0-3" },
-    { "state": "hit",    "file": "5-hit",    "cells": 4, "fps": 8, "restFrames": [0, 3], "loop": false },
-    { "state": "defeat", "file": "6-defeat", "cells": 4, "fps": 5, "restFrames": [0], "loop": false },
-    { "state": "work",   "file": "7-work",   "cells": 4, "fps": 6, "restFrames": [0, 3] }
+    { "state": "idle",   "file": "a", "cells": 1, "fps": 4 },
+    { "state": "walk",   "file": "b", "cells": 8, "grid": [4, 4], "fps": 10, "anchor": "torso" },
+    { "state": "attack", "file": "c", "cells": 6, "grid": [3, 3], "fps": 9, "loop": false, "matchSteelTo": "walk" },
+    { "state": "damage", "file": "d", "cells": 4, "grid": [2, 2], "fps": 1, "loop": false, "note": "idle pose at damage tiers 0-3" },
+    { "state": "hit",    "file": "e", "cells": 5, "grid": [3, 2], "fps": 8, "restFrames": [0, 4], "loop": false },
+    { "state": "defeat", "file": "f", "cells": 5, "grid": [3, 2], "fps": 5, "restFrames": [0], "loop": false },
+    { "state": "work",   "file": "g", "cells": 4, "grid": [2, 2], "fps": 6, "restFrames": [0] }
   ]
 }
